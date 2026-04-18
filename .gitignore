@@ -364,3 +364,13 @@ FodyWeavers.xsd
 
 # Ignore ini files
 *.ini
+
+# Premake / Visual Studio generated files
+*.sln
+*.slnx
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# Premake generated build outputs
+Generated/

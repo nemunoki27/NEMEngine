@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <string>
 // json
-#include <json.hpp>
+#include <Externals/nlohmann/json.hpp>
 
 namespace Engine {
 
