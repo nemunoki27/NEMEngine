@@ -1,0 +1,23 @@
+{
+  "name": "ReflectionRaytracing",
+  "stages": [
+    {
+      "stage": "Lib",
+      "file": "Builtin/Raytracing/reflection.RT.hlsl",
+      "entry": "ReflectionRayGen",
+      "profile": "lib_6_6"
+    },
+    {
+      "stage": "Lib",
+      "file": "Builtin/Raytracing/reflection.RT.hlsl",
+      "entry": "ReflectionMiss",
+      "profile": "lib_6_6"
+    },
+    {
+      "stage": "Lib",
+      "file": "Builtin/Raytracing/reflection.RT.hlsl",
+      "entry": "ReflectionClosestHit",
+      "profile": "lib_6_6"
+    }
+  ]
+}

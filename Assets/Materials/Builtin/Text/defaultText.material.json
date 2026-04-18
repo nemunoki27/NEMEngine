@@ -1,0 +1,11 @@
+{
+  "name": "DefaultText",
+  "domain": "UI",
+  "passes": [
+    {
+      "passName": "Draw",
+      "pipeline": "Assets/Pipelines/Builtin/Text/defaultText.pipeline.json",
+      "preferredVariant": "GraphicsVertex"
+    }
+  ]
+}

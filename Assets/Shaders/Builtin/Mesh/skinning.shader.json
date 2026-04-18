@@ -1,0 +1,11 @@
+{
+  "name": "SkinningCompute",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "Builtin/Mesh/skinning.CS.hlsl",
+      "entry": "main",
+      "profile": "cs_6_0"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+#pragma once
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Editor/Panel/Interface/IEditorPanel.h>
+
+namespace Engine {
+
+	//============================================================================
+	//	HierarchyPanel class
+	//	ヒエラルキーパネル
+	//============================================================================
+	class HierarchyPanel :
+		public IEditorPanel {
+	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
+		HierarchyPanel() = default;
+		~HierarchyPanel() = default;
+
+		void Draw(const EditorPanelContext& context) override;
+	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- functions ----------------------------------------------------
+
+		// エンティティノードを描画する
+		void DrawEntityNode(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
+		void DrawSubMeshNodes(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
+		// ヒエラルキーパネルの背景を右クリックしたときのコンテキストメニューを描画する
+		void DrawBackgroundContextMenu(const EditorPanelContext& context);
+		// ルートエンティティでないエンティティをドロップしてルートエンティティにするためのドロップ目標を描画する
+		void DrawRootDropTarget(const EditorPanelContext& context, ECSWorld& world);
+
+		// ルートエンティティかどうか
+		bool IsRootEntity(ECSWorld& world, const Entity& entity) const;
+		// 親子関係を変更できるか
+		bool CanReparent(ECSWorld& world, const Entity& child, const Entity& newParent) const;
+		// ドロップされたペイロードからエンティティを取得する
+		Entity ResolveDraggedEntity(ECSWorld& world, const ImGuiPayload* payload) const;
+		// エンティティの表示名を取得する
+		std::string GetEntityDisplayName(ECSWorld& world, const Entity& entity) const;
+	};
+} // Engine

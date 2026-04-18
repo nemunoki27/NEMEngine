@@ -1,0 +1,11 @@
+{
+  "name": "LightCulling",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "Builtin/LightCulling/lightCulling.CS.hlsl",
+      "entry": "main",
+      "profile": "cs_6_0"
+    }
+  ]
+}

@@ -1,0 +1,259 @@
+#include "EngineApplication.h"
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Graphics/Pipeline/PipelineState.h>
+#include <Engine/Core/Graphics/Line/LineRenderer.h>
+#include <Engine/Core/Build/BuildConfig.h>
+#include <Engine/Input/Input.h>
+
+// ECSシステム
+#include <Engine/Core/ECS/System/Builtin/BehaviorSystem.h>
+#include <Engine/Core/ECS/System/Builtin/TransformUpdateSystem.h>
+#include <Engine/Core/ECS/System/Builtin/UVTransformUpdateSystem.h>
+#include <Engine/Core/ECS/System/Builtin/HierarchySystem.h>
+#include <Engine/Core/ECS/System/Builtin/SkinnedAnimationUpdateSystem.h>
+
+//============================================================================
+//	EngineApplication classMethods
+//============================================================================
+
+void Engine::EngineApplication::InitSystems() {
+
+	int32_t order = 0;
+	// システムの追加、orderが小さいほど先に処理される
+	scheduler_.AddSystem(std::make_unique<HierarchySystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<TransformUpdateSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<UVTransformUpdateSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<SkinnedAnimationUpdateSystem>(), ++order);
+}
+
+void Engine::EngineApplication::InitFirstScene() {
+
+	// アクティブなシーンのアセットIDを取得
+	activeScene_ = assetDataBase_.ImportOrGet(activeScenePath_, AssetType::Scene);
+	// シーンをロードしてエディタワールドにインスタンスを作成
+	editScenes_.LoadSceneTree(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_);
+}
+
+void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
+
+	// アセットデータベース初期化
+	assetDataBase_.Init();
+	assetDataBase_.RebuildMeta();
+
+	// 骨アニメーション管理の初期化
+	skinnedAnimationManager_.Init();
+
+	// 最初のシーンを作成
+	InitFirstScene();
+	// システムの初期化
+	InitSystems();
+
+	// 描画パイプライン初期化
+	renderPipeline_ = std::make_unique<RenderPipelineRunner>();
+	renderPipeline_->Init();
+
+	// ライン描画初期化
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	LineRenderer::GetInstance()->Init(graphicsCore);
+#endif
+
+	// エディタの初期化
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		editorManager_.Init(graphicsCore);
+	}
+}
+
+const Engine::SceneHeader* Engine::EngineApplication::GetActiveSceneHeader() const {
+
+	const SceneInstance* instance = worldManager_.IsPlaying() ? playScenes_.GetActive() : editScenes_.GetActive();
+	return instance ? &instance->header : nullptr;
+}
+
+Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
+	GraphicsCore& graphicsCore, ECSWorld* world, const SceneHeader* header) {
+
+	// エディタの状態を描画要求へ変換する
+	RenderFrameRequest request{};
+	request.header = header;
+	request.world = world;
+	request.systemContext = &systemContext_;
+	request.assetDatabase = &assetDataBase_;
+
+	// アクティブなシーンインスタンスのIDを取得する
+	const SceneInstance* activeInstance = worldManager_.IsPlaying() ? playScenes_.GetActive() : editScenes_.GetActive();
+	// ワールドの状態に応じてシーンインスタンスのリストを切り替える
+	request.sceneInstances = worldManager_.IsPlaying() ? &playScenes_ : &editScenes_;
+	request.activeSceneInstanceID = activeInstance ? activeInstance->instanceID : UUID{};
+
+	const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
+	uint32_t fixedRenderWidth = windowSetting.gameSize.x;
+	uint32_t fixedRenderHeight = windowSetting.gameSize.y;
+
+	// エディタの状態に応じて描画ビューの要求を構築する
+	bool showGameView = true;
+	bool showSceneView = false;
+	SceneViewCameraSelection sceneViewCameraSelection{};
+	ManualRenderCameraState manualSceneCamera{};
+
+	// エディタが有効な場合はエディタのレイアウト状態に応じてビューの要求を構築する
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		const EditorLayoutState& layout = editorManager_.GetLayoutState();
+		showGameView = layout.showGameView;
+		showSceneView = layout.showSceneView;
+		sceneViewCameraSelection = editorManager_.GetSceneViewCameraSelection();
+		manualSceneCamera = editorManager_.GetSceneViewCameraState();
+	}
+	// ゲームビューの要求を構築
+	{
+		RenderViewRequest& viewRequest = request.views[static_cast<uint32_t>(RenderViewKind::Game)];
+		viewRequest.kind = RenderViewKind::Game;
+		viewRequest.enabled = showGameView;
+		viewRequest.width = showGameView ? fixedRenderWidth : 0;
+		viewRequest.height = showGameView ? fixedRenderHeight : 0;
+		viewRequest.sourceKind = RenderViewSourceKind::WorldCamera;
+		viewRequest.preferredOrthographicCameraUUID = UUID{};
+		viewRequest.preferredPerspectiveCameraUUID = UUID{};
+	}
+	// シーンビューの要求を構築
+	{
+		RenderViewRequest& viewRequest = request.views[static_cast<uint32_t>(RenderViewKind::Scene)];
+		viewRequest.kind = RenderViewKind::Scene;
+		viewRequest.enabled = showSceneView;
+		viewRequest.width = showSceneView ? fixedRenderWidth : 0;
+		viewRequest.height = showSceneView ? fixedRenderHeight : 0;
+		viewRequest.manualCamera = manualSceneCamera;
+
+		if (sceneViewCameraSelection.mode == SceneViewCameraMode::SelectedEntityCamera &&
+			sceneViewCameraSelection.HasAnyAssignedCamera()) {
+
+			viewRequest.sourceKind = RenderViewSourceKind::WorldCamera;
+			viewRequest.preferredOrthographicCameraUUID = sceneViewCameraSelection.orthographicCameraUUID;
+			viewRequest.preferredPerspectiveCameraUUID = sceneViewCameraSelection.perspectiveCameraUUID;
+		} else {
+
+			viewRequest.sourceKind = RenderViewSourceKind::ManualCamera;
+			viewRequest.preferredOrthographicCameraUUID = UUID{};
+			viewRequest.preferredPerspectiveCameraUUID = UUID{};
+		}
+	}
+	return request;
+}
+
+void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) {
+
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	LineRenderer::GetInstance()->BeginFrame();
+#endif
+
+	// システムコンテキストの更新
+	systemContext_.engineContext = &graphicsCore.GetContext();
+	systemContext_.graphicsPlatform = &graphicsCore.GetDXObject();
+	systemContext_.deltaTime = deltaTime;
+	systemContext_.assetDatabase = &assetDataBase_;
+	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
+	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
+
+	// プレイモードの切り替え
+	HandlePlayToggle();
+
+	ECSWorld* world = GetActiveWorld();
+	const SceneHeader* header = GetActiveSceneHeader();
+	SceneInstanceManager& activeScenes = GetActiveScenes();
+	const SceneInstance* activeSceneInstance = activeScenes.GetActive();
+
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		// エディタコンテキスト構築
+		editorContext_.isPlaying = worldManager_.IsPlaying();
+		editorContext_.activeScenePath = activeScenePath_;
+		editorContext_.activeSceneHeader = header;
+		editorContext_.activeSceneAsset = activeSceneInstance ? activeSceneInstance->sceneAsset : activeScene_;
+		editorContext_.activeSceneInstanceID = activeSceneInstance ? activeSceneInstance->instanceID : UUID{};
+		editorContext_.activeWorld = world;
+		editorContext_.assetDatabase = &assetDataBase_;
+
+		// エディタのフレーム開始処理
+		editorManager_.BeginFrame(graphicsCore, editorContext_);
+	}
+
+	// ECSシステムの更新
+	scheduler_.Tick(GetActiveWorld(), systemContext_);
+}
+
+void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
+
+	// フレーム更新
+	graphicsCore.TickFrameServices();
+
+	// バックバッファ描画クリア
+	graphicsCore.Render();
+
+	// ワールドを描画
+	renderPipeline_->Render(graphicsCore, BuildRenderFrameRequest(graphicsCore, GetActiveWorld(), GetActiveSceneHeader()));
+
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		// シーンビューのメッシュピック処理
+		editorManager_.ExecuteSceneMeshPicking(graphicsCore, editorContext_, *renderPipeline_);
+
+		// エディタのフレーム終了処理
+		editorManager_.EndFrame(graphicsCore, editorContext_, &renderPipeline_->GetViewportRenderService(),
+			&renderPipeline_->GetResolvedView(RenderViewKind::Scene));
+	} else {
+
+		// エディタがない場合はゲームビューをバックバッファに描画する
+		renderPipeline_->PresentViewToBackBuffer(graphicsCore, RenderViewKind::Game);
+	}
+}
+
+void Engine::EngineApplication::HandlePlayToggle() {
+
+	// プレイ/ストップの切り替え要求があるか
+	bool requestedByKeyboard = Input::GetInstance()->TriggerKey(DIK_F5);
+	bool requestedByEditor = false;
+
+	// エディタがある場合はエディタからの要求も確認する
+	if constexpr (BuildConfig::kEditorEnabled) {
+		requestedByEditor = editorManager_.ConsumePlayToggleRequest();
+	}
+	// どちらからの要求もなければなにもしない
+	if (!requestedByKeyboard && !requestedByEditor) {
+		return;
+	}
+
+	if (!worldManager_.IsPlaying()) {
+
+		nlohmann::json snapshot = editScenes_.SerializeSnapshot(sceneSystem_, worldManager_.GetEditWorld());
+
+		worldManager_.CreatePlayWorld();
+		playScenes_.LoadSnapshot(assetDataBase_, sceneSystem_, *worldManager_.GetPlayWorld(), snapshot);
+	} else {
+
+		scheduler_.DetachCurrentWorld(systemContext_);
+		worldManager_.DestroyPlayWorld();
+		playScenes_ = SceneInstanceManager{};
+	}
+}
+
+void Engine::EngineApplication::Finalize() {
+
+	skinnedAnimationManager_.Finalize();
+
+	renderPipeline_->Finalize();
+	renderPipeline_.reset();
+
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		editorManager_.Finalize();
+	}
+
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	LineRenderer::GetInstance()->Finalize();
+#endif
+}

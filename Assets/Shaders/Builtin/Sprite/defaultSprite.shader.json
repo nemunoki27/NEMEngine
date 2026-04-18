@@ -1,0 +1,17 @@
+{
+  "name": "DefaultSprite",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "Builtin/Sprite/defaultSprite.VS.hlsl",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "PS",
+      "file": "Builtin/Sprite/defaultSprite.PS.hlsl",
+      "entry": "main",
+      "profile": "ps_6_0"
+    }
+  ]
+}

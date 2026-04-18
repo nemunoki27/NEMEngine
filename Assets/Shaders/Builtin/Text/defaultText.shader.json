@@ -1,0 +1,17 @@
+{
+  "name": "DefaultText",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "Builtin/Text/defaultText.VS.hlsl",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "PS",
+      "file": "Builtin/Text/defaultText.PS.hlsl",
+      "entry": "main",
+      "profile": "ps_6_0"
+    }
+  ]
+}

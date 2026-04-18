@@ -1,0 +1,23 @@
+{
+  "name": "DefaultMeshZPrepass",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "Builtin/Mesh/defaultMeshZPrepass.VS.hlsl",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "MS",
+      "file": "Builtin/Mesh/defaultMeshZPrepass.MS.hlsl",
+      "entry": "main",
+      "profile": "ms_6_6"
+    },
+    {
+      "stage": "PS",
+      "file": "Builtin/Mesh/defaultMeshZPrepass.PS.hlsl",
+      "entry": "main",
+      "profile": "ps_6_0"
+    }
+  ]
+}

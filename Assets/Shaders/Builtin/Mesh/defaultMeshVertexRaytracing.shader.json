@@ -1,0 +1,17 @@
+{
+  "name": "DefaultMeshVertexRaytracing",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "Builtin/Mesh/defaultMesh.VS.hlsl",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "PS",
+      "file": "Builtin/Mesh/defaultMeshRayQuery.PS.hlsl",
+      "entry": "main",
+      "profile": "ps_6_6"
+    }
+  ]
+}

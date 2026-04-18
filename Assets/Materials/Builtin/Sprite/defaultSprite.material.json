@@ -1,0 +1,11 @@
+{
+  "name": "DefaultSprite",
+  "domain": "UI",
+  "passes": [
+    {
+      "passName": "Draw",
+      "pipeline": "Assets/Pipelines/Builtin/Sprite/defaultSprite.pipeline.json",
+      "preferredVariant": "GraphicsVertex"
+    }
+  ]
+}
