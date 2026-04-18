@@ -1,11 +1,12 @@
 //============================================================================
 //	include
 //============================================================================
-#include <windows.h>
+#include <Engine/Core/Framework.h>
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
-	// A
+	std::unique_ptr<Engine::Framework> app = std::make_unique<Engine::Framework>();
+	app->Run();
 
 	return 0;
 }
