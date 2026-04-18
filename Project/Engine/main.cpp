@@ -5,8 +5,8 @@
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	
-	std::unique_ptr<Engine::Framework> game = std::make_unique<Engine::Framework>();
-	game->Run();
+	std::unique_ptr<Engine::Framework> app = std::make_unique<Engine::Framework>();
+	app->Run();
 
 	return 0;
 }
