@@ -5,5 +5,7 @@
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
+	// A
+
 	return 0;
 }
