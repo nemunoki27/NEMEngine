@@ -43,11 +43,23 @@ project "imgui"
 
     filter {}
 
+externalproject "zlibstatic"
+    location (path.join(ASSIMP_BUILD_DIR, "contrib/zlib"))
+    filename "zlibstatic"
+    kind "StaticLib"
+    language "C++"
+
+    configmap {
+        ["Develop"] = "Release",
+    }
+
 externalproject "assimp"
     location (path.join(ASSIMP_BUILD_DIR, "code"))
     filename "assimp"
     kind "StaticLib"
     language "C++"
+
+    dependson { "zlibstatic" }
 
     configmap {
         ["Develop"] = "Release",

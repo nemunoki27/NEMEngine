@@ -60,7 +60,13 @@ function NEM_AddEngineIncludeSettings()
     externalincludedirs {
         path.join(NEM_PROJECT_ROOT, "Externals/spdlog"),
         path.join(NEM_PROJECT_ROOT, "Externals/magic_enum"),
+
+        -- assimp: source headers
         path.join(NEM_PROJECT_ROOT, "Externals/assimp/include"),
+
+        -- assimp: generated headers (assimp/config.h, assimp/revision.h など)
+        path.join(NEM_GENERATED_ROOT, "Externals/assimp/include"),
+
         path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/include"),
         path.join(NEM_PROJECT_ROOT, "Externals/DirectXTex"),
         path.join(NEM_PROJECT_ROOT, "Externals/imgui"),
