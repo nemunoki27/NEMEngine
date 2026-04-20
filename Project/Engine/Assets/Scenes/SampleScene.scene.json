@@ -1,0 +1,119 @@
+{
+  "Header": {
+          "name": "SampleScene",
+          "renderTargets": [
+            {
+        "name": "SceneMain",
+        "sizeMode": "ViewRelative",
+        "widthScale": 1.0,
+        "heightScale": 1.0,
+        "colors": [
+          {
+            "name": "SceneColorMain",
+            "format": "RGBA32_FLOAT",
+            "createUAV": false,
+            "clearColor": { "r": 0.02, "g": 0.02, "b": 0.02, "a": 1.0 }
+          },
+          {
+            "name": "SceneNormalMain",
+            "format": "RGBA16_FLOAT",
+            "createUAV": false
+          },
+          {
+            "name": "ScenePositionMain",
+            "format": "RGBA32_FLOAT",
+            "createUAV": false
+         }
+        ],
+        "withDepth": true
+      },
+      {
+        "name": "SceneFinal",
+        "sizeMode": "ViewRelative",
+        "widthScale": 1.0,
+        "heightScale": 1.0,
+        "colors": [
+          {
+            "name": "SceneColorFinal",
+            "format": "RGBA32_FLOAT",
+            "createUAV": true
+          }
+        ],
+        "withDepth": false
+      }
+    ],
+    "passOrder": [
+      {
+        "type": "Clear",
+        "dest": {
+          "colors": ["SceneColorMain", "SceneNormalMain", "ScenePositionMain"],
+          "depth": "SceneMain.Depth"
+        },
+        "clearColor": true,
+        "clearDepth": true
+      },
+      {
+        "type": "DepthPrepass",
+        "queue": "Opaque",
+        "passName": "ZPrepass",
+        "dest": {
+          "colors": ["SceneColorMain", "SceneNormalMain", "ScenePositionMain"],
+          "depth": "SceneMain.Depth"
+        }
+      },
+      {
+        "type": "Compute",
+        "material": "Engine/Assets/Materials/Builtin/LightCulling/lightCulling.material.json",
+        "passName": "LightCulling",
+        "source": {
+          "colors": ["SceneColorMain", "SceneNormalMain", "ScenePositionMain"],
+          "depth": "SceneMain.Depth"
+        },
+        "dest": {
+          "colors": ["SceneColorMain", "SceneNormalMain", "ScenePositionMain"],
+          "depth": "SceneMain.Depth"
+        },
+        "dispatchMode": "FromDestSize"
+      },
+      {
+        "type": "Draw",
+        "queue": "Opaque",
+        "dest": {
+          "colors": ["SceneColorMain", "SceneNormalMain", "ScenePositionMain"],
+          "depth": "SceneMain.Depth"
+        }
+      },
+      {
+        "type": "Raytracing",
+        "material": "Engine/Assets/Materials/Builtin/Raytracing/reflection.material.json",
+        "passName": "Raytracing",
+        "source": {
+          "colors": ["SceneColorMain", "SceneNormalMain", "ScenePositionMain"],
+          "depth": "SceneMain.Depth"
+        },
+        "dest": {
+          "colors": ["SceneColorFinal"]
+        }
+      },
+      {
+        "type": "Blit",
+        "material": "Engine/Assets/Materials/Builtin/FullscreenCopy/fullscreenCopy.material.json",
+        "source": {
+          "colors": ["SceneColorFinal"]
+        },
+        "dest": {
+          "colors": ["View"]
+        }
+      },
+      {
+        "type": "Draw",
+        "queue": "CanvasPreModel",
+        "dest": {
+          "colors": ["View"],
+          "depth": "ViewDepth"
+        }
+      }
+    ]
+  },
+  "Entities": []
+}

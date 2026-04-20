@@ -31,7 +31,7 @@ std::string Engine::TextureAssetResolver::ToAssetPath(const std::filesystem::pat
 	}
 
 	const std::string assetPath = relative.generic_string();
-	if (assetPath.rfind("Assets/", 0) != 0) {
+	if (assetPath.rfind("Engine/Assets/", 0) != 0) {
 		return {};
 	}
 	return assetPath;
@@ -84,7 +84,7 @@ ChooseBestCandidate(const std::vector<TextureCandidate>& candidates) const {
 		int score = 0;
 
 		// 優先順位:
-		// 1. Assets/Textures/<modelStem>/...
+		// 1. Engine/Assets/Textures/<modelStem>/...
 		// 2. .dds
 		// 3. それ以外
 		if (candidate.inPreferredFolder) {

@@ -1,0 +1,10 @@
+{
+  "name": "SkinningPipeline",
+  "variants": [
+    {
+      "kind": "Compute",
+      "pipelineType": "Compute",
+      "shader": "Engine/Assets/Shaders/Builtin/Mesh/skinning.shader.json"
+    }
+  ]
+}

@@ -14,7 +14,7 @@ namespace {
 	// シェーダーファイルのパスを解決する関数
 	std::filesystem::path ResolveShaderPath(const std::string& file) {
 
-		const std::filesystem::path base = "./Assets/Shaders/";
+		const std::filesystem::path base = "./Engine/Assets/Shaders/";
 		std::filesystem::path direct = base / file;
 		if (std::filesystem::exists(direct)) {
 			return direct;

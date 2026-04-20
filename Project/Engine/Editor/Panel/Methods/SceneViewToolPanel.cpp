@@ -131,7 +131,7 @@ void Engine::SceneViewToolPanel::RequestIcons() {
 		return;
 	}
 
-	const std::string basePath = "Assets/Textures/Engine/Editor/Tool/";
+	const std::string basePath = "Engine/Assets/Textures/Engine/Editor/Tool/";
 
 	textureUploadService_->RequestTextureFile(icons_.enablePickKey, basePath + icons_.enablePickKey);
 	textureUploadService_->RequestTextureFile(icons_.noneKey, basePath + icons_.noneKey);

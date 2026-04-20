@@ -57,13 +57,13 @@ const char* Engine::MaterialResolver::GetDefaultAssetPath(DefaultMaterialSlot sl
 	// スロットに応じたデフォルトマテリアルのパスを返す
 	switch (slot) {
 	case DefaultMaterialSlot::Sprite:
-		return "Assets/Materials/Builtin/Sprite/defaultSprite.material.json";
+		return "Engine/Assets/Materials/Builtin/Sprite/defaultSprite.material.json";
 	case DefaultMaterialSlot::Text:
-		return "Assets/Materials/Builtin/Text/defaultText.material.json";
+		return "Engine/Assets/Materials/Builtin/Text/defaultText.material.json";
 	case DefaultMaterialSlot::Mesh:
-		return "Assets/Materials/Builtin/Mesh/defaultMesh.material.json";
+		return "Engine/Assets/Materials/Builtin/Mesh/defaultMesh.material.json";
 	case DefaultMaterialSlot::FullscreenCopy:
-		return "Assets/Materials/Builtin/FullscreenCopy/fullscreenCopy.material.json";
+		return "Engine/Assets/Materials/Builtin/FullscreenCopy/fullscreenCopy.material.json";
 	}
 	return "";
 }

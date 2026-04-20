@@ -1,16 +1,12 @@
 project "Sandbox"
-    location (path.join(NEMENGINE_ROOT, "Project/Sandbox/"))
+    location (path.join(NEM_PROJECT_ROOT, "Sandbox"))
     kind "WindowedApp"
 
     NEM_ApplyDefaultCppSettings()
-
-    files {
-        path.join(NEMENGINE_ROOT, "Project/Sandbox/**.cpp"),
-        path.join(NEMENGINE_ROOT, "Project/Sandbox/**.h"),
-    }
+    NEM_AddSandboxProjectFiles()
 
     includedirs {
-        path.join(NEMENGINE_ROOT, "Project/Sandbox"),
+        path.join(NEM_PROJECT_ROOT, "Sandbox"),
     }
 
     NEM_AddEngineRuntimeLinkSettings()

@@ -1,0 +1,17 @@
+{
+  "name": "ReflectionRaytracingPipeline",
+  "variants": [
+    {
+      "kind": "Raytracing",
+      "shader": "Engine/Assets/Shaders/Builtin/Raytracing/reflection.shader.json",
+      "requiresDispatchRays": true,
+      "rayGenerationExport": "ReflectionRayGen",
+      "missExport": "ReflectionMiss",
+      "closestHitExport": "ReflectionClosestHit",
+      "hitGroupExport": "ReflectionHitGroup",
+      "maxPayloadSizeInBytes": 16,
+      "maxAttributeSizeInBytes": 8,
+      "maxRecursionDepth": 1
+    }
+  ]
+}

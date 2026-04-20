@@ -1,14 +1,36 @@
-NEMENGINE_ROOT = NEMENGINE_ROOT or path.getabsolute(path.join(_SCRIPT_DIR, ".."))
+NEMENGINE_ROOT  = NEMENGINE_ROOT or path.getabsolute(path.join(_SCRIPT_DIR, ".."))
+NEM_PROJECT_ROOT = path.join(NEMENGINE_ROOT, "Project")
+NEM_GENERATED_ROOT = path.join(NEMENGINE_ROOT, "Generated")
+
+function NEM_ConfigureWorkspaceLayout(runtimeDebugDir)
+    objdir(path.join(NEM_GENERATED_ROOT, "Intermediate/%{prj.name}/%{cfg.buildcfg}"))
+
+    filter "kind:StaticLib"
+        targetdir(path.join(NEM_GENERATED_ROOT, "Bin/%{cfg.buildcfg}/%{prj.name}"))
+
+    filter "kind:ConsoleApp or kind:WindowedApp"
+        targetdir(path.join(NEM_GENERATED_ROOT, "Output/%{cfg.buildcfg}/%{prj.name}"))
+        debugdir(runtimeDebugDir)
+
+    filter {}
+end
 
 function NEM_ApplyDefaultCppSettings()
     system "windows"
     language "C++"
     cppdialect "C++20"
-    toolset "v143"
     staticruntime "On"
     warnings "High"
     multiprocessorcompile "On"
     buildoptions { "/utf-8" }
+
+    -- VS2022を明示したいときだけ固定
+    filter "action:vs2022"
+        toolset "v143"
+
+    -- vs2026 のときは toolset を固定しない
+    -- 使っている Visual Studio / MSVC の既定値に任せる
+    filter {}
 end
 
 function NEM_ApplyDefaultConfigFilters()
@@ -30,15 +52,19 @@ end
 
 function NEM_AddEngineIncludeSettings()
     includedirs {
-        path.join(NEMENGINE_ROOT, "Project"),
-        path.join(NEMENGINE_ROOT, "Project/Engine"),
-        path.join(NEMENGINE_ROOT, "Project/Externals/spdlog"),
-        path.join(NEMENGINE_ROOT, "Project/Externals/magic_enum"),
-        path.join(NEMENGINE_ROOT, "Project/Externals/assimp/include"),
-        path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/include"),
-        path.join(NEMENGINE_ROOT, "Project/Externals/DirectXTex"),
-        path.join(NEMENGINE_ROOT, "Project/Externals/imgui"),
-        path.join(NEMENGINE_ROOT, "Project/Externals/nlohmann"),
+        NEM_PROJECT_ROOT,
+        path.join(NEM_PROJECT_ROOT, "Engine"),
+    }
+
+    -- 外部ライブラリは externalincludedirs 側へ寄せる
+    externalincludedirs {
+        path.join(NEM_PROJECT_ROOT, "Externals/spdlog"),
+        path.join(NEM_PROJECT_ROOT, "Externals/magic_enum"),
+        path.join(NEM_PROJECT_ROOT, "Externals/assimp/include"),
+        path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/include"),
+        path.join(NEM_PROJECT_ROOT, "Externals/DirectXTex"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui"),
+        path.join(NEM_PROJECT_ROOT, "Externals/nlohmann"),
     }
 
     defines {
@@ -69,8 +95,8 @@ function NEM_AddEngineRuntimeLinkSettings()
 
     filter "configurations:Debug"
         libdirs {
-            path.join(NEMENGINE_ROOT, "Project/Externals/assimp/lib/Debug"),
-            path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/lib/Debug"),
+            path.join(NEM_PROJECT_ROOT, "Externals/assimp/lib/Debug"),
+            path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/lib/Debug"),
         }
 
         links {
@@ -80,8 +106,8 @@ function NEM_AddEngineRuntimeLinkSettings()
 
     filter "configurations:Develop"
         libdirs {
-            path.join(NEMENGINE_ROOT, "Project/Externals/assimp/lib/Release"),
-            path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/lib/Release"),
+            path.join(NEM_PROJECT_ROOT, "Externals/assimp/lib/Release"),
+            path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/lib/Release"),
         }
 
         links {
@@ -91,8 +117,8 @@ function NEM_AddEngineRuntimeLinkSettings()
 
     filter "configurations:Release"
         libdirs {
-            path.join(NEMENGINE_ROOT, "Project/Externals/assimp/lib/Release"),
-            path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/lib/Release"),
+            path.join(NEM_PROJECT_ROOT, "Externals/assimp/lib/Release"),
+            path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/lib/Release"),
         }
 
         links {
@@ -101,4 +127,66 @@ function NEM_AddEngineRuntimeLinkSettings()
         }
 
     filter {}
+end
+
+function NEM_AddEngineProjectFiles()
+    files {
+        path.join(NEM_PROJECT_ROOT, "Engine/**.h"),
+        path.join(NEM_PROJECT_ROOT, "Engine/**.hpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/**.inl"),
+        path.join(NEM_PROJECT_ROOT, "Engine/**.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/**.c"),
+        path.join(NEM_PROJECT_ROOT, "Engine/**.natvis"),
+
+        -- Engine専用アセットを表示したい場合
+        path.join(NEM_PROJECT_ROOT, "EngineAssets/**.*"),
+    }
+
+    vpaths {
+        ["Source/*"] = {
+            path.join(NEM_PROJECT_ROOT, "Engine/**.h"),
+            path.join(NEM_PROJECT_ROOT, "Engine/**.hpp"),
+            path.join(NEM_PROJECT_ROOT, "Engine/**.inl"),
+            path.join(NEM_PROJECT_ROOT, "Engine/**.cpp"),
+            path.join(NEM_PROJECT_ROOT, "Engine/**.c"),
+            path.join(NEM_PROJECT_ROOT, "Engine/**.natvis"),
+        },
+        ["Assets/*"] = {
+            path.join(NEM_PROJECT_ROOT, "EngineAssets/**.*"),
+        },
+    }
+end
+
+function NEM_AddSandboxProjectFiles()
+    files {
+        path.join(NEM_PROJECT_ROOT, "Sandbox/**.h"),
+        path.join(NEM_PROJECT_ROOT, "Sandbox/**.hpp"),
+        path.join(NEM_PROJECT_ROOT, "Sandbox/**.inl"),
+        path.join(NEM_PROJECT_ROOT, "Sandbox/**.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Sandbox/**.c"),
+        path.join(NEM_PROJECT_ROOT, "Sandbox/**.natvis"),
+        path.join(NEM_PROJECT_ROOT, "Sandbox/**.hlsl"),
+        path.join(NEM_PROJECT_ROOT, "Sandbox/**.fx"),
+
+        -- Sandbox専用アセットだけ表示する
+        path.join(NEM_PROJECT_ROOT, "Sandbox/GameAssets/**.*"),
+    }
+
+    vpaths {
+        ["Source/*"] = {
+            path.join(NEM_PROJECT_ROOT, "Sandbox/**.h"),
+            path.join(NEM_PROJECT_ROOT, "Sandbox/**.hpp"),
+            path.join(NEM_PROJECT_ROOT, "Sandbox/**.inl"),
+            path.join(NEM_PROJECT_ROOT, "Sandbox/**.cpp"),
+            path.join(NEM_PROJECT_ROOT, "Sandbox/**.c"),
+            path.join(NEM_PROJECT_ROOT, "Sandbox/**.natvis"),
+        },
+        ["Shaders/*"] = {
+            path.join(NEM_PROJECT_ROOT, "Sandbox/**.hlsl"),
+            path.join(NEM_PROJECT_ROOT, "Sandbox/**.fx"),
+        },
+        ["GameAssets/*"] = {
+            path.join(NEM_PROJECT_ROOT, "Sandbox/GameAssets/**.*"),
+        },
+    }
 end

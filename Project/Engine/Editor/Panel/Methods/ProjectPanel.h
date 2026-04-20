@@ -39,7 +39,7 @@ namespace Engine {
 		ProjectAssetThumbnailCache thumbnailCache_;
 
 		// 現在選択されているディレクトリの仮想パスとアセットID
-		std::string selectedDirectory_ = "Assets";
+		std::string selectedDirectory_ = "Engine/Assets";
 		AssetID selectedAsset_{};
 
 		bool dirty_ = true;

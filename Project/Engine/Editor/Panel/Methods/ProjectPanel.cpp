@@ -102,7 +102,7 @@ void Engine::ProjectPanel::Rebuild(AssetDatabase& database) {
 	database.RebuildMeta();
 	assetIndex_.Rebuild(database);
 	if (!assetIndex_.FindDirectory(selectedDirectory_)) {
-		selectedDirectory_ = "Assets";
+		selectedDirectory_ = "Engine/Assets";
 	}
 	dirty_ = false;
 }
@@ -179,7 +179,7 @@ void Engine::ProjectPanel::DrawHeader(AssetDatabase& database) {
 	ImGui::TextUnformatted(">");
 	ImGui::SameLine();
 
-	const char* currentName = trail.empty() ? "Assets" : trail.back()->name.c_str();
+	const char* currentName = trail.empty() ? "Engine/Assets" : trail.back()->name.c_str();
 	ImGui::TextUnformatted(currentName);
 
 	// 右端に Refresh

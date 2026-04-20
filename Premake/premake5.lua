@@ -1,7 +1,7 @@
 include "premakeCommon.lua"
 
 workspace "NEMEngine"
-    location (path.join(NEMENGINE_ROOT, "Project"))
+    location (NEM_PROJECT_ROOT)
     configurations { "Debug", "Develop", "Release" }
     platforms { "x64" }
     startproject "Sandbox"
@@ -10,16 +10,7 @@ workspace "NEMEngine"
         architecture "x64"
     filter {}
 
-    objdir (path.join(NEMENGINE_ROOT, "Generated/Intermediate/%{prj.name}/%{cfg.buildcfg}"))
-
-    filter "kind:StaticLib"
-        targetdir (path.join(NEMENGINE_ROOT, "Generated/Bin/%{cfg.buildcfg}/%{prj.name}"))
-
-    filter "kind:ConsoleApp or kind:WindowedApp"
-        targetdir (path.join(NEMENGINE_ROOT, "Generated/Output/%{cfg.buildcfg}/%{prj.name}"))
-        debugdir  (path.join(NEMENGINE_ROOT, "Project"))
-
-    filter {}
+    NEM_ConfigureWorkspaceLayout(NEM_PROJECT_ROOT)
 
 group "Externals"
     include "premakeExternals.lua"

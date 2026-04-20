@@ -17,7 +17,7 @@ using namespace Engine;
 namespace {
 
 	// シェーダーのベースパス
-	const std::filesystem::path kShaderBasePath = "./Assets/Shaders/";
+	const std::filesystem::path kShaderBasePath = "./Engine/Assets/Shaders/";
 
 	std::filesystem::path ResolveShaderPath(const std::string& file) {
 
