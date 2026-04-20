@@ -1,12 +1,8 @@
-local directXTexProjectName = "DirectXTex_Desktop_2022_Win10"
-
-if os.isfile(path.join(NEM_PROJECT_ROOT, "Externals/DirectXTex/DirectXTex_Desktop_2026_Win10.vcxproj")) then
-    directXTexProjectName = "DirectXTex_Desktop_2026_Win10"
-end
+local ASSIMP_BUILD_DIR = path.join(NEMENGINE_ROOT, "Generated/Externals/assimp")
 
 externalproject "DirectXTex"
-    location (path.join(NEM_PROJECT_ROOT, "Externals/DirectXTex"))
-    filename (directXTexProjectName)
+    location (path.join(NEMENGINE_ROOT, "Project/Externals/DirectXTex"))
+    filename "DirectXTex_Desktop_2022_Win10"
     kind "StaticLib"
     language "C++"
 
@@ -15,7 +11,7 @@ externalproject "DirectXTex"
     }
 
 project "imgui"
-    location (path.join(NEM_PROJECT_ROOT, "Externals/imgui"))
+    location (path.join(NEMENGINE_ROOT, "Project/Externals/imgui"))
     kind "StaticLib"
 
     removeconfigurations { "Develop" }
@@ -24,22 +20,19 @@ project "imgui"
     system "windows"
     language "C++"
     cppdialect "C++20"
+    toolset "v143"
     staticruntime "On"
     warnings "Default"
     multiprocessorcompile "On"
     buildoptions { "/utf-8" }
 
-    filter "action:vs2022"
-        toolset "v143"
-    filter {}
-
     files {
-        path.join(NEM_PROJECT_ROOT, "Externals/imgui/*.cpp"),
-        path.join(NEM_PROJECT_ROOT, "Externals/imgui/*.h"),
+        path.join(NEMENGINE_ROOT, "Project/Externals/imgui/*.cpp"),
+        path.join(NEMENGINE_ROOT, "Project/Externals/imgui/*.h"),
     }
 
     includedirs {
-        path.join(NEM_PROJECT_ROOT, "Externals/imgui"),
+        path.join(NEMENGINE_ROOT, "Project/Externals/imgui"),
     }
 
     filter "configurations:Debug"
@@ -49,3 +42,13 @@ project "imgui"
         optimize "On"
 
     filter {}
+
+externalproject "assimp"
+    location (path.join(ASSIMP_BUILD_DIR, "code"))
+    filename "assimp"
+    kind "StaticLib"
+    language "C++"
+
+    configmap {
+        ["Develop"] = "Release",
+    }

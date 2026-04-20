@@ -81,6 +81,7 @@ function NEM_AddEngineRuntimeLinkSettings()
         "NEMEngine",
         "imgui",
         "DirectXTex",
+        "assimp",
     }
 
     linkoptions {
@@ -95,34 +96,28 @@ function NEM_AddEngineRuntimeLinkSettings()
 
     filter "configurations:Debug"
         libdirs {
-            path.join(NEM_PROJECT_ROOT, "Externals/assimp/lib/Debug"),
-            path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/lib/Debug"),
+            path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/lib/Debug"),
         }
 
         links {
-            "assimp-vc143-mtd",
             "meshoptimizer",
         }
 
     filter "configurations:Develop"
         libdirs {
-            path.join(NEM_PROJECT_ROOT, "Externals/assimp/lib/Release"),
-            path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/lib/Release"),
+            path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/lib/Release"),
         }
 
         links {
-            "assimp-vc143-mt",
             "meshoptimizer",
         }
 
     filter "configurations:Release"
         libdirs {
-            path.join(NEM_PROJECT_ROOT, "Externals/assimp/lib/Release"),
-            path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/lib/Release"),
+            path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/lib/Release"),
         }
 
         links {
-            "assimp-vc143-mt",
             "meshoptimizer",
         }
 
