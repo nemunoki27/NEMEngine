@@ -19,7 +19,7 @@
 #include <Engine/Core/ECS/Component/Builtin/Render/MeshRendererComponent.h>
 #include <Engine/Core/ECS/World/ECSWorld.h>
 #include <Engine/Core/Asset/AssetDatabase.h>
-#include <Engine/Debug/Assert.h>
+#include <Engine/Logger/Assert.h>
 
 //============================================================================
 //	MeshRenderBackend classMethods

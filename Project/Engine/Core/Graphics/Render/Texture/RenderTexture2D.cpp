@@ -3,8 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Debug/Assert.h>
-#include <Engine/Debug/Logger.h>
+#include <Engine/Logger/Assert.h>
+#include <Engine/Logger/Logger.h>
 #include <Engine/Core/Graphics/Descriptors/RTVDescriptor.h>
 #include <Engine/Core/Graphics/Descriptors/SRVDescriptor.h>
 #include <Engine/Core/Graphics/DxObject/DxCommand.h>

@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Graphics/GraphicsCore.h>
-#include <Engine/Debug/Assert.h>
+#include <Engine/Logger/Assert.h>
 
 //============================================================================
 //	SpriteBatchResources classMethods

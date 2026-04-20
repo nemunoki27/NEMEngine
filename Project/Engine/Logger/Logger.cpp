@@ -1,0 +1,218 @@
+#include "Logger.h"
+#include <fstream>
+
+using namespace Engine;
+
+namespace {
+	constexpr std::array<std::string_view, static_cast<std::size_t>(LogType::Count)> kLoggerNames{
+		"engine",
+		"game"
+	};
+	constexpr std::array<std::string_view, static_cast<std::size_t>(LogType::Count)> kFileNames{
+		"engine.log",
+		"gameLogic.log"
+	};
+#if defined(_MSC_VER)
+	bool HasMsvcSink(const std::shared_ptr<spdlog::logger>& logger) {
+		if (!logger) return false;
+
+		for (const auto& sink : logger->sinks()) {
+			if (dynamic_cast<spdlog::sinks::msvc_sink_mt*>(sink.get()) != nullptr) {
+				return true;
+			}
+		}
+		return false;
+	}
+#endif
+}
+
+void Logger::CreateLogFiles(const std::filesystem::path& logDir, bool truncate) {
+
+	std::scoped_lock lock(mutex_);
+	if (initialized_) return;
+
+	logDir_ = logDir;
+	if (logDir_.empty()) logDir_ = "./Log";
+
+	std::error_code ec;
+	std::filesystem::create_directories(logDir_, ec);
+
+	loggers_.clear();
+	loggers_.resize(static_cast<std::size_t>(LogType::Count));
+
+	for (std::size_t i = 0; i < loggers_.size(); ++i) {
+		const auto type = static_cast<LogType>(i);
+		const auto loggerName = std::string(TypeToLoggerName(type));
+		const auto filePath = (logDir_ / std::string(TypeToFileName(type))).string();
+
+		spdlog::drop(loggerName);
+
+		try {
+			std::vector<spdlog::sink_ptr> sinks;
+
+			// 例: Engine だけ console + msvc、GameLogic はファイルのみ
+			const bool withConsole = (type == LogType::Engine);
+
+			if (withConsole) {
+				sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+			}
+
+			sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(filePath, truncate));
+
+#if defined(_MSC_VER)
+			if (withConsole) {
+				sinks.push_back(std::make_shared<spdlog::sinks::msvc_sink_mt>());
+			}
+#endif
+
+			auto lg = std::make_shared<spdlog::logger>(loggerName, sinks.begin(), sinks.end());
+			lg->set_level(spdlog::level::trace);
+			lg->flush_on(spdlog::level::err);
+			lg->set_pattern("[%H:%M:%S.%e] [%n] %v");
+
+			spdlog::register_logger(lg);
+			loggers_[i] = std::move(lg);
+		}
+		catch (const spdlog::spdlog_ex&) {
+			loggers_[i].reset();
+		}
+	}
+
+	if (loggers_[static_cast<std::size_t>(LogType::Engine)]) {
+		spdlog::set_default_logger(loggers_[static_cast<std::size_t>(LogType::Engine)]);
+	}
+
+	initialized_ = true;
+}
+
+void Logger::Finalize() {
+
+	std::scoped_lock lock(mutex_);
+	if (!initialized_) return;
+
+	for (std::size_t i = 0; i < loggers_.size(); ++i) {
+		if (loggers_[i]) loggers_[i]->flush();
+		spdlog::drop(std::string(TypeToLoggerName(static_cast<LogType>(i))));
+	}
+
+	loggers_.clear();
+	initialized_ = false;
+}
+
+void Logger::EnsureInitialized() {
+	if (initialized_) return;
+	CreateLogFiles(); // default
+}
+
+std::string_view Logger::TypeToFileName(LogType type) {
+	return kFileNames[static_cast<std::size_t>(type)];
+}
+std::string_view Logger::TypeToLoggerName(LogType type) {
+	return kLoggerNames[static_cast<std::size_t>(type)];
+}
+
+void Logger::Output(LogType type, std::string_view message, spdlog::level::level_enum level) {
+	EnsureInitialized();
+	auto& lg = Get(type);
+	if (!lg) return;
+	lg->log(level, "{}", message);
+}
+
+void Logger::BlankLine(LogType type, std::uint32_t lines) {
+	EnsureInitialized();
+
+	std::scoped_lock lock(mutex_);
+
+	// ファイル側へ「何も付かない空行」を直接追記
+	const auto filePath = (logDir_ / std::string(TypeToFileName(type))).string();
+	std::ofstream ofs(filePath, std::ios::out | std::ios::app);
+	if (ofs.is_open()) {
+		for (std::uint32_t i = 0; i < lines; ++i) {
+			ofs << '\n';
+		}
+		ofs.flush();
+	}
+
+#if defined(_MSC_VER)
+	// Visual Studio 出力ウィンドウにも空行を出す
+	auto& lg = Get(type);
+	if (HasMsvcSink(lg)) {
+		for (std::uint32_t i = 0; i < lines; ++i) {
+			::OutputDebugStringA("\r\n");
+		}
+	}
+#endif
+}
+
+void Engine::Logger::DrawLine(LogType type, std::uint32_t length, char ch) {
+
+	EnsureInitialized();
+	auto& lg = Get(type);
+	if (!lg) return;
+	lg->log(spdlog::level::info, std::string(length, ch));
+}
+
+void Engine::Logger::BeginSection(LogType type) {
+
+	DrawLine(type);
+}
+
+void Engine::Logger::EndSection(LogType type) {
+
+	DrawLine(type);
+}
+
+void Logger::Flush(LogType type) {
+	EnsureInitialized();
+	auto& lg = Get(type);
+	if (!lg) return;
+	lg->flush();
+}
+
+void Logger::FlushAll() {
+	EnsureInitialized();
+	for (auto& lg : loggers_) if (lg) lg->flush();
+}
+
+//==================== ScopedOutput ====================
+
+Logger::ScopedOutput::ScopedOutput(LogType type, std::string label)
+	: type_(type), label_(std::move(label)), start_(Clock::now()) {
+}
+
+Logger::ScopedOutput::~ScopedOutput() noexcept {
+	Finish();
+}
+
+void Logger::ScopedOutput::Finish() noexcept {
+	if (!active_) return;
+	active_ = false;
+
+	try {
+		using namespace std::chrono;
+		const auto us = duration_cast<microseconds>(Clock::now() - start_).count();
+		const double ms = static_cast<double>(us) / 1000.0;
+		Logger::Output(type_, spdlog::level::info, "[TIMER] {} : {:.3f} ms", label_, ms);
+	}
+	catch (...) {
+	}
+}
+
+Logger::ScopedOutput::ScopedOutput(ScopedOutput&& other) noexcept
+	: type_(other.type_),
+	label_(std::move(other.label_)),
+	start_(other.start_),
+	active_(other.active_) {
+	other.active_ = false;
+}
+
+Logger::ScopedOutput& Logger::ScopedOutput::operator=(ScopedOutput&& other) noexcept {
+	if (this == &other) return *this;
+	Finish();
+	type_ = other.type_;
+	label_ = std::move(other.label_);
+	start_ = other.start_;
+	active_ = other.active_;
+	other.active_ = false;
+	return *this;
+}

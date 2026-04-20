@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Debug/Logger.h>
+#include <Engine/Logger/Logger.h>
 #include <Engine/Core/Graphics/Descriptors/SRVDescriptor.h>
 #include <Engine/Utility/Algorithm/Algorithm.h>
 

@@ -6,7 +6,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Graphics/DxLib/DxUtils.h>
-#include <Engine/Debug/Assert.h>
+#include <Engine/Logger/Assert.h>
 
 //============================================================================
 //	DSVDescriptor classMethods

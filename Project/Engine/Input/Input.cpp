@@ -6,7 +6,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Window/WinApp.h>
-#include <Engine/Debug/Logger.h>
+#include <Engine/Logger/Logger.h>
 #include <Engine/Utility/Enum/EnumAdapter.h>
 
 // imgui

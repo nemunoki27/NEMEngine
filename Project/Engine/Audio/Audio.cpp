@@ -5,7 +5,7 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Debug/Assert.h>
+#include <Engine/Logger/Assert.h>
 #include <Engine/Utility/Algorithm/Algorithm.h>
 
 // windows

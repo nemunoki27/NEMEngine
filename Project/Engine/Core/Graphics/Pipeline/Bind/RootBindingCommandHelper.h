@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Graphics/Pipeline/Stage/AutoRootSignatureBuilder.h>
-#include <Engine/Debug/Assert.h>
+#include <Engine/Logger/Assert.h>
 
 //============================================================================
 //	RootBindingCommandHelper namespace

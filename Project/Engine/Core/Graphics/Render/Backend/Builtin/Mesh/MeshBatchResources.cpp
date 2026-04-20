@@ -10,7 +10,7 @@
 #include <Engine/Core/ECS/Component/Builtin/Render/MeshRendererComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Animation/SkinnedAnimationComponent.h> 
 #include <Engine/Core/ECS/World/ECSWorld.h>
-#include <Engine/Debug/Assert.h>
+#include <Engine/Logger/Assert.h>
 
 //============================================================================
 //	MeshBatchResources classMethods
