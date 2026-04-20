@@ -407,7 +407,7 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 	if (!skinningPipeline_) {
 
 		skinningPipeline_ = context.assetDatabase->ImportOrGet(
-			"Assets/Pipelines/Builtin/Mesh/skinning.pipeline.json", AssetType::RenderPipeline);
+			"Engine/Assets/Pipelines/Builtin/Mesh/skinning.pipeline.json", AssetType::RenderPipeline);
 	}
 
 	// スキニングパイプラインの取得

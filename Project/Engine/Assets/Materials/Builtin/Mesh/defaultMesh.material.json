@@ -1,0 +1,16 @@
+{
+  "name": "DefaultMesh",
+  "domain": "Surface",
+  "passes": [
+    {
+      "passName": "ZPrepass",
+      "pipeline": "Engine/Assets/Pipelines/Builtin/Mesh/defaultMeshZPrepass.pipeline.json",
+      "preferredVariant": "GraphicsMesh"
+    },
+    {
+      "passName": "Draw",
+      "pipeline": "Engine/Assets/Pipelines/Builtin/Mesh/defaultMesh.pipeline.json",
+      "preferredVariant": "GraphicsMesh"
+    }
+  ]
+}

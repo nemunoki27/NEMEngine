@@ -1,0 +1,21 @@
+{
+  "name": "FullscreenCopy",
+  "domain": "Fullscreen",
+  "passes": [
+    {
+      "passName": "Blit",
+      "pipeline": "Engine/Assets/Pipelines/Builtin/FullscreenCopy/FullscreenCopy.pipeline.json",
+      "preferredVariant": "GraphicsVertex"
+    },
+    {
+      "passName": "PostProcess",
+      "pipeline": "Engine/Assets/Pipelines/Builtin/FullscreenCopy/FullscreenCopy.pipeline.json",
+      "preferredVariant": "GraphicsVertex"
+    },
+    {
+      "passName": "Fullscreen",
+      "pipeline": "Engine/Assets/Pipelines/Builtin/FullscreenCopy/FullscreenCopy.pipeline.json",
+      "preferredVariant": "GraphicsVertex"
+    }
+  ]
+}

@@ -138,7 +138,7 @@ void Audio::Init() {
 void Audio::LoadAllSounds() {
 
 	// 固定ファイルパス
-	const std::string& rootDir = "Assets/Sounds";
+	const std::string& rootDir = "Engine/Assets/Sounds";
 
 	std::filesystem::path root(rootDir);
 

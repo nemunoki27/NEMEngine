@@ -14,7 +14,7 @@
 
 void Engine::EngineContext::InitCoreSettings() {
 
-	nlohmann::json data = JsonAdapter::Load("./Assets/Window/windowSetting.json");
+	nlohmann::json data = JsonAdapter::Load("./Engine/Assets/Window/windowSetting.json");
 	// ウィンドウ設定
 	std::string windowTitle = data["WindowTitle"];
 	windowSetting_.title = Algorithm::ConvertString(windowTitle);

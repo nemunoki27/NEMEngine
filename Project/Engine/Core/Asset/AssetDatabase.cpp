@@ -15,8 +15,8 @@ bool Engine::AssetDatabase::Init() {
 
 	// ファイルパスの初期化
 	projectRoot_ = "./";
-	assetsRoot_ = projectRoot_ / "Assets";
-	libraryRoot_ = projectRoot_ / "Library";
+	assetsRoot_ = projectRoot_ / "Engine/Assets";
+	libraryRoot_ = projectRoot_ / "Engine/Library";
 
 	// 無ければ作成する
 	std::filesystem::create_directories(assetsRoot_);

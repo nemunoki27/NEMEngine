@@ -22,8 +22,8 @@ bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database) {
 
 	// Assets配下を再帰走査してインデックスを構築
 	root_ = {};
-	root_.name = "Assets";
-	root_.virtualPath = "Assets";
+	root_.name = "Engine/Assets";
+	root_.virtualPath = "Engine/Assets";
 	for (const auto& entry : std::filesystem::recursive_directory_iterator(database.GetAssetsRoot())) {
 
 		if (!entry.is_regular_file()) {
@@ -146,7 +146,7 @@ Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::EnsureDirectory(const s
 	}
 
 	// 相対パスを"/"区切りで分割して順にディレクトリノードをたどる。存在しない場合は新規作成する
-	std::string currentPath = "Assets";
+	std::string currentPath = "Engine/Assets";
 	for (const auto& part : relativeDirectory) {
 
 		const std::string name = part.string();

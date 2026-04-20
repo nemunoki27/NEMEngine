@@ -1,0 +1,11 @@
+{
+  "name": "ReflectionRaytracingMaterial",
+  "domain": "Surface",
+  "passes": [
+    {
+      "passName": "Raytracing",
+      "pipeline": "Engine/Assets/Pipelines/Builtin/Raytracing/reflection.pipeline.json",
+      "preferredVariant": "Raytracing"
+    }
+  ]
+}

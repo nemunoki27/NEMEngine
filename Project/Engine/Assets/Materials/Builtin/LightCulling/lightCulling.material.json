@@ -1,0 +1,11 @@
+{
+  "name": "LightCulling",
+  "domain": "Compute",
+  "passes": [
+    {
+      "passName": "LightCulling",
+      "pipeline": "Engine/Assets/Pipelines/Builtin/LightCulling/lightCulling.pipeline.json",
+      "preferredVariant": "Compute"
+    }
+  ]
+}

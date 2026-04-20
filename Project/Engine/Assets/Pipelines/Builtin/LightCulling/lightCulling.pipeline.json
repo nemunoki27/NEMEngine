@@ -1,0 +1,10 @@
+{
+  "name": "LightCullingPipeline",
+  "variants": [
+    {
+      "kind": "Compute",
+      "pipelineType": "Compute",
+      "shader": "Engine/Assets/Shaders/Builtin/LightCulling/lightCulling.shader.json"
+    }
+  ]
+}
