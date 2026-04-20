@@ -190,3 +190,19 @@ function NEM_AddSandboxProjectFiles()
         },
     }
 end
+
+NEMENGINE_ROOT = NEMENGINE_ROOT or path.getabsolute(path.join(_SCRIPT_DIR, ".."))
+NEM_GENERATED_ROOT = NEM_GENERATED_ROOT or path.join(NEMENGINE_ROOT, "Generated")
+
+function NEM_ConfigureWorkspaceLayout(runtimeDebugDir)
+    objdir(path.join(NEM_GENERATED_ROOT, "Intermediate/%{prj.name}/%{cfg.buildcfg}"))
+
+    filter "kind:StaticLib"
+        targetdir(path.join(NEM_GENERATED_ROOT, "Bin/%{cfg.buildcfg}/%{prj.name}"))
+
+    filter "kind:ConsoleApp or kind:WindowedApp"
+        targetdir(path.join(NEM_GENERATED_ROOT, "Output/%{cfg.buildcfg}/%{prj.name}"))
+        debugdir(runtimeDebugDir)
+
+    filter {}
+end

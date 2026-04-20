@@ -2,12 +2,13 @@
 .vs/
 Project/.vs/
 Project/*.sln
-Project/*.vcxproj
-Project/*.vcxproj.filters
-Project/*.vcxproj.user
-Project/*.vcxproj.nuget.*
-Project/*.props
-Project/*.targets
+Project/*.slnx
+Project/**/*.vcxproj
+Project/**/*.vcxproj.filters
+Project/**/*.vcxproj.user
+Project/**/*.vcxproj.nuget.*
+Project/**/*.props
+Project/**/*.targets
 
 # Build output
 Generated/
