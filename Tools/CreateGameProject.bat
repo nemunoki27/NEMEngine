@@ -42,13 +42,13 @@ set "TEMP_DIR=%TEMP%\NEMCreateGame_%RANDOM%%RANDOM%"
 set "TEMP_SANDBOX=%TEMP_DIR%\Project\Sandbox"
 mkdir "%TEMP_DIR%\Project" >nul 2>&1
 
-echo [1/10] Export Sandbox template from engine...
+echo [1/12] Export Sandbox template from engine...
 robocopy "%ENGINE_ROOT%\Project\Sandbox" "%TEMP_SANDBOX%" /E /NFL /NDL /NJH /NJS /NP ^
     /XD ".vs" "Generated" "Library" "Log" ^
     /XF "*.sln" "*.slnx" "*.vcxproj" "*.vcxproj.filters" "*.vcxproj.user" "*.db" "*.opendb" "*.sdf" "*.suo"
-set "RC=!ERRORLEVEL!"
-if !RC! GEQ 8 (
-    echo [ERROR] Failed to copy Sandbox template. robocopy errorlevel=!RC!
+set "ROBOCOPY_EXIT=!ERRORLEVEL!"
+if !ROBOCOPY_EXIT! GEQ 8 (
+    echo [ERROR] Failed to copy Sandbox template. robocopy errorlevel=!ROBOCOPY_EXIT!
     rd /s /q "%TEMP_DIR%" >nul 2>&1
     exit /b 1
 )
@@ -59,7 +59,7 @@ if not exist "%TEMP_SANDBOX%" (
     exit /b 1
 )
 
-echo [2/10] Create game directory...
+echo [2/12] Create game directory...
 mkdir "%GAME_ROOT%" >nul
 mkdir "%GAME_ROOT%\Premake" >nul
 mkdir "%GAME_ROOT%\Project" >nul
@@ -69,22 +69,22 @@ if exist "%ENGINE_ROOT%\Project\EditorLayout.ini" (
     copy /Y "%ENGINE_ROOT%\Project\EditorLayout.ini" "%GAME_ROOT%\Project\EditorLayout.ini" >nul
 )
 
-echo [3/10] Copy sanitized Sandbox to Project\%GAME_NAME%...
+echo [3/12] Copy sanitized Sandbox to Project\%GAME_NAME%...
 robocopy "%TEMP_SANDBOX%" "%GAME_ROOT%\Project\%GAME_NAME%" /E /NFL /NDL /NJH /NJS /NP ^
     /XD ".vs" "Generated" "Library" "Log" ^
     /XF "*.sln" "*.slnx" "*.vcxproj" "*.vcxproj.filters" "*.vcxproj.user" "*.db" "*.opendb" "*.sdf" "*.suo"
-set "RC=!ERRORLEVEL!"
-if !RC! GEQ 8 (
-    echo [ERROR] Failed to copy sanitized Sandbox. robocopy errorlevel=!RC!
+set "ROBOCOPY_EXIT=!ERRORLEVEL!"
+if !ROBOCOPY_EXIT! GEQ 8 (
+    echo [ERROR] Failed to copy sanitized Sandbox. robocopy errorlevel=!ROBOCOPY_EXIT!
     rd /s /q "%TEMP_DIR%" >nul 2>&1
     exit /b 1
 )
 
-echo [4/10] Copy game templates...
+echo [4/12] Copy game templates...
 robocopy "%TEMPLATE_ROOT%\Premake" "%GAME_ROOT%\Premake" /E /NFL /NDL /NJH /NJS /NP >nul
-set "RC=!ERRORLEVEL!"
-if !RC! GEQ 8 (
-    echo [ERROR] Failed to copy Premake templates. robocopy errorlevel=!RC!
+set "ROBOCOPY_EXIT=!ERRORLEVEL!"
+if !ROBOCOPY_EXIT! GEQ 8 (
+    echo [ERROR] Failed to copy Premake templates. robocopy errorlevel=!ROBOCOPY_EXIT!
     rd /s /q "%TEMP_DIR%" >nul 2>&1
     exit /b 1
 )
@@ -93,7 +93,7 @@ if exist "%TEMPLATE_ROOT%\.gitignore" (
     copy /Y "%TEMPLATE_ROOT%\.gitignore" "%GAME_ROOT%\.gitignore" >nul
 )
 
-echo [5/10] Replace template tokens...
+echo [5/12] Replace template tokens...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$gameName = '%GAME_NAME%';" ^
   "$premakePath = [IO.Path]::GetFullPath('%GAME_ROOT%\Premake\premake5.lua');" ^
@@ -101,7 +101,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$content = $content.Replace('__GAME_NAME__', $gameName);" ^
   "[IO.File]::WriteAllText($premakePath, $content, (New-Object System.Text.UTF8Encoding($false)));"
 
-echo [6/10] Remove copied junk and legacy empty folders...
+echo [6/12] Remove copied junk and legacy empty folders...
 if exist "%GAME_ROOT%\Project\%GAME_NAME%\Sandbox.vcxproj" del /q "%GAME_ROOT%\Project\%GAME_NAME%\Sandbox.vcxproj"
 if exist "%GAME_ROOT%\Project\%GAME_NAME%\Sandbox.vcxproj.filters" del /q "%GAME_ROOT%\Project\%GAME_NAME%\Sandbox.vcxproj.filters"
 if exist "%GAME_ROOT%\Project\%GAME_NAME%\Sandbox.vcxproj.user" del /q "%GAME_ROOT%\Project\%GAME_NAME%\Sandbox.vcxproj.user"
@@ -125,7 +125,7 @@ if exist "%GAME_ROOT%\Project\Log" (
     2>nul rd "%GAME_ROOT%\Project\Log"
 )
 
-echo [7/10] Rename Sandbox identifiers inside copied source files...
+echo [7/12] Rename Sandbox identifiers inside copied source files...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$root = [IO.Path]::GetFullPath('%GAME_ROOT%\Project\%GAME_NAME%');" ^
   "$patterns = '*.cpp','*.c','*.h','*.hpp','*.inl','*.hlsl','*.fx','*.json','*.ini','*.txt','*.md';" ^
@@ -135,7 +135,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "  if ($dst -ne $src) { [IO.File]::WriteAllText($_.FullName, $dst, (New-Object System.Text.UTF8Encoding($false))) }" ^
   "}"
 
-echo [8/11] Initialize local git repository...
+echo [8/12] Initialize local git repository...
 pushd "%GAME_ROOT%"
 git init >nul 2>&1
 if errorlevel 1 (
@@ -147,7 +147,7 @@ if errorlevel 1 (
 git branch -M main >nul 2>&1
 popd
 
-echo [9/11] Add NEMEngine submodule...
+echo [9/12] Add NEMEngine submodule...
 set "ENGINE_SUBMODULE_URL="
 for /f "delims=" %%A in ('git -C "%ENGINE_ROOT%" remote get-url origin 2^>nul') do set "ENGINE_SUBMODULE_URL=%%A"
 if not defined ENGINE_SUBMODULE_URL set "ENGINE_SUBMODULE_URL=%ENGINE_ROOT%"
@@ -164,7 +164,25 @@ git -C "%GAME_ROOT%" config -f .gitmodules submodule.External/NEMEngine.url "!EN
 git -C "%GAME_ROOT%\External\NEMEngine" remote set-url origin "!ENGINE_SUBMODULE_URL!" >nul 2>&1
 git -C "%GAME_ROOT%" submodule sync -- External/NEMEngine >nul 2>&1
 
-echo [10/11] Configure git identity for this game repository...
+echo [10/12] Initialize NEMEngine external modules...
+for /f "tokens=1,*" %%A in ('git -C "%ENGINE_ROOT%" config -f .gitmodules --get-regexp "submodule\..*\.path" 2^>nul') do (
+    set "NEM_SUBMODULE_KEY=%%A"
+    set "NEM_SUBMODULE_PATH=%%B"
+    set "NEM_SUBMODULE_NAME=!NEM_SUBMODULE_KEY:submodule.=!"
+    set "NEM_SUBMODULE_NAME=!NEM_SUBMODULE_NAME:.path=!"
+    if exist "%ENGINE_ROOT%\!NEM_SUBMODULE_PATH!\.git" (
+        git -C "%GAME_ROOT%\External\NEMEngine" config "submodule.!NEM_SUBMODULE_NAME!.url" "%ENGINE_ROOT%\!NEM_SUBMODULE_PATH!" >nul 2>&1
+    )
+)
+
+git -c protocol.file.allow=always -C "%GAME_ROOT%\External\NEMEngine" submodule update --init --recursive
+if errorlevel 1 (
+    echo [ERROR] Failed to initialize NEMEngine external modules.
+    rd /s /q "%TEMP_DIR%" >nul 2>&1
+    exit /b 1
+)
+
+echo [11/12] Configure git identity for this game repository...
 
 set "DEFAULT_GIT_NAME="
 set "DEFAULT_GIT_EMAIL="
@@ -230,7 +248,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [10/10] Optional GitHub repository creation...
+echo [12/12] Optional GitHub repository creation...
 set "CREATE_GITHUB="
 set /p "CREATE_GITHUB=Create GitHub repository too? [y/N]: "
 
