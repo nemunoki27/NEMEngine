@@ -18,6 +18,7 @@ Project/Log/
 # Local machine settings
 Premake/local_settings.lua
 Premake/local_settings.bat
+Project/EditorLayout.ini
 
 # Premake
 Premake/premake_error.log
