@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Logger/Logger.h>
 #include <Engine/Core/Graphics/Descriptors/SRVDescriptor.h>
+#include <Engine/Core/Runtime/RuntimePaths.h>
 #include <Engine/Utility/Algorithm/Algorithm.h>
 
 //============================================================================
@@ -297,7 +298,7 @@ void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& 
 	result.key = job.key;
 
 	// ファイルパスからテクスチャをデコードする
-	const std::filesystem::path fullPath(job.assetPath);
+	const std::filesystem::path fullPath = RuntimePaths::ResolveAssetPath(job.assetPath);
 	const std::string extension = Algorithm::ToLower(fullPath.extension().string());
 	const std::wstring fullPathW = Algorithm::ConvertString(fullPath.string());
 

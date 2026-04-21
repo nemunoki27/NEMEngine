@@ -30,7 +30,21 @@ if not exist "%NEMENGINE_ROOT%\Premake\premake5.exe" (
     exit /b 1
 )
 
+call "%NEMENGINE_ROOT%\Premake\generate_vs2026.bat"
+if errorlevel 1 (
+    popd
+    exit /b 1
+)
+
 echo ===== Cleanup Old Project Files =====
+if exist "%GAME_ROOT%\Project\Engine\NEMEngine.vcxproj" del /q "%GAME_ROOT%\Project\Engine\NEMEngine.vcxproj"
+if exist "%GAME_ROOT%\Project\Engine\NEMEngine.vcxproj.filters" del /q "%GAME_ROOT%\Project\Engine\NEMEngine.vcxproj.filters"
+if exist "%GAME_ROOT%\Project\Engine\NEMEngine.vcxproj.user" del /q "%GAME_ROOT%\Project\Engine\NEMEngine.vcxproj.user"
+
+if exist "%GAME_ROOT%\Project\Externals\imgui\imgui.vcxproj" del /q "%GAME_ROOT%\Project\Externals\imgui\imgui.vcxproj"
+if exist "%GAME_ROOT%\Project\Externals\imgui\imgui.vcxproj.filters" del /q "%GAME_ROOT%\Project\Externals\imgui\imgui.vcxproj.filters"
+if exist "%GAME_ROOT%\Project\Externals\imgui\imgui.vcxproj.user" del /q "%GAME_ROOT%\Project\Externals\imgui\imgui.vcxproj.user"
+
 if exist "%GAME_ROOT%\Project\%GAME_NAME%.vcxproj" del /q "%GAME_ROOT%\Project\%GAME_NAME%.vcxproj"
 if exist "%GAME_ROOT%\Project\%GAME_NAME%.vcxproj.filters" del /q "%GAME_ROOT%\Project\%GAME_NAME%.vcxproj.filters"
 if exist "%GAME_ROOT%\Project\%GAME_NAME%.vcxproj.user" del /q "%GAME_ROOT%\Project\%GAME_NAME%.vcxproj.user"
@@ -58,3 +72,4 @@ if errorlevel 1 (
 
 popd
 endlocal
+exit /b 0

@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Runtime/RuntimePaths.h>
 #include <Engine/Utility/Algorithm/Algorithm.h>
 
 //============================================================================
@@ -24,17 +25,7 @@ bool Engine::TextureAssetResolver::IsTextureExtension(const std::filesystem::pat
 
 std::string Engine::TextureAssetResolver::ToAssetPath(const std::filesystem::path& fullPath) {
 
-	std::error_code ec;
-	std::filesystem::path relative = std::filesystem::relative(fullPath, std::filesystem::path("."), ec);
-	if (ec) {
-		return {};
-	}
-
-	const std::string assetPath = relative.generic_string();
-	if (assetPath.rfind("Engine/Assets/", 0) != 0) {
-		return {};
-	}
-	return assetPath;
+	return RuntimePaths::ToAssetPath(fullPath);
 }
 
 void Engine::TextureAssetResolver::IndexDirectoryRecursive(
@@ -108,6 +99,7 @@ void Engine::TextureAssetResolver::Build(const std::filesystem::path& modelFullP
 
 	candidatesByStem_.clear();
 	preferredFolder_.clear();
+	texturesRoot_ = RuntimePaths::GetEngineAssetPath("Textures");
 
 	if (!std::filesystem::exists(texturesRoot_) || !std::filesystem::is_directory(texturesRoot_)) {
 		return;

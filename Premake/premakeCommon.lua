@@ -1,15 +1,21 @@
-NEMENGINE_ROOT  = NEMENGINE_ROOT or path.getabsolute(path.join(_SCRIPT_DIR, ".."))
+NEMENGINE_ROOT = NEMENGINE_ROOT or path.getabsolute(path.join(_SCRIPT_DIR, ".."))
 NEM_PROJECT_ROOT = path.join(NEMENGINE_ROOT, "Project")
-NEM_GENERATED_ROOT = path.join(NEMENGINE_ROOT, "Generated")
+
+-- Engine-owned generated files, such as CMake-generated assimp headers.
+NEM_ENGINE_GENERATED_ROOT = NEM_ENGINE_GENERATED_ROOT or path.join(NEMENGINE_ROOT, "Generated")
+
+-- Workspace output location. Game projects may override this after loading this file.
+NEM_OUTPUT_ROOT = NEM_OUTPUT_ROOT or NEM_GENERATED_ROOT or NEM_ENGINE_GENERATED_ROOT
+NEM_GENERATED_ROOT = NEM_OUTPUT_ROOT
 
 function NEM_ConfigureWorkspaceLayout(runtimeDebugDir)
-    objdir(path.join(NEM_GENERATED_ROOT, "Intermediate/%{prj.name}/%{cfg.buildcfg}"))
+    objdir(path.join(NEM_OUTPUT_ROOT, "Intermediate/%{prj.name}/%{cfg.buildcfg}"))
 
     filter "kind:StaticLib"
-        targetdir(path.join(NEM_GENERATED_ROOT, "Bin/%{cfg.buildcfg}/%{prj.name}"))
+        targetdir(path.join(NEM_OUTPUT_ROOT, "Bin/%{cfg.buildcfg}/%{prj.name}"))
 
     filter "kind:ConsoleApp or kind:WindowedApp"
-        targetdir(path.join(NEM_GENERATED_ROOT, "Output/%{cfg.buildcfg}/%{prj.name}"))
+        targetdir(path.join(NEM_OUTPUT_ROOT, "Output/%{cfg.buildcfg}/%{prj.name}"))
         debugdir(runtimeDebugDir)
 
     filter {}
@@ -65,7 +71,7 @@ function NEM_AddEngineIncludeSettings()
         path.join(NEM_PROJECT_ROOT, "Externals/assimp/include"),
 
         -- assimp: generated headers (assimp/config.h, assimp/revision.h など)
-        path.join(NEM_GENERATED_ROOT, "Externals/assimp/include"),
+        path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/include"),
 
         path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/include"),
         path.join(NEM_PROJECT_ROOT, "Externals/DirectXTex"),
@@ -190,20 +196,4 @@ function NEM_AddSandboxProjectFiles()
             path.join(NEM_PROJECT_ROOT, "Sandbox/GameAssets/**.*"),
         },
     }
-end
-
-NEMENGINE_ROOT = NEMENGINE_ROOT or path.getabsolute(path.join(_SCRIPT_DIR, ".."))
-NEM_GENERATED_ROOT = NEM_GENERATED_ROOT or path.join(NEMENGINE_ROOT, "Generated")
-
-function NEM_ConfigureWorkspaceLayout(runtimeDebugDir)
-    objdir(path.join(NEM_GENERATED_ROOT, "Intermediate/%{prj.name}/%{cfg.buildcfg}"))
-
-    filter "kind:StaticLib"
-        targetdir(path.join(NEM_GENERATED_ROOT, "Bin/%{cfg.buildcfg}/%{prj.name}"))
-
-    filter "kind:ConsoleApp or kind:WindowedApp"
-        targetdir(path.join(NEM_GENERATED_ROOT, "Output/%{cfg.buildcfg}/%{prj.name}"))
-        debugdir(runtimeDebugDir)
-
-    filter {}
 end

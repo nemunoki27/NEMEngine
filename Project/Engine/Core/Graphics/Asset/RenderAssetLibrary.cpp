@@ -42,7 +42,7 @@ namespace {
 			return Engine::FromString16Hex(text);
 		}
 
-		const std::filesystem::path fullPath = database.GetProjectRoot() / text;
+		const std::filesystem::path fullPath = database.ResolveAssetPath(text);
 		if (!std::filesystem::exists(fullPath)) {
 			return Engine::AssetID{};
 		}

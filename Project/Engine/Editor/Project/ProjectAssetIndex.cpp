@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Runtime/RuntimePaths.h>
 
 //============================================================================
 //	ProjectAssetIndex classMethods
@@ -16,15 +17,40 @@ namespace {
 		auto sibling = fullPath.parent_path() / (fullPath.stem().string() + extension);
 		return std::filesystem::exists(sibling);
 	}
+
+	struct AssetRootDesc {
+
+		std::string name;
+		std::string virtualPath;
+		std::filesystem::path fullPath;
+	};
+
+	AssetRootDesc MakeAssetRootDesc(const Engine::AssetDatabase& database, Engine::ProjectAssetSource source) {
+
+		switch (source) {
+		case Engine::ProjectAssetSource::Engine:
+			return { "Engine", "Engine/Assets", database.GetAssetsRoot() };
+		case Engine::ProjectAssetSource::Game:
+			return { "Game", "GameAssets", Engine::RuntimePaths::GetGameRoot() / "GameAssets" };
+		}
+		return { "Engine", "Engine/Assets", database.GetAssetsRoot() };
+	}
 }
 
-bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database) {
+bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database, ProjectAssetSource source) {
+
+	const AssetRootDesc rootDesc = MakeAssetRootDesc(database, source);
 
 	// Assets配下を再帰走査してインデックスを構築
 	root_ = {};
-	root_.name = "Engine/Assets";
-	root_.virtualPath = "Engine/Assets";
-	for (const auto& entry : std::filesystem::recursive_directory_iterator(database.GetAssetsRoot())) {
+	root_.name = rootDesc.name;
+	root_.virtualPath = rootDesc.virtualPath;
+
+	if (!std::filesystem::exists(rootDesc.fullPath) || !std::filesystem::is_directory(rootDesc.fullPath)) {
+		return true;
+	}
+
+	for (const auto& entry : std::filesystem::recursive_directory_iterator(rootDesc.fullPath)) {
 
 		if (!entry.is_regular_file()) {
 			continue;
@@ -34,8 +60,11 @@ bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database) {
 			continue;
 		}
 
-		// "Assets/..."の相対パス化
-		const std::string assetPath = std::filesystem::relative(fullPath, database.GetProjectRoot()).generic_string();
+		// 論理アセットパス化
+		const std::string assetPath = RuntimePaths::ToAssetPath(fullPath);
+		if (assetPath.empty()) {
+			continue;
+		}
 		const AssetMeta* meta = database.FindByPath(assetPath);
 		if (!meta) {
 			continue;
@@ -51,7 +80,7 @@ bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database) {
 		browserEntry.sidecarFiles = CollectSidecars(fullPath);
 
 		// ディレクトリノードに追加
-		std::filesystem::path directory = std::filesystem::relative(fullPath.parent_path(), database.GetAssetsRoot());
+		std::filesystem::path directory = std::filesystem::relative(fullPath.parent_path(), rootDesc.fullPath);
 		ProjectDirectoryNode* dirNode = EnsureDirectory(directory);
 		dirNode->assets.emplace_back(std::move(browserEntry));
 	}
@@ -146,7 +175,7 @@ Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::EnsureDirectory(const s
 	}
 
 	// 相対パスを"/"区切りで分割して順にディレクトリノードをたどる。存在しない場合は新規作成する
-	std::string currentPath = "Engine/Assets";
+	std::string currentPath = root_.virtualPath;
 	for (const auto& part : relativeDirectory) {
 
 		const std::string name = part.string();

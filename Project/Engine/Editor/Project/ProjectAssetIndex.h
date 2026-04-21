@@ -47,6 +47,16 @@ namespace Engine {
 	};
 
 	//============================================================================
+	//	ProjectAssetSource enum class
+	//============================================================================
+	enum class ProjectAssetSource :
+		uint8_t {
+
+		Engine,
+		Game,
+	};
+
+	//============================================================================
 	//	ProjectAssetIndex class
 	//	プロジェクト内のアセットのインデックスを管理するクラス
 	//============================================================================
@@ -59,7 +69,7 @@ namespace Engine {
 		ProjectAssetIndex() = default;
 		~ProjectAssetIndex() = default;
 
-		bool Rebuild(const AssetDatabase& database);
+		bool Rebuild(const AssetDatabase& database, ProjectAssetSource source);
 
 		//--------- accessor -----------------------------------------------------
 

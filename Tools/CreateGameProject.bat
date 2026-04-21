@@ -43,32 +43,14 @@ set "TEMP_SANDBOX=%TEMP_DIR%\Project\Sandbox"
 mkdir "%TEMP_DIR%\Project" >nul 2>&1
 
 echo [1/10] Export Sandbox template from engine...
-set "EXPORT_OK="
-
-git -C "%ENGINE_ROOT%" rev-parse --verify main >nul 2>&1
-if not errorlevel 1 (
-    git -C "%ENGINE_ROOT%" archive --format=zip --output="%TEMP_DIR%\sandbox_main.zip" main Project/Sandbox >nul 2>&1
-    if exist "%TEMP_DIR%\sandbox_main.zip" (
-        powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-          "Expand-Archive -LiteralPath '%TEMP_DIR%\sandbox_main.zip' -DestinationPath '%TEMP_DIR%' -Force"
-        if exist "%TEMP_SANDBOX%" (
-            set "EXPORT_OK=1"
-        )
-    )
-)
-
-if not defined EXPORT_OK (
-    echo [WARN] Could not export from branch "main". Copying current working tree instead.
-
-    robocopy "%ENGINE_ROOT%\Project\Sandbox" "%TEMP_SANDBOX%" /E /NFL /NDL /NJH /NJS /NP ^
-        /XD ".vs" "Generated" "Library" "Log" ^
-        /XF "*.sln" "*.slnx" "*.vcxproj" "*.vcxproj.filters" "*.vcxproj.user" "*.db" "*.opendb" "*.sdf" "*.suo"
-    set "RC=!ERRORLEVEL!"
-    if !RC! GEQ 8 (
-        echo [ERROR] Failed to copy Sandbox template. robocopy errorlevel=!RC!
-        rd /s /q "%TEMP_DIR%" >nul 2>&1
-        exit /b 1
-    )
+robocopy "%ENGINE_ROOT%\Project\Sandbox" "%TEMP_SANDBOX%" /E /NFL /NDL /NJH /NJS /NP ^
+    /XD ".vs" "Generated" "Library" "Log" ^
+    /XF "*.sln" "*.slnx" "*.vcxproj" "*.vcxproj.filters" "*.vcxproj.user" "*.db" "*.opendb" "*.sdf" "*.suo"
+set "RC=!ERRORLEVEL!"
+if !RC! GEQ 8 (
+    echo [ERROR] Failed to copy Sandbox template. robocopy errorlevel=!RC!
+    rd /s /q "%TEMP_DIR%" >nul 2>&1
+    exit /b 1
 )
 
 if not exist "%TEMP_SANDBOX%" (
@@ -82,6 +64,10 @@ mkdir "%GAME_ROOT%" >nul
 mkdir "%GAME_ROOT%\Premake" >nul
 mkdir "%GAME_ROOT%\Project" >nul
 mkdir "%GAME_ROOT%\Project\%GAME_NAME%" >nul
+
+if exist "%ENGINE_ROOT%\Project\EditorLayout.ini" (
+    copy /Y "%ENGINE_ROOT%\Project\EditorLayout.ini" "%GAME_ROOT%\Project\EditorLayout.ini" >nul
+)
 
 echo [3/10] Copy sanitized Sandbox to Project\%GAME_NAME%...
 robocopy "%TEMP_SANDBOX%" "%GAME_ROOT%\Project\%GAME_NAME%" /E /NFL /NDL /NJH /NJS /NP ^
@@ -157,7 +143,13 @@ echo [8/10] Create local engine settings...
 > "%GAME_ROOT%\Premake\local_settings.bat" echo @echo off
 >> "%GAME_ROOT%\Premake\local_settings.bat" echo set "NEMENGINE_ROOT=%ENGINE_ROOT%"
 
-echo [9/11] Initialize local git repository...
+echo [9/11] Optional local git repository creation...
+set "INIT_GIT="
+set /p "INIT_GIT=Initialize local git repository? [y/N]: "
+
+if /I not "!INIT_GIT!"=="y" if /I not "!INIT_GIT!"=="yes" goto :premake_generate
+
+echo [Git] Initialize local git repository...
 pushd "%GAME_ROOT%"
 git init >nul 2>&1
 git branch -M main >nul 2>&1
@@ -219,6 +211,7 @@ if defined FINAL_GIT_EMAIL (
     echo   user.email = ^<not set^>
 )
 
+:premake_generate
 echo.
 echo ===== Premake Generate =====
 call "%GAME_ROOT%\Premake\generate_vs2026.bat"
@@ -227,6 +220,8 @@ if errorlevel 1 (
     rd /s /q "%TEMP_DIR%" >nul 2>&1
     exit /b 1
 )
+
+if /I not "!INIT_GIT!"=="y" if /I not "!INIT_GIT!"=="yes" goto :finish
 
 echo [10/10] Optional GitHub repository creation...
 set "CREATE_GITHUB="

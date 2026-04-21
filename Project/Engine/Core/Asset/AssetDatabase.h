@@ -59,10 +59,13 @@ namespace Engine {
 		const AssetMeta* FindByPath(const std::string& assetPath) const;
 		// GUIDからアセットのファイルパスを取得
 		std::filesystem::path ResolveFullPath(AssetID id) const;
+		// 論理アセットパスから実ファイルパスを取得
+		std::filesystem::path ResolveAssetPath(const std::string& assetPath) const;
 
 		// ファイルパスのルートを取得
 		const std::filesystem::path& GetProjectRoot() const { return projectRoot_; }
 		const std::filesystem::path& GetAssetsRoot() const { return assetsRoot_; }
+		const std::filesystem::path& GetLibraryRoot() const { return libraryRoot_; }
 	private:
 		//========================================================================
 		//	private Methods

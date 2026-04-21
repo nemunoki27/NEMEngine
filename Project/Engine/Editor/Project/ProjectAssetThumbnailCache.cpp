@@ -38,7 +38,7 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 		return;
 	}
 
-	const std::string baseKey = "./Engine/Assets/Textures/Engine/Editor/File/";
+	const std::string baseKey = "Engine/Assets/Textures/Engine/Editor/File/";
 	folderIconKey_ = "folder.dds";
 	textureUploadService_->RequestTextureFile(folderIconKey_, baseKey + folderIconKey_);
 

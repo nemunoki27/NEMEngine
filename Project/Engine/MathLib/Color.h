@@ -9,7 +9,7 @@
 #include <cmath>
 #include <vector>
 // json
-#include <Externals/nlohmann/json.hpp>
+#include <json.hpp>
 
 namespace Engine {
 

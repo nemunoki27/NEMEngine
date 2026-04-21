@@ -34,7 +34,7 @@ void Engine::MaterialResolver::EnsureDefaults(AssetDatabase& database) const {
 	defaultMaterials_.fill(AssetID{});
 
 	auto tryImportIfExists = [&](DefaultMaterialSlot slot, AssetType type) {
-		std::filesystem::path fullPath = database.GetProjectRoot() / GetDefaultAssetPath(slot);
+		std::filesystem::path fullPath = database.ResolveAssetPath(GetDefaultAssetPath(slot));
 		if (!std::filesystem::exists(fullPath)) {
 			return;
 		}

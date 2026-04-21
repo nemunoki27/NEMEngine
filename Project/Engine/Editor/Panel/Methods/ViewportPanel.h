@@ -9,7 +9,7 @@
 #include <Engine/Core/UUID/UUID.h>
 
 // json
-#include <Externals/nlohmann/json.hpp>
+#include <json.hpp>
 
 namespace Engine {
 

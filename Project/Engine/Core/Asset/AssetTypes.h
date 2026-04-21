@@ -8,7 +8,7 @@
 // c++
 #include <string_view>
 // json
-#include <Externals/nlohmann/json.hpp>
+#include <json.hpp>
 
 namespace Engine {
 

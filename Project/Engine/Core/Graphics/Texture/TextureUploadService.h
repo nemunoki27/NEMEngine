@@ -11,8 +11,8 @@
 #include <unordered_map>
 #include <unordered_set>
 // directX
-#include <Externals/DirectXTex/DirectXTex.h>
-#include <Externals/DirectXTex/d3dx12.h>
+#include <DirectXTex.h>
+#include <d3dx12.h>
 
 namespace Engine {
 

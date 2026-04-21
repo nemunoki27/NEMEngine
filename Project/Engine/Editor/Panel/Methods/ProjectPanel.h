@@ -38,6 +38,7 @@ namespace Engine {
 		ProjectAssetIndex assetIndex_;
 		ProjectAssetThumbnailCache thumbnailCache_;
 
+		ProjectAssetSource assetSource_ = ProjectAssetSource::Engine;
 		// 現在選択されているディレクトリの仮想パスとアセットID
 		std::string selectedDirectory_ = "Engine/Assets";
 		AssetID selectedAsset_{};
@@ -50,6 +51,9 @@ namespace Engine {
 		void Rebuild(AssetDatabase& database);
 		// プロジェクトのディレクトリツリーと内容を描画する
 		void DrawHeader(AssetDatabase& database);
+		void DrawSourceSelector(AssetDatabase& database);
 		void DrawDirectoryContents(const ProjectDirectoryNode& node);
+
+		const char* GetSourceRootPath() const;
 	};
 } // Engine

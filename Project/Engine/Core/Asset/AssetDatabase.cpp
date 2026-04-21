@@ -6,6 +6,10 @@
 #include <Engine/Utility/Json/JsonAdapter.h>
 #include <Engine/Utility/Enum/EnumAdapter.h>
 #include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Runtime/RuntimePaths.h>
+
+// c++
+#include <vector>
 
 //============================================================================
 //	AssetDatabase classMethods
@@ -14,12 +18,11 @@
 bool Engine::AssetDatabase::Init() {
 
 	// ファイルパスの初期化
-	projectRoot_ = "./";
-	assetsRoot_ = projectRoot_ / "Engine/Assets";
-	libraryRoot_ = projectRoot_ / "Engine/Library";
+	projectRoot_ = RuntimePaths::GetProjectRoot();
+	assetsRoot_ = RuntimePaths::GetEngineAssetsRoot();
+	libraryRoot_ = RuntimePaths::GetEngineLibraryRoot();
 
 	// 無ければ作成する
-	std::filesystem::create_directories(assetsRoot_);
 	std::filesystem::create_directories(libraryRoot_);
 
 	return true;
@@ -30,49 +33,66 @@ bool Engine::AssetDatabase::RebuildMeta() {
 	guidToMeta_.clear();
 	pathToGuid_.clear();
 
-	// Assets配下を再帰走査
-	for (auto& entry : std::filesystem::recursive_directory_iterator(assetsRoot_)) {
+	const std::filesystem::path gameAssetsRoot = RuntimePaths::GetGameRoot() / "GameAssets";
+	std::vector<std::filesystem::path> scanRoots{ assetsRoot_ };
+	if (gameAssetsRoot != assetsRoot_) {
+		scanRoots.emplace_back(gameAssetsRoot);
+	}
 
-		// ファイルでなければ無視
-		if (!entry.is_regular_file()) {
+	for (const auto& scanRoot : scanRoots) {
+
+		if (!std::filesystem::exists(scanRoot) || !std::filesystem::is_directory(scanRoot)) {
 			continue;
 		}
 
-		// ファイルのフルパス
-		const auto fullPath = entry.path();
+		// Assets配下を再帰走査
+		for (auto& entry : std::filesystem::recursive_directory_iterator(scanRoot)) {
 
-		// .metaは無視
-		const auto filename = fullPath.filename().string();
-		// ファイル名が.metaで終わる、もしくは.meta.を含む場合は無視
-		if (Algorithm::EndsWith(filename, ".meta") || filename.find(".meta.") != std::string::npos) {
-			continue;
+			// ファイルでなければ無視
+			if (!entry.is_regular_file()) {
+				continue;
+			}
+
+			// ファイルのフルパス
+			const auto fullPath = entry.path();
+
+			// .metaは無視
+			const auto filename = fullPath.filename().string();
+			// ファイル名が.metaで終わる、もしくは.meta.を含む場合は無視
+			if (Algorithm::EndsWith(filename, ".meta") || filename.find(".meta.") != std::string::npos) {
+				continue;
+			}
+
+			AssetType guessed = GuessTypeByPath(fullPath);
+
+			// 論理アセットパス化
+			std::string assetPath = RuntimePaths::ToAssetPath(fullPath);
+			if (assetPath.empty()) {
+				continue;
+			}
+			// インポート
+			ImportOrGet(assetPath, guessed);
 		}
-
-		AssetType guessed = GuessTypeByPath(fullPath);
-
-		// "Assets/..."の相対パス化
-		auto rel = std::filesystem::relative(fullPath, projectRoot_);
-		std::string assetPath = NormalizePath(rel);
-		// インポート
-		ImportOrGet(assetPath, guessed);
 	}
 	return true;
 }
 
 Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath, AssetType guessedType) {
 
+	const std::string normalizedAssetPath = NormalizePath(assetPath);
+
 	// 既にインデックスにいるなら返す
-	auto it = pathToGuid_.find(assetPath);
+	auto it = pathToGuid_.find(normalizedAssetPath);
 	if (it != pathToGuid_.end()) {
 		return it->second;
 	}
 
 	//  メタデータのフルパスを取得
-	std::filesystem::path assetFull = projectRoot_ / assetPath;
+	std::filesystem::path assetFull = ResolveAssetPath(normalizedAssetPath);
 	std::filesystem::path metaFull = MetaPathOf(assetFull);
 
 	AssetMeta meta{};
-	meta.assetPath = assetPath;
+	meta.assetPath = normalizedAssetPath;
 	bool needsSave = false;
 
 	// メタデータが存在するなら読み込む。無ければ新規作成して保存する
@@ -91,7 +111,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 				meta.type = guessedType;
 				needsSave = true;
 			}
-			meta.assetPath = assetPath;
+			meta.assetPath = normalizedAssetPath;
 		}
 	} else {
 
@@ -118,7 +138,7 @@ const Engine::AssetMeta* Engine::AssetDatabase::Find(AssetID id) const {
 
 const Engine::AssetMeta* Engine::AssetDatabase::FindByPath(const std::string& assetPath) const {
 
-	auto it = pathToGuid_.find(assetPath);
+	auto it = pathToGuid_.find(NormalizePath(assetPath));
 	return (it == pathToGuid_.end()) ? nullptr : Find(it->second);
 }
 
@@ -128,7 +148,12 @@ std::filesystem::path Engine::AssetDatabase::ResolveFullPath(AssetID id) const {
 	if (!meta) {
 		return {};
 	}
-	return projectRoot_ / meta->assetPath;
+	return ResolveAssetPath(meta->assetPath);
+}
+
+std::filesystem::path Engine::AssetDatabase::ResolveAssetPath(const std::string& assetPath) const {
+
+	return RuntimePaths::ResolveAssetPath(assetPath);
 }
 
 std::string Engine::AssetDatabase::NormalizePath(const std::filesystem::path& path) {
@@ -193,7 +218,10 @@ bool Engine::AssetDatabase::TryLoadMeta(const std::filesystem::path& metaFullPat
 	out.type = EnumAdapter<AssetType>::FromString(typeStr).value();
 	std::filesystem::path assetFullPath = metaFullPath;
 	assetFullPath.replace_extension("");
-	out.assetPath = NormalizePath(std::filesystem::relative(assetFullPath, projectRoot_));
+	out.assetPath = RuntimePaths::ToAssetPath(assetFullPath);
+	if (out.assetPath.empty()) {
+		return false;
+	}
 	return true;
 }
 

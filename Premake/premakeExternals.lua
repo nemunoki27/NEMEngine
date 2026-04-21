@@ -11,7 +11,7 @@ externalproject "DirectXTex"
     }
 
 project "imgui"
-    location (path.join(NEMENGINE_ROOT, "Project/Externals/imgui"))
+    location (NEM_IMGUI_PROJECT_LOCATION or path.join(NEMENGINE_ROOT, "Project/Externals/imgui"))
     kind "StaticLib"
 
     removeconfigurations { "Develop" }

@@ -67,17 +67,20 @@ namespace {
 		const Engine::ProjectDirectoryNode& root = index.GetRoot();
 		trail.push_back(&root);
 
-		const std::vector<std::string> parts = SplitVirtualPath(selectedDirectory);
-		if (parts.empty()) {
-			return trail;
-		}
-		if (parts.front() != root.name) {
+		if (selectedDirectory == root.virtualPath) {
 			return trail;
 		}
 
 		std::string currentPath = root.virtualPath;
-		for (size_t i = 1; i < parts.size(); ++i) {
-			currentPath += "/" + parts[i];
+		const std::string prefix = root.virtualPath + "/";
+		if (selectedDirectory.rfind(prefix, 0) != 0) {
+			return trail;
+		}
+
+		const std::vector<std::string> parts = SplitVirtualPath(selectedDirectory.substr(prefix.size()));
+		for (const std::string& part : parts) {
+
+			currentPath += "/" + part;
 
 			if (const auto* node = index.FindDirectory(currentPath)) {
 				trail.push_back(node);
@@ -100,9 +103,9 @@ void Engine::ProjectPanel::Rebuild(AssetDatabase& database) {
 
 	// インデックスとサムネイルキャッシュを再構築する
 	database.RebuildMeta();
-	assetIndex_.Rebuild(database);
+	assetIndex_.Rebuild(database, assetSource_);
 	if (!assetIndex_.FindDirectory(selectedDirectory_)) {
-		selectedDirectory_ = "Engine/Assets";
+		selectedDirectory_ = assetIndex_.GetRoot().virtualPath;
 	}
 	dirty_ = false;
 }
@@ -133,6 +136,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	}
 
 	ImGui::SetWindowFontScale(0.8f);
+	DrawSourceSelector(database);
 	DrawHeader(database);
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::Separator();
@@ -154,7 +158,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 void Engine::ProjectPanel::DrawHeader(AssetDatabase& database) {
 
 	// ルートへ戻る
-	if (ImGui::Button("Project/...")) {
+	if (ImGui::Button(GetSourceRootPath())) {
 		selectedDirectory_ = assetIndex_.GetRoot().virtualPath;
 		selectedAsset_ = {};
 	}
@@ -179,7 +183,7 @@ void Engine::ProjectPanel::DrawHeader(AssetDatabase& database) {
 	ImGui::TextUnformatted(">");
 	ImGui::SameLine();
 
-	const char* currentName = trail.empty() ? "Engine/Assets" : trail.back()->name.c_str();
+	const char* currentName = trail.empty() ? GetSourceRootPath() : trail.back()->name.c_str();
 	ImGui::TextUnformatted(currentName);
 
 	// 右端に Refresh
@@ -194,6 +198,32 @@ void Engine::ProjectPanel::DrawHeader(AssetDatabase& database) {
 		Rebuild(database);
 		selectedAsset_ = {};
 	}
+}
+
+void Engine::ProjectPanel::DrawSourceSelector(AssetDatabase& database) {
+
+	auto drawSourceButton = [&](ProjectAssetSource source, const char* label) {
+
+		const bool selected = assetSource_ == source;
+		if (selected) {
+			ImGui::BeginDisabled();
+		}
+		if (ImGui::Button(label)) {
+
+			assetSource_ = source;
+			selectedDirectory_ = source == ProjectAssetSource::Engine ? "Engine/Assets" : "GameAssets";
+			selectedAsset_ = {};
+			Rebuild(database);
+		}
+		if (selected) {
+			ImGui::EndDisabled();
+		}
+		};
+
+	drawSourceButton(ProjectAssetSource::Engine, "Engine");
+	ImGui::SameLine();
+	drawSourceButton(ProjectAssetSource::Game, "Game");
+	ImGui::Separator();
 }
 
 void Engine::ProjectPanel::DrawDirectoryContents(const ProjectDirectoryNode& node) {
@@ -272,4 +302,15 @@ void Engine::ProjectPanel::DrawDirectoryContents(const ProjectDirectoryNode& nod
 	}
 
 	ImGui::EndTable();
+}
+
+const char* Engine::ProjectPanel::GetSourceRootPath() const {
+
+	switch (assetSource_) {
+	case ProjectAssetSource::Engine:
+		return "Engine/Assets";
+	case ProjectAssetSource::Game:
+		return "GameAssets";
+	}
+	return "Engine/Assets";
 }

@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Logger/Assert.h>
 #include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Runtime/RuntimePaths.h>
 
 //============================================================================
 //	RaytracingPipelineState classMethods
@@ -14,7 +15,12 @@ namespace {
 	// シェーダーファイルのパスを解決する関数
 	std::filesystem::path ResolveShaderPath(const std::string& file) {
 
-		const std::filesystem::path base = "./Engine/Assets/Shaders/";
+		const std::filesystem::path resolved = Engine::RuntimePaths::ResolveAssetPath(file);
+		if (std::filesystem::exists(resolved) && std::filesystem::is_regular_file(resolved)) {
+			return resolved;
+		}
+
+		const std::filesystem::path base = Engine::RuntimePaths::GetEngineAssetPath("Shaders");
 		std::filesystem::path direct = base / file;
 		if (std::filesystem::exists(direct)) {
 			return direct;

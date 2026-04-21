@@ -6,6 +6,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Logger/Assert.h>
+#include <Engine/Core/Runtime/RuntimePaths.h>
 #include <Engine/Utility/Algorithm/Algorithm.h>
 
 // windows
@@ -137,10 +138,8 @@ void Audio::Init() {
 
 void Audio::LoadAllSounds() {
 
-	// 固定ファイルパス
-	const std::string& rootDir = "Engine/Assets/Sounds";
-
-	std::filesystem::path root(rootDir);
+	// Engine側のSounds配下を読み込む
+	std::filesystem::path root = RuntimePaths::GetEngineAssetPath("Sounds");
 
 	std::error_code ec;
 	if (!std::filesystem::exists(root, ec)) {

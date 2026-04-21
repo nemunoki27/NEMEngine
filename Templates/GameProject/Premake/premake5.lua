@@ -31,7 +31,10 @@ end
 
 dofile(path.join(NEMENGINE_ROOT, "Premake", "premakeCommon.lua"))
 
-NEM_GENERATED_ROOT = path.join(GAME_ROOT, "Generated")
+NEM_OUTPUT_ROOT = path.join(GAME_ROOT, "Generated")
+NEM_GENERATED_ROOT = NEM_OUTPUT_ROOT
+NEM_USE_EXTERNAL_ENGINE_PROJECT = true
+NEM_IMGUI_PROJECT_LOCATION = path.join(GAME_PROJECT_ROOT, "Externals/imgui")
 
 local GAME_APP_ROOT = path.join(GAME_PROJECT_ROOT, GAME_NAME)
 

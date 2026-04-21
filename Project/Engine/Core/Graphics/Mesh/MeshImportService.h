@@ -14,9 +14,9 @@
 #include <mutex>
 #include <filesystem>
 // assimp
-#include <Externals/assimp/include/assimp/Importer.hpp>
-#include <Externals/assimp/include/assimp/postprocess.h>
-#include <Externals/assimp/include/assimp/scene.h>
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 
 namespace Engine {
 

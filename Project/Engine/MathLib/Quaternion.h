@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <numbers>
 // json
-#include <Externals/nlohmann/json.hpp>
+#include <json.hpp>
 
 namespace Engine {
 

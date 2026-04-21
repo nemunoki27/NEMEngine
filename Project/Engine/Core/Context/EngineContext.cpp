@@ -7,6 +7,7 @@
 #include <Engine/Utility/Algorithm/Algorithm.h>
 #include <Engine/Utility/Json/JsonAdapter.h>
 #include <Engine/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Runtime/RuntimePaths.h>
 
 //============================================================================
 //	EngineContext classMethods
@@ -14,7 +15,7 @@
 
 void Engine::EngineContext::InitCoreSettings() {
 
-	nlohmann::json data = JsonAdapter::Load("./Engine/Assets/Window/windowSetting.json");
+	nlohmann::json data = JsonAdapter::Load(RuntimePaths::GetEngineAssetPath("Window/windowSetting.json").string());
 	// ウィンドウ設定
 	std::string windowTitle = data["WindowTitle"];
 	windowSetting_.title = Algorithm::ConvertString(windowTitle);

@@ -9,6 +9,7 @@ using namespace Engine;
 #include <Engine/Logger/Logger.h>
 #include <Engine/Utility/Algorithm/Algorithm.h>
 #include <Engine/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Runtime/RuntimePaths.h>
 
 //============================================================================
 //	PipelineState classMethods
@@ -16,13 +17,18 @@ using namespace Engine;
 
 namespace {
 
-	// シェーダーのベースパス
-	const std::filesystem::path kShaderBasePath = "./Engine/Assets/Shaders/";
-
 	std::filesystem::path ResolveShaderPath(const std::string& file) {
 
+		// 論理アセットパスが指定されている場合はそのまま解決
+		const std::filesystem::path resolved = RuntimePaths::ResolveAssetPath(file);
+		if (std::filesystem::exists(resolved) && std::filesystem::is_regular_file(resolved)) {
+			return resolved;
+		}
+
+		const std::filesystem::path shaderBasePath = RuntimePaths::GetEngineAssetPath("Shaders");
+
 		// Assets/Shaders/からの相対パスを優先
-		std::filesystem::path direct = kShaderBasePath / file;
+		std::filesystem::path direct = shaderBasePath / file;
 		if (std::filesystem::exists(direct)) {
 			return direct;
 		}
@@ -35,7 +41,7 @@ namespace {
 
 		// 最後に従来通りファイル名ベースで再帰検索
 		std::filesystem::path searched{};
-		if (Algorithm::FindFile(kShaderBasePath, std::filesystem::path(file).filename().string(), searched)) {
+		if (Algorithm::FindFile(shaderBasePath, std::filesystem::path(file).filename().string(), searched)) {
 			return searched;
 		}
 		return {};
