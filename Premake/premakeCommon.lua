@@ -94,6 +94,7 @@ function NEM_AddEngineRuntimeLinkSettings()
         "imgui",
         "DirectXTex",
         "assimp",
+        "meshoptimizer",
     }
 
     linkoptions {
@@ -105,33 +106,6 @@ function NEM_AddEngineRuntimeLinkSettings()
         'copy /Y "$(WindowsSdkDir)bin\\$(TargetPlatformVersion)\\x64\\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"',
         'copy /Y "$(WindowsSdkDir)bin\\$(TargetPlatformVersion)\\x64\\dxil.dll" "$(TargetDir)dxil.dll"',
     }
-
-    filter "configurations:Debug"
-        libdirs {
-            path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/lib/Debug"),
-        }
-
-        links {
-            "meshoptimizer",
-        }
-
-    filter "configurations:Develop"
-        libdirs {
-            path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/lib/Release"),
-        }
-
-        links {
-            "meshoptimizer",
-        }
-
-    filter "configurations:Release"
-        libdirs {
-            path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/lib/Release"),
-        }
-
-        links {
-            "meshoptimizer",
-        }
 
     filter {}
 end

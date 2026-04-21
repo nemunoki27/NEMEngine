@@ -115,9 +115,6 @@ if exist "%GAME_ROOT%\Project\%GAME_NAME%\Assets" (
     2>nul rd "%GAME_ROOT%\Project\%GAME_NAME%\Assets"
 )
 
-if exist "%GAME_ROOT%\External" (
-    2>nul rd "%GAME_ROOT%\External"
-)
 if exist "%GAME_ROOT%\Generated" (
     2>nul rd "%GAME_ROOT%\Generated"
 )
@@ -138,22 +135,34 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "  if ($dst -ne $src) { [IO.File]::WriteAllText($_.FullName, $dst, (New-Object System.Text.UTF8Encoding($false))) }" ^
   "}"
 
-echo [8/10] Create local engine settings...
-> "%GAME_ROOT%\Premake\local_settings.lua" echo NEMENGINE_ROOT = [[%ENGINE_ROOT%]]
-> "%GAME_ROOT%\Premake\local_settings.bat" echo @echo off
->> "%GAME_ROOT%\Premake\local_settings.bat" echo set "NEMENGINE_ROOT=%ENGINE_ROOT%"
-
-echo [9/11] Optional local git repository creation...
-set "INIT_GIT="
-set /p "INIT_GIT=Initialize local git repository? [y/N]: "
-
-if /I not "!INIT_GIT!"=="y" if /I not "!INIT_GIT!"=="yes" goto :premake_generate
-
-echo [Git] Initialize local git repository...
+echo [8/11] Initialize local git repository...
 pushd "%GAME_ROOT%"
 git init >nul 2>&1
+if errorlevel 1 (
+    popd
+    echo [ERROR] Failed to initialize git repository.
+    rd /s /q "%TEMP_DIR%" >nul 2>&1
+    exit /b 1
+)
 git branch -M main >nul 2>&1
 popd
+
+echo [9/11] Add NEMEngine submodule...
+set "ENGINE_SUBMODULE_URL="
+for /f "delims=" %%A in ('git -C "%ENGINE_ROOT%" remote get-url origin 2^>nul') do set "ENGINE_SUBMODULE_URL=%%A"
+if not defined ENGINE_SUBMODULE_URL set "ENGINE_SUBMODULE_URL=%ENGINE_ROOT%"
+
+git -c protocol.file.allow=always -C "%GAME_ROOT%" submodule add "%ENGINE_ROOT%" External/NEMEngine >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Failed to add NEMEngine submodule.
+    echo         Source: %ENGINE_ROOT%
+    rd /s /q "%TEMP_DIR%" >nul 2>&1
+    exit /b 1
+)
+
+git -C "%GAME_ROOT%" config -f .gitmodules submodule.External/NEMEngine.url "!ENGINE_SUBMODULE_URL!" >nul 2>&1
+git -C "%GAME_ROOT%\External\NEMEngine" remote set-url origin "!ENGINE_SUBMODULE_URL!" >nul 2>&1
+git -C "%GAME_ROOT%" submodule sync -- External/NEMEngine >nul 2>&1
 
 echo [10/11] Configure git identity for this game repository...
 
@@ -220,8 +229,6 @@ if errorlevel 1 (
     rd /s /q "%TEMP_DIR%" >nul 2>&1
     exit /b 1
 )
-
-if /I not "!INIT_GIT!"=="y" if /I not "!INIT_GIT!"=="yes" goto :finish
 
 echo [10/10] Optional GitHub repository creation...
 set "CREATE_GITHUB="
@@ -342,9 +349,8 @@ echo   %GAME_ROOT%\Project\%GAME_NAME%\GameAssets\
 echo.
 echo [FOR SHARING WITH OTHER USERS]
 echo   1. cd "%GAME_ROOT%"
-echo   2. git submodule add ^<NEMEngine-Repo-URL^> External/NEMEngine
-echo   3. del Premake\local_settings.lua
-echo   4. del Premake\local_settings.bat
+echo   2. git submodule update --init --recursive
+echo   3. .\Premake\generate_vs2026.bat
 echo.
 
 rd /s /q "%TEMP_DIR%" >nul 2>&1

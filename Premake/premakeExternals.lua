@@ -43,6 +43,38 @@ project "imgui"
 
     filter {}
 
+project "meshoptimizer"
+    location (NEM_MESHOPTIMIZER_PROJECT_LOCATION or path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer"))
+    kind "StaticLib"
+
+    removeconfigurations { "Develop" }
+    configmap { ["Develop"] = "Release" }
+
+    system "windows"
+    language "C++"
+    cppdialect "C++20"
+    staticruntime "On"
+    warnings "Default"
+    multiprocessorcompile "On"
+    buildoptions { "/utf-8" }
+
+    files {
+        path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/include/*.cpp"),
+        path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/include/*.h"),
+    }
+
+    includedirs {
+        path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer/include"),
+    }
+
+    filter "configurations:Debug"
+        symbols "On"
+
+    filter "configurations:Release"
+        optimize "On"
+
+    filter {}
+
 externalproject "zlibstatic"
     location (path.join(ASSIMP_BUILD_DIR, "contrib/zlib"))
     filename "zlibstatic"
