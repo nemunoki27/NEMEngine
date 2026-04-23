@@ -123,21 +123,13 @@ bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& wor
 	// "Entities"配列をループしてエンティティを作成し、コンポーネントを追加する
 	for (const auto& entityJson : entitiesNode) {
 
-		// "LocalFileID"が存在しない場合は"UUID"を探す。どちらも存在しない場合は新しいUUIDを生成する
+		// "LocalFileID"が存在しない場合は"UUID"を探す。どちらも存在しない場合はSceneObject側の値を使う
 		std::string localFileIDStr = entityJson.value("LocalFileID", entityJson.value("UUID", ""));
-		UUID localFileID = localFileIDStr.empty() ? UUID::New() : FromString16Hex(localFileIDStr);
+		UUID localFileID = localFileIDStr.empty() ? UUID{} : FromString16Hex(localFileIDStr);
 
 		// エンティティの作成
 		Entity entity = world.CreateEntity();
 		SceneAuthoring::EnsureGameObjectDefaults(world, entity);
-
-		// ローカルID、ソースアセット、シーンインスタンスIDを設定する
-		{
-			auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
-			sceneObject.localFileID = localFileID;
-			sceneObject.sourceAsset = sourceAsset;
-			sceneObject.sceneInstanceID = sceneInstanceID;
-		}
 
 		// 作成されたエンティティを出力する
 		if (outCreatedEntities) {
@@ -155,6 +147,20 @@ bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& wor
 				const nlohmann::json& data = it.value();
 				world.AddComponentFromJson(entity, typeName, data);
 			}
+		}
+		// JSONからSceneObjectを読み直した後に、ランタイム所属情報を設定する
+		SceneAuthoring::EnsureGameObjectDefaults(world, entity);
+		{
+			auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
+			if (localFileID) {
+
+				sceneObject.localFileID = localFileID;
+			} else if (!sceneObject.localFileID) {
+
+				sceneObject.localFileID = UUID::New();
+			}
+			sceneObject.sourceAsset = sourceAsset;
+			sceneObject.sceneInstanceID = sceneInstanceID;
 		}
 		// ロード直後に、ワールド実体のサブメッシュを正規化する
 		if (assetDatabase && world.HasComponent<MeshRendererComponent>(entity)) {

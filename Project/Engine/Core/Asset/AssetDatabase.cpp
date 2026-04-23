@@ -199,6 +199,9 @@ Engine::AssetType Engine::AssetDatabase::GuessTypeByPath(const std::filesystem::
 		extension == ".ttf" || extension == ".otf" || extension == ".fnt" || extension == ".font") {
 		return AssetType::Font;
 	}
+	if (extension == ".cs") {
+		return AssetType::Script;
+	}
 	return AssetType::Unknown;
 }
 

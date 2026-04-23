@@ -19,9 +19,10 @@ namespace {
 		return (std::max)(1, static_cast<int32_t>(availableWidth / itemWidth));
 	}
 	// ドラッグ&ドロップのソースを描画する
-	void DrawAssetDragDropSource(const Engine::ProjectAssetEntry& asset) {
+	void DrawAssetDragDropSource(const Engine::ProjectAssetEntry& asset,
+		ImGuiDragDropFlags flags = ImGuiDragDropFlags_None) {
 
-		if (ImGui::BeginDragDropSource()) {
+		if (ImGui::BeginDragDropSource(flags)) {
 
 			Engine::EditorAssetDragDropPayload payload{};
 			payload.assetID = asset.assetID;
@@ -289,6 +290,7 @@ void Engine::ProjectPanel::DrawDirectoryContents(const ProjectDirectoryNode& nod
 		ImGui::SetWindowFontScale(0.5f);
 		ImGui::TextWrapped("%s", asset.displayName.c_str());
 		ImGui::SetWindowFontScale(1.0f);
+		DrawAssetDragDropSource(asset, ImGuiDragDropFlags_SourceAllowNullID);
 
 		if (ImGui::BeginItemTooltip()) {
 			ImGui::Text("Path: %s", asset.assetPath.c_str());

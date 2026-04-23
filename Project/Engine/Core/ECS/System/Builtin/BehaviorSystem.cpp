@@ -199,6 +199,7 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 					entry.handle = BehaviorHandle::Null();
 					continue;
 				}
+				record->instance->SetSerializedFields(entry.serializedFields);
 			}
 
 			// アクセスされたフラグを立てる

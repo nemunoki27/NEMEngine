@@ -7,6 +7,8 @@
 #include <Engine/Core/UUID/TypeHash.h>
 
 // c++
+#include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 #include <cassert>
@@ -26,9 +28,11 @@ namespace Engine {
 		std::string name;
 		// ビヘイビアのID
 		uint32_t id = 0;
+		// C#スクリプトとして登録されているか
+		bool managed = false;
 
-		// ビヘイビアのインスタンスを生成する関数ポインタ
-		std::unique_ptr<MonoBehavior>(*construct)() = nullptr;
+		// ビヘイビアのインスタンスを生成する関数
+		std::function<std::unique_ptr<MonoBehavior>()> construct;
 	};
 
 	//============================================================================
@@ -47,6 +51,8 @@ namespace Engine {
 		// ビヘイビアの型を登録するテンプレート関数
 		template <typename T>
 		uint32_t Register(const std::string_view& name);
+		// C#スクリプトの型を登録
+		uint32_t RegisterManaged(const std::string_view& name);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -94,6 +100,7 @@ namespace Engine {
 		BehaviorTypeInfo info{};
 		info.name = std::string(name);
 		info.id = static_cast<uint32_t>(infos_.size());
+		info.managed = false;
 		info.construct = []() -> std::unique_ptr<MonoBehavior> { return std::make_unique<T>(); };
 
 		// 追加してIDを返す

@@ -188,7 +188,7 @@ namespace {
 			pass.dest = ParseRenderTargetSet(data["dest"]);
 		}
 		pass.clearColor = data.value("clearColor", true);
-		if (data.contains("clearColorValue")) {
+		if (data.contains("clearColorValue") && !data["clearColorValue"].is_null()) {
 
 			pass.clearColorValue = Engine::Color::FromJson(data["clearColorValue"]);
 		} else {

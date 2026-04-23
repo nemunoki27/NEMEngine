@@ -6,6 +6,9 @@
 #include <Engine/Core/ECS/World/ECSWorld.h>
 #include <Engine/Core/ECS/System/Context/SystemContext.h>
 
+// json
+#include <json.hpp>
+
 namespace Engine {
 
 	//============================================================================
@@ -43,5 +46,11 @@ namespace Engine {
 		virtual void FixedUpdate(ECSWorld&, const SystemContext&, const Entity&) {}
 		virtual void Update(ECSWorld&, const SystemContext&, const Entity&) {}
 		virtual void LateUpdate(ECSWorld&, const SystemContext&, const Entity&) {}
+
+		//========================================================================
+		//	C#スクリプト用
+		//========================================================================
+
+		virtual void SetSerializedFields([[maybe_unused]] const nlohmann::json& serializedFields) {}
 	};
 } // Engine

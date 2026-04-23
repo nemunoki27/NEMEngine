@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>..\Managed\$(Configuration)\</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Develop'">
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE;DEVELOP</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\GameAssets\Scripts\**\*.cs" Link="Scripts\%(RecursiveDir)%(Filename)%(Extension)" />
+    <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" />
+  </ItemGroup>
+</Project>

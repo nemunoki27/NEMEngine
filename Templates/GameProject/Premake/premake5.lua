@@ -46,6 +46,8 @@ local function NEM_AddGameProjectFiles()
         path.join(GAME_APP_ROOT, "**.inl"),
         path.join(GAME_APP_ROOT, "**.cpp"),
         path.join(GAME_APP_ROOT, "**.c"),
+        path.join(GAME_APP_ROOT, "**.cs"),
+        path.join(GAME_APP_ROOT, "**.csproj"),
         path.join(GAME_APP_ROOT, "**.natvis"),
         path.join(GAME_APP_ROOT, "**.hlsl"),
         path.join(GAME_APP_ROOT, "**.fx"),
@@ -59,6 +61,8 @@ local function NEM_AddGameProjectFiles()
             path.join(GAME_APP_ROOT, "**.inl"),
             path.join(GAME_APP_ROOT, "**.cpp"),
             path.join(GAME_APP_ROOT, "**.c"),
+            path.join(GAME_APP_ROOT, "**.cs"),
+            path.join(GAME_APP_ROOT, "**.csproj"),
             path.join(GAME_APP_ROOT, "**.natvis"),
         },
         ["Shaders/*"] = {

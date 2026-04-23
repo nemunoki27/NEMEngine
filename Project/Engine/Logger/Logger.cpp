@@ -1,5 +1,10 @@
 #include "Logger.h"
+#include <Engine/Utility/Algorithm/Algorithm.h>
 #include <fstream>
+#if defined(_MSC_VER)
+#include <spdlog/sinks/base_sink.h>
+#include <windows.h>
+#endif
 
 using namespace Engine;
 
@@ -13,11 +18,31 @@ namespace {
 		"gameLogic.log"
 	};
 #if defined(_MSC_VER)
-	bool HasMsvcSink(const std::shared_ptr<spdlog::logger>& logger) {
+	class Utf8DebugSink final :
+		public spdlog::sinks::base_sink<std::mutex> {
+	protected:
+		void sink_it_(const spdlog::details::log_msg& msg) override {
+
+			// Visual Studioの出力ウィンドウへUTF-16で渡し、日本語ログの文字化けを避ける
+			spdlog::memory_buf_t formatted;
+			formatter_->format(msg, formatted);
+
+			std::string text(formatted.data(), formatted.size());
+			std::wstring wide = Algorithm::ConvertString(text);
+			if (!wide.empty()) {
+				::OutputDebugStringW(wide.c_str());
+			}
+		}
+
+		void flush_() override {
+		}
+	};
+
+	bool HasDebugSink(const std::shared_ptr<spdlog::logger>& logger) {
 		if (!logger) return false;
 
 		for (const auto& sink : logger->sinks()) {
-			if (dynamic_cast<spdlog::sinks::msvc_sink_mt*>(sink.get()) != nullptr) {
+			if (dynamic_cast<Utf8DebugSink*>(sink.get()) != nullptr) {
 				return true;
 			}
 		}
@@ -30,6 +55,12 @@ void Logger::CreateLogFiles(const std::filesystem::path& logDir, bool truncate) 
 
 	std::scoped_lock lock(mutex_);
 	if (initialized_) return;
+
+#if defined(_MSC_VER)
+	// Windowsコンソール側もUTF-8に揃え、stdoutログの文字化けを避ける
+	::SetConsoleOutputCP(CP_UTF8);
+	::SetConsoleCP(CP_UTF8);
+#endif
 
 	logDir_ = logDir;
 	if (logDir_.empty()) logDir_ = "./Log";
@@ -61,7 +92,7 @@ void Logger::CreateLogFiles(const std::filesystem::path& logDir, bool truncate) 
 
 #if defined(_MSC_VER)
 			if (withConsole) {
-				sinks.push_back(std::make_shared<spdlog::sinks::msvc_sink_mt>());
+				sinks.push_back(std::make_shared<Utf8DebugSink>());
 			}
 #endif
 
@@ -136,9 +167,9 @@ void Logger::BlankLine(LogType type, std::uint32_t lines) {
 #if defined(_MSC_VER)
 	// Visual Studio 出力ウィンドウにも空行を出す
 	auto& lg = Get(type);
-	if (HasMsvcSink(lg)) {
+	if (HasDebugSink(lg)) {
 		for (std::uint32_t i = 0; i < lines; ++i) {
-			::OutputDebugStringA("\r\n");
+			::OutputDebugStringW(L"\r\n");
 		}
 	}
 #endif

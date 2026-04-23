@@ -6,6 +6,8 @@
 #include <Engine/Core/Graphics/Pipeline/PipelineState.h>
 #include <Engine/Core/Graphics/Line/LineRenderer.h>
 #include <Engine/Core/Build/BuildConfig.h>
+#include <Engine/Core/Scripting/ManagedScriptRuntime.h>
+#include <Engine/Logger/Logger.h>
 #include <Engine/Input/Input.h>
 
 // ECSシステム
@@ -49,6 +51,8 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 
 	// 最初のシーンを作成
 	InitFirstScene();
+	// C#スクリプトランタイム初期化
+	ManagedScriptRuntime::GetInstance().Init();
 	// システムの初期化
 	InitSystems();
 
@@ -229,10 +233,22 @@ void Engine::EngineApplication::HandlePlayToggle() {
 
 	if (!worldManager_.IsPlaying()) {
 
+		// プレイ開始前にC#スクリプト型をレジストリへ反映しておく
+		ManagedScriptRuntime::GetInstance().RefreshScriptTypes();
+
 		nlohmann::json snapshot = editScenes_.SerializeSnapshot(sceneSystem_, worldManager_.GetEditWorld());
 
 		worldManager_.CreatePlayWorld();
-		playScenes_.LoadSnapshot(assetDataBase_, sceneSystem_, *worldManager_.GetPlayWorld(), snapshot);
+		if (!worldManager_.GetPlayWorld() ||
+			!playScenes_.LoadSnapshot(assetDataBase_, sceneSystem_, *worldManager_.GetPlayWorld(), snapshot)) {
+
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"EngineApplication: failed to enter Play mode. Scene snapshot load failed.");
+
+			playScenes_ = SceneInstanceManager{};
+			worldManager_.DestroyPlayWorld();
+			return;
+		}
 	} else {
 
 		scheduler_.DetachCurrentWorld(systemContext_);
@@ -252,6 +268,8 @@ void Engine::EngineApplication::Finalize() {
 
 		editorManager_.Finalize();
 	}
+
+	ManagedScriptRuntime::GetInstance().Finalize();
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	LineRenderer::GetInstance()->Finalize();

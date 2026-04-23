@@ -83,6 +83,7 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 
 void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const Entity& entity) {
 
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// トランスフォームコンポーネントを持っていなければ処理しない
 	if (!world.HasComponent<TransformComponent>(entity)) {
 		return;
@@ -134,4 +135,9 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 			LightExtract::GetWorldDirection(spotLight.direction, transform.worldMatrix),
 			spotLight.distance, spotLight.cosAngle, spotLight.cosFalloffStart, spotLight.color);
 	}
+#else
+	// Releaseではエディター用のデバッグライン描画を持たない
+	(void)world;
+	(void)entity;
+#endif
 }

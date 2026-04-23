@@ -5,8 +5,10 @@
 //============================================================================
 #include <Engine/Editor/Command/Methods/RenameEntityCommand.h>
 #include <Engine/Editor/Command/Methods/AddComponentCommand.h>
+#include <Engine/Editor/Command/Methods/AddScriptEntryCommand.h>
 #include <Engine/Editor/Command/Methods/RemoveComponentCommand.h>
 #include <Engine/Editor/Panel/Interface/IEditorPanelHost.h>
+#include <Engine/Editor/Scripting/ScriptAssetDragDrop.h>
 #include <Engine/Core/ECS/Component/Builtin/NameComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/HierarchyComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
@@ -32,6 +34,9 @@
 #include <Engine/Editor/Inspector/Methods/Light/PointLightInspectorDrawer.h>
 #include <Engine/Editor/Inspector/Methods/Light/SpotLightInspectorDrawer.h>
 #include <Engine/Editor/Inspector/Methods/Animation/SkinnedAnimationInspectorDrawer.h>
+
+// c++
+#include <string_view>
 
 //============================================================================
 //	InspectorPanel classMethods
@@ -59,6 +64,34 @@ namespace {
 		{ "PointLight",       "PointLight" },
 		{ "SpotLight",        "SpotLight" },
 	} };
+
+	// Scriptメニューか
+	bool IsScriptMenuEntry(const InspectorComponentMenuEntry& entry) {
+
+		return std::string_view(entry.typeName) == "Script";
+	}
+
+	// Inspector全体でScriptアセットのドロップを受け取る
+	void DrawScriptAssetDropTarget(const Engine::EditorPanelContext& context, const Engine::Entity& entity) {
+
+		if (!context.CanEditScene()) {
+			return;
+		}
+
+		ImGui::Button("Drop C# Script", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f));
+		if (!ImGui::BeginDragDropTarget()) {
+			return;
+		}
+
+		Engine::AssetID scriptAsset{};
+		std::string typeName{};
+		if (Engine::ScriptAssetDragDrop::AcceptScriptAssetDrop(context, scriptAsset, typeName)) {
+
+			context.host->ExecuteEditorCommand(std::make_unique<Engine::AddScriptEntryCommand>(
+				entity, typeName, scriptAsset));
+		}
+		ImGui::EndDragDropTarget();
+	}
 }
 
 Engine::InspectorPanel::InspectorPanel() {
@@ -124,6 +157,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	DrawEntityHeader(context, *world, selected);
 	// コンポーネント操作UI
 	DrawComponentToolbar(context, *world, selected);
+	DrawScriptAssetDropTarget(context, selected);
 
 	// 登録済みコンポーネント描画
 	for (const auto& drawer : componentDrawers_) {
@@ -241,14 +275,20 @@ void Engine::InspectorPanel::DrawAddComponentPopup(const EditorPanelContext& con
 	for (const auto& entry : kOptionalComponentMenuEntries) {
 
 		// すでに持っているコンポーネントは追加できない
-		if (world.HasComponent(entity, entry.typeName)) {
+		if (!IsScriptMenuEntry(entry) && world.HasComponent(entity, entry.typeName)) {
 			continue;
 		}
 
 		hasAny = true;
 		if (ImGui::MenuItem(entry.menuLabel)) {
 
-			context.host->ExecuteEditorCommand(std::make_unique<AddComponentCommand>(entity, entry.typeName));
+			if (IsScriptMenuEntry(entry)) {
+
+				context.host->ExecuteEditorCommand(std::make_unique<AddScriptEntryCommand>(entity));
+			} else {
+
+				context.host->ExecuteEditorCommand(std::make_unique<AddComponentCommand>(entity, entry.typeName));
+			}
 			ImGui::CloseCurrentPopup();
 		}
 	}

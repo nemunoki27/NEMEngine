@@ -89,6 +89,9 @@ end
 function NEM_AddEngineRuntimeLinkSettings()
     NEM_AddEngineIncludeSettings()
 
+    local scriptCoreProject = path.join(NEM_PROJECT_ROOT, "Engine/Managed/NEM.ScriptCore/NEM.ScriptCore.csproj")
+    local scriptCoreOutput = path.join(NEM_PROJECT_ROOT, "Engine/Library/Managed")
+
     links {
         "NEMEngine",
         "imgui",
@@ -102,9 +105,17 @@ function NEM_AddEngineRuntimeLinkSettings()
         "/IGNORE:4099",
     }
 
+	prebuildcommands {
+		'set DOTNET_CLI_UI_LANGUAGE=en',
+		'dotnet build "' .. scriptCoreProject .. '" -c "$(Configuration)"',
+		'if exist "$(ProjectDir)Scripts\\GameScripts.csproj" dotnet build "$(ProjectDir)Scripts\\GameScripts.csproj" -c "$(Configuration)"',
+	}
+
     postbuildcommands {
         'copy /Y "$(WindowsSdkDir)bin\\$(TargetPlatformVersion)\\x64\\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"',
         'copy /Y "$(WindowsSdkDir)bin\\$(TargetPlatformVersion)\\x64\\dxil.dll" "$(TargetDir)dxil.dll"',
+        'if exist "' .. scriptCoreOutput .. '\\$(Configuration)\\*" xcopy /Y /I "' .. scriptCoreOutput .. '\\$(Configuration)\\*" "$(TargetDir)Managed\\"',
+        'if exist "$(ProjectDir)Managed\\$(Configuration)\\*" xcopy /Y /I "$(ProjectDir)Managed\\$(Configuration)\\*" "$(TargetDir)Managed\\"',
     }
 
     filter {}
@@ -117,6 +128,8 @@ function NEM_AddEngineProjectFiles()
         path.join(NEM_PROJECT_ROOT, "Engine/**.inl"),
         path.join(NEM_PROJECT_ROOT, "Engine/**.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/**.c"),
+        path.join(NEM_PROJECT_ROOT, "Engine/**.cs"),
+        path.join(NEM_PROJECT_ROOT, "Engine/**.csproj"),
         path.join(NEM_PROJECT_ROOT, "Engine/**.natvis"),
 
         -- Engine専用アセットを表示したい場合
@@ -130,6 +143,8 @@ function NEM_AddEngineProjectFiles()
             path.join(NEM_PROJECT_ROOT, "Engine/**.inl"),
             path.join(NEM_PROJECT_ROOT, "Engine/**.cpp"),
             path.join(NEM_PROJECT_ROOT, "Engine/**.c"),
+            path.join(NEM_PROJECT_ROOT, "Engine/**.cs"),
+            path.join(NEM_PROJECT_ROOT, "Engine/**.csproj"),
             path.join(NEM_PROJECT_ROOT, "Engine/**.natvis"),
         },
         ["Assets/*"] = {
@@ -145,6 +160,8 @@ function NEM_AddSandboxProjectFiles()
         path.join(NEM_PROJECT_ROOT, "Sandbox/**.inl"),
         path.join(NEM_PROJECT_ROOT, "Sandbox/**.cpp"),
         path.join(NEM_PROJECT_ROOT, "Sandbox/**.c"),
+        path.join(NEM_PROJECT_ROOT, "Sandbox/**.cs"),
+        path.join(NEM_PROJECT_ROOT, "Sandbox/**.csproj"),
         path.join(NEM_PROJECT_ROOT, "Sandbox/**.natvis"),
         path.join(NEM_PROJECT_ROOT, "Sandbox/**.hlsl"),
         path.join(NEM_PROJECT_ROOT, "Sandbox/**.fx"),
@@ -160,6 +177,8 @@ function NEM_AddSandboxProjectFiles()
             path.join(NEM_PROJECT_ROOT, "Sandbox/**.inl"),
             path.join(NEM_PROJECT_ROOT, "Sandbox/**.cpp"),
             path.join(NEM_PROJECT_ROOT, "Sandbox/**.c"),
+            path.join(NEM_PROJECT_ROOT, "Sandbox/**.cs"),
+            path.join(NEM_PROJECT_ROOT, "Sandbox/**.csproj"),
             path.join(NEM_PROJECT_ROOT, "Sandbox/**.natvis"),
         },
         ["Shaders/*"] = {

@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/ECS/Component/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/ECS/Behavior/BehaviorHandle.h>
+#include <Engine/Core/Asset/AssetTypes.h>
 
 namespace Engine {
 
@@ -17,8 +18,12 @@ namespace Engine {
 
 		// スクリプトの型名
 		std::string type;
+		// 参照しているC#スクリプトアセット
+		AssetID scriptAsset{};
 		// 有効フラグ
 		bool enabled = true;
+		// インスペクターから編集するシリアライズフィールド
+		nlohmann::json serializedFields = nlohmann::json::object();
 
 		// ランタイム
 		BehaviorHandle handle = BehaviorHandle::Null();
