@@ -26,9 +26,35 @@ uint32_t Engine::BehaviorTypeRegistry::RegisterManaged(const std::string_view& n
 		return std::make_unique<ManagedBehavior>(typeName);
 		};
 
+	for (auto& slot : infos_) {
+
+		if (!slot.name.empty() || slot.construct) {
+			continue;
+		}
+		info.id = slot.id;
+		slot = std::move(info);
+		nameToID_[slot.name] = slot.id;
+		return slot.id;
+	}
+
 	infos_.emplace_back(info);
 	nameToID_[info.name] = info.id;
 	return info.id;
+}
+
+void Engine::BehaviorTypeRegistry::ClearManaged() {
+
+	for (auto& info : infos_) {
+
+		if (!info.managed) {
+			continue;
+		}
+
+		nameToID_.erase(info.name);
+		info.name.clear();
+		info.managed = false;
+		info.construct = nullptr;
+	}
 }
 
 const Engine::BehaviorTypeInfo& Engine::BehaviorTypeRegistry::GetInfo(uint32_t id) const {

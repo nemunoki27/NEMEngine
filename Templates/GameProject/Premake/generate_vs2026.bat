@@ -70,6 +70,13 @@ if errorlevel 1 (
     echo [OK] Premake generation succeeded.
 )
 
+powershell -NoProfile -ExecutionPolicy Bypass -File "%NEMENGINE_ROOT%\Premake\patch_script_slnx.ps1" -SlnxPath "%GAME_ROOT%\Project\%GAME_NAME%.slnx" -ScriptCoreProject "%NEMENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" -GameScriptsProject "%GAME_ROOT%\Project\%GAME_NAME%\Scripts\GameScripts.csproj"
+if errorlevel 1 (
+    echo [ERROR] Failed to patch C# projects into the solution.
+    popd
+    exit /b 1
+)
+
 popd
 endlocal
 exit /b 0

@@ -1,0 +1,18 @@
+{
+  "folders": [
+    {
+      "name": "Sandbox",
+      "path": "."
+    },
+    {
+      "name": "NEM.ScriptCore",
+      "path": "../Engine/Managed/NEM.ScriptCore"
+    }
+  ],
+  "settings": {
+    "dotnet.defaultSolution": "../NEMEngine.slnx",
+    "omnisharp.defaultLaunchSolution": "../NEMEngine.slnx",
+    "omnisharp.enableEditorConfigSupport": true,
+    "omnisharp.enableRoslynAnalyzers": true
+  }
+}

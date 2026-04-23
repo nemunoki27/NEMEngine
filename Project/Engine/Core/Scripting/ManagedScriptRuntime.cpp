@@ -6,10 +6,14 @@
 #include <Engine/Core/ECS/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/HierarchyComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/NameComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
+#include <Engine/Core/ECS/System/Builtin/HierarchySystem.h>
 #include <Engine/Core/ECS/World/ECSWorld.h>
 #include <Engine/Core/ECS/System/Context/SystemContext.h>
 #include <Engine/Core/Runtime/RuntimePaths.h>
 #include <Engine/Logger/Logger.h>
+#include <Engine/Input/Input.h>
 #include <Engine/Utility/Algorithm/Algorithm.h>
 
 // windows
@@ -18,6 +22,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdlib>
+#include <cstring>
 #include <string_view>
 
 //============================================================================
@@ -158,6 +163,25 @@ namespace {
 			});
 	}
 
+	std::filesystem::path ResolveGameScriptProjectPath() {
+
+		const std::filesystem::path current = std::filesystem::current_path();
+		return FindFirstExistingPath({
+			current / "Scripts/GameScripts.csproj",
+			Engine::RuntimePaths::GetGameRoot() / "Scripts/GameScripts.csproj"
+			});
+	}
+
+	std::wstring QuoteCommandPath(const std::filesystem::path& path) {
+
+		return L"\"" + path.wstring() + L"\"";
+	}
+
+	std::wstring ToWideAscii(const std::string& text) {
+
+		return std::wstring(text.begin(), text.end());
+	}
+
 	// char配列からstd::stringへ変換する
 	std::string MakeString(const char* text) {
 
@@ -193,6 +217,16 @@ namespace {
 	Engine::Entity ResolveEntity(const Engine::ManagedNativeEntity& entity) {
 
 		return Engine::Entity{ entity.index, entity.generation };
+	}
+
+	Engine::ManagedNativeEntity MakeNullNativeEntity() {
+
+		return Engine::ManagedNativeEntity{};
+	}
+
+	Engine::ManagedVector2 ToManagedVector2(const Engine::Vector2& value) {
+
+		return Engine::ManagedVector2{ value.x, value.y };
 	}
 
 	// Vector変換
@@ -243,6 +277,74 @@ namespace {
 		}
 		Engine::MarkTransformSubtreeDirty(world, entity);
 	}
+
+	Engine::SceneObjectComponent& EnsureScriptSceneObject(Engine::ECSWorld& world, const Engine::Entity& entity) {
+
+		if (!world.HasComponent<Engine::SceneObjectComponent>(entity)) {
+
+			auto& sceneObject = world.AddComponent<Engine::SceneObjectComponent>(entity);
+			sceneObject.localFileID = Engine::UUID::New();
+			sceneObject.activeSelf = true;
+			sceneObject.activeInHierarchy = true;
+		}
+
+		auto& sceneObject = world.GetComponent<Engine::SceneObjectComponent>(entity);
+		if (!sceneObject.localFileID) {
+			sceneObject.localFileID = Engine::UUID::New();
+		}
+		return sceneObject;
+	}
+
+	void RefreshScriptActiveRecursive(Engine::ECSWorld& world, const Engine::Entity& entity, bool parentActive) {
+
+		if (!world.IsAlive(entity)) {
+			return;
+		}
+
+		auto& sceneObject = EnsureScriptSceneObject(world, entity);
+		sceneObject.activeInHierarchy = parentActive && sceneObject.activeSelf;
+
+		if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
+			return;
+		}
+
+		Engine::Entity child = world.GetComponent<Engine::HierarchyComponent>(entity).firstChild;
+		while (child.IsValid() && world.IsAlive(child)) {
+
+			RefreshScriptActiveRecursive(world, child, sceneObject.activeInHierarchy);
+			if (!world.HasComponent<Engine::HierarchyComponent>(child)) {
+				break;
+			}
+			child = world.GetComponent<Engine::HierarchyComponent>(child).nextSibling;
+		}
+	}
+
+	void RefreshScriptActiveTree(Engine::ECSWorld& world, const Engine::Entity& entity) {
+
+		bool parentActive = true;
+		if (world.HasComponent<Engine::HierarchyComponent>(entity)) {
+
+			const Engine::Entity parent = world.GetComponent<Engine::HierarchyComponent>(entity).parent;
+			if (parent.IsValid() && world.IsAlive(parent)) {
+				parentActive = Engine::IsEntityActiveInHierarchy(world, parent);
+			}
+		}
+		RefreshScriptActiveRecursive(world, entity, parentActive);
+	}
+
+	int32_t CopyStringToBuffer(const std::string& text, char* buffer, int32_t capacity) {
+
+		if (!buffer || capacity <= 0) {
+			return 0;
+		}
+
+		const int32_t length = std::min(static_cast<int32_t>(text.size()), capacity - 1);
+		if (0 < length) {
+			std::memcpy(buffer, text.data(), static_cast<size_t>(length));
+		}
+		buffer[length] = '\0';
+		return length;
+	}
 }
 
 bool Engine::ManagedScriptRuntime::Init() {
@@ -274,6 +376,34 @@ bool Engine::ManagedScriptRuntime::Init() {
 
 	ManagedNativeApiTable callbacks{};
 	callbacks.getDeltaTime = &ManagedScriptRuntime::GetDeltaTimeCallback;
+	callbacks.getFixedDeltaTime = &ManagedScriptRuntime::GetFixedDeltaTimeCallback;
+	callbacks.log = &ManagedScriptRuntime::LogCallback;
+	callbacks.getKey = &ManagedScriptRuntime::GetKeyCallback;
+	callbacks.getKeyDown = &ManagedScriptRuntime::GetKeyDownCallback;
+	callbacks.getKeyUp = &ManagedScriptRuntime::GetKeyUpCallback;
+	callbacks.getMouseButton = &ManagedScriptRuntime::GetMouseButtonCallback;
+	callbacks.getMouseButtonDown = &ManagedScriptRuntime::GetMouseButtonDownCallback;
+	callbacks.getMouseButtonUp = &ManagedScriptRuntime::GetMouseButtonUpCallback;
+	callbacks.getMousePosition = &ManagedScriptRuntime::GetMousePositionCallback;
+	callbacks.getMouseDelta = &ManagedScriptRuntime::GetMouseDeltaCallback;
+	callbacks.getMouseWheel = &ManagedScriptRuntime::GetMouseWheelCallback;
+	callbacks.getGamepadButton = &ManagedScriptRuntime::GetGamepadButtonCallback;
+	callbacks.getGamepadButtonDown = &ManagedScriptRuntime::GetGamepadButtonDownCallback;
+	callbacks.isGamepadConnected = &ManagedScriptRuntime::IsGamepadConnectedCallback;
+	callbacks.getLeftStick = &ManagedScriptRuntime::GetLeftStickCallback;
+	callbacks.getRightStick = &ManagedScriptRuntime::GetRightStickCallback;
+	callbacks.getLeftTrigger = &ManagedScriptRuntime::GetLeftTriggerCallback;
+	callbacks.getRightTrigger = &ManagedScriptRuntime::GetRightTriggerCallback;
+	callbacks.isAlive = &ManagedScriptRuntime::IsAliveCallback;
+	callbacks.copyName = &ManagedScriptRuntime::CopyNameCallback;
+	callbacks.setName = &ManagedScriptRuntime::SetNameCallback;
+	callbacks.getActiveSelf = &ManagedScriptRuntime::GetActiveSelfCallback;
+	callbacks.setActiveSelf = &ManagedScriptRuntime::SetActiveSelfCallback;
+	callbacks.getActiveInHierarchy = &ManagedScriptRuntime::GetActiveInHierarchyCallback;
+	callbacks.getParent = &ManagedScriptRuntime::GetParentCallback;
+	callbacks.getFirstChild = &ManagedScriptRuntime::GetFirstChildCallback;
+	callbacks.getNextSibling = &ManagedScriptRuntime::GetNextSiblingCallback;
+	callbacks.setParent = &ManagedScriptRuntime::SetParentCallback;
 	callbacks.getPosition = &ManagedScriptRuntime::GetPositionCallback;
 	callbacks.setPosition = &ManagedScriptRuntime::SetPositionCallback;
 	callbacks.getLocalPosition = &ManagedScriptRuntime::GetLocalPositionCallback;
@@ -291,22 +421,23 @@ bool Engine::ManagedScriptRuntime::Init() {
 	}
 
 	initialized_ = true;
-	if (!LoadGameAssembly()) {
+	if (!ReloadGameAssembly()) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ManagedScriptRuntime: GameScripts.dll was not loaded. Managed scripts will be unavailable.");
 	}
-	RefreshScriptTypes();
 	return true;
 }
 
 void Engine::ManagedScriptRuntime::Finalize() {
 
+	UnloadGameAssembly();
 	fieldCache_.clear();
 	currentContext_ = nullptr;
 	initialized_ = false;
 
 	initializeNativeApi_ = nullptr;
 	loadGameAssembly_ = nullptr;
+	unloadGameAssembly_ = nullptr;
 	getScriptTypeCount_ = nullptr;
 	copyScriptTypeName_ = nullptr;
 	getSerializedFieldCount_ = nullptr;
@@ -327,6 +458,9 @@ void Engine::ManagedScriptRuntime::Finalize() {
 
 void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 
+	BehaviorTypeRegistry::GetInstance().ClearManaged();
+	fieldCache_.clear();
+
 	if (!initialized_ || !getScriptTypeCount_ || !copyScriptTypeName_) {
 		return;
 	}
@@ -343,6 +477,59 @@ void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 		BehaviorTypeRegistry::GetInstance().RegisterManaged(name);
 		Logger::Output(LogType::Engine, spdlog::level::info,
 			"ManagedScriptRuntime: registered managed script type={}", name);
+	}
+}
+
+bool Engine::ManagedScriptRuntime::BuildGameAssembly() {
+
+	const std::filesystem::path projectPath = ResolveGameScriptProjectPath();
+	if (projectPath.empty()) {
+		Logger::Output(LogType::Engine, spdlog::level::info,
+			"ManagedScriptRuntime: GameScripts.csproj was not found. Skipping C# script build.");
+		return true;
+	}
+
+	const std::wstring command =
+		L"set DOTNET_CLI_UI_LANGUAGE=en && dotnet build " + QuoteCommandPath(projectPath) +
+		L" -c \"" + ToWideAscii(GetBuildProfile()) + L"\" --nologo --no-dependencies";
+
+	Logger::Output(LogType::Engine, spdlog::level::info,
+		"ManagedScriptRuntime: building GameScripts.csproj path={}", ToUtf8Path(projectPath));
+
+	const int result = _wsystem(command.c_str());
+	if (result != 0) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"ManagedScriptRuntime: dotnet build failed. code={}", result);
+		return false;
+	}
+
+	gameAssemblyPath_ = ResolveGameAssemblyPath();
+	return true;
+}
+
+bool Engine::ManagedScriptRuntime::ReloadGameAssembly() {
+
+	if (!initialized_) {
+		return false;
+	}
+
+	UnloadGameAssembly();
+	gameAssemblyPath_ = ResolveGameAssemblyPath();
+	if (!LoadGameAssembly()) {
+		return false;
+	}
+
+	RefreshScriptTypes();
+	return true;
+}
+
+void Engine::ManagedScriptRuntime::UnloadGameAssembly() {
+
+	fieldCache_.clear();
+	BehaviorTypeRegistry::GetInstance().ClearManaged();
+
+	if (unloadGameAssembly_) {
+		unloadGameAssembly_();
 	}
 }
 
@@ -549,6 +736,7 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	bool success = true;
 	success &= LoadBridgeFunction(initializeNativeApi_, L"InitializeNativeApi");
 	success &= LoadBridgeFunction(loadGameAssembly_, L"LoadGameAssembly");
+	success &= LoadBridgeFunction(unloadGameAssembly_, L"UnloadGameAssembly");
 	success &= LoadBridgeFunction(getScriptTypeCount_, L"GetScriptTypeCount");
 	success &= LoadBridgeFunction(copyScriptTypeName_, L"CopyScriptTypeName");
 	success &= LoadBridgeFunction(getSerializedFieldCount_, L"GetSerializedFieldCount");
@@ -614,6 +802,273 @@ float Engine::ManagedScriptRuntime::GetDeltaTimeCallback() {
 
 	const SystemContext* context = GetInstance().currentContext_;
 	return context ? context->deltaTime : 0.0f;
+}
+
+float Engine::ManagedScriptRuntime::GetFixedDeltaTimeCallback() {
+
+	const SystemContext* context = GetInstance().currentContext_;
+	return context ? context->fixedDeltaTime : 0.0f;
+}
+
+void Engine::ManagedScriptRuntime::LogCallback(int32_t level, const char* message) {
+
+	spdlog::level::level_enum logLevel = spdlog::level::info;
+	if (level == 1) {
+		logLevel = spdlog::level::warn;
+	} else if (level == 2) {
+		logLevel = spdlog::level::err;
+	}
+	Logger::Output(LogType::GameLogic, logLevel, "{}", message ? message : "");
+}
+
+int32_t Engine::ManagedScriptRuntime::GetKeyCallback(int32_t key) {
+
+	if (key < 0 || 255 < key) {
+		return 0;
+	}
+	Input* input = Input::GetInstance();
+	return input && input->PushKey(static_cast<BYTE>(key)) ? 1 : 0;
+}
+
+int32_t Engine::ManagedScriptRuntime::GetKeyDownCallback(int32_t key) {
+
+	if (key < 0 || 255 < key) {
+		return 0;
+	}
+	Input* input = Input::GetInstance();
+	return input && input->TriggerKey(static_cast<BYTE>(key)) ? 1 : 0;
+}
+
+int32_t Engine::ManagedScriptRuntime::GetKeyUpCallback(int32_t key) {
+
+	if (key < 0 || 255 < key) {
+		return 0;
+	}
+	Input* input = Input::GetInstance();
+	return input && input->ReleaseKey(static_cast<BYTE>(key)) ? 1 : 0;
+}
+
+int32_t Engine::ManagedScriptRuntime::GetMouseButtonCallback(int32_t button) {
+
+	Input* input = Input::GetInstance();
+	if (!input) {
+		return 0;
+	}
+
+	switch (button) {
+	case 0: return input->PushMouseLeft() ? 1 : 0;
+	case 1: return input->PushMouseRight() ? 1 : 0;
+	case 2: return input->PushMouseCenter() ? 1 : 0;
+	default:
+		return 0;
+	}
+}
+
+int32_t Engine::ManagedScriptRuntime::GetMouseButtonDownCallback(int32_t button) {
+
+	Input* input = Input::GetInstance();
+	if (!input) {
+		return 0;
+	}
+
+	switch (button) {
+	case 0: return input->TriggerMouseLeft() ? 1 : 0;
+	case 1: return input->TriggerMouseRight() ? 1 : 0;
+	case 2: return input->TriggerMouseCenter() ? 1 : 0;
+	default:
+		return 0;
+	}
+}
+
+int32_t Engine::ManagedScriptRuntime::GetMouseButtonUpCallback(int32_t button) {
+
+	Input* input = Input::GetInstance();
+	if (!input) {
+		return 0;
+	}
+
+	switch (button) {
+	case 0: return input->ReleaseMouse(MouseButton::Left) ? 1 : 0;
+	case 1: return input->ReleaseMouse(MouseButton::Right) ? 1 : 0;
+	case 2: return input->ReleaseMouse(MouseButton::Center) ? 1 : 0;
+	default:
+		return 0;
+	}
+}
+
+Engine::ManagedVector2 Engine::ManagedScriptRuntime::GetMousePositionCallback() {
+
+	Input* input = Input::GetInstance();
+	return input ? ToManagedVector2(input->GetMousePos()) : ManagedVector2{};
+}
+
+Engine::ManagedVector2 Engine::ManagedScriptRuntime::GetMouseDeltaCallback() {
+
+	Input* input = Input::GetInstance();
+	return input ? ToManagedVector2(input->GetMouseMoveValue()) : ManagedVector2{};
+}
+
+float Engine::ManagedScriptRuntime::GetMouseWheelCallback() {
+
+	Input* input = Input::GetInstance();
+	return input ? input->GetMouseWheel() : 0.0f;
+}
+
+int32_t Engine::ManagedScriptRuntime::GetGamepadButtonCallback(int32_t button) {
+
+	if (button < 0 || static_cast<int32_t>(GamePadButtons::Counts) <= button) {
+		return 0;
+	}
+	Input* input = Input::GetInstance();
+	return input && input->PushGamepadButton(static_cast<GamePadButtons>(button)) ? 1 : 0;
+}
+
+int32_t Engine::ManagedScriptRuntime::GetGamepadButtonDownCallback(int32_t button) {
+
+	if (button < 0 || static_cast<int32_t>(GamePadButtons::Counts) <= button) {
+		return 0;
+	}
+	Input* input = Input::GetInstance();
+	return input && input->TriggerGamepadButton(static_cast<GamePadButtons>(button)) ? 1 : 0;
+}
+
+int32_t Engine::ManagedScriptRuntime::IsGamepadConnectedCallback() {
+
+	Input* input = Input::GetInstance();
+	return input && input->IsGamepadConnected() ? 1 : 0;
+}
+
+Engine::ManagedVector2 Engine::ManagedScriptRuntime::GetLeftStickCallback() {
+
+	Input* input = Input::GetInstance();
+	return input ? ToManagedVector2(input->GetLeftStickVal()) : ManagedVector2{};
+}
+
+Engine::ManagedVector2 Engine::ManagedScriptRuntime::GetRightStickCallback() {
+
+	Input* input = Input::GetInstance();
+	return input ? ToManagedVector2(input->GetRightStickVal()) : ManagedVector2{};
+}
+
+float Engine::ManagedScriptRuntime::GetLeftTriggerCallback() {
+
+	Input* input = Input::GetInstance();
+	return input ? input->GetLeftTriggerValue() : 0.0f;
+}
+
+float Engine::ManagedScriptRuntime::GetRightTriggerCallback() {
+
+	Input* input = Input::GetInstance();
+	return input ? input->GetRightTriggerValue() : 0.0f;
+}
+
+int32_t Engine::ManagedScriptRuntime::IsAliveCallback(ManagedNativeEntity entity) {
+
+	ECSWorld* world = ResolveWorld(entity);
+	const Entity resolved = ResolveEntity(entity);
+	return (world && world->IsAlive(resolved)) ? 1 : 0;
+}
+
+int32_t Engine::ManagedScriptRuntime::CopyNameCallback(ManagedNativeEntity entity, char* buffer, int32_t capacity) {
+
+	ECSWorld* world = ResolveWorld(entity);
+	const Entity resolved = ResolveEntity(entity);
+	if (!world || !world->IsAlive(resolved) || !world->HasComponent<NameComponent>(resolved)) {
+		return CopyStringToBuffer(std::string{}, buffer, capacity);
+	}
+	return CopyStringToBuffer(world->GetComponent<NameComponent>(resolved).name, buffer, capacity);
+}
+
+void Engine::ManagedScriptRuntime::SetNameCallback(ManagedNativeEntity entity, const char* name) {
+
+	ECSWorld* world = ResolveWorld(entity);
+	const Entity resolved = ResolveEntity(entity);
+	if (!world || !world->IsAlive(resolved)) {
+		return;
+	}
+
+	if (!world->HasComponent<NameComponent>(resolved)) {
+		world->AddComponent<NameComponent>(resolved);
+	}
+	world->GetComponent<NameComponent>(resolved).name = name ? std::string(name) : std::string{};
+}
+
+int32_t Engine::ManagedScriptRuntime::GetActiveSelfCallback(ManagedNativeEntity entity) {
+
+	ECSWorld* world = ResolveWorld(entity);
+	const Entity resolved = ResolveEntity(entity);
+	if (!world || !world->IsAlive(resolved) || !world->HasComponent<SceneObjectComponent>(resolved)) {
+		return 1;
+	}
+	return world->GetComponent<SceneObjectComponent>(resolved).activeSelf ? 1 : 0;
+}
+
+void Engine::ManagedScriptRuntime::SetActiveSelfCallback(ManagedNativeEntity entity, int32_t active) {
+
+	ECSWorld* world = ResolveWorld(entity);
+	const Entity resolved = ResolveEntity(entity);
+	if (!world || !world->IsAlive(resolved)) {
+		return;
+	}
+
+	EnsureScriptSceneObject(*world, resolved).activeSelf = active != 0;
+	RefreshScriptActiveTree(*world, resolved);
+}
+
+int32_t Engine::ManagedScriptRuntime::GetActiveInHierarchyCallback(ManagedNativeEntity entity) {
+
+	ECSWorld* world = ResolveWorld(entity);
+	const Entity resolved = ResolveEntity(entity);
+	return (world && IsEntityActiveInHierarchy(*world, resolved)) ? 1 : 0;
+}
+
+Engine::ManagedNativeEntity Engine::ManagedScriptRuntime::GetParentCallback(ManagedNativeEntity entity) {
+
+	ECSWorld* world = ResolveWorld(entity);
+	const Entity resolved = ResolveEntity(entity);
+	if (!world || !world->IsAlive(resolved) || !world->HasComponent<HierarchyComponent>(resolved)) {
+		return MakeNullNativeEntity();
+	}
+
+	const Entity parent = world->GetComponent<HierarchyComponent>(resolved).parent;
+	return world->IsAlive(parent) ? MakeNativeEntity(*world, parent) : MakeNullNativeEntity();
+}
+
+Engine::ManagedNativeEntity Engine::ManagedScriptRuntime::GetFirstChildCallback(ManagedNativeEntity entity) {
+
+	ECSWorld* world = ResolveWorld(entity);
+	const Entity resolved = ResolveEntity(entity);
+	if (!world || !world->IsAlive(resolved) || !world->HasComponent<HierarchyComponent>(resolved)) {
+		return MakeNullNativeEntity();
+	}
+
+	const Entity child = world->GetComponent<HierarchyComponent>(resolved).firstChild;
+	return world->IsAlive(child) ? MakeNativeEntity(*world, child) : MakeNullNativeEntity();
+}
+
+Engine::ManagedNativeEntity Engine::ManagedScriptRuntime::GetNextSiblingCallback(ManagedNativeEntity entity) {
+
+	ECSWorld* world = ResolveWorld(entity);
+	const Entity resolved = ResolveEntity(entity);
+	if (!world || !world->IsAlive(resolved) || !world->HasComponent<HierarchyComponent>(resolved)) {
+		return MakeNullNativeEntity();
+	}
+
+	const Entity sibling = world->GetComponent<HierarchyComponent>(resolved).nextSibling;
+	return world->IsAlive(sibling) ? MakeNativeEntity(*world, sibling) : MakeNullNativeEntity();
+}
+
+void Engine::ManagedScriptRuntime::SetParentCallback(ManagedNativeEntity entity, ManagedNativeEntity parent) {
+
+	ECSWorld* world = ResolveWorld(entity);
+	const Entity child = ResolveEntity(entity);
+	if (!world || !world->IsAlive(child)) {
+		return;
+	}
+
+	const Entity newParent = ResolveWorld(parent) == world ? ResolveEntity(parent) : Entity::Null();
+	HierarchySystem hierarchySystem{};
+	hierarchySystem.SetParent(*world, child, world->IsAlive(newParent) ? newParent : Entity::Null());
 }
 
 Engine::ManagedVector3 Engine::ManagedScriptRuntime::GetPositionCallback(ManagedNativeEntity entity) {

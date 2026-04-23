@@ -173,6 +173,11 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 
 			uint32_t typeID = 0;
 			if (!TryResolveTypeID(typeID, entry.type)) {
+				if (entry.handle.IsValid()) {
+
+					runtime_.Destroy(entry.handle, world, context);
+					entry.handle = BehaviorHandle::Null();
+				}
 				continue;
 			}
 

@@ -43,6 +43,12 @@ if "%FINDSTR_RC%"=="0" (
 )
 
 echo [OK] Premake generation succeeded.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_script_slnx.ps1" -SlnxPath "%ENGINE_ROOT%\Project\NEMEngine.slnx" -ScriptCoreProject "%ENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" -GameScriptsProject "%ENGINE_ROOT%\Project\Sandbox\Scripts\GameScripts.csproj"
+if errorlevel 1 (
+    echo [ERROR] Failed to patch C# projects into the solution.
+    popd
+    exit /b 1
+)
 popd
 endlocal
 exit /b 0

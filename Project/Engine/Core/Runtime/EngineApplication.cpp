@@ -165,6 +165,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 	// プレイモードの切り替え
 	HandlePlayToggle();
+	// Play/Stopでワールド状態が変わった後のモードを、このフレームのECS処理へ反映する
+	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 
 	ECSWorld* world = GetActiveWorld();
 	const SceneHeader* header = GetActiveSceneHeader();
@@ -233,8 +235,20 @@ void Engine::EngineApplication::HandlePlayToggle() {
 
 	if (!worldManager_.IsPlaying()) {
 
-		// プレイ開始前にC#スクリプト型をレジストリへ反映しておく
-		ManagedScriptRuntime::GetInstance().RefreshScriptTypes();
+		// プレイ開始前にC#スクリプトをビルドし、最新のDLLから型情報を反映する
+		auto& scriptRuntime = ManagedScriptRuntime::GetInstance();
+		scriptRuntime.UnloadGameAssembly();
+		if (!scriptRuntime.BuildGameAssembly()) {
+
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"EngineApplication: failed to enter Play mode. C# script build failed.");
+			return;
+		}
+		if (!scriptRuntime.ReloadGameAssembly()) {
+
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"EngineApplication: GameScripts.dll was not loaded. Play mode will start without managed scripts.");
+		}
 
 		nlohmann::json snapshot = editScenes_.SerializeSnapshot(sceneSystem_, worldManager_.GetEditWorld());
 
@@ -258,6 +272,9 @@ void Engine::EngineApplication::HandlePlayToggle() {
 }
 
 void Engine::EngineApplication::Finalize() {
+
+	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
+	scheduler_.DetachCurrentWorld(systemContext_);
 
 	skinnedAnimationManager_.Finalize();
 

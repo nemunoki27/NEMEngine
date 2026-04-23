@@ -53,6 +53,8 @@ namespace Engine {
 		uint32_t Register(const std::string_view& name);
 		// C#スクリプトの型を登録
 		uint32_t RegisterManaged(const std::string_view& name);
+		// C#スクリプトの型登録をクリア
+		void ClearManaged();
 
 		//--------- accessor -----------------------------------------------------
 

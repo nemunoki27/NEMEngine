@@ -61,6 +61,9 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 		for (uint32_t i = 0; i < registry.GetBehaviorTypeCount(); ++i) {
 
 			const auto& info = registry.GetInfo(i);
+			if (info.name.empty() || !info.construct) {
+				continue;
+			}
 			const bool selected = (type == info.name);
 
 			if (ImGui::Selectable(info.name.c_str(), selected)) {

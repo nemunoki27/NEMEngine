@@ -70,6 +70,9 @@ void Logger::CreateLogFiles(const std::filesystem::path& logDir, bool truncate) 
 
 	loggers_.clear();
 	loggers_.resize(static_cast<std::size_t>(LogType::Count));
+	for (auto& logs : recentLogs_) {
+		logs.clear();
+	}
 
 	for (std::size_t i = 0; i < loggers_.size(); ++i) {
 		const auto type = static_cast<LogType>(i);
@@ -127,6 +130,9 @@ void Logger::Finalize() {
 	}
 
 	loggers_.clear();
+	for (auto& logs : recentLogs_) {
+		logs.clear();
+	}
 	initialized_ = false;
 }
 
@@ -146,6 +152,7 @@ void Logger::Output(LogType type, std::string_view message, spdlog::level::level
 	EnsureInitialized();
 	auto& lg = Get(type);
 	if (!lg) return;
+	AppendRecentLog(type, level, std::string(message));
 	lg->log(level, "{}", message);
 }
 
@@ -203,6 +210,25 @@ void Logger::Flush(LogType type) {
 void Logger::FlushAll() {
 	EnsureInitialized();
 	for (auto& lg : loggers_) if (lg) lg->flush();
+}
+
+std::vector<Logger::LogEntry> Logger::GetRecentLogs(LogType type) {
+
+	std::scoped_lock lock(mutex_);
+	const auto index = static_cast<std::size_t>(type);
+	return std::vector<LogEntry>(recentLogs_[index].begin(), recentLogs_[index].end());
+}
+
+void Logger::AppendRecentLog(LogType type, spdlog::level::level_enum level, std::string&& message) {
+
+	std::scoped_lock lock(mutex_);
+	const auto index = static_cast<std::size_t>(type);
+	auto& logs = recentLogs_[index];
+	logs.push_back(LogEntry{ level, std::move(message) });
+
+	while (kRecentLogLimit_ < logs.size()) {
+		logs.pop_front();
+	}
 }
 
 //==================== ScopedOutput ====================

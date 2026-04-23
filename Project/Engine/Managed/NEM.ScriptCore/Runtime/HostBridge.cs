@@ -41,18 +41,21 @@ public static unsafe class HostBridge {
         }
 
         try {
+            ReleaseGameAssembly(collect: true);
             gameLoadContext = new GameScriptLoadContext(path);
             gameAssembly = gameLoadContext.LoadFromAssemblyPath(path);
             RebuildScriptTypes();
             return 1;
         }
         catch {
-            gameAssembly = null;
-            gameLoadContext = null;
-            scriptTypes.Clear();
-            fieldCache.Clear();
+            ReleaseGameAssembly(collect: true);
             return 0;
         }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static void UnloadGameAssembly() {
+        ReleaseGameAssembly(collect: true);
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -201,6 +204,25 @@ public static unsafe class HostBridge {
         scriptTypes.Sort((a, b) => string.CompareOrdinal(a.FullName, b.FullName));
     }
 
+    private static void ReleaseGameAssembly(bool collect) {
+
+        scripts.Clear();
+        scriptTypes.Clear();
+        fieldCache.Clear();
+        nextScriptID = 1;
+        gameAssembly = null;
+
+        GameScriptLoadContext? loadContext = gameLoadContext;
+        gameLoadContext = null;
+        loadContext?.Unload();
+
+        if (collect) {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+        }
+    }
+
     private static Type? FindScriptType(string? typeName) {
         if (string.IsNullOrEmpty(typeName)) {
             return null;
@@ -296,6 +318,9 @@ public static unsafe class HostBridge {
         if (type == typeof(Vector3)) {
             return SerializedFieldKind.Vector3;
         }
+        if (type == typeof(Vector2)) {
+            return SerializedFieldKind.Vector2;
+        }
         return SerializedFieldKind.None;
     }
 
@@ -337,7 +362,8 @@ public static unsafe class HostBridge {
         Float,
         Double,
         String,
-        Vector3
+        Vector3,
+        Vector2
     }
 
     private sealed class GameScriptLoadContext : AssemblyLoadContext {
@@ -345,7 +371,7 @@ public static unsafe class HostBridge {
         private readonly AssemblyDependencyResolver resolver;
         private readonly Assembly scriptCoreAssembly = typeof(ScriptBehaviour).Assembly;
 
-        public GameScriptLoadContext(string mainAssemblyPath) : base("NEMEngine.GameScripts", isCollectible: false) {
+        public GameScriptLoadContext(string mainAssemblyPath) : base("NEMEngine.GameScripts", isCollectible: true) {
             resolver = new AssemblyDependencyResolver(mainAssemblyPath);
         }
 

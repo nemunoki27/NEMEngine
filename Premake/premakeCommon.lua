@@ -108,7 +108,7 @@ function NEM_AddEngineRuntimeLinkSettings()
 	prebuildcommands {
 		'set DOTNET_CLI_UI_LANGUAGE=en',
 		'dotnet build "' .. scriptCoreProject .. '" -c "$(Configuration)"',
-		'if exist "$(ProjectDir)Scripts\\GameScripts.csproj" dotnet build "$(ProjectDir)Scripts\\GameScripts.csproj" -c "$(Configuration)"',
+		'if exist "$(ProjectDir)Scripts\\GameScripts.csproj" dotnet build "$(ProjectDir)Scripts\\GameScripts.csproj" -c "$(Configuration)" --no-dependencies',
 	}
 
     postbuildcommands {

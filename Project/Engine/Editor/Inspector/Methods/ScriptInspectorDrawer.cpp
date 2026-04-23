@@ -70,6 +70,19 @@ namespace {
 		return result;
 	}
 
+	// Vector2をJSONから読み込む
+	Engine::Vector2 ReadVector2(const nlohmann::json& value) {
+
+		Engine::Vector2 result{};
+		if (!value.is_object()) {
+			return result;
+		}
+
+		result.x = value.value("x", 0.0f);
+		result.y = value.value("y", 0.0f);
+		return result;
+	}
+
 	// Vector3をJSONへ保存する
 	nlohmann::json WriteVector3(const Engine::Vector3& value) {
 
@@ -77,6 +90,15 @@ namespace {
 		out["x"] = value.x;
 		out["y"] = value.y;
 		out["z"] = value.z;
+		return out;
+	}
+
+	// Vector2をJSONへ保存する
+	nlohmann::json WriteVector2(const Engine::Vector2& value) {
+
+		nlohmann::json out = nlohmann::json::object();
+		out["x"] = value.x;
+		out["y"] = value.y;
 		return out;
 	}
 
@@ -132,6 +154,14 @@ namespace {
 			Engine::ValueEditResult result = Engine::MyGUI::DragVector3(field.displayName.c_str(), v);
 			if (result.valueChanged) {
 				value = WriteVector3(v);
+			}
+			return result;
+		}
+		case Engine::ManagedSerializedFieldKind::Vector2: {
+			Engine::Vector2 v = ReadVector2(value);
+			Engine::ValueEditResult result = Engine::MyGUI::DragVector2(field.displayName.c_str(), v);
+			if (result.valueChanged) {
+				value = WriteVector2(v);
 			}
 			return result;
 		}

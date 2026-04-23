@@ -1,0 +1,14 @@
+{
+  "folders": [
+    {
+      "name": "__GAME_NAME__",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "dotnet.defaultSolution": "../__GAME_NAME__.slnx",
+    "omnisharp.defaultLaunchSolution": "../__GAME_NAME__.slnx",
+    "omnisharp.enableEditorConfigSupport": true,
+    "omnisharp.enableRoslynAnalyzers": true
+  }
+}

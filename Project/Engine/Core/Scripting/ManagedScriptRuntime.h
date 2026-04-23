@@ -41,6 +41,12 @@ namespace Engine {
 
 		// C#スクリプト型をビヘイビアレジストリへ反映する
 		void RefreshScriptTypes();
+		// ゲーム側C#プロジェクトをビルドする
+		bool BuildGameAssembly();
+		// ゲーム側C#アセンブリを読み直す
+		bool ReloadGameAssembly();
+		// ゲーム側C#アセンブリを解放する
+		void UnloadGameAssembly();
 
 		// C#スクリプトのインスタンスを作成/破棄する
 		int32_t CreateInstance(const std::string& typeName, ECSWorld& world,
@@ -80,6 +86,7 @@ namespace Engine {
 
 		using InitializeNativeApiFn = int32_t(__cdecl*)(ManagedNativeApiTable*);
 		using LoadGameAssemblyFn = int32_t(__cdecl*)(const char*);
+		using UnloadGameAssemblyFn = void(__cdecl*)();
 		using GetScriptTypeCountFn = int32_t(__cdecl*)();
 		using CopyScriptTypeNameFn = int32_t(__cdecl*)(int32_t, char*, int32_t);
 		using GetSerializedFieldCountFn = int32_t(__cdecl*)(const char*);
@@ -98,6 +105,7 @@ namespace Engine {
 
 		InitializeNativeApiFn initializeNativeApi_ = nullptr;
 		LoadGameAssemblyFn loadGameAssembly_ = nullptr;
+		UnloadGameAssemblyFn unloadGameAssembly_ = nullptr;
 		GetScriptTypeCountFn getScriptTypeCount_ = nullptr;
 		CopyScriptTypeNameFn copyScriptTypeName_ = nullptr;
 		GetSerializedFieldCountFn getSerializedFieldCount_ = nullptr;
@@ -134,6 +142,34 @@ namespace Engine {
 
 		// C#へ渡すコールバック
 		static float __cdecl GetDeltaTimeCallback();
+		static float __cdecl GetFixedDeltaTimeCallback();
+		static void __cdecl LogCallback(int32_t level, const char* message);
+		static int32_t __cdecl GetKeyCallback(int32_t key);
+		static int32_t __cdecl GetKeyDownCallback(int32_t key);
+		static int32_t __cdecl GetKeyUpCallback(int32_t key);
+		static int32_t __cdecl GetMouseButtonCallback(int32_t button);
+		static int32_t __cdecl GetMouseButtonDownCallback(int32_t button);
+		static int32_t __cdecl GetMouseButtonUpCallback(int32_t button);
+		static ManagedVector2 __cdecl GetMousePositionCallback();
+		static ManagedVector2 __cdecl GetMouseDeltaCallback();
+		static float __cdecl GetMouseWheelCallback();
+		static int32_t __cdecl GetGamepadButtonCallback(int32_t button);
+		static int32_t __cdecl GetGamepadButtonDownCallback(int32_t button);
+		static int32_t __cdecl IsGamepadConnectedCallback();
+		static ManagedVector2 __cdecl GetLeftStickCallback();
+		static ManagedVector2 __cdecl GetRightStickCallback();
+		static float __cdecl GetLeftTriggerCallback();
+		static float __cdecl GetRightTriggerCallback();
+		static int32_t __cdecl IsAliveCallback(ManagedNativeEntity entity);
+		static int32_t __cdecl CopyNameCallback(ManagedNativeEntity entity, char* buffer, int32_t capacity);
+		static void __cdecl SetNameCallback(ManagedNativeEntity entity, const char* name);
+		static int32_t __cdecl GetActiveSelfCallback(ManagedNativeEntity entity);
+		static void __cdecl SetActiveSelfCallback(ManagedNativeEntity entity, int32_t active);
+		static int32_t __cdecl GetActiveInHierarchyCallback(ManagedNativeEntity entity);
+		static ManagedNativeEntity __cdecl GetParentCallback(ManagedNativeEntity entity);
+		static ManagedNativeEntity __cdecl GetFirstChildCallback(ManagedNativeEntity entity);
+		static ManagedNativeEntity __cdecl GetNextSiblingCallback(ManagedNativeEntity entity);
+		static void __cdecl SetParentCallback(ManagedNativeEntity entity, ManagedNativeEntity parent);
 		static ManagedVector3 __cdecl GetPositionCallback(ManagedNativeEntity entity);
 		static void __cdecl SetPositionCallback(ManagedNativeEntity entity, ManagedVector3 value);
 		static ManagedVector3 __cdecl GetLocalPositionCallback(ManagedNativeEntity entity);

@@ -19,6 +19,7 @@
 #include <mutex>
 #include <array>
 #include <vector>
+#include <deque>
 #include <chrono>
 #include <string>
 #include <string_view>
@@ -37,6 +38,12 @@ namespace Engine {
 	//============================================================================
 	class Logger {
 	public:
+
+		struct LogEntry {
+			spdlog::level::level_enum level = spdlog::level::info;
+			std::string message;
+		};
+
 		//========================================================================
 		//	public Methods
 		//========================================================================
@@ -70,6 +77,7 @@ namespace Engine {
 
 		static void Flush(LogType type);
 		static void FlushAll();
+		static std::vector<LogEntry> GetRecentLogs(LogType type);
 
 		// スコープ滞在時間を自動記録
 		class ScopedOutput final {
@@ -121,11 +129,14 @@ namespace Engine {
 		static void EnsureInitialized();
 		static std::string_view TypeToFileName(LogType type);
 		static std::string_view TypeToLoggerName(LogType type);
+		static void AppendRecentLog(LogType type, spdlog::level::level_enum level, std::string&& message);
 
 		static inline std::vector<std::shared_ptr<spdlog::logger>> loggers_;
 		static inline std::filesystem::path logDir_ = "./Log";
 		static inline std::mutex mutex_;
 		static inline bool initialized_{ false };
+		static constexpr std::size_t kRecentLogLimit_ = 30;
+		static inline std::array<std::deque<LogEntry>, static_cast<std::size_t>(LogType::Count)> recentLogs_;
 	};
 
 	template <typename... Args>
@@ -137,7 +148,10 @@ namespace Engine {
 		EnsureInitialized();
 		auto& lg = Get(type);
 		if (!lg) return;
-		lg->log(level, fmtStr, std::forward<Args>(args)...);
+
+		std::string text = fmt::format(fmtStr, std::forward<Args>(args)...);
+		AppendRecentLog(type, level, std::string(text));
+		lg->log(level, "{}", text);
 	}
 
 	template <typename... Args>
