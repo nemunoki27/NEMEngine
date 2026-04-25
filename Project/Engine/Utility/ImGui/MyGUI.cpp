@@ -474,6 +474,36 @@ bool Engine::MyGUI::CollapsingHeader(const char* label, bool stratOpen) {
 	return open;
 }
 
+Engine::TextInputPopupResult Engine::MyGUI::InputTextPopupContent(const char* label, std::string& text, const char* errorText) {
+
+	TextInputPopupResult result{};
+
+	ImGui::TextUnformatted(label);
+	ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
+	const bool submittedByEnter = ImGui::InputText("##InputTextPopupValue", &text, ImGuiInputTextFlags_EnterReturnsTrue);
+	if (ImGui::IsWindowAppearing()) {
+		ImGui::SetKeyboardFocusHere(-1);
+	}
+
+	if (errorText && errorText[0] != '\0') {
+		ImGui::TextColored(ImVec4(0.95f, 0.32f, 0.24f, 1.0f), "%s", errorText);
+	} else {
+		ImGui::Spacing();
+	}
+
+	ImGui::Separator();
+
+	if (ImGui::Button("OK", ImVec2(96.0f, 0.0f)) || submittedByEnter) {
+		result.submitted = true;
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Cancel", ImVec2(96.0f, 0.0f)) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+		result.canceled = true;
+	}
+	return result;
+}
+
 bool Engine::MyGUI::BeginPropertyRow(const char* label) {
 
 	const std::string tableID = std::string("##MyGUI_RowTable_Public_") + label;

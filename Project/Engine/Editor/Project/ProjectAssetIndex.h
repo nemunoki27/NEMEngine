@@ -87,12 +87,18 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// ブラウザ上に表示しないファイルかを判定する
 		static bool ShouldHideInBrowser(const std::filesystem::path& fullPath);
+		// 表示アセットに紐付く付属ファイルを集める
 		static std::vector<std::string> CollectSidecars(const std::filesystem::path& fullPath);
+		// アセット一覧で使う表示名を作る
 		static std::string MakeDisplayName(const std::filesystem::path& fullPath);
 
+		// 必要なディレクトリノードを作成して返す
 		ProjectDirectoryNode* EnsureDirectory(const std::filesystem::path& relativeDirectory);
+		// ディレクトリとアセットを表示順に並び替える
 		static void SortRecursive(ProjectDirectoryNode& node);
+		// 仮想パスに一致するディレクトリを再帰的に探す
 		static const ProjectDirectoryNode* FindRecursive(const ProjectDirectoryNode& node, const std::string& virtualPath);
 	};
 } // Engine

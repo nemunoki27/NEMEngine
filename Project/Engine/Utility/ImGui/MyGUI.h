@@ -10,6 +10,7 @@
 // c++
 #include <initializer_list>
 #include <span>
+#include <string>
 // imgui
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -45,6 +46,12 @@ namespace Engine {
 		bool valueChanged = false;
 		bool anyItemActive = false;
 		bool editFinished = false;
+	};
+	// 文字入力ポップアップの操作結果
+	struct TextInputPopupResult {
+
+		bool submitted = false;
+		bool canceled = false;
 	};
 	// ビューポートの位置とサイズを表す構造体
 	struct GizmoViewportRect {
@@ -105,6 +112,8 @@ namespace Engine {
 
 		// エンジンの表示スタイルでコラプシングヘッダーを表示する
 		static bool CollapsingHeader(const char* label, bool stratOpen = true);
+		// ポップアップ内で使用する文字入力とOK/Cancelを描画する
+		static TextInputPopupResult InputTextPopupContent(const char* label, std::string& text, const char* errorText = nullptr);
 		// 汎用プロパティ行
 		static bool BeginPropertyRow(const char* label);
 		static void EndPropertyRow();

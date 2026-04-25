@@ -6,6 +6,7 @@
 #include <Engine/Core/Runtime/RuntimePaths.h>
 #include <Engine/Logger/Logger.h>
 #include <Engine/Utility/Enum/EnumAdapter.h>
+#include <Engine/Utility/ImGui/MyGUI.h>
 
 // windows
 #include <windows.h>
@@ -14,6 +15,7 @@
 // c++
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <fstream>
 #include <filesystem>
 #include <string>
@@ -122,6 +124,47 @@ namespace {
 		const HINSTANCE result = ::ShellExecuteW(nullptr, L"open", target.c_str(), parameterText, workingDirectoryText, SW_SHOWNORMAL);
 		return reinterpret_cast<INT_PTR>(result) > 32;
 	}
+	// 環境変数からパスを取得する
+	std::filesystem::path GetEnvironmentPath(const char* name) {
+
+		char* value = nullptr;
+		size_t valueLength = 0;
+		if (_dupenv_s(&value, &valueLength, name) != 0 || value == nullptr) {
+			return {};
+		}
+
+		std::filesystem::path result = value;
+		std::free(value);
+		return result;
+	}
+	// インストールされているVisual Studioのdevenv.exeを探す
+	std::filesystem::path FindVisualStudioExecutable() {
+
+		const std::array<std::filesystem::path, 2> roots = {
+			GetEnvironmentPath("ProgramFiles"),
+			GetEnvironmentPath("ProgramFiles(x86)"),
+		};
+		constexpr std::array<const char*, 3> versions = { "18", "17", "16" };
+		constexpr std::array<const char*, 4> editions = { "Community", "Professional", "Enterprise", "Preview" };
+
+		for (const auto& root : roots) {
+			if (root.empty()) {
+				continue;
+			}
+			for (const char* version : versions) {
+				for (const char* edition : editions) {
+
+					const std::filesystem::path devenv =
+						root / "Microsoft Visual Studio" / version / edition / "Common7/IDE/devenv.exe";
+					std::error_code ec;
+					if (std::filesystem::exists(devenv, ec) && !ec) {
+						return devenv;
+					}
+				}
+			}
+		}
+		return {};
+	}
 
 	// ScriptアセットをVisual Studioで開く
 	bool OpenScriptAssetInVisualStudio(const Engine::ProjectAssetEntry& asset) {
@@ -135,10 +178,20 @@ namespace {
 		}
 
 		const std::filesystem::path workingDirectory = Engine::RuntimePaths::GetProjectRoot();
+		const std::filesystem::path visualStudio = FindVisualStudioExecutable();
+		if (!visualStudio.empty()) {
+
+			const std::wstring parameters = L"/Edit \"" + scriptPath.wstring() + L"\"";
+			if (OpenWithShell(visualStudio, parameters, workingDirectory)) {
+				Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::info,
+					"ProjectPanel: opened script in Visual Studio. path={}", scriptPath.string());
+				return true;
+			}
+		}
 
 		if (OpenWithShell(scriptPath, std::wstring{}, workingDirectory)) {
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::info,
-				"ProjectPanel: opened script via shell association. path={}", scriptPath.string());
+				"ProjectPanel: opened script via shell association because Visual Studio was not found. path={}", scriptPath.string());
 			return true;
 		}
 
@@ -196,16 +249,18 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::Separator();
 
-	ImGui::SameLine();
+		ImGui::SameLine();
 
 	// ディレクトリの内容を描画
 	if (ImGui::BeginChild("##ProjectContent", ImVec2(0.0f, 0.0f), true)) {
 		if (const ProjectDirectoryNode* node = assetIndex_.FindDirectory(selectedDirectory_)) {
 
-			DrawDirectoryContents(*node);
+			DrawDirectoryContents(database, *node);
 		}
 	}
 	ImGui::EndChild();
+
+	DrawCreateAssetPopup(database);
 
 	ImGui::End();
 }
@@ -244,11 +299,23 @@ void Engine::ProjectPanel::DrawHeader(AssetDatabase& database) {
 	// 右端に Refresh
 	const char* label = "Refresh";
 	float buttonWidth = ImGui::CalcTextSize(label).x + ImGui::GetStyle().FramePadding.x * 2.0f;
+	const char* createLabel = "Create";
+	float createButtonWidth = ImGui::CalcTextSize(createLabel).x + ImGui::GetStyle().FramePadding.x * 2.0f;
 
-	float rightX = ImGui::GetWindowContentRegionMax().x - buttonWidth - 4.0f;
+	float rightX = ImGui::GetWindowContentRegionMax().x - buttonWidth - createButtonWidth - 12.0f;
 	const float nextX = (std::max)(ImGui::GetCursorPosX() + 16.0f, rightX);
 
 	ImGui::SameLine(nextX);
+	if (ImGui::Button(createLabel, ImVec2(createButtonWidth, 0.0f))) {
+		ImGui::OpenPopup("##ProjectCreateMenu");
+	}
+	if (ImGui::BeginPopup("##ProjectCreateMenu")) {
+
+		DrawCreateMenuItems(selectedDirectory_);
+		ImGui::EndPopup();
+	}
+
+	ImGui::SameLine();
 	if (ImGui::Button(label, ImVec2(buttonWidth, 0.0f))) {
 		Rebuild(database);
 		selectedAsset_ = {};
@@ -281,12 +348,13 @@ void Engine::ProjectPanel::DrawSourceSelector(AssetDatabase& database) {
 	ImGui::Separator();
 }
 
-void Engine::ProjectPanel::DrawDirectoryContents(const ProjectDirectoryNode& node) {
+void Engine::ProjectPanel::DrawDirectoryContents(AssetDatabase& database, const ProjectDirectoryNode& node) {
 
 	float iconSize = 64.0f;
 	int32_t columnCount = CalcGridColumnCount(ImGui::GetContentRegionAvail().x, iconSize + 8.0f);
 
 	if (!ImGui::BeginTable("##ProjectGrid", columnCount, ImGuiTableFlags_SizingFixedFit)) {
+		DrawDirectoryContextMenu(database, node);
 		return;
 	}
 
@@ -320,6 +388,7 @@ void Engine::ProjectPanel::DrawDirectoryContents(const ProjectDirectoryNode& nod
 		}
 
 		ImGui::EndGroup();
+		DrawFolderContextMenu(database, *child);
 		ImGui::PopID();
 	}
 
@@ -358,10 +427,126 @@ void Engine::ProjectPanel::DrawDirectoryContents(const ProjectDirectoryNode& nod
 		}
 
 		ImGui::EndGroup();
+		DrawAssetContextMenu(database, asset);
 		ImGui::PopID();
 	}
 
 	ImGui::EndTable();
+
+	DrawDirectoryContextMenu(database, node);
+}
+
+void Engine::ProjectPanel::DrawDirectoryContextMenu(AssetDatabase& database, const ProjectDirectoryNode& node) {
+
+	if (!ImGui::BeginPopupContextWindow("ProjectDirectoryContextMenu",
+		ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
+		return;
+	}
+
+	if (ImGui::BeginMenu("Create")) {
+
+		DrawCreateMenuItems(node.virtualPath);
+		ImGui::EndMenu();
+	}
+	if (ImGui::MenuItem("Refresh")) {
+
+		Rebuild(database);
+		selectedAsset_ = {};
+	}
+	ImGui::EndPopup();
+}
+
+void Engine::ProjectPanel::DrawFolderContextMenu(AssetDatabase& database, const ProjectDirectoryNode& node) {
+
+	if (!ImGui::BeginPopupContextItem("ProjectFolderContextMenu", ImGuiPopupFlags_MouseButtonRight)) {
+		return;
+	}
+
+	if (ImGui::MenuItem("Open")) {
+
+		selectedDirectory_ = node.virtualPath;
+		selectedAsset_ = {};
+	}
+	if (ImGui::BeginMenu("Create")) {
+
+		DrawCreateMenuItems(node.virtualPath);
+		ImGui::EndMenu();
+	}
+	if (ImGui::MenuItem("Duplicate")) {
+
+		ProjectAssetFileResult result = ProjectAssetFileUtility::DuplicateDirectory(assetSource_, node.virtualPath);
+		RefreshAfterFileOperation(database, result);
+	}
+	ImGui::EndPopup();
+}
+
+void Engine::ProjectPanel::DrawAssetContextMenu(AssetDatabase& database, const ProjectAssetEntry& asset) {
+
+	if (!ImGui::BeginPopupContextItem("ProjectAssetContextMenu", ImGuiPopupFlags_MouseButtonRight)) {
+		return;
+	}
+
+	selectedAsset_ = asset.assetID;
+
+	if (ImGui::MenuItem("Open")) {
+
+		HandleAssetDoubleClick(asset);
+	}
+	if (ImGui::MenuItem("Duplicate")) {
+
+		ProjectAssetFileResult result = ProjectAssetFileUtility::DuplicateAsset(asset);
+		RefreshAfterFileOperation(database, result);
+	}
+	ImGui::EndPopup();
+}
+
+void Engine::ProjectPanel::DrawCreateAssetPopup(AssetDatabase& database) {
+
+	if (requestOpenCreatePopup_) {
+
+		ImGui::OpenPopup("Create Project Asset");
+		requestOpenCreatePopup_ = false;
+	}
+
+	if (!ImGui::BeginPopupModal("Create Project Asset", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
+	}
+
+	const char* kindLabel = ProjectAssetFileUtility::GetCreateMenuLabel(pendingCreateKind_);
+	ImGui::Text("Create %s", kindLabel);
+	ImGui::TextDisabled("%s", pendingCreateDirectory_.c_str());
+	ImGui::Separator();
+
+	TextInputPopupResult inputResult = MyGUI::InputTextPopupContent(
+		"Name",
+		createNameBuffer_,
+		createErrorMessage_.empty() ? nullptr : createErrorMessage_.c_str());
+
+	if (inputResult.submitted) {
+
+		ProjectAssetFileResult result = ProjectAssetFileUtility::Create(
+			assetSource_,
+			pendingCreateDirectory_,
+			pendingCreateKind_,
+			createNameBuffer_);
+
+		if (result.success) {
+
+			createErrorMessage_.clear();
+			RefreshAfterFileOperation(database, result);
+			ImGui::CloseCurrentPopup();
+		} else {
+
+			createErrorMessage_ = result.message.empty() ? "Failed to create asset." : result.message;
+		}
+	}
+	if (inputResult.canceled) {
+
+		createErrorMessage_.clear();
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
 }
 
 void Engine::ProjectPanel::HandleAssetDoubleClick(const ProjectAssetEntry& asset) {
@@ -371,6 +556,59 @@ void Engine::ProjectPanel::HandleAssetDoubleClick(const ProjectAssetEntry& asset
 	}
 
 	OpenScriptAssetInVisualStudio(asset);
+}
+
+void Engine::ProjectPanel::BeginCreateAsset(ProjectAssetFileKind kind, const std::string& directoryVirtualPath) {
+
+	pendingCreateKind_ = kind;
+	pendingCreateDirectory_ = directoryVirtualPath;
+	createNameBuffer_ = ProjectAssetFileUtility::GetDefaultName(kind);
+	createErrorMessage_.clear();
+	requestOpenCreatePopup_ = true;
+}
+
+void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtualPath) {
+
+	constexpr std::array<ProjectAssetFileKind, 8> kCreateKinds = {
+		ProjectAssetFileKind::Folder,
+		ProjectAssetFileKind::Script,
+		ProjectAssetFileKind::Scene,
+		ProjectAssetFileKind::Prefab,
+		ProjectAssetFileKind::Material,
+		ProjectAssetFileKind::Shader,
+		ProjectAssetFileKind::RenderPipeline,
+		ProjectAssetFileKind::Text,
+	};
+
+	for (ProjectAssetFileKind kind : kCreateKinds) {
+
+		if (ImGui::MenuItem(ProjectAssetFileUtility::GetCreateMenuLabel(kind))) {
+			BeginCreateAsset(kind, directoryVirtualPath);
+		}
+	}
+}
+
+void Engine::ProjectPanel::RefreshAfterFileOperation(AssetDatabase& database, const ProjectAssetFileResult& result) {
+
+	if (!result.success) {
+
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ProjectPanel: file operation failed. message={}", result.message);
+		return;
+	}
+
+	Rebuild(database);
+
+	if (result.isDirectory) {
+
+		selectedDirectory_ = result.assetPath.empty() ? selectedDirectory_ : result.assetPath;
+		selectedAsset_ = {};
+		return;
+	}
+
+	if (const AssetMeta* meta = database.FindByPath(result.assetPath)) {
+		selectedAsset_ = meta->guid;
+	}
 }
 
 const char* Engine::ProjectPanel::GetSourceRootPath() const {

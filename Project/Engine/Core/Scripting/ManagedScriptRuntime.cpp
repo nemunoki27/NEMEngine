@@ -684,9 +684,9 @@ void Engine::ManagedScriptRuntime::AutoRebuildOnScriptChanges() {
 	TryAddSnapshotFile(currentSnapshot, projectPath);
 
 	const std::filesystem::path scriptsRoot = projectPath.parent_path();
-	const std::filesystem::path gameScriptsRoot = scriptsRoot.parent_path() / "GameAssets/Scripts";
+	const std::filesystem::path gameAssetsRoot = scriptsRoot.parent_path() / "GameAssets";
 	CollectScriptSnapshotFiles(currentSnapshot, scriptsRoot);
-	CollectScriptSnapshotFiles(currentSnapshot, gameScriptsRoot);
+	CollectScriptSnapshotFiles(currentSnapshot, gameAssetsRoot);
 
 	if (!hasScriptSourceSnapshot_) {
 		scriptSourceSnapshot_ = std::move(currentSnapshot);

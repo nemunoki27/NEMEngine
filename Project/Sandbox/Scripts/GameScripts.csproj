@@ -19,7 +19,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\GameAssets\Scripts\**\*.cs" Link="Scripts\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\GameAssets\**\*.cs" Link="GameAssets\%(RecursiveDir)%(Filename)%(Extension)" />
     <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" />
   </ItemGroup>
 </Project>

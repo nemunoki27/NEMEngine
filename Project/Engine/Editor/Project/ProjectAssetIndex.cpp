@@ -52,6 +52,12 @@ bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database, ProjectAs
 
 	for (const auto& entry : std::filesystem::recursive_directory_iterator(rootDesc.fullPath)) {
 
+		if (entry.is_directory()) {
+
+			std::filesystem::path directory = std::filesystem::relative(entry.path(), rootDesc.fullPath);
+			EnsureDirectory(directory);
+			continue;
+		}
 		if (!entry.is_regular_file()) {
 			continue;
 		}
