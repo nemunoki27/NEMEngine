@@ -7,6 +7,7 @@
 #include <Engine/Core/Graphics/Line/LineRenderer.h>
 #include <Engine/Core/Build/BuildConfig.h>
 #include <Engine/Core/Scripting/ManagedScriptRuntime.h>
+#include <Engine/Core/Tools/ToolRegistry.h>
 #include <Engine/Logger/Logger.h>
 #include <Engine/Input/Input.h>
 
@@ -188,6 +189,20 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		editorContext_.activeSceneInstanceID = activeSceneInstance ? activeSceneInstance->instanceID : UUID{};
 		editorContext_.activeWorld = world;
 		editorContext_.assetDatabase = &assetDataBase_;
+
+		// C++ツールの更新。UI描画とは分離して、Game側ツールも同じ経路で扱う
+		ToolContext toolContext{};
+		toolContext.world = world;
+		toolContext.assetDatabase = &assetDataBase_;
+		toolContext.systemContext = &systemContext_;
+		toolContext.activeSceneHeader = header;
+		toolContext.activeSceneAsset = editorContext_.activeSceneAsset;
+		toolContext.activeSceneInstanceID = editorContext_.activeSceneInstanceID;
+		toolContext.activeScenePath = activeScenePath_;
+		toolContext.isPlaying = worldManager_.IsPlaying();
+		toolContext.canEditScene = !worldManager_.IsPlaying() && world;
+		toolContext.deltaTime = deltaTime;
+		ToolRegistry::GetInstance().Tick(toolContext);
 
 		// エディタのフレーム開始処理
 		editorManager_.BeginFrame(graphicsCore, editorContext_);
