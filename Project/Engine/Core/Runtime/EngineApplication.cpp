@@ -8,6 +8,7 @@
 #include <Engine/Core/Build/BuildConfig.h>
 #include <Engine/Core/Scripting/ManagedScriptRuntime.h>
 #include <Engine/Core/Tools/ToolRegistry.h>
+#include <Engine/Editor/Project/ProjectAssetFileUtility.h>
 #include <Engine/Logger/Logger.h>
 #include <Engine/Input/Input.h>
 
@@ -171,6 +172,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 	// プレイモードの切り替え
 	HandlePlayToggle();
+	// エディタから要求されたシーン操作
+	HandleEditorSceneRequests();
 	// Play/Stopでワールド状態が変わった後のモードを、このフレームのECS処理へ反映する
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 
@@ -302,6 +305,128 @@ void Engine::EngineApplication::HandlePlayToggle() {
 		worldManager_.DestroyPlayWorld();
 		playScenes_ = SceneInstanceManager{};
 	}
+}
+
+void Engine::EngineApplication::HandleEditorSceneRequests() {
+
+	if constexpr (!BuildConfig::kEditorEnabled) {
+		return;
+	} else {
+
+		EditorSceneRequest request = editorManager_.ConsumeSceneRequest();
+		if (request.type == EditorSceneRequestType::None) {
+			return;
+		}
+		if (worldManager_.IsPlaying()) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"EngineApplication: scene operation is ignored while playing.");
+			return;
+		}
+
+		switch (request.type) {
+		case EditorSceneRequestType::NewScene:
+			CreateNewEditScene();
+			break;
+		case EditorSceneRequestType::OpenScene:
+			OpenEditScene(request.sceneAsset);
+			break;
+		case EditorSceneRequestType::SaveScene:
+			SaveActiveEditScene();
+			break;
+		case EditorSceneRequestType::SaveAndNewScene:
+			if (SaveActiveEditScene()) {
+				CreateNewEditScene();
+			}
+			break;
+		case EditorSceneRequestType::SaveAndOpenScene:
+			if (SaveActiveEditScene()) {
+				OpenEditScene(request.sceneAsset);
+			}
+			break;
+		case EditorSceneRequestType::None:
+		default:
+			break;
+		}
+	}
+}
+
+bool Engine::EngineApplication::CreateNewEditScene() {
+
+	ProjectAssetFileResult result = ProjectAssetFileUtility::Create(
+		ProjectAssetSource::Game,
+		"GameAssets/Scenes",
+		ProjectAssetFileKind::Scene,
+		"NewScene");
+	if (!result.success) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"EngineApplication: failed to create new scene. message={}", result.message);
+		return false;
+	}
+
+	const AssetID sceneAsset = assetDataBase_.ImportOrGet(result.assetPath, AssetType::Scene);
+	assetDataBase_.RebuildMeta();
+	return OpenEditScene(sceneAsset);
+}
+
+bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
+
+	const AssetMeta* meta = assetDataBase_.Find(sceneAsset);
+	if (!meta) {
+
+		assetDataBase_.RebuildMeta();
+		meta = assetDataBase_.Find(sceneAsset);
+	}
+	if (!meta || meta->type != AssetType::Scene) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"EngineApplication: requested asset is not a scene.");
+		return false;
+	}
+
+	const std::filesystem::path fullPath = assetDataBase_.ResolveFullPath(sceneAsset);
+	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"EngineApplication: scene file was not found. path={}", meta->assetPath);
+		return false;
+	}
+
+	scheduler_.DetachCurrentWorld(systemContext_);
+	editScenes_.UnloadAll(worldManager_.GetEditWorld());
+
+	activeScene_ = sceneAsset;
+	activeScenePath_ = meta->assetPath;
+
+	if (!editScenes_.LoadSceneTree(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_)) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"EngineApplication: failed to open scene. path={}", activeScenePath_);
+		return false;
+	}
+
+	requestFrameDeltaReset_ = true;
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		editorManager_.ResetSceneEditingState();
+	}
+	Logger::Output(LogType::Engine, spdlog::level::info,
+		"EngineApplication: opened scene. path={}", activeScenePath_);
+	return true;
+}
+
+bool Engine::EngineApplication::SaveActiveEditScene() {
+
+	if (!editScenes_.SaveActive(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld())) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"EngineApplication: failed to save active scene.");
+		return false;
+	}
+
+	assetDataBase_.RebuildMeta();
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		editorManager_.MarkActiveSceneSaved();
+	}
+	Logger::Output(LogType::Engine, spdlog::level::info,
+		"EngineApplication: saved active scene. path={}", activeScenePath_);
+	return true;
 }
 
 void Engine::EngineApplication::Finalize() {

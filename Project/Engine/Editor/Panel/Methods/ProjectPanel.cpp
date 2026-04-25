@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/RuntimePaths.h>
+#include <Engine/Editor/Panel/Interface/IEditorPanelHost.h>
 #include <Engine/Logger/Logger.h>
 #include <Engine/Utility/Enum/EnumAdapter.h>
 #include <Engine/Utility/ImGui/MyGUI.h>
@@ -255,7 +256,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	if (ImGui::BeginChild("##ProjectContent", ImVec2(0.0f, 0.0f), true)) {
 		if (const ProjectDirectoryNode* node = assetIndex_.FindDirectory(selectedDirectory_)) {
 
-			DrawDirectoryContents(database, *node);
+			DrawDirectoryContents(context, database, *node);
 		}
 	}
 	ImGui::EndChild();
@@ -348,7 +349,8 @@ void Engine::ProjectPanel::DrawSourceSelector(AssetDatabase& database) {
 	ImGui::Separator();
 }
 
-void Engine::ProjectPanel::DrawDirectoryContents(AssetDatabase& database, const ProjectDirectoryNode& node) {
+void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& context,
+	AssetDatabase& database, const ProjectDirectoryNode& node) {
 
 	float iconSize = 64.0f;
 	int32_t columnCount = CalcGridColumnCount(ImGui::GetContentRegionAvail().x, iconSize + 8.0f);
@@ -409,7 +411,7 @@ void Engine::ProjectPanel::DrawDirectoryContents(AssetDatabase& database, const 
 		}
 		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
 			selectedAsset_ = asset.assetID;
-			HandleAssetDoubleClick(asset);
+			HandleAssetDoubleClick(context, asset);
 		}
 
 		DrawAssetDragDropSource(asset);
@@ -427,7 +429,7 @@ void Engine::ProjectPanel::DrawDirectoryContents(AssetDatabase& database, const 
 		}
 
 		ImGui::EndGroup();
-		DrawAssetContextMenu(database, asset);
+		DrawAssetContextMenu(context, database, asset);
 		ImGui::PopID();
 	}
 
@@ -480,7 +482,8 @@ void Engine::ProjectPanel::DrawFolderContextMenu(AssetDatabase& database, const 
 	ImGui::EndPopup();
 }
 
-void Engine::ProjectPanel::DrawAssetContextMenu(AssetDatabase& database, const ProjectAssetEntry& asset) {
+void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& context,
+	AssetDatabase& database, const ProjectAssetEntry& asset) {
 
 	if (!ImGui::BeginPopupContextItem("ProjectAssetContextMenu", ImGuiPopupFlags_MouseButtonRight)) {
 		return;
@@ -490,7 +493,7 @@ void Engine::ProjectPanel::DrawAssetContextMenu(AssetDatabase& database, const P
 
 	if (ImGui::MenuItem("Open")) {
 
-		HandleAssetDoubleClick(asset);
+		HandleAssetDoubleClick(context, asset);
 	}
 	if (ImGui::MenuItem("Duplicate")) {
 
@@ -549,8 +552,14 @@ void Engine::ProjectPanel::DrawCreateAssetPopup(AssetDatabase& database) {
 	ImGui::EndPopup();
 }
 
-void Engine::ProjectPanel::HandleAssetDoubleClick(const ProjectAssetEntry& asset) {
+void Engine::ProjectPanel::HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset) {
 
+	if (asset.type == AssetType::Scene) {
+		if (context.host) {
+			context.host->RequestOpenScene(asset.assetID);
+		}
+		return;
+	}
 	if (asset.type != AssetType::Script) {
 		return;
 	}

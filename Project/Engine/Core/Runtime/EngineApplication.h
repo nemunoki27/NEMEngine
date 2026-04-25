@@ -89,6 +89,14 @@ namespace Engine {
 
 		// プレイモードの切り替え
 		void HandlePlayToggle();
+		// エディタから要求されたシーン操作を処理する
+		void HandleEditorSceneRequests();
+		// 新規シーンを作成して開く
+		bool CreateNewEditScene();
+		// 指定シーンをエディタワールドで開く
+		bool OpenEditScene(AssetID sceneAsset);
+		// エディタワールドのアクティブシーンを保存する
+		bool SaveActiveEditScene();
 
 		// アクティブなワールドとシーンの取得
 		ECSWorld* GetActiveWorld() { return worldManager_.IsPlaying() ? worldManager_.GetPlayWorld() : &worldManager_.GetEditWorld(); }

@@ -46,26 +46,6 @@ namespace {
 		return !world.GetComponent<Engine::SceneObjectComponent>(entity).sceneInstanceID;
 	}
 
-	std::vector<Engine::Entity> CollectSceneEntities(Engine::ECSWorld& world,
-		const Engine::SceneInstance& scene) {
-
-		std::vector<Engine::Entity> entities;
-
-		world.ForEachAliveEntity([&](Engine::Entity entity) {
-			if (IsOwnedBySceneInstance(world, entity, scene.instanceID)) {
-
-				AppendUniqueAlive(world, entities, entity);
-			}
-			});
-
-		for (const auto& entity : scene.createdEntities) {
-			if (IsOwnedBySceneInstance(world, entity, scene.instanceID) || HasNoSceneOwner(world, entity)) {
-
-				AppendUniqueAlive(world, entities, entity);
-			}
-		}
-		return entities;
-	}
 }
 
 bool Engine::SceneInstanceManager::LoadAdditive(AssetDatabase& database,
@@ -128,6 +108,31 @@ bool Engine::SceneInstanceManager::Unload(ECSWorld& world, UUID instanceID) {
 		return true;
 	}
 	return false;
+}
+
+void Engine::SceneInstanceManager::UnloadAll(ECSWorld& world) {
+
+	while (!scenes_.empty()) {
+
+		Unload(world, scenes_.back().instanceID);
+	}
+	active_ = UUID{};
+}
+
+bool Engine::SceneInstanceManager::SaveActive(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world) const {
+
+	const SceneInstance* activeScene = GetActive();
+	if (!activeScene || !activeScene->sceneAsset) {
+		return false;
+	}
+
+	const std::filesystem::path fullPath = database.ResolveFullPath(activeScene->sceneAsset);
+	if (fullPath.empty()) {
+		return false;
+	}
+
+	const std::vector<Entity> ownedEntities = CollectSceneEntities(world, *activeScene);
+	return sceneSystem.SaveScene(fullPath.string(), world, activeScene->header, &ownedEntities);
 }
 
 nlohmann::json Engine::SceneInstanceManager::SerializeSnapshot(const SceneSystem& sceneSystem, ECSWorld& world) const {
@@ -300,6 +305,26 @@ const Engine::SceneInstance* Engine::SceneInstanceManager::GetActive() const {
 		}
 	}
 	return nullptr;
+}
+
+std::vector<Engine::Entity> Engine::SceneInstanceManager::CollectSceneEntities(ECSWorld& world, const SceneInstance& scene) {
+
+	std::vector<Entity> entities;
+
+	world.ForEachAliveEntity([&](Entity entity) {
+		if (IsOwnedBySceneInstance(world, entity, scene.instanceID)) {
+
+			AppendUniqueAlive(world, entities, entity);
+		}
+		});
+
+	for (const auto& entity : scene.createdEntities) {
+		if (IsOwnedBySceneInstance(world, entity, scene.instanceID) || HasNoSceneOwner(world, entity)) {
+
+			AppendUniqueAlive(world, entities, entity);
+		}
+	}
+	return entities;
 }
 
 const Engine::SceneInstance* Engine::SceneInstanceManager::Find(UUID id) const {

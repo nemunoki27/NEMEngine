@@ -41,6 +41,7 @@ namespace {
 	// ドッキングスペースのホストウィンドウ名
 	constexpr const char* kDockSpaceHostWindow = "##EditorDockSpaceHost";
 	constexpr const char* kDockSpaceID = "EngineEditorDockSpace";
+	constexpr const char* kUnsavedScenePopupName = "Unsaved Scene";
 	// ImGuiのレイアウト保存ファイルパス
 	constexpr const char* kEditorLayoutIniPath = "EditorLayout.ini";
 }
@@ -71,6 +72,10 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	// レイアウト構築フラグをリセット
 	initialized_ = true;
 	requestTogglePlay_ = false;
+	sceneRequest_ = {};
+	pendingSceneRequest_ = {};
+	requestOpenUnsavedPopup_ = false;
+	activeSceneDirty_ = false;
 
 	// シーンビュー用のエディタカメラの状態を初期化
 	sceneViewCameraState_ = SceneViewCameraController::MakeDefaultState();
@@ -108,6 +113,9 @@ bool Engine::EditorManager::ExecuteEditorCommand(std::unique_ptr<IEditorCommand>
 
 	EditorCommandContext commandContext = MakeCommandContext(*currentRenderContext_);
 	bool executed = editorState_.commandHistory.Execute(std::move(command), commandContext);
+	if (executed) {
+		activeSceneDirty_ = true;
+	}
 	return executed;
 }
 
@@ -119,6 +127,9 @@ bool Engine::EditorManager::UndoEditorCommand() {
 
 	EditorCommandContext commandContext = MakeCommandContext(*currentRenderContext_);
 	bool executed = editorState_.commandHistory.Undo(commandContext);
+	if (executed) {
+		activeSceneDirty_ = true;
+	}
 	return executed;
 }
 
@@ -130,6 +141,9 @@ bool Engine::EditorManager::RedoEditorCommand() {
 
 	EditorCommandContext commandContext = MakeCommandContext(*currentRenderContext_);
 	bool executed = editorState_.commandHistory.Redo(commandContext);
+	if (executed) {
+		activeSceneDirty_ = true;
+	}
 	return executed;
 }
 
@@ -201,6 +215,114 @@ void Engine::EditorManager::RequestPlayToggle() {
 	requestTogglePlay_ = true;
 }
 
+void Engine::EditorManager::RequestNewScene() {
+
+	QueueSceneRequest({ EditorSceneRequestType::NewScene, AssetID{} });
+}
+
+void Engine::EditorManager::RequestOpenScene(AssetID sceneAsset) {
+
+	if (!sceneAsset) {
+		return;
+	}
+	QueueSceneRequest({ EditorSceneRequestType::OpenScene, sceneAsset });
+}
+
+void Engine::EditorManager::RequestSaveScene() {
+
+	sceneRequest_ = { EditorSceneRequestType::SaveScene, AssetID{} };
+}
+
+void Engine::EditorManager::QueueSceneRequest(const EditorSceneRequest& request) {
+
+	if (request.type == EditorSceneRequestType::NewScene ||
+		request.type == EditorSceneRequestType::OpenScene) {
+
+		if (IsActiveSceneDirty()) {
+
+			pendingSceneRequest_ = request;
+			requestOpenUnsavedPopup_ = true;
+			return;
+		}
+	}
+	sceneRequest_ = request;
+}
+
+const char* Engine::EditorManager::GetSceneRequestActionName(EditorSceneRequestType type) const {
+
+	switch (type) {
+	case EditorSceneRequestType::NewScene:
+		return "creating a new scene";
+	case EditorSceneRequestType::OpenScene:
+		return "opening another scene";
+	default:
+		return "changing the scene";
+	}
+}
+
+void Engine::EditorManager::SubmitPendingSceneRequest(bool saveBeforeSubmit) {
+
+	if (pendingSceneRequest_.type == EditorSceneRequestType::None) {
+		return;
+	}
+
+	if (saveBeforeSubmit) {
+
+		switch (pendingSceneRequest_.type) {
+		case EditorSceneRequestType::NewScene:
+			sceneRequest_ = { EditorSceneRequestType::SaveAndNewScene, AssetID{} };
+			break;
+		case EditorSceneRequestType::OpenScene:
+			sceneRequest_ = { EditorSceneRequestType::SaveAndOpenScene, pendingSceneRequest_.sceneAsset };
+			break;
+		default:
+			sceneRequest_ = pendingSceneRequest_;
+			break;
+		}
+	} else {
+
+		sceneRequest_ = pendingSceneRequest_;
+	}
+	pendingSceneRequest_ = {};
+}
+
+void Engine::EditorManager::DrawUnsavedScenePopup() {
+
+	if (requestOpenUnsavedPopup_) {
+
+		ImGui::OpenPopup(kUnsavedScenePopupName);
+		requestOpenUnsavedPopup_ = false;
+	}
+
+	if (!ImGui::BeginPopupModal(kUnsavedScenePopupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
+	}
+
+	ImGui::TextUnformatted("The current scene has unsaved changes.");
+	ImGui::Text("Do you want to save before %s?", GetSceneRequestActionName(pendingSceneRequest_.type));
+	ImGui::Separator();
+
+	if (ImGui::Button("Save", ImVec2(120.0f, 0.0f))) {
+
+		SubmitPendingSceneRequest(true);
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Don't Save", ImVec2(120.0f, 0.0f))) {
+
+		SubmitPendingSceneRequest(false);
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Cancel", ImVec2(120.0f, 0.0f))) {
+
+		pendingSceneRequest_ = {};
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
+}
+
 void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 	[[maybe_unused]] const EditorContext& context, const RenderPipelineRunner& renderPipeline) {
 
@@ -259,6 +381,12 @@ void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) 
 		DuplicateSelection();
 		return;
 	}
+	// シーン保存
+	if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_S)) {
+
+		RequestSaveScene();
+		return;
+	}
 	// コピー
 	if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_C)) {
 
@@ -314,6 +442,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	// グローバルショートカットの処理
 	HandleGlobalShortcuts(context);
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PreScene);
+	DrawUnsavedScenePopup();
 }
 
 void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorContext& context,
@@ -402,6 +531,27 @@ bool Engine::EditorManager::ConsumePlayToggleRequest() {
 	const bool requested = requestTogglePlay_;
 	requestTogglePlay_ = false;
 	return requested;
+}
+
+Engine::EditorSceneRequest Engine::EditorManager::ConsumeSceneRequest() {
+
+	EditorSceneRequest request = sceneRequest_;
+	sceneRequest_ = {};
+	return request;
+}
+
+void Engine::EditorManager::MarkActiveSceneSaved() {
+
+	activeSceneDirty_ = false;
+}
+
+void Engine::EditorManager::ResetSceneEditingState() {
+
+	editorState_.ClearSelection();
+	editorState_.commandHistory.Clear();
+	pendingSceneRequest_ = {};
+	requestOpenUnsavedPopup_ = false;
+	activeSceneDirty_ = false;
 }
 
 void Engine::EditorManager::DrawDockSpace() {

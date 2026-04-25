@@ -61,17 +61,17 @@ namespace Engine {
 		// Engine/Gameのソース切り替えを描画する
 		void DrawSourceSelector(AssetDatabase& database);
 		// 現在ディレクトリ内のフォルダとアセットを描画する
-		void DrawDirectoryContents(AssetDatabase& database, const ProjectDirectoryNode& node);
+		void DrawDirectoryContents(const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
 		// 空白部分の右クリックメニューを描画する
 		void DrawDirectoryContextMenu(AssetDatabase& database, const ProjectDirectoryNode& node);
 		// フォルダ右クリックメニューを描画する
 		void DrawFolderContextMenu(AssetDatabase& database, const ProjectDirectoryNode& node);
 		// アセット右クリックメニューを描画する
-		void DrawAssetContextMenu(AssetDatabase& database, const ProjectAssetEntry& asset);
+		void DrawAssetContextMenu(const EditorPanelContext& context, AssetDatabase& database, const ProjectAssetEntry& asset);
 		// 新規作成用の名前入力ポップアップを描画する
 		void DrawCreateAssetPopup(AssetDatabase& database);
 		// アセットのダブルクリック操作を処理する
-		void HandleAssetDoubleClick(const ProjectAssetEntry& asset);
+		void HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset);
 		// 作成処理の入力状態を初期化する
 		void BeginCreateAsset(ProjectAssetFileKind kind, const std::string& directoryVirtualPath);
 		// 作成メニュー項目を描画する
