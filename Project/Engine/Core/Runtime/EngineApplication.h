@@ -36,6 +36,8 @@ namespace Engine {
 
 		// フレーム更新
 		void Tick(GraphicsCore& graphicsCore, float deltaTime);
+		// 重いモード切り替え後にフレームタイマー基準をリセットする要求を取得
+		bool ConsumeFrameDeltaResetRequest();
 
 		// 描画
 		void Render(GraphicsCore& graphicsCore);
@@ -76,6 +78,7 @@ namespace Engine {
 		// エディタ管理
 		EditorManager editorManager_;
 		EditorContext editorContext_{};
+		bool requestFrameDeltaReset_ = false;
 
 		//--------- functions ----------------------------------------------------
 

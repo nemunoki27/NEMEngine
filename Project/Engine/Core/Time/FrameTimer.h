@@ -29,6 +29,8 @@ namespace Engine {
 
 		// フレーム時間の更新
 		void Update();
+		// 現在時刻を次フレーム基準にしてdeltaTimeの跳ね上がりを防ぐ
+		void ResetDeltaTimeBase();
 
 		// 時間計測
 		// 更新

@@ -24,6 +24,8 @@ namespace Engine {
 		bool showGameView = true;
 		bool showToolbar = true;
 		bool showTool = true;
+		// Play開始時にManagedデバッガのアタッチ待機を行う
+		bool waitForManagedDebuggerOnPlay = false;
 
 		// 各ウィンドウのサイズ
 		ImVec2 lastSceneViewSize = ImVec2(0.0f, 0.0f);

@@ -133,13 +133,6 @@ void Engine::ViewportPanel::Draw(const EditorPanelContext& context) {
 
 		visible = &context.layoutState->showSceneView;
 		lastSize = &context.layoutState->lastSceneViewSize;
-
-		ImGui::Begin("viewSize_Debug");
-
-		ImGui::DragFloat2("viewSize_", &viewSize_.x);
-
-		ImGui::End();
-
 		break;
 	case ViewportPanelKind::Game:
 

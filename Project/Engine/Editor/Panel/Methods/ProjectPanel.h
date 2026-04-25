@@ -53,6 +53,7 @@ namespace Engine {
 		void DrawHeader(AssetDatabase& database);
 		void DrawSourceSelector(AssetDatabase& database);
 		void DrawDirectoryContents(const ProjectDirectoryNode& node);
+		void HandleAssetDoubleClick(const ProjectAssetEntry& asset);
 
 		const char* GetSourceRootPath() const;
 	};

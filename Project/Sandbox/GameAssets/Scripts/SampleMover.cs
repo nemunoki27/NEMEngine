@@ -11,6 +11,9 @@ public sealed class SampleMover : ScriptBehaviour
     private Vector3 direction = new(1.0f, 0.0f, 0.0f);
 
     [SerializeField]
+    private Vector3 scaleUpValue = new(0.01f, 0.01f, 0.01f);
+
+    [SerializeField]
     private bool logDebugInput = true;
 
     [SerializeField]
@@ -27,6 +30,8 @@ public sealed class SampleMover : ScriptBehaviour
 
     public override void Update()
     {
+
+        // コメントを追加
 
         // ECS側のTransformをC#から操作して、フレーム時間に応じて移動する
         float moveSpeed = Input.GetKey(KeyCode.LeftShift) ? speed * 3.0f : speed;

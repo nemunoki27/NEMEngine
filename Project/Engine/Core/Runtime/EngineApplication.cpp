@@ -163,6 +163,11 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 
+	// Play中はホットリロードしない。Edit中のみC#変更を自動検知して再ビルド・再ロードする
+	if (!worldManager_.IsPlaying()) {
+		ManagedScriptRuntime::GetInstance().AutoRebuildOnScriptChanges();
+	}
+
 	// プレイモードの切り替え
 	HandlePlayToggle();
 	// Play/Stopでワールド状態が変わった後のモードを、このフレームのECS処理へ反映する
@@ -190,6 +195,13 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 	// ECSシステムの更新
 	scheduler_.Tick(GetActiveWorld(), systemContext_);
+}
+
+bool Engine::EngineApplication::ConsumeFrameDeltaResetRequest() {
+
+	const bool requested = requestFrameDeltaReset_;
+	requestFrameDeltaReset_ = false;
+	return requested;
 }
 
 void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
@@ -232,11 +244,17 @@ void Engine::EngineApplication::HandlePlayToggle() {
 	if (!requestedByKeyboard && !requestedByEditor) {
 		return;
 	}
+	// Playトグル処理にはビルド/ロード待ちが含まれ得るため、次フレームのdeltaTime基準を更新する
+	requestFrameDeltaReset_ = true;
 
 	if (!worldManager_.IsPlaying()) {
 
 		// プレイ開始前にC#スクリプトをビルドし、最新のDLLから型情報を反映する
 		auto& scriptRuntime = ManagedScriptRuntime::GetInstance();
+		bool waitForManagedDebuggerOnPlay = false;
+		if constexpr (BuildConfig::kEditorEnabled) {
+			waitForManagedDebuggerOnPlay = editorManager_.GetLayoutState().waitForManagedDebuggerOnPlay;
+		}
 		scriptRuntime.UnloadGameAssembly();
 		if (!scriptRuntime.BuildGameAssembly()) {
 
@@ -244,7 +262,7 @@ void Engine::EngineApplication::HandlePlayToggle() {
 				"EngineApplication: failed to enter Play mode. C# script build failed.");
 			return;
 		}
-		if (!scriptRuntime.ReloadGameAssembly()) {
+		if (!scriptRuntime.ReloadGameAssembly(waitForManagedDebuggerOnPlay)) {
 
 			Logger::Output(LogType::Engine, spdlog::level::warn,
 				"EngineApplication: GameScripts.dll was not loaded. Play mode will start without managed scripts.");

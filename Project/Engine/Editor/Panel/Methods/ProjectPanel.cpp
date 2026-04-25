@@ -3,7 +3,22 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Runtime/RuntimePaths.h>
+#include <Engine/Logger/Logger.h>
 #include <Engine/Utility/Enum/EnumAdapter.h>
+
+// windows
+#include <windows.h>
+#include <shellapi.h>
+
+// c++
+#include <algorithm>
+#include <array>
+#include <fstream>
+#include <filesystem>
+#include <string>
+#include <system_error>
+#include <vector>
 
 //============================================================================
 //	ProjectPanel classMethods
@@ -91,6 +106,45 @@ namespace {
 		}
 
 		return trail;
+	}
+
+	// ShellExecuteWで対象を開く
+	bool OpenWithShell(const std::filesystem::path& target,
+		const std::wstring& parameters = std::wstring{},
+		const std::filesystem::path& workingDirectory = std::filesystem::path{}) {
+
+		if (target.empty()) {
+			return false;
+		}
+
+		const wchar_t* parameterText = parameters.empty() ? nullptr : parameters.c_str();
+		const wchar_t* workingDirectoryText = workingDirectory.empty() ? nullptr : workingDirectory.c_str();
+		const HINSTANCE result = ::ShellExecuteW(nullptr, L"open", target.c_str(), parameterText, workingDirectoryText, SW_SHOWNORMAL);
+		return reinterpret_cast<INT_PTR>(result) > 32;
+	}
+
+	// ScriptアセットをVisual Studioで開く
+	bool OpenScriptAssetInVisualStudio(const Engine::ProjectAssetEntry& asset) {
+
+		const std::filesystem::path scriptPath = Engine::RuntimePaths::ResolveAssetPath(asset.assetPath);
+		std::error_code scriptEc;
+		if (scriptPath.empty() || !std::filesystem::exists(scriptPath, scriptEc) || scriptEc) {
+			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
+				"ProjectPanel: script file was not found. path={}", asset.assetPath);
+			return false;
+		}
+
+		const std::filesystem::path workingDirectory = Engine::RuntimePaths::GetProjectRoot();
+
+		if (OpenWithShell(scriptPath, std::wstring{}, workingDirectory)) {
+			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::info,
+				"ProjectPanel: opened script via shell association. path={}", scriptPath.string());
+			return true;
+		}
+
+		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
+			"ProjectPanel: failed to open Visual Studio for script asset.");
+		return false;
 	}
 }
 
@@ -284,6 +338,10 @@ void Engine::ProjectPanel::DrawDirectoryContents(const ProjectDirectoryNode& nod
 
 			selectedAsset_ = asset.assetID;
 		}
+		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+			selectedAsset_ = asset.assetID;
+			HandleAssetDoubleClick(asset);
+		}
 
 		DrawAssetDragDropSource(asset);
 
@@ -304,6 +362,15 @@ void Engine::ProjectPanel::DrawDirectoryContents(const ProjectDirectoryNode& nod
 	}
 
 	ImGui::EndTable();
+}
+
+void Engine::ProjectPanel::HandleAssetDoubleClick(const ProjectAssetEntry& asset) {
+
+	if (asset.type != AssetType::Script) {
+		return;
+	}
+
+	OpenScriptAssetInVisualStudio(asset);
 }
 
 const char* Engine::ProjectPanel::GetSourceRootPath() const {

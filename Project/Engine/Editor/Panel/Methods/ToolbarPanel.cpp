@@ -40,6 +40,14 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 	ImGui::SameLine();
 	ImGui::TextDisabled("F5");
 
+	ImGui::SameLine(0.0f, 12.0f);
+	if (context.layoutState) {
+		ImGui::Checkbox("Wait Managed Debugger", &context.layoutState->waitForManagedDebuggerOnPlay);
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Play start waits for managed debugger attach during GameScripts load.");
+		}
+	}
+
 	ImGui::SameLine(0.0f, 20.0f);
 	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 

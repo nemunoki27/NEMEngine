@@ -71,6 +71,9 @@ void Engine::Framework::Tick() {
 
 	// エンジン機能更新
 	engineApplication_->Tick(*graphicsCore_, frameTimer_.GetDeltaTime());
+	if (engineApplication_->ConsumeFrameDeltaResetRequest()) {
+		frameTimer_.ResetDeltaTimeBase();
+	}
 
 	// 描画開始
 	BeginRenderFrame();

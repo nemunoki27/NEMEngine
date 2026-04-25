@@ -76,6 +76,12 @@ if errorlevel 1 (
     popd
     exit /b 1
 )
+powershell -NoProfile -ExecutionPolicy Bypass -File "%NEMENGINE_ROOT%\Premake\patch_vcxproj_user_debugger.ps1" -ProjectUserPath "%GAME_ROOT%\Project\%GAME_NAME%\%GAME_NAME%.vcxproj.user" -WorkingDirectory ".."
+if errorlevel 1 (
+    echo [ERROR] Failed to patch game debugger settings.
+    popd
+    exit /b 1
+)
 
 popd
 endlocal

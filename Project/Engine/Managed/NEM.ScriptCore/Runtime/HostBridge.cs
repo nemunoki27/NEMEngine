@@ -1,9 +1,11 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 
 namespace NEMEngine;
 
@@ -41,6 +43,7 @@ public static unsafe class HostBridge {
         }
 
         try {
+            WaitForManagedDebuggerIfRequested();
             ReleaseGameAssembly(collect: true);
             gameLoadContext = new GameScriptLoadContext(path);
             gameAssembly = gameLoadContext.LoadFromAssemblyPath(path);
@@ -203,6 +206,46 @@ public static unsafe class HostBridge {
         }
         scriptTypes.Sort((a, b) => string.CompareOrdinal(a.FullName, b.FullName));
     }
+
+    private static void WaitForManagedDebuggerIfRequested() {
+
+        string? wait = Environment.GetEnvironmentVariable("NEM_MANAGED_WAIT_FOR_DEBUGGER");
+        if (wait != "1" || Debugger.IsAttached) {
+            return;
+        }
+
+        if (IsDebuggerPresent()) {
+            NativeApi.WriteLog(1,
+                "Managed debugger wait skipped: process is already debugged. " +
+                "If you want C# breakpoints in GameScripts Visual Studio, run Sandbox without native C++ debugging and then Attach to Process.");
+            return;
+        }
+
+        int timeoutMs = 15000;
+        string? timeoutText = Environment.GetEnvironmentVariable("NEM_MANAGED_WAIT_TIMEOUT_MS");
+        if (!string.IsNullOrWhiteSpace(timeoutText) &&
+            int.TryParse(timeoutText, out int parsedTimeout) &&
+            0 < parsedTimeout) {
+            timeoutMs = parsedTimeout;
+        }
+
+        NativeApi.WriteLog(0, $"Waiting for managed debugger attach... timeout={timeoutMs}ms");
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        while (!Debugger.IsAttached && stopwatch.ElapsedMilliseconds < timeoutMs) {
+            Thread.Sleep(100);
+        }
+
+        if (Debugger.IsAttached) {
+            NativeApi.WriteLog(0, "Managed debugger attached.");
+        } else {
+            NativeApi.WriteLog(1, "Managed debugger was not attached before timeout. Continue execution.");
+        }
+    }
+
+    [DllImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsDebuggerPresent();
 
     private static void ReleaseGameAssembly(bool collect) {
 

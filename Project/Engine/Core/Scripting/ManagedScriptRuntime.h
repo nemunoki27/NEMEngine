@@ -7,6 +7,7 @@
 #include <Engine/Core/ECS/Entity/Entity.h>
 
 // c++
+#include <chrono>
 #include <filesystem>
 #include <string_view>
 #include <unordered_map>
@@ -44,9 +45,11 @@ namespace Engine {
 		// ゲーム側C#プロジェクトをビルドする
 		bool BuildGameAssembly();
 		// ゲーム側C#アセンブリを読み直す
-		bool ReloadGameAssembly();
+		bool ReloadGameAssembly(bool waitForManagedDebugger = false);
 		// ゲーム側C#アセンブリを解放する
 		void UnloadGameAssembly();
+		// Editモード中にC#ソース変更を監視し、必要なら再ビルド・再ロードする
+		void AutoRebuildOnScriptChanges();
 
 		// C#スクリプトのインスタンスを作成/破棄する
 		int32_t CreateInstance(const std::string& typeName, ECSWorld& world,
@@ -126,6 +129,9 @@ namespace Engine {
 		std::filesystem::path scriptCoreAssemblyPath_;
 		std::filesystem::path gameAssemblyPath_;
 		std::unordered_map<std::string, std::vector<ManagedScriptField>> fieldCache_;
+		std::unordered_map<std::string, std::filesystem::file_time_type> scriptSourceSnapshot_;
+		std::chrono::steady_clock::time_point nextScriptSourceScanTime_{};
+		bool hasScriptSourceSnapshot_ = false;
 
 		//--------- functions ----------------------------------------------------
 

@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace NEMEngine;
 
 public static class Debug {
@@ -12,5 +14,13 @@ public static class Debug {
 
     public static void LogError(object? message) {
         NativeApi.WriteLog(2, message?.ToString() ?? string.Empty);
+    }
+
+    public static bool isDebuggerAttached => Debugger.IsAttached;
+
+    public static void Break() {
+        if (Debugger.IsAttached) {
+            Debugger.Break();
+        }
     }
 }

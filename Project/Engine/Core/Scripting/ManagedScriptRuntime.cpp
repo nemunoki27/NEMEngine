@@ -21,8 +21,10 @@
 // c++
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <system_error>
 #include <string_view>
 
 //============================================================================
@@ -147,8 +149,8 @@ namespace {
 		const std::string profile = GetBuildProfile();
 		const std::filesystem::path current = std::filesystem::current_path();
 		return FindFirstExistingPath({
-			current / "Managed/NEM.ScriptCore.dll",
-			Engine::RuntimePaths::GetEngineLibraryRoot() / "Managed" / profile / "NEM.ScriptCore.dll"
+			Engine::RuntimePaths::GetEngineLibraryRoot() / "Managed" / profile / "NEM.ScriptCore.dll",
+			current / "Managed/NEM.ScriptCore.dll"
 			});
 	}
 
@@ -158,8 +160,8 @@ namespace {
 		const std::string profile = GetBuildProfile();
 		const std::filesystem::path current = std::filesystem::current_path();
 		return FindFirstExistingPath({
-			current / "Managed/GameScripts.dll",
-			Engine::RuntimePaths::GetGameRoot() / "Managed" / profile / "GameScripts.dll"
+			Engine::RuntimePaths::GetGameRoot() / "Managed" / profile / "GameScripts.dll",
+			current / "Managed/GameScripts.dll"
 			});
 	}
 
@@ -170,6 +172,111 @@ namespace {
 			current / "Scripts/GameScripts.csproj",
 			Engine::RuntimePaths::GetGameRoot() / "Scripts/GameScripts.csproj"
 			});
+	}
+
+	void ConfigureManagedDebugEnvironment() {
+
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+		// JIT最適化関連を抑えて、C#ブレークポイントが止まりやすい状態にする
+		::SetEnvironmentVariableW(L"COMPlus_ReadyToRun", L"0");
+		::SetEnvironmentVariableW(L"COMPlus_TieredCompilation", L"0");
+		::SetEnvironmentVariableW(L"COMPlus_ZapDisable", L"1");
+		::SetEnvironmentVariableW(L"DOTNET_EnableDiagnostics", L"1");
+#endif
+	}
+
+	class ScopedEnvironmentVariableOverride final {
+	public:
+		ScopedEnvironmentVariableOverride(const wchar_t* name, const wchar_t* value) :
+			name_(name) {
+
+			wchar_t* previous = nullptr;
+			size_t previousLength = 0;
+			if (_wdupenv_s(&previous, &previousLength, name_) == 0 && previous) {
+				hadPreviousValue_ = true;
+				previousValue_ = previous;
+			}
+			std::free(previous);
+
+			::SetEnvironmentVariableW(name_, value);
+		}
+
+		~ScopedEnvironmentVariableOverride() {
+
+			if (hadPreviousValue_) {
+				::SetEnvironmentVariableW(name_, previousValue_.c_str());
+			} else {
+				::SetEnvironmentVariableW(name_, nullptr);
+			}
+		}
+	private:
+		const wchar_t* name_ = nullptr;
+		bool hadPreviousValue_ = false;
+		std::wstring previousValue_{};
+	};
+
+	std::string MakeSnapshotKey(const std::filesystem::path& path) {
+
+		return path.lexically_normal().generic_string();
+	}
+
+	void TryAddSnapshotFile(std::unordered_map<std::string, std::filesystem::file_time_type>& snapshot,
+		const std::filesystem::path& path) {
+
+		std::error_code ec;
+		if (!std::filesystem::exists(path, ec) || ec || !std::filesystem::is_regular_file(path, ec)) {
+			return;
+		}
+
+		const auto writeTime = std::filesystem::last_write_time(path, ec);
+		if (ec) {
+			return;
+		}
+		snapshot[MakeSnapshotKey(path)] = writeTime;
+	}
+
+	void CollectScriptSnapshotFiles(std::unordered_map<std::string, std::filesystem::file_time_type>& snapshot,
+		const std::filesystem::path& root) {
+
+		std::error_code ec;
+		if (!std::filesystem::exists(root, ec) || ec || !std::filesystem::is_directory(root, ec)) {
+			return;
+		}
+
+		for (std::filesystem::recursive_directory_iterator it(root, ec), end; it != end && !ec; it.increment(ec)) {
+			const std::filesystem::path filePath = it->path();
+			if (it->is_directory(ec)) {
+				const std::string name = filePath.filename().string();
+				if (name == "obj" || name == "bin" || name == ".git") {
+					it.disable_recursion_pending();
+				}
+				continue;
+			}
+			if (!it->is_regular_file(ec)) {
+				continue;
+			}
+			if (filePath.extension() != ".cs") {
+				continue;
+			}
+			TryAddSnapshotFile(snapshot, filePath);
+		}
+	}
+
+	bool HasSnapshotChanged(
+		const std::unordered_map<std::string, std::filesystem::file_time_type>& current,
+		const std::unordered_map<std::string, std::filesystem::file_time_type>& previous) {
+
+		if (current.size() != previous.size()) {
+			return true;
+		}
+
+		for (const auto& [path, time] : current) {
+			auto it = previous.find(path);
+			if (it == previous.end() || it->second != time) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	std::wstring QuoteCommandPath(const std::filesystem::path& path) {
@@ -367,6 +474,8 @@ bool Engine::ManagedScriptRuntime::Init() {
 		return false;
 	}
 
+	ConfigureManagedDebugEnvironment();
+
 	if (!LoadHostfxr() || !InitRuntime() || !LoadBridgeFunctions()) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"ManagedScriptRuntime: failed to initialize .NET host bridge.");
@@ -421,6 +530,9 @@ bool Engine::ManagedScriptRuntime::Init() {
 	}
 
 	initialized_ = true;
+	scriptSourceSnapshot_.clear();
+	hasScriptSourceSnapshot_ = false;
+	nextScriptSourceScanTime_ = std::chrono::steady_clock::time_point{};
 	if (!ReloadGameAssembly()) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ManagedScriptRuntime: GameScripts.dll was not loaded. Managed scripts will be unavailable.");
@@ -432,6 +544,9 @@ void Engine::ManagedScriptRuntime::Finalize() {
 
 	UnloadGameAssembly();
 	fieldCache_.clear();
+	scriptSourceSnapshot_.clear();
+	hasScriptSourceSnapshot_ = false;
+	nextScriptSourceScanTime_ = std::chrono::steady_clock::time_point{};
 	currentContext_ = nullptr;
 	initialized_ = false;
 
@@ -491,7 +606,8 @@ bool Engine::ManagedScriptRuntime::BuildGameAssembly() {
 
 	const std::wstring command =
 		L"set DOTNET_CLI_UI_LANGUAGE=en && dotnet build " + QuoteCommandPath(projectPath) +
-		L" -c \"" + ToWideAscii(GetBuildProfile()) + L"\" --nologo --no-dependencies";
+		L" -c \"" + ToWideAscii(GetBuildProfile()) +
+		L"\" --nologo --no-dependencies -p:DebugType=portable -p:DebugSymbols=true -p:Optimize=false";
 
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"ManagedScriptRuntime: building GameScripts.csproj path={}", ToUtf8Path(projectPath));
@@ -507,10 +623,22 @@ bool Engine::ManagedScriptRuntime::BuildGameAssembly() {
 	return true;
 }
 
-bool Engine::ManagedScriptRuntime::ReloadGameAssembly() {
+bool Engine::ManagedScriptRuntime::ReloadGameAssembly(bool waitForManagedDebugger) {
 
 	if (!initialized_) {
 		return false;
+	}
+
+	if (waitForManagedDebugger) {
+		ScopedEnvironmentVariableOverride waitOverride(L"NEM_MANAGED_WAIT_FOR_DEBUGGER", L"1");
+		UnloadGameAssembly();
+		gameAssemblyPath_ = ResolveGameAssemblyPath();
+		if (!LoadGameAssembly()) {
+			return false;
+		}
+
+		RefreshScriptTypes();
+		return true;
 	}
 
 	UnloadGameAssembly();
@@ -530,6 +658,59 @@ void Engine::ManagedScriptRuntime::UnloadGameAssembly() {
 
 	if (unloadGameAssembly_) {
 		unloadGameAssembly_();
+	}
+}
+
+void Engine::ManagedScriptRuntime::AutoRebuildOnScriptChanges() {
+
+	if (!initialized_) {
+		return;
+	}
+
+	const auto now = std::chrono::steady_clock::now();
+	if (now < nextScriptSourceScanTime_) {
+		return;
+	}
+	nextScriptSourceScanTime_ = now + std::chrono::milliseconds(500);
+
+	const std::filesystem::path projectPath = ResolveGameScriptProjectPath();
+	if (projectPath.empty()) {
+		scriptSourceSnapshot_.clear();
+		hasScriptSourceSnapshot_ = false;
+		return;
+	}
+
+	std::unordered_map<std::string, std::filesystem::file_time_type> currentSnapshot{};
+	TryAddSnapshotFile(currentSnapshot, projectPath);
+
+	const std::filesystem::path scriptsRoot = projectPath.parent_path();
+	const std::filesystem::path gameScriptsRoot = scriptsRoot.parent_path() / "GameAssets/Scripts";
+	CollectScriptSnapshotFiles(currentSnapshot, scriptsRoot);
+	CollectScriptSnapshotFiles(currentSnapshot, gameScriptsRoot);
+
+	if (!hasScriptSourceSnapshot_) {
+		scriptSourceSnapshot_ = std::move(currentSnapshot);
+		hasScriptSourceSnapshot_ = true;
+		return;
+	}
+
+	if (!HasSnapshotChanged(currentSnapshot, scriptSourceSnapshot_)) {
+		return;
+	}
+
+	scriptSourceSnapshot_ = std::move(currentSnapshot);
+
+	Logger::Output(LogType::Engine, spdlog::level::info,
+		"ManagedScriptRuntime: detected C# source changes. rebuilding GameScripts...");
+	UnloadGameAssembly();
+	if (!BuildGameAssembly()) {
+		// ビルド失敗時は直前のDLLを再ロードして、Inspector上のスクリプト情報を維持する
+		ReloadGameAssembly();
+		return;
+	}
+	if (!ReloadGameAssembly()) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ManagedScriptRuntime: source change was detected, but GameScripts.dll reload failed.");
 	}
 }
 

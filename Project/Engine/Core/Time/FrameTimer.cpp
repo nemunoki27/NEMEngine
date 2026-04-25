@@ -23,6 +23,12 @@ void Engine::FrameTimer::Update() {
 	preFrameTime_ = currentFrameTime;
 }
 
+void Engine::FrameTimer::ResetDeltaTimeBase() {
+
+	deltaTime_ = 0.0f;
+	preFrameTime_ = std::chrono::steady_clock::now();
+}
+
 void Engine::FrameTimer::BeginUpdateCount() {
 
 	// 計測開始

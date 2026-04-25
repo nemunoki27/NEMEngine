@@ -49,6 +49,12 @@ if errorlevel 1 (
     popd
     exit /b 1
 )
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_vcxproj_user_debugger.ps1" -ProjectUserPath "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj.user" -WorkingDirectory ".."
+if errorlevel 1 (
+    echo [ERROR] Failed to patch Sandbox debugger settings.
+    popd
+    exit /b 1
+)
 popd
 endlocal
 exit /b 0
