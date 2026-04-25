@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/Editor/Panel/Interface/IEditorPanel.h>
 
+// c++
+#include <string>
+
 namespace Engine {
 
 	//============================================================================
@@ -22,5 +25,13 @@ namespace Engine {
 		~ToolPanel() = default;
 
 		void Draw(const EditorPanelContext& context) override;
+	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		std::string activeToolID_{};
 	};
 } // Engine
