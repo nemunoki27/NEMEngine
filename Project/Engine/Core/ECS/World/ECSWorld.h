@@ -162,20 +162,25 @@ namespace Engine {
 		// 型をタイプIDに変換
 		uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
 
-		// 既に持ってるなら参照をそのまま返す
-		if (HasComponent<T>(entity)) {
-			return GetComponent<T>(entity);
-		}
-
 		// 新しいシグネチャを作るために古いシグネチャを取ってくる
 		EntitySignature oldSignature = records_[entity.index].location.archetype->GetSignature();
+		// 既に持ってるなら参照をそのまま返す
+		if (oldSignature.Test(typeID)) {
+
+			auto& location = records_[entity.index].location;
+			void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, typeID);
+			return *(T*)ptr;
+		}
+
 		EntitySignature newSignature = oldSignature;
 		newSignature.Set(typeID);
 		// シグネチャを更新してArchetypeを移動する
 		MigrateEntity(entity, oldSignature, newSignature);
 
 		// 移動後の場所からコンポーネント参照を返す
-		return GetComponent<T>(entity);
+		auto& location = records_[entity.index].location;
+		void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, typeID);
+		return *(T*)ptr;
 	}
 
 	template <typename T>
@@ -186,12 +191,13 @@ namespace Engine {
 
 		// 型をタイプIDに変換
 		uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
-		if (!HasComponent<T>(entity)) {
-			return;
-		}
 
 		// 新しいシグネチャを作るために古いシグネチャを取ってくる
 		EntitySignature oldSignature = records_[entity.index].location.archetype->GetSignature();
+		if (!oldSignature.Test(typeID)) {
+			return;
+		}
+
 		EntitySignature newSignature = oldSignature;
 		newSignature.Reset(typeID);
 

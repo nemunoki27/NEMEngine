@@ -121,72 +121,65 @@ function NEM_AddEngineRuntimeLinkSettings()
     filter {}
 end
 
-function NEM_AddEngineProjectFiles()
-    files {
-        path.join(NEM_PROJECT_ROOT, "Engine/**.h"),
-        path.join(NEM_PROJECT_ROOT, "Engine/**.hpp"),
-        path.join(NEM_PROJECT_ROOT, "Engine/**.inl"),
-        path.join(NEM_PROJECT_ROOT, "Engine/**.cpp"),
-        path.join(NEM_PROJECT_ROOT, "Engine/**.c"),
-        path.join(NEM_PROJECT_ROOT, "Engine/**.cs"),
-        path.join(NEM_PROJECT_ROOT, "Engine/**.csproj"),
-        path.join(NEM_PROJECT_ROOT, "Engine/**.natvis"),
-
-        -- Engine専用アセットを表示したい場合
-        path.join(NEM_PROJECT_ROOT, "EngineAssets/**.*"),
-    }
-
-    vpaths {
-        ["Source/*"] = {
-            path.join(NEM_PROJECT_ROOT, "Engine/**.h"),
-            path.join(NEM_PROJECT_ROOT, "Engine/**.hpp"),
-            path.join(NEM_PROJECT_ROOT, "Engine/**.inl"),
-            path.join(NEM_PROJECT_ROOT, "Engine/**.cpp"),
-            path.join(NEM_PROJECT_ROOT, "Engine/**.c"),
-            path.join(NEM_PROJECT_ROOT, "Engine/**.cs"),
-            path.join(NEM_PROJECT_ROOT, "Engine/**.csproj"),
-            path.join(NEM_PROJECT_ROOT, "Engine/**.natvis"),
-        },
-        ["Assets/*"] = {
-            path.join(NEM_PROJECT_ROOT, "EngineAssets/**.*"),
-        },
+function NEM_MakeProjectSourcePatterns(projectRoot)
+    return {
+        path.join(projectRoot, "**.h"),
+        path.join(projectRoot, "**.hpp"),
+        path.join(projectRoot, "**.inl"),
+        path.join(projectRoot, "**.cpp"),
+        path.join(projectRoot, "**.c"),
+        path.join(projectRoot, "**.cs"),
+        path.join(projectRoot, "**.csproj"),
+        path.join(projectRoot, "**.natvis"),
     }
 end
 
+function NEM_MakeProjectShaderPatterns(projectRoot)
+    return {
+        path.join(projectRoot, "**.hlsl"),
+        path.join(projectRoot, "**.fx"),
+    }
+end
+
+function NEM_AppendPatterns(target, source)
+    for _, value in ipairs(source) do
+        table.insert(target, value)
+    end
+end
+
+function NEM_AddProjectFiles(projectRoot, assetRoot, assetVpathName, includeShaders)
+    local sourcePatterns = NEM_MakeProjectSourcePatterns(projectRoot)
+    local filePatterns = {}
+    NEM_AppendPatterns(filePatterns, sourcePatterns)
+
+    local shaderPatterns = {}
+    if includeShaders then
+        shaderPatterns = NEM_MakeProjectShaderPatterns(projectRoot)
+        NEM_AppendPatterns(filePatterns, shaderPatterns)
+    end
+
+    table.insert(filePatterns, path.join(assetRoot, "**.*"))
+    files(filePatterns)
+
+    local projectVpaths = {}
+    projectVpaths["Source/*"] = sourcePatterns
+    if includeShaders then
+        projectVpaths["Shaders/*"] = shaderPatterns
+    end
+    projectVpaths[assetVpathName .. "/*"] = {
+        path.join(assetRoot, "**.*"),
+    }
+    vpaths(projectVpaths)
+end
+
+function NEM_AddEngineProjectFiles()
+    -- Engine専用アセットを表示したい場合
+    NEM_AddProjectFiles(path.join(NEM_PROJECT_ROOT, "Engine"),
+        path.join(NEM_PROJECT_ROOT, "EngineAssets"), "Assets", false)
+end
+
 function NEM_AddSandboxProjectFiles()
-    files {
-        path.join(NEM_PROJECT_ROOT, "Sandbox/**.h"),
-        path.join(NEM_PROJECT_ROOT, "Sandbox/**.hpp"),
-        path.join(NEM_PROJECT_ROOT, "Sandbox/**.inl"),
-        path.join(NEM_PROJECT_ROOT, "Sandbox/**.cpp"),
-        path.join(NEM_PROJECT_ROOT, "Sandbox/**.c"),
-        path.join(NEM_PROJECT_ROOT, "Sandbox/**.cs"),
-        path.join(NEM_PROJECT_ROOT, "Sandbox/**.csproj"),
-        path.join(NEM_PROJECT_ROOT, "Sandbox/**.natvis"),
-        path.join(NEM_PROJECT_ROOT, "Sandbox/**.hlsl"),
-        path.join(NEM_PROJECT_ROOT, "Sandbox/**.fx"),
-
-        -- Sandbox専用アセットだけ表示する
-        path.join(NEM_PROJECT_ROOT, "Sandbox/GameAssets/**.*"),
-    }
-
-    vpaths {
-        ["Source/*"] = {
-            path.join(NEM_PROJECT_ROOT, "Sandbox/**.h"),
-            path.join(NEM_PROJECT_ROOT, "Sandbox/**.hpp"),
-            path.join(NEM_PROJECT_ROOT, "Sandbox/**.inl"),
-            path.join(NEM_PROJECT_ROOT, "Sandbox/**.cpp"),
-            path.join(NEM_PROJECT_ROOT, "Sandbox/**.c"),
-            path.join(NEM_PROJECT_ROOT, "Sandbox/**.cs"),
-            path.join(NEM_PROJECT_ROOT, "Sandbox/**.csproj"),
-            path.join(NEM_PROJECT_ROOT, "Sandbox/**.natvis"),
-        },
-        ["Shaders/*"] = {
-            path.join(NEM_PROJECT_ROOT, "Sandbox/**.hlsl"),
-            path.join(NEM_PROJECT_ROOT, "Sandbox/**.fx"),
-        },
-        ["GameAssets/*"] = {
-            path.join(NEM_PROJECT_ROOT, "Sandbox/GameAssets/**.*"),
-        },
-    }
+    -- Sandbox専用アセットだけ表示する
+    NEM_AddProjectFiles(path.join(NEM_PROJECT_ROOT, "Sandbox"),
+        path.join(NEM_PROJECT_ROOT, "Sandbox/GameAssets"), "GameAssets", true)
 end

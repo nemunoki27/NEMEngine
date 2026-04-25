@@ -67,5 +67,10 @@ namespace Engine {
 		std::unordered_map<uint32_t, uint32_t> typeToColumn_;
 		// 同じArchetypeのエンティティをまとめて保持するEntityChunkの配列
 		std::vector<std::unique_ptr<EntityChunk>> chunks_;
+		// 次に空きが見つかりやすいチャンク番号
+		uint32_t firstWritableChunkIndex_ = 0;
+
+		// 空きがあるチャンク番号を返す。なければ新しく作る
+		uint32_t FindWritableChunkIndex();
 	};
 } // Engine

@@ -33,6 +33,28 @@ namespace {
 		}
 	}
 
+	void DrawLogEntry(int index, const std::string& text, spdlog::level::level_enum level) {
+
+		ImGui::PushID(index);
+		ImGui::PushStyleColor(ImGuiCol_Text, ToLevelColor(level));
+		ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
+		ImGui::TextWrapped("%s", text.c_str());
+		ImGui::PopTextWrapPos();
+		ImGui::PopStyleColor();
+
+		if (ImGui::IsItemClicked()) {
+			ImGui::SetClipboardText(text.c_str());
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Click to copy");
+		}
+
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
+		ImGui::PopID();
+	}
+
 	void DrawLogTab(Engine::LogType type, const char* childID) {
 
 		const auto logs = Engine::Logger::GetRecentLogs(type);
@@ -40,10 +62,12 @@ namespace {
 		ImGui::TextDisabled("Showing latest %zu logs (max 30)", logs.size());
 
 		ImGui::Separator();
-		ImGui::BeginChild(childID, ImVec2(0.0f, 0.0f), false, ImGuiWindowFlags_HorizontalScrollbar);
+		ImGui::BeginChild(childID, ImVec2(0.0f, 0.0f), false);
+		ImGui::SetWindowFontScale(0.74f);
 
 		if (logs.empty()) {
 			ImGui::TextDisabled("No logs.");
+			ImGui::SetWindowFontScale(1.0f);
 			ImGui::EndChild();
 			return;
 		}
@@ -53,19 +77,10 @@ namespace {
 			const auto& log = logs[static_cast<std::size_t>(i)];
 			const std::string text = std::string("[") + ToLevelLabel(log.level) + "] " + log.message;
 
-			ImGui::PushID(i);
-			ImGui::PushStyleColor(ImGuiCol_Text, ToLevelColor(log.level));
-			if (ImGui::Selectable(text.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)) {
-				ImGui::SetClipboardText(text.c_str());
-			}
-			ImGui::PopStyleColor();
-
-			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip("Click to copy");
-			}
-			ImGui::PopID();
+			DrawLogEntry(i, text, log.level);
 		}
 
+		ImGui::SetWindowFontScale(1.0f);
 		ImGui::EndChild();
 	}
 }

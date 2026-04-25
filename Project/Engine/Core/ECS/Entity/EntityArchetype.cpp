@@ -23,40 +23,35 @@ Engine::EntityArchetype::EntityArchetype(const EntitySignature& signature, const
 
 std::pair<uint32_t, uint32_t> Engine::EntityArchetype::Add(const Entity& entity) {
 
-	for (uint32_t i = 0; i < GetChunkCount(); ++i) {
-		// 空きがあるチャンクを探す
-		if (chunks_[i]->HasSpace()) {
-
-			uint32_t row = chunks_[i]->AddEntity(entity);
-			return { i, row };
-		}
-	}
-	// 空きがなければ新しいチャンクを追加
-	chunks_.push_back(std::make_unique<EntityChunk>(types_));
-	uint32_t chunkIndex = GetChunkCount() - 1;
+	const uint32_t chunkIndex = FindWritableChunkIndex();
 	uint32_t row = chunks_[chunkIndex]->AddEntity(entity);
+	if (!chunks_[chunkIndex]->HasSpace()) {
+
+		++firstWritableChunkIndex_;
+	}
 	return { chunkIndex, row };
 }
 
 std::pair<uint32_t, uint32_t> Engine::EntityArchetype::AddUninitialized(const Entity& entity) {
 
-	for (uint32_t i = 0; i < GetChunkCount(); ++i) {
-		if (chunks_[i]->HasSpace()) {
-			uint32_t row = chunks_[i]->AddEntityUninitialized(entity);
-			return { i, row };
-		}
-	}
-	// 空きがなければ新しいチャンクを追加
-	chunks_.push_back(std::make_unique<EntityChunk>(types_));
-	uint32_t chunkIndex = GetChunkCount() - 1;
+	const uint32_t chunkIndex = FindWritableChunkIndex();
 	uint32_t row = chunks_[chunkIndex]->AddEntityUninitialized(entity);
+	if (!chunks_[chunkIndex]->HasSpace()) {
+
+		++firstWritableChunkIndex_;
+	}
 	return { chunkIndex, row };
 }
 
 Engine::Entity Engine::EntityArchetype::RemoveSwap(uint32_t chunkIndex, uint32_t row) {
 
 	Assert::Call(chunkIndex < GetChunkCount(), "chunkIndex < GetChunkCount()");
-	return chunks_[chunkIndex]->RemoveSwap(row);
+	Entity moved = chunks_[chunkIndex]->RemoveSwap(row);
+	if (chunkIndex < firstWritableChunkIndex_) {
+
+		firstWritableChunkIndex_ = chunkIndex;
+	}
+	return moved;
 }
 
 void Engine::EntityArchetype::ConstructDefault(uint32_t chunkIndex, uint32_t row, uint32_t typeID) {
@@ -75,4 +70,21 @@ uint32_t Engine::EntityArchetype::GetColumnIndex(uint32_t typeID) const {
 void* Engine::EntityArchetype::GetRaw(int32_t chunkIndex, uint32_t row, uint32_t typeID) {
 
 	return chunks_[chunkIndex]->GetRawByColumnIndex(GetColumnIndex(typeID), row);
+}
+
+uint32_t Engine::EntityArchetype::FindWritableChunkIndex() {
+
+	// すでに満杯になったチャンクは次回以降の探索から外す
+	for (uint32_t i = firstWritableChunkIndex_; i < GetChunkCount(); ++i) {
+		if (chunks_[i]->HasSpace()) {
+
+			firstWritableChunkIndex_ = i;
+			return i;
+		}
+	}
+
+	// 空きがなければ新しいチャンクを追加
+	chunks_.push_back(std::make_unique<EntityChunk>(types_));
+	firstWritableChunkIndex_ = GetChunkCount() - 1;
+	return firstWritableChunkIndex_;
 }
