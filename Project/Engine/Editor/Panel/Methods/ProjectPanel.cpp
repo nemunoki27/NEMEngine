@@ -4,6 +4,12 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/RuntimePaths.h>
+#include <Engine/Core/Prefab/PrefabSystem.h>
+#include <Engine/Core/ECS/Component/Builtin/HierarchyComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/NameComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/PrefabLinkComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
+#include <Engine/Editor/Command/Methods/InstantiatePrefabCommand.h>
 #include <Engine/Editor/Panel/Interface/IEditorPanelHost.h>
 #include <Engine/Logger/Logger.h>
 #include <Engine/Utility/Enum/EnumAdapter.h>
@@ -16,9 +22,11 @@
 // c++
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <cstdlib>
 #include <fstream>
 #include <filesystem>
+#include <stack>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -45,6 +53,8 @@ namespace {
 			Engine::EditorAssetDragDropPayload payload{};
 			payload.assetID = asset.assetID;
 			payload.assetType = asset.type;
+			payload.isDirectory = 0;
+			strncpy_s(payload.assetPath, asset.assetPath.c_str(), sizeof(payload.assetPath) - 1);
 
 			ImGui::SetDragDropPayload(Engine::IEditorPanel::kProjectAssetDragDropPayloadType,
 				&payload, sizeof(payload));
@@ -54,6 +64,23 @@ namespace {
 
 			ImGui::EndDragDropSource();
 		}
+	}
+	// Project内のファイル/フォルダ移動用ドラッグソースを描画する
+	void DrawProjectFileMoveSource(const std::string& virtualPath, bool isDirectory, const char* displayName) {
+
+		if (!ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+			return;
+		}
+
+		Engine::EditorAssetDragDropPayload payload{};
+		payload.assetType = Engine::AssetType::Unknown;
+		payload.isDirectory = isDirectory ? 1 : 0;
+		strncpy_s(payload.assetPath, virtualPath.c_str(), sizeof(payload.assetPath) - 1);
+
+		ImGui::SetDragDropPayload(Engine::IEditorPanel::kProjectAssetDragDropPayloadType, &payload, sizeof(payload));
+		ImGui::TextUnformatted(displayName);
+		ImGui::TextDisabled("%s", virtualPath.c_str());
+		ImGui::EndDragDropSource();
 	}
 	// 仮想パスを'/'または'\'で分割して、ディレクトリ名のリストを返す
 	std::vector<std::string> SplitVirtualPath(const std::string& path) {
@@ -200,6 +227,54 @@ namespace {
 			"ProjectPanel: failed to open Visual Studio for script asset.");
 		return false;
 	}
+
+	// Prefab保存元のEntityツリーへPrefabLinkを設定する
+	void AttachPrefabLinkToSourceTree(Engine::ECSWorld& world, const Engine::Entity& root, Engine::AssetID prefabAsset) {
+
+		if (!world.IsAlive(root) || !prefabAsset) {
+			return;
+		}
+
+		// 同じPrefab化操作で作られたEntity群をまとめるID
+		const Engine::UUID prefabInstanceID = Engine::UUID::New();
+
+		std::stack<Engine::Entity> stack;
+		stack.push(root);
+		while (!stack.empty()) {
+
+			const Engine::Entity entity = stack.top();
+			stack.pop();
+
+			if (!world.IsAlive(entity) || !world.HasComponent<Engine::SceneObjectComponent>(entity)) {
+				continue;
+			}
+
+			const auto& sceneObject = world.GetComponent<Engine::SceneObjectComponent>(entity);
+			auto& prefabLink = world.HasComponent<Engine::PrefabLinkComponent>(entity) ?
+				world.GetComponent<Engine::PrefabLinkComponent>(entity) :
+				world.AddComponent<Engine::PrefabLinkComponent>(entity);
+
+			// Prefabファイル内のLocalFileIDは保存時点のSceneObject.localFileIDと同じ値を使う
+			prefabLink.prefabAsset = prefabAsset;
+			prefabLink.prefabLocalFileID = sceneObject.localFileID;
+			prefabLink.prefabInstanceID = prefabInstanceID;
+			prefabLink.isPrefabRoot = entity == root;
+
+			if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
+				continue;
+			}
+
+			Engine::Entity child = world.GetComponent<Engine::HierarchyComponent>(entity).firstChild;
+			while (child.IsValid() && world.IsAlive(child)) {
+
+				stack.push(child);
+				if (!world.HasComponent<Engine::HierarchyComponent>(child)) {
+					break;
+				}
+				child = world.GetComponent<Engine::HierarchyComponent>(child).nextSibling;
+			}
+		}
+	}
 }
 
 Engine::ProjectPanel::ProjectPanel(TextureUploadService& textureUploadService) {
@@ -245,8 +320,8 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	}
 
 	ImGui::SetWindowFontScale(0.8f);
-	DrawSourceSelector(database);
-	DrawHeader(database);
+	DrawSourceSelector(context, database);
+	DrawHeader(context, database);
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::Separator();
 
@@ -266,13 +341,15 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	ImGui::End();
 }
 
-void Engine::ProjectPanel::DrawHeader(AssetDatabase& database) {
+void Engine::ProjectPanel::DrawHeader(const EditorPanelContext& context, AssetDatabase& database) {
 
 	// ルートへ戻る
 	if (ImGui::Button(GetSourceRootPath())) {
 		selectedDirectory_ = assetIndex_.GetRoot().virtualPath;
 		selectedAsset_ = {};
+		context.editorState->ClearSelection();
 	}
+	DrawProjectItemMoveDropTarget(database, assetIndex_.GetRoot().virtualPath);
 
 	const auto trail = BuildBreadcrumbTrail(assetIndex_, selectedDirectory_);
 
@@ -286,7 +363,9 @@ void Engine::ProjectPanel::DrawHeader(AssetDatabase& database) {
 		if (ImGui::Button(trail[i]->name.c_str())) {
 			selectedDirectory_ = trail[i]->virtualPath;
 			selectedAsset_ = {};
+			context.editorState->ClearSelection();
 		}
+		DrawProjectItemMoveDropTarget(database, trail[i]->virtualPath);
 	}
 
 	// 現在階層はテキスト
@@ -323,7 +402,7 @@ void Engine::ProjectPanel::DrawHeader(AssetDatabase& database) {
 	}
 }
 
-void Engine::ProjectPanel::DrawSourceSelector(AssetDatabase& database) {
+void Engine::ProjectPanel::DrawSourceSelector(const EditorPanelContext& context, AssetDatabase& database) {
 
 	auto drawSourceButton = [&](ProjectAssetSource source, const char* label) {
 
@@ -336,6 +415,7 @@ void Engine::ProjectPanel::DrawSourceSelector(AssetDatabase& database) {
 			assetSource_ = source;
 			selectedDirectory_ = source == ProjectAssetSource::Engine ? "Engine/Assets" : "GameAssets";
 			selectedAsset_ = {};
+			context.editorState->ClearSelection();
 			Rebuild(database);
 		}
 		if (selected) {
@@ -373,12 +453,15 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 
 			selectedDirectory_ = child->virtualPath;
 			selectedAsset_ = {};
+			context.editorState->ClearSelection();
 		}
 
 		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
 			selectedDirectory_ = child->virtualPath;
 			selectedAsset_ = {};
+			context.editorState->ClearSelection();
 		}
+		DrawProjectFileMoveSource(child->virtualPath, true, child->name.c_str());
 
 		ImGui::SetWindowFontScale(0.8f);
 		ImGui::TextWrapped("%s", child->name.c_str());
@@ -390,6 +473,8 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 		}
 
 		ImGui::EndGroup();
+		DrawProjectItemMoveDropTarget(database, child->virtualPath);
+		DrawPrefabCreateDropTarget(context, database, child->virtualPath);
 		DrawFolderContextMenu(database, *child);
 		ImGui::PopID();
 	}
@@ -408,9 +493,11 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), ImVec4(0.16f, 0.16f, 0.16f, 1.0f))) {
 
 			selectedAsset_ = asset.assetID;
+			context.editorState->SelectAsset(asset.assetID);
 		}
 		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
 			selectedAsset_ = asset.assetID;
+			context.editorState->SelectAsset(asset.assetID);
 			HandleAssetDoubleClick(context, asset);
 		}
 
@@ -435,6 +522,10 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 
 	ImGui::EndTable();
 
+	ImGui::Spacing();
+	ImGui::Button("Drop Here", ImVec2(ImGui::GetContentRegionAvail().x, 24.0f));
+	DrawPrefabCreateDropTarget(context, database, node.virtualPath);
+	DrawProjectItemMoveDropTarget(database, node.virtualPath);
 	DrawDirectoryContextMenu(database, node);
 }
 
@@ -479,6 +570,11 @@ void Engine::ProjectPanel::DrawFolderContextMenu(AssetDatabase& database, const 
 		ProjectAssetFileResult result = ProjectAssetFileUtility::DuplicateDirectory(assetSource_, node.virtualPath);
 		RefreshAfterFileOperation(database, result);
 	}
+	if (ImGui::MenuItem("Delete")) {
+
+		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteDirectory(assetSource_, node.virtualPath);
+		RefreshAfterFileOperation(database, result);
+	}
 	ImGui::EndPopup();
 }
 
@@ -490,6 +586,7 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 	}
 
 	selectedAsset_ = asset.assetID;
+	context.editorState->SelectAsset(asset.assetID);
 
 	if (ImGui::MenuItem("Open")) {
 
@@ -499,6 +596,19 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 
 		ProjectAssetFileResult result = ProjectAssetFileUtility::DuplicateAsset(asset);
 		RefreshAfterFileOperation(database, result);
+	}
+	if (ImGui::MenuItem("Delete")) {
+
+		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteAsset(asset);
+		RefreshAfterFileOperation(database, result);
+	}
+	if (asset.type == AssetType::Prefab) {
+
+		ImGui::Separator();
+		if (ImGui::MenuItem("Instantiate Prefab", nullptr, false, context.CanEditScene())) {
+
+			context.host->ExecuteEditorCommand(std::make_unique<InstantiatePrefabCommand>(asset.assetID));
+		}
 	}
 	ImGui::EndPopup();
 }
@@ -565,6 +675,123 @@ void Engine::ProjectPanel::HandleAssetDoubleClick(const EditorPanelContext& cont
 	}
 
 	OpenScriptAssetInVisualStudio(asset);
+}
+
+bool Engine::ProjectPanel::SaveDroppedEntityAsPrefab(const EditorPanelContext& context,
+	AssetDatabase& database, const std::string& directoryVirtualPath, const void* payloadData, int32_t payloadSize) {
+
+	// HierarchyのドラッグペイロードはEntityの安定UUIDを保持している
+	if (!context.CanEditScene() || !context.GetWorld() || payloadSize != sizeof(UUID) || payloadData == nullptr) {
+		return false;
+	}
+
+	ECSWorld& world = *context.GetWorld();
+	const UUID stableUUID = *static_cast<const UUID*>(payloadData);
+	const Entity entity = world.FindByUUID(stableUUID);
+	if (!world.IsAlive(entity)) {
+		return false;
+	}
+
+	// Prefab名はEntity名を優先し、名前がなければNewPrefabにする
+	std::string prefabName = "NewPrefab";
+	if (world.HasComponent<NameComponent>(entity)) {
+
+		const std::string& entityName = world.GetComponent<NameComponent>(entity).name;
+		if (!entityName.empty()) {
+			prefabName = entityName;
+		}
+	}
+
+	ProjectAssetFileResult result = ProjectAssetFileUtility::Create(
+		assetSource_,
+		directoryVirtualPath,
+		ProjectAssetFileKind::Prefab,
+		prefabName);
+	if (!result.success) {
+
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ProjectPanel: failed to create prefab asset. message={}", result.message);
+		return false;
+	}
+
+	PrefabSystem prefabSystem{};
+	if (!prefabSystem.SavePrefab(database, world, entity, result.assetPath)) {
+
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ProjectPanel: failed to save prefab. path={}", result.assetPath);
+		return false;
+	}
+
+	const AssetID prefabAsset = database.ImportOrGet(result.assetPath, AssetType::Prefab);
+	AttachPrefabLinkToSourceTree(world, entity, prefabAsset);
+
+	RefreshAfterFileOperation(database, result);
+	return true;
+}
+
+void Engine::ProjectPanel::DrawPrefabCreateDropTarget(const EditorPanelContext& context,
+	AssetDatabase& database, const std::string& directoryVirtualPath) {
+
+	if (!context.CanEditScene()) {
+		return;
+	}
+
+	// Projectのフォルダまたは空白へHierarchy EntityをドロップするとPrefabを作成する
+	if (!ImGui::BeginDragDropTarget()) {
+		return;
+	}
+	if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kHierarchyDragDropPayloadType)) {
+		if (payload->IsDelivery()) {
+
+			SaveDroppedEntityAsPrefab(context, database, directoryVirtualPath, payload->Data, payload->DataSize);
+		}
+	}
+	ImGui::EndDragDropTarget();
+}
+
+bool Engine::ProjectPanel::MoveDroppedProjectItem(AssetDatabase& database,
+	const std::string& targetDirectoryVirtualPath, const void* payloadData, int32_t payloadSize) {
+
+	if (payloadData == nullptr || payloadSize != sizeof(EditorAssetDragDropPayload)) {
+		return false;
+	}
+
+	const auto& payload = *static_cast<const EditorAssetDragDropPayload*>(payloadData);
+	const std::string sourcePath = payload.assetPath;
+	if (sourcePath.empty() || sourcePath == targetDirectoryVirtualPath) {
+		return false;
+	}
+
+	ProjectAssetFileResult result{};
+	if (payload.isDirectory != 0) {
+
+		result = ProjectAssetFileUtility::MoveDirectory(assetSource_, sourcePath, targetDirectoryVirtualPath);
+	} else {
+
+		const ProjectAssetEntry* asset = assetIndex_.FindAssetByPath(sourcePath);
+		if (!asset) {
+			return false;
+		}
+		result = ProjectAssetFileUtility::MoveAsset(*asset, assetSource_, targetDirectoryVirtualPath);
+	}
+
+	RefreshAfterFileOperation(database, result);
+	return result.success;
+}
+
+void Engine::ProjectPanel::DrawProjectItemMoveDropTarget(AssetDatabase& database,
+	const std::string& targetDirectoryVirtualPath) {
+
+	if (!ImGui::BeginDragDropTarget()) {
+		return;
+	}
+	if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kProjectAssetDragDropPayloadType)) {
+		if (payload->IsDelivery()) {
+
+			MoveDroppedProjectItem(database, targetDirectoryVirtualPath, payload->Data, payload->DataSize);
+		}
+	}
+	ImGui::EndDragDropTarget();
 }
 
 void Engine::ProjectPanel::BeginCreateAsset(ProjectAssetFileKind kind, const std::string& directoryVirtualPath) {

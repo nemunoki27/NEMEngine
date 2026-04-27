@@ -75,6 +75,7 @@ namespace Engine {
 
 		const ProjectDirectoryNode& GetRoot() const { return root_; }
 		const ProjectDirectoryNode* FindDirectory(const std::string& virtualPath) const;
+		const ProjectAssetEntry* FindAssetByPath(const std::string& assetPath) const;
 	private:
 		//========================================================================
 		//	private Methods
@@ -100,5 +101,7 @@ namespace Engine {
 		static void SortRecursive(ProjectDirectoryNode& node);
 		// 仮想パスに一致するディレクトリを再帰的に探す
 		static const ProjectDirectoryNode* FindRecursive(const ProjectDirectoryNode& node, const std::string& virtualPath);
+		// アセットパスに一致するアセットを再帰的に探す
+		static const ProjectAssetEntry* FindAssetRecursive(const ProjectDirectoryNode& node, const std::string& assetPath);
 	};
 } // Engine

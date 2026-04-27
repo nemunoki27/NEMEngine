@@ -83,7 +83,7 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	// 各パネルの生成と登録
 	panels_.emplace_back(std::make_unique<MenuBarPanel>());
 	panels_.emplace_back(std::make_unique<ToolbarPanel>());
-	panels_.emplace_back(std::make_unique<HierarchyPanel>());
+	panels_.emplace_back(std::make_unique<HierarchyPanel>(graphicsCore.GetTextureUploadService()));
 	panels_.emplace_back(std::make_unique<InspectorPanel>());
 	panels_.emplace_back(std::make_unique<ConsolePanel>());
 	panels_.emplace_back(std::make_unique<ToolPanel>());

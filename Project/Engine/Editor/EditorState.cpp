@@ -12,6 +12,11 @@
 
 void Engine::EditorState::ValidateSelection(ECSWorld* world) {
 
+	// アセット選択はECSWorldに依存しない
+	if (selectionKind == EditorSelectionKind::Asset) {
+		return;
+	}
+
 	// 選択しているエンティティがワールドに存在しない場合は選択をクリアする
 	if (!world || !world->IsAlive(selectedEntity)) {
 
@@ -47,6 +52,7 @@ void Engine::EditorState::SelectEntity(const Entity& entity) {
 
 	selectionKind = entity.IsValid() ? EditorSelectionKind::Entity : EditorSelectionKind::None;
 	selectedEntity = entity;
+	selectedAsset = {};
 	selectedSubMeshIndex = 0;
 	selectedSubMeshStableID = UUID{};
 }
@@ -55,8 +61,18 @@ void Engine::EditorState::SelectMeshSubMesh(const Entity& entity, uint32_t subMe
 
 	selectionKind = entity.IsValid() ? EditorSelectionKind::MeshSubMesh : EditorSelectionKind::None;
 	selectedEntity = entity;
+	selectedAsset = {};
 	selectedSubMeshIndex = subMeshIndex;
 	selectedSubMeshStableID = stableID;
+}
+
+void Engine::EditorState::SelectAsset(AssetID asset) {
+
+	selectionKind = asset ? EditorSelectionKind::Asset : EditorSelectionKind::None;
+	selectedAsset = asset;
+	selectedEntity = Entity::Null();
+	selectedSubMeshIndex = 0;
+	selectedSubMeshStableID = UUID{};
 }
 
 void Engine::EditorState::SelectFromScenePick(const Entity& entity, uint32_t subMeshIndex, UUID stableID) {
@@ -135,7 +151,16 @@ bool Engine::EditorState::IsMeshSubMeshSelected(const Entity& entity, UUID stabl
 	return selectedSubMeshIndex == subMeshIndex;
 }
 
+bool Engine::EditorState::IsAssetSelected(AssetID asset) const {
+
+	return selectionKind == EditorSelectionKind::Asset && selectedAsset == asset;
+}
+
 bool Engine::EditorState::HasValidSelection(ECSWorld* world) const {
+
+	if (selectionKind == EditorSelectionKind::Asset) {
+		return static_cast<bool>(selectedAsset);
+	}
 
 	if (!world || !world->IsAlive(selectedEntity)) {
 		return false;
@@ -151,6 +176,7 @@ void Engine::EditorState::ClearSelection() {
 
 	selectionKind = EditorSelectionKind::None;
 	selectedEntity = Entity::Null();
+	selectedAsset = {};
 	selectedSubMeshIndex = 0;
 	selectedSubMeshStableID = UUID{};
 }

@@ -14,6 +14,7 @@
 #include <format>
 #include <iterator>
 #include <system_error>
+#include <vector>
 
 //============================================================================
 //	ProjectAssetFileUtility classMethods
@@ -196,6 +197,37 @@ namespace {
 
 		const std::string fileName = Engine::Algorithm::ToLower(path.filename().string());
 		return Engine::Algorithm::EndsWith(fileName, ".meta") || fileName.find(".meta.") != std::string::npos;
+	}
+	// アセットに対応するmetaファイルの候補を作る
+	std::filesystem::path MakeMetaPath(const std::filesystem::path& path) {
+
+		return path.string() + ".meta";
+	}
+	// 付属ファイルを移動または削除するときの候補を作る
+	std::vector<std::filesystem::path> BuildAssetSidecarPaths(const Engine::ProjectAssetEntry& asset,
+		const std::filesystem::path& assetPath) {
+
+		std::vector<std::filesystem::path> result;
+		result.emplace_back(MakeMetaPath(assetPath));
+		for (const std::string& sidecar : asset.sidecarFiles) {
+			result.emplace_back(assetPath.parent_path() / sidecar);
+		}
+		return result;
+	}
+	// パスが指定ディレクトリの中にあるか
+	bool IsSameOrChildPath(const std::filesystem::path& path, const std::filesystem::path& parent) {
+
+		const std::filesystem::path normalizedPath = path.lexically_normal();
+		const std::filesystem::path normalizedParent = parent.lexically_normal();
+
+		auto pathIt = normalizedPath.begin();
+		auto parentIt = normalizedParent.begin();
+		for (; parentIt != normalizedParent.end(); ++parentIt, ++pathIt) {
+			if (pathIt == normalizedPath.end() || *pathIt != *parentIt) {
+				return false;
+			}
+		}
+		return true;
 	}
 	// 複製したJSONアセットの内部IDと表示名を新しいファイル名に合わせる
 	void PatchDuplicatedJsonAsset(const std::filesystem::path& path, Engine::AssetType type) {
@@ -434,6 +466,153 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateDirecto
 	return result;
 }
 
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteAsset(const ProjectAssetEntry& asset) {
+
+	ProjectAssetFileResult result{};
+
+	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
+	if (sourcePath.empty() || !std::filesystem::exists(sourcePath)) {
+		result.message = "Source asset was not found.";
+		return result;
+	}
+
+	std::error_code ec;
+	std::filesystem::remove(sourcePath, ec);
+	if (ec) {
+		result.message = "Failed to delete asset file.";
+		return result;
+	}
+
+	for (const std::filesystem::path& sidecar : BuildAssetSidecarPaths(asset, sourcePath)) {
+		if (std::filesystem::exists(sidecar)) {
+			std::filesystem::remove(sidecar, ec);
+		}
+	}
+
+	result.success = true;
+	result.assetPath = asset.assetPath;
+	result.fullPath = sourcePath;
+	return result;
+}
+
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteDirectory(ProjectAssetSource source,
+	const std::string& directoryVirtualPath) {
+
+	ProjectAssetFileResult result{};
+	result.isDirectory = true;
+
+	const std::filesystem::path sourcePath = ResolveVirtualDirectory(source, directoryVirtualPath);
+	const std::filesystem::path rootPath = GetSourceRoot(source);
+	if (sourcePath.empty() || sourcePath == rootPath || !std::filesystem::exists(sourcePath) || !std::filesystem::is_directory(sourcePath)) {
+		result.message = "Source folder was not found or cannot be deleted.";
+		return result;
+	}
+
+	std::error_code ec;
+	std::filesystem::remove_all(sourcePath, ec);
+	if (ec) {
+		result.message = "Failed to delete folder.";
+		return result;
+	}
+
+	result.success = true;
+	result.assetPath = ToAssetPath(sourcePath.parent_path());
+	result.fullPath = sourcePath;
+	return result;
+}
+
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::MoveAsset(const ProjectAssetEntry& asset,
+	ProjectAssetSource targetSource, const std::string& targetDirectoryVirtualPath) {
+
+	ProjectAssetFileResult result{};
+
+	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
+	const std::filesystem::path targetDirectory = ResolveVirtualDirectory(targetSource, targetDirectoryVirtualPath);
+	if (sourcePath.empty() || !std::filesystem::exists(sourcePath) || targetDirectory.empty()) {
+		result.message = "Source asset or target folder was not found.";
+		return result;
+	}
+
+	std::error_code ec;
+	std::filesystem::create_directories(targetDirectory, ec);
+	if (ec) {
+		result.message = "Failed to create target folder.";
+		return result;
+	}
+
+	const std::filesystem::path targetPath = MakeUniquePath(targetDirectory / sourcePath.filename());
+	if (targetPath.empty()) {
+		result.message = "Failed to build move target path.";
+		return result;
+	}
+
+	std::filesystem::rename(sourcePath, targetPath, ec);
+	if (ec) {
+		result.message = "Failed to move asset file.";
+		return result;
+	}
+
+	for (const std::filesystem::path& sidecarSource : BuildAssetSidecarPaths(asset, sourcePath)) {
+		if (!std::filesystem::exists(sidecarSource)) {
+			continue;
+		}
+
+		const std::filesystem::path sidecarTarget = sidecarSource == MakeMetaPath(sourcePath) ?
+			MakeMetaPath(targetPath) :
+			targetPath.parent_path() / sidecarSource.filename();
+		std::filesystem::rename(sidecarSource, sidecarTarget, ec);
+	}
+
+	result.success = true;
+	result.fullPath = targetPath;
+	result.assetPath = ToAssetPath(targetPath);
+	return result;
+}
+
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::MoveDirectory(ProjectAssetSource source,
+	const std::string& sourceDirectoryVirtualPath, const std::string& targetDirectoryVirtualPath) {
+
+	ProjectAssetFileResult result{};
+	result.isDirectory = true;
+
+	const std::filesystem::path sourcePath = ResolveVirtualDirectory(source, sourceDirectoryVirtualPath);
+	const std::filesystem::path targetDirectory = ResolveVirtualDirectory(source, targetDirectoryVirtualPath);
+	const std::filesystem::path rootPath = GetSourceRoot(source);
+	if (sourcePath.empty() || targetDirectory.empty() || sourcePath == rootPath ||
+		!std::filesystem::exists(sourcePath) || !std::filesystem::is_directory(sourcePath)) {
+		result.message = "Source or target folder was not found.";
+		return result;
+	}
+	if (IsSameOrChildPath(targetDirectory, sourcePath)) {
+		result.message = "Cannot move a folder into itself.";
+		return result;
+	}
+
+	std::error_code ec;
+	std::filesystem::create_directories(targetDirectory, ec);
+	if (ec) {
+		result.message = "Failed to create target folder.";
+		return result;
+	}
+
+	const std::filesystem::path targetPath = MakeUniquePath(targetDirectory / sourcePath.filename());
+	if (targetPath.empty()) {
+		result.message = "Failed to build move target path.";
+		return result;
+	}
+
+	std::filesystem::rename(sourcePath, targetPath, ec);
+	if (ec) {
+		result.message = "Failed to move folder.";
+		return result;
+	}
+
+	result.success = true;
+	result.fullPath = targetPath;
+	result.assetPath = ToAssetPath(targetPath);
+	return result;
+}
+
 std::filesystem::path Engine::ProjectAssetFileUtility::GetSourceRoot(ProjectAssetSource source) {
 
 	switch (source) {
@@ -554,7 +733,23 @@ std::string Engine::ProjectAssetFileUtility::BuildFileContent(ProjectAssetFileKi
 			"{{\n"
 			"  \"name\": \"{}\",\n"
 			"  \"domain\": \"Surface\",\n"
-			"  \"passes\": []\n"
+			"  \"passes\": [\n"
+			"    {{\n"
+			"      \"passName\": \"ZPrepass\",\n"
+			"      \"pipeline\": \"Engine/Assets/Pipelines/Builtin/Mesh/defaultMeshZPrepass.pipeline.json\",\n"
+			"      \"preferredVariant\": \"GraphicsMesh\"\n"
+			"    }},\n"
+			"    {{\n"
+			"      \"passName\": \"Draw\",\n"
+			"      \"pipeline\": \"Engine/Assets/Pipelines/Builtin/Mesh/defaultMesh.pipeline.json\",\n"
+			"      \"preferredVariant\": \"GraphicsMesh\"\n"
+			"    }}\n"
+			"  ],\n"
+			"  \"parameters\": {{\n"
+			"    \"BaseColor\": {{ \"r\": 1.0, \"g\": 1.0, \"b\": 1.0, \"a\": 1.0 }},\n"
+			"    \"Metallic\": 0.0,\n"
+			"    \"Roughness\": 0.5\n"
+			"  }}\n"
 			"}}\n",
 			assetName);
 	case ProjectAssetFileKind::Shader:

@@ -66,6 +66,16 @@ namespace Engine {
 		static ProjectAssetFileResult DuplicateAsset(const ProjectAssetEntry& asset);
 		// 指定ディレクトリを同じ階層に複製する
 		static ProjectAssetFileResult DuplicateDirectory(ProjectAssetSource source, const std::string& directoryVirtualPath);
+		// 指定アセットを削除する
+		static ProjectAssetFileResult DeleteAsset(const ProjectAssetEntry& asset);
+		// 指定ディレクトリを削除する
+		static ProjectAssetFileResult DeleteDirectory(ProjectAssetSource source, const std::string& directoryVirtualPath);
+		// 指定アセットを別ディレクトリへ移動する
+		static ProjectAssetFileResult MoveAsset(const ProjectAssetEntry& asset, ProjectAssetSource targetSource,
+			const std::string& targetDirectoryVirtualPath);
+		// 指定ディレクトリを別ディレクトリへ移動する
+		static ProjectAssetFileResult MoveDirectory(ProjectAssetSource source, const std::string& sourceDirectoryVirtualPath,
+			const std::string& targetDirectoryVirtualPath);
 
 		//--------- accessor -----------------------------------------------------
 

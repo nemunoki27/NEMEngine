@@ -6,6 +6,8 @@
 #include <Engine/Editor/Panel/EditorPanelContext.h>
 #include <Engine/Core/Asset/AssetTypes.h>
 
+// c++
+#include <cstdint>
 // imgui
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -28,6 +30,8 @@ namespace Engine {
 
 		AssetID assetID{};
 		AssetType assetType = AssetType::Unknown;
+		uint8_t isDirectory = 0;
+		char assetPath[260]{};
 	};
 
 	//============================================================================

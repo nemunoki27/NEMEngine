@@ -9,16 +9,33 @@
 #include <Engine/Editor/Command/Methods/ReparentEntityCommand.h>
 #include <Engine/Editor/Command/Methods/DuplicateEntityCommand.h>
 #include <Engine/Editor/Command/Methods/SetEntityActiveCommand.h>
+#include <Engine/Editor/Command/Methods/InstantiatePrefabCommand.h>
 #include <Engine/Core/ECS/Component/Builtin/HierarchyComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/NameComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Render/MeshRendererComponent.h>
+#include <Engine/Core/Graphics/Texture/GPUTextureResource.h>
+#include <Engine/Core/Graphics/Texture/TextureUploadService.h>
 #include <Engine/Core/UUID/UUID.h>
 #include <Engine/Utility/ImGui/MyGUI.h>
 
 //============================================================================
 //	HierarchyPanel classMethods
 //============================================================================
+
+namespace {
+
+	constexpr const char* kActiveEyeTextureKey = "editor:hierarchy:entityActiveEye";
+	constexpr const char* kInactiveEyeTextureKey = "editor:hierarchy:entityActiveOffEye";
+	constexpr const char* kActiveEyeTexturePath =
+		"Engine/Assets/Textures/Engine/Editor/Hierarchy/entityActiveEye.dds";
+	constexpr const char* kInactiveEyeTexturePath =
+		"Engine/Assets/Textures/Engine/Editor/Hierarchy/entityActiveOffEye.dds";
+}
+
+Engine::HierarchyPanel::HierarchyPanel(TextureUploadService& textureUploadService) :
+	textureUploadService_(&textureUploadService) {
+}
 
 void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 
@@ -31,6 +48,8 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		ImGui::End();
 		return;
 	}
+
+	RequestActiveIconTextures();
 
 	//============================================================================
 	//	ワールドのルートエンティティを列挙して表示
@@ -65,6 +84,67 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 	DrawRootDropTarget(context, *world);
 
 	ImGui::End();
+}
+
+void Engine::HierarchyPanel::RequestActiveIconTextures() {
+
+	if (activeIconRequested_ || !textureUploadService_) {
+		return;
+	}
+
+	textureUploadService_->RequestTextureFile(kActiveEyeTextureKey, kActiveEyeTexturePath);
+	textureUploadService_->RequestTextureFile(kInactiveEyeTextureKey, kInactiveEyeTexturePath);
+	activeIconRequested_ = true;
+}
+
+void Engine::HierarchyPanel::DrawActiveToggleIcon(const EditorPanelContext& context,
+	ECSWorld& world, const Entity& entity, bool activeSelf, bool& leftClicked, bool& rightClicked) {
+
+	leftClicked = false;
+	rightClicked = false;
+
+	ImTextureID textureID{};
+	if (textureUploadService_) {
+		const char* textureKey = activeSelf ? kActiveEyeTextureKey : kInactiveEyeTextureKey;
+		if (const auto* texture = textureUploadService_->GetTexture(textureKey)) {
+			textureID = static_cast<ImTextureID>(texture->gpuHandle.ptr);
+		}
+	}
+
+	const float iconSize = ImGui::GetTextLineHeight() * 0.92f;
+	const ImVec2 buttonSize(iconSize, iconSize);
+
+	if (!context.CanEditScene()) {
+		ImGui::BeginDisabled();
+	}
+
+	bool toggled = false;
+	if (textureID != ImTextureID{}) {
+
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.22f, 0.24f, 0.28f, 0.75f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.30f, 0.34f, 0.40f, 0.95f));
+		toggled = ImGui::ImageButton("##ActiveEye", textureID, buttonSize);
+		ImGui::PopStyleColor(3);
+		ImGui::PopStyleVar();
+	} else {
+
+		bool editedActiveSelf = activeSelf;
+		toggled = MyGUI::SmallCheckbox("##Active", editedActiveSelf);
+	}
+
+	leftClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+	rightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
+
+	if (!context.CanEditScene()) {
+		ImGui::EndDisabled();
+	}
+
+	if (toggled && world.IsAlive(entity)) {
+
+		context.host->ExecuteEditorCommand(std::make_unique<SetEntityActiveCommand>(entity, !activeSelf));
+	}
 }
 
 void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
@@ -124,26 +204,10 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	//	左側のアクティブチェックボックス
 	//============================================================================
 
-	bool editedActiveSelf = activeSelf;
-	if (!context.CanEditScene()) {
-		ImGui::BeginDisabled();
-	}
-
-	// エンティティのアクティブ状態を編集するチェックボックス
-	if (MyGUI::SmallCheckbox("##Active", editedActiveSelf)) {
-		if (editedActiveSelf != activeSelf) {
-
-			context.host->ExecuteEditorCommand(std::make_unique<SetEntityActiveCommand>(entity, editedActiveSelf));
-		}
-	}
-
 	// チェックボックスがクリックされたか
-	bool checkboxLeftClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
-	bool checkboxRightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
-
-	if (!context.CanEditScene()) {
-		ImGui::EndDisabled();
-	}
+	bool checkboxLeftClicked = false;
+	bool checkboxRightClicked = false;
+	DrawActiveToggleIcon(context, world, entity, activeSelf, checkboxLeftClicked, checkboxRightClicked);
 
 	// チェックボックスクリックでも選択状態にする
 	if (checkboxLeftClicked || checkboxRightClicked) {
@@ -155,7 +219,7 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		ImGui::OpenPopup("HierarchyEntityContextMenu");
 	}
 
-	ImGui::SameLine(0.0f, 6.0f);
+	ImGui::SameLine(0.0f, 7.0f);
 
 	//============================================================================
 	//	ツリーノード本体
@@ -166,7 +230,13 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 	}
 
+	const ImGuiStyle& style = ImGui::GetStyle();
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(style.FramePadding.x, 0.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(style.ItemSpacing.x, 1.0f));
+	ImGui::SetWindowFontScale(0.88f);
 	bool opened = ImGui::TreeNodeEx("##HierarchyNode", flags, "%s", displayName.c_str());
+	ImGui::SetWindowFontScale(1.0f);
+	ImGui::PopStyleVar(2);
 
 	if (!activeInHierarchy) {
 		ImGui::PopStyleColor();
@@ -249,6 +319,17 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 
 					context.host->ExecuteEditorCommand(
 						std::make_unique<ReparentEntityCommand>(dragged, world.GetUUID(entity)));
+				}
+			}
+		}
+		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kProjectAssetDragDropPayloadType)) {
+			if (payload->IsDelivery() && context.CanEditScene() && payload->DataSize == sizeof(EditorAssetDragDropPayload)) {
+
+				const auto* assetPayload = static_cast<const EditorAssetDragDropPayload*>(payload->Data);
+				if (assetPayload && assetPayload->assetType == AssetType::Prefab) {
+
+					context.host->ExecuteEditorCommand(
+						std::make_unique<InstantiatePrefabCommand>(assetPayload->assetID, world.GetUUID(entity)));
 				}
 			}
 		}
@@ -390,6 +471,17 @@ void Engine::HierarchyPanel::DrawRootDropTarget(const EditorPanelContext& contex
 
 						context.host->ExecuteEditorCommand(std::make_unique<ReparentEntityCommand>(dragged, UUID{}));
 					}
+				}
+			}
+		}
+		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kProjectAssetDragDropPayloadType)) {
+			if (payload->IsDelivery() && context.CanEditScene() && payload->DataSize == sizeof(EditorAssetDragDropPayload)) {
+
+				const auto* assetPayload = static_cast<const EditorAssetDragDropPayload*>(payload->Data);
+				if (assetPayload && assetPayload->assetType == AssetType::Prefab) {
+
+					context.host->ExecuteEditorCommand(
+						std::make_unique<InstantiatePrefabCommand>(assetPayload->assetID));
 				}
 			}
 		}

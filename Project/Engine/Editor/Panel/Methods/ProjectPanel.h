@@ -57,9 +57,9 @@ namespace Engine {
 		// インデックスとサムネイルキャッシュを再構築する
 		void Rebuild(AssetDatabase& database);
 		// ヘッダー部分のパンくずと更新ボタンを描画する
-		void DrawHeader(AssetDatabase& database);
+		void DrawHeader(const EditorPanelContext& context, AssetDatabase& database);
 		// Engine/Gameのソース切り替えを描画する
-		void DrawSourceSelector(AssetDatabase& database);
+		void DrawSourceSelector(const EditorPanelContext& context, AssetDatabase& database);
 		// 現在ディレクトリ内のフォルダとアセットを描画する
 		void DrawDirectoryContents(const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
 		// 空白部分の右クリックメニューを描画する
@@ -72,6 +72,17 @@ namespace Engine {
 		void DrawCreateAssetPopup(AssetDatabase& database);
 		// アセットのダブルクリック操作を処理する
 		void HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset);
+		// HierarchyからドロップされたEntityをPrefabとして保存する
+		bool SaveDroppedEntityAsPrefab(const EditorPanelContext& context, AssetDatabase& database,
+			const std::string& directoryVirtualPath, const void* payloadData, int32_t payloadSize);
+		// Hierarchy EntityのPrefab化ドロップ先を描画する
+		void DrawPrefabCreateDropTarget(const EditorPanelContext& context, AssetDatabase& database,
+			const std::string& directoryVirtualPath);
+		// Project内ファイル/フォルダ移動のドロップ先を描画する
+		void DrawProjectItemMoveDropTarget(AssetDatabase& database, const std::string& targetDirectoryVirtualPath);
+		// Project内ファイル/フォルダ移動を実行する
+		bool MoveDroppedProjectItem(AssetDatabase& database, const std::string& targetDirectoryVirtualPath,
+			const void* payloadData, int32_t payloadSize);
 		// 作成処理の入力状態を初期化する
 		void BeginCreateAsset(ProjectAssetFileKind kind, const std::string& directoryVirtualPath);
 		// 作成メニュー項目を描画する

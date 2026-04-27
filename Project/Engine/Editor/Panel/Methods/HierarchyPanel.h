@@ -7,6 +7,9 @@
 
 namespace Engine {
 
+	// front
+	class TextureUploadService;
+
 	//============================================================================
 	//	HierarchyPanel class
 	//	ヒエラルキーパネル
@@ -18,7 +21,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		HierarchyPanel() = default;
+		explicit HierarchyPanel(TextureUploadService& textureUploadService);
 		~HierarchyPanel() = default;
 
 		void Draw(const EditorPanelContext& context) override;
@@ -29,6 +32,11 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// アクティブ表示アイコンを読み込む
+		void RequestActiveIconTextures();
+		// アクティブ状態の表示/切り替えボタンを描画する
+		void DrawActiveToggleIcon(const EditorPanelContext& context, ECSWorld& world,
+			const Entity& entity, bool activeSelf, bool& leftClicked, bool& rightClicked);
 		// エンティティノードを描画する
 		void DrawEntityNode(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 		void DrawSubMeshNodes(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
@@ -45,5 +53,10 @@ namespace Engine {
 		Entity ResolveDraggedEntity(ECSWorld& world, const ImGuiPayload* payload) const;
 		// エンティティの表示名を取得する
 		std::string GetEntityDisplayName(ECSWorld& world, const Entity& entity) const;
+
+		//--------- variables ----------------------------------------------------
+
+		TextureUploadService* textureUploadService_ = nullptr;
+		bool activeIconRequested_ = false;
 	};
 } // Engine

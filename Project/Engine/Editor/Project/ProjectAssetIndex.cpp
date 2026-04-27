@@ -100,6 +100,11 @@ const Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::FindDirectory(con
 	return FindRecursive(root_, virtualPath);
 }
 
+const Engine::ProjectAssetEntry* Engine::ProjectAssetIndex::FindAssetByPath(const std::string& assetPath) const {
+
+	return FindAssetRecursive(root_, assetPath);
+}
+
 bool Engine::ProjectAssetIndex::ShouldHideInBrowser(const std::filesystem::path& fullPath) {
 
 	// ファイル名と拡張子を小文字化して取得
@@ -237,6 +242,22 @@ const Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::FindRecursive(
 	for (const auto& child : node.children) {
 		if (const ProjectDirectoryNode* found = FindRecursive(*child, virtualPath)) {
 
+			return found;
+		}
+	}
+	return nullptr;
+}
+
+const Engine::ProjectAssetEntry* Engine::ProjectAssetIndex::FindAssetRecursive(
+	const ProjectDirectoryNode& node, const std::string& assetPath) {
+
+	for (const ProjectAssetEntry& asset : node.assets) {
+		if (asset.assetPath == assetPath) {
+			return &asset;
+		}
+	}
+	for (const auto& child : node.children) {
+		if (const ProjectAssetEntry* found = FindAssetRecursive(*child, assetPath)) {
 			return found;
 		}
 	}
