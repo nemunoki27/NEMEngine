@@ -364,6 +364,18 @@ public static unsafe class HostBridge {
         if (type == typeof(Vector2)) {
             return SerializedFieldKind.Vector2;
         }
+        if (type == typeof(Vector4)) {
+            return SerializedFieldKind.Vector4;
+        }
+        if (type == typeof(Quaternion)) {
+            return SerializedFieldKind.Quaternion;
+        }
+        if (type == typeof(Color3)) {
+            return SerializedFieldKind.Color3;
+        }
+        if (type == typeof(Color4)) {
+            return SerializedFieldKind.Color4;
+        }
         return SerializedFieldKind.None;
     }
 
@@ -406,7 +418,11 @@ public static unsafe class HostBridge {
         Double,
         String,
         Vector3,
-        Vector2
+        Vector2,
+        Vector4,
+        Quaternion,
+        Color3,
+        Color4
     }
 
     private sealed class GameScriptLoadContext : AssemblyLoadContext {

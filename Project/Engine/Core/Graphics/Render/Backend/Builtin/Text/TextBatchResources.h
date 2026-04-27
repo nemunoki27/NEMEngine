@@ -47,7 +47,7 @@ namespace Engine {
 	struct TextPSInstanceData {
 
 		// 色
-		Color color = Color::White();
+		Color4 color = Color4::White();
 		// フォントアトラスのサイズ
 		Vector2 atlasSize = Vector2::AnyInit(1.0f);
 

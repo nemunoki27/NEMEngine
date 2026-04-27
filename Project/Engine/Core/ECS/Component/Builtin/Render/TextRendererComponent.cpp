@@ -16,7 +16,7 @@ void Engine::from_json(const nlohmann::json& in, TextRendererComponent& componen
 	component.text = in.value("text", component.text);
 	component.fontSize = in.value("fontSize", component.fontSize);
 	component.charSpacing = in.value("charSpacing", component.charSpacing);
-	component.color = Color::FromJson(in.value("color", nlohmann::json()));
+	component.color = Color4::FromJson(in.value("color", nlohmann::json()));
 	component.queue = in.value("queue", component.queue);
 	component.layer = in.value("layer", component.layer);
 	component.order = in.value("order", component.order);

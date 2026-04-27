@@ -17,7 +17,7 @@ namespace Engine {
 	struct DirectionalLightComponent {
 
 		// 色
-		Color color = Color::White();
+		Color4 color = Color4::White();
 		// 方向
 		Vector3 direction = Vector3(0.0f, -1.0f, 0.0f);
 

@@ -19,6 +19,24 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
 //	WinApp classMethods
 //============================================================================
 
+namespace {
+
+	// クライアント座標系の矩形を作成する
+	RECT MakeClientRect(const Vector2& size, const Vector2& pos) {
+
+		const float halfX = size.x * 0.5f;
+		const float halfY = size.y * 0.5f;
+
+		const LONG left = static_cast<LONG>(std::floor(pos.x - halfX));
+		const LONG top = static_cast<LONG>(std::floor(pos.y - halfY));
+		const LONG right = static_cast<LONG>(std::ceil(pos.x + halfX));
+		const LONG bottom = static_cast<LONG>(std::ceil(pos.y + halfY));
+
+		RECT rect{ left, top, right, bottom };
+		return rect;
+	}
+}
+
 HWND WinApp::hwnd_ = nullptr;
 bool WinApp::cursorClipEnabled_ = false;
 bool WinApp::useCustomClipRect_ = false;
@@ -263,7 +281,7 @@ void WinApp::ReleaseCursorClip() {
 void Engine::WinApp::SetCursorClipRect(const Vector2& size, const Vector2& pos) {
 
 	// Rectを作成
-	RECT clientRect = Math::MakeClientRect(size, pos);
+	RECT clientRect = MakeClientRect(size, pos);
 	customClientClipRect_ = clientRect;
 }
 

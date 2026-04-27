@@ -19,7 +19,7 @@ namespace Engine {
 	struct DirectionalLightGPU {
 
 		// 色
-		Color color = Color::White();
+		Color4 color = Color4::White();
 
 		// 方向
 		Vector3 direction = Vector3(0.0f, -1.0f, 0.0f);
@@ -30,7 +30,7 @@ namespace Engine {
 	struct PointLightGPU {
 
 		// 色
-		Color color = Color::White();
+		Color4 color = Color4::White();
 
 		// 座標
 		Vector3 pos = Vector3::AnyInit(0.0f);
@@ -47,7 +47,7 @@ namespace Engine {
 	struct SpotLightGPU {
 
 		// 色
-		Color color = Color::White();
+		Color4 color = Color4::White();
 
 		// 方向
 		Vector3 direction = Vector3(0.0f, -1.0f, 0.0f);

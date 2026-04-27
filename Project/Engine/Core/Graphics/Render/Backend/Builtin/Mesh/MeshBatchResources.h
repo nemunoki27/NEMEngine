@@ -57,7 +57,7 @@ namespace Engine {
 	struct MeshPSInstanceData {
 
 		// サブメッシュごとに設定しているため今はなし
-		Color testColor = Color::White();
+		Color4 testColor = Color4::White();
 	};
 
 	// スキニングメッシュを持つエンティティの記録

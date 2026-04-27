@@ -15,7 +15,7 @@ Engine::LineRenderer3D::LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraD
 }
 
 void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius,
-	const Color& color, uint32_t division, float thickness) {
+	const Color4& color, uint32_t division, float thickness) {
 
 	const float kLatEvery = Math::pi / division;        // 緯度
 	const float kLonEvery = 2.0f * Math::pi / division; // 経度
@@ -43,7 +43,7 @@ void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius,
 	}
 }
 
-void Engine::LineRenderer3D::DrawAABB(const Vector3& min, const Vector3& max, const Color& color, float thickness) {
+void Engine::LineRenderer3D::DrawAABB(const Vector3& min, const Vector3& max, const Color4& color, float thickness) {
 
 	// AABBの各頂点
 	std::vector<Vector3> vertices = {
@@ -99,7 +99,7 @@ void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Sk
 	for (size_t i = 0; i < skeleton.joints.size(); ++i) {
 
 		worldPos[i] = Vector3::Transform(Vector3::AnyInit(0.0f), skeleton.joints[i].skeletonSpaceMatrix * worldMatrix);
-		DrawSphere(worldPos[i], 0.02f, Color::Yellow(), kDivision, 1.0f);
+		DrawSphere(worldPos[i], 0.02f, Color4::Yellow(), kDivision, 1.0f);
 	}
 	// 親から子に向けて描画
 	for (size_t parent = 0; parent < skeleton.joints.size(); ++parent) {
@@ -122,13 +122,13 @@ void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Sk
 			float top = length * kRatioTop;
 			float bottom = length * kRatioBase;
 
-			DrawCone(base, bottom, top, length, rotation, Color::Yellow(), kDivision, 1.0f);
+			DrawCone(base, bottom, top, length, rotation, Color4::Yellow(), kDivision, 1.0f);
 		}
 	}
 }
 
 void Engine::LineRenderer3D::DrawSpotLightFrustum(const Vector3& pos, const Vector3& direction, \
-	float distance, float cosAngle, float cosFalloffStart, const Color& color, uint32_t division, float thickness) {
+	float distance, float cosAngle, float cosFalloffStart, const Color4& color, uint32_t division, float thickness) {
 
 	// 方向正規化
 	Vector3 lightDir = direction;
@@ -197,7 +197,7 @@ void Engine::LineRenderer3D::DrawSpotLightFrustum(const Vector3& pos, const Vect
 }
 
 void Engine::LineRenderer3D::DrawCameraFrustum(const Matrix4x4& viewMatrix, float aspectRatio,
-	float nearClip, float farClip, float fovY, float scale, const Color& color, float thickness) {
+	float nearClip, float farClip, float fovY, float scale, const Color4& color, float thickness) {
 
 	// カメラ空間でのコーナー計算
 	float halfFovY = (fovY + 0.08f) * 0.5f;

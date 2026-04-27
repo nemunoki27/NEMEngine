@@ -16,7 +16,7 @@ Engine::LineRenderer2D::LineRenderer2D(GraphicsCore& graphicsCore, RenderCameraD
 }
 
 void Engine::LineRenderer2D::DrawRect(const Vector2& center, const Vector2& size,
-	const Vector2& anchor, const Color& color, float thickness) {
+	const Vector2& anchor, const Color4& color, float thickness) {
 
 	// サイズ
 	Vector2 rectSize = size * anchor;
@@ -35,13 +35,13 @@ void Engine::LineRenderer2D::DrawRect(const Vector2& center, const Vector2& size
 }
 
 void Engine::LineRenderer2D::DrawRect(const Vector2& center,
-	const Vector2& size, const Color& color, float thickness) {
+	const Vector2& size, const Color4& color, float thickness) {
 
 	DrawRect(center, size, Vector2::AnyInit(0.5f), color, thickness);
 }
 
 void Engine::LineRenderer2D::DrawCircle(const Vector2& center, float radius,
-	const Color& color, uint32_t division, float thickness) {
+	const Color4& color, uint32_t division, float thickness) {
 
 	// 必ず3以上
 	uint32_t actualDivision = (std::max)(division, static_cast<uint32_t>(3));

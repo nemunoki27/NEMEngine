@@ -24,7 +24,11 @@ namespace Engine {
 		Double,
 		String,
 		Vector3,
-		Vector2
+		Vector2,
+		Vector4,
+		Quaternion,
+		Color3,
+		Color4
 	};
 
 	// C#側から取得したシリアライズフィールド情報

@@ -40,9 +40,9 @@ namespace Engine {
 		Matrix4x4 localMatrix = Matrix4x4::Identity();
 
 		// インポート時の色
-		Color importedBaseColor = Color::White();
+		Color4 importedBaseColor = Color4::White();
 		// エディタ編集色
-		Color color = Color::White();
+		Color4 color = Color4::White();
 		// サブメッシュごとのUV
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 	};

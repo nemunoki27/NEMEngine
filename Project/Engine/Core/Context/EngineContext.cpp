@@ -32,7 +32,7 @@ void Engine::EngineContext::InitCoreSettings() {
 	// グラフィックス設定
 	graphicsSetting_.swapChainFormat = EnumAdapter<DXGI_FORMAT>::FromString(data["SwapChainDXFORMAT"]).value();
 	graphicsSetting_.renderTextureFormat = EnumAdapter<DXGI_FORMAT>::FromString(data["RenderTextureDXFORMAT"]).value();
-	graphicsSetting_.clearColor = Color(graphicsSetting_.kWindowClearColor[0], graphicsSetting_.kWindowClearColor[1],
+	graphicsSetting_.clearColor = Color4(graphicsSetting_.kWindowClearColor[0], graphicsSetting_.kWindowClearColor[1],
 		graphicsSetting_.kWindowClearColor[2], graphicsSetting_.kWindowClearColor[3]);
 }
 

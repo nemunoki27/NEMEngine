@@ -47,7 +47,7 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 				{ .dragSpeed = 0.01f, .minValue = -1000.0f, .maxValue = 1000.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::ColorEdit("Color", draft.color);
+			return MyGUI::ColorEdit("Color4", draft.color);
 			});
 	}
 	//============================================================================

@@ -83,6 +83,65 @@ namespace {
 		return result;
 	}
 
+	// Vector4をJSONから読み込む
+	Engine::Vector4 ReadVector4(const nlohmann::json& value) {
+
+		Engine::Vector4 result{};
+		if (!value.is_object()) {
+			return result;
+		}
+
+		result.x = value.value("x", 0.0f);
+		result.y = value.value("y", 0.0f);
+		result.z = value.value("z", 0.0f);
+		result.w = value.value("w", 0.0f);
+		return result;
+	}
+
+	// QuaternionをJSONから読み込む
+	Engine::Quaternion ReadQuaternion(const nlohmann::json& value) {
+
+		Engine::Quaternion result = Engine::Quaternion::Identity();
+		if (!value.is_object()) {
+			return result;
+		}
+
+		result.x = value.value("x", 0.0f);
+		result.y = value.value("y", 0.0f);
+		result.z = value.value("z", 0.0f);
+		result.w = value.value("w", 1.0f);
+		return result;
+	}
+
+	// Color3をJSONから読み込む
+	Engine::Color3 ReadColor3(const nlohmann::json& value) {
+
+		Engine::Color3 result{};
+		if (!value.is_object()) {
+			return result;
+		}
+
+		result.r = value.value("r", 0.0f);
+		result.g = value.value("g", 0.0f);
+		result.b = value.value("b", 0.0f);
+		return result;
+	}
+
+	// Color4をJSONから読み込む
+	Engine::Color4 ReadColor4(const nlohmann::json& value) {
+
+		Engine::Color4 result{};
+		if (!value.is_object()) {
+			return result;
+		}
+
+		result.r = value.value("r", 0.0f);
+		result.g = value.value("g", 0.0f);
+		result.b = value.value("b", 0.0f);
+		result.a = value.value("a", 1.0f);
+		return result;
+	}
+
 	// Vector3をJSONへ保存する
 	nlohmann::json WriteVector3(const Engine::Vector3& value) {
 
@@ -99,6 +158,49 @@ namespace {
 		nlohmann::json out = nlohmann::json::object();
 		out["x"] = value.x;
 		out["y"] = value.y;
+		return out;
+	}
+
+	// Vector4をJSONへ保存する
+	nlohmann::json WriteVector4(const Engine::Vector4& value) {
+
+		nlohmann::json out = nlohmann::json::object();
+		out["x"] = value.x;
+		out["y"] = value.y;
+		out["z"] = value.z;
+		out["w"] = value.w;
+		return out;
+	}
+
+	// QuaternionをJSONへ保存する
+	nlohmann::json WriteQuaternion(const Engine::Quaternion& value) {
+
+		nlohmann::json out = nlohmann::json::object();
+		out["x"] = value.x;
+		out["y"] = value.y;
+		out["z"] = value.z;
+		out["w"] = value.w;
+		return out;
+	}
+
+	// Color3をJSONへ保存する
+	nlohmann::json WriteColor3(const Engine::Color3& value) {
+
+		nlohmann::json out = nlohmann::json::object();
+		out["r"] = value.r;
+		out["g"] = value.g;
+		out["b"] = value.b;
+		return out;
+	}
+
+	// Color4をJSONへ保存する
+	nlohmann::json WriteColor4(const Engine::Color4& value) {
+
+		nlohmann::json out = nlohmann::json::object();
+		out["r"] = value.r;
+		out["g"] = value.g;
+		out["b"] = value.b;
+		out["a"] = value.a;
 		return out;
 	}
 
@@ -162,6 +264,39 @@ namespace {
 			Engine::ValueEditResult result = Engine::MyGUI::DragVector2(field.displayName.c_str(), v);
 			if (result.valueChanged) {
 				value = WriteVector2(v);
+			}
+			return result;
+		}
+		case Engine::ManagedSerializedFieldKind::Vector4: {
+			Engine::Vector4 v = ReadVector4(value);
+			Engine::ValueEditResult result = Engine::MyGUI::DragVector4(field.displayName.c_str(), v);
+			if (result.valueChanged) {
+				value = WriteVector4(v);
+			}
+			return result;
+		}
+		case Engine::ManagedSerializedFieldKind::Quaternion: {
+			Engine::Quaternion v = ReadQuaternion(value);
+			Engine::ValueEditResult result = Engine::MyGUI::DragQuaternion(field.displayName.c_str(), v, true);
+			if (result.valueChanged) {
+				value = WriteQuaternion(v);
+			}
+			return result;
+		}
+		case Engine::ManagedSerializedFieldKind::Color3: {
+			Engine::Color3 v = ReadColor3(value);
+			Engine::Color4 color(v.r, v.g, v.b, 1.0f);
+			Engine::ValueEditResult result = Engine::MyGUI::ColorEdit(field.displayName.c_str(), color);
+			if (result.valueChanged) {
+				value = WriteColor3(Engine::Color3(color.r, color.g, color.b));
+			}
+			return result;
+		}
+		case Engine::ManagedSerializedFieldKind::Color4: {
+			Engine::Color4 v = ReadColor4(value);
+			Engine::ValueEditResult result = Engine::MyGUI::ColorEdit(field.displayName.c_str(), v);
+			if (result.valueChanged) {
+				value = WriteColor4(v);
 			}
 			return result;
 		}

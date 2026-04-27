@@ -6,7 +6,7 @@
 
 void Engine::from_json(const nlohmann::json& in, PointLightComponent& component) {
 
-	component.color = Color::FromJson(in.value("color", nlohmann::json()));
+	component.color = Color4::FromJson(in.value("color", nlohmann::json()));
 	component.intensity = in.value("intensity", 1.0f);
 	component.radius = in.value("radius", 8.0f);
 	component.decay = in.value("decay", 1.0f);

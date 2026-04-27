@@ -42,7 +42,7 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 				{ .dragSpeed = 0.01f, .minValue = -1.0f, .maxValue = 1.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::ColorEdit("Color", draft.color);
+			return MyGUI::ColorEdit("Color4", draft.color);
 			});
 	}
 	//============================================================================

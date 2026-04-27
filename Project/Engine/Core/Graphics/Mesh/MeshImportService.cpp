@@ -361,7 +361,7 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 
 				aiColor4D baseColor;
 				if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_DIFFUSE, baseColor)) {
-					subMesh.baseColor = Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a);
+					subMesh.baseColor = Color4(baseColor.r, baseColor.g, baseColor.b, baseColor.a);
 				}
 			}
 			result.subMeshes.emplace_back(std::move(subMesh));

@@ -226,7 +226,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 			// 初期値
 			subMeshData.localMatrix = Matrix4x4::Identity();
-			subMeshData.color = Color::White();
+			subMeshData.color = Color4::White();
 			subMeshData.uvMatrix = Matrix4x4::Identity();
 			if (hasMesh) {
 

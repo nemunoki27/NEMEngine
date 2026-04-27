@@ -24,7 +24,7 @@ namespace Engine {
 
 		uint32_t width;
 		uint32_t height;
-		Color clearColor;
+		Color4 clearColor;
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
 	};
 

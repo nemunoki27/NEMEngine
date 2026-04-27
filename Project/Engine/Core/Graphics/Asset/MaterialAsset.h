@@ -40,7 +40,7 @@ namespace Engine {
 	// マテリアルのパラメーター値
 	struct MaterialParameterValue {
 
-		std::variant<float, Vector2, Vector3, Vector4, Color, AssetID, int32_t, uint32_t> value;
+		std::variant<float, Vector2, Vector3, Vector4, Color4, AssetID, int32_t, uint32_t> value;
 	};
 	
 	// マテリアルアセットの情報

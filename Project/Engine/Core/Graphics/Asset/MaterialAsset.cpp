@@ -54,7 +54,7 @@ namespace {
 		if (data.is_object()) {
 			if (data.contains("r") && data.contains("g") && data.contains("b") && data.contains("a")) {
 
-				outValue.value = Engine::Color(data.value("r", 0.0f), data.value("g", 0.0f), data.value("b", 0.0f), data.value("a", 1.0f));
+				outValue.value = Engine::Color4(data.value("r", 0.0f), data.value("g", 0.0f), data.value("b", 0.0f), data.value("a", 1.0f));
 				return true;
 			}
 		}

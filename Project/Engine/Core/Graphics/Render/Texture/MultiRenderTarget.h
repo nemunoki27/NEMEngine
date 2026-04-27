@@ -34,7 +34,7 @@ namespace Engine {
 		DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 		// クリアカラー
-		Color clearColor = Color::Black();
+		Color4 clearColor = Color4::Black();
 		// UAVを作成するかどうか
 		bool createUAV = false;
 	};
@@ -55,7 +55,7 @@ namespace Engine {
 		
 		// 色情報をクリアするか
 		bool clearColor = true;
-		std::optional<Color> clearColorValue;
+		std::optional<Color4> clearColorValue;
 		// 深度情報をクリアするか
 		bool clearDepth = false;
 		float clearDepthValue = 1.0f;

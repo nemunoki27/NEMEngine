@@ -74,16 +74,16 @@ namespace {
 			color.createUAV = data.value("createUAV", false);
 
 			if (data.contains("clearColor") && !data["clearColor"].is_null()) {
-				color.clearColor = Engine::Color::FromJson(data["clearColor"]);
+				color.clearColor = Engine::Color4::FromJson(data["clearColor"]);
 			}
 		}
 		if (color.name.empty()) {
 			if (!ownerName.empty() && colorIndex == 0) {
 				color.name = ownerName;
 			} else if (!ownerName.empty()) {
-				color.name = ownerName + ".Color" + std::to_string(colorIndex);
+				color.name = ownerName + ".Color4" + std::to_string(colorIndex);
 			} else {
-				color.name = "Color" + std::to_string(colorIndex);
+				color.name = "Color4" + std::to_string(colorIndex);
 			}
 		}
 		return color;
@@ -190,7 +190,7 @@ namespace {
 		pass.clearColor = data.value("clearColor", true);
 		if (data.contains("clearColorValue") && !data["clearColorValue"].is_null()) {
 
-			pass.clearColorValue = Engine::Color::FromJson(data["clearColorValue"]);
+			pass.clearColorValue = Engine::Color4::FromJson(data["clearColorValue"]);
 		} else {
 
 			pass.clearColorValue = std::nullopt;

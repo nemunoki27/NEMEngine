@@ -6,7 +6,7 @@
 
 void Engine::from_json(const nlohmann::json& in, SpotLightComponent& component) {
 
-	component.color = Color::FromJson(in.value("color", nlohmann::json()));
+	component.color = Color4::FromJson(in.value("color", nlohmann::json()));
 	component.direction = Vector3::FromJson(in.value("direction", nlohmann::json()));
 	component.intensity = in.value("intensity", 1.0f);
 	component.distance = in.value("distance", 10.0f);

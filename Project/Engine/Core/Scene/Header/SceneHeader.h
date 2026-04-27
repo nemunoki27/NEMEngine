@@ -58,7 +58,7 @@ namespace Engine {
 		SceneRenderTargetFormat format = SceneRenderTargetFormat::RGBA32_FLOAT;
 
 		// このカラー添付の既定クリア色
-		std::optional<Color> clearColor = std::nullopt;
+		std::optional<Color4> clearColor = std::nullopt;
 		// UAVを作るか
 		bool createUAV = false;
 	};
@@ -165,7 +165,7 @@ namespace Engine {
 
 		// 色情報をクリアするか
 		bool clearColor = true;
-		std::optional<Color> clearColorValue = std::nullopt;
+		std::optional<Color4> clearColorValue = std::nullopt;
 		// 深度情報をクリアするか
 		bool clearDepth = false;
 		float clearDepthValue = 1.0f;

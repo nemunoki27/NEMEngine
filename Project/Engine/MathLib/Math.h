@@ -74,7 +74,4 @@ namespace Math {
 
 	// 近似比較
 	bool NearlyEqual(float lhs, float rhs);
-
-	// クライアント座標系の矩形を作成する
-	RECT MakeClientRect(const Engine::Vector2& size, const Engine::Vector2& pos);
 } // Math

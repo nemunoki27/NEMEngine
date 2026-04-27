@@ -61,22 +61,22 @@ namespace Engine {
 			// w : horizon fade end   (abs(rayDir.y))
 			Vector4 thicknessFadeAndHorizon = Vector4(0.65f, 0.28f, 0.015f, 0.08f);
 
-			Color minorColor = Color(1.0f, 1.0f, 1.0f, 0.12f);
+			Color4 minorColor = Color4(1.0f, 1.0f, 1.0f, 0.12f);
 			// x : half thickness, y : far thickness rate, z : fade start distance, w : fade end distance
 			Vector4 minorParams0 = Vector4(1.0f, 0.15f, 0.0f, 300.0f);
 			// x : fade power
 			Vector4 minorParams1 = Vector4(1.50f, 0.0f, 0.0f, 0.0f);
 
-			Color majorColor = Color(1.0f, 1.0f, 1.0f, 0.20f);
+			Color4 majorColor = Color4(1.0f, 1.0f, 1.0f, 0.20f);
 			Vector4 majorParams0 = Vector4(1.35f, 0.40f, 20.0f, 700.0f);
 			Vector4 majorParams1 = Vector4(1.20f, 0.0f, 0.0f, 0.0f);
 
-			Color coarseColor = Color(1.0f, 1.0f, 1.0f, 0.24f);
+			Color4 coarseColor = Color4(1.0f, 1.0f, 1.0f, 0.24f);
 			Vector4 coarseParams0 = Vector4(1.70f, 0.70f, 50.0f, 1000.0f);
 			Vector4 coarseParams1 = Vector4(1.10f, 0.0f, 0.0f, 0.0f);
 
-			Color axisXColor = Color(0.95f, 0.25f, 0.25f, 0.95f);
-			Color axisZColor = Color(0.30f, 0.50f, 1.00f, 0.95f);
+			Color4 axisXColor = Color4(0.95f, 0.25f, 0.25f, 0.95f);
+			Color4 axisZColor = Color4(0.30f, 0.50f, 1.00f, 0.95f);
 			// x : half thickness, w : axis visible distance
 			Vector4 axisParams = Vector4(2.4f, 0.0f, 0.0f, 1000.0f);
 		};
@@ -132,8 +132,8 @@ namespace Engine {
 		// axis
 		//------------------------------------------------------------------------
 
-		Color gridAxisXLineColor_ = Color::FromHex(0xFF0009FF);
-		Color gridAxisZLineColor_ = Color::FromHex(0x00FF03FF);
+		Color4 gridAxisXLineColor_ = Color4::FromHex(0xFF0009FF);
+		Color4 gridAxisZLineColor_ = Color4::FromHex(0x00FF03FF);
 		float gridAxisLineThickness_ = 0.4f;
 
 		//------------------------------------------------------------------------

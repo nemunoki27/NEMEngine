@@ -678,7 +678,7 @@ Engine::ValueEditResult Engine::MyGUI::DragQuaternion(const char* label, Quatern
 	return result;
 }
 
-Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color& value) {
+Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color4& value) {
 
 	ValueEditResult result{};
 
