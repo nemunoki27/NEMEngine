@@ -8,6 +8,7 @@
 #include <Engine/Core/Build/BuildConfig.h>
 #include <Engine/Core/Scripting/ManagedScriptRuntime.h>
 #include <Engine/Core/Tools/ToolRegistry.h>
+#include <Engine/Audio/Audio.h>
 #include <Engine/Editor/Project/ProjectAssetFileUtility.h>
 #include <Engine/Logger/Logger.h>
 #include <Engine/Input/Input.h>
@@ -18,6 +19,7 @@
 #include <Engine/Core/ECS/System/Builtin/UVTransformUpdateSystem.h>
 #include <Engine/Core/ECS/System/Builtin/HierarchySystem.h>
 #include <Engine/Core/ECS/System/Builtin/SkinnedAnimationUpdateSystem.h>
+#include <Engine/Core/ECS/System/Builtin/AudioSourceSystem.h>
 
 //============================================================================
 //	EngineApplication classMethods
@@ -29,6 +31,7 @@ void Engine::EngineApplication::InitSystems() {
 	// システムの追加、orderが小さいほど先に処理される
 	scheduler_.AddSystem(std::make_unique<HierarchySystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<TransformUpdateSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UVTransformUpdateSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<SkinnedAnimationUpdateSystem>(), ++order);
@@ -50,6 +53,8 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 
 	// 骨アニメーション管理の初期化
 	skinnedAnimationManager_.Init();
+	// Audio管理の初期化
+	Audio::GetInstance()->Init();
 
 	// 最初のシーンを作成
 	InitFirstScene();

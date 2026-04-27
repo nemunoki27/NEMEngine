@@ -138,42 +138,48 @@ void Audio::Init() {
 
 void Audio::LoadAllSounds() {
 
-	// Engine側のSounds配下を読み込む
-	std::filesystem::path root = RuntimePaths::GetEngineAssetPath("Sounds");
+	// Engine側とGame側のSounds配下を読み込む
+	std::vector<std::filesystem::path> roots = {
+		RuntimePaths::GetEngineAssetPath("Sounds"),
+		RuntimePaths::GetGameRoot() / "GameAssets" / "Sounds",
+	};
 
-	std::error_code ec;
-	if (!std::filesystem::exists(root, ec)) {
-		// 無いなら何もしない
-		return;
-	}
+	for (const std::filesystem::path& root : roots) {
 
-	// recursive に走査
-	for (std::filesystem::recursive_directory_iterator it(root, ec), end;
-		it != end && !ec; it.increment(ec)) {
-
-		const auto& entry = *it;
-
-		// ディレクトリはスキップ
-		if (!entry.is_regular_file(ec)) {
+		std::error_code ec;
+		if (!std::filesystem::exists(root, ec)) {
+			// 無いなら何もしない
 			continue;
 		}
 
-		const std::filesystem::path filePath = entry.path();
-		std::string ext = Algorithm::ToLower(filePath.extension().string());
+		// recursive に走査
+		for (std::filesystem::recursive_directory_iterator it(root, ec), end;
+			it != end && !ec; it.increment(ec)) {
 
-		// 対応拡張子のみ
-		const bool supported =
-			(ext == ".wav") || (ext == ".wave") || (ext == ".mp3");
+			const auto& entry = *it;
 
-		if (!supported) {
-			continue;
+			// ディレクトリはスキップ
+			if (!entry.is_regular_file(ec)) {
+				continue;
+			}
+
+			const std::filesystem::path filePath = entry.path();
+			std::string ext = Algorithm::ToLower(filePath.extension().string());
+
+			// 対応拡張子のみ
+			const bool supported =
+				(ext == ".wav") || (ext == ".wave") || (ext == ".mp3");
+
+			if (!supported) {
+				continue;
+			}
+
+			AudioType type = GuessAudioTypeFromPath(filePath);
+
+			// string化
+			std::string fullpath = filePath.string();
+			Load(fullpath, type);
 		}
-
-		AudioType type = GuessAudioTypeFromPath(filePath);
-
-		// string化
-		std::string fullpath = filePath.string();
-		Load(fullpath, type);
 	}
 }
 
@@ -208,6 +214,23 @@ void Audio::Load(const std::string& filename, AudioType type) {
 	data.type = type;
 	data.volume = 1.0f;
 	sounds_.emplace(key, std::move(data));
+}
+
+bool Audio::EnsureLoaded(const std::string& filename, AudioType type) {
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	Assert::Call(xAudio2_ && masteringVoice_, "Audio::Init() must be called before EnsureLoaded()");
+
+	const std::string key = NormalizeKey(filename);
+	if (sounds_.find(key) != sounds_.end()) {
+		return true;
+	}
+	if (!std::filesystem::exists(filename)) {
+		return false;
+	}
+
+	Load(filename, type);
+	return sounds_.find(key) != sounds_.end();
 }
 
 void Audio::Unload() {
@@ -245,7 +268,12 @@ void Audio::PlayOneShot(const std::string& name, float volume) {
 	PlayInternal(name, false, volume);
 }
 
-void Audio::PlayInternal(const std::string& name, bool loop, float volume) {
+uint64_t Audio::PlayManaged(const std::string& name, bool loop, float volume) {
+
+	return PlayInternal(name, loop, volume);
+}
+
+uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 
 	std::lock_guard<std::mutex> lock(mutex_);
 	Assert::Call(xAudio2_ && masteringVoice_, "Audio::Init() must be called before Play()");
@@ -254,7 +282,7 @@ void Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 
 	SoundData* sound = FindSoundLocked(key);
 	if (!sound) {
-		return;
+		return 0;
 	}
 
 	// 終了したvoiceを掃除
@@ -284,6 +312,7 @@ void Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 
 	VoiceInstance inst{};
 	inst.voice = srcVoice;
+	inst.voiceID = nextVoiceID_++;
 	inst.instanceVolume = volume;
 	inst.loop = loop;
 
@@ -292,7 +321,9 @@ void Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 	hr = srcVoice->Start(0, XAUDIO2_COMMIT_NOW);
 	assert(SUCCEEDED(hr));
 
+	const uint64_t voiceID = inst.voiceID;
 	activeVoices_[key].push_back(inst);
+	return voiceID;
 }
 
 //===================================================================================================================
@@ -321,6 +352,38 @@ void Audio::Stop(const std::string& name) {
 	}
 	it->second.clear();
 	activeVoices_.erase(it);
+}
+
+void Audio::StopVoice(uint64_t voiceID) {
+
+	if (voiceID == 0) {
+		return;
+	}
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	for (auto it = activeVoices_.begin(); it != activeVoices_.end();) {
+
+		auto& voices = it->second;
+		for (auto& inst : voices) {
+			if (inst.voiceID != voiceID || !inst.voice) {
+				continue;
+			}
+
+			inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
+			inst.voice->FlushSourceBuffers();
+			inst.voice->DestroyVoice();
+			inst.voice = nullptr;
+		}
+
+		voices.erase(std::remove_if(voices.begin(), voices.end(), [](const VoiceInstance& inst) {
+			return inst.voice == nullptr;
+			}), voices.end());
+		if (voices.empty()) {
+			it = activeVoices_.erase(it);
+		} else {
+			++it;
+		}
+	}
 }
 
 //===================================================================================================================
@@ -367,6 +430,24 @@ bool Audio::IsPlaying(const std::string& name) {
 	// まだインスタンスが残っていれば再生中とみなす
 	it = activeVoices_.find(key);
 	return (it != activeVoices_.end() && !it->second.empty());
+}
+
+bool Audio::IsVoicePlaying(uint64_t voiceID) {
+
+	if (voiceID == 0) {
+		return false;
+	}
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	CleanupAllFinishedVoicesLocked();
+	for (const auto& [key, voices] : activeVoices_) {
+		for (const auto& inst : voices) {
+			if (inst.voiceID == voiceID && inst.voice) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 //===================================================================================================================
