@@ -678,6 +678,29 @@ Engine::ValueEditResult Engine::MyGUI::DragQuaternion(const char* label, Quatern
 	return result;
 }
 
+Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color3& value) {
+
+	ValueEditResult result{};
+
+	if (!BeginPropertyRow(label)) {
+		return result;
+	}
+
+	float color[3] = { value.r, value.g, value.b };
+	result.valueChanged = ImGui::ColorEdit3("##Value", color, ImGuiColorEditFlags_Float);
+	result.anyItemActive = ImGui::IsItemActive();
+	result.editFinished = ImGui::IsItemDeactivatedAfterEdit() || result.valueChanged;
+
+	if (result.valueChanged) {
+		value.r = color[0];
+		value.g = color[1];
+		value.b = color[2];
+	}
+
+	EndPropertyRow();
+	return result;
+}
+
 Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color4& value) {
 
 	ValueEditResult result{};

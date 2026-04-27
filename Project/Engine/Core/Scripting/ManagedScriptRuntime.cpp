@@ -558,6 +558,7 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	getSerializedFieldCount_ = nullptr;
 	copySerializedFieldInfo_ = nullptr;
 	createInstance_ = nullptr;
+	setSerializedFields_ = nullptr;
 	destroyInstance_ = nullptr;
 	invokeAwake_ = nullptr;
 	invokeStart_ = nullptr;
@@ -723,6 +724,16 @@ int32_t Engine::ManagedScriptRuntime::CreateInstance(const std::string& typeName
 
 	const std::string json = serializedFields.is_object() ? serializedFields.dump() : std::string("{}");
 	return createInstance_(typeName.c_str(), MakeNativeEntity(world, entity), json.c_str());
+}
+
+void Engine::ManagedScriptRuntime::SetSerializedFields(int32_t handle, const nlohmann::json& serializedFields) {
+
+	if (!initialized_ || !setSerializedFields_ || handle == 0) {
+		return;
+	}
+
+	const std::string json = serializedFields.is_object() ? serializedFields.dump() : std::string("{}");
+	setSerializedFields_(handle, json.c_str());
 }
 
 void Engine::ManagedScriptRuntime::DestroyInstance(int32_t handle) {
@@ -923,6 +934,7 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	success &= LoadBridgeFunction(getSerializedFieldCount_, L"GetSerializedFieldCount");
 	success &= LoadBridgeFunction(copySerializedFieldInfo_, L"CopySerializedFieldInfo");
 	success &= LoadBridgeFunction(createInstance_, L"CreateInstance");
+	success &= LoadBridgeFunction(setSerializedFields_, L"SetSerializedFields");
 	success &= LoadBridgeFunction(destroyInstance_, L"DestroyInstance");
 	success &= LoadBridgeFunction(invokeAwake_, L"InvokeAwake");
 	success &= LoadBridgeFunction(invokeStart_, L"InvokeStart");

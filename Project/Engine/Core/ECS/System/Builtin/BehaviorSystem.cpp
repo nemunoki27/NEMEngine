@@ -206,6 +206,8 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 				}
 				record->instance->SetSerializedFields(entry.serializedFields);
 			}
+			// 既存インスタンスにもInspector側の[SerializeField]変更を反映する
+			record->instance->SetSerializedFields(entry.serializedFields);
 
 			// アクセスされたフラグを立てる
 			record->seen = true;

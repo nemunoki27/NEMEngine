@@ -54,6 +54,7 @@ namespace Engine {
 		// C#スクリプトのインスタンスを作成/破棄する
 		int32_t CreateInstance(const std::string& typeName, ECSWorld& world,
 			const Entity& entity, const nlohmann::json& serializedFields);
+		void SetSerializedFields(int32_t handle, const nlohmann::json& serializedFields);
 		void DestroyInstance(int32_t handle);
 
 		// ライフサイクル呼び出し
@@ -95,6 +96,7 @@ namespace Engine {
 		using GetSerializedFieldCountFn = int32_t(__cdecl*)(const char*);
 		using CopySerializedFieldInfoFn = int32_t(__cdecl*)(const char*, int32_t, ManagedNativeSerializedFieldInfo*);
 		using CreateInstanceFn = int32_t(__cdecl*)(const char*, ManagedNativeEntity, const char*);
+		using SetSerializedFieldsFn = void(__cdecl*)(int32_t, const char*);
 		using DestroyInstanceFn = void(__cdecl*)(int32_t);
 		using InvokeFn = void(__cdecl*)(int32_t);
 
@@ -114,6 +116,7 @@ namespace Engine {
 		GetSerializedFieldCountFn getSerializedFieldCount_ = nullptr;
 		CopySerializedFieldInfoFn copySerializedFieldInfo_ = nullptr;
 		CreateInstanceFn createInstance_ = nullptr;
+		SetSerializedFieldsFn setSerializedFields_ = nullptr;
 		DestroyInstanceFn destroyInstance_ = nullptr;
 		InvokeFn invokeAwake_ = nullptr;
 		InvokeFn invokeStart_ = nullptr;
