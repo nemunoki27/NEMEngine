@@ -20,6 +20,7 @@
 #include <Engine/Core/ECS/System/Builtin/HierarchySystem.h>
 #include <Engine/Core/ECS/System/Builtin/SkinnedAnimationUpdateSystem.h>
 #include <Engine/Core/ECS/System/Builtin/AudioSourceSystem.h>
+#include <Engine/Core/ECS/System/Builtin/CollisionSystem.h>
 
 //============================================================================
 //	EngineApplication classMethods
@@ -33,6 +34,7 @@ void Engine::EngineApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<TransformUpdateSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UVTransformUpdateSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<SkinnedAnimationUpdateSystem>(), ++order);
 }

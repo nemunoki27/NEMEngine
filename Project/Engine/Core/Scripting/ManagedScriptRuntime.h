@@ -67,6 +67,13 @@ namespace Engine {
 		void InvokeUpdate(int32_t handle, const SystemContext& context);
 		void InvokeLateUpdate(int32_t handle, const SystemContext& context);
 
+		// C#側のOnCollisionEnterを呼び出す
+		void InvokeCollisionEnter(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
+		// C#側のOnCollisionStayを呼び出す
+		void InvokeCollisionStay(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
+		// C#側のOnCollisionExitを呼び出す
+		void InvokeCollisionExit(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
+
 		//--------- accessor -----------------------------------------------------
 
 		bool IsInitialized() const { return initialized_; }
@@ -99,6 +106,7 @@ namespace Engine {
 		using SetSerializedFieldsFn = void(__cdecl*)(int32_t, const char*);
 		using DestroyInstanceFn = void(__cdecl*)(int32_t);
 		using InvokeFn = void(__cdecl*)(int32_t);
+		using InvokeCollisionFn = void(__cdecl*)(int32_t, ManagedCollisionEvent);
 
 		//--------- variables ----------------------------------------------------
 
@@ -127,6 +135,11 @@ namespace Engine {
 		InvokeFn invokeUpdate_ = nullptr;
 		InvokeFn invokeLateUpdate_ = nullptr;
 
+		// Collisionイベント呼び出し関数
+		InvokeCollisionFn invokeCollisionEnter_ = nullptr;
+		InvokeCollisionFn invokeCollisionStay_ = nullptr;
+		InvokeCollisionFn invokeCollisionExit_ = nullptr;
+
 		const SystemContext* currentContext_ = nullptr;
 
 		std::filesystem::path scriptCoreAssemblyPath_;
@@ -148,6 +161,9 @@ namespace Engine {
 		bool LoadBridgeFunction(T& outFunction, const wchar_t* methodName);
 
 		void Invoke(InvokeFn function, int32_t handle, const SystemContext& context);
+		// C#側のCollisionイベント関数を呼び出す
+		void InvokeCollision(InvokeCollisionFn function, int32_t handle,
+			const SystemContext& context, const ManagedCollisionEvent& collision);
 
 		// C#へ渡すコールバック
 		static float __cdecl GetDeltaTimeCallback();

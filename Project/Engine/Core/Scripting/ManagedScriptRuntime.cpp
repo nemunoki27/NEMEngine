@@ -568,6 +568,9 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	invokeFixedUpdate_ = nullptr;
 	invokeUpdate_ = nullptr;
 	invokeLateUpdate_ = nullptr;
+	invokeCollisionEnter_ = nullptr;
+	invokeCollisionStay_ = nullptr;
+	invokeCollisionExit_ = nullptr;
 
 	ReleaseHostfxr();
 }
@@ -784,6 +787,27 @@ void Engine::ManagedScriptRuntime::InvokeLateUpdate(int32_t handle, const System
 	Invoke(invokeLateUpdate_, handle, context);
 }
 
+void Engine::ManagedScriptRuntime::InvokeCollisionEnter(int32_t handle,
+	const SystemContext& context, const ManagedCollisionEvent& collision) {
+
+	// C#側のOnCollisionEnterへ渡す
+	InvokeCollision(invokeCollisionEnter_, handle, context, collision);
+}
+
+void Engine::ManagedScriptRuntime::InvokeCollisionStay(int32_t handle,
+	const SystemContext& context, const ManagedCollisionEvent& collision) {
+
+	// C#側のOnCollisionStayへ渡す
+	InvokeCollision(invokeCollisionStay_, handle, context, collision);
+}
+
+void Engine::ManagedScriptRuntime::InvokeCollisionExit(int32_t handle,
+	const SystemContext& context, const ManagedCollisionEvent& collision) {
+
+	// C#側のOnCollisionExitへ渡す
+	InvokeCollision(invokeCollisionExit_, handle, context, collision);
+}
+
 const std::vector<Engine::ManagedScriptField>& Engine::ManagedScriptRuntime::GetSerializedFields(const std::string& typeName) {
 
 	static const std::vector<ManagedScriptField> kEmpty{};
@@ -944,6 +968,11 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	success &= LoadBridgeFunction(invokeFixedUpdate_, L"InvokeFixedUpdate");
 	success &= LoadBridgeFunction(invokeUpdate_, L"InvokeUpdate");
 	success &= LoadBridgeFunction(invokeLateUpdate_, L"InvokeLateUpdate");
+
+	// Collisionイベント用のブリッジ関数
+	success &= LoadBridgeFunction(invokeCollisionEnter_, L"InvokeCollisionEnter");
+	success &= LoadBridgeFunction(invokeCollisionStay_, L"InvokeCollisionStay");
+	success &= LoadBridgeFunction(invokeCollisionExit_, L"InvokeCollisionExit");
 	return success;
 }
 
@@ -988,6 +1017,19 @@ void Engine::ManagedScriptRuntime::Invoke(InvokeFn function, int32_t handle, con
 
 	currentContext_ = &context;
 	function(handle);
+	currentContext_ = nullptr;
+}
+
+void Engine::ManagedScriptRuntime::InvokeCollision(InvokeCollisionFn function, int32_t handle,
+	const SystemContext& context, const ManagedCollisionEvent& collision) {
+
+	if (!initialized_ || !function || handle == 0) {
+		return;
+	}
+
+	// Collisionイベント中だけSystemContextをC#コールバックから参照できるようにする
+	currentContext_ = &context;
+	function(handle, collision);
 	currentContext_ = nullptr;
 }
 

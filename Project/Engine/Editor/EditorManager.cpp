@@ -28,6 +28,7 @@
 #include <Engine/Editor/Panel/Methods/ViewportPanel.h>
 #include <Engine/Editor/Panel/Methods/SceneViewToolPanel.h>
 #include <Engine/Editor/Panel/Methods/ToolPanel.h>
+#include <Engine/Editor/Tools/CollisionManagerTool.h>
 
 // imgui
 #include <ImGuizmo.h>
@@ -79,6 +80,9 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 
 	// シーンビュー用のエディタカメラの状態を初期化
 	sceneViewCameraState_ = SceneViewCameraController::MakeDefaultState();
+
+	// エディタ標準ツールの登録
+	RegisterBuiltinEditorTools();
 
 	// 各パネルの生成と登録
 	panels_.emplace_back(std::make_unique<MenuBarPanel>());

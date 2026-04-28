@@ -16,6 +16,7 @@
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/ScriptComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/AudioSourceComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/CollisionComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Render/MeshRendererComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Render/SpriteRendererComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Render/TextRendererComponent.h>
@@ -41,6 +42,7 @@
 #include <Engine/Editor/Inspector/Methods/Light/SpotLightInspectorDrawer.h>
 #include <Engine/Editor/Inspector/Methods/Animation/SkinnedAnimationInspectorDrawer.h>
 #include <Engine/Editor/Inspector/Methods/Audio/AudioSourceInspectorDrawer.h>
+#include <Engine/Editor/Inspector/Methods/CollisionInspectorDrawer.h>
 
 // c++
 #include <algorithm>
@@ -62,12 +64,13 @@ namespace {
 		const char* typeName;
 	};
 	// 追加できるコンポーネントのメニューエントリー
-	constexpr std::array<InspectorComponentMenuEntry, 12> kOptionalComponentMenuEntries = { {
+	constexpr std::array<InspectorComponentMenuEntry, 13> kOptionalComponentMenuEntries = { {
 
 		{ "PerspectiveCamera",  "PerspectiveCamera" },
 		{ "OrthographicCamera", "OrthographicCamera" },
 		{ "Script",             "Script" },
 		{ "Audio Source",       "AudioSource" },
+		{ "Collision",          "Collision" },
 		{ "Mesh Renderer",      "MeshRenderer" },
 		{ "Skinned Animation",  "SkinnedAnimation" },
 		{ "Sprite Renderer",    "SpriteRenderer" },
@@ -297,6 +300,7 @@ Engine::InspectorPanel::InspectorPanel() {
 	componentDrawers_.emplace_back(std::make_unique<PointLightInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<SpotLightInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<AudioSourceInspectorDrawer>());
+	componentDrawers_.emplace_back(std::make_unique<CollisionInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<ScriptInspectorDrawer>());
 }
 

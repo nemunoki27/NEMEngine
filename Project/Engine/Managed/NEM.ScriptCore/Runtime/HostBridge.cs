@@ -222,6 +222,27 @@ public static unsafe class HostBridge {
         }
     }
 
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static void InvokeCollisionEnter(int handle, NativeCollisionEvent collision) {
+        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+            script.OnCollisionEnter(new Collision(collision));
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static void InvokeCollisionStay(int handle, NativeCollisionEvent collision) {
+        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+            script.OnCollisionStay(new Collision(collision));
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static void InvokeCollisionExit(int handle, NativeCollisionEvent collision) {
+        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+            script.OnCollisionExit(new Collision(collision));
+        }
+    }
+
     //========================================================================
     //	private Methods
     //========================================================================
@@ -551,4 +572,24 @@ public unsafe struct NativeSerializedFieldInfo {
     public fixed byte displayName[128];
     // 初期値JSON
     public fixed byte defaultValueJson[512];
+}
+
+//============================================================================
+//	NativeCollisionEvent structure
+//============================================================================
+[StructLayout(LayoutKind.Sequential)]
+public struct NativeCollisionEvent {
+
+    // コールバックを受け取るEntityと相手Entity
+    public NativeEntity self;
+    public NativeEntity other;
+    // 接触情報
+    public NativeVector3 normal;
+    public NativeVector3 point;
+    public float penetration;
+    // 衝突した形状インデックス
+    public int selfShapeIndex;
+    public int otherShapeIndex;
+    // Trigger接触なら1
+    public int isTrigger;
 }

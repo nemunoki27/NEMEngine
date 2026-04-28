@@ -64,6 +64,26 @@ namespace Engine {
 		float y = 0.0f;
 	};
 
+	// C#へ渡す衝突情報
+	struct ManagedCollisionEvent {
+
+		// コールバックを受け取るEntityと相手Entity
+		ManagedNativeEntity self{};
+		ManagedNativeEntity other{};
+
+		// 接触情報
+		ManagedVector3 normal{};
+		ManagedVector3 point{};
+		float penetration = 0.0f;
+
+		// 衝突した形状インデックス
+		int32_t selfShapeIndex = 0;
+		int32_t otherShapeIndex = 0;
+
+		// Trigger接触か
+		int32_t isTrigger = 0;
+	};
+
 	// C#と共有するQuaternion
 	struct ManagedQuaternion {
 
