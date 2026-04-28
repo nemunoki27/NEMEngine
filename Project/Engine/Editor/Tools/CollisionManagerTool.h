@@ -23,7 +23,9 @@ namespace Engine {
 
 		// ToolPanel外で毎フレーム必要な処理を行う
 		void Tick(ToolContext& context) override;
-		// ToolPanel内の起動ボタンを描画する
+		// ToolPanelの一覧からツールを開く
+		void OpenEditorTool() override;
+		// CollisionManagerウィンドウを描画する
 		void DrawEditorTool(const EditorToolContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
@@ -49,7 +51,7 @@ namespace Engine {
 		};
 
 		// ウィンドウ表示状態
-		bool openWindow_ = true;
+		bool openWindow_ = false;
 		// シーン上のCollision形状を描画するか
 		bool drawCollisionWorld_ = false;
 

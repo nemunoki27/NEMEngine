@@ -41,3 +41,27 @@
   - 成功、警告0、エラー0。
 - `git diff --check`
   - 空白エラーなし。既存の改行コード警告のみ。
+
+## 2026-04-29 ProjectPanel / ToolPanel挙動修正
+
+### 作業概要
+- ProjectPanel内のフォルダ操作で、InspectorのEntity選択が解除されないように修正。
+- ProjectPanel内のアセット単クリックではInspectorへAsset選択を反映せず、Project内の選択状態だけ更新するように修正。
+- アセットをInspectorへ表示する操作は、アセットのダブルクリック、または右クリックメニューの `Open` のみに限定。
+- ToolPanelは、一覧で選択したツールの詳細UIを右側へ常時表示しない構造へ変更。
+- ToolPanelのツール一覧をダブルクリックしたときだけ、各ツールの独立したImGuiウィンドウを開くように変更。
+- `CollisionManagerTool` は初期状態で閉じておき、`ImGui::Begin("CollisionManager", &openWindow_)` のバツで閉じられるように整理。
+- `LambdaEditorTool` も同じ開閉方式に合わせ、ToolPanel一覧からダブルクリックで開く独立ウィンドウとして扱うようにした。
+
+### 対象ファイル
+- `Project/Engine/Editor/Panel/Methods/ProjectPanel.cpp`
+- `Project/Engine/Editor/Panel/Methods/ToolPanel.cpp`
+- `Project/Engine/Editor/Tools/IEditorTool.h`
+- `Project/Engine/Editor/Tools/LambdaEditorTool.h/.cpp`
+- `Project/Engine/Editor/Tools/CollisionManagerTool.h/.cpp`
+
+### 検証
+- `git diff --check`
+  - 空白エラーなし。改行コード警告のみ。
+- `MSBuild Project\NEMEngine.slnx /t:Sandbox /p:Configuration=Debug /p:Platform=x64 /m`
+  - 成功、警告0、エラー0。

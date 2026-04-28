@@ -38,23 +38,18 @@ namespace {
 		}
 	}
 
-	// 選択中ツールの概要を表示する
-	void DrawToolSummary(const Engine::ITool& tool, const Engine::ToolContext& toolContext) {
+	// ツールの説明ツールチップを表示する
+	void DrawToolTooltip(const Engine::ITool& tool, const Engine::ToolContext& toolContext) {
 
 		const Engine::ToolDescriptor& desc = tool.GetDescriptor();
-		ImGui::TextUnformatted(desc.name.c_str());
-		ImGui::SameLine();
 		ImGui::TextDisabled("[%s]", ToOwnerLabel(desc.owner));
-
 		if (!desc.description.empty()) {
 			ImGui::TextWrapped("%s", desc.description.c_str());
 		}
-
 		if (!tool.IsEnabled(toolContext)) {
-			ImGui::Spacing();
+			ImGui::Separator();
 			ImGui::TextDisabled("This tool is not available in the current mode.");
 		}
-		ImGui::Separator();
 	}
 }
 
@@ -78,11 +73,14 @@ void Engine::ToolPanel::Draw(const EditorPanelContext& context) {
 	std::vector<ITool*> tools = registry.GetTools();
 	ToolContext toolContext = MakeToolContext(context);
 
+	ImGui::SetWindowFontScale(0.72f);
+
 	// まだツールが登録されていない場合は導線だけ表示する
 	if (tools.empty()) {
 
 		ImGui::TextDisabled("No tools registered.");
 		ImGui::TextWrapped("Engine and Game tools can be registered from C++ through ToolRegistry.");
+		ImGui::SetWindowFontScale(1.0f);
 		ImGui::End();
 		return;
 	}
@@ -91,9 +89,8 @@ void Engine::ToolPanel::Draw(const EditorPanelContext& context) {
 		activeToolID_ = tools.front()->GetDescriptor().id;
 	}
 
-	// 左側にカテゴリ付きのツール一覧を表示する
-	const float listWidth = 220.0f;
-	ImGui::BeginChild("##ToolList", ImVec2(listWidth, 0.0f), true);
+	// カテゴリ付きのツール一覧を表示する
+	ImGui::BeginChild("##ToolList", ImVec2(0.0f, 0.0f), true);
 
 	std::string currentCategory;
 	for (ITool* tool : tools) {
@@ -113,37 +110,42 @@ void Engine::ToolPanel::Draw(const EditorPanelContext& context) {
 		}
 
 		const bool selected = activeToolID_ == desc.id;
-		if (ImGui::Selectable(desc.name.c_str(), selected)) {
+		const bool enabled = tool->IsEnabled(toolContext);
+		if (!enabled) {
+			ImGui::BeginDisabled();
+		}
+
+		if (ImGui::Selectable(desc.name.c_str(), selected, ImGuiSelectableFlags_AllowDoubleClick)) {
 			activeToolID_ = desc.id;
 		}
-		if (ImGui::IsItemHovered() && !desc.description.empty()) {
-			ImGui::SetTooltip("%s", desc.description.c_str());
+		if (enabled && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+			// ダブルクリックでツール側の独立ウィンドウを開く
+			if (auto* editorTool = dynamic_cast<IEditorTool*>(tool)) {
+				editorTool->OpenEditorTool();
+			}
+		}
+		const bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
+		if (!enabled) {
+			ImGui::EndDisabled();
+		}
+		if (hovered && ImGui::BeginItemTooltip()) {
+			DrawToolTooltip(*tool, toolContext);
+			ImGui::EndTooltip();
 		}
 	}
 	ImGui::EndChild();
 
-	ImGui::SameLine();
-
-	ImGui::BeginChild("##ToolBody", ImVec2(0.0f, 0.0f), true);
-
-	// 右側に選択中ツールの詳細と編集UIを表示する
-	ITool* activeTool = registry.Find(activeToolID_);
-	if (activeTool) {
-
-		DrawToolSummary(*activeTool, toolContext);
-
-		if (auto* editorTool = dynamic_cast<IEditorTool*>(activeTool)) {
-
-			EditorToolContext editorToolContext{};
-			editorToolContext.panelContext = &context;
-			editorToolContext.toolContext = toolContext;
-			editorTool->DrawEditorTool(editorToolContext);
-		} else {
-
-			ImGui::TextDisabled("This tool has no editor UI.");
-		}
-	}
-	ImGui::EndChild();
+	ImGui::SetWindowFontScale(1.0f);
 
 	ImGui::End();
+
+	// 開いているツールウィンドウはToolPanel本体とは独立して描画する
+	EditorToolContext editorToolContext{};
+	editorToolContext.panelContext = &context;
+	editorToolContext.toolContext = toolContext;
+	for (ITool* tool : tools) {
+		if (auto* editorTool = dynamic_cast<IEditorTool*>(tool)) {
+			editorTool->DrawEditorTool(editorToolContext);
+		}
+	}
 }

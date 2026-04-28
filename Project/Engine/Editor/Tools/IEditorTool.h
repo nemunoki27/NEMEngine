@@ -22,7 +22,9 @@ namespace Engine {
 		IEditorTool() = default;
 		~IEditorTool() override = default;
 
-		// Toolパネル内にツールUIを描画
+		// ToolPanelの一覧からツールを開く
+		virtual void OpenEditorTool() {}
+		// 独立したエディタウィンドウを描画する
 		virtual void DrawEditorTool(const EditorToolContext& context) = 0;
 	};
 } // Engine

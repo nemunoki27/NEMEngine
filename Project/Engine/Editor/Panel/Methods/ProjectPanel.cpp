@@ -341,13 +341,12 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	ImGui::End();
 }
 
-void Engine::ProjectPanel::DrawHeader(const EditorPanelContext& context, AssetDatabase& database) {
+void Engine::ProjectPanel::DrawHeader([[maybe_unused]] const EditorPanelContext& context, AssetDatabase& database) {
 
 	// ルートへ戻る
 	if (ImGui::Button(GetSourceRootPath())) {
 		selectedDirectory_ = assetIndex_.GetRoot().virtualPath;
 		selectedAsset_ = {};
-		context.editorState->ClearSelection();
 	}
 	DrawProjectItemMoveDropTarget(database, assetIndex_.GetRoot().virtualPath);
 
@@ -363,7 +362,6 @@ void Engine::ProjectPanel::DrawHeader(const EditorPanelContext& context, AssetDa
 		if (ImGui::Button(trail[i]->name.c_str())) {
 			selectedDirectory_ = trail[i]->virtualPath;
 			selectedAsset_ = {};
-			context.editorState->ClearSelection();
 		}
 		DrawProjectItemMoveDropTarget(database, trail[i]->virtualPath);
 	}
@@ -402,7 +400,7 @@ void Engine::ProjectPanel::DrawHeader(const EditorPanelContext& context, AssetDa
 	}
 }
 
-void Engine::ProjectPanel::DrawSourceSelector(const EditorPanelContext& context, AssetDatabase& database) {
+void Engine::ProjectPanel::DrawSourceSelector([[maybe_unused]] const EditorPanelContext& context, AssetDatabase& database) {
 
 	auto drawSourceButton = [&](ProjectAssetSource source, const char* label) {
 
@@ -415,7 +413,6 @@ void Engine::ProjectPanel::DrawSourceSelector(const EditorPanelContext& context,
 			assetSource_ = source;
 			selectedDirectory_ = source == ProjectAssetSource::Engine ? "Engine/Assets" : "GameAssets";
 			selectedAsset_ = {};
-			context.editorState->ClearSelection();
 			Rebuild(database);
 		}
 		if (selected) {
@@ -451,15 +448,15 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 		if (ImGui::ImageButton("##FolderButton", thumbnailCache_.GetFolderIconTextureID(), ImVec2(iconSize, iconSize),
 			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), ImVec4(0.16f, 0.16f, 0.16f, 1.0f))) {
 
+			// Project内のフォルダ移動ではInspectorの選択状態を変更しない
 			selectedDirectory_ = child->virtualPath;
 			selectedAsset_ = {};
-			context.editorState->ClearSelection();
 		}
 
 		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+			// ダブルクリックでもInspectorの選択状態は維持する
 			selectedDirectory_ = child->virtualPath;
 			selectedAsset_ = {};
-			context.editorState->ClearSelection();
 		}
 		DrawProjectFileMoveSource(child->virtualPath, true, child->name.c_str());
 
@@ -492,10 +489,11 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 		if (ImGui::ImageButton("##AssetButton", textureID, ImVec2(iconSize, iconSize),
 			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), ImVec4(0.16f, 0.16f, 0.16f, 1.0f))) {
 
+			// 単クリックはProject内の選択だけに留め、Inspectorへは反映しない
 			selectedAsset_ = asset.assetID;
-			context.editorState->SelectAsset(asset.assetID);
 		}
 		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+			// Inspectorへ表示するのはダブルクリック時だけにする
 			selectedAsset_ = asset.assetID;
 			context.editorState->SelectAsset(asset.assetID);
 			HandleAssetDoubleClick(context, asset);
@@ -586,10 +584,10 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 	}
 
 	selectedAsset_ = asset.assetID;
-	context.editorState->SelectAsset(asset.assetID);
 
 	if (ImGui::MenuItem("Open")) {
 
+		context.editorState->SelectAsset(asset.assetID);
 		HandleAssetDoubleClick(context, asset);
 	}
 	if (ImGui::MenuItem("Duplicate")) {

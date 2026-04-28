@@ -235,11 +235,13 @@ void Engine::CollisionManagerTool::Tick(ToolContext& context) {
 	DrawCollisionWorld(*context.world);
 }
 
+void Engine::CollisionManagerTool::OpenEditorTool() {
+
+	openWindow_ = true;
+}
+
 void Engine::CollisionManagerTool::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
 
-	if (ImGui::Button("Open CollisionManager", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-		openWindow_ = true;
-	}
 	if (openWindow_) {
 		DrawWindow();
 	}
