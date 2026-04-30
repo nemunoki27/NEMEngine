@@ -40,6 +40,40 @@ void Engine::LineRenderer2D::DrawRect(const Vector2& center,
 	DrawRect(center, size, Vector2::AnyInit(0.5f), color, thickness);
 }
 
+void Engine::LineRenderer2D::DrawRect(const Vector2& center, const Vector2& size,
+	const Vector2& anchor, float rotationDegrees, const Color4& color, float thickness) {
+
+	// サイズ
+	Vector2 rectSize = size * anchor;
+
+	const float rotationRadians = Math::DegToRad(rotationDegrees);
+	const float cos = std::cos(rotationRadians);
+	const float sin = std::sin(rotationRadians);
+
+	const Vector2 axisX(cos, sin);
+	const Vector2 axisY(-sin, cos);
+	const Vector2 halfX = axisX * rectSize.x;
+	const Vector2 halfY = axisY * rectSize.y;
+
+	// 4頂点座標計算
+	Vector2 topLeft = center - halfX - halfY;
+	Vector2 topRight = center + halfX - halfY;
+	Vector2 bottomRight = center + halfX + halfY;
+	Vector2 bottomLeft = center - halfX + halfY;
+
+	// 4辺のライン描画
+	DrawLine(topLeft, topRight, color, thickness);
+	DrawLine(topRight, bottomRight, color, thickness);
+	DrawLine(bottomRight, bottomLeft, color, thickness);
+	DrawLine(bottomLeft, topLeft, color, thickness);
+}
+
+void Engine::LineRenderer2D::DrawRect(const Vector2& center,
+	const Vector2& size, float rotationDegrees, const Color4& color, float thickness) {
+
+	DrawRect(center, size, Vector2::AnyInit(0.5f), rotationDegrees, color, thickness);
+}
+
 void Engine::LineRenderer2D::DrawCircle(const Vector2& center, float radius,
 	const Color4& color, uint32_t division, float thickness) {
 

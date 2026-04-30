@@ -34,6 +34,8 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 		return DrawTypeMaskField(draft);
 		});
 
+	ImGui::Indent();
+
 	if (!MyGUI::CollapsingHeader("Shapes")) {
 		return;
 	}
@@ -68,6 +70,8 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 		draft.shapes.push_back(CollisionShape{});
 		RequestCommit();
 	}
+
+	ImGui::Unindent();
 }
 
 Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawTypeMaskField(CollisionComponent& component) {
@@ -152,7 +156,7 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeField(Collisi
 	accumulate(InspectorDrawerCommon::DrawCheckboxField("Trigger", shape.isTrigger));
 	accumulate(InspectorDrawerCommon::DrawCheckboxField("Use Transform Rotation", shape.useTransformRotation));
 	accumulate(MyGUI::DragVector3("Offset", shape.offset));
-	accumulate(MyGUI::DragVector3("Rotation", shape.rotationDegrees));
+	accumulate(MyGUI::DragVector3("Rotation", shape.rotationDegrees, { .dragSpeed = 0.1f }));
 
 	// 形状タイプに必要なパラメータだけを表示する
 	if (shape.type == ColliderShapeType::Circle2D || shape.type == ColliderShapeType::Sphere3D) {

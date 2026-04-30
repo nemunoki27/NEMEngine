@@ -409,7 +409,7 @@ void Engine::HierarchyPanel::DrawSiblingDropTarget(const EditorPanelContext& con
 	const std::string id = (insertAfter ? "##SiblingDropAfter" : "##SiblingDropBefore") + ToString(anchorUUID);
 
 	ImGui::PushID(id.c_str());
-	const ImVec2 size(ImGui::GetContentRegionAvail().x, 4.0f);
+	const ImVec2 size(ImGui::GetContentRegionAvail().x, 1.0f);
 	ImGui::InvisibleButton("##SiblingDropLine", size);
 
 	if (ImGui::BeginDragDropTarget()) {

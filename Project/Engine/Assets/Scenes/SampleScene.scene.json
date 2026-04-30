@@ -4,7 +4,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 2
+                    "siblingOrder": 5
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -113,7 +113,7 @@
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 1
+                    "siblingOrder": 2
                 },
                 "Name": {
                     "name": "DirectionalLight"
@@ -148,7 +148,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 3
+                    "siblingOrder": 6
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -241,7 +241,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 4
+                    "siblingOrder": 7
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -334,7 +334,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 5
+                    "siblingOrder": 8
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -427,7 +427,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 6
+                    "siblingOrder": 9
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -531,7 +531,7 @@
                     "siblingOrder": 0
                 },
                 "Name": {
-                    "name": "Camera"
+                    "name": "Camera3D"
                 },
                 "PerspectiveCamera": {
                     "cullingMask": -1,
@@ -683,7 +683,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 3
                 },
                 "Name": {
                     "name": "SpotLigthParent"
@@ -773,7 +773,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 8
+                    "siblingOrder": 10
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -18893,9 +18893,164 @@
                 }
             },
             "LocalFileID": "e92ebbecbab37b1d"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 4
+                },
+                "Name": {
+                    "name": "TestSprite"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "e90b34bf7b9001e3",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SpriteRenderer": {
+                    "blendMode": "Normal",
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "order": 0,
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5
+                    },
+                    "queue": "CanvasPreModel",
+                    "size": {
+                        "x": 32.0,
+                        "y": 32.0
+                    },
+                    "texture": "36762d22cf755749",
+                    "visible": true
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 1662.5,
+                        "y": 205.00009155273438,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 0.9460794925689697,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.3239346444606781
+                    },
+                    "localScale": {
+                        "x": 5.754970073699951,
+                        "y": 5.754970073699951,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "e90b34bf7b9001e3"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "Camera2D"
+                },
+                "OrthographicCamera": {
+                    "cullingMask": -1,
+                    "enabled": true,
+                    "farClip": 1000.0,
+                    "isMain": true,
+                    "nearClip": 0.0,
+                    "priority": 0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "a8cc88ff61d9d6f9",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "a8cc88ff61d9d6f9"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 4
+                },
+                "Name": {
+                    "name": "TestText"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "4be4c799765e77e6",
+                    "visibilityLayerMask": 4294967295
+                },
+                "TextRenderer": {
+                    "blendMode": "Normal",
+                    "charSpacing": 0.0,
+                    "color": {
+                        "a": 1.0,
+                        "b": 0.0,
+                        "g": 1.0,
+                        "r": 0.4684109687805176
+                    },
+                    "font": "82699d49374109f2",
+                    "fontSize": 32.0,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "order": 0,
+                    "queue": "CanvasPreModel",
+                    "text": "Text",
+                    "visible": true
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 1055.000732421875,
+                        "y": 82.49996948242188,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 4.981914043426514,
+                        "y": 4.981914043426514,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "4be4c799765e77e6"
         }
     ],
     "Header": {
+        "collisionSettings": "GameAssets/Collision/SampleScene.collisionSettings.json",
         "guid": "70c5cb8a8ed100be",
         "name": "SampleScene",
         "passOrder": [

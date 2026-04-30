@@ -7,7 +7,6 @@
 #include <Engine/Core/ECS/Component/Builtin/CollisionComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
 #include <Engine/Core/Scene/Header/SceneHeader.h>
-#include <Engine/MathLib/Math.h>
 #include <Engine/MathLib/Matrix4x4.h>
 #include <Engine/MathLib/Quaternion.h>
 #include <Engine/Utility/ImGui/MyGUI.h>
@@ -21,7 +20,6 @@
 
 // c++
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <string>
 
@@ -76,6 +74,13 @@ namespace {
 			Engine::Vector3::TransferNormal(shape.offset, transform.worldMatrix);
 	}
 
+	// 形状の2Dワールド中心を作成する
+	Engine::Vector2 MakeWorldCenter2D(const Engine::CollisionShape& shape, const Engine::TransformComponent& transform) {
+
+		const Engine::Vector3 center = MakeWorldCenter(shape, transform);
+		return Engine::Vector2(center.x, center.y);
+	}
+
 	// 形状に適用する回転行列を作成する
 	Engine::Matrix4x4 MakeShapeRotationMatrix(const Engine::CollisionShape& shape,
 		const Engine::TransformComponent& transform) {
@@ -84,7 +89,18 @@ namespace {
 		if (shape.useTransformRotation) {
 			rotation = rotation * transform.localRotation;
 		}
-		return Engine::Quaternion::MakeRotateMatrix(rotation);
+		return Engine::Quaternion::MakeRotateMatrix(rotation.Normalize());
+	}
+
+	// 形状の2D回転角を取得する
+	float MakeShapeRotationDegrees2D(const Engine::CollisionShape& shape,
+		const Engine::TransformComponent& transform) {
+
+		Engine::Quaternion rotation = Engine::Quaternion::FromEulerDegrees(shape.rotationDegrees);
+		if (shape.useTransformRotation) {
+			rotation = rotation * transform.localRotation;
+		}
+		return Engine::Quaternion::ToEulerDegrees(rotation.Normalize()).z;
 	}
 
 	// Triggerは黄色、通常形状はシアンで表示する
@@ -98,59 +114,33 @@ namespace {
 	void DrawCircle2D(const Engine::CollisionShape& shape,
 		const Engine::TransformComponent& transform, const Engine::Color4& color, float thickness) {
 
-		Engine::LineRenderer3D* renderer = Engine::LineRenderer::GetInstance()->Get3D();
+		Engine::LineRenderer2D* renderer = Engine::LineRenderer::GetInstance()->Get2D();
 		if (!renderer) {
 			return;
 		}
 
 		const Engine::Vector3 scale = AbsVector(ExtractWorldScale(transform));
-		const Engine::Vector3 center = MakeWorldCenter(shape, transform);
 		const float radius = shape.radius * (std::max)(scale.x, scale.y);
-		const uint32_t division = 8;
-
-		// 円周を線分で分割して描画する
-		for (uint32_t i = 0; i < division; ++i) {
-
-			const float angleA = Math::pi * 2.0f * (static_cast<float>(i) / division);
-			const float angleB = Math::pi * 2.0f * (static_cast<float>(i + 1) / division);
-			Engine::Vector3 pointA(center.x + std::cos(angleA) * radius, center.y + std::sin(angleA) * radius, center.z);
-			Engine::Vector3 pointB(center.x + std::cos(angleB) * radius, center.y + std::sin(angleB) * radius, center.z);
-			renderer->DrawLine(pointA, pointB, color, thickness);
-		}
+		renderer->DrawCircle(MakeWorldCenter2D(shape, transform), radius, color, 16, thickness);
 	}
 
 	// Quad2DをXY平面に描画する
 	void DrawQuad2D(const Engine::CollisionShape& shape,
 		const Engine::TransformComponent& transform, const Engine::Color4& color, float thickness) {
 
-		Engine::LineRenderer3D* renderer = Engine::LineRenderer::GetInstance()->Get3D();
+		Engine::LineRenderer2D* renderer = Engine::LineRenderer::GetInstance()->Get2D();
 		if (!renderer) {
 			return;
 		}
 
 		const Engine::Vector3 scale = AbsVector(ExtractWorldScale(transform));
-		const Engine::Vector3 center = MakeWorldCenter(shape, transform);
-		Engine::Vector3 axisX = Engine::Vector3(1.0f, 0.0f, 0.0f);
-		Engine::Vector3 axisY = Engine::Vector3(0.0f, 1.0f, 0.0f);
+		const Engine::Vector2 center = MakeWorldCenter2D(shape, transform);
+		const Engine::Vector2 halfSize(shape.halfSize2D.x * scale.x, shape.halfSize2D.y * scale.y);
 		if (shape.rotatedQuad) {
-
-			// 回転Quadの場合だけ形状回転を反映する
-			const Engine::Matrix4x4 rotation = MakeShapeRotationMatrix(shape, transform);
-			axisX = NormalizeOr(Engine::Vector3::TransferNormal(axisX, rotation), axisX);
-			axisY = NormalizeOr(Engine::Vector3::TransferNormal(axisY, rotation), axisY);
-		}
-
-		const Engine::Vector3 halfX = axisX * (shape.halfSize2D.x * scale.x);
-		const Engine::Vector3 halfY = axisY * (shape.halfSize2D.y * scale.y);
-		std::array<Engine::Vector3, 4> vertices = {
-			center - halfX - halfY,
-			center + halfX - halfY,
-			center + halfX + halfY,
-			center - halfX + halfY,
-		};
-
-		for (uint32_t i = 0; i < static_cast<uint32_t>(vertices.size()); ++i) {
-			renderer->DrawLine(vertices[i], vertices[(i + 1) % vertices.size()], color, thickness);
+			renderer->DrawRect(center, halfSize * 2.0f,
+				MakeShapeRotationDegrees2D(shape, transform), color, thickness);
+		} else {
+			renderer->DrawRect(center, halfSize * 2.0f, color, thickness);
 		}
 	}
 
@@ -259,6 +249,8 @@ void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) 
 	}
 	settings.EnsureLoaded();
 
+	ImGui::SetWindowFontScale(0.64f);
+
 	// 現在開いているシーンが参照するCollision設定ファイルを表示する
 	if (context.toolContext.activeSceneHeader) {
 		ImGui::TextDisabled("Settings: %s", context.toolContext.activeSceneHeader->collisionSettingsPath.c_str());
@@ -274,6 +266,8 @@ void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) 
 	ImGui::Spacing();
 	ImGui::Separator();
 	DrawMatrix();
+
+	ImGui::SetWindowFontScale(0.64f);
 
 	ImGui::End();
 }

@@ -26,6 +26,9 @@ namespace Engine {
 		// アンカー付き/無し矩形
 		void DrawRect(const Vector2& center, const Vector2& size, const Vector2& anchor, const Color4& color, float thickness = 1.0f);
 		void DrawRect(const Vector2& center, const Vector2& size, const Color4& color, float thickness = 1.0f);
+		// 回転あり矩形
+		void DrawRect(const Vector2& center, const Vector2& size, const Vector2& anchor, float rotationDegrees, const Color4& color, float thickness = 1.0f);
+		void DrawRect(const Vector2& center, const Vector2& size, float rotationDegrees, const Color4& color, float thickness = 1.0f);
 
 		// 円
 		void DrawCircle(const Vector2& center, float radius, const Color4& color, uint32_t division = 8, float thickness = 1.0f);

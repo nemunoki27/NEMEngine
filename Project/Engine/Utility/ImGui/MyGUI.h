@@ -33,6 +33,11 @@ namespace Engine {
 		float dragSpeed = 0.01f;    // 編集速度
 		float minValue = -10000.0f; // 最小値
 		float maxValue = 10000.0f;  // 最大値
+
+		// プロパティを閉じるか
+		bool closeOnProperty = true;
+		// 右側に別UIを置くために残す幅
+		float reserveRightWidth = 0.0f;
 	};
 	struct IntEditSetting {
 
@@ -52,6 +57,16 @@ namespace Engine {
 
 		bool submitted = false;
 		bool canceled = false;
+	};
+	// 文字入力設定
+	struct TextEditSetting {
+
+		// 複数行入力にするか
+		bool multiLine = false;
+		// 複数行入力時のサイズ。0以下の場合は既定サイズを使う
+		ImVec2 size = ImVec2(0.0f, 0.0f);
+		// ImGuiの文字入力フラグ
+		ImGuiInputTextFlags flags = ImGuiInputTextFlags_None;
 	};
 	// ビューポートの位置とサイズを表す構造体
 	struct GizmoViewportRect {
@@ -158,7 +173,7 @@ namespace Engine {
 		static bool Checkbox(const char* label, bool& value);
 		static bool SmallCheckbox(const char* id, bool& value);
 		// 入力
-		static ValueEditResult InputText(const char* label, std::string& text);
+		static ValueEditResult InputText(const char* label, std::string& text, const TextEditSetting& setting = TextEditSetting{});
 		// std::stringのコンボボックス
 		static ValueEditResult StringCombo(const char* label, std::string& currentValue,
 			std::span<const std::string> items, const char* emptyPreview = "<None>", bool allowEmptySelection = false);
