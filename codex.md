@@ -65,3 +65,54 @@
   - 空白エラーなし。改行コード警告のみ。
 - `MSBuild Project\NEMEngine.slnx /t:Sandbox /p:Configuration=Debug /p:Platform=x64 /m`
   - 成功、警告0、エラー0。
+
+## 2026-05-01 ECS遅延破棄対応
+
+### 作業概要
+- `ECSWorld::DestroyEntity` を即時破棄から遅延破棄予約へ変更。
+- `EntityRecord::pendingDestroy` と `pendingDestroyEntities_` を追加し、同一Entityの二重予約を防止。
+- `FlushPendingDestroyEntities` で予約済みEntityをまとめて `RemoveSwap` するようにし、Systemの `Update` / `LateUpdate` 中にチャンク構造が壊れないようにした。
+- `SystemScheduler` のフレーム終端、ワールド切り替え、Detach時に遅延破棄をFlushするようにした。
+- エディタのUndo/RedoやHierarchy再構築、シーンUnloadは直後に確定状態が必要なため、サブツリー削除とUnload後に明示的にFlushするようにした。
+- 同じUUIDで再生成されたEntityがある場合に、古いEntityのFlushで新しいUUIDマップを消さないように保護した。
+- `SceneInstanceManager::CollectSceneEntities` の重複チェックを線形探索からEntityキーの `unordered_set` に変更し、シーン保存/Unload時の収集処理がEntity数増加でO(n^2)になりにくいようにした。
+
+### 参考にした公式情報
+- Unity `Object.Destroy` は実破棄が現在のUpdate後、描画前に遅延される。
+- Unity Entities `EntityCommandBuffer` は構造変更をキューして後でPlaybackする用途で使われる。
+
+### 対象ファイル
+- `Project/Engine/Core/ECS/World/ECSWorld.h/.cpp`
+- `Project/Engine/Core/ECS/System/Scheduler/SystemScheduler.cpp`
+- `Project/Engine/Editor/Command/EditorEntitySnapshot.cpp`
+- `Project/Engine/Core/Scene/Instance/SceneInstanceManager.cpp`
+
+### 検証
+- `MSBuild Project\NEMEngine.slnx /t:Sandbox /p:Configuration=Debug /p:Platform=x64 /m /nodeReuse:false`
+  - 成功、警告0、エラー0。
+- `git diff --check`
+  - 空白エラーなし。既存と同様の改行コード警告のみ。
+
+## 2026-05-01 描画処理最適化
+
+### 作業概要
+- `RenderPipelineRunner` でビューごとの `RenderPassPhaseBuckets` を1回だけ構築し、スキニング前処理とシーン実行へ共有するように変更。
+- 可視メッシュアセット収集で `RenderPassPhaseBuckets` を作らず、`RenderSceneBatch` を直接走査してメッシュIDだけを集めるように変更。
+- `RenderPassPhaseBuckets::Find(const std::string&)` を追加し、パス設定の `std::string` から検索する時の一時 `std::string` 生成を避けた。
+- `RenderSceneBatch` と `RenderPayloadArena` に `Reserve` を追加し、描画アイテム抽出時のフレーム中再確保を抑えるようにした。
+- `ScenePassExecutor` と `RenderItemBatchDispatcher` のRenderTarget/Surface参照にnullガードを追加し、無効なRenderTarget設定でクラッシュしにくくした。
+
+### 対象ファイル
+- `Project/Engine/Core/Graphics/Render/RenderPipelineRunner.cpp`
+- `Project/Engine/Core/Graphics/Render/Pass/ScenePassExecutor.h/.cpp`
+- `Project/Engine/Core/Graphics/Render/Pass/RenderItemBatchDispatcher.cpp`
+- `Project/Engine/Core/Graphics/Render/Queue/RenderPassItemCollector.h/.cpp`
+- `Project/Engine/Core/Graphics/Render/Queue/RenderQueue.h/.cpp`
+- `Project/Engine/Core/Graphics/Render/Queue/RenderPayloadArena.h/.cpp`
+- `Project/Engine/Core/Graphics/Render/Backend/Registry/RenderExtractorRegistry.cpp`
+
+### 検証
+- `MSBuild Project\NEMEngine.slnx /t:Sandbox /p:Configuration=Debug /p:Platform=x64 /m /nodeReuse:false`
+  - 成功、警告0、エラー0。
+- `git diff --check`
+  - 空白エラーなし。既存と同様の改行コード警告のみ。

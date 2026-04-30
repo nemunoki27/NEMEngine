@@ -49,7 +49,8 @@ namespace Engine {
 		~ScenePassExecutor() = default;
 
 		// シーン描画の実行
-		void ExecuteScene(GraphicsCore& graphicsCore, const RenderFrameRequest& request, const SceneExecutionContext& context);
+		void ExecuteScene(GraphicsCore& graphicsCore, const RenderFrameRequest& request,
+			const SceneExecutionContext& context, const RenderPassPhaseBuckets* prebuiltPassBuckets = nullptr);
 
 		// フルスクリーンマテリアルの実行
 		bool ExecuteFullscreenMaterial(GraphicsCore& graphicsCore, const SceneExecutionContext& context, MultiRenderTarget* source,

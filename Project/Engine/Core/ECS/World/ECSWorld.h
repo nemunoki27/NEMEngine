@@ -29,6 +29,7 @@ namespace Engine {
 
 		uint32_t generation = 0;
 		bool alive = false;
+		bool pendingDestroy = false;
 
 		// シーン側の永続UUID
 		UUID uuid{};
@@ -56,8 +57,10 @@ namespace Engine {
 
 		// エンティティの作成
 		Entity CreateEntity(UUID stableUUID = UUID{});
-		// エンティティの破棄
+		// エンティティの破棄をフレーム終端へ予約
 		void DestroyEntity(const Entity& entity);
+		// 予約済みの破棄をまとめて実行
+		void FlushPendingDestroyEntities();
 
 		//========================================================================
 		//	コンポーネントに対して行う操作
@@ -92,6 +95,8 @@ namespace Engine {
 
 		// エンティティが存在するか
 		bool IsAlive(const Entity& entity) const;
+		// フレーム終端で破棄される予定か
+		bool IsPendingDestroy(const Entity& entity) const;
 		// エンティティのUUIDを返す
 		UUID GetUUID(const Entity& entity) const;
 		// UUIDからエンティティを検索する
@@ -118,6 +123,8 @@ namespace Engine {
 		std::vector<EntityRecord> records_;
 		// 破棄されたエンティティIDの再利用のための空きIDのスタック
 		std::vector<uint32_t> free_;
+		// フレーム終端でまとめて破棄するエンティティ
+		std::vector<Entity> pendingDestroyEntities_;
 		// シーン側の永続UUIDからエンティティIDへのマップ
 		std::unordered_map<UUID, Entity> uuidToEntity_;
 
@@ -133,6 +140,8 @@ namespace Engine {
 		uint32_t AllocateIndex();
 		// エンティティが存在することを確認する。存在しない場合はアサート
 		void AssertAlive(const Entity& entity) const;
+		// エンティティを即時破棄する本体。FlushPendingDestroyEntitiesからのみ呼び出す
+		void DestroyEntityImmediate(const Entity& entity);
 
 		// エンティティが所属するArchetypeを移動する本体
 		void MigrateEntity(const Entity& entity, const EntitySignature& oldSignature, const EntitySignature& newSignature);

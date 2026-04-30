@@ -120,6 +120,8 @@ namespace Engine {
 		void Add(RenderItem&& item);
 		// 描画アイテムのクリア
 		void Clear();
+		// フレーム中に追加される描画アイテムとペイロードの容量を事前に確保
+		void Reserve(uint32_t itemCount, uint32_t payloadByteCount);
 		// 描画アイテムのソート
 		void Sort();
 

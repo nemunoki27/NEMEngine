@@ -71,7 +71,8 @@ namespace {
 	void PreDispatchVisibleMeshSkinning(Engine::GraphicsCore& graphicsCore, const Engine::SceneHeader& header,
 		const Engine::SceneExecutionContext& context, const Engine::RenderSceneBatch& renderBatch,
 		Engine::RenderBackendRegistry& backendRegistry, Engine::RenderAssetLibrary& assetLibrary,
-		Engine::PipelineStateCache& pipelineCache, Engine::MaterialResolver& materialResolver) {
+		Engine::PipelineStateCache& pipelineCache, Engine::MaterialResolver& materialResolver,
+		const Engine::RenderPassPhaseBuckets& passBuckets) {
 
 		// メッシュ描画クラスを取得
 		auto* baseBackend = backendRegistry.Find(Engine::RenderBackendID::Mesh);
@@ -79,11 +80,6 @@ namespace {
 		if (!meshBackend || !context.view || !context.sceneInstance) {
 			return;
 		}
-
-		Engine::RenderPassPhaseBuckets passBuckets{};
-		// ビューとシーンに対して、描画パスのバケットを構築する
-		Engine::RenderPassItemCollector::BuildBucketsForViewAndScene(
-			renderBatch, *context.view, context.sceneInstance->instanceID, passBuckets);
 
 		// 描画コンテキストの構築
 		Engine::RenderDrawContext drawContext{};
@@ -159,23 +155,29 @@ namespace {
 		Engine::UUID sceneInstanceID, const Engine::ResolvedRenderView& view,
 		std::unordered_set<Engine::AssetID>& outMeshAssets) {
 
-		Engine::RenderPassPhaseBuckets passBuckets{};
-		Engine::RenderPassItemCollector::BuildBucketsForViewAndScene(renderBatch, view, sceneInstanceID, passBuckets);
-		for (const auto& [phase, itemList] : passBuckets.phaseToItems) {
-			for (const Engine::RenderItem* item : itemList.items) {
+		if (!view.valid) {
+			return;
+		}
+		for (const Engine::RenderItem& item : renderBatch.GetItems()) {
 
-				if (!item || item->backendID != Engine::RenderBackendID::Mesh) {
-					continue;
-				}
-
-				const Engine::MeshRenderPayload* payload = renderBatch.GetPayload<Engine::MeshRenderPayload>(*item);
-
-				if (!payload || !payload->mesh) {
-					continue;
-				}
-				// メッシュアセットIDを収集
-				outMeshAssets.insert(payload->mesh);
+			if (sceneInstanceID && item.sceneInstanceID != sceneInstanceID) {
+				continue;
 			}
+			if (item.backendID != Engine::RenderBackendID::Mesh) {
+				continue;
+			}
+
+			const Engine::ResolvedCameraView* camera = view.FindCamera(item.cameraDomain);
+			if (!camera || (item.visibilityLayerMask & camera->cullingMask) == 0) {
+				continue;
+			}
+
+			const Engine::MeshRenderPayload* payload = renderBatch.GetPayload<Engine::MeshRenderPayload>(item);
+			if (!payload || !payload->mesh) {
+				continue;
+			}
+			// メッシュアセットIDを収集
+			outMeshAssets.insert(payload->mesh);
 		}
 	}
 }
@@ -372,10 +374,14 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 			return;
 		}
 
+		RenderPassPhaseBuckets passBuckets{};
+		RenderPassItemCollector::BuildBucketsForViewAndScene(
+			renderBatch_, view, context.sceneInstance->instanceID, passBuckets);
+
 		// スキニングメッシュの頂点更新
 		if (meshBackend) {
 			PreDispatchVisibleMeshSkinning(graphicsCore, context.sceneInstance->header, context,
-				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_);
+				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 
 			// レイトレーシングシーンの構築
 			raytracingSceneBuilder_.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, renderBatch_, context);
@@ -400,7 +406,7 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 		}
 
 		// シーンの実行
-		executor.ExecuteScene(graphicsCore, request, context);
+		executor.ExecuteScene(graphicsCore, request, context, &passBuckets);
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		if (kind == RenderViewKind::Scene && context.defaultSurface) {
@@ -421,6 +427,9 @@ bool Engine::RenderPipelineRunner::PresentViewToBackBuffer(
 	// 指定された種類の描画ビューのサーフェスを取得
 	MultiRenderTarget* source = viewportRenderService_->GetSurface(kind);
 	AssetDatabase* assetDatabase = renderAssetLibrary_.GetDatabase();
+	if (!source || !source->GetColorTexture(0) || !assetDatabase) {
+		return false;
+	}
 
 	// フルスクリーンコピー用のマテリアルを取得して読み込む
 	AssetID resolvedMaterialID = materialResolver_.ResolveORDefault(*assetDatabase, material, DefaultMaterialSlot::FullscreenCopy);
