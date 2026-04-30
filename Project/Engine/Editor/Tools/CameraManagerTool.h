@@ -44,7 +44,7 @@ namespace Engine {
 			.category = "Camera",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::EditOnly,
-			.order = 0,
+			.order = 1,
 		};
 
 		// ウィンドウ表示状態

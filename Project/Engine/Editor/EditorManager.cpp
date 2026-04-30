@@ -10,6 +10,7 @@
 #include <Engine/Core/Graphics/Line/LineRenderer.h>
 #include <Engine/Core/ECS/Component/Builtin/NameComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/HierarchyComponent.h>
+#include <Engine/Core/Tools/ToolRegistry.h>
 #include <Engine/Editor/Command/EditorEntityDuplicateUtility.h>
 #include <Engine/Editor/Command/Methods/CreateEntityCommand.h>
 #include <Engine/Editor/Command/Methods/DeleteEntityCommand.h>
@@ -77,12 +78,11 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	requestOpenUnsavedPopup_ = false;
 	activeSceneDirty_ = false;
 
-	// シーンビュー用のエディタカメラの状態を初期化
-	sceneViewCameraController_ = std::make_unique<SceneViewCameraController>();
-	sceneViewCameraController_->MakeDefaultState();
-
 	// エディタ標準ツールの登録
 	RegisterBuiltinEditorTools();
+	// シーンビューカメラツールを取得
+	sceneViewCameraController_ = static_cast<SceneViewCameraController*>(
+		Engine::ToolRegistry::GetInstance().Find("engine.sceneViewCamera"));
 
 	// 各パネルの生成と登録
 	panels_.emplace_back(std::make_unique<MenuBarPanel>());

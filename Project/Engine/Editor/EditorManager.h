@@ -150,7 +150,7 @@ namespace Engine {
 		const EditorContext* currentRenderContext_ = nullptr;
 
 		// シーンビュー用のエディタカメラ
-		std::unique_ptr<SceneViewCameraController> sceneViewCameraController_ = nullptr;
+		SceneViewCameraController* sceneViewCameraController_ = nullptr;
 
 		// シーンビューのメッシュピック処理
 		std::unique_ptr<MeshSubMeshPicker> meshSubMeshPicker_{};

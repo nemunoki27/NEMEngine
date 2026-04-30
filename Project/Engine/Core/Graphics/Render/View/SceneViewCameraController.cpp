@@ -25,6 +25,11 @@ namespace {
 	const std::string kCameraJsonPath = "Config/initExeData.exeConfig.json";
 }
 
+Engine::SceneViewCameraController::SceneViewCameraController() {
+
+	MakeDefaultState();
+}
+
 Engine::SceneViewCameraController::~SceneViewCameraController() {
 
 	// カメラを閉じた瞬間の状態を保存する
@@ -178,3 +183,51 @@ void Engine::SceneViewCameraController::Update3D() {
 }
 
 void Engine::SceneViewCameraController::Update2D() {}
+
+void Engine::SceneViewCameraController::OpenEditorTool() {
+
+	openWindow_ = true;
+}
+
+void Engine::SceneViewCameraController::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
+
+	if (openWindow_) {
+
+		if (!ImGui::Begin("SceneViewCamera", &openWindow_)) {
+			ImGui::End();
+			return;
+		}
+
+		ImGui::SetWindowFontScale(0.64f);
+
+		ImGui::SeparatorText("2D");
+		{
+			ImGui::PushID("SceneViewCamera2D");
+
+			ImGui::PopID();
+		}
+		ImGui::SeparatorText("3D");
+		{
+			ImGui::PushID("SceneViewCamera3D");
+
+			// パラメータリセット
+			if (ImGui::Button("Reset Camera")) {
+				cameraState_.perspectiveFovY = Math::RadToDeg(0.54f);
+				cameraState_.perspectiveNearClip = 0.1f;
+				cameraState_.perspectiveFarClip = 4000.0f;
+				cameraState_.perspectiveCullingMask = -1;
+			}
+
+			ImGui::DragFloat("perspectiveFovY", &cameraState_.perspectiveFovY, 0.1f, 1.0f, 179.0f);
+			ImGui::DragFloat("perspectiveNearClip", &cameraState_.perspectiveNearClip, 0.01f);
+			ImGui::DragFloat("perspectiveFarClip", &cameraState_.perspectiveFarClip, 1.0f);
+			ImGui::DragInt("perspectiveCullingMask", &cameraState_.perspectiveCullingMask);
+
+			ImGui::PopID();
+		}
+
+		ImGui::SetWindowFontScale(1.0f);
+
+		ImGui::End();
+	}
+}
