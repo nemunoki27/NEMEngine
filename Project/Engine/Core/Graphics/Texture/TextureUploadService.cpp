@@ -102,11 +102,12 @@ namespace {
 	}
 }
 
-void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor) {
+void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor, ID3D12CommandQueue* graphicsQueue) {
 
 	Finalize();
 
 	device_ = device;
+	graphicsQueue_ = graphicsQueue;
 	srvDescriptor_ = srvDescriptor;
 
 	uploadCommand_ = std::make_unique<DxUploadCommand>();
@@ -261,6 +262,7 @@ void Engine::TextureUploadService::Finalize() {
 
 	uploadCommand_.reset();
 	srvDescriptor_ = nullptr;
+	graphicsQueue_ = nullptr;
 	device_ = nullptr;
 }
 
@@ -401,7 +403,7 @@ Engine::GPUTextureResource Engine::TextureUploadService::UploadSolidColor1x1(
 	commandList->ResourceBarrier(1, &barrier);
 
 	// コマンドを実行する
-	uploadCommand_->ExecuteCommands();
+	uploadCommand_->ExecuteCommands(graphicsQueue_);
 
 	// SRVを作成する
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
@@ -498,7 +500,7 @@ Engine::GPUTextureResource Engine::TextureUploadService::UploadScratchImage(
 	commandList->ResourceBarrier(1, &barrier);
 
 	// コマンドを実行する
-	uploadCommand_->ExecuteCommands();
+	uploadCommand_->ExecuteCommands(graphicsQueue_);
 
 	// SRVを作成する
 	const D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = BuildSRVDesc(meta);

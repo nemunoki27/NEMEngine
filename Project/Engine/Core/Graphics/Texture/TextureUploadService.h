@@ -55,7 +55,7 @@ namespace Engine {
 		~TextureUploadService() = default;
 
 		// 初期化
-		void Init(ID3D12Device* device, SRVDescriptor* srvDescriptor);
+		void Init(ID3D12Device* device, SRVDescriptor* srvDescriptor, ID3D12CommandQueue* graphicsQueue);
 
 		// 毎フレーム主スレッド更新
 		void TickFinalize();
@@ -99,6 +99,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		ID3D12Device* device_ = nullptr;
+		ID3D12CommandQueue* graphicsQueue_ = nullptr;
 		SRVDescriptor* srvDescriptor_ = nullptr;
 		std::unique_ptr<DxUploadCommand> uploadCommand_;
 

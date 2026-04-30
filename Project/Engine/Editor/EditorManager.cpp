@@ -28,7 +28,7 @@
 #include <Engine/Editor/Panel/Methods/ViewportPanel.h>
 #include <Engine/Editor/Panel/Methods/SceneViewToolPanel.h>
 #include <Engine/Editor/Panel/Methods/ToolPanel.h>
-#include <Engine/Editor/Tools/CollisionManagerTool.h>
+#include <Engine/Editor/Tools/BuiltinEditorTools.h>
 
 // imgui
 #include <ImGuizmo.h>

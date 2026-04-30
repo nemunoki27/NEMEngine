@@ -66,7 +66,5 @@ namespace Engine {
 	};
 
 #define ENGINE_REGISTER_TOOL(T) \
-	namespace { \
-		const bool kRegisteredTool_##T = Engine::ToolRegistry::GetInstance().Register(std::make_unique<T>()); \
-	}
+	inline const bool kRegisteredTool_##T = Engine::ToolRegistry::GetInstance().Register(std::make_unique<T>());
 } // Engine

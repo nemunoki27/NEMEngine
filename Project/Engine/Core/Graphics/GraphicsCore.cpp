@@ -33,7 +33,7 @@ void Engine::GraphicsCore::Init() {
 
 	// テクスチャ関連の初期化
 	textureUploadService_ = std::make_unique<TextureUploadService>();
-	textureUploadService_->Init(device, srvDescriptor_.get());
+	textureUploadService_->Init(device, srvDescriptor_.get(), graphicsPlatform_->GetDxCommand()->GetQueue());
 	builtinTextureLibrary_ = std::make_unique<BuiltinTextureLibrary>();
 	builtinTextureLibrary_->Init(*textureUploadService_);
 }

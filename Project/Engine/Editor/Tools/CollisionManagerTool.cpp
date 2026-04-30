@@ -6,7 +6,6 @@
 #include <Engine/Core/Collision/CollisionSettings.h>
 #include <Engine/Core/ECS/Component/Builtin/CollisionComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
-#include <Engine/Core/Tools/ToolRegistry.h>
 #include <Engine/MathLib/Math.h>
 #include <Engine/MathLib/Matrix4x4.h>
 #include <Engine/MathLib/Quaternion.h>
@@ -23,7 +22,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <memory>
 #include <string>
 
 //============================================================================
@@ -107,7 +105,7 @@ namespace {
 		const Engine::Vector3 scale = AbsVector(ExtractWorldScale(transform));
 		const Engine::Vector3 center = MakeWorldCenter(shape, transform);
 		const float radius = shape.radius * (std::max)(scale.x, scale.y);
-		const uint32_t division = 32;
+		const uint32_t division = 8;
 
 		// 円周を線分で分割して描画する
 		for (uint32_t i = 0; i < division; ++i) {
@@ -166,7 +164,7 @@ namespace {
 
 		const Engine::Vector3 scale = AbsVector(ExtractWorldScale(transform));
 		const float radius = shape.radius * (std::max)({ scale.x, scale.y, scale.z });
-		renderer->DrawSphere(MakeWorldCenter(shape, transform), radius, color, 16, thickness);
+		renderer->DrawSphere(MakeWorldCenter(shape, transform), radius, color, 8, thickness);
 	}
 
 	// AABB3Dを描画する
@@ -376,9 +374,4 @@ void Engine::CollisionManagerTool::DrawCollisionWorld(ECSWorld& world) const {
 #else
 	(void)world;
 #endif
-}
-
-void Engine::RegisterBuiltinEditorTools() {
-
-	ToolRegistry::GetInstance().Register(std::make_unique<CollisionManagerTool>());
 }

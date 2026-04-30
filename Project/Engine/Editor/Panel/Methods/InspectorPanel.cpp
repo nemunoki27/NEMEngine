@@ -22,6 +22,7 @@
 #include <Engine/Core/ECS/Component/Builtin/Render/TextRendererComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/CameraComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/CameraControllerComponent.h>
 #include <Engine/Editor/Command/Methods/SetEntityActiveCommand.h>
 #include <Engine/Editor/Inspector/Methods/Common/InspectorDrawerCommon.h>
 #include <Engine/Utility/ImGui/MyGUI.h>
@@ -34,6 +35,7 @@
 #include <Engine/Editor/Inspector/Methods/UVTransformInspectorDrawer.h>
 #include <Engine/Editor/Inspector/Methods/ScriptInspectorDrawer.h>
 #include <Engine/Editor/Inspector/Methods/CameraInspectorDrawer.h>
+#include <Engine/Editor/Inspector/Methods/CameraControllerInspectorDrawer.h>
 #include <Engine/Editor/Inspector/Methods/Render/SpriteRendererInspectorDrawer.h>
 #include <Engine/Editor/Inspector/Methods/Render/MeshRendererInspectorDrawer.h>
 #include <Engine/Editor/Inspector/Methods/Render/TextRendererInspectorDrawer.h>
@@ -64,10 +66,11 @@ namespace {
 		const char* typeName;
 	};
 	// 追加できるコンポーネントのメニューエントリー
-	constexpr std::array<InspectorComponentMenuEntry, 13> kOptionalComponentMenuEntries = { {
+	constexpr std::array<InspectorComponentMenuEntry, 14> kOptionalComponentMenuEntries = { {
 
 		{ "PerspectiveCamera",  "PerspectiveCamera" },
 		{ "OrthographicCamera", "OrthographicCamera" },
+		{ "Camera Controller",  "CameraController" },
 		{ "Script",             "Script" },
 		{ "Audio Source",       "AudioSource" },
 		{ "Collision",          "Collision" },
@@ -287,6 +290,7 @@ Engine::InspectorPanel::InspectorPanel() {
 	componentDrawers_.emplace_back(std::make_unique<TransformInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<OrthographicCameraInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<PerspectiveCameraInspectorDrawer>());
+	componentDrawers_.emplace_back(std::make_unique<CameraControllerInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<SpriteRendererInspectorDrawer>());
 	{
 		auto meshDrawer = std::make_unique<MeshRendererInspectorDrawer>();

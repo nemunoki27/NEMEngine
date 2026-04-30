@@ -8,24 +8,22 @@
 namespace Engine {
 
 	//============================================================================
-	//	CollisionManagerTool class
-	//	Collisionタイプと衝突マトリクスを編集するツール
+	//	CameraManagerTool class
+	//	ゲーム用カメラの作成と初期設定を行うツール
 	//============================================================================
-	class CollisionManagerTool :
+	class CameraManagerTool :
 		public IEditorTool {
 	public:
 		//========================================================================
 		//	public Methods
 		//========================================================================
 
-		CollisionManagerTool() = default;
-		~CollisionManagerTool() override = default;
+		CameraManagerTool() = default;
+		~CameraManagerTool() override = default;
 
-		// ToolPanel外で毎フレーム必要な処理を行う
-		void Tick(ToolContext& context) override;
 		// ToolPanelの一覧からツールを開く
 		void OpenEditorTool() override;
-		// CollisionManagerウィンドウを描画する
+		// CameraManagerウィンドウを描画する
 		void DrawEditorTool(const EditorToolContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
@@ -41,29 +39,33 @@ namespace Engine {
 
 		// ToolPanelへ登録する情報
 		ToolDescriptor descriptor_{
-			.id = "engine.collision_manager",
-			.name = "CollisionManager",
-			.category = "Physics",
-			.description = "Edit collision types and collision matrix.",
+			.id = "engine.camera_manager",
+			.name = "CameraManager",
+			.category = "Camera",
+			.description = "Create and setup gameplay cameras.",
 			.owner = ToolOwner::Engine,
-			.flags = ToolFlags::AllowPlayMode,
-			.order = 50,
+			.flags = ToolFlags::EditOnly,
+			.order = 40,
 		};
 
 		// ウィンドウ表示状態
 		bool openWindow_ = false;
-		// シーン上のCollision形状を描画するか
-		bool drawCollisionWorld_ = false;
 
 		//--------- functions ----------------------------------------------------
 
-		// CollisionManagerウィンドウを描画する
-		void DrawWindow();
-		// Collisionタイプ一覧を描画する
-		void DrawTypes();
-		// Collisionタイプ同士の衝突マトリクスを描画する
-		void DrawMatrix();
-		// World内のCollision形状をLineRendererで描画する
-		void DrawCollisionWorld(ECSWorld& world) const;
+		// CameraManagerウィンドウを描画する
+		void DrawWindow(const EditorToolContext& context);
+		// 選択中Entityをターゲットとして取得する
+		UUID GetSelectedTargetUUID(const EditorToolContext& context) const;
+		// 2D追従カメラを作成する
+		void Create2DFollowCamera(const EditorToolContext& context);
+		// 3D追従カメラを作成する
+		void Create3DFollowCamera(const EditorToolContext& context);
+		// 3D注視カメラを作成する
+		void Create3DLookAtCamera(const EditorToolContext& context);
+		// 選択中EntityへCameraControllerを追加する
+		void AddControllerToSelected(const EditorToolContext& context);
+		// 選択中カメラをSceneViewに割り当てる
+		void AssignSelectedCameraToSceneView(const EditorToolContext& context);
 	};
 } // Engine

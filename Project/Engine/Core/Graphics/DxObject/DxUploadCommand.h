@@ -29,7 +29,7 @@ public:
 	void Create(ID3D12Device* device);
 
 	// 転送用コマンドをキューへ提出し完了させる
-	void ExecuteCommands();
+	void ExecuteCommands(ID3D12CommandQueue* waitQueue = nullptr);
 
 	//--------- accessor -----------------------------------------------------
 
