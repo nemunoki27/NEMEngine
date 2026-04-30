@@ -6,6 +6,7 @@
 #include <Engine/Core/Graphics/Pipeline/PipelineState.h>
 #include <Engine/Core/Graphics/Line/LineRenderer.h>
 #include <Engine/Core/Build/BuildConfig.h>
+#include <Engine/Core/Collision/CollisionSettings.h>
 #include <Engine/Core/Scripting/ManagedScriptRuntime.h>
 #include <Engine/Core/Tools/ToolRegistry.h>
 #include <Engine/Audio/Audio.h>
@@ -196,6 +197,14 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	const SceneHeader* header = GetActiveSceneHeader();
 	SceneInstanceManager& activeScenes = GetActiveScenes();
 	const SceneInstance* activeSceneInstance = activeScenes.GetActive();
+
+	// シーンごとのCollision設定を、Editor/Play共通の現在設定へ反映する
+	systemContext_.activeSceneHeader = header;
+	if (header) {
+		CollisionSettings::GetInstance().SetActiveSettingsAssetPath(header->collisionSettingsPath);
+	} else {
+		CollisionSettings::GetInstance().SetActiveSettingsAssetPath("");
+	}
 
 	if constexpr (BuildConfig::kEditorEnabled) {
 

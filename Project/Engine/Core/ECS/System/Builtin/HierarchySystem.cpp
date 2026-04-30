@@ -7,6 +7,9 @@
 #include <Engine/Core/ECS/Component/Builtin/HierarchyComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
 
+// c++
+#include <algorithm>
+
 //============================================================================
 //	HierarchySystem classMethods
 //============================================================================
@@ -32,6 +35,43 @@ namespace {
 			sceneObject.localFileID = Engine::UUID::New();
 		}
 		return sceneObject;
+	}
+
+	// 保存されている兄弟順に合わせて親の子リンクを並べ直す
+	void SortChildLinksBySiblingOrder(Engine::ECSWorld& world, const Engine::Entity& parent) {
+
+		if (!world.IsAlive(parent) || !world.HasComponent<Engine::HierarchyComponent>(parent)) {
+			return;
+		}
+
+		auto& parentHierarchy = world.GetComponent<Engine::HierarchyComponent>(parent);
+		std::vector<Engine::Entity> children;
+		for (Engine::Entity child = parentHierarchy.firstChild; child.IsValid() && world.IsAlive(child);) {
+
+			children.emplace_back(child);
+			if (!world.HasComponent<Engine::HierarchyComponent>(child)) {
+				break;
+			}
+			child = world.GetComponent<Engine::HierarchyComponent>(child).nextSibling;
+		}
+		if (children.size() < 2) {
+			return;
+		}
+
+		std::stable_sort(children.begin(), children.end(), [&](const Engine::Entity& lhs, const Engine::Entity& rhs) {
+			return world.GetComponent<Engine::HierarchyComponent>(lhs).siblingOrder <
+				world.GetComponent<Engine::HierarchyComponent>(rhs).siblingOrder;
+			});
+
+		parentHierarchy.firstChild = children.front();
+		parentHierarchy.lastChild = children.back();
+		for (size_t i = 0; i < children.size(); ++i) {
+
+			auto& childHierarchy = world.GetComponent<Engine::HierarchyComponent>(children[i]);
+			childHierarchy.prevSibling = (i == 0) ? Engine::Entity::Null() : children[i - 1];
+			childHierarchy.nextSibling = (i + 1 < children.size()) ? children[i + 1] : Engine::Entity::Null();
+			childHierarchy.siblingOrder = static_cast<int32_t>(i);
+		}
 	}
 }
 
@@ -125,6 +165,11 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 			world.AddComponent<HierarchyComponent>(parent);
 		}
 		AttachLast(world, entity, parent);
+	}
+
+	for (const auto& entity : scope) {
+
+		SortChildLinksBySiblingOrder(world, entity);
 	}
 
 	// 階層内のアクティブをルート以下で再計算する

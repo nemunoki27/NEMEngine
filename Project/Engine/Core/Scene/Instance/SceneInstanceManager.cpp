@@ -200,6 +200,11 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 
 			FromJson(scene["Header"], instance.header, &database);
 		}
+		{
+			// 旧スナップショットなどで設定パスがない場合は、シーンごとの既定パスを補完する
+			const std::filesystem::path scenePath = database.ResolveFullPath(instance.sceneAsset);
+			EnsureSceneCollisionSettingsPath(instance.header, scenePath.string());
+		}
 
 		// エンティティ情報を読み込む
 		nlohmann::json entityData = nlohmann::json::object();

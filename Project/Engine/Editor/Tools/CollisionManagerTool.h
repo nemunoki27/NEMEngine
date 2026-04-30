@@ -44,10 +44,9 @@ namespace Engine {
 			.id = "engine.collision_manager",
 			.name = "CollisionManager",
 			.category = "Physics",
-			.description = "Edit collision types and collision matrix.",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::AllowPlayMode,
-			.order = 50,
+			.order = 0,
 		};
 
 		// ウィンドウ表示状態
@@ -58,7 +57,7 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// CollisionManagerウィンドウを描画する
-		void DrawWindow();
+		void DrawWindow(const EditorToolContext& context);
 		// Collisionタイプ一覧を描画する
 		void DrawTypes();
 		// Collisionタイプ同士の衝突マトリクスを描画する

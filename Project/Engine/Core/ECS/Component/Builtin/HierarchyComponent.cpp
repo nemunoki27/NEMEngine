@@ -8,6 +8,7 @@ void Engine::from_json(const nlohmann::json& in, HierarchyComponent& component) 
 
 	std::string parentLocalFileID = in.value("parentLocalFileID", "");
 	component.parentLocalFileID = parentLocalFileID.empty() ? UUID{} : FromString16Hex(parentLocalFileID);
+	component.siblingOrder = in.value("siblingOrder", 0);
 
 	// ランタイム実行用のエンティティはシリアライズされないため、初期化しておく
 	component.parent = Entity::Null();
@@ -19,4 +20,5 @@ void Engine::from_json(const nlohmann::json& in, HierarchyComponent& component) 
 void Engine::to_json(nlohmann::json& out, const HierarchyComponent& component) {
 
 	out["parentLocalFileID"] = component.parentLocalFileID ? ToString(component.parentLocalFileID) : "";
+	out["siblingOrder"] = component.siblingOrder;
 }

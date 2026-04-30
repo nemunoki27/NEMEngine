@@ -11,7 +11,7 @@
 
 namespace {
 
-	// Project直下に保存するCollision設定ファイル
+	// GameProjectのGameAssets配下に保存するCollision設定ファイル
 	constexpr const char* kSettingsRelativePath = "GameAssets/Collision/collisionSettings.json";
 }
 
@@ -34,7 +34,9 @@ void Engine::CollisionSettings::EnsureLoaded() {
 
 void Engine::CollisionSettings::Load() {
 
-	settingsPath_ = ResolveSettingsPath();
+	if (settingsPath_.empty()) {
+		settingsPath_ = ResolveSettingsPath();
+	}
 	ResetDefault();
 
 	// 設定ファイルが存在する場合のみ、デフォルト設定を上書きする
@@ -98,6 +100,23 @@ void Engine::CollisionSettings::Save() const {
 		data["matrixRows"].push_back(matrixRows_[i]);
 	}
 	JsonAdapter::Save(settingsPath_.empty() ? ResolveSettingsPath().string() : settingsPath_.string(), data);
+}
+
+void Engine::CollisionSettings::SetActiveSettingsAssetPath(const std::string& assetPath) {
+
+	SetActiveSettingsPath(assetPath.empty() ? ResolveSettingsPath() : RuntimePaths::ResolveAssetPath(assetPath));
+}
+
+void Engine::CollisionSettings::SetActiveSettingsPath(const std::filesystem::path& settingsPath) {
+
+	const std::filesystem::path nextPath = (settingsPath.empty() ? ResolveSettingsPath() : settingsPath).lexically_normal();
+	if (settingsPath_ == nextPath && loaded_) {
+		return;
+	}
+
+	settingsPath_ = nextPath;
+	loaded_ = false;
+	Load();
 }
 
 bool Engine::CollisionSettings::AddType(const std::string& name) {
@@ -202,7 +221,7 @@ void Engine::CollisionSettings::ResetDefault() {
 
 std::filesystem::path Engine::CollisionSettings::ResolveSettingsPath() const {
 
-	return RuntimePaths::GetProjectRoot() / kSettingsRelativePath;
+	return RuntimePaths::GetGameRoot() / kSettingsRelativePath;
 }
 
 void Engine::CollisionSettings::TrimMatrix() {

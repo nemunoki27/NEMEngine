@@ -5,13 +5,68 @@
 //============================================================================
 #include <Engine/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Asset/AssetTypes.h>
+#include <Engine/Core/Runtime/RuntimePaths.h>
 #include <Engine/Core/UUID/UUID.h>
+
+// c++
+#include <cstring>
+#include <filesystem>
 
 //============================================================================
 //	SceneHeader classMethods
 //============================================================================
 
 namespace {
+
+	constexpr const char* kCollisionSettingsRoot = "GameAssets/Collision";
+
+	bool StartsWith(const std::string& text, const char* prefix) {
+
+		return text.rfind(prefix, 0) == 0;
+	}
+
+	std::string StripScenesPrefix(const std::string& assetPath, const char* scenesPrefix) {
+
+		if (!StartsWith(assetPath, scenesPrefix)) {
+			return {};
+		}
+
+		std::string relative = assetPath.substr(std::strlen(scenesPrefix));
+		if (!relative.empty() && (relative.front() == '/' || relative.front() == '\\')) {
+			relative.erase(relative.begin());
+		}
+		return relative;
+	}
+
+	std::string MakeCollisionSettingsFileName(const std::filesystem::path& scenePath) {
+
+		std::filesystem::path stem = scenePath.stem();
+		if (stem.extension() == ".scene") {
+			stem = stem.stem();
+		}
+
+		std::string name = stem.string();
+		if (name.empty()) {
+			name = "Scene";
+		}
+		return name + ".collisionSettings.json";
+	}
+
+	std::filesystem::path MakeCollisionRelativeSource(const std::string& scenePath) {
+
+		std::string assetPath = Engine::RuntimePaths::ToAssetPath(scenePath);
+		if (assetPath.empty()) {
+			assetPath = std::filesystem::path(scenePath).filename().generic_string();
+		}
+
+		if (std::string relative = StripScenesPrefix(assetPath, "GameAssets/Scenes"); !relative.empty()) {
+			return relative;
+		}
+		if (std::string relative = StripScenesPrefix(assetPath, "Engine/Assets/Scenes"); !relative.empty()) {
+			return relative;
+		}
+		return std::filesystem::path(assetPath).filename();
+	}
 
 	Engine::RenderTargetSetReference ParseRenderTargetSet(const nlohmann::json& data) {
 
@@ -203,6 +258,25 @@ namespace {
 	}
 }
 
+std::string Engine::MakeDefaultCollisionSettingsPath(const std::string& scenePath) {
+
+	const std::filesystem::path relativeSource = MakeCollisionRelativeSource(scenePath);
+	std::filesystem::path settingsPath = kCollisionSettingsRoot;
+	if (relativeSource.has_parent_path()) {
+		settingsPath /= relativeSource.parent_path();
+	}
+	settingsPath /= MakeCollisionSettingsFileName(relativeSource);
+	return settingsPath.generic_string();
+}
+
+void Engine::EnsureSceneCollisionSettingsPath(SceneHeader& sceneHeader, const std::string& scenePath) {
+
+	// 旧シーンなどで設定パスがない場合は、シーンごとの既定パスを補完する
+	if (sceneHeader.collisionSettingsPath.empty()) {
+		sceneHeader.collisionSettingsPath = MakeDefaultCollisionSettingsPath(scenePath);
+	}
+}
+
 bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, AssetDatabase* assetDatabase) {
 
 	// JSONがオブジェクトでない場合は失敗
@@ -215,6 +289,7 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 		std::string guidStr = data.value("guid", "");
 		sceneHeader.guid = guidStr.empty() ? UUID::New() : FromString16Hex(guidStr);
 		sceneHeader.name = data.value("name", "UntitledScene");
+		sceneHeader.collisionSettingsPath = data.value("collisionSettings", data.value("collisionSettingsPath", ""));
 	}
 
 	// サブシーン
@@ -344,6 +419,7 @@ nlohmann::json Engine::ToJson(const SceneHeader& sceneHeader) {
 
 	data["guid"] = ToString(sceneHeader.guid);
 	data["name"] = sceneHeader.name;
+	data["collisionSettings"] = sceneHeader.collisionSettingsPath;
 
 	data["subScenes"] = nlohmann::json::array();
 	for (const auto& subScene : sceneHeader.subScenes) {

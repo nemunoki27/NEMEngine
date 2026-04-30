@@ -79,7 +79,6 @@ void Engine::ToolPanel::Draw(const EditorPanelContext& context) {
 	if (tools.empty()) {
 
 		ImGui::TextDisabled("No tools registered.");
-		ImGui::TextWrapped("Engine and Game tools can be registered from C++ through ToolRegistry.");
 		ImGui::SetWindowFontScale(1.0f);
 		ImGui::End();
 		return;

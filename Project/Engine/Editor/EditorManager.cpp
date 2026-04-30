@@ -6,7 +6,6 @@
 #include <Engine/Core/Graphics/GraphicsCore.h>
 #include <Engine/Core/Graphics/DxObject/DxCommand.h>
 #include <Engine/Core/Graphics/Render/View/ViewportRenderService.h>
-#include <Engine/Core/Graphics/Render/View/SceneViewCameraController.h>
 #include <Engine/Core/Graphics/Render/RenderPipelineRunner.h>
 #include <Engine/Core/Graphics/Line/LineRenderer.h>
 #include <Engine/Core/ECS/Component/Builtin/NameComponent.h>
@@ -79,7 +78,8 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	activeSceneDirty_ = false;
 
 	// シーンビュー用のエディタカメラの状態を初期化
-	sceneViewCameraState_ = SceneViewCameraController::MakeDefaultState();
+	sceneViewCameraController_ = std::make_unique<SceneViewCameraController>();
+	sceneViewCameraController_->MakeDefaultState();
 
 	// エディタ標準ツールの登録
 	RegisterBuiltinEditorTools();
@@ -506,7 +506,7 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 		return;
 	}
 	// カメラの状態を更新する
-	SceneViewCameraController::Update(sceneViewCameraState_, editorState_.manualCameraDimension);
+	sceneViewCameraController_->Update(editorState_.manualCameraDimension);
 }
 
 void Engine::EditorManager::Finalize() {

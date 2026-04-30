@@ -42,10 +42,9 @@ namespace Engine {
 			.id = "engine.camera_manager",
 			.name = "CameraManager",
 			.category = "Camera",
-			.description = "Create and setup gameplay cameras.",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::EditOnly,
-			.order = 40,
+			.order = 0,
 		};
 
 		// ウィンドウ表示状態

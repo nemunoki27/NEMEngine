@@ -7,6 +7,7 @@
 #include <Engine/Editor/EditorContext.h>
 #include <Engine/Editor/EditorState.h>
 #include <Engine/Editor/Command/Interface/IEditorCommand.h>
+#include <Engine/Core/Graphics/Render/View/SceneViewCameraController.h>
 #include <Engine/Core/Graphics/Render/View/RenderViewTypes.h>
 #include <Engine/Core/Graphics/Mesh/MeshSubMeshPicker.h>
 #include <Engine/Editor/Panel/Interface/IEditorPanelHost.h>
@@ -111,8 +112,8 @@ namespace Engine {
 		bool IsActiveSceneDirty() const { return activeSceneDirty_; }
 
 		// シーンビュー用のエディタカメラの状態の取得
-		const ManualRenderCameraState& GetSceneViewCameraState() const { return sceneViewCameraState_; }
-		ManualRenderCameraState& GetSceneViewCameraState() { return sceneViewCameraState_; }
+		const ManualRenderCameraState& GetSceneViewCameraState() const { return sceneViewCameraController_->GetCameraState(); }
+		ManualRenderCameraState& GetSceneViewCameraState() { return sceneViewCameraController_->GetCameraState(); }
 		const SceneViewCameraSelection& GetSceneViewCameraSelection() const { return editorState_.sceneViewCamera; }
 		SceneViewCameraSelection& GetSceneViewCameraSelection() { return editorState_.sceneViewCamera; }
 	private:
@@ -149,7 +150,7 @@ namespace Engine {
 		const EditorContext* currentRenderContext_ = nullptr;
 
 		// シーンビュー用のエディタカメラ
-		ManualRenderCameraState sceneViewCameraState_{};
+		std::unique_ptr<SceneViewCameraController> sceneViewCameraController_ = nullptr;
 
 		// シーンビューのメッシュピック処理
 		std::unique_ptr<MeshSubMeshPicker> meshSubMeshPicker_{};

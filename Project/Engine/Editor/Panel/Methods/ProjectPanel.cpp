@@ -12,6 +12,7 @@
 #include <Engine/Editor/Command/Methods/InstantiatePrefabCommand.h>
 #include <Engine/Editor/Panel/Interface/IEditorPanelHost.h>
 #include <Engine/Logger/Logger.h>
+#include <Engine/Utility/Json/JsonAdapter.h>
 #include <Engine/Utility/Enum/EnumAdapter.h>
 #include <Engine/Utility/ImGui/MyGUI.h>
 
@@ -193,6 +194,11 @@ namespace {
 		}
 		return {};
 	}
+	// ProjectPanelの表示状態を保存するパスを返す
+	std::filesystem::path GetProjectPanelStatePath() {
+
+		return Engine::RuntimePaths::GetEngineAssetPath("Config/projectPanel.exeConfig.json");
+	}
 
 	// ScriptアセットをVisual Studioで開く
 	bool OpenScriptAssetInVisualStudio(const Engine::ProjectAssetEntry& asset) {
@@ -280,7 +286,13 @@ namespace {
 Engine::ProjectPanel::ProjectPanel(TextureUploadService& textureUploadService) {
 
 	thumbnailCache_.Init(textureUploadService);
+	LoadPersistentState();
 	dirty_ = true;
+}
+
+Engine::ProjectPanel::~ProjectPanel() {
+
+	SavePersistentState();
 }
 
 void Engine::ProjectPanel::Rebuild(AssetDatabase& database) {
@@ -301,8 +313,13 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
+	const bool wasOpen = context.layoutState->showProject;
 	if (!ImGui::Begin("Project", &context.layoutState->showProject)) {
 		ImGui::End();
+		if (wasOpen && !context.layoutState->showProject) {
+
+			SavePersistentState();
+		}
 		return;
 	}
 
@@ -325,7 +342,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::Separator();
 
-		ImGui::SameLine();
+	ImGui::SameLine();
 
 	// ディレクトリの内容を描画
 	if (ImGui::BeginChild("##ProjectContent", ImVec2(0.0f, 0.0f), true)) {
@@ -339,6 +356,10 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	DrawCreateAssetPopup(database);
 
 	ImGui::End();
+	if (wasOpen && !context.layoutState->showProject) {
+
+		SavePersistentState();
+	}
 }
 
 void Engine::ProjectPanel::DrawHeader([[maybe_unused]] const EditorPanelContext& context, AssetDatabase& database) {
@@ -854,4 +875,37 @@ const char* Engine::ProjectPanel::GetSourceRootPath() const {
 		return "GameAssets";
 	}
 	return "Engine/Assets";
+}
+
+void Engine::ProjectPanel::LoadPersistentState() {
+
+	const std::filesystem::path path = GetProjectPanelStatePath();
+	if (!JsonAdapter::Check(path.string())) {
+		return;
+	}
+
+	const nlohmann::json data = JsonAdapter::Load(path.string());
+	if (!data.is_object()) {
+		return;
+	}
+
+	const std::string source = data.value("assetSource", "Engine");
+	assetSource_ = EnumAdapter<ProjectAssetSource>::FromString(data.value("assetSource", "Engine")).value();
+
+	const std::string defaultDirectory = assetSource_ == ProjectAssetSource::Game ? "GameAssets" : "Engine/Assets";
+	selectedDirectory_ = data.value("selectedDirectory", defaultDirectory);
+	if (selectedDirectory_.empty()) {
+
+		selectedDirectory_ = defaultDirectory;
+	}
+	selectedAsset_ = {};
+}
+
+void Engine::ProjectPanel::SavePersistentState() const {
+
+	nlohmann::json data = nlohmann::json::object();
+	data["assetSource"] = EnumAdapter<ProjectAssetSource>::ToString(assetSource_);
+	data["selectedDirectory"] = selectedDirectory_;
+
+	JsonAdapter::Save(GetProjectPanelStatePath().string(), data);
 }

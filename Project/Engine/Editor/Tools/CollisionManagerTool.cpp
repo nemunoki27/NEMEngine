@@ -6,6 +6,7 @@
 #include <Engine/Core/Collision/CollisionSettings.h>
 #include <Engine/Core/ECS/Component/Builtin/CollisionComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
+#include <Engine/Core/Scene/Header/SceneHeader.h>
 #include <Engine/MathLib/Math.h>
 #include <Engine/MathLib/Matrix4x4.h>
 #include <Engine/MathLib/Quaternion.h>
@@ -238,21 +239,33 @@ void Engine::CollisionManagerTool::OpenEditorTool() {
 	openWindow_ = true;
 }
 
-void Engine::CollisionManagerTool::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
+void Engine::CollisionManagerTool::DrawEditorTool(const EditorToolContext& context) {
 
 	if (openWindow_) {
-		DrawWindow();
+		DrawWindow(context);
 	}
 }
 
-void Engine::CollisionManagerTool::DrawWindow() {
+void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) {
 
 	if (!ImGui::Begin("CollisionManager", &openWindow_)) {
 		ImGui::End();
 		return;
 	}
 
-	CollisionSettings::GetInstance().EnsureLoaded();
+	CollisionSettings& settings = CollisionSettings::GetInstance();
+	if (context.toolContext.activeSceneHeader) {
+		settings.SetActiveSettingsAssetPath(context.toolContext.activeSceneHeader->collisionSettingsPath);
+	}
+	settings.EnsureLoaded();
+
+	// 現在開いているシーンが参照するCollision設定ファイルを表示する
+	if (context.toolContext.activeSceneHeader) {
+		ImGui::TextDisabled("Settings: %s", context.toolContext.activeSceneHeader->collisionSettingsPath.c_str());
+	} else {
+		const std::string settingsPath = settings.GetSettingsPath().generic_string();
+		ImGui::TextDisabled("Settings: %s", settingsPath.c_str());
+	}
 
 	// デバッグ用のCollision描画設定
 	ImGui::Checkbox("DrawCollisionWorld", &drawCollisionWorld_);

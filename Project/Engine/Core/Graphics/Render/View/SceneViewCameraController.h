@@ -19,25 +19,34 @@ namespace Engine {
 		//========================================================================
 
 		SceneViewCameraController() = default;
-		~SceneViewCameraController() = default;
+		~SceneViewCameraController();
 
 		// カメラの状態を初期化する
-		static ManualRenderCameraState MakeDefaultState();
+		void MakeDefaultState();
 
 		// カメラの状態を更新する
-		static void Update(ManualRenderCameraState& state, Dimension dimension);
+		void Update(Dimension dimension);
+
+		//--------- accessor -----------------------------------------------------
+
+		ManualRenderCameraState& GetCameraState() { return cameraState_; }
 	private:
 		//========================================================================
 		//	private Methods
 		//========================================================================
 
+		//--------- variables ----------------------------------------------------
+
+		// カメラの状態
+		ManualRenderCameraState cameraState_;
+
 		//--------- functions ----------------------------------------------------
 
 		// カメラの状態を更新できるか
-		static bool CanUpdate();
+		bool CanUpdate();
 
 		// 2D/3Dカメラの状態を更新する
-		static void Update3D(ManualRenderCameraState& state);
-		static void Update2D(ManualRenderCameraState& state);
+		void Update3D();
+		void Update2D();
 	};
 } // Engine

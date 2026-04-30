@@ -19,6 +19,10 @@
 #include <Engine/Core/UUID/UUID.h>
 #include <Engine/Utility/ImGui/MyGUI.h>
 
+// c++
+#include <algorithm>
+#include <vector>
+
 //============================================================================
 //	HierarchyPanel classMethods
 //============================================================================
@@ -31,6 +35,14 @@ namespace {
 		"Engine/Assets/Textures/Engine/Editor/Hierarchy/entityActiveEye.dds";
 	constexpr const char* kInactiveEyeTexturePath =
 		"Engine/Assets/Textures/Engine/Editor/Hierarchy/entityActiveOffEye.dds";
+
+	int32_t GetHierarchySiblingOrder(Engine::ECSWorld& world, const Engine::Entity& entity) {
+
+		if (!world.IsAlive(entity) || !world.HasComponent<Engine::HierarchyComponent>(entity)) {
+			return 0;
+		}
+		return world.GetComponent<Engine::HierarchyComponent>(entity).siblingOrder;
+	}
 }
 
 Engine::HierarchyPanel::HierarchyPanel(TextureUploadService& textureUploadService) :
@@ -64,7 +76,8 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	bool hasAnyRoot = false;
+	std::vector<Entity> rootEntities;
+	rootEntities.reserve(world->GetRecordCount());
 	world->ForEachAliveEntity([&](Entity entity) {
 
 		// ルートエンティティでない場合はスキップ
@@ -72,11 +85,23 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 			return;
 		}
 
-		hasAnyRoot = true;
+		rootEntities.emplace_back(entity);
+		});
+	std::stable_sort(rootEntities.begin(), rootEntities.end(), [&](const Entity& lhs, const Entity& rhs) {
+		return GetHierarchySiblingOrder(*world, lhs) < GetHierarchySiblingOrder(*world, rhs);
+		});
+
+	for (const Entity& entity : rootEntities) {
+
+		DrawSiblingDropTarget(context, *world, entity, false);
 		// ルートエンティティを表示
 		DrawEntityNode(context, *world, entity);
-		});
-	if (!hasAnyRoot) {
+	}
+	if (!rootEntities.empty()) {
+
+		DrawSiblingDropTarget(context, *world, rootEntities.back(), true);
+	}
+	if (rootEntities.empty()) {
 		ImGui::TextDisabled("Hierarchy is empty.");
 	}
 
@@ -342,13 +367,20 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	if (hasAnyTreeChildren && opened) {
 
 		Entity child = firstChild;
+		Entity lastChild = Entity::Null();
 		while (child.IsValid() && world.IsAlive(child)) {
 
+			DrawSiblingDropTarget(context, world, child, false);
 			DrawEntityNode(context, world, child);
+			lastChild = child;
 			if (!world.HasComponent<HierarchyComponent>(child)) {
 				break;
 			}
 			child = world.GetComponent<HierarchyComponent>(child).nextSibling;
+		}
+		if (world.IsAlive(lastChild)) {
+
+			DrawSiblingDropTarget(context, world, lastChild, true);
 		}
 
 		// サブメッシュノードの表示
@@ -363,6 +395,47 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		ImGui::TreePop();
 	}
 
+	ImGui::PopID();
+}
+
+void Engine::HierarchyPanel::DrawSiblingDropTarget(const EditorPanelContext& context, ECSWorld& world,
+	const Entity& anchorEntity, bool insertAfter) {
+
+	if (!context.CanEditScene() || !world.IsAlive(anchorEntity)) {
+		return;
+	}
+
+	const UUID anchorUUID = world.GetUUID(anchorEntity);
+	const std::string id = (insertAfter ? "##SiblingDropAfter" : "##SiblingDropBefore") + ToString(anchorUUID);
+
+	ImGui::PushID(id.c_str());
+	const ImVec2 size(ImGui::GetContentRegionAvail().x, 4.0f);
+	ImGui::InvisibleButton("##SiblingDropLine", size);
+
+	if (ImGui::BeginDragDropTarget()) {
+		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kHierarchyDragDropPayloadType)) {
+			if (payload->IsDelivery()) {
+
+				Entity dragged = ResolveDraggedEntity(world, payload);
+				if (CanReorder(world, dragged, anchorEntity)) {
+
+					context.host->ExecuteEditorCommand(
+						std::make_unique<ReorderEntityCommand>(dragged, anchorEntity, insertAfter));
+				}
+			}
+		}
+		ImGui::EndDragDropTarget();
+	}
+
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
+
+		const ImVec2 min = ImGui::GetItemRectMin();
+		const ImVec2 max = ImGui::GetItemRectMax();
+		ImGui::GetWindowDrawList()->AddLine(
+			ImVec2(min.x, (min.y + max.y) * 0.5f),
+			ImVec2(max.x, (min.y + max.y) * 0.5f),
+			ImGui::GetColorU32(ImGuiCol_DragDropTarget), 2.0f);
+	}
 	ImGui::PopID();
 }
 
@@ -499,6 +572,15 @@ bool Engine::HierarchyPanel::IsRootEntity(ECSWorld& world, const Entity& entity)
 	return !world.IsAlive(hierarchy.parent);
 }
 
+Engine::Entity Engine::HierarchyPanel::GetParentEntity(ECSWorld& world, const Entity& entity) const {
+
+	if (!world.IsAlive(entity) || !world.HasComponent<HierarchyComponent>(entity)) {
+		return Entity::Null();
+	}
+	const auto& hierarchy = world.GetComponent<HierarchyComponent>(entity);
+	return world.IsAlive(hierarchy.parent) ? hierarchy.parent : Entity::Null();
+}
+
 bool Engine::HierarchyPanel::CanReparent(ECSWorld& world, const Entity& child, const Entity& newParent) const {
 
 	// どちらも有効なエンティティでなければならない
@@ -531,6 +613,14 @@ bool Engine::HierarchyPanel::CanReparent(ECSWorld& world, const Entity& child, c
 		}
 	}
 	return true;
+}
+
+bool Engine::HierarchyPanel::CanReorder(ECSWorld& world, const Entity& child, const Entity& anchor) const {
+
+	if (!world.IsAlive(child) || !world.IsAlive(anchor) || child == anchor) {
+		return false;
+	}
+	return GetParentEntity(world, child) == GetParentEntity(world, anchor);
 }
 
 Engine::Entity Engine::HierarchyPanel::ResolveDraggedEntity(ECSWorld& world, const ImGuiPayload* payload) const {

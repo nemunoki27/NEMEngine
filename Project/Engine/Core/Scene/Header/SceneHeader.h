@@ -249,12 +249,17 @@ namespace Engine {
 		// シーンが持つサブシーンリスト
 		std::vector<SubSceneSlotDesc> subScenes;
 
+		// シーンごとのCollision設定ファイルの論理アセットパス
+		std::string collisionSettingsPath;
+
 		// シーンの描画、パスの情報
 		std::vector<SceneRenderTargetDesc> renderTargets;
 		std::vector<ScenePassDesc> passOrder;
 	};
 
 	// json変換
+	std::string MakeDefaultCollisionSettingsPath(const std::string& scenePath);
+	void EnsureSceneCollisionSettingsPath(SceneHeader& sceneHeader, const std::string& scenePath);
 	bool FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, AssetDatabase* assetDatabase);
 	nlohmann::json ToJson(const SceneHeader& sceneHeader);
 } // Engine

@@ -7,6 +7,7 @@
 
 // c++
 #include <filesystem>
+#include <string>
 
 namespace Engine {
 
@@ -29,6 +30,10 @@ namespace Engine {
 		void Load();
 		// 現在のCollision設定を設定ファイルへ保存する
 		void Save() const;
+		// 使用するCollision設定ファイルを論理アセットパスから切り替える
+		void SetActiveSettingsAssetPath(const std::string& assetPath);
+		// 使用するCollision設定ファイルを実ファイルパスから切り替える
+		void SetActiveSettingsPath(const std::filesystem::path& settingsPath);
 
 		// Collisionタイプを追加する
 		bool AddType(const std::string& name);
@@ -52,6 +57,8 @@ namespace Engine {
 		const std::vector<CollisionTypeDefinition>& GetTypes() const { return types_; }
 		// Collisionタイプ数を取得する
 		uint32_t GetTypeCount() const { return static_cast<uint32_t>(types_.size()); }
+		// 現在使用している設定ファイルパスを取得する
+		const std::filesystem::path& GetSettingsPath() const { return settingsPath_; }
 
 		// シングルトンインスタンスを取得する
 		static CollisionSettings& GetInstance();

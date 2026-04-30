@@ -25,7 +25,7 @@ namespace Engine {
 		//========================================================================
 
 		ProjectPanel(TextureUploadService& textureUploadService);
-		~ProjectPanel() = default;
+		~ProjectPanel();
 
 		void Draw(const EditorPanelContext& context) override;
 	private:
@@ -89,6 +89,10 @@ namespace Engine {
 		void DrawCreateMenuItems(const std::string& directoryVirtualPath);
 		// ファイル操作後にAssetDatabaseと表示を更新する
 		void RefreshAfterFileOperation(AssetDatabase& database, const ProjectAssetFileResult& result);
+		// 前回閉じた時の表示ディレクトリを読み込む
+		void LoadPersistentState();
+		// 現在表示しているディレクトリを保存する
+		void SavePersistentState() const;
 
 		// 現在のソースルート表示名を取得する
 		const char* GetSourceRootPath() const;

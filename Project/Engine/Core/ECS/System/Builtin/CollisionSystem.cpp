@@ -9,6 +9,7 @@
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
 #include <Engine/Core/ECS/System/Builtin/BehaviorSystem.h>
 #include <Engine/Core/ECS/System/Builtin/HierarchySystem.h>
+#include <Engine/Core/Scene/Header/SceneHeader.h>
 #include <Engine/MathLib/Matrix4x4.h>
 #include <Engine/MathLib/Quaternion.h>
 
@@ -114,6 +115,9 @@ void Engine::CollisionSystem::LateUpdate(ECSWorld& world, SystemContext& context
 	}
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
+	if (context.activeSceneHeader) {
+		settings.SetActiveSettingsAssetPath(context.activeSceneHeader->collisionSettingsPath);
+	}
 	settings.EnsureLoaded();
 
 	std::vector<CollisionRuntimeEntity> entities{};
