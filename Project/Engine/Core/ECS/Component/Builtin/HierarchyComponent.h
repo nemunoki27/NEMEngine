@@ -7,6 +7,9 @@
 #include <Engine/Core/ECS/Entity/Entity.h>
 #include <Engine/Core/UUID/UUID.h>
 
+// c++
+#include <cstdint>
+
 namespace Engine {
 
 	//============================================================================
@@ -18,6 +21,7 @@ namespace Engine {
 
 		// シリアライズ用
 		UUID parentLocalFileID{};
+		int32_t siblingOrder = 0;
 
 		// ランタイム実行用
 		Entity parent = Entity::Null();

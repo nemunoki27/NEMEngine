@@ -52,6 +52,12 @@ bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database, ProjectAs
 
 	for (const auto& entry : std::filesystem::recursive_directory_iterator(rootDesc.fullPath)) {
 
+		if (entry.is_directory()) {
+
+			std::filesystem::path directory = std::filesystem::relative(entry.path(), rootDesc.fullPath);
+			EnsureDirectory(directory);
+			continue;
+		}
 		if (!entry.is_regular_file()) {
 			continue;
 		}
@@ -92,6 +98,11 @@ bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database, ProjectAs
 const Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::FindDirectory(const std::string& virtualPath) const {
 
 	return FindRecursive(root_, virtualPath);
+}
+
+const Engine::ProjectAssetEntry* Engine::ProjectAssetIndex::FindAssetByPath(const std::string& assetPath) const {
+
+	return FindAssetRecursive(root_, assetPath);
 }
 
 bool Engine::ProjectAssetIndex::ShouldHideInBrowser(const std::filesystem::path& fullPath) {
@@ -231,6 +242,22 @@ const Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::FindRecursive(
 	for (const auto& child : node.children) {
 		if (const ProjectDirectoryNode* found = FindRecursive(*child, virtualPath)) {
 
+			return found;
+		}
+	}
+	return nullptr;
+}
+
+const Engine::ProjectAssetEntry* Engine::ProjectAssetIndex::FindAssetRecursive(
+	const ProjectDirectoryNode& node, const std::string& assetPath) {
+
+	for (const ProjectAssetEntry& asset : node.assets) {
+		if (asset.assetPath == assetPath) {
+			return &asset;
+		}
+	}
+	for (const auto& child : node.children) {
+		if (const ProjectAssetEntry* found = FindAssetRecursive(*child, assetPath)) {
 			return found;
 		}
 	}

@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/Utility/Enum/EnumAdapter.h>
 
+// c++
+#include <type_traits>
+
 //============================================================================
 //	MaterialAsset classMethods
 //============================================================================
@@ -54,11 +57,49 @@ namespace {
 		if (data.is_object()) {
 			if (data.contains("r") && data.contains("g") && data.contains("b") && data.contains("a")) {
 
-				outValue.value = Engine::Color(data.value("r", 0.0f), data.value("g", 0.0f), data.value("b", 0.0f), data.value("a", 1.0f));
+				outValue.value = Engine::Color4(data.value("r", 0.0f), data.value("g", 0.0f), data.value("b", 0.0f), data.value("a", 1.0f));
 				return true;
 			}
 		}
 		return false;
+	}
+
+	// MaterialParameterValueをJSONへ変換する関数
+	nlohmann::json SerializeParameterValue(const Engine::MaterialParameterValue& parameter) {
+
+		return std::visit([](const auto& value) -> nlohmann::json {
+			using ValueType = std::decay_t<decltype(value)>;
+
+			if constexpr (std::is_same_v<ValueType, float> ||
+				std::is_same_v<ValueType, int32_t> ||
+				std::is_same_v<ValueType, uint32_t>) {
+
+				return value;
+			} else if constexpr (std::is_same_v<ValueType, Engine::Vector2>) {
+
+				return nlohmann::json::array({ value.x, value.y });
+			} else if constexpr (std::is_same_v<ValueType, Engine::Vector3>) {
+
+				return nlohmann::json::array({ value.x, value.y, value.z });
+			} else if constexpr (std::is_same_v<ValueType, Engine::Vector4>) {
+
+				return nlohmann::json::array({ value.x, value.y, value.z, value.w });
+			} else if constexpr (std::is_same_v<ValueType, Engine::Color4>) {
+
+				return nlohmann::json{
+					{ "r", value.r },
+					{ "g", value.g },
+					{ "b", value.b },
+					{ "a", value.a },
+				};
+			} else if constexpr (std::is_same_v<ValueType, Engine::AssetID>) {
+
+				return Engine::ToString(value);
+			} else {
+
+				return nlohmann::json{};
+			}
+			}, parameter.value);
 	}
 }
 
@@ -118,6 +159,10 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 		item["pipeline"] = ToString(pass.pipeline);
 		item["preferredVariant"] = EnumAdapter<PipelineVariantKind>::ToString(pass.preferredVariant);
 		data["passes"].push_back(item);
+	}
+	data["parameters"] = nlohmann::json::object();
+	for (const auto& [name, parameter] : asset.parameters) {
+		data["parameters"][name] = SerializeParameterValue(parameter);
 	}
 	return data;
 }

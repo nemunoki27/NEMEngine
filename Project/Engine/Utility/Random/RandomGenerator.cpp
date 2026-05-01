@@ -14,9 +14,9 @@ Vector3 RandomGenerator::Generate(const Engine::Vector3& min, const Engine::Vect
 	Generate(min.z, max.z) };
 }
 
-Color RandomGenerator::Generate(const Engine::Color& min, const Engine::Color& max) {
+Color4 RandomGenerator::Generate(const Engine::Color4& min, const Engine::Color4& max) {
 
-	return Color{
+	return Color4{
 		Generate(min.r, max.r),
 		Generate(min.g, max.g),
 		Generate(min.b, max.b),

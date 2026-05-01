@@ -6,7 +6,8 @@
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
 
 // c++
-#include <algorithm>
+#include <cstdint>
+#include <unordered_set>
 
 //============================================================================
 //	SceneInstanceManager classMethods
@@ -14,15 +15,19 @@
 
 namespace {
 
-	bool ContainsEntity(const std::vector<Engine::Entity>& entities, const Engine::Entity& entity) {
+	std::uint64_t MakeEntityKey(const Engine::Entity& entity) {
 
-		return std::find(entities.begin(), entities.end(), entity) != entities.end();
+		return (static_cast<std::uint64_t>(entity.generation) << 32) | entity.index;
 	}
 
 	void AppendUniqueAlive(Engine::ECSWorld& world,
-		std::vector<Engine::Entity>& entities, const Engine::Entity& entity) {
+		std::vector<Engine::Entity>& entities, std::unordered_set<std::uint64_t>& entityKeys,
+		const Engine::Entity& entity) {
 
-		if (!world.IsAlive(entity) || ContainsEntity(entities, entity)) {
+		if (!world.IsAlive(entity)) {
+			return;
+		}
+		if (!entityKeys.emplace(MakeEntityKey(entity)).second) {
 			return;
 		}
 		entities.emplace_back(entity);
@@ -46,26 +51,6 @@ namespace {
 		return !world.GetComponent<Engine::SceneObjectComponent>(entity).sceneInstanceID;
 	}
 
-	std::vector<Engine::Entity> CollectSceneEntities(Engine::ECSWorld& world,
-		const Engine::SceneInstance& scene) {
-
-		std::vector<Engine::Entity> entities;
-
-		world.ForEachAliveEntity([&](Engine::Entity entity) {
-			if (IsOwnedBySceneInstance(world, entity, scene.instanceID)) {
-
-				AppendUniqueAlive(world, entities, entity);
-			}
-			});
-
-		for (const auto& entity : scene.createdEntities) {
-			if (IsOwnedBySceneInstance(world, entity, scene.instanceID) || HasNoSceneOwner(world, entity)) {
-
-				AppendUniqueAlive(world, entities, entity);
-			}
-		}
-		return entities;
-	}
 }
 
 bool Engine::SceneInstanceManager::LoadAdditive(AssetDatabase& database,
@@ -116,6 +101,8 @@ bool Engine::SceneInstanceManager::Unload(ECSWorld& world, UUID instanceID) {
 				world.DestroyEntity(entity);
 			}
 		}
+		// Unloadは呼び出し元に空の状態を返す必要があるため、予約した破棄をここで確定する
+		world.FlushPendingDestroyEntities();
 
 		// インスタンスをリストから消す
 		scenes_.erase(scenes_.begin() + i);
@@ -128,6 +115,31 @@ bool Engine::SceneInstanceManager::Unload(ECSWorld& world, UUID instanceID) {
 		return true;
 	}
 	return false;
+}
+
+void Engine::SceneInstanceManager::UnloadAll(ECSWorld& world) {
+
+	while (!scenes_.empty()) {
+
+		Unload(world, scenes_.back().instanceID);
+	}
+	active_ = UUID{};
+}
+
+bool Engine::SceneInstanceManager::SaveActive(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world) const {
+
+	const SceneInstance* activeScene = GetActive();
+	if (!activeScene || !activeScene->sceneAsset) {
+		return false;
+	}
+
+	const std::filesystem::path fullPath = database.ResolveFullPath(activeScene->sceneAsset);
+	if (fullPath.empty()) {
+		return false;
+	}
+
+	const std::vector<Entity> ownedEntities = CollectSceneEntities(world, *activeScene);
+	return sceneSystem.SaveScene(fullPath.string(), world, activeScene->header, &ownedEntities);
 }
 
 nlohmann::json Engine::SceneInstanceManager::SerializeSnapshot(const SceneSystem& sceneSystem, ECSWorld& world) const {
@@ -187,6 +199,11 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 		if (scene.contains("Header")) {
 
 			FromJson(scene["Header"], instance.header, &database);
+		}
+		{
+			// 旧スナップショットなどで設定パスがない場合は、シーンごとの既定パスを補完する
+			const std::filesystem::path scenePath = database.ResolveFullPath(instance.sceneAsset);
+			EnsureSceneCollisionSettingsPath(instance.header, scenePath.string());
 		}
 
 		// エンティティ情報を読み込む
@@ -300,6 +317,29 @@ const Engine::SceneInstance* Engine::SceneInstanceManager::GetActive() const {
 		}
 	}
 	return nullptr;
+}
+
+std::vector<Engine::Entity> Engine::SceneInstanceManager::CollectSceneEntities(ECSWorld& world, const SceneInstance& scene) {
+
+	std::vector<Entity> entities;
+	entities.reserve(scene.createdEntities.size());
+	std::unordered_set<std::uint64_t> entityKeys;
+	entityKeys.reserve(scene.createdEntities.size());
+
+	world.ForEachAliveEntity([&](Entity entity) {
+		if (IsOwnedBySceneInstance(world, entity, scene.instanceID)) {
+
+			AppendUniqueAlive(world, entities, entityKeys, entity);
+		}
+		});
+
+	for (const auto& entity : scene.createdEntities) {
+		if (IsOwnedBySceneInstance(world, entity, scene.instanceID) || HasNoSceneOwner(world, entity)) {
+
+			AppendUniqueAlive(world, entities, entityKeys, entity);
+		}
+	}
+	return entities;
 }
 
 const Engine::SceneInstance* Engine::SceneInstanceManager::Find(UUID id) const {

@@ -6,8 +6,11 @@
 #include <Engine/Core/Graphics/Pipeline/PipelineState.h>
 #include <Engine/Core/Graphics/Line/LineRenderer.h>
 #include <Engine/Core/Build/BuildConfig.h>
+#include <Engine/Core/Collision/CollisionSettings.h>
 #include <Engine/Core/Scripting/ManagedScriptRuntime.h>
 #include <Engine/Core/Tools/ToolRegistry.h>
+#include <Engine/Audio/Audio.h>
+#include <Engine/Editor/Project/ProjectAssetFileUtility.h>
 #include <Engine/Logger/Logger.h>
 #include <Engine/Input/Input.h>
 
@@ -17,6 +20,9 @@
 #include <Engine/Core/ECS/System/Builtin/UVTransformUpdateSystem.h>
 #include <Engine/Core/ECS/System/Builtin/HierarchySystem.h>
 #include <Engine/Core/ECS/System/Builtin/SkinnedAnimationUpdateSystem.h>
+#include <Engine/Core/ECS/System/Builtin/AudioSourceSystem.h>
+#include <Engine/Core/ECS/System/Builtin/CameraControllerSystem.h>
+#include <Engine/Core/ECS/System/Builtin/CollisionSystem.h>
 
 //============================================================================
 //	EngineApplication classMethods
@@ -28,7 +34,10 @@ void Engine::EngineApplication::InitSystems() {
 	// システムの追加、orderが小さいほど先に処理される
 	scheduler_.AddSystem(std::make_unique<HierarchySystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<TransformUpdateSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UVTransformUpdateSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<SkinnedAnimationUpdateSystem>(), ++order);
 }
@@ -49,6 +58,8 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 
 	// 骨アニメーション管理の初期化
 	skinnedAnimationManager_.Init();
+	// Audio管理の初期化
+	Audio::GetInstance()->Init();
 
 	// 最初のシーンを作成
 	InitFirstScene();
@@ -75,6 +86,7 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 
 const Engine::SceneHeader* Engine::EngineApplication::GetActiveSceneHeader() const {
 
+	// Play中はPlayWorld側、それ以外はEditWorld側のアクティブシーンを参照する
 	const SceneInstance* instance = worldManager_.IsPlaying() ? playScenes_.GetActive() : editScenes_.GetActive();
 	return instance ? &instance->header : nullptr;
 }
@@ -86,6 +98,7 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 	RenderFrameRequest request{};
 	request.header = header;
 	request.world = world;
+	// 描画側がECSシステムと同じフレーム情報を参照できるように渡す
 	request.systemContext = &systemContext_;
 	request.assetDatabase = &assetDataBase_;
 
@@ -96,6 +109,7 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 	request.activeSceneInstanceID = activeInstance ? activeInstance->instanceID : UUID{};
 
 	const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
+	// GameView/SceneViewは同じ固定解像度を基準に描画サーフェイスを作る
 	uint32_t fixedRenderWidth = windowSetting.gameSize.x;
 	uint32_t fixedRenderHeight = windowSetting.gameSize.y;
 
@@ -134,6 +148,7 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 		viewRequest.height = showSceneView ? fixedRenderHeight : 0;
 		viewRequest.manualCamera = manualSceneCamera;
 
+		// Entity Cameraが指定されている場合だけWorld側のカメラを使う
 		if (sceneViewCameraSelection.mode == SceneViewCameraMode::SelectedEntityCamera &&
 			sceneViewCameraSelection.HasAnyAssignedCamera()) {
 
@@ -142,6 +157,7 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 			viewRequest.preferredPerspectiveCameraUUID = sceneViewCameraSelection.perspectiveCameraUUID;
 		} else {
 
+			// 通常はエディタ用の手動カメラを使う
 			viewRequest.sourceKind = RenderViewSourceKind::ManualCamera;
 			viewRequest.preferredOrthographicCameraUUID = UUID{};
 			viewRequest.preferredPerspectiveCameraUUID = UUID{};
@@ -153,6 +169,7 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	// フレームごとのデバッグラインをリセットする
 	LineRenderer::GetInstance()->BeginFrame();
 #endif
 
@@ -171,6 +188,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 	// プレイモードの切り替え
 	HandlePlayToggle();
+	// エディタから要求されたシーン操作
+	HandleEditorSceneRequests();
 	// Play/Stopでワールド状態が変わった後のモードを、このフレームのECS処理へ反映する
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 
@@ -179,9 +198,17 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	SceneInstanceManager& activeScenes = GetActiveScenes();
 	const SceneInstance* activeSceneInstance = activeScenes.GetActive();
 
+	// シーンごとのCollision設定を、Editor/Play共通の現在設定へ反映する
+	systemContext_.activeSceneHeader = header;
+	if (header) {
+		CollisionSettings::GetInstance().SetActiveSettingsAssetPath(header->collisionSettingsPath);
+	} else {
+		CollisionSettings::GetInstance().SetActiveSettingsAssetPath("");
+	}
+
 	if constexpr (BuildConfig::kEditorEnabled) {
 
-		// エディタコンテキスト構築
+		// エディタUIとツールが参照する現在の状態をまとめる
 		editorContext_.isPlaying = worldManager_.IsPlaying();
 		editorContext_.activeScenePath = activeScenePath_;
 		editorContext_.activeSceneHeader = header;
@@ -221,7 +248,7 @@ bool Engine::EngineApplication::ConsumeFrameDeltaResetRequest() {
 
 void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 
-	// フレーム更新
+	// テクスチャアップロードなど、描画前に確定したいGPUサービスを更新する
 	graphicsCore.TickFrameServices();
 
 	// バックバッファ描画クリア
@@ -283,8 +310,10 @@ void Engine::EngineApplication::HandlePlayToggle() {
 				"EngineApplication: GameScripts.dll was not loaded. Play mode will start without managed scripts.");
 		}
 
+		// EditWorldを直接Playへ使わず、JSONスナップショットからPlayWorldを作る
 		nlohmann::json snapshot = editScenes_.SerializeSnapshot(sceneSystem_, worldManager_.GetEditWorld());
 
+		// Play開始用のWorldを作成し、スナップショットからシーン状態を復元する
 		worldManager_.CreatePlayWorld();
 		if (!worldManager_.GetPlayWorld() ||
 			!playScenes_.LoadSnapshot(assetDataBase_, sceneSystem_, *worldManager_.GetPlayWorld(), snapshot)) {
@@ -298,19 +327,164 @@ void Engine::EngineApplication::HandlePlayToggle() {
 		}
 	} else {
 
+		// Stop時は実行中WorldからSchedulerを切り離して、PlayWorldを破棄する
 		scheduler_.DetachCurrentWorld(systemContext_);
 		worldManager_.DestroyPlayWorld();
 		playScenes_ = SceneInstanceManager{};
 	}
 }
 
+void Engine::EngineApplication::HandleEditorSceneRequests() {
+
+	if constexpr (!BuildConfig::kEditorEnabled) {
+		return;
+	} else {
+
+		// EditorManagerに溜まっているシーン操作要求を1件取り出す
+		EditorSceneRequest request = editorManager_.ConsumeSceneRequest();
+		if (request.type == EditorSceneRequestType::None) {
+			return;
+		}
+		// Play中はEditWorldを書き換えない
+		if (worldManager_.IsPlaying()) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"EngineApplication: scene operation is ignored while playing.");
+			return;
+		}
+
+		switch (request.type) {
+		case EditorSceneRequestType::NewScene:
+			// 空のGameシーンを作成して開く
+			CreateNewEditScene();
+			break;
+		case EditorSceneRequestType::OpenScene:
+			// Project上の既存シーンを開く
+			OpenEditScene(request.sceneAsset);
+			break;
+		case EditorSceneRequestType::SaveScene:
+			// 現在のEditシーンを保存する
+			SaveActiveEditScene();
+			break;
+		case EditorSceneRequestType::SaveAndNewScene:
+			// 保存に成功した場合だけ新規シーン作成へ進む
+			if (SaveActiveEditScene()) {
+				CreateNewEditScene();
+			}
+			break;
+		case EditorSceneRequestType::SaveAndOpenScene:
+			// 保存に成功した場合だけ別シーンを開く
+			if (SaveActiveEditScene()) {
+				OpenEditScene(request.sceneAsset);
+			}
+			break;
+		case EditorSceneRequestType::None:
+		default:
+			break;
+		}
+	}
+}
+
+bool Engine::EngineApplication::CreateNewEditScene() {
+
+	// GameAssets/Scenes配下に重複しないシーンファイルを作成する
+	ProjectAssetFileResult result = ProjectAssetFileUtility::Create(
+		ProjectAssetSource::Game,
+		"GameAssets/Scenes",
+		ProjectAssetFileKind::Scene,
+		"NewScene");
+	if (!result.success) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"EngineApplication: failed to create new scene. message={}", result.message);
+		return false;
+	}
+
+	// 作成したシーンをAssetDatabaseへ登録し、開く処理へ渡す
+	const AssetID sceneAsset = assetDataBase_.ImportOrGet(result.assetPath, AssetType::Scene);
+	assetDataBase_.RebuildMeta();
+	return OpenEditScene(sceneAsset);
+}
+
+bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
+
+	// AssetDatabase上のメタ情報を取得する。見つからなければ再走査する
+	const AssetMeta* meta = assetDataBase_.Find(sceneAsset);
+	if (!meta) {
+
+		assetDataBase_.RebuildMeta();
+		meta = assetDataBase_.Find(sceneAsset);
+	}
+	if (!meta || meta->type != AssetType::Scene) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"EngineApplication: requested asset is not a scene.");
+		return false;
+	}
+
+	// 実ファイルが存在するシーンだけ開く
+	const std::filesystem::path fullPath = assetDataBase_.ResolveFullPath(sceneAsset);
+	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"EngineApplication: scene file was not found. path={}", meta->assetPath);
+		return false;
+	}
+
+	// 既存のEditWorldを空にしてから、新しいシーンツリーをロードする
+	scheduler_.DetachCurrentWorld(systemContext_);
+	editScenes_.UnloadAll(worldManager_.GetEditWorld());
+
+	// アクティブシーン情報を先に差し替える
+	activeScene_ = sceneAsset;
+	activeScenePath_ = meta->assetPath;
+
+	// SceneSystemを通してEntity/Componentを復元する
+	if (!editScenes_.LoadSceneTree(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_)) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"EngineApplication: failed to open scene. path={}", activeScenePath_);
+		return false;
+	}
+
+	// シーン切り替え直後の大きな処理でdeltaTimeが跳ねないようにする
+	requestFrameDeltaReset_ = true;
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		// 選択状態やUndo履歴は新しいシーンへ持ち越さない
+		editorManager_.ResetSceneEditingState();
+	}
+	Logger::Output(LogType::Engine, spdlog::level::info,
+		"EngineApplication: opened scene. path={}", activeScenePath_);
+	return true;
+}
+
+bool Engine::EngineApplication::SaveActiveEditScene() {
+
+	// Active SceneInstanceの所有Entityをシーンファイルへ保存する
+	if (!editScenes_.SaveActive(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld())) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"EngineApplication: failed to save active scene.");
+		return false;
+	}
+
+	// 保存で.metaやAsset情報が変わる可能性があるため再走査する
+	assetDataBase_.RebuildMeta();
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		// Editor上の未保存フラグを落とす
+		editorManager_.MarkActiveSceneSaved();
+	}
+	Logger::Output(LogType::Engine, spdlog::level::info,
+		"EngineApplication: saved active scene. path={}", activeScenePath_);
+	return true;
+}
+
 void Engine::EngineApplication::Finalize() {
 
+	// 終了時点のWorldに合わせてSystemContextを更新してから切り離す
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 	scheduler_.DetachCurrentWorld(systemContext_);
 
+	// ランタイム管理クラスを描画パイプラインより先に終了する
 	skinnedAnimationManager_.Finalize();
 
+	// GPUリソースを持つ描画パイプラインを解放する
 	renderPipeline_->Finalize();
 	renderPipeline_.reset();
 
@@ -319,9 +493,11 @@ void Engine::EngineApplication::Finalize() {
 		editorManager_.Finalize();
 	}
 
+	// C#ホストと読み込んだアセンブリを解放する
 	ManagedScriptRuntime::GetInstance().Finalize();
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	// デバッグライン描画リソースを解放する
 	LineRenderer::GetInstance()->Finalize();
 #endif
 }

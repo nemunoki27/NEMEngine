@@ -10,6 +10,12 @@ const Engine::RenderPassItemList* Engine::RenderPassPhaseBuckets::Find(const std
 	return (it == phaseToItems.end()) ? nullptr : &it->second;
 }
 
+const Engine::RenderPassItemList* Engine::RenderPassPhaseBuckets::Find(const std::string& renderPhase) const {
+
+	auto it = phaseToItems.find(renderPhase);
+	return (it == phaseToItems.end()) ? nullptr : &it->second;
+}
+
 void Engine::RenderPassItemCollector::CollectForView(const RenderSceneBatch& batch,
 	const std::string& renderPhase, const ResolvedRenderView& view, RenderPassItemList& outList) {
 

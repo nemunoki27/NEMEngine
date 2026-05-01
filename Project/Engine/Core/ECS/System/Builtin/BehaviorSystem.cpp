@@ -10,6 +10,8 @@
 //	BehaviorSystem classMethods
 //============================================================================
 
+Engine::BehaviorSystem* Engine::BehaviorSystem::activeSystem_ = nullptr;
+
 namespace {
 
 	// タイプ名からビヘイビアの型IDを取得する
@@ -30,6 +32,7 @@ namespace {
 
 void Engine::BehaviorSystem::OnWorldEnter(ECSWorld& world, SystemContext& context) {
 
+	activeSystem_ = this;
 	// ワールドをアクティブにする
 	EnsureActiveWorld(world, context);
 
@@ -49,6 +52,9 @@ void Engine::BehaviorSystem::OnWorldExit(ECSWorld& world, SystemContext& context
 	// ワールドを破棄する
 	runtime_.DestroyAll(world, context);
 	activeWorld_ = nullptr;
+	if (activeSystem_ == this) {
+		activeSystem_ = nullptr;
+	}
 }
 
 void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context) {
@@ -109,6 +115,33 @@ void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 		}
 		record.instance->LateUpdate(world, context, record.owner);
 		});
+}
+
+void Engine::BehaviorSystem::DispatchCollisionEnter(ECSWorld& world,
+	SystemContext& context, const CollisionContact& collision) {
+
+	// アクティブなBehaviorSystemへ衝突開始を渡す
+	if (activeSystem_) {
+		activeSystem_->DispatchCollision(world, context, collision, 0);
+	}
+}
+
+void Engine::BehaviorSystem::DispatchCollisionStay(ECSWorld& world,
+	SystemContext& context, const CollisionContact& collision) {
+
+	// アクティブなBehaviorSystemへ衝突継続を渡す
+	if (activeSystem_) {
+		activeSystem_->DispatchCollision(world, context, collision, 1);
+	}
+}
+
+void Engine::BehaviorSystem::DispatchCollisionExit(ECSWorld& world,
+	SystemContext& context, const CollisionContact& collision) {
+
+	// アクティブなBehaviorSystemへ衝突終了を渡す
+	if (activeSystem_) {
+		activeSystem_->DispatchCollision(world, context, collision, 2);
+	}
 }
 
 void Engine::BehaviorSystem::EnsureActiveWorld(ECSWorld& world, SystemContext& context) {
@@ -206,6 +239,8 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 				}
 				record->instance->SetSerializedFields(entry.serializedFields);
 			}
+			// 既存インスタンスにもInspector側の[SerializeField]変更を反映する
+			record->instance->SetSerializedFields(entry.serializedFields);
 
 			// アクセスされたフラグを立てる
 			record->seen = true;
@@ -254,4 +289,33 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 
 		runtime_.SweepUnseen(world, context);
 	}
+}
+
+void Engine::BehaviorSystem::DispatchCollision(ECSWorld& world,
+	SystemContext& context, const CollisionContact& collision, int32_t phase) {
+
+	if (context.mode != WorldMode::Play || activeWorld_ != &world) {
+		return;
+	}
+
+	// Contactのselfに一致するEntityのビヘイビアだけへ通知する
+	runtime_.ForEachAlive([&](BehaviorRecord& record) {
+
+		if (!record.enabled || !record.instance || record.owner != collision.self) {
+			return;
+		}
+		switch (phase) {
+		case 0:
+			record.instance->OnCollisionEnter(world, context, collision);
+			break;
+		case 1:
+			record.instance->OnCollisionStay(world, context, collision);
+			break;
+		case 2:
+			record.instance->OnCollisionExit(world, context, collision);
+			break;
+		default:
+			break;
+		}
+		});
 }

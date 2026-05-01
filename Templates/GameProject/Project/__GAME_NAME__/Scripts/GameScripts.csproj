@@ -19,7 +19,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\GameAssets\Scripts\**\*.cs" Link="Scripts\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\GameAssets\**\*.cs" Link="GameAssets\%(RecursiveDir)%(Filename)%(Extension)" />
     <ProjectReference Include="..\..\..\..\External\NEMEngine\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" Condition="Exists('..\..\..\..\External\NEMEngine\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj')" />
     <ProjectReference Include="..\..\..\..\NEMEngine\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" Condition="Exists('..\..\..\..\NEMEngine\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj')" />
   </ItemGroup>

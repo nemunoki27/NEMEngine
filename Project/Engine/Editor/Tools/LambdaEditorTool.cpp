@@ -5,6 +5,9 @@
 //============================================================================
 #include <utility>
 
+// imgui
+#include <imgui.h>
+
 //============================================================================
 //	LambdaEditorTool classMethods
 //============================================================================
@@ -24,11 +27,20 @@ void Engine::LambdaEditorTool::Tick(ToolContext& context) {
 	}
 }
 
+void Engine::LambdaEditorTool::OpenEditorTool() {
+
+	openWindow_ = true;
+}
+
 void Engine::LambdaEditorTool::DrawEditorTool(const EditorToolContext& context) {
 
-	if (drawFunc_) {
+	if (!openWindow_) {
+		return;
+	}
+	if (ImGui::Begin(descriptor_.name.c_str(), &openWindow_) && drawFunc_) {
 		drawFunc_(context);
 	}
+	ImGui::End();
 }
 
 bool Engine::LambdaEditorTool::IsEnabled(const ToolContext& context) const {

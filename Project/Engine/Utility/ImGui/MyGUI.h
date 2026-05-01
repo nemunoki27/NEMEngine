@@ -10,6 +10,7 @@
 // c++
 #include <initializer_list>
 #include <span>
+#include <string>
 // imgui
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -32,6 +33,11 @@ namespace Engine {
 		float dragSpeed = 0.01f;    // 編集速度
 		float minValue = -10000.0f; // 最小値
 		float maxValue = 10000.0f;  // 最大値
+
+		// プロパティを閉じるか
+		bool closeOnProperty = true;
+		// 右側に別UIを置くために残す幅
+		float reserveRightWidth = 0.0f;
 	};
 	struct IntEditSetting {
 
@@ -45,6 +51,22 @@ namespace Engine {
 		bool valueChanged = false;
 		bool anyItemActive = false;
 		bool editFinished = false;
+	};
+	// 文字入力ポップアップの操作結果
+	struct TextInputPopupResult {
+
+		bool submitted = false;
+		bool canceled = false;
+	};
+	// 文字入力設定
+	struct TextEditSetting {
+
+		// 複数行入力にするか
+		bool multiLine = false;
+		// 複数行入力時のサイズ。0以下の場合は既定サイズを使う
+		ImVec2 size = ImVec2(0.0f, 0.0f);
+		// ImGuiの文字入力フラグ
+		ImGuiInputTextFlags flags = ImGuiInputTextFlags_None;
 	};
 	// ビューポートの位置とサイズを表す構造体
 	struct GizmoViewportRect {
@@ -105,6 +127,8 @@ namespace Engine {
 
 		// エンジンの表示スタイルでコラプシングヘッダーを表示する
 		static bool CollapsingHeader(const char* label, bool stratOpen = true);
+		// ポップアップ内で使用する文字入力とOK/Cancelを描画する
+		static TextInputPopupResult InputTextPopupContent(const char* label, std::string& text, const char* errorText = nullptr);
 		// 汎用プロパティ行
 		static bool BeginPropertyRow(const char* label);
 		static void EndPropertyRow();
@@ -127,7 +151,8 @@ namespace Engine {
 		static ValueEditResult DragVector4(const char* label, Vector4& value, const FloatEditSetting& setting = FloatEditSetting{});
 		static ValueEditResult DragQuaternion(const char* label, Quaternion& value, bool displayEuler = false, const FloatEditSetting& setting = FloatEditSetting{});
 		// 色編集
-		static ValueEditResult ColorEdit(const char* label, Color& value);
+		static ValueEditResult ColorEdit(const char* label, Color3& value);
+		static ValueEditResult ColorEdit(const char* label, Color4& value);
 
 		//========================================================================
 		//	ギズモ操作
@@ -148,7 +173,7 @@ namespace Engine {
 		static bool Checkbox(const char* label, bool& value);
 		static bool SmallCheckbox(const char* id, bool& value);
 		// 入力
-		static ValueEditResult InputText(const char* label, std::string& text);
+		static ValueEditResult InputText(const char* label, std::string& text, const TextEditSetting& setting = TextEditSetting{});
 		// std::stringのコンボボックス
 		static ValueEditResult StringCombo(const char* label, std::string& currentValue,
 			std::span<const std::string> items, const char* emptyPreview = "<None>", bool allowEmptySelection = false);

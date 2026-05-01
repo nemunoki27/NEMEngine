@@ -179,6 +179,10 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		// ビューポートの描画領域を入力システムに同期
 		SyncInputViewRect(inputArea, imagePos, viewSize_, srcSize);
 
+		// 表示ウィンドウの中心に表示させる
+		ImVec2 avail = ImGui::GetContentRegionAvail();
+		ImGui::SetCursorPosX(ImGui::GetCursorPos().x + (avail.x - viewSize_.x) * 0.5f);
+
 		// 描画ビューのサーフェスをImGuiに描画
 		ImGui::Image(static_cast<ImTextureID>(display->GetSRVGPUHandle().ptr), viewSize_);
 

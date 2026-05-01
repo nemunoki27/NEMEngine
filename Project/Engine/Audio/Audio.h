@@ -48,15 +48,23 @@ namespace Engine {
 		void Play(const std::string& name, float volume = 1.0f);
 		// サウンドを一度だけ再生
 		void PlayOneShot(const std::string& name, float volume = 1.0f);
+		// サウンドをインスタンスID付きで再生
+		uint64_t PlayManaged(const std::string& name, bool loop, float volume = 1.0f);
+		// ファイルからサウンドを読み込む
+		bool EnsureLoaded(const std::string& filename, AudioType type = AudioType::SE);
 
 		// サウンドを停止
 		void Stop(const std::string& name);
+		// 再生インスタンスを停止
+		void StopVoice(uint64_t voiceID);
 
 		// 音量のセット
 		void SetVolume(const std::string& name, float volume);
 
 		// サウンドが再生中か
 		bool IsPlaying(const std::string& name);
+		// 再生インスタンスが再生中か
+		bool IsVoicePlaying(uint64_t voiceID);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -109,6 +117,7 @@ namespace Engine {
 		struct VoiceInstance {
 
 			IXAudio2SourceVoice* voice = nullptr;
+			uint64_t voiceID = 0;
 
 			// 再生中の情報
 			float instanceVolume = 1.0f;
@@ -131,6 +140,7 @@ namespace Engine {
 
 		// 再生中の音リソース
 		std::unordered_map<std::string, std::vector<VoiceInstance>> activeVoices_{};
+		uint64_t nextVoiceID_ = 1;
 
 		// 排他
 		std::mutex mutex_;
@@ -149,7 +159,7 @@ namespace Engine {
 		void Unload();
 
 		// 共通再生
-		void PlayInternal(const std::string& name, bool loop, float volume);
+		uint64_t PlayInternal(const std::string& name, bool loop, float volume);
 
 		// 終了したVoiceを掃除
 		void CleanupFinishedVoicesLocked(const std::string& key);

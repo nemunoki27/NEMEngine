@@ -20,6 +20,15 @@ void Engine::RenderSceneBatch::Clear() {
 	payloadArena_.Clear();
 }
 
+void Engine::RenderSceneBatch::Reserve(uint32_t itemCount, uint32_t payloadByteCount) {
+
+	if (items_.capacity() < itemCount) {
+
+		items_.reserve(itemCount);
+	}
+	payloadArena_.Reserve(payloadByteCount);
+}
+
 void Engine::RenderSceneBatch::Sort() {
 
 	auto less = [](const RenderItem& itemA, const RenderItem& itemB) {

@@ -6,7 +6,7 @@
 
 void Engine::from_json(const nlohmann::json& in, DirectionalLightComponent& component) {
 
-	component.color = Color::FromJson(in.value("color", nlohmann::json()));
+	component.color = Color4::FromJson(in.value("color", nlohmann::json()));
 	component.direction = Vector3::FromJson(in.value("direction", nlohmann::json()));
 	component.intensity = in.value("intensity", 1.0f);
 	component.enabled = in.value("enabled", true);

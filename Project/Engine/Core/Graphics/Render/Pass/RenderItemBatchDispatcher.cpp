@@ -85,6 +85,9 @@ void Engine::RenderItemBatchDispatcher::FillColorFormats(const MultiRenderTarget
 
 	outFormats.fill(DXGI_FORMAT_UNKNOWN);
 	outCount = 0;
+	if (!surface) {
+		return;
+	}
 	const uint32_t colorCount = (std::min)(surface->GetColorCount(), static_cast<uint32_t>(outFormats.size()));
 	for (uint32_t i = 0; i < colorCount; ++i) {
 		if (auto* color = surface->GetColorTexture(i)) {

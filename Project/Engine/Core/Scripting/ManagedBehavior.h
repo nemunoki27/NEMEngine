@@ -36,6 +36,11 @@ namespace Engine {
 		void FixedUpdate(ECSWorld& world, const SystemContext& context, const Entity& entity) override;
 		void Update(ECSWorld& world, const SystemContext& context, const Entity& entity) override;
 		void LateUpdate(ECSWorld& world, const SystemContext& context, const Entity& entity) override;
+
+		// 衝突イベント
+		void OnCollisionEnter(ECSWorld& world, const SystemContext& context, const CollisionContact& collision) override;
+		void OnCollisionStay(ECSWorld& world, const SystemContext& context, const CollisionContact& collision) override;
+		void OnCollisionExit(ECSWorld& world, const SystemContext& context, const CollisionContact& collision) override;
 	private:
 		//========================================================================
 		//	private Methods
@@ -43,12 +48,16 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// C#側の完全修飾型名
 		std::string typeName_;
+		// ScriptComponentから渡されたシリアライズ値
 		nlohmann::json serializedFields_ = nlohmann::json::object();
+		// C#側インスタンスハンドル
 		int32_t managedHandle_ = 0;
 
 		//--------- functions ----------------------------------------------------
 
+		// C#側インスタンスが未作成なら作成する
 		void EnsureCreated(ECSWorld& world, const Entity& entity);
 	};
 } // Engine

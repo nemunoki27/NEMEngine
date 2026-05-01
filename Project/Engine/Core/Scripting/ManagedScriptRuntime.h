@@ -54,6 +54,7 @@ namespace Engine {
 		// C#スクリプトのインスタンスを作成/破棄する
 		int32_t CreateInstance(const std::string& typeName, ECSWorld& world,
 			const Entity& entity, const nlohmann::json& serializedFields);
+		void SetSerializedFields(int32_t handle, const nlohmann::json& serializedFields);
 		void DestroyInstance(int32_t handle);
 
 		// ライフサイクル呼び出し
@@ -65,6 +66,13 @@ namespace Engine {
 		void InvokeFixedUpdate(int32_t handle, const SystemContext& context);
 		void InvokeUpdate(int32_t handle, const SystemContext& context);
 		void InvokeLateUpdate(int32_t handle, const SystemContext& context);
+
+		// C#側のOnCollisionEnterを呼び出す
+		void InvokeCollisionEnter(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
+		// C#側のOnCollisionStayを呼び出す
+		void InvokeCollisionStay(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
+		// C#側のOnCollisionExitを呼び出す
+		void InvokeCollisionExit(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -95,8 +103,10 @@ namespace Engine {
 		using GetSerializedFieldCountFn = int32_t(__cdecl*)(const char*);
 		using CopySerializedFieldInfoFn = int32_t(__cdecl*)(const char*, int32_t, ManagedNativeSerializedFieldInfo*);
 		using CreateInstanceFn = int32_t(__cdecl*)(const char*, ManagedNativeEntity, const char*);
+		using SetSerializedFieldsFn = void(__cdecl*)(int32_t, const char*);
 		using DestroyInstanceFn = void(__cdecl*)(int32_t);
 		using InvokeFn = void(__cdecl*)(int32_t);
+		using InvokeCollisionFn = void(__cdecl*)(int32_t, ManagedCollisionEvent);
 
 		//--------- variables ----------------------------------------------------
 
@@ -114,6 +124,7 @@ namespace Engine {
 		GetSerializedFieldCountFn getSerializedFieldCount_ = nullptr;
 		CopySerializedFieldInfoFn copySerializedFieldInfo_ = nullptr;
 		CreateInstanceFn createInstance_ = nullptr;
+		SetSerializedFieldsFn setSerializedFields_ = nullptr;
 		DestroyInstanceFn destroyInstance_ = nullptr;
 		InvokeFn invokeAwake_ = nullptr;
 		InvokeFn invokeStart_ = nullptr;
@@ -123,6 +134,11 @@ namespace Engine {
 		InvokeFn invokeFixedUpdate_ = nullptr;
 		InvokeFn invokeUpdate_ = nullptr;
 		InvokeFn invokeLateUpdate_ = nullptr;
+
+		// Collisionイベント呼び出し関数
+		InvokeCollisionFn invokeCollisionEnter_ = nullptr;
+		InvokeCollisionFn invokeCollisionStay_ = nullptr;
+		InvokeCollisionFn invokeCollisionExit_ = nullptr;
 
 		const SystemContext* currentContext_ = nullptr;
 
@@ -145,6 +161,9 @@ namespace Engine {
 		bool LoadBridgeFunction(T& outFunction, const wchar_t* methodName);
 
 		void Invoke(InvokeFn function, int32_t handle, const SystemContext& context);
+		// C#側のCollisionイベント関数を呼び出す
+		void InvokeCollision(InvokeCollisionFn function, int32_t handle,
+			const SystemContext& context, const ManagedCollisionEvent& collision);
 
 		// C#へ渡すコールバック
 		static float __cdecl GetDeltaTimeCallback();

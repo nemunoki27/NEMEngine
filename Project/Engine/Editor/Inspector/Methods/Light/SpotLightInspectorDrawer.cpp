@@ -15,7 +15,7 @@ void Engine::SpotLightInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::ColorEdit("Color", draft.color);
+			return MyGUI::ColorEdit("Color4", draft.color);
 			});
 		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragVector3("Direction", draft.direction, { .dragSpeed = 0.01f,.minValue = -1.0f,.maxValue = 1.0f });

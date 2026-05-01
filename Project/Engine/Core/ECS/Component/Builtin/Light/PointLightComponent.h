@@ -16,7 +16,7 @@ namespace Engine {
 	struct PointLightComponent {
 
 		// 色
-		Color color = Color::White();
+		Color4 color = Color4::White();
 
 		// 強さ
 		float intensity = 1.0f;

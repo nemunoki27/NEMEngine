@@ -43,7 +43,7 @@ namespace Engine {
 		Vector2 size = Vector2::AnyInit(1.0f);
 		Vector2 pivot = Vector2::AnyInit(0.5f);
 
-		Color color = Color::White();
+		Color4 color = Color4::White();
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 	};
 	// テキスト描画データ
@@ -55,7 +55,7 @@ namespace Engine {
 
 		float fontSize = 32.0f;
 		float charSpacing = 0.0f;
-		Color color = Color::White();
+		Color4 color = Color4::White();
 	};
 	// メッシュ描画データ
 	struct MeshRenderPayload {
@@ -120,6 +120,8 @@ namespace Engine {
 		void Add(RenderItem&& item);
 		// 描画アイテムのクリア
 		void Clear();
+		// フレーム中に追加される描画アイテムとペイロードの容量を事前に確保
+		void Reserve(uint32_t itemCount, uint32_t payloadByteCount);
 		// 描画アイテムのソート
 		void Sort();
 

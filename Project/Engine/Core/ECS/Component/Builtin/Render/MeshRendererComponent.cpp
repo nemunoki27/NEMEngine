@@ -23,7 +23,7 @@ void Engine::from_json(const nlohmann::json& in, MeshSubMeshTextureOverride& ove
 	overrideData.occlusionTexture = ParseAssetID(in, "occlusionTexture");
 
 	// サブメッシュパラメータ
-	overrideData.color = Color::FromJson(in.value("color", nlohmann::json{}));
+	overrideData.color = Color4::FromJson(in.value("color", nlohmann::json{}));
 	overrideData.uvPos = Vector2::FromJson(in.value("uvPos", nlohmann::json{}));
 	overrideData.uvRotation = in.value("uvRotation", 0.0f);
 	overrideData.uvScale = Vector2::FromJson(in.value("uvScale", nlohmann::json{}));

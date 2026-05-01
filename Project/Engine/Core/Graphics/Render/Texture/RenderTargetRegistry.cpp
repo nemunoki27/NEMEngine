@@ -229,7 +229,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderTargetRegistry::BuildCreateDes
 		ColorAttachmentDesc color{};
 		color.name = colorDesc.name;
 		color.format = ToColorFormat(colorDesc.format);
-		color.clearColor = colorDesc.clearColor.value_or(Color::Black());
+		color.clearColor = colorDesc.clearColor.value_or(Color4::Black());
 		color.createUAV = colorDesc.createUAV;
 		createDesc.colors.emplace_back(std::move(color));
 	}

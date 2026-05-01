@@ -162,7 +162,7 @@ namespace {
 
 	// キャッシュ済みレイアウトからVS/PSインスタンスを構築する
 	void AppendGlyphInstancesFromCache(const Engine::TextRendererComponent& renderer,
-		const Engine::Color& color, const Engine::Matrix4x4& worldMatrix,
+		const Engine::Color4& color, const Engine::Matrix4x4& worldMatrix,
 		std::vector<Engine::TextVSInstanceData>& outVS,
 		std::vector<Engine::TextPSInstanceData>& outPS) {
 

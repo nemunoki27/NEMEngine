@@ -53,6 +53,7 @@ namespace Engine {
 		None,
 		Entity,
 		MeshSubMesh,
+		Asset,
 	};
 
 	// エディタの状態を管理する構造体
@@ -60,6 +61,8 @@ namespace Engine {
 
 		// 現在選択しているエンティティ
 		Entity selectedEntity = Entity::Null();
+		// 現在選択しているアセット
+		AssetID selectedAsset{};
 
 		// 現在選択しているオブジェクトの種類
 		EditorSelectionKind selectionKind = EditorSelectionKind::None;
@@ -94,6 +97,7 @@ namespace Engine {
 		// エンティティやサブメッシュを選択する
 		void SelectEntity(const Entity& entity);
 		void SelectMeshSubMesh(const Entity& entity, uint32_t subMeshIndex, UUID stableID = UUID{});
+		void SelectAsset(AssetID asset);
 		void SelectFromScenePick(const Entity& entity, uint32_t subMeshIndex, UUID stableID = UUID{});
 		// 現在の選択がエンティティかサブメッシュか
 		bool HasValidSubMeshSelection(ECSWorld* world) const;
@@ -101,6 +105,7 @@ namespace Engine {
 		// 現在の選択が特定のエンティティやサブメッシュか
 		bool IsEntitySelected(const Entity& entity) const;
 		bool IsMeshSubMeshSelected(const Entity& entity, UUID stableID, uint32_t subMeshIndex) const;
+		bool IsAssetSelected(AssetID asset) const;
 
 		// 選択をクリアする
 		void ClearSelection();

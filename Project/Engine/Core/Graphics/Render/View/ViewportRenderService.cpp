@@ -20,7 +20,7 @@ Engine::MultiRenderTargetCreateDesc Engine::ViewportRenderService::BuildDefaultD
 	ColorAttachmentDesc color{};
 	color.name = GetPrimaryColorName(kind);
 	color.format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	color.clearColor = Engine::Color::FromHex(0x303030ff);
+	color.clearColor = Engine::Color4::FromHex(0x303030ff);
 	color.createUAV = false;
 	desc.colors.emplace_back(color);
 

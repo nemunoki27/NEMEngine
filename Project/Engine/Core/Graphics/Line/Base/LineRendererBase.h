@@ -36,9 +36,9 @@ namespace Engine {
 
 		// ライン描画
 		// Vector2/Vector3で特殊化
-		void DrawLine(const T& /*pointA*/, const T& /*pointB*/, const Color& /*color*/, float /*thickness*/ = 1.0f);
-		void DrawLine(const T& /*pointA*/, const Color& colorA, float /*thicknessA*/,
-			const T& /*pointB*/, const Color& /*colorB*/, float /*thicknessB*/);
+		void DrawLine(const T& /*pointA*/, const T& /*pointB*/, const Color4& /*color*/, float /*thickness*/ = 1.0f);
+		void DrawLine(const T& /*pointA*/, const Color4& colorA, float /*thicknessA*/,
+			const T& /*pointB*/, const Color4& /*colorB*/, float /*thicknessB*/);
 
 		// 描画
 		void RenderSceneView(GraphicsCore& graphicsCore, const ResolvedRenderView& view, MultiRenderTarget& surface);
@@ -63,7 +63,7 @@ namespace Engine {
 			// ライン半幅
 			float thickness = 1.0f;
 
-			Color color;
+			Color4 color;
 		};
 
 		// 定数バッファ

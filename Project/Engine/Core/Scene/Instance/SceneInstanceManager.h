@@ -60,6 +60,10 @@ namespace Engine {
 		bool LoadAdditive(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world, AssetID sceneAsset);
 		// シーンインスタンスをアンロード
 		bool Unload(ECSWorld& world, UUID instanceID);
+		// 全てのシーンインスタンスをアンロード
+		void UnloadAll(ECSWorld& world);
+		// アクティブなシーンをファイルに保存する
+		bool SaveActive(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world) const;
 
 		// シーンの処理を開始するときのスナップショット
 		nlohmann::json SerializeSnapshot(const SceneSystem& sceneSystem, ECSWorld& world) const;
@@ -91,5 +95,10 @@ namespace Engine {
 		UUID active_{};
 		// シーンインスタンスのリスト
 		std::vector<SceneInstance> scenes_;
+
+		//--------- functions ----------------------------------------------------
+
+		// シーンインスタンスが所持しているエンティティを収集する
+		static std::vector<Entity> CollectSceneEntities(ECSWorld& world, const SceneInstance& scene);
 	};
 } // Engine

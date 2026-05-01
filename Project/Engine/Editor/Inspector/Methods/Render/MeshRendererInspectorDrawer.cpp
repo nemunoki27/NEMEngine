@@ -182,7 +182,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 			ImGui::Separator();
 			// 色
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::ColorEdit("Color", subMesh.color);
+				return MyGUI::ColorEdit("Color4", subMesh.color);
 				});
 			// UV
 			DrawField(anyItemActive, [&]() {
@@ -203,7 +203,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 	// サブメッシュのテクスチャ設定
 		{
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("Base Color", subMesh.baseColorTexture,
+				return MyGUI::AssetReferenceField("Base Color4", subMesh.baseColorTexture,
 					context.editorContext->assetDatabase, { AssetType::Texture });
 				});
 			DrawField(anyItemActive, [&]() {

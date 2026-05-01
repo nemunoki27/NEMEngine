@@ -50,7 +50,7 @@ namespace Engine {
 	struct SpritePSInstanceData {
 
 		// 色
-		Color color = Color::White();
+		Color4 color = Color4::White();
 
 		// UV行列
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();

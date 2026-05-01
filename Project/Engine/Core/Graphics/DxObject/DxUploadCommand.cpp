@@ -36,7 +36,7 @@ void DxUploadCommand::Create(ID3D12Device* device) {
 	assert(SUCCEEDED(hr));
 }
 
-void DxUploadCommand::ExecuteCommands() {
+void DxUploadCommand::ExecuteCommands(ID3D12CommandQueue* waitQueue) {
 
 	// コマンドリストの内容を確定させる。すべてのコマンドを積んでからCloseする
 	HRESULT hr = commandList_->Close();
@@ -49,6 +49,11 @@ void DxUploadCommand::ExecuteCommands() {
 	// Feneceの値を更新
 	fenceValue_++;
 	commandQueue_->Signal(fence_.Get(), fenceValue_);
+
+	// 描画キュー側でもアップロード完了を待つ
+	if (waitQueue && waitQueue != commandQueue_.Get()) {
+		waitQueue->Wait(fence_.Get(), fenceValue_);
+	}
 
 	// Fenceの値が指定したSignal値にたどり着いているか確認する
 	if (fence_->GetCompletedValue() < fenceValue_) {

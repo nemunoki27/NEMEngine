@@ -31,7 +31,9 @@ namespace Engine {
 
 		// 毎フレーム更新
 		void Tick(ToolContext& context) override;
-		// Toolパネル内の描画
+		// ToolPanelの一覧からツールを開く
+		void OpenEditorTool() override;
+		// 独立したエディタウィンドウを描画する
 		void DrawEditorTool(const EditorToolContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
@@ -51,5 +53,8 @@ namespace Engine {
 		DrawFunc drawFunc_{};
 		TickFunc tickFunc_{};
 		EnabledFunc enabledFunc_{};
+
+		// ウィンドウ表示状態
+		bool openWindow_ = false;
 	};
 } // Engine

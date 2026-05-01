@@ -558,6 +558,7 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	getSerializedFieldCount_ = nullptr;
 	copySerializedFieldInfo_ = nullptr;
 	createInstance_ = nullptr;
+	setSerializedFields_ = nullptr;
 	destroyInstance_ = nullptr;
 	invokeAwake_ = nullptr;
 	invokeStart_ = nullptr;
@@ -567,6 +568,9 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	invokeFixedUpdate_ = nullptr;
 	invokeUpdate_ = nullptr;
 	invokeLateUpdate_ = nullptr;
+	invokeCollisionEnter_ = nullptr;
+	invokeCollisionStay_ = nullptr;
+	invokeCollisionExit_ = nullptr;
 
 	ReleaseHostfxr();
 }
@@ -684,9 +688,9 @@ void Engine::ManagedScriptRuntime::AutoRebuildOnScriptChanges() {
 	TryAddSnapshotFile(currentSnapshot, projectPath);
 
 	const std::filesystem::path scriptsRoot = projectPath.parent_path();
-	const std::filesystem::path gameScriptsRoot = scriptsRoot.parent_path() / "GameAssets/Scripts";
+	const std::filesystem::path gameAssetsRoot = scriptsRoot.parent_path() / "GameAssets";
 	CollectScriptSnapshotFiles(currentSnapshot, scriptsRoot);
-	CollectScriptSnapshotFiles(currentSnapshot, gameScriptsRoot);
+	CollectScriptSnapshotFiles(currentSnapshot, gameAssetsRoot);
 
 	if (!hasScriptSourceSnapshot_) {
 		scriptSourceSnapshot_ = std::move(currentSnapshot);
@@ -723,6 +727,16 @@ int32_t Engine::ManagedScriptRuntime::CreateInstance(const std::string& typeName
 
 	const std::string json = serializedFields.is_object() ? serializedFields.dump() : std::string("{}");
 	return createInstance_(typeName.c_str(), MakeNativeEntity(world, entity), json.c_str());
+}
+
+void Engine::ManagedScriptRuntime::SetSerializedFields(int32_t handle, const nlohmann::json& serializedFields) {
+
+	if (!initialized_ || !setSerializedFields_ || handle == 0) {
+		return;
+	}
+
+	const std::string json = serializedFields.is_object() ? serializedFields.dump() : std::string("{}");
+	setSerializedFields_(handle, json.c_str());
 }
 
 void Engine::ManagedScriptRuntime::DestroyInstance(int32_t handle) {
@@ -771,6 +785,27 @@ void Engine::ManagedScriptRuntime::InvokeUpdate(int32_t handle, const SystemCont
 void Engine::ManagedScriptRuntime::InvokeLateUpdate(int32_t handle, const SystemContext& context) {
 
 	Invoke(invokeLateUpdate_, handle, context);
+}
+
+void Engine::ManagedScriptRuntime::InvokeCollisionEnter(int32_t handle,
+	const SystemContext& context, const ManagedCollisionEvent& collision) {
+
+	// C#側のOnCollisionEnterへ渡す
+	InvokeCollision(invokeCollisionEnter_, handle, context, collision);
+}
+
+void Engine::ManagedScriptRuntime::InvokeCollisionStay(int32_t handle,
+	const SystemContext& context, const ManagedCollisionEvent& collision) {
+
+	// C#側のOnCollisionStayへ渡す
+	InvokeCollision(invokeCollisionStay_, handle, context, collision);
+}
+
+void Engine::ManagedScriptRuntime::InvokeCollisionExit(int32_t handle,
+	const SystemContext& context, const ManagedCollisionEvent& collision) {
+
+	// C#側のOnCollisionExitへ渡す
+	InvokeCollision(invokeCollisionExit_, handle, context, collision);
 }
 
 const std::vector<Engine::ManagedScriptField>& Engine::ManagedScriptRuntime::GetSerializedFields(const std::string& typeName) {
@@ -923,6 +958,7 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	success &= LoadBridgeFunction(getSerializedFieldCount_, L"GetSerializedFieldCount");
 	success &= LoadBridgeFunction(copySerializedFieldInfo_, L"CopySerializedFieldInfo");
 	success &= LoadBridgeFunction(createInstance_, L"CreateInstance");
+	success &= LoadBridgeFunction(setSerializedFields_, L"SetSerializedFields");
 	success &= LoadBridgeFunction(destroyInstance_, L"DestroyInstance");
 	success &= LoadBridgeFunction(invokeAwake_, L"InvokeAwake");
 	success &= LoadBridgeFunction(invokeStart_, L"InvokeStart");
@@ -932,6 +968,11 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	success &= LoadBridgeFunction(invokeFixedUpdate_, L"InvokeFixedUpdate");
 	success &= LoadBridgeFunction(invokeUpdate_, L"InvokeUpdate");
 	success &= LoadBridgeFunction(invokeLateUpdate_, L"InvokeLateUpdate");
+
+	// Collisionイベント用のブリッジ関数
+	success &= LoadBridgeFunction(invokeCollisionEnter_, L"InvokeCollisionEnter");
+	success &= LoadBridgeFunction(invokeCollisionStay_, L"InvokeCollisionStay");
+	success &= LoadBridgeFunction(invokeCollisionExit_, L"InvokeCollisionExit");
 	return success;
 }
 
@@ -976,6 +1017,19 @@ void Engine::ManagedScriptRuntime::Invoke(InvokeFn function, int32_t handle, con
 
 	currentContext_ = &context;
 	function(handle);
+	currentContext_ = nullptr;
+}
+
+void Engine::ManagedScriptRuntime::InvokeCollision(InvokeCollisionFn function, int32_t handle,
+	const SystemContext& context, const ManagedCollisionEvent& collision) {
+
+	if (!initialized_ || !function || handle == 0) {
+		return;
+	}
+
+	// Collisionイベント中だけSystemContextをC#コールバックから参照できるようにする
+	currentContext_ = &context;
+	function(handle, collision);
 	currentContext_ = nullptr;
 }
 

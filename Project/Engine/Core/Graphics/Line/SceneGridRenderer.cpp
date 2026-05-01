@@ -550,7 +550,7 @@ Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPas
 		gridHorizonFadeStart_,
 		gridHorizonFadeEnd_);
 
-	constants.minorColor = Color(1.0f, 1.0f, 1.0f, gridMinorBaseAlpha_);
+	constants.minorColor = Color4(1.0f, 1.0f, 1.0f, gridMinorBaseAlpha_);
 	constants.minorParams0 = Vector4(
 		gridMinorLineThickness_,
 		gridMinorFarThicknessRate_,
@@ -560,7 +560,7 @@ Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPas
 		gridMinorFadePower_,
 		0.0f, 0.0f, 0.0f);
 
-	constants.majorColor = Color(1.0f, 1.0f, 1.0f, gridMajorBaseAlpha_);
+	constants.majorColor = Color4(1.0f, 1.0f, 1.0f, gridMajorBaseAlpha_);
 	constants.majorParams0 = Vector4(
 		gridMajorLineThickness_,
 		gridMajorFarThicknessRate_,
@@ -570,7 +570,7 @@ Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPas
 		gridMajorFadePower_,
 		0.0f, 0.0f, 0.0f);
 
-	constants.coarseColor = Color(1.0f, 1.0f, 1.0f, gridCoarseBaseAlpha_);
+	constants.coarseColor = Color4(1.0f, 1.0f, 1.0f, gridCoarseBaseAlpha_);
 	constants.coarseParams0 = Vector4(
 		gridCoarseLineThickness_,
 		gridCoarseFarThicknessRate_,
@@ -675,8 +675,8 @@ void Engine::SceneGridRenderer::Edit() {
 
 	if (ImGui::TreeNode("Axis")) {
 
-		ImGui::ColorEdit4("Axis X Color (z = 0)", reinterpret_cast<float*>(&gridAxisXLineColor_));
-		ImGui::ColorEdit4("Axis Z Color (x = 0)", reinterpret_cast<float*>(&gridAxisZLineColor_));
+		ImGui::ColorEdit4("Axis X Color4 (z = 0)", reinterpret_cast<float*>(&gridAxisXLineColor_));
+		ImGui::ColorEdit4("Axis Z Color4 (x = 0)", reinterpret_cast<float*>(&gridAxisZLineColor_));
 		ImGui::DragFloat("Axis Thickness", &gridAxisLineThickness_, 0.01f, 0.01f, 100.0f, "%.3f");
 
 		ImGui::TreePop();
@@ -740,8 +740,8 @@ void Engine::SceneGridRenderer::Edit() {
 		gridThicknessFadePower_ = 8.0f;
 		gridMinHalfThickness_ = 0.010f;
 
-		gridAxisXLineColor_ = Color::FromHex(0xFF0009FF);
-		gridAxisZLineColor_ = Color::FromHex(0x00FF03FF);
+		gridAxisXLineColor_ = Color4::FromHex(0xFF0009FF);
+		gridAxisZLineColor_ = Color4::FromHex(0x00FF03FF);
 		gridAxisLineThickness_ = 2.4f;
 
 		gridCoarseBaseAlpha_ = 0.220f;

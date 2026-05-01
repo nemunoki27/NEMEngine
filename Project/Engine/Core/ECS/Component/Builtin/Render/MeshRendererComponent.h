@@ -37,7 +37,7 @@ namespace Engine {
 
 		// サブメッシュパラメータ
 		// 色
-		Color color = Color::White();
+		Color4 color = Color4::White();
 
 		// UV
 		Vector2 uvPos = Vector2::AnyInit(0.0f);

@@ -14,7 +14,7 @@ using namespace Engine;
 //============================================================================
 
 void DxSwapChain::Create(WinApp* winApp, IDXGIFactory7* factory, ID3D12CommandQueue* queue, RTVDescriptor* rtvDescriptor,
-	uint32_t width, uint32_t height, DXGI_FORMAT format, const Color& clearColor) {
+	uint32_t width, uint32_t height, DXGI_FORMAT format, const Color4& clearColor) {
 
 	// レンダーターゲットの設定
 	renderTarget_.width = width;

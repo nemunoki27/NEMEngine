@@ -130,17 +130,3 @@ bool Math::NearlyEqual(float lhs, float rhs) {
 
 	return std::fabs(lhs - rhs) <= 0.001f;
 }
-
-RECT Math::MakeClientRect(const Engine::Vector2& size, const Engine::Vector2& pos) {
-
-	const float halfX = size.x * 0.5f;
-	const float halfY = size.y * 0.5f;
-
-	const LONG left = static_cast<LONG>(std::floor(pos.x - halfX));
-	const LONG top = static_cast<LONG>(std::floor(pos.y - halfY));
-	const LONG right = static_cast<LONG>(std::ceil(pos.x + halfX));
-	const LONG bottom = static_cast<LONG>(std::ceil(pos.y + halfY));
-
-	RECT rect{ left, top, right, bottom };
-	return rect;
-}

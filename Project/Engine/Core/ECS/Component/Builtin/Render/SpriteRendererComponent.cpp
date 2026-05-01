@@ -15,7 +15,7 @@ void Engine::from_json(const nlohmann::json& in, SpriteRendererComponent& compon
 	component.material = ParseAssetID(in, "material");
 	component.size = Vector2::FromJson(in.value("size", nlohmann::json()));
 	component.pivot = Vector2::FromJson(in.value("pivot", nlohmann::json()));
-	component.color = Color::FromJson(in.value("color", nlohmann::json()));
+	component.color = Color4::FromJson(in.value("color", nlohmann::json()));
 	component.queue = in.value("queue", component.queue);
 	component.layer = in.value("layer", component.layer);
 	component.order = in.value("order", component.order);

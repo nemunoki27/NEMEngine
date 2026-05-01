@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Command/Interface/IEditorCommand.h>
+#include <Engine/Core/Asset/AssetTypes.h>
 
 // c++
 #include <memory>
@@ -37,5 +38,11 @@ namespace Engine {
 
 		// プレイ/ストップの切り替え要求
 		virtual void RequestPlayToggle() = 0;
+		// 新規シーン作成要求
+		virtual void RequestNewScene() = 0;
+		// シーンを開く要求
+		virtual void RequestOpenScene(AssetID sceneAsset) = 0;
+		// アクティブシーンの保存要求
+		virtual void RequestSaveScene() = 0;
 	};
 } // Engine

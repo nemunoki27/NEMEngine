@@ -15,7 +15,7 @@ void Engine::PointLightInspectorDrawer::DrawFields([[maybe_unused]] const Editor
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::ColorEdit("Color", draft.color);
+			return MyGUI::ColorEdit("Color4", draft.color);
 			});
 		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragFloat("Intensity", draft.intensity, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 128.0f });

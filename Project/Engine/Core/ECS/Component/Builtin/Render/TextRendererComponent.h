@@ -60,7 +60,7 @@ namespace Engine {
 		float charSpacing = 0.0f;
 
 		// 色
-		Color color = Color::White();
+		Color4 color = Color4::White();
 
 		// 描画レイヤー
 		int32_t layer = 0;

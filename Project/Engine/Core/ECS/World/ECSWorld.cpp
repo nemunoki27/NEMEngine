@@ -24,6 +24,7 @@ Entity ECSWorld::CreateEntity(UUID stableUUID) {
 	uint32_t index = AllocateIndex();
 	Entity entity{ index, records_[index].generation };
 	records_[index].alive = true;
+	records_[index].pendingDestroy = false;
 	records_[index].uuid = stableUUID ? stableUUID : UUID::New();
 
 	// 空アーキタイプへ入れる
@@ -39,24 +40,66 @@ void ECSWorld::DestroyEntity(const Entity& entity) {
 	if (!IsAlive(entity)) {
 		return;
 	}
+	EntityRecord& record = records_[entity.index];
+	if (record.pendingDestroy) {
+		return;
+	}
+
+	// 走査中のチャンクを壊さないように、実破棄はフレーム終端でまとめて行う
+	record.pendingDestroy = true;
+	pendingDestroyEntities_.emplace_back(entity);
+}
+
+void ECSWorld::FlushPendingDestroyEntities() {
+
+	if (pendingDestroyEntities_.empty()) {
+		return;
+	}
+
+	// 破棄中に新しい破棄予約が追加されても、次回Flushへ回せるように一旦分離する
+	std::vector<Entity> destroyingEntities{};
+	destroyingEntities.swap(pendingDestroyEntities_);
+
+	for (const Entity& entity : destroyingEntities) {
+		if (!IsAlive(entity) || !records_[entity.index].pendingDestroy) {
+			continue;
+		}
+		DestroyEntityImmediate(entity);
+	}
+}
+
+void ECSWorld::DestroyEntityImmediate(const Entity& entity) {
+
+	if (!IsAlive(entity)) {
+		return;
+	}
+
+	EntityRecord& record = records_[entity.index];
 
 	// アーキタイプから抜く
-	Entity moved = records_[entity.index].location.archetype->RemoveSwap(
-		records_[entity.index].location.chunkIndex, records_[entity.index].location.row);
+	Entity moved = record.location.archetype->RemoveSwap(
+		record.location.chunkIndex, record.location.row);
 	// 移動してきたエンティティが有効なら、レコードを更新する
 	if (moved.IsValid()) {
 
 		// 入れ替えで動いてきたエンティティの位置を更新
-		records_[moved.index].location = records_[entity.index].location;
+		records_[moved.index].location = record.location;
 	}
 
-	// マップからも消す
-	uuidToEntity_.erase(records_[entity.index].uuid);
+	// 同じUUIDで再生成済みの場合に新しいマップを消さないよう、対象が一致する時だけ消す
+	auto uuidIt = uuidToEntity_.find(record.uuid);
+	if (uuidIt != uuidToEntity_.end() && uuidIt->second == entity) {
+
+		uuidToEntity_.erase(uuidIt);
+	}
 
 	// レコードを無効化して再利用に回す
-	records_[entity.index].alive = false;
+	record.alive = false;
+	record.pendingDestroy = false;
+	record.uuid = UUID{};
+	record.location = EntityLocation{};
 	// 世代をインクリメントして、古いIDが再利用されても区別できるようにする
-	++records_[entity.index].generation;
+	++record.generation;
 	free_.emplace_back(entity.index);
 }
 
@@ -184,6 +227,14 @@ bool ECSWorld::IsAlive(const Entity& entity) const {
 	}
 	const auto& record = records_[entity.index];
 	return record.alive && record.generation == entity.generation;
+}
+
+bool ECSWorld::IsPendingDestroy(const Entity& entity) const {
+
+	if (!IsAlive(entity)) {
+		return false;
+	}
+	return records_[entity.index].pendingDestroy;
 }
 
 Engine::UUID ECSWorld::GetUUID(const Entity& entity) const {

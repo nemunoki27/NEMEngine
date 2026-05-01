@@ -40,7 +40,7 @@ namespace Engine {
 
 			// 画面クリアカラー
 			const float kWindowClearColor[4] = { 0.016f, 0.016f, 0.016f, 1.0f };
-			Color clearColor;
+			Color4 clearColor;
 			// 描画フォーマット
 			DXGI_FORMAT swapChainFormat;
 			DXGI_FORMAT renderTextureFormat;

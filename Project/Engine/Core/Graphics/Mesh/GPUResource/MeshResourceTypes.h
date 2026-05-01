@@ -155,7 +155,7 @@ namespace Engine {
 		ImportedMeshTextureSet defaultTextures{};
 		ImportedMeshTextureAssetSet defaultTextureAssets{};
 		// デフォルトのベースカラー
-		Color baseColor = Color::White();
+		Color4 baseColor = Color4::White();
 	};
 	// 読みこまれたメッシュアセットの情報
 	struct ImportedMeshAsset {

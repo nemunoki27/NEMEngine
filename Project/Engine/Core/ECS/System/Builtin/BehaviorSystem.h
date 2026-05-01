@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/ECS/Behavior/World/BehaviorWorld.h>
 #include <Engine/Core/ECS/System/Interface/ISystem.h>
+#include <Engine/Core/Collision/CollisionTypes.h>
 
 namespace Engine {
 
@@ -31,6 +32,13 @@ namespace Engine {
 		void Update(ECSWorld& world, SystemContext& context) override;
 		void LateUpdate(ECSWorld& world, SystemContext& context) override;
 
+		// OnCollisionEnterを対象Entityのビヘイビアへ渡す
+		static void DispatchCollisionEnter(ECSWorld& world, SystemContext& context, const CollisionContact& collision);
+		// OnCollisionStayを対象Entityのビヘイビアへ渡す
+		static void DispatchCollisionStay(ECSWorld& world, SystemContext& context, const CollisionContact& collision);
+		// OnCollisionExitを対象Entityのビヘイビアへ渡す
+		static void DispatchCollisionExit(ECSWorld& world, SystemContext& context, const CollisionContact& collision);
+
 		//--------- accessor -----------------------------------------------------
 
 		const char* GetName() const override { return "BehaviorSystem"; }
@@ -43,6 +51,7 @@ namespace Engine {
 
 		ECSWorld* activeWorld_ = nullptr;
 		BehaviorWorld runtime_;
+		static BehaviorSystem* activeSystem_;
 
 		//--------- functions ----------------------------------------------------
 
@@ -52,5 +61,7 @@ namespace Engine {
 		void ResetRuntimeState(ECSWorld& world);
 		// スクリプトコンポーネントを持つ全てのエンティティに対して、スクリプトのビヘイビアの実体化と初期化を行う
 		void Prepare(ECSWorld& world, SystemContext& context, bool doSweep);
+		// 衝突イベントを対象Entityのビヘイビアへ渡す
+		void DispatchCollision(ECSWorld& world, SystemContext& context, const CollisionContact& collision, int32_t phase);
 	};
 } // Engine

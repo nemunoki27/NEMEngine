@@ -58,12 +58,26 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 
 	bool is3D = editDimension_ == Dimension::Type3D;
 
+	// ドラッグ編集の設定
+	FloatEditSetting editSetting{ .minValue = -10000.0f,.maxValue = 10000.0f,.closeOnProperty = false,.reserveRightWidth = 80.0f };
+	// ボタンサイズ
+	ImVec2 resetButtonSize = ImVec2(editSetting.reserveRightWidth, 24.0f);
+
 	//============================================================================
 	//	座標編集
 	//============================================================================
 	{
-		float dragSpeed = is3D ? 0.01f : 1.0f;
-		auto editResult = MyGUI::DragVector3("Position", draftTransform_.localPos, { .dragSpeed = dragSpeed,.minValue = -10000.0f,.maxValue = 10000.0f });
+		editSetting.dragSpeed = is3D ? 0.01f : 1.0f;
+
+		auto editResult = MyGUI::DragVector3("Position", draftTransform_.localPos, editSetting);
+		// リセット
+		ImGui::SameLine();
+		if (ImGui::Button("Reset##DragPosition", resetButtonSize)) {
+			draftTransform_.localPos.Init();
+			editResult.valueChanged = true;
+			editResult.editFinished = true;
+		}
+		MyGUI::EndPropertyRow();
 		if (editResult.valueChanged) {
 			draftTransform_.isDirty = true;
 			previewRequested_ = true;
@@ -76,14 +90,24 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	//	回転編集
 	//============================================================================
 	{
+		editSetting.dragSpeed = 0.1f;
+
 		ValueEditResult editResult{};
 		if (is3D) {
 
-			editResult = MyGUI::DragVector3("Rotation", draftEulerDegrees_, { .dragSpeed = 0.1f });
+			editResult = MyGUI::DragVector3("Rotation", draftEulerDegrees_, editSetting);
 		} else {
 
-			editResult = MyGUI::DragFloat("Rotation", draftEulerDegrees_.z, { .dragSpeed = 0.1f });
+			editResult = MyGUI::DragFloat("Rotation", draftEulerDegrees_.z, editSetting);
 		}
+		// リセット
+		ImGui::SameLine();
+		if (ImGui::Button("Reset##DragRotation", resetButtonSize)) {
+			draftEulerDegrees_.Init();
+			editResult.valueChanged = true;
+			editResult.editFinished = true;
+		}
+		MyGUI::EndPropertyRow();
 		if (editResult.valueChanged) {
 
 			draftTransform_.isDirty = true;
@@ -97,17 +121,27 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	//	スケール編集
 	//============================================================================
 	{
+		editSetting.dragSpeed = 0.01f;
+
 		ValueEditResult editResult{};
 		if (is3D) {
 
-			editResult = MyGUI::DragVector3("Scale", draftTransform_.localScale, { .dragSpeed = 0.01f });
+			editResult = MyGUI::DragVector3("Scale", draftTransform_.localScale, editSetting);
 		} else {
 
 			Vector2 scale2D{ draftTransform_.localScale.x, draftTransform_.localScale.y };
-			editResult = MyGUI::DragVector2("Scale", scale2D, { .dragSpeed = 0.01f });
+			editResult = MyGUI::DragVector2("Scale", scale2D, editSetting);
 			draftTransform_.localScale.x = scale2D.x;
 			draftTransform_.localScale.y = scale2D.y;
 		}
+		// リセット
+		ImGui::SameLine();
+		if (ImGui::Button("Reset##DragScale", resetButtonSize)) {
+			draftTransform_.localScale = Vector3::AnyInit(1.0f);
+			editResult.valueChanged = true;
+			editResult.editFinished = true;
+		}
+		MyGUI::EndPropertyRow();
 		if (editResult.valueChanged) {
 			draftTransform_.isDirty = true;
 			previewRequested_ = true;

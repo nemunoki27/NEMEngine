@@ -26,20 +26,20 @@ namespace Engine {
 		//---------- drawers -----------------------------------------------------
 
 		// 球
-		void DrawSphere(const Vector3& center, float radius, const Color& color, uint32_t division = 8, float thickness = 1.0f);
+		void DrawSphere(const Vector3& center, float radius, const Color4& color, uint32_t division = 8, float thickness = 1.0f);
 		// 半球
 		template <typename T>
 		void DrawHemisphere(const Vector3& center, float radius, const T& rotation,
-			const Color& color, uint32_t division = 8, float thickness = 1.0f);
+			const Color4& color, uint32_t division = 8, float thickness = 1.0f);
 		// AABB
-		void DrawAABB(const Vector3& min, const Vector3& max, const Color& color, float thickness = 1.0f);
+		void DrawAABB(const Vector3& min, const Vector3& max, const Color4& color, float thickness = 1.0f);
 		// OBB
 		template <typename T>
-		void DrawOBB(const Vector3& center, const Vector3& size, const T& rotation, const Color& color, float thickness = 1.0f);
+		void DrawOBB(const Vector3& center, const Vector3& size, const T& rotation, const Color4& color, float thickness = 1.0f);
 		// コーン
 		template <typename T>
 		void DrawCone(const Vector3& center, float baseRadius, float topRadius, float height,
-			const T& rotation, const Color& color, uint32_t division = 8, float thickness = 1.0f);
+			const T& rotation, const Color4& color, uint32_t division = 8, float thickness = 1.0f);
 
 		// 軸を描画(X軸(赤)Y軸(青)Z軸(緑))
 		template <typename T>
@@ -48,10 +48,10 @@ namespace Engine {
 		void DrawSkeleton(const Matrix4x4& worldMatrix, const Skeleton& skeleton);
 		// カメラのフラスタムを描画
 		void DrawCameraFrustum(const Matrix4x4& viewMatrix, float aspectRatio, float nearClip,
-			float farClip, float fovY, float scale, const Color& color, float thickness = 1.0f);
+			float farClip, float fovY, float scale, const Color4& color, float thickness = 1.0f);
 		// スポットライトのフラスタムを描画
 		void DrawSpotLightFrustum(const Vector3& pos, const Vector3& direction, float distance, float cosAngle,
-			float cosFalloffStart, const Color& color, uint32_t division = 16, float thickness = 1.0f);
+			float cosFalloffStart, const Color4& color, uint32_t division = 16, float thickness = 1.0f);
 	private:
 		//========================================================================
 		//	private Methods
@@ -73,7 +73,7 @@ namespace Engine {
 
 	template<typename T>
 	inline void LineRenderer3D::DrawHemisphere(const Vector3& center, float radius,
-		const T& rotation, const Color& color, uint32_t division, float thickness) {
+		const T& rotation, const Color4& color, uint32_t division, float thickness) {
 
 		const float kLatEvery = (Math::pi / 2.0f) / division; // 緯度
 		const float kLonEvery = 2.0f * Math::pi / division;   // 経度
@@ -119,7 +119,7 @@ namespace Engine {
 
 	template<typename T>
 	inline void LineRenderer3D::DrawOBB(const Vector3& center, const Vector3& size,
-		const T& rotation, const Color& color, float thickness) {
+		const T& rotation, const Color4& color, float thickness) {
 
 		const uint32_t vertexNum = 8;
 
@@ -170,7 +170,7 @@ namespace Engine {
 
 	template<typename T>
 	inline void LineRenderer3D::DrawCone(const Vector3& center, float baseRadius, float topRadius,
-		float height, const T& rotation, const Color& color, uint32_t division, float thickness) {
+		float height, const T& rotation, const Color4& color, uint32_t division, float thickness) {
 
 		const float kAngleStep = 2.0f * Math::pi / division;
 
@@ -236,8 +236,8 @@ namespace Engine {
 		Vector3 yDirection = Vector3::TransferNormal(Vector3(0.0f, 1.0f, 0.0f), rotationMatrix).Normalize();
 		Vector3 zDirection = Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), rotationMatrix).Normalize();
 
-		DrawLine(pos, pos + xDirection * length, Color::Red(), thickness);
-		DrawLine(pos, pos + yDirection * length, Color::Blue(), thickness);
-		DrawLine(pos, pos + zDirection * length, Color::Green(), thickness);
+		DrawLine(pos, pos + xDirection * length, Color4::Red(), thickness);
+		DrawLine(pos, pos + yDirection * length, Color4::Blue(), thickness);
+		DrawLine(pos, pos + zDirection * length, Color4::Green(), thickness);
 	}
 } // Engine

@@ -25,9 +25,14 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 	if (ImGui::BeginMenu("File")) {
 
-		ImGui::MenuItem("New Scene", nullptr, false, false);
+		const bool canEditScene = context.CanEditScene();
+		if (ImGui::MenuItem("New Scene", nullptr, false, canEditScene)) {
+			context.host->RequestNewScene();
+		}
 		ImGui::MenuItem("Open Scene...", nullptr, false, false);
-		ImGui::MenuItem("Save Scene", "Ctrl+S", false, false);
+		if (ImGui::MenuItem("Save Scene", "Ctrl+S", false, canEditScene)) {
+			context.host->RequestSaveScene();
+		}
 		ImGui::Separator();
 		ImGui::MenuItem("Save Selected As Prefab", nullptr, false, false);
 		ImGui::EndMenu();

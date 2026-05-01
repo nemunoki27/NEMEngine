@@ -202,6 +202,9 @@ Engine::AssetType Engine::AssetDatabase::GuessTypeByPath(const std::filesystem::
 	if (extension == ".cs") {
 		return AssetType::Script;
 	}
+	if (extension == ".wav" || extension == ".wave" || extension == ".mp3") {
+		return AssetType::Audio;
+	}
 	return AssetType::Unknown;
 }
 

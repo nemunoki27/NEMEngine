@@ -22,6 +22,7 @@ x86/
 *.ini
 *.meta
 *.pdb
+*.exeConfig.json
 
 # Logs / temp
 *.log

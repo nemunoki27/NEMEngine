@@ -39,6 +39,8 @@ namespace Engine {
 		RenderPayload Push(const T& value);
 		// データクリア
 		void Clear();
+		// 必要なバイト数を事前に確保
+		void Reserve(uint32_t byteCount);
 
 		//--------- accessor -----------------------------------------------------
 

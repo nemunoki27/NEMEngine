@@ -1,11 +1,13 @@
 {
-  "name": "LightCulling",
-  "domain": "Compute",
-  "passes": [
-    {
-      "passName": "LightCulling",
-      "pipeline": "Engine/Assets/Pipelines/Builtin/LightCulling/lightCulling.pipeline.json",
-      "preferredVariant": "Compute"
-    }
-  ]
+    "domain": "Compute",
+    "guid": "a8b3c1c806a8f747",
+    "name": "LightCulling",
+    "parameters": {},
+    "passes": [
+        {
+            "passName": "LightCulling",
+            "pipeline": "5eb686e91eeecb28",
+            "preferredVariant": "Compute"
+        }
+    ]
 }

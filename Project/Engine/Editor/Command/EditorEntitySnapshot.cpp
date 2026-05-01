@@ -130,6 +130,9 @@ void Engine::EditorEntitySnapshotUtility::DestroySubtree(ECSWorld& world, const 
 			world.DestroyEntity(*it);
 		}
 	}
+
+	// エディタコマンドは直後にHierarchy再構築やUndo/Redoを行うため、ここで状態を確定する
+	world.FlushPendingDestroyEntities();
 }
 
 void Engine::EditorEntitySnapshotUtility::FillMissingOwnerRuntimeState(const EditorCommandContext& context,

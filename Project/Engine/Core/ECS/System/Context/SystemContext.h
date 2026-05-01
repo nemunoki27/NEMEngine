@@ -11,6 +11,7 @@ namespace Engine {
 	class GraphicsPlatform;
 	class AssetDatabase;
 	class SkinnedMeshAnimationManager;
+	struct SceneHeader;
 
 	//============================================================================
 	//	SystemContext struct
@@ -32,6 +33,7 @@ namespace Engine {
 		GraphicsPlatform* graphicsPlatform = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
 		SkinnedMeshAnimationManager* skinnedAnimationManager = nullptr;
+		const SceneHeader* activeSceneHeader = nullptr;
 
 		// ワールドの現在のモード
 		WorldMode mode = WorldMode::Edit;

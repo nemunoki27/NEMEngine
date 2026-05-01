@@ -30,7 +30,7 @@ namespace Engine {
 		Vector2 pivot = Vector2::AnyInit(0.5f);
 
 		// 色
-		Color color = Color::White();
+		Color4 color = Color4::White();
 
 		// 描画レイヤー
 		int32_t layer = 0;

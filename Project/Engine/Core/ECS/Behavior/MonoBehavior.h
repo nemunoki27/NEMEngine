@@ -11,6 +11,9 @@
 
 namespace Engine {
 
+	// front
+	struct CollisionContact;
+
 	//============================================================================
 	//	MonoBehavior class
 	//	コンポーネントとして使用されるクラス
@@ -46,6 +49,17 @@ namespace Engine {
 		virtual void FixedUpdate(ECSWorld&, const SystemContext&, const Entity&) {}
 		virtual void Update(ECSWorld&, const SystemContext&, const Entity&) {}
 		virtual void LateUpdate(ECSWorld&, const SystemContext&, const Entity&) {}
+
+		//========================================================================
+		//	衝突メソッド
+		//========================================================================
+
+		// 衝突開始時に呼ばれる
+		virtual void OnCollisionEnter(ECSWorld&, const SystemContext&, const CollisionContact&) {}
+		// 衝突継続中に呼ばれる
+		virtual void OnCollisionStay(ECSWorld&, const SystemContext&, const CollisionContact&) {}
+		// 衝突終了時に呼ばれる
+		virtual void OnCollisionExit(ECSWorld&, const SystemContext&, const CollisionContact&) {}
 
 		//========================================================================
 		//	C#スクリプト用

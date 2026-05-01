@@ -23,6 +23,8 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 		// 現在のワールドから全てのシステムを切り離す
 		if (currentWorld_) {
 
+			// 切り替え前に遅延破棄を確定して、次のワールドへ古い状態を持ち越さない
+			currentWorld_->FlushPendingDestroyEntities();
 			DetachWorld(*currentWorld_, context);
 		}
 		// ワールドを切り替える
@@ -68,6 +70,9 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 
 		entry.system->LateUpdate(*currentWorld_, context);
 	}
+
+	// Update/LateUpdate中に予約されたエンティティ破棄をフレーム終端でまとめて反映する
+	currentWorld_->FlushPendingDestroyEntities();
 }
 
 void Engine::SystemScheduler::DetachCurrentWorld(SystemContext& context) {
@@ -78,6 +83,7 @@ void Engine::SystemScheduler::DetachCurrentWorld(SystemContext& context) {
 	}
 
 	// 現在のワールドから全てのシステムを切り離す
+	currentWorld_->FlushPendingDestroyEntities();
 	DetachWorld(*currentWorld_, context);
 	currentWorld_ = nullptr;
 	accumulator_ = 0.0f;

@@ -22,6 +22,9 @@ namespace {
 
 		outFormats.fill(DXGI_FORMAT_UNKNOWN);
 		outCount = 0;
+		if (!surface) {
+			return;
+		}
 		const uint32_t colorCount = (std::min)(surface->GetColorCount(), static_cast<uint32_t>(outFormats.size()));
 		for (uint32_t i = 0; i < colorCount; ++i) {
 			if (const auto* color = surface->GetColorTexture(i)) {
@@ -33,6 +36,9 @@ namespace {
 	// サーフェイスから深度フォーマットを収集する
 	DXGI_FORMAT GatherDepthFormat(const Engine::MultiRenderTarget* surface) {
 
+		if (!surface) {
+			return DXGI_FORMAT_UNKNOWN;
+		}
 		if (const auto* depth = surface->GetDepthTexture()) {
 			return depth->GetDSVFormat();
 		}
@@ -97,7 +103,8 @@ namespace {
 }
 
 void Engine::ScenePassExecutor::ExecuteScene(GraphicsCore& graphicsCore,
-	const RenderFrameRequest& request, const SceneExecutionContext& context) {
+	const RenderFrameRequest& request, const SceneExecutionContext& context,
+	const RenderPassPhaseBuckets* prebuiltPassBuckets) {
 
 	if (!context.sceneInstance) {
 		return;
@@ -123,10 +130,15 @@ void Engine::ScenePassExecutor::ExecuteScene(GraphicsCore& graphicsCore,
 
 	// 描画アイテムを描画フェーズごとに振り分けるバケットを構築する
 	RenderPassPhaseBuckets passBuckets{};
-	if (context.view) {
+	const RenderPassPhaseBuckets* activePassBuckets = prebuiltPassBuckets;
+	if (!activePassBuckets && context.view) {
 
 		UUID sceneInstanceID = context.sceneInstance ? context.sceneInstance->instanceID : UUID{};
 		RenderPassItemCollector::BuildBucketsForViewAndScene(*dependencies.renderBatch, *context.view, sceneInstanceID, passBuckets);
+		activePassBuckets = &passBuckets;
+	}
+	if (!activePassBuckets) {
+		activePassBuckets = &passBuckets;
 	}
 
 	// シーンパスの実行
@@ -138,11 +150,11 @@ void Engine::ScenePassExecutor::ExecuteScene(GraphicsCore& graphicsCore,
 			break;
 		case ScenePassType::DepthPrepass:
 
-			ExecuteDepthPrepassPass(graphicsCore, context, pass.depthPrepass, passBuckets);
+			ExecuteDepthPrepassPass(graphicsCore, context, pass.depthPrepass, *activePassBuckets);
 			break;
 		case ScenePassType::Draw:
 
-			ExecuteDrawPass(graphicsCore, context, pass.draw, passBuckets);
+			ExecuteDrawPass(graphicsCore, context, pass.draw, *activePassBuckets);
 			break;
 		case ScenePassType::PostProcess:
 
@@ -225,11 +237,19 @@ bool Engine::ScenePassExecutor::ExecuteFullscreenMaterial(GraphicsCore& graphics
 
 	if (const RootBindingLocation* sourceColorBinding = pipelineState->FindBinding(ShaderBindingKind::SRV, 0, 0)) {
 
-		commandList->SetGraphicsRootDescriptorTable(sourceColorBinding->rootParameterIndex, source->GetColorTexture(0)->GetSRVGPUHandle());
+		RenderTexture2D* sourceColor = source->GetColorTexture(0);
+		if (!sourceColor) {
+			return false;
+		}
+		commandList->SetGraphicsRootDescriptorTable(sourceColorBinding->rootParameterIndex, sourceColor->GetSRVGPUHandle());
 	}
 	if (const RootBindingLocation* sourceDepthBinding = pipelineState->FindBinding(ShaderBindingKind::SRV, 1, 0)) {
 
-		commandList->SetGraphicsRootDescriptorTable(sourceDepthBinding->rootParameterIndex, source->GetDepthTexture()->GetSRVGPUHandle());
+		DepthTexture2D* sourceDepth = source->GetDepthTexture();
+		if (!sourceDepth) {
+			return false;
+		}
+		commandList->SetGraphicsRootDescriptorTable(sourceDepthBinding->rootParameterIndex, sourceDepth->GetSRVGPUHandle());
 	}
 
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -253,6 +273,9 @@ void Engine::ScenePassExecutor::ExecuteClearPass(GraphicsCore& graphicsCore,
 
 	// レンダーターゲットを適用
 	MultiRenderTarget* surface = ApplyRenderTargets(graphicsCore, context, pass.dest);
+	if (!surface) {
+		return;
+	}
 
 	// クリアの内容を構築
 	MultiRenderTargetClearDesc clearDesc{};
@@ -275,6 +298,9 @@ void Engine::ScenePassExecutor::ExecuteDepthPrepassPass(GraphicsCore& graphicsCo
 	MultiRenderTarget* surface = context.targetRegistry->Resolve(pass.dest);
 	if (!surface) {
 		surface = context.defaultSurface;
+	}
+	if (!surface) {
+		return;
 	}
 	if (!surface->GetDepthTexture()) {
 		return;
@@ -306,6 +332,9 @@ void Engine::ScenePassExecutor::ExecuteDrawPass(GraphicsCore& graphicsCore,
 
 	// レンダーターゲットを適用
 	MultiRenderTarget* surface = ApplyRenderTargets(graphicsCore, context, pass.dest);
+	if (!surface) {
+		return;
+	}
 
 	// 開始時に構築したバケットから取り出す
 	const RenderPassItemList* list = passBuckets.Find(pass.queue);
@@ -510,6 +539,9 @@ void Engine::ScenePassExecutor::ExecuteRaytracingPass(GraphicsCore& graphicsCore
 
 	MultiRenderTarget* source = context.targetRegistry->Resolve(pass.source);
 	MultiRenderTarget* dest = context.targetRegistry->Resolve(pass.dest);
+	if (!source || !dest) {
+		return;
+	}
 
 	// DispatchRaysを起動できないときのパススルー
 	auto passthrough = [&]() {
@@ -620,6 +652,9 @@ void Engine::ScenePassExecutor::ExecuteRenderScenePass(GraphicsCore& graphicsCor
 
 	// レンダーターゲットを適用
 	MultiRenderTarget* childSurface = ApplyRenderTargets(graphicsCore, context, pass.dest);
+	if (!childSurface) {
+		return;
+	}
 
 	// 子シーン用のコンテキストを構築
 	SceneExecutionContext childContext{};
@@ -661,6 +696,9 @@ Engine::MultiRenderTarget* Engine::ScenePassExecutor::ApplyRenderTargets(Graphic
 	MultiRenderTarget* surface = context.targetRegistry->Resolve(dest);
 	if (!surface) {
 		surface = context.defaultSurface;
+	}
+	if (!surface) {
+		return nullptr;
 	}
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	surface->TransitionForRender(*dxCommand);

@@ -9,6 +9,9 @@
 #include <Engine/Core/ECS/Component/Builtin/Render/MeshRendererComponent.h>
 #include <Engine/Utility/Algorithm/Algorithm.h>
 
+// c++
+#include <algorithm>
+
 //============================================================================
 //	MyGUI classMethods
 //============================================================================
@@ -19,8 +22,9 @@ namespace {
 	//	レイアウト定数
 	//========================================================================
 
-	constexpr float kLabelColumnWidth = 80.0f;
-	constexpr float kAxisLabelWidth = 18.0f;
+	// 左側に表示する文字の幅
+	constexpr float kLabelColumnWidth = 160.0f;
+	constexpr float kAxisLabelWidth = 14.0f;
 
 	//========================================================================
 	//	軸情報
@@ -35,9 +39,9 @@ namespace {
 	AxisDisplayInfo GetAxisDisplayInfo(char axis) {
 
 		switch (axis) {
-		case 'X': return { "X", ImVec4(0.85f, 0.26f, 0.20f, 1.0f) }; // red
-		case 'Y': return { "Y", ImVec4(0.20f, 0.45f, 0.90f, 1.0f) }; // blue
-		case 'Z': return { "Z", ImVec4(0.20f, 0.75f, 0.25f, 1.0f) }; // green
+		case 'X': return { "X", ImVec4(1.0f, 0.26f, 0.20f, 1.0f) }; // red
+		case 'Y': return { "Y", ImVec4(0.20f, 0.45f, 1.0f, 1.0f) }; // blue
+		case 'Z': return { "Z", ImVec4(0.20f, 1.0f, 0.25f, 1.0f) }; // green
 		case 'W': return { "W", ImVec4(0.90f, 0.78f, 0.20f, 1.0f) }; // yellow
 		default:  return { "-", ImVec4(0.70f, 0.70f, 0.70f, 1.0f) };
 		}
@@ -146,11 +150,12 @@ namespace {
 	//========================================================================
 
 	// フィールドの幅を計算する
-	float CalcFieldWidth(int fieldCount) {
+	float CalcFieldWidth(int fieldCount, float reserveRightWidth = 0.0f) {
 
-		const float avail = ImGui::GetContentRegionAvail().x;
+		const float avail = (std::max)(1.0f, ImGui::GetContentRegionAvail().x - reserveRightWidth);
 		const float spacing = ImGui::GetStyle().ItemSpacing.x;
-		return (avail - spacing * static_cast<float>((std::max)(0, fieldCount - 1))) / static_cast<float>(fieldCount);
+		const float fieldArea = (std::max)(1.0f, avail - spacing * static_cast<float>((std::max)(0, fieldCount - 1)));
+		return fieldArea / static_cast<float>(fieldCount);
 	}
 
 	//========================================================================
@@ -212,10 +217,47 @@ namespace {
 
 		Engine::ValueEditResult result{};
 
-		if (!Engine::MyGUI::BeginPropertyRow(label)) {
+		const std::string tableID = std::string("##MyGUI_RowTable_Public_") + label;
+		if (!ImGui::BeginTable(tableID.c_str(), 2,
+			ImGuiTableFlags_SizingStretchProp |
+			ImGuiTableFlags_BordersInnerV |
+			ImGuiTableFlags_NoSavedSettings)) {
 			return result;
 		}
-		const float fieldWidth = CalcFieldWidth(count);
+		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, kLabelColumnWidth);
+		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableNextRow();
+
+		ImGui::TableSetColumnIndex(0);
+		ImGui::PushID(label);
+		const ImVec2 labelPos = ImGui::GetCursorScreenPos();
+		const ImVec2 labelSize(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight());
+		ImGui::InvisibleButton("##LabelDragAll", labelSize);
+
+		// ラベル部分を左右にドラッグした場合は、全ての値を同じ量だけ動かす
+		if (ImGui::IsItemActive()) {
+
+			const float delta = ImGui::GetIO().MouseDelta.x * setting.dragSpeed;
+			if (delta != 0.0f) {
+				for (int i = 0; i < count; ++i) {
+					values[i] = (std::clamp)(values[i] + delta, setting.minValue, setting.maxValue);
+				}
+				result.valueChanged = true;
+			}
+		}
+		result.anyItemActive |= ImGui::IsItemActive();
+		result.editFinished |= ImGui::IsItemDeactivatedAfterEdit();
+		if (ImGui::IsItemHovered() || ImGui::IsItemActive()) {
+			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+		}
+
+		const ImVec2 textPos(
+			labelPos.x,
+			labelPos.y + (labelSize.y - ImGui::GetTextLineHeight()) * 0.5f);
+		ImGui::GetWindowDrawList()->AddText(textPos, ImGui::GetColorU32(ImGuiCol_Text), label);
+
+		ImGui::TableSetColumnIndex(1);
+		const float fieldWidth = CalcFieldWidth(count, setting.reserveRightWidth);
 		for (int i = 0; i < count; ++i) {
 			if (i > 0) {
 				ImGui::SameLine();
@@ -226,7 +268,10 @@ namespace {
 			result.anyItemActive |= ImGui::IsItemActive();
 			result.editFinished |= ImGui::IsItemDeactivatedAfterEdit();
 		}
-		Engine::MyGUI::EndPropertyRow();
+		// プロパティ行を閉じる
+		if (setting.closeOnProperty) {
+			Engine::MyGUI::EndPropertyRow();
+		}
 		return result;
 	}
 	// 複数のコピー可能な値フィールドを描画する
@@ -474,6 +519,36 @@ bool Engine::MyGUI::CollapsingHeader(const char* label, bool stratOpen) {
 	return open;
 }
 
+Engine::TextInputPopupResult Engine::MyGUI::InputTextPopupContent(const char* label, std::string& text, const char* errorText) {
+
+	TextInputPopupResult result{};
+
+	ImGui::TextUnformatted(label);
+	ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
+	const bool submittedByEnter = ImGui::InputText("##InputTextPopupValue", &text, ImGuiInputTextFlags_EnterReturnsTrue);
+	if (ImGui::IsWindowAppearing()) {
+		ImGui::SetKeyboardFocusHere(-1);
+	}
+
+	if (errorText && errorText[0] != '\0') {
+		ImGui::TextColored(ImVec4(0.95f, 0.32f, 0.24f, 1.0f), "%s", errorText);
+	} else {
+		ImGui::Spacing();
+	}
+
+	ImGui::Separator();
+
+	if (ImGui::Button("OK", ImVec2(96.0f, 0.0f)) || submittedByEnter) {
+		result.submitted = true;
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Cancel", ImVec2(96.0f, 0.0f)) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+		result.canceled = true;
+	}
+	return result;
+}
+
 bool Engine::MyGUI::BeginPropertyRow(const char* label) {
 
 	const std::string tableID = std::string("##MyGUI_RowTable_Public_") + label;
@@ -648,7 +723,30 @@ Engine::ValueEditResult Engine::MyGUI::DragQuaternion(const char* label, Quatern
 	return result;
 }
 
-Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color& value) {
+Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color3& value) {
+
+	ValueEditResult result{};
+
+	if (!BeginPropertyRow(label)) {
+		return result;
+	}
+
+	float color[3] = { value.r, value.g, value.b };
+	result.valueChanged = ImGui::ColorEdit3("##Value", color, ImGuiColorEditFlags_Float);
+	result.anyItemActive = ImGui::IsItemActive();
+	result.editFinished = ImGui::IsItemDeactivatedAfterEdit() || result.valueChanged;
+
+	if (result.valueChanged) {
+		value.r = color[0];
+		value.g = color[1];
+		value.b = color[2];
+	}
+
+	EndPropertyRow();
+	return result;
+}
+
+Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color4& value) {
 
 	ValueEditResult result{};
 
@@ -976,7 +1074,7 @@ bool Engine::MyGUI::SmallCheckbox(const char* id, bool& value) {
 	return changed;
 }
 
-Engine::ValueEditResult Engine::MyGUI::InputText(const char* label, std::string& text) {
+Engine::ValueEditResult Engine::MyGUI::InputText(const char* label, std::string& text, const TextEditSetting& setting) {
 
 	ValueEditResult result{};
 
@@ -984,15 +1082,25 @@ Engine::ValueEditResult Engine::MyGUI::InputText(const char* label, std::string&
 		return result;
 	}
 
-	ImGui::InputText("##Value", &text, ImGuiInputTextFlags_EnterReturnsTrue);
+	bool submittedByEnter = false;
+	if (setting.multiLine) {
+
+		ImVec2 inputSize = setting.size;
+		if (inputSize.x <= 0.0f) {
+			inputSize.x = ImGui::GetContentRegionAvail().x;
+		}
+		if (inputSize.y <= 0.0f) {
+			inputSize.y = ImGui::GetFrameHeightWithSpacing() * 4.0f;
+		}
+		ImGui::InputTextMultiline("##Value", &text, inputSize, setting.flags);
+	} else {
+
+		submittedByEnter = ImGui::InputText("##Value", &text, setting.flags | ImGuiInputTextFlags_EnterReturnsTrue);
+	}
 
 	result.valueChanged = ImGui::IsItemEdited();
 	result.anyItemActive = ImGui::IsItemActive();
-	result.editFinished = ImGui::IsItemDeactivatedAfterEdit();
-
-	if (ImGui::IsItemDeactivatedAfterEdit()) {
-		result.editFinished = true;
-	}
+	result.editFinished = submittedByEnter || ImGui::IsItemDeactivatedAfterEdit();
 
 	EndPropertyRow();
 	return result;

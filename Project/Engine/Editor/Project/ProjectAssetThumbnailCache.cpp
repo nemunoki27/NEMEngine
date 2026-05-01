@@ -60,6 +60,8 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	defaultIcons_[AssetType::Font].assetPath = baseKey + "font.dds";
 	defaultIcons_[AssetType::Script].textureKey = "shader.dds";
 	defaultIcons_[AssetType::Script].assetPath = baseKey + "shader.dds";
+	defaultIcons_[AssetType::Audio].textureKey = "unknown.dds";
+	defaultIcons_[AssetType::Audio].assetPath = baseKey + "unknown.dds";
 	defaultIcons_[AssetType::Unknown].textureKey = "unknown.dds";
 	defaultIcons_[AssetType::Unknown].assetPath = baseKey + "unknown.dds";
 

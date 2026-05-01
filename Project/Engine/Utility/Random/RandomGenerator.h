@@ -28,8 +28,8 @@ public:
 
 	// Vector3
 	static Engine::Vector3 Generate(const Engine::Vector3& min, const Engine::Vector3& max);
-	// Color
-	static Color Generate(const Engine::Color& min, const Engine::Color& max);
+	// Color4
+	static Color4 Generate(const Engine::Color4& min, const Engine::Color4& max);
 };
 
 template<typename T>
