@@ -11,11 +11,43 @@ using namespace Engine;
 #include <Engine/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Runtime/RuntimePaths.h>
 
+// c++
+#include <filesystem>
+#include <system_error>
+#include <unordered_map>
+
 //============================================================================
 //	PipelineState classMethods
 //============================================================================
 
 namespace {
+
+	using ShaderPathIndex = std::unordered_map<std::string, std::filesystem::path>;
+
+	const ShaderPathIndex& GetShaderPathIndex() {
+
+		static const ShaderPathIndex index = []() {
+			ShaderPathIndex result{};
+			const std::filesystem::path shaderRoot = RuntimePaths::GetEngineAssetPath("Shaders");
+
+			std::error_code ec;
+			if (!std::filesystem::exists(shaderRoot, ec) || ec || !std::filesystem::is_directory(shaderRoot, ec)) {
+				return result;
+			}
+
+			for (std::filesystem::recursive_directory_iterator it(shaderRoot, ec), end; it != end && !ec; it.increment(ec)) {
+				if (!it->is_regular_file(ec)) {
+					continue;
+				}
+
+				const std::filesystem::path path = it->path();
+				result.try_emplace(path.filename().string(), path);
+			}
+			return result;
+		}();
+
+		return index;
+	}
 
 	std::filesystem::path ResolveShaderPath(const std::string& file) {
 
@@ -39,10 +71,11 @@ namespace {
 			return raw;
 		}
 
-		// 最後に従来通りファイル名ベースで再帰検索
-		std::filesystem::path searched{};
-		if (Algorithm::FindFile(shaderBasePath, std::filesystem::path(file).filename().string(), searched)) {
-			return searched;
+		// ファイル名だけの指定は、起動時に一度だけ作ったインデックスから引く
+		const auto& shaderPathIndex = GetShaderPathIndex();
+		auto found = shaderPathIndex.find(std::filesystem::path(file).filename().string());
+		if (found != shaderPathIndex.end()) {
+			return found->second;
 		}
 		return {};
 	}
