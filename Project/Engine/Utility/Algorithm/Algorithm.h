@@ -15,7 +15,6 @@
 #include <any>
 #include <locale>
 #include <iostream>
-#include <filesystem>
 
 //============================================================================
 //	Algorithm namespace
@@ -141,7 +140,5 @@ namespace Engine {
 			return found;
 		}
 
-		// basePath配下を再帰探索し、完全一致するファイル名を見つけてfullPathへ返す
-		bool FindFile(const std::filesystem::path& basePath, const std::string& fileName, std::filesystem::path& fullPath);
 	}
 }; // Engine

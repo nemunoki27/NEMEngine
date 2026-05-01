@@ -8,11 +8,17 @@
 #include <Engine/Core/Runtime/RuntimePaths.h>
 #include <Engine/Utility/Algorithm/Algorithm.h>
 
+// c++
+#include <algorithm>
+#include <thread>
+
 //============================================================================
 //	TextureUploadService classMethods
 //============================================================================
 
 namespace {
+
+	constexpr uint32_t kMaxDecodeWorkerCount = 4;
 
 	// テクスチャメタからSRV記述子を構築する
 	D3D12_SHADER_RESOURCE_VIEW_DESC BuildSRVDesc(const DirectX::TexMetadata& meta) {
@@ -113,7 +119,8 @@ void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srv
 	uploadCommand_ = std::make_unique<DxUploadCommand>();
 	uploadCommand_->Create(device_);
 
-	const uint32_t threadCount = (std::max)(1u, std::thread::hardware_concurrency());
+	const uint32_t hardwareThreadCount = (std::max)(1u, std::thread::hardware_concurrency());
+	const uint32_t threadCount = (std::min)(kMaxDecodeWorkerCount, hardwareThreadCount);
 	decodeWorkers_.Start(threadCount, [this](TextureFileRequestDesc&& job, uint32_t workerIndex) {
 		this->DecodeTextureWorker(std::move(job), workerIndex);
 		});

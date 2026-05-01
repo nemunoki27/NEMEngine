@@ -76,4 +76,17 @@ if (-not [string]::IsNullOrWhiteSpace($directory)) {
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText($ProjectUserPath, $document.OuterXml, $utf8NoBom)
+
+[xml]$verifyDocument = Get-Content -LiteralPath $ProjectUserPath -Raw
+foreach ($condition in $conditions) {
+    $group = $verifyDocument.Project.PropertyGroup | Where-Object { $_.Condition -eq $condition } | Select-Object -First 1
+    if ($null -eq $group) {
+        throw "Debugger property group was not written: $condition"
+    }
+
+    if ($group.LocalDebuggerDebuggerType -ne "NativeWithManagedCore") {
+        throw "Debugger type verification failed for $condition. Actual value: $($group.LocalDebuggerDebuggerType)"
+    }
+}
+
 Write-Host "[OK] Patched debugger settings: $ProjectUserPath"

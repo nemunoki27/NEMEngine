@@ -402,6 +402,23 @@
                     "localFileID": "342381514956be5b",
                     "visibilityLayerMask": 4294967295
                 },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "54fc97e33f8065a5",
+                        "serializedFields": {
+                            "amplitude": 0.5,
+                            "frequency": 2,
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.ObjectRotate"
+                    }
+                ],
                 "Transform": {
                     "localPos": {
                         "x": -5.497475624084473,

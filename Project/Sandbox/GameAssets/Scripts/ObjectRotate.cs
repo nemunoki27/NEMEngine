@@ -38,6 +38,8 @@ public sealed class ObjectRotate : ScriptBehaviour
         Quaternion deltaRotation = Quaternion.MakeAxisAngle(rotateAxis.normalized, angle);
         transform.localRotation = Quaternion.Normalize(transform.localRotation * deltaRotation);
 
+        transform.localScale += new Vector3(0.01f, 0.01f, 0.01f);
+
         // 経過時間
         elapsedTime += Time.deltaTime;
 
