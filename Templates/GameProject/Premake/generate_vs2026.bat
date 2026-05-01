@@ -82,6 +82,12 @@ if errorlevel 1 (
     popd
     exit /b 1
 )
+powershell -NoProfile -ExecutionPolicy Bypass -File "%NEMENGINE_ROOT%\Premake\patch_vcxproj_managed_config.ps1" -ProjectPath "%GAME_ROOT%\Project\%GAME_NAME%\%GAME_NAME%.vcxproj" -ScriptCoreProjectPath "%NEMENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" -ScriptCoreManagedOutputPath "%NEMENGINE_ROOT%\Project\Engine\Library\Managed"
+if errorlevel 1 (
+    echo [ERROR] Failed to patch game managed build/copy settings.
+    popd
+    exit /b 1
+)
 
 popd
 endlocal

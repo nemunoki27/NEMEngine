@@ -12,13 +12,13 @@ if errorlevel 1 (
 )
 
 echo ===== Cleanup Old Project Files =====
-if exist "%ENGINE_ROOT%\Project\NEMEngine.vcxproj" del /q "%ENGINE_ROOT%\Project\NEMEngine.vcxproj"
-if exist "%ENGINE_ROOT%\Project\NEMEngine.vcxproj.filters" del /q "%ENGINE_ROOT%\Project\NEMEngine.vcxproj.filters"
-if exist "%ENGINE_ROOT%\Project\NEMEngine.vcxproj.user" del /q "%ENGINE_ROOT%\Project\NEMEngine.vcxproj.user"
+if exist "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj" del /q "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj"
+if exist "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.filters" del /q "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.filters"
+if exist "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.user" del /q "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.user"
 
-if exist "%ENGINE_ROOT%\Project\Sandbox.vcxproj" del /q "%ENGINE_ROOT%\Project\Sandbox.vcxproj"
-if exist "%ENGINE_ROOT%\Project\Sandbox.vcxproj.filters" del /q "%ENGINE_ROOT%\Project\Sandbox.vcxproj.filters"
-if exist "%ENGINE_ROOT%\Project\Sandbox.vcxproj.user" del /q "%ENGINE_ROOT%\Project\Sandbox.vcxproj.user"
+if exist "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj" del /q "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj"
+if exist "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj.filters" del /q "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj.filters"
+if exist "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj.user" del /q "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj.user"
 
 echo ===== Generate Start =====
 premake5.exe --file="%~dp0premake5.lua" vs2026 > premake_error.log 2>&1
@@ -52,6 +52,12 @@ if errorlevel 1 (
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_vcxproj_user_debugger.ps1" -ProjectUserPath "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj.user" -WorkingDirectory ".."
 if errorlevel 1 (
     echo [ERROR] Failed to patch Sandbox debugger settings.
+    popd
+    exit /b 1
+)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_vcxproj_managed_config.ps1" -ProjectPath "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj" -ScriptCoreProjectPath "%ENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" -ScriptCoreManagedOutputPath "%ENGINE_ROOT%\Project\Engine\Library\Managed"
+if errorlevel 1 (
+    echo [ERROR] Failed to patch Sandbox managed build/copy settings.
     popd
     exit /b 1
 )
