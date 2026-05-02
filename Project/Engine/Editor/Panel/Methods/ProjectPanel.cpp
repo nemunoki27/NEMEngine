@@ -824,12 +824,13 @@ void Engine::ProjectPanel::BeginCreateAsset(ProjectAssetFileKind kind, const std
 
 void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtualPath) {
 
-	constexpr std::array<ProjectAssetFileKind, 8> kCreateKinds = {
+	constexpr std::array<ProjectAssetFileKind, 9> kCreateKinds = {
 		ProjectAssetFileKind::Folder,
 		ProjectAssetFileKind::Script,
 		ProjectAssetFileKind::Scene,
 		ProjectAssetFileKind::Prefab,
 		ProjectAssetFileKind::Material,
+		ProjectAssetFileKind::Animation,
 		ProjectAssetFileKind::Shader,
 		ProjectAssetFileKind::RenderPipeline,
 		ProjectAssetFileKind::Text,

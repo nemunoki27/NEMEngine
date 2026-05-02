@@ -205,6 +205,9 @@ Engine::AssetType Engine::AssetDatabase::GuessTypeByPath(const std::filesystem::
 	if (extension == ".wav" || extension == ".wave" || extension == ".mp3") {
 		return AssetType::Audio;
 	}
+	if (Algorithm::EndsWith(filename, ".anim.json") || extension == ".anim") {
+		return AssetType::Animation;
+	}
 	return AssetType::Unknown;
 }
 

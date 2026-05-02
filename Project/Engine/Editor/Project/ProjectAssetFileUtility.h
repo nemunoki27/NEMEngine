@@ -24,6 +24,7 @@ namespace Engine {
 		Scene,
 		Prefab,
 		Material,
+		Animation,
 		Shader,
 		RenderPipeline,
 	};

@@ -19064,6 +19064,1216 @@
                 }
             },
             "LocalFileID": "4be4c799765e77e6"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "0000000000000000",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Mesh_0",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "046f19f4173b970d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_3"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "8d3e4fbf34a791ef",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "54fc97e33f8065a5",
+                        "serializedFields": {
+                            "amplitude": 0.5,
+                            "frequency": 2,
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.ObjectRotate"
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": -9.590608596801758,
+                        "y": 0.9056545495986938,
+                        "z": 10.686952590942383
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.5800000429153442,
+                        "y": 0.5800000429153442,
+                        "z": 0.5800000429153442
+                    }
+                }
+            },
+            "LocalFileID": "8d3e4fbf34a791ef"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "0000000000000000",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Mesh_0",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "046f19f4173b970d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_4"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "e1e41b7360bdaa44",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "54fc97e33f8065a5",
+                        "serializedFields": {
+                            "amplitude": 0.5,
+                            "frequency": 2,
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.ObjectRotate"
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": -1.5411608219146729,
+                        "y": 0.9056545495986938,
+                        "z": 10.686952590942383
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.5800000429153442,
+                        "y": 0.5800000429153442,
+                        "z": 0.5800000429153442
+                    }
+                }
+            },
+            "LocalFileID": "e1e41b7360bdaa44"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "0000000000000000",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Mesh_0",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "046f19f4173b970d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_5"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "6d33bfbaea876b51",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "54fc97e33f8065a5",
+                        "serializedFields": {
+                            "amplitude": 0.5,
+                            "frequency": 2,
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.ObjectRotate"
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": -1.5411608219146729,
+                        "y": 0.9056545495986938,
+                        "z": 4.681126117706299
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.5800000429153442,
+                        "y": 0.5800000429153442,
+                        "z": 0.5800000429153442
+                    }
+                }
+            },
+            "LocalFileID": "6d33bfbaea876b51"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "0000000000000000",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Mesh_0",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "046f19f4173b970d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_6"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "9676e87e45155ea5",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "54fc97e33f8065a5",
+                        "serializedFields": {
+                            "amplitude": 0.5,
+                            "frequency": 2,
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.ObjectRotate"
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": -5.079841136932373,
+                        "y": 0.9056545495986938,
+                        "z": 4.687093257904053
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.5800000429153442,
+                        "y": 0.5800000429153442,
+                        "z": 0.5800000429153442
+                    }
+                }
+            },
+            "LocalFileID": "9676e87e45155ea5"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "0000000000000000",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Mesh_0",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "046f19f4173b970d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_7"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "d2be7ef54f5fac3a",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "54fc97e33f8065a5",
+                        "serializedFields": {
+                            "amplitude": 0.5,
+                            "frequency": 2,
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.ObjectRotate"
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": -9.631219863891602,
+                        "y": 0.9056545495986938,
+                        "z": 4.144636631011963
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.5800000429153442,
+                        "y": 0.5800000429153442,
+                        "z": 0.5800000429153442
+                    }
+                }
+            },
+            "LocalFileID": "d2be7ef54f5fac3a"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "0000000000000000",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Mesh_0",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "046f19f4173b970d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_8"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "ca33da93bdfec0e8",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "54fc97e33f8065a5",
+                        "serializedFields": {
+                            "amplitude": 0.5,
+                            "frequency": 2,
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.ObjectRotate"
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": -9.631219863891602,
+                        "y": 0.9056545495986938,
+                        "z": -0.9305642247200012
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.5800000429153442,
+                        "y": 0.5800000429153442,
+                        "z": 0.5800000429153442
+                    }
+                }
+            },
+            "LocalFileID": "ca33da93bdfec0e8"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "0000000000000000",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Mesh_0",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "046f19f4173b970d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_9"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "d6532fd620311b88",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "54fc97e33f8065a5",
+                        "serializedFields": {
+                            "amplitude": 0.5,
+                            "frequency": 2,
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.ObjectRotate"
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": -5.040842056274414,
+                        "y": 0.9056545495986938,
+                        "z": -0.9305642247200012
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.5800000429153442,
+                        "y": 0.5800000429153442,
+                        "z": 0.5800000429153442
+                    }
+                }
+            },
+            "LocalFileID": "d6532fd620311b88"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "0000000000000000",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Mesh_0",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "046f19f4173b970d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_10"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "11fd31bad8c32d4b",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "54fc97e33f8065a5",
+                        "serializedFields": {
+                            "amplitude": 0.5,
+                            "frequency": 2,
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.ObjectRotate"
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": -1.2909801006317139,
+                        "y": 0.9056545495986938,
+                        "z": -0.9305642247200012
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.5800000429153442,
+                        "y": 0.5800000429153442,
+                        "z": 0.5800000429153442
+                    }
+                }
+            },
+            "LocalFileID": "11fd31bad8c32d4b"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "0000000000000000",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Mesh_0",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "046f19f4173b970d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_11"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "a042b8dcf6befaa4",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "54fc97e33f8065a5",
+                        "serializedFields": {
+                            "amplitude": 0.5,
+                            "frequency": 2,
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.ObjectRotate"
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": -1.2909801006317139,
+                        "y": 0.9056545495986938,
+                        "z": -4.797206878662109
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.5800000429153442,
+                        "y": 0.5800000429153442,
+                        "z": 0.5800000429153442
+                    }
+                }
+            },
+            "LocalFileID": "a042b8dcf6befaa4"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "0000000000000000",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Mesh_0",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "046f19f4173b970d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_12"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "3f9b1d20dd2d8804",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "54fc97e33f8065a5",
+                        "serializedFields": {
+                            "amplitude": 0.5,
+                            "frequency": 2,
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.ObjectRotate"
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": -5.194375991821289,
+                        "y": 0.9056545495986938,
+                        "z": -5.2944183349609375
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.5800000429153442,
+                        "y": 0.5800000429153442,
+                        "z": 0.5800000429153442
+                    }
+                }
+            },
+            "LocalFileID": "3f9b1d20dd2d8804"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "0000000000000000",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Mesh_0",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "046f19f4173b970d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_13"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "b96b8043830ec631",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "54fc97e33f8065a5",
+                        "serializedFields": {
+                            "amplitude": 0.5,
+                            "frequency": 2,
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.ObjectRotate"
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": -9.823506355285645,
+                        "y": 0.9056545495986938,
+                        "z": -5.2944183349609375
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.5800000429153442,
+                        "y": 0.5800000429153442,
+                        "z": 0.5800000429153442
+                    }
+                }
+            },
+            "LocalFileID": "b96b8043830ec631"
         }
     ],
     "Header": {

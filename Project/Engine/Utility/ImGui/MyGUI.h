@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/MathLib/Math.h>
 #include <Engine/Core/Asset/AssetTypes.h>
+#include <Engine/Core/Animation/Curve/AnimationCurve.h>
+#include <Engine/Editor/Animation/CurveEditorState.h>
 #include <Engine/Editor/EditorState.h>
 
 // c++
@@ -153,6 +155,22 @@ namespace Engine {
 		// 色編集
 		static ValueEditResult ColorEdit(const char* label, Color3& value);
 		static ValueEditResult ColorEdit(const char* label, Color4& value);
+
+		//========================================================================
+		//	カーブ編集
+		//========================================================================
+
+		// 専用ツールで使うカーブエディタ本体
+		static CurveEditResult CurveEditor(const char* id, std::span<CurveChannel> channels,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		static CurveEditResult CurveEditor(const char* id, CurveFloat& curve,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		static CurveEditResult CurveEditor(const char* id, CurveVector3& curve,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		static CurveEditResult CurveEditor(const char* id, CurveColor3& curve,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		static CurveEditResult CurveEditor(const char* id, CurveColor4& curve,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
 
 		//========================================================================
 		//	ギズモ操作

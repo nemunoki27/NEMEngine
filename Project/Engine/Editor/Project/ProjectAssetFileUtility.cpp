@@ -22,10 +22,11 @@
 
 namespace {
 
-	constexpr std::array<const char*, 6> kCompoundSuffixes = {
+	constexpr std::array<const char*, 7> kCompoundSuffixes = {
 		".scene.json",
 		".prefab.json",
 		".material.json",
+		".anim.json",
 		".shader.json",
 		".pipeline.json",
 		".graph.json",
@@ -235,6 +236,7 @@ namespace {
 		if (type != Engine::AssetType::Scene &&
 			type != Engine::AssetType::Prefab &&
 			type != Engine::AssetType::Material &&
+			type != Engine::AssetType::Animation &&
 			type != Engine::AssetType::Shader &&
 			type != Engine::AssetType::RenderPipeline) {
 			return;
@@ -278,6 +280,8 @@ const char* Engine::ProjectAssetFileUtility::GetCreateMenuLabel(ProjectAssetFile
 		return "Prefab";
 	case ProjectAssetFileKind::Material:
 		return "Material";
+	case ProjectAssetFileKind::Animation:
+		return "Animation";
 	case ProjectAssetFileKind::Shader:
 		return "Shader";
 	case ProjectAssetFileKind::RenderPipeline:
@@ -301,6 +305,8 @@ const char* Engine::ProjectAssetFileUtility::GetDefaultName(ProjectAssetFileKind
 		return "NewPrefab";
 	case ProjectAssetFileKind::Material:
 		return "NewMaterial";
+	case ProjectAssetFileKind::Animation:
+		return "NewAnimation";
 	case ProjectAssetFileKind::Shader:
 		return "NewShader";
 	case ProjectAssetFileKind::RenderPipeline:
@@ -670,6 +676,8 @@ const char* Engine::ProjectAssetFileUtility::GetFileSuffix(ProjectAssetFileKind 
 		return ".prefab.json";
 	case ProjectAssetFileKind::Material:
 		return ".material.json";
+	case ProjectAssetFileKind::Animation:
+		return ".anim.json";
 	case ProjectAssetFileKind::Shader:
 		return ".shader.json";
 	case ProjectAssetFileKind::RenderPipeline:
@@ -750,6 +758,16 @@ std::string Engine::ProjectAssetFileUtility::BuildFileContent(ProjectAssetFileKi
 			"    \"Metallic\": 0.0,\n"
 			"    \"Roughness\": 0.5\n"
 			"  }}\n"
+			"}}\n",
+			assetName);
+	case ProjectAssetFileKind::Animation:
+		return std::format(
+			"{{\n"
+			"  \"guid\": \"\",\n"
+			"  \"name\": \"{}\",\n"
+			"  \"duration\": 1.0,\n"
+			"  \"curveTracks\": [],\n"
+			"  \"eventTracks\": []\n"
 			"}}\n",
 			assetName);
 	case ProjectAssetFileKind::Shader:
