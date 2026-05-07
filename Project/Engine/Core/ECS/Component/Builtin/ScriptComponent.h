@@ -27,6 +27,12 @@ namespace Engine {
 
 		// ランタイム
 		BehaviorHandle handle = BehaviorHandle::Null();
+		// ランタイム中に解決した型名
+		std::string resolvedType;
+		// ランタイム中に解決した型ID
+		uint32_t resolvedTypeID = 0;
+		// 型IDが有効か
+		bool resolvedTypeValid = false;
 	};
 
 	// スクリプトコンポーネント
