@@ -354,6 +354,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	ImGui::EndChild();
 
 	DrawCreateAssetPopup(database);
+	ApplyPendingFileOperationRefresh(database);
 
 	ImGui::End();
 	if (wasOpen && !context.layoutState->showProject) {
@@ -846,12 +847,30 @@ void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtu
 
 void Engine::ProjectPanel::RefreshAfterFileOperation(AssetDatabase& database, const ProjectAssetFileResult& result) {
 
+	(void)database;
+
 	if (!result.success) {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ProjectPanel: file operation failed. message={}", result.message);
 		return;
 	}
+
+	// ProjectAssetIndexの参照を使っている描画中にRebuildすると、走査中のasset/nodeが破棄される。
+	pendingFileOperationResult_ = result;
+	hasPendingFileOperationRefresh_ = true;
+	dirty_ = true;
+}
+
+void Engine::ProjectPanel::ApplyPendingFileOperationRefresh(AssetDatabase& database) {
+
+	if (!hasPendingFileOperationRefresh_) {
+		return;
+	}
+
+	const ProjectAssetFileResult result = pendingFileOperationResult_;
+	pendingFileOperationResult_ = {};
+	hasPendingFileOperationRefresh_ = false;
 
 	Rebuild(database);
 
@@ -864,6 +883,8 @@ void Engine::ProjectPanel::RefreshAfterFileOperation(AssetDatabase& database, co
 
 	if (const AssetMeta* meta = database.FindByPath(result.assetPath)) {
 		selectedAsset_ = meta->guid;
+	} else {
+		selectedAsset_ = {};
 	}
 }
 

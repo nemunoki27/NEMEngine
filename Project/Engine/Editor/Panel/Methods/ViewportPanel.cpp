@@ -176,8 +176,10 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 
 		// 表示サイズ
 		Vector2 srcSize(static_cast<float>(display->GetRenderTarget().width), static_cast<float>(display->GetRenderTarget().height));
+
 		// ビューポートの描画領域を入力システムに同期
-		SyncInputViewRect(inputArea, imagePos, viewSize_, srcSize);
+		Input::GetInstance()->SetViewRect(inputArea, Vector2(imagePos.x, imagePos.y),
+			Vector2(viewSize_.x, viewSize_.y), srcSize);
 
 		// 表示ウィンドウの中心に表示させる
 		ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -193,14 +195,6 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		}
 	}
 	ImGui::EndChild();
-}
-
-void Engine::ViewportPanel::SyncInputViewRect(InputViewArea area, const ImVec2& screenPos,
-	const ImVec2& drawSize, const Vector2& srcSize) const {
-
-	// ビューポートの描画領域を入力システムに同期
-	Input::GetInstance()->SetViewRect(area, Vector2(screenPos.x, screenPos.y),
-		Vector2(drawSize.x, drawSize.y), srcSize);
 }
 
 void Engine::ViewportPanel::DrawSceneGizmo(const EditorPanelContext& context) {

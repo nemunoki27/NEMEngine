@@ -510,7 +510,7 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 		return;
 	}
 	// カメラの状態を更新する
-	sceneViewCameraController_->Update(editorState_.manualCameraDimension);
+	sceneViewCameraController_->Update(editorState_.manualCameraDimension, InputViewArea::Scene);
 }
 
 void Engine::EditorManager::Finalize() {

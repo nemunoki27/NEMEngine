@@ -12,6 +12,8 @@ using namespace Engine;
 #include <Engine/Core/ECS/Component/Builtin/Render/MeshRendererComponent.h>
 #include <Engine/Core/Graphics/Render/RenderPipelineRunner.h>
 #include <Engine/Core/Context/EngineContext.h>
+#include <Engine/Core/Runtime/RuntimePaths.h>
+#include <Engine/Input/Input.h>
 
 // imgui
 #include <imgui.h>
@@ -22,7 +24,45 @@ using namespace Engine;
 //	AnimationClipTool classMethods
 //============================================================================
 
+namespace {
+
+	// エンティティが持っているコンポーネントで次元を取得
+	Dimension GetDimension(const ECSWorld& world, const Entity& previewEntity) {
+
+		Dimension result{};
+
+		// 3D
+		if (world.HasComponent<MeshRendererComponent>(previewEntity) ||
+			world.HasComponent<PerspectiveCameraComponent>(previewEntity)) {
+
+			result = Dimension::Type3D;
+		}
+		// 2D
+		else if (world.HasComponent<SpriteRendererComponent>(previewEntity) ||
+			world.HasComponent<TextRendererComponent>(previewEntity) ||
+			world.HasComponent<OrthographicCameraComponent>(previewEntity)) {
+
+			result = Dimension::Type2D;
+		}
+		return result;
+	}
+
+	// カメラ保存パス
+	const std::string kCameraJsonPath = "Tools/AnimationClip/cameraController.exeConfig.json";
+}
+
+Engine::AnimationClipTool::AnimationClipTool() {
+
+	// カメラ操作初期化
+	cameraController_ = std::make_unique<SceneViewCameraController>();
+	cameraController_->MakeDefaultState();
+	cameraController_->SetSavePath(RuntimePaths::GetEngineAssetPath(kCameraJsonPath).string());
+}
+
 void AnimationClipTool::OpenEditorTool() {
+
+	// カメラ操作初期化
+	cameraController_->MakeFromJson(RuntimePaths::GetEngineAssetPath(kCameraJsonPath).string());
 
 	// ウィンドウ起動
 	openWindow_ = true;
@@ -81,36 +121,24 @@ void AnimationClipTool::RenderPreviewEntity(const EditorToolContext& context, Ed
 	// プレビュー用に設定しているエンティティを取得
 	const Entity previewEntity = GetPreviewEntity(context, preview);
 	// エンティティがワールド内で存在しない場合
-	if (!world || !world->IsAlive(previewEntity)) {
+	if (!world->IsAlive(previewEntity)) {
 		// エンティティが未設定の場合も、古い描画結果が残らないように毎フレームクリアする。
 		RenderToTexture(preview, [](EditorToolRenderContext&) {}, preview.clearColor);
 		return;
 	}
 
+	// エンティティの次元を取得
+	previewDimension_ = GetDimension(*world, previewEntity);
+	// ビューポートの描画領域を入力システムに同期
+	imagePos_ = ImGui::GetCursorScreenPos();
+	Input::GetInstance()->SetViewRect(InputViewArea::AnimationClip, Vector2(imagePos_.x, imagePos_.y),
+		kPreviewSize_.GetFloat(), EngineContext::GetWindowSetting().gameSize.GetFloat());
+
 	// レンダーターゲットへ描画する中身
 	RenderToTexture(preview, [&](EditorToolRenderContext& renderContext) {
 
-		Vector3 targetPos = Vector3::AnyInit(0.0f);
-		if (world->HasComponent<TransformComponent>(previewEntity)) {
-
-			targetPos = world->GetComponent<TransformComponent>(previewEntity).worldMatrix.GetTranslationValue();
-		}
-
-		ManualRenderCameraState camera{};
-		camera.enableOrthographic = true;
-		camera.orthoNearClip = 0.0f;
-		camera.orthoFarClip = 1000.0f;
-		camera.orthographicCullingMask = -1;
-		camera.transform2D.pos = Vector3(targetPos.x - preview.size.GetFloat().x * 0.5f,
-			targetPos.y - preview.size.GetFloat().y * 0.5f, targetPos.z - 10.0f);
-
-		camera.enablePerspective = true;
-		camera.perspectiveFovY = 45.0f;
-		camera.perspectiveNearClip = 0.01f;
-		camera.perspectiveFarClip = 4000.0f;
-		camera.perspectiveCullingMask = -1;
-		camera.transform3D.pos = targetPos + Vector3(0.0f, 1.5f, -6.0f);
-		camera.transform3D.rotation = Vector3(0.0f, 0.0f, 0.0f);
+		// カメラ操作更新
+		cameraController_->Update(previewDimension_, InputViewArea::AnimationClip);
 
 		// プレビュー描画のリクエストを構築
 		EntityPreviewRenderRequest request{};
@@ -121,32 +149,26 @@ void AnimationClipTool::RenderPreviewEntity(const EditorToolContext& context, Ed
 		request.sceneInstanceID = context.toolContext.activeSceneInstanceID;
 		request.rootEntity = previewEntity;
 		request.surface = preview.GetRenderTarget();
-		request.camera = camera;
+		request.camera = cameraController_->GetCameraState();
 		request.clearColor = preview.clearColor;
 		// グリッド描画
-		DrawGrid(*world, previewEntity, request);
+		DrawGrid(request);
 		// プレビューエンティティを描画する
 		context.panelContext->renderPipeline->RenderEntityPreview(*renderContext.graphicsCore, request);
 		}, preview.clearColor);
 }
 
-void Engine::AnimationClipTool::DrawGrid(const ECSWorld& world,
-	const Entity& previewEntity, EntityPreviewRenderRequest& request) {
+void Engine::AnimationClipTool::DrawGrid(EntityPreviewRenderRequest& request) {
 
 	// グリッドを描画
 	// 3D
-	if (world.HasComponent<MeshRendererComponent>(previewEntity) ||
-		world.HasComponent<PerspectiveCameraComponent>(previewEntity)) {
+	if (previewDimension_ == Dimension::Type3D) {
 
-		// プレビュー描画側で、AnimationClipTool用カメラとRenderTextureに対して描画する。
 		request.drawGrid3D = true;
 	}
 	// 2D
-	else if (world.HasComponent<SpriteRendererComponent>(previewEntity) ||
-		world.HasComponent<TextRendererComponent>(previewEntity) ||
-		world.HasComponent<OrthographicCameraComponent>(previewEntity)) {
+	else if (previewDimension_ == Dimension::Type2D) {
 
-		// プレビュー描画側で、AnimationClipTool用カメラとRenderTextureに対して描画する。
 		request.drawGrid2D = true;
 	}
 }

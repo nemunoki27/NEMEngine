@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Tools/Interface/IEditorTool.h>
+#include <Engine/Core/Graphics/Render/View/SceneViewCameraController.h>
 
 namespace Engine {
 
@@ -20,7 +21,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		AnimationClipTool() = default;
+		AnimationClipTool();
 		~AnimationClipTool() = default;
 
 		// ToolPanelの一覧からツールを開く
@@ -50,6 +51,14 @@ namespace Engine {
 
 		bool openWindow_ = false;
 
+		// レンダーターゲットを表示しているImGui上の座標
+		ImVec2 imagePos_ = {};
+		// 現在プレビューしているエンティティの描画次元
+		Dimension previewDimension_ = Dimension::Type2D;
+
+		// プレビュー用カメラの操作
+		std::unique_ptr<SceneViewCameraController> cameraController_;
+
 		// プレビュー用レンダーターゲットの設定
 		const Vector2I kPreviewSize_ = Vector2I(512, 288);
 		const Color4 kPreviewColor_ = Color4::FromHex(0x202f55ff);
@@ -60,6 +69,6 @@ namespace Engine {
 		// RenderTextureへプレビューEntityを描画する
 		void RenderPreviewEntity(const EditorToolContext& context, EditorToolRenderTexture& preview);
 		// 2D,3Dのグリッド描画
-		void DrawGrid(const ECSWorld& world, const Entity& previewEntity, EntityPreviewRenderRequest& request);
+		void DrawGrid(EntityPreviewRenderRequest& request);
 	};
 } // Engine

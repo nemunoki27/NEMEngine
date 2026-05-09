@@ -51,6 +51,8 @@ namespace Engine {
 		std::string createNameBuffer_;
 		std::string createErrorMessage_;
 		bool requestOpenCreatePopup_ = false;
+		ProjectAssetFileResult pendingFileOperationResult_{};
+		bool hasPendingFileOperationRefresh_ = false;
 
 		//--------- functions ----------------------------------------------------
 
@@ -89,6 +91,8 @@ namespace Engine {
 		void DrawCreateMenuItems(const std::string& directoryVirtualPath);
 		// ファイル操作後にAssetDatabaseと表示を更新する
 		void RefreshAfterFileOperation(AssetDatabase& database, const ProjectAssetFileResult& result);
+		// 遅延していたファイル操作後の更新を適用する
+		void ApplyPendingFileOperationRefresh(AssetDatabase& database);
 		// 前回閉じた時の表示ディレクトリを読み込む
 		void LoadPersistentState();
 		// 現在表示しているディレクトリを保存する

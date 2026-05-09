@@ -81,7 +81,6 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		void DrawViewportContent(const EditorPanelContext& context, const char* id, const ImVec2& size);
-		void SyncInputViewRect(InputViewArea area, const ImVec2& screenPos, const ImVec2& drawSize, const Vector2& srcSize) const;
 
 		// シーンギズモの描画
 		void DrawSceneGizmo(const EditorPanelContext& context);
