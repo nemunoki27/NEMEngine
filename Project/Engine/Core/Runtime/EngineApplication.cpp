@@ -264,7 +264,7 @@ void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 
 		// エディタのフレーム終了処理
 		editorManager_.EndFrame(graphicsCore, editorContext_, &renderPipeline_->GetViewportRenderService(),
-			&renderPipeline_->GetResolvedView(RenderViewKind::Scene));
+			&renderPipeline_->GetResolvedView(RenderViewKind::Scene), renderPipeline_.get());
 	} else {
 
 		// エディタがない場合はゲームビューをバックバッファに描画する
@@ -492,6 +492,9 @@ void Engine::EngineApplication::Finalize() {
 
 		editorManager_.Finalize();
 	}
+
+	// ツールが持つGPUリソースをGraphicsCore終了前に確実に解放する
+	ToolRegistry::GetInstance().Clear();
 
 	// C#ホストと読み込んだアセンブリを解放する
 	ManagedScriptRuntime::GetInstance().Finalize();

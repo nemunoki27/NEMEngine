@@ -67,7 +67,8 @@ namespace Engine {
 		// フレーム開始前、終了後の処理
 		void BeginFrame(GraphicsCore& graphicsCore, const EditorContext& context);
 		void EndFrame(GraphicsCore& graphicsCore, const EditorContext& context,
-			const ViewportRenderService* viewportRenderService, const ResolvedRenderView* sceneRenderView);
+			const ViewportRenderService* viewportRenderService, const ResolvedRenderView* sceneRenderView,
+			RenderPipelineRunner* renderPipeline);
 
 		// 終了処理
 		void Finalize();

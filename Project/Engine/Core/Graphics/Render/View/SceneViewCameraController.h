@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Graphics/Render/View/RenderViewTypes.h>
-#include <Engine/Editor/Tools/IEditorTool.h>
+#include <Engine/Editor/Tools/Interface/IEditorTool.h>
 #include <Engine/Editor/EditorState.h>
 
 namespace Engine {

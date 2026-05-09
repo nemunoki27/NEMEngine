@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Animation/Curve/AnimationCurve.h>
 #include <Engine/Editor/Animation/CurveEditorState.h>
-#include <Engine/Editor/Tools/IEditorTool.h>
+#include <Engine/Editor/Tools/Interface/IEditorTool.h>
 
 namespace Engine {
 

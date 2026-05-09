@@ -163,8 +163,8 @@ bool Engine::FromJson(const nlohmann::json& data, RenderPipelineAsset& outAsset)
 			variant.numRenderTargets = item.value("numRenderTargets", 1u);
 			variant.dynamicRenderTargetFormats = item.value("dynamicRenderTargetFormats", false);
 			variant.requiresMeshShader = item.value("requiresMeshShader", false);
-			variant.requiresInlineRayTracing = item.value("requiresInlineRayTracing", true);
-			variant.requiresDispatchRays = item.value("requiresDispatchRays", true);
+			variant.requiresInlineRayTracing = item.value("requiresInlineRayTracing", false);
+			variant.requiresDispatchRays = item.value("requiresDispatchRays", false);
 			variant.rayGenerationExport = item.value("rayGenerationExport", "");
 			variant.missExport = item.value("missExport", "");
 			variant.closestHitExport = item.value("closestHitExport", "");

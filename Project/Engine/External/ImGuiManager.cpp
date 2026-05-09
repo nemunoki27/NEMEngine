@@ -60,7 +60,7 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	ImFontConfig cfg{};
 	cfg.FontNo = 0;
 	const char* fontPath = "C:\\Windows\\Fonts\\meiryob.ttc";
-	io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath, 24.0f, &cfg, io.Fonts->GetGlyphRangesJapanese());
+	io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath, 20.0f, &cfg, io.Fonts->GetGlyphRangesJapanese());
 
 	ImGuiStyle& style = ImGui::GetStyle();
 	ImVec4* colors = style.Colors;
@@ -173,6 +173,7 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	style.WindowRounding = 2.0f;
 	style.ChildRounding = 2.0f;
 	style.FrameRounding = 2.0f;
+	style.FramePadding = ImVec2(2.0f, 2.0f);
 	style.ScrollbarRounding = 2.0f;
 	style.GrabRounding = 2.0f;
 	style.TabRounding = 2.0f;

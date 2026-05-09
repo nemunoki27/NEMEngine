@@ -62,9 +62,9 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// ウィンドウ設定の取得
-		const WindowSetting& GetWindowSetting() const { return windowSetting_; }
+		static const WindowSetting& GetWindowSetting() { return windowSetting_; }
 		// グラフィックス設定の取得
-		const GraphicsSetting& GetGraphicsSetting() const { return graphicsSetting_; }
+		static const GraphicsSetting& GetGraphicsSetting() { return graphicsSetting_; }
 		// ウィンドウ管理クラスの取得
 		WinApp* GetWinApp() const { return winApp_.get(); }
 	private:
@@ -75,9 +75,9 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		// ウィンドウ設定
-		WindowSetting windowSetting_;
+		static WindowSetting windowSetting_;
 		// グラフィックス設定
-		GraphicsSetting graphicsSetting_;
+		static GraphicsSetting graphicsSetting_;
 
 		// ウィンドウ管理クラス
 		std::unique_ptr<WinApp> winApp_;

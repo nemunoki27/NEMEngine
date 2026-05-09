@@ -441,6 +441,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	panelContext.layoutState = &layoutState_;
 	panelContext.host = this;
 	panelContext.viewportRenderService = nullptr;
+	panelContext.graphicsCore = &graphicsCore;
 	panelContext.graphicsPlatform = &graphicsCore.GetDXObject();
 
 	// グローバルショートカットの処理
@@ -450,7 +451,8 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 }
 
 void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorContext& context,
-	const ViewportRenderService* viewportRenderService, const ResolvedRenderView* sceneRenderView) {
+	const ViewportRenderService* viewportRenderService, const ResolvedRenderView* sceneRenderView,
+	RenderPipelineRunner* renderPipeline) {
 
 	if (!initialized_) {
 		return;
@@ -463,7 +465,9 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	panelContext.layoutState = &layoutState_;
 	panelContext.host = this;
 	panelContext.viewportRenderService = viewportRenderService;
+	panelContext.graphicsCore = &graphicsCore;
 	panelContext.graphicsPlatform = &graphicsCore.GetDXObject();
+	panelContext.renderPipeline = renderPipeline;
 	panelContext.sceneRenderView = sceneRenderView;
 
 	// ドッキングスペースの描画

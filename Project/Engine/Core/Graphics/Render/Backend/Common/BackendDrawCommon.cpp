@@ -50,7 +50,8 @@ const Engine::PipelineState* Engine::BackendDrawCommon::ResolveGraphicsPipeline(
 	const RenderDrawContext& context, const MaterialPassBinding& passBinding) {
 
 	return context.pipelineCache->GetORCreate(context.graphicsCore->GetDXObject(), *context.assetLibrary,
-		passBinding.pipeline, passBinding.preferredVariant, context.GetRTVFormats(), context.dsvFormat);
+		passBinding.pipeline, passBinding.preferredVariant, context.GetRTVFormats(), context.dsvFormat,
+		context.runtimeFeatures);
 }
 
 ID3D12GraphicsCommandList6* Engine::BackendDrawCommon::SetupGraphicsPipeline(const RenderDrawContext& context,

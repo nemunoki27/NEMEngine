@@ -56,6 +56,10 @@ namespace Engine {
 		const PipelineState* GetORCreate(GraphicsPlatform& graphicsPlatform,
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, PipelineVariantKind desiredKind,
 			std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat);
+		const PipelineState* GetORCreate(GraphicsPlatform& graphicsPlatform,
+			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, PipelineVariantKind desiredKind,
+			std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
+			const GraphicsRuntimeFeatures& runtimeFeatures);
 
 		// データクリア
 		void Clear();

@@ -8,22 +8,22 @@
 namespace Engine {
 
 	//============================================================================
-	//	CameraManagerTool class
-	//	ゲーム用カメラの作成と初期設定を行うツール
+	//	AnimationClipTool class
+	//	アニメーションの動きを作成するツール
 	//============================================================================
-	class CameraManagerTool :
+	class AnimationClipTool :
 		public IEditorTool {
 	public:
 		//========================================================================
 		//	public Methods
 		//========================================================================
 
-		CameraManagerTool() = default;
-		~CameraManagerTool() override = default;
+		AnimationClipTool() = default;
+		~AnimationClipTool() = default;
 
 		// ToolPanelの一覧からツールを開く
 		void OpenEditorTool() override;
-		// CameraManagerウィンドウを描画する
+		// AnimationCurveウィンドウを描画する
 		void DrawEditorTool(const EditorToolContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
@@ -37,34 +37,32 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// ToolPanelへ登録する情報
 		ToolDescriptor descriptor_{
-			.id = "engine.camera_manager",
-			.name = "CameraManager",
-			.category = "Camera",
+			.id = "engine.animation_clip",
+			.name = "AnimationClip",
+			.category = "Animation",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::EditOnly,
-			.order = 1,
+			.order = 2,
 		};
 
-		// ウィンドウ表示状態
 		bool openWindow_ = false;
+
+		// プレビュー用レンダーターゲットの設定
+		const Vector2I kPreviewSize_ = Vector2I(384, 216);
+		const Color4 kPreviewColor_ = Color4::FromHex(0x202f55ff);
+		const uint32_t kPreviewColorTargetCount_ = 3;
 
 		//--------- functions ----------------------------------------------------
 
-		// CameraManagerウィンドウを描画する
+		// AnimationClipウィンドウを描画する
 		void DrawWindow(const EditorToolContext& context);
-		// 選択中Entityをターゲットとして取得する
-		UUID GetSelectedTargetUUID(const EditorToolContext& context) const;
-		// 2D追従カメラを作成する
-		void Create2DFollowCamera(const EditorToolContext& context);
-		// 3D追従カメラを作成する
-		void Create3DFollowCamera(const EditorToolContext& context);
-		// 3D注視カメラを作成する
-		void Create3DLookAtCamera(const EditorToolContext& context);
-		// 選択中EntityへCameraControllerを追加する
-		void AddControllerToSelected(const EditorToolContext& context);
-		// 選択中カメラをSceneViewに割り当てる
-		void AssignSelectedCameraToSceneView(const EditorToolContext& context);
+		// RenderTextureの表示テストを描画する
+		void DrawPreview(const EditorToolContext& context);
+		// RenderTextureへプレビューEntityを描画する
+		void RenderPreviewEntity(const EditorToolContext& context, EditorToolRenderTexture& preview);
+		// プレビュー対象Entityの表示名を取得する
+		std::string GetPreviewEntityName(const EditorToolContext& context,
+			const EditorToolRenderTexture& preview) const;
 	};
 } // Engine

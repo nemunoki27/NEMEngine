@@ -277,6 +277,10 @@ void Vector2I::Init(int32_t value) {
 	this->y = value;
 }
 
+Vector2 Engine::Vector2I::GetFloat() const {
+	return { static_cast<float>(this->x), static_cast<float>(this->y) };
+}
+
 std::vector<uint32_t> Vector2I::ToUInt() const {
-	return { static_cast<uint32_t>(x), static_cast<uint32_t>(y) };
+	return { static_cast<uint32_t>(this->x), static_cast<uint32_t>(this->y) };
 }

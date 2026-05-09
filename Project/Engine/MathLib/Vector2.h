@@ -140,6 +140,8 @@ namespace Engine {
 		void Init();
 		void Init(int32_t value);
 
+		// floatに変換
+		Vector2 GetFloat() const;
 		// uintに変換
 		std::vector<uint32_t> ToUInt() const;
 	};

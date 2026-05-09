@@ -40,6 +40,9 @@ namespace Engine {
 		PipelineStateCache* pipelineCache = nullptr;
 		MaterialResolver* materialResolver = nullptr;
 
+		// この描画で使用するGPU機能。プレビューでは一部機能を落としてVariantを選ぶ。
+		GraphicsRuntimeFeatures runtimeFeatures{};
+
 		// 現在バインド中の描画先フォーマット
 		std::array<DXGI_FORMAT, 8> rtvFormats{};
 		uint32_t numRTVFormats = 0;

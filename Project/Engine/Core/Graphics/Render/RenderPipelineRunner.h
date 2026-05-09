@@ -59,10 +59,29 @@ namespace Engine {
 		RenderBufferRegistry bufferRegistry{};
 		// レイトレーシングの情報
 		RaytracingSceneRuntimeContext raytracing{};
+		// ツールプレビューなど、TLASを作らない描画ではRayQuery系Variantを選ばない。
+		bool disableInlineRayTracing = false;
 		// ECSワールドとシステムコンテキスト
 		ECSWorld* world = nullptr;
 		const SystemContext* systemContext = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
+	};
+
+	// エディタツール用のEntityプレビュー描画要求
+	struct EntityPreviewRenderRequest {
+
+		ECSWorld* world = nullptr;
+		const SystemContext* systemContext = nullptr;
+		AssetDatabase* assetDatabase = nullptr;
+
+		const SceneHeader* sceneHeader = nullptr;
+		UUID sceneInstanceID{};
+
+		Entity rootEntity = Entity::Null();
+		MultiRenderTarget* surface = nullptr;
+		ManualRenderCameraState camera{};
+
+		Color4 clearColor = Color4(0.08f, 0.10f, 0.14f, 1.0f);
 	};
 
 	//============================================================================
@@ -89,6 +108,8 @@ namespace Engine {
 
 		// 描画ビューのサーフェスをバックバッファに描画する
 		bool PresentViewToBackBuffer(GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material = {});
+		// エディタツール専用RenderTextureへ、指定Entityと子階層だけを描画する
+		bool RenderEntityPreview(GraphicsCore& graphicsCore, const EntityPreviewRenderRequest& request);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -157,11 +178,17 @@ namespace Engine {
 		// ルートシーン用のビュー別ライト集合
 		PerViewLightSet gameViewLightSet_{};
 		PerViewLightSet sceneViewLightSet_{};
+		PerViewLightSet previewLightSet_{};
 		// ビューごとのGPUライトバッファ
 		ViewLightBufferSet gameViewLightBuffers_{};
 		ViewLightBufferSet sceneViewLightBuffers_{};
+		ViewLightBufferSet previewLightBuffers_{};
 		ViewLightCullingBufferSet gameViewLightCullingBuffers_{};
 		ViewLightCullingBufferSet sceneViewLightCullingBuffers_{};
+		ViewLightCullingBufferSet previewLightCullingBuffers_{};
+
+		// ツールプレビュー専用の描画バックエンド。メインビューのGPUバッファを上書きしないため分離する
+		RenderBackendRegistry previewBackendRegistry_{};
 
 		//--------- functions ----------------------------------------------------
 

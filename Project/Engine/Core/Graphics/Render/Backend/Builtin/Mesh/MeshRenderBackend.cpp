@@ -288,10 +288,8 @@ bool Engine::MeshRenderBackend::PrepareBatch(const RenderDrawContext& context,
 		return false;
 	}
 
-	// GPUランタイム機能を取得
-	const auto& runtimeFeatures = context.graphicsCore->GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	// ランタイムの機能情報に応じたパイプラインバリアントを取得
-	outPrepared.variant = ResolveBestVariant(*pipelineAsset, resolvedPass.pass->preferredVariant, runtimeFeatures);
+	outPrepared.variant = ResolveBestVariant(*pipelineAsset, resolvedPass.pass->preferredVariant, context.runtimeFeatures);
 
 	// パイプライン取得
 	outPrepared.pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass);

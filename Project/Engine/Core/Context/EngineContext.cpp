@@ -13,6 +13,9 @@
 //	EngineContext classMethods
 //============================================================================
 
+Engine::EngineContext::WindowSetting Engine::EngineContext::windowSetting_ = {};
+Engine::EngineContext::GraphicsSetting Engine::EngineContext::graphicsSetting_ = {};
+
 void Engine::EngineContext::InitCoreSettings() {
 
 	nlohmann::json data = JsonAdapter::Load(RuntimePaths::GetEngineAssetPath("Window/windowSetting.json").string());
