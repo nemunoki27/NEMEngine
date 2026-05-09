@@ -5,8 +5,11 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/ECS/Component/Builtin/NameComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/CameraComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/Render/SpriteRendererComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/Render/TextRendererComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/Render/MeshRendererComponent.h>
 #include <Engine/Core/Graphics/Render/RenderPipelineRunner.h>
 #include <Engine/Core/Context/EngineContext.h>
 
@@ -21,6 +24,7 @@ using namespace Engine;
 
 void AnimationClipTool::OpenEditorTool() {
 
+	// ウィンドウ起動
 	openWindow_ = true;
 }
 
@@ -29,29 +33,18 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 	if (!openWindow_) {
 		return;
 	}
-	DrawWindow(context);
-}
-
-void AnimationClipTool::DrawWindow(const EditorToolContext& context) {
 
 	if (!ImGui::Begin("Animation Clip", &openWindow_)) {
 		ImGui::End();
 		return;
 	}
 
-	ImGui::TextDisabled("Animation clip editor base");
-	ImGui::Separator();
-
-	DrawPreview(context);
-
-	ImGui::End();
-}
-
-void AnimationClipTool::DrawPreview(const EditorToolContext& context) {
+	//============================================================================
+	//	レンダーターゲットの作成、設定
+	//============================================================================
 
 	// 作成するときは現在のゲームビューと同じサイズで作成を行う
-	auto window = EngineContext::GetWindowSetting();
-	Vector2I renderTextureSize = window.gameSize;
+	Vector2I renderTextureSize = EngineContext::GetWindowSetting().gameSize;
 	if (renderTextureSize.x <= 0 || renderTextureSize.y <= 0) {
 
 		renderTextureSize = kPreviewSize_;
@@ -61,45 +54,40 @@ void AnimationClipTool::DrawPreview(const EditorToolContext& context) {
 	if (!preview) {
 
 		ImGui::TextDisabled("Preview RenderTexture is not available.");
+		ImGui::End();
 		return;
 	}
 
+	//============================================================================
+	//	プレビューをレンダーターゲットに対して描画
+	//============================================================================
+
 	RenderPreviewEntity(context, *preview);
 
-	ImGui::Text("Preview Entity : %s", GetPreviewEntityName(context, *preview).c_str());
+	//============================================================================
+	//	描画結果を表示
+	//============================================================================
 
-	ImVec2 imageSize(kPreviewSize_.GetFloat().x, kPreviewSize_.GetFloat().y);
-	const float availableWidth = ImGui::GetContentRegionAvail().x;
-	if (0.0f < availableWidth && availableWidth < imageSize.x) {
-
-		const float scale = availableWidth / imageSize.x;
-		imageSize.x *= scale;
-		imageSize.y *= scale;
-	}
-
-	// ImGui::Imageで表示した直後のアイテムを、HierarchyのEntityドロップ先にする。
-	ImGui::Image(preview->GetImTextureID(), imageSize);
+	ImGui::Image(preview->GetImTextureID(), ImVec2(kPreviewSize_.GetFloat().x, kPreviewSize_.GetFloat().y));
+	// Imageをエンティティドロップのターゲットにする
 	AcceptPreviewEntityDragDrop(context, *preview);
 
-	if (ImGui::IsItemHovered()) {
-
-		ImGui::SetTooltip("Drop Entity from Hierarchy");
-	}
+	ImGui::End();
 }
 
 void AnimationClipTool::RenderPreviewEntity(const EditorToolContext& context, EditorToolRenderTexture& preview) {
 
 	ECSWorld* world = context.GetWorld();
+	// プレビュー用に設定しているエンティティを取得
 	const Entity previewEntity = GetPreviewEntity(context, preview);
-	if (!world || !context.panelContext || !context.panelContext->renderPipeline ||
-		!world->IsAlive(previewEntity)) {
-
-		// Entityが未設定の場合も、古い描画結果が残らないように毎フレームクリアする。
-		RenderToTexture(preview, [](EditorToolRenderContext&) {
-			}, preview.clearColor);
+	// エンティティがワールド内で存在しない場合
+	if (!world || !world->IsAlive(previewEntity)) {
+		// エンティティが未設定の場合も、古い描画結果が残らないように毎フレームクリアする。
+		RenderToTexture(preview, [](EditorToolRenderContext&) {}, preview.clearColor);
 		return;
 	}
 
+	// レンダーターゲットへ描画する中身
 	RenderToTexture(preview, [&](EditorToolRenderContext& renderContext) {
 
 		Vector3 targetPos = Vector3::AnyInit(0.0f);
@@ -124,6 +112,7 @@ void AnimationClipTool::RenderPreviewEntity(const EditorToolContext& context, Ed
 		camera.transform3D.pos = targetPos + Vector3(0.0f, 1.5f, -6.0f);
 		camera.transform3D.rotation = Vector3(0.0f, 0.0f, 0.0f);
 
+		// プレビュー描画のリクエストを構築
 		EntityPreviewRenderRequest request{};
 		request.world = world;
 		request.systemContext = context.toolContext.systemContext;
@@ -134,22 +123,30 @@ void AnimationClipTool::RenderPreviewEntity(const EditorToolContext& context, Ed
 		request.surface = preview.GetRenderTarget();
 		request.camera = camera;
 		request.clearColor = preview.clearColor;
-
+		// グリッド描画
+		DrawGrid(*world, previewEntity, request);
+		// プレビューエンティティを描画する
 		context.panelContext->renderPipeline->RenderEntityPreview(*renderContext.graphicsCore, request);
 		}, preview.clearColor);
 }
 
-std::string AnimationClipTool::GetPreviewEntityName(const EditorToolContext& context,
-	const EditorToolRenderTexture& preview) const {
+void Engine::AnimationClipTool::DrawGrid(const ECSWorld& world,
+	const Entity& previewEntity, EntityPreviewRenderRequest& request) {
 
-	ECSWorld* world = context.GetWorld();
-	const Entity entity = GetPreviewEntity(context, preview);
-	if (!world || !world->IsAlive(entity)) {
-		return "None";
-	}
+	// グリッドを描画
+	// 3D
+	if (world.HasComponent<MeshRendererComponent>(previewEntity) ||
+		world.HasComponent<PerspectiveCameraComponent>(previewEntity)) {
 
-	if (world->HasComponent<NameComponent>(entity)) {
-		return world->GetComponent<NameComponent>(entity).name;
+		// プレビュー描画側で、AnimationClipTool用カメラとRenderTextureに対して描画する。
+		request.drawGrid3D = true;
 	}
-	return ToString(world->GetUUID(entity));
+	// 2D
+	else if (world.HasComponent<SpriteRendererComponent>(previewEntity) ||
+		world.HasComponent<TextRendererComponent>(previewEntity) ||
+		world.HasComponent<OrthographicCameraComponent>(previewEntity)) {
+
+		// プレビュー描画側で、AnimationClipTool用カメラとRenderTextureに対して描画する。
+		request.drawGrid2D = true;
+	}
 }

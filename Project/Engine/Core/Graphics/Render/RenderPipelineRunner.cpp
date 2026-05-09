@@ -739,6 +739,19 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 	deps.raytracingPipelineCache = &raytracingPipelineStateCache_;
 	ScenePassExecutor executor{ deps };
 	executor.ExecuteScene(graphicsCore, RenderFrameRequest{}, context, &passBuckets);
+
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	if (request.drawGrid2D) {
+
+		LineRenderer::GetInstance()->Get2D()->DrawGrid();
+	}
+	if (request.drawGrid3D) {
+
+		LineRenderer::GetInstance()->Get3D()->DrawGrid();
+	}
+	LineRenderer::GetInstance()->RenderSceneView(graphicsCore, previewView, *request.surface, false);
+#endif
+
 	executor.TransitionAllTargetsToShaderRead(graphicsCore, context);
 
 	return true;

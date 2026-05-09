@@ -21,7 +21,13 @@ namespace Engine {
 		LineRenderer2D(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain);
 		~LineRenderer2D() = default;
 
+		// フレーム開始処理
+		void BeginFrame();
+
 		//---------- drawers -----------------------------------------------------
+
+		// グリッド描画
+		void DrawGrid();
 
 		// アンカー付き/無し矩形
 		void DrawRect(const Vector2& center, const Vector2& size, const Vector2& anchor, const Color4& color, float thickness = 1.0f);
@@ -36,6 +42,11 @@ namespace Engine {
 		//========================================================================
 		//	private Methods
 		//========================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		// DrawGridで要求されたグリッド描画数
+		uint32_t gridDrawCount_ = 0;
 
 		//--------- functions ----------------------------------------------------
 

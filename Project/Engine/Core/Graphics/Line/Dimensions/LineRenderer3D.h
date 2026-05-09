@@ -23,7 +23,15 @@ namespace Engine {
 		LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain);
 		~LineRenderer3D() = default;
 
+		// フレーム開始処理
+		void BeginFrame();
+
 		//---------- drawers -----------------------------------------------------
+
+		// グリッド描画
+		void DrawGrid();
+		// SceneViewのデフォルトグリッド描画
+		void RenderDefaultGrid(GraphicsCore& graphicsCore, const ResolvedRenderView& view, MultiRenderTarget& surface);
 
 		// 球
 		void DrawSphere(const Vector3& center, float radius, const Color4& color, uint32_t division = 8, float thickness = 1.0f);
@@ -61,6 +69,8 @@ namespace Engine {
 
 		// シーンのグリッド描画クラス
 		std::unique_ptr<SceneGridRenderer> gridRenderer_{};
+		// DrawGridで要求されたグリッド描画数
+		uint32_t gridDrawCount_ = 0;
 
 		//--------- functions ----------------------------------------------------
 

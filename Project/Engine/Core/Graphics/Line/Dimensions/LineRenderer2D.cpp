@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/MathLib/Math.h>
 
+// c++
+#include <cmath>
+
 //============================================================================
 //	LineRenderer2D classMethods
 //============================================================================
@@ -13,6 +16,17 @@ Engine::LineRenderer2D::LineRenderer2D(GraphicsCore& graphicsCore, RenderCameraD
 
 	// 基底クラスの初期化
 	Init(graphicsCore, cameraDomain);
+}
+
+void Engine::LineRenderer2D::BeginFrame() {
+
+	LineRendererBase<Vector2>::BeginFrame();
+	gridDrawCount_ = 0;
+}
+
+void Engine::LineRenderer2D::DrawGrid() {
+
+	++gridDrawCount_;
 }
 
 void Engine::LineRenderer2D::DrawRect(const Vector2& center, const Vector2& size,
@@ -94,5 +108,41 @@ void Engine::LineRenderer2D::DrawCircle(const Vector2& center, float radius,
 }
 
 void Engine::LineRenderer2D::DrawLineImpl(GraphicsCore& /*graphicsCore*/,
-	const ResolvedCameraView* /*camera*/, MultiRenderTarget& /*surface*/) {
+	const ResolvedCameraView* camera, MultiRenderTarget& surface) {
+
+	if (gridDrawCount_ == 0) {
+		return;
+	}
+	if (!camera) {
+
+		gridDrawCount_ = 0;
+		return;
+	}
+
+	constexpr float kGridCellSize = 64.0f;
+	constexpr float kGridLineThickness = 1.0f;
+	constexpr float kGridCenterLineThickness = 2.4f;
+	const Color4 kGridColor = Color4::White(0.32f);
+
+	const float left = std::floor(camera->cameraPos.x / kGridCellSize) * kGridCellSize - kGridCellSize;
+	const float top = std::floor(camera->cameraPos.y / kGridCellSize) * kGridCellSize - kGridCellSize;
+	const float right = camera->cameraPos.x + static_cast<float>(surface.GetWidth()) + kGridCellSize;
+	const float bottom = camera->cameraPos.y + static_cast<float>(surface.GetHeight()) + kGridCellSize;
+
+	for (uint32_t drawIndex = 0; drawIndex < gridDrawCount_; ++drawIndex) {
+
+		// 縦線
+		for (float x = left; x <= right; x += kGridCellSize) {
+
+			const float thickness = std::abs(x) < 0.001f ? kGridCenterLineThickness : kGridLineThickness;
+			DrawLine(Vector2(x, top), Vector2(x, bottom), kGridColor, thickness);
+		}
+		// 横線
+		for (float y = top; y <= bottom; y += kGridCellSize) {
+
+			const float thickness = std::abs(y) < 0.001f ? kGridCenterLineThickness : kGridLineThickness;
+			DrawLine(Vector2(left, y), Vector2(right, y), kGridColor, thickness);
+		}
+	}
+	gridDrawCount_ = 0;
 }

@@ -49,7 +49,13 @@ void Engine::LineRenderer::BeginFrame() {
 }
 
 void Engine::LineRenderer::RenderSceneView(GraphicsCore& graphicsCore,
-	const ResolvedRenderView& view, MultiRenderTarget& surface) {
+	const ResolvedRenderView& view, MultiRenderTarget& surface, bool drawDefaultGrid) {
+
+	if (drawDefaultGrid) {
+
+		// SceneViewのデフォルトグリッドは、SceneView側のカメラで直接描画
+		renderer3D_->RenderDefaultGrid(graphicsCore, view, surface);
+	}
 
 	// 各次元のライン描画クラスに描画呼び出し
 	renderer2D_->RenderSceneView(graphicsCore, view, surface);

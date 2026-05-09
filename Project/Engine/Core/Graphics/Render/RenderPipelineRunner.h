@@ -82,6 +82,9 @@ namespace Engine {
 		ManualRenderCameraState camera{};
 
 		Color4 clearColor = Color4(0.08f, 0.10f, 0.14f, 1.0f);
+		// プレビュー用RenderTextureにだけ描画するグリッド
+		bool drawGrid2D = false;
+		bool drawGrid3D = false;
 	};
 
 	//============================================================================

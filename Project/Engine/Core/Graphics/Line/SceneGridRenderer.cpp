@@ -427,11 +427,11 @@ void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
 	GraphicsPipelineDesc desc{};
 	desc.type = PipelineType::Vertex;
 
-	desc.preRaster.file = "Builtin/SceneGrid/analyticGrid.VS.hlsl";
+	desc.preRaster.file = "Builtin/Line/analyticGrid.VS.hlsl";
 	desc.preRaster.entry = "main";
 	desc.preRaster.profile = "vs_6_0";
 
-	desc.pixel.file = "Builtin/SceneGrid/analyticGrid.PS.hlsl";
+	desc.pixel.file = "Builtin/Line/analyticGrid.PS.hlsl";
 	desc.pixel.entry = "main";
 	desc.pixel.profile = "ps_6_0";
 
@@ -454,9 +454,14 @@ void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
 	bool created = pipeline_.CreateGraphics(device, compiler, desc);
 	Assert::Call(created, "SceneGridRenderer analytic grid pipeline create failed");
 
-	passBuffer_.CreateBuffer(device);
+	passBuffers_.reserve(4);
 
 	initialized_ = true;
+}
+
+void Engine::SceneGridRenderer::BeginFrame() {
+
+	passBufferIndex_ = 0;
 }
 
 Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPassConstants(
@@ -591,6 +596,19 @@ Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPas
 	return constants;
 }
 
+Engine::DxConstBuffer<Engine::SceneGridRenderer::GridPassConstants>& Engine::SceneGridRenderer::AllocatePassBuffer(
+	GraphicsCore& graphicsCore) {
+
+	if (passBuffers_.size() <= passBufferIndex_) {
+
+		// 同じフレーム内で複数のカメラから描画されても、記録済みコマンドの定数を上書きしない。
+		auto buffer = std::make_unique<DxConstBuffer<GridPassConstants>>();
+		buffer->CreateBuffer(graphicsCore.GetDXObject().GetDevice());
+		passBuffers_.emplace_back(std::move(buffer));
+	}
+	return *passBuffers_[passBufferIndex_++];
+}
+
 void Engine::SceneGridRenderer::Render(GraphicsCore& graphicsCore,
 	const ResolvedCameraView& camera, MultiRenderTarget& surface) {
 
@@ -608,17 +626,32 @@ void Engine::SceneGridRenderer::Render(GraphicsCore& graphicsCore,
 	auto* commandList = dxCommand->GetCommandList();
 
 	surface.TransitionForRender(*dxCommand);
-	surface.Bind(*dxCommand);
+	if (RenderTexture2D* color = surface.GetColorTexture(0)) {
+
+		if (DepthTexture2D* depth = surface.GetDepthTexture()) {
+
+			dxCommand->BindRenderTargets(std::optional<RenderTarget>(color->GetRenderTarget()),
+				depth->GetDSVCPUHandle());
+		} else {
+
+			dxCommand->BindRenderTargets(std::optional<RenderTarget>(color->GetRenderTarget()), std::nullopt);
+		}
+		dxCommand->SetViewportAndScissor(surface.GetWidth(), surface.GetHeight());
+	} else {
+
+		return;
+	}
 
 	GridPassConstants constants = BuildPassConstants(camera, surface.GetWidth(), surface.GetHeight());
-	passBuffer_.TransferData(constants);
+	DxConstBuffer<GridPassConstants>& passBuffer = AllocatePassBuffer(graphicsCore);
+	passBuffer.TransferData(constants);
 
 	commandList->SetGraphicsRootSignature(pipeline_.GetRootSignature());
 	commandList->SetPipelineState(pipeline_.GetGraphicsPipeline(BlendMode::Normal));
 
 	GraphicsRootBinder binder{ pipeline_ };
 	const GraphicsBindItem bindItems[] = {
-		{ {}, GraphicsBindValueType::CBV, passBuffer_.GetResource()->GetGPUVirtualAddress(), {}, 0, 0 },
+		{ {}, GraphicsBindValueType::CBV, passBuffer.GetResource()->GetGPUVirtualAddress(), {}, 0, 0 },
 	};
 	binder.Bind(commandList, bindItems);
 

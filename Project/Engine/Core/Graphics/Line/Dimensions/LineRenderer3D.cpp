@@ -14,6 +14,30 @@ Engine::LineRenderer3D::LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraD
 	gridRenderer_->Init(graphicsCore);
 }
 
+void Engine::LineRenderer3D::BeginFrame() {
+
+	LineRendererBase<Vector3>::BeginFrame();
+	gridDrawCount_ = 0;
+	gridRenderer_->BeginFrame();
+}
+
+void Engine::LineRenderer3D::DrawGrid() {
+
+	++gridDrawCount_;
+}
+
+void Engine::LineRenderer3D::RenderDefaultGrid(GraphicsCore& graphicsCore,
+	const ResolvedRenderView& view, MultiRenderTarget& surface) {
+
+	const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Perspective);
+	if (!camera) {
+		return;
+	}
+
+	// SceneViewのカメラでデフォルトグリッドを描画
+	gridRenderer_->Render(graphicsCore, *camera, surface);
+}
+
 void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius,
 	const Color4& color, uint32_t division, float thickness) {
 
@@ -259,6 +283,15 @@ void Engine::LineRenderer3D::DrawCameraFrustum(const Matrix4x4& viewMatrix, floa
 void Engine::LineRenderer3D::DrawLineImpl(GraphicsCore& graphicsCore,
 	const ResolvedCameraView* camera, MultiRenderTarget& surface) {
 
-	// グリッド描画
-	gridRenderer_->Render(graphicsCore, *camera, surface);
+	if (!camera) {
+		gridDrawCount_ = 0;
+		return;
+	}
+
+	for (uint32_t i = 0; i < gridDrawCount_; ++i) {
+
+		// グリッド描画
+		gridRenderer_->Render(graphicsCore, *camera, surface);
+	}
+	gridDrawCount_ = 0;
 }

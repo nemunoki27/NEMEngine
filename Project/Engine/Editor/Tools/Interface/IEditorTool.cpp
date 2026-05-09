@@ -77,7 +77,7 @@ EditorToolRenderTexture* Engine::IEditorTool::CreateRenderTexture(const std::str
 		const std::string colorName = i == 0 ? name + "_Color" :
 			name + "_Color" + std::to_string(i);
 		createDesc.colors.push_back(ColorAttachmentDesc{ .name = colorName,
-			.format = DXGI_FORMAT_R8G8B8A8_UNORM,.clearColor = clearColor,.createUAV = false, });
+			.format = DXGI_FORMAT_R32G32B32A32_FLOAT,.clearColor = clearColor,.createUAV = false, });
 	}
 
 	// ツールプレビューは3D確認で使うことが多いため、必ず深度を持たせる。
