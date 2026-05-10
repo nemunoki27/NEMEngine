@@ -9,6 +9,13 @@
 
 namespace Engine {
 
+	enum class AnimationCurveToolSampleType {
+
+		Transform,
+		Color,
+		Quaternion
+	};
+
 	//============================================================================
 	//	AnimationCurveTool class
 	//	アニメーション用カーブ編集の確認ツール
@@ -49,11 +56,13 @@ namespace Engine {
 		};
 
 		bool openWindow_ = false;
+		AnimationCurveToolSampleType sampleType_ = AnimationCurveToolSampleType::Transform;
 		CurveVector3 transformCurve_;
 		CurveColor4 colorCurve_;
+		CurveQuaternion quaternionCurve_;
 		CurveEditorState transformState_;
 		CurveEditorState colorState_;
-		bool showColorCurve_ = false;
+		CurveEditorState quaternionState_;
 
 		//--------- functions ----------------------------------------------------
 

@@ -171,6 +171,8 @@ namespace Engine {
 			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
 		static CurveEditResult CurveEditor(const char* id, CurveColor4& curve,
 			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		static CurveEditResult CurveEditor(const char* id, CurveQuaternion& curve,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
 
 		//========================================================================
 		//	ギズモ操作

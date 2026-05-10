@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/MathLib/Math.h>
+#include <Engine/Utility/Enum/Axis.h>
 
 // c++
 #include <array>
@@ -96,6 +97,21 @@ namespace Engine {
 		CurveColor4();
 		Color4 Evaluate(float time) const;
 	};
+	struct CurveQuaternionAxisKey {
+
+		bool useCustomAxis = false;
+		std::vector<Axis> axes{ Axis::X };
+		Vector3 customAxis = Vector3(1.0f, 0.0f, 0.0f);
+	};
+	struct CurveQuaternion {
+
+		std::array<CurveChannel, 2> channels;
+		std::vector<CurveQuaternionAxisKey> axisKeys;
+
+		CurveQuaternion();
+		Quaternion Evaluate(float time) const;
+		void EnsureAxisKeyCount();
+	};
 
 	// 共通処理
 	// カーブ型ごとに編集対象チャンネルをspanで取得する
@@ -103,8 +119,10 @@ namespace Engine {
 	std::span<CurveChannel> GetCurveChannels(CurveVector3& curve);
 	std::span<CurveChannel> GetCurveChannels(CurveColor3& curve);
 	std::span<CurveChannel> GetCurveChannels(CurveColor4& curve);
+	std::span<CurveChannel> GetCurveChannels(CurveQuaternion& curve);
 	std::span<const CurveChannel> GetCurveChannels(const CurveFloat& curve);
 	std::span<const CurveChannel> GetCurveChannels(const CurveVector3& curve);
 	std::span<const CurveChannel> GetCurveChannels(const CurveColor3& curve);
 	std::span<const CurveChannel> GetCurveChannels(const CurveColor4& curve);
+	std::span<const CurveChannel> GetCurveChannels(const CurveQuaternion& curve);
 } // Engine

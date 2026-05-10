@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Utility/Enum/Axis.h>
 #include <Engine/Utility/Enum/EnumAdapter.h>
 
 // imgui
@@ -28,7 +29,7 @@ namespace {
 	// 右キーインスペクタの幅
 	constexpr float kCurveInspectorWidth = 160.0f;
 	// 右キーインスペクタのアイテムサイズ
-	constexpr float kCurveInspectorItemWidth = 96.0f;
+	constexpr float kCurveInspectorItemWidth = 80.0f;
 	// キー点の表示半径
 	constexpr float kCurveKeyRadius = 4.0f;
 	// カーブエディター内で共通の文字スケール
@@ -283,7 +284,155 @@ namespace {
 		return channels.size() == 3 || channels[3].name == "A";
 	}
 
-	void DrawToolbarCurrentValues(std::span<Engine::CurveChannel> channels, const Engine::CurveEditorState& state) {
+	bool IsQuaternionCurveSet(std::span<Engine::CurveChannel> channels) {
+
+		return channels.size() == 2 && channels[0].name == "Axis" && channels[1].name == "Angle";
+	}
+
+	Engine::Axis ToAxis(float value) {
+
+		const int32_t axisIndex = (std::clamp)(static_cast<int32_t>(std::round(value)), 0, 2);
+		return static_cast<Engine::Axis>(axisIndex);
+	}
+
+	float ToAxisValue(Engine::Axis axis) {
+
+		return static_cast<float>(Engine::EnumAdapter<Engine::Axis>::GetIndex(axis));
+	}
+
+	ImU32 GetAxisColor(float value) {
+
+		switch (ToAxis(value)) {
+		case Engine::Axis::X:
+			return IM_COL32(255, 80, 80, 255);
+		case Engine::Axis::Y:
+			return IM_COL32(80, 255, 100, 255);
+		case Engine::Axis::Z:
+		default:
+			return IM_COL32(90, 145, 255, 255);
+		}
+	}
+
+	Engine::CurveQuaternionAxisKey MakeDefaultQuaternionAxisKey() {
+
+		Engine::CurveQuaternionAxisKey axisKey{};
+		axisKey.axes = { Engine::Axis::X };
+		axisKey.customAxis = Engine::Vector3(1.0f, 0.0f, 0.0f);
+		return axisKey;
+	}
+
+	std::span<Engine::CurveQuaternionAxisKey> ToAxisKeySpan(std::vector<Engine::CurveQuaternionAxisKey>* axisKeys) {
+
+		if (!axisKeys) {
+			return {};
+		}
+		return *axisKeys;
+	}
+
+	Engine::Vector3 GetQuaternionAxisDirection(const Engine::CurveQuaternionAxisKey& axisKey) {
+
+		Engine::Vector3 axis = axisKey.useCustomAxis ? axisKey.customAxis : Engine::GetDirection(axisKey.axes);
+		if (axis.Length() <= 0.001f) {
+			axis = Engine::Vector3(1.0f, 0.0f, 0.0f);
+		}
+		return axis.Normalize();
+	}
+
+	float GetPrimaryAxisValue(const Engine::CurveQuaternionAxisKey& axisKey) {
+
+		if (axisKey.axes.empty()) {
+			return ToAxisValue(Engine::Axis::X);
+		}
+		return ToAxisValue(axisKey.axes.front());
+	}
+
+	ImU32 GetAxisColor(const Engine::CurveQuaternionAxisKey& axisKey) {
+
+		if (!axisKey.useCustomAxis) {
+			if (axisKey.axes.size() == 1) {
+				return GetAxisColor(ToAxisValue(axisKey.axes.front()));
+			}
+			return IM_COL32(245, 220, 80, 255);
+		}
+
+		const Engine::Vector3 axis = GetQuaternionAxisDirection(axisKey);
+		const uint8_t r = static_cast<uint8_t>((std::clamp)(std::abs(axis.x), 0.0f, 1.0f) * 255.0f);
+		const uint8_t g = static_cast<uint8_t>((std::clamp)(std::abs(axis.y), 0.0f, 1.0f) * 255.0f);
+		const uint8_t b = static_cast<uint8_t>((std::clamp)(std::abs(axis.z), 0.0f, 1.0f) * 255.0f);
+		return IM_COL32(r, g, b, 255);
+	}
+
+	std::string MakeAxisLabel(const Engine::CurveQuaternionAxisKey& axisKey) {
+
+		if (axisKey.useCustomAxis) {
+			const Engine::Vector3 axis = GetQuaternionAxisDirection(axisKey);
+			return std::format("Custom({:.2f}, {:.2f}, {:.2f})", axis.x, axis.y, axis.z);
+		}
+		if (axisKey.axes.empty()) {
+			return "X";
+		}
+
+		std::string label;
+		for (uint32_t i = 0; i < axisKey.axes.size(); ++i) {
+			if (!label.empty()) {
+				label += "+";
+			}
+			label += Engine::EnumAdapter<Engine::Axis>::ToString(axisKey.axes[i]);
+		}
+		return label;
+	}
+
+	uint32_t FindQuaternionAxisIndex(std::span<Engine::CurveChannel> channels, float time) {
+
+		if (channels.empty() || channels[0].keys.empty()) {
+			return 0;
+		}
+		if (time <= channels[0].keys.front().time) {
+			return 0;
+		}
+		if (channels[0].keys.back().time <= time) {
+			return static_cast<uint32_t>(channels[0].keys.size() - 1);
+		}
+
+		auto nextIt = std::upper_bound(channels[0].keys.begin(), channels[0].keys.end(), time,
+			[](float t, const Engine::CurveKey& key) {
+				return t < key.time;
+			});
+		return static_cast<uint32_t>((nextIt - 1) - channels[0].keys.begin());
+	}
+
+	Engine::CurveQuaternionAxisKey GetQuaternionAxisKey(std::span<Engine::CurveChannel> channels,
+		std::span<Engine::CurveQuaternionAxisKey> axisKeys, uint32_t keyIndex) {
+
+		if (keyIndex < axisKeys.size()) {
+			return axisKeys[keyIndex];
+		}
+		Engine::CurveQuaternionAxisKey axisKey = MakeDefaultQuaternionAxisKey();
+		if (!channels.empty() && keyIndex < channels[0].keys.size()) {
+			axisKey.axes = { ToAxis(channels[0].keys[keyIndex].value) };
+		}
+		return axisKey;
+	}
+
+	Engine::CurveQuaternionAxisKey EvaluateQuaternionAxisKey(std::span<Engine::CurveChannel> channels,
+		std::span<Engine::CurveQuaternionAxisKey> axisKeys, float time) {
+
+		return GetQuaternionAxisKey(channels, axisKeys, FindQuaternionAxisIndex(channels, time));
+	}
+
+	void SyncQuaternionAxisChannel(std::span<Engine::CurveChannel> channels,
+		std::span<Engine::CurveQuaternionAxisKey> axisKeys, uint32_t keyIndex) {
+
+		if (channels.empty() || keyIndex >= channels[0].keys.size()) {
+			return;
+		}
+		const Engine::CurveQuaternionAxisKey axisKey = GetQuaternionAxisKey(channels, axisKeys, keyIndex);
+		channels[0].keys[keyIndex].value = GetPrimaryAxisValue(axisKey);
+		channels[0].keys[keyIndex].interpolation = Engine::CurveInterpolationMode::Constant;
+	}
+
+	void DrawToolbarCurrentValues(std::span<Engine::CurveChannel> channels, const Engine::CurveEditorState& state,
+		std::span<Engine::CurveQuaternionAxisKey> quaternionAxisKeys) {
 
 		if (channels.empty()) {
 			return;
@@ -318,6 +467,23 @@ namespace {
 					channel.name.c_str(),
 					value);
 			}
+			return;
+		}
+
+		if (IsQuaternionCurveSet(channels)) {
+			const Engine::CurveQuaternionAxisKey axisKey = EvaluateQuaternionAxisKey(channels, quaternionAxisKeys, state.currentTime);
+			const std::string axisLabel = MakeAxisLabel(axisKey);
+			const float angle = channels[1].Evaluate(state.currentTime);
+			ImGui::SameLine(0.0f, 6.0f);
+			ImGui::TextColored(
+				ImGui::ColorConvertU32ToFloat4(GetAxisColor(axisKey)),
+				"Axis: %s",
+				axisLabel.c_str());
+			ImGui::SameLine(0.0f, 6.0f);
+			ImGui::TextColored(
+				ImVec4(channels[1].displayColor.r, channels[1].displayColor.g, channels[1].displayColor.b, channels[1].displayColor.a),
+				"Angle: %.3f",
+				angle);
 			return;
 		}
 
@@ -464,6 +630,13 @@ namespace {
 
 	}
 
+	bool IsQuaternionSelection(std::span<Engine::CurveChannel> channels, const Engine::CurveKeySelection& selection) {
+
+		return IsQuaternionCurveSet(channels) && selection.channelIndex == 0 &&
+			selection.keyIndex < channels[0].keys.size() &&
+			selection.keyIndex < channels[1].keys.size();
+	}
+
 	bool IsRgbSelection(std::span<Engine::CurveChannel> channels, const Engine::CurveKeySelection& selection) {
 
 		return IsColorCurveSet(channels) && selection.channelIndex == 0 &&
@@ -542,6 +715,65 @@ namespace {
 
 	}
 
+	uint32_t AddQuaternionKey(std::span<Engine::CurveChannel> channels,
+		std::vector<Engine::CurveQuaternionAxisKey>* axisKeys, float time) {
+
+		const Engine::CurveQuaternionAxisKey axisKey = EvaluateQuaternionAxisKey(channels, ToAxisKeySpan(axisKeys), time);
+		const float axis = GetPrimaryAxisValue(axisKey);
+		const float angle = channels[1].Evaluate(time);
+		const uint32_t index = channels[0].AddKey(time, axis, Engine::CurveInterpolationMode::Constant);
+		channels[1].AddKey(time, angle);
+		if (axisKeys) {
+			const uint32_t insertIndex = (std::min)(index, static_cast<uint32_t>(axisKeys->size()));
+			axisKeys->insert(axisKeys->begin() + insertIndex, axisKey);
+		}
+		return index;
+	}
+
+	bool RemoveQuaternionKey(std::span<Engine::CurveChannel> channels,
+		std::vector<Engine::CurveQuaternionAxisKey>* axisKeys, uint32_t keyIndex) {
+
+		bool removed = false;
+		removed |= channels[0].RemoveKey(keyIndex);
+		removed |= channels[1].RemoveKey(keyIndex);
+		if (axisKeys && keyIndex < axisKeys->size()) {
+			axisKeys->erase(axisKeys->begin() + keyIndex);
+		}
+		return removed;
+	}
+
+	void SortQuaternionKeys(std::span<Engine::CurveChannel> channels,
+		std::vector<Engine::CurveQuaternionAxisKey>* axisKeys) {
+
+		if (axisKeys) {
+			struct AxisKeyPair {
+
+				Engine::CurveKey key;
+				Engine::CurveQuaternionAxisKey axis;
+			};
+
+			std::vector<AxisKeyPair> axisKeyPairs;
+			const uint32_t keyCount = static_cast<uint32_t>(channels[0].keys.size());
+			axisKeyPairs.reserve(keyCount);
+			for (uint32_t i = 0; i < keyCount; ++i) {
+				axisKeyPairs.push_back({ channels[0].keys[i], GetQuaternionAxisKey(channels, ToAxisKeySpan(axisKeys), i) });
+			}
+			std::sort(axisKeyPairs.begin(), axisKeyPairs.end(),
+				[](const AxisKeyPair& lhs, const AxisKeyPair& rhs) {
+					return lhs.key.time < rhs.key.time;
+				});
+			axisKeys->resize(axisKeyPairs.size());
+			for (uint32_t i = 0; i < axisKeyPairs.size(); ++i) {
+				channels[0].keys[i] = axisKeyPairs[i].key;
+				(*axisKeys)[i] = axisKeyPairs[i].axis;
+				SyncQuaternionAxisChannel(channels, ToAxisKeySpan(axisKeys), i);
+			}
+		} else {
+			channels[0].SortKeys();
+		}
+		channels[1].SortKeys();
+	}
+
 	// 指定キーが選択状態かを返す
 	bool IsKeySelected(const Engine::CurveEditorState& state, uint32_t channelIndex, uint32_t keyIndex) {
 
@@ -589,6 +821,27 @@ namespace {
 						outSelection = { 3, keyIndex };
 						found = true;
 					}
+				}
+			}
+			return found;
+		}
+
+		if (IsQuaternionCurveSet(channels)) {
+			if (!state.IsChannelVisible(1)) {
+				return false;
+			}
+			const uint32_t keyCount = (std::min)(static_cast<uint32_t>(channels[0].keys.size()),
+				static_cast<uint32_t>(channels[1].keys.size()));
+			for (uint32_t keyIndex = 0; keyIndex < keyCount; ++keyIndex) {
+				const Engine::CurveKey& key = channels[1].keys[keyIndex];
+				const ImVec2 keyPos = WorldToScreen(rect, state, key.time, key.value);
+				const float dx = keyPos.x - mouse.x;
+				const float dy = keyPos.y - mouse.y;
+				const float distanceSq = dx * dx + dy * dy;
+				if (distanceSq <= bestDistanceSq) {
+					bestDistanceSq = distanceSq;
+					outSelection = { 0, keyIndex };
+					found = true;
 				}
 			}
 			return found;
@@ -797,7 +1050,8 @@ namespace {
 
 	// キー点を描画する
 	void DrawKeys(const ImRect& rect, std::span<Engine::CurveChannel> channels,
-		const Engine::CurveEditorState& state) {
+		const Engine::CurveEditorState& state,
+		std::span<Engine::CurveQuaternionAxisKey> quaternionAxisKeys) {
 
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
 		drawList->PushClipRect(rect.Min, rect.Max, true);
@@ -830,6 +1084,26 @@ namespace {
 					const ImU32 borderColor = selected ? color : IM_COL32(12, 12, 12, 255);
 					drawList->AddCircleFilled(pos, selected ? kCurveKeyRadius + 1.5f : kCurveKeyRadius, fillColor, 12);
 					drawList->AddCircle(pos, selected ? kCurveKeyRadius + 1.5f : kCurveKeyRadius, borderColor, 12, 1.5f);
+				}
+			}
+			drawList->PopClipRect();
+			return;
+		}
+
+		if (IsQuaternionCurveSet(channels)) {
+			if (state.IsChannelVisible(1)) {
+				const uint32_t keyCount = (std::min)(static_cast<uint32_t>(channels[0].keys.size()),
+					static_cast<uint32_t>(channels[1].keys.size()));
+				for (uint32_t keyIndex = 0; keyIndex < keyCount; ++keyIndex) {
+					const Engine::CurveQuaternionAxisKey axisKey = GetQuaternionAxisKey(channels, quaternionAxisKeys, keyIndex);
+					const Engine::CurveKey& angleKey = channels[1].keys[keyIndex];
+					const ImVec2 pos = WorldToScreen(rect, state, angleKey.time, angleKey.value);
+					const bool selected = IsKeySelected(state, 0, keyIndex);
+					const float radius = selected ? kCurveKeyRadius + 2.0f : kCurveKeyRadius + 1.0f;
+					drawList->AddRectFilled(ImVec2(pos.x - radius, pos.y - radius), ImVec2(pos.x + radius, pos.y + radius),
+						GetAxisColor(axisKey), 2.0f);
+					drawList->AddRect(ImVec2(pos.x - radius, pos.y - radius), ImVec2(pos.x + radius, pos.y + radius),
+						selected ? IM_COL32(255, 255, 255, 255) : IM_COL32(18, 18, 18, 255), 2.0f, 0, 1.5f);
 				}
 			}
 			drawList->PopClipRect();
@@ -875,7 +1149,22 @@ namespace {
 		drawList->PopClipRect();
 	}
 	// 選択中キーをまとめて削除する
-	void DeleteSelectedKeys(std::span<Engine::CurveChannel> channels, Engine::CurveEditorState& state) {
+	void DeleteSelectedKeys(std::span<Engine::CurveChannel> channels, Engine::CurveEditorState& state,
+		std::vector<Engine::CurveQuaternionAxisKey>* quaternionAxisKeys) {
+
+		if (IsQuaternionCurveSet(channels)) {
+			std::sort(state.selectedKeys.begin(), state.selectedKeys.end(),
+				[](const Engine::CurveKeySelection& lhs, const Engine::CurveKeySelection& rhs) {
+					return lhs.keyIndex > rhs.keyIndex;
+			});
+			for (const Engine::CurveKeySelection& selection : state.selectedKeys) {
+				if (IsQuaternionSelection(channels, selection)) {
+					RemoveQuaternionKey(channels, quaternionAxisKeys, selection.keyIndex);
+				}
+			}
+			state.ClearSelection();
+			return;
+		}
 
 		// 後ろから削除できるようにチャンネル/キーを降順に並べる
 		std::sort(state.selectedKeys.begin(), state.selectedKeys.end(),
@@ -896,7 +1185,8 @@ namespace {
 	// 上部ツールバーを描画する
 	void DrawToolbar(std::span<Engine::CurveChannel> channels,
 		Engine::CurveEditorState& state,
-		Engine::CurveEditResult& result) {
+		Engine::CurveEditResult& result,
+		std::span<Engine::CurveQuaternionAxisKey> quaternionAxisKeys) {
 
 		const float previousFontScale = ImGui::GetCurrentWindow()->FontWindowScale;
 		ImGui::SetWindowFontScale(kCurveEditorFontScale);
@@ -912,7 +1202,7 @@ namespace {
 		DrawToolbarDragFloat("Step", state.snapInterval, 0.001f, 0.001f, 10.0f, "%.3f");
 		ImGui::SameLine();
 		DrawToolbarDragFloat("Time", state.currentTime, 0.01f, 0.0f, 10000.0f, "%.3f");
-		DrawToolbarCurrentValues(channels, state);
+		DrawToolbarCurrentValues(channels, state, quaternionAxisKeys);
 
 		ImGui::SetWindowFontScale(previousFontScale);
 	}
@@ -946,7 +1236,8 @@ namespace {
 	}
 	// 右側のキーインスペクタを描画する
 	void DrawInspector(std::span<Engine::CurveChannel> channels,
-		Engine::CurveEditorState& state, Engine::CurveEditResult& result, float height) {
+		Engine::CurveEditorState& state, Engine::CurveEditResult& result, float height,
+		std::vector<Engine::CurveQuaternionAxisKey>* quaternionAxisKeys) {
 
 		ImGui::BeginChild("##CurveInspector", ImVec2(kCurveInspectorWidth, height), true);
 		const float previousFontScale = ImGui::GetCurrentWindow()->FontWindowScale;
@@ -1024,6 +1315,89 @@ namespace {
 			return;
 		}
 
+		if (IsQuaternionSelection(channels, selection)) {
+			Engine::CurveKey& axisKey = channels[0].keys[selection.keyIndex];
+			Engine::CurveKey& angleKey = channels[1].keys[selection.keyIndex];
+			Engine::CurveQuaternionAxisKey fallbackAxisKey = GetQuaternionAxisKey(channels, ToAxisKeySpan(quaternionAxisKeys), selection.keyIndex);
+			Engine::CurveQuaternionAxisKey* axisSetting = &fallbackAxisKey;
+			if (quaternionAxisKeys && selection.keyIndex < quaternionAxisKeys->size()) {
+				axisSetting = &(*quaternionAxisKeys)[selection.keyIndex];
+			}
+			ImGui::TextUnformatted("Axis + Angle");
+			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
+			float time = angleKey.time;
+			if (ImGui::DragFloat("Time", &time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+				axisKey.time = time;
+				angleKey.time = time;
+				result.valueChanged = true;
+			}
+
+			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
+			if (ImGui::Checkbox("Custom Axis", &axisSetting->useCustomAxis)) {
+				result.valueChanged = true;
+			}
+			if (axisSetting->useCustomAxis) {
+				ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
+				if (ImGui::DragFloat("Axis X", &axisSetting->customAxis.x, 0.01f, -1.0f, 1.0f, "%.3f")) {
+					result.valueChanged = true;
+				}
+				ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
+				if (ImGui::DragFloat("Axis Y", &axisSetting->customAxis.y, 0.01f, -1.0f, 1.0f, "%.3f")) {
+					result.valueChanged = true;
+				}
+				ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
+				if (ImGui::DragFloat("Axis Z", &axisSetting->customAxis.z, 0.01f, -1.0f, 1.0f, "%.3f")) {
+					result.valueChanged = true;
+				}
+			} else {
+				if (axisSetting->axes.empty()) {
+					axisSetting->axes.emplace_back(Engine::Axis::X);
+				}
+				for (uint32_t axisIndex = 0; axisIndex < axisSetting->axes.size(); ++axisIndex) {
+					ImGui::PushID(static_cast<int>(axisIndex));
+					ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
+					if (Engine::EnumAdapter<Engine::Axis>::Combo("Axis", &axisSetting->axes[axisIndex])) {
+						result.valueChanged = true;
+					}
+					ImGui::SameLine();
+					if (ImGui::Button("Delete")) {
+						axisSetting->axes.erase(axisSetting->axes.begin() + axisIndex);
+						if (axisSetting->axes.empty()) {
+							axisSetting->axes.emplace_back(Engine::Axis::X);
+						}
+						result.valueChanged = true;
+						ImGui::PopID();
+						break;
+					}
+					ImGui::PopID();
+				}
+				if (ImGui::Button("Add Axis")) {
+					axisSetting->axes.emplace_back(Engine::Axis::X);
+					result.valueChanged = true;
+				}
+			}
+
+			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
+			if (ImGui::DragFloat("Angle", &angleKey.value, 0.1f, -36000.0f, 36000.0f, "%.3f")) {
+				result.valueChanged = true;
+			}
+
+			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
+			if (Engine::EnumAdapter<Engine::CurveInterpolationMode>::Combo("Interp", &angleKey.interpolation)) {
+				axisKey.interpolation = Engine::CurveInterpolationMode::Constant;
+				result.valueChanged = true;
+			}
+			if (result.valueChanged) {
+				axisKey.value = GetPrimaryAxisValue(*axisSetting);
+				axisKey.interpolation = Engine::CurveInterpolationMode::Constant;
+				SortQuaternionKeys(channels, quaternionAxisKeys);
+				result.editFinished |= ImGui::IsItemDeactivatedAfterEdit();
+			}
+			ImGui::SetWindowFontScale(previousFontScale);
+			ImGui::EndChild();
+			return;
+		}
+
 		if (channels.size() <= selection.channelIndex || channels[selection.channelIndex].keys.size() <= selection.keyIndex) {
 			ImGui::TextDisabled("Invalid selection");
 			ImGui::SetWindowFontScale(previousFontScale);
@@ -1057,7 +1431,8 @@ namespace {
 	// グラフ領域の入力を処理する
 	void HandleGraphInput(const ImRect& graphRect, std::span<Engine::CurveChannel> channels,
 		Engine::CurveEditorState& state,
-		Engine::CurveEditResult& result) {
+		Engine::CurveEditResult& result,
+		std::vector<Engine::CurveQuaternionAxisKey>* quaternionAxisKeys) {
 
 		ImGuiIO& io = ImGui::GetIO();
 		const ImVec2 mouse = io.MousePos;
@@ -1111,7 +1486,12 @@ namespace {
 		if (ImGui::BeginPopup("##CurveContextMenu")) {
 			if (state.contextMenuOnKey) {
 				if (ImGui::MenuItem("Delete Key")) {
-					if (IsColorCurveSet(channels) && IsRgbSelection(channels, state.contextMenuKey)) {
+					if (IsQuaternionCurveSet(channels) && IsQuaternionSelection(channels, state.contextMenuKey)) {
+						RemoveQuaternionKey(channels, quaternionAxisKeys, state.contextMenuKey.keyIndex);
+						result.valueChanged = true;
+						result.selectionChanged = true;
+						state.ClearSelection();
+					} else if (IsColorCurveSet(channels) && IsRgbSelection(channels, state.contextMenuKey)) {
 						RemoveColorRgbKey(channels, state.contextMenuKey.keyIndex);
 						result.valueChanged = true;
 						result.selectionChanged = true;
@@ -1132,7 +1512,16 @@ namespace {
 					}
 				}
 			} else {
-				if (IsColorCurveSet(channels)) {
+				if (IsQuaternionCurveSet(channels)) {
+					if (ImGui::MenuItem("Add Quaternion Key")) {
+						const float time = SnapTime((std::max)(0.0f, state.contextMenuWorld.x), state.snapEnabled, state.snapInterval);
+						const uint32_t newKeyIndex = AddQuaternionKey(channels, quaternionAxisKeys, time);
+						state.ClearSelection();
+						state.selectedKeys.push_back({ 0, newKeyIndex });
+						result.valueChanged = true;
+						result.selectionChanged = true;
+					}
+				} else if (IsColorCurveSet(channels)) {
 					if (ImGui::MenuItem("Add RGB Key")) {
 						const float time = SnapTime((std::max)(0.0f, state.contextMenuWorld.x), state.snapEnabled, state.snapInterval);
 						const uint32_t newKeyIndex = AddColorRgbKey(channels, time);
@@ -1183,6 +1572,17 @@ namespace {
 			const float dt = nowWorld.x - prevWorld.x;
 			const float dv = nowWorld.y - prevWorld.y;
 			for (const Engine::CurveKeySelection& selection : state.selectedKeys) {
+				if (IsQuaternionCurveSet(channels) && IsQuaternionSelection(channels, selection)) {
+					Engine::CurveKey& axisKey = channels[0].keys[selection.keyIndex];
+					Engine::CurveKey& angleKey = channels[1].keys[selection.keyIndex];
+					const float movedTime = SnapTime((std::max)(0.0f, angleKey.time + dt), state.snapEnabled, state.snapInterval);
+					axisKey.time = movedTime;
+					angleKey.time = movedTime;
+					angleKey.value = ClampKeyValueToVisibleRange(state, angleKey.value + dv);
+					SyncQuaternionAxisChannel(channels, ToAxisKeySpan(quaternionAxisKeys), selection.keyIndex);
+					axisKey.interpolation = Engine::CurveInterpolationMode::Constant;
+					continue;
+				}
 				if (IsColorCurveSet(channels) && IsRgbSelection(channels, selection)) {
 					Engine::CurveKey& keyR = channels[0].keys[selection.keyIndex];
 					Engine::CurveKey& keyG = channels[1].keys[selection.keyIndex];
@@ -1222,18 +1622,32 @@ namespace {
 				if (!io.KeyCtrl) {
 					state.ClearSelection();
 				}
-				for (uint32_t channelIndex = 0; channelIndex < channels.size(); ++channelIndex) {
-					if (!state.IsChannelVisible(channelIndex)) {
-						continue;
+				if (IsQuaternionCurveSet(channels)) {
+					if (state.IsChannelVisible(1)) {
+						const uint32_t keyCount = (std::min)(static_cast<uint32_t>(channels[0].keys.size()),
+							static_cast<uint32_t>(channels[1].keys.size()));
+						for (uint32_t keyIndex = 0; keyIndex < keyCount; ++keyIndex) {
+							const Engine::CurveKey& key = channels[1].keys[keyIndex];
+							const ImVec2 keyPos = WorldToScreen(graphRect, state, key.time, key.value);
+							if (minPos.x <= keyPos.x && keyPos.x <= maxPos.x && minPos.y <= keyPos.y && keyPos.y <= maxPos.y) {
+								state.ToggleSelection(0, keyIndex);
+							}
+						}
 					}
-					if (IsColorCurveSet(channels) && (channelIndex == 1 || channelIndex == 2)) {
-						continue;
-					}
-					for (uint32_t keyIndex = 0; keyIndex < channels[channelIndex].keys.size(); ++keyIndex) {
-						const Engine::CurveKey& key = channels[channelIndex].keys[keyIndex];
-						const ImVec2 keyPos = WorldToScreen(graphRect, state, key.time, key.value);
-						if (minPos.x <= keyPos.x && keyPos.x <= maxPos.x && minPos.y <= keyPos.y && keyPos.y <= maxPos.y) {
-							state.ToggleSelection((IsColorCurveSet(channels) && channelIndex < 3) ? 0u : channelIndex, keyIndex);
+				} else {
+					for (uint32_t channelIndex = 0; channelIndex < channels.size(); ++channelIndex) {
+						if (!state.IsChannelVisible(channelIndex)) {
+							continue;
+						}
+						if (IsColorCurveSet(channels) && (channelIndex == 1 || channelIndex == 2)) {
+							continue;
+						}
+						for (uint32_t keyIndex = 0; keyIndex < channels[channelIndex].keys.size(); ++keyIndex) {
+							const Engine::CurveKey& key = channels[channelIndex].keys[keyIndex];
+							const ImVec2 keyPos = WorldToScreen(graphRect, state, key.time, key.value);
+							if (minPos.x <= keyPos.x && keyPos.x <= maxPos.x && minPos.y <= keyPos.y && keyPos.y <= maxPos.y) {
+								state.ToggleSelection((IsColorCurveSet(channels) && channelIndex < 3) ? 0u : channelIndex, keyIndex);
+							}
 						}
 					}
 				}
@@ -1244,7 +1658,9 @@ namespace {
 		}
 
 		if (state.dragMode == Engine::CurveEditorDragMode::Key && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-			if (IsColorCurveSet(channels)) {
+			if (IsQuaternionCurveSet(channels)) {
+				SortQuaternionKeys(channels, quaternionAxisKeys);
+			} else if (IsColorCurveSet(channels)) {
 				SortColorRgbKeys(channels);
 				if (HasAlphaChannel(channels)) {
 					channels[3].SortKeys();
@@ -1313,11 +1729,13 @@ namespace {
 	}
 }
 
-Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, std::span<CurveChannel> channels,
-	CurveEditorState& state, const CurveEditSetting& inputSetting) {
+namespace {
+	Engine::CurveEditResult DrawCurveEditorInternal(const char* id, std::span<Engine::CurveChannel> channels,
+		Engine::CurveEditorState& state, const Engine::CurveEditSetting& inputSetting,
+		std::vector<Engine::CurveQuaternionAxisKey>* quaternionAxisKeys) {
 
-	CurveEditResult result{};
-	CurveEditSetting setting = inputSetting;
+	Engine::CurveEditResult result{};
+	Engine::CurveEditSetting setting = inputSetting;
 
 	ImGui::PushID(id);
 
@@ -1352,7 +1770,7 @@ Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, std::span<Cur
 
 	// ツールバーはGraph本体より先に描画する
 	if (setting.showToolbar) {
-		DrawToolbar(channels, state, result);
+		DrawToolbar(channels, state, result, ToAxisKeySpan(quaternionAxisKeys));
 		ImGui::Separator();
 	}
 
@@ -1422,13 +1840,16 @@ Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, std::span<Cur
 		if (!state.IsChannelVisible(channelIndex)) {
 			continue;
 		}
+		if (IsQuaternionCurveSet(channels) && channelIndex == 0) {
+			continue;
+		}
 		if (IsColorCurveSet(channels) && channelIndex < 3) {
 			continue;
 		}
 		DrawCurveSamples(graphRect, channels[channelIndex], state);
 	}
 
-	DrawKeys(graphRect, channels, state);
+	DrawKeys(graphRect, channels, state, ToAxisKeySpan(quaternionAxisKeys));
 	DrawCurrentTimeLine(graphRect, state);
 	bool graphOverlayUiBlocking = false;
 	const bool valueChangedBeforeCornerEdit = result.valueChanged;
@@ -1448,7 +1869,7 @@ Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, std::span<Cur
 	}
 
 	if (!graphOverlayUiBlocking) {
-		HandleGraphInput(graphRect, channels, state, result);
+		HandleGraphInput(graphRect, channels, state, result, quaternionAxisKeys);
 	}
 	RefreshGridStepsOnly(graphRect, state);
 
@@ -1457,13 +1878,20 @@ Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, std::span<Cur
 	// 右側の選択キー詳細
 	if (setting.showSidePanels) {
 		ImGui::SameLine();
-		DrawInspector(channels, state, result, mainAreaHeight);
+		DrawInspector(channels, state, result, mainAreaHeight, quaternionAxisKeys);
 	}
 
 	ImGui::SetWindowFontScale(previousFontScale);
 	ImGui::EndChild();
 	ImGui::PopID();
 	return result;
+}
+}
+
+Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, std::span<CurveChannel> channels,
+	CurveEditorState& state, const CurveEditSetting& setting) {
+
+	return DrawCurveEditorInternal(id, channels, state, setting, nullptr);
 }
 
 Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, CurveFloat& curve,
@@ -1488,4 +1916,11 @@ Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, CurveColor4& 
 	CurveEditorState& state, const CurveEditSetting& setting) {
 
 	return CurveEditor(id, GetCurveChannels(curve), state, setting);
+}
+
+Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, CurveQuaternion& curve,
+	CurveEditorState& state, const CurveEditSetting& setting) {
+
+	curve.EnsureAxisKeyCount();
+	return DrawCurveEditorInternal(id, GetCurveChannels(curve), state, setting, &curve.axisKeys);
 }

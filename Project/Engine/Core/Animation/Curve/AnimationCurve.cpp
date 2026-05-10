@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Utility/Enum/Axis.h>
+
 // c++
 #include <algorithm>
 #include <cmath>
@@ -59,6 +61,42 @@ namespace {
 		channel.name = name;
 		channel.displayColor = color;
 		channel.defaultValue = defaultValue;
+	}
+
+	Engine::CurveQuaternionAxisKey MakeDefaultQuaternionAxisKey() {
+
+		Engine::CurveQuaternionAxisKey axisKey{};
+		axisKey.axes = { Engine::Axis::X };
+		axisKey.customAxis = Engine::Vector3(1.0f, 0.0f, 0.0f);
+		return axisKey;
+	}
+
+	Engine::Vector3 GetQuaternionAxisDirection(const Engine::CurveQuaternionAxisKey& axisKey) {
+
+		Engine::Vector3 axis = axisKey.useCustomAxis ? axisKey.customAxis : Engine::GetDirection(axisKey.axes);
+		if (axis.Length() <= 0.001f) {
+			axis = Engine::Vector3(1.0f, 0.0f, 0.0f);
+		}
+		return axis.Normalize();
+	}
+
+	uint32_t FindAxisKeyIndex(const Engine::CurveChannel& axisChannel, float time) {
+
+		if (axisChannel.keys.empty()) {
+			return 0;
+		}
+		if (time <= axisChannel.keys.front().time) {
+			return 0;
+		}
+		if (axisChannel.keys.back().time <= time) {
+			return static_cast<uint32_t>(axisChannel.keys.size() - 1);
+		}
+
+		auto nextIt = std::upper_bound(axisChannel.keys.begin(), axisChannel.keys.end(), time,
+			[](float t, const Engine::CurveKey& key) {
+				return t < key.time;
+			});
+		return static_cast<uint32_t>((nextIt - 1) - axisChannel.keys.begin());
 	}
 }
 
@@ -221,6 +259,36 @@ Engine::Color4 Engine::CurveColor4::Evaluate(float time) const {
 		channels[3].Evaluate(time));
 }
 
+Engine::CurveQuaternion::CurveQuaternion() {
+
+	SetupChannel(channels[0], "Axis", Color4(0.95f, 0.85f, 0.20f, 1.0f), 0.0f);
+	SetupChannel(channels[1], "Angle", Color4(0.25f, 0.65f, 1.0f, 1.0f), 0.0f);
+}
+
+Engine::Quaternion Engine::CurveQuaternion::Evaluate(float time) const {
+
+	const uint32_t axisKeyIndex = FindAxisKeyIndex(channels[0], time);
+	const CurveQuaternionAxisKey fallbackAxisKey = MakeDefaultQuaternionAxisKey();
+	const CurveQuaternionAxisKey& axisKey = axisKeyIndex < axisKeys.size() ? axisKeys[axisKeyIndex] : fallbackAxisKey;
+	const Vector3 axis = GetQuaternionAxisDirection(axisKey);
+	const float angleDegrees = channels[1].Evaluate(time);
+	return Quaternion::Normalize(Quaternion::MakeAxisAngle(axis, Math::DegToRad(angleDegrees)));
+}
+
+void Engine::CurveQuaternion::EnsureAxisKeyCount() {
+
+	if (channels[0].keys.empty()) {
+		axisKeys.clear();
+		return;
+	}
+	while (axisKeys.size() < channels[0].keys.size()) {
+		axisKeys.emplace_back(MakeDefaultQuaternionAxisKey());
+	}
+	if (channels[0].keys.size() < axisKeys.size()) {
+		axisKeys.resize(channels[0].keys.size());
+	}
+}
+
 std::span<Engine::CurveChannel> Engine::GetCurveChannels(CurveFloat& curve) {
 
 	return std::span<CurveChannel>(&curve.channel, 1);
@@ -241,6 +309,11 @@ std::span<Engine::CurveChannel> Engine::GetCurveChannels(CurveColor4& curve) {
 	return curve.channels;
 }
 
+std::span<Engine::CurveChannel> Engine::GetCurveChannels(CurveQuaternion& curve) {
+
+	return curve.channels;
+}
+
 std::span<const Engine::CurveChannel> Engine::GetCurveChannels(const CurveFloat& curve) {
 
 	return std::span<const CurveChannel>(&curve.channel, 1);
@@ -257,6 +330,11 @@ std::span<const Engine::CurveChannel> Engine::GetCurveChannels(const CurveColor3
 }
 
 std::span<const Engine::CurveChannel> Engine::GetCurveChannels(const CurveColor4& curve) {
+
+	return curve.channels;
+}
+
+std::span<const Engine::CurveChannel> Engine::GetCurveChannels(const CurveQuaternion& curve) {
 
 	return curve.channels;
 }
