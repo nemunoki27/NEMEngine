@@ -236,14 +236,20 @@ void DxCommand::ClearDepthStencilView(const D3D12_CPU_DESCRIPTOR_HANDLE& dsvHand
 
 void DxCommand::SetViewportAndScissor(uint32_t width, uint32_t height) {
 
+	SetViewportAndScissor(0, 0, width, height);
+}
+
+void DxCommand::SetViewportAndScissor(uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
+
 	D3D12_VIEWPORT viewport{};
 	D3D12_RECT scissorRect{};
 
 	viewport =
-		D3D12_VIEWPORT(0.0f, 0.0f, FLOAT(width), FLOAT(height), 0.0f, 1.0f);
+		D3D12_VIEWPORT(FLOAT(x), FLOAT(y), FLOAT(width), FLOAT(height), 0.0f, 1.0f);
 	commandList_->RSSetViewports(1, &viewport);
 
-	scissorRect = D3D12_RECT(0, 0, width, height);
+	scissorRect = D3D12_RECT(static_cast<LONG>(x), static_cast<LONG>(y),
+		static_cast<LONG>(x + width), static_cast<LONG>(y + height));
 	commandList_->RSSetScissorRects(1, &scissorRect);
 }
 

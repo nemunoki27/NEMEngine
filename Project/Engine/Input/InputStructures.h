@@ -107,6 +107,7 @@ enum class InputViewArea {
 	Game,
 	Scene,
 	AnimationClip,
+	InspectorModelPreview,
 };
 
 // 入力振動パラメータ

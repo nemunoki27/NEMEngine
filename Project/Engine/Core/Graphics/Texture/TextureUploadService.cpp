@@ -315,6 +315,8 @@ void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& 
 	HRESULT hr = E_FAIL;
 	if (extension == ".dds") {
 		hr = DirectX::LoadFromDDSFile(fullPathW.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, loaded);
+	} else if (extension == ".tga") {
+		hr = DirectX::LoadFromTGAFile(fullPathW.c_str(), nullptr, loaded);
 	} else {
 		hr = DirectX::LoadFromWICFile(fullPathW.c_str(), DirectX::WIC_FLAGS_NONE, nullptr, loaded);
 	}

@@ -289,7 +289,10 @@ bool Engine::MeshRenderBackend::PrepareBatch(const RenderDrawContext& context,
 	}
 
 	// ランタイムの機能情報に応じたパイプラインバリアントを取得
-	outPrepared.variant = ResolveBestVariant(*pipelineAsset, resolvedPass.pass->preferredVariant, context.runtimeFeatures);
+	const PipelineVariantKind desiredKind = context.forceVertexMeshVariant ?
+		PipelineVariantKind::GraphicsVertex :
+		resolvedPass.pass->preferredVariant;
+	outPrepared.variant = ResolveBestVariant(*pipelineAsset, desiredKind, context.runtimeFeatures);
 
 	// パイプライン取得
 	outPrepared.pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass);
@@ -411,6 +414,9 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 	// スキニングパイプラインの取得
 	const PipelineState* pipelineState = context.pipelineCache->GetORCreate(graphicsCore.GetDXObject(),
 		*context.assetLibrary, skinningPipeline_, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN);
+	if (!pipelineState) {
+		return;
+	}
 
 	DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();

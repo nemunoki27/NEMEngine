@@ -29,6 +29,7 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	drawContext.materialResolver = &materialResolver;
 	drawContext.passName = passName;
 	drawContext.depthOnly = depthOnly;
+	drawContext.forceVertexMeshVariant = sceneContext.forceVertexMeshVariant;
 
 	// プレビューではTLASを作らないため、RayQueryを要求するVariantだけ外して解決する。
 	drawContext.runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();

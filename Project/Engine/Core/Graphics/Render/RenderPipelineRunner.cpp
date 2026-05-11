@@ -94,6 +94,7 @@ namespace {
 		drawContext.assetLibrary = &assetLibrary;
 		drawContext.pipelineCache = &pipelineCache;
 		drawContext.materialResolver = &materialResolver;
+		drawContext.forceVertexMeshVariant = context.forceVertexMeshVariant;
 
 		// GPUのランタイム機能を取得。プレビューではRayQuery系Variantを選ばない。
 		drawContext.runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
@@ -224,7 +225,8 @@ namespace {
 		return fallback;
 	}
 	// プレビューではポストエフェクトを通さず、描画パスだけを専用サーフェイスへ流す
-	Engine::SceneHeader BuildPreviewSceneHeader(const Engine::SceneHeader* source, const Engine::Color4& clearColor) {
+	Engine::SceneHeader BuildPreviewSceneHeader(const Engine::SceneHeader* source,
+		const Engine::Color4& clearColor, bool clearSurface) {
 
 		Engine::SceneHeader header{};
 		if (source) {
@@ -236,9 +238,9 @@ namespace {
 
 		Engine::ScenePassDesc clearPass{};
 		clearPass.type = Engine::ScenePassType::Clear;
-		clearPass.clear.clearColor = true;
+		clearPass.clear.clearColor = clearSurface;
 		clearPass.clear.clearColorValue = clearColor;
-		clearPass.clear.clearDepth = true;
+		clearPass.clear.clearDepth = clearSurface;
 		clearPass.clear.clearDepthValue = 1.0f;
 		clearPass.clear.clearStencil = false;
 		header.passOrder.emplace_back(clearPass);
@@ -379,6 +381,7 @@ void Engine::RenderPipelineRunner::Init() {
 	gameViewLightCullingBuffers_.Release();
 	sceneViewLightCullingBuffers_.Release();
 	previewLightCullingBuffers_.Release();
+	previewBackendFrameStarted_ = false;
 }
 
 void Engine::RenderPipelineRunner::Finalize() {
@@ -404,10 +407,15 @@ void Engine::RenderPipelineRunner::Finalize() {
 	raytracingPipelineStateCache_.Clear();
 	gameViewRaytracingBuffers_.Release();
 	sceneViewRaytracingBuffers_.Release();
+	previewBackendFrameStarted_ = false;
 	raytracingSceneBuilder_.Finalize();
 }
 
 void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameRequest& request) {
+
+	// エディタPostSceneで複数のプレビューを描画するため、プレビューbackendのリソースプールは
+	// ここでフレーム境界だけリセットし、RenderEntityPreviewごとにはリセットしない。
+	previewBackendFrameStarted_ = false;
 
 	// ワールドがない場合は描画できないので処理しない
 	if (!request.world) {
@@ -660,13 +668,19 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 
 	// メインのScene/Gameとは別に、ツール用サーフェイスだけを描画対象にする。
 	renderAssetLibrary_.Init(request.assetDatabase);
-	previewBackendRegistry_.BeginFrame(graphicsCore);
+	if (!previewBackendFrameStarted_) {
+
+		previewBackendRegistry_.BeginFrame(graphicsCore);
+		previewBackendFrameStarted_ = true;
+	}
+	extractorRegistry_.BuildBatch(*request.world, renderBatch_);
+	lightExtractorRegistry_.BuildBatch(*request.world, frameLightBatch_);
 
 	RenderViewRequest viewRequest{};
 	viewRequest.kind = RenderViewKind::Scene;
 	viewRequest.enabled = true;
-	viewRequest.width = request.surface->GetWidth();
-	viewRequest.height = request.surface->GetHeight();
+	viewRequest.width = request.useViewportRect && request.viewportWidth > 0 ? request.viewportWidth : request.surface->GetWidth();
+	viewRequest.height = request.useViewportRect && request.viewportHeight > 0 ? request.viewportHeight : request.surface->GetHeight();
 	viewRequest.sourceKind = RenderViewSourceKind::ManualCamera;
 	viewRequest.manualCamera = request.camera;
 	ResolvedRenderView previewView = RenderViewResolver::Resolve(viewRequest, *request.world);
@@ -676,7 +690,7 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 
 	SceneInstance previewScene{};
 	previewScene.instanceID = ResolveEntitySceneInstanceID(*request.world, request.rootEntity, request.sceneInstanceID);
-	previewScene.header = BuildPreviewSceneHeader(request.sceneHeader, request.clearColor);
+	previewScene.header = BuildPreviewSceneHeader(request.sceneHeader, request.clearColor, request.clearSurface);
 
 	RenderPassPhaseBuckets passBuckets{};
 	std::vector<AssetID> meshAssets{};
@@ -700,7 +714,13 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 	context.view = &previewView;
 	context.defaultSurface = request.surface;
 	context.targetRegistry = &previewTargetRegistry;
+	context.useViewportRect = request.useViewportRect;
+	context.viewportX = request.viewportX;
+	context.viewportY = request.viewportY;
+	context.viewportWidth = request.viewportWidth;
+	context.viewportHeight = request.viewportHeight;
 	context.disableInlineRayTracing = true;
+	context.forceVertexMeshVariant = request.forceVertexMeshVariant;
 	context.world = request.world;
 	context.systemContext = request.systemContext;
 	context.assetDatabase = request.assetDatabase;

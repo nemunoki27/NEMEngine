@@ -53,6 +53,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::filesystem::path texturesRoot_;
+		std::filesystem::path modelDirectory_;
 		std::filesystem::path preferredFolder_;
 		std::unordered_map<std::string, std::vector<TextureCandidate>> candidatesByStem_;
 

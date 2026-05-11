@@ -42,6 +42,8 @@ namespace Engine {
 
 		// この描画で使用するGPU機能。プレビューでは一部機能を落としてVariantを選ぶ。
 		GraphicsRuntimeFeatures runtimeFeatures{};
+		// ツールプレビューではMeshShader/RayQueryを避け、Vertex版のGraphics Variantを優先する。
+		bool forceVertexMeshVariant = false;
 
 		// 現在バインド中の描画先フォーマット
 		std::array<DXGI_FORMAT, 8> rtvFormats{};

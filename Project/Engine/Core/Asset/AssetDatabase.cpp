@@ -189,7 +189,8 @@ Engine::AssetType Engine::AssetDatabase::GuessTypeByPath(const std::filesystem::
 	if (Algorithm::EndsWith(filename, ".pipeline.json")) {
 		return AssetType::RenderPipeline;
 	}
-	if (extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".dds") {
+	if (extension == ".png" || extension == ".jpg" || extension == ".jpeg" ||
+		extension == ".dds" || extension == ".tga" || extension == ".bmp") {
 		return AssetType::Texture;
 	}
 	if (extension == ".obj" || extension == ".gltf" || extension == ".glb") {

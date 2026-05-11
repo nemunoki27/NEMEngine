@@ -49,8 +49,11 @@ bool Engine::BackendDrawCommon::ResolveMaterialPass(const RenderDrawContext& con
 const Engine::PipelineState* Engine::BackendDrawCommon::ResolveGraphicsPipeline(
 	const RenderDrawContext& context, const MaterialPassBinding& passBinding) {
 
+	const PipelineVariantKind desiredKind = context.forceVertexMeshVariant ?
+		PipelineVariantKind::GraphicsVertex :
+		passBinding.preferredVariant;
 	return context.pipelineCache->GetORCreate(context.graphicsCore->GetDXObject(), *context.assetLibrary,
-		passBinding.pipeline, passBinding.preferredVariant, context.GetRTVFormats(), context.dsvFormat,
+		passBinding.pipeline, desiredKind, context.GetRTVFormats(), context.dsvFormat,
 		context.runtimeFeatures);
 }
 
