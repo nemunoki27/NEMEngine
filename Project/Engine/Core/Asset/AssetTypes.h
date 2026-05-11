@@ -35,7 +35,7 @@ namespace Engine {
 		Font,
 		Script,
 		Audio,
-		Animation,
+		AnimationClip,
 	};
 
 	// nlohmann::jsonからAssetIDを取得する

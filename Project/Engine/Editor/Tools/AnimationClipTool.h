@@ -43,7 +43,7 @@ namespace Engine {
 		ToolDescriptor descriptor_{
 			.id = "engine.animation_clip",
 			.name = "AnimationClip",
-			.category = "Animation",
+			.category = "AnimationClip",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::EditOnly,
 			.order = 2,

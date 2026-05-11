@@ -18925,6 +18925,16 @@
                     "localFileID": "e90b34bf7b9001e3",
                     "visibilityLayerMask": 4294967295
                 },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "5a8259b005ed6eb5",
+                        "serializedFields": {
+                            "rotateSpeed": 89.61000061035156
+                        },
+                        "type": "SandboxScripts.SpriteRotate"
+                    }
+                ],
                 "SpriteRenderer": {
                     "blendMode": "Normal",
                     "color": {
@@ -19026,6 +19036,21 @@
                     "localFileID": "4be4c799765e77e6",
                     "visibilityLayerMask": 4294967295
                 },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "scriptAsset": "5a8259b005ed6eb5",
+                        "serializedFields": {
+                            "rotateAxis": {
+                                "x": 0,
+                                "y": 0,
+                                "z": 1
+                            },
+                            "rotateSpeed": 90
+                        },
+                        "type": "SandboxScripts.SpriteRotate"
+                    }
+                ],
                 "TextRenderer": {
                     "blendMode": "Normal",
                     "charSpacing": 0.0,

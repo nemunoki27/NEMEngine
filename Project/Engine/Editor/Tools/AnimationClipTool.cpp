@@ -74,7 +74,7 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 		return;
 	}
 
-	if (!ImGui::Begin("Animation Clip", &openWindow_)) {
+	if (!ImGui::Begin("AnimationClip Clip", &openWindow_)) {
 		ImGui::End();
 		return;
 	}

@@ -49,7 +49,7 @@ namespace Engine {
 		ToolDescriptor descriptor_{
 			.id = "engine.animation_curve",
 			.name = "AnimationCurve",
-			.category = "Animation",
+			.category = "AnimationClip",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::EditOnly,
 			.order = 1,

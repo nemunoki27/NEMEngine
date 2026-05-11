@@ -12,7 +12,7 @@ using namespace Engine;
 //	Framework classMethods
 //============================================================================
 
-void Engine::Framework::Run() {
+void Framework::Run() {
 
 	// Comオブジェクト初期化
 	CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -33,7 +33,7 @@ void Engine::Framework::Run() {
 	CoUninitialize();
 }
 
-void Engine::Framework::Init() {
+void Framework::Init() {
 
 	// ログファイルの作成
 	Logger::CreateLogFiles();
@@ -55,7 +55,7 @@ void Engine::Framework::Init() {
 	isRunning_ = true;
 }
 
-void Engine::Framework::Tick() {
+void Framework::Tick() {
 
 	// メッセージ処理、ウィンドウが閉じられたらループ終了
 	if (graphicsCore_->GetProcessMessage()) {
@@ -85,19 +85,19 @@ void Engine::Framework::Tick() {
 	EndRenderFrame();
 }
 
-void Engine::Framework::BeginRenderFrame() {
+void Framework::BeginRenderFrame() {
 
 	// 描画開始処理
 	graphicsCore_->BeginRenderFrame();
 }
 
-void Engine::Framework::EndRenderFrame() {
+void Framework::EndRenderFrame() {
 
 	// 描画終了処理
 	graphicsCore_->EndRenderFrame();
 }
 
-void Engine::Framework::Finalize() {
+void Framework::Finalize() {
 
 	// 終了処理
 	engineApplication_->Finalize();

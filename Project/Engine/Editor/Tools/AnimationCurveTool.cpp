@@ -32,7 +32,7 @@ void Engine::AnimationCurveTool::DrawEditorTool([[maybe_unused]] const EditorToo
 
 void Engine::AnimationCurveTool::DrawWindow([[maybe_unused]] const EditorToolContext& context) {
 
-	if (!ImGui::Begin("Animation Curve", &openWindow_)) {
+	if (!ImGui::Begin("AnimationClip Curve", &openWindow_)) {
 		ImGui::End();
 		return;
 	}
