@@ -30,7 +30,7 @@ namespace Engine {
 
 		// 描画
 		void RenderSceneView(GraphicsCore& graphicsCore, const ResolvedRenderView& view,
-			MultiRenderTarget& surface, bool drawDefaultGrid = true);
+			MultiRenderTarget& surface, bool drawDefaultGrid = true, bool drawQueuedLines = true);
 
 		//--------- accessor -----------------------------------------------------
 

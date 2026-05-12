@@ -11,6 +11,7 @@
 #include <Engine/Core/Graphics/Render/Texture/RenderTargetRegistry.h>
 #include <Engine/Core/Graphics/Render/Backend/Registry/RenderBackendRegistry.h>
 #include <Engine/Core/Graphics/Render/Backend/Registry/RenderExtractorRegistry.h>
+#include <Engine/Core/Graphics/Render/Backend/Common/FrameBatchResourcePool.h>
 #include <Engine/Core/Graphics/Render/Pass/RenderItemBatchDispatcher.h>
 #include <Engine/Core/Graphics/Render/Light/FrameLightBatch.h>
 #include <Engine/Core/Graphics/Render/Light/Registry/LightExtractorRegistry.h>
@@ -202,10 +203,11 @@ namespace Engine {
 		// ビューごとのGPUライトバッファ
 		ViewLightBufferSet gameViewLightBuffers_{};
 		ViewLightBufferSet sceneViewLightBuffers_{};
-		ViewLightBufferSet previewLightBuffers_{};
 		ViewLightCullingBufferSet gameViewLightCullingBuffers_{};
 		ViewLightCullingBufferSet sceneViewLightCullingBuffers_{};
-		ViewLightCullingBufferSet previewLightCullingBuffers_{};
+		// ツールプレビューは同一フレーム内に複数回描くため、ライトGPUバッファも描画ごとに分ける。
+		FrameBatchResourcePool<ViewLightBufferSet> previewLightBufferPool_{};
+		FrameBatchResourcePool<ViewLightCullingBufferSet> previewLightCullingBufferPool_{};
 
 		// ツールプレビュー専用の描画バックエンド。メインビューのGPUバッファを上書きしないため分離する
 		RenderBackendRegistry previewBackendRegistry_{};

@@ -377,10 +377,10 @@ void Engine::RenderPipelineRunner::Init() {
 	// ビューライトバッファの初期化
 	gameViewLightBuffers_.Release();
 	sceneViewLightBuffers_.Release();
-	previewLightBuffers_.Release();
 	gameViewLightCullingBuffers_.Release();
 	sceneViewLightCullingBuffers_.Release();
-	previewLightCullingBuffers_.Release();
+	previewLightBufferPool_.Clear();
+	previewLightCullingBufferPool_.Clear();
 	previewBackendFrameStarted_ = false;
 }
 
@@ -399,10 +399,10 @@ void Engine::RenderPipelineRunner::Finalize() {
 	previewLightSet_.Clear();
 	gameViewLightBuffers_.Release();
 	sceneViewLightBuffers_.Release();
-	previewLightBuffers_.Release();
 	gameViewLightCullingBuffers_.Release();
 	sceneViewLightCullingBuffers_.Release();
-	previewLightCullingBuffers_.Release();
+	previewLightBufferPool_.Clear();
+	previewLightCullingBufferPool_.Clear();
 	viewportRenderService_.reset();
 	raytracingPipelineStateCache_.Clear();
 	gameViewRaytracingBuffers_.Release();
@@ -671,6 +671,8 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 	if (!previewBackendFrameStarted_) {
 
 		previewBackendRegistry_.BeginFrame(graphicsCore);
+		previewLightBufferPool_.BeginFrame();
+		previewLightCullingBufferPool_.BeginFrame();
 		previewBackendFrameStarted_ = true;
 	}
 	extractorRegistry_.BuildBatch(*request.world, renderBatch_);
@@ -728,16 +730,18 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 	// プレビュー用のライトバッファを更新する。SceneView/GameViewのGPUバッファは触らない。
 	previewLightSet_.Clear();
 	ViewLightCollector::CollectForView(frameLightBatch_, &previewScene, previewView, previewLightSet_);
-	if (!previewLightBuffers_.IsInitialized()) {
-		previewLightBuffers_.Init(graphicsCore);
-	}
-	if (!previewLightCullingBuffers_.IsInitialized()) {
-		previewLightCullingBuffers_.Init(graphicsCore);
-	}
-	previewLightBuffers_.Upload(previewLightSet_);
-	previewLightCullingBuffers_.Upload(previewView, previewLightSet_);
-	previewLightBuffers_.RegisterTo(context.bufferRegistry);
-	previewLightCullingBuffers_.RegisterTo(context.bufferRegistry);
+	ViewLightBufferSet& previewLightBuffers = previewLightBufferPool_.Acquire(graphicsCore,
+		[](ViewLightBufferSet& buffers, GraphicsCore& core) {
+			buffers.Init(core);
+		});
+	ViewLightCullingBufferSet& previewLightCullingBuffers = previewLightCullingBufferPool_.Acquire(graphicsCore,
+		[](ViewLightCullingBufferSet& buffers, GraphicsCore& core) {
+			buffers.Init(core);
+		});
+	previewLightBuffers.Upload(previewLightSet_);
+	previewLightCullingBuffers.Upload(previewView, previewLightSet_);
+	previewLightBuffers.RegisterTo(context.bufferRegistry);
+	previewLightCullingBuffers.RegisterTo(context.bufferRegistry);
 
 	auto* meshBackendBase = previewBackendRegistry_.Find(RenderBackendID::Mesh);
 	auto* meshBackend = dynamic_cast<MeshRenderBackend*>(meshBackendBase);
@@ -769,7 +773,7 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 
 		LineRenderer::GetInstance()->Get3D()->DrawGrid();
 	}
-	LineRenderer::GetInstance()->RenderSceneView(graphicsCore, previewView, *request.surface, false);
+	LineRenderer::GetInstance()->RenderSceneView(graphicsCore, previewView, *request.surface, false, false);
 #endif
 
 	executor.TransitionAllTargetsToShaderRead(graphicsCore, context);

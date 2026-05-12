@@ -101,6 +101,15 @@ namespace {
 		{ "PointLight",       "PointLight" },
 		{ "SpotLight",        "SpotLight" },
 	} };
+	constexpr uint32_t kModelPreviewAssimpFlags =
+		aiProcess_FlipWindingOrder |
+		aiProcess_FlipUVs |
+		aiProcess_Triangulate |
+		aiProcess_GenSmoothNormals |
+		aiProcess_CalcTangentSpace |
+		aiProcess_JoinIdenticalVertices |
+		aiProcess_ImproveCacheLocality |
+		aiProcess_SortByPType;
 
 	// Scriptメニューか
 	bool IsScriptMenuEntry(const InspectorComponentMenuEntry& entry) {
@@ -143,11 +152,11 @@ namespace {
 	void CollectAssimpNodePositions(const aiScene* scene, const aiNode* node, const aiMatrix4x4& parentTransform,
 		std::vector<Engine::Vector3>& outPositions) {
 
+		(void)parentTransform;
 		if (!scene || !node) {
 			return;
 		}
 
-		const aiMatrix4x4 worldTransform = parentTransform * node->mTransformation;
 		for (uint32_t meshRefIndex = 0; meshRefIndex < node->mNumMeshes; ++meshRefIndex) {
 
 			const uint32_t meshIndex = node->mMeshes[meshRefIndex];
@@ -163,15 +172,43 @@ namespace {
 			outPositions.reserve(outPositions.size() + mesh->mNumVertices);
 			for (uint32_t vertexIndex = 0; vertexIndex < mesh->mNumVertices; ++vertexIndex) {
 
-				const aiVector3D transformed = worldTransform * mesh->mVertices[vertexIndex];
-				outPositions.emplace_back(ToEnginePreviewPosition(transformed));
+				outPositions.emplace_back(ToEnginePreviewPosition(mesh->mVertices[vertexIndex]));
 			}
 		}
 
 		for (uint32_t childIndex = 0; childIndex < node->mNumChildren; ++childIndex) {
 
-			CollectAssimpNodePositions(scene, node->mChildren[childIndex], worldTransform, outPositions);
+			CollectAssimpNodePositions(scene, node->mChildren[childIndex], aiMatrix4x4(), outPositions);
 		}
+	}
+	float CalculatePreviewCameraDistance(const Engine::Vector3& min, const Engine::Vector3& max,
+		const Engine::Vector3& center, float pitchDegrees, float yawDegrees, float fovYDegrees,
+		float aspectRatio, float distanceScale) {
+
+		const float halfFovY = (fovYDegrees * 0.5f) * 3.1415926535f / 180.0f;
+		const float tanY = (std::max)(std::tan(halfFovY), 0.001f);
+		const float tanX = (std::max)(tanY * (std::max)(aspectRatio, 0.001f), 0.001f);
+
+		const Engine::Matrix4x4 rotation = Engine::Matrix4x4::MakeRotateMatrix(
+			Engine::Vector3(pitchDegrees, yawDegrees, 0.0f));
+		const Engine::Matrix4x4 inverseRotation = Engine::Matrix4x4::Inverse(rotation);
+
+		float requiredDistance = 0.1f;
+		for (int32_t ix = 0; ix < 2; ++ix) {
+			for (int32_t iy = 0; iy < 2; ++iy) {
+				for (int32_t iz = 0; iz < 2; ++iz) {
+
+					const Engine::Vector3 corner(
+						ix == 0 ? min.x : max.x,
+						iy == 0 ? min.y : max.y,
+						iz == 0 ? min.z : max.z);
+					const Engine::Vector3 local = Engine::Vector3::TransferNormal(corner - center, inverseRotation);
+					requiredDistance = (std::max)(requiredDistance, std::fabs(local.x) / tanX - local.z);
+					requiredDistance = (std::max)(requiredDistance, std::fabs(local.y) / tanY - local.z);
+				}
+			}
+		}
+		return (std::max)(requiredDistance, 0.1f) * (std::max)(distanceScale, 1.0f) * 1.08f;
 	}
 	void ImportModelReferencedTextures(Engine::AssetDatabase& database, Engine::AssetID meshAssetID) {
 
@@ -188,9 +225,7 @@ namespace {
 		textureResolver.Build(fullPath);
 
 		Assimp::Importer importer;
-		const aiScene* scene = importer.ReadFile(fullPath.string(),
-			aiProcess_Triangulate |
-			aiProcess_SortByPType);
+		const aiScene* scene = importer.ReadFile(fullPath.string(), kModelPreviewAssimpFlags);
 		if (!scene || scene->mNumMaterials == 0) {
 			return;
 		}
@@ -495,9 +530,6 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 		drawer->Draw(context, *world, selected);
 	}
 
-	// デバッグオブジェクトの描画
-	InspectorDrawerCommon::DrawEntityDebugObject(*world, selected);
-
 	ImGui::SetWindowFontScale(1.0f);
 
 	ImGui::End();
@@ -731,9 +763,7 @@ void Engine::InspectorPanel::RenderModelAssetPreview(const EditorToolContext& to
 		request.sceneInstanceID = {};
 		request.rootEntity = modelPreviewEntity_;
 		request.surface = preview.GetRenderTarget();
-		request.camera = modelPreviewCameraController_ ?
-			modelPreviewCameraController_->GetCameraState() :
-			ManualRenderCameraState{};
+		request.camera = modelPreviewCameraController_->GetCameraState();
 		request.clearColor = preview.clearColor;
 		request.drawGrid3D = true;
 
@@ -756,9 +786,7 @@ Engine::InspectorPanel::ModelAssetPreviewBounds Engine::InspectorPanel::ComputeM
 	}
 
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(fullPath.string(),
-		aiProcess_Triangulate |
-		aiProcess_SortByPType);
+	const aiScene* scene = importer.ReadFile(fullPath.string(), kModelPreviewAssimpFlags);
 	if (!scene || !scene->HasMeshes()) {
 		return bounds;
 	}
@@ -804,14 +832,16 @@ void Engine::InspectorPanel::ResetModelAssetPreviewCamera() {
 	const Vector3 center = modelPreviewBounds_.valid ? modelPreviewBounds_.center : Vector3::AnyInit(0.0f);
 	const float radius = (std::max)(modelPreviewBounds_.valid ? modelPreviewBounds_.radius : 1.0f, 0.1f);
 	const float fovY = 35.0f;
-	const float halfFovRadians = (fovY * 0.5f) * 3.1415926535f / 180.0f;
-	const float distance = (radius / (std::max)(std::tan(halfFovRadians), 0.001f)) * 2.0f;
 	const float pitchDegrees = 8.0f;
-	const float pitchRadians = pitchDegrees * 3.1415926535f / 180.0f;
 	const float yawDegrees = 180.0f;
-	const float yawRadians = yawDegrees * 3.1415926535f / 180.0f;
-	const float cameraHeight = distance * std::tan(pitchRadians);
-	const Vector3 forwardOffset(-std::sin(yawRadians) * distance, 0.0f, -std::cos(yawRadians) * distance);
+	const float aspectRatio = static_cast<float>(kModelPreviewSize_.x) /
+		static_cast<float>((std::max)(kModelPreviewSize_.y, 1));
+	const float distance = modelPreviewBounds_.valid ?
+		CalculatePreviewCameraDistance(modelPreviewBounds_.min, modelPreviewBounds_.max, center,
+			pitchDegrees, yawDegrees, fovY, aspectRatio, 2.0f) :
+		radius * 2.0f;
+	const Matrix4x4 cameraRotation = Matrix4x4::MakeRotateMatrix(Vector3(pitchDegrees, yawDegrees, 0.0f));
+	const Vector3 cameraForward(cameraRotation.m[2][0], cameraRotation.m[2][1], cameraRotation.m[2][2]);
 
 	ManualRenderCameraState& camera = modelPreviewCameraController_->GetCameraState();
 	camera = {};
@@ -819,12 +849,9 @@ void Engine::InspectorPanel::ResetModelAssetPreviewCamera() {
 	camera.enablePerspective = true;
 	camera.perspectiveFovY = fovY;
 	camera.perspectiveNearClip = 0.01f;
-	camera.perspectiveFarClip = (std::max)(distance + radius * 4.0f, 10.0f);
+	camera.perspectiveFarClip = (std::max)(4000.0f, distance + radius * 4.0f);
 	camera.perspectiveCullingMask = -1;
-	camera.transform3D.pos = Vector3(
-		center.x + forwardOffset.x,
-		center.y + cameraHeight,
-		center.z + forwardOffset.z);
+	camera.transform3D.pos = center - cameraForward * distance;
 	camera.transform3D.rotation = Vector3(pitchDegrees, yawDegrees, 0.0f);
 }
 

@@ -45,7 +45,8 @@ namespace Engine {
 			const T& /*pointB*/, const Color4& /*colorB*/, float /*thicknessB*/);
 
 		// 描画
-		void RenderSceneView(GraphicsCore& graphicsCore, const ResolvedRenderView& view, MultiRenderTarget& surface);
+		void RenderSceneView(GraphicsCore& graphicsCore, const ResolvedRenderView& view,
+			MultiRenderTarget& surface, bool drawQueuedLines = true);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -186,7 +187,7 @@ namespace Engine {
 
 	template<typename T>
 	inline void LineRendererBase<T>::RenderSceneView(GraphicsCore& graphicsCore,
-		const ResolvedRenderView& view, MultiRenderTarget& surface) {
+		const ResolvedRenderView& view, MultiRenderTarget& surface, bool drawQueuedLines) {
 
 		// シーンカメラを取得
 		const ResolvedCameraView* camera = FindSceneCamera(view);
@@ -201,6 +202,10 @@ namespace Engine {
 
 		// 派生クラスのライン描画呼び出し
 		DrawLineImpl(graphicsCore, camera, surface);
+
+		if (!drawQueuedLines) {
+			return;
+		}
 
 		// デバッグラインが無ければここで終了
 		if (vertices_.empty()) {

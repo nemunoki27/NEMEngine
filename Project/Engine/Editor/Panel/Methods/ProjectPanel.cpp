@@ -55,6 +55,15 @@ namespace {
 
 	constexpr const char* kProjectModelPreviewAtlasName = "ProjectPanelModelPreviewAtlas";
 	constexpr uint32_t kModelPreviewColorTargetCount = 3;
+	constexpr uint32_t kModelPreviewAssimpFlags =
+		aiProcess_FlipWindingOrder |
+		aiProcess_FlipUVs |
+		aiProcess_Triangulate |
+		aiProcess_GenSmoothNormals |
+		aiProcess_CalcTangentSpace |
+		aiProcess_JoinIdenticalVertices |
+		aiProcess_ImproveCacheLocality |
+		aiProcess_SortByPType;
 
 	// アイテムの幅に基づいて利用可能な幅に収まる列数を計算する
 	int32_t CalcGridColumnCount(float availableWidth, float itemWidth) {
@@ -98,11 +107,11 @@ namespace {
 	void CollectAssimpNodePositions(const aiScene* scene, const aiNode* node, const aiMatrix4x4& parentTransform,
 		std::vector<Engine::Vector3>& outPositions) {
 
+		(void)parentTransform;
 		if (!scene || !node) {
 			return;
 		}
 
-		const aiMatrix4x4 worldTransform = parentTransform * node->mTransformation;
 		for (uint32_t meshRefIndex = 0; meshRefIndex < node->mNumMeshes; ++meshRefIndex) {
 
 			const uint32_t meshIndex = node->mMeshes[meshRefIndex];
@@ -117,15 +126,43 @@ namespace {
 			outPositions.reserve(outPositions.size() + mesh->mNumVertices);
 			for (uint32_t vertexIndex = 0; vertexIndex < mesh->mNumVertices; ++vertexIndex) {
 
-				const aiVector3D transformed = worldTransform * mesh->mVertices[vertexIndex];
-				outPositions.emplace_back(ToEnginePreviewPosition(transformed));
+				outPositions.emplace_back(ToEnginePreviewPosition(mesh->mVertices[vertexIndex]));
 			}
 		}
 
 		for (uint32_t childIndex = 0; childIndex < node->mNumChildren; ++childIndex) {
 
-			CollectAssimpNodePositions(scene, node->mChildren[childIndex], worldTransform, outPositions);
+			CollectAssimpNodePositions(scene, node->mChildren[childIndex], aiMatrix4x4(), outPositions);
 		}
+	}
+	float CalculatePreviewCameraDistance(const Engine::Vector3& min, const Engine::Vector3& max,
+		const Engine::Vector3& center, float pitchDegrees, float yawDegrees, float fovYDegrees,
+		float aspectRatio, float distanceScale) {
+
+		const float halfFovY = (fovYDegrees * 0.5f) * 3.1415926535f / 180.0f;
+		const float tanY = (std::max)(std::tan(halfFovY), 0.001f);
+		const float tanX = (std::max)(tanY * (std::max)(aspectRatio, 0.001f), 0.001f);
+
+		const Engine::Matrix4x4 rotation = Engine::Matrix4x4::MakeRotateMatrix(
+			Engine::Vector3(pitchDegrees, yawDegrees, 0.0f));
+		const Engine::Matrix4x4 inverseRotation = Engine::Matrix4x4::Inverse(rotation);
+
+		float requiredDistance = 0.1f;
+		for (int32_t ix = 0; ix < 2; ++ix) {
+			for (int32_t iy = 0; iy < 2; ++iy) {
+				for (int32_t iz = 0; iz < 2; ++iz) {
+
+					const Engine::Vector3 corner(
+						ix == 0 ? min.x : max.x,
+						iy == 0 ? min.y : max.y,
+						iz == 0 ? min.z : max.z);
+					const Engine::Vector3 local = Engine::Vector3::TransferNormal(corner - center, inverseRotation);
+					requiredDistance = (std::max)(requiredDistance, std::fabs(local.x) / tanX - local.z);
+					requiredDistance = (std::max)(requiredDistance, std::fabs(local.y) / tanY - local.z);
+				}
+			}
+		}
+		return (std::max)(requiredDistance, 0.1f) * (std::max)(distanceScale, 1.0f) * 1.08f;
 	}
 	void ImportModelReferencedTextures(Engine::AssetDatabase& database, Engine::AssetID meshAssetID) {
 
@@ -142,9 +179,7 @@ namespace {
 		textureResolver.Build(fullPath);
 
 		Assimp::Importer importer;
-		const aiScene* scene = importer.ReadFile(fullPath.string(),
-			aiProcess_Triangulate |
-			aiProcess_SortByPType);
+		const aiScene* scene = importer.ReadFile(fullPath.string(), kModelPreviewAssimpFlags);
 		if (!scene || scene->mNumMaterials == 0) {
 			return;
 		}
@@ -853,9 +888,7 @@ Engine::ProjectPanel::ModelPreviewBounds Engine::ProjectPanel::ComputeModelPrevi
 	}
 
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(fullPath.string(),
-		aiProcess_Triangulate |
-		aiProcess_SortByPType);
+	const aiScene* scene = importer.ReadFile(fullPath.string(), kModelPreviewAssimpFlags);
 	if (!scene || !scene->HasMeshes()) {
 		return bounds;
 	}
@@ -897,26 +930,23 @@ Engine::ManualRenderCameraState Engine::ProjectPanel::BuildModelPreviewCamera(
 	const Vector3 center = bounds.valid ? bounds.center : Vector3::AnyInit(0.0f);
 	const float radius = (std::max)(bounds.valid ? bounds.radius : 1.0f, 0.1f);
 	const float fovY = modelPreviewSettings_.cameraFovY;
-	const float halfFovRadians = (fovY * 0.5f) * 3.1415926535f / 180.0f;
-	const float distance = (radius / (std::max)(std::tan(halfFovRadians), 0.001f)) *
-		modelPreviewSettings_.cameraDistanceScale;
 	const float pitchDegrees = modelPreviewSettings_.cameraPitchDegrees;
-	const float pitchRadians = pitchDegrees * 3.1415926535f / 180.0f;
-	const float yawRadians = modelPreviewSettings_.cameraYawDegrees * 3.1415926535f / 180.0f;
-	const float cameraHeight = distance * std::tan(pitchRadians);
-	const Vector3 forwardOffset(-std::sin(yawRadians) * distance, 0.0f, -std::cos(yawRadians) * distance);
+	const float yawDegrees = modelPreviewSettings_.cameraYawDegrees;
+	const float distance = bounds.valid ?
+		CalculatePreviewCameraDistance(bounds.min, bounds.max, center, pitchDegrees, yawDegrees, fovY,
+			1.0f, modelPreviewSettings_.cameraDistanceScale) :
+		radius * modelPreviewSettings_.cameraDistanceScale;
+	const Matrix4x4 cameraRotation = Matrix4x4::MakeRotateMatrix(Vector3(pitchDegrees, yawDegrees, 0.0f));
+	const Vector3 cameraForward(cameraRotation.m[2][0], cameraRotation.m[2][1], cameraRotation.m[2][2]);
 
 	ManualRenderCameraState camera{};
 	camera.enableOrthographic = false;
 	camera.enablePerspective = true;
 	camera.perspectiveFovY = fovY;
 	camera.perspectiveNearClip = 0.01f;
-	camera.perspectiveFarClip = 10000.0f;
-	camera.transform3D.pos = Vector3(
-		center.x + forwardOffset.x,
-		center.y + cameraHeight,
-		center.z + forwardOffset.z);
-	camera.transform3D.rotation = Vector3(pitchDegrees, modelPreviewSettings_.cameraYawDegrees, 0.0f);
+	camera.perspectiveFarClip = (std::max)(10000.0f, distance + radius * 4.0f);
+	camera.transform3D.pos = center - cameraForward * distance;
+	camera.transform3D.rotation = Vector3(pitchDegrees, yawDegrees, 0.0f);
 	return camera;
 }
 

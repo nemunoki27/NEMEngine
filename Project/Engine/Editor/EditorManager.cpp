@@ -16,6 +16,7 @@
 #include <Engine/Editor/Command/Methods/DeleteEntityCommand.h>
 #include <Engine/Editor/Command/Methods/DuplicateEntityCommand.h>
 #include <Engine/Editor/Command/Methods/PasteEntityTreeCommand.h>
+#include <Engine/Editor/Inspector/Methods/Common/InspectorDrawerCommon.h>
 #include <Engine/Input/Input.h>
 
 // パネル群
@@ -448,6 +449,22 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	HandleGlobalShortcuts(context);
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PreScene);
 	DrawUnsavedScenePopup();
+}
+
+void Engine::EditorManager::DrawSceneDebugObjects(const EditorContext& context) {
+
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	if (!initialized_ || !layoutState_.showSceneView || !context.activeWorld) {
+		return;
+	}
+	if (!editorState_.HasValidSelection(context.activeWorld)) {
+		return;
+	}
+
+	InspectorDrawerCommon::DrawEntityDebugObject(*context.activeWorld, editorState_.selectedEntity);
+#else
+	(void)context;
+#endif
 }
 
 void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorContext& context,

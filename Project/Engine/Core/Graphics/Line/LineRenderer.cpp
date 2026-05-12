@@ -49,7 +49,7 @@ void Engine::LineRenderer::BeginFrame() {
 }
 
 void Engine::LineRenderer::RenderSceneView(GraphicsCore& graphicsCore,
-	const ResolvedRenderView& view, MultiRenderTarget& surface, bool drawDefaultGrid) {
+	const ResolvedRenderView& view, MultiRenderTarget& surface, bool drawDefaultGrid, bool drawQueuedLines) {
 
 	if (drawDefaultGrid) {
 
@@ -58,7 +58,7 @@ void Engine::LineRenderer::RenderSceneView(GraphicsCore& graphicsCore,
 	}
 
 	// 各次元のライン描画クラスに描画呼び出し
-	renderer2D_->RenderSceneView(graphicsCore, view, surface);
-	renderer3D_->RenderSceneView(graphicsCore, view, surface);
+	renderer2D_->RenderSceneView(graphicsCore, view, surface, drawQueuedLines);
+	renderer3D_->RenderSceneView(graphicsCore, view, surface, drawQueuedLines);
 }
 #endif

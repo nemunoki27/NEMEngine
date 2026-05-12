@@ -69,7 +69,7 @@ void Engine::SceneViewCameraController::MakeDefaultState() {
 	cameraState_.enablePerspective = true;
 	cameraState_.perspectiveFovY = Math::RadToDeg(0.54f);
 	cameraState_.perspectiveNearClip = 0.1f;
-	cameraState_.perspectiveFarClip = 4000.0f;
+	cameraState_.perspectiveFarClip = 8000.0f;
 	cameraState_.perspectiveCullingMask = -1;
 }
 

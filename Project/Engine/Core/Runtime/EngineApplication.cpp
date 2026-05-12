@@ -254,6 +254,12 @@ void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 	// バックバッファ描画クリア
 	graphicsCore.Render();
 
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		// SceneViewに重ねる選択エンティティのデバッグラインを、SceneView描画前に積む
+		editorManager_.DrawSceneDebugObjects(editorContext_);
+	}
+
 	// ワールドを描画
 	renderPipeline_->Render(graphicsCore, BuildRenderFrameRequest(graphicsCore, GetActiveWorld(), GetActiveSceneHeader()));
 
