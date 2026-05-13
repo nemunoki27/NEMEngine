@@ -21,9 +21,9 @@ void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatc
 
 		// デフォルトUV
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
-		if (world.HasComponent<UVTransformComponent>(entity)) {
+		if (const auto* uvTransform = world.TryGetComponent<UVTransformComponent>(entity)) {
 
-			uvMatrix = world.GetComponent<UVTransformComponent>(entity).uvMatrix;
+			uvMatrix = uvTransform->uvMatrix;
 		}
 
 		// ペイロード構築

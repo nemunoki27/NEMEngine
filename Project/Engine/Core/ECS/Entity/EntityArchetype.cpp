@@ -13,8 +13,10 @@ Engine::EntityArchetype::EntityArchetype(const EntitySignature& signature, const
 	signature_(signature), types_(types) {
 
 	// Archetypeが持つコンポーネント種類IDから、EntityChunk内の列番号へのマップを作る
+	typeToColumn_.fill(kInvalidColumnIndex);
 	for (uint32_t i = 0; i < static_cast<uint32_t>(types_.size()); ++i) {
 
+		Assert::Call(types_[i] < kMaxComponentTypes, "types_[i] < kMaxComponentTypes");
 		typeToColumn_[types_[i]] = i;
 	}
 	// 最初のチャンクを作っておく
@@ -60,11 +62,15 @@ void Engine::EntityArchetype::ConstructDefault(uint32_t chunkIndex, uint32_t row
 	chunks_[chunkIndex]->ConstructDefaultByColumnIndex(GetColumnIndex(typeID), row);
 }
 
+bool Engine::EntityArchetype::Has(uint32_t typeID) const {
+
+	return typeID < kMaxComponentTypes && typeToColumn_[typeID] != kInvalidColumnIndex;
+}
+
 uint32_t Engine::EntityArchetype::GetColumnIndex(uint32_t typeID) const {
 
-	auto it = typeToColumn_.find(typeID);
-	Assert::Call(it != typeToColumn_.end(), "it != typeToColumn_.end()");
-	return it->second;
+	Assert::Call(Has(typeID), "Has(typeID)");
+	return typeToColumn_[typeID];
 }
 
 void* Engine::EntityArchetype::GetRaw(int32_t chunkIndex, uint32_t row, uint32_t typeID) {

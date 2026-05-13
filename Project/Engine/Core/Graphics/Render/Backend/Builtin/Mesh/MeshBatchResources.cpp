@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Graphics/GraphicsCore.h>
+#include <Engine/Core/Graphics/DxLib/DxUtils.h>
 #include <Engine/Core/Graphics/Render/Backend/Common/BackendDrawCommon.h>
 #include <Engine/Core/Graphics/Render/Backend/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/Graphics/Mesh/GPUResource/MeshResourceTypes.h>
@@ -23,26 +24,14 @@ namespace {
 		if (!item || !item->world) {
 			return nullptr;
 		}
-		if (!item->world->IsAlive(item->entity)) {
-			return nullptr;
-		}
-		if (!item->world->HasComponent<Engine::MeshRendererComponent>(item->entity)) {
-			return nullptr;
-		}
-		return &item->world->GetComponent<Engine::MeshRendererComponent>(item->entity);
+		return item->world->TryGetComponent<Engine::MeshRendererComponent>(item->entity);
 	}
 	const Engine::SkinnedAnimationComponent* ResolveSkinnedAnimation(const Engine::RenderItem* item) {
 
 		if (!item || !item->world) {
 			return nullptr;
 		}
-		if (!item->world->IsAlive(item->entity)) {
-			return nullptr;
-		}
-		if (!item->world->HasComponent<Engine::SkinnedAnimationComponent>(item->entity)) {
-			return nullptr;
-		}
-		return &item->world->GetComponent<Engine::SkinnedAnimationComponent>(item->entity);
+		return item->world->TryGetComponent<Engine::SkinnedAnimationComponent>(item->entity);
 	}
 }
 
@@ -64,6 +53,9 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	psData_.Init(device, srvDescriptor);
 	draw_.Init(device);
 	subMeshData_.Init(device, srvDescriptor);
+	DxUtils::CreateBufferResource(device, indexedIndirectArgs_, sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
+	HRESULT hr = indexedIndirectArgs_->Map(0, nullptr, reinterpret_cast<void**>(&mappedIndexedIndirectArgs_));
+	Assert::Call(SUCCEEDED(hr), "indexedIndirectArgs_->Map failed");
 
 	meshData_.EnsureCapacity(256);
 	psData_.EnsureCapacity(256);
@@ -74,6 +66,19 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 
 	// 初期化完了
 	initialized_ = true;
+}
+
+void Engine::MeshBatchResources::UpdateIndexedIndirectArgs(uint32_t indexCount, uint32_t instanceCount) {
+
+	if (!mappedIndexedIndirectArgs_) {
+		return;
+	}
+
+	mappedIndexedIndirectArgs_->IndexCountPerInstance = indexCount;
+	mappedIndexedIndirectArgs_->InstanceCount = instanceCount;
+	mappedIndexedIndirectArgs_->StartIndexLocation = 0;
+	mappedIndexedIndirectArgs_->BaseVertexLocation = 0;
+	mappedIndexedIndirectArgs_->StartInstanceLocation = 0;
 }
 
 void Engine::MeshBatchResources::EnsureSkinningResources(GraphicsCore& graphicsCore) {

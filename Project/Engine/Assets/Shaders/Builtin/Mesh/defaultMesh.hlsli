@@ -80,6 +80,14 @@ struct MeshInstance {
 };
 static const uint MESH_INSTANCE_FLAG_SKINNED = 1u;
 
+struct MeshDispatchPayload {
+
+	uint meshletIndex;
+	uint instanceIndex;
+	uint _pad0;
+	uint _pad1;
+};
+
 StructuredBuffer<MeshVertex> gVertices : register(t0);
 StructuredBuffer<uint> gIndices : register(t1);
 StructuredBuffer<uint> gVertexSubMeshIndices : register(t9);

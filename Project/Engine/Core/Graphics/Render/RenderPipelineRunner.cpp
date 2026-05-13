@@ -200,26 +200,24 @@ namespace {
 		}
 
 		Engine::Entity current = entity;
-		while (world.IsAlive(current) && world.HasComponent<Engine::HierarchyComponent>(current)) {
+		while (const auto* hierarchy = world.TryGetComponent<Engine::HierarchyComponent>(current)) {
 
-			const auto& hierarchy = world.GetComponent<Engine::HierarchyComponent>(current);
-			if (!world.IsAlive(hierarchy.parent)) {
+			if (!world.IsAlive(hierarchy->parent)) {
 				break;
 			}
-			if (hierarchy.parent == root) {
+			if (hierarchy->parent == root) {
 				return true;
 			}
-			current = hierarchy.parent;
+			current = hierarchy->parent;
 		}
 		return false;
 	}
 	// Entityが所属するシーンインスタンスIDを取得する
 	Engine::UUID ResolveEntitySceneInstanceID(Engine::ECSWorld& world, Engine::Entity entity, Engine::UUID fallback) {
 
-		if (world.IsAlive(entity) && world.HasComponent<Engine::SceneObjectComponent>(entity)) {
-			const auto& sceneObject = world.GetComponent<Engine::SceneObjectComponent>(entity);
-			if (sceneObject.sceneInstanceID) {
-				return sceneObject.sceneInstanceID;
+		if (const auto* sceneObject = world.TryGetComponent<Engine::SceneObjectComponent>(entity)) {
+			if (sceneObject->sceneInstanceID) {
+				return sceneObject->sceneInstanceID;
 			}
 		}
 		return fallback;

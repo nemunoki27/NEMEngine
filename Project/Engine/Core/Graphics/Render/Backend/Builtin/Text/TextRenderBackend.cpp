@@ -245,23 +245,25 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		}
 
 		// コンポーネント本体を取得してランタイムキャッシュを使う
-		if (!item->world || !item->world->IsAlive(item->entity) ||
-			!item->world->HasComponent<TextRendererComponent>(item->entity)) {
+		if (!item->world) {
 			continue;
 		}
 
-		auto& renderer = item->world->GetComponent<TextRendererComponent>(item->entity);
+		auto* renderer = item->world->TryGetComponent<TextRendererComponent>(item->entity);
+		if (!renderer) {
+			continue;
+		}
 
 		// テキストやサイズが変わった時だけレイアウトを再構築する
-		if (NeedsTextLayoutRebuild(renderer)) {
-			if (!RebuildTextLayoutCache(*font, renderer)) {
+		if (NeedsTextLayoutRebuild(*renderer)) {
+			if (!RebuildTextLayoutCache(*font, *renderer)) {
 				continue;
 			}
-		} else if (renderer.runtimeLayout.glyphs.empty()) {
+		} else if (renderer->runtimeLayout.glyphs.empty()) {
 			continue;
 		}
 		// キャッシュ済みレイアウトからVS/PSインスタンスだけ構築する
-		AppendGlyphInstancesFromCache(renderer, payload->color, item->worldMatrix, vsGlyphScratch_, psGlyphScratch_);
+		AppendGlyphInstancesFromCache(*renderer, payload->color, item->worldMatrix, vsGlyphScratch_, psGlyphScratch_);
 	}
 	// 描画に使用するグリフがない場合は描画しない
 	if (vsGlyphScratch_.empty() || psGlyphScratch_.empty()) {

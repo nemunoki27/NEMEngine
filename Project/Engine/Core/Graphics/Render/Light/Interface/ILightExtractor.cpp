@@ -19,21 +19,15 @@ bool Engine::LightExtract::IsVisible(ECSWorld& world, const Entity& entity, bool
 
 Engine::Matrix4x4 Engine::LightExtract::GetWorldMatrix(ECSWorld& world, const Entity& entity) {
 
-	if (world.HasComponent<TransformComponent>(entity)) {
-		return world.GetComponent<TransformComponent>(entity).worldMatrix;
+	if (const auto* transform = world.TryGetComponent<TransformComponent>(entity)) {
+		return transform->worldMatrix;
 	}
 	return Matrix4x4::Identity();
 }
 
 const Engine::SceneObjectComponent* Engine::LightExtract::GetSceneObject(ECSWorld& world, const Entity& entity) {
 
-	if (!world.IsAlive(entity)) {
-		return nullptr;
-	}
-	if (!world.HasComponent<SceneObjectComponent>(entity)) {
-		return nullptr;
-	}
-	return &world.GetComponent<SceneObjectComponent>(entity);
+	return world.TryGetComponent<SceneObjectComponent>(entity);
 }
 
 Engine::Vector3 Engine::LightExtract::GetWorldPos(ECSWorld& world, const Entity& entity) {

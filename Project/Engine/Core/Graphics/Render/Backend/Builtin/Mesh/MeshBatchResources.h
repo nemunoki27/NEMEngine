@@ -11,6 +11,7 @@
 #include <Engine/Core/Graphics/Mesh/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Graphics/Mesh/GPUResource/MeshSkinningSharedTypes.h>
 #include <Engine/Core/Graphics/GPUBuffer/StructuredRWBuffer.h>
+#include <Engine/Core/Graphics/DxLib/ComPtr.h>
 #include <Engine/Core/ECS/Entity/Entity.h>
 
 // c++
@@ -107,6 +108,8 @@ namespace Engine {
 		void UpdateView(const ResolvedRenderView& view);
 		void UploadBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
 			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
+		// ExecuteIndirectで使用する頂点描画引数を更新する
+		void UpdateIndexedIndirectArgs(uint32_t indexCount, uint32_t instanceCount);
 
 		// スキニングに使用するリソースを確保する
 		void EnsureSkinningResources(GraphicsCore& graphicsCore);
@@ -140,6 +143,7 @@ namespace Engine {
 		// SRV/UAVハンドルを取得する
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSkinnedVerticesSRVHandle() const { return skinning_->skinnedVertices.GetSRVGPUHandle(); }
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSkinnedVerticesUAVHandle() const { return skinning_->skinnedVertices.GetUAVGPUHandle(); }
+		ID3D12Resource* GetIndexedIndirectArgsResource() const { return indexedIndirectArgs_.Get(); }
 
 		// 描画バウンディング名を取得する
 		std::string_view GetViewBindingName() const { return "ViewConstants"; }
@@ -192,6 +196,8 @@ namespace Engine {
 		StructuredInstanceBuffer<MeshPSInstanceData> psData_{ "gPSInstances" };
 		ViewConstantBuffer<MeshDrawConstants> draw_{ "MeshDrawConstants" };
 		StructuredInstanceBuffer<MeshSubMeshShaderData> subMeshData_{ "gSubMeshes" };
+		ComPtr<ID3D12Resource> indexedIndirectArgs_{};
+		D3D12_DRAW_INDEXED_ARGUMENTS* mappedIndexedIndirectArgs_ = nullptr;
 
 		// スキニング用バッファ
 		std::unique_ptr<OptionalSkinningResources> skinning_{};

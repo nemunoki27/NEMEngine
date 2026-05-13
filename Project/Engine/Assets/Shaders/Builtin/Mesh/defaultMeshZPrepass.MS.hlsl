@@ -9,11 +9,11 @@
 //============================================================================
 [outputtopology("triangle")]
 [numthreads(128, 1, 1)]
-void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
+void main(uint groupThreadID : SV_GroupThreadID, in payload MeshDispatchPayload payload,
 	out vertices VSOutput outVerts[64], out indices uint3 outTris[124]) {
 
-	const uint meshletIndex = groupID.x;
-	const uint instanceIndex = groupID.y;
+	const uint meshletIndex = payload.meshletIndex;
+	const uint instanceIndex = payload.instanceIndex;
 
 	const MeshletDesc meshlet = gMeshlets[meshletIndex];
 	SetMeshOutputCounts(meshlet.vertexCount, meshlet.primitiveCount);
