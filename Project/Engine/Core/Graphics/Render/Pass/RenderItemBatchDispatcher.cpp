@@ -20,8 +20,11 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	RenderDrawContext drawContext{};
 	drawContext.graphicsCore = &graphicsCore;
 	drawContext.view = sceneContext.view;
+	// SceneView描画時でもGameViewカメラでカリングできるように別ポインタで渡す
+	drawContext.cullingView = sceneContext.cullingView;
 	drawContext.systemContext = sceneContext.systemContext;
 	drawContext.batch = &renderBatch;
+	// HZBなどのView共通リソースを各Backendへ渡す
 	drawContext.bufferRegistry = &sceneContext.bufferRegistry;
 	drawContext.assetDatabase = sceneContext.assetDatabase;
 	drawContext.assetLibrary = &assetLibrary;

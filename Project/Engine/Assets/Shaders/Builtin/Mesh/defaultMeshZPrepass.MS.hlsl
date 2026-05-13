@@ -4,19 +4,28 @@
 
 #include "defaultMesh.hlsli"
 
+groupshared float4x4 gMeshletWorldMatrix;
+
 //============================================================================
 //	main
 //============================================================================
 [outputtopology("triangle")]
 [numthreads(128, 1, 1)]
-void main(uint groupThreadID : SV_GroupThreadID, in payload MeshDispatchPayload payload,
-	out vertices VSOutput outVerts[64], out indices uint3 outTris[124]) {
+void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, in payload MeshDispatchPayload payload,
+	out vertices DepthVSOutput outVerts[64], out indices uint3 outTris[124]) {
 
-	const uint meshletIndex = payload.meshletIndex;
-	const uint instanceIndex = payload.instanceIndex;
+	const uint meshletIndex = payload.meshletIndices[groupID.x];
+	const uint instanceIndex = payload.instanceIndices[groupID.x];
 
-	const MeshletDesc meshlet = gMeshlets[meshletIndex];
+	const MeshletDrawDesc meshlet = gMeshlets[meshletIndex];
 	SetMeshOutputCounts(meshlet.vertexCount, meshlet.primitiveCount);
+
+	const uint localSubMeshIndex = meshlet.subMeshIndex;
+	if (groupThreadID == 0) {
+
+		gMeshletWorldMatrix = GetInstanceSubMeshWorldMatrix(instanceIndex, localSubMeshIndex);
+	}
+	GroupMemoryBarrierWithGroupSync();
 
 	if (groupThreadID < meshlet.primitiveCount) {
 
@@ -25,21 +34,14 @@ void main(uint groupThreadID : SV_GroupThreadID, in payload MeshDispatchPayload 
 
 	if (groupThreadID < meshlet.vertexCount) {
 
-		uint vertexIndex = gMeshletVertexIndices[meshlet.vertexOffset + groupThreadID];
+		uint vertexIndex = LoadMeshletVertexIndex(meshlet.vertexOffset + groupThreadID);
 		MeshVertex vertex = LoadMeshVertex(instanceIndex, vertexIndex);
 
 		// 頂点が属するサブメッシュのローカル行列を親行列に掛ける
-		uint localSubMeshIndex = meshlet.subMeshIndex;
-		float4x4 worldMatrix = GetInstanceSubMeshWorldMatrix(instanceIndex, localSubMeshIndex);
-		float4 worldPos = mul(vertex.position, worldMatrix);
+		float4 worldPos = mul(vertex.position, gMeshletWorldMatrix);
 
-		VSOutput output;
+		DepthVSOutput output;
 		output.position = mul(worldPos, viewProjection);
-		output.worldPos = worldPos.xyz;
-		output.normal = 0.0f.xxx;
-		output.uv = 0.0f.xx;
-		output.instanceID = instanceIndex;
-		output.subMeshIndex = localSubMeshIndex;
 
 		outVerts[groupThreadID] = output;
 	}

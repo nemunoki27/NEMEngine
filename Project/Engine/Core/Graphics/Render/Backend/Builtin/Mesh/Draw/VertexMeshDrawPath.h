@@ -34,10 +34,15 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// ExecuteIndirectでDrawIndexedInstancedを1回発行するためのシグネチャ
 		ComPtr<ID3D12CommandSignature> commandSignature_{};
+		// 可視インスタンスとIndirectArgsを生成するComputeパイプライン
+		AssetID indirectArgsPipeline_{};
 
 		//--------- functions ----------------------------------------------------
 
 		void EnsureCommandSignature(ID3D12Device* device);
+		// カリング結果を反映したDrawIndexedIndirect引数をGPU上で作成する
+		bool BuildIndexedIndirectArgs(const MeshPathDrawContext& context);
 	};
 } // Engine

@@ -1,0 +1,10 @@
+{
+  "name": "BuildHZBPipeline",
+  "variants": [
+    {
+      "kind": "Compute",
+      "pipelineType": "Compute",
+      "shader": "Engine/Assets/Shaders/Builtin/HZB/buildHZB.shader.json"
+    }
+  ]
+}

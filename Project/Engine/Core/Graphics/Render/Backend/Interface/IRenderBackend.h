@@ -31,9 +31,13 @@ namespace Engine {
 	struct RenderDrawContext {
 
 		GraphicsCore* graphicsCore = nullptr;
+		// 実際に描画するビュー
 		const ResolvedRenderView* view = nullptr;
+		// カリング判定に使用するビュー。SceneViewでもGameViewを指す場合がある
+		const ResolvedRenderView* cullingView = nullptr;
 		const SystemContext* systemContext = nullptr;
 		const RenderSceneBatch* batch = nullptr;
+		// HZBやライトなど、描画パス共通で使うGPUバッファの参照先
 		const RenderBufferRegistry* bufferRegistry = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
 		RenderAssetLibrary* assetLibrary = nullptr;
