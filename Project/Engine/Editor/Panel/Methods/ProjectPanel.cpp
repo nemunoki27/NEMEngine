@@ -513,6 +513,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	ImGui::EndChild();
 
 	DrawCreateAssetPopup(database);
+	DrawRenameAssetPopup(database);
 	ApplyPendingFileOperationRefresh(database);
 
 	ImGui::End();
@@ -1220,6 +1221,11 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 
 	selectedAsset_ = asset.assetID;
 
+	if (ImGui::MenuItem("Rename")) {
+
+		BeginRenameAsset(asset);
+	}
+	ImGui::Separator();
 	if (ImGui::MenuItem("Open")) {
 
 		context.editorState->SelectAsset(asset.assetID);
@@ -1289,6 +1295,55 @@ void Engine::ProjectPanel::DrawCreateAssetPopup(AssetDatabase& database) {
 	if (inputResult.canceled) {
 
 		createErrorMessage_.clear();
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
+}
+
+void Engine::ProjectPanel::DrawRenameAssetPopup(AssetDatabase& database) {
+
+	if (requestOpenRenamePopup_) {
+
+		ImGui::OpenPopup("Rename Project Asset");
+		requestOpenRenamePopup_ = false;
+	}
+
+	if (!ImGui::BeginPopupModal("Rename Project Asset", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
+	}
+
+	ImGui::Text("Rename Asset");
+	ImGui::TextDisabled("%s", pendingRenameAsset_.assetPath.c_str());
+	if (!renameProtectedSuffix_.empty()) {
+		ImGui::TextDisabled("Protected suffix: %s", renameProtectedSuffix_.c_str());
+	}
+	ImGui::Separator();
+
+	TextInputPopupResult inputResult = MyGUI::InputTextPopupContent(
+		"Name",
+		renameNameBuffer_,
+		renameErrorMessage_.empty() ? nullptr : renameErrorMessage_.c_str());
+
+	if (inputResult.submitted) {
+
+		ProjectAssetFileResult result = ProjectAssetFileUtility::RenameAsset(
+			pendingRenameAsset_,
+			renameNameBuffer_);
+
+		if (result.success) {
+
+			renameErrorMessage_.clear();
+			RefreshAfterFileOperation(database, result);
+			ImGui::CloseCurrentPopup();
+		} else {
+
+			renameErrorMessage_ = result.message.empty() ? "Failed to rename asset." : result.message;
+		}
+	}
+	if (inputResult.canceled) {
+
+		renameErrorMessage_.clear();
 		ImGui::CloseCurrentPopup();
 	}
 
@@ -1434,6 +1489,15 @@ void Engine::ProjectPanel::BeginCreateAsset(ProjectAssetFileKind kind, const std
 	createNameBuffer_ = ProjectAssetFileUtility::GetDefaultName(kind);
 	createErrorMessage_.clear();
 	requestOpenCreatePopup_ = true;
+}
+
+void Engine::ProjectPanel::BeginRenameAsset(const ProjectAssetEntry& asset) {
+
+	pendingRenameAsset_ = asset;
+	renameNameBuffer_ = ProjectAssetFileUtility::GetEditableAssetName(asset);
+	renameProtectedSuffix_ = ProjectAssetFileUtility::GetProtectedAssetSuffix(asset);
+	renameErrorMessage_.clear();
+	requestOpenRenamePopup_ = true;
 }
 
 void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtualPath) {

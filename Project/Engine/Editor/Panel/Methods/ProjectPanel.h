@@ -154,6 +154,16 @@ namespace Engine {
 		std::string createErrorMessage_;
 		// 新規作成ポップアップを次の描画で開くか
 		bool requestOpenCreatePopup_ = false;
+		// リネーム対象アセットの情報
+		ProjectAssetEntry pendingRenameAsset_{};
+		// リネーム入力で編集できるファイル名部分
+		std::string renameNameBuffer_;
+		// リネーム時に固定表示する保護サフィックス
+		std::string renameProtectedSuffix_;
+		// リネーム時に表示するエラーメッセージ
+		std::string renameErrorMessage_;
+		// リネームポップアップを次の描画で開くか
+		bool requestOpenRenamePopup_ = false;
 		// ファイル操作結果の遅延反映用キャッシュ
 		ProjectAssetFileResult pendingFileOperationResult_{};
 		// ファイル操作後の再構築が保留されているか
@@ -201,6 +211,8 @@ namespace Engine {
 		void DrawAssetContextMenu(const EditorPanelContext& context, AssetDatabase& database, const ProjectAssetEntry& asset);
 		// 新規作成用の名前入力ポップアップを描画する
 		void DrawCreateAssetPopup(AssetDatabase& database);
+		// アセットリネーム用の名前入力ポップアップを描画する
+		void DrawRenameAssetPopup(AssetDatabase& database);
 		// アセットのダブルクリック操作を処理する
 		void HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset);
 		// HierarchyからドロップされたEntityをPrefabとして保存する
@@ -216,6 +228,8 @@ namespace Engine {
 			const void* payloadData, int32_t payloadSize);
 		// 作成処理の入力状態を初期化する
 		void BeginCreateAsset(ProjectAssetFileKind kind, const std::string& directoryVirtualPath);
+		// リネーム処理の入力状態を初期化する
+		void BeginRenameAsset(const ProjectAssetEntry& asset);
 		// 作成メニュー項目を描画する
 		void DrawCreateMenuItems(const std::string& directoryVirtualPath);
 		// ファイル操作後にAssetDatabaseと表示を更新する
