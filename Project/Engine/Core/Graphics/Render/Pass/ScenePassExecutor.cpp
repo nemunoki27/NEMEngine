@@ -100,6 +100,7 @@ namespace {
 		}
 		return result;
 	}
+
 }
 
 void Engine::ScenePassExecutor::ExecuteScene(GraphicsCore& graphicsCore,
@@ -326,12 +327,6 @@ void Engine::ScenePassExecutor::ExecuteDepthPrepassPass(GraphicsCore& graphicsCo
 		*dependencies.backendRegistry, *dependencies.assetLibrary, *dependencies.pipelineCache,
 		*dependencies.materialResolver, items, surface, passName, true);
 
-	if (context.hzbBuildTarget && context.assetDatabase) {
-
-		// GameViewのZPrepass結果から、本描画で参照するHZBを直後に生成する
-		context.hzbBuildTarget->Build(graphicsCore, *dependencies.assetLibrary,
-			*dependencies.pipelineCache, *context.assetDatabase, surface->GetDepthTexture());
-	}
 }
 
 void Engine::ScenePassExecutor::ExecuteDrawPass(GraphicsCore& graphicsCore,

@@ -37,7 +37,7 @@ namespace Engine {
 		const ResolvedRenderView* cullingView = nullptr;
 		const SystemContext* systemContext = nullptr;
 		const RenderSceneBatch* batch = nullptr;
-		// HZBやライトなど、描画パス共通で使うGPUバッファの参照先
+		// ライトなど、描画パス共通で使うGPUバッファの参照先
 		const RenderBufferRegistry* bufferRegistry = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
 		RenderAssetLibrary* assetLibrary = nullptr;

@@ -87,19 +87,6 @@ void Engine::GraphicsFeatureController::SetAllowFrustumCulling(bool enabled) {
 	Logger::Output(LogType::Engine, "Frustum Culling -> {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
 }
 
-void Engine::GraphicsFeatureController::SetAllowOcclusionCulling(bool enabled) {
-
-	// HZBの生成/参照は描画側で行う。ここでは機能のON/OFFだけを保持する
-	if (preferences_.allowOcclusionCulling == enabled) {
-		return;
-	}
-
-	preferences_.allowOcclusionCulling = enabled;
-	RebuildRuntimeFeatures();
-
-	Logger::Output(LogType::Engine, "Occlusion Culling -> {}", runtimeFeatures_.useOcclusionCulling ? "Enabled" : "Disabled");
-}
-
 void Engine::GraphicsFeatureController::SetAllowContributionCulling(bool enabled) {
 
 	// VS経路とMS経路の両方で使うため、共通のRuntimeFeaturesへ反映する
@@ -146,7 +133,6 @@ void Engine::GraphicsFeatureController::RebuildRuntimeFeatures() {
 	runtimeFeatures_.useInlineRayTracing = support_.SupportsRayTracingPath() && preferences_.allowInlineRayTracing;
 	runtimeFeatures_.useDispatchRays = support_.SupportsRayTracingPath() && preferences_.allowDispatchRays;
 	runtimeFeatures_.useFrustumCulling = preferences_.allowFrustumCulling;
-	runtimeFeatures_.useOcclusionCulling = preferences_.allowOcclusionCulling;
 	runtimeFeatures_.useContributionCulling = preferences_.allowContributionCulling;
 	runtimeFeatures_.useNormalConeCulling = preferences_.allowNormalConeCulling;
 }
@@ -170,7 +156,6 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 	Logger::Output(LogType::Engine, "Runtime DispatchRays: {}", runtimeFeatures_.useDispatchRays ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime RayScene Build: {}", runtimeFeatures_.UsesAnyRayTracing() ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Frustum Culling: {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
-	Logger::Output(LogType::Engine, "Runtime Occlusion Culling: {}", runtimeFeatures_.useOcclusionCulling ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Contribution Culling: {}", runtimeFeatures_.useContributionCulling ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Normal Cone Culling: {}", runtimeFeatures_.useNormalConeCulling ? "Enabled" : "Disabled");
 

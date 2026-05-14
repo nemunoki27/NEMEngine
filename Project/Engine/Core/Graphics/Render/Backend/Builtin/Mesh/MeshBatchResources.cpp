@@ -214,12 +214,19 @@ void Engine::MeshBatchResources::UpdateView(const ResolvedRenderView& view, cons
 
 		// SceneViewでは描画行列とカリング行列が別になるため、両方をGPUへ渡す
 		constants.cullingViewProjection = camera->matrices.viewProjectionMatrix;
+		constants.cullingView = camera->matrices.viewMatrix;
 		constants.cullingCameraPos = camera->cameraPos;
+		constants.cullingNearClip = camera->nearClip;
 		constants.cullingViewSize = Vector2(static_cast<float>((std::max)(cullView->width, 1u)),
 			static_cast<float>((std::max)(cullView->height, 1u)));
+		constants.cullingProjectionScale = Vector2(
+			std::abs(camera->matrices.projectionMatrix.m[0][0]),
+			std::abs(camera->matrices.projectionMatrix.m[1][1]));
 	} else {
 		constants.cullingViewProjection = constants.viewProjection;
+		constants.cullingView = Matrix4x4::Identity();
 		constants.cullingViewSize = constants.viewSize;
+		constants.cullingProjectionScale = Vector2::AnyInit(1.0f);
 	}
 	view_[ToViewIndex(view.kind)].Upload(constants);
 }
@@ -401,7 +408,6 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	// DrawPath/AS/CS側で参照するカリングON/OFFをまとめて渡す
 	drawConstants.cullingEnabled = cullingEnabled ? 1u : 0u;
 	drawConstants.packedMeshletVertexIndices = gpuMesh.usePackedMeshletVertexIndices ? 1u : 0u;
-	drawConstants.occlusionCullingEnabled = cullingEnabled && drawContext.runtimeFeatures.useOcclusionCulling ? 1u : 0u;
 	drawConstants.contributionCullingEnabled = cullingEnabled && drawContext.runtimeFeatures.useContributionCulling ? 1u : 0u;
 	drawConstants.normalConeCullingEnabled = cullingEnabled && drawContext.runtimeFeatures.useNormalConeCulling ? 1u : 0u;
 	drawConstants.meshBoundsCenter = gpuMesh.boundsCenter;

@@ -468,7 +468,6 @@ uint64_t Engine::MeshRenderBackend::BuildStaticBatchHash(const RenderDrawContext
 	MixHash(h, static_cast<uint64_t>(items.size()));
 	MixHash(h, static_cast<uint64_t>(std::hash<AssetID>{}(gpuMesh.assetID)));
 	MixHash(h, context.runtimeFeatures.useFrustumCulling ? 1ull : 0ull);
-	MixHash(h, context.runtimeFeatures.useOcclusionCulling ? 1ull : 0ull);
 	MixHash(h, context.runtimeFeatures.useContributionCulling ? 1ull : 0ull);
 	MixHash(h, context.runtimeFeatures.useNormalConeCulling ? 1ull : 0ull);
 	MixHash(h, context.runtimeFeatures.useMeshShader ? 1ull : 0ull);

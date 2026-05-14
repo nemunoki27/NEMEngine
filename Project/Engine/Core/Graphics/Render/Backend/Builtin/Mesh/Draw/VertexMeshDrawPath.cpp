@@ -117,7 +117,7 @@ bool Engine::VertexMeshDrawPath::BuildIndexedIndirectArgs(const MeshPathDrawCont
 	context.commandList->SetPipelineState(pipelineState->GetComputePipeline());
 
 	std::vector<ComputeBindItem> bindItems{};
-	bindItems.reserve(8);
+	bindItems.reserve(10);
 	// 固定Draw情報、ビュー、カリング設定、入力インスタンスをComputeへ渡す
 	bindItems.push_back({
 		prepared.resources->GetIndirectArgsConstantsBindingName(),
@@ -140,6 +140,11 @@ bool Engine::VertexMeshDrawPath::BuildIndexedIndirectArgs(const MeshPathDrawCont
 		prepared.resources->GetInstanceMeshGPUAddress()
 		});
 	bindItems.push_back({
+		prepared.resources->GetSubMeshBindingName(),
+		ComputeBindValueType::SRV,
+		prepared.resources->GetSubMeshGPUAddress()
+		});
+	bindItems.push_back({
 		"gVisibleMeshInstances",
 		ComputeBindValueType::UAV,
 		prepared.resources->GetVisibleInstanceMeshGPUAddress(),
@@ -150,26 +155,6 @@ bool Engine::VertexMeshDrawPath::BuildIndexedIndirectArgs(const MeshPathDrawCont
 		ComputeBindValueType::UAV,
 		prepared.resources->GetIndexedIndirectArgsGPUAddress()
 	});
-	if (drawContext.bufferRegistry) {
-
-		// HZBが登録されている場合だけOcclusion判定用にバインドする
-		if (const RegisteredRenderBuffer* hzbConstants = drawContext.bufferRegistry->Find("HZBConstants")) {
-			bindItems.push_back({
-				"HZBConstants",
-				ComputeBindValueType::CBV,
-				hzbConstants->gpuAddress
-				});
-		}
-		if (const RegisteredRenderBuffer* hzbTexture = drawContext.bufferRegistry->Find("gHZBTexture")) {
-			bindItems.push_back({
-				"gHZBTexture",
-				ComputeBindValueType::SRV,
-				0,
-				hzbTexture->srvGPUHandle
-				});
-		}
-	}
-
 	ComputeRootBinder binder{ *pipelineState };
 	binder.Bind(context.commandList, bindItems);
 	// 1バッチ分のIndirectArgsを1グループで生成する

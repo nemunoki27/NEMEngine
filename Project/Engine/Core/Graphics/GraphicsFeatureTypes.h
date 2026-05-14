@@ -52,9 +52,6 @@ namespace Engine {
 		bool allowDispatchRays = true;
 		// GameViewのカメラを基準にしたフラスタムカリングを行うか
 		bool allowFrustumCulling = true;
-
-		// HZBを使用した遮蔽判定。誤カリング時に切り分けやすいよう初期値は無効にする
-		bool allowOcclusionCulling = false;
 		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
 		bool allowContributionCulling = true;
 		// MeshShader経路でメッシュレットの法線コーン判定を行うか
@@ -70,7 +67,6 @@ namespace Engine {
 		bool useDispatchRays = false;
 		// 描画パスごとに参照するカリング機能
 		bool useFrustumCulling = false;
-		bool useOcclusionCulling = false;
 		bool useContributionCulling = false;
 		bool useNormalConeCulling = false;
 

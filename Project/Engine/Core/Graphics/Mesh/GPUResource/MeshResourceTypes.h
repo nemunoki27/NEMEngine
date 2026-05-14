@@ -148,7 +148,7 @@ namespace Engine {
 		uint32_t subMeshIndex = 0;
 		uint32_t _pad[3] = { 0, 0, 0 };
 
-		// フラスタム/Contribution/HZB判定に使用するローカル空間Bounds
+		// フラスタム/Contribution判定に使用するローカル空間Bounds
 		Vector3 boundsCenter = Vector3::AnyInit(0.0f);
 		float boundsRadius = 0.0f;
 		// NormalConeカリングに使用する平均法線方向

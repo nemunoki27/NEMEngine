@@ -36,8 +36,7 @@ namespace Engine {
 		uint32_t cullingEnabled = 0;
 		// 圧縮頂点用のメッシュレットIndexバッファを使うか
 		uint32_t packedMeshletVertexIndices = 0;
-		// HZBによる遮蔽判定を行うか
-		uint32_t occlusionCullingEnabled = 0;
+		uint32_t _reserved0 = 0;
 		// 画面上の寄与が小さいメッシュレットを落とすか
 		uint32_t contributionCullingEnabled = 0;
 		// メッシュレット法線コーンによる背面判定を行うか

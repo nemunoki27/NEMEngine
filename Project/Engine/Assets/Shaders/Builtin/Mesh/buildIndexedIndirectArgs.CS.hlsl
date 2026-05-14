@@ -13,10 +13,13 @@ cbuffer ViewConstants : register(b1) {
 
 	float4x4 viewProjection;
 	float4x4 cullingViewProjection;
+	float4x4 cullingView;
 	float3 cullingCameraPos;
-	float _viewPad0;
+	float cullingNearClip;
 	float2 viewSize;
 	float2 cullingViewSize;
+	float2 cullingProjectionScale;
+	float2 _viewPad0;
 };
 cbuffer MeshDrawConstants : register(b2) {
 
@@ -25,7 +28,7 @@ cbuffer MeshDrawConstants : register(b2) {
 	uint instanceCount;
 	uint cullingEnabled;
 	uint packedMeshletVertexIndices;
-	uint occlusionCullingEnabled;
+	uint _meshDrawReserved0;
 	uint contributionCullingEnabled;
 	uint normalConeCullingEnabled;
 	float3 meshBoundsCenter;
@@ -33,13 +36,18 @@ cbuffer MeshDrawConstants : register(b2) {
 	float contributionPixelThreshold;
 	uint3 _meshDrawPad0;
 };
-cbuffer HZBConstants : register(b2, space1) {
+struct SubMeshShaderData {
 
-	uint2 hzbSize;
-	uint hzbMipCount;
-	uint hzbOcclusionEnabled;
-	float hzbOcclusionBias;
-	float3 _hzbPad0;
+	uint baseColorTextureIndex;
+	float _pad0;
+	float _pad1;
+	float _pad2;
+
+	float4x4 localMatrix;
+
+	float4 importedBaseColor;
+	float4 color;
+	float4x4 uvMatrix;
 };
 struct MeshInstance {
 
@@ -52,7 +60,7 @@ struct MeshInstance {
 };
 
 StructuredBuffer<MeshInstance> gMeshInstances : register(t0);
-Texture2D<float> gHZBTexture : register(t10);
+StructuredBuffer<SubMeshShaderData> gSubMeshes : register(t3, space1);
 RWStructuredBuffer<MeshInstance> gVisibleMeshInstances : register(u0);
 RWByteAddressBuffer gIndexedIndirectArgs : register(u1);
 
@@ -88,6 +96,55 @@ float GetMatrixMaxScale(float4x4 inputMat) {
 	return max(sx, max(sy, sz));
 }
 
+void EncapsulateSphere(inout float3 center, inout float radius, float3 addCenter, float addRadius) {
+
+	float3 diff = addCenter - center;
+	float dist = length(diff);
+	if (dist + addRadius <= radius) {
+		return;
+	}
+	if (dist + radius <= addRadius) {
+		center = addCenter;
+		radius = addRadius;
+		return;
+	}
+
+	float newRadius = (radius + dist + addRadius) * 0.5f;
+	if (dist > 0.00001f) {
+		center += diff * ((newRadius - radius) / dist);
+	}
+	radius = newRadius;
+}
+
+void CalcInstanceCullBounds(MeshInstance instance, out float3 center, out float radius) {
+
+	center = mul(float4(meshBoundsCenter, 1.0f), instance.worldMatrix).xyz;
+	radius = meshBoundsRadius * GetMatrixMaxScale(instance.worldMatrix);
+	if (instance.subMeshCount == 0u) {
+		return;
+	}
+
+	bool initialized = false;
+	for (uint i = 0; i < instance.subMeshCount; ++i) {
+
+		SubMeshShaderData subMesh = gSubMeshes[instance.subMeshDataOffset + i];
+
+		// 実描画はsubMesh.localMatrixをworldMatrixの前に掛けるため、カリングBoundsも同じ空間で膨らませる
+		float3 localCenter = mul(float4(meshBoundsCenter, 1.0f), subMesh.localMatrix).xyz;
+		float localRadius = meshBoundsRadius * GetMatrixMaxScale(subMesh.localMatrix);
+		float3 worldCenter = mul(float4(localCenter, 1.0f), instance.worldMatrix).xyz;
+		float worldRadius = localRadius * GetMatrixMaxScale(instance.worldMatrix);
+
+		if (!initialized) {
+			center = worldCenter;
+			radius = worldRadius;
+			initialized = true;
+			continue;
+		}
+		EncapsulateSphere(center, radius, worldCenter, worldRadius);
+	}
+}
+
 bool IsSphereInFrustum(float3 center, float radius) {
 
 	[unroll]
@@ -101,16 +158,27 @@ bool IsSphereInFrustum(float3 center, float radius) {
 	return true;
 }
 
-float CalcProjectedPixelRadius(float3 center, float radius) {
+float2 CalcProjectedPixelRadiusXY(float3 center, float radius) {
 
 	float4 clip = mul(float4(center, 1.0f), cullingViewProjection);
 	if (clip.w <= 0.00001f) {
-		return contributionPixelThreshold;
+		return float2(contributionPixelThreshold, contributionPixelThreshold);
 	}
 
-	float projectionScale = max(abs(cullingViewProjection[0][0]), abs(cullingViewProjection[1][1]));
-	float projectedRadius = abs(radius * projectionScale / clip.w);
-	return projectedRadius * max(cullingViewSize.x, cullingViewSize.y) * 0.5f;
+	float3 viewCenter = mul(float4(center, 1.0f), cullingView).xyz;
+	float nearZ = viewCenter.z - radius;
+	if (nearZ <= max(cullingNearClip, 0.00001f)) {
+		return float2(1000000.0f, 1000000.0f);
+	}
+
+	float2 projectedRadius = abs(radius * cullingProjectionScale / nearZ);
+	return projectedRadius * cullingViewSize * 0.5f;
+}
+
+float CalcProjectedPixelRadius(float3 center, float radius) {
+
+	float2 radiusXY = CalcProjectedPixelRadiusXY(center, radius);
+	return max(radiusXY.x, radiusXY.y);
 }
 
 bool HasContribution(float3 center, float radius) {
@@ -121,72 +189,22 @@ bool HasContribution(float3 center, float radius) {
 	return CalcProjectedPixelRadius(center, radius) >= contributionPixelThreshold;
 }
 
-bool IsOccludedByHZB(float3 center, float radius) {
-
-	if (occlusionCullingEnabled == 0u || hzbOcclusionEnabled == 0u || hzbMipCount == 0u) {
-		return false;
-	}
-
-	float3 toCamera = cullingCameraPos - center;
-	float cameraDistance = length(toCamera);
-	if (cameraDistance <= max(radius, 0.00001f)) {
-		return false;
-	}
-
-	float4 clip = mul(float4(center, 1.0f), cullingViewProjection);
-	if (clip.w <= 0.00001f) {
-		return false;
-	}
-
-	float3 ndc = clip.xyz / clip.w;
-	float pixelRadius = CalcProjectedPixelRadius(center, radius);
-	if (pixelRadius < 2.0f) {
-		return false;
-	}
-
-	float2 screenCenter = float2(ndc.x * 0.5f + 0.5f, 1.0f - (ndc.y * 0.5f + 0.5f)) * float2(hzbSize);
-	float mip = clamp(ceil(log2(max(pixelRadius * 2.0f, 1.0f))), 0.0f, (float)(hzbMipCount - 1u));
-	float2 screenMin = screenCenter - pixelRadius;
-	float2 screenMax = screenCenter + pixelRadius;
-	if (screenMin.x < 0.0f || screenMin.y < 0.0f ||
-		screenMax.x >= (float)hzbSize.x || screenMax.y >= (float)hzbSize.y) {
-		return false;
-	}
-
-	float3 frontPoint = center + toCamera / cameraDistance * radius;
-	float4 frontClip = mul(float4(frontPoint, 1.0f), cullingViewProjection);
-	if (frontClip.w <= 0.00001f) {
-		return false;
-	}
-	float depth = saturate(frontClip.z / frontClip.w);
-	uint mipIndex = (uint)mip;
-	uint2 mipSize = max(hzbSize >> mipIndex, uint2(1u, 1u));
-	uint2 minTexel = clamp((uint2)(screenMin / exp2(mip)), uint2(0u, 0u), mipSize - 1u);
-	uint2 maxTexel = clamp((uint2)(screenMax / exp2(mip)), uint2(0u, 0u), mipSize - 1u);
-
-	float z0 = gHZBTexture.Load(int3(minTexel, mipIndex));
-	float z1 = gHZBTexture.Load(int3(uint2(maxTexel.x, minTexel.y), mipIndex));
-	float z2 = gHZBTexture.Load(int3(uint2(minTexel.x, maxTexel.y), mipIndex));
-	float z3 = gHZBTexture.Load(int3(maxTexel, mipIndex));
-	float hzbDepth = max(max(z0, z1), max(z2, z3));
-	return depth > hzbDepth + hzbOcclusionBias;
-}
-
 bool IsInstanceVisible(MeshInstance instance) {
 
 	if (cullingEnabled == 0u) {
 		return true;
 	}
 
-	float3 center = mul(float4(meshBoundsCenter, 1.0f), instance.worldMatrix).xyz;
-	float radius = meshBoundsRadius * GetMatrixMaxScale(instance.worldMatrix);
+	float3 center;
+	float radius;
+	CalcInstanceCullBounds(instance, center, radius);
 	if (!IsSphereInFrustum(center, radius)) {
 		return false;
 	}
 	if (!HasContribution(center, radius)) {
 		return false;
 	}
-	return !IsOccludedByHZB(center, radius);
+	return true;
 }
 
 //============================================================================

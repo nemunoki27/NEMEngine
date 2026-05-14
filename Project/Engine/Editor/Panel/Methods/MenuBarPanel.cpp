@@ -168,10 +168,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		}
 		ImGui::Text("Frustum Culling: %s", runtime.useFrustumCulling ? "Enabled" : "Disabled");
 
-		bool allowOcclusionCulling = preferences.allowOcclusionCulling;
-		if (ImGui::Checkbox("Use Occlusion Culling", &allowOcclusionCulling)) {
-			featureController.SetAllowOcclusionCulling(allowOcclusionCulling);
-		}
 		bool allowContributionCulling = preferences.allowContributionCulling;
 		if (ImGui::Checkbox("Use Contribution Culling", &allowContributionCulling)) {
 			featureController.SetAllowContributionCulling(allowContributionCulling);
@@ -183,7 +179,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 			featureController.SetAllowNormalConeCulling(allowNormalConeCulling);
 		}
 		ImGui::EndDisabled();
-		ImGui::Text("Occlusion Culling   : %s", runtime.useOcclusionCulling ? "Enabled" : "Disabled");
 		ImGui::Text("Contribution Culling: %s", runtime.useContributionCulling ? "Enabled" : "Disabled");
 		ImGui::Text("Normal Cone Culling : %s", runtime.useNormalConeCulling ? "Enabled" : "Disabled");
 

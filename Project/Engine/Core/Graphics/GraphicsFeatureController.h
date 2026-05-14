@@ -30,7 +30,6 @@ namespace Engine {
 		void SetAllowDispatchRays(bool enabled);
 		// GameView基準の描画カリング機能を個別に切り替える
 		void SetAllowFrustumCulling(bool enabled);
-		void SetAllowOcclusionCulling(bool enabled);
 		void SetAllowContributionCulling(bool enabled);
 		void SetAllowNormalConeCulling(bool enabled);
 
@@ -46,7 +45,6 @@ namespace Engine {
 		bool ShouldUseDispatchRays() const { return runtimeFeatures_.useDispatchRays; }
 		// 描画側はPreferencesではなくRuntimeFeaturesを参照して最終状態だけを見る
 		bool ShouldUseFrustumCulling() const { return runtimeFeatures_.useFrustumCulling; }
-		bool ShouldUseOcclusionCulling() const { return runtimeFeatures_.useOcclusionCulling; }
 		bool ShouldUseContributionCulling() const { return runtimeFeatures_.useContributionCulling; }
 		bool ShouldUseNormalConeCulling() const { return runtimeFeatures_.useNormalConeCulling; }
 		bool ShouldBuildRaytracingScene() const { return runtimeFeatures_.UsesAnyRayTracing(); }

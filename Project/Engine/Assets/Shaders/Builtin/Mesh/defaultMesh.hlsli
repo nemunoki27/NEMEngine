@@ -28,10 +28,13 @@ cbuffer ViewConstants : register(b0) {
 	
 	float4x4 viewProjection;
 	float4x4 cullingViewProjection;
+	float4x4 cullingView;
 	float3 cullingCameraPos;
-	float _viewPad0;
+	float cullingNearClip;
 	float2 viewSize;
 	float2 cullingViewSize;
+	float2 cullingProjectionScale;
+	float2 _viewPad0;
 };
 cbuffer SubMeshConstants : register(b1) {
 
@@ -47,21 +50,13 @@ cbuffer MeshDrawConstants : register(b0, space1) {
 	uint instanceCount;
 	uint cullingEnabled;
 	uint packedMeshletVertexIndices;
-	uint occlusionCullingEnabled;
+	uint _meshDrawReserved0;
 	uint contributionCullingEnabled;
 	uint normalConeCullingEnabled;
 	float3 meshBoundsCenter;
 	float meshBoundsRadius;
 	float contributionPixelThreshold;
 	uint3 _meshDrawPad0;
-};
-cbuffer HZBConstants : register(b2, space1) {
-
-	uint2 hzbSize;
-	uint hzbMipCount;
-	uint hzbOcclusionEnabled;
-	float hzbOcclusionBias;
-	float3 _hzbPad0;
 };
 struct MeshVertex {
 
@@ -133,7 +128,6 @@ StructuredBuffer<uint> gMeshletPrimitiveIndices : register(t2, space1);
 StructuredBuffer<SubMeshShaderData> gSubMeshes : register(t3, space1);
 StructuredBuffer<MeshletBounds> gMeshletBounds : register(t4, space1);
 StructuredBuffer<uint> gPackedMeshletVertexIndices : register(t5, space1);
-Texture2D<float> gHZBTexture : register(t10);
 
 //============================================================================
 //	functions
@@ -256,16 +250,27 @@ bool IsSphereInFrustum(float3 center, float radius) {
 	return true;
 }
 
-float CalcProjectedPixelRadius(float3 center, float radius) {
+float2 CalcProjectedPixelRadiusXY(float3 center, float radius) {
 
 	float4 clip = mul(float4(center, 1.0f), cullingViewProjection);
 	if (clip.w <= 0.00001f) {
-		return contributionPixelThreshold;
+		return float2(contributionPixelThreshold, contributionPixelThreshold);
 	}
 
-	float projectionScale = max(abs(cullingViewProjection[0][0]), abs(cullingViewProjection[1][1]));
-	float projectedRadius = abs(radius * projectionScale / clip.w);
-	return projectedRadius * max(cullingViewSize.x, cullingViewSize.y) * 0.5f;
+	float3 viewCenter = mul(float4(center, 1.0f), cullingView).xyz;
+	float nearZ = viewCenter.z - radius;
+	if (nearZ <= max(cullingNearClip, 0.00001f)) {
+		return float2(1000000.0f, 1000000.0f);
+	}
+
+	float2 projectedRadius = abs(radius * cullingProjectionScale / nearZ);
+	return projectedRadius * cullingViewSize * 0.5f;
+}
+
+float CalcProjectedPixelRadius(float3 center, float radius) {
+
+	float2 radiusXY = CalcProjectedPixelRadiusXY(center, radius);
+	return max(radiusXY.x, radiusXY.y);
 }
 
 bool HasContribution(float3 center, float radius) {
@@ -274,57 +279,6 @@ bool HasContribution(float3 center, float radius) {
 		return true;
 	}
 	return CalcProjectedPixelRadius(center, radius) >= contributionPixelThreshold;
-}
-
-bool IsOccludedByHZB(float3 center, float radius) {
-
-	if (occlusionCullingEnabled == 0u || hzbOcclusionEnabled == 0u || hzbMipCount == 0u) {
-		return false;
-	}
-
-	float3 toCamera = cullingCameraPos - center;
-	float cameraDistance = length(toCamera);
-	if (cameraDistance <= max(radius, 0.00001f)) {
-		return false;
-	}
-
-	float4 clip = mul(float4(center, 1.0f), cullingViewProjection);
-	if (clip.w <= 0.00001f) {
-		return false;
-	}
-
-	float3 ndc = clip.xyz / clip.w;
-	float pixelRadius = CalcProjectedPixelRadius(center, radius);
-	if (pixelRadius < 2.0f) {
-		return false;
-	}
-
-	float2 screenCenter = float2(ndc.x * 0.5f + 0.5f, 1.0f - (ndc.y * 0.5f + 0.5f)) * float2(hzbSize);
-	float mip = clamp(ceil(log2(max(pixelRadius * 2.0f, 1.0f))), 0.0f, (float)(hzbMipCount - 1u));
-	float2 screenMin = screenCenter - pixelRadius;
-	float2 screenMax = screenCenter + pixelRadius;
-	if (screenMin.x < 0.0f || screenMin.y < 0.0f ||
-		screenMax.x >= (float)hzbSize.x || screenMax.y >= (float)hzbSize.y) {
-		return false;
-	}
-
-	float3 frontPoint = center + toCamera / cameraDistance * radius;
-	float4 frontClip = mul(float4(frontPoint, 1.0f), cullingViewProjection);
-	if (frontClip.w <= 0.00001f) {
-		return false;
-	}
-	float depth = saturate(frontClip.z / frontClip.w);
-	uint mipIndex = (uint)mip;
-	uint2 mipSize = max(hzbSize >> mipIndex, uint2(1u, 1u));
-	uint2 minTexel = clamp((uint2)(screenMin / exp2(mip)), uint2(0u, 0u), mipSize - 1u);
-	uint2 maxTexel = clamp((uint2)(screenMax / exp2(mip)), uint2(0u, 0u), mipSize - 1u);
-
-	float z0 = gHZBTexture.Load(int3(minTexel, mipIndex));
-	float z1 = gHZBTexture.Load(int3(uint2(maxTexel.x, minTexel.y), mipIndex));
-	float z2 = gHZBTexture.Load(int3(uint2(minTexel.x, maxTexel.y), mipIndex));
-	float z3 = gHZBTexture.Load(int3(maxTexel, mipIndex));
-	float hzbDepth = max(max(z0, z1), max(z2, z3));
-	return depth > hzbDepth + hzbOcclusionBias;
 }
 
 bool IsNormalConeVisible(MeshletBounds bounds, float3 center, float3x3 worldMatrix) {
@@ -359,5 +313,5 @@ bool IsMeshletVisible(uint meshletIndex, uint instanceIndex) {
 	if (!IsNormalConeVisible(bounds, center, (float3x3)worldMatrix)) {
 		return false;
 	}
-	return !IsOccludedByHZB(center, radius);
+	return true;
 }

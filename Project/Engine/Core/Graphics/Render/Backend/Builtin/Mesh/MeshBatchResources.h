@@ -38,13 +38,19 @@ namespace Engine {
 		Matrix4x4 viewProjection = Matrix4x4::Identity();
 		// カリング判定に使うビューの行列。SceneViewではGameViewの行列になる
 		Matrix4x4 cullingViewProjection = Matrix4x4::Identity();
-		// HZB/NormalCone判定で使用するカリングカメラ位置
+		// Contribution CullingでカリングカメラのView空間へ変換する
+		Matrix4x4 cullingView = Matrix4x4::Identity();
+		// NormalCone判定で使用するカリングカメラ位置
 		Vector3 cullingCameraPos = Vector3::AnyInit(0.0f);
-		float _pad0 = 0.0f;
+		// Nearより手前に球がかかる場合はContribution判定を安全側で無効にする
+		float cullingNearClip = 0.001f;
 		// 描画先Viewportサイズ
 		Vector2 viewSize = Vector2::AnyInit(1.0f);
 		// カリング対象Viewportサイズ。SceneView表示時もGameViewサイズを使う
 		Vector2 cullingViewSize = Vector2::AnyInit(1.0f);
+		// Projection行列のX/Y倍率。ViewProjectionから取るとカメラ回転で値が崩れる
+		Vector2 cullingProjectionScale = Vector2::AnyInit(1.0f);
+		Vector2 _pad0 = Vector2::AnyInit(0.0f);
 	};
 	struct MeshIndirectArgsConstants {
 
