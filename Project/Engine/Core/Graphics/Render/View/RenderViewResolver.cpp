@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
-#include <Engine/MathLib/Math.h>
+#include <Engine/Core/Math/Math.h>
 
 //============================================================================
 //	RenderViewResolver classMethods

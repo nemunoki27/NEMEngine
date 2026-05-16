@@ -10,7 +10,7 @@
 #include <Engine/Core/Graphics/GPUBuffer/DxConstBuffer.h>
 #include <Engine/Core/Graphics/GPUBuffer/VertexBuffer.h>
 #include <Engine/Core/Graphics/GraphicsCore.h>
-#include <Engine/MathLib/Math.h>
+#include <Engine/Core/Math/Math.h>
 
 // c++
 #include <memory>

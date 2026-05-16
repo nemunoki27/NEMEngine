@@ -18,10 +18,10 @@
 #include <Engine/Editor/Command/Methods/InstantiatePrefabCommand.h>
 #include <Engine/Editor/Panel/Interface/IEditorPanelHost.h>
 #include <Engine/Editor/Tools/EditorToolContext.h>
-#include <Engine/Logger/Logger.h>
-#include <Engine/Utility/Json/JsonAdapter.h>
-#include <Engine/Utility/Enum/EnumAdapter.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Logger/Logger.h>
+#include <Engine/Core/Utility/Json/JsonAdapter.h>
+#include <Engine/Core/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
 
 // assimp
 #include <assimp/Importer.hpp>

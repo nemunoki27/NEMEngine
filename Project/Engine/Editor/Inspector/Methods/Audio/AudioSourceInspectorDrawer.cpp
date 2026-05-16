@@ -3,10 +3,10 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Audio/Audio.h>
+#include <Engine/Core/Audio/Audio.h>
 #include <Engine/Core/Asset/AssetDatabase.h>
 #include <Engine/Editor/Inspector/Methods/Common/InspectorDrawerCommon.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
 
 // c++
 #include <filesystem>

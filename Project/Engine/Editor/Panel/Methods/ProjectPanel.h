@@ -9,7 +9,7 @@
 #include <Engine/Editor/Project/ProjectAssetThumbnailCache.h>
 #include <Engine/Editor/Project/ProjectAssetFileUtility.h>
 #include <Engine/Core/Graphics/Render/View/RenderViewTypes.h>
-#include <Engine/MathLib/Vector3.h>
+#include <Engine/Core/Math/Vector3.h>
 
 #include <memory>
 #include <unordered_map>

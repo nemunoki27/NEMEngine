@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>..\..\..\..\Generated\Intermediate\NEM.ScriptCore\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>

@@ -8,7 +8,7 @@
 #include <Engine/Core/Graphics/Render/Backend/Common/StructuredInstanceBuffer.h>
 #include <Engine/Core/Graphics/Render/Backend/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Graphics/Render/View/RenderViewTypes.h>
-#include <Engine/MathLib/Math.h>
+#include <Engine/Core/Math/Math.h>
 
 namespace Engine {
 

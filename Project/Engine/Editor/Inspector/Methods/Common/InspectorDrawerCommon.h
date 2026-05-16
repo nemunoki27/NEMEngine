@@ -3,12 +3,12 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
 #include <Engine/Core/Asset/AssetTypes.h>
 #include <Engine/Core/Asset/AssetDatabase.h>
 #include <Engine/Core/ECS/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/ECS/World/ECSWorld.h>
-#include <Engine/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/UUID/UUID.h>
 
 // c++

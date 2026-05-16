@@ -7,7 +7,7 @@
 #include <Engine/Core/ECS/Component/Builtin/HierarchyComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
-#include <Engine/MathLib/Math.h>
+#include <Engine/Core/Math/Math.h>
 
 // c++
 #include <algorithm>

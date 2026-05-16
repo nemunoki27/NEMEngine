@@ -11,7 +11,7 @@
 #include <Engine/Core/Graphics/Render/View/RenderViewTypes.h>
 #include <Engine/Core/Graphics/Raytracing/RaytracingSceneBuilder.h>
 #include <Engine/Editor/EditorState.h>
-#include <Engine/MathLib/Vector2.h>
+#include <Engine/Core/Math/Vector2.h>
 
 // c++
 #include <span>

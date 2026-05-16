@@ -5,8 +5,8 @@
 //============================================================================
 #include <Engine/Core/Window/WinApp.h>
 #include <Engine/Core/Graphics/GraphicsPlatform.h>
-#include <Engine/MathLib/Vector2.h>
-#include <Engine/MathLib/Color.h>
+#include <Engine/Core/Math/Vector2.h>
+#include <Engine/Core/Math/Color.h>
 
 namespace Engine {
 

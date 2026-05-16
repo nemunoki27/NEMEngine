@@ -17,8 +17,8 @@
 #include <Engine/Editor/Command/Methods/SetTransformCommand.h>
 #include <Engine/Editor/Command/TransformEditUtility.h>
 #include <Engine/Editor/Panel/Interface/IEditorPanelHost.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
-#include <Engine/Input/Input.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Input/Input.h>
 
 //============================================================================
 //	ViewportPanel classMethods

@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Panel/Interface/IEditorPanel.h>
-#include <Engine/Input/InputStructures.h>
+#include <Engine/Core/Input/InputStructures.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
 #include <Engine/Core/UUID/UUID.h>
 

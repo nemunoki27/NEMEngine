@@ -3,9 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/MathLib/Vector3.h>
-#include <Engine/MathLib/Quaternion.h>
-#include <Engine/MathLib/Matrix4x4.h>
+#include <Engine/Core/Math/Vector3.h>
+#include <Engine/Core/Math/Quaternion.h>
+#include <Engine/Core/Math/Matrix4x4.h>
 
 // c++
 #include <string>

@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Inspector/Methods/Common/InspectorDrawerCommon.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
 
 //============================================================================
 //	SpriteRendererInspectorDrawer classMethods

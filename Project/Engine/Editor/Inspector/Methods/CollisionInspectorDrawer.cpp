@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Collision/CollisionSettings.h>
 #include <Engine/Editor/Inspector/Methods/Common/InspectorDrawerCommon.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
 
 // imgui
 #include <imgui.h>

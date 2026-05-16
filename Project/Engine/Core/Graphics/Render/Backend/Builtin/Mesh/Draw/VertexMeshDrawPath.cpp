@@ -10,7 +10,7 @@
 #include <Engine/Core/Graphics/Pipeline/Bind/ComputeRootBinder.h>
 #include <Engine/Core/Graphics/Pipeline/Bind/GraphicsRootBinder.h>
 #include <Engine/Core/Asset/AssetDatabase.h>
-#include <Engine/Logger/Assert.h>
+#include <Engine/Core/Logger/Assert.h>
 
 //============================================================================
 //	VertexMeshDrawPath classMethods

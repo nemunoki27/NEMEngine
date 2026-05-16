@@ -9,8 +9,8 @@
 #include <Engine/Core/Tools/ITool.h>
 #include <Engine/Editor/Panel/Interface/IEditorPanel.h>
 #include <Engine/Editor/Tools/EditorToolContext.h>
-#include <Engine/MathLib/Vector2.h>
-#include <Engine/MathLib/Color.h>
+#include <Engine/Core/Math/Vector2.h>
+#include <Engine/Core/Math/Color.h>
 
 // imgui
 #include <imgui.h>

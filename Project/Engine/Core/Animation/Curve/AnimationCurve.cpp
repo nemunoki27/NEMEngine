@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Utility/Enum/Axis.h>
+#include <Engine/Core/Utility/Enum/Axis.h>
 
 // c++
 #include <algorithm>

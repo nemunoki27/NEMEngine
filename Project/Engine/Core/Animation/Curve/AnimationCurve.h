@@ -3,8 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/MathLib/Math.h>
-#include <Engine/Utility/Enum/Axis.h>
+#include <Engine/Core/Math/Math.h>
+#include <Engine/Core/Utility/Enum/Axis.h>
 
 // c++
 #include <array>

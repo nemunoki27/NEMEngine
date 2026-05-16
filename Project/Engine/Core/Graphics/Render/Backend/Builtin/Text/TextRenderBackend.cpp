@@ -9,7 +9,7 @@
 #include <Engine/Core/Graphics/Render/Backend/Common/BackendDrawCommon.h>
 #include <Engine/Core/ECS/Component/Builtin/Render/TextRendererComponent.h>
 #include <Engine/Core/ECS/World/ECSWorld.h>
-#include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Utility/Algorithm/Algorithm.h>
 
 //============================================================================
 //	TextRenderBackend classMethods

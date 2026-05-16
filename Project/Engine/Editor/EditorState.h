@@ -7,7 +7,7 @@
 #include <Engine/Core/ECS/World/ECSWorld.h>
 #include <Engine/Editor/Command/EditorEntitySnapshot.h>
 #include <Engine/Editor/Command/Interface/IEditorCommand.h>
-#include <Engine/Utility/Enum/DimensionType.h>
+#include <Engine/Core/Utility/Enum/DimensionType.h>
 
 namespace Engine {
 

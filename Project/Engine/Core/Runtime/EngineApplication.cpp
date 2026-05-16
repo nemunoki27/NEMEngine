@@ -9,10 +9,10 @@
 #include <Engine/Core/Collision/CollisionSettings.h>
 #include <Engine/Core/Scripting/ManagedScriptRuntime.h>
 #include <Engine/Core/Tools/ToolRegistry.h>
-#include <Engine/Audio/Audio.h>
+#include <Engine/Core/Audio/Audio.h>
 #include <Engine/Editor/Project/ProjectAssetFileUtility.h>
-#include <Engine/Logger/Logger.h>
-#include <Engine/Input/Input.h>
+#include <Engine/Core/Logger/Logger.h>
+#include <Engine/Core/Input/Input.h>
 
 // ECSシステム
 #include <Engine/Core/ECS/System/Builtin/BehaviorSystem.h>

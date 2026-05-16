@@ -6,7 +6,7 @@
 #include <Engine/Editor/Inspector/Methods/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
 #include <Engine/Core/Asset/AssetDatabase.h> 
-#include <Engine/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
 
 //============================================================================
 //	MeshRendererInspectorDrawer classMethods

@@ -6,7 +6,7 @@
 #include <Engine/Core/Graphics/Descriptors/DSVDescriptor.h>
 #include <Engine/Core/Graphics/Descriptors/SRVDescriptor.h>
 #include <Engine/Core/Graphics/DxObject/DxCommand.h>
-#include <Engine/Logger/Assert.h>
+#include <Engine/Core/Logger/Assert.h>
 
 //============================================================================
 //	DepthTexture2D classMethods

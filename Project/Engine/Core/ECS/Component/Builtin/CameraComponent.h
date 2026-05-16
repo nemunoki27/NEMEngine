@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/ECS/Component/Registry/ComponentTypeRegistry.h>
-#include <Engine/MathLib/Matrix4x4.h>
+#include <Engine/Core/Math/Matrix4x4.h>
 
 // c++
 #include <cstdint>

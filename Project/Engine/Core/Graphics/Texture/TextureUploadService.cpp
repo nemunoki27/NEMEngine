@@ -3,10 +3,10 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Logger/Logger.h>
+#include <Engine/Core/Logger/Logger.h>
 #include <Engine/Core/Graphics/Descriptors/SRVDescriptor.h>
 #include <Engine/Core/Runtime/RuntimePaths.h>
-#include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <algorithm>

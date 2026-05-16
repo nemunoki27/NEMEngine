@@ -6,7 +6,7 @@
 #include <Engine/Editor/Command/Methods/SetSerializedComponentCommand.h>
 #include <Engine/Editor/Panel/Interface/IEditorPanelHost.h>
 #include <Engine/Editor/Inspector/Methods/Common/InspectorDrawerCommon.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
 
 //============================================================================
 //	TextRendererInspectorDrawer classMethods

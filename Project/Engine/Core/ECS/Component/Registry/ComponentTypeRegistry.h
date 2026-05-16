@@ -6,7 +6,7 @@
 #include <Engine/Core/ECS/Component/Type/ComponentType.h>
 #include <Engine/Core/ECS/Config/ECSConfig.h>
 #include <Engine/Core/UUID/TypeHash.h>
-#include <Engine/Logger/Assert.h>
+#include <Engine/Core/Logger/Assert.h>
 
 // c++
 #include <string>

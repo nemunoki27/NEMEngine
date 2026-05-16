@@ -3,12 +3,12 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Input/Input.h>
-#include <Engine/MathLib/Math.h>
-#include <Engine/MathLib/Matrix4x4.h>
-#include <Engine/MathLib/Vector3.h>
+#include <Engine/Core/Input/Input.h>
+#include <Engine/Core/Math/Math.h>
+#include <Engine/Core/Math/Matrix4x4.h>
+#include <Engine/Core/Math/Vector3.h>
 #include <Engine/Core/Runtime/RuntimePaths.h>
-#include <Engine/Utility/Json/JsonAdapter.h>
+#include <Engine/Core/Utility/Json/JsonAdapter.h>
 
 //============================================================================
 //	SceneViewCameraController classMethods

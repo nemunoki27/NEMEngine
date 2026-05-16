@@ -8,11 +8,11 @@
 #include <Engine/Core/Graphics/GPUBuffer/IndexBuffer.h>
 #include <Engine/Core/Graphics/Descriptors/SRVDescriptor.h>
 #include <Engine/Core/Graphics/Mesh/MeshNode.h>
-#include <Engine/MathLib/Vector2.h>
-#include <Engine/MathLib/Vector3.h>
-#include <Engine/MathLib/Vector4.h>
-#include <Engine/MathLib/Color.h>
-#include <Engine/MathLib/Quaternion.h>
+#include <Engine/Core/Math/Vector2.h>
+#include <Engine/Core/Math/Vector3.h>
+#include <Engine/Core/Math/Vector4.h>
+#include <Engine/Core/Math/Color.h>
+#include <Engine/Core/Math/Quaternion.h>
 
 namespace Engine {
 

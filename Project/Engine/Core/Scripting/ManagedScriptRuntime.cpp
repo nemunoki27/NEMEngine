@@ -12,9 +12,9 @@
 #include <Engine/Core/ECS/World/ECSWorld.h>
 #include <Engine/Core/ECS/System/Context/SystemContext.h>
 #include <Engine/Core/Runtime/RuntimePaths.h>
-#include <Engine/Logger/Logger.h>
-#include <Engine/Input/Input.h>
-#include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Logger/Logger.h>
+#include <Engine/Core/Input/Input.h>
+#include <Engine/Core/Utility/Algorithm/Algorithm.h>
 
 // windows
 #include <windows.h>

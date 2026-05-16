@@ -33,11 +33,11 @@
 #include <Engine/Core/ECS/Component/Builtin/CameraControllerComponent.h>
 #include <Engine/Editor/Command/Methods/SetEntityActiveCommand.h>
 #include <Engine/Editor/Inspector/Methods/Common/InspectorDrawerCommon.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
-#include <Engine/Utility/Enum/EnumAdapter.h>
-#include <Engine/Utility/Json/JsonAdapter.h>
-#include <Engine/Logger/Logger.h>
-#include <Engine/Input/Input.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Utility/Json/JsonAdapter.h>
+#include <Engine/Core/Logger/Logger.h>
+#include <Engine/Core/Input/Input.h>
 
 // assimp
 #include <assimp/Importer.hpp>

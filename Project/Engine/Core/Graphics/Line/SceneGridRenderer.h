@@ -8,8 +8,8 @@
 #include <Engine/Core/Graphics/GPUBuffer/DxConstBuffer.h>
 #include <Engine/Core/Graphics/Render/View/RenderViewTypes.h>
 #include <Engine/Core/Graphics/Render/Texture/MultiRenderTarget.h>
-#include <Engine/MathLib/Color.h>
-#include <Engine/MathLib/Vector4.h>
+#include <Engine/Core/Math/Color.h>
+#include <Engine/Core/Math/Vector4.h>
 
 // c++
 #include <memory>

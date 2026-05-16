@@ -3,8 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Logger/Assert.h>
-#include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Logger/Assert.h>
+#include <Engine/Core/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/RuntimePaths.h>
 
 //============================================================================

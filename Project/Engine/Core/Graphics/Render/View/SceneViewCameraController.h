@@ -7,7 +7,7 @@
 #include <Engine/Core/Graphics/Render/View/RenderViewTypes.h>
 #include <Engine/Editor/Tools/Interface/IEditorTool.h>
 #include <Engine/Editor/EditorState.h>
-#include <Engine/Input/InputStructures.h>
+#include <Engine/Core/Input/InputStructures.h>
 
 namespace Engine {
 

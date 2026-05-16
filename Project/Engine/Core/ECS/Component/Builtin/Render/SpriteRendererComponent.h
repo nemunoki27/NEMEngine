@@ -6,9 +6,9 @@
 #include <Engine/Core/ECS/Component/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Graphics/DxLib/DxStructures.h>
 #include <Engine/Core/Asset/AssetTypes.h>
-#include <Engine/MathLib/Vector2.h>
-#include <Engine/MathLib/Vector4.h>
-#include <Engine/MathLib/Color.h>
+#include <Engine/Core/Math/Vector2.h>
+#include <Engine/Core/Math/Vector4.h>
+#include <Engine/Core/Math/Color.h>
 
 namespace Engine {
 

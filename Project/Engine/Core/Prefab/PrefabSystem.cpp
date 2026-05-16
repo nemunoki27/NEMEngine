@@ -8,7 +8,7 @@
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/PrefabLinkComponent.h>
 #include <Engine/Core/Scene/SceneAuthoring.h>
-#include <Engine/Utility/Json/JsonAdapter.h>
+#include <Engine/Core/Utility/Json/JsonAdapter.h>
 
 //============================================================================
 //	PrefabSystem classMethods

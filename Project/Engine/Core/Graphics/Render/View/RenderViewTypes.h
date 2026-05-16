@@ -5,8 +5,8 @@
 //============================================================================
 #include <Engine/Core/ECS/Entity/Entity.h>
 #include <Engine/Core/ECS/Component/Builtin/CameraComponent.h>
-#include <Engine/MathLib/Matrix4x4.h>
-#include <Engine/MathLib/Vector3.h>
+#include <Engine/Core/Math/Matrix4x4.h>
+#include <Engine/Core/Math/Vector3.h>
 
 namespace Engine {
 

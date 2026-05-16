@@ -5,8 +5,8 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Logger/Logger.h>
-#include <Engine/Input/Input.h>
+#include <Engine/Core/Logger/Logger.h>
+#include <Engine/Core/Input/Input.h>
 
 //============================================================================
 //	Framework classMethods

@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Asset/AssetTypes.h>
 #include <Engine/Core/Runtime/RuntimePaths.h>
 #include <Engine/Core/UUID/UUID.h>

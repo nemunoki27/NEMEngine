@@ -7,7 +7,7 @@
 #include <Engine/Core/ECS/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/Scripting/ManagedScriptRuntime.h>
 #include <Engine/Editor/Scripting/ScriptAssetDragDrop.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
 
 //============================================================================
 //	ScriptInspectorDrawer classMethods
