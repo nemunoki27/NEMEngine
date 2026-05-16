@@ -93,7 +93,7 @@ namespace {
 		{ "Audio Source",       "AudioSource" },
 		{ "Collision",          "Collision" },
 		{ "Mesh Renderer",      "MeshRenderer" },
-		{ "Skinned AnimationClip",  "SkinnedAnimation" },
+		{ "Skinned Animation",  "SkinnedAnimation" },
 		{ "Sprite Renderer",    "SpriteRenderer" },
 		{ "Text Renderer",      "TextRenderer" },
 		{ "UVTransform",      "UVTransform" },

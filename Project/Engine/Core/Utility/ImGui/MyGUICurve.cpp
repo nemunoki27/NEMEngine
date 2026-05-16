@@ -1894,6 +1894,44 @@ Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, std::span<Cur
 	return DrawCurveEditorInternal(id, channels, state, setting, nullptr);
 }
 
+Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, std::span<CurveChannelRef> channels,
+	CurveEditorState& state, const CurveEditSetting& setting) {
+
+	std::vector<CurveChannel> editChannels{};
+	std::vector<uint32_t> sourceIndices{};
+	editChannels.reserve(channels.size());
+	sourceIndices.reserve(channels.size());
+
+	for (uint32_t i = 0; i < channels.size(); ++i) {
+		if (!channels[i].channel) {
+			continue;
+		}
+
+		// CurveEditor本体は連続したCurveChannel配列を前提にしている。
+		// Trackをまたぐ編集では、ここで一度作業用配列へ写し、描画後に元のTrackへ戻す。
+		CurveChannel editChannel = *channels[i].channel;
+		if (!channels[i].displayName.empty()) {
+			editChannel.name = channels[i].displayName;
+		}
+		editChannels.emplace_back(std::move(editChannel));
+		sourceIndices.emplace_back(i);
+	}
+
+	CurveEditResult result = DrawCurveEditorInternal(id, editChannels, state, setting, nullptr);
+
+	// 表示名だけ差し替えているため、元Trackへ戻すときは元のチャンネル名を保持する。
+	for (uint32_t i = 0; i < editChannels.size(); ++i) {
+		CurveChannel* source = channels[sourceIndices[i]].channel;
+		if (!source) {
+			continue;
+		}
+		const std::string originalName = source->name;
+		*source = std::move(editChannels[i]);
+		source->name = originalName;
+	}
+	return result;
+}
+
 Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, CurveFloat& curve,
 	CurveEditorState& state, const CurveEditSetting& setting) {
 

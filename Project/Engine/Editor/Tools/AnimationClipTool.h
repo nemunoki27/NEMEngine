@@ -4,11 +4,17 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Tools/Interface/IEditorTool.h>
-#include <Engine/Core/Graphics/Render/View/SceneViewCameraController.h>
+#include <Engine/Core/Animation/AnimationClipEvaluator.h>
+#include <Engine/Core/Animation/Property/AnimationPropertyRegistry.h>
+#include <Engine/Editor/Animation/CurveEditorState.h>
+
+// c++
+#include <string>
+#include <vector>
 
 namespace Engine {
 
-	struct EntityPreviewRenderRequest;
+	struct CurveChannelRef;
 
 	//============================================================================
 	//	AnimationClipTool class
@@ -22,7 +28,7 @@ namespace Engine {
 		//========================================================================
 
 		AnimationClipTool();
-		~AnimationClipTool() = default;
+		~AnimationClipTool() override = default;
 
 		// ToolPanelの一覧からツールを開く
 		void OpenEditorTool() override;
@@ -51,24 +57,51 @@ namespace Engine {
 
 		bool openWindow_ = false;
 
-		// レンダーターゲットを表示しているImGui上の座標
-		ImVec2 imagePos_ = {};
-		// 現在プレビューしているエンティティの描画次元
-		Dimension previewDimension_ = Dimension::Type2D;
+		// 編集対象のAnimationClipアセット。
+		// Target Entityとは独立させ、Clip側にはEntity UUIDを書き込まない。
+		AssetID clipAssetID_{};
+		AssetID loadedClipAssetID_{};
+		AnimationClipAsset clip_{};
+		bool hasClip_ = false;
+		bool clipDirty_ = false;
+		std::string clipStatusText_;
+		std::string clipErrorText_;
 
-		// プレビュー用カメラの操作
-		std::unique_ptr<SceneViewCameraController> cameraController_;
+		// プレビュー適用先。HierarchyからD&Dで指定するが、Clip保存対象には含めない。
+		UUID targetEntityUUID_{};
 
-		// プレビュー用レンダーターゲットの設定
-		const Vector2I kPreviewSize_ = Vector2I(512, 288);
-		const Color4 kPreviewColor_ = Color4::FromHex(0x202f55ff);
-		const uint32_t kPreviewColorTargetCount_ = 3;
+		// 複数Trackを同じCurveEditorで見るための状態。
+		CurveEditorState curveState_{};
+		// CurveEditorに表示しているTrack。複数PropertyのCurveが重ならないよう、選択中Trackだけを表示する。
+		int selectedTrackIndex_ = -1;
+
+		// Preview再生状態。previewActive_ はScrub中もtrueになり、Stop/Closeで必ず復元する。
+		bool previewActive_ = false;
+		bool previewPlaying_ = false;
+		float previewTime_ = 0.0f;
+		float previewSpeed_ = 1.0f;
+		std::vector<AnimationPreviewBaseValue> previewBaseValues_;
 
 		//--------- functions ----------------------------------------------------
 
-		// RenderTextureへプレビューEntityを描画する
-		void RenderPreviewEntity(const EditorToolContext& context, EditorToolRenderTexture& preview);
-		// 2D,3Dのグリッド描画
-		void DrawGrid(EntityPreviewRenderRequest& request);
+		void DrawClipAssetUI(const EditorToolContext& context);
+		void DrawTargetEntityUI(const EditorToolContext& context);
+		void DrawPreviewControlUI(const EditorToolContext& context);
+		void DrawPropertyListUI(const EditorToolContext& context);
+		void DrawCurveEditorUI(const EditorToolContext& context);
+
+		void LoadClipFromSelectedAsset(const EditorToolContext& context);
+		void SaveClipToSelectedAsset(const EditorToolContext& context);
+		void AddPropertyTrack(const AnimationPropertyDescriptor& desc, ECSWorld& world, const Entity& entity);
+
+		Entity GetTargetEntity(const EditorToolContext& context) const;
+		void NormalizeSelectedTrackIndex();
+		void SyncCurveStateTime();
+		void UpdatePreviewPlayback(const EditorToolContext& context);
+		void ApplyPreviewAtCurrentTime(const EditorToolContext& context, bool keepActive);
+		void BeginPreview(const EditorToolContext& context);
+		void EndPreviewAndRestore(const EditorToolContext& context);
+		void CachePreviewBaseValues(ECSWorld& world, const Entity& entity);
+		void RestorePreviewBaseValues(ECSWorld& world, const Entity& entity);
 	};
 } // Engine

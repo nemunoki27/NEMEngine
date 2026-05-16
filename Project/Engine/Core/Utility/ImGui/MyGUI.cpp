@@ -78,6 +78,9 @@ namespace {
 		if (Engine::Algorithm::EndsWith(lower, ".pipeline.json")) {
 			return fileName.substr(0, fileName.size() - 5);
 		}
+		if (Engine::Algorithm::EndsWith(lower, ".animclip.json")) {
+			return fileName.substr(0, fileName.size() - 5);
+		}
 		if (Engine::Algorithm::EndsWith(lower, ".graph.json")) {
 			return fileName.substr(0, fileName.size() - 5);
 		}
@@ -91,6 +94,18 @@ namespace {
 			return true;
 		}
 		return std::find(acceptedTypes.begin(), acceptedTypes.end(), type) != acceptedTypes.end();
+	}
+	// 古い.metaがUnknownのまま残っている場合でも、拡張子から最低限の種類を補う。
+	Engine::AssetType GuessDroppedAssetType(const Engine::EditorAssetDragDropPayload& payload) {
+
+		const std::string assetPath = Engine::Algorithm::ToLower(payload.assetPath);
+		const std::filesystem::path path(assetPath);
+		const std::string extension = Engine::Algorithm::ToLower(path.extension().string());
+
+		if (Engine::Algorithm::EndsWith(assetPath, ".animclip.json") || extension == ".animclip") {
+			return Engine::AssetType::AnimationClip;
+		}
+		return Engine::AssetType::Unknown;
 	}
 	// ドロップされたペイロードがアセットのペイロードとして正しいかどうかを判定し、正しければペイロードを読み取る
 	bool TryReadAssetPayload(const ImGuiPayload* payload, Engine::EditorAssetDragDropPayload& outPayload) {
@@ -1196,7 +1211,22 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 			if (payload->IsDelivery()) {
 
 				EditorAssetDragDropPayload assetPayload{};
-				if (TryReadAssetPayload(payload, assetPayload) && IsAcceptedAssetType(assetPayload.assetType, acceptedTypes)) {
+				if (!TryReadAssetPayload(payload, assetPayload)) {
+					ImGui::EndDragDropTarget();
+					EndPropertyRow();
+					return result;
+				}
+
+				AssetType assetType = assetPayload.assetType;
+				if (assetType == AssetType::Unknown && assetDatabase) {
+					if (const AssetMeta* meta = assetDatabase->Find(assetPayload.assetID)) {
+						assetType = meta->type;
+					}
+				}
+				if (assetType == AssetType::Unknown) {
+					assetType = GuessDroppedAssetType(assetPayload);
+				}
+				if (IsAcceptedAssetType(assetType, acceptedTypes)) {
 					if (value != assetPayload.assetID) {
 						value = assetPayload.assetID;
 						result.valueChanged = true;

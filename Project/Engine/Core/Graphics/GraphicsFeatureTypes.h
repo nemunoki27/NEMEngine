@@ -55,7 +55,7 @@ namespace Engine {
 		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
 		bool allowContributionCulling = true;
 		// MeshShader経路でメッシュレットの法線コーン判定を行うか
-		bool allowNormalConeCulling = true;
+		bool allowNormalConeCulling = false;
 	};
 
 	// ランタイムで使用する機能

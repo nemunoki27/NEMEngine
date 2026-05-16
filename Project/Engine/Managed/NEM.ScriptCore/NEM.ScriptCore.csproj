@@ -15,4 +15,13 @@
     <Optimize>false</Optimize>
     <DefineConstants>TRACE;DEVELOP</DefineConstants>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      以前のビルドでProject配下に残ったobj/binの自動生成csをCompile対象から外す。
+      BaseIntermediateOutputPathをGeneratedへ移しているため、残骸を拾うとAssemblyInfoが二重定義になる。
+    -->
+    <Compile Remove="obj\**\*.cs" />
+    <Compile Remove="bin\**\*.cs" />
+  </ItemGroup>
 </Project>

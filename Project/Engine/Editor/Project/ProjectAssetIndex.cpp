@@ -35,6 +35,17 @@ namespace {
 		}
 		return { "Engine", "Engine/Assets", database.GetAssetsRoot() };
 	}
+
+	Engine::AssetType GuessBrowserAssetType(const std::filesystem::path& fullPath) {
+
+		const std::string fileName = Engine::Algorithm::ToLower(fullPath.filename().string());
+		const std::string extension = Engine::Algorithm::ToLower(fullPath.extension().string());
+
+		if (Engine::Algorithm::EndsWith(fileName, ".animclip.json") || extension == ".animclip") {
+			return Engine::AssetType::AnimationClip;
+		}
+		return Engine::AssetType::Unknown;
+	}
 }
 
 bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database, ProjectAssetSource source) {
@@ -79,7 +90,7 @@ bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database, ProjectAs
 		// ブラウザエントリーの作成
 		ProjectAssetEntry browserEntry{};
 		browserEntry.assetID = meta->guid;
-		browserEntry.type = meta->type;
+		browserEntry.type = meta->type == AssetType::Unknown ? GuessBrowserAssetType(fullPath) : meta->type;
 		browserEntry.assetPath = assetPath;
 		browserEntry.fileName = fullPath.filename().string();
 		browserEntry.displayName = MakeDisplayName(fullPath);
@@ -169,6 +180,9 @@ std::string Engine::ProjectAssetIndex::MakeDisplayName(const std::filesystem::pa
 		return fileName.substr(0, fileName.size() - 5);
 	}
 	if (Engine::Algorithm::EndsWith(lower, ".pipeline.json")) {
+		return fileName.substr(0, fileName.size() - 5);
+	}
+	if (Engine::Algorithm::EndsWith(lower, ".animclip.json")) {
 		return fileName.substr(0, fileName.size() - 5);
 	}
 	if (Engine::Algorithm::EndsWith(lower, ".graph.json")) {

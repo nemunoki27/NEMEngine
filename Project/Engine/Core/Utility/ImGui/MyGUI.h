@@ -109,6 +109,13 @@ namespace Engine {
 
 		bool IsUse() const { return isOver || isUsing; }
 	};
+	// 複数TrackのCurveChannelを1つのCurveEditorで編集するための参照。
+	// 元のCurveChannelはTrackごとに別vectorへ入っているため、表示時だけ連続配列へ橋渡しする。
+	struct CurveChannelRef {
+
+		CurveChannel* channel = nullptr;
+		std::string displayName;
+	};
 
 	//============================================================================
 	//	MyGUI class
@@ -162,6 +169,8 @@ namespace Engine {
 
 		// 専用ツールで使うカーブエディタ本体
 		static CurveEditResult CurveEditor(const char* id, std::span<CurveChannel> channels,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		static CurveEditResult CurveEditor(const char* id, std::span<CurveChannelRef> channels,
 			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
 		static CurveEditResult CurveEditor(const char* id, CurveFloat& curve,
 			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
