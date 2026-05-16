@@ -8,6 +8,7 @@
 #include <Engine/Core/Graphics/Pipeline/PipelineState.h>
 #include <Engine/Core/Graphics/Pipeline/PipelineStateCache.h>
 #include <Engine/Core/Graphics/Pipeline/Bind/GraphicsRootBinder.h>
+#include <Engine/Core/Graphics/Pipeline/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Graphics/Asset/RenderAssetLibrary.h>
 #include <Engine/Core/Graphics/Asset/RenderPipelineAsset.h>
 #include <Engine/Core/Graphics/DxLib/DxUtils.h>
@@ -19,13 +20,65 @@
 #include <Engine/Core/ECS/Component/Builtin/Render/MeshRendererComponent.h>
 #include <Engine/Core/ECS/World/ECSWorld.h>
 #include <Engine/Core/Asset/AssetDatabase.h>
-#include <Engine/Logger/Assert.h>
+#include <Engine/Core/Logger/Assert.h>
+
+// c++
+#include <cstdint>
 
 //============================================================================
 //	MeshRenderBackend classMethods
 //============================================================================
 
 namespace {
+
+	void MixHash(uint64_t& hash, uint64_t value) {
+
+		hash ^= value;
+		hash *= 1099511628211ull;
+	}
+
+	void MixBytes(uint64_t& hash, const void* data, size_t size) {
+
+		// 行列や色などをそのままHashへ混ぜる
+		const uint8_t* bytes = static_cast<const uint8_t*>(data);
+		for (size_t i = 0; i < size; ++i) {
+			MixHash(hash, bytes[i]);
+		}
+	}
+
+	const Engine::MeshRendererComponent* ResolveRenderer(const Engine::RenderItem* item) {
+
+		if (!item || !item->world) {
+			return nullptr;
+		}
+		return item->world->TryGetComponent<Engine::MeshRendererComponent>(item->entity);
+	}
+
+	void BindMeshCBV(ID3D12GraphicsCommandList6* commandList, const Engine::PipelineState& pipeline,
+		std::string_view name, D3D12_GPU_VIRTUAL_ADDRESS gpuAddress) {
+
+		// Variantによって存在しないBindingは無視する
+		if (gpuAddress == 0) {
+			return;
+		}
+		if (const Engine::RootBindingLocation* binding = pipeline.FindBindingByName(name, Engine::ShaderBindingKind::CBV)) {
+
+			Engine::RootBindingCommand::SetGraphicsCBV(commandList, binding, gpuAddress);
+		}
+	}
+
+	void BindMeshSRV(ID3D12GraphicsCommandList6* commandList, const Engine::PipelineState& pipeline,
+		std::string_view name, D3D12_GPU_VIRTUAL_ADDRESS gpuAddress, D3D12_GPU_DESCRIPTOR_HANDLE descriptor = {}) {
+
+		// DescriptorTable/SRV直指定のどちらでも使えるよう両方受け取る
+		if (gpuAddress == 0 && descriptor.ptr == 0) {
+			return;
+		}
+		if (const Engine::RootBindingLocation* binding = pipeline.FindBindingByName(name, Engine::ShaderBindingKind::SRV)) {
+
+			Engine::RootBindingCommand::SetGraphicsSRV(commandList, binding, gpuAddress, descriptor);
+		}
+	}
 
 	// メッシュ描画に使用するパスをマテリアルから解決する
 	bool ResolveMeshPass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterialID,
@@ -120,10 +173,13 @@ void Engine::MeshRenderBackend::BeginFrame(GraphicsCore& graphicsCore) {
 
 	// 初期化処理
 	EnsureInitialized(graphicsCore);
+	++frameIndex_;
 
 	// スキンメッシュのバッチキャッシュをクリアする
 	skinnedBatchCache_.clear();
 	skinnedSourceLookup_.clear();
+	// 静的メッシュはフレームを跨いで再利用するため、寿命切れだけを落とす
+	PruneStaticBatchCache();
 
 	resourcePool_.BeginFrame();
 	subMeshCBPool_.BeginFrame();
@@ -225,7 +281,8 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 		if (it != skinnedBatchCache_.end()) {
 
 			resources = it->second;
-			resources->UpdateView(*context.view);
+			// Viewだけは毎描画で変わるため、キャッシュヒット時も更新する
+			resources->UpdateView(*context.view, context.cullingView);
 		} else {
 
 			MeshBatchResources& acquired = resourcePool_.Acquire(graphicsCore,
@@ -233,7 +290,7 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 					resource.Init(core);
 				});
 			// ビュー行列を更新して描画に必要なデータをアップロードする
-			acquired.UpdateView(*context.view);
+			acquired.UpdateView(*context.view, context.cullingView);
 			acquired.UploadBatchData(context, *context.batch, outPrepared.items, *outPrepared.gpuMesh);
 
 			resources = &acquired;
@@ -243,14 +300,33 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 		}
 	} else {
 
-		MeshBatchResources& acquired = resourcePool_.Acquire(graphicsCore,
-			[](MeshBatchResources& resource, GraphicsCore& core) {
-				resource.Init(core);
-			});
-		// ビュー行列を更新して描画に必要なデータをアップロードする
-		acquired.UpdateView(*context.view);
-		acquired.UploadBatchData(context, *context.batch, outPrepared.items, *outPrepared.gpuMesh);
-		resources = &acquired;
+		// 静的メッシュはバッチ内容が同じならGPUアップロード済みデータを使い回す
+		StaticBatchCacheKey key{};
+		key.world = outPrepared.items.front()->world;
+		key.mesh = outPrepared.batchMesh;
+		key.hash = BuildStaticBatchHash(context, outPrepared.items, *outPrepared.gpuMesh);
+
+		auto it = staticBatchCache_.find(key);
+		if (it != staticBatchCache_.end()) {
+
+			resources = it->second.resources.get();
+			// SceneView/GameViewで行列が変わるため、キャッシュ済みでもView定数だけ更新する
+			resources->UpdateView(*context.view, context.cullingView);
+			it->second.lastUsedFrame = frameIndex_;
+		} else {
+
+			StaticBatchCacheEntry entry{};
+			entry.resources = std::make_unique<MeshBatchResources>();
+			entry.resources->Init(graphicsCore);
+			entry.resources->UpdateView(*context.view, context.cullingView);
+			entry.resources->UploadBatchData(context, *context.batch, outPrepared.items, *outPrepared.gpuMesh);
+			entry.lastUsedFrame = frameIndex_;
+			// ErrorTexture使用中のバッチは、本テクスチャ読込後に作り直せるよう永続化しない
+			entry.persistent = !entry.resources->UsesFallbackTexture();
+
+			resources = entry.resources.get();
+			staticBatchCache_.emplace(key, std::move(entry));
+		}
 	}
 
 	// インスタンス数を設定
@@ -288,10 +364,11 @@ bool Engine::MeshRenderBackend::PrepareBatch(const RenderDrawContext& context,
 		return false;
 	}
 
-	// GPUランタイム機能を取得
-	const auto& runtimeFeatures = context.graphicsCore->GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	// ランタイムの機能情報に応じたパイプラインバリアントを取得
-	outPrepared.variant = ResolveBestVariant(*pipelineAsset, resolvedPass.pass->preferredVariant, runtimeFeatures);
+	const PipelineVariantKind desiredKind = context.forceVertexMeshVariant ?
+		PipelineVariantKind::GraphicsVertex :
+		resolvedPass.pass->preferredVariant;
+	outPrepared.variant = ResolveBestVariant(*pipelineAsset, desiredKind, context.runtimeFeatures);
 
 	// パイプライン取得
 	outPrepared.pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass);
@@ -303,52 +380,54 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 
 	// バッファバインディングの準備
 	BackendDrawCommon::PrepareGraphicsBindItemsScratch(
-		*context.bufferRegistry, 11, 0, bindScratch_);
+		*context.bufferRegistry, 0, 0, bindScratch_);
 	// 登録されている共通バッファをバインドに追加
 	BackendDrawCommon::AppendGraphicsBufferBindings(*context.bufferRegistry,
 		*prepared.pipelineState, bindScratch_);
-	// ViewConstants
-	BackendDrawCommon::AppendGraphicsCBV(*prepared.pipelineState, prepared.resources->GetViewBindingName(),
-		prepared.resources->GetViewGPUAddress(context.view->kind), bindScratch_);
-	// DrawConstants
-	BackendDrawCommon::AppendGraphicsCBV(*prepared.pipelineState,
-		prepared.resources->GetDrawBindingName(),
-		prepared.resources->GetDrawGPUAddress(), bindScratch_);
-	// VertexBuffer
-	BackendDrawCommon::AppendGraphicsSRV(*prepared.pipelineState, "gVertices",
-		prepared.gpuMesh->vertexSRV.buffer->GetResource()->GetGPUVirtualAddress(),
-		prepared.gpuMesh->vertexSRV.srvGPUHandle, bindScratch_);
-	BackendDrawCommon::AppendGraphicsSRV(*prepared.pipelineState, "gVertexSubMeshIndices",
+
+	// 共通バッファは既存のレジストリ経由でまとめてバインドする
+	if (!bindScratch_.empty()) {
+
+		GraphicsRootBinder binder{ *prepared.pipelineState };
+		binder.Bind(commandList, bindScratch_);
+	}
+
+	// Mesh 固有のバインドは直接セットして、毎バッチの一時配列構築を抑える
+	BindMeshCBV(commandList, *prepared.pipelineState, prepared.resources->GetViewBindingName(),
+		prepared.resources->GetViewGPUAddress(context.view->kind));
+	BindMeshCBV(commandList, *prepared.pipelineState, prepared.resources->GetDrawBindingName(),
+		prepared.resources->GetDrawGPUAddress());
+	BindMeshSRV(commandList, *prepared.pipelineState, "gPackedVertices",
+		prepared.gpuMesh->packedVertexSRV.buffer->GetResource()->GetGPUVirtualAddress(),
+		prepared.gpuMesh->packedVertexSRV.srvGPUHandle);
+	BindMeshSRV(commandList, *prepared.pipelineState, "gVertexSubMeshIndices",
 		prepared.gpuMesh->vertexSubMeshIndexSRV.buffer->GetResource()->GetGPUVirtualAddress(),
-		prepared.gpuMesh->vertexSubMeshIndexSRV.srvGPUHandle, bindScratch_);
+		prepared.gpuMesh->vertexSubMeshIndexSRV.srvGPUHandle);
+
 	// SkinnedVertexBuffer
+	// デフォルトは元メッシュ頂点。スキニング済みなら更新後バッファへ差し替える
 	D3D12_GPU_VIRTUAL_ADDRESS skinnedVBAddress = prepared.gpuMesh->vertexSRV.buffer->GetResource()->GetGPUVirtualAddress();
 	D3D12_GPU_DESCRIPTOR_HANDLE skinnedVBHandle = prepared.gpuMesh->vertexSRV.srvGPUHandle;
+	D3D12_GPU_VIRTUAL_ADDRESS skinnedPackedVBAddress = prepared.gpuMesh->packedVertexSRV.buffer->GetResource()->GetGPUVirtualAddress();
+	D3D12_GPU_DESCRIPTOR_HANDLE skinnedPackedVBHandle = prepared.gpuMesh->packedVertexSRV.srvGPUHandle;
 	if (prepared.resources->HasSkinningResources()) {
 
 		skinnedVBAddress = prepared.resources->GetSkinnedVerticesGPUAddress();
 		skinnedVBHandle = prepared.resources->GetSkinnedVerticesSRVHandle();
+		skinnedPackedVBAddress = prepared.resources->GetSkinnedPackedVerticesGPUAddress();
+		skinnedPackedVBHandle = prepared.resources->GetSkinnedPackedVerticesSRVHandle();
 	}
-	BackendDrawCommon::AppendGraphicsSRV(*prepared.pipelineState,
-		prepared.resources->GetSkinnedVerticesBindingName(),
-		skinnedVBAddress, skinnedVBHandle, bindScratch_);
-	// MeshInstances
-	BackendDrawCommon::AppendGraphicsSRV(*prepared.pipelineState,
-		prepared.resources->GetInstanceMeshBindingName(), prepared.resources->GetInstanceMeshGPUAddress(),
-		{}, bindScratch_);
-	// PSInstances
-	BackendDrawCommon::AppendGraphicsSRV(*prepared.pipelineState,
-		prepared.resources->GetInstancePSBindingName(), prepared.resources->GetInstancePSGPUAddress(),
-		{}, bindScratch_);
-	// SubMeshShaderData
-	BackendDrawCommon::AppendGraphicsSRV(*prepared.pipelineState,
-		prepared.resources->GetSubMeshBindingName(),
-		prepared.resources->GetSubMeshGPUAddress(),
-		{}, bindScratch_);
-
-	// バインド
-	GraphicsRootBinder binder{ *prepared.pipelineState };
-	binder.Bind(commandList, bindScratch_);
+	BindMeshSRV(commandList, *prepared.pipelineState, prepared.resources->GetSkinnedVerticesBindingName(),
+		skinnedVBAddress, skinnedVBHandle);
+	// MeshShaderは圧縮頂点側も読むため、通常頂点と同じタイミングで差し替える
+	BindMeshSRV(commandList, *prepared.pipelineState, prepared.resources->GetSkinnedPackedVerticesBindingName(),
+		skinnedPackedVBAddress, skinnedPackedVBHandle);
+	BindMeshSRV(commandList, *prepared.pipelineState, prepared.resources->GetInstanceMeshBindingName(),
+		prepared.resources->GetInstanceMeshGPUAddress());
+	BindMeshSRV(commandList, *prepared.pipelineState, prepared.resources->GetInstancePSBindingName(),
+		prepared.resources->GetInstancePSGPUAddress());
+	BindMeshSRV(commandList, *prepared.pipelineState, prepared.resources->GetSubMeshBindingName(),
+		prepared.resources->GetSubMeshGPUAddress());
 }
 
 Engine::IMeshDrawPath& Engine::MeshRenderBackend::SelectDrawPath(const PipelineVariantDesc& variant) {
@@ -379,6 +458,69 @@ uint64_t Engine::MeshRenderBackend::BuildBatchHash(std::span<const RenderItem* c
 		mix(item->entity.generation);
 	}
 	return h;
+}
+
+uint64_t Engine::MeshRenderBackend::BuildStaticBatchHash(const RenderDrawContext& context,
+	std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh) const {
+
+	uint64_t h = 1469598103934665603ull;
+	// ランタイム機能が変わるとGPUへ渡す定数も変わるためHashに含める
+	MixHash(h, static_cast<uint64_t>(items.size()));
+	MixHash(h, static_cast<uint64_t>(std::hash<AssetID>{}(gpuMesh.assetID)));
+	MixHash(h, context.runtimeFeatures.useFrustumCulling ? 1ull : 0ull);
+	MixHash(h, context.runtimeFeatures.useContributionCulling ? 1ull : 0ull);
+	MixHash(h, context.runtimeFeatures.useNormalConeCulling ? 1ull : 0ull);
+	MixHash(h, context.runtimeFeatures.useMeshShader ? 1ull : 0ull);
+	MixHash(h, context.forceVertexMeshVariant ? 1ull : 0ull);
+	MixHash(h, context.cullingView && context.cullingView->valid ? 1ull : 0ull);
+
+	for (const RenderItem* item : items) {
+		if (!item) {
+			continue;
+		}
+
+		MixHash(h, item->entity.index);
+		MixHash(h, item->entity.generation);
+		MixHash(h, static_cast<uint64_t>(std::hash<AssetID>{}(item->material)));
+		MixHash(h, static_cast<uint64_t>(item->blendMode));
+		// Transformが変わるとInstanceDataが変わる
+		MixBytes(h, &item->worldMatrix, sizeof(item->worldMatrix));
+
+		const MeshRendererComponent* renderer = ResolveRenderer(item);
+		if (!renderer) {
+			continue;
+		}
+
+		MixHash(h, static_cast<uint64_t>(renderer->subMeshes.size()));
+		for (const MeshSubMeshTextureOverride& subMesh : renderer->subMeshes) {
+
+			// サブメッシュ編集情報もGPUへ渡すため、静的キャッシュのキーへ含める
+			MixBytes(h, &subMesh.stableID, sizeof(subMesh.stableID));
+			MixHash(h, subMesh.sourceSubMeshIndex);
+			MixHash(h, static_cast<uint64_t>(std::hash<AssetID>{}(subMesh.baseColorTexture)));
+			MixBytes(h, &subMesh.color, sizeof(subMesh.color));
+			MixBytes(h, &subMesh.uvMatrix, sizeof(subMesh.uvMatrix));
+			MixBytes(h, &subMesh.localPos, sizeof(subMesh.localPos));
+			MixBytes(h, &subMesh.localRotation, sizeof(subMesh.localRotation));
+			MixBytes(h, &subMesh.localScale, sizeof(subMesh.localScale));
+		}
+	}
+	return h;
+}
+
+void Engine::MeshRenderBackend::PruneStaticBatchCache() {
+
+	static constexpr uint64_t kKeepFrameCount = 180;
+	for (auto it = staticBatchCache_.begin(); it != staticBatchCache_.end();) {
+
+		// 使われなくなったバッチやFallbackTexture中のバッチを破棄する
+		const bool expired = frameIndex_ > it->second.lastUsedFrame + kKeepFrameCount;
+		if (!it->second.persistent || expired) {
+			it = staticBatchCache_.erase(it);
+		} else {
+			++it;
+		}
+	}
 }
 
 void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& context, const MeshPreparedBatch& prepared) {
@@ -413,13 +555,17 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 	// スキニングパイプラインの取得
 	const PipelineState* pipelineState = context.pipelineCache->GetORCreate(graphicsCore.GetDXObject(),
 		*context.assetLibrary, skinningPipeline_, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN);
+	if (!pipelineState) {
+		return;
+	}
 
 	DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
 
 	// スキニング結果の出力先リソースを取得
 	ID3D12Resource* output = prepared.resources->GetSkinnedVerticesResource();
-	if (!output) {
+	ID3D12Resource* packedOutput = prepared.resources->GetSkinnedPackedVerticesResource();
+	if (!output || !packedOutput) {
 		return;
 	}
 
@@ -427,6 +573,9 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 	dxCommand->TransitionBarriers({ output }, prepared.resources->GetSkinnedVertexState(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	prepared.resources->SetSkinnedVertexState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	dxCommand->TransitionBarriers({ packedOutput }, prepared.resources->GetSkinnedPackedVertexState(),
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	prepared.resources->SetSkinnedPackedVertexState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
 
@@ -436,7 +585,7 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 
 	// バッファバインド
 	computeBindScratch_.clear();
-	computeBindScratch_.reserve(5);
+	computeBindScratch_.reserve(6);
 	computeBindScratch_.push_back({
 		prepared.resources->GetSkinningConstantsBindingName(),
 		ComputeBindValueType::CBV,
@@ -466,25 +615,35 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 		prepared.resources->GetSkinnedVerticesGPUAddress(),
 		prepared.resources->GetSkinnedVerticesUAVHandle()
 		});
+	computeBindScratch_.push_back({
+		prepared.resources->GetSkinnedPackedVerticesBindingName(),
+		ComputeBindValueType::UAV,
+		prepared.resources->GetSkinnedPackedVerticesGPUAddress(),
+		prepared.resources->GetSkinnedPackedVerticesUAVHandle()
+		});
 	// バインド
 	ComputeRootBinder binder{ *pipelineState };
 	binder.Bind(commandList, computeBindScratch_);
 
 	// スキニング処理をディスパッチ
+	// Xは頂点数、Yはスキニング対象インスタンス数
 	commandList->Dispatch(DxUtils::RoundUp(prepared.gpuMesh->vertexCount, 256),
 		prepared.resources->GetSkinnedInstanceCount(), 1);
 
 	// UAVバリアを挿入して、スキニング結果の書き込み完了を保証する
 	dxCommand->UAVBarrier(output);
+	dxCommand->UAVBarrier(packedOutput);
 
 	D3D12_RESOURCE_STATES readState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
 	// スキニング結果をシェーダーリソースとして使用できるように遷移
 	dxCommand->TransitionBarriers({ output }, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, readState);
+	dxCommand->TransitionBarriers({ packedOutput }, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, readState);
 
 	// スキニング結果のリソース状態を更新して、スキニング処理をディスパッチしたことをセットする
 	prepared.resources->SetSkinnedVertexState(readState);
+	prepared.resources->SetSkinnedPackedVertexState(readState);
 	prepared.resources->SetSkinningDispatched(true);
 }
 

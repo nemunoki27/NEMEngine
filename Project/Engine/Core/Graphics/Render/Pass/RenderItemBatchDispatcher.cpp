@@ -20,8 +20,11 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	RenderDrawContext drawContext{};
 	drawContext.graphicsCore = &graphicsCore;
 	drawContext.view = sceneContext.view;
+	// SceneView描画時でもGameViewカメラでカリングできるように別ポインタで渡す
+	drawContext.cullingView = sceneContext.cullingView;
 	drawContext.systemContext = sceneContext.systemContext;
 	drawContext.batch = &renderBatch;
+	// View共通リソースを各Backendへ渡す
 	drawContext.bufferRegistry = &sceneContext.bufferRegistry;
 	drawContext.assetDatabase = sceneContext.assetDatabase;
 	drawContext.assetLibrary = &assetLibrary;
@@ -29,6 +32,15 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	drawContext.materialResolver = &materialResolver;
 	drawContext.passName = passName;
 	drawContext.depthOnly = depthOnly;
+	drawContext.forceVertexMeshVariant = sceneContext.forceVertexMeshVariant;
+
+	// プレビューではTLASを作らないため、RayQueryを要求するVariantだけ外して解決する。
+	drawContext.runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
+	if (sceneContext.disableInlineRayTracing) {
+
+		drawContext.runtimeFeatures.useInlineRayTracing = false;
+		drawContext.runtimeFeatures.useDispatchRays = false;
+	}
 
 	drawContext.rtvFormats.fill(DXGI_FORMAT_UNKNOWN);
 	drawContext.numRTVFormats = 0;
@@ -41,9 +53,6 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 		FillColorFormats(surface, drawContext.rtvFormats, drawContext.numRTVFormats);
 		drawContext.dsvFormat = GatherDepthFormat(surface);
 	}
-
-	// GPUのランタイム機能を取得
-	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 
 	size_t begin = 0;
 	while (begin < items.size()) {
@@ -68,7 +77,7 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 			}
 
 			if (next->backendID != first->backendID ||
-				!backend->CanBatch(*first, *next, runtimeFeatures)) {
+				!backend->CanBatch(*first, *next, drawContext.runtimeFeatures)) {
 				break;
 			}
 			++end;

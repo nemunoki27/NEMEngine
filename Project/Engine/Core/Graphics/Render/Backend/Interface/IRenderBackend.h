@@ -31,14 +31,23 @@ namespace Engine {
 	struct RenderDrawContext {
 
 		GraphicsCore* graphicsCore = nullptr;
+		// 実際に描画するビュー
 		const ResolvedRenderView* view = nullptr;
+		// カリング判定に使用するビュー。SceneViewでもGameViewを指す場合がある
+		const ResolvedRenderView* cullingView = nullptr;
 		const SystemContext* systemContext = nullptr;
 		const RenderSceneBatch* batch = nullptr;
+		// ライトなど、描画パス共通で使うGPUバッファの参照先
 		const RenderBufferRegistry* bufferRegistry = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
 		RenderAssetLibrary* assetLibrary = nullptr;
 		PipelineStateCache* pipelineCache = nullptr;
 		MaterialResolver* materialResolver = nullptr;
+
+		// この描画で使用するGPU機能。プレビューでは一部機能を落としてVariantを選ぶ。
+		GraphicsRuntimeFeatures runtimeFeatures{};
+		// ツールプレビューではMeshShader/RayQueryを避け、Vertex版のGraphics Variantを優先する。
+		bool forceVertexMeshVariant = false;
 
 		// 現在バインド中の描画先フォーマット
 		std::array<DXGI_FORMAT, 8> rtvFormats{};

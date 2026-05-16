@@ -90,7 +90,7 @@ function NEM_AddEngineRuntimeLinkSettings()
     NEM_AddEngineIncludeSettings()
 
     local scriptCoreProject = path.join(NEM_PROJECT_ROOT, "Engine/Managed/NEM.ScriptCore/NEM.ScriptCore.csproj")
-    local scriptCoreOutput = path.join(NEM_PROJECT_ROOT, "Engine/Library/Managed")
+    local scriptCoreOutput = path.join(NEM_ENGINE_GENERATED_ROOT, "Managed/NEM.ScriptCore")
 
     links {
         "NEMEngine",
@@ -130,6 +130,8 @@ function NEM_MakeProjectSourcePatterns(projectRoot)
         path.join(projectRoot, "**.c"),
         path.join(projectRoot, "**.cs"),
         path.join(projectRoot, "**.csproj"),
+        path.join(projectRoot, "**.props"),
+        path.join(projectRoot, "**.targets"),
         path.join(projectRoot, "**.natvis"),
     }
 end
@@ -170,6 +172,12 @@ function NEM_AddProjectFiles(projectRoot, assetRoot, assetVpathName, includeShad
         path.join(assetRoot, "**.*"),
     }
     vpaths(projectVpaths)
+
+    removefiles {
+        path.join(projectRoot, "**/bin/**"),
+        path.join(projectRoot, "**/obj/**"),
+        path.join(projectRoot, "Library/**"),
+    }
 end
 
 function NEM_AddEngineProjectFiles()

@@ -5,7 +5,7 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Utility/Algorithm/Algorithm.h>
 
 //============================================================================
 //	DxShaderCompiler classMethods

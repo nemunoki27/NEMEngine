@@ -7,7 +7,7 @@
 #include <Engine/Core/ECS/Entity/EntityChunk.h>
 
 // c++
-#include <unordered_map>
+#include <array>
 
 namespace Engine {
 
@@ -37,7 +37,7 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// typeIDのコンポーネントを持っているか
-		bool Has(uint32_t typeID) const { return typeToColumn_.find(typeID) != typeToColumn_.end(); }
+		bool Has(uint32_t typeID) const;
 		// typeIDの列番号を返す
 		uint32_t GetColumnIndex(uint32_t typeID) const;
 		// chunkIndex番目のチャンクのrow番目のエンティティのtypeIDのコンポーネントデータへのポインタを返す
@@ -63,8 +63,10 @@ namespace Engine {
 		// Archetypeが持つコンポーネント種類のIDの配列
 		std::vector<uint32_t> types_;
 
-		// Archetypeが持つコンポーネント種類IDから、EntityChunk内の列番号へのマップ
-		std::unordered_map<uint32_t, uint32_t> typeToColumn_;
+		static constexpr uint32_t kInvalidColumnIndex = UINT32_MAX;
+
+		// Archetypeが持つコンポーネント種類IDから、EntityChunk内の列番号へのテーブル
+		std::array<uint32_t, kMaxComponentTypes> typeToColumn_;
 		// 同じArchetypeのエンティティをまとめて保持するEntityChunkの配列
 		std::vector<std::unique_ptr<EntityChunk>> chunks_;
 		// 次に空きが見つかりやすいチャンク番号

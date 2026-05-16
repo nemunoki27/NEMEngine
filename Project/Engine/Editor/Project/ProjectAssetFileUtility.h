@@ -24,6 +24,7 @@ namespace Engine {
 		Scene,
 		Prefab,
 		Material,
+		AnimationClip,
 		Shader,
 		RenderPipeline,
 	};
@@ -58,12 +59,18 @@ namespace Engine {
 		static const char* GetCreateMenuLabel(ProjectAssetFileKind kind);
 		// 新規作成時のデフォルト名を取得する
 		static const char* GetDefaultName(ProjectAssetFileKind kind);
+		// リネーム入力で編集できるファイル名部分を取得する
+		static std::string GetEditableAssetName(const ProjectAssetEntry& asset);
+		// リネーム時に保護するファイル名サフィックスを取得する
+		static std::string GetProtectedAssetSuffix(const ProjectAssetEntry& asset);
 
 		// 指定ディレクトリにアセットまたはフォルダを作成する
 		static ProjectAssetFileResult Create(ProjectAssetSource source,
 			const std::string& directoryVirtualPath, ProjectAssetFileKind kind, const std::string& requestedName);
 		// 指定アセットを同じディレクトリに複製する
 		static ProjectAssetFileResult DuplicateAsset(const ProjectAssetEntry& asset);
+		// 指定アセットの保護サフィックスより前の名前を変更する
+		static ProjectAssetFileResult RenameAsset(const ProjectAssetEntry& asset, const std::string& requestedName);
 		// 指定ディレクトリを同じ階層に複製する
 		static ProjectAssetFileResult DuplicateDirectory(ProjectAssetSource source, const std::string& directoryVirtualPath);
 		// 指定アセットを削除する

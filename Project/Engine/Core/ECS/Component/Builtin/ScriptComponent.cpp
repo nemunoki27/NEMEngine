@@ -16,6 +16,9 @@ void Engine::from_json(const nlohmann::json& in, ScriptEntry& entry) {
 
 	// ランタイムのハンドルはシリアライズされないため、初期化しておく
 	entry.handle = BehaviorHandle::Null();
+	entry.resolvedType.clear();
+	entry.resolvedTypeID = 0;
+	entry.resolvedTypeValid = false;
 }
 
 void Engine::to_json(nlohmann::json& out, const ScriptEntry& entry) {

@@ -4,8 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Command/EditorCommandContext.h>
-#include <Engine/Utility/Command/ICommand.h>
-#include <Engine/Utility/Command/CommandHistory.h>
+#include <Engine/Core/Utility/Command/ICommand.h>
+#include <Engine/Core/Utility/Command/CommandHistory.h>
 
 namespace Engine {
 

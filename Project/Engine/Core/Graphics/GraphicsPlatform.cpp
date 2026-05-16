@@ -5,7 +5,7 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Logger/Assert.h>
+#include <Engine/Core/Logger/Assert.h>
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")

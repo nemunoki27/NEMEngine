@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/External/ImGuiManager.h>
+#include <Engine/Editor/ImGui/ImGuiManager.h>
 #include <Engine/Editor/EditorContext.h>
 #include <Engine/Editor/EditorState.h>
 #include <Engine/Editor/Command/Interface/IEditorCommand.h>
@@ -67,7 +67,8 @@ namespace Engine {
 		// フレーム開始前、終了後の処理
 		void BeginFrame(GraphicsCore& graphicsCore, const EditorContext& context);
 		void EndFrame(GraphicsCore& graphicsCore, const EditorContext& context,
-			const ViewportRenderService* viewportRenderService, const ResolvedRenderView* sceneRenderView);
+			const ViewportRenderService* viewportRenderService, const ResolvedRenderView* sceneRenderView,
+			RenderPipelineRunner* renderPipeline);
 
 		// 終了処理
 		void Finalize();
@@ -104,6 +105,8 @@ namespace Engine {
 		// シーンビューのメッシュピック処理
 		void ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			const EditorContext& context, const RenderPipelineRunner& renderPipeline);
+		// SceneView描画前に選択エンティティのデバッグラインを積む
+		void DrawSceneDebugObjects(const EditorContext& context);
 
 		//--------- accessor -----------------------------------------------------
 

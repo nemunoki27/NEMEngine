@@ -7,8 +7,8 @@
 #include <Engine/Core/ECS/World/ECSWorld.h>
 #include <Engine/Core/Graphics/Render/View/RenderViewTypes.h>
 #include <Engine/Core/UUID/UUID.h>
-#include <Engine/MathLib/Vector3.h>
-#include <Engine/MathLib/Color.h>
+#include <Engine/Core/Math/Vector3.h>
+#include <Engine/Core/Math/Color.h>
 
 // c++
 #include <vector>

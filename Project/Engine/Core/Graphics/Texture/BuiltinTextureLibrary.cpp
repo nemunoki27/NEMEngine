@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Graphics/Texture/TextureUploadService.h>
-#include <Engine/Logger/Assert.h>
+#include <Engine/Core/Logger/Assert.h>
 
 //============================================================================
 //	BuiltinTextureLibrary classMethods

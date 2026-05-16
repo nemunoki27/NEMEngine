@@ -3,12 +3,12 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Input/Input.h>
-#include <Engine/MathLib/Math.h>
-#include <Engine/MathLib/Matrix4x4.h>
-#include <Engine/MathLib/Vector3.h>
+#include <Engine/Core/Input/Input.h>
+#include <Engine/Core/Math/Math.h>
+#include <Engine/Core/Math/Matrix4x4.h>
+#include <Engine/Core/Math/Vector3.h>
 #include <Engine/Core/Runtime/RuntimePaths.h>
-#include <Engine/Utility/Json/JsonAdapter.h>
+#include <Engine/Core/Utility/Json/JsonAdapter.h>
 
 //============================================================================
 //	SceneViewCameraController classMethods
@@ -28,6 +28,9 @@ namespace {
 Engine::SceneViewCameraController::SceneViewCameraController() {
 
 	MakeDefaultState();
+	// jsonから元のカメラ復元
+	MakeFromJson(RuntimePaths::GetEngineAssetPath(kCameraJsonPath).string());
+	savePath_ = RuntimePaths::GetEngineAssetPath(kCameraJsonPath).string();
 }
 
 Engine::SceneViewCameraController::~SceneViewCameraController() {
@@ -48,7 +51,7 @@ Engine::SceneViewCameraController::~SceneViewCameraController() {
 		data["perspectiveCullingMask"] = cameraState_.perspectiveCullingMask;
 	}
 
-	JsonAdapter::Save(RuntimePaths::GetEngineAssetPath(kCameraJsonPath).string(), data);
+	JsonAdapter::Save(savePath_, data);
 }
 
 void Engine::SceneViewCameraController::MakeDefaultState() {
@@ -66,14 +69,17 @@ void Engine::SceneViewCameraController::MakeDefaultState() {
 	cameraState_.enablePerspective = true;
 	cameraState_.perspectiveFovY = Math::RadToDeg(0.54f);
 	cameraState_.perspectiveNearClip = 0.1f;
-	cameraState_.perspectiveFarClip = 4000.0f;
+	cameraState_.perspectiveFarClip = 8000.0f;
 	cameraState_.perspectiveCullingMask = -1;
+}
+
+void Engine::SceneViewCameraController::MakeFromJson(const std::string& filePath) {
 
 	// 保存したカメラデータがあれば読みこんで設定する
-	if (!JsonAdapter::Check(RuntimePaths::GetEngineAssetPath(kCameraJsonPath).string())) {
+	if (!JsonAdapter::Check(filePath)) {
 		return;
 	}
-	nlohmann::json data = JsonAdapter::Load(RuntimePaths::GetEngineAssetPath(kCameraJsonPath).string());
+	nlohmann::json data = JsonAdapter::Load(filePath);
 
 	// 2D(今は未使用)
 	{
@@ -89,10 +95,10 @@ void Engine::SceneViewCameraController::MakeDefaultState() {
 	}
 }
 
-void Engine::SceneViewCameraController::Update(Dimension dimension) {
+void Engine::SceneViewCameraController::Update(Dimension dimension, InputViewArea viewArea) {
 
 	// カメラの状態を更新できない場合は処理しない
-	if (!CanUpdate()) {
+	if (!CanUpdate(viewArea)) {
 		return;
 	}
 
@@ -111,7 +117,7 @@ void Engine::SceneViewCameraController::Update(Dimension dimension) {
 #endif
 }
 
-bool Engine::SceneViewCameraController::CanUpdate() {
+bool Engine::SceneViewCameraController::CanUpdate(InputViewArea viewArea) {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
 	Input* input = Input::GetInstance();
@@ -119,10 +125,10 @@ bool Engine::SceneViewCameraController::CanUpdate() {
 		return false;
 	}
 	// シーンビュー内でマウスが操作されているか
-	if (!input->HasViewRect(InputViewArea::Scene)) {
+	if (!input->HasViewRect(viewArea)) {
 		return false;
 	}
-	if (!input->IsMouseOnView(InputViewArea::Scene)) {
+	if (!input->IsMouseOnView(viewArea)) {
 		return false;
 	}
 	return true;

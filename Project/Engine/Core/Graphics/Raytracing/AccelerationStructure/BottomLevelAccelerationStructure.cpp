@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Logger/Assert.h>
+#include <Engine/Core/Logger/Assert.h>
 
 //============================================================================
 //	BottomLevelAccelerationStructure classMethods
@@ -30,8 +30,9 @@ void Engine::BottomLevelAccelerationStructure::FillGeometryDesc(const Raytracing
 		static_cast<UINT>(mesh.vertexCount);
 
 	// インデックスGPUアドレスはサブメッシュ範囲まで
+	// IBVが16bit化されている場合もあるため、Indexサイズを見てオフセットする
 	D3D12_GPU_VIRTUAL_ADDRESS indexBaseAddress = mesh.indexBuffer.GetResource()->GetGPUVirtualAddress() +
-		sizeof(uint32_t) * static_cast<uint64_t>(input.indexOffset);
+		mesh.indexBuffer.GetIndexSizeInBytes() * static_cast<uint64_t>(input.indexOffset);
 
 	// ジオメトリ記述の設定
 	geometryDesc_ = {};
@@ -44,7 +45,8 @@ void Engine::BottomLevelAccelerationStructure::FillGeometryDesc(const Raytracing
 	geometryDesc_.Triangles.VertexBuffer.StartAddress = vertexBaseAddress;
 	geometryDesc_.Triangles.VertexBuffer.StrideInBytes = sizeof(MeshVertex);
 	// インデックス
-	geometryDesc_.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+	// BLAS側にもIBVと同じFormatを渡す
+	geometryDesc_.Triangles.IndexFormat = mesh.indexBuffer.GetFormat();
 	geometryDesc_.Triangles.IndexCount = static_cast<UINT>(input.indexCount);
 	geometryDesc_.Triangles.IndexBuffer = indexBaseAddress;
 }

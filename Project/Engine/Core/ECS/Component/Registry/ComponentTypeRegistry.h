@@ -6,7 +6,7 @@
 #include <Engine/Core/ECS/Component/Type/ComponentType.h>
 #include <Engine/Core/ECS/Config/ECSConfig.h>
 #include <Engine/Core/UUID/TypeHash.h>
-#include <Engine/Logger/Assert.h>
+#include <Engine/Core/Logger/Assert.h>
 
 // c++
 #include <string>
@@ -105,8 +105,11 @@ namespace Engine {
 	template <typename T>
 	inline uint32_t ComponentTypeRegistry::GetID() const {
 
-		auto it = typeKeyToID_.find(EntityToTypeHash(typeid(T).name()));
-		Assert::Call(it != typeKeyToID_.end(), "ComponentTypeRegistry::Register<T>() を先に呼んでください");
-		return it->second;
+		static const uint32_t cachedID = [&]() {
+			auto it = typeKeyToID_.find(EntityToTypeHash(typeid(T).name()));
+			Assert::Call(it != typeKeyToID_.end(), "ComponentTypeRegistry::Register<T>() を先に呼んでください");
+			return it->second;
+			}();
+		return cachedID;
 	}
 } // Engine

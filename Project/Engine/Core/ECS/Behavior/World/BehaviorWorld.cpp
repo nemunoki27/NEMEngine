@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/Core/ECS/Behavior/Registry/BehaviorTypeRegistry.h>
 
+// c++
+#include <algorithm>
+
 //============================================================================
 //	BehaviorWorld classMethods
 //============================================================================
@@ -27,6 +30,7 @@ Engine::BehaviorHandle Engine::BehaviorWorld::Create(uint32_t typeID, const Enti
 
 	// ハンドルの世代をレコードの世代と合わせる
 	handle.generation = record.generation;
+	ownerToRecords_[MakeOwnerKey(owner)].emplace_back(handle.index);
 
 	// ビヘイビアの実体を生成する
 	const BehaviorTypeInfo& info = BehaviorTypeRegistry::GetInstance().GetInfo(typeID);
@@ -51,6 +55,7 @@ void Engine::BehaviorWorld::DestroyAll(ECSWorld& world, const SystemContext& con
 			DestroyIndex(i, world, context);
 		}
 	}
+	ownerToRecords_.clear();
 }
 
 void Engine::BehaviorWorld::ClearSeenFlags() {
@@ -127,6 +132,11 @@ uint32_t Engine::BehaviorWorld::AllocateIndex() {
 	return GetRecordCount() - 1;
 }
 
+uint64_t Engine::BehaviorWorld::MakeOwnerKey(const Entity& owner) {
+
+	return (static_cast<uint64_t>(owner.generation) << 32) | owner.index;
+}
+
 void Engine::BehaviorWorld::DestroyIndex(uint32_t index, ECSWorld& world, const SystemContext& context) {
 
 	// インデックスが有効か確認する
@@ -138,6 +148,8 @@ void Engine::BehaviorWorld::DestroyIndex(uint32_t index, ECSWorld& world, const 
 	if (!record.alive) {
 		return;
 	}
+
+	const Entity owner = record.owner;
 
 	// ビヘイビアの状態に応じて適切な関数を呼び出す
 	if (record.instance) {
@@ -159,4 +171,13 @@ void Engine::BehaviorWorld::DestroyIndex(uint32_t index, ECSWorld& world, const 
 	// 世代をインクリメントして古いハンドルを無効にする
 	++record.generation;
 	free_.emplace_back(index);
+
+	auto ownerIt = ownerToRecords_.find(MakeOwnerKey(owner));
+	if (ownerIt != ownerToRecords_.end()) {
+		auto& indices = ownerIt->second;
+		indices.erase(std::remove(indices.begin(), indices.end(), index), indices.end());
+		if (indices.empty()) {
+			ownerToRecords_.erase(ownerIt);
+		}
+	}
 }

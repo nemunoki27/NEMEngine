@@ -8,7 +8,7 @@
 #include <Engine/Core/Asset/AssetDatabase.h>
 #include <Engine/Core/ECS/World/ECSWorld.h>
 #include <Engine/Core/ECS/Entity/Entity.h>
-#include <Engine/Utility/Json/JsonAdapter.h>
+#include <Engine/Core/Utility/Json/JsonAdapter.h>
 
 namespace Engine {
 

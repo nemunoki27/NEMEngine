@@ -16,7 +16,8 @@
 #include <Engine/Editor/Command/Methods/DeleteEntityCommand.h>
 #include <Engine/Editor/Command/Methods/DuplicateEntityCommand.h>
 #include <Engine/Editor/Command/Methods/PasteEntityTreeCommand.h>
-#include <Engine/Input/Input.h>
+#include <Engine/Editor/Inspector/Methods/Common/InspectorDrawerCommon.h>
+#include <Engine/Core/Input/Input.h>
 
 // パネル群
 #include <Engine/Editor/Panel/Methods/MenuBarPanel.h>
@@ -441,6 +442,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	panelContext.layoutState = &layoutState_;
 	panelContext.host = this;
 	panelContext.viewportRenderService = nullptr;
+	panelContext.graphicsCore = &graphicsCore;
 	panelContext.graphicsPlatform = &graphicsCore.GetDXObject();
 
 	// グローバルショートカットの処理
@@ -449,8 +451,25 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	DrawUnsavedScenePopup();
 }
 
+void Engine::EditorManager::DrawSceneDebugObjects(const EditorContext& context) {
+
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	if (!initialized_ || !layoutState_.showSceneView || !context.activeWorld) {
+		return;
+	}
+	if (!editorState_.HasValidSelection(context.activeWorld)) {
+		return;
+	}
+
+	InspectorDrawerCommon::DrawEntityDebugObject(*context.activeWorld, editorState_.selectedEntity);
+#else
+	(void)context;
+#endif
+}
+
 void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorContext& context,
-	const ViewportRenderService* viewportRenderService, const ResolvedRenderView* sceneRenderView) {
+	const ViewportRenderService* viewportRenderService, const ResolvedRenderView* sceneRenderView,
+	RenderPipelineRunner* renderPipeline) {
 
 	if (!initialized_) {
 		return;
@@ -463,7 +482,9 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	panelContext.layoutState = &layoutState_;
 	panelContext.host = this;
 	panelContext.viewportRenderService = viewportRenderService;
+	panelContext.graphicsCore = &graphicsCore;
 	panelContext.graphicsPlatform = &graphicsCore.GetDXObject();
+	panelContext.renderPipeline = renderPipeline;
 	panelContext.sceneRenderView = sceneRenderView;
 
 	// ドッキングスペースの描画
@@ -506,7 +527,7 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 		return;
 	}
 	// カメラの状態を更新する
-	sceneViewCameraController_->Update(editorState_.manualCameraDimension);
+	sceneViewCameraController_->Update(editorState_.manualCameraDimension, InputViewArea::Scene);
 }
 
 void Engine::EditorManager::Finalize() {

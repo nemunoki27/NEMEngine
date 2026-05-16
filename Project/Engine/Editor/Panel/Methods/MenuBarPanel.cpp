@@ -146,6 +146,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 		ImGui::Separator();
 
+		// メッシュ描画経路はGPU対応状況を見ながら切り替える
 		bool allowMeshShader = preferences.allowMeshShader;
 		ImGui::BeginDisabled(!support.SupportsMeshShaderPath());
 		if (ImGui::Checkbox("Use Mesh Shader", &allowMeshShader)) {
@@ -157,6 +158,29 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 			ImGui::TextDisabled("Mesh Shader path is unavailable on this GPU.");
 		}
 		ImGui::Text("Current Mesh Path: %s", runtime.useMeshShader ? "Mesh Shader" : "Legacy Raster Fallback");
+
+		ImGui::Separator();
+
+		// カリング系はGameView基準の結果を確認しやすいよう、Graphicsメニューから個別に切り替える
+		bool allowFrustumCulling = preferences.allowFrustumCulling;
+		if (ImGui::Checkbox("Use Frustum Culling", &allowFrustumCulling)) {
+			featureController.SetAllowFrustumCulling(allowFrustumCulling);
+		}
+		ImGui::Text("Frustum Culling: %s", runtime.useFrustumCulling ? "Enabled" : "Disabled");
+
+		bool allowContributionCulling = preferences.allowContributionCulling;
+		if (ImGui::Checkbox("Use Contribution Culling", &allowContributionCulling)) {
+			featureController.SetAllowContributionCulling(allowContributionCulling);
+		}
+		bool allowNormalConeCulling = preferences.allowNormalConeCulling;
+		// NormalConeはAS/MS内で処理するので、Vertex経路では編集できないようにする
+		ImGui::BeginDisabled(!runtime.useMeshShader);
+		if (ImGui::Checkbox("Use Normal Cone Culling", &allowNormalConeCulling)) {
+			featureController.SetAllowNormalConeCulling(allowNormalConeCulling);
+		}
+		ImGui::EndDisabled();
+		ImGui::Text("Contribution Culling: %s", runtime.useContributionCulling ? "Enabled" : "Disabled");
+		ImGui::Text("Normal Cone Culling : %s", runtime.useNormalConeCulling ? "Enabled" : "Disabled");
 
 		ImGui::Separator();
 

@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Tools/ToolRegistry.h>
-#include <Engine/Editor/Tools/IEditorTool.h>
+#include <Engine/Editor/Tools/Interface/IEditorTool.h>
 
 namespace {
 
@@ -144,7 +144,10 @@ void Engine::ToolPanel::Draw(const EditorPanelContext& context) {
 	editorToolContext.toolContext = toolContext;
 	for (ITool* tool : tools) {
 		if (auto* editorTool = dynamic_cast<IEditorTool*>(tool)) {
+
+			editorTool->BeginEditorToolFrame(editorToolContext);
 			editorTool->DrawEditorTool(editorToolContext);
+			editorTool->EndEditorToolFrame();
 		}
 	}
 }

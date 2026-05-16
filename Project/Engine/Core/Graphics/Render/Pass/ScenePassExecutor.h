@@ -92,6 +92,9 @@ namespace Engine {
 		// レンダーターゲットの適用
 		MultiRenderTarget* ApplyRenderTargets(GraphicsCore& graphicsCore,
 			const SceneExecutionContext& context, const RenderTargetSetReference& dest) const;
+		// SceneExecutionContextの描画矩形を適用する
+		void ApplyViewport(GraphicsCore& graphicsCore, const SceneExecutionContext& context,
+			const MultiRenderTarget& surface) const;
 
 		// 深度プリパス用の描画アイテムを収集
 		std::vector<const RenderItem*> CollectDepthPrepassItems(const SceneExecutionContext& context,

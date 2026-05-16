@@ -6,9 +6,9 @@
 #include <Engine/Core/Graphics/Render/Backend/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Graphics/GPUBuffer/RenderBufferRegistry.h>
 #include <Engine/Core/Graphics/Render/View/RenderViewTypes.h>
-#include <Engine/MathLib/Matrix4x4.h>
-#include <Engine/MathLib/Vector2.h>
-#include <Engine/MathLib/Vector3.h>
+#include <Engine/Core/Math/Matrix4x4.h>
+#include <Engine/Core/Math/Vector2.h>
+#include <Engine/Core/Math/Vector3.h>
 
 namespace Engine {
 

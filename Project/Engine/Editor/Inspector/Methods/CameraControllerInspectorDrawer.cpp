@@ -6,7 +6,7 @@
 #include <Engine/Core/ECS/Component/Builtin/NameComponent.h>
 #include <Engine/Editor/Inspector/Methods/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/Panel/Interface/IEditorPanel.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
 
 // imgui
 #include <imgui.h>

@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/RuntimePaths.h>
-#include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Utility/Algorithm/Algorithm.h>
 
 //============================================================================
 //	TextureAssetResolver classMethods
@@ -98,8 +98,26 @@ ChooseBestCandidate(const std::vector<TextureCandidate>& candidates) const {
 void Engine::TextureAssetResolver::Build(const std::filesystem::path& modelFullPath) {
 
 	candidatesByStem_.clear();
+	modelDirectory_.clear();
 	preferredFolder_.clear();
 	texturesRoot_ = RuntimePaths::GetEngineAssetPath("Textures");
+	modelDirectory_ = modelFullPath.parent_path();
+
+	// OBJ/MTLやglTFはモデル横の相対パスを持つことが多いので、モデル周辺を最優先で索引化する。
+	if (std::filesystem::exists(modelDirectory_) && std::filesystem::is_directory(modelDirectory_)) {
+
+		IndexDirectoryRecursive(modelDirectory_, true);
+		const std::filesystem::path localTextures = modelDirectory_ / "Textures";
+		if (std::filesystem::exists(localTextures) && std::filesystem::is_directory(localTextures)) {
+			IndexDirectoryRecursive(localTextures, true);
+		}
+	}
+
+	const std::filesystem::path gameTexturesRoot = RuntimePaths::GetGameRoot() / "GameAssets/Textures";
+	if (std::filesystem::exists(gameTexturesRoot) && std::filesystem::is_directory(gameTexturesRoot)) {
+
+		IndexDirectoryRecursive(gameTexturesRoot, false);
+	}
 
 	if (!std::filesystem::exists(texturesRoot_) || !std::filesystem::is_directory(texturesRoot_)) {
 		return;
@@ -122,6 +140,35 @@ std::string Engine::TextureAssetResolver::ResolveAssetPath(const std::string& im
 	}
 	if (importedReference[0] == '*') {
 		return {};
+	}
+
+	auto tryDirectPath = [&](const std::filesystem::path& candidate) -> std::string {
+
+		if (candidate.empty() || !IsTextureExtension(candidate)) {
+			return {};
+		}
+
+		std::error_code ec;
+		const std::filesystem::path canonical = std::filesystem::weakly_canonical(candidate, ec);
+		const std::filesystem::path fullPath = ec ? candidate.lexically_normal() : canonical;
+		if (!std::filesystem::exists(fullPath) || !std::filesystem::is_regular_file(fullPath)) {
+			return {};
+		}
+		return ToAssetPath(fullPath);
+		};
+
+	const std::filesystem::path referencePath(importedReference);
+	if (referencePath.is_absolute()) {
+		if (std::string direct = tryDirectPath(referencePath); !direct.empty()) {
+			return direct;
+		}
+	} else if (!modelDirectory_.empty()) {
+		if (std::string direct = tryDirectPath(modelDirectory_ / referencePath); !direct.empty()) {
+			return direct;
+		}
+		if (std::string direct = tryDirectPath(modelDirectory_ / referencePath.filename()); !direct.empty()) {
+			return direct;
+		}
 	}
 
 	const std::string stemLower = NormalizeStem(importedReference);

@@ -4,8 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/ECS/Entity/Entity.h>
-#include <Engine/MathLib/Vector2.h>
-#include <Engine/MathLib/Vector3.h>
+#include <Engine/Core/Math/Vector2.h>
+#include <Engine/Core/Math/Vector3.h>
 
 // c++
 #include <array>

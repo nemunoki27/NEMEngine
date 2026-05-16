@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/MathLib/Vector2.h>
+#include <Engine/Core/Math/Vector2.h>
 
 // windows
 #include <Windows.h>

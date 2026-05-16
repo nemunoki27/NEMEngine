@@ -15,6 +15,12 @@ struct MeshVertex {
 	float2 uv;
 	float4 position;
 };
+struct MeshPackedVertex {
+
+	uint normalOct;
+	float2 uv;
+	float4 position;
+};
 struct VertexInfluence {
 
 	float4 weights;
@@ -29,6 +35,7 @@ StructuredBuffer<MeshVertex> gInputVertices : register(t0);
 StructuredBuffer<VertexInfluence> gVertexInfluences : register(t1);
 StructuredBuffer<WellForGPU> gSkinningPalette : register(t2);
 RWStructuredBuffer<MeshVertex> gSkinnedVertices : register(u0);
+RWStructuredBuffer<MeshPackedVertex> gSkinnedPackedVertices : register(u1);
 
 //============================================================================
 //	functions
@@ -82,6 +89,31 @@ float3 SkinNormal(float3 normal, VertexInfluence influence, uint paletteOffset) 
 	return normalize(outNormal / totalWeight);
 }
 
+uint QuantizeSnorm16(float value) {
+
+	value = clamp(value, -1.0f, 1.0f);
+	int q = (int)round(value * 32767.0f);
+	return (uint)(q & 0xFFFF);
+}
+
+uint EncodeOctNormal(float3 normal) {
+
+	float3 n = normalize(normal);
+	float len = abs(n.x) + abs(n.y) + abs(n.z);
+	if (len <= 0.00001f) {
+		return 0u;
+	}
+
+	float2 f = n.xy / len;
+	if (n.z < 0.0f) {
+
+		float2 old = f;
+		f.x = (1.0f - abs(old.y)) * (old.x >= 0.0f ? 1.0f : -1.0f);
+		f.y = (1.0f - abs(old.x)) * (old.y >= 0.0f ? 1.0f : -1.0f);
+	}
+	return QuantizeSnorm16(f.x) | (QuantizeSnorm16(f.y) << 16);
+}
+
 //============================================================================
 //	main
 //============================================================================
@@ -112,4 +144,10 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupID : SV_Group
 	// スキニング後の頂点を出力
 	uint outputIndex = skinnedInstanceIndex * vertexCount + vertexIndex;
 	gSkinnedVertices[outputIndex] = output;
+
+	MeshPackedVertex packed;
+	packed.normalOct = EncodeOctNormal(output.normal);
+	packed.uv = output.uv;
+	packed.position = output.position;
+	gSkinnedPackedVertices[outputIndex] = packed;
 }

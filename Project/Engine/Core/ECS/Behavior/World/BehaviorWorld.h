@@ -9,6 +9,7 @@
 
 // c++
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 namespace Engine {
@@ -68,6 +69,9 @@ namespace Engine {
 		// ビヘイビアの実体全てに対して関数を呼び出す
 		template <typename Fn>
 		void ForEachAlive(Fn&& fn);
+		// 指定Entityが所有するビヘイビアの実体に対して関数を呼び出す
+		template <typename Fn>
+		void ForEachAliveByOwner(const Entity& owner, Fn&& fn);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -89,11 +93,14 @@ namespace Engine {
 
 		std::vector<BehaviorRecord> records_;
 		std::vector<uint32_t> free_;
+		std::unordered_map<uint64_t, std::vector<uint32_t>> ownerToRecords_;
 
 		//--------- functions ----------------------------------------------------
 
 		/// 新しいビヘイビアIDを割り当てる
 		uint32_t AllocateIndex();
+		// Entityを検索用キーへ変換する
+		static uint64_t MakeOwnerKey(const Entity& owner);
 		// 指定したインデックスのビヘイビアを破棄する
 		void DestroyIndex(uint32_t index, ECSWorld& world, const SystemContext& context);
 
@@ -110,6 +117,26 @@ namespace Engine {
 
 		for (auto& record : records_) {
 			if (!record.alive) {
+				continue;
+			}
+			fn(record);
+		}
+	}
+
+	template<typename Fn>
+	inline void BehaviorWorld::ForEachAliveByOwner(const Entity& owner, Fn&& fn) {
+
+		auto it = ownerToRecords_.find(MakeOwnerKey(owner));
+		if (it == ownerToRecords_.end()) {
+			return;
+		}
+
+		for (uint32_t index : it->second) {
+			if (records_.size() <= index) {
+				continue;
+			}
+			BehaviorRecord& record = records_[index];
+			if (!record.alive || record.owner != owner) {
 				continue;
 			}
 			fn(record);

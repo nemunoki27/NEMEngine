@@ -7,7 +7,7 @@
 //============================================================================
 #include <Engine/Core/Graphics/GraphicsCore.h>
 #include <Engine/Core/Graphics/DxObject/DxCommand.h>
-#include <Engine/Logger/Assert.h>
+#include <Engine/Core/Logger/Assert.h>
 
 // imgui
 #include <imgui.h>
@@ -49,10 +49,16 @@ void Engine::LineRenderer::BeginFrame() {
 }
 
 void Engine::LineRenderer::RenderSceneView(GraphicsCore& graphicsCore,
-	const ResolvedRenderView& view, MultiRenderTarget& surface) {
+	const ResolvedRenderView& view, MultiRenderTarget& surface, bool drawDefaultGrid, bool drawQueuedLines) {
+
+	if (drawDefaultGrid) {
+
+		// SceneViewのデフォルトグリッドは、SceneView側のカメラで直接描画
+		renderer3D_->RenderDefaultGrid(graphicsCore, view, surface);
+	}
 
 	// 各次元のライン描画クラスに描画呼び出し
-	renderer2D_->RenderSceneView(graphicsCore, view, surface);
-	renderer3D_->RenderSceneView(graphicsCore, view, surface);
+	renderer2D_->RenderSceneView(graphicsCore, view, surface, drawQueuedLines);
+	renderer3D_->RenderSceneView(graphicsCore, view, surface, drawQueuedLines);
 }
 #endif

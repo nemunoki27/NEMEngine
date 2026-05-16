@@ -10,8 +10,8 @@
 #include <Engine/Core/ECS/System/Builtin/BehaviorSystem.h>
 #include <Engine/Core/ECS/System/Builtin/HierarchySystem.h>
 #include <Engine/Core/Scene/Header/SceneHeader.h>
-#include <Engine/MathLib/Matrix4x4.h>
-#include <Engine/MathLib/Quaternion.h>
+#include <Engine/Core/Math/Matrix4x4.h>
+#include <Engine/Core/Math/Quaternion.h>
 
 // c++
 #include <algorithm>

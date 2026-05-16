@@ -3,10 +3,10 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Logger/Logger.h>
+#include <Engine/Core/Logger/Logger.h>
 #include <Engine/Core/Graphics/Descriptors/SRVDescriptor.h>
 #include <Engine/Core/Runtime/RuntimePaths.h>
-#include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <algorithm>
@@ -315,6 +315,8 @@ void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& 
 	HRESULT hr = E_FAIL;
 	if (extension == ".dds") {
 		hr = DirectX::LoadFromDDSFile(fullPathW.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, loaded);
+	} else if (extension == ".tga") {
+		hr = DirectX::LoadFromTGAFile(fullPathW.c_str(), nullptr, loaded);
 	} else {
 		hr = DirectX::LoadFromWICFile(fullPathW.c_str(), DirectX::WIC_FLAGS_NONE, nullptr, loaded);
 	}

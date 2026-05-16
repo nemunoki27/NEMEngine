@@ -27,9 +27,11 @@ public static unsafe class HostBridge {
     };
 
     // C++側に返すscript handleとC#インスタンスの対応表
-    private static readonly Dictionary<int, ScriptBehaviour> scripts = new();
+    private static readonly List<ScriptBehaviour?> scripts = new() { null };
     // 現在ロード中のゲームDLLに含まれるScriptBehaviour派生型一覧
     private static readonly List<Type> scriptTypes = new();
+    // type nameからScriptBehaviour派生型を引くためのキャッシュ
+    private static readonly Dictionary<string, Type> scriptTypeLookup = new(StringComparer.Ordinal);
     // type nameごとのInspector表示フィールド情報キャッシュ
     private static readonly Dictionary<string, List<SerializedFieldInfo>> fieldCache = new();
 
@@ -148,7 +150,11 @@ public static unsafe class HostBridge {
 
         // C++側はこのIDだけを保持して、以後のイベント呼び出しに使う
         int id = nextScriptID++;
-        scripts[id] = script;
+        if (id == scripts.Count) {
+            scripts.Add(script);
+        } else {
+            scripts[id] = script;
+        }
         return id;
     }
 
@@ -156,89 +162,91 @@ public static unsafe class HostBridge {
     public static void SetSerializedFields(int handle, byte* serializedJson) {
 
         // Play中にInspectorで変更された保存値を、既存のC#インスタンスへ再適用する
-        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+        if (TryGetScript(handle, out ScriptBehaviour script)) {
             ApplySerializedFields(script, PtrToString(serializedJson));
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void DestroyInstance(int handle) {
-        scripts.Remove(handle);
+        if (0 < handle && handle < scripts.Count) {
+            scripts[handle] = null;
+        }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void InvokeAwake(int handle) {
-        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+        if (TryGetScript(handle, out ScriptBehaviour script)) {
             script.Awake();
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void InvokeStart(int handle) {
-        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+        if (TryGetScript(handle, out ScriptBehaviour script)) {
             script.Start();
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void InvokeOnEnable(int handle) {
-        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+        if (TryGetScript(handle, out ScriptBehaviour script)) {
             script.OnEnable();
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void InvokeOnDisable(int handle) {
-        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+        if (TryGetScript(handle, out ScriptBehaviour script)) {
             script.OnDisable();
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void InvokeOnDestroy(int handle) {
-        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+        if (TryGetScript(handle, out ScriptBehaviour script)) {
             script.OnDestroy();
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void InvokeFixedUpdate(int handle) {
-        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+        if (TryGetScript(handle, out ScriptBehaviour script)) {
             script.FixedUpdate();
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void InvokeUpdate(int handle) {
-        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+        if (TryGetScript(handle, out ScriptBehaviour script)) {
             script.Update();
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void InvokeLateUpdate(int handle) {
-        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+        if (TryGetScript(handle, out ScriptBehaviour script)) {
             script.LateUpdate();
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void InvokeCollisionEnter(int handle, NativeCollisionEvent collision) {
-        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+        if (TryGetScript(handle, out ScriptBehaviour script)) {
             script.OnCollisionEnter(new Collision(collision));
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void InvokeCollisionStay(int handle, NativeCollisionEvent collision) {
-        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+        if (TryGetScript(handle, out ScriptBehaviour script)) {
             script.OnCollisionStay(new Collision(collision));
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void InvokeCollisionExit(int handle, NativeCollisionEvent collision) {
-        if (scripts.TryGetValue(handle, out ScriptBehaviour? script)) {
+        if (TryGetScript(handle, out ScriptBehaviour script)) {
             script.OnCollisionExit(new Collision(collision));
         }
     }
@@ -251,6 +259,7 @@ public static unsafe class HostBridge {
 
         // DLLを読み込んだ時点のScriptBehaviour派生型だけを表示対象にする
         scriptTypes.Clear();
+        scriptTypeLookup.Clear();
         fieldCache.Clear();
 
         if (gameAssembly == null) {
@@ -271,6 +280,13 @@ public static unsafe class HostBridge {
             scriptTypes.Add(type);
         }
         scriptTypes.Sort((a, b) => string.CompareOrdinal(a.FullName, b.FullName));
+
+        foreach (Type type in scriptTypes) {
+            if (!string.IsNullOrEmpty(type.FullName)) {
+                scriptTypeLookup[type.FullName] = type;
+            }
+            scriptTypeLookup.TryAdd(type.Name, type);
+        }
     }
 
     private static void WaitForManagedDebuggerIfRequested() {
@@ -320,7 +336,9 @@ public static unsafe class HostBridge {
 
         // ロード済みインスタンスや型情報をすべて破棄する
         scripts.Clear();
+        scripts.Add(null);
         scriptTypes.Clear();
+        scriptTypeLookup.Clear();
         fieldCache.Clear();
         nextScriptID = 1;
         gameAssembly = null;
@@ -340,11 +358,20 @@ public static unsafe class HostBridge {
 
     private static Type? FindScriptType(string? typeName) {
 
-        // FullName優先だが、C++側からNameだけが来ても見つけられるようにする
         if (string.IsNullOrEmpty(typeName)) {
             return null;
         }
-        return scriptTypes.FirstOrDefault(type => type.FullName == typeName || type.Name == typeName);
+        return scriptTypeLookup.TryGetValue(typeName, out Type? type) ? type : null;
+    }
+
+    private static bool TryGetScript(int handle, out ScriptBehaviour script) {
+
+        if (0 < handle && handle < scripts.Count && scripts[handle] is ScriptBehaviour found) {
+            script = found;
+            return true;
+        }
+        script = null!;
+        return false;
     }
 
     private static List<SerializedFieldInfo> GetSerializedFields(Type type) {
@@ -386,7 +413,9 @@ public static unsafe class HostBridge {
                 field.Name,
                 kind,
                 isPublic,
-                SerializeValue(defaultValue, field.FieldType)
+                SerializeValue(defaultValue, field.FieldType),
+                field,
+                field.FieldType
             ));
         }
 
@@ -417,14 +446,9 @@ public static unsafe class HostBridge {
             }
 
             // private fieldにも値を戻すため、public/non-public両方を検索する
-            FieldInfo? fieldInfo = type.GetField(field.name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (fieldInfo == null) {
-                continue;
-            }
-
             // MathTypes.csのstructはIncludeFields=trueで直接復元できる
-            object? value = JsonSerializer.Deserialize(valueElement.GetRawText(), fieldInfo.FieldType, jsonOptions);
-            fieldInfo.SetValue(script, value);
+            object? value = valueElement.Deserialize(field.fieldType, jsonOptions);
+            field.fieldInfo.SetValue(script, value);
         }
     }
 
@@ -511,7 +535,11 @@ public static unsafe class HostBridge {
         // public fieldかどうか
         bool isPublic,
         // C#インスタンス生成直後の初期値JSON
-        string defaultValueJson
+        string defaultValueJson,
+        // 値適用時に使うFieldInfo
+        FieldInfo fieldInfo,
+        // 値適用時に使うFieldType
+        Type fieldType
     );
 
     // C++側のManagedSerializedFieldKindと同じ順番にする

@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Graphics/Texture/TextureAssetResolver.h>
 #include <Engine/Core/Graphics/Mesh/GPUResource/MeshletBuilder.h>
-#include <Engine/MathLib/Matrix4x4.h>
+#include <Engine/Core/Math/Matrix4x4.h>
 
 //============================================================================
 //	MeshImportService classMethods

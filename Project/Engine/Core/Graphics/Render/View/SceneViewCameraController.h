@@ -3,9 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
 #include <Engine/Core/Graphics/Render/View/RenderViewTypes.h>
-#include <Engine/Editor/Tools/IEditorTool.h>
+#include <Engine/Editor/Tools/Interface/IEditorTool.h>
 #include <Engine/Editor/EditorState.h>
+#include <Engine/Core/Input/InputStructures.h>
 
 namespace Engine {
 
@@ -23,8 +25,12 @@ namespace Engine {
 		SceneViewCameraController();
 		~SceneViewCameraController();
 
+		// カメラの状態を初期化する
+		void MakeDefaultState();
+		void MakeFromJson(const std::string& filePath);
+
 		// カメラの状態を更新する
-		void Update(Dimension dimension);
+		void Update(Dimension dimension, InputViewArea viewArea);
 
 		// ToolPanelの一覧からツールを開く
 		void OpenEditorTool() override;
@@ -32,6 +38,8 @@ namespace Engine {
 		void DrawEditorTool(const EditorToolContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
+
+		void SetSavePath(const std::string& savePath) { savePath_ = savePath; }
 
 		// ツール情報を取得する
 		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }
@@ -57,16 +65,16 @@ namespace Engine {
 		// ウィンドウ表示状態
 		bool openWindow_ = false;
 
+		// 閉じた時に保存するカメラパス
+		std::string savePath_ = "";
+
 		// カメラの状態
 		ManualRenderCameraState cameraState_;
 
 		//--------- functions ----------------------------------------------------
 
-		// カメラの状態を初期化する
-		void MakeDefaultState();
-
 		// カメラの状態を更新できるか
-		bool CanUpdate();
+		bool CanUpdate(InputViewArea viewArea);
 
 		// 2D/3Dカメラの状態を更新する
 		void Update3D();

@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/ECS/Component/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/UUID/UUID.h>
-#include <Engine/MathLib/Vector3.h>
+#include <Engine/Core/Math/Vector3.h>
 
 // c++
 #include <string>

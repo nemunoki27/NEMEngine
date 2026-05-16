@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
-#include <Engine/MathLib/Math.h>
+#include <Engine/Core/Math/Math.h>
 
 //============================================================================
 //	RenderViewResolver classMethods
@@ -43,11 +43,11 @@ namespace {
 	// カメラエンティティがアクティブかどうか
 	static bool IsActiveCameraEntity(Engine::ECSWorld& world, Engine::Entity entity) {
 
-		if (!world.HasComponent<Engine::SceneObjectComponent>(entity)) {
+		const auto* sceneObject = world.TryGetComponent<Engine::SceneObjectComponent>(entity);
+		if (!sceneObject) {
 			return true;
 		}
-		const auto& sceneObject = world.GetComponent<Engine::SceneObjectComponent>(entity);
-		return sceneObject.activeInHierarchy;
+		return sceneObject->activeInHierarchy;
 	}
 	// マニュアルカメラのワールド行列を構築する関数
 	static Engine::Matrix4x4 BuildManualWorld(const Engine::ManualRenderCameraTransform& transform) {
@@ -291,17 +291,16 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::ResolvePreferredOrthograp
 	}
 
 	Entity entity = world.FindByUUID(preferredCameraUUID);
-	if (!world.IsAlive(entity) || !world.HasComponent<TransformComponent>(entity) ||
-		!world.HasComponent<OrthographicCameraComponent>(entity) || !IsActiveCameraEntity(world, entity)) {
+	auto* transform = world.TryGetComponent<TransformComponent>(entity);
+	auto* camera = world.TryGetComponent<OrthographicCameraComponent>(entity);
+	if (!transform || !camera || !IsActiveCameraEntity(world, entity)) {
 		return {};
 	}
 
-	const auto& transform = world.GetComponent<TransformComponent>(entity);
-	auto& camera = world.GetComponent<OrthographicCameraComponent>(entity);
-	if (!camera.common.enabled) {
+	if (!camera->common.enabled) {
 		return {};
 	}
-	return BuildFromOrthographicCamera(entity, transform, camera);
+	return BuildFromOrthographicCamera(entity, *transform, *camera);
 }
 
 Engine::ResolvedCameraView Engine::RenderViewResolver::BuildManualPerspective(
@@ -339,15 +338,14 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::ResolvePreferredPerspecti
 	}
 
 	Entity entity = world.FindByUUID(preferredCameraUUID);
-	if (!world.IsAlive(entity) || !world.HasComponent<TransformComponent>(entity) ||
-		!world.HasComponent<PerspectiveCameraComponent>(entity) || !IsActiveCameraEntity(world, entity)) {
+	auto* transform = world.TryGetComponent<TransformComponent>(entity);
+	auto* camera = world.TryGetComponent<PerspectiveCameraComponent>(entity);
+	if (!transform || !camera || !IsActiveCameraEntity(world, entity)) {
 		return {};
 	}
 
-	const auto& transform = world.GetComponent<TransformComponent>(entity);
-	auto& camera = world.GetComponent<PerspectiveCameraComponent>(entity);
-	if (!camera.common.enabled) {
+	if (!camera->common.enabled) {
 		return {};
 	}
-	return BuildFromPerspectiveCamera(entity, transform, camera);
+	return BuildFromPerspectiveCamera(entity, *transform, *camera);
 }

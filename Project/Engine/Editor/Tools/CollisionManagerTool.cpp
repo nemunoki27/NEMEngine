@@ -7,9 +7,9 @@
 #include <Engine/Core/ECS/Component/Builtin/CollisionComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
 #include <Engine/Core/Scene/Header/SceneHeader.h>
-#include <Engine/MathLib/Matrix4x4.h>
-#include <Engine/MathLib/Quaternion.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Math/Matrix4x4.h>
+#include <Engine/Core/Math/Quaternion.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 #include <Engine/Core/Graphics/Line/LineRenderer.h>

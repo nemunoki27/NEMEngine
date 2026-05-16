@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/ECS/Component/Registry/ComponentTypeRegistry.h>
-#include <Engine/MathLib/Math.h>
+#include <Engine/Core/Math/Math.h>
 
 namespace Engine {
 

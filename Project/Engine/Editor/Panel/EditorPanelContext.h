@@ -12,7 +12,9 @@ namespace Engine {
 	// front
 	class IEditorPanelHost;
 	class ViewportRenderService;
+	class GraphicsCore;
 	class GraphicsPlatform;
+	class RenderPipelineRunner;
 	struct ResolvedRenderView;
 
 	//============================================================================
@@ -30,8 +32,12 @@ namespace Engine {
 		EditorLayoutState* layoutState = nullptr;
 		// パネルが操作を依頼するためのホスト
 		IEditorPanelHost* host = nullptr;
+		// RenderTextureなど、GPUリソース作成に必要なグラフィックス全体の管理
+		GraphicsCore* graphicsCore = nullptr;
 		// グラフィックス機能の状態を管理
 		GraphicsPlatform* graphicsPlatform = nullptr;
+		// エディタツールのプレビュー描画で使用する描画パイプライン
+		RenderPipelineRunner* renderPipeline = nullptr;
 		// ビューポート描画に必要なリソースを管理するサービス
 		const ViewportRenderService* viewportRenderService = nullptr;
 		const ResolvedRenderView* sceneRenderView = nullptr;

@@ -11,6 +11,7 @@
 #include <Engine/Core/Graphics/Mesh/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Graphics/Mesh/GPUResource/MeshSkinningSharedTypes.h>
 #include <Engine/Core/Graphics/GPUBuffer/StructuredRWBuffer.h>
+#include <Engine/Core/Graphics/DxLib/ComPtr.h>
 #include <Engine/Core/ECS/Entity/Entity.h>
 
 // c++
@@ -33,7 +34,29 @@ namespace Engine {
 	// 定数バッファ
 	struct MeshViewConstants {
 
+		// 実際に描画するビューの行列
 		Matrix4x4 viewProjection = Matrix4x4::Identity();
+		// カリング判定に使うビューの行列。SceneViewではGameViewの行列になる
+		Matrix4x4 cullingViewProjection = Matrix4x4::Identity();
+		// Contribution CullingでカリングカメラのView空間へ変換する
+		Matrix4x4 cullingView = Matrix4x4::Identity();
+		// NormalCone判定で使用するカリングカメラ位置
+		Vector3 cullingCameraPos = Vector3::AnyInit(0.0f);
+		// Nearより手前に球がかかる場合はContribution判定を安全側で無効にする
+		float cullingNearClip = 0.001f;
+		// 描画先Viewportサイズ
+		Vector2 viewSize = Vector2::AnyInit(1.0f);
+		// カリング対象Viewportサイズ。SceneView表示時もGameViewサイズを使う
+		Vector2 cullingViewSize = Vector2::AnyInit(1.0f);
+		// Projection行列のX/Y倍率。ViewProjectionから取るとカメラ回転で値が崩れる
+		Vector2 cullingProjectionScale = Vector2::AnyInit(1.0f);
+		Vector2 _pad0 = Vector2::AnyInit(0.0f);
+	};
+	struct MeshIndirectArgsConstants {
+
+		// ExecuteIndirectのDrawIndexedInstancedに渡すIndex数
+		uint32_t indexCount = 0;
+		uint32_t _pad[3] = { 0, 0, 0 };
 	};
 	// 頂点/メッシュシェーダインスタンスデータ
 	struct MeshInstanceData {
@@ -104,9 +127,11 @@ namespace Engine {
 		void Init(GraphicsCore& graphicsCore);
 
 		// 描画に使用するビューを更新する
-		void UpdateView(const ResolvedRenderView& view);
+		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView);
 		void UploadBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
 			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
+		// ExecuteIndirectで使用する頂点描画引数の定数を更新する
+		void UpdateIndexedIndirectArgsConstants(uint32_t indexCount);
 
 		// スキニングに使用するリソースを確保する
 		void EnsureSkinningResources(GraphicsCore& graphicsCore);
@@ -120,39 +145,62 @@ namespace Engine {
 		void SetSkinningDispatched(bool value) { skinningDispatched_ = value; }
 		// スキニング頂点のリソース状態をセット
 		void SetSkinnedVertexState(D3D12_RESOURCE_STATES state) { skinning_->skinnedVertexState = state; }
+		// 圧縮頂点側のスキニング結果も通常頂点とは別に状態管理する
+		void SetSkinnedPackedVertexState(D3D12_RESOURCE_STATES state) { skinning_->skinnedPackedVertexState = state; }
 
 		// スキニング用のリソースがあるか
 		bool HasSkinningResources() const { return skinning_ != nullptr; }
 
 		// 内部リソースを取得する
 		ID3D12Resource* GetSkinnedVerticesResource() const { return  skinning_->skinnedVertices.GetResource(); }
+		ID3D12Resource* GetSkinnedPackedVerticesResource() const { return  skinning_->skinnedPackedVertices.GetResource(); }
 
 		// GPUアドレスを取得する
 		D3D12_GPU_VIRTUAL_ADDRESS GetViewGPUAddress(RenderViewKind kind) const { return view_[ToViewIndex(kind)].GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetInstanceMeshGPUAddress() const { return meshData_.GetGPUAddress(); }
+		// カリングComputeが書き込み、ExecuteIndirect/ASが読む可視インスタンス配列
+		D3D12_GPU_VIRTUAL_ADDRESS GetVisibleInstanceMeshGPUAddress() const { return visibleMeshData_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetInstancePSGPUAddress() const { return psData_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetDrawGPUAddress() const { return draw_.GetGPUAddress(); }
+		D3D12_GPU_VIRTUAL_ADDRESS GetIndirectArgsConstantsGPUAddress() const { return indirectArgs_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshGPUAddress() const { return subMeshData_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinningPaletteGPUAddress() const { return skinning_->skinningPalette.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinningConstantsGPUAddress() const { return skinning_->skinningConstants.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedVerticesGPUAddress() const { return skinning_->skinnedVertices.GetGPUAddress(); }
+		// MeshShader経路は圧縮頂点を読むため、スキニング後も圧縮頂点SRVを渡す
+		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedPackedVerticesGPUAddress() const { return skinning_->skinnedPackedVertices.GetGPUAddress(); }
 
 		// SRV/UAVハンドルを取得する
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSkinnedVerticesSRVHandle() const { return skinning_->skinnedVertices.GetSRVGPUHandle(); }
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSkinnedVerticesUAVHandle() const { return skinning_->skinnedVertices.GetUAVGPUHandle(); }
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSkinnedPackedVerticesSRVHandle() const { return skinning_->skinnedPackedVertices.GetSRVGPUHandle(); }
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSkinnedPackedVerticesUAVHandle() const { return skinning_->skinnedPackedVertices.GetUAVGPUHandle(); }
+		ID3D12Resource* GetIndexedIndirectArgsResource() const { return indexedIndirectArgs_.Get(); }
+		D3D12_GPU_VIRTUAL_ADDRESS GetIndexedIndirectArgsGPUAddress() const { return indexedIndirectArgs_->GetGPUVirtualAddress(); }
+		D3D12_RESOURCE_STATES GetIndexedIndirectArgsState() const { return indexedIndirectArgsState_; }
+		void SetIndexedIndirectArgsState(D3D12_RESOURCE_STATES state) { indexedIndirectArgsState_ = state; }
+		// カリング後に残ったインスタンスだけを格納するバッファ
+		ID3D12Resource* GetVisibleInstanceMeshResource() const { return visibleMeshData_.GetResource(); }
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetVisibleInstanceMeshSRVHandle() const { return visibleMeshData_.GetSRVGPUHandle(); }
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetVisibleInstanceMeshUAVHandle() const { return visibleMeshData_.GetUAVGPUHandle(); }
+		D3D12_RESOURCE_STATES GetVisibleInstanceMeshState() const { return visibleMeshDataState_; }
+		void SetVisibleInstanceMeshState(D3D12_RESOURCE_STATES state) { visibleMeshDataState_ = state; }
 
 		// 描画バウンディング名を取得する
 		std::string_view GetViewBindingName() const { return "ViewConstants"; }
 		std::string_view GetInstanceMeshBindingName() const { return meshData_.GetBindingName(); }
 		std::string_view GetInstancePSBindingName() const { return psData_.GetBindingName(); }
 		std::string_view GetDrawBindingName() const { return draw_.GetBindingName(); }
+		std::string_view GetIndirectArgsConstantsBindingName() const { return indirectArgs_.GetBindingName(); }
 		std::string_view GetSubMeshBindingName() const { return subMeshData_.GetBindingName(); }
 		std::string_view GetSkinningPaletteBindingName() const { return "gSkinningPalette"; }
 		std::string_view GetSkinningConstantsBindingName() const { return "SkinningConstants"; }
 		std::string_view GetSkinnedVerticesBindingName() const { return "gSkinnedVertices"; }
+		std::string_view GetSkinnedPackedVerticesBindingName() const { return "gSkinnedPackedVertices"; }
 
 		// スキニング頂点バッファのSRVインデックスを取得する
 		uint32_t GetSkinnedVerticesSRVIndex() const { return skinning_->skinnedVertices.GetSRVIndex(); }
+		uint32_t GetSkinnedPackedVerticesSRVIndex() const { return skinning_->skinnedPackedVertices.GetSRVIndex(); }
 
 		// インスタンス数を取得する
 		uint32_t GetInstanceCount() const { return instanceCount_; }
@@ -160,8 +208,10 @@ namespace Engine {
 
 		// スキニング処理をディスパッチしたか
 		bool IsSkinningDispatched() const { return skinningDispatched_; }
+		bool UsesFallbackTexture() const { return usesFallbackTexture_; }
 		// スキニング頂点のリソース状態を取得する
 		D3D12_RESOURCE_STATES GetSkinnedVertexState() const { return skinning_->skinnedVertexState; }
+		D3D12_RESOURCE_STATES GetSkinnedPackedVertexState() const { return skinning_->skinnedPackedVertexState; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -174,9 +224,12 @@ namespace Engine {
 
 			StructuredInstanceBuffer<WellForGPU> skinningPalette{ "gSkinningPalette" };
 			StructuredRWBuffer<MeshVertex> skinnedVertices{ "gSkinnedVertices" };
+			// MeshShader用に法線をOct圧縮したスキニング結果を保持する
+			StructuredRWBuffer<MeshPackedVertex> skinnedPackedVertices{ "gSkinnedPackedVertices" };
 			ViewConstantBuffer<MeshSkinningDispatchConstants> skinningConstants{ "SkinningConstants" };
 
 			D3D12_RESOURCE_STATES skinnedVertexState = D3D12_RESOURCE_STATE_COMMON;
+			D3D12_RESOURCE_STATES skinnedPackedVertexState = D3D12_RESOURCE_STATE_COMMON;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -189,9 +242,17 @@ namespace Engine {
 
 		// バッファ
 		StructuredInstanceBuffer<MeshInstanceData> meshData_{ "gMeshInstances" };
+		// ExecuteIndirect/AmplificationShaderのカリング結果を書き戻す可視インスタンスバッファ
+		StructuredRWBuffer<MeshInstanceData> visibleMeshData_{ "gVisibleMeshInstances" };
 		StructuredInstanceBuffer<MeshPSInstanceData> psData_{ "gPSInstances" };
 		ViewConstantBuffer<MeshDrawConstants> draw_{ "MeshDrawConstants" };
+		ViewConstantBuffer<MeshIndirectArgsConstants> indirectArgs_{ "IndirectArgsConstants" };
 		StructuredInstanceBuffer<MeshSubMeshShaderData> subMeshData_{ "gSubMeshes" };
+		ComPtr<ID3D12Resource> indexedIndirectArgs_{};
+		// ExecuteIndirect引数バッファの現在状態
+		D3D12_RESOURCE_STATES indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;
+		// 可視インスタンスバッファの現在状態
+		D3D12_RESOURCE_STATES visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
 
 		// スキニング用バッファ
 		std::unique_ptr<OptionalSkinningResources> skinning_{};
@@ -217,6 +278,7 @@ namespace Engine {
 
 		// スキニング処理をディスパッチしたか
 		bool skinningDispatched_ = false;
+		bool usesFallbackTexture_ = false;
 
 		//--------- functions ----------------------------------------------------
 

@@ -8,9 +8,9 @@
 #include <Engine/Core/Graphics/DxLib/DxStructures.h>
 #include <Engine/Core/Graphics/Render/Queue/RenderPayloadArena.h>
 #include <Engine/Core/Graphics/Render/View/RenderViewTypes.h>
-#include <Engine/MathLib/Matrix4x4.h>
-#include <Engine/MathLib/Vector2.h>
-#include <Engine/MathLib/Vector4.h>
+#include <Engine/Core/Math/Matrix4x4.h>
+#include <Engine/Core/Math/Vector2.h>
+#include <Engine/Core/Math/Vector4.h>
 
 // c++
 #include <string>

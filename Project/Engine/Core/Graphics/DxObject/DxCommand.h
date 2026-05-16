@@ -63,6 +63,8 @@ public:
 
 	// 指定サイズでビューポート/シザーを設定する
 	void SetViewportAndScissor(uint32_t width, uint32_t height);
+	// 指定矩形でビューポート/シザーを設定する
+	void SetViewportAndScissor(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 
 	// リソースバリア遷移処理
 	void TransitionBarriers(const std::vector<ID3D12Resource*>& resources,

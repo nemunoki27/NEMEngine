@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Editor/Tools/IEditorTool.h>
+#include <Engine/Editor/Tools/Interface/IEditorTool.h>
 
 namespace Engine {
 

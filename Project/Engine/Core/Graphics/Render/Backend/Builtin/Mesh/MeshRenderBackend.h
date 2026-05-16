@@ -12,6 +12,10 @@
 #include <Engine/Core/Graphics/Pipeline/Bind/GraphicsRootBinder.h>
 #include <Engine/Core/Graphics/Pipeline/Bind/ComputeRootBinder.h>
 
+// c++
+#include <memory>
+#include <unordered_map>
+
 namespace Engine {
 
 	//============================================================================
@@ -108,6 +112,34 @@ namespace Engine {
 				return h;
 			}
 		};
+	struct StaticBatchCacheKey {
+
+		// 静的メッシュはWorld/Asset/内容Hashが一致すればGPUバッファを再利用する
+		ECSWorld* world = nullptr;
+		AssetID mesh{};
+		uint64_t hash = 0;
+
+			bool operator==(const StaticBatchCacheKey& rhs) const noexcept {
+				return world == rhs.world && mesh == rhs.mesh && hash == rhs.hash;
+			}
+		};
+		struct StaticBatchCacheKeyHash {
+			size_t operator()(const StaticBatchCacheKey& key) const noexcept {
+				size_t h = std::hash<void*>{}(key.world);
+				h ^= (std::hash<AssetID>{}(key.mesh) << 1);
+				h ^= (std::hash<uint64_t>{}(key.hash) << 2);
+				return h;
+			}
+		};
+	struct StaticBatchCacheEntry {
+
+		// 静的バッチ用に保持し続けるMeshBatchResources
+		std::unique_ptr<MeshBatchResources> resources{};
+		// 一定フレーム使われなければ破棄する
+		uint64_t lastUsedFrame = 0;
+		// FallbackTextureを含む場合は後で本テクスチャに差し替わるため永続化しない
+		bool persistent = false;
+	};
 
 		//--------- variables ----------------------------------------------------
 
@@ -130,6 +162,10 @@ namespace Engine {
 		// スキンメッシュのバッチキャッシュ
 		std::unordered_map<SkinnedBatchCacheKey, MeshBatchResources*, SkinnedBatchCacheKeyHash> skinnedBatchCache_{};
 		std::unordered_map<SkinnedSourceLookupKey, SkinnedVertexSource, SkinnedSourceLookupKeyHash> skinnedSourceLookup_{};
+		// カメラ移動時に静的メッシュのCPUアップロードを繰り返さないためのキャッシュ
+		std::unordered_map<StaticBatchCacheKey, StaticBatchCacheEntry, StaticBatchCacheKeyHash> staticBatchCache_{};
+		// 静的キャッシュの寿命管理用フレーム番号
+		uint64_t frameIndex_ = 0;
 
 		// 初期化状態
 		bool initialized_ = false;
@@ -149,6 +185,10 @@ namespace Engine {
 
 		// スキンメッシュのバッチキャッシュを構築するためのハッシュを計算する
 		uint64_t BuildBatchHash(std::span<const RenderItem* const> items) const;
+		uint64_t BuildStaticBatchHash(const RenderDrawContext& context,
+			std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh) const;
+		// 長時間使われていない静的バッチを破棄する
+		void PruneStaticBatchCache();
 		// スキンメッシュのGPUディスパッチ
 		void DispatchSkinning(const RenderDrawContext& context, const MeshPreparedBatch& prepared);
 

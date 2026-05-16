@@ -100,6 +100,7 @@ namespace {
 		}
 		return result;
 	}
+
 }
 
 void Engine::ScenePassExecutor::ExecuteScene(GraphicsCore& graphicsCore,
@@ -125,6 +126,7 @@ void Engine::ScenePassExecutor::ExecuteScene(GraphicsCore& graphicsCore,
 		// デフォルトサーフェイスをレンダーターゲット用に遷移してバインドし、クリアする
 		context.defaultSurface->TransitionForRender(*dxCommand);
 		context.defaultSurface->Bind(*dxCommand);
+		ApplyViewport(graphicsCore, context, *context.defaultSurface);
 		context.defaultSurface->Clear(*dxCommand, clearDesc);
 	}
 
@@ -317,13 +319,14 @@ void Engine::ScenePassExecutor::ExecuteDepthPrepassPass(GraphicsCore& graphicsCo
 	surface->GetDepthTexture()->Transition(*dxCommand, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 	// レンダーターゲットをバインド
 	dxCommand->BindRenderTargets(std::nullopt, surface->GetDepthTexture()->GetDSVCPUHandle());
-	dxCommand->SetViewportAndScissor(surface->GetWidth(), surface->GetHeight());
+	ApplyViewport(graphicsCore, context, *surface);
 
 	// アイテムを描画
 	std::string_view passName = pass.passName.empty() ? std::string_view("ZPrepass") : std::string_view(pass.passName);
 	dependencies.dispatcher->Dispatch(graphicsCore, context, *dependencies.renderBatch,
 		*dependencies.backendRegistry, *dependencies.assetLibrary, *dependencies.pipelineCache,
 		*dependencies.materialResolver, items, surface, passName, true);
+
 }
 
 void Engine::ScenePassExecutor::ExecuteDrawPass(GraphicsCore& graphicsCore,
@@ -703,7 +706,28 @@ Engine::MultiRenderTarget* Engine::ScenePassExecutor::ApplyRenderTargets(Graphic
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	surface->TransitionForRender(*dxCommand);
 	surface->Bind(*dxCommand);
+	ApplyViewport(graphicsCore, context, *surface);
 	return surface;
+}
+
+void Engine::ScenePassExecutor::ApplyViewport(GraphicsCore& graphicsCore,
+	const SceneExecutionContext& context, const MultiRenderTarget& surface) const {
+
+	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
+	if (!dxCommand) {
+		return;
+	}
+
+	if (context.useViewportRect && context.viewportWidth > 0 && context.viewportHeight > 0) {
+
+		dxCommand->SetViewportAndScissor(
+			context.viewportX,
+			context.viewportY,
+			context.viewportWidth,
+			context.viewportHeight);
+		return;
+	}
+	dxCommand->SetViewportAndScissor(surface.GetWidth(), surface.GetHeight());
 }
 
 std::vector<const Engine::RenderItem*> Engine::ScenePassExecutor::CollectDepthPrepassItems(

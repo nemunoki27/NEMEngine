@@ -32,8 +32,17 @@ public readonly struct Collision {
 
 public abstract class ScriptBehaviour {
 
-    public Entity entity { get; internal set; }
-    public Transform transform => entity.transform;
+    private Entity owner;
+    private Transform? cachedTransform;
+
+    public Entity entity {
+        get => owner;
+        internal set {
+            owner = value;
+            cachedTransform = null;
+        }
+    }
+    public Transform transform => cachedTransform ??= new Transform(owner);
 
     public virtual void Awake() {}
     public virtual void Start() {}

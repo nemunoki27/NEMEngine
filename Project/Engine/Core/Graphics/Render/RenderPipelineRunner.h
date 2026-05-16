@@ -11,6 +11,7 @@
 #include <Engine/Core/Graphics/Render/Texture/RenderTargetRegistry.h>
 #include <Engine/Core/Graphics/Render/Backend/Registry/RenderBackendRegistry.h>
 #include <Engine/Core/Graphics/Render/Backend/Registry/RenderExtractorRegistry.h>
+#include <Engine/Core/Graphics/Render/Backend/Common/FrameBatchResourcePool.h>
 #include <Engine/Core/Graphics/Render/Pass/RenderItemBatchDispatcher.h>
 #include <Engine/Core/Graphics/Render/Light/FrameLightBatch.h>
 #include <Engine/Core/Graphics/Render/Light/Registry/LightExtractorRegistry.h>
@@ -35,7 +36,6 @@ namespace Engine {
 
 	// front
 	struct SceneInstance;
-
 	//============================================================================
 	//	RenderPipelineRunner structures
 	//============================================================================
@@ -54,15 +54,55 @@ namespace Engine {
 		// シーンインスタンスの情報
 		const SceneInstance* sceneInstance = nullptr;
 		const ResolvedRenderView* view = nullptr;
+		const ResolvedRenderView* cullingView = nullptr;
 		MultiRenderTarget* defaultSurface = nullptr;
 		RenderTargetRegistry* targetRegistry = nullptr;
+		// ツールプレビューなど、1枚のRT内の一部だけへ描く時の描画矩形
+		bool useViewportRect = false;
+		uint32_t viewportX = 0;
+		uint32_t viewportY = 0;
+		uint32_t viewportWidth = 0;
+		uint32_t viewportHeight = 0;
 		RenderBufferRegistry bufferRegistry{};
 		// レイトレーシングの情報
 		RaytracingSceneRuntimeContext raytracing{};
+		// ツールプレビューなど、TLASを作らない描画ではRayQuery系Variantを選ばない。
+		bool disableInlineRayTracing = false;
+		// ツールプレビューではVertex版のGraphics Variantを優先する。
+		bool forceVertexMeshVariant = false;
 		// ECSワールドとシステムコンテキスト
 		ECSWorld* world = nullptr;
 		const SystemContext* systemContext = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
+	};
+
+	// エディタツール用のEntityプレビュー描画要求
+	struct EntityPreviewRenderRequest {
+
+		ECSWorld* world = nullptr;
+		const SystemContext* systemContext = nullptr;
+		AssetDatabase* assetDatabase = nullptr;
+
+		const SceneHeader* sceneHeader = nullptr;
+		UUID sceneInstanceID{};
+
+		Entity rootEntity = Entity::Null();
+		MultiRenderTarget* surface = nullptr;
+		ManualRenderCameraState camera{};
+
+		Color4 clearColor = Color4(0.08f, 0.10f, 0.14f, 1.0f);
+		// falseなら既存のRT内容を保持したまま描画する。ProjectPanelのモデルプレビューAtlasで使用する。
+		bool clearSurface = true;
+		bool useViewportRect = false;
+		uint32_t viewportX = 0;
+		uint32_t viewportY = 0;
+		uint32_t viewportWidth = 0;
+		uint32_t viewportHeight = 0;
+		// プレビュー用RenderTextureにだけ描画するグリッド
+		bool drawGrid2D = false;
+		bool drawGrid3D = false;
+		// プレビューではMeshShader/RayQueryを避け、Vertex版の非RayQueryシェーダを優先する。
+		bool forceVertexMeshVariant = true;
 	};
 
 	//============================================================================
@@ -89,6 +129,8 @@ namespace Engine {
 
 		// 描画ビューのサーフェスをバックバッファに描画する
 		bool PresentViewToBackBuffer(GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material = {});
+		// エディタツール専用RenderTextureへ、指定Entityと子階層だけを描画する
+		bool RenderEntityPreview(GraphicsCore& graphicsCore, const EntityPreviewRenderRequest& request);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -157,11 +199,20 @@ namespace Engine {
 		// ルートシーン用のビュー別ライト集合
 		PerViewLightSet gameViewLightSet_{};
 		PerViewLightSet sceneViewLightSet_{};
+		PerViewLightSet previewLightSet_{};
 		// ビューごとのGPUライトバッファ
 		ViewLightBufferSet gameViewLightBuffers_{};
 		ViewLightBufferSet sceneViewLightBuffers_{};
 		ViewLightCullingBufferSet gameViewLightCullingBuffers_{};
 		ViewLightCullingBufferSet sceneViewLightCullingBuffers_{};
+		// ツールプレビューは同一フレーム内に複数回描くため、ライトGPUバッファも描画ごとに分ける。
+		FrameBatchResourcePool<ViewLightBufferSet> previewLightBufferPool_{};
+		FrameBatchResourcePool<ViewLightCullingBufferSet> previewLightCullingBufferPool_{};
+
+		// ツールプレビュー専用の描画バックエンド。メインビューのGPUバッファを上書きしないため分離する
+		RenderBackendRegistry previewBackendRegistry_{};
+		// 同一フレーム内の複数プレビューがGPUバッファを再利用して上書きしないための開始済みフラグ
+		bool previewBackendFrameStarted_ = false;
 
 		//--------- functions ----------------------------------------------------
 

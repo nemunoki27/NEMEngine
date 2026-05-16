@@ -6,7 +6,7 @@
 #include <Engine/Editor/Inspector/Interface/IInspectorComponentDrawer.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
 #include <Engine/Core/UUID/UUID.h>
-#include <Engine/Utility/Enum/DimensionType.h>
+#include <Engine/Core/Utility/Enum/DimensionType.h>
 
 namespace Engine {
 

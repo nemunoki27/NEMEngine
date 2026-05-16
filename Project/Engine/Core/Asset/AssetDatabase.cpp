@@ -3,9 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Utility/Json/JsonAdapter.h>
-#include <Engine/Utility/Enum/EnumAdapter.h>
-#include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Utility/Json/JsonAdapter.h>
+#include <Engine/Core/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/RuntimePaths.h>
 
 // c++
@@ -189,7 +189,8 @@ Engine::AssetType Engine::AssetDatabase::GuessTypeByPath(const std::filesystem::
 	if (Algorithm::EndsWith(filename, ".pipeline.json")) {
 		return AssetType::RenderPipeline;
 	}
-	if (extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".dds") {
+	if (extension == ".png" || extension == ".jpg" || extension == ".jpeg" ||
+		extension == ".dds" || extension == ".tga" || extension == ".bmp") {
 		return AssetType::Texture;
 	}
 	if (extension == ".obj" || extension == ".gltf" || extension == ".glb") {
@@ -204,6 +205,9 @@ Engine::AssetType Engine::AssetDatabase::GuessTypeByPath(const std::filesystem::
 	}
 	if (extension == ".wav" || extension == ".wave" || extension == ".mp3") {
 		return AssetType::Audio;
+	}
+	if (Algorithm::EndsWith(filename, ".animClip.json") || extension == ".animClip") {
+		return AssetType::AnimationClip;
 	}
 	return AssetType::Unknown;
 }

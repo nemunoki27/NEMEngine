@@ -8,11 +8,11 @@
 #include <Engine/Core/Graphics/GPUBuffer/IndexBuffer.h>
 #include <Engine/Core/Graphics/Descriptors/SRVDescriptor.h>
 #include <Engine/Core/Graphics/Mesh/MeshNode.h>
-#include <Engine/MathLib/Vector2.h>
-#include <Engine/MathLib/Vector3.h>
-#include <Engine/MathLib/Vector4.h>
-#include <Engine/MathLib/Color.h>
-#include <Engine/MathLib/Quaternion.h>
+#include <Engine/Core/Math/Vector2.h>
+#include <Engine/Core/Math/Vector3.h>
+#include <Engine/Core/Math/Vector4.h>
+#include <Engine/Core/Math/Color.h>
+#include <Engine/Core/Math/Quaternion.h>
 
 namespace Engine {
 
@@ -26,6 +26,15 @@ namespace Engine {
 		Vector3 normal = Vector3::AnyInit(0.0f);
 		Vector2 uv = Vector2::AnyInit(0.0f);
 
+		Vector4 position = Vector4(0.0f, 0.0f, 0.0f, 1.0f);
+	};
+	// 描画時に読む圧縮頂点データ
+	struct MeshPackedVertex {
+
+		// 法線をOctahedral Encodingで32bitに圧縮した値
+		uint32_t normalOct = 0;
+		// UVとPositionは既存シェーダの参照を変えないためそのまま保持
+		Vector2 uv = Vector2::AnyInit(0.0f);
 		Vector4 position = Vector4(0.0f, 0.0f, 0.0f, 1.0f);
 	};
 
@@ -127,14 +136,42 @@ namespace Engine {
 	// メッシュレット情報
 	struct MeshletDesc {
 
+		// メッシュレット内で参照する頂点Index配列の範囲
 		uint32_t vertexOffset = 0;
 		uint32_t vertexCount = 0;
 
+		// メッシュレット内のPrimitiveIndex配列の範囲
 		uint32_t primitiveOffset = 0;
 		uint32_t primitiveCount = 0;
 
+		// このメッシュレットが属するサブメッシュ
 		uint32_t subMeshIndex = 0;
 		uint32_t _pad[3] = { 0, 0, 0 };
+
+		// フラスタム/Contribution判定に使用するローカル空間Bounds
+		Vector3 boundsCenter = Vector3::AnyInit(0.0f);
+		float boundsRadius = 0.0f;
+		// NormalConeカリングに使用する平均法線方向
+		Vector3 coneAxis = Vector3(0.0f, 0.0f, 1.0f);
+		// 0未満なら無効、0.5以上ならMeshShader側で判定する
+		float coneCutoff = -1.0f;
+	};
+	// MeshShader出力用に必要な範囲だけをまとめた軽量Desc
+	struct MeshletDrawDesc {
+
+		uint32_t vertexOffset = 0;
+		uint32_t vertexCount = 0;
+		uint32_t primitiveOffset = 0;
+		uint32_t primitiveCount = 0;
+		uint32_t subMeshIndex = 0;
+	};
+	// カリング用にBoundsだけを分離したバッファ要素
+	struct MeshletBounds {
+
+		Vector3 center = Vector3::AnyInit(0.0f);
+		float radius = 0.0f;
+		Vector3 coneAxis = Vector3(0.0f, 0.0f, 1.0f);
+		float coneCutoff = -1.0f;
 	};
 
 	// サブメッシュの情報
@@ -176,6 +213,7 @@ namespace Engine {
 		// メッシュレット化済みデータ
 		std::vector<MeshletDesc> meshlets;
 		std::vector<uint32_t> meshletVertexIndices;
+		// メッシュレット内の三角形を構成するPrimitiveIndex配列
 		std::vector<uint32_t> meshletPrimitiveIndices;
 
 		MeshNode rootNode{};
@@ -212,6 +250,8 @@ namespace Engine {
 
 		// バッファ
 		MeshStructuredHandle<MeshVertex> vertexSRV;
+		// MeshShader経路で読む圧縮頂点SRV
+		MeshStructuredHandle<MeshPackedVertex> packedVertexSRV;
 		MeshStructuredHandle<uint32_t> indexSRV;
 		MeshStructuredHandle<uint32_t> vertexSubMeshIndexSRV;
 
@@ -220,7 +260,13 @@ namespace Engine {
 
 		// メッシュレット
 		MeshStructuredHandle<MeshletDesc> meshletSRV;
+		// AS/MSで必要な範囲情報だけを読むための軽量メッシュレットDesc
+		MeshStructuredHandle<MeshletDrawDesc> meshletDrawSRV;
+		// ASでメッシュレット単位カリングを行うためのBounds
+		MeshStructuredHandle<MeshletBounds> meshletBoundsSRV;
 		MeshStructuredHandle<uint32_t> meshletVertexIndexSRV;
+		// 圧縮頂点SRVに直接アクセスするためのIndex
+		MeshStructuredHandle<uint32_t> packedMeshletVertexIndexSRV;
 		MeshStructuredHandle<uint32_t> meshletPrimitiveIndexSRV;
 
 		// スキニング
@@ -231,7 +277,13 @@ namespace Engine {
 		uint32_t vertexCount = 0;
 		uint32_t indexCount = 0;
 		uint32_t meshletCount = 0;
+		// packedMeshletVertexIndexSRVを使える場合だけtrueにする
+		bool usePackedMeshletVertexIndices = false;
 		std::vector<SubMeshDesc> subMeshes;
+
+		Vector3 boundsCenter = Vector3::AnyInit(0.0f);
+		// インスタンス単位カリングで使用するメッシュ全体のローカルBounds
+		float boundsRadius = 0.0f;
 
 		// スキニングするか
 		bool isSkinned = false;

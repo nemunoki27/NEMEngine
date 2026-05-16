@@ -10,7 +10,11 @@
 #include <Engine/Core/Graphics/GPUBuffer/DxConstBuffer.h>
 #include <Engine/Core/Graphics/GPUBuffer/VertexBuffer.h>
 #include <Engine/Core/Graphics/GraphicsCore.h>
-#include <Engine/MathLib/Math.h>
+#include <Engine/Core/Math/Math.h>
+
+// c++
+#include <memory>
+#include <vector>
 
 namespace Engine {
 
@@ -41,7 +45,8 @@ namespace Engine {
 			const T& /*pointB*/, const Color4& /*colorB*/, float /*thicknessB*/);
 
 		// 描画
-		void RenderSceneView(GraphicsCore& graphicsCore, const ResolvedRenderView& view, MultiRenderTarget& surface);
+		void RenderSceneView(GraphicsCore& graphicsCore, const ResolvedRenderView& view,
+			MultiRenderTarget& surface, bool drawQueuedLines = true);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -77,6 +82,12 @@ namespace Engine {
 			float feather = 1.25f;
 			float padding = 0.0f;
 		};
+		// 1回の描画で使用するGPUバッファ
+		struct RenderResource {
+
+			VertexBuffer<LineVertex> vertexBuffer;
+			DxConstBuffer<LinePassConstants> passBuffer;
+		};
 
 		//--------- variables ----------------------------------------------------
 
@@ -88,9 +99,9 @@ namespace Engine {
 		// パイプライン
 		PipelineState pipeline_{};
 
-		// バッファ
-		VertexBuffer<LineVertex> vertexBuffer_{};
-		DxConstBuffer<LinePassConstants> passBuffer_{};
+		// 同じコマンドリスト内で複数回描画しても、後の描画内容で上書きしないためのバッファ
+		std::vector<std::unique_ptr<RenderResource>> renderResources_{};
+		uint32_t renderResourceIndex_ = 0;
 
 		// 描画するラインの頂点情報
 		std::vector<LineVertex> vertices_{};
@@ -102,6 +113,8 @@ namespace Engine {
 
 		// シーンカメラを取得する
 		const ResolvedCameraView* FindSceneCamera(const ResolvedRenderView& view) const;
+		// 描画ごとのGPUバッファを取得する
+		RenderResource& AllocateRenderResource(GraphicsCore& graphicsCore);
 
 		// 派生ライン描画呼び出し
 		virtual void DrawLineImpl(GraphicsCore& /*graphicsCore*/,
@@ -158,9 +171,8 @@ namespace Engine {
 		bool created = pipeline_.CreateGraphics(device, compiler, desc);
 		Assert::Call(created, "DebugLineRenderer pipeline create failed");
 
-		// バッファの生成
-		vertexBuffer_.CreateBuffer(device, kMaxVertexCount_);
-		passBuffer_.CreateBuffer(device);
+		// 描画用バッファは同じフレーム内の描画回数に応じて確保する
+		renderResources_.reserve(4);
 
 		// 頂点配列の容量を最大頂点数に合わせる
 		vertices_.reserve(kMaxVertexCount_);
@@ -170,11 +182,12 @@ namespace Engine {
 	inline void LineRendererBase<T>::BeginFrame() {
 
 		vertices_.clear();
+		renderResourceIndex_ = 0;
 	}
 
 	template<typename T>
 	inline void LineRendererBase<T>::RenderSceneView(GraphicsCore& graphicsCore,
-		const ResolvedRenderView& view, MultiRenderTarget& surface) {
+		const ResolvedRenderView& view, MultiRenderTarget& surface, bool drawQueuedLines) {
 
 		// シーンカメラを取得
 		const ResolvedCameraView* camera = FindSceneCamera(view);
@@ -190,6 +203,10 @@ namespace Engine {
 		// 派生クラスのライン描画呼び出し
 		DrawLineImpl(graphicsCore, camera, surface);
 
+		if (!drawQueuedLines) {
+			return;
+		}
+
 		// デバッグラインが無ければここで終了
 		if (vertices_.empty()) {
 			return;
@@ -197,10 +214,25 @@ namespace Engine {
 
 		// 現在サーフェスに重ねて描画
 		surface.TransitionForRender(*dxCommand);
-		surface.Bind(*dxCommand);
+		if (RenderTexture2D* color = surface.GetColorTexture(0)) {
+
+			if (DepthTexture2D* depth = surface.GetDepthTexture()) {
+
+				dxCommand->BindRenderTargets(std::optional<RenderTarget>(color->GetRenderTarget()),
+					depth->GetDSVCPUHandle());
+			} else {
+
+				dxCommand->BindRenderTargets(std::optional<RenderTarget>(color->GetRenderTarget()), std::nullopt);
+			}
+			dxCommand->SetViewportAndScissor(surface.GetWidth(), surface.GetHeight());
+		} else {
+
+			return;
+		}
 
 		// GPUリソース更新
-		vertexBuffer_.TransferData(vertices_);
+		RenderResource& renderResource = AllocateRenderResource(graphicsCore);
+		renderResource.vertexBuffer.TransferData(vertices_);
 
 		// 定数バッファ更新
 		LinePassConstants constants{};
@@ -209,7 +241,7 @@ namespace Engine {
 		constants.viewportSize = Vector2(static_cast<float>(surface.GetWidth()), static_cast<float>(surface.GetHeight()));
 		constants.nearClip = camera->nearClip;
 		constants.feather = kLineAAFeather_;
-		passBuffer_.TransferData(constants);
+		renderResource.passBuffer.TransferData(constants);
 
 		// パイプライン設定
 		commandList->SetGraphicsRootSignature(pipeline_.GetRootSignature());
@@ -217,17 +249,18 @@ namespace Engine {
 
 		// IAステージ設定
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-		commandList->IASetVertexBuffers(0, 1, &vertexBuffer_.GetVertexBufferView());
+		commandList->IASetVertexBuffers(0, 1, &renderResource.vertexBuffer.GetVertexBufferView());
 
 		// ルートパラメータのバインド
 		GraphicsRootBinder binder{ pipeline_ };
 		const GraphicsBindItem bindItems[] = {
-			{ {}, GraphicsBindValueType::CBV, passBuffer_.GetResource()->GetGPUVirtualAddress(), {}, 0, 0 },
+			{ {}, GraphicsBindValueType::CBV, renderResource.passBuffer.GetResource()->GetGPUVirtualAddress(), {}, 0, 0 },
 		};
 		binder.Bind(commandList, bindItems);
 
 		// 描画
 		commandList->DrawInstanced(static_cast<UINT>(vertices_.size()), 1, 0, 0);
+		vertices_.clear();
 	}
 
 	template<typename T>
@@ -238,5 +271,19 @@ namespace Engine {
 			return camera;
 		}
 		return nullptr;
+	}
+
+	template<typename T>
+	inline typename LineRendererBase<T>::RenderResource& LineRendererBase<T>::AllocateRenderResource(GraphicsCore& graphicsCore) {
+
+		if (renderResources_.size() <= renderResourceIndex_) {
+
+			// GPU実行前のコマンドが参照しているバッファを、後続の描画で上書きしない。
+			auto resource = std::make_unique<RenderResource>();
+			resource->vertexBuffer.CreateBuffer(graphicsCore.GetDXObject().GetDevice(), kMaxVertexCount_);
+			resource->passBuffer.CreateBuffer(graphicsCore.GetDXObject().GetDevice());
+			renderResources_.emplace_back(std::move(resource));
+		}
+		return *renderResources_[renderResourceIndex_++];
 	}
 } // Engine

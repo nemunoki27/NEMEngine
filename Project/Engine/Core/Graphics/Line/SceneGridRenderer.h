@@ -8,8 +8,12 @@
 #include <Engine/Core/Graphics/GPUBuffer/DxConstBuffer.h>
 #include <Engine/Core/Graphics/Render/View/RenderViewTypes.h>
 #include <Engine/Core/Graphics/Render/Texture/MultiRenderTarget.h>
-#include <Engine/MathLib/Color.h>
-#include <Engine/MathLib/Vector4.h>
+#include <Engine/Core/Math/Color.h>
+#include <Engine/Core/Math/Vector4.h>
+
+// c++
+#include <memory>
+#include <vector>
 
 namespace Engine {
 
@@ -27,9 +31,13 @@ namespace Engine {
 		//========================================================================
 
 		void Init(GraphicsCore& graphicsCore);
-		void Render(GraphicsCore& graphicsCore, const ResolvedCameraView& camera, MultiRenderTarget& surface);
-		void Edit();
 
+		// フレーム開始処理
+		void BeginFrame();
+
+		void Render(GraphicsCore& graphicsCore, const ResolvedCameraView& camera, MultiRenderTarget& surface);
+
+		void Edit();
 	private:
 		//========================================================================
 		//	private Methods
@@ -84,7 +92,9 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		PipelineState pipeline_{};
-		DxConstBuffer<GridPassConstants> passBuffer_{};
+		// 同じコマンドリスト内で複数回描画しても、後のカメラ定数で上書きしないためのバッファ
+		std::vector<std::unique_ptr<DxConstBuffer<GridPassConstants>>> passBuffers_{};
+		uint32_t passBufferIndex_ = 0;
 
 		bool initialized_ = false;
 
@@ -172,5 +182,6 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		GridPassConstants BuildPassConstants(const ResolvedCameraView& camera, uint32_t width, uint32_t height) const;
+		DxConstBuffer<GridPassConstants>& AllocatePassBuffer(GraphicsCore& graphicsCore);
 	};
 } // Engine

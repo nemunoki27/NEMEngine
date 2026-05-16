@@ -7,7 +7,7 @@
 #include <Engine/Core/ECS/World/ECSWorld.h>
 #include <Engine/Editor/Command/EditorEntitySnapshot.h>
 #include <Engine/Editor/Command/Interface/IEditorCommand.h>
-#include <Engine/Utility/Enum/DimensionType.h>
+#include <Engine/Core/Utility/Enum/DimensionType.h>
 
 namespace Engine {
 
@@ -63,6 +63,8 @@ namespace Engine {
 		Entity selectedEntity = Entity::Null();
 		// 現在選択しているアセット
 		AssetID selectedAsset{};
+		// アセット選択操作が行われるたびに進むカウンタ
+		uint64_t assetSelectionRevision = 0;
 
 		// 現在選択しているオブジェクトの種類
 		EditorSelectionKind selectionKind = EditorSelectionKind::None;

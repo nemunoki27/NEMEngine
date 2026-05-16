@@ -25,6 +25,9 @@ namespace Engine {
 		~ToolPanel() = default;
 
 		void Draw(const EditorPanelContext& context) override;
+
+		// RenderTextureプレビューは描画パイプラインの結果を使うため、Scene/Game描画後に処理する
+		EditorPanelPhase GetPhase() const override { return EditorPanelPhase::PostScene; }
 	private:
 		//========================================================================
 		//	private Methods

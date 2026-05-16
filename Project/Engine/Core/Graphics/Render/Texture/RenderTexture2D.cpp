@@ -3,13 +3,13 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Logger/Assert.h>
-#include <Engine/Logger/Logger.h>
+#include <Engine/Core/Logger/Assert.h>
+#include <Engine/Core/Logger/Logger.h>
 #include <Engine/Core/Graphics/Descriptors/RTVDescriptor.h>
 #include <Engine/Core/Graphics/Descriptors/SRVDescriptor.h>
 #include <Engine/Core/Graphics/DxObject/DxCommand.h>
-#include <Engine/Utility/Enum/EnumAdapter.h>
-#include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Utility/Algorithm/Algorithm.h>
 
 //============================================================================
 //	RenderTexture2D classMethods

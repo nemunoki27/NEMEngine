@@ -142,6 +142,16 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, PipelineVariantKind desiredKind,
 	std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat) {
 
+	return GetORCreate(graphicsPlatform, assetLibrary, pipelineAssetID, desiredKind,
+		runtimeRTVFormats, runtimeDSVFormat,
+		graphicsPlatform.GetFeatureController().GetRuntimeFeatures());
+}
+
+const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPlatform& graphicsPlatform,
+	RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, PipelineVariantKind desiredKind,
+	std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
+	const GraphicsRuntimeFeatures& runtimeFeatures) {
+
 	// アセットライブラリからパイプラインアセットをロード
 	const RenderPipelineAsset* pipelineAsset = assetLibrary.LoadPipeline(pipelineAssetID);
 	// 存在しない場合はnullptrを返す
@@ -149,8 +159,6 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 		return nullptr;
 	}
 
-	// GPUのランタイム機能を取得する
-	const GraphicsRuntimeFeatures& runtimeFeatures = graphicsPlatform.GetFeatureController().GetRuntimeFeatures();
 	// パイプラインアセットから、要求された種類とGPUの機能に最も適したバリアントを解決する
 	const PipelineVariantDesc* variant = ResolveBestVariant(*pipelineAsset, desiredKind, runtimeFeatures);
 	if (!variant) {

@@ -70,6 +70,7 @@ void Engine::EditorState::SelectAsset(AssetID asset) {
 
 	selectionKind = asset ? EditorSelectionKind::Asset : EditorSelectionKind::None;
 	selectedAsset = asset;
+	++assetSelectionRevision;
 	selectedEntity = Entity::Null();
 	selectedSubMeshIndex = 0;
 	selectedSubMeshStableID = UUID{};

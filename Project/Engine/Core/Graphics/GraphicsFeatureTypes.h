@@ -46,17 +46,29 @@ namespace Engine {
 	// ユーザー参照設定
 	struct GraphicsFeaturePreferences {
 
+		// GPU対応状況とは別に、ユーザーが描画経路を許可するか
 		bool allowMeshShader = true;
 		bool allowInlineRayTracing = true;
 		bool allowDispatchRays = true;
+		// GameViewのカメラを基準にしたフラスタムカリングを行うか
+		bool allowFrustumCulling = true;
+		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
+		bool allowContributionCulling = true;
+		// MeshShader経路でメッシュレットの法線コーン判定を行うか
+		bool allowNormalConeCulling = true;
 	};
 
 	// ランタイムで使用する機能
 	struct GraphicsRuntimeFeatures {
 
+		// 対応状況とユーザー設定を解決した最終的な描画経路
 		bool useMeshShader = false;
 		bool useInlineRayTracing = false;
 		bool useDispatchRays = false;
+		// 描画パスごとに参照するカリング機能
+		bool useFrustumCulling = false;
+		bool useContributionCulling = false;
+		bool useNormalConeCulling = false;
 
 		bool UsesAnyRayTracing() const { return useInlineRayTracing || useDispatchRays; }
 	};

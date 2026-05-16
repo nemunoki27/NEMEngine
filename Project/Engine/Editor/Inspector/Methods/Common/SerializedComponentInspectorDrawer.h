@@ -8,7 +8,7 @@
 #include <Engine/Editor/Command/Methods/SetSerializedComponentCommand.h>
 #include <Engine/Editor/Panel/Interface/IEditorPanelHost.h>
 #include <Engine/Core/UUID/UUID.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
 
 // c++
 #include <string>

@@ -109,6 +109,9 @@ namespace Engine {
 		// エンティティのコンポーネントを返す
 		template <typename T>
 		T& GetComponent(const Entity& entity);
+		// コンポーネントがあればポインタを返す
+		template <typename T>
+		T* TryGetComponent(const Entity& entity);
 
 		// 現在レコードされているエンティティの数を返す
 		uint32_t GetRecordCount() const { return static_cast<uint32_t>(records_.size()); }
@@ -286,6 +289,21 @@ namespace Engine {
 		auto& location = records_[entity.index].location;
 		void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, typeID);
 		return *(T*)ptr;
+	}
+
+	template <typename T>
+	inline T* ECSWorld::TryGetComponent(const Entity& entity) {
+
+		// エンティティやコンポーネントが無い場合はnullptrを返す
+		if (!IsAlive(entity)) {
+			return nullptr;
+		}
+		uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
+		auto& location = records_[entity.index].location;
+		if (!location.archetype->Has(typeID)) {
+			return nullptr;
+		}
+		return reinterpret_cast<T*>(location.archetype->GetRaw(location.chunkIndex, location.row, typeID));
 	}
 
 	template <size_t N, size_t... I>

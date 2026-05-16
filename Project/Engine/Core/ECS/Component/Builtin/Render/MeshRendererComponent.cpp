@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Utility/Enum/EnumAdapter.h>
 
 //============================================================================
 //	MeshRendererComponent classMethods

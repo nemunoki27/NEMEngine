@@ -4,8 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/RuntimePaths.h>
-#include <Engine/Utility/Algorithm/Algorithm.h>
-#include <Engine/Utility/Json/JsonAdapter.h>
+#include <Engine/Core/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Utility/Json/JsonAdapter.h>
 
 // c++
 #include <array>
@@ -22,10 +22,11 @@
 
 namespace {
 
-	constexpr std::array<const char*, 6> kCompoundSuffixes = {
+	constexpr std::array<const char*, 7> kCompoundSuffixes = {
 		".scene.json",
 		".prefab.json",
 		".material.json",
+		".animClip.json",
 		".shader.json",
 		".pipeline.json",
 		".graph.json",
@@ -229,12 +230,13 @@ namespace {
 		}
 		return true;
 	}
-	// 複製したJSONアセットの内部IDと表示名を新しいファイル名に合わせる
-	void PatchDuplicatedJsonAsset(const std::filesystem::path& path, Engine::AssetType type) {
+	// JSONアセットの表示名をファイル名に合わせる
+	void PatchJsonAssetName(const std::filesystem::path& path, Engine::AssetType type, bool resetGuid) {
 
 		if (type != Engine::AssetType::Scene &&
 			type != Engine::AssetType::Prefab &&
 			type != Engine::AssetType::Material &&
+			type != Engine::AssetType::AnimationClip &&
 			type != Engine::AssetType::Shader &&
 			type != Engine::AssetType::RenderPipeline) {
 			return;
@@ -252,14 +254,28 @@ namespace {
 			if (!header.is_object()) {
 				header = nlohmann::json::object();
 			}
-			header["guid"] = "";
+			if (resetGuid) {
+				header["guid"] = "";
+			}
 			header["name"] = assetName;
 		} else {
 
-			data["guid"] = "";
+			if (resetGuid) {
+				data["guid"] = "";
+			}
 			data["name"] = assetName;
 		}
 		Engine::JsonAdapter::Save(path.string(), data);
+	}
+	// 複製したJSONアセットの内部IDと表示名を新しいファイル名に合わせる
+	void PatchDuplicatedJsonAsset(const std::filesystem::path& path, Engine::AssetType type) {
+
+		PatchJsonAssetName(path, type, true);
+	}
+	// リネームしたJSONアセットの表示名だけを新しいファイル名に合わせる
+	void PatchRenamedJsonAsset(const std::filesystem::path& path, Engine::AssetType type) {
+
+		PatchJsonAssetName(path, type, false);
 	}
 }
 
@@ -278,6 +294,8 @@ const char* Engine::ProjectAssetFileUtility::GetCreateMenuLabel(ProjectAssetFile
 		return "Prefab";
 	case ProjectAssetFileKind::Material:
 		return "Material";
+	case ProjectAssetFileKind::AnimationClip:
+		return "AnimationClip";
 	case ProjectAssetFileKind::Shader:
 		return "Shader";
 	case ProjectAssetFileKind::RenderPipeline:
@@ -301,12 +319,24 @@ const char* Engine::ProjectAssetFileUtility::GetDefaultName(ProjectAssetFileKind
 		return "NewPrefab";
 	case ProjectAssetFileKind::Material:
 		return "NewMaterial";
+	case ProjectAssetFileKind::AnimationClip:
+		return "NewAnimation";
 	case ProjectAssetFileKind::Shader:
 		return "NewShader";
 	case ProjectAssetFileKind::RenderPipeline:
 		return "NewPipeline";
 	}
 	return "NewAsset";
+}
+
+std::string Engine::ProjectAssetFileUtility::GetEditableAssetName(const ProjectAssetEntry& asset) {
+
+	return SplitAssetFileName(std::filesystem::path(asset.assetPath)).first;
+}
+
+std::string Engine::ProjectAssetFileUtility::GetProtectedAssetSuffix(const ProjectAssetEntry& asset) {
+
+	return SplitAssetFileName(std::filesystem::path(asset.assetPath)).second;
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAssetSource source,
@@ -401,6 +431,71 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(c
 			targetPath.parent_path() / (targetPath.stem().string() + sidecarSource.extension().string());
 		std::filesystem::copy_file(sidecarSource, sidecarTarget, std::filesystem::copy_options::none, ec);
 	}
+
+	result.success = true;
+	result.fullPath = targetPath;
+	result.assetPath = ToAssetPath(targetPath);
+	return result;
+}
+
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameAsset(const ProjectAssetEntry& asset,
+	const std::string& requestedName) {
+
+	ProjectAssetFileResult result{};
+
+	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
+	if (sourcePath.empty() || !std::filesystem::exists(sourcePath)) {
+		result.message = "Source asset was not found.";
+		return result;
+	}
+
+	const auto [currentBaseName, suffix] = SplitAssetFileName(sourcePath);
+	std::string baseName = SanitizeFileName(requestedName.empty() ? currentBaseName : requestedName);
+	baseName = RemoveTypedSuffix(baseName, suffix.c_str());
+	if (baseName.empty()) {
+		baseName = currentBaseName;
+	}
+
+	const std::filesystem::path targetPath = sourcePath.parent_path() / (baseName + suffix);
+	if (targetPath == sourcePath) {
+
+		result.success = true;
+		result.fullPath = sourcePath;
+		result.assetPath = asset.assetPath;
+		return result;
+	}
+	if (std::filesystem::exists(targetPath)) {
+		result.message = "Target asset already exists.";
+		return result;
+	}
+
+	const std::filesystem::path sourceMetaPath = MakeMetaPath(sourcePath);
+	const std::filesystem::path targetMetaPath = MakeMetaPath(targetPath);
+	if (std::filesystem::exists(targetMetaPath)) {
+		result.message = "Target meta file already exists.";
+		return result;
+	}
+
+	std::error_code ec;
+	std::filesystem::rename(sourcePath, targetPath, ec);
+	if (ec) {
+		result.message = "Failed to rename asset file.";
+		return result;
+	}
+
+	if (std::filesystem::exists(sourceMetaPath)) {
+
+		std::filesystem::rename(sourceMetaPath, targetMetaPath, ec);
+		if (ec) {
+
+			std::error_code rollbackEc;
+			std::filesystem::rename(targetPath, sourcePath, rollbackEc);
+			result.message = "Failed to rename asset meta file.";
+			return result;
+		}
+	}
+
+	PatchRenamedJsonAsset(targetPath, asset.type);
 
 	result.success = true;
 	result.fullPath = targetPath;
@@ -670,6 +765,8 @@ const char* Engine::ProjectAssetFileUtility::GetFileSuffix(ProjectAssetFileKind 
 		return ".prefab.json";
 	case ProjectAssetFileKind::Material:
 		return ".material.json";
+	case ProjectAssetFileKind::AnimationClip:
+		return ".animClip.json";
 	case ProjectAssetFileKind::Shader:
 		return ".shader.json";
 	case ProjectAssetFileKind::RenderPipeline:
@@ -750,6 +847,16 @@ std::string Engine::ProjectAssetFileUtility::BuildFileContent(ProjectAssetFileKi
 			"    \"Metallic\": 0.0,\n"
 			"    \"Roughness\": 0.5\n"
 			"  }}\n"
+			"}}\n",
+			assetName);
+	case ProjectAssetFileKind::AnimationClip:
+		return std::format(
+			"{{\n"
+			"  \"guid\": \"\",\n"
+			"  \"name\": \"{}\",\n"
+			"  \"duration\": 1.0,\n"
+			"  \"curveTracks\": [],\n"
+			"  \"eventTracks\": []\n"
 			"}}\n",
 			assetName);
 	case ProjectAssetFileKind::Shader:

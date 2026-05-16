@@ -7,9 +7,9 @@
 #include <Engine/Core/Graphics/DxLib/DxStructures.h>
 #include <Engine/Core/Asset/AssetTypes.h>
 #include <Engine/Core/UUID/UUID.h>
-#include <Engine/MathLib/Vector2.h>
-#include <Engine/MathLib/Vector3.h>
-#include <Engine/MathLib/Matrix4x4.h>
+#include <Engine/Core/Math/Vector2.h>
+#include <Engine/Core/Math/Vector3.h>
+#include <Engine/Core/Math/Matrix4x4.h>
 
 namespace Engine {
 

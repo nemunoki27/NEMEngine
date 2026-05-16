@@ -13,7 +13,7 @@
 #include <Engine/Core/Graphics/Pipeline/Bind/GraphicsRootBinder.h>
 #include <Engine/Core/Graphics/GPUBuffer/DxConstBuffer.h>
 #include <Engine/Core/ECS/Component/Builtin/Render/MeshRendererComponent.h>
-#include <Engine/MathLib/Color.h>
+#include <Engine/Core/Math/Color.h>
 
 namespace Engine {
 

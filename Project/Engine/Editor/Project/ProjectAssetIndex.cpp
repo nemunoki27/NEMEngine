@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/RuntimePaths.h>
 
 //============================================================================

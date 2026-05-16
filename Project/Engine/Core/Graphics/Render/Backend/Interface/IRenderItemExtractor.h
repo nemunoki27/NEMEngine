@@ -7,7 +7,7 @@
 #include <Engine/Core/Graphics/Render/Queue/RenderQueue.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
-#include <Engine/MathLib/Math.h>
+#include <Engine/Core/Math/Math.h>
 
 namespace Engine {
 

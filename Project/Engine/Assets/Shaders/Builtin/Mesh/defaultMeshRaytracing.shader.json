@@ -8,6 +8,12 @@
       "profile": "vs_6_0"
     },
     {
+      "stage": "AS",
+      "file": "Builtin/Mesh/defaultMesh.AS.hlsl",
+      "entry": "main",
+      "profile": "as_6_6"
+    },
+    {
       "stage": "MS",
       "file": "Builtin/Mesh/defaultMesh.MS.hlsl",
       "entry": "main",

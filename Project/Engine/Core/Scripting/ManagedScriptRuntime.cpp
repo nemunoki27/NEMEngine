@@ -12,9 +12,9 @@
 #include <Engine/Core/ECS/World/ECSWorld.h>
 #include <Engine/Core/ECS/System/Context/SystemContext.h>
 #include <Engine/Core/Runtime/RuntimePaths.h>
-#include <Engine/Logger/Logger.h>
-#include <Engine/Input/Input.h>
-#include <Engine/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Logger/Logger.h>
+#include <Engine/Core/Input/Input.h>
+#include <Engine/Core/Utility/Algorithm/Algorithm.h>
 
 // windows
 #include <windows.h>
@@ -362,24 +362,25 @@ namespace {
 	Engine::Vector3 MakeLocalPositionFromWorld(Engine::ECSWorld& world, const Engine::Entity& entity,
 		const Engine::Vector3& position) {
 
-		if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
+		const Engine::HierarchyComponent* hierarchy = world.TryGetComponent<Engine::HierarchyComponent>(entity);
+		if (!hierarchy) {
 			return position;
 		}
 
-		const Engine::Entity parent = world.GetComponent<Engine::HierarchyComponent>(entity).parent;
-		if (!parent.IsValid() || !world.IsAlive(parent) || !world.HasComponent<Engine::TransformComponent>(parent)) {
+		const Engine::Entity parent = hierarchy->parent;
+		Engine::TransformComponent* parentTransform = world.TryGetComponent<Engine::TransformComponent>(parent);
+		if (!parentTransform) {
 			return position;
 		}
 
-		const Engine::Matrix4x4 inverseParent =
-			Engine::Matrix4x4::Inverse(world.GetComponent<Engine::TransformComponent>(parent).worldMatrix);
+		const Engine::Matrix4x4 inverseParent = Engine::Matrix4x4::Inverse(parentTransform->worldMatrix);
 		return Engine::Vector3::TransformPoint(position, inverseParent);
 	}
 
 	// トランスフォームを変更済みにする
 	void MarkDirty(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
-		if (!world.IsAlive(entity) || !world.HasComponent<Engine::TransformComponent>(entity)) {
+		if (!world.TryGetComponent<Engine::TransformComponent>(entity)) {
 			return;
 		}
 		Engine::MarkTransformSubtreeDirty(world, entity);
@@ -387,15 +388,17 @@ namespace {
 
 	Engine::SceneObjectComponent& EnsureScriptSceneObject(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
-		if (!world.HasComponent<Engine::SceneObjectComponent>(entity)) {
+		Engine::SceneObjectComponent* existing = world.TryGetComponent<Engine::SceneObjectComponent>(entity);
+		if (!existing) {
 
 			auto& sceneObject = world.AddComponent<Engine::SceneObjectComponent>(entity);
 			sceneObject.localFileID = Engine::UUID::New();
 			sceneObject.activeSelf = true;
 			sceneObject.activeInHierarchy = true;
+			existing = &sceneObject;
 		}
 
-		auto& sceneObject = world.GetComponent<Engine::SceneObjectComponent>(entity);
+		auto& sceneObject = *existing;
 		if (!sceneObject.localFileID) {
 			sceneObject.localFileID = Engine::UUID::New();
 		}
@@ -411,27 +414,29 @@ namespace {
 		auto& sceneObject = EnsureScriptSceneObject(world, entity);
 		sceneObject.activeInHierarchy = parentActive && sceneObject.activeSelf;
 
-		if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
+		const Engine::HierarchyComponent* hierarchy = world.TryGetComponent<Engine::HierarchyComponent>(entity);
+		if (!hierarchy) {
 			return;
 		}
 
-		Engine::Entity child = world.GetComponent<Engine::HierarchyComponent>(entity).firstChild;
+		Engine::Entity child = hierarchy->firstChild;
 		while (child.IsValid() && world.IsAlive(child)) {
 
 			RefreshScriptActiveRecursive(world, child, sceneObject.activeInHierarchy);
-			if (!world.HasComponent<Engine::HierarchyComponent>(child)) {
+			const Engine::HierarchyComponent* childHierarchy = world.TryGetComponent<Engine::HierarchyComponent>(child);
+			if (!childHierarchy) {
 				break;
 			}
-			child = world.GetComponent<Engine::HierarchyComponent>(child).nextSibling;
+			child = childHierarchy->nextSibling;
 		}
 	}
 
 	void RefreshScriptActiveTree(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
 		bool parentActive = true;
-		if (world.HasComponent<Engine::HierarchyComponent>(entity)) {
+		if (const Engine::HierarchyComponent* hierarchy = world.TryGetComponent<Engine::HierarchyComponent>(entity)) {
 
-			const Engine::Entity parent = world.GetComponent<Engine::HierarchyComponent>(entity).parent;
+			const Engine::Entity parent = hierarchy->parent;
 			if (parent.IsValid() && world.IsAlive(parent)) {
 				parentActive = Engine::IsEntityActiveInHierarchy(world, parent);
 			}
@@ -1208,10 +1213,12 @@ int32_t Engine::ManagedScriptRuntime::CopyNameCallback(ManagedNativeEntity entit
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<NameComponent>(resolved)) {
+	if (!world) {
 		return CopyStringToBuffer(std::string{}, buffer, capacity);
 	}
-	return CopyStringToBuffer(world->GetComponent<NameComponent>(resolved).name, buffer, capacity);
+
+	NameComponent* name = world->TryGetComponent<NameComponent>(resolved);
+	return CopyStringToBuffer(name ? name->name : std::string{}, buffer, capacity);
 }
 
 void Engine::ManagedScriptRuntime::SetNameCallback(ManagedNativeEntity entity, const char* name) {
@@ -1222,20 +1229,23 @@ void Engine::ManagedScriptRuntime::SetNameCallback(ManagedNativeEntity entity, c
 		return;
 	}
 
-	if (!world->HasComponent<NameComponent>(resolved)) {
-		world->AddComponent<NameComponent>(resolved);
+	NameComponent* nameComponent = world->TryGetComponent<NameComponent>(resolved);
+	if (!nameComponent) {
+		nameComponent = &world->AddComponent<NameComponent>(resolved);
 	}
-	world->GetComponent<NameComponent>(resolved).name = name ? std::string(name) : std::string{};
+	nameComponent->name = name ? std::string(name) : std::string{};
 }
 
 int32_t Engine::ManagedScriptRuntime::GetActiveSelfCallback(ManagedNativeEntity entity) {
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<SceneObjectComponent>(resolved)) {
+	if (!world) {
 		return 1;
 	}
-	return world->GetComponent<SceneObjectComponent>(resolved).activeSelf ? 1 : 0;
+
+	SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(resolved);
+	return (!sceneObject || sceneObject->activeSelf) ? 1 : 0;
 }
 
 void Engine::ManagedScriptRuntime::SetActiveSelfCallback(ManagedNativeEntity entity, int32_t active) {
@@ -1261,11 +1271,16 @@ Engine::ManagedNativeEntity Engine::ManagedScriptRuntime::GetParentCallback(Mana
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<HierarchyComponent>(resolved)) {
+	if (!world) {
 		return MakeNullNativeEntity();
 	}
 
-	const Entity parent = world->GetComponent<HierarchyComponent>(resolved).parent;
+	HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved);
+	if (!hierarchy) {
+		return MakeNullNativeEntity();
+	}
+
+	const Entity parent = hierarchy->parent;
 	return world->IsAlive(parent) ? MakeNativeEntity(*world, parent) : MakeNullNativeEntity();
 }
 
@@ -1273,11 +1288,16 @@ Engine::ManagedNativeEntity Engine::ManagedScriptRuntime::GetFirstChildCallback(
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<HierarchyComponent>(resolved)) {
+	if (!world) {
 		return MakeNullNativeEntity();
 	}
 
-	const Entity child = world->GetComponent<HierarchyComponent>(resolved).firstChild;
+	HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved);
+	if (!hierarchy) {
+		return MakeNullNativeEntity();
+	}
+
+	const Entity child = hierarchy->firstChild;
 	return world->IsAlive(child) ? MakeNativeEntity(*world, child) : MakeNullNativeEntity();
 }
 
@@ -1285,11 +1305,16 @@ Engine::ManagedNativeEntity Engine::ManagedScriptRuntime::GetNextSiblingCallback
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<HierarchyComponent>(resolved)) {
+	if (!world) {
 		return MakeNullNativeEntity();
 	}
 
-	const Entity sibling = world->GetComponent<HierarchyComponent>(resolved).nextSibling;
+	HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved);
+	if (!hierarchy) {
+		return MakeNullNativeEntity();
+	}
+
+	const Entity sibling = hierarchy->nextSibling;
 	return world->IsAlive(sibling) ? MakeNativeEntity(*world, sibling) : MakeNullNativeEntity();
 }
 
@@ -1310,22 +1335,28 @@ Engine::ManagedVector3 Engine::ManagedScriptRuntime::GetPositionCallback(Managed
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<TransformComponent>(resolved)) {
+	if (!world) {
 		return {};
 	}
-	return ToManagedVector3(world->GetComponent<TransformComponent>(resolved).worldMatrix.GetTranslationValue());
+
+	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+	return transform ? ToManagedVector3(transform->worldMatrix.GetTranslationValue()) : ManagedVector3{};
 }
 
 void Engine::ManagedScriptRuntime::SetPositionCallback(ManagedNativeEntity entity, ManagedVector3 value) {
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<TransformComponent>(resolved)) {
+	if (!world) {
 		return;
 	}
 
-	auto& transform = world->GetComponent<TransformComponent>(resolved);
-	transform.localPos = MakeLocalPositionFromWorld(*world, resolved, ToVector3(value));
+	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+	if (!transform) {
+		return;
+	}
+
+	transform->localPos = MakeLocalPositionFromWorld(*world, resolved, ToVector3(value));
 	MarkDirty(*world, resolved);
 }
 
@@ -1333,21 +1364,28 @@ Engine::ManagedVector3 Engine::ManagedScriptRuntime::GetLocalPositionCallback(Ma
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<TransformComponent>(resolved)) {
+	if (!world) {
 		return {};
 	}
-	return ToManagedVector3(world->GetComponent<TransformComponent>(resolved).localPos);
+
+	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+	return transform ? ToManagedVector3(transform->localPos) : ManagedVector3{};
 }
 
 void Engine::ManagedScriptRuntime::SetLocalPositionCallback(ManagedNativeEntity entity, ManagedVector3 value) {
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<TransformComponent>(resolved)) {
+	if (!world) {
 		return;
 	}
 
-	world->GetComponent<TransformComponent>(resolved).localPos = ToVector3(value);
+	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+	if (!transform) {
+		return;
+	}
+
+	transform->localPos = ToVector3(value);
 	MarkDirty(*world, resolved);
 }
 
@@ -1355,21 +1393,28 @@ Engine::ManagedVector3 Engine::ManagedScriptRuntime::GetLocalScaleCallback(Manag
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<TransformComponent>(resolved)) {
+	if (!world) {
 		return ManagedVector3{ 1.0f, 1.0f, 1.0f };
 	}
-	return ToManagedVector3(world->GetComponent<TransformComponent>(resolved).localScale);
+
+	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+	return transform ? ToManagedVector3(transform->localScale) : ManagedVector3{ 1.0f, 1.0f, 1.0f };
 }
 
 void Engine::ManagedScriptRuntime::SetLocalScaleCallback(ManagedNativeEntity entity, ManagedVector3 value) {
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<TransformComponent>(resolved)) {
+	if (!world) {
 		return;
 	}
 
-	world->GetComponent<TransformComponent>(resolved).localScale = ToVector3(value);
+	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+	if (!transform) {
+		return;
+	}
+
+	transform->localScale = ToVector3(value);
 	MarkDirty(*world, resolved);
 }
 
@@ -1377,20 +1422,27 @@ Engine::ManagedQuaternion Engine::ManagedScriptRuntime::GetLocalRotationCallback
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<TransformComponent>(resolved)) {
+	if (!world) {
 		return {};
 	}
-	return ToManagedQuaternion(world->GetComponent<TransformComponent>(resolved).localRotation);
+
+	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+	return transform ? ToManagedQuaternion(transform->localRotation) : ManagedQuaternion{};
 }
 
 void Engine::ManagedScriptRuntime::SetLocalRotationCallback(ManagedNativeEntity entity, ManagedQuaternion value) {
 
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved) || !world->HasComponent<TransformComponent>(resolved)) {
+	if (!world) {
 		return;
 	}
 
-	world->GetComponent<TransformComponent>(resolved).localRotation = Quaternion::Normalize(ToQuaternion(value));
+	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+	if (!transform) {
+		return;
+	}
+
+	transform->localRotation = Quaternion::Normalize(ToQuaternion(value));
 	MarkDirty(*world, resolved);
 }

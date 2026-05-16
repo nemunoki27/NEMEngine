@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Panel/Interface/IEditorPanel.h>
-#include <Engine/Input/InputStructures.h>
+#include <Engine/Core/Input/InputStructures.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
 #include <Engine/Core/UUID/UUID.h>
 
@@ -81,7 +81,6 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		void DrawViewportContent(const EditorPanelContext& context, const char* id, const ImVec2& size);
-		void SyncInputViewRect(InputViewArea area, const ImVec2& screenPos, const ImVec2& drawSize, const Vector2& srcSize) const;
 
 		// シーンギズモの描画
 		void DrawSceneGizmo(const EditorPanelContext& context);

@@ -15,16 +15,29 @@ Engine::BehaviorSystem* Engine::BehaviorSystem::activeSystem_ = nullptr;
 namespace {
 
 	// タイプ名からビヘイビアの型IDを取得する
-	bool TryResolveTypeID(uint32_t& outTypeID, const std::string& typeName) {
+	bool TryResolveTypeID(Engine::ScriptEntry& entry, uint32_t& outTypeID) {
 
-		if (typeName.empty()) {
+		if (entry.type.empty()) {
+			entry.resolvedType.clear();
+			entry.resolvedTypeValid = false;
 			return false;
 		}
-		const auto* info = Engine::BehaviorTypeRegistry::GetInstance().FindByName(typeName);
+
+		if (entry.resolvedTypeValid && entry.resolvedType == entry.type) {
+			outTypeID = entry.resolvedTypeID;
+			return true;
+		}
+
+		const auto* info = Engine::BehaviorTypeRegistry::GetInstance().FindByName(entry.type);
 		if (!info) {
+			entry.resolvedType.clear();
+			entry.resolvedTypeValid = false;
 			return false;
 		}
-		// 参照に渡してtrueを返す
+
+		entry.resolvedType = entry.type;
+		entry.resolvedTypeID = info->id;
+		entry.resolvedTypeValid = true;
 		outTypeID = info->id;
 		return true;
 	}
@@ -174,6 +187,9 @@ void Engine::BehaviorSystem::ResetRuntimeState(ECSWorld& world) {
 		for (auto& entry : component.scripts) {
 
 			entry.handle = BehaviorHandle::Null();
+			entry.resolvedType.clear();
+			entry.resolvedTypeID = 0;
+			entry.resolvedTypeValid = false;
 		}
 		});
 }
@@ -205,7 +221,7 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 			}
 
 			uint32_t typeID = 0;
-			if (!TryResolveTypeID(typeID, entry.type)) {
+			if (!TryResolveTypeID(entry, typeID)) {
 				if (entry.handle.IsValid()) {
 
 					runtime_.Destroy(entry.handle, world, context);
@@ -238,9 +254,10 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 					continue;
 				}
 				record->instance->SetSerializedFields(entry.serializedFields);
+			} else {
+				// 既存インスタンスにはInspector側の[SerializeField]変更だけを反映する
+				record->instance->SetSerializedFields(entry.serializedFields);
 			}
-			// 既存インスタンスにもInspector側の[SerializeField]変更を反映する
-			record->instance->SetSerializedFields(entry.serializedFields);
 
 			// アクセスされたフラグを立てる
 			record->seen = true;
@@ -299,9 +316,9 @@ void Engine::BehaviorSystem::DispatchCollision(ECSWorld& world,
 	}
 
 	// Contactのselfに一致するEntityのビヘイビアだけへ通知する
-	runtime_.ForEachAlive([&](BehaviorRecord& record) {
+	runtime_.ForEachAliveByOwner(collision.self, [&](BehaviorRecord& record) {
 
-		if (!record.enabled || !record.instance || record.owner != collision.self) {
+		if (!record.enabled || !record.instance) {
 			return;
 		}
 		switch (phase) {

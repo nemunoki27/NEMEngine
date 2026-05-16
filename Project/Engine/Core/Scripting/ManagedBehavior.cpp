@@ -50,12 +50,17 @@ Engine::ManagedBehavior::ManagedBehavior(std::string typeName) :
 
 void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializedFields) {
 
-	nlohmann::json nextFields = serializedFields.is_object() ? serializedFields : nlohmann::json::object();
-	if (serializedFields_ == nextFields) {
-		return;
+	if (serializedFields.is_object()) {
+		if (serializedFields_ == serializedFields) {
+			return;
+		}
+		serializedFields_ = serializedFields;
+	} else {
+		if (serializedFields_.is_object() && serializedFields_.empty()) {
+			return;
+		}
+		serializedFields_ = nlohmann::json::object();
 	}
-
-	serializedFields_ = std::move(nextFields);
 
 	// 生成済みのC#インスタンスには、Play中のInspector変更をその場で反映する
 	if (managedHandle_ != 0) {

@@ -4,8 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/ECS/Component/Registry/ComponentTypeRegistry.h>
-#include <Engine/MathLib/Vector3.h>
-#include <Engine/MathLib/Color.h>
+#include <Engine/Core/Math/Vector3.h>
+#include <Engine/Core/Math/Color.h>
 
 namespace Engine {
 

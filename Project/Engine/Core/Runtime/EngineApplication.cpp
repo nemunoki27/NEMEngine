@@ -9,10 +9,10 @@
 #include <Engine/Core/Collision/CollisionSettings.h>
 #include <Engine/Core/Scripting/ManagedScriptRuntime.h>
 #include <Engine/Core/Tools/ToolRegistry.h>
-#include <Engine/Audio/Audio.h>
+#include <Engine/Core/Audio/Audio.h>
 #include <Engine/Editor/Project/ProjectAssetFileUtility.h>
-#include <Engine/Logger/Logger.h>
-#include <Engine/Input/Input.h>
+#include <Engine/Core/Logger/Logger.h>
+#include <Engine/Core/Input/Input.h>
 
 // ECSシステム
 #include <Engine/Core/ECS/System/Builtin/BehaviorSystem.h>
@@ -254,6 +254,12 @@ void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 	// バックバッファ描画クリア
 	graphicsCore.Render();
 
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		// SceneViewに重ねる選択エンティティのデバッグラインを、SceneView描画前に積む
+		editorManager_.DrawSceneDebugObjects(editorContext_);
+	}
+
 	// ワールドを描画
 	renderPipeline_->Render(graphicsCore, BuildRenderFrameRequest(graphicsCore, GetActiveWorld(), GetActiveSceneHeader()));
 
@@ -264,7 +270,7 @@ void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 
 		// エディタのフレーム終了処理
 		editorManager_.EndFrame(graphicsCore, editorContext_, &renderPipeline_->GetViewportRenderService(),
-			&renderPipeline_->GetResolvedView(RenderViewKind::Scene));
+			&renderPipeline_->GetResolvedView(RenderViewKind::Scene), renderPipeline_.get());
 	} else {
 
 		// エディタがない場合はゲームビューをバックバッファに描画する
@@ -492,6 +498,9 @@ void Engine::EngineApplication::Finalize() {
 
 		editorManager_.Finalize();
 	}
+
+	// ツールが持つGPUリソースをGraphicsCore終了前に確実に解放する
+	ToolRegistry::GetInstance().Clear();
 
 	// C#ホストと読み込んだアセンブリを解放する
 	ManagedScriptRuntime::GetInstance().Finalize();

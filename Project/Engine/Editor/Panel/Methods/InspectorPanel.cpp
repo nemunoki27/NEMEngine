@@ -11,12 +11,20 @@
 #include <Engine/Editor/Scripting/ScriptAssetDragDrop.h>
 #include <Engine/Core/Asset/AssetDatabase.h>
 #include <Engine/Core/Graphics/Asset/MaterialAsset.h>
+#include <Engine/Core/Graphics/Mesh/MeshSubMeshAuthoring.h>
+#include <Engine/Core/Graphics/Render/RenderPipelineRunner.h>
+#include <Engine/Core/Graphics/Render/View/SceneViewCameraController.h>
+#include <Engine/Core/Graphics/Texture/TextureAssetResolver.h>
+#include <Engine/Core/Context/EngineContext.h>
+#include <Engine/Core/Runtime/RuntimePaths.h>
 #include <Engine/Core/ECS/Component/Builtin/NameComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/HierarchyComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/ScriptComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/AudioSourceComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/CollisionComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/Light/DirectionalLightComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Render/MeshRendererComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Render/SpriteRendererComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Render/TextRendererComponent.h>
@@ -25,10 +33,16 @@
 #include <Engine/Core/ECS/Component/Builtin/CameraControllerComponent.h>
 #include <Engine/Editor/Command/Methods/SetEntityActiveCommand.h>
 #include <Engine/Editor/Inspector/Methods/Common/InspectorDrawerCommon.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
-#include <Engine/Utility/Enum/EnumAdapter.h>
-#include <Engine/Utility/Json/JsonAdapter.h>
-#include <Engine/Logger/Logger.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Utility/Json/JsonAdapter.h>
+#include <Engine/Core/Logger/Logger.h>
+#include <Engine/Core/Input/Input.h>
+
+// assimp
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 
 // インスペクター描画
 #include <Engine/Editor/Inspector/Methods/TransformInspectorDrawer.h>
@@ -49,10 +63,14 @@
 // c++
 #include <algorithm>
 #include <cctype>
+#include <cfloat>
+#include <cmath>
 #include <filesystem>
+#include <initializer_list>
 #include <limits>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 //============================================================================
 //	InspectorPanel classMethods
@@ -75,7 +93,7 @@ namespace {
 		{ "Audio Source",       "AudioSource" },
 		{ "Collision",          "Collision" },
 		{ "Mesh Renderer",      "MeshRenderer" },
-		{ "Skinned Animation",  "SkinnedAnimation" },
+		{ "Skinned AnimationClip",  "SkinnedAnimation" },
 		{ "Sprite Renderer",    "SpriteRenderer" },
 		{ "Text Renderer",      "TextRenderer" },
 		{ "UVTransform",      "UVTransform" },
@@ -83,6 +101,15 @@ namespace {
 		{ "PointLight",       "PointLight" },
 		{ "SpotLight",        "SpotLight" },
 	} };
+	constexpr uint32_t kModelPreviewAssimpFlags =
+		aiProcess_FlipWindingOrder |
+		aiProcess_FlipUVs |
+		aiProcess_Triangulate |
+		aiProcess_GenSmoothNormals |
+		aiProcess_CalcTangentSpace |
+		aiProcess_JoinIdenticalVertices |
+		aiProcess_ImproveCacheLocality |
+		aiProcess_SortByPType;
 
 	// Scriptメニューか
 	bool IsScriptMenuEntry(const InspectorComponentMenuEntry& entry) {
@@ -99,6 +126,129 @@ namespace {
 		return std::all_of(text.begin(), text.end(), [](unsigned char c) {
 			return std::isxdigit(c) != 0;
 			});
+	}
+	Engine::Vector3 ToEnginePreviewPosition(const aiVector3D& pos) {
+
+		return Engine::Vector3(-pos.x, pos.y, pos.z);
+	}
+	std::string GetMaterialTextureReference(aiMaterial* material, std::initializer_list<aiTextureType> textureTypes) {
+
+		if (!material) {
+			return {};
+		}
+		for (aiTextureType type : textureTypes) {
+
+			if (material->GetTextureCount(type) == 0) {
+				continue;
+			}
+
+			aiString textureName;
+			if (material->GetTexture(type, 0, &textureName) == AI_SUCCESS && 0 < textureName.length) {
+				return textureName.C_Str();
+			}
+		}
+		return {};
+	}
+	void CollectAssimpNodePositions(const aiScene* scene, const aiNode* node, const aiMatrix4x4& parentTransform,
+		std::vector<Engine::Vector3>& outPositions) {
+
+		(void)parentTransform;
+		if (!scene || !node) {
+			return;
+		}
+
+		for (uint32_t meshRefIndex = 0; meshRefIndex < node->mNumMeshes; ++meshRefIndex) {
+
+			const uint32_t meshIndex = node->mMeshes[meshRefIndex];
+			if (scene->mNumMeshes <= meshIndex) {
+				continue;
+			}
+
+			const aiMesh* mesh = scene->mMeshes[meshIndex];
+			if (!mesh || mesh->mNumVertices == 0) {
+				continue;
+			}
+
+			outPositions.reserve(outPositions.size() + mesh->mNumVertices);
+			for (uint32_t vertexIndex = 0; vertexIndex < mesh->mNumVertices; ++vertexIndex) {
+
+				outPositions.emplace_back(ToEnginePreviewPosition(mesh->mVertices[vertexIndex]));
+			}
+		}
+
+		for (uint32_t childIndex = 0; childIndex < node->mNumChildren; ++childIndex) {
+
+			CollectAssimpNodePositions(scene, node->mChildren[childIndex], aiMatrix4x4(), outPositions);
+		}
+	}
+	float CalculatePreviewCameraDistance(const Engine::Vector3& min, const Engine::Vector3& max,
+		const Engine::Vector3& center, float pitchDegrees, float yawDegrees, float fovYDegrees,
+		float aspectRatio, float distanceScale) {
+
+		const float halfFovY = (fovYDegrees * 0.5f) * 3.1415926535f / 180.0f;
+		const float tanY = (std::max)(std::tan(halfFovY), 0.001f);
+		const float tanX = (std::max)(tanY * (std::max)(aspectRatio, 0.001f), 0.001f);
+
+		const Engine::Matrix4x4 rotation = Engine::Matrix4x4::MakeRotateMatrix(
+			Engine::Vector3(pitchDegrees, yawDegrees, 0.0f));
+		const Engine::Matrix4x4 inverseRotation = Engine::Matrix4x4::Inverse(rotation);
+
+		float requiredDistance = 0.1f;
+		for (int32_t ix = 0; ix < 2; ++ix) {
+			for (int32_t iy = 0; iy < 2; ++iy) {
+				for (int32_t iz = 0; iz < 2; ++iz) {
+
+					const Engine::Vector3 corner(
+						ix == 0 ? min.x : max.x,
+						iy == 0 ? min.y : max.y,
+						iz == 0 ? min.z : max.z);
+					const Engine::Vector3 local = Engine::Vector3::TransferNormal(corner - center, inverseRotation);
+					requiredDistance = (std::max)(requiredDistance, std::fabs(local.x) / tanX - local.z);
+					requiredDistance = (std::max)(requiredDistance, std::fabs(local.y) / tanY - local.z);
+				}
+			}
+		}
+		return (std::max)(requiredDistance, 0.1f) * (std::max)(distanceScale, 1.0f) * 1.08f;
+	}
+	void ImportModelReferencedTextures(Engine::AssetDatabase& database, Engine::AssetID meshAssetID) {
+
+		if (!meshAssetID) {
+			return;
+		}
+
+		const std::filesystem::path fullPath = database.ResolveFullPath(meshAssetID);
+		if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
+			return;
+		}
+
+		Engine::TextureAssetResolver textureResolver{};
+		textureResolver.Build(fullPath);
+
+		Assimp::Importer importer;
+		const aiScene* scene = importer.ReadFile(fullPath.string(), kModelPreviewAssimpFlags);
+		if (!scene || scene->mNumMaterials == 0) {
+			return;
+		}
+
+		auto importTexture = [&](const std::string& reference) {
+
+			const std::string assetPath = textureResolver.ResolveAssetPath(reference);
+			if (!assetPath.empty()) {
+
+				database.ImportOrGet(assetPath, Engine::AssetType::Texture);
+			}
+			};
+
+		for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; ++materialIndex) {
+
+			aiMaterial* material = scene->mMaterials[materialIndex];
+			importTexture(GetMaterialTextureReference(material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE }));
+			importTexture(GetMaterialTextureReference(material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT }));
+			importTexture(GetMaterialTextureReference(material, { aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_UNKNOWN }));
+			importTexture(GetMaterialTextureReference(material, { aiTextureType_SPECULAR }));
+			importTexture(GetMaterialTextureReference(material, { aiTextureType_EMISSIVE, aiTextureType_EMISSION_COLOR }));
+			importTexture(GetMaterialTextureReference(material, { aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP }));
+		}
 	}
 
 	// Material JSON内のパス参照をAssetIDに解決して、Inspectorで編集できる形にする
@@ -286,6 +436,11 @@ namespace {
 
 Engine::InspectorPanel::InspectorPanel() {
 
+	modelPreviewCameraController_ = std::make_unique<SceneViewCameraController>();
+	modelPreviewCameraController_->MakeDefaultState();
+	modelPreviewCameraController_->SetSavePath(RuntimePaths::GetEngineAssetPath(
+		"Config/inspectorModelPreviewCamera.exeConfig.json").string());
+
 	// コンポーネント描画の登録
 	componentDrawers_.emplace_back(std::make_unique<TransformInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<OrthographicCameraInspectorDrawer>());
@@ -306,6 +461,11 @@ Engine::InspectorPanel::InspectorPanel() {
 	componentDrawers_.emplace_back(std::make_unique<AudioSourceInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<CollisionInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<ScriptInspectorDrawer>());
+}
+
+void Engine::InspectorPanel::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
+
+	// InspectorPanelはToolPanel上の独立ウィンドウを持たず、RenderTexture作成機能だけを利用する。
 }
 
 void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
@@ -369,9 +529,6 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 		}
 		drawer->Draw(context, *world, selected);
 	}
-
-	// デバッグオブジェクトの描画
-	InspectorDrawerCommon::DrawEntityDebugObject(*world, selected);
 
 	ImGui::SetWindowFontScale(1.0f);
 
@@ -463,8 +620,239 @@ void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext
 		DrawMaterialAssetInspector(context, *meta);
 		return;
 	}
+	if (meta->type == AssetType::Mesh) {
+
+		DrawMeshAssetInspector(context, *meta);
+		return;
+	}
 
 	ImGui::TextDisabled("No inspector for this asset type.");
+}
+
+void Engine::InspectorPanel::DrawMeshAssetInspector(const EditorPanelContext& context, const AssetMeta& meta) {
+
+	if (!context.editorContext || !context.editorContext->assetDatabase || !context.editorState) {
+
+		ImGui::TextDisabled("Mesh preview is not available.");
+		return;
+	}
+
+	const uint64_t selectionRevision = context.editorState->assetSelectionRevision;
+	if (modelPreviewAsset_ != meta.guid || modelPreviewSelectionRevision_ != selectionRevision) {
+
+		modelPreviewSelectionRevision_ = selectionRevision;
+		RebuildModelAssetPreviewWorld(context, meta);
+	}
+
+	ImGui::Text("Mesh Preview");
+	ImGui::Separator();
+
+	const float availableWidth = (std::max)(ImGui::GetContentRegionAvail().x, 64.0f);
+	const float displayWidth = (std::min)(availableWidth, static_cast<float>(kModelPreviewSize_.x));
+	const float displayHeight = displayWidth * static_cast<float>(kModelPreviewSize_.y) /
+		static_cast<float>((std::max)(kModelPreviewSize_.x, 1));
+	const ImVec2 displaySize(displayWidth, displayHeight);
+
+	if (!context.graphicsCore || !context.renderPipeline || !modelPreviewWorld_ ||
+		!modelPreviewWorld_->IsAlive(modelPreviewEntity_)) {
+
+		ImGui::Dummy(displaySize);
+		ImGui::TextDisabled("Mesh preview render target is not available.");
+		return;
+	}
+
+	modelPreviewImagePos_ = ImGui::GetCursorScreenPos();
+	Input::GetInstance()->SetViewRect(InputViewArea::InspectorModelPreview,
+		Vector2(modelPreviewImagePos_.x, modelPreviewImagePos_.y),
+		Vector2(displaySize.x, displaySize.y),
+		EngineContext::GetWindowSetting().gameSize.GetFloat());
+
+	ToolContext toolContext{};
+	toolContext.world = context.editorContext->activeWorld;
+	toolContext.assetDatabase = context.editorContext->assetDatabase;
+	toolContext.activeSceneHeader = context.editorContext->activeSceneHeader;
+	toolContext.activeSceneAsset = context.editorContext->activeSceneAsset;
+	toolContext.activeSceneInstanceID = context.editorContext->activeSceneInstanceID;
+	toolContext.activeScenePath = context.editorContext->activeScenePath;
+	toolContext.isPlaying = context.IsPlaying();
+	toolContext.canEditScene = context.CanEditScene();
+
+	EditorToolContext editorToolContext{};
+	editorToolContext.panelContext = &context;
+	editorToolContext.toolContext = toolContext;
+
+	BeginEditorToolFrame(editorToolContext);
+	EditorToolRenderTexture* preview = CreateRenderTexture("InspectorModelAssetPreview",
+		kModelPreviewSize_, kModelPreviewColor_, kModelPreviewColorTargetCount_);
+	if (preview) {
+
+		RenderModelAssetPreview(editorToolContext, *preview);
+		ImGui::Image(preview->GetImTextureID(), displaySize);
+	} else {
+
+		ImGui::Dummy(displaySize);
+		ImGui::TextDisabled("Mesh preview render target is not available.");
+	}
+	EndEditorToolFrame();
+}
+
+void Engine::InspectorPanel::RebuildModelAssetPreviewWorld(const EditorPanelContext& context, const AssetMeta& meta) {
+
+	modelPreviewAsset_ = meta.guid;
+	modelPreviewWorld_ = std::make_unique<ECSWorld>();
+	modelPreviewEntity_ = Entity::Null();
+	modelPreviewLightEntity_ = Entity::Null();
+	modelPreviewBounds_ = ComputeModelAssetPreviewBounds(context, meta);
+
+	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
+	if (!database || !meta.guid) {
+
+		ResetModelAssetPreviewCamera();
+		return;
+	}
+	ImportModelReferencedTextures(*database, meta.guid);
+
+	Entity lightEntity = modelPreviewWorld_->CreateEntity(UUID::New());
+	auto& lightTransform = modelPreviewWorld_->AddComponent<TransformComponent>(lightEntity);
+	lightTransform.worldMatrix = Matrix4x4::Identity();
+	lightTransform.isDirty = false;
+	auto& light = modelPreviewWorld_->AddComponent<DirectionalLightComponent>(lightEntity);
+	light.direction = Vector3(0.35f, -0.65f, 0.65f).Normalize();
+	light.intensity = 1.5f;
+	modelPreviewLightEntity_ = lightEntity;
+
+	Entity entity = modelPreviewWorld_->CreateEntity(UUID::New());
+	auto& transform = modelPreviewWorld_->AddComponent<TransformComponent>(entity);
+	transform.worldMatrix = Matrix4x4::Identity();
+	transform.isDirty = false;
+
+	auto& renderer = modelPreviewWorld_->AddComponent<MeshRendererComponent>(entity);
+	renderer.mesh = meta.guid;
+	renderer.material = {};
+	renderer.queue = "Opaque";
+	renderer.visible = true;
+	renderer.enableZPrepass = true;
+	MeshSubMeshAuthoring::SyncComponent(database, renderer, false);
+
+	modelPreviewEntity_ = entity;
+	ResetModelAssetPreviewCamera();
+}
+
+void Engine::InspectorPanel::RenderModelAssetPreview(const EditorToolContext& toolContext,
+	EditorToolRenderTexture& preview) {
+
+	if (!toolContext.panelContext || !toolContext.panelContext->renderPipeline || !modelPreviewWorld_ ||
+		!modelPreviewWorld_->IsAlive(modelPreviewEntity_)) {
+
+		RenderToTexture(preview, [](EditorToolRenderContext&) {}, preview.clearColor);
+		return;
+	}
+
+	RenderToTexture(preview, [&](EditorToolRenderContext& renderContext) {
+
+		if (modelPreviewCameraController_) {
+
+			modelPreviewCameraController_->Update(Dimension::Type3D, InputViewArea::InspectorModelPreview);
+		}
+
+		EntityPreviewRenderRequest request{};
+		request.world = modelPreviewWorld_.get();
+		request.systemContext = toolContext.toolContext.systemContext;
+		request.assetDatabase = toolContext.toolContext.assetDatabase;
+		request.sceneHeader = toolContext.toolContext.activeSceneHeader;
+		request.sceneInstanceID = {};
+		request.rootEntity = modelPreviewEntity_;
+		request.surface = preview.GetRenderTarget();
+		request.camera = modelPreviewCameraController_->GetCameraState();
+		request.clearColor = preview.clearColor;
+		request.drawGrid3D = true;
+
+		toolContext.panelContext->renderPipeline->RenderEntityPreview(*renderContext.graphicsCore, request);
+		}, preview.clearColor);
+}
+
+Engine::InspectorPanel::ModelAssetPreviewBounds Engine::InspectorPanel::ComputeModelAssetPreviewBounds(
+	const EditorPanelContext& context, const AssetMeta& meta) const {
+
+	ModelAssetPreviewBounds bounds{};
+	const AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
+	if (!database || !meta.guid) {
+		return bounds;
+	}
+
+	const std::filesystem::path fullPath = database->ResolveFullPath(meta.guid);
+	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
+		return bounds;
+	}
+
+	Assimp::Importer importer;
+	const aiScene* scene = importer.ReadFile(fullPath.string(), kModelPreviewAssimpFlags);
+	if (!scene || !scene->HasMeshes()) {
+		return bounds;
+	}
+
+	std::vector<Vector3> positions{};
+	CollectAssimpNodePositions(scene, scene->mRootNode, aiMatrix4x4(), positions);
+	if (positions.empty()) {
+		return bounds;
+	}
+
+	Vector3 minV(FLT_MAX, FLT_MAX, FLT_MAX);
+	Vector3 maxV(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+	for (const Vector3& p : positions) {
+
+		minV.x = (std::min)(minV.x, p.x);
+		minV.y = (std::min)(minV.y, p.y);
+		minV.z = (std::min)(minV.z, p.z);
+		maxV.x = (std::max)(maxV.x, p.x);
+		maxV.y = (std::max)(maxV.y, p.y);
+		maxV.z = (std::max)(maxV.z, p.z);
+	}
+
+	bounds.min = minV;
+	bounds.max = maxV;
+	bounds.center = (minV + maxV) * 0.5f;
+
+	float radius = 0.0f;
+	for (const Vector3& p : positions) {
+
+		radius = (std::max)(radius, (p - bounds.center).Length());
+	}
+	bounds.radius = (std::max)(radius, 0.1f);
+	bounds.valid = true;
+	return bounds;
+}
+
+void Engine::InspectorPanel::ResetModelAssetPreviewCamera() {
+
+	if (!modelPreviewCameraController_) {
+		return;
+	}
+
+	const Vector3 center = modelPreviewBounds_.valid ? modelPreviewBounds_.center : Vector3::AnyInit(0.0f);
+	const float radius = (std::max)(modelPreviewBounds_.valid ? modelPreviewBounds_.radius : 1.0f, 0.1f);
+	const float fovY = 35.0f;
+	const float pitchDegrees = 8.0f;
+	const float yawDegrees = 180.0f;
+	const float aspectRatio = static_cast<float>(kModelPreviewSize_.x) /
+		static_cast<float>((std::max)(kModelPreviewSize_.y, 1));
+	const float distance = modelPreviewBounds_.valid ?
+		CalculatePreviewCameraDistance(modelPreviewBounds_.min, modelPreviewBounds_.max, center,
+			pitchDegrees, yawDegrees, fovY, aspectRatio, 2.0f) :
+		radius * 2.0f;
+	const Matrix4x4 cameraRotation = Matrix4x4::MakeRotateMatrix(Vector3(pitchDegrees, yawDegrees, 0.0f));
+	const Vector3 cameraForward(cameraRotation.m[2][0], cameraRotation.m[2][1], cameraRotation.m[2][2]);
+
+	ManualRenderCameraState& camera = modelPreviewCameraController_->GetCameraState();
+	camera = {};
+	camera.enableOrthographic = false;
+	camera.enablePerspective = true;
+	camera.perspectiveFovY = fovY;
+	camera.perspectiveNearClip = 0.01f;
+	camera.perspectiveFarClip = (std::max)(4000.0f, distance + radius * 4.0f);
+	camera.perspectiveCullingMask = -1;
+	camera.transform3D.pos = center - cameraForward * distance;
+	camera.transform3D.rotation = Vector3(pitchDegrees, yawDegrees, 0.0f);
 }
 
 void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext& context, const AssetMeta& meta) {

@@ -17,7 +17,7 @@
 #include <Engine/Core/Graphics/Texture/GPUTextureResource.h>
 #include <Engine/Core/Graphics/Texture/TextureUploadService.h>
 #include <Engine/Core/UUID/UUID.h>
-#include <Engine/Utility/ImGui/MyGUI.h>
+#include <Engine/Core/Utility/ImGui/MyGUI.h>
 
 // c++
 #include <algorithm>
