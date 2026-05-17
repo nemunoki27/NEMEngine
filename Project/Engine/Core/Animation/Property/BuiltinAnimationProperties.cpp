@@ -30,6 +30,10 @@ namespace {
 		return false;
 	}
 
+	//============================================================================
+	//	TransformComponent
+	//============================================================================
+
 	bool GetTransformLocalPos(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
@@ -38,7 +42,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool SetTransformLocalPos(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
 		Engine::Vector3 typed{};
@@ -54,7 +57,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool GetTransformLocalPos2D(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
@@ -63,7 +65,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool SetTransformLocalPos2D(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
 		Engine::Vector2 typed{};
@@ -80,7 +81,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool GetTransformLocalRotation(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
@@ -89,7 +89,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool SetTransformLocalRotation(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
 		Engine::Quaternion typed{};
@@ -105,7 +104,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool GetTransformLocalRotationZ(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
@@ -114,7 +112,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool SetTransformLocalRotationZ(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
 		float typed = 0.0f;
@@ -132,7 +129,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool GetTransformLocalScale(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
@@ -141,7 +137,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool SetTransformLocalScale(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
 		Engine::Vector3 typed{};
@@ -156,7 +151,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool GetTransformLocalScale2D(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
@@ -165,7 +159,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool SetTransformLocalScale2D(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
 		Engine::Vector2 typed{};
@@ -183,6 +176,10 @@ namespace {
 		return false;
 	}
 
+	//============================================================================
+	//	SpriteRendererComponent
+	//============================================================================
+
 	bool GetSpriteSize(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::SpriteRendererComponent* renderer = world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
@@ -191,7 +188,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool SetSpriteSize(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
 		Engine::Vector2 typed{};
@@ -204,7 +200,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool GetSpritePivot(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::SpriteRendererComponent* renderer = world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
@@ -213,7 +208,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool SetSpritePivot(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
 		Engine::Vector2 typed{};
@@ -226,7 +220,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool GetSpriteColor(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::SpriteRendererComponent* renderer = world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
@@ -235,7 +228,6 @@ namespace {
 		}
 		return false;
 	}
-
 	bool SetSpriteColor(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
 		Engine::Color4 typed{};
@@ -249,12 +241,8 @@ namespace {
 		return false;
 	}
 
-	void Register(Engine::AnimationPropertyRegistry& registry,
-		const char* componentName,
-		const char* propertyPath,
-		const char* displayName,
-		Engine::AnimationValueType valueType,
-		bool (*hasComponent)(Engine::ECSWorld&, const Engine::Entity&),
+	void Register(Engine::AnimationPropertyRegistry& registry, const char* componentName, const char* propertyPath,
+		const char* displayName, Engine::AnimationValueType valueType, bool (*hasComponent)(Engine::ECSWorld&, const Engine::Entity&),
 		bool (*getValue)(Engine::ECSWorld&, const Engine::Entity&, Engine::AnimationPropertyValue&),
 		bool (*setValue)(Engine::ECSWorld&, const Engine::Entity&, const Engine::AnimationPropertyValue&)) {
 
@@ -273,7 +261,7 @@ namespace {
 
 void Engine::RegisterBuiltinAnimationProperties() {
 
-	// EditorToolが複数回生成されても、同じPropertyを重複登録しない。
+	// EditorToolが複数回生成されても、同じPropertyを重複登録しない
 	static bool registered = false;
 	if (registered) {
 		return;
@@ -282,23 +270,32 @@ void Engine::RegisterBuiltinAnimationProperties() {
 
 	AnimationPropertyRegistry& registry = AnimationPropertyRegistry::GetInstance();
 
-	Register(registry, "Transform", "localPos", "Transform.localPos", AnimationValueType::Vector3,
-		HasComponent<TransformComponent>, GetTransformLocalPos, SetTransformLocalPos);
-	Register(registry, "Transform", "localPos2D", "Transform.localPos2D", AnimationValueType::Vector2,
-		HasComponent<TransformComponent>, GetTransformLocalPos2D, SetTransformLocalPos2D);
-	Register(registry, "Transform", "localRotation", "Transform.localRotation", AnimationValueType::Quaternion,
-		HasComponent<TransformComponent>, GetTransformLocalRotation, SetTransformLocalRotation);
-	Register(registry, "Transform", "localRotationZ", "Transform.localRotationZ", AnimationValueType::Float,
-		HasComponent<TransformComponent>, GetTransformLocalRotationZ, SetTransformLocalRotationZ);
-	Register(registry, "Transform", "localScale", "Transform.localScale", AnimationValueType::Vector3,
-		HasComponent<TransformComponent>, GetTransformLocalScale, SetTransformLocalScale);
-	Register(registry, "Transform", "localScale2D", "Transform.localScale2D", AnimationValueType::Vector2,
-		HasComponent<TransformComponent>, GetTransformLocalScale2D, SetTransformLocalScale2D);
-
-	Register(registry, "SpriteRenderer", "size", "SpriteRenderer.size", AnimationValueType::Vector2,
-		HasComponent<SpriteRendererComponent>, GetSpriteSize, SetSpriteSize);
-	Register(registry, "SpriteRenderer", "pivot", "SpriteRenderer.pivot", AnimationValueType::Vector2,
-		HasComponent<SpriteRendererComponent>, GetSpritePivot, SetSpritePivot);
-	Register(registry, "SpriteRenderer", "color", "SpriteRenderer.color", AnimationValueType::Color4,
-		HasComponent<SpriteRendererComponent>, GetSpriteColor, SetSpriteColor);
+	//============================================================================
+	//	TransformComponent
+	//============================================================================
+	{
+		Register(registry, "Transform", "localPos", "Transform.localPos", AnimationValueType::Vector3,
+			HasComponent<TransformComponent>, GetTransformLocalPos, SetTransformLocalPos);
+		Register(registry, "Transform", "localPos2D", "Transform.localPos2D", AnimationValueType::Vector2,
+			HasComponent<TransformComponent>, GetTransformLocalPos2D, SetTransformLocalPos2D);
+		Register(registry, "Transform", "localRotation", "Transform.localRotation", AnimationValueType::Quaternion,
+			HasComponent<TransformComponent>, GetTransformLocalRotation, SetTransformLocalRotation);
+		Register(registry, "Transform", "localRotationZ", "Transform.localRotationZ", AnimationValueType::Float,
+			HasComponent<TransformComponent>, GetTransformLocalRotationZ, SetTransformLocalRotationZ);
+		Register(registry, "Transform", "localScale", "Transform.localScale", AnimationValueType::Vector3,
+			HasComponent<TransformComponent>, GetTransformLocalScale, SetTransformLocalScale);
+		Register(registry, "Transform", "localScale2D", "Transform.localScale2D", AnimationValueType::Vector2,
+			HasComponent<TransformComponent>, GetTransformLocalScale2D, SetTransformLocalScale2D);
+	}
+	//============================================================================
+	//	SpriteRendererComponent
+	//============================================================================
+	{
+		Register(registry, "SpriteRenderer", "size", "SpriteRenderer.size", AnimationValueType::Vector2,
+			HasComponent<SpriteRendererComponent>, GetSpriteSize, SetSpriteSize);
+		Register(registry, "SpriteRenderer", "pivot", "SpriteRenderer.pivot", AnimationValueType::Vector2,
+			HasComponent<SpriteRendererComponent>, GetSpritePivot, SetSpritePivot);
+		Register(registry, "SpriteRenderer", "color", "SpriteRenderer.color", AnimationValueType::Color4,
+			HasComponent<SpriteRendererComponent>, GetSpriteColor, SetSpriteColor);
+	}
 }

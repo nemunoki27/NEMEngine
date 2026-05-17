@@ -98,7 +98,9 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 			editResult = MyGUI::DragVector3("Rotation", draftEulerDegrees_, editSetting);
 		} else {
 
+			editSetting.floatAxis = Axis::Z;
 			editResult = MyGUI::DragFloat("Rotation", draftEulerDegrees_.z, editSetting);
+			editSetting.floatAxis = std::nullopt;
 		}
 		// リセット
 		ImGui::SameLine();

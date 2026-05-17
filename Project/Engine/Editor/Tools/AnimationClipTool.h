@@ -99,7 +99,6 @@ namespace Engine {
 		AnimationClipAsset clip_{};
 		bool hasClip_ = false;
 		bool clipDirty_ = false;
-		std::string clipStatusText_;
 		std::string clipErrorText_;
 
 		// プレビュー適用先。HierarchyからD&Dで指定するが、Clip保存対象には含めない。
@@ -136,9 +135,11 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		void DrawClipAssetUI(const EditorToolContext& context);
-		void DrawTargetEntityUI(const EditorToolContext& context);
+		// アセット、編集設定UI
 		void DrawToolbarUI(const EditorToolContext& context);
+		void DrawClipAssetUI(const EditorToolContext& context);
+		void DrawEditAssetUI(const EditorToolContext& context);
+
 		void DrawPropertyTreeUI(const EditorToolContext& context);
 		void DrawCurveEditorUI(const EditorToolContext& context);
 		void DrawKeyInspectorUI(const EditorToolContext& context);

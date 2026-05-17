@@ -6,7 +6,6 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
-#include <Engine/Core/ECS/Component/Builtin/NameComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/CameraComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Render/SpriteRendererComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Render/TextRendererComponent.h>
@@ -203,17 +202,6 @@ namespace {
 		}
 	}
 
-	std::string BuildTargetEntityLabel(ECSWorld* world, const Entity& entity, Engine::UUID uuid) {
-
-		if (!world || !world->IsAlive(entity)) {
-			return "Drop Hierarchy Entity";
-		}
-		if (const NameComponent* name = world->TryGetComponent<NameComponent>(entity)) {
-			return std::format("{} ({})", name->name, ToString(uuid));
-		}
-		return std::format("Entity ({})", ToString(uuid));
-	}
-
 	void FillChannel(CurveChannel& channel, float value) {
 
 		channel.defaultValue = value;
@@ -288,20 +276,36 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 	//	AnimationClip編集UI
 	//============================================================================
 
-	DrawToolbarUI(context);
-	ImGui::Separator();
-
-	if (ImGui::BeginTable("AnimationClipToolMainLayout", 2,
+	if (ImGui::BeginTable("AnimationClipToolTopLayout", 2,
 		ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
 
-		ImGui::TableSetupColumn("Properties", ImGuiTableColumnFlags_WidthFixed, 320.0f);
-		ImGui::TableSetupColumn("Curve", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Toolbar", ImGuiTableColumnFlags_WidthFixed, 420.0f);
+		ImGui::TableSetupColumn("Properties", ImGuiTableColumnFlags_WidthStretch);
 
 		ImGui::TableNextColumn();
+		// アセット、編集設定UI
+		DrawToolbarUI(context);
+
+		ImGui::TableNextColumn();
+		// プロパティ設定UI
 		DrawPropertyTreeUI(context);
 
+		ImGui::EndTable();
+	}
+
+	ImGui::Separator();
+
+	if (ImGui::BeginTable("AnimationClipToolEditLayout", 2,
+		ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
+
+		ImGui::TableSetupColumn("Curve", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("KeyInspector", ImGuiTableColumnFlags_WidthFixed, 340.0f);
+
 		ImGui::TableNextColumn();
+		// プロパティカーブ編集UI
 		DrawCurveEditorUI(context);
+
+		ImGui::TableNextColumn();
 		DrawKeyInspectorUI(context);
 		DrawGeneratorUI(context);
 
@@ -318,183 +322,178 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 	}
 }
 
+void AnimationClipTool::DrawToolbarUI(const EditorToolContext& context) {
+
+	// 元のフォントサイズを取得
+	float beforeFontScale = ImGui::GetCurrentWindow()->FontWindowScale;
+	ImGui::SetWindowFontScale(0.8f);
+
+	//============================================================================
+	//	アニメアセットの設定
+	//============================================================================
+
+	DrawClipAssetUI(context);
+
+	//============================================================================
+	//	再生・編集設定
+	//============================================================================
+
+	DrawEditAssetUI(context);
+
+	ImGui::SetWindowFontScale(beforeFontScale);
+}
+
 void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 
 	AssetID before = clipAssetID_;
 
 	//============================================================================
-	//	アニメーションクリップ設定
+	//	アセット設定・保存
 	//============================================================================
+	{
+		MyGUI::BeginPropertyRow("アニメクリップのセット");
 
-	// アニメーションクリップアセットのセット
-	ValueEditResult result = MyGUI::AssetReferenceField("Set ClipData",
-		clipAssetID_, context.toolContext.assetDatabase, { AssetType::AnimationClip },
-		ImVec2(ImGui::GetContentRegionAvail().x / 2.0f, ImGui::GetFrameHeight()));
+		// アニメーションクリップアセットのセット
+		ValueEditResult result = MyGUI::AssetReferenceField("",
+			clipAssetID_, context.toolContext.assetDatabase, { AssetType::AnimationClip },
+			{ .useAutoPropertyRow = false,.buttonSize = ImVec2(ImGui::GetContentRegionAvail().x / 2.0f, ImGui::GetFrameHeight()) });
+		ImGui::SameLine();
+		// 保存ボタン
+		if (ImGui::Button("保存", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
 
-	// 保存ボタン
-	if (ImGui::Button("Save Clip", ImVec2(ImGui::GetContentRegionAvail().x / 2.0f, ImGui::GetFrameHeight()))) {
+			SaveClipToSelectedAsset(context);
+		}
+		MyGUI::EndPropertyRow();
 
-		SaveClipToSelectedAsset(context);
-	}
+		// アセットファイルが変更されたとき
+		if (result.valueChanged || before != clipAssetID_) {
 
-	if (result.valueChanged || before != clipAssetID_) {
+			// Clipを差し替える前に、前のClipで適用していたPreview値を必ず戻す
+			EndPreviewAndRestore(context);
+			LoadClipFromSelectedAsset(context);
+		}
 
-		// Clipを差し替える前に、前のClipで適用していたPreview値を必ず戻す。
-		EndPreviewAndRestore(context);
-		LoadClipFromSelectedAsset(context);
+		if (!clipErrorText_.empty()) {
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
+			ImGui::TextWrapped("%s", clipErrorText_.c_str());
+			ImGui::PopStyleColor();
+		}
 	}
+	//============================================================================
+	//	アニメ対象エンティティのセット
+	//============================================================================
+	{
+		ECSWorld* world = context.GetWorld();
+		UUID nextTargetUUID = targetEntityUUID_;
 
-	ImGui::SameLine();
-	const bool canSave = clipAssetID_ && hasClip_;
-	if (!canSave) {
-		ImGui::BeginDisabled();
-	}
-	if (ImGui::Button("Save")) {
-		SaveClipToSelectedAsset(context);
-	}
-	if (!canSave && ImGui::BeginItemTooltip()) {
-		ImGui::TextUnformatted("Set ClipData first.");
-		ImGui::EndTooltip();
-	}
-	if (!canSave) {
-		ImGui::EndDisabled();
-	}
-	ImGui::SameLine();
-	if (!clipAssetID_) {
-		ImGui::BeginDisabled();
-	}
-	if (ImGui::Button("Revert")) {
-		RevertClipFromSelectedAsset(context);
-	}
-	if (!clipAssetID_) {
-		ImGui::EndDisabled();
-	}
-	ImGui::SameLine();
-	ImGui::TextDisabled("%s", clipDirty_ ? "Dirty *" : "Clean");
+		MyGUI::BeginPropertyRow("対象エンティティのセット");
 
-	if (hasClip_) {
-		ImGui::Text("Clip: %s%s", clip_.name.c_str(), clipDirty_ ? " *" : "");
-	} else {
-		ImGui::TextDisabled("Clip is not set.");
-	}
+		const ValueEditResult result = MyGUI::EntityReferenceField("", nextTargetUUID, world,
+			{ .useAutoPropertyRow = false });
+		if (result.valueChanged && nextTargetUUID != targetEntityUUID_) {
 
-	if (!clipStatusText_.empty()) {
-		ImGui::TextDisabled("%s", clipStatusText_.c_str());
+			// Targetを変える前に、旧Targetへ適用していたPreview値を戻す。
+			EndPreviewAndRestore(context);
+			targetEntityUUID_ = nextTargetUUID;
+			previewTime_ = hasClip_ ? (std::clamp)(previewTime_, 0.0f, clip_.duration) : 0.0f;
+			curveState_.currentTime = previewTime_;
+			// Targetをセットした直後から、Time 0.0fを含む現在時刻の値をSceneViewへ反映する。
+			ApplyPreviewAtCurrentTime(context, true);
+		}
+		MyGUI::EndPropertyRow();
 	}
-	if (!clipErrorText_.empty()) {
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
-		ImGui::TextWrapped("%s", clipErrorText_.c_str());
-		ImGui::PopStyleColor();
-	}
-
+	//============================================================================
+	//	アニメーションの再生設定
+	//============================================================================
+	// アセットが設定されていなければ処理しない
 	if (!hasClip_) {
 		return;
 	}
-
-	// durationは0以下にすると評価やLoopの剰余で壊れるため、常に正値へ戻す。
-	float duration = clip_.duration;
-	if (ImGui::DragFloat("Duration", &duration, 0.01f, 0.01f, 10000.0f, "%.3f")) {
-		clip_.duration = (std::max)(duration, 0.01f);
-		previewTime_ = (std::clamp)(previewTime_, 0.0f, clip_.duration);
-		curveState_.visibleTimeMax = (std::max)(curveState_.visibleTimeMax, clip_.duration);
-		clipDirty_ = true;
-	}
-	if (MyGUI::Checkbox("Loop", clip_.loop)) {
-		clipDirty_ = true;
-	}
-	ImGui::SameLine();
-	if (MyGUI::Checkbox("Auto Duration", clip_.autoDuration)) {
-		// Auto Durationはキー編集結果を優先し、手入力Durationを上書きする。
-		UpdateAnimationClipAutoDuration(clip_);
-		previewTime_ = (std::clamp)(previewTime_, 0.0f, AnimationClipEvaluator::GetPlaybackDuration(clip_));
-		clipDirty_ = true;
-	}
-	if (clip_.autoDuration) {
-		ImGui::SameLine();
-		ImGui::TextDisabled("duration follows last key");
-	}
-
-	if (clip_.loop) {
-		// Loop Bridgeは終端から0秒へ戻る瞬間だけを補間し、通常範囲のCurveは変更しない。
-		bool bridgeEnabled = clip_.loopBridge.enabled;
-		if (MyGUI::Checkbox("Loop Bridge", bridgeEnabled)) {
-			clip_.loopBridge.enabled = bridgeEnabled;
+	{
+		// アニメーションを再生する長さ
+		float duration = clip_.duration;
+		auto result = MyGUI::DragFloat("再生時間", duration, { .dragSpeed = 0.01f,.minValue = 0.01f,
+			.maxValue = 10000.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 2.0f });
+		if (result.valueChanged) {
+			// 必ず0.0f以上に制限する
+			clip_.duration = (std::max)(duration, 0.01f);
+			previewTime_ = (std::clamp)(previewTime_, 0.0f, clip_.duration);
+			curveState_.visibleTimeMax = (std::max)(curveState_.visibleTimeMax, clip_.duration);
 			clipDirty_ = true;
 		}
-		if (clip_.loopBridge.enabled) {
-			ImGui::SameLine();
-			ImGui::SetNextItemWidth(100.0f);
-			if (ImGui::DragFloat("Bridge Duration", &clip_.loopBridge.duration, 0.001f, 0.001f, 10.0f, "%.3f")) {
-				clip_.loopBridge.duration = (std::max)(clip_.loopBridge.duration, 0.001f);
-				clipDirty_ = true;
-			}
-			ImGui::SameLine();
-			ImGui::SetNextItemWidth(100.0f);
-			int bridgeInterp = clip_.loopBridge.interpolation == CurveInterpolationMode::Spline ? 3 : 1;
-			if (ImGui::Combo("Bridge Interp", &bridgeInterp, kInterpolationNames.data(), 4)) {
-				clip_.loopBridge.interpolation = bridgeInterp == 3 ? CurveInterpolationMode::Spline :
-					bridgeInterp == 0 ? CurveInterpolationMode::Constant : CurveInterpolationMode::Linear;
-				clipDirty_ = true;
-			}
+		if (MyGUI::Checkbox("最後のキーを再生時間に設定", clip_.autoDuration)) {
+
+			UpdateAnimationClipAutoDuration(clip_);
+			previewTime_ = (std::clamp)(previewTime_, 0.0f, AnimationClipEvaluator::GetPlaybackDuration(clip_));
+			clipDirty_ = true;
 		}
-	}
 
-}
+		ImGui::SeparatorText("ループ再生についての設定");
 
-void AnimationClipTool::DrawTargetEntityUI(const EditorToolContext& context) {
+		if (MyGUI::Checkbox("ループ再生", clip_.loop)) {
+			clipDirty_ = true;
+		}
+		// ループ再生する場合のみの設定
+		if (clip_.loop) {
 
-	ECSWorld* world = context.GetWorld();
-	const Entity targetEntity = GetTargetEntity(context);
-	const std::string label = BuildTargetEntityLabel(world, targetEntity, targetEntityUUID_);
+			bool bridgeEnabled = clip_.loopBridge.enabled;
+			if (MyGUI::Checkbox("ループのつなぎ補間", bridgeEnabled)) {
+				clip_.loopBridge.enabled = bridgeEnabled;
+				clipDirty_ = true;
+			}
+			if (clip_.loopBridge.enabled) {
 
-	ImGui::TextUnformatted("Set Target Entity");
-	ImGui::Button(label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
-
-	if (ImGui::BeginDragDropTarget()) {
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType)) {
-			if (payload->IsDelivery() && payload->DataSize == sizeof(UUID)) {
-
-				const UUID droppedUUID = *static_cast<const UUID*>(payload->Data);
-				const Entity droppedEntity = world ? world->FindByUUID(droppedUUID) : Entity::Null();
-				if (world && world->IsAlive(droppedEntity)) {
-
-					// Targetを変える前に、旧Targetへ適用していたPreview値を戻す。
-					EndPreviewAndRestore(context);
-					targetEntityUUID_ = droppedUUID;
-					previewTime_ = hasClip_ ? (std::clamp)(previewTime_, 0.0f, clip_.duration) : 0.0f;
-					curveState_.currentTime = previewTime_;
-					// Targetをセットした直後から、Time 0.0fを含む現在時刻の値をSceneViewへ反映する。
-					ApplyPreviewAtCurrentTime(context, true);
+				result = {};
+				result = MyGUI::DragFloat("補間時間", clip_.loopBridge.duration, { .dragSpeed = 0.001f,.minValue = 0.001f,
+					.maxValue = 10.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 2.0f });
+				if (result.valueChanged) {
+					clip_.loopBridge.duration = (std::max)(clip_.loopBridge.duration, 0.001f);
+					clipDirty_ = true;
+				}
+				result = {};
+				result = MyGUI::EnumCombo<CurveInterpolationMode>("補間方法", clip_.loopBridge.interpolation,
+					{ .reserveRightWidth = ImGui::GetContentRegionAvail().x / 2.0f });
+				if (result.valueChanged) {
+					clipDirty_ = true;
 				}
 			}
 		}
-		ImGui::EndDragDropTarget();
 	}
 }
 
-void AnimationClipTool::DrawToolbarUI(const EditorToolContext& context) {
+void Engine::AnimationClipTool::DrawEditAssetUI(const EditorToolContext& context) {
 
-	DrawClipAssetUI(context);
-	DrawTargetEntityUI(context);
+	ImGui::SeparatorText("アニメ編集設定");
 
-	AnimationClipDetectedDimension detected = DetectTargetDimension(context);
-	int dimensionIndex = static_cast<int>(editDimension_);
-	ImGui::SetNextItemWidth(110.0f);
-	if (ImGui::Combo("Edit Dimension", &dimensionIndex, kEditDimensionNames.data(), static_cast<int>(kEditDimensionNames.size()))) {
-		editDimension_ = static_cast<AnimationClipEditDimension>(dimensionIndex);
-	}
-	ImGui::SameLine();
-	ImGui::TextDisabled("Detected: %s", DetectedDimensionText(detected));
+	MyGUI::EnumCombo("編集次元の設定", editDimension_, { .reserveRightWidth = ImGui::GetContentRegionAvail().x / 2.0f });
 
 	if (!hasClip_) {
 		return;
 	}
 
-	if (ImGui::Button(previewPlaying_ ? "Pause" : "Play")) {
+	auto result = MyGUI::DragFloat("現在の時間", previewTime_, { .dragSpeed = 0.01f,.minValue = 0.0f,
+		.maxValue = clip_.duration,.closeOnProperty = false,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 2.0f });
+	if (result.valueChanged) {
+
+		// Scrub中もSceneViewへ即反映し、カーブ編集結果を確認できるようにする。
+		previewTime_ = (std::clamp)(previewTime_, 0.0f, clip_.duration);
+		curveState_.currentTime = previewTime_;
+		ApplyPreviewAtCurrentTime(context, true);
+	}
+	ImGui::SameLine();
+	ImGui::TextDisabled("%.3f / %.3f", previewTime_, clip_.duration);
+
+	MyGUI::EndPropertyRow();
+
+	MyGUI::DragFloat("再生速度", previewSpeed_, { .dragSpeed = 0.01f,.minValue = 0.01f,
+	.maxValue = 8.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 2.0f });
+
+	// 再生/ポーズボタン
+	if (ImGui::Button(previewPlaying_ ? "ポーズ" : "再生", ImVec2(100.f, ImGui::GetFrameHeight()))) {
 		if (previewPlaying_) {
 			previewPlaying_ = false;
 		} else {
-			// 終端でPlayした時は、AnimationClipの先頭から再生し直す。
+			// 終端でPlayした時は、AnimationClipの先頭から再生し直す
 			if (clip_.duration <= previewTime_) {
 				previewTime_ = 0.0f;
 				curveState_.currentTime = previewTime_;
@@ -505,26 +504,14 @@ void AnimationClipTool::DrawToolbarUI(const EditorToolContext& context) {
 		}
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Stop")) {
-		// StopはPreviewを解除し、編集前のEntity値へ戻したうえで時刻を先頭へ戻す。
+	// 停止ボタン
+	if (ImGui::Button("停止", ImVec2(100.f, ImGui::GetFrameHeight()))) {
+
+		// StopはPreviewを解除し、編集前のEntity値へ戻したうえで時刻を先頭へ戻す
 		EndPreviewAndRestore(context);
 		previewTime_ = 0.0f;
 		curveState_.currentTime = previewTime_;
 	}
-	ImGui::SameLine();
-	ImGui::SetNextItemWidth(90.0f);
-	ImGui::DragFloat("Speed", &previewSpeed_, 0.01f, 0.01f, 8.0f, "%.2f");
-
-	float time = previewTime_;
-	ImGui::SetNextItemWidth((std::max)(160.0f, ImGui::GetContentRegionAvail().x));
-	if (ImGui::SliderFloat("Time", &time, 0.0f, clip_.duration, "%.3f")) {
-
-		// Scrub中もSceneViewへ即反映し、カーブ編集結果を確認できるようにする。
-		previewTime_ = (std::clamp)(time, 0.0f, clip_.duration);
-		curveState_.currentTime = previewTime_;
-		ApplyPreviewAtCurrentTime(context, true);
-	}
-	ImGui::TextDisabled("Time: %.3f / %.3f", previewTime_, clip_.duration);
 }
 
 void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
@@ -533,24 +520,28 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 		return;
 	}
 
+	// 元のフォントサイズを取得
+	float beforeFontScale = ImGui::GetCurrentWindow()->FontWindowScale;
+	ImGui::SetWindowFontScale(0.8f);
+
 	ECSWorld* world = context.GetWorld();
 	const Entity targetEntity = GetTargetEntity(context);
 	const AnimationClipEditDimension effectiveDimension = GetEffectiveEditDimension(context);
 
-	ImGui::SeparatorText("Properties");
 	if (!world || !world->IsAlive(targetEntity)) {
 		ImGui::BeginDisabled();
 	}
-	if (ImGui::Button("Add Property")) {
+
+	if (ImGui::Button("プロパティ追加", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
 		ImGui::OpenPopup("AnimationClipAddProperty");
 	}
 	if (!world || !world->IsAlive(targetEntity)) {
 		ImGui::EndDisabled();
 	}
-
+	// 追加プロパティ選択のポップアップ
 	if (ImGui::BeginPopup("AnimationClipAddProperty")) {
 		if (!world || !world->IsAlive(targetEntity)) {
-			ImGui::TextDisabled("Target Entity is not set.");
+			ImGui::TextDisabled("アニメ対象のエンティティが設定されていません");
 		} else {
 			std::unordered_map<std::string, std::vector<const AnimationPropertyDescriptor*>> groups{};
 			for (const AnimationPropertyDescriptor* desc :
@@ -566,7 +557,6 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 				}
 				groups[desc->componentName].emplace_back(desc);
 			}
-
 			for (auto& [componentName, properties] : groups) {
 				if (!ImGui::BeginMenu(componentName.c_str())) {
 					continue;
@@ -597,7 +587,8 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 	}
 
 	if (clip_.curveTracks.empty()) {
-		ImGui::TextDisabled("No property tracks.");
+		ImGui::TextDisabled("アニメプロパティ無し");
+		ImGui::SetWindowFontScale(beforeFontScale);
 		return;
 	}
 
@@ -697,6 +688,7 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 		ImGui::PopID();
 		++i;
 	}
+	ImGui::SetWindowFontScale(beforeFontScale);
 }
 
 void AnimationClipTool::DrawCurveEditorUI(const EditorToolContext& context) {
@@ -985,7 +977,6 @@ void AnimationClipTool::LoadClipFromSelectedAsset(const EditorToolContext& conte
 
 	// 読み込み失敗時に前回のClip状態が残らないよう、先にUI状態を初期化する。
 	clipErrorText_.clear();
-	clipStatusText_.clear();
 	hasClip_ = false;
 	clipDirty_ = false;
 	loadedClipAssetID_ = {};
@@ -996,11 +987,6 @@ void AnimationClipTool::LoadClipFromSelectedAsset(const EditorToolContext& conte
 	}
 
 	const AssetDatabase* database = context.toolContext.assetDatabase;
-	if (!database) {
-		clipErrorText_ = "AssetDatabase is not available.";
-		return;
-	}
-
 	const std::filesystem::path path = database->ResolveFullPath(clipAssetID_);
 	if (path.empty()) {
 		clipErrorText_ = "AnimationClip asset path was not found.";
@@ -1036,7 +1022,6 @@ void AnimationClipTool::LoadClipFromSelectedAsset(const EditorToolContext& conte
 	curveState_.visibleTimeMax = (std::max)(curveState_.visibleTimeMax, clip_.duration);
 	curveState_.ClearSelection();
 	LoadSelectedTrackEditorView();
-	clipStatusText_ = "Clip loaded.";
 	// 読み込み直後も現在時刻のPreviewをTarget Entityへ反映する。
 	ApplyPreviewAtCurrentTime(context, true);
 }
@@ -1045,7 +1030,6 @@ void AnimationClipTool::SaveClipToSelectedAsset(const EditorToolContext& context
 
 	// 保存前に表示範囲とAuto DurationをClipへ反映してからJSONへ書き出す。
 	clipErrorText_.clear();
-	clipStatusText_.clear();
 
 	if (!clipAssetID_) {
 		clipErrorText_ = "ClipData is not set.";
@@ -1053,11 +1037,6 @@ void AnimationClipTool::SaveClipToSelectedAsset(const EditorToolContext& context
 	}
 
 	const AssetDatabase* database = context.toolContext.assetDatabase;
-	if (!database) {
-		clipErrorText_ = "AssetDatabase is not available.";
-		return;
-	}
-
 	const std::filesystem::path path = database->ResolveFullPath(clipAssetID_);
 	if (path.empty()) {
 		clipErrorText_ = "AnimationClip asset path was not found.";
@@ -1084,7 +1063,6 @@ void AnimationClipTool::SaveClipToSelectedAsset(const EditorToolContext& context
 	}
 
 	clipDirty_ = false;
-	clipStatusText_ = "Clip saved.";
 }
 
 void AnimationClipTool::RevertClipFromSelectedAsset(const EditorToolContext& context) {

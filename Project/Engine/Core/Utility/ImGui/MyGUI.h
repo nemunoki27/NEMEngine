@@ -8,11 +8,14 @@
 #include <Engine/Core/Animation/Curve/AnimationCurve.h>
 #include <Engine/Editor/Animation/CurveEditorState.h>
 #include <Engine/Editor/EditorState.h>
+#include <Engine/Core/Utility/Enum/Axis.h>
+#include <Engine/Core/Utility/Enum/EnumAdapter.h>
 
 // c++
 #include <initializer_list>
 #include <span>
 #include <string>
+#include <optional>
 // imgui
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -22,6 +25,7 @@ namespace Engine {
 
 	// front
 	class AssetDatabase;
+	class ECSWorld;
 	struct TransformComponent;
 	struct MeshSubMeshTextureOverride;
 
@@ -40,6 +44,8 @@ namespace Engine {
 		bool closeOnProperty = true;
 		// 右側に別UIを置くために残す幅
 		float reserveRightWidth = 0.0f;
+		// 表示を行う軸
+		std::optional<Axis> floatAxis = std::nullopt;
 	};
 	struct IntEditSetting {
 
@@ -69,6 +75,26 @@ namespace Engine {
 		ImVec2 size = ImVec2(0.0f, 0.0f);
 		// ImGuiの文字入力フラグ
 		ImGuiInputTextFlags flags = ImGuiInputTextFlags_None;
+	};
+	// コンボボックス設定
+	struct ComboEditSetting {
+
+		// 右側に別UIを置くために残す幅
+		float reserveRightWidth = 0.0f;
+	};
+	// アセット設定
+	struct AssetEditSetting {
+
+		bool useAutoPropertyRow = true;
+
+		std::optional<ImVec2> buttonSize = std::nullopt;
+	};
+	// エンティティ参照設定
+	struct EntityEditSetting {
+
+		bool useAutoPropertyRow = true;
+
+		std::optional<ImVec2> buttonSize = std::nullopt;
 	};
 	// ビューポートの位置とサイズを表す構造体
 	struct GizmoViewportRect {
@@ -205,7 +231,12 @@ namespace Engine {
 		static ValueEditResult InputText(const char* label, std::string& text, const TextEditSetting& setting = TextEditSetting{});
 		// std::stringのコンボボックス
 		static ValueEditResult StringCombo(const char* label, std::string& currentValue,
-			std::span<const std::string> items, const char* emptyPreview = "<None>", bool allowEmptySelection = false);
+			std::span<const std::string> items, const char* emptyPreview = "<None>",
+			bool allowEmptySelection = false, const ComboEditSetting& setting = ComboEditSetting{});
+		// enumのコンボボックス
+		template <typename T>
+		static ValueEditResult EnumCombo(const char* label, T& currentValue,
+			const ComboEditSetting& setting = ComboEditSetting{});
 
 		//========================================================================
 		//	アセット参照
@@ -213,6 +244,33 @@ namespace Engine {
 
 		// アセットID編集フィールドを描画する
 		static ValueEditResult AssetReferenceField(const char* label, AssetID& value, const AssetDatabase* assetDatabase,
-			const std::initializer_list<AssetType>& acceptedTypes = {}, const std::optional<ImVec2>& buttonSize = std::nullopt);
+			const std::initializer_list<AssetType>& acceptedTypes = {}, const AssetEditSetting& setting = AssetEditSetting{});
+		// HierarchyのEntity UUID編集フィールドを描画する
+		static ValueEditResult EntityReferenceField(const char* label, UUID& value, ECSWorld* world,
+			const EntityEditSetting& setting = EntityEditSetting{});
 	};
+
+	//============================================================================
+	//	MyGUI templateMethos
+	//============================================================================
+
+	template <typename T>
+	inline ValueEditResult MyGUI::EnumCombo(const char* label, T& currentValue,
+		const ComboEditSetting& setting) {
+
+		ValueEditResult result{};
+
+		if (!BeginPropertyRow(label)) {
+			return result;
+		}
+
+		const float width = ImGui::GetContentRegionAvail().x - setting.reserveRightWidth;
+		ImGui::SetNextItemWidth(width <= 1.0f ? 1.0f : width);
+		result.valueChanged = EnumAdapter<T>::Combo("##Value", &currentValue);
+		result.anyItemActive = ImGui::IsItemActive();
+		result.editFinished = result.valueChanged || ImGui::IsItemDeactivatedAfterEdit();
+
+		EndPropertyRow();
+		return result;
+	}
 } // Engine
