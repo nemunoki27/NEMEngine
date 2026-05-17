@@ -71,7 +71,8 @@ void Engine::AnimationCurveTool::SetupSampleCurve() {
 	}
 
 	transformCurve_.channels[0].AddKey(0.0f, 0.0f, CurveInterpolationMode::Linear);
-	transformCurve_.channels[0].AddKey(0.5f, 1.0f, CurveInterpolationMode::Cubic);
+	// サンプル用に、旧Cubicではなく現在の自動接線補間であるSplineを使う。
+	transformCurve_.channels[0].AddKey(0.5f, 1.0f, CurveInterpolationMode::Spline);
 	transformCurve_.channels[0].AddKey(1.0f, 0.0f, CurveInterpolationMode::Linear);
 	transformCurve_.channels[1].AddKey(0.0f, 0.0f, CurveInterpolationMode::Linear);
 	transformCurve_.channels[1].AddKey(1.0f, 0.5f, CurveInterpolationMode::Linear);

@@ -12,6 +12,11 @@
 //	DepthTexture2D classMethods
 //============================================================================
 
+Engine::DepthTexture2D::~DepthTexture2D() {
+
+	Destroy();
+}
+
 void Engine::DepthTexture2D::Create(DSVDescriptor* dsvDescriptor,
 	SRVDescriptor* srvDescriptor, const DepthTextureCreateDesc& desc) {
 
@@ -51,11 +56,11 @@ void Engine::DepthTexture2D::Create(DSVDescriptor* dsvDescriptor,
 
 void Engine::DepthTexture2D::Destroy() {
 
-	if (dsvDescriptor_) {
+	if (dsvDescriptor_ && dsvIndex_ != UINT32_MAX) {
 
 		dsvDescriptor_->Free(dsvIndex_);
 	}
-	if (srvDescriptor_) {
+	if (srvDescriptor_ && srvIndex_ != UINT32_MAX) {
 
 		srvDescriptor_->Free(srvIndex_);
 	}
@@ -70,6 +75,8 @@ void Engine::DepthTexture2D::Destroy() {
 	srvFormat_ = DXGI_FORMAT_UNKNOWN;
 	dsvIndex_ = UINT32_MAX;
 	srvIndex_ = UINT32_MAX;
+	dsvDescriptor_ = nullptr;
+	srvDescriptor_ = nullptr;
 }
 
 void Engine::DepthTexture2D::Transition(DxCommand& dxCommand, D3D12_RESOURCE_STATES newState) {

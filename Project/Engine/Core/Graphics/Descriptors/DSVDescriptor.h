@@ -18,7 +18,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		DSVDescriptor() :BaseDescriptor(16) {};
+		DSVDescriptor() :BaseDescriptor(64) {};
 		~DSVDescriptor() = default;
 
 		// 深度リソースの作成

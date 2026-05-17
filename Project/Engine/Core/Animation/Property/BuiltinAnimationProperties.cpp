@@ -22,6 +22,7 @@ namespace {
 	template <typename Value>
 	bool ReadVariant(const Engine::AnimationPropertyValue& value, Value& out) {
 
+		// PropertyDescriptorのvalueTypeと実データ型が違う場合は適用しない。
 		if (const Value* typed = std::get_if<Value>(&value)) {
 			out = *typed;
 			return true;
@@ -54,6 +55,32 @@ namespace {
 		return false;
 	}
 
+	bool GetTransformLocalPos2D(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
+
+		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
+			out = Engine::Vector2(transform->localPos.x, transform->localPos.y);
+			return true;
+		}
+		return false;
+	}
+
+	bool SetTransformLocalPos2D(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
+
+		Engine::Vector2 typed{};
+		if (!ReadVariant(value, typed)) {
+			return false;
+		}
+		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
+
+			// 2D編集ではZを保持したままXYだけをAnimationClipから上書きする。
+			transform->localPos.x = typed.x;
+			transform->localPos.y = typed.y;
+			Engine::MarkTransformSubtreeDirty(world, entity);
+			return true;
+		}
+		return false;
+	}
+
 	bool GetTransformLocalRotation(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
@@ -79,6 +106,33 @@ namespace {
 		return false;
 	}
 
+	bool GetTransformLocalRotationZ(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
+
+		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
+			out = Engine::Quaternion::ToEulerDegrees(transform->localRotation).z;
+			return true;
+		}
+		return false;
+	}
+
+	bool SetTransformLocalRotationZ(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
+
+		float typed = 0.0f;
+		if (!ReadVariant(value, typed)) {
+			return false;
+		}
+		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
+
+			// 2D編集用に、既存のX/Y回転は残してZ回転だけ差し替える。
+			Engine::Vector3 euler = Engine::Quaternion::ToEulerDegrees(transform->localRotation);
+			euler.z = typed;
+			transform->localRotation = Engine::Quaternion::FromEulerDegrees(euler);
+			Engine::MarkTransformSubtreeDirty(world, entity);
+			return true;
+		}
+		return false;
+	}
+
 	bool GetTransformLocalScale(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
@@ -97,6 +151,32 @@ namespace {
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
 
 			transform->localScale = typed;
+			Engine::MarkTransformSubtreeDirty(world, entity);
+			return true;
+		}
+		return false;
+	}
+
+	bool GetTransformLocalScale2D(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
+
+		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
+			out = Engine::Vector2(transform->localScale.x, transform->localScale.y);
+			return true;
+		}
+		return false;
+	}
+
+	bool SetTransformLocalScale2D(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
+
+		Engine::Vector2 typed{};
+		if (!ReadVariant(value, typed)) {
+			return false;
+		}
+		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
+
+			// 2D編集ではZ Scaleを保持して、Sprite系の見た目に必要なXYだけ動かす。
+			transform->localScale.x = typed.x;
+			transform->localScale.y = typed.y;
 			Engine::MarkTransformSubtreeDirty(world, entity);
 			return true;
 		}
@@ -178,6 +258,7 @@ namespace {
 		bool (*getValue)(Engine::ECSWorld&, const Engine::Entity&, Engine::AnimationPropertyValue&),
 		bool (*setValue)(Engine::ECSWorld&, const Engine::Entity&, const Engine::AnimationPropertyValue&)) {
 
+		// ToolとRuntimeの両方から同じDescriptorを引けるよう、登録情報を一箇所に集約する。
 		Engine::AnimationPropertyDescriptor desc{};
 		desc.componentName = componentName;
 		desc.propertyPath = propertyPath;
@@ -192,6 +273,7 @@ namespace {
 
 void Engine::RegisterBuiltinAnimationProperties() {
 
+	// EditorToolが複数回生成されても、同じPropertyを重複登録しない。
 	static bool registered = false;
 	if (registered) {
 		return;
@@ -202,10 +284,16 @@ void Engine::RegisterBuiltinAnimationProperties() {
 
 	Register(registry, "Transform", "localPos", "Transform.localPos", AnimationValueType::Vector3,
 		HasComponent<TransformComponent>, GetTransformLocalPos, SetTransformLocalPos);
+	Register(registry, "Transform", "localPos2D", "Transform.localPos2D", AnimationValueType::Vector2,
+		HasComponent<TransformComponent>, GetTransformLocalPos2D, SetTransformLocalPos2D);
 	Register(registry, "Transform", "localRotation", "Transform.localRotation", AnimationValueType::Quaternion,
 		HasComponent<TransformComponent>, GetTransformLocalRotation, SetTransformLocalRotation);
+	Register(registry, "Transform", "localRotationZ", "Transform.localRotationZ", AnimationValueType::Float,
+		HasComponent<TransformComponent>, GetTransformLocalRotationZ, SetTransformLocalRotationZ);
 	Register(registry, "Transform", "localScale", "Transform.localScale", AnimationValueType::Vector3,
 		HasComponent<TransformComponent>, GetTransformLocalScale, SetTransformLocalScale);
+	Register(registry, "Transform", "localScale2D", "Transform.localScale2D", AnimationValueType::Vector2,
+		HasComponent<TransformComponent>, GetTransformLocalScale2D, SetTransformLocalScale2D);
 
 	Register(registry, "SpriteRenderer", "size", "SpriteRenderer.size", AnimationValueType::Vector2,
 		HasComponent<SpriteRendererComponent>, GetSpriteSize, SetSpriteSize);

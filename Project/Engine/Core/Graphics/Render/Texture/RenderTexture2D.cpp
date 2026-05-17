@@ -15,6 +15,11 @@
 //	RenderTexture2D classMethods
 //============================================================================
 
+Engine::RenderTexture2D::~RenderTexture2D() {
+
+	Destroy();
+}
+
 void Engine::RenderTexture2D::Create(ID3D12Device* device, RTVDescriptor* rtvDescriptor,
 	SRVDescriptor* srvDescriptor, const RenderTextureCreateDesc& desc) {
 
@@ -102,13 +107,16 @@ void Engine::RenderTexture2D::Create(ID3D12Device* device, RTVDescriptor* rtvDes
 
 void Engine::RenderTexture2D::Destroy() {
 
-	if (rtvDescriptor_) {
+	if (rtvDescriptor_ && rtvIndex_ != UINT32_MAX) {
 
 		rtvDescriptor_->Free(rtvIndex_);
 	}
 	if (srvDescriptor_) {
 
-		srvDescriptor_->Free(srvIndex_);
+		if (srvIndex_ != UINT32_MAX) {
+
+			srvDescriptor_->Free(srvIndex_);
+		}
 		if (uavIndex_ != UINT32_MAX) {
 
 			srvDescriptor_->Free(uavIndex_);
@@ -125,6 +133,8 @@ void Engine::RenderTexture2D::Destroy() {
 	rtvIndex_ = UINT32_MAX;
 	srvIndex_ = UINT32_MAX;
 	uavIndex_ = UINT32_MAX;
+	rtvDescriptor_ = nullptr;
+	srvDescriptor_ = nullptr;
 }
 
 void Engine::RenderTexture2D::Transition(DxCommand& dxCommand, D3D12_RESOURCE_STATES newState) {

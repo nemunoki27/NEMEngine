@@ -8,6 +8,7 @@
 // c++
 #include <cstdint>
 #include <vector>
+#include <string_view>
 // directX
 #include <d3d12.h>
 
@@ -71,6 +72,9 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		uint32_t descriptorSize_;
+		D3D12_DESCRIPTOR_HEAP_TYPE heapType_ = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
+
+		std::string_view GetHeapTypeName() const;
 	protected:
 		//========================================================================
 		//	protected Methods

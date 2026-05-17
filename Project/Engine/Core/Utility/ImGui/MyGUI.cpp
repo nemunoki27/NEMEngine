@@ -1173,7 +1173,8 @@ Engine::ValueEditResult Engine::MyGUI::StringCombo(const char* label, std::strin
 }
 
 Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, AssetID& value,
-	const AssetDatabase* assetDatabase, const std::initializer_list<AssetType>& acceptedTypes) {
+	const AssetDatabase* assetDatabase, const std::initializer_list<AssetType>& acceptedTypes,
+	const std::optional<ImVec2>& buttonSize) {
 
 	ValueEditResult result{};
 
@@ -1189,8 +1190,10 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 	}
 
+	ImVec2 button = buttonSize.has_value() ? buttonSize.value() : ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight());
+
 	// ドロップターゲットを描画する
-	ImGui::Button(displayText.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
+	ImGui::Button(displayText.c_str(), button);
 
 	if (!hasValue) {
 		ImGui::PopStyleColor();

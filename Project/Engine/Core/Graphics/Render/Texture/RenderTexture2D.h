@@ -48,7 +48,7 @@ namespace Engine {
 		//========================================================================
 
 		RenderTexture2D() = default;
-		~RenderTexture2D() = default;
+		~RenderTexture2D();
 
 		// リソース作成
 		void Create(ID3D12Device* device, RTVDescriptor* rtvDescriptor,

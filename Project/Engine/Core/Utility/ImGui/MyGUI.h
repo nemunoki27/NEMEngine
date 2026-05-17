@@ -212,7 +212,7 @@ namespace Engine {
 		//========================================================================
 
 		// アセットID編集フィールドを描画する
-		static ValueEditResult AssetReferenceField(const char* label,
-			AssetID& value, const AssetDatabase* assetDatabase, const std::initializer_list<AssetType>& acceptedTypes = {});
+		static ValueEditResult AssetReferenceField(const char* label, AssetID& value, const AssetDatabase* assetDatabase,
+			const std::initializer_list<AssetType>& acceptedTypes = {}, const std::optional<ImVec2>& buttonSize = std::nullopt);
 	};
 } // Engine

@@ -26,7 +26,7 @@ namespace Engine {
 
 		StructuredInstanceBuffer() = default;
 		StructuredInstanceBuffer(const std::string& bindingName) : bindingName_(std::move(bindingName)) {}
-		~StructuredInstanceBuffer() = default;
+		~StructuredInstanceBuffer() { Release(); }
 
 		// 初期化
 		void Init(ID3D12Device* device, SRVDescriptor* srvDescriptor);
@@ -99,6 +99,8 @@ namespace Engine {
 		buffer_.reset();
 		capacity_ = 0;
 		srvGPUHandle_ = {};
+		device_ = nullptr;
+		srvDescriptor_ = nullptr;
 	}
 
 	template<typename T>

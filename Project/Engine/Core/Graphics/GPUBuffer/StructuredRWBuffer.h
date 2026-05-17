@@ -26,7 +26,7 @@ namespace Engine {
 
 		StructuredRWBuffer() = default;
 		StructuredRWBuffer(const std::string& bindingName) : bindingName_(bindingName) {}
-		~StructuredRWBuffer() = default;
+		~StructuredRWBuffer() { Release(); }
 
 		// 初期化
 		void Init(ID3D12Device* device, SRVDescriptor* srvDescriptor);
@@ -109,6 +109,8 @@ namespace Engine {
 		capacity_ = 0;
 		srvGPUHandle_ = {};
 		uavGPUHandle_ = {};
+		device_ = nullptr;
+		srvDescriptor_ = nullptr;
 	}
 
 	template<typename T>

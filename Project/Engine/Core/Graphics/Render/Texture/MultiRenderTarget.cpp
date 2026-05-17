@@ -13,6 +13,11 @@
 //	MultiRenderTarget classMethods
 //============================================================================
 
+Engine::MultiRenderTarget::~MultiRenderTarget() {
+
+	Destroy();
+}
+
 void Engine::MultiRenderTarget::Create(ID3D12Device* device,
 	RTVDescriptor* rtvDescriptor, DSVDescriptor* dsvDescriptor,
 	SRVDescriptor* srvDescriptor, const MultiRenderTargetCreateDesc& desc) {

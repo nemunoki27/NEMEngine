@@ -7,6 +7,10 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Graphics/DxLib/DxUtils.h>
 #include <Engine/Core/Logger/Assert.h>
+#include <Engine/Core/Logger/Logger.h>
+
+// c++
+#include <string>
 
 //============================================================================
 //	BaseDescriptor classMethods
@@ -19,6 +23,7 @@ BaseDescriptor::BaseDescriptor(uint32_t maxDescriptorCount) :
 void BaseDescriptor::Init(ID3D12Device* device, const DescriptorType& descriptorType) {
 
 	device_ = device;
+	heapType_ = descriptorType.heapType;
 	useIndex_ = 0;
 	allocatedCount_ = 0;
 	freeList_.clear();
@@ -60,7 +65,15 @@ uint32_t BaseDescriptor::Allocate() {
 		freeList_.pop_back();
 	} else {
 		if (!DxUtils::CanAllocateIndex(useIndex_, maxDescriptorCount_)) {
-			Assert::Call(FALSE, "Cannot allocate more DescriptorCount, maximum count reached");
+			Logger::Output(LogType::Engine, spdlog::level::critical,
+				"Descriptor heap exhausted. type={} allocated={} highWater={} freeList={} max={}",
+				GetHeapTypeName(), allocatedCount_, useIndex_, freeList_.size(), maxDescriptorCount_);
+			Assert::Call(FALSE, std::string("Cannot allocate more DescriptorCount. type=") +
+				std::string(GetHeapTypeName()) +
+				" allocated=" + std::to_string(allocatedCount_) +
+				" highWater=" + std::to_string(useIndex_) +
+				" freeList=" + std::to_string(freeList_.size()) +
+				" max=" + std::to_string(maxDescriptorCount_));
 		}
 		index = useIndex_;
 		++useIndex_;
@@ -100,4 +113,21 @@ bool Engine::BaseDescriptor::IsAllocated(uint32_t index) const {
 		return false;
 	}
 	return allocationFlags_[index] != 0;
+}
+
+std::string_view Engine::BaseDescriptor::GetHeapTypeName() const {
+
+	switch (heapType_) {
+	case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
+		return "CBV_SRV_UAV";
+	case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
+		return "SAMPLER";
+	case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
+		return "RTV";
+	case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:
+		return "DSV";
+	default:
+		break;
+	}
+	return "UNKNOWN";
 }

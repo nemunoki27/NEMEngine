@@ -60,6 +60,7 @@ namespace Engine {
 
 		const BehaviorTypeInfo& GetInfo(uint32_t id) const;
 		const BehaviorTypeInfo* FindByName(const std::string_view& name) const;
+		const BehaviorTypeInfo* FindManagedBySimpleName(const std::string_view& name) const;
 
 		uint32_t GetBehaviorTypeCount() const { return static_cast<uint32_t>(infos_.size()); }
 

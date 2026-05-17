@@ -2,7 +2,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ProjectUserPath,
 
-    [string]$WorkingDirectory = ".."
+    [string]$WorkingDirectory = "..",
+
+    [string]$DebuggerType = "NativeWithManagedCore"
 )
 
 Set-StrictMode -Version Latest
@@ -66,7 +68,7 @@ foreach ($condition in $conditions) {
     $group = Ensure-PropertyGroup -Document $document -Condition $condition
     Set-ChildValue -Parent $group -Name "LocalDebuggerWorkingDirectory" -Value $WorkingDirectory
     Set-ChildValue -Parent $group -Name "DebuggerFlavor" -Value "WindowsLocalDebugger"
-    Set-ChildValue -Parent $group -Name "LocalDebuggerDebuggerType" -Value "NativeWithManagedCore"
+    Set-ChildValue -Parent $group -Name "LocalDebuggerDebuggerType" -Value $DebuggerType
 }
 
 $directory = Split-Path -Parent $ProjectUserPath
@@ -84,7 +86,7 @@ foreach ($condition in $conditions) {
         throw "Debugger property group was not written: $condition"
     }
 
-    if ($group.LocalDebuggerDebuggerType -ne "NativeWithManagedCore") {
+    if ($group.LocalDebuggerDebuggerType -ne $DebuggerType) {
         throw "Debugger type verification failed for $condition. Actual value: $($group.LocalDebuggerDebuggerType)"
     }
 }

@@ -289,14 +289,19 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::ResizeTransient(Graphic
 	// 条件が変わったらサーフェイスを再生成
 	if (needsCreate) {
 
-		TransientEntry entry{};
+		// DSV/RTV/SRVの上限は小さいため、新しいSurfaceを作る前に古いDescriptorを返す。
+		// map代入で後から破棄すると、一時的に使用数が倍になりBaseDescriptor::Allocateで落ちる。
+		TransientEntry& entry = transients_[desc.name];
+		if (entry.surface) {
+			entry.surface->Destroy();
+		}
+
 		entry.desc = desc;
 		entry.resolvedWidth = createDesc.width;
 		entry.resolvedHeight = createDesc.height;
 		entry.surface = std::make_unique<MultiRenderTarget>();
 		entry.surface->Create(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetRTVDescriptor(),
 			&graphicsCore.GetDSVDescriptor(), &graphicsCore.GetSRVDescriptor(), createDesc);
-		transients_[desc.name] = std::move(entry);
 	}
 
 	// レンダーターゲットセットを登録表に登録する
