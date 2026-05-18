@@ -145,7 +145,9 @@ namespace Engine {
 		// ルートシーン用のビュー別ライト集合
 		const PerViewLightSet& GetResolvedViewLightSet(RenderViewKind kind) const { return (kind == RenderViewKind::Game) ? gameViewLightSet_ : sceneViewLightSet_; }
 
-		// ピック用のシーンビューのTLASリソースとサブメッシュ情報の取得
+		// ピック用のビュー別TLASリソースとサブメッシュ情報の取得
+		ID3D12Resource* GetGameViewTLASResource() const { return gameViewTLASResource_; }
+		const std::vector<MeshSubMeshPickRecord>& GetGameViewPickRecords() const { return gameViewPickRecords_; }
 		ID3D12Resource* GetSceneViewTLASResource() const { return sceneViewTLASResource_; }
 		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return sceneViewPickRecords_; }
 	private:
@@ -173,7 +175,9 @@ namespace Engine {
 		// レイトレシーンの構築
 		RaytracingSceneBuilder raytracingSceneBuilder_{};
 
-		// シーンのTLASリソースとピック用のサブメッシュ情報
+		// ビュー別のTLASリソースとピック用のサブメッシュ情報
+		ID3D12Resource* gameViewTLASResource_ = nullptr;
+		std::vector<MeshSubMeshPickRecord> gameViewPickRecords_{};
 		ID3D12Resource* sceneViewTLASResource_ = nullptr;
 		std::vector<MeshSubMeshPickRecord> sceneViewPickRecords_{};
 

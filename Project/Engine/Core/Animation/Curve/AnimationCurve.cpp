@@ -27,6 +27,7 @@ namespace {
 
 	float Hermite(float p0, float p1, float m0, float m1, float t, float length) {
 
+		// Spline用のHermite補間。m0/m1は時間あたりの傾きとして渡す。
 		const float t2 = t * t;
 		const float t3 = t2 * t;
 
@@ -37,8 +38,53 @@ namespace {
 		return h00 * p0 + h10 * m0 * length + h01 * p1 + h11 * m1 * length;
 	}
 
+	float CubicBezier(float p0, float p1, float p2, float p3, float t) {
+
+		const float u = 1.0f - t;
+		return u * u * u * p0 +
+			3.0f * u * u * t * p1 +
+			3.0f * u * t * t * p2 +
+			t * t * t * p3;
+	}
+
+	float EvaluateBezierSegment(const Engine::CurveKey& prev, const Engine::CurveKey& next, float time, float normalizedT) {
+
+		// BezierはX軸にもハンドルを持つため、timeからBezierパラメータを逆算する。
+		const float p0x = prev.time;
+		const float p1x = prev.time + prev.outTangent.x;
+		const float p2x = next.time + next.inTangent.x;
+		const float p3x = next.time;
+
+		// Tangentが設定されていない古いデータでは、Linearに近い見た目へ倒す。
+		if (std::abs(prev.outTangent.x) <= 0.00001f && std::abs(next.inTangent.x) <= 0.00001f) {
+			return Lerp(prev.value, next.value, normalizedT);
+		}
+
+		float low = 0.0f;
+		float high = 1.0f;
+		float bezierT = normalizedT;
+		for (uint32_t i = 0; i < 16; ++i) {
+
+			// 単調でないハンドルでも破綻しにくいよう、二分探索で近い時刻を探す。
+			bezierT = (low + high) * 0.5f;
+			const float x = CubicBezier(p0x, p1x, p2x, p3x, bezierT);
+			if (x < time) {
+				low = bezierT;
+			} else {
+				high = bezierT;
+			}
+		}
+
+		const float p0y = prev.value;
+		const float p1y = prev.value + prev.outTangent.y;
+		const float p2y = next.value + next.inTangent.y;
+		const float p3y = next.value;
+		return CubicBezier(p0y, p1y, p2y, p3y, bezierT);
+	}
+
 	float CalcAutoTangent(const std::vector<Engine::CurveKey>& keys, size_t index) {
 
+		// Spline用の自動接線。端では片側キーだけを使う。
 		if (keys.size() <= 1) {
 			return 0.0f;
 		}
@@ -73,6 +119,7 @@ namespace {
 
 	Engine::Vector3 GetQuaternionAxisDirection(const Engine::CurveQuaternionAxisKey& axisKey) {
 
+		// 軸が無効な場合はX軸に倒して、Quaternion生成時のNaNを避ける。
 		Engine::Vector3 axis = axisKey.useCustomAxis ? axisKey.customAxis : Engine::GetDirection(axisKey.axes);
 		if (axis.Length() <= 0.001f) {
 			axis = Engine::Vector3(1.0f, 0.0f, 0.0f);
@@ -82,6 +129,7 @@ namespace {
 
 	uint32_t FindAxisKeyIndex(const Engine::CurveChannel& axisChannel, float time) {
 
+		// Axis設定はAxisチャンネルのキー単位で持つため、現在時刻の前キーを採用する。
 		if (axisChannel.keys.empty()) {
 			return 0;
 		}
@@ -102,6 +150,7 @@ namespace {
 
 float Engine::CurveChannel::Evaluate(float time) const {
 
+	// キーが無いチャンネルは、Track追加直後などの既定値としてdefaultValueを返す。
 	if (keys.empty()) {
 		return defaultValue;
 	}
@@ -127,11 +176,16 @@ float Engine::CurveChannel::Evaluate(float time) const {
 	const float t = Clamp01((time - prev.time) / length);
 	switch (prev.interpolation) {
 	case CurveInterpolationMode::Constant:
+		// 次キー直前まで値を保持する。
 		return prev.value;
 	case CurveInterpolationMode::Linear:
 		return Lerp(prev.value, next.value, t);
-	case CurveInterpolationMode::Cubic:
+	case CurveInterpolationMode::Bezier:
+		return EvaluateBezierSegment(prev, next, time, t);
+	case CurveInterpolationMode::Spline:
+	case CurveInterpolationMode::Squad:
 	{
+		// SquadはQuaternion専用指定だが、float channel上ではSpline相当として扱う。
 		const size_t prevIndex = static_cast<size_t>((nextIt - 1) - keys.begin());
 		const size_t nextIndex = static_cast<size_t>(nextIt - keys.begin());
 		const float leaveTangent = CalcAutoTangent(keys, prevIndex);
@@ -146,6 +200,7 @@ float Engine::CurveChannel::Evaluate(float time) const {
 
 uint32_t Engine::CurveChannel::AddKey(float time, float value, CurveInterpolationMode interpolation) {
 
+	// 追加後に必ず時間順へ並べ、CurveEditorの選択に使えるindexを返す。
 	CurveKey key{};
 	key.time = time;
 	key.value = value;
@@ -267,6 +322,7 @@ Engine::CurveQuaternion::CurveQuaternion() {
 
 Engine::Quaternion Engine::CurveQuaternion::Evaluate(float time) const {
 
+	// Axis/Angle表現からQuaternionへ変換して返す。
 	const uint32_t axisKeyIndex = FindAxisKeyIndex(channels[0], time);
 	const CurveQuaternionAxisKey fallbackAxisKey = MakeDefaultQuaternionAxisKey();
 	const CurveQuaternionAxisKey& axisKey = axisKeyIndex < axisKeys.size() ? axisKeys[axisKeyIndex] : fallbackAxisKey;
@@ -277,6 +333,7 @@ Engine::Quaternion Engine::CurveQuaternion::Evaluate(float time) const {
 
 void Engine::CurveQuaternion::EnsureAxisKeyCount() {
 
+	// Axisチャンネルのキー数と軸設定数を揃える。
 	if (channels[0].keys.empty()) {
 		axisKeys.clear();
 		return;

@@ -49,6 +49,10 @@ bool Engine::PasteEntityTreeCommand::PasteInternal(EditorCommandContext& context
 	if (!world->IsAlive(pastedRoot)) {
 		return false;
 	}
+	// 復元系コマンド共通のランタイム状態を整える
+	const std::vector<Entity> restoredEntities = EditorEntitySnapshotUtility::CollectSubtreeEntities(*world, pastedRoot);
+	EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(context, *world, preparedSnapshot_, restoredEntities);
+
 	if (context.editorState) {
 
 		context.editorState->SelectEntity(pastedRoot);

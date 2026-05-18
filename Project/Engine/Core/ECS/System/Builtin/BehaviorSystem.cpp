@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/ECS/Component/Builtin/ScriptComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
+#include <Engine/Core/Logger/Logger.h>
 
 //============================================================================
 //	BehaviorSystem classMethods
@@ -30,11 +31,20 @@ namespace {
 
 		const auto* info = Engine::BehaviorTypeRegistry::GetInstance().FindByName(entry.type);
 		if (!info) {
-			entry.resolvedType.clear();
+			// 旧データでは名前空間なしの型名だけを持っていることがあるため、単純名でも一度だけ解決する。
+			info = Engine::BehaviorTypeRegistry::GetInstance().FindManagedBySimpleName(entry.type);
+		}
+		if (!info) {
+			if (entry.resolvedType != entry.type) {
+				Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
+					"BehaviorSystem: script type was not resolved. type={}", entry.type);
+			}
+			entry.resolvedType = entry.type;
 			entry.resolvedTypeValid = false;
 			return false;
 		}
 
+		entry.type = info->name;
 		entry.resolvedType = entry.type;
 		entry.resolvedTypeID = info->id;
 		entry.resolvedTypeValid = true;

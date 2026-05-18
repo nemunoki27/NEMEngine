@@ -71,9 +71,11 @@ public static unsafe class HostBridge {
             gameLoadContext = new GameScriptLoadContext(path);
             gameAssembly = gameLoadContext.LoadFromAssemblyPath(path);
             RebuildScriptTypes();
+            NativeApi.WriteLog(0, $"Loaded GameScripts: {path}, scriptTypes={scriptTypes.Count}");
             return 1;
         }
-        catch {
+        catch (Exception ex) {
+            NativeApi.WriteLog(2, $"Failed to load GameScripts: {path}\n{ex}");
             ReleaseGameAssembly(collect: true);
             return 0;
         }
@@ -286,6 +288,10 @@ public static unsafe class HostBridge {
                 scriptTypeLookup[type.FullName] = type;
             }
             scriptTypeLookup.TryAdd(type.Name, type);
+        }
+
+        if (scriptTypes.Count == 0) {
+            NativeApi.WriteLog(1, "GameScripts loaded, but no ScriptBehaviour types were found.");
         }
     }
 

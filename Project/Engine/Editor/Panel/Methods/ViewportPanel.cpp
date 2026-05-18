@@ -6,6 +6,7 @@
 #include <Engine/Core/Graphics/Render/View/ViewportRenderService.h>
 #include <Engine/Core/Graphics/Render/Texture/RenderTexture2D.h>
 #include <Engine/Core/ECS/Component/Builtin/HierarchyComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/NameComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/CameraComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Light/DirectionalLightComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Light/PointLightComponent.h>
@@ -119,6 +120,37 @@ namespace {
 		outStableID = renderer.subMeshes[outSubMeshIndex].stableID;
 		return true;
 	}
+	// HierarchyPanelと同じEntity payloadをViewportからも送る
+	void DrawViewportEntityDragDropSource(const Engine::EditorPanelContext& context, bool blockByGizmo) {
+
+		if (blockByGizmo || !context.editorState || !context.editorState->enableScenePick) {
+			return;
+		}
+
+		Engine::ECSWorld* world = context.GetWorld();
+		if (!world || !world->IsAlive(context.editorState->selectedEntity)) {
+			return;
+		}
+
+		// Viewport上ではクリックで選択したEntityを、そのまま他UIへドラッグできるようにする。
+		// hover中だけに限定すると、ドロップ先へ移動した瞬間にSource描画が切れて"..."表示になる。
+		if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+
+			const Engine::Entity entity = context.editorState->selectedEntity;
+			const Engine::UUID stableUUID = world->GetUUID(entity);
+			ImGui::SetDragDropPayload(Engine::IEditorPanel::kHierarchyDragDropPayloadType, &stableUUID, sizeof(Engine::UUID));
+
+			std::string displayName = "Entity";
+			if (world->HasComponent<Engine::NameComponent>(entity)) {
+				displayName = world->GetComponent<Engine::NameComponent>(entity).name;
+			}
+			if (displayName.empty()) {
+				displayName = "Entity";
+			}
+			ImGui::Text("%s", displayName.c_str());
+			ImGui::EndDragDropSource();
+		}
+	}
 }
 
 Engine::ViewportPanel::ViewportPanel(const char* windowName, const char* label, ViewportPanelKind kind) :
@@ -170,29 +202,31 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 	RenderViewKind viewKind = (kind_ == ViewportPanelKind::Game) ? RenderViewKind::Game : RenderViewKind::Scene;
 	InputViewArea inputArea = (kind_ == ViewportPanelKind::Game) ? InputViewArea::Game : InputViewArea::Scene;
 
-	// 描画領域の位置とサイズを取得
-	ImVec2 imagePos = ImGui::GetCursorScreenPos();
 	if (const RenderTexture2D* display = context.viewportRenderService->GetDisplayTexture(viewKind)) {
 
 		// 表示サイズ
 		Vector2 srcSize(static_cast<float>(display->GetRenderTarget().width), static_cast<float>(display->GetRenderTarget().height));
 
-		// ビューポートの描画領域を入力システムに同期
-		Input::GetInstance()->SetViewRect(inputArea, Vector2(imagePos.x, imagePos.y),
-			Vector2(viewSize_.x, viewSize_.y), srcSize);
-
 		// 表示ウィンドウの中心に表示させる
 		ImVec2 avail = ImGui::GetContentRegionAvail();
 		ImGui::SetCursorPosX(ImGui::GetCursorPos().x + (avail.x - viewSize_.x) * 0.5f);
+
+		// 実際にImageを置く位置を入力システムへ渡す
+		const ImVec2 imagePos = ImGui::GetCursorScreenPos();
+		Input::GetInstance()->SetViewRect(inputArea, Vector2(imagePos.x, imagePos.y),
+			Vector2(viewSize_.x, viewSize_.y), srcSize);
 
 		// 描画ビューのサーフェスをImGuiに描画
 		ImGui::Image(static_cast<ImTextureID>(display->GetSRVGPUHandle().ptr), viewSize_);
 
 		// シーンビューの場合はシーンギズモも描画
+		bool blockDragByGizmo = false;
 		if (kind_ == ViewportPanelKind::Scene) {
 
 			DrawSceneGizmo(context);
+			blockDragByGizmo = context.editorState && context.editorState->useSceneGizmo;
 		}
+		DrawViewportEntityDragDropSource(context, blockDragByGizmo);
 	}
 	ImGui::EndChild();
 }

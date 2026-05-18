@@ -91,7 +91,8 @@ void Engine::DeleteEntityCommand::Undo(EditorCommandContext& context) {
 	}
 
 	// スナップショットからエンティティを復元する
-	EditorEntitySnapshotUtility::RestoreSubtree(*world, snapshot_);
+	const std::vector<Entity> restoredEntities = EditorEntitySnapshotUtility::RestoreSubtree(*world, snapshot_);
+	EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(context, *world, snapshot_, restoredEntities);
 	context.RebuildHierarchyAll();
 
 	// 復元後は対象エンティティを選択する

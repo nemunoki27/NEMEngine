@@ -3,8 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/HierarchyComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/SceneObjectComponent.h>
+#include <Engine/Core/ECS/Component/Builtin/Render/MeshRendererComponent.h>
+#include <Engine/Core/Graphics/Mesh/MeshSubMeshAuthoring.h>
 #include <Engine/Editor/Command/EditorCommandContext.h>
 
 //============================================================================
@@ -116,6 +119,56 @@ std::vector<Engine::Entity> Engine::EditorEntitySnapshotUtility::RestoreSubtree(
 		restored.emplace_back(entity);
 	}
 	return restored;
+}
+
+void Engine::EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(const EditorCommandContext& context,
+	ECSWorld& world, const EditorEntityTreeSnapshot& snapshot, std::span<const Entity> restoredEntities) {
+
+	UUID sceneInstanceID = snapshot.ownerSceneInstanceID;
+	AssetID sourceAsset = snapshot.ownerSourceAsset;
+
+	// Delete/Undoなどで復元したEntityは、SceneObjectのランタイム所属情報がJSONから戻らない。
+	if (context.editorContext) {
+
+		if (!sceneInstanceID) {
+			sceneInstanceID = context.editorContext->activeSceneInstanceID;
+		}
+		if (!sourceAsset) {
+			sourceAsset = context.editorContext->activeSceneAsset;
+		}
+	}
+
+	AssetDatabase* assetDatabase = context.editorContext ? context.editorContext->assetDatabase : nullptr;
+	for (const Entity& entity : restoredEntities) {
+
+		if (!world.IsAlive(entity)) {
+			continue;
+		}
+
+		if (world.HasComponent<SceneObjectComponent>(entity)) {
+
+			auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
+			if (sceneInstanceID) {
+				sceneObject.sceneInstanceID = sceneInstanceID;
+			}
+			if (sourceAsset) {
+				sceneObject.sourceAsset = sourceAsset;
+			}
+		}
+
+		if (world.HasComponent<MeshRendererComponent>(entity)) {
+
+			auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
+			// Sceneロード時と同じく、meshアセットからsubMesh設定を補完する。
+			MeshSubMeshAuthoring::SyncComponent(assetDatabase, meshRenderer, true);
+
+			Matrix4x4 parentWorld = Matrix4x4::Identity();
+			if (world.HasComponent<TransformComponent>(entity)) {
+				parentWorld = world.GetComponent<TransformComponent>(entity).worldMatrix;
+			}
+			MeshSubMeshRuntime::UpdateRendererRuntime(meshRenderer, parentWorld);
+		}
+	}
 }
 
 void Engine::EditorEntitySnapshotUtility::DestroySubtree(ECSWorld& world, const Entity& root) {

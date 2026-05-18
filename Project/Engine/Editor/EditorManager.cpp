@@ -43,7 +43,8 @@ namespace {
 	// ドッキングスペースのホストウィンドウ名
 	constexpr const char* kDockSpaceHostWindow = "##EditorDockSpaceHost";
 	constexpr const char* kDockSpaceID = "EngineEditorDockSpace";
-	constexpr const char* kUnsavedScenePopupName = "Unsaved Scene";
+	constexpr const char* kUnsavedScenePopupName = "シーン未保存通知";
+	constexpr const char* kCloseUnsavedScenePopupName = "シーン未保存通知##CloseApplication";
 	// ImGuiのレイアウト保存ファイルパス
 	constexpr const char* kEditorLayoutIniPath = "EditorLayout.ini";
 }
@@ -77,6 +78,8 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	sceneRequest_ = {};
 	pendingSceneRequest_ = {};
 	requestOpenUnsavedPopup_ = false;
+	requestOpenCloseUnsavedPopup_ = false;
+	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
 	activeSceneDirty_ = false;
 
 	// エディタ標準ツールの登録
@@ -238,6 +241,19 @@ void Engine::EditorManager::RequestSaveScene() {
 	sceneRequest_ = { EditorSceneRequestType::SaveScene, AssetID{} };
 }
 
+void Engine::EditorManager::RequestCloseUnsavedScenePopup() {
+
+	requestOpenCloseUnsavedPopup_ = true;
+	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
+}
+
+Engine::EditorUnsavedScenePopupResult Engine::EditorManager::ConsumeCloseUnsavedScenePopupResult() {
+
+	EditorUnsavedScenePopupResult result = closeUnsavedScenePopupResult_;
+	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
+	return result;
+}
+
 void Engine::EditorManager::QueueSceneRequest(const EditorSceneRequest& request) {
 
 	if (request.type == EditorSceneRequestType::NewScene ||
@@ -257,11 +273,11 @@ const char* Engine::EditorManager::GetSceneRequestActionName(EditorSceneRequestT
 
 	switch (type) {
 	case EditorSceneRequestType::NewScene:
-		return "creating a new scene";
+		return "新しいシーンを作成する";
 	case EditorSceneRequestType::OpenScene:
-		return "opening another scene";
+		return "別のシーンを開く";
 	default:
-		return "changing the scene";
+		return "シーンを切り替える";
 	}
 }
 
@@ -303,25 +319,62 @@ void Engine::EditorManager::DrawUnsavedScenePopup() {
 		return;
 	}
 
-	ImGui::TextUnformatted("The current scene has unsaved changes.");
-	ImGui::Text("Do you want to save before %s?", GetSceneRequestActionName(pendingSceneRequest_.type));
+	ImGui::TextUnformatted("現在のシーンは変更後、保存されていません");
+	ImGui::Text("%s前に保存しますか？", GetSceneRequestActionName(pendingSceneRequest_.type));
 	ImGui::Separator();
 
-	if (ImGui::Button("Save", ImVec2(120.0f, 0.0f))) {
+	if (ImGui::Button("保存", ImVec2(120.0f, 0.0f))) {
 
 		SubmitPendingSceneRequest(true);
 		ImGui::CloseCurrentPopup();
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Don't Save", ImVec2(120.0f, 0.0f))) {
+	if (ImGui::Button("保存しない", ImVec2(120.0f, 0.0f))) {
 
 		SubmitPendingSceneRequest(false);
 		ImGui::CloseCurrentPopup();
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Cancel", ImVec2(120.0f, 0.0f))) {
+	if (ImGui::Button("キャンセル", ImVec2(120.0f, 0.0f))) {
 
 		pendingSceneRequest_ = {};
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
+}
+
+void Engine::EditorManager::DrawCloseUnsavedScenePopup() {
+
+	if (requestOpenCloseUnsavedPopup_) {
+
+		ImGui::OpenPopup(kCloseUnsavedScenePopupName);
+		requestOpenCloseUnsavedPopup_ = false;
+	}
+
+	if (!ImGui::BeginPopupModal(kCloseUnsavedScenePopupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
+	}
+
+	ImGui::TextUnformatted("現在のシーンは変更後、保存されていません");
+	ImGui::TextUnformatted("保存しますか？");
+	ImGui::Separator();
+
+	if (ImGui::Button("保存", ImVec2(120.0f, 0.0f))) {
+
+		closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::Save;
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("保存しない", ImVec2(120.0f, 0.0f))) {
+
+		closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::DontSave;
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("キャンセル", ImVec2(120.0f, 0.0f))) {
+
+		closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::Cancel;
 		ImGui::CloseCurrentPopup();
 	}
 
@@ -332,32 +385,50 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 	[[maybe_unused]] const EditorContext& context, const RenderPipelineRunner& renderPipeline) {
 
 	// 以下の条件のいずれかを満たす場合はピック処理を行わない
-	if (!initialized_ || !layoutState_.showSceneView ||
-		editorState_.useSceneGizmo || !editorState_.enableScenePick) {
+	if (!initialized_ || !editorState_.enableScenePick) {
 		return;
 	}
 
 	Input* input = Input::GetInstance();
-	// シーンビューの上で左クリックされたフレームのみ処理する
-	if (!input->HasViewRect(InputViewArea::Scene)) {
-		return;
-	}
-	if (!input->IsMouseOnView(InputViewArea::Scene)) {
-		return;
-	}
-	if (!input->TriggerMouse(MouseButton::Left)) {
-		return;
+	auto executePick = [&](InputViewArea inputArea, RenderViewKind viewKind,
+		ID3D12Resource* tlasResource, const std::vector<MeshSubMeshPickRecord>& pickRecords) {
+
+			// ビューの上で左クリックされたフレームのみ処理する
+			if (!input->HasViewRect(inputArea)) {
+				return false;
+			}
+			if (!input->IsMouseOnView(inputArea)) {
+				return false;
+			}
+			if (!input->TriggerMouse(MouseButton::Left)) {
+				return false;
+			}
+
+			// マウス座標を取得
+			const std::optional<Vector2> mousePosInView = input->GetMousePosInView(inputArea);
+			if (!mousePosInView.has_value()) {
+				return false;
+			}
+
+			// メッシュピック処理を実行
+			meshSubMeshPicker_->ExecutePick(graphicsCore, renderPipeline.GetResolvedView(viewKind),
+				mousePosInView.value(), pickRecords, tlasResource);
+			return true;
+		};
+
+	// SceneViewは従来通り、ギズモ操作中はピックしない
+	if (layoutState_.showSceneView && !editorState_.useSceneGizmo) {
+		if (executePick(InputViewArea::Scene, RenderViewKind::Scene,
+			renderPipeline.GetSceneViewTLASResource(), renderPipeline.GetSceneViewPickRecords())) {
+			return;
+		}
 	}
 
-	// マウス座標を取得
-	const std::optional<Vector2> mousePosInView = input->GetMousePosInView(InputViewArea::Scene);
-	if (!mousePosInView.has_value()) {
-		return;
+	// GameViewにもSceneViewと同じTLASピックだけを通し、マニピュレーターは表示しない。
+	if (layoutState_.showGameView) {
+		executePick(InputViewArea::Game, RenderViewKind::Game,
+			renderPipeline.GetGameViewTLASResource(), renderPipeline.GetGameViewPickRecords());
 	}
-
-	// メッシュピック処理を実行
-	meshSubMeshPicker_->ExecutePick(graphicsCore, renderPipeline.GetResolvedView(RenderViewKind::Scene),
-		mousePosInView.value(), renderPipeline.GetSceneViewPickRecords(), renderPipeline.GetSceneViewTLASResource());
 }
 
 void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) {
@@ -449,6 +520,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	HandleGlobalShortcuts(context);
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PreScene);
 	DrawUnsavedScenePopup();
+	DrawCloseUnsavedScenePopup();
 }
 
 void Engine::EditorManager::DrawSceneDebugObjects(const EditorContext& context) {
@@ -576,6 +648,8 @@ void Engine::EditorManager::ResetSceneEditingState() {
 	editorState_.commandHistory.Clear();
 	pendingSceneRequest_ = {};
 	requestOpenUnsavedPopup_ = false;
+	requestOpenCloseUnsavedPopup_ = false;
+	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
 	activeSceneDirty_ = false;
 }
 

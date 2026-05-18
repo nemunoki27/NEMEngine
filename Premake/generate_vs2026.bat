@@ -61,6 +61,18 @@ if errorlevel 1 (
     popd
     exit /b 1
 )
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_native_debug_settings.ps1" -ProjectPaths "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj"
+if errorlevel 1 (
+    echo [ERROR] Failed to patch native debug settings.
+    popd
+    exit /b 1
+)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_native_debug_settings.ps1" -ProjectPaths "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj"
+if errorlevel 1 (
+    echo [ERROR] Failed to patch native debug settings.
+    popd
+    exit /b 1
+)
 popd
 endlocal
 exit /b 0

@@ -196,3 +196,86 @@ float EasedValue(EasingType easingType, float t) {
 	default: return t;
 	}
 }
+
+void Easing::SelectEasingType(EasingType& easingType, const std::string& lebel, float itemWidth) {
+
+	const char* easeInOptions[] = {
+		"EaseInSine","EaseInQuad","EaseInCubic","EaseInQuart","EaseInQuint","EaseInExpo","EaseInCirc","EaseInBack","EaseInBounce"
+	};
+	const char* easeOutOptions[] = {
+		"EaseOutSine","EaseOutQuad","EaseOutCubic","EaseOutQuart","EaseOutQuint","EaseOutExpo","EaseOutCirc","EaseOutBack","EaseOutBounce"
+	};
+	const char* easeInOutOptions[] = {
+		"EaseInOutSine","EaseInOutQuad","EaseInOutCubic","EaseInOutQuart","EaseInOutQuint","EaseInOutExpo","EaseInOutCirc","EaseInOutBounce"
+	};
+
+	// enumの基準インデックス
+	const int baseIn = static_cast<int>(EasingType::EaseInSine);
+	const int baseOut = static_cast<int>(EasingType::EaseOutSine);
+	const int baseInOut = static_cast<int>(EasingType::EaseInOutSine);
+
+	// プレビュー文字列
+	const int easingIndex = static_cast<int>(easingType);
+
+	// デフォルトでLinearにしておいて後更新させる
+	const char* previewLabel = "Linear";
+	if (easingIndex >= baseIn && easingIndex < baseOut) {
+
+		previewLabel = easeInOptions[easingIndex - baseIn];
+	} else if (easingIndex >= baseOut && easingIndex < baseInOut) {
+
+		previewLabel = easeOutOptions[easingIndex - baseOut];
+	} else if (easingIndex >= baseInOut) {
+
+		previewLabel = easeInOutOptions[easingIndex - baseInOut];
+	}
+
+	if (ImGui::BeginCombo(("EasingType##" + lebel).c_str(), previewLabel)) {
+
+		// Linear ボタン（押した瞬間に index も更新しておくと同フレームの選択ハイライトも合う）
+		if (ImGui::Button("Linear", ImVec2(itemWidth, 24.0f))) {
+			easingType = EasingType::Linear;
+		}
+
+		ImGui::PushItemWidth(itemWidth);
+
+		// EaseIn
+		if (ImGui::BeginCombo("EaseIn", "")) {
+			for (int i = 0; i < IM_ARRAYSIZE(easeInOptions); ++i) {
+				const bool isSelected = (static_cast<int>(easingType) == baseIn + i);
+				if (ImGui::Selectable(easeInOptions[i], isSelected)) {
+					easingType = static_cast<EasingType>(baseIn + i);
+				}
+				if (isSelected) ImGui::SetItemDefaultFocus();
+			}
+			ImGui::EndCombo();
+		}
+
+		// EaseOut
+		if (ImGui::BeginCombo("EaseOut", "")) {
+			for (int i = 0; i < IM_ARRAYSIZE(easeOutOptions); ++i) {
+				const bool isSelected = (static_cast<int>(easingType) == baseOut + i);
+				if (ImGui::Selectable(easeOutOptions[i], isSelected)) {
+					easingType = static_cast<EasingType>(baseOut + i);
+				}
+				if (isSelected) ImGui::SetItemDefaultFocus();
+			}
+			ImGui::EndCombo();
+		}
+
+		// EaseInOut
+		if (ImGui::BeginCombo("EaseInOut", "")) {
+			for (int i = 0; i < IM_ARRAYSIZE(easeInOutOptions); ++i) {
+				const bool isSelected = (static_cast<int>(easingType) == baseInOut + i);
+				if (ImGui::Selectable(easeInOutOptions[i], isSelected)) {
+					easingType = static_cast<EasingType>(baseInOut + i);
+				}
+				if (isSelected) ImGui::SetItemDefaultFocus();
+			}
+			ImGui::EndCombo();
+		}
+
+		ImGui::PopItemWidth();
+		ImGui::EndCombo();
+	}
+}

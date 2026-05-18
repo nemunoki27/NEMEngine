@@ -108,18 +108,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	}
 
 	//============================================================================
-	//	デバッグ動作設定
-	//============================================================================
-
-	if (ImGui::BeginMenu("Debug")) {
-
-		if (context.layoutState) {
-			ImGui::Checkbox("Wait Managed Debugger On Play", &context.layoutState->waitForManagedDebuggerOnPlay);
-		}
-
-		ImGui::EndMenu();
-	}
-	//============================================================================
 	//	グラフィックス機能表示/切り替え
 	//============================================================================
 

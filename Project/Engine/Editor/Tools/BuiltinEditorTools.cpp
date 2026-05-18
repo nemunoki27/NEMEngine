@@ -4,10 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Tools/ToolRegistry.h>
-#include <Engine/Editor/Tools/AnimationCurveTool.h>
-#include <Engine/Editor/Tools/AnimationClipTool.h>
-#include <Engine/Editor/Tools/CameraManagerTool.h>
-#include <Engine/Editor/Tools/CollisionManagerTool.h>
+#include <Engine/Editor/Tools/Methods/Animation/AnimationClipTool.h>
+#include <Engine/Editor/Tools/Methods/Camera/CameraManagerTool.h>
+#include <Engine/Editor/Tools/Methods/Collision/CollisionManagerTool.h>
 #include <Engine/Core/Graphics/Render/View/SceneViewCameraController.h>
 
 // c++
@@ -39,6 +38,5 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<CameraManagerTool>();
 	RegisterBuiltinEditorTool<SceneViewCameraController>();
 	RegisterBuiltinEditorTool<CollisionManagerTool>();
-	RegisterBuiltinEditorTool<AnimationCurveTool>();
 	RegisterBuiltinEditorTool<AnimationClipTool>();
 }

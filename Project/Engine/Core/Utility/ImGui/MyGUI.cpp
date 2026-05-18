@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Core/Asset/AssetDatabase.h>
 #include <Engine/Editor/Panel/Interface/IEditorPanel.h>
+#include <Engine/Core/ECS/World/ECSWorld.h>
+#include <Engine/Core/ECS/Component/Builtin/NameComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/TransformComponent.h>
 #include <Engine/Core/ECS/Component/Builtin/Render/MeshRendererComponent.h>
 #include <Engine/Core/Utility/Algorithm/Algorithm.h>
@@ -45,6 +47,18 @@ namespace {
 		case 'W': return { "W", ImVec4(0.90f, 0.78f, 0.20f, 1.0f) }; // yellow
 		default:  return { "-", ImVec4(0.70f, 0.70f, 0.70f, 1.0f) };
 		}
+	}
+	// Axisを表示用の文字へ変換する
+	char ToAxisChar(Engine::Axis axis) {
+
+		switch (axis) {
+		case Engine::Axis::X: return 'X';
+		case Engine::Axis::Y: return 'Y';
+		case Engine::Axis::Z: return 'Z';
+		default:
+			break;
+		}
+		return '\0';
 	}
 
 	//========================================================================
@@ -117,6 +131,16 @@ namespace {
 		outPayload = *static_cast<const Engine::EditorAssetDragDropPayload*>(payload->Data);
 		return true;
 	}
+	// ドロップされたペイロードがHierarchyのEntity UUIDとして正しいかどうかを判定する
+	bool TryReadEntityPayload(const ImGuiPayload* payload, Engine::UUID& outUUID) {
+
+		if (!payload || payload->DataSize != sizeof(Engine::UUID)) {
+			return false;
+		}
+
+		outUUID = *static_cast<const Engine::UUID*>(payload->Data);
+		return true;
+	}
 	// アセット参照のラベルテキストを構築する
 	std::string BuildAssetReferenceLabel(Engine::AssetID assetID, const Engine::AssetDatabase* assetDatabase) {
 
@@ -158,6 +182,48 @@ namespace {
 			displayName,
 			meta->assetPath,
 			Engine::ToString(assetID));
+	}
+	// エンティティ参照のラベルテキストを構築する
+	std::string BuildEntityReferenceLabel(Engine::UUID entityUUID, Engine::ECSWorld* world) {
+
+		if (!entityUUID) {
+			return "None (Drop entity here)";
+		}
+
+		if (!world) {
+			return std::format("UUID: {}", Engine::ToString(entityUUID));
+		}
+
+		const Engine::Entity entity = world->FindByUUID(entityUUID);
+		if (!world->IsAlive(entity)) {
+			return std::format("Missing Entity | UUID: {}", Engine::ToString(entityUUID));
+		}
+
+		if (Engine::NameComponent* name = world->TryGetComponent<Engine::NameComponent>(entity)) {
+			return std::format("Name: {}", name->name);
+		}
+		return std::format("Entity ({})", Engine::ToString(entityUUID));
+	}
+	// エンティティ参照のツールチップテキストを構築する
+	std::string BuildEntityReferenceTooltip(Engine::UUID entityUUID, Engine::ECSWorld* world) {
+
+		if (!entityUUID) {
+			return "Drop hierarchy entity here";
+		}
+
+		if (!world) {
+			return std::format("UUID: {}", Engine::ToString(entityUUID));
+		}
+
+		const Engine::Entity entity = world->FindByUUID(entityUUID);
+		if (!world->IsAlive(entity)) {
+			return std::format("Missing Entity\nUUID: {}", Engine::ToString(entityUUID));
+		}
+
+		if (Engine::NameComponent* name = world->TryGetComponent<Engine::NameComponent>(entity)) {
+			return std::format("Name : {}\nUUID : {}", name->name, Engine::ToString(entityUUID));
+		}
+		return std::format("UUID : {}", Engine::ToString(entityUUID));
 	}
 
 	//========================================================================
@@ -215,11 +281,15 @@ namespace {
 		ImGui::PushID(id);
 		ImGui::BeginGroup();
 
-		// 軸ラベル
-		DrawAxisLabel(axis);
-		ImGui::SameLine(0.0f, 6.0f);
+		// axisが指定されている場合だけ、Vector編集と同じ軸ラベルを表示する
+		float fieldWidth = width;
+		if (axis != '\0') {
+			DrawAxisLabel(axis);
+			ImGui::SameLine(0.0f, 6.0f);
+			fieldWidth -= kAxisLabelWidth + 6.0f;
+		}
 
-		ImGui::SetNextItemWidth(width - kAxisLabelWidth - 6.0f);
+		ImGui::SetNextItemWidth((std::max)(1.0f, fieldWidth));
 		changed = ImGui::DragFloat("##Value", &value, setting.dragSpeed, setting.minValue, setting.maxValue, "%.3f");
 
 		ImGui::EndGroup();
@@ -651,7 +721,8 @@ void Engine::MyGUI::TextMatrix4x4(const char* label, const Matrix4x4& value, uin
 Engine::ValueEditResult Engine::MyGUI::DragFloat(const char* label, float& value, const FloatEditSetting& setting) {
 
 	float values[1] = { value };
-	ValueEditResult result = DrawDragFields(label, { 'X', '\0', '\0', '\0' }, values, 1, setting);
+	const char axis = setting.floatAxis.has_value() ? ToAxisChar(setting.floatAxis.value()) : '\0';
+	ValueEditResult result = DrawDragFields(label, { axis, '\0', '\0', '\0' }, values, 1, setting);
 	if (result.valueChanged) {
 		value = values[0];
 	}
@@ -1122,7 +1193,8 @@ Engine::ValueEditResult Engine::MyGUI::InputText(const char* label, std::string&
 }
 
 Engine::ValueEditResult Engine::MyGUI::StringCombo(const char* label, std::string& currentValue,
-	std::span<const std::string> items, const char* emptyPreview, bool allowEmptySelection) {
+	std::span<const std::string> items, const char* emptyPreview,
+	bool allowEmptySelection, const ComboEditSetting& setting) {
 
 	ValueEditResult result{};
 
@@ -1134,7 +1206,12 @@ Engine::ValueEditResult Engine::MyGUI::StringCombo(const char* label, std::strin
 	if (items.empty()) {
 
 		ImGui::TextDisabled("%s", emptyPreview);
-	} else if (ImGui::BeginCombo("##Value", preview)) {
+	} else {
+
+		const float width = ImGui::GetContentRegionAvail().x - setting.reserveRightWidth;
+		ImGui::SetNextItemWidth((std::max)(1.0f, width));
+	}
+	if (!items.empty() && ImGui::BeginCombo("##Value", preview)) {
 		// 空選択を許可する場合
 		if (allowEmptySelection) {
 			const bool selected = currentValue.empty();
@@ -1173,12 +1250,15 @@ Engine::ValueEditResult Engine::MyGUI::StringCombo(const char* label, std::strin
 }
 
 Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, AssetID& value,
-	const AssetDatabase* assetDatabase, const std::initializer_list<AssetType>& acceptedTypes) {
+	const AssetDatabase* assetDatabase, const std::initializer_list<AssetType>& acceptedTypes,
+	const AssetEditSetting& setting) {
 
 	ValueEditResult result{};
 
-	if (!BeginPropertyRow(label)) {
-		return result;
+	if (setting.useAutoPropertyRow) {
+		if (!BeginPropertyRow(label)) {
+			return result;
+		}
 	}
 
 	// 表示テキストを構築する
@@ -1189,8 +1269,10 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 	}
 
+	ImVec2 button = setting.buttonSize.has_value() ? setting.buttonSize.value() : ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight());
+
 	// ドロップターゲットを描画する
-	ImGui::Button(displayText.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
+	ImGui::Button(displayText.c_str(), button);
 
 	if (!hasValue) {
 		ImGui::PopStyleColor();
@@ -1213,7 +1295,9 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 				EditorAssetDragDropPayload assetPayload{};
 				if (!TryReadAssetPayload(payload, assetPayload)) {
 					ImGui::EndDragDropTarget();
-					EndPropertyRow();
+					if (setting.useAutoPropertyRow) {
+						EndPropertyRow();
+					}
 					return result;
 				}
 
@@ -1238,6 +1322,75 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 		ImGui::EndDragDropTarget();
 	}
 
-	EndPropertyRow();
+	if (setting.useAutoPropertyRow) {
+		EndPropertyRow();
+	}
+	return result;
+}
+
+Engine::ValueEditResult Engine::MyGUI::EntityReferenceField(const char* label, UUID& value,
+	ECSWorld* world, const EntityEditSetting& setting) {
+
+	ValueEditResult result{};
+
+	if (setting.useAutoPropertyRow) {
+		if (!BeginPropertyRow(label)) {
+			return result;
+		}
+	}
+
+	// 同じ名前のEntityを複数表示してもIDが衝突しないように、呼び出し側のlabelをIDに使う。
+	ImGui::PushID(label);
+
+	const std::string displayText = BuildEntityReferenceLabel(value, world);
+	const bool hasValue = static_cast<bool>(value);
+	if (!hasValue) {
+		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+	}
+
+	const ImVec2 button = setting.buttonSize.has_value()
+		? setting.buttonSize.value()
+		: ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight());
+
+	// HierarchyからEntityをドロップするための表示領域。
+	ImGui::Button(displayText.c_str(), button);
+
+	if (!hasValue) {
+		ImGui::PopStyleColor();
+	}
+
+	result.anyItemActive = ImGui::IsItemActive();
+	if (ImGui::BeginItemTooltip()) {
+
+		const std::string tooltip = BuildEntityReferenceTooltip(value, world);
+		ImGui::TextUnformatted(tooltip.c_str());
+		ImGui::EndTooltip();
+	}
+
+	// HierarchyPanelが渡すUUIDを受け取り、現在のWorldに存在するEntityだけを参照として採用する。
+	if (ImGui::BeginDragDropTarget()) {
+		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType)) {
+			if (payload->IsDelivery()) {
+
+				UUID droppedUUID{};
+				if (TryReadEntityPayload(payload, droppedUUID)) {
+
+					const Entity droppedEntity = world ? world->FindByUUID(droppedUUID) : Entity::Null();
+					if (world && world->IsAlive(droppedEntity) && value != droppedUUID) {
+						value = droppedUUID;
+						result.valueChanged = true;
+						result.editFinished = true;
+					}
+				}
+			}
+		}
+		ImGui::EndDragDropTarget();
+	}
+
+	ImGui::PopID();
+
+	if (setting.useAutoPropertyRow) {
+		EndPropertyRow();
+	}
 	return result;
 }

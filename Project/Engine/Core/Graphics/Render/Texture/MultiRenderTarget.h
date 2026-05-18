@@ -75,7 +75,7 @@ namespace Engine {
 		//========================================================================
 
 		MultiRenderTarget() = default;
-		~MultiRenderTarget() = default;
+		~MultiRenderTarget();
 
 		// リソース作成
 		void Create(ID3D12Device* device, RTVDescriptor* rtvDescriptor,

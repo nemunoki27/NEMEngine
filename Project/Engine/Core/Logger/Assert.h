@@ -31,6 +31,8 @@ namespace Engine {
 
 		// ビルド設定に応じて呼び出し
 		static void Call(bool condition, const std::string& message, const std::source_location& location = std::source_location::current());
+		// Assertで停止/終了する直前に呼ぶ処理を設定する
+		static void SetPreAssertHandler(void (*handler)());
 	private:
 		//========================================================================
 		//	private Methods
@@ -42,5 +44,7 @@ namespace Engine {
 		static void DebugAssert(bool condition, const std::string& message, const std::source_location& location);
 		// リリース時: 条件NGならクリティカルログを出力しプロセス終了
 		static void ReleaseAssert(bool condition, const std::string& message, const std::source_location& location);
+		// 停止前の処理を一度だけ呼び出す
+		static void InvokePreAssertHandler();
 	};
 }

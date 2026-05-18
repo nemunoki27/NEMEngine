@@ -7,9 +7,13 @@
 #include <Engine/Core/Graphics/Line/LineRenderer.h>
 #include <Engine/Core/Build/BuildConfig.h>
 #include <Engine/Core/Collision/CollisionSettings.h>
+#include <Engine/Core/Logger/Assert.h>
 #include <Engine/Core/Scripting/ManagedScriptRuntime.h>
 #include <Engine/Core/Tools/ToolRegistry.h>
 #include <Engine/Core/Audio/Audio.h>
+#include <Engine/Core/Runtime/RuntimePaths.h>
+#include <Engine/Core/Utility/Json/JsonAdapter.h>
+#include <Engine/Core/Window/WinApp.h>
 #include <Engine/Editor/Project/ProjectAssetFileUtility.h>
 #include <Engine/Core/Logger/Logger.h>
 #include <Engine/Core/Input/Input.h>
@@ -27,6 +31,29 @@
 //============================================================================
 //	EngineApplication classMethods
 //============================================================================
+
+namespace {
+
+	constexpr const char* kActiveSceneConfigPath = "Config/activeScene.exeConfig.json";
+
+	Engine::EngineApplication* g_activeEngineApplication = nullptr;
+
+	bool RequestEngineApplicationClose() {
+
+		if (!g_activeEngineApplication) {
+			return true;
+		}
+		return g_activeEngineApplication->RequestClose();
+	}
+
+	void NotifyEngineApplicationAssert() {
+
+		if (!g_activeEngineApplication) {
+			return;
+		}
+		g_activeEngineApplication->NotifyAssertBeforeAbort();
+	}
+}
 
 void Engine::EngineApplication::InitSystems() {
 
@@ -50,11 +77,53 @@ void Engine::EngineApplication::InitFirstScene() {
 	editScenes_.LoadSceneTree(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_);
 }
 
+void Engine::EngineApplication::LoadActiveSceneConfig() {
+
+	// 前回終了時に開いていたシーンがあれば、初期シーンとして使う
+	const std::filesystem::path configPath = RuntimePaths::GetEngineAssetPath(kActiveSceneConfigPath);
+	if (!JsonAdapter::Check(configPath.string(), false)) {
+		return;
+	}
+
+	const nlohmann::json data = JsonAdapter::Load(configPath.string(), false);
+	if (!data.is_object()) {
+		return;
+	}
+
+	const std::string scenePath = data.value("activeScenePath", "");
+	if (scenePath.empty()) {
+		return;
+	}
+
+	const std::filesystem::path fullPath = RuntimePaths::ResolveAssetPath(scenePath);
+	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"EngineApplication: active scene config points missing scene. path={}", scenePath);
+		return;
+	}
+	activeScenePath_ = std::filesystem::path(scenePath).generic_string();
+}
+
+void Engine::EngineApplication::SaveActiveSceneConfig() const {
+
+	// .exeConfig系と同じくEngine/Assets/Config配下へ小さなJSONで保存する
+	nlohmann::json data = nlohmann::json::object();
+	data["activeScenePath"] = activeScenePath_;
+
+	const std::filesystem::path configPath = RuntimePaths::GetEngineAssetPath(kActiveSceneConfigPath);
+	JsonAdapter::Save(configPath.string(), data);
+}
+
 void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
+
+	g_activeEngineApplication = this;
+	WinApp::SetCloseRequestCallback(RequestEngineApplicationClose);
+	Assert::SetPreAssertHandler(NotifyEngineApplicationAssert);
 
 	// アセットデータベース初期化
 	assetDataBase_.Init();
 	assetDataBase_.RebuildMeta();
+	LoadActiveSceneConfig();
 
 	// 骨アニメーション管理の初期化
 	skinnedAnimationManager_.Init();
@@ -233,6 +302,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 		// エディタのフレーム開始処理
 		editorManager_.BeginFrame(graphicsCore, editorContext_);
+		HandleCloseRequestResult();
 	}
 
 	// ECSシステムの更新
@@ -481,7 +551,103 @@ bool Engine::EngineApplication::SaveActiveEditScene() {
 	return true;
 }
 
+void Engine::EngineApplication::AcceptCloseRequest(bool destroyWindow) {
+
+	SaveActiveSceneConfig();
+	shutdownAccepted_ = true;
+	closeRequestPending_ = false;
+
+	if (destroyWindow) {
+		WinApp::RequestCloseWindow();
+	}
+}
+
+void Engine::EngineApplication::HandleCloseRequestResult() {
+
+	if constexpr (!BuildConfig::kEditorEnabled) {
+		return;
+	} else {
+
+		if (!closeRequestPending_) {
+			return;
+		}
+
+		const EditorUnsavedScenePopupResult result = editorManager_.ConsumeCloseUnsavedScenePopupResult();
+		switch (result) {
+		case EditorUnsavedScenePopupResult::Save:
+			if (SaveActiveEditScene()) {
+				AcceptCloseRequest(true);
+			} else {
+				closeRequestPending_ = false;
+			}
+			break;
+		case EditorUnsavedScenePopupResult::DontSave:
+			AcceptCloseRequest(true);
+			break;
+		case EditorUnsavedScenePopupResult::Cancel:
+			closeRequestPending_ = false;
+			break;
+		case EditorUnsavedScenePopupResult::None:
+		default:
+			break;
+		}
+	}
+}
+
+bool Engine::EngineApplication::RequestClose() {
+
+	if (shutdownAccepted_) {
+		return true;
+	}
+
+	if constexpr (!BuildConfig::kEditorEnabled) {
+
+		AcceptCloseRequest(false);
+		return true;
+	} else {
+
+		if (!editorManager_.IsActiveSceneDirty()) {
+			AcceptCloseRequest(false);
+			return true;
+		}
+
+		// WM_CLOSE中にはImGuiを描画できないため、次のEditorフレームでモーダルを開く
+		if (!closeRequestPending_) {
+			closeRequestPending_ = true;
+			editorManager_.RequestCloseUnsavedScenePopup();
+		}
+		return false;
+	}
+}
+
+void Engine::EngineApplication::NotifyAssertBeforeAbort() {
+
+	if (handlingAssertAbort_) {
+		return;
+	}
+
+	handlingAssertAbort_ = true;
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		// Assert停止直前はImGuiの入力待ちができないため、未保存なら落ちる前に保存しておく
+		if (editorManager_.IsActiveSceneDirty()) {
+			SaveActiveEditScene();
+		}
+	}
+	SaveActiveSceneConfig();
+	handlingAssertAbort_ = false;
+}
+
 void Engine::EngineApplication::Finalize() {
+
+	if (!shutdownAccepted_) {
+
+		// WM_CLOSE以外の終了経路でも、最後に開いていたシーンだけは残す
+		SaveActiveSceneConfig();
+		shutdownAccepted_ = true;
+	}
+	WinApp::SetCloseRequestCallback(nullptr);
+	Assert::SetPreAssertHandler(nullptr);
 
 	// 終了時点のWorldに合わせてSystemContextを更新してから切り離す
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;

@@ -42,6 +42,15 @@ namespace Engine {
 		Multiply,
 	};
 
+	enum class QuaternionMultiplyOrder :
+		uint8_t {
+
+		// baseRotation * curveRotation
+		BaseThenCurve,
+		// curveRotation * baseRotation
+		CurveThenBase,
+	};
+
 	//============================================================================
 	//	AnimationClipAsset structures
 	//============================================================================
@@ -54,14 +63,38 @@ namespace Engine {
 		AnimationValueType valueType = AnimationValueType::Float;
 	};
 
+	struct AnimationTrackEditorView {
+
+		// CurveEditorの表示範囲。Runtime評価には使わない。
+		float timeMin = 0.0f;
+		float timeMax = 1.0f;
+		float valueMin = -1.0f;
+		float valueMax = 1.0f;
+	};
+
+	// Loop終端から0秒へ戻る時だけ使う補間設定
+	struct AnimationLoopBridgeSettings {
+
+		bool enabled = false;
+		float duration = 0.1f;
+		CurveInterpolationMode interpolation = CurveInterpolationMode::Linear;
+	};
+
 	// Componentの1プロパティ分のカーブ。
 	// Vector3やColor4はチャンネル配列として持ち、CurveEditorへ渡しやすくしておく。
 	struct AnimationCurveTrack {
 
 		AnimationPropertyBinding binding;
+		// Override/Add/Multiplyの適用方法
 		AnimationApplyMode applyMode = AnimationApplyMode::Override;
+		// Quaternion Multiply時だけ参照する積の順番
+		QuaternionMultiplyOrder quaternionMultiplyOrder = QuaternionMultiplyOrder::BaseThenCurve;
 		bool visible = true;
+		// TrackごとにCurveEditorのズーム状態を保持する
+		AnimationTrackEditorView editorView{};
 		std::vector<CurveChannel> channels;
+		// QuaternionをAxis/Angleで編集する時だけ使う。Axisチャンネルのキーと同じ順番で保持する。
+		std::vector<CurveQuaternionAxisKey> quaternionAxisKeys;
 	};
 
 	// 将来のEvent Track用。今はJSON上で空配列を維持するための置き場所だけを持つ。
@@ -75,7 +108,9 @@ namespace Engine {
 		AssetID guid{};
 		std::string name;
 		float duration = 1.0f;
+		bool autoDuration = false;
 		bool loop = false;
+		AnimationLoopBridgeSettings loopBridge{};
 		std::vector<AnimationCurveTrack> curveTracks;
 		std::vector<AnimationEventTrack> eventTracks;
 	};
@@ -90,12 +125,18 @@ namespace Engine {
 	std::string ToString(AnimationApplyMode mode);
 	bool TryParseAnimationApplyMode(std::string_view text, AnimationApplyMode& out);
 
+	std::string ToString(QuaternionMultiplyOrder order);
+	bool TryParseQuaternionMultiplyOrder(std::string_view text, QuaternionMultiplyOrder& out);
+
 	std::string ToString(CurveInterpolationMode mode);
 	bool TryParseCurveInterpolationMode(std::string_view text, CurveInterpolationMode& out);
 
 	uint32_t GetAnimationValueTypeChannelCount(AnimationValueType type);
 	std::vector<CurveChannel> MakeDefaultAnimationChannels(AnimationValueType type);
+	// JSON互換用に不足チャンネルや表示色を補正する
 	void NormalizeAnimationTrackChannels(AnimationCurveTrack& track);
+	// autoDuration有効時に最大キー時刻からdurationを更新する
+	void UpdateAnimationClipAutoDuration(AnimationClipAsset& clip);
 
 	bool LoadAnimationClipAsset(const std::filesystem::path& path, AnimationClipAsset& outClip);
 	bool SaveAnimationClipAsset(const std::filesystem::path& path, const AnimationClipAsset& clip);

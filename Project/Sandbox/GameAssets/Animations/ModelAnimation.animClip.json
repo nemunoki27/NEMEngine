@@ -1,0 +1,509 @@
+{
+  "autoDuration": true,
+  "curveTracks": [
+    {
+      "applyMode": "Override",
+      "channels": [
+        {
+          "defaultValue": 0.0,
+          "keys": [],
+          "name": "X"
+        },
+        {
+          "defaultValue": 1.8019134998321533,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.203000009059906,
+              "value": 4.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.4010000228881836,
+              "value": 1.9863946437835693
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.6040000319480896,
+              "value": 5.959183692932129
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.8010000586509705,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.00600004196167,
+              "value": 5.959183216094971
+            }
+          ],
+          "name": "Y"
+        },
+        {
+          "defaultValue": 0.0,
+          "keys": [],
+          "name": "Z"
+        }
+      ],
+      "component": "Transform",
+      "editorView": {
+        "timeMax": 1.0,
+        "timeMin": 0.0,
+        "valueMax": 8.0,
+        "valueMin": 0.0
+      },
+      "property": "localPos",
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Vector3",
+      "visible": true
+    },
+    {
+      "applyMode": "Override",
+      "channels": [
+        {
+          "defaultValue": 0.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Constant",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 0.0
+            }
+          ],
+          "name": "Axis"
+        },
+        {
+          "defaultValue": 0.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Squad",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.010000000707805157,
+              "value": 20.816314697265625
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Squad",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.0140000581741333,
+              "value": 180.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Squad",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 2.015000104904175,
+              "value": -178.7755126953125
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Squad",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 2.989000082015991,
+              "value": 180.0
+            }
+          ],
+          "name": "Angle"
+        }
+      ],
+      "component": "Transform",
+      "editorView": {
+        "timeMax": 3.282663345336914,
+        "timeMin": 0.0,
+        "valueMax": 180.0,
+        "valueMin": -180.0
+      },
+      "property": "localRotation",
+      "quaternionAxisKeys": [
+        {
+          "axes": [
+            "X"
+          ],
+          "customAxis": {
+            "x": 0.4189999997615814,
+            "y": -0.6449999809265137,
+            "z": 0.0
+          },
+          "useCustomAxis": true
+        }
+      ],
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Quaternion",
+      "visible": true
+    },
+    {
+      "applyMode": "Override",
+      "channels": [
+        {
+          "defaultValue": 0.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.0210000276565552,
+              "value": 1.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 2.015000104904175,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 3.005000114440918,
+              "value": 1.0
+            }
+          ],
+          "name": "X"
+        },
+        {
+          "defaultValue": 0.0,
+          "keys": [],
+          "name": "Y"
+        }
+      ],
+      "component": "MeshRenderer",
+      "editorView": {
+        "timeMax": 3.1550002098083496,
+        "timeMin": 0.0,
+        "valueMax": 1.0,
+        "valueMin": 0.0
+      },
+      "property": "subMeshes[0].uvPos",
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Vector2",
+      "visible": true
+    },
+    {
+      "applyMode": "Override",
+      "channels": [
+        {
+          "defaultValue": 1.0,
+          "keys": [],
+          "name": "X"
+        },
+        {
+          "defaultValue": 1.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.5100000500679016,
+              "value": 1.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.0010000467300415,
+              "value": 0.5034013986587524
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.5170000791549683,
+              "value": 0.7993197441101074
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.998000144958496,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 3.011000156402588,
+              "value": 0.9931973218917847
+            }
+          ],
+          "name": "Y"
+        },
+        {
+          "defaultValue": 1.0,
+          "keys": [],
+          "name": "Z"
+        }
+      ],
+      "component": "Transform",
+      "editorView": {
+        "timeMax": 3.1740002632141113,
+        "timeMin": 0.0,
+        "valueMax": 1.0,
+        "valueMin": 0.0
+      },
+      "property": "localScale",
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Vector3",
+      "visible": true
+    },
+    {
+      "applyMode": "Override",
+      "channels": [
+        {
+          "defaultValue": 1.0,
+          "keys": [],
+          "name": "R"
+        },
+        {
+          "defaultValue": 1.0,
+          "keys": [],
+          "name": "G"
+        },
+        {
+          "defaultValue": 1.0,
+          "keys": [],
+          "name": "B"
+        },
+        {
+          "defaultValue": 1.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 1.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.0,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 2.004000186920166,
+              "value": 1.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 2.9900002479553223,
+              "value": 0.0
+            }
+          ],
+          "name": "A"
+        }
+      ],
+      "component": "MeshRenderer",
+      "editorView": {
+        "timeMax": 3.011000156402588,
+        "timeMin": 0.0,
+        "valueMax": 1.0,
+        "valueMin": 0.0
+      },
+      "property": "subMeshes[0].color",
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Color4",
+      "visible": true
+    }
+  ],
+  "duration": 3.011000156402588,
+  "eventTracks": [],
+  "guid": "023bad51e5f30b78",
+  "loop": true,
+  "loopBridge": {
+    "duration": 0.2770000100135803,
+    "enabled": true,
+    "interpolation": "Squad"
+  },
+  "name": "ModelAnimation"
+}

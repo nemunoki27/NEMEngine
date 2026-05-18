@@ -43,6 +43,7 @@ bool WinApp::useCustomClipRect_ = false;
 bool WinApp::cursorVisible_ = true;
 RECT WinApp::customClientClipRect_{};
 RECT WinApp::windowRect_{};
+bool (*WinApp::closeRequestCallback_)() = nullptr;
 
 void WinApp::ForceShowCursor(bool show) {
 
@@ -191,6 +192,14 @@ bool WinApp::ProcessMessage() {
 	return false;
 }
 
+void WinApp::RequestCloseWindow() {
+
+	if (!hwnd_) {
+		return;
+	}
+	PostMessage(hwnd_, WM_CLOSE, 0, 0);
+}
+
 void WinApp::SetFullscreen(bool fullscreen) {
 
 	if (fullscreen) {
@@ -335,6 +344,15 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	}
 
 	switch (msg) {
+	case WM_CLOSE:
+
+		// 終了前にエディタ側へ未保存確認を通す
+		if (closeRequestCallback_ && !closeRequestCallback_()) {
+			return 0;
+		}
+		DestroyWindow(hwnd);
+		return 0;
+
 	case WM_DESTROY:
 
 		// 念のため安全復帰
