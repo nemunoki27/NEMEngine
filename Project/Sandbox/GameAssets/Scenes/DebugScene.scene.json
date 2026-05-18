@@ -180,6 +180,64 @@
                 }
             },
             "LocalFileID": "71a8c86fa6ced611"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Sprite"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "8b0e0e97cf03879d",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SpriteRenderer": {
+                    "blendMode": "Normal",
+                    "color": {
+                        "a": 0.7041181325912476,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "order": 0,
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5
+                    },
+                    "queue": "CanvasPreModel",
+                    "size": {
+                        "x": 32.0,
+                        "y": 32.0
+                    },
+                    "texture": "7fc849419d5303b5",
+                    "visible": true
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 493.1972961425781,
+                        "y": 802.7210693359375,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 0.8963427543640137,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.44336190819740295
+                    },
+                    "localScale": {
+                        "x": 8.0,
+                        "y": 8.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "8b0e0e97cf03879d"
         }
     ],
     "Header": {
