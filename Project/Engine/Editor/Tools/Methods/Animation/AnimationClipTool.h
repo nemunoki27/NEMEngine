@@ -6,6 +6,7 @@
 #include <Engine/Editor/Tools/Interface/IEditorTool.h>
 #include <Engine/Core/Animation/AnimationClipEvaluator.h>
 #include <Engine/Core/Animation/Property/AnimationPropertyRegistry.h>
+#include <Engine/Core/Utility/Enum/Easing.h>
 #include <Engine/Editor/Animation/CurveEditorState.h>
 
 // c++
@@ -84,7 +85,7 @@ namespace Engine {
 		ToolDescriptor descriptor_{
 			.id = "engine.animation_clip",
 			.name = "AnimationClip",
-			.category = "AnimationClip",
+			.category = "Animation",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::EditOnly,
 			.order = 2,
@@ -130,7 +131,7 @@ namespace Engine {
 		float generatorFrequency_ = 1.0f;
 		float generatorPhase_ = 0.0f;
 		int generatorSampleCount_ = 16;
-		int generatorEasingIndex_ = 0;
+		EasingType generatorEasingType_ = EasingType::Linear;
 		bool generatorReplaceKeys_ = true;
 
 		//--------- functions ----------------------------------------------------

@@ -93,6 +93,8 @@ namespace Engine {
 		// TrackごとにCurveEditorのズーム状態を保持する
 		AnimationTrackEditorView editorView{};
 		std::vector<CurveChannel> channels;
+		// QuaternionをAxis/Angleで編集する時だけ使う。Axisチャンネルのキーと同じ順番で保持する。
+		std::vector<CurveQuaternionAxisKey> quaternionAxisKeys;
 	};
 
 	// 将来のEvent Track用。今はJSON上で空配列を維持するための置き場所だけを持つ。

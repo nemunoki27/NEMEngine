@@ -49,6 +49,75 @@ namespace {
 		return true;
 	}
 
+	bool IsQuaternionAxisAngleTrack(const Engine::AnimationCurveTrack& track) {
+
+		return track.binding.valueType == Engine::AnimationValueType::Quaternion &&
+			track.channels.size() == 2 &&
+			track.channels[0].name == "Axis" &&
+			track.channels[1].name == "Angle";
+	}
+
+	Engine::CurveQuaternionAxisKey GetQuaternionAxisKey(const Engine::AnimationCurveTrack& track, uint32_t keyIndex) {
+
+		if (keyIndex < track.quaternionAxisKeys.size()) {
+			return track.quaternionAxisKeys[keyIndex];
+		}
+
+		Engine::CurveQuaternionAxisKey axisKey{};
+		axisKey.axes = { Engine::Axis::X };
+		axisKey.customAxis = Engine::Vector3(1.0f, 0.0f, 0.0f);
+		if (keyIndex < track.channels[0].keys.size()) {
+			const int32_t axisIndex = (std::clamp)(
+				static_cast<int32_t>(std::round(track.channels[0].keys[keyIndex].value)), 0, 2);
+			axisKey.axes = { static_cast<Engine::Axis>(axisIndex) };
+		}
+		return axisKey;
+	}
+
+	uint32_t FindQuaternionAxisIndex(const Engine::AnimationCurveTrack& track, float time) {
+
+		if (track.channels[0].keys.empty()) {
+			return 0;
+		}
+		if (time <= track.channels[0].keys.front().time) {
+			return 0;
+		}
+		if (track.channels[0].keys.back().time <= time) {
+			return static_cast<uint32_t>(track.channels[0].keys.size() - 1);
+		}
+
+		auto nextIt = std::upper_bound(track.channels[0].keys.begin(), track.channels[0].keys.end(), time,
+			[](float t, const Engine::CurveKey& key) {
+				return t < key.time;
+			});
+		return static_cast<uint32_t>((nextIt - 1) - track.channels[0].keys.begin());
+	}
+
+	Engine::Vector3 GetQuaternionAxisDirection(const Engine::CurveQuaternionAxisKey& axisKey) {
+
+		Engine::Vector3 axis = axisKey.useCustomAxis ? axisKey.customAxis : Engine::GetDirection(axisKey.axes);
+		if (axis.Length() <= 0.001f) {
+			axis = Engine::Vector3(1.0f, 0.0f, 0.0f);
+		}
+		return axis.Normalize();
+	}
+
+	bool EvaluateQuaternionAxisAngleTrack(const Engine::AnimationCurveTrack& track, float time,
+		Engine::AnimationPropertyValue& outValue) {
+
+		if (!IsQuaternionAxisAngleTrack(track)) {
+			return false;
+		}
+
+		const uint32_t axisKeyIndex = FindQuaternionAxisIndex(track, time);
+		const Engine::CurveQuaternionAxisKey axisKey = GetQuaternionAxisKey(track, axisKeyIndex);
+		const Engine::Vector3 axis = GetQuaternionAxisDirection(axisKey);
+		const float angleDegrees = track.channels[1].Evaluate(time);
+		outValue = Engine::Quaternion::Normalize(
+			Engine::Quaternion::MakeAxisAngle(axis, Math::DegToRad(angleDegrees)));
+		return true;
+	}
+
 	bool HasAnyKey(const Engine::AnimationCurveTrack& track) {
 
 		// Track追加直後は全チャンネルが空なので、適用対象から外す。
@@ -188,6 +257,9 @@ namespace {
 			outValue = Engine::Color4(v[0], v[1], v[2], v[3]);
 			return true;
 		case Engine::AnimationValueType::Quaternion:
+			if (IsQuaternionAxisAngleTrack(track)) {
+				return EvaluateQuaternionAxisAngleTrack(track, time, outValue);
+			}
 			if (!ReadChannelsWithFallback(track, time, fallback, v, 4)) {
 				return false;
 			}
@@ -397,6 +469,9 @@ bool Engine::AnimationClipEvaluator::EvaluateTrack(const AnimationCurveTrack& tr
 		outValue = Color4(v[0], v[1], v[2], v[3]);
 		return true;
 	case AnimationValueType::Quaternion:
+		if (IsQuaternionAxisAngleTrack(track)) {
+			return EvaluateQuaternionAxisAngleTrack(track, time, outValue);
+		}
 		if (!ReadChannels(track, time, v, 4)) {
 			return false;
 		}

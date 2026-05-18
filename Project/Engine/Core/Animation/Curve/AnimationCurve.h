@@ -42,7 +42,7 @@ namespace Engine {
 		// キーの値
 		float value = 0.0f;
 		// 次のキーまでの補間方法
-		CurveInterpolationMode interpolation = CurveInterpolationMode::Linear;
+		CurveInterpolationMode interpolation = CurveInterpolationMode::Spline;
 		// Bezier用の入出力ハンドル。time/value空間の相対座標として扱う
 		Vector2 inTangent = Vector2::AnyInit(0.0f);
 		Vector2 outTangent = Vector2::AnyInit(0.0f);

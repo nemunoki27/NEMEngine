@@ -595,8 +595,22 @@ namespace {
 
 	bool IsQuaternionSelection(std::span<Engine::CurveChannel> channels, const Engine::CurveKeySelection& selection) {
 
-		return IsQuaternionCurveSet(channels) && selection.channelIndex == 0 &&
-			selection.keyIndex < channels[0].keys.size() &&
+		return IsQuaternionCurveSet(channels) &&
+			selection.channelIndex < channels.size() &&
+			selection.keyIndex < channels[selection.channelIndex].keys.size();
+	}
+
+	bool IsQuaternionAxisSelection(std::span<Engine::CurveChannel> channels, const Engine::CurveKeySelection& selection) {
+
+		return IsQuaternionCurveSet(channels) &&
+			selection.channelIndex == 0 &&
+			selection.keyIndex < channels[0].keys.size();
+	}
+
+	bool IsQuaternionAngleSelection(std::span<Engine::CurveChannel> channels, const Engine::CurveKeySelection& selection) {
+
+		return IsQuaternionCurveSet(channels) &&
+			selection.channelIndex == 1 &&
 			selection.keyIndex < channels[1].keys.size();
 	}
 
@@ -678,14 +692,12 @@ namespace {
 
 	}
 
-	uint32_t AddQuaternionKey(std::span<Engine::CurveChannel> channels,
+	uint32_t AddQuaternionAxisKey(std::span<Engine::CurveChannel> channels,
 		std::vector<Engine::CurveQuaternionAxisKey>* axisKeys, float time) {
 
 		const Engine::CurveQuaternionAxisKey axisKey = EvaluateQuaternionAxisKey(channels, ToAxisKeySpan(axisKeys), time);
 		const float axis = GetPrimaryAxisValue(axisKey);
-		const float angle = channels[1].Evaluate(time);
 		const uint32_t index = channels[0].AddKey(time, axis, Engine::CurveInterpolationMode::Constant);
-		channels[1].AddKey(time, angle);
 		if (axisKeys) {
 			const uint32_t insertIndex = (std::min)(index, static_cast<uint32_t>(axisKeys->size()));
 			axisKeys->insert(axisKeys->begin() + insertIndex, axisKey);
@@ -693,16 +705,32 @@ namespace {
 		return index;
 	}
 
-	bool RemoveQuaternionKey(std::span<Engine::CurveChannel> channels,
+	uint32_t AddQuaternionAngleKey(std::span<Engine::CurveChannel> channels, float time) {
+
+		return channels[1].AddKey(time, channels[1].Evaluate(time));
+	}
+
+	bool RemoveQuaternionAxisKey(std::span<Engine::CurveChannel> channels,
 		std::vector<Engine::CurveQuaternionAxisKey>* axisKeys, uint32_t keyIndex) {
 
 		bool removed = false;
 		removed |= channels[0].RemoveKey(keyIndex);
-		removed |= channels[1].RemoveKey(keyIndex);
 		if (axisKeys && keyIndex < axisKeys->size()) {
 			axisKeys->erase(axisKeys->begin() + keyIndex);
 		}
 		return removed;
+	}
+
+	bool RemoveQuaternionKey(std::span<Engine::CurveChannel> channels,
+		std::vector<Engine::CurveQuaternionAxisKey>* axisKeys, const Engine::CurveKeySelection& selection) {
+
+		if (IsQuaternionAxisSelection(channels, selection)) {
+			return RemoveQuaternionAxisKey(channels, axisKeys, selection.keyIndex);
+		}
+		if (IsQuaternionAngleSelection(channels, selection)) {
+			return channels[1].RemoveKey(selection.keyIndex);
+		}
+		return false;
 	}
 
 	void SortQuaternionKeys(std::span<Engine::CurveChannel> channels,
@@ -790,21 +818,22 @@ namespace {
 		}
 
 		if (IsQuaternionCurveSet(channels)) {
-			if (!state.IsChannelVisible(1)) {
-				return false;
-			}
-			const uint32_t keyCount = (std::min)(static_cast<uint32_t>(channels[0].keys.size()),
-				static_cast<uint32_t>(channels[1].keys.size()));
-			for (uint32_t keyIndex = 0; keyIndex < keyCount; ++keyIndex) {
-				const Engine::CurveKey& key = channels[1].keys[keyIndex];
-				const ImVec2 keyPos = WorldToScreen(rect, state, key.time, key.value);
-				const float dx = keyPos.x - mouse.x;
-				const float dy = keyPos.y - mouse.y;
-				const float distanceSq = dx * dx + dy * dy;
-				if (distanceSq <= bestDistanceSq) {
-					bestDistanceSq = distanceSq;
-					outSelection = { 0, keyIndex };
-					found = true;
+
+			for (uint32_t channelIndex = 0; channelIndex < static_cast<uint32_t>(channels.size()); ++channelIndex) {
+				if (!state.IsChannelVisible(channelIndex)) {
+					continue;
+				}
+				for (uint32_t keyIndex = 0; keyIndex < channels[channelIndex].keys.size(); ++keyIndex) {
+					const Engine::CurveKey& key = channels[channelIndex].keys[keyIndex];
+					const ImVec2 keyPos = WorldToScreen(rect, state, key.time, key.value);
+					const float dx = keyPos.x - mouse.x;
+					const float dy = keyPos.y - mouse.y;
+					const float distanceSq = dx * dx + dy * dy;
+					if (distanceSq <= bestDistanceSq) {
+						bestDistanceSq = distanceSq;
+						outSelection = { channelIndex, keyIndex };
+						found = true;
+					}
 				}
 			}
 			return found;
@@ -1054,19 +1083,30 @@ namespace {
 		}
 
 		if (IsQuaternionCurveSet(channels)) {
-			if (state.IsChannelVisible(1)) {
-				const uint32_t keyCount = (std::min)(static_cast<uint32_t>(channels[0].keys.size()),
-					static_cast<uint32_t>(channels[1].keys.size()));
-				for (uint32_t keyIndex = 0; keyIndex < keyCount; ++keyIndex) {
+			if (state.IsChannelVisible(0)) {
+				for (uint32_t keyIndex = 0; keyIndex < channels[0].keys.size(); ++keyIndex) {
 					const Engine::CurveQuaternionAxisKey axisKey = GetQuaternionAxisKey(channels, quaternionAxisKeys, keyIndex);
-					const Engine::CurveKey& angleKey = channels[1].keys[keyIndex];
-					const ImVec2 pos = WorldToScreen(rect, state, angleKey.time, angleKey.value);
+					const Engine::CurveKey& axisChannelKey = channels[0].keys[keyIndex];
+					const ImVec2 pos = WorldToScreen(rect, state, axisChannelKey.time, axisChannelKey.value);
 					const bool selected = IsKeySelected(state, 0, keyIndex);
 					const float radius = selected ? kCurveKeyRadius + 2.0f : kCurveKeyRadius + 1.0f;
 					drawList->AddRectFilled(ImVec2(pos.x - radius, pos.y - radius), ImVec2(pos.x + radius, pos.y + radius),
 						GetAxisColor(axisKey), 2.0f);
 					drawList->AddRect(ImVec2(pos.x - radius, pos.y - radius), ImVec2(pos.x + radius, pos.y + radius),
 						selected ? IM_COL32(255, 255, 255, 255) : IM_COL32(18, 18, 18, 255), 2.0f, 0, 1.5f);
+				}
+			}
+			if (state.IsChannelVisible(1)) {
+				const Engine::CurveChannel& channel = channels[1];
+				const ImU32 color = ToImU32(channel.displayColor);
+				for (uint32_t keyIndex = 0; keyIndex < channel.keys.size(); ++keyIndex) {
+					const Engine::CurveKey& key = channel.keys[keyIndex];
+					const ImVec2 pos = WorldToScreen(rect, state, key.time, key.value);
+					const bool selected = IsKeySelected(state, 1, keyIndex);
+					const ImU32 fillColor = selected ? IM_COL32(255, 255, 255, 255) : color;
+					const ImU32 borderColor = selected ? color : IM_COL32(12, 12, 12, 255);
+					drawList->AddCircleFilled(pos, selected ? kCurveKeyRadius + 1.5f : kCurveKeyRadius, fillColor, 12);
+					drawList->AddCircle(pos, selected ? kCurveKeyRadius + 1.5f : kCurveKeyRadius, borderColor, 12, 1.5f);
 				}
 			}
 			drawList->PopClipRect();
@@ -1122,7 +1162,7 @@ namespace {
 			});
 			for (const Engine::CurveKeySelection& selection : state.selectedKeys) {
 				if (IsQuaternionSelection(channels, selection)) {
-					RemoveQuaternionKey(channels, quaternionAxisKeys, selection.keyIndex);
+					RemoveQuaternionKey(channels, quaternionAxisKeys, selection);
 				}
 			}
 			state.ClearSelection();
@@ -1278,20 +1318,16 @@ namespace {
 			return;
 		}
 
-		if (IsQuaternionSelection(channels, selection)) {
+		if (IsQuaternionAxisSelection(channels, selection)) {
 			Engine::CurveKey& axisKey = channels[0].keys[selection.keyIndex];
-			Engine::CurveKey& angleKey = channels[1].keys[selection.keyIndex];
 			Engine::CurveQuaternionAxisKey fallbackAxisKey = GetQuaternionAxisKey(channels, ToAxisKeySpan(quaternionAxisKeys), selection.keyIndex);
 			Engine::CurveQuaternionAxisKey* axisSetting = &fallbackAxisKey;
 			if (quaternionAxisKeys && selection.keyIndex < quaternionAxisKeys->size()) {
 				axisSetting = &(*quaternionAxisKeys)[selection.keyIndex];
 			}
-			ImGui::TextUnformatted("Axis + Angle");
+			ImGui::TextUnformatted("Axis");
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			float time = angleKey.time;
-			if (ImGui::DragFloat("Time", &time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
-				axisKey.time = time;
-				angleKey.time = time;
+			if (ImGui::DragFloat("Time", &axisKey.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
 				result.valueChanged = true;
 			}
 
@@ -1340,20 +1376,35 @@ namespace {
 				}
 			}
 
-			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (ImGui::DragFloat("Angle", &angleKey.value, 0.1f, -36000.0f, 36000.0f, "%.3f")) {
-				result.valueChanged = true;
-			}
-
-			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (Engine::EnumAdapter<Engine::CurveInterpolationMode>::Combo("Interp", &angleKey.interpolation)) {
-				axisKey.interpolation = Engine::CurveInterpolationMode::Constant;
-				result.valueChanged = true;
-			}
 			if (result.valueChanged) {
 				axisKey.value = GetPrimaryAxisValue(*axisSetting);
 				axisKey.interpolation = Engine::CurveInterpolationMode::Constant;
 				SortQuaternionKeys(channels, quaternionAxisKeys);
+				result.editFinished |= ImGui::IsItemDeactivatedAfterEdit();
+			}
+			ImGui::SetWindowFontScale(previousFontScale);
+			ImGui::EndChild();
+			return;
+		}
+
+		if (IsQuaternionAngleSelection(channels, selection)) {
+			Engine::CurveChannel& channel = channels[1];
+			Engine::CurveKey& key = channel.keys[selection.keyIndex];
+			ImGui::TextUnformatted("Angle");
+			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
+			if (ImGui::DragFloat("Time", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+				result.valueChanged = true;
+			}
+			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
+			if (ImGui::DragFloat("Angle", &key.value, 0.1f, -36000.0f, 36000.0f, "%.3f")) {
+				result.valueChanged = true;
+			}
+			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
+			if (Engine::EnumAdapter<Engine::CurveInterpolationMode>::Combo("Interp", &key.interpolation)) {
+				result.valueChanged = true;
+			}
+			if (result.valueChanged) {
+				channel.SortKeys();
 				result.editFinished |= ImGui::IsItemDeactivatedAfterEdit();
 			}
 			ImGui::SetWindowFontScale(previousFontScale);
@@ -1450,7 +1501,7 @@ namespace {
 			if (state.contextMenuOnKey) {
 				if (ImGui::MenuItem("Delete Key")) {
 					if (IsQuaternionCurveSet(channels) && IsQuaternionSelection(channels, state.contextMenuKey)) {
-						RemoveQuaternionKey(channels, quaternionAxisKeys, state.contextMenuKey.keyIndex);
+						RemoveQuaternionKey(channels, quaternionAxisKeys, state.contextMenuKey);
 						result.valueChanged = true;
 						result.selectionChanged = true;
 						state.ClearSelection();
@@ -1480,10 +1531,17 @@ namespace {
 					const float time = SnapTime((std::max)(0.0f, state.contextMenuWorld.x), state.snapEnabled, state.snapInterval);
 
 					if (IsQuaternionCurveSet(channels)) {
-						if (ImGui::MenuItem("Quaternion")) {
-							const uint32_t newKeyIndex = AddQuaternionKey(channels, quaternionAxisKeys, time);
+						if (ImGui::MenuItem("Axis")) {
+							const uint32_t newKeyIndex = AddQuaternionAxisKey(channels, quaternionAxisKeys, time);
 							state.ClearSelection();
 							state.selectedKeys.push_back({ 0, newKeyIndex });
+							result.valueChanged = true;
+							result.selectionChanged = true;
+						}
+						if (ImGui::MenuItem("Angle")) {
+							const uint32_t newKeyIndex = AddQuaternionAngleKey(channels, time);
+							state.ClearSelection();
+							state.selectedKeys.push_back({ 1, newKeyIndex });
 							result.valueChanged = true;
 							result.selectionChanged = true;
 						}
@@ -1541,13 +1599,10 @@ namespace {
 			const float dt = nowWorld.x - prevWorld.x;
 			const float dv = nowWorld.y - prevWorld.y;
 			for (const Engine::CurveKeySelection& selection : state.selectedKeys) {
-				if (IsQuaternionCurveSet(channels) && IsQuaternionSelection(channels, selection)) {
+				if (IsQuaternionCurveSet(channels) && IsQuaternionAxisSelection(channels, selection)) {
 					Engine::CurveKey& axisKey = channels[0].keys[selection.keyIndex];
-					Engine::CurveKey& angleKey = channels[1].keys[selection.keyIndex];
-					const float movedTime = SnapTime((std::max)(0.0f, angleKey.time + dt), state.snapEnabled, state.snapInterval);
+					const float movedTime = SnapTime((std::max)(0.0f, axisKey.time + dt), state.snapEnabled, state.snapInterval);
 					axisKey.time = movedTime;
-					angleKey.time = movedTime;
-					angleKey.value = ClampKeyValueToVisibleRange(state, angleKey.value + dv);
 					SyncQuaternionAxisChannel(channels, ToAxisKeySpan(quaternionAxisKeys), selection.keyIndex);
 					axisKey.interpolation = Engine::CurveInterpolationMode::Constant;
 					continue;
@@ -1573,6 +1628,8 @@ namespace {
 				key.time = SnapTime((std::max)(0.0f, key.time + dt), state.snapEnabled, state.snapInterval);
 				if (IsColorCurveSet(channels) && selection.channelIndex == 3) {
 					key.value = (std::clamp)(key.value + dv, 0.0f, 1.0f);
+				} else if (IsQuaternionCurveSet(channels) && selection.channelIndex == 0) {
+					SyncQuaternionAxisChannel(channels, ToAxisKeySpan(quaternionAxisKeys), selection.keyIndex);
 				} else {
 					key.value = ClampKeyValueToVisibleRange(state, key.value + dv);
 				}
@@ -1592,14 +1649,15 @@ namespace {
 					state.ClearSelection();
 				}
 				if (IsQuaternionCurveSet(channels)) {
-					if (state.IsChannelVisible(1)) {
-						const uint32_t keyCount = (std::min)(static_cast<uint32_t>(channels[0].keys.size()),
-							static_cast<uint32_t>(channels[1].keys.size()));
-						for (uint32_t keyIndex = 0; keyIndex < keyCount; ++keyIndex) {
-							const Engine::CurveKey& key = channels[1].keys[keyIndex];
+					for (uint32_t channelIndex = 0; channelIndex < static_cast<uint32_t>(channels.size()); ++channelIndex) {
+						if (!state.IsChannelVisible(channelIndex)) {
+							continue;
+						}
+						for (uint32_t keyIndex = 0; keyIndex < channels[channelIndex].keys.size(); ++keyIndex) {
+							const Engine::CurveKey& key = channels[channelIndex].keys[keyIndex];
 							const ImVec2 keyPos = WorldToScreen(graphRect, state, key.time, key.value);
 							if (minPos.x <= keyPos.x && keyPos.x <= maxPos.x && minPos.y <= keyPos.y && keyPos.y <= maxPos.y) {
-								state.ToggleSelection(0, keyIndex);
+								state.ToggleSelection(channelIndex, keyIndex);
 							}
 						}
 					}

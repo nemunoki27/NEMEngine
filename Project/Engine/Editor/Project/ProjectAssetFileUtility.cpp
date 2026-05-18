@@ -106,8 +106,15 @@ namespace {
 		for (const char* suffix : kCompoundSuffixes) {
 
 			const std::string suffixText = suffix;
-			if (Engine::Algorithm::EndsWith(lower, suffixText)) {
-				return { fileName.substr(0, fileName.size() - suffixText.size()), suffixText };
+			// .animClip.jsonのように途中へ大文字を含む特殊サフィックスも保護できるよう、
+			// 判定は小文字同士で行い、返すサフィックスは実ファイル名の表記をそのまま使う。
+			if (Engine::Algorithm::EndsWith(lower, Engine::Algorithm::ToLower(suffixText))) {
+
+				const size_t suffixSize = suffixText.size();
+				return {
+					fileName.substr(0, fileName.size() - suffixSize),
+					fileName.substr(fileName.size() - suffixSize),
+				};
 			}
 		}
 		return { path.stem().string(), path.extension().string() };

@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Logger/Logger.h>
 #include <Engine/Core/UUID/UUID.h>
+#include <Engine/Core/Utility/Enum/EnumAdapter.h>
 
 // c++
 #include <algorithm>
@@ -85,6 +86,12 @@ namespace {
 		if (name == "W" || name == "A") {
 			return Engine::Color4(0.85f, 0.85f, 0.85f, 1.0f);
 		}
+		if (name == "Axis") {
+			return Engine::Color4(0.95f, 0.85f, 0.20f, 1.0f);
+		}
+		if (name == "Angle") {
+			return Engine::Color4(0.25f, 0.65f, 1.0f, 1.0f);
+		}
 		return Engine::Color4::White();
 	}
 
@@ -95,6 +102,19 @@ namespace {
 		channel.displayColor = GetChannelColor(name);
 		channel.defaultValue = defaultValue;
 		return channel;
+	}
+
+	bool IsQuaternionAxisAngleChannels(const std::vector<Engine::CurveChannel>& channels) {
+
+		return channels.size() == 2 && channels[0].name == "Axis" && channels[1].name == "Angle";
+	}
+
+	Engine::CurveQuaternionAxisKey MakeDefaultQuaternionAxisKey() {
+
+		Engine::CurveQuaternionAxisKey axisKey{};
+		axisKey.axes = { Engine::Axis::X };
+		axisKey.customAxis = Engine::Vector3(1.0f, 0.0f, 0.0f);
+		return axisKey;
 	}
 
 	void ToJson(Engine::CurveKey key, nlohmann::json& out) {
@@ -212,6 +232,47 @@ namespace {
 			channel.SortKeys();
 		}
 		return channel;
+	}
+
+	void ToJson(const Engine::CurveQuaternionAxisKey& axisKey, nlohmann::json& out) {
+
+		out = nlohmann::json::object();
+		out["useCustomAxis"] = axisKey.useCustomAxis;
+		out["customAxis"] = axisKey.customAxis.ToJson();
+		out["axes"] = nlohmann::json::array();
+		for (Engine::Axis axis : axisKey.axes) {
+			out["axes"].push_back(Engine::EnumAdapter<Engine::Axis>::ToString(axis));
+		}
+	}
+
+	Engine::CurveQuaternionAxisKey ParseQuaternionAxisKey(const nlohmann::json& in) {
+
+		Engine::CurveQuaternionAxisKey axisKey = MakeDefaultQuaternionAxisKey();
+		if (!in.is_object()) {
+			return axisKey;
+		}
+
+		axisKey.useCustomAxis = in.value("useCustomAxis", axisKey.useCustomAxis);
+		if (const auto it = in.find("customAxis"); it != in.end()) {
+			axisKey.customAxis = Engine::Vector3::FromJson(*it);
+		}
+		axisKey.axes.clear();
+		if (const auto it = in.find("axes"); it != in.end() && it->is_array()) {
+			for (const nlohmann::json& axisJson : *it) {
+				if (!axisJson.is_string()) {
+					continue;
+				}
+				const std::optional<Engine::Axis> axis =
+					Engine::EnumAdapter<Engine::Axis>::FromString(axisJson.get<std::string>());
+				if (axis) {
+					axisKey.axes.emplace_back(*axis);
+				}
+			}
+		}
+		if (axisKey.axes.empty()) {
+			axisKey.axes.emplace_back(Engine::Axis::X);
+		}
+		return axisKey;
 	}
 }
 
@@ -346,7 +407,7 @@ std::vector<Engine::CurveChannel> Engine::MakeDefaultAnimationChannels(Animation
 		channels = { MakeChannel("R", 1.0f), MakeChannel("G", 1.0f), MakeChannel("B", 1.0f), MakeChannel("A", 1.0f) };
 		break;
 	case AnimationValueType::Quaternion:
-		channels = { MakeChannel("X", 0.0f), MakeChannel("Y", 0.0f), MakeChannel("Z", 0.0f), MakeChannel("W", 1.0f) };
+		channels = { MakeChannel("Axis", 0.0f), MakeChannel("Angle", 0.0f) };
 		break;
 	case AnimationValueType::Float:
 	default:
@@ -359,6 +420,45 @@ std::vector<Engine::CurveChannel> Engine::MakeDefaultAnimationChannels(Animation
 void Engine::NormalizeAnimationTrackChannels(AnimationCurveTrack& track) {
 
 	// JSONの手編集や古い形式でチャンネル数がずれた場合でも、ツール側で落ちない形へ補正する。
+	if (track.binding.valueType == AnimationValueType::Quaternion) {
+
+		// 新形式はAxis/Angleの2ch、旧形式はXYZWの4ch。旧Clipを壊さないよう両方受け入れる。
+		if (IsQuaternionAxisAngleChannels(track.channels)) {
+			track.channels[0].displayColor = GetChannelColor(track.channels[0].name);
+			track.channels[1].displayColor = GetChannelColor(track.channels[1].name);
+			track.channels[0].SortKeys();
+			track.channels[1].SortKeys();
+			while (track.quaternionAxisKeys.size() < track.channels[0].keys.size()) {
+				track.quaternionAxisKeys.emplace_back(MakeDefaultQuaternionAxisKey());
+			}
+			if (track.channels[0].keys.size() < track.quaternionAxisKeys.size()) {
+				track.quaternionAxisKeys.resize(track.channels[0].keys.size());
+			}
+			return;
+		}
+		if (track.channels.size() == 4) {
+			std::vector<CurveChannel> defaults = {
+				MakeChannel("X", 0.0f),
+				MakeChannel("Y", 0.0f),
+				MakeChannel("Z", 0.0f),
+				MakeChannel("W", 1.0f),
+			};
+			for (uint32_t i = 0; i < 4; ++i) {
+				if (track.channels[i].name.empty()) {
+					track.channels[i].name = defaults[i].name;
+				}
+				track.channels[i].displayColor = GetChannelColor(track.channels[i].name);
+				track.channels[i].SortKeys();
+			}
+			track.quaternionAxisKeys.clear();
+			return;
+		}
+
+		track.channels = MakeDefaultAnimationChannels(track.binding.valueType);
+		track.quaternionAxisKeys.clear();
+		return;
+	}
+
 	const uint32_t expectedCount = GetAnimationValueTypeChannelCount(track.binding.valueType);
 	std::vector<CurveChannel> defaults = MakeDefaultAnimationChannels(track.binding.valueType);
 
@@ -481,6 +581,15 @@ void Engine::to_json(nlohmann::json& out, const AnimationCurveTrack& track) {
 		ToJson(channel, channelJson);
 		out["channels"].push_back(channelJson);
 	}
+
+	if (track.binding.valueType == AnimationValueType::Quaternion && !track.quaternionAxisKeys.empty()) {
+		out["quaternionAxisKeys"] = nlohmann::json::array();
+		for (const CurveQuaternionAxisKey& axisKey : track.quaternionAxisKeys) {
+			nlohmann::json axisJson;
+			ToJson(axisKey, axisJson);
+			out["quaternionAxisKeys"].push_back(axisJson);
+		}
+	}
 }
 
 void Engine::from_json(const nlohmann::json& in, AnimationCurveTrack& track) {
@@ -505,6 +614,12 @@ void Engine::from_json(const nlohmann::json& in, AnimationCurveTrack& track) {
 	if (const auto it = in.find("channels"); it != in.end() && it->is_array()) {
 		for (const nlohmann::json& channelJson : *it) {
 			track.channels.emplace_back(ParseCurveChannel(channelJson));
+		}
+	}
+	track.quaternionAxisKeys.clear();
+	if (const auto it = in.find("quaternionAxisKeys"); it != in.end() && it->is_array()) {
+		for (const nlohmann::json& axisJson : *it) {
+			track.quaternionAxisKeys.emplace_back(ParseQuaternionAxisKey(axisJson));
 		}
 	}
 	// 古いClipや手編集で不足したチャンネルを補う。

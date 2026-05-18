@@ -13,7 +13,6 @@ using namespace Engine;
 #include <Engine/Core/Animation/Clip/AnimationClipAsset.h>
 #include <Engine/Core/Asset/AssetDatabase.h>
 #include <Engine/Core/Utility/ImGui/MyGUI.h>
-#include <Engine/Core/Utility/Enum/Easing.h>
 #include <Engine/Core/Logger/Logger.h>
 
 // imgui
@@ -34,27 +33,18 @@ using namespace Engine;
 
 namespace {
 
-	constexpr std::array<const char*, 3> kApplyModeNames{ "Override", "Add", "Multiply" };
-	constexpr std::array<const char*, 2> kQuaternionApplyModeNames{ "Override", "Multiply" };
-	constexpr std::array<const char*, 3> kEditDimensionNames{ "Auto", "2D", "3D" };
-	constexpr std::array<const char*, 3> kGeneratorTypeNames{ "Sin", "Cos", "Easing" };
-	constexpr std::array<const char*, 2> kGeneratorApplyNames{ "Selected Channel", "Selected Track" };
-	constexpr std::array<const char*, 5> kInterpolationNames{ "Constant", "Linear", "Bezier", "Spline", "Squad" };
-	constexpr std::array<EasingType, 9> kGeneratorEasings{
-		EasingType::Linear,
-		EasingType::EaseInSine,
-		EasingType::EaseOutSine,
-		EasingType::EaseInOutSine,
-		EasingType::EaseInQuad,
-		EasingType::EaseOutQuad,
-		EasingType::EaseInOutQuad,
-		EasingType::EaseInOutCubic,
-		EasingType::EaseOutBounce,
-	};
-	constexpr std::array<const char*, 9> kGeneratorEasingNames{
-		"Linear", "EaseInSine", "EaseOutSine", "EaseInOutSine",
-		"EaseInQuad", "EaseOutQuad", "EaseInOutQuad", "EaseInOutCubic", "EaseOutBounce",
-	};
+	bool DrawEasingComboProperty(const char* label, EasingType& easingType, float reserveRightWidth = 0.0f) {
+
+		if (!MyGUI::BeginPropertyRow(label)) {
+			return false;
+		}
+
+		const EasingType before = easingType;
+		const float width = ImGui::GetContentRegionAvail().x - reserveRightWidth;
+		Easing::SelectEasingType(easingType, label, width <= 1.0f ? 1.0f : width);
+		MyGUI::EndPropertyRow();
+		return before != easingType;
+	}
 
 	std::string BuildTrackLabel(const AnimationCurveTrack& track) {
 
@@ -144,11 +134,16 @@ namespace {
 		curve.channels[1].keys.clear();
 		curve.axisKeys.clear();
 
+		if (track.channels.size() == 2 && track.channels[0].name == "Axis" && track.channels[1].name == "Angle") {
+			curve.channels[0] = track.channels[0];
+			curve.channels[1] = track.channels[1];
+			curve.axisKeys = track.quaternionAxisKeys;
+			curve.EnsureAxisKeyCount();
+			return curve;
+		}
+
 		std::vector<float> times{};
 		CollectKeyTimes(track.channels, times);
-		if (times.empty()) {
-			times.emplace_back(0.0f);
-		}
 
 		// 各キー時刻でTrackを評価し、編集しやすいAxis/AngleのCurveへ組み替える。
 		for (float time : times) {
@@ -175,31 +170,12 @@ namespace {
 
 	void StoreQuaternionEditorCurve(const CurveQuaternion& curve, AnimationCurveTrack& track) {
 
-		// Runtime用のClipはQuaternionをXYZWの4chで保存している。
-		// MyGUIのQuaternion EditorはAxis/Angle編集なので、編集後に評価結果をXYZWへ戻す。
-		if (track.channels.size() != 4) {
-			track.channels = MakeDefaultAnimationChannels(AnimationValueType::Quaternion);
-		}
-
-		std::vector<float> times{};
-		CollectKeyTimes(GetCurveChannels(curve), times);
-		if (times.empty()) {
-			return;
-		}
-
-		for (CurveChannel& channel : track.channels) {
-			channel.keys.clear();
-		}
-
-		// Axis/Angle側の結果をサンプリングして、保存用のQuaternion 4chを作り直す。
-		for (float time : times) {
-			const Quaternion rotation = curve.Evaluate(time);
-			const CurveInterpolationMode interpolation = FindKeyInterpolationAt(curve.channels[1], time);
-			track.channels[0].AddKey(time, rotation.x, interpolation);
-			track.channels[1].AddKey(time, rotation.y, interpolation);
-			track.channels[2].AddKey(time, rotation.z, interpolation);
-			track.channels[3].AddKey(time, rotation.w, interpolation);
-		}
+		// AxisとAngleを別キーとして残すため、編集後の保存形式も2chのまま保持する。
+		track.channels = {
+			curve.channels[0],
+			curve.channels[1],
+		};
+		track.quaternionAxisKeys = curve.axisKeys;
 	}
 
 	void FillChannel(CurveChannel& channel, float value) {
@@ -238,11 +214,137 @@ namespace {
 			FillChannel(track.channels[2], valueColor4->b);
 			FillChannel(track.channels[3], valueColor4->a);
 		} else if (const Quaternion* valueQuat = std::get_if<Quaternion>(&value)) {
-			FillChannel(track.channels[0], valueQuat->x);
-			FillChannel(track.channels[1], valueQuat->y);
-			FillChannel(track.channels[2], valueQuat->z);
-			FillChannel(track.channels[3], valueQuat->w);
+			float angleDegrees = 0.0f;
+			MakeAxisKeyFromQuaternion(*valueQuat, angleDegrees);
+			FillChannel(track.channels[0], 0.0f);
+			FillChannel(track.channels[1], angleDegrees);
+			track.quaternionAxisKeys.clear();
 		}
+	}
+
+	bool FindKeyIndexAtTime(const CurveChannel& channel, float time, uint32_t& outIndex) {
+
+		for (uint32_t i = 0; i < channel.keys.size(); ++i) {
+			if (std::abs(channel.keys[i].time - time) <= 0.0005f) {
+				outIndex = i;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool CanDrawColorRgbKeyEditor(const AnimationCurveTrack& track, uint32_t selectedChannelIndex) {
+
+		if (track.binding.valueType != AnimationValueType::Color3 &&
+			track.binding.valueType != AnimationValueType::Color4) {
+			return false;
+		}
+		// Color4のAlphaはRGBと別キーなので、A選択時はfloat編集だけを表示する。
+		if (track.binding.valueType == AnimationValueType::Color4 && selectedChannelIndex == 3u) {
+			return false;
+		}
+
+		constexpr uint32_t kRgbChannelCount = 3u;
+		return kRgbChannelCount <= track.channels.size();
+	}
+
+	bool IsQuaternionAxisAngleTrack(const AnimationCurveTrack& track) {
+
+		return track.binding.valueType == AnimationValueType::Quaternion &&
+			track.channels.size() == 2 &&
+			track.channels[0].name == "Axis" &&
+			track.channels[1].name == "Angle";
+	}
+
+	CurveQuaternionAxisKey MakeDefaultQuaternionAxisKey() {
+
+		CurveQuaternionAxisKey axisKey{};
+		axisKey.axes = { Axis::X };
+		axisKey.customAxis = Vector3(1.0f, 0.0f, 0.0f);
+		return axisKey;
+	}
+
+	CurveQuaternionAxisKey& GetQuaternionAxisKeyForEdit(AnimationCurveTrack& track, uint32_t keyIndex) {
+
+		while (track.quaternionAxisKeys.size() <= keyIndex) {
+			track.quaternionAxisKeys.emplace_back(MakeDefaultQuaternionAxisKey());
+		}
+		return track.quaternionAxisKeys[keyIndex];
+	}
+
+	float GetPrimaryAxisValue(const CurveQuaternionAxisKey& axisKey) {
+
+		if (axisKey.axes.empty()) {
+			return static_cast<float>(EnumAdapter<Axis>::GetIndex(Axis::X));
+		}
+		return static_cast<float>(EnumAdapter<Axis>::GetIndex(axisKey.axes.front()));
+	}
+
+	void SortQuaternionAxisKeys(AnimationCurveTrack& track) {
+
+		if (!IsQuaternionAxisAngleTrack(track)) {
+			return;
+		}
+
+		struct AxisKeyPair {
+
+			CurveKey key;
+			CurveQuaternionAxisKey axis;
+		};
+
+		std::vector<AxisKeyPair> pairs{};
+		pairs.reserve(track.channels[0].keys.size());
+		for (uint32_t i = 0; i < track.channels[0].keys.size(); ++i) {
+			CurveQuaternionAxisKey axisKey = i < track.quaternionAxisKeys.size() ?
+				track.quaternionAxisKeys[i] : MakeDefaultQuaternionAxisKey();
+			pairs.push_back({ track.channels[0].keys[i], std::move(axisKey) });
+		}
+		std::sort(pairs.begin(), pairs.end(), [](const AxisKeyPair& lhs, const AxisKeyPair& rhs) {
+			return lhs.key.time < rhs.key.time;
+			});
+
+		track.quaternionAxisKeys.resize(pairs.size());
+		for (uint32_t i = 0; i < pairs.size(); ++i) {
+			track.channels[0].keys[i] = pairs[i].key;
+			track.quaternionAxisKeys[i] = std::move(pairs[i].axis);
+			track.channels[0].keys[i].value = GetPrimaryAxisValue(track.quaternionAxisKeys[i]);
+			track.channels[0].keys[i].interpolation = CurveInterpolationMode::Constant;
+		}
+	}
+
+	bool DrawColorKeyValueEditor(AnimationCurveTrack& track, uint32_t selectedChannelIndex, float time) {
+
+		// Colorは複数チャンネルを1つの色として見せる。足りないキーはその時刻の評価値で補う。
+		if (!CanDrawColorRgbKeyEditor(track, selectedChannelIndex)) {
+			return false;
+		}
+
+		constexpr uint32_t kRgbChannelCount = 3u;
+		float values[3] = {
+			track.channels[0].Evaluate(time),
+			track.channels[1].Evaluate(time),
+			track.channels[2].Evaluate(time),
+		};
+
+		Color3 color(values[0], values[1], values[2]);
+		ValueEditResult result = MyGUI::ColorEdit("キー色 RGB", color);
+		values[0] = color.r;
+		values[1] = color.g;
+		values[2] = color.b;
+
+		if (!result.valueChanged) {
+			return false;
+		}
+
+		for (uint32_t i = 0; i < kRgbChannelCount; ++i) {
+			uint32_t keyIndex = 0;
+			if (FindKeyIndexAtTime(track.channels[i], time, keyIndex)) {
+				track.channels[i].keys[keyIndex].value = values[i];
+			} else {
+				track.channels[i].AddKey(time, values[i], CurveInterpolationMode::Linear);
+			}
+		}
+		return true;
 	}
 }
 
@@ -312,7 +414,7 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 		ImGui::EndTable();
 	}
 
-	// 再生中はTarget Entityへ直接適用する。確認はSceneView側の通常描画で行う。
+	// 再生中、設定されたターゲットエンティティにアニメーションを直で適用する
 	UpdatePreviewPlayback(context);
 
 	ImGui::End();
@@ -627,24 +729,31 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 
 		ImGui::SameLine();
 		ImGui::SetNextItemWidth(110.0f);
-		int applyModeIndex = static_cast<int>(track.applyMode);
 		if (track.binding.valueType == AnimationValueType::Quaternion) {
-			applyModeIndex = track.applyMode == AnimationApplyMode::Multiply ? 1 : 0;
-			if (ImGui::Combo("Apply", &applyModeIndex, kQuaternionApplyModeNames.data(),
-				static_cast<int>(kQuaternionApplyModeNames.size()))) {
-				track.applyMode = applyModeIndex == 1 ? AnimationApplyMode::Multiply : AnimationApplyMode::Override;
-				clipDirty_ = true;
+			constexpr std::array<int, 2> kQuaternionApplyValues{
+				static_cast<int>(AnimationApplyMode::Override),
+				static_cast<int>(AnimationApplyMode::Multiply),
+			};
+			if (ImGui::BeginCombo("Apply", EnumAdapter<AnimationApplyMode>::ToString(track.applyMode))) {
+				for (int value : kQuaternionApplyValues) {
+					const AnimationApplyMode applyMode = static_cast<AnimationApplyMode>(value);
+					const bool isSelected = track.applyMode == applyMode;
+					if (ImGui::Selectable(EnumAdapter<AnimationApplyMode>::ToString(applyMode), isSelected)) {
+						track.applyMode = applyMode;
+						clipDirty_ = true;
+					}
+					if (isSelected) {
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+				ImGui::EndCombo();
 			}
 			ImGui::SameLine();
-			int orderIndex = track.quaternionMultiplyOrder == QuaternionMultiplyOrder::CurveThenBase ? 1 : 0;
 			ImGui::SetNextItemWidth(125.0f);
-			if (ImGui::Combo("Order", &orderIndex, "Base * Curve\0Curve * Base\0")) {
-				track.quaternionMultiplyOrder = orderIndex == 1 ?
-					QuaternionMultiplyOrder::CurveThenBase : QuaternionMultiplyOrder::BaseThenCurve;
+			if (EnumAdapter<QuaternionMultiplyOrder>::Combo("Order", &track.quaternionMultiplyOrder)) {
 				clipDirty_ = true;
 			}
-		} else if (ImGui::Combo("Apply", &applyModeIndex, kApplyModeNames.data(), static_cast<int>(kApplyModeNames.size()))) {
-			track.applyMode = static_cast<AnimationApplyMode>(applyModeIndex);
+		} else if (EnumAdapter<AnimationApplyMode>::Combo("Apply", &track.applyMode)) {
 			clipDirty_ = true;
 		}
 
@@ -678,7 +787,6 @@ void AnimationClipTool::DrawCurveEditorUI(const EditorToolContext& context) {
 	NormalizeSelectedTrackIndex();
 
 	if (selectedTrackIndex_ < 0) {
-		ImGui::SeparatorText("Curve Editor");
 		ImGui::TextDisabled("Select property track.");
 		return;
 	}
@@ -755,11 +863,13 @@ void AnimationClipTool::DrawCurveEditorUI(const EditorToolContext& context) {
 		break;
 	}
 	case AnimationValueType::Quaternion: {
-		// QuaternionはEditor上だけAxis/Angle化し、保存時はXYZWのTrackへ戻す。
+		// QuaternionはAxis/Angleとして編集し、AxisとAngleのキーを別々に保持する。
+		const bool wasAxisAngleTrack = IsQuaternionAxisAngleTrack(track);
 		CurveQuaternion curve = BuildQuaternionEditorCurve(track);
 		result = MyGUI::CurveEditor("AnimationClipCurveEditor", curve, curveState_, curveSetting);
-		if (result.valueChanged || result.editFinished) {
+		if (!wasAxisAngleTrack || result.valueChanged || result.editFinished) {
 			StoreQuaternionEditorCurve(curve, track);
+			result.valueChanged |= !wasAxisAngleTrack;
 		}
 		break;
 	}
@@ -797,8 +907,8 @@ void AnimationClipTool::DrawKeyInspectorUI(const EditorToolContext& context) {
 		return;
 	}
 	if (curveState_.selectedKeys.empty()) {
-		ImGui::SeparatorText("Key Inspector");
-		ImGui::TextDisabled("Select key.");
+		ImGui::SeparatorText("キーインスペクター");
+		ImGui::TextDisabled("キーが選択されていません");
 		return;
 	}
 
@@ -812,42 +922,124 @@ void AnimationClipTool::DrawKeyInspectorUI(const EditorToolContext& context) {
 	CurveChannel& channel = track.channels[selection.channelIndex];
 	CurveKey& key = channel.keys[selection.keyIndex];
 
-	ImGui::SeparatorText("Key Inspector");
-	ImGui::Text("Channel: %s", channel.name.c_str());
+	ImGui::SeparatorText("キーインスペクター");
+	ImGui::Text("チャンネル: %s", channel.name.c_str());
 	bool changed = false;
 	float time = key.time;
-	if (ImGui::DragFloat("Key Time", &time, 0.001f, 0.0f, 10000.0f, "%.3f")) {
+	if (MyGUI::DragFloat("キー時間", time, { .dragSpeed = 0.001f,.minValue = 0.0f,
+		.maxValue = 10000.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 4.0f }).valueChanged) {
 		key.time = (std::max)(0.0f, time);
 		changed = true;
 	}
-	if (ImGui::DragFloat("Key Value", &key.value, 0.001f, -100000.0f, 100000.0f, "%.3f")) {
-		changed = true;
+
+	if (IsQuaternionAxisAngleTrack(track) && selection.channelIndex == 0u) {
+
+		CurveQuaternionAxisKey& axisKey = GetQuaternionAxisKeyForEdit(track, selection.keyIndex);
+		if (MyGUI::Checkbox("カスタム軸", axisKey.useCustomAxis)) {
+			changed = true;
+		}
+		if (axisKey.useCustomAxis) {
+			Vector3 customAxis = axisKey.customAxis;
+			if (MyGUI::DragVector3("キー回転軸", customAxis, { .dragSpeed = 0.001f,.minValue = -1.0f,.maxValue = 1.0f }).valueChanged) {
+				axisKey.customAxis = customAxis;
+				changed = true;
+			}
+		} else {
+			if (axisKey.axes.empty()) {
+				axisKey.axes.emplace_back(Axis::X);
+			}
+			Axis axis = axisKey.axes.front();
+			if (MyGUI::EnumCombo("キー回転軸", axis, {
+				.reserveRightWidth = ImGui::GetContentRegionAvail().x / 6.0f }).valueChanged) {
+				axisKey.axes = { axis };
+				changed = true;
+			}
+		}
+		key.value = GetPrimaryAxisValue(axisKey);
+		key.interpolation = CurveInterpolationMode::Constant;
+	} else if (IsQuaternionAxisAngleTrack(track) && selection.channelIndex == 1u) {
+
+		if (MyGUI::DragFloat("キー角度", key.value, { .dragSpeed = 0.1f,.minValue = -36000.0f,
+			.maxValue = 36000.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 4.0f }).valueChanged) {
+			changed = true;
+		}
+	} else if (CanDrawColorRgbKeyEditor(track, selection.channelIndex)) {
+		if (DrawColorKeyValueEditor(track, selection.channelIndex, key.time)) {
+			changed = true;
+		}
+	} else {
+		if (MyGUI::DragFloat("キー値", key.value, { .dragSpeed = 0.001f,.minValue = -100000.0f,
+			.maxValue = 100000.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 4.0f }).valueChanged) {
+			changed = true;
+		}
 	}
 
-	int interp = static_cast<int>(key.interpolation);
 	const bool quaternionTrack = track.binding.valueType == AnimationValueType::Quaternion;
-	if (!quaternionTrack && key.interpolation == CurveInterpolationMode::Squad) {
+	CurveInterpolationMode interpolation = key.interpolation;
+	if (!quaternionTrack && interpolation == CurveInterpolationMode::Squad) {
 		// SquadはQuaternion専用なので、通常ChannelではSplineとして表示する。
-		interp = static_cast<int>(CurveInterpolationMode::Spline);
+		interpolation = CurveInterpolationMode::Spline;
 	}
-	const int interpCount = quaternionTrack ? static_cast<int>(kInterpolationNames.size()) : 4;
-	if (ImGui::Combo("Interpolation", &interp, kInterpolationNames.data(), interpCount)) {
-		key.interpolation = static_cast<CurveInterpolationMode>(interp);
-		changed = true;
+
+	if (!(IsQuaternionAxisAngleTrack(track) && selection.channelIndex == 0u) &&
+		MyGUI::BeginPropertyRow("補間方法")) {
+		const float width = ImGui::GetContentRegionAvail().x - ImGui::GetContentRegionAvail().x / 2.0f;
+		ImGui::SetNextItemWidth(width <= 1.0f ? 1.0f : width);
+		if (quaternionTrack) {
+
+			if (EnumAdapter<CurveInterpolationMode>::Combo("##Value", &interpolation)) {
+				key.interpolation = interpolation;
+				changed = true;
+			}
+		} else {
+
+			constexpr std::array<CurveInterpolationMode, 4> kNonQuaternionInterpolations{
+				CurveInterpolationMode::Constant,
+				CurveInterpolationMode::Linear,
+				CurveInterpolationMode::Bezier,
+				CurveInterpolationMode::Spline,
+			};
+
+			if (ImGui::BeginCombo("##Value", EnumAdapter<CurveInterpolationMode>::ToString(interpolation))) {
+				for (CurveInterpolationMode mode : kNonQuaternionInterpolations) {
+
+					const bool selected = interpolation == mode;
+					if (ImGui::Selectable(EnumAdapter<CurveInterpolationMode>::ToString(mode), selected)) {
+						key.interpolation = mode;
+						changed = true;
+					}
+					if (selected) {
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+				ImGui::EndCombo();
+			}
+		}
+		MyGUI::EndPropertyRow();
 	}
 
 	if (key.interpolation == CurveInterpolationMode::Bezier) {
-		if (ImGui::DragFloat2("In Tangent", &key.inTangent.x, 0.001f, -10000.0f, 10000.0f, "%.3f")) {
+		Vector2 inTangent = key.inTangent;
+		if (MyGUI::DragVector2("入力タンジェント", inTangent, { .dragSpeed = 0.001f,.minValue = -10000.0f,
+			.maxValue = 10000.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 2.0f }).valueChanged) {
+			key.inTangent = inTangent;
 			changed = true;
 		}
-		if (ImGui::DragFloat2("Out Tangent", &key.outTangent.x, 0.001f, -10000.0f, 10000.0f, "%.3f")) {
+		Vector2 outTangent = key.outTangent;
+		if (MyGUI::DragVector2("出力タンジェント", outTangent, { .dragSpeed = 0.001f,.minValue = -10000.0f,
+			.maxValue = 10000.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 2.0f }).valueChanged) {
+			key.outTangent = outTangent;
 			changed = true;
 		}
 	}
 
 	if (changed) {
 		const float editedTime = key.time;
-		channel.SortKeys();
+		if (IsQuaternionAxisAngleTrack(track) && selection.channelIndex == 0u) {
+			SortQuaternionAxisKeys(track);
+		} else {
+			channel.SortKeys();
+		}
 		// 時刻変更で並びが変わるため、編集していたKeyを再選択する。
 		for (uint32_t i = 0; i < channel.keys.size(); ++i) {
 			if (std::abs(channel.keys[i].time - editedTime) <= 0.0005f) {
@@ -872,35 +1064,46 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 		return;
 	}
 
-	ImGui::SeparatorText("Generate Curve");
-	int generatorType = static_cast<int>(generatorType_);
-	if (ImGui::Combo("Type", &generatorType, kGeneratorTypeNames.data(), static_cast<int>(kGeneratorTypeNames.size()))) {
-		generatorType_ = static_cast<GeneratorType>(generatorType);
-	}
-	ImGui::DragFloat("Start Time", &generatorStartTime_, 0.001f, 0.0f, 10000.0f, "%.3f");
-	ImGui::DragFloat("End Time", &generatorEndTime_, 0.001f, 0.0f, 10000.0f, "%.3f");
-	ImGui::DragFloat("Start Value", &generatorStartValue_, 0.001f, -10000.0f, 10000.0f, "%.3f");
-	ImGui::DragFloat("End Value", &generatorEndValue_, 0.001f, -10000.0f, 10000.0f, "%.3f");
-	if (generatorType_ != GeneratorType::Easing) {
-		ImGui::DragFloat("Amplitude", &generatorAmplitude_, 0.001f, -10000.0f, 10000.0f, "%.3f");
-		ImGui::DragFloat("Frequency", &generatorFrequency_, 0.001f, 0.0f, 10000.0f, "%.3f");
-		ImGui::DragFloat("Phase", &generatorPhase_, 0.001f, -10000.0f, 10000.0f, "%.3f");
-	} else {
-		ImGui::Combo("Easing", &generatorEasingIndex_, kGeneratorEasingNames.data(), static_cast<int>(kGeneratorEasingNames.size()));
-	}
-	ImGui::DragInt("Sample Count", &generatorSampleCount_, 1.0f, 2, 1024);
-	generatorSampleCount_ = (std::max)(generatorSampleCount_, 2);
-	int applyTo = static_cast<int>(generatorApplyTo_);
-	if (ImGui::Combo("Apply To", &applyTo, kGeneratorApplyNames.data(), static_cast<int>(kGeneratorApplyNames.size()))) {
-		generatorApplyTo_ = static_cast<GeneratorApplyTo>(applyTo);
-	}
-	ImGui::Checkbox("Replace Existing Keys", &generatorReplaceKeys_);
+	ImGui::SeparatorText("カーブ生成");
 
-	if (!ImGui::Button("Bake")) {
+	// DrawClipAssetUIと同じプロパティ行で、生成条件を縦に並べる。
+	const float reserveRightWidth = ImGui::GetContentRegionAvail().x / 4.0f;
+	MyGUI::EnumCombo("生成タイプ", generatorType_, { .reserveRightWidth = reserveRightWidth });
+
+	MyGUI::DragFloat("開始時間", generatorStartTime_, { .dragSpeed = 0.001f,.minValue = 0.0f,
+		.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
+	MyGUI::DragFloat("終了時間", generatorEndTime_, { .dragSpeed = 0.001f,.minValue = 0.0f,
+		.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
+	MyGUI::DragFloat("開始値", generatorStartValue_, { .dragSpeed = 0.001f,.minValue = -10000.0f,
+		.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
+	MyGUI::DragFloat("終了値", generatorEndValue_, { .dragSpeed = 0.001f,.minValue = -10000.0f,
+		.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
+
+	if (generatorType_ != GeneratorType::Easing) {
+
+		MyGUI::DragFloat("振幅", generatorAmplitude_, { .dragSpeed = 0.001f,.minValue = -10000.0f,
+			.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
+		MyGUI::DragFloat("周波数", generatorFrequency_, { .dragSpeed = 0.001f,.minValue = 0.0f,
+			.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
+		MyGUI::DragFloat("位相", generatorPhase_, { .dragSpeed = 0.001f,.minValue = -10000.0f,
+			.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
+	} else {
+
+		// イージング選択UIはCore側の共通実装を使う。
+		DrawEasingComboProperty("イージング", generatorEasingType_, reserveRightWidth);
+	}
+
+	MyGUI::DragInt("キー数", generatorSampleCount_, { .dragSpeed = 1.0f,.minValue = 2,.maxValue = 1024 });
+	generatorSampleCount_ = (std::max)(generatorSampleCount_, 2);
+
+	MyGUI::EnumCombo("適用先", generatorApplyTo_, { .reserveRightWidth = reserveRightWidth });
+	MyGUI::Checkbox("範囲内のキーを置き換える", generatorReplaceKeys_);
+
+	if (!ImGui::Button("生成", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
 		return;
 	}
 
-	// Start/Endの入力順に依存しないよう、Bake範囲だけ正規化する。
+	// 開始/終了の入力順に依存しないよう、生成範囲だけ正規化する。
 	const float startTime = (std::min)(generatorStartTime_, generatorEndTime_);
 	const float endTime = (std::max)(generatorStartTime_, generatorEndTime_);
 	const float timeRange = (std::max)(endTime - startTime, 0.001f);
@@ -908,7 +1111,7 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 	auto bakeChannel = [&](CurveChannel& channel) {
 
 		if (generatorReplaceKeys_) {
-			// Replace時は指定範囲内の既存キーだけを消し、範囲外の手作業キーは残す。
+			// 置き換え時は指定範囲内の既存キーだけを消し、範囲外の手作業キーは残す。
 			channel.keys.erase(std::remove_if(channel.keys.begin(), channel.keys.end(),
 				[&](const CurveKey& key) {
 					return startTime <= key.time && key.time <= endTime;
@@ -919,15 +1122,13 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 			const float normalized = static_cast<float>(i) / static_cast<float>(generatorSampleCount_ - 1);
 			const float time = startTime + timeRange * normalized;
 			float value = generatorStartValue_;
-			// Bake結果は通常編集しやすいよう、まずはLinearキーとして追加する。
+			// 生成結果は通常編集しやすいよう、まずはLinearキーとして追加する。
 			if (generatorType_ == GeneratorType::Sin || generatorType_ == GeneratorType::Cos) {
 				const float angle = normalized * generatorFrequency_ * 2.0f * std::numbers::pi_v<float> +generatorPhase_;
 				const float wave = generatorType_ == GeneratorType::Sin ? std::sin(angle) : std::cos(angle);
 				value = generatorStartValue_ + wave * generatorAmplitude_;
 			} else {
-				const EasingType easing = kGeneratorEasings[(std::clamp)(generatorEasingIndex_, 0,
-					static_cast<int>(kGeneratorEasings.size()) - 1)];
-				const float eased = EasedValue(easing, normalized);
+				const float eased = EasedValue(generatorEasingType_, normalized);
 				value = generatorStartValue_ + (generatorEndValue_ - generatorStartValue_) * eased;
 			}
 			channel.AddKey(time, value, CurveInterpolationMode::Linear);
@@ -1188,16 +1389,22 @@ void AnimationClipTool::UpdatePreviewPlayback(const EditorToolContext& context) 
 
 	float deltaTime = ImGui::GetIO().DeltaTime;
 	if (deltaTime <= 0.0f) {
-		// ImGui側のDeltaが取れない場合だけ、EditorContextのDeltaを使う。
 		deltaTime = context.toolContext.deltaTime;
 	}
+
+	// 再生時間を進める
 	previewTime_ += deltaTime * previewSpeed_;
-	const float playbackDuration = AnimationClipEvaluator::GetPlaybackDuration(clip_);
+	// クリップデータから終了時間を取得
+	float playbackDuration = AnimationClipEvaluator::GetPlaybackDuration(clip_);
 	if (playbackDuration <= previewTime_) {
 		// Loop時はBridge範囲も含めた再生長で折り返す。
 		if (clip_.loop && 0.0f < clip_.duration) {
+
 			previewTime_ = std::fmod(previewTime_, playbackDuration);
-		} else {
+		}
+		// ループしない場合はプレビューを停止させる
+		else {
+
 			previewTime_ = playbackDuration;
 			previewPlaying_ = false;
 		}
@@ -1322,7 +1529,19 @@ void AnimationClipTool::AddKeyToChannel(AnimationCurveTrack& track, uint32_t cha
 		}
 	}
 
-	channel.AddKey(time, value, CurveInterpolationMode::Linear);
+	const uint32_t addedIndex = channel.AddKey(time, value, CurveInterpolationMode::Linear);
+	if (IsQuaternionAxisAngleTrack(track) && channelIndex == 0u) {
+		CurveQuaternionAxisKey axisKey = MakeDefaultQuaternionAxisKey();
+		if (!track.quaternionAxisKeys.empty()) {
+			const uint32_t sourceIndex = (std::min)(
+				addedIndex,
+				static_cast<uint32_t>(track.quaternionAxisKeys.size() - 1));
+			axisKey = track.quaternionAxisKeys[sourceIndex];
+		}
+		const uint32_t insertIndex = (std::min)(addedIndex, static_cast<uint32_t>(track.quaternionAxisKeys.size()));
+		track.quaternionAxisKeys.insert(track.quaternionAxisKeys.begin() + insertIndex, axisKey);
+		SortQuaternionAxisKeys(track);
+	}
 }
 
 void AnimationClipTool::UpdateAutoDurationAndPreview(const EditorToolContext& context) {
