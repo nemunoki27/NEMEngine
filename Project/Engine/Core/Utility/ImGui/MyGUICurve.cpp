@@ -157,43 +157,6 @@ namespace {
 		state.visibleTimeMax = state.visibleTimeMin + newRange;
 	}
 
-	// 背景上で「Add Key」したときに、
-	// クリック位置に最も近い表示中チャンネルへ追加する。
-	// これにより Vector2/3 で Y を編集しているときに X へ入ってしまう問題を避ける。
-	bool FindBestChannelForAddKey(std::span<Engine::CurveChannel> channels,
-		const Engine::CurveEditorState& state, float time, float value, uint32_t& outChannelIndex) {
-
-		float bestDistance = (std::numeric_limits<float>::max)();
-		bool found = false;
-
-		for (uint32_t i = 0; i < channels.size(); ++i) {
-			if (!state.IsChannelVisible(i)) {
-				continue;
-			}
-
-			const Engine::CurveChannel& channel = channels[i];
-			const float sampledValue = channel.Evaluate(time);
-			const float distance = std::abs(sampledValue - value);
-			if (distance < bestDistance) {
-				bestDistance = distance;
-				outChannelIndex = i;
-				found = true;
-			}
-		}
-
-		if (found) {
-			return true;
-		}
-
-		for (uint32_t i = 0; i < channels.size(); ++i) {
-			if (state.IsChannelVisible(i)) {
-				outChannelIndex = i;
-				return true;
-			}
-		}
-		return false;
-	}
-
 	// Color4をImGuiの描画色へ変換する
 	ImU32 ToImU32(const Engine::Color4& color) {
 
@@ -1512,45 +1475,51 @@ namespace {
 					}
 				}
 			} else {
-				if (IsQuaternionCurveSet(channels)) {
-					if (ImGui::MenuItem("Add Quaternion Key")) {
-						const float time = SnapTime((std::max)(0.0f, state.contextMenuWorld.x), state.snapEnabled, state.snapInterval);
-						const uint32_t newKeyIndex = AddQuaternionKey(channels, quaternionAxisKeys, time);
-						state.ClearSelection();
-						state.selectedKeys.push_back({ 0, newKeyIndex });
-						result.valueChanged = true;
-						result.selectionChanged = true;
+				if (ImGui::BeginMenu("Add Key")) {
+
+					const float time = SnapTime((std::max)(0.0f, state.contextMenuWorld.x), state.snapEnabled, state.snapInterval);
+
+					if (IsQuaternionCurveSet(channels)) {
+						if (ImGui::MenuItem("Quaternion")) {
+							const uint32_t newKeyIndex = AddQuaternionKey(channels, quaternionAxisKeys, time);
+							state.ClearSelection();
+							state.selectedKeys.push_back({ 0, newKeyIndex });
+							result.valueChanged = true;
+							result.selectionChanged = true;
+						}
+					} else if (IsColorCurveSet(channels)) {
+						if (ImGui::MenuItem("RGB")) {
+							const uint32_t newKeyIndex = AddColorRgbKey(channels, time);
+							state.ClearSelection();
+							state.selectedKeys.push_back({ 0, newKeyIndex });
+							result.valueChanged = true;
+							result.selectionChanged = true;
+						}
+						if (HasAlphaChannel(channels) && ImGui::MenuItem("Alpha")) {
+							const float alpha = (std::clamp)(channels[3].Evaluate(time), 0.0f, 1.0f);
+							const uint32_t newKeyIndex = channels[3].AddKey(time, alpha);
+							state.ClearSelection();
+							state.selectedKeys.push_back({ 3, newKeyIndex });
+							result.valueChanged = true;
+							result.selectionChanged = true;
+						}
+					} else {
+						for (uint32_t channelIndex = 0; channelIndex < channels.size(); ++channelIndex) {
+							if (!state.IsChannelVisible(channelIndex)) {
+								continue;
+							}
+							Engine::CurveChannel& channel = channels[channelIndex];
+							if (ImGui::MenuItem(channel.name.c_str())) {
+								const float value = state.contextMenuWorld.y;
+								const uint32_t newKeyIndex = channel.AddKey(time, value);
+								state.ClearSelection();
+								state.selectedKeys.push_back({ channelIndex, newKeyIndex });
+								result.valueChanged = true;
+								result.selectionChanged = true;
+							}
+						}
 					}
-				} else if (IsColorCurveSet(channels)) {
-					if (ImGui::MenuItem("Add RGB Key")) {
-						const float time = SnapTime((std::max)(0.0f, state.contextMenuWorld.x), state.snapEnabled, state.snapInterval);
-						const uint32_t newKeyIndex = AddColorRgbKey(channels, time);
-						state.ClearSelection();
-						state.selectedKeys.push_back({ 0, newKeyIndex });
-						result.valueChanged = true;
-						result.selectionChanged = true;
-					}
-					if (HasAlphaChannel(channels) && ImGui::MenuItem("Add Alpha Key")) {
-						const float time = SnapTime((std::max)(0.0f, state.contextMenuWorld.x), state.snapEnabled, state.snapInterval);
-						const float alpha = (std::clamp)(channels[3].Evaluate(time), 0.0f, 1.0f);
-						const uint32_t newKeyIndex = channels[3].AddKey(time, alpha);
-						state.ClearSelection();
-						state.selectedKeys.push_back({ 3, newKeyIndex });
-						result.valueChanged = true;
-						result.selectionChanged = true;
-					}
-				} else if (ImGui::MenuItem("Add Key")) {
-					float time = SnapTime((std::max)(0.0f, state.contextMenuWorld.x), state.snapEnabled, state.snapInterval);
-					float value = state.contextMenuWorld.y;
-					uint32_t targetChannel = 0;
-					if (FindBestChannelForAddKey(channels, state, time, value, targetChannel)) {
-						Engine::CurveChannel& channel = channels[targetChannel];
-						const uint32_t newKeyIndex = channel.AddKey(time, value);
-						state.ClearSelection();
-						state.selectedKeys.push_back({ targetChannel, newKeyIndex });
-						result.valueChanged = true;
-						result.selectionChanged = true;
-					}
+					ImGui::EndMenu();
 				}
 			}
 			ImGui::EndPopup();

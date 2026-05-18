@@ -663,28 +663,6 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 			ImGui::PopID();
 			continue;
 		}
-		if (selected) {
-			for (uint32_t channelIndex = 0; channelIndex < track.channels.size(); ++channelIndex) {
-				CurveChannel& channel = track.channels[channelIndex];
-				ImGui::PushID(static_cast<int>(1000 + channelIndex));
-				ImGui::TextDisabled("  %s", channel.name.c_str());
-				ImGui::SameLine();
-				if (ImGui::SmallButton("+")) {
-					// 現在時刻の評価値をそのChannelのキーとして追加する。
-					AddKeyToChannel(track, channelIndex, previewTime_);
-					UpdateAutoDurationAndPreview(context);
-				}
-				if (ImGui::BeginPopupContextItem("ChannelContext")) {
-					if (ImGui::MenuItem("Add Key")) {
-						// 右クリックメニューからも同じ追加処理へ通す。
-						AddKeyToChannel(track, channelIndex, previewTime_);
-						UpdateAutoDurationAndPreview(context);
-					}
-					ImGui::EndPopup();
-				}
-				ImGui::PopID();
-			}
-		}
 		ImGui::PopID();
 		++i;
 	}
