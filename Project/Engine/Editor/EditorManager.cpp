@@ -43,7 +43,8 @@ namespace {
 	// ドッキングスペースのホストウィンドウ名
 	constexpr const char* kDockSpaceHostWindow = "##EditorDockSpaceHost";
 	constexpr const char* kDockSpaceID = "EngineEditorDockSpace";
-	constexpr const char* kUnsavedScenePopupName = "Unsaved Scene";
+	constexpr const char* kUnsavedScenePopupName = "シーン未保存通知";
+	constexpr const char* kCloseUnsavedScenePopupName = "シーン未保存通知##CloseApplication";
 	// ImGuiのレイアウト保存ファイルパス
 	constexpr const char* kEditorLayoutIniPath = "EditorLayout.ini";
 }
@@ -77,6 +78,8 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	sceneRequest_ = {};
 	pendingSceneRequest_ = {};
 	requestOpenUnsavedPopup_ = false;
+	requestOpenCloseUnsavedPopup_ = false;
+	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
 	activeSceneDirty_ = false;
 
 	// エディタ標準ツールの登録
@@ -238,6 +241,19 @@ void Engine::EditorManager::RequestSaveScene() {
 	sceneRequest_ = { EditorSceneRequestType::SaveScene, AssetID{} };
 }
 
+void Engine::EditorManager::RequestCloseUnsavedScenePopup() {
+
+	requestOpenCloseUnsavedPopup_ = true;
+	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
+}
+
+Engine::EditorUnsavedScenePopupResult Engine::EditorManager::ConsumeCloseUnsavedScenePopupResult() {
+
+	EditorUnsavedScenePopupResult result = closeUnsavedScenePopupResult_;
+	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
+	return result;
+}
+
 void Engine::EditorManager::QueueSceneRequest(const EditorSceneRequest& request) {
 
 	if (request.type == EditorSceneRequestType::NewScene ||
@@ -257,11 +273,11 @@ const char* Engine::EditorManager::GetSceneRequestActionName(EditorSceneRequestT
 
 	switch (type) {
 	case EditorSceneRequestType::NewScene:
-		return "creating a new scene";
+		return "新しいシーンを作成する";
 	case EditorSceneRequestType::OpenScene:
-		return "opening another scene";
+		return "別のシーンを開く";
 	default:
-		return "changing the scene";
+		return "シーンを切り替える";
 	}
 }
 
@@ -303,25 +319,62 @@ void Engine::EditorManager::DrawUnsavedScenePopup() {
 		return;
 	}
 
-	ImGui::TextUnformatted("The current scene has unsaved changes.");
-	ImGui::Text("Do you want to save before %s?", GetSceneRequestActionName(pendingSceneRequest_.type));
+	ImGui::TextUnformatted("現在のシーンは変更後、保存されていません");
+	ImGui::Text("%s前に保存しますか？", GetSceneRequestActionName(pendingSceneRequest_.type));
 	ImGui::Separator();
 
-	if (ImGui::Button("Save", ImVec2(120.0f, 0.0f))) {
+	if (ImGui::Button("保存", ImVec2(120.0f, 0.0f))) {
 
 		SubmitPendingSceneRequest(true);
 		ImGui::CloseCurrentPopup();
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Don't Save", ImVec2(120.0f, 0.0f))) {
+	if (ImGui::Button("保存しない", ImVec2(120.0f, 0.0f))) {
 
 		SubmitPendingSceneRequest(false);
 		ImGui::CloseCurrentPopup();
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Cancel", ImVec2(120.0f, 0.0f))) {
+	if (ImGui::Button("キャンセル", ImVec2(120.0f, 0.0f))) {
 
 		pendingSceneRequest_ = {};
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
+}
+
+void Engine::EditorManager::DrawCloseUnsavedScenePopup() {
+
+	if (requestOpenCloseUnsavedPopup_) {
+
+		ImGui::OpenPopup(kCloseUnsavedScenePopupName);
+		requestOpenCloseUnsavedPopup_ = false;
+	}
+
+	if (!ImGui::BeginPopupModal(kCloseUnsavedScenePopupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
+	}
+
+	ImGui::TextUnformatted("現在のシーンは変更後、保存されていません");
+	ImGui::TextUnformatted("保存しますか？");
+	ImGui::Separator();
+
+	if (ImGui::Button("保存", ImVec2(120.0f, 0.0f))) {
+
+		closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::Save;
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("保存しない", ImVec2(120.0f, 0.0f))) {
+
+		closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::DontSave;
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("キャンセル", ImVec2(120.0f, 0.0f))) {
+
+		closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::Cancel;
 		ImGui::CloseCurrentPopup();
 	}
 
@@ -449,6 +502,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	HandleGlobalShortcuts(context);
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PreScene);
 	DrawUnsavedScenePopup();
+	DrawCloseUnsavedScenePopup();
 }
 
 void Engine::EditorManager::DrawSceneDebugObjects(const EditorContext& context) {
@@ -576,6 +630,8 @@ void Engine::EditorManager::ResetSceneEditingState() {
 	editorState_.commandHistory.Clear();
 	pendingSceneRequest_ = {};
 	requestOpenUnsavedPopup_ = false;
+	requestOpenCloseUnsavedPopup_ = false;
+	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
 	activeSceneDirty_ = false;
 }
 

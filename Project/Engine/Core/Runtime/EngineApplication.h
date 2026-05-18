@@ -44,6 +44,10 @@ namespace Engine {
 
 		// 終了処理
 		void Finalize();
+		// ウィンドウ終了要求。falseを返すと終了をキャンセルする
+		bool RequestClose();
+		// Assert停止前に必要な保存処理を行う
+		void NotifyAssertBeforeAbort();
 	private:
 		//========================================================================
 		//	private Methods
@@ -79,6 +83,9 @@ namespace Engine {
 		EditorManager editorManager_;
 		EditorContext editorContext_{};
 		bool requestFrameDeltaReset_ = false;
+		bool shutdownAccepted_ = false;
+		bool closeRequestPending_ = false;
+		bool handlingAssertAbort_ = false;
 
 		//--------- functions ----------------------------------------------------
 
@@ -86,6 +93,10 @@ namespace Engine {
 		void InitSystems();
 		// 最初のシーンを作成
 		void InitFirstScene();
+		// 前回開いていたシーン設定を読み込む
+		void LoadActiveSceneConfig();
+		// 現在開いているシーン設定を保存する
+		void SaveActiveSceneConfig() const;
 
 		// プレイモードの切り替え
 		void HandlePlayToggle();
@@ -97,6 +108,10 @@ namespace Engine {
 		bool OpenEditScene(AssetID sceneAsset);
 		// エディタワールドのアクティブシーンを保存する
 		bool SaveActiveEditScene();
+		// 終了前の未保存確認結果を処理する
+		void HandleCloseRequestResult();
+		// 終了を確定して、必要ならウィンドウ破棄まで進める
+		void AcceptCloseRequest(bool destroyWindow);
 
 		// アクティブなワールドとシーンの取得
 		ECSWorld* GetActiveWorld() { return worldManager_.IsPlaying() ? worldManager_.GetPlayWorld() : &worldManager_.GetEditWorld(); }

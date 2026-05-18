@@ -41,6 +41,15 @@ namespace Engine {
 		SaveAndOpenScene,
 	};
 
+	enum class EditorUnsavedScenePopupResult :
+		uint8_t {
+
+		None,
+		Save,
+		DontSave,
+		Cancel,
+	};
+
 	struct EditorSceneRequest {
 
 		EditorSceneRequestType type = EditorSceneRequestType::None;
@@ -101,6 +110,10 @@ namespace Engine {
 		void RequestOpenScene(AssetID sceneAsset) override;
 		// アクティブシーンの保存要求
 		void RequestSaveScene() override;
+		// 終了時の未保存確認ポップアップ表示要求
+		void RequestCloseUnsavedScenePopup();
+		// 終了時の未保存確認結果
+		EditorUnsavedScenePopupResult ConsumeCloseUnsavedScenePopupResult();
 
 		// シーンビューのメッシュピック処理
 		void ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
@@ -143,6 +156,10 @@ namespace Engine {
 		EditorSceneRequest pendingSceneRequest_{};
 		// 未保存確認ポップアップを開くか
 		bool requestOpenUnsavedPopup_ = false;
+		// 終了時の未保存確認ポップアップを開くか
+		bool requestOpenCloseUnsavedPopup_ = false;
+		// 終了時の未保存確認結果
+		EditorUnsavedScenePopupResult closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
 		// アクティブシーンに未保存の変更があるか
 		bool activeSceneDirty_ = false;
 
@@ -168,6 +185,8 @@ namespace Engine {
 		void QueueSceneRequest(const EditorSceneRequest& request);
 		// 未保存シーンの確認ポップアップを描画する
 		void DrawUnsavedScenePopup();
+		// 終了時の未保存シーン確認ポップアップを描画する
+		void DrawCloseUnsavedScenePopup();
 		// シーン操作要求の種類をポップアップ表示用の名前に変換する
 		const char* GetSceneRequestActionName(EditorSceneRequestType type) const;
 		// 未保存確認の結果をシーン操作要求へ反映する

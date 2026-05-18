@@ -53,6 +53,10 @@ namespace Engine {
 
 		// 現在のウィンドウハンドル(HWND)を返す
 		static HWND GetHwnd() { return hwnd_; }
+		// ウィンドウを閉じる前に呼ぶ確認処理を設定する
+		static void SetCloseRequestCallback(bool (*callback)()) { closeRequestCallback_ = callback; }
+		// 確認済みの終了要求を次のメッセージ処理へ投げる
+		static void RequestCloseWindow();
 	private:
 		//========================================================================
 		//	private Methods
@@ -67,6 +71,7 @@ namespace Engine {
 		static RECT customClientClipRect_;
 
 		static bool cursorVisible_;
+		static bool (*closeRequestCallback_)();
 
 		UINT windowStyle_;
 		static RECT windowRect_;
