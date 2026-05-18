@@ -8,6 +8,7 @@
 #include <Engine/Core/Asset/AssetTypes.h>
 
 // c++
+#include <span>
 #include <vector>
 // json
 #include <json.hpp>
@@ -59,6 +60,9 @@ namespace Engine {
 
 		// スナップショットからエンティティ群を復元する
 		std::vector<Entity> RestoreSubtree(ECSWorld& world, const EditorEntityTreeSnapshot& snapshot);
+		// 復元直後のランタイム状態を補正する
+		void RefreshRestoredRuntimeState(const EditorCommandContext& context, ECSWorld& world,
+			const EditorEntityTreeSnapshot& snapshot, std::span<const Entity> restoredEntities);
 		// サブツリーを破棄する
 		void DestroySubtree(ECSWorld& world, const Entity& root);
 

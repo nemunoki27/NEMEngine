@@ -385,32 +385,50 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 	[[maybe_unused]] const EditorContext& context, const RenderPipelineRunner& renderPipeline) {
 
 	// 以下の条件のいずれかを満たす場合はピック処理を行わない
-	if (!initialized_ || !layoutState_.showSceneView ||
-		editorState_.useSceneGizmo || !editorState_.enableScenePick) {
+	if (!initialized_ || !editorState_.enableScenePick) {
 		return;
 	}
 
 	Input* input = Input::GetInstance();
-	// シーンビューの上で左クリックされたフレームのみ処理する
-	if (!input->HasViewRect(InputViewArea::Scene)) {
-		return;
-	}
-	if (!input->IsMouseOnView(InputViewArea::Scene)) {
-		return;
-	}
-	if (!input->TriggerMouse(MouseButton::Left)) {
-		return;
+	auto executePick = [&](InputViewArea inputArea, RenderViewKind viewKind,
+		ID3D12Resource* tlasResource, const std::vector<MeshSubMeshPickRecord>& pickRecords) {
+
+			// ビューの上で左クリックされたフレームのみ処理する
+			if (!input->HasViewRect(inputArea)) {
+				return false;
+			}
+			if (!input->IsMouseOnView(inputArea)) {
+				return false;
+			}
+			if (!input->TriggerMouse(MouseButton::Left)) {
+				return false;
+			}
+
+			// マウス座標を取得
+			const std::optional<Vector2> mousePosInView = input->GetMousePosInView(inputArea);
+			if (!mousePosInView.has_value()) {
+				return false;
+			}
+
+			// メッシュピック処理を実行
+			meshSubMeshPicker_->ExecutePick(graphicsCore, renderPipeline.GetResolvedView(viewKind),
+				mousePosInView.value(), pickRecords, tlasResource);
+			return true;
+		};
+
+	// SceneViewは従来通り、ギズモ操作中はピックしない
+	if (layoutState_.showSceneView && !editorState_.useSceneGizmo) {
+		if (executePick(InputViewArea::Scene, RenderViewKind::Scene,
+			renderPipeline.GetSceneViewTLASResource(), renderPipeline.GetSceneViewPickRecords())) {
+			return;
+		}
 	}
 
-	// マウス座標を取得
-	const std::optional<Vector2> mousePosInView = input->GetMousePosInView(InputViewArea::Scene);
-	if (!mousePosInView.has_value()) {
-		return;
+	// GameViewにもSceneViewと同じTLASピックだけを通し、マニピュレーターは表示しない。
+	if (layoutState_.showGameView) {
+		executePick(InputViewArea::Game, RenderViewKind::Game,
+			renderPipeline.GetGameViewTLASResource(), renderPipeline.GetGameViewPickRecords());
 	}
-
-	// メッシュピック処理を実行
-	meshSubMeshPicker_->ExecutePick(graphicsCore, renderPipeline.GetResolvedView(RenderViewKind::Scene),
-		mousePosInView.value(), renderPipeline.GetSceneViewPickRecords(), renderPipeline.GetSceneViewTLASResource());
 }
 
 void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) {

@@ -490,8 +490,11 @@ void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 
 		MyGUI::BeginPropertyRow("対象エンティティのセット");
 
+		const float clearButtonWidth = 96.0f;
+		const float entityFieldWidth = (std::max)(
+			ImGui::GetContentRegionAvail().x - clearButtonWidth - ImGui::GetStyle().ItemSpacing.x, 1.0f);
 		const ValueEditResult result = MyGUI::EntityReferenceField("", nextTargetUUID, world,
-			{ .useAutoPropertyRow = false });
+			{ .useAutoPropertyRow = false,.buttonSize = ImVec2(entityFieldWidth, ImGui::GetFrameHeight()) });
 		if (result.valueChanged && nextTargetUUID != targetEntityUUID_) {
 
 			// Targetを変える前に、旧Targetへ適用していたPreview値を戻す。
@@ -501,6 +504,20 @@ void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 			curveState_.currentTime = previewTime_;
 			// Targetをセットした直後から、Time 0.0fを含む現在時刻の値をSceneViewへ反映する。
 			ApplyPreviewAtCurrentTime(context, true);
+		}
+		ImGui::SameLine();
+		const bool hasTargetEntity = targetEntityUUID_ != UUID{};
+		if (!hasTargetEntity) {
+			ImGui::BeginDisabled();
+		}
+		if (ImGui::Button("解除", ImVec2(clearButtonWidth, ImGui::GetFrameHeight()))) {
+
+			// 編集中にTargetへ適用していた値を戻してから参照を外す。
+			EndPreviewAndRestore(context);
+			targetEntityUUID_ = {};
+		}
+		if (!hasTargetEntity) {
+			ImGui::EndDisabled();
 		}
 		MyGUI::EndPropertyRow();
 	}

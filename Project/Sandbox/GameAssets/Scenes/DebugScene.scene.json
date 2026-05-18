@@ -4,7 +4,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 1
+                    "siblingOrder": 0
                 },
                 "Name": {
                     "name": "Camera2D"
@@ -47,7 +47,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 0
+                    "siblingOrder": 1
                 },
                 "Name": {
                     "name": "Camera3D"
@@ -70,8 +70,8 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.567357063293457,
-                        "y": 6.79291296005249,
-                        "z": -7.213553428649902
+                        "y": 6.5719804763793945,
+                        "z": -11.786380767822266
                     },
                     "localRotation": {
                         "w": 0.9893429279327393,
@@ -185,7 +185,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 0
+                    "siblingOrder": 3
                 },
                 "Name": {
                     "name": "Sprite"
@@ -243,7 +243,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 0
+                    "siblingOrder": 4
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -331,6 +331,57 @@
                 }
             },
             "LocalFileID": "af11eab68d98984d"
+        },
+        {
+            "Components": {
+                "DirectionalLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 0.6897253394126892,
+                        "g": 0.2757498025894165,
+                        "r": 0.5149542689323425
+                    },
+                    "direction": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    },
+                    "enabled": true,
+                    "intensity": 0.699999988079071
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 2
+                },
+                "Name": {
+                    "name": "DirectionalLight"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "e1c857fc5ef5de74",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "e1c857fc5ef5de74"
         }
     ],
     "Header": {

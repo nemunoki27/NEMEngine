@@ -425,6 +425,8 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	}
 
 	// データクリア
+	gameViewTLASResource_ = nullptr;
+	gameViewPickRecords_.clear();
 	sceneViewTLASResource_ = nullptr;
 	sceneViewPickRecords_.clear();
 
@@ -561,8 +563,12 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 			raytracingSceneBuilder_.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, renderBatch_, context);
 		}
 
-		// TLASリソースとピック用のサブメッシュ情報を取得して保存
-		if (kind == RenderViewKind::Scene) {
+		// TLASリソースとピック用のサブメッシュ情報をビュー別に保存
+		if (kind == RenderViewKind::Game) {
+
+			gameViewTLASResource_ = context.raytracing.tlasResource;
+			gameViewPickRecords_ = raytracingSceneBuilder_.GetPickRecords();
+		} else if (kind == RenderViewKind::Scene) {
 
 			sceneViewTLASResource_ = context.raytracing.tlasResource;
 			sceneViewPickRecords_ = raytracingSceneBuilder_.GetPickRecords();

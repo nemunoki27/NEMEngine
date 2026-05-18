@@ -61,6 +61,10 @@ bool Engine::DuplicateEntityCommand::DuplicateInternal(EditorCommandContext& con
 	if (!world->IsAlive(duplicatedRoot)) {
 		return false;
 	}
+	// 復元系コマンド共通のランタイム状態を整える
+	const std::vector<Entity> restoredEntities = EditorEntitySnapshotUtility::CollectSubtreeEntities(*world, duplicatedRoot);
+	EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(context, *world, preparedSnapshot_, restoredEntities);
+
 	if (context.editorState) {
 
 		context.editorState->SelectEntity(duplicatedRoot);
