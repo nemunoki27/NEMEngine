@@ -1,0 +1,276 @@
+#pragma once
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Foundation/Math/Math.h>
+#include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Animation/Curves/AnimationCurve.h>
+#include <Engine/Editor/Animation/Curves/CurveEditorState.h>
+#include <Engine/Editor/Core/EditorState.h>
+#include <Engine/Core/Foundation/Utility/Enum/Axis.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+
+// c++
+#include <initializer_list>
+#include <span>
+#include <string>
+#include <optional>
+// imgui
+#include <imgui.h>
+#include <imgui_stdlib.h>
+#include <ImGuizmo.h> 
+
+namespace Engine {
+
+	// front
+	class AssetDatabase;
+	class ECSWorld;
+	struct TransformComponent;
+	struct MeshSubMeshTextureOverride;
+
+	//============================================================================
+	//	MyGUI structures
+	//============================================================================
+
+	// 値編集設定
+	struct FloatEditSetting {
+
+		float dragSpeed = 0.01f;    // 編集速度
+		float minValue = -10000.0f; // 最小値
+		float maxValue = 10000.0f;  // 最大値
+
+		// プロパティを閉じるか
+		bool closeOnProperty = true;
+		// 右側に別UIを置くために残す幅
+		float reserveRightWidth = 0.0f;
+		// 表示を行う軸
+		std::optional<Axis> floatAxis = std::nullopt;
+	};
+	struct IntEditSetting {
+
+		float dragSpeed = 1.0f;
+		int32_t minValue = (std::numeric_limits<int32_t>::min)();
+		int32_t maxValue = (std::numeric_limits<int32_t>::max)();
+	};
+	// 値編集の結果
+	struct ValueEditResult {
+
+		bool valueChanged = false;
+		bool anyItemActive = false;
+		bool editFinished = false;
+	};
+	// 文字入力ポップアップの操作結果
+	struct TextInputPopupResult {
+
+		bool submitted = false;
+		bool canceled = false;
+	};
+	// 文字入力設定
+	struct TextEditSetting {
+
+		// 複数行入力にするか
+		bool multiLine = false;
+		// 複数行入力時のサイズ。0以下の場合は既定サイズを使う
+		ImVec2 size = ImVec2(0.0f, 0.0f);
+		// ImGuiの文字入力フラグ
+		ImGuiInputTextFlags flags = ImGuiInputTextFlags_None;
+	};
+	// コンボボックス設定
+	struct ComboEditSetting {
+
+		// 右側に別UIを置くために残す幅
+		float reserveRightWidth = 0.0f;
+	};
+	// アセット設定
+	struct AssetEditSetting {
+
+		bool useAutoPropertyRow = true;
+
+		std::optional<ImVec2> buttonSize = std::nullopt;
+	};
+	// エンティティ参照設定
+	struct EntityEditSetting {
+
+		bool useAutoPropertyRow = true;
+
+		std::optional<ImVec2> buttonSize = std::nullopt;
+	};
+	// ビューポートの位置とサイズを表す構造体
+	struct GizmoViewportRect {
+
+		float x = 0.0f;
+		float y = 0.0f;
+		float width = 0.0f;
+		float height = 0.0f;
+
+		// ビューの幅と高さが1以上なら有効とみなす
+		bool IsValid() const { return 1.0f <= width && 1.0f <= height; }
+	};
+	// ギズモの描画と操作に必要な情報をまとめた構造体
+	struct GizmoViewContext {
+
+		GizmoViewportRect rect{};
+
+		// ビュー行列と射影行列
+		Matrix4x4 viewMatrix = Matrix4x4::Identity();
+		Matrix4x4 projectionMatrix = Matrix4x4::Identity();
+
+		// ローカルからワールドに上げるための親行列
+		Matrix4x4 parentWorldMatrix = Matrix4x4::Identity();
+
+		// ギズモの操作モード
+		SceneViewManipulatorMode mode = SceneViewManipulatorMode::None;
+
+		// ギズモの操作空間
+		bool orthographic = false;
+		bool allowAxisFlip = true;
+	};
+	// ギズモの編集結果
+	struct GizmoEditResult {
+
+		bool valueChanged = false;
+		bool isOver = false;
+		bool isUsing = false;
+
+		bool IsUse() const { return isOver || isUsing; }
+	};
+	// 複数TrackのCurveChannelを1つのCurveEditorで編集するための参照。
+	// 元のCurveChannelはTrackごとに別vectorへ入っているため、表示時だけ連続配列へ橋渡しする。
+	struct CurveChannelRef {
+
+		CurveChannel* channel = nullptr;
+		std::string displayName;
+	};
+
+	//============================================================================
+	//	MyGUI class
+	//	エディター表示に使用するImGui関連のユーティリティクラス
+	//============================================================================
+	class MyGUI {
+	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
+		MyGUI() = default;
+		~MyGUI() = default;
+
+		//========================================================================
+		//	汎用表示
+		//========================================================================
+
+		// エンジンの表示スタイルでコラプシングヘッダーを表示する
+		static bool CollapsingHeader(const char* label, bool stratOpen = true);
+		// ポップアップ内で使用する文字入力とOK/Cancelを描画する
+		static TextInputPopupResult InputTextPopupContent(const char* label, std::string& text, const char* errorText = nullptr);
+		// 汎用プロパティ行
+		static bool BeginPropertyRow(const char* label);
+		static void EndPropertyRow();
+
+		//========================================================================
+		//	数学関連
+		//========================================================================
+
+		// 表示
+		static void TextFloat(const char* label, float value, uint32_t precision = 3);
+		static void TextVector2(const char* label, const Vector2& value, uint32_t precision = 3);
+		static void TextVector3(const char* label, const Vector3& value, uint32_t precision = 3);
+		static void TextQuaternion(const char* label, const Quaternion& value, uint32_t precision = 3);
+		static void TextMatrix4x4(const char* label, const Matrix4x4& value, uint32_t precision = 3);
+		// ドラッグ編集
+		static ValueEditResult DragFloat(const char* label, float& value, const FloatEditSetting& setting = FloatEditSetting{});
+		static ValueEditResult DragInt(const char* label, int32_t& value, const IntEditSetting& setting = IntEditSetting{});
+		static ValueEditResult DragVector2(const char* label, Vector2& value, const FloatEditSetting& setting = FloatEditSetting{});
+		static ValueEditResult DragVector3(const char* label, Vector3& value, const FloatEditSetting& setting = FloatEditSetting{});
+		static ValueEditResult DragVector4(const char* label, Vector4& value, const FloatEditSetting& setting = FloatEditSetting{});
+		static ValueEditResult DragQuaternion(const char* label, Quaternion& value, bool displayEuler = false, const FloatEditSetting& setting = FloatEditSetting{});
+		// 色編集
+		static ValueEditResult ColorEdit(const char* label, Color3& value);
+		static ValueEditResult ColorEdit(const char* label, Color4& value);
+
+		//========================================================================
+		//	カーブ編集
+		//========================================================================
+
+		// 専用ツールで使うカーブエディタ本体
+		static CurveEditResult CurveEditor(const char* id, std::span<CurveChannel> channels,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		static CurveEditResult CurveEditor(const char* id, std::span<CurveChannelRef> channels,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		static CurveEditResult CurveEditor(const char* id, CurveFloat& curve,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		static CurveEditResult CurveEditor(const char* id, CurveVector3& curve,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		static CurveEditResult CurveEditor(const char* id, CurveColor3& curve,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		static CurveEditResult CurveEditor(const char* id, CurveColor4& curve,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		static CurveEditResult CurveEditor(const char* id, CurveQuaternion& curve,
+			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+
+		//========================================================================
+		//	ギズモ操作
+		//========================================================================
+
+		// 2D
+		static GizmoEditResult Manipulate2D(const char* id, const GizmoViewContext& context, TransformComponent& transform);
+		static GizmoEditResult Manipulate3D(const char* id, const GizmoViewContext& context, TransformComponent& transform);
+		// 3D
+		static GizmoEditResult Manipulate2D(const char* id, const GizmoViewContext& context, MeshSubMeshTextureOverride& subMesh);
+		static GizmoEditResult Manipulate3D(const char* id, const GizmoViewContext& context, MeshSubMeshTextureOverride& subMesh);
+
+		//========================================================================
+		//	パラメータ変更
+		//========================================================================
+
+		// チェックボックス切り替え
+		static bool Checkbox(const char* label, bool& value);
+		static bool SmallCheckbox(const char* id, bool& value);
+		// 入力
+		static ValueEditResult InputText(const char* label, std::string& text, const TextEditSetting& setting = TextEditSetting{});
+		// std::stringのコンボボックス
+		static ValueEditResult StringCombo(const char* label, std::string& currentValue,
+			std::span<const std::string> items, const char* emptyPreview = "<None>",
+			bool allowEmptySelection = false, const ComboEditSetting& setting = ComboEditSetting{});
+		// enumのコンボボックス
+		template <typename T>
+		static ValueEditResult EnumCombo(const char* label, T& currentValue,
+			const ComboEditSetting& setting = ComboEditSetting{});
+
+		//========================================================================
+		//	アセット参照
+		//========================================================================
+
+		// アセットID編集フィールドを描画する
+		static ValueEditResult AssetReferenceField(const char* label, AssetID& value, const AssetDatabase* assetDatabase,
+			const std::initializer_list<AssetType>& acceptedTypes = {}, const AssetEditSetting& setting = AssetEditSetting{});
+		// HierarchyのEntity UUID編集フィールドを描画する
+		static ValueEditResult EntityReferenceField(const char* label, UUID& value, ECSWorld* world,
+			const EntityEditSetting& setting = EntityEditSetting{});
+	};
+
+	//============================================================================
+	//	MyGUI templateMethos
+	//============================================================================
+
+	template <typename T>
+	inline ValueEditResult MyGUI::EnumCombo(const char* label, T& currentValue,
+		const ComboEditSetting& setting) {
+
+		ValueEditResult result{};
+
+		if (!BeginPropertyRow(label)) {
+			return result;
+		}
+
+		const float width = ImGui::GetContentRegionAvail().x - setting.reserveRightWidth;
+		ImGui::SetNextItemWidth(width <= 1.0f ? 1.0f : width);
+		result.valueChanged = EnumAdapter<T>::Combo("##Value", &currentValue);
+		result.anyItemActive = ImGui::IsItemActive();
+		result.editFinished = result.valueChanged || ImGui::IsItemDeactivatedAfterEdit();
+
+		EndPropertyRow();
+		return result;
+	}
+} // Engine

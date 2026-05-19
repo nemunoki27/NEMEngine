@@ -2,13 +2,109 @@
     "Entities": [
         {
             "Components": {
+                "DirectionalLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "direction": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    },
+                    "enabled": true,
+                    "intensity": 1.0
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Entity"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "bcbf17e42df02862",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "bcbf17e42df02862"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Camera3D"
+                },
+                "PerspectiveCamera": {
+                    "cullingMask": -1,
+                    "editorFrustumScale": 0.0020000000949949026,
+                    "enabled": true,
+                    "farClip": 4000.0,
+                    "fovY": 60.0,
+                    "isMain": true,
+                    "nearClip": 0.009999999776482582,
+                    "priority": 0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "daa4966cef6bc35a",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": -7.084524631500244,
+                        "y": 38.429561614990234,
+                        "z": -7.694968223571777
+                    },
+                    "localRotation": {
+                        "w": 0.7178441882133484,
+                        "x": 0.12686598300933838,
+                        "y": 0.6741005778312683,
+                        "z": -0.11913508921861649
+                    },
+                    "localScale": {
+                        "x": 1.0000015497207642,
+                        "y": 1.000000238418579,
+                        "z": 1.000000238418579
+                    }
+                }
+            },
+            "LocalFileID": "daa4966cef6bc35a"
+        },
+        {
+            "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
                     "siblingOrder": 10
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
-                    "enableZPrepass": true,
+                    "enableZPrepass": false,
                     "layer": 0,
                     "material": "0000000000000000",
                     "mesh": "5ba6dea4d520caff",
@@ -18124,51 +18220,6 @@
                 }
             },
             "LocalFileID": "e92ebbecbab37b1d"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 0
-                },
-                "Name": {
-                    "name": "Camera3D"
-                },
-                "PerspectiveCamera": {
-                    "cullingMask": -1,
-                    "editorFrustumScale": 0.0020000000949949026,
-                    "enabled": true,
-                    "farClip": 4000.0,
-                    "fovY": 60.0,
-                    "isMain": true,
-                    "nearClip": 0.009999999776482582,
-                    "priority": 0
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileID": "daa4966cef6bc35a",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "localPos": {
-                        "x": -7.084524631500244,
-                        "y": 38.429561614990234,
-                        "z": -7.694968223571777
-                    },
-                    "localRotation": {
-                        "w": 0.7178441882133484,
-                        "x": 0.12686598300933838,
-                        "y": 0.6741005778312683,
-                        "z": -0.11913508921861649
-                    },
-                    "localScale": {
-                        "x": 1.0000015497207642,
-                        "y": 1.000000238418579,
-                        "z": 1.000000238418579
-                    }
-                }
-            },
-            "LocalFileID": "daa4966cef6bc35a"
         }
     ],
     "Header": {
