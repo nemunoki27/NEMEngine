@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <optional>
+#include <unordered_map>
 // json
 #include <json.hpp>
 
@@ -130,6 +131,8 @@ namespace Engine {
 		// 入力と出力のレンダーターゲット情報
 		RenderTargetSetReference source;
 		RenderTargetSetReference dest;
+		// 追加テクスチャ。keyはshader binding名、valueはRenderTarget名。
+		std::unordered_map<std::string, std::string> extraSources;
 	};
 
 	// コンピュートパスの種類
@@ -218,6 +221,8 @@ namespace Engine {
 
 		// 処理を行うパスの種類
 		ScenePassType type = ScenePassType::Draw;
+		// falseの場合はパスをスキップする。既存シーンは未指定なら有効。
+		bool enabled = true;
 
 		// タイプに応じて使用する
 		ClearPassDesc clear;

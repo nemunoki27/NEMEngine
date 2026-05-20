@@ -6,9 +6,14 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessDebugInjector.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessExecutor.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessTemporaryTargetPool.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/ComputeRootBinder.h>
 #include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Utils.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 //============================================================================
 //	ScenePassExecutor classMethods
@@ -145,6 +150,9 @@ void Engine::ScenePassExecutor::ExecuteScene(GraphicsCore& graphicsCore,
 
 	// シーンパスの実行
 	for (const auto& pass : header.passOrder) {
+		if (!pass.enabled) {
+			continue;
+		}
 		switch (pass.type) {
 		case ScenePassType::Clear:
 
@@ -356,6 +364,21 @@ void Engine::ScenePassExecutor::ExecuteDrawPass(GraphicsCore& graphicsCore,
 void Engine::ScenePassExecutor::ExecutePostProcessPass(GraphicsCore& graphicsCore,
 	const SceneExecutionContext& context, const PostProcessPassDesc& pass) const {
 
+	if (dependencies.postProcessExecutor) {
+
+		PostProcessExecutionDesc desc{};
+		desc.material = pass.material;
+		desc.passName = "PostProcess";
+		desc.source = pass.source;
+		desc.dest = pass.dest;
+		desc.extraSources = pass.extraSources;
+		desc.dispatchMode = ComputeDispatchMode::FromDestSize;
+		if (dependencies.postProcessExecutor->Execute(graphicsCore, RenderFrameRequest{}, context,
+			*dependencies.assetLibrary, *dependencies.pipelineCache, desc)) {
+			return;
+		}
+	}
+
 	// レンダーターゲットを適用
 	MultiRenderTarget* source = context.targetRegistry->Resolve(pass.source);
 	MultiRenderTarget* dest = ApplyRenderTargets(graphicsCore, context, pass.dest);
@@ -392,6 +415,9 @@ void Engine::ScenePassExecutor::ExecuteComputePass(GraphicsCore& graphicsCore,
 	// パイプラインを取得
 	const PipelineState* pipelineState = dependencies.pipelineCache->GetORCreate(graphicsCore.GetDXObject(),
 		*dependencies.assetLibrary, passBinding->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN);
+	if (!pipelineState || !pipelineState->GetComputePipeline()) {
+		return;
+	}
 
 	// 書き込み先として使用するサーフェイスをレンダーターゲット用に遷移してバインドする
 	MultiRenderTarget* source = context.targetRegistry->Resolve(pass.source);
@@ -410,6 +436,12 @@ void Engine::ScenePassExecutor::ExecuteComputePass(GraphicsCore& graphicsCore,
 		return;
 	}
 	if ((needDestColorUAV || needDestForDispatch) && !dest) {
+		return;
+	}
+	if (needDestColorUAV && source && dest && source->GetColorTexture(0) && dest->GetColorTexture(0) &&
+		source->GetColorTexture(0)->GetResource() == dest->GetColorTexture(0)->GetResource()) {
+
+		Logger::Output(LogType::Engine, "[ComputePass] source and dest are same resource. In-place compute is not allowed.");
 		return;
 	}
 
@@ -437,6 +469,7 @@ void Engine::ScenePassExecutor::ExecuteComputePass(GraphicsCore& graphicsCore,
 			return;
 		}
 		if (destColor->GetUAVGPUHandle().ptr == 0) {
+			Logger::Output(LogType::Engine, "[ComputePass] destination color has no UAV descriptor.");
 			return;
 		}
 		destColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -508,6 +541,13 @@ void Engine::ScenePassExecutor::ExecuteComputePass(GraphicsCore& graphicsCore,
 	// 実行
 	commandList->Dispatch(dispatchX, dispatchY, dispatchZ);
 
+	if (needDestColorUAV) {
+
+		RenderTexture2D* destColor = dest->GetColorTexture(0);
+		const D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(destColor->GetResource());
+		commandList->ResourceBarrier(1, &uavBarrier);
+	}
+
 	// UAVバッファにUAVバリア
 	for (ID3D12Resource* resource : registryUAVResources) {
 		if (resource) {
@@ -523,6 +563,10 @@ void Engine::ScenePassExecutor::ExecuteComputePass(GraphicsCore& graphicsCore,
 			static_cast<D3D12_RESOURCE_STATES>(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
 				D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 	}
+	if (needDestColorUAV) {
+
+		dest->TransitionForShaderRead(*dxCommand);
+	}
 }
 
 void Engine::ScenePassExecutor::ExecuteBlitPass(GraphicsCore& graphicsCore,
@@ -531,6 +575,17 @@ void Engine::ScenePassExecutor::ExecuteBlitPass(GraphicsCore& graphicsCore,
 	// レンダーターゲットを適用
 	MultiRenderTarget* source = context.targetRegistry->Resolve(pass.source);
 	MultiRenderTarget* dest = ApplyRenderTargets(graphicsCore, context, pass.dest);
+
+	if (dependencies.postProcessDebugInjector && dependencies.postProcessExecutor &&
+		dependencies.postProcessTargetPool && dependencies.postProcessAssetGenerator) {
+
+		dependencies.postProcessDebugInjector->TryExecuteBeforeBlit(graphicsCore, RenderFrameRequest{},
+			context, pass, *dependencies.assetLibrary, *dependencies.pipelineCache,
+			*dependencies.postProcessExecutor, *dependencies.postProcessTargetPool,
+			*dependencies.postProcessAssetGenerator, source);
+		// Debug PostProcessでdestへのRTVバインドが外れるため、Blit用にもう一度適用する。
+		dest = ApplyRenderTargets(graphicsCore, context, pass.dest);
+	}
 
 	// フルスクリーンマテリアルを実行
 	ExecuteFullscreenMaterial(graphicsCore, context, source, dest,
@@ -779,6 +834,9 @@ bool Engine::ScenePassExecutor::HasExplicitClearForDefaultSurface(const SceneExe
 
 	for (const auto& pass : header.passOrder) {
 
+		if (!pass.enabled) {
+			continue;
+		}
 		if (pass.type != ScenePassType::Clear) {
 			continue;
 		}

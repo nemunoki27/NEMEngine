@@ -1,0 +1,13 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "grayscalePipeline",
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/Grayscale/grayscale.CS.hlsl",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "Engine/Assets/Shaders/Builtin/PostProcess/Grayscale/grayscale.shader.json"
+        }
+    ]
+}

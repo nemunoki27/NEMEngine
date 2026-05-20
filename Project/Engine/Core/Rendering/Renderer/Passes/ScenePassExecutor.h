@@ -16,6 +16,11 @@
 
 namespace Engine {
 
+	class PostProcessAssetGenerator;
+	class PostProcessDebugInjector;
+	class PostProcessExecutor;
+	class PostProcessTemporaryTargetPool;
+
 	//============================================================================
 	//	ScenePassExecutor class
 	//	シーンの描画パスを実行するクラス
@@ -37,6 +42,10 @@ namespace Engine {
 			PipelineStateCache* pipelineCache = nullptr;
 			MaterialResolver* materialResolver = nullptr;
 			RaytracingPipelineStateCache* raytracingPipelineCache = nullptr;
+			PostProcessExecutor* postProcessExecutor = nullptr;
+			PostProcessTemporaryTargetPool* postProcessTargetPool = nullptr;
+			PostProcessDebugInjector* postProcessDebugInjector = nullptr;
+			PostProcessAssetGenerator* postProcessAssetGenerator = nullptr;
 			const ViewportRenderService* viewportService = nullptr;
 			const RenderItemBatchDispatcher* dispatcher = nullptr;
 		};

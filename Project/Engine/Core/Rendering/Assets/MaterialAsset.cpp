@@ -21,6 +21,10 @@ namespace {
 			outValue.value = data.get<float>();
 			return true;
 		}
+		if (data.is_boolean()) {
+			outValue.value = data.get<bool>();
+			return true;
+		}
 		if (data.is_number_integer()) {
 			outValue.value = static_cast<int32_t>(data.get<int64_t>());
 			return true;
@@ -72,7 +76,8 @@ namespace {
 
 			if constexpr (std::is_same_v<ValueType, float> ||
 				std::is_same_v<ValueType, int32_t> ||
-				std::is_same_v<ValueType, uint32_t>) {
+				std::is_same_v<ValueType, uint32_t> ||
+				std::is_same_v<ValueType, bool>) {
 
 				return value;
 			} else if constexpr (std::is_same_v<ValueType, Engine::Vector2>) {

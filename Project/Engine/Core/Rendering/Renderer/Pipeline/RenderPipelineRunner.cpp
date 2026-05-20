@@ -145,6 +145,9 @@ namespace {
 			};
 
 		for (const auto& pass : header.passOrder) {
+			if (!pass.enabled) {
+				continue;
+			}
 			switch (pass.type) {
 			case Engine::ScenePassType::DepthPrepass: {
 
@@ -367,6 +370,8 @@ void Engine::RenderPipelineRunner::Init() {
 	renderAssetLibrary_.Clear();
 	pipelineStateCache_.Clear();
 	materialResolver_.Clear();
+	postProcessExecutor_.Release();
+	postProcessAssetGenerator_.Clear();
 	frameLightBatch_.Clear();
 	gameViewLightSet_.Clear();
 	sceneViewLightSet_.Clear();
@@ -394,6 +399,8 @@ void Engine::RenderPipelineRunner::Finalize() {
 	renderAssetLibrary_.Clear();
 	pipelineStateCache_.Clear();
 	materialResolver_.Clear();
+	postProcessExecutor_.Release();
+	postProcessAssetGenerator_.Clear();
 	lightExtractorRegistry_.Clear();
 	frameLightBatch_.Clear();
 	gameViewLightSet_.Clear();
@@ -432,6 +439,8 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 
 	// アセットライブラリの初期化、フレーム開始処理
 	renderAssetLibrary_.Init(request.assetDatabase);
+	postProcessAssetGenerator_.EnsureBuiltinAssets(request.assetDatabase);
+	postProcessExecutor_.BeginFrame(request.systemContext ? request.systemContext->deltaTime : 0.0f);
 	backendRegistry_.BeginFrame(graphicsCore);
 
 	// レイトレシーンフレーム開始処理
@@ -538,6 +547,10 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	deps.viewportService = viewportRenderService_.get();
 	deps.dispatcher = &batchDispatcher_;
 	deps.raytracingPipelineCache = &raytracingPipelineStateCache_;
+	deps.postProcessExecutor = &postProcessExecutor_;
+	deps.postProcessTargetPool = &postProcessTargetPool_;
+	deps.postProcessDebugInjector = &postProcessDebugInjector_;
+	deps.postProcessAssetGenerator = &postProcessAssetGenerator_;
 	ScenePassExecutor executor{ deps };
 
 	// 描画ビューごとに描画を実行
@@ -768,6 +781,10 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 	deps.viewportService = viewportRenderService_.get();
 	deps.dispatcher = &batchDispatcher_;
 	deps.raytracingPipelineCache = &raytracingPipelineStateCache_;
+	deps.postProcessExecutor = &postProcessExecutor_;
+	deps.postProcessTargetPool = &postProcessTargetPool_;
+	deps.postProcessDebugInjector = &postProcessDebugInjector_;
+	deps.postProcessAssetGenerator = &postProcessAssetGenerator_;
 	ScenePassExecutor executor{ deps };
 	executor.ExecuteScene(graphicsCore, RenderFrameRequest{}, context, &passBuckets);
 

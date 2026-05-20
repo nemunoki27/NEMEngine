@@ -67,6 +67,34 @@ namespace Engine {
 		BYTE mask = 0;
 		D3D_REGISTER_COMPONENT_TYPE componentType{};
 	};
+	// 定数バッファ内の変数情報
+	struct ShaderConstantBufferVariable {
+
+		// 変数名
+		std::string name;
+		// 定数バッファ内の開始位置
+		UINT offset = 0;
+		// 変数が使用するバイト数
+		UINT size = 0;
+
+		D3D_SHADER_VARIABLE_CLASS valueClass{};
+		D3D_SHADER_VARIABLE_TYPE valueType{};
+		UINT rows = 0;
+		UINT columns = 0;
+		UINT elements = 0;
+	};
+	// 定数バッファの情報
+	struct ShaderConstantBufferInfo {
+
+		// 定数バッファ名
+		std::string name;
+		UINT bindPoint = 0;
+		UINT space = 0;
+		UINT size = 0;
+
+		// バッファ内の変数一覧
+		std::vector<ShaderConstantBufferVariable> variables;
+	};
 	// シェーダーのリフレクション情報
 	struct ShaderReflectionInfo {
 
@@ -74,6 +102,8 @@ namespace Engine {
 		std::vector<ShaderResourceBinding> resources;
 		// シェーダー入力セマンティクスの情報
 		std::vector<ShaderInputSemantic> inputs;
+		// 定数バッファの中身。Material Parametersの自動詰め込みに使用する。
+		std::vector<ShaderConstantBufferInfo> constantBuffers;
 		uint64_t requiresFlags = 0;
 
 		// コンピュートシェーダーのスレッドグループサイズ

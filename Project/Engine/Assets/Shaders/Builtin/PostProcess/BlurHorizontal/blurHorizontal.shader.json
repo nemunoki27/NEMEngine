@@ -1,0 +1,14 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "blurHorizontalShader",
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/BlurHorizontal/blurHorizontal.CS.hlsl",
+    "stages": [
+        {
+            "entry": "main",
+            "file": "Builtin/PostProcess/BlurHorizontal/blurHorizontal.CS.hlsl",
+            "profile": "cs_6_0",
+            "stage": "CS"
+        }
+    ]
+}

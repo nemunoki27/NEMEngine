@@ -1,0 +1,13 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "blurHorizontalPipeline",
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/BlurHorizontal/blurHorizontal.CS.hlsl",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "Engine/Assets/Shaders/Builtin/PostProcess/BlurHorizontal/blurHorizontal.shader.json"
+        }
+    ]
+}

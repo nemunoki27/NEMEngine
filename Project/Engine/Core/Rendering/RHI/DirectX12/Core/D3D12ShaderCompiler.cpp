@@ -80,6 +80,72 @@ namespace {
 			// 取得したバインディング情報をリストに追加
 			out.resources.emplace_back(std::move(binding));
 		}
+		// 定数バッファの内部変数を取得する。
+		// RootSignatureの生成には不要だが、PostProcessのMaterial Parametersを
+		// HLSL側のオフセットへ詰めるために保持しておく。
+		for (UINT i = 0; i < shaderDesc.ConstantBuffers; ++i) {
+
+			ID3D12ShaderReflectionConstantBuffer* constantBuffer = reflection->GetConstantBufferByIndex(i);
+			if (!constantBuffer) {
+				continue;
+			}
+
+			D3D12_SHADER_BUFFER_DESC bufferDesc{};
+			if (FAILED(constantBuffer->GetDesc(&bufferDesc))) {
+				continue;
+			}
+
+			ShaderConstantBufferInfo bufferInfo{};
+			bufferInfo.name = bufferDesc.Name ? bufferDesc.Name : "";
+			bufferInfo.size = bufferDesc.Size;
+
+			// BoundResources側の情報と名前で突き合わせ、register番号も保持する。
+			for (const ShaderResourceBinding& resource : out.resources) {
+				if (resource.kind == ShaderBindingKind::CBV && resource.name == bufferInfo.name) {
+					bufferInfo.bindPoint = resource.bindPoint;
+					bufferInfo.space = resource.space;
+					break;
+				}
+			}
+
+			bufferInfo.variables.reserve(bufferDesc.Variables);
+			for (UINT variableIndex = 0; variableIndex < bufferDesc.Variables; ++variableIndex) {
+
+				ID3D12ShaderReflectionVariable* variable = constantBuffer->GetVariableByIndex(variableIndex);
+				if (!variable) {
+					continue;
+				}
+
+				D3D12_SHADER_VARIABLE_DESC variableDesc{};
+				if (FAILED(variable->GetDesc(&variableDesc))) {
+					continue;
+				}
+
+				ShaderConstantBufferVariable variableInfo{};
+				variableInfo.name = variableDesc.Name ? variableDesc.Name : "";
+				variableInfo.offset = variableDesc.StartOffset;
+				variableInfo.size = variableDesc.Size;
+
+				if (ID3D12ShaderReflectionType* type = variable->GetType()) {
+
+					D3D12_SHADER_TYPE_DESC typeDesc{};
+					if (SUCCEEDED(type->GetDesc(&typeDesc))) {
+
+						variableInfo.valueClass = typeDesc.Class;
+						variableInfo.valueType = typeDesc.Type;
+						variableInfo.rows = typeDesc.Rows;
+						variableInfo.columns = typeDesc.Columns;
+						variableInfo.elements = typeDesc.Elements;
+					}
+				}
+				if (!variableInfo.name.empty()) {
+					bufferInfo.variables.emplace_back(std::move(variableInfo));
+				}
+			}
+			if (!bufferInfo.name.empty()) {
+				out.constantBuffers.emplace_back(std::move(bufferInfo));
+			}
+		}
 
 		// コンピュートシェーダーの場合、スレッドグループサイズを取得する
 		if (Algorithm::HasFlag<ShaderStage>(stage, ShaderStage::CS)) {

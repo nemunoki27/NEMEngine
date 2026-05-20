@@ -381,6 +381,7 @@ bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompile
 	threadGroupX_ = shader.reflection.threadGroupX;
 	threadGroupY_ = shader.reflection.threadGroupY;
 	threadGroupZ_ = shader.reflection.threadGroupZ;
+	computeReflection_ = shader.reflection;
 
 	Logger::Output(LogType::Engine, "ThreadGroup[{},{},{}]", threadGroupX_, threadGroupY_, threadGroupZ_);
 

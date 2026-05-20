@@ -20,6 +20,10 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessDebugInjector.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessExecutor.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessTemporaryTargetPool.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/RHI/DirectX12/Buffers/RenderBufferRegistry.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
@@ -199,6 +203,11 @@ namespace Engine {
 
 		// 描画アイテムのバッチングと描画の実行
 		RenderItemBatchDispatcher batchDispatcher_{};
+		// ComputeShader版PostProcess
+		PostProcessExecutor postProcessExecutor_{};
+		PostProcessTemporaryTargetPool postProcessTargetPool_{};
+		PostProcessDebugInjector postProcessDebugInjector_{};
+		PostProcessAssetGenerator postProcessAssetGenerator_{};
 
 		// ルートシーン用のビュー別ライト集合
 		PerViewLightSet gameViewLightSet_{};

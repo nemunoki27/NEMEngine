@@ -113,6 +113,29 @@ namespace {
 		}
 		return data;
 	}
+	std::unordered_map<std::string, std::string> ParseStringMap(const nlohmann::json& data) {
+
+		std::unordered_map<std::string, std::string> result{};
+		if (!data.is_object()) {
+			return result;
+		}
+
+		for (auto it = data.begin(); it != data.end(); ++it) {
+			if (it.value().is_string()) {
+				result[it.key()] = it.value().get<std::string>();
+			}
+		}
+		return result;
+	}
+
+	nlohmann::json StringMapToJson(const std::unordered_map<std::string, std::string>& values) {
+
+		nlohmann::json data = nlohmann::json::object();
+		for (const auto& [key, value] : values) {
+			data[key] = value;
+		}
+		return data;
+	}
 	Engine::SceneRenderTargetColorDesc ParseSceneRenderTargetColorDesc(const nlohmann::json& data,
 		const std::string& ownerName, size_t colorIndex) {
 
@@ -340,6 +363,7 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 
 			ScenePassDesc passDesc{};
 			passDesc.type = EnumAdapter<ScenePassType>::FromString(pass.value("type", "Draw")).value();
+			passDesc.enabled = pass.value("enabled", true);
 			switch (passDesc.type) {
 			case ScenePassType::Clear:
 				passDesc.clear = ParseClearPass(pass);
@@ -364,6 +388,9 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 				}
 				if (pass.contains("dest")) {
 					passDesc.postProcess.dest = ParseRenderTargetSet(pass["dest"]);
+				}
+				if (pass.contains("extraSources")) {
+					passDesc.postProcess.extraSources = ParseStringMap(pass["extraSources"]);
 				}
 				break;
 			case ScenePassType::Compute:
@@ -441,6 +468,7 @@ nlohmann::json Engine::ToJson(const SceneHeader& sceneHeader) {
 
 		nlohmann::json item = nlohmann::json::object();
 		item["type"] = EnumAdapter<ScenePassType>::ToString(pass.type);
+		item["enabled"] = pass.enabled;
 
 		switch (pass.type) {
 		case ScenePassType::Clear:
@@ -470,6 +498,9 @@ nlohmann::json Engine::ToJson(const SceneHeader& sceneHeader) {
 			item["material"] = ToString(pass.postProcess.material);
 			item["source"] = RenderTargetSetToJson(pass.postProcess.source);
 			item["dest"] = RenderTargetSetToJson(pass.postProcess.dest);
+			if (!pass.postProcess.extraSources.empty()) {
+				item["extraSources"] = StringMapToJson(pass.postProcess.extraSources);
+			}
 			break;
 		case ScenePassType::Compute:
 			item["material"] = ToString(pass.compute.material);

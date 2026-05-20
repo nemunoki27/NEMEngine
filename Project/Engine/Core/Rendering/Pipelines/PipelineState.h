@@ -95,6 +95,8 @@ namespace Engine {
 		UINT GetThreadGroupX() const { return threadGroupX_; }
 		UINT GetThreadGroupY() const { return threadGroupY_; }
 		UINT GetThreadGroupZ() const { return threadGroupZ_; }
+		// コンピュートシェーダーのリフレクション情報を取得する
+		const ShaderReflectionInfo& GetComputeReflection() const { return computeReflection_; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -148,6 +150,8 @@ namespace Engine {
 		UINT threadGroupX_ = 1;
 		UINT threadGroupY_ = 1;
 		UINT threadGroupZ_ = 1;
+		// Compute用の定数バッファ構造をPostProcess側で参照する
+		ShaderReflectionInfo computeReflection_{};
 
 		//--------- functions ----------------------------------------------------
 

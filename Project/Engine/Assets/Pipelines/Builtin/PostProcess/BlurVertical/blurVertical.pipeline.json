@@ -1,0 +1,13 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "blurVerticalPipeline",
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/BlurVertical/blurVertical.CS.hlsl",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "Engine/Assets/Shaders/Builtin/PostProcess/BlurVertical/blurVertical.shader.json"
+        }
+    ]
+}
