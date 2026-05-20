@@ -35,20 +35,21 @@ Engine::MultiRenderTarget* Engine::PostProcessTemporaryTargetPool::Acquire(
 		return nullptr;
 	}
 
+	// レンダーターゲットの情報を構築
 	SceneRenderTargetDesc desc{};
 	desc.name = tempDesc.name;
 	desc.sizeMode = SceneRenderTargetSizeMode::Fixed;
 	desc.fixedWidth = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(source.GetWidth()) * tempDesc.widthScale));
 	desc.fixedHeight = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(source.GetHeight()) * tempDesc.heightScale));
 	desc.withDepth = false;
-
+	// 色情報
 	SceneRenderTargetColorDesc color{};
 	color.name = tempDesc.name;
 	color.format = ToSceneFormat(tempDesc.format);
 	color.createUAV = tempDesc.createUAV;
 	desc.colors.emplace_back(std::move(color));
 
-	// ResizeTransientは同名RTを保持し、サイズ/フォーマットが変わった時だけ作り直す。
+	// ResizeTransientは同名RTを保持し、サイズ/フォーマットが変わった時だけ作り直す
 	return registry.ResizeTransient(graphicsCore, desc, desc.fixedWidth, desc.fixedHeight);
 }
 

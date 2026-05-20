@@ -6,24 +6,24 @@
                     "affectLayerMask": 4294967295,
                     "color": {
                         "a": 1.0,
-                        "b": 1.0,
-                        "g": 1.0,
-                        "r": 1.0
+                        "b": 0.49643945693969727,
+                        "g": 0.48957309126853943,
+                        "r": 0.4131103754043579
                     },
                     "direction": {
-                        "x": 0.0,
-                        "y": -1.0,
-                        "z": 0.0
+                        "x": 0.5725941061973572,
+                        "y": -0.8198119401931763,
+                        "z": 0.006664452608674765
                     },
                     "enabled": true,
-                    "intensity": 1.0
+                    "intensity": 2.9000000953674316
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
                     "siblingOrder": 0
                 },
                 "Name": {
-                    "name": "Entity"
+                    "name": "DirectionalLight"
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -18242,6 +18242,7 @@
                     ],
                     "depth": "SceneMain.Depth"
                 },
+                "enabled": true,
                 "type": "Clear"
             },
             {
@@ -18253,6 +18254,7 @@
                     ],
                     "depth": "SceneMain.Depth"
                 },
+                "enabled": true,
                 "passName": "ZPrepass",
                 "queue": "Opaque",
                 "type": "DepthPrepass"
@@ -18267,6 +18269,7 @@
                     "depth": "SceneMain.Depth"
                 },
                 "dispatchMode": "FromDestSize",
+                "enabled": true,
                 "groupCountX": 1,
                 "groupCountY": 1,
                 "groupCountZ": 1,
@@ -18291,6 +18294,7 @@
                     ],
                     "depth": "SceneMain.Depth"
                 },
+                "enabled": true,
                 "queue": "Opaque",
                 "type": "Draw"
             },
@@ -18300,6 +18304,7 @@
                         "SceneColorFinal"
                     ]
                 },
+                "enabled": true,
                 "material": "375384bc3bf6bb7c",
                 "passName": "Raytracing",
                 "source": {
@@ -18318,6 +18323,7 @@
                         "View"
                     ]
                 },
+                "enabled": true,
                 "material": "93946a52e2bc7030",
                 "source": {
                     "colors": [
@@ -18333,6 +18339,7 @@
                     ],
                     "depth": "ViewDepth"
                 },
+                "enabled": true,
                 "queue": "CanvasPreModel",
                 "type": "Draw"
             }

@@ -766,7 +766,7 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 				ImGui::EndCombo();
 			}
 			ImGui::SameLine();
-			ImGui::SetNextItemWidth(125.0f);
+			ImGui::SetNextItemWidth(216.0f);
 			if (EnumAdapter<QuaternionMultiplyOrder>::Combo("Order", &track.quaternionMultiplyOrder)) {
 				clipDirty_ = true;
 			}
@@ -1113,7 +1113,7 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 	MyGUI::DragInt("キー数", generatorSampleCount_, { .dragSpeed = 1.0f,.minValue = 2,.maxValue = 1024 });
 	generatorSampleCount_ = (std::max)(generatorSampleCount_, 2);
 
-	MyGUI::EnumCombo("適用先", generatorApplyTo_, { .reserveRightWidth = reserveRightWidth });
+	MyGUI::EnumCombo("適用先", generatorApplyTo_, { .reserveRightWidth = ImGui::GetContentRegionAvail().x / 6.0f });
 	MyGUI::Checkbox("範囲内のキーを置き換える", generatorReplaceKeys_);
 
 	if (!ImGui::Button("生成", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
@@ -1148,7 +1148,7 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 				const float eased = EasedValue(generatorEasingType_, normalized);
 				value = generatorStartValue_ + (generatorEndValue_ - generatorStartValue_) * eased;
 			}
-			channel.AddKey(time, value, CurveInterpolationMode::Linear);
+			channel.AddKey(time, value, CurveInterpolationMode::Spline);
 		}
 		};
 
@@ -1546,7 +1546,7 @@ void AnimationClipTool::AddKeyToChannel(AnimationCurveTrack& track, uint32_t cha
 		}
 	}
 
-	const uint32_t addedIndex = channel.AddKey(time, value, CurveInterpolationMode::Linear);
+	const uint32_t addedIndex = channel.AddKey(time, value, CurveInterpolationMode::Spline);
 	if (IsQuaternionAxisAngleTrack(track) && channelIndex == 0u) {
 		CurveQuaternionAxisKey axisKey = MakeDefaultQuaternionAxisKey();
 		if (!track.quaternionAxisKeys.empty()) {

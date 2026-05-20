@@ -22,17 +22,22 @@ namespace Engine {
 	struct SceneExecutionContext;
 
 	//============================================================================
-	//	PostProcessDebugInjector class
-	//	Blit直前へBuiltin PostProcessを一枚だけ挟む確認用の補助クラス。
+	//	PostProcessDebugInjector structures
 	//============================================================================
+
+	// デバッグポストプロセス実行設定
 	struct PostProcessDebugInjectSettings {
 
-		bool enabled = true;
+		bool enabled = false;
 		std::string materialName = "Grayscale";
 		std::string sourceName = "SceneColorFinal";
 		std::string tempName = "PostProcessDebugTemp";
 	};
 
+	//============================================================================
+	//	PostProcessDebugInjector class
+	//	Blit直前へBuiltin PostProcessを一枚だけ挟む確認用の補助クラス
+	//============================================================================
 	class PostProcessDebugInjector {
 	public:
 		//========================================================================
