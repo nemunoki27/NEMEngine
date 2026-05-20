@@ -44,7 +44,7 @@ project "imgui"
     filter {}
 
 project "imgui_node_editor"
-    location (NEM_IMGUI_NODE_EDITOR_PROJECT_LOCATION or path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor"))
+    location (NEM_IMGUI_NODE_EDITOR_PROJECT_LOCATION or path.join(NEM_ENGINE_GENERATED_ROOT, "Projects/imgui-node-editor"))
     kind "StaticLib"
 
     removeconfigurations { "Develop" }
@@ -60,25 +60,25 @@ project "imgui_node_editor"
     buildoptions { "/utf-8" }
 
     files {
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/crude_json.cpp"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/crude_json.h"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_canvas.cpp"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_canvas.h"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_node_editor_api.cpp"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_node_editor.cpp"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_node_editor.h"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_node_editor_internal.h"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_node_editor_internal.inl"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_bezier_math.h"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_bezier_math.inl"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_extra_math.h"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_extra_math.inl"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/misc/imgui_node_editor.natvis"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/misc/crude_json.natvis"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/crude_json.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/crude_json.h"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/imgui_canvas.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/imgui_canvas.h"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/imgui_node_editor_api.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/imgui_node_editor.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/imgui_node_editor.h"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/imgui_node_editor_internal.h"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/imgui_node_editor_internal.inl"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/imgui_bezier_math.h"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/imgui_bezier_math.inl"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/imgui_extra_math.h"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/imgui_extra_math.inl"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/misc/imgui_node_editor.natvis"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/misc/crude_json.natvis"),
     }
 
     includedirs {
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor"),
         path.join(NEM_PROJECT_ROOT, "Externals/imgui"),
     }
 

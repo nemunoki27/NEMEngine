@@ -76,7 +76,7 @@ function NEM_AddEngineIncludeSettings()
         path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/include"),
         path.join(NEM_PROJECT_ROOT, "Externals/DirectXTex"),
         path.join(NEM_PROJECT_ROOT, "Externals/imgui"),
-        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor"),
         path.join(NEM_PROJECT_ROOT, "Externals/nlohmann"),
     }
 
