@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Core/ComponentType.h>
 #include <Engine/Core/World/ECS/Config/ECSConfig.h>
-#include <Engine/Core/Foundation/Identity/TypeId.h>
+#include <Engine/Core/Foundation/Identity/TypeID.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 // c++

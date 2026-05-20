@@ -1,4 +1,4 @@
-#include "TypeId.h"
+#include "TypeID.h"
 
 //============================================================================
 //	TypeHash classMethods

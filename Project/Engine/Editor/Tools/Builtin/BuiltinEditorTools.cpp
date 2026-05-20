@@ -7,6 +7,7 @@
 #include <Engine/Editor/Tools/Builtin/Animation/AnimationClipTool.h>
 #include <Engine/Editor/Tools/Builtin/Camera/CameraManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/Collision/CollisionManagerTool.h>
+#include <Engine/Editor/Tools/Builtin/RenderPathGraph/RenderPathGraphTool.h>
 #include <Engine/Core/Rendering/Renderer/Views/SceneViewCameraController.h>
 
 // c++
@@ -39,4 +40,5 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<SceneViewCameraController>();
 	RegisterBuiltinEditorTool<CollisionManagerTool>();
 	RegisterBuiltinEditorTool<AnimationClipTool>();
+	RegisterBuiltinEditorTool<RenderPathGraphTool>();
 }

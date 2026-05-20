@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Behavior/MonoBehavior.h>
-#include <Engine/Core/Foundation/Identity/TypeId.h>
+#include <Engine/Core/Foundation/Identity/TypeID.h>
 
 // c++
 #include <functional>
