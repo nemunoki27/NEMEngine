@@ -1,3 +1,6 @@
 [submodule "Project/Externals/assimp"]
 	path = Project/Externals/assimp
 	url = https://github.com/assimp/assimp.git
+[submodule "Engine/Externals/imgui-node-editor"]
+	path = Engine/Externals/imgui-node-editor
+	url = https://github.com/thedmd/imgui-node-editor.git

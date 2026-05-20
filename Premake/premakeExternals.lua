@@ -43,6 +43,62 @@ project "imgui"
 
     filter {}
 
+project "imgui_node_editor"
+    location (NEM_IMGUI_NODE_EDITOR_PROJECT_LOCATION or path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor"))
+    kind "StaticLib"
+
+    removeconfigurations { "Develop" }
+    configmap { ["Develop"] = "Release" }
+
+    system "windows"
+    language "C++"
+    cppdialect "C++20"
+    toolset "v143"
+    staticruntime "On"
+    warnings "Default"
+    multiprocessorcompile "On"
+    buildoptions { "/utf-8" }
+
+    files {
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/crude_json.cpp"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/crude_json.h"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_canvas.cpp"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_canvas.h"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_node_editor_api.cpp"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_node_editor.cpp"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_node_editor.h"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_node_editor_internal.h"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_node_editor_internal.inl"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_bezier_math.h"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_bezier_math.inl"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_extra_math.h"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/imgui_extra_math.inl"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/misc/imgui_node_editor.natvis"),
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor/misc/crude_json.natvis"),
+    }
+
+    includedirs {
+        path.join(NEMENGINE_ROOT, "Engine/Externals/imgui-node-editor"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui"),
+    }
+
+    defines {
+        "NOMINMAX",
+        "IMGUI_DEFINE_MATH_OPERATORS",
+    }
+
+    links {
+        "imgui",
+    }
+
+    filter "configurations:Debug"
+        symbols "On"
+
+    filter "configurations:Release"
+        optimize "On"
+
+    filter {}
+
 project "meshoptimizer"
     location (NEM_MESHOPTIMIZER_PROJECT_LOCATION or path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer"))
     kind "StaticLib"
