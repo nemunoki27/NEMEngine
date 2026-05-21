@@ -1,4 +1,5 @@
 local ASSIMP_BUILD_DIR = path.join(NEMENGINE_ROOT, "Generated/Externals/assimp")
+local LIBCURL_BUILD_DIR = path.join(NEMENGINE_ROOT, "Generated/Externals/libcurl")
 
 externalproject "DirectXTex"
     location (path.join(NEMENGINE_ROOT, "Project/Externals/DirectXTex"))
@@ -148,6 +149,16 @@ externalproject "assimp"
     language "C++"
 
     dependson { "zlibstatic" }
+
+    configmap {
+        ["Develop"] = "Release",
+    }
+
+externalproject "libcurl"
+    location (path.join(LIBCURL_BUILD_DIR, "lib"))
+    filename "libcurl_static"
+    kind "StaticLib"
+    language "C"
 
     configmap {
         ["Develop"] = "Release",
