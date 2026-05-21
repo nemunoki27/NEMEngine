@@ -49,6 +49,8 @@ namespace Engine {
 
 		// 描画Styleを取得する
 		const NodeGraphStyle& GetStyle() const { return style_; }
+		// 描画Styleを取得する
+		NodeGraphStyle& GetStyle() { return style_; }
 	private:
 		//========================================================================
 		//	private Methods

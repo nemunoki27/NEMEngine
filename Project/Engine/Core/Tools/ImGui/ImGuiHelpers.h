@@ -33,6 +33,15 @@ namespace Engine {
 	//	MyGUI structures
 	//============================================================================
 
+	// プロパティ行設定
+	struct PropertyRowSetting {
+
+		// ラベル表示幅
+		std::optional<float> labelWidth = std::nullopt;
+		// 行全体の表示幅
+		std::optional<float> rowWidth = std::nullopt;
+	};
+
 	// 値編集設定
 	struct FloatEditSetting {
 
@@ -46,12 +55,16 @@ namespace Engine {
 		float reserveRightWidth = 0.0f;
 		// 表示を行う軸
 		std::optional<Axis> floatAxis = std::nullopt;
+		// プロパティ行設定
+		PropertyRowSetting propertyRow{};
 	};
 	struct IntEditSetting {
 
 		float dragSpeed = 1.0f;
 		int32_t minValue = (std::numeric_limits<int32_t>::min)();
 		int32_t maxValue = (std::numeric_limits<int32_t>::max)();
+		// プロパティ行設定
+		PropertyRowSetting propertyRow{};
 	};
 	// 値編集の結果
 	struct ValueEditResult {
@@ -75,12 +88,16 @@ namespace Engine {
 		ImVec2 size = ImVec2(0.0f, 0.0f);
 		// ImGuiの文字入力フラグ
 		ImGuiInputTextFlags flags = ImGuiInputTextFlags_None;
+		// プロパティ行設定
+		PropertyRowSetting propertyRow{};
 	};
 	// コンボボックス設定
 	struct ComboEditSetting {
 
 		// 右側に別UIを置くために残す幅
 		float reserveRightWidth = 0.0f;
+		// プロパティ行設定
+		PropertyRowSetting propertyRow{};
 	};
 	// アセット設定
 	struct AssetEditSetting {
@@ -88,6 +105,8 @@ namespace Engine {
 		bool useAutoPropertyRow = true;
 
 		std::optional<ImVec2> buttonSize = std::nullopt;
+		// プロパティ行設定
+		PropertyRowSetting propertyRow{};
 	};
 	// エンティティ参照設定
 	struct EntityEditSetting {
@@ -95,6 +114,8 @@ namespace Engine {
 		bool useAutoPropertyRow = true;
 
 		std::optional<ImVec2> buttonSize = std::nullopt;
+		// プロパティ行設定
+		PropertyRowSetting propertyRow{};
 	};
 	// ビューポートの位置とサイズを表す構造体
 	struct GizmoViewportRect {
@@ -165,7 +186,7 @@ namespace Engine {
 		// ポップアップ内で使用する文字入力とOK/Cancelを描画する
 		static TextInputPopupResult InputTextPopupContent(const char* label, std::string& text, const char* errorText = nullptr);
 		// 汎用プロパティ行
-		static bool BeginPropertyRow(const char* label);
+		static bool BeginPropertyRow(const char* label, const PropertyRowSetting& setting = PropertyRowSetting{});
 		static void EndPropertyRow();
 
 		//========================================================================
@@ -225,7 +246,7 @@ namespace Engine {
 		//========================================================================
 
 		// チェックボックス切り替え
-		static bool Checkbox(const char* label, bool& value);
+		static bool Checkbox(const char* label, bool& value, const PropertyRowSetting& setting = PropertyRowSetting{});
 		static bool SmallCheckbox(const char* id, bool& value);
 		// 入力
 		static ValueEditResult InputText(const char* label, std::string& text, const TextEditSetting& setting = TextEditSetting{});
@@ -260,7 +281,7 @@ namespace Engine {
 
 		ValueEditResult result{};
 
-		if (!BeginPropertyRow(label)) {
+		if (!BeginPropertyRow(label, setting.propertyRow)) {
 			return result;
 		}
 

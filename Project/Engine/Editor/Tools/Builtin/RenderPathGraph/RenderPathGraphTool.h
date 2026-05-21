@@ -14,6 +14,7 @@
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 
 // c++
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -105,10 +106,12 @@ namespace Engine {
 		void DrawToolbar(const EditorToolContext& context);
 		// 右側Panelを描画する
 		void DrawSidePanel(const EditorToolContext& context);
+		// Node Style編集Windowを描画する
+		void DrawNodeStyleEditWindow();
 		// NodeGraph本体を描画する
 		void DrawNodeGraph(const EditorToolContext& context);
 		// 選択NodeのPropertyを描画する
-		void DrawNodeProperties(GraphNode& node);
+		void DrawNodeProperties(GraphNode& node, const EditorToolContext& context);
 		// 検証メッセージを描画する
 		void DrawValidationMessages();
 		// Compile結果を描画する
@@ -135,5 +138,11 @@ namespace Engine {
 		bool MakeSceneBackup(const EditorToolContext& context);
 		// 現在Scene用のGraph保存Pathを作成する
 		std::string MakeActiveGraphPath(const EditorToolContext& context) const;
+		// Node Styleの保存Pathを作成する
+		std::filesystem::path MakeNodeStyleConfigPath() const;
+		// Node Styleを読み込む
+		void LoadNodeStyleConfig();
+		// Node Styleを保存する
+		void SaveNodeStyleConfig();
 	};
 } // Engine

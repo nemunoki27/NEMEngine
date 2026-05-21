@@ -70,9 +70,7 @@ bool Engine::NodeGraphView::Draw(NodeGraphContext& context, GraphDocument& docum
 
 	// NodeEditorのContextをこのViewに切り替える
 	ed::SetCurrentEditor(context.Get());
-	ed::PushStyleVar(ed::StyleVar_NodeRounding, 7.0f);
-	ed::PushStyleVar(ed::StyleVar_NodePadding, ImVec4(10.0f, 8.0f, 10.0f, 8.0f));
-	ed::PushStyleVar(ed::StyleVar_LinkStrength, 85.0f);
+	style_.PushEditorStyle();
 	ed::Begin(desc.editorId, ImVec2(0.0f, 0.0f));
 
 	for (GraphNode& node : document.nodes) {
@@ -94,7 +92,7 @@ bool Engine::NodeGraphView::Draw(NodeGraphContext& context, GraphDocument& docum
 	DrawBackgroundMenu(desc);
 
 	ed::End();
-	ed::PopStyleVar(3);
+	style_.PopEditorStyle();
 	ed::SetCurrentEditor(nullptr);
 
 	return changed;
@@ -105,14 +103,13 @@ void Engine::NodeGraphView::DrawNode(GraphDocument& document, GraphNode& node, c
 	(void)document;
 
 	ed::BeginNode(ToNodeID(node.id));
+	ImGui::PushID(reinterpret_cast<void*>(static_cast<uintptr_t>(node.id)));
 
 	const ImVec4 accentColor = style_.GetNodeAccentColor(node.type);
-	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, node.enabled ? 1.0f : 0.45f);
+	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, node.enabled ? 1.0f : style_.disabledNodeAlpha);
 
 	// タイトル部。Unity系GraphViewに寄せて、種類色を左に出す
-	ImGui::TextColored(accentColor, "■");
-	ImGui::SameLine();
-	ImGui::TextUnformatted(node.displayName.empty() ? node.type.c_str() : node.displayName.c_str());
+	ImGui::TextColored(accentColor, node.displayName.empty() ? node.type.c_str() : node.displayName.c_str());
 
 	if (!node.type.empty()) {
 		ImGui::TextDisabled("%s", node.type.c_str());
@@ -134,6 +131,8 @@ void Engine::NodeGraphView::DrawNode(GraphDocument& document, GraphNode& node, c
 		if (i < node.inputs.size()) {
 			GraphPin& pin = node.inputs[i];
 			ed::BeginPin(ToPinID(pin.id), ed::PinKind::Input);
+			// 入力Pinは左側へ接続口を出すため、Outputとは別のPivotを使う
+			ed::PinPivotAlignment(style_.inputPivotAlignment);
 			NodeGraphDrawUtils::DrawPinIcon(pin, style_);
 			ImGui::SameLine();
 			ImGui::TextUnformatted(pin.name.c_str());
@@ -142,11 +141,13 @@ void Engine::NodeGraphView::DrawNode(GraphDocument& document, GraphNode& node, c
 			ImGui::Dummy(ImVec2(80.0f, ImGui::GetTextLineHeight()));
 		}
 
-		ImGui::SameLine(180.0f);
+		ImGui::SameLine((std::max)(120.0f, style_.nodeWidth - 80.0f));
 
 		if (i < node.outputs.size()) {
 			GraphPin& pin = node.outputs[i];
 			ed::BeginPin(ToPinID(pin.id), ed::PinKind::Output);
+			// 出力Pinは右側へ接続口を出すため、正方向のPivotを使う
+			ed::PinPivotAlignment(style_.outputPivotAlignment);
 			ImGui::TextUnformatted(pin.name.c_str());
 			ImGui::SameLine();
 			NodeGraphDrawUtils::DrawPinIcon(pin, style_);
@@ -155,6 +156,9 @@ void Engine::NodeGraphView::DrawNode(GraphDocument& document, GraphNode& node, c
 
 		ImGui::PopID();
 	}
+
+	// Nodeの横幅を揃えるため、内容が少ないNodeにも最小幅を持たせる
+	ImGui::Dummy(ImVec2(style_.nodeWidth, 0.0f));
 
 	if (desc.drawNodeDropTarget) {
 		// Materialなど、Node上へ直接Dropする処理はTool側へ委譲する
@@ -170,6 +174,7 @@ void Engine::NodeGraphView::DrawNode(GraphDocument& document, GraphNode& node, c
 	}
 
 	ImGui::PopStyleVar();
+	ImGui::PopID();
 	ed::EndNode();
 }
 
@@ -180,7 +185,7 @@ void Engine::NodeGraphView::DrawLinks(const GraphDocument& document) {
 		// 接続元Pinの型でLink色と太さを決める
 		const GraphPin* pin = document.FindPin(link.fromPinID);
 		const GraphValueType valueType = pin ? pin->valueType : GraphValueType::Unknown;
-		const float thickness = valueType == GraphValueType::Flow ? 3.0f : 2.0f;
+		const float thickness = valueType == GraphValueType::Flow ? style_.flowLinkThickness : style_.linkThickness;
 		ed::Link(ToLinkID(link.id), ToPinID(link.fromPinID), ToPinID(link.toPinID),
 			style_.GetLinkColor(valueType), thickness);
 	}
@@ -190,7 +195,7 @@ void Engine::NodeGraphView::DrawCreateLink(GraphDocument& document) {
 
 	// imgui-node-editorはBeginCreateがfalseを返すフレームでもEndCreateが必要。
 	// ここで早期returnすると内部のCreateItemActionが閉じず、次フレームのBeginCreateでassertする。
-	const bool creating = ed::BeginCreate(style_.GetLinkColor(GraphValueType::Flow), 2.0f);
+	const bool creating = ed::BeginCreate(style_.GetLinkColor(GraphValueType::Flow), style_.createLinkThickness);
 	if (creating) {
 
 		ed::PinId startId{};
@@ -211,11 +216,11 @@ void Engine::NodeGraphView::DrawCreateLink(GraphDocument& document) {
 			std::string reason{};
 			if (document.CanCreateLink(startPin, endPin, &reason)) {
 				// Acceptされた瞬間だけDocumentへLinkを追加する
-				if (ed::AcceptNewItem(style_.GetLinkColor(document.FindPin(startPin)->valueType), 2.0f)) {
+				if (ed::AcceptNewItem(style_.GetLinkColor(document.FindPin(startPin)->valueType), style_.createLinkThickness)) {
 					NodeGraphInteraction::TryCreateLink(document, startPin, endPin);
 				}
 			} else {
-				ed::RejectNewItem(style_.GetErrorColor(), 2.0f);
+				ed::RejectNewItem(style_.GetErrorColor(), style_.createLinkThickness);
 			}
 		}
 	}

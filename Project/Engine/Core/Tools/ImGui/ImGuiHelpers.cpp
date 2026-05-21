@@ -303,13 +303,16 @@ namespace {
 		Engine::ValueEditResult result{};
 
 		const std::string tableID = std::string("##MyGUI_RowTable_Public_") + label;
+		const ImVec2 tableSize = setting.propertyRow.rowWidth.has_value() ?
+			ImVec2(setting.propertyRow.rowWidth.value(), 0.0f) : ImVec2(0.0f, 0.0f);
 		if (!ImGui::BeginTable(tableID.c_str(), 2,
 			ImGuiTableFlags_SizingStretchProp |
 			ImGuiTableFlags_BordersInnerV |
-			ImGuiTableFlags_NoSavedSettings)) {
+			ImGuiTableFlags_NoSavedSettings, tableSize)) {
 			return result;
 		}
-		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, kLabelColumnWidth);
+		const float labelWidth = setting.propertyRow.labelWidth.value_or(kLabelColumnWidth);
+		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, labelWidth);
 		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableNextRow();
 
@@ -634,17 +637,20 @@ Engine::TextInputPopupResult Engine::MyGUI::InputTextPopupContent(const char* la
 	return result;
 }
 
-bool Engine::MyGUI::BeginPropertyRow(const char* label) {
+bool Engine::MyGUI::BeginPropertyRow(const char* label, const PropertyRowSetting& setting) {
 
 	const std::string tableID = std::string("##MyGUI_RowTable_Public_") + label;
+	const ImVec2 tableSize = setting.rowWidth.has_value() ?
+		ImVec2(setting.rowWidth.value(), 0.0f) : ImVec2(0.0f, 0.0f);
 	if (!ImGui::BeginTable(tableID.c_str(), 2,
 		ImGuiTableFlags_SizingStretchProp |
 		ImGuiTableFlags_BordersInnerV |
-		ImGuiTableFlags_NoSavedSettings)) {
+		ImGuiTableFlags_NoSavedSettings, tableSize)) {
 		return false;
 	}
 
-	ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, kLabelColumnWidth);
+	const float labelWidth = setting.labelWidth.value_or(kLabelColumnWidth);
+	ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, labelWidth);
 	ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
 	ImGui::TableNextRow();
@@ -733,7 +739,7 @@ Engine::ValueEditResult Engine::MyGUI::DragInt(const char* label, int32_t& value
 
 	ValueEditResult result{};
 
-	if (!BeginPropertyRow(label)) {
+	if (!BeginPropertyRow(label, setting.propertyRow)) {
 		return result;
 	}
 
@@ -1137,9 +1143,9 @@ Engine::GizmoEditResult Engine::MyGUI::Manipulate3D(const char* id,
 	return result;
 }
 
-bool Engine::MyGUI::Checkbox(const char* label, bool& value) {
+bool Engine::MyGUI::Checkbox(const char* label, bool& value, const PropertyRowSetting& setting) {
 
-	if (!BeginPropertyRow(label)) {
+	if (!BeginPropertyRow(label, setting)) {
 		return false;
 	}
 
@@ -1164,7 +1170,7 @@ Engine::ValueEditResult Engine::MyGUI::InputText(const char* label, std::string&
 
 	ValueEditResult result{};
 
-	if (!BeginPropertyRow(label)) {
+	if (!BeginPropertyRow(label, setting.propertyRow)) {
 		return result;
 	}
 
@@ -1181,6 +1187,7 @@ Engine::ValueEditResult Engine::MyGUI::InputText(const char* label, std::string&
 		ImGui::InputTextMultiline("##Value", &text, inputSize, setting.flags);
 	} else {
 
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		submittedByEnter = ImGui::InputText("##Value", &text, setting.flags | ImGuiInputTextFlags_EnterReturnsTrue);
 	}
 
@@ -1198,7 +1205,7 @@ Engine::ValueEditResult Engine::MyGUI::StringCombo(const char* label, std::strin
 
 	ValueEditResult result{};
 
-	if (!BeginPropertyRow(label)) {
+	if (!BeginPropertyRow(label, setting.propertyRow)) {
 		return result;
 	}
 
@@ -1256,7 +1263,7 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 	ValueEditResult result{};
 
 	if (setting.useAutoPropertyRow) {
-		if (!BeginPropertyRow(label)) {
+		if (!BeginPropertyRow(label, setting.propertyRow)) {
 			return result;
 		}
 	}
@@ -1334,7 +1341,7 @@ Engine::ValueEditResult Engine::MyGUI::EntityReferenceField(const char* label, U
 	ValueEditResult result{};
 
 	if (setting.useAutoPropertyRow) {
-		if (!BeginPropertyRow(label)) {
+		if (!BeginPropertyRow(label, setting.propertyRow)) {
 			return result;
 		}
 	}
