@@ -26,7 +26,7 @@ void Engine::AudioSourceInspectorDrawer::DrawFields(const EditorPanelContext& co
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::AssetReferenceField("Clip", draft.clip,
+			return MyGUI::AssetReferenceField("クリップ", draft.clip,
 				context.editorContext->assetDatabase, { AssetType::Audio });
 			});
 	}
@@ -36,16 +36,16 @@ void Engine::AudioSourceInspectorDrawer::DrawFields(const EditorPanelContext& co
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Enabled", draft.enabled);
+			return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Play On Awake", draft.playOnAwake);
+			return InspectorDrawerCommon::DrawCheckboxField("開始時再生", draft.playOnAwake);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Loop", draft.loop);
+			return InspectorDrawerCommon::DrawCheckboxField("ループ", draft.loop);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Volume", draft.volume,
+			return MyGUI::DragFloat("音量", draft.volume,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
 			});
 	}
@@ -60,7 +60,7 @@ void Engine::AudioSourceInspectorDrawer::DrawFields(const EditorPanelContext& co
 		const std::string pathString = fullPath.string();
 		const std::string key = fullPath.stem().string();
 
-		if (ImGui::Button("Preview Play", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+		if (ImGui::Button("プレビュー再生", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 
 			Audio* audio = Audio::GetInstance();
 			if (audio->EnsureLoaded(pathString)) {
@@ -71,7 +71,7 @@ void Engine::AudioSourceInspectorDrawer::DrawFields(const EditorPanelContext& co
 				}
 			}
 		}
-		if (ImGui::Button("Preview Stop", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+		if (ImGui::Button("プレビュー停止", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 
 			Audio::GetInstance()->Stop(key);
 		}

@@ -25,12 +25,12 @@ namespace {
 	std::string MakeEntityTargetLabel(Engine::ECSWorld& world, Engine::UUID target) {
 
 		if (!target) {
-			return "None";
+			return "なし";
 		}
 
 		const Engine::Entity entity = world.FindByUUID(target);
 		if (!entity.IsValid() || !world.IsAlive(entity)) {
-			return "Missing : " + Engine::ToString(target);
+			return "不明 : " + Engine::ToString(target);
 		}
 
 		if (world.HasComponent<Engine::NameComponent>(entity)) {
@@ -69,7 +69,7 @@ void Engine::CameraControllerInspectorDrawer::DrawFields([[maybe_unused]] const 
 
 	// CameraController全体の設定
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("Enabled", draft.enabled);
+		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
 	DrawField(anyItemActive, [&]() {
 		return DrawModeField(draft.mode);
@@ -102,7 +102,7 @@ void Engine::CameraControllerInspectorDrawer::OnBeforeCommit(
 Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawModeField(CameraControlMode& mode) {
 
 	ValueEditResult result{};
-	if (!MyGUI::BeginPropertyRow("Mode")) {
+	if (!MyGUI::BeginPropertyRow("モード")) {
 		return result;
 	}
 
@@ -162,7 +162,7 @@ Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawEntityTarge
 	}
 
 	ImGui::SameLine();
-	if (ImGui::Button("Clear", ImVec2(clearWidth, 0.0f))) {
+	if (ImGui::Button("クリア", ImVec2(clearWidth, 0.0f))) {
 		target = UUID{};
 		result.valueChanged = true;
 		result.editFinished = true;
@@ -175,15 +175,15 @@ Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawFollowSetti
 	ECSWorld& world, CameraFollowSettings& settings) {
 
 	ValueEditResult result{};
-	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("Enabled", settings.enabled));
-	Accumulate(result, DrawEntityTargetField("Target", world, settings.target));
-	Accumulate(result, MyGUI::DragVector3("Offset", settings.offset, { .dragSpeed = 0.01f }));
-	Accumulate(result, MyGUI::DragVector3("Axis Mask", settings.axisMask, { .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f }));
-	Accumulate(result, MyGUI::DragFloat("Position Lerp", settings.positionLerpSpeed, { .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("Use Bounds", settings.useBounds));
+	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("有効", settings.enabled));
+	Accumulate(result, DrawEntityTargetField("対象", world, settings.target));
+	Accumulate(result, MyGUI::DragVector3("オフセット", settings.offset, { .dragSpeed = 0.01f }));
+	Accumulate(result, MyGUI::DragVector3("軸マスク", settings.axisMask, { .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f }));
+	Accumulate(result, MyGUI::DragFloat("位置補間", settings.positionLerpSpeed, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("範囲制限", settings.useBounds));
 	if (settings.useBounds) {
-		Accumulate(result, MyGUI::DragVector3("Bounds Min", settings.boundsMin, { .dragSpeed = 0.1f }));
-		Accumulate(result, MyGUI::DragVector3("Bounds Max", settings.boundsMax, { .dragSpeed = 0.1f }));
+		Accumulate(result, MyGUI::DragVector3("範囲最小", settings.boundsMin, { .dragSpeed = 0.1f }));
+		Accumulate(result, MyGUI::DragVector3("範囲最大", settings.boundsMax, { .dragSpeed = 0.1f }));
 	}
 	return result;
 }
@@ -192,22 +192,22 @@ Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawLookAtSetti
 	ECSWorld& world, CameraLookAtSettings& settings) {
 
 	ValueEditResult result{};
-	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("Enabled", settings.enabled));
-	Accumulate(result, DrawEntityTargetField("Target", world, settings.target));
-	Accumulate(result, MyGUI::DragVector3("Offset", settings.offset, { .dragSpeed = 0.01f }));
-	Accumulate(result, MyGUI::DragFloat("Rotation Lerp", settings.rotationLerpSpeed, { .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("Lock Roll", settings.lockRoll));
+	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("有効", settings.enabled));
+	Accumulate(result, DrawEntityTargetField("対象", world, settings.target));
+	Accumulate(result, MyGUI::DragVector3("オフセット", settings.offset, { .dragSpeed = 0.01f }));
+	Accumulate(result, MyGUI::DragFloat("回転補間", settings.rotationLerpSpeed, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("ロール固定", settings.lockRoll));
 	return result;
 }
 
 Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawShakeSettings(CameraShakeSettings& settings) {
 
 	ValueEditResult result{};
-	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("Enabled", settings.enabled));
-	Accumulate(result, MyGUI::DragFloat("Amplitude", settings.amplitude, { .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, MyGUI::DragFloat("Duration", settings.duration, { .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, MyGUI::DragFloat("Frequency", settings.frequency, { .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, MyGUI::DragFloat("Damping", settings.damping, { .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, MyGUI::DragVector3("Axis Mask", settings.axisMask, { .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f }));
+	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("有効", settings.enabled));
+	Accumulate(result, MyGUI::DragFloat("振幅", settings.amplitude, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+	Accumulate(result, MyGUI::DragFloat("時間", settings.duration, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+	Accumulate(result, MyGUI::DragFloat("周波数", settings.frequency, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+	Accumulate(result, MyGUI::DragFloat("減衰", settings.damping, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+	Accumulate(result, MyGUI::DragVector3("軸マスク", settings.axisMask, { .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f }));
 	return result;
 }

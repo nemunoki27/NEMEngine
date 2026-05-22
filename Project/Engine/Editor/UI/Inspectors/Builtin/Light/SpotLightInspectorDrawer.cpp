@@ -15,32 +15,32 @@ void Engine::SpotLightInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::ColorEdit("Color4", draft.color);
+			return MyGUI::ColorEdit("色", draft.color);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragVector3("Direction", draft.direction, { .dragSpeed = 0.01f,.minValue = -1.0f,.maxValue = 1.0f });
+			return MyGUI::DragVector3("方向", draft.direction, { .dragSpeed = 0.01f,.minValue = -1.0f,.maxValue = 1.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Intensity", draft.intensity, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 128.0f });
+			return MyGUI::DragFloat("強度", draft.intensity, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 128.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Distance", draft.distance, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1024.0f });
+			return MyGUI::DragFloat("距離", draft.distance, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1024.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Decay", draft.decay, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 512.0f });
+			return MyGUI::DragFloat("減衰", draft.decay, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 512.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("CosAngle", draft.cosAngle, { .dragSpeed = 0.01f,.minValue = -Math::pi,.maxValue = Math::pi });
+			return MyGUI::DragFloat("角度余弦", draft.cosAngle, { .dragSpeed = 0.01f,.minValue = -Math::pi,.maxValue = Math::pi });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("CosFalloffStart", draft.cosFalloffStart, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 8.0f });
+			return MyGUI::DragFloat("減衰開始余弦", draft.cosFalloffStart, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 8.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Enabled", draft.enabled);
+			return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 			});
 		DrawField(anyItemActive, [&]() {
 			int32_t layerMask = static_cast<int32_t>(draft.affectLayerMask);
-			auto result = MyGUI::DragInt("Layer Mask", layerMask, { .dragSpeed = 1,.minValue = 0,.maxValue = 0xfffffff });
+			auto result = MyGUI::DragInt("レイヤーマスク", layerMask, { .dragSpeed = 1,.minValue = 0,.maxValue = 0xfffffff });
 			if (result.valueChanged) {
 
 				draft.affectLayerMask = static_cast<uint32_t>(layerMask);

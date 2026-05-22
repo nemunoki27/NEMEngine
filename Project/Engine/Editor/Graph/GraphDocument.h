@@ -69,6 +69,12 @@ namespace Engine {
 		bool RemoveLink(GraphID id);
 		// 指定したPinへ接続済みのLinkがあるか
 		bool HasLinkToPin(GraphID pinID) const;
+		// 指定したPinから接続済みのLinkがあるか
+		bool HasLinkFromPin(GraphID pinID) const;
+		// 指定したPinへのLink数を数える
+		uint32_t CountLinksToPin(GraphID pinID) const;
+		// 指定したPinからのLink数を数える
+		uint32_t CountLinksFromPin(GraphID pinID) const;
 		// Nodeに残っている検証メッセージをクリアする
 		void ClearValidationMessages();
 	};

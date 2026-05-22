@@ -20,16 +20,16 @@ void Engine::OrthographicCameraInspectorDrawer::DrawFields([[maybe_unused]] cons
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Enabled", draft.common.enabled);
+			return InspectorDrawerCommon::DrawCheckboxField("有効", draft.common.enabled);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Main Camera", draft.common.isMain);
+			return InspectorDrawerCommon::DrawCheckboxField("メインカメラ", draft.common.isMain);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("Priority", draft.common.priority);
+			return MyGUI::DragInt("優先度", draft.common.priority);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("Culling Mask", draft.common.cullingMask);
+			return MyGUI::DragInt("カリングマスク", draft.common.cullingMask);
 			});
 	}
 	{
@@ -38,11 +38,11 @@ void Engine::OrthographicCameraInspectorDrawer::DrawFields([[maybe_unused]] cons
 		clipSetting.minValue = 0.001f;
 		clipSetting.maxValue = 100000.0f;
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Near Clip", draft.nearClip, clipSetting);
+			return MyGUI::DragFloat("近クリップ", draft.nearClip, clipSetting);
 			});
 
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Far Clip", draft.farClip, clipSetting);
+			return MyGUI::DragFloat("遠クリップ", draft.farClip, clipSetting);
 			});
 	}
 }
@@ -65,18 +65,18 @@ void Engine::PerspectiveCameraInspectorDrawer::DrawFields([[maybe_unused]] const
 	//	カメラ表示パラメータ
 	//============================================================================
 	{
-		MyGUI::TextFloat("Aspect Ratio", draft.common.aspectRatio, 3);
+		MyGUI::TextFloat("アスペクト比", draft.common.aspectRatio, 3);
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Enabled", draft.common.enabled);
+			return InspectorDrawerCommon::DrawCheckboxField("有効", draft.common.enabled);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Main Camera", draft.common.isMain);
+			return InspectorDrawerCommon::DrawCheckboxField("メインカメラ", draft.common.isMain);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("Priority", draft.common.priority);
+			return MyGUI::DragInt("優先度", draft.common.priority);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("Culling Mask", draft.common.cullingMask);
+			return MyGUI::DragInt("カリングマスク", draft.common.cullingMask);
 			});
 	}
 	{
@@ -85,16 +85,16 @@ void Engine::PerspectiveCameraInspectorDrawer::DrawFields([[maybe_unused]] const
 		setting.minValue = 0.001f;
 		setting.maxValue = 100000.0f;
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Near Clip", draft.nearClip, setting);
+			return MyGUI::DragFloat("近クリップ", draft.nearClip, setting);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Far Clip", draft.farClip, setting);
+			return MyGUI::DragFloat("遠クリップ", draft.farClip, setting);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Fov", draft.fovY, setting);
+			return MyGUI::DragFloat("視野角", draft.fovY, setting);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Frustum Scale", draft.common.editorFrustumScale,
+			return MyGUI::DragFloat("錐台スケール", draft.common.editorFrustumScale,
 				{ .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 10.0f });
 			});
 	}

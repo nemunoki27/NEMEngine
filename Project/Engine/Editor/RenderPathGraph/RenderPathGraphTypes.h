@@ -29,6 +29,9 @@ namespace Engine::RenderPathGraph {
 	inline constexpr const char* kRenderTarget = "RenderPath.RenderTarget";
 	inline constexpr const char* kView = "RenderPath.View";
 	inline constexpr const char* kComment = "RenderPath.Comment";
+	inline constexpr const char* kGroup = "RenderPath.Group";
 	inline constexpr const char* kReroute = "RenderPath.Reroute";
+	inline constexpr const char* kFlowReroute = "RenderPath.FlowReroute";
+	inline constexpr const char* kDepthReroute = "RenderPath.DepthReroute";
 	inline constexpr const char* kUnknown = "RenderPath.Unknown";
 }

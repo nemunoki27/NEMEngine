@@ -32,6 +32,12 @@ namespace Engine {
 		std::function<void(GraphNode&)> drawNodeDropTarget;
 		// 背景メニューからNode追加を要求した時のコールバック
 		std::function<void(const std::string&, const ImVec2&)> addNodeRequested;
+		// Nodeを強調表示するか
+		std::function<bool(const GraphNode&)> isNodeHighlighted;
+		// グループフレームNodeか (trueを返すNodeはed::Groupで描画する)
+		std::function<bool(const GraphNode&)> isGroupNode;
+		// 描画後にGraph全体へFitする
+		bool navigateToContent = false;
 	};
 
 	//============================================================================
@@ -67,13 +73,15 @@ namespace Engine {
 
 		// Nodeを描画する
 		void DrawNode(GraphDocument& document, GraphNode& node, const NodeGraphViewDesc& desc);
+		// グループフレームNodeを描画する
+		void DrawGroupNode(GraphNode& node, const NodeGraphViewDesc& desc);
 		// Linkを描画する
 		void DrawLinks(const GraphDocument& document);
 		// Link作成操作を処理する
-		void DrawCreateLink(GraphDocument& document);
+		bool DrawCreateLink(GraphDocument& document);
 		// Node / Link削除操作を処理する
-		void DrawDelete(GraphDocument& document);
+		bool DrawDelete(GraphDocument& document);
 		// 背景右クリックメニューを描画する
-		void DrawBackgroundMenu(const NodeGraphViewDesc& desc);
+		bool DrawBackgroundMenu(const NodeGraphViewDesc& desc);
 	};
 } // Engine

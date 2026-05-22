@@ -20,15 +20,15 @@ void Engine::UVTransformInspectorDrawer::DrawFields([[maybe_unused]] const Edito
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragVector2("Position", draft.pos,
+			return MyGUI::DragVector2("位置", draft.pos,
 				{ .dragSpeed = 0.01f, .minValue = -100000.0f, .maxValue = 100000.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Rotation", draft.rotation,
+			return MyGUI::DragFloat("回転", draft.rotation,
 				{ .dragSpeed = 0.01f, .minValue = -100000.0f, .maxValue = 100000.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragVector2("Scale", draft.scale,
+			return MyGUI::DragVector2("スケール", draft.scale,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 100000.0f });
 			});
 	}

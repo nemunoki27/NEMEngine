@@ -53,7 +53,7 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	bool anyItemActive = false;
 
 	ImGui::PushItemWidth(160.0f);
-	EnumAdapter<Dimension>::Combo("Dimension", &editDimension_);
+	EnumAdapter<Dimension>::Combo("次元", &editDimension_);
 	ImGui::PopItemWidth();
 
 	bool is3D = editDimension_ == Dimension::Type3D;
@@ -69,10 +69,10 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	{
 		editSetting.dragSpeed = is3D ? 0.01f : 1.0f;
 
-		auto editResult = MyGUI::DragVector3("Position", draftTransform_.localPos, editSetting);
+		auto editResult = MyGUI::DragVector3("位置", draftTransform_.localPos, editSetting);
 		// リセット
 		ImGui::SameLine();
-		if (ImGui::Button("Reset##DragPosition", resetButtonSize)) {
+		if (ImGui::Button("リセット##DragPosition", resetButtonSize)) {
 			draftTransform_.localPos.Init();
 			editResult.valueChanged = true;
 			editResult.editFinished = true;
@@ -95,16 +95,16 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 		ValueEditResult editResult{};
 		if (is3D) {
 
-			editResult = MyGUI::DragVector3("Rotation", draftEulerDegrees_, editSetting);
+			editResult = MyGUI::DragVector3("回転", draftEulerDegrees_, editSetting);
 		} else {
 
 			editSetting.floatAxis = Axis::Z;
-			editResult = MyGUI::DragFloat("Rotation", draftEulerDegrees_.z, editSetting);
+			editResult = MyGUI::DragFloat("回転", draftEulerDegrees_.z, editSetting);
 			editSetting.floatAxis = std::nullopt;
 		}
 		// リセット
 		ImGui::SameLine();
-		if (ImGui::Button("Reset##DragRotation", resetButtonSize)) {
+		if (ImGui::Button("リセット##DragRotation", resetButtonSize)) {
 			draftEulerDegrees_.Init();
 			editResult.valueChanged = true;
 			editResult.editFinished = true;
@@ -128,17 +128,17 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 		ValueEditResult editResult{};
 		if (is3D) {
 
-			editResult = MyGUI::DragVector3("Scale", draftTransform_.localScale, editSetting);
+			editResult = MyGUI::DragVector3("スケール", draftTransform_.localScale, editSetting);
 		} else {
 
 			Vector2 scale2D{ draftTransform_.localScale.x, draftTransform_.localScale.y };
-			editResult = MyGUI::DragVector2("Scale", scale2D, editSetting);
+			editResult = MyGUI::DragVector2("スケール", scale2D, editSetting);
 			draftTransform_.localScale.x = scale2D.x;
 			draftTransform_.localScale.y = scale2D.y;
 		}
 		// リセット
 		ImGui::SameLine();
-		if (ImGui::Button("Reset##DragScale", resetButtonSize)) {
+		if (ImGui::Button("リセット##DragScale", resetButtonSize)) {
 			draftTransform_.localScale = Vector3::AnyInit(1.0f);
 			editResult.valueChanged = true;
 			editResult.editFinished = true;
@@ -160,7 +160,7 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	//	Matrix
 	//============================================================================
 
-	MyGUI::TextMatrix4x4("World Matrix", draftTransform_.worldMatrix);
+	MyGUI::TextMatrix4x4("ワールド行列", draftTransform_.worldMatrix);
 
 	// アイテムを操作している場合は編集状態にする
 	isEditing_ = anyItemActive;

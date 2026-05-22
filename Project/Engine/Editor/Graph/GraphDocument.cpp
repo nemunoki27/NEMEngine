@@ -7,6 +7,27 @@
 //	GraphDocument classMethods
 //============================================================================
 
+namespace {
+
+	bool IsCompatibleValueType(Engine::GraphValueType from, Engine::GraphValueType to) {
+
+		if (from == Engine::GraphValueType::Unknown || to == Engine::GraphValueType::Unknown) {
+			return true;
+		}
+		if (from == to) {
+			return true;
+		}
+		if (from == Engine::GraphValueType::Texture2DUAV && to == Engine::GraphValueType::Texture2D) {
+			return true;
+		}
+		if (from == Engine::GraphValueType::RenderTarget &&
+			(to == Engine::GraphValueType::Texture2D || to == Engine::GraphValueType::Texture2DUAV)) {
+			return true;
+		}
+		return false;
+	}
+}
+
 Engine::GraphID Engine::GraphDocument::GenerateID() {
 
 	// 0は無効値として残す
@@ -164,11 +185,15 @@ bool Engine::GraphDocument::CanCreateLink(GraphID fromPinID, GraphID toPinID, st
 		}
 		return false;
 	}
-	if (from->valueType != GraphValueType::Unknown &&
-		to->valueType != GraphValueType::Unknown &&
-		from->valueType != to->valueType) {
+	if (!IsCompatibleValueType(from->valueType, to->valueType)) {
 		if (reason) {
 			*reason = "Pin value type is different.";
+		}
+		return false;
+	}
+	if (from->valueType == GraphValueType::Flow && HasLinkFromPin(from->id)) {
+		if (reason) {
+			*reason = "Flow output already has a link.";
 		}
 		return false;
 	}
@@ -218,6 +243,39 @@ bool Engine::GraphDocument::HasLinkToPin(GraphID pinID) const {
 		}
 	}
 	return false;
+}
+
+bool Engine::GraphDocument::HasLinkFromPin(GraphID pinID) const {
+
+	// Flow出力Pinの多重接続禁止チェックで使用する
+	for (const GraphLink& link : links) {
+		if (link.fromPinID == pinID) {
+			return true;
+		}
+	}
+	return false;
+}
+
+uint32_t Engine::GraphDocument::CountLinksToPin(GraphID pinID) const {
+
+	uint32_t count = 0;
+	for (const GraphLink& link : links) {
+		if (link.toPinID == pinID) {
+			++count;
+		}
+	}
+	return count;
+}
+
+uint32_t Engine::GraphDocument::CountLinksFromPin(GraphID pinID) const {
+
+	uint32_t count = 0;
+	for (const GraphLink& link : links) {
+		if (link.fromPinID == pinID) {
+			++count;
+		}
+	}
+	return count;
 }
 
 void Engine::GraphDocument::ClearValidationMessages() {

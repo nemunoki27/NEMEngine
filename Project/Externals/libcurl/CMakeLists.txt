@@ -1929,7 +1929,7 @@ else()
   set(CURL_BUILD_TESTING OFF)
 endif()
 
-if(Perl_FOUND)
+if(Perl_FOUND AND IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/docs")
   set(CURL_MANPAGE "${PROJECT_BINARY_DIR}/docs/cmdline-opts/curl.1")
   set(CURL_ASCIIPAGE "${PROJECT_BINARY_DIR}/docs/cmdline-opts/curl.txt")
   add_subdirectory(docs)
@@ -1942,7 +1942,7 @@ if(BUILD_CURL_EXE)
 endif()
 
 option(BUILD_EXAMPLES "Build libcurl examples" ON)
-if(BUILD_EXAMPLES)
+if(BUILD_EXAMPLES AND IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/docs/examples")
   add_subdirectory(docs/examples)
 endif()
 

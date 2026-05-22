@@ -1287,7 +1287,7 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 
 	// アイテムがアクティブかどうかを記録する
 	result.anyItemActive = ImGui::IsItemActive();
-	if (ImGui::BeginItemTooltip()) {
+	if (setting.showTooltip && ImGui::BeginItemTooltip()) {
 
 		const std::string tooltip = BuildAssetReferenceTooltip(value, assetDatabase);
 		ImGui::TextUnformatted(tooltip.c_str());

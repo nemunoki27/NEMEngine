@@ -42,7 +42,7 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			ValueEditResult result = MyGUI::AssetReferenceField("Mesh", draft.mesh,
+			ValueEditResult result = MyGUI::AssetReferenceField("メッシュ", draft.mesh,
 				context.editorContext->assetDatabase, { AssetType::Mesh });
 			// メッシュが変更されたらサブメッシュのリストを更新する
 			if (result.valueChanged) {
@@ -54,7 +54,7 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			return result;
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::AssetReferenceField("Material", draft.material,
+			return MyGUI::AssetReferenceField("マテリアル", draft.material,
 				context.editorContext->assetDatabase, { AssetType::Material });
 			});
 	}
@@ -63,22 +63,22 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("Layer", draft.layer);
+			return MyGUI::DragInt("レイヤー", draft.layer);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("Order", draft.order);
+			return MyGUI::DragInt("描画順", draft.order);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Visible", draft.visible);
+			return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("ZPrepass", draft.enableZPrepass);
+			return InspectorDrawerCommon::DrawCheckboxField("Zプリパス", draft.enableZPrepass);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawEnumComboField("Blend Mode", draft.blendMode);
+			return InspectorDrawerCommon::DrawEnumComboField("ブレンド", draft.blendMode);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::InputText("Queue", draft.queue);
+			return MyGUI::InputText("キュー", draft.queue);
 			});
 	}
 }
@@ -165,65 +165,65 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 		{
 			// ローカル変換
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragVector3("Local Position", subMesh.localPos,
+				return MyGUI::DragVector3("ローカル位置", subMesh.localPos,
 					{ .dragSpeed = 0.01f, .minValue = -100000.0f, .maxValue = 100000.0f });
 				});
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragVector3("Local Rotation", subMesh.localRotation,
+				return MyGUI::DragVector3("ローカル回転", subMesh.localRotation,
 					{ .dragSpeed = 0.1f, .minValue = -100000.0f, .maxValue = 100000.0f });
 				});
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragVector3("Local Scale", subMesh.localScale,
+				return MyGUI::DragVector3("ローカルスケール", subMesh.localScale,
 					{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 100000.0f });
 				});
-			MyGUI::TextVector3("Source Pivot", subMesh.sourcePivot);
+			MyGUI::TextVector3("元ピボット", subMesh.sourcePivot);
 			ImGui::Separator();
-			MyGUI::TextMatrix4x4("World Matrix", subMesh.worldMatrix);
+			MyGUI::TextMatrix4x4("ワールド行列", subMesh.worldMatrix);
 			ImGui::Separator();
 			// 色
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::ColorEdit("Color4", subMesh.color);
+				return MyGUI::ColorEdit("色", subMesh.color);
 				});
 			// UV
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragVector2("UV Position", subMesh.uvPos,
+				return MyGUI::DragVector2("UV位置", subMesh.uvPos,
 					{ .dragSpeed = 0.01f, .minValue = -100000.0f, .maxValue = 100000.0f });
 				});
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragFloat("UV Rotation", subMesh.uvRotation,
+				return MyGUI::DragFloat("UV回転", subMesh.uvRotation,
 					{ .dragSpeed = 0.01f, .minValue = -100000.0f, .maxValue = 100000.0f });
 				});
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragVector2("UV Scale", subMesh.uvScale,
+				return MyGUI::DragVector2("UVスケール", subMesh.uvScale,
 					{ .dragSpeed = 0.01f, .minValue = -100000.0f, .maxValue = 100000.0f });
 				});
-			MyGUI::TextMatrix4x4("UV Matrix", subMesh.uvMatrix);
+			MyGUI::TextMatrix4x4("UV行列", subMesh.uvMatrix);
 			ImGui::Separator();
 		}
 	// サブメッシュのテクスチャ設定
 		{
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("Base Color4", subMesh.baseColorTexture,
+				return MyGUI::AssetReferenceField("ベース色", subMesh.baseColorTexture,
 					context.editorContext->assetDatabase, { AssetType::Texture });
 				});
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("Normal", subMesh.normalTexture,
+				return MyGUI::AssetReferenceField("法線", subMesh.normalTexture,
 					context.editorContext->assetDatabase, { AssetType::Texture });
 				});
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("Metallic", subMesh.metallicRoughnessTexture,
+				return MyGUI::AssetReferenceField("メタリック", subMesh.metallicRoughnessTexture,
 					context.editorContext->assetDatabase, { AssetType::Texture });
 				});
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("Specular", subMesh.specularTexture,
+				return MyGUI::AssetReferenceField("スペキュラ", subMesh.specularTexture,
 					context.editorContext->assetDatabase, { AssetType::Texture });
 				});
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("Emissive", subMesh.emissiveTexture,
+				return MyGUI::AssetReferenceField("発光", subMesh.emissiveTexture,
 					context.editorContext->assetDatabase, { AssetType::Texture });
 				});
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("Occlusion", subMesh.occlusionTexture,
+				return MyGUI::AssetReferenceField("遮蔽", subMesh.occlusionTexture,
 					context.editorContext->assetDatabase, { AssetType::Texture });
 				});
 		}

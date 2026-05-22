@@ -14,29 +14,29 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields([[maybe_unused]] const 
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Enabled", draft.enabled);
+			return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 			});
 		if (!draft.runtimeAvailableClips.empty()) {
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::StringCombo("Clip", draft.clip, draft.runtimeAvailableClips, "<Auto>");
+				return MyGUI::StringCombo("クリップ", draft.clip, draft.runtimeAvailableClips, "<自動>");
 				});
 		} else {
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::InputText("Clip", draft.clip);
+				return MyGUI::InputText("クリップ", draft.clip);
 				});
 		}
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Loop", draft.loop);
+			return InspectorDrawerCommon::DrawCheckboxField("ループ", draft.loop);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Play In Edit", draft.playInEditMode);
+			return InspectorDrawerCommon::DrawCheckboxField("編集中に再生", draft.playInEditMode);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Playback Speed", draft.playbackSpeed,
+			return MyGUI::DragFloat("再生速度", draft.playbackSpeed,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 100.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Transition", draft.transitionDuration,
+			return MyGUI::DragFloat("遷移時間", draft.transitionDuration,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 10.0f });
 			});
 	}
@@ -47,9 +47,9 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields([[maybe_unused]] const 
 	//	デバッグ表示
 	//============================================================================
 	{
-		ImGui::Text("Runtime Clip : %s", draft.runtimeCurrentClip.c_str());
-		ImGui::Text("Runtime Time : %.3f", draft.runtimeTime);
-		ImGui::Text("Blend Time   : %.3f", draft.runtimeBlendTime);
-		ImGui::Text("Palette Size : %u", static_cast<uint32_t>(draft.palette.size()));
+		ImGui::Text("実行クリップ : %s", draft.runtimeCurrentClip.c_str());
+		ImGui::Text("実行時間     : %.3f", draft.runtimeTime);
+		ImGui::Text("ブレンド時間 : %.3f", draft.runtimeBlendTime);
+		ImGui::Text("パレット数   : %u", static_cast<uint32_t>(draft.palette.size()));
 	}
 }

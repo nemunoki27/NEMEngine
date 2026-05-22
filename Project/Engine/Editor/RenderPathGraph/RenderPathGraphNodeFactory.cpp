@@ -71,7 +71,8 @@ void Engine::RenderPathGraphNodeFactory::RegisterDefinitions(GraphNodeRegistry& 
 		{ FlowIn(true), FlowOut(),
 			{ GraphPinKind::Output, GraphValueType::DepthTexture, "Depth", false, false } });
 	RegisterPassDefinition(registry, RenderPathGraph::kDraw, "Draw", ImVec4(0.34f, 0.72f, 0.42f, 1.0f),
-		{ FlowIn(true), FlowOut() });
+		{ FlowIn(true), FlowOut(),
+			{ GraphPinKind::Output, GraphValueType::Texture2D, "DestColor", false, true } });
 	RegisterPassDefinition(registry, RenderPathGraph::kCompute, "Compute", ImVec4(0.25f, 0.75f, 0.80f, 1.0f),
 		{ FlowIn(true),
 			{ GraphPinKind::Input, GraphValueType::Texture2D, "SourceColor", false, false },
@@ -92,7 +93,8 @@ void Engine::RenderPathGraphNodeFactory::RegisterDefinitions(GraphNodeRegistry& 
 	RegisterPassDefinition(registry, RenderPathGraph::kRaytracing, "Raytracing", ImVec4(0.78f, 0.25f, 0.28f, 1.0f),
 		{ FlowIn(true), FlowOut() });
 	RegisterPassDefinition(registry, RenderPathGraph::kRenderScene, "RenderScene", ImVec4(0.34f, 0.72f, 0.42f, 1.0f),
-		{ FlowIn(true), FlowOut() });
+		{ FlowIn(true), FlowOut(),
+			{ GraphPinKind::Output, GraphValueType::Texture2D, "DestColor", false, true } });
 	RegisterPassDefinition(registry, RenderPathGraph::kFullscreenCopy, "FullscreenCopy", ImVec4(0.85f, 0.55f, 0.25f, 1.0f),
 		{ FlowIn(true), FlowOut() });
 
@@ -104,9 +106,13 @@ void Engine::RenderPathGraphNodeFactory::RegisterDefinitions(GraphNodeRegistry& 
 	temporary.defaultProperties = {
 		{ "name", "PostProcessDebugTemp" },
 		{ "format", "RGBA32_FLOAT" },
+		{ "sizeMode", "ViewRelative" },
 		{ "widthScale", 1.0f },
 		{ "heightScale", 1.0f },
+		{ "fixedWidth", 0u },
+		{ "fixedHeight", 0u },
 		{ "createUAV", true },
+		{ "withDepth", false },
 		{ "persistent", false },
 	};
 	temporary.pins = {
@@ -124,6 +130,62 @@ void Engine::RenderPathGraphNodeFactory::RegisterDefinitions(GraphNodeRegistry& 
 		{ GraphPinKind::Input, GraphValueType::Texture2D, "Color", false, false },
 	};
 	registry.Register(view);
+
+	// Graph整理用のComment Node
+	GraphNodeDefinition comment{};
+	comment.type = RenderPathGraph::kComment;
+	comment.displayName = "Comment";
+	comment.category = "RenderPath";
+	comment.defaultProperties = { { "text", "" } };
+	registry.Register(comment);
+
+	// 複数Nodeをまとめるグループフレーム Node
+	GraphNodeDefinition group{};
+	group.type = RenderPathGraph::kGroup;
+	group.displayName = "Group";
+	group.category = "RenderPath";
+	group.defaultProperties = {
+		{ "title", "Group" },
+		{ "colorR", 0.25f },
+		{ "colorG", 0.38f },
+		{ "colorB", 0.55f },
+		{ "colorA", 0.30f },
+	};
+	registry.Register(group);
+
+	// Texture接続を整理するためのReroute Node
+	GraphNodeDefinition reroute{};
+	reroute.type = RenderPathGraph::kReroute;
+	reroute.displayName = "Texture Reroute";
+	reroute.category = "RenderPath";
+	reroute.defaultProperties = nlohmann::json::object();
+	reroute.pins = {
+		{ GraphPinKind::Input, GraphValueType::Texture2D, "In", false, false },
+		{ GraphPinKind::Output, GraphValueType::Texture2D, "Out", false, true },
+	};
+	registry.Register(reroute);
+
+	GraphNodeDefinition flowReroute{};
+	flowReroute.type = RenderPathGraph::kFlowReroute;
+	flowReroute.displayName = "Flow Reroute";
+	flowReroute.category = "RenderPath";
+	flowReroute.defaultProperties = nlohmann::json::object();
+	flowReroute.pins = {
+		{ GraphPinKind::Input, GraphValueType::Flow, "In", false, false },
+		{ GraphPinKind::Output, GraphValueType::Flow, "Out", false, false },
+	};
+	registry.Register(flowReroute);
+
+	GraphNodeDefinition depthReroute{};
+	depthReroute.type = RenderPathGraph::kDepthReroute;
+	depthReroute.displayName = "Depth Reroute";
+	depthReroute.category = "RenderPath";
+	depthReroute.defaultProperties = nlohmann::json::object();
+	depthReroute.pins = {
+		{ GraphPinKind::Input, GraphValueType::DepthTexture, "In", false, false },
+		{ GraphPinKind::Output, GraphValueType::DepthTexture, "Out", false, true },
+	};
+	registry.Register(depthReroute);
 }
 
 const char* Engine::RenderPathGraphNodeFactory::ToNodeType(ScenePassType type) {
@@ -183,7 +245,7 @@ Engine::ScenePassType Engine::RenderPathGraphNodeFactory::ToPassType(const std::
 
 bool Engine::RenderPathGraphNodeFactory::IsScenePassNode(const std::string& nodeType) {
 
-	// Resource NodeやComment NodeはScenePassDescを生成しない
+	// Resource NodeやComment / Reroute NodeはScenePassDescを生成しない
 	return nodeType == RenderPathGraph::kClear ||
 		nodeType == RenderPathGraph::kDepthPrepass ||
 		nodeType == RenderPathGraph::kDraw ||
@@ -215,7 +277,15 @@ Engine::GraphNode Engine::RenderPathGraphNodeFactory::CreatePassNode(
 		node.displayName = "Clear";
 		node.properties["target"] = FirstColorName(pass.clear.dest);
 		node.properties["clearColor"] = pass.clear.clearColor;
+		if (pass.clear.clearColorValue.has_value()) {
+			node.properties["clearColorValue"] = pass.clear.clearColorValue->ToJson();
+		} else {
+			node.properties["clearColorValue"] = nullptr;
+		}
 		node.properties["clearDepth"] = pass.clear.clearDepth;
+		node.properties["clearDepthValue"] = pass.clear.clearDepthValue;
+		node.properties["clearStencil"] = pass.clear.clearStencil;
+		node.properties["clearStencilValue"] = pass.clear.clearStencilValue;
 		break;
 	case ScenePassType::DepthPrepass:
 		// DepthPrepassはQueue / PassNameを編集対象にする
@@ -245,6 +315,9 @@ Engine::GraphNode Engine::RenderPathGraphNodeFactory::CreatePassNode(
 		node.properties["material"] = ToString(pass.compute.material);
 		node.properties["passName"] = pass.compute.passName;
 		node.properties["dispatchMode"] = EnumAdapter<ComputeDispatchMode>::ToString(pass.compute.dispatchMode);
+		node.properties["groupCountX"] = pass.compute.groupCountX;
+		node.properties["groupCountY"] = pass.compute.groupCountY;
+		node.properties["groupCountZ"] = pass.compute.groupCountZ;
 		node.properties["source"] = rawPass.value("source", nlohmann::json::object());
 		node.properties["dest"] = rawPass.value("dest", nlohmann::json::object());
 		break;

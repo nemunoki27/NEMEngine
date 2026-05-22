@@ -8,6 +8,7 @@
 
 // c++
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 // imgui
 #include <imgui.h>
@@ -62,6 +63,21 @@ namespace {
 		}
 		return text.find(filter) != std::string::npos;
 	}
+
+	bool IsSameVec2(const ImVec2& lhs, const ImVec2& rhs) {
+
+		constexpr float kEpsilon = 0.01f;
+		return std::abs(lhs.x - rhs.x) <= kEpsilon && std::abs(lhs.y - rhs.y) <= kEpsilon;
+	}
+
+	void DrawNodeSeparator(float width) {
+
+		const ImVec2 cursor = ImGui::GetCursorScreenPos();
+		const float y = cursor.y + ImGui::GetStyle().ItemSpacing.y * 0.5f;
+		ImGui::GetWindowDrawList()->AddLine(ImVec2(cursor.x, y), ImVec2(cursor.x + width, y),
+			ImGui::GetColorU32(ImGuiCol_Separator));
+		ImGui::Dummy(ImVec2(width, ImGui::GetStyle().ItemSpacing.y));
+	}
 }
 
 bool Engine::NodeGraphView::Draw(NodeGraphContext& context, GraphDocument& document, const NodeGraphViewDesc& desc) {
@@ -73,7 +89,28 @@ bool Engine::NodeGraphView::Draw(NodeGraphContext& context, GraphDocument& docum
 	style_.PushEditorStyle();
 	ed::Begin(desc.editorId, ImVec2(0.0f, 0.0f));
 
+	// グループNodeは他のNodeより先に描画して背面に表示する
 	for (GraphNode& node : document.nodes) {
+		if (!desc.isGroupNode || !desc.isGroupNode(node)) {
+			continue;
+		}
+		if (!context.IsNodePlaced(node.id)) {
+			ed::SetNodePosition(ToNodeID(node.id), node.position);
+			context.MarkNodePlaced(node.id);
+		}
+		DrawNode(document, node, desc);
+		const ImVec2 newPosition = ed::GetNodePosition(ToNodeID(node.id));
+		const ImVec2 newSize = ed::GetNodeSize(ToNodeID(node.id));
+		if (!IsSameVec2(node.position, newPosition) || !IsSameVec2(node.size, newSize)) {
+			changed = true;
+		}
+		node.position = newPosition;
+		node.size = newSize;
+	}
+	for (GraphNode& node : document.nodes) {
+		if (desc.isGroupNode && desc.isGroupNode(node)) {
+			continue;
+		}
 		if (!context.IsNodePlaced(node.id)) {
 			// Import直後やResetLayout後の初回だけ保存座標をNodeEditorへ反映する
 			ed::SetNodePosition(ToNodeID(node.id), node.position);
@@ -81,26 +118,82 @@ bool Engine::NodeGraphView::Draw(NodeGraphContext& context, GraphDocument& docum
 		}
 		DrawNode(document, node, desc);
 		// Drag後の位置はDocumentへ戻して、Export時に保存できるようにする
-		node.position = ed::GetNodePosition(ToNodeID(node.id));
-		node.size = ed::GetNodeSize(ToNodeID(node.id));
+		const ImVec2 newPosition = ed::GetNodePosition(ToNodeID(node.id));
+		const ImVec2 newSize = ed::GetNodeSize(ToNodeID(node.id));
+		if (!IsSameVec2(node.position, newPosition) || !IsSameVec2(node.size, newSize)) {
+			changed = true;
+		}
+		node.position = newPosition;
+		node.size = newSize;
 	}
 
 	// Node描画後にLinkと操作系を処理する
 	DrawLinks(document);
-	DrawCreateLink(document);
-	DrawDelete(document);
-	DrawBackgroundMenu(desc);
+	changed |= DrawCreateLink(document);
+	changed |= DrawDelete(document);
+	changed |= DrawBackgroundMenu(desc);
 
 	ed::End();
+	if (desc.navigateToContent) {
+		ed::NavigateToContent(style_.scrollDuration);
+	}
 	style_.PopEditorStyle();
 	ed::SetCurrentEditor(nullptr);
 
 	return changed;
 }
 
+void Engine::NodeGraphView::DrawGroupNode(GraphNode& node, const NodeGraphViewDesc& desc) {
+
+	(void)desc;
+
+	const float r = node.properties.value("colorR", 0.25f);
+	const float g = node.properties.value("colorG", 0.38f);
+	const float b = node.properties.value("colorB", 0.55f);
+	const float a = node.properties.value("colorA", 0.30f);
+
+	// グループ背景 / 枠線色をNodeごとに上書きする
+	ed::PushStyleColor(ed::StyleColor_GroupBg, ImVec4(r, g, b, a));
+	ed::PushStyleColor(ed::StyleColor_GroupBorder,
+		ImVec4((std::min)(1.0f, r + 0.15f), (std::min)(1.0f, g + 0.15f), (std::min)(1.0f, b + 0.15f), 0.80f));
+
+	ed::BeginNode(ToNodeID(node.id));
+	ImGui::PushID(reinterpret_cast<void*>(static_cast<uintptr_t>(node.id)));
+	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
+
+	const std::string& title = node.properties.value("title", node.displayName);
+	const ImVec4 titleColor{
+		(std::min)(1.0f, r + 0.45f),
+		(std::min)(1.0f, g + 0.45f),
+		(std::min)(1.0f, b + 0.45f),
+		1.0f,
+	};
+	ImGui::TextColored(titleColor, "%s", title.empty() ? "Group" : title.c_str());
+
+	// グループ内部サイズ: 保存済みの合計サイズから余白とタイトル高さを差し引く
+	constexpr float kDefaultGroupW = 300.0f;
+	constexpr float kDefaultGroupH = 150.0f;
+	const float titleH = ImGui::GetTextLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
+	const float padX = style_.nodePadding.x + style_.nodePadding.z;
+	const float padY = style_.nodePadding.y + style_.nodePadding.w;
+	const float groupW = node.size.x > padX + 20.0f ? node.size.x - padX : kDefaultGroupW;
+	const float groupH = node.size.y > titleH + padY + 20.0f ? node.size.y - titleH - padY : kDefaultGroupH;
+	ed::Group(ImVec2(groupW, groupH));
+
+	ImGui::PopStyleVar();
+	ImGui::PopID();
+	ed::EndNode();
+	ed::PopStyleColor(2);
+}
+
 void Engine::NodeGraphView::DrawNode(GraphDocument& document, GraphNode& node, const NodeGraphViewDesc& desc) {
 
 	(void)document;
+
+	if (desc.isGroupNode && desc.isGroupNode(node)) {
+		DrawGroupNode(node, desc);
+		return;
+	}
 
 	ed::BeginNode(ToNodeID(node.id));
 	ImGui::PushID(reinterpret_cast<void*>(static_cast<uintptr_t>(node.id)));
@@ -110,6 +203,10 @@ void Engine::NodeGraphView::DrawNode(GraphDocument& document, GraphNode& node, c
 
 	// タイトル部。Unity系GraphViewに寄せて、種類色を左に出す
 	ImGui::TextColored(accentColor, node.displayName.empty() ? node.type.c_str() : node.displayName.c_str());
+	if (desc.isNodeHighlighted && desc.isNodeHighlighted(node)) {
+		ImGui::SameLine();
+		ImGui::TextColored(style_.GetWarningColor(), "*");
+	}
 
 	if (!node.type.empty()) {
 		ImGui::TextDisabled("%s", node.type.c_str());
@@ -117,12 +214,12 @@ void Engine::NodeGraphView::DrawNode(GraphDocument& document, GraphNode& node, c
 
 	if (desc.drawNodeProperty) {
 		// Tool固有の簡易PropertyはNode内部へ表示する
-		ImGui::Separator();
+		DrawNodeSeparator(style_.nodeWidth);
 		desc.drawNodeProperty(node);
 	}
 
 	// 入力ピンと出力ピンは左右に並べる
-	ImGui::Separator();
+	DrawNodeSeparator(style_.nodeWidth);
 	const size_t lineCount = std::max(node.inputs.size(), node.outputs.size());
 	for (size_t i = 0; i < lineCount; ++i) {
 
@@ -167,7 +264,7 @@ void Engine::NodeGraphView::DrawNode(GraphDocument& document, GraphNode& node, c
 
 	// Validationのメッセージはノード下部に出して、どのノードの問題かすぐ分かるようにする
 	if (!node.validationMessages.empty()) {
-		ImGui::Separator();
+		DrawNodeSeparator(style_.nodeWidth);
 		for (const std::string& message : node.validationMessages) {
 			ImGui::TextColored(style_.GetErrorColor(), "! %s", message.c_str());
 		}
@@ -191,8 +288,9 @@ void Engine::NodeGraphView::DrawLinks(const GraphDocument& document) {
 	}
 }
 
-void Engine::NodeGraphView::DrawCreateLink(GraphDocument& document) {
+bool Engine::NodeGraphView::DrawCreateLink(GraphDocument& document) {
 
+	bool changed = false;
 	// imgui-node-editorはBeginCreateがfalseを返すフレームでもEndCreateが必要。
 	// ここで早期returnすると内部のCreateItemActionが閉じず、次フレームのBeginCreateでassertする。
 	const bool creating = ed::BeginCreate(style_.GetLinkColor(GraphValueType::Flow), style_.createLinkThickness);
@@ -217,7 +315,7 @@ void Engine::NodeGraphView::DrawCreateLink(GraphDocument& document) {
 			if (document.CanCreateLink(startPin, endPin, &reason)) {
 				// Acceptされた瞬間だけDocumentへLinkを追加する
 				if (ed::AcceptNewItem(style_.GetLinkColor(document.FindPin(startPin)->valueType), style_.createLinkThickness)) {
-					NodeGraphInteraction::TryCreateLink(document, startPin, endPin);
+					changed |= NodeGraphInteraction::TryCreateLink(document, startPin, endPin);
 				}
 			} else {
 				ed::RejectNewItem(style_.GetErrorColor(), style_.createLinkThickness);
@@ -225,10 +323,12 @@ void Engine::NodeGraphView::DrawCreateLink(GraphDocument& document) {
 		}
 	}
 	ed::EndCreate();
+	return changed;
 }
 
-void Engine::NodeGraphView::DrawDelete(GraphDocument& document) {
+bool Engine::NodeGraphView::DrawDelete(GraphDocument& document) {
 
+	bool changed = false;
 	// BeginDeleteもBeginCreateと同じくBegin/Endの対を守る
 	const bool deleting = ed::BeginDelete();
 	if (deleting) {
@@ -237,7 +337,7 @@ void Engine::NodeGraphView::DrawDelete(GraphDocument& document) {
 		while (ed::QueryDeletedLink(&linkID)) {
 			// Deleteキーなどで削除されたLinkをDocumentへ反映する
 			if (ed::AcceptDeletedItem()) {
-				NodeGraphInteraction::TryDeleteLink(document, FromLinkID(linkID));
+				changed |= NodeGraphInteraction::TryDeleteLink(document, FromLinkID(linkID));
 			}
 		}
 
@@ -245,19 +345,21 @@ void Engine::NodeGraphView::DrawDelete(GraphDocument& document) {
 		while (ed::QueryDeletedNode(&nodeID)) {
 			// Node削除時はDocument側で関連Linkもまとめて削除する
 			if (ed::AcceptDeletedItem()) {
-				NodeGraphInteraction::TryDeleteNode(document, FromNodeID(nodeID));
+				changed |= NodeGraphInteraction::TryDeleteNode(document, FromNodeID(nodeID));
 			}
 		}
 	}
 	ed::EndDelete();
+	return changed;
 }
 
-void Engine::NodeGraphView::DrawBackgroundMenu(const NodeGraphViewDesc& desc) {
+bool Engine::NodeGraphView::DrawBackgroundMenu(const NodeGraphViewDesc& desc) {
 
 	if (!desc.registry || !desc.addNodeRequested) {
-		return;
+		return false;
 	}
 
+	bool changed = false;
 	ed::Suspend();
 	if (ed::ShowBackgroundContextMenu()) {
 		// NodeEditorの描画を一時停止してImGui Popupを表示する
@@ -283,9 +385,11 @@ void Engine::NodeGraphView::DrawBackgroundMenu(const NodeGraphViewDesc& desc) {
 			if (ImGui::MenuItem(definition->displayName.c_str())) {
 				desc.addNodeRequested(definition->type, ed::ScreenToCanvas(ImGui::GetMousePos()));
 				nodeSearchText_[0] = '\0';
+				changed = true;
 			}
 		}
 		ImGui::EndPopup();
 	}
 	ed::Resume();
+	return changed;
 }

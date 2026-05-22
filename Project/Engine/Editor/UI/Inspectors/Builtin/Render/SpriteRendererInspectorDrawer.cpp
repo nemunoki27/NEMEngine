@@ -21,11 +21,11 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::AssetReferenceField("Texture", draft.texture,
+			return MyGUI::AssetReferenceField("テクスチャ", draft.texture,
 				context.editorContext->assetDatabase, { AssetType::Texture });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::AssetReferenceField("Material", draft.material,
+			return MyGUI::AssetReferenceField("マテリアル", draft.material,
 				context.editorContext->assetDatabase, { AssetType::Material });
 			});
 	}
@@ -34,15 +34,15 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragVector2("Size", draft.size,
+			return MyGUI::DragVector2("サイズ", draft.size,
 				{ .dragSpeed = 0.1f, .minValue = 0.0f, .maxValue = 100000.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragVector2("Pivot", draft.pivot,
+			return MyGUI::DragVector2("ピボット", draft.pivot,
 				{ .dragSpeed = 0.01f, .minValue = -1.0f, .maxValue = 1.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::ColorEdit("Color4", draft.color);
+			return MyGUI::ColorEdit("色", draft.color);
 			});
 	}
 	//============================================================================
@@ -50,19 +50,19 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("Layer", draft.layer);
+			return MyGUI::DragInt("レイヤー", draft.layer);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("Order", draft.order);
+			return MyGUI::DragInt("描画順", draft.order);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Visible", draft.visible);
+			return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawEnumComboField("Blend Mode", draft.blendMode);
+			return InspectorDrawerCommon::DrawEnumComboField("ブレンド", draft.blendMode);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::InputText("Queue", draft.queue);
+			return MyGUI::InputText("キュー", draft.queue);
 			});
 	}
 }

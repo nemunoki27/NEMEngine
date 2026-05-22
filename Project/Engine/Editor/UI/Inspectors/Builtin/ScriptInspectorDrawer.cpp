@@ -310,7 +310,7 @@ namespace {
 	Engine::ValueEditResult DrawScriptAssetField(const Engine::EditorPanelContext& context, Engine::ScriptEntry& entry) {
 
 		Engine::AssetID beforeAsset = entry.scriptAsset;
-		Engine::ValueEditResult result = Engine::MyGUI::AssetReferenceField("Script Asset", entry.scriptAsset,
+		Engine::ValueEditResult result = Engine::MyGUI::AssetReferenceField("スクリプト", entry.scriptAsset,
 			context.editorContext ? context.editorContext->assetDatabase : nullptr, { Engine::AssetType::Script });
 		if (!result.valueChanged) {
 			return result;
@@ -338,11 +338,11 @@ namespace {
 	Engine::ValueEditResult DrawScriptDropField(const Engine::EditorPanelContext& context, Engine::ScriptComponent& component) {
 
 		Engine::ValueEditResult result{};
-		if (!Engine::MyGUI::BeginPropertyRow("Script Asset")) {
+		if (!Engine::MyGUI::BeginPropertyRow("スクリプト")) {
 			return result;
 		}
 
-		ImGui::Button("Drop C# Script", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
+		ImGui::Button("C#スクリプトをドロップ", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
 		result.anyItemActive = ImGui::IsItemActive();
 
 		if (ImGui::BeginDragDropTarget()) {
@@ -391,7 +391,7 @@ void Engine::ScriptInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 				ImGui::Separator();
 			}
 			{
-				ValueEditResult result = InspectorDrawerCommon::DrawBehaviorTypeField("Type", entry.type);
+				ValueEditResult result = InspectorDrawerCommon::DrawBehaviorTypeField("型", entry.type);
 				if (result.valueChanged) {
 
 					// 型を手動で変えた場合は、Scriptアセットとの対応を切って古いフィールド値を持ち越さない
@@ -402,13 +402,13 @@ void Engine::ScriptInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 				ImGui::Separator();
 			}
 			DrawField(anyItemActive, [&]() {
-				return InspectorDrawerCommon::DrawCheckboxField("Enabled", entry.enabled);
+				return InspectorDrawerCommon::DrawCheckboxField("有効", entry.enabled);
 				});
 
 			// C#側から取得した[SerializeField]対象をインスペクターへ表示する
 			const auto& fields = ManagedScriptRuntime::GetInstance().GetSerializedFields(entry.type);
 			if (!fields.empty()) {
-				ImGui::TextDisabled("Serialized Fields");
+				ImGui::TextDisabled("シリアライズ項目");
 				for (const auto& field : fields) {
 
 					DrawField(anyItemActive, [&]() {
@@ -418,7 +418,7 @@ void Engine::ScriptInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 			}
 
 			// スクリプトの削除
-			if (ImGui::Button("Remove Script")) {
+			if (ImGui::Button("スクリプトを削除")) {
 				removeIndex = static_cast<int32_t>(i);
 			}
 			ImGui::TreePop();
@@ -439,7 +439,7 @@ void Engine::ScriptInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 		RequestCommit();
 	}
 	// スクリプト追加
-	if (ImGui::Button("Add Script")) {
+	if (ImGui::Button("スクリプトを追加")) {
 
 		ImGui::OpenPopup("##AddScriptPopup");
 	}
@@ -453,7 +453,7 @@ void Engine::ScriptInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 
 		if (registry.GetBehaviorTypeCount() == 0) {
 
-			ImGui::TextDisabled("No registered behaviors.");
+			ImGui::TextDisabled("登録済みビヘイビアはありません。");
 		} else {
 			// 登録されているスクリプトの型をメニューアイテムとして表示
 			for (uint32_t i = 0; i < registry.GetBehaviorTypeCount(); ++i) {
@@ -472,6 +472,6 @@ void Engine::ScriptInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 	}
 	// スクリプトが1つもない場合
 	if (draft.scripts.empty()) {
-		ImGui::TextDisabled("No scripts attached.");
+		ImGui::TextDisabled("スクリプトは未設定です。");
 	}
 }

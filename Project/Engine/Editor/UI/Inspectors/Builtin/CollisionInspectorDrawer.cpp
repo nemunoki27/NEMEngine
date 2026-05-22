@@ -22,13 +22,13 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 
 	// CollisionComponent全体の設定
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("Enabled", draft.enabled);
+		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("Static", draft.isStatic);
+		return InspectorDrawerCommon::DrawCheckboxField("静的", draft.isStatic);
 		});
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("Pushback", draft.enablePushback);
+		return InspectorDrawerCommon::DrawCheckboxField("押し戻し", draft.enablePushback);
 		});
 	DrawField(anyItemActive, [&]() {
 		return DrawTypeMaskField(draft);
@@ -49,7 +49,7 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 		if (ImGui::TreeNodeEx("Shape", ImGuiTreeNodeFlags_DefaultOpen, "Shape %u : %s", i, ToString(shape.type))) {
 
 			PushEditResult(DrawShapeField(shape, i), anyItemActive);
-			if (ImGui::Button("Remove Shape", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+			if (ImGui::Button("形状を削除", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 				removeIndex = static_cast<int32_t>(i);
 			}
 			ImGui::TreePop();
@@ -66,7 +66,7 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 		RequestCommit();
 	}
 
-	if (ImGui::Button("Add Shape", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+	if (ImGui::Button("形状を追加", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 		draft.shapes.push_back(CollisionShape{});
 		RequestCommit();
 	}
@@ -77,7 +77,7 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawTypeMaskField(CollisionComponent& component) {
 
 	ValueEditResult result{};
-	if (!MyGUI::BeginPropertyRow("Collision Types")) {
+	if (!MyGUI::BeginPropertyRow("衝突タイプ")) {
 		return result;
 	}
 
@@ -109,7 +109,7 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawTypeMaskField(Coll
 Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeTypeField(ColliderShapeType& type) {
 
 	ValueEditResult result{};
-	if (!MyGUI::BeginPropertyRow("Type")) {
+	if (!MyGUI::BeginPropertyRow("タイプ")) {
 		return result;
 	}
 
@@ -152,22 +152,22 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeField(Collisi
 		};
 
 	accumulate(DrawShapeTypeField(shape.type));
-	accumulate(InspectorDrawerCommon::DrawCheckboxField("Enabled", shape.enabled));
-	accumulate(InspectorDrawerCommon::DrawCheckboxField("Trigger", shape.isTrigger));
-	accumulate(InspectorDrawerCommon::DrawCheckboxField("Use Transform Rotation", shape.useTransformRotation));
-	accumulate(MyGUI::DragVector3("Offset", shape.offset));
-	accumulate(MyGUI::DragVector3("Rotation", shape.rotationDegrees, { .dragSpeed = 0.1f }));
+	accumulate(InspectorDrawerCommon::DrawCheckboxField("有効", shape.enabled));
+	accumulate(InspectorDrawerCommon::DrawCheckboxField("トリガー", shape.isTrigger));
+	accumulate(InspectorDrawerCommon::DrawCheckboxField("変換回転", shape.useTransformRotation));
+	accumulate(MyGUI::DragVector3("オフセット", shape.offset));
+	accumulate(MyGUI::DragVector3("回転", shape.rotationDegrees, { .dragSpeed = 0.1f }));
 
 	// 形状タイプに必要なパラメータだけを表示する
 	if (shape.type == ColliderShapeType::Circle2D || shape.type == ColliderShapeType::Sphere3D) {
-		accumulate(MyGUI::DragFloat("Radius", shape.radius, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+		accumulate(MyGUI::DragFloat("半径", shape.radius, { .dragSpeed = 0.01f, .minValue = 0.0f }));
 	}
 	if (shape.type == ColliderShapeType::Quad2D) {
-		accumulate(InspectorDrawerCommon::DrawCheckboxField("Rotated Quad", shape.rotatedQuad));
-		accumulate(MyGUI::DragVector2("Half Size", shape.halfSize2D, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+		accumulate(InspectorDrawerCommon::DrawCheckboxField("回転四角", shape.rotatedQuad));
+		accumulate(MyGUI::DragVector2("半サイズ", shape.halfSize2D, { .dragSpeed = 0.01f, .minValue = 0.0f }));
 	}
 	if (shape.type == ColliderShapeType::AABB3D || shape.type == ColliderShapeType::OBB3D) {
-		accumulate(MyGUI::DragVector3("Half Extents", shape.halfExtents3D, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+		accumulate(MyGUI::DragVector3("半径寸法", shape.halfExtents3D, { .dragSpeed = 0.01f, .minValue = 0.0f }));
 	}
 	return result;
 }

@@ -103,6 +103,7 @@ namespace Engine {
 	struct AssetEditSetting {
 
 		bool useAutoPropertyRow = true;
+		bool showTooltip = true;
 
 		std::optional<ImVec2> buttonSize = std::nullopt;
 		// プロパティ行設定

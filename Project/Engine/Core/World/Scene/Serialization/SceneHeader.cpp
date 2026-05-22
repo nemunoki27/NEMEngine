@@ -377,6 +377,7 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 				break;
 			case ScenePassType::Draw:
 				passDesc.draw.queue = pass.value("queue", "");
+				passDesc.draw.passName = pass.value("passName", "Draw");
 				if (pass.contains("dest")) {
 					passDesc.draw.dest = ParseRenderTargetSet(pass["dest"]);
 				}
@@ -492,6 +493,7 @@ nlohmann::json Engine::ToJson(const SceneHeader& sceneHeader) {
 			break;
 		case ScenePassType::Draw:
 			item["queue"] = pass.draw.queue;
+			item["passName"] = pass.draw.passName;
 			item["dest"] = RenderTargetSetToJson(pass.draw.dest);
 			break;
 		case ScenePassType::PostProcess:

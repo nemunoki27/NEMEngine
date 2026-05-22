@@ -438,6 +438,18 @@ void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) 
 		return;
 	}
 
+	// 独自のUndoを持つツールウィンドウがフォーカスを持っている場合はグローバルショートカットを抑制する
+	{
+		ImGuiContext* ctx = ImGui::GetCurrentContext();
+		if (ctx && ctx->NavWindow) {
+			const char* name = ctx->NavWindow->Name;
+			if (name && (std::strstr(name, "RenderPath Graph") != nullptr ||
+				std::strstr(name, "RenderPathGraph") != nullptr)) {
+				return;
+			}
+		}
+	}
+
 	// 処理を戻す
 	if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z)) {
 
@@ -598,6 +610,17 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 		editorState_.useSceneGizmo) {
 		return;
 	}
+
+	// ツールウィンドウ等がシーンビューの上に重なっている場合はカメラを更新しない
+	// HoveredWindowが前フレームのマウス下ウィンドウを示すため、SceneView以外はスキップする
+	ImGuiContext* ctx = ImGui::GetCurrentContext();
+	if (ctx && ctx->HoveredWindow) {
+		const char* name = ctx->HoveredWindow->Name;
+		if (name && std::strstr(name, "SceneView") == nullptr) {
+			return;
+		}
+	}
+
 	// カメラの状態を更新する
 	sceneViewCameraController_->Update(editorState_.manualCameraDimension, InputViewArea::Scene);
 }

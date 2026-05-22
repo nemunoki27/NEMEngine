@@ -23,11 +23,11 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::AssetReferenceField("Font", draft.font,
+			return MyGUI::AssetReferenceField("フォント", draft.font,
 				context.editorContext->assetDatabase, { AssetType::Font });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::AssetReferenceField("Material", draft.material,
+			return MyGUI::AssetReferenceField("マテリアル", draft.material,
 				context.editorContext->assetDatabase, { AssetType::Material });
 			});
 	}
@@ -36,18 +36,18 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::InputText("Text", draft.text, { .multiLine = true });
+			return MyGUI::InputText("テキスト", draft.text, { .multiLine = true });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Font Size", draft.fontSize,
+			return MyGUI::DragFloat("フォントサイズ", draft.fontSize,
 				{ .dragSpeed = 0.1f, .minValue = 0.0f, .maxValue = 10000.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Char Spacing", draft.charSpacing,
+			return MyGUI::DragFloat("文字間隔", draft.charSpacing,
 				{ .dragSpeed = 0.01f, .minValue = -1000.0f, .maxValue = 1000.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::ColorEdit("Color4", draft.color);
+			return MyGUI::ColorEdit("色", draft.color);
 			});
 	}
 	//============================================================================
@@ -55,19 +55,19 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("Layer", draft.layer);
+			return MyGUI::DragInt("レイヤー", draft.layer);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("Order", draft.order);
+			return MyGUI::DragInt("描画順", draft.order);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Visible", draft.visible);
+			return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawEnumComboField("Blend Mode", draft.blendMode);
+			return InspectorDrawerCommon::DrawEnumComboField("ブレンド", draft.blendMode);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::InputText("Queue", draft.queue);
+			return MyGUI::InputText("キュー", draft.queue);
 			});
 	}
 }

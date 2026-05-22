@@ -49,7 +49,7 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 	// ビヘイビアの型が一つも登録されていない場合は、コンボボックスを表示せずに無効なテキストを表示する
 	const auto& registry = BehaviorTypeRegistry::GetInstance();
 	if (registry.GetBehaviorTypeCount() == 0) {
-		ImGui::TextDisabled("No registered behavior");
+		ImGui::TextDisabled("登録済みビヘイビアなし");
 		MyGUI::EndPropertyRow();
 		return result;
 	}
