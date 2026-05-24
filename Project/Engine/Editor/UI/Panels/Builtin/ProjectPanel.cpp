@@ -685,6 +685,7 @@ void Engine::ProjectPanel::PrepareModelPreviewAtlas(const EditorPanelContext& co
 	toolContext.panelContext = &context;
 	toolContext.toolContext.world = context.editorContext ? context.editorContext->activeWorld : nullptr;
 	toolContext.toolContext.assetDatabase = &database;
+	toolContext.toolContext.sceneInstances = context.editorContext ? context.editorContext->sceneInstances : nullptr;
 	toolContext.toolContext.activeSceneHeader = context.editorContext ? context.editorContext->activeSceneHeader : nullptr;
 	toolContext.toolContext.activeSceneAsset = context.editorContext ? context.editorContext->activeSceneAsset : AssetID{};
 	toolContext.toolContext.activeSceneInstanceID = context.editorContext ? context.editorContext->activeSceneInstanceID : UUID{};

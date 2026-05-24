@@ -283,6 +283,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		editorContext_.activeSceneHeader = header;
 		editorContext_.activeSceneAsset = activeSceneInstance ? activeSceneInstance->sceneAsset : activeScene_;
 		editorContext_.activeSceneInstanceID = activeSceneInstance ? activeSceneInstance->instanceID : UUID{};
+		editorContext_.sceneInstances = &activeScenes;
 		editorContext_.activeWorld = world;
 		editorContext_.assetDatabase = &assetDataBase_;
 
@@ -291,6 +292,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		toolContext.world = world;
 		toolContext.assetDatabase = &assetDataBase_;
 		toolContext.systemContext = &systemContext_;
+		toolContext.sceneInstances = &activeScenes;
 		toolContext.activeSceneHeader = header;
 		toolContext.activeSceneAsset = editorContext_.activeSceneAsset;
 		toolContext.activeSceneInstanceID = editorContext_.activeSceneInstanceID;

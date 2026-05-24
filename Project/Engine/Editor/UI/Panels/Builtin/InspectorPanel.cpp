@@ -631,6 +631,7 @@ void Engine::InspectorPanel::DrawMeshAssetInspector(const EditorPanelContext& co
 	ToolContext toolContext{};
 	toolContext.world = context.editorContext->activeWorld;
 	toolContext.assetDatabase = context.editorContext->assetDatabase;
+	toolContext.sceneInstances = context.editorContext->sceneInstances;
 	toolContext.activeSceneHeader = context.editorContext->activeSceneHeader;
 	toolContext.activeSceneAsset = context.editorContext->activeSceneAsset;
 	toolContext.activeSceneInstanceID = context.editorContext->activeSceneInstanceID;

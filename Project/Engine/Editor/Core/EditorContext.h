@@ -15,6 +15,7 @@ namespace Engine {
 
 	// front
 	class AssetDatabase;
+	class SceneInstanceManager;
 
 	//============================================================================
 	//	EditorContext struct
@@ -33,6 +34,7 @@ namespace Engine {
 		// 現在アクティブなシーンのランタイム情報
 		AssetID activeSceneAsset{};
 		UUID activeSceneInstanceID{};
+		SceneInstanceManager* sceneInstances = nullptr;
 		// ECSワールド
 		ECSWorld* activeWorld = nullptr;
 		// アセットデータベース

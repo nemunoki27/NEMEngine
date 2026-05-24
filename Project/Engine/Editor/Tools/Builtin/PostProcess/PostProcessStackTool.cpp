@@ -233,6 +233,20 @@ namespace {
 
 		return EndsWith(path, ".CS.hlsl");
 	}
+
+	Engine::SceneHeader* ResolveActiveSceneHeader(const Engine::ToolContext& context) {
+
+		// 通常はSceneInstanceManagerから実体のSceneHeaderを取得する
+		if (context.sceneInstances && context.activeSceneInstanceID) {
+			Engine::SceneInstance* activeScene = context.sceneInstances->Find(context.activeSceneInstanceID);
+			if (activeScene) {
+				return &activeScene->header;
+			}
+		}
+
+		// 古い呼び出し経路でも反映できるように、実体を指すactiveSceneHeaderを最後の手段として使う
+		return const_cast<Engine::SceneHeader*>(context.activeSceneHeader);
+	}
 }
 
 void Engine::PostProcessStackTool::Tick(ToolContext& context) {
@@ -589,18 +603,22 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 				const auto* data = static_cast<const EditorAssetDragDropPayload*>(payload->Data);
 				if (data && !data->isDirectory && IsPostProcessStackFile(data->assetPath)) {
 
-					service.SetActiveSettingsAssetPath(data->assetPath);
-					lastScenePath_ = data->assetPath;
+					const std::string stackPath = data->assetPath;
+					SceneHeader* activeSceneHeader = ResolveActiveSceneHeader(context.toolContext);
+					if (activeSceneHeader) {
+						activeSceneHeader->postProcessStackPath = stackPath;
+					} else {
+						Logger::Output(LogType::Engine,
+							"[PostProcessStack] Dropped stack was loaded, but active SceneHeader was not found: " +
+							stackPath);
+					}
+
+					service.SetActiveSettingsAssetPath(stackPath);
+					lastScenePath_ = stackPath;
 					selectedPassIndex_ = -1;
 
-					// SceneHeader.postProcessStackPath にも反映してシーンを更新する
-					if (context.toolContext.sceneInstances && context.toolContext.activeSceneInstanceID) {
-						SceneInstance* activeScene = context.toolContext.sceneInstances->Find(
-							context.toolContext.activeSceneInstanceID);
-						if (activeScene) {
-							activeScene->header.postProcessStackPath = data->assetPath;
-						}
-					}
+					Logger::Output(LogType::Engine,
+						"[PostProcessStack] Applied stack to active scene: " + stackPath);
 				}
 			}
 			ImGui::EndDragDropTarget();
