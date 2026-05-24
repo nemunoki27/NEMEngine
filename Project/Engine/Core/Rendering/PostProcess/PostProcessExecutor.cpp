@@ -317,11 +317,33 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 	PostProcessParameterLayout& parameterLayout = layoutIt->second;
 	if (parameterLayout.IsValid()) {
 
-		std::vector<uint8_t> bytes = PostProcessParameterBufferBuilder::Build(*materialAsset, parameterLayout);
+		std::vector<uint8_t> bytes;
+		if (!desc.parameterOverrides.empty()) {
+
+			MaterialAsset merged = *materialAsset;
+			for (const auto& [name, val] : desc.parameterOverrides) {
+				merged.parameters[name] = val;
+			}
+			bytes = PostProcessParameterBufferBuilder::Build(merged, parameterLayout);
+		} else {
+			bytes = PostProcessParameterBufferBuilder::Build(*materialAsset, parameterLayout);
+		}
+
 		auto allocation = constantBufferAllocator_.AllocateAndUploadBytes(graphicsCore.GetDXObject().GetDevice(), bytes);
 
 		binds.push_back({ kParameterConstantsName, ComputeBindValueType::CBV,
 			allocation.gpuAddress, {}, parameterLayout.GetBindPoint(), parameterLayout.GetSpace() });
+	}
+
+	lastExecutedMaterial_ = desc.material;
+	lastExecutedLayout_ = parameterLayout.IsValid() ? &parameterLayout : nullptr;
+	lastExecutedSRVBindings_.clear();
+	for (const auto& binding : reflection.resources) {
+		if (binding.kind == ShaderBindingKind::SRV &&
+			binding.name != kSourceColorName &&
+			binding.name != kSourceDepthName) {
+			lastExecutedSRVBindings_.push_back(binding);
+		}
 	}
 	// 追加されたバインドデータをバインディング
 	ComputeRootBinder binder{ *pipelineState };

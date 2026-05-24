@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessParameterLayout.h>
 #include <Engine/Core/Foundation/Math/Math.h>
@@ -49,6 +50,7 @@ namespace Engine {
 		RenderTargetSetReference source;
 		RenderTargetSetReference dest;
 		std::unordered_map<std::string, std::string> extraSources;
+		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides;
 		ComputeDispatchMode dispatchMode = ComputeDispatchMode::FromDestSize;
 		uint32_t groupCountX = 1;
 		uint32_t groupCountY = 1;
@@ -77,6 +79,15 @@ namespace Engine {
 		bool Execute(GraphicsCore& graphicsCore, const RenderFrameRequest& request,
 			const SceneExecutionContext& context, RenderAssetLibrary& assetLibrary,
 			PipelineStateCache& pipelineCache, const PostProcessExecutionDesc& desc);
+
+		//--------- accessor -----------------------------------------------------
+
+		// 最後に実行されたマテリアルのIDを取得する
+		AssetID GetLastExecutedMaterial() const { return lastExecutedMaterial_; }
+		// 最後に実行されたパラメータレイアウトを取得する
+		const PostProcessParameterLayout* GetLastExecutedLayout() const { return lastExecutedLayout_; }
+		// 最後に実行されたSRVバインディングを取得する
+		const std::vector<ShaderResourceBinding>& GetLastExecutedSRVBindings() const { return lastExecutedSRVBindings_; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -88,5 +99,9 @@ namespace Engine {
 		std::unordered_map<const PipelineState*, PostProcessParameterLayout> parameterLayoutCache_{};
 		float elapsedTime_ = 0.0f;
 		uint32_t frameIndex_ = 0;
+
+		AssetID lastExecutedMaterial_{};
+		const PostProcessParameterLayout* lastExecutedLayout_ = nullptr;
+		std::vector<ShaderResourceBinding> lastExecutedSRVBindings_{};
 	};
 } // Engine

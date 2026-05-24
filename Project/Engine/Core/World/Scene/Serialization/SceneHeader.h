@@ -123,11 +123,15 @@ namespace Engine {
 
 		// シーンごとのCollision設定ファイルの論理アセットパス
 		std::string collisionSettingsPath;
+		// シーンごとのPostProcessStack設定ファイルの論理アセットパス
+		std::string postProcessStackPath;
 	};
 
 	// json変換
 	std::string MakeDefaultCollisionSettingsPath(const std::string& scenePath);
 	void EnsureSceneCollisionSettingsPath(SceneHeader& sceneHeader, const std::string& scenePath);
+	std::string MakeDefaultPostProcessStackPath(const std::string& scenePath);
+	void EnsureScenePostProcessStackPath(SceneHeader& sceneHeader, const std::string& scenePath);
 	bool FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, AssetDatabase* assetDatabase);
 	nlohmann::json ToJson(const SceneHeader& sceneHeader);
 } // Engine

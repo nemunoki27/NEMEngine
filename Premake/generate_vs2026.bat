@@ -12,6 +12,7 @@ if errorlevel 1 (
 )
 
 echo ===== Cleanup Old Project Files =====
+if exist "%ENGINE_ROOT%\Project\NEMEngine.sln" del /q "%ENGINE_ROOT%\Project\NEMEngine.sln"
 if exist "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj" del /q "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj"
 if exist "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.filters" del /q "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.filters"
 if exist "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.user" del /q "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.user"

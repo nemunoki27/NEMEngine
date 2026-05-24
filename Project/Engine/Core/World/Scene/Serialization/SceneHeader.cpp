@@ -18,6 +18,7 @@
 namespace {
 
 	constexpr const char* kCollisionSettingsRoot = "GameAssets/Collision";
+	constexpr const char* kPostProcessStackRoot = "GameAssets/PostProcess";
 
 	bool StartsWith(const std::string& text, const char* prefix) {
 
@@ -35,6 +36,20 @@ namespace {
 			relative.erase(relative.begin());
 		}
 		return relative;
+	}
+
+	std::string MakePostProcessStackFileName(const std::filesystem::path& scenePath) {
+
+		std::filesystem::path stem = scenePath.stem();
+		if (stem.extension() == ".scene") {
+			stem = stem.stem();
+		}
+
+		std::string name = stem.string();
+		if (name.empty()) {
+			name = "Scene";
+		}
+		return name + ".postProcessStack.json";
 	}
 
 	std::string MakeCollisionSettingsFileName(const std::filesystem::path& scenePath) {
@@ -88,6 +103,24 @@ void Engine::EnsureSceneCollisionSettingsPath(SceneHeader& sceneHeader, const st
 	}
 }
 
+std::string Engine::MakeDefaultPostProcessStackPath(const std::string& scenePath) {
+
+	const std::filesystem::path relativeSource = MakeCollisionRelativeSource(scenePath);
+	std::filesystem::path stackPath = kPostProcessStackRoot;
+	if (relativeSource.has_parent_path()) {
+		stackPath /= relativeSource.parent_path();
+	}
+	stackPath /= MakePostProcessStackFileName(relativeSource);
+	return stackPath.generic_string();
+}
+
+void Engine::EnsureScenePostProcessStackPath(SceneHeader& sceneHeader, const std::string& scenePath) {
+
+	if (sceneHeader.postProcessStackPath.empty()) {
+		sceneHeader.postProcessStackPath = MakeDefaultPostProcessStackPath(scenePath);
+	}
+}
+
 bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, AssetDatabase* assetDatabase) {
 
 	// JSONがオブジェクトでない場合は失敗
@@ -101,6 +134,7 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 		sceneHeader.guid = guidStr.empty() ? UUID::New() : FromString16Hex(guidStr);
 		sceneHeader.name = data.value("name", "UntitledScene");
 		sceneHeader.collisionSettingsPath = data.value("collisionSettings", data.value("collisionSettingsPath", ""));
+		sceneHeader.postProcessStackPath = data.value("postProcessStack", "");
 	}
 
 	// サブシーン
@@ -145,6 +179,7 @@ nlohmann::json Engine::ToJson(const SceneHeader& sceneHeader) {
 	data["guid"] = ToString(sceneHeader.guid);
 	data["name"] = sceneHeader.name;
 	data["collisionSettings"] = sceneHeader.collisionSettingsPath;
+	data["postProcessStack"] = sceneHeader.postProcessStackPath;
 
 	data["subScenes"] = nlohmann::json::array();
 	for (const auto& subScene : sceneHeader.subScenes) {

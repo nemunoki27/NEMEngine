@@ -21,11 +21,14 @@ project "imgui"
     system "windows"
     language "C++"
     cppdialect "C++20"
-    toolset "v143"
     staticruntime "On"
     warnings "Default"
     multiprocessorcompile "On"
     buildoptions { "/utf-8" }
+
+    filter "action:vs2022"
+        toolset "v143"
+    filter {}
 
     files {
         path.join(NEMENGINE_ROOT, "Project/Externals/imgui/*.cpp"),
@@ -54,11 +57,14 @@ project "imgui_node_editor"
     system "windows"
     language "C++"
     cppdialect "C++20"
-    toolset "v143"
     staticruntime "On"
     warnings "Default"
     multiprocessorcompile "On"
     buildoptions { "/utf-8" }
+
+    filter "action:vs2022"
+        toolset "v143"
+    filter {}
 
     files {
         path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor/crude_json.cpp"),

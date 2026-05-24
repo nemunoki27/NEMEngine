@@ -88,6 +88,12 @@ if errorlevel 1 (
     exit /b 1
 )
 
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ENGINE_ROOT%\Premake\patch_libcurl_vcxproj.ps1" -BuildRoot "%LIBCURL_BUILD%"
+if errorlevel 1 (
+    echo [ERROR] libcurl project patch failed.
+    exit /b 1
+)
+
 echo [OK] External projects configured.
 endlocal
 exit /b 0
