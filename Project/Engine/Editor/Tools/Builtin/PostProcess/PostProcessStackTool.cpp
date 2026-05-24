@@ -280,8 +280,6 @@ void Engine::PostProcessStackTool::DrawWindow(const EditorToolContext& context) 
 		return;
 	}
 
-	ImGui::SetWindowFontScale(0.64f);
-
 	PostProcessStackService& service = PostProcessStackService::GetInstance();
 	service.EnsureLoaded();
 
@@ -338,7 +336,6 @@ void Engine::PostProcessStackTool::DrawWindow(const EditorToolContext& context) 
 	// 未保存確認ポップアップ
 	DrawUnsavedConfirmPopup();
 
-	ImGui::SetWindowFontScale(0.64f);
 	ImGui::End();
 }
 

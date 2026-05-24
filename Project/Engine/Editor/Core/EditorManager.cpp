@@ -562,6 +562,8 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	// ドッキングスペースの描画
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PostScene);
 
+	//ImGui::ShowDemoWindow();
+
 	imguiManager_.End();
 
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();

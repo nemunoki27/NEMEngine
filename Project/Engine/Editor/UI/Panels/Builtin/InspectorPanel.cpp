@@ -394,28 +394,6 @@ namespace {
 		material.parameters.try_emplace("Metallic", Engine::MaterialParameterValue{ .value = 0.0f });
 		material.parameters.try_emplace("Roughness", Engine::MaterialParameterValue{ .value = 0.5f });
 	}
-
-	// Inspector全体でScriptアセットのドロップを受け取る
-	void DrawScriptAssetDropTarget(const Engine::EditorPanelContext& context, const Engine::Entity& entity) {
-
-		if (!context.CanEditScene()) {
-			return;
-		}
-
-		ImGui::Button("Drop C# Script", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f));
-		if (!ImGui::BeginDragDropTarget()) {
-			return;
-		}
-
-		Engine::AssetID scriptAsset{};
-		std::string typeName{};
-		if (Engine::ScriptAssetDragDrop::AcceptScriptAssetDrop(context, scriptAsset, typeName)) {
-
-			context.host->ExecuteEditorCommand(std::make_unique<Engine::AddScriptEntryCommand>(
-				entity, typeName, scriptAsset));
-		}
-		ImGui::EndDragDropTarget();
-	}
 }
 
 Engine::InspectorPanel::InspectorPanel() {
@@ -503,7 +481,6 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	DrawEntityHeader(context, *world, selected);
 	// コンポーネント操作UI
 	DrawComponentToolbar(context, *world, selected);
-	DrawScriptAssetDropTarget(context, selected);
 
 	// 登録済みコンポーネント描画
 	for (const auto& drawer : componentDrawers_) {

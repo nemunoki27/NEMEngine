@@ -1053,7 +1053,7 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 		ImGui::BeginGroup();
 
 		if (ImGui::ImageButton("##FolderButton", thumbnailCache_.GetFolderIconTextureID(), ImVec2(iconSize, iconSize),
-			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), ImVec4(0.16f, 0.16f, 0.16f, 1.0f))) {
+			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), ImVec4(0.06f, 0.06f, 0.06f, 1.0f))) {
 
 			// Project内のフォルダ移動ではInspectorの選択状態を変更しない
 			selectedDirectory_ = child->virtualPath;
@@ -1107,7 +1107,7 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 		}
 
 		if (ImGui::ImageButton("##AssetButton", textureID, ImVec2(iconSize, iconSize),
-			uv0, uv1, ImVec4(0.16f, 0.16f, 0.16f, 1.0f))) {
+			uv0, uv1, ImVec4(0.06f, 0.06f, 0.06f, 1.0f))) {
 
 			// 単クリックはProject内の選択だけに留め、Inspectorへは反映しない
 			selectedAsset_ = asset.assetID;

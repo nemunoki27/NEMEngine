@@ -306,9 +306,17 @@ void Engine::SceneViewToolPanel::DrawManipulatorSection(const EditorPanelContext
 
 bool Engine::SceneViewToolPanel::DrawIconButton(const char* id, ImTextureID textureID, bool active, const ImVec2& size) const {
 
-	const ImVec4 normal = active ? ImVec4(0.20f, 0.38f, 0.78f, 1.00f) : ImVec4(0.16f, 0.16f, 0.18f, 0.92f);
-	const ImVec4 hovered = active ? ImVec4(0.25f, 0.45f, 0.88f, 1.00f) : ImVec4(0.22f, 0.22f, 0.25f, 0.95f);
-	const ImVec4 pressed = active ? ImVec4(0.16f, 0.30f, 0.88f, 1.00f) : ImVec4(0.10f, 0.10f, 0.12f, 1.00f);
+	const ImVec4 normal = active
+		? ImVec4(0.05f, 0.18f, 0.45f, 1.00f)   // active: dark deep blue
+		: ImVec4(0.04f, 0.04f, 0.04f, 0.95f);  // inactive: near black
+
+	const ImVec4 hovered = active
+		? ImVec4(0.07f, 0.24f, 0.58f, 1.00f)   // active hover: slightly brighter dark blue
+		: ImVec4(0.08f, 0.08f, 0.08f, 0.98f);  // inactive hover
+
+	const ImVec4 pressed = active
+		? ImVec4(0.10f, 0.32f, 0.74f, 1.00f)   // active pressed: stronger blue
+		: ImVec4(0.02f, 0.02f, 0.02f, 1.00f);  // inactive pressed
 
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, 4.0f));
 	ImGui::PushStyleColor(ImGuiCol_Button, normal);
@@ -325,7 +333,7 @@ bool Engine::SceneViewToolPanel::DrawIconButton(const char* id, ImTextureID text
 
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
 		drawList->AddRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
-			IM_COL32(128, 128, 255, 255), 4.0f, 0, 2.0f);
+			IM_COL32(26, 82, 190, 255), 4.0f, 0, 2.0f);
 	}
 	return result;
 }
