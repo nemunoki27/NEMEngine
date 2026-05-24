@@ -7,13 +7,13 @@
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Types.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPayloadArena.h>
+#include <Engine/Core/Rendering/Renderer/Queues/RenderPhase.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
 
 // c++
-#include <string>
 #include <vector>
 #include <cstdint>
 
@@ -77,7 +77,7 @@ namespace Engine {
 		// 描画アイテムの種類
 		uint32_t backendID = 0;
 		// 描画フェーズ
-		std::string renderPhase = "Opaque";
+		RenderPhase renderPhase = RenderPhase::Opaque;
 
 		// 描画の可視レイヤーマスク
 		uint32_t visibilityLayerMask = 0xFFFFFFFFu;
@@ -98,9 +98,6 @@ namespace Engine {
 
 		// 描画に使用するカメラ
 		RenderCameraDomain cameraDomain = RenderCameraDomain::Perspective;
-
-		// trueの場合、ポストプロセス適用前のSceneFinalへ描画する
-		bool postProcessTarget = false;
 
 		// 描画アイテムの参照情報
 		RenderPayload payload{};

@@ -690,7 +690,7 @@ void Engine::InspectorPanel::RebuildModelAssetPreviewWorld(const EditorPanelCont
 	auto& renderer = modelPreviewWorld_->AddComponent<MeshRendererComponent>(entity);
 	renderer.mesh = meta.guid;
 	renderer.material = {};
-	renderer.queue = "Opaque";
+	renderer.queue = RenderPhase::Opaque;
 	renderer.visible = true;
 	renderer.enableZPrepass = true;
 	MeshSubMeshAuthoring::SyncComponent(database, renderer, false);

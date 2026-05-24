@@ -753,7 +753,7 @@ void Engine::ProjectPanel::RebuildModelPreviewSlots(AssetDatabase& database, con
 		auto& renderer = modelPreviewWorld_->AddComponent<MeshRendererComponent>(entity);
 		renderer.mesh = asset.assetID;
 		renderer.material = {};
-		renderer.queue = "Opaque";
+		renderer.queue = RenderPhase::Opaque;
 		renderer.visible = true;
 		renderer.enableZPrepass = true;
 		MeshSubMeshAuthoring::SyncComponent(&database, renderer, false);

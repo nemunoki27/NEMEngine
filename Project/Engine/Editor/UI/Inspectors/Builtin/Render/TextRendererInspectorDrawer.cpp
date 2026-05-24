@@ -64,10 +64,10 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 			return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawEnumComboField("ブレンド", draft.blendMode);
+			return InspectorDrawerCommon::DrawEnumComboField("ブレンドモード", draft.blendMode);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::InputText("キュー", draft.queue);
+			return InspectorDrawerCommon::DrawEnumComboField("キュー", draft.queue);
 			});
 	}
 }

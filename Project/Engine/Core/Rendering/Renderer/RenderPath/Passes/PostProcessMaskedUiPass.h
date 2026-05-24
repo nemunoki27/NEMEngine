@@ -10,7 +10,7 @@ namespace Engine {
 
 	//============================================================================
 	//	PostProcessMaskedUiPass class
-	//	postProcessTarget==true のUIアイテムを SceneFinal に描画するパス
+	//	PostProcessMaskedUIフェーズのアイテムをSceneFinalへ描画するパス
 	//============================================================================
 	class PostProcessMaskedUiPass :
 		public IRenderPass {

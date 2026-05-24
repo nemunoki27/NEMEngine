@@ -59,10 +59,10 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 			return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawEnumComboField("ブレンド", draft.blendMode);
+			return InspectorDrawerCommon::DrawEnumComboField("ブレンドモード", draft.blendMode);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::InputText("キュー", draft.queue);
+			return InspectorDrawerCommon::DrawEnumComboField("キュー", draft.queue);
 			});
 	}
 }

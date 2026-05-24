@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Types.h>
+#include <Engine/Core/Rendering/Renderer/Queues/RenderPhase.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
@@ -72,7 +73,7 @@ namespace Engine {
 		// ブレンドモード
 		BlendMode blendMode = BlendMode::Normal;
 		// 描画キュー
-		std::string queue = "CanvasPreModel";
+		RenderPhase queue = RenderPhase::ScreenUI;
 
 		// ランタイム用の文字レイアウトキャッシュ
 		TextLayoutRuntime runtimeLayout{};

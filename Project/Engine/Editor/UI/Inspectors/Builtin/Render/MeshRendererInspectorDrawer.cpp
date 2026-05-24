@@ -75,10 +75,10 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			return InspectorDrawerCommon::DrawCheckboxField("Zプリパス", draft.enableZPrepass);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawEnumComboField("ブレンド", draft.blendMode);
+			return InspectorDrawerCommon::DrawEnumComboField("ブレンドモード", draft.blendMode);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::InputText("キュー", draft.queue);
+			return InspectorDrawerCommon::DrawEnumComboField("キュー", draft.queue);
 			});
 	}
 }

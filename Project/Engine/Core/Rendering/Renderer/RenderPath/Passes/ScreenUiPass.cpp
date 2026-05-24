@@ -14,19 +14,9 @@
 void Engine::ScreenUiPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
-	// postProcessTarget==false かつ Opaque/Transparent 以外のアイテムを収集する
-	std::vector<const RenderItem*> items{};
-	for (const auto& [phase, list] : passBuckets.phaseToItems) {
-		if (phase == "Opaque" || phase == "Transparent") {
-			continue;
-		}
-		for (const RenderItem* item : list.items) {
-			if (item && !item->postProcessTarget) {
-				items.emplace_back(item);
-			}
-		}
-	}
+	// ViewportへのBlit後に重ねるScreen UIだけを描画する
+	const RenderPassItemList& items = passBuckets.Get(RenderPhase::ScreenUI);
 
-	RenderPassExecutionHelper::Execute(graphicsCore, context, items, deps_,
+	RenderPassExecutionHelper::Execute(graphicsCore, context, items.items, deps_,
 		context.defaultSurface);
 }

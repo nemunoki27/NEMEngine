@@ -68,7 +68,7 @@ void Engine::from_json(const nlohmann::json& in, MeshRendererComponent& componen
 
 	component.mesh = ParseAssetID(in, "mesh");
 	component.material = ParseAssetID(in, "material");
-	component.queue = in.value("queue", component.queue);
+	component.queue = RenderPhaseFromString(in.value("queue", std::string(ToString(component.queue))), component.queue);
 	component.layer = in.value("layer", component.layer);
 	component.order = in.value("order", component.order);
 	component.visible = in.value("visible", component.visible);
@@ -88,7 +88,7 @@ void Engine::to_json(nlohmann::json& out, const MeshRendererComponent& component
 
 	out["mesh"] = ToString(component.mesh);
 	out["material"] = ToString(component.material);
-	out["queue"] = component.queue;
+	out["queue"] = std::string(ToString(component.queue));
 	out["layer"] = component.layer;
 	out["order"] = component.order;
 	out["visible"] = component.visible;

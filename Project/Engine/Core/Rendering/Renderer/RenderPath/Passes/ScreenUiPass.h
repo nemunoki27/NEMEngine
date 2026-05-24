@@ -10,7 +10,7 @@ namespace Engine {
 
 	//============================================================================
 	//	ScreenUiPass class
-	//	postProcessTarget==false の非Opaque/Transparentアイテムを View に描画するパス
+	//	ScreenUIフェーズのアイテムをViewport表示後のViewへ描画するパス
 	//============================================================================
 	class ScreenUiPass :
 		public IRenderPass {

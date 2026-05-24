@@ -17,7 +17,7 @@ void Engine::from_json(const nlohmann::json& in, TextRendererComponent& componen
 	component.fontSize = in.value("fontSize", component.fontSize);
 	component.charSpacing = in.value("charSpacing", component.charSpacing);
 	component.color = Color4::FromJson(in.value("color", nlohmann::json()));
-	component.queue = in.value("queue", component.queue);
+	component.queue = RenderPhaseFromString(in.value("queue", std::string(ToString(component.queue))), component.queue);
 	component.layer = in.value("layer", component.layer);
 	component.order = in.value("order", component.order);
 	component.visible = in.value("visible", component.visible);
@@ -35,7 +35,7 @@ void Engine::to_json(nlohmann::json& out, const TextRendererComponent& component
 	out["fontSize"] = component.fontSize;
 	out["charSpacing"] = component.charSpacing;
 	out["color"] = component.color.ToJson();
-	out["queue"] = component.queue;
+	out["queue"] = std::string(ToString(component.queue));
 	out["layer"] = component.layer;
 	out["order"] = component.order;
 	out["visible"] = component.visible;

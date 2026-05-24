@@ -19,16 +19,9 @@ void Engine::PostProcessMaskedUiPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	// postProcessTarget==true のアイテムをすべてのフェーズから収集する
-	std::vector<const RenderItem*> items{};
-	for (const auto& [phase, list] : passBuckets.phaseToItems) {
-		for (const RenderItem* item : list.items) {
-			if (item && item->postProcessTarget) {
-				items.emplace_back(item);
-			}
-		}
-	}
+	// ポストプロセス適用前にSceneFinalへ合成するUIだけを描画する
+	const RenderPassItemList& items = passBuckets.Get(RenderPhase::PostProcessMaskedUI);
 
-	RenderPassExecutionHelper::Execute(graphicsCore, context, items, deps_,
+	RenderPassExecutionHelper::Execute(graphicsCore, context, items.items, deps_,
 		context.resources->GetSceneFinal());
 }

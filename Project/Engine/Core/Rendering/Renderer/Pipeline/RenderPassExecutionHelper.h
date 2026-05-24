@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Renderer/Queues/RenderPhase.h>
 
 namespace Engine {
 
@@ -17,7 +18,7 @@ namespace Engine {
 		// 描画パスの共通実行処理（リソース状態遷移、バインド、ビューポート設定、ディスパッチ）を行う。
 		void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 			const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
-			const char* phaseName, MultiRenderTarget* target, const char* drawPassName = "Draw",
+			RenderPhase phase, MultiRenderTarget* target, const char* drawPassName = "Draw",
 			bool forceVertexMeshVariant = false);
 
 		// 指定されたアイテムリストを使用して描画パスを実行する。

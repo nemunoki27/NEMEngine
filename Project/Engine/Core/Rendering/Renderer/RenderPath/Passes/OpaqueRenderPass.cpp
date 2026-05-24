@@ -20,5 +20,5 @@ void Engine::OpaqueRenderPass::Execute(GraphicsCore& graphicsCore,
 	}
 
 	RenderPassExecutionHelper::Execute(graphicsCore, context, passBuckets, deps_,
-		"Opaque", context.resources->GetSceneMain());
+		RenderPhase::Opaque, context.resources->GetSceneMain());
 }

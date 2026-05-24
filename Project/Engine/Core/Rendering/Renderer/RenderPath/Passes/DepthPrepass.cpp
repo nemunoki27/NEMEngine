@@ -28,7 +28,7 @@ std::vector<const Engine::RenderItem*> Engine::DepthPrepass::CollectItems(
 	const SceneExecutionContext& context, const RenderPassPhaseBuckets& passBuckets) const {
 
 	std::vector<const RenderItem*> result{};
-	const RenderPassItemList* list = passBuckets.Find("Opaque");
+	const RenderPassItemList* list = passBuckets.Find(RenderPhase::Opaque);
 	if (!list || list->IsEmpty()) {
 		return result;
 	}

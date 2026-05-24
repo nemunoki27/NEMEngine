@@ -65,10 +65,10 @@ namespace Engine::RenderPassExecutionHelper {
 
 	void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 		const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
-		const char* phaseName, MultiRenderTarget* target, const char* drawPassName,
+		RenderPhase phase, MultiRenderTarget* target, const char* drawPassName,
 		bool forceVertexMeshVariant) {
 
-		const RenderPassItemList* list = passBuckets.Find(phaseName);
+		const RenderPassItemList* list = passBuckets.Find(phase);
 		if (!list) {
 			return;
 		}

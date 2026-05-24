@@ -61,7 +61,7 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	// ドラッグ編集の設定
 	FloatEditSetting editSetting{ .minValue = -10000.0f,.maxValue = 10000.0f,.closeOnProperty = false,.reserveRightWidth = 80.0f };
 	// ボタンサイズ
-	ImVec2 resetButtonSize = ImVec2(editSetting.reserveRightWidth, 24.0f);
+	ImVec2 resetButtonSize = ImVec2(editSetting.reserveRightWidth, ImGui::GetFrameHeight());
 
 	//============================================================================
 	//	座標編集

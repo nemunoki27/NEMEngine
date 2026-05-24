@@ -4,14 +4,30 @@
 //	RenderPassItemCollector classMethods
 //============================================================================
 
-const Engine::RenderPassItemList* Engine::RenderPassPhaseBuckets::Find(const std::string& renderPhase) const {
+void Engine::RenderPassPhaseBuckets::Clear() {
 
-	auto it = phaseToItems.find(renderPhase);
-	return (it == phaseToItems.end()) ? nullptr : &it->second;
+	for (RenderPassItemList& bucket : buckets) {
+		bucket.Clear();
+	}
+}
+
+Engine::RenderPassItemList& Engine::RenderPassPhaseBuckets::Get(RenderPhase phase) {
+
+	return buckets[Engine::EnumAdapter<Engine::RenderPhase>::GetIndex(phase)];
+}
+
+const Engine::RenderPassItemList& Engine::RenderPassPhaseBuckets::Get(RenderPhase phase) const {
+
+	return buckets[Engine::EnumAdapter<Engine::RenderPhase>::GetIndex(phase)];
+}
+
+const Engine::RenderPassItemList* Engine::RenderPassPhaseBuckets::Find(RenderPhase phase) const {
+
+	return &Get(phase);
 }
 
 void Engine::RenderPassItemCollector::CollectForView(const RenderSceneBatch& batch,
-	const std::string& renderPhase, const ResolvedRenderView& view, RenderPassItemList& outList) {
+	RenderPhase renderPhase, const ResolvedRenderView& view, RenderPassItemList& outList) {
 
 	outList.Clear();
 	for (const auto& item : batch.GetItems()) {
@@ -40,12 +56,12 @@ void Engine::RenderPassItemCollector::BuildBucketsForViewAndScene(const RenderSc
 		if (sceneInstanceID && item.sceneInstanceID != sceneInstanceID) {
 			continue;
 		}
-		outBuckets.phaseToItems[item.renderPhase].items.emplace_back(&item);
+		outBuckets.Get(item.renderPhase).items.emplace_back(&item);
 	}
 }
 
 bool Engine::RenderPassItemCollector::IsVisibleToView(const RenderItem& item,
-	const std::string& renderPhase, const ResolvedRenderView& view) {
+	RenderPhase renderPhase, const ResolvedRenderView& view) {
 
 	// 描画フェーズが一致しない、無効な場合は非表示
 	if (!view.valid || item.renderPhase != renderPhase) {

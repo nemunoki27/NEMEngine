@@ -7,10 +7,8 @@
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 
 // c++
-#include <string>
-#include <string_view>
+#include <array>
 #include <vector>
-#include <unordered_map>
 
 namespace Engine {
 
@@ -31,12 +29,17 @@ namespace Engine {
 	// 1回のシーン実行中だけ使う、描画フェーズごとの一時バケット
 	struct RenderPassPhaseBuckets {
 
-		std::unordered_map<std::string, RenderPassItemList> phaseToItems{};
+		// 固定RenderPathのフェーズ数ぶんだけ配列で保持する
+		std::array<RenderPassItemList, kRenderPhaseCount> buckets{};
 
 		// データクリア
-		void Clear() { phaseToItems.clear(); }
-		// 描画フェーズに対してアイテムリストを返す
-		const RenderPassItemList* Find(const std::string& renderPhase) const;
+		void Clear();
+		// 指定フェーズのバケットを取得する
+		RenderPassItemList& Get(RenderPhase phase);
+		// 指定フェーズのバケットを取得する
+		const RenderPassItemList& Get(RenderPhase phase) const;
+		// 指定フェーズのバケットを参照する
+		const RenderPassItemList* Find(RenderPhase phase) const;
 	};
 
 	//============================================================================
@@ -53,7 +56,7 @@ namespace Engine {
 		~RenderPassItemCollector() = default;
 
 		// ビューの中から描画フェーズに対して有効なアイテムを収集し、描画アイテムリストに振り分ける
-		static void CollectForView(const RenderSceneBatch& batch, const std::string& renderPhase,
+		static void CollectForView(const RenderSceneBatch& batch, RenderPhase renderPhase,
 			const ResolvedRenderView& view, RenderPassItemList& outList);
 		// 1回のシーン実行で使い回す、フェーズごとのバケットを構築する
 		static void BuildBucketsForViewAndScene(const RenderSceneBatch& batch, const ResolvedRenderView& view,
@@ -66,7 +69,7 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// 描画アイテムが描画ビューに対して可視か
-		static bool IsVisibleToView(const RenderItem& item, const std::string& renderPhase, const ResolvedRenderView& view);
+		static bool IsVisibleToView(const RenderItem& item, RenderPhase renderPhase, const ResolvedRenderView& view);
 		// 描画フェーズ比較を含まない、ビュー可視判定本体
 		static bool IsVisibleToView(const RenderItem& item, const ResolvedRenderView& view);
 	};

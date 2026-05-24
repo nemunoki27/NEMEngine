@@ -18,19 +18,18 @@
 
 namespace {
 
-	constexpr const char* kSceneMainAlias = "SceneMain";
 	constexpr const char* kSceneColorFinal = "SceneColorFinal";
 	constexpr const char* kPingName = "PostProcessPing";
 	constexpr const char* kPongName = "PostProcessPong";
 
-	bool CopySceneMainToFinal(Engine::GraphicsCore& graphicsCore,
-		Engine::MultiRenderTarget* sceneMain, Engine::MultiRenderTarget* sceneFinal) {
+	bool CopyColor0Resource(Engine::GraphicsCore& graphicsCore,
+		Engine::MultiRenderTarget* source, Engine::MultiRenderTarget* dest) {
 
-		if (!sceneMain || !sceneFinal) {
+		if (!source || !dest) {
 			return false;
 		}
-		Engine::RenderTexture2D* sourceColor = sceneMain->GetColorTexture(0);
-		Engine::RenderTexture2D* destColor = sceneFinal->GetColorTexture(0);
+		Engine::RenderTexture2D* sourceColor = source->GetColorTexture(0);
+		Engine::RenderTexture2D* destColor = dest->GetColorTexture(0);
 		if (!sourceColor || !destColor) {
 			return false;
 		}
@@ -39,7 +38,7 @@ namespace {
 		sourceColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		destColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_DEST);
 		dxCommand->GetCommandList()->CopyResource(destColor->GetResource(), sourceColor->GetResource());
-		sceneFinal->TransitionForShaderRead(*dxCommand);
+		dest->TransitionForShaderRead(*dxCommand);
 		return true;
 	}
 }
@@ -54,9 +53,8 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	MultiRenderTarget* sceneMain = context.resources->GetSceneMain();
 	MultiRenderTarget* sceneFinal = context.resources->GetSceneFinal();
-	if (!sceneMain || !sceneFinal) {
+	if (!sceneFinal) {
 		return;
 	}
 
@@ -65,7 +63,6 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 	const PostProcessStackRuntime& runtime = service.GetRuntime();
 
 	if (!runtime.HasEnabledPasses()) {
-		CopySceneMainToFinal(graphicsCore, sceneMain, sceneFinal);
 		return;
 	}
 
@@ -78,21 +75,18 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		}
 	}
 	if (activePasses.empty()) {
-		CopySceneMainToFinal(graphicsCore, sceneMain, sceneFinal);
 		return;
 	}
 
-	// 2パス以上の場合はPingPong用テンポラリRTを確保
-	MultiRenderTarget* ping = nullptr;
+	// SceneFinalを入力にするため、1パスだけでも一時RTを必ず経由する
+	MultiRenderTarget* ping = deps_.postProcessTargetPool->Acquire(graphicsCore,
+		*context.targetRegistry, kPingName, *sceneFinal);
 	MultiRenderTarget* pong = nullptr;
-	if (activePasses.size() > 1) {
-
-		ping = deps_.postProcessTargetPool->Acquire(graphicsCore, *context.targetRegistry, kPingName, *sceneFinal);
+	if (activePasses.size() > 2) {
 		pong = deps_.postProcessTargetPool->Acquire(graphicsCore, *context.targetRegistry, kPongName, *sceneFinal);
-		if (!ping || !pong) {
-			CopySceneMainToFinal(graphicsCore, sceneMain, sceneFinal);
-			return;
-		}
+	}
+	if (!ping || (activePasses.size() > 2 && !pong)) {
+		return;
 	}
 
 	// 実行前にリフレクション情報をキャッシュしておく（実行成功に依存しないUIのため）
@@ -128,8 +122,15 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		const bool isFirst = (i == 0);
 		const bool isLast = (i == passCount - 1);
 
-		const char* sourceName = isFirst ? kSceneMainAlias : ((i % 2 == 1) ? kPingName : kPongName);
-		const char* destName = isLast ? kSceneColorFinal : ((i % 2 == 0) ? kPingName : kPongName);
+		const char* sourceName = nullptr;
+		const char* destName = nullptr;
+		if (isFirst) {
+			sourceName = kSceneColorFinal;
+			destName = kPingName;
+		} else {
+			sourceName = (i % 2 == 1) ? kPingName : kPongName;
+			destName = isLast ? kSceneColorFinal : ((i % 2 == 1) ? kPongName : kPingName);
+		}
 
 		PostProcessExecutionDesc desc{};
 		desc.material = pass.material;
@@ -143,9 +144,8 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		if (!deps_.postProcessExecutor->Execute(graphicsCore, RenderFrameRequest{},
 			context, *deps_.assetLibrary, *deps_.pipelineCache, desc)) {
 
-			// いずれかのpassが失敗したらスタック全体を中断してcopy fallbackに進む
-			Logger::Output(LogType::Engine, "[PostProcessStack] pass '{}' failed. Aborting stack and copy fallback.", pass.name);
-			CopySceneMainToFinal(graphicsCore, sceneMain, sceneFinal);
+			// いずれかのpassが失敗したらSceneFinalの既存内容を保持して中断する
+			Logger::Output(LogType::Engine, "[PostProcessStack] pass '{}' failed. Aborting stack.", pass.name);
 			return;
 		}
 
@@ -156,5 +156,9 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 				layout->GetVariables(),
 				deps_.postProcessExecutor->GetLastExecutedSRVBindings());
 		}
+	}
+
+	if (passCount == 1) {
+		CopyColor0Resource(graphicsCore, ping, sceneFinal);
 	}
 }

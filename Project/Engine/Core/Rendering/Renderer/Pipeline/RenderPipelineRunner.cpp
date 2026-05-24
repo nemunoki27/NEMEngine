@@ -105,7 +105,7 @@ namespace {
 			};
 
 		// 全フェーズのアイテムに対してスキニングを実行する
-		for (const auto& [phase, list] : passBuckets.phaseToItems) {
+		for (const Engine::RenderPassItemList& list : passBuckets.buckets) {
 			if (!list.IsEmpty()) {
 				runDispatch(list.items);
 			}
@@ -190,7 +190,7 @@ namespace {
 				continue;
 			}
 
-			outBuckets.phaseToItems[item.renderPhase].items.emplace_back(&item);
+			outBuckets.Get(item.renderPhase).items.emplace_back(&item);
 			if (item.backendID == Engine::RenderBackendID::Mesh) {
 
 				if (const auto* payload = renderBatch.GetPayload<Engine::MeshRenderPayload>(item)) {
@@ -684,7 +684,7 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 		request.surface->Clear(*dxCommand, clearDesc);
 	}
 
-	for (const auto& [phase, list] : passBuckets.phaseToItems) {
+	for (const Engine::RenderPassItemList& list : passBuckets.buckets) {
 		if (list.IsEmpty()) {
 			continue;
 		}
