@@ -16,6 +16,7 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
+#include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 
@@ -131,9 +132,7 @@ void Engine::HierarchyPanel::DrawActiveToggleIcon(const EditorPanelContext& cont
 	ImTextureID textureID{};
 	if (textureUploadService_) {
 		const char* textureKey = activeSelf ? kActiveEyeTextureKey : kInactiveEyeTextureKey;
-		if (const auto* texture = textureUploadService_->GetTexture(textureKey)) {
-			textureID = static_cast<ImTextureID>(texture->gpuHandle.ptr);
-		}
+		textureID = EditorTextureHelper::GetImTextureID(*textureUploadService_, textureKey);
 	}
 
 	const float iconSize = ImGui::GetTextLineHeight() * 0.92f;

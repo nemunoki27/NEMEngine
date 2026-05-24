@@ -6,6 +6,7 @@
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Editor/Utility/EditorTextureHelper.h>
 
 //============================================================================
 //	SceneViewToolPanel classMethods
@@ -148,10 +149,10 @@ void Engine::SceneViewToolPanel::RequestIcons() {
 
 ImTextureID Engine::SceneViewToolPanel::GetTextureID(const std::string& key) const {
 
-	if (const GPUTextureResource* texture = textureUploadService_->GetTexture(key)) {
-		return static_cast<ImTextureID>(texture->gpuHandle.ptr);
+	if (!textureUploadService_) {
+		return ImTextureID{};
 	}
-	return ImTextureID{};
+	return EditorTextureHelper::GetImTextureID(*textureUploadService_, key);
 }
 
 void Engine::SceneViewToolPanel::Draw(const EditorPanelContext& context) {

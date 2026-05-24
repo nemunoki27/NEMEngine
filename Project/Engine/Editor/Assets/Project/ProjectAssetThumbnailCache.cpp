@@ -85,7 +85,9 @@ ImTextureID Engine::ProjectAssetThumbnailCache::TryGetTextureID(const std::strin
 	}
 
 	if (const auto* texture = textureUploadService_->GetTexture(key)) {
-		return static_cast<ImTextureID>(texture->gpuHandle.ptr);
+		if (texture->valid) {
+			return static_cast<ImTextureID>(texture->gpuHandle.ptr);
+		}
 	}
 
 	return ImTextureID{};

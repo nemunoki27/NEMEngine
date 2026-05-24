@@ -303,6 +303,10 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 			// パイプラインステートオブジェクトの生成
 			HRESULT hr = device->CreateGraphicsPipelineState(&pipelineDesc, IID_PPV_ARGS(&graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
 			Assert::Call(SUCCEEDED(hr), "CreateGraphicsPipelineState failed");
+
+			const std::string psoName = std::filesystem::path(desc.preRaster.file).stem().string() +
+				"|" + std::filesystem::path(desc.pixel.file).stem().string() + "[" + mode + "]";
+			graphicsPipelines_[static_cast<uint32_t>(blendMode)]->SetName(Algorithm::ConvertString(psoName).c_str());
 		}
 		break;
 	}
@@ -355,6 +359,10 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 			// パイプラインステートオブジェクトの生成
 			HRESULT hr = device->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
 			Assert::Call(SUCCEEDED(hr), "CreatePipelineState failed");
+
+			const std::string psoName = std::filesystem::path(desc.preRaster.file).stem().string() +
+				"|" + std::filesystem::path(desc.pixel.file).stem().string() + "[" + mode + "]";
+			graphicsPipelines_[static_cast<uint32_t>(blendMode)]->SetName(Algorithm::ConvertString(psoName).c_str());
 		}
 		break;
 	}
@@ -413,6 +421,8 @@ bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompile
 		Logger::EndSection(LogType::Engine);
 		return false;
 	}
+	computePipeline_->SetName(Algorithm::ConvertString(
+		std::filesystem::path(desc.compute.file).stem().string()).c_str());
 	Logger::Output(LogType::Engine, "Created ComputePipeline");
 	Logger::EndSection(LogType::Engine);
 	return true;

@@ -174,6 +174,10 @@ void Engine::TextureUploadService::TickFinalize() {
 				job.key, uploaded.srvIndex, static_cast<uint32_t>(desc.Width), desc.Height, static_cast<uint32_t>(desc.Format));
 
 			uploaded.textureName = job.key;
+			uploaded.resource->SetName(Algorithm::ConvertString(job.key).c_str());
+			if (srvDescriptor_ && uploaded.srvIndex != UINT32_MAX) {
+				srvDescriptor_->UpdateResourceName(uploaded.srvIndex, uploaded.resource.Get());
+			}
 			readyTextures_.emplace(job.key, std::move(uploaded));
 		} else {
 
