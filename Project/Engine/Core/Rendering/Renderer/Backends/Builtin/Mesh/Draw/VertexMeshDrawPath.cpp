@@ -111,8 +111,6 @@ bool Engine::VertexMeshDrawPath::BuildIndexedIndirectArgs(const MeshPathDrawCont
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	prepared.resources->SetVisibleInstanceMeshState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	dxCommand->SetDescriptorHeaps({ context.graphicsCore->GetSRVDescriptor().GetDescriptorHeap() });
-
 	context.commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	context.commandList->SetPipelineState(pipelineState->GetComputePipeline());
 

@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Enum/Axis.h>
 
+#include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
+
 // c++
 #include <algorithm>
 #include <cmath>
@@ -107,24 +109,6 @@ namespace {
 		channel.name = name;
 		channel.displayColor = color;
 		channel.defaultValue = defaultValue;
-	}
-
-	Engine::CurveQuaternionAxisKey MakeDefaultQuaternionAxisKey() {
-
-		Engine::CurveQuaternionAxisKey axisKey{};
-		axisKey.axes = { Engine::Axis::X };
-		axisKey.customAxis = Engine::Vector3(1.0f, 0.0f, 0.0f);
-		return axisKey;
-	}
-
-	Engine::Vector3 GetQuaternionAxisDirection(const Engine::CurveQuaternionAxisKey& axisKey) {
-
-		// 軸が無効な場合はX軸に倒して、Quaternion生成時のNaNを避ける。
-		Engine::Vector3 axis = axisKey.useCustomAxis ? axisKey.customAxis : Engine::GetDirection(axisKey.axes);
-		if (axis.Length() <= 0.001f) {
-			axis = Engine::Vector3(1.0f, 0.0f, 0.0f);
-		}
-		return axis.Normalize();
 	}
 
 	uint32_t FindAxisKeyIndex(const Engine::CurveChannel& axisChannel, float time) {
@@ -324,9 +308,9 @@ Engine::Quaternion Engine::CurveQuaternion::Evaluate(float time) const {
 
 	// Axis/Angle表現からQuaternionへ変換して返す。
 	const uint32_t axisKeyIndex = FindAxisKeyIndex(channels[0], time);
-	const CurveQuaternionAxisKey fallbackAxisKey = MakeDefaultQuaternionAxisKey();
+	const CurveQuaternionAxisKey fallbackAxisKey = QuaternionAxisKeyUtility::MakeDefault();
 	const CurveQuaternionAxisKey& axisKey = axisKeyIndex < axisKeys.size() ? axisKeys[axisKeyIndex] : fallbackAxisKey;
-	const Vector3 axis = GetQuaternionAxisDirection(axisKey);
+	const Vector3 axis = QuaternionAxisKeyUtility::GetAxisDirection(axisKey);
 	const float angleDegrees = channels[1].Evaluate(time);
 	return Quaternion::Normalize(Quaternion::MakeAxisAngle(axis, Math::DegToRad(angleDegrees)));
 }
@@ -339,7 +323,7 @@ void Engine::CurveQuaternion::EnsureAxisKeyCount() {
 		return;
 	}
 	while (axisKeys.size() < channels[0].keys.size()) {
-		axisKeys.emplace_back(MakeDefaultQuaternionAxisKey());
+		axisKeys.emplace_back(QuaternionAxisKeyUtility::MakeDefault());
 	}
 	if (channels[0].keys.size() < axisKeys.size()) {
 		axisKeys.resize(channels[0].keys.size());

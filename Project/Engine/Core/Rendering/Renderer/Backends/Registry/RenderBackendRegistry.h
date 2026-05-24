@@ -4,10 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderBackend.h>
-
-// c++
-#include <memory>
-#include <unordered_map>
+#include <Engine/Core/Foundation/Utility/Registry/RegistryBase.h>
 
 namespace Engine {
 
@@ -15,36 +12,20 @@ namespace Engine {
 	//	RenderBackendRegistry class
 	//	描画を処理するバックエンドのレジストリ
 	//============================================================================
-	class RenderBackendRegistry {
+	class RenderBackendRegistry :
+		public MapRegistryBase<uint32_t, IRenderBackend> {
 	public:
 		//========================================================================
 		//	public Methods
 		//========================================================================
 
 		RenderBackendRegistry() = default;
-		~RenderBackendRegistry() = default;
+		~RenderBackendRegistry() override = default;
 
 		// フレーム開始処理
 		void BeginFrame(GraphicsCore& graphicsCore);
 
 		// 登録
 		void Register(std::unique_ptr<IRenderBackend> backend);
-
-		// データクリア
-		void Clear();
-
-		//--------- accessor -----------------------------------------------------
-
-		// 描画IDからバックエンドを検索
-		const IRenderBackend* Find(uint32_t id) const;
-		IRenderBackend* Find(uint32_t id);
-	private:
-		//========================================================================
-		//	private Methods
-		//========================================================================
-
-		//--------- variables ----------------------------------------------------
-
-		std::unordered_map<uint32_t, std::unique_ptr<IRenderBackend>> backends_;
 	};
 } // Engine

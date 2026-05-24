@@ -7,6 +7,8 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
+#include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
+
 //============================================================================
 //	MeshImportService classMethods
 //============================================================================
@@ -26,24 +28,6 @@ namespace {
 			}
 		}
 		return "SubMesh_" + std::to_string(meshIndex);
-	}
-	// マテリアルからテクスチャの参照を取得
-	std::string GetMaterialTextureReference(aiMaterial* material, std::initializer_list<aiTextureType> textureTypes) {
-
-		if (!material) {
-			return {};
-		}
-		for (aiTextureType type : textureTypes) {
-
-			if (material->GetTextureCount(type) == 0) {
-				continue;
-			}
-			aiString textureName;
-			if (material->GetTexture(type, 0, &textureName) == AI_SUCCESS && 0 < textureName.length) {
-				return textureName.C_Str();
-			}
-		}
-		return {};
 	}
 	// メッシュノードからスケルトンを構築するための再帰関数
 	int32_t CreateJointRecursive(const Engine::MeshNode& node,
@@ -347,17 +331,17 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 
 				// デフォルトで設定されているテクスチャのパスを取得
 				subMesh.defaultTextures.baseColorTexturePath = textureResolver.ResolveAssetPath(
-					GetMaterialTextureReference(material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE }));
+					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE }));
 				subMesh.defaultTextures.normalTexturePath = textureResolver.ResolveAssetPath(
-					GetMaterialTextureReference(material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT }));
+					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT }));
 				subMesh.defaultTextures.metallicRoughnessTexturePath = textureResolver.ResolveAssetPath(
-					GetMaterialTextureReference(material, { aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_UNKNOWN }));
+					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_UNKNOWN }));
 				subMesh.defaultTextures.specularTexturePath = textureResolver.ResolveAssetPath(
-					GetMaterialTextureReference(material, { aiTextureType_SPECULAR }));
+					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_SPECULAR }));
 				subMesh.defaultTextures.emissiveTexturePath = textureResolver.ResolveAssetPath(
-					GetMaterialTextureReference(material, { aiTextureType_EMISSIVE, aiTextureType_EMISSION_COLOR }));
+					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_EMISSIVE, aiTextureType_EMISSION_COLOR }));
 				subMesh.defaultTextures.occlusionTexturePath = textureResolver.ResolveAssetPath(
-					GetMaterialTextureReference(material, { aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP }));
+					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP }));
 
 				aiColor4D baseColor;
 				if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_DIFFUSE, baseColor)) {

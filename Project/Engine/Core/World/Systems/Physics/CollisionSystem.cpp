@@ -29,16 +29,6 @@ namespace {
 		return Engine::Vector3(std::fabs(value.x), std::fabs(value.y), std::fabs(value.z));
 	}
 
-	// 長さが0に近い場合はfallbackを返す
-	Engine::Vector3 NormalizeOr(const Engine::Vector3& value, const Engine::Vector3& fallback) {
-
-		const float length = value.Length();
-		if (length <= 0.0001f) {
-			return fallback;
-		}
-		return value / length;
-	}
-
 	// 行列から指定基底方向の軸を取り出す
 	Engine::Vector3 ExtractAxis(const Engine::Matrix4x4& matrix, const Engine::Vector3& basis) {
 
@@ -229,9 +219,9 @@ Engine::CollisionShapeInstance Engine::CollisionSystem::BuildShapeInstance(const
 	if (rotate2D || rotate3D) {
 
 		const Matrix4x4 rotation = MakeShapeRotationMatrix(shape, transform);
-		instance.axes[0] = NormalizeOr(Vector3::TransferNormal(Vector3(1.0f, 0.0f, 0.0f), rotation), Vector3(1.0f, 0.0f, 0.0f));
-		instance.axes[1] = NormalizeOr(Vector3::TransferNormal(Vector3(0.0f, 1.0f, 0.0f), rotation), Vector3(0.0f, 1.0f, 0.0f));
-		instance.axes[2] = NormalizeOr(Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), rotation), Vector3(0.0f, 0.0f, 1.0f));
+		instance.axes[0] = Engine::Vector3::NormalizeOr(Vector3::TransferNormal(Vector3(1.0f, 0.0f, 0.0f), rotation), Vector3(1.0f, 0.0f, 0.0f));
+		instance.axes[1] = Engine::Vector3::NormalizeOr(Vector3::TransferNormal(Vector3(0.0f, 1.0f, 0.0f), rotation), Vector3(0.0f, 1.0f, 0.0f));
+		instance.axes[2] = Engine::Vector3::NormalizeOr(Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), rotation), Vector3(0.0f, 0.0f, 1.0f));
 	} else {
 
 		instance.axes[0] = Vector3(1.0f, 0.0f, 0.0f);

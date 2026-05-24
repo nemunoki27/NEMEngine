@@ -1,6 +1,12 @@
 #include "BackendDrawCommon.h"
 
 //============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+
+//============================================================================
 //	BackendDrawCommon classMethods
 //============================================================================
 
@@ -62,8 +68,6 @@ ID3D12GraphicsCommandList6* Engine::BackendDrawCommon::SetupGraphicsPipeline(con
 
 	auto* dxCommand = context.graphicsCore->GetDXObject().GetDxCommand();
 	auto* commandList = dxCommand->GetCommandList();
-
-	dxCommand->SetDescriptorHeaps({ context.graphicsCore->GetSRVDescriptor().GetDescriptorHeap() });
 
 	// パイプラインを設定
 	commandList->SetGraphicsRootSignature(pipelineState.GetRootSignature());
@@ -140,34 +144,7 @@ void Engine::BackendDrawCommon::AppendGraphicsBufferBindings(const RenderBufferR
 const Engine::GPUTextureResource* Engine::BackendDrawCommon::ResolveTextureAsset(
 	const RenderDrawContext& context, GraphicsCore& graphicsCore, AssetID textureAssetID) {
 
-	// フォールバック用のエラーテクスチャを取得
-	const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
-	if (!fallback || !fallback->valid) {
-		return nullptr;
-	}
-
-	// テクスチャ未指定ならエラーテクスチャ
-	if (!textureAssetID || !context.assetDatabase) {
-		return fallback;
-	}
-
-	// アセットIDからフルパスを取得
-	std::filesystem::path fullPath = context.assetDatabase->ResolveFullPath(textureAssetID);
-	if (fullPath.empty()) {
-		return fallback;
-	}
-
-	// 現状の実装に合わせて、キーもアセットパスもフルパス文字列を使う
-	const std::string key = fullPath.generic_string();
-	graphicsCore.GetTextureUploadService().RequestTextureFile(key, key);
-	if (const auto* texture = graphicsCore.GetTextureUploadService().GetTexture(key)) {
-		// テクスチャが有効ならそれを返す
-		if (texture->valid) {
-
-			return texture;
-		}
-	}
-	return fallback;
+	return RuntimeTextureResolver::Resolve(graphicsCore, context.assetDatabase, textureAssetID);
 }
 
 bool Engine::BackendDrawCommon::CanBatchBasic(const RenderItem& first, const RenderItem& next) {

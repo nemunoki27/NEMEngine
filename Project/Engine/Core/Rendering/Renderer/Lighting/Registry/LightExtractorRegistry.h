@@ -4,10 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Lighting/Interface/ILightExtractor.h>
-
-// c++
-#include <memory>
-#include <vector>
+#include <Engine/Core/Foundation/Utility/Registry/RegistryBase.h>
 
 namespace Engine {
 
@@ -15,30 +12,17 @@ namespace Engine {
 	//	LightExtractorRegistry class
 	//	ライト抽出器レジストリ
 	//============================================================================
-	class LightExtractorRegistry {
+	class LightExtractorRegistry :
+		public ListRegistryBase<ILightExtractor> {
 	public:
 		//========================================================================
 		//	public Methods
 		//========================================================================
 
 		LightExtractorRegistry() = default;
-		~LightExtractorRegistry() = default;
-
-		// ライト抽出器の登録
-		void Register(std::unique_ptr<ILightExtractor> extractor);
+		~LightExtractorRegistry() override = default;
 
 		// ライト抽出器を呼び出してバッチを構築する
 		void BuildBatch(ECSWorld& world, FrameLightBatch& batch);
-
-		// データクリア
-		void Clear();
-	private:
-		//========================================================================
-		//	private Methods
-		//========================================================================
-
-		//--------- variables ----------------------------------------------------
-
-		std::vector<std::unique_ptr<ILightExtractor>> extractors_;
 	};
 } // Engine

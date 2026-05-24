@@ -7,6 +7,8 @@
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
+#include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
+
 // c++
 #include <algorithm>
 #include <array>
@@ -107,14 +109,6 @@ namespace {
 	bool IsQuaternionAxisAngleChannels(const std::vector<Engine::CurveChannel>& channels) {
 
 		return channels.size() == 2 && channels[0].name == "Axis" && channels[1].name == "Angle";
-	}
-
-	Engine::CurveQuaternionAxisKey MakeDefaultQuaternionAxisKey() {
-
-		Engine::CurveQuaternionAxisKey axisKey{};
-		axisKey.axes = { Engine::Axis::X };
-		axisKey.customAxis = Engine::Vector3(1.0f, 0.0f, 0.0f);
-		return axisKey;
 	}
 
 	void ToJson(Engine::CurveKey key, nlohmann::json& out) {
@@ -247,7 +241,7 @@ namespace {
 
 	Engine::CurveQuaternionAxisKey ParseQuaternionAxisKey(const nlohmann::json& in) {
 
-		Engine::CurveQuaternionAxisKey axisKey = MakeDefaultQuaternionAxisKey();
+		Engine::CurveQuaternionAxisKey axisKey = Engine::QuaternionAxisKeyUtility::MakeDefault();
 		if (!in.is_object()) {
 			return axisKey;
 		}
@@ -262,10 +256,8 @@ namespace {
 				if (!axisJson.is_string()) {
 					continue;
 				}
-				const std::optional<Engine::Axis> axis =
-					Engine::EnumAdapter<Engine::Axis>::FromString(axisJson.get<std::string>());
-				if (axis) {
-					axisKey.axes.emplace_back(*axis);
+				if (auto axisOpt = Engine::EnumAdapter<Engine::Axis>::FromString(axisJson.get<std::string>())) {
+					axisKey.axes.push_back(*axisOpt);
 				}
 			}
 		}
@@ -429,7 +421,7 @@ void Engine::NormalizeAnimationTrackChannels(AnimationCurveTrack& track) {
 			track.channels[0].SortKeys();
 			track.channels[1].SortKeys();
 			while (track.quaternionAxisKeys.size() < track.channels[0].keys.size()) {
-				track.quaternionAxisKeys.emplace_back(MakeDefaultQuaternionAxisKey());
+				track.quaternionAxisKeys.emplace_back(Engine::QuaternionAxisKeyUtility::MakeDefault());
 			}
 			if (track.channels[0].keys.size() < track.quaternionAxisKeys.size()) {
 				track.quaternionAxisKeys.resize(track.channels[0].keys.size());
@@ -472,7 +464,7 @@ void Engine::NormalizeAnimationTrackChannels(AnimationCurveTrack& track) {
 	}
 
 	for (uint32_t i = 0; i < expectedCount; ++i) {
-		// nameが空だとCurveEditorのチャンネル一覧が読みにくくなるため、既定名を補う。
+		// name?空だとCurveEditorのチャンネル一覧が読みにくくなるため、既定名を補う。
 		if (track.channels[i].name.empty()) {
 			track.channels[i].name = defaults[i].name;
 		}

@@ -9,6 +9,8 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+
 namespace Engine {
 
 	//============================================================================
@@ -47,7 +49,7 @@ namespace Engine {
 
 			item.entity = entity;
 			item.world = &world;
-			item.sceneInstanceID = sceneObject ? sceneObject->sceneInstanceID : UUID{};
+			item.sceneInstanceID = SceneObjectUtility::GetSceneInstanceID(world, entity);
 			item.renderPhase = renderer.queue;
 			item.visibilityLayerMask = sceneObject ? sceneObject->visibilityLayerMask : 0xFFFFFFFFu;
 			item.sortingLayer = renderer.layer;

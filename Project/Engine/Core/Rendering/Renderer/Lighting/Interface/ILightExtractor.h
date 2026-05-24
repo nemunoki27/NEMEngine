@@ -9,6 +9,8 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/FrameLightBatch.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+
 namespace Engine {
 
 	//============================================================================
@@ -53,7 +55,7 @@ namespace Engine {
 
 			common.entity = entity;
 			common.world = &world;
-			common.sceneInstanceID = sceneObject ? sceneObject->sceneInstanceID : UUID{};
+			common.sceneInstanceID = SceneObjectUtility::GetSceneInstanceID(world, entity);
 
 			common.affectLayerMask = component.affectLayerMask;
 			if (sceneObject) {

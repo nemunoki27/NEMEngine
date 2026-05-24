@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 
+#include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
+
 // c++
 #include <algorithm>
 #include <cmath>
@@ -63,9 +65,7 @@ namespace {
 			return track.quaternionAxisKeys[keyIndex];
 		}
 
-		Engine::CurveQuaternionAxisKey axisKey{};
-		axisKey.axes = { Engine::Axis::X };
-		axisKey.customAxis = Engine::Vector3(1.0f, 0.0f, 0.0f);
+		Engine::CurveQuaternionAxisKey axisKey = Engine::QuaternionAxisKeyUtility::MakeDefault();
 		if (keyIndex < track.channels[0].keys.size()) {
 			const int32_t axisIndex = (std::clamp)(
 				static_cast<int32_t>(std::round(track.channels[0].keys[keyIndex].value)), 0, 2);
@@ -93,15 +93,6 @@ namespace {
 		return static_cast<uint32_t>((nextIt - 1) - track.channels[0].keys.begin());
 	}
 
-	Engine::Vector3 GetQuaternionAxisDirection(const Engine::CurveQuaternionAxisKey& axisKey) {
-
-		Engine::Vector3 axis = axisKey.useCustomAxis ? axisKey.customAxis : Engine::GetDirection(axisKey.axes);
-		if (axis.Length() <= 0.001f) {
-			axis = Engine::Vector3(1.0f, 0.0f, 0.0f);
-		}
-		return axis.Normalize();
-	}
-
 	bool EvaluateQuaternionAxisAngleTrack(const Engine::AnimationCurveTrack& track, float time,
 		Engine::AnimationPropertyValue& outValue) {
 
@@ -111,7 +102,7 @@ namespace {
 
 		const uint32_t axisKeyIndex = FindQuaternionAxisIndex(track, time);
 		const Engine::CurveQuaternionAxisKey axisKey = GetQuaternionAxisKey(track, axisKeyIndex);
-		const Engine::Vector3 axis = GetQuaternionAxisDirection(axisKey);
+		const Engine::Vector3 axis = Engine::QuaternionAxisKeyUtility::GetAxisDirection(axisKey);
 		const float angleDegrees = track.channels[1].Evaluate(time);
 		outValue = Engine::Quaternion::Normalize(
 			Engine::Quaternion::MakeAxisAngle(axis, Math::DegToRad(angleDegrees)));

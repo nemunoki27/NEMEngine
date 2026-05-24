@@ -8,14 +8,15 @@
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+
 //============================================================================
 //	CreateEntityCommand classMethods
 //============================================================================
 
 namespace {
 
-	// UUIDからエンティティを検索する。UUIDが無効な場合はNullエンティティを返す
-	Engine::Entity FindEntityByUUID(Engine::ECSWorld& world, Engine::UUID id) {
+	Engine::Entity FindParentEntity(Engine::ECSWorld& world, Engine::UUID id) {
 
 		if (!id) {
 			return Engine::Entity::Null();
@@ -31,14 +32,15 @@ namespace {
 		outSourceAsset = Engine::AssetID{};
 
 		// 親がある場合は親の所属先を最優先で使う
-		if (parent.IsValid() && world.IsAlive(parent) &&
-			world.HasComponent<Engine::SceneObjectComponent>(parent)) {
+		if (parent.IsValid() && world.IsAlive(parent)) {
 
-			const auto& parentSceneObject = world.GetComponent<Engine::SceneObjectComponent>(parent);
-			outSceneInstanceID = parentSceneObject.sceneInstanceID;
-			outSourceAsset = parentSceneObject.sourceAsset;
+			outSceneInstanceID = Engine::SceneObjectUtility::GetSceneInstanceID(world, parent);
+			if (const auto* sceneObject = world.TryGetComponent<Engine::SceneObjectComponent>(parent)) {
+				outSourceAsset = sceneObject->sourceAsset;
+			}
 		}
 
+		// 親から取れなければアクティブシーンを使う
 		// 親から取れなければアクティブシーンを使う
 		if (context.editorContext) {
 
@@ -79,7 +81,7 @@ bool Engine::CreateEntityCommand::CreateInternal(EditorCommandContext& context) 
 	SceneAuthoring::EnsureGameObjectDefaults(*world, entity, name_);
 
 	// 親指定がある場合は親子付け
-	Entity parent = FindEntityByUUID(*world, parentStableUUID_);
+	Entity parent = parentStableUUID_ ? world->FindByUUID(parentStableUUID_) : Entity::Null();
 
 	// 新規作成時点でシーン所属を決める
 	UUID resolvedSceneInstanceID{};

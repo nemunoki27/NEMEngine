@@ -74,6 +74,9 @@ namespace Engine {
 		static Vector3 Normalize(const Vector3& v);
 		Vector3 Normalize() const;
 
+		// 長さが小さい場合はfallbackを返す正規化
+		static Vector3 NormalizeOr(const Vector3& value, const Vector3& fallback, float epsilon = 0.0001f);
+
 		// 内積
 		static float Dot(const Vector3& v0, const Vector3& v1);
 		// 外積

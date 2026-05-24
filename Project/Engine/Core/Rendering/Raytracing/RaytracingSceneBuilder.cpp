@@ -11,6 +11,8 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
 
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+
 //============================================================================
 //	RaytracingSceneBuilder classMethods
 //============================================================================
@@ -346,44 +348,26 @@ void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderScene
 uint32_t Engine::RaytracingSceneBuilder::ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
 	AssetDatabase& assetDatabase, AssetID textureAssetID) const {
 
-	// フォールバックテクスチャのSRVインデックスを取得する
-	const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
-	const uint32_t fallbackSRVIndex =
-		(fallback && fallback->valid && fallback->srvIndex != UINT32_MAX) ? fallback->srvIndex : 0;
-
-	if (!textureAssetID) {
-		return fallbackSRVIndex;
-	}
-
 	// すでに取得済みならそれを返す
 	if (auto it = textureDescriptorIndexCache_.find(textureAssetID);
 		it != textureDescriptorIndexCache_.end()) {
 		return it->second;
 	}
 
-	// パス文字列を一度だけ解決してキャッシュ
-	std::string key{};
-	if (auto it = textureKeyCache_.find(textureAssetID); it != textureKeyCache_.end()) {
+	const GPUTextureResource* errorTexture = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
+	const uint32_t errorIndex = (errorTexture && errorTexture->valid) ? errorTexture->srvIndex : 0;
 
-		key = it->second;
-	} else {
+	const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(graphicsCore, &assetDatabase, textureAssetID);
+	if (texture && texture->valid && texture->srvIndex != UINT32_MAX) {
 
-		std::filesystem::path fullPath = assetDatabase.ResolveFullPath(textureAssetID);
-		if (fullPath.empty()) {
-			return fallbackSRVIndex;
-		}
-		key = fullPath.generic_string();
-		textureKeyCache_.emplace(textureAssetID, key);
-	}
-	graphicsCore.GetTextureUploadService().RequestTextureFile(key, key);
-	if (const auto* texture = graphicsCore.GetTextureUploadService().GetTexture(key)) {
-		if (texture->valid && texture->srvIndex != UINT32_MAX) {
-
+		// エラーテクスチャ以外が解決できている場合はキャッシュする
+		if (texture != errorTexture) {
 			textureDescriptorIndexCache_[textureAssetID] = texture->srvIndex;
-			return texture->srvIndex;
 		}
+		return texture->srvIndex;
 	}
-	return fallbackSRVIndex;
+
+	return errorIndex;
 }
 
 void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& context) const {

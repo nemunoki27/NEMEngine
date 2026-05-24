@@ -72,6 +72,8 @@
 #include <type_traits>
 #include <vector>
 
+#include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
+
 //============================================================================
 //	InspectorPanel classMethods
 //============================================================================
@@ -130,24 +132,6 @@ namespace {
 	Engine::Vector3 ToEnginePreviewPosition(const aiVector3D& pos) {
 
 		return Engine::Vector3(-pos.x, pos.y, pos.z);
-	}
-	std::string GetMaterialTextureReference(aiMaterial* material, std::initializer_list<aiTextureType> textureTypes) {
-
-		if (!material) {
-			return {};
-		}
-		for (aiTextureType type : textureTypes) {
-
-			if (material->GetTextureCount(type) == 0) {
-				continue;
-			}
-
-			aiString textureName;
-			if (material->GetTexture(type, 0, &textureName) == AI_SUCCESS && 0 < textureName.length) {
-				return textureName.C_Str();
-			}
-		}
-		return {};
 	}
 	void CollectAssimpNodePositions(const aiScene* scene, const aiNode* node, const aiMatrix4x4& parentTransform,
 		std::vector<Engine::Vector3>& outPositions) {
@@ -242,12 +226,12 @@ namespace {
 		for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; ++materialIndex) {
 
 			aiMaterial* material = scene->mMaterials[materialIndex];
-			importTexture(GetMaterialTextureReference(material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE }));
-			importTexture(GetMaterialTextureReference(material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT }));
-			importTexture(GetMaterialTextureReference(material, { aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_UNKNOWN }));
-			importTexture(GetMaterialTextureReference(material, { aiTextureType_SPECULAR }));
-			importTexture(GetMaterialTextureReference(material, { aiTextureType_EMISSIVE, aiTextureType_EMISSION_COLOR }));
-			importTexture(GetMaterialTextureReference(material, { aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP }));
+			importTexture(Engine::AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE }));
+			importTexture(Engine::AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT }));
+			importTexture(Engine::AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_UNKNOWN }));
+			importTexture(Engine::AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_SPECULAR }));
+			importTexture(Engine::AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_EMISSIVE, aiTextureType_EMISSION_COLOR }));
+			importTexture(Engine::AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP }));
 		}
 	}
 

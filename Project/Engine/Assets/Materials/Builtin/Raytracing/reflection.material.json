@@ -3,7 +3,7 @@
   "domain": "Surface",
   "passes": [
     {
-      "passName": "Raytracing",
+      "passName": "Reflection",
       "pipeline": "Engine/Assets/Pipelines/Builtin/Raytracing/reflection.pipeline.json",
       "preferredVariant": "Raytracing"
     }

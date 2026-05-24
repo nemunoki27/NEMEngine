@@ -6,6 +6,8 @@
 #include <Engine/Core/Foundation/Utility/Enum/Axis.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
+#include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
+
 // imgui
 #include <imgui_internal.h>
 // c++
@@ -276,29 +278,12 @@ namespace {
 		}
 	}
 
-	Engine::CurveQuaternionAxisKey MakeDefaultQuaternionAxisKey() {
-
-		Engine::CurveQuaternionAxisKey axisKey{};
-		axisKey.axes = { Engine::Axis::X };
-		axisKey.customAxis = Engine::Vector3(1.0f, 0.0f, 0.0f);
-		return axisKey;
-	}
-
 	std::span<Engine::CurveQuaternionAxisKey> ToAxisKeySpan(std::vector<Engine::CurveQuaternionAxisKey>* axisKeys) {
 
 		if (!axisKeys) {
 			return {};
 		}
 		return *axisKeys;
-	}
-
-	Engine::Vector3 GetQuaternionAxisDirection(const Engine::CurveQuaternionAxisKey& axisKey) {
-
-		Engine::Vector3 axis = axisKey.useCustomAxis ? axisKey.customAxis : Engine::GetDirection(axisKey.axes);
-		if (axis.Length() <= 0.001f) {
-			axis = Engine::Vector3(1.0f, 0.0f, 0.0f);
-		}
-		return axis.Normalize();
 	}
 
 	float GetPrimaryAxisValue(const Engine::CurveQuaternionAxisKey& axisKey) {
@@ -318,7 +303,7 @@ namespace {
 			return IM_COL32(245, 220, 80, 255);
 		}
 
-		const Engine::Vector3 axis = GetQuaternionAxisDirection(axisKey);
+		const Engine::Vector3 axis = Engine::QuaternionAxisKeyUtility::GetAxisDirection(axisKey);
 		const uint8_t r = static_cast<uint8_t>((std::clamp)(std::abs(axis.x), 0.0f, 1.0f) * 255.0f);
 		const uint8_t g = static_cast<uint8_t>((std::clamp)(std::abs(axis.y), 0.0f, 1.0f) * 255.0f);
 		const uint8_t b = static_cast<uint8_t>((std::clamp)(std::abs(axis.z), 0.0f, 1.0f) * 255.0f);
@@ -328,7 +313,7 @@ namespace {
 	std::string MakeAxisLabel(const Engine::CurveQuaternionAxisKey& axisKey) {
 
 		if (axisKey.useCustomAxis) {
-			const Engine::Vector3 axis = GetQuaternionAxisDirection(axisKey);
+			const Engine::Vector3 axis = Engine::QuaternionAxisKeyUtility::GetAxisDirection(axisKey);
 			return std::format("Custom({:.2f}, {:.2f}, {:.2f})", axis.x, axis.y, axis.z);
 		}
 		if (axisKey.axes.empty()) {
@@ -370,7 +355,7 @@ namespace {
 		if (keyIndex < axisKeys.size()) {
 			return axisKeys[keyIndex];
 		}
-		Engine::CurveQuaternionAxisKey axisKey = MakeDefaultQuaternionAxisKey();
+		Engine::CurveQuaternionAxisKey axisKey = Engine::QuaternionAxisKeyUtility::MakeDefault();
 		if (!channels.empty() && keyIndex < channels[0].keys.size()) {
 			axisKey.axes = { ToAxis(channels[0].keys[keyIndex].value) };
 		}

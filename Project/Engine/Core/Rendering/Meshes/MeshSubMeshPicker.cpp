@@ -119,8 +119,6 @@ void Engine::MeshSubMeshPicker::ExecutePick(GraphicsCore& graphicsCore, const Re
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	auto* commandList = dxCommand->GetCommandList();
 
-	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
-
 	// 出力バッファをUAV状態に遷移
 	if (outputState_ != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
 

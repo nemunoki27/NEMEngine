@@ -15,6 +15,8 @@ using namespace Engine;
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
+#include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
+
 // imgui
 #include <imgui.h>
 // c++
@@ -124,7 +126,7 @@ namespace {
 		axisKey.useCustomAxis = true;
 		axisKey.customAxis = axis;
 		outAngleDegrees = Math::RadToDeg(angleRadians);
-		return axisKey;
+		return QuaternionAxisKeyUtility::Sanitize(axisKey);
 	}
 
 	CurveQuaternion BuildQuaternionEditorCurve(const AnimationCurveTrack& track) {
@@ -256,18 +258,10 @@ namespace {
 			track.channels[1].name == "Angle";
 	}
 
-	CurveQuaternionAxisKey MakeDefaultQuaternionAxisKey() {
-
-		CurveQuaternionAxisKey axisKey{};
-		axisKey.axes = { Axis::X };
-		axisKey.customAxis = Vector3(1.0f, 0.0f, 0.0f);
-		return axisKey;
-	}
-
 	CurveQuaternionAxisKey& GetQuaternionAxisKeyForEdit(AnimationCurveTrack& track, uint32_t keyIndex) {
 
 		while (track.quaternionAxisKeys.size() <= keyIndex) {
-			track.quaternionAxisKeys.emplace_back(MakeDefaultQuaternionAxisKey());
+			track.quaternionAxisKeys.emplace_back(QuaternionAxisKeyUtility::MakeDefault());
 		}
 		return track.quaternionAxisKeys[keyIndex];
 	}
@@ -296,7 +290,7 @@ namespace {
 		pairs.reserve(track.channels[0].keys.size());
 		for (uint32_t i = 0; i < track.channels[0].keys.size(); ++i) {
 			CurveQuaternionAxisKey axisKey = i < track.quaternionAxisKeys.size() ?
-				track.quaternionAxisKeys[i] : MakeDefaultQuaternionAxisKey();
+				track.quaternionAxisKeys[i] : QuaternionAxisKeyUtility::MakeDefault();
 			pairs.push_back({ track.channels[0].keys[i], std::move(axisKey) });
 		}
 		std::sort(pairs.begin(), pairs.end(), [](const AxisKeyPair& lhs, const AxisKeyPair& rhs) {
@@ -1548,7 +1542,7 @@ void AnimationClipTool::AddKeyToChannel(AnimationCurveTrack& track, uint32_t cha
 
 	const uint32_t addedIndex = channel.AddKey(time, value, CurveInterpolationMode::Spline);
 	if (IsQuaternionAxisAngleTrack(track) && channelIndex == 0u) {
-		CurveQuaternionAxisKey axisKey = MakeDefaultQuaternionAxisKey();
+		CurveQuaternionAxisKey axisKey = QuaternionAxisKeyUtility::MakeDefault();
 		if (!track.quaternionAxisKeys.empty()) {
 			const uint32_t sourceIndex = (std::min)(
 				addedIndex,

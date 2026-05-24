@@ -175,6 +175,9 @@ void Engine::TextureUploadService::TickFinalize() {
 
 			uploaded.textureName = job.key;
 			readyTextures_.emplace(job.key, std::move(uploaded));
+		} else {
+
+			failedKeys_.insert(job.key);
 		}
 	}
 }

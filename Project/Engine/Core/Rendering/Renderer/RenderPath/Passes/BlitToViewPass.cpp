@@ -119,7 +119,6 @@ namespace {
 			return false;
 		}
 
-		dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
 		commandList->SetGraphicsRootSignature(pipelineState->GetRootSignature());
 		commandList->SetPipelineState(pipelineState->GetGraphicsPipeline(Engine::BlendMode::Normal));
 

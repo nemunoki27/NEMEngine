@@ -577,8 +577,6 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	prepared.resources->SetSkinnedPackedVertexState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
-
 	// パイプラインを設定
 	commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	commandList->SetPipelineState(pipelineState->GetComputePipeline());

@@ -3,8 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPassExecutionHelper.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
@@ -16,34 +15,13 @@
 void Engine::DepthPrepass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
-	if (!context.resources || !context.resources->GetSceneMain()) {
-		return;
-	}
-	if (!deps_.dispatcher || !deps_.backendRegistry || !deps_.assetLibrary ||
-		!deps_.pipelineCache || !deps_.materialResolver) {
-		return;
-	}
-
-	MultiRenderTarget* sceneMain = context.resources->GetSceneMain();
-	DepthTexture2D* depth = sceneMain->GetDepthTexture();
-	if (!depth) {
+	if (!context.resources) {
 		return;
 	}
 
 	std::vector<const RenderItem*> items = CollectItems(context, passBuckets);
-	if (items.empty()) {
-		return;
-	}
-
-	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
-
-	depth->Transition(*dxCommand, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-	dxCommand->BindRenderTargets(std::nullopt, depth->GetDSVCPUHandle());
-	dxCommand->SetViewportAndScissor(sceneMain->GetWidth(), sceneMain->GetHeight());
-
-	deps_.dispatcher->Dispatch(graphicsCore, context, *deps_.renderBatch,
-		*deps_.backendRegistry, *deps_.assetLibrary, *deps_.pipelineCache,
-		*deps_.materialResolver, items, sceneMain, "ZPrepass", true);
+	RenderPassExecutionHelper::Execute(graphicsCore, context, items, deps_,
+		context.resources->GetSceneMain(), "ZPrepass", true, true);
 }
 
 std::vector<const Engine::RenderItem*> Engine::DepthPrepass::CollectItems(

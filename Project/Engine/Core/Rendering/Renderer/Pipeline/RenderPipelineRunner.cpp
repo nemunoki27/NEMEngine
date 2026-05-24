@@ -29,6 +29,8 @@
 // c++
 #include <algorithm>
 
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+
 //============================================================================
 //	RenderPipelineRunner classMethods
 //============================================================================
@@ -164,12 +166,8 @@ namespace {
 	// Entityが所属するシーンインスタンスIDを取得する
 	Engine::UUID ResolveEntitySceneInstanceID(Engine::ECSWorld& world, Engine::Entity entity, Engine::UUID fallback) {
 
-		if (const auto* sceneObject = world.TryGetComponent<Engine::SceneObjectComponent>(entity)) {
-			if (sceneObject->sceneInstanceID) {
-				return sceneObject->sceneInstanceID;
-			}
-		}
-		return fallback;
+		Engine::UUID id = Engine::SceneObjectUtility::GetSceneInstanceID(world, entity);
+		return id ? id : fallback;
 	}
 	// プレビュー対象の描画アイテムだけを描画フェーズごとに振り分ける
 	void BuildPreviewPassBuckets(Engine::ECSWorld& world, Engine::Entity root,
@@ -335,6 +333,11 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	// 描画要求に基づいて必要なサーフェイスをGPUと同期し、ビュー情報を決定
 	SyncRequestedSurfaces(graphicsCore, request);
 	ResolveViews(request);
+
+	// デスクリプタヒープの一括設定
+	graphicsCore.GetDXObject().GetDxCommand()->SetDescriptorHeaps({
+		graphicsCore.GetSRVDescriptor().GetDescriptorHeap()
+		});
 
 	// 描画アイテムの抽出
 	extractorRegistry_.BuildBatch(*request.world, renderBatch_);

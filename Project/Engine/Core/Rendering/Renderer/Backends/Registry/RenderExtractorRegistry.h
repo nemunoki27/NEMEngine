@@ -4,41 +4,28 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
-
-// c++
-#include <memory>
-#include <vector>
+#include <Engine/Core/Foundation/Utility/Registry/RegistryBase.h>
 
 namespace Engine {
+
+	class ECSWorld;
+	class RenderSceneBatch;
 
 	//============================================================================
 	//	RenderExtractorRegistry class
 	//	描画アイテム抽出器のレジストリ
 	//============================================================================
-	class RenderExtractorRegistry {
+	class RenderExtractorRegistry :
+		public ListRegistryBase<IRenderItemExtractor> {
 	public:
 		//========================================================================
 		//	public Methods
 		//========================================================================
 
 		RenderExtractorRegistry() = default;
-		~RenderExtractorRegistry() = default;
+		~RenderExtractorRegistry() override = default;
 
-		// 登録
-		void Register(std::unique_ptr<IRenderItemExtractor> extractor);
 		// 描画アイテムの抽出
 		void BuildBatch(ECSWorld& world, RenderSceneBatch& batch);
-
-		// データクリア
-		void Clear();
-	private:
-		//========================================================================
-		//	private Methods
-		//========================================================================
-
-		//--------- variables ----------------------------------------------------
-
-		// 描画アイテム抽出器のリスト
-		std::vector<std::unique_ptr<IRenderItemExtractor>> extractors_;
 	};
 } // Engine

@@ -35,16 +35,6 @@ namespace {
 		return Engine::Vector3(std::fabs(value.x), std::fabs(value.y), std::fabs(value.z));
 	}
 
-	// 長さが0に近い場合はfallbackを返す
-	Engine::Vector3 NormalizeOr(const Engine::Vector3& value, const Engine::Vector3& fallback) {
-
-		const float length = value.Length();
-		if (length <= 0.0001f) {
-			return fallback;
-		}
-		return value / length;
-	}
-
 	// 行列から指定基底方向の軸を取り出す
 	Engine::Vector3 ExtractAxis(const Engine::Matrix4x4& matrix, const Engine::Vector3& basis) {
 

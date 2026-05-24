@@ -20,20 +20,10 @@ namespace {
 		return std::fabs(Engine::Vector3::Dot(a, b));
 	}
 
-	// 長さが0に近い場合はfallbackを返す
-	Engine::Vector3 NormalizeOr(const Engine::Vector3& value, const Engine::Vector3& fallback) {
-
-		const float length = value.Length();
-		if (length <= kEpsilon) {
-			return fallback;
-		}
-		return value / length;
-	}
-
 	// aからbへ向かう方向を取得する
 	Engine::Vector3 DirectionAToB(const Engine::CollisionShapeInstance& a, const Engine::CollisionShapeInstance& b) {
 
-		return NormalizeOr(b.center - a.center, Engine::Vector3(1.0f, 0.0f, 0.0f));
+		return Engine::Vector3::NormalizeOr(b.center - a.center, Engine::Vector3(1.0f, 0.0f, 0.0f));
 	}
 
 	// 接触情報をCollisionContactへ詰める
@@ -96,7 +86,7 @@ namespace {
 		// SATで分離軸を探す
 		for (Engine::Vector3 axis : axes) {
 			axis.z = 0.0f;
-			axis = NormalizeOr(axis, Engine::Vector3(1.0f, 0.0f, 0.0f));
+			axis = Engine::Vector3::NormalizeOr(axis, Engine::Vector3(1.0f, 0.0f, 0.0f));
 
 			float minA = 0.0f;
 			float maxA = 0.0f;
@@ -138,7 +128,7 @@ namespace {
 			return false;
 		}
 
-		Engine::Vector3 normalCircleToQuad = -NormalizeOr(delta, DirectionAToB(circle, quad));
+		Engine::Vector3 normalCircleToQuad = -Engine::Vector3::NormalizeOr(delta, DirectionAToB(circle, quad));
 		float penetration = circle.radius - distance;
 		if (distance <= kEpsilon) {
 
@@ -178,7 +168,7 @@ namespace {
 		}
 
 		const float distance = std::sqrt(distanceSq);
-		FillContact(a, b, outContact, NormalizeOr(delta, Engine::Vector3(1.0f, 0.0f, 0.0f)), radius - distance);
+		FillContact(a, b, outContact, Engine::Vector3::NormalizeOr(delta, Engine::Vector3(1.0f, 0.0f, 0.0f)), radius - distance);
 		return true;
 	}
 
@@ -207,7 +197,7 @@ namespace {
 			return false;
 		}
 
-		Engine::Vector3 normalSphereToBox = -NormalizeOr(delta, DirectionAToB(sphere, box));
+		Engine::Vector3 normalSphereToBox = -Engine::Vector3::NormalizeOr(delta, DirectionAToB(sphere, box));
 		float penetration = sphere.radius - distance;
 		if (distance <= kEpsilon) {
 
@@ -268,7 +258,7 @@ namespace {
 		// SATで分離軸を探す
 		for (uint32_t i = 0; i < axisCount; ++i) {
 
-			const Engine::Vector3 axis = NormalizeOr(axes[i], Engine::Vector3(1.0f, 0.0f, 0.0f));
+			const Engine::Vector3 axis = Engine::Vector3::NormalizeOr(axes[i], Engine::Vector3(1.0f, 0.0f, 0.0f));
 			const float distance = std::fabs(Engine::Vector3::Dot(centerDelta, axis));
 			const float radius = ProjectBoxRadius(a, axis) + ProjectBoxRadius(b, axis);
 			const float penetration = radius - distance;

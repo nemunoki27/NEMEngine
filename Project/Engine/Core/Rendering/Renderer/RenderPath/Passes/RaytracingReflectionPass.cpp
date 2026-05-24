@@ -167,6 +167,9 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 	}
 
 	const MaterialPassBinding* passBinding = FindPass(*material, "Reflection");
+	if (!passBinding) {
+		passBinding = FindPass(*material, "Raytracing");
+	}
 	if (!passBinding || passBinding->preferredVariant != PipelineVariantKind::Raytracing) {
 		passthrough();
 		return;
@@ -210,7 +213,6 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 	destColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
-
 	commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	commandList->SetPipelineState1(pipelineState->GetStateObject());
 

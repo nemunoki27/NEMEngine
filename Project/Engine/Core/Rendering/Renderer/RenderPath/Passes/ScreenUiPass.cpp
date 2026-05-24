@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPassExecutionHelper.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 
@@ -13,11 +13,6 @@
 
 void Engine::ScreenUiPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
-
-	if (!context.defaultSurface || !deps_.dispatcher || !deps_.backendRegistry ||
-		!deps_.assetLibrary || !deps_.pipelineCache || !deps_.materialResolver) {
-		return;
-	}
 
 	// postProcessTarget==false かつ Opaque/Transparent 以外のアイテムを収集する
 	std::vector<const RenderItem*> items{};
@@ -31,17 +26,7 @@ void Engine::ScreenUiPass::Execute(GraphicsCore& graphicsCore,
 			}
 		}
 	}
-	if (items.empty()) {
-		return;
-	}
 
-	MultiRenderTarget* dest = context.defaultSurface;
-	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
-	dest->TransitionForRender(*dxCommand);
-	dest->Bind(*dxCommand);
-	dxCommand->SetViewportAndScissor(dest->GetWidth(), dest->GetHeight());
-
-	deps_.dispatcher->Dispatch(graphicsCore, context, *deps_.renderBatch,
-		*deps_.backendRegistry, *deps_.assetLibrary, *deps_.pipelineCache,
-		*deps_.materialResolver, items, dest, "Draw", false);
+	RenderPassExecutionHelper::Execute(graphicsCore, context, items, deps_,
+		context.defaultSurface);
 }

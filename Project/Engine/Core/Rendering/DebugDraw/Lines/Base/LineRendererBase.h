@@ -198,8 +198,6 @@ namespace Engine {
 		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 		auto* commandList = dxCommand->GetCommandList();
 
-		dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
-
 		// 派生クラスのライン描画呼び出し
 		DrawLineImpl(graphicsCore, camera, surface);
 

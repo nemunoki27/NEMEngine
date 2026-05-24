@@ -175,6 +175,14 @@ Vector3 Vector3::Normalize() const {
 	return Vector3(x / length, y / length, z / length);
 }
 
+Vector3 Vector3::NormalizeOr(const Vector3& value, const Vector3& fallback, float epsilon) {
+	float length = Length(value);
+	if (length <= epsilon) {
+		return fallback;
+	}
+	return Vector3(value.x / length, value.y / length, value.z / length);
+}
+
 float Vector3::Dot(const Vector3& v0, const Vector3& v1) {
 	return v0.x * v1.x + v0.y * v1.y + v0.z * v1.z;
 }
