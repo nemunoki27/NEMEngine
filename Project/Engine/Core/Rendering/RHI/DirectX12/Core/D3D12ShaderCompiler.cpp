@@ -5,7 +5,11 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+
+// c++
+#include <algorithm>
 
 //============================================================================
 //	DxShaderCompiler classMethods
@@ -55,6 +59,42 @@ namespace {
 		Assert::Call(false, "Unsupported D3D_SHADER_INPUT_TYPE");
 		// デフォルトはCBVとする
 		return ShaderBindingKind::CBV;
+	}
+
+	UINT GetDeclaredComponentCount(const D3D12_SHADER_TYPE_DESC& typeDesc) {
+
+		UINT count = 1;
+		switch (typeDesc.Class) {
+		case D3D_SVC_VECTOR:
+			count = (std::max)(1u, typeDesc.Columns);
+			break;
+		case D3D_SVC_MATRIX_ROWS:
+		case D3D_SVC_MATRIX_COLUMNS:
+			count = (std::max)(1u, typeDesc.Rows) * (std::max)(1u, typeDesc.Columns);
+			break;
+		case D3D_SVC_SCALAR:
+		default:
+			count = 1;
+			break;
+		}
+
+		if (typeDesc.Elements > 0) {
+			count *= typeDesc.Elements;
+		}
+		return (std::max)(1u, count);
+	}
+
+	UINT GetDeclaredScalarByteSize(D3D_SHADER_VARIABLE_TYPE type) {
+
+		switch (type) {
+		case D3D_SVT_BOOL:
+		case D3D_SVT_INT:
+		case D3D_SVT_UINT:
+		case D3D_SVT_FLOAT:
+			return 4;
+		default:
+			return 4;
+		}
 	}
 	// シェーダーリフレクション情報のパース
 	ShaderReflectionInfo ParseShaderReflection(ShaderStage stage, ID3D12ShaderReflection* reflection) {
@@ -136,6 +176,9 @@ namespace {
 						variableInfo.rows = typeDesc.Rows;
 						variableInfo.columns = typeDesc.Columns;
 						variableInfo.elements = typeDesc.Elements;
+						variableInfo.declaredComponentCount = GetDeclaredComponentCount(typeDesc);
+						variableInfo.declaredByteSize =
+							variableInfo.declaredComponentCount * GetDeclaredScalarByteSize(typeDesc.Type);
 					}
 				}
 				if (!variableInfo.name.empty()) {
@@ -197,9 +240,18 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	out.entry = entry;
 	out.profile = profile;
 
+	const std::string filePathStr = Algorithm::ConvertString(filePath);
+	const std::string entryStr = Algorithm::ConvertString(std::wstring(entry));
+	const std::string profileStr = Algorithm::ConvertString(std::wstring(profile));
+
 	ComPtr<IDxcBlobEncoding> source;
 	HRESULT hr = dxcUtils_->LoadFile(filePath.c_str(), nullptr, &source);
-	Assert::Call(SUCCEEDED(hr), "Failed to load HLSL file: " + Algorithm::ConvertString(filePath));
+	if (FAILED(hr)) {
+		Logger::Output(LogType::Engine,
+			"[ShaderCompileError]\npath: {}\nentry: {}\ntarget: {}\nmessage: Failed to load HLSL file",
+			filePathStr, entryStr, profileStr);
+		return out;
+	}
 	// 読み込んだファイルの内容を設定する
 	DxcBuffer srcBuf{};
 	srcBuf.Ptr = source->GetBufferPointer();
@@ -224,7 +276,12 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	ComPtr<IDxcResult> result;
 	hr = dxcCompiler_->Compile(&srcBuf, args, _countof(args),
 		includeHandler_.Get(), IID_PPV_ARGS(&result));
-	Assert::Call(SUCCEEDED(hr), "DXC invocation failed");
+	if (FAILED(hr)) {
+		Logger::Output(LogType::Engine,
+			"[ShaderCompileError]\npath: {}\nentry: {}\ntarget: {}\nmessage: DXC invocation failed",
+			filePathStr, entryStr, profileStr);
+		return out;
+	}
 	HRESULT status = S_OK;
 	result->GetStatus(&status);
 	// コンパイルエラーの内容を取得
@@ -235,13 +292,26 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 		const char* msg = reinterpret_cast<const char*>(errors->GetBufferPointer());
 		if (FAILED(status)) {
 
-			Assert::Call(false, std::string("Shader compile failed: ") + msg);
+			Logger::Output(LogType::Engine,
+				"[ShaderCompileError]\npath: {}\nentry: {}\ntarget: {}\nmessage:\n{}",
+				filePathStr, entryStr, profileStr, msg);
+			return out;
 		}
 	}
-	Assert::Call(SUCCEEDED(status), "Shader compile status failed");
+	if (FAILED(status)) {
+		Logger::Output(LogType::Engine,
+			"[ShaderCompileError]\npath: {}\nentry: {}\ntarget: {}\nmessage: Shader compile status failed",
+			filePathStr, entryStr, profileStr);
+		return out;
+	}
 	// コンパイルされたシェーダーオブジェクトを取得
 	hr = result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&out.object), nullptr);
-	Assert::Call(SUCCEEDED(hr), "Failed to get DXIL object");
+	if (FAILED(hr)) {
+		Logger::Output(LogType::Engine,
+			"[ShaderCompileError]\npath: {}\nentry: {}\ntarget: {}\nmessage: Failed to get DXIL object",
+			filePathStr, entryStr, profileStr);
+		return out;
+	}
 
 	// シェーダーリフレクション情報を取得
 	if (result->HasOutput(DXC_OUT_REFLECTION) && stage != ShaderStage::Lib) {
@@ -249,7 +319,11 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 		// リフレクション情報を取得
 		ComPtr<IDxcBlob> reflectionBlob;
 		hr = result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionBlob), nullptr);
-		Assert::Call(SUCCEEDED(hr), "Failed to get reflection blob");
+		if (FAILED(hr)) {
+			Logger::Output(LogType::Engine,
+				"[ShaderCompileError] Failed to get reflection blob: {}", filePathStr);
+			return out;
+		}
 		// リフレクション情報をパースするためのバッファを作成
 		DxcBuffer reflectionBuffer{};
 		reflectionBuffer.Ptr = reflectionBlob->GetBufferPointer();
@@ -258,7 +332,11 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 		// シェーダーリフレクションインターフェースを作成
 		ComPtr<ID3D12ShaderReflection> shaderReflection;
 		hr = dxcUtils_->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&shaderReflection));
-		Assert::Call(SUCCEEDED(hr), "Failed to create shader reflection");
+		if (FAILED(hr)) {
+			Logger::Output(LogType::Engine,
+				"[ShaderCompileError] Failed to create shader reflection: {}", filePathStr);
+			return out;
+		}
 		out.reflection = ParseShaderReflection(stage, shaderReflection.Get());
 	}
 	return out;

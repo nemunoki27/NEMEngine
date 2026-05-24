@@ -302,3 +302,201 @@ void Engine::PostProcessAssetGenerator::Clear() {
 	database_ = nullptr;
 	generated_ = false;
 }
+
+namespace {
+
+	// 論理アセットパスのディレクトリ区切りを "/" に統一する
+	std::string NormalizeSeparators(std::string path) {
+
+		std::replace(path.begin(), path.end(), '\\', '/');
+		return path;
+	}
+
+	// 論理パスの "/Shaders/" セグメントを別のセグメントに置き換える
+	std::string ReplaceShaderSegment(const std::string& path, const std::string& replacement) {
+
+		const std::string target = "/Shaders/";
+		const size_t pos = path.find(target);
+		if (pos == std::string::npos) {
+			return {};
+		}
+		return path.substr(0, pos) + "/" + replacement + "/" + path.substr(pos + target.size());
+	}
+
+	// .CS.hlsl の論理パスから baseName を取得する
+	std::string BaseNameFromCsHlsl(const std::string& csHlslPath) {
+
+		std::filesystem::path p(csHlslPath);
+		const std::string stem1 = p.stem().string(); // "Bloom.CS"
+		const std::string stem2 = std::filesystem::path(stem1).stem().string(); // "Bloom"
+		return stem2;
+	}
+
+	// .shader.json の論理パスから baseName を取得する
+	std::string BaseNameFromShaderJson(const std::string& shaderPath) {
+
+		std::filesystem::path p(shaderPath);
+		const std::string stem1 = p.stem().string(); // "Bloom.shader"
+		const std::string stem2 = std::filesystem::path(stem1).stem().string(); // "Bloom"
+		return stem2;
+	}
+
+	nlohmann::json MakeUserShaderJson(const std::string& csHlslAssetPath, const std::string& baseName) {
+
+		return nlohmann::json{
+			{ "generated", true },
+			{ "generatedBy", kGeneratedBy },
+			{ "sourceShader", csHlslAssetPath },
+			{ "name", baseName + "Shader" },
+			{ "stages", nlohmann::json::array({
+				{
+					{ "stage", "CS" },
+					{ "file", csHlslAssetPath },
+					{ "entry", "main" },
+					{ "profile", "cs_6_0" }
+				}
+			}) }
+		};
+	}
+
+	nlohmann::json MakeUserPipelineJson(const std::string& shaderAssetPath, const std::string& baseName) {
+
+		return nlohmann::json{
+			{ "generated", true },
+			{ "generatedBy", kGeneratedBy },
+			{ "name", baseName + "Pipeline" },
+			{ "variants", nlohmann::json::array({
+				{
+					{ "kind", "Compute" },
+					{ "pipelineType", "Compute" },
+					{ "shader", shaderAssetPath }
+				}
+			}) }
+		};
+	}
+
+	nlohmann::json MakeUserMaterialJson(const std::string& pipelineAssetPath, const std::string& baseName) {
+
+		return nlohmann::json{
+			{ "generated", true },
+			{ "generatedBy", kGeneratedBy },
+			{ "name", baseName + "Material" },
+			{ "domain", "Compute" },
+			{ "passes", nlohmann::json::array({
+				{
+					{ "passName", "PostProcess" },
+					{ "pipeline", pipelineAssetPath },
+					{ "preferredVariant", "Compute" }
+				}
+			}) },
+			{ "parameters", nlohmann::json::object() }
+		};
+	}
+}
+
+Engine::AssetID Engine::PostProcessAssetGenerator::EnsureUserAsset(AssetDatabase* database,
+	const std::string& csHlslAssetPath) {
+
+	if (!database || csHlslAssetPath.empty()) {
+		return {};
+	}
+
+	const std::string normalized = NormalizeSeparators(csHlslAssetPath);
+	const std::string baseName = BaseNameFromCsHlsl(normalized);
+	if (baseName.empty()) {
+		return {};
+	}
+
+	// 親ディレクトリ（.CS.hlsl を除いたパス）
+	const std::string parentDir = NormalizeSeparators(
+		std::filesystem::path(normalized).parent_path().generic_string());
+
+	// 各アセットの論理パスを導出する
+	const std::string shaderAssetPath = parentDir + "/" + baseName + ".shader.json";
+	const std::string pipelineDirStr = ReplaceShaderSegment(parentDir, "Pipelines");
+	const std::string materialDirStr = ReplaceShaderSegment(parentDir, "Materials");
+
+	std::string pipelineAssetPath;
+	std::string materialAssetPath;
+	if (pipelineDirStr.empty() || materialDirStr.empty()) {
+		// /Shaders/ セグメントがない場合は同一ディレクトリに生成する
+		pipelineAssetPath = parentDir + "/" + baseName + ".pipeline.json";
+		materialAssetPath = parentDir + "/" + baseName + ".material.json";
+	} else {
+		pipelineAssetPath = pipelineDirStr + "/" + baseName + ".pipeline.json";
+		materialAssetPath = materialDirStr + "/" + baseName + ".material.json";
+	}
+
+	// 既存アセットがあればそれを使う
+	const AssetMeta* existing = database->FindByPath(materialAssetPath);
+	if (existing) {
+		return existing->guid;
+	}
+
+	// アセットが存在しない場合は生成する
+	const std::filesystem::path shaderFullPath = RuntimePaths::ResolveAssetPath(shaderAssetPath);
+	const std::filesystem::path pipelineFullPath = RuntimePaths::ResolveAssetPath(pipelineAssetPath);
+	const std::filesystem::path materialFullPath = RuntimePaths::ResolveAssetPath(materialAssetPath);
+
+	WriteGeneratedJson(shaderFullPath, MakeUserShaderJson(normalized, baseName));
+	WriteGeneratedJson(pipelineFullPath, MakeUserPipelineJson(shaderAssetPath, baseName));
+	WriteGeneratedJson(materialFullPath, MakeUserMaterialJson(pipelineAssetPath, baseName));
+
+	database->ImportOrGet(shaderAssetPath, AssetType::Shader);
+	database->ImportOrGet(pipelineAssetPath, AssetType::RenderPipeline);
+	const AssetID materialId = database->ImportOrGet(materialAssetPath, AssetType::Material);
+
+	Logger::Output(LogType::Engine,
+		"[PostProcessAssetGenerator] user asset ready. material={}", materialAssetPath);
+	return materialId;
+}
+
+Engine::AssetID Engine::PostProcessAssetGenerator::FindOrCreateMaterialForShader(AssetDatabase* database,
+	const std::string& shaderAssetPath) {
+
+	if (!database || shaderAssetPath.empty()) {
+		return {};
+	}
+
+	const std::string normalized = NormalizeSeparators(shaderAssetPath);
+	const std::string baseName = BaseNameFromShaderJson(normalized);
+	if (baseName.empty()) {
+		return {};
+	}
+
+	const std::string parentDir = NormalizeSeparators(
+		std::filesystem::path(normalized).parent_path().generic_string());
+
+	const std::string pipelineDirStr = ReplaceShaderSegment(parentDir, "Pipelines");
+	const std::string materialDirStr = ReplaceShaderSegment(parentDir, "Materials");
+
+	std::string pipelineAssetPath;
+	std::string materialAssetPath;
+	if (pipelineDirStr.empty() || materialDirStr.empty()) {
+		pipelineAssetPath = parentDir + "/" + baseName + ".pipeline.json";
+		materialAssetPath = parentDir + "/" + baseName + ".material.json";
+	} else {
+		pipelineAssetPath = pipelineDirStr + "/" + baseName + ".pipeline.json";
+		materialAssetPath = materialDirStr + "/" + baseName + ".material.json";
+	}
+
+	// 既存アセットがあればそれを使う
+	const AssetMeta* existing = database->FindByPath(materialAssetPath);
+	if (existing) {
+		return existing->guid;
+	}
+
+	// アセットが存在しない場合は生成する
+	const std::filesystem::path pipelineFullPath = RuntimePaths::ResolveAssetPath(pipelineAssetPath);
+	const std::filesystem::path materialFullPath = RuntimePaths::ResolveAssetPath(materialAssetPath);
+
+	WriteGeneratedJson(pipelineFullPath, MakeUserPipelineJson(normalized, baseName));
+	WriteGeneratedJson(materialFullPath, MakeUserMaterialJson(pipelineAssetPath, baseName));
+
+	database->ImportOrGet(pipelineAssetPath, AssetType::RenderPipeline);
+	const AssetID materialId = database->ImportOrGet(materialAssetPath, AssetType::Material);
+
+	Logger::Output(LogType::Engine,
+		"[PostProcessAssetGenerator] material created for shader. material={}", materialAssetPath);
+	return materialId;
+}

@@ -371,10 +371,19 @@ bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompile
 
 	// シェーダーのコンパイル
 	const std::filesystem::path shaderPath = ResolveShaderPath(desc.compute.file);
-	Assert::Call(!shaderPath.empty(), std::string("Compute shader file not found: ") + desc.compute.file);
+	if (shaderPath.empty()) {
+		Logger::Output(LogType::Engine, "[PostProcess] Compute shader file not found: {}", desc.compute.file);
+		Logger::EndSection(LogType::Engine);
+		return false;
+	}
 	const std::wstring entry = ResolveEntry(desc.compute.entry);
 	const std::wstring profile = ResolveProfile(desc.compute.profile, ShaderStage::CS);
 	CompiledShader shader = compiler->CompileShader(shaderPath.wstring(), profile.c_str(), entry.c_str(), ShaderStage::CS);
+	if (!shader.object) {
+		Logger::Output(LogType::Engine, "[PostProcess] Shader compilation failed: {}", desc.compute.file);
+		Logger::EndSection(LogType::Engine);
+		return false;
+	}
 	Logger::Output(LogType::Engine, "Finished compiling CS for {}", shaderPath.string());
 
 	// スレッドサイズを設定
@@ -399,7 +408,11 @@ bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompile
 
 	// パイプラインステートオブジェクトの生成
 	HRESULT hr = device->CreateComputePipelineState(&pipelineDesc, IID_PPV_ARGS(&computePipeline_));
-	Assert::Call(SUCCEEDED(hr), "CreatePipelineState failed");
+	if (FAILED(hr)) {
+		Logger::Output(LogType::Engine, "[PostProcess] CreateComputePipelineState failed: {}", desc.compute.file);
+		Logger::EndSection(LogType::Engine);
+		return false;
+	}
 	Logger::Output(LogType::Engine, "Created ComputePipeline");
 	Logger::EndSection(LogType::Engine);
 	return true;

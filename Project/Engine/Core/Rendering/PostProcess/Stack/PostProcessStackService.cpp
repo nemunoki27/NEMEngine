@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackSerializer.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
@@ -35,7 +36,17 @@ void Engine::PostProcessStackService::Load() {
 	}
 
 	settings_ = PostProcessStackSettings{};
-	PostProcessStackSerializer::Load(settingsPath_, settings_);
+	try {
+		PostProcessStackSerializer::Load(settingsPath_, settings_);
+	} catch (const std::exception& e) {
+		Logger::Output(LogType::Engine,
+			"[PostProcessStack] Failed to load settings: {} ({})", settingsPath_.string(), e.what());
+		settings_ = PostProcessStackSettings{};
+	} catch (...) {
+		Logger::Output(LogType::Engine,
+			"[PostProcessStack] Failed to load settings (unknown error): {}", settingsPath_.string());
+		settings_ = PostProcessStackSettings{};
+	}
 	RebuildRuntime();
 	dirty_ = false;
 	loaded_ = true;
@@ -50,7 +61,17 @@ void Engine::PostProcessStackService::Save() const {
 void Engine::PostProcessStackService::Reload() {
 
 	settings_ = PostProcessStackSettings{};
-	PostProcessStackSerializer::Load(settingsPath_, settings_);
+	try {
+		PostProcessStackSerializer::Load(settingsPath_, settings_);
+	} catch (const std::exception& e) {
+		Logger::Output(LogType::Engine,
+			"[PostProcessStack] Failed to reload settings: {} ({})", settingsPath_.string(), e.what());
+		settings_ = PostProcessStackSettings{};
+	} catch (...) {
+		Logger::Output(LogType::Engine,
+			"[PostProcessStack] Failed to reload settings (unknown error): {}", settingsPath_.string());
+		settings_ = PostProcessStackSettings{};
+	}
 	RebuildRuntime();
 	dirty_ = false;
 }
@@ -116,6 +137,22 @@ const std::vector<Engine::ShaderResourceBinding>* Engine::PostProcessStackServic
 		return nullptr;
 	}
 	return &it->second;
+}
+
+void Engine::PostProcessStackService::ClearReflection(AssetID materialId) {
+
+	reflectionVars_.erase(materialId);
+	reflectionSRVs_.erase(materialId);
+}
+
+void Engine::PostProcessStackService::RequestShaderReload(AssetID materialId) {
+
+	pendingReflectionReloads_.insert(materialId);
+}
+
+bool Engine::PostProcessStackService::TakeReloadRequest(AssetID materialId) {
+
+	return pendingReflectionReloads_.erase(materialId) > 0;
 }
 
 std::filesystem::path Engine::PostProcessStackService::ResolveDefaultPath() const {

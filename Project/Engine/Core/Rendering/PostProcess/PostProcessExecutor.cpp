@@ -14,6 +14,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
 #include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Utils.h>
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 
 // c++
@@ -39,10 +40,18 @@ namespace {
 
 	bool RequiresSourceDepth(const Engine::PipelineState& pipelineState) {
 
-		if (pipelineState.FindBindingByName(kSourceDepthName, Engine::ShaderBindingKind::SRV)) {
-			return true;
+		for (const Engine::ShaderResourceBinding& binding : pipelineState.GetComputeReflection().resources) {
+			if (binding.kind != Engine::ShaderBindingKind::SRV) {
+				continue;
+			}
+			if (binding.name == kSourceDepthName) {
+				return true;
+			}
+			if (binding.name.empty() && binding.bindPoint == 1 && binding.space == 0) {
+				return true;
+			}
 		}
-		return pipelineState.FindBinding(Engine::ShaderBindingKind::SRV, 1, 0) != nullptr;
+		return false;
 	}
 
 	std::string MakePostProcessLogHeader(const Engine::MaterialAsset& material,
@@ -106,7 +115,7 @@ namespace {
 		}
 
 		// 古いshaderや無名binding向けに、標準register規約も残す。
-		if (!texture && !depth) {
+		if (!texture && !depth && binding.name.empty()) {
 			if (binding.bindPoint == 0 && binding.space == 0) {
 				texture = sourceColor;
 				resolvedName = kSourceColorName;
@@ -140,9 +149,52 @@ namespace {
 			return true;
 		}
 
-		Engine::Logger::Output(Engine::LogType::Engine, logHeader + "unresolved SRV binding. binding=" +
-			(binding.name.empty() ? std::to_string(binding.bindPoint) : binding.name));
-		return false;
+		// ユーザー設定テクスチャを textureOverrides から解決する。
+		if (!binding.name.empty()) {
+
+			auto found = desc.textureOverrides.find(binding.name);
+			if (found != desc.textureOverrides.end() && found->second) {
+
+				const Engine::GPUTextureResource* gpuTex =
+					Engine::RuntimeTextureResolver::Resolve(graphicsCore, context.assetDatabase, found->second);
+				if (gpuTex && gpuTex->valid) {
+
+					outBindItems.push_back({ std::string_view(binding.name),
+						Engine::ComputeBindValueType::SRV, 0, gpuTex->gpuHandle,
+						binding.bindPoint, binding.space });
+					return true;
+				}
+			}
+		}
+
+		// 解決できなかった場合は DefaultWhite をバインドする。source/depth 系の欠落はエラーとして扱う。
+		const bool isSourceReserved =
+			(binding.name == kSourceColorName || binding.name == kSourceDepthName) ||
+			((binding.bindPoint == 0 || binding.bindPoint == 1) && binding.space == 0 && binding.name.empty());
+		if (isSourceReserved) {
+
+			Engine::Logger::Output(Engine::LogType::Engine, logHeader + "unresolved SRV binding. binding=" +
+				(binding.name.empty() ? std::to_string(binding.bindPoint) : binding.name));
+			return false;
+		}
+
+		// ユーザーテクスチャが未設定 → DefaultWhite にフォールバックする。
+		const Engine::GPUTextureResource* white =
+			graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
+		if (!white || !white->valid) {
+
+			Engine::Logger::Output(Engine::LogType::Engine, logHeader + "unresolved SRV binding and white texture unavailable. binding=" +
+				(binding.name.empty() ? std::to_string(binding.bindPoint) : binding.name));
+			return false;
+		}
+
+		Engine::Logger::Output(Engine::LogType::Engine, logHeader +
+			"Texture '" + (binding.name.empty() ? std::to_string(binding.bindPoint) : binding.name) +
+			"' is not assigned. DefaultWhite is used.");
+		outBindItems.push_back({ binding.name.empty() ? std::string_view{} : std::string_view(binding.name),
+			Engine::ComputeBindValueType::SRV, 0, white->gpuHandle,
+			binding.bindPoint, binding.space });
+		return true;
 	}
 
 	bool AppendUAVBinding(const Engine::ShaderResourceBinding& binding,
@@ -372,6 +424,55 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 	const D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(destColor->GetResource());
 	commandList->ResourceBarrier(1, &uavBarrier);
 	dest->TransitionForShaderRead(*dxCommand);
+
+	return true;
+}
+
+bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
+	RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache,
+	AssetID materialId, const std::string& passName,
+	std::vector<ShaderConstantBufferVariable>& outVars,
+	std::vector<ShaderResourceBinding>& outSRVs) {
+
+	const MaterialAsset* materialAsset = assetLibrary.LoadMaterial(materialId);
+	if (!materialAsset) {
+		return false;
+	}
+
+	const MaterialPassBinding* passBinding = FindPass(*materialAsset, passName);
+	if (!passBinding) {
+		passBinding = FindPass(*materialAsset, "PostProcess");
+	}
+	if (!passBinding || passBinding->preferredVariant != PipelineVariantKind::Compute) {
+		return false;
+	}
+
+	const PipelineState* pipelineState = pipelineCache.GetORCreate(graphicsCore.GetDXObject(),
+		assetLibrary, passBinding->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN);
+	if (!pipelineState || !pipelineState->GetComputePipeline()) {
+		return false;
+	}
+
+	const ShaderReflectionInfo& reflection = pipelineState->GetComputeReflection();
+
+	// PostProcessParameters CBufferの変数一覧を取得する
+	auto layoutIt = parameterLayoutCache_.find(pipelineState);
+	if (layoutIt == parameterLayoutCache_.end()) {
+		PostProcessParameterLayout layout{};
+		layout.Build(reflection);
+		layoutIt = parameterLayoutCache_.emplace(pipelineState, std::move(layout)).first;
+	}
+	outVars = layoutIt->second.GetVariables();
+
+	// ユーザー向けSRV（gSourceColor / gSourceDepth を除く）を収集する
+	outSRVs.clear();
+	for (const auto& binding : reflection.resources) {
+		if (binding.kind == ShaderBindingKind::SRV &&
+			binding.name != kSourceColorName &&
+			binding.name != kSourceDepthName) {
+			outSRVs.push_back(binding);
+		}
+	}
 
 	return true;
 }

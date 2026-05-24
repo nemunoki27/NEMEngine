@@ -82,6 +82,8 @@ namespace Engine {
 		UINT rows = 0;
 		UINT columns = 0;
 		UINT elements = 0;
+		UINT declaredComponentCount = 1;
+		UINT declaredByteSize = 4;
 	};
 	// 定数バッファの情報
 	struct ShaderConstantBufferInfo {

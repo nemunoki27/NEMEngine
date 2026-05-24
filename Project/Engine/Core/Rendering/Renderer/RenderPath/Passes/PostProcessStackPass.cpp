@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessExecutor.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessTemporaryTargetPool.h>
@@ -94,6 +95,32 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		}
 	}
 
+	// 実行前にリフレクション情報をキャッシュしておく（実行成功に依存しないUIのため）
+	for (const auto* passPtr : activePasses) {
+
+		// シェーダーリロード要求があれば、パイプラインとレイアウトキャッシュを破棄する
+		if (service.TakeReloadRequest(passPtr->material)) {
+			const MaterialAsset* mat = deps_.assetLibrary->LoadMaterial(passPtr->material);
+			if (mat) {
+				for (const auto& passBinding : mat->passes) {
+					deps_.pipelineCache->InvalidateByPipelineAsset(passBinding.pipeline);
+				}
+			}
+			deps_.postProcessExecutor->ClearParameterLayoutCache();
+			service.ClearReflection(passPtr->material);
+		}
+
+		if (service.FindReflectionVars(passPtr->material) != nullptr) {
+			continue;
+		}
+		std::vector<ShaderConstantBufferVariable> vars;
+		std::vector<ShaderResourceBinding> srvs;
+		if (deps_.postProcessExecutor->TryGetReflection(graphicsCore, *deps_.assetLibrary,
+			*deps_.pipelineCache, passPtr->material, passPtr->passName, vars, srvs)) {
+			service.CacheReflection(passPtr->material, vars, srvs);
+		}
+	}
+
 	const size_t passCount = activePasses.size();
 	for (size_t i = 0; i < passCount; ++i) {
 
@@ -110,11 +137,16 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		desc.source.colors = { sourceName };
 		desc.dest.colors = { destName };
 		desc.parameterOverrides = pass.parameterOverrides;
+		desc.textureOverrides = pass.textureGuids;
 		desc.dispatchMode = ComputeDispatchMode::FromDestSize;
 
 		if (!deps_.postProcessExecutor->Execute(graphicsCore, RenderFrameRequest{},
 			context, *deps_.assetLibrary, *deps_.pipelineCache, desc)) {
-			continue;
+
+			// いずれかのpassが失敗したらスタック全体を中断してcopy fallbackに進む
+			Logger::Output(LogType::Engine, "[PostProcessStack] pass '{}' failed. Aborting stack and copy fallback.", pass.name);
+			CopySceneMainToFinal(graphicsCore, sceneMain, sceneFinal);
+			return;
 		}
 
 		// エディタUI用にリフレクション情報をキャッシュする

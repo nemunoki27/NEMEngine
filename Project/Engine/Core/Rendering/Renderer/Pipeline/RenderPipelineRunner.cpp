@@ -25,6 +25,7 @@
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackService.h>
 
 // c++
 #include <algorithm>
@@ -350,6 +351,20 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 		activeScene = request.sceneInstances->Find(request.activeSceneInstanceID);
 		if (!activeScene) {
 			activeScene = request.sceneInstances->GetActive();
+		}
+	}
+
+	// シーン切り替え時にPostProcessStack設定をサービスへ通知する
+	if (activeScene) {
+
+		const std::string& ppPath = activeScene->header.postProcessStackPath;
+		if (ppPath != lastNotifiedPostProcessPath_) {
+
+			PostProcessStackService& service = PostProcessStackService::GetInstance();
+			if (!service.IsDirty()) {
+				service.SetActiveSettingsAssetPath(ppPath);
+			}
+			lastNotifiedPostProcessPath_ = ppPath;
 		}
 	}
 

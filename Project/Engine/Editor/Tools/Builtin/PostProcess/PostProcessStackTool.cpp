@@ -6,10 +6,12 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/IDentity/UUID.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackService.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 
 // imgui
@@ -39,19 +41,48 @@ namespace {
 		return str.rfind(suffix) == str.size() - suffix.size();
 	}
 
+	uint32_t GetScalarComponentCount(const Engine::ShaderConstantBufferVariable& var) {
+
+		uint32_t count = (std::max)(1u, var.declaredComponentCount);
+		if (var.columns > 0) {
+			count = (std::max)(count, var.columns);
+		}
+		if (var.rows > 0 && var.columns > 0) {
+			count = (std::max)(count, var.rows * var.columns);
+		}
+		if (count <= 1 && var.size > sizeof(float)) {
+			count = static_cast<uint32_t>(var.size / sizeof(float));
+		}
+		return (std::min)(count, 4u);
+	}
+
+	bool IsColorParameterName(const std::string& name) {
+
+		return name.find("color") != std::string::npos ||
+			name.find("Color") != std::string::npos ||
+			name.find("tint") != std::string::npos ||
+			name.find("Tint") != std::string::npos;
+	}
+
 	// 変数タイプからMaterialParameterValueを生成する
 	Engine::MaterialParameterValue DefaultValueForVariable(const Engine::ShaderConstantBufferVariable& var) {
 
 		Engine::MaterialParameterValue result{};
+		const bool isColor = IsColorParameterName(var.name);
 		if (var.valueType == D3D_SVT_FLOAT) {
-			if (var.columns <= 1) {
+			const uint32_t componentCount = GetScalarComponentCount(var);
+			if (componentCount <= 1) {
 				result.value = 0.0f;
-			} else if (var.columns == 2) {
+			} else if (componentCount == 2) {
 				result.value = Engine::Vector2{};
-			} else if (var.columns == 3) {
+			} else if (componentCount == 3) {
 				result.value = Engine::Vector3{};
 			} else {
-				result.value = Engine::Vector4{};
+				if (isColor) {
+					result.value = Engine::Color4(0.0f, 0.0f, 0.0f, 1.0f);
+				} else {
+					result.value = Engine::Vector4{};
+				}
 			}
 		} else if (var.valueType == D3D_SVT_INT) {
 			result.value = int32_t(0);
@@ -65,36 +96,122 @@ namespace {
 		return result;
 	}
 
-	// MaterialParameterValueを変数タイプに応じてUIで編集する
-	bool DrawParameterValueEdit(const char* label, Engine::MaterialParameterValue& value) {
+	// バリアントからi番目のfloat成分を取り出す（型が違っても安全に変換する）
+	float ExtractFloatComponent(const Engine::MaterialParameterValue& value, int idx) {
 
-		return std::visit([&](auto& v) -> bool {
+		return std::visit([idx](const auto& v) -> float {
 			using T = std::decay_t<decltype(v)>;
 			if constexpr (std::is_same_v<T, float>) {
-				return Engine::MyGUI::DragFloat(label, v).valueChanged;
+				return (idx == 0) ? v : 0.0f;
 			} else if constexpr (std::is_same_v<T, Engine::Vector2>) {
-				return Engine::MyGUI::DragVector2(label, v).valueChanged;
+				return (idx == 0) ? v.x : (idx == 1 ? v.y : 0.0f);
 			} else if constexpr (std::is_same_v<T, Engine::Vector3>) {
-				return Engine::MyGUI::DragVector3(label, v).valueChanged;
+				return (idx == 0) ? v.x : (idx == 1 ? v.y : (idx == 2 ? v.z : 0.0f));
 			} else if constexpr (std::is_same_v<T, Engine::Vector4>) {
-				return Engine::MyGUI::DragVector4(label, v).valueChanged;
+				return (idx == 0) ? v.x : (idx == 1 ? v.y : (idx == 2 ? v.z : (idx == 3 ? v.w : 0.0f)));
 			} else if constexpr (std::is_same_v<T, Engine::Color4>) {
-				return Engine::MyGUI::ColorEdit(label, v).valueChanged;
-			} else if constexpr (std::is_same_v<T, int32_t>) {
-				return Engine::MyGUI::DragInt(label, v).valueChanged;
-			} else if constexpr (std::is_same_v<T, uint32_t>) {
-				int32_t iv = static_cast<int32_t>(v);
-				if (Engine::MyGUI::DragInt(label, iv).valueChanged) {
-					v = static_cast<uint32_t>((std::max)(0, iv));
+				return (idx == 0) ? v.r : (idx == 1 ? v.g : (idx == 2 ? v.b : (idx == 3 ? v.a : 0.0f)));
+			} else if constexpr (std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>) {
+				return (idx == 0) ? static_cast<float>(v) : 0.0f;
+			} else if constexpr (std::is_same_v<T, bool>) {
+				return (idx == 0 && v) ? 1.0f : 0.0f;
+			} else {
+				return 0.0f;
+			}
+		}, value.value);
+	}
+
+	// varの型情報とラベル名に基づいてUIウィジェットを表示し値を更新する
+	// バリアントの格納型ではなくリフレクションの成分数/var.valueTypeを基準にするため型不一致のバグが出ない
+	bool DrawParameterValueEdit(const Engine::ShaderConstantBufferVariable& var, Engine::MaterialParameterValue& value) {
+
+		const char* label = var.name.c_str();
+		const bool isColor = IsColorParameterName(var.name);
+		const uint32_t componentCount = GetScalarComponentCount(var);
+
+		if (var.valueType == D3D_SVT_FLOAT) {
+
+			if (componentCount <= 1) {
+				float v = ExtractFloatComponent(value, 0);
+				if (Engine::MyGUI::DragFloat(label, v).valueChanged) {
+					value.value = v;
 					return true;
 				}
-				return false;
-			} else if constexpr (std::is_same_v<T, bool>) {
-				return Engine::MyGUI::Checkbox(label, v);
+			} else if (componentCount == 2) {
+				Engine::Vector2 v{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1) };
+				if (Engine::MyGUI::DragVector2(label, v).valueChanged) {
+					value.value = v;
+					return true;
+				}
+			} else if (componentCount == 3) {
+				if (isColor) {
+					Engine::Color3 c{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1), ExtractFloatComponent(value, 2) };
+					if (Engine::MyGUI::ColorEdit(label, c).valueChanged) {
+						value.value = Engine::Vector3{ c.r, c.g, c.b };
+						return true;
+					}
+				} else {
+					Engine::Vector3 v{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1), ExtractFloatComponent(value, 2) };
+					if (Engine::MyGUI::DragVector3(label, v).valueChanged) {
+						value.value = v;
+						return true;
+					}
+				}
 			} else {
-				return false;
+				if (isColor) {
+					Engine::Color4 c{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1), ExtractFloatComponent(value, 2), ExtractFloatComponent(value, 3) };
+					if (Engine::MyGUI::ColorEdit(label, c).valueChanged) {
+						value.value = c;
+						return true;
+					}
+				} else {
+					Engine::Vector4 v{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1), ExtractFloatComponent(value, 2), ExtractFloatComponent(value, 3) };
+					if (Engine::MyGUI::DragVector4(label, v).valueChanged) {
+						value.value = v;
+						return true;
+					}
+				}
 			}
+		} else if (var.valueType == D3D_SVT_INT) {
+			int32_t v = std::visit([](const auto& val) -> int32_t {
+				using T = std::decay_t<decltype(val)>;
+				if constexpr (std::is_same_v<T, int32_t>) return val;
+				else if constexpr (std::is_same_v<T, uint32_t>) return static_cast<int32_t>(val);
+				else if constexpr (std::is_same_v<T, float>) return static_cast<int32_t>(val);
+				else if constexpr (std::is_same_v<T, bool>) return val ? 1 : 0;
+				else return 0;
 			}, value.value);
+			if (Engine::MyGUI::DragInt(label, v).valueChanged) {
+				value.value = v;
+				return true;
+			}
+		} else if (var.valueType == D3D_SVT_UINT) {
+			int32_t iv = std::visit([](const auto& val) -> int32_t {
+				using T = std::decay_t<decltype(val)>;
+				if constexpr (std::is_same_v<T, uint32_t>) return static_cast<int32_t>(val);
+				else if constexpr (std::is_same_v<T, int32_t>) return val;
+				else if constexpr (std::is_same_v<T, float>) return static_cast<int32_t>(val);
+				else if constexpr (std::is_same_v<T, bool>) return val ? 1 : 0;
+				else return 0;
+			}, value.value);
+			if (Engine::MyGUI::DragInt(label, iv).valueChanged) {
+				value.value = static_cast<uint32_t>((std::max)(0, iv));
+				return true;
+			}
+		} else if (var.valueType == D3D_SVT_BOOL) {
+			bool v = std::visit([](const auto& val) -> bool {
+				using T = std::decay_t<decltype(val)>;
+				if constexpr (std::is_same_v<T, bool>) return val;
+				else if constexpr (std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>) return val != 0;
+				else if constexpr (std::is_same_v<T, float>) return val != 0.0f;
+				else return false;
+			}, value.value);
+			if (Engine::MyGUI::Checkbox(label, v)) {
+				value.value = v;
+				return true;
+			}
+		}
+		return false;
 	}
 
 	bool IsPostProcessStackFile(const std::string& path) {
@@ -105,6 +222,16 @@ namespace {
 	bool IsMaterialJsonFile(const std::string& path) {
 
 		return EndsWith(path, ".material.json");
+	}
+
+	bool IsShaderJsonFile(const std::string& path) {
+
+		return EndsWith(path, ".shader.json");
+	}
+
+	bool IsCsHlslFile(const std::string& path) {
+
+		return EndsWith(path, ".CS.hlsl");
 	}
 }
 
@@ -314,6 +441,13 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 
 	PostProcessStackPassSettings& pass = passes[selectedPassIndex_];
 
+	// 選択中パスのシェーダーを再コンパイルしてパラメータを再読み込みする
+	if (ImGui::Button("Reload Reflection")) {
+		PostProcessStackService::GetInstance().RequestShaderReload(pass.materialGuid);
+	}
+
+	ImGui::Separator();
+
 	// パス名編集
 	if (MyGUI::InputText("Name", pass.name).editFinished) {
 		service.MarkDirty();
@@ -358,6 +492,11 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 		bool anyParamChanged = false;
 		for (const auto& var : *vars) {
 
+			// pad / padding はHLSLのアライメント調整用変数のため表示しない
+			if (var.name.find("pad") != std::string::npos || var.name.find("Pad") != std::string::npos) {
+				continue;
+			}
+
 			ImGui::PushID(var.name.c_str());
 
 			auto it = pass.parameterOverrides.find(var.name);
@@ -373,7 +512,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 			} else {
 
 				// オーバーライドあり: 値を編集可能に表示し、xボタンで削除できる
-				if (DrawParameterValueEdit(var.name.c_str(), it->second)) {
+				if (DrawParameterValueEdit(var, it->second)) {
 					anyParamChanged = true;
 				}
 				ImGui::SameLine();
@@ -452,20 +591,31 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 
 				const auto* data = static_cast<const EditorAssetDragDropPayload*>(payload->Data);
 				if (data && !data->isDirectory && IsPostProcessStackFile(data->assetPath)) {
+
 					service.SetActiveSettingsAssetPath(data->assetPath);
 					lastScenePath_ = data->assetPath;
 					selectedPassIndex_ = -1;
+
+					// SceneHeader.postProcessStackPath にも反映してシーンを更新する
+					if (context.toolContext.sceneInstances && context.toolContext.activeSceneInstanceID) {
+						SceneInstance* activeScene = context.toolContext.sceneInstances->Find(
+							context.toolContext.activeSceneInstanceID);
+						if (activeScene) {
+							activeScene->header.postProcessStackPath = data->assetPath;
+						}
+					}
 				}
 			}
 			ImGui::EndDragDropTarget();
 		}
 	}
 
-	// ドロップゾーン: マテリアルを追加する
+	// ドロップゾーン: マテリアル / シェーダー / HLSL を追加する
 	{
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 0.5f));
 		const float zoneHeight = 24.0f;
-		ImGui::Button("Drop .material.json to add pass", ImVec2(ImGui::GetContentRegionAvail().x, zoneHeight));
+		ImGui::Button("Drop .material.json / .shader.json / .CS.hlsl to add PostProcess pass",
+			ImVec2(ImGui::GetContentRegionAvail().x, zoneHeight));
 		ImGui::PopStyleColor();
 
 		if (ImGui::BeginDragDropTarget()) {
@@ -481,6 +631,7 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 
 					if (IsMaterialJsonFile(assetPath)) {
 
+						// .material.json ドロップ: GUIDを直接取得する
 						materialGuid = data->assetID;
 						if (!materialGuid && context.toolContext.assetDatabase) {
 							const AssetMeta* meta = context.toolContext.assetDatabase->FindByPath(assetPath);
@@ -488,31 +639,73 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 								materialGuid = meta->guid;
 							}
 						}
+						if (!materialGuid) {
+							Logger::Output(LogType::Engine,
+								"[PostProcessStack] Failed to resolve material GUID: " + assetPath);
+						}
 
 						// 拡張子を取り除いた名前を使う
 						if (name.size() > 9 && name.substr(name.size() - 9) == ".material") {
 							name = name.substr(0, name.size() - 9);
 						}
+					} else if (IsShaderJsonFile(assetPath)) {
+
+						// .shader.json ドロップ: 対応するMaterialを検索または生成する
+						materialGuid = PostProcessAssetGenerator::FindOrCreateMaterialForShader(
+							context.toolContext.assetDatabase, assetPath);
+						if (!materialGuid) {
+							Logger::Output(LogType::Engine,
+								"[PostProcessStack] Failed to find or create material for shader: " + assetPath);
+						}
+
+						// .shader.json の stem から baseName を取得する ("Bloom.shader" -> "Bloom")
+						const std::string stem1 = name; // "Bloom.shader"
+						name = std::filesystem::path(stem1).stem().string(); // "Bloom"
+					} else if (IsCsHlslFile(assetPath)) {
+
+						// .CS.hlsl ドロップ: shader/pipeline/material を生成または検索する
+						materialGuid = PostProcessAssetGenerator::EnsureUserAsset(
+							context.toolContext.assetDatabase, assetPath);
+						if (!materialGuid) {
+							Logger::Output(LogType::Engine,
+								"[PostProcessStack] Failed to generate assets for: " + assetPath);
+						}
+
+						// .CS.hlsl の stem から baseName を取得する ("Bloom.CS" -> "Bloom")
+						const std::string stem1 = name; // "Bloom.CS"
+						name = std::filesystem::path(stem1).stem().string(); // "Bloom"
+					} else {
+						Logger::Output(LogType::Engine,
+							"[PostProcessStack] Unsupported file dropped: " + assetPath +
+							". Drag .material.json, .shader.json, or .CS.hlsl.");
 					}
 
 					if (materialGuid) {
+
+						// 既存の material アセットパスキャッシュを解決する
+						std::string materialPath = assetPath;
+						if (!IsMaterialJsonFile(assetPath) && context.toolContext.assetDatabase) {
+							const AssetMeta* meta = context.toolContext.assetDatabase->Find(materialGuid);
+							if (meta) {
+								materialPath = meta->assetPath;
+							}
+						}
 
 						PostProcessStackPassSettings newPass{};
 						newPass.id = UUID::New();
 						newPass.name = name.empty() ? "NewPass" : name;
 						newPass.enabled = true;
 						newPass.materialGuid = materialGuid;
-						newPass.materialPathCache = assetPath;
+						newPass.materialPathCache = materialPath;
 						newPass.passName = "PostProcess";
 
 						settings.passes.emplace_back(std::move(newPass));
 						selectedPassIndex_ = static_cast<int32_t>(settings.passes.size()) - 1;
 						service.MarkDirty();
 						service.RebuildRuntime();
-					} else if (!IsMaterialJsonFile(assetPath)) {
+
 						Logger::Output(LogType::Engine,
-							"[PostProcessStack] Unsupported file dropped: " + assetPath +
-							". Drag .material.json to add a pass.");
+							"[PostProcessStack] Added pass '" + newPass.name + "' material=" + materialPath);
 					}
 				}
 			}

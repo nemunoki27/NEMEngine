@@ -237,6 +237,9 @@ namespace Engine {
 		// 同一フレーム内の複数プレビューがGPUバッファを再利用して上書きしないための開始済みフラグ
 		bool previewBackendFrameStarted_ = false;
 
+		// 前回通知したPostProcessStackパス。シーン切り替え時の再ロードを検出するために使用
+		std::string lastNotifiedPostProcessPath_{};
+
 		//--------- functions ----------------------------------------------------
 
 		// 描画ビューのサーフェスを要求に応じて同期する

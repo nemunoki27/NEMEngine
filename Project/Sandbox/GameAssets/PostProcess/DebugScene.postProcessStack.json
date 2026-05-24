@@ -7,9 +7,15 @@
             "materialPathCache": "Engine/Assets/Materials/Builtin/PostProcess/Vignette/vignette.material.json",
             "name": "vignette",
             "parameters": {
-                "intensity": 0.7099999785423279,
-                "radius": 0.5899999737739563,
-                "softness": 0.3400000035762787
+                "intensity": 1.149999976158142,
+                "radius": 0.5099999904632568,
+                "softness": 0.3499999940395355,
+                "vignetteColor": {
+                    "a": 1.0,
+                    "b": 0.9652507305145264,
+                    "g": 1.0,
+                    "r": 0.0
+                }
             },
             "passName": "PostProcess",
             "textures": {}

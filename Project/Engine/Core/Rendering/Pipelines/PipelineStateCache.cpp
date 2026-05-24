@@ -232,6 +232,17 @@ void Engine::PipelineStateCache::Clear() {
 	cache_.clear();
 }
 
+void Engine::PipelineStateCache::InvalidateByPipelineAsset(AssetID pipelineAssetID) {
+
+	for (auto it = cache_.begin(); it != cache_.end(); ) {
+		if (it->first.pipelineAsset == pipelineAssetID) {
+			it = cache_.erase(it);
+		} else {
+			++it;
+		}
+	}
+}
+
 uint64_t Engine::PipelineStateCache::HashFormats(std::span<const DXGI_FORMAT> rtvFormats, DXGI_FORMAT dsvFormat) {
 
 	uint64_t hash = 1469598103934665603ull;

@@ -16,6 +16,7 @@ namespace Engine {
 	// front
 	class AssetDatabase;
 	class ECSWorld;
+	class SceneInstanceManager;
 	struct SceneHeader;
 	struct SystemContext;
 
@@ -67,6 +68,7 @@ namespace Engine {
 		ECSWorld* world = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
 		SystemContext* systemContext = nullptr;
+		SceneInstanceManager* sceneInstances = nullptr;
 
 		const SceneHeader* activeSceneHeader = nullptr;
 		AssetID activeSceneAsset{};

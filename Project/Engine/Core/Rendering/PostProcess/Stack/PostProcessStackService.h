@@ -10,6 +10,7 @@
 // c++
 #include <filesystem>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace Engine {
@@ -52,6 +53,13 @@ namespace Engine {
 		const std::vector<ShaderConstantBufferVariable>* FindReflectionVars(AssetID materialId) const;
 		// キャッシュ済みSRVバインディングを取得する
 		const std::vector<ShaderResourceBinding>* FindReflectionSRVs(AssetID materialId) const;
+		// 指定マテリアルのリフレクションキャッシュを削除する
+		void ClearReflection(AssetID materialId);
+
+		// シェーダーリロードを要求する（次フレームのPostProcessStackPass::Executeで処理される）
+		void RequestShaderReload(AssetID materialId);
+		// リロード要求を取り出す。存在した場合はtrueを返し要求を削除する
+		bool TakeReloadRequest(AssetID materialId);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -82,6 +90,7 @@ namespace Engine {
 
 		std::unordered_map<AssetID, std::vector<ShaderConstantBufferVariable>> reflectionVars_{};
 		std::unordered_map<AssetID, std::vector<ShaderResourceBinding>> reflectionSRVs_{};
+		std::unordered_set<AssetID> pendingReflectionReloads_{};
 
 		//--------- functions ----------------------------------------------------
 

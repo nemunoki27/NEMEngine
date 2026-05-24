@@ -63,6 +63,8 @@ namespace Engine {
 
 		// データクリア
 		void Clear();
+		// 指定パイプラインアセットIDに一致するエントリを削除する
+		void InvalidateByPipelineAsset(AssetID pipelineAssetID);
 	private:
 		//========================================================================
 		//	private Methods
