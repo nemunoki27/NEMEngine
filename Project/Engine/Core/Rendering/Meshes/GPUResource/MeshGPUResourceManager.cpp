@@ -384,6 +384,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		mesh.vertexSRV.buffer = std::make_unique<DxStructuredBuffer<MeshVertex>>();
 		mesh.vertexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.vertices.size()));
 		mesh.vertexSRV.buffer->TransferData(imported.vertices);
+		mesh.vertexSRV.buffer->GetResource()->SetName(L"MeshVertices");
 		auto srvDesc = mesh.vertexSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.vertices.size()));
 		srvDescriptor_->CreateSRV(mesh.vertexSRV.srvIndex, mesh.vertexSRV.buffer->GetResource(), srvDesc);
 		mesh.vertexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.vertexSRV.srvIndex);
@@ -397,6 +398,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		mesh.packedVertexSRV.buffer = std::make_unique<DxStructuredBuffer<MeshPackedVertex>>();
 		mesh.packedVertexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(packedVertices.size()));
 		mesh.packedVertexSRV.buffer->TransferData(packedVertices);
+		mesh.packedVertexSRV.buffer->GetResource()->SetName(L"MeshPackedVertices");
 		auto srvDesc = mesh.packedVertexSRV.buffer->GetSRVDesc(static_cast<UINT>(packedVertices.size()));
 		srvDescriptor_->CreateSRV(mesh.packedVertexSRV.srvIndex, mesh.packedVertexSRV.buffer->GetResource(), srvDesc);
 		mesh.packedVertexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.packedVertexSRV.srvIndex);
@@ -422,6 +424,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		mesh.indexSRV.buffer = std::make_unique<DxStructuredBuffer<uint32_t>>();
 		mesh.indexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.indices.size()));
 		mesh.indexSRV.buffer->TransferData(imported.indices);
+		mesh.indexSRV.buffer->GetResource()->SetName(L"MeshIndices");
 		auto srvDesc = mesh.indexSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.indices.size()));
 		srvDescriptor_->CreateSRV(mesh.indexSRV.srvIndex, mesh.indexSRV.buffer->GetResource(), srvDesc);
 		mesh.indexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.indexSRV.srvIndex);
@@ -433,6 +436,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		mesh.skinInfluenceSRV.buffer = std::make_unique<DxStructuredBuffer<VertexInfluence>>();
 		mesh.skinInfluenceSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.vertexInfluences.size()));
 		mesh.skinInfluenceSRV.buffer->TransferData(imported.vertexInfluences);
+		mesh.skinInfluenceSRV.buffer->GetResource()->SetName(L"SkinInfluences");
 		auto srvDesc = mesh.skinInfluenceSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.vertexInfluences.size()));
 		srvDescriptor_->CreateSRV(mesh.skinInfluenceSRV.srvIndex, mesh.skinInfluenceSRV.buffer->GetResource(), srvDesc);
 		mesh.skinInfluenceSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.skinInfluenceSRV.srvIndex);
@@ -444,6 +448,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		mesh.vertexSubMeshIndexSRV.buffer = std::make_unique<DxStructuredBuffer<uint32_t>>();
 		mesh.vertexSubMeshIndexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.vertexSubMeshIndices.size()));
 		mesh.vertexSubMeshIndexSRV.buffer->TransferData(imported.vertexSubMeshIndices);
+		mesh.vertexSubMeshIndexSRV.buffer->GetResource()->SetName(L"MeshVertexSubMeshIndices");
 		auto srvDesc = mesh.vertexSubMeshIndexSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.vertexSubMeshIndices.size()));
 		srvDescriptor_->CreateSRV(mesh.vertexSubMeshIndexSRV.srvIndex, mesh.vertexSubMeshIndexSRV.buffer->GetResource(), srvDesc);
 		mesh.vertexSubMeshIndexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.vertexSubMeshIndexSRV.srvIndex);
@@ -456,6 +461,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		mesh.primitiveSubMeshIndexSRV.buffer = std::make_unique<DxStructuredBuffer<uint32_t>>();
 		mesh.primitiveSubMeshIndexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(primitiveSubMeshTable.size()));
 		mesh.primitiveSubMeshIndexSRV.buffer->TransferData(primitiveSubMeshTable);
+		mesh.primitiveSubMeshIndexSRV.buffer->GetResource()->SetName(L"MeshPrimitiveSubMeshIndices");
 		auto srvDesc = mesh.primitiveSubMeshIndexSRV.buffer->GetSRVDesc(static_cast<UINT>(primitiveSubMeshTable.size()));
 		srvDescriptor_->CreateSRV(mesh.primitiveSubMeshIndexSRV.srvIndex, mesh.primitiveSubMeshIndexSRV.buffer->GetResource(), srvDesc);
 		mesh.primitiveSubMeshIndexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.primitiveSubMeshIndexSRV.srvIndex);
@@ -468,6 +474,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		mesh.meshletSRV.buffer = std::make_unique<DxStructuredBuffer<MeshletDesc>>();
 		mesh.meshletSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.meshlets.size()));
 		mesh.meshletSRV.buffer->TransferData(imported.meshlets);
+		mesh.meshletSRV.buffer->GetResource()->SetName(L"Meshlets");
 		auto srvDesc = mesh.meshletSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.meshlets.size()));
 		srvDescriptor_->CreateSRV(mesh.meshletSRV.srvIndex, mesh.meshletSRV.buffer->GetResource(), srvDesc);
 		mesh.meshletSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.meshletSRV.srvIndex);
@@ -478,6 +485,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		mesh.meshletDrawSRV.buffer = std::make_unique<DxStructuredBuffer<MeshletDrawDesc>>();
 		mesh.meshletDrawSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(drawDescs.size()));
 		mesh.meshletDrawSRV.buffer->TransferData(drawDescs);
+		mesh.meshletDrawSRV.buffer->GetResource()->SetName(L"MeshletDrawDescs");
 		auto drawSrvDesc = mesh.meshletDrawSRV.buffer->GetSRVDesc(static_cast<UINT>(drawDescs.size()));
 		srvDescriptor_->CreateSRV(mesh.meshletDrawSRV.srvIndex, mesh.meshletDrawSRV.buffer->GetResource(), drawSrvDesc);
 		mesh.meshletDrawSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.meshletDrawSRV.srvIndex);
@@ -488,6 +496,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		mesh.meshletBoundsSRV.buffer = std::make_unique<DxStructuredBuffer<MeshletBounds>>();
 		mesh.meshletBoundsSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(bounds.size()));
 		mesh.meshletBoundsSRV.buffer->TransferData(bounds);
+		mesh.meshletBoundsSRV.buffer->GetResource()->SetName(L"MeshletBounds");
 		auto boundsSrvDesc = mesh.meshletBoundsSRV.buffer->GetSRVDesc(static_cast<UINT>(bounds.size()));
 		srvDescriptor_->CreateSRV(mesh.meshletBoundsSRV.srvIndex, mesh.meshletBoundsSRV.buffer->GetResource(), boundsSrvDesc);
 		mesh.meshletBoundsSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.meshletBoundsSRV.srvIndex);
@@ -497,6 +506,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		mesh.meshletVertexIndexSRV.buffer = std::make_unique<DxStructuredBuffer<uint32_t>>();
 		mesh.meshletVertexIndexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.meshletVertexIndices.size()));
 		mesh.meshletVertexIndexSRV.buffer->TransferData(imported.meshletVertexIndices);
+		mesh.meshletVertexIndexSRV.buffer->GetResource()->SetName(L"MeshletVertexIndices");
 		auto srvDesc = mesh.meshletVertexIndexSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.meshletVertexIndices.size()));
 		srvDescriptor_->CreateSRV(mesh.meshletVertexIndexSRV.srvIndex, mesh.meshletVertexIndexSRV.buffer->GetResource(), srvDesc);
 		mesh.meshletVertexIndexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.meshletVertexIndexSRV.srvIndex);
@@ -510,6 +520,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 			mesh.packedMeshletVertexIndexSRV.buffer = std::make_unique<DxStructuredBuffer<uint32_t>>();
 			mesh.packedMeshletVertexIndexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(packedIndices.size()));
 			mesh.packedMeshletVertexIndexSRV.buffer->TransferData(packedIndices);
+			mesh.packedMeshletVertexIndexSRV.buffer->GetResource()->SetName(L"PackedMeshletVertexIndices");
 			auto packedSrvDesc = mesh.packedMeshletVertexIndexSRV.buffer->GetSRVDesc(static_cast<UINT>(packedIndices.size()));
 			srvDescriptor_->CreateSRV(mesh.packedMeshletVertexIndexSRV.srvIndex,
 				mesh.packedMeshletVertexIndexSRV.buffer->GetResource(), packedSrvDesc);
@@ -521,6 +532,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		mesh.meshletPrimitiveIndexSRV.buffer = std::make_unique<DxStructuredBuffer<uint32_t>>();
 		mesh.meshletPrimitiveIndexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.meshletPrimitiveIndices.size()));
 		mesh.meshletPrimitiveIndexSRV.buffer->TransferData(imported.meshletPrimitiveIndices);
+		mesh.meshletPrimitiveIndexSRV.buffer->GetResource()->SetName(L"MeshletPrimitiveIndices");
 		auto srvDesc = mesh.meshletPrimitiveIndexSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.meshletPrimitiveIndices.size()));
 		srvDescriptor_->CreateSRV(mesh.meshletPrimitiveIndexSRV.srvIndex, mesh.meshletPrimitiveIndexSRV.buffer->GetResource(), srvDesc);
 		mesh.meshletPrimitiveIndexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.meshletPrimitiveIndexSRV.srvIndex);

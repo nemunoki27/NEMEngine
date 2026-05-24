@@ -205,9 +205,18 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		// 表示サイズ
 		Vector2 srcSize(static_cast<float>(display->GetRenderTarget().width), static_cast<float>(display->GetRenderTarget().height));
 
-		// 表示ウィンドウの中心に表示させる
+		// 表示ウィンドウの中心に16:9で表示させる
 		ImVec2 avail = ImGui::GetContentRegionAvail();
+		const float aspect = 16.0f / 9.0f;
+		if (avail.x / avail.y >= aspect) {
+			viewSize_.y = avail.y;
+			viewSize_.x = avail.y * aspect;
+		} else {
+			viewSize_.x = avail.x;
+			viewSize_.y = avail.x / aspect;
+		}
 		ImGui::SetCursorPosX(ImGui::GetCursorPos().x + (avail.x - viewSize_.x) * 0.5f);
+		ImGui::SetCursorPosY(ImGui::GetCursorPos().y + (avail.y - viewSize_.y) * 0.5f);
 
 		// 実際にImageを置く位置を入力システムへ渡す
 		const ImVec2 imagePos = ImGui::GetCursorScreenPos();

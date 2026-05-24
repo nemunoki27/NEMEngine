@@ -240,6 +240,9 @@ namespace Engine {
 		// 前回通知したPostProcessStackパス。シーン切り替え時の再ロードを検出するために使用
 		std::string lastNotifiedPostProcessPath_{};
 
+		// ワールド切り替え時の静的バッチキャッシュ破棄用
+		ECSWorld* lastRenderedWorld_ = nullptr;
+
 		//--------- functions ----------------------------------------------------
 
 		// 描画ビューのサーフェスを要求に応じて同期する

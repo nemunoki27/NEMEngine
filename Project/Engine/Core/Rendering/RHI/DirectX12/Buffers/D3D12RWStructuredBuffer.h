@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12StructuredBuffer.h>
 #include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12ShaderResourceView.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <string>
@@ -137,6 +138,9 @@ namespace Engine {
 		// バッファ作成
 		buffer_ = std::make_unique<DxStructuredBuffer<T>>();
 		buffer_->CreateUAVBuffer(device_, newCapacity);
+		if (!bindingName_.empty()) {
+			buffer_->GetResource()->SetName(Algorithm::ConvertString(bindingName_).c_str());
+		}
 
 		// SRV作成
 		{

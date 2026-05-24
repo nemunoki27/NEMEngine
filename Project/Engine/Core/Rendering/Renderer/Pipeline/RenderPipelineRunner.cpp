@@ -272,6 +272,7 @@ void Engine::RenderPipelineRunner::Init() {
 	previewLightBufferPool_.Clear();
 	previewLightCullingBufferPool_.Clear();
 	previewBackendFrameStarted_ = false;
+	lastRenderedWorld_ = nullptr;
 }
 
 void Engine::RenderPipelineRunner::Finalize() {
@@ -300,6 +301,7 @@ void Engine::RenderPipelineRunner::Finalize() {
 	gameViewRaytracingBuffers_.Release();
 	sceneViewRaytracingBuffers_.Release();
 	previewBackendFrameStarted_ = false;
+	lastRenderedWorld_ = nullptr;
 	raytracingSceneBuilder_.Finalize();
 	gameViewResources_.Destroy();
 	sceneViewResources_.Destroy();
@@ -327,6 +329,19 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	postProcessAssetGenerator_.EnsureBuiltinAssets(request.assetDatabase);
 	postProcessExecutor_.BeginFrame(request.systemContext ? request.systemContext->deltaTime : 0.0f);
 	backendRegistry_.BeginFrame(graphicsCore);
+
+	// ワールドが切り替わった場合は静的バッチキャッシュを即時破棄してSRV重複確保を防ぐ
+	if (request.world != lastRenderedWorld_) {
+		auto clearMeshCache = [](RenderBackendRegistry& registry) {
+			auto* base = registry.Find(RenderBackendID::Mesh);
+			if (auto* mesh = dynamic_cast<MeshRenderBackend*>(base)) {
+				mesh->ClearStaticBatchCache();
+			}
+		};
+		clearMeshCache(backendRegistry_);
+		clearMeshCache(previewBackendRegistry_);
+		lastRenderedWorld_ = request.world;
+	}
 
 	// レイトレシーンフレーム開始処理
 	raytracingSceneBuilder_.BeginFrame(graphicsCore);
