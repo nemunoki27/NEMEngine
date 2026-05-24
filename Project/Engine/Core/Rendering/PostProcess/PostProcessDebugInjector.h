@@ -3,10 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
-
 // c++
 #include <string>
+#include <string_view>
 
 namespace Engine {
 
@@ -18,7 +17,6 @@ namespace Engine {
 	class PostProcessExecutor;
 	class PostProcessTemporaryTargetPool;
 	class RenderAssetLibrary;
-	struct RenderFrameRequest;
 	struct SceneExecutionContext;
 
 	//============================================================================
@@ -48,8 +46,9 @@ namespace Engine {
 		~PostProcessDebugInjector() = default;
 
 		// Blit前に有効な場合だけPostProcessDebugTempへ描き、Blit元を差し替える
-		bool TryExecuteBeforeBlit(GraphicsCore& graphicsCore, const RenderFrameRequest& request,
-			const SceneExecutionContext& context, const BlitPassDesc& pass,
+		bool TryExecuteBeforeBlit(GraphicsCore& graphicsCore,
+			const SceneExecutionContext& context,
+			std::string_view sourceName, std::string_view destName,
 			RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache,
 			PostProcessExecutor& executor, PostProcessTemporaryTargetPool& targetPool,
 			const PostProcessAssetGenerator& assetGenerator, MultiRenderTarget*& inoutSource);

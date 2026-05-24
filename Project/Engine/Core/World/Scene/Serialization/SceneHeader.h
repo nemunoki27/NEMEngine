@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 #include <optional>
-#include <unordered_map>
 // json
 #include <json.hpp>
 
@@ -91,119 +90,6 @@ namespace Engine {
 		bool withDepth = false;
 	};
 
-	// シーンのパスの種類
-	enum class ScenePassType :
-		uint8_t {
-
-		Clear,
-		DepthPrepass,
-		Draw,
-		PostProcess,
-		Compute,
-		RenderScene,
-		Blit,
-		Raytracing,
-	};
-
-	// 深度プリパスの情報
-	struct DepthPrepassPassDesc {
-
-		std::string queue = "Opaque";
-		std::string passName = "ZPrepass";
-		RenderTargetSetReference dest;
-	};
-
-	// 描画パスの情報
-	struct DrawPassDesc {
-
-		// 描画名
-		std::string queue;
-		std::string passName = "Draw";
-		// 描画に使用するレンダーターゲット情報
-		RenderTargetSetReference dest;
-	};
-
-	// ポストエフェクトパスの情報
-	struct PostProcessPassDesc {
-
-		// ポストエフェクトマテリアル
-		AssetID material{};
-		// 入力と出力のレンダーターゲット情報
-		RenderTargetSetReference source;
-		RenderTargetSetReference dest;
-		// 追加テクスチャ。keyはshader binding名、valueはRenderTarget名。
-		std::unordered_map<std::string, std::string> extraSources;
-	};
-
-	// コンピュートパスの種類
-	enum class ComputeDispatchMode :
-		uint8_t {
-		
-		Fixed,
-		FromSourceSize,
-		FromDestSize,
-	};
-
-	// コンピュートパスの情報
-	struct ComputePassDesc {
-
-		// コンピュートシェーダーマテリアル
-		AssetID material{};
-		std::string passName = "Compute";
-
-		RenderTargetSetReference source;
-		RenderTargetSetReference dest;
-
-		ComputeDispatchMode dispatchMode = ComputeDispatchMode::FromDestSize;
-		uint32_t groupCountX = 1;
-		uint32_t groupCountY = 1;
-		uint32_t groupCountZ = 1;
-	};
-
-	// クリアパスの情報
-	struct ClearPassDesc {
-
-		// 描画に使用するレンダーターゲット情報
-		RenderTargetSetReference dest;
-
-		// 色情報をクリアするか
-		bool clearColor = true;
-		std::optional<Color4> clearColorValue = std::nullopt;
-		// 深度情報をクリアするか
-		bool clearDepth = false;
-		float clearDepthValue = 1.0f;
-		// ステンシルをクリアするか
-		bool clearStencil = false;
-		uint8_t clearStencilValue = 0;
-	};
-
-	// シーンの描画パスの情報
-	struct RenderScenePassDesc {
-
-		// シーンが持つサブシーンのスロット名
-		std::string subSceneSlot;
-		// 描画に使用するレンダーターゲット情報
-		RenderTargetSetReference dest;
-	};
-
-	// ブリットパスの情報
-	struct BlitPassDesc {
-
-		// 使用されるマテリアルID
-		AssetID material{};
-		RenderTargetSetReference source;
-		RenderTargetSetReference dest;
-	};
-
-	// レイトレーシングパスの情報
-	struct RaytracingPassDesc {
-
-		AssetID material{};
-		std::string passName = "Raytracing";
-		RenderTargetSetReference source;
-		RenderTargetSetReference dest;
-	};
-
 	// サブシーンのスロットの情報
 	struct SubSceneSlotDesc {
 
@@ -214,25 +100,6 @@ namespace Engine {
 
 		// シーンが有効かどうか
 		bool enabled = true;
-	};
-
-	// シーンのパスの情報
-	struct ScenePassDesc {
-
-		// 処理を行うパスの種類
-		ScenePassType type = ScenePassType::Draw;
-		// falseの場合はパスをスキップする。既存シーンは未指定なら有効。
-		bool enabled = true;
-
-		// タイプに応じて使用する
-		ClearPassDesc clear;
-		DepthPrepassPassDesc depthPrepass;
-		DrawPassDesc draw;
-		PostProcessPassDesc postProcess;
-		ComputePassDesc compute;
-		RenderScenePassDesc renderScene;
-		BlitPassDesc blit;
-		RaytracingPassDesc raytracing;
 	};
 
 	// 描画レイヤーの情報
@@ -256,10 +123,6 @@ namespace Engine {
 
 		// シーンごとのCollision設定ファイルの論理アセットパス
 		std::string collisionSettingsPath;
-
-		// シーンの描画、パスの情報
-		std::vector<SceneRenderTargetDesc> renderTargets;
-		std::vector<ScenePassDesc> passOrder;
 	};
 
 	// json変換

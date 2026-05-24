@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
 
 namespace {
 
@@ -83,6 +84,48 @@ namespace {
 		ImGui::SetWindowFontScale(1.0f);
 		ImGui::EndChild();
 	}
+
+	void DrawDescriptorUsage(const char* label, const Engine::BaseDescriptor& descriptor, float width) {
+
+		ImGui::BeginChild(label, ImVec2(width, 0.0f), true);
+		ImGui::Text("%s: %u / %u", label, descriptor.GetUseDescriptorCount(), descriptor.GetMaxDescriptorCount());
+		ImGui::Separator();
+
+		if (descriptor.GetUseDescriptorCount() == 0) {
+			ImGui::TextDisabled("No descriptors.");
+			ImGui::EndChild();
+			return;
+		}
+
+		for (uint32_t index = 0; index < descriptor.GetHighWaterMark(); ++index) {
+			if (!descriptor.IsAllocated(index)) {
+				continue;
+			}
+
+			const std::string_view name = descriptor.GetResourceName(index);
+			ImGui::Text("index%u: %s", index, name.empty() ? "Unknown" : name.data());
+		}
+
+		ImGui::EndChild();
+	}
+
+	void DrawGPUResourceTab(Engine::GraphicsCore* graphicsCore) {
+
+		if (!graphicsCore) {
+			ImGui::TextDisabled("GraphicsCore is not available.");
+			return;
+		}
+
+		const ImVec2 region = ImGui::GetContentRegionAvail();
+		const float spacing = ImGui::GetStyle().ItemSpacing.x;
+		const float childWidth = (region.x - spacing * 2.0f) / 3.0f;
+
+		DrawDescriptorUsage("SRV", graphicsCore->GetSRVDescriptor(), childWidth);
+		ImGui::SameLine();
+		DrawDescriptorUsage("RTV", graphicsCore->GetRTVDescriptor(), childWidth);
+		ImGui::SameLine();
+		DrawDescriptorUsage("DSV", graphicsCore->GetDSVDescriptor(), childWidth);
+	}
 }
 
 //============================================================================
@@ -114,8 +157,20 @@ void Engine::ConsolePanel::Draw(const EditorPanelContext& context) {
 		//	エンジンログ
 		//============================================================================
 		if (ImGui::BeginTabItem("Engine")) {
+			if (ImGui::BeginTabBar("ConsoleEngineTabBar")) {
+				if (ImGui::BeginTabItem("Log")) {
 
-			DrawLogTab(Engine::LogType::Engine, "##EngineLogList");
+					DrawLogTab(Engine::LogType::Engine, "##EngineLogList");
+					ImGui::EndTabItem();
+				}
+				if (ImGui::BeginTabItem("GPUResource")) {
+
+					DrawGPUResourceTab(context.graphicsCore);
+
+					ImGui::EndTabItem();
+				}
+				ImGui::EndTabBar();
+			}
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();

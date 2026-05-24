@@ -3,22 +3,31 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Editor/Graph/GraphNode.h>
-#include <Engine/Editor/Tools/Core/EditorToolContext.h>
+#include <string_view>
 
 namespace Engine {
 
+	// front
+	class GraphicsCore;
+	struct SceneExecutionContext;
+	struct RenderPassPhaseBuckets;
+
 	//============================================================================
-	//	RenderPathGraphAssetDragDrop class
-	//	RenderPath Graph上で使用するAsset DragDrop処理
+	//	IRenderPass class
+	//	固定RenderPathの各工程を表すインターフェース
 	//============================================================================
-	class RenderPathGraphAssetDragDrop {
+	class IRenderPass {
 	public:
 		//========================================================================
 		//	public Methods
 		//========================================================================
 
-		// Material AssetのDragDropを受け取る
-		static bool AcceptMaterial(GraphNode& node, const EditorToolContext& context);
+		virtual ~IRenderPass() = default;
+
+		// パス名の取得
+		virtual std::string_view GetName() const = 0;
+		// 毎フレームの実行
+		virtual void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
+			SceneExecutionContext& context) = 0;
 	};
 } // Engine

@@ -37,7 +37,6 @@ namespace Engine {
 		void Clear() { phaseToItems.clear(); }
 		// 描画フェーズに対してアイテムリストを返す
 		const RenderPassItemList* Find(const std::string& renderPhase) const;
-		const RenderPassItemList* Find(const std::string_view& renderPhase) const;
 	};
 
 	//============================================================================

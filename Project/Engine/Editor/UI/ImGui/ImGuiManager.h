@@ -11,6 +11,9 @@
 // c++
 #include <cstdint>
 #include <string>
+#include <unordered_map>
+
+struct ImGui_ImplDX12_InitInfo;
 
 namespace Engine {
 
@@ -48,11 +51,21 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		static void AllocateSRVDescriptor(::ImGui_ImplDX12_InitInfo* info,
+			D3D12_CPU_DESCRIPTOR_HANDLE* outCPUHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGPUHandle);
+		static void FreeSRVDescriptor(::ImGui_ImplDX12_InitInfo* info,
+			D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle);
+
+		void AllocateImGuiSRV(D3D12_CPU_DESCRIPTOR_HANDLE* outCPUHandle,
+			D3D12_GPU_DESCRIPTOR_HANDLE* outGPUHandle);
+		void FreeImGuiSRV(D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle);
+
 		//--------- variables ----------------------------------------------------
 
 		// 初期化済みか
 		bool initialized_ = false;
 
 		SRVDescriptor* srvDescriptor_ = nullptr;
+		std::unordered_map<uint64_t, uint32_t> imguiSRVIndices_;
 	};
 }; // Engine

@@ -177,9 +177,7 @@ void Engine::ViewportPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	if (!ImGui::Begin(windowName_.c_str(), visible,
-		ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove)) {
+	if (!ImGui::Begin(windowName_.c_str(), visible)) {
 		ImGui::End();
 		return;
 	}

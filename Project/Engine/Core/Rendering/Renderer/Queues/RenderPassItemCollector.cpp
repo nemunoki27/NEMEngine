@@ -4,12 +4,6 @@
 //	RenderPassItemCollector classMethods
 //============================================================================
 
-const Engine::RenderPassItemList* Engine::RenderPassPhaseBuckets::Find(const std::string_view& renderPhase) const {
-
-	auto it = phaseToItems.find(std::string(renderPhase));
-	return (it == phaseToItems.end()) ? nullptr : &it->second;
-}
-
 const Engine::RenderPassItemList* Engine::RenderPassPhaseBuckets::Find(const std::string& renderPhase) const {
 
 	auto it = phaseToItems.find(renderPhase);

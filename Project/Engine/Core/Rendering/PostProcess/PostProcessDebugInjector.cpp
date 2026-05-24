@@ -13,25 +13,15 @@
 //	PostProcessDebugInjector classMethods
 //============================================================================
 
-namespace {
-
-	bool IsSourceToViewBlit(const Engine::BlitPassDesc& pass, const std::string& sourceName) {
-
-		return pass.source.colors.size() == 1 &&
-			pass.source.colors.front() == sourceName &&
-			pass.dest.colors.size() == 1 &&
-			pass.dest.colors.front() == "View";
-	}
-}
-
 bool Engine::PostProcessDebugInjector::TryExecuteBeforeBlit(GraphicsCore& graphicsCore,
-	const RenderFrameRequest& request, const SceneExecutionContext& context, const BlitPassDesc& pass,
+	const SceneExecutionContext& context,
+	std::string_view sourceName, std::string_view destName,
 	RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache,
 	PostProcessExecutor& executor, PostProcessTemporaryTargetPool& targetPool,
 	const PostProcessAssetGenerator& assetGenerator, MultiRenderTarget*& inoutSource) {
 
 	if (!settings_.enabled || !context.targetRegistry || !inoutSource ||
-		!IsSourceToViewBlit(pass, settings_.sourceName)) {
+		sourceName != settings_.sourceName || destName != "View") {
 		return false;
 	}
 
@@ -55,11 +45,11 @@ bool Engine::PostProcessDebugInjector::TryExecuteBeforeBlit(GraphicsCore& graphi
 	PostProcessExecutionDesc desc{};
 	desc.material = material;
 	desc.passName = "PostProcess";
-	desc.source = pass.source;
+	desc.source.colors = { std::string(sourceName) };
 	desc.dest.colors = { settings_.tempName };
 	desc.dispatchMode = ComputeDispatchMode::FromDestSize;
 
-	if (!executor.Execute(graphicsCore, request, context, assetLibrary, pipelineCache, desc)) {
+	if (!executor.Execute(graphicsCore, RenderFrameRequest{}, context, assetLibrary, pipelineCache, desc)) {
 		return false;
 	}
 

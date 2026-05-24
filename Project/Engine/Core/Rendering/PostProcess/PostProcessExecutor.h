@@ -35,6 +35,13 @@ namespace Engine {
 		float padding = 0.0f;
 	};
 
+	enum class ComputeDispatchMode : uint8_t {
+
+		FromDestSize,
+		FromSourceSize,
+		Fixed,
+	};
+
 	struct PostProcessExecutionDesc {
 
 		AssetID material{};

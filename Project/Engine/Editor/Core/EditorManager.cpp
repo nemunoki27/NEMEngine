@@ -438,18 +438,6 @@ void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) 
 		return;
 	}
 
-	// 独自のUndoを持つツールウィンドウがフォーカスを持っている場合はグローバルショートカットを抑制する
-	{
-		ImGuiContext* ctx = ImGui::GetCurrentContext();
-		if (ctx && ctx->NavWindow) {
-			const char* name = ctx->NavWindow->Name;
-			if (name && (std::strstr(name, "RenderPath Graph") != nullptr ||
-				std::strstr(name, "RenderPathGraph") != nullptr)) {
-				return;
-			}
-		}
-	}
-
 	// 処理を戻す
 	if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z)) {
 

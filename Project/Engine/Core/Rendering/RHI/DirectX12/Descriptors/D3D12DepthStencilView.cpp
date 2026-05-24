@@ -63,6 +63,7 @@ void Engine::DSVDescriptor::CreateDSV(uint32_t width, uint32_t height, uint32_t&
 	handle = GetCPUHandle(index);
 
 	CreateDepthResource(resource, width, height, resourceFormat, depthClearFormat);
+	RegisterResourceName(index, resource.Get());
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
 	dsvDesc.Format = depthClearFormat;

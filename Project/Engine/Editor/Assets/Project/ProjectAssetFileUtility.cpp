@@ -813,9 +813,7 @@ std::string Engine::ProjectAssetFileUtility::BuildFileContent(ProjectAssetFileKi
 			"  \"Header\": {{\n"
 			"    \"guid\": \"\",\n"
 			"    \"name\": \"{}\",\n"
-			"    \"subScenes\": [],\n"
-			"    \"renderTargets\": [],\n"
-			"    \"passOrder\": []\n"
+			"    \"subScenes\": []\n"
 			"  }},\n"
 			"  \"Entities\": []\n"
 			"}}\n",

@@ -45,12 +45,10 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	dxInitInfo.RTVFormat = rtvFormat;
 	dxInitInfo.DSVFormat = dsvFormat;
 	dxInitInfo.SrvDescriptorHeap = srvDescriptor->GetDescriptorHeap();
-	dxInitInfo.LegacySingleSrvCpuDescriptor = srvDescriptor->GetDescriptorHeap()->GetCPUDescriptorHandleForHeapStart();
-	dxInitInfo.LegacySingleSrvGpuDescriptor = srvDescriptor->GetDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
+	dxInitInfo.UserData = this;
+	dxInitInfo.SrvDescriptorAllocFn = &ImGuiManager::AllocateSRVDescriptor;
+	dxInitInfo.SrvDescriptorFreeFn = &ImGuiManager::FreeSRVDescriptor;
 	ImGui_ImplDX12_Init(&dxInitInfo);
-
-	// SRVを進める
-	srvDescriptor->Allocate();
 
 	//========================================================================
 	//	imguiConfig
@@ -228,6 +226,57 @@ void ImGuiManager::Finalize() {
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 
+	imguiSRVIndices_.clear();
 	srvDescriptor_ = nullptr;
 	initialized_ = false;
+}
+
+void ImGuiManager::AllocateSRVDescriptor(ImGui_ImplDX12_InitInfo* info,
+	D3D12_CPU_DESCRIPTOR_HANDLE* outCPUHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGPUHandle) {
+
+	auto* manager = static_cast<ImGuiManager*>(info ? info->UserData : nullptr);
+	if (!manager) {
+		*outCPUHandle = {};
+		*outGPUHandle = {};
+		return;
+	}
+	manager->AllocateImGuiSRV(outCPUHandle, outGPUHandle);
+}
+
+void ImGuiManager::FreeSRVDescriptor(ImGui_ImplDX12_InitInfo* info,
+	D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle) {
+
+	auto* manager = static_cast<ImGuiManager*>(info ? info->UserData : nullptr);
+	if (!manager) {
+		return;
+	}
+	manager->FreeImGuiSRV(gpuHandle);
+}
+
+void ImGuiManager::AllocateImGuiSRV(D3D12_CPU_DESCRIPTOR_HANDLE* outCPUHandle,
+	D3D12_GPU_DESCRIPTOR_HANDLE* outGPUHandle) {
+
+	if (!srvDescriptor_) {
+		*outCPUHandle = {};
+		*outGPUHandle = {};
+		return;
+	}
+
+	const uint32_t index = srvDescriptor_->Allocate();
+	*outCPUHandle = srvDescriptor_->GetCPUHandle(index);
+	*outGPUHandle = srvDescriptor_->GetGPUHandle(index);
+	imguiSRVIndices_[static_cast<uint64_t>(outGPUHandle->ptr)] = index;
+}
+
+void ImGuiManager::FreeImGuiSRV(D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle) {
+
+	const auto it = imguiSRVIndices_.find(static_cast<uint64_t>(gpuHandle.ptr));
+	if (it == imguiSRVIndices_.end()) {
+		return;
+	}
+
+	if (srvDescriptor_) {
+		srvDescriptor_->Free(it->second);
+	}
+	imguiSRVIndices_.erase(it);
 }

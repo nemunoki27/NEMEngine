@@ -60,12 +60,8 @@ void Engine::ViewportRenderService::SyncSurface(GraphicsCore& graphicsCore,
 	MultiRenderTargetCreateDesc desc = BuildDefaultDesc(kind, width, height);
 
 	slot.surface = std::make_unique<MultiRenderTarget>();
-	slot.surface->Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(),
-		desc);
+	slot.surface->Create(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetRTVDescriptor(),
+		&graphicsCore.GetDSVDescriptor(), &graphicsCore.GetSRVDescriptor(), desc);
 }
 
 Engine::MultiRenderTarget* Engine::ViewportRenderService::GetSurface(RenderViewKind kind) {

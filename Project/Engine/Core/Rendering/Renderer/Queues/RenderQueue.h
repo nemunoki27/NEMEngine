@@ -99,6 +99,9 @@ namespace Engine {
 		// 描画に使用するカメラ
 		RenderCameraDomain cameraDomain = RenderCameraDomain::Perspective;
 
+		// trueの場合、ポストプロセス適用前のSceneFinalへ描画する
+		bool postProcessTarget = false;
+
 		// 描画アイテムの参照情報
 		RenderPayload payload{};
 	};

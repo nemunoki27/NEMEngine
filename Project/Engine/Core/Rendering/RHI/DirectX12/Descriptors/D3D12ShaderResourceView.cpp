@@ -17,6 +17,7 @@ void SRVDescriptor::CreateSRV(uint32_t& srvIndex, ID3D12Resource* resource,
 
 	// SRVを作成
 	srvIndex = Allocate();
+	RegisterResourceName(srvIndex, resource);
 	device_->CreateShaderResourceView(resource, &desc, GetCPUHandle(srvIndex));
 }
 
@@ -25,5 +26,6 @@ void SRVDescriptor::CreateUAV(uint32_t& uavIndex, ID3D12Resource* resource,
 
 	// UAVを作成
 	uavIndex = Allocate();
+	RegisterResourceName(uavIndex, resource);
 	device_->CreateUnorderedAccessView(resource, nullptr, &desc, GetCPUHandle(uavIndex));
 }

@@ -8,9 +8,11 @@ using namespace Engine;
 #include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Utils.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <string>
+#include <string_view>
 
 //============================================================================
 //	BaseDescriptor classMethods
@@ -28,6 +30,7 @@ void BaseDescriptor::Init(ID3D12Device* device, const DescriptorType& descriptor
 	allocatedCount_ = 0;
 	freeList_.clear();
 	allocationFlags_.assign(maxDescriptorCount_, 0);
+	resourceNames_.assign(maxDescriptorCount_, {});
 
 
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
@@ -100,6 +103,7 @@ void Engine::BaseDescriptor::Free(uint32_t index) {
 
 	// フリーリストに追加して再利用可能にする
 	allocationFlags_[index] = 0;
+	resourceNames_[index].clear();
 	freeList_.emplace_back(index);
 
 	if (0 < allocatedCount_) {
@@ -113,6 +117,14 @@ bool Engine::BaseDescriptor::IsAllocated(uint32_t index) const {
 		return false;
 	}
 	return allocationFlags_[index] != 0;
+}
+
+std::string_view Engine::BaseDescriptor::GetResourceName(uint32_t index) const {
+
+	if (static_cast<uint32_t>(resourceNames_.size()) <= index) {
+		return {};
+	}
+	return resourceNames_[index];
 }
 
 std::string_view Engine::BaseDescriptor::GetHeapTypeName() const {
@@ -130,4 +142,39 @@ std::string_view Engine::BaseDescriptor::GetHeapTypeName() const {
 		break;
 	}
 	return "UNKNOWN";
+}
+
+void Engine::BaseDescriptor::RegisterResourceName(uint32_t index, ID3D12Resource* resource) {
+
+	UpdateResourceName(index, resource);
+}
+
+void Engine::BaseDescriptor::UpdateResourceName(uint32_t index, ID3D12Resource* resource) {
+
+	if (static_cast<uint32_t>(resourceNames_.size()) <= index) {
+		return;
+	}
+
+	resourceNames_[index].clear();
+	if (!resource) {
+		return;
+	}
+
+	UINT nameSize = 0;
+	const HRESULT sizeResult = resource->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, nullptr);
+	if ((FAILED(sizeResult) && sizeResult != DXGI_ERROR_MORE_DATA) || nameSize <= sizeof(wchar_t)) {
+		return;
+	}
+
+	std::wstring wideName(nameSize / sizeof(wchar_t), L'\0');
+	if (FAILED(resource->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, wideName.data()))) {
+		return;
+	}
+
+	while (!wideName.empty() && wideName.back() == L'\0') {
+		wideName.pop_back();
+	}
+	if (!wideName.empty()) {
+		resourceNames_[index] = Algorithm::ConvertString(wideName);
+	}
 }

@@ -8,6 +8,7 @@
 // c++
 #include <cstdint>
 #include <vector>
+#include <string>
 #include <string_view>
 // directX
 #include <d3d12.h>
@@ -64,6 +65,8 @@ namespace Engine {
 		// これまでに到達した最大インデックス+1
 		uint32_t GetHighWaterMark() const { return useIndex_; }
 		uint32_t GetMaxDescriptorCount() const { return maxDescriptorCount_; }
+		std::string_view GetResourceName(uint32_t index) const;
+		void UpdateResourceName(uint32_t index, ID3D12Resource* resource);
 	private:
 		//========================================================================
 		//	private Methods
@@ -94,7 +97,11 @@ namespace Engine {
 		std::vector<uint32_t> freeList_;
 		// インデックスごとの使用中フラグ
 		std::vector<uint8_t> allocationFlags_;
+		// インデックスごとの表示用リソース名
+		std::vector<std::string> resourceNames_;
 
 		ComPtr<ID3D12DescriptorHeap> descriptorHeap_;
+
+		void RegisterResourceName(uint32_t index, ID3D12Resource* resource);
 	};
 }; // Engine

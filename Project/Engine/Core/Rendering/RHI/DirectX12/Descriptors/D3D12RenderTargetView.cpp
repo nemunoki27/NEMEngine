@@ -16,6 +16,7 @@ void Engine::RTVDescriptor::Create(uint32_t& index, D3D12_CPU_DESCRIPTOR_HANDLE&
 	ID3D12Resource* resource, const D3D12_RENDER_TARGET_VIEW_DESC& desc) {
 
 	index = Allocate();
+	RegisterResourceName(index, resource);
 	handle = GetCPUHandle(index);
 	device_->CreateRenderTargetView(resource, &desc, handle);
 }

@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/Views/ViewportRenderService.h>
@@ -61,6 +63,8 @@ namespace Engine {
 		const ResolvedRenderView* cullingView = nullptr;
 		MultiRenderTarget* defaultSurface = nullptr;
 		RenderTargetRegistry* targetRegistry = nullptr;
+		// 固定RenderPath用の中間レンダーターゲット
+		RenderPathResources* resources = nullptr;
 		// ツールプレビューなど、1枚のRT内の一部だけへ描く時の描画矩形
 		bool useViewportRect = false;
 		uint32_t viewportX = 0;
@@ -170,6 +174,12 @@ namespace Engine {
 		// 描画ビュー情報
 		ResolvedRenderView gameView_{};
 		ResolvedRenderView sceneView_{};
+
+		// 固定RenderPath
+		FixedForwardPlusRenderPath renderPath_{};
+		// ビューごとの中間レンダーターゲット
+		RenderPathResources gameViewResources_{};
+		RenderPathResources sceneViewResources_{};
 
 		// レイトレーシングのパイプライン
 		RaytracingPipelineStateCache raytracingPipelineStateCache_{};

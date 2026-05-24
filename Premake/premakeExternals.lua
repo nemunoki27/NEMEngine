@@ -160,6 +160,18 @@ externalproject "libcurl"
     kind "StaticLib"
     language "C"
 
+    dependson { "libcurl_object" }
+
+    configmap {
+        ["Develop"] = "Release",
+    }
+
+externalproject "libcurl_object"
+    location (path.join(LIBCURL_BUILD_DIR, "lib"))
+    filename "libcurl_object"
+    kind "StaticLib"
+    language "C"
+
     configmap {
         ["Develop"] = "Release",
     }

@@ -1,0 +1,235 @@
+#include "RaytracingReflectionPass.h"
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
+#include <Engine/Core/Rendering/Raytracing/RaytracingPipelineState.h>
+#include <Engine/Core/Rendering/Materials/MaterialResolver.h>
+#include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
+
+//============================================================================
+//	RaytracingReflectionPass classMethods
+//============================================================================
+
+namespace {
+
+	constexpr const char* kReflectionMaterialPath =
+		"Engine/Assets/Materials/Builtin/Raytracing/reflection.material.json";
+
+	bool CopyColor0Resource(Engine::GraphicsCore& graphicsCore,
+		Engine::MultiRenderTarget* source, Engine::MultiRenderTarget* dest) {
+
+		if (!source || !dest) {
+			return false;
+		}
+		Engine::RenderTexture2D* sourceColor = source->GetColorTexture(0);
+		Engine::RenderTexture2D* destColor = dest->GetColorTexture(0);
+		if (!sourceColor || !destColor ||
+			sourceColor->GetFormat() != destColor->GetFormat() ||
+			sourceColor->GetRenderTarget().width != destColor->GetRenderTarget().width ||
+			sourceColor->GetRenderTarget().height != destColor->GetRenderTarget().height) {
+			return false;
+		}
+
+		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
+		sourceColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		destColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_DEST);
+		dxCommand->GetCommandList()->CopyResource(destColor->GetResource(), sourceColor->GetResource());
+		return true;
+	}
+
+	bool ExecuteFullscreenBlit(Engine::GraphicsCore& graphicsCore,
+		const Engine::SceneExecutionContext& context,
+		Engine::MultiRenderTarget* source, Engine::MultiRenderTarget* dest,
+		Engine::RenderAssetLibrary& assetLibrary, Engine::PipelineStateCache& pipelineCache,
+		Engine::MaterialResolver& materialResolver) {
+
+		if (!source || !dest) {
+			return false;
+		}
+
+		Engine::AssetID resolvedID = materialResolver.ResolveORDefault(
+			*context.assetDatabase, {}, Engine::DefaultMaterialSlot::FullscreenCopy);
+		const Engine::MaterialAsset* material = assetLibrary.LoadMaterial(resolvedID);
+		if (!material) {
+			return false;
+		}
+
+		const Engine::MaterialPassBinding* passBinding = FindPass(*material, "Blit");
+		if (!passBinding) {
+			passBinding = FindPass(*material, "Fullscreen");
+		}
+		if (!passBinding ||
+			passBinding->preferredVariant == Engine::PipelineVariantKind::Compute ||
+			passBinding->preferredVariant == Engine::PipelineVariantKind::Raytracing) {
+			return false;
+		}
+
+		std::array<DXGI_FORMAT, 8> rtvFormats{};
+		uint32_t numRTVFormats = 0;
+		rtvFormats.fill(DXGI_FORMAT_UNKNOWN);
+		for (uint32_t i = 0; i < (std::min)(dest->GetColorCount(), static_cast<uint32_t>(rtvFormats.size())); ++i) {
+			if (const auto* color = dest->GetColorTexture(i)) {
+				rtvFormats[numRTVFormats++] = color->GetFormat();
+			}
+		}
+
+		const Engine::PipelineState* pipelineState = pipelineCache.GetORCreate(graphicsCore.GetDXObject(),
+			assetLibrary, passBinding->pipeline, passBinding->preferredVariant,
+			std::span<const DXGI_FORMAT>(rtvFormats.data(), numRTVFormats), DXGI_FORMAT_UNKNOWN);
+		if (!pipelineState) {
+			return false;
+		}
+
+		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
+		auto* commandList = dxCommand->GetCommandList();
+
+		source->TransitionForShaderRead(*dxCommand);
+		dest->TransitionForRender(*dxCommand);
+		dest->Bind(*dxCommand);
+		dxCommand->SetViewportAndScissor(dest->GetWidth(), dest->GetHeight());
+
+		dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
+		commandList->SetGraphicsRootSignature(pipelineState->GetRootSignature());
+		commandList->SetPipelineState(pipelineState->GetGraphicsPipeline(Engine::BlendMode::Normal));
+
+		const Engine::RootBindingLocation* binding = pipelineState->FindBinding(Engine::ShaderBindingKind::SRV, 0, 0);
+		Engine::RenderTexture2D* color = source->GetColorTexture(0);
+		if (!binding || !color) {
+			return false;
+		}
+		commandList->SetGraphicsRootDescriptorTable(binding->rootParameterIndex, color->GetSRVGPUHandle());
+
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		commandList->DrawInstanced(3, 1, 0, 0);
+		return true;
+	}
+}
+
+Engine::AssetID Engine::RaytracingReflectionPass::ResolveMaterial(AssetDatabase& database) const {
+
+	if (materialSearched_) {
+		return cachedMaterialID_;
+	}
+	materialSearched_ = true;
+
+	const AssetMeta* meta = database.FindByPath(kReflectionMaterialPath);
+	if (meta) {
+		cachedMaterialID_ = meta->guid;
+	}
+	return cachedMaterialID_;
+}
+
+void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
+	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
+
+	(void)passBuckets;
+	if (!context.resources || !context.assetDatabase || !deps_.assetLibrary ||
+		!deps_.pipelineCache || !deps_.materialResolver || !deps_.raytracingPipelineCache) {
+		return;
+	}
+
+	MultiRenderTarget* sceneMain = context.resources->GetSceneMain();
+	MultiRenderTarget* sceneFinal = context.resources->GetSceneFinal();
+	if (!sceneMain || !sceneFinal) {
+		return;
+	}
+
+	auto passthrough = [&]() {
+		if (!ExecuteFullscreenBlit(graphicsCore, context, sceneMain, sceneFinal,
+			*deps_.assetLibrary, *deps_.pipelineCache, *deps_.materialResolver)) {
+
+			CopyColor0Resource(graphicsCore, sceneMain, sceneFinal);
+		}
+		};
+
+	if (!graphicsCore.GetDXObject().ShouldUseDispatchRays() || !context.raytracing.tlasResource) {
+		passthrough();
+		return;
+	}
+
+	AssetID materialID = ResolveMaterial(*context.assetDatabase);
+	if (!materialID) {
+		passthrough();
+		return;
+	}
+
+	const MaterialAsset* material = deps_.assetLibrary->LoadMaterial(materialID);
+	if (!material) {
+		passthrough();
+		return;
+	}
+
+	const MaterialPassBinding* passBinding = FindPass(*material, "Reflection");
+	if (!passBinding || passBinding->preferredVariant != PipelineVariantKind::Raytracing) {
+		passthrough();
+		return;
+	}
+
+	RaytracingPipelineState* pipelineState = deps_.raytracingPipelineCache->GetOrCreate(
+		graphicsCore.GetDXObject(), *deps_.assetLibrary, passBinding->pipeline);
+	if (!pipelineState) {
+		passthrough();
+		return;
+	}
+
+	const RegisteredRenderBuffer* tlas = context.bufferRegistry.Find("gSceneTLAS");
+	const RegisteredRenderBuffer* viewConstants = context.bufferRegistry.Find("RaytracingViewConstants");
+	const RegisteredRenderBuffer* sceneInstances = context.bufferRegistry.Find("gRaytracingSceneInstances");
+	const RegisteredRenderBuffer* sceneSubMeshes = context.bufferRegistry.Find("gRaytracingSubMeshes");
+	if (!tlas || !viewConstants || !sceneInstances || !sceneSubMeshes) {
+		passthrough();
+		return;
+	}
+
+	RenderTexture2D* sourceColor = sceneMain->GetColorTexture(0);
+	DepthTexture2D* sourceDepth = sceneMain->GetDepthTexture();
+	RenderTexture2D* sourceNormal = (1 < sceneMain->GetColorCount()) ? sceneMain->GetColorTexture(1) : nullptr;
+	RenderTexture2D* sourcePosition = (2 < sceneMain->GetColorCount()) ? sceneMain->GetColorTexture(2) : nullptr;
+	RenderTexture2D* destColor = sceneFinal->GetColorTexture(0);
+
+	if (!sourceColor || !sourceDepth || !sourceNormal || !sourcePosition || !destColor ||
+		destColor->GetUAVGPUHandle().ptr == 0) {
+		passthrough();
+		return;
+	}
+
+	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
+	auto* commandList = dxCommand->GetCommandList();
+
+	sourceColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	sourceDepth->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	sourceNormal->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	sourcePosition->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	destColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
+
+	commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
+	commandList->SetPipelineState1(pipelineState->GetStateObject());
+
+	commandList->SetComputeRootShaderResourceView(RaytracingPipelineState::kRootIndexTLAS, tlas->gpuAddress);
+	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSourceColor, sourceColor->GetSRVGPUHandle());
+	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSourceDepth, sourceDepth->GetSRVGPUHandle());
+	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSourceNormal, sourceNormal->GetSRVGPUHandle());
+	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSourcePosition, sourcePosition->GetSRVGPUHandle());
+	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSceneInstances, sceneInstances->srvGPUHandle);
+	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSceneSubMeshes, sceneSubMeshes->srvGPUHandle);
+	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexDestUAV, destColor->GetUAVGPUHandle());
+	commandList->SetComputeRootConstantBufferView(RaytracingPipelineState::kRootIndexViewCBV, viewConstants->gpuAddress);
+
+	D3D12_DISPATCH_RAYS_DESC dispatchDesc = pipelineState->BuildDispatchDesc(
+		sceneFinal->GetWidth(), sceneFinal->GetHeight(), 1);
+	commandList->DispatchRays(&dispatchDesc);
+
+	dxCommand->UAVBarrier(destColor->GetResource());
+	destColor->Transition(*dxCommand, static_cast<D3D12_RESOURCE_STATES>(
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+}

@@ -39,6 +39,7 @@ void Engine::DepthTexture2D::Create(DSVDescriptor* dsvDescriptor,
 	if (!desc.debugName.empty()) {
 
 		resource_->SetName(desc.debugName.c_str());
+		dsvDescriptor->UpdateResourceName(dsvIndex_, resource_.Get());
 	}
 
 	// SRVの作成
