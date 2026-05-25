@@ -17,10 +17,11 @@ VSOutput main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID) {
 	float4 worldPos = mul(vertex.position, worldMatrix);
 
 	VSOutput output;
-	
+
 	output.position = mul(worldPos, viewProjection);
 	output.worldPos = worldPos.xyz;
 	output.normal = normalize(mul(vertex.normal, (float3x3) worldMatrix));
+	output.tangent = normalize(mul(vertex.tangent, (float3x3) worldMatrix));
 	output.uv = vertex.uv;
 	output.instanceID = instanceID;
 	output.subMeshIndex = localSubMeshIndex;

@@ -7,9 +7,10 @@
 //============================================================================
 
 struct VSOutput {
-	
+
 	float4 position : SV_Position;
 	float3 normal : NORMAL0;
+	float3 tangent : TANGENT0;
 	float2 uv : TEXCOORD0;
 	float3 worldPos : WORLDPOS0;
 	uint instanceID : INSTANCEID0;
@@ -61,12 +62,14 @@ cbuffer MeshDrawConstants : register(b0, space1) {
 struct MeshVertex {
 
 	float3 normal;
+	float3 tangent;
 	float2 uv;
 	float4 position;
 };
 struct MeshPackedVertex {
 
 	uint normalOct;
+	uint tangentOct;
 	float2 uv;
 	float4 position;
 };
@@ -89,14 +92,20 @@ struct MeshletBounds {
 struct SubMeshShaderData {
 
 	uint baseColorTextureIndex;
-	float _pad0;
-	float _pad1;
-	float _pad2;
+	uint normalTextureIndex;
+	uint metallicRoughnessTextureIndex;
+	uint emissiveTextureIndex;
+
+	uint occlusionTextureIndex;
+	uint specularTextureIndex;
+	float metallic;
+	float roughness;
 
 	float4x4 localMatrix;
-	
+
 	float4 importedBaseColor;
 	float4 color;
+	float4 emissiveColor;
 	float4x4 uvMatrix;
 };
 struct MeshInstance {
@@ -177,6 +186,7 @@ MeshVertex DecodePackedVertex(MeshPackedVertex vertex) {
 
 	MeshVertex outVertex;
 	outVertex.normal = DecodeOctNormal(vertex.normalOct);
+	outVertex.tangent = DecodeOctNormal(vertex.tangentOct);
 	outVertex.uv = vertex.uv;
 	outVertex.position = vertex.position;
 	return outVertex;

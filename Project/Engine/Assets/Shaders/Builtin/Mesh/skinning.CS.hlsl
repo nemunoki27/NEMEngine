@@ -12,12 +12,14 @@ cbuffer SkinningConstants : register(b0) {
 struct MeshVertex {
 
 	float3 normal;
+	float3 tangent;
 	float2 uv;
 	float4 position;
 };
 struct MeshPackedVertex {
 
 	uint normalOct;
+	uint tangentOct;
 	float2 uv;
 	float4 position;
 };
@@ -136,10 +138,11 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupID : SV_Group
 	uint paletteOffset = skinnedInstanceIndex * boneCount;
 
 	MeshVertex output = input;
-	
+
 	// 頂点のスキニング処理
 	output.position = SkinPosition(input.position, influence, paletteOffset);
 	output.normal = SkinNormal(input.normal, influence, paletteOffset);
+	output.tangent = SkinNormal(input.tangent, influence, paletteOffset);
 
 	// スキニング後の頂点を出力
 	uint outputIndex = skinnedInstanceIndex * vertexCount + vertexIndex;
@@ -147,6 +150,7 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupID : SV_Group
 
 	MeshPackedVertex packed;
 	packed.normalOct = EncodeOctNormal(output.normal);
+	packed.tangentOct = EncodeOctNormal(output.tangent);
 	packed.uv = output.uv;
 	packed.position = output.position;
 	gSkinnedPackedVertices[outputIndex] = packed;

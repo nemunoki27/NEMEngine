@@ -288,11 +288,13 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 			aiVector3D pos = mesh->mVertices[v];
 			aiVector3D normal = mesh->HasNormals() ? mesh->mNormals[v] : aiVector3D(0.0f, 1.0f, 0.0f);
 			aiVector3D uv = mesh->HasTextureCoords(0) ? mesh->mTextureCoords[0][v] : aiVector3D(0.0f, 0.0f, 0.0f);
+			aiVector3D tangent = mesh->HasTangentsAndBitangents() ? mesh->mTangents[v] : aiVector3D(1.0f, 0.0f, 0.0f);
 
 			// 頂点データを変換して保存
 			MeshVertex vertex{};
 			vertex.position = Vector4(-pos.x, pos.y, pos.z, 1.0f);
 			vertex.normal = Vector3(-normal.x, normal.y, normal.z);
+			vertex.tangent = Vector3(-tangent.x, tangent.y, tangent.z);
 			vertex.uv = Vector2(uv.x, uv.y);
 			result.vertices.emplace_back(vertex);
 
@@ -330,10 +332,13 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 				}
 
 				// デフォルトで設定されているテクスチャのパスを取得
-				subMesh.defaultTextures.baseColorTexturePath = textureResolver.ResolveAssetPath(
-					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE }));
-				subMesh.defaultTextures.normalTexturePath = textureResolver.ResolveAssetPath(
-					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT }));
+				const std::string baseColorReference = AssimpMaterialTextureExtractor::Extract(
+					material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE });
+				const std::string normalReference = AssimpMaterialTextureExtractor::Extract(
+					material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT });
+				subMesh.defaultTextures.baseColorTexturePath = textureResolver.ResolveAssetPath(baseColorReference);
+				subMesh.defaultTextures.normalTexturePath =
+					textureResolver.ResolveNormalAssetPath(normalReference, baseColorReference);
 				subMesh.defaultTextures.metallicRoughnessTexturePath = textureResolver.ResolveAssetPath(
 					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_UNKNOWN }));
 				subMesh.defaultTextures.specularTexturePath = textureResolver.ResolveAssetPath(

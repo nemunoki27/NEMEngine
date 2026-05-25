@@ -15,7 +15,7 @@ namespace Engine {
 
 		// アセットIDからGPUテクスチャリソースを解決する。未ロードなら読み込み要求を行う。
 		const GPUTextureResource* Resolve(GraphicsCore& graphicsCore,
-			AssetDatabase* assetDatabase, AssetID textureAssetID);
+			AssetDatabase* assetDatabase, AssetID textureAssetID, bool sRGB = false);
 
 	} // RuntimeTextureResolver
 } // Engine

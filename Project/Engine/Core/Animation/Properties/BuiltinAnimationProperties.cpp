@@ -374,7 +374,7 @@ namespace {
 		return false;
 	}
 
-	template <size_t SubMeshIndex, typename Value, Value Engine::MeshSubMeshTextureOverride::* Member>
+	template <size_t SubMeshIndex, typename Value, Value Engine::SubMeshMaterial::* Member>
 	bool GetSubMeshMember(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
@@ -386,7 +386,7 @@ namespace {
 		return false;
 	}
 
-	template <size_t SubMeshIndex, typename Value, Value Engine::MeshSubMeshTextureOverride::* Member>
+	template <size_t SubMeshIndex, typename Value, Value Engine::SubMeshMaterial::* Member>
 	bool SetSubMeshMember(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
 		Value typed{};
@@ -402,7 +402,7 @@ namespace {
 		return false;
 	}
 
-	template <size_t SubMeshIndex, typename Value, Value Engine::MeshSubMeshTextureOverride::* Member>
+	template <size_t SubMeshIndex, typename Value, Value Engine::SubMeshMaterial::* Member>
 	bool SetSubMeshUVMember(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
 		Value typed{};
@@ -411,7 +411,7 @@ namespace {
 		}
 		if (Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
 			if (SubMeshIndex < renderer->subMeshes.size()) {
-				Engine::MeshSubMeshTextureOverride& subMesh = renderer->subMeshes[SubMeshIndex];
+				Engine::SubMeshMaterial& subMesh = renderer->subMeshes[SubMeshIndex];
 				subMesh.*Member = typed;
 				subMesh.uvMatrix = Engine::MeshSubMeshRuntime::BuildUVMatrix(subMesh);
 				return true;
@@ -479,23 +479,23 @@ namespace {
 		Register(registry, "MeshRenderer", std::format("{}.color", prefix).c_str(),
 			std::format("{}.color", displayPrefix).c_str(), Engine::AnimationValueType::Color4,
 			HasMeshSubMesh<SubMeshIndex>,
-			GetSubMeshMember<SubMeshIndex, Engine::Color4, &Engine::MeshSubMeshTextureOverride::color>,
-			SetSubMeshMember<SubMeshIndex, Engine::Color4, &Engine::MeshSubMeshTextureOverride::color>);
+			GetSubMeshMember<SubMeshIndex, Engine::Color4, &Engine::SubMeshMaterial::color>,
+			SetSubMeshMember<SubMeshIndex, Engine::Color4, &Engine::SubMeshMaterial::color>);
 		Register(registry, "MeshRenderer", std::format("{}.uvPos", prefix).c_str(),
 			std::format("{}.uvPos", displayPrefix).c_str(), Engine::AnimationValueType::Vector2,
 			HasMeshSubMesh<SubMeshIndex>,
-			GetSubMeshMember<SubMeshIndex, Engine::Vector2, &Engine::MeshSubMeshTextureOverride::uvPos>,
-			SetSubMeshUVMember<SubMeshIndex, Engine::Vector2, &Engine::MeshSubMeshTextureOverride::uvPos>);
+			GetSubMeshMember<SubMeshIndex, Engine::Vector2, &Engine::SubMeshMaterial::uvPos>,
+			SetSubMeshUVMember<SubMeshIndex, Engine::Vector2, &Engine::SubMeshMaterial::uvPos>);
 		Register(registry, "MeshRenderer", std::format("{}.uvRotation", prefix).c_str(),
 			std::format("{}.uvRotation", displayPrefix).c_str(), Engine::AnimationValueType::Float,
 			HasMeshSubMesh<SubMeshIndex>,
-			GetSubMeshMember<SubMeshIndex, float, &Engine::MeshSubMeshTextureOverride::uvRotation>,
-			SetSubMeshUVMember<SubMeshIndex, float, &Engine::MeshSubMeshTextureOverride::uvRotation>);
+			GetSubMeshMember<SubMeshIndex, float, &Engine::SubMeshMaterial::uvRotation>,
+			SetSubMeshUVMember<SubMeshIndex, float, &Engine::SubMeshMaterial::uvRotation>);
 		Register(registry, "MeshRenderer", std::format("{}.uvScale", prefix).c_str(),
 			std::format("{}.uvScale", displayPrefix).c_str(), Engine::AnimationValueType::Vector2,
 			HasMeshSubMesh<SubMeshIndex>,
-			GetSubMeshMember<SubMeshIndex, Engine::Vector2, &Engine::MeshSubMeshTextureOverride::uvScale>,
-			SetSubMeshUVMember<SubMeshIndex, Engine::Vector2, &Engine::MeshSubMeshTextureOverride::uvScale>);
+			GetSubMeshMember<SubMeshIndex, Engine::Vector2, &Engine::SubMeshMaterial::uvScale>,
+			SetSubMeshUVMember<SubMeshIndex, Engine::Vector2, &Engine::SubMeshMaterial::uvScale>);
 	}
 }
 

@@ -18,7 +18,7 @@ namespace Engine {
 	//	MeshRendererComponent struct
 	//============================================================================
 
-	struct MeshSubMeshTextureOverride {
+	struct SubMeshMaterial {
 
 		// 表示用の名前
 		std::string name;
@@ -39,6 +39,12 @@ namespace Engine {
 		// サブメッシュパラメータ
 		// 色
 		Color4 color = Color4::White();
+		// 発光色
+		Color4 emissiveColor = Color4(0.0f, 0.0f, 0.0f, 0.0f);
+
+		// PBRパラメータ
+		float metallic = 0.0f;
+		float roughness = 0.5f;
 
 		// UV
 		Vector2 uvPos = Vector2::AnyInit(0.0f);
@@ -82,13 +88,13 @@ namespace Engine {
 		// Zプリパスを有効にするか
 		bool enableZPrepass = true;
 
-		// サブメッシュごとのテクスチャ設定
-		std::vector<MeshSubMeshTextureOverride> subMeshes{};
+		// サブメッシュごとのマテリアル設定
+		std::vector<SubMeshMaterial> subMeshes{};
 	};
 
 	// json変換
-	void from_json(const nlohmann::json& in, MeshSubMeshTextureOverride& overrideData);
-	void to_json(nlohmann::json& out, const MeshSubMeshTextureOverride& overrideData);
+	void from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMaterial);
+	void to_json(nlohmann::json& out, const SubMeshMaterial& subMeshMaterial);
 	void from_json(const nlohmann::json& in, MeshRendererComponent& component);
 	void to_json(nlohmann::json& out, const MeshRendererComponent& component);
 
@@ -96,14 +102,14 @@ namespace Engine {
 	namespace MeshSubMeshRuntime {
 
 		// 行列の構築
-		Matrix4x4 BuildUVMatrix(const MeshSubMeshTextureOverride& subMesh);
-		Matrix4x4 BuildLocalMatrix(const MeshSubMeshTextureOverride& subMesh);
+		Matrix4x4 BuildUVMatrix(const SubMeshMaterial& subMesh);
+		Matrix4x4 BuildLocalMatrix(const SubMeshMaterial& subMesh);
 		// ギズモ用のピボットを考慮したローカル行列
-		Matrix4x4 BuildGizmoLocalMatrix(const MeshSubMeshTextureOverride& subMesh);
-		Matrix4x4 BuildRenderLocalMatrix(const MeshSubMeshTextureOverride& subMesh);
+		Matrix4x4 BuildGizmoLocalMatrix(const SubMeshMaterial& subMesh);
+		Matrix4x4 BuildRenderLocalMatrix(const SubMeshMaterial& subMesh);
 
 		// ランタイム更新
-		void UpdateSubMeshRuntime(MeshSubMeshTextureOverride& subMesh, const Matrix4x4& parentWorldMatrix);
+		void UpdateSubMeshRuntime(SubMeshMaterial& subMesh, const Matrix4x4& parentWorldMatrix);
 		void UpdateRendererRuntime(MeshRendererComponent& renderer, const Matrix4x4& parentWorldMatrix);
 	}
 

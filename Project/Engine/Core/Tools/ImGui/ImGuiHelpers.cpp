@@ -1000,7 +1000,7 @@ Engine::GizmoEditResult Engine::MyGUI::Manipulate3D(const char* id,
 }
 
 Engine::GizmoEditResult Engine::MyGUI::Manipulate2D(const char* id,
-	const GizmoViewContext& context, MeshSubMeshTextureOverride& subMesh) {
+	const GizmoViewContext& context, SubMeshMaterial& subMesh) {
 
 	GizmoEditResult result{};
 
@@ -1016,7 +1016,7 @@ Engine::GizmoEditResult Engine::MyGUI::Manipulate2D(const char* id,
 	}
 
 	// 2DギズモはZ軸回転のみを扱うため、現在のローカル回転からZ軸回転を抽出して、他の回転成分を打ち消した行列を作る
-	MeshSubMeshTextureOverride planeSubMesh = subMesh;
+	SubMeshMaterial planeSubMesh = subMesh;
 	planeSubMesh.localRotation.x = 0.0f;
 	planeSubMesh.localRotation.y = 0.0f;
 	planeSubMesh.localScale.z = 1.0f;
@@ -1074,7 +1074,7 @@ Engine::GizmoEditResult Engine::MyGUI::Manipulate2D(const char* id,
 }
 
 Engine::GizmoEditResult Engine::MyGUI::Manipulate3D(const char* id,
-	const GizmoViewContext& context, MeshSubMeshTextureOverride& subMesh) {
+	const GizmoViewContext& context, SubMeshMaterial& subMesh) {
 
 	GizmoEditResult result{};
 
@@ -1276,7 +1276,8 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 	}
 
-	ImVec2 button = setting.buttonSize.has_value() ? setting.buttonSize.value() : ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight());
+	float buttonWidth = (std::max)(1.0f, ImGui::GetContentRegionAvail().x - setting.reserveRightWidth);
+	ImVec2 button = setting.buttonSize.has_value() ? setting.buttonSize.value() : ImVec2(buttonWidth, ImGui::GetFrameHeight());
 
 	// ドロップターゲットを描画する
 	ImGui::Button(displayText.c_str(), button);
@@ -1291,6 +1292,9 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 
 		const std::string tooltip = BuildAssetReferenceTooltip(value, assetDatabase);
 		ImGui::TextUnformatted(tooltip.c_str());
+		if (setting.previewTextureID != ImTextureID{}) {
+			ImGui::Image(setting.previewTextureID, ImVec2(128.0f, 128.0f));
+		}
 		ImGui::EndTooltip();
 	}
 

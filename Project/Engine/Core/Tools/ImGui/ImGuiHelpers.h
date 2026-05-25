@@ -27,7 +27,7 @@ namespace Engine {
 	class AssetDatabase;
 	class ECSWorld;
 	struct TransformComponent;
-	struct MeshSubMeshTextureOverride;
+	struct SubMeshMaterial;
 
 	//============================================================================
 	//	MyGUI structures
@@ -106,6 +106,10 @@ namespace Engine {
 		bool showTooltip = true;
 
 		std::optional<ImVec2> buttonSize = std::nullopt;
+		// ボタン右側に余白を確保する幅
+		float reserveRightWidth = 0.0f;
+		// ツールチップのプレビュー画像
+		ImTextureID previewTextureID = ImTextureID{};
 		// プロパティ行設定
 		PropertyRowSetting propertyRow{};
 	};
@@ -239,8 +243,8 @@ namespace Engine {
 		static GizmoEditResult Manipulate2D(const char* id, const GizmoViewContext& context, TransformComponent& transform);
 		static GizmoEditResult Manipulate3D(const char* id, const GizmoViewContext& context, TransformComponent& transform);
 		// 3D
-		static GizmoEditResult Manipulate2D(const char* id, const GizmoViewContext& context, MeshSubMeshTextureOverride& subMesh);
-		static GizmoEditResult Manipulate3D(const char* id, const GizmoViewContext& context, MeshSubMeshTextureOverride& subMesh);
+		static GizmoEditResult Manipulate2D(const char* id, const GizmoViewContext& context, SubMeshMaterial& subMesh);
+		static GizmoEditResult Manipulate3D(const char* id, const GizmoViewContext& context, SubMeshMaterial& subMesh);
 
 		//========================================================================
 		//	パラメータ変更

@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Utils.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h> 
@@ -277,6 +278,24 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	std::unordered_map<AssetID, uint32_t> baseColorSRVCache{};
 	baseColorSRVCache.reserve(gpuMesh.subMeshes.size() + 1);
 
+	// テクスチャアセットIDからSRVインデックスを取得するヘルパー
+	// assetIDが無効なら UINT32_MAX を返す（シェーダー側で未使用として扱う）
+	auto ResolveSRVIndex = [&](AssetID assetID, bool sRGB) -> uint32_t {
+
+		if (!assetID) {
+			return UINT32_MAX;
+		}
+		const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
+			graphicsCore, drawContext.assetDatabase, assetID, sRGB);
+		if (!texture || texture->srvIndex == UINT32_MAX) {
+			return fallbackSRVIndex;
+		}
+		if (texture == fallback) {
+			usesFallbackTexture_ = true;
+		}
+		return texture->srvIndex;
+		};
+
 	bool cullingEnabled = CanCullView(drawContext, gpuMesh);
 	const ResolvedCameraView* cullingCamera = nullptr;
 	if (cullingEnabled) {
@@ -351,33 +370,50 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 
 		for (uint32_t subMeshIndex = 0; subMeshIndex < static_cast<uint32_t>(gpuMesh.subMeshes.size()); ++subMeshIndex) {
 
-			// テクスチャアセットIDの取得
-			AssetID baseColorTextureAsset = MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetID(gpuMesh, renderer, subMeshIndex);
+			// ベースカラーはsRGB、それ以外はLinear
+			AssetID baseColorAsset = MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetID(gpuMesh, renderer, subMeshIndex);
 			uint32_t baseColorSRVIndex = fallbackSRVIndex;
-			auto cachedTexture = baseColorSRVCache.find(baseColorTextureAsset);
+			auto cachedTexture = baseColorSRVCache.find(baseColorAsset);
 			if (cachedTexture != baseColorSRVCache.end()) {
 
 				baseColorSRVIndex = cachedTexture->second;
 			} else {
 
-				// 同じバッチ内で同じテクスチャを何度も解決しないようキャッシュする
-				const GPUTextureResource* texture = BackendDrawCommon::ResolveTextureAsset(drawContext, graphicsCore, baseColorTextureAsset);
-				baseColorSRVIndex = (texture && texture->srvIndex != UINT32_MAX) ? texture->srvIndex : fallbackSRVIndex;
-				baseColorSRVCache.emplace(baseColorTextureAsset, baseColorSRVIndex);
-				if (baseColorTextureAsset && texture == fallback) {
+				if (baseColorAsset) {
 
-					usesFallbackTexture_ = true;
+					const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
+						graphicsCore, drawContext.assetDatabase, baseColorAsset, true);
+					baseColorSRVIndex = (texture && texture->srvIndex != UINT32_MAX) ? texture->srvIndex : fallbackSRVIndex;
+					if (texture == fallback) {
+						usesFallbackTexture_ = true;
+					}
 				}
+				baseColorSRVCache.emplace(baseColorAsset, baseColorSRVIndex);
 			}
+
+			AssetID normalAsset = MeshDrawPathCommon::ResolveSubMeshNormalTextureAssetID(gpuMesh, renderer, subMeshIndex);
+			AssetID metallicRoughnessAsset = MeshDrawPathCommon::ResolveSubMeshMetallicRoughnessTextureAssetID(gpuMesh, renderer, subMeshIndex);
+			AssetID emissiveAsset = MeshDrawPathCommon::ResolveSubMeshEmissiveTextureAssetID(gpuMesh, renderer, subMeshIndex);
+			AssetID occlusionAsset = MeshDrawPathCommon::ResolveSubMeshOcclusionTextureAssetID(gpuMesh, renderer, subMeshIndex);
+			AssetID specularAsset = MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(gpuMesh, renderer, subMeshIndex);
 
 			// サブメッシュデータの構築
 			MeshSubMeshShaderData data{};
 			data.baseColorTextureIndex = baseColorSRVIndex;
+			data.normalTextureIndex = ResolveSRVIndex(normalAsset, false);
+			data.metallicRoughnessTextureIndex = ResolveSRVIndex(metallicRoughnessAsset, false);
+			data.emissiveTextureIndex = ResolveSRVIndex(emissiveAsset, true);
+			data.occlusionTextureIndex = ResolveSRVIndex(occlusionAsset, false);
+			data.specularTextureIndex = ResolveSRVIndex(specularAsset, false);
+
 			data.importedBaseColor = gpuMesh.subMeshes[subMeshIndex].baseColor;
 			if (renderer && subMeshIndex < renderer->subMeshes.size()) {
 
 				const auto& authoring = renderer->subMeshes[subMeshIndex];
 				data.color = authoring.color;
+				data.emissiveColor = authoring.emissiveColor;
+				data.metallic = authoring.metallic;
+				data.roughness = authoring.roughness;
 				data.uvMatrix = authoring.uvMatrix;
 				data.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
 			}

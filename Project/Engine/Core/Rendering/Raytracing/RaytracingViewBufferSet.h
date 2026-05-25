@@ -37,19 +37,19 @@ namespace Engine {
 		Vector2 renderSize = Vector2::AnyInit(1.0f);
 		Vector2 invRenderSize = Vector2::AnyInit(1.0f);
 		float shadowNormalBias = 0.01f;
-		float reflectionIntensity = 0.65f;
+		float reflectionIntensity = 0.1f;
 		float nearClip = 0.01f;
 		float farClip = 4000.0f;
 
-		// // 追加: 反射の安定化用
+		// 反射の安定化用
 		float reflectionNormalBias = 0.0005f;
 		float reflectionViewBias = 0.0005f;
 		float reflectionMinHitDistance = 0.0010f;
 		float reflectionThicknessBase = 0.04f;
 
 		float reflectionThicknessScale = 0.015f;
-		float skyIntensity = 1.0f;
-		float fresnelMin = 0.08f;
+		float skyIntensity = 0.01f;
+		float fresnelMin = 0.054f;
 		float _pad0 = 0.0f;
 	};
 

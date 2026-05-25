@@ -54,3 +54,98 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetI
 	}
 	return resolved;
 }
+
+Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshNormalTextureAssetID(const MeshGPUResource& gpuMesh,
+	const MeshRendererComponent* renderer, uint32_t subMeshIndex) {
+
+	AssetID resolved{};
+
+	if (subMeshIndex < gpuMesh.subMeshes.size()) {
+
+		resolved = gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.normalTexture;
+	}
+
+	if (renderer && subMeshIndex < renderer->subMeshes.size()) {
+		if (renderer->subMeshes[subMeshIndex].normalTexture) {
+
+			resolved = renderer->subMeshes[subMeshIndex].normalTexture;
+		}
+	}
+	return resolved;
+}
+
+Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshMetallicRoughnessTextureAssetID(const MeshGPUResource& gpuMesh,
+	const MeshRendererComponent* renderer, uint32_t subMeshIndex) {
+
+	AssetID resolved{};
+
+	if (subMeshIndex < gpuMesh.subMeshes.size()) {
+
+		resolved = gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.metallicRoughnessTexture;
+	}
+
+	if (renderer && subMeshIndex < renderer->subMeshes.size()) {
+		if (renderer->subMeshes[subMeshIndex].metallicRoughnessTexture) {
+
+			resolved = renderer->subMeshes[subMeshIndex].metallicRoughnessTexture;
+		}
+	}
+	return resolved;
+}
+
+Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshEmissiveTextureAssetID(const MeshGPUResource& gpuMesh,
+	const MeshRendererComponent* renderer, uint32_t subMeshIndex) {
+
+	AssetID resolved{};
+
+	if (subMeshIndex < gpuMesh.subMeshes.size()) {
+
+		resolved = gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.emissiveTexture;
+	}
+
+	if (renderer && subMeshIndex < renderer->subMeshes.size()) {
+		if (renderer->subMeshes[subMeshIndex].emissiveTexture) {
+
+			resolved = renderer->subMeshes[subMeshIndex].emissiveTexture;
+		}
+	}
+	return resolved;
+}
+
+Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshOcclusionTextureAssetID(const MeshGPUResource& gpuMesh,
+	const MeshRendererComponent* renderer, uint32_t subMeshIndex) {
+
+	AssetID resolved{};
+
+	if (subMeshIndex < gpuMesh.subMeshes.size()) {
+
+		resolved = gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.occlusionTexture;
+	}
+
+	if (renderer && subMeshIndex < renderer->subMeshes.size()) {
+		if (renderer->subMeshes[subMeshIndex].occlusionTexture) {
+
+			resolved = renderer->subMeshes[subMeshIndex].occlusionTexture;
+		}
+	}
+	return resolved;
+}
+
+Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(const MeshGPUResource& gpuMesh,
+	const MeshRendererComponent* renderer, uint32_t subMeshIndex) {
+
+	AssetID resolved{};
+
+	if (subMeshIndex < gpuMesh.subMeshes.size()) {
+
+		resolved = gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.specularTexture;
+	}
+
+	if (renderer && subMeshIndex < renderer->subMeshes.size()) {
+		if (renderer->subMeshes[subMeshIndex].specularTexture) {
+
+			resolved = renderer->subMeshes[subMeshIndex].specularTexture;
+		}
+	}
+	return resolved;
+}

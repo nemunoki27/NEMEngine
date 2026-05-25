@@ -8,7 +8,7 @@
 namespace Engine::RuntimeTextureResolver {
 
 	const GPUTextureResource* Resolve(GraphicsCore& graphicsCore,
-		AssetDatabase* assetDatabase, AssetID textureAssetID) {
+		AssetDatabase* assetDatabase, AssetID textureAssetID, bool sRGB) {
 
 		// フォールバック用のエラーテクスチャを取得
 		const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
@@ -28,11 +28,17 @@ namespace Engine::RuntimeTextureResolver {
 		}
 
 		TextureUploadService& uploadService = graphicsCore.GetTextureUploadService();
-		const std::string key = fullPath.generic_string();
+		const std::string basePath = fullPath.generic_string();
+		const std::string key = sRGB ? basePath + ":srgb" : basePath;
 
 		// 未リクエストならリクエストを投げる
 		if (uploadService.GetState(key) == TextureRequestState::None) {
-			uploadService.RequestTextureFile(key, key);
+
+			TextureFileRequestDesc desc{};
+			desc.key = key;
+			desc.assetPath = basePath;
+			desc.forceSRGB = sRGB;
+			uploadService.RequestTextureFile(desc);
 		}
 
 		// ロード完了していれば返す

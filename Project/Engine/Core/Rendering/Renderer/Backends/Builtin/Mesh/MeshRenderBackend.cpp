@@ -492,13 +492,21 @@ uint64_t Engine::MeshRenderBackend::BuildStaticBatchHash(const RenderDrawContext
 		}
 
 		MixHash(h, static_cast<uint64_t>(renderer->subMeshes.size()));
-		for (const MeshSubMeshTextureOverride& subMesh : renderer->subMeshes) {
+		for (const SubMeshMaterial& subMesh : renderer->subMeshes) {
 
 			// サブメッシュ編集情報もGPUへ渡すため、静的キャッシュのキーへ含める
 			MixBytes(h, &subMesh.stableID, sizeof(subMesh.stableID));
 			MixHash(h, subMesh.sourceSubMeshIndex);
 			MixHash(h, static_cast<uint64_t>(std::hash<AssetID>{}(subMesh.baseColorTexture)));
+			MixHash(h, static_cast<uint64_t>(std::hash<AssetID>{}(subMesh.normalTexture)));
+			MixHash(h, static_cast<uint64_t>(std::hash<AssetID>{}(subMesh.metallicRoughnessTexture)));
+			MixHash(h, static_cast<uint64_t>(std::hash<AssetID>{}(subMesh.emissiveTexture)));
+			MixHash(h, static_cast<uint64_t>(std::hash<AssetID>{}(subMesh.occlusionTexture)));
+			MixHash(h, static_cast<uint64_t>(std::hash<AssetID>{}(subMesh.specularTexture)));
 			MixBytes(h, &subMesh.color, sizeof(subMesh.color));
+			MixBytes(h, &subMesh.emissiveColor, sizeof(subMesh.emissiveColor));
+			MixBytes(h, &subMesh.metallic, sizeof(subMesh.metallic));
+			MixBytes(h, &subMesh.roughness, sizeof(subMesh.roughness));
 			MixBytes(h, &subMesh.uvMatrix, sizeof(subMesh.uvMatrix));
 			MixBytes(h, &subMesh.localPos, sizeof(subMesh.localPos));
 			MixBytes(h, &subMesh.localRotation, sizeof(subMesh.localRotation));

@@ -9,59 +9,64 @@
 //	MeshRendererComponent classMethods
 //============================================================================
 
-void Engine::from_json(const nlohmann::json& in, MeshSubMeshTextureOverride& overrideData) {
+void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMaterial) {
 
-	overrideData.name = in.value("name", "");
+	subMeshMaterial.name = in.value("name", "");
 	const std::string stableID = in.value("stableID", "");
-	overrideData.stableID = stableID.empty() ? UUID{} : FromString16Hex(stableID);
-	overrideData.sourceSubMeshIndex = in.value("sourceSubMeshIndex", 0u);
-	overrideData.baseColorTexture = ParseAssetID(in, "baseColorTexture");
-	overrideData.normalTexture = ParseAssetID(in, "normalTexture");
-	overrideData.metallicRoughnessTexture = ParseAssetID(in, "metallicRoughnessTexture");
-	overrideData.specularTexture = ParseAssetID(in, "specularTexture");
-	overrideData.emissiveTexture = ParseAssetID(in, "emissiveTexture");
-	overrideData.occlusionTexture = ParseAssetID(in, "occlusionTexture");
+	subMeshMaterial.stableID = stableID.empty() ? UUID{} : FromString16Hex(stableID);
+	subMeshMaterial.sourceSubMeshIndex = in.value("sourceSubMeshIndex", 0u);
+	subMeshMaterial.baseColorTexture = ParseAssetID(in, "baseColorTexture");
+	subMeshMaterial.normalTexture = ParseAssetID(in, "normalTexture");
+	subMeshMaterial.metallicRoughnessTexture = ParseAssetID(in, "metallicRoughnessTexture");
+	subMeshMaterial.specularTexture = ParseAssetID(in, "specularTexture");
+	subMeshMaterial.emissiveTexture = ParseAssetID(in, "emissiveTexture");
+	subMeshMaterial.occlusionTexture = ParseAssetID(in, "occlusionTexture");
 
 	// サブメッシュパラメータ
-	overrideData.color = Color4::FromJson(in.value("color", nlohmann::json{}));
-	overrideData.uvPos = Vector2::FromJson(in.value("uvPos", nlohmann::json{}));
-	overrideData.uvRotation = in.value("uvRotation", 0.0f);
-	overrideData.uvScale = Vector2::FromJson(in.value("uvScale", nlohmann::json{}));
+	subMeshMaterial.color = Color4::FromJson(in.value("color", nlohmann::json{}));
+	subMeshMaterial.emissiveColor = Color4::FromJson(in.value("emissiveColor", nlohmann::json{}));
+	subMeshMaterial.metallic = in.value("metallic", 0.0f);
+	subMeshMaterial.roughness = in.value("roughness", 0.5f);
+	subMeshMaterial.uvPos = Vector2::FromJson(in.value("uvPos", nlohmann::json{}));
+	subMeshMaterial.uvRotation = in.value("uvRotation", 0.0f);
+	subMeshMaterial.uvScale = Vector2::FromJson(in.value("uvScale", nlohmann::json{}));
 
-	overrideData.localPos = Vector3::FromJson(in.value("localPos", nlohmann::json{}));
-	overrideData.localRotation = Vector3::FromJson(in.value("localRotation", nlohmann::json{}));
-	overrideData.localScale = Vector3::FromJson(in.value("localScale", nlohmann::json{}));
+	subMeshMaterial.localPos = Vector3::FromJson(in.value("localPos", nlohmann::json{}));
+	subMeshMaterial.localRotation = Vector3::FromJson(in.value("localRotation", nlohmann::json{}));
+	subMeshMaterial.localScale = Vector3::FromJson(in.value("localScale", nlohmann::json{}));
 
-	overrideData.uvMatrix = Matrix4x4::Identity();
-	overrideData.worldMatrix = Matrix4x4::Identity();
+	subMeshMaterial.uvMatrix = Matrix4x4::Identity();
+	subMeshMaterial.worldMatrix = Matrix4x4::Identity();
 
-	overrideData.sourcePivot = Vector3::FromJson(in.value("sourcePivot", nlohmann::json{}));
+	subMeshMaterial.sourcePivot = Vector3::FromJson(in.value("sourcePivot", nlohmann::json{}));
 }
 
-void Engine::to_json(nlohmann::json& out, const MeshSubMeshTextureOverride& overrideData) {
+void Engine::to_json(nlohmann::json& out, const SubMeshMaterial& subMeshMaterial) {
 
-	out["name"] = overrideData.name;
-	out["stableID"] = overrideData.stableID ? ToString(overrideData.stableID) : "";
-	out["sourceSubMeshIndex"] = overrideData.sourceSubMeshIndex;
-	out["baseColorTexture"] = ToString(overrideData.baseColorTexture);
-	out["normalTexture"] = ToString(overrideData.normalTexture);
-	out["metallicRoughnessTexture"] = ToString(overrideData.metallicRoughnessTexture);
-	out["specularTexture"] = ToString(overrideData.specularTexture);
-	out["emissiveTexture"] = ToString(overrideData.emissiveTexture);
-	out["occlusionTexture"] = ToString(overrideData.occlusionTexture);
+	out["name"] = subMeshMaterial.name;
+	out["stableID"] = subMeshMaterial.stableID ? ToString(subMeshMaterial.stableID) : "";
+	out["sourceSubMeshIndex"] = subMeshMaterial.sourceSubMeshIndex;
+	out["baseColorTexture"] = ToString(subMeshMaterial.baseColorTexture);
+	out["normalTexture"] = ToString(subMeshMaterial.normalTexture);
+	out["metallicRoughnessTexture"] = ToString(subMeshMaterial.metallicRoughnessTexture);
+	out["specularTexture"] = ToString(subMeshMaterial.specularTexture);
+	out["emissiveTexture"] = ToString(subMeshMaterial.emissiveTexture);
+	out["occlusionTexture"] = ToString(subMeshMaterial.occlusionTexture);
 
 	// サブメッシュパラメータ
-	out["color"] = overrideData.color.ToJson();
+	out["color"] = subMeshMaterial.color.ToJson();
+	out["emissiveColor"] = subMeshMaterial.emissiveColor.ToJson();
+	out["metallic"] = subMeshMaterial.metallic;
+	out["roughness"] = subMeshMaterial.roughness;
+	out["uvPos"] = subMeshMaterial.uvPos.ToJson();
+	out["uvRotation"] = subMeshMaterial.uvRotation;
+	out["uvScale"] = subMeshMaterial.uvScale.ToJson();
 
-	out["uvPos"] = overrideData.uvPos.ToJson();
-	out["uvRotation"] = overrideData.uvRotation;
-	out["uvScale"] = overrideData.uvScale.ToJson();
+	out["localPos"] = subMeshMaterial.localPos.ToJson();
+	out["localRotation"] = subMeshMaterial.localRotation.ToJson();
+	out["localScale"] = subMeshMaterial.localScale.ToJson();
 
-	out["localPos"] = overrideData.localPos.ToJson();
-	out["localRotation"] = overrideData.localRotation.ToJson();
-	out["localScale"] = overrideData.localScale.ToJson();
-
-	out["sourcePivot"] = overrideData.sourcePivot.ToJson();
+	out["sourcePivot"] = subMeshMaterial.sourcePivot.ToJson();
 }
 
 void Engine::from_json(const nlohmann::json& in, MeshRendererComponent& component) {
@@ -79,7 +84,7 @@ void Engine::from_json(const nlohmann::json& in, MeshRendererComponent& componen
 	if (in.contains("subMeshes") && in["subMeshes"].is_array()) {
 		for (const auto& subMeshJson : in["subMeshes"]) {
 
-			component.subMeshes.emplace_back(subMeshJson.get<MeshSubMeshTextureOverride>());
+			component.subMeshes.emplace_back(subMeshJson.get<SubMeshMaterial>());
 		}
 	}
 }
@@ -103,7 +108,7 @@ void Engine::to_json(nlohmann::json& out, const MeshRendererComponent& component
 }
 
 Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildUVMatrix(
-	const MeshSubMeshTextureOverride& subMesh) {
+	const SubMeshMaterial& subMesh) {
 
 	Vector3 scale(subMesh.uvScale.x, subMesh.uvScale.y, 1.0f);
 	Vector3 rotation(0.0f, 0.0f, subMesh.uvRotation);
@@ -112,18 +117,18 @@ Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildUVMatrix(
 }
 
 Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildLocalMatrix(
-	const MeshSubMeshTextureOverride& subMesh) {
+	const SubMeshMaterial& subMesh) {
 
 	return Matrix4x4::MakeAffineMatrix(subMesh.localScale, subMesh.localRotation, subMesh.localPos);
 }
 
-Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildGizmoLocalMatrix(const MeshSubMeshTextureOverride& subMesh) {
+Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildGizmoLocalMatrix(const SubMeshMaterial& subMesh) {
 
 	Matrix4x4 pivot = Matrix4x4::MakeTranslateMatrix(subMesh.sourcePivot);
 	return BuildLocalMatrix(subMesh) * pivot;
 }
 
-Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildRenderLocalMatrix(const MeshSubMeshTextureOverride& subMesh) {
+Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildRenderLocalMatrix(const SubMeshMaterial& subMesh) {
 
 	Matrix4x4 pivot = Matrix4x4::MakeTranslateMatrix(subMesh.sourcePivot);
 	Matrix4x4 invPivot = Matrix4x4::MakeTranslateMatrix(Vector3(
@@ -132,7 +137,7 @@ Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildRenderLocalMatrix(const MeshS
 }
 
 void Engine::MeshSubMeshRuntime::UpdateSubMeshRuntime(
-	MeshSubMeshTextureOverride& subMesh, const Matrix4x4& parentWorldMatrix) {
+	SubMeshMaterial& subMesh, const Matrix4x4& parentWorldMatrix) {
 
 	subMesh.uvMatrix = BuildUVMatrix(subMesh);
 

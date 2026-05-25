@@ -24,6 +24,7 @@ namespace Engine {
 	struct MeshVertex {
 
 		Vector3 normal = Vector3::AnyInit(0.0f);
+		Vector3 tangent = Vector3::AnyInit(0.0f);
 		Vector2 uv = Vector2::AnyInit(0.0f);
 
 		Vector4 position = Vector4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -33,7 +34,8 @@ namespace Engine {
 
 		// 法線をOctahedral Encodingで32bitに圧縮した値
 		uint32_t normalOct = 0;
-		// UVとPositionは既存シェーダの参照を変えないためそのまま保持
+		// 接線をOctahedral Encodingで32bitに圧縮した値
+		uint32_t tangentOct = 0;
 		Vector2 uv = Vector2::AnyInit(0.0f);
 		Vector4 position = Vector4(0.0f, 0.0f, 0.0f, 1.0f);
 	};

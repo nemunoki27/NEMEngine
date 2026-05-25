@@ -51,8 +51,15 @@ namespace Engine {
 
 	struct MeshSubMeshShaderData {
 
-		uint32_t baseColorTextureIndex = 0;
-		float _pad[3] = { 0.0f, 0.0f, 0.0f };
+		uint32_t baseColorTextureIndex = UINT32_MAX;
+		uint32_t normalTextureIndex = UINT32_MAX;
+		uint32_t metallicRoughnessTextureIndex = UINT32_MAX;
+		uint32_t emissiveTextureIndex = UINT32_MAX;
+
+		uint32_t occlusionTextureIndex = UINT32_MAX;
+		uint32_t specularTextureIndex = UINT32_MAX;
+		float metallic = 0.0f;
+		float roughness = 0.5f;
 
 		// サブメッシュごとのローカル行列
 		Matrix4x4 localMatrix = Matrix4x4::Identity();
@@ -61,6 +68,8 @@ namespace Engine {
 		Color4 importedBaseColor = Color4::White();
 		// エディタ編集色
 		Color4 color = Color4::White();
+		// 発光色
+		Color4 emissiveColor = Color4(0.0f, 0.0f, 0.0f, 0.0f);
 		// サブメッシュごとのUV
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 	};

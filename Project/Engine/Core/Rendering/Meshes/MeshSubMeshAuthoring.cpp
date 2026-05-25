@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
+#include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
 
 //============================================================================
 //	MeshSubMeshAuthoring classMethods
@@ -51,7 +53,7 @@ namespace {
 	}
 }
 
-bool Engine::MeshSubMeshAuthoring::TryBuildLayout(const AssetDatabase* assetDatabase,
+bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 	AssetID meshAssetID, std::vector<MeshSubMeshLayoutItem>& outLayout) {
 
 	outLayout.clear();
@@ -70,6 +72,9 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(const AssetDatabase* assetData
 		return false;
 	}
 
+	TextureAssetResolver textureResolver{};
+	textureResolver.Build(fullPath);
+
 	outLayout.reserve(scene->mNumMeshes);
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
 
@@ -84,6 +89,41 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(const AssetDatabase* assetData
 		item.sourceSubMeshIndex = meshIndex;
 		item.name = BuildSubMeshName(mesh, meshIndex, material);
 		item.sourcePivot = ComputeMeshLocalCenter(mesh);
+
+		if (material && assetDatabase) {
+
+			// FindByPath で見つからない場合は ImportOrGet でメタを作成してから解決する
+			auto resolveAsset = [&](const std::string& assetPath) -> AssetID {
+				if (assetPath.empty()) {
+					return {};
+				}
+				if (const auto* meta = assetDatabase->FindByPath(assetPath)) {
+					return meta->guid;
+				}
+				return assetDatabase->ImportOrGet(assetPath, AssetType::Texture);
+			};
+
+			// AssimpMaterialTextureExtractor::Extract は aiMaterial* (非const) を要求する
+			aiMaterial* mat = const_cast<aiMaterial*>(material);
+
+			const std::string baseColorReference = AssimpMaterialTextureExtractor::Extract(
+				mat, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE });
+			const std::string normalReference = AssimpMaterialTextureExtractor::Extract(
+				mat, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT });
+
+			item.defaultTextureAssets.baseColorTexture = resolveAsset(textureResolver.ResolveAssetPath(baseColorReference));
+			item.defaultTextureAssets.normalTexture =
+				resolveAsset(textureResolver.ResolveNormalAssetPath(normalReference, baseColorReference));
+			item.defaultTextureAssets.metallicRoughnessTexture = resolveAsset(textureResolver.ResolveAssetPath(
+				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_UNKNOWN })));
+			item.defaultTextureAssets.specularTexture = resolveAsset(textureResolver.ResolveAssetPath(
+				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_SPECULAR })));
+			item.defaultTextureAssets.emissiveTexture = resolveAsset(textureResolver.ResolveAssetPath(
+				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_EMISSIVE, aiTextureType_EMISSION_COLOR })));
+			item.defaultTextureAssets.occlusionTexture = resolveAsset(textureResolver.ResolveAssetPath(
+				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP })));
+		}
+
 		outLayout.emplace_back(std::move(item));
 	}
 	return true;
@@ -106,7 +146,7 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 	bool alreadyMatched = (renderer.subMeshes.size() == layout.size());
 	if (alreadyMatched) {
 
-		bool runtimeOnlyUpdated = false;
+		bool updated = false;
 		for (size_t i = 0; i < layout.size(); ++i) {
 
 			auto& current = renderer.subMeshes[i];
@@ -121,15 +161,23 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 				current.sourcePivot.z != layout[i].sourcePivot.z) {
 
 				current.sourcePivot = layout[i].sourcePivot;
-				runtimeOnlyUpdated = true;
+				updated = true;
 			}
+			// 未設定のテクスチャスロットにデフォルトを適用する
+			const auto& def = layout[i].defaultTextureAssets;
+			if (!current.baseColorTexture          && def.baseColorTexture)          { current.baseColorTexture          = def.baseColorTexture;          updated = true; }
+			if (!current.normalTexture             && def.normalTexture)             { current.normalTexture             = def.normalTexture;             updated = true; }
+			if (!current.metallicRoughnessTexture  && def.metallicRoughnessTexture)  { current.metallicRoughnessTexture  = def.metallicRoughnessTexture;  updated = true; }
+			if (!current.specularTexture           && def.specularTexture)           { current.specularTexture           = def.specularTexture;           updated = true; }
+			if (!current.emissiveTexture           && def.emissiveTexture)           { current.emissiveTexture           = def.emissiveTexture;           updated = true; }
+			if (!current.occlusionTexture          && def.occlusionTexture)          { current.occlusionTexture          = def.occlusionTexture;          updated = true; }
 		}
 		if (alreadyMatched) {
-			return runtimeOnlyUpdated;
+			return updated;
 		}
 	}
 
-	const std::vector<MeshSubMeshTextureOverride> oldSubMeshes = renderer.subMeshes;
+	const std::vector<SubMeshMaterial> oldSubMeshes = renderer.subMeshes;
 	std::vector<bool> used(oldSubMeshes.size(), false);
 	auto findReusableOldIndex = [&](size_t newIndex, const MeshSubMeshLayoutItem& item) -> int32_t {
 
@@ -160,16 +208,45 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 		};
 
 	// レイアウトに合わせてサブメッシュを再構築する
-	std::vector<MeshSubMeshTextureOverride> rebuilt{};
+	std::vector<SubMeshMaterial> rebuilt{};
 	rebuilt.resize(layout.size());
 	for (size_t i = 0; i < layout.size(); ++i) {
 
-		MeshSubMeshTextureOverride entry{};
+		SubMeshMaterial entry{};
 
 		const int32_t reusableOldIndex = findReusableOldIndex(i, layout[i]);
 		if (0 <= reusableOldIndex) {
 			entry = oldSubMeshes[reusableOldIndex];
 			used[reusableOldIndex] = true;
+			// 未設定のテクスチャスロットにデフォルトを適用する
+			const auto& def = layout[i].defaultTextureAssets;
+			if (!entry.baseColorTexture          && def.baseColorTexture)          entry.baseColorTexture          = def.baseColorTexture;
+			if (!entry.normalTexture             && def.normalTexture)             entry.normalTexture             = def.normalTexture;
+			if (!entry.metallicRoughnessTexture  && def.metallicRoughnessTexture)  entry.metallicRoughnessTexture  = def.metallicRoughnessTexture;
+			if (!entry.specularTexture           && def.specularTexture)           entry.specularTexture           = def.specularTexture;
+			if (!entry.emissiveTexture           && def.emissiveTexture)           entry.emissiveTexture           = def.emissiveTexture;
+			if (!entry.occlusionTexture          && def.occlusionTexture)          entry.occlusionTexture          = def.occlusionTexture;
+		} else {
+			// 新規エントリはモデルのデフォルトテクスチャで初期化
+			const auto& defaults = layout[i].defaultTextureAssets;
+			if (defaults.baseColorTexture) {
+				entry.baseColorTexture = defaults.baseColorTexture;
+			}
+			if (defaults.normalTexture) {
+				entry.normalTexture = defaults.normalTexture;
+			}
+			if (defaults.metallicRoughnessTexture) {
+				entry.metallicRoughnessTexture = defaults.metallicRoughnessTexture;
+			}
+			if (defaults.specularTexture) {
+				entry.specularTexture = defaults.specularTexture;
+			}
+			if (defaults.emissiveTexture) {
+				entry.emissiveTexture = defaults.emissiveTexture;
+			}
+			if (defaults.occlusionTexture) {
+				entry.occlusionTexture = defaults.occlusionTexture;
+			}
 		}
 
 		// 正規レイアウトを上書き
@@ -188,7 +265,7 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 	return true;
 }
 
-bool Engine::MeshSubMeshAuthoring::SyncComponent(const AssetDatabase* assetDatabase,
+bool Engine::MeshSubMeshAuthoring::SyncComponent(AssetDatabase* assetDatabase,
 	MeshRendererComponent& renderer, bool preserveOverrides) {
 
 	if (!renderer.mesh) {

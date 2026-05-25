@@ -1,24 +1,4 @@
 {
-    "passes": [
-        {
-            "enabled": true,
-            "id": "b7a65a5f2bb376df",
-            "materialGuid": "a0f082c77de63cbd",
-            "materialPathCache": "Engine/Assets/Materials/Builtin/PostProcess/Vignette/vignette.material.json",
-            "name": "vignette",
-            "parameters": {
-                "intensity": 0.9399999976158142,
-                "radius": 0.6700000166893005,
-                "softness": 0.49000000953674316,
-                "vignetteColor": [
-                    0.015444040298461914,
-                    0.015444040298461914,
-                    0.015444040298461914
-                ]
-            },
-            "passName": "PostProcess",
-            "textures": {}
-        }
-    ],
+    "passes": [],
     "version": 1
 }

@@ -5,8 +5,10 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Core/Assets/Database/AssetDatabase.h> 
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 
 //============================================================================
 //	MeshRendererInspectorDrawer classMethods
@@ -102,7 +104,7 @@ void Engine::MeshRendererInspectorDrawer::ApplyPreview(ECSWorld& world, const En
 }
 
 void Engine::MeshRendererInspectorDrawer::RefreshSubMeshLayoutCache(
-	const Engine::AssetDatabase* assetDatabase, Engine::AssetID meshAssetID) {
+	Engine::AssetDatabase* assetDatabase, Engine::AssetID meshAssetID) {
 
 	if (cachedMeshAssetID_ == meshAssetID) {
 		return;
@@ -120,7 +122,7 @@ void Engine::MeshRendererInspectorDrawer::SyncDraftSubMeshes(const EditorPanelCo
 		return;
 	}
 
-	const AssetDatabase* assetDatabase = context.editorContext->assetDatabase;
+	AssetDatabase* assetDatabase = context.editorContext->assetDatabase;
 
 	// メッシュアセットの変更を検知してキャッシュを更新する
 	RefreshSubMeshLayoutCache(assetDatabase, draft.mesh);
@@ -159,7 +161,7 @@ bool Engine::MeshRendererInspectorDrawer::TryGetSelectedSubMeshIndex(const Edito
 
 void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelContext& context,
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
-	MeshSubMeshTextureOverride& subMesh, bool& anyItemActive) {
+	SubMeshMaterial& subMesh, bool& anyItemActive) {
 
 	// パラメータ
 		{
@@ -184,6 +186,18 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 			DrawField(anyItemActive, [&]() {
 				return MyGUI::ColorEdit("色", subMesh.color);
 				});
+			DrawField(anyItemActive, [&]() {
+				return MyGUI::ColorEdit("発光色", subMesh.emissiveColor);
+				});
+			// PBRパラメータ
+			DrawField(anyItemActive, [&]() {
+				return MyGUI::DragFloat("メタリック", subMesh.metallic,
+					{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
+				});
+			DrawField(anyItemActive, [&]() {
+				return MyGUI::DragFloat("ラフネス", subMesh.roughness,
+					{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
+				});
 			// UV
 			DrawField(anyItemActive, [&]() {
 				return MyGUI::DragVector2("UV位置", subMesh.uvPos,
@@ -202,30 +216,60 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 		}
 	// サブメッシュのテクスチャ設定
 		{
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("ベース色", subMesh.baseColorTexture,
-					context.editorContext->assetDatabase, { AssetType::Texture });
-				});
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("法線", subMesh.normalTexture,
-					context.editorContext->assetDatabase, { AssetType::Texture });
-				});
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("メタリック", subMesh.metallicRoughnessTexture,
-					context.editorContext->assetDatabase, { AssetType::Texture });
-				});
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("スペキュラ", subMesh.specularTexture,
-					context.editorContext->assetDatabase, { AssetType::Texture });
-				});
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("発光", subMesh.emissiveTexture,
-					context.editorContext->assetDatabase, { AssetType::Texture });
-				});
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::AssetReferenceField("遮蔽", subMesh.occlusionTexture,
-					context.editorContext->assetDatabase, { AssetType::Texture });
-				});
+			auto DrawTextureField = [&](const char* label, AssetID& textureID) {
+
+				DrawField(anyItemActive, [&]() {
+
+					// ツールチップ用のテクスチャプレビューを取得
+					ImTextureID previewID = ImTextureID{};
+					if (textureID && context.graphicsCore && context.editorContext && context.editorContext->assetDatabase) {
+						if (const AssetMeta* meta = context.editorContext->assetDatabase->Find(textureID)) {
+							auto& texService = context.graphicsCore->GetTextureUploadService();
+							const std::string previewKey = "inspector:texture:preview:" + meta->assetPath;
+							if (texService.GetState(previewKey) == TextureRequestState::None) {
+								TextureFileRequestDesc desc{};
+								desc.key = previewKey;
+								desc.assetPath = meta->assetPath;
+								desc.forceSRGB = true;
+								texService.RequestTextureFile(desc);
+							}
+							if (const auto* tex = texService.GetTexture(previewKey)) {
+								if (tex->valid) {
+									previewID = static_cast<ImTextureID>(tex->gpuHandle.ptr);
+								}
+							}
+						}
+					}
+
+					// 右側に余白を空ける
+					AssetEditSetting setting{};
+					setting.reserveRightWidth = 64.0f;
+					setting.previewTextureID = previewID;
+					setting.useAutoPropertyRow = false;
+
+					MyGUI::BeginPropertyRow(label);
+
+					ValueEditResult result = MyGUI::AssetReferenceField("", textureID,
+						context.editorContext->assetDatabase, { AssetType::Texture }, setting);
+					ImGui::SameLine();
+					if (ImGui::Button("削除") && textureID) {
+						textureID = AssetID{};
+						result.valueChanged = true;
+						result.editFinished = true;
+					}
+
+					MyGUI::EndPropertyRow();
+
+					return result;
+					});
+				};
+
+			DrawTextureField("ベース色", subMesh.baseColorTexture);
+			DrawTextureField("法線", subMesh.normalTexture);
+			DrawTextureField("メタリック/ラフネス", subMesh.metallicRoughnessTexture);
+			DrawTextureField("スペキュラ", subMesh.specularTexture);
+			DrawTextureField("発光", subMesh.emissiveTexture);
+			DrawTextureField("遮蔽(AO)", subMesh.occlusionTexture);
 		}
 }
 

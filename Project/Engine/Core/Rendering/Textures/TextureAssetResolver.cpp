@@ -6,6 +6,9 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
+// c++
+#include <array>
+
 //============================================================================
 //	TextureAssetResolver classMethods
 //============================================================================
@@ -95,6 +98,24 @@ ChooseBestCandidate(const std::vector<TextureCandidate>& candidates) const {
 	return best;
 }
 
+std::string Engine::TextureAssetResolver::ResolveIndexedAssetPathByStem(const std::string& stemLower) const {
+
+	if (stemLower.empty()) {
+		return {};
+	}
+
+	auto it = candidatesByStem_.find(stemLower);
+	if (it == candidatesByStem_.end()) {
+		return {};
+	}
+
+	const TextureCandidate* best = ChooseBestCandidate(it->second);
+	if (!best) {
+		return {};
+	}
+	return best->assetPath;
+}
+
 void Engine::TextureAssetResolver::Build(const std::filesystem::path& modelFullPath) {
 
 	candidatesByStem_.clear();
@@ -175,13 +196,63 @@ std::string Engine::TextureAssetResolver::ResolveAssetPath(const std::string& im
 	if (stemLower.empty()) {
 		return {};
 	}
-	auto it = candidatesByStem_.find(stemLower);
-	if (it == candidatesByStem_.end()) {
+	return ResolveIndexedAssetPathByStem(stemLower);
+}
+
+std::string Engine::TextureAssetResolver::ResolveNormalAssetPath(
+	const std::string& importedNormalReference, const std::string& importedBaseColorReference) const {
+
+	if (std::string explicitNormal = ResolveAssetPath(importedNormalReference); !explicitNormal.empty()) {
+		return explicitNormal;
+	}
+
+	const std::string resolvedBaseColor = ResolveAssetPath(importedBaseColorReference);
+	std::string baseStem = NormalizeStem(resolvedBaseColor.empty() ? importedBaseColorReference : resolvedBaseColor);
+	if (baseStem.empty()) {
 		return {};
 	}
-	const TextureCandidate* best = ChooseBestCandidate(it->second);
-	if (!best) {
-		return {};
+
+	auto pushUnique = [](std::vector<std::string>& values, std::string value) {
+
+		if (!value.empty() && std::find(values.begin(), values.end(), value) == values.end()) {
+			values.emplace_back(std::move(value));
+		}
+		};
+
+	std::vector<std::string> baseStems{};
+	baseStems.reserve(2);
+	pushUnique(baseStems, baseStem);
+
+	constexpr std::array colorSuffixes = {
+		"_base_color", "_basecolor", "_diffuse", "_albedo", "_color", "_diff", "_dif",
+		"-base-color", "-basecolor", "-diffuse", "-albedo", "-color", "-diff", "-dif"
+	};
+	for (const std::string_view suffix : colorSuffixes) {
+
+		if (baseStem.size() <= suffix.size()) {
+			continue;
+		}
+		if (!Algorithm::EndsWith(baseStem, std::string(suffix))) {
+			continue;
+		}
+
+		pushUnique(baseStems, baseStem.substr(0, baseStem.size() - suffix.size()));
+		break;
 	}
-	return best->assetPath;
+
+	constexpr std::array normalSuffixes = {
+		"_ddn", "_normal", "_norm", "_nrm", "_bump",
+		"-ddn", "-normal", "-norm", "-nrm", "-bump"
+	};
+	for (const std::string& stem : baseStems) {
+		for (const std::string_view suffix : normalSuffixes) {
+
+			std::string inferredPath = ResolveIndexedAssetPathByStem(stem + std::string(suffix));
+			if (!inferredPath.empty()) {
+				return inferredPath;
+			}
+		}
+	}
+
+	return {};
 }

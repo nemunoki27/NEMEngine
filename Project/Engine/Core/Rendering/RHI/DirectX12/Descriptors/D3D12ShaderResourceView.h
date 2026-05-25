@@ -18,7 +18,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		SRVDescriptor() :BaseDescriptor(2048) {};
+		SRVDescriptor() :BaseDescriptor(0xffff) {};
 		~SRVDescriptor() = default;
 
 		// リソースと記述子からSRVを作成し、SRVインデックスを更新する。

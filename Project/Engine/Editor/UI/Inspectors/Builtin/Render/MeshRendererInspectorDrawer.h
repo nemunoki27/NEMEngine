@@ -46,7 +46,7 @@ namespace Engine {
 			const MeshRendererComponent& previewComponent) override;
 
 		// メッシュアセットからサブメッシュ名キャッシュを更新する
-		void RefreshSubMeshLayoutCache(const AssetDatabase* assetDatabase, AssetID meshAssetID);
+		void RefreshSubMeshLayoutCache(AssetDatabase* assetDatabase, AssetID meshAssetID);
 		// ドラフトのサブメッシュリストをワールドの内容と同期する
 		void SyncDraftSubMeshes(const EditorPanelContext& context, MeshRendererComponent& draft, bool preserveOverrides);
 		// サブメッシュの選択状態をワールドの内容と照らし合わせて確認する
@@ -55,7 +55,7 @@ namespace Engine {
 			uint32_t& outSubMeshIndex) const;
 		// サブメッシュのフィールドを描画する
 		void DrawSubMeshFields(const EditorPanelContext& context, ECSWorld& world,
-			const Entity& entity, MeshSubMeshTextureOverride& subMesh, bool& anyItemActive);
+			const Entity& entity, SubMeshMaterial& subMesh, bool& anyItemActive);
 		// ドラフトの内容をワールドのコンポーネントに反映する前の追加処理
 		void UpdateDraftRuntime(ECSWorld& world, const Entity& entity,
 			MeshRendererComponent& draft) const;

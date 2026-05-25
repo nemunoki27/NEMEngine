@@ -320,18 +320,30 @@ void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& 
 
 	DirectX::ScratchImage loaded{};
 	HRESULT hr = E_FAIL;
+	DirectX::TexMetadata loadedMeta{};
 	if (extension == ".dds") {
-		hr = DirectX::LoadFromDDSFile(fullPathW.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, loaded);
+
+		hr = DirectX::LoadFromDDSFile(fullPathW.c_str(), DirectX::DDS_FLAGS_NONE, &loadedMeta, loaded);
+		if (SUCCEEDED(hr) && job.forceSRGB) {
+
+			loadedMeta.format = DirectX::MakeSRGB(loadedMeta.format);
+		}
 	} else if (extension == ".tga") {
-		hr = DirectX::LoadFromTGAFile(fullPathW.c_str(), nullptr, loaded);
+
+		hr = DirectX::LoadFromTGAFile(fullPathW.c_str(), &loadedMeta, loaded);
+		if (SUCCEEDED(hr) && job.forceSRGB) {
+
+			loadedMeta.format = DirectX::MakeSRGB(loadedMeta.format);
+		}
 	} else {
-		hr = DirectX::LoadFromWICFile(fullPathW.c_str(), DirectX::WIC_FLAGS_NONE, nullptr, loaded);
+
+		const auto wicFlags = job.forceSRGB ? DirectX::WIC_FLAGS_FORCE_SRGB : DirectX::WIC_FLAGS_NONE;
+		hr = DirectX::LoadFromWICFile(fullPathW.c_str(), wicFlags, &loadedMeta, loaded);
 	}
 	if (SUCCEEDED(hr)) {
 
-		auto meta = loaded.GetMetadata();
 		result.image = std::move(loaded);
-		result.metadata = result.image.GetMetadata();
+		result.metadata = job.forceSRGB ? loadedMeta : result.image.GetMetadata();
 		result.success = true;
 	}
 	const auto finishStats = decodeWorkers_.GetStats();

@@ -35,6 +35,7 @@ cbuffer RaytracingViewConstants : register(b0) {
 struct RaytracingMeshVertex {
 
 	float3 normal;
+	float3 tangent;
 	float2 uv;
 	float4 position;
 };
@@ -53,18 +54,29 @@ struct RaytracingInstanceShaderData {
 	uint indexOffset;
 	uint _pad0[3];
 };
-// サブメッシュごとのデータ
+// サブメッシュごとのデータ (MeshSubMeshShaderDataと同じレイアウト)
 struct RaytracingSubMeshShaderData {
 
 	uint baseColorTextureIndex;
-	float3 _pad0;
+	uint normalTextureIndex;
+	uint metallicRoughnessTextureIndex;
+	uint emissiveTextureIndex;
+
+	uint occlusionTextureIndex;
+	uint specularTextureIndex;
+	float metallic;
+	float roughness;
 
 	float4x4 localMatrix;
 
 	float4 importedBaseColor;
 	float4 color;
+	float4 emissiveColor;
+
 	float4x4 uvMatrix;
 };
+
+static const uint kNoTexture = 0xFFFFFFFF;
 
 RaytracingAccelerationStructure gSceneTLAS : register(t0);
 Texture2D<float4> gSourceColor : register(t1);
@@ -222,11 +234,14 @@ float3 EvaluateHitMaterialBaseColor(in BuiltInTriangleIntersectionAttributes att
 
 	float2 transformedUV = mul(float4(uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;
 
-	Texture2D<float4> baseColorTexture = ResourceDescriptorHeap[NonUniformResourceIndex(subMesh.baseColorTextureIndex)];
-
-	float4 texel = baseColorTexture.SampleLevel(gLinearClamp, transformedUV, 0.0f);
-
-	float3 baseColor = texel.rgb * subMesh.importedBaseColor.rgb * subMesh.color.rgb;
+	float3 baseColor;
+	if (subMesh.baseColorTextureIndex == kNoTexture) {
+		baseColor = subMesh.importedBaseColor.rgb * subMesh.color.rgb;
+	} else {
+		Texture2D<float4> baseColorTexture = ResourceDescriptorHeap[NonUniformResourceIndex(subMesh.baseColorTextureIndex)];
+		float4 texel = baseColorTexture.SampleLevel(gLinearClamp, transformedUV, 0.0f);
+		baseColor = texel.rgb * subMesh.importedBaseColor.rgb * subMesh.color.rgb;
+	}
 
 	return baseColor;
 }

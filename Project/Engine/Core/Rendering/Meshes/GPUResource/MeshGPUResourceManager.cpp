@@ -138,13 +138,14 @@ namespace {
 
 	std::vector<Engine::MeshPackedVertex> BuildPackedVertices(const std::vector<Engine::MeshVertex>& vertices) {
 
-		// MeshShaderで読む法線だけを圧縮した頂点配列を作る
+		// MeshShaderで読む法線・接線を圧縮した頂点配列を作る
 		std::vector<Engine::MeshPackedVertex> packed{};
 		packed.reserve(vertices.size());
 		for (const Engine::MeshVertex& vertex : vertices) {
 
 			Engine::MeshPackedVertex dst{};
 			dst.normalOct = EncodeOctNormal(vertex.normal);
+			dst.tangentOct = EncodeOctNormal(vertex.tangent);
 			dst.uv = vertex.uv;
 			dst.position = vertex.position;
 			packed.emplace_back(dst);

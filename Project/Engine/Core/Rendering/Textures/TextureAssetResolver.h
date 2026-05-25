@@ -31,6 +31,9 @@ namespace Engine {
 
 		// インポートされたテクスチャ参照から、テクスチャアセットのパスを解決して返す
 		std::string ResolveAssetPath(const std::string& importedReference) const;
+		// 明示normal参照が無いOBJ/MTL向けに、base color名から対応normalを推定して返す
+		std::string ResolveNormalAssetPath(
+			const std::string& importedNormalReference, const std::string& importedBaseColorReference) const;
 	private:
 		//========================================================================
 		//	private Methods
@@ -70,5 +73,7 @@ namespace Engine {
 		void IndexDirectoryRecursive(const std::filesystem::path& directory, bool inPreferredFolder);
 		// テクスチャ候補のリストから、最適な候補を選択する
 		const TextureCandidate* ChooseBestCandidate(const std::vector<TextureCandidate>& candidates) const;
+		// インデックス済み候補をstem完全一致で解決する
+		std::string ResolveIndexedAssetPathByStem(const std::string& stemLower) const;
 	};
 } // Engine

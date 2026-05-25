@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 
 // c++
 #include <vector>
@@ -31,12 +32,15 @@ namespace Engine {
 
 		// 頂点座標から計算したピボット
 		Vector3 sourcePivot = Vector3::AnyInit(0.0f);
+
+		// モデルファイルから読み取ったデフォルトテクスチャ
+		ImportedMeshTextureAssetSet defaultTextureAssets{};
 	};
 } // Engine
 namespace Engine::MeshSubMeshAuthoring {
 
 	// メッシュアセットからサブメッシュレイアウトを読む
-	bool TryBuildLayout(const AssetDatabase* assetDatabase, AssetID meshAssetID,
+	bool TryBuildLayout(AssetDatabase* assetDatabase, AssetID meshAssetID,
 		std::vector<MeshSubMeshLayoutItem>& outLayout);
 
 	// レイアウトに合わせてサブメッシュを正規化する
@@ -44,7 +48,7 @@ namespace Engine::MeshSubMeshAuthoring {
 		MeshRendererComponent& renderer, bool preserveOverrides);
 
 	// データベースから直接レイアウトを読んで正規化する
-	bool SyncComponent(const AssetDatabase* assetDatabase,
+	bool SyncComponent(AssetDatabase* assetDatabase,
 		MeshRendererComponent& renderer, bool preserveOverrides);
 
 	// IDから現在のサブメッシュインデックスを解決する
