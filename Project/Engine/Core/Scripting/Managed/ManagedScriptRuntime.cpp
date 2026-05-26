@@ -641,26 +641,21 @@ bool Engine::ManagedScriptRuntime::ReloadGameAssembly(bool waitForManagedDebugge
 		return false;
 	}
 
-	if (waitForManagedDebugger) {
-		ScopedEnvironmentVariableOverride waitOverride(L"NEM_MANAGED_WAIT_FOR_DEBUGGER", L"1");
+	auto doReload = [this]() {
 		UnloadGameAssembly();
 		gameAssemblyPath_ = ResolveGameAssemblyPath();
 		if (!LoadGameAssembly()) {
 			return false;
 		}
-
 		RefreshScriptTypes();
 		return true;
-	}
+	};
 
-	UnloadGameAssembly();
-	gameAssemblyPath_ = ResolveGameAssemblyPath();
-	if (!LoadGameAssembly()) {
-		return false;
+	if (waitForManagedDebugger) {
+		ScopedEnvironmentVariableOverride waitOverride(L"NEM_MANAGED_WAIT_FOR_DEBUGGER", L"1");
+		return doReload();
 	}
-
-	RefreshScriptTypes();
-	return true;
+	return doReload();
 }
 
 void Engine::ManagedScriptRuntime::UnloadGameAssembly() {
@@ -848,38 +843,26 @@ const std::vector<Engine::ManagedScriptField>& Engine::ManagedScriptRuntime::Get
 	}
 
 	auto [it, inserted] = fieldCache_.emplace(typeName, std::move(fields));
-	return inserted ? it->second : kEmpty;
+	return it->second;
 }
 
 bool Engine::ManagedScriptRuntime::TryResolveScriptTypeName(const std::string_view& scriptName, std::string& outTypeName) const {
 
-	const std::string simpleName = MakeSimpleTypeName(scriptName);
 	const auto& registry = BehaviorTypeRegistry::GetInstance();
 
 	// まず完全一致を優先して、名前空間を含む指定でも曖昧にならないようにする
-	for (uint32_t i = 0; i < registry.GetBehaviorTypeCount(); ++i) {
-
-		const auto& info = registry.GetInfo(i);
-		if (!info.managed) {
-			continue;
-		}
-		if (info.name == scriptName) {
-			outTypeName = info.name;
+	if (const BehaviorTypeInfo* info = registry.FindByName(scriptName)) {
+		if (info->managed) {
+			outTypeName = info->name;
 			return true;
 		}
 	}
 
 	// アセット名は通常ファイル名なので、C#側のクラス名と照合する
-	for (uint32_t i = 0; i < registry.GetBehaviorTypeCount(); ++i) {
-
-		const auto& info = registry.GetInfo(i);
-		if (!info.managed) {
-			continue;
-		}
-		if (MakeSimpleTypeName(info.name) == simpleName) {
-			outTypeName = info.name;
-			return true;
-		}
+	const std::string simpleName = MakeSimpleTypeName(scriptName);
+	if (const BehaviorTypeInfo* info = registry.FindManagedBySimpleName(simpleName)) {
+		outTypeName = info->name;
+		return true;
 	}
 	return false;
 }
@@ -1217,7 +1200,10 @@ int32_t Engine::ManagedScriptRuntime::CopyNameCallback(ManagedNativeEntity entit
 	ECSWorld* world = ResolveWorld(entity);
 	const Entity resolved = ResolveEntity(entity);
 	if (!world) {
-		return CopyStringToBuffer(std::string{}, buffer, capacity);
+		if (buffer && 0 < capacity) {
+			buffer[0] = '\0';
+		}
+		return 0;
 	}
 
 	NameComponent* name = world->TryGetComponent<NameComponent>(resolved);
@@ -1329,9 +1315,15 @@ void Engine::ManagedScriptRuntime::SetParentCallback(ManagedNativeEntity entity,
 		return;
 	}
 
-	const Entity newParent = ResolveWorld(parent) == world ? ResolveEntity(parent) : Entity::Null();
+	Entity newParent = Entity::Null();
+	if (ResolveWorld(parent) == world) {
+		const Entity candidate = ResolveEntity(parent);
+		if (world->IsAlive(candidate)) {
+			newParent = candidate;
+		}
+	}
 	HierarchySystem hierarchySystem{};
-	hierarchySystem.SetParent(*world, child, world->IsAlive(newParent) ? newParent : Entity::Null());
+	hierarchySystem.SetParent(*world, child, newParent);
 }
 
 Engine::ManagedVector3 Engine::ManagedScriptRuntime::GetPositionCallback(ManagedNativeEntity entity) {

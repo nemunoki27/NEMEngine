@@ -424,8 +424,6 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 		skinnedPackedVBAddress, skinnedPackedVBHandle);
 	BindMeshSRV(commandList, *prepared.pipelineState, prepared.resources->GetInstanceMeshBindingName(),
 		prepared.resources->GetInstanceMeshGPUAddress());
-	BindMeshSRV(commandList, *prepared.pipelineState, prepared.resources->GetInstancePSBindingName(),
-		prepared.resources->GetInstancePSGPUAddress());
 	BindMeshSRV(commandList, *prepared.pipelineState, prepared.resources->GetSubMeshBindingName(),
 		prepared.resources->GetSubMeshGPUAddress());
 }
@@ -446,16 +444,12 @@ Engine::IMeshDrawPath& Engine::MeshRenderBackend::SelectDrawPath(const PipelineV
 uint64_t Engine::MeshRenderBackend::BuildBatchHash(std::span<const RenderItem* const> items) const {
 
 	uint64_t h = 1469598103934665603ull;
-	auto mix = [&h](uint64_t v) {
-		h ^= v;
-		h *= 1099511628211ull;
-		};
 	for (const RenderItem* item : items) {
 		if (!item) {
 			continue;
 		}
-		mix(item->entity.index);
-		mix(item->entity.generation);
+		MixHash(h, item->entity.index);
+		MixHash(h, item->entity.generation);
 	}
 	return h;
 }
@@ -511,6 +505,7 @@ uint64_t Engine::MeshRenderBackend::BuildStaticBatchHash(const RenderDrawContext
 			MixBytes(h, &subMesh.localPos, sizeof(subMesh.localPos));
 			MixBytes(h, &subMesh.localRotation, sizeof(subMesh.localRotation));
 			MixBytes(h, &subMesh.localScale, sizeof(subMesh.localScale));
+			MixBytes(h, &subMesh.sourcePivot, sizeof(subMesh.sourcePivot));
 		}
 	}
 	return h;

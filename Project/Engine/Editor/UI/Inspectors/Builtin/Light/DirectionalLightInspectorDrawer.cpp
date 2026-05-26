@@ -29,6 +29,9 @@ void Engine::DirectionalLightInspectorDrawer::DrawFields([[maybe_unused]] const 
 			return MyGUI::DragFloat("強度", draft.intensity, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 128.0f });
 			});
 		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("影の強さ", draft.shadowStrength, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f });
+			});
+		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 			});
 		DrawField(anyItemActive, [&]() {

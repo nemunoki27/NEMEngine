@@ -18,22 +18,9 @@
 
 namespace {
 
-	// EntityがHierarchy上で有効かを返す
-	bool IsEntityActiveInHierarchy(Engine::ECSWorld& world, const Engine::Entity& entity) {
-
-		if (!world.IsAlive(entity)) {
-			return false;
-		}
-		if (!world.HasComponent<Engine::SceneObjectComponent>(entity)) {
-			return true;
-		}
-		return world.GetComponent<Engine::SceneObjectComponent>(entity).activeInHierarchy;
-	}
-
 	// AudioSourceComponentの再生キーを作成する
-	std::string BuildAudioKey(const Engine::AssetDatabase& database, Engine::AssetID clip) {
+	std::string BuildAudioKey(const std::filesystem::path& fullPath) {
 
-		const std::filesystem::path fullPath = database.ResolveFullPath(clip);
 		return fullPath.empty() ? std::string{} : fullPath.stem().string();
 	}
 }
@@ -99,7 +86,7 @@ void Engine::AudioSourceSystem::Update(ECSWorld& world, SystemContext& context) 
 			return;
 		}
 
-		component.runtimeKey = BuildAudioKey(database, component.clip);
+		component.runtimeKey = BuildAudioKey(fullPath);
 		component.runtimeClip = component.clip;
 		component.runtimePlaying = true;
 

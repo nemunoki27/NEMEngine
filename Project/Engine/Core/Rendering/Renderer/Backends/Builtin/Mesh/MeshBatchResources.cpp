@@ -15,8 +15,6 @@
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 // c++
-#include <array>
-#include <cmath>
 #include <unordered_map>
 
 //============================================================================
@@ -24,71 +22,6 @@
 //============================================================================
 
 namespace {
-
-	struct FrustumPlane {
-
-		Engine::Vector3 normal = Engine::Vector3::AnyInit(0.0f);
-		float distance = 0.0f;
-	};
-
-	FrustumPlane NormalizePlane(const FrustumPlane& plane) {
-
-		// 半径との比較に使うため、法線長を1に揃える
-		const float length = plane.normal.Length();
-		if (length <= 0.00001f) {
-			return plane;
-		}
-		return FrustumPlane{ plane.normal / length, plane.distance / length };
-	}
-
-	std::array<FrustumPlane, 6> ExtractFrustumPlanes(const Engine::Matrix4x4& viewProjection) {
-
-		// ViewProjection行列から左右上下前後の平面を取り出す
-		auto column = [&](uint32_t index) {
-			return Engine::Vector4(
-				viewProjection.m[0][index],
-				viewProjection.m[1][index],
-				viewProjection.m[2][index],
-				viewProjection.m[3][index]);
-			};
-		auto makePlane = [](const Engine::Vector4& value) {
-			return FrustumPlane{ Engine::Vector3(value.x, value.y, value.z), value.w };
-			};
-
-		const Engine::Vector4 col0 = column(0);
-		const Engine::Vector4 col1 = column(1);
-		const Engine::Vector4 col2 = column(2);
-		const Engine::Vector4 col3 = column(3);
-
-		return {
-			NormalizePlane(makePlane(col3 + col0)),
-			NormalizePlane(makePlane(col3 - col0)),
-			NormalizePlane(makePlane(col3 + col1)),
-			NormalizePlane(makePlane(col3 - col1)),
-			NormalizePlane(makePlane(col2)),
-			NormalizePlane(makePlane(col3 - col2)),
-		};
-	}
-
-	float CalcMaxScale(const Engine::Matrix4x4& matrix) {
-
-		const float sx = Engine::Vector3(matrix.m[0][0], matrix.m[0][1], matrix.m[0][2]).Length();
-		const float sy = Engine::Vector3(matrix.m[1][0], matrix.m[1][1], matrix.m[1][2]).Length();
-		const float sz = Engine::Vector3(matrix.m[2][0], matrix.m[2][1], matrix.m[2][2]).Length();
-		return (std::max)(sx, (std::max)(sy, sz));
-	}
-
-	bool IsSphereInFrustum(const std::array<FrustumPlane, 6>& planes,
-		const Engine::Vector3& center, float radius) {
-
-		// どれか1面の外側に完全に出た場合だけ非表示にする
-		for (const FrustumPlane& plane : planes) {
-			if (Engine::Vector3::Dot(plane.normal, center) + plane.distance < -radius) {
-				return false;
-			}
-		}
-		return true;
-	}
 
 	bool CanCullView(const Engine::RenderDrawContext& drawContext, const Engine::MeshGPUResource& gpuMesh) {
 
@@ -131,7 +64,6 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	meshData_.Init(device, srvDescriptor);
 	// カリング後に残すインスタンスを書き込むRWバッファ
 	visibleMeshData_.Init(device, srvDescriptor);
-	psData_.Init(device, srvDescriptor);
 	draw_.Init(device);
 	// ExecuteIndirect引数生成Computeに渡す固定Index数
 	indirectArgs_.Init(device);
@@ -142,10 +74,8 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	// 初期値を大きめにして、カメラ移動時の細かい再確保を減らす
 	meshData_.EnsureCapacity(256);
 	visibleMeshData_.EnsureCapacity(256);
-	psData_.EnsureCapacity(256);
 	subMeshData_.EnsureCapacity(256);
 	meshScratch_.reserve(256);
-	psScratch_.reserve(256);
 	subMeshScratch_.reserve(256);
 
 	// 初期化完了
@@ -238,7 +168,6 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 
 	// データクリア
 	meshScratch_.clear();
-	psScratch_.clear();
 	subMeshScratch_.clear();
 	paletteScratch_.clear();
 	skinnedRecords_.clear();
@@ -250,9 +179,6 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	if (meshScratch_.capacity() < items.size()) {
 		meshScratch_.reserve(items.size());
 	}
-	if (psScratch_.capacity() < items.size()) {
-		psScratch_.reserve(items.size());
-	}
 
 	// サブメッシュデータはインスタンスごとに必要なため、アイテム数×サブメッシュ数の容量を確保する
 	size_t totalSubMeshCount = items.size() * gpuMesh.subMeshes.size();
@@ -262,7 +188,6 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	}
 	// カメラ移動で可視数が増えた瞬間にGPUバッファを作り直さないよう、カリング前の最大数で先に確保する
 	meshData_.EnsureCapacity(static_cast<uint32_t>((std::max)(items.size(), size_t(1))));
-	psData_.EnsureCapacity(static_cast<uint32_t>((std::max)(items.size(), size_t(1))));
 	subMeshData_.EnsureCapacity(static_cast<uint32_t>((std::max)(totalSubMeshCount, size_t(1))));
 
 	GraphicsCore& graphicsCore = *drawContext.graphicsCore;
@@ -307,28 +232,11 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 		}
 	}
 
-	bool instanceCullingEnabled = false;
-	std::array<FrustumPlane, 6> frustumPlanes{};
-	if (instanceCullingEnabled) {
-		// CPU側インスタンスカリングを使う場合の平面抽出
-		frustumPlanes = ExtractFrustumPlanes(cullingCamera->matrices.viewProjectionMatrix);
-	}
-
 	for (const RenderItem* item : items) {
 
 		const MeshRenderPayload* payload = batch.GetPayload<MeshRenderPayload>(*item);
 		if (!payload) {
 			continue;
-		}
-
-		if (instanceCullingEnabled) {
-
-			// メッシュ全体Boundsをワールドへ変換してフラスタムと判定する
-			const Vector3 center = Vector3::Transform(gpuMesh.boundsCenter, item->worldMatrix);
-			const float radius = gpuMesh.boundsRadius * CalcMaxScale(item->worldMatrix);
-			if (!IsSphereInFrustum(frustumPlanes, center, radius)) {
-				continue;
-			}
 		}
 
 		const MeshRendererComponent* renderer = ResolveRenderer(item);
@@ -362,11 +270,6 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				++skinnedInstanceCount_;
 			}
 			meshScratch_.emplace_back(instance);
-		}
-		// PS
-		{
-			MeshPSInstanceData instance{};
-			psScratch_.emplace_back(instance);
 		}
 
 		for (uint32_t subMeshIndex = 0; subMeshIndex < static_cast<uint32_t>(gpuMesh.subMeshes.size()); ++subMeshIndex) {
@@ -434,7 +337,6 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 
 		visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
 	}
-	psData_.Upload(psScratch_);
 	subMeshData_.Upload(subMeshScratch_);
 
 	// 描画定数の転送

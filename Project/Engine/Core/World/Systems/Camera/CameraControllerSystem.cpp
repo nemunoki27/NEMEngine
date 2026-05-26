@@ -44,13 +44,6 @@ namespace {
 			(std::clamp)(value.z, minValue.z, maxValue.z));
 	}
 
-	// Transformからローカル行列を作る
-	Engine::Matrix4x4 MakeLocalMatrix(const Engine::TransformComponent& transform) {
-
-		return Engine::Matrix4x4::MakeAffineMatrix(transform.localScale,
-			transform.localRotation, transform.localPos);
-	}
-
 	// 現在のTransform値からワールド行列を再帰的に解決する
 	Engine::Matrix4x4 ResolveWorldMatrix(Engine::ECSWorld& world, const Engine::Entity& entity) {
 

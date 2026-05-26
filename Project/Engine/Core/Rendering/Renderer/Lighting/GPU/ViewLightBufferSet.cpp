@@ -140,6 +140,7 @@ Engine::DirectionalLightGPU Engine::ViewLightBufferSet::ToGPU(const DirectionalL
 	light.color = item.color;
 	light.direction = item.direction;
 	light.intensity = item.intensity;
+	light.shadowStrength = item.shadowStrength;
 
 	return light;
 }

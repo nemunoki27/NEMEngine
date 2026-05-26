@@ -26,6 +26,7 @@ void Engine::DirectionalLightExtractor::Extract(ECSWorld& world, FrameLightBatch
 		LightExtract::FillCommonFields(item.common, world, entity, light);
 		item.color = light.color;
 		item.intensity = light.intensity;
+		item.shadowStrength = light.shadowStrength;
 		item.direction = LightExtract::GetWorldDirection(light.direction, worldMatrix);
 		batch.Add(std::move(item));
 		});

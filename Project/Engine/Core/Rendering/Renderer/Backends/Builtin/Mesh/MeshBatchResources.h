@@ -80,13 +80,6 @@ namespace Engine {
 	// MeshInstanceDataのflagsで、スキニングするか
 	static constexpr uint32_t kMeshInstanceFlagSkinned = 1u;
 
-	// ピクセルシェーダインスタンスデータ
-	struct MeshPSInstanceData {
-
-		// サブメッシュごとに設定しているため今はなし
-		Color4 testColor = Color4::White();
-	};
-
 	// スキニングメッシュを持つエンティティの記録
 	struct SkinnedEntityRecord {
 
@@ -164,7 +157,6 @@ namespace Engine {
 		D3D12_GPU_VIRTUAL_ADDRESS GetInstanceMeshGPUAddress() const { return meshData_.GetGPUAddress(); }
 		// カリングComputeが書き込み、ExecuteIndirect/ASが読む可視インスタンス配列
 		D3D12_GPU_VIRTUAL_ADDRESS GetVisibleInstanceMeshGPUAddress() const { return visibleMeshData_.GetGPUAddress(); }
-		D3D12_GPU_VIRTUAL_ADDRESS GetInstancePSGPUAddress() const { return psData_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetDrawGPUAddress() const { return draw_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetIndirectArgsConstantsGPUAddress() const { return indirectArgs_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshGPUAddress() const { return subMeshData_.GetGPUAddress(); }
@@ -193,7 +185,6 @@ namespace Engine {
 		// 描画バウンディング名を取得する
 		std::string_view GetViewBindingName() const { return "ViewConstants"; }
 		std::string_view GetInstanceMeshBindingName() const { return meshData_.GetBindingName(); }
-		std::string_view GetInstancePSBindingName() const { return psData_.GetBindingName(); }
 		std::string_view GetDrawBindingName() const { return draw_.GetBindingName(); }
 		std::string_view GetIndirectArgsConstantsBindingName() const { return indirectArgs_.GetBindingName(); }
 		std::string_view GetSubMeshBindingName() const { return subMeshData_.GetBindingName(); }
@@ -204,7 +195,6 @@ namespace Engine {
 
 		// スキニング頂点バッファのSRVインデックスを取得する
 		uint32_t GetSkinnedVerticesSRVIndex() const { return skinning_->skinnedVertices.GetSRVIndex(); }
-		uint32_t GetSkinnedPackedVerticesSRVIndex() const { return skinning_->skinnedPackedVertices.GetSRVIndex(); }
 
 		// インスタンス数を取得する
 		uint32_t GetInstanceCount() const { return instanceCount_; }
@@ -248,7 +238,6 @@ namespace Engine {
 		StructuredInstanceBuffer<MeshInstanceData> meshData_{ "gMeshInstances" };
 		// ExecuteIndirect/AmplificationShaderのカリング結果を書き戻す可視インスタンスバッファ
 		StructuredRWBuffer<MeshInstanceData> visibleMeshData_{ "gVisibleMeshInstances" };
-		StructuredInstanceBuffer<MeshPSInstanceData> psData_{ "gPSInstances" };
 		ViewConstantBuffer<MeshDrawConstants> draw_{ "MeshDrawConstants" };
 		ViewConstantBuffer<MeshIndirectArgsConstants> indirectArgs_{ "IndirectArgsConstants" };
 		StructuredInstanceBuffer<MeshSubMeshShaderData> subMeshData_{ "gSubMeshes" };
@@ -263,7 +252,6 @@ namespace Engine {
 
 		// 毎バッチ再利用するデータ
 		std::vector<MeshInstanceData> meshScratch_{};
-		std::vector<MeshPSInstanceData> psScratch_{};
 		std::vector<MeshSubMeshShaderData> subMeshScratch_{};
 
 		// スキニング用の毎バッチ再利用するデータ

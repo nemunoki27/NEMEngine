@@ -44,6 +44,7 @@ namespace Engine {
 		Vector3 direction = Vector3(0.0f, -1.0f, 0.0f);
 
 		float intensity = 1.0f;
+		float shadowStrength = 1.0f;
 	};
 	// 点光源
 	struct PointLightItem {

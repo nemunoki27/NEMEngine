@@ -38,6 +38,11 @@ namespace Engine {
 	void to_json(nlohmann::json& out, const TransformComponent& component);
 
 	// helpers
+	// トランスフォームコンポーネントからローカル行列を作る
+	inline Matrix4x4 MakeLocalMatrix(const TransformComponent& transform) {
+		return Matrix4x4::MakeAffineMatrix(transform.localScale, transform.localRotation, transform.localPos);
+	}
+
 	// 親子関係が変わったエンティティと、その子孫のトランスフォームを変更されたとみなす
 	void MarkTransformSubtreeDirty(ECSWorld& world, const Entity& entity);
 

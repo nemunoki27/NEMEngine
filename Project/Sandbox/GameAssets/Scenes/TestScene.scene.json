@@ -16,7 +16,7 @@
                     "queue": "Opaque",
                     "subMeshes": [
                         {
-                            "baseColorTexture": "c2ea9f4498073ab3",
+                            "baseColorTexture": "447d5b4a4a7fec3d",
                             "color": {
                                 "a": 1.0,
                                 "b": 1.0,
@@ -83,7 +83,7 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": 2.393094539642334,
+                        "y": 1.6591026782989502,
                         "z": 0.0
                     },
                     "localRotation": {

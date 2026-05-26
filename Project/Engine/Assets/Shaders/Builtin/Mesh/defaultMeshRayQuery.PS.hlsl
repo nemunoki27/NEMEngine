@@ -84,6 +84,9 @@ struct DirectionalLight {
 
 	float3 direction;
 	float intensity;
+
+	float shadowStrength;
+	float3 _pad1;
 };
 struct PointLight {
 
@@ -286,7 +289,7 @@ float3 EvaluatePBRDirectionalLight(DirectionalLight light, float3 worldPos, floa
 		return 0.0f.xxx;
 	}
 
-	float shadow = TraceDirectionalShadow(worldPos, N, light.direction) ? 0.0f : 1.0f;
+	float shadow = TraceDirectionalShadow(worldPos, N, light.direction) ? (1.0f - light.shadowStrength) : 1.0f;
 	if (shadow <= 0.0f) {
 		return 0.0f.xxx;
 	}

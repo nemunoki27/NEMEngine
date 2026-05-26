@@ -71,7 +71,8 @@
                         "z": 0.17369915544986725
                     },
                     "enabled": true,
-                    "intensity": 32.0
+                    "intensity": 10.6899995803833,
+                    "shadowStrength": 0.9100000262260437
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",

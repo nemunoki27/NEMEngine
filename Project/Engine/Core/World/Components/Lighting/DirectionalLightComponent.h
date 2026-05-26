@@ -22,11 +22,12 @@ namespace Engine {
 		Vector3 direction = Vector3(0.0f, -1.0f, 0.0f);
 
 		// 強さ
-		float intensity = 1.0f;
+		float intensity = 10.0f;
+		// 影の強さ (0.0=影なし, 1.0=完全に黒)
+		float shadowStrength = 0.92f;
 
 		// 有効フラグ
 		bool enabled = true;
-		// 
 		uint32_t affectLayerMask = 0xffffffffu;
 	};
 

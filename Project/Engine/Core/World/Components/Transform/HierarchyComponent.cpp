@@ -13,6 +13,7 @@ void Engine::from_json(const nlohmann::json& in, HierarchyComponent& component) 
 	// ランタイム実行用のエンティティはシリアライズされないため、初期化しておく
 	component.parent = Entity::Null();
 	component.firstChild = Entity::Null();
+	component.lastChild = Entity::Null();
 	component.nextSibling = Entity::Null();
 	component.prevSibling = Entity::Null();
 }

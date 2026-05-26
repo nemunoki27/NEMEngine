@@ -59,6 +59,7 @@ namespace {
 		// UTF-8 -> codepoint変換
 		std::vector<char32_t> codepoints = Engine::Algorithm::Utf8ToCodepoints(renderer.text);
 		if (codepoints.empty()) {
+			cache.valid = true;
 			return false;
 		}
 
@@ -148,6 +149,7 @@ namespace {
 		}
 
 		if (cache.glyphs.empty()) {
+			cache.valid = true;
 			return false;
 		}
 

@@ -11,16 +11,6 @@
 //	TransformUpdateSystem classMethods
 //============================================================================
 
-namespace {
-
-	// トランスフォームコンポーネントからローカル行列を作る
-	Engine::Matrix4x4 MakeLocalMatrix(const Engine::TransformComponent& transform) {
-
-		return Engine::Matrix4x4::MakeAffineMatrix(transform.localScale,
-			transform.localRotation, transform.localPos);
-	}
-}
-
 void Engine::TransformUpdateSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
 	// ルートクリア

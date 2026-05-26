@@ -57,7 +57,7 @@ namespace Engine {
 		// GPU対応状況とは別に、ユーザーが描画経路を許可するか
 		bool allowMeshShader = true;
 		bool allowInlineRayTracing = true;
-		bool allowDispatchRays = true;
+		bool allowDispatchRays = false;
 		// GameViewのカメラを基準にしたフラスタムカリングを行うか
 		bool allowFrustumCulling = true;
 		// GameViewのカメラを基準にしたタイル単位のライトカリングを行うか

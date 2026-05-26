@@ -25,6 +25,10 @@ namespace Engine {
 		Vector3 direction = Vector3(0.0f, -1.0f, 0.0f);
 		// 強さ
 		float intensity = 1.0f;
+
+		// 影の強さ (0.0=影なし, 1.0=完全に黒)
+		float shadowStrength = 1.0f;
+		float pad[3] = { 0.0f, 0.0f, 0.0f };
 	};
 	// 点光源
 	struct PointLightGPU {
