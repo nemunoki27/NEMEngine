@@ -48,6 +48,12 @@ namespace Engine {
 		uint32_t totalTileCount = 0;
 		uint32_t maxLocalLightsPerTile = 64;
 
+		// Clustered Forward用のZ分割情報
+		uint32_t clusterCountZ = 1;
+		uint32_t totalClusterCount = 0;
+		uint32_t maxLocalLightsPerCluster = 64;
+		uint32_t lightCullingMode = 0;
+
 		// ライト数
 		uint32_t pointLightCount = 0;
 		uint32_t spotLightCount = 0;

@@ -36,13 +36,14 @@ void Engine::ViewLightCullingBufferSet::Release() {
 	tileCountX_ = 0;
 	tileCountY_ = 0;
 	totalTileCount_ = 0;
+	totalClusterCount_ = 0;
 	totalIndexCount_ = 0;
 
 	initialized_ = false;
 }
 
 void Engine::ViewLightCullingBufferSet::Upload(
-	const ResolvedRenderView& view, const PerViewLightSet& lightSet, bool lightCullingEnabled) {
+	const ResolvedRenderView& view, const PerViewLightSet& lightSet, uint32_t lightCullingMode) {
 
 	// ビューサイズからタイル数を計算
 	const uint32_t viewWidth = (std::max)(view.width, 1u);
@@ -50,10 +51,12 @@ void Engine::ViewLightCullingBufferSet::Upload(
 	tileCountX_ = (std::max)(DxUtils::RoundUp(viewWidth, kTileSizeX), 1u);
 	tileCountY_ = (std::max)(DxUtils::RoundUp(viewHeight, kTileSizeY), 1u);
 	totalTileCount_ = tileCountX_ * tileCountY_;
-	totalIndexCount_ = totalTileCount_ * kMaxLocalLightsPerTile;
+	const bool usesClusterGrid = lightCullingMode == 2u || lightCullingMode == 3u;
+	totalClusterCount_ = totalTileCount_ * (usesClusterGrid ? kClusterCountZ : 1u);
+	totalIndexCount_ = totalClusterCount_ * kMaxLocalLightsPerTile;
 
 	// UAVバッファの必要容量を確保
-	tileLightGrid_.EnsureCapacity(totalTileCount_);
+	tileLightGrid_.EnsureCapacity(totalClusterCount_);
 	tileLightIndexList_.EnsureCapacity(totalIndexCount_);
 
 	// パラメータを設定してGPUへ転送
@@ -66,10 +69,14 @@ void Engine::ViewLightCullingBufferSet::Upload(
 	params.tileCountY = tileCountY_;
 	params.totalTileCount = totalTileCount_;
 	params.maxLocalLightsPerTile = kMaxLocalLightsPerTile;
+	params.clusterCountZ = usesClusterGrid ? kClusterCountZ : 1u;
+	params.totalClusterCount = totalClusterCount_;
+	params.maxLocalLightsPerCluster = kMaxLocalLightsPerTile;
+	params.lightCullingMode = lightCullingMode;
 	params.pointLightCount = lightSet.GetPointCount();
 	params.spotLightCount = lightSet.GetSpotCount();
 	params.localLightCount = lightSet.GetLocalLightCount();
-	params.lightCullingEnabled = lightCullingEnabled ? 1u : 0u;
+	params.lightCullingEnabled = lightCullingMode != 0u ? 1u : 0u;
 	// ビュー/プロジェクション行列を設定
 	if (lightSet.camera && lightSet.camera->valid) {
 
@@ -94,10 +101,10 @@ void Engine::ViewLightCullingBufferSet::RegisterTo(RenderBufferRegistry& registr
 	// タイルグリッド: SRV/UAV
 	registry.Register({ .alias = "TileLightGrid",.resource = tileLightGrid_.GetResource(),.gpuAddress = tileLightGrid_.GetGPUAddress(),
 		.srvGPUHandle = tileLightGrid_.GetSRVGPUHandle(),.uavGPUHandle = tileLightGrid_.GetUAVGPUHandle(),
-		.elementCount = totalTileCount_,.stride = sizeof(TileLightGridEntryGPU) });
+		.elementCount = totalClusterCount_,.stride = sizeof(TileLightGridEntryGPU) });
 	registry.Register({ .alias = "gTileLightGrid",.resource = tileLightGrid_.GetResource(),.gpuAddress = tileLightGrid_.GetGPUAddress(),
 		.srvGPUHandle = tileLightGrid_.GetSRVGPUHandle(),.uavGPUHandle = tileLightGrid_.GetUAVGPUHandle(),
-		.elementCount = totalTileCount_,.stride = sizeof(TileLightGridEntryGPU) });
+		.elementCount = totalClusterCount_,.stride = sizeof(TileLightGridEntryGPU) });
 
 	// タイルライトインデックスリスト: SRV/UAV
 	registry.Register({ .alias = "TileLightIndexList",.resource = tileLightIndexList_.GetResource(),

@@ -43,6 +43,11 @@ cbuffer LightCullingParams : register(b3) {
 	uint totalTileCount;
 	uint maxLocalLightsPerTile;
 
+	uint clusterCountZ;
+	uint totalClusterCount;
+	uint maxLocalLightsPerCluster;
+	uint lightCullingMode;
+
 	uint pointLightCountForCull;
 	uint spotLightCountForCull;
 	uint localLightCountForCull;
@@ -107,6 +112,10 @@ SamplerState gSampler : register(s0);
 
 static const float PI = 3.14159265f;
 static const uint kNoTexture = 0xFFFFFFFF;
+static const uint kLightCullingModeDisabled = 0u;
+static const uint kLightCullingModeTile2D = 1u;
+static const uint kLightCullingModeClustered = 2u;
+static const uint kLightCullingModeDebugAllLightsPerCluster = 3u;
 
 //============================================================================
 //	PBR関数
@@ -151,15 +160,20 @@ float3 DisneyDiffuse(float NdotL, float NdotV, float LdotH, float roughness, flo
 	return albedo * FL * FV * energyFactor / PI;
 }
 
-// タイルインデックス計算
-uint ComputeTileIndex(float4 svPosition) {
+// カリング用ビューでのタイルインデックス計算
+uint ComputeTileIndex(float3 worldPos) {
 
 	uint safeTileSizeX = max(tileSizeX, 1u);
 	uint safeTileSizeY = max(tileSizeY, 1u);
+	float4 clipPos = mul(float4(worldPos, 1.0f), cullingViewProjection);
+	float safeW = max(abs(clipPos.w), 1e-5f);
+	float2 ndc = clipPos.xy / safeW;
+	float2 uv = float2(ndc.x * 0.5f + 0.5f, -ndc.y * 0.5f + 0.5f);
+	float2 pixel = uv * cullingViewSize;
 
 	uint2 tileCoord;
-	tileCoord.x = (uint) svPosition.x / safeTileSizeX;
-	tileCoord.y = (uint) svPosition.y / safeTileSizeY;
+	tileCoord.x = (uint) floor(max(pixel.x, 0.0f)) / safeTileSizeX;
+	tileCoord.y = (uint) floor(max(pixel.y, 0.0f)) / safeTileSizeY;
 
 	uint safeTileCountX = max(tileCountX, 1u);
 	uint safeTileCountY = max(tileCountY, 1u);
@@ -168,6 +182,28 @@ uint ComputeTileIndex(float4 svPosition) {
 	tileCoord.y = min(tileCoord.y, safeTileCountY - 1u);
 
 	return tileCoord.y * safeTileCountX + tileCoord.x;
+}
+
+uint ComputeClusterZ(float3 worldPos) {
+
+	uint safeClusterCountZ = max(clusterCountZ, 1u);
+	float3 viewPos = mul(float4(worldPos, 1.0f), cullingView).xyz;
+	float safeNear = max(nearClip, 1e-4f);
+	float safeFar = max(farClip, safeNear + 1e-3f);
+	float z01 = saturate((viewPos.z - safeNear) / (safeFar - safeNear));
+	return min((uint) floor(z01 * (float) safeClusterCountZ), safeClusterCountZ - 1u);
+}
+
+uint ComputeClusterIndex(float3 worldPos) {
+
+	uint tileIndex = ComputeTileIndex(worldPos);
+	uint safeTileCountX = max(tileCountX, 1u);
+	uint safeTileCountY = max(tileCountY, 1u);
+
+	uint tileCoordY = tileIndex / safeTileCountX;
+	uint tileCoordX = tileIndex - tileCoordY * safeTileCountX;
+	uint clusterZ = ComputeClusterZ(worldPos);
+	return (clusterZ * safeTileCountY + tileCoordY) * safeTileCountX + tileCoordX;
 }
 
 float ComputeDistanceAttenuation(float dist, float range, float decay) {
@@ -359,7 +395,7 @@ PSOutput main(VSOutput input) {
 	float3 N = ComputeWorldNormal(input, subMesh, uv);
 
 	// 視線ベクトル
-	float3 V = normalize(cullingCameraPos - input.worldPos);
+	float3 V = normalize(renderCameraPos - input.worldPos);
 
 	// Fresnel F0 (金属は albedo、非金属は0.04)
 	float3 F0 = lerp(0.04f.xxx, baseColor.rgb, metallic);
@@ -386,11 +422,17 @@ PSOutput main(VSOutput input) {
 
 	if (0 < localCount) {
 
-		if (lightCullingEnabled != 0u && 0 < maxLocalLightsPerTile) {
+		if (lightCullingEnabled != 0u && lightCullingMode != kLightCullingModeDisabled) {
 
-			uint tileIndex = ComputeTileIndex(input.position);
-			TileLightGridEntry grid = gTileLightGrid[tileIndex];
-			uint loopCount = min(grid.count, maxLocalLightsPerTile);
+			const bool usesClusterGrid =
+				lightCullingMode == kLightCullingModeClustered ||
+				lightCullingMode == kLightCullingModeDebugAllLightsPerCluster;
+			uint lightGridIndex = usesClusterGrid ?
+				ComputeClusterIndex(input.worldPos) :
+				ComputeTileIndex(input.worldPos);
+			TileLightGridEntry grid = gTileLightGrid[lightGridIndex];
+			uint listCapacity = usesClusterGrid ? maxLocalLightsPerCluster : maxLocalLightsPerTile;
+			uint loopCount = min(grid.count, listCapacity);
 			[loop]
 			for (uint i = 0; i < loopCount; ++i) {
 

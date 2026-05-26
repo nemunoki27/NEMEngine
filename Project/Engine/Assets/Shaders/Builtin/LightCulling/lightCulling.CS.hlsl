@@ -18,6 +18,11 @@ cbuffer LightCullingParams : register(b0) {
 	uint totalTileCount;
 	uint maxLocalLightsPerTile;
 
+	uint clusterCountZ;
+	uint totalClusterCount;
+	uint maxLocalLightsPerCluster;
+	uint lightCullingMode;
+
 	uint cullPointLightCount;
 	uint cullSpotLightCount;
 	uint cullLocalLightCount;
@@ -68,6 +73,15 @@ RWStructuredBuffer<uint> gTileLightIndexList : register(u2);
 
 Texture2D<float4> gSourceColor : register(t0);
 Texture2D<float> gSourceDepth : register(t1);
+
+//============================================================================
+//	constants
+//============================================================================
+
+static const uint kLightCullingModeDisabled = 0u;
+static const uint kLightCullingModeTile2D = 1u;
+static const uint kLightCullingModeClustered = 2u;
+static const uint kLightCullingModeDebugAllLightsPerCluster = 3u;
 
 //============================================================================
 //	groupshared
@@ -145,6 +159,85 @@ bool OverlapsDepthRange(float lightViewZ, float lightRadius, float tileMinViewZ,
 	return !(lightMaxZ < tileMinViewZ || tileMaxViewZ < lightMinZ);
 }
 
+float2 PixelToNDC(float2 pixel) {
+
+	float2 safeScreenSize = max(float2(screenWidth, screenHeight), float2(1.0f, 1.0f));
+	float2 uv = pixel / safeScreenSize;
+	return float2(uv.x * 2.0f - 1.0f, (1.0f - uv.y) * 2.0f - 1.0f);
+}
+
+float3 ViewPositionFromNDCAndViewZ(float2 ndc, float viewZ) {
+
+	float projX = max(abs(projectionMatrix[0][0]), 1e-5f);
+	float projY = max(abs(projectionMatrix[1][1]), 1e-5f);
+	return float3(ndc.x * viewZ / projX, ndc.y * viewZ / projY, viewZ);
+}
+
+void ExpandAABB(inout float3 aabbMin, inout float3 aabbMax, float3 p) {
+
+	aabbMin = min(aabbMin, p);
+	aabbMax = max(aabbMax, p);
+}
+
+void ComputeClusterZRange(uint clusterZ, out float zMin, out float zMax) {
+
+	uint safeClusterCountZ = max(clusterCountZ, 1u);
+	float safeNear = max(nearClip, 1e-4f);
+	float safeFar = max(farClip, safeNear + 1e-3f);
+
+	float z0 = (float) clusterZ / (float) safeClusterCountZ;
+	float z1 = (float) (clusterZ + 1u) / (float) safeClusterCountZ;
+	zMin = lerp(safeNear, safeFar, z0);
+	zMax = lerp(safeNear, safeFar, z1);
+}
+
+void ComputeClusterAABB(uint2 tileCoord, uint clusterZ, out float3 aabbMin, out float3 aabbMax) {
+
+	float2 pixelMin = float2(tileCoord * uint2(tileSizeX, tileSizeY));
+	float2 pixelMax = float2(min((tileCoord + 1u) * uint2(tileSizeX, tileSizeY), uint2(screenWidth, screenHeight)));
+	float2 ndcMin = PixelToNDC(pixelMin);
+	float2 ndcMax = PixelToNDC(pixelMax);
+
+	float zMin;
+	float zMax;
+	ComputeClusterZRange(clusterZ, zMin, zMax);
+
+	aabbMin = float3(1e30f, 1e30f, 1e30f);
+	aabbMax = float3(-1e30f, -1e30f, -1e30f);
+
+	ExpandAABB(aabbMin, aabbMax, ViewPositionFromNDCAndViewZ(float2(ndcMin.x, ndcMin.y), zMin));
+	ExpandAABB(aabbMin, aabbMax, ViewPositionFromNDCAndViewZ(float2(ndcMax.x, ndcMin.y), zMin));
+	ExpandAABB(aabbMin, aabbMax, ViewPositionFromNDCAndViewZ(float2(ndcMin.x, ndcMax.y), zMin));
+	ExpandAABB(aabbMin, aabbMax, ViewPositionFromNDCAndViewZ(float2(ndcMax.x, ndcMax.y), zMin));
+	ExpandAABB(aabbMin, aabbMax, ViewPositionFromNDCAndViewZ(float2(ndcMin.x, ndcMin.y), zMax));
+	ExpandAABB(aabbMin, aabbMax, ViewPositionFromNDCAndViewZ(float2(ndcMax.x, ndcMin.y), zMax));
+	ExpandAABB(aabbMin, aabbMax, ViewPositionFromNDCAndViewZ(float2(ndcMin.x, ndcMax.y), zMax));
+	ExpandAABB(aabbMin, aabbMax, ViewPositionFromNDCAndViewZ(float2(ndcMax.x, ndcMax.y), zMax));
+}
+
+bool SphereIntersectsAABB(float3 center, float radius, float3 aabbMin, float3 aabbMax) {
+
+	float3 closest = clamp(center, aabbMin, aabbMax);
+	float3 delta = center - closest;
+	float safeRadius = max(radius, 0.0f);
+	return dot(delta, delta) <= safeRadius * safeRadius;
+}
+
+bool AppendLightIndex(inout TileLightGridEntry grid, uint lightIndex, bool isPointLight, uint listCapacity) {
+
+	if (grid.count >= listCapacity) {
+		return false;
+	}
+	gTileLightIndexList[grid.offset + grid.count] = lightIndex;
+	grid.count++;
+	if (isPointLight) {
+		grid.pointCount++;
+	} else {
+		grid.spotCount++;
+	}
+	return true;
+}
+
 //============================================================================
 //	main
 //============================================================================
@@ -216,7 +309,15 @@ bool OverlapsDepthRange(float lightViewZ, float lightRadius, float tileMinViewZ,
 //}
 void main(uint3 groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID) {
 
-	if (groupID.x >= tileCountX || groupID.y >= tileCountY) {
+	uint safeTileCountX = max(tileCountX, 1u);
+	uint safeTileCountY = max(tileCountY, 1u);
+	uint safeClusterCountZ = max(clusterCountZ, 1u);
+	const bool usesClusterGrid =
+		lightCullingMode == kLightCullingModeClustered ||
+		lightCullingMode == kLightCullingModeDebugAllLightsPerCluster;
+
+	if (groupID.x >= safeTileCountX || groupID.y >= safeTileCountY ||
+		(usesClusterGrid && groupID.z >= safeClusterCountZ)) {
 		return;
 	}
 
@@ -227,28 +328,50 @@ void main(uint3 groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID) {
 		return;
 	}
 
-	const uint tileIndex = groupID.y * tileCountX + groupID.x;
+	const uint tileIndex = groupID.y * safeTileCountX + groupID.x;
+	const uint clusterIndex = usesClusterGrid ?
+		(groupID.z * safeTileCountY + groupID.y) * safeTileCountX + groupID.x :
+		tileIndex;
 	const uint2 tileCoord = groupID.xy;
+	const uint listCapacity = usesClusterGrid ? maxLocalLightsPerCluster : maxLocalLightsPerTile;
 
 	TileLightGridEntry grid;
-	grid.offset = tileIndex * maxLocalLightsPerTile;
+	grid.offset = clusterIndex * listCapacity;
 	grid.count = 0;
 	grid.pointCount = 0;
 	grid.spotCount = 0;
 
-	if (maxLocalLightsPerTile == 0) {
-		gTileLightGrid[tileIndex] = grid;
-		return;
-	}
-	if (lightCullingEnabled == 0u) {
-		gTileLightGrid[tileIndex] = grid;
+	if (listCapacity == 0 || lightCullingEnabled == 0u || lightCullingMode == kLightCullingModeDisabled) {
+		gTileLightGrid[clusterIndex] = grid;
 		return;
 	}
 
 	// 未使用スロットを明示的に無効値で初期化。
-	// PIX確認が終わったら、負荷削減のため削除してもよいです。
-	for (uint i = 0; i < maxLocalLightsPerTile; ++i) {
+	// DebugAllLightsPerCluster/PIX確認でリストの境界を追いやすくする。
+	for (uint i = 0; i < listCapacity; ++i) {
 		gTileLightIndexList[grid.offset + i] = 0xFFFFFFFFu;
+	}
+
+	if (lightCullingMode == kLightCullingModeDebugAllLightsPerCluster) {
+
+		for (uint pointIndex = 0; pointIndex < cullPointLightCount; ++pointIndex) {
+			if (!AppendLightIndex(grid, pointIndex, true, listCapacity)) {
+				break;
+			}
+		}
+		for (uint spotIndex = 0; spotIndex < cullSpotLightCount; ++spotIndex) {
+			if (!AppendLightIndex(grid, cullPointLightCount + spotIndex, false, listCapacity)) {
+				break;
+			}
+		}
+		gTileLightGrid[clusterIndex] = grid;
+		return;
+	}
+
+	float3 clusterAABBMin = 0.0f.xxx;
+	float3 clusterAABBMax = 0.0f.xxx;
+	if (lightCullingMode == kLightCullingModeClustered) {
+		ComputeClusterAABB(tileCoord, groupID.z, clusterAABBMin, clusterAABBMax);
 	}
 
 	//============================================================================
@@ -256,27 +379,32 @@ void main(uint3 groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID) {
 	//============================================================================
 	for (uint pointIndex = 0; pointIndex < cullPointLightCount; ++pointIndex) {
 
-		if (grid.count >= maxLocalLightsPerTile) {
+		if (grid.count >= listCapacity) {
 			break;
 		}
 
 		PointLight light = gPointLights[pointIndex];
 
-		uint2 minTile;
-		uint2 maxTile;
+		if (lightCullingMode == kLightCullingModeClustered) {
 
-		if (!ComputeSphereTileBounds(light.pos, light.radius, minTile, maxTile)) {
-			continue;
+			float3 lightViewPos = mul(float4(light.pos, 1.0f), viewMatrix).xyz;
+			if (!SphereIntersectsAABB(lightViewPos, light.radius, clusterAABBMin, clusterAABBMax)) {
+				continue;
+			}
+		} else {
+
+			uint2 minTile;
+			uint2 maxTile;
+
+			if (!ComputeSphereTileBounds(light.pos, light.radius, minTile, maxTile)) {
+				continue;
+			}
+			if (!TileContainsLight(tileCoord, minTile, maxTile)) {
+				continue;
+			}
 		}
 
-		if (!TileContainsLight(tileCoord, minTile, maxTile)) {
-			continue;
-		}
-
-		gTileLightIndexList[grid.offset + grid.count] = pointIndex;
-
-		grid.count++;
-		grid.pointCount++;
+		AppendLightIndex(grid, pointIndex, true, listCapacity);
 	}
 
 	//============================================================================
@@ -284,32 +412,37 @@ void main(uint3 groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID) {
 	//============================================================================
 	for (uint spotIndex = 0; spotIndex < cullSpotLightCount; ++spotIndex) {
 
-		if (grid.count >= maxLocalLightsPerTile) {
+		if (grid.count >= listCapacity) {
 			break;
 		}
 
 		SpotLight light = gSpotLights[spotIndex];
 
-		uint2 minTile;
-		uint2 maxTile;
+		if (lightCullingMode == kLightCullingModeClustered) {
 
-		// spot は一旦 distance を半径とした球近似でタイル判定
-		if (!ComputeSphereTileBounds(light.pos, light.distance, minTile, maxTile)) {
-			continue;
-		}
+			float3 lightViewPos = mul(float4(light.pos, 1.0f), viewMatrix).xyz;
+			if (!SphereIntersectsAABB(lightViewPos, light.distance, clusterAABBMin, clusterAABBMax)) {
+				continue;
+			}
+		} else {
 
-		if (!TileContainsLight(tileCoord, minTile, maxTile)) {
-			continue;
+			uint2 minTile;
+			uint2 maxTile;
+
+			// spot は初期実装では distance を半径とした球近似で判定する
+			if (!ComputeSphereTileBounds(light.pos, light.distance, minTile, maxTile)) {
+				continue;
+			}
+			if (!TileContainsLight(tileCoord, minTile, maxTile)) {
+				continue;
+			}
 		}
 
 		// PS側では localLightIndex < pointCount なら point、
 		// それ以外は localLightIndex - pointCount を spot index として扱う。
-		gTileLightIndexList[grid.offset + grid.count] = cullPointLightCount + spotIndex;
-
-		grid.count++;
-		grid.spotCount++;
+		AppendLightIndex(grid, cullPointLightCount + spotIndex, false, listCapacity);
 	}
 
-	gTileLightGrid[tileIndex] = grid;
+	gTileLightGrid[clusterIndex] = grid;
 
 }

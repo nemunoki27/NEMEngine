@@ -161,6 +161,40 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 			featureController.SetAllowLightCulling(allowLightCulling);
 		}
 		ImGui::Text("Light Culling: %s", runtime.useLightCulling ? "Enabled" : "Disabled");
+		const char* lightCullingModeItems[] = {
+			"Tile2D Forward+",
+			"Clustered",
+			"Debug All Lights"
+		};
+		int lightCullingModeIndex = 1;
+		switch (preferences.lightCullingMode) {
+		case LightCullingMode::Tile2D:
+			lightCullingModeIndex = 0;
+			break;
+		case LightCullingMode::DebugAllLightsPerCluster:
+			lightCullingModeIndex = 2;
+			break;
+		case LightCullingMode::Clustered:
+		default:
+			lightCullingModeIndex = 1;
+			break;
+		}
+		ImGui::BeginDisabled(!allowLightCulling);
+		if (ImGui::Combo("Light Culling Mode", &lightCullingModeIndex, lightCullingModeItems, 3)) {
+			switch (lightCullingModeIndex) {
+			case 0:
+				featureController.SetLightCullingMode(LightCullingMode::Tile2D);
+				break;
+			case 2:
+				featureController.SetLightCullingMode(LightCullingMode::DebugAllLightsPerCluster);
+				break;
+			case 1:
+			default:
+				featureController.SetLightCullingMode(LightCullingMode::Clustered);
+				break;
+			}
+		}
+		ImGui::EndDisabled();
 
 		bool allowContributionCulling = preferences.allowContributionCulling;
 		if (ImGui::Checkbox("Use Contribution Culling", &allowContributionCulling)) {

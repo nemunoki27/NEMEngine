@@ -51,7 +51,11 @@ namespace Engine {
 		// Projection行列のX/Y倍率。ViewProjectionから取るとカメラ回転で値が崩れる
 		Vector2 cullingProjectionScale = Vector2::AnyInit(1.0f);
 		Vector2 _pad0 = Vector2::AnyInit(0.0f);
+		// PBRライト計算に使う、実際に描画しているビューのカメラ位置
+		Vector3 renderCameraPos = Vector3::AnyInit(0.0f);
+		float _pad1 = 0.0f;
 	};
+	static_assert(sizeof(MeshViewConstants) % 16 == 0);
 	struct MeshIndirectArgsConstants {
 
 		// ExecuteIndirectのDrawIndexedInstancedに渡すIndex数

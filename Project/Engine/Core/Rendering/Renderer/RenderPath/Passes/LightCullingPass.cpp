@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/GPU/ViewLightCullingBufferSet.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
@@ -72,7 +73,9 @@ void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 	if (!context.resources || !context.assetDatabase || !deps_.assetLibrary || !deps_.pipelineCache) {
 		return;
 	}
-	if (!graphicsCore.GetDXObject().GetFeatureController().ShouldUseLightCulling()) {
+	const GraphicsRuntimeFeatures& runtimeFeatures =
+		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
+	if (!runtimeFeatures.useLightCulling) {
 		return;
 	}
 
@@ -130,5 +133,9 @@ void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 
 	const uint32_t dispatchX = DxUtils::RoundUp(sceneMain->GetWidth(), pipelineState->GetThreadGroupX());
 	const uint32_t dispatchY = DxUtils::RoundUp(sceneMain->GetHeight(), pipelineState->GetThreadGroupY());
-	commandList->Dispatch(dispatchX, dispatchY, 1);
+	const uint32_t dispatchZ =
+		(runtimeFeatures.lightCullingMode == LightCullingMode::Clustered ||
+		 runtimeFeatures.lightCullingMode == LightCullingMode::DebugAllLightsPerCluster) ?
+		ViewLightCullingBufferSet::kClusterCountZ : 1u;
+	commandList->Dispatch(dispatchX, dispatchY, dispatchZ);
 }

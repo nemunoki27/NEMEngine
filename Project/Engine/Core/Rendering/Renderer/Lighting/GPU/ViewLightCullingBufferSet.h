@@ -32,7 +32,7 @@ namespace Engine {
 		void Init(GraphicsCore& graphicsCore);
 
 		// CPUのライト情報を基にGPU用のライトカリングデータを生成してアップロード
-		void Upload(const ResolvedRenderView& view, const PerViewLightSet& lightSet, bool lightCullingEnabled);
+		void Upload(const ResolvedRenderView& view, const PerViewLightSet& lightSet, uint32_t lightCullingMode);
 
 		// 解放
 		void Release();
@@ -44,17 +44,18 @@ namespace Engine {
 
 		// 初期化されているか
 		bool IsInitialized() const { return initialized_; }
+
+		// Clustered Forwardの初期実装は既存Forward+と同じXYタイルサイズを使う
+		static constexpr uint32_t kTileSizeX = 16;
+		static constexpr uint32_t kTileSizeY = 16;
+		static constexpr uint32_t kMaxLocalLightsPerTile = 64;
+		static constexpr uint32_t kClusterCountZ = 16;
 	private:
 		//========================================================================
 		//	private Methods
 		//========================================================================
 
 		//--------- variables ----------------------------------------------------
-
-		// 1タイルあたりのサイズと最大ライト数
-		static constexpr uint32_t kTileSizeX = 16;
-		static constexpr uint32_t kTileSizeY = 16;
-		static constexpr uint32_t kMaxLocalLightsPerTile = 64;
 
 		// バッファ
 		ViewConstantBuffer<LightCullingParamsGPU> params_{ "LightCullingParams" };
@@ -65,6 +66,7 @@ namespace Engine {
 		uint32_t tileCountX_ = 0;
 		uint32_t tileCountY_ = 0;
 		uint32_t totalTileCount_ = 0;
+		uint32_t totalClusterCount_ = 0;
 		uint32_t totalIndexCount_ = 0;
 
 		// 初期化フラグ

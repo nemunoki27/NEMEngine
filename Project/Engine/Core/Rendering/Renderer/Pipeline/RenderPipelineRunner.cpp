@@ -440,15 +440,16 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	if (!sceneViewUsesGameLightCulling && !sceneViewLightCullingBuffers_.IsInitialized()) {
 		sceneViewLightCullingBuffers_.Init(graphicsCore);
 	}
-	const bool lightCullingEnabled = graphicsCore.GetDXObject().GetFeatureController().ShouldUseLightCulling();
+	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
+	const uint32_t lightCullingMode = static_cast<uint32_t>(runtimeFeatures.lightCullingMode);
 	// ビューごとのライト集合をGPUへ転送
 	gameViewLightBuffers_.Upload(gameViewLightSet_);
 	// ビューごとのライトカリングデータをGPUへ転送
-	gameViewLightCullingBuffers_.Upload(gameView_, gameViewLightSet_, lightCullingEnabled);
+	gameViewLightCullingBuffers_.Upload(gameView_, gameViewLightSet_, lightCullingMode);
 	if (!sceneViewUsesGameLightCulling) {
 
 		sceneViewLightBuffers_.Upload(sceneViewLightSet_);
-		sceneViewLightCullingBuffers_.Upload(sceneView_, sceneViewLightSet_, lightCullingEnabled);
+		sceneViewLightCullingBuffers_.Upload(sceneView_, sceneViewLightSet_, lightCullingMode);
 	}
 
 	// レイトレーシングビュー関連バッファの初期化と転送
@@ -669,8 +670,9 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 			buffers.Init(core);
 	});
 	previewLightBuffers.Upload(previewLightSet_);
-	const bool lightCullingEnabled = graphicsCore.GetDXObject().GetFeatureController().ShouldUseLightCulling();
-	previewLightCullingBuffers.Upload(previewView, previewLightSet_, lightCullingEnabled);
+	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
+	previewLightCullingBuffers.Upload(previewView, previewLightSet_,
+		static_cast<uint32_t>(runtimeFeatures.lightCullingMode));
 	previewLightBuffers.RegisterTo(context.bufferRegistry);
 	previewLightCullingBuffers.RegisterTo(context.bufferRegistry);
 

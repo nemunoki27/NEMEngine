@@ -31,6 +31,7 @@ namespace Engine {
 		// GameView基準の描画カリング機能を個別に切り替える
 		void SetAllowFrustumCulling(bool enabled);
 		void SetAllowLightCulling(bool enabled);
+		void SetLightCullingMode(LightCullingMode mode);
 		void SetAllowContributionCulling(bool enabled);
 		void SetAllowNormalConeCulling(bool enabled);
 

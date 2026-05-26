@@ -207,6 +207,7 @@ void Engine::MeshBatchResources::UpdateView(const ResolvedRenderView& view, cons
 	if (const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Perspective)) {
 
 		constants.viewProjection = camera->matrices.viewProjectionMatrix;
+		constants.renderCameraPos = camera->cameraPos;
 	}
 	constants.viewSize = Vector2(static_cast<float>((std::max)(view.width, 1u)),
 		static_cast<float>((std::max)(view.height, 1u)));

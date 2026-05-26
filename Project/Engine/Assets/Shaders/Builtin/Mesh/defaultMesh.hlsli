@@ -36,6 +36,8 @@ cbuffer ViewConstants : register(b0) {
 	float2 cullingViewSize;
 	float2 cullingProjectionScale;
 	float2 _viewPad0;
+	float3 renderCameraPos;
+	float _viewPad1;
 };
 cbuffer SubMeshConstants : register(b1) {
 
