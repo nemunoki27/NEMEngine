@@ -46,7 +46,7 @@ cbuffer LightCullingParams : register(b3) {
 	uint pointLightCountForCull;
 	uint spotLightCountForCull;
 	uint localLightCountForCull;
-	uint _pad2;
+	uint lightCullingEnabled;
 
 	float nearClip;
 	float farClip;
@@ -384,28 +384,45 @@ PSOutput main(VSOutput input) {
 			baseColor.rgb, metallic, roughness, F0);
 	}
 
-	if (0 < localCount && 0 < maxLocalLightsPerTile) {
+	if (0 < localCount) {
 
-		uint tileIndex = ComputeTileIndex(input.position);
-		TileLightGridEntry grid = gTileLightGrid[tileIndex];
-		uint loopCount = min(grid.count, maxLocalLightsPerTile);
-		[loop]
-		for (uint i = 0; i < loopCount; ++i) {
+		if (lightCullingEnabled != 0u && 0 < maxLocalLightsPerTile) {
 
-			uint localLightIndex = gTileLightIndexList[grid.offset + i];
+			uint tileIndex = ComputeTileIndex(input.position);
+			TileLightGridEntry grid = gTileLightGrid[tileIndex];
+			uint loopCount = min(grid.count, maxLocalLightsPerTile);
+			[loop]
+			for (uint i = 0; i < loopCount; ++i) {
 
-			if (localLightIndex < pointCount) {
+				uint localLightIndex = gTileLightIndexList[grid.offset + i];
 
-				Lo += EvaluatePBRPointLight(gPointLights[localLightIndex], input.worldPos, N, V,
-					baseColor.rgb, metallic, roughness, F0);
-			} else {
+				if (localLightIndex < pointCount) {
 
-				uint spotIndex = localLightIndex - pointCount;
-				if (spotIndex < spotCount) {
-
-					Lo += EvaluatePBRSpotLight(gSpotLights[spotIndex], input.worldPos, N, V,
+					Lo += EvaluatePBRPointLight(gPointLights[localLightIndex], input.worldPos, N, V,
 						baseColor.rgb, metallic, roughness, F0);
+				} else {
+
+					uint spotIndex = localLightIndex - pointCount;
+					if (spotIndex < spotCount) {
+
+						Lo += EvaluatePBRSpotLight(gSpotLights[spotIndex], input.worldPos, N, V,
+							baseColor.rgb, metallic, roughness, F0);
+					}
 				}
+			}
+		} else {
+
+			[loop]
+			for (uint i = 0; i < pointCount; ++i) {
+
+				Lo += EvaluatePBRPointLight(gPointLights[i], input.worldPos, N, V,
+					baseColor.rgb, metallic, roughness, F0);
+			}
+			[loop]
+			for (uint i = 0; i < spotCount; ++i) {
+
+				Lo += EvaluatePBRSpotLight(gSpotLights[i], input.worldPos, N, V,
+					baseColor.rgb, metallic, roughness, F0);
 			}
 		}
 	}

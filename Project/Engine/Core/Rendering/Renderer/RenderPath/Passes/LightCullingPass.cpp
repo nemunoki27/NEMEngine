@@ -72,8 +72,13 @@ void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 	if (!context.resources || !context.assetDatabase || !deps_.assetLibrary || !deps_.pipelineCache) {
 		return;
 	}
+	if (!graphicsCore.GetDXObject().GetFeatureController().ShouldUseLightCulling()) {
+		return;
+	}
 
-	MultiRenderTarget* sceneMain = context.resources->GetSceneMain();
+	RenderPathResources* cullingResources = context.lightCullingResources ?
+		context.lightCullingResources : context.resources;
+	MultiRenderTarget* sceneMain = cullingResources->GetSceneMain();
 	if (!sceneMain) {
 		return;
 	}

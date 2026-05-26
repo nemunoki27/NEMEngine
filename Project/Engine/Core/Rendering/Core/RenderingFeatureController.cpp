@@ -87,6 +87,19 @@ void Engine::GraphicsFeatureController::SetAllowFrustumCulling(bool enabled) {
 	Logger::Output(LogType::Engine, "Frustum Culling -> {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
 }
 
+void Engine::GraphicsFeatureController::SetAllowLightCulling(bool enabled) {
+
+	// ライトカリングはGPU機能に依存しない。OFF時はPS側で全ローカルライト評価へ戻す
+	if (preferences_.allowLightCulling == enabled) {
+		return;
+	}
+
+	preferences_.allowLightCulling = enabled;
+	RebuildRuntimeFeatures();
+
+	Logger::Output(LogType::Engine, "Light Culling -> {}", runtimeFeatures_.useLightCulling ? "Enabled" : "Disabled");
+}
+
 void Engine::GraphicsFeatureController::SetAllowContributionCulling(bool enabled) {
 
 	// VS経路とMS経路の両方で使うため、共通のRuntimeFeaturesへ反映する
@@ -133,6 +146,7 @@ void Engine::GraphicsFeatureController::RebuildRuntimeFeatures() {
 	runtimeFeatures_.useInlineRayTracing = support_.SupportsRayTracingPath() && preferences_.allowInlineRayTracing;
 	runtimeFeatures_.useDispatchRays = support_.SupportsRayTracingPath() && preferences_.allowDispatchRays;
 	runtimeFeatures_.useFrustumCulling = preferences_.allowFrustumCulling;
+	runtimeFeatures_.useLightCulling = preferences_.allowLightCulling;
 	runtimeFeatures_.useContributionCulling = preferences_.allowContributionCulling;
 	runtimeFeatures_.useNormalConeCulling = preferences_.allowNormalConeCulling;
 }
@@ -156,6 +170,7 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 	Logger::Output(LogType::Engine, "Runtime DispatchRays: {}", runtimeFeatures_.useDispatchRays ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime RayScene Build: {}", runtimeFeatures_.UsesAnyRayTracing() ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Frustum Culling: {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "Runtime Light Culling: {}", runtimeFeatures_.useLightCulling ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Contribution Culling: {}", runtimeFeatures_.useContributionCulling ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Normal Cone Culling: {}", runtimeFeatures_.useNormalConeCulling ? "Enabled" : "Disabled");
 

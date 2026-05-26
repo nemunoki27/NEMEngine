@@ -42,7 +42,7 @@ void Engine::ViewLightCullingBufferSet::Release() {
 }
 
 void Engine::ViewLightCullingBufferSet::Upload(
-	const ResolvedRenderView& view, const PerViewLightSet& lightSet) {
+	const ResolvedRenderView& view, const PerViewLightSet& lightSet, bool lightCullingEnabled) {
 
 	// ビューサイズからタイル数を計算
 	const uint32_t viewWidth = (std::max)(view.width, 1u);
@@ -69,6 +69,7 @@ void Engine::ViewLightCullingBufferSet::Upload(
 	params.pointLightCount = lightSet.GetPointCount();
 	params.spotLightCount = lightSet.GetSpotCount();
 	params.localLightCount = lightSet.GetLocalLightCount();
+	params.lightCullingEnabled = lightCullingEnabled ? 1u : 0u;
 	// ビュー/プロジェクション行列を設定
 	if (lightSet.camera && lightSet.camera->valid) {
 

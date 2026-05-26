@@ -21,7 +21,7 @@ cbuffer LightCullingParams : register(b0) {
 	uint cullPointLightCount;
 	uint cullSpotLightCount;
 	uint cullLocalLightCount;
-	uint _pad0;
+	uint lightCullingEnabled;
 
 	float nearClip;
 	float farClip;
@@ -237,6 +237,10 @@ void main(uint3 groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID) {
 	grid.spotCount = 0;
 
 	if (maxLocalLightsPerTile == 0) {
+		gTileLightGrid[tileIndex] = grid;
+		return;
+	}
+	if (lightCullingEnabled == 0u) {
 		gTileLightGrid[tileIndex] = grid;
 		return;
 	}

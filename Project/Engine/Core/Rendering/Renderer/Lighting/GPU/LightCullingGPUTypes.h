@@ -52,7 +52,7 @@ namespace Engine {
 		uint32_t pointLightCount = 0;
 		uint32_t spotLightCount = 0;
 		uint32_t localLightCount = 0;
-		uint32_t _pad0 = 0;
+		uint32_t lightCullingEnabled = 1;
 
 		float nearClip = 0.1f;
 		float farClip = 1000.0f;

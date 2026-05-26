@@ -156,6 +156,12 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		}
 		ImGui::Text("Frustum Culling: %s", runtime.useFrustumCulling ? "Enabled" : "Disabled");
 
+		bool allowLightCulling = preferences.allowLightCulling;
+		if (ImGui::Checkbox("Use Light Culling", &allowLightCulling)) {
+			featureController.SetAllowLightCulling(allowLightCulling);
+		}
+		ImGui::Text("Light Culling: %s", runtime.useLightCulling ? "Enabled" : "Disabled");
+
 		bool allowContributionCulling = preferences.allowContributionCulling;
 		if (ImGui::Checkbox("Use Contribution Culling", &allowContributionCulling)) {
 			featureController.SetAllowContributionCulling(allowContributionCulling);

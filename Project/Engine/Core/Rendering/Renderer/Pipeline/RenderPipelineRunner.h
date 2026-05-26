@@ -65,6 +65,8 @@ namespace Engine {
 		RenderTargetRegistry* targetRegistry = nullptr;
 		// 固定RenderPath用の中間レンダーターゲット
 		RenderPathResources* resources = nullptr;
+		// ライトカリングだけ別ビューの深度とサイズを基準にしたい場合に使用する
+		RenderPathResources* lightCullingResources = nullptr;
 		// ツールプレビューなど、1枚のRT内の一部だけへ描く時の描画矩形
 		bool useViewportRect = false;
 		uint32_t viewportX = 0;
@@ -151,7 +153,9 @@ namespace Engine {
 		//今フレームの全ライト
 		const FrameLightBatch& GetFrameLightBatch() const { return frameLightBatch_; }
 		// ルートシーン用のビュー別ライト集合
-		const PerViewLightSet& GetResolvedViewLightSet(RenderViewKind kind) const { return (kind == RenderViewKind::Game) ? gameViewLightSet_ : sceneViewLightSet_; }
+		const PerViewLightSet& GetResolvedViewLightSet(RenderViewKind kind) const {
+			return (kind == RenderViewKind::Game || gameView_.valid) ? gameViewLightSet_ : sceneViewLightSet_;
+		}
 
 		// ピック用のビュー別TLASリソースとサブメッシュ情報の取得
 		ID3D12Resource* GetGameViewTLASResource() const { return gameViewTLASResource_; }

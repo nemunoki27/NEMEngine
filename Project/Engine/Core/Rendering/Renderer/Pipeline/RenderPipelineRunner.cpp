@@ -414,13 +414,14 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	// ビューごとのライト集合クリア
 	gameViewLightSet_.Clear();
 	sceneViewLightSet_.Clear();
+	const bool sceneViewUsesGameLightCulling = sceneView_.valid && gameView_.valid;
 	// ルートシーン用のビューライト構築
 	if (activeScene) {
 		if (gameView_.valid) {
 
 			ViewLightCollector::CollectForView(frameLightBatch_, activeScene, gameView_, gameViewLightSet_);
 		}
-		if (sceneView_.valid) {
+		if (sceneView_.valid && !sceneViewUsesGameLightCulling) {
 
 			ViewLightCollector::CollectForView(frameLightBatch_, activeScene, sceneView_, sceneViewLightSet_);
 		}
@@ -430,21 +431,25 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	if (!gameViewLightBuffers_.IsInitialized()) {
 		gameViewLightBuffers_.Init(graphicsCore);
 	}
-	if (!sceneViewLightBuffers_.IsInitialized()) {
+	if (!sceneViewUsesGameLightCulling && !sceneViewLightBuffers_.IsInitialized()) {
 		sceneViewLightBuffers_.Init(graphicsCore);
 	}
 	if (!gameViewLightCullingBuffers_.IsInitialized()) {
 		gameViewLightCullingBuffers_.Init(graphicsCore);
 	}
-	if (!sceneViewLightCullingBuffers_.IsInitialized()) {
+	if (!sceneViewUsesGameLightCulling && !sceneViewLightCullingBuffers_.IsInitialized()) {
 		sceneViewLightCullingBuffers_.Init(graphicsCore);
 	}
+	const bool lightCullingEnabled = graphicsCore.GetDXObject().GetFeatureController().ShouldUseLightCulling();
 	// ビューごとのライト集合をGPUへ転送
 	gameViewLightBuffers_.Upload(gameViewLightSet_);
-	sceneViewLightBuffers_.Upload(sceneViewLightSet_);
 	// ビューごとのライトカリングデータをGPUへ転送
-	gameViewLightCullingBuffers_.Upload(gameView_, gameViewLightSet_);
-	sceneViewLightCullingBuffers_.Upload(sceneView_, sceneViewLightSet_);
+	gameViewLightCullingBuffers_.Upload(gameView_, gameViewLightSet_, lightCullingEnabled);
+	if (!sceneViewUsesGameLightCulling) {
+
+		sceneViewLightBuffers_.Upload(sceneViewLightSet_);
+		sceneViewLightCullingBuffers_.Upload(sceneView_, sceneViewLightSet_, lightCullingEnabled);
+	}
 
 	// レイトレーシングビュー関連バッファの初期化と転送
 	if (!gameViewRaytracingBuffers_.IsInitialized()) {
@@ -662,9 +667,10 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 	ViewLightCullingBufferSet& previewLightCullingBuffers = previewLightCullingBufferPool_.Acquire(graphicsCore,
 		[](ViewLightCullingBufferSet& buffers, GraphicsCore& core) {
 			buffers.Init(core);
-		});
+	});
 	previewLightBuffers.Upload(previewLightSet_);
-	previewLightCullingBuffers.Upload(previewView, previewLightSet_);
+	const bool lightCullingEnabled = graphicsCore.GetDXObject().GetFeatureController().ShouldUseLightCulling();
+	previewLightCullingBuffers.Upload(previewView, previewLightSet_, lightCullingEnabled);
 	previewLightBuffers.RegisterTo(context.bufferRegistry);
 	previewLightCullingBuffers.RegisterTo(context.bufferRegistry);
 
@@ -800,6 +806,9 @@ Engine::SceneExecutionContext Engine::RenderPipelineRunner::BuildViewExecutionCo
 	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewResources_ : sceneViewResources_;
 	resources.Resize(graphicsCore, view.width, view.height);
 	context.resources = &resources;
+	// SceneViewは描画カメラだけSceneViewにして、カリング基準はGameViewに揃える
+	context.lightCullingResources = (kind == RenderViewKind::Scene && gameView_.valid) ?
+		&gameViewResources_ : &resources;
 
 	// 中間RenderTargetをレジストリに登録してPostProcessExecutorが名前で解決できるようにする
 	if (resources.GetSceneMain()) {
@@ -820,8 +829,15 @@ Engine::SceneExecutionContext Engine::RenderPipelineRunner::BuildViewExecutionCo
 		break;
 	case RenderViewKind::Scene:
 
-		sceneViewLightBuffers_.RegisterTo(context.bufferRegistry);
-		sceneViewLightCullingBuffers_.RegisterTo(context.bufferRegistry);
+		if (gameView_.valid) {
+
+			gameViewLightBuffers_.RegisterTo(context.bufferRegistry);
+			gameViewLightCullingBuffers_.RegisterTo(context.bufferRegistry);
+		} else {
+
+			sceneViewLightBuffers_.RegisterTo(context.bufferRegistry);
+			sceneViewLightCullingBuffers_.RegisterTo(context.bufferRegistry);
+		}
 		sceneViewRaytracingBuffers_.RegisterTo(context.bufferRegistry);
 		break;
 	}

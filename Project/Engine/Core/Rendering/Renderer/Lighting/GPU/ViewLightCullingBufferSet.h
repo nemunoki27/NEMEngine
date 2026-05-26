@@ -32,7 +32,7 @@ namespace Engine {
 		void Init(GraphicsCore& graphicsCore);
 
 		// CPUのライト情報を基にGPU用のライトカリングデータを生成してアップロード
-		void Upload(const ResolvedRenderView& view, const PerViewLightSet& lightSet);
+		void Upload(const ResolvedRenderView& view, const PerViewLightSet& lightSet, bool lightCullingEnabled);
 
 		// 解放
 		void Release();
