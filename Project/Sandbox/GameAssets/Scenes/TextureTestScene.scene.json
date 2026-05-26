@@ -112,12 +112,12 @@
                         "r": 1.0
                     },
                     "direction": {
-                        "x": 0.3958001434803009,
-                        "y": -0.794248640537262,
-                        "z": 0.4609895646572113
+                        "x": 0.6256070733070374,
+                        "y": -0.524359405040741,
+                        "z": 0.5776358246803284
                     },
                     "enabled": true,
-                    "intensity": 4.360000133514404,
+                    "intensity": 0.9800000190734863,
                     "shadowStrength": 0.7799999713897705
                 },
                 "Hierarchy": {
@@ -160,16 +160,16 @@
                     "siblingOrder": 0
                 },
                 "MeshRenderer": {
-                    "blendMode": "Normal",
+                    "blendMode": "Add",
                     "enableZPrepass": true,
                     "layer": 0,
                     "material": "0000000000000000",
-                    "mesh": "6f6bfe556d726c30",
+                    "mesh": "61cf7f0c09a4abee",
                     "order": 0,
                     "queue": "Opaque",
                     "subMeshes": [
                         {
-                            "baseColorTexture": "447d5b4a4a7fec3d",
+                            "baseColorTexture": "dde256064e2978c5",
                             "color": {
                                 "a": 1.0,
                                 "b": 1.0,
@@ -177,7 +177,7 @@
                                 "r": 1.0
                             },
                             "emissiveColor": {
-                                "a": 0.0,
+                                "a": 1.0,
                                 "b": 0.0,
                                 "g": 0.0,
                                 "r": 0.0
@@ -200,7 +200,7 @@
                             },
                             "metallic": 0.0,
                             "metallicRoughnessTexture": "0000000000000000",
-                            "name": "Mesh_0",
+                            "name": "Plane",
                             "normalTexture": "0000000000000000",
                             "occlusionTexture": "0000000000000000",
                             "roughness": 0.5,
@@ -211,7 +211,7 @@
                             },
                             "sourceSubMeshIndex": 0,
                             "specularTexture": "0000000000000000",
-                            "stableID": "bc0c84d59bada693",
+                            "stableID": "8540239da2469439",
                             "uvPos": {
                                 "x": 0.0,
                                 "y": 0.0
@@ -235,14 +235,14 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 0.0,
-                        "y": 1.6591026782989502,
-                        "z": 0.0
+                        "x": -0.1360229253768921,
+                        "y": 1.2529224157333374,
+                        "z": 1.3753299713134766
                     },
                     "localRotation": {
-                        "w": 1.0,
+                        "w": 0.11580398678779602,
                         "x": 0.0,
-                        "y": 0.0,
+                        "y": -0.9932721257209778,
                         "z": 0.0
                     },
                     "localScale": {
