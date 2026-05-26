@@ -166,10 +166,10 @@
                     "material": "0000000000000000",
                     "mesh": "61cf7f0c09a4abee",
                     "order": 0,
-                    "queue": "Opaque",
+                    "queue": "Transparent",
                     "subMeshes": [
                         {
-                            "baseColorTexture": "dde256064e2978c5",
+                            "baseColorTexture": "05dce7510d9680d1",
                             "color": {
                                 "a": 1.0,
                                 "b": 1.0,
@@ -178,9 +178,9 @@
                             },
                             "emissiveColor": {
                                 "a": 1.0,
-                                "b": 0.0,
-                                "g": 0.0,
-                                "r": 0.0
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
                             },
                             "emissiveTexture": "0000000000000000",
                             "localPos": {

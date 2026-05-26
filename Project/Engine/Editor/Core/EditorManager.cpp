@@ -48,18 +48,22 @@ namespace {
 	// ImGuiのレイアウト保存ファイルパス
 	constexpr const char* kEditorLayoutIniPath = "EditorLayout.ini";
 
-	bool IsHidePanelsShortcutPressed() {
+	bool IsHidePanelsShortcutTriggered() {
 
 		Engine::Input* input = Engine::Input::GetInstance();
-		const bool directInputPressed = input &&
-			((input->PushKey(DIK_TAB) && input->TriggerKey(DIK_ESCAPE)) ||
-				(input->PushKey(DIK_ESCAPE) && input->TriggerKey(DIK_TAB)));
+		const bool directInputDown = input &&
+			input->PushKey(DIK_TAB) && input->PushKey(DIK_ESCAPE);
 
-		const bool imguiPressed =
-			((ImGui::IsKeyDown(ImGuiKey_Tab) && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) ||
-				(ImGui::IsKeyDown(ImGuiKey_Escape) && ImGui::IsKeyPressed(ImGuiKey_Tab, false)));
+		const bool imguiDown =
+			ImGui::IsKeyDown(ImGuiKey_Tab) && ImGui::IsKeyDown(ImGuiKey_Escape);
 
-		return directInputPressed || imguiPressed;
+		const bool shortcutDown = directInputDown || imguiDown;
+
+		// 同時押しに入った瞬間だけ反応させる。押しっぱなしの間は再トグルしない。
+		static bool wasShortcutDown = false;
+		const bool triggered = shortcutDown && !wasShortcutDown;
+		wasShortcutDown = shortcutDown;
+		return triggered;
 	}
 }
 
@@ -509,7 +513,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 
 	// フレーム開始
 	imguiManager_.Begin();
-	if (!layoutState_.hidePanels && IsHidePanelsShortcutPressed()) {
+	if (!layoutState_.hidePanels && IsHidePanelsShortcutTriggered()) {
 
 		// 通常表示中でもMenuBarのショートカット表記通りTab+EscでHidePanelsへ入る
 		layoutState_.hidePanels = true;
@@ -518,7 +522,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	if (layoutState_.hidePanels) {
 
 		// HidePanels中はエディター機能を止め、Tab+Escの復帰入力だけを受け付ける
-		if (IsHidePanelsShortcutPressed()) {
+		if (IsHidePanelsShortcutTriggered()) {
 			layoutState_.hidePanels = false;
 		} else {
 			return;
