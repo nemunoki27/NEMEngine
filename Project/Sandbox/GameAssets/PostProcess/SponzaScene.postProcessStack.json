@@ -1,41 +1,4 @@
 {
-    "passes": [
-        {
-            "enabled": true,
-            "id": "ab2348edbce47773",
-            "materialGuid": "2b6d52a226f650bc",
-            "materialPathCache": "Engine/Assets/Materials/Builtin/PostProcess/BlurVertical/blurVertical.material.json",
-            "name": "blurVertical",
-            "parameters": {
-                "radius": 6.139999866485596
-            },
-            "passName": "PostProcess",
-            "textures": {}
-        },
-        {
-            "enabled": true,
-            "id": "85a1fb1fac318d5f",
-            "materialGuid": "c3c807506f33dd58",
-            "materialPathCache": "Engine/Assets/Materials/Builtin/PostProcess/BlurHorizontal/blurHorizontal.material.json",
-            "name": "blurHorizontal",
-            "parameters": {
-                "radius": 16.740001678466797
-            },
-            "passName": "PostProcess",
-            "textures": {}
-        },
-        {
-            "enabled": true,
-            "id": "59cdc02b1920fb35",
-            "materialGuid": "8ffdb538d410ab47",
-            "materialPathCache": "Engine/Assets/Materials/Builtin/PostProcess/Grayscale/grayscale.material.json",
-            "name": "grayscale",
-            "parameters": {
-                "strength": 0.4399999976158142
-            },
-            "passName": "PostProcess",
-            "textures": {}
-        }
-    ],
+    "passes": [],
     "version": 1
 }

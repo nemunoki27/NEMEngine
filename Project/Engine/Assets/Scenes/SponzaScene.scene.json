@@ -4,7 +4,158 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 10
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Entity"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "6715a95b67624703",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SpotLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "cosAngle": 0.8199999928474426,
+                    "cosFalloffStart": 0.8799999952316284,
+                    "decay": 0.4699999988079071,
+                    "direction": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    "distance": 34.040000915527344,
+                    "enabled": true,
+                    "intensity": 10.279999732971191
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": -1.4959542751312256,
+                        "y": 20.492389678955078,
+                        "z": -7.938107490539551
+                    },
+                    "localRotation": {
+                        "w": 0.7347518801689148,
+                        "x": 0.6712387800216675,
+                        "y": 0.01929730363190174,
+                        "z": 0.09594696760177612
+                    },
+                    "localScale": {
+                        "x": 0.9999983906745911,
+                        "y": 1.0000001192092896,
+                        "z": 1.0000001192092896
+                    }
+                }
+            },
+            "LocalFileID": "6715a95b67624703"
+        },
+        {
+            "Components": {
+                "DirectionalLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "direction": {
+                        "x": 0.6089558005332947,
+                        "y": -0.7739518880844116,
+                        "z": 0.17369915544986725
+                    },
+                    "enabled": true,
+                    "intensity": 32.0
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "DirectionalLight"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "bcbf17e42df02862",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "bcbf17e42df02862"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 3
+                },
+                "Name": {
+                    "name": "Camera3D"
+                },
+                "PerspectiveCamera": {
+                    "cullingMask": -1,
+                    "editorFrustumScale": 0.0020000000949949026,
+                    "enabled": true,
+                    "farClip": 4000.0,
+                    "fovY": 60.0,
+                    "isMain": true,
+                    "nearClip": 0.009999999776482582,
+                    "priority": 0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "daa4966cef6bc35a",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": -53.08286666870117,
+                        "y": 43.522361755371094,
+                        "z": -10.588932037353516
+                    },
+                    "localRotation": {
+                        "w": 0.7178441882133484,
+                        "x": 0.12686598300933838,
+                        "y": 0.6741005778312683,
+                        "z": -0.11913508921861649
+                    },
+                    "localScale": {
+                        "x": 1.0000015497207642,
+                        "y": 1.000000238418579,
+                        "z": 1.000000238418579
+                    }
+                }
+            },
+            "LocalFileID": "daa4966cef6bc35a"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 4
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -21276,161 +21427,30 @@
                     "siblingOrder": 0
                 },
                 "Name": {
-                    "name": "Camera3D"
-                },
-                "PerspectiveCamera": {
-                    "cullingMask": -1,
-                    "editorFrustumScale": 0.0020000000949949026,
-                    "enabled": true,
-                    "farClip": 4000.0,
-                    "fovY": 60.0,
-                    "isMain": true,
-                    "nearClip": 0.009999999776482582,
-                    "priority": 0
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileID": "daa4966cef6bc35a",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "localPos": {
-                        "x": -7.084524631500244,
-                        "y": 38.429561614990234,
-                        "z": -7.694968223571777
-                    },
-                    "localRotation": {
-                        "w": 0.7178441882133484,
-                        "x": 0.12686598300933838,
-                        "y": 0.6741005778312683,
-                        "z": -0.11913508921861649
-                    },
-                    "localScale": {
-                        "x": 1.0000015497207642,
-                        "y": 1.000000238418579,
-                        "z": 1.000000238418579
-                    }
-                }
-            },
-            "LocalFileID": "daa4966cef6bc35a"
-        },
-        {
-            "Components": {
-                "DirectionalLight": {
-                    "affectLayerMask": 4294967295,
-                    "color": {
-                        "a": 1.0,
-                        "b": 0.3046412467956543,
-                        "g": 0.3046412467956543,
-                        "r": 0.8502674102783203
-                    },
-                    "direction": {
-                        "x": 0.6089558005332947,
-                        "y": -0.7739518880844116,
-                        "z": 0.17369915544986725
-                    },
-                    "enabled": true,
-                    "intensity": 64.0
-                },
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 0
-                },
-                "Name": {
-                    "name": "DirectionalLight"
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileID": "bcbf17e42df02862",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "bcbf17e42df02862"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 0
-                },
-                "Name": {
-                    "name": "PointLightGroup"
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileID": "5f8ea3618fe8261b",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "localPos": {
-                        "x": 0.0,
-                        "y": 3.1123085021972656,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "5f8ea3618fe8261b"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "5f8ea3618fe8261b",
-                    "siblingOrder": 0
-                },
-                "Name": {
-                    "name": "PointLight"
+                    "name": "Entity"
                 },
                 "PointLight": {
                     "affectLayerMask": 4294967295,
                     "color": {
                         "a": 1.0,
-                        "b": 0.46571990847587585,
-                        "g": 0.866310179233551,
-                        "r": 0.15287820994853973
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
                     },
                     "decay": 1.0,
                     "enabled": true,
-                    "intensity": 16.0,
-                    "radius": 16.0
+                    "intensity": 21.459999084472656,
+                    "radius": 21.43000030517578
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "a16bf3f68bff72c9",
+                    "localFileID": "b1f4e35e82699139",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
+                        "x": -28.197696685791016,
+                        "y": 0.4277303218841553,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -21446,7 +21466,7 @@
                     }
                 }
             },
-            "LocalFileID": "a16bf3f68bff72c9"
+            "LocalFileID": "b1f4e35e82699139"
         }
     ],
     "Header": {

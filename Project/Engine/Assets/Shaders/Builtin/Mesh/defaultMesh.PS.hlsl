@@ -170,17 +170,20 @@ uint ComputeTileIndex(float4 svPosition) {
 	return tileCoord.y * safeTileCountX + tileCoord.x;
 }
 
-// 距離減衰 (逆二乗則 + スムースウィンドウ)
-float ComputeDistanceAttenuation(float dist, float range) {
+float ComputeDistanceAttenuation(float dist, float range, float decay) {
 
-	if (range <= 1e-5f || dist >= range) {
+	if (range <= 0.0001f || dist >= range) {
 		return 0.0f;
 	}
-	float distSqr = max(dist * dist, 0.0001f);
-	float rangeSqr = range * range;
-	float factor = distSqr / rangeSqr;
-	float window = saturate(1.0f - factor * factor);
-	return (window * window) / distSqr;
+
+	float x = saturate(dist / range);
+	float smooth = 1.0f - x * x;
+	smooth *= smooth;
+
+	float d = max(decay, 0.0f);
+	float distanceFalloff = 1.0f / max(pow(max(dist, 1.0f), d), 1.0f);
+
+	return smooth * distanceFalloff;
 }
 
 // ワールド法線の計算(法線マップを考慮)
@@ -245,7 +248,7 @@ float3 EvaluatePBRPointLight(PointLight light, float3 worldPos, float3 N, float3
 		return 0.0f.xxx;
 	}
 
-	float attenuation = ComputeDistanceAttenuation(dist, light.radius);
+	float attenuation = ComputeDistanceAttenuation(dist, light.radius, light.decay);
 	if (attenuation <= 0.0f) {
 		return 0.0f.xxx;
 	}
@@ -283,7 +286,7 @@ float3 EvaluatePBRSpotLight(SpotLight light, float3 worldPos, float3 N, float3 V
 		return 0.0f.xxx;
 	}
 
-	float distanceAttenuation = ComputeDistanceAttenuation(dist, light.distance);
+	float distanceAttenuation = ComputeDistanceAttenuation(dist, light.distance, light.decay);
 	if (distanceAttenuation <= 0.0f) {
 		return 0.0f.xxx;
 	}
