@@ -10,7 +10,7 @@
                 "intensity": 0.3700000047683716,
                 "radius": 12,
                 "sigma": 64.0,
-                "threshold": 0.550000011920929
+                "threshold": 0.0
             },
             "passName": "PostProcess",
             "textures": {}
