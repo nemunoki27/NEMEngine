@@ -1,0 +1,13 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "invertPipeline",
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/Invert/invert.CS.hlsl",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "Engine/Assets/Shaders/Builtin/PostProcess/Invert/invert.shader.json"
+        }
+    ]
+}

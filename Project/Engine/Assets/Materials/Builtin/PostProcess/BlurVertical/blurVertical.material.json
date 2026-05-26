@@ -1,0 +1,17 @@
+{
+    "domain": "Compute",
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "blurVerticalMaterial",
+    "parameters": {
+        "radius": 1.0
+    },
+    "passes": [
+        {
+            "passName": "PostProcess",
+            "pipeline": "Engine/Assets/Pipelines/Builtin/PostProcess/BlurVertical/blurVertical.pipeline.json",
+            "preferredVariant": "Compute"
+        }
+    ],
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/BlurVertical/blurVertical.CS.hlsl"
+}

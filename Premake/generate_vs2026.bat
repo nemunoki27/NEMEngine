@@ -12,6 +12,7 @@ if errorlevel 1 (
 )
 
 echo ===== Cleanup Old Project Files =====
+if exist "%ENGINE_ROOT%\Project\NEMEngine.sln" del /q "%ENGINE_ROOT%\Project\NEMEngine.sln"
 if exist "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj" del /q "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj"
 if exist "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.filters" del /q "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.filters"
 if exist "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.user" del /q "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.user"
@@ -21,13 +22,13 @@ if exist "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj.filters" del /q "%ENGINE
 if exist "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj.user" del /q "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj.user"
 
 echo ===== Generate Start =====
-premake5.exe --file="%~dp0premake5.lua" vs2026 > premake_error.log 2>&1
+"%~dp0premake5.exe" --file="%~dp0premake5.lua" vs2026 > "%~dp0premake_error.log" 2>&1
 set "PREMAKE_RC=%ERRORLEVEL%"
 
-type premake_error.log
+type "%~dp0premake_error.log"
 echo.
 
-findstr /c:"Error:" premake_error.log >nul
+findstr /c:"Error:" "%~dp0premake_error.log" >nul
 set "FINDSTR_RC=%ERRORLEVEL%"
 
 if not "%PREMAKE_RC%"=="0" (

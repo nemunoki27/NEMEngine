@@ -1,0 +1,39 @@
+#pragma once
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
+#include <Engine/Core/World/ECS/Entity/Entity.h>
+#include <Engine/Core/Foundation/Identity/UUID.h>
+
+// c++
+#include <cstdint>
+
+namespace Engine {
+
+	//============================================================================
+	//	HierarchyComponent struct
+	//============================================================================
+
+	// 名前
+	struct HierarchyComponent {
+
+		// シリアライズ用
+		UUID parentLocalFileID{};
+		int32_t siblingOrder = 0;
+
+		// ランタイム実行用
+		Entity parent = Entity::Null();
+		Entity firstChild = Entity::Null();
+		Entity lastChild = Entity::Null();
+		Entity nextSibling = Entity::Null();
+		Entity prevSibling = Entity::Null();
+	};
+
+	// json変換
+	void from_json(const nlohmann::json& in, HierarchyComponent& component);
+	void to_json(nlohmann::json& out, const HierarchyComponent& component);
+
+	ENGINE_REGISTER_COMPONENT(HierarchyComponent, "Hierarchy");
+} // Engine

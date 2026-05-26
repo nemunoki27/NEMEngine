@@ -1,0 +1,348 @@
+#include "BehaviorSystem.h"
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
+
+//============================================================================
+//	BehaviorSystem classMethods
+//============================================================================
+
+Engine::BehaviorSystem* Engine::BehaviorSystem::activeSystem_ = nullptr;
+
+namespace {
+
+	// タイプ名からビヘイビアの型IDを取得する
+	bool TryResolveTypeID(Engine::ScriptEntry& entry, uint32_t& outTypeID) {
+
+		if (entry.type.empty()) {
+			entry.resolvedType.clear();
+			entry.resolvedTypeValid = false;
+			return false;
+		}
+
+		if (entry.resolvedTypeValid && entry.resolvedType == entry.type) {
+			outTypeID = entry.resolvedTypeID;
+			return true;
+		}
+
+		const auto* info = Engine::BehaviorTypeRegistry::GetInstance().FindByName(entry.type);
+		if (!info) {
+			// 旧データでは名前空間なしの型名だけを持っていることがあるため、単純名でも一度だけ解決する。
+			info = Engine::BehaviorTypeRegistry::GetInstance().FindManagedBySimpleName(entry.type);
+		}
+		if (!info) {
+			if (entry.resolvedType != entry.type) {
+				Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
+					"BehaviorSystem: script type was not resolved. type={}", entry.type);
+			}
+			entry.resolvedType = entry.type;
+			entry.resolvedTypeValid = false;
+			return false;
+		}
+
+		entry.type = info->name;
+		entry.resolvedType = entry.type;
+		entry.resolvedTypeID = info->id;
+		entry.resolvedTypeValid = true;
+		outTypeID = info->id;
+		return true;
+	}
+}
+
+void Engine::BehaviorSystem::OnWorldEnter(ECSWorld& world, SystemContext& context) {
+
+	activeSystem_ = this;
+	// ワールドをアクティブにする
+	EnsureActiveWorld(world, context);
+
+	// プレイモードでワールドに入ったときは、スクリプトのビヘイビアの実体化と初期化を行う
+	if (context.mode == WorldMode::Play) {
+
+		Prepare(world, context, false);
+	}
+}
+
+void Engine::BehaviorSystem::OnWorldExit(ECSWorld& world, SystemContext& context) {
+
+	// ワールドがアクティブでないなら何もしない
+	if (activeWorld_ != &world) {
+		return;
+	}
+	// ワールドを破棄する
+	runtime_.DestroyAll(world, context);
+	activeWorld_ = nullptr;
+	if (activeSystem_ == this) {
+		activeSystem_ = nullptr;
+	}
+}
+
+void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context) {
+
+	// プレイモード以外は処理しない
+	if (context.mode != WorldMode::Play) {
+		return;
+	}
+
+	// 処理前準備
+	Prepare(world, context, false);
+
+	runtime_.ForEachAlive([&](BehaviorRecord& record) {
+
+		// 無効なインスタンスは処理しない
+		if (!record.enabled || !record.instance) {
+			return;
+		}
+		record.instance->FixedUpdate(world, context, record.owner);
+		});
+}
+
+void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
+
+	// プレイモード以外は処理しない
+	if (context.mode != WorldMode::Play) {
+		return;
+	}
+
+	// 処理前準備
+	Prepare(world, context, true);
+
+	runtime_.ForEachAlive([&](BehaviorRecord& record) {
+
+		// 無効なインスタンスは処理しない
+		if (!record.enabled || !record.instance) {
+			return;
+		}
+		record.instance->Update(world, context, record.owner);
+		});
+}
+
+void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
+
+	// プレイモード以外は処理しない
+	if (context.mode != WorldMode::Play) {
+		return;
+	}
+
+	// 処理前準備
+	Prepare(world, context, false);
+
+	runtime_.ForEachAlive([&](BehaviorRecord& record) {
+
+		// 無効なインスタンスは処理しない
+		if (!record.enabled || !record.instance) {
+			return;
+		}
+		record.instance->LateUpdate(world, context, record.owner);
+		});
+}
+
+void Engine::BehaviorSystem::DispatchCollisionEnter(ECSWorld& world,
+	SystemContext& context, const CollisionContact& collision) {
+
+	// アクティブなBehaviorSystemへ衝突開始を渡す
+	if (activeSystem_) {
+		activeSystem_->DispatchCollision(world, context, collision, 0);
+	}
+}
+
+void Engine::BehaviorSystem::DispatchCollisionStay(ECSWorld& world,
+	SystemContext& context, const CollisionContact& collision) {
+
+	// アクティブなBehaviorSystemへ衝突継続を渡す
+	if (activeSystem_) {
+		activeSystem_->DispatchCollision(world, context, collision, 1);
+	}
+}
+
+void Engine::BehaviorSystem::DispatchCollisionExit(ECSWorld& world,
+	SystemContext& context, const CollisionContact& collision) {
+
+	// アクティブなBehaviorSystemへ衝突終了を渡す
+	if (activeSystem_) {
+		activeSystem_->DispatchCollision(world, context, collision, 2);
+	}
+}
+
+void Engine::BehaviorSystem::EnsureActiveWorld(ECSWorld& world, SystemContext& context) {
+
+	// プレイ中でないときにアクティブにしない
+	if (context.mode != WorldMode::Play) {
+		activeWorld_ = nullptr;
+		return;
+	}
+	// すでにアクティブなワールドなら何もしない
+	if (activeWorld_ == &world) {
+		return;
+	}
+
+	// 前のワールドを破棄する
+	if (activeWorld_) {
+
+		runtime_.DestroyAll(*activeWorld_, context);
+	}
+
+	// 新しいワールドをアクティブにする
+	activeWorld_ = &world;
+	ResetRuntimeState(world);
+}
+
+void Engine::BehaviorSystem::ResetRuntimeState(ECSWorld& world) {
+
+	// スクリプトコンポーネントを持つ全てのエンティティに対して、スクリプトのビヘイビアの実体化と初期化を行う
+	world.ForEach<ScriptComponent>([&](Entity, ScriptComponent& component) {
+		for (auto& entry : component.scripts) {
+
+			entry.handle = BehaviorHandle::Null();
+			entry.resolvedType.clear();
+			entry.resolvedTypeID = 0;
+			entry.resolvedTypeValid = false;
+		}
+		});
+}
+
+void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bool doSweep) {
+
+	// ワールドを設定
+	EnsureActiveWorld(world, context);
+	// プレイモードでない、もしくはアクティブなワールドでないときは何もしない
+	if (context.mode != WorldMode::Play || activeWorld_ != &world) {
+		return;
+	}
+
+	// フラグリセット
+	runtime_.ClearSeenFlags();
+
+	// スクリプトコンポーネントを持つ全てのエンティティに対して、スクリプトのビヘイビアの実体化と初期化を行う
+	world.ForEach<ScriptComponent>([&](Entity entity, ScriptComponent& component) {
+		for (auto& entry : component.scripts) {
+
+			// タイプ名が空ならビヘイビアを破棄して無効にする
+			if (entry.type.empty()) {
+				if (entry.handle.IsValid()) {
+
+					runtime_.Destroy(entry.handle, world, context);
+					entry.handle = BehaviorHandle::Null();
+				}
+				continue;
+			}
+
+			uint32_t typeID = 0;
+			if (!TryResolveTypeID(entry, typeID)) {
+				if (entry.handle.IsValid()) {
+
+					runtime_.Destroy(entry.handle, world, context);
+					entry.handle = BehaviorHandle::Null();
+				}
+				continue;
+			}
+
+			// ハンドルが有効で、かつ生存しているならレコードを取得する
+			BehaviorRecord* record = nullptr;
+			if (runtime_.IsAlive(entry.handle)) {
+
+				record = runtime_.GetRecord(entry.handle);
+				// 無効の場合はハンドルを破棄して無効にする
+				if (!record || record->typeID != typeID || record->owner != entity) {
+
+					runtime_.Destroy(entry.handle, world, context);
+					entry.handle = BehaviorHandle::Null();
+					record = nullptr;
+				}
+			}
+			// ハンドルが無効なら新しくビヘイビアを生成する
+			if (!record) {
+
+				entry.handle = runtime_.Create(typeID, entity);
+				record = runtime_.GetRecord(entry.handle);
+				// 生成に失敗している場合はハンドルを破棄して無効にする
+				if (!record || !record->instance) {
+					entry.handle = BehaviorHandle::Null();
+					continue;
+				}
+				record->instance->SetSerializedFields(entry.serializedFields);
+			} else {
+				// 既存インスタンスにはInspector側の[SerializeField]変更だけを反映する
+				record->instance->SetSerializedFields(entry.serializedFields);
+			}
+
+			// アクセスされたフラグを立てる
+			record->seen = true;
+
+			// 対象エンティティが階層内でアクティブか
+			bool shouldBeEnabled = entry.enabled && IsEntityActiveInHierarchy(world, entity);
+
+			//============================================================================
+			//	Awakeを実行
+			//	最初にアクセスされたときに1回だけ呼ばれる
+			//============================================================================
+			if (!record->awakeCalled) {
+
+				record->instance->Awake(world, context, entity);
+				record->awakeCalled = true;
+			}
+
+			//============================================================================
+			//	OnEnable/OnDisableを実行
+			//	フラグの状態に応じて呼ばれる
+			//============================================================================
+			if (shouldBeEnabled && !record->enabled) {
+
+				record->instance->OnEnable(world, context, entity);
+				record->enabled = true;
+			}
+			if (!shouldBeEnabled && record->enabled) {
+
+				record->instance->OnDisable(world, context, entity);
+				record->enabled = false;
+			}
+
+			//============================================================================
+			//	Startを実行
+			//	初期化が完了して、最初に有効になったときに1回だけ呼ばれる
+			//============================================================================
+			if (record->enabled && record->awakeCalled && !record->startCalled) {
+
+				record->instance->Start(world, context, entity);
+				record->startCalled = true;
+			}
+		}
+		});
+	// 更新時、参照されなくなったビヘイビアをワールドから破棄する
+	if (doSweep) {
+
+		runtime_.SweepUnseen(world, context);
+	}
+}
+
+void Engine::BehaviorSystem::DispatchCollision(ECSWorld& world,
+	SystemContext& context, const CollisionContact& collision, int32_t phase) {
+
+	if (context.mode != WorldMode::Play || activeWorld_ != &world) {
+		return;
+	}
+
+	// Contactのselfに一致するEntityのビヘイビアだけへ通知する
+	runtime_.ForEachAliveByOwner(collision.self, [&](BehaviorRecord& record) {
+
+		if (!record.enabled || !record.instance) {
+			return;
+		}
+		switch (phase) {
+		case 0:
+			record.instance->OnCollisionEnter(world, context, collision);
+			break;
+		case 1:
+			record.instance->OnCollisionStay(world, context, collision);
+			break;
+		case 2:
+			record.instance->OnCollisionExit(world, context, collision);
+			break;
+		default:
+			break;
+		}
+		});
+}

@@ -1,7 +1,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Framework.h>
+#include <Engine/Core/Runtime/Framework/EngineFramework.h>
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 

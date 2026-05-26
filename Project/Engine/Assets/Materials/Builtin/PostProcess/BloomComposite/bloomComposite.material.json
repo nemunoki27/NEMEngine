@@ -1,0 +1,17 @@
+{
+    "domain": "Compute",
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "bloomCompositeMaterial",
+    "parameters": {
+        "intensity": 0.75
+    },
+    "passes": [
+        {
+            "passName": "PostProcess",
+            "pipeline": "Engine/Assets/Pipelines/Builtin/PostProcess/BloomComposite/bloomComposite.pipeline.json",
+            "preferredVariant": "Compute"
+        }
+    ],
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/BloomComposite/bloomComposite.CS.hlsl"
+}

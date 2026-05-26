@@ -1,0 +1,17 @@
+{
+    "domain": "Compute",
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "blurHorizontalMaterial",
+    "parameters": {
+        "radius": 1.0
+    },
+    "passes": [
+        {
+            "passName": "PostProcess",
+            "pipeline": "Engine/Assets/Pipelines/Builtin/PostProcess/BlurHorizontal/blurHorizontal.pipeline.json",
+            "preferredVariant": "Compute"
+        }
+    ],
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/BlurHorizontal/blurHorizontal.CS.hlsl"
+}

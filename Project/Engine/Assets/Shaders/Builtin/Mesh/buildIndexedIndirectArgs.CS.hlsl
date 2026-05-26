@@ -20,6 +20,8 @@ cbuffer ViewConstants : register(b1) {
 	float2 cullingViewSize;
 	float2 cullingProjectionScale;
 	float2 _viewPad0;
+	float3 renderCameraPos;
+	float _viewPad1;
 };
 cbuffer MeshDrawConstants : register(b2) {
 
@@ -39,14 +41,20 @@ cbuffer MeshDrawConstants : register(b2) {
 struct SubMeshShaderData {
 
 	uint baseColorTextureIndex;
-	float _pad0;
-	float _pad1;
-	float _pad2;
+	uint normalTextureIndex;
+	uint metallicRoughnessTextureIndex;
+	uint emissiveTextureIndex;
+
+	uint occlusionTextureIndex;
+	uint specularTextureIndex;
+	float metallic;
+	float roughness;
 
 	float4x4 localMatrix;
 
 	float4 importedBaseColor;
 	float4 color;
+	float4 emissiveColor;
 	float4x4 uvMatrix;
 };
 struct MeshInstance {

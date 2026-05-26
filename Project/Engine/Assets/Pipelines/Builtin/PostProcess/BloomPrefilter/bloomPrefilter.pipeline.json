@@ -1,0 +1,13 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "bloomPrefilterPipeline",
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/BloomPrefilter/bloomPrefilter.CS.hlsl",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "Engine/Assets/Shaders/Builtin/PostProcess/BloomPrefilter/bloomPrefilter.shader.json"
+        }
+    ]
+}

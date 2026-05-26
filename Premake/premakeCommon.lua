@@ -76,13 +76,16 @@ function NEM_AddEngineIncludeSettings()
         path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/include"),
         path.join(NEM_PROJECT_ROOT, "Externals/DirectXTex"),
         path.join(NEM_PROJECT_ROOT, "Externals/imgui"),
+        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor"),
         path.join(NEM_PROJECT_ROOT, "Externals/nlohmann"),
+        path.join(NEM_PROJECT_ROOT, "Externals/libcurl/include"),
     }
 
     defines {
         '_PROFILE="$(Configuration)"',
         "NOMINMAX",
         "IMGUI_DEFINE_MATH_OPERATORS",
+        "CURL_STATICLIB",
     }
 end
 
@@ -95,9 +98,16 @@ function NEM_AddEngineRuntimeLinkSettings()
     links {
         "NEMEngine",
         "imgui",
+        "imgui_node_editor",
         "DirectXTex",
         "assimp",
         "meshoptimizer",
+        "libcurl",
+        "ws2_32",
+        "crypt32",
+        "secur32",
+        "advapi32",
+        "iphlpapi",
     }
 
     linkoptions {

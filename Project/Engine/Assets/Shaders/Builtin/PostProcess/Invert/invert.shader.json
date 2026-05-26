@@ -1,0 +1,14 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "invertShader",
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/Invert/invert.CS.hlsl",
+    "stages": [
+        {
+            "entry": "main",
+            "file": "Builtin/PostProcess/Invert/invert.CS.hlsl",
+            "profile": "cs_6_0",
+            "stage": "CS"
+        }
+    ]
+}

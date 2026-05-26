@@ -44,6 +44,7 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, in 
 		output.position = mul(worldPos, viewProjection);
 		output.worldPos = worldPos.xyz;
 		output.normal = normalize(mul(vertex.normal, (float3x3) gMeshletWorldMatrix));
+		output.tangent = normalize(mul(vertex.tangent, (float3x3) gMeshletWorldMatrix));
 		output.uv = vertex.uv;
 		output.instanceID = instanceIndex;
 		output.subMeshIndex = localSubMeshIndex;

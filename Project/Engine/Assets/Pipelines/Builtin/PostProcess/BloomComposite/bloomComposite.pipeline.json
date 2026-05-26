@@ -1,0 +1,13 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "bloomCompositePipeline",
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/BloomComposite/bloomComposite.CS.hlsl",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "Engine/Assets/Shaders/Builtin/PostProcess/BloomComposite/bloomComposite.shader.json"
+        }
+    ]
+}

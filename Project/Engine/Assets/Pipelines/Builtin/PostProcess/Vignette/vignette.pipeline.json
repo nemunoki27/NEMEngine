@@ -1,0 +1,13 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "vignettePipeline",
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/Vignette/vignette.CS.hlsl",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "Engine/Assets/Shaders/Builtin/PostProcess/Vignette/vignette.shader.json"
+        }
+    ]
+}

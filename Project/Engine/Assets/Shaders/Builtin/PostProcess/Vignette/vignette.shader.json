@@ -1,0 +1,14 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "vignetteShader",
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/Vignette/vignette.CS.hlsl",
+    "stages": [
+        {
+            "entry": "main",
+            "file": "Builtin/PostProcess/Vignette/vignette.CS.hlsl",
+            "profile": "cs_6_0",
+            "stage": "CS"
+        }
+    ]
+}

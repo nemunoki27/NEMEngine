@@ -1,0 +1,71 @@
+#pragma once
+
+//============================================================================
+//	include
+//============================================================================
+// c++
+#include <string>
+#include <string_view>
+
+namespace Engine {
+
+	// front
+	class GraphicsCore;
+	class MultiRenderTarget;
+	class PipelineStateCache;
+	class PostProcessAssetGenerator;
+	class PostProcessExecutor;
+	class PostProcessTemporaryTargetPool;
+	class RenderAssetLibrary;
+	struct SceneExecutionContext;
+
+	//============================================================================
+	//	PostProcessDebugInjector structures
+	//============================================================================
+
+	// デバッグポストプロセス実行設定
+	struct PostProcessDebugInjectSettings {
+
+		bool enabled = false;
+		std::string materialName = "Grayscale";
+		std::string sourceName = "SceneColorFinal";
+		std::string tempName = "PostProcessDebugTemp";
+	};
+
+	//============================================================================
+	//	PostProcessDebugInjector class
+	//	Blit直前へBuiltin PostProcessを一枚だけ挟む確認用の補助クラス
+	//============================================================================
+	class PostProcessDebugInjector {
+	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
+		PostProcessDebugInjector() = default;
+		~PostProcessDebugInjector() = default;
+
+		// Blit前に有効な場合だけPostProcessDebugTempへ描き、Blit元を差し替える
+		bool TryExecuteBeforeBlit(GraphicsCore& graphicsCore,
+			const SceneExecutionContext& context,
+			std::string_view sourceName, std::string_view destName,
+			RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache,
+			PostProcessExecutor& executor, PostProcessTemporaryTargetPool& targetPool,
+			const PostProcessAssetGenerator& assetGenerator, MultiRenderTarget*& inoutSource);
+
+		//--------- accessor -----------------------------------------------------
+
+		void SetEnabled(bool enabled) { settings_.enabled = enabled; }
+		bool IsEnabled() const { return settings_.enabled; }
+		void SetSettings(const PostProcessDebugInjectSettings& settings) { settings_ = settings; }
+		const PostProcessDebugInjectSettings& GetSettings() const { return settings_; }
+	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		PostProcessDebugInjectSettings settings_{};
+	};
+} // Engine

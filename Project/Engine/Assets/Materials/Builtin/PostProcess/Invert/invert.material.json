@@ -1,0 +1,17 @@
+{
+    "domain": "Compute",
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "invertMaterial",
+    "parameters": {
+        "strength": 1.0
+    },
+    "passes": [
+        {
+            "passName": "PostProcess",
+            "pipeline": "Engine/Assets/Pipelines/Builtin/PostProcess/Invert/invert.pipeline.json",
+            "preferredVariant": "Compute"
+        }
+    ],
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/Invert/invert.CS.hlsl"
+}

@@ -1,0 +1,43 @@
+#pragma once
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Foundation/Identity/UUID.h>
+
+// c++
+#include <string>
+
+namespace Engine {
+
+	// front
+	class AssetDatabase;
+	class SceneInstanceManager;
+
+	//============================================================================
+	//	EditorContext struct
+	//============================================================================
+
+	// エディタの現在の状態
+	struct EditorContext {
+
+		// 現在プレイモードかどうか
+		bool isPlaying = false;
+
+		// シーンのパス
+		std::string activeScenePath;
+		// シーンのヘッダ情報
+		const SceneHeader* activeSceneHeader = nullptr;
+		// 現在アクティブなシーンのランタイム情報
+		AssetID activeSceneAsset{};
+		UUID activeSceneInstanceID{};
+		SceneInstanceManager* sceneInstances = nullptr;
+		// ECSワールド
+		ECSWorld* activeWorld = nullptr;
+		// アセットデータベース
+		AssetDatabase* assetDatabase = nullptr;
+	};
+} // Engine

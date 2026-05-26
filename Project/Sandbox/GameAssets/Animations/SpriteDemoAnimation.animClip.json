@@ -1,757 +1,874 @@
 {
-    "autoDuration": true,
-    "curveTracks": [
+  "autoDuration": true,
+  "curveTracks": [
+    {
+      "applyMode": "Override",
+      "channels": [
         {
-            "applyMode": "Override",
-            "channels": [
-                {
-                    "defaultValue": 0.0,
-                    "keys": [
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.0,
-                            "value": -180.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.4960000216960907,
-                            "value": 180.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.0130000114440918,
-                            "value": -180.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.5130001306533813,
-                            "value": 180.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.998000144958496,
-                            "value": -180.0
-                        }
-                    ],
-                    "name": "Value"
-                }
-            ],
-            "component": "Transform",
-            "editorView": {
-                "timeMax": 2.5929999351501465,
-                "timeMin": 0.0,
-                "valueMax": 180.0,
-                "valueMin": -180.0
+          "defaultValue": 0.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": -180.0
             },
-            "property": "localRotationZ",
-            "quaternionMultiplyOrder": "BaseThenCurve",
-            "type": "Float",
-            "visible": true
-        },
-        {
-            "applyMode": "Override",
-            "channels": [
-                {
-                    "defaultValue": 957.5010375976563,
-                    "keys": [
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.0,
-                            "value": 0.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.5110000371932983,
-                            "value": 493.19732666015625
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.0099999904632568,
-                            "value": 391.15643310546875
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.5120000839233398,
-                            "value": 493.1972961425781
-                        }
-                    ],
-                    "name": "X"
-                },
-                {
-                    "defaultValue": 530.0009155273438,
-                    "keys": [
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.0,
-                            "value": 0.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.5010000467300415,
-                            "value": 799.3197021484375
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.999000072479248,
-                            "value": 0.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.5120000839233398,
-                            "value": 802.7210693359375
-                        }
-                    ],
-                    "name": "Y"
-                }
-            ],
-            "component": "Transform",
-            "editorView": {
-                "timeMax": 2.013000011444092,
-                "timeMin": 0.0,
-                "valueMax": 1000.0,
-                "valueMin": 0.0
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.4960000216960907,
+              "value": 180.0
             },
-            "property": "localPos2D",
-            "quaternionMultiplyOrder": "BaseThenCurve",
-            "type": "Vector2",
-            "visible": true
-        },
-        {
-            "applyMode": "Override",
-            "channels": [
-                {
-                    "defaultValue": 1.0,
-                    "keys": [
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.0,
-                            "value": 1.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.6880000233650208,
-                            "value": 1.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.3320000171661377,
-                            "value": 0.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.977000117301941,
-                            "value": 0.7374517321586609
-                        }
-                    ],
-                    "name": "R"
-                },
-                {
-                    "defaultValue": 1.0,
-                    "keys": [
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.0,
-                            "value": 1.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.6880000233650208,
-                            "value": 1.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.3320000171661377,
-                            "value": 0.7181466817855835
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.977000117301941,
-                            "value": 0.708297073841095
-                        }
-                    ],
-                    "name": "G"
-                },
-                {
-                    "defaultValue": 1.0,
-                    "keys": [
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.0,
-                            "value": 1.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.6880000233650208,
-                            "value": 1.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.3320000171661377,
-                            "value": 0.011091086082160473
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.977000117301941,
-                            "value": 0.1566017121076584
-                        }
-                    ],
-                    "name": "B"
-                },
-                {
-                    "defaultValue": 1.0,
-                    "keys": [
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.0,
-                            "value": 1.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.4880000352859497,
-                            "value": 0.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.0070000886917114,
-                            "value": 0.4931972920894623
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.5010000467300415,
-                            "value": 0.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 2.013000011444092,
-                            "value": 0.9965986013412476
-                        }
-                    ],
-                    "name": "A"
-                }
-            ],
-            "component": "SpriteRenderer",
-            "editorView": {
-                "timeMax": 2.1740400791168213,
-                "timeMin": 0.0,
-                "valueMax": 1.0,
-                "valueMin": 0.0
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.0080000162124634,
+              "value": -2.4489822387695313
             },
-            "property": "color",
-            "quaternionMultiplyOrder": "BaseThenCurve",
-            "type": "Color4",
-            "visible": true
-        },
-        {
-            "applyMode": "Override",
-            "channels": [
-                {
-                    "defaultValue": 8.0,
-                    "keys": [
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.0,
-                            "value": 1.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.4000000059604645,
-                            "value": 3.117500066757202
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.800000011920929,
-                            "value": 7.37000036239624
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.2000000476837158,
-                            "value": 6.40749979019165
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.600000023841858,
-                            "value": 7.579999923706055
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Spline",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 2.0,
-                            "value": 8.0
-                        }
-                    ],
-                    "name": "X"
-                },
-                {
-                    "defaultValue": 8.0,
-                    "keys": [
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.0,
-                            "value": 1.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.1818181872367859,
-                            "value": 1.9375
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.3636363744735718,
-                            "value": 4.75
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.5454545617103577,
-                            "value": 9.4375
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.7272727489471436,
-                            "value": 16.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 0.9090909361839294,
-                            "value": 13.1875
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.0909091234207153,
-                            "value": 12.25
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.2727272510528564,
-                            "value": 13.187499046325684
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.454545497894287,
-                            "value": 15.999999046325684
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.6363636255264282,
-                            "value": 15.0625
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 1.8181818723678589,
-                            "value": 16.0
-                        },
-                        {
-                            "inTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "interpolation": "Linear",
-                            "outTangent": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "time": 2.0,
-                            "value": 16.0
-                        }
-                    ],
-                    "name": "Y"
-                }
-            ],
-            "component": "Transform",
-            "editorView": {
-                "timeMax": 2.167512893676758,
-                "timeMin": 0.007512927055358887,
-                "valueMax": 16.0,
-                "valueMin": 0.0
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.5130001306533813,
+              "value": 180.0
             },
-            "property": "localScale2D",
-            "quaternionMultiplyOrder": "BaseThenCurve",
-            "type": "Vector2",
-            "visible": true
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.998000144958496,
+              "value": -180.0
+            }
+          ],
+          "name": "Value"
         }
-    ],
-    "duration": 2.013000011444092,
-    "eventTracks": [],
-    "guid": "8bad265d74842863",
-    "loop": true,
-    "loopBridge": {
-        "duration": 1.0,
-        "enabled": true,
-        "interpolation": "Spline"
+      ],
+      "component": "Transform",
+      "editorView": {
+        "timeMax": 2.1578402519226074,
+        "timeMin": 0.0,
+        "valueMax": 180.0,
+        "valueMin": -180.0
+      },
+      "property": "localRotationZ",
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Float",
+      "visible": true
     },
-    "name": "SpriteDemoAnimation"
+    {
+      "applyMode": "Override",
+      "channels": [
+        {
+          "defaultValue": 957.5010375976563,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.4830000102519989,
+              "value": 1000.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.00600004196167,
+              "value": 595.2381591796875
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.5160000324249268,
+              "value": 1000.0
+            }
+          ],
+          "name": "X"
+        },
+        {
+          "defaultValue": 530.0009155273438,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.4930000305175781,
+              "value": 795.9183959960938
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.9830000400543213,
+              "value": 391.156494140625
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.5120000839233398,
+              "value": 802.7210693359375
+            }
+          ],
+          "name": "Y"
+        }
+      ],
+      "component": "Transform",
+      "editorView": {
+        "timeMax": 2.013000011444092,
+        "timeMin": 0.0,
+        "valueMax": 1000.0,
+        "valueMin": 0.0
+      },
+      "property": "localPos2D",
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Vector2",
+      "visible": true
+    },
+    {
+      "applyMode": "Override",
+      "channels": [
+        {
+          "defaultValue": 1.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 1.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.2930000126361847,
+              "value": 1.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.5850000381469727,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.8240000605583191,
+              "value": 0.7374517321586609
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.9860000610351563,
+              "value": 0.08312337100505829
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.321000099182129,
+              "value": 0.6332046389579773
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.7230000495910645,
+              "value": 0.4034932553768158
+            }
+          ],
+          "name": "R"
+        },
+        {
+          "defaultValue": 1.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 1.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.2930000126361847,
+              "value": 1.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.5850000381469727,
+              "value": 0.7181466817855835
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.8240000605583191,
+              "value": 0.708297073841095
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.9860000610351563,
+              "value": 0.33373963832855225
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.321000099182129,
+              "value": 0.08312337100505829
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.7230000495910645,
+              "value": 0.5675675868988037
+            }
+          ],
+          "name": "G"
+        },
+        {
+          "defaultValue": 1.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 1.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.2930000126361847,
+              "value": 1.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.5850000381469727,
+              "value": 0.011091086082160473
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.8240000605583191,
+              "value": 0.1566017121076584
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.9860000610351563,
+              "value": 0.6332046389579773
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.321000099182129,
+              "value": 0.33798742294311523
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.7230000495910645,
+              "value": 0.1468224972486496
+            }
+          ],
+          "name": "B"
+        },
+        {
+          "defaultValue": 1.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 1.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.4830000102519989,
+              "value": 0.8095238208770752
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.0070000886917114,
+              "value": 0.4931972920894623
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.5130001306533813,
+              "value": 0.7993197441101074
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 2.013000011444092,
+              "value": 0.9965986013412476
+            }
+          ],
+          "name": "A"
+        }
+      ],
+      "component": "SpriteRenderer",
+      "editorView": {
+        "timeMax": 2.1740400791168213,
+        "timeMin": 0.0,
+        "valueMax": 1.0,
+        "valueMin": 0.0
+      },
+      "property": "color",
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Color4",
+      "visible": true
+    },
+    {
+      "applyMode": "Override",
+      "channels": [
+        {
+          "defaultValue": 8.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.004000000189989805,
+              "value": 16.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.4000000059604645,
+              "value": 3.117500066757202
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.7510000467300415,
+              "value": 5.061224460601807
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.1390000581741333,
+              "value": 14.51634407043457
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.5470000505447388,
+              "value": 3.7160534858703613
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.9950001239776611,
+              "value": 8.761903762817383
+            }
+          ],
+          "name": "X"
+        },
+        {
+          "defaultValue": 8.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 16.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.2070000171661377,
+              "value": 9.393281936645508
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.42900002002716064,
+              "value": 14.437074661254883
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.5450000166893005,
+              "value": 2.0361392498016357
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.6680000424385071,
+              "value": 13.768707275390625
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.9090909361839294,
+              "value": 13.1875
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.0909091234207153,
+              "value": 12.25
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.2727272510528564,
+              "value": 13.187499046325684
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.5490000247955322,
+              "value": 13.333333015441895
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.6760001182556152,
+              "value": 9.021683692932129
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.8580000400543213,
+              "value": 13.986394882202148
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 2.06000018119812,
+              "value": 10.884354591369629
+            }
+          ],
+          "name": "Y"
+        }
+      ],
+      "component": "Transform",
+      "editorView": {
+        "timeMax": 2.1600000858306885,
+        "timeMin": 0.0,
+        "valueMax": 16.0,
+        "valueMin": 0.0
+      },
+      "property": "localScale2D",
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Vector2",
+      "visible": true
+    }
+  ],
+  "duration": 2.06000018119812,
+  "eventTracks": [],
+  "guid": "8bad265d74842863",
+  "loop": true,
+  "loopBridge": {
+    "duration": 1.0,
+    "enabled": true,
+    "interpolation": "Spline"
+  },
+  "name": "SpriteDemoAnimation"
 }

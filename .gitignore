@@ -17,6 +17,7 @@ Generated/
 [Rr]elease/
 x64/
 x86/
+Project/Externals/libcurl/build-*/
 
 # Local config
 *.ini

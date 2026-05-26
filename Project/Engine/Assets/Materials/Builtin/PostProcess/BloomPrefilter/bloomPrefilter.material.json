@@ -1,0 +1,19 @@
+{
+    "domain": "Compute",
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "bloomPrefilterMaterial",
+    "parameters": {
+        "intensity": 1.0,
+        "knee": 0.5,
+        "threshold": 1.0
+    },
+    "passes": [
+        {
+            "passName": "PostProcess",
+            "pipeline": "Engine/Assets/Pipelines/Builtin/PostProcess/BloomPrefilter/bloomPrefilter.pipeline.json",
+            "preferredVariant": "Compute"
+        }
+    ],
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/BloomPrefilter/bloomPrefilter.CS.hlsl"
+}

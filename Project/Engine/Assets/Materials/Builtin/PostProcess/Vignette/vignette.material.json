@@ -1,0 +1,19 @@
+{
+    "domain": "Compute",
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "vignetteMaterial",
+    "parameters": {
+        "intensity": 0.44999998807907104,
+        "radius": 0.75,
+        "softness": 0.3499999940395355
+    },
+    "passes": [
+        {
+            "passName": "PostProcess",
+            "pipeline": "Engine/Assets/Pipelines/Builtin/PostProcess/Vignette/vignette.pipeline.json",
+            "preferredVariant": "Compute"
+        }
+    ],
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/Vignette/vignette.CS.hlsl"
+}
