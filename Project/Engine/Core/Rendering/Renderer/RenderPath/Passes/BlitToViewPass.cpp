@@ -3,12 +3,12 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
-#include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessDebugInjector.h>
 
@@ -20,6 +20,9 @@
 //============================================================================
 
 namespace {
+
+	constexpr const char* kToneMapToViewMaterialPath =
+		"Engine/Assets/Materials/Builtin/ToneMapToView/toneMapToView.material.json";
 
 	bool BindColorTargetsOnly(Engine::GraphicsCore& graphicsCore, Engine::MultiRenderTarget* target) {
 
@@ -71,15 +74,14 @@ namespace {
 	bool ExecuteFullscreenBlit(Engine::GraphicsCore& graphicsCore,
 		const Engine::SceneExecutionContext& context,
 		Engine::MultiRenderTarget* source, Engine::MultiRenderTarget* dest,
-		Engine::RenderAssetLibrary& assetLibrary, Engine::PipelineStateCache& pipelineCache,
-		Engine::MaterialResolver& materialResolver) {
+		Engine::RenderAssetLibrary& assetLibrary, Engine::PipelineStateCache& pipelineCache) {
 
-		if (!source || !dest) {
+		if (!source || !dest || !context.assetDatabase) {
 			return false;
 		}
 
-		Engine::AssetID resolvedID = materialResolver.ResolveORDefault(
-			*context.assetDatabase, {}, Engine::DefaultMaterialSlot::FullscreenCopy);
+		Engine::AssetID resolvedID = context.assetDatabase->ImportOrGet(
+			kToneMapToViewMaterialPath, Engine::AssetType::Material);
 		const Engine::MaterialAsset* material = assetLibrary.LoadMaterial(resolvedID);
 		if (!material) {
 			return false;
@@ -119,6 +121,8 @@ namespace {
 			return false;
 		}
 
+		dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
+
 		commandList->SetGraphicsRootSignature(pipelineState->GetRootSignature());
 		commandList->SetPipelineState(pipelineState->GetGraphicsPipeline(Engine::BlendMode::Normal));
 
@@ -140,7 +144,7 @@ void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 
 	(void)passBuckets;
 	if (!context.resources || !context.defaultSurface ||
-		!deps_.assetLibrary || !deps_.pipelineCache || !deps_.materialResolver) {
+		!deps_.assetLibrary || !deps_.pipelineCache) {
 		return;
 	}
 
@@ -164,7 +168,7 @@ void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 	}
 
 	if (!ExecuteFullscreenBlit(graphicsCore, context, source, dest,
-		*deps_.assetLibrary, *deps_.pipelineCache, *deps_.materialResolver)) {
+		*deps_.assetLibrary, *deps_.pipelineCache)) {
 
 		CopyColor0Resource(graphicsCore, source, dest);
 	}

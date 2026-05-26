@@ -10,7 +10,7 @@ namespace Engine {
 
 	//============================================================================
 	//	BlitToViewPass class
-	//	SceneFinal をデフォルトサーフェスへ転送するパス
+	//	HDR SceneFinal をToneMapしてデフォルトサーフェスへ出力する最終表示パス
 	//============================================================================
 	class BlitToViewPass :
 		public IRenderPass {

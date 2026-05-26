@@ -48,10 +48,18 @@ namespace {
 	// ImGuiのレイアウト保存ファイルパス
 	constexpr const char* kEditorLayoutIniPath = "EditorLayout.ini";
 
-	bool IsHidePanelsRestoreShortcutPressed() {
+	bool IsHidePanelsShortcutPressed() {
 
 		Engine::Input* input = Engine::Input::GetInstance();
-		return input && (input->PushKey(DIK_TAB) && input->TriggerKey(DIK_ESCAPE));
+		const bool directInputPressed = input &&
+			((input->PushKey(DIK_TAB) && input->TriggerKey(DIK_ESCAPE)) ||
+				(input->PushKey(DIK_ESCAPE) && input->TriggerKey(DIK_TAB)));
+
+		const bool imguiPressed =
+			((ImGui::IsKeyDown(ImGuiKey_Tab) && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) ||
+				(ImGui::IsKeyDown(ImGuiKey_Escape) && ImGui::IsKeyPressed(ImGuiKey_Tab, false)));
+
+		return directInputPressed || imguiPressed;
 	}
 }
 
@@ -440,11 +448,6 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) {
 
 	ImGuiIO& io = ImGui::GetIO();
-	if (IsHidePanelsRestoreShortcutPressed()) {
-
-		layoutState_.hidePanels = false;
-		return;
-	}
 	if (io.WantTextInput) {
 		return;
 	}
@@ -506,10 +509,16 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 
 	// フレーム開始
 	imguiManager_.Begin();
+	if (!layoutState_.hidePanels && IsHidePanelsShortcutPressed()) {
+
+		// 通常表示中でもMenuBarのショートカット表記通りTab+EscでHidePanelsへ入る
+		layoutState_.hidePanels = true;
+		return;
+	}
 	if (layoutState_.hidePanels) {
 
 		// HidePanels中はエディター機能を止め、Tab+Escの復帰入力だけを受け付ける
-		if (IsHidePanelsRestoreShortcutPressed()) {
+		if (IsHidePanelsShortcutPressed()) {
 			layoutState_.hidePanels = false;
 		} else {
 			return;
