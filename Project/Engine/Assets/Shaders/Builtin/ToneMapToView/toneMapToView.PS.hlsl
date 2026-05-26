@@ -52,7 +52,7 @@ float4 main(VSOutput input) : SV_TARGET0 {
 
     float4 src = gTexture.Sample(gSampler, input.texcoord);
 
-    // HDR SceneColorはライティングやBloomにより1.0を超える値を持つ。
+    // HDR
     float3 hdrColor = max(src.rgb, 0.0f);
 
     // 露出
