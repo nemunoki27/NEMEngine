@@ -4,6 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <algorithm>
@@ -13,6 +16,8 @@
 //============================================================================
 
 namespace {
+
+	constexpr const char* kGraphicsFeatureConfigPath = "Config/graphicsFeatureSettings.exeConfig.json";
 
 	const char* ToLightCullingModeName(Engine::LightCullingMode mode) {
 
@@ -28,6 +33,12 @@ namespace {
 		default:
 			return "Unknown";
 		}
+	}
+
+	Engine::LightCullingMode LoadLightCullingMode(const nlohmann::json& data, Engine::LightCullingMode fallback) {
+
+		const std::string value = data.value("lightCullingMode", std::string(Engine::EnumAdapter<Engine::LightCullingMode>::ToString(fallback)));
+		return Engine::EnumAdapter<Engine::LightCullingMode>::FromString(value).value_or(fallback);
 	}
 }
 
@@ -45,10 +56,12 @@ void Engine::GraphicsFeatureController::ApplyDetectedSupport(
 
 		preferences_.allowInlineRayTracing = support_.SupportsRayTracingPath();
 		preferences_.allowDispatchRays = support_.SupportsRayTracingPath();
+		LoadPreferencesFromConfig();
 		initialized_ = true;
 	}
 	ClampPreferencesToSupport();
 	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
 	LogCurrentState();
 }
 
@@ -63,6 +76,7 @@ void Engine::GraphicsFeatureController::SetAllowMeshShader(bool enabled) {
 	// 設定を更新して、ランタイムの機能も再構築する
 	preferences_.allowMeshShader = clamped;
 	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
 
 	Logger::Output(LogType::Engine, "Mesh Shader path -> {}", runtimeFeatures_.useMeshShader ? "Enabled" : "Disabled");
 }
@@ -76,6 +90,7 @@ void Engine::GraphicsFeatureController::SetAllowInlineRayTracing(bool enabled) {
 
 	preferences_.allowInlineRayTracing = clamped;
 	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
 
 	Logger::Output(LogType::Engine, "Inline RayTracing path -> {}", runtimeFeatures_.useInlineRayTracing ? "Enabled" : "Disabled");
 }
@@ -89,6 +104,7 @@ void Engine::GraphicsFeatureController::SetAllowDispatchRays(bool enabled) {
 
 	preferences_.allowDispatchRays = clamped;
 	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
 
 	Logger::Output(LogType::Engine, "DispatchRays path -> {}", runtimeFeatures_.useDispatchRays ? "Enabled" : "Disabled");
 }
@@ -102,6 +118,7 @@ void Engine::GraphicsFeatureController::SetAllowFrustumCulling(bool enabled) {
 
 	preferences_.allowFrustumCulling = enabled;
 	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
 
 	Logger::Output(LogType::Engine, "Frustum Culling -> {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
 }
@@ -115,6 +132,7 @@ void Engine::GraphicsFeatureController::SetAllowLightCulling(bool enabled) {
 
 	preferences_.allowLightCulling = enabled;
 	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
 
 	Logger::Output(LogType::Engine, "Light Culling -> {}", runtimeFeatures_.useLightCulling ? "Enabled" : "Disabled");
 }
@@ -127,6 +145,7 @@ void Engine::GraphicsFeatureController::SetLightCullingMode(LightCullingMode mod
 
 	preferences_.lightCullingMode = mode;
 	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
 
 	Logger::Output(LogType::Engine, "Light Culling Mode -> {}", ToLightCullingModeName(runtimeFeatures_.lightCullingMode));
 }
@@ -140,6 +159,7 @@ void Engine::GraphicsFeatureController::SetAllowContributionCulling(bool enabled
 
 	preferences_.allowContributionCulling = enabled;
 	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
 
 	Logger::Output(LogType::Engine, "Contribution Culling -> {}", runtimeFeatures_.useContributionCulling ? "Enabled" : "Disabled");
 }
@@ -153,6 +173,7 @@ void Engine::GraphicsFeatureController::SetAllowNormalConeCulling(bool enabled) 
 
 	preferences_.allowNormalConeCulling = enabled;
 	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
 
 	Logger::Output(LogType::Engine, "Normal Cone Culling -> {}", runtimeFeatures_.useNormalConeCulling ? "Enabled" : "Disabled");
 }
@@ -209,4 +230,41 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 	Logger::Output(LogType::Engine, "Runtime Normal Cone Culling: {}", runtimeFeatures_.useNormalConeCulling ? "Enabled" : "Disabled");
 
 	Logger::EndSection(LogType::Engine);
+}
+
+void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
+
+	const std::filesystem::path path = RuntimePaths::GetEngineAssetPath(kGraphicsFeatureConfigPath);
+	if (!JsonAdapter::Check(path.string())) {
+		return;
+	}
+
+	const nlohmann::json data = JsonAdapter::Load(path.string());
+	if (!data.is_object()) {
+		return;
+	}
+
+	preferences_.allowMeshShader = data.value("allowMeshShader", preferences_.allowMeshShader);
+	preferences_.allowInlineRayTracing = data.value("allowInlineRayTracing", preferences_.allowInlineRayTracing);
+	preferences_.allowDispatchRays = data.value("allowDispatchRays", preferences_.allowDispatchRays);
+	preferences_.allowFrustumCulling = data.value("allowFrustumCulling", preferences_.allowFrustumCulling);
+	preferences_.allowLightCulling = data.value("allowLightCulling", preferences_.allowLightCulling);
+	preferences_.lightCullingMode = LoadLightCullingMode(data, preferences_.lightCullingMode);
+	preferences_.allowContributionCulling = data.value("allowContributionCulling", preferences_.allowContributionCulling);
+	preferences_.allowNormalConeCulling = data.value("allowNormalConeCulling", preferences_.allowNormalConeCulling);
+}
+
+void Engine::GraphicsFeatureController::SavePreferencesToConfig() const {
+
+	nlohmann::json data{};
+	data["allowMeshShader"] = preferences_.allowMeshShader;
+	data["allowInlineRayTracing"] = preferences_.allowInlineRayTracing;
+	data["allowDispatchRays"] = preferences_.allowDispatchRays;
+	data["allowFrustumCulling"] = preferences_.allowFrustumCulling;
+	data["allowLightCulling"] = preferences_.allowLightCulling;
+	data["lightCullingMode"] = EnumAdapter<LightCullingMode>::ToString(preferences_.lightCullingMode);
+	data["allowContributionCulling"] = preferences_.allowContributionCulling;
+	data["allowNormalConeCulling"] = preferences_.allowNormalConeCulling;
+
+	JsonAdapter::Save(RuntimePaths::GetEngineAssetPath(kGraphicsFeatureConfigPath).string(), data);
 }

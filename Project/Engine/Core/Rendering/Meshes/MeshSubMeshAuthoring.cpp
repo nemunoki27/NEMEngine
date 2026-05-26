@@ -163,14 +163,17 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 				current.sourcePivot = layout[i].sourcePivot;
 				updated = true;
 			}
-			// 未設定のテクスチャスロットにデフォルトを適用する
-			const auto& def = layout[i].defaultTextureAssets;
-			if (!current.baseColorTexture          && def.baseColorTexture)          { current.baseColorTexture          = def.baseColorTexture;          updated = true; }
-			if (!current.normalTexture             && def.normalTexture)             { current.normalTexture             = def.normalTexture;             updated = true; }
-			if (!current.metallicRoughnessTexture  && def.metallicRoughnessTexture)  { current.metallicRoughnessTexture  = def.metallicRoughnessTexture;  updated = true; }
-			if (!current.specularTexture           && def.specularTexture)           { current.specularTexture           = def.specularTexture;           updated = true; }
-			if (!current.emissiveTexture           && def.emissiveTexture)           { current.emissiveTexture           = def.emissiveTexture;           updated = true; }
-			if (!current.occlusionTexture          && def.occlusionTexture)          { current.occlusionTexture          = def.occlusionTexture;          updated = true; }
+			// preserveOverrides=trueのとき、空スロットもユーザーの明示的な削除として扱い上書きしない
+			if (!preserveOverrides) {
+
+				const auto& def = layout[i].defaultTextureAssets;
+				if (!current.baseColorTexture          && def.baseColorTexture)          { current.baseColorTexture          = def.baseColorTexture;          updated = true; }
+				if (!current.normalTexture             && def.normalTexture)             { current.normalTexture             = def.normalTexture;             updated = true; }
+				if (!current.metallicRoughnessTexture  && def.metallicRoughnessTexture)  { current.metallicRoughnessTexture  = def.metallicRoughnessTexture;  updated = true; }
+				if (!current.specularTexture           && def.specularTexture)           { current.specularTexture           = def.specularTexture;           updated = true; }
+				if (!current.emissiveTexture           && def.emissiveTexture)           { current.emissiveTexture           = def.emissiveTexture;           updated = true; }
+				if (!current.occlusionTexture          && def.occlusionTexture)          { current.occlusionTexture          = def.occlusionTexture;          updated = true; }
+			}
 		}
 		if (alreadyMatched) {
 			return updated;
@@ -218,14 +221,17 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 		if (0 <= reusableOldIndex) {
 			entry = oldSubMeshes[reusableOldIndex];
 			used[reusableOldIndex] = true;
-			// 未設定のテクスチャスロットにデフォルトを適用する
-			const auto& def = layout[i].defaultTextureAssets;
-			if (!entry.baseColorTexture          && def.baseColorTexture)          entry.baseColorTexture          = def.baseColorTexture;
-			if (!entry.normalTexture             && def.normalTexture)             entry.normalTexture             = def.normalTexture;
-			if (!entry.metallicRoughnessTexture  && def.metallicRoughnessTexture)  entry.metallicRoughnessTexture  = def.metallicRoughnessTexture;
-			if (!entry.specularTexture           && def.specularTexture)           entry.specularTexture           = def.specularTexture;
-			if (!entry.emissiveTexture           && def.emissiveTexture)           entry.emissiveTexture           = def.emissiveTexture;
-			if (!entry.occlusionTexture          && def.occlusionTexture)          entry.occlusionTexture          = def.occlusionTexture;
+			// preserveOverrides=trueのとき、空スロットもユーザーの明示的な削除として扱い上書きしない
+			if (!preserveOverrides) {
+
+				const auto& def = layout[i].defaultTextureAssets;
+				if (!entry.baseColorTexture          && def.baseColorTexture)          entry.baseColorTexture          = def.baseColorTexture;
+				if (!entry.normalTexture             && def.normalTexture)             entry.normalTexture             = def.normalTexture;
+				if (!entry.metallicRoughnessTexture  && def.metallicRoughnessTexture)  entry.metallicRoughnessTexture  = def.metallicRoughnessTexture;
+				if (!entry.specularTexture           && def.specularTexture)           entry.specularTexture           = def.specularTexture;
+				if (!entry.emissiveTexture           && def.emissiveTexture)           entry.emissiveTexture           = def.emissiveTexture;
+				if (!entry.occlusionTexture          && def.occlusionTexture)          entry.occlusionTexture          = def.occlusionTexture;
+			}
 		} else {
 			// 新規エントリはモデルのデフォルトテクスチャで初期化
 			const auto& defaults = layout[i].defaultTextureAssets;

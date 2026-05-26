@@ -19,6 +19,7 @@ void DxSwapChain::Create(WinApp* winApp, IDXGIFactory7* factory, ID3D12CommandQu
 	// レンダーターゲットの設定
 	renderTarget_.width = width;
 	renderTarget_.height = height;
+	renderTarget_.format = format;
 	renderTarget_.clearColor = clearColor;
 
 	swapChain_ = nullptr;

@@ -34,6 +34,7 @@ void Engine::RenderTexture2D::Create(ID3D12Device* device, RTVDescriptor* rtvDes
 	hasUAV_ = desc.createUAV;
 	renderTarget_.width = desc.width;
 	renderTarget_.height = desc.height;
+	renderTarget_.format = desc.format;
 	renderTarget_.clearColor = desc.clearColor;
 
 	// リソースデスクリプションの設定

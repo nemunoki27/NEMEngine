@@ -95,6 +95,9 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 	if (ImGui::BeginMenu("Window")) {
 
+		ImGui::MenuItem("HidePanels", "Tab+Esc", &context.layoutState->hidePanels);
+		ImGui::Separator();
+
 		ImGui::MenuItem("Toolbar", nullptr, &context.layoutState->showToolbar);
 		ImGui::MenuItem("Hierarchy", nullptr, &context.layoutState->showHierarchy);
 		ImGui::MenuItem("Inspector", nullptr, &context.layoutState->showInspector);

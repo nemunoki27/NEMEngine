@@ -47,6 +47,12 @@ namespace {
 	constexpr const char* kCloseUnsavedScenePopupName = "シーン未保存通知##CloseApplication";
 	// ImGuiのレイアウト保存ファイルパス
 	constexpr const char* kEditorLayoutIniPath = "EditorLayout.ini";
+
+	bool IsHidePanelsRestoreShortcutPressed() {
+
+		Engine::Input* input = Engine::Input::GetInstance();
+		return input && (input->PushKey(DIK_TAB) && input->TriggerKey(DIK_ESCAPE));
+	}
 }
 
 void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
@@ -385,7 +391,7 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 	[[maybe_unused]] const EditorContext& context, const RenderPipelineRunner& renderPipeline) {
 
 	// 以下の条件のいずれかを満たす場合はピック処理を行わない
-	if (!initialized_ || !editorState_.enableScenePick) {
+	if (!initialized_ || layoutState_.hidePanels || !editorState_.enableScenePick) {
 		return;
 	}
 
@@ -434,6 +440,11 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) {
 
 	ImGuiIO& io = ImGui::GetIO();
+	if (IsHidePanelsRestoreShortcutPressed()) {
+
+		layoutState_.hidePanels = false;
+		return;
+	}
 	if (io.WantTextInput) {
 		return;
 	}
@@ -493,13 +504,23 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	// 現在のレンダリングコンテキストを保存
 	currentRenderContext_ = &context;
 
+	// フレーム開始
+	imguiManager_.Begin();
+	if (layoutState_.hidePanels) {
+
+		// HidePanels中はエディター機能を止め、Tab+Escの復帰入力だけを受け付ける
+		if (IsHidePanelsRestoreShortcutPressed()) {
+			layoutState_.hidePanels = false;
+		} else {
+			return;
+		}
+	}
+
 	// シーンビューのメッシュピック処理の結果を使用する
 	meshSubMeshPicker_->ConsumePendingResult(context.activeWorld, editorState_);
 
 	editorState_.ValidateSelection(context.activeWorld);
 
-	// フレーム開始
-	imguiManager_.Begin();
 	ImGuizmo::BeginFrame();
 	DrawDockSpace();
 
@@ -526,7 +547,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 void Engine::EditorManager::DrawSceneDebugObjects(const EditorContext& context) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	if (!initialized_ || !layoutState_.showSceneView || !context.activeWorld) {
+	if (!initialized_ || layoutState_.hidePanels || !layoutState_.showSceneView || !context.activeWorld) {
 		return;
 	}
 	if (!editorState_.HasValidSelection(context.activeWorld)) {
@@ -544,6 +565,14 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	RenderPipelineRunner* renderPipeline) {
 
 	if (!initialized_) {
+		return;
+	}
+
+	if (layoutState_.hidePanels) {
+
+		// ImGuiフレームは入力更新のために開始しているが、描画コマンドは発行しない
+		imguiManager_.End();
+		currentRenderContext_ = nullptr;
 		return;
 	}
 
@@ -581,6 +610,10 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 }
 
 void Engine::EditorManager::DrawPanelsByPhase(const EditorPanelContext& context, EditorPanelPhase phase) {
+
+	if (context.layoutState && context.layoutState->hidePanels) {
+		return;
+	}
 
 	for (const auto& panel : panels_) {
 		if (panel->GetPhase() != phase) {

@@ -75,5 +75,8 @@ namespace Engine {
 		void RebuildRuntimeFeatures();
 		// 現在の状態をログ出力する
 		void LogCurrentState() const;
+		// Graphicsメニューのユーザー設定をEngine Assets/Configへ保存、復元する
+		void LoadPreferencesFromConfig();
+		void SavePreferencesToConfig() const;
 	};
 } // Engine

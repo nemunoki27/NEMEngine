@@ -78,6 +78,8 @@ namespace Engine {
 		RaytracingSceneRuntimeContext raytracing{};
 		// ツールプレビューなど、TLASを作らない描画ではRayQuery系Variantを選ばない。
 		bool disableInlineRayTracing = false;
+		// エディターピック用に、描画Raytracing設定とは独立してTLASだけを構築する。
+		bool requireRaytracingSceneForEditorPicking = false;
 		// ツールプレビューではVertex版のGraphics Variantを優先する。
 		bool forceVertexMeshVariant = false;
 		// ECSワールドとシステムコンテキスト

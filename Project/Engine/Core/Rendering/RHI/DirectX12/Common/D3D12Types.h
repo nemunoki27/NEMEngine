@@ -24,6 +24,7 @@ namespace Engine {
 
 		uint32_t width;
 		uint32_t height;
+		DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
 		Color4 clearColor;
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
 	};

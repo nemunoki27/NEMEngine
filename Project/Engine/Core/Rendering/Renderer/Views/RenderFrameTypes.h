@@ -71,6 +71,9 @@ namespace Engine {
 			RenderViewRequest{ RenderViewKind::Scene, true, 0, 0, RenderViewSourceKind::ManualCamera, {} }
 		};
 
+		// Debug/Developのエディターピック用に、描画Raytracing設定とは独立してTLASを作る
+		bool requireRaytracingSceneForEditorPicking = false;
+
 		// ビューを種類から検索
 		const RenderViewRequest* FindView(RenderViewKind kind) const;
 		RenderViewRequest* FindView(RenderViewKind kind);

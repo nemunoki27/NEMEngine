@@ -192,10 +192,22 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 	if constexpr (BuildConfig::kEditorEnabled) {
 
 		const EditorLayoutState& layout = editorManager_.GetLayoutState();
-		showGameView = layout.showGameView;
-		showSceneView = layout.showSceneView;
-		sceneViewCameraSelection = editorManager_.GetSceneViewCameraSelection();
-		manualSceneCamera = editorManager_.GetSceneViewCameraState();
+		if (layout.hidePanels) {
+
+			// HidePanels中はReleaseと同じくGameViewだけを描画対象にする
+			showGameView = true;
+			showSceneView = false;
+		} else {
+
+			showGameView = layout.showGameView;
+			showSceneView = layout.showSceneView;
+			sceneViewCameraSelection = editorManager_.GetSceneViewCameraSelection();
+			manualSceneCamera = editorManager_.GetSceneViewCameraState();
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+			request.requireRaytracingSceneForEditorPicking =
+				graphicsCore.GetDXObject().GetFeatureController().GetSupport().SupportsRayTracingPath();
+#endif
+		}
 	}
 	// ゲームビューの要求を構築
 	{
@@ -287,20 +299,29 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		editorContext_.activeWorld = world;
 		editorContext_.assetDatabase = &assetDataBase_;
 
-		// C++ツールの更新。UI描画とは分離して、Game側ツールも同じ経路で扱う
-		ToolContext toolContext{};
-		toolContext.world = world;
-		toolContext.assetDatabase = &assetDataBase_;
-		toolContext.systemContext = &systemContext_;
-		toolContext.sceneInstances = &activeScenes;
-		toolContext.activeSceneHeader = header;
-		toolContext.activeSceneAsset = editorContext_.activeSceneAsset;
-		toolContext.activeSceneInstanceID = editorContext_.activeSceneInstanceID;
-		toolContext.activeScenePath = activeScenePath_;
-		toolContext.isPlaying = worldManager_.IsPlaying();
-		toolContext.canEditScene = !worldManager_.IsPlaying() && world;
-		toolContext.deltaTime = deltaTime;
-		ToolRegistry::GetInstance().Tick(toolContext);
+		const bool hidePanels = editorManager_.GetLayoutState().hidePanels;
+		if (hidePanels) {
+
+			const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
+			Input::GetInstance()->SetViewRect(InputViewArea::Game, Vector2(0.0f, 0.0f),
+				windowSetting.engineSizeFloat, windowSetting.gameSizeFloat);
+		} else {
+
+			// C++ツールの更新。UI描画とは分離して、Game側ツールも同じ経路で扱う
+			ToolContext toolContext{};
+			toolContext.world = world;
+			toolContext.assetDatabase = &assetDataBase_;
+			toolContext.systemContext = &systemContext_;
+			toolContext.sceneInstances = &activeScenes;
+			toolContext.activeSceneHeader = header;
+			toolContext.activeSceneAsset = editorContext_.activeSceneAsset;
+			toolContext.activeSceneInstanceID = editorContext_.activeSceneInstanceID;
+			toolContext.activeScenePath = activeScenePath_;
+			toolContext.isPlaying = worldManager_.IsPlaying();
+			toolContext.canEditScene = !worldManager_.IsPlaying() && world;
+			toolContext.deltaTime = deltaTime;
+			ToolRegistry::GetInstance().Tick(toolContext);
+		}
 
 		// エディタのフレーム開始処理
 		editorManager_.BeginFrame(graphicsCore, editorContext_);
@@ -328,8 +349,11 @@ void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 
 	if constexpr (BuildConfig::kEditorEnabled) {
 
-		// SceneViewに重ねる選択エンティティのデバッグラインを、SceneView描画前に積む
-		editorManager_.DrawSceneDebugObjects(editorContext_);
+		if (!editorManager_.GetLayoutState().hidePanels) {
+
+			// SceneViewに重ねる選択エンティティのデバッグラインを、SceneView描画前に積む
+			editorManager_.DrawSceneDebugObjects(editorContext_);
+		}
 	}
 
 	// ワールドを描画
@@ -337,8 +361,16 @@ void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 
 	if constexpr (BuildConfig::kEditorEnabled) {
 
-		// シーンビューのメッシュピック処理
-		editorManager_.ExecuteSceneMeshPicking(graphicsCore, editorContext_, *renderPipeline_);
+		const bool hidePanels = editorManager_.GetLayoutState().hidePanels;
+		if (hidePanels) {
+
+			// エディターUIを経由せず、Release時と同じGameViewの全画面表示にする
+			renderPipeline_->PresentViewToBackBuffer(graphicsCore, RenderViewKind::Game);
+		} else {
+
+			// シーンビューのメッシュピック処理
+			editorManager_.ExecuteSceneMeshPicking(graphicsCore, editorContext_, *renderPipeline_);
+		}
 
 		// エディタのフレーム終了処理
 		editorManager_.EndFrame(graphicsCore, editorContext_, &renderPipeline_->GetViewportRenderService(),

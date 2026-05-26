@@ -74,8 +74,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	AssetDatabase& assetDatabase, MeshRenderBackend* meshBackend,
 	const RenderSceneBatch& renderBatch, SceneExecutionContext& context) {
 
-	// レイトレーシングが有効でない場合やシーンインスタンスがない場合は処理しない
-	if (!graphicsCore.GetDXObject().ShouldBuildRaytracingScene()) {
+	// 描画用Raytracingが無効でも、Debug/DevelopエディターのGPUピック用TLASは構築できるようにする
+	const auto& featureController = graphicsCore.GetDXObject().GetFeatureController();
+	const bool canBuildRaytracingScene = featureController.GetSupport().SupportsRayTracingPath() &&
+		(graphicsCore.GetDXObject().ShouldBuildRaytracingScene() || context.requireRaytracingSceneForEditorPicking);
+	if (!canBuildRaytracingScene) {
 		return;
 	}
 	if (!context.sceneInstance || !meshBackend) {

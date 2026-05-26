@@ -558,7 +558,7 @@ bool Engine::RenderPipelineRunner::PresentViewToBackBuffer(
 
 	// バックバッファのフォーマットに合わせたパイプラインステートを取得
 	std::vector<DXGI_FORMAT> rtvFormats = {
-		graphicsCore.GetSwapChainDesc().Format
+		graphicsCore.GetBackBufferRenderTarget().format
 	};
 	const PipelineState* pipelineState = pipelineStateCache_.GetORCreate(graphicsCore.GetDXObject(),
 		renderAssetLibrary_, passBinding->pipeline, passBinding->preferredVariant, rtvFormats, DXGI_FORMAT_UNKNOWN);
@@ -787,6 +787,7 @@ Engine::SceneExecutionContext Engine::RenderPipelineRunner::BuildViewExecutionCo
 	context.world = request.world;
 	context.systemContext = request.systemContext;
 	context.assetDatabase = request.assetDatabase;
+	context.requireRaytracingSceneForEditorPicking = request.requireRaytracingSceneForEditorPicking;
 	// 種類に応じたターゲットレジストリを選択
 	RenderTargetRegistry* registry = kind == RenderViewKind::Game ?
 		&gameViewTargetRegistry_ : &sceneViewTargetRegistry_;
