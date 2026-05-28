@@ -104,10 +104,20 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		// パイプラインごとのキャッシュエントリ。フレーム定数バインドの有無も初回のみ解決して保持する
+		struct PipelineCacheEntry {
+
+			PostProcessParameterLayout layout;
+			bool hasFrameConstantsByName = false;
+			bool hasFrameConstantsByRegister = false;
+		};
+
 		//--------- variables ----------------------------------------------------
 
 		PostProcessConstantBufferAllocator constantBufferAllocator_{};
-		std::unordered_map<const PipelineState*, PostProcessParameterLayout> parameterLayoutCache_{};
+		std::unordered_map<const PipelineState*, PipelineCacheEntry> parameterLayoutCache_{};
 		float elapsedTime_ = 0.0f;
 		uint32_t frameIndex_ = 0;
 

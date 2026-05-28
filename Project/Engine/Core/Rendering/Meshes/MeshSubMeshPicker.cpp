@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 #include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 
 //============================================================================
 //	MeshSubMeshPicker classMethods
@@ -131,29 +132,20 @@ void Engine::MeshSubMeshPicker::ExecutePick(GraphicsCore& graphicsCore, const Re
 	commandList->SetComputeRootSignature(pipeline_.GetRootSignature());
 	commandList->SetPipelineState(pipeline_.GetComputePipeline());
 
-	// ルート引数をバインド
-	ComputeRootBinder binder(pipeline_);
-	const std::array<ComputeBindItem, 3> bindItems = { {
-		ComputeBindItem{
-			.type = ComputeBindValueType::AccelStruct,
-			.gpuAddress = tlasResource->GetGPUVirtualAddress(),
-			.bindPoint = 0,
-			.space = 0,
-		},
-		ComputeBindItem{
-			.type = ComputeBindValueType::UAV,
-			.gpuAddress = outputBuffer_.GetResource()->GetGPUVirtualAddress(),
-			.bindPoint = 0,
-			.space = 0,
-		},
-		ComputeBindItem{
-			.type = ComputeBindValueType::CBV,
-			.gpuAddress = pickingBuffer_.GetResource()->GetGPUVirtualAddress(),
-			.bindPoint = 0,
-			.space = 0,
-		},
-	} };
-	binder.Bind(commandList, bindItems);
+	// ルート引数をバインド（パイプラインが変わった時だけスロットを再解決する）
+	pickBindCache_.Sync(pipeline_);
+	if (pickBindCache_.Has(tlasSlot_)) {
+		RootBindingCommand::SetComputeSRV(commandList, pickBindCache_.Get(tlasSlot_),
+			tlasResource->GetGPUVirtualAddress(), {});
+	}
+	if (pickBindCache_.Has(outputUAVSlot_)) {
+		RootBindingCommand::SetComputeUAV(commandList, pickBindCache_.Get(outputUAVSlot_),
+			outputBuffer_.GetResource()->GetGPUVirtualAddress(), {});
+	}
+	if (pickBindCache_.Has(pickingCBVSlot_)) {
+		RootBindingCommand::SetComputeCBV(commandList, pickBindCache_.Get(pickingCBVSlot_),
+			pickingBuffer_.GetResource()->GetGPUVirtualAddress());
+	}
 
 	// ピック処理実行
 	commandList->Dispatch(1, 1, 1);

@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 
 namespace Engine {
 
@@ -19,7 +20,9 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		explicit BlitToViewPass(const RenderPipelineDeps& deps) : deps_(deps) {}
+		explicit BlitToViewPass(const RenderPipelineDeps& deps) : deps_(deps) {
+			srcColorSlot_ = blitSRVCache_.AddSlotByRegister(ShaderBindingKind::SRV, 0, 0);
+		}
 		~BlitToViewPass() override = default;
 
 		std::string_view GetName() const override { return "BlitToView"; }
@@ -33,5 +36,9 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
+
+		// フルスクリーンブリット用SRVスロット（ソースカラー t0）のキャッシュ
+		PipelineBindingCache blitSRVCache_{};
+		PipelineBindingCache::SlotID srcColorSlot_ = PipelineBindingCache::kInvalidSlot;
 	};
 } // Engine

@@ -9,8 +9,8 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackendTypes.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/Draw/Interface/IMeshDrawPath.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshGPUResourceManager.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/GraphicsRootBinder.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/ComputeRootBinder.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 
 // c++
 #include <memory>
@@ -153,9 +153,26 @@ namespace Engine {
 		// メッシュのGPUリソース管理クラス
 		MeshGPUResourceManager meshResourceManager_{};
 
-		std::vector<GraphicsBindItem> bindScratch_{};
-		std::vector<GraphicsBindItem> subMeshBindScratch_{};
-		std::vector<ComputeBindItem> computeBindScratch_{};
+		// バッファレジストリ → Graphicsパイプラインスロットの対応キャッシュ
+		RegistryAutoBindTable registryAutoBindTable_{};
+		// メッシュ固有GraphicsバインドのパイプラインスロットID
+		PipelineBindingCache sharedBindCache_{};
+		PipelineBindingCache::SlotID viewCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID drawCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID packedVtxSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID vtxSubMeshSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID skinnedVtxSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID skinnedPkdVtxSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID meshInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID subMeshSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		// スキニングComputeバインドのパイプラインスロットID
+		PipelineBindingCache skinningBindCache_{};
+		PipelineBindingCache::SlotID skinConstCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID inputVtxSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID vtxInflSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID skinPaletteSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID skinnedVtxUAVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID skinnedPkdVtxUAVSlot_ = PipelineBindingCache::kInvalidSlot;
 
 		// 描画パス
 		std::vector<std::unique_ptr<IMeshDrawPath>> drawPaths_{};

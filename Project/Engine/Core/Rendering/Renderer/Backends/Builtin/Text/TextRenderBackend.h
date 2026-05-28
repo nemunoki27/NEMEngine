@@ -6,7 +6,8 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Text/TextBatchResources.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/FrameBatchResourcePool.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/GraphicsRootBinder.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 
 // c++
 #include <vector>
@@ -25,7 +26,12 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		TextRenderBackend() = default;
+		TextRenderBackend() {
+			viewCBVSlot_   = perDrawBindCache_.AddSlot("ViewConstants", ShaderBindingKind::CBV);
+			vsInstSRVSlot_ = perDrawBindCache_.AddSlot("gVSInstances",  ShaderBindingKind::SRV);
+			psInstSRVSlot_ = perDrawBindCache_.AddSlot("gPSInstances",  ShaderBindingKind::SRV);
+			atlasSRVSlot_  = perDrawBindCache_.AddSlot("gAtlas",        ShaderBindingKind::SRV);
+		}
 		~TextRenderBackend() = default;
 
 		void BeginFrame(GraphicsCore& graphicsCore) override;
@@ -51,6 +57,13 @@ namespace Engine {
 		std::vector<TextVSInstanceData> vsGlyphScratch_{};
 		std::vector<TextPSInstanceData> psGlyphScratch_{};
 
-		std::vector<GraphicsBindItem> bindScratch_{};
+		// バッファレジストリ → Graphicsパイプラインスロットの対応キャッシュ
+		RegistryAutoBindTable registryAutoBindTable_{};
+		// 描画固有バインドのパイプラインスロットキャッシュ
+		PipelineBindingCache perDrawBindCache_{};
+		PipelineBindingCache::SlotID viewCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID vsInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID psInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID atlasSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 	};
 } // Engine

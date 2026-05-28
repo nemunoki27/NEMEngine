@@ -7,7 +7,6 @@
 #include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/GraphicsRootBinder.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
@@ -54,32 +53,6 @@ namespace {
 		return item->world->TryGetComponent<Engine::MeshRendererComponent>(item->entity);
 	}
 
-	void BindMeshCBV(ID3D12GraphicsCommandList6* commandList, const Engine::PipelineState& pipeline,
-		std::string_view name, D3D12_GPU_VIRTUAL_ADDRESS gpuAddress) {
-
-		// Variantによって存在しないBindingは無視する
-		if (gpuAddress == 0) {
-			return;
-		}
-		if (const Engine::RootBindingLocation* binding = pipeline.FindBindingByName(name, Engine::ShaderBindingKind::CBV)) {
-
-			Engine::RootBindingCommand::SetGraphicsCBV(commandList, binding, gpuAddress);
-		}
-	}
-
-	void BindMeshSRV(ID3D12GraphicsCommandList6* commandList, const Engine::PipelineState& pipeline,
-		std::string_view name, D3D12_GPU_VIRTUAL_ADDRESS gpuAddress, D3D12_GPU_DESCRIPTOR_HANDLE descriptor = {}) {
-
-		// DescriptorTable/SRV直指定のどちらでも使えるよう両方受け取る
-		if (gpuAddress == 0 && descriptor.ptr == 0) {
-			return;
-		}
-		if (const Engine::RootBindingLocation* binding = pipeline.FindBindingByName(name, Engine::ShaderBindingKind::SRV)) {
-
-			Engine::RootBindingCommand::SetGraphicsSRV(commandList, binding, gpuAddress, descriptor);
-		}
-	}
-
 	// メッシュ描画に使用するパスをマテリアルから解決する
 	bool ResolveMeshPass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterialID,
 		Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
@@ -122,6 +95,24 @@ Engine::MeshRenderBackend::MeshRenderBackend() {
 	// 描画パスの登録
 	drawPaths_.emplace_back(std::make_unique<VertexMeshDrawPath>());
 	drawPaths_.emplace_back(std::make_unique<MeshShaderDrawPath>());
+
+	// メッシュ固有Graphicsバインドスロットを初期化時に登録する
+	viewCBVSlot_         = sharedBindCache_.AddSlot("ViewConstants",          ShaderBindingKind::CBV);
+	drawCBVSlot_         = sharedBindCache_.AddSlot("MeshDrawConstants",      ShaderBindingKind::CBV);
+	packedVtxSRVSlot_    = sharedBindCache_.AddSlot("gPackedVertices",        ShaderBindingKind::SRV);
+	vtxSubMeshSRVSlot_   = sharedBindCache_.AddSlot("gVertexSubMeshIndices",  ShaderBindingKind::SRV);
+	skinnedVtxSRVSlot_   = sharedBindCache_.AddSlot("gSkinnedVertices",       ShaderBindingKind::SRV);
+	skinnedPkdVtxSRVSlot_= sharedBindCache_.AddSlot("gSkinnedPackedVertices", ShaderBindingKind::SRV);
+	meshInstSRVSlot_     = sharedBindCache_.AddSlot("gMeshInstances",         ShaderBindingKind::SRV);
+	subMeshSRVSlot_      = sharedBindCache_.AddSlot("gSubMeshes",             ShaderBindingKind::SRV);
+
+	// スキニングComputeバインドスロットを初期化時に登録する
+	skinConstCBVSlot_     = skinningBindCache_.AddSlot("SkinningConstants",      ShaderBindingKind::CBV);
+	inputVtxSRVSlot_      = skinningBindCache_.AddSlot("gInputVertices",         ShaderBindingKind::SRV);
+	vtxInflSRVSlot_       = skinningBindCache_.AddSlot("gVertexInfluences",      ShaderBindingKind::SRV);
+	skinPaletteSRVSlot_   = skinningBindCache_.AddSlot("gSkinningPalette",       ShaderBindingKind::SRV);
+	skinnedVtxUAVSlot_    = skinningBindCache_.AddSlot("gSkinnedVertices",       ShaderBindingKind::UAV);
+	skinnedPkdVtxUAVSlot_ = skinningBindCache_.AddSlot("gSkinnedPackedVertices", ShaderBindingKind::UAV);
 }
 
 void Engine::MeshRenderBackend::RequestMeshes(GraphicsCore& graphicsCore,
@@ -220,7 +211,7 @@ void Engine::MeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 	setupContext.commandList = commandList;
 	setupContext.drawContext = &context;
 	setupContext.prepared = &prepared;
-	path.Setup(setupContext, bindScratch_);
+	path.Setup(setupContext);
 	// 経路固有の描画
 	MeshPathDrawContext drawPathContext{};
 	drawPathContext.graphicsCore = &graphicsCore;
@@ -228,7 +219,6 @@ void Engine::MeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 	drawPathContext.drawContext = &context;
 	drawPathContext.prepared = &prepared;
 	drawPathContext.subMeshCBPool = &subMeshCBPool_;
-	drawPathContext.subMeshBindScratch = &subMeshBindScratch_;
 	path.Draw(drawPathContext);
 }
 
@@ -378,33 +368,32 @@ bool Engine::MeshRenderBackend::PrepareBatch(const RenderDrawContext& context,
 void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& context,
 	const MeshPreparedBatch& prepared, ID3D12GraphicsCommandList6* commandList) {
 
-	// バッファバインディングの準備
-	BackendDrawCommon::PrepareGraphicsBindItemsScratch(
-		*context.bufferRegistry, 0, 0, bindScratch_);
-	// 登録されている共通バッファをバインドに追加
-	BackendDrawCommon::AppendGraphicsBufferBindings(*context.bufferRegistry,
-		*prepared.pipelineState, bindScratch_);
+	// バッファレジストリ登録済みバッファをまとめてバインドする
+	registryAutoBindTable_.Sync(*prepared.pipelineState, *context.bufferRegistry);
+	registryAutoBindTable_.BindGraphics(*context.bufferRegistry, commandList);
 
-	// 共通バッファは既存のレジストリ経由でまとめてバインドする
-	if (!bindScratch_.empty()) {
+	// メッシュ固有バインドのスロット解決を更新
+	sharedBindCache_.Sync(*prepared.pipelineState);
 
-		GraphicsRootBinder binder{ *prepared.pipelineState };
-		binder.Bind(commandList, bindScratch_);
+	if (sharedBindCache_.Has(viewCBVSlot_)) {
+		RootBindingCommand::SetGraphicsCBV(commandList, sharedBindCache_.Get(viewCBVSlot_),
+			prepared.resources->GetViewGPUAddress(context.view->kind));
+	}
+	if (sharedBindCache_.Has(drawCBVSlot_)) {
+		RootBindingCommand::SetGraphicsCBV(commandList, sharedBindCache_.Get(drawCBVSlot_),
+			prepared.resources->GetDrawGPUAddress());
+	}
+	if (sharedBindCache_.Has(packedVtxSRVSlot_)) {
+		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(packedVtxSRVSlot_),
+			prepared.gpuMesh->packedVertexSRV.buffer->GetResource()->GetGPUVirtualAddress(),
+			prepared.gpuMesh->packedVertexSRV.srvGPUHandle);
+	}
+	if (sharedBindCache_.Has(vtxSubMeshSRVSlot_)) {
+		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(vtxSubMeshSRVSlot_),
+			prepared.gpuMesh->vertexSubMeshIndexSRV.buffer->GetResource()->GetGPUVirtualAddress(),
+			prepared.gpuMesh->vertexSubMeshIndexSRV.srvGPUHandle);
 	}
 
-	// Mesh 固有のバインドは直接セットして、毎バッチの一時配列構築を抑える
-	BindMeshCBV(commandList, *prepared.pipelineState, prepared.resources->GetViewBindingName(),
-		prepared.resources->GetViewGPUAddress(context.view->kind));
-	BindMeshCBV(commandList, *prepared.pipelineState, prepared.resources->GetDrawBindingName(),
-		prepared.resources->GetDrawGPUAddress());
-	BindMeshSRV(commandList, *prepared.pipelineState, "gPackedVertices",
-		prepared.gpuMesh->packedVertexSRV.buffer->GetResource()->GetGPUVirtualAddress(),
-		prepared.gpuMesh->packedVertexSRV.srvGPUHandle);
-	BindMeshSRV(commandList, *prepared.pipelineState, "gVertexSubMeshIndices",
-		prepared.gpuMesh->vertexSubMeshIndexSRV.buffer->GetResource()->GetGPUVirtualAddress(),
-		prepared.gpuMesh->vertexSubMeshIndexSRV.srvGPUHandle);
-
-	// SkinnedVertexBuffer
 	// デフォルトは元メッシュ頂点。スキニング済みなら更新後バッファへ差し替える
 	D3D12_GPU_VIRTUAL_ADDRESS skinnedVBAddress = prepared.gpuMesh->vertexSRV.buffer->GetResource()->GetGPUVirtualAddress();
 	D3D12_GPU_DESCRIPTOR_HANDLE skinnedVBHandle = prepared.gpuMesh->vertexSRV.srvGPUHandle;
@@ -417,15 +406,23 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 		skinnedPackedVBAddress = prepared.resources->GetSkinnedPackedVerticesGPUAddress();
 		skinnedPackedVBHandle = prepared.resources->GetSkinnedPackedVerticesSRVHandle();
 	}
-	BindMeshSRV(commandList, *prepared.pipelineState, prepared.resources->GetSkinnedVerticesBindingName(),
-		skinnedVBAddress, skinnedVBHandle);
+	if (sharedBindCache_.Has(skinnedVtxSRVSlot_) && (skinnedVBAddress != 0 || skinnedVBHandle.ptr != 0)) {
+		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(skinnedVtxSRVSlot_),
+			skinnedVBAddress, skinnedVBHandle);
+	}
 	// MeshShaderは圧縮頂点側も読むため、通常頂点と同じタイミングで差し替える
-	BindMeshSRV(commandList, *prepared.pipelineState, prepared.resources->GetSkinnedPackedVerticesBindingName(),
-		skinnedPackedVBAddress, skinnedPackedVBHandle);
-	BindMeshSRV(commandList, *prepared.pipelineState, prepared.resources->GetInstanceMeshBindingName(),
-		prepared.resources->GetInstanceMeshGPUAddress());
-	BindMeshSRV(commandList, *prepared.pipelineState, prepared.resources->GetSubMeshBindingName(),
-		prepared.resources->GetSubMeshGPUAddress());
+	if (sharedBindCache_.Has(skinnedPkdVtxSRVSlot_) && (skinnedPackedVBAddress != 0 || skinnedPackedVBHandle.ptr != 0)) {
+		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(skinnedPkdVtxSRVSlot_),
+			skinnedPackedVBAddress, skinnedPackedVBHandle);
+	}
+	if (sharedBindCache_.Has(meshInstSRVSlot_) && prepared.resources->GetInstanceMeshGPUAddress() != 0) {
+		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(meshInstSRVSlot_),
+			prepared.resources->GetInstanceMeshGPUAddress(), {});
+	}
+	if (sharedBindCache_.Has(subMeshSRVSlot_) && prepared.resources->GetSubMeshGPUAddress() != 0) {
+		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(subMeshSRVSlot_),
+			prepared.resources->GetSubMeshGPUAddress(), {});
+	}
 }
 
 Engine::IMeshDrawPath& Engine::MeshRenderBackend::SelectDrawPath(const PipelineVariantDesc& variant) {
@@ -584,47 +581,36 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 	commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	commandList->SetPipelineState(pipelineState->GetComputePipeline());
 
-	// バッファバインド
-	computeBindScratch_.clear();
-	computeBindScratch_.reserve(6);
-	computeBindScratch_.push_back({
-		prepared.resources->GetSkinningConstantsBindingName(),
-		ComputeBindValueType::CBV,
-		prepared.resources->GetSkinningConstantsGPUAddress()
-		});
-	computeBindScratch_.push_back({
-		"gInputVertices",
-		ComputeBindValueType::SRV,
-		prepared.gpuMesh->vertexSRV.buffer->GetResource()->GetGPUVirtualAddress(),
-		prepared.gpuMesh->vertexSRV.srvGPUHandle
-		});
-	computeBindScratch_.push_back({
-		"gVertexInfluences",
-		ComputeBindValueType::SRV,
-		prepared.gpuMesh->skinInfluenceSRV.buffer->GetResource()->GetGPUVirtualAddress(),
-		prepared.gpuMesh->skinInfluenceSRV.srvGPUHandle
-		});
-	computeBindScratch_.push_back({
-		prepared.resources->GetSkinningPaletteBindingName(),
-		ComputeBindValueType::SRV,
-		prepared.resources->GetSkinningPaletteGPUAddress(),
-		{}
-		});
-	computeBindScratch_.push_back({
-		prepared.resources->GetSkinnedVerticesBindingName(),
-		ComputeBindValueType::UAV,
-		prepared.resources->GetSkinnedVerticesGPUAddress(),
-		prepared.resources->GetSkinnedVerticesUAVHandle()
-		});
-	computeBindScratch_.push_back({
-		prepared.resources->GetSkinnedPackedVerticesBindingName(),
-		ComputeBindValueType::UAV,
-		prepared.resources->GetSkinnedPackedVerticesGPUAddress(),
-		prepared.resources->GetSkinnedPackedVerticesUAVHandle()
-		});
-	// バインド
-	ComputeRootBinder binder{ *pipelineState };
-	binder.Bind(commandList, computeBindScratch_);
+	// バッファバインド（パイプラインが変わった時だけ再解決）
+	skinningBindCache_.Sync(*pipelineState);
+	if (skinningBindCache_.Has(skinConstCBVSlot_)) {
+		RootBindingCommand::SetComputeCBV(commandList, skinningBindCache_.Get(skinConstCBVSlot_),
+			prepared.resources->GetSkinningConstantsGPUAddress());
+	}
+	if (skinningBindCache_.Has(inputVtxSRVSlot_)) {
+		RootBindingCommand::SetComputeSRV(commandList, skinningBindCache_.Get(inputVtxSRVSlot_),
+			prepared.gpuMesh->vertexSRV.buffer->GetResource()->GetGPUVirtualAddress(),
+			prepared.gpuMesh->vertexSRV.srvGPUHandle);
+	}
+	if (skinningBindCache_.Has(vtxInflSRVSlot_)) {
+		RootBindingCommand::SetComputeSRV(commandList, skinningBindCache_.Get(vtxInflSRVSlot_),
+			prepared.gpuMesh->skinInfluenceSRV.buffer->GetResource()->GetGPUVirtualAddress(),
+			prepared.gpuMesh->skinInfluenceSRV.srvGPUHandle);
+	}
+	if (skinningBindCache_.Has(skinPaletteSRVSlot_) && prepared.resources->GetSkinningPaletteGPUAddress() != 0) {
+		RootBindingCommand::SetComputeSRV(commandList, skinningBindCache_.Get(skinPaletteSRVSlot_),
+			prepared.resources->GetSkinningPaletteGPUAddress(), {});
+	}
+	if (skinningBindCache_.Has(skinnedVtxUAVSlot_)) {
+		RootBindingCommand::SetComputeUAV(commandList, skinningBindCache_.Get(skinnedVtxUAVSlot_),
+			prepared.resources->GetSkinnedVerticesGPUAddress(),
+			prepared.resources->GetSkinnedVerticesUAVHandle());
+	}
+	if (skinningBindCache_.Has(skinnedPkdVtxUAVSlot_)) {
+		RootBindingCommand::SetComputeUAV(commandList, skinningBindCache_.Get(skinnedPkdVtxUAVSlot_),
+			prepared.resources->GetSkinnedPackedVerticesGPUAddress(),
+			prepared.resources->GetSkinnedPackedVerticesUAVHandle());
+	}
 
 	// スキニング処理をディスパッチ
 	// Xは頂点数、Yはスキニング対象インスタンス数

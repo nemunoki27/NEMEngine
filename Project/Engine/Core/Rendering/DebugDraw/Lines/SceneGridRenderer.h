@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/GraphicsRootBinder.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12ConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
@@ -29,6 +29,10 @@ namespace Engine {
 		//========================================================================
 		//	public Methods
 		//========================================================================
+
+		SceneGridRenderer() {
+			gridCBVSlot_ = gridBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
+		}
 
 		void Init(GraphicsCore& graphicsCore);
 
@@ -95,6 +99,10 @@ namespace Engine {
 		// 同じコマンドリスト内で複数回描画しても、後のカメラ定数で上書きしないためのバッファ
 		std::vector<std::unique_ptr<DxConstBuffer<GridPassConstants>>> passBuffers_{};
 		uint32_t passBufferIndex_ = 0;
+
+		// グリッドパス定数バッファ（b0）のスロットキャッシュ
+		PipelineBindingCache gridBindCache_{};
+		PipelineBindingCache::SlotID gridCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 
 		bool initialized_ = false;
 

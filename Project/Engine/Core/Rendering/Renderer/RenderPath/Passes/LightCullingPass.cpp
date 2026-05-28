@@ -10,7 +10,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/ComputeRootBinder.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Utils.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
@@ -23,33 +23,6 @@ namespace {
 
 	constexpr const char* kLightCullingMaterialPath =
 		"Engine/Assets/Materials/Builtin/LightCulling/lightCulling.material.json";
-
-	void AppendComputeBufferBindings(const Engine::RenderBufferRegistry& registry,
-		const Engine::PipelineState& pipelineState, std::vector<Engine::ComputeBindItem>& outBindItems) {
-
-		const auto& entries = registry.GetEntries();
-		outBindItems.reserve(outBindItems.size() + entries.size() * 4);
-		for (const Engine::RegisteredRenderBuffer& entry : entries) {
-
-			if (pipelineState.FindBindingByName(entry.alias, Engine::ShaderBindingKind::CBV)) {
-				if (entry.gpuAddress != 0) {
-					outBindItems.push_back({ entry.alias, Engine::ComputeBindValueType::CBV, entry.gpuAddress });
-				}
-			}
-			if (pipelineState.FindBindingByName(entry.alias, Engine::ShaderBindingKind::SRV)) {
-				if (entry.gpuAddress != 0 || entry.srvGPUHandle.ptr != 0) {
-					outBindItems.push_back({ entry.alias, Engine::ComputeBindValueType::SRV,
-						entry.gpuAddress, entry.srvGPUHandle });
-				}
-			}
-			if (pipelineState.FindBindingByName(entry.alias, Engine::ShaderBindingKind::UAV)) {
-				if (entry.gpuAddress != 0 || entry.uavGPUHandle.ptr != 0) {
-					outBindItems.push_back({ entry.alias, Engine::ComputeBindValueType::UAV,
-						entry.gpuAddress, entry.uavGPUHandle });
-				}
-			}
-		}
-	}
 }
 
 Engine::AssetID Engine::LightCullingPass::ResolveLightCullingMaterial(AssetDatabase& database) const {
@@ -121,15 +94,14 @@ void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 	commandList->SetPipelineState(pipelineState->GetComputePipeline());
 
 	// 深度SRVをt1にバインド
-	std::vector<ComputeBindItem> bindItems{};
-	if (pipelineState->FindBinding(ShaderBindingKind::SRV, 1, 0)) {
-		bindItems.push_back({ {}, ComputeBindValueType::SRV, 0, depth->GetSRVGPUHandle(), 1, 0 });
+	depthSRVCache_.Sync(*pipelineState);
+	if (depthSRVCache_.Has(depthSRVSlot_)) {
+		RootBindingCommand::SetComputeSRV(commandList, depthSRVCache_.Get(depthSRVSlot_),
+			0, depth->GetSRVGPUHandle());
 	}
 	// バッファレジストリからライト関連バッファを自動バインド
-	AppendComputeBufferBindings(context.bufferRegistry, *pipelineState, bindItems);
-
-	ComputeRootBinder binder{ *pipelineState };
-	binder.Bind(commandList, bindItems);
+	computeAutoBindTable_.Sync(*pipelineState, context.bufferRegistry);
+	computeAutoBindTable_.BindCompute(context.bufferRegistry, commandList);
 
 	const uint32_t dispatchX = DxUtils::RoundUp(sceneMain->GetWidth(), pipelineState->GetThreadGroupX());
 	const uint32_t dispatchY = DxUtils::RoundUp(sceneMain->GetHeight(), pipelineState->GetThreadGroupY());

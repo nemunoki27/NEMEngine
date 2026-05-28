@@ -6,7 +6,8 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Sprite/SpriteBatchResources.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/FrameBatchResourcePool.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/GraphicsRootBinder.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 
 namespace Engine {
 
@@ -21,7 +22,12 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		SpriteRenderBackend() = default;
+		SpriteRenderBackend() {
+			viewCBVSlot_    = perDrawBindCache_.AddSlot("ViewConstants", ShaderBindingKind::CBV);
+			vsInstSRVSlot_  = perDrawBindCache_.AddSlot("gVSInstances",  ShaderBindingKind::SRV);
+			psInstSRVSlot_  = perDrawBindCache_.AddSlot("gPSInstances",  ShaderBindingKind::SRV);
+			textureSRVSlot_ = perDrawBindCache_.AddSlot("gTexture",      ShaderBindingKind::SRV);
+		}
 		~SpriteRenderBackend() = default;
 
 		void BeginFrame(GraphicsCore& graphicsCore) override;
@@ -43,6 +49,13 @@ namespace Engine {
 		// バッチ描画に使用するリソース
 		FrameBatchResourcePool<SpriteBatchResources> resourcePool_;
 
-		std::vector<GraphicsBindItem> bindScratch_{};
+		// バッファレジストリ → Graphicsパイプラインスロットの対応キャッシュ
+		RegistryAutoBindTable registryAutoBindTable_{};
+		// 描画固有バインドのパイプラインスロットキャッシュ
+		PipelineBindingCache perDrawBindCache_{};
+		PipelineBindingCache::SlotID viewCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID vsInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID psInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID textureSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 	};
 } // Engine

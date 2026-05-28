@@ -10,6 +10,7 @@
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessDebugInjector.h>
 
 // c++
@@ -74,7 +75,8 @@ namespace {
 	bool ExecuteFullscreenBlit(Engine::GraphicsCore& graphicsCore,
 		const Engine::SceneExecutionContext& context,
 		Engine::MultiRenderTarget* source, Engine::MultiRenderTarget* dest,
-		Engine::RenderAssetLibrary& assetLibrary, Engine::PipelineStateCache& pipelineCache) {
+		Engine::RenderAssetLibrary& assetLibrary, Engine::PipelineStateCache& pipelineCache,
+		Engine::PipelineBindingCache& srvCache, Engine::PipelineBindingCache::SlotID srcColorSlot) {
 
 		if (!source || !dest || !context.assetDatabase) {
 			return false;
@@ -126,12 +128,12 @@ namespace {
 		commandList->SetGraphicsRootSignature(pipelineState->GetRootSignature());
 		commandList->SetPipelineState(pipelineState->GetGraphicsPipeline(Engine::BlendMode::Normal));
 
-		const Engine::RootBindingLocation* binding = pipelineState->FindBinding(Engine::ShaderBindingKind::SRV, 0, 0);
+		srvCache.Sync(*pipelineState);
 		Engine::RenderTexture2D* color = source->GetColorTexture(0);
-		if (!binding || !color) {
+		if (!srvCache.Has(srcColorSlot) || !color) {
 			return false;
 		}
-		commandList->SetGraphicsRootDescriptorTable(binding->rootParameterIndex, color->GetSRVGPUHandle());
+		Engine::RootBindingCommand::SetGraphicsSRV(commandList, srvCache.Get(srcColorSlot), 0, color->GetSRVGPUHandle());
 
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		commandList->DrawInstanced(3, 1, 0, 0);
@@ -168,7 +170,7 @@ void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 	}
 
 	if (!ExecuteFullscreenBlit(graphicsCore, context, source, dest,
-		*deps_.assetLibrary, *deps_.pipelineCache)) {
+		*deps_.assetLibrary, *deps_.pipelineCache, blitSRVCache_, srcColorSlot_)) {
 
 		CopyColor0Resource(graphicsCore, source, dest);
 	}

@@ -4,7 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/GraphicsRootBinder.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12ConstantBuffer.h>
@@ -29,7 +30,9 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		LineRendererBase() = default;
+		LineRendererBase() {
+			lineCBVSlot_ = lineBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
+		}
 		virtual ~LineRendererBase() = default;
 
 		// 初期化
@@ -98,6 +101,10 @@ namespace Engine {
 
 		// パイプライン
 		PipelineState pipeline_{};
+
+		// ラインパス定数バッファ（b0）のスロットキャッシュ
+		PipelineBindingCache lineBindCache_{};
+		PipelineBindingCache::SlotID lineCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 
 		// 同じコマンドリスト内で複数回描画しても、後の描画内容で上書きしないためのバッファ
 		std::vector<std::unique_ptr<RenderResource>> renderResources_{};
@@ -249,12 +256,12 @@ namespace Engine {
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 		commandList->IASetVertexBuffers(0, 1, &renderResource.vertexBuffer.GetVertexBufferView());
 
-		// ルートパラメータのバインド
-		GraphicsRootBinder binder{ pipeline_ };
-		const GraphicsBindItem bindItems[] = {
-			{ {}, GraphicsBindValueType::CBV, renderResource.passBuffer.GetResource()->GetGPUVirtualAddress(), {}, 0, 0 },
-		};
-		binder.Bind(commandList, bindItems);
+		// ルートパラメータのバインド（パイプラインが変わった時だけスロットを再解決する）
+		lineBindCache_.Sync(pipeline_);
+		if (lineBindCache_.Has(lineCBVSlot_)) {
+			RootBindingCommand::SetGraphicsCBV(commandList, lineBindCache_.Get(lineCBVSlot_),
+				renderResource.passBuffer.GetResource()->GetGPUVirtualAddress());
+		}
 
 		// 描画
 		commandList->DrawInstanced(static_cast<UINT>(vertices_.size()), 1, 0, 0);
