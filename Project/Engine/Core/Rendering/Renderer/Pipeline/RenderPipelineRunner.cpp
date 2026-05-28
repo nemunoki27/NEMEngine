@@ -808,6 +808,8 @@ Engine::SceneExecutionContext Engine::RenderPipelineRunner::BuildViewExecutionCo
 	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewResources_ : sceneViewResources_;
 	resources.Resize(graphicsCore, view.width, view.height);
 	context.resources = &resources;
+	// ビルボードはGameViewを基準にする
+	context.billboardView = (kind == RenderViewKind::Scene && gameView_.valid) ? &gameView_ : &view;
 	// SceneViewは描画カメラだけSceneViewにして、カリング基準はGameViewに揃える
 	context.lightCullingResources = (kind == RenderViewKind::Scene && gameView_.valid) ?
 		&gameViewResources_ : &resources;

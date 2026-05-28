@@ -22,6 +22,8 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	drawContext.view = sceneContext.view;
 	// SceneView描画時でもGameViewカメラでカリングできるように別ポインタで渡す
 	drawContext.cullingView = sceneContext.cullingView;
+	// ビルボード計算も同様にGameViewを優先するための参照を渡す
+	drawContext.billboardView = sceneContext.billboardView;
 	drawContext.systemContext = sceneContext.systemContext;
 	drawContext.batch = &renderBatch;
 	// View共通リソースを各Backendへ渡す

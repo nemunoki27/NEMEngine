@@ -35,6 +35,8 @@ namespace Engine {
 		const ResolvedRenderView* view = nullptr;
 		// カリング判定に使用するビュー。SceneViewでもGameViewを指す場合がある
 		const ResolvedRenderView* cullingView = nullptr;
+		// ビルボード計算に使用するビュー。SceneViewでもGameViewを指す場合がある
+		const ResolvedRenderView* billboardView = nullptr;
 		const SystemContext* systemContext = nullptr;
 		const RenderSceneBatch* batch = nullptr;
 		// ライトなど、描画パス共通で使うGPUバッファの参照先

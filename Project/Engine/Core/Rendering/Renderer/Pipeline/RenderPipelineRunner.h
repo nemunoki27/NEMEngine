@@ -65,6 +65,8 @@ namespace Engine {
 		RenderTargetRegistry* targetRegistry = nullptr;
 		// 固定RenderPath用の中間レンダーターゲット
 		RenderPathResources* resources = nullptr;
+		// ビルボードの計算基準にするビュー
+		const ResolvedRenderView* billboardView = nullptr;
 		// ライトカリングだけ別ビューの深度とサイズを基準にしたい場合に使用する
 		RenderPathResources* lightCullingResources = nullptr;
 		// ツールプレビューなど、1枚のRT内の一部だけへ描く時の描画矩形

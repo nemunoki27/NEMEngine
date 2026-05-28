@@ -245,8 +245,9 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 
 		// MS/VS
 		{
+			const ResolvedRenderView* billboardView = drawContext.billboardView ? drawContext.billboardView : drawContext.view;
 			MeshInstanceData instance{};
-			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(*item, *drawContext.view);
+			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(*item, *billboardView);
 			instance.subMeshDataOffset = static_cast<uint32_t>(subMeshScratch_.size());
 			instance.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
 
