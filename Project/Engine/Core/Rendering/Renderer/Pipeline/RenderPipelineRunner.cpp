@@ -302,8 +302,7 @@ void Engine::RenderPipelineRunner::Finalize() {
 	sceneViewRaytracingBuffers_.Release();
 	previewBackendFrameStarted_ = false;
 	lastRenderedWorld_ = nullptr;
-	gameViewRaytracingSceneBuilder_.Finalize();
-	sceneViewRaytracingSceneBuilder_.Finalize();
+	raytracingSceneBuilder_.Finalize();
 	gameViewResources_.Destroy();
 	sceneViewResources_.Destroy();
 }
@@ -320,10 +319,8 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	}
 
 	// データクリア
-	gameViewTLASResource_ = nullptr;
-	gameViewPickRecords_.clear();
-	sceneViewTLASResource_ = nullptr;
-	sceneViewPickRecords_.clear();
+	tlasResource_ = nullptr;
+	pickRecords_.clear();
 
 	// アセットライブラリの初期化、フレーム開始処理
 	renderAssetLibrary_.Init(request.assetDatabase);
@@ -345,8 +342,7 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	}
 
 	// レイトレシーンフレーム開始処理
-	gameViewRaytracingSceneBuilder_.BeginFrame(graphicsCore);
-	sceneViewRaytracingSceneBuilder_.BeginFrame(graphicsCore);
+	raytracingSceneBuilder_.BeginFrame(graphicsCore);
 
 	// 描画要求に基づいて必要なサーフェイスをGPUと同期し、ビュー情報を決定
 	SyncRequestedSurfaces(graphicsCore, request);
@@ -484,20 +480,18 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 
 			// レイトレーシングシーンの構築
-			RaytracingSceneBuilder& raytracingSceneBuilder =
-				(kind == RenderViewKind::Game) ? gameViewRaytracingSceneBuilder_ : sceneViewRaytracingSceneBuilder_;
-			raytracingSceneBuilder.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, renderBatch_, context);
+			SceneExecutionContext tlasContext = context;
+			if (gameView_.valid) {
+				tlasContext.view = &gameView_;
+			}
+			raytracingSceneBuilder_.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, renderBatch_, tlasContext);
 
-			if (context.raytracing.tlasResource) {
-				if (kind == RenderViewKind::Game) {
+			if (tlasContext.raytracing.tlasResource) {
+				tlasResource_ = tlasContext.raytracing.tlasResource;
+				pickRecords_ = raytracingSceneBuilder_.GetPickRecords();
 
-					gameViewTLASResource_ = context.raytracing.tlasResource;
-					gameViewPickRecords_ = raytracingSceneBuilder.GetPickRecords();
-				} else if (kind == RenderViewKind::Scene) {
-
-					sceneViewTLASResource_ = context.raytracing.tlasResource;
-					sceneViewPickRecords_ = raytracingSceneBuilder.GetPickRecords();
-				}
+				context.raytracing.tlasResource = tlasResource_;
+				context.raytracing.instanceCount = tlasContext.raytracing.instanceCount;
 			}
 		}
 

@@ -159,11 +159,11 @@ namespace Engine {
 			return (kind == RenderViewKind::Game || gameView_.valid) ? gameViewLightSet_ : sceneViewLightSet_;
 		}
 
-		// ピック用のビュー別TLASリソースとサブメッシュ情報の取得
-		ID3D12Resource* GetGameViewTLASResource() const { return gameViewTLASResource_; }
-		const std::vector<MeshSubMeshPickRecord>& GetGameViewPickRecords() const { return gameViewPickRecords_; }
-		ID3D12Resource* GetSceneViewTLASResource() const { return sceneViewTLASResource_; }
-		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return sceneViewPickRecords_; }
+		// ピック用のTLASリソースとサブメッシュ情報の取得
+		ID3D12Resource* GetGameViewTLASResource() const { return tlasResource_; }
+		const std::vector<MeshSubMeshPickRecord>& GetGameViewPickRecords() const { return pickRecords_; }
+		ID3D12Resource* GetSceneViewTLASResource() const { return tlasResource_; }
+		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return pickRecords_; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -192,15 +192,12 @@ namespace Engine {
 		// ビュー関連のレイトレーシングバッファ
 		RaytracingViewBufferSet gameViewRaytracingBuffers_{};
 		RaytracingViewBufferSet sceneViewRaytracingBuffers_{};
-		// レイトレシーンの構築。BillboardはビューごとにTLAS変換が変わるため、ビュー別に保持する
-		RaytracingSceneBuilder gameViewRaytracingSceneBuilder_{};
-		RaytracingSceneBuilder sceneViewRaytracingSceneBuilder_{};
+		// レイトレシーンの構築。Billboardはゲームビューにのみ合わせるため1つでよい
+		RaytracingSceneBuilder raytracingSceneBuilder_{};
 
-		// ビュー別のTLASリソースとピック用のサブメッシュ情報
-		ID3D12Resource* gameViewTLASResource_ = nullptr;
-		std::vector<MeshSubMeshPickRecord> gameViewPickRecords_{};
-		ID3D12Resource* sceneViewTLASResource_ = nullptr;
-		std::vector<MeshSubMeshPickRecord> sceneViewPickRecords_{};
+		// ピック用のTLASリソースとサブメッシュ情報
+		ID3D12Resource* tlasResource_ = nullptr;
+		std::vector<MeshSubMeshPickRecord> pickRecords_{};
 
 		// 描画アイテム抽出器のレジストリ
 		RenderExtractorRegistry extractorRegistry_{};

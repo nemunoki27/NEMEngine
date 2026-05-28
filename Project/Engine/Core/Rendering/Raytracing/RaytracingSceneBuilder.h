@@ -154,8 +154,6 @@ namespace Engine {
 		// 1フレームで二重構築しないための制御フラグ
 		bool builtThisFrame_ = false;
 		UUID builtSceneInstanceID_{};
-		RenderViewKind builtViewKind_ = RenderViewKind::Game;
-		bool builtViewKindValid_ = false;
 
 		//--------- functions ----------------------------------------------------
 

@@ -58,7 +58,6 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	initialized_ = false;
 	builtThisFrame_ = false;
 	builtSceneInstanceID_ = {};
-	builtViewKindValid_ = false;
 }
 
 void Engine::RaytracingSceneBuilder::BeginFrame(GraphicsCore& graphicsCore) {
@@ -70,7 +69,6 @@ void Engine::RaytracingSceneBuilder::BeginFrame(GraphicsCore& graphicsCore) {
 	// フラグリセット
 	builtThisFrame_ = false;
 	builtSceneInstanceID_ = {};
-	builtViewKindValid_ = false;
 }
 
 void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
@@ -88,12 +86,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	const bool hasView = context.view != nullptr;
-	const RenderViewKind viewKind = hasView ? context.view->kind : RenderViewKind::Game;
-
-	// すでに同一シーンインスタンス/ビューで構築している場合は、構築済みのシーン情報を渡す
-	if (builtThisFrame_ && builtSceneInstanceID_ == context.sceneInstance->instanceID &&
-		builtViewKindValid_ == hasView && (!hasView || builtViewKind_ == viewKind)) {
+	// すでに同一シーンインスタンスで構築している場合は、構築済みのシーン情報を渡す
+	if (builtThisFrame_ && builtSceneInstanceID_ == context.sceneInstance->instanceID) {
 		PublishBuiltScene(context);
 		return;
 	}
@@ -314,8 +308,6 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	// 構築済みにする
 	builtThisFrame_ = true;
 	builtSceneInstanceID_ = context.sceneInstance->instanceID;
-	builtViewKind_ = viewKind;
-	builtViewKindValid_ = hasView;
 
 	// 構築したシーン情報をコンテキストに渡す
 	PublishBuiltScene(context);
