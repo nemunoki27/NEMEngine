@@ -10,6 +10,7 @@
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Interface/ILightExtractor.h>
 
@@ -87,8 +88,10 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const Entity& entity) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	// トランスフォームコンポーネントを持っていなければ処理しない
-	if (!world.HasComponent<TransformComponent>(entity)) {
+	// トランスフォームコンポーネントを持っていなければ
+	// 無効の場合
+	if (!world.HasComponent<TransformComponent>(entity) ||
+		!world.GetComponent<SceneObjectComponent>(entity).activeInHierarchy) {
 		return;
 	}
 	// トランスフォームを取得
@@ -126,7 +129,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 		auto& pointLight = world.GetComponent<PointLightComponent>(entity);
 
 		// 点光源の影響範囲を描画
-		renderer3D->DrawSphere(transform.worldMatrix.GetTranslationValue(), pointLight.radius, pointLight.color, 4, 1.0f);
+		renderer3D->DrawSphere(transform.worldMatrix.GetTranslationValue(), pointLight.radius, pointLight.color, 1.0f);
 	}
 	// スポットライト
 	if (world.HasComponent<SpotLightComponent>(entity)) {

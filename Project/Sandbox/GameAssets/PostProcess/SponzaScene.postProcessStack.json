@@ -7,10 +7,10 @@
             "materialPathCache": "Engine/Assets/Materials/Builtin/PostProcess/Bloom/bloom.material.json",
             "name": "bloom",
             "parameters": {
-                "intensity": 0.3700000047683716,
+                "intensity": 0.009999999776482582,
                 "radius": 12,
                 "sigma": 64.0,
-                "threshold": 0.0
+                "threshold": 1.0
             },
             "passName": "PostProcess",
             "textures": {}

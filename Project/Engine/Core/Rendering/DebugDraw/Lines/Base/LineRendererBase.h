@@ -162,7 +162,7 @@ namespace Engine {
 		// 深度ステンシル設定
 		desc.depthStencil = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		desc.depthStencil.DepthEnable = TRUE;
-		desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 		desc.depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 		desc.depthStencil.StencilEnable = FALSE;
 

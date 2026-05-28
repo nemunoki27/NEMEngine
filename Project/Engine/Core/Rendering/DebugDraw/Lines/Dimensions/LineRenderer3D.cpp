@@ -67,6 +67,62 @@ void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius,
 	}
 }
 
+void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius, const Color4& color, float thickness) {
+
+	const uint32_t kDivision = 32;
+	const float kEvery = 2.0f * Math::pi / static_cast<float>(kDivision);
+
+	for (uint32_t index = 0; index < kDivision; ++index) {
+		float t0 = kEvery * static_cast<float>(index);
+		float t1 = kEvery * static_cast<float>(index + 1);
+
+		// 緯度の中心線：赤道 XZ平面
+		Vector3 equatorA = {
+			center.x + radius * std::cos(t0),
+			center.y,
+			center.z + radius * std::sin(t0)
+		};
+
+		Vector3 equatorB = {
+			center.x + radius * std::cos(t1),
+			center.y,
+			center.z + radius * std::sin(t1)
+		};
+
+		DrawLine(equatorA, equatorB, color, thickness);
+
+		// 経度の中心線：縦方向の大円 XY平面
+		Vector3 meridianA = {
+			center.x + radius * std::cos(t0),
+			center.y + radius * std::sin(t0),
+			center.z
+		};
+
+		Vector3 meridianB = {
+			center.x + radius * std::cos(t1),
+			center.y + radius * std::sin(t1),
+			center.z
+		};
+
+		DrawLine(meridianA, meridianB, color, thickness);
+
+		// もう1本の経度線：YZ平面
+		Vector3 meridian2A = {
+			center.x,
+			center.y + radius * std::sin(t0),
+			center.z + radius * std::cos(t0)
+		};
+
+		Vector3 meridian2B = {
+			center.x,
+			center.y + radius * std::sin(t1),
+			center.z + radius * std::cos(t1)
+		};
+
+		DrawLine(meridian2A, meridian2B, color, thickness);
+	}
+}
+
 void Engine::LineRenderer3D::DrawAABB(const Vector3& min, const Vector3& max, const Color4& color, float thickness) {
 
 	// AABBの各頂点
