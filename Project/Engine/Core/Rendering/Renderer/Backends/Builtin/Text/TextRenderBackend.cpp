@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -265,7 +266,8 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 			continue;
 		}
 		// キャッシュ済みレイアウトからVS/PSインスタンスだけ構築する
-		AppendGlyphInstancesFromCache(*renderer, payload->color, item->worldMatrix, vsGlyphScratch_, psGlyphScratch_);
+		AppendGlyphInstancesFromCache(*renderer, payload->color,
+			RenderBillboard::ResolveWorldMatrix(*item, *context.view), vsGlyphScratch_, psGlyphScratch_);
 	}
 	// 描画に使用するグリフがない場合は描画しない
 	if (vsGlyphScratch_.empty() || psGlyphScratch_.empty()) {

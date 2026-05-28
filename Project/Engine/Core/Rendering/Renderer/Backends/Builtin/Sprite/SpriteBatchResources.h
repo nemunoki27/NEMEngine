@@ -74,7 +74,8 @@ namespace Engine {
 
 		// データ更新
 		void UpdateView(const ResolvedRenderView& view);
-		void UploadInstances(const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items);
+		void UploadInstances(const ResolvedRenderView& view,
+			const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items);
 
 		//--------- accessor -----------------------------------------------------
 

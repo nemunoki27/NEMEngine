@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
+#include <Engine/Editor/UI/Common/TextSearchFilter.h>
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Editor/UI/Inspectors/Core/IInspectorComponentDrawer.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
@@ -71,6 +72,8 @@ namespace Engine {
 
 		// コンポーネントの編集
 		std::vector<std::unique_ptr<IInspectorComponentDrawer>> componentDrawers_{};
+		TextSearchFilter addComponentSearchFilter_;
+		TextSearchFilter removeComponentSearchFilter_;
 
 		// メッシュインスペクター
 		MeshRendererInspectorDrawer* meshRendererDrawer_ = nullptr;

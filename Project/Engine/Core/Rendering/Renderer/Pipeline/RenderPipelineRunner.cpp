@@ -302,7 +302,8 @@ void Engine::RenderPipelineRunner::Finalize() {
 	sceneViewRaytracingBuffers_.Release();
 	previewBackendFrameStarted_ = false;
 	lastRenderedWorld_ = nullptr;
-	raytracingSceneBuilder_.Finalize();
+	gameViewRaytracingSceneBuilder_.Finalize();
+	sceneViewRaytracingSceneBuilder_.Finalize();
 	gameViewResources_.Destroy();
 	sceneViewResources_.Destroy();
 }
@@ -344,7 +345,8 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	}
 
 	// レイトレシーンフレーム開始処理
-	raytracingSceneBuilder_.BeginFrame(graphicsCore);
+	gameViewRaytracingSceneBuilder_.BeginFrame(graphicsCore);
+	sceneViewRaytracingSceneBuilder_.BeginFrame(graphicsCore);
 
 	// 描画要求に基づいて必要なサーフェイスをGPUと同期し、ビュー情報を決定
 	SyncRequestedSurfaces(graphicsCore, request);
@@ -482,18 +484,21 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 
 			// レイトレーシングシーンの構築
-			raytracingSceneBuilder_.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, renderBatch_, context);
-		}
+			RaytracingSceneBuilder& raytracingSceneBuilder =
+				(kind == RenderViewKind::Game) ? gameViewRaytracingSceneBuilder_ : sceneViewRaytracingSceneBuilder_;
+			raytracingSceneBuilder.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, renderBatch_, context);
 
-		// TLASリソースとピック用のサブメッシュ情報をビュー別に保存
-		if (kind == RenderViewKind::Game) {
+			if (context.raytracing.tlasResource) {
+				if (kind == RenderViewKind::Game) {
 
-			gameViewTLASResource_ = context.raytracing.tlasResource;
-			gameViewPickRecords_ = raytracingSceneBuilder_.GetPickRecords();
-		} else if (kind == RenderViewKind::Scene) {
+					gameViewTLASResource_ = context.raytracing.tlasResource;
+					gameViewPickRecords_ = raytracingSceneBuilder.GetPickRecords();
+				} else if (kind == RenderViewKind::Scene) {
 
-			sceneViewTLASResource_ = context.raytracing.tlasResource;
-			sceneViewPickRecords_ = raytracingSceneBuilder_.GetPickRecords();
+					sceneViewTLASResource_ = context.raytracing.tlasResource;
+					sceneViewPickRecords_ = raytracingSceneBuilder.GetPickRecords();
+				}
+			}
 		}
 
 		// TLASバッファをリソースレジストリに登録

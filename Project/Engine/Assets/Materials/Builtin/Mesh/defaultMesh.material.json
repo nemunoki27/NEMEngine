@@ -11,6 +11,11 @@
       "passName": "Draw",
       "pipeline": "Engine/Assets/Pipelines/Builtin/Mesh/defaultMesh.pipeline.json",
       "preferredVariant": "GraphicsMesh"
+    },
+    {
+      "passName": "Transparent",
+      "pipeline": "Engine/Assets/Pipelines/Builtin/Mesh/defaultMeshTransparent.pipeline.json",
+      "preferredVariant": "GraphicsMesh"
     }
   ]
 }

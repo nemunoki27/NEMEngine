@@ -6,6 +6,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
@@ -57,6 +58,7 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	initialized_ = false;
 	builtThisFrame_ = false;
 	builtSceneInstanceID_ = {};
+	builtViewKindValid_ = false;
 }
 
 void Engine::RaytracingSceneBuilder::BeginFrame(GraphicsCore& graphicsCore) {
@@ -68,6 +70,7 @@ void Engine::RaytracingSceneBuilder::BeginFrame(GraphicsCore& graphicsCore) {
 	// フラグリセット
 	builtThisFrame_ = false;
 	builtSceneInstanceID_ = {};
+	builtViewKindValid_ = false;
 }
 
 void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
@@ -85,8 +88,12 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	// すでに同一シーンインスタンスで構築している場合は、構築済みのシーン情報を渡す
-	if (builtThisFrame_ && builtSceneInstanceID_ == context.sceneInstance->instanceID) {
+	const bool hasView = context.view != nullptr;
+	const RenderViewKind viewKind = hasView ? context.view->kind : RenderViewKind::Game;
+
+	// すでに同一シーンインスタンス/ビューで構築している場合は、構築済みのシーン情報を渡す
+	if (builtThisFrame_ && builtSceneInstanceID_ == context.sceneInstance->instanceID &&
+		builtViewKindValid_ == hasView && (!hasView || builtViewKind_ == viewKind)) {
 		PublishBuiltScene(context);
 		return;
 	}
@@ -273,7 +280,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 			if (hasMesh) {
 
-				instance.worldMatrix = src.renderer->subMeshes[subMeshIndex].worldMatrix;
+				instance.worldMatrix =
+					MeshSubMeshRuntime::BuildRenderLocalMatrix(src.renderer->subMeshes[subMeshIndex]) *
+					src.worldMatrix;
 			} else {
 
 				instance.worldMatrix = src.worldMatrix;
@@ -305,6 +314,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	// 構築済みにする
 	builtThisFrame_ = true;
 	builtSceneInstanceID_ = context.sceneInstance->instanceID;
+	builtViewKind_ = viewKind;
+	builtViewKindValid_ = hasView;
 
 	// 構築したシーン情報をコンテキストに渡す
 	PublishBuiltScene(context);
@@ -337,6 +348,9 @@ void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderScene
 		instance.entity = item.entity;
 		instance.world = item.world;
 		instance.worldMatrix = item.worldMatrix;
+		if (context.view) {
+			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *context.view);
+		}
 		instance.renderer = nullptr;
 		if (item.world && item.world->IsAlive(item.entity)) {
 			if (item.world->HasComponent<MeshRendererComponent>(item.entity)) {

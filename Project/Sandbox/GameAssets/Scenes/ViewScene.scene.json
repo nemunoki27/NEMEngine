@@ -95,41 +95,6 @@
                     "siblingOrder": 0
                 },
                 "Name": {
-                    "name": "Entity"
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileID": "270a495a68b321aa",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "270a495a68b321aa"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 0
-                },
-                "Name": {
                     "name": "PointLightGroup"
                 },
                 "PointLight": {
@@ -274,98 +239,147 @@
         },
         {
             "Components": {
+                "Billboard": {
+                    "axes": [
+                        "Y"
+                    ]
+                },
                 "Hierarchy": {
                     "parentLocalFileID": "",
                     "siblingOrder": 0
                 },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "0000000000000000",
+                    "mesh": "b01dfe5ba3c67570",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "36762d22cf755749",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Plane",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": -0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "16b5d83676eeb921",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "22b1ad518b84fabf",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "0000000000000000",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "0000000000000000",
+                            "name": "Box",
+                            "normalTexture": "0000000000000000",
+                            "occlusionTexture": "0000000000000000",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -2.495950937271118,
+                                "y": 1.2262239456176758,
+                                "z": -0.27535101771354675
+                            },
+                            "sourceSubMeshIndex": 1,
+                            "specularTexture": "0000000000000000",
+                            "stableID": "30dbf796c35404e6",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
                 "Name": {
-                    "name": "Entity"
+                    "name": "Cube"
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "cfe6b7cfe05c1ad5",
+                    "localFileID": "393ecf681507d1d4",
                     "visibilityLayerMask": 4294967295
-                },
-                "SpriteRenderer": {
-                    "blendMode": "Normal",
-                    "color": {
-                        "a": 1.0,
-                        "b": 1.0,
-                        "g": 1.0,
-                        "r": 1.0
-                    },
-                    "layer": 0,
-                    "material": "0000000000000000",
-                    "order": 0,
-                    "pivot": {
-                        "x": 0.5,
-                        "y": 0.5
-                    },
-                    "queue": "ScreenUI",
-                    "size": {
-                        "x": 32.0,
-                        "y": 32.0
-                    },
-                    "texture": "7fc849419d5303b5",
-                    "visible": true
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 1438.21240234375,
-                        "y": 289.5606689453125,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 0.903246283531189,
                         "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.42912253737449646
-                    },
-                    "localScale": {
-                        "x": 16.596555709838867,
-                        "y": 12.549970626831055,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "cfe6b7cfe05c1ad5"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 0
-                },
-                "Name": {
-                    "name": "Entity"
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileID": "117b7284a5704abc",
-                    "visibilityLayerMask": 4294967295
-                },
-                "TextRenderer": {
-                    "blendMode": "Normal",
-                    "charSpacing": 0.0,
-                    "color": {
-                        "a": 1.0,
-                        "b": 1.0,
-                        "g": 1.0,
-                        "r": 1.0
-                    },
-                    "font": "82699d49374109f2",
-                    "fontSize": 32.0,
-                    "layer": 0,
-                    "material": "0000000000000000",
-                    "order": 0,
-                    "queue": "ScreenUI",
-                    "text": "Text",
-                    "visible": true
-                },
-                "Transform": {
-                    "localPos": {
-                        "x": 1244.898681640625,
-                        "y": 37.61173629760742,
+                        "y": 3.1202237606048584,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -375,13 +389,65 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 8.623299598693848,
-                        "y": 8.623299598693848,
+                        "x": 1.0,
+                        "y": 1.0,
                         "z": 1.0
                     }
                 }
             },
-            "LocalFileID": "117b7284a5704abc"
+            "LocalFileID": "393ecf681507d1d4"
+        },
+        {
+            "Components": {
+                "DirectionalLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "direction": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    },
+                    "enabled": true,
+                    "intensity": 0.30000001192092896,
+                    "shadowStrength": 0.9200000166893005
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "DirectionalLight"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "051ee75fb3576ee8",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "051ee75fb3576ee8"
         }
     ],
     "Header": {

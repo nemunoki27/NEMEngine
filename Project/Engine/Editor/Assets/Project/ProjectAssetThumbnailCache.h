@@ -60,6 +60,7 @@ namespace Engine {
 
 		// 表示するアイコン
 		std::unordered_map<AssetType, IconEntry> defaultIcons_;
+		std::unordered_map<std::string, IconEntry> customExtensionIcons_;
 		std::string folderIconKey_;
 
 		// キャッシュの初期化フラグ
@@ -75,5 +76,6 @@ namespace Engine {
 		// ImGuiのテクスチャIDに変換する
 		ImTextureID TryGetTextureID(const std::string& key) const;
 		ImTextureID GetDefaultTypeIcon(AssetType type) const;
+		ImTextureID GetCustomExtensionIcon(const std::string& assetPath) const;
 	};
 } // Engine

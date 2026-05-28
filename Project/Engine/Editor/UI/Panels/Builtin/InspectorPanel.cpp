@@ -28,6 +28,7 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/BillboardComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraControllerComponent.h>
@@ -53,6 +54,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SpriteRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/TextRendererInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/DirectionalLightInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/PointLightInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/SpotLightInspectorDrawer.h>
@@ -84,24 +86,26 @@ namespace {
 	struct InspectorComponentMenuEntry {
 		const char* menuLabel;
 		const char* typeName;
+		const char* category;
 	};
 	// 追加できるコンポーネントのメニューエントリー
-	constexpr std::array<InspectorComponentMenuEntry, 14> kOptionalComponentMenuEntries = { {
+	constexpr std::array<InspectorComponentMenuEntry, 15> kOptionalComponentMenuEntries = { {
 
-		{ "PerspectiveCamera",  "PerspectiveCamera" },
-		{ "OrthographicCamera", "OrthographicCamera" },
-		{ "Camera Controller",  "CameraController" },
-		{ "Script",             "Script" },
-		{ "Audio Source",       "AudioSource" },
-		{ "Collision",          "Collision" },
-		{ "Mesh Renderer",      "MeshRenderer" },
-		{ "Skinned Animation",  "SkinnedAnimation" },
-		{ "Sprite Renderer",    "SpriteRenderer" },
-		{ "Text Renderer",      "TextRenderer" },
-		{ "UVTransform",      "UVTransform" },
-		{ "DirectionalLight", "DirectionalLight" },
-		{ "PointLight",       "PointLight" },
-		{ "SpotLight",        "SpotLight" },
+		{ "PerspectiveCamera",  "PerspectiveCamera",  "Camera" },
+		{ "OrthographicCamera", "OrthographicCamera", "Camera" },
+		{ "Camera Controller",  "CameraController",   "Camera" },
+		{ "Script",             "Script",             "Scripting" },
+		{ "Audio Source",       "AudioSource",        "Audio" },
+		{ "Collision",          "Collision",          "Physics" },
+		{ "Mesh Renderer",      "MeshRenderer",       "Rendering" },
+		{ "Sprite Renderer",    "SpriteRenderer",     "Rendering" },
+		{ "Text Renderer",      "TextRenderer",       "Rendering" },
+		{ "UVTransform",        "UVTransform",        "Rendering" },
+		{ "Billboard",          "Billboard",          "Rendering" },
+		{ "Skinned Animation",  "SkinnedAnimation",   "Animation" },
+		{ "DirectionalLight",   "DirectionalLight",   "Lighting" },
+		{ "PointLight",         "PointLight",         "Lighting" },
+		{ "SpotLight",          "SpotLight",          "Lighting" },
 	} };
 	constexpr uint32_t kModelPreviewAssimpFlags =
 		aiProcess_FlipWindingOrder |
@@ -417,6 +421,7 @@ Engine::InspectorPanel::InspectorPanel() {
 	componentDrawers_.emplace_back(std::make_unique<SkinnedAnimationInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<TextRendererInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<UVTransformInspectorDrawer>());
+	componentDrawers_.emplace_back(std::make_unique<BillboardInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<DirectionalLightInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<PointLightInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<SpotLightInspectorDrawer>());
@@ -1025,15 +1030,30 @@ void Engine::InspectorPanel::DrawAddComponentPopup(const EditorPanelContext& con
 		return;
 	}
 
+	addComponentSearchFilter_.DrawInput("##AddComponentSearch");
+	ImGui::Separator();
+
 	// 追加できるコンポーネントのメニューを表示する
 	bool hasAny = false;
+	std::string_view currentCategory;
 	for (const auto& entry : kOptionalComponentMenuEntries) {
 
 		// すでに持っているコンポーネントは追加できない
 		if (!IsScriptMenuEntry(entry) && world.HasComponent(entity, entry.typeName)) {
 			continue;
 		}
+		if (!addComponentSearchFilter_.Matches(entry.menuLabel) &&
+			!addComponentSearchFilter_.Matches(entry.typeName)) {
+			continue;
+		}
 
+		if (currentCategory != entry.category) {
+
+			if (hasAny) {
+				ImGui::Separator();
+			}
+			currentCategory = entry.category;
+		}
 		hasAny = true;
 		if (ImGui::MenuItem(entry.menuLabel)) {
 
@@ -1060,15 +1080,30 @@ void Engine::InspectorPanel::DrawRemoveComponentPopup(const EditorPanelContext& 
 		return;
 	}
 
+	removeComponentSearchFilter_.DrawInput("##RemoveComponentSearch");
+	ImGui::Separator();
+
 	// 削除できるコンポーネントのメニューを表示する
 	bool hasAny = false;
+	std::string_view currentCategory;
 	for (const auto& entry : kOptionalComponentMenuEntries) {
 
 		// 持っていないコンポーネントは削除できない
 		if (!world.HasComponent(entity, entry.typeName)) {
 			continue;
 		}
+		if (!removeComponentSearchFilter_.Matches(entry.menuLabel) &&
+			!removeComponentSearchFilter_.Matches(entry.typeName)) {
+			continue;
+		}
 
+		if (currentCategory != entry.category) {
+
+			if (hasAny) {
+				ImGui::Separator();
+			}
+			currentCategory = entry.category;
+		}
 		hasAny = true;
 		if (ImGui::MenuItem(entry.menuLabel)) {
 

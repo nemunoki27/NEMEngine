@@ -45,7 +45,7 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// GPUリソースの更新
 	resources.UpdateView(*context.view);
-	resources.UploadInstances(*context.batch, items);
+	resources.UploadInstances(*context.view, *context.batch, items);
 
 	// パイプラインを設定
 	ID3D12GraphicsCommandList* commandList = BackendDrawCommon::SetupGraphicsPipeline(

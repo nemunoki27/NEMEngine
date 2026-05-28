@@ -192,8 +192,9 @@ namespace Engine {
 		// ビュー関連のレイトレーシングバッファ
 		RaytracingViewBufferSet gameViewRaytracingBuffers_{};
 		RaytracingViewBufferSet sceneViewRaytracingBuffers_{};
-		// レイトレシーンの構築
-		RaytracingSceneBuilder raytracingSceneBuilder_{};
+		// レイトレシーンの構築。BillboardはビューごとにTLAS変換が変わるため、ビュー別に保持する
+		RaytracingSceneBuilder gameViewRaytracingSceneBuilder_{};
+		RaytracingSceneBuilder sceneViewRaytracingSceneBuilder_{};
 
 		// ビュー別のTLASリソースとピック用のサブメッシュ情報
 		ID3D12Resource* gameViewTLASResource_ = nullptr;

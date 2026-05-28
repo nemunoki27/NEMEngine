@@ -67,7 +67,21 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	defaultIcons_[AssetType::Unknown].textureKey = "unknown.dds";
 	defaultIcons_[AssetType::Unknown].assetPath = baseKey + "unknown.dds";
 
+	customExtensionIcons_[".exeConfig.json"].textureKey = "exeConfig.png";
+	customExtensionIcons_[".exeConfig.json"].assetPath = baseKey + "exeConfig.png";
+	customExtensionIcons_[".windowSetting.json"].textureKey = "exeConfig.png";
+	customExtensionIcons_[".windowSetting.json"].assetPath = baseKey + "exeConfig.png";
+	customExtensionIcons_[".collisionSettings.json"].textureKey = "exeConfig.png";
+	customExtensionIcons_[".collisionSettings.json"].assetPath = baseKey + "exeConfig.png";
+	customExtensionIcons_[".postProcessStack.json"].textureKey = "exeConfig.png";
+	customExtensionIcons_[".postProcessStack.json"].assetPath = baseKey + "exeConfig.png";
+
 	for (const auto& [type, icon] : defaultIcons_) {
+
+		textureUploadService_->RequestTextureFile(icon.textureKey, icon.assetPath);
+	}
+
+	for (const auto& [ext, icon] : customExtensionIcons_) {
 
 		textureUploadService_->RequestTextureFile(icon.textureKey, icon.assetPath);
 	}
@@ -111,6 +125,20 @@ ImTextureID Engine::ProjectAssetThumbnailCache::GetDefaultTypeIcon(AssetType typ
 	return (unknownIt != defaultIcons_.end()) ? TryGetTextureID(unknownIt->second.textureKey) : ImTextureID{};
 }
 
+ImTextureID Engine::ProjectAssetThumbnailCache::GetCustomExtensionIcon(const std::string& assetPath) const {
+
+	for (const auto& [ext, icon] : customExtensionIcons_) {
+		if (assetPath.length() >= ext.length() && 
+			assetPath.compare(assetPath.length() - ext.length(), ext.length(), ext) == 0) {
+			ImTextureID id = TryGetTextureID(icon.textureKey);
+			if (id != ImTextureID{}) {
+				return id;
+			}
+		}
+	}
+	return ImTextureID{};
+}
+
 ImTextureID Engine::ProjectAssetThumbnailCache::GetAssetTextureID(const std::string& assetPath, AssetType type) {
 
 	if (!initialized_ || !textureUploadService_) {
@@ -118,6 +146,12 @@ ImTextureID Engine::ProjectAssetThumbnailCache::GetAssetTextureID(const std::str
 	}
 
 	if (type != AssetType::Texture) {
+		if (type == AssetType::Unknown) {
+			ImTextureID customIcon = GetCustomExtensionIcon(assetPath);
+			if (customIcon != ImTextureID{}) {
+				return customIcon;
+			}
+		}
 		return GetDefaultTypeIcon(type);
 	}
 

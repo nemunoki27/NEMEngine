@@ -13,6 +13,7 @@
 #include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Utils.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/Draw/VertexMeshDrawPath.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/Draw/MeshShaderDrawPath.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
@@ -63,6 +64,14 @@ namespace {
 				Engine::DefaultMaterialSlot::Mesh, { "Draw", "Mesh" }, outResolved)) {
 				return true;
 			}
+		} else if (context.passName == "Transparent") {
+
+			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterialID,
+				Engine::DefaultMaterialSlot::Mesh, { "Transparent" }, outResolved)) {
+				return true;
+			}
+			return Engine::BackendDrawCommon::ResolveMaterialPass(context, Engine::AssetID{},
+				Engine::DefaultMaterialSlot::Mesh, { "Transparent" }, outResolved);
 		} else {
 			// "Draw以外のパスは、そのパス名をそのまま探す
 			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterialID,
@@ -257,9 +266,16 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 	}
 
 	MeshBatchResources* resources = nullptr;
+	bool containsBillboard = false;
+	for (const RenderItem* item : outPrepared.items) {
+		if (item && RenderBillboard::HasBillboard(*item)) {
+			containsBillboard = true;
+			break;
+		}
+	}
 
 	// キャッシュを使用するか
-	bool useSkinningCache = outPrepared.gpuMesh->isSkinned;
+	bool useSkinningCache = outPrepared.gpuMesh->isSkinned && !containsBillboard;
 	if (useSkinningCache) {
 
 		// スキニングするメッシュは、同一フレーム内でのみバッチ結果をキャッシュする
@@ -288,6 +304,16 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 			// キャッシュに登録する
 			skinnedBatchCache_.emplace(key, resources);
 		}
+	} else if (containsBillboard) {
+
+		// BillboardはビューごとにworldMatrixが変わるため、静的/スキニングキャッシュを使い回さない
+		MeshBatchResources& acquired = resourcePool_.Acquire(graphicsCore,
+			[](MeshBatchResources& resource, GraphicsCore& core) {
+				resource.Init(core);
+			});
+		acquired.UpdateView(*context.view, context.cullingView);
+		acquired.UploadBatchData(context, *context.batch, outPrepared.items, *outPrepared.gpuMesh);
+		resources = &acquired;
 	} else {
 
 		// 静的メッシュはバッチ内容が同じならGPUアップロード済みデータを使い回す

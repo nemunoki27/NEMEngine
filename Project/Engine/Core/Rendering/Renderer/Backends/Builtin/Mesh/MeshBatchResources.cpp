@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Utils.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
@@ -245,7 +246,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 		// MS/VS
 		{
 			MeshInstanceData instance{};
-			instance.worldMatrix = item->worldMatrix;
+			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(*item, *drawContext.view);
 			instance.subMeshDataOffset = static_cast<uint32_t>(subMeshScratch_.size());
 			instance.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
 

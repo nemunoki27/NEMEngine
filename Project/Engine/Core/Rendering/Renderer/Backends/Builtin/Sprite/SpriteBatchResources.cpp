@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 //============================================================================
@@ -70,8 +71,8 @@ void Engine::SpriteBatchResources::UpdateView(const ResolvedRenderView& view) {
 	view_.Upload(constants);
 }
 
-void Engine::SpriteBatchResources::UploadInstances(const RenderSceneBatch& batch,
-	const std::span<const RenderItem* const>& items) {
+void Engine::SpriteBatchResources::UploadInstances(const ResolvedRenderView& view,
+	const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items) {
 
 	// 描画アイテムからインスタンスデータを構築する
 	vsScratch_.clear();
@@ -92,7 +93,7 @@ void Engine::SpriteBatchResources::UploadInstances(const RenderSceneBatch& batch
 		// VS
 		{
 			SpriteVSInstanceData instance{};
-			instance.worldMatrix = item->worldMatrix;
+			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(*item, view);
 			instance.size = payload->size;
 			instance.pivot = payload->pivot;
 			// インスタンスデータを追加する
