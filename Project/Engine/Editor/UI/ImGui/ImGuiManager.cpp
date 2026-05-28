@@ -130,7 +130,7 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	colors[ImGuiCol_ButtonActive] = C(0, 7, 45, 255);
 
 	// Header
-	colors[ImGuiCol_Header] = panel;
+	colors[ImGuiCol_Header] = C(13, 13, 13, 255);
 	colors[ImGuiCol_HeaderHovered] = C(0, 13, 85, 255);
 	colors[ImGuiCol_HeaderActive] = C(0, 7, 45, 255);
 
@@ -175,6 +175,7 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	colors[ImGuiCol_TableBorderStrong] = C(31, 31, 31);
 	colors[ImGuiCol_TableBorderLight] = C(31, 31, 31);
 	colors[ImGuiCol_TableRowBgAlt] = C(4, 4, 4);
+	colors[ImGuiCol_TableHeaderBg] = C(2, 2, 2);
 
 	// Shape / Layout
 	style.WindowRounding = 2.0f;

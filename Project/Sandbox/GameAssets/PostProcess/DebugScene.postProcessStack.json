@@ -1,36 +1,4 @@
 {
-    "passes": [
-        {
-            "enabled": true,
-            "id": "14a9f8bc74792b3e",
-            "materialGuid": "a0f082c77de63cbd",
-            "materialPathCache": "Engine/Assets/Materials/Builtin/PostProcess/Vignette/vignette.material.json",
-            "name": "vignette",
-            "parameters": {
-                "intensity": 0.7400000095367432,
-                "radius": 0.7400000095367432,
-                "softness": 0.3499999940395355,
-                "vignetteColor": [
-                    0.0,
-                    0.0,
-                    0.0
-                ]
-            },
-            "passName": "PostProcess",
-            "textures": {}
-        },
-        {
-            "enabled": true,
-            "id": "c36dc91b4e8cd795",
-            "materialGuid": "2b6d52a226f650bc",
-            "materialPathCache": "Engine/Assets/Materials/Builtin/PostProcess/BlurVertical/blurVertical.material.json",
-            "name": "blurVertical",
-            "parameters": {
-                "radius": 28.059999465942383
-            },
-            "passName": "PostProcess",
-            "textures": {}
-        }
-    ],
+    "passes": [],
     "version": 1
 }

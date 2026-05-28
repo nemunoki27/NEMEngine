@@ -32,7 +32,7 @@ void DxSwapChain::Create(WinApp* winApp, IDXGIFactory7* factory, ID3D12CommandQu
 	desc_.BufferCount = kBufferCount;
 	desc_.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	desc_.Scaling = DXGI_SCALING_NONE;
-	desc_.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+	//desc_.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 
 	HRESULT hr = factory->CreateSwapChainForHwnd(
 		queue, winApp->GetHwnd(), &desc_, nullptr, nullptr,
