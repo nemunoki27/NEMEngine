@@ -10,6 +10,8 @@
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 
 // c++
 #include <algorithm>
@@ -1256,6 +1258,38 @@ Engine::ValueEditResult Engine::MyGUI::StringCombo(const char* label, std::strin
 	return result;
 }
 
+namespace {
+
+	// テクスチャアセットのプレビュー画像を解決する。テクスチャでなければ空を返す
+	ImTextureID ResolveTextureAssetPreview(Engine::GraphicsCore* graphicsCore,
+		const Engine::AssetDatabase* assetDatabase, Engine::AssetID assetID) {
+
+		if (!graphicsCore || !assetDatabase || !assetID) {
+			return ImTextureID{};
+		}
+		const Engine::AssetMeta* meta = assetDatabase->Find(assetID);
+		if (!meta || meta->type != Engine::AssetType::Texture) {
+			return ImTextureID{};
+		}
+
+		auto& texService = graphicsCore->GetTextureUploadService();
+		const std::string previewKey = "gui:texture:preview:" + meta->assetPath;
+		if (texService.GetState(previewKey) == Engine::TextureRequestState::None) {
+
+			Engine::TextureFileRequestDesc desc{};
+			desc.key = previewKey;
+			desc.assetPath = meta->assetPath;
+			desc.forceSRGB = true;
+			texService.RequestTextureFile(desc);
+		}
+		if (const Engine::GPUTextureResource* tex = texService.GetTexture(previewKey)) {
+			if (tex->valid) {
+				return static_cast<ImTextureID>(tex->gpuHandle.ptr);
+			}
+		}
+		return ImTextureID{};
+	}
+}
 Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, AssetID& value,
 	const AssetDatabase* assetDatabase, const std::initializer_list<AssetType>& acceptedTypes,
 	const AssetEditSetting& setting) {
@@ -1271,6 +1305,12 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 	// 表示テキストを構築する
 	const std::string displayText = BuildAssetReferenceLabel(value, assetDatabase);
 	const bool hasValue = static_cast<bool>(value);
+
+	// テクスチャアセットのプレビューを共通で解決する（呼び出し側が明示指定していればそれを優先）
+	ImTextureID resolvedPreviewID = setting.previewTextureID;
+	if (resolvedPreviewID == ImTextureID{}) {
+		resolvedPreviewID = ResolveTextureAssetPreview(setting.graphicsCore, assetDatabase, value);
+	}
 	// 値がない場合はテキストを薄く表示する
 	if (!hasValue) {
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
@@ -1288,12 +1328,25 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 
 	// アイテムがアクティブかどうかを記録する
 	result.anyItemActive = ImGui::IsItemActive();
+
+	// 右クリックでアセット設定を削除するコンテキストメニュー
+	if (hasValue && setting.allowDelete && ImGui::BeginPopupContextItem("##assetRefDelete")) {
+
+		if (ImGui::MenuItem("削除")) {
+
+			value = AssetID{};
+			result.valueChanged = true;
+			result.editFinished = true;
+		}
+		ImGui::EndPopup();
+	}
+
 	if (setting.showTooltip && ImGui::BeginItemTooltip()) {
 
 		const std::string tooltip = BuildAssetReferenceTooltip(value, assetDatabase);
 		ImGui::TextUnformatted(tooltip.c_str());
-		if (setting.previewTextureID != ImTextureID{}) {
-			ImGui::Image(setting.previewTextureID, ImVec2(128.0f, 128.0f));
+		if (resolvedPreviewID != ImTextureID{}) {
+			ImGui::Image(resolvedPreviewID, ImVec2(128.0f, 128.0f));
 		}
 		ImGui::EndTooltip();
 	}

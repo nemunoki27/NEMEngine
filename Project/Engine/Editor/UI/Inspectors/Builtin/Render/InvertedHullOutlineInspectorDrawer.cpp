@@ -55,15 +55,19 @@ void Engine::InvertedHullOutlineInspectorDrawer::DrawFields(const EditorPanelCon
 			return InspectorDrawerCommon::DrawCheckboxField("Baked Normalを使う", draft.useBakedNormal);
 			});
 		DrawField(anyItemActive, [&]() {
+			AssetEditSetting setting{};
+			setting.graphicsCore = context.graphicsCore;
 			return MyGUI::AssetReferenceField("Baked Normal Texture", draft.bakedNormalTexture,
-				context.editorContext->assetDatabase, { AssetType::Texture });
+				context.editorContext->assetDatabase, { AssetType::Texture }, setting);
 			});
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawCheckboxField("部位別幅を使う", draft.useOutlineSampler);
 			});
 		DrawField(anyItemActive, [&]() {
+			AssetEditSetting setting{};
+			setting.graphicsCore = context.graphicsCore;
 			return MyGUI::AssetReferenceField("Outline Sampler", draft.outlineSamplerTexture,
-				context.editorContext->assetDatabase, { AssetType::Texture });
+				context.editorContext->assetDatabase, { AssetType::Texture }, setting);
 			});
 	}
 	//============================================================================

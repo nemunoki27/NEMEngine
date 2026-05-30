@@ -14,6 +14,7 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
+#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Editor/Commands/Entity/InstantiatePrefabCommand.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>

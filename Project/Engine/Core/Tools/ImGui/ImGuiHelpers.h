@@ -26,6 +26,7 @@ namespace Engine {
 	// front
 	class AssetDatabase;
 	class ECSWorld;
+		class GraphicsCore;
 	struct TransformComponent;
 	struct SubMeshMaterial;
 
@@ -110,6 +111,10 @@ namespace Engine {
 		float reserveRightWidth = 0.0f;
 		// ツールチップのプレビュー画像
 		ImTextureID previewTextureID = ImTextureID{};
+		// テクスチャアセットならプレビューを自動解決するためのGraphicsCore
+		GraphicsCore* graphicsCore = nullptr;
+		// 右クリックメニューでアセット設定を削除できるようにするか
+		bool allowDelete = true;
 		// プロパティ行設定
 		PropertyRowSetting propertyRow{};
 	};

@@ -220,47 +220,12 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 
 				DrawField(anyItemActive, [&]() {
 
-					// ツールチップ用のテクスチャプレビューを取得
-					ImTextureID previewID = ImTextureID{};
-					if (textureID && context.graphicsCore && context.editorContext && context.editorContext->assetDatabase) {
-						if (const AssetMeta* meta = context.editorContext->assetDatabase->Find(textureID)) {
-							auto& texService = context.graphicsCore->GetTextureUploadService();
-							const std::string previewKey = "inspector:texture:preview:" + meta->assetPath;
-							if (texService.GetState(previewKey) == TextureRequestState::None) {
-								TextureFileRequestDesc desc{};
-								desc.key = previewKey;
-								desc.assetPath = meta->assetPath;
-								desc.forceSRGB = true;
-								texService.RequestTextureFile(desc);
-							}
-							if (const auto* tex = texService.GetTexture(previewKey)) {
-								if (tex->valid) {
-									previewID = static_cast<ImTextureID>(tex->gpuHandle.ptr);
-								}
-							}
-						}
-					}
-
-					// 右側に余白を空ける
+					// テクスチャプレビュー(ツールチップ)と右クリック削除はAssetReferenceFieldの共通機能で処理する
 					AssetEditSetting setting{};
-					setting.reserveRightWidth = 64.0f;
-					setting.previewTextureID = previewID;
-					setting.useAutoPropertyRow = false;
+					setting.graphicsCore = context.graphicsCore;
 
-					MyGUI::BeginPropertyRow(label);
-
-					ValueEditResult result = MyGUI::AssetReferenceField("", textureID,
+					return MyGUI::AssetReferenceField(label, textureID,
 						context.editorContext->assetDatabase, { AssetType::Texture }, setting);
-					ImGui::SameLine();
-					if (ImGui::Button("削除") && textureID) {
-						textureID = AssetID{};
-						result.valueChanged = true;
-						result.editFinished = true;
-					}
-
-					MyGUI::EndPropertyRow();
-
-					return result;
 					});
 				};
 

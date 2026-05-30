@@ -479,19 +479,20 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 			PreDispatchVisibleMeshSkinning(graphicsCore, context,
 				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 
-			// レイトレーシングシーンの構築
-			SceneExecutionContext tlasContext = context;
+			// レイトレーシングシーンの構築。
+			// gRaytracingSceneInstances/gRaytracingSubMeshes は context.bufferRegistry へ登録する必要があるため、
+			// コピーではなく実際の context へ直接構築する。コピーへ構築すると登録が破棄され、反射パスが早期リターンする。
+			// TLAS構築の基準ビューだけ一時的にGameViewへ差し替え、構築後に元へ戻す。
+			const ResolvedRenderView* prevTlasView = context.view;
 			if (gameView_.valid) {
-				tlasContext.view = &gameView_;
+				context.view = &gameView_;
 			}
-			raytracingSceneBuilder_.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, renderBatch_, tlasContext);
+			raytracingSceneBuilder_.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, renderBatch_, context);
+			context.view = prevTlasView;
 
-			if (tlasContext.raytracing.tlasResource) {
-				tlasResource_ = tlasContext.raytracing.tlasResource;
+			if (context.raytracing.tlasResource) {
+				tlasResource_ = context.raytracing.tlasResource;
 				pickRecords_ = raytracingSceneBuilder_.GetPickRecords();
-
-				context.raytracing.tlasResource = tlasResource_;
-				context.raytracing.instanceCount = tlasContext.raytracing.instanceCount;
 			}
 		}
 

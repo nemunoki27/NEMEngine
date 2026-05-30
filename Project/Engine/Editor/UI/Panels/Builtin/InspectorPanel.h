@@ -136,6 +136,8 @@ namespace Engine {
 		void ResetModelAssetPreviewCamera();
 		// Materialアセットのインスペクターを描画する
 		void DrawMaterialAssetInspector(const EditorPanelContext& context, const AssetMeta& meta);
+		// Textureアセットのプレビューと詳細を描画する
+		void DrawTextureAssetInspector(const EditorPanelContext& context, const AssetMeta& meta);
 		// Materialアセットの編集用データを読み込む
 		bool LoadMaterialDraft(const EditorPanelContext& context, const AssetMeta& meta);
 		// Materialアセットの編集用データを保存する
