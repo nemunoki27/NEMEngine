@@ -13,9 +13,10 @@ namespace {
 
 	void DispatchInternal(Engine::GraphicsCore& graphicsCore, Engine::SceneExecutionContext& context,
 		const std::vector<const Engine::RenderItem*>& items, const Engine::RenderPipelineDeps& deps,
-		Engine::MultiRenderTarget* target, const char* drawPassName,
+		const Engine::RenderPassSurfaceBinding& surface, const char* drawPassName,
 		bool forceVertexMeshVariant, bool depthOnly) {
 
+		Engine::MultiRenderTarget* target = surface.colorSurface;
 		if (!target || !deps.dispatcher || !deps.backendRegistry ||
 			!deps.assetLibrary || !deps.pipelineCache || !deps.materialResolver) {
 			return;
@@ -25,17 +26,41 @@ namespace {
 			return;
 		}
 
+		// 外部DSV指定があればそちらを使う。なければサーフェス自身の深度を使う
+		Engine::DepthTexture2D* depth = surface.depthOverride
+			? surface.depthOverride
+			: target->GetDepthTexture();
+
 		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 		dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
 
 		if (depthOnly) {
 
-			if (auto* depth = target->GetDepthTexture()) {
+			if (depth) {
 				depth->Transition(*dxCommand, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 				dxCommand->BindRenderTargets(std::nullopt, depth->GetDSVCPUHandle());
 			} else {
 				return;
 			}
+		} else if (surface.depthOverride) {
+
+			// 色サーフェスのRTVと外部DSVを明示的に組み合わせてバインドする
+			std::vector<Engine::RenderTarget> renderTargets{};
+			renderTargets.reserve(target->GetColorCount());
+			for (uint32_t i = 0; i < target->GetColorCount(); ++i) {
+
+				auto* color = target->GetColorTexture(i);
+				if (!color) {
+					continue;
+				}
+				color->Transition(*dxCommand, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				renderTargets.emplace_back(color->GetRenderTarget());
+			}
+			if (depth) {
+				depth->Transition(*dxCommand, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+			}
+			dxCommand->BindRenderTargets(renderTargets,
+				depth ? std::optional<D3D12_CPU_DESCRIPTOR_HANDLE>(depth->GetDSVCPUHandle()) : std::nullopt);
 		} else {
 
 			target->TransitionForRender(*dxCommand);
@@ -53,9 +78,10 @@ namespace {
 		const bool prevForce = context.forceVertexMeshVariant;
 		context.forceVertexMeshVariant = forceVertexMeshVariant || prevForce;
 
+		// depthOnly/外部DSVのフォーマット解決が正しく行われるよう、depthOverrideとdepthOnlyを渡す
 		deps.dispatcher->Dispatch(graphicsCore, context, *deps.renderBatch,
 			*deps.backendRegistry, *deps.assetLibrary, *deps.pipelineCache,
-			*deps.materialResolver, items, target, drawPassName, false);
+			*deps.materialResolver, items, target, surface.depthOverride, drawPassName, depthOnly);
 
 		context.forceVertexMeshVariant = prevForce;
 	}
@@ -72,7 +98,8 @@ namespace Engine::RenderPassExecutionHelper {
 		if (!list) {
 			return;
 		}
-		DispatchInternal(graphicsCore, context, list->items, deps, target, drawPassName, forceVertexMeshVariant, false);
+		DispatchInternal(graphicsCore, context, list->items, deps,
+			RenderPassSurfaceBinding{ target, nullptr }, drawPassName, forceVertexMeshVariant, false);
 	}
 
 	void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
@@ -80,7 +107,16 @@ namespace Engine::RenderPassExecutionHelper {
 		MultiRenderTarget* target, const char* drawPassName,
 		bool forceVertexMeshVariant, bool depthOnly) {
 
-		DispatchInternal(graphicsCore, context, items, deps, target, drawPassName, forceVertexMeshVariant, depthOnly);
+		DispatchInternal(graphicsCore, context, items, deps,
+			RenderPassSurfaceBinding{ target, nullptr }, drawPassName, forceVertexMeshVariant, depthOnly);
+	}
+
+	void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
+		const std::vector<const RenderItem*>& items, const RenderPipelineDeps& deps,
+		const RenderPassSurfaceBinding& surface, const char* drawPassName,
+		bool forceVertexMeshVariant, bool depthOnly) {
+
+		DispatchInternal(graphicsCore, context, items, deps, surface, drawPassName, forceVertexMeshVariant, depthOnly);
 	}
 
 } // Engine::RenderPassExecutionHelper

@@ -1,0 +1,21 @@
+{
+  "name": "DefaultMeshOutline",
+  "domain": "Surface",
+  "passes": [
+    {
+      "passName": "Outline",
+      "pipeline": "Engine/Assets/Pipelines/Builtin/Mesh/defaultMeshOutline.pipeline.json",
+      "preferredVariant": "GraphicsMesh"
+    },
+    {
+      "passName": "OutlineStencilWrite",
+      "pipeline": "Engine/Assets/Pipelines/Builtin/Mesh/defaultMeshOutlineStencilWrite.pipeline.json",
+      "preferredVariant": "GraphicsMesh"
+    },
+    {
+      "passName": "OutlineStencilTest",
+      "pipeline": "Engine/Assets/Pipelines/Builtin/Mesh/defaultMeshOutlineStencilTest.pipeline.json",
+      "preferredVariant": "GraphicsMesh"
+    }
+  ]
+}

@@ -46,6 +46,7 @@ void Engine::MaterialResolver::EnsureDefaults(AssetDatabase& database) const {
 	tryImportIfExists(DefaultMaterialSlot::Sprite, AssetType::Material);
 	tryImportIfExists(DefaultMaterialSlot::Text, AssetType::Material);
 	tryImportIfExists(DefaultMaterialSlot::Mesh, AssetType::Material);
+	tryImportIfExists(DefaultMaterialSlot::MeshOutline, AssetType::Material);
 	tryImportIfExists(DefaultMaterialSlot::FullscreenCopy, AssetType::Material);
 
 	// 初期化済み
@@ -62,6 +63,8 @@ const char* Engine::MaterialResolver::GetDefaultAssetPath(DefaultMaterialSlot sl
 		return "Engine/Assets/Materials/Builtin/Text/defaultText.material.json";
 	case DefaultMaterialSlot::Mesh:
 		return "Engine/Assets/Materials/Builtin/Mesh/defaultMesh.material.json";
+	case DefaultMaterialSlot::MeshOutline:
+		return "Engine/Assets/Materials/Builtin/Mesh/defaultMeshOutline.material.json";
 	case DefaultMaterialSlot::FullscreenCopy:
 		return "Engine/Assets/Materials/Builtin/FullscreenCopy/fullscreenCopy.material.json";
 	}

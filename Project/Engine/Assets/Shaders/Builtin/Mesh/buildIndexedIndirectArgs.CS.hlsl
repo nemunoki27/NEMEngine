@@ -36,6 +36,10 @@ cbuffer MeshDrawConstants : register(b2) {
 	float3 meshBoundsCenter;
 	float meshBoundsRadius;
 	float contributionPixelThreshold;
+	uint invertedHullOutlinePass;
+	float outlineMaxModelExpansion;
+	float outlineMaxAbsCameraZOffset;
+	uint outlineHasScreenPixelWidth;
 	uint3 _meshDrawPad0;
 };
 struct SubMeshShaderData {
@@ -56,6 +60,9 @@ struct SubMeshShaderData {
 	float4 color;
 	float4 emissiveColor;
 	float4x4 uvMatrix;
+
+	float3 sourcePivot;
+	float _outlinePad0;
 };
 struct MeshInstance {
 
@@ -65,6 +72,9 @@ struct MeshInstance {
 	uint subMeshCount;
 	uint flags;
 	uint skinnedVertexOffset;
+
+	uint outlineDataIndex;
+	uint3 _outlinePad;
 };
 
 StructuredBuffer<MeshInstance> gMeshInstances : register(t0);
@@ -124,10 +134,22 @@ void EncapsulateSphere(inout float3 center, inout float radius, float3 addCenter
 	radius = newRadius;
 }
 
+// 背面法アウトラインでBoundsへ加えるモデル空間方向の膨張量
+float ResolveOutlineCullLocalExpansion() {
+	return invertedHullOutlinePass != 0u ? outlineMaxModelExpansion : 0.0f;
+}
+// Camera Z Offsetによるワールド方向の追加膨張量
+float ResolveOutlineCullWorldExtra() {
+	return invertedHullOutlinePass != 0u ? outlineMaxAbsCameraZOffset : 0.0f;
+}
+
 void CalcInstanceCullBounds(MeshInstance instance, out float3 center, out float radius) {
 
+	const float outlineLocal = ResolveOutlineCullLocalExpansion();
+	const float outlineWorldExtra = ResolveOutlineCullWorldExtra();
+
 	center = mul(float4(meshBoundsCenter, 1.0f), instance.worldMatrix).xyz;
-	radius = meshBoundsRadius * GetMatrixMaxScale(instance.worldMatrix);
+	radius = (meshBoundsRadius + outlineLocal) * GetMatrixMaxScale(instance.worldMatrix) + outlineWorldExtra;
 	if (instance.subMeshCount == 0u) {
 		return;
 	}
@@ -139,9 +161,9 @@ void CalcInstanceCullBounds(MeshInstance instance, out float3 center, out float 
 
 		// 実描画はsubMesh.localMatrixをworldMatrixの前に掛けるため、カリングBoundsも同じ空間で膨らませる
 		float3 localCenter = mul(float4(meshBoundsCenter, 1.0f), subMesh.localMatrix).xyz;
-		float localRadius = meshBoundsRadius * GetMatrixMaxScale(subMesh.localMatrix);
+		float localRadius = (meshBoundsRadius + outlineLocal) * GetMatrixMaxScale(subMesh.localMatrix);
 		float3 worldCenter = mul(float4(localCenter, 1.0f), instance.worldMatrix).xyz;
-		float worldRadius = localRadius * GetMatrixMaxScale(instance.worldMatrix);
+		float worldRadius = localRadius * GetMatrixMaxScale(instance.worldMatrix) + outlineWorldExtra;
 
 		if (!initialized) {
 			center = worldCenter;

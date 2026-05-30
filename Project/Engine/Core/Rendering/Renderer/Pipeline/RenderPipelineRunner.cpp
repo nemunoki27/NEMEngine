@@ -720,7 +720,7 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 		}
 		batchDispatcher_.Dispatch(graphicsCore, context, renderBatch_, previewBackendRegistry_,
 			renderAssetLibrary_, pipelineStateCache_, materialResolver_,
-			list.items, request.surface, "Draw", false);
+			list.items, request.surface, nullptr, "Draw", false);
 	}
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)

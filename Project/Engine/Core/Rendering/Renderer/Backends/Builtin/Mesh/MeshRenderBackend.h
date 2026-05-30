@@ -165,6 +165,7 @@ namespace Engine {
 		PipelineBindingCache::SlotID skinnedPkdVtxSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID meshInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID subMeshSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID outlineSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		// スキニングComputeバインドのパイプラインスロットID
 		PipelineBindingCache skinningBindCache_{};
 		PipelineBindingCache::SlotID skinConstCBVSlot_ = PipelineBindingCache::kInvalidSlot;

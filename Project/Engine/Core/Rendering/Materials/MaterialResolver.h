@@ -22,6 +22,7 @@ namespace Engine {
 		Sprite,
 		Text,
 		Mesh,
+		MeshOutline,
 		FullscreenCopy,
 	};
 	static constexpr const uint32_t kDefaultMaterialCount = static_cast<uint32_t>(DefaultMaterialSlot::FullscreenCopy) + 1;

@@ -108,13 +108,6 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 		renderer3D->DrawCameraFrustum(camera.common.viewMatrix, camera.common.aspectRatio, camera.nearClip,
 			camera.farClip, Math::DegToRad(camera.fovY), camera.common.editorFrustumScale, Color4::Yellow(), 1.0f);
 	}
-	// メッシュ
-	if (world.HasComponent<MeshRendererComponent>(entity)) {
-
-		// メッシュのバウンディングボックス描画
-		renderer3D->DrawOBB(transform.worldMatrix.GetTranslationValue(), transform.localScale,
-			transform.localRotation, Color4::FromHex(0xff7f00ff), 1.0f);
-	}
 	// スキニングアニメーション
 	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {
 

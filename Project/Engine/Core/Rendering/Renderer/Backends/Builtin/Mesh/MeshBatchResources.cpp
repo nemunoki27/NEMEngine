@@ -11,7 +11,8 @@
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h> 
+#include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
+#include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
@@ -46,6 +47,19 @@ namespace {
 		}
 		return item->world->TryGetComponent<Engine::SkinnedAnimationComponent>(item->entity);
 	}
+	const Engine::InvertedHullOutlineComponent* ResolveOutline(const Engine::RenderItem* item) {
+
+		if (!item || !item->world) {
+			return nullptr;
+		}
+		return item->world->TryGetComponent<Engine::InvertedHullOutlineComponent>(item->entity);
+	}
+
+	// Hull本体を描くパスかどうか。OutlineStencilWriteは元メッシュ形状なのでHullではない
+	bool IsHullOutlinePass(std::string_view passName) {
+
+		return passName == "Outline" || passName == "OutlineStencilTest";
+	}
 }
 
 void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
@@ -69,6 +83,8 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	// ExecuteIndirect引数生成Computeに渡す固定Index数
 	indirectArgs_.Init(device);
 	subMeshData_.Init(device, srvDescriptor);
+	// 背面法アウトラインのインスタンス別GPUデータ
+	outlineData_.Init(device, srvDescriptor);
 	DxUtils::CreateUavBufferResource(device, indexedIndirectArgs_, sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
 	indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;
 
@@ -76,11 +92,59 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	meshData_.EnsureCapacity(256);
 	visibleMeshData_.EnsureCapacity(256);
 	subMeshData_.EnsureCapacity(256);
+	// GetOutlineGPUAddressが常に有効なリソースを指すよう、初期容量を確保しておく
+	outlineData_.EnsureCapacity(256);
 	meshScratch_.reserve(256);
 	subMeshScratch_.reserve(256);
 
 	// 初期化完了
 	initialized_ = true;
+}
+
+void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& drawContext,
+	const MeshGPUResource& gpuMesh) {
+
+	const bool hullOutline = IsHullOutlinePass(drawContext.passName);
+	bool cullingEnabled = CanCullView(drawContext, gpuMesh);
+	if (cullingEnabled) {
+		// カリング用カメラが取れない場合は全描画に倒す
+		const ResolvedCameraView* cullingCamera = drawContext.cullingView->FindCamera(RenderCameraDomain::Perspective);
+		if (!cullingCamera) {
+			cullingEnabled = false;
+		}
+	}
+
+	// ScreenPixelsでは近距離、投影、カメラ角度の影響を受ける。
+	// 誤カリングを避けるためHullのときだけ安全側でフラスタムカリングを無効にする
+	if (hullOutline && outlineMetrics_.hasScreenPixelWidth) {
+		cullingEnabled = false;
+	}
+
+	MeshDrawConstants drawConstants{};
+	drawConstants.meshletCount = gpuMesh.meshletCount;
+	drawConstants.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
+	drawConstants.instanceCount = instanceCount_;
+	drawConstants.cullingEnabled = cullingEnabled ? 1u : 0u;
+	drawConstants.packedMeshletVertexIndices = gpuMesh.usePackedMeshletVertexIndices ? 1u : 0u;
+
+	// 背面法では通常メッシュのnormal cone判定を流用できない。
+	// 線が小さくても見えるためcontribution cullingも無効化する
+	drawConstants.contributionCullingEnabled =
+		(!hullOutline && cullingEnabled && drawContext.runtimeFeatures.useContributionCulling) ? 1u : 0u;
+	drawConstants.normalConeCullingEnabled =
+		(!hullOutline && cullingEnabled && drawContext.runtimeFeatures.useNormalConeCulling) ? 1u : 0u;
+
+	drawConstants.meshBoundsCenter = gpuMesh.boundsCenter;
+	drawConstants.meshBoundsRadius = gpuMesh.boundsRadius;
+	// 小さすぎる値はチラつきや誤カリングの原因になるため、控えめな閾値にしている
+	drawConstants.contributionPixelThreshold = 0.5f;
+
+	drawConstants.invertedHullOutlinePass = hullOutline ? 1u : 0u;
+	drawConstants.outlineMaxModelExpansion = hullOutline ? outlineMetrics_.maxModelExpansion : 0.0f;
+	drawConstants.outlineMaxAbsCameraZOffset = hullOutline ? outlineMetrics_.maxAbsCameraZOffset : 0.0f;
+	drawConstants.outlineHasScreenPixelWidth = (hullOutline && outlineMetrics_.hasScreenPixelWidth) ? 1u : 0u;
+
+	draw_.Upload(drawConstants);
 }
 
 void Engine::MeshBatchResources::UpdateIndexedIndirectArgsConstants(uint32_t indexCount) {
@@ -170,12 +234,18 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	// データクリア
 	meshScratch_.clear();
 	subMeshScratch_.clear();
+	outlineScratch_.clear();
 	paletteScratch_.clear();
 	skinnedRecords_.clear();
 	skinnedVertexOffsetMap_.clear();
 	skinnedInstanceCount_ = 0;
 	skinningDispatched_ = false;
 	usesFallbackTexture_ = false;
+	// アウトラインの保守的メトリクスを初期化する
+	outlineMetrics_ = OutlineBatchMetrics{};
+	// インスタンスと同数のアウトラインデータを必ず作るため、先に容量を確保する
+	outlineScratch_.reserve(items.size());
+	outlineData_.EnsureCapacity(static_cast<uint32_t>((std::max)(items.size(), size_t(1))));
 	// 描画アイテム数に応じて必要なバッファサイズを確保する
 	if (meshScratch_.capacity() < items.size()) {
 		meshScratch_.reserve(items.size());
@@ -223,16 +293,6 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 		return texture->srvIndex;
 		};
 
-	bool cullingEnabled = CanCullView(drawContext, gpuMesh);
-	const ResolvedCameraView* cullingCamera = nullptr;
-	if (cullingEnabled) {
-		// カリング用カメラが取れない場合は全描画に倒す
-		cullingCamera = drawContext.cullingView->FindCamera(RenderCameraDomain::Perspective);
-		if (!cullingCamera) {
-			cullingEnabled = false;
-		}
-	}
-
 	for (const RenderItem* item : items) {
 
 		const MeshRenderPayload* payload = batch.GetPayload<MeshRenderPayload>(*item);
@@ -271,6 +331,41 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				// スキニングインスタンス数を加算
 				++skinnedInstanceCount_;
 			}
+
+			// アウトラインGPUデータをインスタンスごとに必ず1件作る。
+			// コンポーネントが無い通常メッシュにもゼロ初期値を入れて対応を崩さない
+			MeshOutlineGPUData outlineGPU{};
+			if (const InvertedHullOutlineComponent* outline = ResolveOutline(item)) {
+
+				outlineGPU.color = outline->color;
+				outlineGPU.width = (std::max)(0.0f, outline->width);
+				outlineGPU.cameraZOffset = outline->cameraZOffset;
+				outlineGPU.expansionMode = static_cast<uint32_t>(outline->expansionMode);
+				outlineGPU.widthMode = static_cast<uint32_t>(outline->widthMode);
+
+				// Baked Normal / Outline SamplerはLinearとして解決する
+				if (outline->useBakedNormal && outline->bakedNormalTexture) {
+					outlineGPU.flags |= kMeshOutlineFlagUseBakedNormal;
+					outlineGPU.bakedNormalTextureIndex = ResolveSRVIndex(outline->bakedNormalTexture, false);
+				}
+				if (outline->useOutlineSampler && outline->outlineSamplerTexture) {
+					outlineGPU.flags |= kMeshOutlineFlagUseOutlineSampler;
+					outlineGPU.outlineSamplerTextureIndex = ResolveSRVIndex(outline->outlineSamplerTexture, false);
+				}
+
+				// AS/instance-culling CS用の安全側メトリクスを更新する
+				if (outlineGPU.widthMode == static_cast<uint32_t>(OutlineWidthMode::ScreenPixels)) {
+					outlineMetrics_.hasScreenPixelWidth = true;
+				} else {
+					outlineMetrics_.maxModelExpansion = (std::max)(outlineMetrics_.maxModelExpansion, outlineGPU.width);
+				}
+				outlineMetrics_.maxAbsCameraZOffset = (std::max)(
+					outlineMetrics_.maxAbsCameraZOffset, std::abs(outlineGPU.cameraZOffset));
+			}
+
+			instance.outlineDataIndex = static_cast<uint32_t>(outlineScratch_.size());
+			outlineScratch_.emplace_back(outlineGPU);
+
 			meshScratch_.emplace_back(instance);
 		}
 
@@ -322,6 +417,8 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				data.roughness = authoring.roughness;
 				data.uvMatrix = authoring.uvMatrix;
 				data.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
+				// Position Scaling膨張の基準。原点基準にならないようサブメッシュのピボットを渡す
+				data.sourcePivot = authoring.sourcePivot;
 			}
 			subMeshScratch_.emplace_back(data);
 		}
@@ -340,22 +437,8 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 		visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
 	}
 	subMeshData_.Upload(subMeshScratch_);
-
-	// 描画定数の転送
-	MeshDrawConstants drawConstants{};
-	drawConstants.meshletCount = gpuMesh.meshletCount;
-	drawConstants.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
-	drawConstants.instanceCount = instanceCount_;
-	// DrawPath/AS/CS側で参照するカリングON/OFFをまとめて渡す
-	drawConstants.cullingEnabled = cullingEnabled ? 1u : 0u;
-	drawConstants.packedMeshletVertexIndices = gpuMesh.usePackedMeshletVertexIndices ? 1u : 0u;
-	drawConstants.contributionCullingEnabled = cullingEnabled && drawContext.runtimeFeatures.useContributionCulling ? 1u : 0u;
-	drawConstants.normalConeCullingEnabled = cullingEnabled && drawContext.runtimeFeatures.useNormalConeCulling ? 1u : 0u;
-	drawConstants.meshBoundsCenter = gpuMesh.boundsCenter;
-	drawConstants.meshBoundsRadius = gpuMesh.boundsRadius;
-	// 小さすぎる値はチラつきや誤カリングの原因になるため、控えめな閾値にしている
-	drawConstants.contributionPixelThreshold = 0.5f;
-	draw_.Upload(drawConstants);
+	// アウトラインGPUデータの転送。MeshDrawConstantsはUpdateDrawConstantsで毎描画更新する
+	outlineData_.Upload(outlineScratch_);
 
 	if (skinning_) {
 

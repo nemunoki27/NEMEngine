@@ -18,6 +18,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/Draw/MeshShaderDrawPath.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
@@ -54,9 +55,52 @@ namespace {
 		return item->world->TryGetComponent<Engine::MeshRendererComponent>(item->entity);
 	}
 
+	const Engine::InvertedHullOutlineComponent* ResolveOutline(const Engine::RenderItem* item) {
+
+		if (!item || !item->world) {
+			return nullptr;
+		}
+		return item->world->TryGetComponent<Engine::InvertedHullOutlineComponent>(item->entity);
+	}
+
+	// アウトラインコンポーネントのauthoring値をハッシュへ混ぜる。
+	// 通常描画とアウトライン描画でリソースを共有するため、編集が即時反映されるようにする
+	void MixOutlineComponentHash(uint64_t& h, const Engine::InvertedHullOutlineComponent* outline) {
+
+		MixHash(h, outline ? 1ull : 0ull);
+		if (!outline) {
+			return;
+		}
+		MixHash(h, outline->enabled ? 1ull : 0ull);
+		MixBytes(h, &outline->width, sizeof(outline->width));
+		MixBytes(h, &outline->color, sizeof(outline->color));
+		MixHash(h, static_cast<uint64_t>(outline->expansionMode));
+		MixHash(h, static_cast<uint64_t>(outline->widthMode));
+		MixBytes(h, &outline->cameraZOffset, sizeof(outline->cameraZOffset));
+		MixHash(h, outline->useBakedNormal ? 1ull : 0ull);
+		MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(outline->bakedNormalTexture)));
+		MixHash(h, outline->useOutlineSampler ? 1ull : 0ull);
+		MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(outline->outlineSamplerTexture)));
+		MixHash(h, outline->useStencil ? 1ull : 0ull);
+	}
+
 	// メッシュ描画に使用するパスをマテリアルから解決する
 	bool ResolveMeshPass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterialID,
 		Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
+
+		// 背面法アウトラインの3パスは、元マテリアルと切り離してMeshOutlineデフォルトマテリアルから解決する。
+		// コンポーネントを追加するだけで任意の既存マテリアルへアウトラインを適用できるようにする
+		if (context.passName == "Outline" ||
+			context.passName == "OutlineStencilWrite" ||
+			context.passName == "OutlineStencilTest") {
+
+			return Engine::BackendDrawCommon::ResolveMaterialPass(
+				context,
+				Engine::AssetID{},
+				Engine::DefaultMaterialSlot::MeshOutline,
+				{ context.passName },
+				outResolved);
+		}
 
 		// 通常描画
 		if (context.passName == "Draw") {
@@ -114,6 +158,7 @@ Engine::MeshRenderBackend::MeshRenderBackend() {
 	skinnedPkdVtxSRVSlot_= sharedBindCache_.AddSlot("gSkinnedPackedVertices", ShaderBindingKind::SRV);
 	meshInstSRVSlot_     = sharedBindCache_.AddSlot("gMeshInstances",         ShaderBindingKind::SRV);
 	subMeshSRVSlot_      = sharedBindCache_.AddSlot("gSubMeshes",             ShaderBindingKind::SRV);
+	outlineSRVSlot_      = sharedBindCache_.AddSlot("gMeshOutlines",          ShaderBindingKind::SRV);
 
 	// スキニングComputeバインドスロットを初期化時に登録する
 	skinConstCBVSlot_     = skinningBindCache_.AddSlot("SkinningConstants",      ShaderBindingKind::CBV);
@@ -345,6 +390,10 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 		}
 	}
 
+	// 描画パスごとに変わる定数(カリング設定やアウトライン情報)は、
+	// 静的/スキニングキャッシュヒット時も含め毎描画必ず更新する
+	resources->UpdateDrawConstants(context, *outPrepared.gpuMesh);
+
 	// インスタンス数を設定
 	outPrepared.instanceCount = resources->GetInstanceCount();
 	if (outPrepared.instanceCount == 0) {
@@ -449,6 +498,11 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(subMeshSRVSlot_),
 			prepared.resources->GetSubMeshGPUAddress(), {});
 	}
+	// 背面法アウトライン用のインスタンス別GPUデータ。Outline系パイプラインだけが参照する
+	if (sharedBindCache_.Has(outlineSRVSlot_) && prepared.resources->GetOutlineGPUAddress() != 0) {
+		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(outlineSRVSlot_),
+			prepared.resources->GetOutlineGPUAddress(), {});
+	}
 }
 
 Engine::IMeshDrawPath& Engine::MeshRenderBackend::SelectDrawPath(const PipelineVariantDesc& variant) {
@@ -473,6 +527,8 @@ uint64_t Engine::MeshRenderBackend::BuildBatchHash(std::span<const RenderItem* c
 		}
 		MixHash(h, item->entity.index);
 		MixHash(h, item->entity.generation);
+		// 通常描画とアウトライン描画でリソースを共有するため、編集整合のためにアウトライン設定も混ぜる
+		MixOutlineComponentHash(h, ResolveOutline(item));
 	}
 	return h;
 }
@@ -502,6 +558,9 @@ uint64_t Engine::MeshRenderBackend::BuildStaticBatchHash(const RenderDrawContext
 		MixHash(h, static_cast<uint64_t>(item->blendMode));
 		// Transformが変わるとInstanceDataが変わる
 		MixBytes(h, &item->worldMatrix, sizeof(item->worldMatrix));
+
+		// アウトライン設定が変わるとGPUデータが変わるためキャッシュキーへ含める
+		MixOutlineComponentHash(h, ResolveOutline(item));
 
 		const MeshRendererComponent* renderer = ResolveRenderer(item);
 		if (!renderer) {

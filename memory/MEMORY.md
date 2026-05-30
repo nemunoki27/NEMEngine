@@ -1,0 +1,1 @@
+- [NEMEngine build workflow](nemengine-build-workflow.md) — premake で .vcxproj 再生成、.slnx を MSBuild する（Sandbox 単体は外部構成不足で失敗）

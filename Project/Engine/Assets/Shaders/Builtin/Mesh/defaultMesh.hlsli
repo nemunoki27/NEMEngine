@@ -59,6 +59,10 @@ cbuffer MeshDrawConstants : register(b0, space1) {
 	float3 meshBoundsCenter;
 	float meshBoundsRadius;
 	float contributionPixelThreshold;
+	uint invertedHullOutlinePass;
+	float outlineMaxModelExpansion;
+	float outlineMaxAbsCameraZOffset;
+	uint outlineHasScreenPixelWidth;
 	uint3 _meshDrawPad0;
 };
 struct MeshVertex {
@@ -109,15 +113,21 @@ struct SubMeshShaderData {
 	float4 color;
 	float4 emissiveColor;
 	float4x4 uvMatrix;
+
+	float3 sourcePivot;
+	float _outlinePad0;
 };
 struct MeshInstance {
 
 	float4x4 worldMatrix;
-	
+
 	uint subMeshDataOffset;
 	uint subMeshCount;
 	uint flags;
 	uint skinnedVertexOffset;
+
+	uint outlineDataIndex;
+	uint3 _outlinePad;
 };
 static const uint MESH_INSTANCE_FLAG_SKINNED = 1u;
 
@@ -315,7 +325,15 @@ bool IsMeshletVisible(uint meshletIndex, uint instanceIndex) {
 	float4x4 worldMatrix = GetInstanceSubMeshWorldMatrix(instanceIndex, meshlet.subMeshIndex);
 	MeshletBounds bounds = gMeshletBounds[meshletIndex];
 	float3 center = mul(float4(bounds.center, 1.0f), worldMatrix).xyz;
-	float radius = bounds.radius * GetMatrixMaxScale(worldMatrix);
+	// 背面法アウトラインは元形状より外へ膨張するため、Boundsを安全側へ広げる
+	float localRadius = bounds.radius;
+	if (invertedHullOutlinePass != 0u) {
+		localRadius += outlineMaxModelExpansion;
+	}
+	float radius = localRadius * GetMatrixMaxScale(worldMatrix);
+	if (invertedHullOutlinePass != 0u) {
+		radius += outlineMaxAbsCameraZOffset;
+	}
 	if (!IsSphereInFrustum(center, radius)) {
 		return false;
 	}
