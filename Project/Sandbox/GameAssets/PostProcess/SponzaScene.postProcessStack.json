@@ -1,7 +1,7 @@
 {
     "passes": [
         {
-            "enabled": true,
+            "enabled": false,
             "id": "086f794c7ab123f6",
             "materialGuid": "0a957b43df4bbd6f",
             "materialPathCache": "Engine/Assets/Materials/Builtin/PostProcess/Bloom/bloom.material.json",

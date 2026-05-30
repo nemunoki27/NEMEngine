@@ -25,6 +25,6 @@ namespace Engine::RenderBillboard {
 	Quaternion MakeCameraBillboardRotation(const ResolvedCameraView& camera, const Vector3& objectWorldPos);
 	Quaternion ApplyAxisMask(const Quaternion& currentLocal, const Quaternion& desiredLocal, const BillboardComponent& billboard, const Vector3& localForward);
 	Matrix4x4 ResolveWorldMatrix(const RenderItem& item, const ResolvedRenderView& view);
-	Quaternion ExtractRotationNoScale(const Matrix4x4& matrix);
+	Quaternion ExtractRotationNoScale(const Matrix4x4& matrix);		
 
 } // namespace Engine::RenderBillboard
