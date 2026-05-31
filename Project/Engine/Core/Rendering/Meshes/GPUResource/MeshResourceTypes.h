@@ -193,6 +193,9 @@ namespace Engine {
 		// デフォルトのテクスチャセット
 		ImportedMeshTextureSet defaultTextures{};
 		ImportedMeshTextureAssetSet defaultTextureAssets{};
+		// 元のマテリアルがベースカラーテクスチャを宣言していたか(解決可否は問わない)。
+		// 解決後AssetIDが空のとき、未設定(白)か設定済みだが見つからない(エラー)かを区別するために使う。
+		bool hasBaseColorTexture = false;
 		// デフォルトのベースカラー
 		Color4 baseColor = Color4::White();
 	};

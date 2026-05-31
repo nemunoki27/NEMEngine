@@ -272,6 +272,10 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	// エラーテクスチャのSRVインデックスを取得する
 	const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
 	uint32_t fallbackSRVIndex = (fallback && fallback->srvIndex != UINT32_MAX) ? fallback->srvIndex : 0;
+	// 元々ベースカラーテクスチャが設定されていないMesh用の白テクスチャ。
+	// 白を掛けてもベースカラー(importedBaseColor/color)がそのまま出るため、未設定時はこちらを使う
+	const GPUTextureResource* whiteTexture = graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
+	uint32_t whiteSRVIndex = (whiteTexture && whiteTexture->srvIndex != UINT32_MAX) ? whiteTexture->srvIndex : fallbackSRVIndex;
 	std::unordered_map<AssetID, uint32_t> baseColorSRVCache{};
 	baseColorSRVCache.reserve(gpuMesh.subMeshes.size() + 1);
 
@@ -373,14 +377,16 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 
 			// ベースカラーはsRGB、それ以外はLinear
 			AssetID baseColorAsset = MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetID(gpuMesh, renderer, subMeshIndex);
-			uint32_t baseColorSRVIndex = fallbackSRVIndex;
-			auto cachedTexture = baseColorSRVCache.find(baseColorAsset);
-			if (cachedTexture != baseColorSRVCache.end()) {
+			uint32_t baseColorSRVIndex;
+			if (baseColorAsset) {
 
-				baseColorSRVIndex = cachedTexture->second;
-			} else {
+				// 解決対象は重複解決を避けるためAssetID単位でキャッシュする。
+				// 割り当て済みだが見つからない(解決失敗)場合はエラーテクスチャにフォールバックする
+				auto cachedTexture = baseColorSRVCache.find(baseColorAsset);
+				if (cachedTexture != baseColorSRVCache.end()) {
 
-				if (baseColorAsset) {
+					baseColorSRVIndex = cachedTexture->second;
+				} else {
 
 					const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
 						graphicsCore, drawContext.assetDatabase, baseColorAsset, true);
@@ -388,8 +394,17 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 					if (texture == fallback) {
 						usesFallbackTexture_ = true;
 					}
+					baseColorSRVCache.emplace(baseColorAsset, baseColorSRVIndex);
 				}
-				baseColorSRVCache.emplace(baseColorAsset, baseColorSRVIndex);
+			} else {
+
+				// 解決後AssetIDが空。元々割り当てがある(マテリアルで宣言済みだが見つからない)ならエラー、
+				// 未割り当て(テクスチャなし)なら白にフォールバックする
+				const bool assigned = MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(gpuMesh, renderer, subMeshIndex);
+				baseColorSRVIndex = assigned ? fallbackSRVIndex : whiteSRVIndex;
+				if (assigned) {
+					usesFallbackTexture_ = true;
+				}
 			}
 
 			AssetID normalAsset = MeshDrawPathCommon::ResolveSubMeshNormalTextureAssetID(gpuMesh, renderer, subMeshIndex);
