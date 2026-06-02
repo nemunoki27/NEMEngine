@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/ComPtr.h>
+#include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 
 // c++
 #include <cstddef>

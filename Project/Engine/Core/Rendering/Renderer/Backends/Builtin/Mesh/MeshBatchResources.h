@@ -10,8 +10,8 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshSkinningSharedTypes.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12RWStructuredBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/ComPtr.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 
 // c++
@@ -123,10 +123,12 @@ namespace Engine {
 		//========================================================================
 
 		MeshBatchResources() = default;
-		~MeshBatchResources() = default;
+		~MeshBatchResources();
 
 		// 初期化
 		void Init(GraphicsCore& graphicsCore);
+		// 終了処理
+		void Finalize();
 
 		// 描画に使用するビューを更新する
 		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView);
@@ -170,6 +172,9 @@ namespace Engine {
 		// 背面法アウトラインのインスタンス別GPUデータ
 		D3D12_GPU_VIRTUAL_ADDRESS GetOutlineGPUAddress() const { return outlineData_.GetGPUAddress(); }
 		std::string_view GetOutlineBindingName() const { return outlineData_.GetBindingName(); }
+		// 選択プレビュー用アウトラインのパラメータ
+		D3D12_GPU_VIRTUAL_ADDRESS GetSelectionOutlineGPUAddress() const { return selectionOutline_.GetGPUAddress(); }
+		std::string_view GetSelectionOutlineBindingName() const { return "MeshSelectionOutlineParams"; }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinningPaletteGPUAddress() const { return skinning_->skinningPalette.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinningConstantsGPUAddress() const { return skinning_->skinningConstants.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedVerticesGPUAddress() const { return skinning_->skinnedVertices.GetGPUAddress(); }
@@ -249,6 +254,8 @@ namespace Engine {
 		// ExecuteIndirect/AmplificationShaderのカリング結果を書き戻す可視インスタンスバッファ
 		StructuredRWBuffer<MeshInstanceData> visibleMeshData_{ "gVisibleMeshInstances" };
 		ViewConstantBuffer<MeshDrawConstants> draw_{ "MeshDrawConstants" };
+		// 選択プレビュー用アウトラインのパラメータ(描画単位)
+		ViewConstantBuffer<MeshSelectionOutlineParams> selectionOutline_{ "MeshSelectionOutlineParams" };
 		ViewConstantBuffer<MeshIndirectArgsConstants> indirectArgs_{ "IndirectArgsConstants" };
 		StructuredInstanceBuffer<MeshSubMeshShaderData> subMeshData_{ "gSubMeshes" };
 		// 背面法アウトラインのインスタンス別GPUデータ

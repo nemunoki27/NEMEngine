@@ -14,6 +14,12 @@ Engine::LineRenderer3D::LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraD
 	gridRenderer_->Init(graphicsCore);
 }
 
+Engine::LineRenderer3D::~LineRenderer3D() {
+
+	// SceneGridRendererが持つGPUバッファをLineRenderer破棄時に明示解放する。
+	gridRenderer_.reset();
+}
+
 void Engine::LineRenderer3D::BeginFrame() {
 
 	LineRendererBase<Vector3>::BeginFrame();

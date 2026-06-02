@@ -5,9 +5,9 @@
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12ConstantBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12ReadbackBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12StructuredBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxReadbackBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxStructuredBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
 #include <Engine/Editor/Core/EditorState.h>

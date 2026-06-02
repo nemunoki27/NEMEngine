@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/RenderBufferRegistry.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
 
 // c++
 #include <string>

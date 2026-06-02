@@ -4,10 +4,11 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Utils.h>
+#include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshSelectionOutline.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
@@ -58,8 +59,13 @@ namespace {
 	// Hull本体を描くパスかどうか。OutlineStencilWriteは元メッシュ形状なのでHullではない
 	bool IsHullOutlinePass(std::string_view passName) {
 
-		return passName == "Outline" || passName == "OutlineStencilTest";
+		return passName == "Outline" || passName == "OutlineStencilTest" || passName == "SelectionOutline";
 	}
+}
+
+Engine::MeshBatchResources::~MeshBatchResources() {
+
+	Finalize();
 }
 
 void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
@@ -82,6 +88,8 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	draw_.Init(device);
 	// ExecuteIndirect引数生成Computeに渡す固定Index数
 	indirectArgs_.Init(device);
+	// 選択プレビュー用アウトラインの定数バッファ
+	selectionOutline_.Init(device);
 	subMeshData_.Init(device, srvDescriptor);
 	// 背面法アウトラインのインスタンス別GPUデータ
 	outlineData_.Init(device, srvDescriptor);
@@ -101,10 +109,31 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	initialized_ = true;
 }
 
+void Engine::MeshBatchResources::Finalize() {
+
+	// OptionalSkinningResourcesは内部にSRV/UAV付きGPUバッファを持つため、終了時に明示resetする。
+	skinning_.reset();
+	meshScratch_.clear();
+	subMeshScratch_.clear();
+	outlineScratch_.clear();
+	paletteScratch_.clear();
+	skinnedRecords_.clear();
+	skinnedVertexOffsetMap_.clear();
+	instanceCount_ = 0;
+	skinnedInstanceCount_ = 0;
+	skinningDispatched_ = false;
+	usesFallbackTexture_ = false;
+	indexedIndirectArgs_.Reset();
+	indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;
+	visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
+	initialized_ = false;
+}
+
 void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& drawContext,
 	const MeshGPUResource& gpuMesh) {
 
 	const bool hullOutline = IsHullOutlinePass(drawContext.passName);
+	const bool selectionOutline = (drawContext.passName == "SelectionOutline");
 	bool cullingEnabled = CanCullView(drawContext, gpuMesh);
 	if (cullingEnabled) {
 		// カリング用カメラが取れない場合は全描画に倒す
@@ -117,6 +146,10 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 	// ScreenPixelsでは近距離、投影、カメラ角度の影響を受ける。
 	// 誤カリングを避けるためHullのときだけ安全側でフラスタムカリングを無効にする
 	if (hullOutline && outlineMetrics_.hasScreenPixelWidth) {
+		cullingEnabled = false;
+	}
+	// 選択プレビューは単一メッシュを確実に出すため、誤カリングを避けてカリング無効にする
+	if (selectionOutline) {
 		cullingEnabled = false;
 	}
 
@@ -143,8 +176,29 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 	drawConstants.outlineMaxModelExpansion = hullOutline ? outlineMetrics_.maxModelExpansion : 0.0f;
 	drawConstants.outlineMaxAbsCameraZOffset = hullOutline ? outlineMetrics_.maxAbsCameraZOffset : 0.0f;
 	drawConstants.outlineHasScreenPixelWidth = (hullOutline && outlineMetrics_.hasScreenPixelWidth) ? 1u : 0u;
+	drawConstants.selectionOutlinePass = selectionOutline ? 1u : 0u;
 
 	draw_.Upload(drawConstants);
+
+	// 選択プレビュー時は、コンポーネントとは独立した描画単位の定数を転送する。
+	// パラメータはMeshSelectionOutline(エディタが毎フレーム積む要求)から取る。
+	if (selectionOutline) {
+
+		const MeshSelectionOutline& request = MeshSelectionOutline::GetInstance();
+		const InvertedHullOutlineComponent& source = request.GetParams();
+
+		MeshSelectionOutlineParams params{};
+		params.color = source.color;
+		params.width = (std::max)(0.0f, source.width);
+		params.cameraZOffset = source.cameraZOffset;
+		params.expansionMode = static_cast<uint32_t>(source.expansionMode);
+		params.widthMode = static_cast<uint32_t>(source.widthMode);
+		// プレビューはテクスチャを解決しないためflagsは立てない
+		params.flags = 0;
+		// サブメッシュ単位選択のときだけ対象を限定する(負なら全体)
+		params.restrictSubMeshIndex = request.GetSubMeshIndex();
+		selectionOutline_.Upload(params);
+	}
 }
 
 void Engine::MeshBatchResources::UpdateIndexedIndirectArgsConstants(uint32_t indexCount) {

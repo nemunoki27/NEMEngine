@@ -40,7 +40,8 @@ cbuffer MeshDrawConstants : register(b2) {
 	float outlineMaxModelExpansion;
 	float outlineMaxAbsCameraZOffset;
 	uint outlineHasScreenPixelWidth;
-	uint3 _meshDrawPad0;
+	uint selectionOutlinePass;
+	uint2 _meshDrawPad0;
 };
 struct SubMeshShaderData {
 

@@ -15,7 +15,11 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID) {
 	const uint meshletIndex = groupID.x * 32u + groupThreadID;
 	const uint instanceIndex = groupID.y;
 	// IsMeshletVisibleは共通hlsli側のアウトライン対応カリングを使う
-	const bool visible = meshletIndex < meshletCount && IsMeshletVisible(meshletIndex, instanceIndex);
+	bool visible = meshletIndex < meshletCount && IsMeshletVisible(meshletIndex, instanceIndex);
+	// 選択プレビューでサブメッシュ限定の場合、対象外サブメッシュのメッシュレットを除外する
+	if (visible && IsSelectionSubMeshCulled(gMeshlets[meshletIndex].subMeshIndex)) {
+		visible = false;
+	}
 
 	const uint visibleOffset = WavePrefixCountBits(visible);
 	const uint visibleCount = WaveActiveCountBits(visible);

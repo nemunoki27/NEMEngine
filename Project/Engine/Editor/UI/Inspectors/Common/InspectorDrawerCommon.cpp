@@ -13,6 +13,7 @@
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshSelectionOutline.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Interface/ILightExtractor.h>
 
 //============================================================================
@@ -86,7 +87,7 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 	return result;
 }
 
-void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const Entity& entity) {
+void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const Entity& entity, int32_t selectionSubMeshIndex) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// トランスフォームコンポーネントを持っていなければ
@@ -108,6 +109,20 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 		// カメラフラスタム描画
 		renderer3D->DrawCameraFrustum(camera.common.viewMatrix, camera.common.aspectRatio, camera.nearClip,
 			camera.farClip, Math::DegToRad(camera.fovY), camera.common.editorFrustumScale, Color4::Yellow(), 1.0f);
+	}
+	// メッシュ
+	if (world.HasComponent<MeshRendererComponent>(entity)) {
+
+		// 選択中メッシュのプレビューアウトライン。どの選択物でも一定の太さで綺麗に出るよう、
+		// 画面ピクセル幅(ScreenPixels)固定スタイルで描画する。サブメッシュ選択時は対象のみに限定。
+		InvertedHullOutlineComponent outline{};
+		outline.enabled = true;
+		outline.color = Color4::FromHex(0xFF8000FF);
+		outline.widthMode = OutlineWidthMode::ScreenPixels;
+		outline.width = 3.0f;
+		outline.expansionMode = OutlineExpansionMode::NormalDirection;
+		outline.cameraZOffset = 0.0f;
+		MeshSelectionOutline::GetInstance().Request(&world, entity, selectionSubMeshIndex, outline);
 	}
 	// スキニングアニメーション
 	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {

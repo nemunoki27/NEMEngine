@@ -63,7 +63,8 @@ cbuffer MeshDrawConstants : register(b0, space1) {
 	float outlineMaxModelExpansion;
 	float outlineMaxAbsCameraZOffset;
 	uint outlineHasScreenPixelWidth;
-	uint3 _meshDrawPad0;
+	uint selectionOutlinePass;
+	uint2 _meshDrawPad0;
 };
 struct MeshVertex {
 

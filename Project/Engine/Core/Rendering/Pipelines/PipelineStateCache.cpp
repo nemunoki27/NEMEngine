@@ -229,6 +229,11 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 
 void Engine::PipelineStateCache::Clear() {
 
+	// PipelineStateはRootSignature/PSOを持つため、cache破棄前に明示resetする。
+	for (auto& [key, state] : cache_) {
+		(void)key;
+		state.reset();
+	}
 	cache_.clear();
 }
 
@@ -236,6 +241,9 @@ void Engine::PipelineStateCache::InvalidateByPipelineAsset(AssetID pipelineAsset
 
 	for (auto it = cache_.begin(); it != cache_.end(); ) {
 		if (it->first.pipelineAsset == pipelineAssetID) {
+			if (it->second) {
+				it->second.reset();
+			}
 			it = cache_.erase(it);
 		} else {
 			++it;

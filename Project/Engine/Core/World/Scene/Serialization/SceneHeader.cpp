@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
@@ -95,11 +96,14 @@ std::string Engine::MakeDefaultCollisionSettingsPath(const std::string& scenePat
 	return settingsPath.generic_string();
 }
 
-void Engine::EnsureSceneCollisionSettingsPath(SceneHeader& sceneHeader, const std::string& scenePath) {
+void Engine::EnsureSceneCollisionSettings(SceneHeader& sceneHeader, const std::string& scenePath, AssetDatabase* assetDatabase) {
 
-	// 旧シーンなどで設定パスがない場合は、シーンごとの既定パスを補完する
-	if (sceneHeader.collisionSettingsPath.empty()) {
-		sceneHeader.collisionSettingsPath = MakeDefaultCollisionSettingsPath(scenePath);
+	if (sceneHeader.collisionSettings || !assetDatabase) {
+		return;
+	}
+	const std::string defaultPath = MakeDefaultCollisionSettingsPath(scenePath);
+	if (std::filesystem::exists(assetDatabase->ResolveAssetPath(defaultPath))) {
+		sceneHeader.collisionSettings = assetDatabase->ImportOrGet(defaultPath, AssetType::CollisionSettings);
 	}
 }
 
@@ -114,10 +118,14 @@ std::string Engine::MakeDefaultPostProcessStackPath(const std::string& scenePath
 	return stackPath.generic_string();
 }
 
-void Engine::EnsureScenePostProcessStackPath(SceneHeader& sceneHeader, const std::string& scenePath) {
+void Engine::EnsureScenePostProcessStack(SceneHeader& sceneHeader, const std::string& scenePath, AssetDatabase* assetDatabase) {
 
-	if (sceneHeader.postProcessStackPath.empty()) {
-		sceneHeader.postProcessStackPath = MakeDefaultPostProcessStackPath(scenePath);
+	if (sceneHeader.postProcessStack || !assetDatabase) {
+		return;
+	}
+	const std::string defaultPath = MakeDefaultPostProcessStackPath(scenePath);
+	if (std::filesystem::exists(assetDatabase->ResolveAssetPath(defaultPath))) {
+		sceneHeader.postProcessStack = assetDatabase->ImportOrGet(defaultPath, AssetType::PostProcessStack);
 	}
 }
 
@@ -133,8 +141,8 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 		std::string guidStr = data.value("guid", "");
 		sceneHeader.guid = guidStr.empty() ? UUID::New() : FromString16Hex(guidStr);
 		sceneHeader.name = data.value("name", "UntitledScene");
-		sceneHeader.collisionSettingsPath = data.value("collisionSettings", data.value("collisionSettingsPath", ""));
-		sceneHeader.postProcessStackPath = data.value("postProcessStack", "");
+		sceneHeader.collisionSettings = ParseAssetReference(data, "collisionSettings", assetDatabase, AssetType::CollisionSettings);
+		sceneHeader.postProcessStack = ParseAssetReference(data, "postProcessStack", assetDatabase, AssetType::PostProcessStack);
 	}
 
 	// サブシーン
@@ -178,14 +186,14 @@ nlohmann::json Engine::ToJson(const SceneHeader& sceneHeader) {
 
 	data["guid"] = ToString(sceneHeader.guid);
 	data["name"] = sceneHeader.name;
-	data["collisionSettings"] = sceneHeader.collisionSettingsPath;
-	data["postProcessStack"] = sceneHeader.postProcessStackPath;
+	data["collisionSettings"] = ToAssetReferenceJson(sceneHeader.collisionSettings);
+	data["postProcessStack"] = ToAssetReferenceJson(sceneHeader.postProcessStack);
 
 	data["subScenes"] = nlohmann::json::array();
 	for (const auto& subScene : sceneHeader.subScenes) {
 		nlohmann::json item = nlohmann::json::object();
 		item["slotName"] = subScene.slotName;
-		item["sceneAsset"] = ToString(subScene.sceneAsset);
+		item["sceneAsset"] = ToAssetReferenceJson(subScene.sceneAsset);
 		item["enabled"] = subScene.enabled;
 		data["subScenes"].push_back(item);
 	}

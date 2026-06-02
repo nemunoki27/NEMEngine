@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
@@ -414,6 +414,15 @@ namespace {
 		result.blend = blend;
 		return result;
 	}
+}
+
+Engine::SceneGridRenderer::~SceneGridRenderer() {
+
+	// フレーム内複数描画用に保持した定数バッファを終了時に明示resetする。
+	for (auto& buffer : passBuffers_) {
+		buffer.reset();
+	}
+	passBuffers_.clear();
 }
 
 void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {

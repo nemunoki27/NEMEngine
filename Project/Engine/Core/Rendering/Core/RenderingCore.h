@@ -5,12 +5,13 @@
 //============================================================================
 #include <Engine/Core/Runtime/Context/EngineContext.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12SwapChain.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12RenderTargetView.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12DepthStencilView.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12ShaderResourceView.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxSwapChain.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxDepthStencilView.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/Textures/BuiltinTextureLibrary.h>
+#include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
 
 namespace Engine {
 
@@ -58,6 +59,9 @@ namespace Engine {
 		TextureUploadService& GetTextureUploadService() { return *textureUploadService_; }
 		BuiltinTextureLibrary& GetBuiltinTextureLibrary() { return *builtinTextureLibrary_; }
 
+		// 静的GPUバッファ転送サービスのアクセサ
+		BufferUploadService& GetBufferUploadService() { return *bufferUploadService_; }
+
 		// 描画情報
 		// バックバッファの情報取得
 		const RenderTarget& GetBackBufferRenderTarget() const { return swapChain_->GetRenderTarget(); }
@@ -92,5 +96,8 @@ namespace Engine {
 		// GPUテクスチャ
 		std::unique_ptr<TextureUploadService> textureUploadService_;
 		std::unique_ptr<BuiltinTextureLibrary> builtinTextureLibrary_;
+
+		// 静的GPUバッファ転送サービス
+		std::unique_ptr<BufferUploadService> bufferUploadService_;
 	};
 } // Engine

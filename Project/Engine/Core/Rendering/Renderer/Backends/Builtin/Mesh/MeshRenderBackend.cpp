@@ -4,13 +4,13 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Utils.h>
+#include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
@@ -21,6 +21,7 @@
 #include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 // c++
@@ -92,7 +93,8 @@ namespace {
 		// コンポーネントを追加するだけで任意の既存マテリアルへアウトラインを適用できるようにする
 		if (context.passName == "Outline" ||
 			context.passName == "OutlineStencilWrite" ||
-			context.passName == "OutlineStencilTest") {
+			context.passName == "OutlineStencilTest" ||
+			context.passName == "SelectionOutline") {
 
 			return Engine::BackendDrawCommon::ResolveMaterialPass(
 				context,
@@ -159,6 +161,7 @@ Engine::MeshRenderBackend::MeshRenderBackend() {
 	meshInstSRVSlot_     = sharedBindCache_.AddSlot("gMeshInstances",         ShaderBindingKind::SRV);
 	subMeshSRVSlot_      = sharedBindCache_.AddSlot("gSubMeshes",             ShaderBindingKind::SRV);
 	outlineSRVSlot_      = sharedBindCache_.AddSlot("gMeshOutlines",          ShaderBindingKind::SRV);
+	selectionParamsCBVSlot_ = sharedBindCache_.AddSlot("MeshSelectionOutlineParams", ShaderBindingKind::CBV);
 
 	// スキニングComputeバインドスロットを初期化時に登録する
 	skinConstCBVSlot_     = skinningBindCache_.AddSlot("SkinningConstants",      ShaderBindingKind::CBV);
@@ -167,6 +170,31 @@ Engine::MeshRenderBackend::MeshRenderBackend() {
 	skinPaletteSRVSlot_   = skinningBindCache_.AddSlot("gSkinningPalette",       ShaderBindingKind::SRV);
 	skinnedVtxUAVSlot_    = skinningBindCache_.AddSlot("gSkinnedVertices",       ShaderBindingKind::UAV);
 	skinnedPkdVtxUAVSlot_ = skinningBindCache_.AddSlot("gSkinnedPackedVertices", ShaderBindingKind::UAV);
+}
+
+Engine::MeshRenderBackend::~MeshRenderBackend() {
+
+	meshResourceManager_.Finalize();
+	resourcePool_.Clear();
+	subMeshCBPool_.Clear();
+	ClearStaticBatchCache();
+	skinnedBatchCache_.clear();
+	skinnedSourceLookup_.clear();
+	for (auto& drawPath : drawPaths_) {
+		drawPath.reset();
+	}
+	drawPaths_.clear();
+	initialized_ = false;
+}
+
+void Engine::MeshRenderBackend::ClearStaticBatchCache() {
+
+	// StaticBatchCacheEntry内のunique_ptr<MeshBatchResources>を明示resetしてからキャッシュを破棄する。
+	for (auto& [key, entry] : staticBatchCache_) {
+		(void)key;
+		entry.resources.reset();
+	}
+	staticBatchCache_.clear();
 }
 
 void Engine::MeshRenderBackend::RequestMeshes(GraphicsCore& graphicsCore,
@@ -503,6 +531,11 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(outlineSRVSlot_),
 			prepared.resources->GetOutlineGPUAddress(), {});
 	}
+	// 選択プレビュー用アウトラインのパラメータ。SelectionOutlineパイプラインだけが参照する
+	if (sharedBindCache_.Has(selectionParamsCBVSlot_) && prepared.resources->GetSelectionOutlineGPUAddress() != 0) {
+		RootBindingCommand::SetGraphicsCBV(commandList, sharedBindCache_.Get(selectionParamsCBVSlot_),
+			prepared.resources->GetSelectionOutlineGPUAddress());
+	}
 }
 
 Engine::IMeshDrawPath& Engine::MeshRenderBackend::SelectDrawPath(const PipelineVariantDesc& variant) {
@@ -633,8 +666,8 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 	// スキニングパイプラインアセットを読み込む
 	if (!skinningPipeline_) {
 
-		skinningPipeline_ = context.assetDatabase->ImportOrGet(
-			"Engine/Assets/Pipelines/Builtin/Mesh/skinning.pipeline.json", AssetType::RenderPipeline);
+		// ビルトインPipelineはパスではなく.meta GUIDで固定参照する
+		skinningPipeline_ = BuiltinAssets::Pipelines::Skinning;
 	}
 
 	// スキニングパイプラインの取得

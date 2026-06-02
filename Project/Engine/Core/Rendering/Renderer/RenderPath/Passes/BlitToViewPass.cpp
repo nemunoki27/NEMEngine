@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
@@ -21,9 +22,6 @@
 //============================================================================
 
 namespace {
-
-	constexpr const char* kToneMapToViewMaterialPath =
-		"Engine/Assets/Materials/Builtin/ToneMapToView/toneMapToView.material.json";
 
 	bool BindColorTargetsOnly(Engine::GraphicsCore& graphicsCore, Engine::MultiRenderTarget* target) {
 
@@ -82,8 +80,8 @@ namespace {
 			return false;
 		}
 
-		Engine::AssetID resolvedID = context.assetDatabase->ImportOrGet(
-			kToneMapToViewMaterialPath, Engine::AssetType::Material);
+		// ビルトインMaterialはパスではなく.meta GUIDで固定参照する
+		Engine::AssetID resolvedID = Engine::BuiltinAssets::Materials::ToneMapToView;
 		const Engine::MaterialAsset* material = assetLibrary.LoadMaterial(resolvedID);
 		if (!material) {
 			return false;

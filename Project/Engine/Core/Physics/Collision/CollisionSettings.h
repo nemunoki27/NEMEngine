@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Physics/Collision/CollisionTypes.h>
 
 // c++
@@ -30,8 +31,8 @@ namespace Engine {
 		void Load();
 		// 現在のCollision設定を設定ファイルへ保存する
 		void Save() const;
-		// 使用するCollision設定ファイルを論理アセットパスから切り替える
-		void SetActiveSettingsAssetPath(const std::string& assetPath);
+		// 使用するCollision設定ファイルをアセットGUIDから切り替える
+		void SetActiveSettingsAsset(AssetID assetID, const AssetDatabase* assetDatabase);
 		// 使用するCollision設定ファイルを実ファイルパスから切り替える
 		void SetActiveSettingsPath(const std::filesystem::path& settingsPath);
 
@@ -85,8 +86,6 @@ namespace Engine {
 
 		// デフォルト設定に戻す
 		void ResetDefault();
-		// 設定ファイルパスを取得する
-		std::filesystem::path ResolveSettingsPath() const;
 		// タイプ数に合わせてマトリクスを切り詰める
 		void TrimMatrix();
 	};

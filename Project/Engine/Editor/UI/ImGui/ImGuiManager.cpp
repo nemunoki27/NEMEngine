@@ -5,7 +5,7 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12ShaderResourceView.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 
 // imgui
 #include <imgui.h>

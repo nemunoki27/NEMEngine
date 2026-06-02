@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Utils.h>
+#include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 
 // c++
 #include <algorithm>

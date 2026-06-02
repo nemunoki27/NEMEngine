@@ -14,8 +14,8 @@
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/Textures/BuiltinTextureLibrary.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/RenderBufferRegistry.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
 
 // c++
 #include <filesystem>

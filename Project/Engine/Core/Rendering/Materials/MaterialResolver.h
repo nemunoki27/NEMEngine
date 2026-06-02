@@ -7,7 +7,6 @@
 
 // c++
 #include <array>
-#include <filesystem>
 
 namespace Engine {
 
@@ -61,7 +60,7 @@ namespace Engine {
 
 		// デフォルトマテリアルのIDを確保する
 		void EnsureDefaults(AssetDatabase& database) const;
-		// デフォルトマテリアルのパスを取得
-		static const char* GetDefaultAssetPath(DefaultMaterialSlot slot);
+		// デフォルトマテリアルのGUIDを取得
+		static AssetID GetDefaultAssetID(DefaultMaterialSlot slot);
 	};
 } // Engine

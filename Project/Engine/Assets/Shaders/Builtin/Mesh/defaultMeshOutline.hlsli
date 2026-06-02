@@ -38,11 +38,47 @@ struct MeshOutlineGPUData {
 // 既存割り当て(t0-t5,t9 space1)と衝突しない番号を使用する
 StructuredBuffer<MeshOutlineGPUData> gMeshOutlines : register(t7, space1);
 
+// 選択プレビュー用アウトラインのパラメータ。selectionOutlinePass!=0のときだけ使う
+cbuffer MeshSelectionOutlineParams : register(b1, space1) {
+
+	float4 gSelectionColor;
+	float gSelectionWidth;
+	float gSelectionCameraZOffset;
+	uint gSelectionExpansionMode;
+	uint gSelectionWidthMode;
+	uint gSelectionFlags;
+	int gSelectionRestrictSubMesh;
+	uint2 _gSelectionPad;
+};
+
 struct OutlineVertexOutput {
 
 	float4 position : SV_Position;
 	nointerpolation float4 color : COLOR0;
 };
+
+// 選択プレビュー用のパラメータからMeshOutlineGPUDataを構築する(テクスチャは使わない)
+MeshOutlineGPUData MakeSelectionOutlineData() {
+
+	MeshOutlineGPUData outline;
+	outline.color = gSelectionColor;
+	outline.width = gSelectionWidth;
+	outline.cameraZOffset = gSelectionCameraZOffset;
+	outline.expansionMode = gSelectionExpansionMode;
+	outline.widthMode = gSelectionWidthMode;
+	outline.bakedNormalTextureIndex = 0xFFFFFFFFu;
+	outline.outlineSamplerTextureIndex = 0xFFFFFFFFu;
+	outline.flags = gSelectionFlags;
+	outline._pad0 = 0u;
+	return outline;
+}
+
+// 選択プレビューでサブメッシュ限定のとき、対象外サブメッシュかどうか
+bool IsSelectionSubMeshCulled(uint localSubMeshIndex) {
+
+	return selectionOutlinePass != 0u && gSelectionRestrictSubMesh >= 0 &&
+		(int)localSubMeshIndex != gSelectionRestrictSubMesh;
+}
 
 //============================================================================
 //	functions
@@ -118,7 +154,13 @@ OutlineVertexOutput BuildOutlineVertex(uint instanceID, uint localSubMeshIndex,
 	MeshVertex vertex, float4x4 worldMatrix) {
 
 	MeshInstance instance = gMeshInstances[instanceID];
-	MeshOutlineGPUData outline = gMeshOutlines[instance.outlineDataIndex];
+	// 選択プレビューでは描画単位の定数からパラメータを取る。通常はper-instanceバッファから取る
+	MeshOutlineGPUData outline;
+	if (selectionOutlinePass != 0u) {
+		outline = MakeSelectionOutlineData();
+	} else {
+		outline = gMeshOutlines[instance.outlineDataIndex];
+	}
 	SubMeshShaderData subMesh = GetInstanceSubMesh(instanceID, localSubMeshIndex);
 
 	float widthMultiplier = SampleOutlineWidthMultiplier(outline, vertex.uv);

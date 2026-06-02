@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
+#include <Engine/Core/Rendering/Profiling/GpuFrameProfiler.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Sprite/SpriteRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Text/TextRenderItemExtractor.h>
@@ -23,7 +24,7 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackService.h>
 
@@ -277,6 +278,11 @@ void Engine::RenderPipelineRunner::Init() {
 
 void Engine::RenderPipelineRunner::Finalize() {
 
+	// GPU計測用のクエリヒープ/リードバックバッファはここで解放する。
+	// シングルトンのため放置するとDeviceより後まで生き残り、LeakCheckerに残る。
+	GpuFrameProfiler::GetInstance().Finalize();
+
+	renderPath_.Finalize();
 	backendRegistry_.Clear();
 	previewBackendRegistry_.Clear();
 	extractorRegistry_.Clear();
@@ -296,7 +302,10 @@ void Engine::RenderPipelineRunner::Finalize() {
 	sceneViewLightCullingBuffers_.Release();
 	previewLightBufferPool_.Clear();
 	previewLightCullingBufferPool_.Clear();
-	viewportRenderService_.reset();
+	if (viewportRenderService_) {
+		viewportRenderService_->Finalize();
+		viewportRenderService_.reset();
+	}
 	raytracingPipelineStateCache_.Clear();
 	gameViewRaytracingBuffers_.Release();
 	sceneViewRaytracingBuffers_.Release();
@@ -353,6 +362,10 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 		graphicsCore.GetSRVDescriptor().GetDescriptorHeap()
 		});
 
+	// GPU計測のフレーム開始(前フレームの結果をFrameProfilerへ反映し、記録をリセット)
+	GpuFrameProfiler::GetInstance().BeginFrame(graphicsCore.GetDXObject().GetDevice(),
+		graphicsCore.GetDXObject().GetDxCommand()->GetQueue());
+
 	// 描画アイテムの抽出
 	extractorRegistry_.BuildBatch(*request.world, renderBatch_);
 	// ライト抽出
@@ -370,14 +383,14 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	// シーン切り替え時にPostProcessStack設定をサービスへ通知する
 	if (activeScene) {
 
-		const std::string& ppPath = activeScene->header.postProcessStackPath;
-		if (ppPath != lastNotifiedPostProcessPath_) {
+		const AssetID ppAsset = activeScene->header.postProcessStack;
+		if (ppAsset != lastNotifiedPostProcessStack_) {
 
 			PostProcessStackService& service = PostProcessStackService::GetInstance();
 			if (!service.IsDirty()) {
-				service.SetActiveSettingsAssetPath(ppPath);
+				service.SetActiveSettingsAsset(ppAsset, request.assetDatabase);
 			}
-			lastNotifiedPostProcessPath_ = ppPath;
+			lastNotifiedPostProcessStack_ = ppAsset;
 		}
 	}
 
@@ -526,6 +539,9 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 		};
 	renderView(RenderViewKind::Game, gameView_);
 	renderView(RenderViewKind::Scene, sceneView_);
+
+	// 記録したパスのタイムスタンプを解決してリードバックバッファへ書き出す
+	GpuFrameProfiler::GetInstance().Resolve(graphicsCore.GetDXObject().GetDxCommand()->GetCommandList());
 }
 
 bool Engine::RenderPipelineRunner::PresentViewToBackBuffer(

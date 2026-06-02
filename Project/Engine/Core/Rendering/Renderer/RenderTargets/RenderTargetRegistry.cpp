@@ -110,6 +110,14 @@ bool Engine::RegisteredRenderTargetSet::Matches(const RenderTargetSetReference& 
 
 void Engine::RenderTargetRegistry::Clear() {
 
+	// transientのMultiRenderTargetはDescriptorを持つため、map破棄任せにせず明示解放する。
+	for (auto& [name, entry] : transients_) {
+		(void)name;
+		if (entry.surface) {
+			entry.surface->Destroy();
+			entry.surface.reset();
+		}
+	}
 	entries_.clear();
 	aliasTable_.clear();
 	transients_.clear();
@@ -294,6 +302,7 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::ResizeTransient(Graphic
 		TransientEntry& entry = transients_[desc.name];
 		if (entry.surface) {
 			entry.surface->Destroy();
+			entry.surface.reset();
 		}
 
 		entry.desc = desc;

@@ -27,7 +27,7 @@
 #include <Engine/Core/Rendering/PostProcess/PostProcessExecutor.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessTemporaryTargetPool.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/RenderBufferRegistry.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineStateCache.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingViewBufferSet.h>
@@ -243,8 +243,8 @@ namespace Engine {
 		// 同一フレーム内の複数プレビューがGPUバッファを再利用して上書きしないための開始済みフラグ
 		bool previewBackendFrameStarted_ = false;
 
-		// 前回通知したPostProcessStackパス。シーン切り替え時の再ロードを検出するために使用
-		std::string lastNotifiedPostProcessPath_{};
+		// 前回通知したPostProcessStackアセット。シーン切り替え時の再ロードを検出するために使用
+		AssetID lastNotifiedPostProcessStack_{};
 
 		// ワールド切り替え時の静的バッチキャッシュ破棄用
 		ECSWorld* lastRenderedWorld_ = nullptr;

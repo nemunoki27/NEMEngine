@@ -3,17 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
 // c++
 #include <algorithm>
-
-namespace {
-
-	// GameProjectのGameAssets配下に保存するCollision設定ファイル
-	constexpr const char* kSettingsRelativePath = "GameAssets/Collision/collisionSettings.json";
-}
 
 //============================================================================
 //	CollisionSettings classMethods
@@ -35,7 +29,9 @@ void Engine::CollisionSettings::EnsureLoaded() {
 void Engine::CollisionSettings::Load() {
 
 	if (settingsPath_.empty()) {
-		settingsPath_ = ResolveSettingsPath();
+		ResetDefault();
+		loaded_ = true;
+		return;
 	}
 	ResetDefault();
 
@@ -99,17 +95,26 @@ void Engine::CollisionSettings::Save() const {
 	for (uint32_t i = 0; i < kMaxCollisionTypes; ++i) {
 		data["matrixRows"].push_back(matrixRows_[i]);
 	}
-	JsonAdapter::Save(settingsPath_.empty() ? ResolveSettingsPath().string() : settingsPath_.string(), data);
+	if (settingsPath_.empty()) {
+		return;
+	}
+	JsonAdapter::Save(settingsPath_.string(), data);
 }
 
-void Engine::CollisionSettings::SetActiveSettingsAssetPath(const std::string& assetPath) {
+void Engine::CollisionSettings::SetActiveSettingsAsset(AssetID assetID, const AssetDatabase* assetDatabase) {
 
-	SetActiveSettingsPath(assetPath.empty() ? ResolveSettingsPath() : RuntimePaths::ResolveAssetPath(assetPath));
+	if (!assetID || !assetDatabase) {
+		SetActiveSettingsPath({});
+		return;
+	}
+
+	const std::filesystem::path fullPath = assetDatabase->ResolveFullPath(assetID);
+	SetActiveSettingsPath(fullPath);
 }
 
 void Engine::CollisionSettings::SetActiveSettingsPath(const std::filesystem::path& settingsPath) {
 
-	const std::filesystem::path nextPath = (settingsPath.empty() ? ResolveSettingsPath() : settingsPath).lexically_normal();
+	const std::filesystem::path nextPath = settingsPath.empty() ? std::filesystem::path{} : settingsPath.lexically_normal();
 	if (settingsPath_ == nextPath && loaded_) {
 		return;
 	}
@@ -217,11 +222,6 @@ void Engine::CollisionSettings::ResetDefault() {
 	types_.push_back({ "Default", true });
 	matrixRows_.fill(0);
 	matrixRows_[0] = 1u;
-}
-
-std::filesystem::path Engine::CollisionSettings::ResolveSettingsPath() const {
-
-	return RuntimePaths::GetGameRoot() / kSettingsRelativePath;
 }
 
 void Engine::CollisionSettings::TrimMatrix() {

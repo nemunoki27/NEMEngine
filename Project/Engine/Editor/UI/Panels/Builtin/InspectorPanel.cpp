@@ -10,6 +10,7 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Scripting/DragDrop/ScriptAssetDragDrop.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
@@ -400,27 +401,19 @@ namespace {
 	}
 
 	// よく使うMesh用MaterialのPass構成を設定する
-	void ApplyDefaultMeshMaterialTemplate(Engine::MaterialAsset& material, const Engine::AssetDatabase* assetDatabase) {
+	void ApplyDefaultMeshMaterialTemplate(Engine::MaterialAsset& material) {
 
 		material.domain = Engine::MaterialDomain::Surface;
 		material.passes.clear();
 
-		auto resolvePipeline = [&](const char* path) {
-			if (!assetDatabase) {
-				return Engine::AssetID{};
-			}
-			const Engine::AssetMeta* meta = assetDatabase->FindByPath(path);
-			return meta ? meta->guid : Engine::AssetID{};
-			};
-
 		material.passes.push_back({
 			.passName = "ZPrepass",
-			.pipeline = resolvePipeline("Engine/Assets/Pipelines/Builtin/Mesh/defaultMeshZPrepass.pipeline.json"),
+			.pipeline = Engine::BuiltinAssets::Pipelines::DefaultMeshZPrepass,
 			.preferredVariant = Engine::PipelineVariantKind::GraphicsMesh,
 			});
 		material.passes.push_back({
 			.passName = "Draw",
-			.pipeline = resolvePipeline("Engine/Assets/Pipelines/Builtin/Mesh/defaultMesh.pipeline.json"),
+			.pipeline = Engine::BuiltinAssets::Pipelines::DefaultMesh,
 			.preferredVariant = Engine::PipelineVariantKind::GraphicsMesh,
 			});
 
@@ -929,7 +922,7 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 
 	if (ImGui::Button("Use Mesh Template", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 
-		ApplyDefaultMeshMaterialTemplate(materialDraft_, context.editorContext->assetDatabase);
+		ApplyDefaultMeshMaterialTemplate(materialDraft_);
 		saveRequested = true;
 	}
 

@@ -6,7 +6,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 // imgui
@@ -24,6 +24,13 @@ Engine::LineRenderer* Engine::LineRenderer::GetInstance() {
 		instance_ = new LineRenderer();
 	}
 	return instance_;
+}
+
+Engine::LineRenderer::~LineRenderer() {
+
+	// 各ライン描画クラスが持つGPUバッファをLeakChecker前に明示resetする。
+	renderer3D_.reset();
+	renderer2D_.reset();
 }
 
 void Engine::LineRenderer::Finalize() {

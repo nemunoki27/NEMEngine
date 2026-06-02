@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
+#include <Engine/Editor/Utility/EditorTextureHelper.h>
 
 //============================================================================
 //	ProjectAssetThumbnailCache classMethods
@@ -38,43 +39,43 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 		return;
 	}
 
-	const std::string baseKey = "Engine/Assets/Textures/Engine/Editor/File/";
 	folderIconKey_ = "folder.dds";
-	textureUploadService_->RequestTextureFile(folderIconKey_, baseKey + folderIconKey_);
+	textureUploadService_->RequestTextureFile(folderIconKey_,
+		EditorTextureHelper::MakeEditorTexturePath("File", folderIconKey_));
 
 	defaultIcons_[AssetType::Scene].textureKey = "scene.dds";
-	defaultIcons_[AssetType::Scene].assetPath = baseKey + "scene.dds";
+	defaultIcons_[AssetType::Scene].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "scene.dds");
 	defaultIcons_[AssetType::Prefab].textureKey = "prefab.dds";
-	defaultIcons_[AssetType::Prefab].assetPath = baseKey + "prefab.dds";
+	defaultIcons_[AssetType::Prefab].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "prefab.dds");
 	defaultIcons_[AssetType::Material].textureKey = "material.dds";
-	defaultIcons_[AssetType::Material].assetPath = baseKey + "material.dds";
+	defaultIcons_[AssetType::Material].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "material.dds");
 	defaultIcons_[AssetType::Shader].textureKey = "shader.dds";
-	defaultIcons_[AssetType::Shader].assetPath = baseKey + "shader.dds";
+	defaultIcons_[AssetType::Shader].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "shader.dds");
 	defaultIcons_[AssetType::Texture].textureKey = "texture.dds";
-	defaultIcons_[AssetType::Texture].assetPath = baseKey + "texture.dds";
+	defaultIcons_[AssetType::Texture].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "texture.dds");
 	defaultIcons_[AssetType::Mesh].textureKey = "mesh.dds";
-	defaultIcons_[AssetType::Mesh].assetPath = baseKey + "mesh.dds";
+	defaultIcons_[AssetType::Mesh].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "mesh.dds");
 	defaultIcons_[AssetType::RenderPipeline].textureKey = "renderPipeline.dds";
-	defaultIcons_[AssetType::RenderPipeline].assetPath = baseKey + "renderPipeline.dds";
+	defaultIcons_[AssetType::RenderPipeline].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "renderPipeline.dds");
 	defaultIcons_[AssetType::Font].textureKey = "font.dds";
-	defaultIcons_[AssetType::Font].assetPath = baseKey + "font.dds";
+	defaultIcons_[AssetType::Font].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "font.dds");
 	defaultIcons_[AssetType::Script].textureKey = "shader.dds";
-	defaultIcons_[AssetType::Script].assetPath = baseKey + "shader.dds";
+	defaultIcons_[AssetType::Script].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "shader.dds");
 	defaultIcons_[AssetType::Audio].textureKey = "audio.dds";
-	defaultIcons_[AssetType::Audio].assetPath = baseKey + "audio.dds";
+	defaultIcons_[AssetType::Audio].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "audio.dds");
 	defaultIcons_[AssetType::AnimationClip].textureKey = "animationClip.dds";
-	defaultIcons_[AssetType::AnimationClip].assetPath = baseKey + "animationClip.dds";
+	defaultIcons_[AssetType::AnimationClip].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "animationClip.dds");
 	defaultIcons_[AssetType::Unknown].textureKey = "unknown.dds";
-	defaultIcons_[AssetType::Unknown].assetPath = baseKey + "unknown.dds";
+	defaultIcons_[AssetType::Unknown].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "unknown.dds");
 
 	customExtensionIcons_[".exeConfig.json"].textureKey = "exeConfig.png";
-	customExtensionIcons_[".exeConfig.json"].assetPath = baseKey + "exeConfig.png";
+	customExtensionIcons_[".exeConfig.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
 	customExtensionIcons_[".windowSetting.json"].textureKey = "exeConfig.png";
-	customExtensionIcons_[".windowSetting.json"].assetPath = baseKey + "exeConfig.png";
+	customExtensionIcons_[".windowSetting.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
 	customExtensionIcons_[".collisionSettings.json"].textureKey = "exeConfig.png";
-	customExtensionIcons_[".collisionSettings.json"].assetPath = baseKey + "exeConfig.png";
+	customExtensionIcons_[".collisionSettings.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
 	customExtensionIcons_[".postProcessStack.json"].textureKey = "exeConfig.png";
-	customExtensionIcons_[".postProcessStack.json"].assetPath = baseKey + "exeConfig.png";
+	customExtensionIcons_[".postProcessStack.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
 
 	for (const auto& [type, icon] : defaultIcons_) {
 

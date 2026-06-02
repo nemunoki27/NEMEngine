@@ -41,8 +41,8 @@ void Engine::to_json(nlohmann::json& out, const InvertedHullOutlineComponent& co
 	out["widthMode"] = EnumAdapter<OutlineWidthMode>::ToString(component.widthMode);
 	out["cameraZOffset"] = component.cameraZOffset;
 	out["useBakedNormal"] = component.useBakedNormal;
-	out["bakedNormalTexture"] = ToString(component.bakedNormalTexture);
+	out["bakedNormalTexture"] = ToAssetReferenceJson(component.bakedNormalTexture);
 	out["useOutlineSampler"] = component.useOutlineSampler;
-	out["outlineSamplerTexture"] = ToString(component.outlineSamplerTexture);
+	out["outlineSamplerTexture"] = ToAssetReferenceJson(component.outlineSamplerTexture);
 	out["useStencil"] = component.useStencil;
 }

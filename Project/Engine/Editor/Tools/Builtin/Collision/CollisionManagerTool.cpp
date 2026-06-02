@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
@@ -235,7 +236,8 @@ void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) 
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
 	if (context.toolContext.activeSceneHeader) {
-		settings.SetActiveSettingsAssetPath(context.toolContext.activeSceneHeader->collisionSettingsPath);
+		settings.SetActiveSettingsAsset(context.toolContext.activeSceneHeader->collisionSettings,
+			context.toolContext.assetDatabase);
 	}
 	settings.EnsureLoaded();
 
@@ -243,7 +245,15 @@ void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) 
 
 	// 現在開いているシーンが参照するCollision設定ファイルを表示する
 	if (context.toolContext.activeSceneHeader) {
-		ImGui::TextDisabled("Settings: %s", context.toolContext.activeSceneHeader->collisionSettingsPath.c_str());
+		std::string displayPath = ToString(context.toolContext.activeSceneHeader->collisionSettings);
+		if (context.toolContext.assetDatabase) {
+			if (const AssetMeta* meta = context.toolContext.assetDatabase->Find(
+				context.toolContext.activeSceneHeader->collisionSettings)) {
+
+				displayPath = meta->assetPath;
+			}
+		}
+		ImGui::TextDisabled("Settings: %s", displayPath.c_str());
 	} else {
 		const std::string settingsPath = settings.GetSettingsPath().generic_string();
 		ImGui::TextDisabled("Settings: %s", settingsPath.c_str());

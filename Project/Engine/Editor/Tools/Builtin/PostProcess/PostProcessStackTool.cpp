@@ -214,11 +214,6 @@ namespace {
 		return false;
 	}
 
-	bool IsPostProcessStackFile(const std::string& path) {
-
-		return EndsWith(path, ".postProcessStack.json");
-	}
-
 	bool IsMaterialJsonFile(const std::string& path) {
 
 		return EndsWith(path, ".material.json");
@@ -255,8 +250,8 @@ void Engine::PostProcessStackTool::Tick(ToolContext& context) {
 		return;
 	}
 
-	const std::string& nextPath = context.activeSceneHeader->postProcessStackPath;
-	if (nextPath == lastScenePath_) {
+	const AssetID nextStackAsset = context.activeSceneHeader->postProcessStack;
+	if (nextStackAsset == lastStackAsset_) {
 		return;
 	}
 
@@ -265,11 +260,11 @@ void Engine::PostProcessStackTool::Tick(ToolContext& context) {
 
 		// 変更がある場合は確認ポップアップを予約する
 		pendingScenePathChange_ = true;
-		pendingNextScenePath_ = nextPath;
+		pendingNextStackAsset_ = nextStackAsset;
 	} else {
 
-		service.SetActiveSettingsAssetPath(nextPath);
-		lastScenePath_ = nextPath;
+		service.SetActiveSettingsAsset(nextStackAsset, context.assetDatabase);
+		lastStackAsset_ = nextStackAsset;
 		selectedPassIndex_ = -1;
 	}
 }
@@ -348,7 +343,7 @@ void Engine::PostProcessStackTool::DrawWindow(const EditorToolContext& context) 
 	ImGui::EndGroup();
 
 	// 未保存確認ポップアップ
-	DrawUnsavedConfirmPopup();
+	DrawUnsavedConfirmPopup(context);
 
 	ImGui::End();
 }
@@ -452,6 +447,9 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 
 	PostProcessStackPassSettings& pass = passes[selectedPassIndex_];
 
+	// 選択中パスをプレビュー対象としてPostProcessStackPassへ伝える
+	service.SetPreviewPassId(pass.id);
+
 	// 選択中パスのシェーダーを再コンパイルしてパラメータを再読み込みする
 	if (ImGui::Button("Reload Reflection")) {
 		PostProcessStackService::GetInstance().RequestShaderReload(pass.materialGuid);
@@ -480,12 +478,6 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 			context.toolContext.assetDatabase, { AssetType::Material }, setting).valueChanged) {
 
 			pass.materialGuid = matGuid;
-			if (context.toolContext.assetDatabase && matGuid) {
-				const AssetMeta* meta = context.toolContext.assetDatabase->Find(matGuid);
-				pass.materialPathCache = meta ? meta->assetPath : "";
-			} else {
-				pass.materialPathCache.clear();
-			}
 			service.MarkDirty();
 			service.RebuildRuntime();
 		}
@@ -563,13 +555,8 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 
 				if (texGuid) {
 					pass.textureGuids[srv.name] = texGuid;
-					if (context.toolContext.assetDatabase) {
-						const AssetMeta* meta = context.toolContext.assetDatabase->Find(texGuid);
-						pass.texturePathCaches[srv.name] = meta ? meta->assetPath : "";
-					}
 				} else {
 					pass.textureGuids.erase(srv.name);
-					pass.texturePathCaches.erase(srv.name);
 				}
 				anySRVChanged = true;
 			}
@@ -580,6 +567,28 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 		if (anySRVChanged) {
 			service.MarkDirty();
 			service.RebuildRuntime();
+		}
+	}
+
+	ImGui::Separator();
+
+	// 選択中パスの実行前後プレビュー(デフォルトは閉じておく)
+	if (MyGUI::CollapsingHeader("Preview", false)) {
+
+		const PostProcessStackService::PreviewImage& preview = service.GetPreviewImage();
+		if (!preview.valid) {
+			ImGui::TextDisabled("No preview available.");
+		} else {
+
+			// 表示できる範囲の幅から16:9でサイズを決める
+			const float availWidth = ImGui::GetContentRegionAvail().x;
+			const ImVec2 imageSize(availWidth, availWidth * 9.0f / 16.0f);
+
+			ImGui::TextUnformatted("Before");
+			ImGui::Image(static_cast<ImTextureID>(preview.beforeSrvPtr), imageSize);
+
+			ImGui::TextUnformatted("After");
+			ImGui::Image(static_cast<ImTextureID>(preview.afterSrvPtr), imageSize);
 		}
 	}
 }
@@ -601,20 +610,21 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 				IEditorPanel::kProjectAssetDragDropPayloadType)) {
 
 				const auto* data = static_cast<const EditorAssetDragDropPayload*>(payload->Data);
-				if (data && !data->isDirectory && IsPostProcessStackFile(data->assetPath)) {
+				if (data && !data->isDirectory && data->assetType == AssetType::PostProcessStack) {
 
 					const std::string stackPath = data->assetPath;
+					const AssetID stackAsset = data->assetID;
 					SceneHeader* activeSceneHeader = ResolveActiveSceneHeader(context.toolContext);
 					if (activeSceneHeader) {
-						activeSceneHeader->postProcessStackPath = stackPath;
+						activeSceneHeader->postProcessStack = stackAsset;
 					} else {
 						Logger::Output(LogType::Engine,
 							"[PostProcessStack] Dropped stack was loaded, but active SceneHeader was not found: " +
 							stackPath);
 					}
 
-					service.SetActiveSettingsAssetPath(stackPath);
-					lastScenePath_ = stackPath;
+					service.SetActiveSettingsAsset(stackAsset, context.toolContext.assetDatabase);
+					lastStackAsset_ = stackAsset;
 					selectedPassIndex_ = -1;
 
 					Logger::Output(LogType::Engine,
@@ -711,7 +721,6 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 						newPass.name = name.empty() ? "NewPass" : name;
 						newPass.enabled = true;
 						newPass.materialGuid = materialGuid;
-						newPass.materialPathCache = materialPath;
 						newPass.passName = "PostProcess";
 
 						settings.passes.emplace_back(std::move(newPass));
@@ -729,7 +738,7 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 	}
 }
 
-void Engine::PostProcessStackTool::DrawUnsavedConfirmPopup() {
+void Engine::PostProcessStackTool::DrawUnsavedConfirmPopup(const EditorToolContext& context) {
 
 	if (pendingScenePathChange_) {
 		ImGui::OpenPopup(kUnsavedPopupId);
@@ -751,21 +760,26 @@ void Engine::PostProcessStackTool::DrawUnsavedConfirmPopup() {
 	if (ImGui::Button("Save & Switch", ImVec2(110.0f, 0.0f))) {
 		service.Save();
 		service.ClearDirty();
-		service.SetActiveSettingsAssetPath(pendingNextScenePath_);
-		lastScenePath_ = pendingNextScenePath_;
+		service.SetActiveSettingsAsset(pendingNextStackAsset_, context.toolContext.assetDatabase);
+		lastStackAsset_ = pendingNextStackAsset_;
 		selectedPassIndex_ = -1;
+		pendingScenePathChange_ = false;
+		pendingNextStackAsset_ = {};
 		ImGui::CloseCurrentPopup();
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Discard & Switch", ImVec2(110.0f, 0.0f))) {
-		service.SetActiveSettingsAssetPath(pendingNextScenePath_);
-		lastScenePath_ = pendingNextScenePath_;
+		service.SetActiveSettingsAsset(pendingNextStackAsset_, context.toolContext.assetDatabase);
+		lastStackAsset_ = pendingNextStackAsset_;
 		selectedPassIndex_ = -1;
+		pendingScenePathChange_ = false;
+		pendingNextStackAsset_ = {};
 		ImGui::CloseCurrentPopup();
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Cancel", ImVec2(80.0f, 0.0f))) {
-		pendingNextScenePath_.clear();
+		pendingScenePathChange_ = false;
+		pendingNextStackAsset_ = {};
 		ImGui::CloseCurrentPopup();
 	}
 

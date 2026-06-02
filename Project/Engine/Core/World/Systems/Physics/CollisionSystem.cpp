@@ -106,7 +106,7 @@ void Engine::CollisionSystem::LateUpdate(ECSWorld& world, SystemContext& context
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
 	if (context.activeSceneHeader) {
-		settings.SetActiveSettingsAssetPath(context.activeSceneHeader->collisionSettingsPath);
+		settings.SetActiveSettingsAsset(context.activeSceneHeader->collisionSettings, context.assetDatabase);
 	}
 	settings.EnsureLoaded();
 

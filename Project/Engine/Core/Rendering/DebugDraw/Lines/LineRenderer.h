@@ -57,7 +57,7 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		LineRenderer() = default;
-		~LineRenderer() = default;
+		~LineRenderer();
 		LineRenderer(const LineRenderer&) = delete;
 		LineRenderer& operator=(const LineRenderer&) = delete;
 	};

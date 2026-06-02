@@ -225,8 +225,22 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			// サブメッシュデータを構築
 			MeshSubMeshShaderData subMeshData{};
 			subMeshData.importedBaseColor = importedSubMesh.baseColor;
+			// ラスタライズ経路と挙動を揃える:
+			// テクスチャ指定あり→解決(見つからなければエラー)、未指定→kNoTexture(シェーダ側でベースカラー使用)、
+			// 指定はあるが解決できない→エラーテクスチャ
 			AssetID baseColorTextureAsset = MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetID(*meshResource, src.renderer, subMeshIndex);
-			subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, baseColorTextureAsset);
+			if (baseColorTextureAsset) {
+
+				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, baseColorTextureAsset);
+			} else if (MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(*meshResource, src.renderer, subMeshIndex)) {
+
+				// 宣言はあるが見つからない: エラーテクスチャ(空AssetIDの解決でerrorIndexが返る)
+				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, AssetID{});
+			} else {
+
+				// テクスチャ未設定: シェーダ側でimportedBaseColor*colorを使う
+				subMeshData.baseColorTextureIndex = UINT32_MAX;
+			}
 
 			bool hasMesh = src.renderer && subMeshIndex < src.renderer->subMeshes.size();
 

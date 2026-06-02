@@ -4,13 +4,19 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 
 //============================================================================
 //	SpriteRenderBackend classMethods
 //============================================================================
+
+Engine::SpriteRenderBackend::~SpriteRenderBackend() {
+
+	// FrameBatchResourcePool内のunique_ptrを終了時に明示resetする。
+	resourcePool_.Clear();
+}
 
 void Engine::SpriteRenderBackend::BeginFrame([[maybe_unused]] GraphicsCore& graphicsCore) {
 

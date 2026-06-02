@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Rendering/Renderer/Views/ViewportRenderService.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
@@ -705,7 +705,14 @@ void Engine::EditorManager::DrawSceneDebugObjects(const EditorContext& context) 
 		return;
 	}
 
-	InspectorDrawerCommon::DrawEntityDebugObject(*context.activeWorld, editorState_.selectedEntity);
+	// サブメッシュ単位選択中はそのサブメッシュ番号を、エンティティ選択中は-1を渡す
+	int32_t selectionSubMeshIndex = -1;
+	uint32_t resolvedSubMeshIndex = 0;
+	if (editorState_.HasValidSubMeshSelection(context.activeWorld) &&
+		editorState_.TryResolveSelectedSubMeshIndex(context.activeWorld, resolvedSubMeshIndex)) {
+		selectionSubMeshIndex = static_cast<int32_t>(resolvedSubMeshIndex);
+	}
+	InspectorDrawerCommon::DrawEntityDebugObject(*context.activeWorld, editorState_.selectedEntity, selectionSubMeshIndex);
 #else
 	(void)context;
 #endif

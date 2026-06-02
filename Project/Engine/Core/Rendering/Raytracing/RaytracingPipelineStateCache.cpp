@@ -40,3 +40,13 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 	auto [it, inserted] = cache_.emplace(pipelineAssetID, std::move(state));
 	return it->second.get();
 }
+
+void Engine::RaytracingPipelineStateCache::Clear() {
+
+	// DXR PSOを持つキャッシュはmap破棄任せにせず、終了時に明示resetする。
+	for (auto& [assetID, state] : cache_) {
+		(void)assetID;
+		state.reset();
+	}
+	cache_.clear();
+}

@@ -21,7 +21,7 @@ namespace Engine {
 		//========================================================================
 
 		LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain);
-		~LineRenderer3D() = default;
+		~LineRenderer3D() override;
 
 		// フレーム開始処理
 		void BeginFrame();

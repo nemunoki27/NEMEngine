@@ -32,7 +32,7 @@ namespace Engine {
 			psInstSRVSlot_ = perDrawBindCache_.AddSlot("gPSInstances",  ShaderBindingKind::SRV);
 			atlasSRVSlot_  = perDrawBindCache_.AddSlot("gAtlas",        ShaderBindingKind::SRV);
 		}
-		~TextRenderBackend() = default;
+		~TextRenderBackend() override;
 
 		void BeginFrame(GraphicsCore& graphicsCore) override;
 

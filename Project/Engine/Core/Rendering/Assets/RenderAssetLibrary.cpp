@@ -9,48 +9,6 @@
 //	RenderAssetLibrary classMethods
 //============================================================================
 
-namespace {
-
-	bool LooksLikeAssetID(const std::string& text) {
-
-		if (text.size() != 16) {
-			return false;
-		}
-		for (char c : text) {
-			if (!std::isxdigit(static_cast<unsigned char>(c))) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	Engine::AssetID ParseGuessAssetReference(
-		Engine::AssetDatabase& database,
-		const nlohmann::json& value,
-		Engine::AssetType guessedType) {
-
-		if (!value.is_string()) {
-			return Engine::AssetID{};
-		}
-
-		const std::string text = value.get<std::string>();
-		if (text.empty()) {
-			return Engine::AssetID{};
-		}
-
-		if (LooksLikeAssetID(text)) {
-			return Engine::FromString16Hex(text);
-		}
-
-		const std::filesystem::path fullPath = database.ResolveAssetPath(text);
-		if (!std::filesystem::exists(fullPath)) {
-			return Engine::AssetID{};
-		}
-
-		return database.ImportOrGet(text, guessedType);
-	}
-}
-
 void Engine::RenderAssetLibrary::Init(AssetDatabase* database) {
 
 	if (database_) {
@@ -120,18 +78,6 @@ const Engine::RenderPipelineAsset* Engine::RenderAssetLibrary::LoadPipeline(Asse
 
 	// データを読み込む
 	nlohmann::json data = JsonAdapter::Load(path.string(), true);
-	if (data.contains("variants") && data["variants"].is_array()) {
-		for (auto& variantJson : data["variants"]) {
-
-			if (!variantJson.is_object()) {
-				continue;
-			}
-			const AssetID shaderRef = ParseGuessAssetReference(*database_, variantJson.value("shader", ""), AssetType::Shader);
-			if (shaderRef) {
-				variantJson["shader"] = ToString(shaderRef);
-			}
-		}
-	}
 	RenderPipelineAsset asset{};
 	if (!FromJson(data, asset)) {
 		return nullptr;
@@ -164,19 +110,6 @@ const Engine::MaterialAsset* Engine::RenderAssetLibrary::LoadMaterial(AssetID as
 
 	// データを読み込む
 	nlohmann::json data = JsonAdapter::Load(path.string(), true);
-	if (data.contains("passes") && data["passes"].is_array()) {
-		for (auto& passJson : data["passes"]) {
-
-			if (!passJson.is_object()) {
-				continue;
-			}
-
-			const AssetID pipelineRef = ParseGuessAssetReference(*database_, passJson.value("pipeline", ""), AssetType::RenderPipeline);
-			if (pipelineRef) {
-				passJson["pipeline"] = ToString(pipelineRef);
-			}
-		}
-	}
 	MaterialAsset asset{};
 	if (!FromJson(data, asset)) {
 		return nullptr;
@@ -208,12 +141,6 @@ const Engine::MSDFFontAsset* Engine::RenderAssetLibrary::LoadFont(AssetID assetI
 
 	// データを読み込む
 	nlohmann::json data = JsonAdapter::Load(path.string(), true);
-	if (data.contains("atlasTexture")) {
-		const AssetID atlasRef = ParseGuessAssetReference(*database_, data["atlasTexture"], AssetType::Texture);
-		if (atlasRef) {
-			data["atlasTexture"] = ToString(atlasRef);
-		}
-	}
 	MSDFFontAsset asset{};
 	if (!FromJson(data, asset)) {
 		return nullptr;

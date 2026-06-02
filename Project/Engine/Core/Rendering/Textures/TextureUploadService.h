@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12UploadContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxUploadContext.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 #include <Engine/Core/Assets/Async/AssetWorkerPool.h>
 

@@ -11,19 +11,14 @@
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Utils.h>
+#include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 //============================================================================
 //	LightCullingPass classMethods
 //============================================================================
-
-namespace {
-
-	constexpr const char* kLightCullingMaterialPath =
-		"Engine/Assets/Materials/Builtin/LightCulling/lightCulling.material.json";
-}
 
 Engine::AssetID Engine::LightCullingPass::ResolveLightCullingMaterial(AssetDatabase& database) const {
 
@@ -32,10 +27,9 @@ Engine::AssetID Engine::LightCullingPass::ResolveLightCullingMaterial(AssetDatab
 	}
 	materialSearched_ = true;
 
-	const AssetMeta* meta = database.FindByPath(kLightCullingMaterialPath);
-	if (meta) {
-		cachedMaterialID_ = meta->guid;
-	}
+	(void)database;
+	// ビルトインMaterialはパスではなく.meta GUIDで固定参照する
+	cachedMaterialID_ = BuiltinAssets::Materials::LightCulling;
 	return cachedMaterialID_;
 }
 

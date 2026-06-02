@@ -3,8 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Types.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/ComPtr.h>
+#include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
+#include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 
 // c++
 #include <string>

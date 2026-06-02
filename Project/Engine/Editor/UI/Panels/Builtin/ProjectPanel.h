@@ -164,6 +164,12 @@ namespace Engine {
 		std::string renameErrorMessage_;
 		// リネームポップアップを次の描画で開くか
 		bool requestOpenRenamePopup_ = false;
+		// 削除対象アセットの情報
+		ProjectAssetEntry pendingDeleteAsset_{};
+		// 削除対象を参照しているアセットのパス一覧(確認表示用)
+		std::vector<std::string> pendingDeleteReferencers_;
+		// 削除確認ポップアップを次の描画で開くか
+		bool requestOpenDeletePopup_ = false;
 		// ファイル操作結果の遅延反映用キャッシュ
 		ProjectAssetFileResult pendingFileOperationResult_{};
 		// ファイル操作後の再構築が保留されているか
@@ -213,6 +219,8 @@ namespace Engine {
 		void DrawCreateAssetPopup(AssetDatabase& database);
 		// アセットリネーム用の名前入力ポップアップを描画する
 		void DrawRenameAssetPopup(AssetDatabase& database);
+		// 削除確認ポップアップを描画する(参照元があれば警告する)
+		void DrawDeleteAssetPopup(AssetDatabase& database);
 		// アセットのダブルクリック操作を処理する
 		void HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset);
 		// HierarchyからドロップされたEntityをPrefabとして保存する

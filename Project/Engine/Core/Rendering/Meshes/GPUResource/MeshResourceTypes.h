@@ -4,9 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/AssetTypes.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12StructuredBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/IndexBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12ShaderResourceView.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxImmutableStructuredBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/ImmutableIndexBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Rendering/Meshes/MeshNode.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
@@ -228,11 +228,11 @@ namespace Engine {
 		uint32_t boneCount = 0;
 		std::vector<VertexInfluence> vertexInfluences{};
 	};
-	// インスタンシングリソース
+	// 静的メッシュSRVリソース(DEFAULT heap、ロード後は更新しない)
 	template <typename T>
 	struct MeshStructuredHandle {
 
-		std::unique_ptr<DxStructuredBuffer<T>> buffer;
+		std::unique_ptr<DxImmutableStructuredBuffer<T>> buffer;
 		uint32_t srvIndex = UINT32_MAX;
 		D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle{};
 
@@ -277,7 +277,7 @@ namespace Engine {
 		// スキニング
 		MeshStructuredHandle<VertexInfluence> skinInfluenceSRV;
 
-		IndexBuffer indexBuffer;
+		ImmutableIndexBuffer indexBuffer;
 
 		uint32_t vertexCount = 0;
 		uint32_t indexCount = 0;

@@ -28,7 +28,7 @@ namespace Engine {
 			psInstSRVSlot_  = perDrawBindCache_.AddSlot("gPSInstances",  ShaderBindingKind::SRV);
 			textureSRVSlot_ = perDrawBindCache_.AddSlot("gTexture",      ShaderBindingKind::SRV);
 		}
-		~SpriteRenderBackend() = default;
+		~SpriteRenderBackend() override;
 
 		void BeginFrame(GraphicsCore& graphicsCore) override;
 

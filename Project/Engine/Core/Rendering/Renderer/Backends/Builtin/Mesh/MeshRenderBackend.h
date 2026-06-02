@@ -42,7 +42,7 @@ namespace Engine {
 		//========================================================================
 
 		MeshRenderBackend();
-		~MeshRenderBackend() = default;
+		~MeshRenderBackend() override;
 
 		// 可視メッシュのGPUアップロード
 		void RequestMeshes(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase, std::span<const AssetID> meshAssets);
@@ -64,7 +64,7 @@ namespace Engine {
 		const MeshGPUResource* FindMeshResource(AssetID meshAssetID) const { return meshResourceManager_.Find(meshAssetID); }
 
 		// 静的バッチキャッシュを即時クリアする
-		void ClearStaticBatchCache() { staticBatchCache_.clear(); }
+		void ClearStaticBatchCache();
 
 		uint32_t GetID() const override { return RenderBackendID::Mesh; }
 	private:
@@ -166,6 +166,7 @@ namespace Engine {
 		PipelineBindingCache::SlotID meshInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID subMeshSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID outlineSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID selectionParamsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		// スキニングComputeバインドのパイプラインスロットID
 		PipelineBindingCache skinningBindCache_{};
 		PipelineBindingCache::SlotID skinConstCBVSlot_ = PipelineBindingCache::kInvalidSlot;

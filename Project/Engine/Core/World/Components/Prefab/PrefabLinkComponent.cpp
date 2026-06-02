@@ -18,7 +18,7 @@ void Engine::from_json(const nlohmann::json& in, PrefabLinkComponent& component)
 
 void Engine::to_json(nlohmann::json& out, const PrefabLinkComponent& component) {
 
-	out["prefabAsset"] = component.prefabAsset ? ToString(component.prefabAsset) : "";
+	out["prefabAsset"] = ToAssetReferenceJson(component.prefabAsset);
 	out["prefabLocalFileID"] = component.prefabLocalFileID ? ToString(component.prefabLocalFileID) : "";
 	out["prefabInstanceID"] = component.prefabInstanceID ? ToString(component.prefabInstanceID) : "";
 	out["isPrefabRoot"] = component.isPrefabRoot;

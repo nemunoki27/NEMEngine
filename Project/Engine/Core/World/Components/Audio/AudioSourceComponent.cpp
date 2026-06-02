@@ -22,7 +22,7 @@ void Engine::from_json(const nlohmann::json& in, AudioSourceComponent& component
 
 void Engine::to_json(nlohmann::json& out, const AudioSourceComponent& component) {
 
-	out["clip"] = ToString(component.clip);
+	out["clip"] = ToAssetReferenceJson(component.clip);
 	out["enabled"] = component.enabled;
 	out["playOnAwake"] = component.playOnAwake;
 	out["loop"] = component.loop;

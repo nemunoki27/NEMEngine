@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
@@ -21,6 +22,13 @@
 //============================================================================
 
 namespace {
+
+	// 移動済みファイルの追跡用(ロールバックで元へ戻すために使う)
+	struct MovedPathPair {
+
+		std::filesystem::path from;
+		std::filesystem::path to;
+	};
 
 	constexpr std::array<const char*, 7> kCompoundSuffixes = {
 		".scene.json",
@@ -249,6 +257,11 @@ namespace {
 			return;
 		}
 
+		// Shaderには.hlsl/.hlsli等の非JSONも含まれる。実体が.json以外はパースしない
+		if (Engine::Algorithm::ToLower(path.extension().string()) != ".json") {
+			return;
+		}
+
 		nlohmann::json data = Engine::JsonAdapter::Load(path.string(), false);
 		if (!data.is_object()) {
 			return;
@@ -283,6 +296,38 @@ namespace {
 	void PatchRenamedJsonAsset(const std::filesystem::path& path, Engine::AssetType type) {
 
 		PatchJsonAssetName(path, type, false);
+	}
+	// 複製先フォルダ配下のJSONアセットを走査し、内部guidを再採番する。
+	// .metaはコピーされず新規発行されるため、本体側の内部guidを残すと不一致になる。
+	void PatchDuplicatedDirectoryAssets(const std::filesystem::path& duplicatedDirectory) {
+
+		std::error_code ec;
+		auto it = std::filesystem::recursive_directory_iterator(
+			duplicatedDirectory, std::filesystem::directory_options::skip_permission_denied, ec);
+		const std::filesystem::recursive_directory_iterator end{};
+		if (ec) {
+			return;
+		}
+
+		for (; it != end; it.increment(ec)) {
+
+			if (ec) {
+				ec.clear();
+				continue;
+			}
+			if (!it->is_regular_file(ec)) {
+				continue;
+			}
+
+			const std::filesystem::path filePath = it->path();
+			if (ShouldSkipCopyFile(filePath)) {
+				continue;
+			}
+			const Engine::AssetType type = Engine::AssetTypeResolver::GuessByPath(filePath);
+			if (Engine::AssetTypeResolver::IsJsonAssetType(type)) {
+				PatchDuplicatedJsonAsset(filePath, type);
+			}
+		}
 	}
 }
 
@@ -483,23 +528,56 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameAsset(cons
 		return result;
 	}
 
+	// 本体・.meta・付属ファイルをまとめて扱い、途中失敗時は移動済みを元へ戻す
+	std::vector<MovedPathPair> moved;
+	auto rollback = [&moved]() {
+		std::error_code rollbackEc;
+		for (auto it = moved.rbegin(); it != moved.rend(); ++it) {
+			std::filesystem::rename(it->to, it->from, rollbackEc);
+		}
+	};
+
 	std::error_code ec;
 	std::filesystem::rename(sourcePath, targetPath, ec);
 	if (ec) {
 		result.message = "Failed to rename asset file.";
 		return result;
 	}
+	moved.emplace_back(MovedPathPair{ sourcePath, targetPath });
 
 	if (std::filesystem::exists(sourceMetaPath)) {
 
+		ec.clear();
 		std::filesystem::rename(sourceMetaPath, targetMetaPath, ec);
 		if (ec) {
 
-			std::error_code rollbackEc;
-			std::filesystem::rename(targetPath, sourcePath, rollbackEc);
+			rollback();
 			result.message = "Failed to rename asset meta file.";
 			return result;
 		}
+		moved.emplace_back(MovedPathPair{ sourceMetaPath, targetMetaPath });
+	}
+
+	// モデル等の付属ファイルも新しいベース名に合わせてリネームする
+	for (const std::string& sidecar : asset.sidecarFiles) {
+
+		const std::filesystem::path sidecarSource = sourcePath.parent_path() / sidecar;
+		if (!std::filesystem::exists(sidecarSource)) {
+			continue;
+		}
+
+		const std::filesystem::path sidecarTarget =
+			targetPath.parent_path() / (targetPath.stem().string() + sidecarSource.extension().string());
+
+		ec.clear();
+		std::filesystem::rename(sidecarSource, sidecarTarget, ec);
+		if (ec) {
+
+			rollback();
+			result.message = "Failed to rename asset sidecar file.";
+			return result;
+		}
+		moved.emplace_back(MovedPathPair{ sidecarSource, sidecarTarget });
 	}
 
 	PatchRenamedJsonAsset(targetPath, asset.type);
@@ -561,6 +639,9 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateDirecto
 			return result;
 		}
 	}
+
+	// 複製先のJSONアセットは内部guidを再採番し、.metaの新UIDと矛盾しないようにする
+	PatchDuplicatedDirectoryAssets(targetPath);
 
 	result.success = true;
 	result.fullPath = targetPath;
@@ -648,11 +729,21 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::MoveAsset(const 
 		return result;
 	}
 
+	// 本体と.meta/付属ファイルは一括で成否を扱う。途中失敗時は移動済みを元へ戻す
+	std::vector<MovedPathPair> moved;
+	auto rollback = [&moved]() {
+		std::error_code rollbackEc;
+		for (auto it = moved.rbegin(); it != moved.rend(); ++it) {
+			std::filesystem::rename(it->to, it->from, rollbackEc);
+		}
+	};
+
 	std::filesystem::rename(sourcePath, targetPath, ec);
 	if (ec) {
 		result.message = "Failed to move asset file.";
 		return result;
 	}
+	moved.emplace_back(MovedPathPair{ sourcePath, targetPath });
 
 	for (const std::filesystem::path& sidecarSource : BuildAssetSidecarPaths(asset, sourcePath)) {
 		if (!std::filesystem::exists(sidecarSource)) {
@@ -662,7 +753,17 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::MoveAsset(const 
 		const std::filesystem::path sidecarTarget = sidecarSource == MakeMetaPath(sourcePath) ?
 			MakeMetaPath(targetPath) :
 			targetPath.parent_path() / sidecarSource.filename();
+
+		ec.clear();
 		std::filesystem::rename(sidecarSource, sidecarTarget, ec);
+		if (ec) {
+
+			// sidecar移動に失敗したら、本体を含めすべて元の場所へ戻す
+			rollback();
+			result.message = "Failed to move asset sidecar file.";
+			return result;
+		}
+		moved.emplace_back(MovedPathPair{ sidecarSource, sidecarTarget });
 	}
 
 	result.success = true;
@@ -838,12 +939,12 @@ std::string Engine::ProjectAssetFileUtility::BuildFileContent(ProjectAssetFileKi
 			"  \"passes\": [\n"
 			"    {{\n"
 			"      \"passName\": \"ZPrepass\",\n"
-			"      \"pipeline\": \"Engine/Assets/Pipelines/Builtin/Mesh/defaultMeshZPrepass.pipeline.json\",\n"
+			"      \"pipeline\": \"f09836087840b1d2\",\n"
 			"      \"preferredVariant\": \"GraphicsMesh\"\n"
 			"    }},\n"
 			"    {{\n"
 			"      \"passName\": \"Draw\",\n"
-			"      \"pipeline\": \"Engine/Assets/Pipelines/Builtin/Mesh/defaultMesh.pipeline.json\",\n"
+			"      \"pipeline\": \"966f3e8a34595313\",\n"
 			"      \"preferredVariant\": \"GraphicsMesh\"\n"
 			"    }}\n"
 			"  ],\n"

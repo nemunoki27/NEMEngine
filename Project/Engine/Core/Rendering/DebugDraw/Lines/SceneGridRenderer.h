@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12ConstantBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Foundation/Math/Color.h>
@@ -33,6 +33,7 @@ namespace Engine {
 		SceneGridRenderer() {
 			gridCBVSlot_ = gridBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
 		}
+		~SceneGridRenderer();
 
 		void Init(GraphicsCore& graphicsCore);
 

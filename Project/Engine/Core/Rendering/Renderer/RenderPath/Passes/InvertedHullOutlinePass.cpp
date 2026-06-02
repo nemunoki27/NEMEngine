@@ -4,11 +4,12 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPassExecutionHelper.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshSelectionOutline.h>
 #include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 
@@ -25,7 +26,11 @@ void Engine::InvertedHullOutlinePass::Execute(GraphicsCore& graphicsCore,
 
 	// 対象アイテムをstencil有無で振り分ける
 	OutlineItemGroups groups = CollectItems(context, passBuckets);
-	if (groups.regularItems.empty() && groups.stencilItems.empty()) {
+
+	// 選択中メッシュのプレビューアウトライン対象(SceneViewのみ)
+	std::vector<const RenderItem*> selectionItems = CollectSelectionItems(context, passBuckets);
+
+	if (groups.regularItems.empty() && groups.stencilItems.empty() && selectionItems.empty()) {
 		return;
 	}
 
@@ -80,6 +85,52 @@ void Engine::InvertedHullOutlinePass::Execute(GraphicsCore& graphicsCore,
 		// 後続パスへ影響しないようstencil referenceを戻す
 		commandList->OMSetStencilRef(0u);
 	}
+
+	// 選択中メッシュのプレビューアウトライン。深度テスト有効で縁だけを描く
+	if (!selectionItems.empty()) {
+
+		RenderPassExecutionHelper::Execute(graphicsCore, context, selectionItems, deps_,
+			hullBinding, "SelectionOutline", false, false);
+	}
+}
+
+std::vector<const Engine::RenderItem*> Engine::InvertedHullOutlinePass::CollectSelectionItems(
+	const SceneExecutionContext& context, const RenderPassPhaseBuckets& passBuckets) const {
+
+	std::vector<const RenderItem*> result{};
+
+	// 選択プレビューはSceneViewのみに出す
+	if (context.kind != RenderViewKind::Scene) {
+		return result;
+	}
+
+	const MeshSelectionOutline& selection = MeshSelectionOutline::GetInstance();
+	if (!selection.IsActive() || selection.GetWorld() != context.world) {
+		return result;
+	}
+
+	const RenderPassItemList* list = passBuckets.Find(RenderPhase::Opaque);
+	if (!list || list->IsEmpty()) {
+		return result;
+	}
+
+	// 選択エンティティのMeshアイテムだけを集める。サブメッシュ限定はシェーダ側で行う
+	const Entity selectedEntity = selection.GetEntity();
+	for (const RenderItem* item : list->items) {
+
+		if (!item || item->backendID != RenderBackendID::Mesh || !item->world) {
+			continue;
+		}
+		if (item->world != selection.GetWorld()) {
+			continue;
+		}
+		if (item->entity.index != selectedEntity.index ||
+			item->entity.generation != selectedEntity.generation) {
+			continue;
+		}
+		result.emplace_back(item);
+	}
+	return result;
 }
 
 Engine::InvertedHullOutlinePass::OutlineItemGroups Engine::InvertedHullOutlinePass::CollectItems(

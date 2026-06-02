@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Lighting/GPU/LightGPUTypes.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/FrameLightBatch.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/RenderBufferRegistry.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 

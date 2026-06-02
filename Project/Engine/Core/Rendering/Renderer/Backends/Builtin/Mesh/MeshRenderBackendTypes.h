@@ -10,7 +10,7 @@
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshGPUResourceManager.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12ConstantBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 

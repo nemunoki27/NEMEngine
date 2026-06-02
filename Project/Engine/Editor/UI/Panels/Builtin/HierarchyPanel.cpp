@@ -32,10 +32,6 @@ namespace {
 
 	constexpr const char* kActiveEyeTextureKey = "editor:hierarchy:entityActiveEye";
 	constexpr const char* kInactiveEyeTextureKey = "editor:hierarchy:entityActiveOffEye";
-	constexpr const char* kActiveEyeTexturePath =
-		"Engine/Assets/Textures/Engine/Editor/Hierarchy/entityActiveEye.dds";
-	constexpr const char* kInactiveEyeTexturePath =
-		"Engine/Assets/Textures/Engine/Editor/Hierarchy/entityActiveOffEye.dds";
 
 	int32_t GetHierarchySiblingOrder(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
@@ -132,8 +128,10 @@ void Engine::HierarchyPanel::RequestActiveIconTextures() {
 		return;
 	}
 
-	textureUploadService_->RequestTextureFile(kActiveEyeTextureKey, kActiveEyeTexturePath);
-	textureUploadService_->RequestTextureFile(kInactiveEyeTextureKey, kInactiveEyeTexturePath);
+	textureUploadService_->RequestTextureFile(kActiveEyeTextureKey,
+		EditorTextureHelper::MakeEditorTexturePath("Hierarchy", "entityActiveEye.dds"));
+	textureUploadService_->RequestTextureFile(kInactiveEyeTextureKey,
+		EditorTextureHelper::MakeEditorTexturePath("Hierarchy", "entityActiveOffEye.dds"));
 	activeIconRequested_ = true;
 }
 

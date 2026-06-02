@@ -88,7 +88,7 @@ namespace {
 					{ "a", value.a },
 				};
 			} else if constexpr (std::is_same_v<ValueType, Engine::AssetID>) {
-				return Engine::ToString(value);
+				return Engine::ToAssetReferenceJson(value);
 			} else {
 				return nlohmann::json{};
 			}
@@ -145,7 +145,6 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 
 		const std::string guidStr = passJson.value("materialGuid", "");
 		pass.materialGuid = guidStr.size() == 16 ? FromString16Hex(guidStr) : AssetID{};
-		pass.materialPathCache = passJson.value("materialPathCache", "");
 		pass.passName = passJson.value("passName", "PostProcess");
 
 		if (passJson.contains("parameters") && passJson["parameters"].is_object()) {
@@ -166,7 +165,6 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 				if (texGuidStr.size() == 16) {
 					pass.textureGuids[it.key()] = FromString16Hex(texGuidStr);
 				}
-				pass.texturePathCaches[it.key()] = it.value().value("texturePathCache", "");
 			}
 		}
 
@@ -188,8 +186,7 @@ nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStack
 		passJson["id"] = ToString(pass.id);
 		passJson["name"] = pass.name;
 		passJson["enabled"] = pass.enabled;
-		passJson["materialGuid"] = ToString(pass.materialGuid);
-		passJson["materialPathCache"] = pass.materialPathCache;
+		passJson["materialGuid"] = ToAssetReferenceJson(pass.materialGuid);
 		passJson["passName"] = pass.passName;
 
 		passJson["parameters"] = nlohmann::json::object();
@@ -200,9 +197,7 @@ nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStack
 		passJson["textures"] = nlohmann::json::object();
 		for (const auto& [name, guid] : pass.textureGuids) {
 			nlohmann::json texJson = nlohmann::json::object();
-			texJson["textureGuid"] = ToString(guid);
-			auto cacheIt = pass.texturePathCaches.find(name);
-			texJson["texturePathCache"] = (cacheIt != pass.texturePathCaches.end()) ? cacheIt->second : "";
+			texJson["textureGuid"] = ToAssetReferenceJson(guid);
 			passJson["textures"][name] = texJson;
 		}
 

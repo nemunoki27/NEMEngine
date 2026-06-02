@@ -13,15 +13,13 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 
 //============================================================================
 //	RaytracingReflectionPass classMethods
 //============================================================================
 
 namespace {
-
-	constexpr const char* kReflectionMaterialPath =
-		"Engine/Assets/Materials/Builtin/Raytracing/reflection.material.json";
 
 	bool CopyColor0Resource(Engine::GraphicsCore& graphicsCore,
 		Engine::MultiRenderTarget* source, Engine::MultiRenderTarget* dest) {
@@ -121,10 +119,9 @@ Engine::AssetID Engine::RaytracingReflectionPass::ResolveMaterial(AssetDatabase&
 	}
 	materialSearched_ = true;
 
-	const AssetMeta* meta = database.FindByPath(kReflectionMaterialPath);
-	if (meta) {
-		cachedMaterialID_ = meta->guid;
-	}
+	(void)database;
+	// ビルトインMaterialはパスではなく.meta GUIDで固定参照する
+	cachedMaterialID_ = BuiltinAssets::Materials::RaytracingReflection;
 	return cachedMaterialID_;
 }
 

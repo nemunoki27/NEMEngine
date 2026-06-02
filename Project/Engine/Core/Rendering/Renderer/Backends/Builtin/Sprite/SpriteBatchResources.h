@@ -3,8 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/VertexBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/IndexBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/ImmutableVertexBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/ImmutableIndexBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
@@ -101,8 +101,8 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		// バッファ
-		VertexBuffer<SpriteVertex> vertexBuffer_;
-		IndexBuffer indexBuffer_;
+		ImmutableVertexBuffer<SpriteVertex> vertexBuffer_;
+		ImmutableIndexBuffer indexBuffer_;
 
 		ViewConstantBuffer<SpriteViewConstants> view_{ "ViewConstants" };
 		StructuredInstanceBuffer<SpriteVSInstanceData> vsData_{ "gVSInstances" };
@@ -121,6 +121,6 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// 頂点バッファとインデックスバッファを作成する
-		void CreateQuadBuffers(ID3D12Device* device);
+		void CreateQuadBuffers(ID3D12Device* device, BufferUploadService& uploadService);
 	};
 } // Engine

@@ -5,6 +5,10 @@
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Profiling/GpuFrameProfiler.h>
+
+// c++
+#include <string>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/ClearRenderTargetsPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DepthPrepass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/LightCullingPass.h>
@@ -26,7 +30,8 @@
 void Engine::FixedForwardPlusRenderPath::Initialize(const RenderPipelineDeps& deps) {
 
 	deps_ = deps;
-	passes_.clear();
+	Finalize();
+	deps_ = deps;
 	passes_.reserve(13);
 
 	passes_.emplace_back(std::make_unique<ClearRenderTargetsPass>(deps_));
@@ -44,10 +49,27 @@ void Engine::FixedForwardPlusRenderPath::Initialize(const RenderPipelineDeps& de
 	passes_.emplace_back(std::make_unique<EditorOverlayPass>());
 }
 
+void Engine::FixedForwardPlusRenderPath::Finalize() {
+
+	// RenderPassのunique_ptrはclear任せにせず、終了時に明示resetする。
+	for (auto& pass : passes_) {
+		pass.reset();
+	}
+	passes_.clear();
+	deps_ = {};
+}
+
 void Engine::FixedForwardPlusRenderPath::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
+	// GameView/SceneViewで同名パスが重複するため、ビュー種別を接頭辞に付けて区別する
+	ID3D12GraphicsCommandList6* commandList = graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
+	const char* viewPrefix = (context.kind == RenderViewKind::Game) ? "Game/" : "Scene/";
+
 	for (auto& pass : passes_) {
+
+		GpuFrameProfiler::GetInstance().BeginPass(commandList, viewPrefix + std::string(pass->GetName()));
 		pass->Execute(graphicsCore, passBuckets, context);
+		GpuFrameProfiler::GetInstance().EndPass(commandList);
 	}
 }

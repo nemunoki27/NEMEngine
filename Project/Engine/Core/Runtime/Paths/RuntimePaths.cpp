@@ -195,7 +195,12 @@ std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const std::filesyst
 		return {};
 	}
 	if (assetPath.is_absolute()) {
-		return assetPath.lexically_normal();
+
+		const std::filesystem::path normalized = NormalizePath(assetPath);
+		if (std::string logicalPath = ToAssetPath(normalized); !logicalPath.empty()) {
+			return ResolveAssetPath(logicalPath);
+		}
+		return normalized.lexically_normal();
 	}
 
 	const std::string generic = assetPath.generic_string();
@@ -260,8 +265,31 @@ Engine::RuntimePaths::PathState Engine::RuntimePaths::BuildState() {
 
 	PathState state{};
 	state.projectRoot = NormalizePath(std::filesystem::current_path());
-	state.gameRoot = FindGameRoot(state.projectRoot);
 	state.engineProjectRoot = FindEngineProjectRoot(state.projectRoot);
+	state.gameRoot = FindGameRoot(state.projectRoot);
+	if (state.gameRoot == state.projectRoot) {
+
+		// 実行ファイルの出力先から起動した場合、current_path直下にはGameAssetsがない。
+		// EngineのProject配下を追加で探索して、Sandboxなどのゲーム側ルートを拾う。
+		if (ExistsDirectory(state.engineProjectRoot / "GameAssets")) {
+			state.gameRoot = state.engineProjectRoot;
+		} else {
+			std::error_code ec;
+			for (const auto& entry : std::filesystem::directory_iterator(state.engineProjectRoot, ec)) {
+
+				if (ec) {
+					break;
+				}
+				if (!entry.is_directory()) {
+					continue;
+				}
+				if (ExistsDirectory(entry.path() / "GameAssets")) {
+					state.gameRoot = NormalizePath(entry.path());
+					break;
+				}
+			}
+		}
+	}
 	state.engineAssetsRoot = state.engineProjectRoot / "Engine/Assets";
 	state.engineLibraryRoot = state.engineProjectRoot / "Engine/Library";
 	return state;

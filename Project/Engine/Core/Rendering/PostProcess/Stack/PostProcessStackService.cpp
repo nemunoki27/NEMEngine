@@ -3,18 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackSerializer.h>
-#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-
-//============================================================================
-//	PostProcessStackService classMethods
-//============================================================================
-
-namespace {
-
-	constexpr const char* kDefaultStackRelativePath = "GameAssets/PostProcess/defaultPostProcessStack.json";
-}
 
 Engine::PostProcessStackService& Engine::PostProcessStackService::GetInstance() {
 
@@ -32,7 +23,11 @@ void Engine::PostProcessStackService::EnsureLoaded() {
 void Engine::PostProcessStackService::Load() {
 
 	if (settingsPath_.empty()) {
-		settingsPath_ = ResolveDefaultPath();
+		settings_ = PostProcessStackSettings{};
+		RebuildRuntime();
+		dirty_ = false;
+		loaded_ = true;
+		return;
 	}
 
 	settings_ = PostProcessStackSettings{};
@@ -54,8 +49,10 @@ void Engine::PostProcessStackService::Load() {
 
 void Engine::PostProcessStackService::Save() const {
 
-	const std::filesystem::path& savePath = settingsPath_.empty() ? ResolveDefaultPath() : settingsPath_;
-	PostProcessStackSerializer::Save(savePath, settings_);
+	if (settingsPath_.empty()) {
+		return;
+	}
+	PostProcessStackSerializer::Save(settingsPath_, settings_);
 }
 
 void Engine::PostProcessStackService::Reload() {
@@ -76,14 +73,20 @@ void Engine::PostProcessStackService::Reload() {
 	dirty_ = false;
 }
 
-void Engine::PostProcessStackService::SetActiveSettingsAssetPath(const std::string& assetPath) {
+void Engine::PostProcessStackService::SetActiveSettingsAsset(AssetID assetID, const AssetDatabase* assetDatabase) {
 
-	SetActiveSettingsPath(assetPath.empty() ? ResolveDefaultPath() : RuntimePaths::ResolveAssetPath(assetPath));
+	if (!assetID || !assetDatabase) {
+		SetActiveSettingsPath({});
+		return;
+	}
+
+	const std::filesystem::path fullPath = assetDatabase->ResolveFullPath(assetID);
+	SetActiveSettingsPath(fullPath);
 }
 
 void Engine::PostProcessStackService::SetActiveSettingsPath(const std::filesystem::path& settingsPath) {
 
-	const std::filesystem::path nextPath = (settingsPath.empty() ? ResolveDefaultPath() : settingsPath).lexically_normal();
+	const std::filesystem::path nextPath = settingsPath.empty() ? std::filesystem::path{} : settingsPath.lexically_normal();
 	if (settingsPath_ == nextPath && loaded_) {
 		return;
 	}
@@ -153,9 +156,4 @@ void Engine::PostProcessStackService::RequestShaderReload(AssetID materialId) {
 bool Engine::PostProcessStackService::TakeReloadRequest(AssetID materialId) {
 
 	return pendingReflectionReloads_.erase(materialId) > 0;
-}
-
-std::filesystem::path Engine::PostProcessStackService::ResolveDefaultPath() const {
-
-	return RuntimePaths::GetGameRoot() / kDefaultStackRelativePath;
 }

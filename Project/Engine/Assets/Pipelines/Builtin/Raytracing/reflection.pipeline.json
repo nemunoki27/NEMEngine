@@ -3,7 +3,7 @@
   "variants": [
     {
       "kind": "Raytracing",
-      "shader": "Engine/Assets/Shaders/Builtin/Raytracing/reflection.shader.json",
+      "shader": "da1b7b9bf8074052",
       "requiresDispatchRays": true,
       "rayGenerationExport": "ReflectionRayGen",
       "missExport": "ReflectionMiss",

@@ -8,8 +8,8 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12ConstantBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/VertexBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/VertexBuffer.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 
@@ -33,7 +33,13 @@ namespace Engine {
 		LineRendererBase() {
 			lineCBVSlot_ = lineBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
 		}
-		virtual ~LineRendererBase() = default;
+		virtual ~LineRendererBase() {
+			// 描画中に確保したGPUバッファを持つRenderResourceを明示resetする。
+			for (auto& resource : renderResources_) {
+				resource.reset();
+			}
+			renderResources_.clear();
+		}
 
 		// 初期化
 		void Init(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain);

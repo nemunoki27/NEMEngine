@@ -22,7 +22,7 @@ void Engine::SpriteBatchResources::Init(GraphicsCore& graphicsCore) {
 	SRVDescriptor* srvDescriptor = &graphicsCore.GetSRVDescriptor();
 
 	// バッファ作成
-	CreateQuadBuffers(device);
+	CreateQuadBuffers(device, graphicsCore.GetBufferUploadService());
 	view_.Init(device);
 	vsData_.Init(device, srvDescriptor);
 	psData_.Init(device, srvDescriptor);
@@ -35,7 +35,7 @@ void Engine::SpriteBatchResources::Init(GraphicsCore& graphicsCore) {
 	initialized_ = true;
 }
 
-void Engine::SpriteBatchResources::CreateQuadBuffers(ID3D12Device* device) {
+void Engine::SpriteBatchResources::CreateQuadBuffers(ID3D12Device* device, BufferUploadService& uploadService) {
 
 	// 頂点データを作成
 	std::vector<SpriteVertex> vertices = {
@@ -53,11 +53,11 @@ void Engine::SpriteBatchResources::CreateQuadBuffers(ID3D12Device* device) {
 		0, 1, 2,
 		1, 3, 2
 	};
-	// バッファを作成してデータを転送
-	vertexBuffer_.CreateBuffer(device, static_cast<UINT>(vertices.size()));
-	vertexBuffer_.TransferData(vertices);
-	indexBuffer_.CreateBuffer(device, static_cast<UINT>(indices.size()));
-	indexBuffer_.TransferData(indices);
+	// SpriteのQuad形状は初期化後に変わらないため、DEFAULT heapへ置きUploadServiceで初期転送する。
+	vertexBuffer_.Create(device, uploadService, std::span<const SpriteVertex>(vertices.data(), vertices.size()));
+	indexBuffer_.Create(device, uploadService, std::span<const uint32_t>(indices.data(), indices.size()));
+	// 固定Quadの転送はInit中に完結させ、以後の描画ではDEFAULT heapだけを参照する。
+	uploadService.SubmitBatch();
 }
 
 void Engine::SpriteBatchResources::UpdateView(const ResolvedRenderView& view) {

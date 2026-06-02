@@ -4,11 +4,12 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshBatchResources.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 //============================================================================
@@ -98,8 +99,8 @@ bool Engine::VertexMeshDrawPath::BuildIndexedIndirectArgs(const MeshPathDrawCont
 
 	if (!indirectArgsPipeline_) {
 
-		indirectArgsPipeline_ = drawContext.assetDatabase->ImportOrGet(
-			"Engine/Assets/Pipelines/Builtin/Mesh/buildIndexedIndirectArgs.pipeline.json", AssetType::RenderPipeline);
+		// ビルトインPipelineはパスではなく.meta GUIDで固定参照する
+		indirectArgsPipeline_ = BuiltinAssets::Pipelines::BuildIndexedIndirectArgs;
 	}
 
 	const PipelineState* pipelineState = drawContext.pipelineCache->GetORCreate(

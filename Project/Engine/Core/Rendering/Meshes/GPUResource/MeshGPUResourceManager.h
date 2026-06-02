@@ -52,6 +52,7 @@ namespace Engine {
 
 		ID3D12Device* device_ = nullptr;
 		SRVDescriptor* srvDescriptor_ = nullptr;
+		BufferUploadService* uploadService_ = nullptr;
 
 		AssetDatabase* assetDatabase_ = nullptr;
 

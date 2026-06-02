@@ -128,9 +128,11 @@ void GraphicsPlatform::Init() {
 
 void GraphicsPlatform::Finalize(HWND hwnd) {
 
-	dxCommand_->Finalize(hwnd);
-
-	dxDevice_.reset();
-	dxCommand_.reset();
+	// DxCommandはDeviceを参照しているため、Deviceより先にFinalize/resetする。
+	if (dxCommand_) {
+		dxCommand_->Finalize(hwnd);
+		dxCommand_.reset();
+	}
 	dxShaderComplier_.reset();
+	dxDevice_.reset();
 }

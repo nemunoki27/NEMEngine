@@ -4,7 +4,7 @@
     {
       "kind": "GraphicsVertex",
       "pipelineType": "Vertex",
-      "shader": "Engine/Assets/Shaders/Builtin/Text/defaultText.shader.json",
+      "shader": "944ad7da3640ce4e",
       "numRenderTargets": 1,
       "dynamicRenderTargetFormats": true,
       "dsvFormat": "DXGI_FORMAT_UNKNOWN",

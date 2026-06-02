@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/Draw/Interface/IMeshDrawPath.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/ComPtr.h>
+#include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 
 namespace Engine {
 

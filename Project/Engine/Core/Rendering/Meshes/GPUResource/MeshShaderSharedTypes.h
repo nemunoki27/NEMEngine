@@ -54,7 +54,9 @@ namespace Engine {
 		float outlineMaxAbsCameraZOffset = 0.0f;
 		// ScreenPixels幅を含むバッチかどうか
 		uint32_t outlineHasScreenPixelWidth = 0;
-		uint32_t _pad[3] = { 0, 0, 0 };
+		// 選択プレビュー用アウトラインパスかどうか。1ならHullパラメータをMeshSelectionOutlineParamsから取る
+		uint32_t selectionOutlinePass = 0;
+		uint32_t _pad[2] = { 0, 0 };
 	};
 	static_assert(sizeof(MeshDrawConstants) % 16 == 0);
 
@@ -78,6 +80,24 @@ namespace Engine {
 	// MeshOutlineGPUDataのflags
 	static constexpr uint32_t kMeshOutlineFlagUseBakedNormal = 1u << 0;
 	static constexpr uint32_t kMeshOutlineFlagUseOutlineSampler = 1u << 1;
+
+	// 選択プレビュー用アウトラインのパラメータ。per-instanceではなく描画単位の定数として渡す
+	struct MeshSelectionOutlineParams {
+
+		Color4 color = Color4::Black();
+
+		float width = 0.0f;
+		float cameraZOffset = 0.0f;
+		uint32_t expansionMode = 0;
+		uint32_t widthMode = 0;
+
+		uint32_t flags = 0;
+		// 負の場合はエンティティ全体、0以上なら対象サブメッシュのみ描画する
+		int32_t restrictSubMeshIndex = -1;
+		uint32_t _pad0 = 0;
+		uint32_t _pad1 = 0;
+	};
+	static_assert(sizeof(MeshSelectionOutlineParams) % 16 == 0);
 
 	struct MeshSubMeshShaderData {
 

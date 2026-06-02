@@ -64,6 +64,7 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 	ImGui::SameLine(0.0f, 16.0f);
 	ImGui::TextDisabled("|");
 	ImGui::SameLine();
+
 	ImGui::Text("Undo : %zu / Redo : %zu", context.editorState->commandHistory.GetUndoCount(),
 		context.editorState->commandHistory.GetRedoCount());
 

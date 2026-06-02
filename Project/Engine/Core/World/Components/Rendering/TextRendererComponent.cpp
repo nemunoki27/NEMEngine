@@ -29,8 +29,8 @@ void Engine::from_json(const nlohmann::json& in, TextRendererComponent& componen
 
 void Engine::to_json(nlohmann::json& out, const TextRendererComponent& component) {
 
-	out["font"] = ToString(component.font);
-	out["material"] = ToString(component.material);
+	out["font"] = ToAssetReferenceJson(component.font);
+	out["material"] = ToAssetReferenceJson(component.material);
 	out["text"] = component.text;
 	out["fontSize"] = component.fontSize;
 	out["charSpacing"] = component.charSpacing;

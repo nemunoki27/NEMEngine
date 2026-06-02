@@ -132,19 +132,28 @@ void Engine::SceneViewToolPanel::RequestIcons() {
 		return;
 	}
 
-	const std::string basePath = "Engine/Assets/Textures/Engine/Editor/Tool/";
-
-	textureUploadService_->RequestTextureFile(icons_.enablePickKey, basePath + icons_.enablePickKey);
-	textureUploadService_->RequestTextureFile(icons_.noneKey, basePath + icons_.noneKey);
-	textureUploadService_->RequestTextureFile(icons_.translateKey, basePath + icons_.translateKey);
-	textureUploadService_->RequestTextureFile(icons_.rotateKey, basePath + icons_.rotateKey);
-	textureUploadService_->RequestTextureFile(icons_.scaleKey, basePath + icons_.scaleKey);
-	textureUploadService_->RequestTextureFile(icons_.debugCameraKey, basePath + icons_.debugCameraKey);
-	textureUploadService_->RequestTextureFile(icons_.entityCameraKey, basePath + icons_.entityCameraKey);
-	textureUploadService_->RequestTextureFile(icons_.entitySelectKey, basePath + icons_.entitySelectKey);
-	textureUploadService_->RequestTextureFile(icons_.subMeshSelectKey, basePath + icons_.subMeshSelectKey);
-	textureUploadService_->RequestTextureFile(icons_.manualCamera2DKey, basePath + icons_.manualCamera2DKey);
-	textureUploadService_->RequestTextureFile(icons_.manualCamera3DKey, basePath + icons_.manualCamera3DKey);
+	textureUploadService_->RequestTextureFile(icons_.enablePickKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.enablePickKey));
+	textureUploadService_->RequestTextureFile(icons_.noneKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.noneKey));
+	textureUploadService_->RequestTextureFile(icons_.translateKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.translateKey));
+	textureUploadService_->RequestTextureFile(icons_.rotateKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.rotateKey));
+	textureUploadService_->RequestTextureFile(icons_.scaleKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.scaleKey));
+	textureUploadService_->RequestTextureFile(icons_.debugCameraKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.debugCameraKey));
+	textureUploadService_->RequestTextureFile(icons_.entityCameraKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.entityCameraKey));
+	textureUploadService_->RequestTextureFile(icons_.entitySelectKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.entitySelectKey));
+	textureUploadService_->RequestTextureFile(icons_.subMeshSelectKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.subMeshSelectKey));
+	textureUploadService_->RequestTextureFile(icons_.manualCamera2DKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.manualCamera2DKey));
+	textureUploadService_->RequestTextureFile(icons_.manualCamera3DKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.manualCamera3DKey));
 }
 
 ImTextureID Engine::SceneViewToolPanel::GetTextureID(const std::string& key) const {

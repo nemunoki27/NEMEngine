@@ -291,7 +291,7 @@ nlohmann::json Engine::ToJson(const RenderPipelineAsset& asset) {
 
 		item["kind"] = EnumAdapter<PipelineVariantKind>::ToString(variant.kind);
 		item["pipelineType"] = EnumAdapter<PipelineType>::ToString(variant.pipelineType);
-		item["shader"] = ToString(variant.shader);
+		item["shader"] = ToAssetReferenceJson(variant.shader);
 		item["topologyType"] = EnumAdapter<D3D12_PRIMITIVE_TOPOLOGY_TYPE>::ToString(variant.topologyType);
 		item["numRenderTargets"] = variant.numRenderTargets;
 		item["dsvFormat"] = EnumAdapter<DXGI_FORMAT>::ToString(variant.dsvFormat);

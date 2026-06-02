@@ -7,6 +7,7 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 
 //============================================================================
 //	Framework classMethods
@@ -65,24 +66,34 @@ void Framework::Tick() {
 
 	// 時間更新
 	frameTimer_.Update();
+	// プロファイラのフレーム開始
+	FrameProfiler::GetInstance().BeginFrame(frameTimer_.GetDeltaTime(), frameTimer_.GetTotalTime());
 
 	// 入力更新
 	Input::GetInstance()->Update();
 
 	// エンジン機能更新
-	engineApplication_->Tick(*graphicsCore_, frameTimer_.GetDeltaTime());
+	{
+		FrameProfiler::ScopedSample updateSample(FrameProfiler::Category::Update);
+		engineApplication_->Tick(*graphicsCore_, frameTimer_.GetDeltaTime());
+	}
 	if (engineApplication_->ConsumeFrameDeltaResetRequest()) {
 		frameTimer_.ResetDeltaTimeBase();
 	}
 
-	// 描画開始
-	BeginRenderFrame();
+	// 描画(開始～終了までを計測)
+	{
+		FrameProfiler::ScopedSample drawSample(FrameProfiler::Category::Draw);
 
-	// 描画
-	engineApplication_->Render(*graphicsCore_);
+		// 描画開始
+		BeginRenderFrame();
 
-	// 描画終了
-	EndRenderFrame();
+		// 描画
+		engineApplication_->Render(*graphicsCore_);
+
+		// 描画終了
+		EndRenderFrame();
+	}
 }
 
 void Framework::BeginRenderFrame() {
@@ -100,8 +111,14 @@ void Framework::EndRenderFrame() {
 void Framework::Finalize() {
 
 	// 終了処理
-	engineApplication_->Finalize();
+	if (engineApplication_) {
+		engineApplication_->Finalize();
+		engineApplication_.reset();
+	}
 	Input::Finalize();
-	graphicsCore_->Finalize();
+	if (graphicsCore_) {
+		graphicsCore_->Finalize();
+		graphicsCore_.reset();
+	}
 	Logger::Finalize();
 }

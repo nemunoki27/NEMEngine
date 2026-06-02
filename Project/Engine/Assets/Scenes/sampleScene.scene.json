@@ -1,0 +1,628 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "c2ea9f4498073ab3",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Mesh_0",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "",
+                            "stableID": "e965e662f87c345a",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "df82516e055c8e03",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 9.332001686096191,
+                        "y": 3.4262707233428955,
+                        "z": 1.7508865594863892
+                    },
+                    "localRotation": {
+                        "w": 0.9058276414871216,
+                        "x": 0.18315660953521729,
+                        "y": 0.3352366089820862,
+                        "z": 0.1831565946340561
+                    },
+                    "localScale": {
+                        "x": 1.2500005960464478,
+                        "y": 1.2500005960464478,
+                        "z": 1.2500007152557373
+                    }
+                }
+            },
+            "LocalFileID": "df82516e055c8e03"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "b158b410169a369a",
+                    "siblingOrder": 4
+                },
+                "Name": {
+                    "name": "PointLight_4"
+                },
+                "PointLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "decay": 1.0,
+                    "enabled": true,
+                    "intensity": 32.0,
+                    "radius": 10.59000015258789
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "8c6a76340608efa0",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 9.5367431640625e-07,
+                        "z": -8.04831314086914
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "8c6a76340608efa0"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "b158b410169a369a",
+                    "siblingOrder": 3
+                },
+                "Name": {
+                    "name": "PointLight_3"
+                },
+                "PointLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "decay": 1.0,
+                    "enabled": true,
+                    "intensity": 32.0,
+                    "radius": 10.59000015258789
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "68eb6ac8cd8109a5",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 9.5367431640625e-07,
+                        "z": 8.309111595153809
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "68eb6ac8cd8109a5"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "b158b410169a369a",
+                    "siblingOrder": 2
+                },
+                "Name": {
+                    "name": "PointLight_2"
+                },
+                "PointLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "decay": 1.0,
+                    "enabled": true,
+                    "intensity": 32.0,
+                    "radius": 10.59000015258789
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "b19a31f9da797ff4",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": -9.231385231018066,
+                        "y": 9.5367431640625e-07,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "b19a31f9da797ff4"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "b158b410169a369a",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "PointLight_1"
+                },
+                "PointLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "decay": 1.0,
+                    "enabled": true,
+                    "intensity": 32.0,
+                    "radius": 10.59000015258789
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "8f01229e3f4834cf",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 7.656178951263428,
+                        "y": 9.5367431640625e-07,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "8f01229e3f4834cf"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "b158b410169a369a",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "PointLight"
+                },
+                "PointLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "decay": 1.0,
+                    "enabled": true,
+                    "intensity": 32.0,
+                    "radius": 10.59000015258789
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "b88c6ff62c3eaf8c",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "b88c6ff62c3eaf8c"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "Camera2D"
+                },
+                "OrthographicCamera": {
+                    "cullingMask": -1,
+                    "enabled": true,
+                    "farClip": 1000.0,
+                    "isMain": true,
+                    "nearClip": 0.0,
+                    "priority": 0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "a8cc88ff61d9d6f9",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "a8cc88ff61d9d6f9"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Camera3D"
+                },
+                "PerspectiveCamera": {
+                    "cullingMask": -1,
+                    "editorFrustumScale": 0.0020000000949949026,
+                    "enabled": true,
+                    "farClip": 4000.0,
+                    "fovY": 60.0,
+                    "isMain": true,
+                    "nearClip": 0.009999999776482582,
+                    "priority": 0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "daa4966cef6bc35a",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 1.0201985105595668e-06,
+                        "y": 6.383315086364746,
+                        "z": 18.052976608276367
+                    },
+                    "localRotation": {
+                        "w": -4.130573572069807e-08,
+                        "x": -4.5991473740514266e-08,
+                        "y": 0.9985625147819519,
+                        "z": -0.05359960347414017
+                    },
+                    "localScale": {
+                        "x": 1.000002384185791,
+                        "y": 1.0000005960464478,
+                        "z": 1.0000005960464478
+                    }
+                }
+            },
+            "LocalFileID": "daa4966cef6bc35a"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "PointLightGroup"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "b158b410169a369a",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 7.292586326599121,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.1200003623962402,
+                        "y": 1.1200003623962402,
+                        "z": 1.1200003623962402
+                    }
+                }
+            },
+            "LocalFileID": "b158b410169a369a"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 5
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "447d5b4a4a7fec3d",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 1.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Mesh_0",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "",
+                            "stableID": "03211368417b4ec6",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 64.0,
+                                "y": 64.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Ground"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "71a8c86fa6ced611",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.1364305019378662,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 320.0,
+                        "y": 0.06400000303983688,
+                        "z": 320.0
+                    }
+                }
+            },
+            "LocalFileID": "71a8c86fa6ced611"
+        },
+        {
+            "Components": {
+                "DirectionalLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "direction": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    },
+                    "enabled": true,
+                    "intensity": 0.30000001192092896,
+                    "shadowStrength": 0.9200000166893005
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "DirectionalLight"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "051ee75fb3576ee8",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "051ee75fb3576ee8"
+        }
+    ],
+    "Header": {
+        "collisionSettings": "a31cb25cb8ce4d7a",
+        "guid": "0eca53df9c7bc039",
+        "name": "ViewScene",
+        "postProcessStack": "",
+        "subScenes": []
+    }
+}
