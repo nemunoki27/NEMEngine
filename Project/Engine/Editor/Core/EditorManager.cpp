@@ -27,7 +27,6 @@
 #include <Engine/Editor/UI/Panels/Builtin/ProjectPanel.h>
 #include <Engine/Editor/UI/Panels/Builtin/ConsolePanel.h>
 #include <Engine/Editor/UI/Panels/Builtin/ViewportPanel.h>
-#include <Engine/Editor/UI/Panels/Builtin/SceneViewToolPanel.h>
 #include <Engine/Editor/UI/Panels/Builtin/ToolPanel.h>
 #include <Engine/Editor/Tools/Builtin/BuiltinEditorTools.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
@@ -118,9 +117,8 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	panels_.emplace_back(std::make_unique<ConsolePanel>());
 	panels_.emplace_back(std::make_unique<ToolPanel>());
 	panels_.emplace_back(std::make_unique<ProjectPanel>(graphicsCore.GetTextureUploadService()));
-	panels_.emplace_back(std::make_unique<ViewportPanel>("GameView", "GameView", ViewportPanelKind::Game));
-	panels_.emplace_back(std::make_unique<ViewportPanel>("SceneView", "SceneView", ViewportPanelKind::Scene));
-	panels_.emplace_back(std::make_unique<SceneViewToolPanel>(graphicsCore.GetTextureUploadService()));
+	panels_.emplace_back(std::make_unique<ViewportPanel>("GameView", "GameView", ViewportPanelKind::Game, graphicsCore.GetTextureUploadService()));
+	panels_.emplace_back(std::make_unique<ViewportPanel>("SceneView", "SceneView", ViewportPanelKind::Scene, graphicsCore.GetTextureUploadService()));
 
 	// シーンビューのメッシュピック処理の初期化
 	meshSubMeshPicker_ = std::make_unique<MeshSubMeshPicker>();

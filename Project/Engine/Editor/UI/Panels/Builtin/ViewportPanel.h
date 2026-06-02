@@ -24,6 +24,9 @@ namespace Engine {
 		Scene,
 	};
 
+	// front
+	class TextureUploadService;
+
 	//============================================================================
 	//	ViewportPanel class
 	//	ビューの表示パネル
@@ -35,7 +38,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		ViewportPanel(const char* windowName, const char* label, ViewportPanelKind kind);
+		ViewportPanel(const char* windowName, const char* label, ViewportPanelKind kind, TextureUploadService& textureUploadService);
 		~ViewportPanel() = default;
 
 		void Draw(const EditorPanelContext& context) override;
@@ -65,6 +68,28 @@ namespace Engine {
 			UUID subMeshStableID{};
 			nlohmann::json beforeMeshRenderer{};
 		};
+		// アイコン
+		struct IconSet {
+
+			// エンティティ選択機能のオン/オフ
+			std::string enablePickKey;
+			// エンティティ/サブメッシュを選択するだけ
+			std::string noneKey;
+
+			// マニュピレーター
+			std::string translateKey;
+			std::string rotateKey;
+			std::string scaleKey;
+
+			// エンティティ単位かサブメッシュ単位の選択を行うか
+			std::string entitySelectKey;
+			std::string subMeshSelectKey;
+
+			std::string debugCameraKey;
+			std::string entityCameraKey;
+			std::string manualCamera2DKey;
+			std::string manualCamera3DKey;
+		};
 
 		//--------- variables ----------------------------------------------------
 
@@ -78,6 +103,14 @@ namespace Engine {
 		EntityGizmoSession entityGizmoSession_{};
 		SubMeshGizmoSession subMeshGizmoSession_{};
 
+		TextureUploadService* textureUploadService_ = nullptr;
+
+		// 表示アイコン
+		IconSet icons_{};
+
+		// アイコンボタンのサイズ
+		const ImVec2 buttonSize_ = ImVec2(32.0f, 32.0f);
+
 		//--------- functions ----------------------------------------------------
 
 		void DrawViewportContent(const EditorPanelContext& context, const char* id, const ImVec2& size);
@@ -87,5 +120,15 @@ namespace Engine {
 		// ギズモ終了
 		void FinalizeEntityGizmoSession(const EditorPanelContext& context, ECSWorld& world);
 		void FinalizeSubMeshGizmoSession(const EditorPanelContext& context, ECSWorld& world);
+
+		// アイコン読み込み
+		void RequestIcons();
+		// アイコンのテクスチャIDを取得
+		ImTextureID GetTextureID(const std::string& key) const;
+
+		bool DrawIconButton(const char* id, ImTextureID textureID, bool active, const ImVec2& size) const;
+		void DrawCameraSection(const EditorPanelContext& context);
+		void DrawManipulatorSection(const EditorPanelContext& context);
+		void DrawEntityCameraPopup(const EditorPanelContext& context);
 	};
 } // Engine
