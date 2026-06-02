@@ -45,5 +45,5 @@ namespace Engine::InspectorDrawerCommon {
 	ValueEditResult DrawBehaviorTypeField(const char* label, std::string& type);
 
 	// エンティティの種類に応じてデバッグラインを描画する
-	void DrawEntityDebugObject(ECSWorld& world, const Entity& entity);
+	void DrawEntityDebugObject(ECSWorld& world, const Entity& entity, int32_t selectionSubMeshIndex = -1);
 }

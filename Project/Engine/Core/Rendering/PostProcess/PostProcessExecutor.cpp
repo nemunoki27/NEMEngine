@@ -13,7 +13,7 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Utils.h>
+#include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 
@@ -341,9 +341,20 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 		}
 	}
 
-	bool hasFrameConstantsByName = (pipelineState->FindBindingByName(kFrameConstantsName, ShaderBindingKind::CBV) != nullptr);
+	// パイプラインキャッシュを解決する（フレーム定数バインドの有無も初回のみ解決してキャッシュする）
+	auto layoutIt = parameterLayoutCache_.find(pipelineState);
+	if (layoutIt == parameterLayoutCache_.end()) {
+
+		PipelineCacheEntry entry{};
+		entry.layout.Build(reflection);
+		entry.hasFrameConstantsByName = (pipelineState->FindBindingByName(kFrameConstantsName, ShaderBindingKind::CBV) != nullptr);
+		entry.hasFrameConstantsByRegister = (pipelineState->FindBinding(ShaderBindingKind::CBV, 0, 0) != nullptr);
+		layoutIt = parameterLayoutCache_.emplace(pipelineState, std::move(entry)).first;
+	}
+	PipelineCacheEntry& cacheEntry = layoutIt->second;
+
 	// 共通フレーム、ポストプロセス実行情報のバッファデータを構築してバインド
-	if (hasFrameConstantsByName || pipelineState->FindBinding(ShaderBindingKind::CBV, 0, 0)) {
+	if (cacheEntry.hasFrameConstantsByName || cacheEntry.hasFrameConstantsByRegister) {
 
 		PostProcessFrameConstants constants{};
 		constants.resolution = Vector2(static_cast<float>(dest->GetWidth()), static_cast<float>(dest->GetHeight()));
@@ -353,20 +364,13 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 		constants.frameIndex = frameIndex_;
 
 		auto allocation = constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetDevice(), constants);
-		binds.push_back({ hasFrameConstantsByName ? std::string_view(kFrameConstantsName) : std::string_view{},
+		binds.push_back({ cacheEntry.hasFrameConstantsByName ? std::string_view(kFrameConstantsName) : std::string_view{},
 			ComputeBindValueType::CBV, allocation.gpuAddress, {}, 0, 0 });
 	}
 
 	// ポストプロセス固有のパラメータバッファの構築
-	auto layoutIt = parameterLayoutCache_.find(pipelineState);
-	if (layoutIt == parameterLayoutCache_.end()) {
-
-		PostProcessParameterLayout layout{};
-		layout.Build(reflection);
-		layoutIt = parameterLayoutCache_.emplace(pipelineState, std::move(layout)).first;
-	}
 	// バッファがあればバインド
-	PostProcessParameterLayout& parameterLayout = layoutIt->second;
+	PostProcessParameterLayout& parameterLayout = cacheEntry.layout;
 	if (parameterLayout.IsValid()) {
 
 		std::vector<uint8_t> bytes;
@@ -458,11 +462,13 @@ bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 	// PostProcessParameters CBufferの変数一覧を取得する
 	auto layoutIt = parameterLayoutCache_.find(pipelineState);
 	if (layoutIt == parameterLayoutCache_.end()) {
-		PostProcessParameterLayout layout{};
-		layout.Build(reflection);
-		layoutIt = parameterLayoutCache_.emplace(pipelineState, std::move(layout)).first;
+		PipelineCacheEntry entry{};
+		entry.layout.Build(reflection);
+		entry.hasFrameConstantsByName = (pipelineState->FindBindingByName(kFrameConstantsName, ShaderBindingKind::CBV) != nullptr);
+		entry.hasFrameConstantsByRegister = (pipelineState->FindBinding(ShaderBindingKind::CBV, 0, 0) != nullptr);
+		layoutIt = parameterLayoutCache_.emplace(pipelineState, std::move(entry)).first;
 	}
-	outVars = layoutIt->second.GetVariables();
+	outVars = layoutIt->second.layout.GetVariables();
 
 	// ユーザー向けSRV（gSourceColor / gSourceDepth を除く）を収集する
 	outSRVs.clear();

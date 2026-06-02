@@ -65,6 +65,10 @@ namespace Engine {
 	template<typename T>
 	inline void FrameBatchResourcePool<T>::Clear() {
 
+		// GPUリソースを持つBatchResourceはclear任せにせず、明示的にresetしてからコンテナを空にする。
+		for (auto& resource : resources_) {
+			resource.reset();
+		}
 		resources_.clear();
 		usedCount_ = 0;
 	}

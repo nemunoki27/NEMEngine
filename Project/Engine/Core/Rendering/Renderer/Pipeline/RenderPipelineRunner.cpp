@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
+#include <Engine/Core/Rendering/Profiling/GpuFrameProfiler.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Sprite/SpriteRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Text/TextRenderItemExtractor.h>
@@ -23,7 +24,7 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackService.h>
 
@@ -277,6 +278,11 @@ void Engine::RenderPipelineRunner::Init() {
 
 void Engine::RenderPipelineRunner::Finalize() {
 
+	// GPU計測用のクエリヒープ/リードバックバッファはここで解放する。
+	// シングルトンのため放置するとDeviceより後まで生き残り、LeakCheckerに残る。
+	GpuFrameProfiler::GetInstance().Finalize();
+
+	renderPath_.Finalize();
 	backendRegistry_.Clear();
 	previewBackendRegistry_.Clear();
 	extractorRegistry_.Clear();
@@ -296,7 +302,10 @@ void Engine::RenderPipelineRunner::Finalize() {
 	sceneViewLightCullingBuffers_.Release();
 	previewLightBufferPool_.Clear();
 	previewLightCullingBufferPool_.Clear();
-	viewportRenderService_.reset();
+	if (viewportRenderService_) {
+		viewportRenderService_->Finalize();
+		viewportRenderService_.reset();
+	}
 	raytracingPipelineStateCache_.Clear();
 	gameViewRaytracingBuffers_.Release();
 	sceneViewRaytracingBuffers_.Release();
@@ -319,10 +328,8 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	}
 
 	// データクリア
-	gameViewTLASResource_ = nullptr;
-	gameViewPickRecords_.clear();
-	sceneViewTLASResource_ = nullptr;
-	sceneViewPickRecords_.clear();
+	tlasResource_ = nullptr;
+	pickRecords_.clear();
 
 	// アセットライブラリの初期化、フレーム開始処理
 	renderAssetLibrary_.Init(request.assetDatabase);
@@ -355,6 +362,10 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 		graphicsCore.GetSRVDescriptor().GetDescriptorHeap()
 		});
 
+	// GPU計測のフレーム開始(前フレームの結果をFrameProfilerへ反映し、記録をリセット)
+	GpuFrameProfiler::GetInstance().BeginFrame(graphicsCore.GetDXObject().GetDevice(),
+		graphicsCore.GetDXObject().GetDxCommand()->GetQueue());
+
 	// 描画アイテムの抽出
 	extractorRegistry_.BuildBatch(*request.world, renderBatch_);
 	// ライト抽出
@@ -372,14 +383,14 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	// シーン切り替え時にPostProcessStack設定をサービスへ通知する
 	if (activeScene) {
 
-		const std::string& ppPath = activeScene->header.postProcessStackPath;
-		if (ppPath != lastNotifiedPostProcessPath_) {
+		const AssetID ppAsset = activeScene->header.postProcessStack;
+		if (ppAsset != lastNotifiedPostProcessStack_) {
 
 			PostProcessStackService& service = PostProcessStackService::GetInstance();
 			if (!service.IsDirty()) {
-				service.SetActiveSettingsAssetPath(ppPath);
+				service.SetActiveSettingsAsset(ppAsset, request.assetDatabase);
 			}
-			lastNotifiedPostProcessPath_ = ppPath;
+			lastNotifiedPostProcessStack_ = ppAsset;
 		}
 	}
 
@@ -481,19 +492,21 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 			PreDispatchVisibleMeshSkinning(graphicsCore, context,
 				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 
-			// レイトレーシングシーンの構築
+			// レイトレーシングシーンの構築。
+			// gRaytracingSceneInstances/gRaytracingSubMeshes は context.bufferRegistry へ登録する必要があるため、
+			// コピーではなく実際の context へ直接構築する。コピーへ構築すると登録が破棄され、反射パスが早期リターンする。
+			// TLAS構築の基準ビューだけ一時的にGameViewへ差し替え、構築後に元へ戻す。
+			const ResolvedRenderView* prevTlasView = context.view;
+			if (gameView_.valid) {
+				context.view = &gameView_;
+			}
 			raytracingSceneBuilder_.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, renderBatch_, context);
-		}
+			context.view = prevTlasView;
 
-		// TLASリソースとピック用のサブメッシュ情報をビュー別に保存
-		if (kind == RenderViewKind::Game) {
-
-			gameViewTLASResource_ = context.raytracing.tlasResource;
-			gameViewPickRecords_ = raytracingSceneBuilder_.GetPickRecords();
-		} else if (kind == RenderViewKind::Scene) {
-
-			sceneViewTLASResource_ = context.raytracing.tlasResource;
-			sceneViewPickRecords_ = raytracingSceneBuilder_.GetPickRecords();
+			if (context.raytracing.tlasResource) {
+				tlasResource_ = context.raytracing.tlasResource;
+				pickRecords_ = raytracingSceneBuilder_.GetPickRecords();
+			}
 		}
 
 		// TLASバッファをリソースレジストリに登録
@@ -526,6 +539,9 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 		};
 	renderView(RenderViewKind::Game, gameView_);
 	renderView(RenderViewKind::Scene, sceneView_);
+
+	// 記録したパスのタイムスタンプを解決してリードバックバッファへ書き出す
+	GpuFrameProfiler::GetInstance().Resolve(graphicsCore.GetDXObject().GetDxCommand()->GetCommandList());
 }
 
 bool Engine::RenderPipelineRunner::PresentViewToBackBuffer(
@@ -721,7 +737,7 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 		}
 		batchDispatcher_.Dispatch(graphicsCore, context, renderBatch_, previewBackendRegistry_,
 			renderAssetLibrary_, pipelineStateCache_, materialResolver_,
-			list.items, request.surface, "Draw", false);
+			list.items, request.surface, nullptr, "Draw", false);
 	}
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
@@ -809,6 +825,8 @@ Engine::SceneExecutionContext Engine::RenderPipelineRunner::BuildViewExecutionCo
 	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewResources_ : sceneViewResources_;
 	resources.Resize(graphicsCore, view.width, view.height);
 	context.resources = &resources;
+	// ビルボードはGameViewを基準にする
+	context.billboardView = (kind == RenderViewKind::Scene && gameView_.valid) ? &gameView_ : &view;
 	// SceneViewは描画カメラだけSceneViewにして、カリング基準はGameViewに揃える
 	context.lightCullingResources = (kind == RenderViewKind::Scene && gameView_.valid) ?
 		&gameViewResources_ : &resources;

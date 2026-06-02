@@ -31,7 +31,7 @@ namespace Engine {
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID);
 
 		// データクリア
-		void Clear() { cache_.clear(); }
+		void Clear();
 
 		//--------- accessor -----------------------------------------------------
 

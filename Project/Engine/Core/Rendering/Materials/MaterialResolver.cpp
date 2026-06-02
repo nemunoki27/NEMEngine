@@ -1,6 +1,11 @@
 #include "MaterialResolver.h"
 
 //============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
+
+//============================================================================
 //	MaterialResolver classMethods
 //============================================================================
 
@@ -33,37 +38,40 @@ void Engine::MaterialResolver::EnsureDefaults(AssetDatabase& database) const {
 	// ID配列を無効なIDで初期化
 	defaultMaterials_.fill(AssetID{});
 
-	auto tryImportIfExists = [&](DefaultMaterialSlot slot, AssetType type) {
-		std::filesystem::path fullPath = database.ResolveAssetPath(GetDefaultAssetPath(slot));
-		if (!std::filesystem::exists(fullPath)) {
+	auto assignIfRegistered = [&](DefaultMaterialSlot slot, AssetType type) {
+		const AssetID assetID = GetDefaultAssetID(slot);
+		const AssetMeta* meta = database.Find(assetID);
+		if (!meta || meta->type != type) {
 			return;
 		}
-		// デフォルトマテリアルのパスが存在する場合はインポートしてIDを確保する
-		defaultMaterials_[static_cast<size_t>(slot)] = database.ImportOrGet(GetDefaultAssetPath(slot), type);
+		// .metaに登録済みのGUIDだけを使い、移動後のパスには依存しない
+		defaultMaterials_[static_cast<size_t>(slot)] = assetID;
 		};
 
-	// デフォルトマテリアルのパスが存在する場合はインポートしてIDを確保する
-	tryImportIfExists(DefaultMaterialSlot::Sprite, AssetType::Material);
-	tryImportIfExists(DefaultMaterialSlot::Text, AssetType::Material);
-	tryImportIfExists(DefaultMaterialSlot::Mesh, AssetType::Material);
-	tryImportIfExists(DefaultMaterialSlot::FullscreenCopy, AssetType::Material);
+	assignIfRegistered(DefaultMaterialSlot::Sprite, AssetType::Material);
+	assignIfRegistered(DefaultMaterialSlot::Text, AssetType::Material);
+	assignIfRegistered(DefaultMaterialSlot::Mesh, AssetType::Material);
+	assignIfRegistered(DefaultMaterialSlot::MeshOutline, AssetType::Material);
+	assignIfRegistered(DefaultMaterialSlot::FullscreenCopy, AssetType::Material);
 
 	// 初期化済み
 	initialized_ = true;
 }
 
-const char* Engine::MaterialResolver::GetDefaultAssetPath(DefaultMaterialSlot slot) {
+Engine::AssetID Engine::MaterialResolver::GetDefaultAssetID(DefaultMaterialSlot slot) {
 
-	// スロットに応じたデフォルトマテリアルのパスを返す
+	// スロットに応じたデフォルトマテリアルのGUIDを返す
 	switch (slot) {
 	case DefaultMaterialSlot::Sprite:
-		return "Engine/Assets/Materials/Builtin/Sprite/defaultSprite.material.json";
+		return BuiltinAssets::Materials::DefaultSprite;
 	case DefaultMaterialSlot::Text:
-		return "Engine/Assets/Materials/Builtin/Text/defaultText.material.json";
+		return BuiltinAssets::Materials::DefaultText;
 	case DefaultMaterialSlot::Mesh:
-		return "Engine/Assets/Materials/Builtin/Mesh/defaultMesh.material.json";
+		return BuiltinAssets::Materials::DefaultMesh;
+	case DefaultMaterialSlot::MeshOutline:
+		return BuiltinAssets::Materials::DefaultMeshOutline;
 	case DefaultMaterialSlot::FullscreenCopy:
-		return "Engine/Assets/Materials/Builtin/FullscreenCopy/fullscreenCopy.material.json";
+		return BuiltinAssets::Materials::FullscreenCopy;
 	}
-	return "";
+	return AssetID{};
 }

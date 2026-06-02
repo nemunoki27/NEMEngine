@@ -32,3 +32,4 @@ Project/Externals/libcurl/build-*/
 
 # Optional: local premake binary
 premake5.exe
+Project/Engine/Assets/Models/san-miguel/san-miguel.bin

@@ -1,6 +1,15 @@
 #include "SystemScheduler.h"
 
 //============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
+
+// c++
+#include <chrono>
+#include <vector>
+
+//============================================================================
 //	SystemScheduler classMethods
 //============================================================================
 
@@ -47,12 +56,22 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 	// 固定更新の時間を蓄積する
 	accumulator_ += context.deltaTime;
 
+	// プロファイラ用にシステムごとの処理時間(Fixed/Update/LateUpdate合計)を計測する
+	std::vector<float> systemMs(systems_.size(), 0.0f);
+	auto measure = [&systemMs](size_t index, auto&& fn) {
+
+		const auto begin = std::chrono::high_resolution_clock::now();
+		fn();
+		const std::chrono::duration<float, std::milli> elapsed = std::chrono::high_resolution_clock::now() - begin;
+		systemMs[index] += elapsed.count();
+		};
+
 	uint32_t steps = 0;
 	// 蓄積した時間が固定更新の時間以上で、サブステップの最大数に達していない限り、固定更新を繰り返す
 	while (fixedDeltaTime_ <= accumulator_ && steps < maxSubSteps_) {
-		for (const auto& entry : systems_) {
+		for (size_t i = 0; i < systems_.size(); ++i) {
 
-			entry.system->FixedUpdate(*currentWorld_, context);
+			measure(i, [&] { systems_[i].system->FixedUpdate(*currentWorld_, context); });
 		}
 		// 蓄積した時間から固定更新の時間を引く
 		accumulator_ -= fixedDeltaTime_;
@@ -60,16 +79,26 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 	}
 
 	// 更新処理
-	for (const auto& entry : systems_) {
+	for (size_t i = 0; i < systems_.size(); ++i) {
 
-		entry.system->Update(*currentWorld_, context);
+		measure(i, [&] { systems_[i].system->Update(*currentWorld_, context); });
 	}
 
 	// 後更新処理
-	for (const auto& entry : systems_) {
+	for (size_t i = 0; i < systems_.size(); ++i) {
 
-		entry.system->LateUpdate(*currentWorld_, context);
+		measure(i, [&] { systems_[i].system->LateUpdate(*currentWorld_, context); });
 	}
+
+	// 計測結果を処理順のままプロファイラへ渡す
+	std::vector<FrameProfiler::NamedTime> systemTimes;
+	systemTimes.reserve(systems_.size());
+	for (size_t i = 0; i < systems_.size(); ++i) {
+
+		const char* name = systems_[i].system->GetName();
+		systemTimes.push_back({ name ? name : "Unknown", systemMs[i] });
+	}
+	FrameProfiler::GetInstance().SetEcsSystemTimes(systemTimes);
 
 	// Update/LateUpdate中に予約されたエンティティ破棄をフレーム終端でまとめて反映する
 	currentWorld_->FlushPendingDestroyEntities();

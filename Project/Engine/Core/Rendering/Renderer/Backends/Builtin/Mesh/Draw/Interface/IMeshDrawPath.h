@@ -23,7 +23,7 @@ namespace Engine {
 		virtual bool Supports(const PipelineVariantDesc& variant) const = 0;
 
 		// 経路固有の事前セットアップ
-		virtual void Setup(const MeshPathSetupContext& context, std::vector<GraphicsBindItem>& scratch) = 0;
+		virtual void Setup(const MeshPathSetupContext& context) = 0;
 
 		// サブメッシュごとの描画
 		virtual void Draw(const MeshPathDrawContext& context) = 0;

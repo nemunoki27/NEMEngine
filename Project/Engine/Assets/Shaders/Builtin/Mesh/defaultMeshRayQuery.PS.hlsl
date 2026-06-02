@@ -280,7 +280,10 @@ float3 ComputeWorldNormal(VSOutput input, SubMeshShaderData subMesh, float2 uv) 
 }
 
 // PBR平行光源(シャドウあり)
-float3 EvaluatePBRDirectionalLight(DirectionalLight light, float3 worldPos, float3 N, float3 V,
+// geometricNormalはシャドウレイの原点オフセット専用。法線マップで摂動したNを使うと
+// オフセットが真の面から十分に離れず、自分のBLASへ自己交差してセルフシャドウのアクネが出るため、
+// 影の判定には滑らかな幾何法線を使う。ライティングのN·Lには従来どおり摂動Nを使う。
+float3 EvaluatePBRDirectionalLight(DirectionalLight light, float3 worldPos, float3 N, float3 geometricNormal, float3 V,
 	float3 albedo, float metallic, float roughness, float3 F0) {
 
 	float3 L = normalize(-light.direction);
@@ -289,7 +292,7 @@ float3 EvaluatePBRDirectionalLight(DirectionalLight light, float3 worldPos, floa
 		return 0.0f.xxx;
 	}
 
-	float shadow = TraceDirectionalShadow(worldPos, N, light.direction) ? (1.0f - light.shadowStrength) : 1.0f;
+	float shadow = TraceDirectionalShadow(worldPos, geometricNormal, light.direction) ? (1.0f - light.shadowStrength) : 1.0f;
 	if (shadow <= 0.0f) {
 		return 0.0f.xxx;
 	}
@@ -454,10 +457,13 @@ PSOutput main(VSOutput input) {
 	//============================================================================
 	float3 Lo = 0.0f.xxx;
 
+	// シャドウレイのオフセット用に、法線マップを適用しない幾何法線を渡す
+	float3 geometricNormal = normalize(input.normal);
+
 	[loop]
 	for (uint i = 0; i < directionalCount; ++i) {
 
-		Lo += EvaluatePBRDirectionalLight(gDirectionalLights[i], input.worldPos, N, V,
+		Lo += EvaluatePBRDirectionalLight(gDirectionalLights[i], input.worldPos, N, geometricNormal, V,
 			baseColor.rgb, metallic, roughness, F0);
 	}
 

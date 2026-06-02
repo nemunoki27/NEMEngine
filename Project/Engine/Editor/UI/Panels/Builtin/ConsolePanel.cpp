@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <cstdio>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 
 namespace {
@@ -128,6 +130,99 @@ namespace {
 	}
 }
 
+namespace {
+
+	// 計測タブ: FrameProfilerのフレーム計測結果を表示する
+	void DrawMeasurementTab() {
+
+		const Engine::FrameProfiler& profiler = Engine::FrameProfiler::GetInstance();
+
+		ImGui::Text("FPS               : %.1f", profiler.GetFps());
+		ImGui::Text("DeltaTime         : %.3f ms", profiler.GetDeltaTimeSec() * 1000.0f);
+		ImGui::Text("起動からの経過時間  : %.2f s", profiler.GetTotalTimeSec());
+
+		ImGui::Separator();
+
+		ImGui::Text("更新全体          : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Update));
+		ImGui::Text("ECSシステム       : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Ecs));
+		if (ImGui::IsItemHovered()) {
+
+			ImGui::BeginTooltip();
+			if (profiler.HasEcsSystemData()) {
+
+				ImGui::TextUnformatted("システム処理時間(処理順)");
+				ImGui::Separator();
+				for (const Engine::FrameProfiler::NamedTime& system : profiler.GetEcsSystemTimes()) {
+					ImGui::Text("%-28s : %.3f ms", system.name.c_str(), system.milliseconds);
+				}
+			} else {
+
+				ImGui::TextUnformatted("システム計測データなし");
+			}
+			ImGui::EndTooltip();
+		}
+		ImGui::Text("C#処理            : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Script));
+
+		// 描画処理。ホバーでGPUの処理時間(各パス)を表示する
+		ImGui::Text("描画処理          : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Draw));
+		if (ImGui::IsItemHovered()) {
+
+			ImGui::BeginTooltip();
+			if (profiler.HasGpuData()) {
+
+				ImGui::Text("GPU合計 : %.3f ms", profiler.GetGpuTotalMs());
+				ImGui::Spacing();
+
+				// パス名と時間を列で揃えて表示する。ビュー接頭辞(Game//Scene/)でグループ分けする
+				if (ImGui::BeginTable("##GpuPassTimes", 2,
+					ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
+
+					ImGui::TableSetupColumn("Pass", ImGuiTableColumnFlags_WidthFixed, 230.0f);
+					ImGui::TableSetupColumn("Time", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+					ImGui::TableHeadersRow();
+
+					std::string currentGroup = "\x01";
+					for (const Engine::FrameProfiler::GpuPassTime& pass : profiler.GetGpuPassTimes()) {
+
+						const size_t slash = pass.name.find('/');
+						const std::string group = (slash != std::string::npos) ? pass.name.substr(0, slash) : std::string();
+						const std::string label = (slash != std::string::npos) ? pass.name.substr(slash + 1) : pass.name;
+
+						// グループ見出し
+						if (group != currentGroup) {
+
+							currentGroup = group;
+							ImGui::TableNextRow();
+							ImGui::TableSetColumnIndex(0);
+							ImGui::TextDisabled("[%s]", group.empty() ? "-" : group.c_str());
+						}
+
+						ImGui::TableNextRow();
+						ImGui::TableSetColumnIndex(0);
+						ImGui::TextUnformatted(label.c_str());
+
+						// 時間は右寄せ
+						ImGui::TableSetColumnIndex(1);
+						char timeText[32];
+						std::snprintf(timeText, sizeof(timeText), "%.3f ms", pass.milliseconds);
+						const float cellWidth = ImGui::GetContentRegionAvail().x;
+						const float textWidth = ImGui::CalcTextSize(timeText).x;
+						if (textWidth < cellWidth) {
+							ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (cellWidth - textWidth));
+						}
+						ImGui::TextUnformatted(timeText);
+					}
+					ImGui::EndTable();
+				}
+			} else {
+
+				ImGui::TextUnformatted("GPU計測データなし");
+			}
+			ImGui::EndTooltip();
+		}
+	}
+}
+
 //============================================================================
 //	ConsolePanel classMethods
 //============================================================================
@@ -158,6 +253,11 @@ void Engine::ConsolePanel::Draw(const EditorPanelContext& context) {
 		//============================================================================
 		if (ImGui::BeginTabItem("Engine")) {
 			if (ImGui::BeginTabBar("ConsoleEngineTabBar")) {
+				if (ImGui::BeginTabItem("Measurement")) {
+
+					DrawMeasurementTab();
+					ImGui::EndTabItem();
+				}
 				if (ImGui::BeginTabItem("Log")) {
 
 					DrawLogTab(Engine::LogType::Engine, "##EngineLogList");

@@ -21,8 +21,10 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::AssetReferenceField("テクスチャ", draft.texture,
-				context.editorContext->assetDatabase, { AssetType::Texture });
+			AssetEditSetting setting{};
+				setting.graphicsCore = context.graphicsCore;
+				return MyGUI::AssetReferenceField("テクスチャ", draft.texture,
+					context.editorContext->assetDatabase, { AssetType::Texture }, setting);
 			});
 		DrawField(anyItemActive, [&]() {
 			return MyGUI::AssetReferenceField("マテリアル", draft.material,

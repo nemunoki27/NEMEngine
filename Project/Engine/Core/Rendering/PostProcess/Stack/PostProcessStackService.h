@@ -6,8 +6,10 @@
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackRuntime.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackSettings.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
+#include <Engine/Core/Assets/AssetTypes.h>
 
 // c++
+#include <cstdint>
 #include <filesystem>
 #include <unordered_map>
 #include <unordered_set>
@@ -21,6 +23,21 @@ namespace Engine {
 	//============================================================================
 	class PostProcessStackService {
 	public:
+		//========================================================================
+		//	structure
+		//========================================================================
+
+		// エディタのプレビュー表示用に、ポスト処理前後のSRVハンドルを保持する。
+		// ImTextureID互換のptr値で持つことでd3d12ヘッダへの依存を避ける。
+		struct PreviewImage {
+
+			uint64_t beforeSrvPtr = 0; // ポスト処理前のSceneColorのSRV
+			uint64_t afterSrvPtr = 0;  // ポスト処理後のSceneColorのSRV
+			uint32_t width = 0;
+			uint32_t height = 0;
+			bool valid = false;
+		};
+
 		//========================================================================
 		//	public Methods
 		//========================================================================
@@ -37,8 +54,8 @@ namespace Engine {
 		// 現在のパスから再読み込みする
 		void Reload();
 
-		// 使用する設定ファイルを論理アセットパスから切り替える
-		void SetActiveSettingsAssetPath(const std::string& assetPath);
+		// 使用する設定ファイルをアセットGUIDから切り替える
+		void SetActiveSettingsAsset(AssetID assetID, const AssetDatabase* assetDatabase);
 		// 使用する設定ファイルを実ファイルパスから切り替える
 		void SetActiveSettingsPath(const std::filesystem::path& settingsPath);
 
@@ -72,6 +89,14 @@ namespace Engine {
 		void MarkDirty() { dirty_ = true; }
 		void ClearDirty() { dirty_ = false; }
 
+		// プレビュー画像を設定する(PostProcessStackPassから毎フレーム更新)
+		void SetPreviewImage(const PreviewImage& preview) { preview_ = preview; }
+		const PreviewImage& GetPreviewImage() const { return preview_; }
+
+		// プレビュー対象のパスIDを設定する(エディタの選択中パスをPostProcessStackPassへ伝える)
+		void SetPreviewPassId(const UUID& id) { previewPassId_ = id; }
+		const UUID& GetPreviewPassId() const { return previewPassId_; }
+
 		// シングルトンインスタンスを取得する
 		static PostProcessStackService& GetInstance();
 	private:
@@ -92,8 +117,8 @@ namespace Engine {
 		std::unordered_map<AssetID, std::vector<ShaderResourceBinding>> reflectionSRVs_{};
 		std::unordered_set<AssetID> pendingReflectionReloads_{};
 
-		//--------- functions ----------------------------------------------------
+		PreviewImage preview_{};
+		UUID previewPassId_{};
 
-		std::filesystem::path ResolveDefaultPath() const;
 	};
 } // Engine

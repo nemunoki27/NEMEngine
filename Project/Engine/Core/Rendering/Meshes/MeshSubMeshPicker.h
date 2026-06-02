@@ -4,10 +4,10 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/ComputeRootBinder.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12ConstantBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12ReadbackBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12StructuredBuffer.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxReadbackBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxStructuredBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
 #include <Engine/Editor/Core/EditorState.h>
@@ -33,7 +33,11 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		MeshSubMeshPicker() = default;
+		MeshSubMeshPicker() {
+			tlasSlot_       = pickBindCache_.AddSlotByRegister(ShaderBindingKind::AccelStruct, 0, 0);
+			outputUAVSlot_  = pickBindCache_.AddSlotByRegister(ShaderBindingKind::UAV,         0, 0);
+			pickingCBVSlot_ = pickBindCache_.AddSlotByRegister(ShaderBindingKind::CBV,         0, 0);
+		}
 		~MeshSubMeshPicker() = default;
 
 		// 初期化
@@ -86,6 +90,12 @@ namespace Engine {
 
 		// CS用のパイプライン
 		PipelineState pipeline_{};
+
+		// ルート引数スロットのキャッシュ（TLAS/UAV/CBVをレジスタで解決）
+		PipelineBindingCache pickBindCache_{};
+		PipelineBindingCache::SlotID tlasSlot_       = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID outputUAVSlot_  = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID pickingCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 
 		// バッファ
 		DxConstBuffer<PickingData> pickingBuffer_{};

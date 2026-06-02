@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 #include <Engine/Core/Assets/AssetTypes.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Types.h>
+#include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPayloadArena.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPhase.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>

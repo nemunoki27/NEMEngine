@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12ConstantBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
 
 namespace Engine {
 

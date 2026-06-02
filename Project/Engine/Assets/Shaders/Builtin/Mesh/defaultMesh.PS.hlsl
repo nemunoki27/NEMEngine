@@ -15,6 +15,11 @@ struct PSOutput {
 	float4 worldPos : SV_TARGET2;
 };
 
+struct TransparentPSOutput {
+
+	float4 color : SV_TARGET0;
+};
+
 //============================================================================
 //	resources
 //============================================================================
@@ -488,5 +493,14 @@ PSOutput main(VSOutput input) {
 	output.color = float4(finalColor, baseColor.a);
 	output.normal = float4(N * 0.5f + 0.5f, 1.0f);
 	output.worldPos = float4(input.worldPos, 1.0f);
+	return output;
+}
+
+TransparentPSOutput mainTransparent(VSOutput input) {
+
+	PSOutput lit = main(input);
+
+	TransparentPSOutput output;
+	output.color = lit.color;
 	return output;
 }

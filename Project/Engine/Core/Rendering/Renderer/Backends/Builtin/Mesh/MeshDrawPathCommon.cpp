@@ -125,3 +125,20 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID
 	}
 	return {};
 }
+
+bool Engine::MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(const MeshGPUResource& gpuMesh,
+	const MeshRendererComponent* renderer, uint32_t subMeshIndex) {
+
+	// オーサリング確定済みはAssetIDが権威。空ならユーザーがテクスチャなしにした扱い
+	if (renderer && subMeshIndex < renderer->subMeshes.size()) {
+		if (renderer->subMeshes[subMeshIndex].stableID) {
+			return static_cast<bool>(renderer->subMeshes[subMeshIndex].baseColorTexture);
+		}
+	}
+
+	// インポート時にマテリアルがベースカラーテクスチャを宣言していたか(見つからなくてもtrue)
+	if (subMeshIndex < gpuMesh.subMeshes.size()) {
+		return gpuMesh.subMeshes[subMeshIndex].hasBaseColorTexture;
+	}
+	return false;
+}

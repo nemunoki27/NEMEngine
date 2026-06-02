@@ -3,9 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12Device.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12ShaderCompiler.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxDevice.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureController.h>
 
 // directX

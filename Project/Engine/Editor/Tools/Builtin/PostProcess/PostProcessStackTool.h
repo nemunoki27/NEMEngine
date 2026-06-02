@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
+#include <Engine/Core/Assets/AssetTypes.h>
 
 // c++
 #include <cstdint>
@@ -57,12 +58,12 @@ namespace Engine {
 		bool openWindow_ = false;
 		// 選択中のパスインデックス (-1: 未選択)
 		int32_t selectedPassIndex_ = -1;
-		// 最後に確認したシーンパス
-		std::string lastScenePath_;
+		// 最後に確認したPostProcessStackアセット
+		AssetID lastStackAsset_{};
 
 		// 未保存確認ポップアップ用
 		bool pendingScenePathChange_ = false;
-		std::string pendingNextScenePath_;
+		AssetID pendingNextStackAsset_{};
 
 		//--------- functions ----------------------------------------------------
 
@@ -75,6 +76,6 @@ namespace Engine {
 		// ドロップゾーン（スタックファイル/マテリアル追加）を描画する
 		void DrawDropZones(const EditorToolContext& context);
 		// 未保存確認ポップアップを描画する
-		void DrawUnsavedConfirmPopup();
+		void DrawUnsavedConfirmPopup(const EditorToolContext& context);
 	};
 } // Engine

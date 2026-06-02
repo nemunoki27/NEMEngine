@@ -4,12 +4,12 @@
   "passes": [
     {
       "passName": "Blit",
-      "pipeline": "Engine/Assets/Pipelines/Builtin/ToneMapToView/toneMapToView.pipeline.json",
+      "pipeline": "c3756f797ab0f489",
       "preferredVariant": "GraphicsVertex"
     },
     {
       "passName": "Fullscreen",
-      "pipeline": "Engine/Assets/Pipelines/Builtin/ToneMapToView/toneMapToView.pipeline.json",
+      "pipeline": "c3756f797ab0f489",
       "preferredVariant": "GraphicsVertex"
     }
   ]

@@ -8,6 +8,7 @@
 // c++
 #include <algorithm>
 #include <cmath>
+#include <span>
 
 //============================================================================
 //	MeshGPUResourceManager classMethods
@@ -153,6 +154,28 @@ namespace {
 		return packed;
 	}
 
+	template <typename T>
+	void CreateImmutableSRV(ID3D12Device* device, Engine::BufferUploadService& uploadService,
+		Engine::SRVDescriptor& srvDescriptor, Engine::MeshStructuredHandle<T>& out,
+		const std::vector<T>& data, const wchar_t* debugName) {
+
+		// 空データはWidth 0のD3D12 bufferを作れないため、SRV自体を未生成として扱う。
+		if (data.empty()) {
+			return;
+		}
+
+		// 静的メッシュデータはDEFAULT heapへ置き、初期転送だけをUploadServiceへ集約する。
+		out.buffer = std::make_unique<Engine::DxImmutableStructuredBuffer<T>>();
+		out.buffer->Create(device, uploadService, std::span<const T>(data.data(), data.size()));
+		if (ID3D12Resource* resource = out.buffer->GetResource()) {
+			resource->SetName(debugName);
+		}
+		// DescriptorはMeshStructuredHandle::Releaseで解放するため、handle側にindex/handleを保持する。
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = out.buffer->GetSRVDesc();
+		srvDescriptor.CreateSRV(out.srvIndex, out.buffer->GetResource(), srvDesc);
+		out.srvGPUHandle = srvDescriptor.GetGPUHandle(out.srvIndex);
+	}
+
 	bool CanPackMeshletVertexIndices(const std::vector<uint32_t>& indices) {
 
 		// 16bitに収まる場合だけ2要素/uint32_tへ圧縮する
@@ -237,6 +260,7 @@ void Engine::MeshGPUResourceManager::Init(GraphicsCore& graphicsCore) {
 
 	device_ = graphicsCore.GetDXObject().GetDevice();
 	srvDescriptor_ = &graphicsCore.GetSRVDescriptor();
+	uploadService_ = &graphicsCore.GetBufferUploadService();
 
 	// メッシュインポートサービスの初期化
 	importService_.Init(4);
@@ -271,6 +295,7 @@ void Engine::MeshGPUResourceManager::Finalize() {
 	}
 	device_ = nullptr;
 	srvDescriptor_ = nullptr;
+	uploadService_ = nullptr;
 	assetDatabase_ = nullptr;
 	initialized_ = false;
 }
@@ -361,6 +386,10 @@ const Engine::MeshGPUResource* Engine::MeshGPUResourceManager::Find(AssetID mesh
 
 void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imported) {
 
+	if (!uploadService_) {
+		return;
+	}
+
 	// リソース情報を設定
 	MeshGPUResource mesh{};
 	mesh.assetID = imported.assetID;
@@ -382,163 +411,96 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 
 	// 頂点SRVリソース
 	{
-		mesh.vertexSRV.buffer = std::make_unique<DxStructuredBuffer<MeshVertex>>();
-		mesh.vertexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.vertices.size()));
-		mesh.vertexSRV.buffer->TransferData(imported.vertices);
-		mesh.vertexSRV.buffer->GetResource()->SetName(L"MeshVertices");
-		auto srvDesc = mesh.vertexSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.vertices.size()));
-		srvDescriptor_->CreateSRV(mesh.vertexSRV.srvIndex, mesh.vertexSRV.buffer->GetResource(), srvDesc);
-		mesh.vertexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.vertexSRV.srvIndex);
-		mesh.vertexSRV.buffer->SetSRVGPUHandle(mesh.vertexSRV.srvGPUHandle);
+		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
+			mesh.vertexSRV, imported.vertices, L"MeshVertices");
 	}
 
 	// 描画用圧縮頂点SRVリソース
 	{
 		// MeshShader側の帯域削減用に、法線を圧縮した頂点バッファも作る
 		std::vector<MeshPackedVertex> packedVertices = BuildPackedVertices(imported.vertices);
-		mesh.packedVertexSRV.buffer = std::make_unique<DxStructuredBuffer<MeshPackedVertex>>();
-		mesh.packedVertexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(packedVertices.size()));
-		mesh.packedVertexSRV.buffer->TransferData(packedVertices);
-		mesh.packedVertexSRV.buffer->GetResource()->SetName(L"MeshPackedVertices");
-		auto srvDesc = mesh.packedVertexSRV.buffer->GetSRVDesc(static_cast<UINT>(packedVertices.size()));
-		srvDescriptor_->CreateSRV(mesh.packedVertexSRV.srvIndex, mesh.packedVertexSRV.buffer->GetResource(), srvDesc);
-		mesh.packedVertexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.packedVertexSRV.srvIndex);
-		mesh.packedVertexSRV.buffer->SetSRVGPUHandle(mesh.packedVertexSRV.srvGPUHandle);
+		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
+			mesh.packedVertexSRV, packedVertices, L"MeshPackedVertices");
 	}
 
 	// インデックスバッファ
 	{
 		// 16bitに収まるメッシュはIBVだけ16bit化して帯域を減らす
 		const bool useIndex16 = CanPackMeshletVertexIndices(imported.indices);
-		mesh.indexBuffer.CreateBuffer(device_, static_cast<UINT>(imported.indices.size()),
-			useIndex16 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
 		if (useIndex16) {
-			mesh.indexBuffer.TransferData(BuildIndex16(imported.indices));
+			const std::vector<uint16_t> indices16 = BuildIndex16(imported.indices);
+			// BLAS構築でも同じIBを読むため、最終状態はINDEX_BUFFER単独ではなくGENERIC_READにする。
+			mesh.indexBuffer.Create(device_, *uploadService_, std::span(indices16),
+				D3D12_RESOURCE_STATE_GENERIC_READ);
 		} else {
-			mesh.indexBuffer.TransferData(imported.indices);
+			// SRV用indexSRVは32bitのまま別途保持し、IBVだけ描画向けに最適化する。
+			mesh.indexBuffer.Create(device_, *uploadService_, std::span(imported.indices),
+				DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_STATE_GENERIC_READ);
 		}
 	}
 
 	// インデックスSRVリソース
 	{
 		// シェーダ側では32bit Indexとして読むため、SRVは従来どおり32bitを保持する
-		mesh.indexSRV.buffer = std::make_unique<DxStructuredBuffer<uint32_t>>();
-		mesh.indexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.indices.size()));
-		mesh.indexSRV.buffer->TransferData(imported.indices);
-		mesh.indexSRV.buffer->GetResource()->SetName(L"MeshIndices");
-		auto srvDesc = mesh.indexSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.indices.size()));
-		srvDescriptor_->CreateSRV(mesh.indexSRV.srvIndex, mesh.indexSRV.buffer->GetResource(), srvDesc);
-		mesh.indexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.indexSRV.srvIndex);
-		mesh.indexSRV.buffer->SetSRVGPUHandle(mesh.indexSRV.srvGPUHandle);
+		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
+			mesh.indexSRV, imported.indices, L"MeshIndices");
 	}
 
 	// スキニングインフルエンスSRVリソース
 	if (mesh.isSkinned && !imported.vertexInfluences.empty()) {
-		mesh.skinInfluenceSRV.buffer = std::make_unique<DxStructuredBuffer<VertexInfluence>>();
-		mesh.skinInfluenceSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.vertexInfluences.size()));
-		mesh.skinInfluenceSRV.buffer->TransferData(imported.vertexInfluences);
-		mesh.skinInfluenceSRV.buffer->GetResource()->SetName(L"SkinInfluences");
-		auto srvDesc = mesh.skinInfluenceSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.vertexInfluences.size()));
-		srvDescriptor_->CreateSRV(mesh.skinInfluenceSRV.srvIndex, mesh.skinInfluenceSRV.buffer->GetResource(), srvDesc);
-		mesh.skinInfluenceSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.skinInfluenceSRV.srvIndex);
-		mesh.skinInfluenceSRV.buffer->SetSRVGPUHandle(mesh.skinInfluenceSRV.srvGPUHandle);
+		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
+			mesh.skinInfluenceSRV, imported.vertexInfluences, L"SkinInfluences");
 	}
 
 	// 頂点サブメッシュインデックスSRVリソース
 	{
-		mesh.vertexSubMeshIndexSRV.buffer = std::make_unique<DxStructuredBuffer<uint32_t>>();
-		mesh.vertexSubMeshIndexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.vertexSubMeshIndices.size()));
-		mesh.vertexSubMeshIndexSRV.buffer->TransferData(imported.vertexSubMeshIndices);
-		mesh.vertexSubMeshIndexSRV.buffer->GetResource()->SetName(L"MeshVertexSubMeshIndices");
-		auto srvDesc = mesh.vertexSubMeshIndexSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.vertexSubMeshIndices.size()));
-		srvDescriptor_->CreateSRV(mesh.vertexSubMeshIndexSRV.srvIndex, mesh.vertexSubMeshIndexSRV.buffer->GetResource(), srvDesc);
-		mesh.vertexSubMeshIndexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.vertexSubMeshIndexSRV.srvIndex);
-		mesh.vertexSubMeshIndexSRV.buffer->SetSRVGPUHandle(mesh.vertexSubMeshIndexSRV.srvGPUHandle);
+		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
+			mesh.vertexSubMeshIndexSRV, imported.vertexSubMeshIndices, L"MeshVertexSubMeshIndices");
 	}
 
 	// PrimitiveIndex()->サブメッシュインデックス参照用
 	{
 		std::vector<uint32_t> primitiveSubMeshTable = BuildPrimitiveSubMeshTable(mesh.subMeshes, mesh.indexCount);
-		mesh.primitiveSubMeshIndexSRV.buffer = std::make_unique<DxStructuredBuffer<uint32_t>>();
-		mesh.primitiveSubMeshIndexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(primitiveSubMeshTable.size()));
-		mesh.primitiveSubMeshIndexSRV.buffer->TransferData(primitiveSubMeshTable);
-		mesh.primitiveSubMeshIndexSRV.buffer->GetResource()->SetName(L"MeshPrimitiveSubMeshIndices");
-		auto srvDesc = mesh.primitiveSubMeshIndexSRV.buffer->GetSRVDesc(static_cast<UINT>(primitiveSubMeshTable.size()));
-		srvDescriptor_->CreateSRV(mesh.primitiveSubMeshIndexSRV.srvIndex, mesh.primitiveSubMeshIndexSRV.buffer->GetResource(), srvDesc);
-		mesh.primitiveSubMeshIndexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.primitiveSubMeshIndexSRV.srvIndex);
-		mesh.primitiveSubMeshIndexSRV.buffer->SetSRVGPUHandle(mesh.primitiveSubMeshIndexSRV.srvGPUHandle);
+		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
+			mesh.primitiveSubMeshIndexSRV, primitiveSubMeshTable, L"MeshPrimitiveSubMeshIndices");
 	}
 
 	// メッシュレットSRVリソース
 	if (!imported.meshlets.empty()) {
 		// 互換用のフルDescも保持しておく
-		mesh.meshletSRV.buffer = std::make_unique<DxStructuredBuffer<MeshletDesc>>();
-		mesh.meshletSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.meshlets.size()));
-		mesh.meshletSRV.buffer->TransferData(imported.meshlets);
-		mesh.meshletSRV.buffer->GetResource()->SetName(L"Meshlets");
-		auto srvDesc = mesh.meshletSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.meshlets.size()));
-		srvDescriptor_->CreateSRV(mesh.meshletSRV.srvIndex, mesh.meshletSRV.buffer->GetResource(), srvDesc);
-		mesh.meshletSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.meshletSRV.srvIndex);
-		mesh.meshletSRV.buffer->SetSRVGPUHandle(mesh.meshletSRV.srvGPUHandle);
+		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
+			mesh.meshletSRV, imported.meshlets, L"Meshlets");
 
 		// MSが使う範囲情報だけを分離して読み込み量を減らす
 		std::vector<MeshletDrawDesc> drawDescs = BuildMeshletDrawDescs(imported.meshlets);
-		mesh.meshletDrawSRV.buffer = std::make_unique<DxStructuredBuffer<MeshletDrawDesc>>();
-		mesh.meshletDrawSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(drawDescs.size()));
-		mesh.meshletDrawSRV.buffer->TransferData(drawDescs);
-		mesh.meshletDrawSRV.buffer->GetResource()->SetName(L"MeshletDrawDescs");
-		auto drawSrvDesc = mesh.meshletDrawSRV.buffer->GetSRVDesc(static_cast<UINT>(drawDescs.size()));
-		srvDescriptor_->CreateSRV(mesh.meshletDrawSRV.srvIndex, mesh.meshletDrawSRV.buffer->GetResource(), drawSrvDesc);
-		mesh.meshletDrawSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.meshletDrawSRV.srvIndex);
-		mesh.meshletDrawSRV.buffer->SetSRVGPUHandle(mesh.meshletDrawSRV.srvGPUHandle);
+		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
+			mesh.meshletDrawSRV, drawDescs, L"MeshletDrawDescs");
 
 		// ASで先にカリングできるようBounds/NormalConeだけを分離する
 		std::vector<MeshletBounds> bounds = BuildMeshletBounds(imported.meshlets);
-		mesh.meshletBoundsSRV.buffer = std::make_unique<DxStructuredBuffer<MeshletBounds>>();
-		mesh.meshletBoundsSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(bounds.size()));
-		mesh.meshletBoundsSRV.buffer->TransferData(bounds);
-		mesh.meshletBoundsSRV.buffer->GetResource()->SetName(L"MeshletBounds");
-		auto boundsSrvDesc = mesh.meshletBoundsSRV.buffer->GetSRVDesc(static_cast<UINT>(bounds.size()));
-		srvDescriptor_->CreateSRV(mesh.meshletBoundsSRV.srvIndex, mesh.meshletBoundsSRV.buffer->GetResource(), boundsSrvDesc);
-		mesh.meshletBoundsSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.meshletBoundsSRV.srvIndex);
-		mesh.meshletBoundsSRV.buffer->SetSRVGPUHandle(mesh.meshletBoundsSRV.srvGPUHandle);
+		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
+			mesh.meshletBoundsSRV, bounds, L"MeshletBounds");
 	}
 	if (!imported.meshletVertexIndices.empty()) {
-		mesh.meshletVertexIndexSRV.buffer = std::make_unique<DxStructuredBuffer<uint32_t>>();
-		mesh.meshletVertexIndexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.meshletVertexIndices.size()));
-		mesh.meshletVertexIndexSRV.buffer->TransferData(imported.meshletVertexIndices);
-		mesh.meshletVertexIndexSRV.buffer->GetResource()->SetName(L"MeshletVertexIndices");
-		auto srvDesc = mesh.meshletVertexIndexSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.meshletVertexIndices.size()));
-		srvDescriptor_->CreateSRV(mesh.meshletVertexIndexSRV.srvIndex, mesh.meshletVertexIndexSRV.buffer->GetResource(), srvDesc);
-		mesh.meshletVertexIndexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.meshletVertexIndexSRV.srvIndex);
-		mesh.meshletVertexIndexSRV.buffer->SetSRVGPUHandle(mesh.meshletVertexIndexSRV.srvGPUHandle);
+		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
+			mesh.meshletVertexIndexSRV, imported.meshletVertexIndices, L"MeshletVertexIndices");
 
 		mesh.usePackedMeshletVertexIndices = CanPackMeshletVertexIndices(imported.meshletVertexIndices);
 		if (mesh.usePackedMeshletVertexIndices) {
 
 			// 16bitに収まるメッシュレット頂点Indexは2個ずつ詰めて転送量を減らす
 			std::vector<uint32_t> packedIndices = BuildPackedMeshletVertexIndices(imported.meshletVertexIndices);
-			mesh.packedMeshletVertexIndexSRV.buffer = std::make_unique<DxStructuredBuffer<uint32_t>>();
-			mesh.packedMeshletVertexIndexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(packedIndices.size()));
-			mesh.packedMeshletVertexIndexSRV.buffer->TransferData(packedIndices);
-			mesh.packedMeshletVertexIndexSRV.buffer->GetResource()->SetName(L"PackedMeshletVertexIndices");
-			auto packedSrvDesc = mesh.packedMeshletVertexIndexSRV.buffer->GetSRVDesc(static_cast<UINT>(packedIndices.size()));
-			srvDescriptor_->CreateSRV(mesh.packedMeshletVertexIndexSRV.srvIndex,
-				mesh.packedMeshletVertexIndexSRV.buffer->GetResource(), packedSrvDesc);
-			mesh.packedMeshletVertexIndexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.packedMeshletVertexIndexSRV.srvIndex);
-			mesh.packedMeshletVertexIndexSRV.buffer->SetSRVGPUHandle(mesh.packedMeshletVertexIndexSRV.srvGPUHandle);
+			CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
+				mesh.packedMeshletVertexIndexSRV, packedIndices, L"PackedMeshletVertexIndices");
 		}
 	}
 	if (!imported.meshletPrimitiveIndices.empty()) {
-		mesh.meshletPrimitiveIndexSRV.buffer = std::make_unique<DxStructuredBuffer<uint32_t>>();
-		mesh.meshletPrimitiveIndexSRV.buffer->CreateSRVBuffer(device_, static_cast<UINT>(imported.meshletPrimitiveIndices.size()));
-		mesh.meshletPrimitiveIndexSRV.buffer->TransferData(imported.meshletPrimitiveIndices);
-		mesh.meshletPrimitiveIndexSRV.buffer->GetResource()->SetName(L"MeshletPrimitiveIndices");
-		auto srvDesc = mesh.meshletPrimitiveIndexSRV.buffer->GetSRVDesc(static_cast<UINT>(imported.meshletPrimitiveIndices.size()));
-		srvDescriptor_->CreateSRV(mesh.meshletPrimitiveIndexSRV.srvIndex, mesh.meshletPrimitiveIndexSRV.buffer->GetResource(), srvDesc);
-		mesh.meshletPrimitiveIndexSRV.srvGPUHandle = srvDescriptor_->GetGPUHandle(mesh.meshletPrimitiveIndexSRV.srvIndex);
-		mesh.meshletPrimitiveIndexSRV.buffer->SetSRVGPUHandle(mesh.meshletPrimitiveIndexSRV.srvGPUHandle);
+		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
+			mesh.meshletPrimitiveIndexSRV, imported.meshletPrimitiveIndices, L"MeshletPrimitiveIndices");
 	}
+
+	// このメッシュで積んだDEFAULT heap初期転送を1Batchとして提出する。描画Queue側はGPU Waitで順序保証する。
+	uploadService_->SubmitBatch();
 
 	// GPUリソースを保存
 	{

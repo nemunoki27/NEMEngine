@@ -28,16 +28,12 @@ namespace Engine {
 		bool enabled = true;
 		// 実行するMaterialアセットのGUID
 		AssetID materialGuid{};
-		// デバッグ用パスキャッシュ（GUIDが正）
-		std::string materialPathCache;
 		// 実行するパス名
 		std::string passName = "PostProcess";
 		// CBufferパラメータのScene毎overrideマップ
 		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides;
 		// TextureのScene毎overrideマップ
 		std::unordered_map<std::string, AssetID> textureGuids;
-		// Textureのデバッグパスキャッシュ（GUIDが正）
-		std::unordered_map<std::string, std::string> texturePathCaches;
 	};
 
 	// シーンごとのPostProcessStackの設定データ

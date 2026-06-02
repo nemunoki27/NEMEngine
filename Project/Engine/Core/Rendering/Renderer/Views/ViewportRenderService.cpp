@@ -4,11 +4,16 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 
 //============================================================================
 //	ViewportRenderService classMethods
 //============================================================================
+
+Engine::ViewportRenderService::~ViewportRenderService() {
+
+	Finalize();
+}
 
 Engine::MultiRenderTargetCreateDesc Engine::ViewportRenderService::BuildDefaultDesc(
 	RenderViewKind kind, uint32_t width, uint32_t height) {
@@ -54,6 +59,7 @@ void Engine::ViewportRenderService::SyncSurface(GraphicsCore& graphicsCore,
 		return;
 	}
 
+	ReleaseSlot(slot);
 	slot.width = width;
 	slot.height = height;
 
@@ -62,6 +68,12 @@ void Engine::ViewportRenderService::SyncSurface(GraphicsCore& graphicsCore,
 	slot.surface = std::make_unique<MultiRenderTarget>();
 	slot.surface->Create(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetRTVDescriptor(),
 		&graphicsCore.GetDSVDescriptor(), &graphicsCore.GetSRVDescriptor(), desc);
+}
+
+void Engine::ViewportRenderService::Finalize() {
+
+	ReleaseSlot(game_);
+	ReleaseSlot(scene_);
 }
 
 Engine::MultiRenderTarget* Engine::ViewportRenderService::GetSurface(RenderViewKind kind) {
@@ -82,6 +94,17 @@ Engine::ViewportRenderService::SurfaceSlot& Engine::ViewportRenderService::GetSl
 const Engine::ViewportRenderService::SurfaceSlot& Engine::ViewportRenderService::GetSlot(RenderViewKind kind) const {
 
 	return kind == RenderViewKind::Game ? game_ : scene_;
+}
+
+void Engine::ViewportRenderService::ReleaseSlot(SurfaceSlot& slot) {
+
+	if (slot.surface) {
+		// ViewportのMultiRenderTargetはDescriptorとGPUリソースを持つため明示Destroy/resetする。
+		slot.surface->Destroy();
+		slot.surface.reset();
+	}
+	slot.width = 0;
+	slot.height = 0;
 }
 
 Engine::RenderTexture2D* Engine::ViewportRenderService::GetDisplayTexture(RenderViewKind kind, size_t colorIndex) {

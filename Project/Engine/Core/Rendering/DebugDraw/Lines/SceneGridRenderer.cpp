@@ -4,7 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 // imgui
@@ -415,6 +416,15 @@ namespace {
 	}
 }
 
+Engine::SceneGridRenderer::~SceneGridRenderer() {
+
+	// フレーム内複数描画用に保持した定数バッファを終了時に明示resetする。
+	for (auto& buffer : passBuffers_) {
+		buffer.reset();
+	}
+	passBuffers_.clear();
+}
+
 void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
 
 	if (initialized_) {
@@ -649,11 +659,12 @@ void Engine::SceneGridRenderer::Render(GraphicsCore& graphicsCore,
 	commandList->SetGraphicsRootSignature(pipeline_.GetRootSignature());
 	commandList->SetPipelineState(pipeline_.GetGraphicsPipeline(BlendMode::Normal));
 
-	GraphicsRootBinder binder{ pipeline_ };
-	const GraphicsBindItem bindItems[] = {
-		{ {}, GraphicsBindValueType::CBV, passBuffer.GetResource()->GetGPUVirtualAddress(), {}, 0, 0 },
-	};
-	binder.Bind(commandList, bindItems);
+	// パイプラインが変わった時だけスロットを再解決する
+	gridBindCache_.Sync(pipeline_);
+	if (gridBindCache_.Has(gridCBVSlot_)) {
+		RootBindingCommand::SetGraphicsCBV(commandList, gridBindCache_.Get(gridCBVSlot_),
+			passBuffer.GetResource()->GetGPUVirtualAddress());
+	}
 
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->DrawInstanced(3, 1, 0, 0);

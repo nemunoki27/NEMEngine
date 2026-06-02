@@ -55,9 +55,9 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// 現在アクティブなシーンのパス
-		std::string activeScenePath_ = "Engine/Assets/Scenes/sampleScene.scene.json";
-		AssetID activeScene_{};
+		// 現在アクティブなシーン。初期シーンもパスではなく.meta GUIDで参照する
+		std::string activeScenePath_{};
+		AssetID activeScene_{ 0x129d80fee6b506d1ull };
 
 		// アセット管理
 		AssetDatabase assetDataBase_;

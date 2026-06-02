@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/RenderBufferRegistry.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>

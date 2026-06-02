@@ -99,7 +99,7 @@ namespace {
 				};
 			} else if constexpr (std::is_same_v<ValueType, Engine::AssetID>) {
 
-				return Engine::ToString(value);
+				return Engine::ToAssetReferenceJson(value);
 			} else {
 
 				return nlohmann::json{};
@@ -161,7 +161,7 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 	for (const auto& pass : asset.passes) {
 		nlohmann::json item = nlohmann::json::object();
 		item["passName"] = pass.passName;
-		item["pipeline"] = ToString(pass.pipeline);
+		item["pipeline"] = ToAssetReferenceJson(pass.pipeline);
 		item["preferredVariant"] = EnumAdapter<PipelineVariantKind>::ToString(pass.preferredVariant);
 		data["passes"].push_back(item);
 	}

@@ -14,6 +14,12 @@ Engine::LineRenderer3D::LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraD
 	gridRenderer_->Init(graphicsCore);
 }
 
+Engine::LineRenderer3D::~LineRenderer3D() {
+
+	// SceneGridRendererが持つGPUバッファをLineRenderer破棄時に明示解放する。
+	gridRenderer_.reset();
+}
+
 void Engine::LineRenderer3D::BeginFrame() {
 
 	LineRendererBase<Vector3>::BeginFrame();
@@ -64,6 +70,62 @@ void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius,
 			DrawLine(pointA + center, pointB + center, color, thickness);
 			DrawLine(pointA + center, pointC + center, color, thickness);
 		}
+	}
+}
+
+void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius, const Color4& color, float thickness) {
+
+	const uint32_t kDivision = 32;
+	const float kEvery = 2.0f * Math::pi / static_cast<float>(kDivision);
+
+	for (uint32_t index = 0; index < kDivision; ++index) {
+		float t0 = kEvery * static_cast<float>(index);
+		float t1 = kEvery * static_cast<float>(index + 1);
+
+		// 緯度の中心線：赤道 XZ平面
+		Vector3 equatorA = {
+			center.x + radius * std::cos(t0),
+			center.y,
+			center.z + radius * std::sin(t0)
+		};
+
+		Vector3 equatorB = {
+			center.x + radius * std::cos(t1),
+			center.y,
+			center.z + radius * std::sin(t1)
+		};
+
+		DrawLine(equatorA, equatorB, color, thickness);
+
+		// 経度の中心線：縦方向の大円 XY平面
+		Vector3 meridianA = {
+			center.x + radius * std::cos(t0),
+			center.y + radius * std::sin(t0),
+			center.z
+		};
+
+		Vector3 meridianB = {
+			center.x + radius * std::cos(t1),
+			center.y + radius * std::sin(t1),
+			center.z
+		};
+
+		DrawLine(meridianA, meridianB, color, thickness);
+
+		// もう1本の経度線：YZ平面
+		Vector3 meridian2A = {
+			center.x,
+			center.y + radius * std::sin(t0),
+			center.z + radius * std::cos(t0)
+		};
+
+		Vector3 meridian2B = {
+			center.x,
+			center.y + radius * std::sin(t1),
+			center.z + radius * std::cos(t1)
+		};
+
+		DrawLine(meridian2A, meridian2B, color, thickness);
 	}
 }
 

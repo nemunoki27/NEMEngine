@@ -46,12 +46,12 @@ void Engine::to_json(nlohmann::json& out, const SubMeshMaterial& subMeshMaterial
 	out["name"] = subMeshMaterial.name;
 	out["stableID"] = subMeshMaterial.stableID ? ToString(subMeshMaterial.stableID) : "";
 	out["sourceSubMeshIndex"] = subMeshMaterial.sourceSubMeshIndex;
-	out["baseColorTexture"] = ToString(subMeshMaterial.baseColorTexture);
-	out["normalTexture"] = ToString(subMeshMaterial.normalTexture);
-	out["metallicRoughnessTexture"] = ToString(subMeshMaterial.metallicRoughnessTexture);
-	out["specularTexture"] = ToString(subMeshMaterial.specularTexture);
-	out["emissiveTexture"] = ToString(subMeshMaterial.emissiveTexture);
-	out["occlusionTexture"] = ToString(subMeshMaterial.occlusionTexture);
+	out["baseColorTexture"] = ToAssetReferenceJson(subMeshMaterial.baseColorTexture);
+	out["normalTexture"] = ToAssetReferenceJson(subMeshMaterial.normalTexture);
+	out["metallicRoughnessTexture"] = ToAssetReferenceJson(subMeshMaterial.metallicRoughnessTexture);
+	out["specularTexture"] = ToAssetReferenceJson(subMeshMaterial.specularTexture);
+	out["emissiveTexture"] = ToAssetReferenceJson(subMeshMaterial.emissiveTexture);
+	out["occlusionTexture"] = ToAssetReferenceJson(subMeshMaterial.occlusionTexture);
 
 	// サブメッシュパラメータ
 	out["color"] = subMeshMaterial.color.ToJson();
@@ -91,8 +91,8 @@ void Engine::from_json(const nlohmann::json& in, MeshRendererComponent& componen
 
 void Engine::to_json(nlohmann::json& out, const MeshRendererComponent& component) {
 
-	out["mesh"] = ToString(component.mesh);
-	out["material"] = ToString(component.material);
+	out["mesh"] = ToAssetReferenceJson(component.mesh);
+	out["material"] = ToAssetReferenceJson(component.material);
 	out["queue"] = std::string(ToString(component.queue));
 	out["layer"] = component.layer;
 	out["order"] = component.order;

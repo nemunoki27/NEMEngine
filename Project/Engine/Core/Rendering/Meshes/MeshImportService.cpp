@@ -336,6 +336,9 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 					material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE });
 				const std::string normalReference = AssimpMaterialTextureExtractor::Extract(
 					material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT });
+				// マテリアルがベースカラーテクスチャを宣言していたかを、解決可否と独立に保持する。
+				// (見つからない場合はResolveAssetPathが空を返し、パスからは区別できないため)
+				subMesh.hasBaseColorTexture = !baseColorReference.empty();
 				subMesh.defaultTextures.baseColorTexturePath = textureResolver.ResolveAssetPath(baseColorReference);
 				subMesh.defaultTextures.normalTexturePath =
 					textureResolver.ResolveNormalAssetPath(normalReference, baseColorReference);

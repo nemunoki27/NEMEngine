@@ -177,6 +177,9 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 2Dエンティティのピック処理を実行
+		Entity Execute2DPick(const Vector2& inputPixel, const ResolvedRenderView& view, ECSWorld* world);
+
 		// コマンド実行のためのコンテキストを作成する
 		EditorCommandContext MakeCommandContext(const EditorContext& context);
 		// 操作ショートカット

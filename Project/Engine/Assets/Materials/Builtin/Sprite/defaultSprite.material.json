@@ -4,7 +4,7 @@
   "passes": [
     {
       "passName": "Draw",
-      "pipeline": "Engine/Assets/Pipelines/Builtin/Sprite/defaultSprite.pipeline.json",
+      "pipeline": "3309336c2fa4669c",
       "preferredVariant": "GraphicsVertex"
     }
   ]

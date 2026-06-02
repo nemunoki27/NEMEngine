@@ -3,9 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12DepthStencilView.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12ShaderResourceView.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxDepthStencilView.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 //============================================================================

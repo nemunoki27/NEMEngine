@@ -7,7 +7,6 @@
 
 // c++
 #include <array>
-#include <filesystem>
 
 namespace Engine {
 
@@ -22,6 +21,7 @@ namespace Engine {
 		Sprite,
 		Text,
 		Mesh,
+		MeshOutline,
 		FullscreenCopy,
 	};
 	static constexpr const uint32_t kDefaultMaterialCount = static_cast<uint32_t>(DefaultMaterialSlot::FullscreenCopy) + 1;
@@ -60,7 +60,7 @@ namespace Engine {
 
 		// デフォルトマテリアルのIDを確保する
 		void EnsureDefaults(AssetDatabase& database) const;
-		// デフォルトマテリアルのパスを取得
-		static const char* GetDefaultAssetPath(DefaultMaterialSlot slot);
+		// デフォルトマテリアルのGUIDを取得
+		static AssetID GetDefaultAssetID(DefaultMaterialSlot slot);
 	};
 } // Engine

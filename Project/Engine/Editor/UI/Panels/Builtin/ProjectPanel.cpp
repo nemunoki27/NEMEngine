@@ -14,6 +14,7 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
+#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Editor/Commands/Entity/InstantiatePrefabCommand.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
@@ -498,6 +499,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	DrawCreateAssetPopup(database);
 	DrawRenameAssetPopup(database);
+	DrawDeleteAssetPopup(database);
 	ApplyPendingFileOperationRefresh(database);
 
 	ImGui::End();
@@ -1223,8 +1225,15 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 	}
 	if (ImGui::MenuItem("Delete")) {
 
-		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteAsset(asset);
-		RefreshAfterFileOperation(database, result);
+		// 削除前に参照元を集めて確認ポップアップを開く
+		pendingDeleteAsset_ = asset;
+		pendingDeleteReferencers_.clear();
+		for (const AssetID& referencer : database.FindReferencers(asset.assetID)) {
+
+			const AssetMeta* meta = database.Find(referencer);
+			pendingDeleteReferencers_.emplace_back(meta ? meta->assetPath : ToString(referencer));
+		}
+		requestOpenDeletePopup_ = true;
 	}
 	if (asset.type == AssetType::Prefab) {
 
@@ -1329,6 +1338,58 @@ void Engine::ProjectPanel::DrawRenameAssetPopup(AssetDatabase& database) {
 	if (inputResult.canceled) {
 
 		renameErrorMessage_.clear();
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
+}
+
+void Engine::ProjectPanel::DrawDeleteAssetPopup(AssetDatabase& database) {
+
+	if (requestOpenDeletePopup_) {
+
+		ImGui::OpenPopup("Delete Project Asset");
+		requestOpenDeletePopup_ = false;
+	}
+
+	if (!ImGui::BeginPopupModal("Delete Project Asset", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
+	}
+
+	ImGui::Text("Delete Asset");
+	ImGui::TextDisabled("%s", pendingDeleteAsset_.assetPath.c_str());
+	ImGui::Separator();
+
+	// 参照元があるなら、消すと参照切れになることを警告して一覧表示する
+	if (!pendingDeleteReferencers_.empty()) {
+
+		ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f),
+			"This asset is referenced by %zu asset(s).", pendingDeleteReferencers_.size());
+		ImGui::TextDisabled("Deleting it will leave missing references.");
+
+		if (ImGui::BeginChild("##DeleteReferencers", ImVec2(360.0f, 120.0f), true)) {
+			for (const std::string& referencer : pendingDeleteReferencers_) {
+				ImGui::BulletText("%s", referencer.c_str());
+			}
+		}
+		ImGui::EndChild();
+	} else {
+
+		ImGui::TextUnformatted("No other asset references this asset.");
+	}
+	ImGui::Separator();
+
+	if (ImGui::Button("Delete")) {
+
+		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteAsset(pendingDeleteAsset_);
+		RefreshAfterFileOperation(database, result);
+		pendingDeleteReferencers_.clear();
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Cancel")) {
+
+		pendingDeleteReferencers_.clear();
 		ImGui::CloseCurrentPopup();
 	}
 

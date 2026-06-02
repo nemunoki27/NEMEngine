@@ -24,7 +24,7 @@ void Engine::from_json(const nlohmann::json& in, ScriptEntry& entry) {
 void Engine::to_json(nlohmann::json& out, const ScriptEntry& entry) {
 
 	out["type"] = entry.type;
-	out["scriptAsset"] = ToString(entry.scriptAsset);
+	out["scriptAsset"] = ToAssetReferenceJson(entry.scriptAsset);
 	out["enabled"] = entry.enabled;
 	out["serializedFields"] = entry.serializedFields;
 }

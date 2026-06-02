@@ -25,7 +25,10 @@ namespace Engine {
 		//========================================================================
 
 		ViewportRenderService() = default;
-		~ViewportRenderService() = default;
+		~ViewportRenderService();
+
+		// 終了処理
+		void Finalize();
 
 		// 描画ビューのサーフェスを生成する
 		void SyncSurface(GraphicsCore& graphicsCore, RenderViewKind kind, uint32_t width, uint32_t height);
@@ -70,6 +73,7 @@ namespace Engine {
 
 		SurfaceSlot& GetSlot(RenderViewKind kind);
 		const SurfaceSlot& GetSlot(RenderViewKind kind) const;
+		static void ReleaseSlot(SurfaceSlot& slot);
 
 		// 描画ビューのサーフェスの情報を構築する
 		static MultiRenderTargetCreateDesc BuildDefaultDesc(RenderViewKind kind, uint32_t width, uint32_t height);

@@ -8,6 +8,8 @@
 // c++
 #include <unordered_map>
 #include <filesystem>
+#include <string>
+#include <vector>
 
 namespace Engine {
 
@@ -28,6 +30,30 @@ namespace Engine {
 		// アセットの依存先
 		std::vector<AssetID> dependencies;
 		uint64_t importHash = 0;
+	};
+
+	// データベース構築時に検出した問題の種別
+	enum class AssetDatabaseIssueType {
+
+		CorruptMeta,            // .metaが壊れている
+		DuplicateGuid,          // 同一GUIDが複数アセットに存在
+		DuplicatePath,          // 検索キーが衝突
+		OrphanMeta,             // 実体のない.meta
+		MissingReference,       // 参照先アセットが存在しない
+		ReferenceTypeMismatch,  // 参照先の型が期待と異なる
+		UnknownAssetType,       // 種別を判定できない
+	};
+	// 構築時診断の1件分
+	struct AssetDatabaseIssue {
+
+		AssetDatabaseIssueType type;
+		AssetID assetID{};
+		AssetID referencedAssetID{};
+		AssetType expectedType = AssetType::Unknown;
+		AssetType actualType = AssetType::Unknown;
+		std::string assetPath;
+		std::string relatedPath;
+		std::string detail;
 	};
 
 	//============================================================================
@@ -62,6 +88,12 @@ namespace Engine {
 		// 論理アセットパスから実ファイルパスを取得
 		std::filesystem::path ResolveAssetPath(const std::string& assetPath) const;
 
+		// 依存関係・逆引き参照・診断の取得(該当なしは共通の空vectorを返す)
+		const std::vector<AssetID>& FindDependencies(AssetID id) const;
+		const std::vector<AssetID>& FindReferencers(AssetID id) const;
+		bool HasReferencers(AssetID id) const;
+		const std::vector<AssetDatabaseIssue>& GetIssues() const { return issues_; }
+
 		// ファイルパスのルートを取得
 		const std::filesystem::path& GetProjectRoot() const { return projectRoot_; }
 		const std::filesystem::path& GetAssetsRoot() const { return assetsRoot_; }
@@ -80,21 +112,35 @@ namespace Engine {
 
 		// メタデータのマップ
 		std::unordered_map<AssetID, AssetMeta> guidToMeta_;
-		// 正規化されたファイルパスから識別IDへのマップ
+		// 検索用に正規化したパスキーから識別IDへのマップ
 		std::unordered_map<std::string, AssetID> pathToGuid_;
+		// 逆引き参照(依存される側ID -> 参照しているアセットID群)
+		std::unordered_map<AssetID, std::vector<AssetID>> referencersByGuid_;
+		// 構築時に検出した問題一覧
+		std::vector<AssetDatabaseIssue> issues_;
 
 		//--------- functions ----------------------------------------------------
 
-		// パスの正規化
-		static std::string NormalizePath(const std::filesystem::path& path);
+		// 検索用のパスキー(Windowsの大文字小文字差を吸収する。保存表記とは別)
+		static std::string NormalizeLookupKey(const std::filesystem::path& path);
 		// アセットファイルのフルパスからメタファイルのフルパスを取得
 		static std::filesystem::path MetaPathOf(const std::filesystem::path& assetFullPath);
-
-		// ファイルパスからアセットの種類を推測
-		AssetType GuessTypeByPath(const std::filesystem::path& assetFullPath) const;
 
 		// メタデータの読み書き
 		bool TryLoadMeta(const std::filesystem::path& metaFullPath, AssetMeta& out) const;
 		bool SaveMeta(const std::filesystem::path& metaFullPath, const AssetMeta& meta) const;
+
+		// ファイル走査とUID索引の構築。重複・破損・孤立を検出する
+		void RebuildIndex(const std::vector<std::filesystem::path>& scanRoots);
+		// 索引構築後に依存関係・逆引き参照・参照診断を構築する
+		void RebuildDependencies();
+		// 1つのアセットファイルを索引へ登録する
+		AssetID RegisterAssetFile(const std::filesystem::path& assetFullPath);
+		// 指定アセットの依存先を抽出する
+		std::vector<AssetID> ExtractDependencies(const AssetMeta& meta);
+		// 孤立した.metaを検出する
+		void DetectOrphanMeta(const std::vector<std::filesystem::path>& scanRoots);
+		// 診断を追加する
+		void AddIssue(AssetDatabaseIssue&& issue);
 	};
 } // Engine

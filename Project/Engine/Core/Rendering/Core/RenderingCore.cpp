@@ -31,6 +31,10 @@ void Engine::GraphicsCore::Init() {
 	swapChain_->Create(engineContext_->GetWinApp(), graphicsPlatform_->GetDxgiFactory(), graphicsPlatform_->GetDxCommand()->GetQueue(),
 		rtvDescriptor_.get(), window.engineSize.x, window.engineSize.y, graphics.swapChainFormat, graphics.clearColor);
 
+	// 静的GPUバッファ転送サービスの初期化(テクスチャ用とは独立)
+	bufferUploadService_ = std::make_unique<BufferUploadService>();
+	bufferUploadService_->Init(device, graphicsPlatform_->GetDxCommand()->GetQueue());
+
 	// テクスチャ関連の初期化
 	textureUploadService_ = std::make_unique<TextureUploadService>();
 	textureUploadService_->Init(device, srvDescriptor_.get(), graphicsPlatform_->GetDxCommand()->GetQueue());
@@ -41,6 +45,7 @@ void Engine::GraphicsCore::Init() {
 void Engine::GraphicsCore::TickFrameServices() {
 
 	textureUploadService_->TickFinalize();
+	bufferUploadService_->TickFinalize();
 }
 
 void Engine::GraphicsCore::BeginRenderFrame() {
@@ -80,17 +85,33 @@ void Engine::GraphicsCore::Finalize() {
 	// GPUが完了するまで待機
 	graphicsPlatform_->GetDxCommand()->WaitForGPU();
 
-	graphicsPlatform_->Finalize(WinApp::GetHwnd());
-	engineContext_->Finalize();
-	builtinTextureLibrary_->Finalize();
-	textureUploadService_->Finalize();
+	// Device/Queue/Descriptorを参照するサービスはGraphicsPlatformより先に解放する。
+	if (builtinTextureLibrary_) {
+		builtinTextureLibrary_->Finalize();
+	}
+	if (textureUploadService_) {
+		textureUploadService_->Finalize();
+	}
+	if (bufferUploadService_) {
+		// GPU使用中のstagingを巻き込まないよう、未完了分を待ってから解放する
+		bufferUploadService_->Finalize();
+	}
+	builtinTextureLibrary_.reset();
+	textureUploadService_.reset();
+	bufferUploadService_.reset();
 
+	// 描画リソースとDescriptor heapをDevice破棄前に解放する。
 	swapChain_.reset();
 	srvDescriptor_.reset();
 	dsvDescriptor_.reset();
 	rtvDescriptor_.reset();
+
+	if (graphicsPlatform_) {
+		graphicsPlatform_->Finalize(WinApp::GetHwnd());
+	}
+	if (engineContext_) {
+		engineContext_->Finalize();
+	}
 	graphicsPlatform_.reset();
 	engineContext_.reset();
-	builtinTextureLibrary_.reset();
-	textureUploadService_.reset();
 }

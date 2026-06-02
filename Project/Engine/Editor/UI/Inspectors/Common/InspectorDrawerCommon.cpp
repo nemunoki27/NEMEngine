@@ -9,8 +9,11 @@
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshSelectionOutline.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Interface/ILightExtractor.h>
 
 //============================================================================
@@ -84,11 +87,13 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 	return result;
 }
 
-void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const Entity& entity) {
+void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const Entity& entity, int32_t selectionSubMeshIndex) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	// トランスフォームコンポーネントを持っていなければ処理しない
-	if (!world.HasComponent<TransformComponent>(entity)) {
+	// トランスフォームコンポーネントを持っていなければ
+	// 無効の場合
+	if (!world.HasComponent<TransformComponent>(entity) ||
+		!world.GetComponent<SceneObjectComponent>(entity).activeInHierarchy) {
 		return;
 	}
 	// トランスフォームを取得
@@ -108,9 +113,16 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 	// メッシュ
 	if (world.HasComponent<MeshRendererComponent>(entity)) {
 
-		// メッシュのバウンディングボックス描画
-		renderer3D->DrawOBB(transform.worldMatrix.GetTranslationValue(), transform.localScale,
-			transform.localRotation, Color4::FromHex(0xff7f00ff), 1.0f);
+		// 選択中メッシュのプレビューアウトライン。どの選択物でも一定の太さで綺麗に出るよう、
+		// 画面ピクセル幅(ScreenPixels)固定スタイルで描画する。サブメッシュ選択時は対象のみに限定。
+		InvertedHullOutlineComponent outline{};
+		outline.enabled = true;
+		outline.color = Color4::FromHex(0xFF8000FF);
+		outline.widthMode = OutlineWidthMode::ScreenPixels;
+		outline.width = 3.0f;
+		outline.expansionMode = OutlineExpansionMode::NormalDirection;
+		outline.cameraZOffset = 0.0f;
+		MeshSelectionOutline::GetInstance().Request(&world, entity, selectionSubMeshIndex, outline);
 	}
 	// スキニングアニメーション
 	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {
@@ -126,7 +138,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 		auto& pointLight = world.GetComponent<PointLightComponent>(entity);
 
 		// 点光源の影響範囲を描画
-		renderer3D->DrawSphere(transform.worldMatrix.GetTranslationValue(), pointLight.radius, pointLight.color, 4, 1.0f);
+		renderer3D->DrawSphere(transform.worldMatrix.GetTranslationValue(), pointLight.radius, pointLight.color, 1.0f);
 	}
 	// スポットライト
 	if (world.HasComponent<SpotLightComponent>(entity)) {

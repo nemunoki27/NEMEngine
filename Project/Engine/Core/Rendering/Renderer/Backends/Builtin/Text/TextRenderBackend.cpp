@@ -4,9 +4,10 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/GraphicsRootBinder.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -14,6 +15,14 @@
 //============================================================================
 //	TextRenderBackend classMethods
 //============================================================================
+
+Engine::TextRenderBackend::~TextRenderBackend() {
+
+	// FrameBatchResourcePool内のunique_ptrを終了時に明示resetする。
+	resourcePool_.Clear();
+	vsGlyphScratch_.clear();
+	psGlyphScratch_.clear();
+}
 
 namespace {
 
@@ -265,7 +274,8 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 			continue;
 		}
 		// キャッシュ済みレイアウトからVS/PSインスタンスだけ構築する
-		AppendGlyphInstancesFromCache(*renderer, payload->color, item->worldMatrix, vsGlyphScratch_, psGlyphScratch_);
+		AppendGlyphInstancesFromCache(*renderer, payload->color,
+			RenderBillboard::ResolveWorldMatrix(*item, *context.view), vsGlyphScratch_, psGlyphScratch_);
 	}
 	// 描画に使用するグリフがない場合は描画しない
 	if (vsGlyphScratch_.empty() || psGlyphScratch_.empty()) {
@@ -287,28 +297,29 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// ルートパラメータをバインド
 	{
-		// バッファバインディングの準備
-		BackendDrawCommon::PrepareGraphicsBindItemsScratch(
-			*context.bufferRegistry,
-			3, // ViewConstants, gVSInstances, gPSInstances
-			1, // gTexture
-			bindScratch_);
-		BackendDrawCommon::AppendGraphicsBufferBindings(*context.bufferRegistry, *pipelineState, bindScratch_);
-		// View
-		BackendDrawCommon::AppendGraphicsCBV(*pipelineState, resources.GetViewBindingName(),
-			resources.GetViewGPUAddress(), bindScratch_);
-		// VS
-		BackendDrawCommon::AppendGraphicsSRV(*pipelineState, resources.GetGlyphVSBindingName(),
-			resources.GetInstanceVSGPUAddress(), {}, bindScratch_);
-		// PS
-		BackendDrawCommon::AppendGraphicsSRV(*pipelineState, resources.GetGlyphPSBindingName(),
-			resources.GetInstancePSGPUAddress(), {}, bindScratch_);
-		// テクスチャ
-		BackendDrawCommon::AppendGraphicsSRV(*pipelineState, "gAtlas", 0, atlasTexture->gpuHandle, bindScratch_);
+		// バッファレジストリ登録済みバッファをまとめてバインドする
+		registryAutoBindTable_.Sync(*pipelineState, *context.bufferRegistry);
+		registryAutoBindTable_.BindGraphics(*context.bufferRegistry, commandList);
 
-		// バインド
-		GraphicsRootBinder binder{ *pipelineState };
-		binder.Bind(commandList, bindScratch_);
+		// 描画固有バインドのスロット解決を更新
+		perDrawBindCache_.Sync(*pipelineState);
+		if (perDrawBindCache_.Has(viewCBVSlot_)) {
+			RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_),
+				resources.GetViewGPUAddress());
+		}
+		if (perDrawBindCache_.Has(vsInstSRVSlot_) && resources.GetInstanceVSGPUAddress() != 0) {
+			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(vsInstSRVSlot_),
+				resources.GetInstanceVSGPUAddress(), {});
+		}
+		if (perDrawBindCache_.Has(psInstSRVSlot_) && resources.GetInstancePSGPUAddress() != 0) {
+			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(psInstSRVSlot_),
+				resources.GetInstancePSGPUAddress(), {});
+		}
+		// テクスチャはDescriptorHandle経由でバインドする
+		if (perDrawBindCache_.Has(atlasSRVSlot_) && atlasTexture->gpuHandle.ptr != 0) {
+			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(atlasSRVSlot_),
+				0, atlasTexture->gpuHandle);
+		}
 	}
 
 	// 文字をインスタンシングで描画

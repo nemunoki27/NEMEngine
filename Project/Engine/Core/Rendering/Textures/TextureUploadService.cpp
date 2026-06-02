@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12ShaderResourceView.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 

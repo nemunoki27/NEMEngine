@@ -113,7 +113,7 @@ namespace {
 			}, source);
 	}
 
-	nlohmann::json MakePipelineJson(const BuiltinPostProcessSource& source) {
+	nlohmann::json MakePipelineJson(const BuiltinPostProcessSource& source, Engine::AssetID shaderID) {
 
 		return AddGeneratedMetadata(nlohmann::json{
 			{ "name", source.baseName + "Pipeline" },
@@ -121,13 +121,13 @@ namespace {
 				{
 					{ "kind", "Compute" },
 					{ "pipelineType", "Compute" },
-					{ "shader", "Engine/Assets/Shaders/Builtin/PostProcess/" + source.folder + "/" + source.baseName + ".shader.json" }
+					{ "shader", Engine::ToAssetReferenceJson(shaderID) }
 				}
 			}) }
 			}, source);
 	}
 
-	nlohmann::json MakeMaterialJson(const BuiltinPostProcessSource& source) {
+	nlohmann::json MakeMaterialJson(const BuiltinPostProcessSource& source, Engine::AssetID pipelineID) {
 
 		return AddGeneratedMetadata(nlohmann::json{
 			{ "name", source.baseName + "Material" },
@@ -135,7 +135,7 @@ namespace {
 			{ "passes", nlohmann::json::array({
 				{
 					{ "passName", "PostProcess" },
-					{ "pipeline", "Engine/Assets/Pipelines/Builtin/PostProcess/" + source.folder + "/" + source.baseName + ".pipeline.json" },
+					{ "pipeline", Engine::ToAssetReferenceJson(pipelineID) },
 					{ "preferredVariant", "Compute" }
 				}
 			}) },
@@ -271,12 +271,18 @@ void Engine::PostProcessAssetGenerator::EnsureBuiltinAssets(AssetDatabase* datab
 	const auto sources = GatherPostProcessSources(assetRoot);
 	for (const BuiltinPostProcessSource& source : sources) {
 
-		WriteGeneratedJson(source.shaderJsonPath, MakeShaderJson(source));
-		WriteGeneratedJson(source.pipelineJsonPath, MakePipelineJson(source));
-		WriteGeneratedJson(source.materialJsonPath, MakeMaterialJson(source));
-
+		const std::string shaderAssetPath =
+			"Engine/Assets/Shaders/Builtin/PostProcess/" + source.folder + "/" + source.baseName + ".shader.json";
+		const std::string pipelineAssetPath =
+			"Engine/Assets/Pipelines/Builtin/PostProcess/" + source.folder + "/" + source.baseName + ".pipeline.json";
 		const std::string materialAssetPath =
 			"Engine/Assets/Materials/Builtin/PostProcess/" + source.folder + "/" + source.baseName + ".material.json";
+
+		WriteGeneratedJson(source.shaderJsonPath, MakeShaderJson(source));
+		const AssetID shaderID = database->ImportOrGet(shaderAssetPath, AssetType::Shader);
+		WriteGeneratedJson(source.pipelineJsonPath, MakePipelineJson(source, shaderID));
+		const AssetID pipelineID = database->ImportOrGet(pipelineAssetPath, AssetType::RenderPipeline);
+		WriteGeneratedJson(source.materialJsonPath, MakeMaterialJson(source, pipelineID));
 		const AssetID materialID = database->ImportOrGet(materialAssetPath, AssetType::Material);
 		if (!materialID) {
 			continue;
@@ -359,7 +365,7 @@ namespace {
 		};
 	}
 
-	nlohmann::json MakeUserPipelineJson(const std::string& shaderAssetPath, const std::string& baseName) {
+	nlohmann::json MakeUserPipelineJson(Engine::AssetID shaderID, const std::string& baseName) {
 
 		return nlohmann::json{
 			{ "generated", true },
@@ -369,13 +375,13 @@ namespace {
 				{
 					{ "kind", "Compute" },
 					{ "pipelineType", "Compute" },
-					{ "shader", shaderAssetPath }
+					{ "shader", Engine::ToAssetReferenceJson(shaderID) }
 				}
 			}) }
 		};
 	}
 
-	nlohmann::json MakeUserMaterialJson(const std::string& pipelineAssetPath, const std::string& baseName) {
+	nlohmann::json MakeUserMaterialJson(Engine::AssetID pipelineID, const std::string& baseName) {
 
 		return nlohmann::json{
 			{ "generated", true },
@@ -385,7 +391,7 @@ namespace {
 			{ "passes", nlohmann::json::array({
 				{
 					{ "passName", "PostProcess" },
-					{ "pipeline", pipelineAssetPath },
+					{ "pipeline", Engine::ToAssetReferenceJson(pipelineID) },
 					{ "preferredVariant", "Compute" }
 				}
 			}) },
@@ -439,11 +445,10 @@ Engine::AssetID Engine::PostProcessAssetGenerator::EnsureUserAsset(AssetDatabase
 	const std::filesystem::path materialFullPath = RuntimePaths::ResolveAssetPath(materialAssetPath);
 
 	WriteGeneratedJson(shaderFullPath, MakeUserShaderJson(normalized, baseName));
-	WriteGeneratedJson(pipelineFullPath, MakeUserPipelineJson(shaderAssetPath, baseName));
-	WriteGeneratedJson(materialFullPath, MakeUserMaterialJson(pipelineAssetPath, baseName));
-
-	database->ImportOrGet(shaderAssetPath, AssetType::Shader);
-	database->ImportOrGet(pipelineAssetPath, AssetType::RenderPipeline);
+	const AssetID shaderID = database->ImportOrGet(shaderAssetPath, AssetType::Shader);
+	WriteGeneratedJson(pipelineFullPath, MakeUserPipelineJson(shaderID, baseName));
+	const AssetID pipelineID = database->ImportOrGet(pipelineAssetPath, AssetType::RenderPipeline);
+	WriteGeneratedJson(materialFullPath, MakeUserMaterialJson(pipelineID, baseName));
 	const AssetID materialId = database->ImportOrGet(materialAssetPath, AssetType::Material);
 
 	Logger::Output(LogType::Engine,
@@ -490,10 +495,11 @@ Engine::AssetID Engine::PostProcessAssetGenerator::FindOrCreateMaterialForShader
 	const std::filesystem::path pipelineFullPath = RuntimePaths::ResolveAssetPath(pipelineAssetPath);
 	const std::filesystem::path materialFullPath = RuntimePaths::ResolveAssetPath(materialAssetPath);
 
-	WriteGeneratedJson(pipelineFullPath, MakeUserPipelineJson(normalized, baseName));
-	WriteGeneratedJson(materialFullPath, MakeUserMaterialJson(pipelineAssetPath, baseName));
-
-	database->ImportOrGet(pipelineAssetPath, AssetType::RenderPipeline);
+	const AssetMeta* shaderMeta = database->FindByPath(normalized);
+	const AssetID shaderID = shaderMeta ? shaderMeta->guid : database->ImportOrGet(normalized, AssetType::Shader);
+	WriteGeneratedJson(pipelineFullPath, MakeUserPipelineJson(shaderID, baseName));
+	const AssetID pipelineID = database->ImportOrGet(pipelineAssetPath, AssetType::RenderPipeline);
+	WriteGeneratedJson(materialFullPath, MakeUserMaterialJson(pipelineID, baseName));
 	const AssetID materialId = database->ImportOrGet(materialAssetPath, AssetType::Material);
 
 	Logger::Output(LogType::Engine,

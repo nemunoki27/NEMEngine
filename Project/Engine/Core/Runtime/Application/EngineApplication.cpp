@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshSelectionOutline.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
@@ -71,8 +73,10 @@ void Engine::EngineApplication::InitSystems() {
 
 void Engine::EngineApplication::InitFirstScene() {
 
-	// アクティブなシーンのアセットIDを取得
-	activeScene_ = assetDataBase_.ImportOrGet(activeScenePath_, AssetType::Scene);
+	// アクティブなシーンの表示・保存用パスはGUIDから引き直す
+	if (const AssetMeta* meta = assetDataBase_.Find(activeScene_)) {
+		activeScenePath_ = meta->assetPath;
+	}
 	// シーンをロードしてエディタワールドにインスタンスを作成
 	editScenes_.LoadSceneTree(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_);
 }
@@ -90,25 +94,28 @@ void Engine::EngineApplication::LoadActiveSceneConfig() {
 		return;
 	}
 
-	const std::string scenePath = data.value("activeScenePath", "");
-	if (scenePath.empty()) {
+	AssetID sceneAsset = ParseAssetReference(data, "activeScene", &assetDataBase_, AssetType::Scene);
+	if (!sceneAsset) {
 		return;
 	}
 
-	const std::filesystem::path fullPath = RuntimePaths::ResolveAssetPath(scenePath);
+	const std::filesystem::path fullPath = assetDataBase_.ResolveFullPath(sceneAsset);
 	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"EngineApplication: active scene config points missing scene. path={}", scenePath);
+			"EngineApplication: active scene config points missing scene. guid={}", ToString(sceneAsset));
 		return;
 	}
-	activeScenePath_ = std::filesystem::path(scenePath).generic_string();
+	activeScene_ = sceneAsset;
+	if (const AssetMeta* meta = assetDataBase_.Find(sceneAsset)) {
+		activeScenePath_ = meta->assetPath;
+	}
 }
 
 void Engine::EngineApplication::SaveActiveSceneConfig() const {
 
 	// .exeConfig系と同じくEngine/Assets/Config配下へ小さなJSONで保存する
 	nlohmann::json data = nlohmann::json::object();
-	data["activeScenePath"] = activeScenePath_;
+	data["activeScene"] = ToAssetReferenceJson(activeScene_);
 
 	const std::filesystem::path configPath = RuntimePaths::GetEngineAssetPath(kActiveSceneConfigPath);
 	JsonAdapter::Save(configPath.string(), data);
@@ -252,6 +259,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// フレームごとのデバッグラインをリセットする
 	LineRenderer::GetInstance()->BeginFrame();
+	// 選択プレビューアウトラインの要求もフレーム単位でリセットする
+	MeshSelectionOutline::GetInstance().BeginFrame();
 #endif
 
 	// システムコンテキストの更新
@@ -282,9 +291,9 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	// シーンごとのCollision設定を、Editor/Play共通の現在設定へ反映する
 	systemContext_.activeSceneHeader = header;
 	if (header) {
-		CollisionSettings::GetInstance().SetActiveSettingsAssetPath(header->collisionSettingsPath);
+		CollisionSettings::GetInstance().SetActiveSettingsAsset(header->collisionSettings, systemContext_.assetDatabase);
 	} else {
-		CollisionSettings::GetInstance().SetActiveSettingsAssetPath("");
+		CollisionSettings::GetInstance().SetActiveSettingsAsset({}, systemContext_.assetDatabase);
 	}
 
 	if constexpr (BuildConfig::kEditorEnabled) {
@@ -329,7 +338,10 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	}
 
 	// ECSシステムの更新
-	scheduler_.Tick(GetActiveWorld(), systemContext_);
+	{
+		FrameProfiler::ScopedSample ecsSample(FrameProfiler::Category::Ecs);
+		scheduler_.Tick(GetActiveWorld(), systemContext_);
+	}
 }
 
 bool Engine::EngineApplication::ConsumeFrameDeltaResetRequest() {

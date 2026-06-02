@@ -32,10 +32,6 @@ namespace {
 
 	constexpr const char* kActiveEyeTextureKey = "editor:hierarchy:entityActiveEye";
 	constexpr const char* kInactiveEyeTextureKey = "editor:hierarchy:entityActiveOffEye";
-	constexpr const char* kActiveEyeTexturePath =
-		"Engine/Assets/Textures/Engine/Editor/Hierarchy/entityActiveEye.dds";
-	constexpr const char* kInactiveEyeTexturePath =
-		"Engine/Assets/Textures/Engine/Editor/Hierarchy/entityActiveOffEye.dds";
 
 	int32_t GetHierarchySiblingOrder(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
@@ -63,6 +59,10 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 	}
 
 	RequestActiveIconTextures();
+
+	searchFilter_.DrawInput("##HierarchySearch");
+
+	ImGui::Separator();
 
 	//============================================================================
 	//	ワールドのルートエンティティを列挙して表示
@@ -92,18 +92,28 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		return GetHierarchySiblingOrder(*world, lhs) < GetHierarchySiblingOrder(*world, rhs);
 		});
 
+	bool hasVisibleEntity = false;
+	Entity lastVisibleRoot = Entity::Null();
 	for (const Entity& entity : rootEntities) {
+
+		if (!ShouldDrawEntityNode(*world, entity)) {
+			continue;
+		}
 
 		DrawSiblingDropTarget(context, *world, entity, false);
 		// ルートエンティティを表示
-		DrawEntityNode(context, *world, entity);
+		DrawEntityNode(context, *world, entity, false);
+		hasVisibleEntity = true;
+		lastVisibleRoot = entity;
 	}
-	if (!rootEntities.empty()) {
+	if (world->IsAlive(lastVisibleRoot)) {
 
-		DrawSiblingDropTarget(context, *world, rootEntities.back(), true);
+		DrawSiblingDropTarget(context, *world, lastVisibleRoot, true);
 	}
 	if (rootEntities.empty()) {
 		ImGui::TextDisabled("Hierarchy is empty.");
+	} else if (!hasVisibleEntity) {
+		ImGui::TextDisabled("No matching entities.");
 	}
 
 	// 親子関係のないエンティティをドロップしてルートエンティティにするためのドロップ目標
@@ -118,8 +128,10 @@ void Engine::HierarchyPanel::RequestActiveIconTextures() {
 		return;
 	}
 
-	textureUploadService_->RequestTextureFile(kActiveEyeTextureKey, kActiveEyeTexturePath);
-	textureUploadService_->RequestTextureFile(kInactiveEyeTextureKey, kInactiveEyeTexturePath);
+	textureUploadService_->RequestTextureFile(kActiveEyeTextureKey,
+		EditorTextureHelper::MakeEditorTexturePath("Hierarchy", "entityActiveEye.dds"));
+	textureUploadService_->RequestTextureFile(kInactiveEyeTextureKey,
+		EditorTextureHelper::MakeEditorTexturePath("Hierarchy", "entityActiveOffEye.dds"));
 	activeIconRequested_ = true;
 }
 
@@ -173,7 +185,11 @@ void Engine::HierarchyPanel::DrawActiveToggleIcon(const EditorPanelContext& cont
 
 void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	ECSWorld& world,
-	const Entity& entity) {
+	const Entity& entity,
+	bool forceVisible) {
+
+	const bool selfMatchesSearch = EntityMatchesSearch(world, entity);
+	const bool drawDescendants = forceVisible || selfMatchesSearch;
 
 	// アクティブ状態を取得
 	bool activeSelf = true;
@@ -216,6 +232,9 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	}
 	if (!hasAnyTreeChildren) {
 		flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+	}
+	if (searchFilter_.IsActive() && hasAnyTreeChildren) {
+		ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 	}
 
 	// 表示名を取得
@@ -366,20 +385,23 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	if (hasAnyTreeChildren && opened) {
 
 		Entity child = firstChild;
-		Entity lastChild = Entity::Null();
+		Entity lastVisibleChild = Entity::Null();
 		while (child.IsValid() && world.IsAlive(child)) {
 
-			DrawSiblingDropTarget(context, world, child, false);
-			DrawEntityNode(context, world, child);
-			lastChild = child;
+			if (drawDescendants || ShouldDrawEntityNode(world, child)) {
+
+				DrawSiblingDropTarget(context, world, child, false);
+				DrawEntityNode(context, world, child, drawDescendants);
+				lastVisibleChild = child;
+			}
 			if (!world.HasComponent<HierarchyComponent>(child)) {
 				break;
 			}
 			child = world.GetComponent<HierarchyComponent>(child).nextSibling;
 		}
-		if (world.IsAlive(lastChild)) {
+		if (world.IsAlive(lastVisibleChild)) {
 
-			DrawSiblingDropTarget(context, world, lastChild, true);
+			DrawSiblingDropTarget(context, world, lastVisibleChild, true);
 		}
 
 		// サブメッシュノードの表示
@@ -639,4 +661,35 @@ std::string Engine::HierarchyPanel::GetEntityDisplayName(ECSWorld& world, const 
 		return world.GetComponent<NameComponent>(entity).name;
 	}
 	return "Entity";
+}
+
+bool Engine::HierarchyPanel::EntityMatchesSearch(ECSWorld& world, const Entity& entity) const {
+
+	if (!searchFilter_.IsActive()) {
+		return true;
+	}
+	return searchFilter_.Matches(GetEntityDisplayName(world, entity));
+}
+
+bool Engine::HierarchyPanel::ShouldDrawEntityNode(ECSWorld& world, const Entity& entity) const {
+
+	if (!searchFilter_.IsActive() || EntityMatchesSearch(world, entity)) {
+		return true;
+	}
+	if (!world.HasComponent<HierarchyComponent>(entity)) {
+		return false;
+	}
+
+	Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
+	while (child.IsValid() && world.IsAlive(child)) {
+
+		if (ShouldDrawEntityNode(world, child)) {
+			return true;
+		}
+		if (!world.HasComponent<HierarchyComponent>(child)) {
+			break;
+		}
+		child = world.GetComponent<HierarchyComponent>(child).nextSibling;
+	}
+	return false;
 }

@@ -12,6 +12,9 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 
+// c++
+#include <cstring>
+
 //============================================================================
 //	PostProcessStackPass classMethods
 //============================================================================
@@ -89,6 +92,21 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
+	// エディタの選択中パスを基準に、そのパス実行前後の結果をプレビューへ退避する。
+	// GameViewの結果のみを対象にすることで、ビューごとにサイズが異なっても
+	// プレビュー用一時RTが再生成され続けるのを防ぐ。
+	const UUID previewPassId = service.GetPreviewPassId();
+	const bool capturePreview = (context.kind == RenderViewKind::Game) && static_cast<bool>(previewPassId);
+	MultiRenderTarget* previewBefore = nullptr;
+	MultiRenderTarget* previewAfter = nullptr;
+	bool previewCaptured = false;
+	if (capturePreview) {
+		previewBefore = deps_.postProcessTargetPool->Acquire(graphicsCore,
+			*context.targetRegistry, "PostProcessPreviewBefore", *sceneFinal);
+		previewAfter = deps_.postProcessTargetPool->Acquire(graphicsCore,
+			*context.targetRegistry, "PostProcessPreviewAfter", *sceneFinal);
+	}
+
 	// 実行前にリフレクション情報をキャッシュしておく（実行成功に依存しないUIのため）
 	for (const auto* passPtr : activePasses) {
 
@@ -115,6 +133,23 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		}
 	}
 
+	// パスのsource/dest名から、対応する中間RTを引く(プレビュー退避用)
+	auto resolveTargetByName = [&](const char* name) -> MultiRenderTarget* {
+		if (!name) {
+			return nullptr;
+		}
+		if (std::strcmp(name, kSceneColorFinal) == 0) {
+			return sceneFinal;
+		}
+		if (std::strcmp(name, kPingName) == 0) {
+			return ping;
+		}
+		if (std::strcmp(name, kPongName) == 0) {
+			return pong;
+		}
+		return nullptr;
+	};
+
 	const size_t passCount = activePasses.size();
 	for (size_t i = 0; i < passCount; ++i) {
 
@@ -130,6 +165,13 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		} else {
 			sourceName = (i % 2 == 1) ? kPingName : kPongName;
 			destName = isLast ? kSceneColorFinal : ((i % 2 == 1) ? kPongName : kPingName);
+		}
+
+		// 選択中パスなら、実行前のsource内容をbeforeへ退避する
+		const bool isPreviewTarget = capturePreview && previewBefore && previewAfter &&
+			(pass.id == previewPassId);
+		if (isPreviewTarget) {
+			CopyColor0Resource(graphicsCore, resolveTargetByName(sourceName), previewBefore);
 		}
 
 		PostProcessExecutionDesc desc{};
@@ -156,9 +198,30 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 				layout->GetVariables(),
 				deps_.postProcessExecutor->GetLastExecutedSRVBindings());
 		}
+
+		// 選択中パスなら、実行後のdest内容をafterへ退避する
+		if (isPreviewTarget) {
+			CopyColor0Resource(graphicsCore, resolveTargetByName(destName), previewAfter);
+			previewCaptured = true;
+		}
 	}
 
 	if (passCount == 1) {
 		CopyColor0Resource(graphicsCore, ping, sceneFinal);
+	}
+
+	// 選択中パスの実行前後(before/after)のSRVをサービスへ渡す。
+	// 退避先はCopyColor0Resource内でシェーダー読み取り状態へ遷移済み。
+	if (previewCaptured) {
+
+		RenderTexture2D* beforeColor = previewBefore->GetColorTexture(0);
+		RenderTexture2D* afterColor = previewAfter->GetColorTexture(0);
+		PostProcessStackService::PreviewImage preview{};
+		preview.beforeSrvPtr = beforeColor ? beforeColor->GetSRVGPUHandle().ptr : 0;
+		preview.afterSrvPtr = afterColor ? afterColor->GetSRVGPUHandle().ptr : 0;
+		preview.width = previewAfter->GetWidth();
+		preview.height = previewAfter->GetHeight();
+		preview.valid = (preview.beforeSrvPtr != 0 && preview.afterSrvPtr != 0);
+		service.SetPreviewImage(preview);
 	}
 }

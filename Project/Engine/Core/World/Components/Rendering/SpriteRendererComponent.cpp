@@ -25,8 +25,8 @@ void Engine::from_json(const nlohmann::json& in, SpriteRendererComponent& compon
 
 void Engine::to_json(nlohmann::json& out, const SpriteRendererComponent& component) {
 
-	out["texture"] = ToString(component.texture);
-	out["material"] = ToString(component.material);
+	out["texture"] = ToAssetReferenceJson(component.texture);
+	out["material"] = ToAssetReferenceJson(component.material);
 	out["size"] = component.size.ToJson();
 	out["pivot"] = component.pivot.ToJson();
 	out["color"] = component.color.ToJson();

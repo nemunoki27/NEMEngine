@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Rendering/Renderer/Views/ViewportRenderService.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
@@ -30,6 +30,10 @@
 #include <Engine/Editor/UI/Panels/Builtin/SceneViewToolPanel.h>
 #include <Engine/Editor/UI/Panels/Builtin/ToolPanel.h>
 #include <Engine/Editor/Tools/Builtin/BuiltinEditorTools.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
+#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <algorithm>
 
 // imgui
 #include <ImGuizmo.h>
@@ -399,6 +403,131 @@ void Engine::EditorManager::DrawCloseUnsavedScenePopup() {
 	ImGui::EndPopup();
 }
 
+Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, const ResolvedRenderView& view, ECSWorld* world) {
+
+	if (!world) {
+		return Entity::Null();
+	}
+
+	const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Orthographic);
+	if (!camera) {
+		return Entity::Null();
+	}
+
+	// NDC座標への変換
+	// inputPixelはGetMousePosInView()により、描画元(view.width, view.height)の解像度にスケーリングされた座標
+	float ndcX = (inputPixel.x / static_cast<float>(view.width)) * 2.0f - 1.0f;
+	float ndcY = 1.0f - (inputPixel.y / static_cast<float>(view.height)) * 2.0f;
+
+	Vector3 ndcOrigin(ndcX, ndcY, 0.0f);
+	Vector3 ndcTarget(ndcX, ndcY, 1.0f);
+
+	struct HitRecord {
+		Entity entity;
+		int32_t layer;
+		int32_t order;
+	};
+	std::vector<HitRecord> hits;
+
+	world->ForEach<SpriteRendererComponent>([&](const Entity& entity, const SpriteRendererComponent& renderer) {
+		if (!RenderItemExtract::IsVisible(*world, entity, renderer.visible)) {
+			return;
+		}
+
+		Matrix4x4 worldMatrix = RenderItemExtract::GetWorldMatrix(*world, entity);
+		Matrix4x4 wvp = worldMatrix * camera->matrices.viewProjectionMatrix;
+		Matrix4x4 wvpInv = Matrix4x4::Inverse(wvp);
+
+		// NDCからローカル空間へのレイを計算
+		Vector3 localOrigin = Vector3::Transform(ndcOrigin, wvpInv);
+		Vector3 localTarget = Vector3::Transform(ndcTarget, wvpInv);
+		Vector3 localDir = Vector3::Normalize(localTarget - localOrigin);
+
+		// Z=0平面との交差判定 (rd.zが0に近い場合は平行なのでスキップ)
+		if (std::abs(localDir.z) < 1e-5f) {
+			return;
+		}
+
+		float t = -localOrigin.z / localDir.z;
+		// 後ろにあるものはピッキングしない
+		if (t < 0.0f) {
+			return;
+		}
+
+		Vector3 hitPoint = localOrigin + localDir * t;
+
+		// スプライトの矩形領域内か判定
+		float minX = -renderer.pivot.x * renderer.size.x;
+		float maxX = (1.0f - renderer.pivot.x) * renderer.size.x;
+		float minY = -renderer.pivot.y * renderer.size.y;
+		float maxY = (1.0f - renderer.pivot.y) * renderer.size.y;
+
+		if (hitPoint.x >= minX && hitPoint.x <= maxX &&
+			hitPoint.y >= minY && hitPoint.y <= maxY) {
+			hits.push_back({ entity, renderer.layer, renderer.order });
+		}
+	});
+
+	world->ForEach<TextRendererComponent>([&](const Entity& entity, const TextRendererComponent& renderer) {
+		if (!RenderItemExtract::IsVisible(*world, entity, renderer.visible)) {
+			return;
+		}
+		if (!renderer.runtimeLayout.valid || renderer.runtimeLayout.glyphs.empty()) {
+			return;
+		}
+
+		Matrix4x4 worldMatrix = RenderItemExtract::GetWorldMatrix(*world, entity);
+		Matrix4x4 wvp = worldMatrix * camera->matrices.viewProjectionMatrix;
+		Matrix4x4 wvpInv = Matrix4x4::Inverse(wvp);
+
+		// NDCからローカル空間へのレイを計算
+		Vector3 localOrigin = Vector3::Transform(ndcOrigin, wvpInv);
+		Vector3 localTarget = Vector3::Transform(ndcTarget, wvpInv);
+		Vector3 localDir = Vector3::Normalize(localTarget - localOrigin);
+
+		if (std::abs(localDir.z) < 1e-5f) {
+			return;
+		}
+
+		float t = -localOrigin.z / localDir.z;
+		if (t < 0.0f) {
+			return;
+		}
+
+		Vector3 hitPoint = localOrigin + localDir * t;
+
+		// テキストの全体の矩形を計算
+		float minX = (std::numeric_limits<float>::max)();
+		float maxX = -(std::numeric_limits<float>::max)();
+		float minY = (std::numeric_limits<float>::max)();
+		float maxY = -(std::numeric_limits<float>::max)();
+
+		for (const auto& glyph : renderer.runtimeLayout.glyphs) {
+			minX = (std::min)(minX, glyph.rectMin.x);
+			maxX = (std::max)(maxX, glyph.rectMax.x);
+			minY = (std::min)(minY, glyph.rectMin.y);
+			maxY = (std::max)(maxY, glyph.rectMax.y);
+		}
+
+		if (hitPoint.x >= minX && hitPoint.x <= maxX &&
+			hitPoint.y >= minY && hitPoint.y <= maxY) {
+			hits.push_back({ entity, renderer.layer, renderer.order });
+		}
+	});
+
+	if (hits.empty()) {
+		return Entity::Null();
+	}
+
+	// レイヤー、オーダーの降順でソート（手前にあるものを優先）
+	std::sort(hits.begin(), hits.end(), [](const HitRecord& a, const HitRecord& b) {
+		if (a.layer != b.layer) return a.layer > b.layer;
+		return a.order > b.order;
+	});
+
+	return hits.front().entity;
+}
+
 void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 	[[maybe_unused]] const EditorContext& context, const RenderPipelineRunner& renderPipeline) {
 
@@ -426,6 +555,15 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			const std::optional<Vector2> mousePosInView = input->GetMousePosInView(inputArea);
 			if (!mousePosInView.has_value()) {
 				return false;
+			}
+
+			// 2Dエンティティのピック処理を優先実行
+			Entity hitEntity2D = Execute2DPick(mousePosInView.value(), renderPipeline.GetResolvedView(viewKind), context.activeWorld);
+			if (hitEntity2D.IsValid()) {
+				
+				// 2Dが優先されるため、GPUによる3Dピックは行わず、即座に選択を確定する
+				editorState_.SelectFromScenePick(hitEntity2D, 0);
+				return true;
 			}
 
 			// メッシュピック処理を実行
@@ -567,7 +705,14 @@ void Engine::EditorManager::DrawSceneDebugObjects(const EditorContext& context) 
 		return;
 	}
 
-	InspectorDrawerCommon::DrawEntityDebugObject(*context.activeWorld, editorState_.selectedEntity);
+	// サブメッシュ単位選択中はそのサブメッシュ番号を、エンティティ選択中は-1を渡す
+	int32_t selectionSubMeshIndex = -1;
+	uint32_t resolvedSubMeshIndex = 0;
+	if (editorState_.HasValidSubMeshSelection(context.activeWorld) &&
+		editorState_.TryResolveSelectedSubMeshIndex(context.activeWorld, resolvedSubMeshIndex)) {
+		selectionSubMeshIndex = static_cast<int32_t>(resolvedSubMeshIndex);
+	}
+	InspectorDrawerCommon::DrawEntityDebugObject(*context.activeWorld, editorState_.selectedEntity, selectionSubMeshIndex);
 #else
 	(void)context;
 #endif

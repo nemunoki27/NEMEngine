@@ -4,11 +4,12 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/GraphicsRootBinder.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12ConstantBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/VertexBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/VertexBuffer.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 
@@ -29,8 +30,16 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		LineRendererBase() = default;
-		virtual ~LineRendererBase() = default;
+		LineRendererBase() {
+			lineCBVSlot_ = lineBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
+		}
+		virtual ~LineRendererBase() {
+			// 描画中に確保したGPUバッファを持つRenderResourceを明示resetする。
+			for (auto& resource : renderResources_) {
+				resource.reset();
+			}
+			renderResources_.clear();
+		}
 
 		// 初期化
 		void Init(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain);
@@ -99,6 +108,10 @@ namespace Engine {
 		// パイプライン
 		PipelineState pipeline_{};
 
+		// ラインパス定数バッファ（b0）のスロットキャッシュ
+		PipelineBindingCache lineBindCache_{};
+		PipelineBindingCache::SlotID lineCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+
 		// 同じコマンドリスト内で複数回描画しても、後の描画内容で上書きしないためのバッファ
 		std::vector<std::unique_ptr<RenderResource>> renderResources_{};
 		uint32_t renderResourceIndex_ = 0;
@@ -155,7 +168,7 @@ namespace Engine {
 		// 深度ステンシル設定
 		desc.depthStencil = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		desc.depthStencil.DepthEnable = TRUE;
-		desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 		desc.depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 		desc.depthStencil.StencilEnable = FALSE;
 
@@ -249,12 +262,12 @@ namespace Engine {
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 		commandList->IASetVertexBuffers(0, 1, &renderResource.vertexBuffer.GetVertexBufferView());
 
-		// ルートパラメータのバインド
-		GraphicsRootBinder binder{ pipeline_ };
-		const GraphicsBindItem bindItems[] = {
-			{ {}, GraphicsBindValueType::CBV, renderResource.passBuffer.GetResource()->GetGPUVirtualAddress(), {}, 0, 0 },
-		};
-		binder.Bind(commandList, bindItems);
+		// ルートパラメータのバインド（パイプラインが変わった時だけスロットを再解決する）
+		lineBindCache_.Sync(pipeline_);
+		if (lineBindCache_.Has(lineCBVSlot_)) {
+			RootBindingCommand::SetGraphicsCBV(commandList, lineBindCache_.Get(lineCBVSlot_),
+				renderResource.passBuffer.GetResource()->GetGPUVirtualAddress());
+		}
 
 		// 描画
 		commandList->DrawInstanced(static_cast<UINT>(vertices_.size()), 1, 0, 0);

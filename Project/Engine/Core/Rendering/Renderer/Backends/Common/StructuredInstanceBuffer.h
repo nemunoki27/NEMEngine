@@ -3,8 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12StructuredBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12ShaderResourceView.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxStructuredBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++

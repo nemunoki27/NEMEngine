@@ -32,6 +32,25 @@ namespace {
 		desc.AntialiasedLineEnable = data.value("antialiasedLineEnable", desc.AntialiasedLineEnable != 0) ? TRUE : FALSE;
 		return desc;
 	}
+	// JSONからD3D12_DEPTH_STENCILOP_DESCをパースする関数
+	D3D12_DEPTH_STENCILOP_DESC ParseStencilOpDesc(const nlohmann::json& data,
+		const D3D12_DEPTH_STENCILOP_DESC& fallback) {
+
+		D3D12_DEPTH_STENCILOP_DESC desc = fallback;
+		if (!data.is_object()) {
+			return desc;
+		}
+
+		desc.StencilFailOp = EnumAdapter<D3D12_STENCIL_OP>::FromString(data.value("stencilFailOp",
+			std::string(EnumAdapter<D3D12_STENCIL_OP>::ToString(desc.StencilFailOp)))).value_or(desc.StencilFailOp);
+		desc.StencilDepthFailOp = EnumAdapter<D3D12_STENCIL_OP>::FromString(data.value("stencilDepthFailOp",
+			std::string(EnumAdapter<D3D12_STENCIL_OP>::ToString(desc.StencilDepthFailOp)))).value_or(desc.StencilDepthFailOp);
+		desc.StencilPassOp = EnumAdapter<D3D12_STENCIL_OP>::FromString(data.value("stencilPassOp",
+			std::string(EnumAdapter<D3D12_STENCIL_OP>::ToString(desc.StencilPassOp)))).value_or(desc.StencilPassOp);
+		desc.StencilFunc = EnumAdapter<D3D12_COMPARISON_FUNC>::FromString(data.value("stencilFunc",
+			std::string(EnumAdapter<D3D12_COMPARISON_FUNC>::ToString(desc.StencilFunc)))).value_or(desc.StencilFunc);
+		return desc;
+	}
 	// JSONからD3D12_DEPTH_STENCIL_DESCをパースする関数
 	D3D12_DEPTH_STENCIL_DESC ParseDepthStencil(const nlohmann::json& data) {
 
@@ -47,6 +66,11 @@ namespace {
 		desc.DepthFunc = EnumAdapter<D3D12_COMPARISON_FUNC>::FromString(data.value("depthFunc",
 			std::string(EnumAdapter<D3D12_COMPARISON_FUNC>::ToString(desc.DepthFunc)))).value_or(desc.DepthFunc);
 		desc.StencilEnable = data.value("stencilEnable", desc.StencilEnable != 0) ? TRUE : FALSE;
+		// ステンシルのマスクと前面/背面オペレーションを読み込む
+		desc.StencilReadMask = static_cast<UINT8>(data.value("stencilReadMask", static_cast<uint32_t>(desc.StencilReadMask)));
+		desc.StencilWriteMask = static_cast<UINT8>(data.value("stencilWriteMask", static_cast<uint32_t>(desc.StencilWriteMask)));
+		desc.FrontFace = ParseStencilOpDesc(data.value("frontFace", nlohmann::json::object()), desc.FrontFace);
+		desc.BackFace = ParseStencilOpDesc(data.value("backFace", nlohmann::json::object()), desc.BackFace);
 		return desc;
 	}
 	// JSONからD3D12_STATIC_SAMPLER_DESCをパースする関数
@@ -90,6 +114,60 @@ namespace {
 		sampler.MinLOD = data.value("minLOD", sampler.MinLOD);
 		sampler.MaxLOD = data.value("maxLOD", sampler.MaxLOD);
 		return sampler;
+	}
+	// D3D12_RASTERIZER_DESCをJSONへ書き戻す関数
+	nlohmann::json WriteRasterizer(const D3D12_RASTERIZER_DESC& desc) {
+
+		nlohmann::json out = nlohmann::json::object();
+		out["fillMode"] = EnumAdapter<D3D12_FILL_MODE>::ToString(desc.FillMode);
+		out["cullMode"] = EnumAdapter<D3D12_CULL_MODE>::ToString(desc.CullMode);
+		out["frontCounterClockwise"] = desc.FrontCounterClockwise != 0;
+		out["depthClipEnable"] = desc.DepthClipEnable != 0;
+		out["multisampleEnable"] = desc.MultisampleEnable != 0;
+		out["antialiasedLineEnable"] = desc.AntialiasedLineEnable != 0;
+		return out;
+	}
+	// D3D12_DEPTH_STENCILOP_DESCをJSONへ書き戻す関数
+	nlohmann::json WriteStencilOpDesc(const D3D12_DEPTH_STENCILOP_DESC& desc) {
+
+		nlohmann::json out = nlohmann::json::object();
+		out["stencilFailOp"] = EnumAdapter<D3D12_STENCIL_OP>::ToString(desc.StencilFailOp);
+		out["stencilDepthFailOp"] = EnumAdapter<D3D12_STENCIL_OP>::ToString(desc.StencilDepthFailOp);
+		out["stencilPassOp"] = EnumAdapter<D3D12_STENCIL_OP>::ToString(desc.StencilPassOp);
+		out["stencilFunc"] = EnumAdapter<D3D12_COMPARISON_FUNC>::ToString(desc.StencilFunc);
+		return out;
+	}
+	// D3D12_DEPTH_STENCIL_DESCをJSONへ書き戻す関数
+	nlohmann::json WriteDepthStencil(const D3D12_DEPTH_STENCIL_DESC& desc) {
+
+		nlohmann::json out = nlohmann::json::object();
+		out["depthEnable"] = desc.DepthEnable != 0;
+		out["depthWriteMask"] = EnumAdapter<D3D12_DEPTH_WRITE_MASK>::ToString(desc.DepthWriteMask);
+		out["depthFunc"] = EnumAdapter<D3D12_COMPARISON_FUNC>::ToString(desc.DepthFunc);
+		out["stencilEnable"] = desc.StencilEnable != 0;
+		out["stencilReadMask"] = static_cast<uint32_t>(desc.StencilReadMask);
+		out["stencilWriteMask"] = static_cast<uint32_t>(desc.StencilWriteMask);
+		out["frontFace"] = WriteStencilOpDesc(desc.FrontFace);
+		out["backFace"] = WriteStencilOpDesc(desc.BackFace);
+		return out;
+	}
+	// D3D12_STATIC_SAMPLER_DESCをJSONへ書き戻す関数
+	nlohmann::json WriteStaticSampler(const D3D12_STATIC_SAMPLER_DESC& sampler) {
+
+		nlohmann::json out = nlohmann::json::object();
+		out["filter"] = EnumAdapter<D3D12_FILTER>::ToString(sampler.Filter);
+		out["addressU"] = EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::ToString(sampler.AddressU);
+		out["addressV"] = EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::ToString(sampler.AddressV);
+		out["addressW"] = EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::ToString(sampler.AddressW);
+		out["comparisonFunc"] = EnumAdapter<D3D12_COMPARISON_FUNC>::ToString(sampler.ComparisonFunc);
+		out["shaderVisibility"] = EnumAdapter<D3D12_SHADER_VISIBILITY>::ToString(sampler.ShaderVisibility);
+		out["shaderRegister"] = sampler.ShaderRegister;
+		out["registerSpace"] = sampler.RegisterSpace;
+		out["maxAnisotropy"] = sampler.MaxAnisotropy;
+		out["mipLODBias"] = sampler.MipLODBias;
+		out["minLOD"] = sampler.MinLOD;
+		out["maxLOD"] = sampler.MaxLOD;
+		return out;
 	}
 	// パイプラインバリアントがランタイムの機能と互換性があるかどうかをチェックする関数
 	bool IsCompatible(const PipelineVariantDesc& variant, const GraphicsRuntimeFeatures& runtimeFeatures) {
@@ -213,11 +291,18 @@ nlohmann::json Engine::ToJson(const RenderPipelineAsset& asset) {
 
 		item["kind"] = EnumAdapter<PipelineVariantKind>::ToString(variant.kind);
 		item["pipelineType"] = EnumAdapter<PipelineType>::ToString(variant.pipelineType);
-		item["shader"] = ToString(variant.shader);
+		item["shader"] = ToAssetReferenceJson(variant.shader);
 		item["topologyType"] = EnumAdapter<D3D12_PRIMITIVE_TOPOLOGY_TYPE>::ToString(variant.topologyType);
 		item["numRenderTargets"] = variant.numRenderTargets;
 		item["dsvFormat"] = EnumAdapter<DXGI_FORMAT>::ToString(variant.dsvFormat);
 		item["dynamicRenderTargetFormats"] = variant.dynamicRenderTargetFormats;
+		// ラスタライザ/深度ステンシル/静的サンプラを対称に書き戻し、ステンシル設定を落とさない
+		item["rasterizer"] = WriteRasterizer(variant.rasterizer);
+		item["depthStencil"] = WriteDepthStencil(variant.depthStencil);
+		item["staticSamplers"] = nlohmann::json::array();
+		for (const auto& sampler : variant.staticSamplers) {
+			item["staticSamplers"].push_back(WriteStaticSampler(sampler));
+		}
 		item["requiresMeshShader"] = variant.requiresMeshShader;
 		item["requiresInlineRayTracing"] = variant.requiresInlineRayTracing;
 		item["requiresDispatchRays"] = variant.requiresDispatchRays;

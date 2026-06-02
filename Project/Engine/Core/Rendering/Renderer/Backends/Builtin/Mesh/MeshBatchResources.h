@@ -10,8 +10,8 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshSkinningSharedTypes.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12RWStructuredBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/ComPtr.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 
 // c++
@@ -76,7 +76,12 @@ namespace Engine {
 		uint32_t flags = 0;
 		// スキニングする場合の、スキン頂点配列のオフセット
 		uint32_t skinnedVertexOffset = 0;
+
+		// このインスタンスが参照するアウトラインGPUデータのインデックス
+		uint32_t outlineDataIndex = 0;
+		uint32_t _outlinePad[3] = { 0, 0, 0 };
 	};
+	static_assert(sizeof(MeshInstanceData) % 16 == 0);
 	// MeshInstanceDataのflagsで、スキニングするか
 	static constexpr uint32_t kMeshInstanceFlagSkinned = 1u;
 
@@ -118,15 +123,19 @@ namespace Engine {
 		//========================================================================
 
 		MeshBatchResources() = default;
-		~MeshBatchResources() = default;
+		~MeshBatchResources();
 
 		// 初期化
 		void Init(GraphicsCore& graphicsCore);
+		// 終了処理
+		void Finalize();
 
 		// 描画に使用するビューを更新する
 		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView);
 		void UploadBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
 			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
+		// 描画パスごとに変わるMeshDrawConstantsを毎描画更新する。キャッシュヒット時も必ず呼ぶ
+		void UpdateDrawConstants(const RenderDrawContext& drawContext, const MeshGPUResource& gpuMesh);
 		// ExecuteIndirectで使用する頂点描画引数の定数を更新する
 		void UpdateIndexedIndirectArgsConstants(uint32_t indexCount);
 
@@ -160,6 +169,12 @@ namespace Engine {
 		D3D12_GPU_VIRTUAL_ADDRESS GetDrawGPUAddress() const { return draw_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetIndirectArgsConstantsGPUAddress() const { return indirectArgs_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshGPUAddress() const { return subMeshData_.GetGPUAddress(); }
+		// 背面法アウトラインのインスタンス別GPUデータ
+		D3D12_GPU_VIRTUAL_ADDRESS GetOutlineGPUAddress() const { return outlineData_.GetGPUAddress(); }
+		std::string_view GetOutlineBindingName() const { return outlineData_.GetBindingName(); }
+		// 選択プレビュー用アウトラインのパラメータ
+		D3D12_GPU_VIRTUAL_ADDRESS GetSelectionOutlineGPUAddress() const { return selectionOutline_.GetGPUAddress(); }
+		std::string_view GetSelectionOutlineBindingName() const { return "MeshSelectionOutlineParams"; }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinningPaletteGPUAddress() const { return skinning_->skinningPalette.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinningConstantsGPUAddress() const { return skinning_->skinningConstants.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedVerticesGPUAddress() const { return skinning_->skinnedVertices.GetGPUAddress(); }
@@ -239,8 +254,12 @@ namespace Engine {
 		// ExecuteIndirect/AmplificationShaderのカリング結果を書き戻す可視インスタンスバッファ
 		StructuredRWBuffer<MeshInstanceData> visibleMeshData_{ "gVisibleMeshInstances" };
 		ViewConstantBuffer<MeshDrawConstants> draw_{ "MeshDrawConstants" };
+		// 選択プレビュー用アウトラインのパラメータ(描画単位)
+		ViewConstantBuffer<MeshSelectionOutlineParams> selectionOutline_{ "MeshSelectionOutlineParams" };
 		ViewConstantBuffer<MeshIndirectArgsConstants> indirectArgs_{ "IndirectArgsConstants" };
 		StructuredInstanceBuffer<MeshSubMeshShaderData> subMeshData_{ "gSubMeshes" };
+		// 背面法アウトラインのインスタンス別GPUデータ
+		StructuredInstanceBuffer<MeshOutlineGPUData> outlineData_{ "gMeshOutlines" };
 		ComPtr<ID3D12Resource> indexedIndirectArgs_{};
 		// ExecuteIndirect引数バッファの現在状態
 		D3D12_RESOURCE_STATES indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;
@@ -253,6 +272,16 @@ namespace Engine {
 		// 毎バッチ再利用するデータ
 		std::vector<MeshInstanceData> meshScratch_{};
 		std::vector<MeshSubMeshShaderData> subMeshScratch_{};
+		std::vector<MeshOutlineGPUData> outlineScratch_{};
+
+		// upload済みアウトラインデータから計算した保守的メトリクス
+		struct OutlineBatchMetrics {
+
+			float maxModelExpansion = 0.0f;
+			float maxAbsCameraZOffset = 0.0f;
+			bool hasScreenPixelWidth = false;
+		};
+		OutlineBatchMetrics outlineMetrics_{};
 
 		// スキニング用の毎バッチ再利用するデータ
 		std::vector<WellForGPU> paletteScratch_{};

@@ -7,8 +7,8 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/FrameLightBatch.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/RenderBufferRegistry.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12RWStructuredBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
 
 namespace Engine {
 

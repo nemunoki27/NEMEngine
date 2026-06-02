@@ -10,11 +10,13 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Scripting/DragDrop/ScriptAssetDragDrop.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Views/SceneViewCameraController.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
+#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
@@ -28,6 +30,7 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/BillboardComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraControllerComponent.h>
@@ -53,6 +56,8 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SpriteRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/TextRendererInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/InvertedHullOutlineInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/DirectionalLightInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/PointLightInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/SpotLightInspectorDrawer.h>
@@ -81,27 +86,57 @@
 namespace {
 
 	// インスペクターパネルのコンポーネント追加メニューのエントリー
-	struct InspectorComponentMenuEntry {
+	// テクスチャの用途をファイル名から推定する(用途メタデータが無いためヒューリスティック)
+	const char* GuessTextureUsageLabel(const std::string& assetPath) {
+
+		std::string lower = assetPath;
+		for (char& ch : lower) {
+			if (ch >= 'A' && ch <= 'Z') {
+				ch = static_cast<char>(ch + ('a' - 'A'));
+			}
+		}
+		auto has = [&](const char* token) { return lower.find(token) != std::string::npos; };
+
+		// 法線マップ(Sponzaの _ddn など派生法線命名も拾う)
+		if (has("normal") || has("ddn") || has("_nrm") || has("_norm")) { return "法線マップ"; }
+		// ベースカラー(_diff, diffuse, albedo, basecolor 等)
+		if (has("basecolor") || has("base_color") || has("albedo") || has("diff") || has("_col") || has("_alb") || has("_bc")) { return "ベースカラー"; }
+		// メタリック/ラフネス
+		if (has("metal") || has("rough") || has("_mr") || has("_orm") || has("_arm")) { return "メタリック/ラフネス"; }
+		// スペキュラ
+		if (has("specular") || has("_spec") || has("_spc")) { return "スペキュラ"; }
+		// 発光
+		if (has("emiss") || has("emit")) { return "発光"; }
+		// 遮蔽(AO)
+		if (has("occlusion") || has("ambientocclusion") || has("_ao") || has("_occ")) { return "遮蔽(AO)"; }
+		// ハイト/ディスプレース
+		if (has("height") || has("displace") || has("_disp") || has("_hgt")) { return "ハイト/ディスプレース"; }
+		return "不明";
+	}
+		struct InspectorComponentMenuEntry {
 		const char* menuLabel;
 		const char* typeName;
+		const char* category;
 	};
 	// 追加できるコンポーネントのメニューエントリー
-	constexpr std::array<InspectorComponentMenuEntry, 14> kOptionalComponentMenuEntries = { {
+	constexpr std::array<InspectorComponentMenuEntry, 16> kOptionalComponentMenuEntries = { {
 
-		{ "PerspectiveCamera",  "PerspectiveCamera" },
-		{ "OrthographicCamera", "OrthographicCamera" },
-		{ "Camera Controller",  "CameraController" },
-		{ "Script",             "Script" },
-		{ "Audio Source",       "AudioSource" },
-		{ "Collision",          "Collision" },
-		{ "Mesh Renderer",      "MeshRenderer" },
-		{ "Skinned Animation",  "SkinnedAnimation" },
-		{ "Sprite Renderer",    "SpriteRenderer" },
-		{ "Text Renderer",      "TextRenderer" },
-		{ "UVTransform",      "UVTransform" },
-		{ "DirectionalLight", "DirectionalLight" },
-		{ "PointLight",       "PointLight" },
-		{ "SpotLight",        "SpotLight" },
+		{ "PerspectiveCamera",  "PerspectiveCamera",  "Camera" },
+		{ "OrthographicCamera", "OrthographicCamera", "Camera" },
+		{ "Camera Controller",  "CameraController",   "Camera" },
+		{ "Script",             "Script",             "Scripting" },
+		{ "Audio Source",       "AudioSource",        "Audio" },
+		{ "Collision",          "Collision",          "Physics" },
+		{ "Mesh Renderer",      "MeshRenderer",       "Rendering" },
+		{ "Sprite Renderer",    "SpriteRenderer",     "Rendering" },
+		{ "Text Renderer",      "TextRenderer",       "Rendering" },
+		{ "UVTransform",        "UVTransform",        "Rendering" },
+		{ "Billboard",          "Billboard",          "Rendering" },
+		{ "Inverted Hull Outline", "InvertedHullOutline", "Rendering" },
+		{ "Skinned Animation",  "SkinnedAnimation",   "Animation" },
+		{ "DirectionalLight",   "DirectionalLight",   "Lighting" },
+		{ "PointLight",         "PointLight",         "Lighting" },
+		{ "SpotLight",          "SpotLight",          "Lighting" },
 	} };
 	constexpr uint32_t kModelPreviewAssimpFlags =
 		aiProcess_FlipWindingOrder |
@@ -366,27 +401,19 @@ namespace {
 	}
 
 	// よく使うMesh用MaterialのPass構成を設定する
-	void ApplyDefaultMeshMaterialTemplate(Engine::MaterialAsset& material, const Engine::AssetDatabase* assetDatabase) {
+	void ApplyDefaultMeshMaterialTemplate(Engine::MaterialAsset& material) {
 
 		material.domain = Engine::MaterialDomain::Surface;
 		material.passes.clear();
 
-		auto resolvePipeline = [&](const char* path) {
-			if (!assetDatabase) {
-				return Engine::AssetID{};
-			}
-			const Engine::AssetMeta* meta = assetDatabase->FindByPath(path);
-			return meta ? meta->guid : Engine::AssetID{};
-			};
-
 		material.passes.push_back({
 			.passName = "ZPrepass",
-			.pipeline = resolvePipeline("Engine/Assets/Pipelines/Builtin/Mesh/defaultMeshZPrepass.pipeline.json"),
+			.pipeline = Engine::BuiltinAssets::Pipelines::DefaultMeshZPrepass,
 			.preferredVariant = Engine::PipelineVariantKind::GraphicsMesh,
 			});
 		material.passes.push_back({
 			.passName = "Draw",
-			.pipeline = resolvePipeline("Engine/Assets/Pipelines/Builtin/Mesh/defaultMesh.pipeline.json"),
+			.pipeline = Engine::BuiltinAssets::Pipelines::DefaultMesh,
 			.preferredVariant = Engine::PipelineVariantKind::GraphicsMesh,
 			});
 
@@ -417,6 +444,8 @@ Engine::InspectorPanel::InspectorPanel() {
 	componentDrawers_.emplace_back(std::make_unique<SkinnedAnimationInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<TextRendererInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<UVTransformInspectorDrawer>());
+	componentDrawers_.emplace_back(std::make_unique<BillboardInspectorDrawer>());
+	componentDrawers_.emplace_back(std::make_unique<InvertedHullOutlineInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<DirectionalLightInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<PointLightInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<SpotLightInspectorDrawer>());
@@ -587,7 +616,62 @@ void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext
 		return;
 	}
 
+	if (meta->type == AssetType::Texture) {
+
+		DrawTextureAssetInspector(context, *meta);
+		return;
+	}
+
 	ImGui::TextDisabled("No inspector for this asset type.");
+}
+
+void Engine::InspectorPanel::DrawTextureAssetInspector(const EditorPanelContext& context, const AssetMeta& meta) {
+
+	// プレビュー用テクスチャを解決する(GUIプレビューと同じキーを共有する)
+	const GPUTextureResource* tex = nullptr;
+	if (context.graphicsCore) {
+
+		auto& texService = context.graphicsCore->GetTextureUploadService();
+		const std::string previewKey = "gui:texture:preview:" + meta.assetPath;
+		if (texService.GetState(previewKey) == TextureRequestState::None) {
+
+			TextureFileRequestDesc desc{};
+			desc.key = previewKey;
+			desc.assetPath = meta.assetPath;
+			desc.forceSRGB = true;
+			texService.RequestTextureFile(desc);
+		}
+		tex = texService.GetTexture(previewKey);
+	}
+
+	// プレビュー(256x256)
+	if (tex && tex->valid) {
+
+		ImGui::Image(static_cast<ImTextureID>(tex->gpuHandle.ptr), ImVec2(256.0f, 256.0f));
+	} else {
+
+		ImGui::TextDisabled("プレビューを読み込み中...");
+	}
+	ImGui::Separator();
+
+	// テクスチャ情報
+	ImGui::TextUnformatted("情報");
+	if (tex && tex->valid && tex->resource) {
+
+		const D3D12_RESOURCE_DESC desc = tex->resource->GetDesc();
+		const std::string_view formatName = EnumAdapter<DXGI_FORMAT>::ToStringView(desc.Format);
+		if (!formatName.empty()) {
+			ImGui::Text("Format: %.*s", static_cast<int>(formatName.size()), formatName.data());
+		} else {
+			ImGui::Text("Format: DXGI_FORMAT(%u)", static_cast<uint32_t>(desc.Format));
+		}
+		ImGui::Text("サイズ: %llu x %u", static_cast<unsigned long long>(desc.Width), desc.Height);
+		ImGui::Text("ミップ数: %u", static_cast<uint32_t>(desc.MipLevels));
+	} else {
+
+		ImGui::TextDisabled("情報を取得できません");
+	}
+	ImGui::Text("タイプ: %s", GuessTextureUsageLabel(meta.assetPath));
 }
 
 void Engine::InspectorPanel::DrawMeshAssetInspector(const EditorPanelContext& context, const AssetMeta& meta) {
@@ -838,7 +922,7 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 
 	if (ImGui::Button("Use Mesh Template", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 
-		ApplyDefaultMeshMaterialTemplate(materialDraft_, context.editorContext->assetDatabase);
+		ApplyDefaultMeshMaterialTemplate(materialDraft_);
 		saveRequested = true;
 	}
 
@@ -1025,15 +1109,30 @@ void Engine::InspectorPanel::DrawAddComponentPopup(const EditorPanelContext& con
 		return;
 	}
 
+	addComponentSearchFilter_.DrawInput("##AddComponentSearch");
+	ImGui::Separator();
+
 	// 追加できるコンポーネントのメニューを表示する
 	bool hasAny = false;
+	std::string_view currentCategory;
 	for (const auto& entry : kOptionalComponentMenuEntries) {
 
 		// すでに持っているコンポーネントは追加できない
 		if (!IsScriptMenuEntry(entry) && world.HasComponent(entity, entry.typeName)) {
 			continue;
 		}
+		if (!addComponentSearchFilter_.Matches(entry.menuLabel) &&
+			!addComponentSearchFilter_.Matches(entry.typeName)) {
+			continue;
+		}
 
+		if (currentCategory != entry.category) {
+
+			if (hasAny) {
+				ImGui::Separator();
+			}
+			currentCategory = entry.category;
+		}
 		hasAny = true;
 		if (ImGui::MenuItem(entry.menuLabel)) {
 
@@ -1060,15 +1159,30 @@ void Engine::InspectorPanel::DrawRemoveComponentPopup(const EditorPanelContext& 
 		return;
 	}
 
+	removeComponentSearchFilter_.DrawInput("##RemoveComponentSearch");
+	ImGui::Separator();
+
 	// 削除できるコンポーネントのメニューを表示する
 	bool hasAny = false;
+	std::string_view currentCategory;
 	for (const auto& entry : kOptionalComponentMenuEntries) {
 
 		// 持っていないコンポーネントは削除できない
 		if (!world.HasComponent(entity, entry.typeName)) {
 			continue;
 		}
+		if (!removeComponentSearchFilter_.Matches(entry.menuLabel) &&
+			!removeComponentSearchFilter_.Matches(entry.typeName)) {
+			continue;
+		}
 
+		if (currentCategory != entry.category) {
+
+			if (hasAny) {
+				ImGui::Separator();
+			}
+			currentCategory = entry.category;
+		}
 		hasAny = true;
 		if (ImGui::MenuItem(entry.menuLabel)) {
 

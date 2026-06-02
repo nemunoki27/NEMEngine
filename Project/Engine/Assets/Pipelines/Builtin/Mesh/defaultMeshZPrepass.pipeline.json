@@ -4,7 +4,7 @@
     {
       "kind": "GraphicsMesh",
       "pipelineType": "Mesh",
-      "shader": "Engine/Assets/Shaders/Builtin/Mesh/defaultMeshZPrepass.shader.json",
+      "shader": "0758ab98e7671f44",
       "numRenderTargets": 0,
       "dynamicRenderTargetFormats": false,
       "dsvFormat": "DXGI_FORMAT_UNKNOWN",
@@ -26,7 +26,7 @@
     {
       "kind": "GraphicsVertex",
       "pipelineType": "Vertex",
-      "shader": "Engine/Assets/Shaders/Builtin/Mesh/defaultMeshZPrepass.shader.json",
+      "shader": "0758ab98e7671f44",
       "numRenderTargets": 0,
       "dynamicRenderTargetFormats": false,
       "dsvFormat": "DXGI_FORMAT_UNKNOWN",

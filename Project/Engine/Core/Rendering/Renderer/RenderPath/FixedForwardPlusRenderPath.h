@@ -65,6 +65,8 @@ namespace Engine {
 
 		// パスの初期化。deps は RenderPipelineRunner が所有するメンバーへのポインタを渡す。
 		void Initialize(const RenderPipelineDeps& deps);
+		// 終了処理
+		void Finalize();
 
 		// 1ビュー分の固定描画順を実行する
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,

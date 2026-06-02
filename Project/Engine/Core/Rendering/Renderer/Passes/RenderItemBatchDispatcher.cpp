@@ -14,7 +14,7 @@
 void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, const SceneExecutionContext& sceneContext,
 	const RenderSceneBatch& renderBatch, RenderBackendRegistry& backendRegistry, RenderAssetLibrary& assetLibrary,
 	PipelineStateCache& pipelineCache, MaterialResolver& materialResolver, const std::vector<const RenderItem*>& items,
-	const MultiRenderTarget* surface, const std::string_view& passName, bool depthOnly) const {
+	const MultiRenderTarget* surface, const DepthTexture2D* depthOverride, const std::string_view& passName, bool depthOnly) const {
 
 	// 描画コンテキストの構築
 	RenderDrawContext drawContext{};
@@ -22,6 +22,8 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	drawContext.view = sceneContext.view;
 	// SceneView描画時でもGameViewカメラでカリングできるように別ポインタで渡す
 	drawContext.cullingView = sceneContext.cullingView;
+	// ビルボード計算も同様にGameViewを優先するための参照を渡す
+	drawContext.billboardView = sceneContext.billboardView;
 	drawContext.systemContext = sceneContext.systemContext;
 	drawContext.batch = &renderBatch;
 	// View共通リソースを各Backendへ渡す
@@ -45,13 +47,17 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	drawContext.rtvFormats.fill(DXGI_FORMAT_UNKNOWN);
 	drawContext.numRTVFormats = 0;
 
+	// 外部DSV指定があればそちらを優先して深度フォーマットを解決する
+	const DepthTexture2D* boundDepth = depthOverride
+		? depthOverride
+		: (surface ? surface->GetDepthTexture() : nullptr);
+
 	// 深度描画のみを行うか
 	if (depthOnly) {
-		drawContext.dsvFormat = (surface && surface->GetDepthTexture()) ?
-			surface->GetDepthTexture()->GetDSVFormat() : DXGI_FORMAT_UNKNOWN;
+		drawContext.dsvFormat = boundDepth ? boundDepth->GetDSVFormat() : DXGI_FORMAT_UNKNOWN;
 	} else {
 		FillColorFormats(surface, drawContext.rtvFormats, drawContext.numRTVFormats);
-		drawContext.dsvFormat = GatherDepthFormat(surface);
+		drawContext.dsvFormat = boundDepth ? boundDepth->GetDSVFormat() : DXGI_FORMAT_UNKNOWN;
 	}
 
 	size_t begin = 0;

@@ -4,17 +4,32 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshBatchResources.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/ComputeRootBinder.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/GraphicsRootBinder.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 //============================================================================
 //	VertexMeshDrawPath classMethods
 //============================================================================
+
+Engine::VertexMeshDrawPath::VertexMeshDrawPath() {
+
+	// IndirectArgs生成Compute用スロットを初期化時に登録する
+	indirectArgsCBVSlot_     = indirectArgsBindCache_.AddSlot("IndirectArgsConstants",  ShaderBindingKind::CBV);
+	iaViewCBVSlot_           = indirectArgsBindCache_.AddSlot("ViewConstants",           ShaderBindingKind::CBV);
+	iaDrawCBVSlot_           = indirectArgsBindCache_.AddSlot("MeshDrawConstants",       ShaderBindingKind::CBV);
+	iaMeshInstSRVSlot_       = indirectArgsBindCache_.AddSlot("gMeshInstances",          ShaderBindingKind::SRV);
+	iaSubMeshSRVSlot_        = indirectArgsBindCache_.AddSlot("gSubMeshes",              ShaderBindingKind::SRV);
+	visibleInstUAVSlot_      = indirectArgsBindCache_.AddSlot("gVisibleMeshInstances",   ShaderBindingKind::UAV);
+	idxIndirectArgsUAVSlot_  = indirectArgsBindCache_.AddSlot("gIndexedIndirectArgs",    ShaderBindingKind::UAV);
+
+	// Draw時: カリング済みインスタンス配列をgMeshInstancesとして再バインドする
+	drawMeshInstSRVSlot_ = drawBindCache_.AddSlot("gMeshInstances", ShaderBindingKind::SRV);
+}
 
 bool Engine::VertexMeshDrawPath::Supports(const PipelineVariantDesc& variant) const {
 
@@ -41,7 +56,7 @@ void Engine::VertexMeshDrawPath::EnsureCommandSignature(ID3D12Device* device) {
 	Assert::Call(SUCCEEDED(hr), "CreateCommandSignature failed");
 }
 
-void Engine::VertexMeshDrawPath::Setup(const MeshPathSetupContext& context, [[maybe_unused]] std::vector<GraphicsBindItem>& scratch) {
+void Engine::VertexMeshDrawPath::Setup(const MeshPathSetupContext& context) {
 
 	const auto& prepared = *context.prepared;
 
@@ -60,18 +75,13 @@ void Engine::VertexMeshDrawPath::Draw(const MeshPathDrawContext& context) {
 		return;
 	}
 	context.commandList->SetPipelineState(prepared.pipelineState->GetGraphicsPipeline(prepared.items.front()->blendMode));
-	if (context.subMeshBindScratch) {
 
-		context.subMeshBindScratch->clear();
-		// VS側はカリング済みインスタンス配列を通常のgMeshInstancesとして読む
-		context.subMeshBindScratch->push_back({
-			prepared.resources->GetInstanceMeshBindingName(),
-			GraphicsBindValueType::SRV,
+	// VS側はカリング済みインスタンス配列を通常のgMeshInstancesとして読む
+	drawBindCache_.Sync(*prepared.pipelineState);
+	if (drawBindCache_.Has(drawMeshInstSRVSlot_)) {
+		RootBindingCommand::SetGraphicsSRV(context.commandList, drawBindCache_.Get(drawMeshInstSRVSlot_),
 			prepared.resources->GetVisibleInstanceMeshGPUAddress(),
-			prepared.resources->GetVisibleInstanceMeshSRVHandle()
-			});
-		GraphicsRootBinder binder{ *prepared.pipelineState };
-		binder.Bind(context.commandList, *context.subMeshBindScratch);
+			prepared.resources->GetVisibleInstanceMeshSRVHandle());
 	}
 
 	// Computeで作成した引数を使って、マルチメッシュバッチを1回のIndirect Drawで描画する
@@ -89,8 +99,8 @@ bool Engine::VertexMeshDrawPath::BuildIndexedIndirectArgs(const MeshPathDrawCont
 
 	if (!indirectArgsPipeline_) {
 
-		indirectArgsPipeline_ = drawContext.assetDatabase->ImportOrGet(
-			"Engine/Assets/Pipelines/Builtin/Mesh/buildIndexedIndirectArgs.pipeline.json", AssetType::RenderPipeline);
+		// ビルトインPipelineはパスではなく.meta GUIDで固定参照する
+		indirectArgsPipeline_ = BuiltinAssets::Pipelines::BuildIndexedIndirectArgs;
 	}
 
 	const PipelineState* pipelineState = drawContext.pipelineCache->GetORCreate(
@@ -114,47 +124,37 @@ bool Engine::VertexMeshDrawPath::BuildIndexedIndirectArgs(const MeshPathDrawCont
 	context.commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	context.commandList->SetPipelineState(pipelineState->GetComputePipeline());
 
-	std::vector<ComputeBindItem> bindItems{};
-	bindItems.reserve(10);
 	// 固定Draw情報、ビュー、カリング設定、入力インスタンスをComputeへ渡す
-	bindItems.push_back({
-		prepared.resources->GetIndirectArgsConstantsBindingName(),
-		ComputeBindValueType::CBV,
-		prepared.resources->GetIndirectArgsConstantsGPUAddress()
-		});
-	bindItems.push_back({
-		prepared.resources->GetViewBindingName(),
-		ComputeBindValueType::CBV,
-		prepared.resources->GetViewGPUAddress(drawContext.view->kind)
-		});
-	bindItems.push_back({
-		prepared.resources->GetDrawBindingName(),
-		ComputeBindValueType::CBV,
-		prepared.resources->GetDrawGPUAddress()
-		});
-	bindItems.push_back({
-		prepared.resources->GetInstanceMeshBindingName(),
-		ComputeBindValueType::SRV,
-		prepared.resources->GetInstanceMeshGPUAddress()
-		});
-	bindItems.push_back({
-		prepared.resources->GetSubMeshBindingName(),
-		ComputeBindValueType::SRV,
-		prepared.resources->GetSubMeshGPUAddress()
-		});
-	bindItems.push_back({
-		"gVisibleMeshInstances",
-		ComputeBindValueType::UAV,
-		prepared.resources->GetVisibleInstanceMeshGPUAddress(),
-		prepared.resources->GetVisibleInstanceMeshUAVHandle()
-		});
-	bindItems.push_back({
-		"gIndexedIndirectArgs",
-		ComputeBindValueType::UAV,
-		prepared.resources->GetIndexedIndirectArgsGPUAddress()
-	});
-	ComputeRootBinder binder{ *pipelineState };
-	binder.Bind(context.commandList, bindItems);
+	indirectArgsBindCache_.Sync(*pipelineState);
+	if (indirectArgsBindCache_.Has(indirectArgsCBVSlot_)) {
+		RootBindingCommand::SetComputeCBV(context.commandList, indirectArgsBindCache_.Get(indirectArgsCBVSlot_),
+			prepared.resources->GetIndirectArgsConstantsGPUAddress());
+	}
+	if (indirectArgsBindCache_.Has(iaViewCBVSlot_)) {
+		RootBindingCommand::SetComputeCBV(context.commandList, indirectArgsBindCache_.Get(iaViewCBVSlot_),
+			prepared.resources->GetViewGPUAddress(drawContext.view->kind));
+	}
+	if (indirectArgsBindCache_.Has(iaDrawCBVSlot_)) {
+		RootBindingCommand::SetComputeCBV(context.commandList, indirectArgsBindCache_.Get(iaDrawCBVSlot_),
+			prepared.resources->GetDrawGPUAddress());
+	}
+	if (indirectArgsBindCache_.Has(iaMeshInstSRVSlot_) && prepared.resources->GetInstanceMeshGPUAddress() != 0) {
+		RootBindingCommand::SetComputeSRV(context.commandList, indirectArgsBindCache_.Get(iaMeshInstSRVSlot_),
+			prepared.resources->GetInstanceMeshGPUAddress(), {});
+	}
+	if (indirectArgsBindCache_.Has(iaSubMeshSRVSlot_) && prepared.resources->GetSubMeshGPUAddress() != 0) {
+		RootBindingCommand::SetComputeSRV(context.commandList, indirectArgsBindCache_.Get(iaSubMeshSRVSlot_),
+			prepared.resources->GetSubMeshGPUAddress(), {});
+	}
+	if (indirectArgsBindCache_.Has(visibleInstUAVSlot_)) {
+		RootBindingCommand::SetComputeUAV(context.commandList, indirectArgsBindCache_.Get(visibleInstUAVSlot_),
+			prepared.resources->GetVisibleInstanceMeshGPUAddress(),
+			prepared.resources->GetVisibleInstanceMeshUAVHandle());
+	}
+	if (indirectArgsBindCache_.Has(idxIndirectArgsUAVSlot_) && prepared.resources->GetIndexedIndirectArgsGPUAddress() != 0) {
+		RootBindingCommand::SetComputeUAV(context.commandList, indirectArgsBindCache_.Get(idxIndirectArgsUAVSlot_),
+			prepared.resources->GetIndexedIndirectArgsGPUAddress(), {});
+	}
 	// 1バッチ分のIndirectArgsを1グループで生成する
 	context.commandList->Dispatch(1, 1, 1);
 

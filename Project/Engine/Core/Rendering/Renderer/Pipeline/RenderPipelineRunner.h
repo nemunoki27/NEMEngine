@@ -27,7 +27,7 @@
 #include <Engine/Core/Rendering/PostProcess/PostProcessExecutor.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessTemporaryTargetPool.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/RenderBufferRegistry.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineStateCache.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingViewBufferSet.h>
@@ -65,6 +65,8 @@ namespace Engine {
 		RenderTargetRegistry* targetRegistry = nullptr;
 		// 固定RenderPath用の中間レンダーターゲット
 		RenderPathResources* resources = nullptr;
+		// ビルボードの計算基準にするビュー
+		const ResolvedRenderView* billboardView = nullptr;
 		// ライトカリングだけ別ビューの深度とサイズを基準にしたい場合に使用する
 		RenderPathResources* lightCullingResources = nullptr;
 		// ツールプレビューなど、1枚のRT内の一部だけへ描く時の描画矩形
@@ -159,11 +161,11 @@ namespace Engine {
 			return (kind == RenderViewKind::Game || gameView_.valid) ? gameViewLightSet_ : sceneViewLightSet_;
 		}
 
-		// ピック用のビュー別TLASリソースとサブメッシュ情報の取得
-		ID3D12Resource* GetGameViewTLASResource() const { return gameViewTLASResource_; }
-		const std::vector<MeshSubMeshPickRecord>& GetGameViewPickRecords() const { return gameViewPickRecords_; }
-		ID3D12Resource* GetSceneViewTLASResource() const { return sceneViewTLASResource_; }
-		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return sceneViewPickRecords_; }
+		// ピック用のTLASリソースとサブメッシュ情報の取得
+		ID3D12Resource* GetGameViewTLASResource() const { return tlasResource_; }
+		const std::vector<MeshSubMeshPickRecord>& GetGameViewPickRecords() const { return pickRecords_; }
+		ID3D12Resource* GetSceneViewTLASResource() const { return tlasResource_; }
+		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return pickRecords_; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -192,14 +194,12 @@ namespace Engine {
 		// ビュー関連のレイトレーシングバッファ
 		RaytracingViewBufferSet gameViewRaytracingBuffers_{};
 		RaytracingViewBufferSet sceneViewRaytracingBuffers_{};
-		// レイトレシーンの構築
+		// レイトレシーンの構築。Billboardはゲームビューにのみ合わせるため1つでよい
 		RaytracingSceneBuilder raytracingSceneBuilder_{};
 
-		// ビュー別のTLASリソースとピック用のサブメッシュ情報
-		ID3D12Resource* gameViewTLASResource_ = nullptr;
-		std::vector<MeshSubMeshPickRecord> gameViewPickRecords_{};
-		ID3D12Resource* sceneViewTLASResource_ = nullptr;
-		std::vector<MeshSubMeshPickRecord> sceneViewPickRecords_{};
+		// ピック用のTLASリソースとサブメッシュ情報
+		ID3D12Resource* tlasResource_ = nullptr;
+		std::vector<MeshSubMeshPickRecord> pickRecords_{};
 
 		// 描画アイテム抽出器のレジストリ
 		RenderExtractorRegistry extractorRegistry_{};
@@ -243,8 +243,8 @@ namespace Engine {
 		// 同一フレーム内の複数プレビューがGPUバッファを再利用して上書きしないための開始済みフラグ
 		bool previewBackendFrameStarted_ = false;
 
-		// 前回通知したPostProcessStackパス。シーン切り替え時の再ロードを検出するために使用
-		std::string lastNotifiedPostProcessPath_{};
+		// 前回通知したPostProcessStackアセット。シーン切り替え時の再ロードを検出するために使用
+		AssetID lastNotifiedPostProcessStack_{};
 
 		// ワールド切り替え時の静的バッチキャッシュ破棄用
 		ECSWorld* lastRenderedWorld_ = nullptr;

@@ -183,6 +183,17 @@ function NEM_AddProjectFiles(projectRoot, assetRoot, assetVpathName, includeShad
     }
     vpaths(projectVpaths)
 
+    if includeShaders then
+        -- HLSLはエンジン内のDXC実行時コンパイルで扱う。
+        -- Visual Studio/MSBuildのFxCompileに渡すと既定のvs_2_0などで誤コンパイルされるため、
+        -- ソリューション表示用のNone項目として登録する。
+        filter { "files:**.hlsl" }
+            buildaction "None"
+        filter { "files:**.fx" }
+            buildaction "None"
+        filter {}
+    end
+
     removefiles {
         path.join(projectRoot, "**/bin/**"),
         path.join(projectRoot, "**/obj/**"),

@@ -3,11 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/ComPtr.h>
+#include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
 #include <Engine/Core/Rendering/Assets/ShaderAsset.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12ShaderCompiler.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
 
 // directX
 #include <d3d12.h>

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
@@ -1006,6 +1007,8 @@ void Engine::ManagedScriptRuntime::Invoke(InvokeFn function, int32_t handle, con
 		return;
 	}
 
+	// C#呼び出し時間を計測してプロファイラへ加算する
+	FrameProfiler::ScopedSample scriptSample(FrameProfiler::Category::Script);
 	currentContext_ = &context;
 	function(handle);
 	currentContext_ = nullptr;
@@ -1019,6 +1022,7 @@ void Engine::ManagedScriptRuntime::InvokeCollision(InvokeCollisionFn function, i
 	}
 
 	// Collisionイベント中だけSystemContextをC#コールバックから参照できるようにする
+	FrameProfiler::ScopedSample scriptSample(FrameProfiler::Category::Script);
 	currentContext_ = &context;
 	function(handle, collision);
 	currentContext_ = nullptr;

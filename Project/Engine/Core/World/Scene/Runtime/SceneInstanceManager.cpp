@@ -156,7 +156,7 @@ nlohmann::json Engine::SceneInstanceManager::SerializeSnapshot(const SceneSystem
 
 		sceneJson["InstanceID"] = ToString(scene.instanceID);
 		sceneJson["ParentInstanceID"] = ToString(scene.parentInstanceID);
-		sceneJson["SceneAsset"] = ToString(scene.sceneAsset);
+		sceneJson["SceneAsset"] = ToAssetReferenceJson(scene.sceneAsset);
 		sceneJson["Header"] = ToJson(scene.header);
 
 		const std::vector<Entity> ownedEntities = CollectSceneEntities(world, scene);
@@ -203,8 +203,8 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 		{
 			// 旧スナップショットなどで設定パスがない場合は、シーンごとの既定パスを補完する
 			const std::filesystem::path scenePath = database.ResolveFullPath(instance.sceneAsset);
-			EnsureSceneCollisionSettingsPath(instance.header, scenePath.string());
-			EnsureScenePostProcessStackPath(instance.header, scenePath.string());
+			EnsureSceneCollisionSettings(instance.header, scenePath.string(), &database);
+			EnsureScenePostProcessStack(instance.header, scenePath.string(), &database);
 		}
 
 		// エンティティ情報を読み込む

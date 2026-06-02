@@ -4,10 +4,10 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12RenderTargetView.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12DepthStencilView.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12ShaderResourceView.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Core/D3D12CommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxDepthStencilView.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 
 //============================================================================
 //	MultiRenderTarget classMethods
@@ -70,7 +70,11 @@ void Engine::MultiRenderTarget::Destroy() {
 
 	for (auto& color : colors_) {
 
-		color->Destroy();
+		if (color) {
+			color->Destroy();
+			// RTV/SRVを持つRenderTextureはclear任せにせず、終了時に明示resetする。
+			color.reset();
+		}
 	}
 	colors_.clear();
 

@@ -87,5 +87,5 @@ namespace Engine {
 		// 計測時間処理
 		void BeginMeasure(Measurement& measure);
 		void EndMeasure(Measurement& measure);
-	};
+	}; 
 } // Engine

@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RHI/DirectX12/Common/D3D12Types.h>
+#include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 
 // directX
 #include <d3d12.h>

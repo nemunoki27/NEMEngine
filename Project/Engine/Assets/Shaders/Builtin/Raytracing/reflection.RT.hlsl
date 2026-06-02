@@ -74,6 +74,10 @@ struct RaytracingSubMeshShaderData {
 	float4 emissiveColor;
 
 	float4x4 uvMatrix;
+
+	// MeshSubMeshShaderDataと同じレイアウトを保つため、背面法アウトライン用の末尾フィールドも合わせる
+	float3 sourcePivot;
+	float _outlinePad0;
 };
 
 static const uint kNoTexture = 0xFFFFFFFF;

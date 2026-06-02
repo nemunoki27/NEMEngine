@@ -4,9 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/AssetTypes.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/D3D12StructuredBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Buffers/IndexBuffer.h>
-#include <Engine/Core/Rendering/RHI/DirectX12/Descriptors/D3D12ShaderResourceView.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxImmutableStructuredBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/ImmutableIndexBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Rendering/Meshes/MeshNode.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
@@ -193,6 +193,9 @@ namespace Engine {
 		// デフォルトのテクスチャセット
 		ImportedMeshTextureSet defaultTextures{};
 		ImportedMeshTextureAssetSet defaultTextureAssets{};
+		// 元のマテリアルがベースカラーテクスチャを宣言していたか(解決可否は問わない)。
+		// 解決後AssetIDが空のとき、未設定(白)か設定済みだが見つからない(エラー)かを区別するために使う。
+		bool hasBaseColorTexture = false;
 		// デフォルトのベースカラー
 		Color4 baseColor = Color4::White();
 	};
@@ -225,11 +228,11 @@ namespace Engine {
 		uint32_t boneCount = 0;
 		std::vector<VertexInfluence> vertexInfluences{};
 	};
-	// インスタンシングリソース
+	// 静的メッシュSRVリソース(DEFAULT heap、ロード後は更新しない)
 	template <typename T>
 	struct MeshStructuredHandle {
 
-		std::unique_ptr<DxStructuredBuffer<T>> buffer;
+		std::unique_ptr<DxImmutableStructuredBuffer<T>> buffer;
 		uint32_t srvIndex = UINT32_MAX;
 		D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle{};
 
@@ -274,7 +277,7 @@ namespace Engine {
 		// スキニング
 		MeshStructuredHandle<VertexInfluence> skinInfluenceSRV;
 
-		IndexBuffer indexBuffer;
+		ImmutableIndexBuffer indexBuffer;
 
 		uint32_t vertexCount = 0;
 		uint32_t indexCount = 0;

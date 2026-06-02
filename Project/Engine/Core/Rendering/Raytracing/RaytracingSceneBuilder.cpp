@@ -6,6 +6,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
@@ -224,8 +225,22 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			// サブメッシュデータを構築
 			MeshSubMeshShaderData subMeshData{};
 			subMeshData.importedBaseColor = importedSubMesh.baseColor;
+			// ラスタライズ経路と挙動を揃える:
+			// テクスチャ指定あり→解決(見つからなければエラー)、未指定→kNoTexture(シェーダ側でベースカラー使用)、
+			// 指定はあるが解決できない→エラーテクスチャ
 			AssetID baseColorTextureAsset = MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetID(*meshResource, src.renderer, subMeshIndex);
-			subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, baseColorTextureAsset);
+			if (baseColorTextureAsset) {
+
+				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, baseColorTextureAsset);
+			} else if (MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(*meshResource, src.renderer, subMeshIndex)) {
+
+				// 宣言はあるが見つからない: エラーテクスチャ(空AssetIDの解決でerrorIndexが返る)
+				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, AssetID{});
+			} else {
+
+				// テクスチャ未設定: シェーダ側でimportedBaseColor*colorを使う
+				subMeshData.baseColorTextureIndex = UINT32_MAX;
+			}
 
 			bool hasMesh = src.renderer && subMeshIndex < src.renderer->subMeshes.size();
 
@@ -273,7 +288,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 			if (hasMesh) {
 
-				instance.worldMatrix = src.renderer->subMeshes[subMeshIndex].worldMatrix;
+				instance.worldMatrix =
+					MeshSubMeshRuntime::BuildRenderLocalMatrix(src.renderer->subMeshes[subMeshIndex]) *
+					src.worldMatrix;
 			} else {
 
 				instance.worldMatrix = src.worldMatrix;
@@ -337,6 +354,9 @@ void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderScene
 		instance.entity = item.entity;
 		instance.world = item.world;
 		instance.worldMatrix = item.worldMatrix;
+		if (context.view) {
+			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *context.view);
+		}
 		instance.renderer = nullptr;
 		if (item.world && item.world->IsAlive(item.entity)) {
 			if (item.world->HasComponent<MeshRendererComponent>(item.entity)) {
