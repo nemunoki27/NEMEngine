@@ -17,7 +17,6 @@
 //============================================================================
 //	NodeGraphView classMethods
 //============================================================================
-
 namespace {
 
 	namespace ed = ax::NodeEditor;
@@ -291,8 +290,8 @@ void Engine::NodeGraphView::DrawLinks(const GraphDocument& document) {
 bool Engine::NodeGraphView::DrawCreateLink(GraphDocument& document) {
 
 	bool changed = false;
-	// imgui-node-editorはBeginCreateがfalseを返すフレームでもEndCreateが必要。
-	// ここで早期returnすると内部のCreateItemActionが閉じず、次フレームのBeginCreateでassertする。
+	// imgui-node-editorはBeginCreateがfalseを返すフレームでもEndCreateが必要
+	// ここで早期returnすると内部のCreateItemActionが閉じず、次フレームのBeginCreateでassertする
 	const bool creating = ed::BeginCreate(style_.GetLinkColor(GraphValueType::Flow), style_.createLinkThickness);
 	if (creating) {
 

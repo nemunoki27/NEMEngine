@@ -18,7 +18,6 @@
 //============================================================================
 //	InspectorDrawerCommon classMethods
 //============================================================================
-
 void Engine::InspectorDrawerCommon::AccumulateEditResult(const ValueEditResult& result,
 	bool& anyItemActive, bool& commitRequested) {
 
@@ -112,7 +111,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 	// メッシュ
 	if (world.HasComponent<MeshRendererComponent>(entity)) {
 
-		// 選択中メッシュのアウトラインはScene保存対象にしない。
+		// 選択中メッシュのアウトラインはScene保存対象にしない
 		// Componentを一時追加せず、描画フレームだけのrequestとして積む
 		ScreenSpaceOutlineStyle style{};
 		style.color = Color4::FromHex(0xFF8000FF);

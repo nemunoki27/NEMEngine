@@ -11,7 +11,6 @@ namespace Engine {
 	//	GraphValueType enum
 	//	GraphのPinで扱う値の種類
 	//============================================================================
-
 	enum class GraphValueType {
 
 		Unknown,

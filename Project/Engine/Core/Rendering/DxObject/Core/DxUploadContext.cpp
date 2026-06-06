@@ -12,7 +12,6 @@ using namespace Engine;
 //============================================================================
 //	DxUploadCommand classMethods
 //============================================================================
-
 void DxUploadCommand::Create(ID3D12Device* device) {
 
 	device_ = device;

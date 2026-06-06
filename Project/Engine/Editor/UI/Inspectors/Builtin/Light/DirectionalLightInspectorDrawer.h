@@ -15,18 +15,16 @@ namespace Engine {
 	class DirectionalLightInspectorDrawer :
 		public SerializedComponentInspectorDrawer<DirectionalLightComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		DirectionalLightInspectorDrawer() :
 			SerializedComponentInspectorDrawer("DirectionalLight", "DirectionalLight") {}
 		~DirectionalLightInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-		
+		//============================================================================
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;

@@ -20,7 +20,6 @@
 //============================================================================
 //	BlitToViewPass classMethods
 //============================================================================
-
 namespace {
 
 	bool BindColorTargetsOnly(Engine::GraphicsCore& graphicsCore, Engine::MultiRenderTarget* target) {

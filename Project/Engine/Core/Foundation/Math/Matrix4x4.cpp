@@ -10,7 +10,6 @@ using namespace Engine;
 //============================================================================
 //	Matrix4x4 structMethods
 //============================================================================
-
 Matrix4x4 Matrix4x4::operator+(const Matrix4x4& other) const {
 	Matrix4x4 result;
 	for (int i = 0; i < 4; ++i) {

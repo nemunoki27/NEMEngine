@@ -6,7 +6,6 @@
 //============================================================================
 //	GraphDocument classMethods
 //============================================================================
-
 namespace {
 
 	bool IsCompatibleValueType(Engine::GraphValueType from, Engine::GraphValueType to) {

@@ -3,7 +3,6 @@
 //============================================================================
 //	LineRenderer3D classMethods
 //============================================================================
-
 Engine::LineRenderer3D::LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain) {
 
 	// 基底クラスの初期化
@@ -16,7 +15,7 @@ Engine::LineRenderer3D::LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraD
 
 Engine::LineRenderer3D::~LineRenderer3D() {
 
-	// SceneGridRendererが持つGPUバッファをLineRenderer破棄時に明示解放する。
+	// SceneGridRendererが持つGPUバッファをLineRenderer破棄時に明示解放する
 	gridRenderer_.reset();
 }
 

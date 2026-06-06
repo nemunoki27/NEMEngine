@@ -12,7 +12,6 @@ using namespace Engine;
 //============================================================================
 //	DxCommand classMethods
 //============================================================================
-
 void DxCommand::UpdateFixFPS() {
 
 	// フレームレートピッタリの時間
@@ -200,7 +199,6 @@ void DxCommand::Finalize(HWND hwnd) {
 //============================================================================
 //	GraphicsCommand
 //============================================================================
-
 void DxCommand::SetDescriptorHeaps(const std::vector<ID3D12DescriptorHeap*>& descriptorHeaps) {
 
 	commandList_->SetDescriptorHeaps(

@@ -14,7 +14,6 @@
 //============================================================================
 //	ReparentEntityCommand classMethods
 //============================================================================
-
 namespace {
 
 	Engine::Entity GetParent(Engine::ECSWorld& world, const Engine::Entity& entity) {

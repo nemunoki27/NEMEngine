@@ -226,7 +226,6 @@ namespace {
 //============================================================================
 //	ConsolePanel classMethods
 //============================================================================
-
 void Engine::ConsolePanel::Draw(const EditorPanelContext& context) {
 
 	// コンソールパネルの表示状態を確認

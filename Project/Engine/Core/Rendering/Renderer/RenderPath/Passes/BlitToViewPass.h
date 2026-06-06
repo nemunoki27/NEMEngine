@@ -16,10 +16,9 @@ namespace Engine {
 	class BlitToViewPass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit BlitToViewPass(const RenderPipelineDeps& deps) : deps_(deps) {
 			srcColorSlot_ = blitSRVCache_.AddSlotByRegister(ShaderBindingKind::SRV, 0, 0);
 		}
@@ -29,10 +28,9 @@ namespace Engine {
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;

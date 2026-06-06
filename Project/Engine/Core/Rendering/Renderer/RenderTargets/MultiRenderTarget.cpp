@@ -12,7 +12,6 @@
 //============================================================================
 //	MultiRenderTarget classMethods
 //============================================================================
-
 Engine::MultiRenderTarget::~MultiRenderTarget() {
 
 	Destroy();
@@ -72,7 +71,7 @@ void Engine::MultiRenderTarget::Destroy() {
 
 		if (color) {
 			color->Destroy();
-			// RTV/SRVを持つRenderTextureはclear任せにせず、終了時に明示resetする。
+			// RTV/SRVを持つRenderTextureはclear任せにせず、終了時に明示resetする
 			color.reset();
 		}
 	}

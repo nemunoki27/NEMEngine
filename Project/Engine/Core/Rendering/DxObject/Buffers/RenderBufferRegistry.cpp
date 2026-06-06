@@ -3,7 +3,6 @@
 //============================================================================
 //	RenderBufferRegistry classMethods
 //============================================================================
-
 void Engine::RenderBufferRegistry::Register(const RegisteredRenderBuffer& entry) {
 
 	auto found = aliasTable_.find(entry.alias);

@@ -16,14 +16,13 @@ namespace Engine {
 
 	//============================================================================
 	//	PostProcessParameterBufferBuilder class
-	//	MaterialAsset.parametersをHLSL側のCBV offsetに合わせて詰める補助クラス。
+	// MaterialAsset.parametersをHLSL側のCBV offsetに合わせて詰める補助クラス
 	//============================================================================
 	class PostProcessParameterBufferBuilder {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		PostProcessParameterBufferBuilder() = default;
 		~PostProcessParameterBufferBuilder() = default;
 

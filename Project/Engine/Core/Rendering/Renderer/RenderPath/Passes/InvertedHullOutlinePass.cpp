@@ -15,7 +15,6 @@
 //============================================================================
 //	InvertedHullOutlinePass classMethods
 //============================================================================
-
 void Engine::InvertedHullOutlinePass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 

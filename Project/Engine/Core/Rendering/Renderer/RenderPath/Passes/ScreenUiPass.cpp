@@ -10,7 +10,6 @@
 //============================================================================
 //	ScreenUiPass classMethods
 //============================================================================
-
 void Engine::ScreenUiPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 

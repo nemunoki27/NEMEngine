@@ -3,7 +3,6 @@
 //============================================================================
 //	RootBindingCommandHelper classMethods
 //============================================================================
-
 void Engine::RootBindingCommand::SetGraphicsCBV(ID3D12GraphicsCommandList* commandList,
 	const RootBindingLocation* binding, D3D12_GPU_VIRTUAL_ADDRESS gpuAddress) {
 

@@ -21,10 +21,9 @@ namespace Engine {
 	template<typename T>
 	class StructuredRWBuffer {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		StructuredRWBuffer() = default;
 		StructuredRWBuffer(const std::string& bindingName) : bindingName_(bindingName) {}
 		~StructuredRWBuffer() { Release(); }
@@ -51,10 +50,9 @@ namespace Engine {
 		uint32_t GetSRVIndex() const { return srvIndex_; }
 		std::string_view GetBindingName() const { return bindingName_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		ID3D12Device* device_ = nullptr;
@@ -83,7 +81,6 @@ namespace Engine {
 	//============================================================================
 	//	StructuredRWBuffer templateMethods
 	//============================================================================
-
 	template<typename T>
 	inline void StructuredRWBuffer<T>::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor) {
 

@@ -3,7 +3,6 @@
 //============================================================================
 //	IRenderItemExtractor classMethods
 //============================================================================
-
 bool Engine::RenderItemExtract::IsVisible(ECSWorld& world, const Entity& entity, bool visible) {
 
 	if (!visible || !world.IsAlive(entity)) {

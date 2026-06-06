@@ -10,7 +10,6 @@ using namespace Engine;
 //============================================================================
 //	Vector3 structMethods
 //============================================================================
-
 Vector3 Vector3::operator+(const Vector3& other) const {
 	return Vector3(x + other.x, y + other.y, z + other.z);
 }
@@ -262,7 +261,6 @@ Vector3 Engine::Vector3::MakeContinuousDegrees(const Vector3& rawEuler, const Ve
 //============================================================================
 //	Vector3I structMethods
 //============================================================================
-
 Vector3I Vector3I::operator+(const Vector3I& other) const {
 	return Vector3I(x + other.x, y + other.y, z + other.z);
 }

@@ -1,13 +1,11 @@
 //============================================================================
 //	include
 //============================================================================
-
 #include "../Common/defaultMesh.hlsli"
 
 //============================================================================
 //	output
 //============================================================================
-
 struct PSOutput {
 
 	float4 color : SV_TARGET0;
@@ -18,7 +16,6 @@ struct PSOutput {
 //============================================================================
 //	resources
 //============================================================================
-
 // ライト
 cbuffer LightCounts : register(b2) {
 
@@ -133,7 +130,6 @@ SamplerState gSampler : register(s0);
 //============================================================================
 //	定数
 //============================================================================
-
 static const float PI = 3.14159265f;
 static const uint kNoTexture = 0xFFFFFFFF;
 static const uint kLightCullingModeDisabled = 0u;
@@ -144,7 +140,6 @@ static const uint kLightCullingModeDebugAllLightsPerCluster = 3u;
 //============================================================================
 //	PBR関数
 //============================================================================
-
 float EvalD(float NdotH, float roughness) {
 
 	float a = roughness * roughness;
@@ -281,7 +276,7 @@ float3 ComputeWorldNormal(VSOutput input, SubMeshShaderData subMesh, float2 uv) 
 // PBR平行光源(シャドウあり)
 // geometricNormalはシャドウレイの原点オフセット専用。法線マップで摂動したNを使うと
 // オフセットが真の面から十分に離れず、自分のBLASへ自己交差してセルフシャドウのアクネが出るため、
-// 影の判定には滑らかな幾何法線を使う。ライティングのN·Lには従来どおり摂動Nを使う。
+// 影の判定には滑らかな幾何法線を使う。ライティングのN·Lには従来どおり摂動Nを使う
 float3 EvaluatePBRDirectionalLight(DirectionalLight light, float3 worldPos, float3 N, float3 geometricNormal, float3 V,
 	float3 albedo, float metallic, float roughness, float3 F0) {
 

@@ -8,7 +8,6 @@
 //============================================================================
 //	EntityChunk classMethods
 //============================================================================
-
 void Engine::AlignedBuffer::Reset(size_t argBytes, size_t argAlign) {
 
 	Release();

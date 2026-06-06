@@ -18,7 +18,6 @@
 //============================================================================
 //	PostProcessStackPass classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kSceneColorFinal = "SceneColorFinal";
@@ -92,9 +91,9 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	// エディタの選択中パスを基準に、そのパス実行前後の結果をプレビューへ退避する。
+	// エディタの選択中パスを基準に、そのパス実行前後の結果をプレビューへ退避する
 	// GameViewの結果のみを対象にすることで、ビューごとにサイズが異なっても
-	// プレビュー用一時RTが再生成され続けるのを防ぐ。
+	// プレビュー用一時RTが再生成され続けるのを防ぐ
 	const UUID previewPassId = service.GetPreviewPassId();
 	const bool capturePreview = (context.kind == RenderViewKind::Game) && static_cast<bool>(previewPassId);
 	MultiRenderTarget* previewBefore = nullptr;
@@ -107,7 +106,7 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 			*context.targetRegistry, "PostProcessPreviewAfter", *sceneFinal);
 	}
 
-	// 実行前にリフレクション情報をキャッシュしておく（実行成功に依存しないUIのため）
+	// 実行前にリフレクション情報をキャッシュしておく
 	for (const auto* passPtr : activePasses) {
 
 		// シェーダーリロード要求があれば、パイプラインとレイアウトキャッシュを破棄する
@@ -210,8 +209,8 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		CopyColor0Resource(graphicsCore, ping, sceneFinal);
 	}
 
-	// 選択中パスの実行前後(before/after)のSRVをサービスへ渡す。
-	// 退避先はCopyColor0Resource内でシェーダー読み取り状態へ遷移済み。
+	// 選択中パスの実行前後(before/after)のSRVをサービスへ渡す
+	// 退避先はCopyColor0Resource内でシェーダー読み取り状態へ遷移済み
 	if (previewCaptured) {
 
 		RenderTexture2D* beforeColor = previewBefore->GetColorTexture(0);

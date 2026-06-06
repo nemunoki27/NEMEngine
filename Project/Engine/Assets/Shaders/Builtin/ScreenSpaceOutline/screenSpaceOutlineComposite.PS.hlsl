@@ -1,13 +1,11 @@
 //============================================================================
 //	include
 //============================================================================
-
 #include "screenSpaceOutlineCommon.hlsli"
 
 //============================================================================
 //	resources
 //============================================================================
-
 cbuffer CompositeConstants : register(b0) {
 
 	uint gStyleCount;
@@ -25,8 +23,8 @@ StructuredBuffer<ScreenSpaceOutlineStyleGPU> gOutlineStyles : register(t3);
 
 //============================================================================
 //	main
-//	DilatedMask - OriginalMask の外周だけをStyleの色で描く。
-//	Mesh内部(元maskが非0)は塗らず、背景側の輪郭だけalpha blendで合成する。
+// DilatedMask - OriginalMask の外周だけをStyleの色で描く
+// Mesh内部(元maskが非0)は塗らず、背景側の輪郭だけalpha blendで合成する
 //============================================================================
 float4 main(float4 position : SV_Position) : SV_Target0 {
 

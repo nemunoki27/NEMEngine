@@ -15,18 +15,16 @@ namespace Engine {
 	class UVTransformInspectorDrawer :
 		public SerializedComponentInspectorDrawer<UVTransformComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		UVTransformInspectorDrawer() :
 			SerializedComponentInspectorDrawer("UVTransform", "UVTransform") {}
 		~UVTransformInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;

@@ -8,7 +8,6 @@
 //============================================================================
 //	MeshDrawPathCommon classMethods
 //============================================================================
-
 Engine::AssetID Engine::MeshDrawPathCommon::ResolveBatchMesh(const RenderSceneBatch& batch, std::span<const RenderItem* const> items) {
 
 	AssetID resolved{};

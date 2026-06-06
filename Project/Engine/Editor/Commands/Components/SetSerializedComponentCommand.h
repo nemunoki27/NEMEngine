@@ -22,10 +22,9 @@ namespace Engine {
 	class SetSerializedComponentCommand :
 		public IEditorCommand {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		SetSerializedComponentCommand(const Entity& targetEntity, const std::string_view& typeName,
 			const nlohmann::json& beforeData, const nlohmann::json& afterData);
 		~SetSerializedComponentCommand() = default;
@@ -41,10 +40,9 @@ namespace Engine {
 
 		const char* GetName() const override { return "Add Component"; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		Entity initialTarget_ = Entity::Null();

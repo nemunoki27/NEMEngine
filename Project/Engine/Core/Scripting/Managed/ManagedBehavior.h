@@ -17,10 +17,9 @@ namespace Engine {
 	class ManagedBehavior :
 		public MonoBehavior {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit ManagedBehavior(std::string typeName);
 		~ManagedBehavior() override = default;
 
@@ -42,10 +41,9 @@ namespace Engine {
 		void OnCollisionStay(ECSWorld& world, const SystemContext& context, const CollisionContact& collision) override;
 		void OnCollisionExit(ECSWorld& world, const SystemContext& context, const CollisionContact& collision) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		// C#側の完全修飾型名

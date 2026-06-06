@@ -33,7 +33,6 @@ namespace Engine {
 	//============================================================================
 	//	MyGUI structures
 	//============================================================================
-
 	// プロパティ行設定
 	struct PropertyRowSetting {
 
@@ -166,8 +165,8 @@ namespace Engine {
 
 		bool IsUse() const { return isOver || isUsing; }
 	};
-	// 複数TrackのCurveChannelを1つのCurveEditorで編集するための参照。
-	// 元のCurveChannelはTrackごとに別vectorへ入っているため、表示時だけ連続配列へ橋渡しする。
+	// 複数TrackのCurveChannelを1つのCurveEditorで編集するための参照
+	// 元のCurveChannelはTrackごとに別vectorへ入っているため、表示時だけ連続配列へ橋渡しする
 	struct CurveChannelRef {
 
 		CurveChannel* channel = nullptr;
@@ -180,17 +179,15 @@ namespace Engine {
 	//============================================================================
 	class MyGUI {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		MyGUI() = default;
 		~MyGUI() = default;
 
-		//========================================================================
+		//============================================================================
 		//	汎用表示
-		//========================================================================
-
+		//============================================================================
 		// エンジンの表示スタイルでコラプシングヘッダーを表示する
 		static bool CollapsingHeader(const char* label, bool stratOpen = true);
 		// ポップアップ内で使用する文字入力とOK/Cancelを描画する
@@ -199,10 +196,9 @@ namespace Engine {
 		static bool BeginPropertyRow(const char* label, const PropertyRowSetting& setting = PropertyRowSetting{});
 		static void EndPropertyRow();
 
-		//========================================================================
+		//============================================================================
 		//	数学関連
-		//========================================================================
-
+		//============================================================================
 		// 表示
 		static void TextFloat(const char* label, float value, uint32_t precision = 3);
 		static void TextVector2(const char* label, const Vector2& value, uint32_t precision = 3);
@@ -220,10 +216,9 @@ namespace Engine {
 		static ValueEditResult ColorEdit(const char* label, Color3& value);
 		static ValueEditResult ColorEdit(const char* label, Color4& value);
 
-		//========================================================================
+		//============================================================================
 		//	カーブ編集
-		//========================================================================
-
+		//============================================================================
 		// 専用ツールで使うカーブエディタ本体
 		static CurveEditResult CurveEditor(const char* id, std::span<CurveChannel> channels,
 			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
@@ -240,10 +235,9 @@ namespace Engine {
 		static CurveEditResult CurveEditor(const char* id, CurveQuaternion& curve,
 			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
 
-		//========================================================================
+		//============================================================================
 		//	ギズモ操作
-		//========================================================================
-
+		//============================================================================
 		// 2D
 		static GizmoEditResult Manipulate2D(const char* id, const GizmoViewContext& context, TransformComponent& transform);
 		static GizmoEditResult Manipulate3D(const char* id, const GizmoViewContext& context, TransformComponent& transform);
@@ -251,10 +245,9 @@ namespace Engine {
 		static GizmoEditResult Manipulate2D(const char* id, const GizmoViewContext& context, SubMeshMaterial& subMesh);
 		static GizmoEditResult Manipulate3D(const char* id, const GizmoViewContext& context, SubMeshMaterial& subMesh);
 
-		//========================================================================
+		//============================================================================
 		//	パラメータ変更
-		//========================================================================
-
+		//============================================================================
 		// チェックボックス切り替え
 		static bool Checkbox(const char* label, bool& value, const PropertyRowSetting& setting = PropertyRowSetting{});
 		static bool SmallCheckbox(const char* id, bool& value);
@@ -269,10 +262,9 @@ namespace Engine {
 		static ValueEditResult EnumCombo(const char* label, T& currentValue,
 			const ComboEditSetting& setting = ComboEditSetting{});
 
-		//========================================================================
+		//============================================================================
 		//	アセット参照
-		//========================================================================
-
+		//============================================================================
 		// アセットID編集フィールドを描画する
 		static ValueEditResult AssetReferenceField(const char* label, AssetID& value, const AssetDatabase* assetDatabase,
 			const std::initializer_list<AssetType>& acceptedTypes = {}, const AssetEditSetting& setting = AssetEditSetting{});
@@ -284,7 +276,6 @@ namespace Engine {
 	//============================================================================
 	//	MyGUI templateMethos
 	//============================================================================
-
 	template <typename T>
 	inline ValueEditResult MyGUI::EnumCombo(const char* label, T& currentValue,
 		const ComboEditSetting& setting) {

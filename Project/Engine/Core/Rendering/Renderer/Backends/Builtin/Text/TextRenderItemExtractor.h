@@ -14,10 +14,9 @@ namespace Engine {
 	class TextRenderItemExtractor :
 		public IRenderItemExtractor {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		TextRenderItemExtractor() = default;
 		~TextRenderItemExtractor() = default;
 

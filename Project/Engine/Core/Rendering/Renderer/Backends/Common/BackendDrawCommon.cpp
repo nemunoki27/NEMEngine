@@ -9,7 +9,6 @@
 //============================================================================
 //	BackendDrawCommon classMethods
 //============================================================================
-
 const  Engine::MaterialPassBinding* Engine::BackendDrawCommon::FindFirstPass(const MaterialAsset& material,
 	const std::initializer_list<std::string_view>& passNames) {
 

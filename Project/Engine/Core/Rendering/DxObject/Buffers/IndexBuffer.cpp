@@ -5,7 +5,6 @@ using namespace Engine;
 //============================================================================
 //	IndexBuffer classMethods
 //============================================================================
-
 void IndexBuffer::CreateBuffer(ID3D12Device* device, UINT indexCount, DXGI_FORMAT format) {
 
 	HRESULT hr;

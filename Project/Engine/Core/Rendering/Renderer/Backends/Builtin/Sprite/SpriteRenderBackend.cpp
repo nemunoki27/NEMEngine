@@ -11,10 +11,9 @@
 //============================================================================
 //	SpriteRenderBackend classMethods
 //============================================================================
-
 Engine::SpriteRenderBackend::~SpriteRenderBackend() {
 
-	// FrameBatchResourcePool内のunique_ptrを終了時に明示resetする。
+	// FrameBatchResourcePool内のunique_ptrを終了時に明示resetする
 	resourcePool_.Clear();
 }
 

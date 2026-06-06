@@ -21,7 +21,6 @@ namespace Engine {
 	//============================================================================
 	//	AnimationPropertyRegistry structures
 	//============================================================================
-
 	using AnimationPropertyValue = std::variant<
 		float,
 		Vector2,
@@ -31,8 +30,8 @@ namespace Engine {
 		Color4,
 		Quaternion>;
 
-	// Componentのどの値をAnimationClipから触れるかを表す。
-	// get/setを関数ポインタにして、Editor/Runtimeのどちらからも使えるようにする。
+	// Componentのどの値をAnimationClipから触れるかを表す
+	// get/setを関数ポインタにして、Editor/Runtimeのどちらからも使えるようにする
 	struct AnimationPropertyDescriptor {
 
 		std::string componentName;
@@ -50,10 +49,9 @@ namespace Engine {
 	//============================================================================
 	class AnimationPropertyRegistry {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		static AnimationPropertyRegistry& GetInstance();
 
 		void Register(const AnimationPropertyDescriptor& desc);
@@ -61,14 +59,13 @@ namespace Engine {
 		std::vector<const AnimationPropertyDescriptor*> GetPropertiesForEntity(ECSWorld& world, const Entity& entity) const;
 
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		std::vector<AnimationPropertyDescriptor> properties_;
 	};
 
-	// Builtin Componentのアニメーション可能プロパティを登録する。
-	// Tool起動前に何度呼ばれても重複登録されないように実装側でガードする。
+	// Builtin Componentのアニメーション可能プロパティを登録する
+	// Tool起動前に何度呼ばれても重複登録されないように実装側でガードする
 	void RegisterBuiltinAnimationProperties();
 } // Engine

@@ -3,7 +3,6 @@
 //============================================================================
 //	PipelineBindingCache classMethods
 //============================================================================
-
 Engine::PipelineBindingCache::SlotID Engine::PipelineBindingCache::AddSlot(
 	std::string_view name, ShaderBindingKind kind) {
 

@@ -18,7 +18,6 @@ namespace Engine {
 	//	GraphDocument structure
 	//	Editor上で編集する汎用Node Graph
 	//============================================================================
-
 	struct GraphDocument {
 
 		//--------- variables ----------------------------------------------------

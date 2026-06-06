@@ -20,7 +20,6 @@
 //============================================================================
 //	ProjectAssetFileUtility classMethods
 //============================================================================
-
 namespace {
 
 	// 移動済みファイルの追跡用(ロールバックで元へ戻すために使う)
@@ -115,7 +114,7 @@ namespace {
 
 			const std::string suffixText = suffix;
 			// .animClip.jsonのように途中へ大文字を含む特殊サフィックスも保護できるよう、
-			// 判定は小文字同士で行い、返すサフィックスは実ファイル名の表記をそのまま使う。
+			// 判定は小文字同士で行い、返すサフィックスは実ファイル名の表記をそのまま使う
 			if (Engine::Algorithm::EndsWith(lower, Engine::Algorithm::ToLower(suffixText))) {
 
 				const size_t suffixSize = suffixText.size();
@@ -297,8 +296,8 @@ namespace {
 
 		PatchJsonAssetName(path, type, false);
 	}
-	// 複製先フォルダ配下のJSONアセットを走査し、内部guidを再採番する。
-	// .metaはコピーされず新規発行されるため、本体側の内部guidを残すと不一致になる。
+	// 複製先フォルダ配下のJSONアセットを走査し、内部guidを再採番する
+	// .metaはコピーされず新規発行されるため、本体側の内部guidを残すと不一致になる
 	void PatchDuplicatedDirectoryAssets(const std::filesystem::path& duplicatedDirectory) {
 
 		std::error_code ec;

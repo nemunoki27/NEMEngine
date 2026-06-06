@@ -3,7 +3,6 @@
 //============================================================================
 //	UUID classMethods
 //============================================================================
-
 bool Engine::UUID::operator==(const UUID& other) const noexcept {
 
 	return value == other.value;

@@ -14,7 +14,6 @@ namespace Engine {
 	//============================================================================
 	//	ScreenSpaceOutlineComponent struct
 	//============================================================================
-
 	// アウトラインを出す対象範囲(可視性)
 	enum class ScreenSpaceOutlineVisibilityMode : uint8_t {
 
@@ -24,11 +23,11 @@ namespace Engine {
 	// アウトライン領域の決定方式
 	enum class ScreenSpaceOutlineRegionMode : uint8_t {
 
-		// 画面に見えている全シルエットの外周。
+		// 画面に見えている全シルエットの外周
 		// 遮蔽物によってVisible Maskに開いた穴の縁も描画する既存挙動
 		AllVisibleSilhouettes,
 
-		// 選択メッシュ本来の投影範囲より外側の輪郭を優先する。
+		// 選択メッシュ本来の投影範囲より外側の輪郭を優先する
 		// 遮蔽物によってVisible Maskに開いた穴の縁は描画しない
 		ExteriorPreferred,
 	};

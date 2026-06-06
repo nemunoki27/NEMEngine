@@ -1,7 +1,6 @@
 //============================================================================
 //	include
 //============================================================================
-
 #include "../Common/defaultMeshOutline.hlsli"
 
 groupshared MeshDispatchPayload payload;

@@ -15,10 +15,9 @@ namespace Engine {
 	class TransparentRenderPass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit TransparentRenderPass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~TransparentRenderPass() override = default;
 
@@ -26,10 +25,9 @@ namespace Engine {
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;

@@ -15,18 +15,16 @@ namespace Engine {
 	class SpotLightInspectorDrawer :
 		public SerializedComponentInspectorDrawer<SpotLightComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		SpotLightInspectorDrawer() :
 			SerializedComponentInspectorDrawer("SpotLight", "SpotLight") {}
 		~SpotLightInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;

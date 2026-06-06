@@ -18,10 +18,9 @@ namespace Engine {
 	template <typename T>
 	class CommandHistory {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		CommandHistory() = default;
 		~CommandHistory() = default;
 
@@ -46,10 +45,9 @@ namespace Engine {
 		const ICommand<T>* PeekUndo() const { return undoStack_.empty() ? nullptr : undoStack_.back().get(); }
 		const ICommand<T>* PeekRedo() const { return redoStack_.empty() ? nullptr : redoStack_.back().get(); }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		// Undo/Redoの履歴スタック
@@ -60,7 +58,6 @@ namespace Engine {
 	//============================================================================
 	//	CommandHistory classMethods
 	//============================================================================
-
 	template<typename T>
 	inline bool CommandHistory<T>::Execute(std::unique_ptr<ICommand<T>> command, T& context) {
 

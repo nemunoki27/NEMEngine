@@ -23,7 +23,6 @@
 //============================================================================
 //	PostProcessExecutor classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kFrameConstantsName = "PostProcessFrameConstants";
@@ -94,7 +93,7 @@ namespace {
 		Engine::DepthTexture2D* depth = nullptr;
 		std::string resolvedName{};
 
-		// 名前が取れている場合は、標準名を優先して解決する。
+		// 名前が取れている場合は、標準名を優先して解決する
 		if (binding.name == kSourceColorName) {
 
 			texture = sourceColor;
@@ -114,7 +113,7 @@ namespace {
 			}
 		}
 
-		// 古いshaderや無名binding向けに、標準register規約も残す。
+		// 古いshaderや無名binding向けに、標準register規約も残す
 		if (!texture && !depth && binding.name.empty()) {
 			if (binding.bindPoint == 0 && binding.space == 0) {
 				texture = sourceColor;
@@ -149,7 +148,7 @@ namespace {
 			return true;
 		}
 
-		// ユーザー設定テクスチャを textureOverrides から解決する。
+		// ユーザー設定テクスチャを textureOverrides から解決する
 		if (!binding.name.empty()) {
 
 			auto found = desc.textureOverrides.find(binding.name);
@@ -167,7 +166,7 @@ namespace {
 			}
 		}
 
-		// 解決できなかった場合は DefaultWhite をバインドする。source/depth 系の欠落はエラーとして扱う。
+		// 解決できなかった場合は DefaultWhite をバインドする。source/depth 系の欠落はエラーとして扱う
 		const bool isSourceReserved =
 			(binding.name == kSourceColorName || binding.name == kSourceDepthName) ||
 			((binding.bindPoint == 0 || binding.bindPoint == 1) && binding.space == 0 && binding.name.empty());
@@ -178,7 +177,7 @@ namespace {
 			return false;
 		}
 
-		// ユーザーテクスチャが未設定 → DefaultWhite にフォールバックする。
+		// ユーザーテクスチャが未設定 → DefaultWhite にフォールバックする
 		const Engine::GPUTextureResource* white =
 			graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
 		if (!white || !white->valid) {
@@ -264,7 +263,6 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 	//============================================================================
 	//	ポストプロセスの実行に必要なアセットの取得
 	//============================================================================
-
 	// ポストプロセスマテリアル取得
 	const MaterialAsset* materialAsset = assetLibrary.LoadMaterial(desc.material);
 	if (!materialAsset) {
@@ -313,7 +311,6 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 	//============================================================================
 	//	パイプライン・描画バインディング
 	//============================================================================
-
 	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
 	commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	commandList->SetPipelineState(pipelineState->GetComputePipeline());

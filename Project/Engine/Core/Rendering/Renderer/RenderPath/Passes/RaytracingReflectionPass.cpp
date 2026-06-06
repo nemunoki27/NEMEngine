@@ -18,7 +18,6 @@
 //============================================================================
 //	RaytracingReflectionPass classMethods
 //============================================================================
-
 namespace {
 
 	bool CopyColor0Resource(Engine::GraphicsCore& graphicsCore,

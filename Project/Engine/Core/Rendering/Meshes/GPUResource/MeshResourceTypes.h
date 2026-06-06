@@ -19,7 +19,6 @@ namespace Engine {
 	//============================================================================
 	//	MeshResourceTypes structures
 	//============================================================================
-
 	// 頂点データ
 	struct MeshVertex {
 
@@ -43,8 +42,8 @@ namespace Engine {
 		Vector2 uv = Vector2::AnyInit(0.0f);
 		Vector4 position = Vector4(0.0f, 0.0f, 0.0f, 1.0f);
 	};
-	// StructuredBufferのstrideをHLSL側のtight packingと完全一致させる。
-	// 不一致になると頂点読み出しが全体的に崩れるためサイズで固定する。
+	// StructuredBufferのstrideをHLSL側のtight packingと完全一致させる
+	// 不一致になると頂点読み出しが全体的に崩れるためサイズで固定する
 	static_assert(sizeof(MeshVertex) == 52,
 		"MeshVertex must match HLSL layout: normal,tangent,tangentSign,uv,position");
 	static_assert(sizeof(MeshPackedVertex) == 36,
@@ -203,8 +202,8 @@ namespace Engine {
 		// デフォルトのテクスチャセット
 		ImportedMeshTextureSet defaultTextures{};
 		ImportedMeshTextureAssetSet defaultTextureAssets{};
-		// 元のマテリアルがベースカラーテクスチャを宣言していたか(解決可否は問わない)。
-		// 解決後AssetIDが空のとき、未設定(白)か設定済みだが見つからない(エラー)かを区別するために使う。
+		// 元のマテリアルがベースカラーテクスチャを宣言していたか(解決可否は問わない)
+		// 解決後AssetIDが空のとき、未設定(白)か設定済みだが見つからない(エラー)かを区別するために使う
 		bool hasBaseColorTexture = false;
 		// デフォルトのベースカラー
 		Color4 baseColor = Color4::White();

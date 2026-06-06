@@ -5,7 +5,6 @@ using namespace Engine;
 //============================================================================
 //	Color3 classMethods
 //============================================================================
-
 Color3 Color3::operator+(const Color3& other) const {
 	return Color3(r + other.r, g + other.g, b + other.b);
 }
@@ -158,7 +157,6 @@ Color3 Color3::Magenta() {
 //============================================================================
 //	Color4 classMethods
 //============================================================================
-
 Color4 Color4::operator+(const Color4& other) const {
 	return Color4(r + other.r, g + other.g, b + other.b, a + other.a);
 }

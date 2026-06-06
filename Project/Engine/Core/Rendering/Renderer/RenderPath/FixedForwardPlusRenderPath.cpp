@@ -28,7 +28,6 @@
 //============================================================================
 //	FixedForwardPlusRenderPath classMethods
 //============================================================================
-
 void Engine::FixedForwardPlusRenderPath::Initialize(const RenderPipelineDeps& deps) {
 
 	deps_ = deps;
@@ -55,7 +54,7 @@ void Engine::FixedForwardPlusRenderPath::Initialize(const RenderPipelineDeps& de
 
 void Engine::FixedForwardPlusRenderPath::Finalize() {
 
-	// RenderPassのunique_ptrはclear任せにせず、終了時に明示resetする。
+	// RenderPassのunique_ptrはclear任せにせず、終了時に明示resetする
 	for (auto& pass : passes_) {
 		pass.reset();
 	}

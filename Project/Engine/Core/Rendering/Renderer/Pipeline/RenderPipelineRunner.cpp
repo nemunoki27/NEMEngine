@@ -1,5 +1,7 @@
 #include "RenderPipelineRunner.h"
 
+using namespace Engine;
+
 //============================================================================
 //	include
 //============================================================================
@@ -36,12 +38,12 @@
 //============================================================================
 //	RenderPipelineRunner classMethods
 //============================================================================
-
 namespace {
 
-	// スキニングする必要のあるメッシュ描画アイテムを収集して、バッチ処理する
-	void PreDispatchVisibleMeshSkinning(Engine::GraphicsCore& graphicsCore,
-		const Engine::SceneExecutionContext& context, const Engine::RenderSceneBatch& renderBatch,
+	// RenderView単位の可視性判定後に必要な分だけバッチ処理する
+	void PreDispatchVisibleMeshSkinning(GraphicsCore& graphicsCore,
+
+		const SceneExecutionContext& context, const RenderSceneBatch& renderBatch,
 		Engine::RenderBackendRegistry& backendRegistry, Engine::RenderAssetLibrary& assetLibrary,
 		Engine::PipelineStateCache& pipelineCache, Engine::MaterialResolver& materialResolver,
 		const Engine::RenderPassPhaseBuckets& passBuckets) {
@@ -54,7 +56,7 @@ namespace {
 		}
 
 		// 描画コンテキストの構築
-		Engine::RenderDrawContext drawContext{};
+		RenderDrawContext drawContext{};
 		drawContext.graphicsCore = &graphicsCore;
 		drawContext.view = context.view;
 		drawContext.cullingView = context.cullingView;
@@ -67,7 +69,7 @@ namespace {
 		drawContext.materialResolver = &materialResolver;
 		drawContext.forceVertexMeshVariant = context.forceVertexMeshVariant;
 
-		// GPUのランタイム機能を取得。プレビューではRayQuery系Variantを選ばない。
+		// GPUのランタイム機能を取得。プレビューではRayQuery系Variantを選ばない
 		drawContext.runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 		if (context.disableInlineRayTracing) {
 
@@ -106,7 +108,7 @@ namespace {
 			};
 
 		// 全フェーズのアイテムに対してスキニングを実行する
-		for (const Engine::RenderPassItemList& list : passBuckets.buckets) {
+		for (const RenderPassItemList& list : passBuckets.buckets) {
 			if (!list.IsEmpty()) {
 				runDispatch(list.items);
 			}
@@ -209,7 +211,7 @@ namespace {
 	}
 }
 
-void Engine::RenderPipelineRunner::Init() {
+void RenderPipelineRunner::Init() {
 
 	viewportRenderService_ = std::make_unique<ViewportRenderService>();
 
@@ -276,10 +278,10 @@ void Engine::RenderPipelineRunner::Init() {
 	lastRenderedWorld_ = nullptr;
 }
 
-void Engine::RenderPipelineRunner::Finalize() {
+void RenderPipelineRunner::Finalize() {
 
-	// GPU計測用のクエリヒープ/リードバックバッファはここで解放する。
-	// シングルトンのため放置するとDeviceより後まで生き残り、LeakCheckerに残る。
+	// GPU計測用のクエリヒープ/リードバックバッファはここで解放する
+	// シングルトンのため放置するとDeviceより後まで生き残り、LeakCheckerに残る
 	GpuFrameProfiler::GetInstance().Finalize();
 
 	renderPath_.Finalize();
@@ -316,10 +318,11 @@ void Engine::RenderPipelineRunner::Finalize() {
 	sceneViewResources_.Destroy();
 }
 
-void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameRequest& request) {
+void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameRequest& request) {
+
 
 	// エディタPostSceneで複数のプレビューを描画するため、プレビューbackendのリソースプールは
-	// ここでフレーム境界だけリセットし、RenderEntityPreviewごとにはリセットしない。
+	// ここでフレーム境界だけリセットし、RenderEntityPreviewごとにはリセットしない
 	previewBackendFrameStarted_ = false;
 
 	// ワールドがない場合は描画できないので処理しない
@@ -492,10 +495,10 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 			PreDispatchVisibleMeshSkinning(graphicsCore, context,
 				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 
-			// レイトレーシングシーンの構築。
+			// レイトレーシングシーンの構築
 			// gRaytracingSceneInstances/gRaytracingSubMeshes は context.bufferRegistry へ登録する必要があるため、
-			// コピーではなく実際の context へ直接構築する。コピーへ構築すると登録が破棄され、反射パスが早期リターンする。
-			// TLAS構築の基準ビューだけ一時的にGameViewへ差し替え、構築後に元へ戻す。
+			// コピーではなく実際の context へ直接構築する。コピーへ構築すると登録が破棄され、反射パスが早期リターンする
+			// TLAS構築の基準ビューだけ一時的にGameViewへ差し替え、構築後に元へ戻す
 			const ResolvedRenderView* prevTlasView = context.view;
 			if (gameView_.valid) {
 				context.view = &gameView_;
@@ -544,7 +547,7 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	GpuFrameProfiler::GetInstance().Resolve(graphicsCore.GetDXObject().GetDxCommand()->GetCommandList());
 }
 
-bool Engine::RenderPipelineRunner::PresentViewToBackBuffer(
+bool RenderPipelineRunner::PresentViewToBackBuffer(
 	GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material) {
 
 	// 指定された種類の描画ビューのサーフェスを取得
@@ -567,7 +570,7 @@ bool Engine::RenderPipelineRunner::PresentViewToBackBuffer(
 		passBinding = FindPass(*materialAsset, "Fullscreen");
 	}
 	// 無効なパスは処理しない
-	if (passBinding->preferredVariant == PipelineVariantKind::Compute ||
+	if (!passBinding || passBinding->preferredVariant == PipelineVariantKind::Compute ||
 		passBinding->preferredVariant == PipelineVariantKind::Raytracing) {
 		return false;
 	}
@@ -578,6 +581,9 @@ bool Engine::RenderPipelineRunner::PresentViewToBackBuffer(
 	};
 	const PipelineState* pipelineState = pipelineStateCache_.GetORCreate(graphicsCore.GetDXObject(),
 		renderAssetLibrary_, passBinding->pipeline, passBinding->preferredVariant, rtvFormats, DXGI_FORMAT_UNKNOWN);
+	if (!pipelineState || !pipelineState->GetGraphicsPipeline(BlendMode::Normal)) {
+		return false;
+	}
 
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	auto* commandList = dxCommand->GetCommandList();
@@ -608,7 +614,7 @@ bool Engine::RenderPipelineRunner::PresentViewToBackBuffer(
 	return true;
 }
 
-bool Engine::RenderPipelineRunner::RenderEntityPreview(
+bool RenderPipelineRunner::RenderEntityPreview(
 	GraphicsCore& graphicsCore, const EntityPreviewRenderRequest& request) {
 
 	if (!request.world || !request.assetDatabase || !request.surface || !request.surface->IsValid() ||
@@ -616,7 +622,7 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 		return false;
 	}
 
-	// メインのScene/Gameとは別に、ツール用サーフェイスだけを描画対象にする。
+	// メインのScene/Gameとは別に、ツール用サーフェイスだけを描画対象にする
 	renderAssetLibrary_.Init(request.assetDatabase);
 	if (!previewBackendFrameStarted_) {
 
@@ -674,7 +680,7 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 	context.systemContext = request.systemContext;
 	context.assetDatabase = request.assetDatabase;
 
-	// プレビュー用のライトバッファを更新する。SceneView/GameViewのGPUバッファは触らない。
+	// プレビュー用のライトバッファを更新する。SceneView/GameViewのGPUバッファは触らない
 	previewLightSet_.Clear();
 	ViewLightCollector::CollectForView(frameLightBatch_, &previewScene, previewView, previewLightSet_);
 	ViewLightBufferSet& previewLightBuffers = previewLightBufferPool_.Acquire(graphicsCore,
@@ -723,7 +729,7 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 		request.surface->Clear(*dxCommand, clearDesc);
 	}
 
-	for (const Engine::RenderPassItemList& list : passBuckets.buckets) {
+	for (const RenderPassItemList& list : passBuckets.buckets) {
 		if (list.IsEmpty()) {
 			continue;
 		}
@@ -757,8 +763,9 @@ bool Engine::RenderPipelineRunner::RenderEntityPreview(
 	return true;
 }
 
-void Engine::RenderPipelineRunner::SyncRequestedSurfaces(
+void RenderPipelineRunner::SyncRequestedSurfaces(
 	GraphicsCore& graphicsCore, const RenderFrameRequest& request) {
+
 
 	for (const auto& viewRequest : request.views) {
 		if (!viewRequest.enabled) {
@@ -768,7 +775,7 @@ void Engine::RenderPipelineRunner::SyncRequestedSurfaces(
 	}
 }
 
-void Engine::RenderPipelineRunner::ResolveViews(const RenderFrameRequest& request) {
+void RenderPipelineRunner::ResolveViews(const RenderFrameRequest& request) {
 
 	gameView_ = {};
 	sceneView_ = {};
@@ -788,9 +795,10 @@ void Engine::RenderPipelineRunner::ResolveViews(const RenderFrameRequest& reques
 	}
 }
 
-Engine::SceneExecutionContext Engine::RenderPipelineRunner::BuildViewExecutionContext(GraphicsCore& graphicsCore,
+SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCore& graphicsCore,
 	const RenderFrameRequest& request, const SceneInstance* sceneInstance,
 	RenderViewKind kind, const ResolvedRenderView& view) {
+
 
 	// コンテキストの構築
 	SceneExecutionContext context{};

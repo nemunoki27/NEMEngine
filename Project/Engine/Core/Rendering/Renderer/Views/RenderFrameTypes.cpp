@@ -3,7 +3,6 @@
 //============================================================================
 //	RenderFrameTypes classMethods
 //============================================================================
-
 const Engine::RenderViewRequest* Engine::RenderFrameRequest::FindView(RenderViewKind kind) const {
 
 	for (const auto& view : views) {

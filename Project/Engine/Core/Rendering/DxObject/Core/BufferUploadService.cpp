@@ -15,7 +15,6 @@
 //============================================================================
 //	BufferUploadService classMethods
 //============================================================================
-
 void Engine::BufferUploadService::Init(ID3D12Device* device, ID3D12CommandQueue* graphicsQueue) {
 
 	Finalize();
@@ -66,7 +65,7 @@ void Engine::BufferUploadService::Init(ID3D12Device* device, ID3D12CommandQueue*
 
 void Engine::BufferUploadService::Finalize() {
 
-	// 未SubmitのBatchがあれば終了処理前に閉じる。stagingやCommandListを開いたまま残さない。
+	// 未SubmitのBatchがあれば終了処理前に閉じる。stagingやCommandListを開いたまま残さない
 	if (batchOpened_ && currentContext_) {
 		SubmitBatch();
 	}
@@ -121,10 +120,6 @@ void Engine::BufferUploadService::EnsureBatchOpened() {
 	currentContext_ = &context;
 	batchOpened_ = true;
 	hasCommands_ = false;
-
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	Logger::Output(LogType::Engine, "[BufferUpload][BeginBatch] context={}", contextIndex_);
-#endif
 }
 
 void Engine::BufferUploadService::EnqueueBufferUpload(ID3D12Resource* destination,
@@ -146,7 +141,7 @@ void Engine::BufferUploadService::EnqueueBufferUpload(ID3D12Resource* destinatio
 	std::memcpy(mapped, sourceData.data(), sourceData.size_bytes());
 	staging->Unmap(0, nullptr);
 
-	// DEFAULT heap bufferはCreateCommittedResource時点ではCOMMONなので、コピー前にCOPY_DESTへ遷移する。
+	// DEFAULT heap bufferはCreateCommittedResource時点ではCOMMONなので、コピー前にCOPY_DESTへ遷移する
 	D3D12_RESOURCE_BARRIER copyDestBarrier{};
 	copyDestBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	copyDestBarrier.Transition.pResource = destination;
@@ -172,10 +167,6 @@ void Engine::BufferUploadService::EnqueueBufferUpload(ID3D12Resource* destinatio
 
 	currentContext_->stagingResources.emplace_back(std::move(staging));
 	hasCommands_ = true;
-
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	Logger::Output(LogType::Engine, "[BufferUpload][Enqueue] bytes={}", sourceData.size_bytes());
-#endif
 }
 
 uint64_t Engine::BufferUploadService::SubmitBatch() {
@@ -219,13 +210,6 @@ uint64_t Engine::BufferUploadService::SubmitBatch() {
 	const size_t resourceCount = pending.stagingResources.size();
 	pendingBatches_.emplace_back(std::move(pending));
 
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	Logger::Output(LogType::Engine, "[BufferUpload][Submit] fence={} resourceCount={}",
-		submittedFenceValue, resourceCount);
-#else
-	(void)resourceCount;
-#endif
-
 	// 次回は別コンテキストを使う
 	contextIndex_ = (contextIndex_ + 1) % kUploadContextCount;
 	currentContext_ = nullptr;
@@ -246,10 +230,6 @@ void Engine::BufferUploadService::TickFinalize() {
 		if (completed < pendingBatches_.front().fenceValue) {
 			break;
 		}
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-		Logger::Output(LogType::Engine, "[BufferUpload][Collect] fence={} releasedResourceCount={}",
-			pendingBatches_.front().fenceValue, pendingBatches_.front().stagingResources.size());
-#endif
 		pendingBatches_.pop_front();
 	}
 }

@@ -21,7 +21,6 @@ namespace Engine {
 	//============================================================================
 	//	PostProcessTemporaryTargetPool structures
 	//============================================================================
-
 	// ポストエフェクト実行設定
 	struct PostProcessTemporaryTargetDesc {
 
@@ -34,14 +33,13 @@ namespace Engine {
 
 	//============================================================================
 	//	PostProcessTemporaryTargetPool class
-	//	PostProcessの中間出力先をRenderTargetRegistryへ登録する補助クラス。
+	// PostProcessの中間出力先をRenderTargetRegistryへ登録する補助クラス
 	//============================================================================
 	class PostProcessTemporaryTargetPool {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		PostProcessTemporaryTargetPool() = default;
 		~PostProcessTemporaryTargetPool() = default;
 
@@ -52,10 +50,9 @@ namespace Engine {
 		MultiRenderTarget* Acquire(GraphicsCore& graphicsCore, RenderTargetRegistry& registry,
 			const PostProcessTemporaryTargetDesc& desc, const MultiRenderTarget& source);
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- functions ----------------------------------------------------
 
 		static SceneRenderTargetFormat ToSceneFormat(DXGI_FORMAT format);

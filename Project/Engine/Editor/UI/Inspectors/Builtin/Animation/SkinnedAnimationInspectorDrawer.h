@@ -15,18 +15,16 @@ namespace Engine {
 	class SkinnedAnimationInspectorDrawer :
 		public SerializedComponentInspectorDrawer<SkinnedAnimationComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		SkinnedAnimationInspectorDrawer() :
 			SerializedComponentInspectorDrawer("SkinnedAnimation", "SkinnedAnimation") {}
 		~SkinnedAnimationInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;

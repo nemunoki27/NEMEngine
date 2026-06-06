@@ -9,7 +9,6 @@
 //============================================================================
 //	SpriteRenderItemExtractor classMethods
 //============================================================================
-
 void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch& batch) {
 
 	world.ForEach<SpriteRendererComponent>([&](const Entity& entity, const SpriteRendererComponent& renderer) {

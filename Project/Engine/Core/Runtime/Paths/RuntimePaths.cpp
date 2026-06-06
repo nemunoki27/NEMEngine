@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-
 // c++
 #include <cstdlib>
 #include <mutex>
@@ -11,7 +10,6 @@
 //============================================================================
 //	RuntimePaths classMethods
 //============================================================================
-
 namespace {
 
 	// パスが存在するディレクトリとして扱えるか
@@ -269,8 +267,8 @@ Engine::RuntimePaths::PathState Engine::RuntimePaths::BuildState() {
 	state.gameRoot = FindGameRoot(state.projectRoot);
 	if (state.gameRoot == state.projectRoot) {
 
-		// 実行ファイルの出力先から起動した場合、current_path直下にはGameAssetsがない。
-		// EngineのProject配下を追加で探索して、Sandboxなどのゲーム側ルートを拾う。
+		// 実行ファイルの出力先から起動した場合、current_path直下にはGameAssetsがない
+		// EngineのProject配下を追加で探索して、Sandboxなどのゲーム側ルートを拾う
 		if (ExistsDirectory(state.engineProjectRoot / "GameAssets")) {
 			state.gameRoot = state.engineProjectRoot;
 		} else {

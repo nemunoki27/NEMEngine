@@ -26,15 +26,14 @@ namespace Engine {
 	template <typename T>
 	class LineRendererBase {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		LineRendererBase() {
 			lineCBVSlot_ = lineBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
 		}
 		virtual ~LineRendererBase() {
-			// 描画中に確保したGPUバッファを持つRenderResourceを明示resetする。
+			// 描画中に確保したGPUバッファを持つRenderResourceを明示resetする
 			for (auto& resource : renderResources_) {
 				resource.reset();
 			}
@@ -64,10 +63,9 @@ namespace Engine {
 		// 現在積まれているライン数
 		uint32_t GetCurrentLineCount() const { return static_cast<uint32_t>(vertices_.size() / 2); }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- structure ----------------------------------------------------
 
 		// 頂点情報
@@ -137,7 +135,6 @@ namespace Engine {
 	//============================================================================
 	//	LineRendererBase templateMethods
 	//============================================================================
-
 	template<typename T>
 	inline void LineRendererBase<T>::Init(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain) {
 
@@ -289,7 +286,7 @@ namespace Engine {
 
 		if (renderResources_.size() <= renderResourceIndex_) {
 
-			// GPU実行前のコマンドが参照しているバッファを、後続の描画で上書きしない。
+			// GPU実行前のコマンドが参照しているバッファを、後続の描画で上書きしない
 			auto resource = std::make_unique<RenderResource>();
 			resource->vertexBuffer.CreateBuffer(graphicsCore.GetDXObject().GetDevice(), kMaxVertexCount_);
 			resource->passBuffer.CreateBuffer(graphicsCore.GetDXObject().GetDevice());

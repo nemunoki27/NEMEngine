@@ -21,10 +21,9 @@ namespace Engine {
 	template <typename T>
 	class StructuredInstanceBuffer {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		StructuredInstanceBuffer() = default;
 		StructuredInstanceBuffer(const std::string& bindingName) : bindingName_(std::move(bindingName)) {}
 		~StructuredInstanceBuffer() { Release(); }
@@ -52,10 +51,9 @@ namespace Engine {
 		// 描画バウンディング名を取得する
 		std::string_view GetBindingName() const { return bindingName_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		ID3D12Device* device_ = nullptr;
@@ -81,7 +79,6 @@ namespace Engine {
 	//============================================================================
 	//	StructuredInstanceBuffer templateMethods
 	//============================================================================
-
 	template<typename T>
 	inline void StructuredInstanceBuffer<T>::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor) {
 

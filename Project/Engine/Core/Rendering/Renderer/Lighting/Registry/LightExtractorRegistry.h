@@ -15,10 +15,9 @@ namespace Engine {
 	class LightExtractorRegistry :
 		public ListRegistryBase<ILightExtractor> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		LightExtractorRegistry() = default;
 		~LightExtractorRegistry() override = default;
 

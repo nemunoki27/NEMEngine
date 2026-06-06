@@ -15,10 +15,9 @@
 //============================================================================
 //	TextRenderBackend classMethods
 //============================================================================
-
 Engine::TextRenderBackend::~TextRenderBackend() {
 
-	// FrameBatchResourcePool内のunique_ptrを終了時に明示resetする。
+	// FrameBatchResourcePool内のunique_ptrを終了時に明示resetする
 	resourcePool_.Clear();
 	vsGlyphScratch_.clear();
 	psGlyphScratch_.clear();

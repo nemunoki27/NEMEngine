@@ -15,10 +15,9 @@ namespace Engine {
 	class ScreenUiPass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit ScreenUiPass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~ScreenUiPass() override = default;
 
@@ -26,10 +25,9 @@ namespace Engine {
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;

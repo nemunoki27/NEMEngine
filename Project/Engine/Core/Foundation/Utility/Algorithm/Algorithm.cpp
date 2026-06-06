@@ -5,7 +5,6 @@ using namespace Engine;
 //============================================================================
 //	Algorithm define
 //============================================================================
-
 #if defined(__GNUC__) || defined(__clang__)
 #include <cxxabi.h>
 #include <cstdlib>
@@ -18,7 +17,6 @@ using namespace Engine;
 //============================================================================
 //	Algorithm classMethods
 //============================================================================
-
 std::string Algorithm::RemoveSubstring(const std::string& input, const std::string& toRemove) {
 
 	std::string result = input;

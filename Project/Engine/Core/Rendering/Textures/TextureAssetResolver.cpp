@@ -12,7 +12,6 @@
 //============================================================================
 //	TextureAssetResolver classMethods
 //============================================================================
-
 std::string Engine::TextureAssetResolver::NormalizeStem(const std::string_view& name) {
 
 	std::filesystem::path path(name);
@@ -124,7 +123,7 @@ void Engine::TextureAssetResolver::Build(const std::filesystem::path& modelFullP
 	texturesRoot_ = RuntimePaths::GetEngineAssetPath("Textures");
 	modelDirectory_ = modelFullPath.parent_path();
 
-	// OBJ/MTLやglTFはモデル横の相対パスを持つことが多いので、モデル周辺を最優先で索引化する。
+	// OBJ/MTLやglTFはモデル横の相対パスを持つことが多いので、モデル周辺を最優先で索引化する
 	if (std::filesystem::exists(modelDirectory_) && std::filesystem::is_directory(modelDirectory_)) {
 
 		IndexDirectoryRecursive(modelDirectory_, true);

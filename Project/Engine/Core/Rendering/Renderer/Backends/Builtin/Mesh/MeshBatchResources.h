@@ -31,7 +31,6 @@ namespace Engine {
 	//============================================================================
 	//	MeshBatchResources structures
 	//============================================================================
-
 	// 定数バッファ
 	struct MeshViewConstants {
 
@@ -68,7 +67,7 @@ namespace Engine {
 
 		// エンティティワールド行列(位置・Bounds・Culling用)
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
-		// worldMatrixの法線変換行列 transpose(inverse(worldMatrix))。
+		// worldMatrixの法線変換行列 transpose(inverse(worldMatrix))
 		// 非一様スケール・負スケールでも法線が壊れないよう位置用とは別に持つ
 		Matrix4x4 normalMatrix = Matrix4x4::Identity();
 
@@ -124,10 +123,9 @@ namespace Engine {
 	//============================================================================
 	class MeshBatchResources {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		MeshBatchResources() = default;
 		~MeshBatchResources();
 
@@ -227,10 +225,9 @@ namespace Engine {
 		D3D12_RESOURCE_STATES GetSkinnedVertexState() const { return skinning_->skinnedVertexState; }
 		D3D12_RESOURCE_STATES GetSkinnedPackedVertexState() const { return skinning_->skinnedPackedVertexState; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- structure ----------------------------------------------------
 
 		// スキニング用のリソースをまとめた構造体

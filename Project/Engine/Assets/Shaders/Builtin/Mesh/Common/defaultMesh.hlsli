@@ -1,13 +1,11 @@
 //============================================================================
 //	Common VS/PS
 //============================================================================
-
 #include "meshShaderSharedTypes.hlsli"
 
 //============================================================================
 //	output
 //============================================================================
-
 struct VSOutput {
 
 	float4 position : SV_Position;
@@ -29,7 +27,6 @@ struct DepthVSOutput {
 //============================================================================
 //	resources
 //============================================================================
-
 cbuffer ViewConstants : register(b0) {
 	
 	float4x4 viewProjection;
@@ -96,7 +93,6 @@ StructuredBuffer<uint> gPackedMeshletVertexIndices : register(t5, space1);
 //============================================================================
 //	functions
 //============================================================================
-
 SubMeshShaderData GetInstanceSubMesh(uint instanceID, uint localSubMeshIndex) {
 
 	MeshInstance instance = gMeshInstances[instanceID];
@@ -114,7 +110,7 @@ float4x4 GetInstanceSubMeshWorldMatrix(uint instanceID, uint localSubMeshIndex) 
 	return mul(subMesh.localMatrix, instance.worldMatrix);
 }
 
-// 法線変換行列。位置用worldMatrixと同じ合成順(local→world)で法線行列を合成する。
+// 法線変換行列。位置用worldMatrixと同じ合成順(local→world)で法線行列を合成する
 // CPUで transpose(inverse(...)) を構築済みなので、ここでinverseは呼ばない
 float4x4 GetInstanceSubMeshNormalMatrix(uint instanceID, uint localSubMeshIndex) {
 

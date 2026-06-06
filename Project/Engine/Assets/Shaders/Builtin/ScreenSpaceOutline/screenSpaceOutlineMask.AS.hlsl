@@ -1,7 +1,6 @@
 //============================================================================
 //	include
 //============================================================================
-
 #include "screenSpaceOutlineMask.hlsli"
 
 groupshared MeshDispatchPayload payload;

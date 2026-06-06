@@ -10,7 +10,6 @@
 //============================================================================
 //	MenuBarPanel classMethods
 //============================================================================
-
 void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 	if (!ImGui::BeginMainMenuBar()) {
@@ -22,7 +21,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	シーンファイル操作
 	//============================================================================
-
 	if (ImGui::BeginMenu("File")) {
 
 		const bool canEditScene = context.CanEditScene();
@@ -41,7 +39,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	編集操作
 	//============================================================================
-
 	if (ImGui::BeginMenu("Edit")) {
 
 		if (!context.editorState) {
@@ -92,7 +89,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	エディタウィンドウ表示設定
 	//============================================================================
-
 	if (ImGui::BeginMenu("Window")) {
 
 		ImGui::MenuItem("HidePanels", "Tab+Esc", &context.layoutState->hidePanels);
@@ -113,7 +109,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	グラフィックス機能表示/切り替え
 	//============================================================================
-
 	if (ImGui::BeginMenu("Graphics")) {
 
 		// GPUから検出した機能サポート状況とユーザー設定を表示し、切り替え可能なものは切り替える

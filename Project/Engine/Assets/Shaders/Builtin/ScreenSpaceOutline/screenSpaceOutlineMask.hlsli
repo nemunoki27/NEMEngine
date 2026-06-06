@@ -5,14 +5,12 @@
 //	include
 //	Mesh共通のworld transform / 頂点ロード / メッシュレットカリングを再利用する
 //============================================================================
-
 #include "../Mesh/Common/defaultMesh.hlsli"
 #include "screenSpaceOutlineCommon.hlsli"
 
 //============================================================================
 //	resources
 //============================================================================
-
 // この描画単位のStyle IDとSubMesh制限。0は描画しない。restrictが0以上ならそのSubMeshのみ
 cbuffer ScreenSpaceOutlineMaskConstantsBuffer : register(b1, space1) {
 
@@ -22,7 +20,6 @@ cbuffer ScreenSpaceOutlineMaskConstantsBuffer : register(b1, space1) {
 //============================================================================
 //	output
 //============================================================================
-
 struct MaskVSOutput {
 
 	float4 position : SV_Position;

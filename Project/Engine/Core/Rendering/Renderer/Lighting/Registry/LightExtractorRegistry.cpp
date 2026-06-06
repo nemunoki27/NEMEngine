@@ -9,7 +9,6 @@
 //============================================================================
 //	LightExtractorRegistry classMethods
 //============================================================================
-
 void Engine::LightExtractorRegistry::BuildBatch(ECSWorld& world, FrameLightBatch& batch) {
 
 	// ライト抽出器を呼び出してバッチを構築する

@@ -15,7 +15,6 @@ namespace Engine {
 	//	HLSL(screenSpaceOutlineCommon.hlsli / screenSpaceOutlineMask.hlsli)と
 	//	field順・paddingを完全一致させること
 	//============================================================================
-
 	// Style IDから引く描画パラメータ。dilation/compositeが参照する
 	struct ScreenSpaceOutlineStyleGPU {
 

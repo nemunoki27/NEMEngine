@@ -12,7 +12,6 @@
 //============================================================================
 //	SceneInstanceManager classMethods
 //============================================================================
-
 namespace {
 
 	std::uint64_t MakeEntityKey(const Engine::Entity& entity) {

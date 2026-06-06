@@ -11,7 +11,6 @@
 //============================================================================
 //	InstantiatePrefabCommand classMethods
 //============================================================================
-
 Engine::InstantiatePrefabCommand::InstantiatePrefabCommand(AssetID prefabAsset, UUID parentStableUUID) :
 	prefabAsset_(prefabAsset), parentStableUUID_(parentStableUUID) {
 }

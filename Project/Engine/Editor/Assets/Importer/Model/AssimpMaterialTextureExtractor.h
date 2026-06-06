@@ -9,7 +9,7 @@
 
 namespace Engine::AssimpMaterialTextureExtractor {
 
-	// Assimpのマテリアルから指定した複数のテクスチャタイプのうち、最初に見つかったテクスチャのパス（参照文字列）を取得する。
+	// Assimpのマテリアルから指定した複数のテクスチャタイプのうち、最初に見つかったテクスチャのパス（参照文字列）を取得する
 	std::string Extract(aiMaterial* material, std::initializer_list<aiTextureType> textureTypes);
 
 } // Engine::AssimpMaterialTextureExtractor

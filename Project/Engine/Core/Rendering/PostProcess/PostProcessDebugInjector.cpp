@@ -12,7 +12,6 @@
 //============================================================================
 //	PostProcessDebugInjector classMethods
 //============================================================================
-
 bool Engine::PostProcessDebugInjector::TryExecuteBeforeBlit(GraphicsCore& graphicsCore,
 	const SceneExecutionContext& context,
 	std::string_view sourceName, std::string_view destName,
@@ -53,7 +52,7 @@ bool Engine::PostProcessDebugInjector::TryExecuteBeforeBlit(GraphicsCore& graphi
 		return false;
 	}
 
-	// 以降のFullscreen Blitは、元のSceneColorFinalではなく中間RTを読む。
+	// 以降のFullscreen Blitは、元のSceneColorFinalではなく中間RTを読む
 	inoutSource = temp;
 	return true;
 }

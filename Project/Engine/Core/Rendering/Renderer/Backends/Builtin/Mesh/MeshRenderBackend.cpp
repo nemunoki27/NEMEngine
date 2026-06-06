@@ -30,7 +30,6 @@
 //============================================================================
 //	MeshRenderBackend classMethods
 //============================================================================
-
 namespace {
 
 	void MixHash(uint64_t& hash, uint64_t value) {
@@ -64,7 +63,7 @@ namespace {
 		return item->world->TryGetComponent<Engine::InvertedHullOutlineComponent>(item->entity);
 	}
 
-	// アウトラインコンポーネントのauthoring値をハッシュへ混ぜる。
+	// アウトラインコンポーネントのauthoring値をハッシュへ混ぜる
 	// 通常描画とアウトライン描画でリソースを共有するため、編集が即時反映されるようにする
 	void MixOutlineComponentHash(uint64_t& h, const Engine::InvertedHullOutlineComponent* outline) {
 
@@ -89,7 +88,7 @@ namespace {
 	bool ResolveMeshPass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterialID,
 		Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
 
-		// 背面法アウトラインの3パスは、元マテリアルと切り離してMeshOutlineデフォルトマテリアルから解決する。
+		// 背面法アウトラインの3パスは、元マテリアルと切り離してMeshOutlineデフォルトマテリアルから解決する
 		// コンポーネントを追加するだけで任意の既存マテリアルへアウトラインを適用できるようにする
 		if (context.passName == "Outline" ||
 			context.passName == "OutlineStencilWrite" ||
@@ -205,7 +204,7 @@ Engine::MeshRenderBackend::~MeshRenderBackend() {
 
 void Engine::MeshRenderBackend::ClearStaticBatchCache() {
 
-	// StaticBatchCacheEntry内のunique_ptr<MeshBatchResources>を明示resetしてからキャッシュを破棄する。
+	// StaticBatchCacheEntry内のunique_ptr<MeshBatchResources>を明示resetしてからキャッシュを破棄する
 	for (auto& [key, entry] : staticBatchCache_) {
 		(void)key;
 		entry.resources.reset();

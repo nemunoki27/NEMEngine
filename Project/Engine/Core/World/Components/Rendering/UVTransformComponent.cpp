@@ -3,7 +3,6 @@
 //============================================================================
 //	UVTransformComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, UVTransformComponent& component) {
 
 	component.pos = Vector2::FromJson(in.value("pos", nlohmann::json{}));

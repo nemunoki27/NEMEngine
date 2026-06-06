@@ -23,7 +23,6 @@
 //============================================================================
 //	MeshBatchResources classMethods
 //============================================================================
-
 namespace {
 
 	bool CanCullView(const Engine::RenderDrawContext& drawContext, const Engine::MeshGPUResource& gpuMesh) {
@@ -110,7 +109,7 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 
 void Engine::MeshBatchResources::Finalize() {
 
-	// OptionalSkinningResourcesは内部にSRV/UAV付きGPUバッファを持つため、終了時に明示resetする。
+	// OptionalSkinningResourcesは内部にSRV/UAV付きGPUバッファを持つため、終了時に明示resetする
 	skinning_.reset();
 	meshScratch_.clear();
 	subMeshScratch_.clear();
@@ -141,7 +140,7 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 		}
 	}
 
-	// ScreenPixelsでは近距離、投影、カメラ角度の影響を受ける。
+	// ScreenPixelsでは近距離、投影、カメラ角度の影響を受ける
 	// 誤カリングを避けるためHullのときだけ安全側でフラスタムカリングを無効にする
 	if (hullOutline && outlineMetrics_.hasScreenPixelWidth) {
 		cullingEnabled = false;
@@ -153,7 +152,7 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 	drawConstants.cullingEnabled = cullingEnabled ? 1u : 0u;
 	drawConstants.packedMeshletVertexIndices = gpuMesh.usePackedMeshletVertexIndices ? 1u : 0u;
 
-	// 背面法では通常メッシュのnormal cone判定を流用できない。
+	// 背面法では通常メッシュのnormal cone判定を流用できない
 	// 線が小さくても見えるためcontribution cullingも無効化する
 	drawConstants.contributionCullingEnabled =
 		(!hullOutline && cullingEnabled && drawContext.runtimeFeatures.useContributionCulling) ? 1u : 0u;
@@ -307,7 +306,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	// エラーテクスチャのSRVインデックスを取得する
 	const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
 	uint32_t fallbackSRVIndex = (fallback && fallback->srvIndex != UINT32_MAX) ? fallback->srvIndex : 0;
-	// 元々ベースカラーテクスチャが設定されていないMesh用の白テクスチャ。
+	// 元々ベースカラーテクスチャが設定されていないMesh用の白テクスチャ
 	// 白を掛けてもベースカラー(importedBaseColor/color)がそのまま出るため、未設定時はこちらを使う
 	const GPUTextureResource* whiteTexture = graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
 	uint32_t whiteSRVIndex = (whiteTexture && whiteTexture->srvIndex != UINT32_MAX) ? whiteTexture->srvIndex : fallbackSRVIndex;
@@ -374,7 +373,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				++skinnedInstanceCount_;
 			}
 
-			// アウトラインGPUデータをインスタンスごとに必ず1件作る。
+			// アウトラインGPUデータをインスタンスごとに必ず1件作る
 			// コンポーネントが無い通常メッシュにもゼロ初期値を入れて対応を崩さない
 			MeshOutlineGPUData outlineGPU{};
 			if (const InvertedHullOutlineComponent* outline = ResolveOutline(item)) {
@@ -418,7 +417,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			uint32_t baseColorSRVIndex;
 			if (baseColorAsset) {
 
-				// 解決対象は重複解決を避けるためAssetID単位でキャッシュする。
+				// 解決対象は重複解決を避けるためAssetID単位でキャッシュする
 				// 割り当て済みだが見つからない(解決失敗)場合はエラーテクスチャにフォールバックする
 				auto cachedTexture = baseColorSRVCache.find(baseColorAsset);
 				if (cachedTexture != baseColorSRVCache.end()) {

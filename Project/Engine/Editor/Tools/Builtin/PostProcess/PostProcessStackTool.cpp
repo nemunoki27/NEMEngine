@@ -27,7 +27,6 @@
 //============================================================================
 //	PostProcessStackTool classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kPassReorderPayloadType = "PP_PASS_REORDER";

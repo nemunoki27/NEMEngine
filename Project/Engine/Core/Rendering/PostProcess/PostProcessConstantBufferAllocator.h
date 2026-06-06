@@ -19,7 +19,6 @@ namespace Engine {
 	//============================================================================
 	//	PostProcessConstantBufferAllocation structure
 	//============================================================================
-
 	struct PostProcessConstantBufferAllocation {
 
 		D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = 0;
@@ -28,14 +27,13 @@ namespace Engine {
 
 	//============================================================================
 	//	PostProcessConstantBufferAllocator class
-	//	PostProcessのDispatchごとに別のCBV領域を切り出すUploadAllocator。
+	// PostProcessのDispatchごとに別のCBV領域を切り出すUploadAllocator
 	//============================================================================
 	class PostProcessConstantBufferAllocator {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		PostProcessConstantBufferAllocator() = default;
 		~PostProcessConstantBufferAllocator() = default;
 
@@ -50,10 +48,9 @@ namespace Engine {
 		// 可変長データをCBV用に転送してGPUアドレスを返す
 		PostProcessConstantBufferAllocation AllocateAndUploadBytes(ID3D12Device* device, std::span<const uint8_t> bytes);
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		ComPtr<ID3D12Resource> resource_{};
@@ -71,7 +68,6 @@ namespace Engine {
 	//============================================================================
 	//	PostProcessConstantBufferAllocator templateMethods
 	//============================================================================
-
 	template<typename T>
 	PostProcessConstantBufferAllocation PostProcessConstantBufferAllocator::AllocateAndUpload(
 		ID3D12Device* device, const T& data) {

@@ -18,7 +18,6 @@ namespace Engine {
 	//============================================================================
 	//	ScreenSpaceOutline request types
 	//============================================================================
-
 	// アウトライン要求の発生源
 	enum class ScreenSpaceOutlineSource : uint8_t {
 

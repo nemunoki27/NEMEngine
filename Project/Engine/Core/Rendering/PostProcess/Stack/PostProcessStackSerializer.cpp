@@ -12,7 +12,6 @@
 //============================================================================
 //	PostProcessStackSerializer classMethods
 //============================================================================
-
 namespace {
 
 	bool TryParseParameterValue(const nlohmann::json& data, Engine::MaterialParameterValue& outValue) {

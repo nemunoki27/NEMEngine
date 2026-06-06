@@ -3,7 +3,6 @@
 //============================================================================
 //	ComponentTypeRegistry classMethods
 //============================================================================
-
 const Engine::ComponentTypeInfo& Engine::ComponentTypeRegistry::GetInfo(uint32_t id) const {
 
 	assert(id < infos_.size());

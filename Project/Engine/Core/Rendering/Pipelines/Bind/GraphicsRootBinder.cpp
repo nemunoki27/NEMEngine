@@ -3,7 +3,6 @@
 //============================================================================
 //	GraphicsRootBinder classMethods
 //============================================================================
-
 void Engine::GraphicsRootBinder::Bind(ID3D12GraphicsCommandList* commandList,
 	const std::span<const GraphicsBindItem>& items) const {
 

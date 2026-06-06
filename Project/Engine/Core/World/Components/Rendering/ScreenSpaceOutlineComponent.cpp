@@ -14,11 +14,10 @@
 //============================================================================
 //	ScreenSpaceOutlineComponent classMethods
 //============================================================================
-
 namespace {
 
-	// widthPixelsは [0, kMaxScreenSpaceOutlineRadiusPixels] へ収める。
-	// 負値は0へ、上限超えは上限へ、NaN/Infはdefaultへ倒す。
+	// widthPixelsは [0, kMaxScreenSpaceOutlineRadiusPixels] へ収める
+	// 負値は0へ、上限超えは上限へ、NaN/Infはdefaultへ倒す
 	// 巨大半径はDilationのGPU Hang原因になるため、ここで必ず上限を掛ける
 	float SanitizeWidthPixels(float value, float fallback) {
 

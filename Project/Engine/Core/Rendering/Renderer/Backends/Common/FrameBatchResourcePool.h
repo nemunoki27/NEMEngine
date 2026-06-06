@@ -18,10 +18,9 @@ namespace Engine {
 	template <typename T>
 	class FrameBatchResourcePool {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		FrameBatchResourcePool() = default;
 		~FrameBatchResourcePool() = default;
 
@@ -41,10 +40,9 @@ namespace Engine {
 		size_t GetUsedCount() const { return usedCount_; }
 		size_t GetCapacity() const { return resources_.size(); }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		std::vector<std::unique_ptr<T>> resources_{};
@@ -54,7 +52,6 @@ namespace Engine {
 	//============================================================================
 	//	FrameBatchResourcePool templateMethods
 	//============================================================================
-
 	template<typename T>
 	inline void FrameBatchResourcePool<T>::BeginFrame() {
 
@@ -65,7 +62,7 @@ namespace Engine {
 	template<typename T>
 	inline void FrameBatchResourcePool<T>::Clear() {
 
-		// GPUリソースを持つBatchResourceはclear任せにせず、明示的にresetしてからコンテナを空にする。
+		// GPUリソースを持つBatchResourceはclear任せにせず、明示的にresetしてからコンテナを空にする
 		for (auto& resource : resources_) {
 			resource.reset();
 		}

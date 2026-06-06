@@ -40,7 +40,6 @@
 //============================================================================
 //	EditorManager classMethods
 //============================================================================
-
 namespace {
 
 	// ドッキングスペースのホストウィンドウ名
@@ -62,7 +61,7 @@ namespace {
 
 		const bool shortcutDown = directInputDown || imguiDown;
 
-		// 同時押しに入った瞬間だけ反応させる。押しっぱなしの間は再トグルしない。
+		// 同時押しに入った瞬間だけ反応させる。押しっぱなしの間は再トグルしない
 		static bool wasShortcutDown = false;
 		const bool triggered = shortcutDown && !wasShortcutDown;
 		wasShortcutDown = shortcutDown;
@@ -578,7 +577,7 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 		}
 	}
 
-	// GameViewにもSceneViewと同じTLASピックだけを通し、マニピュレーターは表示しない。
+	// GameViewにもSceneViewと同じTLASピックだけを通し、マニピュレーターは表示しない
 	if (layoutState_.showGameView) {
 		executePick(InputViewArea::Game, RenderViewKind::Game,
 			renderPipeline.GetGameViewTLASResource(), renderPipeline.GetGameViewPickRecords());

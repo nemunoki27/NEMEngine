@@ -20,7 +20,6 @@
 //============================================================================
 //	PostProcessAssetGenerator classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kGeneratedBy = "PostProcessAssetGenerator";
@@ -151,8 +150,8 @@ namespace {
 
 	bool IsLegacyBuiltinGenerated(const nlohmann::json& data) {
 
-		// 以前の自動生成版はgeneratedメタデータを持たない。
-		// 手動asset保護を優先し、最低限の既定フィールドだけのものに限定して移行する。
+		// 以前の自動生成版はgeneratedメタデータを持たない
+		// 手動asset保護を優先し、最低限の既定フィールドだけのものに限定して移行する
 		if (!data.is_object() || data.contains("generated") || data.contains("generatedBy")) {
 			return false;
 		}

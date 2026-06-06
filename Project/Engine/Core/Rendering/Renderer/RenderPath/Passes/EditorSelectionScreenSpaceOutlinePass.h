@@ -14,16 +14,15 @@ namespace Engine {
 
 	//============================================================================
 	//	EditorSelectionScreenSpaceOutlinePass class
-	//	Editor選択由来のtemporary requestをSceneFinalへ合成する。
-	//	PostProcess後、Blit前にSceneViewだけへ描く。
+	// Editor選択由来のtemporary requestをSceneFinalへ合成する
+	// PostProcess後、Blit前にSceneViewだけへ描く
 	//============================================================================
 	class EditorSelectionScreenSpaceOutlinePass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit EditorSelectionScreenSpaceOutlinePass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~EditorSelectionScreenSpaceOutlinePass() override = default;
 
@@ -31,10 +30,9 @@ namespace Engine {
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;

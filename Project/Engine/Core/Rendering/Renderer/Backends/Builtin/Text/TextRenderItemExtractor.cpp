@@ -8,7 +8,6 @@
 //============================================================================
 //	TextRenderItemExtractor classMethods
 //============================================================================
-
 void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch& batch) {
 
 	world.ForEach<TextRendererComponent>([&](const Entity& entity, TextRendererComponent& renderer) {

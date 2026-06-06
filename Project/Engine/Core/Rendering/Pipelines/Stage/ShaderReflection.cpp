@@ -5,7 +5,6 @@ using namespace Engine;
 //============================================================================
 //	ShaderReflection classMethods
 //============================================================================
-
 ShaderStage Engine::operator|(ShaderStage a, ShaderStage b) {
 
 	using T = std::underlying_type_t<ShaderStage>;

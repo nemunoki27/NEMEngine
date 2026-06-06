@@ -11,7 +11,6 @@
 //============================================================================
 //	GpuFrameProfiler classMethods
 //============================================================================
-
 Engine::GpuFrameProfiler& Engine::GpuFrameProfiler::GetInstance() {
 
 	static GpuFrameProfiler instance;

@@ -15,16 +15,15 @@ namespace Engine {
 	//============================================================================
 	//	DxImmutableStructuredBuffer class
 	//	ロード後に更新しない静的SRV用の構造化バッファ。DEFAULT heapに本体を置き、
-	//	初期データはBufferUploadService経由で1回だけ転送する。CPU Mapは行わない。
-	//	CPU更新が必要な場合はDxStructuredBuffer<T>を使うこと。
+	// 初期データはBufferUploadService経由で1回だけ転送する。CPU Mapは行わない
+	// CPU更新が必要な場合はDxStructuredBuffer<T>を使うこと
 	//============================================================================
 	template<typename T>
 	class DxImmutableStructuredBuffer {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		DxImmutableStructuredBuffer() = default;
 		~DxImmutableStructuredBuffer() = default;
 
@@ -42,10 +41,9 @@ namespace Engine {
 		uint32_t GetElementCount() const { return elementCount_; }
 		bool IsCreatedResource() const { return resource_ != nullptr; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		ComPtr<ID3D12Resource> resource_;
@@ -55,7 +53,6 @@ namespace Engine {
 	//============================================================================
 	//	DxImmutableStructuredBuffer templateMethods
 	//============================================================================
-
 	template<typename T>
 	inline void DxImmutableStructuredBuffer<T>::Create(ID3D12Device* device, BufferUploadService& uploadService,
 		std::span<const T> data, D3D12_RESOURCE_STATES finalState) {
@@ -68,7 +65,7 @@ namespace Engine {
 		elementCount_ = static_cast<uint32_t>(data.size());
 		const size_t sizeInBytes = sizeof(T) * data.size();
 
-		// DEFAULT heapのバッファは作成時COMMON。コピー用のCOPY_DEST遷移はBufferUploadServiceで積む。
+		// DEFAULT heapのバッファは作成時COMMON。コピー用のCOPY_DEST遷移はBufferUploadServiceで積む
 		DxUtils::CreateDefaultBufferResource(device, resource_, sizeInBytes);
 
 		uploadService.EnqueueBufferUpload(resource_.Get(), std::as_bytes(data), finalState);

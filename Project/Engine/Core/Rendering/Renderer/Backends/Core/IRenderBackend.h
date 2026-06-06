@@ -26,7 +26,6 @@ namespace Engine {
 	//============================================================================
 	//	IRenderBackend structures
 	//============================================================================
-
 	// 描画コンテキスト
 	struct RenderDrawContext {
 
@@ -46,9 +45,9 @@ namespace Engine {
 		PipelineStateCache* pipelineCache = nullptr;
 		MaterialResolver* materialResolver = nullptr;
 
-		// この描画で使用するGPU機能。プレビューでは一部機能を落としてVariantを選ぶ。
+		// この描画で使用するGPU機能。プレビューでは一部機能を落としてVariantを選ぶ
 		GraphicsRuntimeFeatures runtimeFeatures{};
-		// ツールプレビューではMeshShader/RayQueryを避け、Vertex版のGraphics Variantを優先する。
+		// ツールプレビューではMeshShader/RayQueryを避け、Vertex版のGraphics Variantを優先する
 		bool forceVertexMeshVariant = false;
 
 		// 現在バインド中の描画先フォーマット
@@ -60,7 +59,7 @@ namespace Engine {
 		std::string_view passName = "Draw";
 		bool depthOnly = false;
 
-		// ScreenSpaceOutline Mask描画でこの描画単位へ渡すStyle IDとSubMesh制限。
+		// ScreenSpaceOutline Mask描画でこの描画単位へ渡すStyle IDとSubMesh制限
 		// 0なら描画しない。Mask以外のパスでは未使用
 		uint32_t screenSpaceOutlineMaskStyleID = 0;
 		int32_t screenSpaceOutlineMaskRestrictSubMeshIndex = -1;
@@ -74,10 +73,9 @@ namespace Engine {
 	//============================================================================
 	class IRenderBackend {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		IRenderBackend() = default;
 		virtual ~IRenderBackend() = default;
 

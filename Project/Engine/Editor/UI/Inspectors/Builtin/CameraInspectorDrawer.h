@@ -15,19 +15,17 @@ namespace Engine {
 	class OrthographicCameraInspectorDrawer :
 		public SerializedComponentInspectorDrawer<OrthographicCameraComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		OrthographicCameraInspectorDrawer() :
 			SerializedComponentInspectorDrawer("OrthographicCamera", "OrthographicCamera") {
 		}
 		~OrthographicCameraInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;
@@ -41,19 +39,17 @@ namespace Engine {
 	class PerspectiveCameraInspectorDrawer :
 		public SerializedComponentInspectorDrawer<PerspectiveCameraComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		PerspectiveCameraInspectorDrawer() :
 			SerializedComponentInspectorDrawer("PerspectiveCamera", "PerspectiveCamera") {
 		}
 		~PerspectiveCameraInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;

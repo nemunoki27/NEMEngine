@@ -18,7 +18,6 @@
 //============================================================================
 //	RuntimeScreenSpaceOutlinePass classMethods
 //============================================================================
-
 namespace {
 
 	uint64_t MakeEntityKey(const Engine::Entity& entity) {

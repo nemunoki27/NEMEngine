@@ -17,10 +17,9 @@ namespace Engine {
 	class RaytracingReflectionPass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit RaytracingReflectionPass(const RenderPipelineDeps& deps) : deps_(deps) {
 			srcColorSlot_ = blitSRVCache_.AddSlotByRegister(ShaderBindingKind::SRV, 0, 0);
 		}
@@ -30,10 +29,9 @@ namespace Engine {
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;

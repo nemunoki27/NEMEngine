@@ -19,7 +19,6 @@ using namespace Engine;
 //============================================================================
 //	Input classMethods
 //============================================================================
-
 namespace {
 
 	const char* kMouseNames[3] = { "MouseLeft", "MouseRight", "MouseCenter" };

@@ -21,7 +21,6 @@
 //============================================================================
 //	BuiltinAnimationProperties functions
 //============================================================================
-
 namespace {
 
 	template <typename Component>
@@ -33,7 +32,7 @@ namespace {
 	template <typename Value>
 	bool ReadVariant(const Engine::AnimationPropertyValue& value, Value& out) {
 
-		// PropertyDescriptorのvalueTypeと実データ型が違う場合は適用しない。
+		// PropertyDescriptorのvalueTypeと実データ型が違う場合は適用しない
 		if (const Value* typed = std::get_if<Value>(&value)) {
 			out = *typed;
 			return true;
@@ -92,7 +91,6 @@ namespace {
 	//============================================================================
 	//	TransformComponent
 	//============================================================================
-
 	bool GetTransformLocalPos(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
@@ -110,7 +108,7 @@ namespace {
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
 
 			transform->localPos = typed;
-			// 親子階層を持つ場合、子のworldMatrixも再計算対象にする必要がある。
+			// 親子階層を持つ場合、子のworldMatrixも再計算対象にする必要がある
 			Engine::MarkTransformSubtreeDirty(world, entity);
 			return true;
 		}
@@ -132,7 +130,7 @@ namespace {
 		}
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
 
-			// 2D編集ではZを保持したままXYだけをAnimationClipから上書きする。
+			// 2D編集ではZを保持したままXYだけをAnimationClipから上書きする
 			transform->localPos.x = typed.x;
 			transform->localPos.y = typed.y;
 			Engine::MarkTransformSubtreeDirty(world, entity);
@@ -157,7 +155,7 @@ namespace {
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
 
 			transform->localRotation = Engine::Quaternion::Normalize(typed);
-			// Quaternionは4ch保存だが、適用時は正規化して行列生成の誤差を抑える。
+			// Quaternionは4ch保存だが、適用時は正規化して行列生成の誤差を抑える
 			Engine::MarkTransformSubtreeDirty(world, entity);
 			return true;
 		}
@@ -179,7 +177,7 @@ namespace {
 		}
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
 
-			// 2D編集用に、既存のX/Y回転は残してZ回転だけ差し替える。
+			// 2D編集用に、既存のX/Y回転は残してZ回転だけ差し替える
 			Engine::Vector3 euler = Engine::Quaternion::ToEulerDegrees(transform->localRotation);
 			euler.z = typed;
 			transform->localRotation = Engine::Quaternion::FromEulerDegrees(euler);
@@ -226,7 +224,7 @@ namespace {
 		}
 		if (Engine::TransformComponent* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
 
-			// 2D編集ではZ Scaleを保持して、Sprite系の見た目に必要なXYだけ動かす。
+			// 2D編集ではZ Scaleを保持して、Sprite系の見た目に必要なXYだけ動かす
 			transform->localScale.x = typed.x;
 			transform->localScale.y = typed.y;
 			Engine::MarkTransformSubtreeDirty(world, entity);
@@ -238,7 +236,6 @@ namespace {
 	//============================================================================
 	//	SpriteRendererComponent
 	//============================================================================
-
 	bool GetSpriteSize(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::SpriteRendererComponent* renderer = world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
@@ -303,7 +300,6 @@ namespace {
 	//============================================================================
 	//	TextRendererComponent
 	//============================================================================
-
 	template <typename Value, Value Engine::TextRendererComponent::* Member>
 	bool SetTextLayoutMember(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
@@ -313,7 +309,7 @@ namespace {
 		}
 		if (Engine::TextRendererComponent* renderer = world.TryGetComponent<Engine::TextRendererComponent>(entity)) {
 			renderer->*Member = typed;
-			// レイアウトに関わる値を変えたら、次回描画時にGlyph配置を作り直す。
+			// レイアウトに関わる値を変えたら、次回描画時にGlyph配置を作り直す
 			renderer->runtimeLayout.valid = false;
 			return true;
 		}
@@ -323,7 +319,6 @@ namespace {
 	//============================================================================
 	//	CollisionComponent
 	//============================================================================
-
 	template <size_t ShapeIndex>
 	bool HasCollisionShape(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
@@ -364,7 +359,6 @@ namespace {
 	//============================================================================
 	//	MeshRendererComponent
 	//============================================================================
-
 	template <size_t SubMeshIndex>
 	bool HasMeshSubMesh(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
@@ -425,7 +419,7 @@ namespace {
 		bool (*getValue)(Engine::ECSWorld&, const Engine::Entity&, Engine::AnimationPropertyValue&),
 		bool (*setValue)(Engine::ECSWorld&, const Engine::Entity&, const Engine::AnimationPropertyValue&)) {
 
-		// ToolとRuntimeの両方から同じDescriptorを引けるよう、登録情報を一箇所に集約する。
+		// ToolとRuntimeの両方から同じDescriptorを引けるよう、登録情報を一箇所に集約する
 		Engine::AnimationPropertyDescriptor desc{};
 		desc.componentName = componentName;
 		desc.propertyPath = propertyPath;

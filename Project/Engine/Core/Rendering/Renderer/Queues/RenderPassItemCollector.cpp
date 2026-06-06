@@ -3,7 +3,6 @@
 //============================================================================
 //	RenderPassItemCollector classMethods
 //============================================================================
-
 void Engine::RenderPassPhaseBuckets::Clear() {
 
 	for (RenderPassItemList& bucket : buckets) {

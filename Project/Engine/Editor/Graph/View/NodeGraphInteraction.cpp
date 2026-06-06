@@ -8,7 +8,6 @@
 //============================================================================
 //	NodeGraphInteraction classMethods
 //============================================================================
-
 bool Engine::NodeGraphInteraction::TryCreateLink(GraphDocument& document, GraphID fromPinID, GraphID toPinID) {
 
 	// Document側の検証を通してLinkを作成する

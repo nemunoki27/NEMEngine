@@ -18,7 +18,6 @@ namespace Engine {
 	//============================================================================
 	//	AnimationCurve enum class
 	//============================================================================
-
 	// キー間を補間する方法
 	enum class CurveInterpolationMode :
 		uint8_t {
@@ -33,7 +32,6 @@ namespace Engine {
 	//============================================================================
 	//	AnimationCurve structures
 	//============================================================================
-
 	// カーブ上の1キー
 	struct CurveKey {
 
@@ -104,7 +102,7 @@ namespace Engine {
 	};
 	struct CurveQuaternionAxisKey {
 
-		// falseならaxesから軸を作る。trueならcustomAxisをそのまま使う。
+		// falseならaxesから軸を作る。trueならcustomAxisをそのまま使う
 		bool useCustomAxis = false;
 		std::vector<Axis> axes{ Axis::X };
 		Vector3 customAxis = Vector3(1.0f, 0.0f, 0.0f);

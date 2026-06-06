@@ -12,7 +12,6 @@
 //============================================================================
 //	ScreenSpaceOutlineViewResources classMethods
 //============================================================================
-
 bool Engine::ScreenSpaceOutlineViewResources::IsValid() const {
 
 	return mask && mask->IsValid() &&
@@ -44,7 +43,6 @@ void Engine::ScreenSpaceOutlineViewResources::Destroy() {
 //============================================================================
 //	RenderPathResources classMethods
 //============================================================================
-
 void Engine::RenderPathResources::Resize(GraphicsCore& graphicsCore, uint32_t width, uint32_t height) {
 
 	if (width == 0 || height == 0) {

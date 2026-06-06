@@ -8,7 +8,6 @@
 //============================================================================
 //	BehaviorTypeRegistry classMethods
 //============================================================================
-
 uint32_t Engine::BehaviorTypeRegistry::RegisterManaged(const std::string_view& name) {
 
 	// 既に登録済みならそのIDを返す
@@ -88,7 +87,7 @@ const Engine::BehaviorTypeInfo* Engine::BehaviorTypeRegistry::FindManagedBySimpl
 			continue;
 		}
 
-		// 同名クラスが複数名前空間にある場合は曖昧なので、完全名指定を要求する。
+		// 同名クラスが複数名前空間にある場合は曖昧なので、完全名指定を要求する
 		if (result) {
 			return nullptr;
 		}

@@ -10,7 +10,6 @@
 //============================================================================
 //	SetEntityActiveCommand classMethods
 //============================================================================
-
 Engine::SetEntityActiveCommand::SetEntityActiveCommand(const Entity& targetEntity, bool activeSelf) :
 	initialTarget_(targetEntity),
 	afterActiveSelf_(activeSelf) {

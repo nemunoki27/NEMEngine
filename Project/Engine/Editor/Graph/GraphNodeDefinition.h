@@ -19,7 +19,6 @@ namespace Engine {
 	//	GraphPinDefinition structure
 	//	Node生成時に使うPin定義
 	//============================================================================
-
 	// ノード生成時に使うピンと既定値
 	struct GraphPinDefinition {
 
@@ -41,7 +40,6 @@ namespace Engine {
 	//	GraphNodeDefinition structure
 	//	Node生成時に使うNode定義
 	//============================================================================
-
 	struct GraphNodeDefinition {
 
 		//--------- variables ----------------------------------------------------

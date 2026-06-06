@@ -3,7 +3,6 @@
 //============================================================================
 //	ScriptComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, ScriptEntry& entry) {
 
 	entry.type = in.value("type", "");

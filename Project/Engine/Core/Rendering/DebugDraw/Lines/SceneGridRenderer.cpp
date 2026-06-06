@@ -21,7 +21,6 @@
 //============================================================================
 //	SceneGridRenderer classMethods
 //============================================================================
-
 namespace {
 
 	struct GridPoint2D {
@@ -418,7 +417,7 @@ namespace {
 
 Engine::SceneGridRenderer::~SceneGridRenderer() {
 
-	// フレーム内複数描画用に保持した定数バッファを終了時に明示resetする。
+	// フレーム内複数描画用に保持した定数バッファを終了時に明示resetする
 	for (auto& buffer : passBuffers_) {
 		buffer.reset();
 	}
@@ -611,7 +610,7 @@ Engine::DxConstBuffer<Engine::SceneGridRenderer::GridPassConstants>& Engine::Sce
 
 	if (passBuffers_.size() <= passBufferIndex_) {
 
-		// 同じフレーム内で複数のカメラから描画されても、記録済みコマンドの定数を上書きしない。
+		// 同じフレーム内で複数のカメラから描画されても、記録済みコマンドの定数を上書きしない
 		auto buffer = std::make_unique<DxConstBuffer<GridPassConstants>>();
 		buffer->CreateBuffer(graphicsCore.GetDXObject().GetDevice());
 		passBuffers_.emplace_back(std::move(buffer));

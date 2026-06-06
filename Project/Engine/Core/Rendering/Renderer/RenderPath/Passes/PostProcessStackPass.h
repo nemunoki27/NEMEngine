@@ -15,10 +15,9 @@ namespace Engine {
 	class PostProcessStackPass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit PostProcessStackPass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~PostProcessStackPass() override = default;
 
@@ -26,10 +25,9 @@ namespace Engine {
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;

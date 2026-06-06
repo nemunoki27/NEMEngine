@@ -8,7 +8,6 @@
 //============================================================================
 //	MeshRendererComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMaterial) {
 
 	subMeshMaterial.name = in.value("name", "");

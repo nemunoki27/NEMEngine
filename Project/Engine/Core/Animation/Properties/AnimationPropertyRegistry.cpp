@@ -11,7 +11,6 @@
 //============================================================================
 //	AnimationPropertyRegistry classMethods
 //============================================================================
-
 Engine::AnimationPropertyRegistry& Engine::AnimationPropertyRegistry::GetInstance() {
 
 	static AnimationPropertyRegistry registry;
@@ -24,8 +23,8 @@ void Engine::AnimationPropertyRegistry::Register(const AnimationPropertyDescript
 		return;
 	}
 
-	// 同じComponent.Propertyは上書き登録しない。
-	// Builtin登録を複数回呼んでも、ツール側のAddProperty一覧が重複しないようにしている。
+	// 同じComponent.Propertyは上書き登録しない
+	// Builtin登録を複数回呼んでも、ツール側のAddProperty一覧が重複しないようにしている
 	if (Find(desc.componentName, desc.propertyPath)) {
 		return;
 	}

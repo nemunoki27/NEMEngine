@@ -1,13 +1,11 @@
 //============================================================================
 //	背面法アウトライン 共通定義
 //============================================================================
-
 #include "defaultMesh.hlsli"
 
 //============================================================================
 //	定数
 //============================================================================
-
 static const uint OUTLINE_EXPANSION_NORMAL_DIRECTION = 0u;
 static const uint OUTLINE_EXPANSION_POSITION_SCALING = 1u;
 static const uint OUTLINE_WIDTH_MODEL_UNITS = 0u;
@@ -18,7 +16,6 @@ static const uint MESH_OUTLINE_FLAG_USE_OUTLINE_SAMPLER = 1u << 1;
 //============================================================================
 //	resources
 //============================================================================
-
 SamplerState gOutlineSampler : register(s0);
 
 struct MeshOutlineGPUData {
@@ -47,7 +44,6 @@ struct OutlineVertexOutput {
 //============================================================================
 //	functions
 //============================================================================
-
 // Outline Samplerによる部位別アウトライン幅の乗数を取得する。VS/MSではSampleLevelを使う
 float SampleOutlineWidthMultiplier(MeshOutlineGPUData outline, float2 uv) {
 

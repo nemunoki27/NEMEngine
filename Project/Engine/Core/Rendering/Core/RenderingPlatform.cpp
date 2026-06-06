@@ -16,7 +16,6 @@ using namespace Engine;
 //============================================================================
 //	GraphicsPlatform classMethods
 //============================================================================
-
 namespace {
 #if defined(D3D_SHADER_MODEL_6_8)
 	constexpr D3D_SHADER_MODEL kRequestedHighestShaderModel = D3D_SHADER_MODEL_6_8;
@@ -50,14 +49,14 @@ void GraphicsPlatform::InitDXDevice() {
 	ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
 	if (SUCCEEDED(dxDevice_->Get()->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
 
-		// API の破損や不正引数は即座に止める。
+		// API の破損や不正引数は即座に止める
 		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
 
 		// Device Removed 時に DRED Dump へ到達させるため、
-		// ERROR 全般の即時 break は一時的に無効化する。
+		// ERROR 全般の即時 break は一時的に無効化する
 		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, FALSE);
 
-		// 明示的に Device Removal 系の break も解除する。
+		// 明示的に Device Removal 系の break も解除する
 		infoQueue->SetBreakOnID(D3D12_MESSAGE_ID_DEVICE_REMOVAL_PROCESS_AT_FAULT, FALSE);
 		infoQueue->SetBreakOnID(D3D12_MESSAGE_ID_DEVICE_REMOVAL_PROCESS_POSSIBLY_AT_FAULT, FALSE);
 		infoQueue->SetBreakOnID(D3D12_MESSAGE_ID_DEVICE_REMOVAL_PROCESS_NOT_AT_FAULT, FALSE);
@@ -129,7 +128,7 @@ void GraphicsPlatform::Init() {
 
 void GraphicsPlatform::Finalize(HWND hwnd) {
 
-	// DxCommandはDeviceを参照しているため、Deviceより先にFinalize/resetする。
+	// DxCommandはDeviceを参照しているため、Deviceより先にFinalize/resetする
 	if (dxCommand_) {
 		dxCommand_->Finalize(hwnd);
 		dxCommand_.reset();

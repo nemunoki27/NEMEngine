@@ -14,7 +14,6 @@ namespace Engine::RootBindingCommand {
 	//============================================================================
 	//	グラフィックスコマンド
 	//============================================================================
-
 	// ルート引数にCBVをセットする
 	void SetGraphicsCBV(ID3D12GraphicsCommandList* commandList, const RootBindingLocation* binding, D3D12_GPU_VIRTUAL_ADDRESS gpuAddress);
 	// ルート引数にSRVをセットする
@@ -24,7 +23,6 @@ namespace Engine::RootBindingCommand {
 	//============================================================================
 	//	コンピュートコマンド
 	//============================================================================
-
 	// ルート引数にCBVをセットする
 	void SetComputeCBV(ID3D12GraphicsCommandList* commandList, const RootBindingLocation* binding, D3D12_GPU_VIRTUAL_ADDRESS gpuAddress);
 	// ルート引数にSRVをセットする

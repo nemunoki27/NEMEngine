@@ -18,7 +18,6 @@ namespace Engine {
 	//============================================================================
 	//	AssetTypes
 	//============================================================================
-
 	using AssetID = UUID;
 
 	// アセットの種類
@@ -59,9 +58,9 @@ namespace Engine {
 
 	// nlohmann::jsonからAssetIDを取得する(UID文字列のみ。検証はしない)
 	AssetID ParseAssetID(const nlohmann::json& in, const char* key);
-	// GUID文字列またはGUIDフィールドを持つオブジェクトからAssetIDを取得する。
+	// GUID文字列またはGUIDフィールドを持つオブジェクトからAssetIDを取得する
 	// databaseが渡されれば存在確認、expectedTypeがUnknown以外なら型確認も行い、
-	// diagnosticが渡されれば結果を書き込む(不一致でも参照値自体は返す)。
+	// diagnosticが渡されれば結果を書き込む(不一致でも参照値自体は返す)
 	AssetID ParseAssetReference(const nlohmann::json& in, const char* key,
 		const AssetDatabase* database, AssetType expectedType,
 		AssetReferenceDiagnostic* diagnostic = nullptr);

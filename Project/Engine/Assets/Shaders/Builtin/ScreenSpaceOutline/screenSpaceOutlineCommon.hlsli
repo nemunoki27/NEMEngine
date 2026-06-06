@@ -5,7 +5,6 @@
 //	Screen-space Outline 共通定義
 //	CPU側 ScreenSpaceOutlineStyleGPU / 各Constants と完全一致させること
 //============================================================================
-
 struct ScreenSpaceOutlineStyleGPU {
 
 	float4 color;
@@ -30,7 +29,7 @@ struct ScreenSpaceOutlineDilateConstants {
 	uint maxRadiusPixels;
 };
 
-// Dilation半径の上限(px)。CPU側 kMaxScreenSpaceOutlineRadiusPixels と一致させること。
+// Dilation半径の上限(px)。CPU側 kMaxScreenSpaceOutlineRadiusPixels と一致させること
 // 巨大半径によるGPU Hangを防ぐため、各Dilation Shaderはこれでclampしてからループする
 static const uint kMaxScreenSpaceOutlineRadiusPixels = 16u;
 

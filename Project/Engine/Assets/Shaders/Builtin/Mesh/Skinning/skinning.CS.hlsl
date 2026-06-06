@@ -1,14 +1,12 @@
 //============================================================================
 //	include
 //============================================================================
-
 // MeshVertex / MeshPackedVertex は共通ヘッダから取る(重複宣言しない)
 #include "../Common/meshShaderSharedTypes.hlsli"
 
 //============================================================================
 //	resources
 //============================================================================
-
 cbuffer SkinningConstants : register(b0) {
 
 	uint vertexCount;
@@ -35,7 +33,6 @@ RWStructuredBuffer<MeshPackedVertex> gSkinnedPackedVertices : register(u1);
 //============================================================================
 //	functions
 //============================================================================
-
 float4 SkinPosition(float4 position, VertexInfluence influence, uint paletteOffset) {
 
 	float4 outPos = 0.0f.xxxx;

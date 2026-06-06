@@ -16,7 +16,6 @@ using namespace Engine;
 //============================================================================
 //	ImGuiManager classMethods
 //============================================================================
-
 void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D12CommandQueue* commandQueue,
 	SRVDescriptor* srvDescriptor, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat) {
 
@@ -50,10 +49,9 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	dxInitInfo.SrvDescriptorFreeFn = &ImGuiManager::FreeSRVDescriptor;
 	ImGui_ImplDX12_Init(&dxInitInfo);
 
-	//========================================================================
+	//============================================================================
 	//	imguiConfig
-	//========================================================================
-
+	//============================================================================
 	// ImGuiのフォント設定
 	ImFontConfig cfg{};
 	cfg.FontNo = 0;
@@ -67,10 +65,9 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 		return ImVec4(r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f);
 		};
 
-	// ============================================================
+	//============================================================================
 	// Almost Pure Black Theme + Deep Orange Accent
-	// ============================================================
-
+	//============================================================================
 	// ---- Base ----
 	// ほぼ黒。紺っぽさを完全に消す
 	const ImVec4 bg0 = C(0, 0, 0);          // WindowBg

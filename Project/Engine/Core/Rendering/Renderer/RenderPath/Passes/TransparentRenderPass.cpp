@@ -11,7 +11,6 @@
 //============================================================================
 //	TransparentRenderPass classMethods
 //============================================================================
-
 void Engine::TransparentRenderPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 

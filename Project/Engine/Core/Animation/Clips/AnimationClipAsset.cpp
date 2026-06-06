@@ -17,7 +17,6 @@
 //============================================================================
 //	AnimationClipAsset functions
 //============================================================================
-
 namespace {
 
 	struct ValueTypeName {
@@ -75,7 +74,7 @@ namespace {
 
 	Engine::Color4 GetChannelColor(std::string_view name) {
 
-		// X/Y/Z/WとR/G/B/Aを同じ色規則にして、Vector/Colorで見た目を揃える。
+		// X/Y/Z/WとR/G/B/Aを同じ色規則にして、Vector/Colorで見た目を揃える
 		if (name == "X" || name == "R") {
 			return Engine::Color4::Red();
 		}
@@ -113,7 +112,7 @@ namespace {
 
 	void ToJson(Engine::CurveKey key, nlohmann::json& out) {
 
-		// tangentはBezier以外でも保存しておく。補間を切り替えた時に値を戻せるようにする。
+		// tangentはBezier以外でも保存しておく。補間を切り替えた時に値を戻せるようにする
 		out = nlohmann::json::object();
 		out["time"] = key.time;
 		out["value"] = key.value;
@@ -128,7 +127,7 @@ namespace {
 		key.time = in.value("time", key.time);
 		key.value = in.value("value", key.value);
 
-		// 古い"Cubic"表記はTryParse側でSplineへ寄せる。
+		// 古い"Cubic"表記はTryParse側でSplineへ寄せる
 		Engine::CurveInterpolationMode interpolation = key.interpolation;
 		if (Engine::TryParseCurveInterpolationMode(in.value("interpolation", "Linear"), interpolation)) {
 			key.interpolation = interpolation;
@@ -157,7 +156,7 @@ namespace {
 		if (!in.is_object()) {
 			return view;
 		}
-		// 保存済み表示範囲が壊れていても、最低1.0の幅を確保してCurveEditorを表示できるようにする。
+		// 保存済み表示範囲が壊れていても、最低1.0の幅を確保してCurveEditorを表示できるようにする
 		view.timeMin = in.value("timeMin", view.timeMin);
 		view.timeMax = in.value("timeMax", view.timeMax);
 		view.valueMin = in.value("valueMin", view.valueMin);
@@ -189,7 +188,7 @@ namespace {
 		bridge.duration = (std::max)(in.value("duration", bridge.duration), 0.001f);
 		Engine::CurveInterpolationMode interpolation = bridge.interpolation;
 		if (Engine::TryParseCurveInterpolationMode(in.value("interpolation", "Linear"), interpolation)) {
-			// Bridge区間ではBezierハンドルを持てないため、読み込み時はLinearへ倒す。
+			// Bridge区間ではBezierハンドルを持てないため、読み込み時はLinearへ倒す
 			bridge.interpolation = interpolation == Engine::CurveInterpolationMode::Bezier ?
 				Engine::CurveInterpolationMode::Linear : interpolation;
 		}
@@ -198,7 +197,7 @@ namespace {
 
 	void ToJson(const Engine::CurveChannel& channel, nlohmann::json& out) {
 
-		// チャンネルはキーが空でも保存する。追加直後のTrack構造を維持するため。
+		// チャンネルはキーが空でも保存する。追加直後のTrack構造を維持するため
 		out = nlohmann::json::object();
 		out["name"] = channel.name;
 		out["defaultValue"] = channel.defaultValue;
@@ -218,7 +217,7 @@ namespace {
 		channel.displayColor = GetChannelColor(channel.name);
 		channel.defaultValue = in.value("defaultValue", channel.defaultValue);
 
-		// キーは読み込み直後に時間順へ揃える。
+		// キーは読み込み直後に時間順へ揃える
 		if (const auto it = in.find("keys"); it != in.end() && it->is_array()) {
 			for (const nlohmann::json& keyJson : *it) {
 				channel.keys.emplace_back(ParseCurveKey(keyJson));
@@ -343,7 +342,7 @@ std::string Engine::ToString(CurveInterpolationMode mode) {
 
 bool Engine::TryParseCurveInterpolationMode(std::string_view text, CurveInterpolationMode& out) {
 
-	// 旧実装のCubicは現行のSplineと同じ意味として読み込む。
+	// 旧実装のCubicは現行のSplineと同じ意味として読み込む
 	if (text == "Cubic") {
 		out = CurveInterpolationMode::Spline;
 		return true;
@@ -379,7 +378,7 @@ uint32_t Engine::GetAnimationValueTypeChannelCount(AnimationValueType type) {
 
 std::vector<Engine::CurveChannel> Engine::MakeDefaultAnimationChannels(AnimationValueType type) {
 
-	// キーは作らず、型ごとのチャンネル名とdefaultValueだけを用意する。
+	// キーは作らず、型ごとのチャンネル名とdefaultValueだけを用意する
 	std::vector<CurveChannel> channels{};
 
 	switch (type) {
@@ -411,10 +410,10 @@ std::vector<Engine::CurveChannel> Engine::MakeDefaultAnimationChannels(Animation
 
 void Engine::NormalizeAnimationTrackChannels(AnimationCurveTrack& track) {
 
-	// JSONの手編集や古い形式でチャンネル数がずれた場合でも、ツール側で落ちない形へ補正する。
+	// JSONの手編集や古い形式でチャンネル数がずれた場合でも、ツール側で落ちない形へ補正する
 	if (track.binding.valueType == AnimationValueType::Quaternion) {
 
-		// 新形式はAxis/Angleの2ch、旧形式はXYZWの4ch。旧Clipを壊さないよう両方受け入れる。
+		// 新形式はAxis/Angleの2ch、旧形式はXYZWの4ch。旧Clipを壊さないよう両方受け入れる
 		if (IsQuaternionAxisAngleChannels(track.channels)) {
 			track.channels[0].displayColor = GetChannelColor(track.channels[0].name);
 			track.channels[1].displayColor = GetChannelColor(track.channels[1].name);
@@ -464,7 +463,7 @@ void Engine::NormalizeAnimationTrackChannels(AnimationCurveTrack& track) {
 	}
 
 	for (uint32_t i = 0; i < expectedCount; ++i) {
-		// name?空だとCurveEditorのチャンネル一覧が読みにくくなるため、既定名を補う。
+		// name?空だとCurveEditorのチャンネル一覧が読みにくくなるため、既定名を補う
 		if (track.channels[i].name.empty()) {
 			track.channels[i].name = defaults[i].name;
 		}
@@ -479,7 +478,7 @@ void Engine::UpdateAnimationClipAutoDuration(AnimationClipAsset& clip) {
 		return;
 	}
 
-	// 全Track/Channelの最大キー時刻をClip長にする。
+	// 全Track/Channelの最大キー時刻をClip長にする
 	bool hasKey = false;
 	float maxTime = 0.0f;
 	for (const AnimationCurveTrack& track : clip.curveTracks) {
@@ -498,7 +497,7 @@ void Engine::UpdateAnimationClipAutoDuration(AnimationClipAsset& clip) {
 
 bool Engine::LoadAnimationClipAsset(const std::filesystem::path& path, AnimationClipAsset& outClip) {
 
-	// AnimationClipはjson単体で管理する。
+	// AnimationClipはjson単体で管理する
 	std::ifstream file(path, std::ios::binary);
 	if (!file.is_open()) {
 		return false;
@@ -519,7 +518,7 @@ bool Engine::LoadAnimationClipAsset(const std::filesystem::path& path, Animation
 bool Engine::SaveAnimationClipAsset(const std::filesystem::path& path, const AnimationClipAsset& clip) {
 
 	try {
-		// ProjectPanelから作られた直後でも保存できるよう、親フォルダを先に作る。
+		// ProjectPanelから作られた直後でも保存できるよう、親フォルダを先に作る
 		std::filesystem::create_directories(path.parent_path());
 
 		std::ofstream file(path, std::ios::binary | std::ios::trunc);
@@ -588,7 +587,7 @@ void Engine::from_json(const nlohmann::json& in, AnimationCurveTrack& track) {
 
 	from_json(in, track.binding);
 
-	// 省略された項目は現在の既定値を使い、古いjsonとの互換を保つ。
+	// 省略された項目は現在の既定値を使い、古いjsonとの互換を保つ
 	AnimationApplyMode applyMode = track.applyMode;
 	if (TryParseAnimationApplyMode(in.value("applyMode", "Override"), applyMode)) {
 		track.applyMode = applyMode;
@@ -614,7 +613,7 @@ void Engine::from_json(const nlohmann::json& in, AnimationCurveTrack& track) {
 			track.quaternionAxisKeys.emplace_back(ParseQuaternionAxisKey(axisJson));
 		}
 	}
-	// 古いClipや手編集で不足したチャンネルを補う。
+	// 古いClipや手編集で不足したチャンネルを補う
 	NormalizeAnimationTrackChannels(track);
 }
 
@@ -633,7 +632,7 @@ void Engine::to_json(nlohmann::json& out, const AnimationClipAsset& clip) {
 
 void Engine::from_json(const nlohmann::json& in, AnimationClipAsset& clip) {
 
-	// guidが無い古いClipでは空UUIDのまま扱う。
+	// guidが無い古いClipでは空UUIDのまま扱う
 	clip.guid = FromString16Hex(in.value("guid", ""));
 	clip.name = in.value("name", clip.name);
 	clip.duration = in.value("duration", clip.duration);
@@ -653,7 +652,7 @@ void Engine::from_json(const nlohmann::json& in, AnimationClipAsset& clip) {
 		}
 	}
 
-	// 初期実装ではEvent Trackは編集しない。キーが無くても保存時に空配列として維持する。
+	// 初期実装ではEvent Trackは編集しない。キーが無くても保存時に空配列として維持する
 	clip.eventTracks.clear();
 	UpdateAnimationClipAutoDuration(clip);
 }

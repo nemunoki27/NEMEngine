@@ -20,11 +20,10 @@
 //============================================================================
 //	AssetDatabase classMethods
 //============================================================================
-
 namespace {
 
-	// 例外を投げずにJSONファイルを読む。解析失敗時はis_discarded()のjsonを返す。
-	// 大量のファイルを走査するため、parse_errorの一次例外でデバッガを埋めないようにする。
+	// 例外を投げずにJSONファイルを読む。解析失敗時はis_discarded()のjsonを返す
+	// 大量のファイルを走査するため、parse_errorの一次例外でデバッガを埋めないようにする
 	nlohmann::json LoadJsonFileNoThrow(const std::filesystem::path& path) {
 
 		std::ifstream ifs(path, std::ios::binary);
@@ -35,8 +34,8 @@ namespace {
 		return nlohmann::json::parse(content, nullptr, false);
 	}
 
-	// 依存抽出で対象にする参照キーと、その期待AssetType。
-	// stableID/localFileID等のScene内部IDはここに無いため誤検出しない。
+	// 依存抽出で対象にする参照キーと、その期待AssetType
+	// stableID/localFileID等のScene内部IDはここに無いため誤検出しない
 	const std::unordered_map<std::string, Engine::AssetType>& ReferenceKeyMap() {
 
 		static const std::unordered_map<std::string, Engine::AssetType> kMap = {
@@ -146,8 +145,8 @@ bool Engine::AssetDatabase::RebuildMeta() {
 	pathToGuid_.reserve(reserveHint);
 	referencersByGuid_.reserve(reserveHint);
 
-	// 先にUID索引を作り、実体のない.metaを拾ってから依存関係を解決する。
-	// 依存抽出を索引構築と同時にやると、後から登録される正常アセットをMissing扱いしてしまう。
+	// 先にUID索引を作り、実体のない.metaを拾ってから依存関係を解決する
+	// 依存抽出を索引構築と同時にやると、後から登録される正常アセットをMissing扱いしてしまう
 	RebuildIndex(scanRoots);
 	DetectOrphanMeta(scanRoots);
 	RebuildDependencies();

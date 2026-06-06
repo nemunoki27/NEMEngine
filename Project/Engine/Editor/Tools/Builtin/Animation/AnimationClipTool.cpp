@@ -32,7 +32,6 @@ using namespace Engine;
 //============================================================================
 //	AnimationClipTool classMethods
 //============================================================================
-
 namespace {
 
 	bool DrawEasingComboProperty(const char* label, EasingType& easingType, float reserveRightWidth = 0.0f) {
@@ -84,7 +83,7 @@ namespace {
 
 	void CollectKeyTimes(std::span<const CurveChannel> channels, std::vector<float>& outTimes) {
 
-		// Channelごとに持っているキー時刻をまとめ、Quaternion編集用に同一時刻を一つに潰す。
+		// Channelごとに持っているキー時刻をまとめ、Quaternion編集用に同一時刻を一つに潰す
 		outTimes.clear();
 		for (const CurveChannel& channel : channels) {
 			for (const CurveKey& key : channel.keys) {
@@ -100,7 +99,7 @@ namespace {
 
 	CurveInterpolationMode FindKeyInterpolationAt(const CurveChannel& channel, float time) {
 
-		// QuaternionのAxis/Angle編集では代表Channelの補間設定を各時刻へ引き継ぐ。
+		// QuaternionのAxis/Angle編集では代表Channelの補間設定を各時刻へ引き継ぐ
 		for (const CurveKey& key : channel.keys) {
 			if (std::abs(key.time - time) <= 0.0005f) {
 				return key.interpolation;
@@ -111,7 +110,7 @@ namespace {
 
 	CurveQuaternionAxisKey MakeAxisKeyFromQuaternion(const Quaternion& rotation, float& outAngleDegrees) {
 
-		// Clip保存形式はXYZWだが、Editor表示では回転軸と角度へ分解する。
+		// Clip保存形式はXYZWだが、Editor表示では回転軸と角度へ分解する
 		const Quaternion normalized = Quaternion::Normalize(rotation);
 		const float w = (std::clamp)(normalized.w, -1.0f, 1.0f);
 		const float angleRadians = 2.0f * std::acos(w);
@@ -147,7 +146,7 @@ namespace {
 		std::vector<float> times{};
 		CollectKeyTimes(track.channels, times);
 
-		// 各キー時刻でTrackを評価し、編集しやすいAxis/AngleのCurveへ組み替える。
+		// 各キー時刻でTrackを評価し、編集しやすいAxis/AngleのCurveへ組み替える
 		for (float time : times) {
 			AnimationPropertyValue value{};
 			Quaternion rotation = Quaternion::Identity();
@@ -172,7 +171,7 @@ namespace {
 
 	void StoreQuaternionEditorCurve(const CurveQuaternion& curve, AnimationCurveTrack& track) {
 
-		// AxisとAngleを別キーとして残すため、編集後の保存形式も2chのまま保持する。
+		// AxisとAngleを別キーとして残すため、編集後の保存形式も2chのまま保持する
 		track.channels = {
 			curve.channels[0],
 			curve.channels[1],
@@ -190,8 +189,8 @@ namespace {
 
 		track.channels = MakeDefaultAnimationChannels(track.binding.valueType);
 
-		// 追加直後はキーを作らない。
-		// + ボタンで初めてキーを作るため、defaultValueだけ現在値へ合わせておく。
+		// 追加直後はキーを作らない
+		// + ボタンで初めてキーを作るため、defaultValueだけ現在値へ合わせておく
 		if (const float* valueFloat = std::get_if<float>(&value)) {
 			FillChannel(track.channels[0], *valueFloat);
 		} else if (const Vector2* valueVec2 = std::get_if<Vector2>(&value)) {
@@ -241,7 +240,7 @@ namespace {
 			track.binding.valueType != AnimationValueType::Color4) {
 			return false;
 		}
-		// Color4のAlphaはRGBと別キーなので、A選択時はfloat編集だけを表示する。
+		// Color4のAlphaはRGBと別キーなので、A選択時はfloat編集だけを表示する
 		if (track.binding.valueType == AnimationValueType::Color4 && selectedChannelIndex == 3u) {
 			return false;
 		}
@@ -308,7 +307,7 @@ namespace {
 
 	bool DrawColorKeyValueEditor(AnimationCurveTrack& track, uint32_t selectedChannelIndex, float time) {
 
-		// Colorは複数チャンネルを1つの色として見せる。足りないキーはその時刻の評価値で補う。
+		// Colorは複数チャンネルを1つの色として見せる。足りないキーはその時刻の評価値で補う
 		if (!CanDrawColorRgbKeyEditor(track, selectedChannelIndex)) {
 			return false;
 		}
@@ -356,14 +355,14 @@ void AnimationClipTool::OpenEditorTool() {
 void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 
 	if (!openWindow_) {
-		// Window外でPreviewが残った場合も、次フレームで元の値へ戻す。
+		// Window外でPreviewが残った場合も、次フレームで元の値へ戻す
 		EndPreviewAndRestore(context);
 		return;
 	}
 
 	if (!ImGui::Begin("AnimationClip Clip", &openWindow_)) {
 		ImGui::End();
-		// 折りたたみ中は操作できないため、Preview状態だけは必ず解放する。
+		// 折りたたみ中は操作できないため、Preview状態だけは必ず解放する
 		EndPreviewAndRestore(context);
 		return;
 	}
@@ -371,7 +370,6 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 	//============================================================================
 	//	AnimationClip編集UI
 	//============================================================================
-
 	if (ImGui::BeginTable("AnimationClipToolTopLayout", 2,
 		ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
 
@@ -427,13 +425,11 @@ void AnimationClipTool::DrawToolbarUI(const EditorToolContext& context) {
 	//============================================================================
 	//	アニメアセットの設定
 	//============================================================================
-
 	DrawClipAssetUI(context);
 
 	//============================================================================
 	//	再生・編集設定
 	//============================================================================
-
 	DrawEditAssetUI(context);
 
 	ImGui::SetWindowFontScale(beforeFontScale);
@@ -491,12 +487,12 @@ void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 			{ .useAutoPropertyRow = false,.buttonSize = ImVec2(entityFieldWidth, ImGui::GetFrameHeight()) });
 		if (result.valueChanged && nextTargetUUID != targetEntityUUID_) {
 
-			// Targetを変える前に、旧Targetへ適用していたPreview値を戻す。
+			// Targetを変える前に、旧Targetへ適用していたPreview値を戻す
 			EndPreviewAndRestore(context);
 			targetEntityUUID_ = nextTargetUUID;
 			previewTime_ = hasClip_ ? (std::clamp)(previewTime_, 0.0f, clip_.duration) : 0.0f;
 			curveState_.currentTime = previewTime_;
-			// Targetをセットした直後から、Time 0.0fを含む現在時刻の値をSceneViewへ反映する。
+			// Targetをセットした直後から、Time 0.0fを含む現在時刻の値をSceneViewへ反映する
 			ApplyPreviewAtCurrentTime(context, true);
 		}
 		ImGui::SameLine();
@@ -506,7 +502,7 @@ void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 		}
 		if (ImGui::Button("解除", ImVec2(clearButtonWidth, ImGui::GetFrameHeight()))) {
 
-			// 編集中にTargetへ適用していた値を戻してから参照を外す。
+			// 編集中にTargetへ適用していた値を戻してから参照を外す
 			EndPreviewAndRestore(context);
 			targetEntityUUID_ = {};
 		}
@@ -588,7 +584,7 @@ void Engine::AnimationClipTool::DrawEditAssetUI(const EditorToolContext& context
 		.maxValue = clip_.duration,.closeOnProperty = false,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 2.0f });
 	if (result.valueChanged) {
 
-		// Scrub中もSceneViewへ即反映し、カーブ編集結果を確認できるようにする。
+		// Scrub中もSceneViewへ即反映し、カーブ編集結果を確認できるようにする
 		previewTime_ = (std::clamp)(previewTime_, 0.0f, clip_.duration);
 		curveState_.currentTime = previewTime_;
 		ApplyPreviewAtCurrentTime(context, true);
@@ -660,7 +656,7 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 			for (const AnimationPropertyDescriptor* desc :
 				AnimationPropertyRegistry::GetInstance().GetPropertiesForEntity(*world, targetEntity)) {
 				if (desc->componentName == "Transform") {
-					// 2D/3D表示モードに合わないTransform Propertyは追加候補から外す。
+					// 2D/3D表示モードに合わないTransform Propertyは追加候補から外す
 					if (effectiveDimension == AnimationClipEditDimension::Mode2D && Is3DTransformProperty(desc->propertyPath)) {
 						continue;
 					}
@@ -676,7 +672,7 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 				}
 				for (const AnimationPropertyDescriptor* desc : properties) {
 
-					// 同じClip内に同一Property Trackを複数作らないようにする。
+					// 同じClip内に同一Property Trackを複数作らないようにする
 					const bool exists = std::any_of(clip_.curveTracks.begin(), clip_.curveTracks.end(),
 						[desc](const AnimationCurveTrack& track) {
 							return track.binding.componentName == desc->componentName &&
@@ -825,7 +821,7 @@ void AnimationClipTool::DrawCurveEditorUI(const EditorToolContext& context) {
 	curveSetting.snap = true;
 	curveSetting.snapInterval = 0.001f;
 	CurveEditResult result{};
-	// 値型ごとにMyGUIのCurve型へ詰め替え、選択TrackだけをEditorに渡す。
+	// 値型ごとにMyGUIのCurve型へ詰め替え、選択TrackだけをEditorに渡す
 	switch (track.binding.valueType) {
 	case AnimationValueType::Float: {
 		CurveFloat curve{};
@@ -874,7 +870,7 @@ void AnimationClipTool::DrawCurveEditorUI(const EditorToolContext& context) {
 		break;
 	}
 	case AnimationValueType::Quaternion: {
-		// QuaternionはAxis/Angleとして編集し、AxisとAngleのキーを別々に保持する。
+		// QuaternionはAxis/Angleとして編集し、AxisとAngleのキーを別々に保持する
 		const bool wasAxisAngleTrack = IsQuaternionAxisAngleTrack(track);
 		CurveQuaternion curve = BuildQuaternionEditorCurve(track);
 		result = MyGUI::CurveEditor("AnimationClipCurveEditor", curve, curveState_, curveSetting);
@@ -900,12 +896,12 @@ void AnimationClipTool::DrawCurveEditorUI(const EditorToolContext& context) {
 	StoreSelectedTrackEditorView();
 
 	if (result.valueChanged || result.editFinished) {
-		// キー編集で終端時刻が変わるため、Auto Durationをここで再計算する。
+		// キー編集で終端時刻が変わるため、Auto Durationをここで再計算する
 		UpdateAnimationClipAutoDuration(clip_);
 		clipDirty_ = true;
 	}
 	if (previousTime != curveState_.currentTime || result.valueChanged) {
-		// CurveEditor上の時刻移動もToolbarのTimeと同じPreview時刻として扱う。
+		// CurveEditor上の時刻移動もToolbarのTimeと同じPreview時刻として扱う
 		previewTime_ = (std::clamp)(curveState_.currentTime, 0.0f, clip_.duration);
 		curveState_.currentTime = previewTime_;
 		ApplyPreviewAtCurrentTime(context, true);
@@ -988,7 +984,7 @@ void AnimationClipTool::DrawKeyInspectorUI(const EditorToolContext& context) {
 	const bool quaternionTrack = track.binding.valueType == AnimationValueType::Quaternion;
 	CurveInterpolationMode interpolation = key.interpolation;
 	if (!quaternionTrack && interpolation == CurveInterpolationMode::Squad) {
-		// SquadはQuaternion専用なので、通常ChannelではSplineとして表示する。
+		// SquadはQuaternion専用なので、通常ChannelではSplineとして表示する
 		interpolation = CurveInterpolationMode::Spline;
 	}
 
@@ -1051,7 +1047,7 @@ void AnimationClipTool::DrawKeyInspectorUI(const EditorToolContext& context) {
 		} else {
 			channel.SortKeys();
 		}
-		// 時刻変更で並びが変わるため、編集していたKeyを再選択する。
+		// 時刻変更で並びが変わるため、編集していたKeyを再選択する
 		for (uint32_t i = 0; i < channel.keys.size(); ++i) {
 			if (std::abs(channel.keys[i].time - editedTime) <= 0.0005f) {
 				curveState_.SelectSingle(selection.channelIndex, i);
@@ -1077,7 +1073,7 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 
 	ImGui::SeparatorText("カーブ生成");
 
-	// DrawClipAssetUIと同じプロパティ行で、生成条件を縦に並べる。
+	// DrawClipAssetUIと同じプロパティ行で、生成条件を縦に並べる
 	const float reserveRightWidth = ImGui::GetContentRegionAvail().x / 4.0f;
 	MyGUI::EnumCombo("生成タイプ", generatorType_, { .reserveRightWidth = reserveRightWidth });
 
@@ -1100,7 +1096,7 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 			.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
 	} else {
 
-		// イージング選択UIはCore側の共通実装を使う。
+		// イージング選択UIはCore側の共通実装を使う
 		DrawEasingComboProperty("イージング", generatorEasingType_, reserveRightWidth);
 	}
 
@@ -1114,7 +1110,7 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 		return;
 	}
 
-	// 開始/終了の入力順に依存しないよう、生成範囲だけ正規化する。
+	// 開始/終了の入力順に依存しないよう、生成範囲だけ正規化する
 	const float startTime = (std::min)(generatorStartTime_, generatorEndTime_);
 	const float endTime = (std::max)(generatorStartTime_, generatorEndTime_);
 	const float timeRange = (std::max)(endTime - startTime, 0.001f);
@@ -1122,7 +1118,7 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 	auto bakeChannel = [&](CurveChannel& channel) {
 
 		if (generatorReplaceKeys_) {
-			// 置き換え時は指定範囲内の既存キーだけを消し、範囲外の手作業キーは残す。
+			// 置き換え時は指定範囲内の既存キーだけを消し、範囲外の手作業キーは残す
 			channel.keys.erase(std::remove_if(channel.keys.begin(), channel.keys.end(),
 				[&](const CurveKey& key) {
 					return startTime <= key.time && key.time <= endTime;
@@ -1133,7 +1129,7 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 			const float normalized = static_cast<float>(i) / static_cast<float>(generatorSampleCount_ - 1);
 			const float time = startTime + timeRange * normalized;
 			float value = generatorStartValue_;
-			// 生成結果は通常編集しやすいよう、まずはLinearキーとして追加する。
+			// 生成結果は通常編集しやすいよう、まずはLinearキーとして追加する
 			if (generatorType_ == GeneratorType::Sin || generatorType_ == GeneratorType::Cos) {
 				const float angle = normalized * generatorFrequency_ * 2.0f * std::numbers::pi_v<float> +generatorPhase_;
 				const float wave = generatorType_ == GeneratorType::Sin ? std::sin(angle) : std::cos(angle);
@@ -1165,7 +1161,7 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 
 void AnimationClipTool::LoadClipFromSelectedAsset(const EditorToolContext& context) {
 
-	// 読み込み失敗時に前回のClip状態が残らないよう、先にUI状態を初期化する。
+	// 読み込み失敗時に前回のClip状態が残らないよう、先にUI状態を初期化する
 	clipErrorText_.clear();
 	hasClip_ = false;
 	clipDirty_ = false;
@@ -1200,7 +1196,7 @@ void AnimationClipTool::LoadClipFromSelectedAsset(const EditorToolContext& conte
 		clip_.duration = 1.0f;
 	}
 	for (AnimationCurveTrack& track : clip_.curveTracks) {
-		// 旧形式や手編集JSONでも、Runtime評価前にChannel数を現在仕様へ揃える。
+		// 旧形式や手編集JSONでも、Runtime評価前にChannel数を現在仕様へ揃える
 		NormalizeAnimationTrackChannels(track);
 	}
 
@@ -1212,13 +1208,13 @@ void AnimationClipTool::LoadClipFromSelectedAsset(const EditorToolContext& conte
 	curveState_.visibleTimeMax = (std::max)(curveState_.visibleTimeMax, clip_.duration);
 	curveState_.ClearSelection();
 	LoadSelectedTrackEditorView();
-	// 読み込み直後も現在時刻のPreviewをTarget Entityへ反映する。
+	// 読み込み直後も現在時刻のPreviewをTarget Entityへ反映する
 	ApplyPreviewAtCurrentTime(context, true);
 }
 
 void AnimationClipTool::SaveClipToSelectedAsset(const EditorToolContext& context) {
 
-	// 保存前に表示範囲とAuto DurationをClipへ反映してからJSONへ書き出す。
+	// 保存前に表示範囲とAuto DurationをClipへ反映してからJSONへ書き出す
 	clipErrorText_.clear();
 
 	if (!clipAssetID_) {
@@ -1241,7 +1237,7 @@ void AnimationClipTool::SaveClipToSelectedAsset(const EditorToolContext& context
 	UpdateAnimationClipAutoDuration(clip_);
 	clip_.duration = (std::max)(clip_.duration, 0.01f);
 	for (AnimationCurveTrack& track : clip_.curveTracks) {
-		// 保存時にもChannel構成を正規化し、次回ロード時のUnknown化を防ぐ。
+		// 保存時にもChannel構成を正規化し、次回ロード時のUnknown化を防ぐ
 		NormalizeAnimationTrackChannels(track);
 	}
 
@@ -1280,7 +1276,7 @@ void AnimationClipTool::AddPropertyTrack(const AnimationPropertyDescriptor& desc
 	track.applyMode = AnimationApplyMode::Override;
 	track.visible = true;
 
-	// 追加直後のTrackは現在値をdefaultValueへ写すだけで、キーは空のままにする。
+	// 追加直後のTrackは現在値をdefaultValueへ写すだけで、キーは空のままにする
 	SetupTrackInitialValue(track, currentValue);
 	NormalizeAnimationTrackChannels(track);
 	selectedTrackIndex_ = static_cast<int>(clip_.curveTracks.size());
@@ -1315,7 +1311,7 @@ AnimationClipDetectedDimension AnimationClipTool::DetectTargetDimension(const Ed
 		world->HasComponent<OrthographicCameraComponent>(entity);
 	const bool has3D = world->HasComponent<MeshRendererComponent>(entity) ||
 		world->HasComponent<PerspectiveCameraComponent>(entity);
-	// 描画Componentから用途を推定し、Add Propertyの候補を2D/3Dに寄せる。
+	// 描画Componentから用途を推定し、Add Propertyの候補を2D/3Dに寄せる
 	if (has2D && has3D) {
 		return AnimationClipDetectedDimension::Mixed;
 	}
@@ -1354,7 +1350,7 @@ void AnimationClipTool::StoreSelectedTrackEditorView() {
 		return;
 	}
 
-	// Trackを切り替えても、各Propertyごとの表示範囲を保持する。
+	// Trackを切り替えても、各Propertyごとの表示範囲を保持する
 	AnimationTrackEditorView& view = clip_.curveTracks[static_cast<size_t>(editorViewTrackIndex_)].editorView;
 	view.timeMin = curveState_.visibleTimeMin;
 	view.timeMax = curveState_.visibleTimeMax;
@@ -1374,7 +1370,7 @@ void AnimationClipTool::LoadSelectedTrackEditorView() {
 	curveState_.visibleTimeMax = (std::max)(view.timeMax, view.timeMin + 0.001f);
 	curveState_.visibleValueMin = view.valueMin;
 	curveState_.visibleValueMax = (std::max)(view.valueMax, view.valueMin + 0.001f);
-	// Clip編集では細かい時刻合わせが多いので、既定で1ms単位に吸着させる。
+	// Clip編集では細かい時刻合わせが多いので、既定で1ms単位に吸着させる
 	curveState_.snapEnabled = true;
 	curveState_.snapInterval = 0.001f;
 	editorViewTrackIndex_ = selectedTrackIndex_;
@@ -1408,7 +1404,7 @@ void AnimationClipTool::UpdatePreviewPlayback(const EditorToolContext& context) 
 	// クリップデータから終了時間を取得
 	float playbackDuration = AnimationClipEvaluator::GetPlaybackDuration(clip_);
 	if (playbackDuration <= previewTime_) {
-		// Loop時はBridge範囲も含めた再生長で折り返す。
+		// Loop時はBridge範囲も含めた再生長で折り返す
 		if (clip_.loop && 0.0f < clip_.duration) {
 
 			previewTime_ = std::fmod(previewTime_, playbackDuration);
@@ -1437,7 +1433,7 @@ void AnimationClipTool::ApplyPreviewAtCurrentTime(const EditorToolContext& conte
 		return;
 	}
 
-	// ScrubだけでもPreview扱いにして、Stop/Closeで元の値に戻せるようにする。
+	// ScrubだけでもPreview扱いにして、Stop/Closeで元の値に戻せるようにする
 	if (!previewActive_) {
 		BeginPreview(context);
 	}
@@ -1463,7 +1459,7 @@ void AnimationClipTool::BeginPreview(const EditorToolContext& context) {
 		return;
 	}
 
-	// Target Entityへ直接値を書き込むため、開始時の値を先に退避しておく。
+	// Target Entityへ直接値を書き込むため、開始時の値を先に退避しておく
 	CachePreviewBaseValues(*world, entity);
 	previewActive_ = true;
 }
@@ -1478,7 +1474,7 @@ void AnimationClipTool::EndPreviewAndRestore(const EditorToolContext& context) {
 	ECSWorld* world = context.GetWorld();
 	const Entity entity = GetTargetEntity(context);
 	if (world && world->IsAlive(entity)) {
-		// Toolを閉じた場合も、Clip編集中だけ適用していた値を元へ戻す。
+		// Toolを閉じた場合も、Clip編集中だけ適用していた値を元へ戻す
 		RestorePreviewBaseValues(*world, entity);
 	}
 
@@ -1498,7 +1494,7 @@ void AnimationClipTool::CachePreviewBaseValues(ECSWorld& world, const Entity& en
 			continue;
 		}
 
-		// Clipに含まれるPropertyだけ退避し、無関係なComponent値は触らない。
+		// Clipに含まれるPropertyだけ退避し、無関係なComponent値は触らない
 		AnimationPreviewBaseValue baseValue{};
 		baseValue.binding = track.binding;
 		if (desc->getValue(world, entity, baseValue.value)) {
@@ -1517,7 +1513,7 @@ void AnimationClipTool::RestorePreviewBaseValues(ECSWorld& world, const Entity& 
 			continue;
 		}
 
-		// Tool Previewで触った値だけを元に戻す。本番適用はController側に任せる。
+		// Tool Previewで触った値だけを元に戻す。本番適用はController側に任せる
 		desc->setValue(world, entity, baseValue.value);
 	}
 }
@@ -1533,7 +1529,7 @@ void AnimationClipTool::AddKeyToChannel(AnimationCurveTrack& track, uint32_t cha
 	constexpr float kSameTimeEpsilon = 0.0005f;
 	for (CurveKey& key : channel.keys) {
 		if (std::abs(key.time - time) <= kSameTimeEpsilon) {
-			// ほぼ同時刻のキーは増やさず、現在の評価値で上書きする。
+			// ほぼ同時刻のキーは増やさず、現在の評価値で上書きする
 			key.time = time;
 			key.value = value;
 			return;
@@ -1557,7 +1553,7 @@ void AnimationClipTool::AddKeyToChannel(AnimationCurveTrack& track, uint32_t cha
 
 void AnimationClipTool::UpdateAutoDurationAndPreview(const EditorToolContext& context) {
 
-	// キー追加/生成後はDuration、現在時刻、SceneView Previewをまとめて同期する。
+	// キー追加/生成後はDuration、現在時刻、SceneView Previewをまとめて同期する
 	UpdateAnimationClipAutoDuration(clip_);
 	previewTime_ = (std::clamp)(previewTime_, 0.0f, AnimationClipEvaluator::GetPlaybackDuration(clip_));
 	curveState_.currentTime = previewTime_;

@@ -63,10 +63,9 @@ namespace Engine {
 	class EditorManager :
 		public IEditorPanelHost {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		EditorManager() = default;
 		~EditorManager() = default;
 
@@ -133,10 +132,9 @@ namespace Engine {
 		const SceneViewCameraSelection& GetSceneViewCameraSelection() const { return editorState_.sceneViewCamera; }
 		SceneViewCameraSelection& GetSceneViewCameraSelection() { return editorState_.sceneViewCamera; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		// ImGui管理クラス

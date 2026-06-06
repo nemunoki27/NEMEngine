@@ -47,7 +47,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%ENGINE_ROOT%\Premake\patch_assimp_vcxproj.ps1" -BuildRoot "%ASSIMP_BUILD%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ENGINE_ROOT%\Premake\patch_cmake_vcxproj.ps1" -BuildRoot "%ASSIMP_BUILD%"
 if errorlevel 1 (
     echo [ERROR] assimp project patch failed.
     exit /b 1
@@ -88,7 +88,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%ENGINE_ROOT%\Premake\patch_libcurl_vcxproj.ps1" -BuildRoot "%LIBCURL_BUILD%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ENGINE_ROOT%\Premake\patch_cmake_vcxproj.ps1" -BuildRoot "%LIBCURL_BUILD%"
 if errorlevel 1 (
     echo [ERROR] libcurl project patch failed.
     exit /b 1

@@ -15,7 +15,6 @@
 //============================================================================
 //	VertexMeshDrawPath classMethods
 //============================================================================
-
 Engine::VertexMeshDrawPath::VertexMeshDrawPath() {
 
 	// IndirectArgs生成Compute用スロットを初期化時に登録する

@@ -12,7 +12,6 @@
 //============================================================================
 //	MeshImportService classMethods
 //============================================================================
-
 namespace {
 
 	// サブメッシュの名前を構築
@@ -297,8 +296,8 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 			vertex.tangent = Vector3(-tangent.x, tangent.y, tangent.z);
 			vertex.uv = Vector2(uv.x, uv.y);
 
-			// 接線の利き手を、左右手系変換後のnormal/tangent/bitangentから求める。
-			// X反転(左右手変換)でbitangentの符号も反転するため、ここで一括して符号を確定させる。
+			// 接線の利き手を、左右手系変換後のnormal/tangent/bitangentから求める
+			// X反転(左右手変換)でbitangentの符号も反転するため、ここで一括して符号を確定させる
 			// bitangentが無いモデルは+1にフォールバックする
 			if (mesh->HasTangentsAndBitangents()) {
 
@@ -350,7 +349,7 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 					material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE });
 				const std::string normalReference = AssimpMaterialTextureExtractor::Extract(
 					material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT });
-				// マテリアルがベースカラーテクスチャを宣言していたかを、解決可否と独立に保持する。
+				// マテリアルがベースカラーテクスチャを宣言していたかを、解決可否と独立に保持する
 				// (見つからない場合はResolveAssetPathが空を返し、パスからは区別できないため)
 				subMesh.hasBaseColorTexture = !baseColorReference.empty();
 				subMesh.defaultTextures.baseColorTexturePath = textureResolver.ResolveAssetPath(baseColorReference);

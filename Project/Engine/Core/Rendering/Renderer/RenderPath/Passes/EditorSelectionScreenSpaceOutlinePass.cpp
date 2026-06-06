@@ -13,7 +13,6 @@
 //============================================================================
 //	EditorSelectionScreenSpaceOutlinePass classMethods
 //============================================================================
-
 void Engine::EditorSelectionScreenSpaceOutlinePass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 

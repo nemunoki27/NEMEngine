@@ -14,16 +14,15 @@ namespace Engine {
 
 	//============================================================================
 	//	RuntimeScreenSpaceOutlinePass class
-	//	ScreenSpaceOutlineComponent由来のoutlineをSceneFinalへ合成する。
-	//	PostProcess前に実行し、GameView/SceneViewの両方で表示する。
+	// ScreenSpaceOutlineComponent由来のoutlineをSceneFinalへ合成する
+	// PostProcess前に実行し、GameView/SceneViewの両方で表示する
 	//============================================================================
 	class RuntimeScreenSpaceOutlinePass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit RuntimeScreenSpaceOutlinePass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~RuntimeScreenSpaceOutlinePass() override = default;
 
@@ -31,10 +30,9 @@ namespace Engine {
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;

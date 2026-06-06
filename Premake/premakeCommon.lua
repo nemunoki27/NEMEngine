@@ -129,6 +129,7 @@ function NEM_AddEngineRuntimeLinkSettings()
         'copy /Y "$(WindowsSdkDir)bin\\$(TargetPlatformVersion)\\x64\\dxil.dll" "$(TargetDir)dxil.dll"',
         'if exist "' .. scriptCoreOutput .. '\\$(Configuration)\\*" xcopy /Y /I "' .. scriptCoreOutput .. '\\$(Configuration)\\*" "$(TargetDir)Managed\\"',
         'if exist "$(ProjectDir)Managed\\$(Configuration)\\*" xcopy /Y /I "$(ProjectDir)Managed\\$(Configuration)\\*" "$(TargetDir)Managed\\"',
+        'if "$(Configuration)"=="Debug" copy /Y "$(ProjectDir)..\\Externals\\WinPixEventRuntime\\bin\\x64\\WinPixEventRuntime.dll" "$(TargetDir)WinPixEventRuntime.dll"',
     }
 
     -- WinPixEventRuntime。Debugではpix3.hが_DEBUG経由でUSE_PIXを有効化しPIXシンボルを参照するため、
@@ -160,6 +161,7 @@ function NEM_MakeProjectShaderPatterns(projectRoot)
     return {
         path.join(projectRoot, "**.hlsl"),
         path.join(projectRoot, "**.fx"),
+        path.join(projectRoot, "**.hlsli"),
     }
 end
 
@@ -194,12 +196,14 @@ function NEM_AddProjectFiles(projectRoot, assetRoot, assetVpathName, includeShad
     vpaths(projectVpaths)
 
     if includeShaders then
-        -- HLSLはエンジン内のDXC実行時コンパイルで扱う。
-        -- Visual Studio/MSBuildのFxCompileに渡すと既定のvs_2_0などで誤コンパイルされるため、
-        -- ソリューション表示用のNone項目として登録する。
-        filter { "files:**.hlsl" }
+        -- HLSLはエンジン内のDXC実行時コンパイルで扱う
+        -- Visual Studio/MSBuildのFxCompileに渡すと既定のvs_2_0などで誤コンパイルされるため
+        -- ソリューション表示用のNone項目として登録する
+        filter "files:**.hlsl"
             buildaction "None"
-        filter { "files:**.fx" }
+        filter "files:**.fx"
+            buildaction "None"
+        filter "files:**.hlsli"
             buildaction "None"
         filter {}
     end
@@ -212,9 +216,9 @@ function NEM_AddProjectFiles(projectRoot, assetRoot, assetVpathName, includeShad
 end
 
 function NEM_AddEngineProjectFiles()
-    -- Engine専用アセットを表示したい場合
+    -- Engine専用アセットを表示
     NEM_AddProjectFiles(path.join(NEM_PROJECT_ROOT, "Engine"),
-        path.join(NEM_PROJECT_ROOT, "EngineAssets"), "Assets", false)
+        path.join(NEM_PROJECT_ROOT, "Engine/Assets"), "Assets", false)
 end
 
 function NEM_AddSandboxProjectFiles()

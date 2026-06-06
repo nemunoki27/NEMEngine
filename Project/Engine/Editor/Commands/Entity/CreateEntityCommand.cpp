@@ -13,7 +13,6 @@
 //============================================================================
 //	CreateEntityCommand classMethods
 //============================================================================
-
 namespace {
 
 	Engine::Entity FindParentEntity(Engine::ECSWorld& world, Engine::UUID id) {

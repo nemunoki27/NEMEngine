@@ -3,7 +3,6 @@
 //============================================================================
 //	PointLightComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, PointLightComponent& component) {
 
 	component.color = Color4::FromJson(in.value("color", nlohmann::json()));

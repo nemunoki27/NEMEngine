@@ -1,7 +1,6 @@
 //============================================================================
 //	resources
 //============================================================================
-
 cbuffer LightCullingParams : register(b0) {
 
 	float4x4 viewMatrix;
@@ -77,7 +76,6 @@ Texture2D<float> gSourceDepth : register(t1);
 //============================================================================
 //	constants
 //============================================================================
-
 static const uint kLightCullingModeDisabled = 0u;
 static const uint kLightCullingModeTile2D = 1u;
 static const uint kLightCullingModeClustered = 2u;
@@ -86,7 +84,6 @@ static const uint kLightCullingModeDebugAllLightsPerCluster = 3u;
 //============================================================================
 //	groupshared
 //============================================================================
-
 groupshared uint gTileMinDepthBits;
 groupshared uint gTileMaxDepthBits;
 groupshared uint gTileValidDepthCount;
@@ -94,7 +91,6 @@ groupshared uint gTileValidDepthCount;
 //============================================================================
 //	functions
 //============================================================================
-
 bool ComputeSphereTileBounds(float3 worldPos, float radius, out uint2 outMinTile, out uint2 outMaxTile) {
 
 	float4 viewPos4 = mul(float4(worldPos, 1.0f), viewMatrix);
@@ -275,9 +271,9 @@ bool AppendLightIndex(inout TileLightGridEntry grid, uint lightIndex, bool isPoi
 //		gTileLightIndexList[grid.offset + i] = 0xFFFFFFFFu;
 //	}
 
-//	//========================================================================
+//	//============================================================================
 //	// point lights: 0 ～ cullPointLightCount - 1
-//	//========================================================================
+//	//============================================================================
 //	for (uint pointIndex = 0; pointIndex < cullPointLightCount; ++pointIndex) {
 
 //		if (grid.count >= maxLocalLightsPerTile) {
@@ -290,9 +286,9 @@ bool AppendLightIndex(inout TileLightGridEntry grid, uint lightIndex, bool isPoi
 //		grid.pointCount++;
 //	}
 
-//	//========================================================================
+//	//============================================================================
 //	// spot lights: cullPointLightCount ～ cullPointLightCount + cullSpotLightCount - 1
-//	//========================================================================
+//	//============================================================================
 //	for (uint spotIndex = 0; spotIndex < cullSpotLightCount; ++spotIndex) {
 
 //		if (grid.count >= maxLocalLightsPerTile) {
@@ -346,8 +342,8 @@ void main(uint3 groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID) {
 		return;
 	}
 
-	// 未使用スロットを明示的に無効値で初期化。
-	// DebugAllLightsPerCluster/PIX確認でリストの境界を追いやすくする。
+	// 未使用スロットを明示的に無効値で初期化
+	// DebugAllLightsPerCluster/PIX確認でリストの境界を追いやすくする
 	for (uint i = 0; i < listCapacity; ++i) {
 		gTileLightIndexList[grid.offset + i] = 0xFFFFFFFFu;
 	}
@@ -439,7 +435,7 @@ void main(uint3 groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID) {
 		}
 
 		// PS側では localLightIndex < pointCount なら point、
-		// それ以外は localLightIndex - pointCount を spot index として扱う。
+		// それ以外は localLightIndex - pointCount を spot index として扱う
 		AppendLightIndex(grid, cullPointLightCount + spotIndex, false, listCapacity);
 	}
 

@@ -6,7 +6,6 @@
 //============================================================================
 //	RenderPhase functions
 //============================================================================
-
 std::string_view Engine::ToString(RenderPhase phase) {
 
 	if (phase == RenderPhase::Count) {

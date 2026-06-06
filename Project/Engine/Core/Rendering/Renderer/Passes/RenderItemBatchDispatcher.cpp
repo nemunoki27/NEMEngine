@@ -10,7 +10,6 @@
 //============================================================================
 //	RenderItemBatchDispatcher classMethods
 //============================================================================
-
 void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, const SceneExecutionContext& sceneContext,
 	const RenderSceneBatch& renderBatch, RenderBackendRegistry& backendRegistry, RenderAssetLibrary& assetLibrary,
 	PipelineStateCache& pipelineCache, MaterialResolver& materialResolver, const std::vector<const RenderItem*>& items,
@@ -39,7 +38,7 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	drawContext.screenSpaceOutlineMaskStyleID = sceneContext.screenSpaceOutlineMaskStyleID;
 	drawContext.screenSpaceOutlineMaskRestrictSubMeshIndex = sceneContext.screenSpaceOutlineMaskRestrictSubMeshIndex;
 
-	// プレビューではTLASを作らないため、RayQueryを要求するVariantだけ外して解決する。
+	// プレビューではTLASを作らないため、RayQueryを要求するVariantだけ外して解決する
 	drawContext.runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	if (sceneContext.disableInlineRayTracing) {
 

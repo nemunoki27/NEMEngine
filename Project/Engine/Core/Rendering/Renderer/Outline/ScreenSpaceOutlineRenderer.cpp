@@ -1,5 +1,7 @@
 #include "ScreenSpaceOutlineRenderer.h"
 
+using namespace Engine;
+
 //============================================================================
 //	include
 //============================================================================
@@ -40,7 +42,7 @@ namespace {
 	constexpr const char* kDilateVerticalPassName = "ScreenSpaceOutlineDilateVertical";
 	constexpr const char* kCompositePassName = "ScreenSpaceOutlineComposite";
 
-	Engine::RenderTexture2D* GetColor0(Engine::MultiRenderTarget* target) {
+	RenderTexture2D* GetColor0(MultiRenderTarget* target) {
 
 		if (!target || target->GetColorCount() == 0) {
 			return nullptr;
@@ -48,17 +50,17 @@ namespace {
 		return target->GetColorTexture(0);
 	}
 
-	const Engine::MaterialPassBinding* FindBuiltinPass(Engine::RenderAssetLibrary& assetLibrary,
-		Engine::AssetID materialID, std::string_view passName) {
+	const MaterialPassBinding* FindBuiltinPass(RenderAssetLibrary& assetLibrary,
+		AssetID materialID, std::string_view passName) {
 
-		const Engine::MaterialAsset* material = assetLibrary.LoadMaterial(materialID);
+		const MaterialAsset* material = assetLibrary.LoadMaterial(materialID);
 		if (!material) {
 			return nullptr;
 		}
-		return Engine::FindPass(*material, passName);
+		return FindPass(*material, passName);
 	}
 
-	bool IsSameEntity(const Engine::RenderItem& item, const Engine::ScreenSpaceOutlineRequest& request) {
+	bool IsSameEntity(const RenderItem& item, const ScreenSpaceOutlineRequest& request) {
 
 		return item.world == request.world &&
 			item.entity.index == request.entity.index &&
@@ -66,7 +68,7 @@ namespace {
 	}
 }
 
-Engine::ScreenSpaceOutlineRenderer::ScreenSpaceOutlineRenderer() {
+ScreenSpaceOutlineRenderer::ScreenSpaceOutlineRenderer() {
 
 	dilateConstantsCBVSlot_ = dilateBindCache_.AddSlot("DilateConstants", ShaderBindingKind::CBV);
 	dilateInputMaskSRVSlot_ = dilateBindCache_.AddSlot("gInputMask", ShaderBindingKind::SRV);
@@ -80,12 +82,12 @@ Engine::ScreenSpaceOutlineRenderer::ScreenSpaceOutlineRenderer() {
 	compositeStylesSRVSlot_ = compositeBindCache_.AddSlot("gOutlineStyles", ShaderBindingKind::SRV);
 }
 
-Engine::ScreenSpaceOutlineRenderer::~ScreenSpaceOutlineRenderer() {
+ScreenSpaceOutlineRenderer::~ScreenSpaceOutlineRenderer() {
 
 	Finalize();
 }
 
-void Engine::ScreenSpaceOutlineRenderer::Init(GraphicsCore& graphicsCore) {
+void ScreenSpaceOutlineRenderer::Init(GraphicsCore& graphicsCore) {
 
 	if (initialized_) {
 		return;
@@ -99,7 +101,7 @@ void Engine::ScreenSpaceOutlineRenderer::Init(GraphicsCore& graphicsCore) {
 	initialized_ = true;
 }
 
-void Engine::ScreenSpaceOutlineRenderer::Finalize() {
+void ScreenSpaceOutlineRenderer::Finalize() {
 
 	styleBuffer_.Release();
 	styleScratch_.clear();
@@ -108,7 +110,7 @@ void Engine::ScreenSpaceOutlineRenderer::Finalize() {
 	initialized_ = false;
 }
 
-void Engine::ScreenSpaceOutlineRenderer::Render(GraphicsCore& graphicsCore, SceneExecutionContext& context,
+void ScreenSpaceOutlineRenderer::Render(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 	const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
 	std::span<const ScreenSpaceOutlineRequest> requests, ScreenSpaceOutlineViewResources& resources) {
 
@@ -133,7 +135,7 @@ void Engine::ScreenSpaceOutlineRenderer::Render(GraphicsCore& graphicsCore, Scen
 	ExecuteComposite(graphicsCore, context, deps, resources);
 }
 
-bool Engine::ScreenSpaceOutlineRenderer::BuildDrawRecords(
+bool ScreenSpaceOutlineRenderer::BuildDrawRecords(
 	std::span<const ScreenSpaceOutlineRequest> requests, uint32_t& outMaxRadiusPixels) {
 
 	styleScratch_.clear();
@@ -195,7 +197,7 @@ bool Engine::ScreenSpaceOutlineRenderer::BuildDrawRecords(
 	return !drawScratch_.empty();
 }
 
-void Engine::ScreenSpaceOutlineRenderer::ClearMask(
+void ScreenSpaceOutlineRenderer::ClearMask(
 	GraphicsCore& graphicsCore, ScreenSpaceOutlineViewResources& resources) const {
 
 	if (!resources.mask || !resources.projectedCoverageMask) {
@@ -231,7 +233,7 @@ void Engine::ScreenSpaceOutlineRenderer::ClearMask(
 	}
 }
 
-void Engine::ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecutionContext& context,
+void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 	const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
 	ScreenSpaceOutlineViewResources& resources) {
 
@@ -328,7 +330,7 @@ void Engine::ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, Sc
 	context.screenSpaceOutlineMaskRestrictSubMeshIndex = prevSubMeshIndex;
 }
 
-bool Engine::ScreenSpaceOutlineRenderer::ValidateDilationResources(
+bool ScreenSpaceOutlineRenderer::ValidateDilationResources(
 	const ScreenSpaceOutlineViewResources& resources) {
 
 	return GetColor0(resources.mask.get()) != nullptr &&
@@ -336,7 +338,7 @@ bool Engine::ScreenSpaceOutlineRenderer::ValidateDilationResources(
 		GetColor0(resources.dilatedMask.get()) != nullptr;
 }
 
-bool Engine::ScreenSpaceOutlineRenderer::ExecuteDilation(GraphicsCore& graphicsCore,
+bool ScreenSpaceOutlineRenderer::ExecuteDilation(GraphicsCore& graphicsCore,
 	const RenderPipelineDeps& deps, ScreenSpaceOutlineViewResources& resources, uint32_t maxRadiusPixels) {
 
 	if (!ValidateDilationResources(resources)) {
@@ -376,7 +378,7 @@ bool Engine::ScreenSpaceOutlineRenderer::ExecuteDilation(GraphicsCore& graphicsC
 	return true;
 }
 
-bool Engine::ScreenSpaceOutlineRenderer::ExecuteDilationPass(GraphicsCore& graphicsCore,
+bool ScreenSpaceOutlineRenderer::ExecuteDilationPass(GraphicsCore& graphicsCore,
 	const RenderPipelineDeps& deps, AssetID pipelineID, ScreenSpaceOutlineViewResources& resources,
 	RenderTexture2D* inputMask, RenderTexture2D* outputMask, uint32_t safeRadius, bool finalToPixelShader,
 	const wchar_t* label) {
@@ -458,7 +460,7 @@ bool Engine::ScreenSpaceOutlineRenderer::ExecuteDilationPass(GraphicsCore& graph
 	return true;
 }
 
-bool Engine::ScreenSpaceOutlineRenderer::ExecuteComposite(GraphicsCore& graphicsCore,
+bool ScreenSpaceOutlineRenderer::ExecuteComposite(GraphicsCore& graphicsCore,
 	SceneExecutionContext& context, const RenderPipelineDeps& deps,
 	ScreenSpaceOutlineViewResources& resources) {
 

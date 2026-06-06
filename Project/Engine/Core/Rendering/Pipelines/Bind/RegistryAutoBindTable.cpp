@@ -1,5 +1,7 @@
 #include "RegistryAutoBindTable.h"
 
+using namespace Engine;
+
 //============================================================================
 //	include
 //============================================================================
@@ -9,7 +11,7 @@
 //	RegistryAutoBindTable classMethods
 //============================================================================
 
-void Engine::RegistryAutoBindTable::Sync(const PipelineState& pipeline,
+void RegistryAutoBindTable::Sync(const PipelineState& pipeline,
 	const RenderBufferRegistry& registry) {
 
 	// パイプラインとレジストリ構成が変わっていなければキャッシュを再利用
@@ -39,7 +41,7 @@ void Engine::RegistryAutoBindTable::Sync(const PipelineState& pipeline,
 	}
 }
 
-void Engine::RegistryAutoBindTable::BindCompute(const RenderBufferRegistry& registry,
+void RegistryAutoBindTable::BindCompute(const RenderBufferRegistry& registry,
 	ID3D12GraphicsCommandList* commandList) const {
 
 	for (const ResolvedEntry& resolved : resolvedEntries_) {
@@ -62,7 +64,7 @@ void Engine::RegistryAutoBindTable::BindCompute(const RenderBufferRegistry& regi
 	}
 }
 
-void Engine::RegistryAutoBindTable::BindGraphics(const RenderBufferRegistry& registry,
+void RegistryAutoBindTable::BindGraphics(const RenderBufferRegistry& registry,
 	ID3D12GraphicsCommandList* commandList) const {
 
 	for (const ResolvedEntry& resolved : resolvedEntries_) {

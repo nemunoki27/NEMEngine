@@ -1,7 +1,6 @@
 //============================================================================
 //	include
 //============================================================================
-
 #include "screenSpaceOutlineMask.hlsli"
 
 groupshared float4x4 gMeshletWorldMatrix;

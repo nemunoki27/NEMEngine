@@ -26,7 +26,6 @@
 //============================================================================
 //	ViewportPanel classMethods
 //============================================================================
-
 namespace {
 
 	bool Prefers2DGizmo(const Engine::EditorPanelContext& context,
@@ -134,8 +133,8 @@ namespace {
 			return;
 		}
 
-		// Viewport上ではクリックで選択したEntityを、そのまま他UIへドラッグできるようにする。
-		// hover中だけに限定すると、ドロップ先へ移動した瞬間にSource描画が切れて"..."表示になる。
+		// Viewport上ではクリックで選択したEntityを、そのまま他UIへドラッグできるようにする
+		// hover中だけに限定すると、ドロップ先へ移動した瞬間にSource描画が切れて"..."表示になる
 		if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 
 			const Engine::Entity entity = context.editorState->selectedEntity;
@@ -415,9 +414,9 @@ void Engine::ViewportPanel::DrawSceneGizmo(const EditorPanelContext& context) {
 		return;
 	}
 
-	//========================================================================
+	//============================================================================
 	//	サブメッシュ選択中
-	//========================================================================
+	//============================================================================
 	{
 		Entity entity = Entity::Null();
 		uint32_t subMeshIndex = 0;
@@ -492,9 +491,9 @@ void Engine::ViewportPanel::DrawSceneGizmo(const EditorPanelContext& context) {
 		}
 	}
 
-	//========================================================================
+	//============================================================================
 	//	エンティティ選択中
-	//========================================================================
+	//============================================================================
 	{
 		const Entity entity = context.editorState->selectedEntity;
 		// 編集不可なエンティティの場合はギズモセッションを終了して何もしない

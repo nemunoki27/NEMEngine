@@ -14,7 +14,6 @@ namespace Engine {
 	//============================================================================
 	//	GraphicsFeatureTypes structures
 	//============================================================================
-
 	enum class LightCullingMode : uint32_t {
 
 		Disabled = 0,

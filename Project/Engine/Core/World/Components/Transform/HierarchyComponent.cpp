@@ -3,7 +3,6 @@
 //============================================================================
 //	HierarchyComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, HierarchyComponent& component) {
 
 	std::string parentLocalFileID = in.value("parentLocalFileID", "");

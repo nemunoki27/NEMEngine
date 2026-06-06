@@ -19,7 +19,6 @@
 //============================================================================
 //	LightCullingPass classMethods
 //============================================================================
-
 Engine::AssetID Engine::LightCullingPass::ResolveLightCullingMaterial(AssetDatabase& database) const {
 
 	if (materialSearched_) {

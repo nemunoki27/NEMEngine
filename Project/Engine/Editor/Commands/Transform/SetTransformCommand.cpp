@@ -10,7 +10,6 @@
 //============================================================================
 //	SetTransformCommand classMethods
 //============================================================================
-
 Engine::SetTransformCommand::SetTransformCommand(const Entity& targetEntity,
 	const TransformComponent& beforeTransform,
 	const TransformComponent& afterTransform) :

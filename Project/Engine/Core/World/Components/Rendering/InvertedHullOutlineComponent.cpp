@@ -11,7 +11,6 @@
 //============================================================================
 //	InvertedHullOutlineComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, InvertedHullOutlineComponent& component) {
 
 	component.enabled = in.value("enabled", component.enabled);

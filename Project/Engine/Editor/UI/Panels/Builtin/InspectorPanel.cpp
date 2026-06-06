@@ -83,7 +83,6 @@
 //============================================================================
 //	InspectorPanel classMethods
 //============================================================================
-
 namespace {
 
 	// インスペクターパネルのコンポーネント追加メニューのエントリー
@@ -459,7 +458,7 @@ Engine::InspectorPanel::InspectorPanel() {
 
 void Engine::InspectorPanel::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
 
-	// InspectorPanelはToolPanel上の独立ウィンドウを持たず、RenderTexture作成機能だけを利用する。
+	// InspectorPanelはToolPanel上の独立ウィンドウを持たず、RenderTexture作成機能だけを利用する
 }
 
 void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
@@ -556,7 +555,6 @@ void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context,
 	//============================================================================
 	//	エンティティの名前編集
 	//============================================================================
-
 	// 現在の名前を取得する
 	std::string currentName = "Entity";
 	if (world.HasComponent<NameComponent>(entity)) {

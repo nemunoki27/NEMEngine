@@ -19,7 +19,6 @@ using namespace Engine;
 //============================================================================
 //	PipelineState classMethods
 //============================================================================
-
 namespace {
 
 	using ShaderPathIndex = std::unordered_map<std::string, std::filesystem::path>;

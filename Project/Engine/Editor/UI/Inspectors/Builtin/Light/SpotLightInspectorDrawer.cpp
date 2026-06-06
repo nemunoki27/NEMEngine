@@ -3,7 +3,6 @@
 //============================================================================
 //	SpotLightInspectorDrawer classMethods
 //============================================================================
-
 void Engine::SpotLightInspectorDrawer::DrawFields([[maybe_unused]] const EditorPanelContext& context,
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 

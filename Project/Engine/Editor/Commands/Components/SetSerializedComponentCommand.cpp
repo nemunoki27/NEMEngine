@@ -10,7 +10,6 @@
 //============================================================================
 //	SetSerializedComponentCommand classMethods
 //============================================================================
-
 Engine::SetSerializedComponentCommand::SetSerializedComponentCommand(const Entity& targetEntity,
 	const std::string_view& typeName, const nlohmann::json& beforeData, const nlohmann::json& afterData) :
 	initialTarget_(targetEntity), typeName_(typeName), beforeData_(beforeData), afterData_(afterData) {}

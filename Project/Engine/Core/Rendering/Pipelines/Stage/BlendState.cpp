@@ -5,7 +5,6 @@ using namespace Engine;
 //============================================================================
 //	BlendState classMethods
 //============================================================================
-
 void BlendState::Create(BlendMode blendMode, D3D12_RENDER_TARGET_BLEND_DESC& blendDesc) {
 
 	blendDesc = {};

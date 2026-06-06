@@ -12,7 +12,6 @@
 //============================================================================
 //	RaytracingViewBufferSet classMethods
 //============================================================================
-
 void Engine::RaytracingViewBufferSet::Init(GraphicsCore& graphicsCore) {
 
 	// すでに初期化されている場合は何もしない

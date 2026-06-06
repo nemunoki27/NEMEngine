@@ -3,7 +3,6 @@
 //============================================================================
 //	RaytracingPipelineStateCache classMethods
 //============================================================================
-
 Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCreate(GraphicsPlatform& graphicsPlatform,
 	RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID) {
 
@@ -43,7 +42,7 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 
 void Engine::RaytracingPipelineStateCache::Clear() {
 
-	// DXR PSOを持つキャッシュはmap破棄任せにせず、終了時に明示resetする。
+	// DXR PSOを持つキャッシュはmap破棄任せにせず、終了時に明示resetする
 	for (auto& [assetID, state] : cache_) {
 		(void)assetID;
 		state.reset();

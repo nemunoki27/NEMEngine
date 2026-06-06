@@ -11,7 +11,6 @@
 //============================================================================
 //	DepthPrepass classMethods
 //============================================================================
-
 void Engine::DepthPrepass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 

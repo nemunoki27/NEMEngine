@@ -8,7 +8,6 @@
 //============================================================================
 //	SpotLightExtractor classMethods
 //============================================================================
-
 void Engine::SpotLightExtractor::Extract(ECSWorld& world, FrameLightBatch& batch) {
 
 	world.ForEach<SpotLightComponent>([&](const Entity& entity, SpotLightComponent& light) {

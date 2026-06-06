@@ -45,7 +45,6 @@ namespace Engine {
 	//============================================================================
 	//	RenderPipelineRunner structures
 	//============================================================================
-
 	// レイトレーシング用のシーン実行時情報
 	struct RaytracingSceneRuntimeContext {
 
@@ -78,11 +77,11 @@ namespace Engine {
 		RenderBufferRegistry bufferRegistry{};
 		// レイトレーシングの情報
 		RaytracingSceneRuntimeContext raytracing{};
-		// ツールプレビューなど、TLASを作らない描画ではRayQuery系Variantを選ばない。
+		// ツールプレビューなど、TLASを作らない描画ではRayQuery系Variantを選ばない
 		bool disableInlineRayTracing = false;
-		// エディターピック用に、描画Raytracing設定とは独立してTLASだけを構築する。
+		// エディターピック用に、描画Raytracing設定とは独立してTLASだけを構築する
 		bool requireRaytracingSceneForEditorPicking = false;
-		// ツールプレビューではVertex版のGraphics Variantを優先する。
+		// ツールプレビューではVertex版のGraphics Variantを優先する
 		bool forceVertexMeshVariant = false;
 		// ECSワールドとシステムコンテキスト
 		ECSWorld* world = nullptr;
@@ -110,7 +109,7 @@ namespace Engine {
 		ManualRenderCameraState camera{};
 
 		Color4 clearColor = Color4(0.08f, 0.10f, 0.14f, 1.0f);
-		// falseなら既存のRT内容を保持したまま描画する。ProjectPanelのモデルプレビューAtlasで使用する。
+		// falseなら既存のRT内容を保持したまま描画する。ProjectPanelのモデルプレビューAtlasで使用する
 		bool clearSurface = true;
 		bool useViewportRect = false;
 		uint32_t viewportX = 0;
@@ -120,7 +119,7 @@ namespace Engine {
 		// プレビュー用RenderTextureにだけ描画するグリッド
 		bool drawGrid2D = false;
 		bool drawGrid3D = false;
-		// プレビューではMeshShader/RayQueryを避け、Vertex版の非RayQueryシェーダを優先する。
+		// プレビューではMeshShader/RayQueryを避け、Vertex版の非RayQueryシェーダを優先する
 		bool forceVertexMeshVariant = true;
 	};
 
@@ -130,10 +129,9 @@ namespace Engine {
 	//============================================================================
 	class RenderPipelineRunner {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		RenderPipelineRunner() = default;
 		~RenderPipelineRunner() = default;
 
@@ -172,10 +170,9 @@ namespace Engine {
 		ID3D12Resource* GetSceneViewTLASResource() const { return tlasResource_; }
 		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return pickRecords_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		// 描画バッチ
@@ -239,7 +236,7 @@ namespace Engine {
 		ViewLightBufferSet sceneViewLightBuffers_{};
 		ViewLightCullingBufferSet gameViewLightCullingBuffers_{};
 		ViewLightCullingBufferSet sceneViewLightCullingBuffers_{};
-		// ツールプレビューは同一フレーム内に複数回描くため、ライトGPUバッファも描画ごとに分ける。
+		// ツールプレビューは同一フレーム内に複数回描くため、ライトGPUバッファも描画ごとに分ける
 		FrameBatchResourcePool<ViewLightBufferSet> previewLightBufferPool_{};
 		FrameBatchResourcePool<ViewLightCullingBufferSet> previewLightCullingBufferPool_{};
 

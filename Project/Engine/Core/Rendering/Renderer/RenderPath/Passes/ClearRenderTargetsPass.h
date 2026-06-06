@@ -15,10 +15,9 @@ namespace Engine {
 	class ClearRenderTargetsPass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit ClearRenderTargetsPass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~ClearRenderTargetsPass() override = default;
 
@@ -26,10 +25,9 @@ namespace Engine {
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;

@@ -17,7 +17,6 @@
 //============================================================================
 //	RaytracingSceneBuilder classMethods
 //============================================================================
-
 void Engine::RaytracingSceneBuilder::Init(GraphicsCore& graphicsCore) {
 
 	if (initialized_) {

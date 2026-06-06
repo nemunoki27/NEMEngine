@@ -11,7 +11,6 @@
 //============================================================================
 //	SceneSystem classMethods
 //============================================================================
-
 bool Engine::SceneSystem::LoadScene(const std::string& scenePath, ECSWorld& world, AssetDatabase* assetDatabase,
 	AssetID sourceAsset, UUID sceneInstanceID, SceneHeader* outHeader, std::vector<Entity>* outCreatedEntities) const {
 

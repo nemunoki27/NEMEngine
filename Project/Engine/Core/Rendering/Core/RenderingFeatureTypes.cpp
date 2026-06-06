@@ -3,7 +3,6 @@
 //============================================================================
 //	GraphicsFeatureText namespaceMethods
 //============================================================================
-
 const char* Engine::GraphicsFeatureText::ToString(D3D_FEATURE_LEVEL value) {
 
 	switch (value) {

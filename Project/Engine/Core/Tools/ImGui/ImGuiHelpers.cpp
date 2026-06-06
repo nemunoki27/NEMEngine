@@ -19,21 +19,18 @@
 //============================================================================
 //	MyGUI classMethods
 //============================================================================
-
 namespace {
 
-	//========================================================================
+	//============================================================================
 	//	レイアウト定数
-	//========================================================================
-
+	//============================================================================
 	// 左側に表示する文字の幅
 	constexpr float kLabelColumnWidth = 160.0f;
 	constexpr float kAxisLabelWidth = 14.0f;
 
-	//========================================================================
+	//============================================================================
 	//	軸情報
-	//========================================================================
-
+	//============================================================================
 	struct AxisDisplayInfo {
 
 		const char* name;
@@ -63,10 +60,9 @@ namespace {
 		return '\0';
 	}
 
-	//========================================================================
+	//============================================================================
 	//	文字列ヘルパー
-	//========================================================================
-
+	//============================================================================
 	// 精度を指定してfloatを文字列に変換する
 	std::string FormatFloat(float value, uint32_t precision) {
 
@@ -111,7 +107,7 @@ namespace {
 		}
 		return std::find(acceptedTypes.begin(), acceptedTypes.end(), type) != acceptedTypes.end();
 	}
-	// 古い.metaがUnknownのまま残っている場合でも、拡張子から最低限の種類を補う。
+	// 古い.metaがUnknownのまま残っている場合でも、拡張子から最低限の種類を補う
 	Engine::AssetType GuessDroppedAssetType(const Engine::EditorAssetDragDropPayload& payload) {
 
 		const std::string assetPath = Engine::Algorithm::ToLower(payload.assetPath);
@@ -228,10 +224,9 @@ namespace {
 		return std::format("UUID : {}", Engine::ToString(entityUUID));
 	}
 
-	//========================================================================
+	//============================================================================
 	//	レイアウトヘルパー
-	//========================================================================
-
+	//============================================================================
 	// フィールドの幅を計算する
 	float CalcFieldWidth(int fieldCount, float reserveRightWidth = 0.0f) {
 
@@ -241,10 +236,9 @@ namespace {
 		return fieldArea / static_cast<float>(fieldCount);
 	}
 
-	//========================================================================
+	//============================================================================
 	//	描画ヘルパー
-	//========================================================================
-
+	//============================================================================
 	// 軸ラベルを描画する
 	void DrawAxisLabel(char axis) {
 
@@ -1403,7 +1397,7 @@ Engine::ValueEditResult Engine::MyGUI::EntityReferenceField(const char* label, U
 		}
 	}
 
-	// 同じ名前のEntityを複数表示してもIDが衝突しないように、呼び出し側のlabelをIDに使う。
+	// 同じ名前のEntityを複数表示してもIDが衝突しないように、呼び出し側のlabelをIDに使う
 	ImGui::PushID(label);
 
 	const std::string displayText = BuildEntityReferenceLabel(value, world);
@@ -1416,7 +1410,7 @@ Engine::ValueEditResult Engine::MyGUI::EntityReferenceField(const char* label, U
 		? setting.buttonSize.value()
 		: ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight());
 
-	// HierarchyからEntityをドロップするための表示領域。
+	// HierarchyからEntityをドロップするための表示領域
 	ImGui::Button(displayText.c_str(), button);
 
 	if (!hasValue) {
@@ -1431,7 +1425,7 @@ Engine::ValueEditResult Engine::MyGUI::EntityReferenceField(const char* label, U
 		ImGui::EndTooltip();
 	}
 
-	// HierarchyPanelが渡すUUIDを受け取り、現在のWorldに存在するEntityだけを参照として採用する。
+	// HierarchyPanelが渡すUUIDを受け取り、現在のWorldに存在するEntityだけを参照として採用する
 	if (ImGui::BeginDragDropTarget()) {
 		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType)) {
 			if (payload->IsDelivery()) {

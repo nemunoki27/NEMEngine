@@ -8,7 +8,6 @@
 //============================================================================
 //	PointLightExtractor classMethods
 //============================================================================
-
 void Engine::PointLightExtractor::Extract(ECSWorld& world, FrameLightBatch& batch) {
 
 	world.ForEach<PointLightComponent>([&](const Entity& entity, PointLightComponent& light) {

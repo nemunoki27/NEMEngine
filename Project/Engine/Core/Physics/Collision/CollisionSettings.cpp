@@ -12,7 +12,6 @@
 //============================================================================
 //	CollisionSettings classMethods
 //============================================================================
-
 Engine::CollisionSettings& Engine::CollisionSettings::GetInstance() {
 
 	static CollisionSettings instance;

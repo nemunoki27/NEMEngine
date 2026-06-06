@@ -14,7 +14,6 @@
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Core/Audio/AudioSystem.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-#include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixValidation.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
@@ -34,7 +33,6 @@
 //============================================================================
 //	EngineApplication classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kActiveSceneConfigPath = "Config/activeScene.exeConfig.json";
@@ -127,10 +125,6 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	g_activeEngineApplication = this;
 	WinApp::SetCloseRequestCallback(RequestEngineApplicationClose);
 	Assert::SetPreAssertHandler(NotifyEngineApplicationAssert);
-
-	// NEM_MESH_NORMAL_MATRIX_VALIDATE=1 のときだけ法線行列ユーティリティの自己検証を走らせる。
-	// 通常起動では何もしない
-	RunMeshNormalMatrixValidationIfRequested();
 
 	// アセットデータベース初期化
 	assetDataBase_.Init();

@@ -15,20 +15,19 @@ namespace Engine {
 	//============================================================================
 	//	ImmutableIndexBuffer class
 	//	初期化後に更新しない静的インデックスバッファ。DEFAULT heapに本体を置き、
-	//	初期データはBufferUploadService経由で1回だけ転送する。16bit/32bit両対応。
-	//	CPU更新が必要なIndexにはIndexBufferを使うこと。
+	// 初期データはBufferUploadService経由で1回だけ転送する。16bit/32bit両対応
+	// CPU更新が必要なIndexにはIndexBufferを使うこと
 	//============================================================================
 	class ImmutableIndexBuffer {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		ImmutableIndexBuffer() = default;
 		~ImmutableIndexBuffer() = default;
 
-		// 32bitインデックスでDEFAULT heap本体を作成し、転送を依頼する。
-		// BLAS入力など別用途でも読む場合はfinalStateにGENERIC_READを指定する。
+		// 32bitインデックスでDEFAULT heap本体を作成し、転送を依頼する
+		// BLAS入力など別用途でも読む場合はfinalStateにGENERIC_READを指定する
 		void Create(ID3D12Device* device, BufferUploadService& uploadService,
 			std::span<const uint32_t> data, DXGI_FORMAT format = DXGI_FORMAT_R32_UINT,
 			D3D12_RESOURCE_STATES finalState = D3D12_RESOURCE_STATE_INDEX_BUFFER);
@@ -49,10 +48,9 @@ namespace Engine {
 		}
 		bool IsCreatedResource() const { return resource_ != nullptr; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		ComPtr<ID3D12Resource> resource_;

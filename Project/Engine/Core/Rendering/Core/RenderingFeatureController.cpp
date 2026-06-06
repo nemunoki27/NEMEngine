@@ -14,7 +14,6 @@
 //============================================================================
 //	GraphicsFeatureController classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kGraphicsFeatureConfigPath = "Config/graphicsFeatureSettings.exeConfig.json";

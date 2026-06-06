@@ -3,7 +3,6 @@
 //============================================================================
 //	ITool classMethods
 //============================================================================
-
 bool Engine::ITool::IsEnabled(const ToolContext& context) const {
 
 	const ToolDescriptor& desc = GetDescriptor();

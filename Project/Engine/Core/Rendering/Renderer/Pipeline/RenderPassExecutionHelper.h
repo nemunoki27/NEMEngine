@@ -17,7 +17,6 @@ namespace Engine {
 	//============================================================================
 	//	RenderPassExecutionHelper structures
 	//============================================================================
-
 	// 色サーフェスと外部DSVを個別に指定して描画する場合のバインド対象
 	struct RenderPassSurfaceBinding {
 
@@ -29,20 +28,20 @@ namespace Engine {
 
 	namespace RenderPassExecutionHelper {
 
-		// 描画パスの共通実行処理（リソース状態遷移、バインド、ビューポート設定、ディスパッチ）を行う。
+		// 描画パスの共通実行処理（リソース状態遷移、バインド、ビューポート設定、ディスパッチ）を行う
 		void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 			const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
 			RenderPhase phase, MultiRenderTarget* target, const char* drawPassName = "Draw",
 			bool forceVertexMeshVariant = false);
 
-		// 指定されたアイテムリストを使用して描画パスを実行する。
+		// 指定されたアイテムリストを使用して描画パスを実行する
 		void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 			const std::vector<const RenderItem*>& items, const RenderPipelineDeps& deps,
 			MultiRenderTarget* target, const char* drawPassName = "Draw",
 			bool forceVertexMeshVariant = false, bool depthOnly = false);
 
 		// 色サーフェスと外部DSVを組み合わせて描画する。背面法アウトラインで
-		// SceneFinalの色とSceneMainの深度を同時にバインドするために使う。
+		// SceneFinalの色とSceneMainの深度を同時にバインドするために使う
 		void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 			const std::vector<const RenderItem*>& items, const RenderPipelineDeps& deps,
 			const RenderPassSurfaceBinding& surface, const char* drawPassName = "Draw",

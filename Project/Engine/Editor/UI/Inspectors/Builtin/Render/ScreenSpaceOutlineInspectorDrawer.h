@@ -15,18 +15,16 @@ namespace Engine {
 	class ScreenSpaceOutlineInspectorDrawer :
 		public SerializedComponentInspectorDrawer<ScreenSpaceOutlineComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		ScreenSpaceOutlineInspectorDrawer() :
 			SerializedComponentInspectorDrawer("Screen Space Outline", "ScreenSpaceOutline") {}
 		~ScreenSpaceOutlineInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,

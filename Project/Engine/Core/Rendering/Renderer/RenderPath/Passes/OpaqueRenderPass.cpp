@@ -11,7 +11,6 @@
 //============================================================================
 //	OpaqueRenderPass classMethods
 //============================================================================
-
 void Engine::OpaqueRenderPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 

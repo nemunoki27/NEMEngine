@@ -3,7 +3,6 @@
 //============================================================================
 //	RenderQueue classMethods
 //============================================================================
-
 void Engine::RenderSceneBatch::Add(RenderItem&& item) {
 
 	items_.emplace_back(std::move(item));

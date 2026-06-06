@@ -4,10 +4,9 @@
 //============================================================================
 //	Mesh描画で共有するGPU構造体定義
 //	CPU側 (MeshResourceTypes.h / MeshShaderSharedTypes.h / MeshBatchResources.h)
-//	とfield順・paddingを完全一致させること。
-//	複数シェーダへ同じstructをコピーせず、必ずこのヘッダをincludeする。
+// とfield順・paddingを完全一致させること
+// 複数シェーダへ同じstructをコピーせず、必ずこのヘッダをincludeする
 //============================================================================
-
 struct MeshVertex {
 
 	float3 normal;

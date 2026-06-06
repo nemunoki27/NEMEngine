@@ -15,19 +15,17 @@ namespace Engine {
 	class CameraControllerInspectorDrawer :
 		public SerializedComponentInspectorDrawer<CameraControllerComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		CameraControllerInspectorDrawer() :
 			SerializedComponentInspectorDrawer("CameraController", "CameraController") {
 		}
 		~CameraControllerInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;

@@ -10,7 +10,6 @@
 //============================================================================
 //	ClearRenderTargetsPass classMethods
 //============================================================================
-
 void Engine::ClearRenderTargetsPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 

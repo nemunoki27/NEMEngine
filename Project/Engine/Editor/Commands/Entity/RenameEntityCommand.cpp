@@ -9,7 +9,6 @@
 //============================================================================
 //	RenameEntityCommand classMethods
 //============================================================================
-
 Engine::RenameEntityCommand::RenameEntityCommand(const Entity& targetEntity, const std::string_view& newName) :
 	initialTarget_(targetEntity),
 	newName_(newName) {

@@ -9,9 +9,8 @@ namespace Engine::BuiltinAssets {
 
 	//============================================================================
 	//	Builtin asset GUIDs
-	//	移動に強い参照にするため、エンジン内蔵アセットは.metaのGUIDで固定参照する。
+	// 移動に強い参照にするため、エンジン内蔵アセットは.metaのGUIDで固定参照する
 	//============================================================================
-
 	namespace Materials {
 
 		inline constexpr AssetID DefaultSprite{ 0xef1a0db1d6ef57acull };

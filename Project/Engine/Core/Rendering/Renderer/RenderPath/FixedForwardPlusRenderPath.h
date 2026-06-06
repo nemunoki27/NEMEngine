@@ -52,10 +52,9 @@ namespace Engine {
 	//============================================================================
 	class FixedForwardPlusRenderPath {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		FixedForwardPlusRenderPath() = default;
 		~FixedForwardPlusRenderPath() = default;
 
@@ -63,7 +62,7 @@ namespace Engine {
 		FixedForwardPlusRenderPath(const FixedForwardPlusRenderPath&) = delete;
 		FixedForwardPlusRenderPath& operator=(const FixedForwardPlusRenderPath&) = delete;
 
-		// パスの初期化。deps は RenderPipelineRunner が所有するメンバーへのポインタを渡す。
+		// パスの初期化。deps は RenderPipelineRunner が所有するメンバーへのポインタを渡す
 		void Initialize(const RenderPipelineDeps& deps);
 		// 終了処理
 		void Finalize();
@@ -72,10 +71,9 @@ namespace Engine {
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context);
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		RenderPipelineDeps deps_{};

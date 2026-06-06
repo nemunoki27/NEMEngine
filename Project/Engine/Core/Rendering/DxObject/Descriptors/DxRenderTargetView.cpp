@@ -11,7 +11,6 @@ using namespace Engine;
 //============================================================================
 //	RTVDescriptor classMethods
 //============================================================================
-
 void Engine::RTVDescriptor::Create(uint32_t& index, D3D12_CPU_DESCRIPTOR_HANDLE& handle,
 	ID3D12Resource* resource, const D3D12_RENDER_TARGET_VIEW_DESC& desc) {
 

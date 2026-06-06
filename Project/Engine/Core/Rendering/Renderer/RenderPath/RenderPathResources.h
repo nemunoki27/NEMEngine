@@ -17,15 +17,15 @@ namespace Engine {
 
 	//============================================================================
 	//	ScreenSpaceOutlineViewResources structure
-	//	Screen-space outlineで使うview単位の中間RT。
-	//	RuntimeとEditor選択で混線しないよう、RenderPathResources内で別々に持つ。
+	// Screen-space outlineで使うview単位の中間RT
+	// RuntimeとEditor選択で混線しないよう、RenderPathResources内で別々に持つ
 	//============================================================================
 	struct ScreenSpaceOutlineViewResources {
 
 		// SceneDepth付きで描く、実際に見えている選択対象のMask
 		std::unique_ptr<MultiRenderTarget> mask;
 
-		// Depth Test無しで描く、選択対象本来の画面投影範囲。
+		// Depth Test無しで描く、選択対象本来の画面投影範囲
 		// ExteriorPreferred時に遮蔽物由来の内周を除外するために使う
 		std::unique_ptr<MultiRenderTarget> projectedCoverageMask;
 
@@ -43,10 +43,9 @@ namespace Engine {
 	//============================================================================
 	class RenderPathResources {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		RenderPathResources() = default;
 		~RenderPathResources() = default;
 
@@ -76,10 +75,9 @@ namespace Engine {
 		ScreenSpaceOutlineViewResources& GetEditorSelectionScreenSpaceOutline() { return editorSelectionOutline_; }
 		const ScreenSpaceOutlineViewResources& GetEditorSelectionScreenSpaceOutline() const { return editorSelectionOutline_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		uint32_t currentWidth_ = 0;

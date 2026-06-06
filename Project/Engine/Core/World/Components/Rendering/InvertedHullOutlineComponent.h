@@ -15,7 +15,6 @@ namespace Engine {
 	//============================================================================
 	//	InvertedHullOutlineComponent struct
 	//============================================================================
-
 	// アウトラインの膨張方式
 	enum class OutlineExpansionMode : uint8_t {
 

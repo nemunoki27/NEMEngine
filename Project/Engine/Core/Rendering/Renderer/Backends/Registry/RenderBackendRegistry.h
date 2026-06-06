@@ -15,10 +15,9 @@ namespace Engine {
 	class RenderBackendRegistry :
 		public MapRegistryBase<uint32_t, IRenderBackend> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		RenderBackendRegistry() = default;
 		~RenderBackendRegistry() override = default;
 

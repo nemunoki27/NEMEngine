@@ -1,5 +1,7 @@
 #include "PostProcessStackService.h"
 
+using namespace Engine;
+
 //============================================================================
 //	include
 //============================================================================
@@ -133,7 +135,7 @@ const std::vector<Engine::ShaderConstantBufferVariable>* Engine::PostProcessStac
 	return &it->second;
 }
 
-const std::vector<Engine::ShaderResourceBinding>* Engine::PostProcessStackService::FindReflectionSRVs(AssetID materialId) const {
+const std::vector<ShaderResourceBinding>* PostProcessStackService::FindReflectionSRVs(AssetID materialId) const {
 
 	auto it = reflectionSRVs_.find(materialId);
 	if (it == reflectionSRVs_.end()) {
@@ -142,7 +144,7 @@ const std::vector<Engine::ShaderResourceBinding>* Engine::PostProcessStackServic
 	return &it->second;
 }
 
-void Engine::PostProcessStackService::ClearReflection(AssetID materialId) {
+void PostProcessStackService::ClearReflection(AssetID materialId) {
 
 	reflectionVars_.erase(materialId);
 	reflectionSRVs_.erase(materialId);

@@ -53,7 +53,6 @@
 //============================================================================
 //	ProjectPanel classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kProjectModelPreviewAtlasName = "ProjectPanelModelPreviewAtlas";
@@ -516,7 +515,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 void Engine::ProjectPanel::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
 
-	// ProjectPanelはToolPanel上の独立ウィンドウを持たず、RenderTexture作成機能だけを利用する。
+	// ProjectPanelはToolPanel上の独立ウィンドウを持たず、RenderTexture作成機能だけを利用する
 }
 
 void Engine::ProjectPanel::DrawModelPreviewSettingsWindow() {
@@ -1579,7 +1578,7 @@ void Engine::ProjectPanel::RefreshAfterFileOperation(AssetDatabase& database, co
 		return;
 	}
 
-	// ProjectAssetIndexの参照を使っている描画中にRebuildすると、走査中のasset/nodeが破棄される。
+	// ProjectAssetIndexの参照を使っている描画中にRebuildすると、走査中のasset/nodeが破棄される
 	pendingFileOperationResult_ = result;
 	hasPendingFileOperationRefresh_ = true;
 	dirty_ = true;

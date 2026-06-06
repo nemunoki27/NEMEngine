@@ -3,7 +3,6 @@
 //============================================================================
 //	AudioSourceComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, AudioSourceComponent& component) {
 
 	component.clip = ParseAssetID(in, "clip");

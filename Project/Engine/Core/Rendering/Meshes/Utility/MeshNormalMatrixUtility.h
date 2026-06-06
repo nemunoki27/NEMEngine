@@ -25,11 +25,10 @@ namespace Engine {
 	//============================================================================
 	//	MeshNormalMatrixUtility functions
 	//============================================================================
-
-	// worldMatrix/localMatrixから法線変換行列を安全に構築する。
+	// worldMatrix/localMatrixから法線変換行列を安全に構築する
 	// 非一様スケールや負スケールでも法線を正しく変換でき、0スケールなどの退化時も
-	// NaN/InfをGPUバッファへ送らないようfallbackする。
-	// HLSL側は mul(localNormal, (float3x3)matrix) で使う前提(row-vector規約)。
+	// NaN/InfをGPUバッファへ送らないようfallbackする
+	// HLSL側は mul(localNormal, (float3x3)matrix) で使う前提(row-vector規約)
 	MeshNormalMatrixResult BuildSafeMeshNormalMatrix(const Matrix4x4& transform);
 
 } // Engine

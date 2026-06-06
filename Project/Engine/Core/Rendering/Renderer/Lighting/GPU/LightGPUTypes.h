@@ -14,7 +14,6 @@ namespace Engine {
 	//	LightGPUTypes structures
 	//	CPU->GPU転送用のライト構造体
 	//============================================================================
-
 	// 平行光源
 	struct DirectionalLightGPU {
 

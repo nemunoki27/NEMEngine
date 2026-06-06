@@ -3,7 +3,6 @@
 //============================================================================
 //	GraphicsCore classMethods
 //============================================================================
-
 void Engine::GraphicsCore::Init() {
 
 	// 各コアの初期化
@@ -85,7 +84,7 @@ void Engine::GraphicsCore::Finalize() {
 	// GPUが完了するまで待機
 	graphicsPlatform_->GetDxCommand()->WaitForGPU();
 
-	// Device/Queue/Descriptorを参照するサービスはGraphicsPlatformより先に解放する。
+	// Device/Queue/Descriptorを参照するサービスはGraphicsPlatformより先に解放する
 	if (builtinTextureLibrary_) {
 		builtinTextureLibrary_->Finalize();
 	}
@@ -100,7 +99,7 @@ void Engine::GraphicsCore::Finalize() {
 	textureUploadService_.reset();
 	bufferUploadService_.reset();
 
-	// 描画リソースとDescriptor heapをDevice破棄前に解放する。
+	// 描画リソースとDescriptor heapをDevice破棄前に解放する
 	swapChain_.reset();
 	srvDescriptor_.reset();
 	dsvDescriptor_.reset();

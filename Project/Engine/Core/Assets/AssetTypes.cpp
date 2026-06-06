@@ -34,7 +34,6 @@ namespace {
 //============================================================================
 //	AssetTypes classMethods
 //============================================================================
-
 Engine::AssetID Engine::ParseAssetID(const nlohmann::json& in, const char* key) {
 
 	const std::string value = in.value(key, "");

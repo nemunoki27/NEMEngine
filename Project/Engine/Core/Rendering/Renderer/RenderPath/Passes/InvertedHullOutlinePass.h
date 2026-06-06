@@ -22,10 +22,9 @@ namespace Engine {
 	class InvertedHullOutlinePass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit InvertedHullOutlinePass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~InvertedHullOutlinePass() override = default;
 
@@ -33,10 +32,9 @@ namespace Engine {
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- structure ----------------------------------------------------
 
 		// useStencilの有無で描画対象を二群に分ける

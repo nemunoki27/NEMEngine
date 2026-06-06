@@ -8,7 +8,6 @@
 //============================================================================
 //	EntityArchetype classMethods
 //============================================================================
-
 Engine::EntityArchetype::EntityArchetype(const EntitySignature& signature, const std::vector<uint32_t>& types) :
 	signature_(signature), types_(types) {
 

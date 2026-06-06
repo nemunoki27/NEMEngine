@@ -18,10 +18,9 @@ namespace Engine {
 	class LightCullingPass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit LightCullingPass(const RenderPipelineDeps& deps) : deps_(deps) {
 			// register(t1, space0) を初期化時に登録しておく
 			depthSRVSlot_ = depthSRVCache_.AddSlotByRegister(ShaderBindingKind::SRV, 1, 0);
@@ -32,10 +31,9 @@ namespace Engine {
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;

@@ -1,7 +1,6 @@
 //============================================================================
 //	resources
 //============================================================================
-
 cbuffer PickingBuffer : register(b0) {
 
 	uint inputPixelX;
@@ -21,7 +20,6 @@ RWStructuredBuffer<uint> gOutput : register(u0);
 //============================================================================
 //	functions
 //============================================================================
-
 float3 NDCFromPixel(uint2 pixel, uint2 size, float depth) {
 
 	float2 uv = (float2(pixel) + 0.5f) / float2(size);

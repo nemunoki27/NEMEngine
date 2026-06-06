@@ -10,7 +10,6 @@
 //============================================================================
 //	BehaviorSystem classMethods
 //============================================================================
-
 Engine::BehaviorSystem* Engine::BehaviorSystem::activeSystem_ = nullptr;
 
 namespace {
@@ -31,7 +30,7 @@ namespace {
 
 		const auto* info = Engine::BehaviorTypeRegistry::GetInstance().FindByName(entry.type);
 		if (!info) {
-			// 旧データでは名前空間なしの型名だけを持っていることがあるため、単純名でも一度だけ解決する。
+			// 旧データでは名前空間なしの型名だけを持っていることがあるため、単純名でも一度だけ解決する
 			info = Engine::BehaviorTypeRegistry::GetInstance().FindManagedBySimpleName(entry.type);
 		}
 		if (!info) {

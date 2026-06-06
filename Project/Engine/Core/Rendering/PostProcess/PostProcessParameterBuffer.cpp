@@ -13,7 +13,6 @@
 //============================================================================
 //	PostProcessParameterBuffer classMethods
 //============================================================================
-
 namespace {
 
 	size_t AlignConstantBufferSize(size_t sizeInBytes) {

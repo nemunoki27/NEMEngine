@@ -8,7 +8,6 @@
 //============================================================================
 //	ToolbarPanel classMethods
 //============================================================================
-
 void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 
 	// ツールバーパネルの表示状態を確認
@@ -31,7 +30,6 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	シーンのプレイ/ストップ切り替え
 	//============================================================================
-
 	const char* playLabel = context.IsPlaying() ? "Stop" : "Play";
 	if (ImGui::Button(playLabel, ImVec2(64.0f, 20.0f))) {
 		context.host->RequestPlayToggle();
@@ -46,7 +44,6 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	現在のシーン名、モード、Undo/Redoの状態を表示
 	//============================================================================
-
 	ImGui::SameLine();
 	if (context.editorContext && context.editorContext->activeSceneHeader) {
 

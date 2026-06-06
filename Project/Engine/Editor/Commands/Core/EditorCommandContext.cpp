@@ -3,7 +3,6 @@
 //============================================================================
 //	EditorCommandContext classMethods
 //============================================================================
-
 void Engine::EditorCommandContext::RebuildHierarchyAll() const {
 
 	ECSWorld* world = GetWorld();

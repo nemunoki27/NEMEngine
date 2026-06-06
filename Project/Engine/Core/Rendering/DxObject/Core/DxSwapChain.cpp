@@ -12,7 +12,6 @@ using namespace Engine;
 //============================================================================
 //	DxSwapChain classMethods
 //============================================================================
-
 void DxSwapChain::Create(WinApp* winApp, IDXGIFactory7* factory, ID3D12CommandQueue* queue, RTVDescriptor* rtvDescriptor,
 	uint32_t width, uint32_t height, DXGI_FORMAT format, const Color4& clearColor) {
 

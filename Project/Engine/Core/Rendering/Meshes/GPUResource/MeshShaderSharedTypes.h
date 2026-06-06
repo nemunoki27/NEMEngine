@@ -15,7 +15,6 @@ namespace Engine {
 	//============================================================================
 	//	MeshShaderSharedTypes structures
 	//============================================================================
-
 	struct SubMeshConstants {
 
 		uint32_t indexOffset = 0;
@@ -93,7 +92,7 @@ namespace Engine {
 
 		// サブメッシュごとのローカル行列(位置・Bounds・Culling用)
 		Matrix4x4 localMatrix = Matrix4x4::Identity();
-		// localMatrixの法線変換行列 transpose(inverse(localMatrix))。
+		// localMatrixの法線変換行列 transpose(inverse(localMatrix))
 		// 非一様スケールでも法線が壊れないよう、位置用とは別に持つ
 		Matrix4x4 localNormalMatrix = Matrix4x4::Identity();
 

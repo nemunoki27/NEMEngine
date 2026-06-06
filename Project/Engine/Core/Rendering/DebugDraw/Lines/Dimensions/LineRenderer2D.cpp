@@ -11,7 +11,6 @@
 //============================================================================
 //	LineRenderer2D classMethods
 //============================================================================
-
 Engine::LineRenderer2D::LineRenderer2D(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain) {
 
 	// 基底クラスの初期化

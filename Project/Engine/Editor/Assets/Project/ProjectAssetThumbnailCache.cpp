@@ -10,7 +10,6 @@
 //============================================================================
 //	ProjectAssetThumbnailCache classMethods
 //============================================================================
-
 void Engine::ProjectAssetThumbnailCache::Init(TextureUploadService& textureUploadService) {
 
 	// すでに初期化されている場合は何もしない

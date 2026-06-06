@@ -18,16 +18,15 @@ namespace Engine {
 
 	//============================================================================
 	//	BufferUploadService class
-	//	DEFAULT heapの静的バッファへ初期データを転送するサービス。
-	//	UPLOAD heap stagingの生成・コピー記録・Fence発行・staging解放を集約する。
-	//	TextureUploadServiceとは独立。
+	// DEFAULT heapの静的バッファへ初期データを転送するサービス
+	// UPLOAD heap stagingの生成・コピー記録・Fence発行・staging解放を集約する
+	// TextureUploadServiceとは独立
 	//============================================================================
 	class BufferUploadService {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		BufferUploadService() = default;
 		~BufferUploadService() = default;
 
@@ -39,7 +38,7 @@ namespace Engine {
 		// Batchを開始する。既に開いている場合は何もしない
 		void BeginBatch();
 
-		// DEFAULT heap destinationへの初期データ転送を記録する。
+		// DEFAULT heap destinationへの初期データ転送を記録する
 		// stagingを生成しCopyBufferRegionとBarrierを積む。実行はSubmitBatchで行う
 		void EnqueueBufferUpload(ID3D12Resource* destination,
 			std::span<const std::byte> sourceData, D3D12_RESOURCE_STATES finalState);
@@ -55,10 +54,9 @@ namespace Engine {
 		bool HasOpenBatch() const { return batchOpened_; }
 		bool HasPendingUploads() const { return !pendingBatches_.empty(); }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- structure ----------------------------------------------------
 
 		// Submit済みでGPU完了待ちのstaging一式

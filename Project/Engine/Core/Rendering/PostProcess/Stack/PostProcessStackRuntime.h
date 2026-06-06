@@ -17,7 +17,6 @@ namespace Engine {
 	//	PostProcessStackRuntime structures
 	//	ランタイム実行用にフラット化されたPostProcessStackの情報
 	//============================================================================
-
 	// 1パスのランタイム実行データ
 	struct PostProcessStackRuntimePass {
 

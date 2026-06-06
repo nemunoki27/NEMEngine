@@ -8,7 +8,6 @@
 //============================================================================
 //	CurveEditorState classMethods
 //============================================================================
-
 bool Engine::CurveEditorState::IsChannelVisible(uint32_t channelIndex) const {
 
 	if (64 <= channelIndex) {

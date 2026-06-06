@@ -14,10 +14,9 @@ namespace Engine {
 	class DirectionalLightExtractor :
 		public ILightExtractor {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		DirectionalLightExtractor() = default;
 		~DirectionalLightExtractor() override = default;
 

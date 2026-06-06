@@ -8,7 +8,6 @@
 //============================================================================
 //	ShaderAsset classMethods
 //============================================================================
-
 bool Engine::FromJson(const nlohmann::json& data, ShaderAsset& outAsset) {
 
 	if (!data.is_object()) {

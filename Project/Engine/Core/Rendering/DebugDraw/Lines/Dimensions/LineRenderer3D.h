@@ -16,10 +16,9 @@ namespace Engine {
 	class LineRenderer3D :
 		public LineRendererBase<Vector3> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain);
 		~LineRenderer3D() override;
 
@@ -62,10 +61,9 @@ namespace Engine {
 		void DrawSpotLightFrustum(const Vector3& pos, const Vector3& direction, float distance, float cosAngle,
 			float cosFalloffStart, const Color4& color, uint32_t division = 16, float thickness = 1.0f);
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- variables ----------------------------------------------------
 
 		// シーンのグリッド描画クラス
@@ -81,7 +79,6 @@ namespace Engine {
 	//============================================================================
 	//	LineRenderer3D templateMethods
 	//============================================================================
-
 	template<typename T>
 	inline void LineRenderer3D::DrawHemisphere(const Vector3& center, float radius,
 		const T& rotation, const Color4& color, uint32_t division, float thickness) {

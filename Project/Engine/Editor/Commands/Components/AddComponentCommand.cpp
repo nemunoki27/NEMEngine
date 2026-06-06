@@ -8,7 +8,6 @@
 //============================================================================
 //	AddComponentCommand classMethods
 //============================================================================
-
 Engine::AddComponentCommand::AddComponentCommand(const Entity& targetEntity, const  std::string_view& typeName) :
 	initialTarget_(targetEntity),
 	typeName_(typeName) {

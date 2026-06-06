@@ -12,7 +12,6 @@
 //============================================================================
 //	DebugOverlayPass classMethods
 //============================================================================
-
 void Engine::DebugOverlayPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 

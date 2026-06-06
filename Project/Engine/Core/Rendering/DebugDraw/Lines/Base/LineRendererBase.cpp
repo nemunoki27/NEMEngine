@@ -3,7 +3,6 @@
 //============================================================================
 //	LineRendererBase classMethods
 //============================================================================
-
 template <>
 void Engine::LineRendererBase<Engine::Vector2>::DrawLine(const Vector2& pointA,
 	const Vector2& pointB, const Color4& color, float thickness) {

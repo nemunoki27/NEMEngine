@@ -11,7 +11,6 @@
 //============================================================================
 //	BehaviorWorld classMethods
 //============================================================================
-
 Engine::BehaviorHandle Engine::BehaviorWorld::Create(uint32_t typeID, const Entity& owner) {
 
 	// インデックスを割り当てる
