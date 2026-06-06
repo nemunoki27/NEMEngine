@@ -1,0 +1,17 @@
+{
+  "name": "ScreenSpaceOutlineComposite",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "Builtin/ScreenSpaceOutline/screenSpaceOutlineComposite.VS.hlsl",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "PS",
+      "file": "Builtin/ScreenSpaceOutline/screenSpaceOutlineComposite.PS.hlsl",
+      "entry": "main",
+      "profile": "ps_6_0"
+    }
+  ]
+}

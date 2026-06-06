@@ -6,7 +6,7 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshSelectionOutline.h>
+#include <Engine/Core/Rendering/Renderer/Outline/EditorSelectionOutlineRequestService.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
@@ -14,6 +14,7 @@
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Core/Audio/AudioSystem.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixValidation.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
@@ -126,6 +127,10 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	g_activeEngineApplication = this;
 	WinApp::SetCloseRequestCallback(RequestEngineApplicationClose);
 	Assert::SetPreAssertHandler(NotifyEngineApplicationAssert);
+
+	// NEM_MESH_NORMAL_MATRIX_VALIDATE=1 のときだけ法線行列ユーティリティの自己検証を走らせる。
+	// 通常起動では何もしない
+	RunMeshNormalMatrixValidationIfRequested();
 
 	// アセットデータベース初期化
 	assetDataBase_.Init();
@@ -259,8 +264,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// フレームごとのデバッグラインをリセットする
 	LineRenderer::GetInstance()->BeginFrame();
-	// 選択プレビューアウトラインの要求もフレーム単位でリセットする
-	MeshSelectionOutline::GetInstance().BeginFrame();
+	// 選択アウトラインのtemporary requestもフレーム単位でリセットする
+	EditorSelectionOutlineRequestService::GetInstance().BeginFrame();
 #endif
 
 	// システムコンテキストの更新

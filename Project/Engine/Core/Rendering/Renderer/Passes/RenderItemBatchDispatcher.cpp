@@ -35,6 +35,9 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	drawContext.passName = passName;
 	drawContext.depthOnly = depthOnly;
 	drawContext.forceVertexMeshVariant = sceneContext.forceVertexMeshVariant;
+	// ScreenSpaceOutline Mask描画のper-draw値を引き継ぐ
+	drawContext.screenSpaceOutlineMaskStyleID = sceneContext.screenSpaceOutlineMaskStyleID;
+	drawContext.screenSpaceOutlineMaskRestrictSubMeshIndex = sceneContext.screenSpaceOutlineMaskRestrictSubMeshIndex;
 
 	// プレビューではTLASを作らないため、RayQueryを要求するVariantだけ外して解決する。
 	drawContext.runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();

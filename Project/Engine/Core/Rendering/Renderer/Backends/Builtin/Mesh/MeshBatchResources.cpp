@@ -8,9 +8,9 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshSelectionOutline.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
+#include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
@@ -59,7 +59,7 @@ namespace {
 	// Hull本体を描くパスかどうか。OutlineStencilWriteは元メッシュ形状なのでHullではない
 	bool IsHullOutlinePass(std::string_view passName) {
 
-		return passName == "Outline" || passName == "OutlineStencilTest" || passName == "SelectionOutline";
+		return passName == "Outline" || passName == "OutlineStencilTest";
 	}
 }
 
@@ -88,8 +88,7 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	draw_.Init(device);
 	// ExecuteIndirect引数生成Computeに渡す固定Index数
 	indirectArgs_.Init(device);
-	// 選択プレビュー用アウトラインの定数バッファ
-	selectionOutline_.Init(device);
+	screenSpaceOutlineMask_.Init(device);
 	subMeshData_.Init(device, srvDescriptor);
 	// 背面法アウトラインのインスタンス別GPUデータ
 	outlineData_.Init(device, srvDescriptor);
@@ -133,7 +132,6 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 	const MeshGPUResource& gpuMesh) {
 
 	const bool hullOutline = IsHullOutlinePass(drawContext.passName);
-	const bool selectionOutline = (drawContext.passName == "SelectionOutline");
 	bool cullingEnabled = CanCullView(drawContext, gpuMesh);
 	if (cullingEnabled) {
 		// カリング用カメラが取れない場合は全描画に倒す
@@ -148,11 +146,6 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 	if (hullOutline && outlineMetrics_.hasScreenPixelWidth) {
 		cullingEnabled = false;
 	}
-	// 選択プレビューは単一メッシュを確実に出すため、誤カリングを避けてカリング無効にする
-	if (selectionOutline) {
-		cullingEnabled = false;
-	}
-
 	MeshDrawConstants drawConstants{};
 	drawConstants.meshletCount = gpuMesh.meshletCount;
 	drawConstants.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
@@ -176,28 +169,16 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 	drawConstants.outlineMaxModelExpansion = hullOutline ? outlineMetrics_.maxModelExpansion : 0.0f;
 	drawConstants.outlineMaxAbsCameraZOffset = hullOutline ? outlineMetrics_.maxAbsCameraZOffset : 0.0f;
 	drawConstants.outlineHasScreenPixelWidth = (hullOutline && outlineMetrics_.hasScreenPixelWidth) ? 1u : 0u;
-	drawConstants.selectionOutlinePass = selectionOutline ? 1u : 0u;
 
 	draw_.Upload(drawConstants);
 
-	// 選択プレビュー時は、コンポーネントとは独立した描画単位の定数を転送する。
-	// パラメータはMeshSelectionOutline(エディタが毎フレーム積む要求)から取る。
-	if (selectionOutline) {
+	if (drawContext.passName == "ScreenSpaceOutlineMask" ||
+		drawContext.passName == "ScreenSpaceOutlineCoverageMask") {
 
-		const MeshSelectionOutline& request = MeshSelectionOutline::GetInstance();
-		const InvertedHullOutlineComponent& source = request.GetParams();
-
-		MeshSelectionOutlineParams params{};
-		params.color = source.color;
-		params.width = (std::max)(0.0f, source.width);
-		params.cameraZOffset = source.cameraZOffset;
-		params.expansionMode = static_cast<uint32_t>(source.expansionMode);
-		params.widthMode = static_cast<uint32_t>(source.widthMode);
-		// プレビューはテクスチャを解決しないためflagsは立てない
-		params.flags = 0;
-		// サブメッシュ単位選択のときだけ対象を限定する(負なら全体)
-		params.restrictSubMeshIndex = request.GetSubMeshIndex();
-		selectionOutline_.Upload(params);
+		ScreenSpaceOutlineMaskConstants params{};
+		params.styleID = drawContext.screenSpaceOutlineMaskStyleID;
+		params.restrictSubMeshIndex = drawContext.screenSpaceOutlineMaskRestrictSubMeshIndex;
+		screenSpaceOutlineMask_.Upload(params);
 	}
 }
 
@@ -366,6 +347,9 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			const ResolvedRenderView* billboardView = drawContext.billboardView ? drawContext.billboardView : drawContext.view;
 			MeshInstanceData instance{};
 			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(*item, *billboardView);
+			MeshNormalMatrixResult instanceNormal = BuildSafeMeshNormalMatrix(instance.worldMatrix);
+			instance.normalMatrix = instanceNormal.matrix;
+			instance.orientationSign = instanceNormal.orientationSign;
 			instance.subMeshDataOffset = static_cast<uint32_t>(subMeshScratch_.size());
 			instance.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
 
@@ -486,6 +470,10 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				data.roughness = authoring.roughness;
 				data.uvMatrix = authoring.uvMatrix;
 				data.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
+				// localMatrixからも法線変換行列を構築する。最終的にinstance.normalMatrixと合成される
+				const MeshNormalMatrixResult localNormal = BuildSafeMeshNormalMatrix(data.localMatrix);
+				data.localNormalMatrix = localNormal.matrix;
+				data.localOrientationSign = localNormal.orientationSign;
 				// Position Scaling膨張の基準。原点基準にならないようサブメッシュのピボットを渡す
 				data.sourcePivot = authoring.sourcePivot;
 			}

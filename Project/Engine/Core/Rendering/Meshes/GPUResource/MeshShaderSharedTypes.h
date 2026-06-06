@@ -54,9 +54,7 @@ namespace Engine {
 		float outlineMaxAbsCameraZOffset = 0.0f;
 		// ScreenPixels幅を含むバッチかどうか
 		uint32_t outlineHasScreenPixelWidth = 0;
-		// 選択プレビュー用アウトラインパスかどうか。1ならHullパラメータをMeshSelectionOutlineParamsから取る
-		uint32_t selectionOutlinePass = 0;
-		uint32_t _pad[2] = { 0, 0 };
+		uint32_t _reserved1[3] = { 0, 0, 0 };
 	};
 	static_assert(sizeof(MeshDrawConstants) % 16 == 0);
 
@@ -81,24 +79,6 @@ namespace Engine {
 	static constexpr uint32_t kMeshOutlineFlagUseBakedNormal = 1u << 0;
 	static constexpr uint32_t kMeshOutlineFlagUseOutlineSampler = 1u << 1;
 
-	// 選択プレビュー用アウトラインのパラメータ。per-instanceではなく描画単位の定数として渡す
-	struct MeshSelectionOutlineParams {
-
-		Color4 color = Color4::Black();
-
-		float width = 0.0f;
-		float cameraZOffset = 0.0f;
-		uint32_t expansionMode = 0;
-		uint32_t widthMode = 0;
-
-		uint32_t flags = 0;
-		// 負の場合はエンティティ全体、0以上なら対象サブメッシュのみ描画する
-		int32_t restrictSubMeshIndex = -1;
-		uint32_t _pad0 = 0;
-		uint32_t _pad1 = 0;
-	};
-	static_assert(sizeof(MeshSelectionOutlineParams) % 16 == 0);
-
 	struct MeshSubMeshShaderData {
 
 		uint32_t baseColorTextureIndex = UINT32_MAX;
@@ -111,8 +91,11 @@ namespace Engine {
 		float metallic = 0.0f;
 		float roughness = 0.5f;
 
-		// サブメッシュごとのローカル行列
+		// サブメッシュごとのローカル行列(位置・Bounds・Culling用)
 		Matrix4x4 localMatrix = Matrix4x4::Identity();
+		// localMatrixの法線変換行列 transpose(inverse(localMatrix))。
+		// 非一様スケールでも法線が壊れないよう、位置用とは別に持つ
+		Matrix4x4 localNormalMatrix = Matrix4x4::Identity();
 
 		// インポート時の色
 		Color4 importedBaseColor = Color4::White();
@@ -125,6 +108,8 @@ namespace Engine {
 
 		// Position Scaling膨張の基準ピボット(モデル空間)
 		Vector3 sourcePivot = Vector3::AnyInit(0.0f);
-		float _outlinePad0 = 0.0f;
+		// localMatrixの線形部の行列式の符号。負スケール(mirror)時に-1
+		float localOrientationSign = 1.0f;
 	};
+	static_assert(sizeof(MeshSubMeshShaderData) % 16 == 0);
 } // Engine

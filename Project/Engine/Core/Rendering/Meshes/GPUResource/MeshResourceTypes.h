@@ -25,6 +25,8 @@ namespace Engine {
 
 		Vector3 normal = Vector3::AnyInit(0.0f);
 		Vector3 tangent = Vector3::AnyInit(0.0f);
+		// 接線の利き手(bitangentの向き)。法線マップのTBN構築で従法線の符号に使う
+		float tangentSign = 1.0f;
 		Vector2 uv = Vector2::AnyInit(0.0f);
 
 		Vector4 position = Vector4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -36,9 +38,17 @@ namespace Engine {
 		uint32_t normalOct = 0;
 		// 接線をOctahedral Encodingで32bitに圧縮した値
 		uint32_t tangentOct = 0;
+		// 接線の利き手。圧縮頂点経路でもTBN構築用に保持する
+		float tangentSign = 1.0f;
 		Vector2 uv = Vector2::AnyInit(0.0f);
 		Vector4 position = Vector4(0.0f, 0.0f, 0.0f, 1.0f);
 	};
+	// StructuredBufferのstrideをHLSL側のtight packingと完全一致させる。
+	// 不一致になると頂点読み出しが全体的に崩れるためサイズで固定する。
+	static_assert(sizeof(MeshVertex) == 52,
+		"MeshVertex must match HLSL layout: normal,tangent,tangentSign,uv,position");
+	static_assert(sizeof(MeshPackedVertex) == 36,
+		"MeshPackedVertex must match HLSL layout: normalOct,tangentOct,tangentSign,uv,position");
 
 	// キーフレーム
 	template <typename TValue>

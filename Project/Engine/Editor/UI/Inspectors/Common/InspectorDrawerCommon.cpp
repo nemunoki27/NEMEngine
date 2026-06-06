@@ -9,11 +9,10 @@
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshSelectionOutline.h>
+#include <Engine/Core/Rendering/Renderer/Outline/EditorSelectionOutlineRequestService.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Interface/ILightExtractor.h>
 
 //============================================================================
@@ -113,16 +112,16 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 	// メッシュ
 	if (world.HasComponent<MeshRendererComponent>(entity)) {
 
-		// 選択中メッシュのプレビューアウトライン。どの選択物でも一定の太さで綺麗に出るよう、
-		// 画面ピクセル幅(ScreenPixels)固定スタイルで描画する。サブメッシュ選択時は対象のみに限定。
-		InvertedHullOutlineComponent outline{};
-		outline.enabled = true;
-		outline.color = Color4::FromHex(0xFF8000FF);
-		outline.widthMode = OutlineWidthMode::ScreenPixels;
-		outline.width = 3.0f;
-		outline.expansionMode = OutlineExpansionMode::NormalDirection;
-		outline.cameraZOffset = 0.0f;
-		MeshSelectionOutline::GetInstance().Request(&world, entity, selectionSubMeshIndex, outline);
+		// 選択中メッシュのアウトラインはScene保存対象にしない。
+		// Componentを一時追加せず、描画フレームだけのrequestとして積む
+		ScreenSpaceOutlineStyle style{};
+		style.color = Color4::FromHex(0xFF8000FF);
+		style.widthPixels = 3.0f;
+		style.priority = 300;
+		style.visibilityMode = ScreenSpaceOutlineVisibilityMode::VisibleOnly;
+		style.regionMode = ScreenSpaceOutlineRegionMode::ExteriorPreferred;
+		EditorSelectionOutlineRequestService::GetInstance().Request(
+			&world, entity, selectionSubMeshIndex, style);
 	}
 	// スキニングアニメーション
 	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {

@@ -60,6 +60,11 @@ namespace Engine {
 		std::string_view passName = "Draw";
 		bool depthOnly = false;
 
+		// ScreenSpaceOutline Mask描画でこの描画単位へ渡すStyle IDとSubMesh制限。
+		// 0なら描画しない。Mask以外のパスでは未使用
+		uint32_t screenSpaceOutlineMaskStyleID = 0;
+		int32_t screenSpaceOutlineMaskRestrictSubMeshIndex = -1;
+
 		std::span<const DXGI_FORMAT> GetRTVFormats() const { return std::span<const DXGI_FORMAT>(rtvFormats.data(), numRTVFormats); }
 	};
 

@@ -16,11 +16,6 @@
       "passName": "OutlineStencilTest",
       "pipeline": "478183561c5fd23e",
       "preferredVariant": "GraphicsMesh"
-    },
-    {
-      "passName": "SelectionOutline",
-      "pipeline": "40ec216d251c0cd9",
-      "preferredVariant": "GraphicsMesh"
     }
   ]
 }

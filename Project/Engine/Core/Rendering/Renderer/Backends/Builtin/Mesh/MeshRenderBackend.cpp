@@ -93,8 +93,7 @@ namespace {
 		// コンポーネントを追加するだけで任意の既存マテリアルへアウトラインを適用できるようにする
 		if (context.passName == "Outline" ||
 			context.passName == "OutlineStencilWrite" ||
-			context.passName == "OutlineStencilTest" ||
-			context.passName == "SelectionOutline") {
+			context.passName == "OutlineStencilTest") {
 
 			return Engine::BackendDrawCommon::ResolveMaterialPass(
 				context,
@@ -102,6 +101,23 @@ namespace {
 				Engine::DefaultMaterialSlot::MeshOutline,
 				{ context.passName },
 				outResolved);
+		}
+		if (context.passName == "ScreenSpaceOutlineMask" ||
+			context.passName == "ScreenSpaceOutlineCoverageMask") {
+
+			const Engine::AssetID materialID = Engine::BuiltinAssets::Materials::ScreenSpaceOutlineMask;
+			const Engine::MaterialAsset* material = context.assetLibrary->LoadMaterial(materialID);
+			if (!material) {
+				return false;
+			}
+			const Engine::MaterialPassBinding* pass = Engine::FindPass(*material, context.passName);
+			if (!pass) {
+				return false;
+			}
+			outResolved.materialID = materialID;
+			outResolved.material = material;
+			outResolved.pass = pass;
+			return true;
 		}
 
 		// 通常描画
@@ -161,7 +177,7 @@ Engine::MeshRenderBackend::MeshRenderBackend() {
 	meshInstSRVSlot_     = sharedBindCache_.AddSlot("gMeshInstances",         ShaderBindingKind::SRV);
 	subMeshSRVSlot_      = sharedBindCache_.AddSlot("gSubMeshes",             ShaderBindingKind::SRV);
 	outlineSRVSlot_      = sharedBindCache_.AddSlot("gMeshOutlines",          ShaderBindingKind::SRV);
-	selectionParamsCBVSlot_ = sharedBindCache_.AddSlot("MeshSelectionOutlineParams", ShaderBindingKind::CBV);
+	screenSpaceOutlineMaskCBVSlot_ = sharedBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 1, 1);
 
 	// スキニングComputeバインドスロットを初期化時に登録する
 	skinConstCBVSlot_     = skinningBindCache_.AddSlot("SkinningConstants",      ShaderBindingKind::CBV);
@@ -531,10 +547,11 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(outlineSRVSlot_),
 			prepared.resources->GetOutlineGPUAddress(), {});
 	}
-	// 選択プレビュー用アウトラインのパラメータ。SelectionOutlineパイプラインだけが参照する
-	if (sharedBindCache_.Has(selectionParamsCBVSlot_) && prepared.resources->GetSelectionOutlineGPUAddress() != 0) {
-		RootBindingCommand::SetGraphicsCBV(commandList, sharedBindCache_.Get(selectionParamsCBVSlot_),
-			prepared.resources->GetSelectionOutlineGPUAddress());
+	if (sharedBindCache_.Has(screenSpaceOutlineMaskCBVSlot_) &&
+		prepared.resources->GetScreenSpaceOutlineMaskGPUAddress() != 0) {
+		RootBindingCommand::SetGraphicsCBV(commandList,
+			sharedBindCache_.Get(screenSpaceOutlineMaskCBVSlot_),
+			prepared.resources->GetScreenSpaceOutlineMaskGPUAddress());
 	}
 }
 

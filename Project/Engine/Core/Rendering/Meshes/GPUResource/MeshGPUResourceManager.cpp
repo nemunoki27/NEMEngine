@@ -147,6 +147,8 @@ namespace {
 			Engine::MeshPackedVertex dst{};
 			dst.normalOct = EncodeOctNormal(vertex.normal);
 			dst.tangentOct = EncodeOctNormal(vertex.tangent);
+			// 接線の利き手は圧縮せずそのまま保持する
+			dst.tangentSign = vertex.tangentSign;
 			dst.uv = vertex.uv;
 			dst.position = vertex.position;
 			packed.emplace_back(dst);

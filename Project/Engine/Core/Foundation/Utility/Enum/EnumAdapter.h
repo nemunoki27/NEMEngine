@@ -75,7 +75,7 @@ namespace Engine {
 			return magic_enum::enum_name(value).data();
 		}
 
-		static constexpr const std::string_view& ToStringView(Enum value) noexcept {
+		static constexpr std::string_view ToStringView(Enum value) noexcept {
 
 			return magic_enum::enum_name(value);
 		}

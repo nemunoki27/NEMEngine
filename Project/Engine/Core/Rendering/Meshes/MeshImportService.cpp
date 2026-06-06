@@ -296,6 +296,20 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 			vertex.normal = Vector3(-normal.x, normal.y, normal.z);
 			vertex.tangent = Vector3(-tangent.x, tangent.y, tangent.z);
 			vertex.uv = Vector2(uv.x, uv.y);
+
+			// 接線の利き手を、左右手系変換後のnormal/tangent/bitangentから求める。
+			// X反転(左右手変換)でbitangentの符号も反転するため、ここで一括して符号を確定させる。
+			// bitangentが無いモデルは+1にフォールバックする
+			if (mesh->HasTangentsAndBitangents()) {
+
+				const aiVector3D bitangent = mesh->mBitangents[v];
+				const Vector3 convertedBitangent = Vector3(-bitangent.x, bitangent.y, bitangent.z);
+				const Vector3 expectedBitangent = Vector3::Cross(vertex.normal, vertex.tangent);
+				vertex.tangentSign = (Vector3::Dot(expectedBitangent, convertedBitangent) < 0.0f) ? -1.0f : 1.0f;
+			} else {
+
+				vertex.tangentSign = 1.0f;
+			}
 			result.vertices.emplace_back(vertex);
 
 			// 頂点が属するサブメッシュのインデックスを保存

@@ -22,6 +22,9 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID ToneMapToView{ 0xaa28624401e1e4b6ull };
 		inline constexpr AssetID LightCulling{ 0xa8b3c1c806a8f747ull };
 		inline constexpr AssetID RaytracingReflection{ 0x375384bc3bf6bb7cull };
+		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x7c1d9a4b8e2f6031ull };
+		inline constexpr AssetID ScreenSpaceOutlineDilate{ 0x7c1d9a4b8e2f6032ull };
+		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x7c1d9a4b8e2f6033ull };
 	}
 
 	namespace Pipelines {
@@ -30,5 +33,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultMesh{ 0x966f3e8a34595313ull };
 		inline constexpr AssetID Skinning{ 0xda1205f1e1e19bdbull };
 		inline constexpr AssetID BuildIndexedIndirectArgs{ 0xe0400afbd444f5d6ull };
+		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x7c1d9a4b8e2f6021ull };
+		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x7c1d9a4b8e2f6023ull };
 	}
 }

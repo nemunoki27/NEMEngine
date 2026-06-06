@@ -16,8 +16,10 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RaytracingReflectionPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/InvertedHullOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/TransparentRenderPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RuntimeScreenSpaceOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessMaskedUiPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessStackPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/EditorSelectionScreenSpaceOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/BlitToViewPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/ScreenUiPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DebugOverlayPass.h>
@@ -32,7 +34,7 @@ void Engine::FixedForwardPlusRenderPath::Initialize(const RenderPipelineDeps& de
 	deps_ = deps;
 	Finalize();
 	deps_ = deps;
-	passes_.reserve(13);
+	passes_.reserve(15);
 
 	passes_.emplace_back(std::make_unique<ClearRenderTargetsPass>(deps_));
 	passes_.emplace_back(std::make_unique<DepthPrepass>(deps_));
@@ -41,8 +43,10 @@ void Engine::FixedForwardPlusRenderPath::Initialize(const RenderPipelineDeps& de
 	passes_.emplace_back(std::make_unique<RaytracingReflectionPass>(deps_));
 	passes_.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
 	passes_.emplace_back(std::make_unique<TransparentRenderPass>(deps_));
+	passes_.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(deps_));
 	passes_.emplace_back(std::make_unique<PostProcessMaskedUiPass>(deps_));
 	passes_.emplace_back(std::make_unique<PostProcessStackPass>(deps_));
+	passes_.emplace_back(std::make_unique<EditorSelectionScreenSpaceOutlinePass>(deps_));
 	passes_.emplace_back(std::make_unique<BlitToViewPass>(deps_));
 	passes_.emplace_back(std::make_unique<ScreenUiPass>(deps_));
 	passes_.emplace_back(std::make_unique<DebugOverlayPass>());

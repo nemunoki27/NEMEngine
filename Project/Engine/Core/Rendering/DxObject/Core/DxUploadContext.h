@@ -9,6 +9,7 @@
 #include <d3d12.h>
 // c++
 #include <cstdint>
+#include <string_view>
 
 //============================================================================
 //	DxUploadCommand class
@@ -41,6 +42,8 @@ private:
 	//========================================================================
 
 	//--------- variables ----------------------------------------------------
+
+	ComPtr<ID3D12Device> device_;
 
 	ComPtr<ID3D12GraphicsCommandList> commandList_;
 	ComPtr<ID3D12CommandAllocator> commandAllocator_;

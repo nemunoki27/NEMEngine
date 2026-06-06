@@ -1,0 +1,29 @@
+{
+  "name": "DefaultMeshOutline",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "Builtin/Mesh/Outline/defaultMeshOutline.VS.hlsl",
+      "entry": "main",
+      "profile": "vs_6_6"
+    },
+    {
+      "stage": "AS",
+      "file": "Builtin/Mesh/Outline/defaultMeshOutline.AS.hlsl",
+      "entry": "main",
+      "profile": "as_6_6"
+    },
+    {
+      "stage": "MS",
+      "file": "Builtin/Mesh/Outline/defaultMeshOutline.MS.hlsl",
+      "entry": "main",
+      "profile": "ms_6_6"
+    },
+    {
+      "stage": "PS",
+      "file": "Builtin/Mesh/Outline/defaultMeshOutline.PS.hlsl",
+      "entry": "main",
+      "profile": "ps_6_6"
+    }
+  ]
+}

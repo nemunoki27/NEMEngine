@@ -17,6 +17,7 @@
 #include <chrono>
 #include <thread>
 #include <future>
+#include <string_view>
 
 //============================================================================
 //	DxCommand class
@@ -89,6 +90,8 @@ private:
 
 	//--------- variables ----------------------------------------------------
 
+	ComPtr<ID3D12Device> device_;
+
 	ComPtr<ID3D12GraphicsCommandList6> commandList_;
 	ComPtr<ID3D12CommandAllocator> commandAllocator_;
 
@@ -101,6 +104,9 @@ private:
 	std::chrono::steady_clock::time_point reference_;
 
 	//--------- functions ----------------------------------------------------
+
+	// 特定のフェンス値を診断可能ループで待機する
+	bool WaitForFenceValue(uint64_t expectedValue, std::string_view operation);
 
 	// グラフィックスパスのコマンドを提出する
 	void ExecuteGraphicsCommands(IDXGISwapChain4* swapChain);

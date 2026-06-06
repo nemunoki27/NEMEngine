@@ -79,6 +79,9 @@ function NEM_AddEngineIncludeSettings()
         path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor"),
         path.join(NEM_PROJECT_ROOT, "Externals/nlohmann"),
         path.join(NEM_PROJECT_ROOT, "Externals/libcurl/include"),
+
+        -- WinPixEventRuntime: <WinPixEventRuntime/pix3.h>
+        path.join(NEM_PROJECT_ROOT, "Externals/WinPixEventRuntime/Include"),
     }
 
     defines {
@@ -127,6 +130,13 @@ function NEM_AddEngineRuntimeLinkSettings()
         'if exist "' .. scriptCoreOutput .. '\\$(Configuration)\\*" xcopy /Y /I "' .. scriptCoreOutput .. '\\$(Configuration)\\*" "$(TargetDir)Managed\\"',
         'if exist "$(ProjectDir)Managed\\$(Configuration)\\*" xcopy /Y /I "$(ProjectDir)Managed\\$(Configuration)\\*" "$(TargetDir)Managed\\"',
     }
+
+    -- WinPixEventRuntime。Debugではpix3.hが_DEBUG経由でUSE_PIXを有効化しPIXシンボルを参照するため、
+    -- import libをリンクする。DLLの配置はpatch_vcxproj_managed_config.ps1のpostbuildで行う
+    -- (このスクリプトがPostBuildEventを上書きするため、コピーはそちらへ集約している)。
+    filter "configurations:Debug"
+        libdirs { path.translate(path.join(NEM_PROJECT_ROOT, "Externals/WinPixEventRuntime/bin/x64"), "\\") }
+        links { "WinPixEventRuntime" }
 
     filter {}
 end

@@ -58,8 +58,5 @@ namespace Engine {
 		// Outline対象アイテムを収集する
 		OutlineItemGroups CollectItems(const SceneExecutionContext& context,
 			const RenderPassPhaseBuckets& passBuckets) const;
-		// 選択プレビュー対象アイテムを収集する(SceneViewのみ)
-		std::vector<const RenderItem*> CollectSelectionItems(const SceneExecutionContext& context,
-			const RenderPassPhaseBuckets& passBuckets) const;
 	};
 } // Engine

@@ -58,6 +58,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/TextRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/InvertedHullOutlineInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/ScreenSpaceOutlineInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/DirectionalLightInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/PointLightInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/SpotLightInspectorDrawer.h>
@@ -119,7 +120,7 @@ namespace {
 		const char* category;
 	};
 	// 追加できるコンポーネントのメニューエントリー
-	constexpr std::array<InspectorComponentMenuEntry, 16> kOptionalComponentMenuEntries = { {
+	constexpr std::array<InspectorComponentMenuEntry, 17> kOptionalComponentMenuEntries = { {
 
 		{ "PerspectiveCamera",  "PerspectiveCamera",  "Camera" },
 		{ "OrthographicCamera", "OrthographicCamera", "Camera" },
@@ -133,6 +134,7 @@ namespace {
 		{ "UVTransform",        "UVTransform",        "Rendering" },
 		{ "Billboard",          "Billboard",          "Rendering" },
 		{ "Inverted Hull Outline", "InvertedHullOutline", "Rendering" },
+		{ "Screen Space Outline", "ScreenSpaceOutline", "Rendering" },
 		{ "Skinned Animation",  "SkinnedAnimation",   "Animation" },
 		{ "DirectionalLight",   "DirectionalLight",   "Lighting" },
 		{ "PointLight",         "PointLight",         "Lighting" },
@@ -446,6 +448,7 @@ Engine::InspectorPanel::InspectorPanel() {
 	componentDrawers_.emplace_back(std::make_unique<UVTransformInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<BillboardInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<InvertedHullOutlineInspectorDrawer>());
+	componentDrawers_.emplace_back(std::make_unique<ScreenSpaceOutlineInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<DirectionalLightInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<PointLightInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<SpotLightInspectorDrawer>());
