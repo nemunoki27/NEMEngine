@@ -6,6 +6,8 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 
 // c++
 #include <algorithm>
@@ -13,85 +15,23 @@
 //============================================================================
 //	HierarchySystem classMethods
 //============================================================================
-namespace {
-
-	// エンティティにシーンオブジェクトコンポーネントがなければ付けて、ローカルIDがなければ新しく生成して返す
-	Engine::SceneObjectComponent& EnsureSceneObject(Engine::ECSWorld& world, const Engine::Entity& entity) {
-
-		// シーンオブジェクトが存在しないなら付ける
-		if (!world.HasComponent<Engine::SceneObjectComponent>(entity)) {
-
-			auto& sceneObject = world.AddComponent<Engine::SceneObjectComponent>(entity);
-			sceneObject.localFileID = Engine::UUID::New();
-			sceneObject.activeSelf = true;
-			sceneObject.activeInHierarchy = true;
-		}
-
-		// ローカルIDが存在しないなら新しく生成する
-		auto& sceneObject = world.GetComponent<Engine::SceneObjectComponent>(entity);
-		if (!sceneObject.localFileID) {
-
-			sceneObject.localFileID = Engine::UUID::New();
-		}
-		return sceneObject;
-	}
-
-	// 保存されている兄弟順に合わせて親の子リンクを並べ直す
-	void SortChildLinksBySiblingOrder(Engine::ECSWorld& world, const Engine::Entity& parent) {
-
-		if (!world.IsAlive(parent) || !world.HasComponent<Engine::HierarchyComponent>(parent)) {
-			return;
-		}
-
-		auto& parentHierarchy = world.GetComponent<Engine::HierarchyComponent>(parent);
-		std::vector<Engine::Entity> children;
-		for (Engine::Entity child = parentHierarchy.firstChild; child.IsValid() && world.IsAlive(child);) {
-
-			children.emplace_back(child);
-			if (!world.HasComponent<Engine::HierarchyComponent>(child)) {
-				break;
-			}
-			child = world.GetComponent<Engine::HierarchyComponent>(child).nextSibling;
-		}
-		if (children.size() < 2) {
-			return;
-		}
-
-		std::stable_sort(children.begin(), children.end(), [&](const Engine::Entity& lhs, const Engine::Entity& rhs) {
-			return world.GetComponent<Engine::HierarchyComponent>(lhs).siblingOrder <
-				world.GetComponent<Engine::HierarchyComponent>(rhs).siblingOrder;
-			});
-
-		parentHierarchy.firstChild = children.front();
-		parentHierarchy.lastChild = children.back();
-		for (size_t i = 0; i < children.size(); ++i) {
-
-			auto& childHierarchy = world.GetComponent<Engine::HierarchyComponent>(children[i]);
-			childHierarchy.prevSibling = (i == 0) ? Engine::Entity::Null() : children[i - 1];
-			childHierarchy.nextSibling = (i + 1 < children.size()) ? children[i + 1] : Engine::Entity::Null();
-			childHierarchy.siblingOrder = static_cast<int32_t>(i);
-		}
-	}
-}
 
 void Engine::HierarchySystem::OnWorldEnter(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
-	// ワールド内の全生存エンティティをスコープにしてUUIDからランタイムリンクを再構築
+	// ワールド内の全生存エンティティをスコープにして親子関係を再構築
 	std::vector<Entity> scope;
 	scope.reserve(world.GetRecordCount());
 	world.ForEachAliveEntity([&](Entity entity) {
 		scope.emplace_back(entity);
 		});
-	// UUIDからランタイム実行用の親子関係を構築する
+	// 論理ID（UUID）から実行時の親子リンクを構築
 	RebuildRuntimeLinks(world, scope);
 }
 
 void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::vector<Entity>& scope) {
 
-	// ローカルIDとシーンインスタンスIDの組み合わせをキーにしてエンティティを検索するためのマップ
+	// ローカルIDとシーンインスタンスIDの組み合わせをキーにしてエンティティを高速検索するためのマップ
 	struct LocalKey {
-
-		// シーンでの永続IDと、シーンインスタンスIDの組み合わせをキーにする
 		UUID sceneInstanceID{};
 		UUID localFileID{};
 
@@ -107,18 +47,16 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 		}
 	};
 
-	// ローカルIDとシーンインスタンスIDの組み合わせをキーにしてエンティティを検索するためのマップ
 	std::unordered_map<LocalKey, Entity, LocalKeyHash> entityMap;
 	entityMap.reserve(scope.size());
 
-	// スコープ内のエンティティを全て初期化してから、親子関係を構築する
+	// ステップ1: 各エンティティの親子リンクを初期化し、IDマップへ登録
 	for (const auto& entity : scope) {
 
 		if (!world.IsAlive(entity) || !world.HasComponent<HierarchyComponent>(entity)) {
 			continue;
 		}
 
-		// 親子関係を初期化する
 		auto& hierarchy = world.GetComponent<HierarchyComponent>(entity);
 		hierarchy.parent = Entity::Null();
 		hierarchy.firstChild = Entity::Null();
@@ -126,15 +64,15 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 		hierarchy.nextSibling = Entity::Null();
 		hierarchy.prevSibling = Entity::Null();
 
-		// ローカルIDとシーンインスタンスIDの組み合わせをキーにしてエンティティを検索するためのマップに登録する
 		if (world.HasComponent<SceneObjectComponent>(entity)) {
 			const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
 			if (sceneObject.localFileID) {
-
 				entityMap[{ sceneObject.sceneInstanceID, sceneObject.localFileID }] = entity;
 			}
 		}
 	}
+
+	// ステップ2: 保存されていた親IDから実際のEntityポインタ（ID）を解決してリンクを繋ぐ
 	for (const auto& entity : scope) {
 
 		if (!world.IsAlive(entity) || !world.HasComponent<HierarchyComponent>(entity)) {
@@ -156,22 +94,20 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 		}
 
 		Entity parent = it->second;
-		if (!world.IsAlive(parent)) {
-			continue;
+		if (world.IsAlive(parent)) {
+			if (!world.HasComponent<HierarchyComponent>(parent)) {
+				world.AddComponent<HierarchyComponent>(parent);
+			}
+			AttachLast(world, entity, parent);
 		}
-
-		if (!world.HasComponent<HierarchyComponent>(parent)) {
-			world.AddComponent<HierarchyComponent>(parent);
-		}
-		AttachLast(world, entity, parent);
 	}
 
+	// ステップ3: 兄弟順(siblingOrder)に基づいて子リンクをソートし、正しい順序を復元
 	for (const auto& entity : scope) {
-
-		SortChildLinksBySiblingOrder(world, entity);
+		HierarchyUtility::SortChildLinksBySiblingOrder(world, entity);
 	}
 
-	// 階層内のアクティブをルート以下で再計算する
+	// 階層全体のアクティブ状態（親子連動）を再計算
 	RefreshAllActiveStates(world, scope);
 }
 
@@ -182,15 +118,8 @@ void Engine::HierarchySystem::RefreshAllActiveStates(ECSWorld& world, const std:
 		if (!world.IsAlive(entity)) {
 			continue;
 		}
-		bool isRoot = true;
-		if (world.HasComponent<HierarchyComponent>(entity)) {
-
-			const auto& hierarchy = world.GetComponent<HierarchyComponent>(entity);
-			isRoot = !world.IsAlive(hierarchy.parent);
-		}
-		// ルートエンティティなら、階層内のアクティブをルート以下で再計算する
-		if (isRoot) {
-
+		// ルート（親なし）エンティティから順に子孫へアクティブ状態を伝播させる
+		if (HierarchyUtility::IsRoot(world, entity)) {
 			RefreshActiveTree(world, entity);
 		}
 	}
@@ -206,11 +135,10 @@ void Engine::HierarchySystem::RefreshActiveTree(ECSWorld& world, const Entity& r
 
 		const auto& hierarchy = world.GetComponent<HierarchyComponent>(root);
 		if (world.IsAlive(hierarchy.parent)) {
-
-			parentActive = EnsureSceneObject(world, hierarchy.parent).activeInHierarchy;
+			// 親がいればそのアクティブ状態を引き継ぐ
+			parentActive = SceneObjectUtility::EnsureSceneObject(world, hierarchy.parent).activeInHierarchy;
 		}
 	}
-	// 再帰的にルートから階層内のアクティブを再計算する
 	RefreshActiveRecursive(world, root, parentActive);
 }
 
@@ -220,13 +148,15 @@ void Engine::HierarchySystem::RefreshActiveRecursive(ECSWorld& world, const Enti
 		return;
 	}
 
-	auto& sceneObject = EnsureSceneObject(world, entity);
+	// 自身のアクティブ状態 ＝ 親がアクティブ かつ 自身が有効設定
+	auto& sceneObject = SceneObjectUtility::EnsureSceneObject(world, entity);
 	sceneObject.activeInHierarchy = parentActive && sceneObject.activeSelf;
+	
 	if (!world.HasComponent<HierarchyComponent>(entity)) {
 		return;
 	}
 
-	// 子エンティティに対して、再帰的に階層内のアクティブを再計算する
+	// 子に対しても再帰的に適用。階層が深い場合にスタックオーバーフローに注意が必要だが、通常は許容範囲
 	Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
 	while (child.IsValid() && world.IsAlive(child)) {
 
@@ -238,61 +168,55 @@ void Engine::HierarchySystem::RefreshActiveRecursive(ECSWorld& world, const Enti
 	}
 }
 
+void Engine::HierarchySystem::UpdateActiveInHierarchy(ECSWorld& world, const Entity& entity) {
+
+	// 親のアクティブ状態を引き継いで、指定エンティティ以下を再計算する
+	RefreshActiveTree(world, entity);
+}
+
 void Engine::HierarchySystem::SetParent(ECSWorld& world, const Entity& child, const Entity& newParent) {
 
-	// 子が存在しないならスキップ
 	if (!world.IsAlive(child)) {
 		return;
 	}
 
-	// 子にHierarchyComponentが無いなら付ける
+	// 必要なコンポーネントの確保
 	if (!world.HasComponent<HierarchyComponent>(child)) {
 		world.AddComponent<HierarchyComponent>(child);
 	}
-	// 子にSceneObjectComponentが無いなら付ける
-	if (!world.HasComponent<SceneObjectComponent>(child)) {
-		auto& childSceneObject = world.AddComponent<SceneObjectComponent>(child);
-		childSceneObject.localFileID = UUID::New();
-	}
+	SceneObjectUtility::EnsureSceneObject(world, child);
 
-	// ワールド上で子を新しい親から切り離す
+	// 現在の親から切り離し
 	Detach(world, child);
 
 	auto& hierarchy = world.GetComponent<HierarchyComponent>(child);
 	auto& childSceneObject = world.GetComponent<SceneObjectComponent>(child);
-	// 新しい親が存在するなら、ワールド上で子を新しい親に付ける
+	
+	// 新しい親へのアタッチ
 	if (world.IsAlive(newParent)) {
 
-		// 新しい親にHierarchyComponentが無いなら付ける
-		if (!world.HasComponent<SceneObjectComponent>(newParent)) {
+		SceneObjectUtility::EnsureSceneObject(world, newParent);
 
-			auto& parentSceneObject = world.AddComponent<SceneObjectComponent>(newParent);
-			parentSceneObject.localFileID = UUID::New();
-
-		}
-
-		// 新しい親のローカルIDを子のHierarchyComponentに設定する
 		const auto& parentSceneObject = world.GetComponent<SceneObjectComponent>(newParent);
 		hierarchy.parentLocalFileID = parentSceneObject.localFileID;
+		// シーンインスタンスIDの継承。基本的には親と同じシーンに属するようにする
 		if (!childSceneObject.sceneInstanceID) {
-
 			childSceneObject.sceneInstanceID = parentSceneObject.sceneInstanceID;
 		}
 		AttachLast(world, child, newParent);
 	} else {
-
+		// 親なし（ルート）へ
 		hierarchy.parentLocalFileID = UUID{};
 	}
 
-	// トランスフォーム変更フラグを立てる
+	// 親子関係が変わったため、自身と子孫のワールド行列を再計算対象にする
 	MarkTransformSubtreeDirty(world, child);
-	// 階層内のアクティブをルート以下で再計算する
+	// アクティブ状態も再評価
 	RefreshActiveTree(world, child);
 }
 
 void Engine::HierarchySystem::Detach(ECSWorld& world, const Entity& child) {
 
-	// 子が存在しない、もしくはHierarchyComponentを持っていないならスキップ
 	if (!world.HasComponent<HierarchyComponent>(child)) {
 		return;
 	}
@@ -300,8 +224,7 @@ void Engine::HierarchySystem::Detach(ECSWorld& world, const Entity& child) {
 
 	Entity parent = childComponent.parent;
 	if (!parent.IsValid()) {
-
-		// すでに親なし
+		// すでにルート
 		childComponent.parentLocalFileID = UUID{};
 		childComponent.prevSibling = Entity::Null();
 		childComponent.nextSibling = Entity::Null();
@@ -310,34 +233,27 @@ void Engine::HierarchySystem::Detach(ECSWorld& world, const Entity& child) {
 
 	auto& parentComponent = world.GetComponent<HierarchyComponent>(parent);
 
-	// 親の子リストの先頭が子なら更新
+	// 親の子リストの前後関係を繋ぎ替える
 	if (parentComponent.firstChild == child) {
-
 		parentComponent.firstChild = childComponent.nextSibling;
 	}
-	// 親の子リストの末尾が子なら更新
 	if (parentComponent.lastChild == child) {
-
 		parentComponent.lastChild = childComponent.prevSibling;
 	}
 
-	// 兄弟リンク更新
+	// 兄弟間のリンクを繋ぎ替える
 	if (childComponent.prevSibling.IsValid()) {
-
 		world.GetComponent<HierarchyComponent>(childComponent.prevSibling).nextSibling = childComponent.nextSibling;
 	}
 	if (childComponent.nextSibling.IsValid()) {
-
 		world.GetComponent<HierarchyComponent>(childComponent.nextSibling).prevSibling = childComponent.prevSibling;
 	}
 
-	// 子が全部いなくなったら先頭、末尾のエンティティ情報を両方空にする
 	if (!parentComponent.firstChild.IsValid()) {
-
 		parentComponent.lastChild = Entity::Null();
 	}
 
-	// 子の親子関係を切る
+	// 親子リンクを切断
 	childComponent.parent = Entity::Null();
 	childComponent.prevSibling = Entity::Null();
 	childComponent.nextSibling = Entity::Null();
@@ -348,25 +264,22 @@ void Engine::HierarchySystem::AttachLast(ECSWorld& world, const Entity& child, c
 	auto& childComponent = world.GetComponent<HierarchyComponent>(child);
 	auto& parentComponent = world.GetComponent<HierarchyComponent>(parent);
 
-	// 子に親を設定する
 	childComponent.parent = parent;
 	childComponent.prevSibling = Entity::Null();
 	childComponent.nextSibling = Entity::Null();
 
-	// 子がいないなら先頭、末尾の両方に設定
+	// 親に子が一人もいない場合は先頭かつ末尾として登録
 	if (!parentComponent.firstChild.IsValid()) {
-
 		parentComponent.firstChild = child;
 		parentComponent.lastChild = child;
 		return;
 	}
 
+	// 親の子リストの末尾に追加。lastChildがキャッシュされていれば高速、なければ辿る
 	Entity last = parentComponent.lastChild;
 	if (!last.IsValid()) {
-
 		last = parentComponent.firstChild;
 		while (true) {
-
 			auto& lastComponent = world.GetComponent<HierarchyComponent>(last);
 			if (!lastComponent.nextSibling.IsValid()) {
 				break;

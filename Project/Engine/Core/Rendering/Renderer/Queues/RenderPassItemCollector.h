@@ -63,6 +63,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- functions ----------------------------------------------------
 
 		// 描画アイテムが描画ビューに対して可視か
@@ -71,3 +72,4 @@ namespace Engine {
 		static bool IsVisibleToView(const RenderItem& item, const ResolvedRenderView& view);
 	};
 } // Engine
+

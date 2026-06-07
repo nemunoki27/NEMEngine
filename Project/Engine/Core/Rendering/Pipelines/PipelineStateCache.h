@@ -67,6 +67,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- structure ----------------------------------------------------
 
 		// ハッシュ関数の定義
@@ -92,3 +93,4 @@ namespace Engine {
 		uint64_t HashFormats(std::span<const DXGI_FORMAT> rtvFormats, DXGI_FORMAT dsvFormat);
 	};
 } // Engine
+

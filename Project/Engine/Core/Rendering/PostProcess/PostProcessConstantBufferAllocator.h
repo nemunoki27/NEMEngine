@@ -51,6 +51,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		ComPtr<ID3D12Resource> resource_{};
@@ -76,3 +77,4 @@ namespace Engine {
 			std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&data), sizeof(T)));
 	}
 } // Engine
+

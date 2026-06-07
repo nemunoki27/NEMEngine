@@ -32,6 +32,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
@@ -49,3 +50,4 @@ namespace Engine {
 		AssetID ResolveMaterial(AssetDatabase& database) const;
 	};
 } // Engine
+

@@ -140,6 +140,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		// ToolPanelからDrawEditorTool中だけ渡される参照
@@ -202,3 +203,4 @@ namespace Engine {
 		renderTarget->TransitionForShaderRead(*dxCommand);
 	}
 } // Engine
+

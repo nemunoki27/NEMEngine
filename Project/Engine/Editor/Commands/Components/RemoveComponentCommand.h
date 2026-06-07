@@ -42,6 +42,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		Entity initialTarget_ = Entity::Null();
@@ -59,3 +60,4 @@ namespace Engine {
 		bool ApplyRestore(EditorCommandContext& context);
 	};
 } // Engine
+

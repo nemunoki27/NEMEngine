@@ -51,6 +51,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		// 現在アクティブなシーン。初期シーンもパスではなく.meta GUIDで参照する
@@ -120,3 +121,4 @@ namespace Engine {
 		RenderFrameRequest BuildRenderFrameRequest(GraphicsCore& graphicsCore, ECSWorld* world, const SceneHeader* header);
 	};
 } // Engine
+

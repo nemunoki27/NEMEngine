@@ -46,6 +46,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- structure ----------------------------------------------------
 
 		struct GridPassConstants {
@@ -192,3 +193,4 @@ namespace Engine {
 		DxConstBuffer<GridPassConstants>& AllocatePassBuffer(GraphicsCore& graphicsCore);
 	};
 } // Engine
+

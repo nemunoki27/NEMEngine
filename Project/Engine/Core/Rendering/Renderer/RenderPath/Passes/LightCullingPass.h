@@ -34,6 +34,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
@@ -53,3 +54,4 @@ namespace Engine {
 		AssetID ResolveLightCullingMaterial(AssetDatabase& database) const;
 	};
 } // Engine
+

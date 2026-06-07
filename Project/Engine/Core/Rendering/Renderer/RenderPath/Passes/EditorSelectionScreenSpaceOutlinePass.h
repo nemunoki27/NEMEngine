@@ -33,6 +33,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
@@ -40,3 +41,4 @@ namespace Engine {
 		std::vector<ScreenSpaceOutlineRequest> requests_{};
 	};
 } // Engine
+

@@ -55,6 +55,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		GraphicsAdapterInfo adapterInfo_{};
@@ -78,3 +79,4 @@ namespace Engine {
 		void SavePreferencesToConfig() const;
 	};
 } // Engine
+

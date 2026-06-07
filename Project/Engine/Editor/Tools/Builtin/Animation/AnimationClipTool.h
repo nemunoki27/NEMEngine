@@ -61,6 +61,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- structure ----------------------------------------------------
 
 		// 選択中Channel/Trackへ波形キーをまとめて生成するための一時設定
@@ -169,3 +170,4 @@ namespace Engine {
 		void UpdateAutoDurationAndPreview(const EditorToolContext& context);
 	};
 } // Engine
+

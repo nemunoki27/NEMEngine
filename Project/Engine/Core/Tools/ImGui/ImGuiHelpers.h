@@ -55,6 +55,8 @@ namespace Engine {
 		float reserveRightWidth = 0.0f;
 		// 表示を行う軸
 		std::optional<Axis> floatAxis = std::nullopt;
+		// ImGui::DragFloatへ渡す追加フラグ
+		ImGuiSliderFlags flags = ImGuiSliderFlags_None;
 		// プロパティ行設定
 		PropertyRowSetting propertyRow{};
 	};

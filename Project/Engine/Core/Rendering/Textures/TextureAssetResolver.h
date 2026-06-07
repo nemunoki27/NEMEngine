@@ -36,6 +36,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- structure ----------------------------------------------------
 
 		struct TextureCandidate {
@@ -74,3 +75,4 @@ namespace Engine {
 		std::string ResolveIndexedAssetPathByStem(const std::string& stemLower) const;
 	};
 } // Engine
+

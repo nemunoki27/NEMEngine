@@ -59,6 +59,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		// NodeGraphの描画Style
@@ -82,3 +83,4 @@ namespace Engine {
 		bool DrawBackgroundMenu(const NodeGraphViewDesc& desc);
 	};
 } // Engine
+

@@ -30,6 +30,8 @@ namespace Engine {
 		void RebuildRuntimeLinks(ECSWorld& world, const std::vector<Entity>& scope);
 		// 階層内のアクティブをルート以下で再計算する
 		void RefreshActiveTree(ECSWorld& world, const Entity& root);
+		// 指定エンティティ以下のアクティブ状態を親を考慮して更新する
+		void UpdateActiveInHierarchy(ECSWorld& world, const Entity& entity);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -41,6 +43,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- functions ----------------------------------------------------
 
 		// 子を親から切り離す

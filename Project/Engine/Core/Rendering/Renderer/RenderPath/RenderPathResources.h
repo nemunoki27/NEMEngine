@@ -78,6 +78,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		uint32_t currentWidth_ = 0;
@@ -100,3 +101,4 @@ namespace Engine {
 			uint32_t width, uint32_t height, std::string_view name, bool createUAV);
 	};
 } // Engine
+

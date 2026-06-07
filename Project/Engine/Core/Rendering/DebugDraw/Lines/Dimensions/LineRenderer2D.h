@@ -41,6 +41,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		// DrawGridで要求されたグリッド描画数
@@ -51,3 +52,4 @@ namespace Engine {
 		void DrawLineImpl(GraphicsCore& graphicsCore, const ResolvedCameraView* camera, MultiRenderTarget& surface) override;
 	};
 } // Engine
+

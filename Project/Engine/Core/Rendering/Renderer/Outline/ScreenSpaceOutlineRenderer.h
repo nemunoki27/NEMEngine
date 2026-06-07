@@ -49,6 +49,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- structure ----------------------------------------------------
 
 		struct DrawRecord {
@@ -108,3 +109,4 @@ namespace Engine {
 			const RenderPipelineDeps& deps, ScreenSpaceOutlineViewResources& resources);
 	};
 } // Engine
+

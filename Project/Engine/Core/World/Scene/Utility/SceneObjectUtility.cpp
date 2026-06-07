@@ -8,6 +8,25 @@
 
 namespace Engine::SceneObjectUtility {
 
+	SceneObjectComponent& EnsureSceneObject(ECSWorld& world, Entity entity) {
+
+		// シーンオブジェクトが存在しないなら付ける
+		if (!world.HasComponent<SceneObjectComponent>(entity)) {
+
+			auto& sceneObject = world.AddComponent<SceneObjectComponent>(entity);
+			sceneObject.localFileID = UUID::New();
+			sceneObject.activeSelf = true;
+			sceneObject.activeInHierarchy = true;
+		}
+
+		// ローカルIDが存在しないなら新しく生成する
+		auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
+		if (!sceneObject.localFileID) {
+			sceneObject.localFileID = UUID::New();
+		}
+		return sceneObject;
+	}
+
 	UUID GetSceneInstanceID(ECSWorld& world, Entity entity) {
 
 		if (const auto* component = world.TryGetComponent<SceneObjectComponent>(entity)) {

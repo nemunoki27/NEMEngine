@@ -95,6 +95,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		// バッファ
@@ -121,3 +122,4 @@ namespace Engine {
 		void CreateQuadBuffers(ID3D12Device* device, BufferUploadService& uploadService);
 	};
 } // Engine
+

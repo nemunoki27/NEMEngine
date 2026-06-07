@@ -86,6 +86,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		// アクティブなシーンインスタンスのID
@@ -99,3 +100,4 @@ namespace Engine {
 		static std::vector<Entity> CollectSceneEntities(ECSWorld& world, const SceneInstance& scene);
 	};
 } // Engine
+

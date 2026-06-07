@@ -228,6 +228,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- structure ----------------------------------------------------
 
 		// スキニング用のリソースをまとめた構造体
@@ -308,3 +309,4 @@ namespace Engine {
 		static constexpr size_t ToViewIndex(RenderViewKind kind) { return static_cast<size_t>(kind); }
 	};
 } // Engine
+

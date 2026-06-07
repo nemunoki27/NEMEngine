@@ -26,6 +26,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- functions ----------------------------------------------------
 
 		// Collisionコンポーネントの編集項目を描画する
@@ -40,3 +41,4 @@ namespace Engine {
 		ValueEditResult DrawShapeField(CollisionShape& shape, uint32_t index);
 	};
 } // Engine
+

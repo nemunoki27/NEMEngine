@@ -31,6 +31,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		// ExecuteIndirectでDrawIndexedInstancedを1回発行するためのシグネチャ
@@ -59,3 +60,4 @@ namespace Engine {
 		bool BuildIndexedIndirectArgs(const MeshPathDrawContext& context);
 	};
 } // Engine
+

@@ -207,7 +207,6 @@ uint64_t Engine::BufferUploadService::SubmitBatch() {
 	pending.fenceValue = submittedFenceValue;
 	pending.stagingResources = std::move(currentContext_->stagingResources);
 	currentContext_->stagingResources.clear();
-	const size_t resourceCount = pending.stagingResources.size();
 	pendingBatches_.emplace_back(std::move(pending));
 
 	// 次回は別コンテキストを使う

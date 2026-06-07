@@ -50,6 +50,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		std::vector<std::unique_ptr<ITool>> tools_;
@@ -66,3 +67,4 @@ namespace Engine {
 #define ENGINE_REGISTER_TOOL(T) \
 	inline const bool kRegisteredTool_##T = Engine::ToolRegistry::GetInstance().Register(std::make_unique<T>());
 } // Engine
+

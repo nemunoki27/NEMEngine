@@ -45,6 +45,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		ECSWorld* activeWorld_ = nullptr;
@@ -63,3 +64,4 @@ namespace Engine {
 		void DispatchCollision(ECSWorld& world, SystemContext& context, const CollisionContact& collision, int32_t phase);
 	};
 } // Engine
+

@@ -74,6 +74,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- structure ----------------------------------------------------
 
 		// アップロード待ちのジョブを表す構造体
@@ -120,3 +121,4 @@ namespace Engine {
 		GPUTextureResource UploadScratchImage(const DirectX::ScratchImage& image, const DirectX::TexMetadata& meta);
 	};
 } // Engine
+

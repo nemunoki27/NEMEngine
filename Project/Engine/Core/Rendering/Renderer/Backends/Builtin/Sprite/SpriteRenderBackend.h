@@ -42,6 +42,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		// バッチ描画に使用するリソース
@@ -57,3 +58,4 @@ namespace Engine {
 		PipelineBindingCache::SlotID textureSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 	};
 } // Engine
+

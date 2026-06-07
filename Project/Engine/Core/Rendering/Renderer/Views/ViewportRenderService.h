@@ -51,6 +51,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- structure ----------------------------------------------------
 
 		// 描画ビューのスロット
@@ -77,3 +78,4 @@ namespace Engine {
 		static MultiRenderTargetCreateDesc BuildDefaultDesc(RenderViewKind kind, uint32_t width, uint32_t height);
 	};
 } // Engine
+

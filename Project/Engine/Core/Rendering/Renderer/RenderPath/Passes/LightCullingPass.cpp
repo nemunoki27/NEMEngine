@@ -96,11 +96,11 @@ void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 	computeAutoBindTable_.Sync(*pipelineState, context.bufferRegistry);
 	computeAutoBindTable_.BindCompute(context.bufferRegistry, commandList);
 
-	const uint32_t dispatchX = DxUtils::RoundUp(sceneMain->GetWidth(), pipelineState->GetThreadGroupX());
-	const uint32_t dispatchY = DxUtils::RoundUp(sceneMain->GetHeight(), pipelineState->GetThreadGroupY());
-	const uint32_t dispatchZ =
-		(runtimeFeatures.lightCullingMode == LightCullingMode::Clustered ||
-		 runtimeFeatures.lightCullingMode == LightCullingMode::DebugAllLightsPerCluster) ?
-		ViewLightCullingBufferSet::kClusterCountZ : 1u;
+	uint32_t dispatchX = DxUtils::RoundUp(sceneMain->GetWidth(), pipelineState->GetThreadGroupX());
+	uint32_t dispatchY = DxUtils::RoundUp(sceneMain->GetHeight(), pipelineState->GetThreadGroupY());
+	uint32_t dispatchZ = runtimeFeatures.lightCullingMode == LightCullingMode::Clustered ||
+		runtimeFeatures.lightCullingMode == LightCullingMode::DebugAllLightsPerCluster ? ViewLightCullingBufferSet::kClusterCountZ : 1u;
+
+	// ライトカリング実行
 	commandList->Dispatch(dispatchX, dispatchY, dispatchZ);
 }

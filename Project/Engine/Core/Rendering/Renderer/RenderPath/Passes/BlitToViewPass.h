@@ -31,6 +31,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
@@ -40,3 +41,4 @@ namespace Engine {
 		PipelineBindingCache::SlotID srcColorSlot_ = PipelineBindingCache::kInvalidSlot;
 	};
 } // Engine
+

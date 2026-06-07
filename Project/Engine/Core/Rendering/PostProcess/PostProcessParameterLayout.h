@@ -38,6 +38,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		uint32_t sizeInBytes_ = 0;
@@ -46,3 +47,4 @@ namespace Engine {
 		std::vector<ShaderConstantBufferVariable> variables_{};
 	};
 } // Engine
+

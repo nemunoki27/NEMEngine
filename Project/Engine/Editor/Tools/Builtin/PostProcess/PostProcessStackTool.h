@@ -40,6 +40,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		// ToolPanelへ登録する情報
@@ -77,3 +78,4 @@ namespace Engine {
 		void DrawUnsavedConfirmPopup(const EditorToolContext& context);
 	};
 } // Engine
+

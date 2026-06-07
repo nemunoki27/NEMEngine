@@ -9,8 +9,12 @@
 namespace Engine {
 
 	class ECSWorld;
+	struct SceneObjectComponent;
 
 	namespace SceneObjectUtility {
+
+		// SceneObjectComponentが無ければ付与し、localFileIDが無ければ生成して返す
+		SceneObjectComponent& EnsureSceneObject(ECSWorld& world, Entity entity);
 
 		// Entityが所属するシーンインスタンスIDを取得する
 		UUID GetSceneInstanceID(ECSWorld& world, Entity entity);

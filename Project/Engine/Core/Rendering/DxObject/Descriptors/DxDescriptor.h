@@ -69,6 +69,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		uint32_t descriptorSize_;
@@ -101,3 +102,4 @@ namespace Engine {
 		void RegisterResourceName(uint32_t index, ID3D12Resource* resource);
 	};
 }; // Engine
+

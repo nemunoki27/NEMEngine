@@ -78,6 +78,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		// プロジェクトのルートディレクトリノード
@@ -102,3 +103,4 @@ namespace Engine {
 		static const ProjectAssetEntry* FindAssetRecursive(const ProjectDirectoryNode& node, const std::string& assetPath);
 	};
 } // Engine
+

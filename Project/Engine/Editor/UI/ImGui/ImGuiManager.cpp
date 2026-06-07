@@ -7,6 +7,9 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 
+// c++
+#include <filesystem>
+
 // imgui
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -55,8 +58,15 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	// ImGuiのフォント設定
 	ImFontConfig cfg{};
 	cfg.FontNo = 0;
+	
 	const char* fontPath = "C:\\Windows\\Fonts\\meiryob.ttc";
-	io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath, 20.0f, &cfg, io.Fonts->GetGlyphRangesJapanese());
+	if (std::filesystem::exists(fontPath)) {
+		io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath, 20.0f, &cfg, io.Fonts->GetGlyphRangesJapanese());
+	}
+	else {
+		// フォントがない場合のフォールバック（デフォルトフォント）
+		io.Fonts->AddFontDefault();
+	}
 
 	ImGuiStyle& style = ImGui::GetStyle();
 	ImVec4* colors = style.Colors;

@@ -47,6 +47,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		std::vector<std::byte> buffer_;
@@ -84,3 +85,4 @@ namespace Engine {
 		return reinterpret_cast<const T*>(buffer_.data() + payload.offset);
 	}
 } // Engine
+

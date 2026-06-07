@@ -39,6 +39,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		ComPtr<ID3D12Resource> resource_;
@@ -70,3 +71,4 @@ namespace Engine {
 		uploadService.EnqueueBufferUpload(resource_.Get(), std::as_bytes(data), finalState);
 	}
 } // Engine
+

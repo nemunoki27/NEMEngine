@@ -46,6 +46,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- variables ----------------------------------------------------
 
 		ID3D12Device* device_ = nullptr;
@@ -68,3 +69,4 @@ namespace Engine {
 		void UploadImported(const ImportedMeshAsset& imported);
 	};
 } // Engine
+

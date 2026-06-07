@@ -41,6 +41,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- structure ----------------------------------------------------
 
 		// 衝突判定中に使用するEntity情報
@@ -73,3 +74,4 @@ namespace Engine {
 		void DispatchCollisionExit(ECSWorld& world, SystemContext& context, const CollisionContact& contact) const;
 	};
 } // Engine
+

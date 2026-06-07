@@ -26,9 +26,11 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, bool& anyItemActive) override;
 	};
 } // Engine
+
