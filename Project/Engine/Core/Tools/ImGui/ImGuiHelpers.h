@@ -240,12 +240,8 @@ namespace Engine {
 		//============================================================================
 		//	ギズモ操作
 		//============================================================================
-		// 2D
 		static GizmoEditResult Manipulate2D(const char* id, const GizmoViewContext& context, TransformComponent& transform);
 		static GizmoEditResult Manipulate3D(const char* id, const GizmoViewContext& context, TransformComponent& transform);
-		// 3D
-		static GizmoEditResult Manipulate2D(const char* id, const GizmoViewContext& context, SubMeshMaterial& subMesh);
-		static GizmoEditResult Manipulate3D(const char* id, const GizmoViewContext& context, SubMeshMaterial& subMesh);
 
 		//============================================================================
 		//	パラメータ変更

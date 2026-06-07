@@ -58,14 +58,6 @@ namespace Engine {
 			UUID entityUUID{};
 			TransformComponent beforeTransform{};
 		};
-		// サブメッシュギズモ操作セッションの情報をまとめた構造体
-		struct SubMeshGizmoSession {
-
-			bool active = false;
-			UUID entityUUID{};
-			UUID subMeshStableID{};
-			nlohmann::json beforeMeshRenderer{};
-		};
 		// アイコン
 		struct IconSet {
 
@@ -99,7 +91,6 @@ namespace Engine {
 
 		// ギズモ操作セッションの情報
 		EntityGizmoSession entityGizmoSession_{};
-		SubMeshGizmoSession subMeshGizmoSession_{};
 
 		TextureUploadService* textureUploadService_ = nullptr;
 
@@ -117,7 +108,6 @@ namespace Engine {
 		void DrawSceneGizmo(const EditorPanelContext& context);
 		// ギズモ終了
 		void FinalizeEntityGizmoSession(const EditorPanelContext& context, ECSWorld& world);
-		void FinalizeSubMeshGizmoSession(const EditorPanelContext& context, ECSWorld& world);
 
 		// アイコン読み込み
 		void RequestIcons();

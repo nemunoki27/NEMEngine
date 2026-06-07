@@ -103,8 +103,6 @@ namespace Engine {
 		// 行列の構築
 		Matrix4x4 BuildUVMatrix(const SubMeshMaterial& subMesh);
 		Matrix4x4 BuildLocalMatrix(const SubMeshMaterial& subMesh);
-		// ギズモ用のピボットを考慮したローカル行列
-		Matrix4x4 BuildGizmoLocalMatrix(const SubMeshMaterial& subMesh);
 		Matrix4x4 BuildRenderLocalMatrix(const SubMeshMaterial& subMesh);
 
 		// ランタイム更新

@@ -48,7 +48,13 @@ bool Engine::SetTransformCommand::ApplyTransform(EditorCommandContext& context, 
 		return false;
 	}
 	if (context.editorState) {
-		context.editorState->SelectEntity(target);
+		if (context.editorState->selectedEntity == target) {
+
+			context.editorState->ValidateSelection(world);
+		} else {
+
+			context.editorState->SelectEntity(target);
+		}
 	}
 	return true;
 }

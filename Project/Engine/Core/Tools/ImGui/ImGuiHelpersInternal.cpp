@@ -134,6 +134,42 @@ namespace Engine {
 		// プロパティ行を開始。ラベルを表示
 		if (!MyGUI::BeginPropertyRow(label, setting.propertyRow)) { return result; }
 
+		// ラベル部分のドラッグによる一括変更
+		{
+			ImGui::TableSetColumnIndex(0);
+			// 直前に描画されたラベルの領域を取得
+			const ImVec2 labelMin = ImGui::GetItemRectMin();
+			const ImVec2 labelMax = ImGui::GetItemRectMax();
+			const ImVec2 labelSize = ImVec2(labelMax.x - labelMin.x, labelMax.y - labelMin.y);
+
+			// ラベル部分に見えないボタンを配置してドラッグを検出
+			ImGui::SetCursorScreenPos(labelMin);
+			ImGui::InvisibleButton("##LabelDrag", labelSize);
+
+			if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+				float dragSpeed = setting.dragSpeed;
+				if (ImGui::GetIO().KeyCtrl) { dragSpeed *= 0.1f; }
+				if (ImGui::GetIO().KeyShift) { dragSpeed *= 10.0f; }
+
+				const float delta = ImGui::GetIO().MouseDelta.x * dragSpeed;
+				if (delta != 0.0f) {
+					for (uint32_t i = 0; i < count; ++i) {
+						values[i] += delta;
+						if (setting.minValue < setting.maxValue) {
+							values[i] = std::clamp(values[i], setting.minValue, setting.maxValue);
+						}
+					}
+					result.valueChanged = true;
+				}
+			}
+			result.anyItemActive |= ImGui::IsItemActive();
+			if (ImGui::IsItemDeactivated()) {
+				result.editFinished = true;
+			}
+
+			ImGui::TableSetColumnIndex(1);
+		}
+
 		const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 		// 右側に別UI(リセットボタン等)を置くための余白を差し引いてフィールド幅を決める
 		const float totalWidth = (std::max)(1.0f, ImGui::GetContentRegionAvail().x - setting.reserveRightWidth);

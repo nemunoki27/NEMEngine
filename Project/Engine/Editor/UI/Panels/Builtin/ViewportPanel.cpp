@@ -79,48 +79,6 @@ namespace {
 		}
 		return world.GetComponent<Engine::TransformComponent>(hierarchy.parent).worldMatrix;
 	}
-	// メッシュレンダラーのプレビュー設定をエンティティに適用する
-	void ApplyMeshRendererPreview(Engine::ECSWorld& world, const Engine::Entity& entity,
-		const Engine::MeshRendererComponent& previewRenderer) {
-
-		if (!world.IsAlive(entity) || !world.HasComponent<Engine::MeshRendererComponent>(entity)) {
-			return;
-		}
-
-		Engine::MeshRendererComponent updated = previewRenderer;
-
-		Engine::Matrix4x4 parentWorld = Engine::Matrix4x4::Identity();
-		if (world.HasComponent<Engine::TransformComponent>(entity)) {
-
-			parentWorld = world.GetComponent<Engine::TransformComponent>(entity).worldMatrix;
-		}
-		Engine::MeshSubMeshRuntime::UpdateRendererRuntime(updated, parentWorld);
-		world.GetComponent<Engine::MeshRendererComponent>(entity) = std::move(updated);
-	}
-	// 現在の選択からサブメッシュ選択を解決する
-	bool TryResolveSelectedSubMesh(const Engine::EditorPanelContext& context, Engine::ECSWorld& world,
-		Engine::Entity& outEntity, uint32_t& outSubMeshIndex, Engine::UUID& outStableID) {
-
-		if (!context.editorState || !context.editorState->HasValidSubMeshSelection(&world)) {
-			return false;
-		}
-
-		outEntity = context.editorState->selectedEntity;
-		if (!world.IsAlive(outEntity) || !world.HasComponent<Engine::MeshRendererComponent>(outEntity)) {
-			return false;
-		}
-
-		if (!context.editorState->TryResolveSelectedSubMeshIndex(&world, outSubMeshIndex)) {
-			return false;
-		}
-
-		const auto& renderer = world.GetComponent<Engine::MeshRendererComponent>(outEntity);
-		if (renderer.subMeshes.size() <= outSubMeshIndex) {
-			return false;
-		}
-		outStableID = renderer.subMeshes[outSubMeshIndex].stableID;
-		return true;
-	}
 	// HierarchyPanelと同じEntity payloadをViewportからも送る
 	void DrawViewportEntityDragDropSource(const Engine::EditorPanelContext& context, bool blockByGizmo) {
 
@@ -386,13 +344,11 @@ void Engine::ViewportPanel::DrawSceneGizmo(const EditorPanelContext& context) {
 	// 編集不可の場合はギズモセッションを終了して何もしない
 	if (!context.CanEditScene() || !context.sceneRenderView || !context.sceneRenderView->valid ||
 		context.editorState->sceneViewManipulatorMode == SceneViewManipulatorMode::None) {
-		FinalizeSubMeshGizmoSession(context, world);
 		FinalizeEntityGizmoSession(context, world);
 		return;
 	}
 	// シーンビューのマニピュレーター選択が「なし」の場合はギズモセッションを終了して何もしない
 	if (context.editorState->sceneViewManipulatorMode == SceneViewManipulatorMode::None) {
-		FinalizeSubMeshGizmoSession(context, world);
 		FinalizeEntityGizmoSession(context, world);
 		return;
 	}
@@ -409,86 +365,8 @@ void Engine::ViewportPanel::DrawSceneGizmo(const EditorPanelContext& context) {
 	rect.height = rectMax.y - rectMin.y;
 	// 描画領域が有効でない場合はギズモセッションを終了して何もしない
 	if (!rect.IsValid()) {
-		FinalizeSubMeshGizmoSession(context, world);
 		FinalizeEntityGizmoSession(context, world);
 		return;
-	}
-
-	//============================================================================
-	//	サブメッシュ選択中
-	//============================================================================
-	{
-		Entity entity = Entity::Null();
-		uint32_t subMeshIndex = 0;
-		UUID subMeshStableID{};
-		// 現在の選択からサブメッシュ選択を解決する
-		if (TryResolveSelectedSubMesh(context, world, entity, subMeshIndex, subMeshStableID)) {
-
-			// 別セッションなら先に閉じる
-			if (entityGizmoSession_.active) {
-				FinalizeEntityGizmoSession(context, world);
-			}
-			if (subMeshGizmoSession_.active && (subMeshGizmoSession_.entityUUID != world.GetUUID(entity) ||
-				subMeshGizmoSession_.subMeshStableID != subMeshStableID)) {
-				FinalizeSubMeshGizmoSession(context, world);
-			}
-
-			// ギズモの描画に使用するカメラビューを選択する
-			const ResolvedCameraView* camera = SelectSceneGizmoCamera(*context.sceneRenderView, false);
-			if (!camera) {
-				FinalizeSubMeshGizmoSession(context, world);
-				return;
-			}
-
-			// サブメッシュのプレビュー設定を取得する
-			MeshRendererComponent previewRenderer = world.GetComponent<MeshRendererComponent>(entity);
-			// サブメッシュのランタイム情報を更新する
-			Matrix4x4 parentWorld = world.HasComponent<TransformComponent>(entity) ?
-				world.GetComponent<TransformComponent>(entity).worldMatrix : Matrix4x4::Identity();
-			MeshSubMeshRuntime::UpdateRendererRuntime(previewRenderer, parentWorld);
-			if (previewRenderer.subMeshes.size() <= subMeshIndex) {
-				FinalizeSubMeshGizmoSession(context, world);
-				return;
-			}
-
-			// ギズモの描画に必要な情報をまとめた構造体を作成
-			GizmoViewContext gizmoContext{};
-			gizmoContext.rect = rect;
-			gizmoContext.viewMatrix = camera->matrices.viewMatrix;
-			gizmoContext.projectionMatrix = camera->matrices.projectionMatrix;
-			gizmoContext.parentWorldMatrix = world.HasComponent<TransformComponent>(entity) ?
-				world.GetComponent<TransformComponent>(entity).worldMatrix : Matrix4x4::Identity();
-			gizmoContext.mode = context.editorState->sceneViewManipulatorMode;
-			gizmoContext.orthographic = camera == &context.sceneRenderView->orthographic;
-			gizmoContext.allowAxisFlip = true;
-
-			auto& subMesh = previewRenderer.subMeshes[subMeshIndex];
-
-			// ギズモを描画し、操作結果を取得する
-			const GizmoEditResult result = MyGUI::Manipulate3D("##SceneSubMeshGizmo", gizmoContext, subMesh);
-
-			// 使用しているか
-			context.editorState->useSceneGizmo = result.IsUse();
-
-			if (result.isUsing && !subMeshGizmoSession_.active) {
-
-				subMeshGizmoSession_.entityUUID = world.GetUUID(entity);
-				subMeshGizmoSession_.subMeshStableID = subMeshStableID;
-				subMeshGizmoSession_.active = world.SerializeComponentToJson(entity, "MeshRenderer", subMeshGizmoSession_.beforeMeshRenderer);
-			}
-			// 値が変更された場合はプレビュー設定をエンティティに適用する
-			if (result.valueChanged) {
-
-				MeshSubMeshRuntime::UpdateSubMeshRuntime(subMesh, parentWorld);
-				world.GetComponent<MeshRendererComponent>(entity) = std::move(previewRenderer);
-			}
-			// 使用を終了した場合はセッションを終了する
-			if (subMeshGizmoSession_.active && !result.isUsing) {
-
-				FinalizeSubMeshGizmoSession(context, world);
-			}
-			return;
-		}
 	}
 
 	//============================================================================
@@ -498,14 +376,10 @@ void Engine::ViewportPanel::DrawSceneGizmo(const EditorPanelContext& context) {
 		const Entity entity = context.editorState->selectedEntity;
 		// 編集不可なエンティティの場合はギズモセッションを終了して何もしない
 		if (!world.IsAlive(entity) || !world.HasComponent<TransformComponent>(entity)) {
-			FinalizeSubMeshGizmoSession(context, world);
 			FinalizeEntityGizmoSession(context, world);
 			return;
 		}
 		// 別セッションなら先に閉じる
-		if (subMeshGizmoSession_.active) {
-			FinalizeSubMeshGizmoSession(context, world);
-		}
 		if (entityGizmoSession_.active && entityGizmoSession_.entityUUID != world.GetUUID(entity)) {
 			FinalizeEntityGizmoSession(context, world);
 		}
@@ -577,29 +451,6 @@ void Engine::ViewportPanel::FinalizeEntityGizmoSession(const EditorPanelContext&
 		}
 	}
 	entityGizmoSession_ = {};
-}
-
-void Engine::ViewportPanel::FinalizeSubMeshGizmoSession(const EditorPanelContext& context, ECSWorld& world) {
-
-	if (!subMeshGizmoSession_.active) {
-		return;
-	}
-
-	if (context.host) {
-		const Entity entity = world.FindByUUID(subMeshGizmoSession_.entityUUID);
-		if (world.IsAlive(entity) && world.HasComponent<MeshRendererComponent>(entity)) {
-
-			nlohmann::json afterData{};
-			// メッシュレンダラーの値が変更されている場合はコマンドを実行して変更を記録する
-			if (world.SerializeComponentToJson(entity, "MeshRenderer", afterData) &&
-				subMeshGizmoSession_.beforeMeshRenderer != afterData) {
-
-				context.host->ExecuteEditorCommand(std::make_unique<SetSerializedComponentCommand>(entity,
-					"MeshRenderer", subMeshGizmoSession_.beforeMeshRenderer, afterData));
-			}
-		}
-	}
-	subMeshGizmoSession_ = {};
 }
 
 void Engine::ViewportPanel::RequestIcons() {
