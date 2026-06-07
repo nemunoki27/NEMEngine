@@ -21,7 +21,7 @@ RWTexture2D<uint> gOutputMask : register(u0);
 //============================================================================
 //	main
 // 横方向だけを走査するSeparable Dilationの前段
-//	style.widthPixels内で priority降順 -> 距離(|ox|)昇順 -> styleID昇順 に選ぶ
+// style.widthPixels内で priority降順 -> 距離(|ox|)昇順 -> styleID昇順 に選ぶ
 //============================================================================
 [numthreads(8, 8, 1)]
 void main(uint3 dispatchThreadID : SV_DispatchThreadID) {

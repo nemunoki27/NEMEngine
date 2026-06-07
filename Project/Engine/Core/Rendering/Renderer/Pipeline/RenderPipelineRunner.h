@@ -68,6 +68,12 @@ namespace Engine {
 		const ResolvedRenderView* billboardView = nullptr;
 		// ライトカリングだけ別ビューの深度とサイズを基準にしたい場合に使用する
 		RenderPathResources* lightCullingResources = nullptr;
+		// このビューが使用するライトカリングGPUバッファ
+		ViewLightCullingBufferSet* lightCullingBufferSet = nullptr;
+		// 固定RenderPath内でLightCulling computeを実行するか
+		bool shouldExecuteLightCullingPass = true;
+		// Previewなど、grid未生成時にPixel Shaderの直接ライト評価へ固定する
+		bool forceDirectLocalLightEvaluation = false;
 		// ツールプレビューなど、1枚のRT内の一部だけへ描く時の描画矩形
 		bool useViewportRect = false;
 		uint32_t viewportX = 0;

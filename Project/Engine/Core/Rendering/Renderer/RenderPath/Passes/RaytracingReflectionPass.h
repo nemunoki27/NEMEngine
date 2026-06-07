@@ -25,7 +25,7 @@ namespace Engine {
 		}
 		~RaytracingReflectionPass() override = default;
 
-		std::string_view GetName() const override { return "RaytracingReflection"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::RaytracingReflection; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:

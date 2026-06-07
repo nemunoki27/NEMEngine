@@ -27,8 +27,8 @@ namespace Engine {
 		bool enabled = true;
 		// 実行するMaterialアセットのGUID
 		AssetID materialGuid{};
-		// 実行するパス名
-		std::string passName = "PostProcess";
+		// 実行するパス種別
+		MaterialPassKind passKind = MaterialPassKind::PostProcess;
 		// CBufferパラメータのScene毎overrideマップ
 		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides;
 		// TextureのScene毎overrideマップ

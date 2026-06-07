@@ -54,7 +54,6 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 
 	std::unordered_set<uint64_t> visited{};
 	visited.reserve(list->items.size());
-
 	for (const RenderItem* item : list->items) {
 
 		if (!item || item->backendID != RenderBackendID::Mesh || !item->world) {
@@ -71,14 +70,11 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 		if (!renderer) {
 			continue;
 		}
-		const ScreenSpaceOutlineComponent* outline =
-			item->world->TryGetComponent<ScreenSpaceOutlineComponent>(item->entity);
-		if (!outline || !outline->enabled ||
-			!std::isfinite(outline->widthPixels) || outline->widthPixels <= 0.0f) {
+		const ScreenSpaceOutlineComponent* outline = item->world->TryGetComponent<ScreenSpaceOutlineComponent>(item->entity);
+		if (!outline || !outline->enabled || !std::isfinite(outline->widthPixels) || outline->widthPixels <= 0.0f) {
 			continue;
 		}
-		const SceneObjectComponent* sceneObject =
-			item->world->TryGetComponent<SceneObjectComponent>(item->entity);
+		const SceneObjectComponent* sceneObject = item->world->TryGetComponent<SceneObjectComponent>(item->entity);
 		if (sceneObject && !sceneObject->activeInHierarchy) {
 			continue;
 		}

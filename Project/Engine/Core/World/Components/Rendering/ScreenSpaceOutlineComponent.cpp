@@ -16,9 +16,6 @@
 //============================================================================
 namespace {
 
-	// widthPixelsは [0, kMaxScreenSpaceOutlineRadiusPixels] へ収める
-	// 負値は0へ、上限超えは上限へ、NaN/Infはdefaultへ倒す
-	// 巨大半径はDilationのGPU Hang原因になるため、ここで必ず上限を掛ける
 	float SanitizeWidthPixels(float value, float fallback) {
 
 		if (!std::isfinite(value)) {
@@ -77,7 +74,6 @@ namespace {
 
 void Engine::from_json(const nlohmann::json& in, ScreenSpaceOutlineComponent& component) {
 
-	// 型不一致で例外を外へ漏らさないよう、各fieldを安全に読む
 	if (in.contains("enabled") && in["enabled"].is_boolean()) {
 		component.enabled = in["enabled"].get<bool>();
 	}
@@ -94,7 +90,6 @@ void Engine::from_json(const nlohmann::json& in, ScreenSpaceOutlineComponent& co
 		component.priority = in["priority"].get<int32_t>();
 	}
 
-	// enumはstable stringで読む。不正値は安全な既定値へ倒し、明示的に通知する
 	if (in.contains("visibilityMode") && in["visibilityMode"].is_string()) {
 
 		const std::string text = in["visibilityMode"].get<std::string>();
@@ -113,9 +108,7 @@ void Engine::from_json(const nlohmann::json& in, ScreenSpaceOutlineComponent& co
 		if (parsed) {
 			component.regionMode = *parsed;
 		} else {
-			// 未知の値は安全な既定値AllVisibleSilhouettesへ倒す
-			Logger::Output(LogType::Engine,
-				"[ScreenSpaceOutline] unsupported regionMode '{}', fallback to AllVisibleSilhouettes", text);
+			Logger::Output(LogType::Engine, "[ScreenSpaceOutline] unsupported regionMode '{}', fallback to AllVisibleSilhouettes", text);
 		}
 	}
 }

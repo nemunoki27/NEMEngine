@@ -19,5 +19,5 @@ void Engine::TransparentRenderPass::Execute(GraphicsCore& graphicsCore,
 	}
 
 	RenderPassExecutionHelper::Execute(graphicsCore, context, passBuckets, deps_,
-		RenderPhase::Transparent, context.resources->GetSceneFinal(), "Transparent");
+		RenderPhase::Transparent, context.resources->GetSceneFinal(), MaterialPassKind::Transparent);
 }

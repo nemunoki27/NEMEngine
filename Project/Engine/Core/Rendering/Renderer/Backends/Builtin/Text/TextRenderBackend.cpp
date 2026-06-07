@@ -223,7 +223,7 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 	// マテリアルパスを解決する
 	BackendDrawCommon::ResolvedMaterialPass resolvedPass{};
 	if (!BackendDrawCommon::ResolveMaterialPass(context, items.front()->material,
-		DefaultMaterialSlot::Text, { "Draw", "Text" }, resolvedPass)) {
+		DefaultMaterialSlot::Text, { MaterialPassKind::Draw }, resolvedPass)) {
 		return;
 	}
 	// パイプラインを解決する

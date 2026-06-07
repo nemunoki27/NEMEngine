@@ -43,7 +43,7 @@ bool Engine::PostProcessDebugInjector::TryExecuteBeforeBlit(GraphicsCore& graphi
 
 	PostProcessExecutionDesc desc{};
 	desc.material = material;
-	desc.passName = "PostProcess";
+	desc.passKind = MaterialPassKind::PostProcess;
 	desc.source.colors = { std::string(sourceName) };
 	desc.dest.colors = { settings_.tempName };
 	desc.dispatchMode = ComputeDispatchMode::FromDestSize;

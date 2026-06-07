@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Buffers/DxStructuredBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
@@ -36,6 +37,9 @@ namespace Engine {
 
 		// 必要な要素数を確保
 		void EnsureCapacity(uint32_t requiredCount);
+
+		// GPUリソースの用途stateを遷移
+		void Transition(DxCommand& command, D3D12_RESOURCE_STATES nextState);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -69,6 +73,7 @@ namespace Engine {
 
 		// 現在の容量
 		uint32_t capacity_ = 0;
+		D3D12_RESOURCE_STATES currentState_ = D3D12_RESOURCE_STATE_COMMON;
 
 		// SRV/UAVのインデックス
 		uint32_t srvIndex_ = UINT32_MAX;
@@ -106,6 +111,7 @@ namespace Engine {
 
 		buffer_.reset();
 		capacity_ = 0;
+		currentState_ = D3D12_RESOURCE_STATE_COMMON;
 		srvGPUHandle_ = {};
 		uavGPUHandle_ = {};
 		device_ = nullptr;
@@ -136,6 +142,7 @@ namespace Engine {
 		// バッファ作成
 		buffer_ = std::make_unique<DxStructuredBuffer<T>>();
 		buffer_->CreateUAVBuffer(device_, newCapacity);
+		currentState_ = D3D12_RESOURCE_STATE_COMMON;
 		if (!bindingName_.empty()) {
 			buffer_->GetResource()->SetName(Algorithm::ConvertString(bindingName_).c_str());
 		}
@@ -156,6 +163,16 @@ namespace Engine {
 		}
 		// 容量更新
 		capacity_ = newCapacity;
+	}
+
+	template<typename T>
+	inline void StructuredRWBuffer<T>::Transition(DxCommand& command, D3D12_RESOURCE_STATES nextState) {
+
+		if (!buffer_ || !buffer_->GetResource() || currentState_ == nextState) {
+			return;
+		}
+		command.TransitionBarriers({ buffer_->GetResource() }, currentState_, nextState);
+		currentState_ = nextState;
 	}
 
 	template<typename T>

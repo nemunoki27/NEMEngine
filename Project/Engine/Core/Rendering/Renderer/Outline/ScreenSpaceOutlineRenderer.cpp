@@ -36,11 +36,11 @@ using namespace Engine;
 
 namespace {
 
-	constexpr const char* kMaskPassName = "ScreenSpaceOutlineMask";
-	constexpr const char* kCoverageMaskPassName = "ScreenSpaceOutlineCoverageMask";
-	constexpr const char* kDilateHorizontalPassName = "ScreenSpaceOutlineDilateHorizontal";
-	constexpr const char* kDilateVerticalPassName = "ScreenSpaceOutlineDilateVertical";
-	constexpr const char* kCompositePassName = "ScreenSpaceOutlineComposite";
+	constexpr Engine::MaterialPassKind kMaskPassKind = Engine::MaterialPassKind::ScreenSpaceOutlineMask;
+	constexpr Engine::MaterialPassKind kCoverageMaskPassKind = Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask;
+	constexpr Engine::MaterialPassKind kDilateHorizontalPassKind = Engine::MaterialPassKind::ScreenSpaceOutlineDilateHorizontal;
+	constexpr Engine::MaterialPassKind kDilateVerticalPassKind = Engine::MaterialPassKind::ScreenSpaceOutlineDilateVertical;
+	constexpr Engine::MaterialPassKind kCompositePassKind = Engine::MaterialPassKind::ScreenSpaceOutlineComposite;
 
 	RenderTexture2D* GetColor0(MultiRenderTarget* target) {
 
@@ -51,13 +51,13 @@ namespace {
 	}
 
 	const MaterialPassBinding* FindBuiltinPass(RenderAssetLibrary& assetLibrary,
-		AssetID materialID, std::string_view passName) {
+		AssetID materialID, MaterialPassKind passKind) {
 
 		const MaterialAsset* material = assetLibrary.LoadMaterial(materialID);
 		if (!material) {
 			return nullptr;
 		}
-		return FindPass(*material, passName);
+		return FindPass(*material, passKind);
 	}
 
 	bool IsSameEntity(const RenderItem& item, const ScreenSpaceOutlineRequest& request) {
@@ -286,7 +286,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 			context.screenSpaceOutlineMaskRestrictSubMeshIndex = record.request.subMeshIndex;
 
 			RenderPassExecutionHelper::Execute(graphicsCore, context, itemScratch_, deps,
-				maskBinding, kMaskPassName, false, false);
+				maskBinding, kMaskPassKind, false, false);
 		}
 	}
 
@@ -322,7 +322,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 			context.screenSpaceOutlineMaskRestrictSubMeshIndex = record.request.subMeshIndex;
 
 			RenderPassExecutionHelper::Execute(graphicsCore, context, itemScratch_, deps,
-				coverageBinding, kCoverageMaskPassName, false, false);
+				coverageBinding, kCoverageMaskPassKind, false, false);
 		}
 	}
 
@@ -351,9 +351,9 @@ bool ScreenSpaceOutlineRenderer::ExecuteDilation(GraphicsCore& graphicsCore,
 
 	// 1つのDilation Materialから横/縦のpassを引く
 	const MaterialPassBinding* horizontalPass = FindBuiltinPass(
-		*deps.assetLibrary, BuiltinAssets::Materials::ScreenSpaceOutlineDilate, kDilateHorizontalPassName);
+		*deps.assetLibrary, BuiltinAssets::Materials::ScreenSpaceOutlineDilate, kDilateHorizontalPassKind);
 	const MaterialPassBinding* verticalPass = FindBuiltinPass(
-		*deps.assetLibrary, BuiltinAssets::Materials::ScreenSpaceOutlineDilate, kDilateVerticalPassName);
+		*deps.assetLibrary, BuiltinAssets::Materials::ScreenSpaceOutlineDilate, kDilateVerticalPassKind);
 	if (!horizontalPass || !verticalPass ||
 		horizontalPass->preferredVariant != PipelineVariantKind::Compute ||
 		verticalPass->preferredVariant != PipelineVariantKind::Compute) {
@@ -477,7 +477,7 @@ bool ScreenSpaceOutlineRenderer::ExecuteComposite(GraphicsCore& graphicsCore,
 	}
 
 	const MaterialPassBinding* passBinding = FindBuiltinPass(
-		*deps.assetLibrary, BuiltinAssets::Materials::ScreenSpaceOutlineComposite, kCompositePassName);
+		*deps.assetLibrary, BuiltinAssets::Materials::ScreenSpaceOutlineComposite, kCompositePassKind);
 	if (!passBinding || passBinding->preferredVariant == PipelineVariantKind::Compute ||
 		passBinding->preferredVariant == PipelineVariantKind::Raytracing) {
 		return false;

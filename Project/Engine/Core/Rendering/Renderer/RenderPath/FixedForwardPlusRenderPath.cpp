@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Profiling/GpuFrameProfiler.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // c++
 #include <string>
@@ -71,7 +72,8 @@ void Engine::FixedForwardPlusRenderPath::Execute(GraphicsCore& graphicsCore,
 
 	for (auto& pass : passes_) {
 
-		GpuFrameProfiler::GetInstance().BeginPass(commandList, viewPrefix + std::string(pass->GetName()));
+		GpuFrameProfiler::GetInstance().BeginPass(commandList,
+			viewPrefix + std::string(EnumAdapter<RenderPathPassKind>::ToStringView(pass->GetKind())));
 		pass->Execute(graphicsCore, passBuckets, context);
 		GpuFrameProfiler::GetInstance().EndPass(commandList);
 	}

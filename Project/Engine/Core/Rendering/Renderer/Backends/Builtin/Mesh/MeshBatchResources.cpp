@@ -56,9 +56,10 @@ namespace {
 	}
 
 	// Hull本体を描くパスかどうか。OutlineStencilWriteは元メッシュ形状なのでHullではない
-	bool IsHullOutlinePass(std::string_view passName) {
+	bool IsHullOutlinePass(Engine::MaterialPassKind passKind) {
 
-		return passName == "Outline" || passName == "OutlineStencilTest";
+		return passKind == Engine::MaterialPassKind::Outline ||
+			passKind == Engine::MaterialPassKind::OutlineStencilTest;
 	}
 }
 
@@ -130,7 +131,7 @@ void Engine::MeshBatchResources::Finalize() {
 void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& drawContext,
 	const MeshGPUResource& gpuMesh) {
 
-	const bool hullOutline = IsHullOutlinePass(drawContext.passName);
+	const bool hullOutline = IsHullOutlinePass(drawContext.passKind);
 	bool cullingEnabled = CanCullView(drawContext, gpuMesh);
 	if (cullingEnabled) {
 		// カリング用カメラが取れない場合は全描画に倒す
@@ -171,8 +172,8 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 
 	draw_.Upload(drawConstants);
 
-	if (drawContext.passName == "ScreenSpaceOutlineMask" ||
-		drawContext.passName == "ScreenSpaceOutlineCoverageMask") {
+	if (drawContext.passKind == MaterialPassKind::ScreenSpaceOutlineMask ||
+		drawContext.passKind == MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
 
 		ScreenSpaceOutlineMaskConstants params{};
 		params.styleID = drawContext.screenSpaceOutlineMaskStyleID;

@@ -18,19 +18,21 @@ namespace Engine {
 	//============================================================================
 	//	ScreenSpaceOutline request types
 	//============================================================================
-	// アウトライン要求の発生源
-	enum class ScreenSpaceOutlineSource : uint8_t {
 
-		// ScreenSpaceOutlineComponent由来(Scene保存対象、Game/Scene両方)
+	// アウトライン要求の発生源
+	enum class ScreenSpaceOutlineSource :
+		uint8_t {
+
+		// エンティティ適用コンポーネント
 		RuntimeComponent,
-		// エディタ選択由来(temporary、Sceneのみ)
+		// エディタ選択
 		EditorSelection,
 	};
 
-	// アウトラインの見た目。Runtime ComponentとEditor選択で共通の描画パラメータ
+	// アウトラインの見た目
 	struct ScreenSpaceOutlineStyle {
 
-		Color4 color{};
+		Color4 color = Color4::FromHex(0xFF8000FF);
 		float widthPixels = 3.0f;
 		int32_t priority = 0;
 		ScreenSpaceOutlineVisibilityMode visibilityMode = ScreenSpaceOutlineVisibilityMode::VisibleOnly;

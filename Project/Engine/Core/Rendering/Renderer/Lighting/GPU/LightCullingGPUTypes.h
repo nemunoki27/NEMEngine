@@ -33,7 +33,6 @@ namespace Engine {
 		// ビュー/プロジェクション行列
 		Matrix4x4 viewMatrix = Matrix4x4::Identity();
 		Matrix4x4 projectionMatrix = Matrix4x4::Identity();
-		Matrix4x4 inverseProjectionMatrix = Matrix4x4::Identity();
 
 		// スクリーンサイズとタイルサイズ
 		uint32_t screenWidth = 0;

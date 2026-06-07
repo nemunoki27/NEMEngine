@@ -461,8 +461,8 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 		service.MarkDirty();
 	}
 
-	// パスシェーダーパス名
-	if (MyGUI::InputText("Pass Name", pass.passName).editFinished) {
+	// パスシェーダーパス種別
+	if (MyGUI::EnumCombo("Pass Kind", pass.passKind).editFinished) {
 		service.MarkDirty();
 		service.RebuildRuntime();
 	}
@@ -720,7 +720,7 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 						newPass.name = name.empty() ? "NewPass" : name;
 						newPass.enabled = true;
 						newPass.materialGuid = materialGuid;
-						newPass.passName = "PostProcess";
+						newPass.passKind = MaterialPassKind::PostProcess;
 
 						settings.passes.emplace_back(std::move(newPass));
 						selectedPassIndex_ = static_cast<int32_t>(settings.passes.size()) - 1;

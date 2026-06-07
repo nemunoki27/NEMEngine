@@ -45,7 +45,7 @@ void Engine::InvertedHullOutlinePass::Execute(GraphicsCore& graphicsCore,
 	if (!groups.regularItems.empty()) {
 
 		RenderPassExecutionHelper::Execute(graphicsCore, context, groups.regularItems, deps_,
-			hullBinding, "Outline", false, false);
+			hullBinding, MaterialPassKind::Outline, false, false);
 	}
 
 	// stencil抑制ありの描画
@@ -71,11 +71,11 @@ void Engine::InvertedHullOutlinePass::Execute(GraphicsCore& graphicsCore,
 
 		// 元メッシュ形状でsilhouetteをstencilへREPLACE書き込みする(RTVなし/深度のみ)
 		RenderPassExecutionHelper::Execute(graphicsCore, context, groups.stencilItems, deps_,
-			sceneMain, "OutlineStencilWrite", false, true);
+			sceneMain, MaterialPassKind::OutlineStencilWrite, false, true);
 
 		// stencilがreferenceと異なる箇所だけHullを描いて内部や重なりを抑制する
 		RenderPassExecutionHelper::Execute(graphicsCore, context, groups.stencilItems, deps_,
-			hullBinding, "OutlineStencilTest", false, false);
+			hullBinding, MaterialPassKind::OutlineStencilTest, false, false);
 
 		// 後続パスへ影響しないようstencil referenceを戻す
 		commandList->OMSetStencilRef(0u);

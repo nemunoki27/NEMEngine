@@ -21,7 +21,7 @@ namespace Engine {
 		explicit ClearRenderTargetsPass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~ClearRenderTargetsPass() override = default;
 
-		std::string_view GetName() const override { return "ClearRenderTargets"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::ClearRenderTargets; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:

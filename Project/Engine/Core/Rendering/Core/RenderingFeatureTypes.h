@@ -19,6 +19,7 @@ namespace Engine {
 		Disabled = 0,
 		Tile2D = 1,
 		Clustered = 2,
+		// PIX/検証用に全ローカルライトを各クラスタへ複製する低速経路。直接評価baselineではない。
 		DebugAllLightsPerCluster = 3,
 	};
 

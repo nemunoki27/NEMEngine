@@ -127,7 +127,7 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		std::vector<ShaderConstantBufferVariable> vars;
 		std::vector<ShaderResourceBinding> srvs;
 		if (deps_.postProcessExecutor->TryGetReflection(graphicsCore, *deps_.assetLibrary,
-			*deps_.pipelineCache, passPtr->material, passPtr->passName, vars, srvs)) {
+			*deps_.pipelineCache, passPtr->material, passPtr->passKind, vars, srvs)) {
 			service.CacheReflection(passPtr->material, vars, srvs);
 		}
 	}
@@ -175,7 +175,7 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 
 		PostProcessExecutionDesc desc{};
 		desc.material = pass.material;
-		desc.passName = pass.passName;
+		desc.passKind = pass.passKind;
 		desc.source.colors = { sourceName };
 		desc.dest.colors = { destName };
 		desc.parameterOverrides = pass.parameterOverrides;

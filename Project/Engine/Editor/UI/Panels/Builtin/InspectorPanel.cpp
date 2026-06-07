@@ -338,6 +338,25 @@ namespace {
 		return result;
 	}
 
+	// MaterialPassKindの編集フィールドを描画する
+	Engine::ValueEditResult DrawMaterialPassKindField(const char* label, Engine::MaterialPassKind& value) {
+
+		Engine::ValueEditResult result{};
+		if (!Engine::MyGUI::BeginPropertyRow(label)) {
+			return result;
+		}
+
+		Engine::MaterialPassKind edited = value;
+		result.valueChanged = Engine::EnumAdapter<Engine::MaterialPassKind>::Combo("##Value", &edited);
+		if (result.valueChanged) {
+			value = edited;
+		}
+		result.anyItemActive = ImGui::IsItemActive();
+		result.editFinished = result.valueChanged || ImGui::IsItemDeactivatedAfterEdit();
+		Engine::MyGUI::EndPropertyRow();
+		return result;
+	}
+
 	// Materialパラメーターの型名を表示用に取得する
 	const char* GetMaterialParameterTypeName(const Engine::MaterialParameterValue& parameter) {
 
@@ -408,12 +427,12 @@ namespace {
 		material.passes.clear();
 
 		material.passes.push_back({
-			.passName = "ZPrepass",
+			.passKind = Engine::MaterialPassKind::ZPrepass,
 			.pipeline = Engine::BuiltinAssets::Pipelines::DefaultMeshZPrepass,
 			.preferredVariant = Engine::PipelineVariantKind::GraphicsMesh,
 			});
 		material.passes.push_back({
-			.passName = "Draw",
+			.passKind = Engine::MaterialPassKind::Draw,
 			.pipeline = Engine::BuiltinAssets::Pipelines::DefaultMesh,
 			.preferredVariant = Engine::PipelineVariantKind::GraphicsMesh,
 			});
@@ -935,10 +954,12 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 
 			MaterialPassBinding& pass = materialDraft_.passes[index];
 			ImGui::PushID(index);
-			if (ImGui::TreeNodeEx("Pass", ImGuiTreeNodeFlags_DefaultOpen, "%s", pass.passName.empty() ? "Unnamed Pass" : pass.passName.c_str())) {
+			const std::string_view passLabel = EnumAdapter<MaterialPassKind>::ToStringView(pass.passKind);
+			if (ImGui::TreeNodeEx("Pass", ImGuiTreeNodeFlags_DefaultOpen, "%.*s",
+				static_cast<int>(passLabel.size()), passLabel.data())) {
 
-				ValueEditResult passNameResult = MyGUI::InputText("Pass Name", pass.passName);
-				saveRequested |= passNameResult.editFinished;
+				ValueEditResult passKindResult = DrawMaterialPassKindField("Pass Kind", pass.passKind);
+				saveRequested |= passKindResult.editFinished;
 
 				ValueEditResult pipelineResult = MyGUI::AssetReferenceField("Pipeline", pass.pipeline,
 					context.editorContext->assetDatabase, { AssetType::RenderPipeline });
@@ -963,7 +984,7 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 		if (ImGui::Button("Add Pass", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 
 			materialDraft_.passes.push_back({
-				.passName = "Draw",
+				.passKind = MaterialPassKind::Draw,
 				.pipeline = {},
 				.preferredVariant = PipelineVariantKind::GraphicsMesh,
 				});

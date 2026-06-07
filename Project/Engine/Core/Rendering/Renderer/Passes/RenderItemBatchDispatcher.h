@@ -32,7 +32,7 @@ namespace Engine {
 		void Dispatch(GraphicsCore& graphicsCore, const SceneExecutionContext& sceneContext, const RenderSceneBatch& renderBatch,
 			RenderBackendRegistry& backendRegistry, RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache,
 			MaterialResolver& materialResolver, const std::vector<const RenderItem*>& items, const MultiRenderTarget* surface,
-			const DepthTexture2D* depthOverride, const std::string_view& passName, bool depthOnly) const;
+			const DepthTexture2D* depthOverride, MaterialPassKind passKind, bool depthOnly) const;
 	private:
 		//============================================================================
 		//	private Methods

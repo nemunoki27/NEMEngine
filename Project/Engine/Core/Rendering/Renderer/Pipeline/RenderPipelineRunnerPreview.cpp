@@ -85,6 +85,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 	context.viewportHeight = request.viewportHeight;
 	context.disableInlineRayTracing = true;
 	context.forceVertexMeshVariant = request.forceVertexMeshVariant;
+	context.forceDirectLocalLightEvaluation = true;
 	context.world = request.world;
 	context.systemContext = request.systemContext;
 	context.assetDatabase = request.assetDatabase;
@@ -101,9 +102,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 			buffers.Init(core);
 	});
 	previewLightBuffers.Upload(previewLightSet_);
-	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
-	previewLightCullingBuffers.Upload(previewView, previewLightSet_,
-		static_cast<uint32_t>(runtimeFeatures.lightCullingMode));
+	previewLightCullingBuffers.Upload(previewView, previewLightSet_, LightCullingMode::Disabled);
 	previewLightBuffers.RegisterTo(context.bufferRegistry);
 	previewLightCullingBuffers.RegisterTo(context.bufferRegistry);
 
@@ -152,7 +151,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 		}
 		batchDispatcher_.Dispatch(graphicsCore, context, renderBatch_, previewBackendRegistry_,
 			renderAssetLibrary_, pipelineStateCache_, materialResolver_,
-			list.items, request.surface, nullptr, "Draw", false);
+			list.items, request.surface, nullptr, MaterialPassKind::Draw, false);
 	}
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)

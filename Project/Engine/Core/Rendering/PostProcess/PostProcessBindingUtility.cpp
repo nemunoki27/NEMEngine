@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
@@ -43,7 +44,8 @@ namespace Engine {
 
 	std::string MakePostProcessLogHeader(const MaterialAsset& material, const PostProcessExecutionDesc& desc) {
 		// 実行中のポストプロセスを特定しやすくするためのログ用識別文字列を作成
-		return "[PostProcess] material=" + material.name + " pass=" + desc.passName + " ";
+		return "[PostProcess] material=" + material.name + " pass=" +
+			std::string(EnumAdapter<MaterialPassKind>::ToStringView(desc.passKind)) + " ";
 	}
 
 	RenderTexture2D* GetFirstColor(MultiRenderTarget* target) {

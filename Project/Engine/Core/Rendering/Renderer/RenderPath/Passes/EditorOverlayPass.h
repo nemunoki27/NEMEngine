@@ -20,7 +20,7 @@ namespace Engine {
 		EditorOverlayPass() = default;
 		~EditorOverlayPass() override = default;
 
-		std::string_view GetName() const override { return "EditorOverlay"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::EditorOverlay; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	};

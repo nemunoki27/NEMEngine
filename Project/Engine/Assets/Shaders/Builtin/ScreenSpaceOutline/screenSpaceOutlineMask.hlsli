@@ -23,9 +23,8 @@ cbuffer ScreenSpaceOutlineMaskConstantsBuffer : register(b1, space1) {
 struct MaskVSOutput {
 
 	float4 position : SV_Position;
-	// 補間しないStyle IDと、頂点が属するローカルSubMeshインデックス
+	// 補間しないStyleIDと、頂点が属するローカルSubMeshインデックス
 	nointerpolation uint styleID : OUTLINESTYLE0;
 	nointerpolation int localSubMeshIndex : OUTLINESUBMESH0;
 };
-
 #endif // NEM_SCREEN_SPACE_OUTLINE_MASK_HLSLI

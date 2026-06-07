@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <cstdint>
 #include <string_view>
 
 namespace Engine {
@@ -11,6 +12,25 @@ namespace Engine {
 	class GraphicsCore;
 	struct SceneExecutionContext;
 	struct RenderPassPhaseBuckets;
+
+	enum class RenderPathPassKind : uint8_t {
+
+		ClearRenderTargets,
+		DepthPrepass,
+		LightCulling,
+		Opaque,
+		RaytracingReflection,
+		InvertedHullOutline,
+		Transparent,
+		RuntimeScreenSpaceOutline,
+		PostProcessMaskedUI,
+		PostProcessStack,
+		EditorSelectionScreenSpaceOutline,
+		BlitToView,
+		ScreenUI,
+		DebugOverlay,
+		EditorOverlay,
+	};
 
 	//============================================================================
 	//	IRenderPass class
@@ -23,8 +43,8 @@ namespace Engine {
 		//============================================================================
 		virtual ~IRenderPass() = default;
 
-		// パス名の取得
-		virtual std::string_view GetName() const = 0;
+		// パス種別の取得
+		virtual RenderPathPassKind GetKind() const = 0;
 		// 毎フレームの実行
 		virtual void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) = 0;

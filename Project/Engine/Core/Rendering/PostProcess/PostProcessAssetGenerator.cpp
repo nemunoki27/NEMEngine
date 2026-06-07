@@ -133,7 +133,7 @@ namespace {
 			{ "domain", "Compute" },
 			{ "passes", nlohmann::json::array({
 				{
-					{ "passName", "PostProcess" },
+					{ "passKind", "PostProcess" },
 					{ "pipeline", Engine::ToAssetReferenceJson(pipelineID) },
 					{ "preferredVariant", "Compute" }
 				}
@@ -389,7 +389,7 @@ namespace {
 			{ "domain", "Compute" },
 			{ "passes", nlohmann::json::array({
 				{
-					{ "passName", "PostProcess" },
+					{ "passKind", "PostProcess" },
 					{ "pipeline", Engine::ToAssetReferenceJson(pipelineID) },
 					{ "preferredVariant", "Compute" }
 				}

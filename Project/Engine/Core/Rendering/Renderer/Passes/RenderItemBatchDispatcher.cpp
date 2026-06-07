@@ -13,7 +13,7 @@
 void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, const SceneExecutionContext& sceneContext,
 	const RenderSceneBatch& renderBatch, RenderBackendRegistry& backendRegistry, RenderAssetLibrary& assetLibrary,
 	PipelineStateCache& pipelineCache, MaterialResolver& materialResolver, const std::vector<const RenderItem*>& items,
-	const MultiRenderTarget* surface, const DepthTexture2D* depthOverride, const std::string_view& passName, bool depthOnly) const {
+	const MultiRenderTarget* surface, const DepthTexture2D* depthOverride, MaterialPassKind passKind, bool depthOnly) const {
 
 	// 描画コンテキストの構築
 	RenderDrawContext drawContext{};
@@ -31,7 +31,7 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	drawContext.assetLibrary = &assetLibrary;
 	drawContext.pipelineCache = &pipelineCache;
 	drawContext.materialResolver = &materialResolver;
-	drawContext.passName = passName;
+	drawContext.passKind = passKind;
 	drawContext.depthOnly = depthOnly;
 	drawContext.forceVertexMeshVariant = sceneContext.forceVertexMeshVariant;
 	// ScreenSpaceOutline Mask描画のper-draw値を引き継ぐ
@@ -44,6 +44,11 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 
 		drawContext.runtimeFeatures.useInlineRayTracing = false;
 		drawContext.runtimeFeatures.useDispatchRays = false;
+	}
+	if (sceneContext.forceDirectLocalLightEvaluation) {
+
+		drawContext.runtimeFeatures.useLightCulling = false;
+		drawContext.runtimeFeatures.lightCullingMode = LightCullingMode::Disabled;
 	}
 
 	drawContext.rtvFormats.fill(DXGI_FORMAT_UNKNOWN);

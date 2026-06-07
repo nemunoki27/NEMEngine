@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 
 // c++
 #include <span>
@@ -55,8 +56,8 @@ namespace Engine {
 		uint32_t numRTVFormats = 0;
 		DXGI_FORMAT dsvFormat = DXGI_FORMAT_UNKNOWN;
 
-		// 描画パスの名前
-		std::string_view passName = "Draw";
+		// 描画で使用するMaterialパス
+		MaterialPassKind passKind = MaterialPassKind::Draw;
 		bool depthOnly = false;
 
 		// ScreenSpaceOutline Mask描画でこの描画単位へ渡すStyle IDとSubMesh制限

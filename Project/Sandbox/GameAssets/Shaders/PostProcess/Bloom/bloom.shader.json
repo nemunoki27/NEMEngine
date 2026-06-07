@@ -1,0 +1,14 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "bloomShader",
+    "sourceShader": "GameAssets/Shaders/PostProcess/Bloom/bloom.CS.hlsl",
+    "stages": [
+        {
+            "entry": "main",
+            "file": "GameAssets/Shaders/PostProcess/Bloom/bloom.CS.hlsl",
+            "profile": "cs_6_0",
+            "stage": "CS"
+        }
+    ]
+}

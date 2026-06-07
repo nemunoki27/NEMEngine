@@ -21,7 +21,7 @@ namespace Engine {
 		explicit PostProcessStackPass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~PostProcessStackPass() override = default;
 
-		std::string_view GetName() const override { return "PostProcessStack"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::PostProcessStack; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:

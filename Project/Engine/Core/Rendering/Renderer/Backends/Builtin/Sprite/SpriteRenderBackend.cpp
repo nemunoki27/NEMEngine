@@ -37,7 +37,7 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 	// マテリアルパスを解決する
 	BackendDrawCommon::ResolvedMaterialPass resolvedPass{};
 	if (!BackendDrawCommon::ResolveMaterialPass(context, items.front()->material,
-		DefaultMaterialSlot::Sprite, { "Draw", "Sprite" }, resolvedPass)) {
+		DefaultMaterialSlot::Sprite, { MaterialPassKind::Draw }, resolvedPass)) {
 		return;
 	}
 	// パイプラインを解決する

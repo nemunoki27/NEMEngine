@@ -48,7 +48,7 @@ namespace Engine {
 			return std::format("{{\n  \"Header\": {{\n    \"guid\": \"\",\n    \"name\": \"{}\",\n    \"rootLocalFileID\": \"\",\n    \"version\": 1\n  }},\n  \"Entities\": []\n}}\n", assetName);
 		case ProjectAssetFileKind::Material:
 			// マテリアル。標準のシェーダとパラメータを設定した状態で作成
-			return std::format("{{\n  \"name\": \"{}\",\n  \"domain\": \"Surface\",\n  \"passes\": [\n    {{\n      \"passName\": \"ZPrepass\",\n      \"pipeline\": \"f09836087840b1d2\",\n      \"preferredVariant\": \"GraphicsMesh\"\n    }},\n    {{\n      \"passName\": \"Draw\",\n      \"pipeline\": \"966f3e8a34595313\",\n      \"preferredVariant\": \"GraphicsMesh\"\n    }}\n  ],\n  \"parameters\": {{\n    \"BaseColor\": {{ \"r\": 1.0, \"g\": 1.0, \"b\": 1.0, \"a\": 1.0 }},\n    \"Metallic\": 0.0,\n    \"Roughness\": 0.5\n  }}\n}}\n", assetName);
+			return std::format("{{\n  \"name\": \"{}\",\n  \"domain\": \"Surface\",\n  \"passes\": [\n    {{\n      \"passKind\": \"ZPrepass\",\n      \"pipeline\": \"f09836087840b1d2\",\n      \"preferredVariant\": \"GraphicsMesh\"\n    }},\n    {{\n      \"passKind\": \"Draw\",\n      \"pipeline\": \"966f3e8a34595313\",\n      \"preferredVariant\": \"GraphicsMesh\"\n    }}\n  ],\n  \"parameters\": {{\n    \"BaseColor\": {{ \"r\": 1.0, \"g\": 1.0, \"b\": 1.0, \"a\": 1.0 }},\n    \"Metallic\": 0.0,\n    \"Roughness\": 0.5\n  }}\n}}\n", assetName);
 		case ProjectAssetFileKind::AnimationClip:
 			return std::format("{{\n  \"guid\": \"\",\n  \"name\": \"{}\",\n  \"duration\": 1.0,\n  \"curveTracks\": [],\n  \"eventTracks\": []\n}}\n", assetName);
 		case ProjectAssetFileKind::Shader:

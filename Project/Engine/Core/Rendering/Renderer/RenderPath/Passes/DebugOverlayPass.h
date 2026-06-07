@@ -20,7 +20,7 @@ namespace Engine {
 		DebugOverlayPass() = default;
 		~DebugOverlayPass() override = default;
 
-		std::string_view GetName() const override { return "DebugOverlay"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::DebugOverlay; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	};

@@ -10,7 +10,6 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
@@ -36,12 +35,16 @@ void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
 	(void)passBuckets;
-	if (!context.resources || !context.assetDatabase || !deps_.assetLibrary || !deps_.pipelineCache) {
+	if (!context.shouldExecuteLightCullingPass || !context.resources || !context.assetDatabase ||
+		!deps_.assetLibrary || !deps_.pipelineCache) {
+		return;
+	}
+	if (!context.lightCullingBufferSet || context.lightCullingBufferSet->GetLocalLightCount() == 0) {
 		return;
 	}
 	const GraphicsRuntimeFeatures& runtimeFeatures =
 		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
-	if (!runtimeFeatures.useLightCulling) {
+	if (!runtimeFeatures.useLightCulling || runtimeFeatures.lightCullingMode == LightCullingMode::Disabled) {
 		return;
 	}
 
@@ -49,10 +52,6 @@ void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 		context.lightCullingResources : context.resources;
 	MultiRenderTarget* sceneMain = cullingResources->GetSceneMain();
 	if (!sceneMain) {
-		return;
-	}
-	DepthTexture2D* depth = sceneMain->GetDepthTexture();
-	if (!depth) {
 		return;
 	}
 
@@ -65,7 +64,7 @@ void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 	if (!material) {
 		return;
 	}
-	const MaterialPassBinding* passBinding = FindPass(*material, "LightCulling");
+	const MaterialPassBinding* passBinding = FindPass(*material, MaterialPassKind::LightCulling);
 	if (!passBinding || passBinding->preferredVariant != PipelineVariantKind::Compute) {
 		return;
 	}
@@ -79,19 +78,10 @@ void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	auto* commandList = dxCommand->GetCommandList();
 
-	// 深度をシェーダーリード用に遷移
-	depth->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
 	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
 	commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	commandList->SetPipelineState(pipelineState->GetComputePipeline());
 
-	// 深度SRVをt1にバインド
-	depthSRVCache_.Sync(*pipelineState);
-	if (depthSRVCache_.Has(depthSRVSlot_)) {
-		RootBindingCommand::SetComputeSRV(commandList, depthSRVCache_.Get(depthSRVSlot_),
-			0, depth->GetSRVGPUHandle());
-	}
 	// バッファレジストリからライト関連バッファを自動バインド
 	computeAutoBindTable_.Sync(*pipelineState, context.bufferRegistry);
 	computeAutoBindTable_.BindCompute(context.bufferRegistry, commandList);
@@ -102,5 +92,7 @@ void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 		runtimeFeatures.lightCullingMode == LightCullingMode::DebugAllLightsPerCluster ? ViewLightCullingBufferSet::kClusterCountZ : 1u;
 
 	// ライトカリング実行
+	context.lightCullingBufferSet->TransitionForComputeWrite(*dxCommand);
 	commandList->Dispatch(dispatchX, dispatchY, dispatchZ);
+	context.lightCullingBufferSet->TransitionForShaderRead(*dxCommand);
 }

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 
 void Engine::ViewLightCullingBufferSet::Init(GraphicsCore& graphicsCore) {
 
@@ -38,20 +39,67 @@ void Engine::ViewLightCullingBufferSet::Release() {
 	totalTileCount_ = 0;
 	totalClusterCount_ = 0;
 	totalIndexCount_ = 0;
+	localLightCount_ = 0;
 
 	initialized_ = false;
 }
 
 void Engine::ViewLightCullingBufferSet::Upload(
-	const ResolvedRenderView& view, const PerViewLightSet& lightSet, uint32_t lightCullingMode) {
+	const ResolvedRenderView& view, const PerViewLightSet& lightSet, LightCullingMode lightCullingMode) {
 
 	// ビューサイズからタイル数を計算
 	const uint32_t viewWidth = (std::max)(view.width, 1u);
 	const uint32_t viewHeight = (std::max)(view.height, 1u);
+	localLightCount_ = lightSet.GetLocalLightCount();
+	const bool requiresGrid =
+		lightCullingMode != LightCullingMode::Disabled &&
+		localLightCount_ > 0;
+
+	const bool usesClusterGrid =
+		lightCullingMode == LightCullingMode::Clustered ||
+		lightCullingMode == LightCullingMode::DebugAllLightsPerCluster;
+
+	LightCullingParamsGPU params{};
+	params.screenWidth = viewWidth;
+	params.screenHeight = viewHeight;
+	params.tileSizeX = kTileSizeX;
+	params.tileSizeY = kTileSizeY;
+	params.maxLocalLightsPerTile = kMaxLocalLightsPerTile;
+	params.maxLocalLightsPerCluster = kMaxLocalLightsPerTile;
+	params.lightCullingMode = static_cast<uint32_t>(lightCullingMode);
+	params.pointLightCount = lightSet.GetPointCount();
+	params.spotLightCount = lightSet.GetSpotCount();
+	params.localLightCount = localLightCount_;
+	params.lightCullingEnabled = requiresGrid ? 1u : 0u;
+	if (lightSet.camera && lightSet.camera->valid) {
+
+		params.viewMatrix = lightSet.camera->matrices.viewMatrix;
+		params.projectionMatrix = lightSet.camera->matrices.projectionMatrix;
+		params.nearClip = lightSet.camera->nearClip;
+		params.farClip = lightSet.camera->farClip;
+	}
+
+	if (!requiresGrid) {
+
+		tileCountX_ = 1;
+		tileCountY_ = 1;
+		totalTileCount_ = 1;
+		totalClusterCount_ = 1;
+		totalIndexCount_ = 1;
+		params.tileCountX = tileCountX_;
+		params.tileCountY = tileCountY_;
+		params.totalTileCount = totalTileCount_;
+		params.clusterCountZ = 1;
+		params.totalClusterCount = totalClusterCount_;
+		tileLightGrid_.EnsureCapacity(1);
+		tileLightIndexList_.EnsureCapacity(1);
+		params_.Upload(params);
+		return;
+	}
+
 	tileCountX_ = (std::max)(DxUtils::RoundUp(viewWidth, kTileSizeX), 1u);
 	tileCountY_ = (std::max)(DxUtils::RoundUp(viewHeight, kTileSizeY), 1u);
 	totalTileCount_ = tileCountX_ * tileCountY_;
-	const bool usesClusterGrid = lightCullingMode == 2u || lightCullingMode == 3u;
 	totalClusterCount_ = totalTileCount_ * (usesClusterGrid ? kClusterCountZ : 1u);
 	totalIndexCount_ = totalClusterCount_ * kMaxLocalLightsPerTile;
 
@@ -59,35 +107,28 @@ void Engine::ViewLightCullingBufferSet::Upload(
 	tileLightGrid_.EnsureCapacity(totalClusterCount_);
 	tileLightIndexList_.EnsureCapacity(totalIndexCount_);
 
-	// パラメータを設定してGPUへ転送
-	LightCullingParamsGPU params{};
-	params.screenWidth = viewWidth;
-	params.screenHeight = viewHeight;
-	params.tileSizeX = kTileSizeX;
-	params.tileSizeY = kTileSizeY;
 	params.tileCountX = tileCountX_;
 	params.tileCountY = tileCountY_;
 	params.totalTileCount = totalTileCount_;
-	params.maxLocalLightsPerTile = kMaxLocalLightsPerTile;
 	params.clusterCountZ = usesClusterGrid ? kClusterCountZ : 1u;
 	params.totalClusterCount = totalClusterCount_;
-	params.maxLocalLightsPerCluster = kMaxLocalLightsPerTile;
-	params.lightCullingMode = lightCullingMode;
-	params.pointLightCount = lightSet.GetPointCount();
-	params.spotLightCount = lightSet.GetSpotCount();
-	params.localLightCount = lightSet.GetLocalLightCount();
-	params.lightCullingEnabled = lightCullingMode != 0u ? 1u : 0u;
-	// ビュー/プロジェクション行列を設定
-	if (lightSet.camera && lightSet.camera->valid) {
-
-		params.viewMatrix = lightSet.camera->matrices.viewMatrix;
-		params.projectionMatrix = lightSet.camera->matrices.projectionMatrix;
-		params.inverseProjectionMatrix = lightSet.camera->matrices.inverseProjectionMatrix;
-		params.nearClip = lightSet.camera->nearClip;
-		params.farClip = lightSet.camera->farClip;
-	}
 	// GPUへ転送
 	params_.Upload(params);
+}
+
+void Engine::ViewLightCullingBufferSet::TransitionForComputeWrite(DxCommand& command) {
+
+	tileLightGrid_.Transition(command, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	tileLightIndexList_.Transition(command, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+}
+
+void Engine::ViewLightCullingBufferSet::TransitionForShaderRead(DxCommand& command) {
+
+	constexpr D3D12_RESOURCE_STATES kShaderRead =
+		static_cast<D3D12_RESOURCE_STATES>(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	tileLightGrid_.Transition(command, kShaderRead);
+	tileLightIndexList_.Transition(command, kShaderRead);
 }
 
 void Engine::ViewLightCullingBufferSet::RegisterTo(RenderBufferRegistry& registry) const {

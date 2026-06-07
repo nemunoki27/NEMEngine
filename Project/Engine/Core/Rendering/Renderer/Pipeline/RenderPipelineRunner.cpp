@@ -284,15 +284,14 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		sceneViewLightCullingBuffers_.Init(graphicsCore);
 	}
 	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
-	const uint32_t lightCullingMode = static_cast<uint32_t>(runtimeFeatures.lightCullingMode);
 	// ビューごとのライト集合をGPUへ転送
 	gameViewLightBuffers_.Upload(gameViewLightSet_);
 	// ビューごとのライトカリングデータをGPUへ転送
-	gameViewLightCullingBuffers_.Upload(gameView_, gameViewLightSet_, lightCullingMode);
+	gameViewLightCullingBuffers_.Upload(gameView_, gameViewLightSet_, runtimeFeatures.lightCullingMode);
 	if (!sceneViewUsesGameLightCulling) {
 
 		sceneViewLightBuffers_.Upload(sceneViewLightSet_);
-		sceneViewLightCullingBuffers_.Upload(sceneView_, sceneViewLightSet_, lightCullingMode);
+		sceneViewLightCullingBuffers_.Upload(sceneView_, sceneViewLightSet_, runtimeFeatures.lightCullingMode);
 	}
 
 	// レイトレーシングビュー関連バッファの初期化と転送
@@ -394,9 +393,9 @@ bool RenderPipelineRunner::PresentViewToBackBuffer(
 	}
 
 	// ブリットパスかフルスクリーンパスを探す
-	const MaterialPassBinding* passBinding = FindPass(*materialAsset, "Blit");
+	const MaterialPassBinding* passBinding = FindPass(*materialAsset, MaterialPassKind::Blit);
 	if (!passBinding) {
-		passBinding = FindPass(*materialAsset, "Fullscreen");
+		passBinding = FindPass(*materialAsset, MaterialPassKind::Fullscreen);
 	}
 	// 無効なパスは処理しない
 	if (!passBinding || passBinding->preferredVariant == PipelineVariantKind::Compute ||
@@ -494,6 +493,10 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.systemContext = request.systemContext;
 	context.assetDatabase = request.assetDatabase;
 	context.requireRaytracingSceneForEditorPicking = request.requireRaytracingSceneForEditorPicking;
+	context.lightCullingBufferSet = (kind == RenderViewKind::Game || !gameView_.valid) ?
+		((kind == RenderViewKind::Game) ? &gameViewLightCullingBuffers_ : &sceneViewLightCullingBuffers_) :
+		&gameViewLightCullingBuffers_;
+	context.shouldExecuteLightCullingPass = !(kind == RenderViewKind::Scene && gameView_.valid);
 	// 種類に応じたターゲットレジストリを選択
 	RenderTargetRegistry* registry = kind == RenderViewKind::Game ?
 		&gameViewTargetRegistry_ : &sceneViewTargetRegistry_;

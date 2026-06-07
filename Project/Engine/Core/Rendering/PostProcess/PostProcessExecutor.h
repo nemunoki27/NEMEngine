@@ -46,7 +46,7 @@ namespace Engine {
 	struct PostProcessExecutionDesc {
 
 		AssetID material{};
-		std::string passName = "PostProcess";
+		MaterialPassKind passKind = MaterialPassKind::PostProcess;
 		RenderTargetSetReference source;
 		RenderTargetSetReference dest;
 		std::unordered_map<std::string, std::string> extraSources;
@@ -82,7 +82,7 @@ namespace Engine {
 
 		// 実行なしでマテリアルのリフレクション情報を取得する
 		bool TryGetReflection(GraphicsCore& graphicsCore, RenderAssetLibrary& assetLibrary,
-			PipelineStateCache& pipelineCache, AssetID materialId, const std::string& passName,
+			PipelineStateCache& pipelineCache, AssetID materialId, MaterialPassKind passKind,
 			std::vector<ShaderConstantBufferVariable>& outVars,
 			std::vector<ShaderResourceBinding>& outSRVs);
 

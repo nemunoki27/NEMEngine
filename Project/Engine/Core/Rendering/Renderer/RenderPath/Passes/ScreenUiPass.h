@@ -21,7 +21,7 @@ namespace Engine {
 		explicit ScreenUiPass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~ScreenUiPass() override = default;
 
-		std::string_view GetName() const override { return "ScreenUI"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::ScreenUI; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:

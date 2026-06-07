@@ -26,7 +26,7 @@ namespace Engine {
 		explicit EditorSelectionScreenSpaceOutlinePass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~EditorSelectionScreenSpaceOutlinePass() override = default;
 
-		std::string_view GetName() const override { return "EditorSelectionScreenSpaceOutline"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::EditorSelectionScreenSpaceOutline; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:

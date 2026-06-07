@@ -20,7 +20,7 @@ void Engine::DepthPrepass::Execute(GraphicsCore& graphicsCore,
 
 	std::vector<const RenderItem*> items = CollectItems(context, passBuckets);
 	RenderPassExecutionHelper::Execute(graphicsCore, context, items, deps_,
-		context.resources->GetSceneMain(), "ZPrepass", true, true);
+		context.resources->GetSceneMain(), MaterialPassKind::ZPrepass, true, true);
 }
 
 std::vector<const Engine::RenderItem*> Engine::DepthPrepass::CollectItems(

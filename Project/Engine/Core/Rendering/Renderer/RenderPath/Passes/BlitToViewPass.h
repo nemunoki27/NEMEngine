@@ -24,7 +24,7 @@ namespace Engine {
 		}
 		~BlitToViewPass() override = default;
 
-		std::string_view GetName() const override { return "BlitToView"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::BlitToView; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:

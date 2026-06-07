@@ -13,7 +13,7 @@ namespace {
 
 	void DispatchInternal(Engine::GraphicsCore& graphicsCore, Engine::SceneExecutionContext& context,
 		const std::vector<const Engine::RenderItem*>& items, const Engine::RenderPipelineDeps& deps,
-		const Engine::RenderPassSurfaceBinding& surface, const char* drawPassName,
+		const Engine::RenderPassSurfaceBinding& surface, Engine::MaterialPassKind passKind,
 		bool forceVertexMeshVariant, bool depthOnly) {
 
 		Engine::MultiRenderTarget* target = surface.colorSurface;
@@ -81,7 +81,7 @@ namespace {
 		// depthOnly/外部DSVのフォーマット解決が正しく行われるよう、depthOverrideとdepthOnlyを渡す
 		deps.dispatcher->Dispatch(graphicsCore, context, *deps.renderBatch,
 			*deps.backendRegistry, *deps.assetLibrary, *deps.pipelineCache,
-			*deps.materialResolver, items, target, surface.depthOverride, drawPassName, depthOnly);
+			*deps.materialResolver, items, target, surface.depthOverride, passKind, depthOnly);
 
 		context.forceVertexMeshVariant = prevForce;
 	}
@@ -91,7 +91,7 @@ namespace Engine::RenderPassExecutionHelper {
 
 	void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 		const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
-		RenderPhase phase, MultiRenderTarget* target, const char* drawPassName,
+		RenderPhase phase, MultiRenderTarget* target, MaterialPassKind passKind,
 		bool forceVertexMeshVariant) {
 
 		const RenderPassItemList* list = passBuckets.Find(phase);
@@ -99,24 +99,24 @@ namespace Engine::RenderPassExecutionHelper {
 			return;
 		}
 		DispatchInternal(graphicsCore, context, list->items, deps,
-			RenderPassSurfaceBinding{ target, nullptr }, drawPassName, forceVertexMeshVariant, false);
+			RenderPassSurfaceBinding{ target, nullptr }, passKind, forceVertexMeshVariant, false);
 	}
 
 	void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 		const std::vector<const RenderItem*>& items, const RenderPipelineDeps& deps,
-		MultiRenderTarget* target, const char* drawPassName,
+		MultiRenderTarget* target, MaterialPassKind passKind,
 		bool forceVertexMeshVariant, bool depthOnly) {
 
 		DispatchInternal(graphicsCore, context, items, deps,
-			RenderPassSurfaceBinding{ target, nullptr }, drawPassName, forceVertexMeshVariant, depthOnly);
+			RenderPassSurfaceBinding{ target, nullptr }, passKind, forceVertexMeshVariant, depthOnly);
 	}
 
 	void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 		const std::vector<const RenderItem*>& items, const RenderPipelineDeps& deps,
-		const RenderPassSurfaceBinding& surface, const char* drawPassName,
+		const RenderPassSurfaceBinding& surface, MaterialPassKind passKind,
 		bool forceVertexMeshVariant, bool depthOnly) {
 
-		DispatchInternal(graphicsCore, context, items, deps, surface, drawPassName, forceVertexMeshVariant, depthOnly);
+		DispatchInternal(graphicsCore, context, items, deps, surface, passKind, forceVertexMeshVariant, depthOnly);
 	}
 
 } // Engine::RenderPassExecutionHelper

@@ -162,7 +162,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		const char* lightCullingModeItems[] = {
 			"Tile2D Forward+",
 			"Clustered",
-			"Debug All Lights"
+			"Debug: Replicate All Lights Per Cluster (Slow)"
 		};
 		int lightCullingModeIndex = 1;
 		switch (preferences.lightCullingMode) {
@@ -193,6 +193,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 			}
 		}
 		ImGui::EndDisabled();
+		ImGui::TextDisabled("For an uncullled lighting baseline, turn off Use Light Culling.");
 
 		bool allowContributionCulling = preferences.allowContributionCulling;
 		if (ImGui::Checkbox("Use Contribution Culling", &allowContributionCulling)) {

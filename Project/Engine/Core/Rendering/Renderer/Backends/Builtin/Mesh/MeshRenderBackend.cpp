@@ -90,26 +90,26 @@ namespace {
 
 		// 背面法アウトラインの3パスは、元マテリアルと切り離してMeshOutlineデフォルトマテリアルから解決する
 		// コンポーネントを追加するだけで任意の既存マテリアルへアウトラインを適用できるようにする
-		if (context.passName == "Outline" ||
-			context.passName == "OutlineStencilWrite" ||
-			context.passName == "OutlineStencilTest") {
+		if (context.passKind == Engine::MaterialPassKind::Outline ||
+			context.passKind == Engine::MaterialPassKind::OutlineStencilWrite ||
+			context.passKind == Engine::MaterialPassKind::OutlineStencilTest) {
 
 			return Engine::BackendDrawCommon::ResolveMaterialPass(
 				context,
 				Engine::AssetID{},
 				Engine::DefaultMaterialSlot::MeshOutline,
-				{ context.passName },
+				{ context.passKind },
 				outResolved);
 		}
-		if (context.passName == "ScreenSpaceOutlineMask" ||
-			context.passName == "ScreenSpaceOutlineCoverageMask") {
+		if (context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineMask ||
+			context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
 
 			const Engine::AssetID materialID = Engine::BuiltinAssets::Materials::ScreenSpaceOutlineMask;
 			const Engine::MaterialAsset* material = context.assetLibrary->LoadMaterial(materialID);
 			if (!material) {
 				return false;
 			}
-			const Engine::MaterialPassBinding* pass = Engine::FindPass(*material, context.passName);
+			const Engine::MaterialPassBinding* pass = Engine::FindPass(*material, context.passKind);
 			if (!pass) {
 				return false;
 			}
@@ -120,30 +120,30 @@ namespace {
 		}
 
 		// 通常描画
-		if (context.passName == "Draw") {
+		if (context.passKind == Engine::MaterialPassKind::Draw) {
 			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterialID,
-				Engine::DefaultMaterialSlot::Mesh, { "Draw", "Mesh" }, outResolved)) {
+				Engine::DefaultMaterialSlot::Mesh, { Engine::MaterialPassKind::Draw }, outResolved)) {
 				return true;
 			}
-		} else if (context.passName == "Transparent") {
+		} else if (context.passKind == Engine::MaterialPassKind::Transparent) {
 
 			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterialID,
-				Engine::DefaultMaterialSlot::Mesh, { "Transparent" }, outResolved)) {
+				Engine::DefaultMaterialSlot::Mesh, { Engine::MaterialPassKind::Transparent }, outResolved)) {
 				return true;
 			}
 			return Engine::BackendDrawCommon::ResolveMaterialPass(context, Engine::AssetID{},
-				Engine::DefaultMaterialSlot::Mesh, { "Transparent" }, outResolved);
+				Engine::DefaultMaterialSlot::Mesh, { Engine::MaterialPassKind::Transparent }, outResolved);
 		} else {
-			// "Draw以外のパスは、そのパス名をそのまま探す
+			// Draw以外のパスは、そのパス種別をそのまま探す
 			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterialID,
-				Engine::DefaultMaterialSlot::Mesh, { context.passName }, outResolved)) {
+				Engine::DefaultMaterialSlot::Mesh, { context.passKind }, outResolved)) {
 				return true;
 			}
 		}
 		// ZPrepassはデフォルトメッシュマテリアルへフォールバック
-		if (context.passName == "ZPrepass") {
+		if (context.passKind == Engine::MaterialPassKind::ZPrepass) {
 			return Engine::BackendDrawCommon::ResolveMaterialPass(context, Engine::AssetID{},
-				Engine::DefaultMaterialSlot::Mesh, { "ZPrepass" }, outResolved);
+				Engine::DefaultMaterialSlot::Mesh, { Engine::MaterialPassKind::ZPrepass }, outResolved);
 		}
 		return false;
 	}

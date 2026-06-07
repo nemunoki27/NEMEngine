@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -56,7 +57,8 @@ namespace {
 	std::string MakePostProcessLogHeader(const Engine::MaterialAsset& material,
 		const Engine::PostProcessExecutionDesc& desc) {
 
-		return "[PostProcess] material=" + material.name + " pass=" + desc.passName + " ";
+		return "[PostProcess] material=" + material.name + " pass=" +
+			std::string(Engine::EnumAdapter<Engine::MaterialPassKind>::ToStringView(desc.passKind)) + " ";
 	}
 
 	Engine::RenderTexture2D* GetFirstColor(Engine::MultiRenderTarget* target) {
@@ -280,10 +282,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 	}
 
 	// 描画パスをマテリアルから取得
-	const MaterialPassBinding* passBinding = FindPass(*materialAsset, desc.passName);
-	if (!passBinding) {
-		passBinding = FindPass(*materialAsset, "PostProcess");
-	}
+	const MaterialPassBinding* passBinding = FindPass(*materialAsset, desc.passKind);
 	if (!passBinding || passBinding->preferredVariant != PipelineVariantKind::Compute) {
 		Logger::Output(LogType::Engine, logHeader + "compute pass is missing.");
 		return false;
@@ -431,7 +430,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 
 bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 	RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache,
-	AssetID materialId, const std::string& passName,
+	AssetID materialId, MaterialPassKind passKind,
 	std::vector<ShaderConstantBufferVariable>& outVars,
 	std::vector<ShaderResourceBinding>& outSRVs) {
 
@@ -440,10 +439,7 @@ bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 		return false;
 	}
 
-	const MaterialPassBinding* passBinding = FindPass(*materialAsset, passName);
-	if (!passBinding) {
-		passBinding = FindPass(*materialAsset, "PostProcess");
-	}
+	const MaterialPassBinding* passBinding = FindPass(*materialAsset, passKind);
 	if (!passBinding || passBinding->preferredVariant != PipelineVariantKind::Compute) {
 		return false;
 	}

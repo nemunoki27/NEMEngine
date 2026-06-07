@@ -722,7 +722,7 @@
     "Header": {
         "collisionSettings": "a31cb25cb8ce4d7a",
         "guid": "0eca53df9c7bc039",
-        "name": "ViewScene",
+        "name": "SampleScene",
         "postProcessStack": "",
         "subScenes": []
     }

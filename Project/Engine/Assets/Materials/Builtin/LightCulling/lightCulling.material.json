@@ -5,7 +5,7 @@
     "parameters": {},
     "passes": [
         {
-            "passName": "LightCulling",
+            "passKind": "LightCulling",
             "pipeline": "5eb686e91eeecb28",
             "preferredVariant": "Compute"
         }

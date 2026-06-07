@@ -125,12 +125,16 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 			}
 
 			MaterialPassBinding binding{};
-			binding.passName = passJson.value("passName", "");
+			const auto passKind = EnumAdapter<MaterialPassKind>::FromString(passJson.value("passKind", ""));
+			if (!passKind || *passKind == MaterialPassKind::Invalid) {
+				continue;
+			}
+			binding.passKind = *passKind;
 			binding.pipeline = ParseAssetID(passJson, "pipeline");
 			binding.preferredVariant = EnumAdapter<PipelineVariantKind>::FromString(passJson.value("preferredVariant",
 				"GraphicsVertex")).value_or(PipelineVariantKind::GraphicsVertex);
 
-			if (binding.passName.empty() || !binding.pipeline) {
+			if (!binding.pipeline) {
 				continue;
 			}
 			outAsset.passes.emplace_back(std::move(binding));
@@ -159,7 +163,7 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 	data["passes"] = nlohmann::json::array();
 	for (const auto& pass : asset.passes) {
 		nlohmann::json item = nlohmann::json::object();
-		item["passName"] = pass.passName;
+		item["passKind"] = EnumAdapter<MaterialPassKind>::ToString(pass.passKind);
 		item["pipeline"] = ToAssetReferenceJson(pass.pipeline);
 		item["preferredVariant"] = EnumAdapter<PipelineVariantKind>::ToString(pass.preferredVariant);
 		data["passes"].push_back(item);
@@ -171,10 +175,10 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 	return data;
 }
 
-const Engine::MaterialPassBinding* Engine::FindPass(const MaterialAsset& asset, const std::string_view& passName) {
+const Engine::MaterialPassBinding* Engine::FindPass(const MaterialAsset& asset, MaterialPassKind passKind) {
 
 	for (const auto& pass : asset.passes) {
-		if (pass.passName == passName) {
+		if (pass.passKind == passKind) {
 			return &pass;
 		}
 	}

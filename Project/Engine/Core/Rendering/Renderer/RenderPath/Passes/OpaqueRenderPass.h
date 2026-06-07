@@ -21,7 +21,7 @@ namespace Engine {
 		explicit OpaqueRenderPass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~OpaqueRenderPass() override = default;
 
-		std::string_view GetName() const override { return "Opaque"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::Opaque; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:

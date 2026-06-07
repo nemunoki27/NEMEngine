@@ -86,9 +86,9 @@ namespace {
 			return false;
 		}
 
-		const Engine::MaterialPassBinding* passBinding = FindPass(*material, "Blit");
+		const Engine::MaterialPassBinding* passBinding = FindPass(*material, Engine::MaterialPassKind::Blit);
 		if (!passBinding) {
-			passBinding = FindPass(*material, "Fullscreen");
+			passBinding = FindPass(*material, Engine::MaterialPassKind::Fullscreen);
 		}
 		if (!passBinding ||
 			passBinding->preferredVariant == Engine::PipelineVariantKind::Compute ||

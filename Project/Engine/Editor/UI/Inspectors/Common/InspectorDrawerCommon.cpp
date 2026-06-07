@@ -111,16 +111,21 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 	// メッシュ
 	if (world.HasComponent<MeshRendererComponent>(entity)) {
 
-		// 選択中メッシュのアウトラインはScene保存対象にしない
-		// Componentを一時追加せず、描画フレームだけのrequestとして積む
-		ScreenSpaceOutlineStyle style{};
-		style.color = Color4::FromHex(0xFF8000FF);
-		style.widthPixels = 3.0f;
+		// 選択中メッシュのアウトラインはシーン保存対象にしない
+		 ScreenSpaceOutlineStyle style{};
+		style.color = Color4::FromHex(0xF02700FF);
+		style.widthPixels = 4.0f;
 		style.priority = 300;
-		style.visibilityMode = ScreenSpaceOutlineVisibilityMode::VisibleOnly;
 		style.regionMode = ScreenSpaceOutlineRegionMode::ExteriorPreferred;
-		EditorSelectionOutlineRequestService::GetInstance().Request(
-			&world, entity, selectionSubMeshIndex, style);
+
+		/*ImGui::Begin("MeshOutlineEdit");
+
+		ImGui::ColorEdit4("color", &style.color.r);
+		ImGui::DragFloat("widthPixels", &style.widthPixels, 0.01f);
+
+		ImGui::End();*/
+
+		EditorSelectionOutlineRequestService::GetInstance().Request(&world, entity, selectionSubMeshIndex, style);
 	}
 	// スキニングアニメーション
 	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {

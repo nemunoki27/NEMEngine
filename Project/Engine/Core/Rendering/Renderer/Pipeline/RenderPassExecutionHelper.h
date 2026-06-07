@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPhase.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 
 namespace Engine {
 
@@ -31,20 +32,20 @@ namespace Engine {
 		// 描画パスの共通実行処理（リソース状態遷移、バインド、ビューポート設定、ディスパッチ）を行う
 		void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 			const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
-			RenderPhase phase, MultiRenderTarget* target, const char* drawPassName = "Draw",
+			RenderPhase phase, MultiRenderTarget* target, MaterialPassKind passKind = MaterialPassKind::Draw,
 			bool forceVertexMeshVariant = false);
 
 		// 指定されたアイテムリストを使用して描画パスを実行する
 		void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 			const std::vector<const RenderItem*>& items, const RenderPipelineDeps& deps,
-			MultiRenderTarget* target, const char* drawPassName = "Draw",
+			MultiRenderTarget* target, MaterialPassKind passKind = MaterialPassKind::Draw,
 			bool forceVertexMeshVariant = false, bool depthOnly = false);
 
 		// 色サーフェスと外部DSVを組み合わせて描画する。背面法アウトラインで
 		// SceneFinalの色とSceneMainの深度を同時にバインドするために使う
 		void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 			const std::vector<const RenderItem*>& items, const RenderPipelineDeps& deps,
-			const RenderPassSurfaceBinding& surface, const char* drawPassName = "Draw",
+			const RenderPassSurfaceBinding& surface, MaterialPassKind passKind = MaterialPassKind::Draw,
 			bool forceVertexMeshVariant = false, bool depthOnly = false);
 
 	} // RenderPassExecutionHelper

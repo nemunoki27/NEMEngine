@@ -3,7 +3,7 @@
   "domain": "Fullscreen",
   "passes": [
     {
-      "passName": "ScreenSpaceOutlineComposite",
+      "passKind": "ScreenSpaceOutlineComposite",
       "pipeline": "7c1d9a4b8e2f6023",
       "preferredVariant": "GraphicsVertex"
     }
