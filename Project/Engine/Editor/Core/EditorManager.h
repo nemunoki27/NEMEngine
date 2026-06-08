@@ -84,6 +84,9 @@ namespace Engine {
 
 		// レイアウトリセット要求
 		bool ConsumePlayToggleRequest();
+		bool ConsumePlayResumeRequest();
+		bool ConsumePlayPauseRequest();
+		bool ConsumePlayFrameStepRequest();
 		// シーン操作要求
 		EditorSceneRequest ConsumeSceneRequest();
 		// アクティブシーンを保存済み状態にする
@@ -104,6 +107,9 @@ namespace Engine {
 
 		// プレイ/ストップの切り替え要求
 		void RequestPlayToggle() override;
+		void RequestPlayResume() override;
+		void RequestPlayPause() override;
+		void RequestPlayFrameStep() override;
 		// 新規シーン作成要求
 		void RequestNewScene() override;
 		// シーンを開く要求
@@ -150,6 +156,9 @@ namespace Engine {
 		bool initialized_ = false;
 		// プレイ/ストップの切り替え要求フラグ
 		bool requestTogglePlay_ = false;
+		bool requestResumePlay_ = false;
+		bool requestPausePlay_ = false;
+		bool requestPlayFrameStep_ = false;
 		// シーン操作要求
 		EditorSceneRequest sceneRequest_{};
 		// 未保存確認後に実行するシーン操作要求

@@ -20,6 +20,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		using DrawFunc = std::function<void(const EditorToolContext&)>;
 		using TickFunc = std::function<void(ToolContext&)>;
 		using EnabledFunc = std::function<bool(const ToolContext&)>;

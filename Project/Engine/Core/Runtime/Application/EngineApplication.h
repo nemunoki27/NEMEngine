@@ -81,6 +81,8 @@ namespace Engine {
 		// エディタ管理
 		EditorManager editorManager_;
 		EditorContext editorContext_{};
+		bool playPaused_ = false;
+		bool playFrameStepRequested_ = false;
 		bool requestFrameDeltaReset_ = false;
 		bool shutdownAccepted_ = false;
 		bool closeRequestPending_ = false;
@@ -99,6 +101,10 @@ namespace Engine {
 
 		// プレイモードの切り替え
 		void HandlePlayToggle();
+		// Play中の一時停止/再開/コマ送り要求を処理する
+		void HandlePlayPauseRequests();
+		// このフレームにWorldを進行させるか
+		bool ShouldAdvanceActiveWorld() const;
 		// エディタから要求されたシーン操作を処理する
 		void HandleEditorSceneRequests();
 		// 新規シーンを作成して開く

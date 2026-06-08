@@ -277,10 +277,13 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 	// プレイモードの切り替え
 	HandlePlayToggle();
+	// Play中の一時停止、再開、1フレーム送りを処理する
+	HandlePlayPauseRequests();
 	// エディタから要求されたシーン操作
 	HandleEditorSceneRequests();
 	// Play/Stopでワールド状態が変わった後のモードを、このフレームのECS処理へ反映する
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
+	systemContext_.deltaTime = ShouldAdvanceActiveWorld() ? deltaTime : 0.0f;
 
 	ECSWorld* world = GetActiveWorld();
 	const SceneHeader* header = GetActiveSceneHeader();
@@ -299,6 +302,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 		// エディタUIとツールが参照する現在の状態をまとめる
 		editorContext_.isPlaying = worldManager_.IsPlaying();
+		editorContext_.isPlayPaused = playPaused_;
 		editorContext_.activeScenePath = activeScenePath_;
 		editorContext_.activeSceneHeader = header;
 		editorContext_.activeSceneAsset = activeSceneInstance ? activeSceneInstance->sceneAsset : activeScene_;
@@ -337,9 +341,15 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	}
 
 	// ECSシステムの更新
-	{
+	if (ShouldAdvanceActiveWorld()) {
+
 		FrameProfiler::ScopedSample ecsSample(FrameProfiler::Category::Ecs);
 		scheduler_.Tick(GetActiveWorld(), systemContext_);
+	}
+	if (playFrameStepRequested_) {
+
+		playFrameStepRequested_ = false;
+		systemContext_.deltaTime = 0.0f;
 	}
 }
 
@@ -444,15 +454,53 @@ void Engine::EngineApplication::HandlePlayToggle() {
 
 			playScenes_ = SceneInstanceManager{};
 			worldManager_.DestroyPlayWorld();
+			playPaused_ = false;
+			playFrameStepRequested_ = false;
 			return;
 		}
+		playPaused_ = false;
+		playFrameStepRequested_ = false;
 	} else {
 
 		// Stop時は実行中WorldからSchedulerを切り離して、PlayWorldを破棄する
 		scheduler_.DetachCurrentWorld(systemContext_);
 		worldManager_.DestroyPlayWorld();
 		playScenes_ = SceneInstanceManager{};
+		playPaused_ = false;
+		playFrameStepRequested_ = false;
 	}
+}
+
+void Engine::EngineApplication::HandlePlayPauseRequests() {
+
+	if constexpr (!BuildConfig::kEditorEnabled) {
+		return;
+	} else {
+
+		const bool resumeRequested = editorManager_.ConsumePlayResumeRequest();
+		const bool pauseRequested = editorManager_.ConsumePlayPauseRequest();
+		const bool frameStepRequested = editorManager_.ConsumePlayFrameStepRequest();
+
+		if (!worldManager_.IsPlaying()) {
+			playPaused_ = false;
+			playFrameStepRequested_ = false;
+			return;
+		}
+		if (resumeRequested) {
+			playPaused_ = false;
+		}
+		if (pauseRequested) {
+			playPaused_ = true;
+		}
+		if (frameStepRequested && playPaused_) {
+			playFrameStepRequested_ = true;
+		}
+	}
+}
+
+bool Engine::EngineApplication::ShouldAdvanceActiveWorld() const {
+
+	return !worldManager_.IsPlaying() || !playPaused_ || playFrameStepRequested_;
 }
 
 void Engine::EngineApplication::HandleEditorSceneRequests() {

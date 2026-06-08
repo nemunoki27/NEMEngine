@@ -25,6 +25,8 @@ namespace Engine {
 
 		// 現在プレイモードかどうか
 		bool isPlaying = false;
+		// Play中に一時停止しているかどうか
+		bool isPlayPaused = false;
 
 		// シーンのパス
 		std::string activeScenePath;

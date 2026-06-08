@@ -95,6 +95,9 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	// レイアウト構築フラグをリセット
 	initialized_ = true;
 	requestTogglePlay_ = false;
+	requestResumePlay_ = false;
+	requestPausePlay_ = false;
+	requestPlayFrameStep_ = false;
 	sceneRequest_ = {};
 	pendingSceneRequest_ = {};
 	requestOpenUnsavedPopup_ = false;
@@ -110,7 +113,7 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 
 	// 各パネルの生成と登録
 	panels_.emplace_back(std::make_unique<MenuBarPanel>());
-	panels_.emplace_back(std::make_unique<ToolbarPanel>());
+	panels_.emplace_back(std::make_unique<ToolbarPanel>(graphicsCore.GetTextureUploadService()));
 	panels_.emplace_back(std::make_unique<HierarchyPanel>(graphicsCore.GetTextureUploadService()));
 	panels_.emplace_back(std::make_unique<InspectorPanel>());
 	panels_.emplace_back(std::make_unique<ConsolePanel>());
@@ -240,6 +243,21 @@ void Engine::EditorManager::RequestPlayToggle() {
 
 	// プレイ要求フラグを立てる
 	requestTogglePlay_ = true;
+}
+
+void Engine::EditorManager::RequestPlayResume() {
+
+	requestResumePlay_ = true;
+}
+
+void Engine::EditorManager::RequestPlayPause() {
+
+	requestPausePlay_ = true;
+}
+
+void Engine::EditorManager::RequestPlayFrameStep() {
+
+	requestPlayFrameStep_ = true;
 }
 
 void Engine::EditorManager::RequestNewScene() {
@@ -825,6 +843,9 @@ void Engine::EditorManager::Finalize() {
 	imguiManager_.Finalize();
 	initialized_ = false;
 	requestTogglePlay_ = false;
+	requestResumePlay_ = false;
+	requestPausePlay_ = false;
+	requestPlayFrameStep_ = false;
 
 	for (uint32_t i = 0; i < panels_.size(); ++i) {
 		panels_[i].reset();
@@ -838,6 +859,27 @@ bool Engine::EditorManager::ConsumePlayToggleRequest() {
 
 	const bool requested = requestTogglePlay_;
 	requestTogglePlay_ = false;
+	return requested;
+}
+
+bool Engine::EditorManager::ConsumePlayResumeRequest() {
+
+	const bool requested = requestResumePlay_;
+	requestResumePlay_ = false;
+	return requested;
+}
+
+bool Engine::EditorManager::ConsumePlayPauseRequest() {
+
+	const bool requested = requestPausePlay_;
+	requestPausePlay_ = false;
+	return requested;
+}
+
+bool Engine::EditorManager::ConsumePlayFrameStepRequest() {
+
+	const bool requested = requestPlayFrameStep_;
+	requestPlayFrameStep_ = false;
 	return requested;
 }
 
