@@ -110,5 +110,7 @@ namespace Engine {
 		// localMatrixの線形部の行列式の符号。負スケール(mirror)時に-1
 		float localOrientationSign = 1.0f;
 	};
+	static_assert(sizeof(MeshSubMeshShaderData) == 288,
+		"MeshSubMeshShaderData must match HLSL SubMeshShaderData layout");
 	static_assert(sizeof(MeshSubMeshShaderData) % 16 == 0);
 } // Engine

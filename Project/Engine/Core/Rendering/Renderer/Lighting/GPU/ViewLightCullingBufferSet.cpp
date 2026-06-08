@@ -58,6 +58,10 @@ void Engine::ViewLightCullingBufferSet::Upload(
 	const bool usesClusterGrid =
 		lightCullingMode == LightCullingMode::Clustered ||
 		lightCullingMode == LightCullingMode::DebugAllLightsPerCluster;
+	const uint32_t maxLocalLightsPerCluster =
+		lightCullingMode == LightCullingMode::DebugAllLightsPerCluster ?
+		(std::max)(localLightCount_, 1u) :
+		kMaxLocalLightsPerTile;
 
 	LightCullingParamsGPU params{};
 	params.screenWidth = viewWidth;
@@ -65,7 +69,7 @@ void Engine::ViewLightCullingBufferSet::Upload(
 	params.tileSizeX = kTileSizeX;
 	params.tileSizeY = kTileSizeY;
 	params.maxLocalLightsPerTile = kMaxLocalLightsPerTile;
-	params.maxLocalLightsPerCluster = kMaxLocalLightsPerTile;
+	params.maxLocalLightsPerCluster = maxLocalLightsPerCluster;
 	params.lightCullingMode = static_cast<uint32_t>(lightCullingMode);
 	params.pointLightCount = lightSet.GetPointCount();
 	params.spotLightCount = lightSet.GetSpotCount();
@@ -101,7 +105,7 @@ void Engine::ViewLightCullingBufferSet::Upload(
 	tileCountY_ = (std::max)(DxUtils::RoundUp(viewHeight, kTileSizeY), 1u);
 	totalTileCount_ = tileCountX_ * tileCountY_;
 	totalClusterCount_ = totalTileCount_ * (usesClusterGrid ? kClusterCountZ : 1u);
-	totalIndexCount_ = totalClusterCount_ * kMaxLocalLightsPerTile;
+	totalIndexCount_ = totalClusterCount_ * (usesClusterGrid ? maxLocalLightsPerCluster : kMaxLocalLightsPerTile);
 
 	// UAVバッファの必要容量を確保
 	tileLightGrid_.EnsureCapacity(totalClusterCount_);

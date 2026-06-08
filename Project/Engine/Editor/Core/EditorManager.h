@@ -10,6 +10,7 @@
 #include <Engine/Core/Rendering/Renderer/Views/SceneViewCameraController.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshPicker.h>
+#include <Engine/Core/Rendering/Renderer/SceneComponentOverlay/SceneComponentOverlayPicker.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 
@@ -173,6 +174,7 @@ namespace Engine {
 
 		// シーンビューのメッシュピック処理
 		std::unique_ptr<MeshSubMeshPicker> meshSubMeshPicker_{};
+		SceneComponentOverlayPicker sceneComponentOverlayPicker_{};
 
 		//--------- functions ----------------------------------------------------
 

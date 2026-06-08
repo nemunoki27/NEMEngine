@@ -145,7 +145,7 @@ namespace {
 
 		const Engine::Vector3 scale = AbsVector(ExtractWorldScale(transform));
 		const float radius = shape.radius * (std::max)({ scale.x, scale.y, scale.z });
-		renderer->DrawSphere(MakeWorldCenter(shape, transform), radius, color, 8, thickness);
+		renderer->DrawSphere(MakeWorldCenter(shape, transform), radius, color, thickness);
 	}
 
 	// AABB3Dを描画する

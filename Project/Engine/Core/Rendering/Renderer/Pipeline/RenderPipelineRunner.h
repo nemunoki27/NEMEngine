@@ -87,6 +87,8 @@ namespace Engine {
 		bool disableInlineRayTracing = false;
 		// エディターピック用に、描画Raytracing設定とは独立してTLASだけを構築する
 		bool requireRaytracingSceneForEditorPicking = false;
+		// 実エディターSceneViewの表示結果にだけSceneComponentOverlayを重ねる
+		bool allowSceneComponentOverlay = false;
 		// ツールプレビューではVertex版のGraphics Variantを優先する
 		bool forceVertexMeshVariant = false;
 		// ECSワールドとシステムコンテキスト

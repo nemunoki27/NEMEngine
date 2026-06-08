@@ -48,6 +48,10 @@ namespace Engine {
 		template <typename T>
 		void DrawCone(const Vector3& center, float baseRadius, float topRadius, float height,
 			const T& rotation, const Color4& color, uint32_t division = 8, float thickness = 1.0f);
+		// 円柱と円錐で構成した方向矢印を描画
+		template <typename T>
+		void DrawArrow(const Vector3& pos, float length, const T& rotation,
+			const Color4& color, float thickness = 1.0f);
 
 		// 軸を描画(X軸(赤)Y軸(青)Z軸(緑))
 		template <typename T>
@@ -57,9 +61,6 @@ namespace Engine {
 		// カメラのフラスタムを描画
 		void DrawCameraFrustum(const Matrix4x4& viewMatrix, float aspectRatio, float nearClip,
 			float farClip, float fovY, float scale, const Color4& color, float thickness = 1.0f);
-		// スポットライトのフラスタムを描画
-		void DrawSpotLightFrustum(const Vector3& pos, const Vector3& direction, float distance, float cosAngle,
-			float cosFalloffStart, const Color4& color, uint32_t division = 16, float thickness = 1.0f);
 	private:
 		//============================================================================
 		//	private Methods
@@ -220,6 +221,78 @@ namespace Engine {
 
 			// 側面の描画
 			DrawLine(baseA, topA, color, thickness);
+		}
+	}
+
+	template<typename T>
+	inline void LineRenderer3D::DrawArrow(const Vector3& pos, float length, const T& rotation,
+		const Color4& color, float thickness) {
+
+		if (length <= 0.0f) {
+			return;
+		}
+
+		constexpr uint32_t kDivision = 16;
+		constexpr uint32_t kAxisCount = 4;
+		const float shaftLength = length * 0.72f;
+		const float shaftRadius = length * 0.035f;
+		const float headRadius = length * 0.11f;
+
+		Matrix4x4 rotationMatrix = Matrix4x4::Identity();
+		if constexpr (std::is_same_v<T, Vector3>) {
+
+			rotationMatrix = Matrix4x4::MakeRotateMatrix(rotation);
+		} else if constexpr (std::is_same_v<T, Quaternion>) {
+
+			rotationMatrix = Quaternion::MakeRotateMatrix(rotation);
+		} else if constexpr (std::is_same_v<T, Matrix4x4>) {
+
+			rotationMatrix = rotation;
+		}
+
+		const Vector3 right = Vector3::NormalizeOr(
+			Vector3::TransferNormal(Vector3(1.0f, 0.0f, 0.0f), rotationMatrix),
+			Vector3(1.0f, 0.0f, 0.0f));
+		const Vector3 up = Vector3::NormalizeOr(
+			Vector3::TransferNormal(Vector3(0.0f, 1.0f, 0.0f), rotationMatrix),
+			Vector3(0.0f, 1.0f, 0.0f));
+		const Vector3 forward = Vector3::NormalizeOr(
+			Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), rotationMatrix),
+			Vector3(0.0f, 0.0f, 1.0f));
+
+		auto makePoint = [&](float y, float radius, float angle) {
+
+			return pos + up * y + right * (std::cos(angle) * radius) + forward * (std::sin(angle) * radius);
+			};
+
+		// 円柱部は上下の輪郭円と主要4軸の側面線だけを描く
+		const float kEvery = 2.0f * Math::pi / static_cast<float>(kDivision);
+		for (uint32_t i = 0; i < kDivision; ++i) {
+
+			const float angle0 = kEvery * static_cast<float>(i);
+			const float angle1 = kEvery * static_cast<float>(i + 1);
+			DrawLine(makePoint(0.0f, shaftRadius, angle0), makePoint(0.0f, shaftRadius, angle1), color, thickness);
+			DrawLine(makePoint(shaftLength, shaftRadius, angle0), makePoint(shaftLength, shaftRadius, angle1), color, thickness);
+		}
+
+		for (uint32_t i = 0; i < kAxisCount; ++i) {
+
+			const float angle = (2.0f * Math::pi / static_cast<float>(kAxisCount)) * static_cast<float>(i);
+			DrawLine(makePoint(0.0f, shaftRadius, angle), makePoint(shaftLength, shaftRadius, angle), color, thickness);
+		}
+
+		// 先端の円錐部もベース円と主要4軸だけを描く
+		const Vector3 tip = pos + up * length;
+		for (uint32_t i = 0; i < kDivision; ++i) {
+
+			const float angle0 = kEvery * static_cast<float>(i);
+			const float angle1 = kEvery * static_cast<float>(i + 1);
+			DrawLine(makePoint(shaftLength, headRadius, angle0), makePoint(shaftLength, headRadius, angle1), color, thickness);
+		}
+		for (uint32_t i = 0; i < kAxisCount; ++i) {
+
+			const float angle = (2.0f * Math::pi / static_cast<float>(kAxisCount)) * static_cast<float>(i);
+			DrawLine(makePoint(shaftLength, headRadius, angle), tip, color, thickness);
 		}
 	}
 

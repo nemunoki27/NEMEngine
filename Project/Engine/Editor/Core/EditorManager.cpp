@@ -554,6 +554,16 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 				return false;
 			}
 
+			// SceneView専用Overlayは通常2D/TLASより優先してEntity単位で選択する
+			if (viewKind == RenderViewKind::Scene) {
+				Entity overlayHit = Entity::Null();
+				if (sceneComponentOverlayPicker_.Pick(context.activeWorld,
+					renderPipeline.GetResolvedView(viewKind), mousePosInView.value(), overlayHit)) {
+					editorState_.SelectFromScenePick(overlayHit, 0);
+					return true;
+				}
+			}
+
 			// 2Dエンティティのピック処理を優先実行
 			Entity hitEntity2D = Execute2DPick(mousePosInView.value(), renderPipeline.GetResolvedView(viewKind), context.activeWorld);
 			if (hitEntity2D.IsValid()) {

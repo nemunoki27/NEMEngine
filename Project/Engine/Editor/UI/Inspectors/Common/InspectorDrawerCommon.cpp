@@ -6,6 +6,7 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
@@ -135,23 +136,29 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 		// スケルトンのジョイントを描画
 		renderer3D->DrawSkeleton(transform.worldMatrix, animation.runtimeSkeleton);
 	}
-	// 点光源
-	if (world.HasComponent<PointLightComponent>(entity)) {
+	// 平行光源
+	if (world.HasComponent<DirectionalLightComponent>(entity)) {
 
-		auto& pointLight = world.GetComponent<PointLightComponent>(entity);
+		auto& directionalLight = world.GetComponent<DirectionalLightComponent>(entity);
+		const Vector3 direction =
+			LightExtract::GetWorldDirection(directionalLight.direction, transform.worldMatrix);
+		const Quaternion rotation = Quaternion::FromToY(direction);
 
-		// 点光源の影響範囲を描画
-		renderer3D->DrawSphere(transform.worldMatrix.GetTranslationValue(), pointLight.radius, pointLight.color, 1.0f);
+		// DirectionalLightの向きを矢印で表示する
+		renderer3D->DrawArrow(transform.worldMatrix.GetTranslationValue(), 4.0f,
+			rotation, directionalLight.color, 1.0f);
 	}
 	// スポットライト
 	if (world.HasComponent<SpotLightComponent>(entity)) {
 
 		auto& spotLight = world.GetComponent<SpotLightComponent>(entity);
+		const Vector3 direction =
+			LightExtract::GetWorldDirection(spotLight.direction, transform.worldMatrix);
+		const Quaternion rotation = Quaternion::FromToY(direction);
 
-		// スポットライトの影響範囲を描画
-		renderer3D->DrawSpotLightFrustum(transform.worldMatrix.GetTranslationValue(),
-			LightExtract::GetWorldDirection(spotLight.direction, transform.worldMatrix),
-			spotLight.distance, spotLight.cosAngle, spotLight.cosFalloffStart, spotLight.color);
+		// SpotLightの向きを矢印で表示する
+		renderer3D->DrawArrow(transform.worldMatrix.GetTranslationValue(), 4.0f,
+			rotation, spotLight.color, 1.0f);
 	}
 #else
 	// Releaseではエディター用のデバッグライン描画を持たない

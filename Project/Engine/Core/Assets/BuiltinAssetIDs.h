@@ -35,4 +35,12 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x7c1d9a4b8e2f6021ull };
 		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x7c1d9a4b8e2f6023ull };
 	}
+
+	namespace EditorTextures {
+
+		inline constexpr AssetID DirectionalLightIcon{ 0xa0e16f0b78050650ull };
+		inline constexpr AssetID PointLightIcon{ 0x235683763b017d5full };
+		inline constexpr AssetID SpotLightIcon{ 0xc6fc55af5732810eull };
+		inline constexpr AssetID PerspectiveCameraIcon{ 0x3dca1ce7a4f02931ull };
+	}
 }
