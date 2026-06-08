@@ -87,6 +87,8 @@ namespace Engine {
 
 		// ピッキング機能のオン/オフ
 		bool enableScenePick = true;
+		// SceneViewのデフォルトグリッド表示
+		bool drawSceneViewDefaultGrid = false;
 		// シーンビューのマニピュレーター選択状態
 		SceneViewManipulatorMode sceneViewManipulatorMode = SceneViewManipulatorMode::Translate;
 		// ギズモを使用中か

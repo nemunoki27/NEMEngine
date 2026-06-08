@@ -32,7 +32,12 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <algorithm>
+#include <filesystem>
+#include <optional>
 
 // imgui
 #include <ImGuizmo.h>
@@ -49,6 +54,7 @@ namespace {
 	constexpr const char* kCloseUnsavedScenePopupName = "シーン未保存通知##CloseApplication";
 	// ImGuiのレイアウト保存ファイルパス
 	constexpr const char* kEditorLayoutIniPath = "EditorLayout.ini";
+	constexpr const char* kViewportPanelStateConfigPath = "Config/viewportPanel.exeConfig.json";
 
 	bool IsHidePanelsShortcutTriggered() {
 
@@ -66,6 +72,18 @@ namespace {
 		const bool triggered = shortcutDown && !wasShortcutDown;
 		wasShortcutDown = shortcutDown;
 		return triggered;
+	}
+
+	template <typename Enum>
+	void LoadEnumValue(const nlohmann::json& data, const char* key, Enum& value) {
+
+		if (!data.contains(key) || !data[key].is_string()) {
+			return;
+		}
+
+		if (std::optional<Enum> loaded = Engine::EnumAdapter<Enum>::FromString(data[key].get<std::string>())) {
+			value = loaded.value();
+		}
 	}
 }
 
@@ -110,6 +128,7 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	// シーンビューカメラツールを取得
 	sceneViewCameraController_ = static_cast<SceneViewCameraController*>(
 		Engine::ToolRegistry::GetInstance().Find("engine.sceneViewCamera"));
+	LoadViewportPanelState();
 
 	// 各パネルの生成と登録
 	panels_.emplace_back(std::make_unique<MenuBarPanel>());
@@ -831,6 +850,47 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 	sceneViewCameraController_->Update(editorState_.manualCameraDimension, InputViewArea::Scene);
 }
 
+void Engine::EditorManager::LoadViewportPanelState() {
+
+	const std::filesystem::path configPath = RuntimePaths::GetEngineAssetPath(kViewportPanelStateConfigPath);
+	if (!JsonAdapter::Check(configPath.string(), false)) {
+		return;
+	}
+
+	const nlohmann::json data = JsonAdapter::Load(configPath.string(), false);
+	if (!data.is_object() || !data.contains("sceneView") || !data["sceneView"].is_object()) {
+		return;
+	}
+
+	const nlohmann::json& sceneView = data["sceneView"];
+	if (sceneView.contains("drawDefaultGrid") && sceneView["drawDefaultGrid"].is_boolean()) {
+		editorState_.drawSceneViewDefaultGrid = sceneView["drawDefaultGrid"].get<bool>();
+	}
+
+	LoadEnumValue(sceneView, "manipulatorMode", editorState_.sceneViewManipulatorMode);
+	LoadEnumValue(sceneView, "cameraMode", editorState_.sceneViewCamera.mode);
+	LoadEnumValue(sceneView, "manualCameraDimension", editorState_.manualCameraDimension);
+
+	// 実体参照は起動時に持ち越さない。モードだけを復元し、カメラ指定は現在のシーンで選び直す
+	editorState_.sceneViewCamera.ClearAssignedCameras();
+	editorState_.ClearSelection();
+}
+
+void Engine::EditorManager::SaveViewportPanelState() const {
+
+	nlohmann::json sceneView = nlohmann::json::object();
+	sceneView["drawDefaultGrid"] = editorState_.drawSceneViewDefaultGrid;
+	sceneView["manipulatorMode"] = EnumAdapter<SceneViewManipulatorMode>::ToString(editorState_.sceneViewManipulatorMode);
+	sceneView["cameraMode"] = EnumAdapter<SceneViewCameraMode>::ToString(editorState_.sceneViewCamera.mode);
+	sceneView["manualCameraDimension"] = EnumAdapter<Dimension>::ToString(editorState_.manualCameraDimension);
+
+	nlohmann::json data = nlohmann::json::object();
+	data["sceneView"] = sceneView;
+
+	const std::filesystem::path configPath = RuntimePaths::GetEngineAssetPath(kViewportPanelStateConfigPath);
+	JsonAdapter::Save(configPath.string(), data);
+}
+
 void Engine::EditorManager::Finalize() {
 
 	if (!initialized_) {
@@ -839,6 +899,7 @@ void Engine::EditorManager::Finalize() {
 
 	// レイアウトを保存
 	ImGui::SaveIniSettingsToDisk(kEditorLayoutIniPath);
+	SaveViewportPanelState();
 
 	imguiManager_.Finalize();
 	initialized_ = false;

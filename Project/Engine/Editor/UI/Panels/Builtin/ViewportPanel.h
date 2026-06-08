@@ -79,6 +79,7 @@ namespace Engine {
 			std::string entityCameraKey;
 			std::string manualCamera2DKey;
 			std::string manualCamera3DKey;
+			std::string drawGridKey;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -117,6 +118,7 @@ namespace Engine {
 		bool DrawIconButton(const char* id, ImTextureID textureID, bool active, const ImVec2& size) const;
 		void DrawCameraSection(const EditorPanelContext& context);
 		void DrawManipulatorSection(const EditorPanelContext& context);
+		void DrawGridSection(const EditorPanelContext& context);
 		void DrawEntityCameraPopup(const EditorPanelContext& context);
 	};
 } // Engine

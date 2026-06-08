@@ -218,6 +218,7 @@ Engine::ViewportPanel::ViewportPanel(const char* windowName, const char* label, 
 	icons_.subMeshSelectKey = "subMeshSelect.dds";
 	icons_.manualCamera2DKey = "sceneCameraMode2D.dds";
 	icons_.manualCamera3DKey = "sceneCameraMode3D.dds";
+	icons_.drawGridKey = "enabeDrawGrid.png";
 
 	// アイコンの読み込み要求
 	RequestIcons();
@@ -286,12 +287,22 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		// シーンビューの場合は左側にツールボタンを表示
 		if (kind_ == ViewportPanelKind::Scene) {
 
+			const float toolColumnTopY = ImGui::GetCursorPosY();
+			const float toolColumnHeight = ImGui::GetContentRegionAvail().y;
 			ImGui::BeginGroup();
 			DrawManipulatorSection(context);
 			ImGui::Spacing();
 			ImGui::Separator();
 			ImGui::Spacing();
 			DrawCameraSection(context);
+			const float usedToolColumnHeight = ImGui::GetCursorPosY() - toolColumnTopY;
+			const float gridButtonReserve = buttonSize_.y + ImGui::GetStyle().ItemSpacing.y;
+			const float bottomSpacer = toolColumnHeight - usedToolColumnHeight - gridButtonReserve;
+			if (0.0f < bottomSpacer) {
+
+				ImGui::Dummy(ImVec2(1.0f, bottomSpacer));
+			}
+			DrawGridSection(context);
 			DrawEntityCameraPopup(context);
 			ImGui::EndGroup();
 			ImGui::SameLine();
@@ -481,6 +492,8 @@ void Engine::ViewportPanel::RequestIcons() {
 		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.manualCamera2DKey));
 	textureUploadService_->RequestTextureFile(icons_.manualCamera3DKey,
 		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.manualCamera3DKey));
+	textureUploadService_->RequestTextureFile(icons_.drawGridKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.drawGridKey));
 }
 
 ImTextureID Engine::ViewportPanel::GetTextureID(const std::string& key) const {
@@ -609,6 +622,25 @@ void Engine::ViewportPanel::DrawManipulatorSection(const EditorPanelContext& con
 
 		std::string tooltip = std::string("選択対象の切り替え\n現在の対象: ") +
 			(kind == EditorSelectionKind::Entity ? "エンティティ単位" : "サブメッシュ単位");
+		ImGui::SetTooltip("%s", tooltip.c_str());
+	}
+}
+
+void Engine::ViewportPanel::DrawGridSection(const EditorPanelContext& context) {
+
+	if (!context.editorState) {
+		return;
+	}
+
+	if (DrawIconButton("##SceneViewDefaultGrid", GetTextureID(icons_.drawGridKey),
+		context.editorState->drawSceneViewDefaultGrid, buttonSize_)) {
+
+		context.editorState->drawSceneViewDefaultGrid = !context.editorState->drawSceneViewDefaultGrid;
+	}
+	if (ImGui::IsItemHovered()) {
+
+		std::string tooltip = std::string("SceneViewグリッド表示\n現在の状態: ") +
+			(context.editorState->drawSceneViewDefaultGrid ? "有効" : "無効");
 		ImGui::SetTooltip("%s", tooltip.c_str());
 	}
 }

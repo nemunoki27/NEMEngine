@@ -956,64 +956,6 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 8
-                },
-                "Name": {
-                    "name": "Sprite"
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileID": "91d394f21f1c7630",
-                    "visibilityLayerMask": 4294967295
-                },
-                "SpriteRenderer": {
-                    "blendMode": "Normal",
-                    "color": {
-                        "a": 0.28999999165534973,
-                        "b": 1.0,
-                        "g": 1.0,
-                        "r": 1.0
-                    },
-                    "layer": 0,
-                    "material": "",
-                    "order": 0,
-                    "pivot": {
-                        "x": 0.5,
-                        "y": 0.5
-                    },
-                    "queue": "ScreenUI",
-                    "size": {
-                        "x": 32.0,
-                        "y": 32.0
-                    },
-                    "texture": "447d5b4a4a7fec3d",
-                    "visible": true
-                },
-                "Transform": {
-                    "localPos": {
-                        "x": 1784.760986328125,
-                        "y": 943.80859375,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 7.659998416900635,
-                        "y": 7.659998416900635,
-                        "z": 10.910004615783691
-                    }
-                }
-            },
-            "LocalFileID": "91d394f21f1c7630"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
                     "siblingOrder": 7
                 },
                 "MeshRenderer": {

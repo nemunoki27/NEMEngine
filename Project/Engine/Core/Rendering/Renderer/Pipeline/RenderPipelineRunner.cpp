@@ -493,6 +493,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.systemContext = request.systemContext;
 	context.assetDatabase = request.assetDatabase;
 	context.requireRaytracingSceneForEditorPicking = request.requireRaytracingSceneForEditorPicking;
+	context.drawSceneViewDefaultGrid = request.drawSceneViewDefaultGrid;
 	context.allowSceneComponentOverlay = (kind == RenderViewKind::Scene);
 	context.lightCullingBufferSet = (kind == RenderViewKind::Game || !gameView_.valid) ?
 		((kind == RenderViewKind::Game) ? &gameViewLightCullingBuffers_ : &sceneViewLightCullingBuffers_) :

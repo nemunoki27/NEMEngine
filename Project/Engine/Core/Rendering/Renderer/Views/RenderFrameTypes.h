@@ -72,6 +72,8 @@ namespace Engine {
 
 		// Debug/Developのエディターピック用に、描画Raytracing設定とは独立してTLASを作る
 		bool requireRaytracingSceneForEditorPicking = false;
+		// SceneViewのデフォルトグリッドを描画する
+		bool drawSceneViewDefaultGrid = false;
 
 		// ビューを種類から検索
 		const RenderViewRequest* FindView(RenderViewKind kind) const;

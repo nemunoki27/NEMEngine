@@ -138,6 +138,7 @@ namespace Engine {
 		ManualRenderCameraState& GetSceneViewCameraState() { return sceneViewCameraController_->GetCameraState(); }
 		const SceneViewCameraSelection& GetSceneViewCameraSelection() const { return editorState_.sceneViewCamera; }
 		SceneViewCameraSelection& GetSceneViewCameraSelection() { return editorState_.sceneViewCamera; }
+		bool ShouldDrawSceneViewDefaultGrid() const { return editorState_.drawSceneViewDefaultGrid; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -212,6 +213,9 @@ namespace Engine {
 		void DrawPanelsByPhase(const EditorPanelContext& context, EditorPanelPhase phase);
 		// シーンビューのマニュアルカメラを更新する
 		void UpdateSceneViewManualCamera();
+		// ViewportPanelの表示状態を保存、復元する
+		void LoadViewportPanelState();
+		void SaveViewportPanelState() const;
 	};
 } // Engine
 

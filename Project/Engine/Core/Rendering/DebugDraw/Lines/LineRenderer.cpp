@@ -60,7 +60,7 @@ void Engine::LineRenderer::RenderSceneView(GraphicsCore& graphicsCore,
 	if (drawDefaultGrid) {
 
 		// SceneViewのデフォルトグリッドは、SceneView側のカメラで直接描画
-		//renderer3D_->RenderDefaultGrid(graphicsCore, view, surface);
+		renderer3D_->RenderDefaultGrid(graphicsCore, view, surface);
 	}
 
 	// 各次元のライン描画クラスに描画呼び出し

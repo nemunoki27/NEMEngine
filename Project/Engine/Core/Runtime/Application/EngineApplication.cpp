@@ -209,6 +209,7 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 			showSceneView = layout.showSceneView;
 			sceneViewCameraSelection = editorManager_.GetSceneViewCameraSelection();
 			manualSceneCamera = editorManager_.GetSceneViewCameraState();
+			request.drawSceneViewDefaultGrid = editorManager_.ShouldDrawSceneViewDefaultGrid();
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 			request.requireRaytracingSceneForEditorPicking =
 				graphicsCore.GetDXObject().GetFeatureController().GetSupport().SupportsRayTracingPath();
