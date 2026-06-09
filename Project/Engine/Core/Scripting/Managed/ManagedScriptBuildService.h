@@ -109,7 +109,10 @@ namespace Engine {
 			double stagingMs = 0.0;
 			double shadowCopyMs = 0.0;
 			double loadMs = 0.0;
+			double manifestMs = 0.0;
 			bool artifactValid = false;
+			// Script Manifest の生成と検証に成功したか（load前に必須）
+			bool manifestValid = false;
 			bool fallbackUsed = false;
 		};
 
@@ -124,6 +127,9 @@ namespace Engine {
 
 		// staging への dotnet build を開始する
 		bool StartBuild(bool forPlay);
+		// --no-dependencies build に必要な前提成果物(NEM.ScriptCore.dll / NEM.ScriptCodeGen.dll)を検証する。
+		// 不足していれば false を返し、不足パスと再ビルド手順をログへ出す（process は起動しない）。
+		bool VerifyBuildPrerequisites() const;
 		// build 完了処理（staging 検証 → shadow copy）
 		void OnBuildFinished();
 		// shadow copy から reload を適用する
@@ -173,6 +179,13 @@ namespace Engine {
 		bool currentForPlay_ = false;
 		std::chrono::steady_clock::time_point buildStartTime_{};
 		ReloadDiagnostics diagnostics_{};
+
+		// build failure 診断用に直近 build の情報を保持する（engine.log へ要約を残すため）。
+		// stdout/stderr の全文は gameLogic.log 側にある。
+		std::string lastBuildCommandUtf8_;
+		std::filesystem::path lastBuildWorkingDir_;
+		std::string firstErrorLine_;
+		std::string lastErrorLine_;
 
 		// Play gate
 		bool playBuildRequested_ = false;

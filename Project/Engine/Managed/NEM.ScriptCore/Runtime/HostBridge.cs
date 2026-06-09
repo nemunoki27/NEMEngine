@@ -18,6 +18,12 @@ public static unsafe class HostBridge {
     private const int MaxNameBytes = 128;
     // C++側へ渡す初期値JSONの最大バイト数
     private const int MaxJsonBytes = 512;
+    // ManagedScriptTypeDescriptor の固定長フィールド（C++側と一致させる）
+    private const int ScriptTypeIdBytes = 40;
+    private const int FullTypeNameBytes = 256;
+    private const int SourcePathBytes = 260;
+    // manifest schema version
+    private const int ManifestSchemaVersion = 1;
 
     // public fieldをJSONへ含めるための共通設定
     private static readonly JsonSerializerOptions jsonOptions = new() {
@@ -42,11 +48,23 @@ public static unsafe class HostBridge {
     private static readonly List<ScriptInstanceSlot> slots = new();
     private static readonly Stack<uint> freeSlots = new();
 
-    // 現在ロード中のゲームDLLに含まれるScriptBehaviour派生型一覧
-    private static readonly List<Type> scriptTypes = new();
-    // type nameからScriptBehaviour派生型を引くためのキャッシュ
-    private static readonly Dictionary<string, Type> scriptTypeLookup = new(StringComparer.Ordinal);
-    // type nameごとのInspector表示フィールド情報キャッシュ
+    // 1 つの concrete ScriptBehaviour 型の登録情報（Stable GUID 主キー）
+    private sealed class ScriptTypeEntry {
+
+        internal string scriptTypeId = string.Empty;   // 正規化済み GUID
+        internal Type type = null!;
+        internal string fullTypeName = string.Empty;
+        internal string displayName = string.Empty;
+        internal string sourcePath = string.Empty;
+        internal bool hasExplicitId;
+        internal string[] formerlyKnown = Array.Empty<string>();
+    }
+
+    // 現在ロード中のゲームDLLの ScriptBehaviour 型一覧（native へは CopyScriptTypeInfo で順次渡す）
+    private static readonly List<ScriptTypeEntry> scriptTypeEntries = new();
+    // Stable GUID -> entry（instance 作成・field 取得の解決に使う）
+    private static readonly Dictionary<string, ScriptTypeEntry> guidToEntry = new(StringComparer.Ordinal);
+    // Stable GUID ごとのInspector表示フィールド情報キャッシュ
     private static readonly Dictionary<string, List<SerializedFieldInfo>> fieldCache = new();
 
     // ゲーム側スクリプトDLL
@@ -111,7 +129,7 @@ public static unsafe class HostBridge {
                 RebuildScriptTypes();
                 // 新しい assembly の寿命を開始する（unload 前に停止/解放するための起点）
                 ScriptRuntimeLifetime.BeginAssemblyLifetime();
-                NativeApi.WriteLog(0, $"Loaded GameScripts: {path}, scriptTypes={scriptTypes.Count}");
+                NativeApi.WriteLog(0, $"Loaded GameScripts: {path}, scriptTypes={scriptTypeEntries.Count}");
                 return ManagedStatus.Ok;
             }
             catch (Exception ex) {
@@ -138,56 +156,55 @@ public static unsafe class HostBridge {
             if (outCount == null) {
                 return ManagedStatus.InvalidArgument;
             }
-            *outCount = scriptTypes.Count;
+            *outCount = scriptTypeEntries.Count;
             return ManagedStatus.Ok;
         });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int CopyScriptTypeName(int index, byte* buffer, int capacity, int* outWritten) {
+    public static int CopyScriptTypeInfo(int index, NativeScriptTypeInfo* outInfo) {
 
-        return (int)Guard(nameof(CopyScriptTypeName), () => {
+        return (int)Guard(nameof(CopyScriptTypeInfo), () => {
 
-            if (outWritten != null) {
-                *outWritten = 0;
-            }
-            // C++側の固定長バッファへtype nameをコピーする
-            if (index < 0 || scriptTypes.Count <= index || buffer == null || capacity <= 0) {
+            if (index < 0 || scriptTypeEntries.Count <= index || outInfo == null) {
                 return ManagedStatus.InvalidArgument;
             }
-            int written = CopyString(scriptTypes[index].FullName ?? scriptTypes[index].Name, buffer, capacity);
-            if (outWritten != null) {
-                *outWritten = written;
-            }
+            ScriptTypeEntry entry = scriptTypeEntries[index];
+
+            // native registry へ Stable GUID と表示用情報・source path を渡す
+            CopyFixed(entry.scriptTypeId, outInfo->scriptTypeId, ScriptTypeIdBytes);
+            CopyFixed(entry.fullTypeName, outInfo->fullTypeName, FullTypeNameBytes);
+            CopyFixed(entry.displayName, outInfo->displayName, MaxNameBytes);
+            CopyFixed(entry.sourcePath, outInfo->sourcePath, SourcePathBytes);
+            outInfo->hasExplicitId = entry.hasExplicitId ? 1 : 0;
             return ManagedStatus.Ok;
         });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int GetSerializedFieldCount(byte* typeName, int* outCount) {
+    public static int GetSerializedFieldCount(byte* scriptTypeId, int* outCount) {
 
         return (int)Guard(nameof(GetSerializedFieldCount), () => {
             if (outCount == null) {
                 return ManagedStatus.InvalidArgument;
             }
-            Type? type = FindScriptType(PtrToString(typeName));
-            *outCount = type == null ? 0 : GetSerializedFields(type).Count;
+            *outCount = TryGetEntry(PtrToString(scriptTypeId), out ScriptTypeEntry entry)
+                ? GetSerializedFields(entry.type).Count : 0;
             return ManagedStatus.Ok;
         });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int CopySerializedFieldInfo(byte* typeName, int index, NativeSerializedFieldInfo* outInfo) {
+    public static int CopySerializedFieldInfo(byte* scriptTypeId, int index, NativeSerializedFieldInfo* outInfo) {
 
         return (int)Guard(nameof(CopySerializedFieldInfo), () => {
 
             // C++ Inspectorが描画できるよう、フィールド名・型・初期値だけを固定長ABIで返す
-            Type? type = FindScriptType(PtrToString(typeName));
-            if (type == null || outInfo == null) {
+            if (outInfo == null || !TryGetEntry(PtrToString(scriptTypeId), out ScriptTypeEntry entry)) {
                 return ManagedStatus.InvalidArgument;
             }
 
-            List<SerializedFieldInfo> fields = GetSerializedFields(type);
+            List<SerializedFieldInfo> fields = GetSerializedFields(entry.type);
             if (index < 0 || fields.Count <= index) {
                 return ManagedStatus.InvalidArgument;
             }
@@ -207,7 +224,7 @@ public static unsafe class HostBridge {
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int CreateInstance(byte* typeName, NativeEntity entity, byte* serializedJson, NativeScriptInstanceHandle* outHandle) {
+    public static int CreateInstance(byte* scriptTypeId, NativeEntity entity, byte* serializedJson, NativeScriptInstanceHandle* outHandle) {
 
         return (int)Guard(nameof(CreateInstance), () => {
 
@@ -216,13 +233,12 @@ public static unsafe class HostBridge {
             }
             *outHandle = NativeScriptInstanceHandle.Null;
 
-            // ECSのEntity参照を持つScriptBehaviourを生成し、Inspector保存値を適用する
-            Type? type = FindScriptType(PtrToString(typeName));
-            if (type == null) {
+            // Stable GUID から型を解決し、ECSのEntity参照を持つScriptBehaviourを生成する
+            if (!TryGetEntry(PtrToString(scriptTypeId), out ScriptTypeEntry entry)) {
                 return ManagedStatus.InvalidArgument;
             }
 
-            if (Activator.CreateInstance(type) is not ScriptBehaviour script) {
+            if (Activator.CreateInstance(entry.type) is not ScriptBehaviour script) {
                 return ManagedStatus.InternalError;
             }
 
@@ -232,6 +248,23 @@ public static unsafe class HostBridge {
             // 世代付きhandleを発行する。C++側はこのhandleを保持して以後のイベント呼び出しに使う
             *outHandle = AllocateSlot(script);
             return ManagedStatus.Ok;
+        });
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int GenerateScriptManifest(byte* assemblyPath, byte* manifestOutputPath) {
+
+        // build/reload 時のみ。対象 DLL を一時 collectible ALC（default ALC 非汚染）で反射して
+        // Script Type GUID / fullTypeName / sourcePath を集め、検証して manifest JSON を出力する。
+        // 現在ロード中の assembly（gameLoadContext）には触れない＝失敗しても現行 DLL を unload しない。
+        return (int)Guard(nameof(GenerateScriptManifest), () => {
+
+            string? dll = PtrToString(assemblyPath);
+            string? outPath = PtrToString(manifestOutputPath);
+            if (string.IsNullOrEmpty(dll) || !File.Exists(dll) || string.IsNullOrEmpty(outPath)) {
+                return ManagedStatus.InvalidArgument;
+            }
+            return GenerateManifestIsolated(dll!, outPath!);
         });
     }
 
@@ -467,39 +500,243 @@ public static unsafe class HostBridge {
 
     private static void RebuildScriptTypes() {
 
-        // DLLを読み込んだ時点のScriptBehaviour派生型だけを表示対象にする
-        scriptTypes.Clear();
-        scriptTypeLookup.Clear();
+        scriptTypeEntries.Clear();
+        guidToEntry.Clear();
         fieldCache.Clear();
 
         if (gameAssembly == null) {
             return;
         }
 
-        foreach (Type type in gameAssembly.GetTypes()) {
+        // 生成 registry（GeneratedScriptManifest）を優先し、無ければ reflection へ fallback する。
+        // 生成 registry のみ sourcePath を持つため drag&drop の source 照合に必要。
+        ScriptTypeDescriptor[]? generated = TryReadGeneratedManifest(gameAssembly);
+        if (generated != null) {
 
-            // 抽象クラスやScriptBehaviour以外はC# Scriptとして扱わない
-            if (type.IsAbstract || !typeof(ScriptBehaviour).IsAssignableFrom(type)) {
-                continue;
-            }
+            foreach (ScriptTypeDescriptor descriptor in generated) {
 
-            // C++側から引数なしで生成できる型だけに限定する
-            if (type.GetConstructor(Type.EmptyTypes) == null) {
-                continue;
+                Type? type = gameAssembly.GetType(descriptor.FullTypeName, throwOnError: false);
+                if (type == null) {
+                    NativeApi.WriteLog(2, $"Generated manifest type not found in assembly: {descriptor.FullTypeName}");
+                    continue;
+                }
+                AddScriptTypeEntry(descriptor.ScriptTypeId, type, descriptor.FullTypeName,
+                    descriptor.DisplayName, descriptor.SourcePath, descriptor.HasExplicitId, descriptor.FormerlyKnownTypeNames);
             }
-            scriptTypes.Add(type);
+        } else {
+
+            // 生成 registry が無い（generator 未適用）。reflection で fallback（sourcePath なし）
+            NativeApi.WriteLog(1,
+                "GeneratedScriptManifest was not found; falling back to reflection scan " +
+                "(drag&drop source mapping is unavailable; add the NEM.ScriptCodeGen analyzer to GameScripts).");
+
+            foreach (Type type in gameAssembly.GetTypes()) {
+
+                if (type.IsAbstract || !typeof(ScriptBehaviour).IsAssignableFrom(type)) {
+                    continue;
+                }
+                if (type.GetConstructor(Type.EmptyTypes) == null) {
+                    continue;
+                }
+                string fullName = type.FullName ?? type.Name;
+                (string guid, bool explicitId) = ResolveGuidFromAttribute(type, fullName);
+                AddScriptTypeEntry(guid, type, fullName, type.Name, string.Empty, explicitId, ReadFormerlyKnown(type));
+            }
         }
-        scriptTypes.Sort((a, b) => string.CompareOrdinal(a.FullName, b.FullName));
 
-        foreach (Type type in scriptTypes) {
-            if (!string.IsNullOrEmpty(type.FullName)) {
-                scriptTypeLookup[type.FullName] = type;
-            }
-            scriptTypeLookup.TryAdd(type.Name, type);
-        }
+        // 表示・登録順を安定させる（full type name 昇順）
+        scriptTypeEntries.Sort((a, b) => string.CompareOrdinal(a.fullTypeName, b.fullTypeName));
 
-        if (scriptTypes.Count == 0) {
+        if (scriptTypeEntries.Count == 0) {
             NativeApi.WriteLog(1, "GameScripts loaded, but no ScriptBehaviour types were found.");
+        }
+    }
+
+    // 1 型分の entry を登録する。GUID 重複は warning を出して後勝ちを避ける（先勝ち維持）
+    private static void AddScriptTypeEntry(string rawGuid, Type type, string fullName, string displayName,
+        string sourcePath, bool hasExplicitId, string[] formerlyKnown) {
+
+        string? normalized = NormalizeGuid(rawGuid);
+        if (normalized == null) {
+            // 不正 GUID は決定的 fallback で救済（generator 側でも error 診断済み）
+            normalized = DeterministicGuid(fullName);
+            hasExplicitId = false;
+            NativeApi.WriteLog(2, $"Invalid Script Type GUID for '{fullName}'. Using a fallback GUID.");
+        }
+
+        if (guidToEntry.ContainsKey(normalized)) {
+
+            // 重複 GUID。最初の型を維持し、後続は登録しない（manifest validation でも検出する）
+            NativeApi.WriteLog(2,
+                $"Duplicate Script Type GUID '{normalized}' for '{fullName}'. Skipping the duplicate registration.");
+            return;
+        }
+
+        var entry = new ScriptTypeEntry {
+            scriptTypeId = normalized,
+            type = type,
+            fullTypeName = fullName,
+            displayName = string.IsNullOrEmpty(displayName) ? type.Name : displayName,
+            sourcePath = sourcePath ?? string.Empty,
+            hasExplicitId = hasExplicitId,
+            formerlyKnown = formerlyKnown ?? Array.Empty<string>(),
+        };
+        scriptTypeEntries.Add(entry);
+        guidToEntry[normalized] = entry;
+    }
+
+    // 生成 registry（GeneratedScriptManifest.GetDescriptors）を反射で読む。無ければ null
+    private static ScriptTypeDescriptor[]? TryReadGeneratedManifest(Assembly assembly) {
+
+        Type? generatedType = assembly.GetType("NEMEngine.GeneratedScriptManifest", throwOnError: false);
+        MethodInfo? method = generatedType?.GetMethod("GetDescriptors", BindingFlags.Public | BindingFlags.Static);
+        if (method == null) {
+            return null;
+        }
+        return method.Invoke(null, null) as ScriptTypeDescriptor[];
+    }
+
+    // 型から [ScriptTypeId] を読み正規化する。無ければ決定的 fallback（hasExplicit=false）
+    private static (string guid, bool hasExplicit) ResolveGuidFromAttribute(Type type, string fullName) {
+
+        ScriptTypeIdAttribute? attribute = type.GetCustomAttribute<ScriptTypeIdAttribute>(inherit: false);
+        if (attribute != null) {
+
+            string? normalized = NormalizeGuid(attribute.Value);
+            if (normalized != null) {
+                return (normalized, true);
+            }
+            NativeApi.WriteLog(2, $"Invalid [ScriptTypeId] on '{fullName}'. Using a fallback GUID.");
+            return (DeterministicGuid(fullName), false);
+        }
+        NativeApi.WriteLog(1, $"Script type '{fullName}' has no [ScriptTypeId]; using a migration fallback GUID.");
+        return (DeterministicGuid(fullName), false);
+    }
+
+    // 型から [FormerlyKnownScriptType] の旧 full type name を集める
+    private static string[] ReadFormerlyKnown(Type type) {
+
+        var names = new List<string>();
+        foreach (FormerlyKnownScriptTypeAttribute attribute in type.GetCustomAttributes<FormerlyKnownScriptTypeAttribute>(inherit: false)) {
+            if (!string.IsNullOrWhiteSpace(attribute.FullTypeName)) {
+                names.Add(attribute.FullTypeName);
+            }
+        }
+        return names.Count == 0 ? Array.Empty<string>() : names.ToArray();
+    }
+
+    //========================================================================
+    //	Script Manifest 生成（build/reload 時のみ・default ALC 非汚染）
+    //========================================================================
+
+    // manifest JSON 出力設定（読みやすい indent）
+    private static readonly JsonSerializerOptions manifestJsonOptions = new() { WriteIndented = true };
+
+    // manifest JSON schema（GameScripts.scriptmanifest.json）
+    private sealed class ManifestRoot {
+        public int schemaVersion { get; set; }
+        public string assemblyName { get; set; } = string.Empty;
+        public List<ManifestScript> scripts { get; set; } = new();
+    }
+    private sealed class ManifestScript {
+        public string scriptTypeId { get; set; } = string.Empty;
+        public string fullTypeName { get; set; } = string.Empty;
+        public string displayName { get; set; } = string.Empty;
+        public string sourcePath { get; set; } = string.Empty;
+        public string sourceAssetId { get; set; } = string.Empty;
+    }
+
+    private static ManagedStatus GenerateManifestIsolated(string dllPath, string outPath) {
+
+        string assemblyName = Path.GetFileNameWithoutExtension(dllPath);
+
+        // 一時 collectible ALC で対象 DLL を反射して manifest を組む（現行 gameLoadContext には触れない）
+        (ManifestRoot root, bool valid) = LoadAndCollectManifest(dllPath, assemblyName);
+
+        // 一時 ALC の DLL ロックを早期に解放する（直後の shadow copy のため）
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+
+        if (!valid) {
+            // GUID 不正 / 重複 → 検証失敗。呼び出し側は現行 DLL を維持する
+            return ManagedStatus.SerializationError;
+        }
+
+        try {
+            string json = JsonSerializer.Serialize(root, manifestJsonOptions);
+            File.WriteAllText(outPath, json);
+            NativeApi.WriteLog(0, $"Generated script manifest: {outPath} (assembly={assemblyName} scripts={root.scripts.Count})");
+            return ManagedStatus.Ok;
+        }
+        catch (Exception ex) {
+            NativeApi.WriteLog(2, $"Failed to write script manifest: {outPath}\n{ex}");
+            return ManagedStatus.SerializationError;
+        }
+    }
+
+    // 一時 ALC へ DLL をロードして manifest 内容を収集し、ロード解除する。
+    // strong reference を本メソッドのフレームへ閉じ込め、return 後に回収可能にする。
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (ManifestRoot root, bool valid) LoadAndCollectManifest(string dllPath, string assemblyName) {
+
+        var loadContext = new GameScriptLoadContext(dllPath);
+        try {
+            Assembly assembly = loadContext.LoadFromAssemblyPath(dllPath);
+            var root = new ManifestRoot { schemaVersion = ManifestSchemaVersion, assemblyName = assemblyName };
+            var seenGuids = new HashSet<string>(StringComparer.Ordinal);
+            bool valid = true;
+
+            void AddScript(string rawGuid, string fullName, string displayName, string sourcePath) {
+
+                string? normalized = NormalizeGuid(rawGuid);
+                if (normalized == null) {
+                    NativeApi.WriteLog(2, $"manifest: invalid Script Type GUID for '{fullName}'.");
+                    valid = false;
+                    return;
+                }
+                if (!seenGuids.Add(normalized)) {
+                    NativeApi.WriteLog(2, $"manifest: duplicate Script Type GUID '{normalized}' ('{fullName}').");
+                    valid = false;
+                    return;
+                }
+                root.scripts.Add(new ManifestScript {
+                    scriptTypeId = normalized,
+                    fullTypeName = fullName,
+                    displayName = string.IsNullOrEmpty(displayName) ? fullName : displayName,
+                    sourcePath = sourcePath ?? string.Empty,
+                    sourceAssetId = string.Empty,
+                });
+            }
+
+            // 生成 registry 優先（sourcePath 付き）→ 無ければ reflection
+            ScriptTypeDescriptor[]? generated = TryReadGeneratedManifest(assembly);
+            if (generated != null) {
+                foreach (ScriptTypeDescriptor descriptor in generated) {
+                    AddScript(descriptor.ScriptTypeId, descriptor.FullTypeName, descriptor.DisplayName, descriptor.SourcePath);
+                }
+            } else {
+                foreach (Type type in assembly.GetTypes()) {
+                    if (type.IsAbstract || !typeof(ScriptBehaviour).IsAssignableFrom(type)) {
+                        continue;
+                    }
+                    if (type.GetConstructor(Type.EmptyTypes) == null) {
+                        continue;
+                    }
+                    string fullName = type.FullName ?? type.Name;
+                    (string guid, _) = ResolveGuidFromAttribute(type, fullName);
+                    AddScript(guid, fullName, type.Name, string.Empty);
+                }
+            }
+
+            root.scripts.Sort((a, b) => string.CompareOrdinal(a.fullTypeName, b.fullTypeName));
+            return (root, valid);
+        }
+        catch (Exception ex) {
+            NativeApi.WriteLog(2, $"manifest: failed to inspect assembly '{dllPath}'\n{ex}");
+            return (new ManifestRoot { schemaVersion = ManifestSchemaVersion, assemblyName = assemblyName }, false);
+        }
+        finally {
+            loadContext.Unload();
         }
     }
 
@@ -556,8 +793,8 @@ public static unsafe class HostBridge {
         // slot配列はclearせず全slotをreleaseしてgenerationを進める。
         // generation履歴を保つことで、reload前のhandleがreload後の別instanceへ届かない（reload epoch相当）。
         ReleaseAllSlots();
-        scriptTypes.Clear();
-        scriptTypeLookup.Clear();
+        scriptTypeEntries.Clear();
+        guidToEntry.Clear();
         fieldCache.Clear();
         gameAssembly = null;
 
@@ -610,12 +847,32 @@ public static unsafe class HostBridge {
         return new WeakReference(context, trackResurrection: false);
     }
 
-    private static Type? FindScriptType(string? typeName) {
+    // 正規化済み Stable GUID から登録 entry を引く
+    private static bool TryGetEntry(string? scriptTypeId, out ScriptTypeEntry entry) {
 
-        if (string.IsNullOrEmpty(typeName)) {
+        entry = null!;
+        string? normalized = NormalizeGuid(scriptTypeId);
+        if (normalized == null) {
+            return false;
+        }
+        return guidToEntry.TryGetValue(normalized, out entry!);
+    }
+
+    // GUID を小文字ハイフン("D")形式へ正規化する。不正なら null
+    private static string? NormalizeGuid(string? raw) {
+
+        if (string.IsNullOrWhiteSpace(raw)) {
             return null;
         }
-        return scriptTypeLookup.TryGetValue(typeName, out Type? type) ? type : null;
+        return Guid.TryParse(raw, out Guid guid) ? guid.ToString("D") : null;
+    }
+
+    // full type name から決定的な移行用 fallback GUID を作る（明示 [ScriptTypeId] 推奨）
+    private static string DeterministicGuid(string fullTypeName) {
+
+        using System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create();
+        byte[] hash = md5.ComputeHash(Encoding.UTF8.GetBytes("NEMEngine.ScriptType:" + fullTypeName));
+        return new Guid(hash).ToString("D");
     }
 
     // 全slotをreleaseしてfree listを作り直す。generation履歴は維持し、retired枠は再利用しない
@@ -637,8 +894,10 @@ public static unsafe class HostBridge {
 
     private static List<SerializedFieldInfo> GetSerializedFields(Type type) {
 
-        // Unityと同じ方針で、public fieldまたは[SerializeField]付きfieldだけをInspector対象にする
-        if (fieldCache.TryGetValue(type.FullName ?? type.Name, out List<SerializedFieldInfo>? cached)) {
+        // Unityと同じ方針で、public fieldまたは[SerializeField]付きfieldだけをInspector対象にする。
+        // reload ごとに fieldCache はクリアされるため、セッション内で一意な FullName をキーにする
+        string cacheKey = type.FullName ?? type.Name;
+        if (fieldCache.TryGetValue(cacheKey, out List<SerializedFieldInfo>? cached)) {
             return cached;
         }
 
@@ -681,7 +940,7 @@ public static unsafe class HostBridge {
         }
 
         // 同じ型の問い合わせが多いため、反射結果はキャッシュする
-        fieldCache[type.FullName ?? type.Name] = fields;
+        fieldCache[cacheKey] = fields;
         return fields;
     }
 
@@ -855,6 +1114,25 @@ public static unsafe class HostBridge {
             return IntPtr.Zero;
         }
     }
+}
+
+//============================================================================
+//	NativeScriptTypeInfo structure
+//	C++側 ManagedScriptTypeDescriptor と同一レイアウト
+//============================================================================
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct NativeScriptTypeInfo {
+
+    // 正規化済み Stable Script Type GUID
+    public fixed byte scriptTypeId[40];
+    // 完全修飾型名
+    public fixed byte fullTypeName[256];
+    // 表示名
+    public fixed byte displayName[128];
+    // 定義元 .cs パス（drag&drop の source 照合用）
+    public fixed byte sourcePath[260];
+    // [ScriptTypeId] が明示されていたか
+    public int hasExplicitId;
 }
 
 //============================================================================

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    GameScripts のコンパイル時に concrete ScriptBehaviour を列挙し、
+    Stable Script Type GUID / fullTypeName / sourcePath を持つ GeneratedScriptManifest を埋め込む
+    Roslyn source generator。GameScripts.csproj から Analyzer として参照する。
+    GUID 重複は build error 診断にする。
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <!-- アナライザーのリリース追跡（RS2008）は本プロジェクトでは不要なため抑制する -->
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

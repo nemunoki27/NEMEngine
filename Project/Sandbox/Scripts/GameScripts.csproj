@@ -8,9 +8,21 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Platforms>AnyCPU;x64</Platforms>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <OutputPath>..\Managed\$(Configuration)\</OutputPath>
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <!--
+    Edit reload / Toolbar Play の staging build 専用の出力先切り替え。
+    CLI の -o は project reference (NEM.ScriptCore / Analyzer の NEM.ScriptCodeGen) の
+    出力解決まで staging へ向けてしまい CS0006 になるため使わない。
+    NEMScriptStagingOutput が渡されたときだけ、この GameScripts 自身の OutputPath を staging へ向ける。
+    referenced project は条件に該当しないため通常出力を参照する。
+  -->
+  <PropertyGroup>
+    <NEMScriptStagingOutput Condition="'$(NEMScriptStagingOutput)' == ''"></NEMScriptStagingOutput>
+    <OutputPath Condition="'$(NEMScriptStagingOutput)' == ''">..\Managed\$(Configuration)\</OutputPath>
+    <OutputPath Condition="'$(NEMScriptStagingOutput)' != ''">$(NEMScriptStagingOutput)\</OutputPath>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Develop'">
@@ -21,5 +33,9 @@
   <ItemGroup>
     <Compile Include="..\GameAssets\**\*.cs" Link="GameAssets\%(RecursiveDir)%(Filename)%(Extension)" />
     <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" />
+    <!-- Stable Script Type GUID / manifest を埋め込む Roslyn source generator（Analyzer参照） -->
+    <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptCodeGen\NEM.ScriptCodeGen.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

@@ -56,9 +56,12 @@ namespace Engine {
 		// 直近のRefreshScriptTypesで反映したmanaged script型数（reload診断用）
 		int32_t ManagedScriptTypeCount() const { return lastManagedTypeCount_; }
 
-		// C#スクリプトのインスタンスを作成/破棄する。生成失敗時は無効ハンドルを返す
-		ManagedScriptInstanceHandle CreateInstance(const std::string& typeName, ECSWorld& world,
+		// Stable Script Type GUID から script instanceを作成する。生成失敗時は無効ハンドルを返す
+		ManagedScriptInstanceHandle CreateInstance(const std::string& scriptTypeId, ECSWorld& world,
 			const Entity& entity, const nlohmann::json& serializedFields);
+		// 対象DLLを検証してScript Manifest(JSON)を生成する（build/reload時のみ。現行DLLは触らない）
+		ManagedStatus GenerateScriptManifest(const std::filesystem::path& assemblyPath,
+			const std::filesystem::path& manifestOutputPath);
 		void SetSerializedFields(ManagedScriptInstanceHandle handle, const nlohmann::json& serializedFields);
 		void DestroyInstance(ManagedScriptInstanceHandle handle);
 
@@ -82,8 +85,8 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		bool IsInitialized() const { return initialized_; }
-		bool TryResolveScriptTypeName(const std::string_view& scriptName, std::string& outTypeName) const;
-		const std::vector<ManagedScriptField>& GetSerializedFields(const std::string& typeName);
+		// Stable Script Type GUID に対応する[SerializeField]情報を取得する（Inspector表示用）
+		const std::vector<ManagedScriptField>& GetSerializedFields(const std::string& scriptTypeId);
 
 		// 現在のライフサイクル呼び出しのコンテキスト（main threadのcallbackから参照する）
 		static const SystemContext* GetCurrentContext();
@@ -108,7 +111,8 @@ namespace Engine {
 		using LoadGameAssemblyFn = ManagedStatus(__cdecl*)(const char*);
 		using UnloadGameAssemblyFn = ManagedStatus(__cdecl*)();
 		using GetScriptTypeCountFn = ManagedStatus(__cdecl*)(int32_t*);
-		using CopyScriptTypeNameFn = ManagedStatus(__cdecl*)(int32_t, char*, int32_t, int32_t*);
+		using CopyScriptTypeInfoFn = ManagedStatus(__cdecl*)(int32_t, ManagedScriptTypeDescriptor*);
+		using GenerateScriptManifestFn = ManagedStatus(__cdecl*)(const char*, const char*);
 		using GetSerializedFieldCountFn = ManagedStatus(__cdecl*)(const char*, int32_t*);
 		using CopySerializedFieldInfoFn = ManagedStatus(__cdecl*)(const char*, int32_t, ManagedNativeSerializedFieldInfo*);
 		using CreateInstanceFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, const char*, ManagedScriptInstanceHandle*);
@@ -128,7 +132,8 @@ namespace Engine {
 		LoadGameAssemblyFn loadGameAssembly_ = nullptr;
 		UnloadGameAssemblyFn unloadGameAssembly_ = nullptr;
 		GetScriptTypeCountFn getScriptTypeCount_ = nullptr;
-		CopyScriptTypeNameFn copyScriptTypeName_ = nullptr;
+		CopyScriptTypeInfoFn copyScriptTypeInfo_ = nullptr;
+		GenerateScriptManifestFn generateScriptManifest_ = nullptr;
 		GetSerializedFieldCountFn getSerializedFieldCount_ = nullptr;
 		CopySerializedFieldInfoFn copySerializedFieldInfo_ = nullptr;
 		CreateInstanceFn createInstance_ = nullptr;

@@ -30,8 +30,8 @@ namespace {
 	}
 }
 
-Engine::ManagedBehavior::ManagedBehavior(std::string typeName) :
-	typeName_(std::move(typeName)) {
+Engine::ManagedBehavior::ManagedBehavior(std::string scriptTypeId, std::string displayName) :
+	scriptTypeId_(std::move(scriptTypeId)), displayName_(std::move(displayName)) {
 }
 
 void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializedFields) {
@@ -179,7 +179,7 @@ void Engine::ManagedBehavior::EnsureCreated(ECSWorld& world, const Entity& entit
 	if (managedHandle_.IsValid()) {
 		return;
 	}
-	managedHandle_ = ManagedScriptRuntime::GetInstance().CreateInstance(typeName_, world, entity, serializedFields_);
+	managedHandle_ = ManagedScriptRuntime::GetInstance().CreateInstance(scriptTypeId_, world, entity, serializedFields_);
 }
 
 void Engine::ManagedBehavior::HandleStatus(ManagedStatus status, const char* callbackName, const Entity& entity) {
@@ -193,7 +193,7 @@ void Engine::ManagedBehavior::HandleStatus(ManagedStatus status, const char* cal
 
 		faulted_ = true;
 		Logger::Output(LogType::GameLogic, spdlog::level::err,
-			"ManagedBehavior: script faulted and will be disabled. type={} callback={} entity={}:{}",
-			typeName_, callbackName, entity.index, entity.generation);
+			"ManagedBehavior: script faulted and will be disabled. type={} scriptTypeId={} callback={} entity={}:{}",
+			displayName_, scriptTypeId_, callbackName, entity.index, entity.generation);
 	}
 }

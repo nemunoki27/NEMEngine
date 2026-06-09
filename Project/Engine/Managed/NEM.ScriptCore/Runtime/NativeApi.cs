@@ -9,7 +9,8 @@ internal static class ManagedAbi {
 
     // C++側 kManagedAbiVersion と一致させる
     // v2: managed script instance handle を int32 から NativeScriptInstanceHandle へ変更
-    internal const uint Version = 2;
+    // v3: 型登録を CopyScriptTypeInfo(Stable GUID) へ変更し、GenerateScriptManifest を追加
+    internal const uint Version = 3;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;

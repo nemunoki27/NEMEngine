@@ -14,11 +14,15 @@
 //============================================================================
 namespace {
 
-	// ScriptEntryを生成する
-	Engine::ScriptEntry MakeScriptEntry(const std::string& typeName, Engine::AssetID scriptAsset = {}) {
+	// ScriptEntryを生成する。永続主キーは scriptTypeId（GUID）で、
+	// typeName は表示・legacy照合用の完全修飾名。slot IDは同type複数attach識別のため必ず発番する。
+	Engine::ScriptEntry MakeScriptEntry(const std::string& scriptTypeId, const std::string& typeName,
+		Engine::AssetID scriptAsset = {}) {
 
 		Engine::ScriptEntry entry{};
-		entry.type = typeName;
+		entry.scriptTypeId = scriptTypeId;
+		entry.lastKnownTypeName = typeName;
+		entry.scriptSlotID = Engine::UUID::New();
 		entry.scriptAsset = scriptAsset;
 		entry.enabled = true;
 		entry.serializedFields = nlohmann::json::object();
@@ -315,19 +319,21 @@ namespace {
 			return result;
 		}
 
-		std::string typeName{};
-		if (!Engine::ScriptAssetDragDrop::ResolveScriptTypeName(context, entry.scriptAsset, typeName)) {
+		Engine::ScriptAssetDragDrop::ResolvedScriptType resolved{};
+		if (!Engine::ScriptAssetDragDrop::ResolveScriptType(context, entry.scriptAsset, resolved)) {
 
-			// C# DLLに存在しないScriptアセットはInspectorへ反映しない
+			// C# DLLに存在しない/曖昧なScriptアセットはInspectorへ反映しない
 			entry.scriptAsset = beforeAsset;
 			result.valueChanged = false;
 			result.editFinished = false;
 			return result;
 		}
 
-		if (entry.type != typeName) {
+		// 別の型へ差し替わったら GUID を更新し、古いフィールド値は持ち越さない
+		if (entry.scriptTypeId != resolved.scriptTypeId) {
 
-			entry.type = typeName;
+			entry.scriptTypeId = resolved.scriptTypeId;
+			entry.lastKnownTypeName = resolved.typeName;
 			entry.serializedFields = nlohmann::json::object();
 		}
 		return result;
@@ -347,10 +353,10 @@ namespace {
 		if (ImGui::BeginDragDropTarget()) {
 
 			Engine::AssetID scriptAsset{};
-			std::string typeName{};
-			if (Engine::ScriptAssetDragDrop::AcceptScriptAssetDrop(context, scriptAsset, typeName)) {
+			Engine::ScriptAssetDragDrop::ResolvedScriptType resolved{};
+			if (Engine::ScriptAssetDragDrop::AcceptScriptAssetDrop(context, scriptAsset, resolved)) {
 
-				component.scripts.emplace_back(MakeScriptEntry(typeName, scriptAsset));
+				component.scripts.emplace_back(MakeScriptEntry(resolved.scriptTypeId, resolved.typeName, scriptAsset));
 				result.valueChanged = true;
 				result.editFinished = true;
 			}
@@ -376,7 +382,15 @@ void Engine::ScriptInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 
 		// スクリプト
 		ScriptEntry& entry = draft.scripts[i];
-		const std::string headerText = entry.type.empty() ? ("Script " + std::to_string(i)) : entry.type;
+		// 表示名は lastKnownTypeName。GUIDだけ残って型が解決できない場合は Missing Script として示す
+		std::string headerText;
+		if (!entry.lastKnownTypeName.empty()) {
+			headerText = entry.lastKnownTypeName;
+		} else if (!entry.scriptTypeId.empty()) {
+			headerText = "Missing Script";
+		} else {
+			headerText = "Script " + std::to_string(i);
+		}
 
 		//============================================================================
 		//	スクリプト表示
@@ -390,9 +404,16 @@ void Engine::ScriptInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 				ImGui::Separator();
 			}
 			{
-				ValueEditResult result = InspectorDrawerCommon::DrawBehaviorTypeField("型", entry.type);
+				// コンボは型名で選ばせるが、永続主キーは GUID なので選択後に registry から引き直す
+				ValueEditResult result = InspectorDrawerCommon::DrawBehaviorTypeField("型", entry.lastKnownTypeName);
 				if (result.valueChanged) {
 
+					if (const BehaviorTypeInfo* info =
+						BehaviorTypeRegistry::GetInstance().FindByName(entry.lastKnownTypeName)) {
+						entry.scriptTypeId = info->scriptTypeId;
+					} else {
+						entry.scriptTypeId.clear();
+					}
 					// 型を手動で変えた場合は、Scriptアセットとの対応を切って古いフィールド値を持ち越さない
 					entry.scriptAsset = {};
 					entry.serializedFields = nlohmann::json::object();
@@ -404,8 +425,8 @@ void Engine::ScriptInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 				return InspectorDrawerCommon::DrawCheckboxField("有効", entry.enabled);
 				});
 
-			// C#側から取得した[SerializeField]対象をインスペクターへ表示する
-			const auto& fields = ManagedScriptRuntime::GetInstance().GetSerializedFields(entry.type);
+			// C#側から取得した[SerializeField]対象をインスペクターへ表示する（GUIDで解決）
+			const auto& fields = ManagedScriptRuntime::GetInstance().GetSerializedFields(entry.scriptTypeId);
 			if (!fields.empty()) {
 				ImGui::TextDisabled("シリアライズ項目");
 				for (const auto& field : fields) {
@@ -459,9 +480,13 @@ void Engine::ScriptInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 
 				const auto& info = registry.GetInfo(i);
 
+				// 空スロット(name無し)は候補に出さない。GUIDと型名の両方を持たせて追加する
+				if (info.name.empty() || !info.construct) {
+					continue;
+				}
 				// メニューアイテムが選択されたらスクリプトエントリを追加してポップアップを閉じる
 				if (ImGui::MenuItem(info.name.c_str())) {
-					draft.scripts.emplace_back(MakeScriptEntry(info.name));
+					draft.scripts.emplace_back(MakeScriptEntry(info.scriptTypeId, info.name));
 					RequestCommit();
 					ImGui::CloseCurrentPopup();
 				}

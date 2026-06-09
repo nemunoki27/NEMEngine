@@ -15,7 +15,8 @@ namespace Engine {
 	//============================================================================
 	// C++ / C# 境界のABIバージョン。構造体レイアウトや関数テーブルを変えたら必ず上げる
 	// v2: managed script instance handle を int32 から ManagedScriptInstanceHandle(index/generation) へ変更
-	inline constexpr uint32_t kManagedAbiVersion = 2;
+	// v3: 型登録を CopyScriptTypeName から CopyScriptTypeInfo(Stable GUID) へ変更し、GenerateScriptManifest を追加
+	inline constexpr uint32_t kManagedAbiVersion = 3;
 
 	// ネイティブが提供する機能カテゴリ。capability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -231,6 +232,16 @@ namespace Engine {
 		char defaultValueJson[512]{};
 	};
 
+	// C#側から受け取る script type のメタdata（Stable GUID 主キー）。固定長ABI
+	struct ManagedScriptTypeDescriptor {
+
+		char scriptTypeId[40]{};   // 正規化GUID(36)+null
+		char fullTypeName[256]{};
+		char displayName[128]{};
+		char sourcePath[260]{};    // 定義元.csパス（drag&drop source照合用）
+		int32_t hasExplicitId = 0; // [ScriptTypeId]が明示されていたか
+	};
+
 	//============================================================================
 	//	ABIレイアウト検証
 	//	C#側の[StructLayout(Sequential)]と一致していることを保証する
@@ -242,6 +253,8 @@ namespace Engine {
 	static_assert(std::is_standard_layout_v<ManagedNativeApiTable>);
 	static_assert(std::is_standard_layout_v<ManagedCollisionEvent>);
 	static_assert(std::is_standard_layout_v<ManagedNativeSerializedFieldInfo>);
+	static_assert(std::is_standard_layout_v<ManagedScriptTypeDescriptor>);
+	static_assert(sizeof(ManagedScriptTypeDescriptor) == 40 + 256 + 128 + 260 + 4);
 
 	static_assert(sizeof(ManagedWorldHandle) == 8);
 	static_assert(sizeof(ManagedScriptInstanceHandle) == 8);

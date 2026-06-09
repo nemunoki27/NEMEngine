@@ -11,11 +11,13 @@
 //============================================================================
 namespace {
 
-	// ScriptEntryを生成する
+	// ScriptEntryを生成する。コンポーネントメニューからの追加は型未設定の空スロットだが、
+	// 同type複数attachを識別できるよう slot ID だけは必ず発番しておく。
 	Engine::ScriptEntry MakeScriptEntry(const std::string& typeName, Engine::AssetID scriptAsset) {
 
 		Engine::ScriptEntry entry{};
-		entry.type = typeName;
+		entry.lastKnownTypeName = typeName;
+		entry.scriptSlotID = Engine::UUID::New();
 		entry.scriptAsset = scriptAsset;
 		entry.enabled = true;
 		entry.serializedFields = nlohmann::json::object();

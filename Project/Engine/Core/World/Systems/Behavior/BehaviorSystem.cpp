@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
@@ -17,40 +18,57 @@ Engine::BehaviorSystem* Engine::BehaviorSystem::activeSystem_ = nullptr;
 
 namespace {
 
-	// タイプ名からビヘイビアの型IDを取得する
+	// ScriptEntry を Stable Script Type GUID 優先で compact runtime type ID へ解決する。
+	// 解決済みは cache（resolvedRuntimeTypeValid）を返す＝hot pathで文字列検索しない。
+	// 解決不能は Missing Script として false（データは保持する）。
 	bool TryResolveTypeID(Engine::ScriptEntry& entry, uint32_t& outTypeID) {
 
-		if (entry.type.empty()) {
-			entry.resolvedType.clear();
-			entry.resolvedTypeValid = false;
-			return false;
-		}
-
-		if (entry.resolvedTypeValid && entry.resolvedType == entry.type) {
-			outTypeID = entry.resolvedTypeID;
+		// reload境界（ResetRuntimeState）で cache は無効化される。resolved済みは即返す
+		if (entry.resolvedRuntimeTypeValid) {
+			outTypeID = entry.resolvedRuntimeTypeID;
 			return true;
 		}
 
-		const auto* info = Engine::BehaviorTypeRegistry::GetInstance().FindByName(entry.type);
-		if (!info) {
-			// 旧データでは名前空間なしの型名だけを持っていることがあるため、単純名でも一度だけ解決する
-			info = Engine::BehaviorTypeRegistry::GetInstance().FindManagedBySimpleName(entry.type);
-		}
-		if (!info) {
-			if (entry.resolvedType != entry.type) {
-				Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-					"BehaviorSystem: script type was not resolved. type={}", entry.type);
+		auto& registry = Engine::BehaviorTypeRegistry::GetInstance();
+
+		// 1. Stable GUID（永続主キー）で解決する
+		if (!entry.scriptTypeId.empty()) {
+
+			if (const Engine::BehaviorTypeInfo* info = registry.FindByStableScriptTypeID(entry.scriptTypeId)) {
+
+				entry.lastKnownTypeName = info->name;
+				entry.resolvedRuntimeTypeID = info->id;
+				entry.resolvedRuntimeTypeValid = true;
+				outTypeID = info->id;
+				return true;
 			}
-			entry.resolvedType = entry.type;
-			entry.resolvedTypeValid = false;
+			// GUIDはあるが現manifestに無い＝Missing Script。legacyへフォールバックしない
 			return false;
 		}
 
-		entry.type = info->name;
-		entry.resolvedType = entry.type;
-		entry.resolvedTypeID = info->id;
-		entry.resolvedTypeValid = true;
+		// 2. legacy 移行: lastKnownTypeName から一意に解決できれば GUID を書き込む
+		if (entry.lastKnownTypeName.empty()) {
+			return false;
+		}
+		const Engine::BehaviorTypeInfo* info = registry.FindByName(entry.lastKnownTypeName);
+		if (!info) {
+			// 完全名で無ければ単純名（複数候補なら曖昧＝nullptrで自動移行しない）
+			const std::string simpleName = Engine::MakeSimpleTypeName(entry.lastKnownTypeName);
+			info = registry.FindManagedBySimpleName(simpleName);
+		}
+		if (!info) {
+			// 解決不能（不明 or 曖昧）＝Missing Script。データは保持する
+			return false;
+		}
+
+		// 移行成功: GUID を主キーへ書き込む（次回保存でGUID形式になる）
+		entry.scriptTypeId = info->scriptTypeId;
+		entry.lastKnownTypeName = info->name;
+		entry.resolvedRuntimeTypeID = info->id;
+		entry.resolvedRuntimeTypeValid = true;
 		outTypeID = info->id;
+		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::info,
+			"BehaviorSystem: migrated legacy script '{}' to scriptTypeId={}", info->name, info->scriptTypeId);
 		return true;
 	}
 }
@@ -211,10 +229,10 @@ void Engine::BehaviorSystem::ResetRuntimeState(ECSWorld& world) {
 	world.ForEach<ScriptComponent>([&](Entity, ScriptComponent& component) {
 		for (auto& entry : component.scripts) {
 
+			// scriptTypeId / lastKnownTypeName（永続データ）は消さず、runtimeキャッシュだけ無効化する
 			entry.handle = BehaviorHandle::Null();
-			entry.resolvedType.clear();
-			entry.resolvedTypeID = 0;
-			entry.resolvedTypeValid = false;
+			entry.resolvedRuntimeTypeID = 0;
+			entry.resolvedRuntimeTypeValid = false;
 		}
 		});
 }
@@ -265,8 +283,8 @@ void Engine::BehaviorSystem::SynchronizeRecords(ECSWorld& world, SystemContext& 
 
 			ScriptEntry& entry = component.scripts[slot];
 
-			// タイプ名が空ならビヘイビアを破棄して無効にする
-			if (entry.type.empty()) {
+			// 型の手掛かりが何も無い（GUIDも型名も空）空スロットはビヘイビアを破棄して無効にする
+			if (entry.scriptTypeId.empty() && entry.lastKnownTypeName.empty()) {
 				if (entry.handle.IsValid()) {
 
 					runtime_.Destroy(entry.handle, world, context);

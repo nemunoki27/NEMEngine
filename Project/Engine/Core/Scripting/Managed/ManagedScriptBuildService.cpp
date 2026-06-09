@@ -11,12 +11,15 @@
 #include <cwctype>
 // c++
 #include <algorithm>
+#include <cctype>
 #include <vector>
 
 namespace {
 
 	// GameScripts のアセンブリ/付随ファイル名
 	constexpr const wchar_t* kAssemblyFileName = L"GameScripts.dll";
+	// Script Manifest（Stable Script Type GUID の一覧。load前に検証する build artifact）
+	constexpr const wchar_t* kManifestFileName = L"GameScripts.scriptmanifest.json";
 
 	std::string ToUtf8Path(const std::filesystem::path& path) {
 		return Engine::Algorithm::ConvertString(path.wstring());
@@ -80,6 +83,21 @@ namespace {
 
 	double DurationMs(std::chrono::steady_clock::time_point begin, std::chrono::steady_clock::time_point end) {
 		return std::chrono::duration<double, std::milli>(end - begin).count();
+	}
+
+	// build 出力行が compiler/MSBuild error を含むか（大小無視で " error " / "error CS" 等を拾う）
+	bool ContainsErrorToken(const std::string& line) {
+
+		std::string lower;
+		lower.reserve(line.size());
+		for (char c : line) {
+			lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+		}
+		// 集計行 "N Error(s)" は実エラー本文ではないので除外し、実際の error 行だけを対象にする
+		if (lower.find("error(s)") != std::string::npos) {
+			return false;
+		}
+		return lower.find("error") != std::string::npos;
 	}
 }
 
@@ -287,9 +305,16 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 	}
 	case State::Building:
 	{
-		const bool finished = process_.Poll([](const std::string& line) {
+		const bool finished = process_.Poll([this](const std::string& line) {
 			// build 出力を Editor console（GameLogic ログ）へ逐次転送する
 			Logger::Output(LogType::GameLogic, spdlog::level::info, "[GameScripts build] {}", line);
+			// engine.log 要約用に error 行の最初と最後を保持する（全文は gameLogic.log 側）
+			if (ContainsErrorToken(line)) {
+				if (firstErrorLine_.empty()) {
+					firstErrorLine_ = line;
+				}
+				lastErrorLine_ = line;
+			}
 			});
 		if (finished) {
 			OnBuildFinished();
@@ -325,31 +350,71 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 		return false;
 	}
 
+	// --no-dependencies で GameScripts のみをビルドするため、前提成果物が揃っているか先に確認する。
+	// ScriptCore は Editor 実行中にロード済みのため runtime build では作り直さない（上書き厳禁）。
+	if (!VerifyBuildPrerequisites()) {
+
+		if (forPlay) {
+			playBuildResult_ = PlayBuildResult::Failed;
+		}
+		dirty_ = false;
+		SetState(State::BuildFailed);
+		FinishCycle(false);
+		return false;
+	}
+
 	// 変更は消費する（ビルド中の追加変更は PollSourceChanges が再び dirty にする）
 	dirty_ = false;
 	currentForPlay_ = forPlay;
 	buildStartTime_ = std::chrono::steady_clock::now();
 	diagnostics_ = ReloadDiagnostics{};
 	diagnostics_.buildId = ++buildCounter_;
+	firstErrorLine_.clear();
+	lastErrorLine_.clear();
 
+	// staging ディレクトリ作成の失敗は無視せず、絶対パスと error を出して中断する
 	std::error_code dirError{};
 	currentStagingDir_ = StagingRoot() / std::to_wstring(diagnostics_.buildId);
 	std::filesystem::create_directories(currentStagingDir_, dirError);
+	if (dirError) {
 
-	// staging 出力へ dotnet build（実行中DLLは触らない）
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"ManagedScriptBuildService: failed to create staging directory. path={} error={}",
+			ToUtf8Path(currentStagingDir_), dirError.message());
+		if (forPlay) {
+			playBuildResult_ = PlayBuildResult::Failed;
+		}
+		SetState(State::BuildFailed);
+		FinishCycle(false);
+		return false;
+	}
+
+	// staging 出力へ dotnet build（実行中DLLは触らない）。
+	// -o は project reference の出力解決まで staging へ向け CS0006 を起こすため使わず、
+	// GameScripts 専用の NEMScriptStagingOutput プロパティでこのプロジェクトの出力だけを staging へ向ける。
 	const std::wstring command =
 		L"dotnet build \"" + projectPath.wstring() + L"\" -c " + Widen(BuildProfile()) +
 		L" --nologo --no-dependencies -p:DebugType=portable -p:DebugSymbols=true -p:Optimize=false" +
-		L" -o \"" + currentStagingDir_.wstring() + L"\"";
+		L" -p:NEMScriptStagingOutput=\"" + currentStagingDir_.wstring() + L"\"";
+
+	// build failure 時に engine.log へ要約を残すため、実行コマンドと working directory を保持する
+	lastBuildCommandUtf8_ = Algorithm::ConvertString(command);
+	lastBuildWorkingDir_ = projectPath.parent_path();
 
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"ManagedScriptBuildService: build start. buildId={} forPlay={} staging={}",
 		diagnostics_.buildId, forPlay, ToUtf8Path(currentStagingDir_));
+	Logger::Output(LogType::Engine, spdlog::level::info,
+		"ManagedScriptBuildService: build command. cwd={} cmd={}",
+		ToUtf8Path(lastBuildWorkingDir_), lastBuildCommandUtf8_);
 
-	if (!process_.Start(command, projectPath.parent_path())) {
+	if (!process_.Start(command, lastBuildWorkingDir_)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: failed to start dotnet build process.");
+			"ManagedScriptBuildService: failed to start dotnet build process. cmd={}", lastBuildCommandUtf8_);
+		if (forPlay) {
+			playBuildResult_ = PlayBuildResult::Failed;
+		}
 		SetState(State::BuildFailed);
 		FinishCycle(false);
 		return false;
@@ -357,6 +422,79 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 
 	SetState(State::Building);
 	return true;
+}
+
+bool Engine::ManagedScriptBuildService::VerifyBuildPrerequisites() const {
+
+	const std::filesystem::path projectPath = runtime_ ? runtime_->GameScriptProjectPath() : std::filesystem::path{};
+	if (projectPath.empty()) {
+		return true;
+	}
+
+	// GameScripts.csproj は <root>/<Game>/Scripts/GameScripts.csproj。
+	// reference は "..\..\Engine\Managed\..." なので engine の Managed ディレクトリをそこから導出する。
+	const std::filesystem::path projectRoot = projectPath.parent_path().parent_path().parent_path();
+	const std::filesystem::path engineManagedDir = projectRoot / "Engine" / "Managed";
+
+	std::error_code existsError{};
+	if (!std::filesystem::exists(engineManagedDir, existsError) || existsError) {
+		// 想定外のレイアウト（テンプレート等）では誤検知を避けるため検証をスキップする
+		return true;
+	}
+
+	const std::string profile = BuildProfile();
+
+	// Roslyn analyzer（NEM.ScriptCodeGen.dll）。--no-dependencies では作られないため必須。
+	const std::filesystem::path codeGenDll =
+		engineManagedDir / "NEM.ScriptCodeGen" / "bin" / profile / "netstandard2.0" / "NEM.ScriptCodeGen.dll";
+
+	// NEM.ScriptCore.dll は配置先がデプロイ構成で異なるため候補を順に確認する
+	const std::filesystem::path repoRoot = projectRoot.parent_path();
+	const std::filesystem::path scriptCoreCandidates[] = {
+		repoRoot / "Generated" / "Managed" / "NEM.ScriptCore" / profile / "NEM.ScriptCore.dll",
+		projectRoot / "Engine" / "Library" / "Managed" / profile / "NEM.ScriptCore.dll",
+	};
+
+	const auto pathExists = [](const std::filesystem::path& path) {
+		std::error_code error{};
+		return std::filesystem::exists(path, error) && !error;
+		};
+
+	bool ok = true;
+
+	if (!pathExists(codeGenDll)) {
+
+		ok = false;
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"ManagedScriptBuildService: prerequisite missing (analyzer). path={} profile={}",
+			ToUtf8Path(codeGenDll), profile);
+	}
+
+	bool scriptCoreFound = false;
+	for (const std::filesystem::path& candidate : scriptCoreCandidates) {
+		if (pathExists(candidate)) {
+			scriptCoreFound = true;
+			break;
+		}
+	}
+	if (!scriptCoreFound) {
+
+		ok = false;
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"ManagedScriptBuildService: prerequisite missing (ScriptCore). searched={} | {} profile={}",
+			ToUtf8Path(scriptCoreCandidates[0]), ToUtf8Path(scriptCoreCandidates[1]), profile);
+	}
+
+	if (!ok) {
+
+		// --no-dependencies build は前提を作り直さない。明確な復旧手順を出す
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"ManagedScriptBuildService: cannot run the GameScripts staging build because prerequisites are missing. "
+			"Rebuild Sandbox (or the Editor) for profile '{}' so NEM.ScriptCore / NEM.ScriptCodeGen are produced. "
+			"The staging build uses --no-dependencies and will not generate prerequisites at runtime. "
+			"ScriptCore is also already loaded by the Editor and must not be overwritten while running.", profile);
+	}
+	return ok;
 }
 
 void Engine::ManagedScriptBuildService::OnBuildFinished() {
@@ -368,9 +506,22 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 	if (diagnostics_.buildExitCode != 0) {
 
 		// build 失敗：現在の正常DLLは unload せず維持する
+		// compiler error の全文は gameLogic.log にある。engine.log には原因追跡に足る要約を残す。
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: build failed. exitCode={} (keeping the currently loaded assembly).",
-			diagnostics_.buildExitCode);
+			"ManagedScriptBuildService: build failed. exitCode={} buildId={} (keeping the currently loaded assembly).",
+			diagnostics_.buildExitCode, diagnostics_.buildId);
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"  cwd={}", ToUtf8Path(lastBuildWorkingDir_));
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"  cmd={}", lastBuildCommandUtf8_);
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"  staging={}", ToUtf8Path(currentStagingDir_));
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"  first error: {}", firstErrorLine_.empty() ? "(none captured)" : firstErrorLine_);
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"  last error: {}", lastErrorLine_.empty() ? "(none captured)" : lastErrorLine_);
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"  full build output is in gameLogic.log.");
 		SetState(State::BuildFailed);
 		FinishCycle(false);
 		return;
@@ -388,6 +539,24 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 	}
 	SetState(State::BuildSucceeded);
 
+	// Script Manifest を staging へ生成する。対象DLLは一時 collectible ALC で読み取るだけで、
+	// 現在ロード中の DLL には一切触れない。生成と検証（GUID形式・重複）に失敗したら load しない。
+	const auto manifestStart = std::chrono::steady_clock::now();
+	const std::filesystem::path stagedDll = currentStagingDir_ / kAssemblyFileName;
+	const std::filesystem::path stagedManifest = currentStagingDir_ / kManifestFileName;
+	const ManagedStatus manifestStatus = runtime_->GenerateScriptManifest(stagedDll, stagedManifest);
+	diagnostics_.manifestMs = DurationMs(manifestStart, std::chrono::steady_clock::now());
+	diagnostics_.manifestValid = (manifestStatus == ManagedStatus::Ok);
+	if (!diagnostics_.manifestValid) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"ManagedScriptBuildService: script manifest generation/validation failed (status={}). "
+			"keeping the currently loaded assembly.", static_cast<int32_t>(manifestStatus));
+		SetState(State::BuildFailed);
+		FinishCycle(false);
+		return;
+	}
+
 	// shadow copy を作成し、staging からコピーする
 	const auto stagingStart = std::chrono::steady_clock::now();
 	SetState(State::Staging);
@@ -396,10 +565,22 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 	std::error_code dirError{};
 	std::filesystem::create_directories(currentShadowDir_, dirError);
 
+	// dll/pdb/deps/runtimeconfig と一緒に manifest も shadow へコピーされる
 	if (!CopyArtifacts(currentStagingDir_, currentShadowDir_) || !ValidateArtifacts(currentShadowDir_)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"ManagedScriptBuildService: failed to create shadow copy (keeping the currently loaded assembly).");
+		SetState(State::BuildFailed);
+		FinishCycle(false);
+		return;
+	}
+
+	// load 前に、shadow に manifest が確実に存在することを確認する（揃っていなければ load しない）
+	std::error_code shadowManifestExists{};
+	if (!std::filesystem::exists(currentShadowDir_ / kManifestFileName, shadowManifestExists) || shadowManifestExists) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"ManagedScriptBuildService: script manifest is missing in the shadow copy (keeping the currently loaded assembly).");
 		SetState(State::BuildFailed);
 		FinishCycle(false);
 		return;

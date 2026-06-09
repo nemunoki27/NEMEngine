@@ -60,9 +60,20 @@ $resolvedProjectPath = (Resolve-Path -LiteralPath $ProjectPath).Path
 $scriptCoreProject = Convert-ToCommandPath $ScriptCoreProjectPath
 $scriptCoreOutput = Convert-ToCommandPath $ScriptCoreManagedOutputPath
 
+# NEM.ScriptCodeGen（Roslyn source generator）は NEM.ScriptCore と同じ Managed フォルダ配下にある。
+# GameScripts は --no-dependencies でビルドするため、Analyzer 参照先の DLL を先に同一構成でビルドしておく。
+$scriptCoreDirectory = [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($ScriptCoreProjectPath))
+$managedDirectory = [System.IO.Path]::GetDirectoryName($scriptCoreDirectory)
+$scriptCodeGenProject = Convert-ToCommandPath (Join-Path $managedDirectory "NEM.ScriptCodeGen\NEM.ScriptCodeGen.csproj")
+
+if (-not (Test-Path -LiteralPath $scriptCodeGenProject)) {
+    throw "NEM.ScriptCodeGen project was not found: $scriptCodeGenProject"
+}
+
 $preBuildCommand = @(
     'set DOTNET_CLI_UI_LANGUAGE=en',
     ('dotnet build "' + $scriptCoreProject + '" -c "$(Configuration)"'),
+    ('dotnet build "' + $scriptCodeGenProject + '" -c "$(Configuration)"'),
     'if exist "$(ProjectDir)Scripts\GameScripts.csproj" dotnet build "$(ProjectDir)Scripts\GameScripts.csproj" -c "$(Configuration)" --no-dependencies'
 ) -join "`r`n"
 

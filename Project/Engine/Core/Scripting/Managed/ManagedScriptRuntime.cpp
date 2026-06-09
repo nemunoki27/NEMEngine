@@ -242,7 +242,8 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	loadGameAssembly_ = nullptr;
 	unloadGameAssembly_ = nullptr;
 	getScriptTypeCount_ = nullptr;
-	copyScriptTypeName_ = nullptr;
+	copyScriptTypeInfo_ = nullptr;
+	generateScriptManifest_ = nullptr;
 	getSerializedFieldCount_ = nullptr;
 	copySerializedFieldInfo_ = nullptr;
 	createInstance_ = nullptr;
@@ -269,7 +270,7 @@ void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 	fieldCache_.clear();
 	lastManagedTypeCount_ = 0;
 
-	if (!initialized_ || !getScriptTypeCount_ || !copyScriptTypeName_) {
+	if (!initialized_ || !getScriptTypeCount_ || !copyScriptTypeInfo_) {
 		return;
 	}
 
@@ -282,14 +283,16 @@ void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 		"ManagedScriptRuntime: managed script type count={}", typeCount);
 	for (int32_t i = 0; i < typeCount; ++i) {
 
-		char name[256]{};
-		int32_t written = 0;
-		if (copyScriptTypeName_(i, name, static_cast<int32_t>(sizeof(name)), &written) != ManagedStatus::Ok || written <= 0) {
+		ManagedScriptTypeDescriptor descriptor{};
+		if (copyScriptTypeInfo_(i, &descriptor) != ManagedStatus::Ok || descriptor.scriptTypeId[0] == '\0') {
 			continue;
 		}
-		BehaviorTypeRegistry::GetInstance().RegisterManaged(name);
+		// Stable GUID を主キーに登録する。型名/sourcePath は表示・legacy照合・drag&drop用
+		BehaviorTypeRegistry::GetInstance().RegisterManaged(
+			descriptor.scriptTypeId, descriptor.fullTypeName, descriptor.displayName, descriptor.sourcePath);
 		Logger::Output(LogType::Engine, spdlog::level::info,
-			"ManagedScriptRuntime: registered managed script type={}", name);
+			"ManagedScriptRuntime: registered managed script type={} id={}",
+			descriptor.fullTypeName, descriptor.scriptTypeId);
 	}
 }
 
@@ -337,7 +340,7 @@ std::filesystem::path Engine::ManagedScriptRuntime::GameScriptProjectPath() cons
 	return ResolveGameScriptProjectPath();
 }
 
-Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance(const std::string& typeName,
+Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance(const std::string& scriptTypeId,
 	ECSWorld& world, const Entity& entity, const nlohmann::json& serializedFields) {
 
 	if (!initialized_ || !createInstance_) {
@@ -346,7 +349,7 @@ Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance
 
 	const std::string json = serializedFields.is_object() ? serializedFields.dump() : std::string("{}");
 	ManagedScriptInstanceHandle createdHandle = ManagedScriptInstanceHandle::Null();
-	const ManagedStatus status = createInstance_(typeName.c_str(), MakeNativeEntity(world, entity), json.c_str(), &createdHandle);
+	const ManagedStatus status = createInstance_(scriptTypeId.c_str(), MakeNativeEntity(world, entity), json.c_str(), &createdHandle);
 	// 生成失敗時は無効ハンドルを返す
 	return status == ManagedStatus::Ok ? createdHandle : ManagedScriptInstanceHandle::Null();
 }
@@ -416,19 +419,19 @@ Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionExit(ManagedS
 	return InvokeCollision(invokeCollisionExit_, handle, context, collision);
 }
 
-const std::vector<Engine::ManagedScriptField>& Engine::ManagedScriptRuntime::GetSerializedFields(const std::string& typeName) {
+const std::vector<Engine::ManagedScriptField>& Engine::ManagedScriptRuntime::GetSerializedFields(const std::string& scriptTypeId) {
 
 	static const std::vector<ManagedScriptField> kEmpty{};
 
-	if (auto it = fieldCache_.find(typeName); it != fieldCache_.end()) {
+	if (auto it = fieldCache_.find(scriptTypeId); it != fieldCache_.end()) {
 		return it->second;
 	}
-	if (!initialized_ || !getSerializedFieldCount_ || !copySerializedFieldInfo_) {
+	if (!initialized_ || !getSerializedFieldCount_ || !copySerializedFieldInfo_ || scriptTypeId.empty()) {
 		return kEmpty;
 	}
 
 	int32_t fieldCount = 0;
-	if (getSerializedFieldCount_(typeName.c_str(), &fieldCount) != ManagedStatus::Ok) {
+	if (getSerializedFieldCount_(scriptTypeId.c_str(), &fieldCount) != ManagedStatus::Ok) {
 		return kEmpty;
 	}
 	std::vector<ManagedScriptField> fields{};
@@ -437,7 +440,7 @@ const std::vector<Engine::ManagedScriptField>& Engine::ManagedScriptRuntime::Get
 	for (int32_t i = 0; i < fieldCount; ++i) {
 
 		ManagedNativeSerializedFieldInfo nativeInfo{};
-		if (copySerializedFieldInfo_(typeName.c_str(), i, &nativeInfo) != ManagedStatus::Ok) {
+		if (copySerializedFieldInfo_(scriptTypeId.c_str(), i, &nativeInfo) != ManagedStatus::Ok) {
 			continue;
 		}
 
@@ -450,26 +453,20 @@ const std::vector<Engine::ManagedScriptField>& Engine::ManagedScriptRuntime::Get
 		fields.emplace_back(std::move(field));
 	}
 
-	auto [it, inserted] = fieldCache_.emplace(typeName, std::move(fields));
+	auto [it, inserted] = fieldCache_.emplace(scriptTypeId, std::move(fields));
 	return it->second;
 }
 
-bool Engine::ManagedScriptRuntime::TryResolveScriptTypeName(const std::string_view& scriptName, std::string& outTypeName) const {
+Engine::ManagedStatus Engine::ManagedScriptRuntime::GenerateScriptManifest(
+	const std::filesystem::path& assemblyPath, const std::filesystem::path& manifestOutputPath) {
 
-	const auto& registry = BehaviorTypeRegistry::GetInstance();
-	if (const BehaviorTypeInfo* info = registry.FindByName(scriptName)) {
-		if (info->managed) {
-			outTypeName = info->name;
-			return true;
-		}
+	if (!initialized_ || !generateScriptManifest_) {
+		return ManagedStatus::Unsupported;
 	}
-
-	const std::string simpleName = MakeSimpleTypeName(scriptName);
-	if (const BehaviorTypeInfo* info = registry.FindManagedBySimpleName(simpleName)) {
-		outTypeName = info->name;
-		return true;
-	}
-	return false;
+	// C#側が一時collectible ALCで対象DLLを反射し、検証してmanifest JSONを書き出す（現行DLLは触らない）
+	const std::string dll = ToUtf8Path(assemblyPath);
+	const std::string out = ToUtf8Path(manifestOutputPath);
+	return generateScriptManifest_(dll.c_str(), out.c_str());
 }
 
 Engine::ManagedScriptRuntime& Engine::ManagedScriptRuntime::GetInstance() {
@@ -494,7 +491,8 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	success &= LoadBridgeFunction(loadGameAssembly_, L"LoadGameAssembly");
 	success &= LoadBridgeFunction(unloadGameAssembly_, L"UnloadGameAssembly");
 	success &= LoadBridgeFunction(getScriptTypeCount_, L"GetScriptTypeCount");
-	success &= LoadBridgeFunction(copyScriptTypeName_, L"CopyScriptTypeName");
+	success &= LoadBridgeFunction(copyScriptTypeInfo_, L"CopyScriptTypeInfo");
+	success &= LoadBridgeFunction(generateScriptManifest_, L"GenerateScriptManifest");
 	success &= LoadBridgeFunction(getSerializedFieldCount_, L"GetSerializedFieldCount");
 	success &= LoadBridgeFunction(copySerializedFieldInfo_, L"CopySerializedFieldInfo");
 	success &= LoadBridgeFunction(createInstance_, L"CreateInstance");

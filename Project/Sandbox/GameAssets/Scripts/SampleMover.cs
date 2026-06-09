@@ -2,6 +2,7 @@ using NEMEngine;
 
 namespace SandboxScripts;
 
+[ScriptTypeId("c7e2046b-9d51-4a8c-bf03-7e6a1c92d4b5")]
 public sealed class SampleMover : ScriptBehaviour
 {
 

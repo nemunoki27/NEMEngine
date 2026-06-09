@@ -2,6 +2,7 @@ using NEMEngine;
 
 namespace SandboxScripts;
 
+[ScriptTypeId("e4a91d70-5b8f-42c3-8a16-3f9d2b7c605e")]
 public sealed class SpriteRotate : ScriptBehaviour
 {
 

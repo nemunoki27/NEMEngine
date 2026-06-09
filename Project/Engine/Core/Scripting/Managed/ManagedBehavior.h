@@ -21,7 +21,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
-		explicit ManagedBehavior(std::string typeName);
+		ManagedBehavior(std::string scriptTypeId, std::string displayName);
 		~ManagedBehavior() override = default;
 
 		// シリアライズフィールドを設定する
@@ -56,8 +56,10 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// C#側の完全修飾型名
-		std::string typeName_;
+		// C#側の Stable Script Type GUID（instance生成のキー）
+		std::string scriptTypeId_;
+		// 表示名（診断ログ用）
+		std::string displayName_;
 		// ScriptComponentから渡されたシリアライズ値
 		nlohmann::json serializedFields_ = nlohmann::json::object();
 		// C#側インスタンスハンドル（世代付き。未生成はNull）

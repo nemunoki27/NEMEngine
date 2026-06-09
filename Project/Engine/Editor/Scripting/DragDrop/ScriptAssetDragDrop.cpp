@@ -4,11 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
+#include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
-
-// c++
-#include <filesystem>
 
 //============================================================================
 //	ScriptAssetDragDrop classMethods
@@ -27,8 +25,8 @@ namespace {
 	}
 }
 
-bool Engine::ScriptAssetDragDrop::ResolveScriptTypeName(const EditorPanelContext& context,
-	AssetID assetID, std::string& outTypeName) {
+bool Engine::ScriptAssetDragDrop::ResolveScriptType(const EditorPanelContext& context,
+	AssetID assetID, ResolvedScriptType& outType) {
 
 	if (!assetID || !context.editorContext || !context.editorContext->assetDatabase) {
 		return false;
@@ -39,13 +37,28 @@ bool Engine::ScriptAssetDragDrop::ResolveScriptTypeName(const EditorPanelContext
 		return false;
 	}
 
-	// Scriptアセットはファイル名をC#クラス名として解決する
-	const std::string scriptName = std::filesystem::path(meta->assetPath).stem().string();
-	return ManagedScriptRuntime::GetInstance().TryResolveScriptTypeName(scriptName, outTypeName);
+	// manifest が記録した source(.cs) と asset のパスを照合して型候補を得る。
+	// 候補が0なら DLL 未登録、複数なら曖昧（同名 .cs に複数クラス）として採用しない。
+	const std::vector<const BehaviorTypeInfo*> candidates =
+		BehaviorTypeRegistry::GetInstance().FindManagedBySourceFile(meta->assetPath);
+	if (candidates.empty()) {
+		return false;
+	}
+	if (candidates.size() > 1) {
+
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ScriptAssetDragDrop: ambiguous script source '{}' ({} candidates). drag&dropを中止します。",
+			meta->assetPath, candidates.size());
+		return false;
+	}
+
+	outType.scriptTypeId = candidates.front()->scriptTypeId;
+	outType.typeName = candidates.front()->name;
+	return true;
 }
 
 bool Engine::ScriptAssetDragDrop::AcceptScriptAssetDrop(const EditorPanelContext& context,
-	AssetID& outAssetID, std::string& outTypeName) {
+	AssetID& outAssetID, ResolvedScriptType& outType) {
 
 	const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kProjectAssetDragDropPayloadType);
 	if (!payload || !payload->IsDelivery()) {
@@ -57,7 +70,7 @@ bool Engine::ScriptAssetDragDrop::AcceptScriptAssetDrop(const EditorPanelContext
 		return false;
 	}
 
-	if (!ResolveScriptTypeName(context, assetPayload.assetID, outTypeName)) {
+	if (!ResolveScriptType(context, assetPayload.assetID, outType)) {
 		return false;
 	}
 
