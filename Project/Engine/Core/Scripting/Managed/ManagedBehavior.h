@@ -27,6 +27,9 @@ namespace Engine {
 		// シリアライズフィールドを設定する
 		void SetSerializedFields(const nlohmann::json& serializedFields) override;
 
+		// C#インスタンスを生成する（未生成なら生成）。生成可否を返す
+		bool EnsureInstance(ECSWorld& world, const Entity& entity) override;
+
 		// ライフサイクル
 		void Awake(ECSWorld& world, const SystemContext& context, const Entity& entity) override;
 		void Start(ECSWorld& world, const SystemContext& context, const Entity& entity) override;

@@ -32,6 +32,10 @@ namespace Engine {
 		uint32_t resolvedTypeID = 0;
 		// 型IDが有効か
 		bool resolvedTypeValid = false;
+		// serializedFieldsの編集リビジョン（runtime専用・JSON非シリアライズ）。
+		// この値が進んだときだけ生成済みインスタンスへ再適用する。
+		// authoring変更でのbumpは05_inspector_serializationで接続する拡張点。
+		uint32_t serializedRevision = 0;
 	};
 
 	// スクリプトコンポーネント

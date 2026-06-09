@@ -61,6 +61,11 @@ namespace Engine {
 		//============================================================================
 		virtual void SetSerializedFields([[maybe_unused]] const nlohmann::json& serializedFields) {}
 
+		// 実体（managed instance等）を必要なら生成する。生成済み/不要ならtrueを返す。
+		// inactive hierarchyでもライフサイクル前に全件生成するために使う。
+		// ネイティブMonoBehaviorは自身が実体なので既定でtrue。
+		virtual bool EnsureInstance([[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity) { return true; }
+
 		// callback内で回復不能な例外が発生したか。
 		// faulted状態のビヘイビアは以降のgameplay callbackを停止する。
 		// ネイティブMonoBehaviorは例外を境界越えしないため既定でfalse

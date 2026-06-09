@@ -40,6 +40,10 @@ namespace Engine {
 		bool faulted = false;
 		// スイープ用
 		bool seen = false;
+
+		// serializedFieldsを適用済みのリビジョン。sentinelは未適用。
+		// ScriptEntry.serializedRevisionと一致するまで再適用する（hot pathでのJSON再適用を防ぐ）
+		uint32_t appliedSerializedRevision = 0xFFFFFFFF;
 	};
 
 	//============================================================================
@@ -63,8 +67,9 @@ namespace Engine {
 
 		// 全てのビヘイビアの実体に対してアクセスされたフラグをクリアする
 		void ClearSeenFlags();
-		// 実体がアクセスされなかったビヘイビアを全てのレコードに対して破棄する
-		void SweepUnseen(ECSWorld& world, const SystemContext& context);
+		// 実体がアクセスされなかったビヘイビアを全てのレコードに対して破棄する。
+		// 破棄した件数を返す（participantキャッシュの再構築要否判定に使う）
+		uint32_t SweepUnseen(ECSWorld& world, const SystemContext& context);
 
 		// ビヘイビアの実体全てに対して関数を呼び出す
 		template <typename Fn>

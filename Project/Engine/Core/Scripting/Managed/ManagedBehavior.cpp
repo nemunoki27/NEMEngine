@@ -54,9 +54,9 @@ void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializ
 	}
 }
 
-void Engine::ManagedBehavior::Awake(ECSWorld& world, const SystemContext& context, const Entity& entity) {
+void Engine::ManagedBehavior::Awake([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
 
-	EnsureCreated(world, entity);
+	// インスタンス生成はライフサイクルのPass1(EnsureInstance)で済ませてある
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
@@ -165,6 +165,13 @@ void Engine::ManagedBehavior::OnCollisionExit(ECSWorld& world,
 	// C#側のOnCollisionExitへ渡す
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeCollisionExit(managedHandle_, context,
 		ToManagedCollision(world, collision)), "OnCollisionExit", collision.self);
+}
+
+bool Engine::ManagedBehavior::EnsureInstance(ECSWorld& world, const Entity& entity) {
+
+	EnsureCreated(world, entity);
+	// 生成に失敗した場合は無効ハンドルのまま。呼び出し側はfaulted扱いにする
+	return managedHandle_.IsValid();
 }
 
 void Engine::ManagedBehavior::EnsureCreated(ECSWorld& world, const Entity& entity) {

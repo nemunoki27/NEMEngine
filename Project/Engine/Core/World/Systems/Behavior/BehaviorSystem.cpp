@@ -7,6 +7,9 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
+// c++
+#include <algorithm>
+
 //============================================================================
 //	BehaviorSystem classMethods
 //============================================================================
@@ -61,7 +64,7 @@ void Engine::BehaviorSystem::OnWorldEnter(ECSWorld& world, SystemContext& contex
 	// プレイモードでワールドに入ったときは、スクリプトのビヘイビアの実体化と初期化を行う
 	if (context.mode == WorldMode::Play) {
 
-		Prepare(world, context, false);
+		SynchronizeLifecycle(world, context, false);
 	}
 }
 
@@ -86,20 +89,21 @@ void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context
 		return;
 	}
 
-	// 処理前準備
-	Prepare(world, context, false);
+	// fixed substepごとにライフサイクルを同期してから固定更新を回す
+	SynchronizeLifecycle(world, context, false);
 
-	runtime_.ForEachAlive([&](BehaviorRecord& record) {
+	// 確定済みのparticipantスナップショットを決定的な順序で実行する
+	for (const SyncParticipant& participant : participants_) {
 
-		// 無効・faultedなインスタンスは処理しない
-		if (!record.enabled || !record.instance || record.faulted) {
-			return;
+		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
+		if (!record || !record->instance || !record->enabled || record->faulted) {
+			continue;
 		}
-		record.instance->FixedUpdate(world, context, record.owner);
-		if (record.instance->IsFaulted()) {
-			record.faulted = true;
+		record->instance->FixedUpdate(world, context, record->owner);
+		if (record->instance->IsFaulted()) {
+			record->faulted = true;
 		}
-		});
+	}
 }
 
 void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
@@ -109,43 +113,42 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 		return;
 	}
 
-	// 処理前準備
-	Prepare(world, context, true);
+	// Update前にライフサイクルを同期し、不要になったビヘイビアをsweepする
+	SynchronizeLifecycle(world, context, true);
 
-	runtime_.ForEachAlive([&](BehaviorRecord& record) {
+	for (const SyncParticipant& participant : participants_) {
 
-		// 無効・faultedなインスタンスは処理しない
-		if (!record.enabled || !record.instance || record.faulted) {
-			return;
+		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
+		if (!record || !record->instance || !record->enabled || record->faulted) {
+			continue;
 		}
-		record.instance->Update(world, context, record.owner);
-		if (record.instance->IsFaulted()) {
-			record.faulted = true;
+		record->instance->Update(world, context, record->owner);
+		if (record->instance->IsFaulted()) {
+			record->faulted = true;
 		}
-		});
+	}
 }
 
 void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
 
-	// プレイモード以外は処理しない
-	if (context.mode != WorldMode::Play) {
+	// プレイモード以外、もしくはアクティブワールドでないときは処理しない
+	if (context.mode != WorldMode::Play || activeWorld_ != &world) {
 		return;
 	}
 
-	// 処理前準備
-	Prepare(world, context, false);
+	// LateUpdateではsynchronizeしない。Updateで確定したparticipantスナップショットのみを実行する。
+	// Update後flushで生成されたEntity/scriptは同フレームのLateUpdateへ途中参加しない。
+	for (const SyncParticipant& participant : participants_) {
 
-	runtime_.ForEachAlive([&](BehaviorRecord& record) {
-
-		// 無効・faultedなインスタンスは処理しない
-		if (!record.enabled || !record.instance || record.faulted) {
-			return;
+		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
+		if (!record || !record->instance || !record->enabled || record->faulted) {
+			continue;
 		}
-		record.instance->LateUpdate(world, context, record.owner);
-		if (record.instance->IsFaulted()) {
-			record.faulted = true;
+		record->instance->LateUpdate(world, context, record->owner);
+		if (record->instance->IsFaulted()) {
+			record->faulted = true;
 		}
-		});
+	}
 }
 
 void Engine::BehaviorSystem::DispatchCollisionEnter(ECSWorld& world,
@@ -200,6 +203,10 @@ void Engine::BehaviorSystem::EnsureActiveWorld(ECSWorld& world, SystemContext& c
 
 void Engine::BehaviorSystem::ResetRuntimeState(ECSWorld& world) {
 
+	// participantキャッシュを破棄し、次のsynchronizeで作り直す
+	participants_.clear();
+	participantsDirty_ = true;
+
 	// スクリプトコンポーネントを持つ全てのエンティティに対して、スクリプトのビヘイビアの実体化と初期化を行う
 	world.ForEach<ScriptComponent>([&](Entity, ScriptComponent& component) {
 		for (auto& entry : component.scripts) {
@@ -212,7 +219,7 @@ void Engine::BehaviorSystem::ResetRuntimeState(ECSWorld& world) {
 		});
 }
 
-void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bool doSweep) {
+void Engine::BehaviorSystem::SynchronizeLifecycle(ECSWorld& world, SystemContext& context, bool sweep) {
 
 	// ワールドを設定
 	EnsureActiveWorld(world, context);
@@ -221,12 +228,42 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 		return;
 	}
 
+	// Pass1: record同期・型解決・instance生成・serialized適用（gameplay callbackは呼ばない）
+	SynchronizeRecords(world, context, sweep);
+
+	// 構造変更があったときだけparticipantキャッシュを作り直して安定ソートする
+	if (participantsDirty_) {
+
+		RebuildParticipants(world);
+		participantsDirty_ = false;
+	}
+
+	// Pass2: 全件Awake（activeなものだけ）
+	InvokePendingAwake(world, context);
+	// Pass3: 全件OnEnable/OnDisable遷移
+	ApplyEnableTransitions(world, context);
+	//============================================================================
+	//	Pass4: SceneLoaded通知の挿入位置
+	//	全Awake/OnEnableが完了し、Startより前のここで通知する。
+	//	通知のsource（Play開始 / additive load / prefab instantiateの区別）と公開C# APIは
+	//	07_csharp_gameplay_apiの責務。現状はその経路が無いため、空exportや未接続APIは追加せず、
+	//	拡張ポイントとしてこの位置だけを確定する。
+	//============================================================================
+	// Pass5: 全件Start
+	InvokePendingStart(world, context);
+}
+
+void Engine::BehaviorSystem::SynchronizeRecords(ECSWorld& world, SystemContext& context, bool sweep) {
+
 	// フラグリセット
 	runtime_.ClearSeenFlags();
 
-	// スクリプトコンポーネントを持つ全てのエンティティに対して、スクリプトのビヘイビアの実体化と初期化を行う
+	// スクリプトコンポーネントを持つ全てのエンティティを走査してrecordを同期する。
+	// gameplay callbackはここでは呼ばないため、走査中にECS chunkは壊れない。
 	world.ForEach<ScriptComponent>([&](Entity entity, ScriptComponent& component) {
-		for (auto& entry : component.scripts) {
+		for (size_t slot = 0; slot < component.scripts.size(); ++slot) {
+
+			ScriptEntry& entry = component.scripts[slot];
 
 			// タイプ名が空ならビヘイビアを破棄して無効にする
 			if (entry.type.empty()) {
@@ -234,6 +271,7 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 
 					runtime_.Destroy(entry.handle, world, context);
 					entry.handle = BehaviorHandle::Null();
+					participantsDirty_ = true;
 				}
 				continue;
 			}
@@ -244,6 +282,7 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 
 					runtime_.Destroy(entry.handle, world, context);
 					entry.handle = BehaviorHandle::Null();
+					participantsDirty_ = true;
 				}
 				continue;
 			}
@@ -259,6 +298,7 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 					runtime_.Destroy(entry.handle, world, context);
 					entry.handle = BehaviorHandle::Null();
 					record = nullptr;
+					participantsDirty_ = true;
 				}
 			}
 			// ハンドルが無効なら新しくビヘイビアを生成する
@@ -271,70 +311,155 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 					entry.handle = BehaviorHandle::Null();
 					continue;
 				}
-				record->instance->SetSerializedFields(entry.serializedFields);
-			} else {
-				// 既存インスタンスにはInspector側の[SerializeField]変更だけを反映する
-				record->instance->SetSerializedFields(entry.serializedFields);
+				participantsDirty_ = true;
 			}
 
 			// アクセスされたフラグを立てる
 			record->seen = true;
 
-			// faulted状態のビヘイビアは生存させたまま、以降のライフサイクルcallbackを呼ばない
+			// faulted状態のビヘイビアは生存させたまま、以降の初期化を行わない
 			if (record->faulted || record->instance->IsFaulted()) {
 
 				record->faulted = true;
 				continue;
 			}
 
-			// 対象エンティティが階層内でアクティブか
-			bool shouldBeEnabled = entry.enabled && IsEntityActiveInHierarchy(world, entity);
+			// serializedFieldsはrevisionが進んだときだけ適用する（hot pathで毎回JSONを触らない）。
+			// 新規record時はsentinelと一致しないので、生成前に一度だけ適用される。
+			if (record->appliedSerializedRevision != entry.serializedRevision) {
 
-			//============================================================================
-			//	Awakeを実行
-			//	最初にアクセスされたときに1回だけ呼ばれる
-			//============================================================================
-			if (!record->awakeCalled) {
-
-				record->instance->Awake(world, context, entity);
-				record->awakeCalled = true;
+				record->instance->SetSerializedFields(entry.serializedFields);
+				record->appliedSerializedRevision = entry.serializedRevision;
 			}
 
-			//============================================================================
-			//	OnEnable/OnDisableを実行
-			//	フラグの状態に応じて呼ばれる
-			//============================================================================
-			if (shouldBeEnabled && !record->enabled) {
+			// inactive hierarchyでもinstanceは全件生成しておく（Awakeは後段のPass2でactive時のみ）。
+			// 生成に失敗したものはfaultedにして以後除外する（retryやJSON storm防止）。
+			if (!record->instance->EnsureInstance(world, entity)) {
 
-				record->instance->OnEnable(world, context, entity);
-				record->enabled = true;
-			}
-			if (!shouldBeEnabled && record->enabled) {
-
-				record->instance->OnDisable(world, context, entity);
-				record->enabled = false;
-			}
-
-			//============================================================================
-			//	Startを実行
-			//	初期化が完了して、最初に有効になったときに1回だけ呼ばれる
-			//============================================================================
-			if (record->enabled && record->awakeCalled && !record->startCalled) {
-
-				record->instance->Start(world, context, entity);
-				record->startCalled = true;
-			}
-
-			// callback中に例外が起きていたらrecordへ反映する
-			if (record->instance->IsFaulted()) {
 				record->faulted = true;
 			}
 		}
 		});
-	// 更新時、参照されなくなったビヘイビアをワールドから破棄する
-	if (doSweep) {
 
-		runtime_.SweepUnseen(world, context);
+	// 更新時、参照されなくなったビヘイビアをワールドから破棄する
+	if (sweep) {
+
+		if (runtime_.SweepUnseen(world, context) > 0) {
+			participantsDirty_ = true;
+		}
+	}
+}
+
+void Engine::BehaviorSystem::RebuildParticipants(ECSWorld& world) {
+
+	// seenなalive recordを集めて、(owner.index, owner.generation, slot)で安定ソートする。
+	// 構造変更があったフレームだけ呼ばれるため、通常フレームではソートを行わない。
+	participants_.clear();
+	world.ForEach<ScriptComponent>([&](Entity entity, ScriptComponent& component) {
+		for (size_t slot = 0; slot < component.scripts.size(); ++slot) {
+
+			const ScriptEntry& entry = component.scripts[slot];
+			if (!runtime_.IsAlive(entry.handle)) {
+				continue;
+			}
+			const BehaviorRecord* record = runtime_.GetRecord(entry.handle);
+			if (!record || !record->seen || !record->instance) {
+				continue;
+			}
+			participants_.emplace_back(SyncParticipant{ entry.handle, entity, static_cast<int32_t>(slot) });
+		}
+		});
+
+	std::sort(participants_.begin(), participants_.end(),
+		[](const SyncParticipant& lhs, const SyncParticipant& rhs) {
+
+			if (lhs.owner.index != rhs.owner.index) {
+				return lhs.owner.index < rhs.owner.index;
+			}
+			if (lhs.owner.generation != rhs.owner.generation) {
+				return lhs.owner.generation < rhs.owner.generation;
+			}
+			return lhs.slot < rhs.slot;
+		});
+}
+
+void Engine::BehaviorSystem::InvokePendingAwake(ECSWorld& world, SystemContext& context) {
+
+	// active hierarchyに入っていて未AwakeのrecordだけにAwakeを1回呼ぶ。
+	// 全participantのAwakeをここで完了させてから後段のStartへ進む。
+	for (const SyncParticipant& participant : participants_) {
+
+		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
+		if (!record || !record->instance || record->faulted || record->awakeCalled) {
+			continue;
+		}
+		// inactive hierarchyの間はAwakeを遅延する
+		if (!IsEntityActiveInHierarchy(world, participant.owner)) {
+			continue;
+		}
+		record->instance->Awake(world, context, participant.owner);
+		record->awakeCalled = true;
+		if (record->instance->IsFaulted()) {
+			record->faulted = true;
+		}
+	}
+}
+
+void Engine::BehaviorSystem::ApplyEnableTransitions(ECSWorld& world, SystemContext& context) {
+
+	for (const SyncParticipant& participant : participants_) {
+
+		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
+		if (!record || !record->instance || record->faulted) {
+			continue;
+		}
+
+		// entry.enabledは構造変更なしでも変わり得るため都度評価する（ECSアクセスはO(1)）
+		bool entryEnabled = true;
+		if (ScriptComponent* component = world.TryGetComponent<ScriptComponent>(participant.owner)) {
+			if (0 <= participant.slot && static_cast<size_t>(participant.slot) < component->scripts.size()) {
+				entryEnabled = component->scripts[participant.slot].enabled;
+			}
+		}
+
+		// OnEnableはAwake後にのみ呼ぶ。activeInHierarchyも都度評価する（O(1)のcached読み）
+		const bool shouldBeEnabled =
+			entryEnabled && record->awakeCalled && IsEntityActiveInHierarchy(world, participant.owner);
+
+		if (shouldBeEnabled && !record->enabled) {
+
+			record->instance->OnEnable(world, context, participant.owner);
+			record->enabled = true;
+		} else if (!shouldBeEnabled && record->enabled) {
+
+			// 有効→無効への遷移時のみOnDisableを呼ぶ
+			record->instance->OnDisable(world, context, participant.owner);
+			record->enabled = false;
+		}
+		if (record->instance->IsFaulted()) {
+			record->faulted = true;
+		}
+	}
+}
+
+void Engine::BehaviorSystem::InvokePendingStart(ECSWorld& world, SystemContext& context) {
+
+	// 全Awake完了後に、有効かつ未StartのrecordへStartを1回呼ぶ。
+	// 再有効化ではstartCalledが残るため再実行しない。
+	for (const SyncParticipant& participant : participants_) {
+
+		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
+		if (!record || !record->instance || record->faulted) {
+			continue;
+		}
+		if (record->enabled && record->awakeCalled && !record->startCalled) {
+
+			record->instance->Start(world, context, participant.owner);
+			record->startCalled = true;
+			if (record->instance->IsFaulted()) {
+				record->faulted = true;
+			}
+		}
 	}
 }
 

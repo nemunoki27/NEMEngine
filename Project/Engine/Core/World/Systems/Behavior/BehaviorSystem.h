@@ -7,6 +7,10 @@
 #include <Engine/Core/World/ECS/Systems/Core/ISystem.h>
 #include <Engine/Core/Physics/Collision/CollisionTypes.h>
 
+// c++
+#include <cstdint>
+#include <vector>
+
 namespace Engine {
 
 	//============================================================================
@@ -46,11 +50,26 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
+		//--------- types --------------------------------------------------------
+
+		// 1回のSynchronizeで処理するscriptの安定スナップショット要素。
+		// (owner.index, owner.generation, slot)で安定ソートし、構造変更時のみ作り直す。
+		struct SyncParticipant {
+
+			BehaviorHandle handle;
+			Entity owner = Entity::Null();
+			int32_t slot = 0;
+		};
+
 		//--------- variables ----------------------------------------------------
 
 		ECSWorld* activeWorld_ = nullptr;
 		BehaviorWorld runtime_;
 		static BehaviorSystem* activeSystem_;
+
+		// ソート済みparticipantキャッシュと、その再構築要否
+		std::vector<SyncParticipant> participants_;
+		bool participantsDirty_ = true;
 
 		//--------- functions ----------------------------------------------------
 
@@ -58,8 +77,22 @@ namespace Engine {
 		void EnsureActiveWorld(ECSWorld& world, SystemContext& context);
 		// ワールド内のビヘイビアハンドルをリセット
 		void ResetRuntimeState(ECSWorld& world);
-		// スクリプトコンポーネントを持つ全てのエンティティに対して、スクリプトのビヘイビアの実体化と初期化を行う
-		void Prepare(ECSWorld& world, SystemContext& context, bool doSweep);
+
+		//--------- ライフサイクル同期（複数パス） --------------------------------
+
+		// 全パスをまとめて実行する。sweep時は参照されなくなったビヘイビアを破棄する
+		void SynchronizeLifecycle(ECSWorld& world, SystemContext& context, bool sweep);
+		// Pass1: ScriptComponentを走査し、record生成/破棄・型解決・instance生成・serialized適用を行う
+		void SynchronizeRecords(ECSWorld& world, SystemContext& context, bool sweep);
+		// participantキャッシュを作り直して安定ソートする（構造変更時のみ）
+		void RebuildParticipants(ECSWorld& world);
+		// Pass2: activeなscriptのAwakeを全件実行
+		void InvokePendingAwake(ECSWorld& world, SystemContext& context);
+		// Pass3: OnEnable/OnDisableの遷移を全件反映
+		void ApplyEnableTransitions(ECSWorld& world, SystemContext& context);
+		// Pass5: Startを全件実行
+		void InvokePendingStart(ECSWorld& world, SystemContext& context);
+
 		// 衝突イベントを対象Entityのビヘイビアへ渡す
 		void DispatchCollision(ECSWorld& world, SystemContext& context, const CollisionContact& collision, int32_t phase);
 	};
