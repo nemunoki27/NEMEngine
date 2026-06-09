@@ -26,8 +26,22 @@ public static unsafe class HostBridge {
         IgnoreReadOnlyProperties = true
     };
 
-    // C++側に返すscript handleとC#インスタンスの対応表
-    private static readonly List<ScriptBehaviour?> scripts = new() { null };
+    // managed script instanceの世代付き格納枠。生成/解放を繰り返しても
+    // 古いhandleが再利用後の別instanceを指さないようにgenerationで識別する
+    private sealed class ScriptInstanceSlot {
+
+        // 1始まりの世代。0は無効handleを表す
+        internal uint generation;
+        internal ScriptBehaviour? instance;
+        internal bool inUse;
+        // generation枯渇でこの枠を永久欠番にした（再利用しない）
+        internal bool retired;
+    }
+
+    // slot配列とfree list。slot解放時にgenerationを進め、indexはfree listで再利用する
+    private static readonly List<ScriptInstanceSlot> slots = new();
+    private static readonly Stack<uint> freeSlots = new();
+
     // 現在ロード中のゲームDLLに含まれるScriptBehaviour派生型一覧
     private static readonly List<Type> scriptTypes = new();
     // type nameからScriptBehaviour派生型を引くためのキャッシュ
@@ -39,8 +53,6 @@ public static unsafe class HostBridge {
     private static Assembly? gameAssembly;
     // ゲーム側DLLをアンロード可能にする専用LoadContext
     private static GameScriptLoadContext? gameLoadContext;
-    // C++側へ返すscript handleの採番値
-    private static int nextScriptID = 1;
 
     //========================================================================
     //	public Methods
@@ -191,14 +203,14 @@ public static unsafe class HostBridge {
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int CreateInstance(byte* typeName, NativeEntity entity, byte* serializedJson, int* outHandle) {
+    public static int CreateInstance(byte* typeName, NativeEntity entity, byte* serializedJson, NativeScriptInstanceHandle* outHandle) {
 
         return (int)Guard(nameof(CreateInstance), () => {
 
             if (outHandle == null) {
                 return ManagedStatus.InvalidArgument;
             }
-            *outHandle = 0;
+            *outHandle = NativeScriptInstanceHandle.Null;
 
             // ECSのEntity参照を持つScriptBehaviourを生成し、Inspector保存値を適用する
             Type? type = FindScriptType(PtrToString(typeName));
@@ -213,25 +225,19 @@ public static unsafe class HostBridge {
             script.entity = new Entity(entity);
             ApplySerializedFields(script, PtrToString(serializedJson));
 
-            // C++側はこのIDだけを保持して、以後のイベント呼び出しに使う
-            int id = nextScriptID++;
-            if (id == scripts.Count) {
-                scripts.Add(script);
-            } else {
-                scripts[id] = script;
-            }
-            *outHandle = id;
+            // 世代付きhandleを発行する。C++側はこのhandleを保持して以後のイベント呼び出しに使う
+            *outHandle = AllocateSlot(script);
             return ManagedStatus.Ok;
         });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int SetSerializedFields(int handle, byte* serializedJson) {
+    public static int SetSerializedFields(NativeScriptInstanceHandle handle, byte* serializedJson) {
 
         return (int)Guard(nameof(SetSerializedFields), () => {
 
             // Play中にInspectorで変更された保存値を、既存のC#インスタンスへ再適用する
-            if (!TryGetScript(handle, out ScriptBehaviour script)) {
+            if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
                 return ManagedStatus.InvalidInstanceHandle;
             }
             ApplySerializedFields(script, PtrToString(serializedJson));
@@ -240,62 +246,60 @@ public static unsafe class HostBridge {
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int DestroyInstance(int handle) {
+    public static int DestroyInstance(NativeScriptInstanceHandle handle) {
 
         return (int)Guard(nameof(DestroyInstance), () => {
-            if (0 < handle && handle < scripts.Count) {
-                scripts[handle] = null;
-            }
+            ReleaseSlot(handle);
             return ManagedStatus.Ok;
         });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int InvokeAwake(int handle) {
+    public static int InvokeAwake(NativeScriptInstanceHandle handle) {
         return (int)GuardInstance(handle, nameof(ScriptBehaviour.Awake), static script => script.Awake());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int InvokeStart(int handle) {
+    public static int InvokeStart(NativeScriptInstanceHandle handle) {
         return (int)GuardInstance(handle, nameof(ScriptBehaviour.Start), static script => script.Start());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int InvokeOnEnable(int handle) {
+    public static int InvokeOnEnable(NativeScriptInstanceHandle handle) {
         return (int)GuardInstance(handle, nameof(ScriptBehaviour.OnEnable), static script => script.OnEnable());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int InvokeOnDisable(int handle) {
+    public static int InvokeOnDisable(NativeScriptInstanceHandle handle) {
         return (int)GuardInstance(handle, nameof(ScriptBehaviour.OnDisable), static script => script.OnDisable());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int InvokeOnDestroy(int handle) {
+    public static int InvokeOnDestroy(NativeScriptInstanceHandle handle) {
         return (int)GuardInstance(handle, nameof(ScriptBehaviour.OnDestroy), static script => script.OnDestroy());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int InvokeFixedUpdate(int handle) {
+    public static int InvokeFixedUpdate(NativeScriptInstanceHandle handle) {
         return (int)GuardInstance(handle, nameof(ScriptBehaviour.FixedUpdate), static script => script.FixedUpdate());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int InvokeUpdate(int handle) {
+    public static int InvokeUpdate(NativeScriptInstanceHandle handle) {
         return (int)GuardInstance(handle, nameof(ScriptBehaviour.Update), static script => script.Update());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int InvokeLateUpdate(int handle) {
+    public static int InvokeLateUpdate(NativeScriptInstanceHandle handle) {
         return (int)GuardInstance(handle, nameof(ScriptBehaviour.LateUpdate), static script => script.LateUpdate());
     }
 
     // Collision系はcollisionをキャプチャするとクロージャがヒープ確保されるため、
     // 高頻度callbackでの確保を避けてGuardInstanceを使わず明示的にguardする
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int InvokeCollisionEnter(int handle, NativeCollisionEvent collision) {
+    public static int InvokeCollisionEnter(NativeScriptInstanceHandle handle, NativeCollisionEvent collision) {
 
-        if (!TryGetScript(handle, out ScriptBehaviour script)) {
+        if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
             return (int)ManagedStatus.InvalidInstanceHandle;
         }
         try {
@@ -309,9 +313,9 @@ public static unsafe class HostBridge {
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int InvokeCollisionStay(int handle, NativeCollisionEvent collision) {
+    public static int InvokeCollisionStay(NativeScriptInstanceHandle handle, NativeCollisionEvent collision) {
 
-        if (!TryGetScript(handle, out ScriptBehaviour script)) {
+        if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
             return (int)ManagedStatus.InvalidInstanceHandle;
         }
         try {
@@ -325,9 +329,9 @@ public static unsafe class HostBridge {
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int InvokeCollisionExit(int handle, NativeCollisionEvent collision) {
+    public static int InvokeCollisionExit(NativeScriptInstanceHandle handle, NativeCollisionEvent collision) {
 
-        if (!TryGetScript(handle, out ScriptBehaviour script)) {
+        if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
             return (int)ManagedStatus.InvalidInstanceHandle;
         }
         try {
@@ -357,9 +361,9 @@ public static unsafe class HostBridge {
     }
 
     // script callback専用ラッパー。例外時は対象instanceのみScriptExceptionを返し、診断情報を残す
-    private static ManagedStatus GuardInstance(int handle, string callbackName, Action<ScriptBehaviour> body) {
+    private static ManagedStatus GuardInstance(NativeScriptInstanceHandle handle, string callbackName, Action<ScriptBehaviour> body) {
 
-        if (!TryGetScript(handle, out ScriptBehaviour script)) {
+        if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
             return ManagedStatus.InvalidInstanceHandle;
         }
 
@@ -371,6 +375,74 @@ public static unsafe class HostBridge {
             LogScriptException(script, callbackName, ex);
             return ManagedStatus.ScriptException;
         }
+    }
+
+    //========================================================================
+    //	script instance slot store
+    //========================================================================
+
+    // instanceを格納し、世代付きhandleを発行する。free slotがあれば再利用する
+    private static NativeScriptInstanceHandle AllocateSlot(ScriptBehaviour script) {
+
+        if (freeSlots.Count > 0) {
+
+            uint index = freeSlots.Pop();
+            ScriptInstanceSlot reused = slots[(int)index];
+            // generationはrelease時に進めた値（必ず1以上、retiredは積まれない）
+            reused.instance = script;
+            reused.inUse = true;
+            return new NativeScriptInstanceHandle(index, reused.generation);
+        }
+
+        // 空きが無ければ新しい枠を追加する。generationは1始まり
+        var slot = new ScriptInstanceSlot { generation = 1, instance = script, inUse = true, retired = false };
+        slots.Add(slot);
+        return new NativeScriptInstanceHandle((uint)(slots.Count - 1), slot.generation);
+    }
+
+    // handleからinstanceをO(1)で解決する。範囲・retired・inUse・instance・generationを全て検証する
+    private static bool TryResolveSlot(NativeScriptInstanceHandle handle, out ScriptBehaviour script) {
+
+        script = null!;
+        if (!handle.IsValid || handle.index >= (uint)slots.Count) {
+            return false;
+        }
+        ScriptInstanceSlot slot = slots[(int)handle.index];
+        if (slot.retired || !slot.inUse || slot.instance is null || slot.generation != handle.generation) {
+            return false;
+        }
+        script = slot.instance;
+        return true;
+    }
+
+    // slotを解放する。generationを進め、枯渇したslotはretireして二度と再利用しない
+    private static void ReleaseSlot(NativeScriptInstanceHandle handle) {
+
+        if (!handle.IsValid || handle.index >= (uint)slots.Count) {
+            return;
+        }
+        ScriptInstanceSlot slot = slots[(int)handle.index];
+        if (slot.retired || !slot.inUse || slot.generation != handle.generation) {
+            return;
+        }
+
+        // 07で導入予定のcoroutine/timer/tracked disposableのcancelはこの位置で行う（現状は対象システム未実装）
+        slot.instance = null;
+        slot.inUse = false;
+        RetireOrRecycle(slot, handle.index);
+    }
+
+    // generationを進めてfree listへ戻す。uint.MaxValueに達したらwraparoundせずretireする
+    private static void RetireOrRecycle(ScriptInstanceSlot slot, uint index) {
+
+        if (slot.generation == uint.MaxValue) {
+
+            // wraparoundすると過去handleとgenerationが再一致し得るため、この枠は永久欠番にする
+            slot.retired = true;
+            return;
+        }
+        ++slot.generation;
+        freeSlots.Push(index);
     }
 
     // faultedになったscriptの診断情報をログへ出す
@@ -472,13 +544,13 @@ public static unsafe class HostBridge {
 
     private static void ReleaseGameAssembly(bool collect) {
 
-        // ロード済みインスタンスや型情報をすべて破棄する
-        scripts.Clear();
-        scripts.Add(null);
+        // ロード済みインスタンスや型情報をすべて破棄する。
+        // slot配列はclearせず全slotをreleaseしてgenerationを進める。
+        // generation履歴を保つことで、reload前のhandleがreload後の別instanceへ届かない（reload epoch相当）。
+        ReleaseAllSlots();
         scriptTypes.Clear();
         scriptTypeLookup.Clear();
         fieldCache.Clear();
-        nextScriptID = 1;
         gameAssembly = null;
 
         // LoadContextをUnloadすることでDLL差し替えを可能にする
@@ -502,14 +574,21 @@ public static unsafe class HostBridge {
         return scriptTypeLookup.TryGetValue(typeName, out Type? type) ? type : null;
     }
 
-    private static bool TryGetScript(int handle, out ScriptBehaviour script) {
+    // 全slotをreleaseしてfree listを作り直す。generation履歴は維持し、retired枠は再利用しない
+    private static void ReleaseAllSlots() {
 
-        if (0 < handle && handle < scripts.Count && scripts[handle] is ScriptBehaviour found) {
-            script = found;
-            return true;
+        freeSlots.Clear();
+        for (int i = 0; i < slots.Count; ++i) {
+
+            ScriptInstanceSlot slot = slots[i];
+            if (slot.retired) {
+                // 永久欠番はfree listへ戻さない
+                continue;
+            }
+            slot.instance = null;
+            slot.inUse = false;
+            RetireOrRecycle(slot, (uint)i);
         }
-        script = null!;
-        return false;
     }
 
     private static List<SerializedFieldInfo> GetSerializedFields(Type type) {

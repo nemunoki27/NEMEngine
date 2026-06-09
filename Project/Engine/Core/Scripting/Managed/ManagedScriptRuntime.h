@@ -60,28 +60,28 @@ namespace Engine {
 		// Editモード中にC#ソース変更を監視し、必要なら再ビルド・再ロードする
 		void AutoRebuildOnScriptChanges();
 
-		// C#スクリプトのインスタンスを作成/破棄する
-		int32_t CreateInstance(const std::string& typeName, ECSWorld& world,
+		// C#スクリプトのインスタンスを作成/破棄する。生成失敗時は無効ハンドルを返す
+		ManagedScriptInstanceHandle CreateInstance(const std::string& typeName, ECSWorld& world,
 			const Entity& entity, const nlohmann::json& serializedFields);
-		void SetSerializedFields(int32_t handle, const nlohmann::json& serializedFields);
-		void DestroyInstance(int32_t handle);
+		void SetSerializedFields(ManagedScriptInstanceHandle handle, const nlohmann::json& serializedFields);
+		void DestroyInstance(ManagedScriptInstanceHandle handle);
 
 		// ライフサイクル呼び出し。C#側で例外を封じ込めた結果をManagedStatusで返す
-		ManagedStatus InvokeAwake(int32_t handle, const SystemContext& context);
-		ManagedStatus InvokeStart(int32_t handle, const SystemContext& context);
-		ManagedStatus InvokeOnEnable(int32_t handle, const SystemContext& context);
-		ManagedStatus InvokeOnDisable(int32_t handle, const SystemContext& context);
-		ManagedStatus InvokeOnDestroy(int32_t handle, const SystemContext& context);
-		ManagedStatus InvokeFixedUpdate(int32_t handle, const SystemContext& context);
-		ManagedStatus InvokeUpdate(int32_t handle, const SystemContext& context);
-		ManagedStatus InvokeLateUpdate(int32_t handle, const SystemContext& context);
+		ManagedStatus InvokeAwake(ManagedScriptInstanceHandle handle, const SystemContext& context);
+		ManagedStatus InvokeStart(ManagedScriptInstanceHandle handle, const SystemContext& context);
+		ManagedStatus InvokeOnEnable(ManagedScriptInstanceHandle handle, const SystemContext& context);
+		ManagedStatus InvokeOnDisable(ManagedScriptInstanceHandle handle, const SystemContext& context);
+		ManagedStatus InvokeOnDestroy(ManagedScriptInstanceHandle handle, const SystemContext& context);
+		ManagedStatus InvokeFixedUpdate(ManagedScriptInstanceHandle handle, const SystemContext& context);
+		ManagedStatus InvokeUpdate(ManagedScriptInstanceHandle handle, const SystemContext& context);
+		ManagedStatus InvokeLateUpdate(ManagedScriptInstanceHandle handle, const SystemContext& context);
 
 		// C#側のOnCollisionEnterを呼び出す
-		ManagedStatus InvokeCollisionEnter(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
+		ManagedStatus InvokeCollisionEnter(ManagedScriptInstanceHandle handle, const SystemContext& context, const ManagedCollisionEvent& collision);
 		// C#側のOnCollisionStayを呼び出す
-		ManagedStatus InvokeCollisionStay(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
+		ManagedStatus InvokeCollisionStay(ManagedScriptInstanceHandle handle, const SystemContext& context, const ManagedCollisionEvent& collision);
 		// C#側のOnCollisionExitを呼び出す
-		ManagedStatus InvokeCollisionExit(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
+		ManagedStatus InvokeCollisionExit(ManagedScriptInstanceHandle handle, const SystemContext& context, const ManagedCollisionEvent& collision);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -116,11 +116,11 @@ namespace Engine {
 		using CopyScriptTypeNameFn = ManagedStatus(__cdecl*)(int32_t, char*, int32_t, int32_t*);
 		using GetSerializedFieldCountFn = ManagedStatus(__cdecl*)(const char*, int32_t*);
 		using CopySerializedFieldInfoFn = ManagedStatus(__cdecl*)(const char*, int32_t, ManagedNativeSerializedFieldInfo*);
-		using CreateInstanceFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, const char*, int32_t*);
-		using SetSerializedFieldsFn = ManagedStatus(__cdecl*)(int32_t, const char*);
-		using DestroyInstanceFn = ManagedStatus(__cdecl*)(int32_t);
-		using InvokeFn = ManagedStatus(__cdecl*)(int32_t);
-		using InvokeCollisionFn = ManagedStatus(__cdecl*)(int32_t, ManagedCollisionEvent);
+		using CreateInstanceFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, const char*, ManagedScriptInstanceHandle*);
+		using SetSerializedFieldsFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*);
+		using DestroyInstanceFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle);
+		using InvokeFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle);
+		using InvokeCollisionFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, ManagedCollisionEvent);
 
 		//--------- variables ----------------------------------------------------
 
@@ -176,9 +176,9 @@ namespace Engine {
 		template <typename T>
 		bool LoadBridgeFunction(T& outFunction, const wchar_t* methodName);
 
-		ManagedStatus Invoke(InvokeFn function, int32_t handle, const SystemContext& context);
+		ManagedStatus Invoke(InvokeFn function, ManagedScriptInstanceHandle handle, const SystemContext& context);
 		// C#側のCollisionイベント関数を呼び出す
-		ManagedStatus InvokeCollision(InvokeCollisionFn function, int32_t handle,
+		ManagedStatus InvokeCollision(InvokeCollisionFn function, ManagedScriptInstanceHandle handle,
 			const SystemContext& context, const ManagedCollisionEvent& collision);
 
 		//============================================================================

@@ -57,8 +57,8 @@ namespace Engine {
 		std::string typeName_;
 		// ScriptComponentから渡されたシリアライズ値
 		nlohmann::json serializedFields_ = nlohmann::json::object();
-		// C#側インスタンスハンドル
-		int32_t managedHandle_ = 0;
+		// C#側インスタンスハンドル（世代付き。未生成はNull）
+		ManagedScriptInstanceHandle managedHandle_ = ManagedScriptInstanceHandle::Null();
 		// C#側callbackで例外が発生したらtrue。以降このインスタンスのcallbackは呼ばない
 		bool faulted_ = false;
 

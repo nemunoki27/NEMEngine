@@ -14,7 +14,8 @@ namespace Engine {
 	//	ManagedScript ABI constants
 	//============================================================================
 	// C++ / C# 境界のABIバージョン。構造体レイアウトや関数テーブルを変えたら必ず上げる
-	inline constexpr uint32_t kManagedAbiVersion = 1;
+	// v2: managed script instance handle を int32 から ManagedScriptInstanceHandle(index/generation) へ変更
+	inline constexpr uint32_t kManagedAbiVersion = 2;
 
 	// ネイティブが提供する機能カテゴリ。capability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -85,6 +86,17 @@ namespace Engine {
 
 		uint32_t index = 0xFFFFFFFF;
 		uint32_t generation = 0;
+	};
+
+	// managed script instanceを指す世代付きハンドル。単純なint indexを境界で公開しない
+	struct ManagedScriptInstanceHandle {
+
+		uint32_t index = 0xFFFFFFFF;
+		uint32_t generation = 0;
+
+		// generation==0 は無効。default/ゼロ初期化の handle を valid と誤認しない
+		constexpr bool IsValid() const noexcept { return index != 0xFFFFFFFFu && generation != 0; }
+		static constexpr ManagedScriptInstanceHandle Null() noexcept { return {}; }
 	};
 
 	// C#へ渡すエンティティ参照
@@ -224,6 +236,7 @@ namespace Engine {
 	//	C#側の[StructLayout(Sequential)]と一致していることを保証する
 	//============================================================================
 	static_assert(std::is_standard_layout_v<ManagedWorldHandle>);
+	static_assert(std::is_standard_layout_v<ManagedScriptInstanceHandle>);
 	static_assert(std::is_standard_layout_v<ManagedNativeEntity>);
 	static_assert(std::is_standard_layout_v<ManagedAbiHeader>);
 	static_assert(std::is_standard_layout_v<ManagedNativeApiTable>);
@@ -231,6 +244,7 @@ namespace Engine {
 	static_assert(std::is_standard_layout_v<ManagedNativeSerializedFieldInfo>);
 
 	static_assert(sizeof(ManagedWorldHandle) == 8);
+	static_assert(sizeof(ManagedScriptInstanceHandle) == 8);
 	static_assert(sizeof(ManagedNativeEntity) == 16);
 	static_assert(sizeof(ManagedAbiHeader) == 16);
 	static_assert(sizeof(ManagedNativeSerializedFieldInfo) == 776);

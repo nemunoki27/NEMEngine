@@ -49,7 +49,7 @@ void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializ
 	}
 
 	// 生成済みのC#インスタンスには、Play中のInspector変更をその場で反映する
-	if (managedHandle_ != 0) {
+	if (managedHandle_.IsValid()) {
 		ManagedScriptRuntime::GetInstance().SetSerializedFields(managedHandle_, serializedFields_);
 	}
 }
@@ -57,7 +57,7 @@ void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializ
 void Engine::ManagedBehavior::Awake(ECSWorld& world, const SystemContext& context, const Entity& entity) {
 
 	EnsureCreated(world, entity);
-	if (managedHandle_ == 0 || faulted_) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeAwake(managedHandle_, context), "Awake", entity);
@@ -66,7 +66,7 @@ void Engine::ManagedBehavior::Awake(ECSWorld& world, const SystemContext& contex
 void Engine::ManagedBehavior::Start([[maybe_unused]] ECSWorld& world,
 	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0 || faulted_) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeStart(managedHandle_, context), "Start", entity);
@@ -75,7 +75,7 @@ void Engine::ManagedBehavior::Start([[maybe_unused]] ECSWorld& world,
 void Engine::ManagedBehavior::OnEnable([[maybe_unused]] ECSWorld& world,
 	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0 || faulted_) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeOnEnable(managedHandle_, context), "OnEnable", entity);
@@ -84,7 +84,7 @@ void Engine::ManagedBehavior::OnEnable([[maybe_unused]] ECSWorld& world,
 void Engine::ManagedBehavior::OnDisable([[maybe_unused]] ECSWorld& world,
 	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0 || faulted_) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeOnDisable(managedHandle_, context), "OnDisable", entity);
@@ -93,7 +93,7 @@ void Engine::ManagedBehavior::OnDisable([[maybe_unused]] ECSWorld& world,
 void Engine::ManagedBehavior::OnDestroy([[maybe_unused]] ECSWorld& world,
 	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0) {
+	if (!managedHandle_.IsValid()) {
 		return;
 	}
 	// faultedでなければOnDestroyを通知する。faulted時はgameplay callbackを呼ばず解放だけ行う
@@ -101,13 +101,13 @@ void Engine::ManagedBehavior::OnDestroy([[maybe_unused]] ECSWorld& world,
 		HandleStatus(ManagedScriptRuntime::GetInstance().InvokeOnDestroy(managedHandle_, context), "OnDestroy", entity);
 	}
 	ManagedScriptRuntime::GetInstance().DestroyInstance(managedHandle_);
-	managedHandle_ = 0;
+	managedHandle_ = ManagedScriptInstanceHandle::Null();
 }
 
 void Engine::ManagedBehavior::FixedUpdate([[maybe_unused]] ECSWorld& world,
 	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0 || faulted_) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeFixedUpdate(managedHandle_, context), "FixedUpdate", entity);
@@ -116,7 +116,7 @@ void Engine::ManagedBehavior::FixedUpdate([[maybe_unused]] ECSWorld& world,
 void Engine::ManagedBehavior::Update([[maybe_unused]] ECSWorld& world,
 	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0 || faulted_) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeUpdate(managedHandle_, context), "Update", entity);
@@ -125,7 +125,7 @@ void Engine::ManagedBehavior::Update([[maybe_unused]] ECSWorld& world,
 void Engine::ManagedBehavior::LateUpdate([[maybe_unused]] ECSWorld& world,
 	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0 || faulted_) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeLateUpdate(managedHandle_, context), "LateUpdate", entity);
@@ -134,7 +134,7 @@ void Engine::ManagedBehavior::LateUpdate([[maybe_unused]] ECSWorld& world,
 void Engine::ManagedBehavior::OnCollisionEnter(ECSWorld& world,
 	const SystemContext& context, const CollisionContact& collision) {
 
-	if (managedHandle_ == 0 || faulted_) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 
@@ -146,7 +146,7 @@ void Engine::ManagedBehavior::OnCollisionEnter(ECSWorld& world,
 void Engine::ManagedBehavior::OnCollisionStay(ECSWorld& world,
 	const SystemContext& context, const CollisionContact& collision) {
 
-	if (managedHandle_ == 0 || faulted_) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 
@@ -158,7 +158,7 @@ void Engine::ManagedBehavior::OnCollisionStay(ECSWorld& world,
 void Engine::ManagedBehavior::OnCollisionExit(ECSWorld& world,
 	const SystemContext& context, const CollisionContact& collision) {
 
-	if (managedHandle_ == 0 || faulted_) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 
@@ -169,7 +169,7 @@ void Engine::ManagedBehavior::OnCollisionExit(ECSWorld& world,
 
 void Engine::ManagedBehavior::EnsureCreated(ECSWorld& world, const Entity& entity) {
 
-	if (managedHandle_ != 0) {
+	if (managedHandle_.IsValid()) {
 		return;
 	}
 	managedHandle_ = ManagedScriptRuntime::GetInstance().CreateInstance(typeName_, world, entity, serializedFields_);

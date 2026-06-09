@@ -8,7 +8,8 @@ namespace NEMEngine;
 internal static class ManagedAbi {
 
     // C++側 kManagedAbiVersion と一致させる
-    internal const uint Version = 1;
+    // v2: managed script instance handle を int32 から NativeScriptInstanceHandle へ変更
+    internal const uint Version = 2;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -29,6 +30,23 @@ public struct ManagedAbiHeader {
     public uint abiVersion;
     public uint structSize;
     public ulong capabilities;
+}
+
+// C++側 ManagedScriptInstanceHandle と同一レイアウト。単純なint indexを境界で公開しない
+[StructLayout(LayoutKind.Sequential)]
+public readonly struct NativeScriptInstanceHandle {
+
+    public readonly uint index;
+    public readonly uint generation;
+
+    public NativeScriptInstanceHandle(uint index, uint generation) {
+        this.index = index;
+        this.generation = generation;
+    }
+
+    // default(NativeScriptInstanceHandle) = {0,0} を valid と誤認しないため generation!=0 も要求する
+    public bool IsValid => index != 0xffffffffu && generation != 0;
+    public static NativeScriptInstanceHandle Null => new(0xffffffffu, 0);
 }
 
 [StructLayout(LayoutKind.Sequential)]

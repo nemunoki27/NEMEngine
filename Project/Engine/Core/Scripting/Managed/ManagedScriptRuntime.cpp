@@ -611,23 +611,23 @@ void Engine::ManagedScriptRuntime::AutoRebuildOnScriptChanges() {
 	}
 }
 
-int32_t Engine::ManagedScriptRuntime::CreateInstance(const std::string& typeName,
+Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance(const std::string& typeName,
 	ECSWorld& world, const Entity& entity, const nlohmann::json& serializedFields) {
 
 	if (!initialized_ || !createInstance_) {
-		return 0;
+		return ManagedScriptInstanceHandle::Null();
 	}
 
 	const std::string json = serializedFields.is_object() ? serializedFields.dump() : std::string("{}");
-	int32_t createdHandle = 0;
+	ManagedScriptInstanceHandle createdHandle = ManagedScriptInstanceHandle::Null();
 	const ManagedStatus status = createInstance_(typeName.c_str(), MakeNativeEntity(world, entity), json.c_str(), &createdHandle);
-	// 生成失敗時は無効ハンドル(0)を返す
-	return status == ManagedStatus::Ok ? createdHandle : 0;
+	// 生成失敗時は無効ハンドルを返す
+	return status == ManagedStatus::Ok ? createdHandle : ManagedScriptInstanceHandle::Null();
 }
 
-void Engine::ManagedScriptRuntime::SetSerializedFields(int32_t handle, const nlohmann::json& serializedFields) {
+void Engine::ManagedScriptRuntime::SetSerializedFields(ManagedScriptInstanceHandle handle, const nlohmann::json& serializedFields) {
 
-	if (!initialized_ || !setSerializedFields_ || handle == 0) {
+	if (!initialized_ || !setSerializedFields_ || !handle.IsValid()) {
 		return;
 	}
 
@@ -635,57 +635,57 @@ void Engine::ManagedScriptRuntime::SetSerializedFields(int32_t handle, const nlo
 	setSerializedFields_(handle, json.c_str());
 }
 
-void Engine::ManagedScriptRuntime::DestroyInstance(int32_t handle) {
+void Engine::ManagedScriptRuntime::DestroyInstance(ManagedScriptInstanceHandle handle) {
 
-	if (!initialized_ || !destroyInstance_ || handle == 0) {
+	if (!initialized_ || !destroyInstance_ || !handle.IsValid()) {
 		return;
 	}
 	destroyInstance_(handle);
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeAwake(int32_t handle, const SystemContext& context) {
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeAwake(ManagedScriptInstanceHandle handle, const SystemContext& context) {
 	return Invoke(invokeAwake_, handle, context);
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeStart(int32_t handle, const SystemContext& context) {
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeStart(ManagedScriptInstanceHandle handle, const SystemContext& context) {
 	return Invoke(invokeStart_, handle, context);
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnEnable(int32_t handle, const SystemContext& context) {
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnEnable(ManagedScriptInstanceHandle handle, const SystemContext& context) {
 	return Invoke(invokeOnEnable_, handle, context);
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnDisable(int32_t handle, const SystemContext& context) {
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnDisable(ManagedScriptInstanceHandle handle, const SystemContext& context) {
 	return Invoke(invokeOnDisable_, handle, context);
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnDestroy(int32_t handle, const SystemContext& context) {
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnDestroy(ManagedScriptInstanceHandle handle, const SystemContext& context) {
 	return Invoke(invokeOnDestroy_, handle, context);
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeFixedUpdate(int32_t handle, const SystemContext& context) {
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeFixedUpdate(ManagedScriptInstanceHandle handle, const SystemContext& context) {
 	return Invoke(invokeFixedUpdate_, handle, context);
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeUpdate(int32_t handle, const SystemContext& context) {
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeUpdate(ManagedScriptInstanceHandle handle, const SystemContext& context) {
 	return Invoke(invokeUpdate_, handle, context);
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeLateUpdate(int32_t handle, const SystemContext& context) {
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeLateUpdate(ManagedScriptInstanceHandle handle, const SystemContext& context) {
 	return Invoke(invokeLateUpdate_, handle, context);
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionEnter(int32_t handle,
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionEnter(ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
 	return InvokeCollision(invokeCollisionEnter_, handle, context, collision);
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionStay(int32_t handle,
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionStay(ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
 	return InvokeCollision(invokeCollisionStay_, handle, context, collision);
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionExit(int32_t handle,
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionExit(ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
 	return InvokeCollision(invokeCollisionExit_, handle, context, collision);
 }
@@ -889,9 +889,9 @@ void Engine::ManagedScriptRuntime::ReleaseHostfxr() {
 	}
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::Invoke(InvokeFn function, int32_t handle, const SystemContext& context) {
+Engine::ManagedStatus Engine::ManagedScriptRuntime::Invoke(InvokeFn function, ManagedScriptInstanceHandle handle, const SystemContext& context) {
 
-	if (!initialized_ || !function || handle == 0) {
+	if (!initialized_ || !function || !handle.IsValid()) {
 		return ManagedStatus::InvalidInstanceHandle;
 	}
 	FrameProfiler::ScopedSample scriptSample(FrameProfiler::Category::Script);
@@ -900,10 +900,10 @@ Engine::ManagedStatus Engine::ManagedScriptRuntime::Invoke(InvokeFn function, in
 	return function(handle);
 }
 
-Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollision(InvokeCollisionFn function, int32_t handle,
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollision(InvokeCollisionFn function, ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
 
-	if (!initialized_ || !function || handle == 0) {
+	if (!initialized_ || !function || !handle.IsValid()) {
 		return ManagedStatus::InvalidInstanceHandle;
 	}
 	FrameProfiler::ScopedSample scriptSample(FrameProfiler::Category::Script);
