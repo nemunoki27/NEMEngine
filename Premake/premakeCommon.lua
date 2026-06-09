@@ -82,6 +82,9 @@ function NEM_AddEngineIncludeSettings()
 
         -- WinPixEventRuntime: <WinPixEventRuntime/pix3.h>
         path.join(NEM_PROJECT_ROOT, "Externals/WinPixEventRuntime/Include"),
+
+        -- .NET native hosting: <nethost.h> / <hostfxr.h> / <coreclr_delegates.h>
+        path.join(NEM_PROJECT_ROOT, "Externals/dotnet-hosting/include"),
     }
 
     defines {
@@ -112,6 +115,12 @@ function NEM_AddEngineRuntimeLinkSettings()
         "advapi32",
         "iphlpapi",
     }
+
+    -- .NET native hosting: nethost.dll は実行ファイル横へ配置し、DotnetHostResolverが
+    -- 実行時に動的ロードして get_hostfxr_path を取得する（静的libnethostはリリースCRT固定で
+    -- Debug /MTd とリンクできないため、リンクせず動的ロードする）。
+    -- DLLコピーは patch_vcxproj_managed_config.ps1 の PostBuildEvent に集約している
+    -- (このスクリプトが Sandbox の PostBuildEvent を上書きするため)。
 
     linkoptions {
         "/WX",

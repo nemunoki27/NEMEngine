@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Scripting/Managed/ManagedScriptTypes.h>
+#include <Engine/Core/Scripting/Managed/DotnetHostResolver.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 
 // c++
@@ -100,10 +101,9 @@ namespace Engine {
 
 		//--------- types --------------------------------------------------------
 
-		using HostfxrHandle = void*;
-		using HostfxrInitializeForRuntimeConfigFn = int32_t(__cdecl*)(const wchar_t*, const void*, HostfxrHandle*);
-		using HostfxrGetRuntimeDelegateFn = int32_t(__cdecl*)(HostfxrHandle, int32_t, void**);
-		using HostfxrCloseFn = int32_t(__cdecl*)(HostfxrHandle);
+		// load_assembly_and_get_function_pointer デリゲートのシグネチャ。
+		// hostfxr/coreclr_delegatesの取得・RAII管理はDotnetHostResolverへ分離した。
+		// (x64ではcoreclr_delegatesの__stdcallと__cdeclは同一ABIのためここで呼び出し可能)
 		using LoadAssemblyAndGetFunctionPointerFn = int32_t(__cdecl*)(const wchar_t*, const wchar_t*,
 			const wchar_t*, const wchar_t*, void*, void**);
 
@@ -125,10 +125,9 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		bool initialized_ = false;
-		void* hostfxrLibrary_ = nullptr;
 
-		HostfxrCloseFn hostfxrClose_ = nullptr;
-		LoadAssemblyAndGetFunctionPointerFn loadAssemblyAndGetFunctionPointer_ = nullptr;
+		// hostfxrの探索・ロード・デリゲート取得をRAIIで管理するサービス
+		DotnetHostResolver dotnetHost_;
 
 		InitializeNativeApiFn initializeNativeApi_ = nullptr;
 		LoadGameAssemblyFn loadGameAssembly_ = nullptr;
@@ -168,7 +167,6 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		bool LoadHostfxr();
-		bool InitRuntime();
 		bool LoadBridgeFunctions();
 		bool LoadGameAssembly();
 		void ReleaseHostfxr();
@@ -242,11 +240,18 @@ namespace Engine {
 	template <typename T>
 	inline bool ManagedScriptRuntime::LoadBridgeFunction(T& outFunction, const wchar_t* methodName) {
 
+		auto loadAssemblyAndGetFunctionPointer =
+			reinterpret_cast<LoadAssemblyAndGetFunctionPointerFn>(dotnetHost_.GetLoadAssemblyDelegate());
+		if (!loadAssemblyAndGetFunctionPointer) {
+			outFunction = nullptr;
+			return false;
+		}
+
 		void* function = nullptr;
 		const wchar_t* typeName = L"NEMEngine.HostBridge, NEM.ScriptCore";
 		const wchar_t* unmanagedCallersOnly = reinterpret_cast<const wchar_t*>(-1);
 
-		int32_t result = loadAssemblyAndGetFunctionPointer_(
+		int32_t result = loadAssemblyAndGetFunctionPointer(
 			scriptCoreAssemblyPath_.c_str(), typeName, methodName, unmanagedCallersOnly, nullptr, &function);
 		if (result != 0 || !function) {
 			outFunction = nullptr;

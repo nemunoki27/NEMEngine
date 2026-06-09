@@ -23,7 +23,6 @@
 #include <windows.h>
 // c++
 #include <algorithm>
-#include <array>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -35,9 +34,6 @@
 //============================================================================
 namespace {
 
-	// hostfxrのデリゲート種別
-	constexpr int32_t kLoadAssemblyAndGetFunctionPointer = 5;
-
 	// 現在のビルド設定名を返す
 	std::string GetBuildProfile() {
 		return _PROFILE;
@@ -46,80 +42,6 @@ namespace {
 	// パスをUTF-8文字列へ変換する
 	std::string ToUtf8Path(const std::filesystem::path& path) {
 		return Engine::Algorithm::ConvertString(path.wstring());
-	}
-
-	// バージョン文字列を数値配列へ変換する
-	std::array<int32_t, 4> ParseVersion(const std::wstring& text) {
-		std::array<int32_t, 4> version{};
-		size_t begin = 0;
-		uint32_t index = 0;
-		while (begin < text.size() && index < version.size()) {
-			size_t end = text.find(L'.', begin);
-			if (end == std::wstring::npos) {
-				end = text.size();
-			}
-
-			int32_t value = 0;
-			for (size_t i = begin; i < end; ++i) {
-				if (text[i] < L'0' || L'9' < text[i]) {
-					continue;
-				}
-				value = value * 10 + static_cast<int32_t>(text[i] - L'0');
-			}
-			version[index++] = value;
-			begin = end + 1;
-		}
-		return version;
-	}
-
-	// バージョンが新しいか判定
-	bool IsNewerVersion(const std::wstring& candidate, const std::wstring& current) {
-		return ParseVersion(current) < ParseVersion(candidate);
-	}
-
-	// 環境変数からパスを取得
-	std::filesystem::path GetEnvironmentPath(const wchar_t* name) {
-		wchar_t* value = nullptr;
-		size_t length = 0;
-		if (_wdupenv_s(&value, &length, name) != 0 || !value) {
-			return {};
-		}
-		std::filesystem::path result = value;
-		std::free(value);
-		return result;
-	}
-
-	// dotnetルートを特定
-	std::filesystem::path FindDotnetRoot() {
-		if (auto path = GetEnvironmentPath(L"DOTNET_ROOT_X64"); !path.empty()) {
-			return path;
-		}
-		if (auto path = GetEnvironmentPath(L"DOTNET_ROOT"); !path.empty()) {
-			return path;
-		}
-		return L"C:/Program Files/dotnet";
-	}
-
-	// hostfxr.dllのパスを特定
-	std::filesystem::path FindHostfxrPath() {
-		const std::filesystem::path fxrRoot = FindDotnetRoot() / "host/fxr";
-		if (!std::filesystem::exists(fxrRoot)) {
-			return {};
-		}
-
-		std::filesystem::path bestPath{};
-		std::wstring bestVersion{};
-		for (const auto& entry : std::filesystem::directory_iterator(fxrRoot)) {
-			if (!entry.is_directory()) {
-				continue;
-			}
-			const std::wstring version = entry.path().filename().wstring();
-			if (bestVersion.empty() || IsNewerVersion(version, bestVersion)) {
-				bestVersion = version;
-				bestPath = entry.path() / "hostfxr.dll";
-			}
-		}
-		return std::filesystem::exists(bestPath) ? bestPath : std::filesystem::path{};
 	}
 
 	// 候補の中から最初に見つかったパスを返す
@@ -753,81 +675,12 @@ Engine::ManagedScriptRuntime& Engine::ManagedScriptRuntime::GetInstance() {
 
 bool Engine::ManagedScriptRuntime::LoadHostfxr() {
 
-	const std::filesystem::path hostfxrPath = FindHostfxrPath();
-	if (hostfxrPath.empty()) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: hostfxr.dll was not found.");
-		return false;
-	}
-
-	hostfxrLibrary_ = ::LoadLibraryW(hostfxrPath.c_str());
-	if (!hostfxrLibrary_) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: failed to load hostfxr.dll.");
-		return false;
-	}
-
-	// LoadLibraryW成功後のいずれの失敗経路でも、確実にFreeLibrary/関数pointerリセットを行う
-	bool success = false;
-	struct FailureCleanup {
-		ManagedScriptRuntime* self;
-		const bool* success;
-		~FailureCleanup() { if (!*success) self->ReleaseHostfxr(); }
-	} failureCleanup{ this, &success };
-
-	auto loadFunction = [&](const char* name) -> void* {
-		return reinterpret_cast<void*>(::GetProcAddress(static_cast<HMODULE>(hostfxrLibrary_), name));
-		};
-
-	hostfxrClose_ = reinterpret_cast<HostfxrCloseFn>(loadFunction("hostfxr_close"));
-	auto initializeForRuntimeConfig =
-		reinterpret_cast<HostfxrInitializeForRuntimeConfigFn>(loadFunction("hostfxr_initialize_for_runtime_config"));
-	auto getRuntimeDelegate =
-		reinterpret_cast<HostfxrGetRuntimeDelegateFn>(loadFunction("hostfxr_get_runtime_delegate"));
-
-	if (!hostfxrClose_ || !initializeForRuntimeConfig || !getRuntimeDelegate) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: hostfxr exports were not found.");
-		return false;
-	}
-
+	// nethostのget_hostfxr_pathを使った公式フローでhostfxrを解決・初期化する。
+	// 探索・ロード・デリゲート取得とRAIIによる失敗時cleanupはDotnetHostResolverに集約している。
 	const std::filesystem::path runtimeConfigPath =
 		scriptCoreAssemblyPath_.parent_path() / "NEM.ScriptCore.runtimeconfig.json";
-	if (!std::filesystem::exists(runtimeConfigPath)) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: runtimeconfig was not found. path={}", ToUtf8Path(runtimeConfigPath));
-		return false;
-	}
 
-	HostfxrHandle context = nullptr;
-	int32_t result = initializeForRuntimeConfig(runtimeConfigPath.c_str(), nullptr, &context);
-	if (result != 0 || !context) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: hostfxr_initialize_for_runtime_config failed. code={}", result);
-		return false;
-	}
-
-	// contextはscope guardで必ずcloseする（成功・失敗どちらの経路でも閉じる）
-	struct ContextGuard {
-		HostfxrCloseFn close;
-		HostfxrHandle handle;
-		~ContextGuard() { if (close && handle) { close(handle); } }
-	} contextGuard{ hostfxrClose_, context };
-
-	result = getRuntimeDelegate(context, kLoadAssemblyAndGetFunctionPointer,
-		reinterpret_cast<void**>(&loadAssemblyAndGetFunctionPointer_));
-	if (result != 0 || !loadAssemblyAndGetFunctionPointer_) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: failed to get load_assembly_and_get_function_pointer. code={}", result);
-		return false;
-	}
-
-	success = true;
-	return true;
-}
-
-bool Engine::ManagedScriptRuntime::InitRuntime() {
-	return loadAssemblyAndGetFunctionPointer_ != nullptr;
+	return dotnetHost_.Initialize(scriptCoreAssemblyPath_, runtimeConfigPath);
 }
 
 bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
@@ -881,12 +734,9 @@ bool Engine::ManagedScriptRuntime::LoadGameAssembly() {
 
 void Engine::ManagedScriptRuntime::ReleaseHostfxr() {
 
-	loadAssemblyAndGetFunctionPointer_ = nullptr;
-	hostfxrClose_ = nullptr;
-	if (hostfxrLibrary_) {
-		::FreeLibrary(static_cast<HMODULE>(hostfxrLibrary_));
-		hostfxrLibrary_ = nullptr;
-	}
+	// hostfxrライブラリの解放とデリゲート無効化はResolverのRAIIに委譲する。
+	// Shutdownは複数回呼び出しても安全（Finalizeの多重呼び出しに対応）。
+	dotnetHost_.Shutdown();
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::Invoke(InvokeFn function, ManagedScriptInstanceHandle handle, const SystemContext& context) {

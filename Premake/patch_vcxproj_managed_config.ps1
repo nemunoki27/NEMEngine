@@ -72,7 +72,9 @@ $postBuildCommand = @(
     ('if exist "' + $scriptCoreOutput + '\$(Configuration)\*" xcopy /Y /I "' + $scriptCoreOutput + '\$(Configuration)\*" "$(TargetDir)Managed\"'),
     'if exist "$(ProjectDir)Managed\$(Configuration)\*" xcopy /Y /I "$(ProjectDir)Managed\$(Configuration)\*" "$(TargetDir)Managed\"',
     # WinPixEventRuntime.dll は USE_PIX が有効な Debug のみ実行ファイル横へ配置する
-    'if "$(Configuration)"=="Debug" copy /Y "$(ProjectDir)..\Externals\WinPixEventRuntime\bin\x64\WinPixEventRuntime.dll" "$(TargetDir)WinPixEventRuntime.dll"'
+    'if "$(Configuration)"=="Debug" copy /Y "$(ProjectDir)..\Externals\WinPixEventRuntime\bin\x64\WinPixEventRuntime.dll" "$(TargetDir)WinPixEventRuntime.dll"',
+    # nethost.dll を実行ファイル横へ配置する。DotnetHostResolver が動的ロードして get_hostfxr_path を取得する（全構成）
+    'copy /Y "$(ProjectDir)..\Externals\dotnet-hosting\bin\x64\nethost.dll" "$(TargetDir)nethost.dll"'
 ) -join "`r`n"
 
 $document = New-Object xml
