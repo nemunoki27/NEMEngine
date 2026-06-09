@@ -4,11 +4,15 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+
+// c++
+#include <algorithm>
 
 //============================================================================
 //	CreateEntityCommand classMethods
@@ -50,6 +54,29 @@ namespace {
 				outSourceAsset = context.editorContext->activeSceneAsset;
 			}
 		}
+	}
+	// 既存のルートエンティティの中で最大の兄弟順を返す（1つも無ければ-1）
+	// ヒエラルキーはルートを siblingOrder の昇順で並べているため、
+	// 末尾に並べたい新規エンティティはこの値より大きい順番を持たせる
+	int32_t FindMaxRootSiblingOrder(Engine::ECSWorld& world, const Engine::Entity& exclude) {
+
+		int32_t maxOrder = -1;
+		world.ForEachAliveEntity([&](Engine::Entity entity) {
+
+			if (entity == exclude) {
+				return;
+			}
+			if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
+				return;
+			}
+			// 親が生存していないものだけがルート
+			const auto& hierarchy = world.GetComponent<Engine::HierarchyComponent>(entity);
+			if (world.IsAlive(hierarchy.parent)) {
+				return;
+			}
+			maxOrder = (std::max)(maxOrder, hierarchy.siblingOrder);
+			});
+		return maxOrder;
 	}
 }
 
@@ -105,6 +132,11 @@ bool Engine::CreateEntityCommand::CreateInternal(EditorCommandContext& context) 
 
 		HierarchySystem hierarchySystem;
 		hierarchySystem.SetParent(*world, entity, parent);
+	} else if (world->HasComponent<HierarchyComponent>(entity)) {
+
+		// ルート直下に作る場合は、ヒエラルキー上で末尾に並ぶよう兄弟順を最後にする
+		auto& hierarchy = world->GetComponent<HierarchyComponent>(entity);
+		hierarchy.siblingOrder = FindMaxRootSiblingOrder(*world, entity) + 1;
 	}
 
 	if (context.editorState) {
