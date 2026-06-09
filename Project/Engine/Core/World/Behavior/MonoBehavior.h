@@ -60,5 +60,10 @@ namespace Engine {
 		//	C#スクリプト用
 		//============================================================================
 		virtual void SetSerializedFields([[maybe_unused]] const nlohmann::json& serializedFields) {}
+
+		// callback内で回復不能な例外が発生したか。
+		// faulted状態のビヘイビアは以降のgameplay callbackを停止する。
+		// ネイティブMonoBehaviorは例外を境界越えしないため既定でfalse
+		virtual bool IsFaulted() const { return false; }
 	};
 } // Engine

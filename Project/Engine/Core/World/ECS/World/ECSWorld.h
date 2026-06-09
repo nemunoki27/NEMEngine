@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/World/ECS/Entity/EntityArchetype.h>
+#include <Engine/Core/World/ECS/World/WorldCommandBuffer.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
@@ -58,6 +59,14 @@ namespace Engine {
 		void DestroyEntity(const Entity& entity);
 		// 予約済みの破棄をまとめて実行
 		void FlushPendingDestroyEntities();
+
+		//============================================================================
+		//	スクリプト由来の構造変更を遅延適用するコマンドバッファ
+		//============================================================================
+		// scripting callbackからの構造変更はここへ積み、安全地点でFlushする
+		WorldCommandBuffer& GetCommandBuffer() { return commandBuffer_; }
+		// 積まれた構造変更コマンドをまとめて適用する
+		void FlushWorldCommands() { commandBuffer_.Flush(*this); }
 
 		//============================================================================
 		//	コンポーネントに対して行う操作
@@ -123,6 +132,8 @@ namespace Engine {
 		std::vector<uint32_t> free_;
 		// フレーム終端でまとめて破棄するエンティティ
 		std::vector<Entity> pendingDestroyEntities_;
+		// スクリプト由来の構造変更を遅延適用するコマンドバッファ。world破棄時に未処理分は安全に破棄される
+		WorldCommandBuffer commandBuffer_;
 		// シーン側の永続UUIDからエンティティIDへのマップ
 		std::unordered_map<UUID, Entity> uuidToEntity_;
 

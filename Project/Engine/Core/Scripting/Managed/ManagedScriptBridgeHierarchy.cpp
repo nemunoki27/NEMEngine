@@ -81,9 +81,9 @@ namespace Engine {
 				newParent = candidate;
 			}
 		}
-		// 階層システムを通じて親子関係を安全に変更。リンクの繋ぎ替えや変更通知を行う
-		HierarchySystem hierarchySystem{};
-		hierarchySystem.SetParent(*world, child, newParent);
+		// 親子付けはHierarchyComponentの追加やリンク繋ぎ替えを伴う構造変更のため、
+		// ForEach走査を壊さないようコマンドバッファへ積み、安全地点でまとめて適用する
+		world->GetCommandBuffer().EnqueueSetParent(child, newParent);
 	}
 
 } // Engine

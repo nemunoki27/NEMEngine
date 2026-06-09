@@ -24,6 +24,7 @@ Engine::BehaviorHandle Engine::BehaviorWorld::Create(uint32_t typeID, const Enti
 	record.enabled = false;
 	record.awakeCalled = false;
 	record.startCalled = false;
+	record.faulted = false;
 	record.seen = false;
 	record.typeID = typeID;
 
@@ -165,6 +166,7 @@ void Engine::BehaviorWorld::DestroyIndex(uint32_t index, ECSWorld& world, const 
 	record.enabled = false;
 	record.awakeCalled = false;
 	record.startCalled = false;
+	record.faulted = false;
 	record.seen = false;
 	record.alive = false;
 	// 世代をインクリメントして古いハンドルを無効にする

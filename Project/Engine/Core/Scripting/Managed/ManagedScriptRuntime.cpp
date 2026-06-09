@@ -179,20 +179,35 @@ namespace {
 	public:
 		ScopedEnvironmentVariableOverride(const wchar_t* name, const wchar_t* value) :
 			name_(name) {
+
+			// _wdupenv_sが確保した領域は、wstringへコピーしたらコンストラクタ内で必ず解放する。
+			// 解放はここだけで行い、デストラクタではwstring内部バッファに触れない
 			wchar_t* previous = nullptr;
 			size_t previousLength = 0;
 			if (_wdupenv_s(&previous, &previousLength, name_) == 0 && previous) {
-				hadPreviousValue_ = true;
+
+				// コピー中に例外が起きてもpreviousをリークしないようにする
+				struct FreeGuard {
+					wchar_t* pointer;
+					~FreeGuard() { std::free(pointer); }
+				} freeGuard{ previous };
+
 				previousValue_ = previous;
+				hadPreviousValue_ = true;
 			}
 			::SetEnvironmentVariableW(name_, value);
 		}
 		~ScopedEnvironmentVariableOverride() {
+
+			// 復元はSetEnvironmentVariableWのみ。wstringが所有するバッファをfreeしてはいけない
 			::SetEnvironmentVariableW(name_, hadPreviousValue_ ? previousValue_.c_str() : nullptr);
-			if (hadPreviousValue_) {
-				std::free(const_cast<wchar_t*>(previousValue_.c_str()));
-			}
 		}
+
+		// コピー/ムーブ禁止。二重復元・二重解放を防ぐ
+		ScopedEnvironmentVariableOverride(const ScopedEnvironmentVariableOverride&) = delete;
+		ScopedEnvironmentVariableOverride& operator=(const ScopedEnvironmentVariableOverride&) = delete;
+		ScopedEnvironmentVariableOverride(ScopedEnvironmentVariableOverride&&) = delete;
+		ScopedEnvironmentVariableOverride& operator=(ScopedEnvironmentVariableOverride&&) = delete;
 	private:
 		const wchar_t* name_;
 		bool hadPreviousValue_ = false;
@@ -209,36 +224,112 @@ namespace {
 		return Engine::Algorithm::ConvertString(text);
 	}
 
-	// スナップショットにファイルを追加
-	void TryAddSnapshotFile(std::unordered_map<std::string, std::filesystem::file_time_type>& snapshot,
+	// 再帰走査から除外するディレクトリ名（大文字小文字無視で比較）。
+	// ビルド生成物やVCS管理下を監視するとreloadループの原因になるため除外する。
+	// ※source generatorの入力ディレクトリが将来必要になった場合は、この一覧を設定化する
+	bool IsExcludedSnapshotDirectory(const std::wstring& directoryName) {
+		static const wchar_t* kExcluded[] = {
+			L"bin", L"obj", L".git", L".vs", L"Generated", L"Library", L"Temp",
+		};
+		for (const wchar_t* excluded : kExcluded) {
+			if (_wcsicmp(directoryName.c_str(), excluded) == 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// 生成された.csファイル（*.g.cs / *.generated.cs）かどうか
+	bool IsGeneratedScriptFile(const std::wstring& fileName) {
+		const auto endsWith = [&fileName](const wchar_t* suffix) {
+			const size_t suffixLength = std::wcslen(suffix);
+			if (fileName.size() < suffixLength) {
+				return false;
+			}
+			return _wcsicmp(fileName.c_str() + (fileName.size() - suffixLength), suffix) == 0;
+			};
+		return endsWith(L".g.cs") || endsWith(L".generated.cs");
+	}
+
+	// 1ファイルのスタンプ（更新時刻とサイズ）を取得してスナップショットへ追加
+	void AddSnapshotEntry(std::unordered_map<std::string, Engine::ScriptSourceStamp>& snapshot,
+		const std::filesystem::path& path) {
+		std::error_code timeError{};
+		std::error_code sizeError{};
+		const auto time = std::filesystem::last_write_time(path, timeError);
+		const auto size = std::filesystem::file_size(path, sizeError);
+		if (timeError || sizeError) {
+			return;
+		}
+		// パスはlexically_normalで正規化してからキーにする
+		snapshot.emplace(ToUtf8Path(path.lexically_normal()), Engine::ScriptSourceStamp{ time, size });
+	}
+
+	// スナップショットにファイルを追加（.csproj等の単体ファイル用）
+	void TryAddSnapshotFile(std::unordered_map<std::string, Engine::ScriptSourceStamp>& snapshot,
 		const std::filesystem::path& path) {
 		if (std::filesystem::exists(path)) {
-			snapshot.emplace(ToUtf8Path(path), std::filesystem::last_write_time(path));
+			AddSnapshotEntry(snapshot, path);
 		}
 	}
 
 	// スクリプトソースのスナップショットを収集
-	void CollectScriptSnapshotFiles(std::unordered_map<std::string, std::filesystem::file_time_type>& snapshot,
+	void CollectScriptSnapshotFiles(std::unordered_map<std::string, Engine::ScriptSourceStamp>& snapshot,
 		const std::filesystem::path& root) {
-		if (!std::filesystem::exists(root)) {
+		std::error_code existsError{};
+		if (!std::filesystem::exists(root, existsError) || existsError) {
 			return;
 		}
-		for (const auto& entry : std::filesystem::recursive_directory_iterator(root)) {
-			if (entry.is_regular_file() && entry.path().extension() == ".cs") {
-				snapshot.emplace(ToUtf8Path(entry.path()), entry.last_write_time());
+
+		// permission errorで走査全体を落とさないよう、error_code版のiteratorで進める
+		std::error_code iterateError{};
+		auto iterator = std::filesystem::recursive_directory_iterator(
+			root, std::filesystem::directory_options::skip_permission_denied, iterateError);
+		const std::filesystem::recursive_directory_iterator end{};
+		for (; iterator != end; iterator.increment(iterateError)) {
+
+			if (iterateError) {
+				// 個別エントリの失敗は無視して走査を継続する
+				iterateError.clear();
+				continue;
 			}
+
+			const std::filesystem::directory_entry& entry = *iterator;
+			std::error_code statusError{};
+
+			// 生成物ディレクトリやVCS管理下はそれ以下ごと走査対象から外す
+			if (entry.is_directory(statusError) && !statusError) {
+				if (IsExcludedSnapshotDirectory(entry.path().filename().wstring())) {
+					iterator.disable_recursion_pending();
+				}
+				continue;
+			}
+			if (!entry.is_regular_file(statusError) || statusError) {
+				continue;
+			}
+
+			const std::filesystem::path& filePath = entry.path();
+			if (filePath.extension() != ".cs") {
+				continue;
+			}
+			// 自動生成された.csは監視しない
+			if (IsGeneratedScriptFile(filePath.filename().wstring())) {
+				continue;
+			}
+			AddSnapshotEntry(snapshot, filePath);
 		}
 	}
 
 	// スナップショットが変化したか判定
-	bool HasSnapshotChanged(const std::unordered_map<std::string, std::filesystem::file_time_type>& current,
-		const std::unordered_map<std::string, std::filesystem::file_time_type>& previous) {
+	bool HasSnapshotChanged(const std::unordered_map<std::string, Engine::ScriptSourceStamp>& current,
+		const std::unordered_map<std::string, Engine::ScriptSourceStamp>& previous) {
 		if (current.size() != previous.size()) {
 			return true;
 		}
-		for (const auto& [path, time] : current) {
+		for (const auto& [path, stamp] : current) {
 			auto it = previous.find(path);
-			if (it == previous.end() || it->second != time) {
+			// 更新時刻だけでなくサイズも比較する
+			if (it == previous.end() || it->second.time != stamp.time || it->second.size != stamp.size) {
 				return true;
 			}
 		}
@@ -268,15 +359,22 @@ bool Engine::ManagedScriptRuntime::Init() {
 	}
 
 	if (!LoadHostfxr()) {
+		// LoadHostfxr内で確保したネイティブリソースは同関数内で解放済み
 		return false;
 	}
 
 	if (!LoadBridgeFunctions()) {
+		// 途中失敗でも半端なpointerやhostfxrハンドルを残さない
+		Finalize();
 		return false;
 	}
 
 	// ネイティブ側API（C++側の機能をC#から呼ぶための関数群）を初期化
 	ManagedNativeApiTable callbacks{};
+	// ABIヘッダを先頭に設定する。C#側はversion/size/capabilityを検証し、不一致なら初期化を拒否する
+	callbacks.header.abiVersion = kManagedAbiVersion;
+	callbacks.header.structSize = static_cast<uint32_t>(sizeof(ManagedNativeApiTable));
+	callbacks.header.capabilities = kManagedCapabilitiesAll;
 	callbacks.log = &ManagedScriptRuntime::LogCallback;
 	callbacks.getDeltaTime = &ManagedScriptRuntime::GetDeltaTimeCallback;
 	callbacks.getFixedDeltaTime = &ManagedScriptRuntime::GetFixedDeltaTimeCallback;
@@ -315,9 +413,9 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getLocalRotation = &ManagedScriptRuntime::GetLocalRotationCallback;
 	callbacks.setLocalRotation = &ManagedScriptRuntime::SetLocalRotationCallback;
 
-	if (!initializeNativeApi_ || initializeNativeApi_(&callbacks) == 0) {
+	if (!initializeNativeApi_ || initializeNativeApi_(&callbacks) != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: failed to initialize native callbacks.");
+			"ManagedScriptRuntime: failed to initialize native callbacks (ABI mismatch or managed exception).");
 		Finalize();
 		return false;
 	}
@@ -380,13 +478,17 @@ void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 		return;
 	}
 
-	const int32_t typeCount = getScriptTypeCount_();
+	int32_t typeCount = 0;
+	if (getScriptTypeCount_(&typeCount) != ManagedStatus::Ok) {
+		return;
+	}
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"ManagedScriptRuntime: managed script type count={}", typeCount);
 	for (int32_t i = 0; i < typeCount; ++i) {
 
 		char name[256]{};
-		if (copyScriptTypeName_(i, name, static_cast<int32_t>(sizeof(name))) <= 0) {
+		int32_t written = 0;
+		if (copyScriptTypeName_(i, name, static_cast<int32_t>(sizeof(name)), &written) != ManagedStatus::Ok || written <= 0) {
 			continue;
 		}
 		BehaviorTypeRegistry::GetInstance().RegisterManaged(name);
@@ -475,7 +577,7 @@ void Engine::ManagedScriptRuntime::AutoRebuildOnScriptChanges() {
 		return;
 	}
 
-	std::unordered_map<std::string, std::filesystem::file_time_type> currentSnapshot{};
+	std::unordered_map<std::string, ScriptSourceStamp> currentSnapshot{};
 	TryAddSnapshotFile(currentSnapshot, projectPath);
 
 	const std::filesystem::path scriptsRoot = projectPath.parent_path();
@@ -517,7 +619,10 @@ int32_t Engine::ManagedScriptRuntime::CreateInstance(const std::string& typeName
 	}
 
 	const std::string json = serializedFields.is_object() ? serializedFields.dump() : std::string("{}");
-	return createInstance_(typeName.c_str(), MakeNativeEntity(world, entity), json.c_str());
+	int32_t createdHandle = 0;
+	const ManagedStatus status = createInstance_(typeName.c_str(), MakeNativeEntity(world, entity), json.c_str(), &createdHandle);
+	// 生成失敗時は無効ハンドル(0)を返す
+	return status == ManagedStatus::Ok ? createdHandle : 0;
 }
 
 void Engine::ManagedScriptRuntime::SetSerializedFields(int32_t handle, const nlohmann::json& serializedFields) {
@@ -538,51 +643,51 @@ void Engine::ManagedScriptRuntime::DestroyInstance(int32_t handle) {
 	destroyInstance_(handle);
 }
 
-void Engine::ManagedScriptRuntime::InvokeAwake(int32_t handle, const SystemContext& context) {
-	Invoke(invokeAwake_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeAwake(int32_t handle, const SystemContext& context) {
+	return Invoke(invokeAwake_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeStart(int32_t handle, const SystemContext& context) {
-	Invoke(invokeStart_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeStart(int32_t handle, const SystemContext& context) {
+	return Invoke(invokeStart_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeOnEnable(int32_t handle, const SystemContext& context) {
-	Invoke(invokeOnEnable_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnEnable(int32_t handle, const SystemContext& context) {
+	return Invoke(invokeOnEnable_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeOnDisable(int32_t handle, const SystemContext& context) {
-	Invoke(invokeOnDisable_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnDisable(int32_t handle, const SystemContext& context) {
+	return Invoke(invokeOnDisable_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeOnDestroy(int32_t handle, const SystemContext& context) {
-	Invoke(invokeOnDestroy_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnDestroy(int32_t handle, const SystemContext& context) {
+	return Invoke(invokeOnDestroy_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeFixedUpdate(int32_t handle, const SystemContext& context) {
-	Invoke(invokeFixedUpdate_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeFixedUpdate(int32_t handle, const SystemContext& context) {
+	return Invoke(invokeFixedUpdate_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeUpdate(int32_t handle, const SystemContext& context) {
-	Invoke(invokeUpdate_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeUpdate(int32_t handle, const SystemContext& context) {
+	return Invoke(invokeUpdate_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeLateUpdate(int32_t handle, const SystemContext& context) {
-	Invoke(invokeLateUpdate_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeLateUpdate(int32_t handle, const SystemContext& context) {
+	return Invoke(invokeLateUpdate_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeCollisionEnter(int32_t handle,
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionEnter(int32_t handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
-	InvokeCollision(invokeCollisionEnter_, handle, context, collision);
+	return InvokeCollision(invokeCollisionEnter_, handle, context, collision);
 }
 
-void Engine::ManagedScriptRuntime::InvokeCollisionStay(int32_t handle,
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionStay(int32_t handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
-	InvokeCollision(invokeCollisionStay_, handle, context, collision);
+	return InvokeCollision(invokeCollisionStay_, handle, context, collision);
 }
 
-void Engine::ManagedScriptRuntime::InvokeCollisionExit(int32_t handle,
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionExit(int32_t handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
-	InvokeCollision(invokeCollisionExit_, handle, context, collision);
+	return InvokeCollision(invokeCollisionExit_, handle, context, collision);
 }
 
 const std::vector<Engine::ManagedScriptField>& Engine::ManagedScriptRuntime::GetSerializedFields(const std::string& typeName) {
@@ -596,14 +701,17 @@ const std::vector<Engine::ManagedScriptField>& Engine::ManagedScriptRuntime::Get
 		return kEmpty;
 	}
 
-	const int32_t fieldCount = getSerializedFieldCount_(typeName.c_str());
+	int32_t fieldCount = 0;
+	if (getSerializedFieldCount_(typeName.c_str(), &fieldCount) != ManagedStatus::Ok) {
+		return kEmpty;
+	}
 	std::vector<ManagedScriptField> fields{};
 	fields.reserve(std::max(0, fieldCount));
 
 	for (int32_t i = 0; i < fieldCount; ++i) {
 
 		ManagedNativeSerializedFieldInfo nativeInfo{};
-		if (copySerializedFieldInfo_(typeName.c_str(), i, &nativeInfo) == 0) {
+		if (copySerializedFieldInfo_(typeName.c_str(), i, &nativeInfo) != ManagedStatus::Ok) {
 			continue;
 		}
 
@@ -659,6 +767,14 @@ bool Engine::ManagedScriptRuntime::LoadHostfxr() {
 		return false;
 	}
 
+	// LoadLibraryW成功後のいずれの失敗経路でも、確実にFreeLibrary/関数pointerリセットを行う
+	bool success = false;
+	struct FailureCleanup {
+		ManagedScriptRuntime* self;
+		const bool* success;
+		~FailureCleanup() { if (!*success) self->ReleaseHostfxr(); }
+	} failureCleanup{ this, &success };
+
 	auto loadFunction = [&](const char* name) -> void* {
 		return reinterpret_cast<void*>(::GetProcAddress(static_cast<HMODULE>(hostfxrLibrary_), name));
 		};
@@ -675,7 +791,6 @@ bool Engine::ManagedScriptRuntime::LoadHostfxr() {
 		return false;
 	}
 
-	HostfxrHandle context = nullptr;
 	const std::filesystem::path runtimeConfigPath =
 		scriptCoreAssemblyPath_.parent_path() / "NEM.ScriptCore.runtimeconfig.json";
 	if (!std::filesystem::exists(runtimeConfigPath)) {
@@ -684,6 +799,7 @@ bool Engine::ManagedScriptRuntime::LoadHostfxr() {
 		return false;
 	}
 
+	HostfxrHandle context = nullptr;
 	int32_t result = initializeForRuntimeConfig(runtimeConfigPath.c_str(), nullptr, &context);
 	if (result != 0 || !context) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
@@ -691,15 +807,22 @@ bool Engine::ManagedScriptRuntime::LoadHostfxr() {
 		return false;
 	}
 
+	// contextはscope guardで必ずcloseする（成功・失敗どちらの経路でも閉じる）
+	struct ContextGuard {
+		HostfxrCloseFn close;
+		HostfxrHandle handle;
+		~ContextGuard() { if (close && handle) { close(handle); } }
+	} contextGuard{ hostfxrClose_, context };
+
 	result = getRuntimeDelegate(context, kLoadAssemblyAndGetFunctionPointer,
 		reinterpret_cast<void**>(&loadAssemblyAndGetFunctionPointer_));
-	hostfxrClose_(context);
-
 	if (result != 0 || !loadAssemblyAndGetFunctionPointer_) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"ManagedScriptRuntime: failed to get load_assembly_and_get_function_pointer. code={}", result);
 		return false;
 	}
+
+	success = true;
 	return true;
 }
 
@@ -748,7 +871,7 @@ bool Engine::ManagedScriptRuntime::LoadGameAssembly() {
 	const std::string path = ToUtf8Path(gameAssemblyPath_);
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"ManagedScriptRuntime: loading GameScripts.dll from {}", path);
-	if (loadGameAssembly_(path.c_str()) == 0) {
+	if (loadGameAssembly_(path.c_str()) != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"ManagedScriptRuntime: failed to load GameScripts.dll. path={}", path);
 		return false;
@@ -766,25 +889,43 @@ void Engine::ManagedScriptRuntime::ReleaseHostfxr() {
 	}
 }
 
-void Engine::ManagedScriptRuntime::Invoke(InvokeFn function, int32_t handle, const SystemContext& context) {
+Engine::ManagedStatus Engine::ManagedScriptRuntime::Invoke(InvokeFn function, int32_t handle, const SystemContext& context) {
 
 	if (!initialized_ || !function || handle == 0) {
-		return;
+		return ManagedStatus::InvalidInstanceHandle;
 	}
 	FrameProfiler::ScopedSample scriptSample(FrameProfiler::Category::Script);
-	currentContext_ = &context;
-	function(handle);
-	currentContext_ = nullptr;
+	// contextはRAIIで設定し、C#側で例外が起きても確実に元へ戻す
+	ScopedInvocationContext contextScope(context);
+	return function(handle);
 }
 
-void Engine::ManagedScriptRuntime::InvokeCollision(InvokeCollisionFn function, int32_t handle,
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollision(InvokeCollisionFn function, int32_t handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
 
 	if (!initialized_ || !function || handle == 0) {
-		return;
+		return ManagedStatus::InvalidInstanceHandle;
 	}
 	FrameProfiler::ScopedSample scriptSample(FrameProfiler::Category::Script);
+	ScopedInvocationContext contextScope(context);
+	return function(handle, collision);
+}
+
+//============================================================================
+//	invocation contextのthread_local実体とRAIIガード
+//============================================================================
+thread_local const Engine::SystemContext* Engine::ManagedScriptRuntime::currentContext_ = nullptr;
+
+const Engine::SystemContext* Engine::ManagedScriptRuntime::GetCurrentContext() {
+	return currentContext_;
+}
+
+Engine::ManagedScriptRuntime::ScopedInvocationContext::ScopedInvocationContext(const SystemContext& context) :
+	previous_(currentContext_) {
+	// ネスト呼び出しに備えて以前のcontextを退避してから差し替える
 	currentContext_ = &context;
-	function(handle, collision);
-	currentContext_ = nullptr;
+}
+
+Engine::ManagedScriptRuntime::ScopedInvocationContext::~ScopedInvocationContext() {
+	currentContext_ = previous_;
 }

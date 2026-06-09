@@ -23,6 +23,16 @@ namespace Engine {
 	struct SystemContext;
 
 	//============================================================================
+	//	ScriptSourceStamp struct
+	//	C#ソース変更監視用のスタンプ。timestampが同じでもsizeが変わる環境を考慮する
+	//============================================================================
+	struct ScriptSourceStamp {
+
+		std::filesystem::file_time_type time{};
+		std::uintmax_t size = 0;
+	};
+
+	//============================================================================
 	//	ManagedScriptRuntime class
 	//	C#スクリプトのロード、型情報取得、ライフサイクル呼び出しを管理する
 	//============================================================================
@@ -56,28 +66,31 @@ namespace Engine {
 		void SetSerializedFields(int32_t handle, const nlohmann::json& serializedFields);
 		void DestroyInstance(int32_t handle);
 
-		// ライフサイクル呼び出し
-		void InvokeAwake(int32_t handle, const SystemContext& context);
-		void InvokeStart(int32_t handle, const SystemContext& context);
-		void InvokeOnEnable(int32_t handle, const SystemContext& context);
-		void InvokeOnDisable(int32_t handle, const SystemContext& context);
-		void InvokeOnDestroy(int32_t handle, const SystemContext& context);
-		void InvokeFixedUpdate(int32_t handle, const SystemContext& context);
-		void InvokeUpdate(int32_t handle, const SystemContext& context);
-		void InvokeLateUpdate(int32_t handle, const SystemContext& context);
+		// ライフサイクル呼び出し。C#側で例外を封じ込めた結果をManagedStatusで返す
+		ManagedStatus InvokeAwake(int32_t handle, const SystemContext& context);
+		ManagedStatus InvokeStart(int32_t handle, const SystemContext& context);
+		ManagedStatus InvokeOnEnable(int32_t handle, const SystemContext& context);
+		ManagedStatus InvokeOnDisable(int32_t handle, const SystemContext& context);
+		ManagedStatus InvokeOnDestroy(int32_t handle, const SystemContext& context);
+		ManagedStatus InvokeFixedUpdate(int32_t handle, const SystemContext& context);
+		ManagedStatus InvokeUpdate(int32_t handle, const SystemContext& context);
+		ManagedStatus InvokeLateUpdate(int32_t handle, const SystemContext& context);
 
 		// C#側のOnCollisionEnterを呼び出す
-		void InvokeCollisionEnter(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
+		ManagedStatus InvokeCollisionEnter(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
 		// C#側のOnCollisionStayを呼び出す
-		void InvokeCollisionStay(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
+		ManagedStatus InvokeCollisionStay(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
 		// C#側のOnCollisionExitを呼び出す
-		void InvokeCollisionExit(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
+		ManagedStatus InvokeCollisionExit(int32_t handle, const SystemContext& context, const ManagedCollisionEvent& collision);
 
 		//--------- accessor -----------------------------------------------------
 
 		bool IsInitialized() const { return initialized_; }
 		bool TryResolveScriptTypeName(const std::string_view& scriptName, std::string& outTypeName) const;
 		const std::vector<ManagedScriptField>& GetSerializedFields(const std::string& typeName);
+
+		// 現在のライフサイクル呼び出しのコンテキスト（main threadのcallbackから参照する）
+		static const SystemContext* GetCurrentContext();
 
 		static ManagedScriptRuntime& GetInstance();
 	private:
@@ -94,18 +107,20 @@ namespace Engine {
 		using LoadAssemblyAndGetFunctionPointerFn = int32_t(__cdecl*)(const wchar_t*, const wchar_t*,
 			const wchar_t*, const wchar_t*, void*, void**);
 
-		using InitializeNativeApiFn = int32_t(__cdecl*)(ManagedNativeApiTable*);
-		using LoadGameAssemblyFn = int32_t(__cdecl*)(const char*);
-		using UnloadGameAssemblyFn = void(__cdecl*)();
-		using GetScriptTypeCountFn = int32_t(__cdecl*)();
-		using CopyScriptTypeNameFn = int32_t(__cdecl*)(int32_t, char*, int32_t);
-		using GetSerializedFieldCountFn = int32_t(__cdecl*)(const char*);
-		using CopySerializedFieldInfoFn = int32_t(__cdecl*)(const char*, int32_t, ManagedNativeSerializedFieldInfo*);
-		using CreateInstanceFn = int32_t(__cdecl*)(const char*, ManagedNativeEntity, const char*);
-		using SetSerializedFieldsFn = void(__cdecl*)(int32_t, const char*);
-		using DestroyInstanceFn = void(__cdecl*)(int32_t);
-		using InvokeFn = void(__cdecl*)(int32_t);
-		using InvokeCollisionFn = void(__cdecl*)(int32_t, ManagedCollisionEvent);
+		// 全exportは例外を境界外へ出さず、結果をManagedStatusで返す。
+		// 値を返すAPIは ManagedStatus + out parameter 形式にする
+		using InitializeNativeApiFn = ManagedStatus(__cdecl*)(ManagedNativeApiTable*);
+		using LoadGameAssemblyFn = ManagedStatus(__cdecl*)(const char*);
+		using UnloadGameAssemblyFn = ManagedStatus(__cdecl*)();
+		using GetScriptTypeCountFn = ManagedStatus(__cdecl*)(int32_t*);
+		using CopyScriptTypeNameFn = ManagedStatus(__cdecl*)(int32_t, char*, int32_t, int32_t*);
+		using GetSerializedFieldCountFn = ManagedStatus(__cdecl*)(const char*, int32_t*);
+		using CopySerializedFieldInfoFn = ManagedStatus(__cdecl*)(const char*, int32_t, ManagedNativeSerializedFieldInfo*);
+		using CreateInstanceFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, const char*, int32_t*);
+		using SetSerializedFieldsFn = ManagedStatus(__cdecl*)(int32_t, const char*);
+		using DestroyInstanceFn = ManagedStatus(__cdecl*)(int32_t);
+		using InvokeFn = ManagedStatus(__cdecl*)(int32_t);
+		using InvokeCollisionFn = ManagedStatus(__cdecl*)(int32_t, ManagedCollisionEvent);
 
 		//--------- variables ----------------------------------------------------
 
@@ -139,12 +154,14 @@ namespace Engine {
 		InvokeCollisionFn invokeCollisionStay_ = nullptr;
 		InvokeCollisionFn invokeCollisionExit_ = nullptr;
 
-		const SystemContext* currentContext_ = nullptr;
+		// ライフサイクル呼び出し中だけ有効なコンテキスト。
+		// thread_localにし、ネスト呼び出しや例外/早期returnでも確実に復元する
+		static thread_local const SystemContext* currentContext_;
 
 		std::filesystem::path scriptCoreAssemblyPath_;
 		std::filesystem::path gameAssemblyPath_;
 		std::unordered_map<std::string, std::vector<ManagedScriptField>> fieldCache_;
-		std::unordered_map<std::string, std::filesystem::file_time_type> scriptSourceSnapshot_;
+		std::unordered_map<std::string, ScriptSourceStamp> scriptSourceSnapshot_;
 		std::chrono::steady_clock::time_point nextScriptSourceScanTime_{};
 		bool hasScriptSourceSnapshot_ = false;
 
@@ -159,10 +176,25 @@ namespace Engine {
 		template <typename T>
 		bool LoadBridgeFunction(T& outFunction, const wchar_t* methodName);
 
-		void Invoke(InvokeFn function, int32_t handle, const SystemContext& context);
+		ManagedStatus Invoke(InvokeFn function, int32_t handle, const SystemContext& context);
 		// C#側のCollisionイベント関数を呼び出す
-		void InvokeCollision(InvokeCollisionFn function, int32_t handle,
+		ManagedStatus InvokeCollision(InvokeCollisionFn function, int32_t handle,
 			const SystemContext& context, const ManagedCollisionEvent& collision);
+
+		//============================================================================
+		//	ScopedInvocationContext
+		//	currentContext_をRAIIで一時設定し、scope離脱時に必ず元へ戻す
+		//============================================================================
+		class ScopedInvocationContext {
+		public:
+			explicit ScopedInvocationContext(const SystemContext& context);
+			~ScopedInvocationContext();
+
+			ScopedInvocationContext(const ScopedInvocationContext&) = delete;
+			ScopedInvocationContext& operator=(const ScopedInvocationContext&) = delete;
+		private:
+			const SystemContext* previous_;
+		};
 
 		// C#へ渡すコールバック
 		static float __cdecl GetDeltaTimeCallback();

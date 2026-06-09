@@ -6,8 +6,48 @@
 // c++
 #include <cstdint>
 #include <string>
+#include <type_traits>
 
 namespace Engine {
+
+	//============================================================================
+	//	ManagedScript ABI constants
+	//============================================================================
+	// C++ / C# 境界のABIバージョン。構造体レイアウトや関数テーブルを変えたら必ず上げる
+	inline constexpr uint32_t kManagedAbiVersion = 1;
+
+	// ネイティブが提供する機能カテゴリ。capability bitで有無を表す
+	enum class ManagedCapability : uint64_t {
+
+		Core = 1ull << 0,      // Time / Log
+		Input = 1ull << 1,     // 入力
+		Entity = 1ull << 2,    // Entity 名前 / アクティブ
+		Hierarchy = 1ull << 3, // 親子関係
+		Transform = 1ull << 4, // Transform
+	};
+
+	// 現状ネイティブが提供する全capability
+	inline constexpr uint64_t kManagedCapabilitiesAll =
+		static_cast<uint64_t>(ManagedCapability::Core) |
+		static_cast<uint64_t>(ManagedCapability::Input) |
+		static_cast<uint64_t>(ManagedCapability::Entity) |
+		static_cast<uint64_t>(ManagedCapability::Hierarchy) |
+		static_cast<uint64_t>(ManagedCapability::Transform);
+
+	// C++ / C# で共有する境界処理の結果コード。値はC#側と一致させる
+	enum class ManagedStatus : int32_t {
+
+		Ok = 0,
+		InvalidArgument,
+		InvalidWorldHandle,
+		InvalidEntityHandle,
+		InvalidInstanceHandle,
+		AbiMismatch,
+		Unsupported,
+		SerializationError,
+		ScriptException,
+		InternalError,
+	};
 
 	//============================================================================
 	//	ManagedScript structures
@@ -39,10 +79,18 @@ namespace Engine {
 		std::string defaultValueJson;
 	};
 
+	// C#へ生のECSWorld*を渡さないための、世代付きworldハンドル
+	// 実体ポインタはネイティブのManagedWorldRegistry内部だけが保持する
+	struct ManagedWorldHandle {
+
+		uint32_t index = 0xFFFFFFFF;
+		uint32_t generation = 0;
+	};
+
 	// C#へ渡すエンティティ参照
 	struct ManagedNativeEntity {
 
-		std::uintptr_t world = 0;
+		ManagedWorldHandle world{};
 		uint32_t index = 0xFFFFFFFF;
 		uint32_t generation = 0;
 	};
@@ -91,8 +139,19 @@ namespace Engine {
 		float w = 1.0f;
 	};
 
+	// ネイティブAPIテーブル先頭に置くABIヘッダ。version/size/capabilityを検証に使う
+	struct ManagedAbiHeader {
+
+		uint32_t abiVersion = 0;
+		uint32_t structSize = 0;
+		uint64_t capabilities = 0;
+	};
+
 	// C#へ渡すネイティブAPI
 	struct ManagedNativeApiTable {
+
+		// 互換性検証用ヘッダ。必ず先頭に置く
+		ManagedAbiHeader header{};
 
 		using GetDeltaTimeCallback = float(__cdecl*)();
 		using GetVector2Callback = ManagedVector2(__cdecl*)();
@@ -159,4 +218,20 @@ namespace Engine {
 		char displayName[128]{};
 		char defaultValueJson[512]{};
 	};
+
+	//============================================================================
+	//	ABIレイアウト検証
+	//	C#側の[StructLayout(Sequential)]と一致していることを保証する
+	//============================================================================
+	static_assert(std::is_standard_layout_v<ManagedWorldHandle>);
+	static_assert(std::is_standard_layout_v<ManagedNativeEntity>);
+	static_assert(std::is_standard_layout_v<ManagedAbiHeader>);
+	static_assert(std::is_standard_layout_v<ManagedNativeApiTable>);
+	static_assert(std::is_standard_layout_v<ManagedCollisionEvent>);
+	static_assert(std::is_standard_layout_v<ManagedNativeSerializedFieldInfo>);
+
+	static_assert(sizeof(ManagedWorldHandle) == 8);
+	static_assert(sizeof(ManagedNativeEntity) == 16);
+	static_assert(sizeof(ManagedAbiHeader) == 16);
+	static_assert(sizeof(ManagedNativeSerializedFieldInfo) == 776);
 } // Engine

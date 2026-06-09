@@ -49,213 +49,345 @@ public static unsafe class HostBridge {
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InitializeNativeApi(NativeApiTable* callbacks) {
 
-        // C++から渡されたECSアクセス関数をScriptCore全体で使えるようにする
-        NativeApi.SetCallbacks(callbacks);
-        return 1;
+        // ここでは例外を境界外へ出さない。log callbackは未設定の可能性があるためtry内で使わない
+        try {
+            if (callbacks == null) {
+                return (int)ManagedStatus.InvalidArgument;
+            }
+
+            // ABIヘッダでversion / 構造体サイズ / capabilityを検証し、不一致なら関数ポインタを読まない
+            ManagedAbiHeader header = callbacks->header;
+            if (header.abiVersion != ManagedAbi.Version) {
+                return (int)ManagedStatus.AbiMismatch;
+            }
+            if (header.structSize < (uint)sizeof(NativeApiTable)) {
+                return (int)ManagedStatus.AbiMismatch;
+            }
+            if ((header.capabilities & ManagedAbi.RequiredCapabilities) != ManagedAbi.RequiredCapabilities) {
+                return (int)ManagedStatus.AbiMismatch;
+            }
+
+            // C++から渡されたECSアクセス関数をScriptCore全体で使えるようにする
+            NativeApi.SetCallbacks(callbacks);
+            return (int)ManagedStatus.Ok;
+        }
+        catch {
+            return (int)ManagedStatus.InternalError;
+        }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int LoadGameAssembly(byte* assemblyPath) {
 
-        // ゲーム側DLLをロードして、ScriptBehaviour派生型を再収集する
-        string? path = PtrToString(assemblyPath);
-        if (string.IsNullOrEmpty(path) || !File.Exists(path)) {
-            return 0;
-        }
+        return (int)Guard(nameof(LoadGameAssembly), () => {
 
-        try {
-            WaitForManagedDebuggerIfRequested();
+            // ゲーム側DLLをロードして、ScriptBehaviour派生型を再収集する
+            string? path = PtrToString(assemblyPath);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) {
+                return ManagedStatus.InvalidArgument;
+            }
 
-            // 既存DLLを解放してから新しいDLLを読み込む
+            try {
+                WaitForManagedDebuggerIfRequested();
+
+                // 既存DLLを解放してから新しいDLLを読み込む
+                ReleaseGameAssembly(collect: true);
+                gameLoadContext = new GameScriptLoadContext(path);
+                gameAssembly = gameLoadContext.LoadFromAssemblyPath(path);
+                RebuildScriptTypes();
+                NativeApi.WriteLog(0, $"Loaded GameScripts: {path}, scriptTypes={scriptTypes.Count}");
+                return ManagedStatus.Ok;
+            }
+            catch (Exception ex) {
+                NativeApi.WriteLog(2, $"Failed to load GameScripts: {path}\n{ex}");
+                ReleaseGameAssembly(collect: true);
+                return ManagedStatus.InternalError;
+            }
+        });
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int UnloadGameAssembly() {
+
+        return (int)Guard(nameof(UnloadGameAssembly), () => {
             ReleaseGameAssembly(collect: true);
-            gameLoadContext = new GameScriptLoadContext(path);
-            gameAssembly = gameLoadContext.LoadFromAssemblyPath(path);
-            RebuildScriptTypes();
-            NativeApi.WriteLog(0, $"Loaded GameScripts: {path}, scriptTypes={scriptTypes.Count}");
-            return 1;
-        }
-        catch (Exception ex) {
-            NativeApi.WriteLog(2, $"Failed to load GameScripts: {path}\n{ex}");
-            ReleaseGameAssembly(collect: true);
-            return 0;
-        }
+            return ManagedStatus.Ok;
+        });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void UnloadGameAssembly() {
-        ReleaseGameAssembly(collect: true);
+    public static int GetScriptTypeCount(int* outCount) {
+
+        return (int)Guard(nameof(GetScriptTypeCount), () => {
+            if (outCount == null) {
+                return ManagedStatus.InvalidArgument;
+            }
+            *outCount = scriptTypes.Count;
+            return ManagedStatus.Ok;
+        });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int GetScriptTypeCount() {
-        return scriptTypes.Count;
+    public static int CopyScriptTypeName(int index, byte* buffer, int capacity, int* outWritten) {
+
+        return (int)Guard(nameof(CopyScriptTypeName), () => {
+
+            if (outWritten != null) {
+                *outWritten = 0;
+            }
+            // C++側の固定長バッファへtype nameをコピーする
+            if (index < 0 || scriptTypes.Count <= index || buffer == null || capacity <= 0) {
+                return ManagedStatus.InvalidArgument;
+            }
+            int written = CopyString(scriptTypes[index].FullName ?? scriptTypes[index].Name, buffer, capacity);
+            if (outWritten != null) {
+                *outWritten = written;
+            }
+            return ManagedStatus.Ok;
+        });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int CopyScriptTypeName(int index, byte* buffer, int capacity) {
+    public static int GetSerializedFieldCount(byte* typeName, int* outCount) {
 
-        // C++側の固定長バッファへtype nameをコピーする
-        if (index < 0 || scriptTypes.Count <= index || buffer == null || capacity <= 0) {
-            return 0;
-        }
-        return CopyString(scriptTypes[index].FullName ?? scriptTypes[index].Name, buffer, capacity);
-    }
-
-    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int GetSerializedFieldCount(byte* typeName) {
-        Type? type = FindScriptType(PtrToString(typeName));
-        return type == null ? 0 : GetSerializedFields(type).Count;
+        return (int)Guard(nameof(GetSerializedFieldCount), () => {
+            if (outCount == null) {
+                return ManagedStatus.InvalidArgument;
+            }
+            Type? type = FindScriptType(PtrToString(typeName));
+            *outCount = type == null ? 0 : GetSerializedFields(type).Count;
+            return ManagedStatus.Ok;
+        });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int CopySerializedFieldInfo(byte* typeName, int index, NativeSerializedFieldInfo* outInfo) {
 
-        // C++ Inspectorが描画できるよう、フィールド名・型・初期値だけを固定長ABIで返す
-        Type? type = FindScriptType(PtrToString(typeName));
-        if (type == null || outInfo == null) {
-            return 0;
-        }
+        return (int)Guard(nameof(CopySerializedFieldInfo), () => {
 
-        List<SerializedFieldInfo> fields = GetSerializedFields(type);
-        if (index < 0 || fields.Count <= index) {
-            return 0;
-        }
+            // C++ Inspectorが描画できるよう、フィールド名・型・初期値だけを固定長ABIで返す
+            Type? type = FindScriptType(PtrToString(typeName));
+            if (type == null || outInfo == null) {
+                return ManagedStatus.InvalidArgument;
+            }
 
-        SerializedFieldInfo field = fields[index];
+            List<SerializedFieldInfo> fields = GetSerializedFields(type);
+            if (index < 0 || fields.Count <= index) {
+                return ManagedStatus.InvalidArgument;
+            }
 
-        // enumはC++側のManagedSerializedFieldKindと同じ値で扱う
-        outInfo->kind = (int)field.kind;
-        outInfo->isPublic = field.isPublic ? 1 : 0;
+            SerializedFieldInfo field = fields[index];
 
-        // 文字列はC++側の固定長char配列へコピーする
-        CopyFixed(field.name, outInfo->name, MaxNameBytes);
-        CopyFixed(field.displayName, outInfo->displayName, MaxNameBytes);
-        CopyFixed(field.defaultValueJson, outInfo->defaultValueJson, MaxJsonBytes);
-        return 1;
+            // enumはC++側のManagedSerializedFieldKindと同じ値で扱う
+            outInfo->kind = (int)field.kind;
+            outInfo->isPublic = field.isPublic ? 1 : 0;
+
+            // 文字列はC++側の固定長char配列へコピーする
+            CopyFixed(field.name, outInfo->name, MaxNameBytes);
+            CopyFixed(field.displayName, outInfo->displayName, MaxNameBytes);
+            CopyFixed(field.defaultValueJson, outInfo->defaultValueJson, MaxJsonBytes);
+            return ManagedStatus.Ok;
+        });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int CreateInstance(byte* typeName, NativeEntity entity, byte* serializedJson) {
+    public static int CreateInstance(byte* typeName, NativeEntity entity, byte* serializedJson, int* outHandle) {
 
-        // ECSのEntity参照を持つScriptBehaviourを生成し、Inspector保存値を適用する
-        Type? type = FindScriptType(PtrToString(typeName));
-        if (type == null) {
-            return 0;
-        }
+        return (int)Guard(nameof(CreateInstance), () => {
 
-        if (Activator.CreateInstance(type) is not ScriptBehaviour script) {
-            return 0;
-        }
+            if (outHandle == null) {
+                return ManagedStatus.InvalidArgument;
+            }
+            *outHandle = 0;
 
-        script.entity = new Entity(entity);
-        ApplySerializedFields(script, PtrToString(serializedJson));
+            // ECSのEntity参照を持つScriptBehaviourを生成し、Inspector保存値を適用する
+            Type? type = FindScriptType(PtrToString(typeName));
+            if (type == null) {
+                return ManagedStatus.InvalidArgument;
+            }
 
-        // C++側はこのIDだけを保持して、以後のイベント呼び出しに使う
-        int id = nextScriptID++;
-        if (id == scripts.Count) {
-            scripts.Add(script);
-        } else {
-            scripts[id] = script;
-        }
-        return id;
-    }
+            if (Activator.CreateInstance(type) is not ScriptBehaviour script) {
+                return ManagedStatus.InternalError;
+            }
 
-    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void SetSerializedFields(int handle, byte* serializedJson) {
-
-        // Play中にInspectorで変更された保存値を、既存のC#インスタンスへ再適用する
-        if (TryGetScript(handle, out ScriptBehaviour script)) {
+            script.entity = new Entity(entity);
             ApplySerializedFields(script, PtrToString(serializedJson));
-        }
+
+            // C++側はこのIDだけを保持して、以後のイベント呼び出しに使う
+            int id = nextScriptID++;
+            if (id == scripts.Count) {
+                scripts.Add(script);
+            } else {
+                scripts[id] = script;
+            }
+            *outHandle = id;
+            return ManagedStatus.Ok;
+        });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void DestroyInstance(int handle) {
-        if (0 < handle && handle < scripts.Count) {
-            scripts[handle] = null;
-        }
+    public static int SetSerializedFields(int handle, byte* serializedJson) {
+
+        return (int)Guard(nameof(SetSerializedFields), () => {
+
+            // Play中にInspectorで変更された保存値を、既存のC#インスタンスへ再適用する
+            if (!TryGetScript(handle, out ScriptBehaviour script)) {
+                return ManagedStatus.InvalidInstanceHandle;
+            }
+            ApplySerializedFields(script, PtrToString(serializedJson));
+            return ManagedStatus.Ok;
+        });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void InvokeAwake(int handle) {
-        if (TryGetScript(handle, out ScriptBehaviour script)) {
-            script.Awake();
-        }
+    public static int DestroyInstance(int handle) {
+
+        return (int)Guard(nameof(DestroyInstance), () => {
+            if (0 < handle && handle < scripts.Count) {
+                scripts[handle] = null;
+            }
+            return ManagedStatus.Ok;
+        });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void InvokeStart(int handle) {
-        if (TryGetScript(handle, out ScriptBehaviour script)) {
-            script.Start();
-        }
+    public static int InvokeAwake(int handle) {
+        return (int)GuardInstance(handle, nameof(ScriptBehaviour.Awake), static script => script.Awake());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void InvokeOnEnable(int handle) {
-        if (TryGetScript(handle, out ScriptBehaviour script)) {
-            script.OnEnable();
-        }
+    public static int InvokeStart(int handle) {
+        return (int)GuardInstance(handle, nameof(ScriptBehaviour.Start), static script => script.Start());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void InvokeOnDisable(int handle) {
-        if (TryGetScript(handle, out ScriptBehaviour script)) {
-            script.OnDisable();
-        }
+    public static int InvokeOnEnable(int handle) {
+        return (int)GuardInstance(handle, nameof(ScriptBehaviour.OnEnable), static script => script.OnEnable());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void InvokeOnDestroy(int handle) {
-        if (TryGetScript(handle, out ScriptBehaviour script)) {
-            script.OnDestroy();
-        }
+    public static int InvokeOnDisable(int handle) {
+        return (int)GuardInstance(handle, nameof(ScriptBehaviour.OnDisable), static script => script.OnDisable());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void InvokeFixedUpdate(int handle) {
-        if (TryGetScript(handle, out ScriptBehaviour script)) {
-            script.FixedUpdate();
-        }
+    public static int InvokeOnDestroy(int handle) {
+        return (int)GuardInstance(handle, nameof(ScriptBehaviour.OnDestroy), static script => script.OnDestroy());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void InvokeUpdate(int handle) {
-        if (TryGetScript(handle, out ScriptBehaviour script)) {
-            script.Update();
-        }
+    public static int InvokeFixedUpdate(int handle) {
+        return (int)GuardInstance(handle, nameof(ScriptBehaviour.FixedUpdate), static script => script.FixedUpdate());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void InvokeLateUpdate(int handle) {
-        if (TryGetScript(handle, out ScriptBehaviour script)) {
-            script.LateUpdate();
-        }
+    public static int InvokeUpdate(int handle) {
+        return (int)GuardInstance(handle, nameof(ScriptBehaviour.Update), static script => script.Update());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void InvokeCollisionEnter(int handle, NativeCollisionEvent collision) {
-        if (TryGetScript(handle, out ScriptBehaviour script)) {
+    public static int InvokeLateUpdate(int handle) {
+        return (int)GuardInstance(handle, nameof(ScriptBehaviour.LateUpdate), static script => script.LateUpdate());
+    }
+
+    // Collision系はcollisionをキャプチャするとクロージャがヒープ確保されるため、
+    // 高頻度callbackでの確保を避けてGuardInstanceを使わず明示的にguardする
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int InvokeCollisionEnter(int handle, NativeCollisionEvent collision) {
+
+        if (!TryGetScript(handle, out ScriptBehaviour script)) {
+            return (int)ManagedStatus.InvalidInstanceHandle;
+        }
+        try {
             script.OnCollisionEnter(new Collision(collision));
+            return (int)ManagedStatus.Ok;
+        }
+        catch (Exception ex) {
+            LogScriptException(script, nameof(ScriptBehaviour.OnCollisionEnter), ex);
+            return (int)ManagedStatus.ScriptException;
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void InvokeCollisionStay(int handle, NativeCollisionEvent collision) {
-        if (TryGetScript(handle, out ScriptBehaviour script)) {
+    public static int InvokeCollisionStay(int handle, NativeCollisionEvent collision) {
+
+        if (!TryGetScript(handle, out ScriptBehaviour script)) {
+            return (int)ManagedStatus.InvalidInstanceHandle;
+        }
+        try {
             script.OnCollisionStay(new Collision(collision));
+            return (int)ManagedStatus.Ok;
+        }
+        catch (Exception ex) {
+            LogScriptException(script, nameof(ScriptBehaviour.OnCollisionStay), ex);
+            return (int)ManagedStatus.ScriptException;
         }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static void InvokeCollisionExit(int handle, NativeCollisionEvent collision) {
-        if (TryGetScript(handle, out ScriptBehaviour script)) {
+    public static int InvokeCollisionExit(int handle, NativeCollisionEvent collision) {
+
+        if (!TryGetScript(handle, out ScriptBehaviour script)) {
+            return (int)ManagedStatus.InvalidInstanceHandle;
+        }
+        try {
             script.OnCollisionExit(new Collision(collision));
+            return (int)ManagedStatus.Ok;
+        }
+        catch (Exception ex) {
+            LogScriptException(script, nameof(ScriptBehaviour.OnCollisionExit), ex);
+            return (int)ManagedStatus.ScriptException;
         }
     }
 
     //========================================================================
     //	private Methods
     //========================================================================
+
+    // export共通の例外封じ込めラッパー。例外を境界外へ出さずManagedStatusへ変換する
+    private static ManagedStatus Guard(string apiName, Func<ManagedStatus> body) {
+
+        try {
+            return body();
+        }
+        catch (Exception ex) {
+            NativeApi.WriteLog(2, $"[NativeExport:{apiName}] unhandled managed exception\n{ex}");
+            return ManagedStatus.InternalError;
+        }
+    }
+
+    // script callback専用ラッパー。例外時は対象instanceのみScriptExceptionを返し、診断情報を残す
+    private static ManagedStatus GuardInstance(int handle, string callbackName, Action<ScriptBehaviour> body) {
+
+        if (!TryGetScript(handle, out ScriptBehaviour script)) {
+            return ManagedStatus.InvalidInstanceHandle;
+        }
+
+        try {
+            body(script);
+            return ManagedStatus.Ok;
+        }
+        catch (Exception ex) {
+            LogScriptException(script, callbackName, ex);
+            return ManagedStatus.ScriptException;
+        }
+    }
+
+    // faultedになったscriptの診断情報をログへ出す
+    private static void LogScriptException(ScriptBehaviour script, string callbackName, Exception ex) {
+
+        Type type = script.GetType();
+        string typeName = type.FullName ?? type.Name;
+
+        // owner entity handle。解決できればentity名も付ける
+        // (script type stable IDとscene local IDは後続タスクで導入予定のため、ここではfull type nameを使う)
+        Entity owner = script.entity;
+        string entityHandle = $"{owner.native.index}:{owner.native.generation}";
+        string entityName = owner.isValid ? owner.name : string.Empty;
+
+        NativeApi.WriteLog(2,
+            $"[ScriptException] callback={callbackName} type={typeName} entity={entityHandle} name=\"{entityName}\"\n{ex}");
+    }
 
     private static void RebuildScriptTypes() {
 

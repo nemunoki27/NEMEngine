@@ -29,13 +29,13 @@ namespace Engine {
 
 	float ManagedScriptRuntime::GetDeltaTimeCallback() {
 		// 直近のライフサイクル呼び出しで保持されたコンテキストからデルタタイム（フレーム間秒数）を取得
-		const SystemContext* context = GetInstance().currentContext_;
+		const SystemContext* context = GetCurrentContext();
 		return context ? context->deltaTime : 0.0f;
 	}
 
 	float ManagedScriptRuntime::GetFixedDeltaTimeCallback() {
 		// 固定時間ステップ（物理更新等）の間隔を取得
-		const SystemContext* context = GetInstance().currentContext_;
+		const SystemContext* context = GetCurrentContext();
 		return context ? context->fixedDeltaTime : 0.0f;
 	}
 

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Behavior/MonoBehavior.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptTypes.h>
 
 // c++
 #include <string>
@@ -40,6 +41,11 @@ namespace Engine {
 		void OnCollisionEnter(ECSWorld& world, const SystemContext& context, const CollisionContact& collision) override;
 		void OnCollisionStay(ECSWorld& world, const SystemContext& context, const CollisionContact& collision) override;
 		void OnCollisionExit(ECSWorld& world, const SystemContext& context, const CollisionContact& collision) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		// C#側callbackで例外が発生し、faulted状態になったか
+		bool IsFaulted() const override { return faulted_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -53,11 +59,15 @@ namespace Engine {
 		nlohmann::json serializedFields_ = nlohmann::json::object();
 		// C#側インスタンスハンドル
 		int32_t managedHandle_ = 0;
+		// C#側callbackで例外が発生したらtrue。以降このインスタンスのcallbackは呼ばない
+		bool faulted_ = false;
 
 		//--------- functions ----------------------------------------------------
 
 		// C#側インスタンスが未作成なら作成する
 		void EnsureCreated(ECSWorld& world, const Entity& entity);
+		// Invoke結果を判定し、ScriptExceptionならfaulted化して一度だけ診断ログを出す
+		void HandleStatus(ManagedStatus status, const char* callbackName, const Entity& entity);
 	};
 } // Engine
 

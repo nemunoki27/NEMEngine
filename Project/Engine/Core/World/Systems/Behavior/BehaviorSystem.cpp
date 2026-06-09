@@ -91,11 +91,14 @@ void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context
 
 	runtime_.ForEachAlive([&](BehaviorRecord& record) {
 
-		// 無効なインスタンスは処理しない
-		if (!record.enabled || !record.instance) {
+		// 無効・faultedなインスタンスは処理しない
+		if (!record.enabled || !record.instance || record.faulted) {
 			return;
 		}
 		record.instance->FixedUpdate(world, context, record.owner);
+		if (record.instance->IsFaulted()) {
+			record.faulted = true;
+		}
 		});
 }
 
@@ -111,11 +114,14 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 
 	runtime_.ForEachAlive([&](BehaviorRecord& record) {
 
-		// 無効なインスタンスは処理しない
-		if (!record.enabled || !record.instance) {
+		// 無効・faultedなインスタンスは処理しない
+		if (!record.enabled || !record.instance || record.faulted) {
 			return;
 		}
 		record.instance->Update(world, context, record.owner);
+		if (record.instance->IsFaulted()) {
+			record.faulted = true;
+		}
 		});
 }
 
@@ -131,11 +137,14 @@ void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 
 	runtime_.ForEachAlive([&](BehaviorRecord& record) {
 
-		// 無効なインスタンスは処理しない
-		if (!record.enabled || !record.instance) {
+		// 無効・faultedなインスタンスは処理しない
+		if (!record.enabled || !record.instance || record.faulted) {
 			return;
 		}
 		record.instance->LateUpdate(world, context, record.owner);
+		if (record.instance->IsFaulted()) {
+			record.faulted = true;
+		}
 		});
 }
 
@@ -271,6 +280,13 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 			// アクセスされたフラグを立てる
 			record->seen = true;
 
+			// faulted状態のビヘイビアは生存させたまま、以降のライフサイクルcallbackを呼ばない
+			if (record->faulted || record->instance->IsFaulted()) {
+
+				record->faulted = true;
+				continue;
+			}
+
 			// 対象エンティティが階層内でアクティブか
 			bool shouldBeEnabled = entry.enabled && IsEntityActiveInHierarchy(world, entity);
 
@@ -308,6 +324,11 @@ void Engine::BehaviorSystem::Prepare(ECSWorld& world, SystemContext& context, bo
 				record->instance->Start(world, context, entity);
 				record->startCalled = true;
 			}
+
+			// callback中に例外が起きていたらrecordへ反映する
+			if (record->instance->IsFaulted()) {
+				record->faulted = true;
+			}
 		}
 		});
 	// 更新時、参照されなくなったビヘイビアをワールドから破棄する
@@ -327,7 +348,7 @@ void Engine::BehaviorSystem::DispatchCollision(ECSWorld& world,
 	// Contactのselfに一致するEntityのビヘイビアだけへ通知する
 	runtime_.ForEachAliveByOwner(collision.self, [&](BehaviorRecord& record) {
 
-		if (!record.enabled || !record.instance) {
+		if (!record.enabled || !record.instance || record.faulted) {
 			return;
 		}
 		switch (phase) {
@@ -342,6 +363,9 @@ void Engine::BehaviorSystem::DispatchCollision(ECSWorld& world,
 			break;
 		default:
 			break;
+		}
+		if (record.instance->IsFaulted()) {
+			record.faulted = true;
 		}
 		});
 }

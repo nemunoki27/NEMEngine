@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -17,8 +19,20 @@
 namespace Engine {
 
 	ManagedNativeEntity MakeNativeEntity(ECSWorld& world, Entity entity) {
+
+		// 生ポインタではなくレジストリのハンドルへ変換する
+		const ManagedWorldHandle handle = ManagedWorldRegistry::GetInstance().TryGetHandle(world);
+		if (handle.index == 0xFFFFFFFF) {
+
+			// 未登録worldを暗黙登録して隠さない。登録漏れはdebugで検出し、nullハンドルを返す
+#if defined(_DEBUG)
+			Assert::Call(false, "MakeNativeEntity: ECSWorld is not registered in ManagedWorldRegistry");
+#endif
+			return ManagedNativeEntity{};
+		}
+
 		ManagedNativeEntity native{};
-		native.world = reinterpret_cast<std::uintptr_t>(&world);
+		native.world = handle;
 		native.index = entity.index;
 		native.generation = entity.generation;
 		return native;
@@ -29,7 +43,7 @@ namespace Engine {
 	}
 
 	ECSWorld* ResolveWorld(ManagedNativeEntity native) {
-		return reinterpret_cast<ECSWorld*>(native.world);
+		return ManagedWorldRegistry::GetInstance().TryResolve(native.world);
 	}
 
 	Entity ResolveEntity(ManagedNativeEntity native) {
@@ -99,10 +113,6 @@ namespace Engine {
 		}
 		// 自身と子孫のワールド行列を再計算対象にする
 		MarkTransformSubtreeDirty(world, entity);
-	}
-
-	SceneObjectComponent& EnsureScriptSceneObject(ECSWorld& world, const Entity& entity) {
-		return SceneObjectUtility::EnsureSceneObject(world, entity);
 	}
 
 	void RefreshScriptActiveTree(ECSWorld& world, const Entity& entity) {

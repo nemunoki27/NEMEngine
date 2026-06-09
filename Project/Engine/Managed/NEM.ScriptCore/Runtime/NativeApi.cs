@@ -4,6 +4,33 @@ using System.Text;
 
 namespace NEMEngine;
 
+// C++側 ManagedAbi と一致させるABI定数
+internal static class ManagedAbi {
+
+    // C++側 kManagedAbiVersion と一致させる
+    internal const uint Version = 1;
+
+    // ネイティブが提供する機能カテゴリ
+    internal const ulong CapabilityCore = 1ul << 0;
+    internal const ulong CapabilityInput = 1ul << 1;
+    internal const ulong CapabilityEntity = 1ul << 2;
+    internal const ulong CapabilityHierarchy = 1ul << 3;
+    internal const ulong CapabilityTransform = 1ul << 4;
+
+    // ScriptCoreが動作に必要とするcapability
+    internal const ulong RequiredCapabilities =
+        CapabilityCore | CapabilityInput | CapabilityEntity | CapabilityHierarchy | CapabilityTransform;
+}
+
+// C++側 ManagedAbiHeader と同一レイアウト
+[StructLayout(LayoutKind.Sequential)]
+public struct ManagedAbiHeader {
+
+    public uint abiVersion;
+    public uint structSize;
+    public ulong capabilities;
+}
+
 [StructLayout(LayoutKind.Sequential)]
 public struct NativeVector3 {
 
@@ -334,6 +361,9 @@ internal static unsafe class NativeApi {
 
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct NativeApiTable {
+
+    // 互換性検証用ヘッダ。C++側 ManagedNativeApiTable.header と一致させる
+    public ManagedAbiHeader header;
 
     public delegate* unmanaged[Cdecl]<float> getDeltaTime;
     public delegate* unmanaged[Cdecl]<float> getFixedDeltaTime;

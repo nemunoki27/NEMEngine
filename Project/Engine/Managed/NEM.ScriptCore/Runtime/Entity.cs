@@ -2,15 +2,30 @@ using System.Runtime.InteropServices;
 
 namespace NEMEngine;
 
+// C++側 ManagedWorldHandle と同一レイアウト。生ポインタの代わりに世代付きハンドルを持つ
+[StructLayout(LayoutKind.Sequential)]
+public struct ManagedWorldHandle {
+
+    public uint index;
+    public uint generation;
+
+    public static ManagedWorldHandle Null => new() {
+        index = 0xffffffffu,
+        generation = 0
+    };
+
+    public bool isValid => index != 0xffffffffu;
+}
+
 [StructLayout(LayoutKind.Sequential)]
 public struct NativeEntity {
 
-    public nuint world;
+    public ManagedWorldHandle world;
     public uint index;
     public uint generation;
 
     public static NativeEntity Null => new() {
-        world = 0,
+        world = ManagedWorldHandle.Null,
         index = 0xffffffffu,
         generation = 0
     };
@@ -26,7 +41,8 @@ public readonly struct Entity {
         this.native = native;
     }
 
-    public bool isValid => native.world != 0 && native.index != 0xffffffffu;
+    // 生ポインタ判定ではなく、world handleとentity indexの有効値で判定する
+    public bool isValid => native.world.isValid && native.index != 0xffffffffu;
     public bool isAlive => isValid && NativeApi.ReadIsAlive(native);
 
     public string name {

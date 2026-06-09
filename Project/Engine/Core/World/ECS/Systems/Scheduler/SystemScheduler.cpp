@@ -72,6 +72,8 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 
 			measure(i, [&] { systems_[i].system->FixedUpdate(*currentWorld_, context); });
 		}
+		// 各サブステップ後に、スクリプト由来の構造変更コマンドを安全地点で適用する
+		currentWorld_->FlushWorldCommands();
 		// 蓄積した時間から固定更新の時間を引く
 		accumulator_ -= fixedDeltaTime_;
 		++steps;
@@ -82,12 +84,16 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 
 		measure(i, [&] { systems_[i].system->Update(*currentWorld_, context); });
 	}
+	// Update中に積まれた構造変更コマンドを適用する
+	currentWorld_->FlushWorldCommands();
 
 	// 後更新処理
 	for (size_t i = 0; i < systems_.size(); ++i) {
 
 		measure(i, [&] { systems_[i].system->LateUpdate(*currentWorld_, context); });
 	}
+	// LateUpdate中に積まれた構造変更コマンドを適用する
+	currentWorld_->FlushWorldCommands();
 
 	// 計測結果を処理順のままプロファイラへ渡す
 	std::vector<FrameProfiler::NamedTime> systemTimes;

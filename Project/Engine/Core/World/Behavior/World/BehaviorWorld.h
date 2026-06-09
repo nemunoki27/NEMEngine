@@ -36,6 +36,8 @@ namespace Engine {
 		bool enabled = false;
 		bool awakeCalled = false;
 		bool startCalled = false;
+		// callback内で回復不能な例外が発生した。faulted以降はgameplay callbackを呼ばない
+		bool faulted = false;
 		// スイープ用
 		bool seen = false;
 	};

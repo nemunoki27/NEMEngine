@@ -45,12 +45,14 @@ namespace Engine {
 			return;
 		}
 
-		// 名前コンポーネントがなければ追加し、名前を更新
-		NameComponent* nameComponent = world->TryGetComponent<NameComponent>(resolved);
-		if (!nameComponent) {
-			nameComponent = &world->AddComponent<NameComponent>(resolved);
+		// 既にNameComponentがあれば即時反映（非構造的な値変更）。
+		// 無い場合の自動追加はarchetype移動でForEach走査を壊し得るため、コマンドバッファへ積む
+		const std::string newName = name ? std::string(name) : std::string{};
+		if (NameComponent* nameComponent = world->TryGetComponent<NameComponent>(resolved)) {
+			nameComponent->name = newName;
+		} else {
+			world->GetCommandBuffer().EnqueueSetNameEnsuringComponent(resolved, newName);
 		}
-		nameComponent->name = name ? std::string(name) : std::string{};
 	}
 
 	int32_t ManagedScriptRuntime::GetActiveSelfCallback(ManagedNativeEntity entity) {
@@ -72,9 +74,14 @@ namespace Engine {
 			return;
 		}
 
-		// 自身の有効状態を更新し、親子階層全体へ伝播させる（アクティブツリーの再計算）
-		EnsureScriptSceneObject(*world, resolved).activeSelf = active != 0;
-		RefreshScriptActiveTree(*world, resolved);
+		// 既にSceneObjectComponentがあれば即時反映（値変更とアクティブ伝播は非構造）。
+		// 無い場合の自動追加は構造変更になるため、コマンドバッファへ積む
+		if (SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(resolved)) {
+			sceneObject->activeSelf = active != 0;
+			RefreshScriptActiveTree(*world, resolved);
+		} else {
+			world->GetCommandBuffer().EnqueueSetActiveSelfEnsuringComponent(resolved, active != 0);
+		}
 	}
 
 	int32_t ManagedScriptRuntime::GetActiveInHierarchyCallback(ManagedNativeEntity entity) {

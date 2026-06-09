@@ -11,6 +11,7 @@
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
+#include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Core/Audio/AudioSystem.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -140,6 +141,8 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	InitFirstScene();
 	// C#スクリプトランタイム初期化
 	ManagedScriptRuntime::GetInstance().Init();
+	// EditWorldをスクリプトから参照可能にする（生ポインタの代わりに世代付きハンドルを使う）
+	ManagedWorldRegistry::GetInstance().Register(worldManager_.GetEditWorld());
 	// システムの初期化
 	InitSystems();
 
@@ -459,12 +462,19 @@ void Engine::EngineApplication::HandlePlayToggle() {
 			playFrameStepRequested_ = false;
 			return;
 		}
+		// PlayWorldをスクリプトから参照可能にする。最初のTick(Prepare)より前に登録する
+		ManagedWorldRegistry::GetInstance().Register(*worldManager_.GetPlayWorld());
 		playPaused_ = false;
 		playFrameStepRequested_ = false;
 	} else {
 
 		// Stop時は実行中WorldからSchedulerを切り離して、PlayWorldを破棄する
 		scheduler_.DetachCurrentWorld(systemContext_);
+		// 破棄前にレジストリから解除し、古いハンドルが新しいPlayWorldを指さないようにする
+		if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
+			ManagedWorldRegistry::GetInstance().Unregister(
+				ManagedWorldRegistry::GetInstance().TryGetHandle(*playWorld));
+		}
 		worldManager_.DestroyPlayWorld();
 		playScenes_ = SceneInstanceManager{};
 		playPaused_ = false;
@@ -762,6 +772,9 @@ void Engine::EngineApplication::Finalize() {
 	// ツールが持つGPUリソースをGraphicsCore終了前に確実に解放する
 	ToolRegistry::GetInstance().Clear();
 
+	// EditWorldの登録を解除してからC#ホストを解放する
+	ManagedWorldRegistry::GetInstance().Unregister(
+		ManagedWorldRegistry::GetInstance().TryGetHandle(worldManager_.GetEditWorld()));
 	// C#ホストと読み込んだアセンブリを解放する
 	ManagedScriptRuntime::GetInstance().Finalize();
 
