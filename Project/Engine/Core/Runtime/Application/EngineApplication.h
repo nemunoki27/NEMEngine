@@ -13,6 +13,7 @@
 #include <Engine/Core/World/ECS/World/WorldManager.h>
 #include <Engine/Core/World/ECS/Systems/Scheduler/SystemScheduler.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptBuildService.h>
 #include <Engine/Editor/Core/EditorManager.h>
 #include <Engine/Editor/Core/EditorContext.h>
 
@@ -81,6 +82,11 @@ namespace Engine {
 		// エディタ管理
 		EditorManager editorManager_;
 		EditorContext editorContext_{};
+		// Editモードの非同期 build/reload を管理する
+		ManagedScriptBuildService scriptBuildService_;
+		// Play開始要求を build/reload 完了まで保留しているか
+		bool pendingPlayStart_ = false;
+
 		bool playPaused_ = false;
 		bool playFrameStepRequested_ = false;
 		bool requestFrameDeltaReset_ = false;
@@ -101,6 +107,10 @@ namespace Engine {
 
 		// プレイモードの切り替え
 		void HandlePlayToggle();
+		// 保留中のPlay開始要求を、build/reload完了に応じて進める
+		void ProcessPendingPlayStart();
+		// PlayWorldを作成してプレイを開始する
+		void StartPlayWorld();
 		// Play中の一時停止/再開/コマ送り要求を処理する
 		void HandlePlayPauseRequests();
 		// このフレームにWorldを進行させるか

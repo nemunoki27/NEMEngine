@@ -24,16 +24,6 @@ namespace Engine {
 	struct SystemContext;
 
 	//============================================================================
-	//	ScriptSourceStamp struct
-	//	C#ソース変更監視用のスタンプ。timestampが同じでもsizeが変わる環境を考慮する
-	//============================================================================
-	struct ScriptSourceStamp {
-
-		std::filesystem::file_time_type time{};
-		std::uintmax_t size = 0;
-	};
-
-	//============================================================================
 	//	ManagedScriptRuntime class
 	//	C#スクリプトのロード、型情報取得、ライフサイクル呼び出しを管理する
 	//============================================================================
@@ -52,14 +42,19 @@ namespace Engine {
 
 		// C#スクリプト型をビヘイビアレジストリへ反映する
 		void RefreshScriptTypes();
-		// ゲーム側C#プロジェクトをビルドする
-		bool BuildGameAssembly();
-		// ゲーム側C#アセンブリを読み直す
+		// ゲーム側C#アセンブリを読み直す（ResolveGameAssemblyPathの現行ビルド出力をロード）
 		bool ReloadGameAssembly(bool waitForManagedDebugger = false);
+		// 指定したdllを明示的にロードする（Edit reloadのshadow copyロード用）。unload→load→型反映
+		bool LoadGameAssemblyFromPath(const std::filesystem::path& dllPath, bool waitForManagedDebugger = false);
 		// ゲーム側C#アセンブリを解放する
 		void UnloadGameAssembly();
-		// Editモード中にC#ソース変更を監視し、必要なら再ビルド・再ロードする
-		void AutoRebuildOnScriptChanges();
+
+		// GameScripts.csproj のパスを解決する（存在しなければ空）。Edit build serviceが使う
+		std::filesystem::path GameScriptProjectPath() const;
+		// 現在ロード中のGameScripts.dllのパス（last-known-goodのseed等に使う）
+		const std::filesystem::path& ActiveAssemblyPath() const { return gameAssemblyPath_; }
+		// 直近のRefreshScriptTypesで反映したmanaged script型数（reload診断用）
+		int32_t ManagedScriptTypeCount() const { return lastManagedTypeCount_; }
 
 		// C#スクリプトのインスタンスを作成/破棄する。生成失敗時は無効ハンドルを返す
 		ManagedScriptInstanceHandle CreateInstance(const std::string& typeName, ECSWorld& world,
@@ -160,9 +155,8 @@ namespace Engine {
 		std::filesystem::path scriptCoreAssemblyPath_;
 		std::filesystem::path gameAssemblyPath_;
 		std::unordered_map<std::string, std::vector<ManagedScriptField>> fieldCache_;
-		std::unordered_map<std::string, ScriptSourceStamp> scriptSourceSnapshot_;
-		std::chrono::steady_clock::time_point nextScriptSourceScanTime_{};
-		bool hasScriptSourceSnapshot_ = false;
+		// 直近のRefreshScriptTypesで反映したmanaged script型数
+		int32_t lastManagedTypeCount_ = 0;
 
 		//--------- functions ----------------------------------------------------
 

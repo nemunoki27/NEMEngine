@@ -136,128 +136,6 @@ namespace {
 		std::wstring previousValue_;
 	};
 
-	// パスをクォートで囲む
-	std::wstring QuoteCommandPath(const std::filesystem::path& path) {
-		return L"\"" + path.wstring() + L"\"";
-	}
-
-	// 文字列変換ヘルパー
-	std::wstring ToWideAscii(const std::string& text) {
-		return Engine::Algorithm::ConvertString(text);
-	}
-
-	// 再帰走査から除外するディレクトリ名（大文字小文字無視で比較）。
-	// ビルド生成物やVCS管理下を監視するとreloadループの原因になるため除外する。
-	// ※source generatorの入力ディレクトリが将来必要になった場合は、この一覧を設定化する
-	bool IsExcludedSnapshotDirectory(const std::wstring& directoryName) {
-		static const wchar_t* kExcluded[] = {
-			L"bin", L"obj", L".git", L".vs", L"Generated", L"Library", L"Temp",
-		};
-		for (const wchar_t* excluded : kExcluded) {
-			if (_wcsicmp(directoryName.c_str(), excluded) == 0) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	// 生成された.csファイル（*.g.cs / *.generated.cs）かどうか
-	bool IsGeneratedScriptFile(const std::wstring& fileName) {
-		const auto endsWith = [&fileName](const wchar_t* suffix) {
-			const size_t suffixLength = std::wcslen(suffix);
-			if (fileName.size() < suffixLength) {
-				return false;
-			}
-			return _wcsicmp(fileName.c_str() + (fileName.size() - suffixLength), suffix) == 0;
-			};
-		return endsWith(L".g.cs") || endsWith(L".generated.cs");
-	}
-
-	// 1ファイルのスタンプ（更新時刻とサイズ）を取得してスナップショットへ追加
-	void AddSnapshotEntry(std::unordered_map<std::string, Engine::ScriptSourceStamp>& snapshot,
-		const std::filesystem::path& path) {
-		std::error_code timeError{};
-		std::error_code sizeError{};
-		const auto time = std::filesystem::last_write_time(path, timeError);
-		const auto size = std::filesystem::file_size(path, sizeError);
-		if (timeError || sizeError) {
-			return;
-		}
-		// パスはlexically_normalで正規化してからキーにする
-		snapshot.emplace(ToUtf8Path(path.lexically_normal()), Engine::ScriptSourceStamp{ time, size });
-	}
-
-	// スナップショットにファイルを追加（.csproj等の単体ファイル用）
-	void TryAddSnapshotFile(std::unordered_map<std::string, Engine::ScriptSourceStamp>& snapshot,
-		const std::filesystem::path& path) {
-		if (std::filesystem::exists(path)) {
-			AddSnapshotEntry(snapshot, path);
-		}
-	}
-
-	// スクリプトソースのスナップショットを収集
-	void CollectScriptSnapshotFiles(std::unordered_map<std::string, Engine::ScriptSourceStamp>& snapshot,
-		const std::filesystem::path& root) {
-		std::error_code existsError{};
-		if (!std::filesystem::exists(root, existsError) || existsError) {
-			return;
-		}
-
-		// permission errorで走査全体を落とさないよう、error_code版のiteratorで進める
-		std::error_code iterateError{};
-		auto iterator = std::filesystem::recursive_directory_iterator(
-			root, std::filesystem::directory_options::skip_permission_denied, iterateError);
-		const std::filesystem::recursive_directory_iterator end{};
-		for (; iterator != end; iterator.increment(iterateError)) {
-
-			if (iterateError) {
-				// 個別エントリの失敗は無視して走査を継続する
-				iterateError.clear();
-				continue;
-			}
-
-			const std::filesystem::directory_entry& entry = *iterator;
-			std::error_code statusError{};
-
-			// 生成物ディレクトリやVCS管理下はそれ以下ごと走査対象から外す
-			if (entry.is_directory(statusError) && !statusError) {
-				if (IsExcludedSnapshotDirectory(entry.path().filename().wstring())) {
-					iterator.disable_recursion_pending();
-				}
-				continue;
-			}
-			if (!entry.is_regular_file(statusError) || statusError) {
-				continue;
-			}
-
-			const std::filesystem::path& filePath = entry.path();
-			if (filePath.extension() != ".cs") {
-				continue;
-			}
-			// 自動生成された.csは監視しない
-			if (IsGeneratedScriptFile(filePath.filename().wstring())) {
-				continue;
-			}
-			AddSnapshotEntry(snapshot, filePath);
-		}
-	}
-
-	// スナップショットが変化したか判定
-	bool HasSnapshotChanged(const std::unordered_map<std::string, Engine::ScriptSourceStamp>& current,
-		const std::unordered_map<std::string, Engine::ScriptSourceStamp>& previous) {
-		if (current.size() != previous.size()) {
-			return true;
-		}
-		for (const auto& [path, stamp] : current) {
-			auto it = previous.find(path);
-			// 更新時刻だけでなくサイズも比較する
-			if (it == previous.end() || it->second.time != stamp.time || it->second.size != stamp.size) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	// C#側へ渡す文字列作成
 	std::string MakeString(const char* text) {
 		return text ? std::string(text) : std::string{};
@@ -343,11 +221,8 @@ bool Engine::ManagedScriptRuntime::Init() {
 	}
 
 	initialized_ = true;
-	scriptSourceSnapshot_.clear();
-	hasScriptSourceSnapshot_ = false;
-	nextScriptSourceScanTime_ = std::chrono::steady_clock::time_point{};
 
-	// 初期アセンブリをロード
+	// 初期アセンブリをロード（現行ビルド出力）。Edit中の以降のreloadはManagedScriptBuildServiceが行う
 	if (!ReloadGameAssembly()) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ManagedScriptRuntime: GameScripts.dll was not loaded. Managed scripts will be unavailable.");
@@ -359,9 +234,6 @@ void Engine::ManagedScriptRuntime::Finalize() {
 
 	UnloadGameAssembly();
 	fieldCache_.clear();
-	scriptSourceSnapshot_.clear();
-	hasScriptSourceSnapshot_ = false;
-	nextScriptSourceScanTime_ = std::chrono::steady_clock::time_point{};
 	currentContext_ = nullptr;
 	initialized_ = false;
 
@@ -395,6 +267,7 @@ void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 
 	BehaviorTypeRegistry::GetInstance().ClearManaged();
 	fieldCache_.clear();
+	lastManagedTypeCount_ = 0;
 
 	if (!initialized_ || !getScriptTypeCount_ || !copyScriptTypeName_) {
 		return;
@@ -404,6 +277,7 @@ void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 	if (getScriptTypeCount_(&typeCount) != ManagedStatus::Ok) {
 		return;
 	}
+	lastManagedTypeCount_ = typeCount;
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"ManagedScriptRuntime: managed script type count={}", typeCount);
 	for (int32_t i = 0; i < typeCount; ++i) {
@@ -419,43 +293,21 @@ void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 	}
 }
 
-bool Engine::ManagedScriptRuntime::BuildGameAssembly() {
+bool Engine::ManagedScriptRuntime::ReloadGameAssembly(bool waitForManagedDebugger) {
 
-	const std::filesystem::path projectPath = ResolveGameScriptProjectPath();
-	if (projectPath.empty()) {
-		Logger::Output(LogType::Engine, spdlog::level::info,
-			"ManagedScriptRuntime: GameScripts.csproj was not found. Skipping C# script build.");
-		return true;
-	}
-
-	const std::wstring command =
-		L"set DOTNET_CLI_UI_LANGUAGE=en && dotnet build " + QuoteCommandPath(projectPath) +
-		L" -c \"" + ToWideAscii(GetBuildProfile()) +
-		L"\" --nologo --no-dependencies -p:DebugType=portable -p:DebugSymbols=true -p:Optimize=false";
-
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptRuntime: building GameScripts.csproj path={}", ToUtf8Path(projectPath));
-
-	const int result = _wsystem(command.c_str());
-	if (result != 0) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: dotnet build failed. code={}", result);
-		return false;
-	}
-
-	gameAssemblyPath_ = ResolveGameAssemblyPath();
-	return true;
+	// 現行ビルド出力(ResolveGameAssemblyPath)をロードする。初期ロード用。
+	return LoadGameAssemblyFromPath(ResolveGameAssemblyPath(), waitForManagedDebugger);
 }
 
-bool Engine::ManagedScriptRuntime::ReloadGameAssembly(bool waitForManagedDebugger) {
+bool Engine::ManagedScriptRuntime::LoadGameAssemblyFromPath(const std::filesystem::path& dllPath, bool waitForManagedDebugger) {
 
 	if (!initialized_) {
 		return false;
 	}
 
-	auto doReload = [this]() {
+	auto doReload = [this, &dllPath]() {
 		UnloadGameAssembly();
-		gameAssemblyPath_ = ResolveGameAssemblyPath();
+		gameAssemblyPath_ = dllPath;
 		if (!LoadGameAssembly()) {
 			return false;
 		}
@@ -464,6 +316,7 @@ bool Engine::ManagedScriptRuntime::ReloadGameAssembly(bool waitForManagedDebugge
 	};
 
 	if (waitForManagedDebugger) {
+		// managed debuggerのattach待ちはユーザーの明示オプション。env経由でC#側へ伝える
 		ScopedEnvironmentVariableOverride waitOverride(L"NEM_MANAGED_WAIT_FOR_DEBUGGER", L"1");
 		return doReload();
 	}
@@ -480,57 +333,8 @@ void Engine::ManagedScriptRuntime::UnloadGameAssembly() {
 	}
 }
 
-void Engine::ManagedScriptRuntime::AutoRebuildOnScriptChanges() {
-
-	if (!initialized_) {
-		return;
-	}
-
-	const auto now = std::chrono::steady_clock::now();
-	if (now < nextScriptSourceScanTime_) {
-		return;
-	}
-	nextScriptSourceScanTime_ = now + std::chrono::milliseconds(500);
-
-	const std::filesystem::path projectPath = ResolveGameScriptProjectPath();
-	if (projectPath.empty()) {
-		scriptSourceSnapshot_.clear();
-		hasScriptSourceSnapshot_ = false;
-		return;
-	}
-
-	std::unordered_map<std::string, ScriptSourceStamp> currentSnapshot{};
-	TryAddSnapshotFile(currentSnapshot, projectPath);
-
-	const std::filesystem::path scriptsRoot = projectPath.parent_path();
-	const std::filesystem::path gameAssetsRoot = scriptsRoot.parent_path() / "GameAssets";
-	CollectScriptSnapshotFiles(currentSnapshot, scriptsRoot);
-	CollectScriptSnapshotFiles(currentSnapshot, gameAssetsRoot);
-
-	if (!hasScriptSourceSnapshot_) {
-		scriptSourceSnapshot_ = std::move(currentSnapshot);
-		hasScriptSourceSnapshot_ = true;
-		return;
-	}
-
-	if (!HasSnapshotChanged(currentSnapshot, scriptSourceSnapshot_)) {
-		return;
-	}
-
-	scriptSourceSnapshot_ = std::move(currentSnapshot);
-
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptRuntime: detected C# source changes. rebuilding GameScripts...");
-	UnloadGameAssembly();
-	if (!BuildGameAssembly()) {
-		// ビルド失敗時は直前のDLLを再ロードして、Inspector上のスクリプト情報を維持する
-		ReloadGameAssembly();
-		return;
-	}
-	if (!ReloadGameAssembly()) {
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptRuntime: source change was detected, but GameScripts.dll reload failed.");
-	}
+std::filesystem::path Engine::ManagedScriptRuntime::GameScriptProjectPath() const {
+	return ResolveGameScriptProjectPath();
 }
 
 Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance(const std::string& typeName,

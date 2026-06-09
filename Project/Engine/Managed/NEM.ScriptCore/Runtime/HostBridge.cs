@@ -53,6 +53,8 @@ public static unsafe class HostBridge {
     private static Assembly? gameAssembly;
     // ゲーム側DLLをアンロード可能にする専用LoadContext
     private static GameScriptLoadContext? gameLoadContext;
+    // reload 診断用の連番（ALC unload ログに使う）
+    private static int reloadCounter = 0;
 
     //========================================================================
     //	public Methods
@@ -107,6 +109,8 @@ public static unsafe class HostBridge {
                 gameLoadContext = new GameScriptLoadContext(path);
                 gameAssembly = gameLoadContext.LoadFromAssemblyPath(path);
                 RebuildScriptTypes();
+                // 新しい assembly の寿命を開始する（unload 前に停止/解放するための起点）
+                ScriptRuntimeLifetime.BeginAssemblyLifetime();
                 NativeApi.WriteLog(0, $"Loaded GameScripts: {path}, scriptTypes={scriptTypes.Count}");
                 return ManagedStatus.Ok;
             }
@@ -544,6 +548,10 @@ public static unsafe class HostBridge {
 
     private static void ReleaseGameAssembly(bool collect) {
 
+        // user code が登録した IDisposable / 購読解除を unload 前に実行し、reload token を cancel する。
+        // 古い assembly を参照し続ける task / timer / event を止めて ALC 回収を妨げないようにする。
+        ScriptRuntimeLifetime.EndAssemblyLifetime();
+
         // ロード済みインスタンスや型情報をすべて破棄する。
         // slot配列はclearせず全slotをreleaseしてgenerationを進める。
         // generation履歴を保つことで、reload前のhandleがreload後の別instanceへ届かない（reload epoch相当）。
@@ -553,17 +561,53 @@ public static unsafe class HostBridge {
         fieldCache.Clear();
         gameAssembly = null;
 
-        // LoadContextをUnloadすることでDLL差し替えを可能にする
         GameScriptLoadContext? loadContext = gameLoadContext;
         gameLoadContext = null;
-        loadContext?.Unload();
+        if (loadContext == null) {
+            return;
+        }
 
-        if (collect) {
-            // collect=trueのときはDLLファイルロックを外しやすくするためGCを明示実行する
+        // ALC への strong reference を scope 外へ追い出してから unload する（回収可能にするため）。
+        int reloadId = ++reloadCounter;
+        string contextName = loadContext.Name ?? "GameScripts";
+        WeakReference weakContext = UnloadContextForCollection(loadContext);
+        loadContext = null;
+
+        if (!collect) {
+            return;
+        }
+
+        // 限定回数だけ GC を回して回収を促す（無制限ループはしない）。Edit reload 時のみのコスト。
+        const int maxAttempts = 10;
+        int attempts = 0;
+        for (; attempts < maxAttempts && weakContext.IsAlive; ++attempts) {
+
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
         }
+
+        if (weakContext.IsAlive) {
+
+            // 回収できなかった = どこかに古い assembly への strong reference が残っている
+            NativeApi.WriteLog(1,
+                $"[ALC leak] GameScripts load context was not collected. reloadId={reloadId} " +
+                $"context=\"{contextName}\" attempts={attempts}. " +
+                "A static field, running Task/Timer, or unmanaged callback may still reference the old assembly. " +
+                "Register disposables / unsubscribes via ScriptRuntimeLifetime so they are released on reload.");
+        } else {
+
+            NativeApi.WriteLog(0, $"GameScripts load context unloaded. reloadId={reloadId} attempts={attempts}");
+        }
+    }
+
+    // ALC を unload し、回収判定用の WeakReference を返す。
+    // strong reference(引数)はこのメソッドのフレームに閉じ込め、return 後に JIT へ rooted されないようにする。
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference UnloadContextForCollection(GameScriptLoadContext context) {
+
+        context.Unload();
+        return new WeakReference(context, trackResurrection: false);
     }
 
     private static Type? FindScriptType(string? typeName) {
@@ -797,6 +841,18 @@ public static unsafe class HostBridge {
             // GameScripts.dllの横にある依存DLLを解決する
             string? assemblyPath = resolver.ResolveAssemblyToPath(assemblyName);
             return assemblyPath == null ? null : LoadFromAssemblyPath(assemblyPath);
+        }
+
+        // native 依存 DLL（P/Invoke 先）を deps.json 経由で解決する。
+        // managed の Load() と同じく resolver を使い、解決できた場合だけ明示ロードする。
+        protected override IntPtr LoadUnmanagedDll(string unmanagedDllName) {
+
+            string? unmanagedPath = resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
+            if (unmanagedPath != null) {
+                return LoadUnmanagedDllFromPath(unmanagedPath);
+            }
+            // 解決できなければ既定動作（OS既定検索）へ委ねる
+            return IntPtr.Zero;
         }
     }
 }

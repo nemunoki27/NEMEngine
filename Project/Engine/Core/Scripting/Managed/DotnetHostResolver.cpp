@@ -7,11 +7,11 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // .NET公式 native hosting ヘッダ（Project/Externals/dotnet-hosting）。
-// nethostはリンクせず実行時に nethost.dll を動的ロードするため、
-// NETHOST_USE_AS_STATIC を定義して get_hostfxr_path 宣言を dllimport にしない
-// （宣言シンボルは参照せず、GetProcAddressで取得した関数pointer経由で呼ぶ）。
-// 静的libnethost.libはリリースCRT(/MT)固定でDebug(/MTd)とリンクできないため動的ロードにしている。
-#define NETHOST_USE_AS_STATIC
+// nethostはリンクせず実行時に nethost.dll を動的ロードする。
+// get_hostfxr_path は GetProcAddress で取得した関数pointer経由でのみ呼ぶため、
+// ヘッダが宣言する（dllimportの）シンボルは参照されずリンクは発生しない。
+// よって NETHOST_USE_AS_STATIC（静的リンク用）は不要。ヘッダからは構造体・char_t・
+// 呼び出し規約マクロのみを利用する。
 #include <nethost.h>
 #include <hostfxr.h>
 #include <coreclr_delegates.h>
@@ -66,18 +66,77 @@ namespace {
 		}
 	}
 
+	// 現在実行中のexeのディレクトリを取得する。固定長で切り詰めず、必要なら動的に拡張する
+	std::filesystem::path GetExecutableDirectory() {
+
+		std::vector<wchar_t> buffer(MAX_PATH);
+		for (;;) {
+
+			const DWORD length = ::GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+			if (length == 0) {
+				return {};
+			}
+			// 切り詰められていない（lengthがバッファ未満）なら確定
+			if (length < buffer.size()) {
+				return std::filesystem::path(std::wstring(buffer.data(), length)).parent_path();
+			}
+			// 切り詰め。サニティ上限を設けつつバッファを倍化して再試行する
+			if (buffer.size() >= (1u << 20)) {
+				return {};
+			}
+			buffer.resize(buffer.size() * 2);
+		}
+	}
+
+	// 絶対パスのDLLを安全な検索フラグでロードする。
+	// LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR は絶対パス必須で、依存DLLをそのDLL自身のディレクトリからも探す。
+	// LOAD_LIBRARY_SEARCH_DEFAULT_DIRS で system32 等の既定検索を併用する。
+	// CWDやPATH依存のbare-name探索を避ける。
+	HMODULE LoadLibraryFromAbsolutePath(const std::filesystem::path& absolutePath) {
+		return ::LoadLibraryExW(absolutePath.c_str(), nullptr,
+			LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+	}
+
+	// exeディレクトリ直下に配置された nethost.dll の絶対パスを解決する
+	std::filesystem::path ResolveNethostPath() {
+
+		const std::filesystem::path executableDirectory = GetExecutableDirectory();
+		if (executableDirectory.empty()) {
+
+			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
+				"ManagedScriptRuntime: could not determine the executable directory for nethost.dll.");
+			return {};
+		}
+		return (executableDirectory / L"nethost.dll").lexically_normal();
+	}
+
 	// nethostのget_hostfxr_pathでhostfxrの絶対パスを解決する。
 	// nethost.dllは実行ファイル横へ配置済みで、ここで動的ロードして関数を取得する。
 	// バッファサイズは固定せず、必要量を問い合わせてからdynamicに確保し直す。
 	std::filesystem::path ResolveHostfxrPath(const std::filesystem::path& scriptCoreAssemblyPath) {
 
-		// nethost.dll を動的ロードする（実行ファイル横に配置されている前提）
-		HMODULE nethost = ::LoadLibraryW(L"nethost.dll");
+		// nethost.dll は exe ディレクトリ直下の絶対パスで明示ロードする
+		// （bare name / 相対パス / CWD / PATH 依存のロードはしない）
+		const std::filesystem::path nethostPath = ResolveNethostPath();
+		if (nethostPath.empty()) {
+			return {};
+		}
+		std::error_code existsError{};
+		if (!std::filesystem::exists(nethostPath, existsError) || existsError) {
+
+			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
+				"ManagedScriptRuntime: nethost.dll was not found at the expected path={} arch={} "
+				"(it must be deployed next to the executable).",
+				ToUtf8Path(nethostPath), ProcessArchitecture());
+			return {};
+		}
+
+		HMODULE nethost = LoadLibraryFromAbsolutePath(nethostPath);
 		if (!nethost) {
 
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-				"ManagedScriptRuntime: nethost.dll is unavailable (must be deployed next to the executable). arch={}.",
-				ProcessArchitecture());
+				"ManagedScriptRuntime: failed to load nethost.dll. path={} arch={}.",
+				ToUtf8Path(nethostPath), ProcessArchitecture());
 			return {};
 		}
 		// hostfxrパス解決後は不要なので、関数を抜けるときに必ず解放する
@@ -157,8 +216,9 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 		"ManagedScriptRuntime: resolved hostfxr. path={} arch={} runtimeconfig={}",
 		ToUtf8Path(hostfxrPath), ProcessArchitecture(), ToUtf8Path(runtimeConfigPath));
 
-	// hostfxr.dll をロードする
-	HMODULE library = ::LoadLibraryW(hostfxrPath.c_str());
+	// hostfxr.dll を get_hostfxr_path が返した絶対パスのままロードする
+	// （相対化やbare-nameへの変換はしない。nethostと同じ安全な検索フラグを使う）
+	HMODULE library = LoadLibraryFromAbsolutePath(hostfxrPath);
 	if (!library) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,

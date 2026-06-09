@@ -221,6 +221,10 @@ function NEM_AddProjectFiles(projectRoot, assetRoot, assetVpathName, includeShad
         path.join(projectRoot, "**/bin/**"),
         path.join(projectRoot, "**/obj/**"),
         path.join(projectRoot, "Library/**"),
+        -- Edit reload の作業領域（staging / shadow copy / last-known-good）はプロジェクトへ含めない
+        path.join(projectRoot, "Managed/Staging/**"),
+        path.join(projectRoot, "Managed/Shadow/**"),
+        path.join(projectRoot, "Managed/LastKnownGood/**"),
     }
 end
 
