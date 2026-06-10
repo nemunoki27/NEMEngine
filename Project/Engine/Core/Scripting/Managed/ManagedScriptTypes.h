@@ -5,8 +5,10 @@
 //============================================================================
 // c++
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 namespace Engine {
 
@@ -16,7 +18,10 @@ namespace Engine {
 	// C++ / C# 境界のABIバージョン。構造体レイアウトや関数テーブルを変えたら必ず上げる
 	// v2: managed script instance handle を int32 から ManagedScriptInstanceHandle(index/generation) へ変更
 	// v3: 型登録を CopyScriptTypeName から CopyScriptTypeInfo(Stable GUID) へ変更し、GenerateScriptManifest を追加
-	inline constexpr uint32_t kManagedAbiVersion = 3;
+	// v4: 固定長フィールドABI(ManagedNativeSerializedFieldInfo)を撤廃し、二段階blob schema/runtime state API へ移行
+	// v5: object model(generic component access / Entity.Destroy / ScriptBehaviour.Enabled / world rotation・lossyScale)を追加
+	// v6: 自動生成 component binding 用の汎用 typed property access(get/set + string)と ManagedColor3/4 を追加
+	inline constexpr uint32_t kManagedAbiVersion = 6;
 
 	// ネイティブが提供する機能カテゴリ。capability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -26,6 +31,8 @@ namespace Engine {
 		Entity = 1ull << 2,    // Entity 名前 / アクティブ
 		Hierarchy = 1ull << 3, // 親子関係
 		Transform = 1ull << 4, // Transform
+		ObjectModel = 1ull << 5, // generic component access / Entity.Destroy / ScriptBehaviour.Enabled
+		ComponentBindings = 1ull << 6, // 自動生成 component wrapper 用の typed property access
 	};
 
 	// 現状ネイティブが提供する全capability
@@ -34,7 +41,9 @@ namespace Engine {
 		static_cast<uint64_t>(ManagedCapability::Input) |
 		static_cast<uint64_t>(ManagedCapability::Entity) |
 		static_cast<uint64_t>(ManagedCapability::Hierarchy) |
-		static_cast<uint64_t>(ManagedCapability::Transform);
+		static_cast<uint64_t>(ManagedCapability::Transform) |
+		static_cast<uint64_t>(ManagedCapability::ObjectModel) |
+		static_cast<uint64_t>(ManagedCapability::ComponentBindings);
 
 	// C++ / C# で共有する境界処理の結果コード。値はC#側と一致させる
 	enum class ManagedStatus : int32_t {
@@ -49,36 +58,93 @@ namespace Engine {
 		SerializationError,
 		ScriptException,
 		InternalError,
+		// 二段階 blob API で呼び出し側 buffer が不足。必要 size を取得し直して再試行する
+		BufferTooSmall,
 	};
 
 	//============================================================================
 	//	ManagedScript structures
 	//============================================================================
-	// C#側のシリアライズフィールドの種類
+	// C#側のシリアライズフィールドの種類。schema JSON の "kind" 文字列と対応する。
+	// 値はC#列挙とは独立で、C++ 側 schema parse 時に文字列から決める
 	enum class ManagedSerializedFieldKind : int32_t {
 
 		None = 0,
 		Bool,
+		Byte,
+		SByte,
+		Short,
+		UShort,
 		Int,
+		UInt,
+		Long,
+		ULong,
 		Float,
 		Double,
 		String,
-		Vector3,
+		Enum,
 		Vector2,
+		Vector3,
 		Vector4,
 		Quaternion,
 		Color3,
-		Color4
+		Color4,
+		Nullable,
+		Array,
+		List,
+		AssetRef,
+		EntityRef,
+		ScriptRef,
+		Unsupported,
 	};
 
-	// C#側から取得したシリアライズフィールド情報
-	struct ManagedScriptField {
+	// 1 フィールドの schema。collection / nullable は element を持つ再帰構造。
+	// build/reload 時に schema JSON を一度だけ parse して構築し、Inspector が参照する。
+	struct ManagedFieldSchema {
 
-		std::string name;
-		std::string displayName;
+		std::string fieldId;             // Stable Serialized Field GUID（保存の主キー）
+		std::string name;                // 現在の field 名（表示・legacy 照合）
+		std::string declaringType;       // 宣言型（継承時の識別）
+		std::vector<std::string> formerNames; // [FormerlySerializedAs] の旧名
+
 		ManagedSerializedFieldKind kind = ManagedSerializedFieldKind::None;
+		std::shared_ptr<ManagedFieldSchema> element; // Array/List/Nullable の要素
+
+		// enum
+		std::string enumUnderlying;
+		std::vector<std::string> enumNames;
+		std::vector<std::string> enumValues; // long/ulong 精度を保つため文字列で保持
+
+		// reference filter
+		std::string assetType;   // AssetRef<T> の native AssetType 名
+		std::string scriptType;  // ScriptRef<T> の対象 script 完全名
+
+		// Inspector 属性
 		bool isPublic = false;
+		bool isReadOnly = false;
+		bool isHidden = false;
+		bool multiline = false;
+		bool hasRange = false;
+		float rangeMin = 0.0f;
+		float rangeMax = 0.0f;
+		bool hasMin = false;
+		float minValue = 0.0f;
+		bool hasDragSpeed = false;
+		float dragSpeed = 0.0f;
+		std::string tooltip;
+		std::string header;
+
+		// C#インスタンス生成直後の既定値JSON（authoring 未設定時の初期値）
 		std::string defaultValueJson;
+	};
+
+	// 1 script 型の serialized field schema
+	struct ManagedScriptSchema {
+
+		std::string scriptTypeId;
+		std::string fullTypeName;
+		int32_t schemaVersion = 0;
+		std::vector<ManagedFieldSchema> fields;
 	};
 
 	// C#へ生のECSWorld*を渡さないための、世代付きworldハンドル
@@ -152,6 +218,21 @@ namespace Engine {
 		float w = 1.0f;
 	};
 
+	// C#と共有するColor3 / Color4（Engine::Color3/Color4 と同一レイアウト）
+	struct ManagedColor3 {
+
+		float r = 0.0f;
+		float g = 0.0f;
+		float b = 0.0f;
+	};
+	struct ManagedColor4 {
+
+		float r = 0.0f;
+		float g = 0.0f;
+		float b = 0.0f;
+		float a = 0.0f;
+	};
+
 	// ネイティブAPIテーブル先頭に置くABIヘッダ。version/size/capabilityを検証に使う
 	struct ManagedAbiHeader {
 
@@ -182,6 +263,19 @@ namespace Engine {
 		using SetStringCallback = void(__cdecl*)(ManagedNativeEntity, const char*);
 		using GetEntityCallback = ManagedNativeEntity(__cdecl*)(ManagedNativeEntity);
 		using SetParentCallback = void(__cdecl*)(ManagedNativeEntity, ManagedNativeEntity);
+		// ObjectModel: generic component access / Entity.Destroy / ScriptBehaviour.Enabled / world rotation・lossyScale
+		using GetComponentTypeIdCallback = int32_t(__cdecl*)(const char*);
+		using HasComponentCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t);
+		using ComponentMutateCallback = void(__cdecl*)(ManagedNativeEntity, int32_t);
+		using DestroyEntityCallback = void(__cdecl*)(ManagedNativeEntity);
+		using GetScriptEnabledCallback = int32_t(__cdecl*)(ManagedNativeEntity, uint64_t);
+		using SetScriptEnabledCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t, int32_t);
+		// ComponentBindings: 自動生成 wrapper の typed property access。
+		// 値は POD を value/outValue へ byte コピー（C#の Managed* 構造体と同一レイアウト）。string は別系統。
+		using GetComponentPropertyCallback = ManagedStatus(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, void*, int32_t);
+		using SetComponentPropertyCallback = ManagedStatus(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const void*, int32_t);
+		using GetComponentStringPropertyCallback = ManagedStatus(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, char*, int32_t, int32_t*);
+		using SetComponentStringPropertyCallback = ManagedStatus(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const char*, int32_t);
 
 		GetDeltaTimeCallback getDeltaTime = nullptr;
 		GetDeltaTimeCallback getFixedDeltaTime = nullptr;
@@ -220,16 +314,25 @@ namespace Engine {
 		SetVector3Callback setLocalScale = nullptr;
 		GetQuaternionCallback getLocalRotation = nullptr;
 		SetQuaternionCallback setLocalRotation = nullptr;
-	};
-
-	// C#側から受け取る固定長フィールド情報
-	struct ManagedNativeSerializedFieldInfo {
-
-		int32_t kind = 0;
-		int32_t isPublic = 0;
-		char name[128]{};
-		char displayName[128]{};
-		char defaultValueJson[512]{};
+		// world rotation / world(lossy) scale
+		GetQuaternionCallback getRotation = nullptr;
+		SetQuaternionCallback setRotation = nullptr;
+		GetVector3Callback getLossyScale = nullptr;
+		// generic component access（compact type id ベース。型名→id は getComponentTypeId で一度だけ解決）
+		GetComponentTypeIdCallback getComponentTypeId = nullptr;
+		HasComponentCallback hasComponent = nullptr;
+		ComponentMutateCallback addComponent = nullptr;
+		ComponentMutateCallback removeComponent = nullptr;
+		// Entity 破棄（WorldCommandBuffer 経由で遅延適用）
+		DestroyEntityCallback destroyEntity = nullptr;
+		// ScriptBehaviour.Enabled（owner Entity + scriptSlotID で runtime entry を特定）
+		GetScriptEnabledCallback getScriptEnabled = nullptr;
+		SetScriptEnabledCallback setScriptEnabled = nullptr;
+		// 自動生成 component binding の typed property access（dispatch は生成コードが実装）
+		GetComponentPropertyCallback getComponentProperty = nullptr;
+		SetComponentPropertyCallback setComponentProperty = nullptr;
+		GetComponentStringPropertyCallback getComponentStringProperty = nullptr;
+		SetComponentStringPropertyCallback setComponentStringProperty = nullptr;
 	};
 
 	// C#側から受け取る script type のメタdata（Stable GUID 主キー）。固定長ABI
@@ -252,7 +355,6 @@ namespace Engine {
 	static_assert(std::is_standard_layout_v<ManagedAbiHeader>);
 	static_assert(std::is_standard_layout_v<ManagedNativeApiTable>);
 	static_assert(std::is_standard_layout_v<ManagedCollisionEvent>);
-	static_assert(std::is_standard_layout_v<ManagedNativeSerializedFieldInfo>);
 	static_assert(std::is_standard_layout_v<ManagedScriptTypeDescriptor>);
 	static_assert(sizeof(ManagedScriptTypeDescriptor) == 40 + 256 + 128 + 260 + 4);
 
@@ -260,5 +362,4 @@ namespace Engine {
 	static_assert(sizeof(ManagedScriptInstanceHandle) == 8);
 	static_assert(sizeof(ManagedNativeEntity) == 16);
 	static_assert(sizeof(ManagedAbiHeader) == 16);
-	static_assert(sizeof(ManagedNativeSerializedFieldInfo) == 776);
 } // Engine

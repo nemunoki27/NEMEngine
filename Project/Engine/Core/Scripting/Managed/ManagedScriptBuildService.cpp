@@ -66,6 +66,7 @@ namespace {
 		switch (state) {
 		case State::Idle: return "Idle";
 		case State::Debouncing: return "Debouncing";
+		case State::MetadataSyncing: return "MetadataSyncing";
 		case State::Building: return "Building";
 		case State::BuildSucceeded: return "BuildSucceeded";
 		case State::BuildFailed: return "BuildFailed";
@@ -303,6 +304,40 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 		}
 		return;
 	}
+	case State::MetadataSyncing:
+	{
+		const bool finished = process_.Poll([this](const std::string& line) {
+			// 同期ツールの出力（採番/rename/曖昧診断）を Editor console へ転送する
+			Logger::Output(LogType::GameLogic, spdlog::level::info, "[ScriptMetaSync] {}", line);
+			if (ContainsErrorToken(line)) {
+				if (firstErrorLine_.empty()) {
+					firstErrorLine_ = line;
+				}
+				lastErrorLine_ = line;
+			}
+			});
+		if (finished) {
+
+			const int32_t exitCode = process_.ExitCode();
+			if (exitCode == 0) {
+				// 採番成功 → staging build へ
+				StartGameScriptsBuild();
+			} else {
+				// exit 2 = 曖昧 rename（手動解決が必要）。exit 1 = 失敗。いずれも現行DLLを維持して保留する
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"ManagedScriptBuildService: script metadata sync failed/held. exitCode={} "
+					"(keeping the currently loaded assembly). first='{}' last='{}'. See gameLogic.log.",
+					exitCode, firstErrorLine_.empty() ? "(none)" : firstErrorLine_,
+					lastErrorLine_.empty() ? "(none)" : lastErrorLine_);
+				if (currentForPlay_) {
+					playBuildResult_ = PlayBuildResult::Failed;
+				}
+				SetState(State::BuildFailed);
+				FinishCycle(false);
+			}
+		}
+		return;
+	}
 	case State::Building:
 	{
 		const bool finished = process_.Poll([this](const std::string& line) {
@@ -392,27 +427,64 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 	// staging 出力へ dotnet build（実行中DLLは触らない）。
 	// -o は project reference の出力解決まで staging へ向け CS0006 を起こすため使わず、
 	// GameScripts 専用の NEMScriptStagingOutput プロパティでこのプロジェクトの出力だけを staging へ向ける。
-	const std::wstring command =
+	// metadata mode は Editor なので EditorSync（generator は不足を error にしない）。
+	pendingBuildCommand_ =
 		L"dotnet build \"" + projectPath.wstring() + L"\" -c " + Widen(BuildProfile()) +
 		L" --nologo --no-dependencies -p:DebugType=portable -p:DebugSymbols=true -p:Optimize=false" +
+		L" -p:NEMScriptMetadataMode=EditorSync" +
 		L" -p:NEMScriptStagingOutput=\"" + currentStagingDir_.wstring() + L"\"";
-
-	// build failure 時に engine.log へ要約を残すため、実行コマンドと working directory を保持する
-	lastBuildCommandUtf8_ = Algorithm::ConvertString(command);
 	lastBuildWorkingDir_ = projectPath.parent_path();
+
+	// build 前に script metadata 同期（.cs.meta の Stable ID 採番・維持）を非同期で実行する。
+	// ツールが見つからなければ同期を飛ばして直接ビルドする（.cs.meta が既にあれば成立する）。
+	const std::filesystem::path projectRoot = projectPath.parent_path().parent_path().parent_path();
+	const std::filesystem::path syncToolDll = projectRoot / "Engine" / "Managed" / "NEM.ScriptMetaSync" /
+		"bin" / BuildProfile() / "net10.0" / "NEM.ScriptMetaSync.dll";
+	const std::filesystem::path scriptsRoot = projectPath.parent_path().parent_path() / "GameAssets";
+
+	std::error_code toolExists{};
+	if (!std::filesystem::exists(syncToolDll, toolExists) || toolExists) {
+
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ManagedScriptBuildService: script metadata sync tool not found ({}). Skipping sync; relying on existing .cs.meta.",
+			ToUtf8Path(syncToolDll));
+		return StartGameScriptsBuild();
+	}
+
+	const std::wstring syncCommand =
+		L"dotnet \"" + syncToolDll.wstring() + L"\" --root \"" + scriptsRoot.wstring() + L"\" --mode EditorSync";
 
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"ManagedScriptBuildService: build start. buildId={} forPlay={} staging={}",
 		diagnostics_.buildId, forPlay, ToUtf8Path(currentStagingDir_));
 	Logger::Output(LogType::Engine, spdlog::level::info,
+		"ManagedScriptBuildService: metadata sync. cmd={}", Algorithm::ConvertString(syncCommand));
+
+	if (!process_.Start(syncCommand, lastBuildWorkingDir_)) {
+
+		// 同期を起動できないときは、既存 .cs.meta を前提にそのままビルドへ進む
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ManagedScriptBuildService: failed to start metadata sync process. Proceeding to build with existing .cs.meta.");
+		return StartGameScriptsBuild();
+	}
+
+	SetState(State::MetadataSyncing);
+	return true;
+}
+
+bool Engine::ManagedScriptBuildService::StartGameScriptsBuild() {
+
+	lastBuildCommandUtf8_ = Algorithm::ConvertString(pendingBuildCommand_);
+
+	Logger::Output(LogType::Engine, spdlog::level::info,
 		"ManagedScriptBuildService: build command. cwd={} cmd={}",
 		ToUtf8Path(lastBuildWorkingDir_), lastBuildCommandUtf8_);
 
-	if (!process_.Start(command, lastBuildWorkingDir_)) {
+	if (!process_.Start(pendingBuildCommand_, lastBuildWorkingDir_)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"ManagedScriptBuildService: failed to start dotnet build process. cmd={}", lastBuildCommandUtf8_);
-		if (forPlay) {
+		if (currentForPlay_) {
 			playBuildResult_ = PlayBuildResult::Failed;
 		}
 		SetState(State::BuildFailed);
@@ -613,9 +685,9 @@ void Engine::ManagedScriptBuildService::ApplyReload() {
 
 		Logger::Output(LogType::Engine, spdlog::level::info,
 			"ManagedScriptBuildService: reload succeeded. buildId={} reloadId={} changed={} "
-			"buildMs={:.1f} shadowMs={:.1f} loadMs={:.1f} types={} fallback={}",
+			"buildMs={:.1f} manifestMs={:.1f} shadowMs={:.1f} loadMs={:.1f} types={} fallback={}",
 			diagnostics_.buildId, diagnostics_.reloadId, diagnostics_.changedSourceCount,
-			diagnostics_.buildMs, diagnostics_.shadowCopyMs, diagnostics_.loadMs,
+			diagnostics_.buildMs, diagnostics_.manifestMs, diagnostics_.shadowCopyMs, diagnostics_.loadMs,
 			diagnostics_.scriptTypeCount, diagnostics_.fallbackUsed);
 
 		FinishCycle(true);

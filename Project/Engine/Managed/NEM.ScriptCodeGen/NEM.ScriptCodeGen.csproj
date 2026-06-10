@@ -14,8 +14,8 @@
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <IncludeBuildOutput>true</IncludeBuildOutput>
-    <!-- アナライザーのリリース追跡（RS2008）は本プロジェクトでは不要なため抑制する -->
-    <NoWarn>$(NoWarn);RS2008</NoWarn>
+    <!-- アナライザーのリリース追跡（RS2008）と診断メッセージ書式 lint（RS1032）は本プロジェクトでは不要なため抑制する -->
+    <NoWarn>$(NoWarn);RS2008;RS1032</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

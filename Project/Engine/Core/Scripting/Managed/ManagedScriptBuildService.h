@@ -35,6 +35,7 @@ namespace Engine {
 
 			Idle,
 			Debouncing,
+			MetadataSyncing,
 			Building,
 			BuildSucceeded,
 			BuildFailed,
@@ -106,7 +107,6 @@ namespace Engine {
 			int32_t buildExitCode = 0;
 			int32_t scriptTypeCount = 0;
 			double buildMs = 0.0;
-			double stagingMs = 0.0;
 			double shadowCopyMs = 0.0;
 			double loadMs = 0.0;
 			double manifestMs = 0.0;
@@ -125,8 +125,10 @@ namespace Engine {
 		// 状態機械を 1 ステップ進める
 		void AdvanceState(bool playing);
 
-		// staging への dotnet build を開始する
+		// build サイクルを開始する。まず script metadata 同期 → 成功で staging build へ進む
 		bool StartBuild(bool forPlay);
+		// metadata 同期成功後に、組み立て済みの GameScripts staging build を起動する
+		bool StartGameScriptsBuild();
 		// --no-dependencies build に必要な前提成果物(NEM.ScriptCore.dll / NEM.ScriptCodeGen.dll)を検証する。
 		// 不足していれば false を返し、不足パスと再ビルド手順をログへ出す（process は起動しない）。
 		bool VerifyBuildPrerequisites() const;
@@ -186,6 +188,8 @@ namespace Engine {
 		std::filesystem::path lastBuildWorkingDir_;
 		std::string firstErrorLine_;
 		std::string lastErrorLine_;
+		// metadata 同期成功後に起動する GameScripts staging build コマンド
+		std::wstring pendingBuildCommand_;
 
 		// Play gate
 		bool playBuildRequested_ = false;

@@ -13,4 +13,6 @@ public enum ManagedStatus {
     SerializationError,
     ScriptException,
     InternalError,
+    // 二段階 blob API で呼び出し側 buffer が不足（必要 size を取得し直して再試行する）
+    BufferTooSmall,
 }

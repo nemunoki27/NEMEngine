@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 
 namespace NEMEngine;
@@ -14,10 +15,8 @@ namespace NEMEngine;
 //============================================================================
 public static unsafe class HostBridge {
 
-    // C++側へ渡す名前文字列の最大バイト数
+    // C++側へ渡す名前文字列の最大バイト数（ScriptTypeDescriptor の displayName 用）
     private const int MaxNameBytes = 128;
-    // C++側へ渡す初期値JSONの最大バイト数
-    private const int MaxJsonBytes = 512;
     // ManagedScriptTypeDescriptor の固定長フィールド（C++側と一致させる）
     private const int ScriptTypeIdBytes = 40;
     private const int FullTypeNameBytes = 256;
@@ -25,12 +24,23 @@ public static unsafe class HostBridge {
     // manifest schema version
     private const int ManifestSchemaVersion = 1;
 
-    // public fieldをJSONへ含めるための共通設定
-    private static readonly JsonSerializerOptions jsonOptions = new() {
-        IncludeFields = true,
-        // MathTypesのlength/normalizedなどは保存値ではないのでJSON化しない
-        IgnoreReadOnlyProperties = true
-    };
+    // public fieldをJSONへ含めるための共通設定。
+    // AssetRef/EntityRef/ScriptRef/Uuid は専用 converter で identity だけを round-trip する。
+    private static readonly JsonSerializerOptions jsonOptions = CreateJsonOptions();
+
+    private static JsonSerializerOptions CreateJsonOptions() {
+
+        var options = new JsonSerializerOptions {
+            IncludeFields = true,
+            // MathTypesのlength/normalizedなどは保存値ではないのでJSON化しない
+            IgnoreReadOnlyProperties = true
+        };
+        options.Converters.Add(new UuidJsonConverter());
+        options.Converters.Add(new EntityRefJsonConverter());
+        options.Converters.Add(new AssetRefJsonConverterFactory());
+        options.Converters.Add(new ScriptRefJsonConverterFactory());
+        return options;
+    }
 
     // managed script instanceの世代付き格納枠。生成/解放を繰り返しても
     // 古いhandleが再利用後の別instanceを指さないようにgenerationで識別する
@@ -58,14 +68,22 @@ public static unsafe class HostBridge {
         internal string sourcePath = string.Empty;
         internal bool hasExplicitId;
         internal string[] formerlyKnown = Array.Empty<string>();
+
+        // serialized field schema（defaultValueJson を含む完成形 JSON）。C++ へ blob で渡す。
+        // 構築は load 時の一度きり。null は schema 未構築（reflection fallback でも生成する）。
+        internal string schemaJson = string.Empty;
+        // Stable Field GUID -> FieldInfo。runtime get/set と authoring 適用に使う（hot path では reflection しない）
+        internal Dictionary<string, FieldInfo> fieldMap = new(StringComparer.Ordinal);
     }
 
     // 現在ロード中のゲームDLLの ScriptBehaviour 型一覧（native へは CopyScriptTypeInfo で順次渡す）
     private static readonly List<ScriptTypeEntry> scriptTypeEntries = new();
     // Stable GUID -> entry（instance 作成・field 取得の解決に使う）
     private static readonly Dictionary<string, ScriptTypeEntry> guidToEntry = new(StringComparer.Ordinal);
-    // Stable GUID ごとのInspector表示フィールド情報キャッシュ
-    private static readonly Dictionary<string, List<SerializedFieldInfo>> fieldCache = new();
+    // Type -> entry（runtime instance から schema / field map を引く）
+    private static readonly Dictionary<Type, ScriptTypeEntry> typeToEntry = new();
+    // authoring default 抽出用の一時 instance キャッシュ（型ごと。reload で破棄）
+    private static readonly Dictionary<Type, object?> defaultInstanceCache = new();
 
     // ゲーム側スクリプトDLL
     private static Assembly? gameAssembly;
@@ -182,49 +200,76 @@ public static unsafe class HostBridge {
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int GetSerializedFieldCount(byte* scriptTypeId, int* outCount) {
+    public static int GetScriptSchemaJsonSize(byte* scriptTypeId, int* outSize) {
 
-        return (int)Guard(nameof(GetSerializedFieldCount), () => {
-            if (outCount == null) {
+        return (int)Guard(nameof(GetScriptSchemaJsonSize), () => {
+            if (outSize == null) {
                 return ManagedStatus.InvalidArgument;
             }
-            *outCount = TryGetEntry(PtrToString(scriptTypeId), out ScriptTypeEntry entry)
-                ? GetSerializedFields(entry.type).Count : 0;
+            *outSize = TryGetEntry(PtrToString(scriptTypeId), out ScriptTypeEntry entry)
+                ? Encoding.UTF8.GetByteCount(entry.schemaJson) : 0;
             return ManagedStatus.Ok;
         });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int CopySerializedFieldInfo(byte* scriptTypeId, int index, NativeSerializedFieldInfo* outInfo) {
+    public static int CopyScriptSchemaJson(byte* scriptTypeId, byte* buffer, int capacity, int* written) {
 
-        return (int)Guard(nameof(CopySerializedFieldInfo), () => {
-
-            // C++ Inspectorが描画できるよう、フィールド名・型・初期値だけを固定長ABIで返す
-            if (outInfo == null || !TryGetEntry(PtrToString(scriptTypeId), out ScriptTypeEntry entry)) {
+        return (int)Guard(nameof(CopyScriptSchemaJson), () => {
+            if (!TryGetEntry(PtrToString(scriptTypeId), out ScriptTypeEntry entry)) {
                 return ManagedStatus.InvalidArgument;
             }
+            return WriteUtf8Blob(entry.schemaJson, buffer, capacity, written);
+        });
+    }
 
-            List<SerializedFieldInfo> fields = GetSerializedFields(entry.type);
-            if (index < 0 || fields.Count <= index) {
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int GetRuntimeSerializedStateSize(NativeScriptInstanceHandle handle, int* outSize) {
+
+        return (int)Guard(nameof(GetRuntimeSerializedStateSize), () => {
+            if (outSize == null) {
                 return ManagedStatus.InvalidArgument;
             }
-
-            SerializedFieldInfo field = fields[index];
-
-            // enumはC++側のManagedSerializedFieldKindと同じ値で扱う
-            outInfo->kind = (int)field.kind;
-            outInfo->isPublic = field.isPublic ? 1 : 0;
-
-            // 文字列はC++側の固定長char配列へコピーする
-            CopyFixed(field.name, outInfo->name, MaxNameBytes);
-            CopyFixed(field.displayName, outInfo->displayName, MaxNameBytes);
-            CopyFixed(field.defaultValueJson, outInfo->defaultValueJson, MaxJsonBytes);
+            if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
+                return ManagedStatus.InvalidInstanceHandle;
+            }
+            *outSize = Encoding.UTF8.GetByteCount(BuildRuntimeStateJson(script));
             return ManagedStatus.Ok;
         });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int CreateInstance(byte* scriptTypeId, NativeEntity entity, byte* serializedJson, NativeScriptInstanceHandle* outHandle) {
+    public static int CopyRuntimeSerializedState(NativeScriptInstanceHandle handle, byte* buffer, int capacity, int* written) {
+
+        return (int)Guard(nameof(CopyRuntimeSerializedState), () => {
+            if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
+                return ManagedStatus.InvalidInstanceHandle;
+            }
+            return WriteUtf8Blob(BuildRuntimeStateJson(script), buffer, capacity, written);
+        });
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int SetRuntimeSerializedField(NativeScriptInstanceHandle handle, byte* fieldId, byte* valueJson) {
+
+        return (int)Guard(nameof(SetRuntimeSerializedField), () => {
+
+            // Play中 runtime Inspector の単一 field 編集。live instance のみへ反映する
+            if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
+                return ManagedStatus.InvalidInstanceHandle;
+            }
+            string? guid = PtrToString(fieldId);
+            if (string.IsNullOrEmpty(guid) || !TryGetFieldInfo(script.GetType(), guid!, out FieldInfo field)) {
+                return ManagedStatus.InvalidArgument;
+            }
+            ApplyFieldValue(script, field, PtrToString(valueJson));
+            return ManagedStatus.Ok;
+        });
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int CreateInstance(byte* scriptTypeId, NativeEntity entity, byte* serializedJson,
+        ulong scriptSlotId, NativeScriptInstanceHandle* outHandle) {
 
         return (int)Guard(nameof(CreateInstance), () => {
 
@@ -242,7 +287,9 @@ public static unsafe class HostBridge {
                 return ManagedStatus.InternalError;
             }
 
+            // serialized field 適用 / Awake より前に Entity と scriptSlotID を設定する
             script.entity = new Entity(entity);
+            script.scriptSlotId = scriptSlotId;
             ApplySerializedFields(script, PtrToString(serializedJson));
 
             // 世代付きhandleを発行する。C++側はこのhandleを保持して以後のイベント呼び出しに使う
@@ -502,7 +549,8 @@ public static unsafe class HostBridge {
 
         scriptTypeEntries.Clear();
         guidToEntry.Clear();
-        fieldCache.Clear();
+        typeToEntry.Clear();
+        defaultInstanceCache.Clear();
 
         if (gameAssembly == null) {
             return;
@@ -547,9 +595,110 @@ public static unsafe class HostBridge {
         // 表示・登録順を安定させる（full type name 昇順）
         scriptTypeEntries.Sort((a, b) => string.CompareOrdinal(a.fullTypeName, b.fullTypeName));
 
+        // 型登録が確定したので serialized field schema と field map を一度だけ構築する（hot path 外）
+        BuildSchemaRegistry();
+
         if (scriptTypeEntries.Count == 0) {
             NativeApi.WriteLog(1, "GameScripts loaded, but no ScriptBehaviour types were found.");
         }
+    }
+
+    // 各 ScriptTypeEntry の schemaJson（defaultValueJson 付き）と fieldMap を構築する。
+    // 生成 schema（GeneratedScriptSchema）を優先し、無ければ reflection で最小限を生成する。
+    private static void BuildSchemaRegistry() {
+
+        JsonObject? generatedByType = TryReadGeneratedSchema(gameAssembly!);
+
+        foreach (ScriptTypeEntry entry in scriptTypeEntries) {
+
+            JsonObject? typeNode = null;
+            if (generatedByType != null && generatedByType.TryGetPropertyValue(entry.scriptTypeId, out JsonNode? n) && n is JsonObject obj) {
+                typeNode = obj;
+            }
+
+            if (typeNode == null) {
+                // 生成 schema が無い型は reflection fallback で最小 schema を作る
+                typeNode = BuildReflectionSchema(entry);
+            }
+
+            // field map を作りつつ defaultValueJson を埋める
+            object? defaults = CreateDefaultInstance(entry.type);
+            if (typeNode["fields"] is JsonArray fields) {
+                foreach (JsonNode? fieldNode in fields) {
+                    if (fieldNode is not JsonObject fieldObj) {
+                        continue;
+                    }
+                    string fieldId = fieldObj["fieldId"]?.GetValue<string>() ?? string.Empty;
+                    string fieldName = fieldObj["name"]?.GetValue<string>() ?? string.Empty;
+                    string declaringType = fieldObj["declaringType"]?.GetValue<string>() ?? string.Empty;
+                    FieldInfo? info = ResolveFieldInfo(entry.type, declaringType, fieldName);
+                    if (info != null && !string.IsNullOrEmpty(fieldId)) {
+                        entry.fieldMap[fieldId] = info;
+                    }
+                    // 既定値（authoring 未設定時の初期値）を埋める
+                    fieldObj["defaultValueJson"] = SerializeFieldDefault(info, defaults);
+                }
+            }
+
+            entry.schemaJson = typeNode.ToJsonString();
+        }
+    }
+
+    // 生成 schema JSON を scriptTypeId -> typeNode の JsonObject へ変換する。無ければ null
+    private static JsonObject? TryReadGeneratedSchema(Assembly assembly) {
+
+        Type? schemaType = assembly.GetType("NEMEngine.GeneratedScriptSchema", throwOnError: false);
+        MethodInfo? method = schemaType?.GetMethod("GetSchemaJson", BindingFlags.Public | BindingFlags.Static);
+        if (method == null) {
+            return null;
+        }
+        try {
+            string? json = method.Invoke(null, null) as string;
+            if (string.IsNullOrEmpty(json)) {
+                return null;
+            }
+            JsonNode? root = JsonNode.Parse(json!);
+            var byType = new JsonObject();
+            if (root?["scripts"] is JsonArray scripts) {
+                foreach (JsonNode? scriptNode in scripts) {
+                    if (scriptNode is JsonObject scriptObj &&
+                        scriptObj["scriptTypeId"]?.GetValue<string>() is string id && !string.IsNullOrEmpty(id)) {
+                        byType[id] = scriptObj.DeepClone();
+                    }
+                }
+            }
+            return byType;
+        }
+        catch (Exception ex) {
+            NativeApi.WriteLog(2, $"Failed to read GeneratedScriptSchema\n{ex}");
+            return null;
+        }
+    }
+
+    // 生成 schema が無い型のための最小 schema（reflection）。属性は反映しない。
+    private static JsonObject BuildReflectionSchema(ScriptTypeEntry entry) {
+
+        var fields = new JsonArray();
+        foreach (FieldInfo field in EnumerateSerializedFields(entry.type)) {
+            string declaringType = field.DeclaringType?.FullName ?? entry.fullTypeName;
+            string fieldId = DeterministicGuid("NEMEngine.ScriptField:" + entry.scriptTypeId + "/" + declaringType + "/" + field.Name);
+            var node = new JsonObject {
+                ["fieldId"] = fieldId,
+                ["name"] = field.Name,
+                ["declaringType"] = declaringType,
+                ["isPublic"] = field.IsPublic,
+                ["isReadOnly"] = false,
+                ["isHidden"] = false,
+                ["multiline"] = false,
+                ["kind"] = ReflectionKindName(field.FieldType),
+            };
+            fields.Add(node);
+        }
+        return new JsonObject {
+            ["scriptTypeId"] = entry.scriptTypeId,
+            ["fullTypeName"] = entry.fullTypeName,
+            ["fields"] = fields,
+        };
     }
 
     // 1 型分の entry を登録する。GUID 重複は warning を出して後勝ちを避ける（先勝ち維持）
@@ -583,6 +732,7 @@ public static unsafe class HostBridge {
         };
         scriptTypeEntries.Add(entry);
         guidToEntry[normalized] = entry;
+        typeToEntry[type] = entry;
     }
 
     // 生成 registry（GeneratedScriptManifest.GetDescriptors）を反射で読む。無ければ null
@@ -650,8 +800,8 @@ public static unsafe class HostBridge {
 
         string assemblyName = Path.GetFileNameWithoutExtension(dllPath);
 
-        // 一時 collectible ALC で対象 DLL を反射して manifest を組む（現行 gameLoadContext には触れない）
-        (ManifestRoot root, bool valid) = LoadAndCollectManifest(dllPath, assemblyName);
+        // 一時 collectible ALC で対象 DLL を反射して manifest + schema を組む（現行 gameLoadContext には触れない）
+        (ManifestRoot root, bool valid, string schemaJson) = LoadAndCollectManifest(dllPath, assemblyName);
 
         // 一時 ALC の DLL ロックを早期に解放する（直後の shadow copy のため）
         GC.Collect();
@@ -666,10 +816,15 @@ public static unsafe class HostBridge {
             string json = JsonSerializer.Serialize(root, manifestJsonOptions);
             File.WriteAllText(outPath, json);
             NativeApi.WriteLog(0, $"Generated script manifest: {outPath} (assembly={assemblyName} scripts={root.scripts.Count})");
+
+            // companion: serialized field schema を manifest と同じディレクトリへ出力する（staging artifact）
+            string schemaPath = Path.Combine(Path.GetDirectoryName(outPath) ?? string.Empty, "GameScripts.scriptschema.json");
+            File.WriteAllText(schemaPath, string.IsNullOrEmpty(schemaJson) ? "{\"schemaVersion\":2,\"scripts\":[]}" : schemaJson);
+            NativeApi.WriteLog(0, $"Generated script schema: {schemaPath}");
             return ManagedStatus.Ok;
         }
         catch (Exception ex) {
-            NativeApi.WriteLog(2, $"Failed to write script manifest: {outPath}\n{ex}");
+            NativeApi.WriteLog(2, $"Failed to write script manifest/schema: {outPath}\n{ex}");
             return ManagedStatus.SerializationError;
         }
     }
@@ -677,14 +832,25 @@ public static unsafe class HostBridge {
     // 一時 ALC へ DLL をロードして manifest 内容を収集し、ロード解除する。
     // strong reference を本メソッドのフレームへ閉じ込め、return 後に回収可能にする。
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static (ManifestRoot root, bool valid) LoadAndCollectManifest(string dllPath, string assemblyName) {
+    private static (ManifestRoot root, bool valid, string schemaJson) LoadAndCollectManifest(string dllPath, string assemblyName) {
 
         var loadContext = new GameScriptLoadContext(dllPath);
+        string schemaJson = string.Empty;
         try {
             Assembly assembly = loadContext.LoadFromAssemblyPath(dllPath);
             var root = new ManifestRoot { schemaVersion = ManifestSchemaVersion, assemblyName = assemblyName };
             var seenGuids = new HashSet<string>(StringComparer.Ordinal);
             bool valid = true;
+
+            // generator が埋め込んだ serialized field schema をそのまま artifact として取り出す
+            try {
+                Type? schemaType = assembly.GetType("NEMEngine.GeneratedScriptSchema", throwOnError: false);
+                MethodInfo? schemaMethod = schemaType?.GetMethod("GetSchemaJson", BindingFlags.Public | BindingFlags.Static);
+                schemaJson = schemaMethod?.Invoke(null, null) as string ?? string.Empty;
+            }
+            catch {
+                schemaJson = string.Empty;
+            }
 
             void AddScript(string rawGuid, string fullName, string displayName, string sourcePath) {
 
@@ -729,11 +895,11 @@ public static unsafe class HostBridge {
             }
 
             root.scripts.Sort((a, b) => string.CompareOrdinal(a.fullTypeName, b.fullTypeName));
-            return (root, valid);
+            return (root, valid, schemaJson);
         }
         catch (Exception ex) {
             NativeApi.WriteLog(2, $"manifest: failed to inspect assembly '{dllPath}'\n{ex}");
-            return (new ManifestRoot { schemaVersion = ManifestSchemaVersion, assemblyName = assemblyName }, false);
+            return (new ManifestRoot { schemaVersion = ManifestSchemaVersion, assemblyName = assemblyName }, false, schemaJson);
         }
         finally {
             loadContext.Unload();
@@ -795,7 +961,8 @@ public static unsafe class HostBridge {
         ReleaseAllSlots();
         scriptTypeEntries.Clear();
         guidToEntry.Clear();
-        fieldCache.Clear();
+        typeToEntry.Clear();
+        defaultInstanceCache.Clear();
         gameAssembly = null;
 
         GameScriptLoadContext? loadContext = gameLoadContext;
@@ -892,130 +1059,200 @@ public static unsafe class HostBridge {
         }
     }
 
-    private static List<SerializedFieldInfo> GetSerializedFields(Type type) {
-
-        // Unityと同じ方針で、public fieldまたは[SerializeField]付きfieldだけをInspector対象にする。
-        // reload ごとに fieldCache はクリアされるため、セッション内で一意な FullName をキーにする
-        string cacheKey = type.FullName ?? type.Name;
-        if (fieldCache.TryGetValue(cacheKey, out List<SerializedFieldInfo>? cached)) {
-            return cached;
-        }
-
-        object? defaults = Activator.CreateInstance(type);
-        List<SerializedFieldInfo> fields = new();
-
-        // public/private両方を見て、privateは[SerializeField]付きだけ通す
-        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-        foreach (FieldInfo field in type.GetFields(flags)) {
-
-            // staticとreadonlyはインスタンスごとのInspector値として扱わない
-            if (field.IsStatic || field.IsInitOnly) {
-                continue;
-            }
-
-            // Unity寄りのルール: public fieldまたは[SerializeField]付きprivate field
-            bool isPublic = field.IsPublic;
-            bool serializeField = field.GetCustomAttribute<SerializeFieldAttribute>() != null;
-            if (!isPublic && !serializeField) {
-                continue;
-            }
-
-            // C++側のInspectorで描画できる型だけを登録する
-            SerializedFieldKind kind = ResolveFieldKind(field.FieldType);
-            if (kind == SerializedFieldKind.None) {
-                continue;
-            }
-
-            // インスタンス生成直後の値をInspectorの初期値として保存する
-            object? defaultValue = defaults != null ? field.GetValue(defaults) : null;
-            fields.Add(new SerializedFieldInfo(
-                field.Name,
-                field.Name,
-                kind,
-                isPublic,
-                SerializeValue(defaultValue, field.FieldType),
-                field,
-                field.FieldType
-            ));
-        }
-
-        // 同じ型の問い合わせが多いため、反射結果はキャッシュする
-        fieldCache[cacheKey] = fields;
-        return fields;
-    }
-
+    // authoring の field 値（{ "<fieldGuid>": <value> } 形式）を instance へ適用する。
+    // Stable Field GUID で fieldMap を引くので field 名変更に強い。未知 GUID は skip（C++側で unresolved 保持）。
     private static void ApplySerializedFields(ScriptBehaviour script, string? json) {
 
-        // C++側のScriptEntry.serializedFieldsから、同名フィールドへJSON値を復元する
         if (string.IsNullOrWhiteSpace(json)) {
+            return;
+        }
+        if (!typeToEntry.TryGetValue(script.GetType(), out ScriptTypeEntry? entry)) {
             return;
         }
 
         using JsonDocument document = JsonDocument.Parse(json);
-        JsonElement root = document.RootElement;
-        if (root.ValueKind != JsonValueKind.Object) {
+        if (document.RootElement.ValueKind != JsonValueKind.Object) {
             return;
         }
-
-        Type type = script.GetType();
-        foreach (SerializedFieldInfo field in GetSerializedFields(type)) {
-
-            // 保存されていないフィールドはC#側の初期値をそのまま使う
-            if (!root.TryGetProperty(field.name, out JsonElement valueElement)) {
-                continue;
+        foreach (JsonProperty prop in document.RootElement.EnumerateObject()) {
+            if (entry.fieldMap.TryGetValue(prop.Name, out FieldInfo? field)) {
+                SetFieldFromElement(script, field, prop.Value);
             }
-
-            // private fieldにも値を戻すため、public/non-public両方を検索する
-            // MathTypes.csのstructはIncludeFields=trueで直接復元できる
-            object? value = valueElement.Deserialize(field.fieldType, jsonOptions);
-            field.fieldInfo.SetValue(script, value);
         }
     }
 
-    private static SerializedFieldKind ResolveFieldKind(Type type) {
+    // JsonElement を field 型へ復元して設定する。reference 型は専用 converter 経由。
+    private static void SetFieldFromElement(ScriptBehaviour script, FieldInfo field, JsonElement value) {
 
-        // C++ Inspector側と同じ種類に分類する
-        if (type == typeof(bool)) {
-            return SerializedFieldKind.Bool;
+        try {
+            object? deserialized = value.Deserialize(field.FieldType, jsonOptions);
+            field.SetValue(script, deserialized);
         }
-        if (type == typeof(int)) {
-            return SerializedFieldKind.Int;
+        catch (Exception ex) {
+            // 型不一致などはその field だけ skip し、他 field と instance を壊さない
+            NativeApi.WriteLog(1, $"Failed to apply field '{field.Name}' on '{script.GetType().FullName}': {ex.Message}");
         }
-        if (type == typeof(float)) {
-            return SerializedFieldKind.Float;
-        }
-        if (type == typeof(double)) {
-            return SerializedFieldKind.Double;
-        }
-        if (type == typeof(string)) {
-            return SerializedFieldKind.String;
-        }
-        if (type == typeof(Vector3)) {
-            return SerializedFieldKind.Vector3;
-        }
-        if (type == typeof(Vector2)) {
-            return SerializedFieldKind.Vector2;
-        }
-        if (type == typeof(Vector4)) {
-            return SerializedFieldKind.Vector4;
-        }
-        if (type == typeof(Quaternion)) {
-            return SerializedFieldKind.Quaternion;
-        }
-        if (type == typeof(Color3)) {
-            return SerializedFieldKind.Color3;
-        }
-        if (type == typeof(Color4)) {
-            return SerializedFieldKind.Color4;
-        }
-        return SerializedFieldKind.None;
     }
 
-    private static string SerializeValue(object? value, Type type) {
+    // 単一 field（value のみの JSON）を runtime instance へ設定する
+    private static void ApplyFieldValue(ScriptBehaviour script, FieldInfo field, string? valueJson) {
 
-        // nullは型ごとのデフォルト値に置き換えてJSON化する
-        object actualValue = value ?? (type == typeof(string) ? string.Empty : Activator.CreateInstance(type)!);
-        return JsonSerializer.Serialize(actualValue, type, jsonOptions);
+        if (valueJson == null) {
+            return;
+        }
+        using JsonDocument document = JsonDocument.Parse(valueJson);
+        SetFieldFromElement(script, field, document.RootElement);
+    }
+
+    // runtime instance の現在値を { "<fieldGuid>": <value> } で返す（runtime Inspector 用）
+    private static string BuildRuntimeStateJson(ScriptBehaviour script) {
+
+        if (!typeToEntry.TryGetValue(script.GetType(), out ScriptTypeEntry? entry)) {
+            return "{}";
+        }
+        var obj = new JsonObject();
+        foreach (KeyValuePair<string, FieldInfo> kv in entry.fieldMap) {
+            try {
+                object? value = kv.Value.GetValue(script);
+                obj[kv.Key] = JsonSerializer.SerializeToNode(value, kv.Value.FieldType, jsonOptions);
+            }
+            catch {
+                // 取得できない field は省略する
+            }
+        }
+        return obj.ToJsonString();
+    }
+
+    private static bool TryGetFieldInfo(Type type, string fieldId, out FieldInfo field) {
+
+        field = null!;
+        if (typeToEntry.TryGetValue(type, out ScriptTypeEntry? entry) &&
+            entry.fieldMap.TryGetValue(fieldId, out FieldInfo? info)) {
+            field = info;
+            return true;
+        }
+        return false;
+    }
+
+    // schema の field 名 / 宣言型から FieldInfo を解決する（継承を含めて探索）
+    private static FieldInfo? ResolveFieldInfo(Type rootType, string declaringTypeName, string fieldName) {
+
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+        for (Type? t = rootType; t != null && t != typeof(object); t = t.BaseType) {
+            FieldInfo? f = t.GetField(fieldName, flags);
+            if (f != null) {
+                if (string.IsNullOrEmpty(declaringTypeName) || (f.DeclaringType?.FullName ?? string.Empty) == declaringTypeName) {
+                    return f;
+                }
+            }
+        }
+        return null;
+    }
+
+    // public field または [SerializeField] 付き field を継承込みで列挙する（reflection fallback 用）
+    private static IEnumerable<FieldInfo> EnumerateSerializedFields(Type type) {
+
+        var chain = new List<Type>();
+        for (Type? t = type; t != null && t != typeof(ScriptBehaviour) && t != typeof(object); t = t.BaseType) {
+            chain.Add(t);
+        }
+        chain.Reverse();
+
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+        foreach (Type t in chain) {
+            foreach (FieldInfo field in t.GetFields(flags)) {
+                if (field.IsStatic || field.IsInitOnly || field.IsLiteral) {
+                    continue;
+                }
+                bool serialize = field.GetCustomAttribute<SerializeFieldAttribute>() != null;
+                if (!field.IsPublic && !serialize) {
+                    continue;
+                }
+                yield return field;
+            }
+        }
+    }
+
+    // reflection fallback 用の kind 名（属性・element は反映しない degraded schema）
+    private static string ReflectionKindName(Type type) {
+
+        if (type.IsEnum) return "Enum";
+        if (type.IsArray) return "Array";
+        if (type.IsGenericType) {
+            Type def = type.GetGenericTypeDefinition();
+            if (def == typeof(List<>)) return "List";
+            if (def == typeof(Nullable<>)) return "Nullable";
+            if (def == typeof(AssetRef<>)) return "AssetRef";
+            if (def == typeof(ScriptRef<>)) return "ScriptRef";
+        }
+        if (type == typeof(bool)) return "Bool";
+        if (type == typeof(byte)) return "Byte";
+        if (type == typeof(sbyte)) return "SByte";
+        if (type == typeof(short)) return "Short";
+        if (type == typeof(ushort)) return "UShort";
+        if (type == typeof(int)) return "Int";
+        if (type == typeof(uint)) return "UInt";
+        if (type == typeof(long)) return "Long";
+        if (type == typeof(ulong)) return "ULong";
+        if (type == typeof(float)) return "Float";
+        if (type == typeof(double)) return "Double";
+        if (type == typeof(string)) return "String";
+        if (type == typeof(Vector2)) return "Vector2";
+        if (type == typeof(Vector3)) return "Vector3";
+        if (type == typeof(Vector4)) return "Vector4";
+        if (type == typeof(Quaternion)) return "Quaternion";
+        if (type == typeof(Color3)) return "Color3";
+        if (type == typeof(Color4)) return "Color4";
+        if (type == typeof(EntityRef)) return "EntityRef";
+        return "Unsupported";
+    }
+
+    // authoring default 抽出用の一時 instance。side-effect-free constructor 前提で cache する（reload で破棄）
+    private static object? CreateDefaultInstance(Type type) {
+
+        if (defaultInstanceCache.TryGetValue(type, out object? cached)) {
+            return cached;
+        }
+        object? instance = null;
+        try {
+            instance = Activator.CreateInstance(type);
+        }
+        catch (Exception ex) {
+            NativeApi.WriteLog(1, $"Failed to create default instance for '{type.FullName}': {ex.Message}");
+        }
+        defaultInstanceCache[type] = instance;
+        return instance;
+    }
+
+    // field の生成直後値を JSON 文字列にする（schema の defaultValueJson 用）
+    private static string SerializeFieldDefault(FieldInfo? field, object? defaults) {
+
+        if (field == null) {
+            return "null";
+        }
+        try {
+            object? value = defaults != null ? field.GetValue(defaults) : null;
+            return JsonSerializer.Serialize(value, field.FieldType, jsonOptions);
+        }
+        catch {
+            return "null";
+        }
+    }
+
+    // 二段階 blob API の出力。buffer 不足は BufferTooSmall。written に必要 byte 数を返す
+    private static ManagedStatus WriteUtf8Blob(string text, byte* buffer, int capacity, int* written) {
+
+        byte[] bytes = Encoding.UTF8.GetBytes(text);
+        if (written != null) {
+            *written = bytes.Length;
+        }
+        if (buffer == null || capacity < bytes.Length) {
+            return ManagedStatus.BufferTooSmall;
+        }
+        for (int i = 0; i < bytes.Length; ++i) {
+            buffer[i] = bytes[i];
+        }
+        return ManagedStatus.Ok;
     }
 
     private static string? PtrToString(byte* ptr) {
@@ -1024,9 +1261,9 @@ public static unsafe class HostBridge {
         return ptr == null ? null : Marshal.PtrToStringUTF8((IntPtr)ptr);
     }
 
-    private static int CopyString(string value, byte* buffer, int capacity) {
+    private static void CopyFixed(string value, byte* buffer, int capacity) {
 
-        // C++側の固定長バッファへUTF-8でコピーする
+        // C++側 ManagedScriptTypeDescriptor の固定長バッファへ UTF-8 でコピーし null 終端する
         byte[] bytes = Encoding.UTF8.GetBytes(value);
 
         // 末尾null用に1byte空ける
@@ -1034,48 +1271,7 @@ public static unsafe class HostBridge {
         for (int i = 0; i < length; ++i) {
             buffer[i] = bytes[i];
         }
-
-        // C++側で扱いやすいようnull終端する
         buffer[length] = 0;
-        return length;
-    }
-
-    private static void CopyFixed(string value, byte* buffer, int capacity) {
-        CopyString(value, buffer, capacity);
-    }
-
-    // C#側からC++ Inspectorへ渡すフィールド情報
-    private readonly record struct SerializedFieldInfo(
-        // 実際のC#フィールド名
-        string name,
-        // Inspectorに表示する名前
-        string displayName,
-        // C++側で描画方法を選ぶための種類
-        SerializedFieldKind kind,
-        // public fieldかどうか
-        bool isPublic,
-        // C#インスタンス生成直後の初期値JSON
-        string defaultValueJson,
-        // 値適用時に使うFieldInfo
-        FieldInfo fieldInfo,
-        // 値適用時に使うFieldType
-        Type fieldType
-    );
-
-    // C++側のManagedSerializedFieldKindと同じ順番にする
-    private enum SerializedFieldKind {
-        None = 0,
-        Bool,
-        Int,
-        Float,
-        Double,
-        String,
-        Vector3,
-        Vector2,
-        Vector4,
-        Quaternion,
-        Color3,
-        Color4
     }
 
     // ゲーム側DLL専用のAssemblyLoadContext
@@ -1133,24 +1329,6 @@ public unsafe struct NativeScriptTypeInfo {
     public fixed byte sourcePath[260];
     // [ScriptTypeId] が明示されていたか
     public int hasExplicitId;
-}
-
-//============================================================================
-//	NativeSerializedFieldInfo structure
-//============================================================================
-[StructLayout(LayoutKind.Sequential)]
-public unsafe struct NativeSerializedFieldInfo {
-
-    // SerializedFieldKind
-    public int kind;
-    // public fieldなら1、private SerializeFieldなら0
-    public int isPublic;
-    // フィールド名
-    public fixed byte name[128];
-    // Inspector表示名
-    public fixed byte displayName[128];
-    // 初期値JSON
-    public fixed byte defaultValueJson[512];
 }
 
 //============================================================================

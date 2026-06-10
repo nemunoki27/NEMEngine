@@ -36,6 +36,11 @@ namespace Engine {
 		bool enabled = false;
 		bool awakeCalled = false;
 		bool startCalled = false;
+		// ScriptBehaviour.Enabled による runtime override。
+		// hasRuntimeEnabledOverride が立っている間は authoring の ScriptEntry.enabled より優先される。
+		// authoring へは書き戻さない（Play終了でrecordごと破棄される）
+		bool runtimeEnabledOverride = false;
+		bool hasRuntimeEnabledOverride = false;
 		// callback内で回復不能な例外が発生した。faulted以降はgameplay callbackを呼ばない
 		bool faulted = false;
 		// スイープ用

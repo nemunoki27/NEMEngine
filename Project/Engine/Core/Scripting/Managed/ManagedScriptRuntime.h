@@ -56,9 +56,10 @@ namespace Engine {
 		// 直近のRefreshScriptTypesで反映したmanaged script型数（reload診断用）
 		int32_t ManagedScriptTypeCount() const { return lastManagedTypeCount_; }
 
-		// Stable Script Type GUID から script instanceを作成する。生成失敗時は無効ハンドルを返す
+		// Stable Script Type GUID から script instanceを作成する。生成失敗時は無効ハンドルを返す。
+		// scriptSlotId は ScriptBehaviour.Enabled が owner+slot で自身の runtime entry を特定するために C# へ渡す
 		ManagedScriptInstanceHandle CreateInstance(const std::string& scriptTypeId, ECSWorld& world,
-			const Entity& entity, const nlohmann::json& serializedFields);
+			const Entity& entity, const nlohmann::json& serializedFields, uint64_t scriptSlotId);
 		// 対象DLLを検証してScript Manifest(JSON)を生成する（build/reload時のみ。現行DLLは触らない）
 		ManagedStatus GenerateScriptManifest(const std::filesystem::path& assemblyPath,
 			const std::filesystem::path& manifestOutputPath);
@@ -85,8 +86,16 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		bool IsInitialized() const { return initialized_; }
-		// Stable Script Type GUID に対応する[SerializeField]情報を取得する（Inspector表示用）
-		const std::vector<ManagedScriptField>& GetSerializedFields(const std::string& scriptTypeId);
+		// Stable Script Type GUID に対応する serialized field schema を取得する（Inspector描画用）。
+		// blob で受け取り一度だけ parse して cache する（reload で破棄）。未解決は空 schema を返す
+		const ManagedScriptSchema& GetScriptSchema(const std::string& scriptTypeId);
+		// authoring serializedFields（任意形式）から { fieldGuid: value } の値マップを作る（migration 込み）
+		nlohmann::json BuildSerializedValueMap(const std::string& scriptTypeId, const nlohmann::json& serializedFields);
+
+		// Play 中 runtime Inspector 用：instance の現在値を { fieldGuid: value } で取得する
+		nlohmann::json GetRuntimeSerializedState(ManagedScriptInstanceHandle handle);
+		// runtime instance の単一 field を即時更新する（authoring へは保存しない）
+		void SetRuntimeSerializedField(ManagedScriptInstanceHandle handle, const std::string& fieldId, const nlohmann::json& value);
 
 		// 現在のライフサイクル呼び出しのコンテキスト（main threadのcallbackから参照する）
 		static const SystemContext* GetCurrentContext();
@@ -113,9 +122,14 @@ namespace Engine {
 		using GetScriptTypeCountFn = ManagedStatus(__cdecl*)(int32_t*);
 		using CopyScriptTypeInfoFn = ManagedStatus(__cdecl*)(int32_t, ManagedScriptTypeDescriptor*);
 		using GenerateScriptManifestFn = ManagedStatus(__cdecl*)(const char*, const char*);
-		using GetSerializedFieldCountFn = ManagedStatus(__cdecl*)(const char*, int32_t*);
-		using CopySerializedFieldInfoFn = ManagedStatus(__cdecl*)(const char*, int32_t, ManagedNativeSerializedFieldInfo*);
-		using CreateInstanceFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, const char*, ManagedScriptInstanceHandle*);
+		// 二段階 blob schema API（固定長 buffer を使わない）
+		using GetScriptSchemaJsonSizeFn = ManagedStatus(__cdecl*)(const char*, int32_t*);
+		using CopyScriptSchemaJsonFn = ManagedStatus(__cdecl*)(const char*, char*, int32_t, int32_t*);
+		// Play 中 runtime Inspector のための instance 値 readback / set
+		using GetRuntimeStateSizeFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, int32_t*);
+		using CopyRuntimeStateFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, char*, int32_t, int32_t*);
+		using SetRuntimeFieldFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*, const char*);
+		using CreateInstanceFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, const char*, uint64_t, ManagedScriptInstanceHandle*);
 		using SetSerializedFieldsFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*);
 		using DestroyInstanceFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle);
 		using InvokeFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle);
@@ -134,8 +148,11 @@ namespace Engine {
 		GetScriptTypeCountFn getScriptTypeCount_ = nullptr;
 		CopyScriptTypeInfoFn copyScriptTypeInfo_ = nullptr;
 		GenerateScriptManifestFn generateScriptManifest_ = nullptr;
-		GetSerializedFieldCountFn getSerializedFieldCount_ = nullptr;
-		CopySerializedFieldInfoFn copySerializedFieldInfo_ = nullptr;
+		GetScriptSchemaJsonSizeFn getScriptSchemaJsonSize_ = nullptr;
+		CopyScriptSchemaJsonFn copyScriptSchemaJson_ = nullptr;
+		GetRuntimeStateSizeFn getRuntimeStateSize_ = nullptr;
+		CopyRuntimeStateFn copyRuntimeState_ = nullptr;
+		SetRuntimeFieldFn setRuntimeField_ = nullptr;
 		CreateInstanceFn createInstance_ = nullptr;
 		SetSerializedFieldsFn setSerializedFields_ = nullptr;
 		DestroyInstanceFn destroyInstance_ = nullptr;
@@ -159,7 +176,8 @@ namespace Engine {
 
 		std::filesystem::path scriptCoreAssemblyPath_;
 		std::filesystem::path gameAssemblyPath_;
-		std::unordered_map<std::string, std::vector<ManagedScriptField>> fieldCache_;
+		// Stable Script Type GUID -> parse 済み schema（reload で破棄）
+		std::unordered_map<std::string, ManagedScriptSchema> schemaCache_;
 		// 直近のRefreshScriptTypesで反映したmanaged script型数
 		int32_t lastManagedTypeCount_ = 0;
 
@@ -231,6 +249,17 @@ namespace Engine {
 		static void __cdecl SetLocalScaleCallback(ManagedNativeEntity entity, ManagedVector3 value);
 		static ManagedQuaternion __cdecl GetLocalRotationCallback(ManagedNativeEntity entity);
 		static void __cdecl SetLocalRotationCallback(ManagedNativeEntity entity, ManagedQuaternion value);
+		static ManagedQuaternion __cdecl GetRotationCallback(ManagedNativeEntity entity);
+		static void __cdecl SetRotationCallback(ManagedNativeEntity entity, ManagedQuaternion value);
+		static ManagedVector3 __cdecl GetLossyScaleCallback(ManagedNativeEntity entity);
+		// generic component access / Entity 破棄 / ScriptBehaviour.Enabled
+		static int32_t __cdecl GetComponentTypeIdCallback(const char* name);
+		static int32_t __cdecl HasComponentCallback(ManagedNativeEntity entity, int32_t typeId);
+		static void __cdecl AddComponentCallback(ManagedNativeEntity entity, int32_t typeId);
+		static void __cdecl RemoveComponentCallback(ManagedNativeEntity entity, int32_t typeId);
+		static void __cdecl DestroyEntityCallback(ManagedNativeEntity entity);
+		static int32_t __cdecl GetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotId);
+		static void __cdecl SetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotId, int32_t enabled);
 	};
 
 	//============================================================================

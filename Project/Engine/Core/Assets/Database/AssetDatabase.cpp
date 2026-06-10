@@ -516,7 +516,12 @@ bool Engine::AssetDatabase::TryLoadMeta(const std::filesystem::path& metaFullPat
 
 bool Engine::AssetDatabase::SaveMeta(const std::filesystem::path& metaFullPath, const AssetMeta& meta) const {
 
-	nlohmann::json data = nlohmann::json::object();
+	// 既存の .meta を読み、未知キー（script importer が書く "scripts" 等）を保持したまま
+	// 既知キーだけ更新する。AssetDatabase が guid 採番で書き直しても sidecar の追加情報を壊さない。
+	nlohmann::json data = LoadJsonFileNoThrow(metaFullPath);
+	if (!data.is_object()) {
+		data = nlohmann::json::object();
+	}
 
 	data["guid"] = ToString(meta.guid);
 	data["type"] = std::string(EnumAdapter<AssetType>::ToString(meta.type));

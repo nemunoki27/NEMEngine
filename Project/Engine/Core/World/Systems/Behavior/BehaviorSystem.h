@@ -6,6 +6,7 @@
 #include <Engine/Core/World/Behavior/World/BehaviorWorld.h>
 #include <Engine/Core/World/ECS/Systems/Core/ISystem.h>
 #include <Engine/Core/Physics/Collision/CollisionTypes.h>
+#include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
 #include <cstdint>
@@ -41,6 +42,17 @@ namespace Engine {
 		static void DispatchCollisionStay(ECSWorld& world, SystemContext& context, const CollisionContact& collision);
 		// OnCollisionExitを対象Entityのビヘイビアへ渡す
 		static void DispatchCollisionExit(ECSWorld& world, SystemContext& context, const CollisionContact& collision);
+
+		// Play中 runtime Inspector 用：BehaviorHandle から live instance の現在値を取得/設定する。
+		// active な BehaviorWorld を参照するため、Play 中かつ生存している handle のみ有効。
+		static nlohmann::json GetRuntimeSerializedState(BehaviorHandle handle);
+		static void SetRuntimeSerializedField(BehaviorHandle handle, const std::string& fieldId, const nlohmann::json& value);
+
+		// ScriptBehaviour.Enabled 用：owner Entity + scriptSlotID で runtime entry を特定する。
+		// Get は runtime override があればそれ、無ければ authoring enabled を返す（-1 は未解決）。
+		// Set は runtime override を立て、次の lifecycle sync 境界で OnEnable/OnDisable が反映される。
+		static int32_t GetScriptEnabled(const Entity& owner, const UUID& scriptSlotID);
+		static void SetScriptEnabled(const Entity& owner, const UUID& scriptSlotID, bool enabled);
 
 		//--------- accessor -----------------------------------------------------
 

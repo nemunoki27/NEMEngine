@@ -48,10 +48,28 @@ void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializ
 		serializedFields_ = nlohmann::json::object();
 	}
 
-	// 生成済みのC#インスタンスには、Play中のInspector変更をその場で反映する
+	// 生成済みのC#インスタンスには、Play中のInspector変更をその場で反映する。
+	// authoring 形式（schema'd / legacy）を { fieldGuid: value } へ正規化してから渡す
 	if (managedHandle_.IsValid()) {
-		ManagedScriptRuntime::GetInstance().SetSerializedFields(managedHandle_, serializedFields_);
+		auto& runtime = ManagedScriptRuntime::GetInstance();
+		runtime.SetSerializedFields(managedHandle_, runtime.BuildSerializedValueMap(scriptTypeId_, serializedFields_));
 	}
+}
+
+nlohmann::json Engine::ManagedBehavior::GetRuntimeSerializedState() {
+
+	if (!managedHandle_.IsValid()) {
+		return nlohmann::json::object();
+	}
+	return ManagedScriptRuntime::GetInstance().GetRuntimeSerializedState(managedHandle_);
+}
+
+void Engine::ManagedBehavior::SetRuntimeSerializedField(const std::string& fieldId, const nlohmann::json& value) {
+
+	if (!managedHandle_.IsValid()) {
+		return;
+	}
+	ManagedScriptRuntime::GetInstance().SetRuntimeSerializedField(managedHandle_, fieldId, value);
 }
 
 void Engine::ManagedBehavior::Awake([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
@@ -179,7 +197,9 @@ void Engine::ManagedBehavior::EnsureCreated(ECSWorld& world, const Entity& entit
 	if (managedHandle_.IsValid()) {
 		return;
 	}
-	managedHandle_ = ManagedScriptRuntime::GetInstance().CreateInstance(scriptTypeId_, world, entity, serializedFields_);
+	auto& runtime = ManagedScriptRuntime::GetInstance();
+	managedHandle_ = runtime.CreateInstance(scriptTypeId_, world, entity,
+		runtime.BuildSerializedValueMap(scriptTypeId_, serializedFields_), scriptSlotId_);
 }
 
 void Engine::ManagedBehavior::HandleStatus(ManagedStatus status, const char* callbackName, const Entity& entity) {

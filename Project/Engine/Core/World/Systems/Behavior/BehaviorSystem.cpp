@@ -196,6 +196,84 @@ void Engine::BehaviorSystem::DispatchCollisionExit(ECSWorld& world,
 	}
 }
 
+nlohmann::json Engine::BehaviorSystem::GetRuntimeSerializedState(BehaviorHandle handle) {
+
+	// Play中の live instance の現在値を返す。非アクティブ/未生存handleは空
+	if (!activeSystem_ || !activeSystem_->runtime_.IsAlive(handle)) {
+		return nlohmann::json::object();
+	}
+	BehaviorRecord* record = activeSystem_->runtime_.GetRecord(handle);
+	if (!record || !record->instance) {
+		return nlohmann::json::object();
+	}
+	return record->instance->GetRuntimeSerializedState();
+}
+
+void Engine::BehaviorSystem::SetRuntimeSerializedField(BehaviorHandle handle,
+	const std::string& fieldId, const nlohmann::json& value) {
+
+	if (!activeSystem_ || !activeSystem_->runtime_.IsAlive(handle)) {
+		return;
+	}
+	BehaviorRecord* record = activeSystem_->runtime_.GetRecord(handle);
+	if (record && record->instance) {
+		record->instance->SetRuntimeSerializedField(fieldId, value);
+	}
+}
+
+namespace {
+
+	// active world の owner Entity 上で scriptSlotID 一致の ScriptEntry を探す
+	Engine::ScriptEntry* FindScriptEntryBySlot(Engine::ECSWorld& world, const Engine::Entity& owner, const Engine::UUID& slotId) {
+
+		Engine::ScriptComponent* component = world.TryGetComponent<Engine::ScriptComponent>(owner);
+		if (!component) {
+			return nullptr;
+		}
+		for (Engine::ScriptEntry& entry : component->scripts) {
+			if (entry.scriptSlotID == slotId) {
+				return &entry;
+			}
+		}
+		return nullptr;
+	}
+}
+
+int32_t Engine::BehaviorSystem::GetScriptEnabled(const Entity& owner, const UUID& scriptSlotID) {
+
+	if (!activeSystem_ || !activeSystem_->activeWorld_) {
+		return -1;
+	}
+	ScriptEntry* entry = FindScriptEntryBySlot(*activeSystem_->activeWorld_, owner, scriptSlotID);
+	if (!entry) {
+		return -1;
+	}
+	// runtime override があればそれ、無ければ authoring enabled を返す
+	if (BehaviorRecord* record = activeSystem_->runtime_.GetRecord(entry->handle)) {
+		if (record->hasRuntimeEnabledOverride) {
+			return record->runtimeEnabledOverride ? 1 : 0;
+		}
+	}
+	return entry->enabled ? 1 : 0;
+}
+
+void Engine::BehaviorSystem::SetScriptEnabled(const Entity& owner, const UUID& scriptSlotID, bool enabled) {
+
+	if (!activeSystem_ || !activeSystem_->activeWorld_) {
+		return;
+	}
+	ScriptEntry* entry = FindScriptEntryBySlot(*activeSystem_->activeWorld_, owner, scriptSlotID);
+	if (!entry) {
+		return;
+	}
+	// runtime override を立てる。次の lifecycle sync 境界(ApplyEnableTransitions)で OnEnable/OnDisable が反映される。
+	// authoring の ScriptEntry.enabled は変更しない（Play終了でrecordごと破棄される）
+	if (BehaviorRecord* record = activeSystem_->runtime_.GetRecord(entry->handle)) {
+		record->runtimeEnabledOverride = enabled;
+		record->hasRuntimeEnabledOverride = true;
+	}
+}
+
 void Engine::BehaviorSystem::EnsureActiveWorld(ECSWorld& world, SystemContext& context) {
 
 	// プレイ中でないときにアクティブにしない
@@ -329,6 +407,9 @@ void Engine::BehaviorSystem::SynchronizeRecords(ECSWorld& world, SystemContext& 
 					entry.handle = BehaviorHandle::Null();
 					continue;
 				}
+				// scriptSlotID を instance へ渡す。C# 側 ScriptBehaviour.Enabled が
+				// owner Entity + scriptSlotID で自身の runtime entry を特定するために使う
+				record->instance->SetSlotId(entry.scriptSlotID.value);
 				participantsDirty_ = true;
 			}
 
@@ -432,9 +513,12 @@ void Engine::BehaviorSystem::ApplyEnableTransitions(ECSWorld& world, SystemConte
 			continue;
 		}
 
-		// entry.enabledは構造変更なしでも変わり得るため都度評価する（ECSアクセスはO(1)）
+		// entry.enabledは構造変更なしでも変わり得るため都度評価する（ECSアクセスはO(1)）。
+		// ScriptBehaviour.Enabled が立てた runtime override があればそれを優先する（authoringへは書き戻さない）
 		bool entryEnabled = true;
-		if (ScriptComponent* component = world.TryGetComponent<ScriptComponent>(participant.owner)) {
+		if (record->hasRuntimeEnabledOverride) {
+			entryEnabled = record->runtimeEnabledOverride;
+		} else if (ScriptComponent* component = world.TryGetComponent<ScriptComponent>(participant.owner)) {
 			if (0 <= participant.slot && static_cast<size_t>(participant.slot) < component->scripts.size()) {
 				entryEnabled = component->scripts[participant.slot].enabled;
 			}

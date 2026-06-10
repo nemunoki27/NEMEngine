@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 
 namespace NEM.ScriptCodeGen
@@ -21,9 +22,15 @@ namespace NEM.ScriptCodeGen
 
         private static readonly DiagnosticDescriptor MissingIdRule = new DiagnosticDescriptor(
             "NEMSG001",
-            "Script type is missing [ScriptTypeId]",
-            "Script type '{0}' has no [ScriptTypeId]; a migration fallback GUID was generated. Add an explicit [ScriptTypeId] before shipping.",
+            "Script type has no stable id",
+            "Script type '{0}' has no stable Script Type GUID (no [ScriptTypeId] and no .cs.meta entry); a migration fallback GUID was generated. Run Editor metadata sync.",
             "NEMScript", DiagnosticSeverity.Warning, isEnabledByDefault: true);
+
+        private static readonly DiagnosticDescriptor MissingIdValidateRule = new DiagnosticDescriptor(
+            "NEMSG004",
+            "Script type metadata is missing",
+            "Script type '{0}' has no stable Script Type GUID and metadata mode is ValidateOnly. Run Editor metadata sync to generate .cs.meta.",
+            "NEMScript", DiagnosticSeverity.Error, isEnabledByDefault: true);
 
         private static readonly DiagnosticDescriptor InvalidIdRule = new DiagnosticDescriptor(
             "NEMSG002",
@@ -46,6 +53,8 @@ namespace NEM.ScriptCodeGen
             public bool HasExplicitId;
             public string NormalizedId = string.Empty;
             public bool InvalidId;
+            // 明示属性 or sidecar metadata で安定 ID が得られたか（false は決定的 fallback）
+            public bool HasStableId;
             public List<string> FormerlyKnown = new List<string>();
             public Location Location = Location.None;
         }
@@ -57,9 +66,24 @@ namespace NEM.ScriptCodeGen
                 static (ctx, _) => Analyze(ctx))
                 .Where(static m => m != null);
 
-            IncrementalValueProvider<ImmutableArray<ScriptTypeModel?>> collected = models.Collect();
+            // sidecar metadata(.cs.meta) を AdditionalFiles として読み、Stable ID の正にする
+            IncrementalValuesProvider<string> metaTexts = context.AdditionalTextsProvider
+                .Where(static t => t.Path.EndsWith(".cs.meta", StringComparison.OrdinalIgnoreCase))
+                .Select(static (t, ct) => t.GetText(ct)?.ToString() ?? string.Empty);
 
-            context.RegisterSourceOutput(collected, static (spc, items) => Emit(spc, items));
+            // EditorSync / ValidateOnly（CI）モード。診断の severity を分ける
+            IncrementalValueProvider<bool> validateOnly = context.AnalyzerConfigOptionsProvider
+                .Select(static (p, _) => IsValidateOnly(p));
+
+            var combined = models.Collect().Combine(metaTexts.Collect()).Combine(validateOnly);
+            context.RegisterSourceOutput(combined, static (spc, data) =>
+                Emit(spc, data.Left.Left, data.Left.Right, data.Right));
+        }
+
+        private static bool IsValidateOnly(AnalyzerConfigOptionsProvider provider)
+        {
+            return provider.GlobalOptions.TryGetValue("build_property.NEMScriptMetadataMode", out string? mode)
+                && string.Equals(mode, "ValidateOnly", StringComparison.OrdinalIgnoreCase);
         }
 
         private static ScriptTypeModel? Analyze(GeneratorSyntaxContext ctx)
@@ -142,20 +166,53 @@ namespace NEM.ScriptCodeGen
             return false;
         }
 
-        private static void Emit(SourceProductionContext spc, ImmutableArray<ScriptTypeModel?> items)
+        private static void Emit(SourceProductionContext spc, ImmutableArray<ScriptTypeModel?> items,
+            ImmutableArray<string> metaContents, bool validateOnly)
         {
             var models = items.Where(m => m != null).Select(m => m!).ToList();
+            ScriptMetaIndex meta = ScriptMetaIndex.Build(metaContents);
 
-            // 診断: 明示 ID 欠落 / 不正 / 重複
+            // ID 解決の優先順: 明示属性 → sidecar metadata → 決定的 fallback。
+            // sidecar からの formerNames も manifest へ反映する。
             foreach (ScriptTypeModel model in models)
             {
-                if (!model.HasExplicitId)
+                bool hasStable;
+                if (model.HasExplicitId && !model.InvalidId)
                 {
-                    spc.ReportDiagnostic(Diagnostic.Create(MissingIdRule, model.Location, model.FullTypeName));
+                    // model.NormalizedId は attribute 由来で確定済み
+                    hasStable = true;
                 }
-                else if (model.InvalidId)
+                else if (meta.TryGetScriptId(model.FullTypeName, out string metaId) &&
+                    TryNormalizeGuid(metaId, out string normalizedMeta))
+                {
+                    model.NormalizedId = normalizedMeta;
+                    hasStable = true;
+                }
+                else
+                {
+                    // metadata も attribute も無い（CI で sync 未実行など）。決定的 fallback
+                    hasStable = false;
+                }
+                model.HasStableId = hasStable;
+
+                // formerNames を sidecar とマージ
+                foreach (string former in meta.GetScriptFormerNames(model.FullTypeName))
+                {
+                    if (!model.FormerlyKnown.Contains(former)) { model.FormerlyKnown.Add(former); }
+                }
+            }
+
+            // 診断: 不正 attribute / stable id 欠落 / 重複
+            foreach (ScriptTypeModel model in models)
+            {
+                if (model.HasExplicitId && model.InvalidId)
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(InvalidIdRule, model.Location, model.FullTypeName, model.RawId));
+                }
+                else if (!model.HasStableId)
+                {
+                    spc.ReportDiagnostic(Diagnostic.Create(
+                        validateOnly ? MissingIdValidateRule : MissingIdRule, model.Location, model.FullTypeName));
                 }
             }
 
@@ -194,7 +251,7 @@ namespace NEM.ScriptCodeGen
                 builder.Append(EscapeString(model.FullTypeName)).Append(", ");
                 builder.Append(EscapeString(model.DisplayName)).Append(", ");
                 builder.Append(EscapeString(model.SourcePath)).Append(", ");
-                builder.Append(model.HasExplicitId && !model.InvalidId ? "true" : "false").Append(", ");
+                builder.Append(model.HasStableId ? "true" : "false").Append(", ");
                 builder.Append(former);
                 builder.AppendLine("),");
             }

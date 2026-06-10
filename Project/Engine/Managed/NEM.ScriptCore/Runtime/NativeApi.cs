@@ -10,7 +10,10 @@ internal static class ManagedAbi {
     // C++側 kManagedAbiVersion と一致させる
     // v2: managed script instance handle を int32 から NativeScriptInstanceHandle へ変更
     // v3: 型登録を CopyScriptTypeInfo(Stable GUID) へ変更し、GenerateScriptManifest を追加
-    internal const uint Version = 3;
+    // v4: 固定長フィールドABIを撤廃し、二段階blob schema/runtime state API へ移行
+    // v5: object model(generic component access / Entity.Destroy / ScriptBehaviour.Enabled / world rotation・lossyScale)を追加
+    // v6: 自動生成 component binding 用の typed property access(get/set + string)を追加
+    internal const uint Version = 6;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -18,10 +21,13 @@ internal static class ManagedAbi {
     internal const ulong CapabilityEntity = 1ul << 2;
     internal const ulong CapabilityHierarchy = 1ul << 3;
     internal const ulong CapabilityTransform = 1ul << 4;
+    internal const ulong CapabilityObjectModel = 1ul << 5;
+    internal const ulong CapabilityComponentBindings = 1ul << 6;
 
     // ScriptCoreが動作に必要とするcapability
     internal const ulong RequiredCapabilities =
-        CapabilityCore | CapabilityInput | CapabilityEntity | CapabilityHierarchy | CapabilityTransform;
+        CapabilityCore | CapabilityInput | CapabilityEntity | CapabilityHierarchy | CapabilityTransform
+        | CapabilityObjectModel | CapabilityComponentBindings;
 }
 
 // C++側 ManagedAbiHeader と同一レイアウト
@@ -144,6 +150,20 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, void> SetLocalScale;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion> GetLocalRotation;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion, void> SetLocalRotation;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion> GetRotation;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion, void> SetRotation;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3> GetLossyScale;
+    internal static delegate* unmanaged[Cdecl]<byte*, int> GetComponentTypeId;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int> HasComponent;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> AddComponent;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> RemoveComponent;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, void> DestroyEntity;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, int> GetScriptEnabled;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, int, void> SetScriptEnabled;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> GetComponentProperty;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> SetComponentProperty;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int*, int> GetComponentStringProperty;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int> SetComponentStringProperty;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -185,6 +205,20 @@ internal static unsafe class NativeApi {
         SetLocalScale = callbacks->setLocalScale;
         GetLocalRotation = callbacks->getLocalRotation;
         SetLocalRotation = callbacks->setLocalRotation;
+        GetRotation = callbacks->getRotation;
+        SetRotation = callbacks->setRotation;
+        GetLossyScale = callbacks->getLossyScale;
+        GetComponentTypeId = callbacks->getComponentTypeId;
+        HasComponent = callbacks->hasComponent;
+        AddComponent = callbacks->addComponent;
+        RemoveComponent = callbacks->removeComponent;
+        DestroyEntity = callbacks->destroyEntity;
+        GetScriptEnabled = callbacks->getScriptEnabled;
+        SetScriptEnabled = callbacks->setScriptEnabled;
+        GetComponentProperty = callbacks->getComponentProperty;
+        SetComponentProperty = callbacks->setComponentProperty;
+        GetComponentStringProperty = callbacks->getComponentStringProperty;
+        SetComponentStringProperty = callbacks->setComponentStringProperty;
     }
 
     internal static float ReadDeltaTime() {
@@ -376,6 +410,113 @@ internal static unsafe class NativeApi {
             SetLocalRotation(entity, NativeQuaternion.From(value));
         }
     }
+
+    internal static Quaternion ReadRotation(NativeEntity entity) {
+        return GetRotation != null ? GetRotation(entity).ToQuaternion() : Quaternion.identity;
+    }
+
+    internal static void WriteRotation(NativeEntity entity, Quaternion value) {
+        if (SetRotation != null) {
+            SetRotation(entity, NativeQuaternion.From(value));
+        }
+    }
+
+    internal static Vector3 ReadLossyScale(NativeEntity entity) {
+        return GetLossyScale != null ? GetLossyScale(entity).ToVector3() : Vector3.one;
+    }
+
+    // 安定なコンポーネント名から compact な runtime type id を解決する（未登録は -1）。
+    // 呼び出し側(ComponentType<T>)が type ごとに一度だけ呼んでキャッシュする
+    internal static int ResolveComponentTypeId(string componentTypeName) {
+        if (GetComponentTypeId == null || string.IsNullOrEmpty(componentTypeName)) {
+            return -1;
+        }
+        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(componentTypeName) + 1];
+        Encoding.UTF8.GetBytes(componentTypeName, 0, componentTypeName.Length, bytes, 0);
+        fixed (byte* ptr = bytes) {
+            return GetComponentTypeId(ptr);
+        }
+    }
+
+    internal static bool ReadHasComponent(NativeEntity entity, int typeId) {
+        return HasComponent != null && typeId >= 0 && HasComponent(entity, typeId) != 0;
+    }
+
+    internal static void EnqueueAddComponent(NativeEntity entity, int typeId) {
+        if (AddComponent != null && typeId >= 0) {
+            AddComponent(entity, typeId);
+        }
+    }
+
+    internal static void EnqueueRemoveComponent(NativeEntity entity, int typeId) {
+        if (RemoveComponent != null && typeId >= 0) {
+            RemoveComponent(entity, typeId);
+        }
+    }
+
+    internal static void EnqueueDestroyEntity(NativeEntity entity) {
+        if (DestroyEntity != null) {
+            DestroyEntity(entity);
+        }
+    }
+
+    // -1 = 未解決（record 無し）/ 0 / 1
+    internal static int ReadScriptEnabled(NativeEntity owner, ulong scriptSlotId) {
+        return GetScriptEnabled != null ? GetScriptEnabled(owner, scriptSlotId) : -1;
+    }
+
+    internal static void WriteScriptEnabled(NativeEntity owner, ulong scriptSlotId, bool enabled) {
+        if (SetScriptEnabled != null) {
+            SetScriptEnabled(owner, scriptSlotId, enabled ? 1 : 0);
+        }
+    }
+
+    //========================================================================
+    //	自動生成 component wrapper 用の typed property access（NEM.ComponentBindingGen が呼ぶ）
+    //========================================================================
+
+    // POD property を outValue へ取得する。失敗時は outValue を変更しない
+    internal static void ComponentGet(NativeEntity entity, int typeId, int propertyId, void* outValue, int valueSize) {
+        if (GetComponentProperty != null) {
+            GetComponentProperty(entity, typeId, propertyId, outValue, valueSize);
+        }
+    }
+
+    internal static void ComponentSet(NativeEntity entity, int typeId, int propertyId, void* value, int valueSize) {
+        if (SetComponentProperty != null) {
+            SetComponentProperty(entity, typeId, propertyId, value, valueSize);
+        }
+    }
+
+    // string property を length query + buffer で取得する（固定長 buffer を使わない）
+    internal static string ComponentGetString(NativeEntity entity, int typeId, int propertyId) {
+        if (GetComponentStringProperty == null) {
+            return string.Empty;
+        }
+        // まず必要 byte 数を問い合わせる（buffer=null, capacity=0 → written に必要量）
+        int needed = 0;
+        GetComponentStringProperty(entity, typeId, propertyId, null, 0, &needed);
+        if (needed <= 0) {
+            return string.Empty;
+        }
+        byte[] bytes = new byte[needed];
+        int written = 0;
+        fixed (byte* ptr = bytes) {
+            GetComponentStringProperty(entity, typeId, propertyId, ptr, needed, &written);
+        }
+        return written <= 0 ? string.Empty : Encoding.UTF8.GetString(bytes, 0, written);
+    }
+
+    internal static void ComponentSetString(NativeEntity entity, int typeId, int propertyId, string value) {
+        if (SetComponentStringProperty == null) {
+            return;
+        }
+        string safe = value ?? string.Empty;
+        byte[] bytes = Encoding.UTF8.GetBytes(safe);
+        fixed (byte* ptr = bytes) {
+            SetComponentStringProperty(entity, typeId, propertyId, ptr, bytes.Length);
+        }
+    }
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -421,4 +562,18 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, void> setLocalScale;
     public delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion> getLocalRotation;
     public delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion, void> setLocalRotation;
+    public delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion> getRotation;
+    public delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion, void> setRotation;
+    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3> getLossyScale;
+    public delegate* unmanaged[Cdecl]<byte*, int> getComponentTypeId;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int> hasComponent;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> addComponent;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> removeComponent;
+    public delegate* unmanaged[Cdecl]<NativeEntity, void> destroyEntity;
+    public delegate* unmanaged[Cdecl]<NativeEntity, ulong, int> getScriptEnabled;
+    public delegate* unmanaged[Cdecl]<NativeEntity, ulong, int, void> setScriptEnabled;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> getComponentProperty;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> setComponentProperty;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int*, int> getComponentStringProperty;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int> setComponentStringProperty;
 }

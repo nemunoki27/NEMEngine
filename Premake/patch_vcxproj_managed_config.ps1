@@ -70,11 +70,27 @@ if (-not (Test-Path -LiteralPath $scriptCodeGenProject)) {
     throw "NEM.ScriptCodeGen project was not found: $scriptCodeGenProject"
 }
 
+# NEM.ScriptMetaSync（Editor script metadata 同期ツール）も同じ Managed 配下にある。
+# GameScripts ビルド前に .cs.meta の Stable ID を採番・維持する（Stable ID の正は sidecar metadata）。
+$scriptMetaSyncProject = Convert-ToCommandPath (Join-Path $managedDirectory "NEM.ScriptMetaSync\NEM.ScriptMetaSync.csproj")
+
+if (-not (Test-Path -LiteralPath $scriptMetaSyncProject)) {
+    throw "NEM.ScriptMetaSync project was not found: $scriptMetaSyncProject"
+}
+
+# 同期ツールの出力 DLL（AppendTargetFrameworkToOutputPath=true なので <Config>/net10.0/）
+$scriptMetaSyncDll = Convert-ToCommandPath (Join-Path $managedDirectory 'NEM.ScriptMetaSync\bin\$(Configuration)\net10.0\NEM.ScriptMetaSync.dll')
+
 $preBuildCommand = @(
     'set DOTNET_CLI_UI_LANGUAGE=en',
     ('dotnet build "' + $scriptCoreProject + '" -c "$(Configuration)"'),
     ('dotnet build "' + $scriptCodeGenProject + '" -c "$(Configuration)"'),
-    'if exist "$(ProjectDir)Scripts\GameScripts.csproj" dotnet build "$(ProjectDir)Scripts\GameScripts.csproj" -c "$(Configuration)" --no-dependencies'
+    ('dotnet build "' + $scriptMetaSyncProject + '" -c "$(Configuration)"'),
+    # script metadata 同期（CI は NEMScriptMetadataMode=ValidateOnly で自動採番せず error）
+    'if "%NEMScriptMetadataMode%"=="" set NEMScriptMetadataMode=EditorSync',
+    ('if exist "$(ProjectDir)GameAssets" dotnet "' + $scriptMetaSyncDll + '" --root "$(ProjectDir)GameAssets" --mode "%NEMScriptMetadataMode%"'),
+    'if errorlevel 1 exit /b 1',
+    'if exist "$(ProjectDir)Scripts\GameScripts.csproj" dotnet build "$(ProjectDir)Scripts\GameScripts.csproj" -c "$(Configuration)" --no-dependencies -p:NEMScriptMetadataMode=%NEMScriptMetadataMode%'
 ) -join "`r`n"
 
 $postBuildCommand = @(

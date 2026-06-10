@@ -1,5 +1,6 @@
 #include "ManagedScriptRuntime.h"
 #include "ManagedScriptUtility.h"
+#include "Generated/ManagedComponentBindings.generated.h"
 
 //============================================================================
 //	include
@@ -136,11 +137,6 @@ namespace {
 		std::wstring previousValue_;
 	};
 
-	// C#側へ渡す文字列作成
-	std::string MakeString(const char* text) {
-		return text ? std::string(text) : std::string{};
-	}
-
 } // namespace
 
 bool Engine::ManagedScriptRuntime::Init() {
@@ -212,6 +208,21 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.setLocalScale = &ManagedScriptRuntime::SetLocalScaleCallback;
 	callbacks.getLocalRotation = &ManagedScriptRuntime::GetLocalRotationCallback;
 	callbacks.setLocalRotation = &ManagedScriptRuntime::SetLocalRotationCallback;
+	callbacks.getRotation = &ManagedScriptRuntime::GetRotationCallback;
+	callbacks.setRotation = &ManagedScriptRuntime::SetRotationCallback;
+	callbacks.getLossyScale = &ManagedScriptRuntime::GetLossyScaleCallback;
+	callbacks.getComponentTypeId = &ManagedScriptRuntime::GetComponentTypeIdCallback;
+	callbacks.hasComponent = &ManagedScriptRuntime::HasComponentCallback;
+	callbacks.addComponent = &ManagedScriptRuntime::AddComponentCallback;
+	callbacks.removeComponent = &ManagedScriptRuntime::RemoveComponentCallback;
+	callbacks.destroyEntity = &ManagedScriptRuntime::DestroyEntityCallback;
+	callbacks.getScriptEnabled = &ManagedScriptRuntime::GetScriptEnabledCallback;
+	callbacks.setScriptEnabled = &ManagedScriptRuntime::SetScriptEnabledCallback;
+	// 自動生成 component binding の typed property dispatch（ManagedComponentBindings.json 由来）
+	callbacks.getComponentProperty = &GeneratedComponentBindings::GetComponentProperty;
+	callbacks.setComponentProperty = &GeneratedComponentBindings::SetComponentProperty;
+	callbacks.getComponentStringProperty = &GeneratedComponentBindings::GetComponentStringProperty;
+	callbacks.setComponentStringProperty = &GeneratedComponentBindings::SetComponentStringProperty;
 
 	if (!initializeNativeApi_ || initializeNativeApi_(&callbacks) != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
@@ -233,7 +244,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 void Engine::ManagedScriptRuntime::Finalize() {
 
 	UnloadGameAssembly();
-	fieldCache_.clear();
+	schemaCache_.clear();
 	currentContext_ = nullptr;
 	initialized_ = false;
 
@@ -244,8 +255,11 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	getScriptTypeCount_ = nullptr;
 	copyScriptTypeInfo_ = nullptr;
 	generateScriptManifest_ = nullptr;
-	getSerializedFieldCount_ = nullptr;
-	copySerializedFieldInfo_ = nullptr;
+	getScriptSchemaJsonSize_ = nullptr;
+	copyScriptSchemaJson_ = nullptr;
+	getRuntimeStateSize_ = nullptr;
+	copyRuntimeState_ = nullptr;
+	setRuntimeField_ = nullptr;
 	createInstance_ = nullptr;
 	setSerializedFields_ = nullptr;
 	destroyInstance_ = nullptr;
@@ -267,7 +281,7 @@ void Engine::ManagedScriptRuntime::Finalize() {
 void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 
 	BehaviorTypeRegistry::GetInstance().ClearManaged();
-	fieldCache_.clear();
+	schemaCache_.clear();
 	lastManagedTypeCount_ = 0;
 
 	if (!initialized_ || !getScriptTypeCount_ || !copyScriptTypeInfo_) {
@@ -328,7 +342,7 @@ bool Engine::ManagedScriptRuntime::LoadGameAssemblyFromPath(const std::filesyste
 
 void Engine::ManagedScriptRuntime::UnloadGameAssembly() {
 
-	fieldCache_.clear();
+	schemaCache_.clear();
 	BehaviorTypeRegistry::GetInstance().ClearManaged();
 
 	if (unloadGameAssembly_) {
@@ -341,7 +355,7 @@ std::filesystem::path Engine::ManagedScriptRuntime::GameScriptProjectPath() cons
 }
 
 Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance(const std::string& scriptTypeId,
-	ECSWorld& world, const Entity& entity, const nlohmann::json& serializedFields) {
+	ECSWorld& world, const Entity& entity, const nlohmann::json& serializedFields, uint64_t scriptSlotId) {
 
 	if (!initialized_ || !createInstance_) {
 		return ManagedScriptInstanceHandle::Null();
@@ -349,7 +363,8 @@ Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance
 
 	const std::string json = serializedFields.is_object() ? serializedFields.dump() : std::string("{}");
 	ManagedScriptInstanceHandle createdHandle = ManagedScriptInstanceHandle::Null();
-	const ManagedStatus status = createInstance_(scriptTypeId.c_str(), MakeNativeEntity(world, entity), json.c_str(), &createdHandle);
+	const ManagedStatus status = createInstance_(scriptTypeId.c_str(), MakeNativeEntity(world, entity), json.c_str(),
+		scriptSlotId, &createdHandle);
 	// 生成失敗時は無効ハンドルを返す
 	return status == ManagedStatus::Ok ? createdHandle : ManagedScriptInstanceHandle::Null();
 }
@@ -419,42 +434,199 @@ Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionExit(ManagedS
 	return InvokeCollision(invokeCollisionExit_, handle, context, collision);
 }
 
-const std::vector<Engine::ManagedScriptField>& Engine::ManagedScriptRuntime::GetSerializedFields(const std::string& scriptTypeId) {
+namespace {
 
-	static const std::vector<ManagedScriptField> kEmpty{};
+	// schema JSON の "kind" 文字列を enum へ
+	Engine::ManagedSerializedFieldKind ParseFieldKind(const std::string& kind) {
 
-	if (auto it = fieldCache_.find(scriptTypeId); it != fieldCache_.end()) {
+		using K = Engine::ManagedSerializedFieldKind;
+		static const std::unordered_map<std::string, K> kMap = {
+			{ "Bool", K::Bool }, { "Byte", K::Byte }, { "SByte", K::SByte }, { "Short", K::Short },
+			{ "UShort", K::UShort }, { "Int", K::Int }, { "UInt", K::UInt }, { "Long", K::Long },
+			{ "ULong", K::ULong }, { "Float", K::Float }, { "Double", K::Double }, { "String", K::String },
+			{ "Enum", K::Enum }, { "Vector2", K::Vector2 }, { "Vector3", K::Vector3 }, { "Vector4", K::Vector4 },
+			{ "Quaternion", K::Quaternion }, { "Color3", K::Color3 }, { "Color4", K::Color4 },
+			{ "Nullable", K::Nullable }, { "Array", K::Array }, { "List", K::List },
+			{ "AssetRef", K::AssetRef }, { "EntityRef", K::EntityRef }, { "ScriptRef", K::ScriptRef },
+		};
+		auto it = kMap.find(kind);
+		return it != kMap.end() ? it->second : K::Unsupported;
+	}
+
+	// 1 フィールドの schema node を parse する（collection/nullable は element を再帰）
+	Engine::ManagedFieldSchema ParseFieldSchema(const nlohmann::json& node) {
+
+		Engine::ManagedFieldSchema field{};
+		field.fieldId = node.value("fieldId", std::string{});
+		field.name = node.value("name", std::string{});
+		field.declaringType = node.value("declaringType", std::string{});
+		field.kind = ParseFieldKind(node.value("kind", std::string("Unsupported")));
+		field.isPublic = node.value("isPublic", false);
+		field.isReadOnly = node.value("isReadOnly", false);
+		field.isHidden = node.value("isHidden", false);
+		field.multiline = node.value("multiline", false);
+		field.tooltip = node.value("tooltip", std::string{});
+		field.header = node.value("header", std::string{});
+		field.enumUnderlying = node.value("enumUnderlying", std::string{});
+		field.assetType = node.value("assetType", std::string{});
+		field.scriptType = node.value("scriptType", std::string{});
+		field.defaultValueJson = node.value("defaultValueJson", std::string("null"));
+
+		if (node.contains("formerNames") && node["formerNames"].is_array()) {
+			for (const auto& n : node["formerNames"]) {
+				field.formerNames.push_back(n.get<std::string>());
+			}
+		}
+		if (node.contains("range") && node["range"].is_object()) {
+			field.hasRange = true;
+			field.rangeMin = node["range"].value("min", 0.0f);
+			field.rangeMax = node["range"].value("max", 0.0f);
+		}
+		if (node.contains("min") && node["min"].is_number()) {
+			field.hasMin = true;
+			field.minValue = node["min"].get<float>();
+		}
+		if (node.contains("dragSpeed") && node["dragSpeed"].is_number()) {
+			field.hasDragSpeed = true;
+			field.dragSpeed = node["dragSpeed"].get<float>();
+		}
+		if (node.contains("enumNames") && node["enumNames"].is_array()) {
+			for (const auto& n : node["enumNames"]) {
+				field.enumNames.push_back(n.get<std::string>());
+			}
+		}
+		if (node.contains("enumValues") && node["enumValues"].is_array()) {
+			for (const auto& v : node["enumValues"]) {
+				field.enumValues.push_back(v.get<std::string>());
+			}
+		}
+		if (node.contains("element") && node["element"].is_object()) {
+			field.element = std::make_shared<Engine::ManagedFieldSchema>(ParseFieldSchema(node["element"]));
+		}
+		return field;
+	}
+}
+
+const Engine::ManagedScriptSchema& Engine::ManagedScriptRuntime::GetScriptSchema(const std::string& scriptTypeId) {
+
+	static const ManagedScriptSchema kEmpty{};
+
+	if (scriptTypeId.empty()) {
+		return kEmpty;
+	}
+	if (auto it = schemaCache_.find(scriptTypeId); it != schemaCache_.end()) {
 		return it->second;
 	}
-	if (!initialized_ || !getSerializedFieldCount_ || !copySerializedFieldInfo_ || scriptTypeId.empty()) {
+	if (!initialized_ || !getScriptSchemaJsonSize_ || !copyScriptSchemaJson_) {
 		return kEmpty;
 	}
 
-	int32_t fieldCount = 0;
-	if (getSerializedFieldCount_(scriptTypeId.c_str(), &fieldCount) != ManagedStatus::Ok) {
+	// 二段階 blob: 必要 size を取得 → vector 確保 → copy（固定長 buffer を使わない）
+	int32_t size = 0;
+	if (getScriptSchemaJsonSize_(scriptTypeId.c_str(), &size) != ManagedStatus::Ok || size <= 0) {
 		return kEmpty;
 	}
-	std::vector<ManagedScriptField> fields{};
-	fields.reserve(std::max(0, fieldCount));
+	std::string buffer(static_cast<size_t>(size), '\0');
+	int32_t written = 0;
+	if (copyScriptSchemaJson_(scriptTypeId.c_str(), buffer.data(), size, &written) != ManagedStatus::Ok) {
+		return kEmpty;
+	}
+	buffer.resize(static_cast<size_t>(written));
 
-	for (int32_t i = 0; i < fieldCount; ++i) {
-
-		ManagedNativeSerializedFieldInfo nativeInfo{};
-		if (copySerializedFieldInfo_(scriptTypeId.c_str(), i, &nativeInfo) != ManagedStatus::Ok) {
-			continue;
+	ManagedScriptSchema schema{};
+	schema.scriptTypeId = scriptTypeId;
+	try {
+		nlohmann::json root = nlohmann::json::parse(buffer);
+		schema.schemaVersion = root.value("schemaVersion", 0);
+		schema.fullTypeName = root.value("fullTypeName", std::string{});
+		if (root.contains("fields") && root["fields"].is_array()) {
+			for (const auto& fieldNode : root["fields"]) {
+				schema.fields.push_back(ParseFieldSchema(fieldNode));
+			}
 		}
-
-		ManagedScriptField field{};
-		field.name = MakeString(nativeInfo.name);
-		field.displayName = MakeString(nativeInfo.displayName);
-		field.kind = static_cast<ManagedSerializedFieldKind>(nativeInfo.kind);
-		field.isPublic = nativeInfo.isPublic != 0;
-		field.defaultValueJson = MakeString(nativeInfo.defaultValueJson);
-		fields.emplace_back(std::move(field));
+	}
+	catch (const nlohmann::json::exception& e) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ManagedScriptRuntime: failed to parse script schema for {}: {}", scriptTypeId, e.what());
 	}
 
-	auto [it, inserted] = fieldCache_.emplace(scriptTypeId, std::move(fields));
+	auto [it, inserted] = schemaCache_.emplace(scriptTypeId, std::move(schema));
 	return it->second;
+}
+
+nlohmann::json Engine::ManagedScriptRuntime::BuildSerializedValueMap(const std::string& scriptTypeId,
+	const nlohmann::json& serializedFields) {
+
+	// instance へ適用する { fieldGuid: value } を作る。新形式はそのまま、legacy flat は名前で migration する
+	nlohmann::json result = nlohmann::json::object();
+	if (!serializedFields.is_object()) {
+		return result;
+	}
+
+	// 新形式 { fields: { guid: { name, type, value } } }
+	if (serializedFields.contains("fields") && serializedFields["fields"].is_object()) {
+
+		for (auto& [guid, entry] : serializedFields["fields"].items()) {
+			if (entry.is_object() && entry.contains("value")) {
+				result[guid] = entry["value"];
+			} else {
+				result[guid] = entry;
+			}
+		}
+		return result;
+	}
+
+	// legacy flat { name: value }。schema の name / formerNames から guid を引いて移行する
+	const ManagedScriptSchema& schema = GetScriptSchema(scriptTypeId);
+	std::unordered_map<std::string, std::string> nameToGuid;
+	for (const ManagedFieldSchema& field : schema.fields) {
+		nameToGuid[field.name] = field.fieldId;
+		for (const std::string& former : field.formerNames) {
+			nameToGuid.emplace(former, field.fieldId);
+		}
+	}
+	for (auto& [name, value] : serializedFields.items()) {
+		auto it = nameToGuid.find(name);
+		if (it != nameToGuid.end()) {
+			result[it->second] = value;
+		}
+	}
+	return result;
+}
+
+nlohmann::json Engine::ManagedScriptRuntime::GetRuntimeSerializedState(ManagedScriptInstanceHandle handle) {
+
+	nlohmann::json empty = nlohmann::json::object();
+	if (!initialized_ || !getRuntimeStateSize_ || !copyRuntimeState_ || !handle.IsValid()) {
+		return empty;
+	}
+
+	int32_t size = 0;
+	if (getRuntimeStateSize_(handle, &size) != ManagedStatus::Ok || size <= 0) {
+		return empty;
+	}
+	std::string buffer(static_cast<size_t>(size), '\0');
+	int32_t written = 0;
+	if (copyRuntimeState_(handle, buffer.data(), size, &written) != ManagedStatus::Ok) {
+		return empty;
+	}
+	buffer.resize(static_cast<size_t>(written));
+	try {
+		return nlohmann::json::parse(buffer);
+	}
+	catch (const nlohmann::json::exception&) {
+		return empty;
+	}
+}
+
+void Engine::ManagedScriptRuntime::SetRuntimeSerializedField(ManagedScriptInstanceHandle handle,
+	const std::string& fieldId, const nlohmann::json& value) {
+
+	if (!initialized_ || !setRuntimeField_ || !handle.IsValid() || fieldId.empty()) {
+		return;
+	}
+	const std::string valueJson = value.dump();
+	setRuntimeField_(handle, fieldId.c_str(), valueJson.c_str());
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::GenerateScriptManifest(
@@ -493,8 +665,11 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	success &= LoadBridgeFunction(getScriptTypeCount_, L"GetScriptTypeCount");
 	success &= LoadBridgeFunction(copyScriptTypeInfo_, L"CopyScriptTypeInfo");
 	success &= LoadBridgeFunction(generateScriptManifest_, L"GenerateScriptManifest");
-	success &= LoadBridgeFunction(getSerializedFieldCount_, L"GetSerializedFieldCount");
-	success &= LoadBridgeFunction(copySerializedFieldInfo_, L"CopySerializedFieldInfo");
+	success &= LoadBridgeFunction(getScriptSchemaJsonSize_, L"GetScriptSchemaJsonSize");
+	success &= LoadBridgeFunction(copyScriptSchemaJson_, L"CopyScriptSchemaJson");
+	success &= LoadBridgeFunction(getRuntimeStateSize_, L"GetRuntimeSerializedStateSize");
+	success &= LoadBridgeFunction(copyRuntimeState_, L"CopyRuntimeSerializedState");
+	success &= LoadBridgeFunction(setRuntimeField_, L"SetRuntimeSerializedField");
 	success &= LoadBridgeFunction(createInstance_, L"CreateInstance");
 	success &= LoadBridgeFunction(setSerializedFields_, L"SetSerializedFields");
 	success &= LoadBridgeFunction(destroyInstance_, L"DestroyInstance");

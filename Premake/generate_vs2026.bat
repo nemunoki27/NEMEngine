@@ -11,6 +11,19 @@ if errorlevel 1 (
     exit /b 1
 )
 
+echo ===== Generate Component Bindings =====
+rem ManagedComponentBindings.json から C++ dispatch / C# wrapper を生成する。
+rem premake が .generated.cpp を glob する前・ScriptCore ビルド前に確定させる必要がある。
+dotnet run --project "%ENGINE_ROOT%\Project\Tools\NEM.ComponentBindingGen\NEM.ComponentBindingGen.csproj" -c Release -- ^
+    --metadata "%ENGINE_ROOT%\Project\Engine\Core\Scripting\Managed\Bindings\ManagedComponentBindings.json" ^
+    --out-native-dir "%ENGINE_ROOT%\Project\Engine\Core\Scripting\Managed\Generated" ^
+    --out-cs-dir "%ENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\Generated"
+if errorlevel 1 (
+    echo [ERROR] Component binding generation failed.
+    popd
+    exit /b 1
+)
+
 echo ===== Cleanup Old Project Files =====
 if exist "%ENGINE_ROOT%\Project\NEMEngine.sln" del /q "%ENGINE_ROOT%\Project\NEMEngine.sln"
 if exist "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj" del /q "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj"

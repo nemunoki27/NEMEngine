@@ -446,18 +446,11 @@
                 "Script": [
                     {
                         "enabled": true,
-                        "scriptAsset": "54fc97e33f8065a5",
-                        "serializedFields": {
-                            "amplitude": 0.20000000298023224,
-                            "frequency": 2,
-                            "rotateAxis": {
-                                "x": 0,
-                                "y": 1,
-                                "z": 0
-                            },
-                            "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
+                        "scriptAsset": "",
+                        "scriptSlotID": "92e7a1dc043cdb20",
+                        "scriptTypeId": "b1f3a8d2-4c6e-4f17-9a3b-2d8e5c0147aa",
+                        "serializedFields": {}
                     }
                 ],
                 "Transform": {
@@ -752,7 +745,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "04723da25b15b9c7",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.25,
                             "frequency": 2,
@@ -762,8 +758,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 45.0
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -1272,7 +1267,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "395e87a9d4f5b202",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -1282,8 +1280,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 45.0
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -1564,7 +1561,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "32122e8854ae1204",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -1574,8 +1574,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 150.0
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -1856,7 +1855,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "3d4f64b5510971da",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -1866,8 +1868,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -2148,7 +2149,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "cf7e3fac55f8c40c",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -2158,8 +2162,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -2440,7 +2443,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "c2447e177c8b3e51",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -2450,8 +2456,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -2732,7 +2737,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "016f7db2ba93c798",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -2742,8 +2750,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -3024,7 +3031,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "8a4507b98d7d1b86",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -3034,8 +3044,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -3316,7 +3325,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "bd31bfb5f81784ea",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -3326,8 +3338,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -3608,7 +3619,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "110673999fc5af46",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -3618,8 +3632,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -3900,7 +3913,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "617e9b69e2f97ee5",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -3910,8 +3926,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -4192,7 +4207,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "aa6da3c9e63d7814",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -4202,8 +4220,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -4484,7 +4501,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "d9fc716625bd6108",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -4494,8 +4514,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -4776,7 +4795,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "b797bbf95e1fee56",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -4786,8 +4808,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -5068,7 +5089,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "d96756077bcae3e9",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -5078,8 +5102,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -5360,7 +5383,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "47deb5cde3537420",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -5370,8 +5396,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
@@ -5652,7 +5677,10 @@
                 "Script": [
                     {
                         "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ObjectRotate",
                         "scriptAsset": "54fc97e33f8065a5",
+                        "scriptSlotID": "4078f6d60277298d",
+                        "scriptTypeId": "",
                         "serializedFields": {
                             "amplitude": 0.20000000298023224,
                             "frequency": 2,
@@ -5662,8 +5690,7 @@
                                 "z": 0
                             },
                             "rotateSpeed": 90
-                        },
-                        "type": "SandboxScripts.ObjectRotate"
+                        }
                     }
                 ],
                 "Transform": {
