@@ -150,4 +150,52 @@ namespace Engine {
 		return input ? input->GetRightTriggerValue() : 0.0f;
 	}
 
+	//============================================================================
+	//	raw Input 拡張（多 gamepad / axis / text / focus）
+	//============================================================================
+	int32_t ManagedScriptRuntime::GetGamepadButtonIndexedCallback(int32_t index, int32_t button) {
+		Input* input = Input::GetInstance();
+		return (input && input->GamepadButtonByIndex(index, button)) ? 1 : 0;
+	}
+
+	int32_t ManagedScriptRuntime::GetGamepadButtonDownIndexedCallback(int32_t index, int32_t button) {
+		Input* input = Input::GetInstance();
+		return (input && input->GamepadButtonDownByIndex(index, button)) ? 1 : 0;
+	}
+
+	int32_t ManagedScriptRuntime::GetGamepadButtonUpIndexedCallback(int32_t index, int32_t button) {
+		Input* input = Input::GetInstance();
+		return (input && input->GamepadButtonUpByIndex(index, button)) ? 1 : 0;
+	}
+
+	float ManagedScriptRuntime::GetGamepadAxisCallback(int32_t index, int32_t axis) {
+		Input* input = Input::GetInstance();
+		return input ? input->GamepadAxisByIndex(index, axis) : 0.0f;
+	}
+
+	int32_t ManagedScriptRuntime::IsGamepadConnectedIndexedCallback(int32_t index) {
+		Input* input = Input::GetInstance();
+		return (input && input->GamepadConnectedByIndex(index)) ? 1 : 0;
+	}
+
+	int32_t ManagedScriptRuntime::GetConnectedGamepadCountCallback() {
+		Input* input = Input::GetInstance();
+		return input ? input->ConnectedGamepadCount() : 0;
+	}
+
+	int32_t ManagedScriptRuntime::GetHasFocusCallback() {
+		Input* input = Input::GetInstance();
+		// Input 未初期化時はフォーカスありとみなす（安全側）
+		return (!input || input->HasWindowFocus()) ? 1 : 0;
+	}
+
+	int32_t ManagedScriptRuntime::CopyTextInputCallback(char* buffer, int32_t capacity) {
+		Input* input = Input::GetInstance();
+		if (!input) {
+			return 0;
+		}
+		// frame-local の UTF-8 テキストを length-query 方式でコピーする（固定 buffer truncate を避ける）
+		return CopyStringToBuffer(input->FrameTextInput(), buffer, capacity);
+	}
+
 } // Engine

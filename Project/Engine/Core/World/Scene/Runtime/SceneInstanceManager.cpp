@@ -53,7 +53,7 @@ namespace {
 }
 
 bool Engine::SceneInstanceManager::LoadAdditive(AssetDatabase& database,
-	const SceneSystem& sceneSystem, ECSWorld& world, AssetID sceneAsset) {
+	const SceneSystem& sceneSystem, ECSWorld& world, AssetID sceneAsset, UUID forcedInstanceID) {
 
 	// アセットIDからファイルパスを取得する
 	auto path = database.ResolveFullPath(sceneAsset);
@@ -62,7 +62,8 @@ bool Engine::SceneInstanceManager::LoadAdditive(AssetDatabase& database,
 	}
 
 	SceneInstance instance{};
-	instance.instanceID = UUID::New();
+	// C# 側で先行採番した SceneHandle と instance ID を一致させる（無指定なら新規採番）
+	instance.instanceID = forcedInstanceID ? forcedInstanceID : UUID::New();
 	instance.parentInstanceID = UUID{};
 	instance.sceneAsset = sceneAsset;
 

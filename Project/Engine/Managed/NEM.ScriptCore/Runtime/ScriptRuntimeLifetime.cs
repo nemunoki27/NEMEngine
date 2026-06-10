@@ -88,6 +88,19 @@ public static class ScriptRuntimeLifetime {
 				NativeApi.WriteLog(2, $"[ScriptRuntimeLifetime] dispose failed\n{ex}");
 			}
 		}
+
+		// gameplay service の static event / pending 状態を解放し、古い GameScripts assembly の delegate を手放す。
+		// （これらの static は ScriptCore 側にあり、登録された delegate が GameScripts 型を参照するため、unload 前に必ずクリアする）
+		try {
+			SceneManager.ResetForReload();
+			Application.ResetForReload();
+			InputActions.ResetForReload();
+			Timers.ResetForReload();
+			Coroutines.ResetForReload();
+		}
+		catch (Exception ex) {
+			NativeApi.WriteLog(2, $"[ScriptRuntimeLifetime] gameplay reset failed\n{ex}");
+		}
 	}
 
 	//========================================================================

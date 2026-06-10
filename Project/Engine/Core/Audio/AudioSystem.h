@@ -56,6 +56,9 @@ namespace Engine {
 		void Stop(const std::string& name);
 		// 再生インスタンスを停止
 		void StopVoice(uint64_t voiceID);
+		// 再生インスタンスを一時停止 / 再開（voice は破棄せず再生位置を保持する）
+		void PauseVoice(uint64_t voiceID);
+		void ResumeVoice(uint64_t voiceID);
 
 		// 音量のセット
 		void SetVolume(const std::string& name, float volume);

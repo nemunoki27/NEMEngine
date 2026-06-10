@@ -13,7 +13,8 @@ internal static class ManagedAbi {
     // v4: 固定長フィールドABIを撤廃し、二段階blob schema/runtime state API へ移行
     // v5: object model(generic component access / Entity.Destroy / ScriptBehaviour.Enabled / world rotation・lossyScale)を追加
     // v6: 自動生成 component binding 用の typed property access(get/set + string)を追加
-    internal const uint Version = 6;
+    // v7: gameplay API(Time拡張/TimeScale, AssetRef解決, Entity生成, Prefab/Scene, Input拡張, Audio/Animation/Application)を追加
+    internal const uint Version = 7;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -23,11 +24,12 @@ internal static class ManagedAbi {
     internal const ulong CapabilityTransform = 1ul << 4;
     internal const ulong CapabilityObjectModel = 1ul << 5;
     internal const ulong CapabilityComponentBindings = 1ul << 6;
+    internal const ulong CapabilityGameplay = 1ul << 7;
 
     // ScriptCoreが動作に必要とするcapability
     internal const ulong RequiredCapabilities =
         CapabilityCore | CapabilityInput | CapabilityEntity | CapabilityHierarchy | CapabilityTransform
-        | CapabilityObjectModel | CapabilityComponentBindings;
+        | CapabilityObjectModel | CapabilityComponentBindings | CapabilityGameplay;
 }
 
 // C++側 ManagedAbiHeader と同一レイアウト
@@ -164,6 +166,38 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> SetComponentProperty;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int*, int> GetComponentStringProperty;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int> SetComponentStringProperty;
+    // Gameplay(v7): Time 拡張 / TimeScale / AssetRef 解決
+    internal static delegate* unmanaged[Cdecl]<float> GetUnscaledDeltaTime;
+    internal static delegate* unmanaged[Cdecl]<float> GetUnscaledFixedDeltaTime;
+    internal static delegate* unmanaged[Cdecl]<double> GetTimeSinceStartup;
+    internal static delegate* unmanaged[Cdecl]<double> GetUnscaledTime;
+    internal static delegate* unmanaged[Cdecl]<float> GetTimeScale;
+    internal static delegate* unmanaged[Cdecl]<float, void> SetTimeScale;
+    internal static delegate* unmanaged[Cdecl]<ulong> GetFrameCount;
+    internal static delegate* unmanaged[Cdecl]<ulong, int> AssetExists;
+    internal static delegate* unmanaged[Cdecl]<ulong, byte*, int, int> CopyAssetDisplayName;
+    // Gameplay(v7): Entity 生成 / Prefab / Scene / SetParent(worldPositionStays)
+    internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity, NativeEntity> CreateEntity;
+    internal static delegate* unmanaged[Cdecl]<ulong, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> InstantiatePrefab;
+    internal static delegate* unmanaged[Cdecl]<ulong, ulong> LoadSceneAdditive;
+    internal static delegate* unmanaged[Cdecl]<ulong, void> UnloadScene;
+    internal static delegate* unmanaged[Cdecl]<ulong, int> IsSceneInstanceAlive;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity, int, void> SetParentKeepWorld;
+    // Gameplay(v7): raw Input 拡張（多 gamepad / axis / text / focus）
+    internal static delegate* unmanaged[Cdecl]<int, int, int> GetGamepadButtonIndexed;
+    internal static delegate* unmanaged[Cdecl]<int, int, int> GetGamepadButtonDownIndexed;
+    internal static delegate* unmanaged[Cdecl]<int, int, int> GetGamepadButtonUpIndexed;
+    internal static delegate* unmanaged[Cdecl]<int, int, float> GetGamepadAxisIndexed;
+    internal static delegate* unmanaged[Cdecl]<int, int> IsGamepadConnectedIndexed;
+    internal static delegate* unmanaged[Cdecl]<int> GetConnectedGamepadCount;
+    internal static delegate* unmanaged[Cdecl]<int> GetHasFocus;
+    internal static delegate* unmanaged[Cdecl]<byte*, int, int> CopyTextInput;
+    internal static delegate* unmanaged[Cdecl]<byte*, int, int> CopyProjectRoot;
+    // Gameplay(v7): AudioSource gameplay method
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioPlay;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioPause;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioStop;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int> AudioIsPlaying;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -219,6 +253,34 @@ internal static unsafe class NativeApi {
         SetComponentProperty = callbacks->setComponentProperty;
         GetComponentStringProperty = callbacks->getComponentStringProperty;
         SetComponentStringProperty = callbacks->setComponentStringProperty;
+        GetUnscaledDeltaTime = callbacks->getUnscaledDeltaTime;
+        GetUnscaledFixedDeltaTime = callbacks->getUnscaledFixedDeltaTime;
+        GetTimeSinceStartup = callbacks->getTimeSinceStartup;
+        GetUnscaledTime = callbacks->getUnscaledTime;
+        GetTimeScale = callbacks->getTimeScale;
+        SetTimeScale = callbacks->setTimeScale;
+        GetFrameCount = callbacks->getFrameCount;
+        AssetExists = callbacks->assetExists;
+        CopyAssetDisplayName = callbacks->copyAssetDisplayName;
+        CreateEntity = callbacks->createEntity;
+        InstantiatePrefab = callbacks->instantiatePrefab;
+        LoadSceneAdditive = callbacks->loadSceneAdditive;
+        UnloadScene = callbacks->unloadScene;
+        IsSceneInstanceAlive = callbacks->isSceneInstanceAlive;
+        SetParentKeepWorld = callbacks->setParentKeepWorld;
+        GetGamepadButtonIndexed = callbacks->getGamepadButtonIndexed;
+        GetGamepadButtonDownIndexed = callbacks->getGamepadButtonDownIndexed;
+        GetGamepadButtonUpIndexed = callbacks->getGamepadButtonUpIndexed;
+        GetGamepadAxisIndexed = callbacks->getGamepadAxis;
+        IsGamepadConnectedIndexed = callbacks->isGamepadConnectedIndexed;
+        GetConnectedGamepadCount = callbacks->getConnectedGamepadCount;
+        GetHasFocus = callbacks->getHasFocus;
+        CopyTextInput = callbacks->copyTextInput;
+        CopyProjectRoot = callbacks->copyProjectRoot;
+        AudioPlay = callbacks->audioPlay;
+        AudioPause = callbacks->audioPause;
+        AudioStop = callbacks->audioStop;
+        AudioIsPlaying = callbacks->audioIsPlaying;
     }
 
     internal static float ReadDeltaTime() {
@@ -517,6 +579,116 @@ internal static unsafe class NativeApi {
             SetComponentStringProperty(entity, typeId, propertyId, ptr, bytes.Length);
         }
     }
+
+    //========================================================================
+    //	gameplay time service / AssetRef resolve helpers
+    //========================================================================
+    internal static float ReadUnscaledDeltaTime() => GetUnscaledDeltaTime != null ? GetUnscaledDeltaTime() : 0.0f;
+    internal static float ReadUnscaledFixedDeltaTime() => GetUnscaledFixedDeltaTime != null ? GetUnscaledFixedDeltaTime() : 0.0f;
+    internal static double ReadTimeSinceStartup() => GetTimeSinceStartup != null ? GetTimeSinceStartup() : 0.0;
+    internal static double ReadUnscaledTime() => GetUnscaledTime != null ? GetUnscaledTime() : 0.0;
+    internal static float ReadTimeScale() => GetTimeScale != null ? GetTimeScale() : 1.0f;
+    internal static void WriteTimeScale(float value) { if (SetTimeScale != null) { SetTimeScale(value); } }
+    internal static ulong ReadFrameCount() => GetFrameCount != null ? GetFrameCount() : 0ul;
+
+    internal static bool ReadAssetExists(ulong assetId) => AssetExists != null && AssetExists(assetId) != 0;
+
+    //========================================================================
+    //	gameplay structural helpers（Entity 生成 / Prefab / Scene / 親子）
+    //========================================================================
+    // 空 Entity を即時予約して返す。name/parent は flush で適用される（pending entity）。
+    internal static Entity SpawnEntity(string? name, Entity parent) {
+        if (CreateEntity == null) {
+            return Entity.nullEntity;
+        }
+        byte[] bytes = Encoding.UTF8.GetBytes((name ?? string.Empty) + "\0");
+        fixed (byte* ptr = bytes) {
+            return new Entity(CreateEntity(ptr, parent.native));
+        }
+    }
+
+    // 予約済みルート Entity を即時返す。実体化(component 追加)は flush で行われる。
+    internal static Entity SpawnPrefab(ulong prefabAssetId, Vector3 position, Quaternion rotation, bool useTransform, Entity parent) {
+        if (InstantiatePrefab == null) {
+            return Entity.nullEntity;
+        }
+        return new Entity(InstantiatePrefab(prefabAssetId, NativeVector3.From(position),
+            NativeQuaternion.From(rotation), useTransform ? 1 : 0, parent.native));
+    }
+
+    internal static ulong SceneLoadAdditive(ulong sceneAssetId) => LoadSceneAdditive != null ? LoadSceneAdditive(sceneAssetId) : 0ul;
+    internal static void SceneUnload(ulong sceneInstanceId) { if (UnloadScene != null) { UnloadScene(sceneInstanceId); } }
+    internal static bool SceneInstanceAlive(ulong sceneInstanceId) => IsSceneInstanceAlive != null && IsSceneInstanceAlive(sceneInstanceId) != 0;
+    internal static void ReparentKeepWorld(NativeEntity child, NativeEntity parent, bool worldPositionStays) {
+        if (SetParentKeepWorld != null) { SetParentKeepWorld(child, parent, worldPositionStays ? 1 : 0); }
+    }
+
+    //========================================================================
+    //	AudioSource gameplay method helpers
+    //========================================================================
+    internal static void AudioPlayCall(NativeEntity entity) { if (AudioPlay != null) { AudioPlay(entity); } }
+    internal static void AudioPauseCall(NativeEntity entity) { if (AudioPause != null) { AudioPause(entity); } }
+    internal static void AudioStopCall(NativeEntity entity) { if (AudioStop != null) { AudioStop(entity); } }
+    internal static bool AudioIsPlayingCall(NativeEntity entity) => AudioIsPlaying != null && AudioIsPlaying(entity) != 0;
+
+    //========================================================================
+    //	raw Input 拡張（多 gamepad / axis / text / focus）helpers
+    //========================================================================
+    internal static bool ReadGamepadButton(int index, int button) => GetGamepadButtonIndexed != null && GetGamepadButtonIndexed(index, button) != 0;
+    internal static bool ReadGamepadButtonDown(int index, int button) => GetGamepadButtonDownIndexed != null && GetGamepadButtonDownIndexed(index, button) != 0;
+    internal static bool ReadGamepadButtonUp(int index, int button) => GetGamepadButtonUpIndexed != null && GetGamepadButtonUpIndexed(index, button) != 0;
+    internal static float ReadGamepadAxis(int index, int axis) => GetGamepadAxisIndexed != null ? GetGamepadAxisIndexed(index, axis) : 0.0f;
+    internal static bool ReadGamepadConnected(int index) => IsGamepadConnectedIndexed != null && IsGamepadConnectedIndexed(index) != 0;
+    internal static int ReadConnectedGamepadCount() => GetConnectedGamepadCount != null ? GetConnectedGamepadCount() : 0;
+    internal static bool ReadHasFocus() => GetHasFocus == null || GetHasFocus() != 0;
+
+    // project root の絶対パス（InputActions.json 等の解決用）。length-query。
+    internal static string ReadProjectRoot() {
+        if (CopyProjectRoot == null) {
+            return string.Empty;
+        }
+        int needed = CopyProjectRoot(null, 0);
+        if (needed <= 0) {
+            return string.Empty;
+        }
+        byte[] bytes = new byte[needed + 1];
+        fixed (byte* ptr = bytes) {
+            int written = CopyProjectRoot(ptr, needed + 1);
+            return written <= 0 ? string.Empty : Encoding.UTF8.GetString(bytes, 0, written);
+        }
+    }
+
+    // frame-local テキストを可変長で取得する（固定 buffer truncate しない）
+    internal static string ReadTextInput() {
+        if (CopyTextInput == null) {
+            return string.Empty;
+        }
+        int needed = CopyTextInput(null, 0);
+        if (needed <= 0) {
+            return string.Empty;
+        }
+        byte[] bytes = new byte[needed + 1];
+        fixed (byte* ptr = bytes) {
+            int written = CopyTextInput(ptr, needed + 1);
+            return written <= 0 ? string.Empty : Encoding.UTF8.GetString(bytes, 0, written);
+        }
+    }
+
+    // asset 表示名を可変長で取得する（固定 buffer で truncate しない）。length query → caller buffer。
+    internal static string ReadAssetDisplayName(ulong assetId) {
+        if (CopyAssetDisplayName == null || assetId == 0) {
+            return string.Empty;
+        }
+        int needed = CopyAssetDisplayName(assetId, null, 0);
+        if (needed <= 0) {
+            return string.Empty;
+        }
+        byte[] bytes = new byte[needed + 1];
+        fixed (byte* ptr = bytes) {
+            int written = CopyAssetDisplayName(assetId, ptr, needed + 1);
+            return written <= 0 ? string.Empty : Encoding.UTF8.GetString(bytes, 0, written);
+        }
+    }
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -576,4 +748,36 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> setComponentProperty;
     public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int*, int> getComponentStringProperty;
     public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int> setComponentStringProperty;
+    // Gameplay(v7): Time 拡張 / TimeScale / AssetRef 解決（C++ ManagedNativeApiTable と同一順）
+    public delegate* unmanaged[Cdecl]<float> getUnscaledDeltaTime;
+    public delegate* unmanaged[Cdecl]<float> getUnscaledFixedDeltaTime;
+    public delegate* unmanaged[Cdecl]<double> getTimeSinceStartup;
+    public delegate* unmanaged[Cdecl]<double> getUnscaledTime;
+    public delegate* unmanaged[Cdecl]<float> getTimeScale;
+    public delegate* unmanaged[Cdecl]<float, void> setTimeScale;
+    public delegate* unmanaged[Cdecl]<ulong> getFrameCount;
+    public delegate* unmanaged[Cdecl]<ulong, int> assetExists;
+    public delegate* unmanaged[Cdecl]<ulong, byte*, int, int> copyAssetDisplayName;
+    // Gameplay(v7): Entity 生成 / Prefab / Scene / SetParent(worldPositionStays)（C++ ManagedNativeApiTable と同一順）
+    public delegate* unmanaged[Cdecl]<byte*, NativeEntity, NativeEntity> createEntity;
+    public delegate* unmanaged[Cdecl]<ulong, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> instantiatePrefab;
+    public delegate* unmanaged[Cdecl]<ulong, ulong> loadSceneAdditive;
+    public delegate* unmanaged[Cdecl]<ulong, void> unloadScene;
+    public delegate* unmanaged[Cdecl]<ulong, int> isSceneInstanceAlive;
+    public delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity, int, void> setParentKeepWorld;
+    // Gameplay(v7): raw Input 拡張（C++ ManagedNativeApiTable と同一順）
+    public delegate* unmanaged[Cdecl]<int, int, int> getGamepadButtonIndexed;
+    public delegate* unmanaged[Cdecl]<int, int, int> getGamepadButtonDownIndexed;
+    public delegate* unmanaged[Cdecl]<int, int, int> getGamepadButtonUpIndexed;
+    public delegate* unmanaged[Cdecl]<int, int, float> getGamepadAxis;
+    public delegate* unmanaged[Cdecl]<int, int> isGamepadConnectedIndexed;
+    public delegate* unmanaged[Cdecl]<int> getConnectedGamepadCount;
+    public delegate* unmanaged[Cdecl]<int> getHasFocus;
+    public delegate* unmanaged[Cdecl]<byte*, int, int> copyTextInput;
+    public delegate* unmanaged[Cdecl]<byte*, int, int> copyProjectRoot;
+    // Gameplay(v7): AudioSource gameplay method（C++ ManagedNativeApiTable と同一順）
+    public delegate* unmanaged[Cdecl]<NativeEntity, void> audioPlay;
+    public delegate* unmanaged[Cdecl]<NativeEntity, void> audioPause;
+    public delegate* unmanaged[Cdecl]<NativeEntity, void> audioStop;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int> audioIsPlaying;
 }

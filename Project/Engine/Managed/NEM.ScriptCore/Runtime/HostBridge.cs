@@ -167,6 +167,51 @@ public static unsafe class HostBridge {
         });
     }
 
+    // BehaviorSystem が SynchronizeLifecycle の Pass4(OnEnable 後・Start 前)で呼ぶ。
+    // Scene の load/unload 完了を検出して SceneManager の SceneLoaded/SceneUnloaded を発火する。
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int PumpSceneEvents() {
+
+        return (int)Guard(nameof(PumpSceneEvents), () => {
+            // Pass4(OnEnable 後・Start 前)の per-frame pump。Scene / Application イベントを発火する。
+            SceneManager.PumpEvents();
+            Application.PumpEvents();
+            return ManagedStatus.Ok;
+        });
+    }
+
+    // application shutdown 前に native から一度だけ呼ばれ、Application.Quitting を発火する。
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int RaiseApplicationQuitting() {
+
+        return (int)Guard(nameof(RaiseApplicationQuitting), () => {
+            Application.RaiseQuitting();
+            return ManagedStatus.Ok;
+        });
+    }
+
+    // BehaviorSystem の各 phase 末から呼ばれる per-frame tick。phase: 0=Update, 1=FixedUpdate, 2=EndOfFrame。
+    // Update で Timer tick + Coroutine(Update)、FixedUpdate で Coroutine(Fixed)、EndOfFrame で Coroutine(EndOfFrame)。
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int TickFrame(int phase) {
+
+        return (int)Guard(nameof(TickFrame), () => {
+            switch (phase) {
+            case 0:
+                Timers.Tick();
+                Coroutines.Tick(CoroutinePhase.Update);
+                break;
+            case 1:
+                Coroutines.Tick(CoroutinePhase.Fixed);
+                break;
+            case 2:
+                Coroutines.Tick(CoroutinePhase.EndOfFrame);
+                break;
+            }
+            return ManagedStatus.Ok;
+        });
+    }
+
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int GetScriptTypeCount(int* outCount) {
 
@@ -511,6 +556,11 @@ public static unsafe class HostBridge {
         }
 
         // 07で導入予定のcoroutine/timer/tracked disposableのcancelはこの位置で行う（現状は対象システム未実装）
+        // owner script 破棄時に、その owner に紐づく coroutine / timer を停止・cancel する
+        if (slot.instance != null) {
+            Coroutines.StopAllForOwner(slot.instance);
+            Timers.CancelOwnedBy(slot.instance);
+        }
         slot.instance = null;
         slot.inUse = false;
         RetireOrRecycle(slot, handle.index);

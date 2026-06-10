@@ -383,6 +383,37 @@ void Audio::StopVoice(uint64_t voiceID) {
 	}
 }
 
+void Audio::PauseVoice(uint64_t voiceID) {
+
+	if (voiceID == 0) {
+		return;
+	}
+	std::lock_guard<std::mutex> lock(mutex_);
+	for (auto& [key, voices] : activeVoices_) {
+		for (auto& inst : voices) {
+			if (inst.voiceID == voiceID && inst.voice) {
+				// 再生位置を保持したまま停止する（buffer flush / destroy はしない）
+				inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
+			}
+		}
+	}
+}
+
+void Audio::ResumeVoice(uint64_t voiceID) {
+
+	if (voiceID == 0) {
+		return;
+	}
+	std::lock_guard<std::mutex> lock(mutex_);
+	for (auto& [key, voices] : activeVoices_) {
+		for (auto& inst : voices) {
+			if (inst.voiceID == voiceID && inst.voice) {
+				inst.voice->Start(0, XAUDIO2_COMMIT_NOW);
+			}
+		}
+	}
+}
+
 //============================================================================
 //	マスター音量、状態取得
 //============================================================================

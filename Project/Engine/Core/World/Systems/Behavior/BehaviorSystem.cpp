@@ -6,6 +6,7 @@
 #include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
@@ -122,6 +123,9 @@ void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context
 			record->faulted = true;
 		}
 	}
+
+	// FixedUpdate phase 末: WaitForFixedUpdate の coroutine を resume する
+	ManagedScriptRuntime::GetInstance().TickFrame(1);
 }
 
 void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
@@ -145,6 +149,9 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 			record->faulted = true;
 		}
 	}
+
+	// Update phase 末: Timer tick と Coroutine(Update) を駆動する
+	ManagedScriptRuntime::GetInstance().TickFrame(0);
 }
 
 void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
@@ -167,6 +174,9 @@ void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 			record->faulted = true;
 		}
 	}
+
+	// LateUpdate phase 末: WaitForEndOfFrame の coroutine を resume する
+	ManagedScriptRuntime::GetInstance().TickFrame(2);
 }
 
 void Engine::BehaviorSystem::DispatchCollisionEnter(ECSWorld& world,
@@ -339,12 +349,12 @@ void Engine::BehaviorSystem::SynchronizeLifecycle(ECSWorld& world, SystemContext
 	// Pass3: 全件OnEnable/OnDisable遷移
 	ApplyEnableTransitions(world, context);
 	//============================================================================
-	//	Pass4: SceneLoaded通知の挿入位置
-	//	全Awake/OnEnableが完了し、Startより前のここで通知する。
-	//	通知のsource（Play開始 / additive load / prefab instantiateの区別）と公開C# APIは
-	//	07_csharp_gameplay_apiの責務。現状はその経路が無いため、空exportや未接続APIは追加せず、
-	//	拡張ポイントとしてこの位置だけを確定する。
+	//	Pass4: SceneLoaded/SceneUnloaded通知（全Awake/OnEnable完了後・Startより前）
+	//	07で C# SceneManager を導入。native の scene instance 生存変化を C# 側がpollして
+	//	SceneLoaded（load完了）/ SceneUnloaded（unload完了）を発火する。
 	//============================================================================
+	ManagedScriptRuntime::GetInstance().PumpSceneEvents();
+
 	// Pass5: 全件Start
 	InvokePendingStart(world, context);
 }

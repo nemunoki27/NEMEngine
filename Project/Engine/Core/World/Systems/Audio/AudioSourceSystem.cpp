@@ -41,6 +41,46 @@ void Engine::AudioSourceSystem::Update(ECSWorld& world, SystemContext& context) 
 
 	world.ForEach<AudioSourceComponent>([&](Entity entity, AudioSourceComponent& component) {
 
+		// gameplay(C#)からの明示 Play/Pause/Stop 要求を先に消費する
+		if (component.runtimePlayRequest != 0) {
+
+			const int request = component.runtimePlayRequest;
+			component.runtimePlayRequest = 0;
+			if (request == 3) {
+				// Stop: voice 破棄
+				if (component.runtimeVoiceID != 0) {
+					audio->StopVoice(component.runtimeVoiceID);
+				}
+				component.runtimePlaying = false;
+				component.runtimeClip = {};
+				component.runtimeKey.clear();
+				component.runtimeVoiceID = 0;
+				component.runtimePaused = false;
+			} else if (request == 2) {
+				// Pause: 再生位置を保持して停止
+				if (component.runtimePlaying && component.runtimeVoiceID != 0 && !component.runtimePaused) {
+					audio->PauseVoice(component.runtimeVoiceID);
+					component.runtimePaused = true;
+				}
+			} else if (request == 1) {
+				// Play: pause 中なら resume、未再生なら明示再生する
+				if (component.runtimePaused && component.runtimeVoiceID != 0) {
+					audio->ResumeVoice(component.runtimeVoiceID);
+					component.runtimePaused = false;
+				} else if (!component.runtimePlaying && component.clip) {
+					const std::filesystem::path fullPath = database.ResolveFullPath(component.clip);
+					if (!fullPath.empty() && audio->EnsureLoaded(fullPath.string())) {
+						component.runtimeKey = BuildAudioKey(fullPath);
+						component.runtimeClip = component.clip;
+						component.runtimeVoiceID = audio->PlayManaged(component.runtimeKey, component.loop, component.volume);
+						component.runtimePlaying = component.runtimeVoiceID != 0;
+						component.runtimePaused = false;
+						component.runtimePlayOnAwakeConsumed = true;
+					}
+				}
+			}
+		}
+
 		const bool canPlay =
 			component.enabled &&
 			component.clip &&
@@ -62,8 +102,8 @@ void Engine::AudioSourceSystem::Update(ECSWorld& world, SystemContext& context) 
 			}
 		}
 
-		// ワンショット再生が自然終了したらRuntime状態を戻す
-		if (component.runtimePlaying && !component.loop && !audio->IsVoicePlaying(component.runtimeVoiceID)) {
+		// ワンショット再生が自然終了したらRuntime状態を戻す（pause 中は voice が止まっていても終了扱いにしない）
+		if (component.runtimePlaying && !component.runtimePaused && !component.loop && !audio->IsVoicePlaying(component.runtimeVoiceID)) {
 
 			component.runtimePlaying = false;
 			component.runtimeClip = {};

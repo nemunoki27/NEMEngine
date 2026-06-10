@@ -1,3 +1,5 @@
+using System.Collections;
+
 namespace NEMEngine;
 
 public readonly struct Collision {
@@ -78,6 +80,20 @@ public abstract class ScriptBehaviour {
     protected void Destroy(Entity entity) => entity.Destroy();
     // 自分の owner Entity を破棄する
     protected void DestroySelf() => owner.Destroy();
+
+    //========================================================================
+    //	Coroutine（owner=this。owner 破棄 / DLL unload / Play Stop で停止）
+    //========================================================================
+    protected CoroutineHandle StartCoroutine(IEnumerator routine) => Coroutines.Start(this, routine);
+    protected bool StopCoroutine(CoroutineHandle handle) => Coroutines.Stop(handle);
+    protected void StopAllCoroutines() => Coroutines.StopAllForOwner(this);
+
+    //========================================================================
+    //	Timer（owner=this 紐付け。owner 破棄で自動 cancel）
+    //========================================================================
+    protected TimerHandle ScheduleTimer(float delaySeconds, Action callback) => Timers.Schedule(delaySeconds, callback, this);
+    protected TimerHandle ScheduleRepeatingTimer(float intervalSeconds, Action callback) => Timers.ScheduleRepeating(intervalSeconds, callback, this);
+    protected TimerHandle ScheduleUnscaledTimer(float delaySeconds, Action callback) => Timers.ScheduleUnscaled(delaySeconds, callback, this);
 
     public virtual void Awake() {}
     public virtual void Start() {}

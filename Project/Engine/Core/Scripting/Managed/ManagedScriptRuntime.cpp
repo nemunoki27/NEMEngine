@@ -1,6 +1,7 @@
 #include "ManagedScriptRuntime.h"
 #include "ManagedScriptUtility.h"
 #include "Generated/ManagedComponentBindings.generated.h"
+#include <Engine/Core/World/Components/Time/TimeScaleComponent.h>
 
 //============================================================================
 //	include
@@ -25,6 +26,7 @@
 // c++
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <system_error>
@@ -223,6 +225,39 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.setComponentProperty = &GeneratedComponentBindings::SetComponentProperty;
 	callbacks.getComponentStringProperty = &GeneratedComponentBindings::GetComponentStringProperty;
 	callbacks.setComponentStringProperty = &GeneratedComponentBindings::SetComponentStringProperty;
+	// Gameplay(v7): Time 拡張 / TimeScale
+	callbacks.getUnscaledDeltaTime = &ManagedScriptRuntime::GetUnscaledDeltaTimeCallback;
+	callbacks.getUnscaledFixedDeltaTime = &ManagedScriptRuntime::GetUnscaledFixedDeltaTimeCallback;
+	callbacks.getTimeSinceStartup = &ManagedScriptRuntime::GetTimeSinceStartupCallback;
+	callbacks.getUnscaledTime = &ManagedScriptRuntime::GetUnscaledTimeCallback;
+	callbacks.getTimeScale = &ManagedScriptRuntime::GetTimeScaleCallback;
+	callbacks.setTimeScale = &ManagedScriptRuntime::SetTimeScaleCallback;
+	callbacks.getFrameCount = &ManagedScriptRuntime::GetFrameCountCallback;
+	// Gameplay(v7): AssetRef runtime resolve
+	callbacks.assetExists = &ManagedScriptRuntime::AssetExistsCallback;
+	callbacks.copyAssetDisplayName = &ManagedScriptRuntime::CopyAssetDisplayNameCallback;
+	// Gameplay(v7): Entity 生成 / Prefab / Scene / SetParent(worldPositionStays)
+	callbacks.createEntity = &ManagedScriptRuntime::CreateEntityCallback;
+	callbacks.instantiatePrefab = &ManagedScriptRuntime::InstantiatePrefabCallback;
+	callbacks.loadSceneAdditive = &ManagedScriptRuntime::LoadSceneAdditiveCallback;
+	callbacks.unloadScene = &ManagedScriptRuntime::UnloadSceneCallback;
+	callbacks.isSceneInstanceAlive = &ManagedScriptRuntime::IsSceneInstanceAliveCallback;
+	callbacks.setParentKeepWorld = &ManagedScriptRuntime::SetParentKeepWorldCallback;
+	// Gameplay(v7): raw Input 拡張（多 gamepad / axis / text / focus）
+	callbacks.getGamepadButtonIndexed = &ManagedScriptRuntime::GetGamepadButtonIndexedCallback;
+	callbacks.getGamepadButtonDownIndexed = &ManagedScriptRuntime::GetGamepadButtonDownIndexedCallback;
+	callbacks.getGamepadButtonUpIndexed = &ManagedScriptRuntime::GetGamepadButtonUpIndexedCallback;
+	callbacks.getGamepadAxis = &ManagedScriptRuntime::GetGamepadAxisCallback;
+	callbacks.isGamepadConnectedIndexed = &ManagedScriptRuntime::IsGamepadConnectedIndexedCallback;
+	callbacks.getConnectedGamepadCount = &ManagedScriptRuntime::GetConnectedGamepadCountCallback;
+	callbacks.getHasFocus = &ManagedScriptRuntime::GetHasFocusCallback;
+	callbacks.copyTextInput = &ManagedScriptRuntime::CopyTextInputCallback;
+	callbacks.copyProjectRoot = &ManagedScriptRuntime::CopyProjectRootCallback;
+	// Gameplay(v7): AudioSource gameplay method
+	callbacks.audioPlay = &ManagedScriptRuntime::AudioPlayCallback;
+	callbacks.audioPause = &ManagedScriptRuntime::AudioPauseCallback;
+	callbacks.audioStop = &ManagedScriptRuntime::AudioStopCallback;
+	callbacks.audioIsPlaying = &ManagedScriptRuntime::AudioIsPlayingCallback;
 
 	if (!initializeNativeApi_ || initializeNativeApi_(&callbacks) != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
@@ -243,6 +278,9 @@ bool Engine::ManagedScriptRuntime::Init() {
 
 void Engine::ManagedScriptRuntime::Finalize() {
 
+	// assembly unload より前に Application.Quitting を発火する（unload で購読が解除されるため）
+	RaiseApplicationQuitting();
+
 	UnloadGameAssembly();
 	schemaCache_.clear();
 	currentContext_ = nullptr;
@@ -252,6 +290,9 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	initializeNativeApi_ = nullptr;
 	loadGameAssembly_ = nullptr;
 	unloadGameAssembly_ = nullptr;
+	pumpSceneEvents_ = nullptr;
+	raiseApplicationQuitting_ = nullptr;
+	tickFrame_ = nullptr;
 	getScriptTypeCount_ = nullptr;
 	copyScriptTypeInfo_ = nullptr;
 	generateScriptManifest_ = nullptr;
@@ -662,6 +703,9 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	success &= LoadBridgeFunction(initializeNativeApi_, L"InitializeNativeApi");
 	success &= LoadBridgeFunction(loadGameAssembly_, L"LoadGameAssembly");
 	success &= LoadBridgeFunction(unloadGameAssembly_, L"UnloadGameAssembly");
+	success &= LoadBridgeFunction(pumpSceneEvents_, L"PumpSceneEvents");
+	success &= LoadBridgeFunction(raiseApplicationQuitting_, L"RaiseApplicationQuitting");
+	success &= LoadBridgeFunction(tickFrame_, L"TickFrame");
 	success &= LoadBridgeFunction(getScriptTypeCount_, L"GetScriptTypeCount");
 	success &= LoadBridgeFunction(copyScriptTypeInfo_, L"CopyScriptTypeInfo");
 	success &= LoadBridgeFunction(generateScriptManifest_, L"GenerateScriptManifest");
@@ -743,8 +787,85 @@ Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollision(InvokeCollis
 //============================================================================
 thread_local const Engine::SystemContext* Engine::ManagedScriptRuntime::currentContext_ = nullptr;
 
+// gameplay time service の状態。main thread のみが更新する
+float Engine::ManagedScriptRuntime::timeScale_ = 1.0f;
+float Engine::ManagedScriptRuntime::scaledDeltaTime_ = 0.0f;
+float Engine::ManagedScriptRuntime::unscaledDeltaTime_ = 0.0f;
+float Engine::ManagedScriptRuntime::fixedDeltaTime_ = 1.0f / 60.0f;
+double Engine::ManagedScriptRuntime::timeSinceStartup_ = 0.0;
+double Engine::ManagedScriptRuntime::unscaledTime_ = 0.0;
+uint64_t Engine::ManagedScriptRuntime::frameCount_ = 0;
+
 const Engine::SystemContext* Engine::ManagedScriptRuntime::GetCurrentContext() {
 	return currentContext_;
+}
+
+namespace {
+
+	// NaN / inf は等速(1.0)へ、負値は 0 へ丸めて time scale を安全化する
+	float SanitizeTimeScale(float value) {
+		if (!std::isfinite(value)) {
+			return 1.0f;
+		}
+		return value < 0.0f ? 0.0f : value;
+	}
+}
+
+void Engine::ManagedScriptRuntime::BeginPlayTime(ECSWorld* playWorld) {
+
+	// authoring の TimeScaleComponent があれば初期 scale として読む（最後に見つかった値を採用）
+	timeScale_ = 1.0f;
+	if (playWorld) {
+		playWorld->ForEach<TimeScaleComponent>([&](Entity, TimeScaleComponent& component) {
+			timeScale_ = SanitizeTimeScale(component.timeScale);
+			});
+	}
+	scaledDeltaTime_ = 0.0f;
+	unscaledDeltaTime_ = 0.0f;
+	timeSinceStartup_ = 0.0;
+	unscaledTime_ = 0.0;
+	frameCount_ = 0;
+}
+
+float Engine::ManagedScriptRuntime::AdvanceTime(float rawDeltaTime, float fixedDeltaTime, bool advancing) {
+
+	fixedDeltaTime_ = fixedDeltaTime;
+	if (!advancing) {
+		// Edit / 停止中は累積しない（unscaled も進めない＝Play world の時間のみを扱う）
+		scaledDeltaTime_ = 0.0f;
+		unscaledDeltaTime_ = 0.0f;
+		return 0.0f;
+	}
+	unscaledDeltaTime_ = rawDeltaTime;
+	scaledDeltaTime_ = rawDeltaTime * timeScale_;
+	unscaledTime_ += static_cast<double>(rawDeltaTime);
+	timeSinceStartup_ += static_cast<double>(scaledDeltaTime_);
+	++frameCount_;
+	return scaledDeltaTime_;
+}
+
+void Engine::ManagedScriptRuntime::PumpSceneEvents() {
+
+	// C# 側で Scene の load/unload 完了を検出して SceneLoaded/SceneUnloaded を発火する
+	if (pumpSceneEvents_) {
+		pumpSceneEvents_();
+	}
+}
+
+void Engine::ManagedScriptRuntime::RaiseApplicationQuitting() {
+
+	// application shutdown 前に C# Application.Quitting を一度だけ発火する
+	if (raiseApplicationQuitting_) {
+		raiseApplicationQuitting_();
+	}
+}
+
+void Engine::ManagedScriptRuntime::TickFrame(int32_t phase) {
+
+	// Timer / Coroutine を main thread で駆動する（phase: 0=Update, 1=FixedUpdate, 2=EndOfFrame）
+	if (tickFrame_) {
+		tickFrame_(phase);
+	}
 }
 
 Engine::ManagedScriptRuntime::ScopedInvocationContext::ScopedInvocationContext(const SystemContext& context) :

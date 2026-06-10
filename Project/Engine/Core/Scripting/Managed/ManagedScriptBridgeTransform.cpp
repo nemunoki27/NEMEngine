@@ -80,6 +80,11 @@ namespace Engine {
 			return;
 		}
 
+		// 予約直後(未 materialize)の Entity は Transform が無いため staging する（flush で付与後に適用）
+		if (world->GetCommandBuffer().StageCreatePosition(resolved, ToVector3(value))) {
+			return;
+		}
+
 		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
 		if (!transform) {
 			return;
@@ -107,6 +112,10 @@ namespace Engine {
 		ECSWorld* world = ResolveWorld(entity);
 		const Entity resolved = ResolveEntity(entity);
 		if (!world) {
+			return;
+		}
+
+		if (world->GetCommandBuffer().StageCreatePosition(resolved, ToVector3(value))) {
 			return;
 		}
 
@@ -139,6 +148,10 @@ namespace Engine {
 			return;
 		}
 
+		if (world->GetCommandBuffer().StageCreateScale(resolved, ToVector3(value))) {
+			return;
+		}
+
 		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
 		if (!transform) {
 			return;
@@ -168,6 +181,10 @@ namespace Engine {
 			return;
 		}
 
+		if (world->GetCommandBuffer().StageCreateRotation(resolved, Quaternion::Normalize(ToQuaternion(value)))) {
+			return;
+		}
+
 		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
 		if (!transform) {
 			return;
@@ -192,6 +209,9 @@ namespace Engine {
 		ECSWorld* world = ResolveWorld(entity);
 		const Entity resolved = ResolveEntity(entity);
 		if (!world) {
+			return;
+		}
+		if (world->GetCommandBuffer().StageCreateRotation(resolved, Quaternion::Normalize(ToQuaternion(value)))) {
 			return;
 		}
 		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);

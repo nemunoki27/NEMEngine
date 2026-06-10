@@ -100,6 +100,20 @@ namespace Engine {
 		// 現在のライフサイクル呼び出しのコンテキスト（main threadのcallbackから参照する）
 		static const SystemContext* GetCurrentContext();
 
+		//--------- gameplay time service ----------------------------------------
+
+		// BehaviorSystem の SynchronizeLifecycle Pass4 から呼ぶ。Scene/Application イベントを C# 側で pump する。
+		void PumpSceneEvents();
+		// application shutdown 前に一度だけ呼ぶ。C# Application.Quitting を発火する。
+		void RaiseApplicationQuitting();
+		// 各 phase 末から呼ぶ per-frame tick（0=Update, 1=FixedUpdate, 2=EndOfFrame）。Timer/Coroutine を駆動する。
+		void TickFrame(int32_t phase);
+
+		// Play 開始時に時間状態を初期化する。world の TimeScaleComponent があれば初期 scale を読む。
+		static void BeginPlayTime(ECSWorld* playWorld);
+		// 1フレーム分の時間を進める。advancing=false（Edit/停止中）は累積しない。返り値は scale 適用後の deltaTime。
+		static float AdvanceTime(float rawDeltaTime, float fixedDeltaTime, bool advancing);
+
 		static ManagedScriptRuntime& GetInstance();
 	private:
 		//============================================================================
@@ -145,6 +159,13 @@ namespace Engine {
 		InitializeNativeApiFn initializeNativeApi_ = nullptr;
 		LoadGameAssemblyFn loadGameAssembly_ = nullptr;
 		UnloadGameAssemblyFn unloadGameAssembly_ = nullptr;
+		// Scene イベント pump（PumpSceneEvents）。UnloadGameAssemblyFn と同じ無引数シグネチャ
+		UnloadGameAssemblyFn pumpSceneEvents_ = nullptr;
+		// application 終了通知（RaiseApplicationQuitting）。同じ無引数シグネチャ
+		UnloadGameAssemblyFn raiseApplicationQuitting_ = nullptr;
+		// per-frame tick（TickFrame）。phase を引数に取る
+		using TickFrameFn = ManagedStatus(__cdecl*)(int32_t);
+		TickFrameFn tickFrame_ = nullptr;
 		GetScriptTypeCountFn getScriptTypeCount_ = nullptr;
 		CopyScriptTypeInfoFn copyScriptTypeInfo_ = nullptr;
 		GenerateScriptManifestFn generateScriptManifest_ = nullptr;
@@ -173,6 +194,16 @@ namespace Engine {
 		// ライフサイクル呼び出し中だけ有効なコンテキスト。
 		// thread_localにし、ネスト呼び出しや例外/早期returnでも確実に復元する
 		static thread_local const SystemContext* currentContext_;
+
+		// gameplay time service の状態（main thread のみ更新。Time API callback が読む）。
+		// scale は service が保持する authority。TimeScaleComponent は Play 開始時の seed のみ。
+		static float timeScale_;
+		static float scaledDeltaTime_;
+		static float unscaledDeltaTime_;
+		static float fixedDeltaTime_;
+		static double timeSinceStartup_;
+		static double unscaledTime_;
+		static uint64_t frameCount_;
 
 		std::filesystem::path scriptCoreAssemblyPath_;
 		std::filesystem::path gameAssemblyPath_;
@@ -260,6 +291,40 @@ namespace Engine {
 		static void __cdecl DestroyEntityCallback(ManagedNativeEntity entity);
 		static int32_t __cdecl GetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotId);
 		static void __cdecl SetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotId, int32_t enabled);
+		// Gameplay(v7): Time 拡張 / TimeScale。scaled は getDeltaTime/getFixedDeltaTime が返す既存値。
+		static float __cdecl GetUnscaledDeltaTimeCallback();
+		static float __cdecl GetUnscaledFixedDeltaTimeCallback();
+		static double __cdecl GetTimeSinceStartupCallback();
+		static double __cdecl GetUnscaledTimeCallback();
+		static float __cdecl GetTimeScaleCallback();
+		static void __cdecl SetTimeScaleCallback(float value);
+		static uint64_t __cdecl GetFrameCountCallback();
+		// Gameplay(v7): AssetRef runtime resolve
+		static int32_t __cdecl AssetExistsCallback(uint64_t assetId);
+		static int32_t __cdecl CopyAssetDisplayNameCallback(uint64_t assetId, char* buffer, int32_t capacity);
+		// Gameplay(v7): Entity 生成 / Prefab / Scene / SetParent(worldPositionStays)
+		static ManagedNativeEntity __cdecl CreateEntityCallback(const char* name, ManagedNativeEntity parent);
+		static ManagedNativeEntity __cdecl InstantiatePrefabCallback(uint64_t prefabAssetId, ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent);
+		static uint64_t __cdecl LoadSceneAdditiveCallback(uint64_t sceneAssetId);
+		static void __cdecl UnloadSceneCallback(uint64_t sceneInstanceId);
+		static int32_t __cdecl IsSceneInstanceAliveCallback(uint64_t sceneInstanceId);
+		static void __cdecl SetParentKeepWorldCallback(ManagedNativeEntity child, ManagedNativeEntity parent, int32_t worldPositionStays);
+		// Gameplay(v7): raw Input 拡張（多 gamepad / axis / text / focus）
+		static int32_t __cdecl GetGamepadButtonIndexedCallback(int32_t index, int32_t button);
+		static int32_t __cdecl GetGamepadButtonDownIndexedCallback(int32_t index, int32_t button);
+		static int32_t __cdecl GetGamepadButtonUpIndexedCallback(int32_t index, int32_t button);
+		static float __cdecl GetGamepadAxisCallback(int32_t index, int32_t axis);
+		static int32_t __cdecl IsGamepadConnectedIndexedCallback(int32_t index);
+		static int32_t __cdecl GetConnectedGamepadCountCallback();
+		static int32_t __cdecl GetHasFocusCallback();
+		static int32_t __cdecl CopyTextInputCallback(char* buffer, int32_t capacity);
+		// Gameplay(v7): project root パス
+		static int32_t __cdecl CopyProjectRootCallback(char* buffer, int32_t capacity);
+		// Gameplay(v7): AudioSource gameplay method
+		static void __cdecl AudioPlayCallback(ManagedNativeEntity entity);
+		static void __cdecl AudioPauseCallback(ManagedNativeEntity entity);
+		static void __cdecl AudioStopCallback(ManagedNativeEntity entity);
+		static int32_t __cdecl AudioIsPlayingCallback(ManagedNativeEntity entity);
 	};
 
 	//============================================================================

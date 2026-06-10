@@ -132,8 +132,13 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		// プレファブファイル内のローカルIDを読み取る
 		UUID prefabLocalFileID = ReadEntityLocalFileID(entityJson);
 
-		// エンティティを作成
-		Entity entity = world.CreateEntity();
+		// エンティティを作成（ルートかつ予約済みEntityがあればそれをルートとしてmaterializeしIDを保つ）
+		Entity entity;
+		if (world.IsAlive(desc.reservedRoot) && prefabLocalFileID == header.rootLocalFileID) {
+			entity = desc.reservedRoot;
+		} else {
+			entity = world.CreateEntity();
+		}
 		SceneAuthoring::EnsureGameObjectDefaults(world, entity);
 		UUID newSceneLocalFileID = AllocateUniqueLocalFileID(world);
 		// シーンオブジェクト初期化

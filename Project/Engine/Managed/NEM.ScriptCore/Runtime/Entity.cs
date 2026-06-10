@@ -70,6 +70,17 @@ public readonly struct Entity : IEquatable<Entity> {
     public Entity nextSibling => NativeApi.ReadNextSibling(native);
     public Transform transform => new(this);
 
+    // gameplay 向け PascalCase エイリアス（既存 lowercase へ委譲。二重ロジックは持たない）
+    public Transform Transform => new(this);
+    public bool ActiveSelf {
+        get => activeSelf;
+        set => activeSelf = value;
+    }
+    public string Name {
+        get => name;
+        set => name = value;
+    }
+
     public void SetActive(bool active) {
         activeSelf = active;
     }

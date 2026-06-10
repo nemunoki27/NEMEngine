@@ -21,7 +21,8 @@ namespace Engine {
 	// v4: 固定長フィールドABI(ManagedNativeSerializedFieldInfo)を撤廃し、二段階blob schema/runtime state API へ移行
 	// v5: object model(generic component access / Entity.Destroy / ScriptBehaviour.Enabled / world rotation・lossyScale)を追加
 	// v6: 自動生成 component binding 用の汎用 typed property access(get/set + string)と ManagedColor3/4 を追加
-	inline constexpr uint32_t kManagedAbiVersion = 6;
+	// v7: gameplay API(Time拡張/TimeScale/frame tick, Entity生成, Prefab/Scene, AssetRef解決, Input拡張, Audio/Animation/Application)を追加
+	inline constexpr uint32_t kManagedAbiVersion = 7;
 
 	// ネイティブが提供する機能カテゴリ。capability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -33,6 +34,7 @@ namespace Engine {
 		Transform = 1ull << 4, // Transform
 		ObjectModel = 1ull << 5, // generic component access / Entity.Destroy / ScriptBehaviour.Enabled
 		ComponentBindings = 1ull << 6, // 自動生成 component wrapper 用の typed property access
+		Gameplay = 1ull << 7,  // Time拡張/TimeScale/frame tick, Entity生成, Prefab/Scene, AssetRef解決, Audio/Animation/Application
 	};
 
 	// 現状ネイティブが提供する全capability
@@ -43,7 +45,8 @@ namespace Engine {
 		static_cast<uint64_t>(ManagedCapability::Hierarchy) |
 		static_cast<uint64_t>(ManagedCapability::Transform) |
 		static_cast<uint64_t>(ManagedCapability::ObjectModel) |
-		static_cast<uint64_t>(ManagedCapability::ComponentBindings);
+		static_cast<uint64_t>(ManagedCapability::ComponentBindings) |
+		static_cast<uint64_t>(ManagedCapability::Gameplay);
 
 	// C++ / C# で共有する境界処理の結果コード。値はC#側と一致させる
 	enum class ManagedStatus : int32_t {
@@ -276,6 +279,26 @@ namespace Engine {
 		using SetComponentPropertyCallback = ManagedStatus(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const void*, int32_t);
 		using GetComponentStringPropertyCallback = ManagedStatus(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, char*, int32_t, int32_t*);
 		using SetComponentStringPropertyCallback = ManagedStatus(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const char*, int32_t);
+		// Gameplay(v7): Time拡張 / TimeScale / Asset解決 / Entity生成
+		using GetDoubleCallback = double(__cdecl*)();
+		using GetUInt64Callback = uint64_t(__cdecl*)();
+		using SetFloatCallback = void(__cdecl*)(float);
+		using AssetExistsCallback = int32_t(__cdecl*)(uint64_t);
+		using CopyAssetStringCallback = int32_t(__cdecl*)(uint64_t, char*, int32_t);
+		// Gameplay(v7): Entity 生成 / Prefab / Scene / SetParent(worldPositionStays)
+		using CreateEntityCallback = ManagedNativeEntity(__cdecl*)(const char*, ManagedNativeEntity);
+		using InstantiatePrefabCallback = ManagedNativeEntity(__cdecl*)(uint64_t, ManagedVector3, ManagedQuaternion, int32_t, ManagedNativeEntity);
+		using LoadSceneCallback = uint64_t(__cdecl*)(uint64_t);
+		using UnloadSceneCallback = void(__cdecl*)(uint64_t);
+		using SetParentKeepWorldCallback = void(__cdecl*)(ManagedNativeEntity, ManagedNativeEntity, int32_t);
+		using SceneInstanceAliveCallback = int32_t(__cdecl*)(uint64_t);
+		// Gameplay(v7): raw Input 拡張（多 gamepad / axis / text / focus）
+		using GamepadIndexedButtonCallback = int32_t(__cdecl*)(int32_t, int32_t);
+		using GamepadAxisCallback = float(__cdecl*)(int32_t, int32_t);
+		using GamepadConnectedCallback = int32_t(__cdecl*)(int32_t);
+		using CopyTextCallback = int32_t(__cdecl*)(char*, int32_t);
+		// Gameplay(v7): AudioSource gameplay method（entity の AudioSourceComponent を操作）
+		using EntityActionCallback = void(__cdecl*)(ManagedNativeEntity);
 
 		GetDeltaTimeCallback getDeltaTime = nullptr;
 		GetDeltaTimeCallback getFixedDeltaTime = nullptr;
@@ -333,6 +356,40 @@ namespace Engine {
 		SetComponentPropertyCallback setComponentProperty = nullptr;
 		GetComponentStringPropertyCallback getComponentStringProperty = nullptr;
 		SetComponentStringPropertyCallback setComponentStringProperty = nullptr;
+		// Gameplay(v7): Time 拡張（scaled/unscaled を分離。getDeltaTime/getFixedDeltaTime は scaled 値を返す）
+		GetDeltaTimeCallback getUnscaledDeltaTime = nullptr;
+		GetDeltaTimeCallback getUnscaledFixedDeltaTime = nullptr;
+		GetDoubleCallback getTimeSinceStartup = nullptr;
+		GetDoubleCallback getUnscaledTime = nullptr;
+		GetDeltaTimeCallback getTimeScale = nullptr;
+		SetFloatCallback setTimeScale = nullptr;
+		GetUInt64Callback getFrameCount = nullptr;
+		// Gameplay(v7): AssetRef runtime resolve（UUID 主体。pointer/path は返さない）
+		AssetExistsCallback assetExists = nullptr;
+		CopyAssetStringCallback copyAssetDisplayName = nullptr;
+		// Gameplay(v7): Entity 生成 / Prefab / Scene / SetParent(worldPositionStays)
+		CreateEntityCallback createEntity = nullptr;
+		InstantiatePrefabCallback instantiatePrefab = nullptr;
+		LoadSceneCallback loadSceneAdditive = nullptr;
+		UnloadSceneCallback unloadScene = nullptr;
+		SceneInstanceAliveCallback isSceneInstanceAlive = nullptr;
+		SetParentKeepWorldCallback setParentKeepWorld = nullptr;
+		// Gameplay(v7): raw Input 拡張（多 gamepad / axis / text / focus）
+		GamepadIndexedButtonCallback getGamepadButtonIndexed = nullptr;
+		GamepadIndexedButtonCallback getGamepadButtonDownIndexed = nullptr;
+		GamepadIndexedButtonCallback getGamepadButtonUpIndexed = nullptr;
+		GamepadAxisCallback getGamepadAxis = nullptr;
+		GamepadConnectedCallback isGamepadConnectedIndexed = nullptr;
+		GetNativeBoolCallback getConnectedGamepadCount = nullptr;
+		GetNativeBoolCallback getHasFocus = nullptr;
+		CopyTextCallback copyTextInput = nullptr;
+		// Gameplay(v7): project root パス（InputActions.json 等の ProjectSettings 解決用）
+		CopyTextCallback copyProjectRoot = nullptr;
+		// Gameplay(v7): AudioSource gameplay method
+		EntityActionCallback audioPlay = nullptr;
+		EntityActionCallback audioPause = nullptr;
+		EntityActionCallback audioStop = nullptr;
+		GetBoolCallback audioIsPlaying = nullptr;
 	};
 
 	// C#側から受け取る script type のメタdata（Stable GUID 主キー）。固定長ABI

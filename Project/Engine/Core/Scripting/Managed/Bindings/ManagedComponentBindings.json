@@ -27,6 +27,22 @@
   ],
   "components": [
     {
+      "registryName": "SkinnedAnimation",
+      "nativeType": "SkinnedAnimationComponent",
+      "nativeHeader": "Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h",
+      "managedType": "SkinnedAnimation",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Clip", "nativeMember": "clip", "kind": "String", "access": "ReadWrite" },
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "Loop", "nativeMember": "loop", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "PlaybackSpeed", "nativeMember": "playbackSpeed", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "CurrentState", "nativeMember": "runtimeCurrentClip", "kind": "String", "access": "ReadOnly" },
+        { "managedName": "Finished", "nativeMember": "runtimeAnimationFinished", "kind": "Bool", "access": "ReadOnly" }
+      ]
+    },
+    {
       "registryName": "SpriteRenderer",
       "nativeType": "SpriteRendererComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/SpriteRendererComponent.h",

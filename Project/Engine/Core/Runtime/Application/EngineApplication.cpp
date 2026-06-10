@@ -288,12 +288,31 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	HandleEditorSceneRequests();
 	// Play/Stopでワールド状態が変わった後のモードを、このフレームのECS処理へ反映する
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
-	systemContext_.deltaTime = ShouldAdvanceActiveWorld() ? deltaTime : 0.0f;
+	// gameplay time service を1フレーム進め、time scale 適用後の deltaTime を全システムへ渡す。
+	// （deltaTime を scale すると scheduler の fixed substep 累積も自動的に scale され、TimeScale=0 で停止する）
+	{
+		const bool advancePlayTime = ShouldAdvanceActiveWorld() && systemContext_.mode == WorldMode::Play;
+		const float rawDelta = ShouldAdvanceActiveWorld() ? deltaTime : 0.0f;
+		systemContext_.deltaTime = ManagedScriptRuntime::AdvanceTime(rawDelta, systemContext_.fixedDeltaTime, advancePlayTime);
+	}
 
 	ECSWorld* world = GetActiveWorld();
 	const SceneHeader* header = GetActiveSceneHeader();
 	SceneInstanceManager& activeScenes = GetActiveScenes();
 	const SceneInstance* activeSceneInstance = activeScenes.GetActive();
+
+	// scripting callback が parent 無し Entity 生成等で参照する active world を context へ載せる
+	systemContext_.world = world;
+
+	// Prefab/Scene の WorldCommandBuffer コマンドが Flush 時に参照する外部サービスを active world へ設定する。
+	// 非所有ポインタ。world 切替や Edit/Play 切替に追従して毎フレーム更新する。
+	if (world) {
+		WorldCommandServices services{};
+		services.assetDatabase = &assetDataBase_;
+		services.sceneInstances = &activeScenes;
+		services.sceneSystem = &sceneSystem_;
+		world->SetCommandServices(services);
+	}
 
 	// シーンごとのCollision設定を、Editor/Play共通の現在設定へ反映する
 	systemContext_.activeSceneHeader = header;
@@ -518,6 +537,8 @@ void Engine::EngineApplication::StartPlayWorld() {
 	}
 	// PlayWorldをスクリプトから参照可能にする。最初のTick(Prepare)より前に登録する
 	ManagedWorldRegistry::GetInstance().Register(*worldManager_.GetPlayWorld());
+	// gameplay time service を初期化する。PlayWorld の TimeScaleComponent があれば初期 scale として読む
+	ManagedScriptRuntime::BeginPlayTime(worldManager_.GetPlayWorld());
 	playPaused_ = false;
 	playFrameStepRequested_ = false;
 }

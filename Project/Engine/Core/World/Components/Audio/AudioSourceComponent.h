@@ -35,6 +35,10 @@ namespace Engine {
 		std::string runtimeKey{};
 		uint64_t runtimeVoiceID = 0;
 		bool runtimePlayOnAwakeConsumed = false;
+		// gameplay(C#)からの明示要求。AudioSourceSystem が消費する（0=なし,1=Play,2=Pause,3=Stop）
+		int runtimePlayRequest = 0;
+		// 一時停止中か（voice は保持されている）
+		bool runtimePaused = false;
 	};
 
 	// json変換

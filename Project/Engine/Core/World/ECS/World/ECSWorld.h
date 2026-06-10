@@ -68,6 +68,10 @@ namespace Engine {
 		// 積まれた構造変更コマンドをまとめて適用する
 		void FlushWorldCommands() { commandBuffer_.Flush(*this); }
 
+		// Prefab/Scene コマンドの Flush 適用に必要な外部サービス（EngineApplication が毎フレーム設定）
+		void SetCommandServices(const WorldCommandServices& services) { commandServices_ = services; }
+		const WorldCommandServices& GetCommandServices() const { return commandServices_; }
+
 		//============================================================================
 		//	コンポーネントに対して行う操作
 		//============================================================================
@@ -134,6 +138,8 @@ namespace Engine {
 		std::vector<Entity> pendingDestroyEntities_;
 		// スクリプト由来の構造変更を遅延適用するコマンドバッファ。world破棄時に未処理分は安全に破棄される
 		WorldCommandBuffer commandBuffer_;
+		// Prefab/Scene コマンドが Flush で参照する外部サービス（非所有ポインタ。EngineApplication が設定）
+		WorldCommandServices commandServices_{};
 		// シーン側の永続UUIDからエンティティIDへのマップ
 		std::unordered_map<UUID, Entity> uuidToEntity_;
 

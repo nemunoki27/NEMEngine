@@ -10,6 +10,7 @@ namespace Engine {
 	class GraphicsPlatform;
 	class AssetDatabase;
 	class SkinnedMeshAnimationManager;
+	class ECSWorld;
 	struct SceneHeader;
 
 	//============================================================================
@@ -25,6 +26,9 @@ namespace Engine {
 
 	// システムで共有する必要な情報をまとめる
 	struct SystemContext {
+
+		// 現在 tick 中の active world（scripting callback が parent 無し生成等で参照する。非所有）
+		ECSWorld* world = nullptr;
 
 		// エンジンのコア機能
 		EngineContext* engineContext = nullptr;
