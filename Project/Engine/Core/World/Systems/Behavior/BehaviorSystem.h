@@ -43,15 +43,15 @@ namespace Engine {
 		// OnCollisionExitを対象Entityのビヘイビアへ渡す
 		static void DispatchCollisionExit(ECSWorld& world, SystemContext& context, const CollisionContact& collision);
 
-		// Play中runtime Inspector用にBehaviorHandleからlive instanceの現在値を取得設定する、activeなBehaviorWorldを参照するためPlay中かつ生存しているhandleのみ有効
+		// Play中runtime Inspector用にBehaviorHandleからlive instanceの現在値を取得設定
 		static nlohmann::json GetRuntimeSerializedState(BehaviorHandle handle);
 		static void SetRuntimeSerializedField(BehaviorHandle handle, const std::string& fieldId, const nlohmann::json& value);
 
-		// ScriptBehaviour.Enabled用にowner EntityとscriptSlotIDでruntime entryを特定する、Getはruntime overrideがあればそれ無ければauthoring enabledを返し-1は未解決、Setはoverrideを立て次のlifecycle sync境界でOnEnable/OnDisableが反映される
+		// ScriptBehaviour.Enabled用にowner EntityとscriptSlotIDでruntime entryを特定
 		static int32_t GetScriptEnabled(const Entity& owner, const UUID& scriptSlotID);
 		static void SetScriptEnabled(const Entity& owner, const UUID& scriptSlotID, bool enabled);
 
-		// Script Execution Order設定が編集されたときEditorから呼びtableをreloadし次の安全なsync境界でparticipant cacheを再ソートさせる、callback中のiterationは壊さない
+		// participant cacheを再ソート
 		static void InvalidateExecutionOrder();
 
 		//--------- accessor -----------------------------------------------------
@@ -64,7 +64,7 @@ namespace Engine {
 
 		//--------- types --------------------------------------------------------
 
-		// 1回のSynchronizeで処理するscriptの安定スナップショット要素でexecutionOrder owner.index owner.generation slotで安定ソートし構造変更時のみ作り直す、executionOrderはScript Type GUID単位の実行順で小さいほど先、同値は既存安定キーで決定的に解決する
+		// 1回のSynchronizeで処理するscriptの安定スナップショット要素
 		struct SyncParticipant {
 
 			BehaviorHandle handle;

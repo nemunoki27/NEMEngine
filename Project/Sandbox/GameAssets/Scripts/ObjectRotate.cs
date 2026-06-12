@@ -20,11 +20,6 @@ public sealed class ObjectRotate : ScriptBehaviour
     [SerializeField]
     private Vector3 rotateAxis = new Vector3(0.0f, 1.0f, 0.0f);
 
-    [SerializeField]
-    private float testA = 0.0f;
-    [SerializeField]
-    private float testC = 0.0f;
-
     // 経過時間
     private float elapsedTime = 0.0f;
 
@@ -35,8 +30,6 @@ public sealed class ObjectRotate : ScriptBehaviour
     {
         initPos = transform.localPosition;
         elapsedTime = 0.0f;
-        testA = 0.0f;
-        testC = 0.0f;
     }
 
     public override void Update()
