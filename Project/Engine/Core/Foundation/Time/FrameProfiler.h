@@ -26,10 +26,11 @@ namespace Engine {
 		// 計測カテゴリ
 		enum class Category : uint32_t {
 
-			Update,  // 更新全体(EngineApplication::Tick)
+			Update,  // 更新全体でEngineApplication::Tick相当
 			Ecs,     // ECSシステムの処理
 			Script,  // C#スクリプトの処理
 			Draw,    // 描画処理
+			GpuWait, // GPU完了待ちでCPUがブロックした時間
 			Count
 		};
 
@@ -52,6 +53,8 @@ namespace Engine {
 		void SetGpuPassTimes(const std::vector<NamedTime>& passes);
 		// ECSシステムごとの処理時間を処理順で設定する、空なら未計測扱い
 		void SetEcsSystemTimes(const std::vector<NamedTime>& systems);
+		// ECSのarchetype数を設定する、ForEachが走査するarchetypeの数
+		void SetArchetypeCount(uint32_t count) { archetypeCount_ = count; }
 
 		//--------- accessor -----------------------------------------------------
 
@@ -65,9 +68,11 @@ namespace Engine {
 		float GetGpuTotalMs() const;
 		bool HasGpuData() const { return !gpuPassTimes_.empty(); }
 
-		// ECSシステムごとの処理時間(処理順)
+		// ECSシステムごとの処理時間を処理順で保持
 		const std::vector<NamedTime>& GetEcsSystemTimes() const { return ecsSystemTimes_; }
 		bool HasEcsSystemData() const { return !ecsSystemTimes_.empty(); }
+		// ECSのarchetype数
+		uint32_t GetArchetypeCount() const { return archetypeCount_; }
 
 		//============================================================================
 		//	ScopedSample
@@ -118,6 +123,8 @@ namespace Engine {
 		std::array<Measure, static_cast<size_t>(Category::Count)> measures_{};
 		std::vector<NamedTime> gpuPassTimes_{};
 		std::vector<NamedTime> ecsSystemTimes_{};
+		// ECSのarchetype数の最新値
+		uint32_t archetypeCount_ = 0;
 
 		// 最初のBeginFrameでは空の累積を確定させない
 		bool firstFrame_ = true;

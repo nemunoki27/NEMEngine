@@ -104,6 +104,8 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 		systemTimes.push_back({ name ? name : "Unknown", systemMs[i] });
 	}
 	FrameProfiler::GetInstance().SetEcsSystemTimes(systemTimes);
+	// archetype数をプロファイラへ渡す、ForEachの走査数の目安
+	FrameProfiler::GetInstance().SetArchetypeCount(currentWorld_->GetArchetypeCount());
 
 	// Update/LateUpdate中に予約されたエンティティ破棄をフレーム終端でまとめて反映する
 	currentWorld_->FlushPendingDestroyEntities();

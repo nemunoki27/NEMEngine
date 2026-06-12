@@ -7,6 +7,8 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
 
 //============================================================================
@@ -14,22 +16,30 @@ using namespace Engine;
 //============================================================================
 void DxCommand::UpdateFixFPS() {
 
-	// フレームレートピッタリの時間
-	constexpr std::chrono::microseconds kMinTime(static_cast<uint64_t>(1000000.0f / 60.0f));
+	// 目標フレームレートはGraphicsメニューから設定され0は制限なし
+	const uint32_t targetFps = FrameRateSettings::GetInstance().GetTargetFps();
 
-	// 1/60秒よりわずかに短い時間
-	constexpr std::chrono::microseconds kMinCheckTime(uint64_t(1000000.0f / 64.0f));
+	// 制限なしなら待機せず即座に基準時刻だけ更新する
+	if (targetFps == 0) {
+		reference_ = std::chrono::steady_clock::now();
+		return;
+	}
+
+	// 目標フレームレートぴったりの時間
+	const std::chrono::microseconds minTime(static_cast<uint64_t>(1000000.0 / static_cast<double>(targetFps)));
+	// 取りこぼし防止でわずかに短い確認時間
+	const std::chrono::microseconds minCheckTime(static_cast<uint64_t>(1000000.0 / (static_cast<double>(targetFps) + 4.0)));
 
 	// 現在時間を取得する
 	auto now = std::chrono::steady_clock::now();
 	// 前回記録からの経過時間を取得する
 	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - reference_);
 
-	// 1/60秒(よりわずかに短い時間)経っていない場合
-	if (elapsed < kMinCheckTime) {
-		// 1/60秒経過するまで微小なスリープを繰り返す
-		auto wait_until = reference_ + kMinTime;
-		while (std::chrono::steady_clock::now() < wait_until) {
+	// 目標時間よりわずかに短い時間しか経っていない場合
+	if (elapsed < minCheckTime) {
+		// 目標時間が経過するまで微小なスリープを繰り返す
+		auto waitUntil = reference_ + minTime;
+		while (std::chrono::steady_clock::now() < waitUntil) {
 			std::this_thread::yield();
 		}
 	}
@@ -80,8 +90,23 @@ void DxCommand::ExecuteGraphicsCommands(IDXGISwapChain4* swapChain) {
 	ID3D12CommandList* commandLists[] = { commandList_.Get() };
 	commandQueue_->ExecuteCommandLists(1, commandLists);
 
+	// 目標フレームレートに応じてvsyncと上限解除を切り替える、0または60超はvsync上限を外す
+	const uint32_t targetFps = FrameRateSettings::GetInstance().GetTargetFps();
+	UINT syncInterval = 1;
+	UINT presentFlags = 0;
+	if (targetFps == 0 || targetFps > 60) {
+
+		// vsyncを外す、ALLOW_TEARINGで作られていればtearing許可フラグで律速を解除する
+		syncInterval = 0;
+		DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
+		if (SUCCEEDED(swapChain->GetDesc1(&swapChainDesc)) &&
+			(swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING)) {
+			presentFlags = DXGI_PRESENT_ALLOW_TEARING;
+		}
+	}
+
 	// GPUとOSに画面の交換を行うように通知する
-	const HRESULT presentResult = swapChain->Present(1, 0);
+	const HRESULT presentResult = swapChain->Present(syncInterval, presentFlags);
 	if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), presentResult, "DxCommand::ExecuteGraphicsCommands/Present")) {
 		Assert::Call(false, "SwapChain Present failed.");
 	}
@@ -97,6 +122,9 @@ void DxCommand::FenceEvent() {
 		return;
 	}
 
+	// GPU完了待ちでCPUがブロックした時間を計測する、DX12のフレームコンテキスト多重化検討の判断材料
+	const std::chrono::high_resolution_clock::time_point waitStart = std::chrono::high_resolution_clock::now();
+
 	// 実行完了を待つ
 	if (fence_->GetCompletedValue() < fenceValue_) {
 
@@ -109,6 +137,11 @@ void DxCommand::FenceEvent() {
 		// イベントを待つ
 		WaitForFenceValue(fenceValue_, "DxCommand::FenceEvent/Wait");
 	}
+
+	// 待機時間をプロファイラへ加算する、GPUがすでに完了済みならほぼ0になる
+	const std::chrono::duration<float, std::milli> waitElapsed =
+		std::chrono::high_resolution_clock::now() - waitStart;
+	FrameProfiler::GetInstance().AddSample(FrameProfiler::Category::GpuWait, waitElapsed.count());
 }
 
 void DxCommand::ExecuteCommands(IDXGISwapChain4* swapChain) {

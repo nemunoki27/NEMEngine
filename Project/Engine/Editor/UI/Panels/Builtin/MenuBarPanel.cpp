@@ -6,6 +6,7 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
+#include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 
 //============================================================================
 //	MenuBarPanel classMethods
@@ -144,6 +145,24 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 			ImGui::TextDisabled("Mesh Shader path is unavailable on this GPU.");
 		}
 		ImGui::Text("Current Mesh Path: %s", runtime.useMeshShader ? "Mesh Shader" : "Legacy Raster Fallback");
+
+		ImGui::Separator();
+
+		// フレームレート上限はここで切り替えて.exeConfigへ保存する、0は制限なし
+		FrameRateSettings& frameRate = FrameRateSettings::GetInstance();
+		const uint32_t fpsOptions[] = { 30u, 60u, 120u, 0u };
+		const char* fpsLabels[] = { "30", "60", "120", "Unlimited" };
+		int fpsIndex = 1;
+		for (int i = 0; i < 4; ++i) {
+			if (fpsOptions[i] == frameRate.GetTargetFps()) {
+				fpsIndex = i;
+				break;
+			}
+		}
+		if (ImGui::Combo("Frame Rate Limit", &fpsIndex, fpsLabels, 4)) {
+			frameRate.SetTargetFps(fpsOptions[fpsIndex]);
+			frameRate.Save();
+		}
 
 		ImGui::Separator();
 

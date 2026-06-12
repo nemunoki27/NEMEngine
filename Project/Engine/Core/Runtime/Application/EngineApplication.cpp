@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Rendering/Renderer/Outline/EditorSelectionOutlineRequestService.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
@@ -37,6 +38,7 @@
 namespace {
 
 	constexpr const char* kActiveSceneConfigPath = "Config/activeScene.exeConfig.json";
+	constexpr const char* kFrameRateConfigPath = "Config/frameRate.exeConfig.json";
 
 	Engine::EngineApplication* g_activeEngineApplication = nullptr;
 
@@ -130,6 +132,9 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	assetDataBase_.Init();
 	assetDataBase_.RebuildMeta();
 	LoadActiveSceneConfig();
+
+	// フレームレート上限を設定ファイルから読み込む
+	FrameRateSettings::GetInstance().Load(RuntimePaths::GetEngineAssetPath(kFrameRateConfigPath).string());
 
 	// 骨アニメーション管理の初期化
 	skinnedAnimationManager_.Init();

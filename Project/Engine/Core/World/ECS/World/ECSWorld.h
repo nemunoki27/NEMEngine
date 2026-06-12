@@ -123,6 +123,8 @@ namespace Engine {
 
 		// 現在レコードされているエンティティの数を返す
 		uint32_t GetRecordCount() const { return static_cast<uint32_t>(records_.size()); }
+		// 現在のArchetype数を返す、ForEachが走査するArchetypeの数
+		uint32_t GetArchetypeCount() const { return static_cast<uint32_t>(archetypes_.size()); }
 	private:
 		//============================================================================
 		//	private Methods
