@@ -176,15 +176,15 @@ void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEn
 		return;
 	}
 
-	std::unordered_map<UUID, UUID> stableUuidMap;
+	std::unordered_map<UUID, UUID> stableUUIDMap;
 	std::unordered_map<UUID, UUID> localFileIDMap;
-	stableUuidMap.reserve(sourceSnapshot.entities.size());
+	stableUUIDMap.reserve(sourceSnapshot.entities.size());
 	localFileIDMap.reserve(sourceSnapshot.entities.size());
 
 	// 複製後に使用するUUID、ローカルファイルIDを生成
 	for (const auto& sourceEntity : sourceSnapshot.entities) {
 
-		stableUuidMap[sourceEntity.stableUUID] = UUID::New();
+		stableUUIDMap[sourceEntity.stableUUID] = UUID::New();
 		const UUID oldLocalFileID = ReadLocalFileIDFromComponents(sourceEntity.components);
 		if (oldLocalFileID) {
 
@@ -193,14 +193,14 @@ void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEn
 	}
 
 	// UUIDのマッピングを作成した後で、ルートのStableUUIDを先に書き換えておく
-	outSnapshot.rootStableUUID = stableUuidMap[sourceSnapshot.rootStableUUID];
+	outSnapshot.rootStableUUID = stableUUIDMap[sourceSnapshot.rootStableUUID];
 	outSnapshot.entities.reserve(sourceSnapshot.entities.size());
 
 	// jsonを複製して参照IDを書き換える
 	for (const auto& sourceEntity : sourceSnapshot.entities) {
 
 		SerializedEntitySnapshot duplicatedEntity{};
-		duplicatedEntity.stableUUID = stableUuidMap[sourceEntity.stableUUID];
+		duplicatedEntity.stableUUID = stableUUIDMap[sourceEntity.stableUUID];
 		duplicatedEntity.components = sourceEntity.components;
 
 		// シーンオブジェクトのローカルフィールドIDを再生成

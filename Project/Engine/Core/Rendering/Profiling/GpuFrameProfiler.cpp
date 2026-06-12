@@ -1,4 +1,4 @@
-#include "GpuFrameProfiler.h"
+#include "GPUFrameProfiler.h"
 
 //============================================================================
 //	include
@@ -9,15 +9,15 @@
 #include <d3dx12.h>
 
 //============================================================================
-//	GpuFrameProfiler classMethods
+//	GPUFrameProfiler classMethods
 //============================================================================
-Engine::GpuFrameProfiler& Engine::GpuFrameProfiler::GetInstance() {
+Engine::GPUFrameProfiler& Engine::GPUFrameProfiler::GetInstance() {
 
-	static GpuFrameProfiler instance;
+	static GPUFrameProfiler instance;
 	return instance;
 }
 
-bool Engine::GpuFrameProfiler::EnsureInitialized(ID3D12Device* device, ID3D12CommandQueue* commandQueue) {
+bool Engine::GPUFrameProfiler::EnsureInitialized(ID3D12Device* device, ID3D12CommandQueue* commandQueue) {
 
 	if (initialized_) {
 		return true;
@@ -53,7 +53,7 @@ bool Engine::GpuFrameProfiler::EnsureInitialized(ID3D12Device* device, ID3D12Com
 	return true;
 }
 
-void Engine::GpuFrameProfiler::BeginFrame(ID3D12Device* device, ID3D12CommandQueue* commandQueue) {
+void Engine::GPUFrameProfiler::BeginFrame(ID3D12Device* device, ID3D12CommandQueue* commandQueue) {
 
 	if (!EnsureInitialized(device, commandQueue)) {
 		return;
@@ -69,7 +69,7 @@ void Engine::GpuFrameProfiler::BeginFrame(ID3D12Device* device, ID3D12CommandQue
 	active_ = true;
 }
 
-void Engine::GpuFrameProfiler::BeginPass(ID3D12GraphicsCommandList* commandList, const std::string& name) {
+void Engine::GPUFrameProfiler::BeginPass(ID3D12GraphicsCommandList* commandList, const std::string& name) {
 
 	if (!active_ || !commandList || pendingPass_) {
 		return;
@@ -85,7 +85,7 @@ void Engine::GpuFrameProfiler::BeginPass(ID3D12GraphicsCommandList* commandList,
 	pendingPass_ = true;
 }
 
-void Engine::GpuFrameProfiler::EndPass(ID3D12GraphicsCommandList* commandList) {
+void Engine::GPUFrameProfiler::EndPass(ID3D12GraphicsCommandList* commandList) {
 
 	if (!active_ || !commandList || !pendingPass_) {
 		return;
@@ -97,7 +97,7 @@ void Engine::GpuFrameProfiler::EndPass(ID3D12GraphicsCommandList* commandList) {
 	pendingPass_ = false;
 }
 
-void Engine::GpuFrameProfiler::Resolve(ID3D12GraphicsCommandList* commandList) {
+void Engine::GPUFrameProfiler::Resolve(ID3D12GraphicsCommandList* commandList) {
 
 	if (!initialized_ || !active_ || !commandList) {
 		return;
@@ -116,7 +116,7 @@ void Engine::GpuFrameProfiler::Resolve(ID3D12GraphicsCommandList* commandList) {
 	hasResolved_ = true;
 }
 
-void Engine::GpuFrameProfiler::CollectResolved() {
+void Engine::GPUFrameProfiler::CollectResolved() {
 
 	if (!hasResolved_ || resolvedCount_ == 0 || frequency_ == 0) {
 		return;
@@ -147,7 +147,7 @@ void Engine::GpuFrameProfiler::CollectResolved() {
 	FrameProfiler::GetInstance().SetGpuPassTimes(passTimes);
 }
 
-void Engine::GpuFrameProfiler::Finalize() {
+void Engine::GPUFrameProfiler::Finalize() {
 
 	queryHeap_.Reset();
 	readbackBuffer_.Reset();

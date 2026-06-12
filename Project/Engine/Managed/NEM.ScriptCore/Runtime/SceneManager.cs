@@ -21,9 +21,9 @@ public readonly struct SceneHandle : IEquatable<SceneHandle> {
 public readonly struct SceneEvent {
 
     public SceneHandle Scene { get; }
-    public Uuid SceneAssetId { get; }
+    public UUID SceneAssetId { get; }
 
-    internal SceneEvent(SceneHandle scene, Uuid sceneAssetId) {
+    internal SceneEvent(SceneHandle scene, UUID sceneAssetId) {
         Scene = scene;
         SceneAssetId = sceneAssetId;
     }
@@ -39,8 +39,8 @@ public static class SceneManager {
     public static event Action<SceneEvent>? SceneUnloaded;
 
     // load/unload 要求を出した handle を、native の生存状態が確定するまで保持する（poll で検出して発火）
-    private static readonly List<(SceneHandle handle, Uuid asset)> pendingLoad = new();
-    private static readonly List<(SceneHandle handle, Uuid asset)> pendingUnload = new();
+    private static readonly List<(SceneHandle handle, UUID asset)> pendingLoad = new();
+    private static readonly List<(SceneHandle handle, UUID asset)> pendingUnload = new();
 
     // 追加シーンを load する。SceneHandle を即時返す（load 自体は次の flush で適用）。
     public static SceneHandle LoadAdditive(AssetRef<SceneAsset> scene) {

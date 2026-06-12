@@ -7,7 +7,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
-#include <Engine/Core/Rendering/Profiling/GpuFrameProfiler.h>
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Sprite/SpriteRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Text/TextRenderItemExtractor.h>
@@ -111,7 +111,7 @@ void RenderPipelineRunner::Finalize() {
 
 	// GPU計測用のクエリヒープ/リードバックバッファはここで解放する
 	// シングルトンのため放置するとDeviceより後まで生き残り、LeakCheckerに残る
-	GpuFrameProfiler::GetInstance().Finalize();
+	GPUFrameProfiler::GetInstance().Finalize();
 
 	renderPath_.Finalize();
 	backendRegistry_.Clear();
@@ -195,7 +195,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		});
 
 	// GPU計測のフレーム開始(前フレームの結果をFrameProfilerへ反映し、記録をリセット)
-	GpuFrameProfiler::GetInstance().BeginFrame(graphicsCore.GetDXObject().GetDevice(),
+	GPUFrameProfiler::GetInstance().BeginFrame(graphicsCore.GetDXObject().GetDevice(),
 		graphicsCore.GetDXObject().GetDxCommand()->GetQueue());
 
 	// 描画アイテムの抽出
@@ -372,7 +372,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	renderView(RenderViewKind::Scene, sceneView_);
 
 	// 記録したパスのタイムスタンプを解決してリードバックバッファへ書き出す
-	GpuFrameProfiler::GetInstance().Resolve(graphicsCore.GetDXObject().GetDxCommand()->GetCommandList());
+	GPUFrameProfiler::GetInstance().Resolve(graphicsCore.GetDXObject().GetDxCommand()->GetCommandList());
 }
 
 bool RenderPipelineRunner::PresentViewToBackBuffer(

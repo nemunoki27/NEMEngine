@@ -1,11 +1,15 @@
-#include "DxGpuEventScope.h"
+#include "DxGPUEventScope.h"
 
 // engine
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 
+//============================================================================
+//	DxGPUEventScope classMethods
+//============================================================================
+
 namespace Engine {
 
-	DxGpuEventScope::DxGpuEventScope(ID3D12GraphicsCommandList* commandList, std::string_view label)
+	DxGPUEventScope::DxGPUEventScope(ID3D12GraphicsCommandList* commandList, std::string_view label)
 		: commandList_(commandList) {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		if (commandList_) {
@@ -16,7 +20,7 @@ namespace Engine {
 #endif
 	}
 
-	DxGpuEventScope::DxGpuEventScope(ID3D12GraphicsCommandList* commandList, const wchar_t* label)
+	DxGPUEventScope::DxGPUEventScope(ID3D12GraphicsCommandList* commandList, const wchar_t* label)
 		: commandList_(commandList) {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		if (commandList_) {
@@ -27,7 +31,7 @@ namespace Engine {
 #endif
 	}
 
-	DxGpuEventScope::~DxGpuEventScope() {
+	DxGPUEventScope::~DxGPUEventScope() {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		if (commandList_) {
 			commandList_->EndEvent();

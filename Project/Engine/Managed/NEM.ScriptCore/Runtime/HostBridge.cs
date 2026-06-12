@@ -27,7 +27,7 @@ public static unsafe class HostBridge {
     private const int MaxExceptionFrames = 24;
 
     // public fieldをJSONへ含めるための共通設定。
-    // AssetRef/EntityRef/ScriptRef/Uuid は専用 converter で identity だけを round-trip する。
+    // AssetRef/EntityRef/ScriptRef/UUID は専用 converter で identity だけを round-trip する。
     private static readonly JsonSerializerOptions jsonOptions = CreateJsonOptions();
 
     private static JsonSerializerOptions CreateJsonOptions() {
@@ -37,7 +37,7 @@ public static unsafe class HostBridge {
             // MathTypesのlength/normalizedなどは保存値ではないのでJSON化しない
             IgnoreReadOnlyProperties = true
         };
-        options.Converters.Add(new UuidJsonConverter());
+        options.Converters.Add(new UUIDJsonConverter());
         options.Converters.Add(new EntityRefJsonConverter());
         options.Converters.Add(new AssetRefJsonConverterFactory());
         options.Converters.Add(new ScriptRefJsonConverterFactory());

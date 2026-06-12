@@ -12,7 +12,7 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxGpuEventScope.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxGPUEventScope.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
@@ -257,7 +257,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 
 	DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
-	DxGpuEventScope eventScope{ commandList, L"SSOutline.MaskDraw" };
+	DxGPUEventScope eventScope{ commandList, L"SSOutline.MaskDraw" };
 
 	// 1. Visible Mask (Depth Testあり)
 	{
@@ -412,7 +412,7 @@ bool ScreenSpaceOutlineRenderer::ExecuteDilationPass(GraphicsCore& graphicsCore,
 
 	DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
-	DxGpuEventScope eventScope{ commandList, label };
+	DxGPUEventScope eventScope{ commandList, label };
 
 	// 入力はSRVで出力はUAVへ遷移し前段や前frameの状態へ依存させない
 	inputMask->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -502,7 +502,7 @@ bool ScreenSpaceOutlineRenderer::ExecuteComposite(GraphicsCore& graphicsCore,
 
 	DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
-	DxGpuEventScope eventScope{ commandList, L"SSOutline.Composite" };
+	DxGPUEventScope eventScope{ commandList, L"SSOutline.Composite" };
 
 	// styleID範囲外読みを防ぐため、現在のstyle数をcomposite側へ渡す
 	ScreenSpaceOutlineCompositeConstants compositeConstants{};

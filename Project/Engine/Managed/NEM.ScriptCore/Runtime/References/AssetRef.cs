@@ -32,9 +32,9 @@ public sealed class NativeAssetTypeAttribute : Attribute {
 public readonly struct AssetRef<TAsset> where TAsset : class, IAssetType {
 
     // 参照先 asset の UUID（64bit）。0 は未設定。
-    public readonly Uuid id;
+    public readonly UUID id;
 
-    public AssetRef(Uuid id) {
+    public AssetRef(UUID id) {
         this.id = id;
     }
 
@@ -43,7 +43,7 @@ public readonly struct AssetRef<TAsset> where TAsset : class, IAssetType {
     // gameplay 向け PascalCase アクセサ。実体の存在確認は Assets.Exists<T>() で別途行う（hot path で path lookup しない）。
     public bool IsNull => !id.isValid;
     public bool IsValid => id.isValid;
-    public Uuid AssetId => id;
+    public UUID AssetId => id;
 
-    public static AssetRef<TAsset> None => new(Uuid.None);
+    public static AssetRef<TAsset> None => new(UUID.None);
 }

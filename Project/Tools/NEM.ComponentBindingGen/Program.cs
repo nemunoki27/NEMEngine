@@ -765,7 +765,7 @@ internal static class Program {
             case "AssetRef": {
                 string t = prop.AssetType!;
                 sb.Append($"    public AssetRef<{t}> {prop.ManagedName} {{\n");
-                sb.Append($"        get {{ ulong v = 0; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 8); return new AssetRef<{t}>(new Uuid(v)); }}\n");
+                sb.Append($"        get {{ ulong v = 0; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 8); return new AssetRef<{t}>(new UUID(v)); }}\n");
                 if (!prop.ReadOnly) sb.Append($"        set {{ ulong v = value.id.value; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, 8); }}\n");
                 sb.Append("    }\n\n");
                 break;
