@@ -49,8 +49,10 @@ namespace Engine {
 		// パイプラインにスロットが存在するエントリのキャッシュ
 		struct ResolvedEntry {
 
-			// registry.Findに使うエイリアス名
+			// 対象エントリのエイリアス名(再解決時の照合用)
 			std::string alias;
+			// registry.GetEntries内のインデックスで毎描画はFindせず直接参照する
+			size_t entryIndex = 0;
 			// 各バインド種別のロケーションで存在しない場合はnullptr
 			const RootBindingLocation* cbvLocation = nullptr;
 			const RootBindingLocation* srvLocation = nullptr;
@@ -62,6 +64,8 @@ namespace Engine {
 
 		std::vector<ResolvedEntry> resolvedEntries_;
 		const PipelineState* lastPipeline_ = nullptr;
+		// レジストリ実体が変わった時も再解決する(インデックス参照の整合のため)
+		const RenderBufferRegistry* lastRegistry_ = nullptr;
 		// レジストリエントリ数が変わった時も再解決する
 		size_t lastRegistryCount_ = SIZE_MAX;
 	};

@@ -30,11 +30,10 @@ void Engine::to_json(nlohmann::json& out, const SceneObjectComponent& component)
 
 bool Engine::IsEntityActiveInHierarchy(ECSWorld& world, const Entity& entity) {
 
-	if (!world.IsAlive(entity)) {
-		return false;
+	// HasComponent+GetComponentの二重ルックアップを避け、1度のTryGetComponentで解決する
+	if (const SceneObjectComponent* sceneObject = world.TryGetComponent<Engine::SceneObjectComponent>(entity)) {
+		return sceneObject->activeInHierarchy;
 	}
-	if (!world.HasComponent<Engine::SceneObjectComponent>(entity)) {
-		return true;
-	}
-	return world.GetComponent<Engine::SceneObjectComponent>(entity).activeInHierarchy;
+	// SceneObjectComponentを持たない場合は、生存していればactive扱いとする
+	return world.IsAlive(entity);
 }

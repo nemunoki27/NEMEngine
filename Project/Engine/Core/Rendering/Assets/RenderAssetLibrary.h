@@ -48,6 +48,12 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
+		//--------- functions ----------------------------------------------------
+
+		// IDからJSONアセットを読み込みキャッシュへ格納する共通処理
+		template <typename T>
+		const T* LoadCachedAsset(std::unordered_map<AssetID, T>& cache, AssetID assetID);
+
 		//--------- variables ----------------------------------------------------
 
 		AssetDatabase* database_ = nullptr;

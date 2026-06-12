@@ -37,11 +37,14 @@
 
 // c++
 #include <memory>
+#include <vector>
+#include <unordered_set>
 
 namespace Engine {
 
 	// front
 	struct SceneInstance;
+	class MeshRenderBackend;
 	//============================================================================
 	//	RenderPipelineRunner structures
 	//============================================================================
@@ -261,6 +264,14 @@ namespace Engine {
 
 		// ワールド切り替え時の静的バッチキャッシュ破棄用
 		ECSWorld* lastRenderedWorld_ = nullptr;
+
+		// 毎フレーム使い回すスクラッチで再確保を避ける
+		std::unordered_set<AssetID> visibleMeshSet_{};
+		std::vector<AssetID> visibleMeshes_{};
+		RenderPassPhaseBuckets passBuckets_{};
+		// 型付きMeshバックエンドのキャッシュで毎フレームのdynamic_castを避ける
+		MeshRenderBackend* meshBackend_ = nullptr;
+		MeshRenderBackend* previewMeshBackend_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
 

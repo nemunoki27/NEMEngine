@@ -142,6 +142,70 @@ public readonly struct Entity : IEquatable<Entity> {
     }
 
     //========================================================================
+    //	階層を辿る component 取得（GetComponentInChildren / InParent 相当）
+    //	既存の Has<T>/Get<T> と firstChild/nextSibling/parent だけで辿る（reflection しない）
+    //========================================================================
+
+    // 自身か子孫から最初に見つかった component を返す。Unity と同じく自身も対象に含める
+    public bool TryGetInChildren<T>(out T component) where T : struct, IComponentRef<T> {
+        if (TryGet(out component)) {
+            return true;
+        }
+        for (Entity child = firstChild; child.isAlive; child = child.nextSibling) {
+            if (child.TryGetInChildren(out component)) {
+                return true;
+            }
+        }
+        component = default;
+        return false;
+    }
+
+    // 自身か子孫から component を返す。欠落時は例外（Has / TryGetInChildren で確認するのが推奨）
+    public T GetInChildren<T>() where T : struct, IComponentRef<T> {
+        if (!TryGetInChildren(out T component)) {
+            throw new InvalidOperationException(
+                $"No component '{T.componentTypeName}' was found in this Entity or its children.");
+        }
+        return component;
+    }
+
+    // 自身か祖先から最初に見つかった component を返す。自身も対象に含める
+    public bool TryGetInParent<T>(out T component) where T : struct, IComponentRef<T> {
+        for (Entity current = this; current.isAlive; current = current.parent) {
+            if (current.TryGet(out component)) {
+                return true;
+            }
+        }
+        component = default;
+        return false;
+    }
+
+    // 自身か祖先から component を返す。欠落時は例外
+    public T GetInParent<T>() where T : struct, IComponentRef<T> {
+        if (!TryGetInParent(out T component)) {
+            throw new InvalidOperationException(
+                $"No component '{T.componentTypeName}' was found in this Entity or its parents.");
+        }
+        return component;
+    }
+
+    // 自身と全子孫の component を集めて返す
+    public List<T> GetAllInChildren<T>() where T : struct, IComponentRef<T> {
+        var result = new List<T>();
+        CollectInChildren(this, result);
+        return result;
+    }
+
+    private static void CollectInChildren<T>(Entity entity, List<T> result) where T : struct, IComponentRef<T> {
+        if (entity.TryGet(out T component)) {
+            result.Add(component);
+        }
+        for (Entity child = entity.firstChild; child.isAlive; child = child.nextSibling) {
+            CollectInChildren(child, result);
+        }
+    }
+
+    //========================================================================
     //	等価判定（world handle + entity index + entity generation）
     //========================================================================
 

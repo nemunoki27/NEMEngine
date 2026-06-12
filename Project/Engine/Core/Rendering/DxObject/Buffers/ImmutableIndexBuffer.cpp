@@ -15,14 +15,11 @@ void ImmutableIndexBuffer::Create(ID3D12Device* device, BufferUploadService& upl
 
 	const UINT sizeInBytes = static_cast<UINT>(sizeof(uint32_t) * data.size());
 
-	// DEFAULT heapのバッファは作成時COMMONでコピー用のCOPY_DEST遷移はBufferUploadServiceで積む
-	DxUtils::CreateDefaultBufferResource(device, resource_, sizeInBytes);
+	buffer_.Create(device, uploadService, std::as_bytes(data), finalState);
 
-	indexBufferView_.BufferLocation = resource_->GetGPUVirtualAddress();
+	indexBufferView_.BufferLocation = buffer_.GetGPUVirtualAddress();
 	indexBufferView_.Format = format;
 	indexBufferView_.SizeInBytes = sizeInBytes;
-
-	uploadService.EnqueueBufferUpload(resource_.Get(), std::as_bytes(data), finalState);
 }
 
 void ImmutableIndexBuffer::Create(ID3D12Device* device, BufferUploadService& uploadService,
@@ -34,12 +31,9 @@ void ImmutableIndexBuffer::Create(ID3D12Device* device, BufferUploadService& upl
 
 	const UINT sizeInBytes = static_cast<UINT>(sizeof(uint16_t) * data.size());
 
-	// DEFAULT heapのバッファは作成時COMMONでコピー用のCOPY_DEST遷移はBufferUploadServiceで積む
-	DxUtils::CreateDefaultBufferResource(device, resource_, sizeInBytes);
+	buffer_.Create(device, uploadService, std::as_bytes(data), finalState);
 
-	indexBufferView_.BufferLocation = resource_->GetGPUVirtualAddress();
+	indexBufferView_.BufferLocation = buffer_.GetGPUVirtualAddress();
 	indexBufferView_.Format = DXGI_FORMAT_R16_UINT;
 	indexBufferView_.SizeInBytes = sizeInBytes;
-
-	uploadService.EnqueueBufferUpload(resource_.Get(), std::as_bytes(data), finalState);
 }

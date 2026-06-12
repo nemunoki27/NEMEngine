@@ -3,8 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
-#include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxImmutableBuffer.h>
 
 // c++
 #include <span>
@@ -33,8 +32,8 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() const { return vertexBufferView_; }
-		ID3D12Resource* GetResource() const { return resource_.Get(); }
-		bool IsCreatedResource() const { return resource_ != nullptr; }
+		ID3D12Resource* GetResource() const { return buffer_.GetResource(); }
+		bool IsCreatedResource() const { return buffer_.IsCreatedResource(); }
 	private:
 		//============================================================================
 		//	private Methods
@@ -42,7 +41,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		ComPtr<ID3D12Resource> resource_;
+		// DEFAULT heapの静的バッファ
+		DxImmutableBuffer buffer_;
 		D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
 	};
 
@@ -60,15 +60,11 @@ namespace Engine {
 
 		const UINT sizeInBytes = static_cast<UINT>(sizeof(T) * data.size());
 
-		// DEFAULT heapのバッファは作成時COMMONでコピー用のCOPY_DEST遷移はBufferUploadServiceで積む
-		DxUtils::CreateDefaultBufferResource(device, resource_, sizeInBytes);
+		buffer_.Create(device, uploadService, std::as_bytes(data), finalState);
 
 		// VBVはDEFAULT heap側のGPUアドレスを指す
-		vertexBufferView_.BufferLocation = resource_->GetGPUVirtualAddress();
+		vertexBufferView_.BufferLocation = buffer_.GetGPUVirtualAddress();
 		vertexBufferView_.SizeInBytes = sizeInBytes;
 		vertexBufferView_.StrideInBytes = sizeof(T);
-
-		uploadService.EnqueueBufferUpload(resource_.Get(), std::as_bytes(data), finalState);
 	}
 } // Engine
-

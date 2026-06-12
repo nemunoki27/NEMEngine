@@ -94,6 +94,8 @@ namespace Engine {
 		AssetID material{};
 		// 描画アイテムの種類ごとのデータへのキー
 		uint64_t batchKey = 0;
+		// 静的バッチキャッシュキー用の内容ハッシュで抽出時に1度だけ計算する(Meshのみ使用)
+		uint64_t contentHash = 0;
 
 		// 描画に使用するカメラ
 		RenderCameraDomain cameraDomain = RenderCameraDomain::Perspective;

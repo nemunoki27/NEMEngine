@@ -76,6 +76,13 @@ public abstract class ScriptBehaviour {
     protected void Add<T>() where T : struct, IComponentRef<T> => owner.Add<T>();
     protected void Remove<T>() where T : struct, IComponentRef<T> => owner.Remove<T>();
 
+    // 自身や子孫 / 祖先から component を辿って取得する（owner Entity への委譲）
+    protected bool TryGetInChildren<T>(out T component) where T : struct, IComponentRef<T> => owner.TryGetInChildren(out component);
+    protected T GetInChildren<T>() where T : struct, IComponentRef<T> => owner.GetInChildren<T>();
+    protected bool TryGetInParent<T>(out T component) where T : struct, IComponentRef<T> => owner.TryGetInParent(out component);
+    protected T GetInParent<T>() where T : struct, IComponentRef<T> => owner.GetInParent<T>();
+    protected List<T> GetAllInChildren<T>() where T : struct, IComponentRef<T> => owner.GetAllInChildren<T>();
+
     // 指定 Entity を破棄する（WorldCommandBuffer 経由で遅延）
     protected void Destroy(Entity entity) => entity.Destroy();
     // 自分の owner Entity を破棄する

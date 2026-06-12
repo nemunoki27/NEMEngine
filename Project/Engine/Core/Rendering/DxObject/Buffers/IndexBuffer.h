@@ -3,11 +3,10 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxMappedUploadBuffer.h>
 
 // c++
 #include <vector>
-#include <cassert>
 
 namespace Engine {
 
@@ -36,12 +35,12 @@ namespace Engine {
 
 		// IBVと内部リソースを取得する
 		const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() const { return indexBufferView_; }
-		ID3D12Resource* GetResource() const { return resource_.Get(); }
+		ID3D12Resource* GetResource() const { return buffer_.GetResource(); }
 		DXGI_FORMAT GetFormat() const { return indexBufferView_.Format; }
 		uint32_t GetIndexSizeInBytes() const { return indexSizeInBytes_; }
 
 		// リソースの作成状態を取得する
-		bool IsCreatedResource() const { return isCreated_; }
+		bool IsCreatedResource() const { return buffer_.IsCreatedResource(); }
 	private:
 		//============================================================================
 		//	private Methods
@@ -49,14 +48,11 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		ComPtr<ID3D12Resource> resource_;
-		uint8_t* mappedData_ = nullptr;
+		// UPLOAD heapのマップ済みバッファ
+		DxMappedUploadBuffer buffer_;
 
-		D3D12_INDEX_BUFFER_VIEW indexBufferView_;
+		D3D12_INDEX_BUFFER_VIEW indexBufferView_{};
 		// R16/R32のどちらで確保したかを転送時に参照する
 		uint32_t indexSizeInBytes_ = sizeof(uint32_t);
-
-		bool isCreated_ = false;
 	};
 }; // Engine
-

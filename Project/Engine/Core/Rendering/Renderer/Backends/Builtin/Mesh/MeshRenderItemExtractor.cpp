@@ -4,6 +4,103 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
+
+// c++
+#include <cstdint>
+#include <cstring>
+#include <functional>
+
+//============================================================================
+//	MeshRenderItemExtractor internal
+//============================================================================
+namespace {
+
+	void MixHash(uint64_t& hash, uint64_t value) {
+
+		hash ^= value;
+		hash *= 1099511628211ull;
+	}
+
+	void MixBytes(uint64_t& hash, const void* data, size_t size) {
+
+		// 1バイトずつだと行列(64byte)などで乗算回数が嵩むため、8バイト単位でまとめて混ぜる
+		const uint8_t* bytes = static_cast<const uint8_t*>(data);
+		size_t offset = 0;
+		for (; offset + sizeof(uint64_t) <= size; offset += sizeof(uint64_t)) {
+
+			uint64_t chunk;
+			std::memcpy(&chunk, bytes + offset, sizeof(uint64_t));
+			MixHash(hash, chunk);
+		}
+		// 8バイトに満たない端数はバイト単位で混ぜる
+		for (; offset < size; ++offset) {
+			MixHash(hash, bytes[offset]);
+		}
+	}
+
+	// アウトラインコンポーネントのauthoring値をハッシュへ混ぜる
+	// 通常描画とアウトライン描画でリソースを共有するため、編集が即時反映されるようにする
+	void MixOutlineComponentHash(uint64_t& h, const Engine::InvertedHullOutlineComponent* outline) {
+
+		MixHash(h, outline ? 1ull : 0ull);
+		if (!outline) {
+			return;
+		}
+		MixHash(h, outline->enabled ? 1ull : 0ull);
+		MixBytes(h, &outline->width, sizeof(outline->width));
+		MixBytes(h, &outline->color, sizeof(outline->color));
+		MixHash(h, static_cast<uint64_t>(outline->expansionMode));
+		MixHash(h, static_cast<uint64_t>(outline->widthMode));
+		MixBytes(h, &outline->cameraZOffset, sizeof(outline->cameraZOffset));
+		MixHash(h, outline->useBakedNormal ? 1ull : 0ull);
+		MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(outline->bakedNormalTexture)));
+		MixHash(h, outline->useOutlineSampler ? 1ull : 0ull);
+		MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(outline->outlineSamplerTexture)));
+		MixHash(h, outline->useStencil ? 1ull : 0ull);
+	}
+
+	// 静的バッチキャッシュキー用の、1アイテム分の内容ハッシュを抽出時に1度だけ計算する
+	// backendが毎パス再計算していたbyte走査とcomponent再取得をここへ集約する
+	uint64_t ComputeMeshContentHash(const Engine::Entity& entity, Engine::AssetID material,
+		Engine::BlendMode blendMode, const Engine::Matrix4x4& worldMatrix,
+		const Engine::MeshRendererComponent& renderer, const Engine::InvertedHullOutlineComponent* outline) {
+
+		uint64_t h = 1469598103934665603ull;
+		MixHash(h, entity.index);
+		MixHash(h, entity.generation);
+		MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(material)));
+		MixHash(h, static_cast<uint64_t>(blendMode));
+		// Transformが変わるとInstanceDataが変わる
+		MixBytes(h, &worldMatrix, sizeof(worldMatrix));
+		// アウトライン設定が変わるとGPUデータが変わる
+		MixOutlineComponentHash(h, outline);
+
+		MixHash(h, static_cast<uint64_t>(renderer.subMeshes.size()));
+		for (const Engine::SubMeshMaterial& subMesh : renderer.subMeshes) {
+
+			// サブメッシュ編集情報もGPUへ渡すため、内容ハッシュへ含める
+			MixBytes(h, &subMesh.stableID, sizeof(subMesh.stableID));
+			MixHash(h, subMesh.sourceSubMeshIndex);
+			MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(subMesh.baseColorTexture)));
+			MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(subMesh.normalTexture)));
+			MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(subMesh.metallicRoughnessTexture)));
+			MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(subMesh.emissiveTexture)));
+			MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(subMesh.occlusionTexture)));
+			MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(subMesh.specularTexture)));
+			MixBytes(h, &subMesh.color, sizeof(subMesh.color));
+			MixBytes(h, &subMesh.emissiveColor, sizeof(subMesh.emissiveColor));
+			MixBytes(h, &subMesh.metallic, sizeof(subMesh.metallic));
+			MixBytes(h, &subMesh.roughness, sizeof(subMesh.roughness));
+			MixBytes(h, &subMesh.uvMatrix, sizeof(subMesh.uvMatrix));
+			MixBytes(h, &subMesh.localPos, sizeof(subMesh.localPos));
+			MixBytes(h, &subMesh.localRotation, sizeof(subMesh.localRotation));
+			MixBytes(h, &subMesh.localScale, sizeof(subMesh.localScale));
+			MixBytes(h, &subMesh.sourcePivot, sizeof(subMesh.sourcePivot));
+		}
+		return h;
+	}
+}
 
 //============================================================================
 //	MeshRenderItemExtractor classMethods
@@ -32,6 +129,9 @@ void Engine::MeshRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		item.material = renderer.material;
 		item.cameraDomain = RenderCameraDomain::Perspective;
 		item.batchKey = renderer.mesh.value;
+		// 静的バッチキャッシュキー用の内容ハッシュを抽出時に1度だけ計算する(backendの毎パス再ハッシュを避ける)
+		const InvertedHullOutlineComponent* outline = world.TryGetComponent<InvertedHullOutlineComponent>(entity);
+		item.contentHash = ComputeMeshContentHash(entity, item.material, item.blendMode, item.worldMatrix, renderer, outline);
 		item.payload = batch.PushPayload(payload);
 		// 描画アイテムをバッチに追加
 		batch.Add(std::move(item));
