@@ -15,7 +15,6 @@ namespace {
 //============================================================================
 //	CollisionPairKey classMethods
 //============================================================================
-
 Engine::CollisionPairKey Engine::CollisionPairKey::Make(Entity entityA, Entity entityB) {
 
 	const uint64_t packedA = PackEntity(entityA);
@@ -37,7 +36,6 @@ bool Engine::CollisionPairKey::operator==(const CollisionPairKey& other) const n
 //============================================================================
 //	CollisionPairKeyHash classMethods
 //============================================================================
-
 size_t Engine::CollisionPairKeyHash::operator()(const CollisionPairKey& key) const noexcept {
 
 	size_t seed = std::hash<uint32_t>{}(key.lowIndex);
@@ -53,7 +51,6 @@ size_t Engine::CollisionPairKeyHash::operator()(const CollisionPairKey& key) con
 //============================================================================
 //	Collision utility
 //============================================================================
-
 const char* Engine::ToString(ColliderShapeType type) {
 
 	switch (type) {

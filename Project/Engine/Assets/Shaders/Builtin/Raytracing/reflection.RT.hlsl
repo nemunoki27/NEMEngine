@@ -1,7 +1,11 @@
 //============================================================================
+//	include
+//============================================================================
+#include "../Mesh/Common/meshShaderSharedTypes.hlsli"
+
+//============================================================================
 //	resources
 //============================================================================
-
 cbuffer RaytracingViewConstants : register(b0) {
 	
 	float4x4 gView;
@@ -32,13 +36,6 @@ cbuffer RaytracingViewConstants : register(b0) {
 	float gPad0;
 };
 
-struct RaytracingMeshVertex {
-
-	float3 normal;
-	float3 tangent;
-	float2 uv;
-	float4 position;
-};
 struct ReflectionPayload {
 
 	float3 color;
@@ -54,32 +51,6 @@ struct RaytracingInstanceShaderData {
 	uint indexOffset;
 	uint _pad0[3];
 };
-// サブメッシュごとのデータ (MeshSubMeshShaderDataと同じレイアウト)
-struct RaytracingSubMeshShaderData {
-
-	uint baseColorTextureIndex;
-	uint normalTextureIndex;
-	uint metallicRoughnessTextureIndex;
-	uint emissiveTextureIndex;
-
-	uint occlusionTextureIndex;
-	uint specularTextureIndex;
-	float metallic;
-	float roughness;
-
-	float4x4 localMatrix;
-
-	float4 importedBaseColor;
-	float4 color;
-	float4 emissiveColor;
-
-	float4x4 uvMatrix;
-
-	// MeshSubMeshShaderDataと同じレイアウトを保つため、背面法アウトライン用の末尾フィールドも合わせる
-	float3 sourcePivot;
-	float _outlinePad0;
-};
-
 static const uint kNoTexture = 0xFFFFFFFF;
 
 RaytracingAccelerationStructure gSceneTLAS : register(t0);
@@ -89,7 +60,7 @@ Texture2D<float4> gSourceNormal : register(t3);
 Texture2D<float4> gSourcePosition : register(t4);
 
 StructuredBuffer<RaytracingInstanceShaderData> gRaytracingSceneInstances : register(t5);
-StructuredBuffer<RaytracingSubMeshShaderData> gRaytracingSubMeshes : register(t6);
+StructuredBuffer<SubMeshShaderData> gRaytracingSubMeshes : register(t6);
 
 RWTexture2D<float4> gDestColor : register(u0);
 SamplerState gLinearClamp : register(s0);
@@ -97,7 +68,6 @@ SamplerState gLinearClamp : register(s0);
 //============================================================================
 //	functions
 //============================================================================
-
 float3 SafeNormalize(float3 v, float3 fallbackValue) {
 
 	float lenSq = dot(v, v);
@@ -216,10 +186,10 @@ float3 ComputeBarycentrics(float2 bary) {
 float3 EvaluateHitMaterialBaseColor(in BuiltInTriangleIntersectionAttributes attr) {
 
 	RaytracingInstanceShaderData instanceData = gRaytracingSceneInstances[InstanceID()];
-	RaytracingSubMeshShaderData subMesh = gRaytracingSubMeshes[instanceData.subMeshDataIndex];
+	SubMeshShaderData subMesh = gRaytracingSubMeshes[instanceData.subMeshDataIndex];
 
 	StructuredBuffer<uint> indices = ResourceDescriptorHeap[NonUniformResourceIndex(instanceData.indexDescriptorIndex)];
-	StructuredBuffer<RaytracingMeshVertex> vertices = ResourceDescriptorHeap[NonUniformResourceIndex(instanceData.vertexDescriptorIndex)];
+	StructuredBuffer<MeshVertex> vertices = ResourceDescriptorHeap[NonUniformResourceIndex(instanceData.vertexDescriptorIndex)];
 
 	uint primitiveIndex = PrimitiveIndex();
 
@@ -229,9 +199,9 @@ float3 EvaluateHitMaterialBaseColor(in BuiltInTriangleIntersectionAttributes att
 	uint i1 = indices[baseIndex + 1];
 	uint i2 = indices[baseIndex + 2];
 
-	RaytracingMeshVertex v0 = vertices[instanceData.vertexOffset + i0];
-	RaytracingMeshVertex v1 = vertices[instanceData.vertexOffset + i1];
-	RaytracingMeshVertex v2 = vertices[instanceData.vertexOffset + i2];
+	MeshVertex v0 = vertices[instanceData.vertexOffset + i0];
+	MeshVertex v1 = vertices[instanceData.vertexOffset + i1];
+	MeshVertex v2 = vertices[instanceData.vertexOffset + i2];
 
 	float3 bary = ComputeBarycentrics(attr.barycentrics);
 	float2 uv = v0.uv * bary.x + v1.uv * bary.y + v2.uv * bary.z;

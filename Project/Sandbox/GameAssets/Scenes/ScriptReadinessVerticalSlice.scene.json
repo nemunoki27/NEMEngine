@@ -1,0 +1,192 @@
+{
+  "Entities": [
+    {
+      "UUID": "5301000000000001",
+      "Components": {
+        "Name": { "name": "VerticalSliceBootstrap" },
+        "Transform": {
+          "localPos": { "x": 0.0, "y": 0.0, "z": 0.0 },
+          "localRotation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+          "localScale": { "x": 1.0, "y": 1.0, "z": 1.0 }
+        },
+        "Script": [
+          {
+            "scriptTypeId": "beb37459-314b-4368-a20d-699cb45514cc",
+            "scriptSlotID": "1000000000000001",
+            "lastKnownTypeName": "SandboxScripts.VerticalSliceBootstrap",
+            "enabled": true,
+            "serializedFields": {}
+          }
+        ]
+      }
+    },
+    {
+      "UUID": "5301000000000002",
+      "Components": {
+        "Name": { "name": "ExecutionOrderProbes" },
+        "Transform": {
+          "localPos": { "x": -2.0, "y": 0.0, "z": 0.0 },
+          "localRotation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+          "localScale": { "x": 1.0, "y": 1.0, "z": 1.0 }
+        },
+        "Script": [
+          {
+            "scriptTypeId": "91233a01-3ebf-4322-8051-0d3b2234f517",
+            "scriptSlotID": "1000000000000010",
+            "lastKnownTypeName": "SandboxScripts.ExecutionOrderProbeEarly",
+            "enabled": true,
+            "serializedFields": {}
+          },
+          {
+            "scriptTypeId": "89ecba1d-3eb9-49fa-8308-ed7ebc9b7218",
+            "scriptSlotID": "1000000000000011",
+            "lastKnownTypeName": "SandboxScripts.ExecutionOrderProbeDefault",
+            "enabled": true,
+            "serializedFields": {}
+          },
+          {
+            "scriptTypeId": "d183c451-ea60-4e26-9e98-864c36342f52",
+            "scriptSlotID": "1000000000000012",
+            "lastKnownTypeName": "SandboxScripts.ExecutionOrderProbeLate",
+            "enabled": true,
+            "serializedFields": {}
+          }
+        ]
+      }
+    },
+    {
+      "UUID": "5301000000000003",
+      "Components": {
+        "Name": { "name": "DeterministicMover" },
+        "Transform": {
+          "localPos": { "x": 2.0, "y": 0.0, "z": 0.0 },
+          "localRotation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+          "localScale": { "x": 1.0, "y": 1.0, "z": 1.0 }
+        },
+        "Script": [
+          {
+            "scriptTypeId": "32d5abda-4824-41d7-b552-8f3c552511e0",
+            "scriptSlotID": "1000000000000020",
+            "lastKnownTypeName": "SandboxScripts.DeterministicMover",
+            "enabled": true,
+            "serializedFields": {}
+          }
+        ]
+      }
+    },
+    {
+      "UUID": "5301000000000004",
+      "Components": {
+        "Name": { "name": "InspectorShowcase" },
+        "Transform": {
+          "localPos": { "x": 4.0, "y": 0.0, "z": 0.0 },
+          "localRotation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+          "localScale": { "x": 1.0, "y": 1.0, "z": 1.0 }
+        },
+        "Script": [
+          {
+            "scriptTypeId": "fbe81b0b-caca-4d59-960f-11cbdbd7d9f8",
+            "scriptSlotID": "1000000000000030",
+            "lastKnownTypeName": "SandboxScripts.InspectorShowcase",
+            "enabled": true,
+            "serializedFields": {}
+          }
+        ]
+      }
+    },
+    {
+      "UUID": "5301000000000005",
+      "Components": {
+        "Name": { "name": "RuntimeApplyProbe" },
+        "Transform": {
+          "localPos": { "x": -4.0, "y": 0.0, "z": 0.0 },
+          "localRotation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+          "localScale": { "x": 1.0, "y": 1.0, "z": 1.0 }
+        },
+        "Script": [
+          {
+            "scriptTypeId": "361e6060-451e-4a77-b1b5-7a9cc55c0dfe",
+            "scriptSlotID": "1000000000000040",
+            "lastKnownTypeName": "SandboxScripts.RuntimeApplyProbe",
+            "enabled": true,
+            "serializedFields": {}
+          }
+        ]
+      }
+    },
+    {
+      "UUID": "5301000000000006",
+      "Components": {
+        "Name": { "name": "CoroutineProbe" },
+        "Transform": {
+          "localPos": { "x": 0.0, "y": 2.0, "z": 0.0 },
+          "localRotation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+          "localScale": { "x": 1.0, "y": 1.0, "z": 1.0 }
+        },
+        "Script": [
+          {
+            "scriptTypeId": "be15890d-454a-42dd-8efa-048ce77c3e80",
+            "scriptSlotID": "1000000000000050",
+            "lastKnownTypeName": "SandboxScripts.CoroutineProbe",
+            "enabled": true,
+            "serializedFields": {}
+          }
+        ]
+      }
+    },
+    {
+      "UUID": "5301000000000007",
+      "Components": {
+        "Name": { "name": "ProfilerLoadProbe" },
+        "Transform": {
+          "localPos": { "x": 0.0, "y": -2.0, "z": 0.0 },
+          "localRotation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+          "localScale": { "x": 1.0, "y": 1.0, "z": 1.0 }
+        },
+        "Script": [
+          {
+            "scriptTypeId": "73d8b9c8-056c-4128-9d83-fc8fc647c09c",
+            "scriptSlotID": "1000000000000060",
+            "lastKnownTypeName": "SandboxScripts.ProfilerLoadProbe",
+            "enabled": true,
+            "serializedFields": {}
+          }
+        ]
+      }
+    },
+    {
+      "UUID": "5301000000000008",
+      "Components": {
+        "Name": { "name": "OptionalProbes" },
+        "Transform": {
+          "localPos": { "x": 0.0, "y": 0.0, "z": 2.0 },
+          "localRotation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+          "localScale": { "x": 1.0, "y": 1.0, "z": 1.0 }
+        },
+        "Script": [
+          {
+            "scriptTypeId": "4ae97d10-ae55-448e-9db9-bed63d2f82fc",
+            "scriptSlotID": "1000000000000070",
+            "lastKnownTypeName": "SandboxScripts.OptionalTimeScaleProbe",
+            "enabled": true,
+            "serializedFields": {}
+          },
+          {
+            "scriptTypeId": "e606dca6-4dc4-4623-bcc4-1d4422b2fbd5",
+            "scriptSlotID": "1000000000000071",
+            "lastKnownTypeName": "SandboxScripts.OptionalCollisionProbe",
+            "enabled": true,
+            "serializedFields": {}
+          },
+          {
+            "scriptTypeId": "44ae2b07-f832-457a-a1f7-ec19a57a3836",
+            "scriptSlotID": "1000000000000072",
+            "lastKnownTypeName": "SandboxScripts.OptionalExceptionProbe",
+            "enabled": true,
+            "serializedFields": {}
+          }
+        ]
+      }
+    }
+  ]
+}

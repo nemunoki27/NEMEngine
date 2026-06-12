@@ -15,18 +15,17 @@ namespace Engine {
 	class AudioSourceInspectorDrawer :
 		public SerializedComponentInspectorDrawer<AudioSourceComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		AudioSourceInspectorDrawer() :
 			SerializedComponentInspectorDrawer("Audio Source", "AudioSource") {
 		}
 		~AudioSourceInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- functions ----------------------------------------------------
 
@@ -34,3 +33,4 @@ namespace Engine {
 			const Entity& entity, bool& anyItemActive) override;
 	};
 } // Engine
+

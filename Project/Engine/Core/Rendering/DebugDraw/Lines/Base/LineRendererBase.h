@@ -26,15 +26,14 @@ namespace Engine {
 	template <typename T>
 	class LineRendererBase {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		LineRendererBase() {
 			lineCBVSlot_ = lineBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
 		}
 		virtual ~LineRendererBase() {
-			// 描画中に確保したGPUバッファを持つRenderResourceを明示resetする。
+			// 描画中に確保したGPUバッファを持つRenderResourceを明示resetする
 			for (auto& resource : renderResources_) {
 				resource.reset();
 			}
@@ -64,9 +63,9 @@ namespace Engine {
 		// 現在積まれているライン数
 		uint32_t GetCurrentLineCount() const { return static_cast<uint32_t>(vertices_.size() / 2); }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- structure ----------------------------------------------------
 
@@ -108,7 +107,7 @@ namespace Engine {
 		// パイプライン
 		PipelineState pipeline_{};
 
-		// ラインパス定数バッファ（b0）のスロットキャッシュ
+		// ラインパス定数バッファb0のスロットキャッシュ
 		PipelineBindingCache lineBindCache_{};
 		PipelineBindingCache::SlotID lineCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 
@@ -137,7 +136,6 @@ namespace Engine {
 	//============================================================================
 	//	LineRendererBase templateMethods
 	//============================================================================
-
 	template<typename T>
 	inline void LineRendererBase<T>::Init(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain) {
 
@@ -262,7 +260,7 @@ namespace Engine {
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 		commandList->IASetVertexBuffers(0, 1, &renderResource.vertexBuffer.GetVertexBufferView());
 
-		// ルートパラメータのバインド（パイプラインが変わった時だけスロットを再解決する）
+		// ルートパラメータのバインドでパイプラインが変わった時だけスロットを再解決する
 		lineBindCache_.Sync(pipeline_);
 		if (lineBindCache_.Has(lineCBVSlot_)) {
 			RootBindingCommand::SetGraphicsCBV(commandList, lineBindCache_.Get(lineCBVSlot_),
@@ -289,7 +287,7 @@ namespace Engine {
 
 		if (renderResources_.size() <= renderResourceIndex_) {
 
-			// GPU実行前のコマンドが参照しているバッファを、後続の描画で上書きしない。
+			// GPU実行前のコマンドが参照しているバッファを、後続の描画で上書きしない
 			auto resource = std::make_unique<RenderResource>();
 			resource->vertexBuffer.CreateBuffer(graphicsCore.GetDXObject().GetDevice(), kMaxVertexCount_);
 			resource->passBuffer.CreateBuffer(graphicsCore.GetDXObject().GetDevice());
@@ -298,3 +296,4 @@ namespace Engine {
 		return *renderResources_[renderResourceIndex_++];
 	}
 } // Engine
+

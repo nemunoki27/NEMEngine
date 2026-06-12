@@ -3,17 +3,17 @@
   "domain": "Surface",
   "passes": [
     {
-      "passName": "ZPrepass",
+      "passKind": "ZPrepass",
       "pipeline": "f09836087840b1d2",
       "preferredVariant": "GraphicsMesh"
     },
     {
-      "passName": "Draw",
+      "passKind": "Draw",
       "pipeline": "966f3e8a34595313",
       "preferredVariant": "GraphicsMesh"
     },
     {
-      "passName": "Transparent",
+      "passKind": "Transparent",
       "pipeline": "b8996e4516e31236",
       "preferredVariant": "GraphicsMesh"
     }

@@ -30,7 +30,6 @@
 //============================================================================
 //	MeshRenderBackend classMethods
 //============================================================================
-
 namespace {
 
 	void MixHash(uint64_t& hash, uint64_t value) {
@@ -64,7 +63,7 @@ namespace {
 		return item->world->TryGetComponent<Engine::InvertedHullOutlineComponent>(item->entity);
 	}
 
-	// アウトラインコンポーネントのauthoring値をハッシュへ混ぜる。
+	// アウトラインコンポーネントのauthoring値をハッシュへ混ぜる
 	// 通常描画とアウトライン描画でリソースを共有するため、編集が即時反映されるようにする
 	void MixOutlineComponentHash(uint64_t& h, const Engine::InvertedHullOutlineComponent* outline) {
 
@@ -89,46 +88,62 @@ namespace {
 	bool ResolveMeshPass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterialID,
 		Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
 
-		// 背面法アウトラインの3パスは、元マテリアルと切り離してMeshOutlineデフォルトマテリアルから解決する。
+		// 背面法アウトラインの3パスは、元マテリアルと切り離してMeshOutlineデフォルトマテリアルから解決する
 		// コンポーネントを追加するだけで任意の既存マテリアルへアウトラインを適用できるようにする
-		if (context.passName == "Outline" ||
-			context.passName == "OutlineStencilWrite" ||
-			context.passName == "OutlineStencilTest" ||
-			context.passName == "SelectionOutline") {
+		if (context.passKind == Engine::MaterialPassKind::Outline ||
+			context.passKind == Engine::MaterialPassKind::OutlineStencilWrite ||
+			context.passKind == Engine::MaterialPassKind::OutlineStencilTest) {
 
 			return Engine::BackendDrawCommon::ResolveMaterialPass(
 				context,
 				Engine::AssetID{},
 				Engine::DefaultMaterialSlot::MeshOutline,
-				{ context.passName },
+				{ context.passKind },
 				outResolved);
+		}
+		if (context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineMask ||
+			context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
+
+			const Engine::AssetID materialID = Engine::BuiltinAssets::Materials::ScreenSpaceOutlineMask;
+			const Engine::MaterialAsset* material = context.assetLibrary->LoadMaterial(materialID);
+			if (!material) {
+				return false;
+			}
+			const Engine::MaterialPassBinding* pass = Engine::FindPass(*material, context.passKind);
+			if (!pass) {
+				return false;
+			}
+			outResolved.materialID = materialID;
+			outResolved.material = material;
+			outResolved.pass = pass;
+			return true;
 		}
 
 		// 通常描画
-		if (context.passName == "Draw") {
+		if (context.passKind == Engine::MaterialPassKind::Draw) {
 			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterialID,
-				Engine::DefaultMaterialSlot::Mesh, { "Draw", "Mesh" }, outResolved)) {
+				Engine::DefaultMaterialSlot::Mesh, { Engine::MaterialPassKind::Draw }, outResolved)) {
 				return true;
 			}
-		} else if (context.passName == "Transparent") {
+		} else if (context.passKind == Engine::MaterialPassKind::Transparent) {
 
 			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterialID,
-				Engine::DefaultMaterialSlot::Mesh, { "Transparent" }, outResolved)) {
+				Engine::DefaultMaterialSlot::Mesh, { Engine::MaterialPassKind::Transparent }, outResolved)) {
 				return true;
 			}
 			return Engine::BackendDrawCommon::ResolveMaterialPass(context, Engine::AssetID{},
-				Engine::DefaultMaterialSlot::Mesh, { "Transparent" }, outResolved);
+				Engine::DefaultMaterialSlot::Mesh, { Engine::MaterialPassKind::Transparent }, outResolved);
 		} else {
-			// "Draw以外のパスは、そのパス名をそのまま探す
+			// Draw以外のパスは、そのパス種別をそのまま探す
 			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterialID,
-				Engine::DefaultMaterialSlot::Mesh, { context.passName }, outResolved)) {
+				Engine::DefaultMaterialSlot::Mesh, { context.passKind }, outResolved)) {
 				return true;
 			}
 		}
 		// ZPrepassはデフォルトメッシュマテリアルへフォールバック
-		if (context.passName == "ZPrepass") {
+		if (context.passKind == Engine::MaterialPassKind::ZPrepass) {
 			return Engine::BackendDrawCommon::ResolveMaterialPass(context, Engine::AssetID{},
-				Engine::DefaultMaterialSlot::Mesh, { "ZPrepass" }, outResolved);
+				Engine::DefaultMaterialSlot::Mesh, { Engine::MaterialPassKind::ZPrepass }, outResolved);
 		}
 		return false;
 	}
@@ -161,7 +176,7 @@ Engine::MeshRenderBackend::MeshRenderBackend() {
 	meshInstSRVSlot_     = sharedBindCache_.AddSlot("gMeshInstances",         ShaderBindingKind::SRV);
 	subMeshSRVSlot_      = sharedBindCache_.AddSlot("gSubMeshes",             ShaderBindingKind::SRV);
 	outlineSRVSlot_      = sharedBindCache_.AddSlot("gMeshOutlines",          ShaderBindingKind::SRV);
-	selectionParamsCBVSlot_ = sharedBindCache_.AddSlot("MeshSelectionOutlineParams", ShaderBindingKind::CBV);
+	screenSpaceOutlineMaskCBVSlot_ = sharedBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 1, 1);
 
 	// スキニングComputeバインドスロットを初期化時に登録する
 	skinConstCBVSlot_     = skinningBindCache_.AddSlot("SkinningConstants",      ShaderBindingKind::CBV);
@@ -189,7 +204,7 @@ Engine::MeshRenderBackend::~MeshRenderBackend() {
 
 void Engine::MeshRenderBackend::ClearStaticBatchCache() {
 
-	// StaticBatchCacheEntry内のunique_ptr<MeshBatchResources>を明示resetしてからキャッシュを破棄する。
+	// StaticBatchCacheEntry内のunique_ptr<MeshBatchResources>を明示resetしてからキャッシュを破棄する
 	for (auto& [key, entry] : staticBatchCache_) {
 		(void)key;
 		entry.resources.reset();
@@ -497,7 +512,7 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 			prepared.gpuMesh->vertexSubMeshIndexSRV.srvGPUHandle);
 	}
 
-	// デフォルトは元メッシュ頂点。スキニング済みなら更新後バッファへ差し替える
+	// デフォルトは元メッシュ頂点でスキニング済みなら更新後バッファへ差し替える
 	D3D12_GPU_VIRTUAL_ADDRESS skinnedVBAddress = prepared.gpuMesh->vertexSRV.buffer->GetResource()->GetGPUVirtualAddress();
 	D3D12_GPU_DESCRIPTOR_HANDLE skinnedVBHandle = prepared.gpuMesh->vertexSRV.srvGPUHandle;
 	D3D12_GPU_VIRTUAL_ADDRESS skinnedPackedVBAddress = prepared.gpuMesh->packedVertexSRV.buffer->GetResource()->GetGPUVirtualAddress();
@@ -526,15 +541,16 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(subMeshSRVSlot_),
 			prepared.resources->GetSubMeshGPUAddress(), {});
 	}
-	// 背面法アウトライン用のインスタンス別GPUデータ。Outline系パイプラインだけが参照する
+	// 背面法アウトライン用のインスタンス別GPUデータでOutline系パイプラインだけが参照する
 	if (sharedBindCache_.Has(outlineSRVSlot_) && prepared.resources->GetOutlineGPUAddress() != 0) {
 		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(outlineSRVSlot_),
 			prepared.resources->GetOutlineGPUAddress(), {});
 	}
-	// 選択プレビュー用アウトラインのパラメータ。SelectionOutlineパイプラインだけが参照する
-	if (sharedBindCache_.Has(selectionParamsCBVSlot_) && prepared.resources->GetSelectionOutlineGPUAddress() != 0) {
-		RootBindingCommand::SetGraphicsCBV(commandList, sharedBindCache_.Get(selectionParamsCBVSlot_),
-			prepared.resources->GetSelectionOutlineGPUAddress());
+	if (sharedBindCache_.Has(screenSpaceOutlineMaskCBVSlot_) &&
+		prepared.resources->GetScreenSpaceOutlineMaskGPUAddress() != 0) {
+		RootBindingCommand::SetGraphicsCBV(commandList,
+			sharedBindCache_.Get(screenSpaceOutlineMaskCBVSlot_),
+			prepared.resources->GetScreenSpaceOutlineMaskGPUAddress());
 	}
 }
 
@@ -699,7 +715,7 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 	commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	commandList->SetPipelineState(pipelineState->GetComputePipeline());
 
-	// バッファバインド（パイプラインが変わった時だけ再解決）
+	// バッファバインドはパイプラインが変わった時だけ再解決する
 	skinningBindCache_.Sync(*pipelineState);
 	if (skinningBindCache_.Has(skinConstCBVSlot_)) {
 		RootBindingCommand::SetComputeCBV(commandList, skinningBindCache_.Get(skinConstCBVSlot_),

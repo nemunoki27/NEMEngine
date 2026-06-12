@@ -22,10 +22,9 @@ namespace Engine {
 	class SetSerializedComponentCommand :
 		public IEditorCommand {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		SetSerializedComponentCommand(const Entity& targetEntity, const std::string_view& typeName,
 			const nlohmann::json& beforeData, const nlohmann::json& afterData);
 		~SetSerializedComponentCommand() = default;
@@ -39,11 +38,12 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		const char* GetName() const override { return "Add Component"; }
+		// このコマンドはserialized component全体の上書きで編集やscript slotのadd remove reorder reassignを含み、固定のAdd Componentラベルは実処理と一致しないためtype名を含む汎用ラベルにする
+		const char* GetName() const override { return displayName_.c_str(); }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -51,6 +51,8 @@ namespace Engine {
 		UUID targetStableUUID_{};
 
 		std::string typeName_{};
+		// Undo履歴に表示するラベル、type名を含みGetNameがconst char*を返すため保持する
+		std::string displayName_{};
 		nlohmann::json beforeData_{};
 		nlohmann::json afterData_{};
 
@@ -60,3 +62,4 @@ namespace Engine {
 		bool Apply(EditorCommandContext& context, const nlohmann::json& data);
 	};
 } // Engine
+

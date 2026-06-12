@@ -15,7 +15,6 @@ namespace Engine {
 	//============================================================================
 	//	MaterialAsset structures
 	//============================================================================
-
 	// マテリアルの種類
 	enum class MaterialDomain :
 		uint8_t {
@@ -26,11 +25,34 @@ namespace Engine {
 		Compute,
 	};
 
+	// マテリアル内の固定パス種別
+	enum class MaterialPassKind :
+		uint8_t {
+
+		Invalid = 0,
+		ZPrepass,
+		Draw,
+		Transparent,
+		Outline,
+		OutlineStencilWrite,
+		OutlineStencilTest,
+		ScreenSpaceOutlineMask,
+		ScreenSpaceOutlineCoverageMask,
+		ScreenSpaceOutlineDilateHorizontal,
+		ScreenSpaceOutlineDilateVertical,
+		ScreenSpaceOutlineComposite,
+		Blit,
+		Fullscreen,
+		PostProcess,
+		LightCulling,
+		Reflection,
+	};
+
 	// マテリアルのパス情報
 	struct MaterialPassBinding {
 
-		// パスの名前
-		std::string passName;
+		// パスの種類
+		MaterialPassKind passKind = MaterialPassKind::Invalid;
 		// 使用されるパイプラインアセット
 		AssetID pipeline{};
 		// パイプラインバリアントの種類
@@ -64,5 +86,5 @@ namespace Engine {
 	nlohmann::json ToJson(const MaterialAsset& asset);
 
 	// マテリアルアセットからパス情報を検索する
-	const MaterialPassBinding* FindPass(const MaterialAsset& asset, const std::string_view& passName);
+	const MaterialPassBinding* FindPass(const MaterialAsset& asset, MaterialPassKind passKind);
 } // Engine

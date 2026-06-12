@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "mode": "VisualStudio",
+  "executable": "",
+  "arguments": "{project} {file}:{line}:{column}",
+  "project": "Scripts/GameScripts.csproj"
+}

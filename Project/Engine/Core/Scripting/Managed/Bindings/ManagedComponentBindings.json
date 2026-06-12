@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "comment": "C# script から調整可能な native component property の単一定義。NEM.ComponentBindingGen がここから C++ dispatch / C# wrapper を決定的に生成する。registryName は ENGINE_REGISTER_COMPONENT の名前(=runtime の compact type id 解決キー)。手書きで C++/C# を二重管理しない。",
+  "enums": [
+    {
+      "managedType": "BlendMode",
+      "nativeType": "BlendMode",
+      "members": [
+        { "name": "Normal", "value": 0 },
+        { "name": "Add", "value": 1 },
+        { "name": "Subtract", "value": 2 },
+        { "name": "Multiply", "value": 3 },
+        { "name": "Screen", "value": 4 }
+      ]
+    },
+    {
+      "managedType": "RenderPhase",
+      "nativeType": "RenderPhase",
+      "members": [
+        { "name": "Opaque", "value": 0 },
+        { "name": "Transparent", "value": 1 },
+        { "name": "PostProcessMaskedUI", "value": 2 },
+        { "name": "ScreenUI", "value": 3 },
+        { "name": "EditorOverlay", "value": 4 }
+      ]
+    }
+  ],
+  "components": [
+    {
+      "registryName": "SkinnedAnimation",
+      "nativeType": "SkinnedAnimationComponent",
+      "nativeHeader": "Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h",
+      "managedType": "SkinnedAnimation",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Clip", "nativeMember": "clip", "kind": "String", "access": "ReadWrite" },
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "Loop", "nativeMember": "loop", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "PlaybackSpeed", "nativeMember": "playbackSpeed", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "CurrentState", "nativeMember": "runtimeCurrentClip", "kind": "String", "access": "ReadOnly" },
+        { "managedName": "Finished", "nativeMember": "runtimeAnimationFinished", "kind": "Bool", "access": "ReadOnly" }
+      ]
+    },
+    {
+      "registryName": "SpriteRenderer",
+      "nativeType": "SpriteRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/SpriteRendererComponent.h",
+      "managedType": "SpriteRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Texture", "nativeMember": "texture", "kind": "AssetRef", "assetType": "TextureAsset", "access": "ReadWrite" },
+        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "MaterialAsset", "access": "ReadWrite" },
+        { "managedName": "Size", "nativeMember": "size", "kind": "Vector2", "access": "ReadWrite" },
+        { "managedName": "Pivot", "nativeMember": "pivot", "kind": "Vector2", "access": "ReadWrite" },
+        { "managedName": "Color", "nativeMember": "color", "kind": "Color4", "access": "ReadWrite" },
+        { "managedName": "Layer", "nativeMember": "layer", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Order", "nativeMember": "order", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Visible", "nativeMember": "visible", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "BlendMode", "nativeMember": "blendMode", "kind": "Enum", "enumType": "BlendMode", "access": "ReadWrite" },
+        { "managedName": "Queue", "nativeMember": "queue", "kind": "Enum", "enumType": "RenderPhase", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "MeshRenderer",
+      "nativeType": "MeshRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/MeshRendererComponent.h",
+      "managedType": "MeshRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Mesh", "nativeMember": "mesh", "kind": "AssetRef", "assetType": "MeshAsset", "access": "ReadWrite" },
+        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "MaterialAsset", "access": "ReadWrite" },
+        { "managedName": "Layer", "nativeMember": "layer", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Order", "nativeMember": "order", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Visible", "nativeMember": "visible", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "BlendMode", "nativeMember": "blendMode", "kind": "Enum", "enumType": "BlendMode", "access": "ReadWrite" },
+        { "managedName": "Queue", "nativeMember": "queue", "kind": "Enum", "enumType": "RenderPhase", "access": "ReadWrite" },
+        { "managedName": "EnableZPrepass", "nativeMember": "enableZPrepass", "kind": "Bool", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "TextRenderer",
+      "nativeType": "TextRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/TextRendererComponent.h",
+      "managedType": "TextRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Font", "nativeMember": "font", "kind": "AssetRef", "assetType": "FontAsset", "access": "ReadWrite" },
+        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "MaterialAsset", "access": "ReadWrite" },
+        { "managedName": "Text", "nativeMember": "text", "kind": "String", "access": "ReadWrite" },
+        { "managedName": "FontSize", "nativeMember": "fontSize", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "CharSpacing", "nativeMember": "charSpacing", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Color", "nativeMember": "color", "kind": "Color4", "access": "ReadWrite" },
+        { "managedName": "Layer", "nativeMember": "layer", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Order", "nativeMember": "order", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Visible", "nativeMember": "visible", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "BlendMode", "nativeMember": "blendMode", "kind": "Enum", "enumType": "BlendMode", "access": "ReadWrite" },
+        { "managedName": "Queue", "nativeMember": "queue", "kind": "Enum", "enumType": "RenderPhase", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "DirectionalLight",
+      "nativeType": "DirectionalLightComponent",
+      "nativeHeader": "Engine/Core/World/Components/Lighting/DirectionalLightComponent.h",
+      "managedType": "DirectionalLight",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Color", "nativeMember": "color", "kind": "Color4", "access": "ReadWrite" },
+        { "managedName": "Direction", "nativeMember": "direction", "kind": "Vector3", "access": "ReadWrite" },
+        { "managedName": "Intensity", "nativeMember": "intensity", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "ShadowStrength", "nativeMember": "shadowStrength", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "PointLight",
+      "nativeType": "PointLightComponent",
+      "nativeHeader": "Engine/Core/World/Components/Lighting/PointLightComponent.h",
+      "managedType": "PointLight",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Color", "nativeMember": "color", "kind": "Color4", "access": "ReadWrite" },
+        { "managedName": "Intensity", "nativeMember": "intensity", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Radius", "nativeMember": "radius", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Decay", "nativeMember": "decay", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "SpotLight",
+      "nativeType": "SpotLightComponent",
+      "nativeHeader": "Engine/Core/World/Components/Lighting/SpotLightComponent.h",
+      "managedType": "SpotLight",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Color", "nativeMember": "color", "kind": "Color4", "access": "ReadWrite" },
+        { "managedName": "Direction", "nativeMember": "direction", "kind": "Vector3", "access": "ReadWrite" },
+        { "managedName": "Intensity", "nativeMember": "intensity", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Distance", "nativeMember": "distance", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Decay", "nativeMember": "decay", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "CosAngle", "nativeMember": "cosAngle", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "CosFalloffStart", "nativeMember": "cosFalloffStart", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "PerspectiveCamera",
+      "nativeType": "PerspectiveCameraComponent",
+      "nativeHeader": "Engine/Core/World/Components/Camera/CameraComponent.h",
+      "managedType": "PerspectiveCamera",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "FovY", "nativeMember": "fovY", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "NearClip", "nativeMember": "nearClip", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "FarClip", "nativeMember": "farClip", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Priority", "nativeMember": "common.priority", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "CullingMask", "nativeMember": "common.cullingMask", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Enabled", "nativeMember": "common.enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "IsMain", "nativeMember": "common.isMain", "kind": "Bool", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "OrthographicCamera",
+      "nativeType": "OrthographicCameraComponent",
+      "nativeHeader": "Engine/Core/World/Components/Camera/CameraComponent.h",
+      "managedType": "OrthographicCamera",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "NearClip", "nativeMember": "nearClip", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "FarClip", "nativeMember": "farClip", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Priority", "nativeMember": "common.priority", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "CullingMask", "nativeMember": "common.cullingMask", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Enabled", "nativeMember": "common.enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "IsMain", "nativeMember": "common.isMain", "kind": "Bool", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "AudioSource",
+      "nativeType": "AudioSourceComponent",
+      "nativeHeader": "Engine/Core/World/Components/Audio/AudioSourceComponent.h",
+      "managedType": "AudioSource",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Clip", "nativeMember": "clip", "kind": "AssetRef", "assetType": "AudioAsset", "access": "ReadWrite" },
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "PlayOnAwake", "nativeMember": "playOnAwake", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "Loop", "nativeMember": "loop", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "Volume", "nativeMember": "volume", "kind": "Float", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "UVTransform",
+      "nativeType": "UVTransformComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/UVTransformComponent.h",
+      "managedType": "UVTransform",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Position", "nativeMember": "pos", "kind": "Vector2", "access": "ReadWrite" },
+        { "managedName": "Rotation", "nativeMember": "rotation", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Scale", "nativeMember": "scale", "kind": "Vector2", "access": "ReadWrite" }
+      ]
+    }
+  ]
+}

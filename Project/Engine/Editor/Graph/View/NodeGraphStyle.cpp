@@ -6,7 +6,6 @@
 //============================================================================
 //	NodeGraphStyle classMethods
 //============================================================================
-
 namespace {
 
 	nlohmann::json ImVec2ToJson(const ImVec2& value) {
@@ -85,7 +84,7 @@ void Engine::NodeGraphStyle::PushEditorStyle() const {
 
 	namespace ed = ax::NodeEditor;
 
-	// NodeEditor本体の余白 / 枠 / Link挙動を現在の調整値へ差し替える
+	// NodeEditor本体の余白/枠/ Link挙動を現在の調整値へ差し替える
 	ed::PushStyleVar(ed::StyleVar_NodePadding, nodePadding);
 	ed::PushStyleVar(ed::StyleVar_NodeRounding, nodeRounding);
 	ed::PushStyleVar(ed::StyleVar_NodeBorderWidth, nodeBorderWidth);

@@ -13,7 +13,6 @@
 //============================================================================
 //	GraphSerializer classMethods
 //============================================================================
-
 namespace {
 
 	nlohmann::json PinToJson(const Engine::GraphPin& pin) {

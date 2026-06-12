@@ -21,7 +21,6 @@
 //============================================================================
 //	SceneGridRenderer classMethods
 //============================================================================
-
 namespace {
 
 	struct GridPoint2D {
@@ -47,7 +46,7 @@ namespace {
 		return a + (b - a) * t;
 	}
 
-	// 1 / 2 / 5 * 10^n にスナップ
+	// 1 / 2 / 5 * 10^nにスナップ
 	float SnapGridStep(float rawStep) {
 
 		rawStep = (std::max)(rawStep, 0.001f);
@@ -372,14 +371,14 @@ namespace {
 			return result;
 		}
 
-		// target range の真ん中ではなく、対数的な中心を使う
-		// 64 ～ 256 なら 128 付近を狙う
+		// target rangeの真ん中ではなく、対数的な中心を使う
+		// 64～256なら128付近を狙う
 		float targetPixelCenter = std::sqrt(safeTargetPixelMin * safeTargetPixelMax);
 
-		// 理想的な連続値の minor step
+		// 理想的な連続値のminor step
 		float idealMinorStep = (std::max)(targetPixelCenter / pixelsPerUnit, safeBaseMinStep);
 
-		// idealMinorStep を挟む 2つの snapped step を求める
+		// idealMinorStepを挟む2つのsnapped stepを求める
 		float upper = SnapGridStep(idealMinorStep);
 		if (upper < idealMinorStep) {
 			upper = NextGridStep(upper);
@@ -388,7 +387,7 @@ namespace {
 		float lower = PrevGridStep(upper);
 		lower = (std::max)(lower, safeBaseMinStep);
 
-		// lower == upper の場合はそのまま
+		// lower == upperの場合はそのまま
 		if (std::abs(upper - lower) < kEpsilon) {
 			GridStepBlend result{};
 			result.minorStep0 = lower;
@@ -397,7 +396,7 @@ namespace {
 			return result;
 		}
 
-		// 対数空間で補間すると 1/2/5 ステップでも自然
+		// 対数空間で補間すると1/2/5ステップでも自然
 		float denom = std::log(upper / lower);
 		float blend = 0.0f;
 		if (std::abs(denom) > kEpsilon) {
@@ -418,7 +417,7 @@ namespace {
 
 Engine::SceneGridRenderer::~SceneGridRenderer() {
 
-	// フレーム内複数描画用に保持した定数バッファを終了時に明示resetする。
+	// フレーム内複数描画用に保持した定数バッファを終了時に明示resetする
 	for (auto& buffer : passBuffers_) {
 		buffer.reset();
 	}
@@ -611,7 +610,7 @@ Engine::DxConstBuffer<Engine::SceneGridRenderer::GridPassConstants>& Engine::Sce
 
 	if (passBuffers_.size() <= passBufferIndex_) {
 
-		// 同じフレーム内で複数のカメラから描画されても、記録済みコマンドの定数を上書きしない。
+		// 同じフレーム内で複数のカメラから描画されても、記録済みコマンドの定数を上書きしない
 		auto buffer = std::make_unique<DxConstBuffer<GridPassConstants>>();
 		buffer->CreateBuffer(graphicsCore.GetDXObject().GetDevice());
 		passBuffers_.emplace_back(std::move(buffer));

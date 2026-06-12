@@ -3,7 +3,6 @@
 //============================================================================
 //	PrefabHeader classMethods
 //============================================================================
-
 bool Engine::FromJson(const nlohmann::json& data, PrefabHeader& prefabHeader) {
 
 	if (!data.is_object()) {

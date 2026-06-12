@@ -18,10 +18,9 @@ namespace Engine {
 	class RenderExtractorRegistry :
 		public ListRegistryBase<IRenderItemExtractor> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		RenderExtractorRegistry() = default;
 		~RenderExtractorRegistry() override = default;
 

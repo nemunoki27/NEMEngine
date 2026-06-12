@@ -14,7 +14,6 @@
 //============================================================================
 //	ReparentEntityCommand classMethods
 //============================================================================
-
 namespace {
 
 	Engine::Entity GetParent(Engine::ECSWorld& world, const Engine::Entity& entity) {
@@ -112,7 +111,7 @@ bool Engine::ReparentEntityCommand::ApplyParent(EditorCommandContext& context, U
 		return false;
 	}
 
-	// 新しい親を検索する。UUIDが無効な場合はNullエンティティになる
+	// 新しい親を検索しUUIDが無効な場合はNullエンティティになる
 	Entity newParent = Entity::Null();
 	if (parentStableUUID) {
 

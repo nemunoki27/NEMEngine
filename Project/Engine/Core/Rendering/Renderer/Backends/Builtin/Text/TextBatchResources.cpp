@@ -9,7 +9,6 @@
 //============================================================================
 //	TextBatchResources classMethods
 //============================================================================
-
 void Engine::TextBatchResources::Init(GraphicsCore& graphicsCore) {
 
 	// すでに初期化されている場合は何もしない
@@ -51,10 +50,10 @@ void Engine::TextBatchResources::CreateQuadBuffers(ID3D12Device* device, BufferU
 		1, 3, 2
 	};
 
-	// TextのGlyph Quad形状は初期化後に変わらないため、DEFAULT heapへ置きUploadServiceで初期転送する。
+	// TextのGlyph Quad形状は初期化後に変わらないため、DEFAULT heapへ置きUploadServiceで初期転送する
 	vertexBuffer_.Create(device, uploadService, std::span<const TextVertex>(vertices.data(), vertices.size()));
 	indexBuffer_.Create(device, uploadService, std::span<const uint32_t>(indices.data(), indices.size()));
-	// 固定Glyph Quadの転送はInit中に完結させ、以後の描画ではDEFAULT heapだけを参照する。
+	// 固定Glyph Quadの転送はInit中に完結させ、以後の描画ではDEFAULT heapだけを参照する
 	uploadService.SubmitBatch();
 }
 

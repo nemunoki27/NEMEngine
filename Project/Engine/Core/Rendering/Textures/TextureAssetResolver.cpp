@@ -12,7 +12,6 @@
 //============================================================================
 //	TextureAssetResolver classMethods
 //============================================================================
-
 std::string Engine::TextureAssetResolver::NormalizeStem(const std::string_view& name) {
 
 	std::filesystem::path path(name);
@@ -80,7 +79,7 @@ ChooseBestCandidate(const std::vector<TextureCandidate>& candidates) const {
 		// 優先順位:
 		// 1. Engine/Assets/Textures/<modelStem>/...
 		// 2. .dds
-		// 3. それ以外
+		// 3.それ以外
 		if (candidate.inPreferredFolder) {
 			score += 1000;
 		}
@@ -124,7 +123,7 @@ void Engine::TextureAssetResolver::Build(const std::filesystem::path& modelFullP
 	texturesRoot_ = RuntimePaths::GetEngineAssetPath("Textures");
 	modelDirectory_ = modelFullPath.parent_path();
 
-	// OBJ/MTLやglTFはモデル横の相対パスを持つことが多いので、モデル周辺を最優先で索引化する。
+	// OBJ/MTLやglTFはモデル横の相対パスを持つことが多いので、モデル周辺を最優先で索引化する
 	if (std::filesystem::exists(modelDirectory_) && std::filesystem::is_directory(modelDirectory_)) {
 
 		IndexDirectoryRecursive(modelDirectory_, true);

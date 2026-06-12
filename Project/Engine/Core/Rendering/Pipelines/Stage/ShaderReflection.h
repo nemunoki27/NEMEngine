@@ -18,7 +18,6 @@ namespace Engine {
 	//============================================================================
 	//	ShaderReflection structures
 	//============================================================================
-
 	// シェーダ―の種類
 	enum class ShaderStage :
 		uint32_t {
@@ -104,7 +103,7 @@ namespace Engine {
 		std::vector<ShaderResourceBinding> resources;
 		// シェーダー入力セマンティクスの情報
 		std::vector<ShaderInputSemantic> inputs;
-		// 定数バッファの中身。Material Parametersの自動詰め込みに使用する。
+		// 定数バッファの中身でMaterial Parametersの自動詰め込みに使用する
 		std::vector<ShaderConstantBufferInfo> constantBuffers;
 		uint64_t requiresFlags = 0;
 

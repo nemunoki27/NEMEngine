@@ -17,7 +17,6 @@ namespace Engine {
 	//============================================================================
 	//	BehaviorWorld structures
 	//============================================================================
-
 	// ビヘイビアの実体を保持する構造体
 	struct BehaviorRecord {
 
@@ -37,8 +36,19 @@ namespace Engine {
 		bool enabled = false;
 		bool awakeCalled = false;
 		bool startCalled = false;
+		// ScriptBehaviour.Enabledによるruntime override
+		// hasRuntimeEnabledOverrideが立っている間はauthoringのScriptEntry.enabledより優先される
+		// authoringへは書き戻さずPlay終了でrecordごと破棄される
+		bool runtimeEnabledOverride = false;
+		bool hasRuntimeEnabledOverride = false;
+		// callback内で回復不能な例外が発生した状態でfaulted以降はgameplay callbackを呼ばない
+		bool faulted = false;
 		// スイープ用
 		bool seen = false;
+
+		// serializedFieldsを適用済みのリビジョンでsentinelは未適用
+		// ScriptEntry.serializedRevisionと一致するまで再適用しhot pathでのJSON再適用を防ぐ
+		uint32_t appliedSerializedRevision = 0xFFFFFFFF;
 	};
 
 	//============================================================================
@@ -47,10 +57,9 @@ namespace Engine {
 	//============================================================================
 	class BehaviorWorld {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		BehaviorWorld() = default;
 		~BehaviorWorld() = default;
 
@@ -64,7 +73,8 @@ namespace Engine {
 		// 全てのビヘイビアの実体に対してアクセスされたフラグをクリアする
 		void ClearSeenFlags();
 		// 実体がアクセスされなかったビヘイビアを全てのレコードに対して破棄する
-		void SweepUnseen(ECSWorld& world, const SystemContext& context);
+		// 破棄した件数を返しparticipantキャッシュの再構築要否判定に使う
+		uint32_t SweepUnseen(ECSWorld& world, const SystemContext& context);
 
 		// ビヘイビアの実体全てに対して関数を呼び出す
 		template <typename Fn>
@@ -85,9 +95,9 @@ namespace Engine {
 		// ビヘイビアの実体を返す
 		MonoBehavior* GetBehavior(const BehaviorHandle& handle);
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -111,7 +121,6 @@ namespace Engine {
 	//============================================================================
 	//	BehaviorWorld templateMethods
 	//============================================================================
-
 	template<typename Fn>
 	inline void BehaviorWorld::ForEachAlive(Fn&& fn) {
 
@@ -143,3 +152,4 @@ namespace Engine {
 		}
 	}
 } // Engine
+

@@ -20,11 +20,10 @@
 //============================================================================
 //	AssetDatabase classMethods
 //============================================================================
-
 namespace {
 
-	// 例外を投げずにJSONファイルを読む。解析失敗時はis_discarded()のjsonを返す。
-	// 大量のファイルを走査するため、parse_errorの一次例外でデバッガを埋めないようにする。
+	// 例外を投げずにJSONファイルを読み解析失敗時はis_discarded()のjsonを返す
+	// 大量のファイルを走査するため、parse_errorの一次例外でデバッガを埋めないようにする
 	nlohmann::json LoadJsonFileNoThrow(const std::filesystem::path& path) {
 
 		std::ifstream ifs(path, std::ios::binary);
@@ -35,8 +34,8 @@ namespace {
 		return nlohmann::json::parse(content, nullptr, false);
 	}
 
-	// 依存抽出で対象にする参照キーと、その期待AssetType。
-	// stableID/localFileID等のScene内部IDはここに無いため誤検出しない。
+	// 依存抽出で対象にする参照キーと、その期待AssetType
+	// stableID/localFileID等のScene内部IDはここに無いため誤検出しない
 	const std::unordered_map<std::string, Engine::AssetType>& ReferenceKeyMap() {
 
 		static const std::unordered_map<std::string, Engine::AssetType> kMap = {
@@ -146,8 +145,8 @@ bool Engine::AssetDatabase::RebuildMeta() {
 	pathToGuid_.reserve(reserveHint);
 	referencersByGuid_.reserve(reserveHint);
 
-	// 先にUID索引を作り、実体のない.metaを拾ってから依存関係を解決する。
-	// 依存抽出を索引構築と同時にやると、後から登録される正常アセットをMissing扱いしてしまう。
+	// 先にUID索引を作り、実体のない.metaを拾ってから依存関係を解決する
+	// 依存抽出を索引構築と同時にやると、後から登録される正常アセットをMissing扱いしてしまう
 	RebuildIndex(scanRoots);
 	DetectOrphanMeta(scanRoots);
 	RebuildDependencies();
@@ -242,7 +241,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 
 	const std::string lookupKey = NormalizeLookupKey(assetPath);
 
-	// 既に索引にあるなら返す。別表記の同一キー衝突はDuplicatePathとして検出する
+	// 既に索引にあるなら返し、別表記の同一キー衝突はDuplicatePathとして検出する
 	if (auto it = pathToGuid_.find(lookupKey); it != pathToGuid_.end()) {
 
 		const AssetMeta* existing = Find(it->second);
@@ -264,7 +263,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 
 		if (!TryLoadMeta(metaFull, meta)) {
 
-			// 壊れた.metaは静かに新UIDで上書きしない。診断に残してスキップする
+			// 壊れた.metaは静かに新UIDで上書きせず診断に残してスキップする
 			AddIssue({ AssetDatabaseIssueType::CorruptMeta, {}, {},
 				AssetType::Unknown, AssetType::Unknown, assetPath, metaFull.generic_string(),
 				"failed to parse .meta" });
@@ -494,7 +493,7 @@ bool Engine::AssetDatabase::TryLoadMeta(const std::filesystem::path& metaFullPat
 		return false;
 	}
 
-	// guidは厳密にパースする。欠落・不正・0はすべて破損扱い
+	// guidは厳密にパースし欠落や不正や0はすべて破損扱い
 	const std::string guidStr = data.value("guid", "");
 	const std::optional<AssetID> parsedGuid = TryParseUUID16Hex(guidStr);
 	if (!parsedGuid) {
@@ -517,7 +516,12 @@ bool Engine::AssetDatabase::TryLoadMeta(const std::filesystem::path& metaFullPat
 
 bool Engine::AssetDatabase::SaveMeta(const std::filesystem::path& metaFullPath, const AssetMeta& meta) const {
 
-	nlohmann::json data = nlohmann::json::object();
+	// 既存の .meta を読み、script importer が書く "scripts" 等の未知キーを保持したまま
+	// 既知キーだけ更新し、AssetDatabaseがguid採番で書き直してもsidecarの追加情報を壊さない
+	nlohmann::json data = LoadJsonFileNoThrow(metaFullPath);
+	if (!data.is_object()) {
+		data = nlohmann::json::object();
+	}
 
 	data["guid"] = ToString(meta.guid);
 	data["type"] = std::string(EnumAdapter<AssetType>::ToString(meta.type));

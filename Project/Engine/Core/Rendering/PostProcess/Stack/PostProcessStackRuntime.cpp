@@ -3,7 +3,6 @@
 //============================================================================
 //	PostProcessStackRuntime classMethods
 //============================================================================
-
 bool Engine::PostProcessStackRuntime::HasEnabledPasses() const {
 
 	for (const auto& pass : passes) {

@@ -8,7 +8,6 @@
 //============================================================================
 //	MaterialResolver classMethods
 //============================================================================
-
 Engine::AssetID Engine::MaterialResolver::ResolveORDefault(AssetDatabase& database, AssetID requested, DefaultMaterialSlot slot)  const {
 
 	// 要求されたIDが有効であればそれを返す

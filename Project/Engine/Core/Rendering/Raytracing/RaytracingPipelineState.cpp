@@ -10,7 +10,6 @@
 //============================================================================
 //	RaytracingPipelineState classMethods
 //============================================================================
-
 namespace {
 	// シェーダーファイルのパスを解決する関数
 	std::filesystem::path ResolveShaderPath(const std::string& file) {

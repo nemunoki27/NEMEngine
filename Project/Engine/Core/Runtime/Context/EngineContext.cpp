@@ -12,7 +12,6 @@
 //============================================================================
 //	EngineContext classMethods
 //============================================================================
-
 Engine::EngineContext::WindowSetting Engine::EngineContext::windowSetting_ = {};
 Engine::EngineContext::GraphicsSetting Engine::EngineContext::graphicsSetting_ = {};
 

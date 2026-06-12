@@ -5,7 +5,6 @@ using namespace Engine;
 //============================================================================
 //	Vector2 structMethods
 //============================================================================
-
 Vector2 Vector2::operator+(const Vector2& other) const {
 	return Vector2(x + other.x, y + other.y);
 }
@@ -164,7 +163,6 @@ Vector2 Vector2::Lerp(const Vector2& v0, const Vector2& v1, const Vector2& lerpT
 //============================================================================
 //	Vector2I structMethods
 //============================================================================
-
 Vector2I Vector2I::operator+(const Vector2I& other) const {
 	return Vector2I(x + other.x, y + other.y);
 }

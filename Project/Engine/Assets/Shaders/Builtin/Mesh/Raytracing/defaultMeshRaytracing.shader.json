@@ -1,0 +1,29 @@
+{
+  "name": "DefaultMeshRaytracing",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "Builtin/Mesh/Forward/defaultMesh.VS.hlsl",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "AS",
+      "file": "Builtin/Mesh/Forward/defaultMesh.AS.hlsl",
+      "entry": "main",
+      "profile": "as_6_6"
+    },
+    {
+      "stage": "MS",
+      "file": "Builtin/Mesh/Forward/defaultMesh.MS.hlsl",
+      "entry": "main",
+      "profile": "ms_6_6"
+    },
+    {
+      "stage": "PS",
+      "file": "Builtin/Mesh/Raytracing/defaultMeshRayQuery.PS.hlsl",
+      "entry": "main",
+      "profile": "ps_6_6"
+    }
+  ]
+}

@@ -9,11 +9,14 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/Components/Camera/CameraComponent.h>
 
 //============================================================================
 //	TransformInspectorDrawer classMethods
 //============================================================================
-
 namespace {
 
 	// ワールドのトランスフォームとドラフトのトランスフォームを比較して、どこかが変化しているかどうかを判定する
@@ -159,7 +162,6 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	//============================================================================
 	//	Matrix
 	//============================================================================
-
 	MyGUI::TextMatrix4x4("ワールド行列", draftTransform_.worldMatrix);
 
 	// アイテムを操作している場合は編集状態にする
@@ -192,6 +194,13 @@ void Engine::TransformInspectorDrawer::SyncDraftFromWorld(ECSWorld& world, const
 		draftEulerDegrees_ = Vector3::MakeContinuousDegrees(rawEulerDegrees, draftEulerDegrees_);
 	} else {
 		draftEulerDegrees_ = rawEulerDegrees;
+
+		// エンティティが切り替わった際にコンポーネント構成による次元の自動切り替えを行う
+		if (world.HasComponent<MeshRendererComponent>(entity) || world.HasComponent<PerspectiveCameraComponent>(entity)) {
+			editDimension_ = Dimension::Type3D;
+		} else if (world.HasComponent<SpriteRendererComponent>(entity) || world.HasComponent<TextRendererComponent>(entity) || world.HasComponent<OrthographicCameraComponent>(entity)) {
+			editDimension_ = Dimension::Type2D;
+		}
 	}
 
 	editingEntityStableUUID_ = stableUUID;

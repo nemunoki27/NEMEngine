@@ -15,7 +15,6 @@ namespace Engine {
 	//============================================================================
 	//	AudioSourceComponent struct
 	//============================================================================
-
 	// Entityに音声再生設定を持たせるコンポーネント
 	struct AudioSourceComponent {
 
@@ -30,12 +29,16 @@ namespace Engine {
 		// 音量
 		float volume = 1.0f;
 
-		// Runtime用。Scene/Prefabには保存しない
+		// Runtime用でScene/Prefabには保存しない
 		bool runtimePlaying = false;
 		AssetID runtimeClip{};
 		std::string runtimeKey{};
 		uint64_t runtimeVoiceID = 0;
 		bool runtimePlayOnAwakeConsumed = false;
+		// gameplay C#からの明示要求でAudioSourceSystemが消費する、0=なし 1=Play 2=Pause 3=Stop
+		int runtimePlayRequest = 0;
+		// 一時停止中かでvoiceは保持されている
+		bool runtimePaused = false;
 	};
 
 	// json変換

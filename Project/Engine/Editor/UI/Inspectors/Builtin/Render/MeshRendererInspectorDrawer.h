@@ -16,18 +16,17 @@ namespace Engine {
 	class MeshRendererInspectorDrawer :
 		public SerializedComponentInspectorDrawer<MeshRendererComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		MeshRendererInspectorDrawer() :
 			SerializedComponentInspectorDrawer("Mesh Renderer", "MeshRenderer") {
 		}
 		~MeshRendererInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -61,3 +60,4 @@ namespace Engine {
 			MeshRendererComponent& draft) const;
 	};
 } // Engine
+

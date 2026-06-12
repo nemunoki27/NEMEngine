@@ -3,7 +3,7 @@
   "domain": "UI",
   "passes": [
     {
-      "passName": "Draw",
+      "passKind": "Draw",
       "pipeline": "3309336c2fa4669c",
       "preferredVariant": "GraphicsVertex"
     }

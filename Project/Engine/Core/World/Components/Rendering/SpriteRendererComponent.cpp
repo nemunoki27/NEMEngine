@@ -8,7 +8,6 @@
 //============================================================================
 //	SpriteRendererComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, SpriteRendererComponent& component) {
 
 	component.texture = ParseAssetID(in, "texture");

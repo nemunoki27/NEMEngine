@@ -1,5 +1,7 @@
 #include "Win32Window.h"
 
+#include <Engine/Core/Platform/Input/InputSystem.h>
+
 using namespace Engine;
 
 //============================================================================
@@ -18,7 +20,6 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
 //============================================================================
 //	WinApp classMethods
 //============================================================================
-
 namespace {
 
 	// クライアント座標系の矩形を作成する
@@ -47,7 +48,7 @@ bool (*WinApp::closeRequestCallback_)() = nullptr;
 
 void WinApp::ForceShowCursor(bool show) {
 
-	// ShowCursor は内部カウンタ方式なので、目標状態まで回す
+	// ShowCursorは内部カウンタ方式なので、目標状態まで回す
 	if (show) {
 
 		while (ShowCursor(TRUE) < 0) {}
@@ -204,7 +205,7 @@ void WinApp::SetFullscreen(bool fullscreen) {
 
 	if (fullscreen) {
 
-		// 現在のウィンドウ情報を保存（復元用）
+		// 現在のウィンドウ情報を復元用に保存する
 		GetWindowRect(hwnd_, &windowRect_);
 
 		// ウィンドウがあるモニターの領域を取得
@@ -312,23 +313,45 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 			// 非アクティブ：必ず解除＆表示
 			ClipCursor(nullptr);
 			ForceShowCursor(true);
+			if (Input* input = Input::GetInstance()) {
+				input->SetWindowFocus(false);
+			}
 		} else {
 
 			ApplyCursorVisibilityIfNeeded();
 			ApplyCursorClipIfNeeded();
+			if (Input* input = Input::GetInstance()) {
+				input->SetWindowFocus(true);
+			}
 		}
 		return 0;
 	case WM_SETFOCUS:
 
 		ApplyCursorVisibilityIfNeeded();
 		ApplyCursorClipIfNeeded();
+		if (Input* input = Input::GetInstance()) {
+			input->SetWindowFocus(true);
+		}
 		return 0;
 
 	case WM_KILLFOCUS:
 
 		ClipCursor(nullptr);
 		ForceShowCursor(true);
+		if (Input* input = Input::GetInstance()) {
+			input->SetWindowFocus(false);
+		}
 		return 0;
+
+	case WM_CHAR:
+
+		// gameplay向け文字入力で制御文字以外をframe-localテキストへ溜める、ImGuiとは独立
+		if (wparam >= 0x20 || wparam == L'\t' || wparam == L'\n' || wparam == L'\r') {
+			if (Input* input = Input::GetInstance()) {
+				input->AppendTextInputUtf16(static_cast<wchar_t>(wparam));
+			}
+		}
+		break;
 	case WM_SIZE:
 	case WM_MOVE:
 

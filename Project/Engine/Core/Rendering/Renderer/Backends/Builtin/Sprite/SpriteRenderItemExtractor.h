@@ -14,10 +14,9 @@ namespace Engine {
 	class SpriteRenderItemExtractor :
 		public IRenderItemExtractor {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		SpriteRenderItemExtractor() = default;
 		~SpriteRenderItemExtractor() = default;
 

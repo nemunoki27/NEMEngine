@@ -8,7 +8,6 @@
 //============================================================================
 //	RenderBackendRegistry classMethods
 //============================================================================
-
 void Engine::RenderBackendRegistry::BeginFrame(GraphicsCore& graphicsCore) {
 
 	for (auto& [id, backend] : items_) {

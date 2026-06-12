@@ -17,7 +17,6 @@
 //============================================================================
 //	NodeGraphView classMethods
 //============================================================================
-
 namespace {
 
 	namespace ed = ax::NodeEditor;
@@ -152,7 +151,7 @@ void Engine::NodeGraphView::DrawGroupNode(GraphNode& node, const NodeGraphViewDe
 	const float b = node.properties.value("colorB", 0.55f);
 	const float a = node.properties.value("colorA", 0.30f);
 
-	// グループ背景 / 枠線色をNodeごとに上書きする
+	// グループ背景/枠線色をNodeごとに上書きする
 	ed::PushStyleColor(ed::StyleColor_GroupBg, ImVec4(r, g, b, a));
 	ed::PushStyleColor(ed::StyleColor_GroupBorder,
 		ImVec4((std::min)(1.0f, r + 0.15f), (std::min)(1.0f, g + 0.15f), (std::min)(1.0f, b + 0.15f), 0.80f));
@@ -170,7 +169,7 @@ void Engine::NodeGraphView::DrawGroupNode(GraphNode& node, const NodeGraphViewDe
 	};
 	ImGui::TextColored(titleColor, "%s", title.empty() ? "Group" : title.c_str());
 
-	// グループ内部サイズ: 保存済みの合計サイズから余白とタイトル高さを差し引く
+	// グループ内部サイズ:保存済みの合計サイズから余白とタイトル高さを差し引く
 	constexpr float kDefaultGroupW = 300.0f;
 	constexpr float kDefaultGroupH = 150.0f;
 	const float titleH = ImGui::GetTextLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
@@ -201,7 +200,7 @@ void Engine::NodeGraphView::DrawNode(GraphDocument& document, GraphNode& node, c
 	const ImVec4 accentColor = style_.GetNodeAccentColor(node.type);
 	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, node.enabled ? 1.0f : style_.disabledNodeAlpha);
 
-	// タイトル部。Unity系GraphViewに寄せて、種類色を左に出す
+	// タイトル部でUnity系GraphViewに寄せて種類色を左に出す
 	ImGui::TextColored(accentColor, node.displayName.empty() ? node.type.c_str() : node.displayName.c_str());
 	if (desc.isNodeHighlighted && desc.isNodeHighlighted(node)) {
 		ImGui::SameLine();
@@ -291,8 +290,8 @@ void Engine::NodeGraphView::DrawLinks(const GraphDocument& document) {
 bool Engine::NodeGraphView::DrawCreateLink(GraphDocument& document) {
 
 	bool changed = false;
-	// imgui-node-editorはBeginCreateがfalseを返すフレームでもEndCreateが必要。
-	// ここで早期returnすると内部のCreateItemActionが閉じず、次フレームのBeginCreateでassertする。
+	// imgui-node-editorはBeginCreateがfalseを返すフレームでもEndCreateが必要
+	// ここで早期returnすると内部のCreateItemActionが閉じず、次フレームのBeginCreateでassertする
 	const bool creating = ed::BeginCreate(style_.GetLinkColor(GraphValueType::Flow), style_.createLinkThickness);
 	if (creating) {
 

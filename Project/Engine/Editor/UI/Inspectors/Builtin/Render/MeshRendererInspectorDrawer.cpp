@@ -13,7 +13,6 @@
 //============================================================================
 //	MeshRendererInspectorDrawer classMethods
 //============================================================================
-
 void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& context,
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
@@ -166,19 +165,48 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 	// パラメータ
 		{
 			// ローカル変換
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragVector3("ローカル位置", subMesh.localPos,
-					{ .dragSpeed = 0.01f, .minValue = -100000.0f, .maxValue = 100000.0f });
-				});
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragVector3("ローカル回転", subMesh.localRotation,
-					{ .dragSpeed = 0.1f, .minValue = -100000.0f, .maxValue = 100000.0f });
-				});
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragVector3("ローカルスケール", subMesh.localScale,
-					{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 100000.0f });
-				});
-			MyGUI::TextVector3("元ピボット", subMesh.sourcePivot);
+			{
+				FloatEditSetting editSetting{ .minValue = -100000.0f, .maxValue = 100000.0f, .closeOnProperty = false, .reserveRightWidth = 80.0f };
+				ImVec2 resetButtonSize = ImVec2(editSetting.reserveRightWidth, ImGui::GetFrameHeight());
+
+				DrawField(anyItemActive, [&]() {
+					editSetting.dragSpeed = 0.01f;
+					auto result = MyGUI::DragVector3("ローカル位置", subMesh.localPos, editSetting);
+					ImGui::SameLine();
+					if (ImGui::Button("リセット##SubMeshLocalPos", resetButtonSize)) {
+						subMesh.localPos.Init();
+						result.valueChanged = true;
+						result.editFinished = true;
+					}
+					MyGUI::EndPropertyRow();
+					return result;
+					});
+				DrawField(anyItemActive, [&]() {
+					editSetting.dragSpeed = 0.1f;
+					auto result = MyGUI::DragVector3("ローカル回転", subMesh.localRotation, editSetting);
+					ImGui::SameLine();
+					if (ImGui::Button("リセット##SubMeshLocalRotation", resetButtonSize)) {
+						subMesh.localRotation.Init();
+						result.valueChanged = true;
+						result.editFinished = true;
+					}
+					MyGUI::EndPropertyRow();
+					return result;
+					});
+				DrawField(anyItemActive, [&]() {
+					editSetting.dragSpeed = 0.01f;
+					editSetting.minValue = 0.0f;
+					auto result = MyGUI::DragVector3("ローカルスケール", subMesh.localScale, editSetting);
+					ImGui::SameLine();
+					if (ImGui::Button("リセット##SubMeshLocalScale", resetButtonSize)) {
+						subMesh.localScale = Vector3::AnyInit(1.0f);
+						result.valueChanged = true;
+						result.editFinished = true;
+					}
+					MyGUI::EndPropertyRow();
+					return result;
+					});
+			}
 			ImGui::Separator();
 			MyGUI::TextMatrix4x4("ワールド行列", subMesh.worldMatrix);
 			ImGui::Separator();

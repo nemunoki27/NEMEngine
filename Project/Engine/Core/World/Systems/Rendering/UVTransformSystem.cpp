@@ -8,7 +8,6 @@
 //============================================================================
 //	UVTransformUpdateSystem classMethods
 //============================================================================
-
 void Engine::UVTransformUpdateSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
 	world.ForEach<UVTransformComponent>([&]([[maybe_unused]] Entity entity, UVTransformComponent& uvTransform) {

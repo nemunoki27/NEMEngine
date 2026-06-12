@@ -27,7 +27,6 @@
 //============================================================================
 //	HierarchyPanel classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kActiveEyeTextureKey = "editor:hierarchy:entityActiveEye";
@@ -67,7 +66,6 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	ワールドのルートエンティティを列挙して表示
 	//============================================================================
-
 	DrawBackgroundContextMenu(context);
 
 	ECSWorld* world = context.GetWorld();
@@ -246,7 +244,6 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	//============================================================================
 	//	左側のアクティブチェックボックス
 	//============================================================================
-
 	// チェックボックスがクリックされたか
 	bool checkboxLeftClicked = false;
 	bool checkboxRightClicked = false;
@@ -267,7 +264,6 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	//============================================================================
 	//	ツリーノード本体
 	//============================================================================
-
 	// アクティブでない場合はテキストを薄く表示する
 	if (!activeInHierarchy) {
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));

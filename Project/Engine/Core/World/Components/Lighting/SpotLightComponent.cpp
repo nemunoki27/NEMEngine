@@ -3,7 +3,6 @@
 //============================================================================
 //	SpotLightComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, SpotLightComponent& component) {
 
 	component.color = Color4::FromJson(in.value("color", nlohmann::json()));

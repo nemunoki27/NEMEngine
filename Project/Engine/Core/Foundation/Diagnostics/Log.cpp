@@ -84,7 +84,7 @@ void Logger::CreateLogFiles(const std::filesystem::path& logDir, bool truncate) 
 		try {
 			std::vector<spdlog::sink_ptr> sinks;
 
-			// 例: Engine だけ console + msvc、GameLogic はファイルのみ
+			// 例: Engineだけconsole + msvc、GameLogicはファイルのみ
 			const bool withConsole = (type == LogType::Engine);
 
 			if (withConsole) {
@@ -172,7 +172,7 @@ void Logger::BlankLine(LogType type, std::uint32_t lines) {
 	}
 
 #if defined(_MSC_VER)
-	// Visual Studio 出力ウィンドウにも空行を出す
+	// Visual Studio出力ウィンドウにも空行を出す
 	auto& lg = Get(type);
 	if (HasDebugSink(lg)) {
 		for (std::uint32_t i = 0; i < lines; ++i) {

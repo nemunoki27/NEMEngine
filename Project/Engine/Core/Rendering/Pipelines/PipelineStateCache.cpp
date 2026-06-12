@@ -3,7 +3,6 @@
 //============================================================================
 //	PipelineStateCache classMethods
 //============================================================================
-
 namespace {
 
 	// シェーダーステージエントリからエントリポイントを解決する、存在しない場合は "main" を返す
@@ -229,7 +228,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 
 void Engine::PipelineStateCache::Clear() {
 
-	// PipelineStateはRootSignature/PSOを持つため、cache破棄前に明示resetする。
+	// PipelineStateはRootSignature/PSOを持つため、cache破棄前に明示resetする
 	for (auto& [key, state] : cache_) {
 		(void)key;
 		state.reset();

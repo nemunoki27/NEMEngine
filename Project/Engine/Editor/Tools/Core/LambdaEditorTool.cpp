@@ -11,7 +11,6 @@
 //============================================================================
 //	LambdaEditorTool classMethods
 //============================================================================
-
 Engine::LambdaEditorTool::LambdaEditorTool(ToolDescriptor descriptor, DrawFunc drawFunc,
 	TickFunc tickFunc, EnabledFunc enabledFunc) :
 	descriptor_(std::move(descriptor)),

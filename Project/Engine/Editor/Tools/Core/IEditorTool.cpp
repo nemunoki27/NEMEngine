@@ -5,7 +5,6 @@ using namespace Engine;
 //============================================================================
 //	IEditorTool classMethods
 //============================================================================
-
 void Engine::EditorToolRenderTexture::Destroy() {
 
 	if (renderTarget) {
@@ -73,14 +72,14 @@ EditorToolRenderTexture* Engine::IEditorTool::CreateRenderTexture(const std::str
 	createDesc.colors.reserve(texture.colorCount);
 	for (uint32_t i = 0; i < texture.colorCount; ++i) {
 
-		// Meshの標準PSはMRTを使うため、プレビュー側も必要枚数分のRTVを作成する。
+		// Meshの標準PSはMRTを使うため、プレビュー側も必要枚数分のRTVを作成する
 		const std::string colorName = i == 0 ? name + "_Color" :
 			name + "_Color" + std::to_string(i);
 		createDesc.colors.push_back(ColorAttachmentDesc{ .name = colorName,
 			.format = DXGI_FORMAT_R32G32B32A32_FLOAT,.clearColor = clearColor,.createUAV = false, });
 	}
 
-	// ツールプレビューは3D確認で使うことが多いため、必ず深度を持たせる。
+	// ツールプレビューは3D確認で使うことが多いため、必ず深度を持たせる
 	DepthTextureCreateDesc depthDesc{};
 	depthDesc.width = size.x;
 	depthDesc.height = size.y;
@@ -162,7 +161,7 @@ bool Engine::IEditorTool::AcceptPreviewEntityDragDrop(const EditorToolContext& c
 			const Entity entity = world ? world->FindByUUID(droppedUUID) : Entity::Null();
 			if (world && world->IsAlive(entity)) {
 
-				// 元のEntityは操作せず、プレビュー対象のUUIDだけを更新する。
+				// 元のEntityは操作せず、プレビュー対象のUUIDだけを更新する
 				texture.previewEntityUUID = droppedUUID;
 				changed = true;
 			}

@@ -14,7 +14,6 @@ namespace Engine {
 	//	LightGPUTypes structures
 	//	CPU->GPU転送用のライト構造体
 	//============================================================================
-
 	// 平行光源
 	struct DirectionalLightGPU {
 
@@ -26,7 +25,7 @@ namespace Engine {
 		// 強さ
 		float intensity = 1.0f;
 
-		// 影の強さ (0.0=影なし, 1.0=完全に黒)
+		// 影の強さ(0.0=影なし, 1.0=完全に黒)
 		float shadowStrength = 1.0f;
 		float pad[3] = { 0.0f, 0.0f, 0.0f };
 	};

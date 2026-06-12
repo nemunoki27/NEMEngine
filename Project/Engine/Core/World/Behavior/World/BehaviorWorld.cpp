@@ -11,7 +11,6 @@
 //============================================================================
 //	BehaviorWorld classMethods
 //============================================================================
-
 Engine::BehaviorHandle Engine::BehaviorWorld::Create(uint32_t typeID, const Entity& owner) {
 
 	// インデックスを割り当てる
@@ -25,7 +24,9 @@ Engine::BehaviorHandle Engine::BehaviorWorld::Create(uint32_t typeID, const Enti
 	record.enabled = false;
 	record.awakeCalled = false;
 	record.startCalled = false;
+	record.faulted = false;
 	record.seen = false;
+	record.appliedSerializedRevision = 0xFFFFFFFF;
 	record.typeID = typeID;
 
 	// ハンドルの世代をレコードの世代と合わせる
@@ -69,8 +70,9 @@ void Engine::BehaviorWorld::ClearSeenFlags() {
 	}
 }
 
-void Engine::BehaviorWorld::SweepUnseen(ECSWorld& world, const SystemContext& context) {
+uint32_t Engine::BehaviorWorld::SweepUnseen(ECSWorld& world, const SystemContext& context) {
 
+	uint32_t destroyed = 0;
 	// 全てのレコードを走査して生存しているビヘイビアのフラグを確認する
 	for (uint32_t i = 0; i < GetRecordCount(); ++i) {
 
@@ -83,8 +85,10 @@ void Engine::BehaviorWorld::SweepUnseen(ECSWorld& world, const SystemContext& co
 		if (!world.IsAlive(record.owner) || !record.seen) {
 
 			DestroyIndex(i, world, context);
+			++destroyed;
 		}
 	}
+	return destroyed;
 }
 
 bool Engine::BehaviorWorld::IsAlive(const BehaviorHandle& handle) const {
@@ -152,12 +156,17 @@ void Engine::BehaviorWorld::DestroyIndex(uint32_t index, ECSWorld& world, const 
 	const Entity owner = record.owner;
 
 	// ビヘイビアの状態に応じて適切な関数を呼び出す
+	// enabledなものだけOnDisable、一度でもAwake済みのものだけOnDestroyを呼ぶ
+	// Awake未実行のinactive scriptはどちらも呼ばず解放だけ行う
 	if (record.instance) {
 		if (record.enabled) {
 
 			record.instance->OnDisable(world, context, record.owner);
 		}
-		record.instance->OnDestroy(world, context, record.owner);
+		if (record.awakeCalled) {
+
+			record.instance->OnDestroy(world, context, record.owner);
+		}
 	}
 
 	// レコードを初期化して空きIDのスタックに戻す
@@ -166,7 +175,9 @@ void Engine::BehaviorWorld::DestroyIndex(uint32_t index, ECSWorld& world, const 
 	record.enabled = false;
 	record.awakeCalled = false;
 	record.startCalled = false;
+	record.faulted = false;
 	record.seen = false;
+	record.appliedSerializedRevision = 0xFFFFFFFF;
 	record.alive = false;
 	// 世代をインクリメントして古いハンドルを無効にする
 	++record.generation;

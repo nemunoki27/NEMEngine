@@ -18,15 +18,14 @@
 
 //============================================================================
 //	Algorithm namespace
-//	汎用アルゴリズム(列挙→配列化／文字列処理／探索／補間／範囲判定)を提供する。
+// 汎用アルゴリズム(列挙→配列化／文字列処理／探索／補間／範囲判定)を提供する
 //============================================================================
 namespace Engine {
 	namespace Algorithm {
 
-		//========================================================================
+		//============================================================================
 		//	Enum
-		//========================================================================
-
+		//============================================================================
 		// クラス名整形時の先頭大文字/小文字/無加工の指定を行う
 		enum class LeadingCase {
 
@@ -55,10 +54,9 @@ namespace Engine {
 			return (static_cast<U>(value) & static_cast<U>(flag)) != 0;
 		}
 
-		//========================================================================
+		//============================================================================
 		//	String
-		//========================================================================
-
+		//============================================================================
 		// inputからtoRemoveをすべて取り除いた文字列を返す
 		std::string RemoveSubstring(const std::string& input, const std::string& toRemove);
 
@@ -98,11 +96,10 @@ namespace Engine {
 		// Unicodeコードポイント列(char32_t)をUTF-8へ変換
 		std::string CodepointToUtf8(char32_t cp);
 
-		//========================================================================
+		//============================================================================
 		//	Find
-		//========================================================================
-
-		// メンバfindを持つ連想系コンテナでキーの存在を判定する（必要に応じAssert::Call）
+		//============================================================================
+		// メンバfindを持つ連想系コンテナでキーの存在を判定する、必要に応じAssert::Call
 		template <typename, typename = std::void_t<>>
 		struct has_find_method : std::false_type {};
 		template <typename T>
@@ -112,7 +109,7 @@ namespace Engine {
 		template <typename T>
 		constexpr bool has_find_method_v = has_find_method<T>::value;
 
-		// 連想コンテナに対しkeyの存在を返す（assertionEnable時に未発見ならAssert::Call）
+		// 連想コンテナに対しkeyの存在を返す、assertionEnable時に未発見ならAssert::Call
 		template <typename TA, typename TB>
 		typename std::enable_if_t<has_find_method_v<TA>, bool>
 			Find(const TA& object, const TB& key, bool assertionEnable = false) {
@@ -125,7 +122,7 @@ namespace Engine {
 			}
 			return found;
 		}
-		// シーケンスコンテナに対しkeyの存在を返す（assertionEnable時に未発見ならAssert::Call）
+		// シーケンスコンテナに対しkeyの存在を返す、assertionEnable時に未発見ならAssert::Call
 		template <typename TA, typename TB>
 		typename std::enable_if_t<!has_find_method_v<TA>, bool>
 			Find(const TA& object, const TB& key, bool assertionEnable = false) {

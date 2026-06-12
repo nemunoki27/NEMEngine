@@ -22,10 +22,9 @@ namespace Engine {
 	class RemoveComponentCommand :
 		public IEditorCommand {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		RemoveComponentCommand(const Entity& targetEntity, const std::string_view& typeName);
 		~RemoveComponentCommand() = default;
 
@@ -40,9 +39,9 @@ namespace Engine {
 
 		const char* GetName() const override { return "Remove Component"; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -61,3 +60,4 @@ namespace Engine {
 		bool ApplyRestore(EditorCommandContext& context);
 	};
 } // Engine
+

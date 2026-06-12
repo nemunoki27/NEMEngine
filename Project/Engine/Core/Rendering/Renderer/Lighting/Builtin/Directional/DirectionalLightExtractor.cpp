@@ -8,7 +8,6 @@
 //============================================================================
 //	DirectionalLightExtractor classMethods
 //============================================================================
-
 void Engine::DirectionalLightExtractor::Extract(ECSWorld& world, FrameLightBatch& batch) {
 
 	world.ForEach<DirectionalLightComponent>([&](const Entity& entity, DirectionalLightComponent& light) {

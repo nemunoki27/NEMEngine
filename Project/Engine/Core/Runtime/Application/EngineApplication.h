@@ -13,6 +13,7 @@
 #include <Engine/Core/World/ECS/World/WorldManager.h>
 #include <Engine/Core/World/ECS/Systems/Scheduler/SystemScheduler.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptBuildService.h>
 #include <Engine/Editor/Core/EditorManager.h>
 #include <Engine/Editor/Core/EditorContext.h>
 
@@ -24,10 +25,9 @@ namespace Engine {
 	//============================================================================
 	class EngineApplication {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		EngineApplication() = default;
 		~EngineApplication() = default;
 
@@ -44,18 +44,18 @@ namespace Engine {
 
 		// 終了処理
 		void Finalize();
-		// ウィンドウ終了要求。falseを返すと終了をキャンセルする
+		// ウィンドウ終了要求でfalseを返すと終了をキャンセルする
 		bool RequestClose();
 		// Assert停止前に必要な保存処理を行う
 		void NotifyAssertBeforeAbort();
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
-		// 現在アクティブなシーン。初期シーンもパスではなく.meta GUIDで参照する
+		// 現在アクティブなシーンで初期シーンもパスではなく.meta GUIDで参照する
 		std::string activeScenePath_{};
 		AssetID activeScene_{ 0x129d80fee6b506d1ull };
 
@@ -82,6 +82,13 @@ namespace Engine {
 		// エディタ管理
 		EditorManager editorManager_;
 		EditorContext editorContext_{};
+		// Editモードの非同期build/reloadを管理する
+		ManagedScriptBuildService scriptBuildService_;
+		// Play開始要求をbuild/reload完了まで保留しているか
+		bool pendingPlayStart_ = false;
+
+		bool playPaused_ = false;
+		bool playFrameStepRequested_ = false;
 		bool requestFrameDeltaReset_ = false;
 		bool shutdownAccepted_ = false;
 		bool closeRequestPending_ = false;
@@ -100,6 +107,14 @@ namespace Engine {
 
 		// プレイモードの切り替え
 		void HandlePlayToggle();
+		// 保留中のPlay開始要求を、build/reload完了に応じて進める
+		void ProcessPendingPlayStart();
+		// PlayWorldを作成してプレイを開始する
+		void StartPlayWorld();
+		// Play中の一時停止/再開/コマ送り要求を処理する
+		void HandlePlayPauseRequests();
+		// このフレームにWorldを進行させるか
+		bool ShouldAdvanceActiveWorld() const;
 		// エディタから要求されたシーン操作を処理する
 		void HandleEditorSceneRequests();
 		// 新規シーンを作成して開く
@@ -122,3 +137,4 @@ namespace Engine {
 		RenderFrameRequest BuildRenderFrameRequest(GraphicsCore& graphicsCore, ECSWorld* world, const SceneHeader* header);
 	};
 } // Engine
+

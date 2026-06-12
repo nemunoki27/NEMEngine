@@ -79,6 +79,12 @@ function NEM_AddEngineIncludeSettings()
         path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor"),
         path.join(NEM_PROJECT_ROOT, "Externals/nlohmann"),
         path.join(NEM_PROJECT_ROOT, "Externals/libcurl/include"),
+
+        -- WinPixEventRuntime: <WinPixEventRuntime/pix3.h>
+        path.join(NEM_PROJECT_ROOT, "Externals/WinPixEventRuntime/Include"),
+
+        -- .NET native hosting: <nethost.h> / <hostfxr.h> / <coreclr_delegates.h>
+        path.join(NEM_PROJECT_ROOT, "Externals/dotnet-hosting/include"),
     }
 
     defines {
@@ -110,6 +116,12 @@ function NEM_AddEngineRuntimeLinkSettings()
         "iphlpapi",
     }
 
+    -- .NET native hosting: nethost.dll は実行ファイル横へ配置し、DotnetHostResolverが
+    -- 実行時に動的ロードして get_hostfxr_path を取得する（静的libnethostはリリースCRT固定で
+    -- Debug /MTd とリンクできないため、リンクせず動的ロードする）。
+    -- DLLコピーは patch_vcxproj_managed_config.ps1 の PostBuildEvent に集約している
+    -- (このスクリプトが Sandbox の PostBuildEvent を上書きするため)。
+
     linkoptions {
         "/WX",
         "/IGNORE:4099",
@@ -126,7 +138,15 @@ function NEM_AddEngineRuntimeLinkSettings()
         'copy /Y "$(WindowsSdkDir)bin\\$(TargetPlatformVersion)\\x64\\dxil.dll" "$(TargetDir)dxil.dll"',
         'if exist "' .. scriptCoreOutput .. '\\$(Configuration)\\*" xcopy /Y /I "' .. scriptCoreOutput .. '\\$(Configuration)\\*" "$(TargetDir)Managed\\"',
         'if exist "$(ProjectDir)Managed\\$(Configuration)\\*" xcopy /Y /I "$(ProjectDir)Managed\\$(Configuration)\\*" "$(TargetDir)Managed\\"',
+        'if "$(Configuration)"=="Debug" copy /Y "$(ProjectDir)..\\Externals\\WinPixEventRuntime\\bin\\x64\\WinPixEventRuntime.dll" "$(TargetDir)WinPixEventRuntime.dll"',
     }
+
+    -- WinPixEventRuntime。Debugではpix3.hが_DEBUG経由でUSE_PIXを有効化しPIXシンボルを参照するため、
+    -- import libをリンクする。DLLの配置はpatch_vcxproj_managed_config.ps1のpostbuildで行う
+    -- (このスクリプトがPostBuildEventを上書きするため、コピーはそちらへ集約している)。
+    filter "configurations:Debug"
+        libdirs { path.translate(path.join(NEM_PROJECT_ROOT, "Externals/WinPixEventRuntime/bin/x64"), "\\") }
+        links { "WinPixEventRuntime" }
 
     filter {}
 end
@@ -150,6 +170,7 @@ function NEM_MakeProjectShaderPatterns(projectRoot)
     return {
         path.join(projectRoot, "**.hlsl"),
         path.join(projectRoot, "**.fx"),
+        path.join(projectRoot, "**.hlsli"),
     }
 end
 
@@ -184,12 +205,14 @@ function NEM_AddProjectFiles(projectRoot, assetRoot, assetVpathName, includeShad
     vpaths(projectVpaths)
 
     if includeShaders then
-        -- HLSLはエンジン内のDXC実行時コンパイルで扱う。
-        -- Visual Studio/MSBuildのFxCompileに渡すと既定のvs_2_0などで誤コンパイルされるため、
-        -- ソリューション表示用のNone項目として登録する。
-        filter { "files:**.hlsl" }
+        -- HLSLはエンジン内のDXC実行時コンパイルで扱う
+        -- Visual Studio/MSBuildのFxCompileに渡すと既定のvs_2_0などで誤コンパイルされるため
+        -- ソリューション表示用のNone項目として登録する
+        filter "files:**.hlsl"
             buildaction "None"
-        filter { "files:**.fx" }
+        filter "files:**.fx"
+            buildaction "None"
+        filter "files:**.hlsli"
             buildaction "None"
         filter {}
     end
@@ -198,13 +221,20 @@ function NEM_AddProjectFiles(projectRoot, assetRoot, assetVpathName, includeShad
         path.join(projectRoot, "**/bin/**"),
         path.join(projectRoot, "**/obj/**"),
         path.join(projectRoot, "Library/**"),
+        -- Edit reload の作業領域（staging / shadow copy / last-known-good）はプロジェクトへ含めない
+        path.join(projectRoot, "Managed/Staging/**"),
+        path.join(projectRoot, "Managed/Shadow/**"),
+        path.join(projectRoot, "Managed/LastKnownGood/**"),
+        -- コードスタイルの見本ファイルはビルド対象に含めない（意図的に不正なC++を含むため）
+        path.join(projectRoot, "templateClass.*"),
+        path.join(projectRoot, "**/templateClass.*"),
     }
 end
 
 function NEM_AddEngineProjectFiles()
-    -- Engine専用アセットを表示したい場合
+    -- Engine専用アセットを表示
     NEM_AddProjectFiles(path.join(NEM_PROJECT_ROOT, "Engine"),
-        path.join(NEM_PROJECT_ROOT, "EngineAssets"), "Assets", false)
+        path.join(NEM_PROJECT_ROOT, "Engine/Assets"), "Assets", false)
 end
 
 function NEM_AddSandboxProjectFiles()

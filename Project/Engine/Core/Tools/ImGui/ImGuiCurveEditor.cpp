@@ -21,7 +21,6 @@
 //============================================================================
 //	MyGUI Curve classMethods
 //============================================================================
-
 namespace {
 
 	// 上部ボタンサイズ
@@ -81,9 +80,9 @@ namespace {
 		return std::abs(range) <= 0.00001f ? 1.0f : range;
 	}
 
-	// Time方向のズームやパンを反映する。
-	// visibleValueMin / visibleValueMax はここでは触らず、
-	// 左上のInputFloatでユーザーが決めた値を維持する。
+	// Time方向のズームやパンを反映する
+	// visibleValueMin / visibleValueMaxはここでは触らず、
+	// 左上のInputFloatでユーザーが決めた値を維持する
 	void UpdateHorizontalViewRange(const ImRect& graphRect, Engine::CurveEditorState& state) {
 
 		state.pixelsPerSecond = SafePixelsPerSecond(state.pixelsPerSecond);
@@ -97,9 +96,9 @@ namespace {
 		const float desiredTimeStep = 80.0f / state.pixelsPerSecond; // 約80pxごと
 		state.gridTimeStep = NiceStep(desiredTimeStep);
 	}
-	// 値方向の表示レンジからズーム係数を再構築する。
+	// 値方向の表示レンジからズーム係数を再構築する
 	// MaxValueを固定したままMinValueだけ動かした場合でも、
-	// 次の入力で見た目が急変しないように内部状態を揃える。
+	// 次の入力で見た目が急変しないように内部状態を揃える
 	void UpdateVerticalZoomFromRange(const ImRect& graphRect, Engine::CurveEditorState& state) {
 
 		state.visibleValueMax = (std::max)(state.visibleValueMax, state.visibleValueMin + 0.001f);
@@ -114,8 +113,8 @@ namespace {
 	}
 
 
-	// キーの値を現在の表示範囲へ収める。
-	// ドラッグ操作でもInspector操作でも同じ上限・下限を使う。
+	// キーの値を現在の表示範囲へ収める
+	// ドラッグ操作でもInspector操作でも同じ上限・下限を使う
 	float ClampKeyValueToVisibleRange(const Engine::CurveEditorState& state, float value) {
 
 		return (std::clamp)(value, state.visibleValueMin, state.visibleValueMax);
@@ -546,20 +545,19 @@ namespace {
 		state.visibleTimeMin = (std::max)(0.0f, timeMin - timePadding);
 		state.visibleTimeMax = (std::max)(state.visibleTimeMin + 0.001f, timeMax + timePadding);
 
-		// Frameでは値方向の表示範囲は変更しない。
-		// MinValue / MaxValue はユーザーが決めた値をそのまま維持する。
-
+		// Frameでは値方向の表示範囲は変更しない
+		// MinValue / MaxValueはユーザーが決めた値をそのまま維持する
 		// 実際のグラフサイズからズーム係数を同期する
 		const float graphW = (std::max)(1.0f, graphRect.GetWidth());
 
 		state.pixelsPerSecond = SafePixelsPerSecond(graphW / SafeRange(state.visibleTimeMin, state.visibleTimeMax));
 		state.gridTimeStep = NiceStep(80.0f / state.pixelsPerSecond);
 
-		// Frame直後の見た目と、その後の通常操作の基準を揃える。
+		// Frame直後の見た目と、その後の通常操作の基準を揃える
 		UpdateVerticalZoomFromRange(graphRect, state);
 	}
 
-	// Color3 / Color4 を RGB 代表キー + Alpha キーとして扱うための判定群
+	// Color3 / Color4をRGB代表キー+ Alphaキーとして扱うための判定群
 	bool IsColorCurveSet(std::span<Engine::CurveChannel> channels) {
 
 		if (channels.size() != 3 && channels.size() != 4) {
@@ -858,7 +856,7 @@ namespace {
 		const float timeStep = (std::max)(0.0001f, state.gridTimeStep);
 		const float valueStep = (std::max)(0.0001f, state.gridValueStep);
 
-		// Time 0 より左は出さない
+		// Time 0より左は出さない
 		const float timeBegin = std::ceil((std::max)(0.0f, state.visibleTimeMin) / timeStep) * timeStep;
 		for (float time = timeBegin; time <= state.visibleTimeMax + timeStep * 0.5f; time += timeStep) {
 			const ImVec2 pos = WorldToScreen(rect, state, time, state.visibleValueMin);
@@ -871,14 +869,14 @@ namespace {
 			drawList->AddLine(ImVec2(rect.Min.x, pos.y), ImVec2(rect.Max.x, pos.y), minorColor);
 		}
 
-		// Time = 0 の黄色線
+		// Time = 0の黄色線
 		if (0.0f >= state.visibleTimeMin && 0.0f <= state.visibleTimeMax) {
 			const ImVec2 p0 = WorldToScreen(rect, state, 0.0f, state.visibleValueMin);
 			const ImVec2 p1 = WorldToScreen(rect, state, 0.0f, state.visibleValueMax);
 			drawList->AddLine(ImVec2(p0.x, rect.Min.y), ImVec2(p1.x, rect.Max.y), kCurveAxisColor, 2.0f);
 		}
 
-		// Value = 0 の黄色線
+		// Value = 0の黄色線
 		if (0.0f >= state.visibleValueMin && 0.0f <= state.visibleValueMax) {
 			const ImVec2 p0 = WorldToScreen(rect, state, state.visibleTimeMin, 0.0f);
 			const ImVec2 p1 = WorldToScreen(rect, state, state.visibleTimeMax, 0.0f);
@@ -986,7 +984,7 @@ namespace {
 
 		drawList->PopClipRect();
 	}
-	// Color3 / Color4 の RGB 代表キーを線で結ぶ
+	// Color3 / Color4のRGB代表キーを線で結ぶ
 	void DrawColorRgbCurveSamples(const ImRect& rect, std::span<Engine::CurveChannel> channels,
 		const Engine::CurveEditorState& state) {
 
@@ -1716,8 +1714,8 @@ namespace {
 		outUiBlocking |= ImGui::IsItemHovered() || ImGui::IsItemActive();
 		ImGui::PopID();
 
-		// 左下ではMinValueを直接編集できるようにする。
-		// MaxValue以上にならないようにだけ制限する。
+		// 左下ではMinValueを直接編集できるようにする
+		// MaxValue以上にならないようにだけ制限する
 		const float bottomWidth = (std::max)(36.0f, bottomCornerRect.GetWidth() - 8.0f);
 		const float textHeight = ImGui::GetFrameHeight();
 		const ImVec2 bottomPos(
@@ -1756,9 +1754,9 @@ namespace {
 		state.snapEnabled = setting.snap;
 		state.snapInterval = setting.snapInterval;
 	}
-	// 初期表示レンジを明示的に揃える。
+	// 初期表示レンジを明示的に揃える
 	// 旧既定値(-1.0f, 1.0f)や未初期化相当(0.0f, 0.0f)から入っても
-	// Min=0.0f, Max=1.0f を基準に開始する。
+	// Min=0.0f, Max=1.0fを基準に開始する
 	if ((state.visibleValueMin == 0.0f && state.visibleValueMax == 0.0f) ||
 		(state.visibleValueMin == -1.0f && state.visibleValueMax == 1.0f)) {
 		state.visibleValueMin = 0.0f;
@@ -1830,7 +1828,7 @@ namespace {
 		state.frameSelectionRequest = false;
 	}
 
-	// ここ重要: グラフ入力をImGuiアイテムとして捕まえる
+	// ここ重要:グラフ入力をImGuiアイテムとして捕まえる
 	ImGui::SetCursorScreenPos(graphRect.Min);
 	ImGui::InvisibleButton("##CurveGraphInput", graphRect.GetSize(),
 		ImGuiButtonFlags_MouseButtonLeft |
@@ -1919,8 +1917,8 @@ Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, std::span<Cur
 			continue;
 		}
 
-		// CurveEditor本体は連続したCurveChannel配列を前提にしている。
-		// Trackをまたぐ編集では、ここで一度作業用配列へ写し、描画後に元のTrackへ戻す。
+		// CurveEditor本体は連続したCurveChannel配列を前提にしている
+		// Trackをまたぐ編集では、ここで一度作業用配列へ写し、描画後に元のTrackへ戻す
 		CurveChannel editChannel = *channels[i].channel;
 		if (!channels[i].displayName.empty()) {
 			editChannel.name = channels[i].displayName;
@@ -1931,7 +1929,7 @@ Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, std::span<Cur
 
 	CurveEditResult result = DrawCurveEditorInternal(id, editChannels, state, setting, nullptr);
 
-	// 表示名だけ差し替えているため、元Trackへ戻すときは元のチャンネル名を保持する。
+	// 表示名だけ差し替えているため、元Trackへ戻すときは元のチャンネル名を保持する
 	for (uint32_t i = 0; i < editChannels.size(); ++i) {
 		CurveChannel* source = channels[sourceIndices[i]].channel;
 		if (!source) {

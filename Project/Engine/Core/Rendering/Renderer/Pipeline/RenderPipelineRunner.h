@@ -45,7 +45,6 @@ namespace Engine {
 	//============================================================================
 	//	RenderPipelineRunner structures
 	//============================================================================
-
 	// レイトレーシング用のシーン実行時情報
 	struct RaytracingSceneRuntimeContext {
 
@@ -69,6 +68,12 @@ namespace Engine {
 		const ResolvedRenderView* billboardView = nullptr;
 		// ライトカリングだけ別ビューの深度とサイズを基準にしたい場合に使用する
 		RenderPathResources* lightCullingResources = nullptr;
+		// このビューが使用するライトカリングGPUバッファ
+		ViewLightCullingBufferSet* lightCullingBufferSet = nullptr;
+		// 固定RenderPath内でLightCulling computeを実行するか
+		bool shouldExecuteLightCullingPass = true;
+		// Previewなど、grid未生成時にPixel Shaderの直接ライト評価へ固定する
+		bool forceDirectLocalLightEvaluation = false;
 		// ツールプレビューなど、1枚のRT内の一部だけへ描く時の描画矩形
 		bool useViewportRect = false;
 		uint32_t viewportX = 0;
@@ -78,16 +83,25 @@ namespace Engine {
 		RenderBufferRegistry bufferRegistry{};
 		// レイトレーシングの情報
 		RaytracingSceneRuntimeContext raytracing{};
-		// ツールプレビューなど、TLASを作らない描画ではRayQuery系Variantを選ばない。
+		// ツールプレビューなど、TLASを作らない描画ではRayQuery系Variantを選ばない
 		bool disableInlineRayTracing = false;
-		// エディターピック用に、描画Raytracing設定とは独立してTLASだけを構築する。
+		// エディターピック用に、描画Raytracing設定とは独立してTLASだけを構築する
 		bool requireRaytracingSceneForEditorPicking = false;
-		// ツールプレビューではVertex版のGraphics Variantを優先する。
+		// SceneViewのデフォルトグリッドを描画する
+		bool drawSceneViewDefaultGrid = false;
+		// 実エディターSceneViewの表示結果にだけSceneComponentOverlayを重ねる
+		bool allowSceneComponentOverlay = false;
+		// ツールプレビューではVertex版のGraphics Variantを優先する
 		bool forceVertexMeshVariant = false;
 		// ECSワールドとシステムコンテキスト
 		ECSWorld* world = nullptr;
 		const SystemContext* systemContext = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
+
+		// ScreenSpaceOutline Mask描画用のper-draw値でScreenSpaceOutlineRendererが
+		// Mask描画を呼ぶ直前に設定する、Mask以外のパスでは未使用
+		uint32_t screenSpaceOutlineMaskStyleID = 0;
+		int32_t screenSpaceOutlineMaskRestrictSubMeshIndex = -1;
 	};
 
 	// エディタツール用のEntityプレビュー描画要求
@@ -105,7 +119,7 @@ namespace Engine {
 		ManualRenderCameraState camera{};
 
 		Color4 clearColor = Color4(0.08f, 0.10f, 0.14f, 1.0f);
-		// falseなら既存のRT内容を保持したまま描画する。ProjectPanelのモデルプレビューAtlasで使用する。
+		// falseなら既存のRT内容を保持したまま描画しProjectPanelのモデルプレビューAtlasで使用する
 		bool clearSurface = true;
 		bool useViewportRect = false;
 		uint32_t viewportX = 0;
@@ -115,7 +129,7 @@ namespace Engine {
 		// プレビュー用RenderTextureにだけ描画するグリッド
 		bool drawGrid2D = false;
 		bool drawGrid3D = false;
-		// プレビューではMeshShader/RayQueryを避け、Vertex版の非RayQueryシェーダを優先する。
+		// プレビューではMeshShader/RayQueryを避け、Vertex版の非RayQueryシェーダを優先する
 		bool forceVertexMeshVariant = true;
 	};
 
@@ -125,10 +139,9 @@ namespace Engine {
 	//============================================================================
 	class RenderPipelineRunner {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		RenderPipelineRunner() = default;
 		~RenderPipelineRunner() = default;
 
@@ -167,9 +180,9 @@ namespace Engine {
 		ID3D12Resource* GetSceneViewTLASResource() const { return tlasResource_; }
 		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return pickRecords_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -194,7 +207,7 @@ namespace Engine {
 		// ビュー関連のレイトレーシングバッファ
 		RaytracingViewBufferSet gameViewRaytracingBuffers_{};
 		RaytracingViewBufferSet sceneViewRaytracingBuffers_{};
-		// レイトレシーンの構築。Billboardはゲームビューにのみ合わせるため1つでよい
+		// レイトレシーンの構築でBillboardはゲームビューにのみ合わせるため1つでよい
 		RaytracingSceneBuilder raytracingSceneBuilder_{};
 
 		// ピック用のTLASリソースとサブメッシュ情報
@@ -234,16 +247,16 @@ namespace Engine {
 		ViewLightBufferSet sceneViewLightBuffers_{};
 		ViewLightCullingBufferSet gameViewLightCullingBuffers_{};
 		ViewLightCullingBufferSet sceneViewLightCullingBuffers_{};
-		// ツールプレビューは同一フレーム内に複数回描くため、ライトGPUバッファも描画ごとに分ける。
+		// ツールプレビューは同一フレーム内に複数回描くため、ライトGPUバッファも描画ごとに分ける
 		FrameBatchResourcePool<ViewLightBufferSet> previewLightBufferPool_{};
 		FrameBatchResourcePool<ViewLightCullingBufferSet> previewLightCullingBufferPool_{};
 
-		// ツールプレビュー専用の描画バックエンド。メインビューのGPUバッファを上書きしないため分離する
+		// ツールプレビュー専用の描画バックエンドでメインビューのGPUバッファを上書きしないため分離する
 		RenderBackendRegistry previewBackendRegistry_{};
 		// 同一フレーム内の複数プレビューがGPUバッファを再利用して上書きしないための開始済みフラグ
 		bool previewBackendFrameStarted_ = false;
 
-		// 前回通知したPostProcessStackアセット。シーン切り替え時の再ロードを検出するために使用
+		// 前回通知したPostProcessStackアセットでシーン切り替え時の再ロードを検出するために使用
 		AssetID lastNotifiedPostProcessStack_{};
 
 		// ワールド切り替え時の静的バッチキャッシュ破棄用
@@ -262,3 +275,4 @@ namespace Engine {
 			RenderViewKind kind, const ResolvedRenderView& view);
 	};
 } // Engine
+

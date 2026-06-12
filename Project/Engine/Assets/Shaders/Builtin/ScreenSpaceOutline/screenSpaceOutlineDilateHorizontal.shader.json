@@ -1,0 +1,11 @@
+{
+  "name": "ScreenSpaceOutlineDilateHorizontal",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "Builtin/ScreenSpaceOutline/screenSpaceOutlineDilateHorizontal.CS.hlsl",
+      "entry": "main",
+      "profile": "cs_6_0"
+    }
+  ]
+}

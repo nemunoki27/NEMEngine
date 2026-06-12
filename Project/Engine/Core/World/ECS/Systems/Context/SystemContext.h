@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-
 namespace Engine {
 
 	// front
@@ -11,13 +10,13 @@ namespace Engine {
 	class GraphicsPlatform;
 	class AssetDatabase;
 	class SkinnedMeshAnimationManager;
+	class ECSWorld;
 	struct SceneHeader;
 
 	//============================================================================
 	//	SystemContext struct
 	//	システムで共有する必要な情報をまとめる
 	//============================================================================
-	
 	// ワールドの現在のモード
 	enum class WorldMode {
 
@@ -27,6 +26,9 @@ namespace Engine {
 
 	// システムで共有する必要な情報をまとめる
 	struct SystemContext {
+
+		// 現在tick中のactive worldでscripting callbackがparent無し生成等で参照する非所有ポインタ
+		ECSWorld* world = nullptr;
 
 		// エンジンのコア機能
 		EngineContext* engineContext = nullptr;

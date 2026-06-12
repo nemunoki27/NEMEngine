@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    component binding generator。ManagedComponentBindings.json から
+    C++ dispatch(.generated.h/.cpp) と C# wrapper(.generated.cs) を決定的に生成する。
+    外部依存を増やさない（System.Text.Json は SDK 同梱）。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>NEM.ComponentBindingGen</AssemblyName>
+    <RootNamespace>NEM.ComponentBindingGen</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>

@@ -26,7 +26,6 @@ namespace Engine {
 	//============================================================================
 	//	PostProcess structures
 	//============================================================================
-
 	struct PostProcessFrameConstants {
 
 		Vector2 resolution{};
@@ -47,7 +46,7 @@ namespace Engine {
 	struct PostProcessExecutionDesc {
 
 		AssetID material{};
-		std::string passName = "PostProcess";
+		MaterialPassKind passKind = MaterialPassKind::PostProcess;
 		RenderTargetSetReference source;
 		RenderTargetSetReference dest;
 		std::unordered_map<std::string, std::string> extraSources;
@@ -61,14 +60,13 @@ namespace Engine {
 
 	//============================================================================
 	//	PostProcessExecutor class
-	//	ComputeShader版PostProcessの実行を担当するクラス。
+	// ComputeShader版PostProcessの実行を担当するクラス
 	//============================================================================
 	class PostProcessExecutor {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		PostProcessExecutor() = default;
 		~PostProcessExecutor() = default;
 
@@ -84,13 +82,13 @@ namespace Engine {
 
 		// 実行なしでマテリアルのリフレクション情報を取得する
 		bool TryGetReflection(GraphicsCore& graphicsCore, RenderAssetLibrary& assetLibrary,
-			PipelineStateCache& pipelineCache, AssetID materialId, const std::string& passName,
+			PipelineStateCache& pipelineCache, AssetID materialId, MaterialPassKind passKind,
 			std::vector<ShaderConstantBufferVariable>& outVars,
 			std::vector<ShaderResourceBinding>& outSRVs);
 
 		//--------- accessor -----------------------------------------------------
 
-		// パラメータレイアウトキャッシュを全削除する（シェーダーリロード時に呼ぶ）
+		// パラメータレイアウトキャッシュを全削除するシェーダーリロード時に呼ぶ処理
 		void ClearParameterLayoutCache() { parameterLayoutCache_.clear(); }
 
 		// 最後に実行されたマテリアルのIDを取得する
@@ -100,13 +98,13 @@ namespace Engine {
 		// 最後に実行されたSRVバインディングを取得する
 		const std::vector<ShaderResourceBinding>& GetLastExecutedSRVBindings() const { return lastExecutedSRVBindings_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- structure ----------------------------------------------------
 
-		// パイプラインごとのキャッシュエントリ。フレーム定数バインドの有無も初回のみ解決して保持する
+		// パイプラインごとのキャッシュエントリでフレーム定数バインドの有無も初回のみ解決して保持する
 		struct PipelineCacheEntry {
 
 			PostProcessParameterLayout layout;
@@ -126,3 +124,4 @@ namespace Engine {
 		std::vector<ShaderResourceBinding> lastExecutedSRVBindings_{};
 	};
 } // Engine
+

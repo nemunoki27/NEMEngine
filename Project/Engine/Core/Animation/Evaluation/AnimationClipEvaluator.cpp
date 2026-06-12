@@ -14,7 +14,6 @@
 //============================================================================
 //	AnimationClipEvaluator classMethods
 //============================================================================
-
 namespace {
 
 	bool LerpValue(const Engine::AnimationPropertyValue& from,
@@ -30,7 +29,7 @@ namespace {
 		const Engine::AnimationCurveTrack& track,
 		std::span<const Engine::AnimationPreviewBaseValue> baseValues) {
 
-		// Add/MultiplyはPreview開始時の値を基準にするため、Trackと同じbindingを探す。
+		// Add/MultiplyはPreview開始時の値を基準にするため、Trackと同じbindingを探す
 		for (const Engine::AnimationPreviewBaseValue& baseValue : baseValues) {
 			if (SameBinding(baseValue.binding, track.binding)) {
 				return &baseValue.value;
@@ -41,7 +40,7 @@ namespace {
 
 	bool ReadChannels(const Engine::AnimationCurveTrack& track, float time, float* values, uint32_t valueCount) {
 
-		// 通常評価では全チャンネルをCurveChannelから読む。
+		// 通常評価では全チャンネルをCurveChannelから読む
 		if (track.channels.size() < valueCount) {
 			return false;
 		}
@@ -111,7 +110,7 @@ namespace {
 
 	bool HasAnyKey(const Engine::AnimationCurveTrack& track) {
 
-		// Track追加直後は全チャンネルが空なので、適用対象から外す。
+		// Track追加直後は全チャンネルが空なので、適用対象から外す
 		for (const Engine::CurveChannel& channel : track.channels) {
 			if (!channel.keys.empty()) {
 				return true;
@@ -122,7 +121,7 @@ namespace {
 
 	bool ReadValueChannels(const Engine::AnimationPropertyValue& value, float* values, uint32_t valueCount) {
 
-		// 現在値やPreview開始時の値をfloat配列へ展開する。
+		// 現在値やPreview開始時の値をfloat配列へ展開する
 		if (const float* v = std::get_if<float>(&value)) {
 			if (valueCount != 1) {
 				return false;
@@ -192,7 +191,7 @@ namespace {
 	bool ReadChannelsWithFallback(const Engine::AnimationCurveTrack& track, float time,
 		const Engine::AnimationPropertyValue& fallback, float* values, uint32_t valueCount) {
 
-		// キーが無いチャンネルはfallback値を残し、キーがあるチャンネルだけ上書きする。
+		// キーが無いチャンネルはfallback値を残し、キーがあるチャンネルだけ上書きする
 		if (track.channels.size() < valueCount || !HasAnyKey(track) ||
 			!ReadValueChannels(fallback, values, valueCount)) {
 			return false;
@@ -208,7 +207,7 @@ namespace {
 	bool EvaluateTrackWithFallback(const Engine::AnimationCurveTrack& track, float time,
 		const Engine::AnimationPropertyValue& fallback, Engine::AnimationPropertyValue& outValue) {
 
-		// Override用の評価。部分キー編集で未編集成分を壊さないために使う。
+		// Override用の評価で部分キー編集で未編集成分を壊さないために使う
 		float v[4]{};
 		switch (track.binding.valueType) {
 		case Engine::AnimationValueType::Float:
@@ -266,12 +265,12 @@ namespace {
 		const Engine::AnimationResolvedTime& time, const Engine::AnimationClipAsset& clip,
 		const Engine::AnimationPropertyValue& fallback, Engine::AnimationPropertyValue& outValue) {
 
-		// LoopBridge外は通常のClip内時刻を評価する。
+		// LoopBridge外は通常のClip内時刻を評価する
 		if (!time.inLoopBridge) {
 			return EvaluateTrackWithFallback(track, time.clipTime, fallback, outValue);
 		}
 
-		// Bridge区間はduration時点から0秒時点へ補間する。
+		// Bridge区間はduration時点から0秒時点へ補間する
 		Engine::AnimationPropertyValue endValue{};
 		Engine::AnimationPropertyValue beginValue{};
 		if (!EvaluateTrackWithFallback(track, clip.duration, fallback, endValue) ||
@@ -293,8 +292,8 @@ namespace {
 			return true;
 		}
 
-		// Add/MultiplyはPreview開始時に記録した基準値だけを使う。
-		// 毎フレーム現在値へ積み上げると、ScrubやPlayで値が破綻する。
+		// Add/MultiplyはPreview開始時に記録した基準値だけを使う
+		// 毎フレーム現在値へ積み上げると、ScrubやPlayで値が破綻する
 		if (const float* base = std::get_if<float>(&baseValue)) {
 			if (const float* curve = std::get_if<float>(&curveValue)) {
 				out = mode == Engine::AnimationApplyMode::Add ? *base + *curve : *base * *curve;
@@ -348,7 +347,7 @@ namespace {
 
 	float BridgeInterp(float t, Engine::CurveInterpolationMode mode) {
 
-		// LoopBridgeはハンドルを持たないので、BezierはLinear相当で扱う。
+		// LoopBridgeはハンドルを持たないので、BezierはLinear相当で扱う
 		t = (std::clamp)(t, 0.0f, 1.0f);
 		switch (mode) {
 		case Engine::CurveInterpolationMode::Constant:
@@ -366,7 +365,7 @@ namespace {
 	bool LerpValue(const Engine::AnimationPropertyValue& from,
 		const Engine::AnimationPropertyValue& to, float t, Engine::AnimationPropertyValue& out) {
 
-		// LoopBridgeで使う型別補間。
+		// LoopBridgeで使う型別補間
 		if (const float* a = std::get_if<float>(&from)) {
 			if (const float* b = std::get_if<float>(&to)) {
 				out = *a + (*b - *a) * t;
@@ -420,7 +419,7 @@ namespace {
 bool Engine::AnimationClipEvaluator::EvaluateTrack(const AnimationCurveTrack& track,
 	float time, AnimationPropertyValue& outValue) {
 
-	// Trackの保存型に応じて、floatチャンネル配列を実際のPropertyValueへ戻す。
+	// Trackの保存型に応じて、floatチャンネル配列を実際のPropertyValueへ戻す
 	float v[4]{};
 	switch (track.binding.valueType) {
 	case AnimationValueType::Float:
@@ -477,12 +476,12 @@ bool Engine::AnimationClipEvaluator::EvaluateTrack(const AnimationCurveTrack& tr
 bool Engine::AnimationClipEvaluator::EvaluateTrack(const AnimationCurveTrack& track,
 	const AnimationResolvedTime& time, const AnimationClipAsset& clip, AnimationPropertyValue& outValue) {
 
-	// 通常再生中はClip時刻をそのまま評価する。
+	// 通常再生中はClip時刻をそのまま評価する
 	if (!time.inLoopBridge) {
 		return EvaluateTrack(track, time.clipTime, outValue);
 	}
 
-	// Bridge中は終端値と先頭値を取り、設定された補間でつなぐ。
+	// Bridge中は終端値と先頭値を取り、設定された補間でつなぐ
 	AnimationPropertyValue endValue{};
 	AnimationPropertyValue beginValue{};
 	if (!EvaluateTrack(track, clip.duration, endValue) || !EvaluateTrack(track, 0.0f, beginValue)) {
@@ -498,14 +497,14 @@ Engine::AnimationResolvedTime Engine::AnimationClipEvaluator::ResolveClipEvaluat
 	AnimationResolvedTime result{};
 	const float duration = (std::max)(clip.duration, 0.001f);
 
-	// 非Loopは範囲外をClampするだけ。
+	// 非Loopは範囲外をClampするだけ
 	if (!clip.loop) {
 		result.clipTime = (std::clamp)(playbackTime, 0.0f, duration);
 		return result;
 	}
 
 	if (clip.loopBridge.enabled && 0.0f < clip.loopBridge.duration) {
-		// Bridge有効時はduration + bridgeDurationを1周期として扱う。
+		// Bridge有効時はduration + bridgeDurationを1周期として扱う
 		const float bridgeDuration = (std::max)(clip.loopBridge.duration, 0.001f);
 		const float period = duration + bridgeDuration;
 		float localTime = std::fmod((std::max)(0.0f, playbackTime), period);
@@ -533,7 +532,7 @@ bool Engine::AnimationClipEvaluator::ApplyTrack(ECSWorld& world, const Entity& e
 	const AnimationCurveTrack& track, const AnimationClipAsset& clip,
 	const AnimationResolvedTime& time, const AnimationPropertyValue* baseValueOrNull) {
 
-	// 登録済みPropertyだけを適用する。Missing Propertyは編集を止めずにスキップする。
+	// 登録済みPropertyだけを適用しMissing Propertyは編集を止めずにスキップする
 	const AnimationPropertyDescriptor* desc = AnimationPropertyRegistry::GetInstance().Find(
 		track.binding.componentName, track.binding.propertyPath);
 	if (!desc || !desc->hasComponent || !desc->setValue || !desc->hasComponent(world, entity)) {
@@ -547,12 +546,12 @@ bool Engine::AnimationClipEvaluator::ApplyTrack(ECSWorld& world, const Entity& e
 	AnimationPropertyValue currentValue{};
 	const AnimationPropertyValue* fallbackValue = baseValueOrNull;
 	if (!fallbackValue && desc->getValue && desc->getValue(world, entity, currentValue)) {
-		// 通常適用時は現在値をfallbackにして、未編集成分を残す。
+		// 通常適用時は現在値をfallbackにして、未編集成分を残す
 		fallbackValue = &currentValue;
 	}
 
-	// Overrideではキーが無いチャンネルを現在値のまま残す。
-	// Property追加直後やXだけキーを打った状態で、Y/ZやScaleがdefault値へ戻るのを防ぐ。
+	// Overrideではキーが無いチャンネルを現在値のまま残す
+	// Property追加直後やXだけキーを打った状態で、Y/ZやScaleがdefault値へ戻るのを防ぐ
 	if (track.applyMode == AnimationApplyMode::Override && fallbackValue) {
 		if (!EvaluateTrackWithFallback(track, time, clip, *fallbackValue, curveValue)) {
 			return false;
@@ -580,7 +579,7 @@ void Engine::AnimationClipEvaluator::ApplyClip(ECSWorld& world, const Entity& en
 		return;
 	}
 
-	// Clip全体で一度だけ再生時刻を解決し、各Trackに同じ時刻を渡す。
+	// Clip全体で一度だけ再生時刻を解決し、各Trackに同じ時刻を渡す
 	const AnimationResolvedTime resolvedTime = ResolveClipEvaluationTime(clip, time);
 	for (const AnimationCurveTrack& track : clip.curveTracks) {
 

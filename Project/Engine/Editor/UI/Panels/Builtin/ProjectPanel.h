@@ -27,10 +27,9 @@ namespace Engine {
 		public IEditorPanel,
 		public IEditorTool {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		ProjectPanel(TextureUploadService& textureUploadService);
 		~ProjectPanel();
 
@@ -40,9 +39,9 @@ namespace Engine {
 		EditorPanelPhase GetPhase() const override { return EditorPanelPhase::PostScene; }
 		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -253,3 +252,4 @@ namespace Engine {
 		const char* GetSourceRootPath() const;
 	};
 } // Engine
+

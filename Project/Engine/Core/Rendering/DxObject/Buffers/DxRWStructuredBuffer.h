@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Buffers/DxStructuredBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
@@ -21,10 +22,9 @@ namespace Engine {
 	template<typename T>
 	class StructuredRWBuffer {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		StructuredRWBuffer() = default;
 		StructuredRWBuffer(const std::string& bindingName) : bindingName_(bindingName) {}
 		~StructuredRWBuffer() { Release(); }
@@ -37,6 +37,9 @@ namespace Engine {
 
 		// 必要な要素数を確保
 		void EnsureCapacity(uint32_t requiredCount);
+
+		// GPUリソースの用途stateを遷移
+		void Transition(DxCommand& command, D3D12_RESOURCE_STATES nextState);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -51,9 +54,9 @@ namespace Engine {
 		uint32_t GetSRVIndex() const { return srvIndex_; }
 		std::string_view GetBindingName() const { return bindingName_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -70,6 +73,7 @@ namespace Engine {
 
 		// 現在の容量
 		uint32_t capacity_ = 0;
+		D3D12_RESOURCE_STATES currentState_ = D3D12_RESOURCE_STATE_COMMON;
 
 		// SRV/UAVのインデックス
 		uint32_t srvIndex_ = UINT32_MAX;
@@ -83,7 +87,6 @@ namespace Engine {
 	//============================================================================
 	//	StructuredRWBuffer templateMethods
 	//============================================================================
-
 	template<typename T>
 	inline void StructuredRWBuffer<T>::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor) {
 
@@ -108,6 +111,7 @@ namespace Engine {
 
 		buffer_.reset();
 		capacity_ = 0;
+		currentState_ = D3D12_RESOURCE_STATE_COMMON;
 		srvGPUHandle_ = {};
 		uavGPUHandle_ = {};
 		device_ = nullptr;
@@ -138,6 +142,7 @@ namespace Engine {
 		// バッファ作成
 		buffer_ = std::make_unique<DxStructuredBuffer<T>>();
 		buffer_->CreateUAVBuffer(device_, newCapacity);
+		currentState_ = D3D12_RESOURCE_STATE_COMMON;
 		if (!bindingName_.empty()) {
 			buffer_->GetResource()->SetName(Algorithm::ConvertString(bindingName_).c_str());
 		}
@@ -161,6 +166,16 @@ namespace Engine {
 	}
 
 	template<typename T>
+	inline void StructuredRWBuffer<T>::Transition(DxCommand& command, D3D12_RESOURCE_STATES nextState) {
+
+		if (!buffer_ || !buffer_->GetResource() || currentState_ == nextState) {
+			return;
+		}
+		command.TransitionBarriers({ buffer_->GetResource() }, currentState_, nextState);
+		currentState_ = nextState;
+	}
+
+	template<typename T>
 	inline uint32_t StructuredRWBuffer<T>::RoundUpCapacity(uint32_t value) const {
 
 		uint32_t capacity = 64;
@@ -170,3 +185,4 @@ namespace Engine {
 		return capacity;
 	}
 } // Engine
+

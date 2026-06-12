@@ -9,7 +9,6 @@
 //============================================================================
 //	RenderExtractorRegistry classMethods
 //============================================================================
-
 void Engine::RenderExtractorRegistry::BuildBatch(ECSWorld& world, RenderSceneBatch& batch) {
 
 	// 全ての抽出器を呼び出して描画アイテムを抽出する

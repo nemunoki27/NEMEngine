@@ -10,6 +10,7 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshSkinningSharedTypes.h>
+#include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
@@ -30,13 +31,12 @@ namespace Engine {
 	//============================================================================
 	//	MeshBatchResources structures
 	//============================================================================
-
 	// 定数バッファ
 	struct MeshViewConstants {
 
 		// 実際に描画するビューの行列
 		Matrix4x4 viewProjection = Matrix4x4::Identity();
-		// カリング判定に使うビューの行列。SceneViewではGameViewの行列になる
+		// カリング判定に使うビューの行列でSceneViewではGameViewの行列になる
 		Matrix4x4 cullingViewProjection = Matrix4x4::Identity();
 		// Contribution CullingでカリングカメラのView空間へ変換する
 		Matrix4x4 cullingView = Matrix4x4::Identity();
@@ -46,9 +46,9 @@ namespace Engine {
 		float cullingNearClip = 0.001f;
 		// 描画先Viewportサイズ
 		Vector2 viewSize = Vector2::AnyInit(1.0f);
-		// カリング対象Viewportサイズ。SceneView表示時もGameViewサイズを使う
+		// カリング対象ViewportサイズでSceneView表示時もGameViewサイズを使う
 		Vector2 cullingViewSize = Vector2::AnyInit(1.0f);
-		// Projection行列のX/Y倍率。ViewProjectionから取るとカメラ回転で値が崩れる
+		// Projection行列のX/Y倍率でViewProjectionから取るとカメラ回転で値が崩れる
 		Vector2 cullingProjectionScale = Vector2::AnyInit(1.0f);
 		Vector2 _pad0 = Vector2::AnyInit(0.0f);
 		// PBRライト計算に使う、実際に描画しているビューのカメラ位置
@@ -65,8 +65,11 @@ namespace Engine {
 	// 頂点/メッシュシェーダインスタンスデータ
 	struct MeshInstanceData {
 
-		// エンティティワールド行列
+		// エンティティワールド行列(位置・Bounds・Culling用)
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
+		// worldMatrixの法線変換行列transpose(inverse(worldMatrix))
+		// 非一様スケール・負スケールでも法線が壊れないよう位置用とは別に持つ
+		Matrix4x4 normalMatrix = Matrix4x4::Identity();
 
 		// このインスタンスのサブメッシュ配列先頭
 		uint32_t subMeshDataOffset = 0;
@@ -79,7 +82,9 @@ namespace Engine {
 
 		// このインスタンスが参照するアウトラインGPUデータのインデックス
 		uint32_t outlineDataIndex = 0;
-		uint32_t _outlinePad[3] = { 0, 0, 0 };
+		// worldMatrixの線形部の行列式の符号で負スケールのmirror時に-1
+		float orientationSign = 1.0f;
+		uint32_t _outlinePad[2] = { 0, 0 };
 	};
 	static_assert(sizeof(MeshInstanceData) % 16 == 0);
 	// MeshInstanceDataのflagsで、スキニングするか
@@ -118,10 +123,9 @@ namespace Engine {
 	//============================================================================
 	class MeshBatchResources {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		MeshBatchResources() = default;
 		~MeshBatchResources();
 
@@ -134,7 +138,7 @@ namespace Engine {
 		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView);
 		void UploadBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
 			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
-		// 描画パスごとに変わるMeshDrawConstantsを毎描画更新する。キャッシュヒット時も必ず呼ぶ
+		// 描画パスごとに変わるMeshDrawConstantsを毎描画更新しキャッシュヒット時も必ず呼ぶ
 		void UpdateDrawConstants(const RenderDrawContext& drawContext, const MeshGPUResource& gpuMesh);
 		// ExecuteIndirectで使用する頂点描画引数の定数を更新する
 		void UpdateIndexedIndirectArgsConstants(uint32_t indexCount);
@@ -172,9 +176,8 @@ namespace Engine {
 		// 背面法アウトラインのインスタンス別GPUデータ
 		D3D12_GPU_VIRTUAL_ADDRESS GetOutlineGPUAddress() const { return outlineData_.GetGPUAddress(); }
 		std::string_view GetOutlineBindingName() const { return outlineData_.GetBindingName(); }
-		// 選択プレビュー用アウトラインのパラメータ
-		D3D12_GPU_VIRTUAL_ADDRESS GetSelectionOutlineGPUAddress() const { return selectionOutline_.GetGPUAddress(); }
-		std::string_view GetSelectionOutlineBindingName() const { return "MeshSelectionOutlineParams"; }
+		// ScreenSpaceOutline Mask描画用のper-draw定数(Style ID / SubMesh制限)
+		D3D12_GPU_VIRTUAL_ADDRESS GetScreenSpaceOutlineMaskGPUAddress() const { return screenSpaceOutlineMask_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinningPaletteGPUAddress() const { return skinning_->skinningPalette.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinningConstantsGPUAddress() const { return skinning_->skinningConstants.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedVerticesGPUAddress() const { return skinning_->skinnedVertices.GetGPUAddress(); }
@@ -222,9 +225,9 @@ namespace Engine {
 		D3D12_RESOURCE_STATES GetSkinnedVertexState() const { return skinning_->skinnedVertexState; }
 		D3D12_RESOURCE_STATES GetSkinnedPackedVertexState() const { return skinning_->skinnedPackedVertexState; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- structure ----------------------------------------------------
 
@@ -254,8 +257,8 @@ namespace Engine {
 		// ExecuteIndirect/AmplificationShaderのカリング結果を書き戻す可視インスタンスバッファ
 		StructuredRWBuffer<MeshInstanceData> visibleMeshData_{ "gVisibleMeshInstances" };
 		ViewConstantBuffer<MeshDrawConstants> draw_{ "MeshDrawConstants" };
-		// 選択プレビュー用アウトラインのパラメータ(描画単位)
-		ViewConstantBuffer<MeshSelectionOutlineParams> selectionOutline_{ "MeshSelectionOutlineParams" };
+		// ScreenSpaceOutline Mask描画のper-draw定数(描画単位)
+		ViewConstantBuffer<ScreenSpaceOutlineMaskConstants> screenSpaceOutlineMask_{ "ScreenSpaceOutlineMaskConstants" };
 		ViewConstantBuffer<MeshIndirectArgsConstants> indirectArgs_{ "IndirectArgsConstants" };
 		StructuredInstanceBuffer<MeshSubMeshShaderData> subMeshData_{ "gSubMeshes" };
 		// 背面法アウトラインのインスタンス別GPUデータ
@@ -306,3 +309,4 @@ namespace Engine {
 		static constexpr size_t ToViewIndex(RenderViewKind kind) { return static_cast<size_t>(kind); }
 	};
 } // Engine
+

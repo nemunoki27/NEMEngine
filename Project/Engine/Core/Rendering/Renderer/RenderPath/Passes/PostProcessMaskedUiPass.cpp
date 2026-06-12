@@ -11,7 +11,6 @@
 //============================================================================
 //	PostProcessMaskedUiPass classMethods
 //============================================================================
-
 void Engine::PostProcessMaskedUiPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 

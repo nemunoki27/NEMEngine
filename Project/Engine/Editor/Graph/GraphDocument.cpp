@@ -6,7 +6,6 @@
 //============================================================================
 //	GraphDocument classMethods
 //============================================================================
-
 namespace {
 
 	bool IsCompatibleValueType(Engine::GraphValueType from, Engine::GraphValueType to) {
@@ -164,7 +163,7 @@ bool Engine::GraphDocument::RemoveNode(GraphID id) {
 
 bool Engine::GraphDocument::CanCreateLink(GraphID fromPinID, GraphID toPinID, std::string* reason) const {
 
-	// Pinの存在確認。Drag中にNodeが消える可能性もあるため最初に確認する
+	// Pinの存在確認でDrag中にNodeが消える可能性もあるため最初に確認する
 	const GraphPin* from = FindPin(fromPinID);
 	const GraphPin* to = FindPin(toPinID);
 	if (!from || !to) {

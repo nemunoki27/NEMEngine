@@ -1,5 +1,7 @@
 #include "PostProcessStackService.h"
 
+using namespace Engine;
+
 //============================================================================
 //	include
 //============================================================================
@@ -109,7 +111,7 @@ void Engine::PostProcessStackService::RebuildRuntime() {
 		runtimePass.name = passSetting.name;
 		runtimePass.enabled = passSetting.enabled;
 		runtimePass.material = passSetting.materialGuid;
-		runtimePass.passName = passSetting.passName;
+		runtimePass.passKind = passSetting.passKind;
 		runtimePass.parameterOverrides = passSetting.parameterOverrides;
 		runtimePass.textureGuids = passSetting.textureGuids;
 		runtime_.passes.emplace_back(std::move(runtimePass));
@@ -133,7 +135,7 @@ const std::vector<Engine::ShaderConstantBufferVariable>* Engine::PostProcessStac
 	return &it->second;
 }
 
-const std::vector<Engine::ShaderResourceBinding>* Engine::PostProcessStackService::FindReflectionSRVs(AssetID materialId) const {
+const std::vector<ShaderResourceBinding>* PostProcessStackService::FindReflectionSRVs(AssetID materialId) const {
 
 	auto it = reflectionSRVs_.find(materialId);
 	if (it == reflectionSRVs_.end()) {
@@ -142,7 +144,7 @@ const std::vector<Engine::ShaderResourceBinding>* Engine::PostProcessStackServic
 	return &it->second;
 }
 
-void Engine::PostProcessStackService::ClearReflection(AssetID materialId) {
+void PostProcessStackService::ClearReflection(AssetID materialId) {
 
 	reflectionVars_.erase(materialId);
 	reflectionSRVs_.erase(materialId);

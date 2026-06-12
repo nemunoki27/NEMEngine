@@ -30,14 +30,13 @@ namespace Math {
 	//============================================================================
 	//	角度変換
 	//============================================================================
-
-	// ラジアン → 度
+	// ラジアン→度
 	float RadToDeg(float rad);
 	Engine::Vector2 RadToDeg(const Engine::Vector2& rad);
 	Engine::Vector3 RadToDeg(const Engine::Vector3& rad);
 	Engine::Vector4 RadToDeg(const Engine::Vector4& rad);
 
-	// 度 → ラジアン
+	// 度→ラジアン
 	float DegToRad(float deg);
 	Engine::Vector2 DegToRad(const Engine::Vector2& deg);
 	Engine::Vector3 DegToRad(const Engine::Vector3& deg);
@@ -46,7 +45,6 @@ namespace Math {
 	//============================================================================
 	//	角度正規化
 	//============================================================================
-
 	// [0, 360)
 	float WrapDegree360(float value);
 	// [-180, 180)
@@ -63,7 +61,6 @@ namespace Math {
 	//============================================================================
 	//	数学
 	//============================================================================
-
 	// 行列をfloat16の配列に変換する
 	void MatrixToFloat16(const Engine::Matrix4x4& src, float out[16]);
 	Engine::Matrix4x4 MatrixFromFloat16(const float in[16]);
@@ -71,7 +68,6 @@ namespace Math {
 	//============================================================================
 	//	汎用
 	//============================================================================
-
 	// 近似比較
 	bool NearlyEqual(float lhs, float rhs);
 } // Math

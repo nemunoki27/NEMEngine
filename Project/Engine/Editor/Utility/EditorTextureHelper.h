@@ -27,7 +27,7 @@ namespace Engine::EditorTextureHelper {
 		return path;
 	}
 
-	// テクスチャがvalidならそのIDを返す。未準備またはvalidでない場合はエラーテクスチャにフォールバックする
+	// テクスチャがvalidならそのIDを返し未準備またはvalidでない場合はエラーテクスチャにフォールバックする
 	inline ImTextureID GetImTextureID(const TextureUploadService& service, const std::string& key) {
 
 		auto tryGetValid = [&](const std::string& k) -> ImTextureID {

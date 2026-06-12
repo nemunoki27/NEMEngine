@@ -1,20 +1,17 @@
 //============================================================================
 // include
 //============================================================================
-
 #include "../FullscreenCopy/fullscreenCopy.hlsli"
 
 //============================================================================
 // resources
 //============================================================================
-
 Texture2D<float4> gTexture : register(t0);
 SamplerState gSampler : register(s0);
 
 //============================================================================
 // constants
 //============================================================================
-
 static const float kExposure = 1.0f;
 static const float kGamma = 2.2f;
 static const float kInvGamma = 1.0f / kGamma;
@@ -22,7 +19,6 @@ static const float kInvGamma = 1.0f / kGamma;
 //============================================================================
 // functions
 //============================================================================
-
 float3 ToneMapReinhard(float3 color) {
 
     return color / (color + 1.0f);
@@ -47,7 +43,6 @@ float3 LinearToGamma(float3 color) {
 //============================================================================
 // main
 //============================================================================
-
 float4 main(VSOutput input) : SV_TARGET0 {
 
     float4 src = gTexture.Sample(gSampler, input.texcoord);
@@ -58,7 +53,7 @@ float4 main(VSOutput input) : SV_TARGET0 {
     // 露出
     hdrColor *= kExposure;
 
-    // HDR -> LDR。
+    // HDR -> LDR
     float3 ldrColor = ToneMapACES(hdrColor);
     ldrColor = LinearToGamma(ldrColor);
 

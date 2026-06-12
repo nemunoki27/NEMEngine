@@ -17,7 +17,6 @@ namespace Engine::EditorEntityDuplicateUtility {
 	//============================================================================
 	//	EditorEntityDuplicateUtility namespace
 	//============================================================================
-
 	// ルート名からEntity_N形式の一意名を作る
 	std::string MakeUniqueDuplicatedName(ECSWorld& world, const std::string_view& sourceName);
 

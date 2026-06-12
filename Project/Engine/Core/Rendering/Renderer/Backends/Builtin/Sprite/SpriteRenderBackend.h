@@ -18,10 +18,9 @@ namespace Engine {
 	class SpriteRenderBackend :
 		public IRenderBackend {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		SpriteRenderBackend() {
 			viewCBVSlot_    = perDrawBindCache_.AddSlot("ViewConstants", ShaderBindingKind::CBV);
 			vsInstSRVSlot_  = perDrawBindCache_.AddSlot("gVSInstances",  ShaderBindingKind::SRV);
@@ -40,16 +39,16 @@ namespace Engine {
 
 		uint32_t GetID() const override { return RenderBackendID::Sprite; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
 		// バッチ描画に使用するリソース
 		FrameBatchResourcePool<SpriteBatchResources> resourcePool_;
 
-		// バッファレジストリ → Graphicsパイプラインスロットの対応キャッシュ
+		// バッファレジストリ→ Graphicsパイプラインスロットの対応キャッシュ
 		RegistryAutoBindTable registryAutoBindTable_{};
 		// 描画固有バインドのパイプラインスロットキャッシュ
 		PipelineBindingCache perDrawBindCache_{};
@@ -59,3 +58,4 @@ namespace Engine {
 		PipelineBindingCache::SlotID textureSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 	};
 } // Engine
+

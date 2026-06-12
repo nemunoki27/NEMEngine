@@ -13,11 +13,11 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
 
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+#include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
 
 //============================================================================
 //	RaytracingSceneBuilder classMethods
 //============================================================================
-
 void Engine::RaytracingSceneBuilder::Init(GraphicsCore& graphicsCore) {
 
 	if (initialized_) {
@@ -234,25 +234,51 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, baseColorTextureAsset);
 			} else if (MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(*meshResource, src.renderer, subMeshIndex)) {
 
-				// 宣言はあるが見つからない: エラーテクスチャ(空AssetIDの解決でerrorIndexが返る)
+				// 宣言はあるが見つからない:エラーテクスチャ(空AssetIDの解決でerrorIndexが返る)
 				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, AssetID{});
 			} else {
 
-				// テクスチャ未設定: シェーダ側でimportedBaseColor*colorを使う
+				// テクスチャ未設定:シェーダ側でimportedBaseColor*colorを使う
 				subMeshData.baseColorTextureIndex = UINT32_MAX;
 			}
 
 			bool hasMesh = src.renderer && subMeshIndex < src.renderer->subMeshes.size();
 
-			// 初期値
+			AssetID normalAsset = MeshDrawPathCommon::ResolveSubMeshNormalTextureAssetID(*meshResource, src.renderer, subMeshIndex);
+			AssetID metallicRoughnessAsset = MeshDrawPathCommon::ResolveSubMeshMetallicRoughnessTextureAssetID(*meshResource, src.renderer, subMeshIndex);
+			AssetID emissiveAsset = MeshDrawPathCommon::ResolveSubMeshEmissiveTextureAssetID(*meshResource, src.renderer, subMeshIndex);
+			AssetID occlusionAsset = MeshDrawPathCommon::ResolveSubMeshOcclusionTextureAssetID(*meshResource, src.renderer, subMeshIndex);
+			AssetID specularAsset = MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(*meshResource, src.renderer, subMeshIndex);
+			subMeshData.normalTextureIndex = normalAsset ?
+				ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, normalAsset) : UINT32_MAX;
+			subMeshData.metallicRoughnessTextureIndex = metallicRoughnessAsset ?
+				ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, metallicRoughnessAsset) : UINT32_MAX;
+			subMeshData.emissiveTextureIndex = emissiveAsset ?
+				ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, emissiveAsset) : UINT32_MAX;
+			subMeshData.occlusionTextureIndex = occlusionAsset ?
+				ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, occlusionAsset) : UINT32_MAX;
+			subMeshData.specularTextureIndex = specularAsset ?
+				ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, specularAsset) : UINT32_MAX;
+
+			// 初期値でCPU側のMeshSubMeshShaderDataとHLSLのSubMeshShaderDataは同一レイアウトに保つ
 			subMeshData.localMatrix = Matrix4x4::Identity();
+			subMeshData.localNormalMatrix = Matrix4x4::Identity();
 			subMeshData.color = Color4::White();
+			subMeshData.emissiveColor = Color4(0.0f, 0.0f, 0.0f, 0.0f);
 			subMeshData.uvMatrix = Matrix4x4::Identity();
 			if (hasMesh) {
 
 				const auto& authoring = src.renderer->subMeshes[subMeshIndex];
 				subMeshData.color = authoring.color;
+				subMeshData.emissiveColor = authoring.emissiveColor;
+				subMeshData.metallic = authoring.metallic;
+				subMeshData.roughness = authoring.roughness;
 				subMeshData.uvMatrix = authoring.uvMatrix;
+				subMeshData.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
+				const MeshNormalMatrixResult localNormal = BuildSafeMeshNormalMatrix(subMeshData.localMatrix);
+				subMeshData.localNormalMatrix = localNormal.matrix;
+				subMeshData.localOrientationSign = localNormal.orientationSign;
+				subMeshData.sourcePivot = authoring.sourcePivot;
 			}
 			// サブメッシュデータを追加
 			sceneSubMeshScratch_.emplace_back(subMeshData);

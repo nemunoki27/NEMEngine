@@ -3,7 +3,6 @@
 //============================================================================
 //	ILightExtractor classMethods
 //============================================================================
-
 bool Engine::LightExtract::IsVisible(ECSWorld& world, const Entity& entity, bool enabled) {
 
 	if (!enabled || !world.IsAlive(entity)) {

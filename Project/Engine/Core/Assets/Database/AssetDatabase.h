@@ -16,7 +16,6 @@ namespace Engine {
 	//============================================================================
 	//	AssetDatabase struct
 	//============================================================================
-
 	// アセットのメタデータ
 	struct AssetMeta {
 
@@ -62,10 +61,9 @@ namespace Engine {
 	//============================================================================
 	class AssetDatabase {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		AssetDatabase() = default;
 		~AssetDatabase() = default;
 
@@ -99,9 +97,9 @@ namespace Engine {
 		const std::filesystem::path& GetAssetsRoot() const { return assetsRoot_; }
 		const std::filesystem::path& GetLibraryRoot() const { return libraryRoot_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -114,14 +112,14 @@ namespace Engine {
 		std::unordered_map<AssetID, AssetMeta> guidToMeta_;
 		// 検索用に正規化したパスキーから識別IDへのマップ
 		std::unordered_map<std::string, AssetID> pathToGuid_;
-		// 逆引き参照(依存される側ID -> 参照しているアセットID群)
+		// 逆引き参照(依存される側ID ->参照しているアセットID群)
 		std::unordered_map<AssetID, std::vector<AssetID>> referencersByGuid_;
 		// 構築時に検出した問題一覧
 		std::vector<AssetDatabaseIssue> issues_;
 
 		//--------- functions ----------------------------------------------------
 
-		// 検索用のパスキー(Windowsの大文字小文字差を吸収する。保存表記とは別)
+		// 検索用のパスキーでWindowsの大文字小文字差を吸収する、保存表記とは別
 		static std::string NormalizeLookupKey(const std::filesystem::path& path);
 		// アセットファイルのフルパスからメタファイルのフルパスを取得
 		static std::filesystem::path MetaPathOf(const std::filesystem::path& assetFullPath);
@@ -130,7 +128,7 @@ namespace Engine {
 		bool TryLoadMeta(const std::filesystem::path& metaFullPath, AssetMeta& out) const;
 		bool SaveMeta(const std::filesystem::path& metaFullPath, const AssetMeta& meta) const;
 
-		// ファイル走査とUID索引の構築。重複・破損・孤立を検出する
+		// ファイル走査とUID索引の構築で重複や破損や孤立を検出する
 		void RebuildIndex(const std::vector<std::filesystem::path>& scanRoots);
 		// 索引構築後に依存関係・逆引き参照・参照診断を構築する
 		void RebuildDependencies();
@@ -144,3 +142,4 @@ namespace Engine {
 		void AddIssue(AssetDatabaseIssue&& issue);
 	};
 } // Engine
+

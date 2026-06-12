@@ -3,7 +3,6 @@
 //============================================================================
 //	GraphValidationResult classMethods
 //============================================================================
-
 bool Engine::GraphValidationResult::HasError() const {
 
 	// Apply可否はErrorの有無だけで決める

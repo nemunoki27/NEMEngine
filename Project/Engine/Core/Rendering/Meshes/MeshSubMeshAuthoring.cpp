@@ -10,7 +10,6 @@
 //============================================================================
 //	MeshSubMeshAuthoring classMethods
 //============================================================================
-
 namespace {
 
 	// サブメッシュ表示名生成
@@ -92,7 +91,7 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 
 		if (material && assetDatabase) {
 
-			// FindByPath で見つからない場合は ImportOrGet でメタを作成してから解決する
+			// FindByPathで見つからない場合はImportOrGetでメタを作成してから解決する
 			auto resolveAsset = [&](const std::string& assetPath) -> AssetID {
 				if (assetPath.empty()) {
 					return {};
@@ -103,7 +102,7 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 				return assetDatabase->ImportOrGet(assetPath, AssetType::Texture);
 			};
 
-			// AssimpMaterialTextureExtractor::Extract は aiMaterial* (非const) を要求する
+			// AssimpMaterialTextureExtractor::ExtractはaiMaterial* (非const)を要求する
 			aiMaterial* mat = const_cast<aiMaterial*>(material);
 
 			const std::string baseColorReference = AssimpMaterialTextureExtractor::Extract(

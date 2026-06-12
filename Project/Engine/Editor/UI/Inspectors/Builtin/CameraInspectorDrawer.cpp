@@ -8,7 +8,6 @@
 //============================================================================
 //	CameraInspectorDrawer classMethods
 //============================================================================
-
 void Engine::OrthographicCameraInspectorDrawer::DrawFields([[maybe_unused]] const EditorPanelContext& context,
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
@@ -35,7 +34,7 @@ void Engine::OrthographicCameraInspectorDrawer::DrawFields([[maybe_unused]] cons
 	{
 		FloatEditSetting clipSetting{};
 		clipSetting.dragSpeed = 0.01f;
-		clipSetting.minValue = 0.001f;
+		clipSetting.minValue = 0.0f;
 		clipSetting.maxValue = 100000.0f;
 		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragFloat("近クリップ", draft.nearClip, clipSetting);

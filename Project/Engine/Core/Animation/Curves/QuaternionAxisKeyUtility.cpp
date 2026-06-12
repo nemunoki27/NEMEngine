@@ -18,7 +18,7 @@ namespace Engine::QuaternionAxisKeyUtility {
 
 	Vector3 GetAxisDirection(const CurveQuaternionAxisKey& axisKey) {
 
-		// 軸が無効な場合はX軸に倒して、Quaternion生成時のNaNを避ける。
+		// 軸が無効な場合はX軸に倒して、Quaternion生成時のNaNを避ける
 		Vector3 axis = axisKey.useCustomAxis ? axisKey.customAxis : GetDirection(axisKey.axes);
 		if (axis.Length() <= 0.001f) {
 			axis = Vector3(1.0f, 0.0f, 0.0f);

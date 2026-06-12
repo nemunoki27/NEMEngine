@@ -1,13 +1,11 @@
 //============================================================================
 //	include
 //============================================================================
-
 #include "analyticGrid.hlsli"
 
 //============================================================================
 //	output
 //============================================================================
-
 struct PSOutput {
 	
 	float4 color : SV_TARGET0;
@@ -17,7 +15,6 @@ struct PSOutput {
 //============================================================================
 //	resources
 //============================================================================
-
 cbuffer GridPassConstants : register(b0) {
 
 	float4x4 inverseViewProjectionMatrix;
@@ -49,7 +46,6 @@ cbuffer GridPassConstants : register(b0) {
 //============================================================================
 //	structures
 //============================================================================
-
 float Smoother01(float x) {
 
 	x = saturate(x);
@@ -230,9 +226,9 @@ PSOutput main(VSOutput input) {
 
 	float4 accumPremul = float4(0.0f, 0.0f, 0.0f, 0.0f);
 
-	//========================================================================
+	//============================================================================
 	// minor
-	//========================================================================
+	//============================================================================
 	{
 		float fade = ComputeDistanceFade(distanceXZ, minorParams0.z, minorParams0.w, minorParams1.x) * horizonFade;
 		float pixelWidth = ComputeEffectivePixelWidth(
@@ -253,9 +249,9 @@ PSOutput main(VSOutput input) {
 		BlendLayer(accumPremul, minorColor.rgb, alpha);
 	}
 
-	//========================================================================
+	//============================================================================
 	// major
-	//========================================================================
+	//============================================================================
 	{
 		float fade = ComputeDistanceFade(distanceXZ, majorParams0.z, majorParams0.w, majorParams1.x) * horizonFade;
 		float pixelWidth = ComputeEffectivePixelWidth(
@@ -276,9 +272,9 @@ PSOutput main(VSOutput input) {
 		BlendLayer(accumPremul, majorColor.rgb, alpha);
 	}
 
-	//========================================================================
+	//============================================================================
 	// coarse
-	//========================================================================
+	//============================================================================
 	{
 		float fade = ComputeDistanceFade(distanceXZ, coarseParams0.z, coarseParams0.w, coarseParams1.x) * horizonFade;
 		float pixelWidth = ComputeEffectivePixelWidth(
@@ -299,9 +295,9 @@ PSOutput main(VSOutput input) {
 		BlendLayer(accumPremul, coarseColor.rgb, alpha);
 	}
 
-	//========================================================================
+	//============================================================================
 	// axis
-	//========================================================================
+	//============================================================================
 	{
 		float axisVisibleDistance = max(axisParams.w, 1.0f);
 		float axisFade = ComputeDistanceFade(distanceXZ, 0.0f, axisVisibleDistance, 1.0f) * horizonFade;

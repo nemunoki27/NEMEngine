@@ -5,7 +5,6 @@ using namespace Engine;
 //============================================================================
 //	ImmutableIndexBuffer classMethods
 //============================================================================
-
 void ImmutableIndexBuffer::Create(ID3D12Device* device, BufferUploadService& uploadService,
 	std::span<const uint32_t> data, DXGI_FORMAT format, D3D12_RESOURCE_STATES finalState) {
 
@@ -16,7 +15,7 @@ void ImmutableIndexBuffer::Create(ID3D12Device* device, BufferUploadService& upl
 
 	const UINT sizeInBytes = static_cast<UINT>(sizeof(uint32_t) * data.size());
 
-	// DEFAULT heapのバッファは作成時COMMON。コピー用のCOPY_DEST遷移はBufferUploadServiceで積む。
+	// DEFAULT heapのバッファは作成時COMMONでコピー用のCOPY_DEST遷移はBufferUploadServiceで積む
 	DxUtils::CreateDefaultBufferResource(device, resource_, sizeInBytes);
 
 	indexBufferView_.BufferLocation = resource_->GetGPUVirtualAddress();
@@ -35,7 +34,7 @@ void ImmutableIndexBuffer::Create(ID3D12Device* device, BufferUploadService& upl
 
 	const UINT sizeInBytes = static_cast<UINT>(sizeof(uint16_t) * data.size());
 
-	// DEFAULT heapのバッファは作成時COMMON。コピー用のCOPY_DEST遷移はBufferUploadServiceで積む。
+	// DEFAULT heapのバッファは作成時COMMONでコピー用のCOPY_DEST遷移はBufferUploadServiceで積む
 	DxUtils::CreateDefaultBufferResource(device, resource_, sizeInBytes);
 
 	indexBufferView_.BufferLocation = resource_->GetGPUVirtualAddress();

@@ -14,7 +14,6 @@ using namespace Engine;
 //============================================================================
 //	DxShaderCompiler classMethods
 //============================================================================
-
 namespace {
 
 	// D3D_SHADER_INPUT_TYPEからShaderBindingKindへの変換
@@ -120,9 +119,9 @@ namespace {
 			// 取得したバインディング情報をリストに追加
 			out.resources.emplace_back(std::move(binding));
 		}
-		// 定数バッファの内部変数を取得する。
+		// 定数バッファの内部変数を取得する
 		// RootSignatureの生成には不要だが、PostProcessのMaterial Parametersを
-		// HLSL側のオフセットへ詰めるために保持しておく。
+		// HLSL側のオフセットへ詰めるために保持しておく
 		for (UINT i = 0; i < shaderDesc.ConstantBuffers; ++i) {
 
 			ID3D12ShaderReflectionConstantBuffer* constantBuffer = reflection->GetConstantBufferByIndex(i);
@@ -139,7 +138,7 @@ namespace {
 			bufferInfo.name = bufferDesc.Name ? bufferDesc.Name : "";
 			bufferInfo.size = bufferDesc.Size;
 
-			// BoundResources側の情報と名前で突き合わせ、register番号も保持する。
+			// BoundResources側の情報と名前で突き合わせ、register番号も保持する
 			for (const ShaderResourceBinding& resource : out.resources) {
 				if (resource.kind == ShaderBindingKind::CBV && resource.name == bufferInfo.name) {
 					bufferInfo.bindPoint = resource.bindPoint;

@@ -58,6 +58,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/TextRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/InvertedHullOutlineInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/ScreenSpaceOutlineInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/DirectionalLightInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/PointLightInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/SpotLightInspectorDrawer.h>
@@ -82,7 +83,6 @@
 //============================================================================
 //	InspectorPanel classMethods
 //============================================================================
-
 namespace {
 
 	// インスペクターパネルのコンポーネント追加メニューのエントリー
@@ -97,9 +97,9 @@ namespace {
 		}
 		auto has = [&](const char* token) { return lower.find(token) != std::string::npos; };
 
-		// 法線マップ(Sponzaの _ddn など派生法線命名も拾う)
+		// 法線マップ(Sponzaの_ddnなど派生法線命名も拾う)
 		if (has("normal") || has("ddn") || has("_nrm") || has("_norm")) { return "法線マップ"; }
-		// ベースカラー(_diff, diffuse, albedo, basecolor 等)
+		// ベースカラー(_diff, diffuse, albedo, basecolor等)
 		if (has("basecolor") || has("base_color") || has("albedo") || has("diff") || has("_col") || has("_alb") || has("_bc")) { return "ベースカラー"; }
 		// メタリック/ラフネス
 		if (has("metal") || has("rough") || has("_mr") || has("_orm") || has("_arm")) { return "メタリック/ラフネス"; }
@@ -119,7 +119,7 @@ namespace {
 		const char* category;
 	};
 	// 追加できるコンポーネントのメニューエントリー
-	constexpr std::array<InspectorComponentMenuEntry, 16> kOptionalComponentMenuEntries = { {
+	constexpr std::array<InspectorComponentMenuEntry, 17> kOptionalComponentMenuEntries = { {
 
 		{ "PerspectiveCamera",  "PerspectiveCamera",  "Camera" },
 		{ "OrthographicCamera", "OrthographicCamera", "Camera" },
@@ -133,6 +133,7 @@ namespace {
 		{ "UVTransform",        "UVTransform",        "Rendering" },
 		{ "Billboard",          "Billboard",          "Rendering" },
 		{ "Inverted Hull Outline", "InvertedHullOutline", "Rendering" },
+		{ "Screen Space Outline", "ScreenSpaceOutline", "Rendering" },
 		{ "Skinned Animation",  "SkinnedAnimation",   "Animation" },
 		{ "DirectionalLight",   "DirectionalLight",   "Lighting" },
 		{ "PointLight",         "PointLight",         "Lighting" },
@@ -337,6 +338,25 @@ namespace {
 		return result;
 	}
 
+	// MaterialPassKindの編集フィールドを描画する
+	Engine::ValueEditResult DrawMaterialPassKindField(const char* label, Engine::MaterialPassKind& value) {
+
+		Engine::ValueEditResult result{};
+		if (!Engine::MyGUI::BeginPropertyRow(label)) {
+			return result;
+		}
+
+		Engine::MaterialPassKind edited = value;
+		result.valueChanged = Engine::EnumAdapter<Engine::MaterialPassKind>::Combo("##Value", &edited);
+		if (result.valueChanged) {
+			value = edited;
+		}
+		result.anyItemActive = ImGui::IsItemActive();
+		result.editFinished = result.valueChanged || ImGui::IsItemDeactivatedAfterEdit();
+		Engine::MyGUI::EndPropertyRow();
+		return result;
+	}
+
 	// Materialパラメーターの型名を表示用に取得する
 	const char* GetMaterialParameterTypeName(const Engine::MaterialParameterValue& parameter) {
 
@@ -407,12 +427,12 @@ namespace {
 		material.passes.clear();
 
 		material.passes.push_back({
-			.passName = "ZPrepass",
+			.passKind = Engine::MaterialPassKind::ZPrepass,
 			.pipeline = Engine::BuiltinAssets::Pipelines::DefaultMeshZPrepass,
 			.preferredVariant = Engine::PipelineVariantKind::GraphicsMesh,
 			});
 		material.passes.push_back({
-			.passName = "Draw",
+			.passKind = Engine::MaterialPassKind::Draw,
 			.pipeline = Engine::BuiltinAssets::Pipelines::DefaultMesh,
 			.preferredVariant = Engine::PipelineVariantKind::GraphicsMesh,
 			});
@@ -446,6 +466,7 @@ Engine::InspectorPanel::InspectorPanel() {
 	componentDrawers_.emplace_back(std::make_unique<UVTransformInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<BillboardInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<InvertedHullOutlineInspectorDrawer>());
+	componentDrawers_.emplace_back(std::make_unique<ScreenSpaceOutlineInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<DirectionalLightInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<PointLightInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<SpotLightInspectorDrawer>());
@@ -456,7 +477,7 @@ Engine::InspectorPanel::InspectorPanel() {
 
 void Engine::InspectorPanel::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
 
-	// InspectorPanelはToolPanel上の独立ウィンドウを持たず、RenderTexture作成機能だけを利用する。
+	// InspectorPanelはToolPanel上の独立ウィンドウを持たず、RenderTexture作成機能だけを利用する
 }
 
 void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
@@ -553,7 +574,6 @@ void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context,
 	//============================================================================
 	//	エンティティの名前編集
 	//============================================================================
-
 	// 現在の名前を取得する
 	std::string currentName = "Entity";
 	if (world.HasComponent<NameComponent>(entity)) {
@@ -934,10 +954,12 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 
 			MaterialPassBinding& pass = materialDraft_.passes[index];
 			ImGui::PushID(index);
-			if (ImGui::TreeNodeEx("Pass", ImGuiTreeNodeFlags_DefaultOpen, "%s", pass.passName.empty() ? "Unnamed Pass" : pass.passName.c_str())) {
+			const std::string_view passLabel = EnumAdapter<MaterialPassKind>::ToStringView(pass.passKind);
+			if (ImGui::TreeNodeEx("Pass", ImGuiTreeNodeFlags_DefaultOpen, "%.*s",
+				static_cast<int>(passLabel.size()), passLabel.data())) {
 
-				ValueEditResult passNameResult = MyGUI::InputText("Pass Name", pass.passName);
-				saveRequested |= passNameResult.editFinished;
+				ValueEditResult passKindResult = DrawMaterialPassKindField("Pass Kind", pass.passKind);
+				saveRequested |= passKindResult.editFinished;
 
 				ValueEditResult pipelineResult = MyGUI::AssetReferenceField("Pipeline", pass.pipeline,
 					context.editorContext->assetDatabase, { AssetType::RenderPipeline });
@@ -962,7 +984,7 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 		if (ImGui::Button("Add Pass", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 
 			materialDraft_.passes.push_back({
-				.passName = "Draw",
+				.passKind = MaterialPassKind::Draw,
 				.pipeline = {},
 				.preferredVariant = PipelineVariantKind::GraphicsMesh,
 				});

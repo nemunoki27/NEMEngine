@@ -4,22 +4,22 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
+#include <Engine/Editor/UI/Common/TextSearchFilter.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshSelectionOutline.h>
+#include <Engine/Core/Rendering/Renderer/Outline/EditorSelectionOutlineRequestService.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Interface/ILightExtractor.h>
 
 //============================================================================
 //	InspectorDrawerCommon classMethods
 //============================================================================
-
 void Engine::InspectorDrawerCommon::AccumulateEditResult(const ValueEditResult& result,
 	bool& anyItemActive, bool& commitRequested) {
 
@@ -57,9 +57,23 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 		return result;
 	}
 
-	// コンボボックスのプレビュー表示は、型が選択されていない場合は"<None>"とする
-	const char* preview = type.empty() ? "<None>" : type.c_str();
-	if (ImGui::BeginCombo("##Value", preview)) {
+	// 表示はクラス名のみにし識別子としては完全修飾名を保持するため、選択時にtypeへ書くのはinfo.nameのまま
+	const auto toShortName = [](const std::string& fullName) -> std::string {
+		const size_t dot = fullName.find_last_of('.');
+		return dot == std::string::npos ? fullName : fullName.substr(dot + 1);
+	};
+
+	// プレビューも短い名前で表示する、未選択は "<None>"
+	const std::string preview = type.empty() ? std::string("<None>") : toShortName(type);
+
+	// combo内の絞り込み検索、同時に開くcomboは1つなのでstaticで十分
+	static TextSearchFilter typeFilter;
+
+	if (ImGui::BeginCombo("##Value", preview.c_str())) {
+
+		// Add Componentと同じく、上部に検索ボックスを置く
+		typeFilter.DrawInput("##BehaviorTypeSearch");
+		ImGui::Separator();
 
 		for (uint32_t i = 0; i < registry.GetBehaviorTypeCount(); ++i) {
 
@@ -67,17 +81,32 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 			if (info.name.empty() || !info.construct) {
 				continue;
 			}
+			const std::string shortName = toShortName(info.name);
+			// 短い名前・完全修飾名どちらでも検索一致させる
+			if (!typeFilter.Matches(shortName) && !typeFilter.Matches(info.name)) {
+				continue;
+			}
 			const bool selected = (type == info.name);
 
-			if (ImGui::Selectable(info.name.c_str(), selected)) {
+			ImGui::PushID(static_cast<int>(i));
+			if (ImGui::Selectable(shortName.c_str(), selected)) {
 				type = info.name;
 				result.valueChanged = true;
+			}
+			// 完全修飾名は曖昧さ解消用にhoverで見せる
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("%s", info.name.c_str());
 			}
 			if (selected) {
 				ImGui::SetItemDefaultFocus();
 			}
+			ImGui::PopID();
 		}
 		ImGui::EndCombo();
+	}
+	else {
+		// comboを閉じたら検索文字を残さない
+		typeFilter.Clear();
 	}
 
 	result.anyItemActive = ImGui::IsItemActive();
@@ -90,8 +119,7 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const Entity& entity, int32_t selectionSubMeshIndex) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	// トランスフォームコンポーネントを持っていなければ
-	// 無効の場合
+	// トランスフォームコンポーネントが無い、もしくは無効の場合
 	if (!world.HasComponent<TransformComponent>(entity) ||
 		!world.GetComponent<SceneObjectComponent>(entity).activeInHierarchy) {
 		return;
@@ -113,16 +141,21 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 	// メッシュ
 	if (world.HasComponent<MeshRendererComponent>(entity)) {
 
-		// 選択中メッシュのプレビューアウトライン。どの選択物でも一定の太さで綺麗に出るよう、
-		// 画面ピクセル幅(ScreenPixels)固定スタイルで描画する。サブメッシュ選択時は対象のみに限定。
-		InvertedHullOutlineComponent outline{};
-		outline.enabled = true;
-		outline.color = Color4::FromHex(0xFF8000FF);
-		outline.widthMode = OutlineWidthMode::ScreenPixels;
-		outline.width = 3.0f;
-		outline.expansionMode = OutlineExpansionMode::NormalDirection;
-		outline.cameraZOffset = 0.0f;
-		MeshSelectionOutline::GetInstance().Request(&world, entity, selectionSubMeshIndex, outline);
+		// 選択中メッシュのアウトラインはシーン保存対象にしない
+		 ScreenSpaceOutlineStyle style{};
+		style.color = Color4::FromHex(0xF02700FF);
+		style.widthPixels = 4.0f;
+		style.priority = 300;
+		style.regionMode = ScreenSpaceOutlineRegionMode::ExteriorPreferred;
+
+		/*ImGui::Begin("MeshOutlineEdit");
+
+		ImGui::ColorEdit4("color", &style.color.r);
+		ImGui::DragFloat("widthPixels", &style.widthPixels, 0.01f);
+
+		ImGui::End();*/
+
+		EditorSelectionOutlineRequestService::GetInstance().Request(&world, entity, selectionSubMeshIndex, style);
 	}
 	// スキニングアニメーション
 	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {
@@ -132,23 +165,29 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 		// スケルトンのジョイントを描画
 		renderer3D->DrawSkeleton(transform.worldMatrix, animation.runtimeSkeleton);
 	}
-	// 点光源
-	if (world.HasComponent<PointLightComponent>(entity)) {
+	// 平行光源
+	if (world.HasComponent<DirectionalLightComponent>(entity)) {
 
-		auto& pointLight = world.GetComponent<PointLightComponent>(entity);
+		auto& directionalLight = world.GetComponent<DirectionalLightComponent>(entity);
+		const Vector3 direction =
+			LightExtract::GetWorldDirection(directionalLight.direction, transform.worldMatrix);
+		const Quaternion rotation = Quaternion::FromToY(direction);
 
-		// 点光源の影響範囲を描画
-		renderer3D->DrawSphere(transform.worldMatrix.GetTranslationValue(), pointLight.radius, pointLight.color, 1.0f);
+		// DirectionalLightの向きを矢印で表示する
+		renderer3D->DrawArrow(transform.worldMatrix.GetTranslationValue(), 4.0f,
+			rotation, directionalLight.color, 1.0f);
 	}
 	// スポットライト
 	if (world.HasComponent<SpotLightComponent>(entity)) {
 
 		auto& spotLight = world.GetComponent<SpotLightComponent>(entity);
+		const Vector3 direction =
+			LightExtract::GetWorldDirection(spotLight.direction, transform.worldMatrix);
+		const Quaternion rotation = Quaternion::FromToY(direction);
 
-		// スポットライトの影響範囲を描画
-		renderer3D->DrawSpotLightFrustum(transform.worldMatrix.GetTranslationValue(),
-			LightExtract::GetWorldDirection(spotLight.direction, transform.worldMatrix),
-			spotLight.distance, spotLight.cosAngle, spotLight.cosFalloffStart, spotLight.color);
+		// SpotLightの向きを矢印で表示する
+		renderer3D->DrawArrow(transform.worldMatrix.GetTranslationValue(), 4.0f,
+			rotation, spotLight.color, 1.0f);
 	}
 #else
 	// Releaseではエディター用のデバッグライン描画を持たない

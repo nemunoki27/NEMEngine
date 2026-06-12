@@ -11,7 +11,6 @@
 //============================================================================
 //	CameraComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, OrthographicCameraComponent& component) {
 
 	component.nearClip = in.value("nearClip", component.nearClip);

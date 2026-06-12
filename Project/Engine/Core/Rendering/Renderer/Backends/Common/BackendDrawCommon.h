@@ -37,11 +37,11 @@ namespace Engine::BackendDrawCommon {
 
 	// 指定したマテリアルパスを探す
 	const MaterialPassBinding* FindFirstPass(const MaterialAsset& material,
-		const std::initializer_list<std::string_view>& passNames);
+		const std::initializer_list<MaterialPassKind>& passKinds);
 
 	// マテリアルからパスを取得
 	bool ResolveMaterialPass(const RenderDrawContext& context, AssetID requestedMaterial,
-		DefaultMaterialSlot defaultSlot, const std::initializer_list<std::string_view>& passNames,
+		DefaultMaterialSlot defaultSlot, const std::initializer_list<MaterialPassKind>& passKinds,
 		ResolvedMaterialPass& outResolved);
 
 	// パイプラインを取得

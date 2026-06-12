@@ -11,7 +11,6 @@
 //============================================================================
 //	SceneAuthoring classMethods
 //============================================================================
-
 Engine::Entity Engine::SceneAuthoring::CreateGameObject(ECSWorld& world, const std::string_view& name) {
 
 	// エンティティの作成

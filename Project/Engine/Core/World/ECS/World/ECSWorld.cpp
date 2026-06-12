@@ -10,7 +10,6 @@ using namespace Engine;
 //============================================================================
 //	ECSWorld classMethods
 //============================================================================
-
 ECSWorld::ECSWorld() {
 
 	// 最初は空のアーキタイプだけを作っておく
@@ -268,7 +267,7 @@ bool Engine::ECSWorld::HasComponent(const Entity& entity, const std::string_view
 
 uint32_t ECSWorld::AllocateIndex() {
 
-	// 破棄されたエンティティIDがあれば再利用する。なければ新しいIDを作る
+	// 破棄されたエンティティIDがあれば再利用する、なければ新しいIDを作る
 	if (!free_.empty()) {
 
 		uint32_t index = free_.back();

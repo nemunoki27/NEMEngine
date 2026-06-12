@@ -1,4 +1,7 @@
 #include "RenderPipelineRunner.h"
+#include "RenderPipelineUtility.h"
+
+using namespace Engine;
 
 //============================================================================
 //	include
@@ -37,179 +40,7 @@
 //	RenderPipelineRunner classMethods
 //============================================================================
 
-namespace {
-
-	// スキニングする必要のあるメッシュ描画アイテムを収集して、バッチ処理する
-	void PreDispatchVisibleMeshSkinning(Engine::GraphicsCore& graphicsCore,
-		const Engine::SceneExecutionContext& context, const Engine::RenderSceneBatch& renderBatch,
-		Engine::RenderBackendRegistry& backendRegistry, Engine::RenderAssetLibrary& assetLibrary,
-		Engine::PipelineStateCache& pipelineCache, Engine::MaterialResolver& materialResolver,
-		const Engine::RenderPassPhaseBuckets& passBuckets) {
-
-		// メッシュ描画クラスを取得
-		auto* baseBackend = backendRegistry.Find(Engine::RenderBackendID::Mesh);
-		auto* meshBackend = dynamic_cast<Engine::MeshRenderBackend*>(baseBackend);
-		if (!meshBackend || !context.view || !context.sceneInstance) {
-			return;
-		}
-
-		// 描画コンテキストの構築
-		Engine::RenderDrawContext drawContext{};
-		drawContext.graphicsCore = &graphicsCore;
-		drawContext.view = context.view;
-		drawContext.cullingView = context.cullingView;
-		drawContext.systemContext = context.systemContext;
-		drawContext.batch = &renderBatch;
-		drawContext.bufferRegistry = &context.bufferRegistry;
-		drawContext.assetDatabase = context.assetDatabase;
-		drawContext.assetLibrary = &assetLibrary;
-		drawContext.pipelineCache = &pipelineCache;
-		drawContext.materialResolver = &materialResolver;
-		drawContext.forceVertexMeshVariant = context.forceVertexMeshVariant;
-
-		// GPUのランタイム機能を取得。プレビューではRayQuery系Variantを選ばない。
-		drawContext.runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
-		if (context.disableInlineRayTracing) {
-
-			drawContext.runtimeFeatures.useInlineRayTracing = false;
-			drawContext.runtimeFeatures.useDispatchRays = false;
-		}
-
-		// バッチ処理のラムダ関数
-		auto runDispatch = [&](const std::vector<const Engine::RenderItem*>& items) {
-
-			size_t begin = 0;
-			while (begin < items.size()) {
-
-				const Engine::RenderItem* first = items[begin];
-				if (!first || first->backendID != Engine::RenderBackendID::Mesh) {
-					++begin;
-					continue;
-				}
-
-				size_t end = begin + 1;
-				while (end < items.size()) {
-					const Engine::RenderItem* next = items[end];
-					if (!next) {
-						break;
-					}
-					if (next->backendID != first->backendID ||
-						!meshBackend->CanBatch(*first, *next, drawContext.runtimeFeatures)) {
-						break;
-					}
-					++end;
-				}
-
-				meshBackend->PreDispatchSkinningBatch(drawContext, std::span(items.data() + begin, end - begin));
-				begin = end;
-			}
-			};
-
-		// 全フェーズのアイテムに対してスキニングを実行する
-		for (const Engine::RenderPassItemList& list : passBuckets.buckets) {
-			if (!list.IsEmpty()) {
-				runDispatch(list.items);
-			}
-		}
-	}
-	// ビューに対して可視なメッシュアセットIDを収集する
-	void CollectVisibleMeshAssetsForView(const Engine::RenderSceneBatch& renderBatch,
-		Engine::UUID sceneInstanceID, const Engine::ResolvedRenderView& view,
-		std::unordered_set<Engine::AssetID>& outMeshAssets) {
-
-		if (!view.valid) {
-			return;
-		}
-		for (const Engine::RenderItem& item : renderBatch.GetItems()) {
-
-			if (sceneInstanceID && item.sceneInstanceID != sceneInstanceID) {
-				continue;
-			}
-			if (item.backendID != Engine::RenderBackendID::Mesh) {
-				continue;
-			}
-
-			const Engine::ResolvedCameraView* camera = view.FindCamera(item.cameraDomain);
-			if (!camera || (item.visibilityLayerMask & camera->cullingMask) == 0) {
-				continue;
-			}
-
-			const Engine::MeshRenderPayload* payload = renderBatch.GetPayload<Engine::MeshRenderPayload>(item);
-			if (!payload || !payload->mesh) {
-				continue;
-			}
-			// メッシュアセットIDを収集
-			outMeshAssets.insert(payload->mesh);
-		}
-	}
-	// 指定Entityがrootの子階層に含まれているか確認する
-	bool IsEntityInPreviewTree(Engine::ECSWorld& world, Engine::Entity root, Engine::Entity entity) {
-
-		if (!world.IsAlive(root) || !world.IsAlive(entity)) {
-			return false;
-		}
-		if (root == entity) {
-			return true;
-		}
-
-		Engine::Entity current = entity;
-		while (const auto* hierarchy = world.TryGetComponent<Engine::HierarchyComponent>(current)) {
-
-			if (!world.IsAlive(hierarchy->parent)) {
-				break;
-			}
-			if (hierarchy->parent == root) {
-				return true;
-			}
-			current = hierarchy->parent;
-		}
-		return false;
-	}
-	// Entityが所属するシーンインスタンスIDを取得する
-	Engine::UUID ResolveEntitySceneInstanceID(Engine::ECSWorld& world, Engine::Entity entity, Engine::UUID fallback) {
-
-		Engine::UUID id = Engine::SceneObjectUtility::GetSceneInstanceID(world, entity);
-		return id ? id : fallback;
-	}
-	// プレビュー対象の描画アイテムだけを描画フェーズごとに振り分ける
-	void BuildPreviewPassBuckets(Engine::ECSWorld& world, Engine::Entity root,
-		const Engine::RenderSceneBatch& renderBatch, const Engine::ResolvedRenderView& view,
-		Engine::RenderPassPhaseBuckets& outBuckets, std::vector<Engine::AssetID>& outMeshAssets) {
-
-		outBuckets.Clear();
-		outMeshAssets.clear();
-
-		std::unordered_set<uint64_t> meshAssetSet{};
-		for (const Engine::RenderItem& item : renderBatch.GetItems()) {
-
-			if (!IsEntityInPreviewTree(world, root, item.entity)) {
-				continue;
-			}
-
-			const Engine::ResolvedCameraView* camera = view.FindCamera(item.cameraDomain);
-			if (!camera || (item.visibilityLayerMask & camera->cullingMask) == 0) {
-				continue;
-			}
-
-			outBuckets.Get(item.renderPhase).items.emplace_back(&item);
-			if (item.backendID == Engine::RenderBackendID::Mesh) {
-
-				if (const auto* payload = renderBatch.GetPayload<Engine::MeshRenderPayload>(item)) {
-					if (payload->mesh) {
-						meshAssetSet.emplace(payload->mesh.value);
-					}
-				}
-			}
-		}
-
-		outMeshAssets.reserve(meshAssetSet.size());
-		for (uint64_t meshValue : meshAssetSet) {
-			outMeshAssets.emplace_back(Engine::AssetID{ meshValue });
-		}
-	}
-}
-
-void Engine::RenderPipelineRunner::Init() {
+void RenderPipelineRunner::Init() {
 
 	viewportRenderService_ = std::make_unique<ViewportRenderService>();
 
@@ -276,10 +107,10 @@ void Engine::RenderPipelineRunner::Init() {
 	lastRenderedWorld_ = nullptr;
 }
 
-void Engine::RenderPipelineRunner::Finalize() {
+void RenderPipelineRunner::Finalize() {
 
-	// GPU計測用のクエリヒープ/リードバックバッファはここで解放する。
-	// シングルトンのため放置するとDeviceより後まで生き残り、LeakCheckerに残る。
+	// GPU計測用のクエリヒープ/リードバックバッファはここで解放する
+	// シングルトンのため放置するとDeviceより後まで生き残り、LeakCheckerに残る
 	GpuFrameProfiler::GetInstance().Finalize();
 
 	renderPath_.Finalize();
@@ -316,10 +147,11 @@ void Engine::RenderPipelineRunner::Finalize() {
 	sceneViewResources_.Destroy();
 }
 
-void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameRequest& request) {
+void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameRequest& request) {
+
 
 	// エディタPostSceneで複数のプレビューを描画するため、プレビューbackendのリソースプールは
-	// ここでフレーム境界だけリセットし、RenderEntityPreviewごとにはリセットしない。
+	// ここでフレーム境界だけリセットし、RenderEntityPreviewごとにはリセットしない
 	previewBackendFrameStarted_ = false;
 
 	// ワールドがない場合は描画できないので処理しない
@@ -452,15 +284,14 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 		sceneViewLightCullingBuffers_.Init(graphicsCore);
 	}
 	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
-	const uint32_t lightCullingMode = static_cast<uint32_t>(runtimeFeatures.lightCullingMode);
 	// ビューごとのライト集合をGPUへ転送
 	gameViewLightBuffers_.Upload(gameViewLightSet_);
 	// ビューごとのライトカリングデータをGPUへ転送
-	gameViewLightCullingBuffers_.Upload(gameView_, gameViewLightSet_, lightCullingMode);
+	gameViewLightCullingBuffers_.Upload(gameView_, gameViewLightSet_, runtimeFeatures.lightCullingMode);
 	if (!sceneViewUsesGameLightCulling) {
 
 		sceneViewLightBuffers_.Upload(sceneViewLightSet_);
-		sceneViewLightCullingBuffers_.Upload(sceneView_, sceneViewLightSet_, lightCullingMode);
+		sceneViewLightCullingBuffers_.Upload(sceneView_, sceneViewLightSet_, runtimeFeatures.lightCullingMode);
 	}
 
 	// レイトレーシングビュー関連バッファの初期化と転送
@@ -492,10 +323,10 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 			PreDispatchVisibleMeshSkinning(graphicsCore, context,
 				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 
-			// レイトレーシングシーンの構築。
-			// gRaytracingSceneInstances/gRaytracingSubMeshes は context.bufferRegistry へ登録する必要があるため、
-			// コピーではなく実際の context へ直接構築する。コピーへ構築すると登録が破棄され、反射パスが早期リターンする。
-			// TLAS構築の基準ビューだけ一時的にGameViewへ差し替え、構築後に元へ戻す。
+			// レイトレーシングシーンの構築
+			// gRaytracingSceneInstances/gRaytracingSubMeshesはcontext.bufferRegistryへ登録する必要があるため、
+			// コピーではなく実際のcontextへ直接構築する、コピーへ構築すると登録が破棄され反射パスが早期リターンする
+			// TLAS構築の基準ビューだけ一時的にGameViewへ差し替え、構築後に元へ戻す
 			const ResolvedRenderView* prevTlasView = context.view;
 			if (gameView_.valid) {
 				context.view = &gameView_;
@@ -544,7 +375,7 @@ void Engine::RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const Rend
 	GpuFrameProfiler::GetInstance().Resolve(graphicsCore.GetDXObject().GetDxCommand()->GetCommandList());
 }
 
-bool Engine::RenderPipelineRunner::PresentViewToBackBuffer(
+bool RenderPipelineRunner::PresentViewToBackBuffer(
 	GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material) {
 
 	// 指定された種類の描画ビューのサーフェスを取得
@@ -562,12 +393,12 @@ bool Engine::RenderPipelineRunner::PresentViewToBackBuffer(
 	}
 
 	// ブリットパスかフルスクリーンパスを探す
-	const MaterialPassBinding* passBinding = FindPass(*materialAsset, "Blit");
+	const MaterialPassBinding* passBinding = FindPass(*materialAsset, MaterialPassKind::Blit);
 	if (!passBinding) {
-		passBinding = FindPass(*materialAsset, "Fullscreen");
+		passBinding = FindPass(*materialAsset, MaterialPassKind::Fullscreen);
 	}
 	// 無効なパスは処理しない
-	if (passBinding->preferredVariant == PipelineVariantKind::Compute ||
+	if (!passBinding || passBinding->preferredVariant == PipelineVariantKind::Compute ||
 		passBinding->preferredVariant == PipelineVariantKind::Raytracing) {
 		return false;
 	}
@@ -578,6 +409,9 @@ bool Engine::RenderPipelineRunner::PresentViewToBackBuffer(
 	};
 	const PipelineState* pipelineState = pipelineStateCache_.GetORCreate(graphicsCore.GetDXObject(),
 		renderAssetLibrary_, passBinding->pipeline, passBinding->preferredVariant, rtvFormats, DXGI_FORMAT_UNKNOWN);
+	if (!pipelineState || !pipelineState->GetGraphicsPipeline(BlendMode::Normal)) {
+		return false;
+	}
 
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	auto* commandList = dxCommand->GetCommandList();
@@ -608,157 +442,11 @@ bool Engine::RenderPipelineRunner::PresentViewToBackBuffer(
 	return true;
 }
 
-bool Engine::RenderPipelineRunner::RenderEntityPreview(
-	GraphicsCore& graphicsCore, const EntityPreviewRenderRequest& request) {
+// RenderEntityPreviewの実装はRenderPipelineRunnerPreview.cppへ分離
 
-	if (!request.world || !request.assetDatabase || !request.surface || !request.surface->IsValid() ||
-		!request.world->IsAlive(request.rootEntity)) {
-		return false;
-	}
-
-	// メインのScene/Gameとは別に、ツール用サーフェイスだけを描画対象にする。
-	renderAssetLibrary_.Init(request.assetDatabase);
-	if (!previewBackendFrameStarted_) {
-
-		previewBackendRegistry_.BeginFrame(graphicsCore);
-		previewLightBufferPool_.BeginFrame();
-		previewLightCullingBufferPool_.BeginFrame();
-		previewBackendFrameStarted_ = true;
-	}
-	extractorRegistry_.BuildBatch(*request.world, renderBatch_);
-	lightExtractorRegistry_.BuildBatch(*request.world, frameLightBatch_);
-
-	RenderViewRequest viewRequest{};
-	viewRequest.kind = RenderViewKind::Scene;
-	viewRequest.enabled = true;
-	viewRequest.width = request.useViewportRect && request.viewportWidth > 0 ? request.viewportWidth : request.surface->GetWidth();
-	viewRequest.height = request.useViewportRect && request.viewportHeight > 0 ? request.viewportHeight : request.surface->GetHeight();
-	viewRequest.sourceKind = RenderViewSourceKind::ManualCamera;
-	viewRequest.manualCamera = request.camera;
-	ResolvedRenderView previewView = RenderViewResolver::Resolve(viewRequest, *request.world);
-	if (!previewView.valid) {
-		return false;
-	}
-
-	SceneInstance previewScene{};
-	previewScene.instanceID = ResolveEntitySceneInstanceID(*request.world, request.rootEntity, request.sceneInstanceID);
-	if (request.sceneHeader) {
-		previewScene.header = *request.sceneHeader;
-		previewScene.header.subScenes.clear();
-	}
-
-	RenderPassPhaseBuckets passBuckets{};
-	std::vector<AssetID> meshAssets{};
-	BuildPreviewPassBuckets(*request.world, request.rootEntity, renderBatch_, previewView, passBuckets, meshAssets);
-
-	RenderTargetRegistry previewTargetRegistry{};
-	previewTargetRegistry.BeginFrame();
-	previewTargetRegistry.Register("View", request.surface, { "Preview.Color" }, std::string("Preview.Depth"));
-	previewTargetRegistry.Register(ViewportRenderService::GetViewAlias(RenderViewKind::Scene),
-		request.surface, { "Preview.Color" }, std::string("Preview.Depth"));
-
-	SceneExecutionContext context{};
-	context.kind = RenderViewKind::Scene;
-	context.sceneInstance = &previewScene;
-	context.view = &previewView;
-	context.defaultSurface = request.surface;
-	context.targetRegistry = &previewTargetRegistry;
-	context.useViewportRect = request.useViewportRect;
-	context.viewportX = request.viewportX;
-	context.viewportY = request.viewportY;
-	context.viewportWidth = request.viewportWidth;
-	context.viewportHeight = request.viewportHeight;
-	context.disableInlineRayTracing = true;
-	context.forceVertexMeshVariant = request.forceVertexMeshVariant;
-	context.world = request.world;
-	context.systemContext = request.systemContext;
-	context.assetDatabase = request.assetDatabase;
-
-	// プレビュー用のライトバッファを更新する。SceneView/GameViewのGPUバッファは触らない。
-	previewLightSet_.Clear();
-	ViewLightCollector::CollectForView(frameLightBatch_, &previewScene, previewView, previewLightSet_);
-	ViewLightBufferSet& previewLightBuffers = previewLightBufferPool_.Acquire(graphicsCore,
-		[](ViewLightBufferSet& buffers, GraphicsCore& core) {
-			buffers.Init(core);
-		});
-	ViewLightCullingBufferSet& previewLightCullingBuffers = previewLightCullingBufferPool_.Acquire(graphicsCore,
-		[](ViewLightCullingBufferSet& buffers, GraphicsCore& core) {
-			buffers.Init(core);
-	});
-	previewLightBuffers.Upload(previewLightSet_);
-	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
-	previewLightCullingBuffers.Upload(previewView, previewLightSet_,
-		static_cast<uint32_t>(runtimeFeatures.lightCullingMode));
-	previewLightBuffers.RegisterTo(context.bufferRegistry);
-	previewLightCullingBuffers.RegisterTo(context.bufferRegistry);
-
-	auto* meshBackendBase = previewBackendRegistry_.Find(RenderBackendID::Mesh);
-	auto* meshBackend = dynamic_cast<MeshRenderBackend*>(meshBackendBase);
-	if (meshBackend && !meshAssets.empty()) {
-
-		meshBackend->RequestMeshes(graphicsCore, *request.assetDatabase, meshAssets);
-		PreDispatchVisibleMeshSkinning(graphicsCore, context,
-			renderBatch_, previewBackendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
-	}
-
-	// プレビュー: クリア → 全フェーズを描画サーフェスへ直接描画
-	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
-	if (request.clearSurface) {
-
-		MultiRenderTargetClearDesc clearDesc{};
-		clearDesc.clearColor = true;
-		clearDesc.clearColorValue = request.clearColor;
-		clearDesc.clearDepth = (request.surface->GetDepthTexture() != nullptr);
-		clearDesc.clearDepthValue = 1.0f;
-		clearDesc.clearStencil = false;
-
-		request.surface->TransitionForRender(*dxCommand);
-		request.surface->Bind(*dxCommand);
-		if (request.useViewportRect && request.viewportWidth > 0 && request.viewportHeight > 0) {
-			dxCommand->SetViewportAndScissor(request.viewportX, request.viewportY,
-				request.viewportWidth, request.viewportHeight);
-		} else {
-			dxCommand->SetViewportAndScissor(request.surface->GetWidth(), request.surface->GetHeight());
-		}
-		request.surface->Clear(*dxCommand, clearDesc);
-	}
-
-	for (const Engine::RenderPassItemList& list : passBuckets.buckets) {
-		if (list.IsEmpty()) {
-			continue;
-		}
-		request.surface->TransitionForRender(*dxCommand);
-		request.surface->Bind(*dxCommand);
-		if (request.useViewportRect && request.viewportWidth > 0 && request.viewportHeight > 0) {
-			dxCommand->SetViewportAndScissor(request.viewportX, request.viewportY,
-				request.viewportWidth, request.viewportHeight);
-		} else {
-			dxCommand->SetViewportAndScissor(request.surface->GetWidth(), request.surface->GetHeight());
-		}
-		batchDispatcher_.Dispatch(graphicsCore, context, renderBatch_, previewBackendRegistry_,
-			renderAssetLibrary_, pipelineStateCache_, materialResolver_,
-			list.items, request.surface, nullptr, "Draw", false);
-	}
-
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	if (request.drawGrid2D) {
-
-		LineRenderer::GetInstance()->Get2D()->DrawGrid();
-	}
-	if (request.drawGrid3D) {
-
-		LineRenderer::GetInstance()->Get3D()->DrawGrid();
-	}
-	LineRenderer::GetInstance()->RenderSceneView(graphicsCore, previewView, *request.surface, false, false);
-#endif
-
-	request.surface->TransitionForShaderRead(*dxCommand);
-
-	return true;
-}
-
-void Engine::RenderPipelineRunner::SyncRequestedSurfaces(
+void RenderPipelineRunner::SyncRequestedSurfaces(
 	GraphicsCore& graphicsCore, const RenderFrameRequest& request) {
+
 
 	for (const auto& viewRequest : request.views) {
 		if (!viewRequest.enabled) {
@@ -768,7 +456,7 @@ void Engine::RenderPipelineRunner::SyncRequestedSurfaces(
 	}
 }
 
-void Engine::RenderPipelineRunner::ResolveViews(const RenderFrameRequest& request) {
+void RenderPipelineRunner::ResolveViews(const RenderFrameRequest& request) {
 
 	gameView_ = {};
 	sceneView_ = {};
@@ -788,9 +476,10 @@ void Engine::RenderPipelineRunner::ResolveViews(const RenderFrameRequest& reques
 	}
 }
 
-Engine::SceneExecutionContext Engine::RenderPipelineRunner::BuildViewExecutionContext(GraphicsCore& graphicsCore,
+SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCore& graphicsCore,
 	const RenderFrameRequest& request, const SceneInstance* sceneInstance,
 	RenderViewKind kind, const ResolvedRenderView& view) {
+
 
 	// コンテキストの構築
 	SceneExecutionContext context{};
@@ -804,6 +493,12 @@ Engine::SceneExecutionContext Engine::RenderPipelineRunner::BuildViewExecutionCo
 	context.systemContext = request.systemContext;
 	context.assetDatabase = request.assetDatabase;
 	context.requireRaytracingSceneForEditorPicking = request.requireRaytracingSceneForEditorPicking;
+	context.drawSceneViewDefaultGrid = request.drawSceneViewDefaultGrid;
+	context.allowSceneComponentOverlay = (kind == RenderViewKind::Scene);
+	context.lightCullingBufferSet = (kind == RenderViewKind::Game || !gameView_.valid) ?
+		((kind == RenderViewKind::Game) ? &gameViewLightCullingBuffers_ : &sceneViewLightCullingBuffers_) :
+		&gameViewLightCullingBuffers_;
+	context.shouldExecuteLightCullingPass = !(kind == RenderViewKind::Scene && gameView_.valid);
 	// 種類に応じたターゲットレジストリを選択
 	RenderTargetRegistry* registry = kind == RenderViewKind::Game ?
 		&gameViewTargetRegistry_ : &sceneViewTargetRegistry_;

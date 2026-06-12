@@ -10,7 +10,6 @@
 //============================================================================
 //	TransformUpdateSystem classMethods
 //============================================================================
-
 void Engine::TransformUpdateSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
 	// ルートクリア

@@ -15,10 +15,9 @@
 //============================================================================
 //	TextRenderBackend classMethods
 //============================================================================
-
 Engine::TextRenderBackend::~TextRenderBackend() {
 
-	// FrameBatchResourcePool内のunique_ptrを終了時に明示resetする。
+	// FrameBatchResourcePool内のunique_ptrを終了時に明示resetする
 	resourcePool_.Clear();
 	vsGlyphScratch_.clear();
 	psGlyphScratch_.clear();
@@ -49,7 +48,7 @@ namespace {
 			cache.fontSize != renderer.fontSize || cache.charSpacing != renderer.charSpacing;
 	}
 
-	// // 追加:
+	// //追加:
 	// レイアウトだけをキャッシュする
 	bool RebuildTextLayoutCache(const Engine::MSDFFontAsset& font, Engine::TextRendererComponent& renderer) {
 
@@ -224,7 +223,7 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 	// マテリアルパスを解決する
 	BackendDrawCommon::ResolvedMaterialPass resolvedPass{};
 	if (!BackendDrawCommon::ResolveMaterialPass(context, items.front()->material,
-		DefaultMaterialSlot::Text, { "Draw", "Text" }, resolvedPass)) {
+		DefaultMaterialSlot::Text, { MaterialPassKind::Draw }, resolvedPass)) {
 		return;
 	}
 	// パイプラインを解決する

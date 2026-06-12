@@ -3,17 +3,17 @@
   "domain": "Fullscreen",
   "passes": [
     {
-      "passName": "Blit",
+      "passKind": "Blit",
       "pipeline": "0ac10387ac2d0367",
       "preferredVariant": "GraphicsVertex"
     },
     {
-      "passName": "PostProcess",
+      "passKind": "PostProcess",
       "pipeline": "0ac10387ac2d0367",
       "preferredVariant": "GraphicsVertex"
     },
     {
-      "passName": "Fullscreen",
+      "passKind": "Fullscreen",
       "pipeline": "0ac10387ac2d0367",
       "preferredVariant": "GraphicsVertex"
     }

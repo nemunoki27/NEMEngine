@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Editor/Scripting/ManagedIdeLauncher.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
@@ -53,7 +54,6 @@
 //============================================================================
 //	ProjectPanel classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kProjectModelPreviewAtlasName = "ProjectPanelModelPreviewAtlas";
@@ -283,61 +283,9 @@ namespace {
 		return trail;
 	}
 
-	// ShellExecuteWで対象を開く
-	bool OpenWithShell(const std::filesystem::path& target,
-		const std::wstring& parameters = std::wstring{},
-		const std::filesystem::path& workingDirectory = std::filesystem::path{}) {
+	// .cs openは共通IDE launcherのManagedIdeLauncherへ統一した
+	// 以前のOpenWithShell / FindVisualStudioExecutableはlauncher側へ移管したため削除
 
-		if (target.empty()) {
-			return false;
-		}
-
-		const wchar_t* parameterText = parameters.empty() ? nullptr : parameters.c_str();
-		const wchar_t* workingDirectoryText = workingDirectory.empty() ? nullptr : workingDirectory.c_str();
-		const HINSTANCE result = ::ShellExecuteW(nullptr, L"open", target.c_str(), parameterText, workingDirectoryText, SW_SHOWNORMAL);
-		return reinterpret_cast<INT_PTR>(result) > 32;
-	}
-	// 環境変数からパスを取得する
-	std::filesystem::path GetEnvironmentPath(const char* name) {
-
-		char* value = nullptr;
-		size_t valueLength = 0;
-		if (_dupenv_s(&value, &valueLength, name) != 0 || value == nullptr) {
-			return {};
-		}
-
-		std::filesystem::path result = value;
-		std::free(value);
-		return result;
-	}
-	// インストールされているVisual Studioのdevenv.exeを探す
-	std::filesystem::path FindVisualStudioExecutable() {
-
-		const std::array<std::filesystem::path, 2> roots = {
-			GetEnvironmentPath("ProgramFiles"),
-			GetEnvironmentPath("ProgramFiles(x86)"),
-		};
-		constexpr std::array<const char*, 3> versions = { "18", "17", "16" };
-		constexpr std::array<const char*, 4> editions = { "Community", "Professional", "Enterprise", "Preview" };
-
-		for (const auto& root : roots) {
-			if (root.empty()) {
-				continue;
-			}
-			for (const char* version : versions) {
-				for (const char* edition : editions) {
-
-					const std::filesystem::path devenv =
-						root / "Microsoft Visual Studio" / version / edition / "Common7/IDE/devenv.exe";
-					std::error_code ec;
-					if (std::filesystem::exists(devenv, ec) && !ec) {
-						return devenv;
-					}
-				}
-			}
-		}
-		return {};
-	}
 	// ProjectPanelの表示状態を保存するパスを返す
 	std::filesystem::path GetProjectPanelStatePath() {
 
@@ -355,27 +303,9 @@ namespace {
 			return false;
 		}
 
-		const std::filesystem::path workingDirectory = Engine::RuntimePaths::GetProjectRoot();
-		const std::filesystem::path visualStudio = FindVisualStudioExecutable();
-		if (!visualStudio.empty()) {
-
-			const std::wstring parameters = L"/Edit \"" + scriptPath.wstring() + L"\"";
-			if (OpenWithShell(visualStudio, parameters, workingDirectory)) {
-				Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::info,
-					"ProjectPanel: opened script in Visual Studio. path={}", scriptPath.string());
-				return true;
-			}
-		}
-
-		if (OpenWithShell(scriptPath, std::wstring{}, workingDirectory)) {
-			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::info,
-				"ProjectPanel: opened script via shell association because Visual Studio was not found. path={}", scriptPath.string());
-			return true;
-		}
-
-		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-			"ProjectPanel: failed to open Visual Studio for script asset.");
-		return false;
+		// .cs open / Compiler Error List jump / Script exceptionのstack jumpを共通IDE launcherに統一する
+		// 既定は関連付けのSystemDefaultでProjectSettings/ManagedScriptingEditor.jsonでexecutable指定も可能
+		return Engine::ManagedIdeLauncher::OpenFile(scriptPath, 1, 1);
 	}
 
 	// Prefab保存元のEntityツリーへPrefabLinkを設定する
@@ -516,7 +446,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 void Engine::ProjectPanel::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
 
-	// ProjectPanelはToolPanel上の独立ウィンドウを持たず、RenderTexture作成機能だけを利用する。
+	// ProjectPanelはToolPanel上の独立ウィンドウを持たず、RenderTexture作成機能だけを利用する
 }
 
 void Engine::ProjectPanel::DrawModelPreviewSettingsWindow() {
@@ -971,7 +901,7 @@ void Engine::ProjectPanel::DrawHeader([[maybe_unused]] const EditorPanelContext&
 	const char* currentName = trail.empty() ? GetSourceRootPath() : trail.back()->name.c_str();
 	ImGui::TextUnformatted(currentName);
 
-	// 右端に Refresh
+	// 右端にRefresh
 	const char* label = "Refresh";
 	float buttonWidth = ImGui::CalcTextSize(label).x + ImGui::GetStyle().FramePadding.x * 2.0f;
 	const char* createLabel = "Create";
@@ -1280,6 +1210,12 @@ void Engine::ProjectPanel::DrawCreateAssetPopup(AssetDatabase& database) {
 
 			createErrorMessage_.clear();
 			RefreshAfterFileOperation(database, result);
+			// C# Script作成時は共通IDE launcherで開く
+			// .cs.metaのscriptTypeId発番/ build / reloadはsource watcherが新規.csを検知して
+			// 既存のasync metadata syncからbuildパイプラインで行い、inline UUIDはtemplateに出さない
+			if (pendingCreateKind_ == ProjectAssetFileKind::Script && !result.fullPath.empty()) {
+				ManagedIdeLauncher::OpenFile(result.fullPath, 1, 1);
+			}
 			ImGui::CloseCurrentPopup();
 		} else {
 
@@ -1579,7 +1515,7 @@ void Engine::ProjectPanel::RefreshAfterFileOperation(AssetDatabase& database, co
 		return;
 	}
 
-	// ProjectAssetIndexの参照を使っている描画中にRebuildすると、走査中のasset/nodeが破棄される。
+	// ProjectAssetIndexの参照を使っている描画中にRebuildすると、走査中のasset/nodeが破棄される
 	pendingFileOperationResult_ = result;
 	hasPendingFileOperationRefresh_ = true;
 	dirty_ = true;

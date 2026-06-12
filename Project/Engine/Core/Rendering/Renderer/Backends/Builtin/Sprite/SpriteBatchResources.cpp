@@ -10,7 +10,6 @@
 //============================================================================
 //	SpriteBatchResources classMethods
 //============================================================================
-
 void Engine::SpriteBatchResources::Init(GraphicsCore& graphicsCore) {
 
 	// すでに初期化されている場合は何もしない
@@ -53,10 +52,10 @@ void Engine::SpriteBatchResources::CreateQuadBuffers(ID3D12Device* device, Buffe
 		0, 1, 2,
 		1, 3, 2
 	};
-	// SpriteのQuad形状は初期化後に変わらないため、DEFAULT heapへ置きUploadServiceで初期転送する。
+	// SpriteのQuad形状は初期化後に変わらないため、DEFAULT heapへ置きUploadServiceで初期転送する
 	vertexBuffer_.Create(device, uploadService, std::span<const SpriteVertex>(vertices.data(), vertices.size()));
 	indexBuffer_.Create(device, uploadService, std::span<const uint32_t>(indices.data(), indices.size()));
-	// 固定Quadの転送はInit中に完結させ、以後の描画ではDEFAULT heapだけを参照する。
+	// 固定Quadの転送はInit中に完結させ、以後の描画ではDEFAULT heapだけを参照する
 	uploadService.SubmitBatch();
 }
 

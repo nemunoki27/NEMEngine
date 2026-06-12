@@ -9,9 +9,8 @@ namespace Engine::BuiltinAssets {
 
 	//============================================================================
 	//	Builtin asset GUIDs
-	//	移動に強い参照にするため、エンジン内蔵アセットは.metaのGUIDで固定参照する。
+	// 移動に強い参照にするため、エンジン内蔵アセットは.metaのGUIDで固定参照する
 	//============================================================================
-
 	namespace Materials {
 
 		inline constexpr AssetID DefaultSprite{ 0xef1a0db1d6ef57acull };
@@ -22,6 +21,9 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID ToneMapToView{ 0xaa28624401e1e4b6ull };
 		inline constexpr AssetID LightCulling{ 0xa8b3c1c806a8f747ull };
 		inline constexpr AssetID RaytracingReflection{ 0x375384bc3bf6bb7cull };
+		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x7c1d9a4b8e2f6031ull };
+		inline constexpr AssetID ScreenSpaceOutlineDilate{ 0x7c1d9a4b8e2f6032ull };
+		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x7c1d9a4b8e2f6033ull };
 	}
 
 	namespace Pipelines {
@@ -30,5 +32,15 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultMesh{ 0x966f3e8a34595313ull };
 		inline constexpr AssetID Skinning{ 0xda1205f1e1e19bdbull };
 		inline constexpr AssetID BuildIndexedIndirectArgs{ 0xe0400afbd444f5d6ull };
+		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x7c1d9a4b8e2f6021ull };
+		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x7c1d9a4b8e2f6023ull };
+	}
+
+	namespace EditorTextures {
+
+		inline constexpr AssetID DirectionalLightIcon{ 0xa0e16f0b78050650ull };
+		inline constexpr AssetID PointLightIcon{ 0x235683763b017d5full };
+		inline constexpr AssetID SpotLightIcon{ 0xc6fc55af5732810eull };
+		inline constexpr AssetID PerspectiveCameraIcon{ 0x3dca1ce7a4f02931ull };
 	}
 }

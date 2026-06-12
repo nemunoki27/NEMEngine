@@ -12,7 +12,6 @@ namespace Engine {
 	//============================================================================
 	//	DirectionalLightComponent struct
 	//============================================================================
-
 	// 平行光源
 	struct DirectionalLightComponent {
 
@@ -23,7 +22,7 @@ namespace Engine {
 
 		// 強さ
 		float intensity = 10.0f;
-		// 影の強さ (0.0=影なし, 1.0=完全に黒)
+		// 影の強さ(0.0=影なし, 1.0=完全に黒)
 		float shadowStrength = 0.92f;
 
 		// 有効フラグ

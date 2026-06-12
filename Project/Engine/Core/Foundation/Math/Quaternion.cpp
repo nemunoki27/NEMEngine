@@ -10,7 +10,6 @@ using namespace Engine;
 //============================================================================
 //	Quaternion structMethods
 //============================================================================
-
 Quaternion Quaternion::operator+(const Quaternion& other) const {
 	return { x + other.x, y + other.y, z + other.z, w + other.w };
 }

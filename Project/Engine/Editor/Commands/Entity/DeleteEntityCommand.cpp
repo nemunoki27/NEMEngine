@@ -9,7 +9,6 @@
 //============================================================================
 //	DeleteEntityCommand classMethods
 //============================================================================
-
 Engine::DeleteEntityCommand::DeleteEntityCommand(const Entity& targetEntity) :
 	initialTarget_(targetEntity) {
 }

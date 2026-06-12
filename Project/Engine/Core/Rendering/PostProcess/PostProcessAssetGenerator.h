@@ -16,14 +16,13 @@ namespace Engine {
 
 	//============================================================================
 	//	PostProcessAssetGenerator class
-	//	Builtin PostProcess用のshader/pipeline/material JSONを補完するクラス。
+	// Builtin PostProcess用のshader/pipeline/material JSONを補完するクラス
 	//============================================================================
 	class PostProcessAssetGenerator {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		PostProcessAssetGenerator() = default;
 		~PostProcessAssetGenerator() = default;
 
@@ -32,18 +31,18 @@ namespace Engine {
 		// 状態をリセットする
 		void Clear();
 
-		// 指定した .CS.hlsl の論理アセットパスからPostProcessアセット一式を生成または検索してMaterialのAssetIDを返す
+		// 指定した.CS.hlslの論理アセットパスからPostProcessアセット一式を生成または検索してMaterialのAssetIDを返す
 		static AssetID EnsureUserAsset(AssetDatabase* database, const std::string& csHlslAssetPath);
-		// 指定した .shader.json の論理アセットパスから対応するMaterialのAssetIDを返す。なければ生成する
+		// 指定した.shader.jsonの論理アセットパスから対応するMaterialのAssetIDを返し、なければ生成する
 		static AssetID FindOrCreateMaterialForShader(AssetDatabase* database, const std::string& shaderAssetPath);
 
 		//--------- accessor -----------------------------------------------------
 
 		AssetID FindBuiltinMaterial(std::string_view name) const;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -53,3 +52,4 @@ namespace Engine {
 		bool generated_ = false;
 	};
 } // Engine
+

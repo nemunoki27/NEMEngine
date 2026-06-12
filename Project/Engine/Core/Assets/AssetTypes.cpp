@@ -34,7 +34,6 @@ namespace {
 //============================================================================
 //	AssetTypes classMethods
 //============================================================================
-
 Engine::AssetID Engine::ParseAssetID(const nlohmann::json& in, const char* key) {
 
 	const std::string value = in.value(key, "");
@@ -79,7 +78,7 @@ Engine::AssetID Engine::ParseAssetReference(const nlohmann::json& in, const char
 
 	const AssetMeta* meta = database->Find(id);
 	if (!meta) {
-		// 形式は正しいが実体が無い。参照値は保持しつつMissingとして診断する
+		// 形式は正しいが実体が無いため参照値は保持しつつMissingとして診断する
 		if (diagnostic) {
 			diagnostic->issue = AssetReferenceIssueType::MissingAsset;
 		}

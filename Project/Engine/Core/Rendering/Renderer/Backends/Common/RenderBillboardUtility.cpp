@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-
 namespace Engine::RenderBillboard {
 
 	Matrix4x4 ResolveParentWorldMatrix(ECSWorld& world, const Entity& entity) {

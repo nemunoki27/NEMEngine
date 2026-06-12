@@ -11,7 +11,6 @@
 //============================================================================
 //	MeshSubMeshPicker classMethods
 //============================================================================
-
 void Engine::MeshSubMeshPicker::Init(GraphicsCore& graphicsCore) {
 
 	// すでに初期化されているなら何もしない
@@ -132,7 +131,7 @@ void Engine::MeshSubMeshPicker::ExecutePick(GraphicsCore& graphicsCore, const Re
 	commandList->SetComputeRootSignature(pipeline_.GetRootSignature());
 	commandList->SetPipelineState(pipeline_.GetComputePipeline());
 
-	// ルート引数をバインド（パイプラインが変わった時だけスロットを再解決する）
+	// ルート引数をバインドしパイプラインが変わった時だけスロットを再解決する
 	pickBindCache_.Sync(pipeline_);
 	if (pickBindCache_.Has(tlasSlot_)) {
 		RootBindingCommand::SetComputeSRV(commandList, pickBindCache_.Get(tlasSlot_),

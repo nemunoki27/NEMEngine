@@ -16,7 +16,7 @@ namespace Engine::MeshDrawPathCommon {
 	// バッチ内で使用するメッシュアセットIDを解決
 	AssetID ResolveBatchMesh(const RenderSceneBatch& batch, std::span<const RenderItem* const> items);
 
-	// サブメッシュのテクスチャアセットIDを解決 (種別ごと)
+	// サブメッシュのテクスチャアセットIDを解決(種別ごと)
 	AssetID ResolveSubMeshBaseColorTextureAssetID(const MeshGPUResource& gpuMesh,
 		const MeshRendererComponent* renderer, uint32_t subMeshIndex);
 	AssetID ResolveSubMeshNormalTextureAssetID(const MeshGPUResource& gpuMesh,
@@ -30,8 +30,8 @@ namespace Engine::MeshDrawPathCommon {
 	AssetID ResolveSubMeshSpecularTextureAssetID(const MeshGPUResource& gpuMesh,
 		const MeshRendererComponent* renderer, uint32_t subMeshIndex);
 
-	// ベースカラーテクスチャが元々割り当てられていたか(解決可否は問わない)。
-	// 解決後AssetIDが空のとき、未割り当て(白)か割り当て済みだが未解決(エラー)かを区別するために使う。
+	// ベースカラーテクスチャが元々割り当てられていたか(解決可否は問わない)
+	// 解決後AssetIDが空のとき、未割り当て(白)か割り当て済みだが未解決(エラー)かを区別するために使う
 	bool WasSubMeshBaseColorTextureAssigned(const MeshGPUResource& gpuMesh,
 		const MeshRendererComponent* renderer, uint32_t subMeshIndex);
 } // Engine

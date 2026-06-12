@@ -43,7 +43,6 @@ namespace Engine {
 	//	GraphValidationResult structure
 	//	Graph検証結果を保持する構造体
 	//============================================================================
-
 	struct GraphValidationResult {
 
 		//--------- variables ----------------------------------------------------

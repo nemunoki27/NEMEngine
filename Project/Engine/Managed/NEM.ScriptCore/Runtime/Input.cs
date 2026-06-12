@@ -87,6 +87,17 @@ public enum GamepadButton {
     Y = 15
 }
 
+// gamepad のアナログ軸。値の index は native の GamepadAxisByIndex と一致させる。
+public enum GamepadAxis {
+
+    LeftStickX = 0,
+    LeftStickY = 1,
+    RightStickX = 2,
+    RightStickY = 3,
+    LeftTrigger = 4,
+    RightTrigger = 5
+}
+
 public static class Input {
 
     public static Vector2 mousePosition => NativeApi.ReadMousePosition();
@@ -122,11 +133,31 @@ public static class Input {
         return NativeApi.ReadMouseButtonUp((int)button);
     }
 
-    public static bool GetGamepadButton(GamepadButton button) {
-        return NativeApi.ReadGamepadButton((int)button);
-    }
+    // int overload（0=Left, 1=Right, 2=Middle）
+    public static bool GetMouseButton(int button) => NativeApi.ReadMouseButton(button);
+    public static bool GetMouseButtonDown(int button) => NativeApi.ReadMouseButtonDown(button);
+    public static bool GetMouseButtonUp(int button) => NativeApi.ReadMouseButtonUp(button);
 
-    public static bool GetGamepadButtonDown(GamepadButton button) {
-        return NativeApi.ReadGamepadButtonDown((int)button);
-    }
+    // 単一 gamepad（index 0）向け convenience。
+    public static bool GetGamepadButton(GamepadButton button) => NativeApi.ReadGamepadButton(0, (int)button);
+    public static bool GetGamepadButtonDown(GamepadButton button) => NativeApi.ReadGamepadButtonDown(0, (int)button);
+    public static bool GetGamepadButtonUp(GamepadButton button) => NativeApi.ReadGamepadButtonUp(0, (int)button);
+
+    //--------- 多 gamepad（最大4台）/ text / focus ----------------------------
+
+    public static bool IsGamepadConnected(int index) => NativeApi.ReadGamepadConnected(index);
+    public static int ConnectedGamepadCount => NativeApi.ReadConnectedGamepadCount();
+
+    public static bool GetGamepadButton(int index, GamepadButton button) => NativeApi.ReadGamepadButton(index, (int)button);
+    public static bool GetGamepadButtonDown(int index, GamepadButton button) => NativeApi.ReadGamepadButtonDown(index, (int)button);
+    public static bool GetGamepadButtonUp(int index, GamepadButton button) => NativeApi.ReadGamepadButtonUp(index, (int)button);
+
+    // dead zone 未適用の raw 軸値（stick は [-1,1]、trigger は [0,1]）。dead zone は InputActions 側で適用する。
+    public static float GetGamepadAxis(int index, GamepadAxis axis) => NativeApi.ReadGamepadAxis(index, (int)axis);
+
+    // ウィンドウがフォーカスを持っているか
+    public static bool HasFocus => NativeApi.ReadHasFocus();
+
+    // このフレームに入力された文字列（frame-local。確定文字のみ）
+    public static string TextInput => NativeApi.ReadTextInput();
 }

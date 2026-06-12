@@ -22,10 +22,9 @@ namespace Engine {
 	class TextRenderBackend :
 		public IRenderBackend {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		TextRenderBackend() {
 			viewCBVSlot_   = perDrawBindCache_.AddSlot("ViewConstants", ShaderBindingKind::CBV);
 			vsInstSRVSlot_ = perDrawBindCache_.AddSlot("gVSInstances",  ShaderBindingKind::SRV);
@@ -44,9 +43,9 @@ namespace Engine {
 
 		uint32_t GetID() const override { return RenderBackendID::Text; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -57,7 +56,7 @@ namespace Engine {
 		std::vector<TextVSInstanceData> vsGlyphScratch_{};
 		std::vector<TextPSInstanceData> psGlyphScratch_{};
 
-		// バッファレジストリ → Graphicsパイプラインスロットの対応キャッシュ
+		// バッファレジストリ→ Graphicsパイプラインスロットの対応キャッシュ
 		RegistryAutoBindTable registryAutoBindTable_{};
 		// 描画固有バインドのパイプラインスロットキャッシュ
 		PipelineBindingCache perDrawBindCache_{};
@@ -67,3 +66,4 @@ namespace Engine {
 		PipelineBindingCache::SlotID atlasSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 	};
 } // Engine
+

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ScriptBehaviour の constructor 内で行うべきでない副作用（native API 呼び出し / Entity・Scene 参照 /
+    StartCoroutine / Task.Run・thread 生成 / file I/O / event 購読）を warning で検出する Roslyn analyzer。
+    GameScripts.csproj から Analyzer として参照する。NEM.ScriptCodeGen と同じく source 解析専用。
+    単純で確実な syntax/semantic rule のみ。interprocedural dataflow は行わない（限界は docs を参照）。
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <!-- アナライザーのリリース追跡（RS2008）と診断メッセージ書式 lint（RS1032/RS1033, 日本語 message 由来）は抑制する -->
+    <NoWarn>$(NoWarn);RS2008;RS1032;RS1033</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

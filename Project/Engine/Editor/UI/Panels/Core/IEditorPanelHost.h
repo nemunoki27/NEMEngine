@@ -17,10 +17,9 @@ namespace Engine {
 	//============================================================================
 	class IEditorPanelHost {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		IEditorPanelHost() = default;
 		virtual ~IEditorPanelHost() = default;
 
@@ -38,6 +37,12 @@ namespace Engine {
 
 		// プレイ/ストップの切り替え要求
 		virtual void RequestPlayToggle() = 0;
+		// 一時停止中のPlay再開要求
+		virtual void RequestPlayResume() = 0;
+		// Play中の一時停止要求
+		virtual void RequestPlayPause() = 0;
+		// Play一時停止中の1フレーム送り要求
+		virtual void RequestPlayFrameStep() = 0;
 		// 新規シーン作成要求
 		virtual void RequestNewScene() = 0;
 		// シーンを開く要求

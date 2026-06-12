@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -23,7 +24,6 @@
 //============================================================================
 //	PostProcessExecutor classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kFrameConstantsName = "PostProcessFrameConstants";
@@ -57,7 +57,8 @@ namespace {
 	std::string MakePostProcessLogHeader(const Engine::MaterialAsset& material,
 		const Engine::PostProcessExecutionDesc& desc) {
 
-		return "[PostProcess] material=" + material.name + " pass=" + desc.passName + " ";
+		return "[PostProcess] material=" + material.name + " pass=" +
+			std::string(Engine::EnumAdapter<Engine::MaterialPassKind>::ToStringView(desc.passKind)) + " ";
 	}
 
 	Engine::RenderTexture2D* GetFirstColor(Engine::MultiRenderTarget* target) {
@@ -94,7 +95,7 @@ namespace {
 		Engine::DepthTexture2D* depth = nullptr;
 		std::string resolvedName{};
 
-		// 名前が取れている場合は、標準名を優先して解決する。
+		// 名前が取れている場合は、標準名を優先して解決する
 		if (binding.name == kSourceColorName) {
 
 			texture = sourceColor;
@@ -114,7 +115,7 @@ namespace {
 			}
 		}
 
-		// 古いshaderや無名binding向けに、標準register規約も残す。
+		// 古いshaderや無名binding向けに、標準register規約も残す
 		if (!texture && !depth && binding.name.empty()) {
 			if (binding.bindPoint == 0 && binding.space == 0) {
 				texture = sourceColor;
@@ -149,7 +150,7 @@ namespace {
 			return true;
 		}
 
-		// ユーザー設定テクスチャを textureOverrides から解決する。
+		// ユーザー設定テクスチャをtextureOverridesから解決する
 		if (!binding.name.empty()) {
 
 			auto found = desc.textureOverrides.find(binding.name);
@@ -167,7 +168,7 @@ namespace {
 			}
 		}
 
-		// 解決できなかった場合は DefaultWhite をバインドする。source/depth 系の欠落はエラーとして扱う。
+		// 解決できなかった場合はDefaultWhiteをバインドし、source/depth系の欠落はエラーとして扱う
 		const bool isSourceReserved =
 			(binding.name == kSourceColorName || binding.name == kSourceDepthName) ||
 			((binding.bindPoint == 0 || binding.bindPoint == 1) && binding.space == 0 && binding.name.empty());
@@ -178,7 +179,7 @@ namespace {
 			return false;
 		}
 
-		// ユーザーテクスチャが未設定 → DefaultWhite にフォールバックする。
+		// ユーザーテクスチャが未設定→ DefaultWhiteにフォールバックする
 		const Engine::GPUTextureResource* white =
 			graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
 		if (!white || !white->valid) {
@@ -264,7 +265,6 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 	//============================================================================
 	//	ポストプロセスの実行に必要なアセットの取得
 	//============================================================================
-
 	// ポストプロセスマテリアル取得
 	const MaterialAsset* materialAsset = assetLibrary.LoadMaterial(desc.material);
 	if (!materialAsset) {
@@ -282,10 +282,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 	}
 
 	// 描画パスをマテリアルから取得
-	const MaterialPassBinding* passBinding = FindPass(*materialAsset, desc.passName);
-	if (!passBinding) {
-		passBinding = FindPass(*materialAsset, "PostProcess");
-	}
+	const MaterialPassBinding* passBinding = FindPass(*materialAsset, desc.passKind);
 	if (!passBinding || passBinding->preferredVariant != PipelineVariantKind::Compute) {
 		Logger::Output(LogType::Engine, logHeader + "compute pass is missing.");
 		return false;
@@ -313,7 +310,6 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 	//============================================================================
 	//	パイプライン・描画バインディング
 	//============================================================================
-
 	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
 	commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	commandList->SetPipelineState(pipelineState->GetComputePipeline());
@@ -341,7 +337,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 		}
 	}
 
-	// パイプラインキャッシュを解決する（フレーム定数バインドの有無も初回のみ解決してキャッシュする）
+	// パイプラインキャッシュを解決し、フレーム定数バインドの有無も初回のみ解決してキャッシュする
 	auto layoutIt = parameterLayoutCache_.find(pipelineState);
 	if (layoutIt == parameterLayoutCache_.end()) {
 
@@ -434,7 +430,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 
 bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 	RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache,
-	AssetID materialId, const std::string& passName,
+	AssetID materialId, MaterialPassKind passKind,
 	std::vector<ShaderConstantBufferVariable>& outVars,
 	std::vector<ShaderResourceBinding>& outSRVs) {
 
@@ -443,10 +439,7 @@ bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 		return false;
 	}
 
-	const MaterialPassBinding* passBinding = FindPass(*materialAsset, passName);
-	if (!passBinding) {
-		passBinding = FindPass(*materialAsset, "PostProcess");
-	}
+	const MaterialPassBinding* passBinding = FindPass(*materialAsset, passKind);
 	if (!passBinding || passBinding->preferredVariant != PipelineVariantKind::Compute) {
 		return false;
 	}
@@ -470,7 +463,7 @@ bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 	}
 	outVars = layoutIt->second.layout.GetVariables();
 
-	// ユーザー向けSRV（gSourceColor / gSourceDepth を除く）を収集する
+	// gSourceColor / gSourceDepthを除くユーザー向けSRVを収集する
 	outSRVs.clear();
 	for (const auto& binding : reflection.resources) {
 		if (binding.kind == ShaderBindingKind::SRV &&

@@ -14,7 +14,6 @@
 //============================================================================
 //	PostProcessTemporaryTargetPool classMethods
 //============================================================================
-
 Engine::MultiRenderTarget* Engine::PostProcessTemporaryTargetPool::Acquire(
 	GraphicsCore& graphicsCore, RenderTargetRegistry& registry,
 	const std::string& name, const MultiRenderTarget& source) {

@@ -24,7 +24,7 @@ namespace Engine {
 
 		// クリア
 		virtual void Clear() {
-			// unique_ptrはclear任せにせず、終了経路で明示的にresetして所有リソースを解放する。
+			// unique_ptrはclear任せにせず、終了経路で明示的にresetして所有リソースを解放する
 			for (auto& item : items_) {
 				item.reset();
 			}
@@ -53,7 +53,7 @@ namespace Engine {
 
 		// クリア
 		virtual void Clear() {
-			// unique_ptrはclear任せにせず、終了経路で明示的にresetして所有リソースを解放する。
+			// unique_ptrはclear任せにせず、終了経路で明示的にresetして所有リソースを解放する
 			for (auto& [key, item] : items_) {
 				(void)key;
 				item.reset();
@@ -67,7 +67,7 @@ namespace Engine {
 			return (it != items_.end()) ? it->second.get() : nullptr;
 		}
 
-		// 検索 (const)
+		// 検索(const)
 		virtual const T* Find(Key key) const {
 			auto it = items_.find(key);
 			return (it != items_.end()) ? it->second.get() : nullptr;

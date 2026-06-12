@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/FrameLightBatch.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+#include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
 
@@ -14,6 +15,7 @@ namespace Engine {
 
 	// front
 	class GraphicsCore;
+	class DxCommand;
 
 	//============================================================================
 	//	ViewLightCullingBufferSet class
@@ -21,10 +23,9 @@ namespace Engine {
 	//============================================================================
 	class ViewLightCullingBufferSet {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		ViewLightCullingBufferSet() = default;
 		~ViewLightCullingBufferSet() = default;
 
@@ -32,7 +33,11 @@ namespace Engine {
 		void Init(GraphicsCore& graphicsCore);
 
 		// CPUのライト情報を基にGPU用のライトカリングデータを生成してアップロード
-		void Upload(const ResolvedRenderView& view, const PerViewLightSet& lightSet, uint32_t lightCullingMode);
+		void Upload(const ResolvedRenderView& view, const PerViewLightSet& lightSet, LightCullingMode lightCullingMode);
+
+		// LightCulling compute前後の用途に合わせてUAV/SRV stateへ遷移
+		void TransitionForComputeWrite(DxCommand& command);
+		void TransitionForShaderRead(DxCommand& command);
 
 		// 解放
 		void Release();
@@ -44,6 +49,7 @@ namespace Engine {
 
 		// 初期化されているか
 		bool IsInitialized() const { return initialized_; }
+		uint32_t GetLocalLightCount() const { return localLightCount_; }
 
 		// Clustered Forwardの初期実装は既存Forward+と同じXYタイルサイズを使う
 		static constexpr uint32_t kTileSizeX = 16;
@@ -51,9 +57,9 @@ namespace Engine {
 		static constexpr uint32_t kMaxLocalLightsPerTile = 64;
 		static constexpr uint32_t kClusterCountZ = 16;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -68,8 +74,10 @@ namespace Engine {
 		uint32_t totalTileCount_ = 0;
 		uint32_t totalClusterCount_ = 0;
 		uint32_t totalIndexCount_ = 0;
+		uint32_t localLightCount_ = 0;
 
 		// 初期化フラグ
 		bool initialized_ = false;
 	};
 }
+

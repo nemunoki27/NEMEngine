@@ -14,7 +14,6 @@ namespace Engine {
 	//============================================================================
 	//	EditorState structures
 	//============================================================================
-
 	// シーンビューのカメラ選択モード
 	enum class SceneViewCameraMode :
 		uint8_t {
@@ -88,8 +87,10 @@ namespace Engine {
 
 		// ピッキング機能のオン/オフ
 		bool enableScenePick = true;
+		// SceneViewのデフォルトグリッド表示
+		bool drawSceneViewDefaultGrid = false;
 		// シーンビューのマニピュレーター選択状態
-		SceneViewManipulatorMode sceneViewManipulatorMode = SceneViewManipulatorMode::None;
+		SceneViewManipulatorMode sceneViewManipulatorMode = SceneViewManipulatorMode::Translate;
 		// ギズモを使用中か
 		bool useSceneGizmo = false;
 

@@ -15,7 +15,6 @@
 //============================================================================
 //	SceneHeader classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kCollisionSettingsRoot = "GameAssets/Collision";

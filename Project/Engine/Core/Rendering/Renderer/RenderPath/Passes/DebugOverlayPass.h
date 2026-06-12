@@ -9,19 +9,18 @@ namespace Engine {
 
 	//============================================================================
 	//	DebugOverlayPass class
-	//	デバッグライン描画を View に重ね描きするパス (_DEBUG/_DEVELOPBUILD のみ)
+	//	デバッグライン描画をViewに重ね描きするパス(_DEBUG/_DEVELOPBUILDのみ)
 	//============================================================================
 	class DebugOverlayPass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		DebugOverlayPass() = default;
 		~DebugOverlayPass() override = default;
 
-		std::string_view GetName() const override { return "DebugOverlay"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::DebugOverlay; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	};

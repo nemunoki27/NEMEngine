@@ -6,33 +6,40 @@
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/World/Behavior/BehaviorHandle.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Foundation/Identity/UUID.h>
 
 namespace Engine {
 
 	//============================================================================
 	//	ScriptComponent struct
 	//============================================================================
-
 	// スクリプトの情報を保持するエントリ
 	struct ScriptEntry {
 
-		// スクリプトの型名
-		std::string type;
+		// 永続保存の主キー= Stable Script Type GUIDで正規化済み文字列
+		// ファイル名/クラス名/namespace/列挙順/runtime indexに依存しない
+		std::string scriptTypeId;
+		// 同一entityに同typeを複数attachしても識別できる安定slot ID
+		UUID scriptSlotID{};
 		// 参照しているC#スクリプトアセット
 		AssetID scriptAsset{};
+		// 直近に解決できた完全修飾型名で表示とlegacy移行用、永続主キーではない
+		std::string lastKnownTypeName;
 		// 有効フラグ
 		bool enabled = true;
 		// インスペクターから編集するシリアライズフィールド
 		nlohmann::json serializedFields = nlohmann::json::object();
 
-		// ランタイム
+		// ランタイムキャッシュでJSON非シリアライズ
 		BehaviorHandle handle = BehaviorHandle::Null();
-		// ランタイム中に解決した型名
-		std::string resolvedType;
-		// ランタイム中に解決した型ID
-		uint32_t resolvedTypeID = 0;
-		// 型IDが有効か
-		bool resolvedTypeValid = false;
+		// Stable GUIDから解決したcompact runtime type IDでreloadごとに変わる
+		uint32_t resolvedRuntimeTypeID = 0;
+		// runtime type IDが有効か
+		bool resolvedRuntimeTypeValid = false;
+		// serializedFieldsの編集リビジョンでruntime専用
+		// この値が進んだときだけ生成済みインスタンスへ再適用する
+		// authoring変更でのbumpは05_inspector_serializationで接続する拡張点
+		uint32_t serializedRevision = 0;
 	};
 
 	// スクリプトコンポーネント

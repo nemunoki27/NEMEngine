@@ -2,12 +2,15 @@ using NEMEngine;
 
 namespace SandboxScripts;
 
+[ScriptTypeId("e4a91d70-5b8f-42c3-8a16-3f9d2b7c605e")]
 public sealed class SpriteRotate : ScriptBehaviour
 {
 
     // 回転速度
+    [SerializedFieldId("af672419-b3aa-4715-9eaf-54b819860733")]
     [SerializeField]
     private float rotateSpeed = 90.0f;
+    [SerializedFieldId("b0783520-c4bb-4826-afba-65c92a971844")]
     [SerializeField]
     private Vector3 rotateAxis = new Vector3(0.0f, 0.0f, 1.0f);
 
@@ -24,3 +27,4 @@ public sealed class SpriteRotate : ScriptBehaviour
         transform.localRotation = Quaternion.Normalize(transform.localRotation * deltaRotation);
     }
 }
+// schema reload test

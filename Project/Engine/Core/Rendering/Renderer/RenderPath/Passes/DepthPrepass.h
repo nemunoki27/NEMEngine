@@ -10,25 +10,24 @@ namespace Engine {
 
 	//============================================================================
 	//	DepthPrepass class
-	//	Opaqueキューの深度プリパス。LightCulling/Overdraw削減用。
+	// Opaqueキューの深度プリパスでLightCulling/Overdraw削減用
 	//============================================================================
 	class DepthPrepass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit DepthPrepass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~DepthPrepass() override = default;
 
-		std::string_view GetName() const override { return "DepthPrepass"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::DepthPrepass; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -41,3 +40,4 @@ namespace Engine {
 			const RenderPassPhaseBuckets& passBuckets) const;
 	};
 } // Engine
+

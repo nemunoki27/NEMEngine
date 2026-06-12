@@ -19,21 +19,18 @@
 //============================================================================
 //	MyGUI classMethods
 //============================================================================
-
 namespace {
 
-	//========================================================================
+	//============================================================================
 	//	レイアウト定数
-	//========================================================================
-
+	//============================================================================
 	// 左側に表示する文字の幅
 	constexpr float kLabelColumnWidth = 160.0f;
 	constexpr float kAxisLabelWidth = 14.0f;
 
-	//========================================================================
+	//============================================================================
 	//	軸情報
-	//========================================================================
-
+	//============================================================================
 	struct AxisDisplayInfo {
 
 		const char* name;
@@ -50,188 +47,17 @@ namespace {
 		default:  return { "-", ImVec4(0.70f, 0.70f, 0.70f, 1.0f) };
 		}
 	}
-	// Axisを表示用の文字へ変換する
-	char ToAxisChar(Engine::Axis axis) {
-
-		switch (axis) {
-		case Engine::Axis::X: return 'X';
-		case Engine::Axis::Y: return 'Y';
-		case Engine::Axis::Z: return 'Z';
-		default:
-			break;
-		}
-		return '\0';
-	}
-
-	//========================================================================
+	//============================================================================
 	//	文字列ヘルパー
-	//========================================================================
-
+	//============================================================================
 	// 精度を指定してfloatを文字列に変換する
 	std::string FormatFloat(float value, uint32_t precision) {
 
 		return std::format("{:.{}f}", value, precision);
 	}
-	// アセットのファイルパスから表示名を生成する
-	std::string MakeAssetDisplayNameFromPath(const std::string& assetPath) {
-
-		const std::filesystem::path path(assetPath);
-		const std::string fileName = path.filename().string();
-		const std::string lower = Engine::Algorithm::ToLower(fileName);
-
-		if (Engine::Algorithm::EndsWith(lower, ".scene.json")) {
-			return fileName.substr(0, fileName.size() - 5);
-		}
-		if (Engine::Algorithm::EndsWith(lower, ".prefab.json")) {
-			return fileName.substr(0, fileName.size() - 5);
-		}
-		if (Engine::Algorithm::EndsWith(lower, ".material.json")) {
-			return fileName.substr(0, fileName.size() - 5);
-		}
-		if (Engine::Algorithm::EndsWith(lower, ".shader.json")) {
-			return fileName.substr(0, fileName.size() - 5);
-		}
-		if (Engine::Algorithm::EndsWith(lower, ".pipeline.json")) {
-			return fileName.substr(0, fileName.size() - 5);
-		}
-		if (Engine::Algorithm::EndsWith(lower, ".animclip.json")) {
-			return fileName.substr(0, fileName.size() - 5);
-		}
-		if (Engine::Algorithm::EndsWith(lower, ".graph.json")) {
-			return fileName.substr(0, fileName.size() - 5);
-		}
-		return fileName;
-	}
-	// ドロップされたアセットの種類が受け入れ可能な種類のリストに含まれているかどうかを判定する
-	bool IsAcceptedAssetType(Engine::AssetType type,
-		const std::initializer_list<Engine::AssetType>& acceptedTypes) {
-
-		if (acceptedTypes.size() == 0) {
-			return true;
-		}
-		return std::find(acceptedTypes.begin(), acceptedTypes.end(), type) != acceptedTypes.end();
-	}
-	// 古い.metaがUnknownのまま残っている場合でも、拡張子から最低限の種類を補う。
-	Engine::AssetType GuessDroppedAssetType(const Engine::EditorAssetDragDropPayload& payload) {
-
-		const std::string assetPath = Engine::Algorithm::ToLower(payload.assetPath);
-		const std::filesystem::path path(assetPath);
-		const std::string extension = Engine::Algorithm::ToLower(path.extension().string());
-
-		if (Engine::Algorithm::EndsWith(assetPath, ".animclip.json") || extension == ".animclip") {
-			return Engine::AssetType::AnimationClip;
-		}
-		return Engine::AssetType::Unknown;
-	}
-	// ドロップされたペイロードがアセットのペイロードとして正しいかどうかを判定し、正しければペイロードを読み取る
-	bool TryReadAssetPayload(const ImGuiPayload* payload, Engine::EditorAssetDragDropPayload& outPayload) {
-
-		if (!payload || payload->DataSize != sizeof(Engine::EditorAssetDragDropPayload)) {
-			return false;
-		}
-
-		outPayload = *static_cast<const Engine::EditorAssetDragDropPayload*>(payload->Data);
-		return true;
-	}
-	// ドロップされたペイロードがHierarchyのEntity UUIDとして正しいかどうかを判定する
-	bool TryReadEntityPayload(const ImGuiPayload* payload, Engine::UUID& outUUID) {
-
-		if (!payload || payload->DataSize != sizeof(Engine::UUID)) {
-			return false;
-		}
-
-		outUUID = *static_cast<const Engine::UUID*>(payload->Data);
-		return true;
-	}
-	// アセット参照のラベルテキストを構築する
-	std::string BuildAssetReferenceLabel(Engine::AssetID assetID, const Engine::AssetDatabase* assetDatabase) {
-
-		if (!assetID) {
-			return "None (Drop asset here)";
-		}
-
-		if (!assetDatabase) {
-			return std::format("GUID: {}", Engine::ToString(assetID));
-		}
-
-		const Engine::AssetMeta* meta = assetDatabase->Find(assetID);
-		if (!meta) {
-			return std::format("Missing Asset | GUID: {}", Engine::ToString(assetID));
-		}
-
-		const std::string displayName = MakeAssetDisplayNameFromPath(meta->assetPath);
-		return std::format("Name: {}", displayName);
-	}
-	// アセット参照のツールチップテキストを構築する
-	std::string BuildAssetReferenceTooltip(Engine::AssetID assetID, const Engine::AssetDatabase* assetDatabase) {
-
-		if (!assetID) {
-			return "Drop asset here";
-		}
-
-		if (!assetDatabase) {
-			return std::format("GUID: {}", Engine::ToString(assetID));
-		}
-
-		const Engine::AssetMeta* meta = assetDatabase->Find(assetID);
-		if (!meta) {
-			return std::format("Missing Asset\nGUID: {}", Engine::ToString(assetID));
-		}
-
-		const std::string displayName = MakeAssetDisplayNameFromPath(meta->assetPath);
-		return std::format(
-			"Name : {}\nPath : {}\nGUID : {}",
-			displayName,
-			meta->assetPath,
-			Engine::ToString(assetID));
-	}
-	// エンティティ参照のラベルテキストを構築する
-	std::string BuildEntityReferenceLabel(Engine::UUID entityUUID, Engine::ECSWorld* world) {
-
-		if (!entityUUID) {
-			return "None (Drop entity here)";
-		}
-
-		if (!world) {
-			return std::format("UUID: {}", Engine::ToString(entityUUID));
-		}
-
-		const Engine::Entity entity = world->FindByUUID(entityUUID);
-		if (!world->IsAlive(entity)) {
-			return std::format("Missing Entity | UUID: {}", Engine::ToString(entityUUID));
-		}
-
-		if (Engine::NameComponent* name = world->TryGetComponent<Engine::NameComponent>(entity)) {
-			return std::format("Name: {}", name->name);
-		}
-		return std::format("Entity ({})", Engine::ToString(entityUUID));
-	}
-	// エンティティ参照のツールチップテキストを構築する
-	std::string BuildEntityReferenceTooltip(Engine::UUID entityUUID, Engine::ECSWorld* world) {
-
-		if (!entityUUID) {
-			return "Drop hierarchy entity here";
-		}
-
-		if (!world) {
-			return std::format("UUID: {}", Engine::ToString(entityUUID));
-		}
-
-		const Engine::Entity entity = world->FindByUUID(entityUUID);
-		if (!world->IsAlive(entity)) {
-			return std::format("Missing Entity\nUUID: {}", Engine::ToString(entityUUID));
-		}
-
-		if (Engine::NameComponent* name = world->TryGetComponent<Engine::NameComponent>(entity)) {
-			return std::format("Name : {}\nUUID : {}", name->name, Engine::ToString(entityUUID));
-		}
-		return std::format("UUID : {}", Engine::ToString(entityUUID));
-	}
-
-	//========================================================================
+	//============================================================================
 	//	レイアウトヘルパー
-	//========================================================================
-
+	//============================================================================
 	// フィールドの幅を計算する
 	float CalcFieldWidth(int fieldCount, float reserveRightWidth = 0.0f) {
 
@@ -241,10 +67,9 @@ namespace {
 		return fieldArea / static_cast<float>(fieldCount);
 	}
 
-	//========================================================================
+	//============================================================================
 	//	描画ヘルパー
-	//========================================================================
-
+	//============================================================================
 	// 軸ラベルを描画する
 	void DrawAxisLabel(char axis) {
 
@@ -274,95 +99,6 @@ namespace {
 		}
 		ImGui::EndGroup();
 		ImGui::PopID();
-	}
-	// ドラッグ可能な値フィールドを描画する
-	bool DrawDragFloatField(const char* id, char axis, float& value, float width, const Engine::FloatEditSetting& setting) {
-
-		bool changed = false;
-
-		ImGui::PushID(id);
-		ImGui::BeginGroup();
-
-		// axisが指定されている場合だけ、Vector編集と同じ軸ラベルを表示する
-		float fieldWidth = width;
-		if (axis != '\0') {
-			DrawAxisLabel(axis);
-			ImGui::SameLine(0.0f, 6.0f);
-			fieldWidth -= kAxisLabelWidth + 6.0f;
-		}
-
-		ImGui::SetNextItemWidth((std::max)(1.0f, fieldWidth));
-		changed = ImGui::DragFloat("##Value", &value, setting.dragSpeed, setting.minValue, setting.maxValue, "%.3f");
-
-		ImGui::EndGroup();
-		ImGui::PopID();
-		return changed;
-	}
-	// 複数のドラッグ可能な値フィールドを描画する
-	Engine::ValueEditResult  DrawDragFields(const char* label, const std::array<char, 4>& axes,
-		float* values, int count, const Engine::FloatEditSetting& setting) {
-
-		Engine::ValueEditResult result{};
-
-		const std::string tableID = std::string("##MyGUI_RowTable_Public_") + label;
-		const ImVec2 tableSize = setting.propertyRow.rowWidth.has_value() ?
-			ImVec2(setting.propertyRow.rowWidth.value(), 0.0f) : ImVec2(0.0f, 0.0f);
-		if (!ImGui::BeginTable(tableID.c_str(), 2,
-			ImGuiTableFlags_SizingStretchProp |
-			ImGuiTableFlags_BordersInnerV |
-			ImGuiTableFlags_NoSavedSettings, tableSize)) {
-			return result;
-		}
-		const float labelWidth = setting.propertyRow.labelWidth.value_or(kLabelColumnWidth);
-		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, labelWidth);
-		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableNextRow();
-
-		ImGui::TableSetColumnIndex(0);
-		ImGui::PushID(label);
-		const ImVec2 labelPos = ImGui::GetCursorScreenPos();
-		const ImVec2 labelSize(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight());
-		ImGui::InvisibleButton("##LabelDragAll", labelSize);
-
-		// ラベル部分を左右にドラッグした場合は、全ての値を同じ量だけ動かす
-		if (ImGui::IsItemActive()) {
-
-			const float delta = ImGui::GetIO().MouseDelta.x * setting.dragSpeed;
-			if (delta != 0.0f) {
-				for (int i = 0; i < count; ++i) {
-					values[i] = (std::clamp)(values[i] + delta, setting.minValue, setting.maxValue);
-				}
-				result.valueChanged = true;
-			}
-		}
-		result.anyItemActive |= ImGui::IsItemActive();
-		result.editFinished |= ImGui::IsItemDeactivatedAfterEdit();
-		if (ImGui::IsItemHovered() || ImGui::IsItemActive()) {
-			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-		}
-
-		const ImVec2 textPos(
-			labelPos.x,
-			labelPos.y + (labelSize.y - ImGui::GetTextLineHeight()) * 0.5f);
-		ImGui::GetWindowDrawList()->AddText(textPos, ImGui::GetColorU32(ImGuiCol_Text), label);
-
-		ImGui::TableSetColumnIndex(1);
-		const float fieldWidth = CalcFieldWidth(count, setting.reserveRightWidth);
-		for (int i = 0; i < count; ++i) {
-			if (i > 0) {
-				ImGui::SameLine();
-			}
-			result.valueChanged |= DrawDragFloatField(axes[i] == '\0' ? "Value" : axes[i] == 'W' ? "W" :
-				axes[i] == 'Z' ? "Z" : axes[i] == 'Y' ? "Y" : "X", axes[i],
-				values[i], fieldWidth, setting);
-			result.anyItemActive |= ImGui::IsItemActive();
-			result.editFinished |= ImGui::IsItemDeactivatedAfterEdit();
-		}
-		// プロパティ行を閉じる
-		if (setting.closeOnProperty) {
-			Engine::MyGUI::EndPropertyRow();
-		}
-		return result;
 	}
 	// 複数のコピー可能な値フィールドを描画する
 	void DrawTextFields(const char* label, const std::array<char, 4>& axes,
@@ -500,7 +236,7 @@ namespace {
 		outRotation = QuaternionFromRotationMatrixRowVector(rotationMatrix);
 		return true;
 	}
-	// 2Dアフィン行列を平行移動、回転（Z軸のみ）、拡縮に分解する
+	// 2Dアフィン行列を平行移動とZ軸のみの回転と拡縮に分解する
 	bool DecomposeAffine2D(const Engine::Matrix4x4& matrix, Engine::Vector3& outPos, float& outRotationZ, Engine::Vector3& outScale) {
 
 		constexpr float kEps = 1e-6f;
@@ -695,48 +431,6 @@ void Engine::MyGUI::TextQuaternion(const char* label, const Quaternion& value, u
 	DrawTextFields(label, { 'X', 'Y', 'Z', 'W' }, values, 4, precision);
 }
 
-void Engine::MyGUI::TextMatrix4x4(const char* label, const Matrix4x4& value, uint32_t precision) {
-
-	if (!BeginPropertyRow(label)) {
-		return;
-	}
-
-	const std::string tableID = std::string("##MyGUI_Matrix_") + label;
-	if (ImGui::BeginTable(tableID.c_str(), 4, ImGuiTableFlags_Borders |
-		ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings)) {
-		for (int row = 0; row < 4; ++row) {
-
-			ImGui::TableNextRow();
-			for (int col = 0; col < 4; ++col) {
-
-				ImGui::TableSetColumnIndex(col);
-
-				const std::string text = FormatFloat(value.m[row][col], precision);
-				const std::string buttonID = std::format("##{}_{}_{}", label, row, col);
-				if (ImGui::Button((text + buttonID).c_str(), ImVec2(-FLT_MIN, 0.0f))) {
-					ImGui::SetClipboardText(text.c_str());
-				}
-				if (ImGui::IsItemHovered()) {
-					ImGui::SetTooltip("Click to copy");
-				}
-			}
-		}
-		ImGui::EndTable();
-	}
-	EndPropertyRow();
-}
-
-Engine::ValueEditResult Engine::MyGUI::DragFloat(const char* label, float& value, const FloatEditSetting& setting) {
-
-	float values[1] = { value };
-	const char axis = setting.floatAxis.has_value() ? ToAxisChar(setting.floatAxis.value()) : '\0';
-	ValueEditResult result = DrawDragFields(label, { axis, '\0', '\0', '\0' }, values, 1, setting);
-	if (result.valueChanged) {
-		value = values[0];
-	}
-	return result;
-}
-
 Engine::ValueEditResult Engine::MyGUI::DragInt(const char* label, int32_t& value, const IntEditSetting& setting) {
 
 	ValueEditResult result{};
@@ -755,65 +449,6 @@ Engine::ValueEditResult Engine::MyGUI::DragInt(const char* label, int32_t& value
 	}
 
 	EndPropertyRow();
-	return result;
-}
-
-Engine::ValueEditResult Engine::MyGUI::DragVector2(const char* label, Vector2& value, const FloatEditSetting& setting) {
-
-	float values[2] = { value.x, value.y };
-	ValueEditResult result = DrawDragFields(label, { 'X', 'Y', '\0', '\0' }, values, 2, setting);
-	if (result.valueChanged) {
-		value.x = values[0];
-		value.y = values[1];
-	}
-	return result;
-}
-
-Engine::ValueEditResult Engine::MyGUI::DragVector3(const char* label, Vector3& value, const FloatEditSetting& setting) {
-
-	float values[3] = { value.x, value.y, value.z };
-	ValueEditResult result = DrawDragFields(label, { 'X', 'Y', 'Z', '\0' }, values, 3, setting);
-	if (result.valueChanged) {
-		value.x = values[0];
-		value.y = values[1];
-		value.z = values[2];
-	}
-	return result;
-}
-
-Engine::ValueEditResult Engine::MyGUI::DragVector4(const char* label, Vector4& value, const FloatEditSetting& setting) {
-
-	float values[4] = { value.x, value.y, value.z, value.w };
-	ValueEditResult result = DrawDragFields(label, { 'X', 'Y', 'Z', 'W' }, values, 4, setting);
-	if (result.valueChanged) {
-		value.x = values[0];
-		value.y = values[1];
-		value.z = values[2];
-		value.w = values[3];
-	}
-	return result;
-}
-
-Engine::ValueEditResult Engine::MyGUI::DragQuaternion(const char* label, Quaternion& value, bool displayEuler, const FloatEditSetting& setting) {
-
-	float values[4] = { value.x, value.y, value.z, value.w };
-	ValueEditResult result = DrawDragFields(label, { 'X', 'Y', 'Z', 'W' }, values, 4, setting);
-	if (result.valueChanged) {
-		value.x = values[0];
-		value.y = values[1];
-		value.z = values[2];
-		value.w = values[3];
-		value = Quaternion::Normalize(value);
-	}
-	if (displayEuler) {
-
-		ImGui::Separator();
-
-		// オイラーを下に表示する
-		Vector3 euler = Quaternion::ToEulerAngles(value);
-		const float eulerValues[3] = { euler.x, euler.y, euler.z };
-		DrawTextFields((std::string(label) + " (Euler Deg)").c_str(), { 'X', 'Y', 'Z', '\0' }, eulerValues, 3, 3);
-	}
 	return result;
 }
 
@@ -874,7 +509,7 @@ Engine::GizmoEditResult Engine::MyGUI::Manipulate2D(const char* id,
 		return result;
 	}
 
-	// 操作モードをImGuizmoの形式に変換する。無効なモードの場合は操作を行わない
+	// 操作モードをImGuizmoの形式に変換し無効なモードの場合は操作を行わない
 	ImGuizmo::OPERATION operation = ToImGuizmoOperation(context.mode);
 	if (operation == static_cast<ImGuizmo::OPERATION>(0)) {
 		return result;
@@ -949,7 +584,7 @@ Engine::GizmoEditResult Engine::MyGUI::Manipulate3D(const char* id,
 		return result;
 	}
 
-	// 操作モードをImGuizmoの形式に変換する。無効なモードの場合は操作を行わない
+	// 操作モードをImGuizmoの形式に変換し無効なモードの場合は操作を行わない
 	ImGuizmo::OPERATION operation = ToImGuizmoOperation(context.mode);
 	if (operation == static_cast<ImGuizmo::OPERATION>(0)) {
 		return result;
@@ -998,150 +633,6 @@ Engine::GizmoEditResult Engine::MyGUI::Manipulate3D(const char* id,
 	transform.localRotation = rotation;
 	transform.localScale = scale;
 	transform.isDirty = true;
-	return result;
-}
-
-Engine::GizmoEditResult Engine::MyGUI::Manipulate2D(const char* id,
-	const GizmoViewContext& context, SubMeshMaterial& subMesh) {
-
-	GizmoEditResult result{};
-
-	// ギズモ操作が有効で、かつ有効な描画領域がある場合にのみ操作を行う
-	if (context.mode == SceneViewManipulatorMode::None || !context.rect.IsValid()) {
-		return result;
-	}
-
-	// 操作モードをImGuizmoの形式に変換する。無効なモードの場合は操作を行わない
-	ImGuizmo::OPERATION operation = ToImGuizmoOperation(context.mode);
-	if (operation == static_cast<ImGuizmo::OPERATION>(0)) {
-		return result;
-	}
-
-	// 2DギズモはZ軸回転のみを扱うため、現在のローカル回転からZ軸回転を抽出して、他の回転成分を打ち消した行列を作る
-	SubMeshMaterial planeSubMesh = subMesh;
-	planeSubMesh.localRotation.x = 0.0f;
-	planeSubMesh.localRotation.y = 0.0f;
-	planeSubMesh.localScale.z = 1.0f;
-
-	// ローカルSRTからワールド行列を計算する
-	Matrix4x4 localMatrix = MeshSubMeshRuntime::BuildLocalMatrix(planeSubMesh);
-	Matrix4x4 worldMatrix = localMatrix * context.parentWorldMatrix;
-
-	// ImGuizmoは行列をfloat[16]の形式で受け取るので変換する
-	float view[16]{};
-	float projection[16]{};
-	float matrix[16]{};
-	Math::MatrixToFloat16(context.viewMatrix, view);
-	Math::MatrixToFloat16(context.projectionMatrix, projection);
-	Math::MatrixToFloat16(worldMatrix, matrix);
-
-	// ギズモ操作を開始する
-	BeginGizmoManipulate(id, context, true);
-
-	result.valueChanged = ImGuizmo::Manipulate(view, projection, operation, ImGuizmo::LOCAL, matrix);
-	result.isOver = ImGuizmo::IsOver();
-	result.isUsing = ImGuizmo::IsUsing();
-
-	// ギズモ操作を終了する
-	EndGizmoManipulate();
-
-	// 値が変更されていない場合はこれ以上の処理は不要
-	if (!result.valueChanged) {
-		return result;
-	}
-
-	// 編集された行列をMatrix4x4に変換し、親のワールド行列の逆行列を掛けてローカル行列に変換する
-	Matrix4x4 editedWorld = Math::MatrixFromFloat16(matrix);
-	Matrix4x4 editedLocal = editedWorld * Matrix4x4::Inverse(context.parentWorldMatrix);
-
-	Vector3 pos{};
-	Vector3 scale{};
-	float rotationZ = 0.0f;
-	if (!DecomposeAffine2D(editedLocal, pos, rotationZ, scale)) {
-		result.valueChanged = false;
-		return result;
-	}
-
-	// 編集結果を反映
-	subMesh.localPos.x = pos.x;
-	subMesh.localPos.y = pos.y;
-	subMesh.localPos.z = pos.z;
-	// 2DではXY回転を常に0に固定する
-	subMesh.localRotation.x = 0.0f;
-	subMesh.localRotation.y = 0.0f;
-	subMesh.localRotation.z = Math::MakeContinuousAngleDegrees(rotationZ, subMesh.localRotation.z);
-	subMesh.localScale.x = scale.x;
-	subMesh.localScale.y = scale.y;
-	return result;
-}
-
-Engine::GizmoEditResult Engine::MyGUI::Manipulate3D(const char* id,
-	const GizmoViewContext& context, SubMeshMaterial& subMesh) {
-
-	GizmoEditResult result{};
-
-	// ギズモ操作が有効で、かつ有効な描画領域がある場合にのみ操作を行う
-	if (context.mode == SceneViewManipulatorMode::None || !context.rect.IsValid()) {
-		return result;
-	}
-
-	// 操作モードをImGuizmoの形式に変換する。無効なモードの場合は操作を行わない
-	ImGuizmo::OPERATION operation = ToImGuizmoOperation(context.mode);
-	if (operation == static_cast<ImGuizmo::OPERATION>(0)) {
-		return result;
-	}
-
-	// ローカルSRTからワールド行列を計算する
-	Matrix4x4 pivotMatrix = Matrix4x4::MakeTranslateMatrix(subMesh.sourcePivot);
-	Matrix4x4 worldMatrix = pivotMatrix * subMesh.worldMatrix;
-
-	// ImGuizmoは行列をfloat[16]の形式で受け取るので変換する
-	float view[16]{};
-	float projection[16]{};
-	float matrix[16]{};
-	Math::MatrixToFloat16(context.viewMatrix, view);
-	Math::MatrixToFloat16(context.projectionMatrix, projection);
-	Math::MatrixToFloat16(worldMatrix, matrix);
-
-	// ギズモ操作を開始する
-	BeginGizmoManipulate(id, context, false);
-
-	result.valueChanged = ImGuizmo::Manipulate(view, projection, operation, ImGuizmo::LOCAL, matrix);
-	result.isOver = ImGuizmo::IsOver();
-	result.isUsing = ImGuizmo::IsUsing();
-
-	// ギズモ操作を終了する
-	EndGizmoManipulate();
-
-	// 値が変更されていない場合はこれ以上の処理は不要
-	if (!result.valueChanged) {
-		return result;
-	}
-
-	// 編集された行列をMatrix4x4に変換し、親のワールド行列の逆行列を掛けてローカル行列に変換する
-	Matrix4x4 editedGizmoWorld = Math::MatrixFromFloat16(matrix);
-	// サブメッシュのワールド行列はピボットを考慮した形になっているため、ギズモ操作前後でピボットの影響を打ち消す必要がある
-	Matrix4x4 invPivot = Matrix4x4::MakeTranslateMatrix(Vector3(-subMesh.sourcePivot.x, -subMesh.sourcePivot.y, -subMesh.sourcePivot.z));
-	Matrix4x4 pivot = Matrix4x4::MakeTranslateMatrix(subMesh.sourcePivot);
-	// 編集されたワールド行列からピボットの影響を打ち消す
-	Matrix4x4 editedRenderWorld = invPivot * editedGizmoWorld;
-	Matrix4x4 editedRenderLocal = editedRenderWorld * Matrix4x4::Inverse(context.parentWorldMatrix);
-	Matrix4x4 editedAuthoringLocal = pivot * editedRenderLocal * invPivot;
-
-	Vector3 pos{};
-	Vector3 scale{};
-	Quaternion rotation{};
-	if (!DecomposeAffine3D(editedAuthoringLocal, pos, rotation, scale)) {
-		result.valueChanged = false;
-		return result;
-	}
-
-	Vector3 rawEuler = Quaternion::ToEulerDegrees(rotation);
-
-	// 編集結果を反映
-	subMesh.localPos = pos;
-	subMesh.localRotation = Vector3::MakeContinuousDegrees(rawEuler, subMesh.localRotation);
-	subMesh.localScale = scale;
 	return result;
 }
 
@@ -1258,203 +749,4 @@ Engine::ValueEditResult Engine::MyGUI::StringCombo(const char* label, std::strin
 	return result;
 }
 
-namespace {
-
-	// テクスチャアセットのプレビュー画像を解決する。テクスチャでなければ空を返す
-	ImTextureID ResolveTextureAssetPreview(Engine::GraphicsCore* graphicsCore,
-		const Engine::AssetDatabase* assetDatabase, Engine::AssetID assetID) {
-
-		if (!graphicsCore || !assetDatabase || !assetID) {
-			return ImTextureID{};
-		}
-		const Engine::AssetMeta* meta = assetDatabase->Find(assetID);
-		if (!meta || meta->type != Engine::AssetType::Texture) {
-			return ImTextureID{};
-		}
-
-		auto& texService = graphicsCore->GetTextureUploadService();
-		const std::string previewKey = "gui:texture:preview:" + meta->assetPath;
-		if (texService.GetState(previewKey) == Engine::TextureRequestState::None) {
-
-			Engine::TextureFileRequestDesc desc{};
-			desc.key = previewKey;
-			desc.assetPath = meta->assetPath;
-			desc.forceSRGB = true;
-			texService.RequestTextureFile(desc);
-		}
-		if (const Engine::GPUTextureResource* tex = texService.GetTexture(previewKey)) {
-			if (tex->valid) {
-				return static_cast<ImTextureID>(tex->gpuHandle.ptr);
-			}
-		}
-		return ImTextureID{};
-	}
-}
-Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, AssetID& value,
-	const AssetDatabase* assetDatabase, const std::initializer_list<AssetType>& acceptedTypes,
-	const AssetEditSetting& setting) {
-
-	ValueEditResult result{};
-
-	if (setting.useAutoPropertyRow) {
-		if (!BeginPropertyRow(label, setting.propertyRow)) {
-			return result;
-		}
-	}
-
-	// 表示テキストを構築する
-	const std::string displayText = BuildAssetReferenceLabel(value, assetDatabase);
-	const bool hasValue = static_cast<bool>(value);
-
-	// テクスチャアセットのプレビューを共通で解決する（呼び出し側が明示指定していればそれを優先）
-	ImTextureID resolvedPreviewID = setting.previewTextureID;
-	if (resolvedPreviewID == ImTextureID{}) {
-		resolvedPreviewID = ResolveTextureAssetPreview(setting.graphicsCore, assetDatabase, value);
-	}
-	// 値がない場合はテキストを薄く表示する
-	if (!hasValue) {
-		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-	}
-
-	float buttonWidth = (std::max)(1.0f, ImGui::GetContentRegionAvail().x - setting.reserveRightWidth);
-	ImVec2 button = setting.buttonSize.has_value() ? setting.buttonSize.value() : ImVec2(buttonWidth, ImGui::GetFrameHeight());
-
-	// ドロップターゲットを描画する
-	ImGui::Button(displayText.c_str(), button);
-
-	if (!hasValue) {
-		ImGui::PopStyleColor();
-	}
-
-	// アイテムがアクティブかどうかを記録する
-	result.anyItemActive = ImGui::IsItemActive();
-
-	// 右クリックでアセット設定を削除するコンテキストメニュー
-	if (hasValue && setting.allowDelete && ImGui::BeginPopupContextItem("##assetRefDelete")) {
-
-		if (ImGui::MenuItem("削除")) {
-
-			value = AssetID{};
-			result.valueChanged = true;
-			result.editFinished = true;
-		}
-		ImGui::EndPopup();
-	}
-
-	if (setting.showTooltip && ImGui::BeginItemTooltip()) {
-
-		const std::string tooltip = BuildAssetReferenceTooltip(value, assetDatabase);
-		ImGui::TextUnformatted(tooltip.c_str());
-		if (resolvedPreviewID != ImTextureID{}) {
-			ImGui::Image(resolvedPreviewID, ImVec2(128.0f, 128.0f));
-		}
-		ImGui::EndTooltip();
-	}
-
-	// ドロップされたペイロードを受け入れる
-	if (ImGui::BeginDragDropTarget()) {
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kProjectAssetDragDropPayloadType)) {
-			if (payload->IsDelivery()) {
-
-				EditorAssetDragDropPayload assetPayload{};
-				if (!TryReadAssetPayload(payload, assetPayload)) {
-					ImGui::EndDragDropTarget();
-					if (setting.useAutoPropertyRow) {
-						EndPropertyRow();
-					}
-					return result;
-				}
-
-				AssetType assetType = assetPayload.assetType;
-				if (assetType == AssetType::Unknown && assetDatabase) {
-					if (const AssetMeta* meta = assetDatabase->Find(assetPayload.assetID)) {
-						assetType = meta->type;
-					}
-				}
-				if (assetType == AssetType::Unknown) {
-					assetType = GuessDroppedAssetType(assetPayload);
-				}
-				if (IsAcceptedAssetType(assetType, acceptedTypes)) {
-					if (value != assetPayload.assetID) {
-						value = assetPayload.assetID;
-						result.valueChanged = true;
-						result.editFinished = true;
-					}
-				}
-			}
-		}
-		ImGui::EndDragDropTarget();
-	}
-
-	if (setting.useAutoPropertyRow) {
-		EndPropertyRow();
-	}
-	return result;
-}
-
-Engine::ValueEditResult Engine::MyGUI::EntityReferenceField(const char* label, UUID& value,
-	ECSWorld* world, const EntityEditSetting& setting) {
-
-	ValueEditResult result{};
-
-	if (setting.useAutoPropertyRow) {
-		if (!BeginPropertyRow(label, setting.propertyRow)) {
-			return result;
-		}
-	}
-
-	// 同じ名前のEntityを複数表示してもIDが衝突しないように、呼び出し側のlabelをIDに使う。
-	ImGui::PushID(label);
-
-	const std::string displayText = BuildEntityReferenceLabel(value, world);
-	const bool hasValue = static_cast<bool>(value);
-	if (!hasValue) {
-		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-	}
-
-	const ImVec2 button = setting.buttonSize.has_value()
-		? setting.buttonSize.value()
-		: ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight());
-
-	// HierarchyからEntityをドロップするための表示領域。
-	ImGui::Button(displayText.c_str(), button);
-
-	if (!hasValue) {
-		ImGui::PopStyleColor();
-	}
-
-	result.anyItemActive = ImGui::IsItemActive();
-	if (ImGui::BeginItemTooltip()) {
-
-		const std::string tooltip = BuildEntityReferenceTooltip(value, world);
-		ImGui::TextUnformatted(tooltip.c_str());
-		ImGui::EndTooltip();
-	}
-
-	// HierarchyPanelが渡すUUIDを受け取り、現在のWorldに存在するEntityだけを参照として採用する。
-	if (ImGui::BeginDragDropTarget()) {
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType)) {
-			if (payload->IsDelivery()) {
-
-				UUID droppedUUID{};
-				if (TryReadEntityPayload(payload, droppedUUID)) {
-
-					const Entity droppedEntity = world ? world->FindByUUID(droppedUUID) : Entity::Null();
-					if (world && world->IsAlive(droppedEntity) && value != droppedUUID) {
-						value = droppedUUID;
-						result.valueChanged = true;
-						result.editFinished = true;
-					}
-				}
-			}
-		}
-		ImGui::EndDragDropTarget();
-	}
-
-	ImGui::PopID();
-
-	if (setting.useAutoPropertyRow) {
-		EndPropertyRow();
-	}
-	return result;
-}
+// AssetReferenceField / EntityReferenceFieldの実装はImGuiHelpersReference.cppへ分離

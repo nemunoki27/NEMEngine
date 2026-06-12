@@ -7,11 +7,42 @@
 
 // c++
 #include <algorithm>
+#include <string>
+
+//============================================================================
+//	ScreenSpaceOutlineViewResources classMethods
+//============================================================================
+bool Engine::ScreenSpaceOutlineViewResources::IsValid() const {
+
+	return mask && mask->IsValid() &&
+		projectedCoverageMask && projectedCoverageMask->IsValid() &&
+		horizontalDilatedMask && horizontalDilatedMask->IsValid() &&
+		dilatedMask && dilatedMask->IsValid();
+}
+
+void Engine::ScreenSpaceOutlineViewResources::Destroy() {
+
+	if (mask) {
+		mask->Destroy();
+		mask.reset();
+	}
+	if (projectedCoverageMask) {
+		projectedCoverageMask->Destroy();
+		projectedCoverageMask.reset();
+	}
+	if (horizontalDilatedMask) {
+		horizontalDilatedMask->Destroy();
+		horizontalDilatedMask.reset();
+	}
+	if (dilatedMask) {
+		dilatedMask->Destroy();
+		dilatedMask.reset();
+	}
+}
 
 //============================================================================
 //	RenderPathResources classMethods
 //============================================================================
-
 void Engine::RenderPathResources::Resize(GraphicsCore& graphicsCore, uint32_t width, uint32_t height) {
 
 	if (width == 0 || height == 0) {
@@ -31,6 +62,8 @@ void Engine::RenderPathResources::Resize(GraphicsCore& graphicsCore, uint32_t wi
 	if (sceneFinal_) {
 		sceneFinal_->Destroy();
 	}
+	runtimeOutline_.Destroy();
+	editorSelectionOutline_.Destroy();
 
 	sceneMain_ = std::make_unique<MultiRenderTarget>();
 	sceneMain_->Create(
@@ -47,6 +80,70 @@ void Engine::RenderPathResources::Resize(GraphicsCore& graphicsCore, uint32_t wi
 		&graphicsCore.GetDSVDescriptor(),
 		&graphicsCore.GetSRVDescriptor(),
 		BuildSceneFinalDesc(width, height));
+
+	runtimeOutline_.mask = std::make_unique<MultiRenderTarget>();
+	runtimeOutline_.mask->Create(
+		graphicsCore.GetDXObject().GetDevice(),
+		&graphicsCore.GetRTVDescriptor(),
+		&graphicsCore.GetDSVDescriptor(),
+		&graphicsCore.GetSRVDescriptor(),
+		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.Runtime.Mask", false));
+
+	runtimeOutline_.projectedCoverageMask = std::make_unique<MultiRenderTarget>();
+	runtimeOutline_.projectedCoverageMask->Create(
+		graphicsCore.GetDXObject().GetDevice(),
+		&graphicsCore.GetRTVDescriptor(),
+		&graphicsCore.GetDSVDescriptor(),
+		&graphicsCore.GetSRVDescriptor(),
+		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.Runtime.ProjectedCoverageMask", false));
+
+	runtimeOutline_.horizontalDilatedMask = std::make_unique<MultiRenderTarget>();
+	runtimeOutline_.horizontalDilatedMask->Create(
+		graphicsCore.GetDXObject().GetDevice(),
+		&graphicsCore.GetRTVDescriptor(),
+		&graphicsCore.GetDSVDescriptor(),
+		&graphicsCore.GetSRVDescriptor(),
+		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.Runtime.HorizontalDilatedMask", true));
+
+	runtimeOutline_.dilatedMask = std::make_unique<MultiRenderTarget>();
+	runtimeOutline_.dilatedMask->Create(
+		graphicsCore.GetDXObject().GetDevice(),
+		&graphicsCore.GetRTVDescriptor(),
+		&graphicsCore.GetDSVDescriptor(),
+		&graphicsCore.GetSRVDescriptor(),
+		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.Runtime.FinalDilatedMask", true));
+
+	editorSelectionOutline_.mask = std::make_unique<MultiRenderTarget>();
+	editorSelectionOutline_.mask->Create(
+		graphicsCore.GetDXObject().GetDevice(),
+		&graphicsCore.GetRTVDescriptor(),
+		&graphicsCore.GetDSVDescriptor(),
+		&graphicsCore.GetSRVDescriptor(),
+		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.EditorSelection.Mask", false));
+
+	editorSelectionOutline_.projectedCoverageMask = std::make_unique<MultiRenderTarget>();
+	editorSelectionOutline_.projectedCoverageMask->Create(
+		graphicsCore.GetDXObject().GetDevice(),
+		&graphicsCore.GetRTVDescriptor(),
+		&graphicsCore.GetDSVDescriptor(),
+		&graphicsCore.GetSRVDescriptor(),
+		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.EditorSelection.ProjectedCoverageMask", false));
+
+	editorSelectionOutline_.horizontalDilatedMask = std::make_unique<MultiRenderTarget>();
+	editorSelectionOutline_.horizontalDilatedMask->Create(
+		graphicsCore.GetDXObject().GetDevice(),
+		&graphicsCore.GetRTVDescriptor(),
+		&graphicsCore.GetDSVDescriptor(),
+		&graphicsCore.GetSRVDescriptor(),
+		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.EditorSelection.HorizontalDilatedMask", true));
+
+	editorSelectionOutline_.dilatedMask = std::make_unique<MultiRenderTarget>();
+	editorSelectionOutline_.dilatedMask->Create(
+		graphicsCore.GetDXObject().GetDevice(),
+		&graphicsCore.GetRTVDescriptor(),
+		&graphicsCore.GetDSVDescriptor(),
+		&graphicsCore.GetSRVDescriptor(),
+		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.EditorSelection.FinalDilatedMask", true));
 }
 
 void Engine::RenderPathResources::Destroy() {
@@ -59,6 +156,8 @@ void Engine::RenderPathResources::Destroy() {
 		sceneFinal_->Destroy();
 		sceneFinal_.reset();
 	}
+	runtimeOutline_.Destroy();
+	editorSelectionOutline_.Destroy();
 	currentWidth_ = 0;
 	currentHeight_ = 0;
 }
@@ -118,6 +217,24 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneFinal
 	color.format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	color.clearColor = Color4::Black();
 	color.createUAV = true;
+	desc.colors.emplace_back(color);
+
+	return desc;
+}
+
+Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildScreenSpaceOutlineMaskDesc(
+	uint32_t width, uint32_t height, std::string_view name, bool createUAV) {
+
+	MultiRenderTargetCreateDesc desc{};
+	desc.width = width;
+	desc.height = height;
+
+	// Style IDを整数値のまま保持し0はoutlineなしとして毎回clearする
+	ColorAttachmentDesc color{};
+	color.name = std::string(name);
+	color.format = DXGI_FORMAT_R16_UINT;
+	color.clearColor = Color4::Black();
+	color.createUAV = createUAV;
 	desc.colors.emplace_back(color);
 
 	return desc;

@@ -9,22 +9,21 @@ namespace Engine {
 
 	//============================================================================
 	//	DSVDescriptor class
-	//	深度ステンシルビュー(DSV)ディスクリプタを管理し、作成/参照を提供する。
+	// 深度ステンシルビュー(DSV)ディスクリプタを管理し、作成/参照を提供する
 	//============================================================================
 	class DSVDescriptor :
 		public BaseDescriptor {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		DSVDescriptor() :BaseDescriptor(64) {};
 		~DSVDescriptor() = default;
 
 		// 深度リソースの作成
 		void InitFrameBufferDSV(uint32_t width, uint32_t height);
 
-		// 深度テクスチャからDSVを作成しCPUハンドルを割り当てる。
+		// 深度テクスチャからDSVを作成しCPUハンドルを割り当てる
 		void CreateDSV(uint32_t width, uint32_t height, uint32_t& index,
 			D3D12_CPU_DESCRIPTOR_HANDLE& handle, ComPtr<ID3D12Resource>& resource,
 			DXGI_FORMAT resourceFormat, DXGI_FORMAT depthClearFormat);
@@ -37,9 +36,9 @@ namespace Engine {
 		const D3D12_CPU_DESCRIPTOR_HANDLE& GetFrameCPUHandle() const { return dsvCPUHandle_; }
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetFrameGPUHandle() const { return dsvGPUHandle_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -49,9 +48,10 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// 深度リソースを確保し、クリア形式を設定する。
+		// 深度リソースを確保し、クリア形式を設定する
 		void CreateDepthResource(ComPtr<ID3D12Resource>& resource, uint32_t width, uint32_t height,
 			DXGI_FORMAT resourceFormat, DXGI_FORMAT depthClearFormat);
 	};
 
 }; // Engine
+

@@ -11,7 +11,6 @@ namespace Engine {
 	//	GraphLink structure
 	//	OutputPinからInputPinへの接続情報
 	//============================================================================
-
 	struct GraphLink {
 
 		//--------- variables ----------------------------------------------------

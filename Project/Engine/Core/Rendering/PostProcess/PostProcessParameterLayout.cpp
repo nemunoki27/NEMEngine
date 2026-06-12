@@ -6,7 +6,6 @@
 //============================================================================
 //	PostProcessParameterLayout classMethods
 //============================================================================
-
 namespace {
 
 	uint32_t AlignConstantBufferSize(uint32_t size) {

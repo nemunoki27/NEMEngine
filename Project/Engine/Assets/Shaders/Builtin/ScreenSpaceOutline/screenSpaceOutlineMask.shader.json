@@ -1,0 +1,29 @@
+{
+  "name": "ScreenSpaceOutlineMask",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "Builtin/ScreenSpaceOutline/screenSpaceOutlineMask.VS.hlsl",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "AS",
+      "file": "Builtin/ScreenSpaceOutline/screenSpaceOutlineMask.AS.hlsl",
+      "entry": "main",
+      "profile": "as_6_6"
+    },
+    {
+      "stage": "MS",
+      "file": "Builtin/ScreenSpaceOutline/screenSpaceOutlineMask.MS.hlsl",
+      "entry": "main",
+      "profile": "ms_6_6"
+    },
+    {
+      "stage": "PS",
+      "file": "Builtin/ScreenSpaceOutline/screenSpaceOutlineMask.PS.hlsl",
+      "entry": "main",
+      "profile": "ps_6_6"
+    }
+  ]
+}

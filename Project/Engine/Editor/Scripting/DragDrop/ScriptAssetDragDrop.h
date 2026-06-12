@@ -16,9 +16,18 @@ namespace Engine {
 	//============================================================================
 	namespace ScriptAssetDragDrop {
 
-		// ScriptアセットからC#側の型名を解決する
-		bool ResolveScriptTypeName(const EditorPanelContext& context, AssetID assetID, std::string& outTypeName);
-		// Projectパネルからのドラッグ&ドロップを受け取り、C#側の型名を返す
-		bool AcceptScriptAssetDrop(const EditorPanelContext& context, AssetID& outAssetID, std::string& outTypeName);
+		// Scriptアセットから解決した型で永続主キーはscriptTypeIdのGUID、
+		// typeNameは表示とlastKnownTypeName用の完全修飾名
+		struct ResolvedScriptType {
+
+			std::string scriptTypeId;
+			std::string typeName;
+		};
+
+		// .cs の Scriptアセットをmanifestのsource情報経由で型へ解決する
+		// ファイル名stemをクラス名と見なす旧方式は使わず、候補が一意でなければ失敗扱いにする
+		bool ResolveScriptType(const EditorPanelContext& context, AssetID assetID, ResolvedScriptType& outType);
+		// Projectパネルからのドラッグ&ドロップを受け取り、解決した型を返す
+		bool AcceptScriptAssetDrop(const EditorPanelContext& context, AssetID& outAssetID, ResolvedScriptType& outType);
 	}
 } // Engine

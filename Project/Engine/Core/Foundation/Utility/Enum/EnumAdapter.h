@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-
 // c++
 #include <array>
 #include <cstdint>
@@ -23,10 +22,9 @@ namespace Engine {
 	template <typename T>
 	class EnumAdapter {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		static_assert(std::is_enum_v<T>, "EnumAdapter には enum 型を渡してください");
 
 		using Enum = T;
@@ -75,7 +73,7 @@ namespace Engine {
 			return magic_enum::enum_name(value).data();
 		}
 
-		static constexpr const std::string_view& ToStringView(Enum value) noexcept {
+		static constexpr std::string_view ToStringView(Enum value) noexcept {
 
 			return magic_enum::enum_name(value);
 		}

@@ -12,33 +12,32 @@ namespace Engine {
 
 	//============================================================================
 	//	RaytracingReflectionPass class
-	//	SceneMain → SceneFinal へレイトレーシング反射を合成するパス
+	//	SceneMain → SceneFinalへレイトレーシング反射を合成するパス
 	//============================================================================
 	class RaytracingReflectionPass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit RaytracingReflectionPass(const RenderPipelineDeps& deps) : deps_(deps) {
 			srcColorSlot_ = blitSRVCache_.AddSlotByRegister(ShaderBindingKind::SRV, 0, 0);
 		}
 		~RaytracingReflectionPass() override = default;
 
-		std::string_view GetName() const override { return "RaytracingReflection"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::RaytracingReflection; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
 
-		// フォールバック用フルスクリーンブリットのSRVスロット（ソースカラー t0）のキャッシュ
+		// フォールバック用フルスクリーンブリットのSRVスロットでソースカラーt0のキャッシュ
 		PipelineBindingCache blitSRVCache_{};
 		PipelineBindingCache::SlotID srcColorSlot_ = PipelineBindingCache::kInvalidSlot;
 
@@ -51,3 +50,4 @@ namespace Engine {
 		AssetID ResolveMaterial(AssetDatabase& database) const;
 	};
 } // Engine
+

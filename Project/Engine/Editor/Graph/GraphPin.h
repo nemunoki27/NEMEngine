@@ -14,7 +14,6 @@ namespace Engine {
 	//	GraphPinKind enum
 	//	Pinの入出力方向
 	//============================================================================
-
 	enum class GraphPinKind {
 
 		Input,
@@ -25,7 +24,6 @@ namespace Engine {
 	//	GraphPin structure
 	//	ノード間を接続するPin情報
 	//============================================================================
-
 	struct GraphPin {
 
 		//--------- variables ----------------------------------------------------
@@ -34,7 +32,7 @@ namespace Engine {
 		GraphID id = 0;
 		// 所属しているNode ID
 		GraphID nodeID = 0;
-		// 入力 / 出力の種別
+		// 入力/出力の種別
 		GraphPinKind kind = GraphPinKind::Input;
 		// 接続できる値の型
 		GraphValueType valueType = GraphValueType::Unknown;

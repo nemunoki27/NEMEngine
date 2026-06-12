@@ -19,10 +19,9 @@ namespace Engine {
 	//============================================================================
 	class IRenderItemExtractor {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		IRenderItemExtractor() = default;
 		virtual ~IRenderItemExtractor() = default;
 
@@ -35,7 +34,7 @@ namespace Engine {
 
 		// エンティティが描画可能か
 		bool IsVisible(ECSWorld& world, const Entity& entity, bool visible);
-		// ワールド行列を取得する。ワールド行列が存在しない場合は単位行列を返す
+		// ワールド行列を取得し存在しない場合は単位行列を返す
 		Matrix4x4 GetWorldMatrix(ECSWorld& world, const Entity& entity);
 		// シーンオブジェクトコンポーネントを取得する
 		const SceneObjectComponent* GetSceneObject(ECSWorld& world, const Entity& entity);

@@ -8,7 +8,6 @@
 //============================================================================
 //	BottomLevelAccelerationStructure classMethods
 //============================================================================
-
 void Engine::BottomLevelAccelerationStructure::FillGeometryDesc(const RaytracingBLASInput& input) {
 
 	// メッシュリソースの取得と検査

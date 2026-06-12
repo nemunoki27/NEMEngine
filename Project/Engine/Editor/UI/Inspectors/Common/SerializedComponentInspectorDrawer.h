@@ -27,10 +27,9 @@ namespace Engine {
 	class SerializedComponentInspectorDrawer :
 		public IInspectorComponentDrawer {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		SerializedComponentInspectorDrawer(const std::string_view& headerLabel, const std::string_view& componentTypeName) :
 			headerLabel_(headerLabel), componentTypeName_(componentTypeName) {}
 		~SerializedComponentInspectorDrawer() = default;
@@ -43,10 +42,9 @@ namespace Engine {
 		// 描画可能か
 		bool CanDraw(ECSWorld& world, const Entity& entity) const override;
 	protected:
-		//========================================================================
+		//============================================================================
 		//	protected Methods
-		//========================================================================
-
+		//============================================================================
 		//--------- functions ----------------------------------------------------
 
 		// コミット状態へ反映する
@@ -77,9 +75,9 @@ namespace Engine {
 		T& GetDraft() { return draftComponent_; }
 		const T& GetDraft() const { return draftComponent_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -115,7 +113,6 @@ namespace Engine {
 	//============================================================================
 	//	SerializedComponentInspectorDrawer templateMethods
 	//============================================================================
-
 	template<typename T>
 	inline void SerializedComponentInspectorDrawer<T>::Draw(const EditorPanelContext& context,
 		ECSWorld& world, const Entity& entity) {

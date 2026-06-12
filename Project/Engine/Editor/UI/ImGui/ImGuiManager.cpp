@@ -7,6 +7,9 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 
+// c++
+#include <filesystem>
+
 // imgui
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -16,7 +19,6 @@ using namespace Engine;
 //============================================================================
 //	ImGuiManager classMethods
 //============================================================================
-
 void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D12CommandQueue* commandQueue,
 	SRVDescriptor* srvDescriptor, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat) {
 
@@ -37,7 +39,7 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	//Win32初期化
 	ImGui_ImplWin32_Init(hwnd);
 
-	// DX12初期化 
+	// DX12初期化
 	ImGui_ImplDX12_InitInfo dxInitInfo = {};
 	dxInitInfo.Device = device;
 	dxInitInfo.CommandQueue = commandQueue;
@@ -50,15 +52,21 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	dxInitInfo.SrvDescriptorFreeFn = &ImGuiManager::FreeSRVDescriptor;
 	ImGui_ImplDX12_Init(&dxInitInfo);
 
-	//========================================================================
+	//============================================================================
 	//	imguiConfig
-	//========================================================================
-
+	//============================================================================
 	// ImGuiのフォント設定
 	ImFontConfig cfg{};
 	cfg.FontNo = 0;
+	
 	const char* fontPath = "C:\\Windows\\Fonts\\meiryob.ttc";
-	io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath, 20.0f, &cfg, io.Fonts->GetGlyphRangesJapanese());
+	if (std::filesystem::exists(fontPath)) {
+		io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath, 20.0f, &cfg, io.Fonts->GetGlyphRangesJapanese());
+	}
+	else {
+		// フォントがない場合のデフォルトフォントへのフォールバック
+		io.Fonts->AddFontDefault();
+	}
 
 	ImGuiStyle& style = ImGui::GetStyle();
 	ImVec4* colors = style.Colors;
@@ -67,12 +75,11 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 		return ImVec4(r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f);
 		};
 
-	// ============================================================
+	//============================================================================
 	// Almost Pure Black Theme + Deep Orange Accent
-	// ============================================================
-
+	//============================================================================
 	// ---- Base ----
-	// ほぼ黒。紺っぽさを完全に消す
+	// ほぼ黒で紺っぽさを完全に消す
 	const ImVec4 bg0 = C(0, 0, 0);          // WindowBg
 	const ImVec4 bg1 = C(2, 2, 2);          // Child/Popup
 	const ImVec4 topbar = C(3, 3, 3);          // Title/Menu

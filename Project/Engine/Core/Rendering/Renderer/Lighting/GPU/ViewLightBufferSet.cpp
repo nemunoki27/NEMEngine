@@ -8,7 +8,6 @@
 //============================================================================
 //	ViewLightBufferSet classMethods
 //============================================================================
-
 namespace {
 
 	template <typename SrcPtrT, typename DstT, typename ConvertFn>

@@ -6,7 +6,6 @@
 //============================================================================
 //	NodeGraphDrawUtils functions
 //============================================================================
-
 void Engine::NodeGraphDrawUtils::DrawPinIcon(const GraphPin& pin, const NodeGraphStyle& style) {
 
 	// Flowは向きが分かりやすい記号、それ以外は小さい丸で表示する

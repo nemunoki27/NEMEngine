@@ -16,10 +16,9 @@ namespace Engine {
 	class InstantiatePrefabCommand :
 		public IEditorCommand {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit InstantiatePrefabCommand(AssetID prefabAsset, UUID parentStableUUID = UUID{});
 		~InstantiatePrefabCommand() = default;
 
@@ -34,15 +33,15 @@ namespace Engine {
 
 		const char* GetName() const override { return "Instantiate Prefab"; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
 		// 生成元のPrefabアセット
 		AssetID prefabAsset_{};
-		// 生成先の親Entity。空の場合はルートに生成する
+		// 生成先の親Entityで空の場合はルートに生成する
 		UUID parentStableUUID_{};
 		// 最後に生成したPrefabインスタンスのルートEntity
 		UUID instantiatedRootStableUUID_{};
@@ -53,3 +52,4 @@ namespace Engine {
 		bool InstantiateInternal(EditorCommandContext& context);
 	};
 } // Engine
+

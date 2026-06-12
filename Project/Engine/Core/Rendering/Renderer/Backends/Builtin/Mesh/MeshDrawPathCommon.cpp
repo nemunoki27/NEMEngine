@@ -8,7 +8,6 @@
 //============================================================================
 //	MeshDrawPathCommon classMethods
 //============================================================================
-
 Engine::AssetID Engine::MeshDrawPathCommon::ResolveBatchMesh(const RenderSceneBatch& batch, std::span<const RenderItem* const> items) {
 
 	AssetID resolved{};
@@ -38,7 +37,7 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveBatchMesh(const RenderSceneBa
 Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetID(const MeshGPUResource& gpuMesh,
 	const MeshRendererComponent* renderer, uint32_t subMeshIndex) {
 
-	// オーサリングが確定済みのサブメッシュはその値を権威として使う（空=テクスチャなし）
+	// オーサリングが確定済みのサブメッシュはその値を権威として使い空はテクスチャなし
 	if (renderer && subMeshIndex < renderer->subMeshes.size()) {
 		if (renderer->subMeshes[subMeshIndex].stableID) {
 			return renderer->subMeshes[subMeshIndex].baseColorTexture;
@@ -129,7 +128,7 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID
 bool Engine::MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(const MeshGPUResource& gpuMesh,
 	const MeshRendererComponent* renderer, uint32_t subMeshIndex) {
 
-	// オーサリング確定済みはAssetIDが権威。空ならユーザーがテクスチャなしにした扱い
+	// オーサリング確定済みはAssetIDが権威で空ならユーザーがテクスチャなしにした扱い
 	if (renderer && subMeshIndex < renderer->subMeshes.size()) {
 		if (renderer->subMeshes[subMeshIndex].stableID) {
 			return static_cast<bool>(renderer->subMeshes[subMeshIndex].baseColorTexture);

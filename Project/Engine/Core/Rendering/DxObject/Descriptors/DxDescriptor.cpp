@@ -17,7 +17,6 @@ using namespace Engine;
 //============================================================================
 //	BaseDescriptor classMethods
 //============================================================================
-
 BaseDescriptor::BaseDescriptor(uint32_t maxDescriptorCount) :
 	maxDescriptorCount_(maxDescriptorCount) {
 }

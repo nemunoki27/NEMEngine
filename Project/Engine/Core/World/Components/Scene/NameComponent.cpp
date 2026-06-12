@@ -3,7 +3,6 @@
 //============================================================================
 //	NameComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, NameComponent& component) {
 
 	component.name = in.value("name", "Entity");

@@ -15,17 +15,16 @@ namespace Engine {
 	class InvertedHullOutlineInspectorDrawer :
 		public SerializedComponentInspectorDrawer<InvertedHullOutlineComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		InvertedHullOutlineInspectorDrawer() :
 			SerializedComponentInspectorDrawer("Inverted Hull Outline", "InvertedHullOutline") {}
 		~InvertedHullOutlineInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- functions ----------------------------------------------------
 
@@ -33,3 +32,4 @@ namespace Engine {
 			const Entity& entity, bool& anyItemActive) override;
 	};
 } // Engine
+

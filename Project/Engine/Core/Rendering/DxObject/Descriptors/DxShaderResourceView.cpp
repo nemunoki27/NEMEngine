@@ -11,7 +11,6 @@ using namespace Engine;
 //============================================================================
 //	SRVDescriptor classMethods
 //============================================================================
-
 void SRVDescriptor::CreateSRV(uint32_t& srvIndex, ID3D12Resource* resource,
 	const D3D12_SHADER_RESOURCE_VIEW_DESC& desc) {
 

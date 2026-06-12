@@ -13,7 +13,6 @@
 //============================================================================
 //	MeshGPUResourceManager classMethods
 //============================================================================
-
 namespace {
 
 	// テクスチャアセットIDをパスから解決する、見つからない場合はインポートする
@@ -147,6 +146,8 @@ namespace {
 			Engine::MeshPackedVertex dst{};
 			dst.normalOct = EncodeOctNormal(vertex.normal);
 			dst.tangentOct = EncodeOctNormal(vertex.tangent);
+			// 接線の利き手は圧縮せずそのまま保持する
+			dst.tangentSign = vertex.tangentSign;
 			dst.uv = vertex.uv;
 			dst.position = vertex.position;
 			packed.emplace_back(dst);
@@ -159,18 +160,18 @@ namespace {
 		Engine::SRVDescriptor& srvDescriptor, Engine::MeshStructuredHandle<T>& out,
 		const std::vector<T>& data, const wchar_t* debugName) {
 
-		// 空データはWidth 0のD3D12 bufferを作れないため、SRV自体を未生成として扱う。
+		// 空データはWidth 0のD3D12 bufferを作れないため、SRV自体を未生成として扱う
 		if (data.empty()) {
 			return;
 		}
 
-		// 静的メッシュデータはDEFAULT heapへ置き、初期転送だけをUploadServiceへ集約する。
+		// 静的メッシュデータはDEFAULT heapへ置き、初期転送だけをUploadServiceへ集約する
 		out.buffer = std::make_unique<Engine::DxImmutableStructuredBuffer<T>>();
 		out.buffer->Create(device, uploadService, std::span<const T>(data.data(), data.size()));
 		if (ID3D12Resource* resource = out.buffer->GetResource()) {
 			resource->SetName(debugName);
 		}
-		// DescriptorはMeshStructuredHandle::Releaseで解放するため、handle側にindex/handleを保持する。
+		// DescriptorはMeshStructuredHandle::Releaseで解放するため、handle側にindex/handleを保持する
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = out.buffer->GetSRVDesc();
 		srvDescriptor.CreateSRV(out.srvIndex, out.buffer->GetResource(), srvDesc);
 		out.srvGPUHandle = srvDescriptor.GetGPUHandle(out.srvIndex);
@@ -429,11 +430,11 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		const bool useIndex16 = CanPackMeshletVertexIndices(imported.indices);
 		if (useIndex16) {
 			const std::vector<uint16_t> indices16 = BuildIndex16(imported.indices);
-			// BLAS構築でも同じIBを読むため、最終状態はINDEX_BUFFER単独ではなくGENERIC_READにする。
+			// BLAS構築でも同じIBを読むため、最終状態はINDEX_BUFFER単独ではなくGENERIC_READにする
 			mesh.indexBuffer.Create(device_, *uploadService_, std::span(indices16),
 				D3D12_RESOURCE_STATE_GENERIC_READ);
 		} else {
-			// SRV用indexSRVは32bitのまま別途保持し、IBVだけ描画向けに最適化する。
+			// SRV用indexSRVは32bitのまま別途保持し、IBVだけ描画向けに最適化する
 			mesh.indexBuffer.Create(device_, *uploadService_, std::span(imported.indices),
 				DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_STATE_GENERIC_READ);
 		}
@@ -499,7 +500,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 			mesh.meshletPrimitiveIndexSRV, imported.meshletPrimitiveIndices, L"MeshletPrimitiveIndices");
 	}
 
-	// このメッシュで積んだDEFAULT heap初期転送を1Batchとして提出する。描画Queue側はGPU Waitで順序保証する。
+	// このメッシュで積んだDEFAULT heap初期転送を1Batchとして提出し描画Queue側はGPU Waitで順序保証する
 	uploadService_->SubmitBatch();
 
 	// GPUリソースを保存

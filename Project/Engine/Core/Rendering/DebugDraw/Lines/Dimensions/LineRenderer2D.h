@@ -14,10 +14,9 @@ namespace Engine {
 	class LineRenderer2D :
 		public LineRendererBase<Vector2> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		LineRenderer2D(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain);
 		~LineRenderer2D() = default;
 
@@ -39,9 +38,9 @@ namespace Engine {
 		// 円
 		void DrawCircle(const Vector2& center, float radius, const Color4& color, uint32_t division = 8, float thickness = 1.0f);
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -53,3 +52,4 @@ namespace Engine {
 		void DrawLineImpl(GraphicsCore& graphicsCore, const ResolvedCameraView* camera, MultiRenderTarget& surface) override;
 	};
 } // Engine
+

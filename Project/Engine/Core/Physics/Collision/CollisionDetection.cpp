@@ -13,7 +13,6 @@ namespace {
 	//============================================================================
 	//	utility
 	//============================================================================
-
 	// Dot結果の絶対値を取得する
 	float AbsDot(const Engine::Vector3& a, const Engine::Vector3& b) {
 
@@ -43,7 +42,6 @@ namespace {
 	//============================================================================
 	//	2D判定
 	//============================================================================
-
 	// Circle2D同士の衝突判定
 	bool TestCircleCircle(const Engine::CollisionShapeInstance& a,
 		const Engine::CollisionShapeInstance& b, Engine::CollisionContact& outContact) {
@@ -155,7 +153,6 @@ namespace {
 	//============================================================================
 	//	3D判定
 	//============================================================================
-
 	// Sphere3D同士の衝突判定
 	bool TestSphereSphere(const Engine::CollisionShapeInstance& a,
 		const Engine::CollisionShapeInstance& b, Engine::CollisionContact& outContact) {
@@ -282,7 +279,6 @@ namespace {
 //============================================================================
 //	CollisionDetection functions
 //============================================================================
-
 bool Engine::IsCollisionShape2D(ColliderShapeType type) {
 
 	return type == ColliderShapeType::Circle2D || type == ColliderShapeType::Quad2D;

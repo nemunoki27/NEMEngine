@@ -15,20 +15,20 @@ namespace Engine {
 	class BillboardInspectorDrawer :
 		public SerializedComponentInspectorDrawer<BillboardComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		BillboardInspectorDrawer() :
 			SerializedComponentInspectorDrawer("Billboard", "Billboard") {}
 		~BillboardInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;
 	};
 } // Engine
+

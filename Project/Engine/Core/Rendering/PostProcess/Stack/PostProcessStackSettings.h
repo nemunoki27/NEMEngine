@@ -16,11 +16,10 @@ namespace Engine {
 	//============================================================================
 	//	PostProcessStack structures
 	//============================================================================
-
 	// ポストプロセスの1パス分の設定データ
 	struct PostProcessStackPassSettings {
 
-		// パスの識別ID（並び替え後も参照を保つ）
+		// パスの識別IDで並び替え後も参照を保つ
 		UUID id{};
 		// 表示名
 		std::string name;
@@ -28,8 +27,8 @@ namespace Engine {
 		bool enabled = true;
 		// 実行するMaterialアセットのGUID
 		AssetID materialGuid{};
-		// 実行するパス名
-		std::string passName = "PostProcess";
+		// 実行するパス種別
+		MaterialPassKind passKind = MaterialPassKind::PostProcess;
 		// CBufferパラメータのScene毎overrideマップ
 		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides;
 		// TextureのScene毎overrideマップ

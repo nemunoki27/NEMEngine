@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Profiling/GpuFrameProfiler.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // c++
 #include <string>
@@ -16,8 +17,10 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RaytracingReflectionPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/InvertedHullOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/TransparentRenderPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RuntimeScreenSpaceOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessMaskedUiPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessStackPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/EditorSelectionScreenSpaceOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/BlitToViewPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/ScreenUiPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DebugOverlayPass.h>
@@ -26,13 +29,12 @@
 //============================================================================
 //	FixedForwardPlusRenderPath classMethods
 //============================================================================
-
 void Engine::FixedForwardPlusRenderPath::Initialize(const RenderPipelineDeps& deps) {
 
 	deps_ = deps;
 	Finalize();
 	deps_ = deps;
-	passes_.reserve(13);
+	passes_.reserve(15);
 
 	passes_.emplace_back(std::make_unique<ClearRenderTargetsPass>(deps_));
 	passes_.emplace_back(std::make_unique<DepthPrepass>(deps_));
@@ -41,8 +43,10 @@ void Engine::FixedForwardPlusRenderPath::Initialize(const RenderPipelineDeps& de
 	passes_.emplace_back(std::make_unique<RaytracingReflectionPass>(deps_));
 	passes_.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
 	passes_.emplace_back(std::make_unique<TransparentRenderPass>(deps_));
+	passes_.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(deps_));
 	passes_.emplace_back(std::make_unique<PostProcessMaskedUiPass>(deps_));
 	passes_.emplace_back(std::make_unique<PostProcessStackPass>(deps_));
+	passes_.emplace_back(std::make_unique<EditorSelectionScreenSpaceOutlinePass>(deps_));
 	passes_.emplace_back(std::make_unique<BlitToViewPass>(deps_));
 	passes_.emplace_back(std::make_unique<ScreenUiPass>(deps_));
 	passes_.emplace_back(std::make_unique<DebugOverlayPass>());
@@ -51,7 +55,7 @@ void Engine::FixedForwardPlusRenderPath::Initialize(const RenderPipelineDeps& de
 
 void Engine::FixedForwardPlusRenderPath::Finalize() {
 
-	// RenderPassのunique_ptrはclear任せにせず、終了時に明示resetする。
+	// RenderPassのunique_ptrはclear任せにせず、終了時に明示resetする
 	for (auto& pass : passes_) {
 		pass.reset();
 	}
@@ -68,7 +72,8 @@ void Engine::FixedForwardPlusRenderPath::Execute(GraphicsCore& graphicsCore,
 
 	for (auto& pass : passes_) {
 
-		GpuFrameProfiler::GetInstance().BeginPass(commandList, viewPrefix + std::string(pass->GetName()));
+		GpuFrameProfiler::GetInstance().BeginPass(commandList,
+			viewPrefix + std::string(EnumAdapter<RenderPathPassKind>::ToStringView(pass->GetKind())));
 		pass->Execute(graphicsCore, passBuckets, context);
 		GpuFrameProfiler::GetInstance().EndPass(commandList);
 	}

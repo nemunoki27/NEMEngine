@@ -17,10 +17,9 @@ namespace Engine {
 	class HierarchySystem :
 		public ISystem {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		HierarchySystem() = default;
 		~HierarchySystem() = default;
 
@@ -31,6 +30,8 @@ namespace Engine {
 		void RebuildRuntimeLinks(ECSWorld& world, const std::vector<Entity>& scope);
 		// 階層内のアクティブをルート以下で再計算する
 		void RefreshActiveTree(ECSWorld& world, const Entity& root);
+		// 指定エンティティ以下のアクティブ状態を親を考慮して更新する
+		void UpdateActiveInHierarchy(ECSWorld& world, const Entity& entity);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -39,9 +40,9 @@ namespace Engine {
 
 		const char* GetName() const override { return "HierarchySystem"; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- functions ----------------------------------------------------
 

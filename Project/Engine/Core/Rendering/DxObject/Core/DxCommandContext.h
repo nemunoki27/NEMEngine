@@ -17,32 +17,32 @@
 #include <chrono>
 #include <thread>
 #include <future>
+#include <string_view>
 
 //============================================================================
 //	DxCommand class
-//	Direct3D12のコマンドキュー/アロケータ/リストを管理し、実行と同期を提供する。
+// Direct3D12のコマンドキュー/アロケータ/リストを管理し、実行と同期を提供する
 //============================================================================
 namespace Engine {
 
 class DxCommand {
 public:
-	//========================================================================
+	//============================================================================
 	//	public Methods
-	//========================================================================
-
+	//============================================================================
 	DxCommand() = default;
 	~DxCommand() = default;
 
 	// デバイスからキュー/アロケータ/リスト/フェンスを生成し初期化する
 	void Create(ID3D12Device* device);
 
-	// コマンドをキューへ提出する（必要に応じてPresent前の処理に備える）
+	// コマンドをキューへ提出し必要に応じてPresent前の処理に備える
 	void ExecuteCommands(IDXGISwapChain4* swapChain);
 
 	// フェンスを用いてGPU完了まで待機する
 	void WaitForGPU();
 
-	// 終了処理: フェンス/イベント等のリソースを破棄する
+	// 終了処理:フェンス/イベント等のリソースを破棄する
 	void Finalize(HWND hwnd);
 
 	// ルートで使用するディスクリプタヒープ配列をセットする
@@ -83,11 +83,13 @@ public:
 	ID3D12CommandQueue* GetQueue() const { return commandQueue_.Get(); }
 	ID3D12GraphicsCommandList6* GetCommandList() const { return commandList_.Get(); }
 private:
-	//========================================================================
+	//============================================================================
 	//	private Methods
-	//========================================================================
+	//============================================================================
 
-	//--------- variables ----------------------------------------------------
+		//--------- variables ----------------------------------------------------
+
+	ComPtr<ID3D12Device> device_;
 
 	ComPtr<ID3D12GraphicsCommandList6> commandList_;
 	ComPtr<ID3D12CommandAllocator> commandAllocator_;
@@ -102,6 +104,9 @@ private:
 
 	//--------- functions ----------------------------------------------------
 
+	// 特定のフェンス値を診断可能ループで待機する
+	bool WaitForFenceValue(uint64_t expectedValue, std::string_view operation);
+
 	// グラフィックスパスのコマンドを提出する
 	void ExecuteGraphicsCommands(IDXGISwapChain4* swapChain);
 	// フェンス値をシグナルし、イベントによる待機を設定する
@@ -111,3 +116,4 @@ private:
 };
 
 }; // Engine
+

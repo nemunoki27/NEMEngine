@@ -20,7 +20,6 @@ namespace Engine {
 	//============================================================================
 	//	EditorPanelContext struct
 	//============================================================================
-
 	// 各パネルに共通で渡す描画コンテキスト
 	struct EditorPanelContext {
 
@@ -46,6 +45,8 @@ namespace Engine {
 
 		// プレイモードかどうか
 		bool IsPlaying() const { return editorContext ? editorContext->isPlaying : false; }
+		// Play中に一時停止しているかどうか
+		bool IsPlayPaused() const { return editorContext ? editorContext->isPlayPaused : false; }
 		// シーンを編集できる状態かどうか
 		bool CanEditScene() const { return editorContext && !editorContext->isPlaying && editorContext->activeWorld; }
 	};

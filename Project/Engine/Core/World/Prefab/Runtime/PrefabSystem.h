@@ -18,7 +18,6 @@ namespace Engine {
 	//============================================================================
 	//	PrefabSystem structures
 	//============================================================================
-
 	// プレファブ生成のオプション
 	struct PrefabInstantiateDesc {
 
@@ -27,6 +26,10 @@ namespace Engine {
 
 		// 生成したルートをぶら下げたい親
 		Entity parent = Entity::Null();
+
+		// 予約済みルートEntityで有効なら新規生成せずこのEntityをルートとして使う
+		// deferred Prefab.Instantiateが即時にroot handleを返すための仕組み
+		Entity reservedRoot = Entity::Null();
 	};
 	// プレファブ生成の結果
 	struct PrefabInstantiateResult {
@@ -49,10 +52,9 @@ namespace Engine {
 	//============================================================================
 	class PrefabSystem {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		PrefabSystem() = default;
 		~PrefabSystem() = default;
 
@@ -66,9 +68,9 @@ namespace Engine {
 		bool InstantiatePrefabFromPath(AssetDatabase& database, HierarchySystem& hierarchySystem, ECSWorld& world,
 			const std::string& prefabAssetPath, PrefabInstantiateResult& outResult, const PrefabInstantiateDesc& desc = {}) const;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- functions ----------------------------------------------------
 

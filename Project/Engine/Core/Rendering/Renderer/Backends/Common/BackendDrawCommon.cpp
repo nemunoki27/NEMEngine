@@ -9,12 +9,11 @@
 //============================================================================
 //	BackendDrawCommon classMethods
 //============================================================================
-
 const  Engine::MaterialPassBinding* Engine::BackendDrawCommon::FindFirstPass(const MaterialAsset& material,
-	const std::initializer_list<std::string_view>& passNames) {
+	const std::initializer_list<MaterialPassKind>& passKinds) {
 
-	for (std::string_view passName : passNames) {
-		if (const auto* pass = FindPass(material, passName)) {
+	for (MaterialPassKind passKind : passKinds) {
+		if (const auto* pass = FindPass(material, passKind)) {
 			return pass;
 		}
 	}
@@ -23,7 +22,7 @@ const  Engine::MaterialPassBinding* Engine::BackendDrawCommon::FindFirstPass(con
 
 bool Engine::BackendDrawCommon::ResolveMaterialPass(const RenderDrawContext& context,
 	AssetID requestedMaterial, DefaultMaterialSlot defaultSlot,
-	const std::initializer_list<std::string_view>& passNames,
+	const std::initializer_list<MaterialPassKind>& passKinds,
 	ResolvedMaterialPass& outResolved) {
 
 	// 要求マテリアルが無ければデフォルトマテリアルへフォールバックする
@@ -40,7 +39,7 @@ bool Engine::BackendDrawCommon::ResolveMaterialPass(const RenderDrawContext& con
 	}
 
 	// 指定候補のパスを順に探す
-	const MaterialPassBinding* pass = FindFirstPass(*material, passNames);
+	const MaterialPassBinding* pass = FindFirstPass(*material, passKinds);
 	if (!pass) {
 		return false;
 	}

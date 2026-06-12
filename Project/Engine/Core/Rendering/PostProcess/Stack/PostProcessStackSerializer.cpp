@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/IDentity/UUID.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // c++
 #include <filesystem>
@@ -12,7 +13,6 @@
 //============================================================================
 //	PostProcessStackSerializer classMethods
 //============================================================================
-
 namespace {
 
 	bool TryParseParameterValue(const nlohmann::json& data, Engine::MaterialParameterValue& outValue) {
@@ -145,7 +145,11 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 
 		const std::string guidStr = passJson.value("materialGuid", "");
 		pass.materialGuid = guidStr.size() == 16 ? FromString16Hex(guidStr) : AssetID{};
-		pass.passName = passJson.value("passName", "PostProcess");
+		const auto passKind = EnumAdapter<MaterialPassKind>::FromString(passJson.value("passKind", ""));
+		if (!passKind || *passKind == MaterialPassKind::Invalid) {
+			continue;
+		}
+		pass.passKind = *passKind;
 
 		if (passJson.contains("parameters") && passJson["parameters"].is_object()) {
 			for (auto it = passJson["parameters"].begin(); it != passJson["parameters"].end(); ++it) {
@@ -187,7 +191,7 @@ nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStack
 		passJson["name"] = pass.name;
 		passJson["enabled"] = pass.enabled;
 		passJson["materialGuid"] = ToAssetReferenceJson(pass.materialGuid);
-		passJson["passName"] = pass.passName;
+		passJson["passKind"] = EnumAdapter<MaterialPassKind>::ToString(pass.passKind);
 
 		passJson["parameters"] = nlohmann::json::object();
 		for (const auto& [name, value] : pass.parameterOverrides) {

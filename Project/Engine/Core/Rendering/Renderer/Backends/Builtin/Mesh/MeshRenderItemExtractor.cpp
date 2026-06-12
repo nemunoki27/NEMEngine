@@ -8,7 +8,6 @@
 //============================================================================
 //	MeshRenderItemExtractor classMethods
 //============================================================================
-
 void Engine::MeshRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch& batch) {
 
 	world.ForEach<MeshRendererComponent>([&](const Entity& entity, MeshRendererComponent& renderer) {

@@ -19,13 +19,12 @@ namespace Engine {
 	//	GraphPinDefinition structure
 	//	Node生成時に使うPin定義
 	//============================================================================
-
 	// ノード生成時に使うピンと既定値
 	struct GraphPinDefinition {
 
 		//--------- variables ----------------------------------------------------
 
-		// 入力 / 出力の種別
+		// 入力/出力の種別
 		GraphPinKind kind = GraphPinKind::Input;
 		// Pinの値型
 		GraphValueType valueType = GraphValueType::Unknown;
@@ -41,7 +40,6 @@ namespace Engine {
 	//	GraphNodeDefinition structure
 	//	Node生成時に使うNode定義
 	//============================================================================
-
 	struct GraphNodeDefinition {
 
 		//--------- variables ----------------------------------------------------

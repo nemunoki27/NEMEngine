@@ -16,26 +16,25 @@ namespace Engine {
 
 	//============================================================================
 	//	InvertedHullOutlinePass class
-	//	背面法アウトラインの追加描画パス。OpaqueバケットからOutline対象を抽出し、
+	//	背面法アウトラインの追加描画パスでOpaqueバケットからOutline対象を抽出し
 	//	SceneFinalの色とSceneMainの深度を組み合わせてHullを描画する
 	//============================================================================
 	class InvertedHullOutlinePass :
 		public IRenderPass {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		explicit InvertedHullOutlinePass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~InvertedHullOutlinePass() override = default;
 
-		std::string_view GetName() const override { return "InvertedHullOutline"; }
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::InvertedHullOutline; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- structure ----------------------------------------------------
 
@@ -58,8 +57,6 @@ namespace Engine {
 		// Outline対象アイテムを収集する
 		OutlineItemGroups CollectItems(const SceneExecutionContext& context,
 			const RenderPassPhaseBuckets& passBuckets) const;
-		// 選択プレビュー対象アイテムを収集する(SceneViewのみ)
-		std::vector<const RenderItem*> CollectSelectionItems(const SceneExecutionContext& context,
-			const RenderPassPhaseBuckets& passBuckets) const;
 	};
 } // Engine
+

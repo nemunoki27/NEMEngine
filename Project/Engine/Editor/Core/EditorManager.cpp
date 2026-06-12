@@ -27,13 +27,17 @@
 #include <Engine/Editor/UI/Panels/Builtin/ProjectPanel.h>
 #include <Engine/Editor/UI/Panels/Builtin/ConsolePanel.h>
 #include <Engine/Editor/UI/Panels/Builtin/ViewportPanel.h>
-#include <Engine/Editor/UI/Panels/Builtin/SceneViewToolPanel.h>
 #include <Engine/Editor/UI/Panels/Builtin/ToolPanel.h>
 #include <Engine/Editor/Tools/Builtin/BuiltinEditorTools.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <algorithm>
+#include <filesystem>
+#include <optional>
 
 // imgui
 #include <ImGuizmo.h>
@@ -41,7 +45,6 @@
 //============================================================================
 //	EditorManager classMethods
 //============================================================================
-
 namespace {
 
 	// ドッキングスペースのホストウィンドウ名
@@ -51,6 +54,7 @@ namespace {
 	constexpr const char* kCloseUnsavedScenePopupName = "シーン未保存通知##CloseApplication";
 	// ImGuiのレイアウト保存ファイルパス
 	constexpr const char* kEditorLayoutIniPath = "EditorLayout.ini";
+	constexpr const char* kViewportPanelStateConfigPath = "Config/viewportPanel.exeConfig.json";
 
 	bool IsHidePanelsShortcutTriggered() {
 
@@ -63,11 +67,23 @@ namespace {
 
 		const bool shortcutDown = directInputDown || imguiDown;
 
-		// 同時押しに入った瞬間だけ反応させる。押しっぱなしの間は再トグルしない。
+		// 同時押しに入った瞬間だけ反応させ押しっぱなしの間は再トグルしない
 		static bool wasShortcutDown = false;
 		const bool triggered = shortcutDown && !wasShortcutDown;
 		wasShortcutDown = shortcutDown;
 		return triggered;
+	}
+
+	template <typename Enum>
+	void LoadEnumValue(const nlohmann::json& data, const char* key, Enum& value) {
+
+		if (!data.contains(key) || !data[key].is_string()) {
+			return;
+		}
+
+		if (std::optional<Enum> loaded = Engine::EnumAdapter<Enum>::FromString(data[key].get<std::string>())) {
+			value = loaded.value();
+		}
 	}
 }
 
@@ -97,6 +113,9 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	// レイアウト構築フラグをリセット
 	initialized_ = true;
 	requestTogglePlay_ = false;
+	requestResumePlay_ = false;
+	requestPausePlay_ = false;
+	requestPlayFrameStep_ = false;
 	sceneRequest_ = {};
 	pendingSceneRequest_ = {};
 	requestOpenUnsavedPopup_ = false;
@@ -109,18 +128,18 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	// シーンビューカメラツールを取得
 	sceneViewCameraController_ = static_cast<SceneViewCameraController*>(
 		Engine::ToolRegistry::GetInstance().Find("engine.sceneViewCamera"));
+	LoadViewportPanelState();
 
 	// 各パネルの生成と登録
 	panels_.emplace_back(std::make_unique<MenuBarPanel>());
-	panels_.emplace_back(std::make_unique<ToolbarPanel>());
+	panels_.emplace_back(std::make_unique<ToolbarPanel>(graphicsCore.GetTextureUploadService()));
 	panels_.emplace_back(std::make_unique<HierarchyPanel>(graphicsCore.GetTextureUploadService()));
 	panels_.emplace_back(std::make_unique<InspectorPanel>());
 	panels_.emplace_back(std::make_unique<ConsolePanel>());
 	panels_.emplace_back(std::make_unique<ToolPanel>());
 	panels_.emplace_back(std::make_unique<ProjectPanel>(graphicsCore.GetTextureUploadService()));
-	panels_.emplace_back(std::make_unique<ViewportPanel>("GameView", "GameView", ViewportPanelKind::Game));
-	panels_.emplace_back(std::make_unique<ViewportPanel>("SceneView", "SceneView", ViewportPanelKind::Scene));
-	panels_.emplace_back(std::make_unique<SceneViewToolPanel>(graphicsCore.GetTextureUploadService()));
+	panels_.emplace_back(std::make_unique<ViewportPanel>("GameView", "GameView", ViewportPanelKind::Game, graphicsCore.GetTextureUploadService()));
+	panels_.emplace_back(std::make_unique<ViewportPanel>("SceneView", "SceneView", ViewportPanelKind::Scene, graphicsCore.GetTextureUploadService()));
 
 	// シーンビューのメッシュピック処理の初期化
 	meshSubMeshPicker_ = std::make_unique<MeshSubMeshPicker>();
@@ -243,6 +262,21 @@ void Engine::EditorManager::RequestPlayToggle() {
 
 	// プレイ要求フラグを立てる
 	requestTogglePlay_ = true;
+}
+
+void Engine::EditorManager::RequestPlayResume() {
+
+	requestResumePlay_ = true;
+}
+
+void Engine::EditorManager::RequestPlayPause() {
+
+	requestPausePlay_ = true;
+}
+
+void Engine::EditorManager::RequestPlayFrameStep() {
+
+	requestPlayFrameStep_ = true;
 }
 
 void Engine::EditorManager::RequestNewScene() {
@@ -443,7 +477,7 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		Vector3 localTarget = Vector3::Transform(ndcTarget, wvpInv);
 		Vector3 localDir = Vector3::Normalize(localTarget - localOrigin);
 
-		// Z=0平面との交差判定 (rd.zが0に近い場合は平行なのでスキップ)
+		// Z=0平面との交差判定(rd.zが0に近い場合は平行なのでスキップ)
 		if (std::abs(localDir.z) < 1e-5f) {
 			return;
 		}
@@ -519,7 +553,7 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		return Entity::Null();
 	}
 
-	// レイヤー、オーダーの降順でソート（手前にあるものを優先）
+	// レイヤーとオーダーの降順でソートし手前にあるものを優先する
 	std::sort(hits.begin(), hits.end(), [](const HitRecord& a, const HitRecord& b) {
 		if (a.layer != b.layer) return a.layer > b.layer;
 		return a.order > b.order;
@@ -557,6 +591,16 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 				return false;
 			}
 
+			// SceneView専用Overlayは通常2D/TLASより優先してEntity単位で選択する
+			if (viewKind == RenderViewKind::Scene) {
+				Entity overlayHit = Entity::Null();
+				if (sceneComponentOverlayPicker_.Pick(context.activeWorld,
+					renderPipeline.GetResolvedView(viewKind), mousePosInView.value(), overlayHit)) {
+					editorState_.SelectFromScenePick(overlayHit, 0);
+					return true;
+				}
+			}
+
 			// 2Dエンティティのピック処理を優先実行
 			Entity hitEntity2D = Execute2DPick(mousePosInView.value(), renderPipeline.GetResolvedView(viewKind), context.activeWorld);
 			if (hitEntity2D.IsValid()) {
@@ -580,7 +624,7 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 		}
 	}
 
-	// GameViewにもSceneViewと同じTLASピックだけを通し、マニピュレーターは表示しない。
+	// GameViewにもSceneViewと同じTLASピックだけを通し、マニピュレーターは表示しない
 	if (layoutState_.showGameView) {
 		executePick(InputViewArea::Game, RenderViewKind::Game,
 			renderPipeline.GetGameViewTLASResource(), renderPipeline.GetGameViewPickRecords());
@@ -806,6 +850,47 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 	sceneViewCameraController_->Update(editorState_.manualCameraDimension, InputViewArea::Scene);
 }
 
+void Engine::EditorManager::LoadViewportPanelState() {
+
+	const std::filesystem::path configPath = RuntimePaths::GetEngineAssetPath(kViewportPanelStateConfigPath);
+	if (!JsonAdapter::Check(configPath.string(), false)) {
+		return;
+	}
+
+	const nlohmann::json data = JsonAdapter::Load(configPath.string(), false);
+	if (!data.is_object() || !data.contains("sceneView") || !data["sceneView"].is_object()) {
+		return;
+	}
+
+	const nlohmann::json& sceneView = data["sceneView"];
+	if (sceneView.contains("drawDefaultGrid") && sceneView["drawDefaultGrid"].is_boolean()) {
+		editorState_.drawSceneViewDefaultGrid = sceneView["drawDefaultGrid"].get<bool>();
+	}
+
+	LoadEnumValue(sceneView, "manipulatorMode", editorState_.sceneViewManipulatorMode);
+	LoadEnumValue(sceneView, "cameraMode", editorState_.sceneViewCamera.mode);
+	LoadEnumValue(sceneView, "manualCameraDimension", editorState_.manualCameraDimension);
+
+	// 実体参照は起動時に持ち越さずモードだけを復元しカメラ指定は現在のシーンで選び直す
+	editorState_.sceneViewCamera.ClearAssignedCameras();
+	editorState_.ClearSelection();
+}
+
+void Engine::EditorManager::SaveViewportPanelState() const {
+
+	nlohmann::json sceneView = nlohmann::json::object();
+	sceneView["drawDefaultGrid"] = editorState_.drawSceneViewDefaultGrid;
+	sceneView["manipulatorMode"] = EnumAdapter<SceneViewManipulatorMode>::ToString(editorState_.sceneViewManipulatorMode);
+	sceneView["cameraMode"] = EnumAdapter<SceneViewCameraMode>::ToString(editorState_.sceneViewCamera.mode);
+	sceneView["manualCameraDimension"] = EnumAdapter<Dimension>::ToString(editorState_.manualCameraDimension);
+
+	nlohmann::json data = nlohmann::json::object();
+	data["sceneView"] = sceneView;
+
+	const std::filesystem::path configPath = RuntimePaths::GetEngineAssetPath(kViewportPanelStateConfigPath);
+	JsonAdapter::Save(configPath.string(), data);
+}
+
 void Engine::EditorManager::Finalize() {
 
 	if (!initialized_) {
@@ -814,10 +899,14 @@ void Engine::EditorManager::Finalize() {
 
 	// レイアウトを保存
 	ImGui::SaveIniSettingsToDisk(kEditorLayoutIniPath);
+	SaveViewportPanelState();
 
 	imguiManager_.Finalize();
 	initialized_ = false;
 	requestTogglePlay_ = false;
+	requestResumePlay_ = false;
+	requestPausePlay_ = false;
+	requestPlayFrameStep_ = false;
 
 	for (uint32_t i = 0; i < panels_.size(); ++i) {
 		panels_[i].reset();
@@ -831,6 +920,27 @@ bool Engine::EditorManager::ConsumePlayToggleRequest() {
 
 	const bool requested = requestTogglePlay_;
 	requestTogglePlay_ = false;
+	return requested;
+}
+
+bool Engine::EditorManager::ConsumePlayResumeRequest() {
+
+	const bool requested = requestResumePlay_;
+	requestResumePlay_ = false;
+	return requested;
+}
+
+bool Engine::EditorManager::ConsumePlayPauseRequest() {
+
+	const bool requested = requestPausePlay_;
+	requestPausePlay_ = false;
+	return requested;
+}
+
+bool Engine::EditorManager::ConsumePlayFrameStepRequest() {
+
+	const bool requested = requestPlayFrameStep_;
+	requestPlayFrameStep_ = false;
 	return requested;
 }
 

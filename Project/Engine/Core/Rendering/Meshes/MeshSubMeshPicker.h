@@ -29,10 +29,9 @@ namespace Engine {
 	//============================================================================
 	class MeshSubMeshPicker {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		MeshSubMeshPicker() {
 			tlasSlot_       = pickBindCache_.AddSlotByRegister(ShaderBindingKind::AccelStruct, 0, 0);
 			outputUAVSlot_  = pickBindCache_.AddSlotByRegister(ShaderBindingKind::UAV,         0, 0);
@@ -56,9 +55,9 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- structure ----------------------------------------------------
 
@@ -91,7 +90,7 @@ namespace Engine {
 		// CS用のパイプライン
 		PipelineState pipeline_{};
 
-		// ルート引数スロットのキャッシュ（TLAS/UAV/CBVをレジスタで解決）
+		// ルート引数スロットのキャッシュでTLAS/UAV/CBVをレジスタで解決する
 		PipelineBindingCache pickBindCache_{};
 		PipelineBindingCache::SlotID tlasSlot_       = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID outputUAVSlot_  = PipelineBindingCache::kInvalidSlot;

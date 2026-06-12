@@ -9,7 +9,6 @@
 //============================================================================
 //	ViewportRenderService classMethods
 //============================================================================
-
 Engine::ViewportRenderService::~ViewportRenderService() {
 
 	Finalize();
@@ -99,7 +98,7 @@ const Engine::ViewportRenderService::SurfaceSlot& Engine::ViewportRenderService:
 void Engine::ViewportRenderService::ReleaseSlot(SurfaceSlot& slot) {
 
 	if (slot.surface) {
-		// ViewportのMultiRenderTargetはDescriptorとGPUリソースを持つため明示Destroy/resetする。
+		// ViewportのMultiRenderTargetはDescriptorとGPUリソースを持つため明示Destroy/resetする
 		slot.surface->Destroy();
 		slot.surface.reset();
 	}

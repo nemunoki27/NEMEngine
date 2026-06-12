@@ -17,7 +17,6 @@ namespace Engine {
 	//	NodeGraphViewDesc structure
 	//	NodeGraphView描画時に渡す設定
 	//============================================================================
-
 	struct NodeGraphViewDesc {
 
 		//--------- variables ----------------------------------------------------
@@ -34,7 +33,7 @@ namespace Engine {
 		std::function<void(const std::string&, const ImVec2&)> addNodeRequested;
 		// Nodeを強調表示するか
 		std::function<bool(const GraphNode&)> isNodeHighlighted;
-		// グループフレームNodeか (trueを返すNodeはed::Groupで描画する)
+		// グループフレームNodeか(trueを返すNodeはed::Groupで描画する)
 		std::function<bool(const GraphNode&)> isGroupNode;
 		// 描画後にGraph全体へFitする
 		bool navigateToContent = false;
@@ -46,10 +45,9 @@ namespace Engine {
 	//============================================================================
 	class NodeGraphView {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		// GraphEditor本体を描画する
 		bool Draw(NodeGraphContext& context, GraphDocument& document, const NodeGraphViewDesc& desc);
 
@@ -58,9 +56,9 @@ namespace Engine {
 		// 描画Styleを取得する
 		NodeGraphStyle& GetStyle() { return style_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -85,3 +83,4 @@ namespace Engine {
 		bool DrawBackgroundMenu(const NodeGraphViewDesc& desc);
 	};
 } // Engine
+

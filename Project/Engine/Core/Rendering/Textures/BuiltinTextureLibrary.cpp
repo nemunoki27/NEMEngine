@@ -9,7 +9,6 @@
 //============================================================================
 //	BuiltinTextureLibrary classMethods
 //============================================================================
-
 void Engine::BuiltinTextureLibrary::Init(TextureUploadService& uploadService) {
 
 	uploadService_ = &uploadService;

@@ -13,4 +13,12 @@ else
         NEM_AddEngineProjectFiles()
         NEM_AddEngineIncludeSettings()
         NEM_ApplyDefaultConfigFilters()
+
+        filter "files:**.hlsl"
+            buildaction "None"
+        filter "files:**.fx"
+            buildaction "None"
+        filter "files:**.hlsli"
+            buildaction "None"
+        filter {}
 end

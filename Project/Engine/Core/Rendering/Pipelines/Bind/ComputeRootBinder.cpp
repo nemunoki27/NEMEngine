@@ -3,7 +3,6 @@
 //============================================================================
 //	ComputeRootBinder classMethods
 //============================================================================
-
 void Engine::ComputeRootBinder::Bind(ID3D12GraphicsCommandList* commandList,
 	const std::span<const ComputeBindItem>& items) const {
 

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "actions": [
+    {
+      "name": "Move",
+      "type": "Vector2",
+      "bindings": [
+        { "kind": "Composite2D", "up": "Keyboard/W", "down": "Keyboard/S", "left": "Keyboard/A", "right": "Keyboard/D" },
+        { "kind": "Stick2D", "x": "Gamepad/LeftStickX", "y": "Gamepad/LeftStickY", "deadZone": 0.2 }
+      ]
+    },
+    {
+      "name": "Jump",
+      "type": "Button",
+      "bindings": [
+        { "kind": "Button", "path": "Keyboard/Space" },
+        { "kind": "Button", "path": "Gamepad/A" }
+      ]
+    },
+    {
+      "name": "Fire",
+      "type": "Button",
+      "bindings": [
+        { "kind": "Button", "path": "Mouse/Left" },
+        { "kind": "Button", "path": "Gamepad/RightTrigger" }
+      ]
+    },
+    {
+      "name": "Horizontal",
+      "type": "Axis1D",
+      "bindings": [
+        { "kind": "Axis1D", "positive": "Keyboard/D", "negative": "Keyboard/A" },
+        { "kind": "Axis1D", "axis": "Gamepad/LeftStickX", "deadZone": 0.2, "sensitivity": 1.0, "invert": false }
+      ]
+    }
+  ]
+}

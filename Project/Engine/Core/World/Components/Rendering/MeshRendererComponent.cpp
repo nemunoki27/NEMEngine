@@ -8,7 +8,6 @@
 //============================================================================
 //	MeshRendererComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMaterial) {
 
 	subMeshMaterial.name = in.value("name", "");
@@ -120,12 +119,6 @@ Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildLocalMatrix(
 	const SubMeshMaterial& subMesh) {
 
 	return Matrix4x4::MakeAffineMatrix(subMesh.localScale, subMesh.localRotation, subMesh.localPos);
-}
-
-Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildGizmoLocalMatrix(const SubMeshMaterial& subMesh) {
-
-	Matrix4x4 pivot = Matrix4x4::MakeTranslateMatrix(subMesh.sourcePivot);
-	return BuildLocalMatrix(subMesh) * pivot;
 }
 
 Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildRenderLocalMatrix(const SubMeshMaterial& subMesh) {

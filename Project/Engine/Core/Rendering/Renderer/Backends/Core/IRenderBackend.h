@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 
 // c++
 #include <span>
@@ -26,16 +27,15 @@ namespace Engine {
 	//============================================================================
 	//	IRenderBackend structures
 	//============================================================================
-
 	// 描画コンテキスト
 	struct RenderDrawContext {
 
 		GraphicsCore* graphicsCore = nullptr;
 		// 実際に描画するビュー
 		const ResolvedRenderView* view = nullptr;
-		// カリング判定に使用するビュー。SceneViewでもGameViewを指す場合がある
+		// カリング判定に使用するビューでSceneViewでもGameViewを指す場合がある
 		const ResolvedRenderView* cullingView = nullptr;
-		// ビルボード計算に使用するビュー。SceneViewでもGameViewを指す場合がある
+		// ビルボード計算に使用するビューでSceneViewでもGameViewを指す場合がある
 		const ResolvedRenderView* billboardView = nullptr;
 		const SystemContext* systemContext = nullptr;
 		const RenderSceneBatch* batch = nullptr;
@@ -46,9 +46,9 @@ namespace Engine {
 		PipelineStateCache* pipelineCache = nullptr;
 		MaterialResolver* materialResolver = nullptr;
 
-		// この描画で使用するGPU機能。プレビューでは一部機能を落としてVariantを選ぶ。
+		// この描画で使用するGPU機能でプレビューでは一部機能を落としてVariantを選ぶ
 		GraphicsRuntimeFeatures runtimeFeatures{};
-		// ツールプレビューではMeshShader/RayQueryを避け、Vertex版のGraphics Variantを優先する。
+		// ツールプレビューではMeshShader/RayQueryを避け、Vertex版のGraphics Variantを優先する
 		bool forceVertexMeshVariant = false;
 
 		// 現在バインド中の描画先フォーマット
@@ -56,9 +56,14 @@ namespace Engine {
 		uint32_t numRTVFormats = 0;
 		DXGI_FORMAT dsvFormat = DXGI_FORMAT_UNKNOWN;
 
-		// 描画パスの名前
-		std::string_view passName = "Draw";
+		// 描画で使用するMaterialパス
+		MaterialPassKind passKind = MaterialPassKind::Draw;
 		bool depthOnly = false;
+
+		// ScreenSpaceOutline Mask描画でこの描画単位へ渡すStyle IDとSubMesh制限
+		// 0なら描画せずMask以外のパスでは未使用
+		uint32_t screenSpaceOutlineMaskStyleID = 0;
+		int32_t screenSpaceOutlineMaskRestrictSubMeshIndex = -1;
 
 		std::span<const DXGI_FORMAT> GetRTVFormats() const { return std::span<const DXGI_FORMAT>(rtvFormats.data(), numRTVFormats); }
 	};
@@ -69,10 +74,9 @@ namespace Engine {
 	//============================================================================
 	class IRenderBackend {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		IRenderBackend() = default;
 		virtual ~IRenderBackend() = default;
 

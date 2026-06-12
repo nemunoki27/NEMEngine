@@ -13,7 +13,6 @@
 //============================================================================
 //	EditorEntitySnapshot classMethods
 //============================================================================
-
 namespace {
 
 	// ルートを含むサブツリーを収集するための再帰関数
@@ -127,7 +126,7 @@ void Engine::EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(const Edit
 	UUID sceneInstanceID = snapshot.ownerSceneInstanceID;
 	AssetID sourceAsset = snapshot.ownerSourceAsset;
 
-	// Delete/Undoなどで復元したEntityは、SceneObjectのランタイム所属情報がJSONから戻らない。
+	// Delete/Undoなどで復元したEntityは、SceneObjectのランタイム所属情報がJSONから戻らない
 	if (context.editorContext) {
 
 		if (!sceneInstanceID) {
@@ -159,7 +158,7 @@ void Engine::EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(const Edit
 		if (world.HasComponent<MeshRendererComponent>(entity)) {
 
 			auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
-			// Sceneロード時と同じく、meshアセットからsubMesh設定を補完する。
+			// Sceneロード時と同じく、meshアセットからsubMesh設定を補完する
 			MeshSubMeshAuthoring::SyncComponent(assetDatabase, meshRenderer, true);
 
 			Matrix4x4 parentWorld = Matrix4x4::Identity();

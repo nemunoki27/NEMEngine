@@ -14,10 +14,9 @@ namespace Engine {
 	class MeshRenderItemExtractor :
 		public IRenderItemExtractor {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		MeshRenderItemExtractor() = default;
 		~MeshRenderItemExtractor() = default;
 

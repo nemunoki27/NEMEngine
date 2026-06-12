@@ -15,18 +15,17 @@ namespace Engine {
 	class CameraControllerInspectorDrawer :
 		public SerializedComponentInspectorDrawer<CameraControllerComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		CameraControllerInspectorDrawer() :
 			SerializedComponentInspectorDrawer("CameraController", "CameraController") {
 		}
 		~CameraControllerInspectorDrawer() = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- functions ----------------------------------------------------
 
@@ -45,3 +44,4 @@ namespace Engine {
 		ValueEditResult DrawShakeSettings(CameraShakeSettings& settings);
 	};
 } // Engine
+

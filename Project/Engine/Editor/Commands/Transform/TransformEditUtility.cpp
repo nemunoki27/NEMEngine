@@ -8,7 +8,6 @@
 //============================================================================
 //	TransformEditUtility classMethods
 //============================================================================
-
 bool Engine::TransformEditUtility::ApplyImmediate(ECSWorld& world,
 	const Entity& entity, const TransformComponent& transform) {
 

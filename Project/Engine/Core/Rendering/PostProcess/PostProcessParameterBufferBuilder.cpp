@@ -16,7 +16,6 @@
 //============================================================================
 //	PostProcessParameterBufferBuilder classMethods
 //============================================================================
-
 namespace {
 
 	template<typename TValue>
@@ -304,7 +303,7 @@ std::vector<uint8_t> Engine::PostProcessParameterBufferBuilder::Build(
 		const char* sourceValueTypeName = GetParameterValueTypeName(found->second);
 		const MaterialParameterValue parameter = NormalizeParameterValueForVariable(variable, found->second);
 
-		// Reflectionのoffsetへ直接詰めることで、HLSL側のパッキングに追従する。
+		// Reflectionのoffsetへ直接詰めることで、HLSL側のパッキングに追従する
 		WriteParameterValue(bytes, variable, parameter, sourceValueTypeName, layoutSizeInBytes);
 	}
 	return bytes;

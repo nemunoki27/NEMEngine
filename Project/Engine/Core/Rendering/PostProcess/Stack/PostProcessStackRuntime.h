@@ -17,7 +17,6 @@ namespace Engine {
 	//	PostProcessStackRuntime structures
 	//	ランタイム実行用にフラット化されたPostProcessStackの情報
 	//============================================================================
-
 	// 1パスのランタイム実行データ
 	struct PostProcessStackRuntimePass {
 
@@ -25,7 +24,7 @@ namespace Engine {
 		std::string name;
 		bool enabled = true;
 		AssetID material{};
-		std::string passName = "PostProcess";
+		MaterialPassKind passKind = MaterialPassKind::PostProcess;
 		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides;
 		std::unordered_map<std::string, AssetID> textureGuids;
 	};

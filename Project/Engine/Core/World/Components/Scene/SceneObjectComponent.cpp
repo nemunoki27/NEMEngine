@@ -8,7 +8,6 @@
 //============================================================================
 //	SceneObjectComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, SceneObjectComponent& component) {
 
 	const std::string localID = in.value("localFileID", "");

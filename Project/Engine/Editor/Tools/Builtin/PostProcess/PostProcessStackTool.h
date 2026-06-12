@@ -19,10 +19,9 @@ namespace Engine {
 	class PostProcessStackTool :
 		public IEditorTool {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		PostProcessStackTool() = default;
 		~PostProcessStackTool() override = default;
 
@@ -38,9 +37,9 @@ namespace Engine {
 		// ツール情報を取得する
 		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -56,7 +55,7 @@ namespace Engine {
 
 		// ウィンドウ表示状態
 		bool openWindow_ = false;
-		// 選択中のパスインデックス (-1: 未選択)
+		// 選択中のパスインデックス(-1:未選択)
 		int32_t selectedPassIndex_ = -1;
 		// 最後に確認したPostProcessStackアセット
 		AssetID lastStackAsset_{};
@@ -73,9 +72,10 @@ namespace Engine {
 		void DrawPassList();
 		// 選択中パスの詳細を描画する
 		void DrawPassDetail(const EditorToolContext& context);
-		// ドロップゾーン（スタックファイル/マテリアル追加）を描画する
+		// スタックファイルやマテリアル追加のドロップゾーンを描画する
 		void DrawDropZones(const EditorToolContext& context);
 		// 未保存確認ポップアップを描画する
 		void DrawUnsavedConfirmPopup(const EditorToolContext& context);
 	};
 } // Engine
+

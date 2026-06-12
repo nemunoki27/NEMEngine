@@ -8,7 +8,6 @@
 //============================================================================
 //	TextRendererComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, TextRendererComponent& component) {
 
 	component.font = ParseAssetID(in, "font");

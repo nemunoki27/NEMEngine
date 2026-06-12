@@ -9,7 +9,6 @@
 //============================================================================
 //	MeshletBuilder classMethods
 //============================================================================
-
 namespace {
 
 	Engine::Vector3 ToPosition3(const Engine::Vector4& position) {

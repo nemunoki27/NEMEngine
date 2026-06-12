@@ -5,7 +5,6 @@ using namespace Engine;
 //============================================================================
 //	Axis classMethods
 //============================================================================
-
 Vector3 Engine::GetDirection(const std::vector<Axis>& axes) {
 
 	Vector3 direction{};

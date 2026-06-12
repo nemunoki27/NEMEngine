@@ -5,37 +5,22 @@
 //============================================================================
 #include <Engine/Core/Physics/Collision/CollisionTypes.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 //============================================================================
 //	ManagedBehavior classMethods
 //============================================================================
-
 namespace {
 
-	// C++側EntityをC#側へ渡す参照へ変換する
-	Engine::ManagedNativeEntity MakeNativeEntity(Engine::ECSWorld& world, const Engine::Entity& entity) {
-
-		Engine::ManagedNativeEntity native{};
-		native.world = reinterpret_cast<std::uintptr_t>(&world);
-		native.index = entity.index;
-		native.generation = entity.generation;
-		return native;
-	}
-
-	// Vector3をC#共有型へ変換する
-	Engine::ManagedVector3 ToManagedVector3(const Engine::Vector3& value) {
-
-		return Engine::ManagedVector3{ value.x, value.y, value.z };
-	}
-
-	// CollisionContactをC#共有型へ変換する
+	// CollisionContactをC#共有型へ変換する、Entity変換はManagedScriptUtilityのレジストリ経由実装を共有する
 	Engine::ManagedCollisionEvent ToManagedCollision(Engine::ECSWorld& world, const Engine::CollisionContact& collision) {
 
 		Engine::ManagedCollisionEvent managed{};
-		managed.self = MakeNativeEntity(world, collision.self);
-		managed.other = MakeNativeEntity(world, collision.other);
-		managed.normal = ToManagedVector3(collision.normal);
-		managed.point = ToManagedVector3(collision.point);
+		managed.self = Engine::MakeNativeEntity(world, collision.self);
+		managed.other = Engine::MakeNativeEntity(world, collision.other);
+		managed.normal = Engine::ToManagedVector3(collision.normal);
+		managed.point = Engine::ToManagedVector3(collision.point);
 		managed.penetration = collision.penetration;
 		managed.selfShapeIndex = static_cast<int32_t>(collision.selfShapeIndex);
 		managed.otherShapeIndex = static_cast<int32_t>(collision.otherShapeIndex);
@@ -44,8 +29,8 @@ namespace {
 	}
 }
 
-Engine::ManagedBehavior::ManagedBehavior(std::string typeName) :
-	typeName_(std::move(typeName)) {
+Engine::ManagedBehavior::ManagedBehavior(std::string scriptTypeId, std::string displayName) :
+	scriptTypeId_(std::move(scriptTypeId)), displayName_(std::move(displayName)) {
 }
 
 void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializedFields) {
@@ -62,123 +47,170 @@ void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializ
 		serializedFields_ = nlohmann::json::object();
 	}
 
-	// 生成済みのC#インスタンスには、Play中のInspector変更をその場で反映する
-	if (managedHandle_ != 0) {
-		ManagedScriptRuntime::GetInstance().SetSerializedFields(managedHandle_, serializedFields_);
+	// 生成済みのC#インスタンスにはPlay中のInspector変更をその場で反映する、authoring形式はfieldGuidからvalueの形へ正規化してから渡す
+	if (managedHandle_.IsValid()) {
+		auto& runtime = ManagedScriptRuntime::GetInstance();
+		runtime.SetSerializedFields(managedHandle_, runtime.BuildSerializedValueMap(scriptTypeId_, serializedFields_));
 	}
 }
 
-void Engine::ManagedBehavior::Awake(ECSWorld& world, const SystemContext& context, const Entity& entity) {
+nlohmann::json Engine::ManagedBehavior::GetRuntimeSerializedState() {
 
-	EnsureCreated(world, entity);
-	if (managedHandle_ == 0) {
+	if (!managedHandle_.IsValid()) {
+		return nlohmann::json::object();
+	}
+	return ManagedScriptRuntime::GetInstance().GetRuntimeSerializedState(managedHandle_);
+}
+
+void Engine::ManagedBehavior::SetRuntimeSerializedField(const std::string& fieldId, const nlohmann::json& value) {
+
+	if (!managedHandle_.IsValid()) {
 		return;
 	}
-	ManagedScriptRuntime::GetInstance().InvokeAwake(managedHandle_, context);
+	ManagedScriptRuntime::GetInstance().SetRuntimeSerializedField(managedHandle_, fieldId, value);
+}
+
+void Engine::ManagedBehavior::Awake([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
+
+	// インスタンス生成はライフサイクルのPass1(EnsureInstance)で済ませてある
+	if (!managedHandle_.IsValid() || faulted_) {
+		return;
+	}
+	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeAwake(managedHandle_, context), "Awake", entity);
 }
 
 void Engine::ManagedBehavior::Start([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, [[maybe_unused]] const Entity& entity) {
+	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
-	ManagedScriptRuntime::GetInstance().InvokeStart(managedHandle_, context);
+	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeStart(managedHandle_, context), "Start", entity);
 }
 
 void Engine::ManagedBehavior::OnEnable([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, [[maybe_unused]] const Entity& entity) {
+	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
-	ManagedScriptRuntime::GetInstance().InvokeOnEnable(managedHandle_, context);
+	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeOnEnable(managedHandle_, context), "OnEnable", entity);
 }
 
 void Engine::ManagedBehavior::OnDisable([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, [[maybe_unused]] const Entity& entity) {
+	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
-	ManagedScriptRuntime::GetInstance().InvokeOnDisable(managedHandle_, context);
+	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeOnDisable(managedHandle_, context), "OnDisable", entity);
 }
 
 void Engine::ManagedBehavior::OnDestroy([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, [[maybe_unused]] const Entity& entity) {
+	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0) {
+	if (!managedHandle_.IsValid()) {
 		return;
 	}
-	ManagedScriptRuntime::GetInstance().InvokeOnDestroy(managedHandle_, context);
+	// faultedでなければOnDestroyを通知する、faulted時はgameplay callbackを呼ばず解放だけ行う
+	if (!faulted_) {
+		HandleStatus(ManagedScriptRuntime::GetInstance().InvokeOnDestroy(managedHandle_, context), "OnDestroy", entity);
+	}
 	ManagedScriptRuntime::GetInstance().DestroyInstance(managedHandle_);
-	managedHandle_ = 0;
+	managedHandle_ = ManagedScriptInstanceHandle::Null();
 }
 
 void Engine::ManagedBehavior::FixedUpdate([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, [[maybe_unused]] const Entity& entity) {
+	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
-	ManagedScriptRuntime::GetInstance().InvokeFixedUpdate(managedHandle_, context);
+	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeFixedUpdate(managedHandle_, context), "FixedUpdate", entity);
 }
 
 void Engine::ManagedBehavior::Update([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, [[maybe_unused]] const Entity& entity) {
+	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
-	ManagedScriptRuntime::GetInstance().InvokeUpdate(managedHandle_, context);
+	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeUpdate(managedHandle_, context), "Update", entity);
 }
 
 void Engine::ManagedBehavior::LateUpdate([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, [[maybe_unused]] const Entity& entity) {
+	const SystemContext& context, const Entity& entity) {
 
-	if (managedHandle_ == 0) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
-	ManagedScriptRuntime::GetInstance().InvokeLateUpdate(managedHandle_, context);
+	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeLateUpdate(managedHandle_, context), "LateUpdate", entity);
 }
 
 void Engine::ManagedBehavior::OnCollisionEnter(ECSWorld& world,
 	const SystemContext& context, const CollisionContact& collision) {
 
-	if (managedHandle_ == 0) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 
 	// C#側のOnCollisionEnterへ渡す
-	ManagedScriptRuntime::GetInstance().InvokeCollisionEnter(managedHandle_, context, ToManagedCollision(world, collision));
+	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeCollisionEnter(managedHandle_, context,
+		ToManagedCollision(world, collision)), "OnCollisionEnter", collision.self);
 }
 
 void Engine::ManagedBehavior::OnCollisionStay(ECSWorld& world,
 	const SystemContext& context, const CollisionContact& collision) {
 
-	if (managedHandle_ == 0) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 
 	// C#側のOnCollisionStayへ渡す
-	ManagedScriptRuntime::GetInstance().InvokeCollisionStay(managedHandle_, context, ToManagedCollision(world, collision));
+	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeCollisionStay(managedHandle_, context,
+		ToManagedCollision(world, collision)), "OnCollisionStay", collision.self);
 }
 
 void Engine::ManagedBehavior::OnCollisionExit(ECSWorld& world,
 	const SystemContext& context, const CollisionContact& collision) {
 
-	if (managedHandle_ == 0) {
+	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 
 	// C#側のOnCollisionExitへ渡す
-	ManagedScriptRuntime::GetInstance().InvokeCollisionExit(managedHandle_, context, ToManagedCollision(world, collision));
+	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeCollisionExit(managedHandle_, context,
+		ToManagedCollision(world, collision)), "OnCollisionExit", collision.self);
+}
+
+bool Engine::ManagedBehavior::EnsureInstance(ECSWorld& world, const Entity& entity) {
+
+	EnsureCreated(world, entity);
+	// 生成に失敗した場合は無効ハンドルのままで、呼び出し側はfaulted扱いにする
+	return managedHandle_.IsValid();
 }
 
 void Engine::ManagedBehavior::EnsureCreated(ECSWorld& world, const Entity& entity) {
 
-	if (managedHandle_ != 0) {
+	if (managedHandle_.IsValid()) {
 		return;
 	}
-	managedHandle_ = ManagedScriptRuntime::GetInstance().CreateInstance(typeName_, world, entity, serializedFields_);
+	auto& runtime = ManagedScriptRuntime::GetInstance();
+	managedHandle_ = runtime.CreateInstance(scriptTypeId_, world, entity,
+		runtime.BuildSerializedValueMap(scriptTypeId_, serializedFields_), scriptSlotId_);
+}
+
+void Engine::ManagedBehavior::HandleStatus(ManagedStatus status, const char* callbackName, const Entity& entity) {
+
+	if (status == ManagedStatus::Ok) {
+		return;
+	}
+	// C#側でユーザーcallbackが例外を投げた場合のみfaulted化する、例外全文はC#側GuardInstanceがログ済みでここでは型とcallbackとentityを残す
+	if (status == ManagedStatus::ScriptException && !faulted_) {
+
+		faulted_ = true;
+		Logger::Output(LogType::GameLogic, spdlog::level::err,
+			"ManagedBehavior: script faulted and will be disabled. type={} scriptTypeId={} callback={} entity={}:{}",
+			displayName_, scriptTypeId_, callbackName, entity.index, entity.generation);
+	}
 }

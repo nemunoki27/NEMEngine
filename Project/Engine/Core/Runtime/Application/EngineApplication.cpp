@@ -6,11 +6,12 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshSelectionOutline.h>
+#include <Engine/Core/Rendering/Renderer/Outline/EditorSelectionOutlineRequestService.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
+#include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Core/Audio/AudioSystem.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -33,7 +34,6 @@
 //============================================================================
 //	EngineApplication classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kActiveSceneConfigPath = "Config/activeScene.exeConfig.json";
@@ -101,8 +101,7 @@ void Engine::EngineApplication::LoadActiveSceneConfig() {
 
 	const std::filesystem::path fullPath = assetDataBase_.ResolveFullPath(sceneAsset);
 	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"EngineApplication: active scene config points missing scene. guid={}", ToString(sceneAsset));
+		Logger::Output(LogType::Engine, spdlog::level::warn, "EngineApplication: active scene config points missing scene. guid={}", ToString(sceneAsset));
 		return;
 	}
 	activeScene_ = sceneAsset;
@@ -141,6 +140,10 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	InitFirstScene();
 	// C#スクリプトランタイム初期化
 	ManagedScriptRuntime::GetInstance().Init();
+	// EditWorldをスクリプトから参照可能にし生ポインタの代わりに世代付きハンドルを使う
+	ManagedWorldRegistry::GetInstance().Register(worldManager_.GetEditWorld());
+	// Editモードの非同期build/reloadサービスを初期化しsource baselineとlast-known-goodを整える
+	scriptBuildService_.Initialize(&ManagedScriptRuntime::GetInstance());
 	// システムの初期化
 	InitSystems();
 
@@ -210,6 +213,7 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 			showSceneView = layout.showSceneView;
 			sceneViewCameraSelection = editorManager_.GetSceneViewCameraSelection();
 			manualSceneCamera = editorManager_.GetSceneViewCameraState();
+			request.drawSceneViewDefaultGrid = editorManager_.ShouldDrawSceneViewDefaultGrid();
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 			request.requireRaytracingSceneForEditorPicking =
 				graphicsCore.GetDXObject().GetFeatureController().GetSupport().SupportsRayTracingPath();
@@ -259,8 +263,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// フレームごとのデバッグラインをリセットする
 	LineRenderer::GetInstance()->BeginFrame();
-	// 選択プレビューアウトラインの要求もフレーム単位でリセットする
-	MeshSelectionOutline::GetInstance().BeginFrame();
+	// 選択アウトラインのtemporary requestもフレーム単位でリセットする
+	EditorSelectionOutlineRequestService::GetInstance().BeginFrame();
 #endif
 
 	// システムコンテキストの更新
@@ -271,22 +275,43 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 
-	// Play中はホットリロードしない。Edit中のみC#変更を自動検知して再ビルド・再ロードする
-	if (!worldManager_.IsPlaying()) {
-		ManagedScriptRuntime::GetInstance().AutoRebuildOnScriptChanges();
-	}
+	// 非同期build/reload状態機械を進める、Play中はreloadを適用せず変更検知のdirtyのみ行う
+	// Editor main threadをblockしない
+	scriptBuildService_.Tick(worldManager_.IsPlaying());
 
 	// プレイモードの切り替え
 	HandlePlayToggle();
+	// Play中の一時停止、再開、1フレーム送りを処理する
+	HandlePlayPauseRequests();
 	// エディタから要求されたシーン操作
 	HandleEditorSceneRequests();
 	// Play/Stopでワールド状態が変わった後のモードを、このフレームのECS処理へ反映する
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
+	// gameplay time serviceを1フレーム進め、time scale適用後のdeltaTimeを全システムへ渡す
+	// deltaTimeをscaleするとschedulerのfixed substep累積も自動的にscaleされTimeScale=0で停止する
+	{
+		const bool advancePlayTime = ShouldAdvanceActiveWorld() && systemContext_.mode == WorldMode::Play;
+		const float rawDelta = ShouldAdvanceActiveWorld() ? deltaTime : 0.0f;
+		systemContext_.deltaTime = ManagedScriptRuntime::AdvanceTime(rawDelta, systemContext_.fixedDeltaTime, advancePlayTime);
+	}
 
 	ECSWorld* world = GetActiveWorld();
 	const SceneHeader* header = GetActiveSceneHeader();
 	SceneInstanceManager& activeScenes = GetActiveScenes();
 	const SceneInstance* activeSceneInstance = activeScenes.GetActive();
+
+	// scripting callbackがparent無しEntity生成等で参照するactive worldをcontextへ載せる
+	systemContext_.world = world;
+
+	// Prefab/SceneのWorldCommandBufferコマンドがFlush時に参照する外部サービスをactive worldへ設定する
+	// 非所有ポインタでworld切替やEdit/Play切替に追従して毎フレーム更新する
+	if (world) {
+		WorldCommandServices services{};
+		services.assetDatabase = &assetDataBase_;
+		services.sceneInstances = &activeScenes;
+		services.sceneSystem = &sceneSystem_;
+		world->SetCommandServices(services);
+	}
 
 	// シーンごとのCollision設定を、Editor/Play共通の現在設定へ反映する
 	systemContext_.activeSceneHeader = header;
@@ -300,13 +325,18 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 		// エディタUIとツールが参照する現在の状態をまとめる
 		editorContext_.isPlaying = worldManager_.IsPlaying();
+		editorContext_.isPlayPaused = playPaused_;
 		editorContext_.activeScenePath = activeScenePath_;
 		editorContext_.activeSceneHeader = header;
 		editorContext_.activeSceneAsset = activeSceneInstance ? activeSceneInstance->sceneAsset : activeScene_;
 		editorContext_.activeSceneInstanceID = activeSceneInstance ? activeSceneInstance->instanceID : UUID{};
 		editorContext_.sceneInstances = &activeScenes;
 		editorContext_.activeWorld = world;
+		// EditWorldはPlay中でも常に有効でApply Runtime Values To Authoringで参照する
+		editorContext_.editWorld = &worldManager_.GetEditWorld();
 		editorContext_.assetDatabase = &assetDataBase_;
+		// managed scriptingのEditor向けサービス境界を公開する、read-only snapshot + request interface
+		editorContext_.scriptBuildService = &scriptBuildService_;
 
 		const bool hidePanels = editorManager_.GetLayoutState().hidePanels;
 		if (hidePanels) {
@@ -316,7 +346,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 				windowSetting.engineSizeFloat, windowSetting.gameSizeFloat);
 		} else {
 
-			// C++ツールの更新。UI描画とは分離して、Game側ツールも同じ経路で扱う
+			// C++ツールの更新でUI描画とは分離してGame側ツールも同じ経路で扱う
 			ToolContext toolContext{};
 			toolContext.world = world;
 			toolContext.assetDatabase = &assetDataBase_;
@@ -338,9 +368,15 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	}
 
 	// ECSシステムの更新
-	{
+	if (ShouldAdvanceActiveWorld()) {
+
 		FrameProfiler::ScopedSample ecsSample(FrameProfiler::Category::Ecs);
 		scheduler_.Tick(GetActiveWorld(), systemContext_);
+	}
+	if (playFrameStepRequested_) {
+
+		playFrameStepRequested_ = false;
+		systemContext_.deltaTime = 0.0f;
 	}
 }
 
@@ -396,6 +432,18 @@ void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 
 void Engine::EngineApplication::HandlePlayToggle() {
 
+	// Play開始をbuild/reload完了まで保留している間は、新規トグルを捨てて完了を待つ
+	if (pendingPlayStart_) {
+
+		// 保留解決後に古いトグル要求で誤Stopしないよう、要求は読み捨てる
+		(void)Input::GetInstance()->TriggerKey(DIK_F5);
+		if constexpr (BuildConfig::kEditorEnabled) {
+			(void)editorManager_.ConsumePlayToggleRequest();
+		}
+		ProcessPendingPlayStart();
+		return;
+	}
+
 	// プレイ/ストップの切り替え要求があるか
 	bool requestedByKeyboard = Input::GetInstance()->TriggerKey(DIK_F5);
 	bool requestedByEditor = false;
@@ -413,47 +461,121 @@ void Engine::EngineApplication::HandlePlayToggle() {
 
 	if (!worldManager_.IsPlaying()) {
 
-		// プレイ開始前にC#スクリプトをビルドし、最新のDLLから型情報を反映する
-		auto& scriptRuntime = ManagedScriptRuntime::GetInstance();
-		bool waitForManagedDebuggerOnPlay = false;
-		if constexpr (BuildConfig::kEditorEnabled) {
-			waitForManagedDebuggerOnPlay = editorManager_.GetLayoutState().waitForManagedDebuggerOnPlay;
-		}
-		scriptRuntime.UnloadGameAssembly();
-		if (!scriptRuntime.BuildGameAssembly()) {
-
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"EngineApplication: failed to enter Play mode. C# script build failed.");
-			return;
-		}
-		if (!scriptRuntime.ReloadGameAssembly(waitForManagedDebuggerOnPlay)) {
-
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"EngineApplication: GameScripts.dll was not loaded. Play mode will start without managed scripts.");
-		}
-
-		// EditWorldを直接Playへ使わず、JSONスナップショットからPlayWorldを作る
-		nlohmann::json snapshot = editScenes_.SerializeSnapshot(sceneSystem_, worldManager_.GetEditWorld());
-
-		// Play開始用のWorldを作成し、スナップショットからシーン状態を復元する
-		worldManager_.CreatePlayWorld();
-		if (!worldManager_.GetPlayWorld() ||
-			!playScenes_.LoadSnapshot(assetDataBase_, sceneSystem_, *worldManager_.GetPlayWorld(), snapshot)) {
-
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"EngineApplication: failed to enter Play mode. Scene snapshot load failed.");
-
-			playScenes_ = SceneInstanceManager{};
-			worldManager_.DestroyPlayWorld();
-			return;
-		}
+		// Play開始要求で最新のbuild/reloadを要求して保留し、Editor main threadをblockしない
+		// pending dirty / build / reloadがあれば完了までPlay遷移を待つ
+		scriptBuildService_.RequestPlayBuild();
+		pendingPlayStart_ = true;
+		Logger::Output(LogType::Engine, spdlog::level::info,
+			"EngineApplication: Play requested. preparing GameScripts (build/reload)...");
+		// 同フレームで既にビルド対象なし等で最新なら即Play開始を試みる
+		ProcessPendingPlayStart();
 	} else {
 
 		// Stop時は実行中WorldからSchedulerを切り離して、PlayWorldを破棄する
 		scheduler_.DetachCurrentWorld(systemContext_);
+		// 破棄前にレジストリから解除し、古いハンドルが新しいPlayWorldを指さないようにする
+		if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
+			ManagedWorldRegistry::GetInstance().Unregister(
+				ManagedWorldRegistry::GetInstance().TryGetHandle(*playWorld));
+		}
 		worldManager_.DestroyPlayWorld();
 		playScenes_ = SceneInstanceManager{};
+		playPaused_ = false;
+		playFrameStepRequested_ = false;
 	}
+}
+
+void Engine::EngineApplication::ProcessPendingPlayStart() {
+
+	// build/reloadの完了を待ち、Pendingの間はEditor tickを継続して保留する
+	const ManagedScriptBuildService::PlayBuildResult result = scriptBuildService_.PollPlayBuild();
+	if (result == ManagedScriptBuildService::PlayBuildResult::Pending) {
+		return;
+	}
+
+	pendingPlayStart_ = false;
+
+	// build/reload失敗時はEditモードを維持し、エラーを表示する
+	if (result == ManagedScriptBuildService::PlayBuildResult::Failed) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"EngineApplication: Play canceled. GameScripts build/reload failed. Staying in Edit mode.");
+		return;
+	}
+
+	// 成功→ Playを開始する
+	StartPlayWorld();
+}
+
+void Engine::EngineApplication::StartPlayWorld() {
+
+	auto& scriptRuntime = ManagedScriptRuntime::GetInstance();
+
+	// managed debuggerのattach待ちはユーザーの明示オプションで、この場合だけ
+	// 現在ロード済みアセンブリをwait付きで読み直す、debugger attachを待つため意図的に同期
+	bool waitForManagedDebuggerOnPlay = false;
+	if constexpr (BuildConfig::kEditorEnabled) {
+		waitForManagedDebuggerOnPlay = editorManager_.GetLayoutState().waitForManagedDebuggerOnPlay;
+	}
+	if (waitForManagedDebuggerOnPlay && !scriptRuntime.ActiveAssemblyPath().empty()) {
+		scriptRuntime.LoadGameAssemblyFromPath(scriptRuntime.ActiveAssemblyPath(), true);
+	}
+
+	// EditWorldを直接Playへ使わず、JSONスナップショットからPlayWorldを作る
+	nlohmann::json snapshot = editScenes_.SerializeSnapshot(sceneSystem_, worldManager_.GetEditWorld());
+
+	// Play開始用のWorldを作成し、スナップショットからシーン状態を復元する
+	worldManager_.CreatePlayWorld();
+	if (!worldManager_.GetPlayWorld() ||
+		!playScenes_.LoadSnapshot(assetDataBase_, sceneSystem_, *worldManager_.GetPlayWorld(), snapshot)) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"EngineApplication: failed to enter Play mode. Scene snapshot load failed.");
+
+		playScenes_ = SceneInstanceManager{};
+		worldManager_.DestroyPlayWorld();
+		playPaused_ = false;
+		playFrameStepRequested_ = false;
+		return;
+	}
+	// PlayWorldをスクリプトから参照可能にし最初のTickのPrepareより前に登録する
+	ManagedWorldRegistry::GetInstance().Register(*worldManager_.GetPlayWorld());
+	// gameplay time serviceを初期化しPlayWorldのTimeScaleComponentがあれば初期scaleとして読む
+	ManagedScriptRuntime::BeginPlayTime(worldManager_.GetPlayWorld());
+	playPaused_ = false;
+	playFrameStepRequested_ = false;
+}
+
+void Engine::EngineApplication::HandlePlayPauseRequests() {
+
+	if constexpr (!BuildConfig::kEditorEnabled) {
+		return;
+	} else {
+
+		const bool resumeRequested = editorManager_.ConsumePlayResumeRequest();
+		const bool pauseRequested = editorManager_.ConsumePlayPauseRequest();
+		const bool frameStepRequested = editorManager_.ConsumePlayFrameStepRequest();
+
+		if (!worldManager_.IsPlaying()) {
+			playPaused_ = false;
+			playFrameStepRequested_ = false;
+			return;
+		}
+		if (resumeRequested) {
+			playPaused_ = false;
+		}
+		if (pauseRequested) {
+			playPaused_ = true;
+		}
+		if (frameStepRequested && playPaused_) {
+			playFrameStepRequested_ = true;
+		}
+	}
+}
+
+bool Engine::EngineApplication::ShouldAdvanceActiveWorld() const {
+
+	return !worldManager_.IsPlaying() || !playPaused_ || playFrameStepRequested_;
 }
 
 void Engine::EngineApplication::HandleEditorSceneRequests() {
@@ -528,7 +650,7 @@ bool Engine::EngineApplication::CreateNewEditScene() {
 
 bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
 
-	// AssetDatabase上のメタ情報を取得する。見つからなければ再走査する
+	// AssetDatabase上のメタ情報を取得し見つからなければ再走査する
 	const AssetMeta* meta = assetDataBase_.Find(sceneAsset);
 	if (!meta) {
 
@@ -714,6 +836,11 @@ void Engine::EngineApplication::Finalize() {
 	// ツールが持つGPUリソースをGraphicsCore終了前に確実に解放する
 	ToolRegistry::GetInstance().Clear();
 
+	// Editモードのbuild/reloadサービスを停止し、実行中の子プロセスを安全に回収する
+	scriptBuildService_.Shutdown();
+	// EditWorldの登録を解除してからC#ホストを解放する
+	ManagedWorldRegistry::GetInstance().Unregister(
+		ManagedWorldRegistry::GetInstance().TryGetHandle(worldManager_.GetEditWorld()));
 	// C#ホストと読み込んだアセンブリを解放する
 	ManagedScriptRuntime::GetInstance().Finalize();
 

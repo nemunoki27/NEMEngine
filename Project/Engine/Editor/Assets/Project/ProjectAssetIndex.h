@@ -16,7 +16,6 @@ namespace Engine {
 	//============================================================================
 	//	ProjectAssetIndex structures
 	//============================================================================
-
 	// プロジェクト内のアセットのエントリー
 	struct ProjectAssetEntry {
 
@@ -30,7 +29,7 @@ namespace Engine {
 		std::string fileName;
 		// パネル表示名
 		std::string displayName;
-		// サイドカーファイルのパス（Assets/...）
+		// サイドカーファイルのパスでAssets/から始まる
 		std::vector<std::string> sidecarFiles;
 	};
 	// プロジェクト内のディレクトリノード
@@ -38,7 +37,7 @@ namespace Engine {
 
 		// ディレクトリ名
 		std::string name;
-		// ディレクトリの仮想パス（Assets/...）
+		// ディレクトリの仮想パスでAssets/から始まる
 		std::string virtualPath;
 		// 子ディレクトリ
 		std::vector<std::unique_ptr<ProjectDirectoryNode>> children;
@@ -62,10 +61,9 @@ namespace Engine {
 	//============================================================================
 	class ProjectAssetIndex {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		ProjectAssetIndex() = default;
 		~ProjectAssetIndex() = default;
 
@@ -77,9 +75,9 @@ namespace Engine {
 		const ProjectDirectoryNode* FindDirectory(const std::string& virtualPath) const;
 		const ProjectAssetEntry* FindAssetByPath(const std::string& assetPath) const;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -105,3 +103,4 @@ namespace Engine {
 		static const ProjectAssetEntry* FindAssetRecursive(const ProjectDirectoryNode& node, const std::string& assetPath);
 	};
 } // Engine
+

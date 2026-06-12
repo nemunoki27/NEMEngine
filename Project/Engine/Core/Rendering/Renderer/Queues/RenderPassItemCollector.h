@@ -15,7 +15,6 @@ namespace Engine {
 	//============================================================================
 	//	RenderPassItemCollector structures
 	//============================================================================
-
 	// 描画アイテムリスト
 	struct RenderPassItemList {
 
@@ -48,10 +47,9 @@ namespace Engine {
 	//============================================================================
 	class RenderPassItemCollector {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		RenderPassItemCollector() = default;
 		~RenderPassItemCollector() = default;
 
@@ -62,9 +60,9 @@ namespace Engine {
 		static void BuildBucketsForViewAndScene(const RenderSceneBatch& batch, const ResolvedRenderView& view,
 			UUID sceneInstanceID, RenderPassPhaseBuckets& outBuckets);
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- functions ----------------------------------------------------
 
@@ -74,3 +72,4 @@ namespace Engine {
 		static bool IsVisibleToView(const RenderItem& item, const ResolvedRenderView& view);
 	};
 } // Engine
+

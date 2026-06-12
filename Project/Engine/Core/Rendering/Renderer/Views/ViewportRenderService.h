@@ -20,10 +20,9 @@ namespace Engine {
 	//============================================================================
 	class ViewportRenderService {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		ViewportRenderService() = default;
 		~ViewportRenderService();
 
@@ -49,9 +48,9 @@ namespace Engine {
 		static const char* GetPrimaryColorName(RenderViewKind kind);
 		static const char* GetPrimaryDepthName(RenderViewKind kind);
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- structure ----------------------------------------------------
 
@@ -79,3 +78,4 @@ namespace Engine {
 		static MultiRenderTargetCreateDesc BuildDefaultDesc(RenderViewKind kind, uint32_t width, uint32_t height);
 	};
 } // Engine
+

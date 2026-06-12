@@ -232,7 +232,7 @@ void Easing::SelectEasingType(EasingType& easingType, const std::string& lebel, 
 
 	if (ImGui::BeginCombo(("EasingType##" + lebel).c_str(), previewLabel)) {
 
-		// Linear ボタン（押した瞬間に index も更新しておくと同フレームの選択ハイライトも合う）
+		// Linearボタンは押した瞬間にindexも更新しておくと同フレームの選択ハイライトも合う
 		if (ImGui::Button("Linear", ImVec2(itemWidth, 24.0f))) {
 			easingType = EasingType::Linear;
 		}

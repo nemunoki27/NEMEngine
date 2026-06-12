@@ -5,7 +5,6 @@ using namespace Engine;
 //============================================================================
 //	RandomGenerator classMethods
 //============================================================================
-
 Vector3 RandomGenerator::Generate(const Engine::Vector3& min, const Engine::Vector3& max) {
 
 	return Vector3{

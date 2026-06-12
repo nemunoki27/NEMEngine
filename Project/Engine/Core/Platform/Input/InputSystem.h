@@ -13,6 +13,7 @@
 #include <XInput.h>
 // c++
 #include <cmath>
+#include <string>
 #include <string_view>
 #include <cstdint>
 #include <array>
@@ -30,10 +31,9 @@ namespace Engine {
 	//============================================================================
 	class Input {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		void Init(WinApp* winApp);
 		void Update();
 
@@ -100,13 +100,30 @@ namespace Engine {
 		// ゲームパッドが繋がっているかどうか
 		bool IsGamepadConnected() const { return gamepadConnected_; }
 
+		//--------- gameplay向け多gamepad / text / focus -------------------------
+		// 既存のsingle-gamepad path上の各accessorは変更せず、scripting用に独立のsnapshotを持つ
+		// button / axisのindexはC#のGamepadButton / GamepadAxis enumに対応する
+		bool GamepadConnectedByIndex(int index) const;
+		int ConnectedGamepadCount() const;
+		bool GamepadButtonByIndex(int index, int button) const;
+		bool GamepadButtonDownByIndex(int index, int button) const;
+		bool GamepadButtonUpByIndex(int index, int button) const;
+		float GamepadAxisByIndex(int index, int axis) const;
+		// このフレームで読める確定テキストでUTF-8のframe-local
+		const std::string& FrameTextInput() const { return frameText_; }
+		// ウィンドウがフォーカスを持っているか
+		bool HasWindowFocus() const { return hasFocus_; }
+		// WinAppのWM_CHAR / focusメッセージからmain threadで呼ぶ
+		void AppendTextInputUtf16(wchar_t code) { pendingWide_.push_back(code); }
+		void SetWindowFocus(bool focused) { hasFocus_ = focused; }
+
 		// singleton
 		static Input* GetInstance();
 		static void Finalize();
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- structure ----------------------------------------------------
 
@@ -141,6 +158,18 @@ namespace Engine {
 
 		std::array<bool, static_cast<size_t>(GamePadButtons::Counts)> gamepadButtons_{};
 		std::array<bool, static_cast<size_t>(GamePadButtons::Counts)> gamepadButtonsPre_{};
+
+		// gameplay用の独立snapshotで最大4台、既存single-gamepad pathとは別管理
+		static constexpr int kMaxGamepads = 4;
+		std::array<XINPUT_STATE, kMaxGamepads> pads_{};
+		std::array<XINPUT_STATE, kMaxGamepads> padsPre_{};
+		std::array<bool, kMaxGamepads> padConnected_{};
+		std::array<bool, kMaxGamepads> padConnectedPre_{};
+		// 文字入力はpendingWide_にWM_CHARを溜め、UpdateでframeText_(UTF-8)へ確定する
+		std::wstring pendingWide_;
+		std::string frameText_;
+		// ウィンドウフォーカス状態
+		bool hasFocus_ = true;
 
 		std::array<std::chrono::steady_clock::time_point, 256> keyStartTime_{};
 		std::array<bool, 256> keyStayLogged_{};

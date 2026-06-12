@@ -9,7 +9,6 @@
 //============================================================================
 //	BillboardInspectorDrawer classMethods
 //============================================================================
-
 namespace {
 
 	Engine::ValueEditResult DrawAxisCheckbox(const char* label, Engine::BillboardComponent& billboard, Engine::Axis axis) {

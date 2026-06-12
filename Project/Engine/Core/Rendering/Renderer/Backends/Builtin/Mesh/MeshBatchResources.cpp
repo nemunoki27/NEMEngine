@@ -8,9 +8,9 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshSelectionOutline.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
+#include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
@@ -23,7 +23,6 @@
 //============================================================================
 //	MeshBatchResources classMethods
 //============================================================================
-
 namespace {
 
 	bool CanCullView(const Engine::RenderDrawContext& drawContext, const Engine::MeshGPUResource& gpuMesh) {
@@ -56,10 +55,11 @@ namespace {
 		return item->world->TryGetComponent<Engine::InvertedHullOutlineComponent>(item->entity);
 	}
 
-	// Hull本体を描くパスかどうか。OutlineStencilWriteは元メッシュ形状なのでHullではない
-	bool IsHullOutlinePass(std::string_view passName) {
+	// Hull本体を描くパスかどうかでOutlineStencilWriteは元メッシュ形状なのでHullではない
+	bool IsHullOutlinePass(Engine::MaterialPassKind passKind) {
 
-		return passName == "Outline" || passName == "OutlineStencilTest" || passName == "SelectionOutline";
+		return passKind == Engine::MaterialPassKind::Outline ||
+			passKind == Engine::MaterialPassKind::OutlineStencilTest;
 	}
 }
 
@@ -88,8 +88,7 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	draw_.Init(device);
 	// ExecuteIndirect引数生成Computeに渡す固定Index数
 	indirectArgs_.Init(device);
-	// 選択プレビュー用アウトラインの定数バッファ
-	selectionOutline_.Init(device);
+	screenSpaceOutlineMask_.Init(device);
 	subMeshData_.Init(device, srvDescriptor);
 	// 背面法アウトラインのインスタンス別GPUデータ
 	outlineData_.Init(device, srvDescriptor);
@@ -111,7 +110,7 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 
 void Engine::MeshBatchResources::Finalize() {
 
-	// OptionalSkinningResourcesは内部にSRV/UAV付きGPUバッファを持つため、終了時に明示resetする。
+	// OptionalSkinningResourcesは内部にSRV/UAV付きGPUバッファを持つため、終了時に明示resetする
 	skinning_.reset();
 	meshScratch_.clear();
 	subMeshScratch_.clear();
@@ -132,8 +131,7 @@ void Engine::MeshBatchResources::Finalize() {
 void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& drawContext,
 	const MeshGPUResource& gpuMesh) {
 
-	const bool hullOutline = IsHullOutlinePass(drawContext.passName);
-	const bool selectionOutline = (drawContext.passName == "SelectionOutline");
+	const bool hullOutline = IsHullOutlinePass(drawContext.passKind);
 	bool cullingEnabled = CanCullView(drawContext, gpuMesh);
 	if (cullingEnabled) {
 		// カリング用カメラが取れない場合は全描画に倒す
@@ -143,16 +141,11 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 		}
 	}
 
-	// ScreenPixelsでは近距離、投影、カメラ角度の影響を受ける。
+	// ScreenPixelsでは近距離、投影、カメラ角度の影響を受ける
 	// 誤カリングを避けるためHullのときだけ安全側でフラスタムカリングを無効にする
 	if (hullOutline && outlineMetrics_.hasScreenPixelWidth) {
 		cullingEnabled = false;
 	}
-	// 選択プレビューは単一メッシュを確実に出すため、誤カリングを避けてカリング無効にする
-	if (selectionOutline) {
-		cullingEnabled = false;
-	}
-
 	MeshDrawConstants drawConstants{};
 	drawConstants.meshletCount = gpuMesh.meshletCount;
 	drawConstants.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
@@ -160,7 +153,7 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 	drawConstants.cullingEnabled = cullingEnabled ? 1u : 0u;
 	drawConstants.packedMeshletVertexIndices = gpuMesh.usePackedMeshletVertexIndices ? 1u : 0u;
 
-	// 背面法では通常メッシュのnormal cone判定を流用できない。
+	// 背面法では通常メッシュのnormal cone判定を流用できない
 	// 線が小さくても見えるためcontribution cullingも無効化する
 	drawConstants.contributionCullingEnabled =
 		(!hullOutline && cullingEnabled && drawContext.runtimeFeatures.useContributionCulling) ? 1u : 0u;
@@ -176,28 +169,16 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 	drawConstants.outlineMaxModelExpansion = hullOutline ? outlineMetrics_.maxModelExpansion : 0.0f;
 	drawConstants.outlineMaxAbsCameraZOffset = hullOutline ? outlineMetrics_.maxAbsCameraZOffset : 0.0f;
 	drawConstants.outlineHasScreenPixelWidth = (hullOutline && outlineMetrics_.hasScreenPixelWidth) ? 1u : 0u;
-	drawConstants.selectionOutlinePass = selectionOutline ? 1u : 0u;
 
 	draw_.Upload(drawConstants);
 
-	// 選択プレビュー時は、コンポーネントとは独立した描画単位の定数を転送する。
-	// パラメータはMeshSelectionOutline(エディタが毎フレーム積む要求)から取る。
-	if (selectionOutline) {
+	if (drawContext.passKind == MaterialPassKind::ScreenSpaceOutlineMask ||
+		drawContext.passKind == MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
 
-		const MeshSelectionOutline& request = MeshSelectionOutline::GetInstance();
-		const InvertedHullOutlineComponent& source = request.GetParams();
-
-		MeshSelectionOutlineParams params{};
-		params.color = source.color;
-		params.width = (std::max)(0.0f, source.width);
-		params.cameraZOffset = source.cameraZOffset;
-		params.expansionMode = static_cast<uint32_t>(source.expansionMode);
-		params.widthMode = static_cast<uint32_t>(source.widthMode);
-		// プレビューはテクスチャを解決しないためflagsは立てない
-		params.flags = 0;
-		// サブメッシュ単位選択のときだけ対象を限定する(負なら全体)
-		params.restrictSubMeshIndex = request.GetSubMeshIndex();
-		selectionOutline_.Upload(params);
+		ScreenSpaceOutlineMaskConstants params{};
+		params.styleID = drawContext.screenSpaceOutlineMaskStyleID;
+		params.restrictSubMeshIndex = drawContext.screenSpaceOutlineMaskRestrictSubMeshIndex;
+		screenSpaceOutlineMask_.Upload(params);
 	}
 }
 
@@ -326,7 +307,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	// エラーテクスチャのSRVインデックスを取得する
 	const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
 	uint32_t fallbackSRVIndex = (fallback && fallback->srvIndex != UINT32_MAX) ? fallback->srvIndex : 0;
-	// 元々ベースカラーテクスチャが設定されていないMesh用の白テクスチャ。
+	// 元々ベースカラーテクスチャが設定されていないMesh用の白テクスチャ
 	// 白を掛けてもベースカラー(importedBaseColor/color)がそのまま出るため、未設定時はこちらを使う
 	const GPUTextureResource* whiteTexture = graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
 	uint32_t whiteSRVIndex = (whiteTexture && whiteTexture->srvIndex != UINT32_MAX) ? whiteTexture->srvIndex : fallbackSRVIndex;
@@ -334,7 +315,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	baseColorSRVCache.reserve(gpuMesh.subMeshes.size() + 1);
 
 	// テクスチャアセットIDからSRVインデックスを取得するヘルパー
-	// assetIDが無効なら UINT32_MAX を返す（シェーダー側で未使用として扱う）
+	// assetIDが無効ならUINT32_MAXを返しシェーダー側で未使用として扱う
 	auto ResolveSRVIndex = [&](AssetID assetID, bool sRGB) -> uint32_t {
 
 		if (!assetID) {
@@ -366,6 +347,9 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			const ResolvedRenderView* billboardView = drawContext.billboardView ? drawContext.billboardView : drawContext.view;
 			MeshInstanceData instance{};
 			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(*item, *billboardView);
+			MeshNormalMatrixResult instanceNormal = BuildSafeMeshNormalMatrix(instance.worldMatrix);
+			instance.normalMatrix = instanceNormal.matrix;
+			instance.orientationSign = instanceNormal.orientationSign;
 			instance.subMeshDataOffset = static_cast<uint32_t>(subMeshScratch_.size());
 			instance.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
 
@@ -390,7 +374,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				++skinnedInstanceCount_;
 			}
 
-			// アウトラインGPUデータをインスタンスごとに必ず1件作る。
+			// アウトラインGPUデータをインスタンスごとに必ず1件作る
 			// コンポーネントが無い通常メッシュにもゼロ初期値を入れて対応を崩さない
 			MeshOutlineGPUData outlineGPU{};
 			if (const InvertedHullOutlineComponent* outline = ResolveOutline(item)) {
@@ -434,7 +418,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			uint32_t baseColorSRVIndex;
 			if (baseColorAsset) {
 
-				// 解決対象は重複解決を避けるためAssetID単位でキャッシュする。
+				// 解決対象は重複解決を避けるためAssetID単位でキャッシュする
 				// 割り当て済みだが見つからない(解決失敗)場合はエラーテクスチャにフォールバックする
 				auto cachedTexture = baseColorSRVCache.find(baseColorAsset);
 				if (cachedTexture != baseColorSRVCache.end()) {
@@ -452,8 +436,8 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				}
 			} else {
 
-				// 解決後AssetIDが空。元々割り当てがある(マテリアルで宣言済みだが見つからない)ならエラー、
-				// 未割り当て(テクスチャなし)なら白にフォールバックする
+				// 解決後AssetIDが空で元々割り当てがありマテリアルで宣言済みだが見つからないならエラー、
+				// 未割り当てのテクスチャなしなら白にフォールバックする
 				const bool assigned = MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(gpuMesh, renderer, subMeshIndex);
 				baseColorSRVIndex = assigned ? fallbackSRVIndex : whiteSRVIndex;
 				if (assigned) {
@@ -486,7 +470,11 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				data.roughness = authoring.roughness;
 				data.uvMatrix = authoring.uvMatrix;
 				data.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
-				// Position Scaling膨張の基準。原点基準にならないようサブメッシュのピボットを渡す
+				// localMatrixからも法線変換行列を構築し最終的にinstance.normalMatrixと合成される
+				const MeshNormalMatrixResult localNormal = BuildSafeMeshNormalMatrix(data.localMatrix);
+				data.localNormalMatrix = localNormal.matrix;
+				data.localOrientationSign = localNormal.orientationSign;
+				// Position Scaling膨張の基準で原点基準にならないようサブメッシュのピボットを渡す
 				data.sourcePivot = authoring.sourcePivot;
 			}
 			subMeshScratch_.emplace_back(data);
@@ -506,7 +494,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 		visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
 	}
 	subMeshData_.Upload(subMeshScratch_);
-	// アウトラインGPUデータの転送。MeshDrawConstantsはUpdateDrawConstantsで毎描画更新する
+	// アウトラインGPUデータの転送でMeshDrawConstantsはUpdateDrawConstantsで毎描画更新する
 	outlineData_.Upload(outlineScratch_);
 
 	if (skinning_) {

@@ -26,9 +26,8 @@ namespace Engine {
 	//============================================================================
 	//	EditorToolRenderTexture structure
 	//============================================================================
-
-	// エディタツール専用のRenderTexture。
-	// SceneView/GameViewとは別管理にして、ツールのプレビュー描画だけで使用する。
+	// エディタツール専用のRenderTexture
+	// SceneView/GameViewとは別管理にして、ツールのプレビュー描画だけで使用する
 	struct EditorToolRenderTexture {
 
 		// RenderTextureの識別名
@@ -37,9 +36,9 @@ namespace Engine {
 		Vector2I size;
 		// 色RenderTargetの枚数
 		uint32_t colorCount = 1;
-		// D3D12のClearRenderTargetViewに渡す色。作成時のClearValueと必ず合わせる。
+		// D3D12のClearRenderTargetViewに渡す色で作成時のClearValueと必ず合わせる
 		Color4 clearColor = Color4::Black();
-		// プレビュー対象Entity。描画側で必要な時だけ解決して使用する。
+		// プレビュー対象Entityで描画側で必要な時だけ解決して使用する
 		UUID previewEntityUUID{};
 
 		// 色+深度をまとめた描画先
@@ -63,7 +62,6 @@ namespace Engine {
 	//============================================================================
 	//	EditorToolRenderContext structure
 	//============================================================================
-
 	// RenderToTextureの中で使用する描画コンテキスト
 	struct EditorToolRenderContext {
 
@@ -86,10 +84,9 @@ namespace Engine {
 	class IEditorTool :
 		public ITool {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		IEditorTool() = default;
 		~IEditorTool() override { ClearRenderTextures(); }
 
@@ -104,11 +101,10 @@ namespace Engine {
 		// 独立したエディタウィンドウを描画する
 		virtual void DrawEditorTool(const EditorToolContext& context) = 0;
 	protected:
-		//========================================================================
+		//============================================================================
 		//	protected Methods
-		//========================================================================
-
-		// ツール専用RenderTextureを作成する。同じ名前がある場合は既存のものを返す。
+		//============================================================================
+		// ツール専用RenderTextureを作成し同じ名前がある場合は既存のものを返す
 		EditorToolRenderTexture* CreateRenderTexture(const std::string& name,
 			const Vector2I& size, const Color4& clearColor = Color4::Black(), uint32_t colorCount = 1);
 
@@ -141,9 +137,9 @@ namespace Engine {
 		// RenderTextureが保持しているプレビュー対象Entityを現在のWorldから解決する
 		Entity GetPreviewEntity(const EditorToolContext& context, const EditorToolRenderTexture& texture) const;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -158,7 +154,6 @@ namespace Engine {
 	//============================================================================
 	//	IEditorTool templateMethods
 	//============================================================================
-
 	template<typename RenderFunc>
 	inline void IEditorTool::RenderToTexture(EditorToolRenderTexture& texture,
 		RenderFunc&& renderFunc, const Color4& clearColor) {
@@ -177,7 +172,7 @@ namespace Engine {
 		renderTarget->TransitionForRender(*dxCommand);
 		renderTarget->Bind(*dxCommand);
 
-		// 作成時のClearValueと違う色でクリアすると、D3D12の警告ブレーク対象になる。
+		// 作成時のClearValueと違う色でクリアすると、D3D12の警告ブレーク対象になる
 		const Color4 actualClearColor = texture.clearColor == clearColor ? clearColor : texture.clearColor;
 
 		// レンダーターゲットクリア設定
@@ -208,3 +203,4 @@ namespace Engine {
 		renderTarget->TransitionForShaderRead(*dxCommand);
 	}
 } // Engine
+

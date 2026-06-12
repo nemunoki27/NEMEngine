@@ -31,10 +31,9 @@ namespace Engine {
 		public IEditorPanel,
 		public IEditorTool {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		InspectorPanel();
 		~InspectorPanel() = default;
 
@@ -44,9 +43,9 @@ namespace Engine {
 		EditorPanelPhase GetPhase() const override { return EditorPanelPhase::PostScene; }
 		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -153,3 +152,4 @@ namespace Engine {
 		void DrawSelectedSubMeshHeader(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 	};
 } // Engine
+

@@ -3,7 +3,6 @@
 //============================================================================
 //	TopLevelAccelerationStructure classMethods
 //============================================================================
-
 void Engine::TopLevelAccelerationStructure::Build(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList,
 	const std::vector<RaytracingTLASInstance>& instances, bool allowUpdate) {
 

@@ -3,7 +3,6 @@
 //============================================================================
 //	RenderViewTypes classMethods
 //============================================================================
-
 const Engine::ResolvedCameraView* Engine::ResolvedRenderView::FindCamera(RenderCameraDomain domain) const {
 
 	switch (domain) {

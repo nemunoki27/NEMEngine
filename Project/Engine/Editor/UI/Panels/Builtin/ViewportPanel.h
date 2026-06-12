@@ -16,13 +16,15 @@ namespace Engine {
 	//============================================================================
 	//	ViewportPanel enum class
 	//============================================================================
-
 	// 表示するビューポートの種類
 	enum class ViewportPanelKind {
 
 		Game,
 		Scene,
 	};
+
+	// front
+	class TextureUploadService;
 
 	//============================================================================
 	//	ViewportPanel class
@@ -31,11 +33,10 @@ namespace Engine {
 	class ViewportPanel :
 		public IEditorPanel {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
-		ViewportPanel(const char* windowName, const char* label, ViewportPanelKind kind);
+		//============================================================================
+		ViewportPanel(const char* windowName, const char* label, ViewportPanelKind kind, TextureUploadService& textureUploadService);
 		~ViewportPanel() = default;
 
 		void Draw(const EditorPanelContext& context) override;
@@ -44,9 +45,9 @@ namespace Engine {
 
 		EditorPanelPhase GetPhase() const override { return EditorPanelPhase::PostScene; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- structure ----------------------------------------------------
 
@@ -57,13 +58,28 @@ namespace Engine {
 			UUID entityUUID{};
 			TransformComponent beforeTransform{};
 		};
-		// サブメッシュギズモ操作セッションの情報をまとめた構造体
-		struct SubMeshGizmoSession {
+		// アイコン
+		struct IconSet {
 
-			bool active = false;
-			UUID entityUUID{};
-			UUID subMeshStableID{};
-			nlohmann::json beforeMeshRenderer{};
+			// エンティティ選択機能のオン/オフ
+			std::string enablePickKey;
+			// エンティティ/サブメッシュを選択するだけ
+			std::string noneKey;
+
+			// マニュピレーター
+			std::string translateKey;
+			std::string rotateKey;
+			std::string scaleKey;
+
+			// エンティティ単位かサブメッシュ単位の選択を行うか
+			std::string entitySelectKey;
+			std::string subMeshSelectKey;
+
+			std::string debugCameraKey;
+			std::string entityCameraKey;
+			std::string manualCamera2DKey;
+			std::string manualCamera3DKey;
+			std::string drawGridKey;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -76,7 +92,14 @@ namespace Engine {
 
 		// ギズモ操作セッションの情報
 		EntityGizmoSession entityGizmoSession_{};
-		SubMeshGizmoSession subMeshGizmoSession_{};
+
+		TextureUploadService* textureUploadService_ = nullptr;
+
+		// 表示アイコン
+		IconSet icons_{};
+
+		// アイコンボタンのサイズ
+		const ImVec2 buttonSize_ = ImVec2(32.0f, 32.0f);
 
 		//--------- functions ----------------------------------------------------
 
@@ -86,6 +109,17 @@ namespace Engine {
 		void DrawSceneGizmo(const EditorPanelContext& context);
 		// ギズモ終了
 		void FinalizeEntityGizmoSession(const EditorPanelContext& context, ECSWorld& world);
-		void FinalizeSubMeshGizmoSession(const EditorPanelContext& context, ECSWorld& world);
+
+		// アイコン読み込み
+		void RequestIcons();
+		// アイコンのテクスチャIDを取得
+		ImTextureID GetTextureID(const std::string& key) const;
+
+		bool DrawIconButton(const char* id, ImTextureID textureID, bool active, const ImVec2& size) const;
+		void DrawCameraSection(const EditorPanelContext& context);
+		void DrawManipulatorSection(const EditorPanelContext& context);
+		void DrawGridSection(const EditorPanelContext& context);
+		void DrawEntityCameraPopup(const EditorPanelContext& context);
 	};
 } // Engine
+

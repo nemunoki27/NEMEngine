@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/World/ECS/Entity/EntityArchetype.h>
+#include <Engine/Core/World/ECS/World/WorldCommandBuffer.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
@@ -16,7 +17,6 @@ namespace Engine {
 	//============================================================================
 	//	ECSWorld structures
 	//============================================================================
-
 	// エンティティの位置を表す構造体
 	struct EntityLocation {
 
@@ -44,17 +44,15 @@ namespace Engine {
 	//============================================================================
 	class ECSWorld {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		ECSWorld();
 		~ECSWorld() = default;
 
-		//========================================================================
+		//============================================================================
 		//	エンティティに対して行う操作
-		//========================================================================
-
+		//============================================================================
 		// エンティティの作成
 		Entity CreateEntity(UUID stableUUID = UUID{});
 		// エンティティの破棄をフレーム終端へ予約
@@ -62,10 +60,21 @@ namespace Engine {
 		// 予約済みの破棄をまとめて実行
 		void FlushPendingDestroyEntities();
 
-		//========================================================================
-		//	コンポーネントに対して行う操作
-		//========================================================================
+		//============================================================================
+		//	スクリプト由来の構造変更を遅延適用するコマンドバッファ
+		//============================================================================
+		// scripting callbackからの構造変更はここへ積み、安全地点でFlushする
+		WorldCommandBuffer& GetCommandBuffer() { return commandBuffer_; }
+		// 積まれた構造変更コマンドをまとめて適用する
+		void FlushWorldCommands() { commandBuffer_.Flush(*this); }
 
+		// Prefab/SceneコマンドのFlush適用に必要な外部サービスでEngineApplicationが毎フレーム設定する
+		void SetCommandServices(const WorldCommandServices& services) { commandServices_ = services; }
+		const WorldCommandServices& GetCommandServices() const { return commandServices_; }
+
+		//============================================================================
+		//	コンポーネントに対して行う操作
+		//============================================================================
 		// エンティティにコンポーネントを追加
 		template <typename T>
 		T& AddComponent(const Entity& entity);
@@ -81,10 +90,9 @@ namespace Engine {
 		void SerializeEntityComponents(const Entity& entity, nlohmann::json& outComponents) const;
 		bool SerializeComponentToJson(const Entity& entity, const std::string_view& typeName, nlohmann::json& outData) const;
 
-		//========================================================================
+		//============================================================================
 		//	ヘルパー
-		//========================================================================
-
+		//============================================================================
 		// シグネチャにマッチするエンティティ全てに対して関数を呼び出す
 		template <typename... T, typename Fn>
 		void ForEach(Fn&& fn);
@@ -116,9 +124,9 @@ namespace Engine {
 		// 現在レコードされているエンティティの数を返す
 		uint32_t GetRecordCount() const { return static_cast<uint32_t>(records_.size()); }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -128,22 +136,26 @@ namespace Engine {
 		std::vector<uint32_t> free_;
 		// フレーム終端でまとめて破棄するエンティティ
 		std::vector<Entity> pendingDestroyEntities_;
+		// スクリプト由来の構造変更を遅延適用するコマンドバッファでworld破棄時に未処理分は安全に破棄される
+		WorldCommandBuffer commandBuffer_;
+		// Prefab/SceneコマンドがFlushで参照する外部サービスで非所有ポインタ、EngineApplicationが設定する
+		WorldCommandServices commandServices_{};
 		// シーン側の永続UUIDからエンティティIDへのマップ
 		std::unordered_map<UUID, Entity> uuidToEntity_;
 
 		// シグネチャからArchetypeへのマップ
 		std::unordered_map<EntitySignature, std::unique_ptr<EntityArchetype>, EntitySignatureHash> archetypes_;
 
-		// 空のArchetype。コンポーネントを持たないエンティティはここにまとめる
+		// 空のArchetypeでコンポーネントを持たないエンティティはここにまとめる
 		EntityArchetype* emptyArchetype_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
 
 		// 新しいエンティティIDを割り当てる
 		uint32_t AllocateIndex();
-		// エンティティが存在することを確認する。存在しない場合はアサート
+		// エンティティが存在することを確認する、存在しない場合はアサート
 		void AssertAlive(const Entity& entity) const;
-		// エンティティを即時破棄する本体。FlushPendingDestroyEntitiesからのみ呼び出す
+		// エンティティを即時破棄する本体でFlushPendingDestroyEntitiesからのみ呼び出す
 		void DestroyEntityImmediate(const Entity& entity);
 
 		// エンティティが所属するArchetypeを移動する本体
@@ -164,7 +176,6 @@ namespace Engine {
 	//============================================================================
 	//	ECSWorld templateMethods
 	//============================================================================
-
 	template <typename T>
 	inline T& ECSWorld::AddComponent(const Entity& entity) {
 
@@ -326,3 +337,4 @@ namespace Engine {
 		}
 	}
 } // Engine
+

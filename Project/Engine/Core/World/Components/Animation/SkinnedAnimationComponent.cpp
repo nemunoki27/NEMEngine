@@ -3,7 +3,6 @@
 //============================================================================
 //	SkinnedAnimationComponent classMethods
 //============================================================================
-
 void Engine::from_json(const nlohmann::json& in, SkinnedAnimationComponent& component) {
 
 	component.enabled = in.value("enabled", true);

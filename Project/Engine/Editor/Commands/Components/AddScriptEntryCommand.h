@@ -23,10 +23,9 @@ namespace Engine {
 	class AddScriptEntryCommand :
 		public IEditorCommand {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		AddScriptEntryCommand(const Entity& targetEntity, const std::string_view& typeName = {},
 			AssetID scriptAsset = {});
 		~AddScriptEntryCommand() = default;
@@ -42,9 +41,9 @@ namespace Engine {
 
 		const char* GetName() const override { return "Add Script"; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -64,3 +63,4 @@ namespace Engine {
 		bool ApplyRestore(EditorCommandContext& context);
 	};
 } // Engine
+

@@ -15,7 +15,6 @@ namespace Engine {
 	//============================================================================
 	//	SceneInstanceManager structures
 	//============================================================================
-
 	// シーン内の子シーンのリンク情報
 	struct SceneChildLink {
 
@@ -49,15 +48,14 @@ namespace Engine {
 	//============================================================================
 	class SceneInstanceManager {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		SceneInstanceManager() = default;
 		~SceneInstanceManager() = default;
 
-		// シーンをロードしてインスタンスを作成
-		bool LoadAdditive(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world, AssetID sceneAsset);
+		// シーンをロードしてインスタンスを作成し、forcedInstanceIDが有効ならそのinstance IDを使ってC#側で先行採番したSceneHandleと一致させる
+		bool LoadAdditive(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world, AssetID sceneAsset, UUID forcedInstanceID = UUID{});
 		// シーンインスタンスをアンロード
 		bool Unload(ECSWorld& world, UUID instanceID);
 		// 全てのシーンインスタンスをアンロード
@@ -85,9 +83,9 @@ namespace Engine {
 		// 全てのシーンインスタンスのリストを取得する
 		const std::vector<SceneInstance>& GetAll() const { return scenes_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -102,3 +100,4 @@ namespace Engine {
 		static std::vector<Entity> CollectSceneEntities(ECSWorld& world, const SceneInstance& scene);
 	};
 } // Engine
+

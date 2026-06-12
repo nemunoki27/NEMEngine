@@ -1,4 +1,7 @@
 #include "ManagedScriptRuntime.h"
+#include "ManagedScriptUtility.h"
+#include "Generated/ManagedComponentBindings.generated.h"
+#include <Engine/Core/World/Components/Time/TimeScaleComponent.h>
 
 //============================================================================
 //	include
@@ -16,13 +19,14 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
 // windows
 #include <windows.h>
 // c++
 #include <algorithm>
-#include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <system_error>
@@ -31,111 +35,20 @@
 //============================================================================
 //	ManagedScriptRuntime classMethods
 //============================================================================
-
 namespace {
-
-	// hostfxrのデリゲート種別
-	constexpr int32_t kLoadAssemblyAndGetFunctionPointer = 5;
 
 	// 現在のビルド設定名を返す
 	std::string GetBuildProfile() {
-
 		return _PROFILE;
 	}
 
 	// パスをUTF-8文字列へ変換する
 	std::string ToUtf8Path(const std::filesystem::path& path) {
-
 		return Engine::Algorithm::ConvertString(path.wstring());
 	}
 
-	// バージョン文字列を数値配列へ変換する
-	std::array<int32_t, 4> ParseVersion(const std::wstring& text) {
-
-		std::array<int32_t, 4> version{};
-		size_t begin = 0;
-		uint32_t index = 0;
-		while (begin < text.size() && index < version.size()) {
-
-			size_t end = text.find(L'.', begin);
-			if (end == std::wstring::npos) {
-				end = text.size();
-			}
-
-			int32_t value = 0;
-			for (size_t i = begin; i < end; ++i) {
-				if (text[i] < L'0' || L'9' < text[i]) {
-					continue;
-				}
-				value = value * 10 + static_cast<int32_t>(text[i] - L'0');
-			}
-			version[index++] = value;
-
-			begin = end + 1;
-		}
-		return version;
-	}
-
-	// バージョンが新しいか
-	bool IsNewerVersion(const std::wstring& candidate, const std::wstring& current) {
-
-		return ParseVersion(current) < ParseVersion(candidate);
-	}
-
-	// 環境変数からパスを取得する
-	std::filesystem::path GetEnvironmentPath(const wchar_t* name) {
-
-		wchar_t* value = nullptr;
-		size_t length = 0;
-		if (_wdupenv_s(&value, &length, name) != 0 || !value) {
-			return {};
-		}
-
-		std::filesystem::path result = value;
-		std::free(value);
-		return result;
-	}
-
-	// dotnetルートを取得する
-	std::filesystem::path FindDotnetRoot() {
-
-		if (auto path = GetEnvironmentPath(L"DOTNET_ROOT_X64"); !path.empty()) {
-			return path;
-		}
-		if (auto path = GetEnvironmentPath(L"DOTNET_ROOT"); !path.empty()) {
-			return path;
-		}
-		return L"C:/Program Files/dotnet";
-	}
-
-	// hostfxr.dllを探す
-	std::filesystem::path FindHostfxrPath() {
-
-		const std::filesystem::path fxrRoot = FindDotnetRoot() / "host/fxr";
-		if (!std::filesystem::exists(fxrRoot)) {
-			return {};
-		}
-
-		std::filesystem::path bestPath{};
-		std::wstring bestVersion{};
-		for (const auto& entry : std::filesystem::directory_iterator(fxrRoot)) {
-
-			if (!entry.is_directory()) {
-				continue;
-			}
-
-			const std::wstring version = entry.path().filename().wstring();
-			if (bestVersion.empty() || IsNewerVersion(version, bestVersion)) {
-				bestVersion = version;
-				bestPath = entry.path() / "hostfxr.dll";
-			}
-		}
-		return std::filesystem::exists(bestPath) ? bestPath : std::filesystem::path{};
-	}
-
-	// 存在する最初のパスを返す
+	// 候補の中から最初に見つかったパスを返す
 	std::filesystem::path FindFirstExistingPath(const std::vector<std::filesystem::path>& paths) {
-
 		for (const auto& path : paths) {
 			if (std::filesystem::exists(path)) {
 				return path;
@@ -144,9 +57,8 @@ namespace {
 		return {};
 	}
 
-	// Engine側のScriptCoreを探す
+	// ScriptCoreのアセンブリパスを解決
 	std::filesystem::path ResolveScriptCoreAssemblyPath() {
-
 		const std::string profile = GetBuildProfile();
 		const std::filesystem::path current = std::filesystem::current_path();
 		const std::filesystem::path engineRoot = Engine::RuntimePaths::GetEngineProjectRoot().parent_path();
@@ -158,9 +70,8 @@ namespace {
 			});
 	}
 
-	// ゲーム側スクリプトアセンブリを探す
+	// ゲーム側アセンブリパスを解決
 	std::filesystem::path ResolveGameAssemblyPath() {
-
 		const std::string profile = GetBuildProfile();
 		const std::filesystem::path current = std::filesystem::current_path();
 		return FindFirstExistingPath({
@@ -169,8 +80,8 @@ namespace {
 			});
 	}
 
+	// ゲームスクリプトのプロジェクトパスを解決
 	std::filesystem::path ResolveGameScriptProjectPath() {
-
 		const std::filesystem::path current = std::filesystem::current_path();
 		return FindFirstExistingPath({
 			current / "Scripts/GameScripts.csproj",
@@ -178,10 +89,9 @@ namespace {
 			});
 	}
 
+	// マネージドデバッグ環境の構成でJIT最適化抑制などを行う
 	void ConfigureManagedDebugEnvironment() {
-
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-		// JIT最適化関連を抑えて、C#ブレークポイントが止まりやすい状態にする
 		::SetEnvironmentVariableW(L"COMPlus_ReadyToRun", L"0");
 		::SetEnvironmentVariableW(L"COMPlus_TieredCompilation", L"0");
 		::SetEnvironmentVariableW(L"COMPlus_ZapDisable", L"1");
@@ -189,279 +99,46 @@ namespace {
 #endif
 	}
 
+	// スコープ内で環境変数を一時的に上書きするヘルパー
 	class ScopedEnvironmentVariableOverride final {
 	public:
 		ScopedEnvironmentVariableOverride(const wchar_t* name, const wchar_t* value) :
 			name_(name) {
 
+			// _wdupenv_sが確保した領域はwstringへコピーしたらここで必ず解放し、デストラクタではwstring内部バッファに触れない
 			wchar_t* previous = nullptr;
 			size_t previousLength = 0;
 			if (_wdupenv_s(&previous, &previousLength, name_) == 0 && previous) {
-				hadPreviousValue_ = true;
-				previousValue_ = previous;
-			}
-			std::free(previous);
 
+				// コピー中に例外が起きてもpreviousをリークしないようにする
+				struct FreeGuard {
+					wchar_t* pointer;
+					~FreeGuard() { std::free(pointer); }
+				} freeGuard{ previous };
+
+				previousValue_ = previous;
+				hadPreviousValue_ = true;
+			}
 			::SetEnvironmentVariableW(name_, value);
 		}
-
 		~ScopedEnvironmentVariableOverride() {
 
-			if (hadPreviousValue_) {
-				::SetEnvironmentVariableW(name_, previousValue_.c_str());
-			} else {
-				::SetEnvironmentVariableW(name_, nullptr);
-			}
+			// 復元はSetEnvironmentVariableWのみで、wstringが所有するバッファをfreeしてはいけない
+			::SetEnvironmentVariableW(name_, hadPreviousValue_ ? previousValue_.c_str() : nullptr);
 		}
+
+		// コピーとムーブを禁止して二重復元と二重解放を防ぐ
+		ScopedEnvironmentVariableOverride(const ScopedEnvironmentVariableOverride&) = delete;
+		ScopedEnvironmentVariableOverride& operator=(const ScopedEnvironmentVariableOverride&) = delete;
+		ScopedEnvironmentVariableOverride(ScopedEnvironmentVariableOverride&&) = delete;
+		ScopedEnvironmentVariableOverride& operator=(ScopedEnvironmentVariableOverride&&) = delete;
 	private:
-		const wchar_t* name_ = nullptr;
+		const wchar_t* name_;
 		bool hadPreviousValue_ = false;
-		std::wstring previousValue_{};
+		std::wstring previousValue_;
 	};
 
-	std::string MakeSnapshotKey(const std::filesystem::path& path) {
-
-		return path.lexically_normal().generic_string();
-	}
-
-	void TryAddSnapshotFile(std::unordered_map<std::string, std::filesystem::file_time_type>& snapshot,
-		const std::filesystem::path& path) {
-
-		std::error_code ec;
-		if (!std::filesystem::exists(path, ec) || ec || !std::filesystem::is_regular_file(path, ec)) {
-			return;
-		}
-
-		const auto writeTime = std::filesystem::last_write_time(path, ec);
-		if (ec) {
-			return;
-		}
-		snapshot[MakeSnapshotKey(path)] = writeTime;
-	}
-
-	void CollectScriptSnapshotFiles(std::unordered_map<std::string, std::filesystem::file_time_type>& snapshot,
-		const std::filesystem::path& root) {
-
-		std::error_code ec;
-		if (!std::filesystem::exists(root, ec) || ec || !std::filesystem::is_directory(root, ec)) {
-			return;
-		}
-
-		for (std::filesystem::recursive_directory_iterator it(root, ec), end; it != end && !ec; it.increment(ec)) {
-			const std::filesystem::path filePath = it->path();
-			if (it->is_directory(ec)) {
-				const std::string name = filePath.filename().string();
-				if (name == "obj" || name == "bin" || name == ".git") {
-					it.disable_recursion_pending();
-				}
-				continue;
-			}
-			if (!it->is_regular_file(ec)) {
-				continue;
-			}
-			if (filePath.extension() != ".cs") {
-				continue;
-			}
-			TryAddSnapshotFile(snapshot, filePath);
-		}
-	}
-
-	bool HasSnapshotChanged(
-		const std::unordered_map<std::string, std::filesystem::file_time_type>& current,
-		const std::unordered_map<std::string, std::filesystem::file_time_type>& previous) {
-
-		if (current.size() != previous.size()) {
-			return true;
-		}
-
-		for (const auto& [path, time] : current) {
-			auto it = previous.find(path);
-			if (it == previous.end() || it->second != time) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	std::wstring QuoteCommandPath(const std::filesystem::path& path) {
-
-		return L"\"" + path.wstring() + L"\"";
-	}
-
-	std::wstring ToWideAscii(const std::string& text) {
-
-		return std::wstring(text.begin(), text.end());
-	}
-
-	// char配列からstd::stringへ変換する
-	std::string MakeString(const char* text) {
-
-		return text ? std::string(text) : std::string{};
-	}
-
-	// 名前空間付き型名からクラス名だけを取り出す
-	std::string MakeSimpleTypeName(std::string_view typeName) {
-
-		const size_t dot = typeName.find_last_of('.');
-		if (dot == std::string_view::npos) {
-			return std::string(typeName);
-		}
-		return std::string(typeName.substr(dot + 1));
-	}
-
-	// C#へ渡すEntityを作る
-	Engine::ManagedNativeEntity MakeNativeEntity(Engine::ECSWorld& world, const Engine::Entity& entity) {
-
-		Engine::ManagedNativeEntity native{};
-		native.world = reinterpret_cast<std::uintptr_t>(&world);
-		native.index = entity.index;
-		native.generation = entity.generation;
-		return native;
-	}
-
-	// C#から渡されたEntityを解決する
-	Engine::ECSWorld* ResolveWorld(const Engine::ManagedNativeEntity& entity) {
-
-		return reinterpret_cast<Engine::ECSWorld*>(entity.world);
-	}
-
-	Engine::Entity ResolveEntity(const Engine::ManagedNativeEntity& entity) {
-
-		return Engine::Entity{ entity.index, entity.generation };
-	}
-
-	Engine::ManagedNativeEntity MakeNullNativeEntity() {
-
-		return Engine::ManagedNativeEntity{};
-	}
-
-	Engine::ManagedVector2 ToManagedVector2(const Engine::Vector2& value) {
-
-		return Engine::ManagedVector2{ value.x, value.y };
-	}
-
-	// Vector変換
-	Engine::ManagedVector3 ToManagedVector3(const Engine::Vector3& value) {
-
-		return Engine::ManagedVector3{ value.x, value.y, value.z };
-	}
-
-	Engine::Vector3 ToVector3(const Engine::ManagedVector3& value) {
-
-		return Engine::Vector3{ value.x, value.y, value.z };
-	}
-
-	// Quaternion変換
-	Engine::ManagedQuaternion ToManagedQuaternion(const Engine::Quaternion& value) {
-
-		return Engine::ManagedQuaternion{ value.x, value.y, value.z, value.w };
-	}
-
-	Engine::Quaternion ToQuaternion(const Engine::ManagedQuaternion& value) {
-
-		return Engine::Quaternion{ value.x, value.y, value.z, value.w };
-	}
-
-	// 親を考慮してワールド座標をローカル座標へ変換する
-	Engine::Vector3 MakeLocalPositionFromWorld(Engine::ECSWorld& world, const Engine::Entity& entity,
-		const Engine::Vector3& position) {
-
-		const Engine::HierarchyComponent* hierarchy = world.TryGetComponent<Engine::HierarchyComponent>(entity);
-		if (!hierarchy) {
-			return position;
-		}
-
-		const Engine::Entity parent = hierarchy->parent;
-		Engine::TransformComponent* parentTransform = world.TryGetComponent<Engine::TransformComponent>(parent);
-		if (!parentTransform) {
-			return position;
-		}
-
-		const Engine::Matrix4x4 inverseParent = Engine::Matrix4x4::Inverse(parentTransform->worldMatrix);
-		return Engine::Vector3::TransformPoint(position, inverseParent);
-	}
-
-	// トランスフォームを変更済みにする
-	void MarkDirty(Engine::ECSWorld& world, const Engine::Entity& entity) {
-
-		if (!world.TryGetComponent<Engine::TransformComponent>(entity)) {
-			return;
-		}
-		Engine::MarkTransformSubtreeDirty(world, entity);
-	}
-
-	Engine::SceneObjectComponent& EnsureScriptSceneObject(Engine::ECSWorld& world, const Engine::Entity& entity) {
-
-		Engine::SceneObjectComponent* existing = world.TryGetComponent<Engine::SceneObjectComponent>(entity);
-		if (!existing) {
-
-			auto& sceneObject = world.AddComponent<Engine::SceneObjectComponent>(entity);
-			sceneObject.localFileID = Engine::UUID::New();
-			sceneObject.activeSelf = true;
-			sceneObject.activeInHierarchy = true;
-			existing = &sceneObject;
-		}
-
-		auto& sceneObject = *existing;
-		if (!sceneObject.localFileID) {
-			sceneObject.localFileID = Engine::UUID::New();
-		}
-		return sceneObject;
-	}
-
-	void RefreshScriptActiveRecursive(Engine::ECSWorld& world, const Engine::Entity& entity, bool parentActive) {
-
-		if (!world.IsAlive(entity)) {
-			return;
-		}
-
-		auto& sceneObject = EnsureScriptSceneObject(world, entity);
-		sceneObject.activeInHierarchy = parentActive && sceneObject.activeSelf;
-
-		const Engine::HierarchyComponent* hierarchy = world.TryGetComponent<Engine::HierarchyComponent>(entity);
-		if (!hierarchy) {
-			return;
-		}
-
-		Engine::Entity child = hierarchy->firstChild;
-		while (child.IsValid() && world.IsAlive(child)) {
-
-			RefreshScriptActiveRecursive(world, child, sceneObject.activeInHierarchy);
-			const Engine::HierarchyComponent* childHierarchy = world.TryGetComponent<Engine::HierarchyComponent>(child);
-			if (!childHierarchy) {
-				break;
-			}
-			child = childHierarchy->nextSibling;
-		}
-	}
-
-	void RefreshScriptActiveTree(Engine::ECSWorld& world, const Engine::Entity& entity) {
-
-		bool parentActive = true;
-		if (const Engine::HierarchyComponent* hierarchy = world.TryGetComponent<Engine::HierarchyComponent>(entity)) {
-
-			const Engine::Entity parent = hierarchy->parent;
-			if (parent.IsValid() && world.IsAlive(parent)) {
-				parentActive = Engine::IsEntityActiveInHierarchy(world, parent);
-			}
-		}
-		RefreshScriptActiveRecursive(world, entity, parentActive);
-	}
-
-	int32_t CopyStringToBuffer(const std::string& text, char* buffer, int32_t capacity) {
-
-		if (!buffer || capacity <= 0) {
-			return 0;
-		}
-
-		const int32_t length = std::min(static_cast<int32_t>(text.size()), capacity - 1);
-		if (0 < length) {
-			std::memcpy(buffer, text.data(), static_cast<size_t>(length));
-		}
-		buffer[length] = '\0';
-		return length;
-	}
-}
+} // namespace
 
 bool Engine::ManagedScriptRuntime::Init() {
 
@@ -469,33 +146,35 @@ bool Engine::ManagedScriptRuntime::Init() {
 		return true;
 	}
 
+	ConfigureManagedDebugEnvironment();
+
 	scriptCoreAssemblyPath_ = ResolveScriptCoreAssemblyPath();
-	gameAssemblyPath_ = ResolveGameAssemblyPath();
-
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptRuntime: ScriptCore path={}", ToUtf8Path(scriptCoreAssemblyPath_));
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptRuntime: GameScripts path={}", ToUtf8Path(gameAssemblyPath_));
-
 	if (scriptCoreAssemblyPath_.empty()) {
-		Logger::Output(LogType::Engine, spdlog::level::warn,
+		Logger::Output(LogType::Engine, spdlog::level::err,
 			"ManagedScriptRuntime: NEM.ScriptCore.dll was not found.");
 		return false;
 	}
 
-	ConfigureManagedDebugEnvironment();
+	if (!LoadHostfxr()) {
+		// LoadHostfxr内で確保したネイティブリソースは同関数内で解放済み
+		return false;
+	}
 
-	if (!LoadHostfxr() || !InitRuntime() || !LoadBridgeFunctions()) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: failed to initialize .NET host bridge.");
+	if (!LoadBridgeFunctions()) {
+		// 途中失敗でも半端なpointerやhostfxrハンドルを残さない
 		Finalize();
 		return false;
 	}
 
+	// ネイティブ側APIつまりC++側の機能をC#から呼ぶための関数群を初期化する
 	ManagedNativeApiTable callbacks{};
+	// ABIヘッダを先頭に設定する、C#側はversionとsizeとcapabilityを検証し不一致なら初期化を拒否する
+	callbacks.header.abiVersion = kManagedAbiVersion;
+	callbacks.header.structSize = static_cast<uint32_t>(sizeof(ManagedNativeApiTable));
+	callbacks.header.capabilities = kManagedCapabilitiesAll;
+	callbacks.log = &ManagedScriptRuntime::LogCallback;
 	callbacks.getDeltaTime = &ManagedScriptRuntime::GetDeltaTimeCallback;
 	callbacks.getFixedDeltaTime = &ManagedScriptRuntime::GetFixedDeltaTimeCallback;
-	callbacks.log = &ManagedScriptRuntime::LogCallback;
 	callbacks.getKey = &ManagedScriptRuntime::GetKeyCallback;
 	callbacks.getKeyDown = &ManagedScriptRuntime::GetKeyDownCallback;
 	callbacks.getKeyUp = &ManagedScriptRuntime::GetKeyUpCallback;
@@ -530,18 +209,66 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.setLocalScale = &ManagedScriptRuntime::SetLocalScaleCallback;
 	callbacks.getLocalRotation = &ManagedScriptRuntime::GetLocalRotationCallback;
 	callbacks.setLocalRotation = &ManagedScriptRuntime::SetLocalRotationCallback;
+	callbacks.getRotation = &ManagedScriptRuntime::GetRotationCallback;
+	callbacks.setRotation = &ManagedScriptRuntime::SetRotationCallback;
+	callbacks.getLossyScale = &ManagedScriptRuntime::GetLossyScaleCallback;
+	callbacks.getComponentTypeId = &ManagedScriptRuntime::GetComponentTypeIdCallback;
+	callbacks.hasComponent = &ManagedScriptRuntime::HasComponentCallback;
+	callbacks.addComponent = &ManagedScriptRuntime::AddComponentCallback;
+	callbacks.removeComponent = &ManagedScriptRuntime::RemoveComponentCallback;
+	callbacks.destroyEntity = &ManagedScriptRuntime::DestroyEntityCallback;
+	callbacks.getScriptEnabled = &ManagedScriptRuntime::GetScriptEnabledCallback;
+	callbacks.setScriptEnabled = &ManagedScriptRuntime::SetScriptEnabledCallback;
+	// 自動生成component bindingのtyped property dispatchでManagedComponentBindings.json由来
+	callbacks.getComponentProperty = &GeneratedComponentBindings::GetComponentProperty;
+	callbacks.setComponentProperty = &GeneratedComponentBindings::SetComponentProperty;
+	callbacks.getComponentStringProperty = &GeneratedComponentBindings::GetComponentStringProperty;
+	callbacks.setComponentStringProperty = &GeneratedComponentBindings::SetComponentStringProperty;
+	// Gameplay(v7): Time拡張/ TimeScale
+	callbacks.getUnscaledDeltaTime = &ManagedScriptRuntime::GetUnscaledDeltaTimeCallback;
+	callbacks.getUnscaledFixedDeltaTime = &ManagedScriptRuntime::GetUnscaledFixedDeltaTimeCallback;
+	callbacks.getTimeSinceStartup = &ManagedScriptRuntime::GetTimeSinceStartupCallback;
+	callbacks.getUnscaledTime = &ManagedScriptRuntime::GetUnscaledTimeCallback;
+	callbacks.getTimeScale = &ManagedScriptRuntime::GetTimeScaleCallback;
+	callbacks.setTimeScale = &ManagedScriptRuntime::SetTimeScaleCallback;
+	callbacks.getFrameCount = &ManagedScriptRuntime::GetFrameCountCallback;
+	// Gameplay(v7): AssetRef runtime resolve
+	callbacks.assetExists = &ManagedScriptRuntime::AssetExistsCallback;
+	callbacks.copyAssetDisplayName = &ManagedScriptRuntime::CopyAssetDisplayNameCallback;
+	// Gameplay(v7): Entity生成/ Prefab / Scene / SetParent(worldPositionStays)
+	callbacks.createEntity = &ManagedScriptRuntime::CreateEntityCallback;
+	callbacks.instantiatePrefab = &ManagedScriptRuntime::InstantiatePrefabCallback;
+	callbacks.loadSceneAdditive = &ManagedScriptRuntime::LoadSceneAdditiveCallback;
+	callbacks.unloadScene = &ManagedScriptRuntime::UnloadSceneCallback;
+	callbacks.isSceneInstanceAlive = &ManagedScriptRuntime::IsSceneInstanceAliveCallback;
+	callbacks.setParentKeepWorld = &ManagedScriptRuntime::SetParentKeepWorldCallback;
+	// Gameplay v7のraw Input拡張多gamepadとaxisとtextとfocus
+	callbacks.getGamepadButtonIndexed = &ManagedScriptRuntime::GetGamepadButtonIndexedCallback;
+	callbacks.getGamepadButtonDownIndexed = &ManagedScriptRuntime::GetGamepadButtonDownIndexedCallback;
+	callbacks.getGamepadButtonUpIndexed = &ManagedScriptRuntime::GetGamepadButtonUpIndexedCallback;
+	callbacks.getGamepadAxis = &ManagedScriptRuntime::GetGamepadAxisCallback;
+	callbacks.isGamepadConnectedIndexed = &ManagedScriptRuntime::IsGamepadConnectedIndexedCallback;
+	callbacks.getConnectedGamepadCount = &ManagedScriptRuntime::GetConnectedGamepadCountCallback;
+	callbacks.getHasFocus = &ManagedScriptRuntime::GetHasFocusCallback;
+	callbacks.copyTextInput = &ManagedScriptRuntime::CopyTextInputCallback;
+	callbacks.copyProjectRoot = &ManagedScriptRuntime::CopyProjectRootCallback;
+	// Gameplay(v7): AudioSource gameplay method
+	callbacks.audioPlay = &ManagedScriptRuntime::AudioPlayCallback;
+	callbacks.audioPause = &ManagedScriptRuntime::AudioPauseCallback;
+	callbacks.audioStop = &ManagedScriptRuntime::AudioStopCallback;
+	callbacks.audioIsPlaying = &ManagedScriptRuntime::AudioIsPlayingCallback;
+	callbacks.reportScriptException = &ManagedScriptRuntime::ReportScriptExceptionCallback;
 
-	if (!initializeNativeApi_ || initializeNativeApi_(&callbacks) == 0) {
+	if (!initializeNativeApi_ || initializeNativeApi_(&callbacks) != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: failed to initialize native callbacks.");
+			"ManagedScriptRuntime: failed to initialize native callbacks (ABI mismatch or managed exception).");
 		Finalize();
 		return false;
 	}
 
 	initialized_ = true;
-	scriptSourceSnapshot_.clear();
-	hasScriptSourceSnapshot_ = false;
-	nextScriptSourceScanTime_ = std::chrono::steady_clock::time_point{};
+
+	// 初期アセンブリつまり現行ビルド出力をロードする、Edit中の以降のreloadはManagedScriptBuildServiceが行う
 	if (!ReloadGameAssembly()) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ManagedScriptRuntime: GameScripts.dll was not loaded. Managed scripts will be unavailable.");
@@ -551,21 +278,30 @@ bool Engine::ManagedScriptRuntime::Init() {
 
 void Engine::ManagedScriptRuntime::Finalize() {
 
+	// assembly unloadより前にApplication.Quittingを発火する、unloadで購読が解除されるため
+	RaiseApplicationQuitting();
+
 	UnloadGameAssembly();
-	fieldCache_.clear();
-	scriptSourceSnapshot_.clear();
-	hasScriptSourceSnapshot_ = false;
-	nextScriptSourceScanTime_ = std::chrono::steady_clock::time_point{};
+	schemaCache_.clear();
 	currentContext_ = nullptr;
 	initialized_ = false;
 
+	// 関数ポインタのリセット
 	initializeNativeApi_ = nullptr;
 	loadGameAssembly_ = nullptr;
 	unloadGameAssembly_ = nullptr;
+	pumpSceneEvents_ = nullptr;
+	raiseApplicationQuitting_ = nullptr;
+	tickFrame_ = nullptr;
+	getLastAlcUnloadStatus_ = nullptr;
 	getScriptTypeCount_ = nullptr;
-	copyScriptTypeName_ = nullptr;
-	getSerializedFieldCount_ = nullptr;
-	copySerializedFieldInfo_ = nullptr;
+	copyScriptTypeInfo_ = nullptr;
+	generateScriptManifest_ = nullptr;
+	getScriptSchemaJsonSize_ = nullptr;
+	copyScriptSchemaJson_ = nullptr;
+	getRuntimeStateSize_ = nullptr;
+	copyRuntimeState_ = nullptr;
+	setRuntimeField_ = nullptr;
 	createInstance_ = nullptr;
 	setSerializedFields_ = nullptr;
 	destroyInstance_ = nullptr;
@@ -587,64 +323,51 @@ void Engine::ManagedScriptRuntime::Finalize() {
 void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 
 	BehaviorTypeRegistry::GetInstance().ClearManaged();
-	fieldCache_.clear();
+	schemaCache_.clear();
+	lastManagedTypeCount_ = 0;
 
-	if (!initialized_ || !getScriptTypeCount_ || !copyScriptTypeName_) {
+	if (!initialized_ || !getScriptTypeCount_ || !copyScriptTypeInfo_) {
 		return;
 	}
 
-	const int32_t typeCount = getScriptTypeCount_();
+	int32_t typeCount = 0;
+	if (getScriptTypeCount_(&typeCount) != ManagedStatus::Ok) {
+		return;
+	}
+	lastManagedTypeCount_ = typeCount;
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"ManagedScriptRuntime: managed script type count={}", typeCount);
 	for (int32_t i = 0; i < typeCount; ++i) {
 
-		char name[256]{};
-		if (copyScriptTypeName_(i, name, static_cast<int32_t>(sizeof(name))) <= 0) {
+		ManagedScriptTypeDescriptor descriptor{};
+		if (copyScriptTypeInfo_(i, &descriptor) != ManagedStatus::Ok || descriptor.scriptTypeId[0] == '\0') {
 			continue;
 		}
-		BehaviorTypeRegistry::GetInstance().RegisterManaged(name);
+		// Stable GUIDを主キーに登録する、型名とsourcePathは表示とlegacy照合とdrag&drop用
+		BehaviorTypeRegistry::GetInstance().RegisterManaged(
+			descriptor.scriptTypeId, descriptor.fullTypeName, descriptor.displayName, descriptor.sourcePath,
+			descriptor.defaultExecutionOrder);
 		Logger::Output(LogType::Engine, spdlog::level::info,
-			"ManagedScriptRuntime: registered managed script type={}", name);
+			"ManagedScriptRuntime: registered managed script type={} id={}",
+			descriptor.fullTypeName, descriptor.scriptTypeId);
 	}
-}
-
-bool Engine::ManagedScriptRuntime::BuildGameAssembly() {
-
-	const std::filesystem::path projectPath = ResolveGameScriptProjectPath();
-	if (projectPath.empty()) {
-		Logger::Output(LogType::Engine, spdlog::level::info,
-			"ManagedScriptRuntime: GameScripts.csproj was not found. Skipping C# script build.");
-		return true;
-	}
-
-	const std::wstring command =
-		L"set DOTNET_CLI_UI_LANGUAGE=en && dotnet build " + QuoteCommandPath(projectPath) +
-		L" -c \"" + ToWideAscii(GetBuildProfile()) +
-		L"\" --nologo --no-dependencies -p:DebugType=portable -p:DebugSymbols=true -p:Optimize=false";
-
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptRuntime: building GameScripts.csproj path={}", ToUtf8Path(projectPath));
-
-	const int result = _wsystem(command.c_str());
-	if (result != 0) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: dotnet build failed. code={}", result);
-		return false;
-	}
-
-	gameAssemblyPath_ = ResolveGameAssemblyPath();
-	return true;
 }
 
 bool Engine::ManagedScriptRuntime::ReloadGameAssembly(bool waitForManagedDebugger) {
+
+	// ResolveGameAssemblyPathの現行ビルド出力をロードする初期ロード用
+	return LoadGameAssemblyFromPath(ResolveGameAssemblyPath(), waitForManagedDebugger);
+}
+
+bool Engine::ManagedScriptRuntime::LoadGameAssemblyFromPath(const std::filesystem::path& dllPath, bool waitForManagedDebugger) {
 
 	if (!initialized_) {
 		return false;
 	}
 
-	auto doReload = [this]() {
+	auto doReload = [this, &dllPath]() {
 		UnloadGameAssembly();
-		gameAssemblyPath_ = ResolveGameAssemblyPath();
+		gameAssemblyPath_ = dllPath;
 		if (!LoadGameAssembly()) {
 			return false;
 		}
@@ -653,6 +376,7 @@ bool Engine::ManagedScriptRuntime::ReloadGameAssembly(bool waitForManagedDebugge
 	};
 
 	if (waitForManagedDebugger) {
+		// managed debuggerのattach待ちはユーザーの明示オプションでenv経由でC#側へ伝える
 		ScopedEnvironmentVariableOverride waitOverride(L"NEM_MANAGED_WAIT_FOR_DEBUGGER", L"1");
 		return doReload();
 	}
@@ -661,7 +385,7 @@ bool Engine::ManagedScriptRuntime::ReloadGameAssembly(bool waitForManagedDebugge
 
 void Engine::ManagedScriptRuntime::UnloadGameAssembly() {
 
-	fieldCache_.clear();
+	schemaCache_.clear();
 	BehaviorTypeRegistry::GetInstance().ClearManaged();
 
 	if (unloadGameAssembly_) {
@@ -669,73 +393,28 @@ void Engine::ManagedScriptRuntime::UnloadGameAssembly() {
 	}
 }
 
-void Engine::ManagedScriptRuntime::AutoRebuildOnScriptChanges() {
-
-	if (!initialized_) {
-		return;
-	}
-
-	const auto now = std::chrono::steady_clock::now();
-	if (now < nextScriptSourceScanTime_) {
-		return;
-	}
-	nextScriptSourceScanTime_ = now + std::chrono::milliseconds(500);
-
-	const std::filesystem::path projectPath = ResolveGameScriptProjectPath();
-	if (projectPath.empty()) {
-		scriptSourceSnapshot_.clear();
-		hasScriptSourceSnapshot_ = false;
-		return;
-	}
-
-	std::unordered_map<std::string, std::filesystem::file_time_type> currentSnapshot{};
-	TryAddSnapshotFile(currentSnapshot, projectPath);
-
-	const std::filesystem::path scriptsRoot = projectPath.parent_path();
-	const std::filesystem::path gameAssetsRoot = scriptsRoot.parent_path() / "GameAssets";
-	CollectScriptSnapshotFiles(currentSnapshot, scriptsRoot);
-	CollectScriptSnapshotFiles(currentSnapshot, gameAssetsRoot);
-
-	if (!hasScriptSourceSnapshot_) {
-		scriptSourceSnapshot_ = std::move(currentSnapshot);
-		hasScriptSourceSnapshot_ = true;
-		return;
-	}
-
-	if (!HasSnapshotChanged(currentSnapshot, scriptSourceSnapshot_)) {
-		return;
-	}
-
-	scriptSourceSnapshot_ = std::move(currentSnapshot);
-
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptRuntime: detected C# source changes. rebuilding GameScripts...");
-	UnloadGameAssembly();
-	if (!BuildGameAssembly()) {
-		// ビルド失敗時は直前のDLLを再ロードして、Inspector上のスクリプト情報を維持する
-		ReloadGameAssembly();
-		return;
-	}
-	if (!ReloadGameAssembly()) {
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptRuntime: source change was detected, but GameScripts.dll reload failed.");
-	}
+std::filesystem::path Engine::ManagedScriptRuntime::GameScriptProjectPath() const {
+	return ResolveGameScriptProjectPath();
 }
 
-int32_t Engine::ManagedScriptRuntime::CreateInstance(const std::string& typeName,
-	ECSWorld& world, const Entity& entity, const nlohmann::json& serializedFields) {
+Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance(const std::string& scriptTypeId,
+	ECSWorld& world, const Entity& entity, const nlohmann::json& serializedFields, uint64_t scriptSlotId) {
 
 	if (!initialized_ || !createInstance_) {
-		return 0;
+		return ManagedScriptInstanceHandle::Null();
 	}
 
 	const std::string json = serializedFields.is_object() ? serializedFields.dump() : std::string("{}");
-	return createInstance_(typeName.c_str(), MakeNativeEntity(world, entity), json.c_str());
+	ManagedScriptInstanceHandle createdHandle = ManagedScriptInstanceHandle::Null();
+	const ManagedStatus status = createInstance_(scriptTypeId.c_str(), MakeNativeEntity(world, entity), json.c_str(),
+		scriptSlotId, &createdHandle);
+	// 生成失敗時は無効ハンドルを返す
+	return status == ManagedStatus::Ok ? createdHandle : ManagedScriptInstanceHandle::Null();
 }
 
-void Engine::ManagedScriptRuntime::SetSerializedFields(int32_t handle, const nlohmann::json& serializedFields) {
+void Engine::ManagedScriptRuntime::SetSerializedFields(ManagedScriptInstanceHandle handle, const nlohmann::json& serializedFields) {
 
-	if (!initialized_ || !setSerializedFields_ || handle == 0) {
+	if (!initialized_ || !setSerializedFields_ || !handle.IsValid()) {
 		return;
 	}
 
@@ -743,200 +422,280 @@ void Engine::ManagedScriptRuntime::SetSerializedFields(int32_t handle, const nlo
 	setSerializedFields_(handle, json.c_str());
 }
 
-void Engine::ManagedScriptRuntime::DestroyInstance(int32_t handle) {
+void Engine::ManagedScriptRuntime::DestroyInstance(ManagedScriptInstanceHandle handle) {
 
-	if (!initialized_ || !destroyInstance_ || handle == 0) {
+	if (!initialized_ || !destroyInstance_ || !handle.IsValid()) {
 		return;
 	}
 	destroyInstance_(handle);
 }
 
-void Engine::ManagedScriptRuntime::InvokeAwake(int32_t handle, const SystemContext& context) {
-
-	Invoke(invokeAwake_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeAwake(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	return Invoke(invokeAwake_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeStart(int32_t handle, const SystemContext& context) {
-
-	Invoke(invokeStart_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeStart(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	return Invoke(invokeStart_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeOnEnable(int32_t handle, const SystemContext& context) {
-
-	Invoke(invokeOnEnable_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnEnable(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	return Invoke(invokeOnEnable_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeOnDisable(int32_t handle, const SystemContext& context) {
-
-	Invoke(invokeOnDisable_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnDisable(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	return Invoke(invokeOnDisable_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeOnDestroy(int32_t handle, const SystemContext& context) {
-
-	Invoke(invokeOnDestroy_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnDestroy(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	return Invoke(invokeOnDestroy_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeFixedUpdate(int32_t handle, const SystemContext& context) {
-
-	Invoke(invokeFixedUpdate_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeFixedUpdate(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	return Invoke(invokeFixedUpdate_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeUpdate(int32_t handle, const SystemContext& context) {
-
-	Invoke(invokeUpdate_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeUpdate(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	return Invoke(invokeUpdate_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeLateUpdate(int32_t handle, const SystemContext& context) {
-
-	Invoke(invokeLateUpdate_, handle, context);
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeLateUpdate(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	return Invoke(invokeLateUpdate_, handle, context);
 }
 
-void Engine::ManagedScriptRuntime::InvokeCollisionEnter(int32_t handle,
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionEnter(ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
-
-	// C#側のOnCollisionEnterへ渡す
-	InvokeCollision(invokeCollisionEnter_, handle, context, collision);
+	return InvokeCollision(invokeCollisionEnter_, handle, context, collision);
 }
 
-void Engine::ManagedScriptRuntime::InvokeCollisionStay(int32_t handle,
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionStay(ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
-
-	// C#側のOnCollisionStayへ渡す
-	InvokeCollision(invokeCollisionStay_, handle, context, collision);
+	return InvokeCollision(invokeCollisionStay_, handle, context, collision);
 }
 
-void Engine::ManagedScriptRuntime::InvokeCollisionExit(int32_t handle,
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionExit(ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
-
-	// C#側のOnCollisionExitへ渡す
-	InvokeCollision(invokeCollisionExit_, handle, context, collision);
+	return InvokeCollision(invokeCollisionExit_, handle, context, collision);
 }
 
-const std::vector<Engine::ManagedScriptField>& Engine::ManagedScriptRuntime::GetSerializedFields(const std::string& typeName) {
+namespace {
 
-	static const std::vector<ManagedScriptField> kEmpty{};
+	// schema JSON の "kind" 文字列を enum へ
+	Engine::ManagedSerializedFieldKind ParseFieldKind(const std::string& kind) {
 
-	if (auto it = fieldCache_.find(typeName); it != fieldCache_.end()) {
+		using K = Engine::ManagedSerializedFieldKind;
+		static const std::unordered_map<std::string, K> kMap = {
+			{ "Bool", K::Bool }, { "Byte", K::Byte }, { "SByte", K::SByte }, { "Short", K::Short },
+			{ "UShort", K::UShort }, { "Int", K::Int }, { "UInt", K::UInt }, { "Long", K::Long },
+			{ "ULong", K::ULong }, { "Float", K::Float }, { "Double", K::Double }, { "String", K::String },
+			{ "Enum", K::Enum }, { "Vector2", K::Vector2 }, { "Vector3", K::Vector3 }, { "Vector4", K::Vector4 },
+			{ "Quaternion", K::Quaternion }, { "Color3", K::Color3 }, { "Color4", K::Color4 },
+			{ "Nullable", K::Nullable }, { "Array", K::Array }, { "List", K::List },
+			{ "AssetRef", K::AssetRef }, { "EntityRef", K::EntityRef }, { "ScriptRef", K::ScriptRef },
+		};
+		auto it = kMap.find(kind);
+		return it != kMap.end() ? it->second : K::Unsupported;
+	}
+
+	// 1フィールドのschema nodeをparseする、collectionやnullableはelementを再帰する
+	Engine::ManagedFieldSchema ParseFieldSchema(const nlohmann::json& node) {
+
+		Engine::ManagedFieldSchema field{};
+		field.fieldId = node.value("fieldId", std::string{});
+		field.name = node.value("name", std::string{});
+		field.declaringType = node.value("declaringType", std::string{});
+		field.kind = ParseFieldKind(node.value("kind", std::string("Unsupported")));
+		field.isPublic = node.value("isPublic", false);
+		field.isReadOnly = node.value("isReadOnly", false);
+		field.isHidden = node.value("isHidden", false);
+		field.multiline = node.value("multiline", false);
+		field.tooltip = node.value("tooltip", std::string{});
+		field.header = node.value("header", std::string{});
+		field.enumUnderlying = node.value("enumUnderlying", std::string{});
+		field.assetType = node.value("assetType", std::string{});
+		field.scriptType = node.value("scriptType", std::string{});
+		field.defaultValueJson = node.value("defaultValueJson", std::string("null"));
+
+		if (node.contains("formerNames") && node["formerNames"].is_array()) {
+			for (const auto& n : node["formerNames"]) {
+				field.formerNames.push_back(n.get<std::string>());
+			}
+		}
+		if (node.contains("range") && node["range"].is_object()) {
+			field.hasRange = true;
+			field.rangeMin = node["range"].value("min", 0.0f);
+			field.rangeMax = node["range"].value("max", 0.0f);
+		}
+		if (node.contains("min") && node["min"].is_number()) {
+			field.hasMin = true;
+			field.minValue = node["min"].get<float>();
+		}
+		if (node.contains("dragSpeed") && node["dragSpeed"].is_number()) {
+			field.hasDragSpeed = true;
+			field.dragSpeed = node["dragSpeed"].get<float>();
+		}
+		if (node.contains("enumNames") && node["enumNames"].is_array()) {
+			for (const auto& n : node["enumNames"]) {
+				field.enumNames.push_back(n.get<std::string>());
+			}
+		}
+		if (node.contains("enumValues") && node["enumValues"].is_array()) {
+			for (const auto& v : node["enumValues"]) {
+				field.enumValues.push_back(v.get<std::string>());
+			}
+		}
+		if (node.contains("element") && node["element"].is_object()) {
+			field.element = std::make_shared<Engine::ManagedFieldSchema>(ParseFieldSchema(node["element"]));
+		}
+		return field;
+	}
+}
+
+const Engine::ManagedScriptSchema& Engine::ManagedScriptRuntime::GetScriptSchema(const std::string& scriptTypeId) {
+
+	static const ManagedScriptSchema kEmpty{};
+
+	if (scriptTypeId.empty()) {
+		return kEmpty;
+	}
+	if (auto it = schemaCache_.find(scriptTypeId); it != schemaCache_.end()) {
 		return it->second;
 	}
-	if (!initialized_ || !getSerializedFieldCount_ || !copySerializedFieldInfo_) {
+	if (!initialized_ || !getScriptSchemaJsonSize_ || !copyScriptSchemaJson_) {
 		return kEmpty;
 	}
 
-	const int32_t fieldCount = getSerializedFieldCount_(typeName.c_str());
-	std::vector<ManagedScriptField> fields{};
-	fields.reserve(std::max(0, fieldCount));
+	// 二段階blobで必要sizeを取得してからvector確保してcopyする、固定長bufferを使わない
+	int32_t size = 0;
+	if (getScriptSchemaJsonSize_(scriptTypeId.c_str(), &size) != ManagedStatus::Ok || size <= 0) {
+		return kEmpty;
+	}
+	std::string buffer(static_cast<size_t>(size), '\0');
+	int32_t written = 0;
+	if (copyScriptSchemaJson_(scriptTypeId.c_str(), buffer.data(), size, &written) != ManagedStatus::Ok) {
+		return kEmpty;
+	}
+	buffer.resize(static_cast<size_t>(written));
 
-	for (int32_t i = 0; i < fieldCount; ++i) {
-
-		ManagedNativeSerializedFieldInfo nativeInfo{};
-		if (copySerializedFieldInfo_(typeName.c_str(), i, &nativeInfo) == 0) {
-			continue;
+	ManagedScriptSchema schema{};
+	schema.scriptTypeId = scriptTypeId;
+	try {
+		nlohmann::json root = nlohmann::json::parse(buffer);
+		schema.schemaVersion = root.value("schemaVersion", 0);
+		schema.fullTypeName = root.value("fullTypeName", std::string{});
+		if (root.contains("fields") && root["fields"].is_array()) {
+			for (const auto& fieldNode : root["fields"]) {
+				schema.fields.push_back(ParseFieldSchema(fieldNode));
+			}
 		}
-
-		ManagedScriptField field{};
-		field.name = MakeString(nativeInfo.name);
-		field.displayName = MakeString(nativeInfo.displayName);
-		field.kind = static_cast<ManagedSerializedFieldKind>(nativeInfo.kind);
-		field.isPublic = nativeInfo.isPublic != 0;
-		field.defaultValueJson = MakeString(nativeInfo.defaultValueJson);
-		fields.emplace_back(std::move(field));
+	}
+	catch (const nlohmann::json::exception& e) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ManagedScriptRuntime: failed to parse script schema for {}: {}", scriptTypeId, e.what());
 	}
 
-	auto [it, inserted] = fieldCache_.emplace(typeName, std::move(fields));
+	auto [it, inserted] = schemaCache_.emplace(scriptTypeId, std::move(schema));
 	return it->second;
 }
 
-bool Engine::ManagedScriptRuntime::TryResolveScriptTypeName(const std::string_view& scriptName, std::string& outTypeName) const {
+nlohmann::json Engine::ManagedScriptRuntime::BuildSerializedValueMap(const std::string& scriptTypeId,
+	const nlohmann::json& serializedFields) {
 
-	const auto& registry = BehaviorTypeRegistry::GetInstance();
+	// instanceへ適用するfieldGuidからvalueのマップを作る、新形式はそのままlegacy flatは名前でmigrationする
+	nlohmann::json result = nlohmann::json::object();
+	if (!serializedFields.is_object()) {
+		return result;
+	}
 
-	// まず完全一致を優先して、名前空間を含む指定でも曖昧にならないようにする
-	if (const BehaviorTypeInfo* info = registry.FindByName(scriptName)) {
-		if (info->managed) {
-			outTypeName = info->name;
-			return true;
+	// 新形式{ fields: { guid: { name, type, value } } }
+	if (serializedFields.contains("fields") && serializedFields["fields"].is_object()) {
+
+		for (auto& [guid, entry] : serializedFields["fields"].items()) {
+			if (entry.is_object() && entry.contains("value")) {
+				result[guid] = entry["value"];
+			} else {
+				result[guid] = entry;
+			}
+		}
+		return result;
+	}
+
+	// legacy flatなnameからvalue形式で、schemaのnameやformerNamesからguidを引いて移行する
+	const ManagedScriptSchema& schema = GetScriptSchema(scriptTypeId);
+	std::unordered_map<std::string, std::string> nameToGuid;
+	for (const ManagedFieldSchema& field : schema.fields) {
+		nameToGuid[field.name] = field.fieldId;
+		for (const std::string& former : field.formerNames) {
+			nameToGuid.emplace(former, field.fieldId);
 		}
 	}
-
-	// アセット名は通常ファイル名なので、C#側のクラス名と照合する
-	const std::string simpleName = MakeSimpleTypeName(scriptName);
-	if (const BehaviorTypeInfo* info = registry.FindManagedBySimpleName(simpleName)) {
-		outTypeName = info->name;
-		return true;
+	for (auto& [name, value] : serializedFields.items()) {
+		auto it = nameToGuid.find(name);
+		if (it != nameToGuid.end()) {
+			result[it->second] = value;
+		}
 	}
-	return false;
+	return result;
+}
+
+nlohmann::json Engine::ManagedScriptRuntime::GetRuntimeSerializedState(ManagedScriptInstanceHandle handle) {
+
+	nlohmann::json empty = nlohmann::json::object();
+	if (!initialized_ || !getRuntimeStateSize_ || !copyRuntimeState_ || !handle.IsValid()) {
+		return empty;
+	}
+
+	int32_t size = 0;
+	if (getRuntimeStateSize_(handle, &size) != ManagedStatus::Ok || size <= 0) {
+		return empty;
+	}
+	std::string buffer(static_cast<size_t>(size), '\0');
+	int32_t written = 0;
+	if (copyRuntimeState_(handle, buffer.data(), size, &written) != ManagedStatus::Ok) {
+		return empty;
+	}
+	buffer.resize(static_cast<size_t>(written));
+	try {
+		return nlohmann::json::parse(buffer);
+	}
+	catch (const nlohmann::json::exception&) {
+		return empty;
+	}
+}
+
+void Engine::ManagedScriptRuntime::SetRuntimeSerializedField(ManagedScriptInstanceHandle handle,
+	const std::string& fieldId, const nlohmann::json& value) {
+
+	if (!initialized_ || !setRuntimeField_ || !handle.IsValid() || fieldId.empty()) {
+		return;
+	}
+	const std::string valueJson = value.dump();
+	setRuntimeField_(handle, fieldId.c_str(), valueJson.c_str());
+}
+
+Engine::ManagedStatus Engine::ManagedScriptRuntime::GenerateScriptManifest(
+	const std::filesystem::path& assemblyPath, const std::filesystem::path& manifestOutputPath) {
+
+	if (!initialized_ || !generateScriptManifest_) {
+		return ManagedStatus::Unsupported;
+	}
+	// C#側が一時collectible ALCで対象DLLを反射し検証してmanifest JSONを書き出す、現行DLLは触らない
+	const std::string dll = ToUtf8Path(assemblyPath);
+	const std::string out = ToUtf8Path(manifestOutputPath);
+	return generateScriptManifest_(dll.c_str(), out.c_str());
 }
 
 Engine::ManagedScriptRuntime& Engine::ManagedScriptRuntime::GetInstance() {
-
 	static ManagedScriptRuntime runtime;
 	return runtime;
 }
 
 bool Engine::ManagedScriptRuntime::LoadHostfxr() {
 
-	const std::filesystem::path hostfxrPath = FindHostfxrPath();
-	if (hostfxrPath.empty()) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: hostfxr.dll was not found.");
-		return false;
-	}
-
-	hostfxrLibrary_ = ::LoadLibraryW(hostfxrPath.c_str());
-	if (!hostfxrLibrary_) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: failed to load hostfxr.dll.");
-		return false;
-	}
-
-	auto loadFunction = [&](const char* name) -> void* {
-		return reinterpret_cast<void*>(::GetProcAddress(static_cast<HMODULE>(hostfxrLibrary_), name));
-		};
-
-	hostfxrClose_ = reinterpret_cast<HostfxrCloseFn>(loadFunction("hostfxr_close"));
-	auto initializeForRuntimeConfig =
-		reinterpret_cast<HostfxrInitializeForRuntimeConfigFn>(loadFunction("hostfxr_initialize_for_runtime_config"));
-	auto getRuntimeDelegate =
-		reinterpret_cast<HostfxrGetRuntimeDelegateFn>(loadFunction("hostfxr_get_runtime_delegate"));
-
-	if (!hostfxrClose_ || !initializeForRuntimeConfig || !getRuntimeDelegate) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: hostfxr exports were not found.");
-		return false;
-	}
-
-	HostfxrHandle context = nullptr;
+	// nethostのget_hostfxr_pathを使った公式フローでhostfxrを解決して初期化する、探索とロードとデリゲート取得とRAIIによる失敗時cleanupはDotnetHostResolverに集約している
 	const std::filesystem::path runtimeConfigPath =
 		scriptCoreAssemblyPath_.parent_path() / "NEM.ScriptCore.runtimeconfig.json";
-	if (!std::filesystem::exists(runtimeConfigPath)) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: runtimeconfig was not found. path={}", ToUtf8Path(runtimeConfigPath));
-		return false;
-	}
 
-	int32_t result = initializeForRuntimeConfig(runtimeConfigPath.c_str(), nullptr, &context);
-	if (result != 0 || !context) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: hostfxr_initialize_for_runtime_config failed. code={}", result);
-		return false;
-	}
-
-	result = getRuntimeDelegate(context, kLoadAssemblyAndGetFunctionPointer,
-		reinterpret_cast<void**>(&loadAssemblyAndGetFunctionPointer_));
-	hostfxrClose_(context);
-
-	if (result != 0 || !loadAssemblyAndGetFunctionPointer_) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: failed to get load_assembly_and_get_function_pointer. code={}", result);
-		return false;
-	}
-	return true;
-}
-
-bool Engine::ManagedScriptRuntime::InitRuntime() {
-
-	return loadAssemblyAndGetFunctionPointer_ != nullptr;
+	return dotnetHost_.Initialize(scriptCoreAssemblyPath_, runtimeConfigPath);
 }
 
 bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
@@ -945,10 +704,18 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	success &= LoadBridgeFunction(initializeNativeApi_, L"InitializeNativeApi");
 	success &= LoadBridgeFunction(loadGameAssembly_, L"LoadGameAssembly");
 	success &= LoadBridgeFunction(unloadGameAssembly_, L"UnloadGameAssembly");
+	success &= LoadBridgeFunction(pumpSceneEvents_, L"PumpSceneEvents");
+	success &= LoadBridgeFunction(raiseApplicationQuitting_, L"RaiseApplicationQuitting");
+	success &= LoadBridgeFunction(tickFrame_, L"TickFrame");
+	success &= LoadBridgeFunction(getLastAlcUnloadStatus_, L"GetLastAlcUnloadStatus");
 	success &= LoadBridgeFunction(getScriptTypeCount_, L"GetScriptTypeCount");
-	success &= LoadBridgeFunction(copyScriptTypeName_, L"CopyScriptTypeName");
-	success &= LoadBridgeFunction(getSerializedFieldCount_, L"GetSerializedFieldCount");
-	success &= LoadBridgeFunction(copySerializedFieldInfo_, L"CopySerializedFieldInfo");
+	success &= LoadBridgeFunction(copyScriptTypeInfo_, L"CopyScriptTypeInfo");
+	success &= LoadBridgeFunction(generateScriptManifest_, L"GenerateScriptManifest");
+	success &= LoadBridgeFunction(getScriptSchemaJsonSize_, L"GetScriptSchemaJsonSize");
+	success &= LoadBridgeFunction(copyScriptSchemaJson_, L"CopyScriptSchemaJson");
+	success &= LoadBridgeFunction(getRuntimeStateSize_, L"GetRuntimeSerializedStateSize");
+	success &= LoadBridgeFunction(copyRuntimeState_, L"CopyRuntimeSerializedState");
+	success &= LoadBridgeFunction(setRuntimeField_, L"SetRuntimeSerializedField");
 	success &= LoadBridgeFunction(createInstance_, L"CreateInstance");
 	success &= LoadBridgeFunction(setSerializedFields_, L"SetSerializedFields");
 	success &= LoadBridgeFunction(destroyInstance_, L"DestroyInstance");
@@ -960,8 +727,6 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	success &= LoadBridgeFunction(invokeFixedUpdate_, L"InvokeFixedUpdate");
 	success &= LoadBridgeFunction(invokeUpdate_, L"InvokeUpdate");
 	success &= LoadBridgeFunction(invokeLateUpdate_, L"InvokeLateUpdate");
-
-	// Collisionイベント用のブリッジ関数
 	success &= LoadBridgeFunction(invokeCollisionEnter_, L"InvokeCollisionEnter");
 	success &= LoadBridgeFunction(invokeCollisionStay_, L"InvokeCollisionStay");
 	success &= LoadBridgeFunction(invokeCollisionExit_, L"InvokeCollisionExit");
@@ -982,7 +747,7 @@ bool Engine::ManagedScriptRuntime::LoadGameAssembly() {
 	const std::string path = ToUtf8Path(gameAssemblyPath_);
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"ManagedScriptRuntime: loading GameScripts.dll from {}", path);
-	if (loadGameAssembly_(path.c_str()) == 0) {
+	if (loadGameAssembly_(path.c_str()) != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"ManagedScriptRuntime: failed to load GameScripts.dll. path={}", path);
 		return false;
@@ -992,456 +757,139 @@ bool Engine::ManagedScriptRuntime::LoadGameAssembly() {
 
 void Engine::ManagedScriptRuntime::ReleaseHostfxr() {
 
-	loadAssemblyAndGetFunctionPointer_ = nullptr;
-	hostfxrClose_ = nullptr;
-
-	if (hostfxrLibrary_) {
-		::FreeLibrary(static_cast<HMODULE>(hostfxrLibrary_));
-		hostfxrLibrary_ = nullptr;
-	}
+	// hostfxrライブラリの解放とデリゲート無効化はResolverのRAIIに委譲する、Shutdownは複数回呼び出しても安全でFinalizeの多重呼び出しに対応する
+	dotnetHost_.Shutdown();
 }
 
-void Engine::ManagedScriptRuntime::Invoke(InvokeFn function, int32_t handle, const SystemContext& context) {
+Engine::ManagedStatus Engine::ManagedScriptRuntime::Invoke(InvokeFn function, ManagedScriptInstanceHandle handle, const SystemContext& context) {
 
-	if (!initialized_ || !function || handle == 0) {
-		return;
+	if (!initialized_ || !function || !handle.IsValid()) {
+		return ManagedStatus::InvalidInstanceHandle;
 	}
-
-	// C#呼び出し時間を計測してプロファイラへ加算する
 	FrameProfiler::ScopedSample scriptSample(FrameProfiler::Category::Script);
-	currentContext_ = &context;
-	function(handle);
-	currentContext_ = nullptr;
+	// contextはRAIIで設定しC#側で例外が起きても確実に元へ戻す
+	ScopedInvocationContext contextScope(context);
+	return function(handle);
 }
 
-void Engine::ManagedScriptRuntime::InvokeCollision(InvokeCollisionFn function, int32_t handle,
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollision(InvokeCollisionFn function, ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
 
-	if (!initialized_ || !function || handle == 0) {
-		return;
+	if (!initialized_ || !function || !handle.IsValid()) {
+		return ManagedStatus::InvalidInstanceHandle;
 	}
-
-	// Collisionイベント中だけSystemContextをC#コールバックから参照できるようにする
 	FrameProfiler::ScopedSample scriptSample(FrameProfiler::Category::Script);
+	ScopedInvocationContext contextScope(context);
+	return function(handle, collision);
+}
+
+//============================================================================
+//	invocation contextのthread_local実体とRAIIガード
+//============================================================================
+thread_local const Engine::SystemContext* Engine::ManagedScriptRuntime::currentContext_ = nullptr;
+
+// gameplay time serviceの状態でmain threadのみが更新する
+float Engine::ManagedScriptRuntime::timeScale_ = 1.0f;
+float Engine::ManagedScriptRuntime::scaledDeltaTime_ = 0.0f;
+float Engine::ManagedScriptRuntime::unscaledDeltaTime_ = 0.0f;
+float Engine::ManagedScriptRuntime::fixedDeltaTime_ = 1.0f / 60.0f;
+double Engine::ManagedScriptRuntime::timeSinceStartup_ = 0.0;
+double Engine::ManagedScriptRuntime::unscaledTime_ = 0.0;
+uint64_t Engine::ManagedScriptRuntime::frameCount_ = 0;
+
+const Engine::SystemContext* Engine::ManagedScriptRuntime::GetCurrentContext() {
+	return currentContext_;
+}
+
+namespace {
+
+	// NaNやinfは等速1.0へ、負値は0へ丸めてtime scaleを安全化する
+	float SanitizeTimeScale(float value) {
+		if (!std::isfinite(value)) {
+			return 1.0f;
+		}
+		return value < 0.0f ? 0.0f : value;
+	}
+}
+
+void Engine::ManagedScriptRuntime::BeginPlayTime(ECSWorld* playWorld) {
+
+	// authoringのTimeScaleComponentがあれば初期scaleとして読み、最後に見つかった値を採用する
+	timeScale_ = 1.0f;
+	if (playWorld) {
+		playWorld->ForEach<TimeScaleComponent>([&](Entity, TimeScaleComponent& component) {
+			timeScale_ = SanitizeTimeScale(component.timeScale);
+			});
+	}
+	scaledDeltaTime_ = 0.0f;
+	unscaledDeltaTime_ = 0.0f;
+	timeSinceStartup_ = 0.0;
+	unscaledTime_ = 0.0;
+	frameCount_ = 0;
+}
+
+float Engine::ManagedScriptRuntime::AdvanceTime(float rawDeltaTime, float fixedDeltaTime, bool advancing) {
+
+	fixedDeltaTime_ = fixedDeltaTime;
+	if (!advancing) {
+		// Editや停止中は累積せずunscaledも進めない、Play worldの時間のみを扱う
+		scaledDeltaTime_ = 0.0f;
+		unscaledDeltaTime_ = 0.0f;
+		return 0.0f;
+	}
+	unscaledDeltaTime_ = rawDeltaTime;
+	scaledDeltaTime_ = rawDeltaTime * timeScale_;
+	unscaledTime_ += static_cast<double>(rawDeltaTime);
+	timeSinceStartup_ += static_cast<double>(scaledDeltaTime_);
+	++frameCount_;
+	return scaledDeltaTime_;
+}
+
+void Engine::ManagedScriptRuntime::PumpSceneEvents() {
+
+	// C#側でSceneのload/unload完了を検出してSceneLoaded/SceneUnloadedを発火する
+	if (pumpSceneEvents_) {
+		pumpSceneEvents_();
+	}
+}
+
+void Engine::ManagedScriptRuntime::RaiseApplicationQuitting() {
+
+	// application shutdown前にC# Application.Quittingを一度だけ発火する
+	if (raiseApplicationQuitting_) {
+		raiseApplicationQuitting_();
+	}
+}
+
+void Engine::ManagedScriptRuntime::TickFrame(int32_t phase) {
+
+	// TimerとCoroutineをmain threadで駆動する、phaseは0がUpdate 1がFixedUpdate 2がEndOfFrame
+	if (tickFrame_) {
+		tickFrame_(phase);
+	}
+}
+
+Engine::AlcUnloadStatus Engine::ManagedScriptRuntime::GetLastAlcUnloadStatus() {
+
+	if (!getLastAlcUnloadStatus_) {
+		return AlcUnloadStatus::Unknown;
+	}
+	const int32_t status = getLastAlcUnloadStatus_();
+	if (status == 1) {
+		return AlcUnloadStatus::UnloadSucceeded;
+	}
+	if (status == 2) {
+		return AlcUnloadStatus::LeakSuspected;
+	}
+	return AlcUnloadStatus::Unknown;
+}
+
+Engine::ManagedScriptRuntime::ScopedInvocationContext::ScopedInvocationContext(const SystemContext& context) :
+	previous_(currentContext_) {
+	// ネスト呼び出しに備えて以前のcontextを退避してから差し替える
 	currentContext_ = &context;
-	function(handle, collision);
-	currentContext_ = nullptr;
 }
 
-float Engine::ManagedScriptRuntime::GetDeltaTimeCallback() {
-
-	const SystemContext* context = GetInstance().currentContext_;
-	return context ? context->deltaTime : 0.0f;
-}
-
-float Engine::ManagedScriptRuntime::GetFixedDeltaTimeCallback() {
-
-	const SystemContext* context = GetInstance().currentContext_;
-	return context ? context->fixedDeltaTime : 0.0f;
-}
-
-void Engine::ManagedScriptRuntime::LogCallback(int32_t level, const char* message) {
-
-	spdlog::level::level_enum logLevel = spdlog::level::info;
-	if (level == 1) {
-		logLevel = spdlog::level::warn;
-	} else if (level == 2) {
-		logLevel = spdlog::level::err;
-	}
-	Logger::Output(LogType::GameLogic, logLevel, "{}", message ? message : "");
-}
-
-int32_t Engine::ManagedScriptRuntime::GetKeyCallback(int32_t key) {
-
-	if (key < 0 || 255 < key) {
-		return 0;
-	}
-	Input* input = Input::GetInstance();
-	return input && input->PushKey(static_cast<BYTE>(key)) ? 1 : 0;
-}
-
-int32_t Engine::ManagedScriptRuntime::GetKeyDownCallback(int32_t key) {
-
-	if (key < 0 || 255 < key) {
-		return 0;
-	}
-	Input* input = Input::GetInstance();
-	return input && input->TriggerKey(static_cast<BYTE>(key)) ? 1 : 0;
-}
-
-int32_t Engine::ManagedScriptRuntime::GetKeyUpCallback(int32_t key) {
-
-	if (key < 0 || 255 < key) {
-		return 0;
-	}
-	Input* input = Input::GetInstance();
-	return input && input->ReleaseKey(static_cast<BYTE>(key)) ? 1 : 0;
-}
-
-int32_t Engine::ManagedScriptRuntime::GetMouseButtonCallback(int32_t button) {
-
-	Input* input = Input::GetInstance();
-	if (!input) {
-		return 0;
-	}
-
-	switch (button) {
-	case 0: return input->PushMouseLeft() ? 1 : 0;
-	case 1: return input->PushMouseRight() ? 1 : 0;
-	case 2: return input->PushMouseCenter() ? 1 : 0;
-	default:
-		return 0;
-	}
-}
-
-int32_t Engine::ManagedScriptRuntime::GetMouseButtonDownCallback(int32_t button) {
-
-	Input* input = Input::GetInstance();
-	if (!input) {
-		return 0;
-	}
-
-	switch (button) {
-	case 0: return input->TriggerMouseLeft() ? 1 : 0;
-	case 1: return input->TriggerMouseRight() ? 1 : 0;
-	case 2: return input->TriggerMouseCenter() ? 1 : 0;
-	default:
-		return 0;
-	}
-}
-
-int32_t Engine::ManagedScriptRuntime::GetMouseButtonUpCallback(int32_t button) {
-
-	Input* input = Input::GetInstance();
-	if (!input) {
-		return 0;
-	}
-
-	switch (button) {
-	case 0: return input->ReleaseMouse(MouseButton::Left) ? 1 : 0;
-	case 1: return input->ReleaseMouse(MouseButton::Right) ? 1 : 0;
-	case 2: return input->ReleaseMouse(MouseButton::Center) ? 1 : 0;
-	default:
-		return 0;
-	}
-}
-
-Engine::ManagedVector2 Engine::ManagedScriptRuntime::GetMousePositionCallback() {
-
-	Input* input = Input::GetInstance();
-	return input ? ToManagedVector2(input->GetMousePos()) : ManagedVector2{};
-}
-
-Engine::ManagedVector2 Engine::ManagedScriptRuntime::GetMouseDeltaCallback() {
-
-	Input* input = Input::GetInstance();
-	return input ? ToManagedVector2(input->GetMouseMoveValue()) : ManagedVector2{};
-}
-
-float Engine::ManagedScriptRuntime::GetMouseWheelCallback() {
-
-	Input* input = Input::GetInstance();
-	return input ? input->GetMouseWheel() : 0.0f;
-}
-
-int32_t Engine::ManagedScriptRuntime::GetGamepadButtonCallback(int32_t button) {
-
-	if (button < 0 || static_cast<int32_t>(GamePadButtons::Counts) <= button) {
-		return 0;
-	}
-	Input* input = Input::GetInstance();
-	return input && input->PushGamepadButton(static_cast<GamePadButtons>(button)) ? 1 : 0;
-}
-
-int32_t Engine::ManagedScriptRuntime::GetGamepadButtonDownCallback(int32_t button) {
-
-	if (button < 0 || static_cast<int32_t>(GamePadButtons::Counts) <= button) {
-		return 0;
-	}
-	Input* input = Input::GetInstance();
-	return input && input->TriggerGamepadButton(static_cast<GamePadButtons>(button)) ? 1 : 0;
-}
-
-int32_t Engine::ManagedScriptRuntime::IsGamepadConnectedCallback() {
-
-	Input* input = Input::GetInstance();
-	return input && input->IsGamepadConnected() ? 1 : 0;
-}
-
-Engine::ManagedVector2 Engine::ManagedScriptRuntime::GetLeftStickCallback() {
-
-	Input* input = Input::GetInstance();
-	return input ? ToManagedVector2(input->GetLeftStickVal()) : ManagedVector2{};
-}
-
-Engine::ManagedVector2 Engine::ManagedScriptRuntime::GetRightStickCallback() {
-
-	Input* input = Input::GetInstance();
-	return input ? ToManagedVector2(input->GetRightStickVal()) : ManagedVector2{};
-}
-
-float Engine::ManagedScriptRuntime::GetLeftTriggerCallback() {
-
-	Input* input = Input::GetInstance();
-	return input ? input->GetLeftTriggerValue() : 0.0f;
-}
-
-float Engine::ManagedScriptRuntime::GetRightTriggerCallback() {
-
-	Input* input = Input::GetInstance();
-	return input ? input->GetRightTriggerValue() : 0.0f;
-}
-
-int32_t Engine::ManagedScriptRuntime::IsAliveCallback(ManagedNativeEntity entity) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	return (world && world->IsAlive(resolved)) ? 1 : 0;
-}
-
-int32_t Engine::ManagedScriptRuntime::CopyNameCallback(ManagedNativeEntity entity, char* buffer, int32_t capacity) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		if (buffer && 0 < capacity) {
-			buffer[0] = '\0';
-		}
-		return 0;
-	}
-
-	NameComponent* name = world->TryGetComponent<NameComponent>(resolved);
-	return CopyStringToBuffer(name ? name->name : std::string{}, buffer, capacity);
-}
-
-void Engine::ManagedScriptRuntime::SetNameCallback(ManagedNativeEntity entity, const char* name) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved)) {
-		return;
-	}
-
-	NameComponent* nameComponent = world->TryGetComponent<NameComponent>(resolved);
-	if (!nameComponent) {
-		nameComponent = &world->AddComponent<NameComponent>(resolved);
-	}
-	nameComponent->name = name ? std::string(name) : std::string{};
-}
-
-int32_t Engine::ManagedScriptRuntime::GetActiveSelfCallback(ManagedNativeEntity entity) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		return 1;
-	}
-
-	SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(resolved);
-	return (!sceneObject || sceneObject->activeSelf) ? 1 : 0;
-}
-
-void Engine::ManagedScriptRuntime::SetActiveSelfCallback(ManagedNativeEntity entity, int32_t active) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world || !world->IsAlive(resolved)) {
-		return;
-	}
-
-	EnsureScriptSceneObject(*world, resolved).activeSelf = active != 0;
-	RefreshScriptActiveTree(*world, resolved);
-}
-
-int32_t Engine::ManagedScriptRuntime::GetActiveInHierarchyCallback(ManagedNativeEntity entity) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	return (world && IsEntityActiveInHierarchy(*world, resolved)) ? 1 : 0;
-}
-
-Engine::ManagedNativeEntity Engine::ManagedScriptRuntime::GetParentCallback(ManagedNativeEntity entity) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		return MakeNullNativeEntity();
-	}
-
-	HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved);
-	if (!hierarchy) {
-		return MakeNullNativeEntity();
-	}
-
-	const Entity parent = hierarchy->parent;
-	return world->IsAlive(parent) ? MakeNativeEntity(*world, parent) : MakeNullNativeEntity();
-}
-
-Engine::ManagedNativeEntity Engine::ManagedScriptRuntime::GetFirstChildCallback(ManagedNativeEntity entity) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		return MakeNullNativeEntity();
-	}
-
-	HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved);
-	if (!hierarchy) {
-		return MakeNullNativeEntity();
-	}
-
-	const Entity child = hierarchy->firstChild;
-	return world->IsAlive(child) ? MakeNativeEntity(*world, child) : MakeNullNativeEntity();
-}
-
-Engine::ManagedNativeEntity Engine::ManagedScriptRuntime::GetNextSiblingCallback(ManagedNativeEntity entity) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		return MakeNullNativeEntity();
-	}
-
-	HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved);
-	if (!hierarchy) {
-		return MakeNullNativeEntity();
-	}
-
-	const Entity sibling = hierarchy->nextSibling;
-	return world->IsAlive(sibling) ? MakeNativeEntity(*world, sibling) : MakeNullNativeEntity();
-}
-
-void Engine::ManagedScriptRuntime::SetParentCallback(ManagedNativeEntity entity, ManagedNativeEntity parent) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity child = ResolveEntity(entity);
-	if (!world || !world->IsAlive(child)) {
-		return;
-	}
-
-	Entity newParent = Entity::Null();
-	if (ResolveWorld(parent) == world) {
-		const Entity candidate = ResolveEntity(parent);
-		if (world->IsAlive(candidate)) {
-			newParent = candidate;
-		}
-	}
-	HierarchySystem hierarchySystem{};
-	hierarchySystem.SetParent(*world, child, newParent);
-}
-
-Engine::ManagedVector3 Engine::ManagedScriptRuntime::GetPositionCallback(ManagedNativeEntity entity) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		return {};
-	}
-
-	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-	return transform ? ToManagedVector3(transform->worldMatrix.GetTranslationValue()) : ManagedVector3{};
-}
-
-void Engine::ManagedScriptRuntime::SetPositionCallback(ManagedNativeEntity entity, ManagedVector3 value) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		return;
-	}
-
-	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-	if (!transform) {
-		return;
-	}
-
-	transform->localPos = MakeLocalPositionFromWorld(*world, resolved, ToVector3(value));
-	MarkDirty(*world, resolved);
-}
-
-Engine::ManagedVector3 Engine::ManagedScriptRuntime::GetLocalPositionCallback(ManagedNativeEntity entity) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		return {};
-	}
-
-	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-	return transform ? ToManagedVector3(transform->localPos) : ManagedVector3{};
-}
-
-void Engine::ManagedScriptRuntime::SetLocalPositionCallback(ManagedNativeEntity entity, ManagedVector3 value) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		return;
-	}
-
-	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-	if (!transform) {
-		return;
-	}
-
-	transform->localPos = ToVector3(value);
-	MarkDirty(*world, resolved);
-}
-
-Engine::ManagedVector3 Engine::ManagedScriptRuntime::GetLocalScaleCallback(ManagedNativeEntity entity) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		return ManagedVector3{ 1.0f, 1.0f, 1.0f };
-	}
-
-	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-	return transform ? ToManagedVector3(transform->localScale) : ManagedVector3{ 1.0f, 1.0f, 1.0f };
-}
-
-void Engine::ManagedScriptRuntime::SetLocalScaleCallback(ManagedNativeEntity entity, ManagedVector3 value) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		return;
-	}
-
-	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-	if (!transform) {
-		return;
-	}
-
-	transform->localScale = ToVector3(value);
-	MarkDirty(*world, resolved);
-}
-
-Engine::ManagedQuaternion Engine::ManagedScriptRuntime::GetLocalRotationCallback(ManagedNativeEntity entity) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		return {};
-	}
-
-	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-	return transform ? ToManagedQuaternion(transform->localRotation) : ManagedQuaternion{};
-}
-
-void Engine::ManagedScriptRuntime::SetLocalRotationCallback(ManagedNativeEntity entity, ManagedQuaternion value) {
-
-	ECSWorld* world = ResolveWorld(entity);
-	const Entity resolved = ResolveEntity(entity);
-	if (!world) {
-		return;
-	}
-
-	TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-	if (!transform) {
-		return;
-	}
-
-	transform->localRotation = Quaternion::Normalize(ToQuaternion(value));
-	MarkDirty(*world, resolved);
+Engine::ManagedScriptRuntime::ScopedInvocationContext::~ScopedInvocationContext() {
+	currentContext_ = previous_;
 }

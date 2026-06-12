@@ -11,14 +11,15 @@
 //============================================================================
 //	OpaqueRenderPass classMethods
 //============================================================================
-
 void Engine::OpaqueRenderPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
+	// 共有リソースが無ければ描画先が決まらないので抜ける
 	if (!context.resources) {
 		return;
 	}
 
+	// Opaqueバケットを不透明設定でSceneMainへ描く、深度はDepthPrepassの結果を流用する
 	RenderPassExecutionHelper::Execute(graphicsCore, context, passBuckets, deps_,
 		RenderPhase::Opaque, context.resources->GetSceneMain());
 }

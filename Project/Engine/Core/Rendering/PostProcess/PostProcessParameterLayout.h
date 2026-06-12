@@ -14,14 +14,13 @@ namespace Engine {
 
 	//============================================================================
 	//	PostProcessParameterLayout class
-	//	ReflectionからPostProcessParametersのCBVレイアウトだけを切り出して保持する。
+	// ReflectionからPostProcessParametersのCBVレイアウトだけを切り出して保持する
 	//============================================================================
 	class PostProcessParameterLayout {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		PostProcessParameterLayout() = default;
 		~PostProcessParameterLayout() = default;
 
@@ -36,9 +35,9 @@ namespace Engine {
 		uint32_t GetSpace() const { return space_; }
 		const std::vector<ShaderConstantBufferVariable>& GetVariables() const { return variables_; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- variables ----------------------------------------------------
 
@@ -48,3 +47,4 @@ namespace Engine {
 		std::vector<ShaderConstantBufferVariable> variables_{};
 	};
 } // Engine
+

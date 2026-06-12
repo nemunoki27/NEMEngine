@@ -8,7 +8,6 @@
 //============================================================================
 //	RenderAssetLibrary classMethods
 //============================================================================
-
 void Engine::RenderAssetLibrary::Init(AssetDatabase* database) {
 
 	if (database_) {

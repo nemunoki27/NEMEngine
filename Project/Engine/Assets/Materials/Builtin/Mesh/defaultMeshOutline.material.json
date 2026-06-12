@@ -3,23 +3,18 @@
   "domain": "Surface",
   "passes": [
     {
-      "passName": "Outline",
+      "passKind": "Outline",
       "pipeline": "7fb5fd89c7103e74",
       "preferredVariant": "GraphicsMesh"
     },
     {
-      "passName": "OutlineStencilWrite",
+      "passKind": "OutlineStencilWrite",
       "pipeline": "c0a34ca481e80c53",
       "preferredVariant": "GraphicsMesh"
     },
     {
-      "passName": "OutlineStencilTest",
+      "passKind": "OutlineStencilTest",
       "pipeline": "478183561c5fd23e",
-      "preferredVariant": "GraphicsMesh"
-    },
-    {
-      "passName": "SelectionOutline",
-      "pipeline": "40ec216d251c0cd9",
       "preferredVariant": "GraphicsMesh"
     }
   ]

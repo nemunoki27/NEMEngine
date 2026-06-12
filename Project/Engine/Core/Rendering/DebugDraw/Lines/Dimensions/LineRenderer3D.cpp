@@ -3,7 +3,6 @@
 //============================================================================
 //	LineRenderer3D classMethods
 //============================================================================
-
 Engine::LineRenderer3D::LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain) {
 
 	// 基底クラスの初期化
@@ -16,7 +15,7 @@ Engine::LineRenderer3D::LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraD
 
 Engine::LineRenderer3D::~LineRenderer3D() {
 
-	// SceneGridRendererが持つGPUバッファをLineRenderer破棄時に明示解放する。
+	// SceneGridRendererが持つGPUバッファをLineRenderer破棄時に明示解放する
 	gridRenderer_.reset();
 }
 
@@ -82,7 +81,7 @@ void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius, con
 		float t0 = kEvery * static_cast<float>(index);
 		float t1 = kEvery * static_cast<float>(index + 1);
 
-		// 緯度の中心線：赤道 XZ平面
+		// 緯度の中心線：赤道XZ平面
 		Vector3 equatorA = {
 			center.x + radius * std::cos(t0),
 			center.y,
@@ -97,7 +96,7 @@ void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius, con
 
 		DrawLine(equatorA, equatorB, color, thickness);
 
-		// 経度の中心線：縦方向の大円 XY平面
+		// 経度の中心線：縦方向の大円XY平面
 		Vector3 meridianA = {
 			center.x + radius * std::cos(t0),
 			center.y + radius * std::sin(t0),
@@ -213,75 +212,6 @@ void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Sk
 	}
 }
 
-void Engine::LineRenderer3D::DrawSpotLightFrustum(const Vector3& pos, const Vector3& direction, \
-	float distance, float cosAngle, float cosFalloffStart, const Color4& color, uint32_t division, float thickness) {
-
-	// 方向正規化
-	Vector3 lightDir = direction;
-	float dirLength = lightDir.Length();
-	if (dirLength <= 1e-4f) {
-		return;
-	}
-	lightDir.x /= dirLength;
-	lightDir.y /= dirLength;
-	lightDir.z /= dirLength;
-
-	// cos -> angleの範囲外補正
-	cosAngle = (cosAngle < -1.0f) ? -1.0f : ((cosAngle > 1.0f) ? 1.0f : cosAngle);
-	cosFalloffStart = (cosFalloffStart < -1.0f) ? -1.0f : ((cosFalloffStart > 1.0f) ? 1.0f : cosFalloffStart);
-
-	// アングルからコーンの半径を計算
-	float outerAngle = std::acos(cosAngle);
-	float innerAngle = std::acos(cosFalloffStart);
-	float outerRadius = std::tan(outerAngle) * distance;
-	float innerRadius = std::tan(innerAngle) * distance;
-
-	Quaternion rotation = Quaternion::FromToY(lightDir);
-	rotation = rotation.Inverse(rotation);
-
-	// 外側コーン
-	DrawCone(pos, 0.0f, outerRadius, distance, rotation, color, division, thickness);
-
-	// 中心線
-	const Vector3 farCenter = pos + lightDir * distance;
-	DrawLine(pos, farCenter, color, thickness);
-
-	// フォールオフ開始角度がコーンの角度より小さい場合、内側のリングとガイド線を描画
-	if (cosAngle + 1e-4f < cosFalloffStart) {
-
-		Matrix4x4 rotationMatrix = Quaternion::MakeRotateMatrix(rotation);
-		float kAngleStep = 2.0f * Math::pi / static_cast<float>(division);
-
-		std::vector<Vector3> innerCircle;
-		innerCircle.reserve(division);
-		for (uint32_t i = 0; i < division; ++i) {
-
-			float angle = static_cast<float>(i) * kAngleStep;
-
-			// 内側リングの点を計算
-			Vector3 localPoint(innerRadius * std::cos(angle),
-				distance, innerRadius * std::sin(angle));
-			innerCircle.emplace_back(Vector3::TransformPoint(localPoint, rotationMatrix) + pos);
-		}
-
-		// 内側リング
-		for (uint32_t i = 0; i < division; ++i) {
-
-			Vector3 a = innerCircle[i];
-			Vector3 b = innerCircle[(i + 1) % division];
-			DrawLine(a, b, color, thickness);
-		}
-
-		// 内側コーンのガイド線を4本だけ引く
-		uint32_t kGuideCount = 4;
-		for (uint32_t i = 0; i < kGuideCount; ++i) {
-
-			uint32_t index = (division * i) / kGuideCount;
-			DrawLine(pos, innerCircle[index], color, thickness);
-		}
-	}
-}
-
 void Engine::LineRenderer3D::DrawCameraFrustum(const Matrix4x4& viewMatrix, float aspectRatio,
 	float nearClip, float farClip, float fovY, float scale, const Color4& color, float thickness) {
 
@@ -335,7 +265,7 @@ void Engine::LineRenderer3D::DrawCameraFrustum(const Matrix4x4& viewMatrix, floa
 	DrawLine(wfcTR, wfcBR, color, thickness);
 	DrawLine(wfcBR, wfcBL, color, thickness);
 	DrawLine(wfcBL, wfcTL, color, thickness);
-	// 近 → 遠
+	// 近→遠
 	DrawLine(wncTL, wfcTL, color, thickness);
 	DrawLine(wncTR, wfcTR, color, thickness);
 	DrawLine(wncBR, wfcBR, color, thickness);

@@ -8,7 +8,6 @@
 //============================================================================
 //	AccelerationStructureBuffer classMethods
 //============================================================================
-
 void Engine::AccelerationStructureBuffer::Create(ID3D12Device* device, UINT64 sizeInBytes,
 	D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initialState, D3D12_HEAP_TYPE heapType) {
 

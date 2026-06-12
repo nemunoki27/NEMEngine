@@ -15,7 +15,6 @@
 //============================================================================
 //	LineRenderer classMethods
 //============================================================================
-
 Engine::LineRenderer* Engine::LineRenderer::instance_ = nullptr;
 
 Engine::LineRenderer* Engine::LineRenderer::GetInstance() {
@@ -28,7 +27,7 @@ Engine::LineRenderer* Engine::LineRenderer::GetInstance() {
 
 Engine::LineRenderer::~LineRenderer() {
 
-	// 各ライン描画クラスが持つGPUバッファをLeakChecker前に明示resetする。
+	// 各ライン描画クラスが持つGPUバッファをLeakChecker前に明示resetする
 	renderer3D_.reset();
 	renderer2D_.reset();
 }
@@ -61,7 +60,7 @@ void Engine::LineRenderer::RenderSceneView(GraphicsCore& graphicsCore,
 	if (drawDefaultGrid) {
 
 		// SceneViewのデフォルトグリッドは、SceneView側のカメラで直接描画
-		//renderer3D_->RenderDefaultGrid(graphicsCore, view, surface);
+		renderer3D_->RenderDefaultGrid(graphicsCore, view, surface);
 	}
 
 	// 各次元のライン描画クラスに描画呼び出し

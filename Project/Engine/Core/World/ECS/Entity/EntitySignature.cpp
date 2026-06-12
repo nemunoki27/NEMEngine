@@ -3,7 +3,6 @@
 //============================================================================
 //	EntitySignature classMethods
 //============================================================================
-
 bool Engine::operator==(const Engine::EntitySignature& signatureA, const Engine::EntitySignature& signatureB) {
 
 	return signatureA.words == signatureB.words;

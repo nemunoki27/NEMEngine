@@ -13,7 +13,6 @@
 //============================================================================
 //	PostProcessConstantBufferAllocator classMethods
 //============================================================================
-
 namespace {
 
 	constexpr size_t kInitialCapacity = 64 * 1024;
@@ -21,7 +20,7 @@ namespace {
 
 void Engine::PostProcessConstantBufferAllocator::BeginFrame() {
 
-	// 同一フレーム内では上書きしない。フレーム先頭でのみ再利用する。
+	// 同一フレーム内では上書きせずフレーム先頭でのみ再利用する
 	offset_ = 0;
 	retiredResources_.clear();
 }
@@ -48,7 +47,7 @@ Engine::PostProcessConstantBufferAllocation Engine::PostProcessConstantBufferAll
 	const size_t alignedSize = AlignCBV(bytes.size());
 	if (!resource_ || offset_ + alignedSize > capacity_) {
 
-		// 既にDispatchへ渡したアドレスを壊さないよう、古いUploadHeapはフレーム内だけ保持する。
+		// 既にDispatchへ渡したアドレスを壊さないよう、古いUploadHeapはフレーム内だけ保持する
 		const size_t growSize = (std::max)(capacity_ * 2, offset_ + alignedSize);
 		EnsureCapacity(device, (std::max)(growSize, kInitialCapacity));
 	}

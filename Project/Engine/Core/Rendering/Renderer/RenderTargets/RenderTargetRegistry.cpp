@@ -3,7 +3,6 @@
 //============================================================================
 //	RenderTargetRegistry classMethods
 //============================================================================
-
 namespace {
 
 	// 名前配列が同一か
@@ -110,7 +109,7 @@ bool Engine::RegisteredRenderTargetSet::Matches(const RenderTargetSetReference& 
 
 void Engine::RenderTargetRegistry::Clear() {
 
-	// transientのMultiRenderTargetはDescriptorを持つため、map破棄任せにせず明示解放する。
+	// transientのMultiRenderTargetはDescriptorを持つため、map破棄任せにせず明示解放する
 	for (auto& [name, entry] : transients_) {
 		(void)name;
 		if (entry.surface) {
@@ -297,8 +296,8 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::ResizeTransient(Graphic
 	// 条件が変わったらサーフェイスを再生成
 	if (needsCreate) {
 
-		// DSV/RTV/SRVの上限は小さいため、新しいSurfaceを作る前に古いDescriptorを返す。
-		// map代入で後から破棄すると、一時的に使用数が倍になりBaseDescriptor::Allocateで落ちる。
+		// DSV/RTV/SRVの上限は小さいため、新しいSurfaceを作る前に古いDescriptorを返す
+		// map代入で後から破棄すると、一時的に使用数が倍になりBaseDescriptor::Allocateで落ちる
 		TransientEntry& entry = transients_[desc.name];
 		if (entry.surface) {
 			entry.surface->Destroy();

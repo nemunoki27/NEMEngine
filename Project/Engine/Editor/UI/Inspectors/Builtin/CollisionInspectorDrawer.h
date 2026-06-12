@@ -15,18 +15,17 @@ namespace Engine {
 	class CollisionInspectorDrawer :
 		public SerializedComponentInspectorDrawer<CollisionComponent> {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		CollisionInspectorDrawer() :
 			SerializedComponentInspectorDrawer("Collision", "Collision") {
 		}
 		~CollisionInspectorDrawer() override = default;
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- functions ----------------------------------------------------
 
@@ -42,3 +41,4 @@ namespace Engine {
 		ValueEditResult DrawShapeField(CollisionShape& shape, uint32_t index);
 	};
 } // Engine
+

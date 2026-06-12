@@ -8,9 +8,27 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Platforms>AnyCPU;x64</Platforms>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <OutputPath>..\Managed\$(Configuration)\</OutputPath>
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
+    <!--
+      [SerializeField] フィールドは engine の deserialization が値を代入するため、コンパイラからは
+      「未代入(CS0649)」「代入されるが未使用(CS0414)」に見える false positive が出る。
+      gameplay script では serialized field が常態なので project 単位で抑制する（Unity 生成 csproj と同方針）。
+    -->
+    <NoWarn>$(NoWarn);CS0649;CS0414</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    Edit reload / Toolbar Play の staging build 専用の出力先切り替え。
+    CLI の -o は project reference (NEM.ScriptCore / Analyzer の NEM.ScriptCodeGen) の
+    出力解決まで staging へ向けてしまい CS0006 になるため使わない。
+    NEMScriptStagingOutput が渡されたときだけ、この GameScripts 自身の OutputPath を staging へ向ける。
+    referenced project は条件に該当しないため通常出力を参照する。
+  -->
+  <PropertyGroup>
+    <NEMScriptStagingOutput Condition="'$(NEMScriptStagingOutput)' == ''"></NEMScriptStagingOutput>
+    <OutputPath Condition="'$(NEMScriptStagingOutput)' == ''">..\Managed\$(Configuration)\</OutputPath>
+    <OutputPath Condition="'$(NEMScriptStagingOutput)' != ''">$(NEMScriptStagingOutput)\</OutputPath>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Develop'">
@@ -18,8 +36,29 @@
     <DefineConstants>TRACE;DEVELOP</DefineConstants>
   </PropertyGroup>
 
+  <!--
+    Stable ID の正は sidecar metadata(.cs.meta)。Editor は metadata sync で自動採番し、
+    generator は ValidateOnly(CI) で metadata 不足を build error にする。未指定時は EditorSync 相当(寛容)。
+  -->
+  <PropertyGroup>
+    <NEMScriptMetadataMode Condition="'$(NEMScriptMetadataMode)' == ''">EditorSync</NEMScriptMetadataMode>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Include="..\GameAssets\**\*.cs" Link="GameAssets\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- sidecar metadata を source generator へ AdditionalFiles として渡す（Stable ID の正） -->
+    <AdditionalFiles Include="..\GameAssets\**\*.cs.meta" />
+    <!-- generator が metadata mode を読めるよう CompilerVisibleProperty にする -->
+    <CompilerVisibleProperty Include="NEMScriptMetadataMode" />
     <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" />
+    <!-- Stable Script Type GUID / Field GUID schema を埋め込む Roslyn source generator（Analyzer参照） -->
+    <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptCodeGen\NEM.ScriptCodeGen.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+    <!-- ScriptBehaviour constructor の副作用（native API / Entity・Scene / coroutine / threading / I/O / event）を
+         warning で検出する Roslyn analyzer。診断専用なので出力 assembly は参照しない。 -->
+    <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptAnalyzers\NEM.ScriptAnalyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

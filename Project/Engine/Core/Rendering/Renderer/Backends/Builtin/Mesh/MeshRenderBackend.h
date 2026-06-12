@@ -21,7 +21,6 @@ namespace Engine {
 	//============================================================================
 	//	MeshRenderBackend structures
 	//============================================================================
-
 	// スキニング頂点データのGPUリソース
 	struct SkinnedVertexSource {
 
@@ -37,10 +36,9 @@ namespace Engine {
 	class MeshRenderBackend :
 		public IRenderBackend {
 	public:
-		//========================================================================
+		//============================================================================
 		//	public Methods
-		//========================================================================
-
+		//============================================================================
 		MeshRenderBackend();
 		~MeshRenderBackend() override;
 
@@ -68,9 +66,9 @@ namespace Engine {
 
 		uint32_t GetID() const override { return RenderBackendID::Mesh; }
 	private:
-		//========================================================================
+		//============================================================================
 		//	private Methods
-		//========================================================================
+		//============================================================================
 
 		//--------- structure ----------------------------------------------------
 
@@ -153,7 +151,7 @@ namespace Engine {
 		// メッシュのGPUリソース管理クラス
 		MeshGPUResourceManager meshResourceManager_{};
 
-		// バッファレジストリ → Graphicsパイプラインスロットの対応キャッシュ
+		// バッファレジストリ→ Graphicsパイプラインスロットの対応キャッシュ
 		RegistryAutoBindTable registryAutoBindTable_{};
 		// メッシュ固有GraphicsバインドのパイプラインスロットID
 		PipelineBindingCache sharedBindCache_{};
@@ -166,7 +164,7 @@ namespace Engine {
 		PipelineBindingCache::SlotID meshInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID subMeshSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID outlineSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID selectionParamsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID screenSpaceOutlineMaskCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		// スキニングComputeバインドのパイプラインスロットID
 		PipelineBindingCache skinningBindCache_{};
 		PipelineBindingCache::SlotID skinConstCBVSlot_ = PipelineBindingCache::kInvalidSlot;
@@ -219,3 +217,4 @@ namespace Engine {
 			std::span<const RenderItem* const> items);
 	};
 } // Engine
+

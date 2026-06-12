@@ -20,7 +20,6 @@
 //============================================================================
 //	PostProcessAssetGenerator classMethods
 //============================================================================
-
 namespace {
 
 	constexpr const char* kGeneratedBy = "PostProcessAssetGenerator";
@@ -134,7 +133,7 @@ namespace {
 			{ "domain", "Compute" },
 			{ "passes", nlohmann::json::array({
 				{
-					{ "passName", "PostProcess" },
+					{ "passKind", "PostProcess" },
 					{ "pipeline", Engine::ToAssetReferenceJson(pipelineID) },
 					{ "preferredVariant", "Compute" }
 				}
@@ -151,8 +150,8 @@ namespace {
 
 	bool IsLegacyBuiltinGenerated(const nlohmann::json& data) {
 
-		// 以前の自動生成版はgeneratedメタデータを持たない。
-		// 手動asset保護を優先し、最低限の既定フィールドだけのものに限定して移行する。
+		// 以前の自動生成版はgeneratedメタデータを持たない
+		// 手動asset保護を優先し、最低限の既定フィールドだけのものに限定して移行する
 		if (!data.is_object() || data.contains("generated") || data.contains("generatedBy")) {
 			return false;
 		}
@@ -329,7 +328,7 @@ namespace {
 		return path.substr(0, pos) + "/" + replacement + "/" + path.substr(pos + target.size());
 	}
 
-	// .CS.hlsl の論理パスから baseName を取得する
+	// .CS.hlslの論理パスからbaseNameを取得する
 	std::string BaseNameFromCsHlsl(const std::string& csHlslPath) {
 
 		std::filesystem::path p(csHlslPath);
@@ -338,7 +337,7 @@ namespace {
 		return stem2;
 	}
 
-	// .shader.json の論理パスから baseName を取得する
+	// .shader.jsonの論理パスからbaseNameを取得する
 	std::string BaseNameFromShaderJson(const std::string& shaderPath) {
 
 		std::filesystem::path p(shaderPath);
@@ -390,7 +389,7 @@ namespace {
 			{ "domain", "Compute" },
 			{ "passes", nlohmann::json::array({
 				{
-					{ "passName", "PostProcess" },
+					{ "passKind", "PostProcess" },
 					{ "pipeline", Engine::ToAssetReferenceJson(pipelineID) },
 					{ "preferredVariant", "Compute" }
 				}
@@ -413,7 +412,7 @@ Engine::AssetID Engine::PostProcessAssetGenerator::EnsureUserAsset(AssetDatabase
 		return {};
 	}
 
-	// 親ディレクトリ（.CS.hlsl を除いたパス）
+	// 親ディレクトリで.CS.hlslを除いたパス
 	const std::string parentDir = NormalizeSeparators(
 		std::filesystem::path(normalized).parent_path().generic_string());
 
@@ -425,7 +424,7 @@ Engine::AssetID Engine::PostProcessAssetGenerator::EnsureUserAsset(AssetDatabase
 	std::string pipelineAssetPath;
 	std::string materialAssetPath;
 	if (pipelineDirStr.empty() || materialDirStr.empty()) {
-		// /Shaders/ セグメントがない場合は同一ディレクトリに生成する
+		// /Shaders/セグメントがない場合は同一ディレクトリに生成する
 		pipelineAssetPath = parentDir + "/" + baseName + ".pipeline.json";
 		materialAssetPath = parentDir + "/" + baseName + ".material.json";
 	} else {
