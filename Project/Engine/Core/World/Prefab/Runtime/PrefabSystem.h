@@ -27,8 +27,8 @@ namespace Engine {
 		// 生成したルートをぶら下げたい親
 		Entity parent = Entity::Null();
 
-		// 予約済みルートEntity。有効なら新規生成せずこのEntityをルートとして使う
-		// （07 の deferred Prefab.Instantiate が即時に root handle を返すための仕組み）。
+		// 予約済みルートEntityで有効なら新規生成せずこのEntityをルートとして使う
+		// deferred Prefab.Instantiateが即時にroot handleを返すための仕組み
 		Entity reservedRoot = Entity::Null();
 	};
 	// プレファブ生成の結果

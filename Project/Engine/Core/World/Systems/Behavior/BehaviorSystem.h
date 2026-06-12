@@ -43,16 +43,16 @@ namespace Engine {
 		// OnCollisionExitを対象Entityのビヘイビアへ渡す
 		static void DispatchCollisionExit(ECSWorld& world, SystemContext& context, const CollisionContact& collision);
 
-		// Play中 runtime Inspector 用：BehaviorHandle から live instance の現在値を取得/設定する。
-		// active な BehaviorWorld を参照するため、Play 中かつ生存している handle のみ有効。
+		// Play中runtime Inspector用にBehaviorHandleからlive instanceの現在値を取得設定する、activeなBehaviorWorldを参照するためPlay中かつ生存しているhandleのみ有効
 		static nlohmann::json GetRuntimeSerializedState(BehaviorHandle handle);
 		static void SetRuntimeSerializedField(BehaviorHandle handle, const std::string& fieldId, const nlohmann::json& value);
 
-		// ScriptBehaviour.Enabled 用：owner Entity + scriptSlotID で runtime entry を特定する。
-		// Get は runtime override があればそれ、無ければ authoring enabled を返す（-1 は未解決）。
-		// Set は runtime override を立て、次の lifecycle sync 境界で OnEnable/OnDisable が反映される。
+		// ScriptBehaviour.Enabled用にowner EntityとscriptSlotIDでruntime entryを特定する、Getはruntime overrideがあればそれ無ければauthoring enabledを返し-1は未解決、Setはoverrideを立て次のlifecycle sync境界でOnEnable/OnDisableが反映される
 		static int32_t GetScriptEnabled(const Entity& owner, const UUID& scriptSlotID);
 		static void SetScriptEnabled(const Entity& owner, const UUID& scriptSlotID, bool enabled);
+
+		// Script Execution Order設定が編集されたときEditorから呼びtableをreloadし次の安全なsync境界でparticipant cacheを再ソートさせる、callback中のiterationは壊さない
+		static void InvalidateExecutionOrder();
 
 		//--------- accessor -----------------------------------------------------
 
@@ -64,13 +64,13 @@ namespace Engine {
 
 		//--------- types --------------------------------------------------------
 
-		// 1回のSynchronizeで処理するscriptの安定スナップショット要素。
-		// (owner.index, owner.generation, slot)で安定ソートし、構造変更時のみ作り直す。
+		// 1回のSynchronizeで処理するscriptの安定スナップショット要素でexecutionOrder owner.index owner.generation slotで安定ソートし構造変更時のみ作り直す、executionOrderはScript Type GUID単位の実行順で小さいほど先、同値は既存安定キーで決定的に解決する
 		struct SyncParticipant {
 
 			BehaviorHandle handle;
 			Entity owner = Entity::Null();
 			int32_t slot = 0;
+			int32_t executionOrder = 0;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -90,13 +90,13 @@ namespace Engine {
 		// ワールド内のビヘイビアハンドルをリセット
 		void ResetRuntimeState(ECSWorld& world);
 
-		//--------- ライフサイクル同期（複数パス） --------------------------------
+		//---------ライフサイクル同期複数パス----------------------------------
 
-		// 全パスをまとめて実行する。sweep時は参照されなくなったビヘイビアを破棄する
+		// 全パスをまとめて実行する、sweep時は参照されなくなったビヘイビアを破棄する
 		void SynchronizeLifecycle(ECSWorld& world, SystemContext& context, bool sweep);
-		// Pass1: ScriptComponentを走査し、record生成/破棄・型解決・instance生成・serialized適用を行う
+		// Pass1: ScriptComponentを走査しrecord生成破棄・型解決・instance生成・serialized適用を行う
 		void SynchronizeRecords(ECSWorld& world, SystemContext& context, bool sweep);
-		// participantキャッシュを作り直して安定ソートする（構造変更時のみ）
+		// participantキャッシュを作り直して安定ソートする、構造変更時のみ
 		void RebuildParticipants(ECSWorld& world);
 		// Pass2: activeなscriptのAwakeを全件実行
 		void InvokePendingAwake(ECSWorld& world, SystemContext& context);

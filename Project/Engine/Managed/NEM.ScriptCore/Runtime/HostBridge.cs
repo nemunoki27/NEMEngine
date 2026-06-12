@@ -23,6 +23,8 @@ public static unsafe class HostBridge {
     private const int SourcePathBytes = 260;
     // manifest schema version
     private const int ManifestSchemaVersion = 1;
+    // script 例外報告で native へ載せる stack frame の上限（native 側 store の上限と揃える）
+    private const int MaxExceptionFrames = 24;
 
     // public fieldをJSONへ含めるための共通設定。
     // AssetRef/EntityRef/ScriptRef/Uuid は専用 converter で identity だけを round-trip する。
@@ -67,6 +69,7 @@ public static unsafe class HostBridge {
         internal string displayName = string.Empty;
         internal string sourcePath = string.Empty;
         internal bool hasExplicitId;
+        internal int defaultExecutionOrder;   // [DefaultExecutionOrder] の値（未指定は 0）
         internal string[] formerlyKnown = Array.Empty<string>();
 
         // serialized field schema（defaultValueJson を含む完成形 JSON）。C++ へ blob で渡す。
@@ -91,6 +94,9 @@ public static unsafe class HostBridge {
     private static GameScriptLoadContext? gameLoadContext;
     // reload 診断用の連番（ALC unload ログに使う）
     private static int reloadCounter = 0;
+    // 直近の collectible ALC unload の typed status（0=Unknown, 1=UnloadSucceeded, 2=LeakSuspected）。
+    // Editor は log scraping ではなくこの typed status を参照する。
+    private static int lastAlcUnloadStatus = 0;
 
     //========================================================================
     //	public Methods
@@ -240,6 +246,7 @@ public static unsafe class HostBridge {
             CopyFixed(entry.displayName, outInfo->displayName, MaxNameBytes);
             CopyFixed(entry.sourcePath, outInfo->sourcePath, SourcePathBytes);
             outInfo->hasExplicitId = entry.hasExplicitId ? 1 : 0;
+            outInfo->defaultExecutionOrder = entry.defaultExecutionOrder;
             return ManagedStatus.Ok;
         });
     }
@@ -555,7 +562,6 @@ public static unsafe class HostBridge {
             return;
         }
 
-        // 07で導入予定のcoroutine/timer/tracked disposableのcancelはこの位置で行う（現状は対象システム未実装）
         // owner script 破棄時に、その owner に紐づく coroutine / timer を停止・cancel する
         if (slot.instance != null) {
             Coroutines.StopAllForOwner(slot.instance);
@@ -586,13 +592,61 @@ public static unsafe class HostBridge {
         string typeName = type.FullName ?? type.Name;
 
         // owner entity handle。解決できればentity名も付ける
-        // (script type stable IDとscene local IDは後続タスクで導入予定のため、ここではfull type nameを使う)
         Entity owner = script.entity;
         string entityHandle = $"{owner.native.index}:{owner.native.generation}";
         string entityName = owner.isValid ? owner.name : string.Empty;
 
         NativeApi.WriteLog(2,
             $"[ScriptException] callback={callbackName} type={typeName} entity={entityHandle} name=\"{entityName}\"\n{ex}");
+
+        // Console ログとは別に、構造化 DTO を native の exception store へ 1 件報告する。
+        // UI はこの store を source of truth にする（ログ文字列の再解析はしない）。
+        ReportScriptExceptionDto(script, type, typeName, callbackName, ex, owner, entityName);
+    }
+
+    // script 例外を JSON DTO 化して native へ渡す。値の組み立て・stack 取得は例外時のみ実行する。
+    private static void ReportScriptExceptionDto(ScriptBehaviour script, Type type, string typeName,
+        string callbackName, Exception ex, Entity owner, string entityName) {
+
+        // canonical identity は .cs.meta 由来の scriptTypeId。登録 entry から引く（表示名には使わない）。
+        string scriptTypeId = typeToEntry.TryGetValue(type, out ScriptTypeEntry? entry) ? entry!.scriptTypeId : string.Empty;
+
+        var dto = new JsonObject {
+            ["callback"] = callbackName,
+            ["slotId"] = script.scriptSlotId,
+            ["scriptTypeId"] = scriptTypeId,
+            ["typeName"] = typeName,
+            ["exceptionType"] = ex.GetType().FullName ?? ex.GetType().Name,
+            ["message"] = ex.Message ?? string.Empty,
+            ["entityIndex"] = owner.native.index,
+            ["entityGeneration"] = owner.native.generation,
+            ["entityName"] = entityName,
+        };
+
+        // stack frame は file/line 付きで取得し、上限件数だけ載せる（深い stack で肥大させない）。
+        var frames = new JsonArray();
+        var trace = new StackTrace(ex, true);
+        int frameCount = trace.FrameCount;
+        for (int i = 0; i < frameCount && frames.Count < MaxExceptionFrames; ++i) {
+
+            StackFrame? frame = trace.GetFrame(i);
+            MethodBase? method = frame?.GetMethod();
+            if (method == null) {
+                continue;
+            }
+            string memberName = method.DeclaringType != null
+                ? $"{method.DeclaringType.FullName}.{method.Name}"
+                : method.Name;
+            frames.Add(new JsonObject {
+                ["method"] = memberName,
+                ["file"] = frame?.GetFileName() ?? string.Empty,
+                ["line"] = frame?.GetFileLineNumber() ?? 0,
+                ["column"] = frame?.GetFileColumnNumber() ?? 0,
+            });
+        }
+        dto["frames"] = frames;
+
+        NativeApi.ReportScriptExceptionJson(dto.ToJsonString());
     }
 
     private static void RebuildScriptTypes() {
@@ -771,6 +825,14 @@ public static unsafe class HostBridge {
             return;
         }
 
+        // [DefaultExecutionOrder] を load 時に一度だけ反射で読む（hot path では参照しない）。
+        // 値は native の registry まで流れ、Editor override が無いときの default order になる。
+        int defaultExecutionOrder = 0;
+        DefaultExecutionOrderAttribute? orderAttribute = type.GetCustomAttribute<DefaultExecutionOrderAttribute>();
+        if (orderAttribute != null) {
+            defaultExecutionOrder = orderAttribute.Order;
+        }
+
         var entry = new ScriptTypeEntry {
             scriptTypeId = normalized,
             type = type,
@@ -778,6 +840,7 @@ public static unsafe class HostBridge {
             displayName = string.IsNullOrEmpty(displayName) ? type.Name : displayName,
             sourcePath = sourcePath ?? string.Empty,
             hasExplicitId = hasExplicitId,
+            defaultExecutionOrder = defaultExecutionOrder,
             formerlyKnown = formerlyKnown ?? Array.Empty<string>(),
         };
         scriptTypeEntries.Add(entry);
@@ -1044,6 +1107,7 @@ public static unsafe class HostBridge {
         if (weakContext.IsAlive) {
 
             // 回収できなかった = どこかに古い assembly への strong reference が残っている
+            lastAlcUnloadStatus = 2; // LeakSuspected
             NativeApi.WriteLog(1,
                 $"[ALC leak] GameScripts load context was not collected. reloadId={reloadId} " +
                 $"context=\"{contextName}\" attempts={attempts}. " +
@@ -1051,8 +1115,17 @@ public static unsafe class HostBridge {
                 "Register disposables / unsubscribes via ScriptRuntimeLifetime so they are released on reload.");
         } else {
 
+            lastAlcUnloadStatus = 1; // UnloadSucceeded
             NativeApi.WriteLog(0, $"GameScripts load context unloaded. reloadId={reloadId} attempts={attempts}");
         }
+    }
+
+    // 直近の collectible ALC unload の typed status を返す（0=Unknown, 1=UnloadSucceeded, 2=LeakSuspected）。
+    // reload/unload path でのみ更新され、gameplay frame hot path に GC probe を入れない。
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int GetLastAlcUnloadStatus() {
+
+        return lastAlcUnloadStatus;
     }
 
     // ALC を unload し、回収判定用の WeakReference を返す。
@@ -1379,6 +1452,8 @@ public unsafe struct NativeScriptTypeInfo {
     public fixed byte sourcePath[260];
     // [ScriptTypeId] が明示されていたか
     public int hasExplicitId;
+    // [DefaultExecutionOrder] の値（未指定は 0）
+    public int defaultExecutionOrder;
 }
 
 //============================================================================

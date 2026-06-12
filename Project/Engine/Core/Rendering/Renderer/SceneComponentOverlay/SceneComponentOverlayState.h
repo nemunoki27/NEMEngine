@@ -27,7 +27,7 @@ namespace Engine {
 		// PickerがCPU判定する表示済みOverlay一覧
 		const SceneComponentOverlayItemList& GetRenderedItems() const { return renderedItems_; }
 	private:
-		// この候補が属するWorld。違うWorldではピックしない
+		// この候補が属するWorldで違うWorldではピックしない
 		ECSWorld* world_ = nullptr;
 		// 画面に出たものだけを保持し、非ロード中アセットは含めない
 		SceneComponentOverlayItemList renderedItems_{};

@@ -61,24 +61,24 @@ namespace Engine {
 		//============================================================================
 		virtual void SetSerializedFields([[maybe_unused]] const nlohmann::json& serializedFields) {}
 
-		// Play中 runtime Inspector 用。instanceの現在値を { fieldGuid: value } で返す。
-		// ネイティブMonoBehaviorは保存対象を持たないため既定で空。
+		// Play中runtime Inspector用でinstanceの現在値を{ fieldGuid: value }で返す
+		// ネイティブMonoBehaviorは保存対象を持たないため既定で空
 		virtual nlohmann::json GetRuntimeSerializedState() { return nlohmann::json::object(); }
-		// runtime instanceの単一fieldを即時更新する（authoringへは保存しない）
+		// runtime instanceの単一fieldを即時更新する、authoringへは保存しない
 		virtual void SetRuntimeSerializedField([[maybe_unused]] const std::string& fieldId,
 			[[maybe_unused]] const nlohmann::json& value) {}
 
-		// 所属する ScriptEntry の scriptSlotID を渡す（C#へ転送して Enabled 制御の identity にする）。
-		// ネイティブ MonoBehavior は使わないため既定で no-op。
+		// 所属するScriptEntryのscriptSlotIDを渡しC#へ転送してEnabled制御のidentityにする
+		// ネイティブMonoBehaviorは使わないため既定でno-op
 		virtual void SetSlotId([[maybe_unused]] uint64_t scriptSlotId) {}
 
-		// 実体（managed instance等）を必要なら生成する。生成済み/不要ならtrueを返す。
-		// inactive hierarchyでもライフサイクル前に全件生成するために使う。
-		// ネイティブMonoBehaviorは自身が実体なので既定でtrue。
+		// 実体のmanaged instance等を必要なら生成する、生成済み/不要ならtrueを返す
+		// inactive hierarchyでもライフサイクル前に全件生成するために使う
+		// ネイティブMonoBehaviorは自身が実体なので既定でtrue
 		virtual bool EnsureInstance([[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity) { return true; }
 
-		// callback内で回復不能な例外が発生したか。
-		// faulted状態のビヘイビアは以降のgameplay callbackを停止する。
+		// callback内で回復不能な例外が発生したか
+		// faulted状態のビヘイビアは以降のgameplay callbackを停止する
 		// ネイティブMonoBehaviorは例外を境界越えしないため既定でfalse
 		virtual bool IsFaulted() const { return false; }
 	};

@@ -34,20 +34,24 @@ Engine::AssetID Engine::LightCullingPass::ResolveLightCullingMaterial(AssetDatab
 void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
+	// computeカリングなのでバケットは参照しない、前提が欠ける条件を順に弾く
 	(void)passBuckets;
 	if (!context.shouldExecuteLightCullingPass || !context.resources || !context.assetDatabase ||
 		!deps_.assetLibrary || !deps_.pipelineCache) {
 		return;
 	}
+	// ローカルライトが1つも無ければカリングする対象が無い
 	if (!context.lightCullingBufferSet || context.lightCullingBufferSet->GetLocalLightCount() == 0) {
 		return;
 	}
+	// GPU機能側でカリングOFFのときはPS側の全ライト評価へ任せる
 	const GraphicsRuntimeFeatures& runtimeFeatures =
 		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	if (!runtimeFeatures.useLightCulling || runtimeFeatures.lightCullingMode == LightCullingMode::Disabled) {
 		return;
 	}
 
+	// カリング用の専用リソースがあれば優先し、無ければ通常のresourcesから画面サイズを得る
 	RenderPathResources* cullingResources = context.lightCullingResources ?
 		context.lightCullingResources : context.resources;
 	MultiRenderTarget* sceneMain = cullingResources->GetSceneMain();
@@ -60,6 +64,7 @@ void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
+	// LightCullingパスはcompute variant前提で、PSOが無ければ描画せず警告だけ出す
 	const MaterialAsset* material = deps_.assetLibrary->LoadMaterial(materialID);
 	if (!material) {
 		return;
@@ -86,12 +91,13 @@ void Engine::LightCullingPass::Execute(GraphicsCore& graphicsCore,
 	computeAutoBindTable_.Sync(*pipelineState, context.bufferRegistry);
 	computeAutoBindTable_.BindCompute(context.bufferRegistry, commandList);
 
+	// 画面サイズをthread group単位へ切り上げ、Clusteredのときだけ奥行方向にも分割する
 	uint32_t dispatchX = DxUtils::RoundUp(sceneMain->GetWidth(), pipelineState->GetThreadGroupX());
 	uint32_t dispatchY = DxUtils::RoundUp(sceneMain->GetHeight(), pipelineState->GetThreadGroupY());
 	uint32_t dispatchZ = runtimeFeatures.lightCullingMode == LightCullingMode::Clustered ||
 		runtimeFeatures.lightCullingMode == LightCullingMode::DebugAllLightsPerCluster ? ViewLightCullingBufferSet::kClusterCountZ : 1u;
 
-	// ライトカリング実行
+	// UAV書き込みへ遷移してdispatchし、後続パスが読めるようSRV状態へ戻す
 	context.lightCullingBufferSet->TransitionForComputeWrite(*dxCommand);
 	commandList->Dispatch(dispatchX, dispatchY, dispatchZ);
 	context.lightCullingBufferSet->TransitionForShaderRead(*dxCommand);

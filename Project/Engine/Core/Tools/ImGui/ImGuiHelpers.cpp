@@ -236,7 +236,7 @@ namespace {
 		outRotation = QuaternionFromRotationMatrixRowVector(rotationMatrix);
 		return true;
 	}
-	// 2Dアフィン行列を平行移動、回転（Z軸のみ）、拡縮に分解する
+	// 2Dアフィン行列を平行移動とZ軸のみの回転と拡縮に分解する
 	bool DecomposeAffine2D(const Engine::Matrix4x4& matrix, Engine::Vector3& outPos, float& outRotationZ, Engine::Vector3& outScale) {
 
 		constexpr float kEps = 1e-6f;
@@ -509,7 +509,7 @@ Engine::GizmoEditResult Engine::MyGUI::Manipulate2D(const char* id,
 		return result;
 	}
 
-	// 操作モードをImGuizmoの形式に変換する。無効なモードの場合は操作を行わない
+	// 操作モードをImGuizmoの形式に変換し無効なモードの場合は操作を行わない
 	ImGuizmo::OPERATION operation = ToImGuizmoOperation(context.mode);
 	if (operation == static_cast<ImGuizmo::OPERATION>(0)) {
 		return result;
@@ -584,7 +584,7 @@ Engine::GizmoEditResult Engine::MyGUI::Manipulate3D(const char* id,
 		return result;
 	}
 
-	// 操作モードをImGuizmoの形式に変換する。無効なモードの場合は操作を行わない
+	// 操作モードをImGuizmoの形式に変換し無効なモードの場合は操作を行わない
 	ImGuizmo::OPERATION operation = ToImGuizmoOperation(context.mode);
 	if (operation == static_cast<ImGuizmo::OPERATION>(0)) {
 		return result;
@@ -749,4 +749,4 @@ Engine::ValueEditResult Engine::MyGUI::StringCombo(const char* label, std::strin
 	return result;
 }
 
-// AssetReferenceField / EntityReferenceField の実装は ImGuiHelpersReference.cpp へ分離
+// AssetReferenceField / EntityReferenceFieldの実装はImGuiHelpersReference.cppへ分離

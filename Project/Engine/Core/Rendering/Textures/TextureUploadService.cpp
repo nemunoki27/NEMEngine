@@ -421,7 +421,7 @@ Engine::GPUTextureResource Engine::TextureUploadService::UploadSolidColor1x1(
 	UpdateSubresources(commandList, result.resource.Get(), uploadBuffer.Get(), 0, 0, 1, &subResource);
 
 	// コピー後のリソースバリアを設定する
-	// COMMON にすることでグラフィクスキューへのクロスキュー受け渡しを正しく行う
+	// COMMONにすることでグラフィクスキューへのクロスキュー受け渡しを正しく行う
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Transition.pResource = result.resource.Get();
@@ -519,7 +519,7 @@ Engine::GPUTextureResource Engine::TextureUploadService::UploadScratchImage(
 	UpdateSubresources(commandList, result.resource.Get(), uploadBuffer.Get(), 0, 0, static_cast<UINT>(subResources.size()), subResources.data());
 
 	// コピー後のリソースバリアを設定する
-	// COMMON にすることでグラフィクスキューへのクロスキュー受け渡しを正しく行う
+	// COMMONにすることでグラフィクスキューへのクロスキュー受け渡しを正しく行う
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Transition.pResource = result.resource.Get();

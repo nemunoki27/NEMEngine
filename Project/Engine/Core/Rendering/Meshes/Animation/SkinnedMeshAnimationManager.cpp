@@ -82,7 +82,7 @@ namespace {
 		}
 		return "Clip_" + std::to_string(index);
 	}
-	//  行列を現在のエンジン座標系へ変換する共通関数
+	// 行列を現在のエンジン座標系へ変換する共通関数
 	Engine::Matrix4x4 ConvertAssimpAffineToEngine(const aiMatrix4x4& matrix) {
 
 		aiVector3D scale{};
@@ -300,7 +300,7 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 		result.clips[clipName] = std::move(clip);
 	}
 
-	// アニメーションクリップの名前 -> ジョイントインデックスに対応したNodeAnimation*配列を構築
+	// アニメーションクリップの名前->ジョイントインデックスに対応したNodeAnimation*配列を構築
 	result.clipJointTracks.reserve(result.clips.size());
 	for (auto& [clipName, clip] : result.clips) {
 

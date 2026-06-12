@@ -35,19 +35,19 @@ namespace Engine {
 		switch (kind) {
 		case ProjectAssetFileKind::Script:
 		{
-			// C#スクリプト。csprojから名前空間を取得し、ファイル名から有効なクラス名を生成して適用
+			// C#スクリプトでcsprojから名前空間を取得しファイル名から有効なクラス名を生成して適用
 			const std::string rootNamespace = LoadGameScriptRootNamespace();
 			const std::string className = MakeCSharpClassName(assetName);
 			return std::format("using NEMEngine;\n\nnamespace {};\n\npublic sealed class {} : ScriptBehaviour\n{{\n\tpublic override void Start()\n\t{{\n\t}}\n\n\tpublic override void Update()\n\t{{\n\t}}\n}}\n", rootNamespace, className);
 		}
 		case ProjectAssetFileKind::Scene:
-			// シーンファイル。最低限のヘッダーと空のEntityリストを持つJSON
+			// シーンファイルで最低限のヘッダーと空のEntityリストを持つJSON
 			return std::format("{{\n  \"Header\": {{\n    \"guid\": \"\",\n    \"name\": \"{}\",\n    \"subScenes\": []\n  }},\n  \"Entities\": []\n}}\n", assetName);
 		case ProjectAssetFileKind::Prefab:
-			// プレファイル。シーンと同様だがPrefab固有のメタ情報を含む
+			// プレファイルでシーンと同様だがPrefab固有のメタ情報を含む
 			return std::format("{{\n  \"Header\": {{\n    \"guid\": \"\",\n    \"name\": \"{}\",\n    \"rootLocalFileID\": \"\",\n    \"version\": 1\n  }},\n  \"Entities\": []\n}}\n", assetName);
 		case ProjectAssetFileKind::Material:
-			// マテリアル。標準のシェーダとパラメータを設定した状態で作成
+			// マテリアルで標準のシェーダとパラメータを設定した状態で作成
 			return std::format("{{\n  \"name\": \"{}\",\n  \"domain\": \"Surface\",\n  \"passes\": [\n    {{\n      \"passKind\": \"ZPrepass\",\n      \"pipeline\": \"f09836087840b1d2\",\n      \"preferredVariant\": \"GraphicsMesh\"\n    }},\n    {{\n      \"passKind\": \"Draw\",\n      \"pipeline\": \"966f3e8a34595313\",\n      \"preferredVariant\": \"GraphicsMesh\"\n    }}\n  ],\n  \"parameters\": {{\n    \"BaseColor\": {{ \"r\": 1.0, \"g\": 1.0, \"b\": 1.0, \"a\": 1.0 }},\n    \"Metallic\": 0.0,\n    \"Roughness\": 0.5\n  }}\n}}\n", assetName);
 		case ProjectAssetFileKind::AnimationClip:
 			return std::format("{{\n  \"guid\": \"\",\n  \"name\": \"{}\",\n  \"duration\": 1.0,\n  \"curveTracks\": [],\n  \"eventTracks\": []\n}}\n", assetName);
@@ -63,7 +63,7 @@ namespace Engine {
 	}
 
 	bool ProjectAssetFileUtility::WriteTextFile(const std::filesystem::path& path, const std::string& content) {
-		// テキストファイルをバイナリモードで開き、内容を書き込む。LF/CRLFの混在を防ぐためtrunc指定
+		// テキストファイルをバイナリモードで開き内容を書き込む、LF/CRLFの混在を防ぐためtrunc指定
 		std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
 		if (!ofs.is_open()) { return false; }
 		ofs << content;

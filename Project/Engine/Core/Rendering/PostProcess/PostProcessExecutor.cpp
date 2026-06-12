@@ -150,7 +150,7 @@ namespace {
 			return true;
 		}
 
-		// ユーザー設定テクスチャを textureOverrides から解決する
+		// ユーザー設定テクスチャをtextureOverridesから解決する
 		if (!binding.name.empty()) {
 
 			auto found = desc.textureOverrides.find(binding.name);
@@ -168,7 +168,7 @@ namespace {
 			}
 		}
 
-		// 解決できなかった場合は DefaultWhite をバインドする。source/depth 系の欠落はエラーとして扱う
+		// 解決できなかった場合はDefaultWhiteをバインドし、source/depth系の欠落はエラーとして扱う
 		const bool isSourceReserved =
 			(binding.name == kSourceColorName || binding.name == kSourceDepthName) ||
 			((binding.bindPoint == 0 || binding.bindPoint == 1) && binding.space == 0 && binding.name.empty());
@@ -179,7 +179,7 @@ namespace {
 			return false;
 		}
 
-		// ユーザーテクスチャが未設定 → DefaultWhite にフォールバックする
+		// ユーザーテクスチャが未設定→ DefaultWhiteにフォールバックする
 		const Engine::GPUTextureResource* white =
 			graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
 		if (!white || !white->valid) {
@@ -337,7 +337,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 		}
 	}
 
-	// パイプラインキャッシュを解決する（フレーム定数バインドの有無も初回のみ解決してキャッシュする）
+	// パイプラインキャッシュを解決し、フレーム定数バインドの有無も初回のみ解決してキャッシュする
 	auto layoutIt = parameterLayoutCache_.find(pipelineState);
 	if (layoutIt == parameterLayoutCache_.end()) {
 
@@ -463,7 +463,7 @@ bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 	}
 	outVars = layoutIt->second.layout.GetVariables();
 
-	// ユーザー向けSRV（gSourceColor / gSourceDepth を除く）を収集する
+	// gSourceColor / gSourceDepthを除くユーザー向けSRVを収集する
 	outSRVs.clear();
 	for (const auto& binding : reflection.resources) {
 		if (binding.kind == ShaderBindingKind::SRV &&

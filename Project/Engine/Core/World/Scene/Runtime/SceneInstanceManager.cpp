@@ -62,7 +62,7 @@ bool Engine::SceneInstanceManager::LoadAdditive(AssetDatabase& database,
 	}
 
 	SceneInstance instance{};
-	// C# 側で先行採番した SceneHandle と instance ID を一致させる（無指定なら新規採番）
+	// C#側で先行採番したSceneHandleとinstance IDを一致させる、無指定なら新規採番
 	instance.instanceID = forcedInstanceID ? forcedInstanceID : UUID::New();
 	instance.parentInstanceID = UUID{};
 	instance.sceneAsset = sceneAsset;

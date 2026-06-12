@@ -190,7 +190,7 @@ namespace {
 		track.channels = MakeDefaultAnimationChannels(track.binding.valueType);
 
 		// 追加直後はキーを作らない
-		// + ボタンで初めてキーを作るため、defaultValueだけ現在値へ合わせておく
+		// +ボタンで初めてキーを作るため、defaultValueだけ現在値へ合わせておく
 		if (const float* valueFloat = std::get_if<float>(&value)) {
 			FillChannel(track.channels[0], *valueFloat);
 		} else if (const Vector2* valueVec2 = std::get_if<Vector2>(&value)) {
@@ -307,7 +307,7 @@ namespace {
 
 	bool DrawColorKeyValueEditor(AnimationCurveTrack& track, uint32_t selectedChannelIndex, float time) {
 
-		// Colorは複数チャンネルを1つの色として見せる。足りないキーはその時刻の評価値で補う
+		// Colorは複数チャンネルを1つの色として見せ足りないキーはその時刻の評価値で補う
 		if (!CanDrawColorRgbKeyEditor(track, selectedChannelIndex)) {
 			return false;
 		}
@@ -1513,7 +1513,7 @@ void AnimationClipTool::RestorePreviewBaseValues(ECSWorld& world, const Entity& 
 			continue;
 		}
 
-		// Tool Previewで触った値だけを元に戻す。本番適用はController側に任せる
+		// Tool Previewで触った値だけを元に戻し本番適用はController側に任せる
 		desc->setValue(world, entity, baseValue.value);
 	}
 }

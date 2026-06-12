@@ -24,7 +24,7 @@ void Engine::ScreenSpaceOutlineInspectorDrawer::DrawFields(
 		});
 	DrawField(anyItemActive, [&]() {
 		FloatEditSetting setting{};
-		// 幅は[0, 上限px]に固定する。巨大値はDilationのGPU Hang原因になる
+		// 幅は[0,上限px]に固定する、巨大値はDilationのGPU Hang原因になる
 		setting.minValue = 0.0f;
 		setting.maxValue = static_cast<float>(kMaxScreenSpaceOutlineRadiusPixels);
 		setting.dragSpeed = 0.1f;

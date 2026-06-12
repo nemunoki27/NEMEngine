@@ -81,7 +81,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAs
 	ProjectAssetFileResult result{};
 	result.isDirectory = kind == ProjectAssetFileKind::Folder;
 
-	// 仮想パスから実ディレクトリを特定。失敗なら中断
+	// 仮想パスから実ディレクトリを特定し失敗なら中断
 	const std::filesystem::path directory = ResolveVirtualDirectory(source, directoryVirtualPath);
 	if (directory.empty()) {
 		result.message = "Invalid directory path.";
@@ -139,14 +139,14 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(c
 
 	ProjectAssetFileResult result{};
 
-	// 元のアセットパスを解決。存在しなければ中断
+	// 元のアセットパスを解決し存在しなければ中断
 	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
 	if (sourcePath.empty() || !std::filesystem::exists(sourcePath)) {
 		result.message = "Source asset was not found.";
 		return result;
 	}
 
-	// 複製先のパスを決定（既存アセットとの競合回避）
+	// 複製先のパスを既存アセットとの競合回避で決定する
 	const std::filesystem::path targetPath = MakeUniquePath(sourcePath);
 	if (targetPath.empty()) {
 		result.message = "Failed to build duplicate file path.";
@@ -164,7 +164,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(c
 	// 複製されたアセット内部のGUIDや名前フィールドを整合性のために修正
 	PatchDuplicatedJsonAsset(targetPath, asset.type);
 
-	// 随行するサイドカーファイル（.meta等）も合わせてコピー
+	// 随行する.meta等のサイドカーファイルも合わせてコピー
 	for (const std::string& sidecar : asset.sidecarFiles) {
 
 		const std::filesystem::path sidecarSource = sourcePath.parent_path() / sidecar;
@@ -222,7 +222,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameAsset(cons
 		return result;
 	}
 
-	// 移動履歴。エラー時に元に戻すために使用
+	// 移動履歴でエラー時に元に戻すために使用
 	std::vector<MovedPathPair> moved;
 	auto rollback = [&moved]() {
 		std::error_code rollbackEc;
@@ -359,7 +359,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteAsset(cons
 		return result;
 	}
 
-	// サイドカーファイル（メタファイル等）も削除
+	// メタファイル等のサイドカーファイルも削除
 	for (const std::filesystem::path& sidecar : BuildAssetSidecarPaths(asset, sourcePath)) {
 		if (std::filesystem::exists(sidecar)) {
 			std::filesystem::remove(sidecar, ec);
@@ -420,7 +420,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::MoveAsset(const 
 		return result;
 	}
 
-	// 移動後のパスを決定（重複回避）
+	// 移動後のパスを重複回避で決定する
 	const std::filesystem::path targetPath = MakeUniquePath(targetDirectory / sourcePath.filename());
 	if (targetPath.empty()) {
 		result.message = "Failed to build move target path.";
@@ -443,7 +443,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::MoveAsset(const 
 	}
 	moved.emplace_back(MovedPathPair{ sourcePath, targetPath });
 
-	// サイドカーファイルの移動。メタファイルの名前変更も含む
+	// サイドカーファイルの移動でメタファイルの名前変更も含む
 	for (const std::filesystem::path& sidecarSource : BuildAssetSidecarPaths(asset, sourcePath)) {
 		if (!std::filesystem::exists(sidecarSource)) {
 			continue;
@@ -479,7 +479,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::MoveDirectory(Pr
 	const std::filesystem::path targetDirectory = ResolveVirtualDirectory(source, targetDirectoryVirtualPath);
 	const std::filesystem::path rootPath = GetSourceRoot(source);
 	
-	// 移動元・移動先の検証。ルートフォルダの移動や自分自身への移動は禁止
+	// 移動元と移動先の検証でルートフォルダの移動や自分自身への移動は禁止
 	if (sourcePath.empty() || targetDirectory.empty() || sourcePath == rootPath ||
 		!std::filesystem::exists(sourcePath) || !std::filesystem::is_directory(sourcePath)) {
 		result.message = "Source or target folder was not found.";

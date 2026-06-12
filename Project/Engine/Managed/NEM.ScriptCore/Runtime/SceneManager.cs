@@ -30,7 +30,7 @@ public readonly struct SceneEvent {
 }
 
 // 追加シーンの load / unload と lifecycle イベント。load/unload は WorldCommandBuffer 経由で遅延適用される。
-// SceneLoaded は 03 の挿入位置（Awake 全→OnEnable/OnDisable 全→SceneLoaded→Start 全）で発火する。
+// SceneLoaded は lifecycle の挿入位置（Awake 全→OnEnable/OnDisable 全→SceneLoaded→Start 全）で発火する。
 // SceneUnloaded は対象 script の OnDisable/OnDestroy → scene entity 破棄の後に発火する。
 // イベント購読は DLL reload 前に自動解除される（ResetForReload）。
 public static class SceneManager {

@@ -27,7 +27,7 @@ namespace Engine {
 		UUID sceneInstanceID, const ResolvedRenderView& view,
 		std::unordered_set<AssetID>& outMeshAssets);
 
-	// 指定Entityがrootの子階層（プレビュー対象の木構造）に含まれているか確認する
+	// 指定Entityがrootの子階層であるプレビュー対象の木構造に含まれているか確認する
 	bool IsEntityInPreviewTree(ECSWorld& world, Entity root, Entity entity);
 
 	// Entityが所属するシーンインスタンスIDを取得する

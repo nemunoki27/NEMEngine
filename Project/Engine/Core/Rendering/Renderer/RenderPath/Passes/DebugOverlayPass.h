@@ -9,7 +9,7 @@ namespace Engine {
 
 	//============================================================================
 	//	DebugOverlayPass class
-	//	デバッグライン描画を View に重ね描きするパス (_DEBUG/_DEVELOPBUILD のみ)
+	//	デバッグライン描画をViewに重ね描きするパス(_DEBUG/_DEVELOPBUILDのみ)
 	//============================================================================
 	class DebugOverlayPass :
 		public IRenderPass {

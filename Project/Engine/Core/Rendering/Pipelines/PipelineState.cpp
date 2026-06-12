@@ -89,7 +89,7 @@ namespace {
 		byteCode.BytecodeLength = shader->object->GetBufferSize();
 		return byteCode;
 	}
-	// フォーマットが RTV としてブレンド可能か
+	// フォーマットがRTVとしてブレンド可能か
 	bool IsBlendableRenderTargetFormat(ID3D12Device* device, DXGI_FORMAT format) {
 
 		D3D12_FEATURE_DATA_FORMAT_SUPPORT support{};

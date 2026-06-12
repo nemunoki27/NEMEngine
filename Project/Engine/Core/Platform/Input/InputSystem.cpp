@@ -493,7 +493,7 @@ void Input::Init(WinApp* winApp) {
 	hr = dInput_->CreateDevice(GUID_SysKeyboard, &keyboard_, NULL);
 	assert(SUCCEEDED(hr));
 
-	// 入力データ形式のセット 標準形式
+	// 入力データ形式のセット標準形式
 	hr = keyboard_->SetDataFormat(&c_dfDIKeyboard);
 	assert(SUCCEEDED(hr));
 
@@ -585,7 +585,7 @@ void Input::Update() {
 		rightTriggerValue_ = 0.0f;
 	}
 
-	// gameplay 用の多 gamepad snapshot を更新する（既存 single-gamepad path とは独立）
+	// gameplay用の多gamepad snapshotを更新する、既存single-gamepad pathとは独立
 	padsPre_ = pads_;
 	padConnectedPre_ = padConnected_;
 	for (int i = 0; i < kMaxGamepads; ++i) {
@@ -593,7 +593,7 @@ void Input::Update() {
 		padConnected_[i] = (XInputGetState(static_cast<DWORD>(i), &pads_[i]) == ERROR_SUCCESS);
 	}
 
-	// 文字入力を確定する。直前の message pump で溜めた WM_CHAR 分を frame-local テキストにする
+	// 文字入力を確定し直前のmessage pumpで溜めたWM_CHAR分をframe-localテキストにする
 	if (!pendingWide_.empty()) {
 		const int needed = ::WideCharToMultiByte(CP_UTF8, 0, pendingWide_.c_str(),
 			static_cast<int>(pendingWide_.size()), nullptr, 0, nullptr, nullptr);
@@ -728,11 +728,11 @@ uint16_t Input::ToMotorSpeed(float v01) {
 }
 
 //============================================================================
-//	gameplay 向け 多gamepad / text / focus
+//	gameplay向け多gamepad / text / focus
 //============================================================================
 namespace {
 
-	// C# GamepadButton enum(0..15) を XINPUT のボタンマスクへ対応付ける（トリガは別扱い＝0）
+	// C# GamepadButton enum(0..15)をXINPUTのボタンマスクへ対応付ける、トリガは別扱いで0
 	WORD XInputMaskOfGamepadButton(int button) {
 		switch (button) {
 		case 0:  return XINPUT_GAMEPAD_DPAD_UP;
@@ -753,7 +753,7 @@ namespace {
 		}
 	}
 
-	// 指定 state でそのボタンが押されているか（トリガ 10/11 は閾値判定）
+	// 指定stateでそのボタンが押されているか、トリガ10/11は閾値判定
 	bool IsGamepadButtonPressed(const XINPUT_STATE& state, int button) {
 		if (button == 10) {
 			return state.Gamepad.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
@@ -809,7 +809,7 @@ float Input::GamepadAxisByIndex(int index, int axis) const {
 	if (!GamepadConnectedByIndex(index)) {
 		return 0.0f;
 	}
-	// raw 値を返す（dead zone は Action Map 側で適用する）。stick は [-1,1]、トリガは [0,1]
+	// raw値を返しdead zoneはAction Map側で適用する、stickは[-1,1]でトリガは[0,1]
 	const XINPUT_GAMEPAD& pad = pads_[static_cast<size_t>(index)].Gamepad;
 	switch (axis) {
 	case 0:  return std::clamp(static_cast<float>(pad.sThumbLX) / 32767.0f, -1.0f, 1.0f);

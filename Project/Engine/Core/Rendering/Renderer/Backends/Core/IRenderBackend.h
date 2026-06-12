@@ -33,9 +33,9 @@ namespace Engine {
 		GraphicsCore* graphicsCore = nullptr;
 		// 実際に描画するビュー
 		const ResolvedRenderView* view = nullptr;
-		// カリング判定に使用するビュー。SceneViewでもGameViewを指す場合がある
+		// カリング判定に使用するビューでSceneViewでもGameViewを指す場合がある
 		const ResolvedRenderView* cullingView = nullptr;
-		// ビルボード計算に使用するビュー。SceneViewでもGameViewを指す場合がある
+		// ビルボード計算に使用するビューでSceneViewでもGameViewを指す場合がある
 		const ResolvedRenderView* billboardView = nullptr;
 		const SystemContext* systemContext = nullptr;
 		const RenderSceneBatch* batch = nullptr;
@@ -46,7 +46,7 @@ namespace Engine {
 		PipelineStateCache* pipelineCache = nullptr;
 		MaterialResolver* materialResolver = nullptr;
 
-		// この描画で使用するGPU機能。プレビューでは一部機能を落としてVariantを選ぶ
+		// この描画で使用するGPU機能でプレビューでは一部機能を落としてVariantを選ぶ
 		GraphicsRuntimeFeatures runtimeFeatures{};
 		// ツールプレビューではMeshShader/RayQueryを避け、Vertex版のGraphics Variantを優先する
 		bool forceVertexMeshVariant = false;
@@ -61,7 +61,7 @@ namespace Engine {
 		bool depthOnly = false;
 
 		// ScreenSpaceOutline Mask描画でこの描画単位へ渡すStyle IDとSubMesh制限
-		// 0なら描画しない。Mask以外のパスでは未使用
+		// 0なら描画せずMask以外のパスでは未使用
 		uint32_t screenSpaceOutlineMaskStyleID = 0;
 		int32_t screenSpaceOutlineMaskRestrictSubMeshIndex = -1;
 

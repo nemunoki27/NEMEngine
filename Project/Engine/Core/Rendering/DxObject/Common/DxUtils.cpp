@@ -17,7 +17,7 @@ void DxUtils::MakeDescriptorHeap(ComPtr<ID3D12DescriptorHeap>& descriptorHeap,
 
 D3D12_RESOURCE_DESC DxUtils::MakeBufferResourceDesc(size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags) {
 
-	// バッファリソースの共通定義。テクスチャの場合はまた別の設定をする
+	// バッファリソースの共通定義でテクスチャの場合はまた別の設定をする
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	resourceDesc.Width = sizeInBytes;
@@ -64,7 +64,7 @@ void DxUtils::CreateDefaultBufferResource(ID3D12Device* device, ComPtr<ID3D12Res
 
 void DxUtils::CreateBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes) {
 
-	// 互換維持のためのラッパー。新規実装では用途が明確な関数を直接呼ぶこと
+	// 互換維持のためのラッパーで新規実装では用途が明確な関数を直接呼ぶこと
 	CreateUploadBufferResource(device, resource, sizeInBytes);
 }
 
@@ -95,7 +95,7 @@ void DxUtils::CreateReadbackBufferResource(ID3D12Device* device, ComPtr<ID3D12Re
 
 	// リソースの設定
 	D3D12_RESOURCE_DESC resourceDesc{};
-	// バッファリソース。テクスチャの場合はまた別の設定をする
+	// バッファリソースでテクスチャの場合はまた別の設定をする
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	// リソースのサイズ
 	resourceDesc.Width = sizeInBytes;

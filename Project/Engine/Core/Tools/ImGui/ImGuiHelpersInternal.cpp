@@ -131,7 +131,7 @@ namespace Engine {
 
 	ValueEditResult DrawDragFields(const char* label, const std::array<char, 4>& axes, float* values, uint32_t count, const FloatEditSetting& setting) {
 		ValueEditResult result{};
-		// プロパティ行を開始。ラベルを表示
+		// プロパティ行を開始しラベルを表示
 		if (!MyGUI::BeginPropertyRow(label, setting.propertyRow)) { return result; }
 
 		// ラベル部分のドラッグによる一括変更
@@ -179,7 +179,7 @@ namespace Engine {
 			if (i > 0) { ImGui::SameLine(0, spacing); }
 			ImGui::PushID(i);
 			ImGui::BeginGroup();
-			// 軸ラベル（X/Y/Z等）を色付きで表示
+			// 軸ラベルのX/Y/Z等を色付きで表示
 			AxisDisplayInfo axis = GetAxisDisplayInfo(axes[i]);
 			ImGui::TextColored(axis.color, "%s", axis.name);
 			ImGui::SameLine(0, spacing);

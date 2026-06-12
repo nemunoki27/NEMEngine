@@ -1,6 +1,6 @@
 namespace NEMEngine;
 
-// 09 で生成される AudioSource wrapper の gameplay method 拡張（生成ファイルは編集しない）。
+// 自動生成される AudioSource wrapper の gameplay method 拡張（生成ファイルは編集しない）。
 // 実際の voice 制御は AudioSourceSystem が runtimePlayRequest を消費して行う（Play/Pause/Stop は次フレーム反映）。
 public readonly partial struct AudioSource {
 

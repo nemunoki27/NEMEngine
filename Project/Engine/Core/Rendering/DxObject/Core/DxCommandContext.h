@@ -36,13 +36,13 @@ public:
 	// デバイスからキュー/アロケータ/リスト/フェンスを生成し初期化する
 	void Create(ID3D12Device* device);
 
-	// コマンドをキューへ提出する（必要に応じてPresent前の処理に備える）
+	// コマンドをキューへ提出し必要に応じてPresent前の処理に備える
 	void ExecuteCommands(IDXGISwapChain4* swapChain);
 
 	// フェンスを用いてGPU完了まで待機する
 	void WaitForGPU();
 
-	// 終了処理: フェンス/イベント等のリソースを破棄する
+	// 終了処理:フェンス/イベント等のリソースを破棄する
 	void Finalize(HWND hwnd);
 
 	// ルートで使用するディスクリプタヒープ配列をセットする

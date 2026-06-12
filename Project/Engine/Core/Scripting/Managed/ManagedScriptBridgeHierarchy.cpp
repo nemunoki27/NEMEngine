@@ -11,7 +11,7 @@ namespace Engine {
 
 	//============================================================================
 	//	Hierarchy Callbacks
-	//	C#側のTransform (親子関係) クラスから呼び出されるネイティブ実装
+	//	C#側のTransform (親子関係)クラスから呼び出されるネイティブ実装
 	//============================================================================
 
 	ManagedNativeEntity ManagedScriptRuntime::GetParentCallback(ManagedNativeEntity entity) {
@@ -26,7 +26,7 @@ namespace Engine {
 			return MakeNullNativeEntity();
 		}
 
-		// 親エンティティが存在すればラップして返す。なければNullEntity
+		// 親エンティティが存在すればラップして返し、なければNullEntity
 		const Entity parent = hierarchy->parent;
 		return world->IsAlive(parent) ? MakeNativeEntity(*world, parent) : MakeNullNativeEntity();
 	}
@@ -43,7 +43,7 @@ namespace Engine {
 			return MakeNullNativeEntity();
 		}
 
-		// 最初の子エンティティを返す。イテレーションの開始点に使用
+		// 最初の子エンティティを返す、イテレーションの開始点に使用
 		const Entity child = hierarchy->firstChild;
 		return world->IsAlive(child) ? MakeNativeEntity(*world, child) : MakeNullNativeEntity();
 	}
@@ -81,8 +81,7 @@ namespace Engine {
 				newParent = candidate;
 			}
 		}
-		// 親子付けはHierarchyComponentの追加やリンク繋ぎ替えを伴う構造変更のため、
-		// ForEach走査を壊さないようコマンドバッファへ積み、安全地点でまとめて適用する
+		// 親子付けはHierarchyComponentの追加やリンク繋ぎ替えを伴う構造変更のためForEach走査を壊さないようコマンドバッファへ積み安全地点でまとめて適用する
 		world->GetCommandBuffer().EnqueueSetParent(child, newParent);
 	}
 

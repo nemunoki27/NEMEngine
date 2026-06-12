@@ -67,7 +67,7 @@ namespace {
 
 		const bool shortcutDown = directInputDown || imguiDown;
 
-		// 同時押しに入った瞬間だけ反応させる。押しっぱなしの間は再トグルしない
+		// 同時押しに入った瞬間だけ反応させ押しっぱなしの間は再トグルしない
 		static bool wasShortcutDown = false;
 		const bool triggered = shortcutDown && !wasShortcutDown;
 		wasShortcutDown = shortcutDown;
@@ -477,7 +477,7 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		Vector3 localTarget = Vector3::Transform(ndcTarget, wvpInv);
 		Vector3 localDir = Vector3::Normalize(localTarget - localOrigin);
 
-		// Z=0平面との交差判定 (rd.zが0に近い場合は平行なのでスキップ)
+		// Z=0平面との交差判定(rd.zが0に近い場合は平行なのでスキップ)
 		if (std::abs(localDir.z) < 1e-5f) {
 			return;
 		}
@@ -553,7 +553,7 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		return Entity::Null();
 	}
 
-	// レイヤー、オーダーの降順でソート（手前にあるものを優先）
+	// レイヤーとオーダーの降順でソートし手前にあるものを優先する
 	std::sort(hits.begin(), hits.end(), [](const HitRecord& a, const HitRecord& b) {
 		if (a.layer != b.layer) return a.layer > b.layer;
 		return a.order > b.order;
@@ -871,7 +871,7 @@ void Engine::EditorManager::LoadViewportPanelState() {
 	LoadEnumValue(sceneView, "cameraMode", editorState_.sceneViewCamera.mode);
 	LoadEnumValue(sceneView, "manualCameraDimension", editorState_.manualCameraDimension);
 
-	// 実体参照は起動時に持ち越さない。モードだけを復元し、カメラ指定は現在のシーンで選び直す
+	// 実体参照は起動時に持ち越さずモードだけを復元しカメラ指定は現在のシーンで選び直す
 	editorState_.sceneViewCamera.ClearAssignedCameras();
 	editorState_.ClearSelection();
 }

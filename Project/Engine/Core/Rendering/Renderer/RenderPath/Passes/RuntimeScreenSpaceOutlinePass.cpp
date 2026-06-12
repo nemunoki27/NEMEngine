@@ -33,11 +33,13 @@ void Engine::RuntimeScreenSpaceOutlinePass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
+	// Outlineコンポーネントが付いたEntityを集め、1件も無ければ描かない
 	CollectRequests(context, passBuckets);
 	if (requests_.empty()) {
 		return;
 	}
 
+	// 集めた要求を専用rendererへ渡してruntime用のScreenSpaceOutlineへ描く
 	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests_,
 		context.resources->GetRuntimeScreenSpaceOutline());
 }
@@ -47,11 +49,13 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 
 	requests_.clear();
 
+	// outline対象はOpaqueメッシュなのでそのバケットだけ走査する
 	const RenderPassItemList* list = passBuckets.Find(RenderPhase::Opaque);
 	if (!list || list->IsEmpty()) {
 		return;
 	}
 
+	// 同一Entityが複数サブメッシュで来ても二重登録しないよう既出を記録する
 	std::unordered_set<uint64_t> visited{};
 	visited.reserve(list->items.size());
 	for (const RenderItem* item : list->items) {
@@ -59,6 +63,7 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 		if (!item || item->backendID != RenderBackendID::Mesh || !item->world) {
 			continue;
 		}
+		// 別worldのアイテムは対象にしない
 		if (context.world && item->world != context.world) {
 			continue;
 		}
@@ -70,15 +75,18 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 		if (!renderer) {
 			continue;
 		}
+		// Outlineが有効でwidthが有限の正値のものだけ採用する
 		const ScreenSpaceOutlineComponent* outline = item->world->TryGetComponent<ScreenSpaceOutlineComponent>(item->entity);
 		if (!outline || !outline->enabled || !std::isfinite(outline->widthPixels) || outline->widthPixels <= 0.0f) {
 			continue;
 		}
+		// 階層的に非アクティブなEntityは描かない
 		const SceneObjectComponent* sceneObject = item->world->TryGetComponent<SceneObjectComponent>(item->entity);
 		if (sceneObject && !sceneObject->activeInHierarchy) {
 			continue;
 		}
 
+		// コンポーネント値からEntity全体ぶんの描画要求を組み立てる
 		ScreenSpaceOutlineRequest request{};
 		request.world = item->world;
 		request.entity = item->entity;

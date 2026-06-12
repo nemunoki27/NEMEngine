@@ -35,15 +35,15 @@ namespace Engine {
 		// GPU利用中のstagingを安全に解放してから破棄する
 		void Finalize();
 
-		// Batchを開始する。既に開いている場合は何もしない
+		// Batchを開始し既に開いている場合は何もしない
 		void BeginBatch();
 
 		// DEFAULT heap destinationへの初期データ転送を記録する
-		// stagingを生成しCopyBufferRegionとBarrierを積む。実行はSubmitBatchで行う
+		// stagingを生成しCopyBufferRegionとBarrierを積む、実行はSubmitBatchで行う
 		void EnqueueBufferUpload(ID3D12Resource* destination,
 			std::span<const std::byte> sourceData, D3D12_RESOURCE_STATES finalState);
 
-		// 記録済みBatchをキューへ提出し、Fence値を返す。コマンドが無ければ0を返す
+		// 記録済みBatchをキューへ提出しFence値を返す、コマンドが無ければ0を返す
 		uint64_t SubmitBatch();
 
 		// 完了したBatchのstagingを解放する(毎フレーム主スレッドで呼ぶ)

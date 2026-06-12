@@ -70,6 +70,15 @@ if (-not (Test-Path -LiteralPath $scriptCodeGenProject)) {
     throw "NEM.ScriptCodeGen project was not found: $scriptCodeGenProject"
 }
 
+# NEM.ScriptAnalyzers（ScriptBehaviour constructor analyzer）も同じ Managed 配下にある。
+# GameScripts は --no-dependencies でビルドするため、Analyzer 参照先の DLL を先に同一構成でビルドしておく
+# （ScriptCodeGen と同様。これが無いと Develop など未ビルド構成で CS0006 になる）。
+$scriptAnalyzersProject = Convert-ToCommandPath (Join-Path $managedDirectory "NEM.ScriptAnalyzers\NEM.ScriptAnalyzers.csproj")
+
+if (-not (Test-Path -LiteralPath $scriptAnalyzersProject)) {
+    throw "NEM.ScriptAnalyzers project was not found: $scriptAnalyzersProject"
+}
+
 # NEM.ScriptMetaSync（Editor script metadata 同期ツール）も同じ Managed 配下にある。
 # GameScripts ビルド前に .cs.meta の Stable ID を採番・維持する（Stable ID の正は sidecar metadata）。
 $scriptMetaSyncProject = Convert-ToCommandPath (Join-Path $managedDirectory "NEM.ScriptMetaSync\NEM.ScriptMetaSync.csproj")
@@ -85,6 +94,7 @@ $preBuildCommand = @(
     'set DOTNET_CLI_UI_LANGUAGE=en',
     ('dotnet build "' + $scriptCoreProject + '" -c "$(Configuration)"'),
     ('dotnet build "' + $scriptCodeGenProject + '" -c "$(Configuration)"'),
+    ('dotnet build "' + $scriptAnalyzersProject + '" -c "$(Configuration)"'),
     ('dotnet build "' + $scriptMetaSyncProject + '" -c "$(Configuration)"'),
     # script metadata 同期（CI は NEMScriptMetadataMode=ValidateOnly で自動採番せず error）
     'if "%NEMScriptMetadataMode%"=="" set NEMScriptMetadataMode=EditorSync',

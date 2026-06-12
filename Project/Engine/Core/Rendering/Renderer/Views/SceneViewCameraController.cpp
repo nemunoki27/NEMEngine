@@ -157,7 +157,7 @@ void Engine::SceneViewCameraController::Update3D() {
 
 	const float rotateSpeedDeg = Math::RadToDeg(kRotateSpeed);
 
-	// 右ドラッグ: 回転
+	// 右ドラッグ:回転
 	if (input->PushMouseRight()) {
 
 		cameraState_.transform3D.rotation.x += mouseDelta.y * rotateSpeedDeg;
@@ -165,7 +165,7 @@ void Engine::SceneViewCameraController::Update3D() {
 		cameraState_.transform3D.rotation = Math::WrapDegree180(cameraState_.transform3D.rotation);
 	}
 
-	// 中ドラッグ: パン
+	// 中ドラッグ:パン
 	if (input->PushMouseCenter()) {
 
 		Vector3 right = { kPanSpeed * mouseDelta.x, 0.0f, 0.0f };
@@ -177,7 +177,7 @@ void Engine::SceneViewCameraController::Update3D() {
 		cameraState_.transform3D.pos += right + up;
 	}
 
-	// ホイール: 前後移動
+	// ホイール:前後移動
 	if (wheel != 0.0f) {
 
 		Vector3 forward = { 0.0f, 0.0f, wheel * kZoomRate };

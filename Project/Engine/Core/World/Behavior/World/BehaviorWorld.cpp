@@ -155,9 +155,9 @@ void Engine::BehaviorWorld::DestroyIndex(uint32_t index, ECSWorld& world, const 
 
 	const Entity owner = record.owner;
 
-	// ビヘイビアの状態に応じて適切な関数を呼び出す。
-	// enabledなものだけOnDisable、一度でもAwake済みのものだけOnDestroyを呼ぶ。
-	// Awake未実行のinactive scriptはどちらも呼ばず解放だけ行う。
+	// ビヘイビアの状態に応じて適切な関数を呼び出す
+	// enabledなものだけOnDisable、一度でもAwake済みのものだけOnDestroyを呼ぶ
+	// Awake未実行のinactive scriptはどちらも呼ばず解放だけ行う
 	if (record.instance) {
 		if (record.enabled) {
 

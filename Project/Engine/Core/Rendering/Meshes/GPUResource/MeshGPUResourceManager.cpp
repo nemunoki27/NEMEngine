@@ -500,7 +500,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 			mesh.meshletPrimitiveIndexSRV, imported.meshletPrimitiveIndices, L"MeshletPrimitiveIndices");
 	}
 
-	// このメッシュで積んだDEFAULT heap初期転送を1Batchとして提出する。描画Queue側はGPU Waitで順序保証する
+	// このメッシュで積んだDEFAULT heap初期転送を1Batchとして提出し描画Queue側はGPU Waitで順序保証する
 	uploadService_->SubmitBatch();
 
 	// GPUリソースを保存

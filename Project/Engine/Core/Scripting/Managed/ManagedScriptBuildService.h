@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Scripting/Managed/ManagedProcessRunner.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ManagedAlcStatus.h>
 
 // c++
 #include <chrono>
@@ -19,18 +20,14 @@ namespace Engine {
 
 	//============================================================================
 	//	ManagedScriptBuildService class
-	//	Edit モードの GameScripts reload を、Editor を block せず安全に進める状態機械。
+	//	EditモードのGameScripts reloadをEditorをblockせず安全に進める状態機械
 	//============================================================================
-	// source 監視（debounce 付き）→ staging へ非同期 dotnet build → shadow copy →
-	// collectible ALC へ load → 成功で last-known-good 更新、という流れを管理する。
-	// build/reload の適用（unload/load）は main thread の Tick 内でのみ行う。
-	// Play 中は reload を適用せず、変更は dirty として記録するだけにする。
 	class ManagedScriptBuildService {
 	public:
 		//============================================================================
 		//	public types
 		//============================================================================
-		// reload 状態機械の状態
+		// reload状態機械の状態
 		enum class State : uint8_t {
 
 			Idle,
@@ -49,12 +46,29 @@ namespace Engine {
 			FallbackFailed,
 		};
 
-		// Play 開始のための build/reload 要求の解決状態
+		// Play開始のためのbuild/reload要求の解決状態
 		enum class PlayBuildResult : uint8_t {
 
 			Pending,
 			Succeeded,
 			Failed,
+		};
+
+		// Editor panelが読むread-only snapshotでLogger文字列ではなく構造化状態をsource of truthとする、値はすべてcopy済みで毎UIフレームの安全な参照に使える
+		struct Snapshot {
+
+			State state = State::Idle;
+			uint64_t buildId = 0;
+			uint64_t reloadId = 0;
+			bool hasPendingSourceChanges = false;
+			bool reloadDeferredByPlayMode = false;
+			bool hasUsableLastKnownGood = false;
+			bool lastKnownGoodUpdateFailed = false;
+			bool alcLeakSuspected = false;
+			AlcUnloadStatus alcUnloadStatus = AlcUnloadStatus::Unknown;
+			std::string activeAssemblyPath;
+			std::string lastSuccessfulBuildTime;
+			std::string lastFailureSummary;
 		};
 
 		//============================================================================
@@ -66,39 +80,52 @@ namespace Engine {
 		ManagedScriptBuildService(const ManagedScriptBuildService&) = delete;
 		ManagedScriptBuildService& operator=(const ManagedScriptBuildService&) = delete;
 
-		// runtime を関連付けて初期化する。source 監視の baseline と last-known-good を整える
+		// runtimeを関連付けて初期化し、source監視のbaselineとlast-known-goodを整える
 		void Initialize(ManagedScriptRuntime* runtime);
-		// 実行中の子プロセスを安全に終了し、状態を破棄する。複数回呼び出しても安全
+		// 実行中の子プロセスを安全に終了して状態を破棄する、複数回呼び出しても安全
 		void Shutdown();
 
-		// 毎フレーム呼ぶ。playing 中は reload を適用せず、変更検知（dirty 記録）だけ行う
+		// 毎フレーム呼ぶ、playing中はreloadを適用せず変更検知のdirty記録だけ行う
 		void Tick(bool playing);
 
-		// Play 開始のために最新の build/reload を要求する（debounce を経ずに開始）
+		// Play開始のために最新のbuildやreloadを要求する、debounceを経ずに開始する
 		void RequestPlayBuild();
-		// Play 要求の解決状態。Pending の間は Play 開始を保留する
+		// Play要求の解決状態でPendingの間はPlay開始を保留する
 		PlayBuildResult PollPlayBuild() const { return playBuildResult_; }
-		// Play 開始の保留要求が出ているか
+		// Play開始の保留要求が出ているか
 		bool IsPlayBuildRequested() const { return playBuildRequested_; }
 
 		//--------- accessor -----------------------------------------------------
 
 		State GetState() const { return state_; }
-		// dirty（未反映の source 変更）があるか。Play 中の保存表示などに使う
+		// 未反映のsource変更つまりdirtyがあるか、Play中の保存表示などに使う
 		bool HasPendingChanges() const { return dirty_; }
+
+		//--------- Editor-facing service boundary -------------------------------
+		// Editor panel向けのread-only snapshotを返す、構造化状態でlog再解析しない
+		Snapshot GetSnapshot() const;
+
+		// 明示rebuildを要求し状態機械を壊さずdirtyを立てるだけ、次の安全地点でbuildやreloadを行いPlay中は既存defer ruleを守る
+		void RequestRebuild();
+		// 直近の失敗後に再試行する、RequestRebuildと同義だが意図を明示する
+		void RequestRetry();
+		// metadata同期を要求する、rebuildサイクルの先頭で同期が走る
+		void RequestMetadataSync();
+		// 安全になった時点でreloadする要求でPlay中はStop後までdeferする
+		void RequestReloadWhenSafe();
 	private:
 		//============================================================================
 		//	private types
 		//============================================================================
 
-		// source 監視用のスタンプ（更新時刻 + サイズ）
+		// source監視用のスタンプで更新時刻とサイズを持つ
 		struct SourceStamp {
 
 			std::filesystem::file_time_type time{};
 			std::uintmax_t size = 0;
 		};
 
-		// 1 回の reload サイクルの診断情報
+		// 1回のreloadサイクルの診断情報
 		struct ReloadDiagnostics {
 
 			uint64_t buildId = 0;
@@ -111,7 +138,7 @@ namespace Engine {
 			double loadMs = 0.0;
 			double manifestMs = 0.0;
 			bool artifactValid = false;
-			// Script Manifest の生成と検証に成功したか（load前に必須）
+			// Script Manifestの生成と検証に成功したかでload前に必須
 			bool manifestValid = false;
 			bool fallbackUsed = false;
 		};
@@ -120,28 +147,27 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
-		// source 変更を検知して dirty を更新する（throttle 付き polling）
+		// source変更を検知してdirtyを更新するthrottle付きpolling
 		void PollSourceChanges();
-		// 状態機械を 1 ステップ進める
+		// 状態機械を1ステップ進める
 		void AdvanceState(bool playing);
 
-		// build サイクルを開始する。まず script metadata 同期 → 成功で staging build へ進む
+		// buildサイクルを開始する、まずscript metadata同期し成功でstaging buildへ進む
 		bool StartBuild(bool forPlay);
-		// metadata 同期成功後に、組み立て済みの GameScripts staging build を起動する
+		// metadata同期成功後に、組み立て済みのGameScripts staging buildを起動する
 		bool StartGameScriptsBuild();
-		// --no-dependencies build に必要な前提成果物(NEM.ScriptCore.dll / NEM.ScriptCodeGen.dll)を検証する。
-		// 不足していれば false を返し、不足パスと再ビルド手順をログへ出す（process は起動しない）。
+		// --no-dependencies buildに必要なNEM.ScriptCore.dllとNEM.ScriptCodeGen.dllを検証し不足ならfalseを返し不足パスと再ビルド手順をログへ出してprocessは起動しない
 		bool VerifyBuildPrerequisites() const;
-		// build 完了処理（staging 検証 → shadow copy）
+		// build完了処理でstaging検証してからshadow copyする
 		void OnBuildFinished();
-		// shadow copy から reload を適用する
+		// shadow copyからreloadを適用する
 		void ApplyReload();
-		// last-known-good から復旧する
+		// last-known-goodから復旧する
 		void ApplyFallback();
-		// サイクル終端で Play gate と dirty を解決し Idle へ戻す
+		// サイクル終端でPlay gateとdirtyを解決しIdleへ戻す
 		void FinishCycle(bool succeeded);
 
-		// staging/shadow ディレクトリのコピー・検証・掃除
+		// staging/shadowディレクトリのコピー・検証・掃除
 		bool ValidateArtifacts(const std::filesystem::path& directory) const;
 		bool CopyArtifacts(const std::filesystem::path& from, const std::filesystem::path& to) const;
 		void PruneDirectories(const std::filesystem::path& parent) const;
@@ -164,7 +190,7 @@ namespace Engine {
 		State state_ = State::Idle;
 		ManagedProcessRunner process_;
 
-		// source 監視
+		// source監視
 		std::unordered_map<std::string, SourceStamp> sourceSnapshot_;
 		bool hasSnapshot_ = false;
 		bool dirty_ = false;
@@ -182,20 +208,26 @@ namespace Engine {
 		std::chrono::steady_clock::time_point buildStartTime_{};
 		ReloadDiagnostics diagnostics_{};
 
-		// build failure 診断用に直近 build の情報を保持する（engine.log へ要約を残すため）。
-		// stdout/stderr の全文は gameLogic.log 側にある。
+		// build failure診断用に直近buildの情報を保持しengine.logへ要約を残す、stdoutとstderrの全文はgameLogic.log側にある
 		std::string lastBuildCommandUtf8_;
 		std::filesystem::path lastBuildWorkingDir_;
 		std::string firstErrorLine_;
 		std::string lastErrorLine_;
-		// metadata 同期成功後に起動する GameScripts staging build コマンド
+		// metadata同期成功後に起動するGameScripts staging buildコマンド
 		std::wstring pendingBuildCommand_;
+
+		// Editor向けsnapshot用の状態でlog文字列をsource of truthにしない
+		bool lastKnownGoodUpdateFailed_ = false;
+		bool alcLeakSuspected_ = false; // HostBridge typed status 由来で LeakSuspected のとき true
+		AlcUnloadStatus alcUnloadStatus_ = AlcUnloadStatus::Unknown;
+		std::string lastSuccessfulBuildTimeUtf8_;
+		std::string lastFailureSummaryUtf8_;
 
 		// Play gate
 		bool playBuildRequested_ = false;
 		PlayBuildResult playBuildResult_ = PlayBuildResult::Succeeded;
 
-		// 設定値（将来 12 の設定UIから変更できる拡張点）
+		// 設定値、Editorの設定UIから変更できる拡張点
 		std::chrono::milliseconds debounce_{ 400 };
 		std::chrono::milliseconds scanInterval_{ 250 };
 		int32_t maxRetainedDirectories_ = 3;

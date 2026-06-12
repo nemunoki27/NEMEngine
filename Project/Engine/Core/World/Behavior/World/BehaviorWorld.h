@@ -36,18 +36,18 @@ namespace Engine {
 		bool enabled = false;
 		bool awakeCalled = false;
 		bool startCalled = false;
-		// ScriptBehaviour.Enabled による runtime override。
-		// hasRuntimeEnabledOverride が立っている間は authoring の ScriptEntry.enabled より優先される。
-		// authoring へは書き戻さない（Play終了でrecordごと破棄される）
+		// ScriptBehaviour.Enabledによるruntime override
+		// hasRuntimeEnabledOverrideが立っている間はauthoringのScriptEntry.enabledより優先される
+		// authoringへは書き戻さずPlay終了でrecordごと破棄される
 		bool runtimeEnabledOverride = false;
 		bool hasRuntimeEnabledOverride = false;
-		// callback内で回復不能な例外が発生した。faulted以降はgameplay callbackを呼ばない
+		// callback内で回復不能な例外が発生した状態でfaulted以降はgameplay callbackを呼ばない
 		bool faulted = false;
 		// スイープ用
 		bool seen = false;
 
-		// serializedFieldsを適用済みのリビジョン。sentinelは未適用。
-		// ScriptEntry.serializedRevisionと一致するまで再適用する（hot pathでのJSON再適用を防ぐ）
+		// serializedFieldsを適用済みのリビジョンでsentinelは未適用
+		// ScriptEntry.serializedRevisionと一致するまで再適用しhot pathでのJSON再適用を防ぐ
 		uint32_t appliedSerializedRevision = 0xFFFFFFFF;
 	};
 
@@ -72,8 +72,8 @@ namespace Engine {
 
 		// 全てのビヘイビアの実体に対してアクセスされたフラグをクリアする
 		void ClearSeenFlags();
-		// 実体がアクセスされなかったビヘイビアを全てのレコードに対して破棄する。
-		// 破棄した件数を返す（participantキャッシュの再構築要否判定に使う）
+		// 実体がアクセスされなかったビヘイビアを全てのレコードに対して破棄する
+		// 破棄した件数を返しparticipantキャッシュの再構築要否判定に使う
 		uint32_t SweepUnseen(ECSWorld& world, const SystemContext& context);
 
 		// ビヘイビアの実体全てに対して関数を呼び出す

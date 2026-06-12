@@ -81,7 +81,7 @@ bool Engine::PasteEntityTreeCommand::Execute(EditorCommandContext& context) {
 		// 複製用スナップショットの構築
 		EditorEntityDuplicateUtility::BuildDuplicateSnapshot(sourceSnapshot_, duplicatedName, preparedSnapshot_);
 
-		// コピー元が壊れていて sceneInstanceID / sourceAsset が空でも、
+		// コピー元が壊れていてsceneInstanceID / sourceAssetが空でも、
 		// 貼り付け先シーンの情報で補完する
 		EditorEntitySnapshotUtility::FillMissingOwnerRuntimeState(context, *world, parentStableUUID_, preparedSnapshot_);
 

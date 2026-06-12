@@ -54,7 +54,7 @@ namespace Engine {
 		SceneInstanceManager() = default;
 		~SceneInstanceManager() = default;
 
-		// シーンをロードしてインスタンスを作成（forcedInstanceID が有効ならその instance ID を使う＝C# 側で先行採番した SceneHandle と一致させる）
+		// シーンをロードしてインスタンスを作成し、forcedInstanceIDが有効ならそのinstance IDを使ってC#側で先行採番したSceneHandleと一致させる
 		bool LoadAdditive(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world, AssetID sceneAsset, UUID forcedInstanceID = UUID{});
 		// シーンインスタンスをアンロード
 		bool Unload(ECSWorld& world, UUID instanceID);

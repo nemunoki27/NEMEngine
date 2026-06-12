@@ -10,7 +10,7 @@ namespace Engine {
 
 	//============================================================================
 	//	ClearRenderTargetsPass class
-	//	SceneMain / SceneFinal をクリアするパス
+	//	SceneMain / SceneFinalをクリアするパス
 	//============================================================================
 	class ClearRenderTargetsPass :
 		public IRenderPass {

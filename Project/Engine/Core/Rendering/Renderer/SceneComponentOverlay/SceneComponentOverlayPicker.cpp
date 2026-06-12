@@ -16,7 +16,7 @@ namespace {
 
 	struct Hit {
 
-		// Entity選択用のヒット情報。サブメッシュ選択は行わない
+		// Entity選択用のヒット情報でサブメッシュ選択は行わない
 		Engine::Entity entity = Engine::Entity::Null();
 		float depth = 0.0f;
 		uint32_t stableOrder = 0;

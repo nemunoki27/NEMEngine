@@ -28,7 +28,7 @@ namespace Engine {
 		SceneComponentOverlayRegistry();
 		~SceneComponentOverlayRegistry() = default;
 
-		// 登録済み定義の列挙。将来の拡張やデバッグ表示で使う
+		// 登録済み定義の列挙で将来の拡張やデバッグ表示で使う
 		std::span<const Registration> GetRegistrations() const { return registrations_; }
 		// Collectorが対象コンポーネントから表示アセットを引くための検索
 		const Registration* Find(SceneComponentOverlayComponentKind kind) const;

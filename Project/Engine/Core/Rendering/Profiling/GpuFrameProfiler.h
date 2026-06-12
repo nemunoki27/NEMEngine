@@ -26,7 +26,7 @@ namespace Engine {
 		//============================================================================
 		static GpuFrameProfiler& GetInstance();
 
-		// フレーム開始。初回は遅延初期化し、前フレームの計測結果をFrameProfilerへ反映してから記録をリセットする
+		// フレーム開始で初回は遅延初期化し前フレームの計測結果をFrameProfilerへ反映してから記録をリセットする
 		void BeginFrame(ID3D12Device* device, ID3D12CommandQueue* commandQueue);
 		// パス計測(BeginFrame～Resolveの間のみ有効)
 		void BeginPass(ID3D12GraphicsCommandList* commandList, const std::string& name);

@@ -27,7 +27,7 @@ namespace Engine {
 	// システムで共有する必要な情報をまとめる
 	struct SystemContext {
 
-		// 現在 tick 中の active world（scripting callback が parent 無し生成等で参照する。非所有）
+		// 現在tick中のactive worldでscripting callbackがparent無し生成等で参照する非所有ポインタ
 		ECSWorld* world = nullptr;
 
 		// エンジンのコア機能

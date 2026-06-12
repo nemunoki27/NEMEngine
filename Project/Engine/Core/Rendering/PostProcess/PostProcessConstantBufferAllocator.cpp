@@ -20,7 +20,7 @@ namespace {
 
 void Engine::PostProcessConstantBufferAllocator::BeginFrame() {
 
-	// 同一フレーム内では上書きしない。フレーム先頭でのみ再利用する
+	// 同一フレーム内では上書きせずフレーム先頭でのみ再利用する
 	offset_ = 0;
 	retiredResources_.clear();
 }

@@ -45,7 +45,7 @@ namespace Engine {
 		float meshBoundsRadius = 0.0f;
 		// Contribution Cullingで消す最小ピクセル半径
 		float contributionPixelThreshold = 1.0f;
-		// 背面法アウトラインパスかどうか。カリングBoundsの安全側膨張に使う
+		// 背面法アウトラインパスかどうかでカリングBoundsの安全側膨張に使う
 		uint32_t invertedHullOutlinePass = 0;
 		// アウトラインのモデル空間最大膨張量
 		float outlineMaxModelExpansion = 0.0f;
@@ -92,7 +92,7 @@ namespace Engine {
 
 		// サブメッシュごとのローカル行列(位置・Bounds・Culling用)
 		Matrix4x4 localMatrix = Matrix4x4::Identity();
-		// localMatrixの法線変換行列 transpose(inverse(localMatrix))
+		// localMatrixの法線変換行列transpose(inverse(localMatrix))
 		// 非一様スケールでも法線が壊れないよう、位置用とは別に持つ
 		Matrix4x4 localNormalMatrix = Matrix4x4::Identity();
 
@@ -107,7 +107,7 @@ namespace Engine {
 
 		// Position Scaling膨張の基準ピボット(モデル空間)
 		Vector3 sourcePivot = Vector3::AnyInit(0.0f);
-		// localMatrixの線形部の行列式の符号。負スケール(mirror)時に-1
+		// localMatrixの線形部の行列式の符号で負スケールのmirror時に-1
 		float localOrientationSign = 1.0f;
 	};
 	static_assert(sizeof(MeshSubMeshShaderData) == 288,

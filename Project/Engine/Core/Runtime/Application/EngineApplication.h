@@ -44,7 +44,7 @@ namespace Engine {
 
 		// 終了処理
 		void Finalize();
-		// ウィンドウ終了要求。falseを返すと終了をキャンセルする
+		// ウィンドウ終了要求でfalseを返すと終了をキャンセルする
 		bool RequestClose();
 		// Assert停止前に必要な保存処理を行う
 		void NotifyAssertBeforeAbort();
@@ -55,7 +55,7 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// 現在アクティブなシーン。初期シーンもパスではなく.meta GUIDで参照する
+		// 現在アクティブなシーンで初期シーンもパスではなく.meta GUIDで参照する
 		std::string activeScenePath_{};
 		AssetID activeScene_{ 0x129d80fee6b506d1ull };
 
@@ -82,9 +82,9 @@ namespace Engine {
 		// エディタ管理
 		EditorManager editorManager_;
 		EditorContext editorContext_{};
-		// Editモードの非同期 build/reload を管理する
+		// Editモードの非同期build/reloadを管理する
 		ManagedScriptBuildService scriptBuildService_;
-		// Play開始要求を build/reload 完了まで保留しているか
+		// Play開始要求をbuild/reload完了まで保留しているか
 		bool pendingPlayStart_ = false;
 
 		bool playPaused_ = false;

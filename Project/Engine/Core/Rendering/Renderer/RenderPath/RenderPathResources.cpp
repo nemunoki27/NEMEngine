@@ -229,7 +229,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildScreenSpac
 	desc.width = width;
 	desc.height = height;
 
-	// Style IDを整数値のまま保持する。0は「outlineなし」として毎回clearする
+	// Style IDを整数値のまま保持し0はoutlineなしとして毎回clearする
 	ColorAttachmentDesc color{};
 	color.name = std::string(name);
 	color.format = DXGI_FORMAT_R16_UINT;

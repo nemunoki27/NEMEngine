@@ -43,7 +43,7 @@ namespace Engine {
 
 		//--------- math accessor ------------------------------------------------
 
-		// Vector/Quaternion/Colorの読み書き。GetはキーやJSON形式が不正ならdefaultValueを返す
+		// Vector/Quaternion/Colorの読み書きでGetはキーやJSON形式が不正ならdefaultValueを返す
 		static void SetVector2(nlohmann::json& json, const std::string& key, const Vector2& value);
 		static Vector2 GetVector2(const nlohmann::json& json, const std::string& key, const Vector2& defaultValue = {});
 		static void SetVector3(nlohmann::json& json, const std::string& key, const Vector3& value);

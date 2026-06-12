@@ -81,7 +81,7 @@ void RegistryAutoBindTable::BindGraphics(const RenderBufferRegistry& registry,
 				entry->gpuAddress, entry->srvGPUHandle);
 		}
 		if (resolved.accelStructLocation && entry->gpuAddress != 0) {
-			// AccelStruct は SRV コマンドで gpuAddress 直指定
+			// AccelStructはSRVコマンドでgpuAddress直指定
 			RootBindingCommand::SetGraphicsSRV(commandList, resolved.accelStructLocation,
 				entry->gpuAddress, {});
 		}

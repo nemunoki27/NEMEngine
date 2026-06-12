@@ -38,9 +38,9 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// デバッグ時: 条件NGならメッセージを出力しデバッガ停止(_Assert::Call_EXPR)
+		// デバッグ時:条件NGならメッセージを出力しデバッガ停止(_Assert::Call_EXPR)
 		static void DebugAssert(bool condition, const std::string& message, const std::source_location& location);
-		// リリース時: 条件NGならクリティカルログを出力しプロセス終了
+		// リリース時:条件NGならクリティカルログを出力しプロセス終了
 		static void ReleaseAssert(bool condition, const std::string& message, const std::source_location& location);
 		// 停止前の処理を一度だけ呼び出す
 		static void InvokePreAssertHandler();

@@ -16,7 +16,7 @@ namespace Engine {
 
 	//============================================================================
 	//	InvertedHullOutlinePass class
-	//	背面法アウトラインの追加描画パス。OpaqueバケットからOutline対象を抽出し、
+	//	背面法アウトラインの追加描画パスでOpaqueバケットからOutline対象を抽出し
 	//	SceneFinalの色とSceneMainの深度を組み合わせてHullを描画する
 	//============================================================================
 	class InvertedHullOutlinePass :

@@ -33,7 +33,7 @@ namespace Engine {
 			Count
 		};
 
-		// 名前付きの処理時間(GPUパス / ECSシステムなどで共用)
+		// 名前付きの処理時間(GPUパス/ ECSシステムなどで共用)
 		struct NamedTime {
 
 			std::string name;
@@ -44,13 +44,13 @@ namespace Engine {
 
 		static FrameProfiler& GetInstance();
 
-		// フレーム開始。前フレームの累積を確定し、今フレームの累積をリセットする
+		// フレーム開始で前フレームの累積を確定し今フレームの累積をリセットする
 		void BeginFrame(float deltaTimeSec, float totalTimeSec);
 		// カテゴリへ計測時間(ms)を加算する
 		void AddSample(Category category, float milliseconds);
-		// GPU計測結果(各パス)を設定する。空なら未計測扱い
+		// GPU計測結果を各パスごとに設定する、空なら未計測扱い
 		void SetGpuPassTimes(const std::vector<NamedTime>& passes);
-		// ECSシステムごとの処理時間(処理順)を設定する。空なら未計測扱い
+		// ECSシステムごとの処理時間を処理順で設定する、空なら未計測扱い
 		void SetEcsSystemTimes(const std::vector<NamedTime>& systems);
 
 		//--------- accessor -----------------------------------------------------

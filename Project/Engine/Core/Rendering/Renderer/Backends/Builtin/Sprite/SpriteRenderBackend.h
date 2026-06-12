@@ -48,7 +48,7 @@ namespace Engine {
 		// バッチ描画に使用するリソース
 		FrameBatchResourcePool<SpriteBatchResources> resourcePool_;
 
-		// バッファレジストリ → Graphicsパイプラインスロットの対応キャッシュ
+		// バッファレジストリ→ Graphicsパイプラインスロットの対応キャッシュ
 		RegistryAutoBindTable registryAutoBindTable_{};
 		// 描画固有バインドのパイプラインスロットキャッシュ
 		PipelineBindingCache perDrawBindCache_{};

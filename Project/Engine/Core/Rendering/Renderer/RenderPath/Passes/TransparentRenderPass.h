@@ -10,7 +10,7 @@ namespace Engine {
 
 	//============================================================================
 	//	TransparentRenderPass class
-	//	Transparentキューを SceneFinal に描画するパス
+	//	TransparentキューをSceneFinalに描画するパス
 	//============================================================================
 	class TransparentRenderPass :
 		public IRenderPass {

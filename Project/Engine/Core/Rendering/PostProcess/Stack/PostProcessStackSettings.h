@@ -19,7 +19,7 @@ namespace Engine {
 	// ポストプロセスの1パス分の設定データ
 	struct PostProcessStackPassSettings {
 
-		// パスの識別ID（並び替え後も参照を保つ）
+		// パスの識別IDで並び替え後も参照を保つ
 		UUID id{};
 		// 表示名
 		std::string name;

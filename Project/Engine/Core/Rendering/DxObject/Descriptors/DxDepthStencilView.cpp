@@ -22,7 +22,7 @@ void DSVDescriptor::CreateDepthResource(ComPtr<ID3D12Resource>& resource,
 	resourceDesc.MipLevels = 1;                                   // mipmapの数
 	resourceDesc.DepthOrArraySize = 1;                            // 奥行　or 配列Textureの配列数
 	resourceDesc.Format = resourceFormat;                         // DepthStencilとして利用可能なフォーマット
-	resourceDesc.SampleDesc.Count = 1;                            // サンプリングカウント。1固定
+	resourceDesc.SampleDesc.Count = 1;                            // サンプリングカウントは1固定
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;  // 2次元
 	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL; // DepthStencilとして使う通知
 

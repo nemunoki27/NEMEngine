@@ -16,7 +16,7 @@ namespace {
 //============================================================================
 Engine::ManagedWorldHandle Engine::ManagedWorldRegistry::Register(ECSWorld& world) {
 
-	// 既に登録済みなら同じハンドルを返す（暗黙の二重登録を作らない）
+	// 既に登録済みなら同じハンドルを返し暗黙の二重登録を作らない
 	const ManagedWorldHandle existing = TryGetHandle(world);
 	if (existing.index != kInvalidIndex) {
 		return existing;
@@ -64,7 +64,7 @@ void Engine::ManagedWorldRegistry::Unregister(ManagedWorldHandle handle) {
 
 Engine::ECSWorld* Engine::ManagedWorldRegistry::TryResolve(ManagedWorldHandle handle) const {
 
-	// 範囲・使用中・世代一致を確認する。古いハンドルはnullptr
+	// 範囲と使用中と世代一致を確認する、古いハンドルはnullptr
 	if (handle.index == kInvalidIndex || slots_.size() <= handle.index) {
 		return nullptr;
 	}
@@ -77,7 +77,7 @@ Engine::ECSWorld* Engine::ManagedWorldRegistry::TryResolve(ManagedWorldHandle ha
 
 Engine::ManagedWorldHandle Engine::ManagedWorldRegistry::TryGetHandle(const ECSWorld& world) const {
 
-	// 登録枠は少数なので線形探索で十分。worldごとに1枠
+	// 登録枠は少数なので線形探索で十分、worldごとに1枠
 	for (uint32_t i = 0; i < slots_.size(); ++i) {
 
 		const Slot& slot = slots_[i];

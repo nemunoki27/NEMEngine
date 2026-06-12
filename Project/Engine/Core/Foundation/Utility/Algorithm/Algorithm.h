@@ -99,7 +99,7 @@ namespace Engine {
 		//============================================================================
 		//	Find
 		//============================================================================
-		// メンバfindを持つ連想系コンテナでキーの存在を判定する（必要に応じAssert::Call）
+		// メンバfindを持つ連想系コンテナでキーの存在を判定する、必要に応じAssert::Call
 		template <typename, typename = std::void_t<>>
 		struct has_find_method : std::false_type {};
 		template <typename T>
@@ -109,7 +109,7 @@ namespace Engine {
 		template <typename T>
 		constexpr bool has_find_method_v = has_find_method<T>::value;
 
-		// 連想コンテナに対しkeyの存在を返す（assertionEnable時に未発見ならAssert::Call）
+		// 連想コンテナに対しkeyの存在を返す、assertionEnable時に未発見ならAssert::Call
 		template <typename TA, typename TB>
 		typename std::enable_if_t<has_find_method_v<TA>, bool>
 			Find(const TA& object, const TB& key, bool assertionEnable = false) {
@@ -122,7 +122,7 @@ namespace Engine {
 			}
 			return found;
 		}
-		// シーケンスコンテナに対しkeyの存在を返す（assertionEnable時に未発見ならAssert::Call）
+		// シーケンスコンテナに対しkeyの存在を返す、assertionEnable時に未発見ならAssert::Call
 		template <typename TA, typename TB>
 		typename std::enable_if_t<!has_find_method_v<TA>, bool>
 			Find(const TA& object, const TB& key, bool assertionEnable = false) {

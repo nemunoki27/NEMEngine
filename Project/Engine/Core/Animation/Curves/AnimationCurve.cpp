@@ -28,7 +28,7 @@ namespace {
 
 	float Hermite(float p0, float p1, float m0, float m1, float t, float length) {
 
-		// Spline用のHermite補間。m0/m1は時間あたりの傾きとして渡す
+		// Spline用のHermite補間でm0/m1は時間あたりの傾きとして渡す
 		const float t2 = t * t;
 		const float t3 = t2 * t;
 
@@ -85,7 +85,7 @@ namespace {
 
 	float CalcAutoTangent(const std::vector<Engine::CurveKey>& keys, size_t index) {
 
-		// Spline用の自動接線。端では片側キーだけを使う
+		// Spline用の自動接線で端では片側キーだけを使う
 		if (keys.size() <= 1) {
 			return 0.0f;
 		}

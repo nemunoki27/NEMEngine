@@ -97,9 +97,9 @@ namespace {
 		}
 		auto has = [&](const char* token) { return lower.find(token) != std::string::npos; };
 
-		// 法線マップ(Sponzaの _ddn など派生法線命名も拾う)
+		// 法線マップ(Sponzaの_ddnなど派生法線命名も拾う)
 		if (has("normal") || has("ddn") || has("_nrm") || has("_norm")) { return "法線マップ"; }
-		// ベースカラー(_diff, diffuse, albedo, basecolor 等)
+		// ベースカラー(_diff, diffuse, albedo, basecolor等)
 		if (has("basecolor") || has("base_color") || has("albedo") || has("diff") || has("_col") || has("_alb") || has("_bc")) { return "ベースカラー"; }
 		// メタリック/ラフネス
 		if (has("metal") || has("rough") || has("_mr") || has("_orm") || has("_arm")) { return "メタリック/ラフネス"; }

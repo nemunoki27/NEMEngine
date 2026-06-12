@@ -55,7 +55,7 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// 内部ヘルパ: ワイド文字列をUTF-8へ変換する
+		// 内部ヘルパ:ワイド文字列をUTF-8へ変換する
 		std::string WStringToString(const std::wstring& wstr);
 	};
 

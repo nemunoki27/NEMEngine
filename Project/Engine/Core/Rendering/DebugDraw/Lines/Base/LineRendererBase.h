@@ -107,7 +107,7 @@ namespace Engine {
 		// パイプライン
 		PipelineState pipeline_{};
 
-		// ラインパス定数バッファ（b0）のスロットキャッシュ
+		// ラインパス定数バッファb0のスロットキャッシュ
 		PipelineBindingCache lineBindCache_{};
 		PipelineBindingCache::SlotID lineCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 
@@ -260,7 +260,7 @@ namespace Engine {
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 		commandList->IASetVertexBuffers(0, 1, &renderResource.vertexBuffer.GetVertexBufferView());
 
-		// ルートパラメータのバインド（パイプラインが変わった時だけスロットを再解決する）
+		// ルートパラメータのバインドでパイプラインが変わった時だけスロットを再解決する
 		lineBindCache_.Sync(pipeline_);
 		if (lineBindCache_.Has(lineCBVSlot_)) {
 			RootBindingCommand::SetGraphicsCBV(commandList, lineBindCache_.Get(lineCBVSlot_),

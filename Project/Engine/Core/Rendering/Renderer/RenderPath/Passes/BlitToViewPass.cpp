@@ -22,6 +22,7 @@
 //============================================================================
 namespace {
 
+	// 深度を使わず色RTだけをbindするblit専用のヘルパ
 	bool BindColorTargetsOnly(Engine::GraphicsCore& graphicsCore, Engine::MultiRenderTarget* target) {
 
 		if (!target || target->GetColorCount() == 0) {
@@ -31,6 +32,7 @@ namespace {
 		std::vector<Engine::RenderTarget> renderTargets{};
 		renderTargets.reserve(target->GetColorCount());
 
+		// 全色をRTV書き込み状態へ遷移しつつbind対象を集める
 		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 		for (uint32_t i = 0; i < target->GetColorCount(); ++i) {
 
@@ -42,6 +44,7 @@ namespace {
 			renderTargets.emplace_back(color->GetRenderTarget());
 		}
 
+		// 深度はnulloptで渡しviewportをdest解像度へ合わせる
 		dxCommand->BindRenderTargets(renderTargets, std::nullopt);
 		dxCommand->SetViewportAndScissor(target->GetWidth(), target->GetHeight());
 		return true;
@@ -53,6 +56,7 @@ namespace {
 		if (!source || !dest) {
 			return false;
 		}
+		// blit失敗時のfallbackで、format とサイズが完全一致するときだけresource copyできる
 		Engine::RenderTexture2D* sourceColor = source->GetColorTexture(0);
 		Engine::RenderTexture2D* destColor = dest->GetColorTexture(0);
 		if (!sourceColor || !destColor ||
@@ -62,6 +66,7 @@ namespace {
 			return false;
 		}
 
+		// copy元と先をそれぞれの状態へ遷移してからCopyResourceで丸ごと転送する
 		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 		sourceColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		destColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_DEST);
@@ -86,6 +91,7 @@ namespace {
 			return false;
 		}
 
+		// Blitパスを優先しFullscreenへfallback、Compute/Raytracing variantはこの全画面描画では使わない
 		const Engine::MaterialPassBinding* passBinding = FindPass(*material, Engine::MaterialPassKind::Blit);
 		if (!passBinding) {
 			passBinding = FindPass(*material, Engine::MaterialPassKind::Fullscreen);
@@ -96,6 +102,7 @@ namespace {
 			return false;
 		}
 
+		// destの色formatを並べてPSOのRTVformatに渡す
 		std::array<DXGI_FORMAT, 8> rtvFormats{};
 		uint32_t numRTVFormats = 0;
 		rtvFormats.fill(DXGI_FORMAT_UNKNOWN);
@@ -115,6 +122,7 @@ namespace {
 		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 		auto* commandList = dxCommand->GetCommandList();
 
+		// sourceをSRV読み取りへ、destを色RTだけのbindへ揃える
 		source->TransitionForShaderRead(*dxCommand);
 		if (!BindColorTargetsOnly(graphicsCore, dest)) {
 			return false;
@@ -125,6 +133,7 @@ namespace {
 		commandList->SetGraphicsRootSignature(pipelineState->GetRootSignature());
 		commandList->SetPipelineState(pipelineState->GetGraphicsPipeline(Engine::BlendMode::Normal));
 
+		// pipelineに合わせてslotを解決しsourceの色をt0へbindする
 		srvCache.Sync(*pipelineState);
 		Engine::RenderTexture2D* color = source->GetColorTexture(0);
 		if (!srvCache.Has(srcColorSlot) || !color) {
@@ -132,6 +141,7 @@ namespace {
 		}
 		Engine::RootBindingCommand::SetGraphicsSRV(commandList, srvCache.Get(srcColorSlot), 0, color->GetSRVGPUHandle());
 
+		// 頂点バッファ無しの全画面三角形を1枚描いてtonemap blitする
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		commandList->DrawInstanced(3, 1, 0, 0);
 		return true;
@@ -141,12 +151,14 @@ namespace {
 void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
+	// 最終合成結果を出力先へ写すだけなのでバケットは使わない
 	(void)passBuckets;
 	if (!context.resources || !context.defaultSurface ||
 		!deps_.assetLibrary || !deps_.pipelineCache) {
 		return;
 	}
 
+	// SceneFinalをsourceにしdefaultSurfaceへblitする
 	MultiRenderTarget* source = context.resources->GetSceneFinal();
 	MultiRenderTarget* dest = context.defaultSurface;
 	if (!source || !dest) {
@@ -166,6 +178,7 @@ void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 		dest = context.defaultSurface;
 	}
 
+	// 通常はtonemap付きの全画面blit、material解決やPSO構築に失敗したときだけresource copyへ退避する
 	if (!ExecuteFullscreenBlit(graphicsCore, context, source, dest,
 		*deps_.assetLibrary, *deps_.pipelineCache, blitSRVCache_, srcColorSlot_)) {
 

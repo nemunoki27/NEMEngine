@@ -234,11 +234,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, baseColorTextureAsset);
 			} else if (MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(*meshResource, src.renderer, subMeshIndex)) {
 
-				// 宣言はあるが見つからない: エラーテクスチャ(空AssetIDの解決でerrorIndexが返る)
+				// 宣言はあるが見つからない:エラーテクスチャ(空AssetIDの解決でerrorIndexが返る)
 				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, AssetID{});
 			} else {
 
-				// テクスチャ未設定: シェーダ側でimportedBaseColor*colorを使う
+				// テクスチャ未設定:シェーダ側でimportedBaseColor*colorを使う
 				subMeshData.baseColorTextureIndex = UINT32_MAX;
 			}
 
@@ -260,7 +260,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			subMeshData.specularTextureIndex = specularAsset ?
 				ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, specularAsset) : UINT32_MAX;
 
-			// 初期値。CPU側のMeshSubMeshShaderDataとHLSLのSubMeshShaderDataは同一レイアウトに保つ
+			// 初期値でCPU側のMeshSubMeshShaderDataとHLSLのSubMeshShaderDataは同一レイアウトに保つ
 			subMeshData.localMatrix = Matrix4x4::Identity();
 			subMeshData.localNormalMatrix = Matrix4x4::Identity();
 			subMeshData.color = Color4::White();

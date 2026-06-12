@@ -13,7 +13,7 @@ public enum EntityRefKind {
 // scene / prefab 内 Entity への authoring 参照。
 // runtime entity index / generation / ECSWorld* は保存せず、永続 identity だけを保持する。
 // runtime resolve 失敗時も serialized identity を保持し、Missing Entity でも値を破壊しない。
-// runtime での解決（scene instance / prefab instance との組み合わせ）は 07/08 の責務へ委譲し、
+// runtime での解決（scene instance / prefab instance との組み合わせ）は runtime 側へ委ね、
 // ここでは serialization contract と identity の保持だけを担う。
 public readonly struct EntityRef {
 

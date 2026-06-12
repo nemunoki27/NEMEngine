@@ -36,13 +36,13 @@ namespace Engine {
 	// 指定された名前のレンダーターゲットを解決
 	MultiRenderTarget* ResolveExtraSource(const SceneExecutionContext& context, const std::string& targetName);
 
-	// SRVバインディングを追加。標準名（gSourceColor, gSourceDepth）やオーバーライドを考慮
+	// SRVバインディングを追加し標準名のgSourceColorやgSourceDepthやオーバーライドを考慮する
 	bool AppendSRVBinding(const ShaderResourceBinding& binding,
 		GraphicsCore& graphicsCore, const SceneExecutionContext& context,
 		const PostProcessExecutionDesc& desc, MultiRenderTarget& source,
 		std::vector<ComputeBindItem>& outBindItems, const std::string& logHeader);
 
-	// UAVバインディングを追加。出力先（gDestColor）をバインド
+	// UAVバインディングを追加し出力先のgDestColorをバインドする
 	bool AppendUAVBinding(const ShaderResourceBinding& binding,
 		GraphicsCore& graphicsCore, MultiRenderTarget& dest,
 		std::vector<ComputeBindItem>& outBindItems, const std::string& logHeader);

@@ -29,9 +29,9 @@ namespace {
 		bool visible = false;
 		// SceneView左上基準のピクセル座標
 		Engine::Vector2 screen = Engine::Vector2::AnyInit(0.0f);
-		// カメラView空間での奥行き。近いOverlayの優先順位に使う
+		// カメラView空間での奥行きで近いOverlayの優先順位に使う
 		float viewDepth = 0.0f;
-		// SceneViewカメラとの距離。アイコンサイズと非表示判定に使う
+		// SceneViewカメラとの距離でアイコンサイズと非表示判定に使う
 		float distance = 0.0f;
 	};
 
@@ -47,7 +47,7 @@ namespace {
 		return a + (b - a) * t;
 	}
 
-	// Transformの現在値からワールド行列を作る。worldMatrixキャッシュが未更新でもSceneView位置を合わせるために使う
+	// Transformの現在値からワールド行列を作りworldMatrixキャッシュが未更新でもSceneView位置を合わせるために使う
 	Engine::Matrix4x4 ComputeWorldMatrixFromTransform(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
 		if (!world.IsAlive(entity) || !world.HasComponent<Engine::TransformComponent>(entity)) {

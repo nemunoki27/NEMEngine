@@ -11,8 +11,7 @@
 //============================================================================
 namespace {
 
-	// ScriptEntryを生成する。コンポーネントメニューからの追加は型未設定の空スロットだが、
-	// 同type複数attachを識別できるよう slot ID だけは必ず発番しておく。
+	// ScriptEntryを生成する、コンポーネントメニューからの追加は型未設定の空スロットだが同type複数attachを識別できるようslot IDだけは必ず発番しておく
 	Engine::ScriptEntry MakeScriptEntry(const std::string& typeName, Engine::AssetID scriptAsset) {
 
 		Engine::ScriptEntry entry{};

@@ -56,7 +56,7 @@ namespace Engine {
 		AssetType actualType = AssetType::Unknown;
 	};
 
-	// nlohmann::jsonからAssetIDを取得する(UID文字列のみ。検証はしない)
+	// nlohmann::jsonからAssetIDを取得する、UID文字列のみで検証はしない
 	AssetID ParseAssetID(const nlohmann::json& in, const char* key);
 	// GUID文字列またはGUIDフィールドを持つオブジェクトからAssetIDを取得する
 	// databaseが渡されれば存在確認、expectedTypeがUnknown以外なら型確認も行い、

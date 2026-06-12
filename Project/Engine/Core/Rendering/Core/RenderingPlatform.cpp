@@ -49,14 +49,14 @@ void GraphicsPlatform::InitDXDevice() {
 	ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
 	if (SUCCEEDED(dxDevice_->Get()->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
 
-		// API の破損や不正引数は即座に止める
+		// APIの破損や不正引数は即座に止める
 		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
 
-		// Device Removed 時に DRED Dump へ到達させるため、
-		// ERROR 全般の即時 break は一時的に無効化する
+		// Device Removed時にDRED Dumpへ到達させるため、
+		// ERROR全般の即時breakは一時的に無効化する
 		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, FALSE);
 
-		// 明示的に Device Removal 系の break も解除する
+		// 明示的にDevice Removal系のbreakも解除する
 		infoQueue->SetBreakOnID(D3D12_MESSAGE_ID_DEVICE_REMOVAL_PROCESS_AT_FAULT, FALSE);
 		infoQueue->SetBreakOnID(D3D12_MESSAGE_ID_DEVICE_REMOVAL_PROCESS_POSSIBLY_AT_FAULT, FALSE);
 		infoQueue->SetBreakOnID(D3D12_MESSAGE_ID_DEVICE_REMOVAL_PROCESS_NOT_AT_FAULT, FALSE);

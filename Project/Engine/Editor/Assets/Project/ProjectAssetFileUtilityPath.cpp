@@ -75,7 +75,7 @@ namespace Engine {
 		const std::string fileName = path.filename().string();
 		const std::string lower = Engine::Algorithm::ToLower(fileName);
 
-		// エンジン独自の複合拡張子（.scene.jsonなど）を優先的に判定
+		// .scene.jsonなどのエンジン独自の複合拡張子を優先的に判定
 		for (const char* suffix : kCompoundSuffixes) {
 			const std::string suffixText = suffix;
 			if (Engine::Algorithm::EndsWith(lower, Engine::Algorithm::ToLower(suffixText))) {
@@ -163,7 +163,7 @@ namespace Engine {
 	}
 
 	std::filesystem::path ProjectAssetFileUtility::MakeMetaPath(const std::filesystem::path& path) {
-		// アセットファイル名に .meta を付与してメタデータパスを作成
+		// アセットファイル名に.metaを付与してメタデータパスを作成
 		return path.string() + ".meta";
 	}
 

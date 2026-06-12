@@ -33,7 +33,7 @@ namespace Engine {
 		std::function<void(const std::string&, const ImVec2&)> addNodeRequested;
 		// Nodeを強調表示するか
 		std::function<bool(const GraphNode&)> isNodeHighlighted;
-		// グループフレームNodeか (trueを返すNodeはed::Groupで描画する)
+		// グループフレームNodeか(trueを返すNodeはed::Groupで描画する)
 		std::function<bool(const GraphNode&)> isGroupNode;
 		// 描画後にGraph全体へFitする
 		bool navigateToContent = false;

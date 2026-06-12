@@ -90,7 +90,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 	context.systemContext = request.systemContext;
 	context.assetDatabase = request.assetDatabase;
 
-	// プレビュー用のライトバッファを更新する。SceneView/GameViewのGPUバッファは触らない
+	// プレビュー用のライトバッファを更新しSceneView/GameViewのGPUバッファは触らない
 	previewLightSet_.Clear();
 	ViewLightCollector::CollectForView(frameLightBatch_, &previewScene, previewView, previewLightSet_);
 	ViewLightBufferSet& previewLightBuffers = previewLightBufferPool_.Acquire(graphicsCore,
@@ -115,7 +115,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 			renderBatch_, previewBackendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 	}
 
-	// プレビュー: クリア → 全フェーズを描画サーフェスへ直接描画
+	// プレビュー:クリア→全フェーズを描画サーフェスへ直接描画
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	if (request.clearSurface) {
 

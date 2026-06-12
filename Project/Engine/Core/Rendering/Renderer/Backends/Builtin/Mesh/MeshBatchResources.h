@@ -36,7 +36,7 @@ namespace Engine {
 
 		// 実際に描画するビューの行列
 		Matrix4x4 viewProjection = Matrix4x4::Identity();
-		// カリング判定に使うビューの行列。SceneViewではGameViewの行列になる
+		// カリング判定に使うビューの行列でSceneViewではGameViewの行列になる
 		Matrix4x4 cullingViewProjection = Matrix4x4::Identity();
 		// Contribution CullingでカリングカメラのView空間へ変換する
 		Matrix4x4 cullingView = Matrix4x4::Identity();
@@ -46,9 +46,9 @@ namespace Engine {
 		float cullingNearClip = 0.001f;
 		// 描画先Viewportサイズ
 		Vector2 viewSize = Vector2::AnyInit(1.0f);
-		// カリング対象Viewportサイズ。SceneView表示時もGameViewサイズを使う
+		// カリング対象ViewportサイズでSceneView表示時もGameViewサイズを使う
 		Vector2 cullingViewSize = Vector2::AnyInit(1.0f);
-		// Projection行列のX/Y倍率。ViewProjectionから取るとカメラ回転で値が崩れる
+		// Projection行列のX/Y倍率でViewProjectionから取るとカメラ回転で値が崩れる
 		Vector2 cullingProjectionScale = Vector2::AnyInit(1.0f);
 		Vector2 _pad0 = Vector2::AnyInit(0.0f);
 		// PBRライト計算に使う、実際に描画しているビューのカメラ位置
@@ -67,7 +67,7 @@ namespace Engine {
 
 		// エンティティワールド行列(位置・Bounds・Culling用)
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
-		// worldMatrixの法線変換行列 transpose(inverse(worldMatrix))
+		// worldMatrixの法線変換行列transpose(inverse(worldMatrix))
 		// 非一様スケール・負スケールでも法線が壊れないよう位置用とは別に持つ
 		Matrix4x4 normalMatrix = Matrix4x4::Identity();
 
@@ -82,7 +82,7 @@ namespace Engine {
 
 		// このインスタンスが参照するアウトラインGPUデータのインデックス
 		uint32_t outlineDataIndex = 0;
-		// worldMatrixの線形部の行列式の符号。負スケール(mirror)時に-1
+		// worldMatrixの線形部の行列式の符号で負スケールのmirror時に-1
 		float orientationSign = 1.0f;
 		uint32_t _outlinePad[2] = { 0, 0 };
 	};
@@ -138,7 +138,7 @@ namespace Engine {
 		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView);
 		void UploadBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
 			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
-		// 描画パスごとに変わるMeshDrawConstantsを毎描画更新する。キャッシュヒット時も必ず呼ぶ
+		// 描画パスごとに変わるMeshDrawConstantsを毎描画更新しキャッシュヒット時も必ず呼ぶ
 		void UpdateDrawConstants(const RenderDrawContext& drawContext, const MeshGPUResource& gpuMesh);
 		// ExecuteIndirectで使用する頂点描画引数の定数を更新する
 		void UpdateIndexedIndirectArgsConstants(uint32_t indexCount);

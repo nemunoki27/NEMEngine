@@ -13,8 +13,8 @@ namespace Engine {
 
 	//============================================================================
 	//	ImmutableVertexBuffer class
-	//	初期化後に更新しない静的頂点バッファ。DEFAULT heapに本体を置き、
-	// 初期データはBufferUploadService経由で1回だけ転送する。CPU Mapは行わない
+	//	初期化後に更新しない静的頂点バッファでDEFAULT heapに本体を置き
+	// 初期データはBufferUploadService経由で1回だけ転送しCPU Mapは行わない
 	// CPU更新が必要な頂点にはVertexBuffer<T>を使うこと
 	//============================================================================
 	template<typename T>
@@ -60,7 +60,7 @@ namespace Engine {
 
 		const UINT sizeInBytes = static_cast<UINT>(sizeof(T) * data.size());
 
-		// DEFAULT heapのバッファは作成時COMMON。コピー用のCOPY_DEST遷移はBufferUploadServiceで積む
+		// DEFAULT heapのバッファは作成時COMMONでコピー用のCOPY_DEST遷移はBufferUploadServiceで積む
 		DxUtils::CreateDefaultBufferResource(device, resource_, sizeInBytes);
 
 		// VBVはDEFAULT heap側のGPUアドレスを指す

@@ -77,7 +77,7 @@ namespace {
 		}
 		components["Hierarchy"]["parentLocalFileID"] = parentLocalFileID ? Engine::ToString(parentLocalFileID) : "";
 	}
-	// スナップショットのルートの名前を変更する。ルートが存在しない場合は何もしない
+	// スナップショットのルートの名前を変更しルートが存在しない場合は何もしない
 	void WriteRootNameToSnapshot(Engine::EditorEntityTreeSnapshot& snapshot, const std::string_view& name) {
 
 		if (snapshot.IsEmpty()) {
@@ -259,7 +259,7 @@ Engine::Entity Engine::EditorEntityDuplicateUtility::InstantiatePreparedSnapshot
 	// 外部親があるならルートをその子にする
 	if (externalParentStableUUID) {
 
-		// 外部親のEntityをUUIDから検索する。見つかって生きているならルートの親にする
+		// 外部親のEntityをUUIDから検索し見つかって生きているならルートの親にする
 		Entity parent = world.FindByUUID(externalParentStableUUID);
 		if (world.IsAlive(parent)) {
 

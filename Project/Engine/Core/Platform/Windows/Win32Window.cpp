@@ -48,7 +48,7 @@ bool (*WinApp::closeRequestCallback_)() = nullptr;
 
 void WinApp::ForceShowCursor(bool show) {
 
-	// ShowCursor は内部カウンタ方式なので、目標状態まで回す
+	// ShowCursorは内部カウンタ方式なので、目標状態まで回す
 	if (show) {
 
 		while (ShowCursor(TRUE) < 0) {}
@@ -205,7 +205,7 @@ void WinApp::SetFullscreen(bool fullscreen) {
 
 	if (fullscreen) {
 
-		// 現在のウィンドウ情報を保存（復元用）
+		// 現在のウィンドウ情報を復元用に保存する
 		GetWindowRect(hwnd_, &windowRect_);
 
 		// ウィンドウがあるモニターの領域を取得
@@ -345,7 +345,7 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
 	case WM_CHAR:
 
-		// gameplay 向け文字入力。制御文字以外を frame-local テキストへ溜める（ImGui とは独立）
+		// gameplay向け文字入力で制御文字以外をframe-localテキストへ溜める、ImGuiとは独立
 		if (wparam >= 0x20 || wparam == L'\t' || wparam == L'\n' || wparam == L'\r') {
 			if (Input* input = Input::GetInstance()) {
 				input->AppendTextInputUtf16(static_cast<wchar_t>(wparam));

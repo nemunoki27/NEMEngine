@@ -14,7 +14,7 @@ namespace Engine {
 		// 保存されている兄弟順に合わせて親の子リンクを並べ直す
 		void SortChildLinksBySiblingOrder(ECSWorld& world, Entity parent);
 
-		// 指定したエンティティがルート（親なし）か判定
+		// 指定したエンティティが親なしのルートか判定する
 		bool IsRoot(ECSWorld& world, Entity entity);
 
 	} // HierarchyUtility

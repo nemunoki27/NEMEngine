@@ -324,8 +324,8 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 
 			// レイトレーシングシーンの構築
-			// gRaytracingSceneInstances/gRaytracingSubMeshes は context.bufferRegistry へ登録する必要があるため、
-			// コピーではなく実際の context へ直接構築する。コピーへ構築すると登録が破棄され、反射パスが早期リターンする
+			// gRaytracingSceneInstances/gRaytracingSubMeshesはcontext.bufferRegistryへ登録する必要があるため、
+			// コピーではなく実際のcontextへ直接構築する、コピーへ構築すると登録が破棄され反射パスが早期リターンする
 			// TLAS構築の基準ビューだけ一時的にGameViewへ差し替え、構築後に元へ戻す
 			const ResolvedRenderView* prevTlasView = context.view;
 			if (gameView_.valid) {
@@ -442,7 +442,7 @@ bool RenderPipelineRunner::PresentViewToBackBuffer(
 	return true;
 }
 
-// RenderEntityPreview の実装は RenderPipelineRunnerPreview.cpp へ分離
+// RenderEntityPreviewの実装はRenderPipelineRunnerPreview.cppへ分離
 
 void RenderPipelineRunner::SyncRequestedSurfaces(
 	GraphicsCore& graphicsCore, const RenderFrameRequest& request) {

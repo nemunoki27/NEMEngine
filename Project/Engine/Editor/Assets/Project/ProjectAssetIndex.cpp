@@ -121,7 +121,7 @@ bool Engine::ProjectAssetIndex::ShouldHideInBrowser(const std::filesystem::path&
 	const std::string fileName = Algorithm::ToLower(fullPath.filename().string());
 	const std::string extension = Algorithm::ToLower(fullPath.extension().string());
 
-	// .meta ファイルは常に非表示
+	// .metaファイルは常に非表示
 	if (Engine::Algorithm::EndsWith(fileName, ".meta") || fileName.find(".meta.") != std::string::npos) {
 		return true;
 	}
@@ -198,7 +198,7 @@ Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::EnsureDirectory(const s
 		return current;
 	}
 
-	// 相対パスを"/"区切りで分割して順にディレクトリノードをたどる。存在しない場合は新規作成する
+	// 相対パスを"/"区切りで分割して順にディレクトリノードをたどり存在しない場合は新規作成する
 	std::string currentPath = root_.virtualPath;
 	for (const auto& part : relativeDirectory) {
 

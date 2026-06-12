@@ -15,13 +15,12 @@ namespace Engine {
 
 	//============================================================================
 	//	Gameplay structural Callbacks
-	//	Entity 生成 / Prefab / Scene / SetParent。構造変更は WorldCommandBuffer 経由で遅延適用する。
-	//	生成系は空 Entity を即時予約して handle を返し、component/name/parent は flush で適用する。
+	//	Entity生成とPrefabとSceneとSetParent、構造変更はWorldCommandBuffer経由で遅延適用する
+	//	生成系は空Entityを即時予約してhandleを返しcomponentとnameとparentはflushで適用する
 	//============================================================================
 	namespace {
 
-		// callback 実行中に対象とすべき world を解決する。
-		// parent が有効ならその world を、無効なら現在 tick の active world(SystemContext)を使う。
+		// callback実行中に対象とすべきworldを解決する、parentが有効ならそのworldを無効なら現在tickのactive worldつまりSystemContextを使う
 		ECSWorld* ResolveTargetWorld(ManagedNativeEntity parent) {
 
 			if (ECSWorld* fromParent = ResolveWorld(parent)) {
@@ -38,7 +37,7 @@ namespace Engine {
 		if (!world) {
 			return MakeNullNativeEntity();
 		}
-		// 空 Entity を即時予約する（emptyArchetype への row 追加のみ。component 追加=archetype migration は flush へ）
+		// 空Entityを即時予約する、emptyArchetypeへのrow追加のみでcomponent追加つまりarchetype migrationはflushへ
 		const Entity reserved = world->CreateEntity();
 		const Entity parentEntity = world->IsAlive(ResolveEntity(parent)) ? ResolveEntity(parent) : Entity::Null();
 		world->GetCommandBuffer().EnqueueCreateEntity(reserved, name ? name : "", parentEntity);
@@ -52,7 +51,7 @@ namespace Engine {
 		if (!world || prefabAssetId == 0) {
 			return MakeNullNativeEntity();
 		}
-		// ルート Entity を即時予約し、PrefabSystem には reservedRoot を渡して実体化させる（deferred でも実 root を返す）
+		// ルートEntityを即時予約しPrefabSystemにはreservedRootを渡して実体化させる、deferredでも実rootを返す
 		const Entity reservedRoot = world->CreateEntity();
 		const Entity parentEntity = world->IsAlive(ResolveEntity(parent)) ? ResolveEntity(parent) : Entity::Null();
 		world->GetCommandBuffer().EnqueueInstantiatePrefab(reservedRoot, UUID{ prefabAssetId },
@@ -69,7 +68,7 @@ namespace Engine {
 		if (!world || sceneAssetId == 0) {
 			return 0;
 		}
-		// instance ID を先行採番して C# の SceneHandle と一致させ、load 自体は flush へ回す
+		// instance IDを先行採番してC#のSceneHandleと一致させ、load自体はflushへ回す
 		const UUID instanceID = UUID::New();
 		world->GetCommandBuffer().EnqueueLoadSceneAdditive(instanceID, UUID{ sceneAssetId });
 		return instanceID.value;
@@ -112,11 +111,11 @@ namespace Engine {
 
 	//============================================================================
 	//	AudioSource gameplay method
-	//	実際の voice 制御は AudioSourceSystem が runtimePlayRequest を消費して行う（1フレーム遅延）。
+	//	実際のvoice制御はAudioSourceSystemがruntimePlayRequestを消費して行い1フレーム遅延する
 	//============================================================================
 	namespace {
 
-		// 対象 entity の AudioSourceComponent を取得する（stale entity / missing component は nullptr）
+		// 対象entityのAudioSourceComponentを取得する、stale entityやmissing componentはnullptr
 		AudioSourceComponent* ResolveAudioSource(ManagedNativeEntity entity) {
 			ECSWorld* world = ResolveWorld(entity);
 			if (!world) {
@@ -147,7 +146,7 @@ namespace Engine {
 
 	int32_t ManagedScriptRuntime::AudioIsPlayingCallback(ManagedNativeEntity entity) {
 		const AudioSourceComponent* audio = ResolveAudioSource(entity);
-		// pause 中は再生中扱いにしない
+		// pause中は再生中扱いにしない
 		return (audio && audio->runtimePlaying && !audio->runtimePaused) ? 1 : 0;
 	}
 

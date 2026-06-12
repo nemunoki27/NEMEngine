@@ -12,7 +12,7 @@ namespace Engine {
 
 	//============================================================================
 	//	RaytracingReflectionPass class
-	//	SceneMain → SceneFinal へレイトレーシング反射を合成するパス
+	//	SceneMain → SceneFinalへレイトレーシング反射を合成するパス
 	//============================================================================
 	class RaytracingReflectionPass :
 		public IRenderPass {
@@ -37,7 +37,7 @@ namespace Engine {
 
 		const RenderPipelineDeps& deps_;
 
-		// フォールバック用フルスクリーンブリットのSRVスロット（ソースカラー t0）のキャッシュ
+		// フォールバック用フルスクリーンブリットのSRVスロットでソースカラーt0のキャッシュ
 		PipelineBindingCache blitSRVCache_{};
 		PipelineBindingCache::SlotID srcColorSlot_ = PipelineBindingCache::kInvalidSlot;
 

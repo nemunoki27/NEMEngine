@@ -161,7 +161,7 @@ bool ScreenSpaceOutlineRenderer::BuildDrawRecords(
 			break;
 		}
 
-		// GPUへ渡す前に必ず半径上限でclampする。巨大値はDilationのGPU Hang原因になる
+		// GPUへ渡す前に必ず半径上限でclampする、巨大値はDilationのGPU Hang原因になる
 		const float width = std::clamp(request.style.widthPixels, 0.0f,
 			static_cast<float>(kMaxScreenSpaceOutlineRadiusPixels));
 		ScreenSpaceOutlineStyleGPU gpuStyle{};
@@ -259,7 +259,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
 	DxGpuEventScope eventScope{ commandList, L"SSOutline.MaskDraw" };
 
-	// 1. Visible Mask (Depth Test あり)
+	// 1. Visible Mask (Depth Testあり)
 	{
 		RenderPassSurfaceBinding maskBinding{};
 		maskBinding.colorSurface = resources.mask.get();
@@ -290,7 +290,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 		}
 	}
 
-	// 2. Projected Coverage Mask (Depth Test 無し)
+	// 2. Projected Coverage Mask (Depth Test無し)
 	{
 		RenderPassSurfaceBinding coverageBinding{};
 		coverageBinding.colorSurface = resources.projectedCoverageMask.get();
@@ -298,7 +298,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 
 		for (const DrawRecord& record : drawScratch_) {
 
-			// ExteriorPreferred 指定がない Style は Coverage Mask への描画をスキップする
+			// ExteriorPreferred指定がないStyleはCoverage Maskへの描画をスキップする
 			if (record.request.style.regionMode != ScreenSpaceOutlineRegionMode::ExteriorPreferred) {
 				continue;
 			}
@@ -346,7 +346,7 @@ bool ScreenSpaceOutlineRenderer::ExecuteDilation(GraphicsCore& graphicsCore,
 		return false;
 	}
 
-	// 半径は必ず共通上限でclampする。Shader側の上限と揃える
+	// 半径は必ず共通上限でclampしShader側の上限と揃える
 	const uint32_t safeRadius = (std::min)(maxRadiusPixels, kMaxScreenSpaceOutlineRadiusPixels);
 
 	// 1つのDilation Materialから横/縦のpassを引く
@@ -395,7 +395,7 @@ bool ScreenSpaceOutlineRenderer::ExecuteDilationPass(GraphicsCore& graphicsCore,
 		return false;
 	}
 
-	// thread group size / 解像度 / handleが揃わなければDispatchしない(GPU Hang・不正アクセス防止)
+	// thread group size /解像度/ handleが揃わなければDispatchしない(GPU Hang・不正アクセス防止)
 	const uint32_t threadGroupX = pipelineState->GetThreadGroupX();
 	const uint32_t threadGroupY = pipelineState->GetThreadGroupY();
 	const uint32_t width = resources.mask->GetWidth();
@@ -414,7 +414,7 @@ bool ScreenSpaceOutlineRenderer::ExecuteDilationPass(GraphicsCore& graphicsCore,
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
 	DxGpuEventScope eventScope{ commandList, label };
 
-	// 入力はSRV、出力はUAVへ遷移。前段/前frameの状態へ依存させない
+	// 入力はSRVで出力はUAVへ遷移し前段や前frameの状態へ依存させない
 	inputMask->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	outputMask->Transition(*dxCommand, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 

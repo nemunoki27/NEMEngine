@@ -10,7 +10,7 @@ namespace Engine {
 
 	//============================================================================
 	//	OpaqueRenderPass class
-	//	Opaqueキューを SceneMain に描画するパス
+	//	OpaqueキューをSceneMainに描画するパス
 	//============================================================================
 	class OpaqueRenderPass :
 		public IRenderPass {

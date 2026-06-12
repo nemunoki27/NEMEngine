@@ -18,7 +18,7 @@ namespace Engine {
 	//============================================================================
 	//	AnimationClipAsset enum class
 	//============================================================================
-	// Trackが扱う値の種類。保存形式にもそのまま出すため文字列変換を用意する
+	// Trackが扱う値の種類で保存形式にもそのまま出すため文字列変換を用意する
 	enum class AnimationValueType :
 		uint8_t {
 
@@ -63,7 +63,7 @@ namespace Engine {
 
 	struct AnimationTrackEditorView {
 
-		// CurveEditorの表示範囲。Runtime評価には使わない
+		// CurveEditorの表示範囲でRuntime評価には使わない
 		float timeMin = 0.0f;
 		float timeMax = 1.0f;
 		float valueMin = -1.0f;
@@ -91,11 +91,11 @@ namespace Engine {
 		// TrackごとにCurveEditorのズーム状態を保持する
 		AnimationTrackEditorView editorView{};
 		std::vector<CurveChannel> channels;
-		// QuaternionをAxis/Angleで編集する時だけ使う。Axisチャンネルのキーと同じ順番で保持する
+		// QuaternionをAxis/Angleで編集する時だけ使いAxisチャンネルのキーと同じ順番で保持する
 		std::vector<CurveQuaternionAxisKey> quaternionAxisKeys;
 	};
 
-	// 将来のEvent Track用。今はJSON上で空配列を維持するための置き場所だけを持つ
+	// 将来のEvent Track用で今はJSON上で空配列を維持するための置き場所だけを持つ
 	struct AnimationEventTrack {
 	};
 

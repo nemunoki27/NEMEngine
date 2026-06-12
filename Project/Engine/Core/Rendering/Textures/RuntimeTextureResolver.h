@@ -13,7 +13,7 @@ namespace Engine {
 
 	namespace RuntimeTextureResolver {
 
-		// アセットIDからGPUテクスチャリソースを解決する。未ロードなら読み込み要求を行う
+		// アセットIDからGPUテクスチャリソースを解決し未ロードなら読み込み要求を行う
 		const GPUTextureResource* Resolve(GraphicsCore& graphicsCore,
 			AssetDatabase* assetDatabase, AssetID textureAssetID, bool sRGB = false);
 

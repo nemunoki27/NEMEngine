@@ -14,8 +14,8 @@ namespace Engine {
 	//============================================================================
 	//	PipelineBindingCache class
 	// パイプラインのスロット解決結果をキャッシュするクラス
-	//	AddSlot / AddSlotByRegister でスロットを事前登録し、毎フレーム Sync を
-	// 呼ぶことでパイプラインが変わった時だけ FindBindingByName / FindBinding を実行する
+	//	AddSlot / AddSlotByRegisterでスロットを事前登録し、毎フレームSyncを
+	// 呼ぶことでパイプラインが変わった時だけFindBindingByName / FindBindingを実行する
 	// スロットIDでO(1)アクセス可能
 	//============================================================================
 	class PipelineBindingCache {
@@ -23,7 +23,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
-		// スロットの識別子（AddSlotの戻り値）
+		// スロットの識別子でAddSlotの戻り値
 		using SlotID = uint16_t;
 		// 無効なスロットID
 		static constexpr SlotID kInvalidSlot = UINT16_MAX;
@@ -31,18 +31,18 @@ namespace Engine {
 		PipelineBindingCache() = default;
 		~PipelineBindingCache() = default;
 
-		// 名前ベースのスロットを登録し、識別用IDを返す（Init時に呼ぶ）
+		// 名前ベースのスロットをInit時に登録し識別用IDを返す
 		SlotID AddSlot(std::string_view name, ShaderBindingKind kind);
 
-		// register/spaceベースのスロットを登録し、識別用IDを返す（Init時に呼ぶ）
+		// register/spaceベースのスロットをInit時に登録し識別用IDを返す
 		SlotID AddSlotByRegister(ShaderBindingKind kind, UINT bindPoint, UINT space = 0);
 
-		// パイプラインが変わった時だけ全スロットを再解決する（毎フレーム呼ぶ）
+		// パイプラインが変わった時だけ全スロットを再解決する毎フレーム呼び出し
 		void Sync(const PipelineState& pipeline);
 
 		//--------- accessor -----------------------------------------------------
 
-		// スロットIDに対応するロケーションを取得する（Sync後に有効）
+		// スロットIDに対応するロケーションを取得するSync後に有効
 		const RootBindingLocation* Get(SlotID id) const;
 
 		// スロットが有効なロケーションを持つか
@@ -57,7 +57,7 @@ namespace Engine {
 
 		struct SlotEntry {
 
-			// 空の場合は register/space で検索
+			// 空の場合はregister/spaceで検索
 			std::string name;
 			ShaderBindingKind kind;
 			UINT bindPoint = 0;

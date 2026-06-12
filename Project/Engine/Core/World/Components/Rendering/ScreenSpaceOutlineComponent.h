@@ -51,7 +51,7 @@ namespace Engine {
 		// 領域方式
 		ScreenSpaceOutlineRegionMode regionMode = ScreenSpaceOutlineRegionMode::AllVisibleSilhouettes;
 
-		// 重なり時の優先順位。値が大きいほど手前に見える
+		// 重なり時の優先順位で値が大きいほど手前に見える
 		int32_t priority = 100;
 	};
 

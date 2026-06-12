@@ -56,7 +56,7 @@ namespace Engine {
 		std::vector<TextVSInstanceData> vsGlyphScratch_{};
 		std::vector<TextPSInstanceData> psGlyphScratch_{};
 
-		// バッファレジストリ → Graphicsパイプラインスロットの対応キャッシュ
+		// バッファレジストリ→ Graphicsパイプラインスロットの対応キャッシュ
 		RegistryAutoBindTable registryAutoBindTable_{};
 		// 描画固有バインドのパイプラインスロットキャッシュ
 		PipelineBindingCache perDrawBindCache_{};

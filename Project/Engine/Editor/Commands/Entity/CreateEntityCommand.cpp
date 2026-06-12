@@ -55,8 +55,8 @@ namespace {
 			}
 		}
 	}
-	// 既存のルートエンティティの中で最大の兄弟順を返す（1つも無ければ-1）
-	// ヒエラルキーはルートを siblingOrder の昇順で並べているため、
+	// 既存のルートエンティティの中で最大の兄弟順を返し1つも無ければ-1
+	// ヒエラルキーはルートをsiblingOrderの昇順で並べているため、
 	// 末尾に並べたい新規エンティティはこの値より大きい順番を持たせる
 	int32_t FindMaxRootSiblingOrder(Engine::ECSWorld& world, const Engine::Entity& exclude) {
 

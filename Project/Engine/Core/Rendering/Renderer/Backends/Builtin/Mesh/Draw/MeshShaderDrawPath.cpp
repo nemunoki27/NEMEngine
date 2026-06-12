@@ -33,7 +33,7 @@ void Engine::MeshShaderDrawPath::Setup(const MeshPathSetupContext& context) {
 	// パイプラインが変わった時だけスロットを再解決する
 	meshletBindCache_.Sync(*prepared.pipelineState);
 
-	// IndexBuffer（indexSRV.buffer は常に存在する前提）
+	// IndexBufferでindexSRV.bufferは常に存在する前提
 	if (meshletBindCache_.Has(indicesSRVSlot_) && prepared.gpuMesh->indexSRV.buffer) {
 		RootBindingCommand::SetGraphicsSRV(context.commandList, meshletBindCache_.Get(indicesSRVSlot_),
 			prepared.gpuMesh->indexSRV.buffer->GetResource()->GetGPUVirtualAddress(),

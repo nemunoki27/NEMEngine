@@ -11,7 +11,7 @@ namespace Engine {
 
 	//============================================================================
 	//	BlitToViewPass class
-	//	HDR SceneFinal をToneMapしてデフォルトサーフェスへ出力する最終表示パス
+	//	HDR SceneFinalをToneMapしてデフォルトサーフェスへ出力する最終表示パス
 	//============================================================================
 	class BlitToViewPass :
 		public IRenderPass {
@@ -36,7 +36,7 @@ namespace Engine {
 
 		const RenderPipelineDeps& deps_;
 
-		// フルスクリーンブリット用SRVスロット（ソースカラー t0）のキャッシュ
+		// フルスクリーンブリット用SRVスロットでソースカラーt0のキャッシュ
 		PipelineBindingCache blitSRVCache_{};
 		PipelineBindingCache::SlotID srcColorSlot_ = PipelineBindingCache::kInvalidSlot;
 	};

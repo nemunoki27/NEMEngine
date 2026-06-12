@@ -21,7 +21,7 @@ namespace Engine {
 	//	ManagedScriptUtility functions
 	//============================================================================
 
-	// C#側との Entity データの変換
+	// C#側とのEntityデータの変換
 	ManagedNativeEntity MakeNativeEntity(ECSWorld& world, Entity entity);
 	ManagedNativeEntity MakeNullNativeEntity();
 	ECSWorld* ResolveWorld(ManagedNativeEntity native);
@@ -30,10 +30,10 @@ namespace Engine {
 	// 文字列のバッファコピーユーティリティ
 	int32_t CopyStringToBuffer(const std::string& str, char* buffer, int32_t capacity);
 
-	// 簡易的な型名の取得（名前空間を除去）
+	// 簡易的な型名の取得で名前空間を除去する
 	std::string MakeSimpleTypeName(const std::string_view& fullTypeName);
 
-	//--------- Managed <-> Engine 型変換 ------------------------------------
+	//--------- Managed <-> Engine型変換------------------------------------
 
 	ManagedVector2 ToManagedVector2(const Vector2& value);
 	ManagedVector3 ToManagedVector3(const Vector3& value);
@@ -41,17 +41,14 @@ namespace Engine {
 	ManagedQuaternion ToManagedQuaternion(const Quaternion& value);
 	Quaternion ToQuaternion(const ManagedQuaternion& value);
 
-	//--------- Transform / 階層操作の補助 -----------------------------------
+	//--------- Transform /階層操作の補助-----------------------------------
 
 	// 親のワールド行列を考慮してワールド座標をローカル座標へ変換する
 	Vector3 MakeLocalPositionFromWorld(ECSWorld& world, const Entity& entity, const Vector3& position);
-	// Transformを変更済み（再計算対象）にする
+	// Transformを再計算対象として変更済みにする
 	void MarkDirty(ECSWorld& world, const Entity& entity);
 
-	// スクリプトからのアクティブ階層の再計算
-	// (アクティブ判定は SceneObjectComponent.h の IsEntityActiveInHierarchy を使う)
-	// SceneObjectComponentの自動追加が必要な場合は WorldCommandBuffer 経由で行うため、
-	// ここでは既存コンポーネントを前提としたアクティブツリー更新だけを提供する
+	// スクリプトからのアクティブ階層の再計算で判定はSceneObjectComponent.hのIsEntityActiveInHierarchyを使う、自動追加はWorldCommandBuffer経由のためここでは既存コンポーネント前提のツリー更新だけを提供する
 	void RefreshScriptActiveTree(ECSWorld& world, const Entity& entity);
 
 } // Engine

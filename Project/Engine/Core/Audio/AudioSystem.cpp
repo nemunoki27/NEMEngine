@@ -151,7 +151,7 @@ void Audio::LoadAllSounds() {
 			continue;
 		}
 
-		// recursive に走査
+		// recursiveに走査
 		for (std::filesystem::recursive_directory_iterator it(root, ec), end;
 			it != end && !ec; it.increment(ec)) {
 
@@ -286,7 +286,7 @@ uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 	// 終了したvoiceを掃除
 	CleanupFinishedVoicesLocked(key);
 
-	// SourceVoice を新規作成
+	// SourceVoiceを新規作成
 	IXAudio2SourceVoice* srcVoice = nullptr;
 
 	HRESULT hr = xAudio2_->CreateSourceVoice(&srcVoice, sound->GetFormat(),
@@ -392,7 +392,7 @@ void Audio::PauseVoice(uint64_t voiceID) {
 	for (auto& [key, voices] : activeVoices_) {
 		for (auto& inst : voices) {
 			if (inst.voiceID == voiceID && inst.voice) {
-				// 再生位置を保持したまま停止する（buffer flush / destroy はしない）
+				// 再生位置を保持したまま停止する、buffer flush / destroyはしない
 				inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
 			}
 		}
@@ -496,7 +496,7 @@ void Audio::CleanupFinishedVoicesLocked(const std::string& key) {
 			XAUDIO2_VOICE_STATE st{};
 			inst.voice->GetState(&st);
 
-			// BuffersQueued == 0 なら再生完了
+			// BuffersQueued == 0なら再生完了
 			if (st.BuffersQueued == 0) {
 				inst.voice->DestroyVoice();
 				inst.voice = nullptr;
@@ -641,7 +641,7 @@ Audio::SoundData Audio::LoadMp3FileWithMediaFoundation(const std::string& filena
 	HRESULT hr = MFCreateSourceReaderFromURL(wpath.c_str(), nullptr, &reader);
 	assert(SUCCEEDED(hr));
 
-	// 出力を PCM に指定
+	// 出力をPCMに指定
 	ComPtr<IMFMediaType> outType;
 	hr = MFCreateMediaType(&outType);
 	assert(SUCCEEDED(hr));
@@ -772,7 +772,7 @@ void Audio::ImGui() {
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 
-		// 終了済み voice を掃除して playing 判定が正しくなるように
+		// 終了済みvoiceを掃除してplaying判定が正しくなるように
 		CleanupAllFinishedVoicesLocked();
 
 		masterVol = masterVolume_;
@@ -786,7 +786,7 @@ void Audio::ImGui() {
 			ss.type = sd.type;
 			ss.baseVolume = sd.volume;
 
-			// format 情報
+			// format情報
 			if (const WAVEFORMATEX* fmt = sd.GetFormat()) {
 				ss.sampleRate = static_cast<uint32_t>(fmt->nSamplesPerSec);
 				ss.channels = static_cast<uint16_t>(fmt->nChannels);
@@ -808,14 +808,14 @@ void Audio::ImGui() {
 		}
 	}
 
-	// 並びを安定させる（名前順）
+	// 並びを名前順で安定させる
 	auto byName = [](const SoundSnapshot& a, const SoundSnapshot& b) {
 		return a.key < b.key;
 		};
 	std::sort(seList.begin(), seList.end(), byName);
 	std::sort(bgmList.begin(), bgmList.end(), byName);
 
-	// フィルタ（大小無視）
+	// フィルタは大小無視
 	auto toLowerLocal = [](std::string s) {
 		std::transform(s.begin(), s.end(), s.begin(),
 			[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -827,7 +827,7 @@ void Audio::ImGui() {
 		};
 
 	// -----------------------------
-	// UI 描画
+	// UI描画
 	// -----------------------------
 
 	// マスター音量
@@ -874,9 +874,9 @@ void Audio::ImGui() {
 
 				ImGui::PushID(s.key.c_str());
 
-				// 見出し：名前 + 状態
+				// 見出し：名前+状態
 				{
-					// 表示名に状態を入れる（見やすさ）
+					// 表示名に状態を入れて見やすくする
 					std::string header = s.key;
 					header += s.playing ? "  [Playing]" : "  [Stopped]";
 
@@ -913,13 +913,13 @@ void Audio::ImGui() {
 							ImGui::Text("Volumes");
 							ImGui::Spacing();
 
-							// Base Volume（SetVolume）
+							// Base VolumeはSetVolume
 							float baseVol = s.baseVolume;
 							if (ImGui::SliderFloat("Base Volume", &baseVol, 0.0f, 1.0f, "%.2f")) {
 								cmds.push_back(Cmd{ CmdType::SetVolume, s.key, baseVol });
 							}
 
-							// Play Volume（インスタンス側：Play/OneShotに渡す）
+							// Play Volumeはインスタンス側でPlay/OneShotに渡す
 							float pv = s_playVolume[s.key];
 							if (ImGui::SliderFloat("Play Volume", &pv, 0.0f, 1.0f, "%.2f")) {
 								s_playVolume[s.key] = pv;
@@ -1022,7 +1022,7 @@ void Audio::ImGui() {
 	}
 
 	// -----------------------------
-	// UIで押された操作を、最後に実行（public API 呼び出し）
+	// UIで押された操作を最後にpublic API呼び出しで実行する
 	// -----------------------------
 	for (const auto& c : cmds) {
 		switch (c.type) {
@@ -1039,7 +1039,7 @@ void Audio::ImGui() {
 			SetVolume(c.key, c.value);
 			break;
 		case CmdType::SetMasterVolume:
-			// masterVolume_ に反映し、鳴っている全voiceにも反映させる
+			// masterVolume_に反映し、鳴っている全voiceにも反映させる
 		{
 			std::lock_guard<std::mutex> lock(mutex_);
 			masterVolume_ = std::clamp(c.value, 0.0f, 1.0f);
@@ -1053,7 +1053,7 @@ void Audio::ImGui() {
 		}
 		break;
 		case CmdType::StopAllSE:
-			// SE だけ止める
+			// SEだけ止める
 		{
 			// Stop()は内部でlockするので、ここではsnapshotから対象keyを集めて呼ぶ
 			for (const auto& s : seList) {

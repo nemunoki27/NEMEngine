@@ -19,7 +19,7 @@ namespace Engine {
 		ITool() = default;
 		virtual ~ITool() = default;
 
-		// UI表示とは独立した更新処理。必要なツールだけ実装する
+		// UI表示とは独立した更新処理で必要なツールだけ実装する
 		virtual void Tick(ToolContext& context);
 
 		// レジストリへ登録/解除されたときのフック

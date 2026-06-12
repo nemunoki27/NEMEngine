@@ -151,7 +151,7 @@ namespace Engine {
 		// メッシュのGPUリソース管理クラス
 		MeshGPUResourceManager meshResourceManager_{};
 
-		// バッファレジストリ → Graphicsパイプラインスロットの対応キャッシュ
+		// バッファレジストリ→ Graphicsパイプラインスロットの対応キャッシュ
 		RegistryAutoBindTable registryAutoBindTable_{};
 		// メッシュ固有GraphicsバインドのパイプラインスロットID
 		PipelineBindingCache sharedBindCache_{};

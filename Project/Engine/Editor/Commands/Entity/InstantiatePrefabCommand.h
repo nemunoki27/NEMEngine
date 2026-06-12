@@ -41,7 +41,7 @@ namespace Engine {
 
 		// 生成元のPrefabアセット
 		AssetID prefabAsset_{};
-		// 生成先の親Entity。空の場合はルートに生成する
+		// 生成先の親Entityで空の場合はルートに生成する
 		UUID parentStableUUID_{};
 		// 最後に生成したPrefabインスタンスのルートEntity
 		UUID instantiatedRootStableUUID_{};

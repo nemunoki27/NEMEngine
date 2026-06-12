@@ -10,13 +10,12 @@
 
 namespace {
 
-	// 現在の環境ブロックを複製し、DOTNET_CLI_UI_LANGUAGE=en を上書き設定した
-	// Unicode 環境ブロック（ダブルnull終端）を構築する。
+	// 現在の環境ブロックを複製しDOTNET_CLI_UI_LANGUAGE=enを上書きしたUnicode環境ブロックをダブルnull終端で構築する
 	std::vector<wchar_t> BuildChildEnvironmentBlock() {
 
 		std::vector<wchar_t> block;
 
-		// 既存環境をコピーする（同名の DOTNET_CLI_UI_LANGUAGE は後で上書きするため除外）
+		// 既存環境をコピーする、同名のDOTNET_CLI_UI_LANGUAGEは後で上書きするため除外
 		LPWCH environment = ::GetEnvironmentStringsW();
 		if (environment) {
 
@@ -26,7 +25,7 @@ namespace {
 				const size_t length = std::wcslen(cursor);
 				const std::wstring_view entry(cursor, length);
 
-				// "NAME=VALUE" 形式。先頭が '=' のドライブカレントエントリは保持する
+				// NAME=VALUE形式で、先頭が=のドライブカレントエントリは保持する
 				const bool isUiLanguage =
 					entry.size() >= 23 && _wcsnicmp(cursor, L"DOTNET_CLI_UI_LANGUAGE=", 23) == 0;
 				if (!isUiLanguage) {
@@ -38,7 +37,7 @@ namespace {
 			::FreeEnvironmentStringsW(environment);
 		}
 
-		// dotnet CLI を英語に固定する（ログを安定させる）
+		// dotnet CLIを英語に固定してログを安定させる
 		static const wchar_t kUiLanguage[] = L"DOTNET_CLI_UI_LANGUAGE=en";
 		block.insert(block.end(), std::begin(kUiLanguage), std::end(kUiLanguage)); // 末尾nullを含む
 
@@ -57,12 +56,12 @@ Engine::ManagedProcessRunner::~ManagedProcessRunner() {
 
 bool Engine::ManagedProcessRunner::Start(const std::wstring& commandLine, const std::filesystem::path& workingDirectory) {
 
-	// 多重起動はしない（呼び出し側が完了を待ってから再起動する）
+	// 多重起動はしない、呼び出し側が完了を待ってから再起動する
 	if (process_) {
 		return false;
 	}
 
-	// stdout/stderr をまとめて受ける匿名 pipe を作る。write end のみ継承させる
+	// stdoutとstderrをまとめて受ける匿名pipeを作りwrite endのみ継承させる
 	SECURITY_ATTRIBUTES security{};
 	security.nLength = sizeof(security);
 	security.bInheritHandle = TRUE;
@@ -73,7 +72,7 @@ bool Engine::ManagedProcessRunner::Start(const std::wstring& commandLine, const 
 	if (!::CreatePipe(&readEnd, &writeEnd, &security, 0)) {
 		return false;
 	}
-	// read end は継承させない（子プロセスへ渡さない）
+	// read endは継承させず子プロセスへ渡さない
 	::SetHandleInformation(readEnd, HANDLE_FLAG_INHERIT, 0);
 
 	STARTUPINFOW startupInfo{};
@@ -83,7 +82,7 @@ bool Engine::ManagedProcessRunner::Start(const std::wstring& commandLine, const 
 	startupInfo.hStdError = writeEnd;
 	startupInfo.hStdInput = ::GetStdHandle(STD_INPUT_HANDLE);
 
-	// CreateProcessW はコマンドラインを書き換える可能性があるため、可変バッファへコピーする
+	// CreateProcessWはコマンドラインを書き換える可能性があるため、可変バッファへコピーする
 	std::vector<wchar_t> commandBuffer(commandLine.begin(), commandLine.end());
 	commandBuffer.push_back(L'\0');
 
@@ -103,7 +102,7 @@ bool Engine::ManagedProcessRunner::Start(const std::wstring& commandLine, const 
 		&startupInfo,
 		&processInfo);
 
-	// 親側では write end は不要（子だけが書く）。閉じることで子終了時に read 側へ EOF が伝わる
+	// 親側ではwrite endは不要で子だけが書く、閉じることで子終了時にread側へEOFが伝わる
 	::CloseHandle(writeEnd);
 
 	if (!created) {
@@ -126,15 +125,15 @@ bool Engine::ManagedProcessRunner::Poll(const std::function<void(const std::stri
 		return true;
 	}
 
-	// 取り込めるだけ取り込む（非ブロッキング）
+	// 取り込めるだけ取り込む非ブロッキング処理
 	DrainPipe(onLine);
 
-	// プロセス終了を確認する（待たない）
+	// プロセス終了を確認する、待たない
 	if (::WaitForSingleObject(static_cast<HANDLE>(process_), 0) != WAIT_OBJECT_0) {
 		return false;
 	}
 
-	// 終了確定。残出力を flush してから exit code を確定する
+	// 終了確定後に残出力をflushしてからexit codeを確定する
 	DrainPipe(onLine);
 	if (!pending_.empty()) {
 
@@ -190,10 +189,10 @@ void Engine::ManagedProcessRunner::DrainPipe(const std::function<void(const std:
 	char buffer[4096];
 	for (;;) {
 
-		// まず読めるバイト数を確認する（ブロックしないため）
+		// ブロックしないようまず読めるバイト数を確認する
 		DWORD available = 0;
 		if (!::PeekNamedPipe(static_cast<HANDLE>(stdoutRead_), nullptr, 0, nullptr, &available, nullptr)) {
-			// pipe が壊れた/閉じた
+			// pipeが壊れた/閉じた
 			break;
 		}
 		if (available == 0) {
@@ -208,7 +207,7 @@ void Engine::ManagedProcessRunner::DrainPipe(const std::function<void(const std:
 
 		pending_.append(buffer, read);
 
-		// 行単位で onLine へ流す
+		// 行単位でonLineへ流す
 		size_t newlinePos = pending_.find('\n');
 		while (newlinePos != std::string::npos) {
 

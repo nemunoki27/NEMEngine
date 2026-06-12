@@ -10,7 +10,7 @@
 //============================================================================
 Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::path& assetFullPath) {
 
-	// 比較対象はすべて小文字へ寄せる。複合サフィックスはfilename、単一拡張子はextensionで見る
+	// 比較対象はすべて小文字へ寄せて複合サフィックスはfilename、単一拡張子はextensionで見る
 	const std::string filename = Algorithm::ToLower(assetFullPath.filename().string());
 	const std::string extension = Algorithm::ToLower(assetFullPath.extension().string());
 

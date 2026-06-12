@@ -30,13 +30,13 @@ namespace Math {
 	//============================================================================
 	//	角度変換
 	//============================================================================
-	// ラジアン → 度
+	// ラジアン→度
 	float RadToDeg(float rad);
 	Engine::Vector2 RadToDeg(const Engine::Vector2& rad);
 	Engine::Vector3 RadToDeg(const Engine::Vector3& rad);
 	Engine::Vector4 RadToDeg(const Engine::Vector4& rad);
 
-	// 度 → ラジアン
+	// 度→ラジアン
 	float DegToRad(float deg);
 	Engine::Vector2 DegToRad(const Engine::Vector2& deg);
 	Engine::Vector3 DegToRad(const Engine::Vector3& deg);

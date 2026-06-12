@@ -13,7 +13,7 @@ using namespace Engine;
 //============================================================================
 namespace {
 
-	// 線形部(左上3x3)の行列式。行列式は転置で不変なのでrow/columnの添字順は問わない
+	// 線形部の左上3x3の行列式で行列式は転置で不変なのでrow/columnの添字順は問わない
 	float Calc3x3Determinant(const Engine::Matrix4x4& m) {
 
 		return
@@ -35,7 +35,7 @@ namespace {
 		return true;
 	}
 
-	// 平行移動成分を落として線形部だけ残す。fallback時に法線変換へそのまま流用する
+	// 平行移動成分を落として線形部だけ残しfallback時に法線変換へそのまま流用する
 	Engine::Matrix4x4 ExtractLinearPart(const Engine::Matrix4x4& m) {
 
 		Engine::Matrix4x4 linear = m;
@@ -65,20 +65,20 @@ Engine::MeshNormalMatrixResult Engine::BuildSafeMeshNormalMatrix(const Matrix4x4
 
 	const float det = Calc3x3Determinant(transform);
 
-	// 行列式の符号で向き(mirror)を判定する。退化時も符号だけは決めておく
+	// 行列式の符号で向きのmirrorを判定し退化時も符号だけは決めておく
 	result.orientationSign = (det < 0.0f) ? -1.0f : 1.0f;
 
 	// 0スケールや極小スケールではinverseが発散するため、逆行列を呼ばずfallbackする
 	constexpr float kDeterminantEpsilon = 1e-8f;
 	if (!std::isfinite(det) || std::abs(det) <= kDeterminantEpsilon) {
 
-		// fallbackは決定的に。線形部をそのまま法線変換へ流用し、最低限描画を壊さない
+		// fallbackは決定的にし線形部をそのまま法線変換へ流用して最低限描画を壊さない
 		result.matrix = ExtractLinearPart(transform);
 		result.usedFallback = true;
 		return result;
 	}
 
-	// 通常時は inverse-transpose を法線変換行列とする
+	// 通常時はinverse-transposeを法線変換行列とする
 	const Matrix4x4 normalMatrix = Matrix4x4::Transpose(Matrix4x4::Inverse(transform));
 
 	// inverseが万一NaN/Infを生んだ場合の保険

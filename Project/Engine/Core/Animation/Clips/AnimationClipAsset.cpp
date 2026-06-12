@@ -112,7 +112,7 @@ namespace {
 
 	void ToJson(Engine::CurveKey key, nlohmann::json& out) {
 
-		// tangentはBezier以外でも保存しておく。補間を切り替えた時に値を戻せるようにする
+		// tangentはBezier以外でも保存しておき補間を切り替えた時に値を戻せるようにする
 		out = nlohmann::json::object();
 		out["time"] = key.time;
 		out["value"] = key.value;
@@ -197,7 +197,7 @@ namespace {
 
 	void ToJson(const Engine::CurveChannel& channel, nlohmann::json& out) {
 
-		// チャンネルはキーが空でも保存する。追加直後のTrack構造を維持するため
+		// チャンネルはキーが空でも保存して追加直後のTrack構造を維持する
 		out = nlohmann::json::object();
 		out["name"] = channel.name;
 		out["defaultValue"] = channel.defaultValue;
@@ -413,7 +413,7 @@ void Engine::NormalizeAnimationTrackChannels(AnimationCurveTrack& track) {
 	// JSONの手編集や古い形式でチャンネル数がずれた場合でも、ツール側で落ちない形へ補正する
 	if (track.binding.valueType == AnimationValueType::Quaternion) {
 
-		// 新形式はAxis/Angleの2ch、旧形式はXYZWの4ch。旧Clipを壊さないよう両方受け入れる
+		// 新形式はAxis/Angleの2chで旧形式はXYZWの4ch、旧Clipを壊さないよう両方受け入れる
 		if (IsQuaternionAxisAngleChannels(track.channels)) {
 			track.channels[0].displayColor = GetChannelColor(track.channels[0].name);
 			track.channels[1].displayColor = GetChannelColor(track.channels[1].name);
@@ -652,7 +652,7 @@ void Engine::from_json(const nlohmann::json& in, AnimationClipAsset& clip) {
 		}
 	}
 
-	// 初期実装ではEvent Trackは編集しない。キーが無くても保存時に空配列として維持する
+	// 初期実装ではEvent Trackは編集せずキーが無くても保存時に空配列として維持する
 	clip.eventTracks.clear();
 	UpdateAnimationClipAutoDuration(clip);
 }

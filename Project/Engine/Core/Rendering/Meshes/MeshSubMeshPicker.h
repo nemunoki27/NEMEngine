@@ -90,7 +90,7 @@ namespace Engine {
 		// CS用のパイプライン
 		PipelineState pipeline_{};
 
-		// ルート引数スロットのキャッシュ（TLAS/UAV/CBVをレジスタで解決）
+		// ルート引数スロットのキャッシュでTLAS/UAV/CBVをレジスタで解決する
 		PipelineBindingCache pickBindCache_{};
 		PipelineBindingCache::SlotID tlasSlot_       = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID outputUAVSlot_  = PipelineBindingCache::kInvalidSlot;

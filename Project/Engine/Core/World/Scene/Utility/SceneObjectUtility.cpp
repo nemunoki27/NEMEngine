@@ -38,7 +38,7 @@ namespace Engine::SceneObjectUtility {
 	bool IsInScene(ECSWorld& world, Entity entity, UUID sceneInstanceID) {
 
 		if (!sceneInstanceID) {
-			return true; // インスタンスID未指定なら全シーン対象とみなす（既存互換）
+			return true; // インスタンスID未指定なら全シーン対象とみなす既存互換
 		}
 		return GetSceneInstanceID(world, entity) == sceneInstanceID;
 	}

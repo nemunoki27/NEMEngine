@@ -22,10 +22,10 @@ enum class GamePadButtons {
 	BACK,           // バックボタン
 	LEFT_THUMB,     // 左スティックのボタン
 	RIGHT_THUMB,    // 右スティックのボタン
-	LEFT_SHOULDER,  // 左ショルダーボタン（LB）
-	RIGHT_SHOULDER, // 右ショルダーボタン（RB）
-	LEFT_TRIGGER,   // 左ショルダーボタン（LT）
-	RIGHT_TRIGGER,  // 右ショルダーボタン（RT）
+	LEFT_SHOULDER,  // 左ショルダーボタンLB
+	RIGHT_SHOULDER, // 右ショルダーボタンRB
+	LEFT_TRIGGER,   // 左トリガーLT
+	RIGHT_TRIGGER,  // 右トリガーRT
 	A,              // Aボタン
 	B,              // Bボタン
 	X,              // Xボタン
@@ -112,8 +112,8 @@ enum class InputViewArea {
 // 入力振動パラメータ
 struct InputVibrationParams {
 
-	float left;     // 0..1（低周波・重い）
-	float right;    // 0..1（高周波・軽い）
+	float left;     // 0..1の低周波で重い
+	float right;    // 0..1の高周波で軽い
 	float duration; // 秒
 	float attack;   // フェードイン秒
 	float release;  // フェードアウト秒

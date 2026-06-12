@@ -28,7 +28,7 @@ namespace Engine {
 			return 0;
 		}
 		Input* input = Input::GetInstance();
-		// 今フレームでキーが押された瞬間かを確認（トリガー判定）
+		// 今フレームでキーが押された瞬間かを確認するトリガー判定
 		return input && input->TriggerKey(static_cast<BYTE>(key)) ? 1 : 0;
 	}
 
@@ -98,7 +98,7 @@ namespace Engine {
 
 	float ManagedScriptRuntime::GetMouseWheelCallback() {
 		Input* input = Input::GetInstance();
-		// ホイールの回転量を取得（上回転で正、下回転で負）
+		// ホイールの回転量を取得し上回転で正、下回転で負
 		return input ? input->GetMouseWheel() : 0.0f;
 	}
 
@@ -128,30 +128,30 @@ namespace Engine {
 
 	ManagedVector2 ManagedScriptRuntime::GetLeftStickCallback() {
 		Input* input = Input::GetInstance();
-		// 左スティックの傾きを取得 (-1.0 ~ 1.0)
+		// 左スティックの傾きを取得(-1.0 ~ 1.0)
 		return input ? ToManagedVector2(input->GetLeftStickVal()) : ManagedVector2{};
 	}
 
 	ManagedVector2 ManagedScriptRuntime::GetRightStickCallback() {
 		Input* input = Input::GetInstance();
-		// 右スティックの傾きを取得 (-1.0 ~ 1.0)
+		// 右スティックの傾きを取得(-1.0 ~ 1.0)
 		return input ? ToManagedVector2(input->GetRightStickVal()) : ManagedVector2{};
 	}
 
 	float ManagedScriptRuntime::GetLeftTriggerCallback() {
 		Input* input = Input::GetInstance();
-		// 左トリガーの押し込み量を取得 (0.0 ~ 1.0)
+		// 左トリガーの押し込み量を取得(0.0 ~ 1.0)
 		return input ? input->GetLeftTriggerValue() : 0.0f;
 	}
 
 	float ManagedScriptRuntime::GetRightTriggerCallback() {
 		Input* input = Input::GetInstance();
-		// 右トリガーの押し込み量を取得 (0.0 ~ 1.0)
+		// 右トリガーの押し込み量を取得(0.0 ~ 1.0)
 		return input ? input->GetRightTriggerValue() : 0.0f;
 	}
 
 	//============================================================================
-	//	raw Input 拡張（多 gamepad / axis / text / focus）
+	//	raw Input拡張多gamepadとaxisとtextとfocus
 	//============================================================================
 	int32_t ManagedScriptRuntime::GetGamepadButtonIndexedCallback(int32_t index, int32_t button) {
 		Input* input = Input::GetInstance();
@@ -185,7 +185,7 @@ namespace Engine {
 
 	int32_t ManagedScriptRuntime::GetHasFocusCallback() {
 		Input* input = Input::GetInstance();
-		// Input 未初期化時はフォーカスありとみなす（安全側）
+		// Input未初期化時はフォーカスありとみなす安全側の扱い
 		return (!input || input->HasWindowFocus()) ? 1 : 0;
 	}
 
@@ -194,7 +194,7 @@ namespace Engine {
 		if (!input) {
 			return 0;
 		}
-		// frame-local の UTF-8 テキストを length-query 方式でコピーする（固定 buffer truncate を避ける）
+		// frame-localのUTF-8テキストをlength-query方式でコピーし固定buffer truncateを避ける
 		return CopyStringToBuffer(input->FrameTextInput(), buffer, capacity);
 	}
 

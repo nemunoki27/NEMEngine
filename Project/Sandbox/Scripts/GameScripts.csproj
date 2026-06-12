@@ -10,6 +10,12 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
+    <!--
+      [SerializeField] フィールドは engine の deserialization が値を代入するため、コンパイラからは
+      「未代入(CS0649)」「代入されるが未使用(CS0414)」に見える false positive が出る。
+      gameplay script では serialized field が常態なので project 単位で抑制する（Unity 生成 csproj と同方針）。
+    -->
+    <NoWarn>$(NoWarn);CS0649;CS0414</NoWarn>
   </PropertyGroup>
 
   <!--
@@ -47,6 +53,11 @@
     <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" />
     <!-- Stable Script Type GUID / Field GUID schema を埋め込む Roslyn source generator（Analyzer参照） -->
     <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptCodeGen\NEM.ScriptCodeGen.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+    <!-- ScriptBehaviour constructor の副作用（native API / Entity・Scene / coroutine / threading / I/O / event）を
+         warning で検出する Roslyn analyzer。診断専用なので出力 assembly は参照しない。 -->
+    <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptAnalyzers\NEM.ScriptAnalyzers.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>

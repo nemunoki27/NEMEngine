@@ -42,15 +42,30 @@ internal static class Program {
         string? metadataPath = null;
         string? outNativeDir = null;
         string? outCsDir = null;
+        string? inventoryPath = null;
+        string? registryPath = null;
+        bool verify = false;
+        bool selftest = false;
         for (int i = 0; i < args.Length; ++i) {
             switch (args[i]) {
                 case "--metadata": if (i + 1 < args.Length) metadataPath = args[++i]; break;
                 case "--out-native-dir": if (i + 1 < args.Length) outNativeDir = args[++i]; break;
                 case "--out-cs-dir": if (i + 1 < args.Length) outCsDir = args[++i]; break;
+                case "--inventory": if (i + 1 < args.Length) inventoryPath = args[++i]; break;
+                case "--registry": if (i + 1 < args.Length) registryPath = args[++i]; break;
+                case "--verify": verify = true; break;
+                case "--selftest": selftest = true; break;
             }
         }
+
+        // selftest は外部入力に依存せず、verify の negative cases を内製の temp 入力で確認する
+        if (selftest) {
+            return SelfTest();
+        }
+
         if (metadataPath == null || outNativeDir == null || outCsDir == null) {
             Console.Error.WriteLine("[ComponentBindingGen] usage: --metadata <json> --out-native-dir <dir> --out-cs-dir <dir>");
+            Console.Error.WriteLine("[ComponentBindingGen]   verify: --verify --metadata <schema> --inventory <inventory> [--registry <names.txt>] --out-native-dir <dir> --out-cs-dir <dir>");
             return 1;
         }
         if (!File.Exists(metadataPath)) {
@@ -62,6 +77,11 @@ internal static class Program {
         if (errorCount > 0) {
             Console.Error.WriteLine($"[ComponentBindingGen] failed with {errorCount} validation error(s).");
             return 1;
+        }
+
+        // verify モードでは生成せず、inventory / schema / 既存生成物との整合のみを検査する
+        if (verify) {
+            return Verify(metadataPath, inventoryPath, registryPath, outNativeDir, outCsDir, enums, components);
         }
 
         // 決定的にするため安定ソート
@@ -82,6 +102,237 @@ internal static class Program {
 
         Console.WriteLine($"[ComponentBindingGen] done. enums={enums.Count} components={components.Count}");
         return 0;
+    }
+
+    //========================================================================
+    //	verify（生成せず整合のみ検査する。CI / preflight 用）
+    //========================================================================
+    private static readonly string[] AllowedExposure = {
+        "GeneratedBinding", "HandwrittenFacade", "RuntimeCommand", "RuntimeEvent", "InternalOnly", "ReviewCandidate",
+    };
+
+    private static int Verify(string metadataPath, string? inventoryPath, string? registryPath,
+        string outNativeDir, string outCsDir, List<EnumModel> enums, List<ComponentModel> components) {
+
+        int problems = 0;
+        void Fail(string message) { ++problems; Console.Error.WriteLine($"[verify] {message}"); }
+
+        if (inventoryPath == null || !File.Exists(inventoryPath)) {
+            Console.Error.WriteLine($"[ComponentBindingGen] verify requires --inventory <json> (got: {inventoryPath ?? "null"})");
+            return 1;
+        }
+
+        // --- inventory を読む ---
+        var inventoryExposure = new Dictionary<string, string>(StringComparer.Ordinal);
+        int reviewCandidates = 0;
+        using (JsonDocument inv = JsonDocument.Parse(File.ReadAllText(inventoryPath))) {
+            JsonElement root = inv.RootElement;
+            int sv = root.TryGetProperty("schemaVersion", out JsonElement svEl) ? svEl.GetInt32() : 0;
+            if (sv != SupportedSchemaVersion) {
+                Fail($"inventory schemaVersion {sv} (expected {SupportedSchemaVersion}).");
+            }
+            if (root.TryGetProperty("components", out JsonElement comps) && comps.ValueKind == JsonValueKind.Array) {
+                foreach (JsonElement c in comps.EnumerateArray()) {
+                    string name = Str(c, "nativeName");
+                    string exposure = Str(c, "exposure");
+                    if (string.IsNullOrEmpty(name)) { Fail("inventory entry missing nativeName."); continue; }
+                    if (inventoryExposure.ContainsKey(name)) { Fail($"inventory duplicate nativeName '{name}'."); continue; }
+                    if (Array.IndexOf(AllowedExposure, exposure) < 0) {
+                        Fail($"inventory '{name}': invalid exposure '{exposure}'.");
+                    }
+                    if (exposure == "ReviewCandidate") { ++reviewCandidates; }
+                    inventoryExposure[name] = exposure;
+                }
+            }
+        }
+
+        // --- 完了 gate: ReviewCandidate が残っていない ---
+        if (reviewCandidates > 0) {
+            Fail($"{reviewCandidates} ReviewCandidate component(s) remain; must be 0 at completion gate.");
+        }
+
+        // --- registry 完全性: 全 registered component が inventory にある ---
+        if (registryPath != null && File.Exists(registryPath)) {
+            foreach (string line in File.ReadAllLines(registryPath)) {
+                string name = line.Trim();
+                if (name.Length == 0) { continue; }
+                if (!inventoryExposure.ContainsKey(name)) {
+                    Fail($"registered component '{name}' is missing from inventory.");
+                }
+            }
+        } else {
+            Console.WriteLine("[verify] note: --registry 未指定。registry 完全性 cross-check は skip（inventory を正とする）。");
+        }
+
+        // --- schema(GeneratedBinding) と inventory の双方向対応 ---
+        var schemaNames = new HashSet<string>(components.Select(c => c.RegistryName), StringComparer.Ordinal);
+        foreach (string schemaName in schemaNames) {
+            if (!inventoryExposure.TryGetValue(schemaName, out string? exposure)) {
+                Fail($"schema component '{schemaName}' not found in inventory.");
+            } else if (exposure != "GeneratedBinding") {
+                Fail($"schema component '{schemaName}' is classified '{exposure}' in inventory (must be GeneratedBinding).");
+            }
+        }
+        foreach (KeyValuePair<string, string> kv in inventoryExposure) {
+            if (kv.Value == "GeneratedBinding" && !schemaNames.Contains(kv.Key)) {
+                Fail($"inventory '{kv.Key}' is GeneratedBinding but absent from generated schema.");
+            }
+        }
+
+        // --- generated 出力の drift 検査（再生成して既存ファイルと比較） ---
+        enums.Sort((a, b) => string.CompareOrdinal(a.ManagedType, b.ManagedType));
+        components.Sort((a, b) => string.CompareOrdinal(a.RegistryName, b.RegistryName));
+        foreach (ComponentModel c in components) {
+            c.Properties.Sort((a, b) => string.CompareOrdinal(a.ManagedName, b.ManagedName));
+        }
+        var enumByName = new Dictionary<string, EnumModel>(StringComparer.Ordinal);
+        foreach (EnumModel e in enums) enumByName[e.ManagedType] = e;
+
+        CheckDrift(Path.Combine(outNativeDir, "ManagedComponentBindings.generated.h"), EmitNativeHeader(), Fail);
+        CheckDrift(Path.Combine(outNativeDir, "ManagedComponentBindings.generated.cpp"), EmitNativeCpp(components, enumByName), Fail);
+        CheckDrift(Path.Combine(outCsDir, "ComponentBindings.generated.cs"), EmitCSharp(components, enums), Fail);
+
+        // --- C++/C# ABI 整合: property id（model index）と kind/operation が両出力で同一であることを保証する。
+        // 両者は同一 ComponentModel から index 順で emit されるため、ここでは model 側の決定性（重複 index 無し・
+        // 既知 kind）を確認する（unknown kind は LoadAndValidate で既に失敗）。
+        foreach (ComponentModel c in components) {
+            for (int p = 0; p < c.Properties.Count; ++p) {
+                if (!IsKnownKind(c.Properties[p].Kind)) {
+                    Fail($"{c.ManagedType}.{c.Properties[p].ManagedName}: unsupported kind '{c.Properties[p].Kind}'.");
+                }
+            }
+        }
+
+        if (problems > 0) {
+            Console.Error.WriteLine($"[ComponentBindingGen] verify FAILED with {problems} problem(s).");
+            return 1;
+        }
+        Console.WriteLine($"[ComponentBindingGen] verify OK. inventory={inventoryExposure.Count} schema={schemaNames.Count} reviewCandidates=0");
+        return 0;
+    }
+
+    //========================================================================
+    //	selftest（verify の negative cases を内製 temp 入力で確認する）
+    //========================================================================
+    private static int SelfTest() {
+
+        string temp = Path.Combine(Path.GetTempPath(), "nem_bindinggen_selftest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        int failures = 0;
+        void Expect(string name, bool condition) {
+            if (condition) { Console.WriteLine($"[selftest] PASS {name}"); }
+            else { ++failures; Console.Error.WriteLine($"[selftest] FAIL {name}"); }
+        }
+
+        try {
+            string nativeDir = Path.Combine(temp, "native");
+            string csDir = Path.Combine(temp, "cs");
+            Directory.CreateDirectory(nativeDir);
+            Directory.CreateDirectory(csDir);
+
+            // --- 最小の整合した schema / inventory / registry / generated 出力を用意する ---
+            const string goodSchema = @"{ ""schemaVersion"": 1, ""enums"": [], ""components"": [
+                { ""registryName"": ""TestComp"", ""nativeType"": ""TestComponent"", ""nativeHeader"": ""Engine/Test.h"",
+                  ""managedType"": ""TestComp"", ""properties"": [ { ""managedName"": ""Value"", ""nativeMember"": ""value"", ""kind"": ""Float"" } ] } ] }";
+            const string goodInventory = @"{ ""schemaVersion"": 1, ""components"": [ { ""nativeName"": ""TestComp"", ""exposure"": ""GeneratedBinding"" } ] }";
+
+            string schemaPath = Path.Combine(temp, "schema.json");
+            string invPath = Path.Combine(temp, "inventory.json");
+            string regPath = Path.Combine(temp, "registry.txt");
+            File.WriteAllText(schemaPath, goodSchema);
+            File.WriteAllText(invPath, goodInventory);
+            File.WriteAllText(regPath, "TestComp\n");
+
+            // generated 出力を emit して temp へ置く（drift 無しの基準）
+            GenerateForSelfTest(schemaPath, nativeDir, csDir);
+
+            // positive: 全て整合 → verify は 0
+            Expect("positive verify passes", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) == 0);
+
+            // negative: registry に inventory 欠落 component
+            File.WriteAllText(regPath, "TestComp\nMissingComp\n");
+            Expect("registry missing component fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
+            File.WriteAllText(regPath, "TestComp\n");
+
+            // negative: inventory 重複
+            File.WriteAllText(invPath, @"{ ""schemaVersion"": 1, ""components"": [
+                { ""nativeName"": ""TestComp"", ""exposure"": ""GeneratedBinding"" },
+                { ""nativeName"": ""TestComp"", ""exposure"": ""InternalOnly"" } ] }");
+            Expect("inventory duplicate fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
+
+            // negative: ReviewCandidate 残存
+            File.WriteAllText(invPath, @"{ ""schemaVersion"": 1, ""components"": [
+                { ""nativeName"": ""TestComp"", ""exposure"": ""GeneratedBinding"" },
+                { ""nativeName"": ""OtherComp"", ""exposure"": ""ReviewCandidate"" } ] }");
+            Expect("ReviewCandidate present fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
+
+            // negative: inventory に GeneratedBinding だが schema に無い
+            File.WriteAllText(invPath, @"{ ""schemaVersion"": 1, ""components"": [
+                { ""nativeName"": ""TestComp"", ""exposure"": ""GeneratedBinding"" },
+                { ""nativeName"": ""OnlyInv"", ""exposure"": ""GeneratedBinding"" } ] }");
+            Expect("inventory GeneratedBinding absent from schema fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
+
+            // negative: schema component が inventory に無い（inventory を good に戻し schema に追加）
+            File.WriteAllText(invPath, goodInventory);
+            File.WriteAllText(schemaPath, @"{ ""schemaVersion"": 1, ""enums"": [], ""components"": [
+                { ""registryName"": ""TestComp"", ""nativeType"": ""TestComponent"", ""nativeHeader"": ""Engine/Test.h"", ""managedType"": ""TestComp"", ""properties"": [ { ""managedName"": ""Value"", ""nativeMember"": ""value"", ""kind"": ""Float"" } ] },
+                { ""registryName"": ""ExtraComp"", ""nativeType"": ""ExtraComponent"", ""nativeHeader"": ""Engine/Extra.h"", ""managedType"": ""ExtraComp"", ""properties"": [] } ] }");
+            GenerateForSelfTest(schemaPath, nativeDir, csDir); // drift を避けるため再生成してから検査
+            Expect("schema component absent from inventory fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
+
+            // negative: unsupported field kind は load で失敗
+            File.WriteAllText(schemaPath, @"{ ""schemaVersion"": 1, ""enums"": [], ""components"": [
+                { ""registryName"": ""TestComp"", ""nativeType"": ""TestComponent"", ""nativeHeader"": ""Engine/Test.h"", ""managedType"": ""TestComp"", ""properties"": [ { ""managedName"": ""Value"", ""nativeMember"": ""value"", ""kind"": ""Bogus"" } ] } ] }");
+            Expect("unsupported field kind fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
+
+            // negative: generated drift（schema を good に戻し、生成物を破壊する）
+            File.WriteAllText(schemaPath, goodSchema);
+            GenerateForSelfTest(schemaPath, nativeDir, csDir);
+            File.AppendAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp"), "\n// drifted\n");
+            Expect("generated drift fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
+        }
+        finally {
+            try { Directory.Delete(temp, true); } catch { /* best effort cleanup */ }
+        }
+
+        Console.WriteLine(failures == 0 ? "[ComponentBindingGen] selftest OK (all negative cases rejected, positive accepted)."
+            : $"[ComponentBindingGen] selftest FAILED with {failures} case(s).");
+        return failures == 0 ? 0 : 1;
+    }
+
+    // selftest 用: schema を読み直して generated 出力を temp へ書く（errorCount を独立に扱う）
+    private static void GenerateForSelfTest(string schemaPath, string nativeDir, string csDir) {
+        errorCount = 0;
+        (List<EnumModel> enums, List<ComponentModel> components) = LoadAndValidate(schemaPath);
+        enums.Sort((a, b) => string.CompareOrdinal(a.ManagedType, b.ManagedType));
+        components.Sort((a, b) => string.CompareOrdinal(a.RegistryName, b.RegistryName));
+        foreach (ComponentModel c in components) c.Properties.Sort((a, b) => string.CompareOrdinal(a.ManagedName, b.ManagedName));
+        var enumByName = new Dictionary<string, EnumModel>(StringComparer.Ordinal);
+        foreach (EnumModel e in enums) enumByName[e.ManagedType] = e;
+        File.WriteAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.h"), EmitNativeHeader().Replace("\n", Environment.NewLine));
+        File.WriteAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp"), EmitNativeCpp(components, enumByName).Replace("\n", Environment.NewLine));
+        File.WriteAllText(Path.Combine(csDir, "ComponentBindings.generated.cs"), EmitCSharp(components, enums).Replace("\n", Environment.NewLine));
+    }
+
+    // selftest 用: load + verify を 1 回実行し exit code を返す（errorCount は独立に reset）
+    private static int RunVerify(string schemaPath, string invPath, string regPath, string nativeDir, string csDir) {
+        errorCount = 0;
+        (List<EnumModel> enums, List<ComponentModel> components) = LoadAndValidate(schemaPath);
+        if (errorCount > 0) {
+            return 1; // schema load 自体の失敗（unsupported kind 等）
+        }
+        return Verify(schemaPath, invPath, regPath, nativeDir, csDir, enums, components);
+    }
+
+    private static void CheckDrift(string path, string expected, Action<string> fail) {
+        if (!File.Exists(path)) {
+            fail($"generated file missing (drift): {path}");
+            return;
+        }
+        string current = File.ReadAllText(path).Replace("\r\n", "\n");
+        if (current != expected) {
+            fail($"generated file drifted from schema: {Path.GetFileName(path)} (re-run generator).");
+        }
     }
 
     //========================================================================

@@ -37,10 +37,10 @@ namespace Engine {
 		// アニメーションクリップの名前配列
 		std::vector<std::string> clipOrder{};
 
-		// アニメーションクリップの名前 -> アニメーションデータ
+		// アニメーションクリップの名前->アニメーションデータ
 		std::unordered_map<std::string, AnimationData> clips{};
 
-		// クリップ名 -> ジョイントインデックスに対応したNodeAnimation*配列
+		// クリップ名->ジョイントインデックスに対応したNodeAnimation*配列
 		std::unordered_map<std::string, std::vector<const NodeAnimation*>> clipJointTracks{};
 	};
 

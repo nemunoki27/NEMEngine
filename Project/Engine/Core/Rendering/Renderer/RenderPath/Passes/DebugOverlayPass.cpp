@@ -17,6 +17,7 @@ void Engine::DebugOverlayPass::Execute(GraphicsCore& graphicsCore,
 
 	(void)passBuckets;
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	// SceneViewのときだけグリッドやデバッグ線を最後に重ねる
 	if (context.kind == RenderViewKind::Scene && context.defaultSurface && context.view) {
 		LineRenderer::GetInstance()->RenderSceneView(
 			graphicsCore, *context.view, *context.defaultSurface, context.drawSceneViewDefaultGrid);

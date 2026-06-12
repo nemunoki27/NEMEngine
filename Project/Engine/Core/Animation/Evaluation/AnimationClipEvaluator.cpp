@@ -207,7 +207,7 @@ namespace {
 	bool EvaluateTrackWithFallback(const Engine::AnimationCurveTrack& track, float time,
 		const Engine::AnimationPropertyValue& fallback, Engine::AnimationPropertyValue& outValue) {
 
-		// Override用の評価。部分キー編集で未編集成分を壊さないために使う
+		// Override用の評価で部分キー編集で未編集成分を壊さないために使う
 		float v[4]{};
 		switch (track.binding.valueType) {
 		case Engine::AnimationValueType::Float:
@@ -532,7 +532,7 @@ bool Engine::AnimationClipEvaluator::ApplyTrack(ECSWorld& world, const Entity& e
 	const AnimationCurveTrack& track, const AnimationClipAsset& clip,
 	const AnimationResolvedTime& time, const AnimationPropertyValue* baseValueOrNull) {
 
-	// 登録済みPropertyだけを適用する。Missing Propertyは編集を止めずにスキップする
+	// 登録済みPropertyだけを適用しMissing Propertyは編集を止めずにスキップする
 	const AnimationPropertyDescriptor* desc = AnimationPropertyRegistry::GetInstance().Find(
 		track.binding.componentName, track.binding.propertyPath);
 	if (!desc || !desc->hasComponent || !desc->setValue || !desc->hasComponent(world, entity)) {

@@ -25,7 +25,7 @@ void DxCommand::UpdateFixFPS() {
 	// 前回記録からの経過時間を取得する
 	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - reference_);
 
-	// 1/60秒 (よりわずかに短い時間) 経っていない場合
+	// 1/60秒(よりわずかに短い時間)経っていない場合
 	if (elapsed < kMinCheckTime) {
 		// 1/60秒経過するまで微小なスリープを繰り返す
 		auto wait_until = reference_ + kMinTime;
@@ -113,7 +113,7 @@ void DxCommand::FenceEvent() {
 
 void DxCommand::ExecuteCommands(IDXGISwapChain4* swapChain) {
 
-	// GraphicsCommand を実行
+	// GraphicsCommandを実行
 	ExecuteGraphicsCommands(swapChain);
 	// Graphicsの完了を待つ
 	FenceEvent();
@@ -130,7 +130,7 @@ void DxCommand::ExecuteCommands(IDXGISwapChain4* swapChain) {
 
 void DxCommand::WaitForGPU() {
 
-	// コマンドリストの内容を確定させる。すべてのコマンドを積んでからCloseする
+	// コマンドリストの内容を確定させ、すべてのコマンドを積んでからCloseする
 	HRESULT hr = commandList_->Close();
 	assert(SUCCEEDED(hr));
 
@@ -317,7 +317,7 @@ void DxCommand::TransitionBarriers(const std::vector<ID3D12Resource*>& resources
 
 		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		// バリアを貼る対象のリソース。引数で渡されたリソースに対して行う
+		// バリアを貼る対象のリソースで引数で渡されたリソースに対して行う
 		barrier.Transition.pResource = resource;
 		// 遷移前(現在)のResourceState
 		barrier.Transition.StateBefore = stateBefore;

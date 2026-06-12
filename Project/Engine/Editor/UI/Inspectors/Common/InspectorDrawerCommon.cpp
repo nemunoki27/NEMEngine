@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
+#include <Engine/Editor/UI/Common/TextSearchFilter.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
@@ -56,9 +57,23 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 		return result;
 	}
 
-	// コンボボックスのプレビュー表示は、型が選択されていない場合は"<None>"とする
-	const char* preview = type.empty() ? "<None>" : type.c_str();
-	if (ImGui::BeginCombo("##Value", preview)) {
+	// 表示はクラス名のみにし識別子としては完全修飾名を保持するため、選択時にtypeへ書くのはinfo.nameのまま
+	const auto toShortName = [](const std::string& fullName) -> std::string {
+		const size_t dot = fullName.find_last_of('.');
+		return dot == std::string::npos ? fullName : fullName.substr(dot + 1);
+	};
+
+	// プレビューも短い名前で表示する、未選択は "<None>"
+	const std::string preview = type.empty() ? std::string("<None>") : toShortName(type);
+
+	// combo内の絞り込み検索、同時に開くcomboは1つなのでstaticで十分
+	static TextSearchFilter typeFilter;
+
+	if (ImGui::BeginCombo("##Value", preview.c_str())) {
+
+		// Add Componentと同じく、上部に検索ボックスを置く
+		typeFilter.DrawInput("##BehaviorTypeSearch");
+		ImGui::Separator();
 
 		for (uint32_t i = 0; i < registry.GetBehaviorTypeCount(); ++i) {
 
@@ -66,17 +81,32 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 			if (info.name.empty() || !info.construct) {
 				continue;
 			}
+			const std::string shortName = toShortName(info.name);
+			// 短い名前・完全修飾名どちらでも検索一致させる
+			if (!typeFilter.Matches(shortName) && !typeFilter.Matches(info.name)) {
+				continue;
+			}
 			const bool selected = (type == info.name);
 
-			if (ImGui::Selectable(info.name.c_str(), selected)) {
+			ImGui::PushID(static_cast<int>(i));
+			if (ImGui::Selectable(shortName.c_str(), selected)) {
 				type = info.name;
 				result.valueChanged = true;
+			}
+			// 完全修飾名は曖昧さ解消用にhoverで見せる
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("%s", info.name.c_str());
 			}
 			if (selected) {
 				ImGui::SetItemDefaultFocus();
 			}
+			ImGui::PopID();
 		}
 		ImGui::EndCombo();
+	}
+	else {
+		// comboを閉じたら検索文字を残さない
+		typeFilter.Clear();
 	}
 
 	result.anyItemActive = ImGui::IsItemActive();
@@ -89,8 +119,7 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const Entity& entity, int32_t selectionSubMeshIndex) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	// トランスフォームコンポーネントを持っていなければ
-	// 無効の場合
+	// トランスフォームコンポーネントが無い、もしくは無効の場合
 	if (!world.HasComponent<TransformComponent>(entity) ||
 		!world.GetComponent<SceneObjectComponent>(entity).activeInHierarchy) {
 		return;

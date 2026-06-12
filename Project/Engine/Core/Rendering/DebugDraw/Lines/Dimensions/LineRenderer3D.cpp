@@ -81,7 +81,7 @@ void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius, con
 		float t0 = kEvery * static_cast<float>(index);
 		float t1 = kEvery * static_cast<float>(index + 1);
 
-		// 緯度の中心線：赤道 XZ平面
+		// 緯度の中心線：赤道XZ平面
 		Vector3 equatorA = {
 			center.x + radius * std::cos(t0),
 			center.y,
@@ -96,7 +96,7 @@ void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius, con
 
 		DrawLine(equatorA, equatorB, color, thickness);
 
-		// 経度の中心線：縦方向の大円 XY平面
+		// 経度の中心線：縦方向の大円XY平面
 		Vector3 meridianA = {
 			center.x + radius * std::cos(t0),
 			center.y + radius * std::sin(t0),
@@ -265,7 +265,7 @@ void Engine::LineRenderer3D::DrawCameraFrustum(const Matrix4x4& viewMatrix, floa
 	DrawLine(wfcTR, wfcBR, color, thickness);
 	DrawLine(wfcBR, wfcBL, color, thickness);
 	DrawLine(wfcBL, wfcTL, color, thickness);
-	// 近 → 遠
+	// 近→遠
 	DrawLine(wncTL, wfcTL, color, thickness);
 	DrawLine(wncTR, wfcTR, color, thickness);
 	DrawLine(wncBR, wfcBR, color, thickness);

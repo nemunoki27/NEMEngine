@@ -8,6 +8,10 @@
 #include <Engine/Editor/Tools/Builtin/Camera/CameraManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/Collision/CollisionManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/PostProcess/PostProcessStackTool.h>
+#include <Engine/Editor/Tools/Builtin/Scripting/ScriptExecutionOrderTool.h>
+#include <Engine/Editor/Tools/Builtin/Scripting/ScriptBuildDiagnosticsTool.h>
+#include <Engine/Editor/Tools/Builtin/Scripting/ScriptExceptionListTool.h>
+#include <Engine/Editor/Tools/Builtin/Scripting/ScriptProfilerTool.h>
 #include <Engine/Core/Rendering/Renderer/Views/SceneViewCameraController.h>
 
 // c++
@@ -40,4 +44,8 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<CollisionManagerTool>();
 	RegisterBuiltinEditorTool<AnimationClipTool>();
 	RegisterBuiltinEditorTool<PostProcessStackTool>();
+	RegisterBuiltinEditorTool<ScriptExecutionOrderTool>();
+	RegisterBuiltinEditorTool<ScriptBuildDiagnosticsTool>();
+	RegisterBuiltinEditorTool<ScriptExceptionListTool>();
+	RegisterBuiltinEditorTool<ScriptProfilerTool>();
 }

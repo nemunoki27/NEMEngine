@@ -23,13 +23,13 @@ namespace Engine {
 
 		// 色を書き込むサーフェス
 		MultiRenderTarget* colorSurface = nullptr;
-		// 別サーフェスのDSVを使う場合に指定する。nullptrならcolorSurfaceの深度を使う
+		// 別サーフェスのDSVを使う場合に指定しnullptrならcolorSurfaceの深度を使う
 		DepthTexture2D* depthOverride = nullptr;
 	};
 
 	namespace RenderPassExecutionHelper {
 
-		// 描画パスの共通実行処理（リソース状態遷移、バインド、ビューポート設定、ディスパッチ）を行う
+		// 描画パスの共通実行処理でリソース状態遷移とバインドとビューポート設定とディスパッチを行う
 		void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 			const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
 			RenderPhase phase, MultiRenderTarget* target, MaterialPassKind passKind = MaterialPassKind::Draw,
@@ -41,7 +41,7 @@ namespace Engine {
 			MultiRenderTarget* target, MaterialPassKind passKind = MaterialPassKind::Draw,
 			bool forceVertexMeshVariant = false, bool depthOnly = false);
 
-		// 色サーフェスと外部DSVを組み合わせて描画する。背面法アウトラインで
+		// 色サーフェスと外部DSVを組み合わせて描画する背面法アウトライン用で
 		// SceneFinalの色とSceneMainの深度を同時にバインドするために使う
 		void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 			const std::vector<const RenderItem*>& items, const RenderPipelineDeps& deps,

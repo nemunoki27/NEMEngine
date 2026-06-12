@@ -7,10 +7,14 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
+#include <Engine/Core/Scripting/Managed/ScriptExecutionOrderTable.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptProfilerStore.h>
+#include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
 #include <algorithm>
+#include <chrono>
 
 //============================================================================
 //	BehaviorSystem classMethods
@@ -19,12 +23,10 @@ Engine::BehaviorSystem* Engine::BehaviorSystem::activeSystem_ = nullptr;
 
 namespace {
 
-	// ScriptEntry を Stable Script Type GUID 優先で compact runtime type ID へ解決する。
-	// 解決済みは cache（resolvedRuntimeTypeValid）を返す＝hot pathで文字列検索しない。
-	// 解決不能は Missing Script として false（データは保持する）。
+	// ScriptEntryをStable Script Type GUID優先でcompact runtime type IDへ解決する、解決済みはcache resolvedRuntimeTypeValidを返しhot pathで文字列検索しない、解決不能はMissing Scriptとしてfalseでデータは保持する
 	bool TryResolveTypeID(Engine::ScriptEntry& entry, uint32_t& outTypeID) {
 
-		// reload境界（ResetRuntimeState）で cache は無効化される。resolved済みは即返す
+		// reload境界ResetRuntimeStateでcacheは無効化される、resolved済みは即返す
 		if (entry.resolvedRuntimeTypeValid) {
 			outTypeID = entry.resolvedRuntimeTypeID;
 			return true;
@@ -32,7 +34,7 @@ namespace {
 
 		auto& registry = Engine::BehaviorTypeRegistry::GetInstance();
 
-		// 1. Stable GUID（永続主キー）で解決する
+		// 1. Stable GUID永続主キーで解決する
 		if (!entry.scriptTypeId.empty()) {
 
 			if (const Engine::BehaviorTypeInfo* info = registry.FindByStableScriptTypeID(entry.scriptTypeId)) {
@@ -43,26 +45,26 @@ namespace {
 				outTypeID = info->id;
 				return true;
 			}
-			// GUIDはあるが現manifestに無い＝Missing Script。legacyへフォールバックしない
+			// GUIDはあるが現manifestに無いMissing Scriptでlegacyへフォールバックしない
 			return false;
 		}
 
-		// 2. legacy 移行: lastKnownTypeName から一意に解決できれば GUID を書き込む
+		// 2. legacy移行: lastKnownTypeNameから一意に解決できればGUIDを書き込む
 		if (entry.lastKnownTypeName.empty()) {
 			return false;
 		}
 		const Engine::BehaviorTypeInfo* info = registry.FindByName(entry.lastKnownTypeName);
 		if (!info) {
-			// 完全名で無ければ単純名（複数候補なら曖昧＝nullptrで自動移行しない）
+			// 完全名で無ければ単純名で解決し複数候補なら曖昧としてnullptrで自動移行しない
 			const std::string simpleName = Engine::MakeSimpleTypeName(entry.lastKnownTypeName);
 			info = registry.FindManagedBySimpleName(simpleName);
 		}
 		if (!info) {
-			// 解決不能（不明 or 曖昧）＝Missing Script。データは保持する
+			// 解決不能な不明or曖昧はMissing Scriptでデータは保持する
 			return false;
 		}
 
-		// 移行成功: GUID を主キーへ書き込む（次回保存でGUID形式になる）
+		// 移行成功: GUIDを主キーへ書き込む、次回保存でGUID形式になる
 		entry.scriptTypeId = info->scriptTypeId;
 		entry.lastKnownTypeName = info->name;
 		entry.resolvedRuntimeTypeID = info->id;
@@ -83,6 +85,8 @@ void Engine::BehaviorSystem::OnWorldEnter(ECSWorld& world, SystemContext& contex
 	// プレイモードでワールドに入ったときは、スクリプトのビヘイビアの実体化と初期化を行う
 	if (context.mode == WorldMode::Play) {
 
+		// 新しいPlay sessionの計測を0から取るためdetail profilerをresetする、aggregateは維持
+		ManagedScriptProfilerStore::GetInstance().Reset();
 		SynchronizeLifecycle(world, context, false);
 	}
 }
@@ -118,14 +122,25 @@ void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context
 		if (!record || !record->instance || !record->enabled || record->faulted) {
 			continue;
 		}
+		// detail profiler: type slot FixedUpdate単位で所要時間を計測する、Releaseでは無効化
+		ScriptProfileSample sample(record->typeID, record->owner.index, participant.slot, ScriptCallbackKind::FixedUpdate);
 		record->instance->FixedUpdate(world, context, record->owner);
 		if (record->instance->IsFaulted()) {
 			record->faulted = true;
+			sample.MarkFaulted();
 		}
 	}
 
-	// FixedUpdate phase 末: WaitForFixedUpdate の coroutine を resume する
-	ManagedScriptRuntime::GetInstance().TickFrame(1);
+	// FixedUpdate phase末: WaitForFixedUpdateのcoroutineをresumeする、detail有効時は所要時間も計測
+	if constexpr (ManagedScriptProfilerStore::kDetailEnabled) {
+		const auto t0 = std::chrono::high_resolution_clock::now();
+		ManagedScriptRuntime::GetInstance().TickFrame(1);
+		const std::chrono::duration<float, std::milli> ms = std::chrono::high_resolution_clock::now() - t0;
+		ManagedScriptProfilerStore::GetInstance().RecordCoroutineResume(ms.count());
+	}
+	else {
+		ManagedScriptRuntime::GetInstance().TickFrame(1);
+	}
 }
 
 void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
@@ -144,14 +159,24 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 		if (!record || !record->instance || !record->enabled || record->faulted) {
 			continue;
 		}
+		ScriptProfileSample sample(record->typeID, record->owner.index, participant.slot, ScriptCallbackKind::Update);
 		record->instance->Update(world, context, record->owner);
 		if (record->instance->IsFaulted()) {
 			record->faulted = true;
+			sample.MarkFaulted();
 		}
 	}
 
-	// Update phase 末: Timer tick と Coroutine(Update) を駆動する
-	ManagedScriptRuntime::GetInstance().TickFrame(0);
+	// Update phase末: Timer tickとCoroutine Updateを駆動する、detail有効時は所要時間も計測
+	if constexpr (ManagedScriptProfilerStore::kDetailEnabled) {
+		const auto t0 = std::chrono::high_resolution_clock::now();
+		ManagedScriptRuntime::GetInstance().TickFrame(0);
+		const std::chrono::duration<float, std::milli> ms = std::chrono::high_resolution_clock::now() - t0;
+		ManagedScriptProfilerStore::GetInstance().RecordCoroutineResume(ms.count());
+	}
+	else {
+		ManagedScriptRuntime::GetInstance().TickFrame(0);
+	}
 }
 
 void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
@@ -161,22 +186,31 @@ void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 		return;
 	}
 
-	// LateUpdateではsynchronizeしない。Updateで確定したparticipantスナップショットのみを実行する。
-	// Update後flushで生成されたEntity/scriptは同フレームのLateUpdateへ途中参加しない。
+	// LateUpdateではsynchronizeせずUpdateで確定したparticipantスナップショットのみを実行する、Update後flushで生成されたEntity/scriptは同フレームのLateUpdateへ途中参加しない
 	for (const SyncParticipant& participant : participants_) {
 
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
 		if (!record || !record->instance || !record->enabled || record->faulted) {
 			continue;
 		}
+		ScriptProfileSample sample(record->typeID, record->owner.index, participant.slot, ScriptCallbackKind::LateUpdate);
 		record->instance->LateUpdate(world, context, record->owner);
 		if (record->instance->IsFaulted()) {
 			record->faulted = true;
+			sample.MarkFaulted();
 		}
 	}
 
-	// LateUpdate phase 末: WaitForEndOfFrame の coroutine を resume する
-	ManagedScriptRuntime::GetInstance().TickFrame(2);
+	// LateUpdate phase末: WaitForEndOfFrameのcoroutineをresumeする、detail有効時は所要時間も計測
+	if constexpr (ManagedScriptProfilerStore::kDetailEnabled) {
+		const auto t0 = std::chrono::high_resolution_clock::now();
+		ManagedScriptRuntime::GetInstance().TickFrame(2);
+		const std::chrono::duration<float, std::milli> ms = std::chrono::high_resolution_clock::now() - t0;
+		ManagedScriptProfilerStore::GetInstance().RecordCoroutineResume(ms.count());
+	}
+	else {
+		ManagedScriptRuntime::GetInstance().TickFrame(2);
+	}
 }
 
 void Engine::BehaviorSystem::DispatchCollisionEnter(ECSWorld& world,
@@ -208,7 +242,7 @@ void Engine::BehaviorSystem::DispatchCollisionExit(ECSWorld& world,
 
 nlohmann::json Engine::BehaviorSystem::GetRuntimeSerializedState(BehaviorHandle handle) {
 
-	// Play中の live instance の現在値を返す。非アクティブ/未生存handleは空
+	// Play中のlive instanceの現在値を返す、非アクティブや未生存handleは空
 	if (!activeSystem_ || !activeSystem_->runtime_.IsAlive(handle)) {
 		return nlohmann::json::object();
 	}
@@ -233,7 +267,7 @@ void Engine::BehaviorSystem::SetRuntimeSerializedField(BehaviorHandle handle,
 
 namespace {
 
-	// active world の owner Entity 上で scriptSlotID 一致の ScriptEntry を探す
+	// active worldのowner Entity上でscriptSlotID一致のScriptEntryを探す
 	Engine::ScriptEntry* FindScriptEntryBySlot(Engine::ECSWorld& world, const Engine::Entity& owner, const Engine::UUID& slotId) {
 
 		Engine::ScriptComponent* component = world.TryGetComponent<Engine::ScriptComponent>(owner);
@@ -258,7 +292,7 @@ int32_t Engine::BehaviorSystem::GetScriptEnabled(const Entity& owner, const UUID
 	if (!entry) {
 		return -1;
 	}
-	// runtime override があればそれ、無ければ authoring enabled を返す
+	// runtime overrideがあればそれ、無ければauthoring enabledを返す
 	if (BehaviorRecord* record = activeSystem_->runtime_.GetRecord(entry->handle)) {
 		if (record->hasRuntimeEnabledOverride) {
 			return record->runtimeEnabledOverride ? 1 : 0;
@@ -276,8 +310,7 @@ void Engine::BehaviorSystem::SetScriptEnabled(const Entity& owner, const UUID& s
 	if (!entry) {
 		return;
 	}
-	// runtime override を立てる。次の lifecycle sync 境界(ApplyEnableTransitions)で OnEnable/OnDisable が反映される。
-	// authoring の ScriptEntry.enabled は変更しない（Play終了でrecordごと破棄される）
+	// runtime overrideを立て次のlifecycle sync境界ApplyEnableTransitionsでOnEnable/OnDisableが反映される、authoringのScriptEntry.enabledは変更せずPlay終了でrecordごと破棄される
 	if (BehaviorRecord* record = activeSystem_->runtime_.GetRecord(entry->handle)) {
 		record->runtimeEnabledOverride = enabled;
 		record->hasRuntimeEnabledOverride = true;
@@ -317,7 +350,7 @@ void Engine::BehaviorSystem::ResetRuntimeState(ECSWorld& world) {
 	world.ForEach<ScriptComponent>([&](Entity, ScriptComponent& component) {
 		for (auto& entry : component.scripts) {
 
-			// scriptTypeId / lastKnownTypeName（永続データ）は消さず、runtimeキャッシュだけ無効化する
+			// scriptTypeIdとlastKnownTypeNameの永続データは消さずruntimeキャッシュだけ無効化する
 			entry.handle = BehaviorHandle::Null();
 			entry.resolvedRuntimeTypeID = 0;
 			entry.resolvedRuntimeTypeValid = false;
@@ -334,7 +367,7 @@ void Engine::BehaviorSystem::SynchronizeLifecycle(ECSWorld& world, SystemContext
 		return;
 	}
 
-	// Pass1: record同期・型解決・instance生成・serialized適用（gameplay callbackは呼ばない）
+	// Pass1: record同期・型解決・instance生成・serialized適用でgameplay callbackは呼ばない
 	SynchronizeRecords(world, context, sweep);
 
 	// 構造変更があったときだけparticipantキャッシュを作り直して安定ソートする
@@ -344,18 +377,17 @@ void Engine::BehaviorSystem::SynchronizeLifecycle(ECSWorld& world, SystemContext
 		participantsDirty_ = false;
 	}
 
-	// Pass2: 全件Awake（activeなものだけ）
+	// Pass2: activeなものだけ全件Awake
 	InvokePendingAwake(world, context);
-	// Pass3: 全件OnEnable/OnDisable遷移
+	// Pass3:全件OnEnable/OnDisable遷移
 	ApplyEnableTransitions(world, context);
 	//============================================================================
-	//	Pass4: SceneLoaded/SceneUnloaded通知（全Awake/OnEnable完了後・Startより前）
-	//	07で C# SceneManager を導入。native の scene instance 生存変化を C# 側がpollして
-	//	SceneLoaded（load完了）/ SceneUnloaded（unload完了）を発火する。
+	//	Pass4: SceneLoaded/SceneUnloaded通知で全Awake/OnEnable完了後Startより前
+	//	nativeのscene instance生存変化をC#側がpollしSceneLoadedとSceneUnloadedを発火する
 	//============================================================================
 	ManagedScriptRuntime::GetInstance().PumpSceneEvents();
 
-	// Pass5: 全件Start
+	// Pass5:全件Start
 	InvokePendingStart(world, context);
 }
 
@@ -364,14 +396,13 @@ void Engine::BehaviorSystem::SynchronizeRecords(ECSWorld& world, SystemContext& 
 	// フラグリセット
 	runtime_.ClearSeenFlags();
 
-	// スクリプトコンポーネントを持つ全てのエンティティを走査してrecordを同期する。
-	// gameplay callbackはここでは呼ばないため、走査中にECS chunkは壊れない。
+	// スクリプトコンポーネントを持つ全エンティティを走査してrecordを同期する、gameplay callbackはここで呼ばないため走査中にECS chunkは壊れない
 	world.ForEach<ScriptComponent>([&](Entity entity, ScriptComponent& component) {
 		for (size_t slot = 0; slot < component.scripts.size(); ++slot) {
 
 			ScriptEntry& entry = component.scripts[slot];
 
-			// 型の手掛かりが何も無い（GUIDも型名も空）空スロットはビヘイビアを破棄して無効にする
+			// 型の手掛かりが何も無いGUIDも型名も空の空スロットはビヘイビアを破棄して無効にする
 			if (entry.scriptTypeId.empty() && entry.lastKnownTypeName.empty()) {
 				if (entry.handle.IsValid()) {
 
@@ -417,8 +448,7 @@ void Engine::BehaviorSystem::SynchronizeRecords(ECSWorld& world, SystemContext& 
 					entry.handle = BehaviorHandle::Null();
 					continue;
 				}
-				// scriptSlotID を instance へ渡す。C# 側 ScriptBehaviour.Enabled が
-				// owner Entity + scriptSlotID で自身の runtime entry を特定するために使う
+				// scriptSlotIDをinstanceへ渡す、C#側ScriptBehaviour.Enabledがowner EntityとscriptSlotIDで自身のruntime entryを特定するために使う
 				record->instance->SetSlotId(entry.scriptSlotID.value);
 				participantsDirty_ = true;
 			}
@@ -426,23 +456,21 @@ void Engine::BehaviorSystem::SynchronizeRecords(ECSWorld& world, SystemContext& 
 			// アクセスされたフラグを立てる
 			record->seen = true;
 
-			// faulted状態のビヘイビアは生存させたまま、以降の初期化を行わない
+			// faulted状態のビヘイビアは生存させたまま以降の初期化を行わない
 			if (record->faulted || record->instance->IsFaulted()) {
 
 				record->faulted = true;
 				continue;
 			}
 
-			// serializedFieldsはrevisionが進んだときだけ適用する（hot pathで毎回JSONを触らない）。
-			// 新規record時はsentinelと一致しないので、生成前に一度だけ適用される。
+			// serializedFieldsはrevisionが進んだときだけ適用しhot pathで毎回JSONを触らない、新規record時はsentinelと一致しないので生成前に一度だけ適用される
 			if (record->appliedSerializedRevision != entry.serializedRevision) {
 
 				record->instance->SetSerializedFields(entry.serializedFields);
 				record->appliedSerializedRevision = entry.serializedRevision;
 			}
 
-			// inactive hierarchyでもinstanceは全件生成しておく（Awakeは後段のPass2でactive時のみ）。
-			// 生成に失敗したものはfaultedにして以後除外する（retryやJSON storm防止）。
+			// inactive hierarchyでもinstanceは全件生成しておきAwakeは後段のPass2でactive時のみ呼ぶ、生成に失敗したものはfaultedにして以後除外しretryやJSON stormを防ぐ
 			if (!record->instance->EnsureInstance(world, entity)) {
 
 				record->faulted = true;
@@ -459,11 +487,25 @@ void Engine::BehaviorSystem::SynchronizeRecords(ECSWorld& world, SystemContext& 
 	}
 }
 
+void Engine::BehaviorSystem::InvalidateExecutionOrder() {
+
+	// 設定ファイルを読み直し、次のSynchronizeLifecycleでparticipantを再ソートさせる
+	ScriptExecutionOrderTable::GetInstance().Reload();
+	if (activeSystem_) {
+		activeSystem_->participantsDirty_ = true;
+	}
+}
+
 void Engine::BehaviorSystem::RebuildParticipants(ECSWorld& world) {
 
-	// seenなalive recordを集めて、(owner.index, owner.generation, slot)で安定ソートする。
-	// 構造変更があったフレームだけ呼ばれるため、通常フレームではソートを行わない。
+	// seenなalive recordを集めてexecutionOrder owner.index owner.generation slotで安定ソートする、構造変更があったフレームだけ呼ばれるため通常フレームではソートを行わない
 	participants_.clear();
+
+	// Script Type GUID単位の実行順を解決するproject-levelのoverrideで未設定は0、構造変更時のみここで参照するためgameplay hot pathには乗らない
+	ScriptExecutionOrderTable& orderTable = ScriptExecutionOrderTable::GetInstance();
+	orderTable.EnsureLoaded();
+	BehaviorTypeRegistry& typeRegistry = BehaviorTypeRegistry::GetInstance();
+
 	world.ForEach<ScriptComponent>([&](Entity entity, ScriptComponent& component) {
 		for (size_t slot = 0; slot < component.scripts.size(); ++slot) {
 
@@ -475,13 +517,24 @@ void Engine::BehaviorSystem::RebuildParticipants(ECSWorld& world) {
 			if (!record || !record->seen || !record->instance) {
 				continue;
 			}
-			participants_.emplace_back(SyncParticipant{ entry.handle, entity, static_cast<int32_t>(slot) });
+			// 実行順のprecedenceはEditor project override > [DefaultExecutionOrder] > 0で、override無しと明示0を区別するためTryGetOverrideを使う
+			const BehaviorTypeInfo& typeInfo = typeRegistry.GetInfo(record->typeID);
+			int32_t executionOrder = typeInfo.defaultExecutionOrder;
+			int32_t overrideValue = 0;
+			if (!typeInfo.scriptTypeId.empty() && orderTable.TryGetOverride(typeInfo.scriptTypeId, overrideValue)) {
+				executionOrder = overrideValue;
+			}
+			participants_.emplace_back(SyncParticipant{ entry.handle, entity, static_cast<int32_t>(slot), executionOrder });
 		}
 		});
 
 	std::sort(participants_.begin(), participants_.end(),
 		[](const SyncParticipant& lhs, const SyncParticipant& rhs) {
 
+			// 実行順が小さいものを先に、同値は既存の安定キーで決定的に解決する
+			if (lhs.executionOrder != rhs.executionOrder) {
+				return lhs.executionOrder < rhs.executionOrder;
+			}
 			if (lhs.owner.index != rhs.owner.index) {
 				return lhs.owner.index < rhs.owner.index;
 			}
@@ -494,8 +547,7 @@ void Engine::BehaviorSystem::RebuildParticipants(ECSWorld& world) {
 
 void Engine::BehaviorSystem::InvokePendingAwake(ECSWorld& world, SystemContext& context) {
 
-	// active hierarchyに入っていて未AwakeのrecordだけにAwakeを1回呼ぶ。
-	// 全participantのAwakeをここで完了させてから後段のStartへ進む。
+	// active hierarchyに入っていて未AwakeのrecordだけにAwakeを1回呼び、全participantのAwakeを完了させてから後段のStartへ進む
 	for (const SyncParticipant& participant : participants_) {
 
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
@@ -523,8 +575,7 @@ void Engine::BehaviorSystem::ApplyEnableTransitions(ECSWorld& world, SystemConte
 			continue;
 		}
 
-		// entry.enabledは構造変更なしでも変わり得るため都度評価する（ECSアクセスはO(1)）。
-		// ScriptBehaviour.Enabled が立てた runtime override があればそれを優先する（authoringへは書き戻さない）
+		// entry.enabledは構造変更なしでも変わり得るため都度評価しECSアクセスはO(1)、ScriptBehaviour.Enabledが立てたruntime overrideがあればそれを優先しauthoringへは書き戻さない
 		bool entryEnabled = true;
 		if (record->hasRuntimeEnabledOverride) {
 			entryEnabled = record->runtimeEnabledOverride;
@@ -534,7 +585,7 @@ void Engine::BehaviorSystem::ApplyEnableTransitions(ECSWorld& world, SystemConte
 			}
 		}
 
-		// OnEnableはAwake後にのみ呼ぶ。activeInHierarchyも都度評価する（O(1)のcached読み）
+		// OnEnableはAwake後にのみ呼びactiveInHierarchyも都度評価するO(1)のcached読み
 		const bool shouldBeEnabled =
 			entryEnabled && record->awakeCalled && IsEntityActiveInHierarchy(world, participant.owner);
 
@@ -544,7 +595,7 @@ void Engine::BehaviorSystem::ApplyEnableTransitions(ECSWorld& world, SystemConte
 			record->enabled = true;
 		} else if (!shouldBeEnabled && record->enabled) {
 
-			// 有効→無効への遷移時のみOnDisableを呼ぶ
+			// 有効から無効への遷移時のみOnDisableを呼ぶ
 			record->instance->OnDisable(world, context, participant.owner);
 			record->enabled = false;
 		}
@@ -556,8 +607,7 @@ void Engine::BehaviorSystem::ApplyEnableTransitions(ECSWorld& world, SystemConte
 
 void Engine::BehaviorSystem::InvokePendingStart(ECSWorld& world, SystemContext& context) {
 
-	// 全Awake完了後に、有効かつ未StartのrecordへStartを1回呼ぶ。
-	// 再有効化ではstartCalledが残るため再実行しない。
+	// 全Awake完了後に有効かつ未StartのrecordへStartを1回呼ぶ、再有効化ではstartCalledが残るため再実行しない
 	for (const SyncParticipant& participant : participants_) {
 
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);

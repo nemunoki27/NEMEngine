@@ -16,6 +16,7 @@ namespace Engine {
 	// front
 	class AssetDatabase;
 	class SceneInstanceManager;
+	class ManagedScriptBuildService;
 
 	//============================================================================
 	//	EditorContext struct
@@ -36,9 +37,14 @@ namespace Engine {
 		AssetID activeSceneAsset{};
 		UUID activeSceneInstanceID{};
 		SceneInstanceManager* sceneInstances = nullptr;
-		// ECSワールド
+		// ECSワールドでactiveはPlay中はPlayWorld
 		ECSWorld* activeWorld = nullptr;
+		// 常にauthoringのEditWorldでPlay中でも有効、Apply Runtime Values To Authoring等で使う
+		ECSWorld* editWorld = nullptr;
 		// アセットデータベース
 		AssetDatabase* assetDatabase = nullptr;
+		// managed scriptingのEditor向けサービス境界でread-only snapshot + request interface
+		// panelはEngineApplicationのprivate memberやLoggerを直接見ず、これ経由で観測・操作する
+		ManagedScriptBuildService* scriptBuildService = nullptr;
 	};
 } // Engine

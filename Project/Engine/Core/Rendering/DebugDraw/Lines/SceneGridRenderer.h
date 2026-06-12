@@ -22,7 +22,7 @@ namespace Engine {
 
 	//============================================================================
 	//	SceneGridRenderer class
-	//	analytic grid shader によるシーングリッド描画
+	//	analytic grid shaderによるシーングリッド描画
 	//============================================================================
 	class SceneGridRenderer {
 	public:
@@ -100,7 +100,7 @@ namespace Engine {
 		std::vector<std::unique_ptr<DxConstBuffer<GridPassConstants>>> passBuffers_{};
 		uint32_t passBufferIndex_ = 0;
 
-		// グリッドパス定数バッファ（b0）のスロットキャッシュ
+		// グリッドパス定数バッファb0のスロットキャッシュ
 		PipelineBindingCache gridBindCache_{};
 		PipelineBindingCache::SlotID gridCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 

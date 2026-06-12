@@ -10,7 +10,7 @@ namespace Engine {
 
 	//============================================================================
 	//	DepthPrepass class
-	// Opaqueキューの深度プリパス。LightCulling/Overdraw削減用
+	// Opaqueキューの深度プリパスでLightCulling/Overdraw削減用
 	//============================================================================
 	class DepthPrepass :
 		public IRenderPass {

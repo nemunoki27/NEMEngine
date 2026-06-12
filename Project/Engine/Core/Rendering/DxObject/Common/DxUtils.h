@@ -23,7 +23,7 @@ namespace DxUtils {
 	void MakeDescriptorHeap(ComPtr<ID3D12DescriptorHeap>& descriptorHeap,
 		ID3D12Device* device, const D3D12_DESCRIPTOR_HEAP_DESC& desc);
 
-	// バッファ用のリソース定義を作成する。HeapType別の生成関数で共通利用する
+	// バッファ用のリソース定義を作成しHeapType別の生成関数で共通利用する
 	D3D12_RESOURCE_DESC MakeBufferResourceDesc(size_t sizeInBytes,
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
 
@@ -35,7 +35,7 @@ namespace DxUtils {
 		D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
 
-	// 通常のGPUバッファリソースを作成する。(UPLOAD heap。互換のためCreateUploadBufferResourceへ委譲する)
+	// 通常のGPUバッファリソースをUPLOAD heapで作成し互換のためCreateUploadBufferResourceへ委譲する
 	void CreateBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes);
 	// UAV用途のバッファリソースを作成する
 	void CreateUavBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes);

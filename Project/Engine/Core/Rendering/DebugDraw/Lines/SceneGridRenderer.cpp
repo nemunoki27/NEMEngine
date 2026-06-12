@@ -46,7 +46,7 @@ namespace {
 		return a + (b - a) * t;
 	}
 
-	// 1 / 2 / 5 * 10^n にスナップ
+	// 1 / 2 / 5 * 10^nにスナップ
 	float SnapGridStep(float rawStep) {
 
 		rawStep = (std::max)(rawStep, 0.001f);
@@ -371,14 +371,14 @@ namespace {
 			return result;
 		}
 
-		// target range の真ん中ではなく、対数的な中心を使う
-		// 64 ～ 256 なら 128 付近を狙う
+		// target rangeの真ん中ではなく、対数的な中心を使う
+		// 64～256なら128付近を狙う
 		float targetPixelCenter = std::sqrt(safeTargetPixelMin * safeTargetPixelMax);
 
-		// 理想的な連続値の minor step
+		// 理想的な連続値のminor step
 		float idealMinorStep = (std::max)(targetPixelCenter / pixelsPerUnit, safeBaseMinStep);
 
-		// idealMinorStep を挟む 2つの snapped step を求める
+		// idealMinorStepを挟む2つのsnapped stepを求める
 		float upper = SnapGridStep(idealMinorStep);
 		if (upper < idealMinorStep) {
 			upper = NextGridStep(upper);
@@ -387,7 +387,7 @@ namespace {
 		float lower = PrevGridStep(upper);
 		lower = (std::max)(lower, safeBaseMinStep);
 
-		// lower == upper の場合はそのまま
+		// lower == upperの場合はそのまま
 		if (std::abs(upper - lower) < kEpsilon) {
 			GridStepBlend result{};
 			result.minorStep0 = lower;
@@ -396,7 +396,7 @@ namespace {
 			return result;
 		}
 
-		// 対数空間で補間すると 1/2/5 ステップでも自然
+		// 対数空間で補間すると1/2/5ステップでも自然
 		float denom = std::log(upper / lower);
 		float blend = 0.0f;
 		if (std::abs(denom) > kEpsilon) {

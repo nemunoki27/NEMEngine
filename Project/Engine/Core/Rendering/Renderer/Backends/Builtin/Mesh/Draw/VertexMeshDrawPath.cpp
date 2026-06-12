@@ -26,7 +26,7 @@ Engine::VertexMeshDrawPath::VertexMeshDrawPath() {
 	visibleInstUAVSlot_      = indirectArgsBindCache_.AddSlot("gVisibleMeshInstances",   ShaderBindingKind::UAV);
 	idxIndirectArgsUAVSlot_  = indirectArgsBindCache_.AddSlot("gIndexedIndirectArgs",    ShaderBindingKind::UAV);
 
-	// Draw時: カリング済みインスタンス配列をgMeshInstancesとして再バインドする
+	// Draw時:カリング済みインスタンス配列をgMeshInstancesとして再バインドする
 	drawMeshInstSRVSlot_ = drawBindCache_.AddSlot("gMeshInstances", ShaderBindingKind::SRV);
 }
 

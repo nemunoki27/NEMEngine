@@ -10,8 +10,7 @@ namespace Engine {
 
 	//============================================================================
 	//	DotnetHostResolver class
-	//	nethostのget_hostfxr_pathでhostfxrを探索し、load_assembly_and_get_function_pointer
-	//	デリゲートまで取得して保持するRAIIサービス。
+	//	nethostでhostfxrを探索しload_assembly_and_get_function_pointerデリゲートまで取得して保持するRAIIサービス
 	class DotnetHostResolver {
 	public:
 		//============================================================================
@@ -24,20 +23,16 @@ namespace Engine {
 		DotnetHostResolver(const DotnetHostResolver&) = delete;
 		DotnetHostResolver& operator=(const DotnetHostResolver&) = delete;
 
-		// get_hostfxr_path → LoadLibrary → hostfxr_initialize_for_runtime_config →
-		// hostfxr_get_runtime_delegate(hdt_load_assembly_and_get_function_pointer) までを実行する。
-		// 失敗段階ごとに区別した診断ログを出し、いずれの失敗経路でも内部リソースを解放する。
-		// 成功でtrue。多重呼び出し時は先に既存状態をShutdownしてから再初期化する。
+		// hostfxr初期化からload_assembly_and_get_function_pointer取得までを実行し失敗段階ごとに診断ログを出してリソースを解放する、成功でtrueで多重呼び出し時は先にShutdownしてから再初期化する
 		bool Initialize(const std::filesystem::path& scriptCoreAssemblyPath,
 			const std::filesystem::path& runtimeConfigPath);
 
-		// hostfxrライブラリを解放し、デリゲートを無効化する。複数回呼び出しても安全。
+		// hostfxrライブラリを解放しデリゲートを無効化する、複数回呼び出しても安全
 		void Shutdown();
 
 		//--------- accessor -----------------------------------------------------
 
-		// load_assembly_and_get_function_pointer デリゲート。
-		// 戻り値はhostfxrライブラリがロード中のみ有効。呼び出し側で実シグネチャへcastする。
+		// load_assembly_and_get_function_pointerデリゲート、戻り値はhostfxrロード中のみ有効で呼び出し側が実シグネチャへcastする
 		void* GetLoadAssemblyDelegate() const { return loadAssemblyDelegate_; }
 		bool IsInitialized() const { return library_ != nullptr && loadAssemblyDelegate_ != nullptr; }
 	private:
@@ -47,9 +42,9 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// hostfxr.dll の HMODULE（windows.h非公開化のためvoid*で保持）
+		// hostfxr.dllのHMODULE、windows.h非公開化のためvoid*で保持する
 		void* library_ = nullptr;
-		// load_assembly_and_get_function_pointer デリゲート
+		// load_assembly_and_get_function_pointerデリゲート
 		void* loadAssemblyDelegate_ = nullptr;
 	};
 } // Engine

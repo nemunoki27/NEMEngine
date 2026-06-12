@@ -35,7 +35,7 @@ namespace Engine {
 		// フレーム開始時にtemporary requestをクリアする
 		void BeginFrame() { requests_.clear(); }
 
-		// 選択アウトライン要求を積む。subMeshIndexが負ならEntity全体
+		// 選択アウトライン要求を積み、subMeshIndexが負ならEntity全体
 		void Request(ECSWorld* world, const Entity& entity, int32_t subMeshIndex,
 			const ScreenSpaceOutlineStyle& style) {
 

@@ -74,7 +74,7 @@ namespace Engine {
 
 		// シェーダーリロードを要求する
 		void RequestShaderReload(AssetID materialId);
-		// リロード要求を取り出す。存在した場合はtrueを返し要求を削除する
+		// リロード要求を取り出し存在した場合はtrueを返し要求を削除する
 		bool TakeReloadRequest(AssetID materialId);
 
 		//--------- accessor -----------------------------------------------------

@@ -12,7 +12,7 @@
 namespace Engine {
 
 	namespace {
-		// 標準的なシェーダリソース名。これらと一致するバインディングは自動的に現在のパスのターゲットが割り当てられる
+		// 標準的なシェーダリソース名でこれらと一致するバインディングは自動的に現在のパスのターゲットが割り当てられる
 		constexpr const char* kSourceColorName = "gSourceColor";
 		constexpr const char* kSourceDepthName = "gSourceDepth";
 		constexpr const char* kDestColorName = "gDestColor";
@@ -49,7 +49,7 @@ namespace Engine {
 	}
 
 	RenderTexture2D* GetFirstColor(MultiRenderTarget* target) {
-		// MRTの中から最初のカラーテクスチャを抽出。単一出力パスでの簡易取得用
+		// MRTの中から最初のカラーテクスチャを抽出する単一出力パスでの簡易取得用
 		if (!target || target->GetColorCount() == 0) {
 			return nullptr;
 		}
@@ -60,7 +60,7 @@ namespace Engine {
 		if (!context.targetRegistry || targetName.empty()) {
 			return nullptr;
 		}
-		// エイリアス名で直接検索（"SceneMain"など）
+		// "SceneMain"などのエイリアス名で直接検索
 		if (MultiRenderTarget* byAlias = context.targetRegistry->Find(targetName)) {
 			return byAlias;
 		}
@@ -82,7 +82,7 @@ namespace Engine {
 		DepthTexture2D* depth = nullptr;
 		std::string resolvedName{};
 
-		// 名前が取れている場合は、標準名を優先して解決。入力カラーまたは深度を割り当てる
+		// 名前が取れている場合は標準名を優先して解決し入力カラーまたは深度を割り当てる
 		if (binding.name == kSourceColorName) {
 			texture = sourceColor;
 			resolvedName = kSourceColorName;
@@ -92,7 +92,7 @@ namespace Engine {
 			resolvedName = kSourceDepthName;
 		}
 		else if (!binding.name.empty()) {
-			// 標準名以外は、desc.extraSourcesでの指定（追加のパス入力）を確認
+			// 標準名以外はdesc.extraSourcesでの追加のパス入力指定を確認
 			auto found = desc.extraSources.find(binding.name);
 			if (found != desc.extraSources.end()) {
 				MultiRenderTarget* extra = ResolveExtraSource(context, found->second);
@@ -101,7 +101,7 @@ namespace Engine {
 			}
 		}
 
-		// 古いシェーダや無名バインディング向け。レジストリ番号でのフォールバック
+		// 古いシェーダや無名バインディング向けのレジストリ番号でのフォールバック
 		if (!texture && !depth && binding.name.empty()) {
 			if (binding.bindPoint == 0 && binding.space == 0) {
 				texture = sourceColor;
@@ -114,7 +114,7 @@ namespace Engine {
 		}
 
 		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
-		// カラーテクスチャのバインド。適切なリソース状態へ遷移させる
+		// カラーテクスチャのバインドで適切なリソース状態へ遷移させる
 		if (texture) {
 			texture->Transition(*dxCommand,
 				static_cast<D3D12_RESOURCE_STATES>(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
@@ -137,7 +137,7 @@ namespace Engine {
 			return true;
 		}
 
-		// マテリアル側で指定された個別のテクスチャオーバーライド（ノイズテクスチャ等）を解決
+		// マテリアル側で指定されたノイズテクスチャ等の個別テクスチャオーバーライドを解決
 		if (!binding.name.empty()) {
 			auto found = desc.textureOverrides.find(binding.name);
 			if (found != desc.textureOverrides.end() && found->second) {
@@ -152,7 +152,7 @@ namespace Engine {
 			}
 		}
 
-		// 予約済みの名前なのに解決できなかった場合はエラー（カラーや深度が必須なのに無いケース）
+		// 予約済みの名前なのに解決できなかった場合はカラーや深度が必須なのに無いエラー
 		const bool isSourceReserved =
 			(binding.name == kSourceColorName || binding.name == kSourceDepthName) ||
 			((binding.bindPoint == 0 || binding.bindPoint == 1) && binding.space == 0 && binding.name.empty());

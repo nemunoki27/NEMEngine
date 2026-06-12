@@ -24,7 +24,7 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// 入力 / 出力の種別
+		// 入力/出力の種別
 		GraphPinKind kind = GraphPinKind::Input;
 		// Pinの値型
 		GraphValueType valueType = GraphValueType::Unknown;

@@ -36,7 +36,7 @@ namespace Engine {
 		UUID target{};
 		// ターゲットからのワールドオフセット
 		Vector3 offset = Vector3(0.0f, 3.0f, -8.0f);
-		// 追従する軸。0で現在値を維持し、1で追従する
+		// 追従する軸は0で現在値を維持し、1で追従する
 		Vector3 axisMask = Vector3::AnyInit(1.0f);
 		// 0以下の場合は補間せず即座に追従する
 		float positionLerpSpeed = 8.0f;

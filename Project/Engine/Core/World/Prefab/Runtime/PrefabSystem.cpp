@@ -132,7 +132,7 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		// プレファブファイル内のローカルIDを読み取る
 		UUID prefabLocalFileID = ReadEntityLocalFileID(entityJson);
 
-		// エンティティを作成（ルートかつ予約済みEntityがあればそれをルートとしてmaterializeしIDを保つ）
+		// エンティティを作成しルートかつ予約済みEntityがあればそれをルートとしてmaterializeしIDを保つ
 		Entity entity;
 		if (world.IsAlive(desc.reservedRoot) && prefabLocalFileID == header.rootLocalFileID) {
 			entity = desc.reservedRoot;

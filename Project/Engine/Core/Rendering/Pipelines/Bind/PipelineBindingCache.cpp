@@ -13,7 +13,7 @@ Engine::PipelineBindingCache::SlotID Engine::PipelineBindingCache::AddSlot(
 Engine::PipelineBindingCache::SlotID Engine::PipelineBindingCache::AddSlotByRegister(
 	ShaderBindingKind kind, UINT bindPoint, UINT space) {
 
-	// 名前を空にして register/space 検索として登録する
+	// 名前を空にしてregister/space検索として登録する
 	slots_.push_back({ {}, kind, bindPoint, space, nullptr });
 	return static_cast<SlotID>(slots_.size() - 1);
 }
@@ -32,7 +32,7 @@ void Engine::PipelineBindingCache::Sync(const PipelineState& pipeline) {
 			// 名前ベース検索
 			slot.location = pipeline.FindBindingByName(slot.name, slot.kind);
 		} else {
-			// register/space ベース検索
+			// register/spaceベース検索
 			slot.location = pipeline.FindBinding(slot.kind, slot.bindPoint, slot.space);
 		}
 	}

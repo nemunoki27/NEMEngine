@@ -89,7 +89,7 @@ namespace Engine {
 
 		bool BuildDrawRecords(std::span<const ScreenSpaceOutlineRequest> requests,
 			uint32_t& outMaxRadiusPixels);
-		// Visible Mask と Projected Coverage Mask の両方を Clear する
+		// Visible MaskとProjected Coverage Maskの両方をClearする
 		void ClearMask(GraphicsCore& graphicsCore, ScreenSpaceOutlineViewResources& resources) const;
 		// 実際に見えている表面(Visible Mask)と、Depth無視の投影範囲(Projected Coverage Mask)の2種類を描画する
 		void DrawMask(GraphicsCore& graphicsCore, SceneExecutionContext& context,
@@ -99,7 +99,7 @@ namespace Engine {
 		static bool ValidateDilationResources(const ScreenSpaceOutlineViewResources& resources);
 		bool ExecuteDilation(GraphicsCore& graphicsCore, const RenderPipelineDeps& deps,
 			ScreenSpaceOutlineViewResources& resources, uint32_t maxRadiusPixels);
-		// 1段ぶんのDilation Compute(input SRV -> output UAV)。bindingが揃わなければDispatchしない
+		// 1段ぶんのDilation Computeでinput SRVからoutput UAVへ、bindingが揃わなければDispatchしない
 		bool ExecuteDilationPass(GraphicsCore& graphicsCore, const RenderPipelineDeps& deps,
 			AssetID pipelineID, ScreenSpaceOutlineViewResources& resources,
 			RenderTexture2D* inputMask, RenderTexture2D* outputMask, uint32_t safeRadius,

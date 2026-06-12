@@ -15,7 +15,7 @@ namespace Engine {
 	//	HLSL(screenSpaceOutlineCommon.hlsli / screenSpaceOutlineMask.hlsli)と
 	//	field順・paddingを完全一致させること
 	//============================================================================
-	// Style IDから引く描画パラメータ。dilation/compositeが参照する
+	// Style IDから引く描画パラメータでdilation/compositeが参照する
 	struct ScreenSpaceOutlineStyleGPU {
 
 		Color4 color{};
@@ -26,7 +26,7 @@ namespace Engine {
 	};
 	static_assert(sizeof(ScreenSpaceOutlineStyleGPU) % 16 == 0);
 
-	// Mask描画1回ぶんのStyle IDとSubMesh制限。Mesh backendがMask pipelineへ渡す
+	// Mask描画1回ぶんのStyle IDとSubMesh制限でMesh backendがMask pipelineへ渡す
 	struct ScreenSpaceOutlineMaskConstants {
 
 		uint32_t styleID = 0;
@@ -46,7 +46,7 @@ namespace Engine {
 	};
 	static_assert(sizeof(ScreenSpaceOutlineDilateConstants) % 16 == 0);
 
-	// Composite Pixel Shaderの定数。styleID範囲外のBuffer読みを防ぐ
+	// Composite Pixel Shaderの定数でstyleID範囲外のBuffer読みを防ぐ
 	struct ScreenSpaceOutlineCompositeConstants {
 
 		uint32_t styleCount = 0;
@@ -56,6 +56,6 @@ namespace Engine {
 	};
 	static_assert(sizeof(ScreenSpaceOutlineCompositeConstants) % 16 == 0);
 
-	// Style数の上限。超過分は無視してログを出す
+	// Style数の上限で超過分は無視してログを出す
 	inline constexpr uint32_t kMaxScreenSpaceOutlineStyles = 256;
 } // Engine

@@ -512,7 +512,7 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 			prepared.gpuMesh->vertexSubMeshIndexSRV.srvGPUHandle);
 	}
 
-	// デフォルトは元メッシュ頂点。スキニング済みなら更新後バッファへ差し替える
+	// デフォルトは元メッシュ頂点でスキニング済みなら更新後バッファへ差し替える
 	D3D12_GPU_VIRTUAL_ADDRESS skinnedVBAddress = prepared.gpuMesh->vertexSRV.buffer->GetResource()->GetGPUVirtualAddress();
 	D3D12_GPU_DESCRIPTOR_HANDLE skinnedVBHandle = prepared.gpuMesh->vertexSRV.srvGPUHandle;
 	D3D12_GPU_VIRTUAL_ADDRESS skinnedPackedVBAddress = prepared.gpuMesh->packedVertexSRV.buffer->GetResource()->GetGPUVirtualAddress();
@@ -541,7 +541,7 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(subMeshSRVSlot_),
 			prepared.resources->GetSubMeshGPUAddress(), {});
 	}
-	// 背面法アウトライン用のインスタンス別GPUデータ。Outline系パイプラインだけが参照する
+	// 背面法アウトライン用のインスタンス別GPUデータでOutline系パイプラインだけが参照する
 	if (sharedBindCache_.Has(outlineSRVSlot_) && prepared.resources->GetOutlineGPUAddress() != 0) {
 		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(outlineSRVSlot_),
 			prepared.resources->GetOutlineGPUAddress(), {});
@@ -715,7 +715,7 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 	commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	commandList->SetPipelineState(pipelineState->GetComputePipeline());
 
-	// バッファバインド（パイプラインが変わった時だけ再解決）
+	// バッファバインドはパイプラインが変わった時だけ再解決する
 	skinningBindCache_.Sync(*pipelineState);
 	if (skinningBindCache_.Has(skinConstCBVSlot_)) {
 		RootBindingCommand::SetComputeCBV(commandList, skinningBindCache_.Get(skinConstCBVSlot_),

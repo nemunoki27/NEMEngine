@@ -86,7 +86,7 @@ namespace Engine {
 
 		// 複数行入力にするか
 		bool multiLine = false;
-		// 複数行入力時のサイズ。0以下の場合は既定サイズを使う
+		// 複数行入力時のサイズで0以下の場合は既定サイズを使う
 		ImVec2 size = ImVec2(0.0f, 0.0f);
 		// ImGuiの文字入力フラグ
 		ImGuiInputTextFlags flags = ImGuiInputTextFlags_None;

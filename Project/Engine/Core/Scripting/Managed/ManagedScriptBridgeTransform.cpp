@@ -11,7 +11,7 @@ namespace Engine {
 
 	namespace {
 
-		// 親階層を辿って world 回転を組み立てる（worldMatrix の分解ではなく local 値の積で厳密に求める）
+		// 親階層を辿ってworld回転を組み立てる、worldMatrixの分解ではなくlocal値の積で厳密に求める
 		Quaternion ComputeWorldRotation(ECSWorld& world, const Entity& entity) {
 
 			TransformComponent* self = world.TryGetComponent<TransformComponent>(entity);
@@ -32,7 +32,7 @@ namespace Engine {
 			return rotation;
 		}
 
-		// 親階層の localScale を成分積で累積した world(lossy) scale。回転による剪断は無視する（Unity の lossyScale 相当）
+		// 親階層のlocalScaleを成分積で累積したworldのlossy scale、回転による剪断は無視するUnityのlossyScale相当
 		Vector3 ComputeWorldScale(ECSWorld& world, const Entity& entity) {
 
 			TransformComponent* self = world.TryGetComponent<TransformComponent>(entity);
@@ -69,7 +69,7 @@ namespace Engine {
 		}
 
 		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-		// ワールド行列の平行移動成分（ワールド座標）を抽出して返す
+		// ワールド行列の平行移動成分つまりワールド座標を抽出して返す
 		return transform ? ToManagedVector3(transform->worldMatrix.GetTranslationValue()) : ManagedVector3{};
 	}
 
@@ -80,7 +80,7 @@ namespace Engine {
 			return;
 		}
 
-		// 予約直後(未 materialize)の Entity は Transform が無いため staging する（flush で付与後に適用）
+		// 予約直後でまだmaterializeしていないEntityはTransformが無いためstagingしflushで付与後に適用する
 		if (world->GetCommandBuffer().StageCreatePosition(resolved, ToVector3(value))) {
 			return;
 		}
@@ -90,7 +90,7 @@ namespace Engine {
 			return;
 		}
 
-		// ワールド座標をローカル座標に逆変換してセット。親子階層を考慮した正しい配置を実現
+		// ワールド座標をローカル座標に逆変換してセットし親子階層を考慮した正しい配置を実現する
 		transform->localPos = MakeLocalPositionFromWorld(*world, resolved, ToVector3(value));
 		// トランスフォーム変更を通知し、次フレームの行列再計算を促す
 		MarkDirty(*world, resolved);
@@ -137,7 +137,7 @@ namespace Engine {
 		}
 
 		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-		// 親からの相対スケールを返す。デフォルトは等倍(1.0)
+		// 親からの相対スケールを返す、デフォルトは等倍の1.0
 		return transform ? ToManagedVector3(transform->localScale) : ManagedVector3{ 1.0f, 1.0f, 1.0f };
 	}
 
@@ -170,7 +170,7 @@ namespace Engine {
 		}
 
 		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-		// 親からの相対回転（クォータニオン）を返す
+		// 親からの相対回転をクォータニオンで返す
 		return transform ? ToManagedQuaternion(transform->localRotation) : ManagedQuaternion{};
 	}
 
@@ -190,7 +190,7 @@ namespace Engine {
 			return;
 		}
 
-		// 親からの相対回転をセット。正規化して数値誤差を補正
+		// 親からの相対回転をセットし正規化して数値誤差を補正
 		transform->localRotation = Quaternion::Normalize(ToQuaternion(value));
 		MarkDirty(*world, resolved);
 	}
@@ -201,7 +201,7 @@ namespace Engine {
 		if (!world || !world->TryGetComponent<TransformComponent>(resolved)) {
 			return {};
 		}
-		// 親階層を含めた world 回転を返す
+		// 親階層を含めたworld回転を返す
 		return ToManagedQuaternion(ComputeWorldRotation(*world, resolved));
 	}
 
@@ -219,7 +219,7 @@ namespace Engine {
 			return;
 		}
 
-		// world 回転を親の world 回転で打ち消して local 回転へ変換する（local = inverse(parentWorld) * world）
+		// world回転を親のworld回転で打ち消してlocal回転へ変換する、localはinverse parentWorldとworldの積
 		Quaternion parentWorld = Quaternion::Identity();
 		if (HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved)) {
 			if (world->IsAlive(hierarchy->parent)) {

@@ -101,16 +101,16 @@ namespace Engine {
 		bool clipDirty_ = false;
 		std::string clipErrorText_;
 
-		// プレビュー適用先。HierarchyからD&Dで指定するが、Clip保存対象には含めない
+		// プレビュー適用先でHierarchyからD&Dで指定するがClip保存対象には含めない
 		UUID targetEntityUUID_{};
 
 		// 複数Trackを同じCurveEditorで見るための状態
 		CurveEditorState curveState_{};
-		// CurveEditorに表示しているTrack。複数PropertyのCurveが重ならないよう、選択中Trackだけを表示する
+		// CurveEditorに表示しているTrackで複数PropertyのCurveが重ならないよう選択中Trackだけを表示する
 		int selectedTrackIndex_ = -1;
 		int editorViewTrackIndex_ = -1;
 
-		// Preview再生状態。previewActive_ はScrub中もtrueになり、Stop/Closeで必ず復元する
+		// Preview再生状態でpreviewActive_はScrub中もtrueになりStop/Closeで必ず復元する
 		bool previewActive_ = false;
 		bool previewPlaying_ = false;
 		float previewTime_ = 0.0f;

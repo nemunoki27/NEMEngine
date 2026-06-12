@@ -81,7 +81,7 @@ namespace {
 	}
 
 	// Time方向のズームやパンを反映する
-	// visibleValueMin / visibleValueMax はここでは触らず、
+	// visibleValueMin / visibleValueMaxはここでは触らず、
 	// 左上のInputFloatでユーザーが決めた値を維持する
 	void UpdateHorizontalViewRange(const ImRect& graphRect, Engine::CurveEditorState& state) {
 
@@ -546,7 +546,7 @@ namespace {
 		state.visibleTimeMax = (std::max)(state.visibleTimeMin + 0.001f, timeMax + timePadding);
 
 		// Frameでは値方向の表示範囲は変更しない
-		// MinValue / MaxValue はユーザーが決めた値をそのまま維持する
+		// MinValue / MaxValueはユーザーが決めた値をそのまま維持する
 		// 実際のグラフサイズからズーム係数を同期する
 		const float graphW = (std::max)(1.0f, graphRect.GetWidth());
 
@@ -557,7 +557,7 @@ namespace {
 		UpdateVerticalZoomFromRange(graphRect, state);
 	}
 
-	// Color3 / Color4 を RGB 代表キー + Alpha キーとして扱うための判定群
+	// Color3 / Color4をRGB代表キー+ Alphaキーとして扱うための判定群
 	bool IsColorCurveSet(std::span<Engine::CurveChannel> channels) {
 
 		if (channels.size() != 3 && channels.size() != 4) {
@@ -856,7 +856,7 @@ namespace {
 		const float timeStep = (std::max)(0.0001f, state.gridTimeStep);
 		const float valueStep = (std::max)(0.0001f, state.gridValueStep);
 
-		// Time 0 より左は出さない
+		// Time 0より左は出さない
 		const float timeBegin = std::ceil((std::max)(0.0f, state.visibleTimeMin) / timeStep) * timeStep;
 		for (float time = timeBegin; time <= state.visibleTimeMax + timeStep * 0.5f; time += timeStep) {
 			const ImVec2 pos = WorldToScreen(rect, state, time, state.visibleValueMin);
@@ -869,14 +869,14 @@ namespace {
 			drawList->AddLine(ImVec2(rect.Min.x, pos.y), ImVec2(rect.Max.x, pos.y), minorColor);
 		}
 
-		// Time = 0 の黄色線
+		// Time = 0の黄色線
 		if (0.0f >= state.visibleTimeMin && 0.0f <= state.visibleTimeMax) {
 			const ImVec2 p0 = WorldToScreen(rect, state, 0.0f, state.visibleValueMin);
 			const ImVec2 p1 = WorldToScreen(rect, state, 0.0f, state.visibleValueMax);
 			drawList->AddLine(ImVec2(p0.x, rect.Min.y), ImVec2(p1.x, rect.Max.y), kCurveAxisColor, 2.0f);
 		}
 
-		// Value = 0 の黄色線
+		// Value = 0の黄色線
 		if (0.0f >= state.visibleValueMin && 0.0f <= state.visibleValueMax) {
 			const ImVec2 p0 = WorldToScreen(rect, state, state.visibleTimeMin, 0.0f);
 			const ImVec2 p1 = WorldToScreen(rect, state, state.visibleTimeMax, 0.0f);
@@ -984,7 +984,7 @@ namespace {
 
 		drawList->PopClipRect();
 	}
-	// Color3 / Color4 の RGB 代表キーを線で結ぶ
+	// Color3 / Color4のRGB代表キーを線で結ぶ
 	void DrawColorRgbCurveSamples(const ImRect& rect, std::span<Engine::CurveChannel> channels,
 		const Engine::CurveEditorState& state) {
 
@@ -1756,7 +1756,7 @@ namespace {
 	}
 	// 初期表示レンジを明示的に揃える
 	// 旧既定値(-1.0f, 1.0f)や未初期化相当(0.0f, 0.0f)から入っても
-	// Min=0.0f, Max=1.0f を基準に開始する
+	// Min=0.0f, Max=1.0fを基準に開始する
 	if ((state.visibleValueMin == 0.0f && state.visibleValueMax == 0.0f) ||
 		(state.visibleValueMin == -1.0f && state.visibleValueMax == 1.0f)) {
 		state.visibleValueMin = 0.0f;
@@ -1828,7 +1828,7 @@ namespace {
 		state.frameSelectionRequest = false;
 	}
 
-	// ここ重要: グラフ入力をImGuiアイテムとして捕まえる
+	// ここ重要:グラフ入力をImGuiアイテムとして捕まえる
 	ImGui::SetCursorScreenPos(graphRect.Min);
 	ImGui::InvisibleButton("##CurveGraphInput", graphRect.GetSize(),
 		ImGuiButtonFlags_MouseButtonLeft |

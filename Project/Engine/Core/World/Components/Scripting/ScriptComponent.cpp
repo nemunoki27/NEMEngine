@@ -5,17 +5,17 @@
 //============================================================================
 void Engine::from_json(const nlohmann::json& in, ScriptEntry& entry) {
 
-	// 新形式: scriptTypeId（永続主キー）/ scriptSlotID / lastKnownTypeName
+	// 新形式: scriptTypeIdが永続主キー / scriptSlotID / lastKnownTypeName
 	entry.scriptTypeId = in.value("scriptTypeId", std::string{});
 	entry.lastKnownTypeName = in.value("lastKnownTypeName", std::string{});
 
-	// legacy 形式: 旧 "type"（クラス名/完全名）を lastKnownTypeName として取り込み、後で GUID へ移行する。
-	// 破壊的な上書きはせず、scriptTypeId が空でも serialized fields は保持する。
+	// legacy形式: 旧 "type" のクラス名や完全名を lastKnownTypeName として取り込み後で GUID へ移行する
+	// 破壊的な上書きはせず、scriptTypeIdが空でもserialized fieldsは保持する
 	if (entry.lastKnownTypeName.empty()) {
 		entry.lastKnownTypeName = in.value("type", std::string{});
 	}
 
-	// scriptSlotID（無ければ新規発番して同type複数attachを識別できるようにする）
+	// scriptSlotIDは無ければ新規発番して同type複数attachを識別できるようにする
 	const UUID parsedSlot = FromString16Hex(in.value("scriptSlotID", std::string{}));
 	entry.scriptSlotID = parsedSlot ? parsedSlot : UUID::New();
 
@@ -35,7 +35,7 @@ void Engine::from_json(const nlohmann::json& in, ScriptEntry& entry) {
 
 void Engine::to_json(nlohmann::json& out, const ScriptEntry& entry) {
 
-	// 永続保存の主キーは Stable Script Type GUID。表示・legacy照合用に lastKnownTypeName も残す
+	// 永続保存の主キーはStable Script Type GUIDで表示とlegacy照合用にlastKnownTypeNameも残す
 	out["scriptTypeId"] = entry.scriptTypeId;
 	out["scriptSlotID"] = ToString(entry.scriptSlotID);
 	out["lastKnownTypeName"] = entry.lastKnownTypeName;

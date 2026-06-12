@@ -37,8 +37,8 @@ bool Engine::ScriptAssetDragDrop::ResolveScriptType(const EditorPanelContext& co
 		return false;
 	}
 
-	// manifest が記録した source(.cs) と asset のパスを照合して型候補を得る。
-	// 候補が0なら DLL 未登録、複数なら曖昧（同名 .cs に複数クラス）として採用しない。
+	// manifestが記録したsource(.cs)とassetのパスを照合して型候補を得る
+	// 候補が0ならDLL未登録で、複数なら同名.csに複数クラスがある曖昧として採用しない
 	const std::vector<const BehaviorTypeInfo*> candidates =
 		BehaviorTypeRegistry::GetInstance().FindManagedBySourceFile(meta->assetPath);
 	if (candidates.empty()) {

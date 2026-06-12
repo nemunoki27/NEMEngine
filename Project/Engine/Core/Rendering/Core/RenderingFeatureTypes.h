@@ -19,7 +19,7 @@ namespace Engine {
 		Disabled = 0,
 		Tile2D = 1,
 		Clustered = 2,
-		// PIX/検証用に全ローカルライトを各クラスタへ複製する低速経路。直接評価baselineではない。
+		// PIX/検証用に全ローカルライトを各クラスタへ複製する低速経路で直接評価baselineではない
 		DebugAllLightsPerCluster = 3,
 	};
 
@@ -62,7 +62,7 @@ namespace Engine {
 		bool allowFrustumCulling = true;
 		// GameViewのカメラを基準にしたタイル単位のライトカリングを行うか
 		bool allowLightCulling = true;
-		// ライトカリングの分割方式。初期実装はClusteredを標準にする
+		// ライトカリングの分割方式で初期実装はClusteredを標準にする
 		LightCullingMode lightCullingMode = LightCullingMode::Clustered;
 		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
 		bool allowContributionCulling = true;

@@ -225,6 +225,9 @@ function NEM_AddProjectFiles(projectRoot, assetRoot, assetVpathName, includeShad
         path.join(projectRoot, "Managed/Staging/**"),
         path.join(projectRoot, "Managed/Shadow/**"),
         path.join(projectRoot, "Managed/LastKnownGood/**"),
+        -- コードスタイルの見本ファイルはビルド対象に含めない（意図的に不正なC++を含むため）
+        path.join(projectRoot, "templateClass.*"),
+        path.join(projectRoot, "**/templateClass.*"),
     }
 end
 

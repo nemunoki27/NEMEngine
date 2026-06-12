@@ -68,7 +68,7 @@ namespace Engine {
 		// 積まれた構造変更コマンドをまとめて適用する
 		void FlushWorldCommands() { commandBuffer_.Flush(*this); }
 
-		// Prefab/Scene コマンドの Flush 適用に必要な外部サービス（EngineApplication が毎フレーム設定）
+		// Prefab/SceneコマンドのFlush適用に必要な外部サービスでEngineApplicationが毎フレーム設定する
 		void SetCommandServices(const WorldCommandServices& services) { commandServices_ = services; }
 		const WorldCommandServices& GetCommandServices() const { return commandServices_; }
 
@@ -136,9 +136,9 @@ namespace Engine {
 		std::vector<uint32_t> free_;
 		// フレーム終端でまとめて破棄するエンティティ
 		std::vector<Entity> pendingDestroyEntities_;
-		// スクリプト由来の構造変更を遅延適用するコマンドバッファ。world破棄時に未処理分は安全に破棄される
+		// スクリプト由来の構造変更を遅延適用するコマンドバッファでworld破棄時に未処理分は安全に破棄される
 		WorldCommandBuffer commandBuffer_;
-		// Prefab/Scene コマンドが Flush で参照する外部サービス（非所有ポインタ。EngineApplication が設定）
+		// Prefab/SceneコマンドがFlushで参照する外部サービスで非所有ポインタ、EngineApplicationが設定する
 		WorldCommandServices commandServices_{};
 		// シーン側の永続UUIDからエンティティIDへのマップ
 		std::unordered_map<UUID, Entity> uuidToEntity_;
@@ -146,16 +146,16 @@ namespace Engine {
 		// シグネチャからArchetypeへのマップ
 		std::unordered_map<EntitySignature, std::unique_ptr<EntityArchetype>, EntitySignatureHash> archetypes_;
 
-		// 空のArchetype。コンポーネントを持たないエンティティはここにまとめる
+		// 空のArchetypeでコンポーネントを持たないエンティティはここにまとめる
 		EntityArchetype* emptyArchetype_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
 
 		// 新しいエンティティIDを割り当てる
 		uint32_t AllocateIndex();
-		// エンティティが存在することを確認する。存在しない場合はアサート
+		// エンティティが存在することを確認する、存在しない場合はアサート
 		void AssertAlive(const Entity& entity) const;
-		// エンティティを即時破棄する本体。FlushPendingDestroyEntitiesからのみ呼び出す
+		// エンティティを即時破棄する本体でFlushPendingDestroyEntitiesからのみ呼び出す
 		void DestroyEntityImmediate(const Entity& entity);
 
 		// エンティティが所属するArchetypeを移動する本体

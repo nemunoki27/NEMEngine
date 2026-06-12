@@ -26,7 +26,7 @@ namespace Engine {
 		Linear,   // 前後のキーを直線でつなぐ
 		Bezier,   // 手動接線を使ってつなぐ
 		Spline,   // 自動接線を使って滑らかにつなぐ
-		Squad,    // Quaternion専用。float channelではSpline相当として扱う
+		Squad,    // Quaternion専用でfloat channelではSpline相当として扱う
 	};
 
 	//============================================================================
@@ -41,7 +41,7 @@ namespace Engine {
 		float value = 0.0f;
 		// 次のキーまでの補間方法
 		CurveInterpolationMode interpolation = CurveInterpolationMode::Spline;
-		// Bezier用の入出力ハンドル。time/value空間の相対座標として扱う
+		// Bezier用の入出力ハンドルでtime/value空間の相対座標として扱う
 		Vector2 inTangent = Vector2::AnyInit(0.0f);
 		Vector2 outTangent = Vector2::AnyInit(0.0f);
 	};
@@ -102,7 +102,7 @@ namespace Engine {
 	};
 	struct CurveQuaternionAxisKey {
 
-		// falseならaxesから軸を作る。trueならcustomAxisをそのまま使う
+		// falseならaxesから軸を作りtrueならcustomAxisをそのまま使う
 		bool useCustomAxis = false;
 		std::vector<Axis> axes{ Axis::X };
 		Vector3 customAxis = Vector3(1.0f, 0.0f, 0.0f);

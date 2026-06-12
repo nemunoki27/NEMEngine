@@ -6,12 +6,7 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
-// .NET公式 native hosting ヘッダ（Project/Externals/dotnet-hosting）。
-// nethostはリンクせず実行時に nethost.dll を動的ロードする。
-// get_hostfxr_path は GetProcAddress で取得した関数pointer経由でのみ呼ぶため、
-// ヘッダが宣言する（dllimportの）シンボルは参照されずリンクは発生しない。
-// よって NETHOST_USE_AS_STATIC（静的リンク用）は不要。ヘッダからは構造体・char_t・
-// 呼び出し規約マクロのみを利用する。
+// .NET公式native hostingヘッダ、nethostはリンクせず実行時にnethost.dllを動的ロードしget_hostfxr_pathはGetProcAddress経由でのみ呼ぶためdllimportシンボルは参照されずNETHOST_USE_AS_STATICは不要
 #include <nethost.h>
 #include <hostfxr.h>
 #include <coreclr_delegates.h>
@@ -24,13 +19,13 @@
 
 namespace {
 
-	// get_hostfxr_path がバッファ不足を示す戻り値（nethost.hのRemarks参照）
+	// get_hostfxr_pathがバッファ不足を示す戻り値、詳細はnethost.hのRemarks参照
 	constexpr int32_t kHostApiBufferTooSmall = 0x80008098;
 
-	// nethost.dll の get_hostfxr_path シグネチャ（動的ロード用）
+	// nethost.dllのget_hostfxr_pathシグネチャで動的ロード用
 	using GetHostfxrPathFn = int(NETHOST_CALLTYPE*)(char_t*, size_t*, const get_hostfxr_parameters*);
 
-	// ビルド対象のプロセスアーキテクチャ名（診断用）
+	// ビルド対象のプロセスアーキテクチャ名で診断用
 	const char* ProcessArchitecture() {
 #if defined(_M_ARM64)
 		return "arm64";
@@ -51,14 +46,14 @@ namespace {
 		return ToUtf8(path.wstring());
 	}
 
-	// 戻り値コードを符号なし16進で表示する（負のエラーコードを読みやすくする）
+	// 戻り値コードを符号なし16進で表示して負のエラーコードを読みやすくする
 	std::string ToHex(int32_t code) {
 		char buffer[16]{};
 		std::snprintf(buffer, sizeof(buffer), "0x%08X", static_cast<uint32_t>(code));
 		return buffer;
 	}
 
-	// hostfxrの詳細エラーメッセージをエンジンログへ転送する（既定はstderr）
+	// hostfxrの詳細エラーメッセージをエンジンログへ転送する、既定はstderr
 	void HOSTFXR_CALLTYPE ForwardHostfxrError(const char_t* message) {
 		if (message) {
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
@@ -66,7 +61,7 @@ namespace {
 		}
 	}
 
-	// 現在実行中のexeのディレクトリを取得する。固定長で切り詰めず、必要なら動的に拡張する
+	// 現在実行中のexeのディレクトリを取得する、固定長で切り詰めず必要なら動的に拡張する
 	std::filesystem::path GetExecutableDirectory() {
 
 		std::vector<wchar_t> buffer(MAX_PATH);
@@ -76,11 +71,11 @@ namespace {
 			if (length == 0) {
 				return {};
 			}
-			// 切り詰められていない（lengthがバッファ未満）なら確定
+			// lengthがバッファ未満なら切り詰められていないので確定
 			if (length < buffer.size()) {
 				return std::filesystem::path(std::wstring(buffer.data(), length)).parent_path();
 			}
-			// 切り詰め。サニティ上限を設けつつバッファを倍化して再試行する
+			// 切り詰めなのでサニティ上限を設けつつバッファを倍化して再試行する
 			if (buffer.size() >= (1u << 20)) {
 				return {};
 			}
@@ -88,16 +83,13 @@ namespace {
 		}
 	}
 
-	// 絶対パスのDLLを安全な検索フラグでロードする。
-	// LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR は絶対パス必須で、依存DLLをそのDLL自身のディレクトリからも探す。
-	// LOAD_LIBRARY_SEARCH_DEFAULT_DIRS で system32 等の既定検索を併用する。
-	// CWDやPATH依存のbare-name探索を避ける。
+	// 絶対パスのDLLを安全な検索フラグでロードし依存DLLを自身のディレクトリとsystem32等の既定検索から探す、CWDやPATH依存のbare-name探索を避ける
 	HMODULE LoadLibraryFromAbsolutePath(const std::filesystem::path& absolutePath) {
 		return ::LoadLibraryExW(absolutePath.c_str(), nullptr,
 			LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 	}
 
-	// exeディレクトリ直下に配置された nethost.dll の絶対パスを解決する
+	// exeディレクトリ直下に配置されたnethost.dllの絶対パスを解決する
 	std::filesystem::path ResolveNethostPath() {
 
 		const std::filesystem::path executableDirectory = GetExecutableDirectory();
@@ -110,13 +102,10 @@ namespace {
 		return (executableDirectory / L"nethost.dll").lexically_normal();
 	}
 
-	// nethostのget_hostfxr_pathでhostfxrの絶対パスを解決する。
-	// nethost.dllは実行ファイル横へ配置済みで、ここで動的ロードして関数を取得する。
-	// バッファサイズは固定せず、必要量を問い合わせてからdynamicに確保し直す。
+	// nethostのget_hostfxr_pathでhostfxrの絶対パスを解決する、nethost.dllを動的ロードしバッファは必要量を問い合わせてから確保し直す
 	std::filesystem::path ResolveHostfxrPath(const std::filesystem::path& scriptCoreAssemblyPath) {
 
-		// nethost.dll は exe ディレクトリ直下の絶対パスで明示ロードする
-		// （bare name / 相対パス / CWD / PATH 依存のロードはしない）
+		// nethost.dllはexeディレクトリ直下の絶対パスで明示ロードしbare nameや相対パスやCWDやPATH依存のロードはしない
 		const std::filesystem::path nethostPath = ResolveNethostPath();
 		if (nethostPath.empty()) {
 			return {};
@@ -164,7 +153,7 @@ namespace {
 		int32_t result = getHostfxrPath(nullptr, &bufferSize, &parameters);
 		if (result != kHostApiBufferTooSmall) {
 
-			// サイズ問い合わせ以外で失敗＝nethostがhostfxrを特定できない（.NET runtime未導入など）
+			// サイズ問い合わせ以外で失敗した場合はnethostがhostfxrを特定できない、.NET runtime未導入など
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
 				"ManagedScriptRuntime: get_hostfxr_path (size query) failed. code={} arch={}. "
 				"Install a matching .NET runtime / SDK.", ToHex(result), ProcessArchitecture());
@@ -197,7 +186,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 	// 再初期化に備えて、既存状態を必ず解放してから始める
 	Shutdown();
 
-	// runtimeconfig.json の存在を区別したログで検証する
+	// runtimeconfig.jsonの存在を区別したログで検証する
 	std::error_code existsError{};
 	if (!std::filesystem::exists(runtimeConfigPath, existsError) || existsError) {
 
@@ -206,7 +195,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 		return false;
 	}
 
-	// nethostでhostfxrを解決する（旧来の手動探索を置き換え）
+	// nethostでhostfxrを解決する、旧来の手動探索を置き換える
 	const std::filesystem::path hostfxrPath = ResolveHostfxrPath(scriptCoreAssemblyPath);
 	if (hostfxrPath.empty()) {
 		// 失敗理由はResolveHostfxrPath側でログ済み
@@ -216,8 +205,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 		"ManagedScriptRuntime: resolved hostfxr. path={} arch={} runtimeconfig={}",
 		ToUtf8Path(hostfxrPath), ProcessArchitecture(), ToUtf8Path(runtimeConfigPath));
 
-	// hostfxr.dll を get_hostfxr_path が返した絶対パスのままロードする
-	// （相対化やbare-nameへの変換はしない。nethostと同じ安全な検索フラグを使う）
+	// hostfxr.dllをget_hostfxr_pathが返した絶対パスのままロードし相対化やbare-name変換はせずnethostと同じ安全な検索フラグを使う
 	HMODULE library = LoadLibraryFromAbsolutePath(hostfxrPath);
 	if (!library) {
 
@@ -228,7 +216,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 		return false;
 	}
 
-	// 以降の失敗経路では必ずFreeLibraryする（成功時のみcommitで保持）
+	// 以降の失敗経路では必ずFreeLibraryし、成功時のみcommitで保持する
 	bool commit = false;
 	struct LibraryGuard {
 		HMODULE handle;
@@ -252,7 +240,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 		return false;
 	}
 
-	// hostfxrの詳細エラーをログへ転送し、関数終了時に元の writer へ戻す
+	// hostfxrの詳細エラーをログへ転送し、関数終了時に元のwriterへ戻す
 	hostfxr_error_writer_fn previousWriter = setErrorWriter ? setErrorWriter(&ForwardHostfxrError) : nullptr;
 	struct ErrorWriterGuard {
 		hostfxr_set_error_writer_fn setErrorWriter;
@@ -263,7 +251,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 	// runtimeconfigでホストを初期化する
 	hostfxr_handle context = nullptr;
 	int32_t result = initializeForRuntimeConfig(runtimeConfigPath.c_str(), nullptr, &context);
-	// Success(0) / Success_HostAlreadyInitialized(1) / Success_DifferentRuntimeProperties(2) は成功。負値は失敗
+	// Success 0とSuccess_HostAlreadyInitialized 1とSuccess_DifferentRuntimeProperties 2は成功で、負値は失敗
 	if (result < 0 || !context) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
@@ -272,14 +260,14 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 		return false;
 	}
 
-	// contextは成功・失敗どちらの経路でも必ずcloseする（デリゲート取得後は不要）
+	// contextは成功と失敗どちらの経路でも必ずcloseする、デリゲート取得後は不要
 	struct ContextGuard {
 		hostfxr_close_fn close;
 		hostfxr_handle handle;
 		~ContextGuard() { if (close && handle) { close(handle); } }
 	} contextGuard{ closeContext, context };
 
-	// load_assembly_and_get_function_pointer デリゲートを取得する
+	// load_assembly_and_get_function_pointerデリゲートを取得する
 	void* loadAssemblyDelegate = nullptr;
 	result = getRuntimeDelegate(context, hdt_load_assembly_and_get_function_pointer, &loadAssemblyDelegate);
 	if (result != 0 || !loadAssemblyDelegate) {
@@ -290,7 +278,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 		return false;
 	}
 
-	// 成功。ライブラリを保持してデリゲートを公開する
+	// 成功したのでライブラリを保持してデリゲートを公開する
 	library_ = library;
 	loadAssemblyDelegate_ = loadAssemblyDelegate;
 	commit = true;
@@ -299,7 +287,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 
 void Engine::DotnetHostResolver::Shutdown() {
 
-	// 先にデリゲートを無効化してからライブラリを解放する（unload後のpointer参照防止）
+	// 先にデリゲートを無効化してからライブラリを解放し、unload後のpointer参照を防ぐ
 	loadAssemblyDelegate_ = nullptr;
 	if (library_) {
 

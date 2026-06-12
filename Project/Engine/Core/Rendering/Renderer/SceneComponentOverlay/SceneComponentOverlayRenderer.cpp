@@ -55,7 +55,7 @@ namespace {
 		return color ? color->GetFormat() : DXGI_FORMAT_R32G32B32A32_FLOAT;
 	}
 
-	// Overlayアイコン用。色RTだけをBindして深度を完全に使わない
+	// Overlayアイコン用で色RTだけをBindして深度を完全に使わない
 	bool BindColorOnly(Engine::GraphicsCore& graphicsCore, Engine::MultiRenderTarget& surface) {
 
 		Engine::RenderTexture2D* color = surface.GetColorTexture(0);
@@ -123,7 +123,7 @@ Engine::SceneComponentOverlayRenderer::PipelinePair* Engine::SceneComponentOverl
 		return &found->second;
 	}
 
-	// Spriteは深度なし。PNGアルファをそのまま重ねる
+	// Spriteは深度なしでPNGアルファをそのまま重ねる
 	ID3D12Device8* device = graphicsCore.GetDXObject().GetDevice();
 	DxShaderCompiler* compiler = graphicsCore.GetDXObject().GetDxShaderCompiler();
 
@@ -257,7 +257,7 @@ void Engine::SceneComponentOverlayRenderer::DrawSpriteIcons(GraphicsCore& graphi
 		return;
 	}
 
-	// 半透明Spriteは奥から手前へ描く。近いものほど後に描かれ、必ず前面に来る
+	// 半透明Spriteは奥から手前へ描き近いものほど後に描かれ必ず前面に来る
 	std::sort(spriteItems.begin(), spriteItems.end(),
 		[](const SceneComponentOverlayItem* lhs, const SceneComponentOverlayItem* rhs) {
 			if (lhs->viewDepth != rhs->viewDepth) {
@@ -322,7 +322,7 @@ void Engine::SceneComponentOverlayRenderer::DrawSpriteIcons(GraphicsCore& graphi
 		if (spriteScratch_.empty()) {
 			continue;
 		}
-		// runごとに別バッファへ積む。GPU実行前に後続Uploadで前のDraw元を上書きしないため
+		// runごとに別バッファへ積みGPU実行前に後続Uploadで前のDraw元を上書きしないため
 		auto& spriteInstances = GetOrCreateSpriteRunBuffer(graphicsCore, runBufferIndex++);
 		spriteInstances.Upload(spriteScratch_);
 		RootBindingCommand::SetGraphicsSRV(commandList, spriteBindingCache_.Get(spriteInstancesSlot_),

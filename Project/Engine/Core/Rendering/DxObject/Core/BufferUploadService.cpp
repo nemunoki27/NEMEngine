@@ -65,7 +65,7 @@ void Engine::BufferUploadService::Init(ID3D12Device* device, ID3D12CommandQueue*
 
 void Engine::BufferUploadService::Finalize() {
 
-	// 未SubmitのBatchがあれば終了処理前に閉じる。stagingやCommandListを開いたまま残さない
+	// 未SubmitのBatchがあれば終了処理前に閉じ、stagingやCommandListを開いたまま残さない
 	if (batchOpened_ && currentContext_) {
 		SubmitBatch();
 	}

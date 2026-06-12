@@ -48,7 +48,7 @@ namespace {
 			cache.fontSize != renderer.fontSize || cache.charSpacing != renderer.charSpacing;
 	}
 
-	// // 追加:
+	// //追加:
 	// レイアウトだけをキャッシュする
 	bool RebuildTextLayoutCache(const Engine::MSDFFontAsset& font, Engine::TextRendererComponent& renderer) {
 

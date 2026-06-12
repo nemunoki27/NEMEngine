@@ -31,14 +31,14 @@ namespace Engine {
 	enum class SceneComponentOverlayComponentKind :
 		uint8_t {
 
-		// 対応コンポーネント種別。Registryの検索キーとして使う
+		// 対応コンポーネント種別でRegistryの検索キーとして使う
 		DirectionalLight,
 		PointLight,
 		SpotLight,
 		PerspectiveCamera,
 	};
 
-	// SceneView Overlay全体の調整値。マジックナンバーを各処理へ散らさないための設定
+	// SceneView Overlay全体の調整値でマジックナンバーを各処理へ散らさないための設定
 	struct SceneComponentOverlaySettings {
 
 		// ライトアイコンの距離フェード用設定

@@ -13,8 +13,7 @@
 //============================================================================
 namespace {
 
-	// CollisionContactをC#共有型へ変換する
-	// Entity変換はManagedScriptUtilityのレジストリ経由実装を共有する
+	// CollisionContactをC#共有型へ変換する、Entity変換はManagedScriptUtilityのレジストリ経由実装を共有する
 	Engine::ManagedCollisionEvent ToManagedCollision(Engine::ECSWorld& world, const Engine::CollisionContact& collision) {
 
 		Engine::ManagedCollisionEvent managed{};
@@ -48,8 +47,7 @@ void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializ
 		serializedFields_ = nlohmann::json::object();
 	}
 
-	// 生成済みのC#インスタンスには、Play中のInspector変更をその場で反映する。
-	// authoring 形式（schema'd / legacy）を { fieldGuid: value } へ正規化してから渡す
+	// 生成済みのC#インスタンスにはPlay中のInspector変更をその場で反映する、authoring形式はfieldGuidからvalueの形へ正規化してから渡す
 	if (managedHandle_.IsValid()) {
 		auto& runtime = ManagedScriptRuntime::GetInstance();
 		runtime.SetSerializedFields(managedHandle_, runtime.BuildSerializedValueMap(scriptTypeId_, serializedFields_));
@@ -114,7 +112,7 @@ void Engine::ManagedBehavior::OnDestroy([[maybe_unused]] ECSWorld& world,
 	if (!managedHandle_.IsValid()) {
 		return;
 	}
-	// faultedでなければOnDestroyを通知する。faulted時はgameplay callbackを呼ばず解放だけ行う
+	// faultedでなければOnDestroyを通知する、faulted時はgameplay callbackを呼ばず解放だけ行う
 	if (!faulted_) {
 		HandleStatus(ManagedScriptRuntime::GetInstance().InvokeOnDestroy(managedHandle_, context), "OnDestroy", entity);
 	}
@@ -188,7 +186,7 @@ void Engine::ManagedBehavior::OnCollisionExit(ECSWorld& world,
 bool Engine::ManagedBehavior::EnsureInstance(ECSWorld& world, const Entity& entity) {
 
 	EnsureCreated(world, entity);
-	// 生成に失敗した場合は無効ハンドルのまま。呼び出し側はfaulted扱いにする
+	// 生成に失敗した場合は無効ハンドルのままで、呼び出し側はfaulted扱いにする
 	return managedHandle_.IsValid();
 }
 
@@ -207,8 +205,7 @@ void Engine::ManagedBehavior::HandleStatus(ManagedStatus status, const char* cal
 	if (status == ManagedStatus::Ok) {
 		return;
 	}
-	// C#側でユーザーcallbackが例外を投げた場合のみfaulted化する。
-	// (詳細な例外全文はC#側GuardInstanceがログ済み。ここでは型・callback・entityを残す)
+	// C#側でユーザーcallbackが例外を投げた場合のみfaulted化する、例外全文はC#側GuardInstanceがログ済みでここでは型とcallbackとentityを残す
 	if (status == ManagedStatus::ScriptException && !faulted_) {
 
 		faulted_ = true;

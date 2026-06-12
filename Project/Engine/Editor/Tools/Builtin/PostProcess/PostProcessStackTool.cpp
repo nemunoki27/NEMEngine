@@ -95,7 +95,7 @@ namespace {
 		return result;
 	}
 
-	// バリアントからi番目のfloat成分を取り出す（型が違っても安全に変換する）
+	// バリアントからi番目のfloat成分を取り出し型が違っても安全に変換する
 	float ExtractFloatComponent(const Engine::MaterialParameterValue& value, int idx) {
 
 		return std::visit([idx](const auto& v) -> float {
@@ -301,7 +301,7 @@ void Engine::PostProcessStackTool::DrawWindow(const EditorToolContext& context) 
 		}
 	}
 
-	// Save / Reload ボタン
+	// Save / Reloadボタン
 	if (ImGui::Button("Save")) {
 		service.Save();
 		service.ClearDirty();
@@ -314,12 +314,12 @@ void Engine::PostProcessStackTool::DrawWindow(const EditorToolContext& context) 
 
 	ImGui::Separator();
 
-	// .postProcessStack.json ドロップゾーン
+	// .postProcessStack.jsonドロップゾーン
 	DrawDropZones(context);
 
 	ImGui::Separator();
 
-	// 左右カラム分割: 左=パス一覧、右=詳細
+	// 左右カラム分割:左=パス一覧、右=詳細
 	const float totalWidth = ImGui::GetContentRegionAvail().x;
 	const float leftWidth = totalWidth * 0.35f;
 	const float rightWidth = totalWidth - leftWidth - ImGui::GetStyle().ItemSpacing.x;
@@ -378,14 +378,14 @@ void Engine::PostProcessStackTool::DrawPassList() {
 			selectedPassIndex_ = i;
 		}
 
-		// ドラッグソース: パスの並び替え
+		// ドラッグソース:パスの並び替え
 		if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 			ImGui::SetDragDropPayload(kPassReorderPayloadType, &i, sizeof(int32_t));
 			ImGui::TextUnformatted(pass.name.empty() ? "(Unnamed)" : pass.name.c_str());
 			ImGui::EndDragDropSource();
 		}
 
-		// ドラッグターゲット: ここへドロップで並び替える
+		// ドラッグターゲット:ここへドロップで並び替える
 		if (ImGui::BeginDragDropTarget()) {
 			if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kPassReorderPayloadType)) {
 				reorderFrom = *static_cast<const int32_t*>(payload->Data);
@@ -484,7 +484,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 
 	ImGui::Separator();
 
-	// CBuffer パラメータオーバーライドUI (Reflectionキャッシュ使用)
+	// CBufferパラメータオーバーライドUI (Reflectionキャッシュ使用)
 	const std::vector<ShaderConstantBufferVariable>* vars = service.FindReflectionVars(pass.materialGuid);
 	if (vars && !vars->empty()) {
 
@@ -494,7 +494,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 		bool anyParamChanged = false;
 		for (const auto& var : *vars) {
 
-			// pad / padding はHLSLのアライメント調整用変数のため表示しない
+			// pad / paddingはHLSLのアライメント調整用変数のため表示しない
 			if (var.name.find("pad") != std::string::npos || var.name.find("Pad") != std::string::npos) {
 				continue;
 			}
@@ -504,7 +504,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 			auto it = pass.parameterOverrides.find(var.name);
 			if (it == pass.parameterOverrides.end()) {
 
-				// オーバーライドなし: デフォルト値を灰色で表示し、+ボタンでオーバーライドを追加する
+				// オーバーライドなし:デフォルト値を灰色で表示し、+ボタンでオーバーライドを追加する
 				ImGui::TextDisabled("[default] %s", var.name.c_str());
 				ImGui::SameLine();
 				if (ImGui::SmallButton("+##Override")) {
@@ -513,7 +513,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 				}
 			} else {
 
-				// オーバーライドあり: 値を編集可能に表示し、xボタンで削除できる
+				// オーバーライドあり:値を編集可能に表示し、xボタンで削除できる
 				if (DrawParameterValueEdit(var, it->second)) {
 					anyParamChanged = true;
 				}
@@ -597,7 +597,7 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 	PostProcessStackService& service = PostProcessStackService::GetInstance();
 	PostProcessStackSettings& settings = service.GetSettings();
 
-	// ドロップゾーン: .postProcessStack.json を読み込む
+	// ドロップゾーン: .postProcessStack.jsonを読み込む
 	{
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 0.5f));
 		const float zoneHeight = 24.0f;
@@ -634,7 +634,7 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 		}
 	}
 
-	// ドロップゾーン: マテリアル / シェーダー / HLSL を追加する
+	// ドロップゾーン:マテリアル/シェーダー/ HLSLを追加する
 	{
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 0.5f));
 		const float zoneHeight = 24.0f;
@@ -655,7 +655,7 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 
 					if (IsMaterialJsonFile(assetPath)) {
 
-						// .material.json ドロップ: GUIDを直接取得する
+						// .material.jsonドロップ: GUIDを直接取得する
 						materialGuid = data->assetID;
 						if (!materialGuid && context.toolContext.assetDatabase) {
 							const AssetMeta* meta = context.toolContext.assetDatabase->FindByPath(assetPath);
@@ -674,7 +674,7 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 						}
 					} else if (IsShaderJsonFile(assetPath)) {
 
-						// .shader.json ドロップ: 対応するMaterialを検索または生成する
+						// .shader.jsonドロップ:対応するMaterialを検索または生成する
 						materialGuid = PostProcessAssetGenerator::FindOrCreateMaterialForShader(
 							context.toolContext.assetDatabase, assetPath);
 						if (!materialGuid) {
@@ -687,7 +687,7 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 						name = std::filesystem::path(stem1).stem().string(); // "Bloom"
 					} else if (IsCsHlslFile(assetPath)) {
 
-						// .CS.hlsl ドロップ: shader/pipeline/material を生成または検索する
+						// .CS.hlslドロップ: shader/pipeline/materialを生成または検索する
 						materialGuid = PostProcessAssetGenerator::EnsureUserAsset(
 							context.toolContext.assetDatabase, assetPath);
 						if (!materialGuid) {
@@ -706,7 +706,7 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 
 					if (materialGuid) {
 
-						// 既存の material アセットパスキャッシュを解決する
+						// 既存のmaterialアセットパスキャッシュを解決する
 						std::string materialPath = assetPath;
 						if (!IsMaterialJsonFile(assetPath) && context.toolContext.assetDatabase) {
 							const AssetMeta* meta = context.toolContext.assetDatabase->Find(materialGuid);

@@ -124,7 +124,7 @@ void Engine::GraphicsFeatureController::SetAllowFrustumCulling(bool enabled) {
 
 void Engine::GraphicsFeatureController::SetAllowLightCulling(bool enabled) {
 
-	// ライトカリングはGPU機能に依存しない。OFF時はPS側で全ローカルライト評価へ戻す
+	// ライトカリングはGPU機能に依存せずOFF時はPS側で全ローカルライト評価へ戻す
 	if (preferences_.allowLightCulling == enabled) {
 		return;
 	}

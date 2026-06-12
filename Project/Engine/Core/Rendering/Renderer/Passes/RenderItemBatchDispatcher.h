@@ -28,7 +28,7 @@ namespace Engine {
 		RenderItemBatchDispatcher() = default;
 		~RenderItemBatchDispatcher() = default;
 
-		// 描画アイテムのバッチング。depthOverrideは外部DSVを使う場合の深度フォーマット解決に使う
+		// 描画アイテムのバッチングでdepthOverrideは外部DSVを使う場合の深度フォーマット解決に使う
 		void Dispatch(GraphicsCore& graphicsCore, const SceneExecutionContext& sceneContext, const RenderSceneBatch& renderBatch,
 			RenderBackendRegistry& backendRegistry, RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache,
 			MaterialResolver& materialResolver, const std::vector<const RenderItem*>& items, const MultiRenderTarget* surface,

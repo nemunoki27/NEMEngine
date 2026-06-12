@@ -29,7 +29,7 @@ namespace Engine {
 		std::string fileName;
 		// パネル表示名
 		std::string displayName;
-		// サイドカーファイルのパス（Assets/...）
+		// サイドカーファイルのパスでAssets/から始まる
 		std::vector<std::string> sidecarFiles;
 	};
 	// プロジェクト内のディレクトリノード
@@ -37,7 +37,7 @@ namespace Engine {
 
 		// ディレクトリ名
 		std::string name;
-		// ディレクトリの仮想パス（Assets/...）
+		// ディレクトリの仮想パスでAssets/から始まる
 		std::string virtualPath;
 		// 子ディレクトリ
 		std::vector<std::unique_ptr<ProjectDirectoryNode>> children;

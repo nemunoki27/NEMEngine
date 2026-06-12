@@ -23,19 +23,21 @@ namespace Engine {
 	// ビヘイビアの型情報を保持する構造体
 	struct BehaviorTypeInfo {
 
-		// ビヘイビアの名前（managed は完全修飾型名。表示・legacy 照合用）
+		// ビヘイビアの名前、managedは完全修飾型名で表示とlegacy照合に使う
 		std::string name;
-		// ビヘイビアのID（compact runtime type ID。reloadごとに振り直してよい）
+		// ビヘイビアのIDはcompact runtime type IDでreloadごとに振り直してよい
 		uint32_t id = 0;
 		// C#スクリプトとして登録されているか
 		bool managed = false;
 
-		// managed scriptの安定識別子（正規化済み GUID 文字列。永続主キー）
+		// managed scriptの安定識別子で正規化済みGUID文字列の永続主キー
 		std::string scriptTypeId;
 		// 表示名
 		std::string displayName;
-		// 定義元 .cs パス（drag&drop の source 照合用。永続識別には使わない）
+		// 定義元.csパスでdrag&dropのsource照合用、永続識別には使わない
 		std::string sourcePath;
+		// [DefaultExecutionOrder]の既定実行順でEditor overrideが無いときのdefault、未指定は0
+		int32_t defaultExecutionOrder = 0;
 
 		// ビヘイビアのインスタンスを生成する関数
 		std::function<std::unique_ptr<MonoBehavior>()> construct;
@@ -56,22 +58,22 @@ namespace Engine {
 		// ビヘイビアの型を登録するテンプレート関数
 		template <typename T>
 		uint32_t Register(const std::string_view& name);
-		// C#スクリプトの型を Stable GUID 主キーで登録する
+		// C#スクリプトの型をStable GUID主キーで登録する
 		uint32_t RegisterManaged(const std::string_view& scriptTypeId, const std::string_view& fullName,
-			const std::string_view& displayName, const std::string_view& sourcePath);
+			const std::string_view& displayName, const std::string_view& sourcePath, int32_t defaultExecutionOrder = 0);
 		// C#スクリプトの型登録をクリア
 		void ClearManaged();
 
 		//--------- accessor -----------------------------------------------------
 
 		const BehaviorTypeInfo& GetInfo(uint32_t id) const;
-		// Stable Script Type GUID で解決する（runtime 解決の正）
+		// Stable Script Type GUIDで解決するruntime解決の正
 		const BehaviorTypeInfo* FindByStableScriptTypeID(const std::string_view& scriptTypeId) const;
-		// 完全修飾型名で解決する（legacy 移行・表示用）
+		// 完全修飾型名で解決するlegacy移行と表示用
 		const BehaviorTypeInfo* FindByName(const std::string_view& name) const;
-		// 単純名で解決する（legacy 移行用。複数候補なら曖昧として nullptr）
+		// 単純名で解決するlegacy移行用で複数候補なら曖昧としてnullptr
 		const BehaviorTypeInfo* FindManagedBySimpleName(const std::string_view& name) const;
-		// 指定 .cs（パス/ファイル名）に定義された managed script 候補を返す（drag&drop用）
+		// 指定.csのパスやファイル名に定義されたmanaged script候補をdrag&drop用に返す
 		std::vector<const BehaviorTypeInfo*> FindManagedBySourceFile(const std::string_view& sourceFilePath) const;
 
 		uint32_t GetBehaviorTypeCount() const { return static_cast<uint32_t>(infos_.size()); }
@@ -87,7 +89,7 @@ namespace Engine {
 
 		std::vector<BehaviorTypeInfo> infos_;
 		std::unordered_map<std::string, uint32_t> nameToID_;
-		// Stable Script Type GUID -> ID（runtime 解決の正）
+		// Stable Script Type GUIDからIDへ、runtime解決の正
 		std::unordered_map<std::string, uint32_t> guidToID_;
 		std::unordered_map<uint32_t, uint32_t> typeKeyToID_;
 	};

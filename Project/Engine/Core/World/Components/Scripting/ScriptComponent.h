@@ -16,29 +16,29 @@ namespace Engine {
 	// スクリプトの情報を保持するエントリ
 	struct ScriptEntry {
 
-		// 永続保存の主キー = Stable Script Type GUID（正規化済み文字列）。
-		// ファイル名/クラス名/namespace/列挙順/runtime indexに依存しない。
+		// 永続保存の主キー= Stable Script Type GUIDで正規化済み文字列
+		// ファイル名/クラス名/namespace/列挙順/runtime indexに依存しない
 		std::string scriptTypeId;
 		// 同一entityに同typeを複数attachしても識別できる安定slot ID
 		UUID scriptSlotID{};
 		// 参照しているC#スクリプトアセット
 		AssetID scriptAsset{};
-		// 直近に解決できた完全修飾型名（表示・legacy移行用。永続主キーではない）
+		// 直近に解決できた完全修飾型名で表示とlegacy移行用、永続主キーではない
 		std::string lastKnownTypeName;
 		// 有効フラグ
 		bool enabled = true;
 		// インスペクターから編集するシリアライズフィールド
 		nlohmann::json serializedFields = nlohmann::json::object();
 
-		// ランタイムキャッシュ（JSON非シリアライズ）
+		// ランタイムキャッシュでJSON非シリアライズ
 		BehaviorHandle handle = BehaviorHandle::Null();
-		// Stable GUID から解決した compact runtime type ID（reloadごとに変わる）
+		// Stable GUIDから解決したcompact runtime type IDでreloadごとに変わる
 		uint32_t resolvedRuntimeTypeID = 0;
-		// runtime type ID が有効か
+		// runtime type IDが有効か
 		bool resolvedRuntimeTypeValid = false;
-		// serializedFieldsの編集リビジョン（runtime専用）。
-		// この値が進んだときだけ生成済みインスタンスへ再適用する。
-		// authoring変更でのbumpは05_inspector_serializationで接続する拡張点。
+		// serializedFieldsの編集リビジョンでruntime専用
+		// この値が進んだときだけ生成済みインスタンスへ再適用する
+		// authoring変更でのbumpは05_inspector_serializationで接続する拡張点
 		uint32_t serializedRevision = 0;
 	};
 

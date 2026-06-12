@@ -79,7 +79,7 @@ ChooseBestCandidate(const std::vector<TextureCandidate>& candidates) const {
 		// 優先順位:
 		// 1. Engine/Assets/Textures/<modelStem>/...
 		// 2. .dds
-		// 3. それ以外
+		// 3.それ以外
 		if (candidate.inPreferredFolder) {
 			score += 1000;
 		}

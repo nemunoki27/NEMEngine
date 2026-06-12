@@ -22,7 +22,7 @@
 //============================================================================
 namespace {
 
-	// 例外を投げずにJSONファイルを読む。解析失敗時はis_discarded()のjsonを返す
+	// 例外を投げずにJSONファイルを読み解析失敗時はis_discarded()のjsonを返す
 	// 大量のファイルを走査するため、parse_errorの一次例外でデバッガを埋めないようにする
 	nlohmann::json LoadJsonFileNoThrow(const std::filesystem::path& path) {
 
@@ -241,7 +241,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 
 	const std::string lookupKey = NormalizeLookupKey(assetPath);
 
-	// 既に索引にあるなら返す。別表記の同一キー衝突はDuplicatePathとして検出する
+	// 既に索引にあるなら返し、別表記の同一キー衝突はDuplicatePathとして検出する
 	if (auto it = pathToGuid_.find(lookupKey); it != pathToGuid_.end()) {
 
 		const AssetMeta* existing = Find(it->second);
@@ -263,7 +263,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 
 		if (!TryLoadMeta(metaFull, meta)) {
 
-			// 壊れた.metaは静かに新UIDで上書きしない。診断に残してスキップする
+			// 壊れた.metaは静かに新UIDで上書きせず診断に残してスキップする
 			AddIssue({ AssetDatabaseIssueType::CorruptMeta, {}, {},
 				AssetType::Unknown, AssetType::Unknown, assetPath, metaFull.generic_string(),
 				"failed to parse .meta" });
@@ -493,7 +493,7 @@ bool Engine::AssetDatabase::TryLoadMeta(const std::filesystem::path& metaFullPat
 		return false;
 	}
 
-	// guidは厳密にパースする。欠落・不正・0はすべて破損扱い
+	// guidは厳密にパースし欠落や不正や0はすべて破損扱い
 	const std::string guidStr = data.value("guid", "");
 	const std::optional<AssetID> parsedGuid = TryParseUUID16Hex(guidStr);
 	if (!parsedGuid) {
@@ -516,8 +516,8 @@ bool Engine::AssetDatabase::TryLoadMeta(const std::filesystem::path& metaFullPat
 
 bool Engine::AssetDatabase::SaveMeta(const std::filesystem::path& metaFullPath, const AssetMeta& meta) const {
 
-	// 既存の .meta を読み、未知キー（script importer が書く "scripts" 等）を保持したまま
-	// 既知キーだけ更新する。AssetDatabase が guid 採番で書き直しても sidecar の追加情報を壊さない。
+	// 既存の .meta を読み、script importer が書く "scripts" 等の未知キーを保持したまま
+	// 既知キーだけ更新し、AssetDatabaseがguid採番で書き直してもsidecarの追加情報を壊さない
 	nlohmann::json data = LoadJsonFileNoThrow(metaFullPath);
 	if (!data.is_object()) {
 		data = nlohmann::json::object();

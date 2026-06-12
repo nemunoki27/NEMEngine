@@ -10,7 +10,7 @@ namespace Engine {
 
 	//============================================================================
 	//	PostProcessStackPass class
-	//	SceneFinal にポストプロセスエフェクトを適用するパス
+	//	SceneFinalにポストプロセスエフェクトを適用するパス
 	//============================================================================
 	class PostProcessStackPass :
 		public IRenderPass {

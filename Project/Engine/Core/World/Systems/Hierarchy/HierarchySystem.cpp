@@ -24,7 +24,7 @@ void Engine::HierarchySystem::OnWorldEnter(ECSWorld& world, [[maybe_unused]] Sys
 	world.ForEachAliveEntity([&](Entity entity) {
 		scope.emplace_back(entity);
 		});
-	// 論理ID（UUID）から実行時の親子リンクを構築
+	// 論理IDのUUIDから実行時の親子リンクを構築
 	RebuildRuntimeLinks(world, scope);
 }
 
@@ -50,7 +50,7 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 	std::unordered_map<LocalKey, Entity, LocalKeyHash> entityMap;
 	entityMap.reserve(scope.size());
 
-	// ステップ1: 各エンティティの親子リンクを初期化し、IDマップへ登録
+	// ステップ1:各エンティティの親子リンクを初期化し、IDマップへ登録
 	for (const auto& entity : scope) {
 
 		if (!world.IsAlive(entity) || !world.HasComponent<HierarchyComponent>(entity)) {
@@ -72,7 +72,7 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 		}
 	}
 
-	// ステップ2: 保存されていた親IDから実際のEntityポインタ（ID）を解決してリンクを繋ぐ
+	// ステップ2:保存されていた親IDから実際のEntityポインタを解決してリンクを繋ぐ
 	for (const auto& entity : scope) {
 
 		if (!world.IsAlive(entity) || !world.HasComponent<HierarchyComponent>(entity)) {
@@ -102,12 +102,12 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 		}
 	}
 
-	// ステップ3: 兄弟順(siblingOrder)に基づいて子リンクをソートし、正しい順序を復元
+	// ステップ3:兄弟順(siblingOrder)に基づいて子リンクをソートし、正しい順序を復元
 	for (const auto& entity : scope) {
 		HierarchyUtility::SortChildLinksBySiblingOrder(world, entity);
 	}
 
-	// 階層全体のアクティブ状態（親子連動）を再計算
+	// 階層全体のアクティブ状態を親子連動で再計算
 	RefreshAllActiveStates(world, scope);
 }
 
@@ -118,7 +118,7 @@ void Engine::HierarchySystem::RefreshAllActiveStates(ECSWorld& world, const std:
 		if (!world.IsAlive(entity)) {
 			continue;
 		}
-		// ルート（親なし）エンティティから順に子孫へアクティブ状態を伝播させる
+		// 親なしのルートエンティティから順に子孫へアクティブ状態を伝播させる
 		if (HierarchyUtility::IsRoot(world, entity)) {
 			RefreshActiveTree(world, entity);
 		}
@@ -148,7 +148,7 @@ void Engine::HierarchySystem::RefreshActiveRecursive(ECSWorld& world, const Enti
 		return;
 	}
 
-	// 自身のアクティブ状態 ＝ 親がアクティブ かつ 自身が有効設定
+	// 自身のアクティブ状態＝親がアクティブかつ自身が有効設定
 	auto& sceneObject = SceneObjectUtility::EnsureSceneObject(world, entity);
 	sceneObject.activeInHierarchy = parentActive && sceneObject.activeSelf;
 	
@@ -156,7 +156,7 @@ void Engine::HierarchySystem::RefreshActiveRecursive(ECSWorld& world, const Enti
 		return;
 	}
 
-	// 子に対しても再帰的に適用。階層が深い場合にスタックオーバーフローに注意が必要だが、通常は許容範囲
+	// 子に対しても再帰的に適用する、階層が深い場合はスタックオーバーフローに注意が必要だが通常は許容範囲
 	Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
 	while (child.IsValid() && world.IsAlive(child)) {
 
@@ -199,13 +199,13 @@ void Engine::HierarchySystem::SetParent(ECSWorld& world, const Entity& child, co
 
 		const auto& parentSceneObject = world.GetComponent<SceneObjectComponent>(newParent);
 		hierarchy.parentLocalFileID = parentSceneObject.localFileID;
-		// シーンインスタンスIDの継承。基本的には親と同じシーンに属するようにする
+		// シーンインスタンスIDの継承で基本的には親と同じシーンに属するようにする
 		if (!childSceneObject.sceneInstanceID) {
 			childSceneObject.sceneInstanceID = parentSceneObject.sceneInstanceID;
 		}
 		AttachLast(world, child, newParent);
 	} else {
-		// 親なし（ルート）へ
+		// 親なしのルートへ
 		hierarchy.parentLocalFileID = UUID{};
 	}
 
@@ -275,7 +275,7 @@ void Engine::HierarchySystem::AttachLast(ECSWorld& world, const Entity& child, c
 		return;
 	}
 
-	// 親の子リストの末尾に追加。lastChildがキャッシュされていれば高速、なければ辿る
+	// 親の子リストの末尾に追加する、lastChildがキャッシュされていれば高速でなければ辿る
 	Entity last = parentComponent.lastChild;
 	if (!last.IsValid()) {
 		last = parentComponent.firstChild;

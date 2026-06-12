@@ -127,18 +127,21 @@ Engine::AssetID Engine::RaytracingReflectionPass::ResolveMaterial(AssetDatabase&
 void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
+	// 全画面のreflectionなのでバケットは使わず依存が欠ける条件を弾く
 	(void)passBuckets;
 	if (!context.resources || !context.assetDatabase || !deps_.assetLibrary ||
 		!deps_.pipelineCache || !deps_.materialResolver || !deps_.raytracingPipelineCache) {
 		return;
 	}
 
+	// reflectionはSceneMainを入力にSceneFinalへ書く
 	MultiRenderTarget* sceneMain = context.resources->GetSceneMain();
 	MultiRenderTarget* sceneFinal = context.resources->GetSceneFinal();
 	if (!sceneMain || !sceneFinal) {
 		return;
 	}
 
+	// raytracingを使えない/前提が崩れたときの退避でSceneMainをSceneFinalへそのまま転写する
 	auto passthrough = [&]() {
 		if (!ExecuteFullscreenBlit(graphicsCore, context, sceneMain, sceneFinal,
 			*deps_.assetLibrary, *deps_.pipelineCache, *deps_.materialResolver,
@@ -148,6 +151,7 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 		}
 		};
 
+	// DispatchRays非対応やTLAS未構築なら反射せず素通しする
 	if (!graphicsCore.GetDXObject().ShouldUseDispatchRays() || !context.raytracing.tlasResource) {
 		passthrough();
 		return;
@@ -165,6 +169,7 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
+	// Reflectionパスはraytracing variant前提で、満たさなければ素通しへ落とす
 	const MaterialPassBinding* passBinding = FindPass(*material, MaterialPassKind::Reflection);
 	if (!passBinding || passBinding->preferredVariant != PipelineVariantKind::Raytracing) {
 		passthrough();
@@ -178,6 +183,7 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
+	// shaderが要求するTLASとview定数とシーン情報bufferを名前で引き、欠ければ素通し
 	const RegisteredRenderBuffer* tlas = context.bufferRegistry.Find("gSceneTLAS");
 	const RegisteredRenderBuffer* viewConstants = context.bufferRegistry.Find("RaytracingViewConstants");
 	const RegisteredRenderBuffer* sceneInstances = context.bufferRegistry.Find("gRaytracingSceneInstances");
@@ -187,12 +193,14 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
+	// G-Buffer相当の色/深度/法線/位置を入力にしSceneFinalの色をUAV出力にする
 	RenderTexture2D* sourceColor = sceneMain->GetColorTexture(0);
 	DepthTexture2D* sourceDepth = sceneMain->GetDepthTexture();
 	RenderTexture2D* sourceNormal = (1 < sceneMain->GetColorCount()) ? sceneMain->GetColorTexture(1) : nullptr;
 	RenderTexture2D* sourcePosition = (2 < sceneMain->GetColorCount()) ? sceneMain->GetColorTexture(2) : nullptr;
 	RenderTexture2D* destColor = sceneFinal->GetColorTexture(0);
 
+	// 入力が1つでも欠けるかUAVが無いG-Bufferなら反射できないので素通し
 	if (!sourceColor || !sourceDepth || !sourceNormal || !sourcePosition || !destColor ||
 		destColor->GetUAVGPUHandle().ptr == 0) {
 		passthrough();
@@ -202,12 +210,14 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	auto* commandList = dxCommand->GetCommandList();
 
+	// 入力4枚をSRV読み取りへ、出力をUAVへ遷移する
 	sourceColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	sourceDepth->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	sourceNormal->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	sourcePosition->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	destColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
+	// raytracing state objectを積みrootへ各リソースを束ねる
 	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
 	commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	commandList->SetPipelineState1(pipelineState->GetStateObject());
@@ -222,10 +232,12 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexDestUAV, destColor->GetUAVGPUHandle());
 	commandList->SetComputeRootConstantBufferView(RaytracingPipelineState::kRootIndexViewCBV, viewConstants->gpuAddress);
 
+	// 画面解像度ぶんのrayを飛ばして反射を書き込む
 	D3D12_DISPATCH_RAYS_DESC dispatchDesc = pipelineState->BuildDispatchDesc(
 		sceneFinal->GetWidth(), sceneFinal->GetHeight(), 1);
 	commandList->DispatchRays(&dispatchDesc);
 
+	// UAV書き込み完了を待ってから後続パスが読めるSRV状態へ戻す
 	dxCommand->UAVBarrier(destColor->GetResource());
 	destColor->Transition(*dxCommand, static_cast<D3D12_RESOURCE_STATES>(
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |

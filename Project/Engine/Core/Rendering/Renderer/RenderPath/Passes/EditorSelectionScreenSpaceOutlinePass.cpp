@@ -17,10 +17,12 @@ void Engine::EditorSelectionScreenSpaceOutlinePass::Execute(GraphicsCore& graphi
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	// 選択アウトラインはSceneViewのEditor描画専用
 	if (!context.resources || context.kind != RenderViewKind::Scene) {
 		return;
 	}
 
+	// Editorの選択サービスが積んだ要求から、現worldかつwidthが有効なものだけ拾う
 	requests_.clear();
 	for (const ScreenSpaceOutlineRequest& request :
 		EditorSelectionOutlineRequestService::GetInstance().GetRequests()) {
@@ -37,6 +39,7 @@ void Engine::EditorSelectionScreenSpaceOutlinePass::Execute(GraphicsCore& graphi
 		return;
 	}
 
+	// Editor専用のScreenSpaceOutlineへ描いてruntime用とは分離する
 	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests_,
 		context.resources->GetEditorSelectionScreenSpaceOutline());
 #else

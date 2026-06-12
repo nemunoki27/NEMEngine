@@ -14,8 +14,8 @@ namespace Engine {
 
 	//============================================================================
 	//	ImmutableIndexBuffer class
-	//	初期化後に更新しない静的インデックスバッファ。DEFAULT heapに本体を置き、
-	// 初期データはBufferUploadService経由で1回だけ転送する。16bit/32bit両対応
+	//	初期化後に更新しない静的インデックスバッファでDEFAULT heapに本体を置き
+	// 初期データはBufferUploadService経由で1回だけ転送し16bit/32bit両対応
 	// CPU更新が必要なIndexにはIndexBufferを使うこと
 	//============================================================================
 	class ImmutableIndexBuffer {

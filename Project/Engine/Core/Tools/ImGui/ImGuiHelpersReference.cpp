@@ -22,7 +22,7 @@ namespace Engine {
 			if (!assetDatabase) { return std::format("GUID: {}", Engine::ToString(assetID)); }
 
 			const AssetMeta* meta = assetDatabase->Find(assetID);
-			// アセットが見つからない（リンク切れ）
+			// アセットが見つからないリンク切れ
 			if (!meta) { return std::format("Missing Asset | GUID: {}", Engine::ToString(assetID)); }
 
 			// アセット名を表示
@@ -78,7 +78,7 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 	const std::string displayText = BuildAssetReferenceLabel(value, assetDatabase);
 	const bool hasValue = static_cast<bool>(value);
 
-	// プレビュー画像の解決。設定がなければデータベースから検索
+	// プレビュー画像の解決で設定がなければデータベースから検索
 	ImTextureID resolvedPreviewID = setting.previewTextureID;
 	if (resolvedPreviewID == ImTextureID{}) {
 		resolvedPreviewID = ResolveTextureAssetPreview(setting.graphicsCore, assetDatabase, value);
@@ -117,7 +117,7 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 			if (payload->IsDelivery()) {
 				EditorAssetDragDropPayload assetPayload{};
 				if (TryReadAssetPayload(payload, assetPayload)) {
-					// ドロップされたアセットの型を解決。メタデータがなければ推測
+					// ドロップされたアセットの型を解決しメタデータがなければ推測
 					AssetType assetType = assetPayload.assetType;
 					if (assetType == AssetType::Unknown && assetDatabase) {
 						if (const AssetMeta* meta = assetDatabase->Find(assetPayload.assetID)) { assetType = meta->type; }
@@ -161,7 +161,7 @@ Engine::ValueEditResult Engine::MyGUI::EntityReferenceField(const char* label, U
 		ImGui::EndTooltip();
 	}
 
-	// ヒエラルキーからのドラッグ＆ドロップ受け入れ。UUIDベースで紐付け
+	// ヒエラルキーからのドラッグ＆ドロップ受け入れでUUIDベースで紐付け
 	if (ImGui::BeginDragDropTarget()) {
 		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType)) {
 			if (payload->IsDelivery()) {

@@ -14,7 +14,8 @@ internal static class ManagedAbi {
     // v5: object model(generic component access / Entity.Destroy / ScriptBehaviour.Enabled / world rotation・lossyScale)を追加
     // v6: 自動生成 component binding 用の typed property access(get/set + string)を追加
     // v7: gameplay API(Time拡張/TimeScale, AssetRef解決, Entity生成, Prefab/Scene, Input拡張, Audio/Animation/Application)を追加
-    internal const uint Version = 7;
+    // v8: 診断 API(reportScriptException) と script descriptor の defaultExecutionOrder を追加
+    internal const uint Version = 8;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -198,6 +199,8 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioPause;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioStop;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> AudioIsPlaying;
+    // Diagnostics(v8): script callback 例外の構造化報告
+    internal static delegate* unmanaged[Cdecl]<byte*, void> ReportScriptException;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -281,6 +284,7 @@ internal static unsafe class NativeApi {
         AudioPause = callbacks->audioPause;
         AudioStop = callbacks->audioStop;
         AudioIsPlaying = callbacks->audioIsPlaying;
+        ReportScriptException = callbacks->reportScriptException;
     }
 
     internal static float ReadDeltaTime() {
@@ -303,6 +307,21 @@ internal static unsafe class NativeApi {
         Encoding.UTF8.GetBytes(safeMessage, 0, safeMessage.Length, bytes, 0);
         fixed (byte* ptr = bytes) {
             Log(level, ptr);
+        }
+    }
+
+    // script callback 例外の構造化 DTO（JSON）を native の exception store へ渡す。
+    // 例外発生時にのみ呼ばれる経路なので、ここでの allocation は hot path に乗らない。
+    internal static void ReportScriptExceptionJson(string json) {
+        if (ReportScriptException == null) {
+            return;
+        }
+
+        string safe = json ?? string.Empty;
+        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(safe) + 1];
+        Encoding.UTF8.GetBytes(safe, 0, safe.Length, bytes, 0);
+        fixed (byte* ptr = bytes) {
+            ReportScriptException(ptr);
         }
     }
 
@@ -780,4 +799,6 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, void> audioPause;
     public delegate* unmanaged[Cdecl]<NativeEntity, void> audioStop;
     public delegate* unmanaged[Cdecl]<NativeEntity, int> audioIsPlaying;
+    // Diagnostics(v8): script callback 例外の構造化報告（JSON DTO を 1 件渡す）
+    public delegate* unmanaged[Cdecl]<byte*, void> reportScriptException;
 }

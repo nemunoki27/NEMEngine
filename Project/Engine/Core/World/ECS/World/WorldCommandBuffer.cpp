@@ -23,7 +23,7 @@ namespace {
 
 	using namespace Engine;
 
-	// 親階層を辿った world 回転（local 値の積。worldMatrix 分解ではない）
+	// 親階層を辿ったworld回転でlocal値の積、worldMatrix分解ではない
 	Quaternion WorldRotationOf(ECSWorld& world, const Entity& entity) {
 
 		TransformComponent* self = world.TryGetComponent<TransformComponent>(entity);
@@ -43,7 +43,7 @@ namespace {
 		return rotation;
 	}
 
-	// 親階層の localScale を成分積で累積した world(lossy) scale
+	// 親階層のlocalScaleを成分積で累積したworld(lossy) scale
 	Vector3 WorldScaleOf(ECSWorld& world, const Entity& entity) {
 
 		TransformComponent* self = world.TryGetComponent<TransformComponent>(entity);
@@ -64,7 +64,7 @@ namespace {
 		return scale;
 	}
 
-	// child を newParent の子にすると循環するか（newParent の祖先に child が居るか）
+	// childをnewParentの子にすると循環するか、newParentの祖先にchildが居るか
 	bool WouldCreateCycle(ECSWorld& world, const Entity& child, const Entity& newParent) {
 
 		Entity current = newParent;
@@ -84,7 +84,7 @@ namespace {
 		return true;
 	}
 
-	// worldPositionStays: 親変更前の child world 姿勢を、変更後の newParent 基準の local 値へ落として維持する
+	// worldPositionStays:親変更前のchild world姿勢を、変更後のnewParent基準のlocal値へ落として維持する
 	void PreserveWorldTransform(ECSWorld& world, const Entity& child, const Entity& newParent,
 		const Matrix4x4& childWorldBefore, const Quaternion& childWorldRotBefore, const Vector3& childWorldScaleBefore) {
 
@@ -110,7 +110,7 @@ namespace {
 				parentWorldScale.z != 0.0f ? childWorldScaleBefore.z / parentWorldScale.z : childWorldScaleBefore.z);
 		} else {
 
-			// ルート化: world 値をそのまま local とする
+			// ルート化: world値をそのままlocalとする
 			childTransform->localPos = worldPos;
 			childTransform->localRotation = Quaternion::Normalize(childWorldRotBefore);
 			childTransform->localScale = childWorldScaleBefore;
@@ -289,7 +289,7 @@ void Engine::WorldCommandBuffer::Flush(ECSWorld& world) {
 	int32_t batchCount = 0;
 	while (!commands_.empty()) {
 
-		// 上限を超えたら残りは次フレームのFlushへ回す（破棄はしない）
+		// 上限を超えたら残りは次フレームのFlushへ回す、破棄はしない
 		if (kMaxFlushBatches <= batchCount) {
 
 			Logger::Output(LogType::Engine, spdlog::level::warn,
@@ -298,7 +298,7 @@ void Engine::WorldCommandBuffer::Flush(ECSWorld& world) {
 			break;
 		}
 
-		// 現batchを切り離してから適用する。適用中に積まれた分は次batchへ回る
+		// 現batchを切り離してから適用する、適用中に積まれた分は次batchへ回る
 		std::vector<Command> batch;
 		batch.swap(commands_);
 		for (const Command& command : batch) {
@@ -318,7 +318,7 @@ void Engine::WorldCommandBuffer::Clear() {
 
 void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) {
 
-	// Scene コマンドは target Entity を持たないため、IsAlive 検証より前に処理する
+	// Sceneコマンドはtarget Entityを持たないため、IsAlive検証より前に処理する
 	if (command.kind == CommandKind::LoadSceneAdditive || command.kind == CommandKind::UnloadScene) {
 
 		const WorldCommandServices& services = world.GetCommandServices();
@@ -378,14 +378,14 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 
 		// 親が破棄済みならルート化する
 		Entity parent = world.IsAlive(command.parent) ? command.parent : Entity::Null();
-		// 循環を作る付け替えは拒否する（child が parent の祖先になるケース）
+		// 循環を作る付け替えは拒否する、childがparentの祖先になるケース
 		if (world.IsAlive(parent) && WouldCreateCycle(world, command.target, parent)) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
 				"WorldCommandBuffer: SetParent rejected (would create hierarchy cycle).");
 			break;
 		}
 
-		// worldPositionStays: 付け替え前の world 姿勢を控えておき、付け替え後に local へ落として復元する
+		// worldPositionStays:付け替え前のworld姿勢を控えておき、付け替え後にlocalへ落として復元する
 		Matrix4x4 worldBefore = Matrix4x4::Identity();
 		Quaternion worldRotBefore = Quaternion::Identity();
 		Vector3 worldScaleBefore = Vector3::AnyInit(1.0f);
@@ -408,7 +408,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 	}
 	case CommandKind::CreateEntity: {
 
-		// 予約済みの空 Entity を GameObject として materialize する（Transform/SceneObject/Name 付与）
+		// 予約済みの空EntityをGameObjectとしてmaterializeしTransform/SceneObject/Nameを付与する
 		SceneAuthoring::EnsureGameObjectDefaults(world, command.target);
 		if (!command.text.empty()) {
 			NameComponent* nameComponent = world.TryGetComponent<NameComponent>(command.target);
@@ -417,7 +417,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 			}
 			nameComponent->name = command.text;
 		}
-		// callback 中に staging された初期 SRT を適用する（pending 中の Transform 書き込み）
+		// callback中にstagingされた初期SRTを適用する、pending中のTransform書き込み
 		if (TransformComponent* transform = world.TryGetComponent<TransformComponent>(command.target)) {
 			if (command.flags & FlagHasPosition) {
 				transform->localPos = command.position;
@@ -429,7 +429,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 				transform->localScale = command.scale;
 			}
 		}
-		// 親付けは Transform 確定後に行う
+		// 親付けはTransform確定後に行う
 		if (world.IsAlive(command.parent) && !WouldCreateCycle(world, command.target, command.parent)) {
 			HierarchySystem hierarchySystem{};
 			hierarchySystem.SetParent(world, command.target, command.parent);
@@ -449,7 +449,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 		PrefabInstantiateResult result{};
 		PrefabInstantiateDesc desc{};
 		desc.parent = world.IsAlive(command.parent) ? command.parent : Entity::Null();
-		// 予約済みルートを PrefabSystem のルートとして使わせる（deferred でも実 root handle を返せるようにする）
+		// 予約済みルートをPrefabSystemのルートとして使わせる、deferredでも実root handleを返せるようにする
 		desc.reservedRoot = command.target;
 		if (!prefabSystem.InstantiatePrefab(*services.assetDatabase, hierarchySystem, world,
 			AssetID{ command.assetID }, result, desc)) {
@@ -457,7 +457,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 				"WorldCommandBuffer: InstantiatePrefab failed (missing or invalid prefab).");
 			break;
 		}
-		// 初期 transform の適用（指定された場合のみ root の local SRT を上書き）
+		// 初期transformの適用で指定された場合のみrootのlocal SRTを上書きする
 		if ((command.flags & FlagUseTransform) && world.IsAlive(result.root)) {
 			if (TransformComponent* transform = world.TryGetComponent<TransformComponent>(result.root)) {
 				transform->localPos = command.position;

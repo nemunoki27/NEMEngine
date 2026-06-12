@@ -45,7 +45,7 @@ void DxUploadCommand::Create(ID3D12Device* device) {
 
 void DxUploadCommand::ExecuteCommands(ID3D12CommandQueue* waitQueue) {
 
-	// コマンドリストの内容を確定させる。すべてのコマンドを積んでからCloseする
+	// コマンドリストの内容を確定させ、すべてのコマンドを積んでからCloseする
 	HRESULT hr = commandList_->Close();
 	assert(SUCCEEDED(hr));
 

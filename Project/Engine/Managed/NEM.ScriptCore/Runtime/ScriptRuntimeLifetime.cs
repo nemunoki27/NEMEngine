@@ -8,7 +8,7 @@ namespace NEMEngine;
 //	reload（unload）前に、古い assembly を参照し続ける task / event / timer / IDisposable を
 //	停止・解放させ、collectible ALC が確実に回収されるようにするためのサービス。
 //============================================================================
-// Coroutine / Timer は 07 で追加予定。追加時はここへ Register して unload 前に停止できるようにする。
+// Coroutine / Timer など unload 前に停止が必要なものはここへ Register する。
 // 本サービス自体は ScriptCore（default ALC）側にあり、登録物は EndAssemblyLifetime で必ず手放すため、
 // 古い GameScripts assembly を永続保持しない。すべての public API は thread-safe。
 public static class ScriptRuntimeLifetime {

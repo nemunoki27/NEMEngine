@@ -88,7 +88,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		// パラメータレイアウトキャッシュを全削除する（シェーダーリロード時に呼ぶ）
+		// パラメータレイアウトキャッシュを全削除するシェーダーリロード時に呼ぶ処理
 		void ClearParameterLayoutCache() { parameterLayoutCache_.clear(); }
 
 		// 最後に実行されたマテリアルのIDを取得する
@@ -104,7 +104,7 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// パイプラインごとのキャッシュエントリ。フレーム定数バインドの有無も初回のみ解決して保持する
+		// パイプラインごとのキャッシュエントリでフレーム定数バインドの有無も初回のみ解決して保持する
 		struct PipelineCacheEntry {
 
 			PostProcessParameterLayout layout;

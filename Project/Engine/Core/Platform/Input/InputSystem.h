@@ -100,20 +100,20 @@ namespace Engine {
 		// ゲームパッドが繋がっているかどうか
 		bool IsGamepadConnected() const { return gamepadConnected_; }
 
-		//--------- gameplay 向け 多gamepad / text / focus -------------------------
-		// 既存の single-gamepad path（上の各 accessor）は変更せず、scripting 用に独立の snapshot を持つ。
-		// button / axis の index は C# の GamepadButton / GamepadAxis enum に対応する。
+		//--------- gameplay向け多gamepad / text / focus -------------------------
+		// 既存のsingle-gamepad path上の各accessorは変更せず、scripting用に独立のsnapshotを持つ
+		// button / axisのindexはC#のGamepadButton / GamepadAxis enumに対応する
 		bool GamepadConnectedByIndex(int index) const;
 		int ConnectedGamepadCount() const;
 		bool GamepadButtonByIndex(int index, int button) const;
 		bool GamepadButtonDownByIndex(int index, int button) const;
 		bool GamepadButtonUpByIndex(int index, int button) const;
 		float GamepadAxisByIndex(int index, int axis) const;
-		// このフレームで読める確定テキスト（UTF-8）。frame-local。
+		// このフレームで読める確定テキストでUTF-8のframe-local
 		const std::string& FrameTextInput() const { return frameText_; }
 		// ウィンドウがフォーカスを持っているか
 		bool HasWindowFocus() const { return hasFocus_; }
-		// WinApp の WM_CHAR / focus メッセージから呼ぶ（main thread）
+		// WinAppのWM_CHAR / focusメッセージからmain threadで呼ぶ
 		void AppendTextInputUtf16(wchar_t code) { pendingWide_.push_back(code); }
 		void SetWindowFocus(bool focused) { hasFocus_ = focused; }
 
@@ -159,13 +159,13 @@ namespace Engine {
 		std::array<bool, static_cast<size_t>(GamePadButtons::Counts)> gamepadButtons_{};
 		std::array<bool, static_cast<size_t>(GamePadButtons::Counts)> gamepadButtonsPre_{};
 
-		// gameplay 用の独立 snapshot（最大4台）。既存 single-gamepad path とは別管理。
+		// gameplay用の独立snapshotで最大4台、既存single-gamepad pathとは別管理
 		static constexpr int kMaxGamepads = 4;
 		std::array<XINPUT_STATE, kMaxGamepads> pads_{};
 		std::array<XINPUT_STATE, kMaxGamepads> padsPre_{};
 		std::array<bool, kMaxGamepads> padConnected_{};
 		std::array<bool, kMaxGamepads> padConnectedPre_{};
-		// 文字入力。pendingWide_ に WM_CHAR を溜め、Update で frameText_(UTF-8) へ確定する
+		// 文字入力はpendingWide_にWM_CHARを溜め、UpdateでframeText_(UTF-8)へ確定する
 		std::wstring pendingWide_;
 		std::string frameText_;
 		// ウィンドウフォーカス状態

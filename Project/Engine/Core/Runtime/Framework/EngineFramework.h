@@ -49,7 +49,7 @@ namespace Engine {
 		// フレーム更新
 		void Tick();
 
-		//  描画開始/終了処理
+		// 描画開始/終了処理
 		void BeginRenderFrame();
 		void EndRenderFrame();
 

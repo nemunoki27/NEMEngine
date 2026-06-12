@@ -12,20 +12,24 @@
 //	BehaviorTypeRegistry classMethods
 //============================================================================
 uint32_t Engine::BehaviorTypeRegistry::RegisterManaged(const std::string_view& scriptTypeId,
-	const std::string_view& fullName, const std::string_view& displayName, const std::string_view& sourcePath) {
+	const std::string_view& fullName, const std::string_view& displayName, const std::string_view& sourcePath,
+	int32_t defaultExecutionOrder) {
 
-	// 既に同じ GUID で登録済みならそのIDを返す（GUID が永続主キー）
+	// 既に同じGUIDで登録済みならそのIDを返す、GUIDが永続主キー
 	auto existing = guidToID_.find(std::string(scriptTypeId));
 	if (existing != guidToID_.end()) {
+		// 既存登録でもdefault orderは最新を反映する、reloadでattribute値が変わり得る
+		infos_[existing->second].defaultExecutionOrder = defaultExecutionOrder;
 		return existing->second;
 	}
 
-	// 新しい型情報を作成する。construct は Stable GUID で C# instance を生成する
+	// 新しい型情報を作成する、constructはStable GUIDでC# instanceを生成する
 	BehaviorTypeInfo info{};
 	info.name = std::string(fullName);
 	info.scriptTypeId = std::string(scriptTypeId);
 	info.displayName = displayName.empty() ? info.name : std::string(displayName);
 	info.sourcePath = std::string(sourcePath);
+	info.defaultExecutionOrder = defaultExecutionOrder;
 	info.id = static_cast<uint32_t>(infos_.size());
 	info.managed = true;
 	info.construct = [id = info.scriptTypeId, name = info.displayName]() -> std::unique_ptr<MonoBehavior> {
@@ -97,8 +101,7 @@ const Engine::BehaviorTypeInfo* Engine::BehaviorTypeRegistry::FindByName(const s
 std::vector<const Engine::BehaviorTypeInfo*> Engine::BehaviorTypeRegistry::FindManagedBySourceFile(
 	const std::string_view& sourceFilePath) const {
 
-	// 入力とソースパスの「ファイル名」で照合する（base が異なるパス前提でも頑健にする）。
-	// 永続識別は GUID 側で行うため、ここは drag&drop の候補抽出だけに使う。
+	// 入力とソースパスのファイル名で照合しbaseが異なるパスでも頑健にする、永続識別はGUID側で行うためここはdrag&dropの候補抽出だけに使う
 	const std::string inputName = std::filesystem::path(std::string(sourceFilePath)).filename().string();
 
 	std::vector<const BehaviorTypeInfo*> candidates;
@@ -134,7 +137,7 @@ const Engine::BehaviorTypeInfo* Engine::BehaviorTypeRegistry::FindManagedBySimpl
 			continue;
 		}
 
-		// 同名クラスが複数名前空間にある場合は曖昧なので、完全名指定を要求する
+		// 同名クラスが複数名前空間にある場合は曖昧なので完全名指定を要求する
 		if (result) {
 			return nullptr;
 		}

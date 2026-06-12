@@ -67,7 +67,7 @@ namespace Engine {
 			return (it != items_.end()) ? it->second.get() : nullptr;
 		}
 
-		// 検索 (const)
+		// 検索(const)
 		virtual const T* Find(Key key) const {
 			auto it = items_.find(key);
 			return (it != items_.end()) ? it->second.get() : nullptr;

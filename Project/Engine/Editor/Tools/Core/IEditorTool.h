@@ -36,9 +36,9 @@ namespace Engine {
 		Vector2I size;
 		// 色RenderTargetの枚数
 		uint32_t colorCount = 1;
-		// D3D12のClearRenderTargetViewに渡す色。作成時のClearValueと必ず合わせる
+		// D3D12のClearRenderTargetViewに渡す色で作成時のClearValueと必ず合わせる
 		Color4 clearColor = Color4::Black();
-		// プレビュー対象Entity。描画側で必要な時だけ解決して使用する
+		// プレビュー対象Entityで描画側で必要な時だけ解決して使用する
 		UUID previewEntityUUID{};
 
 		// 色+深度をまとめた描画先
@@ -104,7 +104,7 @@ namespace Engine {
 		//============================================================================
 		//	protected Methods
 		//============================================================================
-		// ツール専用RenderTextureを作成する。同じ名前がある場合は既存のものを返す
+		// ツール専用RenderTextureを作成し同じ名前がある場合は既存のものを返す
 		EditorToolRenderTexture* CreateRenderTexture(const std::string& name,
 			const Vector2I& size, const Color4& clearColor = Color4::Black(), uint32_t colorCount = 1);
 

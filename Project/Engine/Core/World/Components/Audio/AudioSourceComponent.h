@@ -29,15 +29,15 @@ namespace Engine {
 		// 音量
 		float volume = 1.0f;
 
-		// Runtime用。Scene/Prefabには保存しない
+		// Runtime用でScene/Prefabには保存しない
 		bool runtimePlaying = false;
 		AssetID runtimeClip{};
 		std::string runtimeKey{};
 		uint64_t runtimeVoiceID = 0;
 		bool runtimePlayOnAwakeConsumed = false;
-		// gameplay(C#)からの明示要求。AudioSourceSystem が消費する（0=なし,1=Play,2=Pause,3=Stop）
+		// gameplay C#からの明示要求でAudioSourceSystemが消費する、0=なし 1=Play 2=Pause 3=Stop
 		int runtimePlayRequest = 0;
-		// 一時停止中か（voice は保持されている）
+		// 一時停止中かでvoiceは保持されている
 		bool runtimePaused = false;
 	};
 

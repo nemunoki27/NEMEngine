@@ -1,7 +1,7 @@
 namespace NEMEngine;
 
 // asset 種別マーカー。AssetRef<TAsset> の typed filter を表すための最小限の型。
-// 07/08 の本格的な asset/object model は先取りせず、Inspector filter と serialization に必要な情報だけ持つ。
+// Inspector filter と serialization に必要な情報だけを持つ。
 public interface IAssetType {
 }
 

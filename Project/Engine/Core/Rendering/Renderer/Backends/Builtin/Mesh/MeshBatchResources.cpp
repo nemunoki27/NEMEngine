@@ -55,7 +55,7 @@ namespace {
 		return item->world->TryGetComponent<Engine::InvertedHullOutlineComponent>(item->entity);
 	}
 
-	// Hull本体を描くパスかどうか。OutlineStencilWriteは元メッシュ形状なのでHullではない
+	// Hull本体を描くパスかどうかでOutlineStencilWriteは元メッシュ形状なのでHullではない
 	bool IsHullOutlinePass(Engine::MaterialPassKind passKind) {
 
 		return passKind == Engine::MaterialPassKind::Outline ||
@@ -315,7 +315,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	baseColorSRVCache.reserve(gpuMesh.subMeshes.size() + 1);
 
 	// テクスチャアセットIDからSRVインデックスを取得するヘルパー
-	// assetIDが無効なら UINT32_MAX を返す（シェーダー側で未使用として扱う）
+	// assetIDが無効ならUINT32_MAXを返しシェーダー側で未使用として扱う
 	auto ResolveSRVIndex = [&](AssetID assetID, bool sRGB) -> uint32_t {
 
 		if (!assetID) {
@@ -436,8 +436,8 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				}
 			} else {
 
-				// 解決後AssetIDが空。元々割り当てがある(マテリアルで宣言済みだが見つからない)ならエラー、
-				// 未割り当て(テクスチャなし)なら白にフォールバックする
+				// 解決後AssetIDが空で元々割り当てがありマテリアルで宣言済みだが見つからないならエラー、
+				// 未割り当てのテクスチャなしなら白にフォールバックする
 				const bool assigned = MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(gpuMesh, renderer, subMeshIndex);
 				baseColorSRVIndex = assigned ? fallbackSRVIndex : whiteSRVIndex;
 				if (assigned) {
@@ -470,11 +470,11 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				data.roughness = authoring.roughness;
 				data.uvMatrix = authoring.uvMatrix;
 				data.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
-				// localMatrixからも法線変換行列を構築する。最終的にinstance.normalMatrixと合成される
+				// localMatrixからも法線変換行列を構築し最終的にinstance.normalMatrixと合成される
 				const MeshNormalMatrixResult localNormal = BuildSafeMeshNormalMatrix(data.localMatrix);
 				data.localNormalMatrix = localNormal.matrix;
 				data.localOrientationSign = localNormal.orientationSign;
-				// Position Scaling膨張の基準。原点基準にならないようサブメッシュのピボットを渡す
+				// Position Scaling膨張の基準で原点基準にならないようサブメッシュのピボットを渡す
 				data.sourcePivot = authoring.sourcePivot;
 			}
 			subMeshScratch_.emplace_back(data);
@@ -494,7 +494,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 		visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
 	}
 	subMeshData_.Upload(subMeshScratch_);
-	// アウトラインGPUデータの転送。MeshDrawConstantsはUpdateDrawConstantsで毎描画更新する
+	// アウトラインGPUデータの転送でMeshDrawConstantsはUpdateDrawConstantsで毎描画更新する
 	outlineData_.Upload(outlineScratch_);
 
 	if (skinning_) {

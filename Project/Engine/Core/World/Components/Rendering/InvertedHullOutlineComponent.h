@@ -55,7 +55,7 @@ namespace Engine {
 		bool useBakedNormal = false;
 		AssetID bakedNormalTexture{};
 
-		// Rチャンネル。0で膨張なし、1でwidthをそのまま適用する
+		// Rチャンネルは0で膨張なし、1でwidthをそのまま適用する
 		// 部位別アウトライン幅と線の抑制に使用するLinear texture
 		bool useOutlineSampler = false;
 		AssetID outlineSamplerTexture{};

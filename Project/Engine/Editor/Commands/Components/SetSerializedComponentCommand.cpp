@@ -12,7 +12,11 @@
 //============================================================================
 Engine::SetSerializedComponentCommand::SetSerializedComponentCommand(const Entity& targetEntity,
 	const std::string_view& typeName, const nlohmann::json& beforeData, const nlohmann::json& afterData) :
-	initialTarget_(targetEntity), typeName_(typeName), beforeData_(beforeData), afterData_(afterData) {}
+	initialTarget_(targetEntity), typeName_(typeName), beforeData_(beforeData), afterData_(afterData) {
+
+	// Undo履歴ラベル、serialized component全体の編集を表しscript slotのadd remove reorder reassignを含む
+	displayName_ = "Edit " + typeName_;
+}
 
 bool Engine::SetSerializedComponentCommand::Apply(EditorCommandContext& context, const nlohmann::json& data) {
 

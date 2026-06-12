@@ -47,7 +47,7 @@ nlohmann::json Engine::SceneSystem::SerializeEntities(ECSWorld& world, const std
 
 	nlohmann::json array = nlohmann::json::array();
 
-	// subsetが指定されている場合はそのエンティティのみをシリアライズする。subset内のエンティティが存在しない場合は無視する
+	// subsetが指定されている場合はそのエンティティのみをシリアライズし、subset内のエンティティが存在しない場合は無視する
 	if (subset) {
 		for (const Entity& entity : *subset) {
 
@@ -124,7 +124,7 @@ bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& wor
 	// "Entities"配列をループしてエンティティを作成し、コンポーネントを追加する
 	for (const auto& entityJson : entitiesNode) {
 
-		// "LocalFileID"が存在しない場合は"UUID"を探す。どちらも存在しない場合はSceneObject側の値を使う
+		// "LocalFileID"が存在しない場合は"UUID"を探し、どちらも存在しない場合はSceneObject側の値を使う
 		std::string localFileIDStr = entityJson.value("LocalFileID", entityJson.value("UUID", ""));
 		UUID localFileID = localFileIDStr.empty() ? UUID{} : FromString16Hex(localFileIDStr);
 

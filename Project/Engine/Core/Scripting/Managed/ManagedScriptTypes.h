@@ -15,16 +15,17 @@ namespace Engine {
 	//============================================================================
 	//	ManagedScript ABI constants
 	//============================================================================
-	// C++ / C# 境界のABIバージョン。構造体レイアウトや関数テーブルを変えたら必ず上げる
-	// v2: managed script instance handle を int32 から ManagedScriptInstanceHandle(index/generation) へ変更
-	// v3: 型登録を CopyScriptTypeName から CopyScriptTypeInfo(Stable GUID) へ変更し、GenerateScriptManifest を追加
-	// v4: 固定長フィールドABI(ManagedNativeSerializedFieldInfo)を撤廃し、二段階blob schema/runtime state API へ移行
-	// v5: object model(generic component access / Entity.Destroy / ScriptBehaviour.Enabled / world rotation・lossyScale)を追加
-	// v6: 自動生成 component binding 用の汎用 typed property access(get/set + string)と ManagedColor3/4 を追加
-	// v7: gameplay API(Time拡張/TimeScale/frame tick, Entity生成, Prefab/Scene, AssetRef解決, Input拡張, Audio/Animation/Application)を追加
-	inline constexpr uint32_t kManagedAbiVersion = 7;
+	// C++ / C#境界のABIバージョン、構造体レイアウトや関数テーブルを変えたら必ず上げる
+	// v2: managed script instance handleをint32からindexとgenerationを持つhandleへ変更
+	// v3:型登録をCopyScriptTypeNameからStable GUIDを渡すCopyScriptTypeInfoへ変更しGenerateScriptManifestを追加
+	// v4:固定長フィールドABIを撤廃し二段階blob schemaとruntime state APIへ移行
+	// v5: object modelとしてgeneric component accessやEntity.DestroyやScriptBehaviour.Enabledやworld rotation lossyScaleを追加
+	// v6:自動生成component binding用の汎用typed property accessとManagedColor3 4を追加
+	// v7: gameplay APIとしてTime拡張TimeScale frame tickやEntity生成やPrefab SceneやAssetRef解決やInput拡張やAudio Animation Applicationを追加
+	// v8:診断APIのreportScriptExceptionとscript descriptorのdefaultExecutionOrderを追加
+	inline constexpr uint32_t kManagedAbiVersion = 8;
 
-	// ネイティブが提供する機能カテゴリ。capability bitで有無を表す
+	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
 
 		Core = 1ull << 0,      // Time / Log
@@ -48,7 +49,7 @@ namespace Engine {
 		static_cast<uint64_t>(ManagedCapability::ComponentBindings) |
 		static_cast<uint64_t>(ManagedCapability::Gameplay);
 
-	// C++ / C# で共有する境界処理の結果コード。値はC#側と一致させる
+	// C++ / C#で共有する境界処理の結果コードで、値はC#側と一致させる
 	enum class ManagedStatus : int32_t {
 
 		Ok = 0,
@@ -61,15 +62,15 @@ namespace Engine {
 		SerializationError,
 		ScriptException,
 		InternalError,
-		// 二段階 blob API で呼び出し側 buffer が不足。必要 size を取得し直して再試行する
+		// 二段階blob APIで呼び出し側bufferが不足した場合、必要sizeを取得し直して再試行する
 		BufferTooSmall,
 	};
 
 	//============================================================================
 	//	ManagedScript structures
 	//============================================================================
-	// C#側のシリアライズフィールドの種類。schema JSON の "kind" 文字列と対応する。
-	// 値はC#列挙とは独立で、C++ 側 schema parse 時に文字列から決める
+	// C#側のシリアライズフィールドの種類でschema JSONのkind文字列と対応する
+	// 値はC#列挙とは独立で、C++側schema parse時に文字列から決める
 	enum class ManagedSerializedFieldKind : int32_t {
 
 		None = 0,
@@ -101,13 +102,12 @@ namespace Engine {
 		Unsupported,
 	};
 
-	// 1 フィールドの schema。collection / nullable は element を持つ再帰構造。
-	// build/reload 時に schema JSON を一度だけ parse して構築し、Inspector が参照する。
+	// 1フィールドのschemaでcollectionやnullableはelementを持つ再帰構造、buildやreload時にschema JSONを一度だけparseして構築しInspectorが参照する
 	struct ManagedFieldSchema {
 
-		std::string fieldId;             // Stable Serialized Field GUID（保存の主キー）
-		std::string name;                // 現在の field 名（表示・legacy 照合）
-		std::string declaringType;       // 宣言型（継承時の識別）
+		std::string fieldId;             // Stable Serialized Field GUID で保存の主キー
+		std::string name;                // 現在の field 名で表示と legacy 照合に使う
+		std::string declaringType;       // 宣言型で継承時の識別に使う
 		std::vector<std::string> formerNames; // [FormerlySerializedAs] の旧名
 
 		ManagedSerializedFieldKind kind = ManagedSerializedFieldKind::None;
@@ -122,7 +122,7 @@ namespace Engine {
 		std::string assetType;   // AssetRef<T> の native AssetType 名
 		std::string scriptType;  // ScriptRef<T> の対象 script 完全名
 
-		// Inspector 属性
+		// Inspector属性
 		bool isPublic = false;
 		bool isReadOnly = false;
 		bool isHidden = false;
@@ -137,11 +137,11 @@ namespace Engine {
 		std::string tooltip;
 		std::string header;
 
-		// C#インスタンス生成直後の既定値JSON（authoring 未設定時の初期値）
+		// C#インスタンス生成直後の既定値JSONでauthoring未設定時の初期値
 		std::string defaultValueJson;
 	};
 
-	// 1 script 型の serialized field schema
+	// 1 script型のserialized field schema
 	struct ManagedScriptSchema {
 
 		std::string scriptTypeId;
@@ -150,21 +150,20 @@ namespace Engine {
 		std::vector<ManagedFieldSchema> fields;
 	};
 
-	// C#へ生のECSWorld*を渡さないための、世代付きworldハンドル
-	// 実体ポインタはネイティブのManagedWorldRegistry内部だけが保持する
+	// C#へ生のECSWorld*を渡さないための世代付きworldハンドル、実体ポインタはネイティブのManagedWorldRegistry内部だけが保持する
 	struct ManagedWorldHandle {
 
 		uint32_t index = 0xFFFFFFFF;
 		uint32_t generation = 0;
 	};
 
-	// managed script instanceを指す世代付きハンドル。単純なint indexを境界で公開しない
+	// managed script instanceを指す世代付きハンドルで、単純なint indexを境界で公開しない
 	struct ManagedScriptInstanceHandle {
 
 		uint32_t index = 0xFFFFFFFF;
 		uint32_t generation = 0;
 
-		// generation==0 は無効。default/ゼロ初期化の handle を valid と誤認しない
+		// generationが0は無効で、defaultやゼロ初期化のhandleをvalidと誤認しない
 		constexpr bool IsValid() const noexcept { return index != 0xFFFFFFFFu && generation != 0; }
 		static constexpr ManagedScriptInstanceHandle Null() noexcept { return {}; }
 	};
@@ -221,7 +220,7 @@ namespace Engine {
 		float w = 1.0f;
 	};
 
-	// C#と共有するColor3 / Color4（Engine::Color3/Color4 と同一レイアウト）
+	// C#と共有するColor3とColor4でEngine::Color3 Color4と同一レイアウト
 	struct ManagedColor3 {
 
 		float r = 0.0f;
@@ -236,7 +235,7 @@ namespace Engine {
 		float a = 0.0f;
 	};
 
-	// ネイティブAPIテーブル先頭に置くABIヘッダ。version/size/capabilityを検証に使う
+	// ネイティブAPIテーブル先頭に置くABIヘッダでversionとsizeとcapabilityを検証に使う
 	struct ManagedAbiHeader {
 
 		uint32_t abiVersion = 0;
@@ -247,7 +246,7 @@ namespace Engine {
 	// C#へ渡すネイティブAPI
 	struct ManagedNativeApiTable {
 
-		// 互換性検証用ヘッダ。必ず先頭に置く
+		// 互換性検証用ヘッダで必ず先頭に置く
 		ManagedAbiHeader header{};
 
 		using GetDeltaTimeCallback = float(__cdecl*)();
@@ -273,32 +272,33 @@ namespace Engine {
 		using DestroyEntityCallback = void(__cdecl*)(ManagedNativeEntity);
 		using GetScriptEnabledCallback = int32_t(__cdecl*)(ManagedNativeEntity, uint64_t);
 		using SetScriptEnabledCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t, int32_t);
-		// ComponentBindings: 自動生成 wrapper の typed property access。
-		// 値は POD を value/outValue へ byte コピー（C#の Managed* 構造体と同一レイアウト）。string は別系統。
+		// ComponentBindingsは自動生成wrapperのtyped property access、PODはvalueとoutValueへbyteコピーしC#のManaged構造体と同一レイアウトでstringは別系統
 		using GetComponentPropertyCallback = ManagedStatus(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, void*, int32_t);
 		using SetComponentPropertyCallback = ManagedStatus(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const void*, int32_t);
 		using GetComponentStringPropertyCallback = ManagedStatus(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, char*, int32_t, int32_t*);
 		using SetComponentStringPropertyCallback = ManagedStatus(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const char*, int32_t);
-		// Gameplay(v7): Time拡張 / TimeScale / Asset解決 / Entity生成
+		// Gameplay v7のTime拡張とTimeScaleとAsset解決とEntity生成
 		using GetDoubleCallback = double(__cdecl*)();
 		using GetUInt64Callback = uint64_t(__cdecl*)();
 		using SetFloatCallback = void(__cdecl*)(float);
 		using AssetExistsCallback = int32_t(__cdecl*)(uint64_t);
 		using CopyAssetStringCallback = int32_t(__cdecl*)(uint64_t, char*, int32_t);
-		// Gameplay(v7): Entity 生成 / Prefab / Scene / SetParent(worldPositionStays)
+		// Gameplay v7のEntity生成とPrefabとSceneとSetParentのworldPositionStays
 		using CreateEntityCallback = ManagedNativeEntity(__cdecl*)(const char*, ManagedNativeEntity);
 		using InstantiatePrefabCallback = ManagedNativeEntity(__cdecl*)(uint64_t, ManagedVector3, ManagedQuaternion, int32_t, ManagedNativeEntity);
 		using LoadSceneCallback = uint64_t(__cdecl*)(uint64_t);
 		using UnloadSceneCallback = void(__cdecl*)(uint64_t);
 		using SetParentKeepWorldCallback = void(__cdecl*)(ManagedNativeEntity, ManagedNativeEntity, int32_t);
 		using SceneInstanceAliveCallback = int32_t(__cdecl*)(uint64_t);
-		// Gameplay(v7): raw Input 拡張（多 gamepad / axis / text / focus）
+		// Gameplay v7のraw Input拡張多gamepadとaxisとtextとfocus
 		using GamepadIndexedButtonCallback = int32_t(__cdecl*)(int32_t, int32_t);
 		using GamepadAxisCallback = float(__cdecl*)(int32_t, int32_t);
 		using GamepadConnectedCallback = int32_t(__cdecl*)(int32_t);
 		using CopyTextCallback = int32_t(__cdecl*)(char*, int32_t);
-		// Gameplay(v7): AudioSource gameplay method（entity の AudioSourceComponent を操作）
+		// Gameplay v7のAudioSource gameplay methodでentityのAudioSourceComponentを操作する
 		using EntityActionCallback = void(__cdecl*)(ManagedNativeEntity);
+		// Diagnostics v8のscript callback例外の構造化報告でJSON DTOを1件渡す
+		using ReportStringCallback = void(__cdecl*)(const char*);
 
 		GetDeltaTimeCallback getDeltaTime = nullptr;
 		GetDeltaTimeCallback getFixedDeltaTime = nullptr;
@@ -341,22 +341,22 @@ namespace Engine {
 		GetQuaternionCallback getRotation = nullptr;
 		SetQuaternionCallback setRotation = nullptr;
 		GetVector3Callback getLossyScale = nullptr;
-		// generic component access（compact type id ベース。型名→id は getComponentTypeId で一度だけ解決）
+		// generic component accessでcompact type idベース、型名からidはgetComponentTypeIdで一度だけ解決する
 		GetComponentTypeIdCallback getComponentTypeId = nullptr;
 		HasComponentCallback hasComponent = nullptr;
 		ComponentMutateCallback addComponent = nullptr;
 		ComponentMutateCallback removeComponent = nullptr;
-		// Entity 破棄（WorldCommandBuffer 経由で遅延適用）
+		// Entity破棄でWorldCommandBuffer経由の遅延適用
 		DestroyEntityCallback destroyEntity = nullptr;
-		// ScriptBehaviour.Enabled（owner Entity + scriptSlotID で runtime entry を特定）
+		// ScriptBehaviour.Enabledでowner EntityとscriptSlotIDでruntime entryを特定する
 		GetScriptEnabledCallback getScriptEnabled = nullptr;
 		SetScriptEnabledCallback setScriptEnabled = nullptr;
-		// 自動生成 component binding の typed property access（dispatch は生成コードが実装）
+		// 自動生成component bindingのtyped property accessでdispatchは生成コードが実装する
 		GetComponentPropertyCallback getComponentProperty = nullptr;
 		SetComponentPropertyCallback setComponentProperty = nullptr;
 		GetComponentStringPropertyCallback getComponentStringProperty = nullptr;
 		SetComponentStringPropertyCallback setComponentStringProperty = nullptr;
-		// Gameplay(v7): Time 拡張（scaled/unscaled を分離。getDeltaTime/getFixedDeltaTime は scaled 値を返す）
+		// Gameplay v7のTime拡張でscaledとunscaledを分離、getDeltaTimeとgetFixedDeltaTimeはscaled値を返す
 		GetDeltaTimeCallback getUnscaledDeltaTime = nullptr;
 		GetDeltaTimeCallback getUnscaledFixedDeltaTime = nullptr;
 		GetDoubleCallback getTimeSinceStartup = nullptr;
@@ -364,17 +364,17 @@ namespace Engine {
 		GetDeltaTimeCallback getTimeScale = nullptr;
 		SetFloatCallback setTimeScale = nullptr;
 		GetUInt64Callback getFrameCount = nullptr;
-		// Gameplay(v7): AssetRef runtime resolve（UUID 主体。pointer/path は返さない）
+		// Gameplay v7のAssetRef runtime resolveでUUID主体、pointerやpathは返さない
 		AssetExistsCallback assetExists = nullptr;
 		CopyAssetStringCallback copyAssetDisplayName = nullptr;
-		// Gameplay(v7): Entity 生成 / Prefab / Scene / SetParent(worldPositionStays)
+		// Gameplay v7のEntity生成とPrefabとSceneとSetParentのworldPositionStays
 		CreateEntityCallback createEntity = nullptr;
 		InstantiatePrefabCallback instantiatePrefab = nullptr;
 		LoadSceneCallback loadSceneAdditive = nullptr;
 		UnloadSceneCallback unloadScene = nullptr;
 		SceneInstanceAliveCallback isSceneInstanceAlive = nullptr;
 		SetParentKeepWorldCallback setParentKeepWorld = nullptr;
-		// Gameplay(v7): raw Input 拡張（多 gamepad / axis / text / focus）
+		// Gameplay v7のraw Input拡張多gamepadとaxisとtextとfocus
 		GamepadIndexedButtonCallback getGamepadButtonIndexed = nullptr;
 		GamepadIndexedButtonCallback getGamepadButtonDownIndexed = nullptr;
 		GamepadIndexedButtonCallback getGamepadButtonUpIndexed = nullptr;
@@ -383,23 +383,26 @@ namespace Engine {
 		GetNativeBoolCallback getConnectedGamepadCount = nullptr;
 		GetNativeBoolCallback getHasFocus = nullptr;
 		CopyTextCallback copyTextInput = nullptr;
-		// Gameplay(v7): project root パス（InputActions.json 等の ProjectSettings 解決用）
+		// Gameplay v7のproject rootパスでInputActions.json等のProjectSettings解決用
 		CopyTextCallback copyProjectRoot = nullptr;
-		// Gameplay(v7): AudioSource gameplay method
+		// Gameplay v7のAudioSource gameplay method
 		EntityActionCallback audioPlay = nullptr;
 		EntityActionCallback audioPause = nullptr;
 		EntityActionCallback audioStop = nullptr;
 		GetBoolCallback audioIsPlaying = nullptr;
+		// Diagnostics v8のscript callback例外の構造化報告
+		ReportStringCallback reportScriptException = nullptr;
 	};
 
-	// C#側から受け取る script type のメタdata（Stable GUID 主キー）。固定長ABI
+	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI
 	struct ManagedScriptTypeDescriptor {
 
-		char scriptTypeId[40]{};   // 正規化GUID(36)+null
+		char scriptTypeId[40]{};   // 正規化GUID 36 文字と null
 		char fullTypeName[256]{};
 		char displayName[128]{};
-		char sourcePath[260]{};    // 定義元.csパス（drag&drop source照合用）
-		int32_t hasExplicitId = 0; // [ScriptTypeId]が明示されていたか
+		char sourcePath[260]{};    // 定義元 .cs パスで drag&drop source 照合用
+		int32_t hasExplicitId = 0; // ScriptTypeId 属性が明示されていたか
+		int32_t defaultExecutionOrder = 0; // DefaultExecutionOrder 属性の値で未指定は 0
 	};
 
 	//============================================================================
@@ -413,7 +416,7 @@ namespace Engine {
 	static_assert(std::is_standard_layout_v<ManagedNativeApiTable>);
 	static_assert(std::is_standard_layout_v<ManagedCollisionEvent>);
 	static_assert(std::is_standard_layout_v<ManagedScriptTypeDescriptor>);
-	static_assert(sizeof(ManagedScriptTypeDescriptor) == 40 + 256 + 128 + 260 + 4);
+	static_assert(sizeof(ManagedScriptTypeDescriptor) == 40 + 256 + 128 + 260 + 4 + 4);
 
 	static_assert(sizeof(ManagedWorldHandle) == 8);
 	static_assert(sizeof(ManagedScriptInstanceHandle) == 8);

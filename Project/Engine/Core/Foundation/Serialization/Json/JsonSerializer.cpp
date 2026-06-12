@@ -76,12 +76,12 @@ bool JsonAdapter::Check(const std::string& directoryFilePath, bool assertion) {
 //============================================================================
 
 void JsonAdapter::SetVector2(nlohmann::json& json, const std::string& key, const Vector2& value) {
-	// Vector2を {x, y} オブジェクトとしてセット
+	// Vector2を{x, y}オブジェクトとしてセット
 	json[key] = { {"x", value.x}, {"y", value.y} };
 }
 
 Vector2 JsonAdapter::GetVector2(const nlohmann::json& json, const std::string& key, const Vector2& defaultValue) {
-	// キーが存在し、かつオブジェクト形式であれば値を読み取り。欠落時はデフォルト値を返す
+	// キーが存在しかつオブジェクト形式であれば値を読み取り、欠落時はデフォルト値を返す
 	if (json.contains(key) && json[key].is_object()) {
 		const auto& v = json[key];
 		return Vector2(v.value("x", defaultValue.x), v.value("y", defaultValue.y));
@@ -114,7 +114,7 @@ Vector4 JsonAdapter::GetVector4(const nlohmann::json& json, const std::string& k
 }
 
 void JsonAdapter::SetQuaternion(nlohmann::json& json, const std::string& key, const Quaternion& value) {
-	// クォータニオンを {x, y, z, w} オブジェクトとして保存
+	// クォータニオンを{x, y, z, w}オブジェクトとして保存
 	json[key] = { {"x", value.x}, {"y", value.y}, {"z", value.z}, {"w", value.w} };
 }
 
@@ -127,7 +127,7 @@ Quaternion JsonAdapter::GetQuaternion(const nlohmann::json& json, const std::str
 }
 
 void JsonAdapter::SetColor3(nlohmann::json& json, const std::string& key, const Color3& value) {
-	// Color3を {r, g, b} オブジェクトとしてセット
+	// Color3を{r, g, b}オブジェクトとしてセット
 	json[key] = { {"r", value.r}, {"g", value.g}, {"b", value.b} };
 }
 
@@ -140,7 +140,7 @@ Color3 JsonAdapter::GetColor3(const nlohmann::json& json, const std::string& key
 }
 
 void JsonAdapter::SetColor4(nlohmann::json& json, const std::string& key, const Color4& value) {
-	// Color4を {r, g, b, a} オブジェクトとしてセット
+	// Color4を{r, g, b, a}オブジェクトとしてセット
 	json[key] = { {"r", value.r}, {"g", value.g}, {"b", value.b}, {"a", value.a} };
 }
 

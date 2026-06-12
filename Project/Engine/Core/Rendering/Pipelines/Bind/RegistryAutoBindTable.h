@@ -14,9 +14,9 @@ namespace Engine {
 
 	//============================================================================
 	//	RegistryAutoBindTable class
-	// RenderBufferRegistry の全エントリとパイプラインスロットの対応をキャッシュするクラス
-	//	パイプライン変更時・レジストリエントリ数変化時のみ FindBindingByName を実行し、
-	// 毎フレームは対象エントリへの registry.Find のみで GPU コマンドを直接発行する
+	// RenderBufferRegistryの全エントリとパイプラインスロットの対応をキャッシュするクラス
+	//	パイプライン変更時・レジストリエントリ数変化時のみFindBindingByNameを実行し、
+	// 毎フレームは対象エントリへのregistry.FindのみでGPUコマンドを直接発行する
 	// ComputeおよびGraphicsの両バインドをサポートする
 	//============================================================================
 	class RegistryAutoBindTable {
@@ -27,15 +27,15 @@ namespace Engine {
 		RegistryAutoBindTable() = default;
 		~RegistryAutoBindTable() = default;
 
-		// パイプラインまたはレジストリ構成が変わった時に再解決する（毎フレーム呼ぶ）
-		// registry: スロット名の照合に使う（現フレームの登録が済んでいること）
+		// パイプラインまたはレジストリ構成が変わった時に再解決する毎フレーム呼び出し
+		// registryはスロット名の照合に使い現フレームの登録が済んでいること
 		void Sync(const PipelineState& pipeline, const RenderBufferRegistry& registry);
 
-		// Computeバインドを発行する（毎フレーム呼ぶ）
+		// Computeバインドを発行する毎フレーム呼び出し
 		void BindCompute(const RenderBufferRegistry& registry,
 			ID3D12GraphicsCommandList* commandList) const;
 
-		// Graphicsバインドを発行する（毎フレーム呼ぶ）
+		// Graphicsバインドを発行する毎フレーム呼び出し
 		void BindGraphics(const RenderBufferRegistry& registry,
 			ID3D12GraphicsCommandList* commandList) const;
 
@@ -49,9 +49,9 @@ namespace Engine {
 		// パイプラインにスロットが存在するエントリのキャッシュ
 		struct ResolvedEntry {
 
-			// registry.Find に使うエイリアス名
+			// registry.Findに使うエイリアス名
 			std::string alias;
-			// 各バインド種別のロケーション（存在しない場合は nullptr）
+			// 各バインド種別のロケーションで存在しない場合はnullptr
 			const RootBindingLocation* cbvLocation = nullptr;
 			const RootBindingLocation* srvLocation = nullptr;
 			const RootBindingLocation* uavLocation = nullptr;

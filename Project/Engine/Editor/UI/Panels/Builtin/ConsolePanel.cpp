@@ -163,7 +163,7 @@ namespace {
 		}
 		ImGui::Text("C#処理            : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Script));
 
-		// 描画処理。ホバーでGPUの処理時間(各パス)を表示する
+		// 描画処理でホバーでGPUの処理時間を各パスごとに表示する
 		ImGui::Text("描画処理          : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Draw));
 		if (ImGui::IsItemHovered()) {
 
@@ -173,7 +173,7 @@ namespace {
 				ImGui::Text("GPU合計 : %.3f ms", profiler.GetGpuTotalMs());
 				ImGui::Spacing();
 
-				// パス名と時間を列で揃えて表示する。ビュー接頭辞(Game//Scene/)でグループ分けする
+				// パス名と時間を列で揃えて表示しGame/やScene/のビュー接頭辞でグループ分けする
 				if (ImGui::BeginTable("##GpuPassTimes", 2,
 					ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
 

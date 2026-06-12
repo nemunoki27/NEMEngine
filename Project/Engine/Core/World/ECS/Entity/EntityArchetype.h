@@ -23,11 +23,11 @@ namespace Engine {
 		explicit EntityArchetype(const EntitySignature& signature, const std::vector<uint32_t>& types);
 		~EntityArchetype() = default;
 
-		// 新しいエンティティを追加する。追加したエンティティのチャンク番号と行番号を返す
+		// 新しいエンティティを追加し追加したエンティティのチャンク番号と行番号を返す
 		std::pair<uint32_t, uint32_t> Add(const Entity& entity);
 		// 行だけ確保して、コンポーネントはまだ構築しない
 		std::pair<uint32_t, uint32_t> AddUninitialized(const Entity& entity);
-		// row番目のエンティティを削除する。最後の行と入れ替える。入れ替えたエンティティを返す
+		// row番目のエンティティを削除し最後の行と入れ替えて入れ替えたエンティティを返す
 		Entity RemoveSwap(uint32_t chunkIndex, uint32_t row);
 
 		// 指定コンポーネントだけデフォルト構築する
@@ -71,7 +71,7 @@ namespace Engine {
 		// 次に空きが見つかりやすいチャンク番号
 		uint32_t firstWritableChunkIndex_ = 0;
 
-		// 空きがあるチャンク番号を返す。なければ新しく作る
+		// 空きがあるチャンク番号を返し、なければ新しく作る
 		uint32_t FindWritableChunkIndex();
 	};
 } // Engine

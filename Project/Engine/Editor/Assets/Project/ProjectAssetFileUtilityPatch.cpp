@@ -13,22 +13,22 @@
 namespace Engine {
 
 	void ProjectAssetFileUtility::PatchJsonAssetName(const std::filesystem::path& path, AssetType type, bool resetGuid) {
-		// 対象がJSONベースのアセット（Scene/Prefab/Material等）でなければスキップ
+		// 対象がScene/Prefab/Material等のJSONベースのアセットでなければスキップ
 		if (type != AssetType::Scene && type != AssetType::Prefab && type != AssetType::Material &&
 			type != AssetType::AnimationClip && type != AssetType::Shader && type != AssetType::RenderPipeline) {
 			return;
 		}
-		// 拡張子がJSONでなければ処理しない（バイナリアセット除外）
+		// 拡張子がJSONでなければバイナリアセット除外として処理しない
 		if (Engine::Algorithm::ToLower(path.extension().string()) != ".json") { return; }
 
-		// JSONデータを読み込む。失敗した場合は中断
+		// JSONデータを読み込み失敗した場合は中断
 		nlohmann::json data = Engine::JsonAdapter::Load(path.string(), false);
 		if (!data.is_object()) { return; }
 
-		// 新しいアセット名（ファイル名から拡張子を除いたもの）を取得
+		// ファイル名から拡張子を除いた新しいアセット名を取得
 		const std::string assetName = SplitAssetFileName(path).first;
 		
-		// 種類に応じてデータ内部の名前フィールドを更新。GUIDのリセット指定があれば空にする（重複作成用）
+		// 種類に応じてデータ内部の名前フィールドを更新し、重複作成用にGUIDのリセット指定があれば空にする
 		if (type == AssetType::Scene || type == AssetType::Prefab) {
 			nlohmann::json& header = data["Header"];
 			if (!header.is_object()) { header = nlohmann::json::object(); }
@@ -49,7 +49,7 @@ namespace Engine {
 	}
 
 	void ProjectAssetFileUtility::PatchRenamedJsonAsset(const std::filesystem::path& path, AssetType type) {
-		// リネームされたアセットの名前のみを更新。GUIDは維持
+		// リネームされたアセットの名前のみを更新しGUIDは維持
 		PatchJsonAssetName(path, type, false);
 	}
 
@@ -83,7 +83,7 @@ namespace Engine {
 
 	std::vector<std::filesystem::path> ProjectAssetFileUtility::BuildAssetSidecarPaths(const ProjectAssetEntry& asset, const std::filesystem::path& assetPath) {
 		std::vector<std::filesystem::path> result;
-		// アセット本体に随行するファイル（.meta等）のパスリストを作成。削除や移動の際に一括処理するために使用
+		// アセット本体に随行する.meta等のパスリストを作成し削除や移動の際に一括処理するために使用
 		result.emplace_back(MakeMetaPath(assetPath));
 		for (const std::string& sidecar : asset.sidecarFiles) { 
 			result.emplace_back(assetPath.parent_path() / sidecar); 

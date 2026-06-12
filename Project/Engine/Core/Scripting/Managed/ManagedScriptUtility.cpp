@@ -24,7 +24,7 @@ namespace Engine {
 		const ManagedWorldHandle handle = ManagedWorldRegistry::GetInstance().TryGetHandle(world);
 		if (handle.index == 0xFFFFFFFF) {
 
-			// 未登録worldを暗黙登録して隠さない。登録漏れはdebugで検出し、nullハンドルを返す
+			// 未登録worldを暗黙登録して隠さない、登録漏れはdebugで検出しnullハンドルを返す
 #if defined(_DEBUG)
 			Assert::Call(false, "MakeNativeEntity: ECSWorld is not registered in ManagedWorldRegistry");
 #endif

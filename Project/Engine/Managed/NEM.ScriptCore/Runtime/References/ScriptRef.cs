@@ -2,7 +2,7 @@ namespace NEMEngine;
 
 // 別 Entity 上の ScriptBehaviour への authoring 参照。
 // runtime の managed instance handle / compact type ID は保存しない。
-// owner EntityRef + scriptSlotId（06 で導入した同 type 複数 attach 識別子）+ 期待 script 型 GUID を保持する。
+// owner EntityRef + scriptSlotId（同 type 複数 attach の識別子）+ 期待 script 型 GUID を保持する。
 // Missing Script でも参照 identity を保持し、reload 後に再解決できる。
 public readonly struct ScriptRef<T> where T : ScriptBehaviour {
 

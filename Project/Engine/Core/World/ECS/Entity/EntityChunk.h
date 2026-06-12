@@ -62,7 +62,7 @@ namespace Engine {
 
 	//============================================================================
 	//	EntityChunk class
-	//	エンティティの塊。Archetypeが持つコンポーネント種類の列を持ち、同じArchetypeのエンティティをまとめて保持する
+	//	エンティティの塊でArchetypeが持つコンポーネント種類の列を持ち同じArchetypeのエンティティをまとめて保持する
 	//============================================================================
 	class EntityChunk {
 	public:
@@ -76,7 +76,7 @@ namespace Engine {
 		uint32_t AddEntity(const Entity& entity);
 		// 行だけ確保して、コンポーネントはまだ構築しない
 		uint32_t AddEntityUninitialized(const Entity& entity);
-		// row番目のエンティティを削除する。最後の行と入れ替える。入れ替えたエンティティを返す
+		// row番目のエンティティを削除し最後の行と入れ替えて入れ替えたエンティティを返す
 		Entity RemoveSwap(uint32_t row);
 
 		// 指定列だけデフォルト構築する
@@ -100,7 +100,7 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// 列の配列。列はArchetypeが持つコンポーネント種類の順で並ぶ
+		// 列の配列で列はArchetypeが持つコンポーネント種類の順で並ぶ
 		std::vector<EntityColumn> columns_;
 		// 同じArchetypeのエンティティをまとめて保持する配列
 		std::vector<Entity> entities_;
