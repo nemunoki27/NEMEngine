@@ -83,6 +83,13 @@ public abstract class ScriptBehaviour {
     protected T GetInParent<T>() where T : struct, IComponentRef<T> => owner.GetInParent<T>();
     protected List<T> GetAllInChildren<T>() where T : struct, IComponentRef<T> => owner.GetAllInChildren<T>();
 
+    // 同 Entity 上の C# スクリプトを型で取得する（Unity の GetComponent<Script> 相当・owner Entity への委譲）
+    protected T? GetComponent<T>() where T : ScriptBehaviour => owner.GetComponent<T>();
+    protected bool TryGetComponent<T>(out T script) where T : ScriptBehaviour => owner.TryGetComponent(out script);
+    // 自身か子孫 / 祖先から script を辿って取得する（owner Entity への委譲）
+    protected T? GetComponentInChildren<T>() where T : ScriptBehaviour => owner.GetComponentInChildren<T>();
+    protected T? GetComponentInParent<T>() where T : ScriptBehaviour => owner.GetComponentInParent<T>();
+
     // 指定 Entity を破棄する（WorldCommandBuffer 経由で遅延）
     protected void Destroy(Entity entity) => entity.Destroy();
     // 自分の owner Entity を破棄する

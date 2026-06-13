@@ -536,6 +536,17 @@ public static unsafe class HostBridge {
         return new NativeScriptInstanceHandle((uint)(slots.Count - 1), slot.generation);
     }
 
+    // 同 Entity 上の T 型スクリプト instance を引く（Entity.GetComponent<T> / ScriptBehaviour.GetComponent<T> から呼ぶ）。
+    // 型 -> Stable GUID を解決し、native registry から handle を引いて managed instance へ戻す。未解決は null。
+    internal static T? FindScript<T>(NativeEntity owner) where T : ScriptBehaviour {
+
+        if (!typeToEntry.TryGetValue(typeof(T), out ScriptTypeEntry? entry)) {
+            return null;
+        }
+        NativeScriptInstanceHandle handle = NativeApi.FindScriptInstance(owner, entry.scriptTypeId);
+        return TryResolveSlot(handle, out ScriptBehaviour script) ? script as T : null;
+    }
+
     // handleからinstanceをO(1)で解決する。範囲・retired・inUse・instance・generationを全て検証する
     private static bool TryResolveSlot(NativeScriptInstanceHandle handle, out ScriptBehaviour script) {
 

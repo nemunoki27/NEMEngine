@@ -149,7 +149,8 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPlatform& graphicsPlatform,
 	RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, PipelineVariantKind desiredKind,
 	std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
-	const GraphicsRuntimeFeatures& runtimeFeatures) {
+	const GraphicsRuntimeFeatures& runtimeFeatures,
+	const PipelineVariantDesc** outVariant) {
 
 	// アセットライブラリからパイプラインアセットをロード
 	const RenderPipelineAsset* pipelineAsset = assetLibrary.LoadPipeline(pipelineAssetID);
@@ -162,6 +163,10 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	const PipelineVariantDesc* variant = ResolveBestVariant(*pipelineAsset, desiredKind, runtimeFeatures);
 	if (!variant) {
 		return nullptr;
+	}
+	// 呼び出し側が同じロードとバリアント解決を繰り返さずに済むよう、解決済みバリアントを返す
+	if (outVariant) {
+		*outVariant = variant;
 	}
 
 	// キャッシュキーを構築して、キャッシュに存在するか確認する

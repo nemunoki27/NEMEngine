@@ -37,8 +37,25 @@ void DxCommand::UpdateFixFPS() {
 
 	// 目標時間よりわずかに短い時間しか経っていない場合
 	if (elapsed < minCheckTime) {
-		// 目標時間が経過するまで微小なスリープを繰り返す
-		auto waitUntil = reference_ + minTime;
+
+		const auto waitUntil = reference_ + minTime;
+		// 最後のspin余白より前は高解像度sleepでCPUを使わずに待つ
+		const auto spinMargin = std::chrono::microseconds(1500);
+		const auto sleepUntil = waitUntil - spinMargin;
+
+		const auto sleepFrom = std::chrono::steady_clock::now();
+		if (frameTimer_ && sleepFrom < sleepUntil) {
+
+			// 相対指定は100ns単位の負値で渡す
+			const auto sleepDuration = sleepUntil - sleepFrom;
+			LARGE_INTEGER due{};
+			due.QuadPart = -(std::chrono::duration_cast<std::chrono::nanoseconds>(sleepDuration).count() / 100);
+			if (SetWaitableTimer(frameTimer_, &due, 0, nullptr, nullptr, FALSE)) {
+				WaitForSingleObject(frameTimer_, INFINITE);
+			}
+		}
+
+		// 残りの余白はyieldで詰めて目標時刻まで待つ
 		while (std::chrono::steady_clock::now() < waitUntil) {
 			std::this_thread::yield();
 		}
@@ -61,6 +78,12 @@ void DxCommand::Create(ID3D12Device* device) {
 	// FenceのSignalを待つためのイベントの作成する
 	fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
 	assert(fenceEvent_ != nullptr);
+
+	// FPS待機用の高解像度waitableタイマーを作成する、非対応環境では通常精度へ落ちさらに失敗時はspinへフォールバックする
+	frameTimer_ = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+	if (!frameTimer_) {
+		frameTimer_ = CreateWaitableTimerExW(nullptr, nullptr, 0, TIMER_ALL_ACCESS);
+	}
 
 	commandQueue_ = nullptr;
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
@@ -121,7 +144,6 @@ void DxCommand::FenceEvent() {
 		Assert::Call(false, "Graphics queue Signal failed.");
 		return;
 	}
-
 	// GPU完了待ちでCPUがブロックした時間を計測する、DX12のフレームコンテキスト多重化検討の判断材料
 	const std::chrono::high_resolution_clock::time_point waitStart = std::chrono::high_resolution_clock::now();
 
@@ -177,7 +199,6 @@ void DxCommand::WaitForGPU() {
 	if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), signalResult, "DxCommand::WaitForGPU/Signal")) {
 		Assert::Call(false, "Graphics queue Signal failed.");
 	}
-
 	// Fenceの値が指定したSignal値にたどり着いているか確認する
 	if (fence_->GetCompletedValue() < fenceValue_) {
 
@@ -224,6 +245,10 @@ void DxCommand::Finalize(HWND hwnd) {
 	if (fenceEvent_) {
 		CloseHandle(fenceEvent_);
 		fenceEvent_ = nullptr;
+	}
+	if (frameTimer_) {
+		CloseHandle(frameTimer_);
+		frameTimer_ = nullptr;
 	}
 	device_.Reset();
 	CloseWindow(hwnd);
@@ -338,6 +363,20 @@ void DxCommand::SetViewportAndScissor(uint32_t x, uint32_t y, uint32_t width, ui
 	commandList_->RSSetScissorRects(1, &scissorRect);
 }
 
+void DxCommand::TransitionBarriers(ID3D12Resource* resource,
+	D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter) {
+
+	// 単一リソースは一時vectorを作らずスタック上のバリア1つで遷移する
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = resource;
+	barrier.Transition.StateBefore = stateBefore;
+	barrier.Transition.StateAfter = stateAfter;
+
+	commandList_->ResourceBarrier(1, &barrier);
+}
+
 void DxCommand::TransitionBarriers(const std::vector<ID3D12Resource*>& resources,
 	D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter) {
 
@@ -383,12 +422,12 @@ void DxCommand::CopyTexture(ID3D12Resource* dstResource, D3D12_RESOURCE_STATES d
 	ID3D12Resource* srcResource, D3D12_RESOURCE_STATES srcState) {
 
 	// 状態遷移
-	TransitionBarriers({ srcResource }, srcState, D3D12_RESOURCE_STATE_COPY_SOURCE);
-	TransitionBarriers({ dstResource }, dstState, D3D12_RESOURCE_STATE_COPY_DEST);
+	TransitionBarriers(srcResource, srcState, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	TransitionBarriers(dstResource, dstState, D3D12_RESOURCE_STATE_COPY_DEST);
 
 	commandList_->CopyResource(dstResource, srcResource);
 
 	// 元の状態に戻す
-	TransitionBarriers({ srcResource }, D3D12_RESOURCE_STATE_COPY_SOURCE, srcState);
-	TransitionBarriers({ dstResource }, D3D12_RESOURCE_STATE_COPY_DEST, dstState);
+	TransitionBarriers(srcResource, D3D12_RESOURCE_STATE_COPY_SOURCE, srcState);
+	TransitionBarriers(dstResource, D3D12_RESOURCE_STATE_COPY_DEST, dstState);
 }

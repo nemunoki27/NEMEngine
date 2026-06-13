@@ -173,6 +173,9 @@ namespace Engine {
 		ProjectAssetFileResult pendingFileOperationResult_{};
 		// ファイル操作後の再構築が保留されているか
 		bool hasPendingFileOperationRefresh_ = false;
+		// Ctrl+C/Ctrl+Vのコピペで控えるアセットの内部クリップボード
+		ProjectAssetEntry copiedAsset_{};
+		bool hasCopiedAsset_ = false;
 
 		//--------- functions ----------------------------------------------------
 

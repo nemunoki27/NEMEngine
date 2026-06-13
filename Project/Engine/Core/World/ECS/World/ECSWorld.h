@@ -151,6 +151,17 @@ namespace Engine {
 		// 空のArchetypeでコンポーネントを持たないエンティティはここにまとめる
 		EntityArchetype* emptyArchetype_ = nullptr;
 
+		// クエリsignatureごとにマッチするarchetypeをキャッシュする計画
+		struct ArchetypeMatchPlan {
+
+			std::vector<EntityArchetype*> archetypes;
+			uint32_t builtArchetypeVersion = 0xFFFFFFFFu;
+		};
+		// クエリsignatureからマッチするarchetype一覧を引くキャッシュ
+		std::unordered_map<EntitySignature, ArchetypeMatchPlan, EntitySignatureHash> matchPlans_;
+		// archetypeが増えるたびに進むversionでmatchPlans_の無効化に使う
+		uint32_t archetypeVersion_ = 0;
+
 		//--------- functions ----------------------------------------------------
 
 		// 新しいエンティティIDを割り当てる
@@ -242,15 +253,26 @@ namespace Engine {
 			required.Set(typeID);
 		}
 
+		// signatureにマッチするarchetype一覧をキャッシュし、毎回の全archetype走査を避ける
+		ArchetypeMatchPlan& plan = matchPlans_[required];
+		if (plan.builtArchetypeVersion != archetypeVersion_) {
+
+			// archetypeが増えた時だけ作り直す、archetypeは破棄されないのでpointerは有効なまま
+			plan.archetypes.clear();
+			for (auto& [signature, archPtr] : archetypes_) {
+
+				EntityArchetype* archetype = archPtr.get();
+				// シグネチャが必要なコンポーネントを全て含んでいるか
+				if (archetype->GetSignature().Contains(required)) {
+					plan.archetypes.emplace_back(archetype);
+				}
+			}
+			plan.builtArchetypeVersion = archetypeVersion_;
+		}
+
 		// 関数を同一実体のまま全チャンクで再利用する
 		Fn& fnRef = fn;
-		for (auto& [signature, archPtr] : archetypes_) {
-
-			EntityArchetype* archetype = archPtr.get();
-			// シグネチャが必要なコンポーネントを全て含んでいるか
-			if (!archetype->GetSignature().Contains(required)) {
-				continue;
-			}
+		for (EntityArchetype* archetype : plan.archetypes) {
 
 			// このArchetypeに対する列番号を一度だけ解決する
 			const std::array<uint32_t, sizeof...(T)> columnIndices = ResolveColumnIndices(

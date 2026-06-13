@@ -56,6 +56,9 @@ namespace Engine {
 
 		// C#側callbackで例外が発生し、faulted状態になったか
 		bool IsFaulted() const override { return faulted_; }
+
+		// GetComponent<Script>でC#側インスタンスを引くためのhandleを返す、未生成はNull
+		ManagedScriptInstanceHandle GetManagedHandle() const { return managedHandle_; }
 	private:
 		//============================================================================
 		//	private Methods

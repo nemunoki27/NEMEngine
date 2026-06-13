@@ -108,8 +108,25 @@ void Engine::EnsureSceneCollisionSettings(SceneHeader& sceneHeader, const std::s
 
 std::string Engine::MakeDefaultPostProcessStackPath(const std::string& scenePath) {
 
-	const std::filesystem::path relativeSource = MakeCollisionRelativeSource(scenePath);
-	std::filesystem::path stackPath = kPostProcessStackRoot;
+	// シーンが置かれているベース(GameAssets / Engine/Assets)を判定し、そのベース直下のPostProcessへ置く
+	std::string assetPath = RuntimePaths::ToAssetPath(scenePath);
+	if (assetPath.empty()) {
+		assetPath = std::filesystem::path(scenePath).filename().generic_string();
+	}
+
+	std::string root = kPostProcessStackRoot;
+	std::filesystem::path relativeSource;
+	if (std::string gameRelative = StripScenesPrefix(assetPath, "GameAssets/Scenes"); !gameRelative.empty()) {
+		root = "GameAssets/PostProcess";
+		relativeSource = gameRelative;
+	} else if (std::string engineRelative = StripScenesPrefix(assetPath, "Engine/Assets/Scenes"); !engineRelative.empty()) {
+		root = "Engine/Assets/PostProcess";
+		relativeSource = engineRelative;
+	} else {
+		relativeSource = std::filesystem::path(assetPath).filename();
+	}
+
+	std::filesystem::path stackPath = root;
 	if (relativeSource.has_parent_path()) {
 		stackPath /= relativeSource.parent_path();
 	}

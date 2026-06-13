@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace Engine {
@@ -146,6 +147,8 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::vector<Command> commands_;
+		// 予約Entityからpending CreateEntity / InstantiatePrefabコマンドのindexを引くmapで線形走査を避ける
+		std::unordered_map<uint64_t, size_t> createCommandIndex_;
 		// Flush再入を防ぐ
 		bool flushing_ = false;
 		// 1回のFlushで許容する最大batch数でコマンドが自分自身を再生産し続ける無限ループを防ぐ
@@ -155,6 +158,8 @@ namespace Engine {
 
 		// 1コマンドを適用する、適用前にentity/worldを再検証する
 		void Apply(ECSWorld& world, const Command& command);
+		// 予約Entityをmapキーへ変換する
+		static uint64_t EntityKey(const Entity& entity) { return (static_cast<uint64_t>(entity.index) << 32) | entity.generation; }
 		// 予約Entityを対象にするpending CreateEntity / InstantiatePrefabコマンドを探す
 		Command* FindPendingCreateCommand(const Entity& reserved);
 		const Command* FindPendingCreateCommand(const Entity& reserved) const;

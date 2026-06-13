@@ -51,6 +51,9 @@ namespace Engine {
 		static int32_t GetScriptEnabled(const Entity& owner, const UUID& scriptSlotID);
 		static void SetScriptEnabled(const Entity& owner, const UUID& scriptSlotID, bool enabled);
 
+		// GetComponent<Script>用にowner Entity上でscriptTypeId一致のscript instanceを返す、未解決はnullptr
+		static MonoBehavior* FindScriptInstance(const Entity& owner, const std::string& scriptTypeId);
+
 		// participant cacheを再ソート
 		static void InvalidateExecutionOrder();
 

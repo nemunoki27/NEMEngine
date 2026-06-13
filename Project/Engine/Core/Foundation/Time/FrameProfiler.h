@@ -31,6 +31,7 @@ namespace Engine {
 			Script,  // C#スクリプトの処理
 			Draw,    // 描画処理
 			GpuWait, // GPU完了待ちでCPUがブロックした時間
+			MeshBatchUpload, // Meshバッチデータ構築とGPU転送のCPUコストでstaticキャッシュMISSやSkinned/Billboardで走る
 			Count
 		};
 

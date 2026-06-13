@@ -40,6 +40,16 @@ if errorlevel 1 (
     exit /b 1
 )
 
+echo ===== Verify ABI Table =====
+rem C++ ManagedNativeApiTable と C# NativeApiTable の関数ポインタ列の数と並びが一致するか検査する。
+rem 手動ミラーの drift を build 前に失敗させる。
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0verify_abi_table.ps1" -NativeHeader "%ENGINE_ROOT%\Project\Engine\Core\Scripting\Managed\ManagedScriptTypes.h" -CsFile "%ENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\Runtime\NativeApi.cs"
+if errorlevel 1 (
+    echo [ERROR] ABI table verify failed.
+    popd
+    exit /b 1
+)
+
 echo ===== Cleanup Old Project Files =====
 if exist "%ENGINE_ROOT%\Project\NEMEngine.sln" del /q "%ENGINE_ROOT%\Project\NEMEngine.sln"
 if exist "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj" del /q "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj"

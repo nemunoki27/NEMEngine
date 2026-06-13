@@ -345,5 +345,7 @@ EntityArchetype* ECSWorld::GetOrCreateArchetype(const EntitySignature& signature
 	auto archetype = std::make_unique<EntityArchetype>(signature, std::move(types));
 	EntityArchetype* raw = archetype.get();
 	archetypes_.emplace(signature, std::move(archetype));
+	// archetypeが増えたのでForEachのmatchPlanを無効化するためversionを進める
+	++archetypeVersion_;
 	return raw;
 }

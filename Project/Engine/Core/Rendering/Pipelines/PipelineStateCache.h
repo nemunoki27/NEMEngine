@@ -54,10 +54,12 @@ namespace Engine {
 		const PipelineState* GetORCreate(GraphicsPlatform& graphicsPlatform,
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, PipelineVariantKind desiredKind,
 			std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat);
+		// outVariantを渡すと内部で解決したバリアントを受け取れ、呼び出し側の二重解決を避けられる
 		const PipelineState* GetORCreate(GraphicsPlatform& graphicsPlatform,
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, PipelineVariantKind desiredKind,
 			std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
-			const GraphicsRuntimeFeatures& runtimeFeatures);
+			const GraphicsRuntimeFeatures& runtimeFeatures,
+			const PipelineVariantDesc** outVariant = nullptr);
 
 		// データクリア
 		void Clear();

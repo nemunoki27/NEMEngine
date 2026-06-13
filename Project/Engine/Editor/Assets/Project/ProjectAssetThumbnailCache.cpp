@@ -66,6 +66,11 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	defaultIcons_[AssetType::AnimationClip].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "animationClip.dds");
 	defaultIcons_[AssetType::Unknown].textureKey = "unknown.dds";
 	defaultIcons_[AssetType::Unknown].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "unknown.dds");
+	// シーンごとの設定ファイルは専用型なので.exeConfigと同じ歯車アイコンを型単位で割り当てる
+	defaultIcons_[AssetType::CollisionSettings].textureKey = "exeConfig.png";
+	defaultIcons_[AssetType::CollisionSettings].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
+	defaultIcons_[AssetType::PostProcessStack].textureKey = "exeConfig.png";
+	defaultIcons_[AssetType::PostProcessStack].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
 
 	customExtensionIcons_[".exeConfig.json"].textureKey = "exeConfig.png";
 	customExtensionIcons_[".exeConfig.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");

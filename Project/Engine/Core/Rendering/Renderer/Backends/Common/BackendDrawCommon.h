@@ -44,9 +44,9 @@ namespace Engine::BackendDrawCommon {
 		DefaultMaterialSlot defaultSlot, const std::initializer_list<MaterialPassKind>& passKinds,
 		ResolvedMaterialPass& outResolved);
 
-	// パイプラインを取得
+	// パイプラインを取得、outVariantを渡すと解決済みバリアントも受け取れる
 	const PipelineState* ResolveGraphicsPipeline(const RenderDrawContext& context,
-		const MaterialPassBinding& passBinding);
+		const MaterialPassBinding& passBinding, const PipelineVariantDesc** outVariant = nullptr);
 
 	// パイプラインをセットアップしてコマンドリストを取得
 	ID3D12GraphicsCommandList6* SetupGraphicsPipeline(const RenderDrawContext& context,

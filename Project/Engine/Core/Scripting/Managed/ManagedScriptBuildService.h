@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Scripting/Managed/ManagedProcessRunner.h>
+#include <Engine/Core/Scripting/Managed/ManagedSourceWatcher.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedAlcStatus.h>
 
 // c++
@@ -198,6 +199,9 @@ namespace Engine {
 		bool playDirtyNotified_ = false;
 		std::chrono::steady_clock::time_point lastChangeTime_{};
 		std::chrono::steady_clock::time_point nextScanTime_{};
+		// source変更をReadDirectoryChangesWで監視するwatcherと現在の監視ルート
+		ManagedSourceWatcher watcher_;
+		std::filesystem::path watchedRoot_;
 
 		// 現在のサイクル
 		uint64_t buildCounter_ = 0;
@@ -229,7 +233,8 @@ namespace Engine {
 
 		// 設定値、Editorの設定UIから変更できる拡張点
 		std::chrono::milliseconds debounce_{ 400 };
-		std::chrono::milliseconds scanInterval_{ 250 };
+		// watcherが取りこぼした変更を拾う安全scanの間隔で即時検知はwatcherが行う
+		std::chrono::milliseconds scanInterval_{ 5000 };
 		int32_t maxRetainedDirectories_ = 3;
 	};
 } // Engine

@@ -9,7 +9,6 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
-#include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
@@ -418,20 +417,11 @@ bool Engine::MeshRenderBackend::PrepareBatch(const RenderDrawContext& context,
 		return false;
 	}
 
-	// パイプラインアセットのロード
-	const RenderPipelineAsset* pipelineAsset = context.assetLibrary->LoadPipeline(resolvedPass.pass->pipeline);
-	if (!pipelineAsset) {
+	// パイプライン取得と同時に解決済みバリアントを受け取り、パイプラインアセットの再ロードとバリアント再解決を避ける
+	outPrepared.pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass, &outPrepared.variant);
+	if (!outPrepared.pipelineState) {
 		return false;
 	}
-
-	// ランタイムの機能情報に応じたパイプラインバリアントを取得
-	const PipelineVariantKind desiredKind = context.forceVertexMeshVariant ?
-		PipelineVariantKind::GraphicsVertex :
-		resolvedPass.pass->preferredVariant;
-	outPrepared.variant = ResolveBestVariant(*pipelineAsset, desiredKind, context.runtimeFeatures);
-
-	// パイプライン取得
-	outPrepared.pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass);
 	return true;
 }
 
@@ -619,10 +609,10 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 	}
 
 	// UAV書き込みへ遷移
-	dxCommand->TransitionBarriers({ output }, prepared.resources->GetSkinnedVertexState(),
+	dxCommand->TransitionBarriers(output, prepared.resources->GetSkinnedVertexState(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	prepared.resources->SetSkinnedVertexState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	dxCommand->TransitionBarriers({ packedOutput }, prepared.resources->GetSkinnedPackedVertexState(),
+	dxCommand->TransitionBarriers(packedOutput, prepared.resources->GetSkinnedPackedVertexState(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	prepared.resources->SetSkinnedPackedVertexState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -674,8 +664,8 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
 	// スキニング結果をシェーダーリソースとして使用できるように遷移
-	dxCommand->TransitionBarriers({ output }, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, readState);
-	dxCommand->TransitionBarriers({ packedOutput }, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, readState);
+	dxCommand->TransitionBarriers(output, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, readState);
+	dxCommand->TransitionBarriers(packedOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, readState);
 
 	// スキニング結果のリソース状態を更新して、スキニング処理をディスパッチしたことをセットする
 	prepared.resources->SetSkinnedVertexState(readState);

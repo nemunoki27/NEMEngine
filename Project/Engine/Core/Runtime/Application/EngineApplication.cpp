@@ -298,6 +298,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		const bool advancePlayTime = ShouldAdvanceActiveWorld() && systemContext_.mode == WorldMode::Play;
 		const float rawDelta = ShouldAdvanceActiveWorld() ? deltaTime : 0.0f;
 		systemContext_.deltaTime = ManagedScriptRuntime::AdvanceTime(rawDelta, systemContext_.fixedDeltaTime, advancePlayTime);
+		// Editでもプレビュー再生が進むようTimeScale非適用のリアルdeltaを渡す、scaled deltaTimeはPlay時のみ非ゼロになる
+		systemContext_.unscaledDeltaTime = rawDelta;
 	}
 
 	ECSWorld* world = GetActiveWorld();

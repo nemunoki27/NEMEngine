@@ -70,6 +70,9 @@ namespace Engine {
 			const std::string& directoryVirtualPath, ProjectAssetFileKind kind, const std::string& requestedName);
 		// 指定アセットを同じディレクトリに複製する
 		static ProjectAssetFileResult DuplicateAsset(const ProjectAssetEntry& asset);
+		// 指定アセットを別ディレクトリへコピーする、コピペ操作で使う
+		static ProjectAssetFileResult CopyAsset(const ProjectAssetEntry& asset, ProjectAssetSource targetSource,
+			const std::string& targetDirectoryVirtualPath);
 		// 指定アセットの保護サフィックスより前の名前を変更する
 		static ProjectAssetFileResult RenameAsset(const ProjectAssetEntry& asset, const std::string& requestedName);
 		// 指定ディレクトリを同じ階層に複製する

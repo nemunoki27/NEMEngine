@@ -1,0 +1,14 @@
+{
+    "domain": "Compute",
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "blurHorizontalMaterial",
+    "parameters": {},
+    "passes": [
+        {
+            "passKind": "PostProcess",
+            "pipeline": "e02c06bd60fac4e3",
+            "preferredVariant": "Compute"
+        }
+    ]
+}

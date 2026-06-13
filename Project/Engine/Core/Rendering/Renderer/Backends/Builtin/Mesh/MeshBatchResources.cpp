@@ -16,6 +16,7 @@
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 
 // c++
 #include <unordered_map>
@@ -265,6 +266,9 @@ void Engine::MeshBatchResources::UpdateView(const ResolvedRenderView& view, cons
 
 void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawContext,
 	const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh) {
+
+	// staticキャッシュMISS時やSkinned/Billboardで毎フレーム走るバッチ構築のCPUコストを計測する
+	FrameProfiler::ScopedSample profileSample(FrameProfiler::Category::MeshBatchUpload);
 
 	// データクリア
 	meshScratch_.clear();

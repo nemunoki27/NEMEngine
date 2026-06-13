@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Systems/Core/ISystem.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 
 namespace Engine {
 
@@ -64,6 +65,13 @@ namespace Engine {
 		float fixedDeltaTime_ = 1.0f / 60.0f;
 		// 固定更新のための時間の蓄積
 		float accumulator_ = 0.0f;
+
+		// システム追加後に並び替えが必要かのフラグ
+		bool needsSort_ = false;
+
+		// 毎フレーム使い回すシステム計測用の一時バッファ
+		std::vector<float> systemMsScratch_;
+		std::vector<FrameProfiler::NamedTime> systemTimesScratch_;
 
 		//--------- functions ----------------------------------------------------
 

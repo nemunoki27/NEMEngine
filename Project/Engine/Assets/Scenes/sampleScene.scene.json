@@ -412,13 +412,13 @@
                     "localPos": {
                         "x": 0.6499999761581421,
                         "y": 6.130000114440918,
-                        "z": 10.1899995803833
+                        "z": 11.800000190734863
                     },
                     "localRotation": {
-                        "w": 0.07396716624498367,
-                        "x": 0.012274716049432755,
-                        "y": 0.9837310314178467,
-                        "z": -0.1632525622844696
+                        "w": 0.07402002811431885,
+                        "x": 0.011951740831136703,
+                        "y": 0.9844340085983276,
+                        "z": -0.15895870327949524
                     },
                     "localScale": {
                         "x": 1.000002384185791,
@@ -5953,6 +5953,3247 @@
                 }
             },
             "LocalFileID": "de85ad1bbc894382"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "",
+                    "mesh": "e47a4288c75eeaa5",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-0",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": -0.09139229357242584,
+                                "z": 1.2521839141845703
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "specularTexture": "",
+                            "stableID": "14caa798bf077be4",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-1",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.22885748744010925,
+                                "y": 0.061051834374666214,
+                                "z": 1.3795480728149414
+                            },
+                            "sourceSubMeshIndex": 1,
+                            "specularTexture": "",
+                            "stableID": "a27d78f0fb844e99",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-2",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -1.1102885007858276,
+                                "y": 0.010122809559106827,
+                                "z": 1.372154951095581
+                            },
+                            "sourceSubMeshIndex": 2,
+                            "specularTexture": "",
+                            "stableID": "10cd7e7076fa65a4",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-3",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": -0.01391109824180603,
+                                "z": 0.5085383653640747
+                            },
+                            "sourceSubMeshIndex": 3,
+                            "specularTexture": "",
+                            "stableID": "67cc17e2a87d32eb",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-4",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": -0.0794488787651062,
+                                "z": 0.04526832699775696
+                            },
+                            "sourceSubMeshIndex": 4,
+                            "specularTexture": "",
+                            "stableID": "046152f1f407c8be",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-5",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.033662665635347366,
+                                "z": 0.5124449729919434
+                            },
+                            "sourceSubMeshIndex": 5,
+                            "specularTexture": "",
+                            "stableID": "cc24d247573b700d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-6",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": -0.00024523958563804626,
+                                "z": 0.8809115886688232
+                            },
+                            "sourceSubMeshIndex": 6,
+                            "specularTexture": "",
+                            "stableID": "547987d4d40962a5",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-7",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.028681643307209015,
+                                "z": 0.47372373938560486
+                            },
+                            "sourceSubMeshIndex": 7,
+                            "specularTexture": "",
+                            "stableID": "418ca78c81afa55a",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-8",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0005992315709590912,
+                                "z": 0.6692005395889282
+                            },
+                            "sourceSubMeshIndex": 8,
+                            "specularTexture": "",
+                            "stableID": "4067719a6a782971",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-9",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": -0.07141003757715225,
+                                "z": 0.6861154437065125
+                            },
+                            "sourceSubMeshIndex": 9,
+                            "specularTexture": "",
+                            "stableID": "2ae8e21b8e236f6c",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-10",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.01780637353658676,
+                                "z": 0.8063088059425354
+                            },
+                            "sourceSubMeshIndex": 10,
+                            "specularTexture": "",
+                            "stableID": "e0ff37564fefcea6",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-11",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.23730964958667755,
+                                "y": -0.022383302450180054,
+                                "z": 1.2730566263198853
+                            },
+                            "sourceSubMeshIndex": 11,
+                            "specularTexture": "",
+                            "stableID": "e8dd0f7d1e15d981",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-12",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.04246184229850769,
+                                "z": 0.58100825548172
+                            },
+                            "sourceSubMeshIndex": 12,
+                            "specularTexture": "",
+                            "stableID": "e2ce612c4cb970f0",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-13",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.07022316753864288,
+                                "z": 0.5350960493087769
+                            },
+                            "sourceSubMeshIndex": 13,
+                            "specularTexture": "",
+                            "stableID": "dd130422758147ab",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-14",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.033531367778778076,
+                                "z": 0.5765383243560791
+                            },
+                            "sourceSubMeshIndex": 14,
+                            "specularTexture": "",
+                            "stableID": "4d2e16e0178623ae",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-15",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": -0.0803867056965828,
+                                "z": 0.47919291257858276
+                            },
+                            "sourceSubMeshIndex": 15,
+                            "specularTexture": "",
+                            "stableID": "c33548012fdd8bac",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-16",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0850163996219635,
+                                "z": 0.3154863119125366
+                            },
+                            "sourceSubMeshIndex": 16,
+                            "specularTexture": "",
+                            "stableID": "64a7921b722c58cd",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-17",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.06408809870481491,
+                                "z": 0.15554949641227722
+                            },
+                            "sourceSubMeshIndex": 17,
+                            "specularTexture": "",
+                            "stableID": "9673d0240c3b0095",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-18",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.05842805281281471,
+                                "z": 0.12354183197021484
+                            },
+                            "sourceSubMeshIndex": 18,
+                            "specularTexture": "",
+                            "stableID": "cc61e27d2d4b480f",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-19",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.01725548505783081,
+                                "z": 0.33702999353408813
+                            },
+                            "sourceSubMeshIndex": 19,
+                            "specularTexture": "",
+                            "stableID": "f215842f62103167",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-20",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": -0.020774003118276596,
+                                "z": 0.6849372386932373
+                            },
+                            "sourceSubMeshIndex": 20,
+                            "specularTexture": "",
+                            "stableID": "316e17687c7db276",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-21",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": -0.011275403201580048,
+                                "z": 1.1479483842849731
+                            },
+                            "sourceSubMeshIndex": 21,
+                            "specularTexture": "",
+                            "stableID": "74c9c5373c725a67",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-22",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.1620194911956787,
+                                "y": -0.011010803282260895,
+                                "z": 1.1984915733337402
+                            },
+                            "sourceSubMeshIndex": 22,
+                            "specularTexture": "",
+                            "stableID": "4d3d6b88424a020b",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-23",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.039782509207725525,
+                                "y": -0.05162174999713898,
+                                "z": 1.1883679628372192
+                            },
+                            "sourceSubMeshIndex": 23,
+                            "specularTexture": "",
+                            "stableID": "47257e73abb0ac36",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-24",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.04762643203139305,
+                                "z": 1.3791970014572144
+                            },
+                            "sourceSubMeshIndex": 24,
+                            "specularTexture": "",
+                            "stableID": "0df00b19a268a6c1",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-25",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.03248506411910057,
+                                "z": 1.2747130393981934
+                            },
+                            "sourceSubMeshIndex": 25,
+                            "specularTexture": "",
+                            "stableID": "e85db2bb390dc5a1",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-26",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.04427613317966461,
+                                "y": 0.03818373754620552,
+                                "z": 1.5233585834503174
+                            },
+                            "sourceSubMeshIndex": 26,
+                            "specularTexture": "",
+                            "stableID": "17fcaaa4eed8991f",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-27",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.0015590488910675049,
+                                "y": 0.055686578154563904,
+                                "z": 1.4008760452270508
+                            },
+                            "sourceSubMeshIndex": 27,
+                            "specularTexture": "",
+                            "stableID": "2a5ffbc5003ef270",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-28",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.09938919544219971,
+                                "y": 0.05638762190937996,
+                                "z": 1.4082444906234741
+                            },
+                            "sourceSubMeshIndex": 28,
+                            "specularTexture": "",
+                            "stableID": "82e1ac99fe9036dd",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-29",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.09657956659793854,
+                                "z": 1.4832860231399536
+                            },
+                            "sourceSubMeshIndex": 29,
+                            "specularTexture": "",
+                            "stableID": "82b541d9370434ce",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-30",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.13328394293785095,
+                                "z": 1.3617424964904785
+                            },
+                            "sourceSubMeshIndex": 30,
+                            "specularTexture": "",
+                            "stableID": "6ed427ebfa34c53c",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-31",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.03741377219557762,
+                                "y": 0.13241100311279297,
+                                "z": 1.3615494966506958
+                            },
+                            "sourceSubMeshIndex": 31,
+                            "specularTexture": "",
+                            "stableID": "1cacdcfada3bb48f",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-32",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.03656681254506111,
+                                "z": 1.2955780029296875
+                            },
+                            "sourceSubMeshIndex": 32,
+                            "specularTexture": "",
+                            "stableID": "e1cc8adf42f05a17",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-33",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.08847355842590332,
+                                "z": 1.338928461074829
+                            },
+                            "sourceSubMeshIndex": 33,
+                            "specularTexture": "",
+                            "stableID": "e6f5c1ed244c2b49",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-34",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.1772289276123047,
+                                "y": 0.038823097944259644,
+                                "z": 1.288196086883545
+                            },
+                            "sourceSubMeshIndex": 34,
+                            "specularTexture": "",
+                            "stableID": "fc2a4fa076b2475d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-35",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": -0.0034251026809215546,
+                                "z": 1.1390254497528076
+                            },
+                            "sourceSubMeshIndex": 35,
+                            "specularTexture": "",
+                            "stableID": "51a9adffbcd94260",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-36",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.11287404596805573,
+                                "y": 0.0451773963868618,
+                                "z": 1.2410634756088257
+                            },
+                            "sourceSubMeshIndex": 36,
+                            "specularTexture": "",
+                            "stableID": "045a0f8a9c5a8010",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-37",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.20851370692253113,
+                                "y": 0.043492306023836136,
+                                "z": 1.3794059753417969
+                            },
+                            "sourceSubMeshIndex": 37,
+                            "specularTexture": "",
+                            "stableID": "254e53eda7e56584",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-38",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.017341583967208862,
+                                "y": 0.0382329523563385,
+                                "z": 1.4268004894256592
+                            },
+                            "sourceSubMeshIndex": 38,
+                            "specularTexture": "",
+                            "stableID": "7ad229ae52177798",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-39",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.18270018696784973,
+                                "y": 0.06282520294189453,
+                                "z": 1.3938944339752197
+                            },
+                            "sourceSubMeshIndex": 39,
+                            "specularTexture": "",
+                            "stableID": "49caf6d0b0808848",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-40",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.2009654939174652,
+                                "y": 0.01726716384291649,
+                                "z": 1.3707325458526611
+                            },
+                            "sourceSubMeshIndex": 40,
+                            "specularTexture": "",
+                            "stableID": "0dbb2e51fdec013f",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-41",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.20662546157836914,
+                                "y": 0.043747782707214355,
+                                "z": 1.3971314430236816
+                            },
+                            "sourceSubMeshIndex": 41,
+                            "specularTexture": "",
+                            "stableID": "904d3ae8673908ae",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-42",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.20109787583351135,
+                                "y": 0.038390129804611206,
+                                "z": 1.373885989189148
+                            },
+                            "sourceSubMeshIndex": 42,
+                            "specularTexture": "",
+                            "stableID": "1076d62177d928dd",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-43",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.15370303392410278,
+                                "y": 0.03623035550117493,
+                                "z": 1.3450169563293457
+                            },
+                            "sourceSubMeshIndex": 43,
+                            "specularTexture": "",
+                            "stableID": "88d6d25014e3c2d9",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-44",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.8634021878242493,
+                                "y": 0.04683244973421097,
+                                "z": 1.3251374959945679
+                            },
+                            "sourceSubMeshIndex": 44,
+                            "specularTexture": "",
+                            "stableID": "741f94209b9ec61f",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-45",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.982993483543396,
+                                "y": 0.08014603704214096,
+                                "z": 1.3773574829101563
+                            },
+                            "sourceSubMeshIndex": 45,
+                            "specularTexture": "",
+                            "stableID": "777590b130726950",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-46",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.9589980840682983,
+                                "y": 0.16588164865970612,
+                                "z": 1.3898670673370361
+                            },
+                            "sourceSubMeshIndex": 46,
+                            "specularTexture": "",
+                            "stableID": "62c9dc107c95fdd7",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-47",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.9684381484985352,
+                                "y": 0.06841164827346802,
+                                "z": 1.3959274291992188
+                            },
+                            "sourceSubMeshIndex": 47,
+                            "specularTexture": "",
+                            "stableID": "c17e6ec1d110ab5e",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-48",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.7756352424621582,
+                                "y": 0.024491701275110245,
+                                "z": 1.376265048980713
+                            },
+                            "sourceSubMeshIndex": 48,
+                            "specularTexture": "",
+                            "stableID": "b690130f156e968f",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-49",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.9205235242843628,
+                                "y": 0.039215654134750366,
+                                "z": 1.4247145652770996
+                            },
+                            "sourceSubMeshIndex": 49,
+                            "specularTexture": "",
+                            "stableID": "2b5c5ee49fca1616",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-50",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.947921872138977,
+                                "y": 0.03781777620315552,
+                                "z": 1.5030584335327148
+                            },
+                            "sourceSubMeshIndex": 50,
+                            "specularTexture": "",
+                            "stableID": "e81f0f3e6bf25ab1",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-51",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.9444973468780518,
+                                "y": 0.07449488341808319,
+                                "z": 1.4540479183197021
+                            },
+                            "sourceSubMeshIndex": 51,
+                            "specularTexture": "",
+                            "stableID": "16f8bb7ffba9cf27",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-52",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.4936133921146393,
+                                "y": 0.051685500890016556,
+                                "z": 1.4986584186553955
+                            },
+                            "sourceSubMeshIndex": 52,
+                            "specularTexture": "",
+                            "stableID": "862152d19d384955",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-53",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.003185749053955078,
+                                "y": -0.02981988713145256,
+                                "z": 1.6294105052947998
+                            },
+                            "sourceSubMeshIndex": 53,
+                            "specularTexture": "",
+                            "stableID": "dd203488d52f6b49",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-54",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.0011396445333957672,
+                                "y": -0.021569248288869858,
+                                "z": 1.6129329204559326
+                            },
+                            "sourceSubMeshIndex": 54,
+                            "specularTexture": "",
+                            "stableID": "ee64bf71205e8131",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-55",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.008226573467254639,
+                                "y": -0.032620664685964584,
+                                "z": 1.6068384647369385
+                            },
+                            "sourceSubMeshIndex": 55,
+                            "specularTexture": "",
+                            "stableID": "2b1ba60c56b81dfd",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-56",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": -0.025798894464969635,
+                                "y": -0.04147513210773468,
+                                "z": 1.7273035049438477
+                            },
+                            "sourceSubMeshIndex": 56,
+                            "specularTexture": "",
+                            "stableID": "dbdb8b377c78c810",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-57",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.06100180000066757,
+                                "y": -0.14918360114097595,
+                                "z": 1.6201900243759155
+                            },
+                            "sourceSubMeshIndex": 57,
+                            "specularTexture": "",
+                            "stableID": "a469fe7c96f6b2c6",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "baseColorTexture": "",
+                            "color": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "emissiveColor": {
+                                "a": 0.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 0.0
+                            },
+                            "emissiveTexture": "",
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "metallic": 0.0,
+                            "metallicRoughnessTexture": "",
+                            "name": "Figure_2_geometry-58",
+                            "normalTexture": "",
+                            "occlusionTexture": "",
+                            "roughness": 0.5,
+                            "sourcePivot": {
+                                "x": 0.06100180745124817,
+                                "y": -0.1404930055141449,
+                                "z": 1.6197450160980225
+                            },
+                            "sourceSubMeshIndex": 58,
+                            "specularTexture": "",
+                            "stableID": "28a2b66f9e2eabd1",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "BrainStem"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "df6a3f618e727f84",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SkinnedAnimation": {
+                    "clip": "Default",
+                    "enabled": true,
+                    "loop": true,
+                    "playInEditMode": true,
+                    "playbackSpeed": 1.0,
+                    "transitionDuration": 0.15000000596046448
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 3.521796226501465,
+                        "y": 0.408086895942688,
+                        "z": -7.384677410125732
+                    },
+                    "localRotation": {
+                        "w": 0.9545009136199951,
+                        "x": 0.0,
+                        "y": -0.29820796847343445,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 3.460003137588501,
+                        "y": 3.460003137588501,
+                        "z": 3.460003137588501
+                    }
+                }
+            },
+            "LocalFileID": "df6a3f618e727f84"
         }
     ],
     "Header": {

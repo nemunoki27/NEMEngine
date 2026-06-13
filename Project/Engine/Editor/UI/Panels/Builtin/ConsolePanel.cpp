@@ -223,6 +223,9 @@ namespace {
 			ImGui::EndTooltip();
 		}
 
+		// Meshバッチ構築/GPU転送のCPUコストで描画処理の内訳、staticキャッシュMISSやSkinned/Billboardで増える
+		ImGui::Text("  Meshバッチ転送  : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::MeshBatchUpload));
+
 		// GPU完了待ちでCPUがブロックした時間、大きいほどフレームコンテキスト多重化の効果が見込める
 		ImGui::Text("GPU待ち           : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::GpuWait));
 	}

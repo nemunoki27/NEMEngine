@@ -23,7 +23,8 @@ namespace Engine {
 	// v6:自動生成component binding用の汎用typed property accessとManagedColor3 4を追加
 	// v7: gameplay APIとしてTime拡張TimeScale frame tickやEntity生成やPrefab SceneやAssetRef解決やInput拡張やAudio Animation Applicationを追加
 	// v8:診断APIのreportScriptExceptionとscript descriptorのdefaultExecutionOrderを追加
-	inline constexpr uint32_t kManagedAbiVersion = 8;
+	// v9: GetComponent<Script>用にentityのscript instanceをscriptTypeIdで引くgetScriptInstanceを追加
+	inline constexpr uint32_t kManagedAbiVersion = 9;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -299,6 +300,8 @@ namespace Engine {
 		using EntityActionCallback = void(__cdecl*)(ManagedNativeEntity);
 		// Diagnostics v8のscript callback例外の構造化報告でJSON DTOを1件渡す
 		using ReportStringCallback = void(__cdecl*)(const char*);
+		// GetComponent<Script> v9のentity上でscriptTypeId一致のscript instanceハンドルを引く
+		using GetScriptInstanceCallback = ManagedScriptInstanceHandle(__cdecl*)(ManagedNativeEntity, const char*);
 
 		GetDeltaTimeCallback getDeltaTime = nullptr;
 		GetDeltaTimeCallback getFixedDeltaTime = nullptr;
@@ -392,6 +395,8 @@ namespace Engine {
 		GetBoolCallback audioIsPlaying = nullptr;
 		// Diagnostics v8のscript callback例外の構造化報告
 		ReportStringCallback reportScriptException = nullptr;
+		// GetComponent<Script> v9のentityのscript instanceをscriptTypeIdで引く
+		GetScriptInstanceCallback getScriptInstance = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

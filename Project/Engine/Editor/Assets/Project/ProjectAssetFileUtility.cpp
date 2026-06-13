@@ -183,6 +183,63 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(c
 	return result;
 }
 
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::CopyAsset(const ProjectAssetEntry& asset,
+	ProjectAssetSource targetSource, const std::string& targetDirectoryVirtualPath) {
+
+	ProjectAssetFileResult result{};
+
+	// 元のアセットパスとコピー先ディレクトリを解決する
+	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
+	const std::filesystem::path targetDirectory = ResolveVirtualDirectory(targetSource, targetDirectoryVirtualPath);
+	if (sourcePath.empty() || !std::filesystem::exists(sourcePath) || targetDirectory.empty()) {
+		result.message = "Source asset or target folder was not found.";
+		return result;
+	}
+
+	// コピー先ディレクトリを確保する
+	std::error_code ec;
+	std::filesystem::create_directories(targetDirectory, ec);
+	if (ec) {
+		result.message = "Failed to create target folder.";
+		return result;
+	}
+
+	// コピー先のパスを既存アセットとの競合回避で決定する
+	const std::filesystem::path targetPath = MakeUniquePath(targetDirectory / sourcePath.filename());
+	if (targetPath.empty()) {
+		result.message = "Failed to build copy file path.";
+		return result;
+	}
+
+	// ファイルをコピー
+	std::filesystem::copy_file(sourcePath, targetPath, std::filesystem::copy_options::none, ec);
+	if (ec) {
+		result.message = "Failed to copy asset file.";
+		return result;
+	}
+
+	// コピーされたアセット内部のGUIDや名前フィールドを整合性のために修正
+	PatchDuplicatedJsonAsset(targetPath, asset.type);
+
+	// 随行する.meta等のサイドカーファイルも合わせてコピー
+	for (const std::string& sidecar : asset.sidecarFiles) {
+
+		const std::filesystem::path sidecarSource = sourcePath.parent_path() / sidecar;
+		if (!std::filesystem::exists(sidecarSource)) {
+			continue;
+		}
+
+		const std::filesystem::path sidecarTarget =
+			targetPath.parent_path() / (targetPath.stem().string() + sidecarSource.extension().string());
+		std::filesystem::copy_file(sidecarSource, sidecarTarget, std::filesystem::copy_options::none, ec);
+	}
+
+	result.success = true;
+	result.fullPath = targetPath;
+	result.assetPath = ToAssetPath(targetPath);
+	return result;
+}
+
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameAsset(const ProjectAssetEntry& asset,
 	const std::string& requestedName) {
 

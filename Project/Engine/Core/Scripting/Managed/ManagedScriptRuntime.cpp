@@ -219,6 +219,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.destroyEntity = &ManagedScriptRuntime::DestroyEntityCallback;
 	callbacks.getScriptEnabled = &ManagedScriptRuntime::GetScriptEnabledCallback;
 	callbacks.setScriptEnabled = &ManagedScriptRuntime::SetScriptEnabledCallback;
+	callbacks.getScriptInstance = &ManagedScriptRuntime::GetScriptInstanceCallback;
 	// 自動生成component bindingのtyped property dispatchでManagedComponentBindings.json由来
 	callbacks.getComponentProperty = &GeneratedComponentBindings::GetComponentProperty;
 	callbacks.setComponentProperty = &GeneratedComponentBindings::SetComponentProperty;

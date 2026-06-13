@@ -183,6 +183,8 @@ void Engine::WorldCommandBuffer::EnqueueCreateEntity(const Entity& reserved, std
 	command.parent = parent;
 	command.text.assign(name);
 	commands_.emplace_back(std::move(command));
+	// 予約Entityからこのコマンドのindexを引けるよう記録する
+	createCommandIndex_[EntityKey(reserved)] = commands_.size() - 1;
 }
 
 void Engine::WorldCommandBuffer::EnqueueInstantiatePrefab(const Entity& reservedRoot, const UUID& prefabAsset,
@@ -199,6 +201,8 @@ void Engine::WorldCommandBuffer::EnqueueInstantiatePrefab(const Entity& reserved
 		command.flags |= FlagUseTransform;
 	}
 	commands_.emplace_back(std::move(command));
+	// 予約ルートEntityからこのコマンドのindexを引けるよう記録する
+	createCommandIndex_[EntityKey(reservedRoot)] = commands_.size() - 1;
 }
 
 void Engine::WorldCommandBuffer::EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, const UUID& sceneAsset) {
@@ -220,22 +224,30 @@ void Engine::WorldCommandBuffer::EnqueueUnloadScene(const UUID& sceneInstanceID)
 
 Engine::WorldCommandBuffer::Command* Engine::WorldCommandBuffer::FindPendingCreateCommand(const Entity& reserved) {
 
-	for (Command& command : commands_) {
-		if ((command.kind == CommandKind::CreateEntity || command.kind == CommandKind::InstantiatePrefab)
-			&& command.target == reserved) {
-			return &command;
-		}
+	auto it = createCommandIndex_.find(EntityKey(reserved));
+	if (it == createCommandIndex_.end() || commands_.size() <= it->second) {
+		return nullptr;
+	}
+	// indexのコマンドが目的の予約Entityと種別か念のため再確認する
+	Command& command = commands_[it->second];
+	if ((command.kind == CommandKind::CreateEntity || command.kind == CommandKind::InstantiatePrefab)
+		&& command.target == reserved) {
+		return &command;
 	}
 	return nullptr;
 }
 
 const Engine::WorldCommandBuffer::Command* Engine::WorldCommandBuffer::FindPendingCreateCommand(const Entity& reserved) const {
 
-	for (const Command& command : commands_) {
-		if ((command.kind == CommandKind::CreateEntity || command.kind == CommandKind::InstantiatePrefab)
-			&& command.target == reserved) {
-			return &command;
-		}
+	auto it = createCommandIndex_.find(EntityKey(reserved));
+	if (it == createCommandIndex_.end() || commands_.size() <= it->second) {
+		return nullptr;
+	}
+	// indexのコマンドが目的の予約Entityと種別か念のため再確認する
+	const Command& command = commands_[it->second];
+	if ((command.kind == CommandKind::CreateEntity || command.kind == CommandKind::InstantiatePrefab)
+		&& command.target == reserved) {
+		return &command;
 	}
 	return nullptr;
 }
@@ -301,6 +313,8 @@ void Engine::WorldCommandBuffer::Flush(ECSWorld& world) {
 		// 現batchを切り離してから適用する、適用中に積まれた分は次batchへ回る
 		std::vector<Command> batch;
 		batch.swap(commands_);
+		// commands_を切り離したのでindex mapも無効化する
+		createCommandIndex_.clear();
 		for (const Command& command : batch) {
 
 			Apply(world, command);
@@ -314,6 +328,7 @@ void Engine::WorldCommandBuffer::Flush(ECSWorld& world) {
 void Engine::WorldCommandBuffer::Clear() {
 
 	commands_.clear();
+	createCommandIndex_.clear();
 }
 
 void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) {
