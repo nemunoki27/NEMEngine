@@ -291,31 +291,22 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::Separator();
 
-	// 左右の子領域とスプリッタの高さを合わせるため残り高さを先に取っておく
+	// 左右の子領域の高さを合わせるため残り高さを先に取っておく
 	const float regionHeight = ImGui::GetContentRegionAvail().y;
 
-	// 左ツリーが極端に潰れないよう毎フレーム幅を有効範囲へ補正する
+	// 左ツリーが極端に潰れないよう、また右を潰しきらないよう幅の最小最大を制約する
 	const float regionWidth = ImGui::GetContentRegionAvail().x;
 	const float maxTreeWidth = (std::max)(120.0f, regionWidth - 140.0f);
-	folderTreeWidth_ = (std::clamp)(folderTreeWidth_, 120.0f, maxTreeWidth);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(120.0f, regionHeight), ImVec2(maxTreeWidth, regionHeight));
 
 	// 左側にUnity風のフォルダ階層ツリーと検索ボックスを表示する
-	if (ImGui::BeginChild("##ProjectFolderTree", ImVec2(folderTreeWidth_, regionHeight), true)) {
+	// 子の右枠自体をドラッグして幅を変えられるようにResizeXを付ける
+	if (ImGui::BeginChild("##ProjectFolderTree", ImVec2(folderTreeWidth_, regionHeight),
+		ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX)) {
 
 		DrawFolderTree(database);
 	}
 	ImGui::EndChild();
-
-	ImGui::SameLine();
-
-	// ツリーとアイコン表示エリアの境界をドラッグで動かせるスプリッタ
-	ImGui::Button("##ProjectSplitter", ImVec2(6.0f, regionHeight));
-	if (ImGui::IsItemHovered() || ImGui::IsItemActive()) {
-		ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-	}
-	if (ImGui::IsItemActive()) {
-		folderTreeWidth_ = (std::clamp)(folderTreeWidth_ + ImGui::GetIO().MouseDelta.x, 120.0f, maxTreeWidth);
-	}
 
 	ImGui::SameLine();
 

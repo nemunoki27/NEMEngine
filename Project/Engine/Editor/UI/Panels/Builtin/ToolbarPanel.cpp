@@ -37,7 +37,7 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	ImGui::SetWindowFontScale(0.64f);
+	ImGui::SetWindowFontScale(0.8f);
 
 	//============================================================================
 	//	現在のシーン名、モード、Undo/Redoの状態を表示
