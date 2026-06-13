@@ -71,8 +71,8 @@ namespace Engine {
 		// 初期化
 		void Init(GraphicsCore& graphicsCore);
 
-		// 描画に使用するビューを更新する
-		void UpdateView(const ResolvedRenderView& view);
+		// 描画に使用するビューを更新する、2DはOrthographic 3DはPerspectiveのカメラを使う
+		void UpdateView(const ResolvedRenderView& view, RenderCameraDomain cameraDomain);
 		void UploadGlyphs(const std::vector<TextVSInstanceData>& vsGlyphs, const std::vector<TextPSInstanceData>& psGlyphs);
 
 		//--------- accessor -----------------------------------------------------

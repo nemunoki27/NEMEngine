@@ -21,6 +21,9 @@ void Engine::from_json(const nlohmann::json& in, TextRendererComponent& componen
 	component.order = in.value("order", component.order);
 	component.visible = in.value("visible", component.visible);
 	component.blendMode = EnumAdapter<BlendMode>::FromString(in.value("blendMode", "Normal")).value();
+	// 次元は単純なint表現で保存する、Type2D=0 / Type3D=1
+	component.dimension = static_cast<Dimension>(in.value("dimension", static_cast<int>(component.dimension)));
+	component.worldScale = in.value("worldScale", component.worldScale);
 
 	// ランタイムキャッシュはシリアライズしないので初期化しておく
 	component.runtimeLayout = {};
@@ -39,4 +42,6 @@ void Engine::to_json(nlohmann::json& out, const TextRendererComponent& component
 	out["order"] = component.order;
 	out["visible"] = component.visible;
 	out["blendMode"] = EnumAdapter<BlendMode>::ToString(component.blendMode);
+	out["dimension"] = static_cast<int>(component.dimension);
+	out["worldScale"] = component.worldScale;
 }

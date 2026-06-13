@@ -45,8 +45,10 @@ namespace Engine::BackendDrawCommon {
 		ResolvedMaterialPass& outResolved);
 
 	// パイプラインを取得、outVariantを渡すと解決済みバリアントも受け取れる
+	// forceDepthTestWriteを立てると深度テスト+書き込みを強制した別PSOを取得する
 	const PipelineState* ResolveGraphicsPipeline(const RenderDrawContext& context,
-		const MaterialPassBinding& passBinding, const PipelineVariantDesc** outVariant = nullptr);
+		const MaterialPassBinding& passBinding, const PipelineVariantDesc** outVariant = nullptr,
+		bool forceDepthTestWrite = false);
 
 	// パイプラインをセットアップしてコマンドリストを取得
 	ID3D12GraphicsCommandList6* SetupGraphicsPipeline(const RenderDrawContext& context,

@@ -48,6 +48,18 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 		SyncDraftFromWorld(world, entity);
 	}
 
+	// TextRendererの次元をInspectorで切り替えたら、編集次元も追従させる
+	// 3D空間に置いた文字は3次元編集の方が扱いやすいため
+	if (const TextRendererComponent* text = world.TryGetComponent<TextRendererComponent>(entity)) {
+		if (lastObservedTextDimension_ != text->dimension) {
+
+			editDimension_ = text->dimension;
+			lastObservedTextDimension_ = text->dimension;
+		}
+	} else {
+		lastObservedTextDimension_.reset();
+	}
+
 	if (!MyGUI::CollapsingHeader("Transform")) {
 		return;
 	}
@@ -196,11 +208,16 @@ void Engine::TransformInspectorDrawer::SyncDraftFromWorld(ECSWorld& world, const
 		draftEulerDegrees_ = rawEulerDegrees;
 
 		// エンティティが切り替わった際にコンポーネント構成による次元の自動切り替えを行う
-		if (world.HasComponent<MeshRendererComponent>(entity) || world.HasComponent<PerspectiveCameraComponent>(entity)) {
+		// TextRendererは3D描画設定のときだけ3D編集にする
+		const TextRendererComponent* text = world.TryGetComponent<TextRendererComponent>(entity);
+		if (world.HasComponent<MeshRendererComponent>(entity) || world.HasComponent<PerspectiveCameraComponent>(entity) ||
+			(text && text->dimension == Dimension::Type3D)) {
 			editDimension_ = Dimension::Type3D;
-		} else if (world.HasComponent<SpriteRendererComponent>(entity) || world.HasComponent<TextRendererComponent>(entity) || world.HasComponent<OrthographicCameraComponent>(entity)) {
+		} else if (world.HasComponent<SpriteRendererComponent>(entity) || text || world.HasComponent<OrthographicCameraComponent>(entity)) {
 			editDimension_ = Dimension::Type2D;
 		}
+		// ライブ追従の基準値として現在のTextRenderer次元を記録する
+		lastObservedTextDimension_ = text ? std::optional<Dimension>(text->dimension) : std::nullopt;
 	}
 
 	editingEntityStableUUID_ = stableUUID;

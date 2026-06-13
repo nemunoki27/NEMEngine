@@ -56,8 +56,14 @@ PSOutput main(VSOutput input) {
 	float screenPxDistance = ComputeScreenPxRange(input.texcoord, instance.pxRange, instance.atlasSize) * signedDistance;
 	float alpha = saturate(screenPxDistance + 0.5f);
 
+	// グリフ外の透明ピクセルを捨てる
+	// 3D描画では深度書き込みするため、矩形の透明部分が深度を書いて遮蔽するのを防ぐ
+	if (alpha < (1.0f / 255.0f)) {
+		discard;
+	}
+
 	PSOutput output;
-	
+
 	// 色を設定
 	output.color = float4(instance.color.rgb, instance.color.a * alpha);
 

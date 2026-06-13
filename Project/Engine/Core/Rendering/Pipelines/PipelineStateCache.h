@@ -33,6 +33,8 @@ namespace Engine {
 		// レイトレーシングが有効か
 		bool inlineRayTracingEnabled = false;
 		bool dispatchRaysEnabled = false;
+		// 深度テスト+書き込みを強制した派生PSOか、3Dテキストなど次元で深度挙動を変える用途で別エントリにする
+		bool depthForcedTestWrite = false;
 
 		// 比較演算子
 		bool operator==(const PipelineCacheKey& rhs) const noexcept;
@@ -59,7 +61,7 @@ namespace Engine {
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, PipelineVariantKind desiredKind,
 			std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
 			const GraphicsRuntimeFeatures& runtimeFeatures,
-			const PipelineVariantDesc** outVariant = nullptr);
+			const PipelineVariantDesc** outVariant = nullptr, bool forceDepthTestWrite = false);
 
 		// データクリア
 		void Clear();
@@ -81,6 +83,7 @@ namespace Engine {
 				h ^= (std::hash<bool>{}(key.meshEnabled) << 3);
 				h ^= (std::hash<bool>{}(key.inlineRayTracingEnabled) << 4);
 				h ^= (std::hash<bool>{}(key.dispatchRaysEnabled) << 5);
+				h ^= (std::hash<bool>{}(key.depthForcedTestWrite) << 6);
 				return h;
 			}
 		};

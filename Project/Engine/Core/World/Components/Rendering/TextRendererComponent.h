@@ -6,6 +6,7 @@
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPhase.h>
+#include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
@@ -73,6 +74,11 @@ namespace Engine {
 		BlendMode blendMode = BlendMode::Normal;
 		// 描画キュー
 		RenderPhase queue = RenderPhase::ScreenUI;
+
+		// 2D(スクリーン空間)か3D(ワールド空間)かの次元
+		Dimension dimension = Dimension::Type2D;
+		// 3D描画時にピクセル単位のグリフをワールド単位へ縮小するスケール
+		float worldScale = 0.01f;
 
 		// ランタイム用の文字レイアウトキャッシュ
 		TextLayoutRuntime runtimeLayout{};

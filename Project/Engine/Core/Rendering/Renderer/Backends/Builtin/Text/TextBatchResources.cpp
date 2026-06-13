@@ -57,11 +57,11 @@ void Engine::TextBatchResources::CreateQuadBuffers(ID3D12Device* device, BufferU
 	uploadService.SubmitBatch();
 }
 
-void Engine::TextBatchResources::UpdateView(const ResolvedRenderView& view) {
+void Engine::TextBatchResources::UpdateView(const ResolvedRenderView& view, RenderCameraDomain cameraDomain) {
 
 	// 定数バッファにビュー行列を転送する
 	TextViewConstants constants{};
-	if (const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Orthographic)) {
+	if (const ResolvedCameraView* camera = view.FindCamera(cameraDomain)) {
 
 		constants.viewProjection = camera->matrices.viewProjectionMatrix;
 	}

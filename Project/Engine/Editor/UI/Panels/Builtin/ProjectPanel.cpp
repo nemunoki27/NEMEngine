@@ -291,10 +291,36 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::Separator();
 
+	// 左右の子領域とスプリッタの高さを合わせるため残り高さを先に取っておく
+	const float regionHeight = ImGui::GetContentRegionAvail().y;
+
+	// 左ツリーが極端に潰れないよう毎フレーム幅を有効範囲へ補正する
+	const float regionWidth = ImGui::GetContentRegionAvail().x;
+	const float maxTreeWidth = (std::max)(120.0f, regionWidth - 140.0f);
+	folderTreeWidth_ = (std::clamp)(folderTreeWidth_, 120.0f, maxTreeWidth);
+
+	// 左側にUnity風のフォルダ階層ツリーと検索ボックスを表示する
+	if (ImGui::BeginChild("##ProjectFolderTree", ImVec2(folderTreeWidth_, regionHeight), true)) {
+
+		DrawFolderTree(database);
+	}
+	ImGui::EndChild();
+
 	ImGui::SameLine();
 
-	// ディレクトリの内容を描画
-	if (ImGui::BeginChild("##ProjectContent", ImVec2(0.0f, 0.0f), true)) {
+	// ツリーとアイコン表示エリアの境界をドラッグで動かせるスプリッタ
+	ImGui::Button("##ProjectSplitter", ImVec2(6.0f, regionHeight));
+	if (ImGui::IsItemHovered() || ImGui::IsItemActive()) {
+		ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+	}
+	if (ImGui::IsItemActive()) {
+		folderTreeWidth_ = (std::clamp)(folderTreeWidth_ + ImGui::GetIO().MouseDelta.x, 120.0f, maxTreeWidth);
+	}
+
+	ImGui::SameLine();
+
+	// 右側に選択ディレクトリの内容をアイコンで描画する
+	if (ImGui::BeginChild("##ProjectContent", ImVec2(0.0f, regionHeight), true)) {
 		if (const ProjectDirectoryNode* node = assetIndex_.FindDirectory(selectedDirectory_)) {
 
 			DrawDirectoryContents(context, database, *node);
@@ -418,6 +444,76 @@ void Engine::ProjectPanel::DrawSourceSelector([[maybe_unused]] const EditorPanel
 	ImGui::SameLine();
 	drawSourceButton(ProjectAssetSource::Game, "Game");
 	ImGui::Separator();
+}
+
+void Engine::ProjectPanel::DrawFolderTree(AssetDatabase& database) {
+
+	// HierarchyPanelと同じく一番上に検索ボックスを置く
+	// 検索ボックスはスクロール領域の外に置き、ツリーをスクロールしても常に見えるようにする
+	folderSearchFilter_.DrawInput("##ProjectFolderSearch");
+	ImGui::Separator();
+
+	// ツリー本体だけを別の子領域でスクロールさせる
+	if (ImGui::BeginChild("##ProjectFolderTreeScroll", ImVec2(0.0f, 0.0f), false)) {
+
+		// ルートから再帰的にフォルダ階層を描画する
+		DrawFolderTreeNode(database, assetIndex_.GetRoot());
+	}
+	ImGui::EndChild();
+}
+
+void Engine::ProjectPanel::DrawFolderTreeNode(AssetDatabase& database, const ProjectDirectoryNode& node) {
+
+	// 検索中は自身か子孫が一致するノードだけ表示する
+	if (folderSearchFilter_.IsActive() && !FolderTreeMatchesSearch(node)) {
+		return;
+	}
+
+	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+	if (node.virtualPath == selectedDirectory_) {
+		flags |= ImGuiTreeNodeFlags_Selected;
+	}
+	const bool isLeaf = node.children.empty();
+	if (isLeaf) {
+		flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+	}
+	// 検索中は階層を開いて一致フォルダを見えるようにする
+	if (folderSearchFilter_.IsActive() && !isLeaf) {
+		ImGui::SetNextItemOpen(true);
+	}
+
+	ImGui::PushID(node.virtualPath.c_str());
+	const bool opened = ImGui::TreeNodeEx("##FolderNode", flags, "%s", node.name.c_str());
+	// 展開矢印以外のラベルクリックで表示ディレクトリを切り替える
+	if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+
+		selectedDirectory_ = node.virtualPath;
+		selectedAsset_ = {};
+	}
+	// 右側のグリッドと同じくフォルダ移動のドロップ先にする
+	DrawProjectItemMoveDropTarget(database, node.virtualPath);
+
+	if (opened && !isLeaf) {
+
+		for (const auto& child : node.children) {
+			DrawFolderTreeNode(database, *child);
+		}
+		ImGui::TreePop();
+	}
+	ImGui::PopID();
+}
+
+bool Engine::ProjectPanel::FolderTreeMatchesSearch(const ProjectDirectoryNode& node) const {
+
+	if (folderSearchFilter_.Matches(node.name)) {
+		return true;
+	}
+	for (const auto& child : node.children) {
+		if (FolderTreeMatchesSearch(*child)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& context,

@@ -29,7 +29,15 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		RenderItemExtract::FillCommonFields(item, world, entity, renderer, RenderItemExtract::GetWorldMatrix(world, entity));
 		item.backendID = RenderBackendID::Text;
 		item.material = renderer.material;
-		item.cameraDomain = RenderCameraDomain::Orthographic;
+		// 2DはOrthographicでScreenUI、3DはPerspectiveで深度ありのTransparentパスに乗せる
+		if (renderer.dimension == Dimension::Type3D) {
+
+			item.cameraDomain = RenderCameraDomain::Perspective;
+			item.renderPhase = RenderPhase::Transparent;
+		} else {
+
+			item.cameraDomain = RenderCameraDomain::Orthographic;
+		}
 		item.batchKey = renderer.font.value;
 		item.payload = batch.PushPayload(payload);
 		// 描画アイテムをバッチに追加
