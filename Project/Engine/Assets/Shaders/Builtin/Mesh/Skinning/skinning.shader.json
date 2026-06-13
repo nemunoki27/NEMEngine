@@ -3,7 +3,7 @@
   "stages": [
     {
       "stage": "CS",
-      "file": "Builtin/Mesh/Skinning/skinning.CS.hlsl",
+      "file": "f994162f81f91a4d",
       "entry": "main",
       "profile": "cs_6_0"
     }

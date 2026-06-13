@@ -22,7 +22,7 @@ void Engine::MeshSubMeshPicker::Init(GraphicsCore& graphicsCore) {
 
 	// ピック用のコンピュートシェーダーのパイプラインを生成
 	ComputePipelineDesc desc{};
-	desc.compute.file = "Builtin/Editor/PickMeshInstance.CS.hlsl";
+	desc.compute.file = "8d50435034671c29";
 	desc.compute.entry = "main";
 	desc.compute.profile = "cs_6_6";
 	pipeline_.CreateCompute(platform.GetDevice(), platform.GetDxShaderCompiler(), desc);

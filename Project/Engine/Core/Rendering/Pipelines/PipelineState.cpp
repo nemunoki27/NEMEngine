@@ -10,9 +10,12 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 
 // c++
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <system_error>
 #include <unordered_map>
 
@@ -21,62 +24,10 @@ using namespace Engine;
 //============================================================================
 namespace {
 
-	using ShaderPathIndex = std::unordered_map<std::string, std::filesystem::path>;
-
-	const ShaderPathIndex& GetShaderPathIndex() {
-
-		static const ShaderPathIndex index = []() {
-			ShaderPathIndex result{};
-			const std::filesystem::path shaderRoot = RuntimePaths::GetEngineAssetPath("Shaders");
-
-			std::error_code ec;
-			if (!std::filesystem::exists(shaderRoot, ec) || ec || !std::filesystem::is_directory(shaderRoot, ec)) {
-				return result;
-			}
-
-			for (std::filesystem::recursive_directory_iterator it(shaderRoot, ec), end; it != end && !ec; it.increment(ec)) {
-				if (!it->is_regular_file(ec)) {
-					continue;
-				}
-
-				const std::filesystem::path path = it->path();
-				result.try_emplace(path.filename().string(), path);
-			}
-			return result;
-		}();
-
-		return index;
-	}
-
+	// シェーダーソース参照(GUIDまたはパス)を実体パスへ解決する、解決処理はShaderSourcePathへ共通化している
 	std::filesystem::path ResolveShaderPath(const std::string& file) {
 
-		// 論理アセットパスが指定されている場合はそのまま解決
-		const std::filesystem::path resolved = RuntimePaths::ResolveAssetPath(file);
-		if (std::filesystem::exists(resolved) && std::filesystem::is_regular_file(resolved)) {
-			return resolved;
-		}
-
-		const std::filesystem::path shaderBasePath = RuntimePaths::GetEngineAssetPath("Shaders");
-
-		// Assets/Shaders/からの相対パスを優先
-		std::filesystem::path direct = shaderBasePath / file;
-		if (std::filesystem::exists(direct)) {
-			return direct;
-		}
-
-		// そのまま絶対/相対で存在するなら使う
-		std::filesystem::path raw(file);
-		if (std::filesystem::exists(raw)) {
-			return raw;
-		}
-
-		// ファイル名だけの指定は、起動時に一度だけ作ったインデックスから引く
-		const auto& shaderPathIndex = GetShaderPathIndex();
-		auto found = shaderPathIndex.find(std::filesystem::path(file).filename().string());
-		if (found != shaderPathIndex.end()) {
-			return found->second;
-		}
-		return {};
+		return ShaderSourcePath::Resolve(file);
 	}
 	// シェーダーオブジェクトからD3D12_SHADER_BYTECODEを生成する
 	D3D12_SHADER_BYTECODE ToBytecode(const CompiledShader* shader) {

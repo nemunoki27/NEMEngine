@@ -1,12 +1,12 @@
 //============================================================================
 //	include
 //============================================================================
-#include "FullscreenCopy.hlsli"
+#include "../Common/defaultMesh.hlsli"
 
 //============================================================================
 //	main
 //============================================================================
-VSOutput main(uint vertexID : SV_VertexID) {
+VSOutput main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID) {
 
-	return FullscreenTriangleVS(vertexID);
+	return BuildMeshSurfaceVertex(vertexID, instanceID);
 }

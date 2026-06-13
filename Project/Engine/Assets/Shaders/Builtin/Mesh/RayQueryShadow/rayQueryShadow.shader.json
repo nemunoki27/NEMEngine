@@ -1,0 +1,29 @@
+{
+  "name": "RayQueryShadow",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "773c6d86827b1484",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "AS",
+      "file": "7246bed346a20015",
+      "entry": "main",
+      "profile": "as_6_6"
+    },
+    {
+      "stage": "MS",
+      "file": "2b58d8e9e8785607",
+      "entry": "main",
+      "profile": "ms_6_6"
+    },
+    {
+      "stage": "PS",
+      "file": "aaf518677ea97e9f",
+      "entry": "main",
+      "profile": "ps_6_6"
+    }
+  ]
+}

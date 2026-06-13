@@ -1,15 +1,15 @@
 {
-  "name": "ToneMapToView",
+  "name": "ScreenSpaceOutlineComposite",
   "stages": [
     {
       "stage": "VS",
-      "file": "7d1ce0a2b9f43856",
+      "file": "9a984d1fab55b1cb",
       "entry": "main",
       "profile": "vs_6_0"
     },
     {
       "stage": "PS",
-      "file": "666cb9cfbf70c230",
+      "file": "c532b403a5fabaff",
       "entry": "main",
       "profile": "ps_6_0"
     }
