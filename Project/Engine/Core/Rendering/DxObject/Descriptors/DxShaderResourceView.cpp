@@ -20,6 +20,14 @@ void SRVDescriptor::CreateSRV(uint32_t& srvIndex, ID3D12Resource* resource,
 	device_->CreateShaderResourceView(resource, &desc, GetCPUHandle(srvIndex));
 }
 
+void SRVDescriptor::RecreateSRV(uint32_t srvIndex, ID3D12Resource* resource,
+	const D3D12_SHADER_RESOURCE_VIEW_DESC& desc) {
+
+	// Allocateせず既存indexのdescriptorを新リソースで上書きする、gpuHandleは不変なので参照側はそのまま新テクスチャを指す
+	RegisterResourceName(srvIndex, resource);
+	device_->CreateShaderResourceView(resource, &desc, GetCPUHandle(srvIndex));
+}
+
 void SRVDescriptor::CreateUAV(uint32_t& uavIndex, ID3D12Resource* resource,
 	const D3D12_UNORDERED_ACCESS_VIEW_DESC& desc) {
 

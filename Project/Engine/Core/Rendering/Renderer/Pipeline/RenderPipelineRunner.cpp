@@ -110,6 +110,17 @@ void RenderPipelineRunner::Init() {
 	lastRenderedWorld_ = nullptr;
 }
 
+void RenderPipelineRunner::ReloadMesh(AssetID meshAssetID) {
+
+	// 本番用とプレビュー用の両メッシュバックエンドへ再ロードを伝える
+	if (meshBackend_) {
+		meshBackend_->RequestMeshReload(meshAssetID);
+	}
+	if (previewMeshBackend_) {
+		previewMeshBackend_->RequestMeshReload(meshAssetID);
+	}
+}
+
 void RenderPipelineRunner::Finalize() {
 
 	// GPU計測用のクエリヒープ/リードバックバッファはここで解放する

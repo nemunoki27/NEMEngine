@@ -42,10 +42,6 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 
-// assimp
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
 
 // インスペクター描画
 #include <Engine/Editor/UI/Inspectors/Builtin/TransformInspectorDrawer.h>
@@ -79,6 +75,7 @@
 #include <vector>
 
 #include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
+#include <Engine/Editor/Assets/Preview/ModelPreviewUtility.h>
 
 //============================================================================
 //	InspectorPanel classMethods
@@ -139,15 +136,6 @@ namespace {
 		{ "PointLight",         "PointLight",         "Lighting" },
 		{ "SpotLight",          "SpotLight",          "Lighting" },
 	} };
-	constexpr uint32_t kModelPreviewAssimpFlags =
-		aiProcess_FlipWindingOrder |
-		aiProcess_FlipUVs |
-		aiProcess_Triangulate |
-		aiProcess_GenSmoothNormals |
-		aiProcess_CalcTangentSpace |
-		aiProcess_JoinIdenticalVertices |
-		aiProcess_ImproveCacheLocality |
-		aiProcess_SortByPType;
 
 	// Scriptメニューか
 	bool IsScriptMenuEntry(const InspectorComponentMenuEntry& entry) {
@@ -164,111 +152,6 @@ namespace {
 		return std::all_of(text.begin(), text.end(), [](unsigned char c) {
 			return std::isxdigit(c) != 0;
 			});
-	}
-	Engine::Vector3 ToEnginePreviewPosition(const aiVector3D& pos) {
-
-		return Engine::Vector3(-pos.x, pos.y, pos.z);
-	}
-	void CollectAssimpNodePositions(const aiScene* scene, const aiNode* node, const aiMatrix4x4& parentTransform,
-		std::vector<Engine::Vector3>& outPositions) {
-
-		(void)parentTransform;
-		if (!scene || !node) {
-			return;
-		}
-
-		for (uint32_t meshRefIndex = 0; meshRefIndex < node->mNumMeshes; ++meshRefIndex) {
-
-			const uint32_t meshIndex = node->mMeshes[meshRefIndex];
-			if (scene->mNumMeshes <= meshIndex) {
-				continue;
-			}
-
-			const aiMesh* mesh = scene->mMeshes[meshIndex];
-			if (!mesh || mesh->mNumVertices == 0) {
-				continue;
-			}
-
-			outPositions.reserve(outPositions.size() + mesh->mNumVertices);
-			for (uint32_t vertexIndex = 0; vertexIndex < mesh->mNumVertices; ++vertexIndex) {
-
-				outPositions.emplace_back(ToEnginePreviewPosition(mesh->mVertices[vertexIndex]));
-			}
-		}
-
-		for (uint32_t childIndex = 0; childIndex < node->mNumChildren; ++childIndex) {
-
-			CollectAssimpNodePositions(scene, node->mChildren[childIndex], aiMatrix4x4(), outPositions);
-		}
-	}
-	float CalculatePreviewCameraDistance(const Engine::Vector3& min, const Engine::Vector3& max,
-		const Engine::Vector3& center, float pitchDegrees, float yawDegrees, float fovYDegrees,
-		float aspectRatio, float distanceScale) {
-
-		const float halfFovY = (fovYDegrees * 0.5f) * 3.1415926535f / 180.0f;
-		const float tanY = (std::max)(std::tan(halfFovY), 0.001f);
-		const float tanX = (std::max)(tanY * (std::max)(aspectRatio, 0.001f), 0.001f);
-
-		const Engine::Matrix4x4 rotation = Engine::Matrix4x4::MakeRotateMatrix(
-			Engine::Vector3(pitchDegrees, yawDegrees, 0.0f));
-		const Engine::Matrix4x4 inverseRotation = Engine::Matrix4x4::Inverse(rotation);
-
-		float requiredDistance = 0.1f;
-		for (int32_t ix = 0; ix < 2; ++ix) {
-			for (int32_t iy = 0; iy < 2; ++iy) {
-				for (int32_t iz = 0; iz < 2; ++iz) {
-
-					const Engine::Vector3 corner(
-						ix == 0 ? min.x : max.x,
-						iy == 0 ? min.y : max.y,
-						iz == 0 ? min.z : max.z);
-					const Engine::Vector3 local = Engine::Vector3::TransferNormal(corner - center, inverseRotation);
-					requiredDistance = (std::max)(requiredDistance, std::fabs(local.x) / tanX - local.z);
-					requiredDistance = (std::max)(requiredDistance, std::fabs(local.y) / tanY - local.z);
-				}
-			}
-		}
-		return (std::max)(requiredDistance, 0.1f) * (std::max)(distanceScale, 1.0f) * 1.08f;
-	}
-	void ImportModelReferencedTextures(Engine::AssetDatabase& database, Engine::AssetID meshAssetID) {
-
-		if (!meshAssetID) {
-			return;
-		}
-
-		const std::filesystem::path fullPath = database.ResolveFullPath(meshAssetID);
-		if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
-			return;
-		}
-
-		Engine::TextureAssetResolver textureResolver{};
-		textureResolver.Build(fullPath);
-
-		Assimp::Importer importer;
-		const aiScene* scene = importer.ReadFile(fullPath.string(), kModelPreviewAssimpFlags);
-		if (!scene || scene->mNumMaterials == 0) {
-			return;
-		}
-
-		auto importTexture = [&](const std::string& reference) {
-
-			const std::string assetPath = textureResolver.ResolveAssetPath(reference);
-			if (!assetPath.empty()) {
-
-				database.ImportOrGet(assetPath, Engine::AssetType::Texture);
-			}
-			};
-
-		for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; ++materialIndex) {
-
-			aiMaterial* material = scene->mMaterials[materialIndex];
-			importTexture(Engine::AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE }));
-			importTexture(Engine::AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT }));
-			importTexture(Engine::AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_UNKNOWN }));
-			importTexture(Engine::AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_SPECULAR }));
-			importTexture(Engine::AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_EMISSIVE, aiTextureType_EMISSION_COLOR }));
-			importTexture(Engine::AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP }));
-		}
 	}
 
 	// Material JSON内のパス参照をAssetIDに解決して、Inspectorで編集できる形にする
@@ -776,7 +659,7 @@ void Engine::InspectorPanel::RebuildModelAssetPreviewWorld(const EditorPanelCont
 		ResetModelAssetPreviewCamera();
 		return;
 	}
-	ImportModelReferencedTextures(*database, meta.guid);
+	ModelPreviewUtility::ImportReferencedTextures(*database, meta.guid);
 
 	Entity lightEntity = modelPreviewWorld_->CreateEntity(UUID::New());
 	auto& lightTransform = modelPreviewWorld_->AddComponent<TransformComponent>(lightEntity);
@@ -840,52 +723,13 @@ void Engine::InspectorPanel::RenderModelAssetPreview(const EditorToolContext& to
 Engine::InspectorPanel::ModelAssetPreviewBounds Engine::InspectorPanel::ComputeModelAssetPreviewBounds(
 	const EditorPanelContext& context, const AssetMeta& meta) const {
 
+	// モデル境界の計算は共有のModelPreviewUtilityへ集約している
 	ModelAssetPreviewBounds bounds{};
 	const AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
-	if (!database || !meta.guid) {
-		return bounds;
+	if (database) {
+		bounds.valid = ModelPreviewUtility::ComputeBounds(*database, meta.guid,
+			bounds.min, bounds.max, bounds.center, bounds.radius);
 	}
-
-	const std::filesystem::path fullPath = database->ResolveFullPath(meta.guid);
-	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
-		return bounds;
-	}
-
-	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(fullPath.string(), kModelPreviewAssimpFlags);
-	if (!scene || !scene->HasMeshes()) {
-		return bounds;
-	}
-
-	std::vector<Vector3> positions{};
-	CollectAssimpNodePositions(scene, scene->mRootNode, aiMatrix4x4(), positions);
-	if (positions.empty()) {
-		return bounds;
-	}
-
-	Vector3 minV(FLT_MAX, FLT_MAX, FLT_MAX);
-	Vector3 maxV(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-	for (const Vector3& p : positions) {
-
-		minV.x = (std::min)(minV.x, p.x);
-		minV.y = (std::min)(minV.y, p.y);
-		minV.z = (std::min)(minV.z, p.z);
-		maxV.x = (std::max)(maxV.x, p.x);
-		maxV.y = (std::max)(maxV.y, p.y);
-		maxV.z = (std::max)(maxV.z, p.z);
-	}
-
-	bounds.min = minV;
-	bounds.max = maxV;
-	bounds.center = (minV + maxV) * 0.5f;
-
-	float radius = 0.0f;
-	for (const Vector3& p : positions) {
-
-		radius = (std::max)(radius, (p - bounds.center).Length());
-	}
-	bounds.radius = (std::max)(radius, 0.1f);
-	bounds.valid = true;
 	return bounds;
 }
 
@@ -903,7 +747,7 @@ void Engine::InspectorPanel::ResetModelAssetPreviewCamera() {
 	const float aspectRatio = static_cast<float>(kModelPreviewSize_.x) /
 		static_cast<float>((std::max)(kModelPreviewSize_.y, 1));
 	const float distance = modelPreviewBounds_.valid ?
-		CalculatePreviewCameraDistance(modelPreviewBounds_.min, modelPreviewBounds_.max, center,
+		ModelPreviewUtility::CalculateCameraDistance(modelPreviewBounds_.min, modelPreviewBounds_.max, center,
 			pitchDegrees, yawDegrees, fovY, aspectRatio, 2.0f) :
 		radius * 2.0f;
 	const Matrix4x4 cameraRotation = Matrix4x4::MakeRotateMatrix(Vector3(pitchDegrees, yawDegrees, 0.0f));

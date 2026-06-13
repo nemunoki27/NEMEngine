@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/Watch/AssetWatchService.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderFrameTypes.h>
@@ -61,6 +62,8 @@ namespace Engine {
 
 		// アセット管理
 		AssetDatabase assetDataBase_;
+		// アセットの外部編集を非同期監視してホットリロードを発火する
+		AssetWatchService assetWatchService_;
 
 		// エディタとプレイのシーンインスタンス
 		SceneInstanceManager editScenes_;

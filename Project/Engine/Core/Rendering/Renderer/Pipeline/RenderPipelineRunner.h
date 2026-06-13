@@ -157,6 +157,9 @@ namespace Engine {
 		// 終了処理
 		void Finalize();
 
+		// 外部編集されたメッシュをバックエンドで再ロードする、アセットのホットリロードから呼ぶ
+		void ReloadMesh(AssetID meshAssetID);
+
 		// 描画ビューのサーフェスをバックバッファに描画する
 		bool PresentViewToBackBuffer(GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material = {});
 		// エディタツール専用RenderTextureへ、指定Entityと子階層だけを描画する

@@ -179,6 +179,20 @@ void Engine::MeshRenderBackend::RequestMeshes(GraphicsCore& graphicsCore,
 	meshResourceManager_.FlushUploads();
 }
 
+void Engine::MeshRenderBackend::RequestMeshReload(AssetID meshAssetID) {
+
+	if (!meshAssetID) {
+		return;
+	}
+
+	// メッシュを破棄して再インポートし、旧gpuMeshを参照していたバッチキャッシュを作り直させる
+	// バッチは毎フレームgpuMeshを引き直すので、キャッシュclearで新しいリソースとサブメッシュ構成に追従する
+	meshResourceManager_.RequestReload(meshAssetID);
+	ClearStaticBatchCache();
+	skinnedBatchCache_.clear();
+	skinnedSourceLookup_.clear();
+}
+
 void Engine::MeshRenderBackend::PreDispatchSkinningBatch(const RenderDrawContext& context,
 	std::span<const RenderItem* const> items) {
 

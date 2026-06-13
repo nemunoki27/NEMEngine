@@ -165,6 +165,16 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	if constexpr (BuildConfig::kEditorEnabled) {
 
 		editorManager_.Init(graphicsCore);
+
+		// アセットの外部編集を非同期監視し、texture/modelを自動でホットリロードする
+		assetWatchService_.Start(&assetDataBase_, &graphicsCore.GetTextureUploadService(),
+			{ RuntimePaths::GetGameRoot() / "GameAssets", RuntimePaths::GetEngineAssetsRoot() });
+		// モデル変更時のリロードは描画バックエンドのメッシュ管理へ委譲する
+		assetWatchService_.SetMeshReloadCallback([this](AssetID meshAssetID) {
+			if (renderPipeline_) {
+				renderPipeline_->ReloadMesh(meshAssetID);
+			}
+			});
 	}
 }
 
@@ -271,6 +281,9 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	// 選択アウトラインのtemporary requestもフレーム単位でリセットする
 	EditorSelectionOutlineRequestService::GetInstance().BeginFrame();
 #endif
+
+	// アセットの外部編集を非同期検知し、変更があればtexture/modelをホットリロードする
+	assetWatchService_.Update();
 
 	// システムコンテキストの更新
 	systemContext_.engineContext = &graphicsCore.GetContext();
@@ -823,6 +836,9 @@ void Engine::EngineApplication::Finalize() {
 	}
 	WinApp::SetCloseRequestCallback(nullptr);
 	Assert::SetPreAssertHandler(nullptr);
+
+	// アセット監視スレッドを止めてから他のリソースを解放する
+	assetWatchService_.Stop();
 
 	// 終了時点のWorldに合わせてSystemContextを更新してから切り離す
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;

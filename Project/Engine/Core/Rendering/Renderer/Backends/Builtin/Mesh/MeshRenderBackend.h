@@ -44,6 +44,8 @@ namespace Engine {
 
 		// 可視メッシュのGPUアップロード
 		void RequestMeshes(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase, std::span<const AssetID> meshAssets);
+		// 外部編集されたメッシュを再インポートしてバッチキャッシュを無効化する、ホットリロード用
+		void RequestMeshReload(AssetID meshAssetID);
 		// スキンメッシュのバッチ描画の前処理
 		void PreDispatchSkinningBatch(const RenderDrawContext& context,
 			std::span<const RenderItem* const> items);
