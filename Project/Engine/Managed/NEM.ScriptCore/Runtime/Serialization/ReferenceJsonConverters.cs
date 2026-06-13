@@ -3,18 +3,18 @@ using System.Text.Json.Serialization;
 
 namespace NEMEngine;
 
-// AssetRef<T> / EntityRef / ScriptRef<T> / Uuid を authoring / runtime JSON へ相互変換する。
+// AssetRef<T> / EntityRef / ScriptRef<T> / UUID を authoring / runtime JSON へ相互変換する。
 // readonly struct のため通常の property setter では復元できないので明示 converter を用意する。
 // runtime pointer / index は一切保存せず、UUID と identity だけを round-trip する。
 
-// Uuid <-> 16桁hex 文字列（"" は None）
-public sealed class UuidJsonConverter : JsonConverter<Uuid> {
+// UUID <-> 16桁hex 文字列（"" は None）
+public sealed class UUIDJsonConverter : JsonConverter<UUID> {
 
-    public override Uuid Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
-        return reader.TokenType == JsonTokenType.String ? Uuid.Parse(reader.GetString()) : Uuid.None;
+    public override UUID Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+        return reader.TokenType == JsonTokenType.String ? UUID.Parse(reader.GetString()) : UUID.None;
     }
 
-    public override void Write(Utf8JsonWriter writer, Uuid value, JsonSerializerOptions options) {
+    public override void Write(Utf8JsonWriter writer, UUID value, JsonSerializerOptions options) {
         writer.WriteStringValue(value.isValid ? value.ToString() : string.Empty);
     }
 }
@@ -37,8 +37,8 @@ public sealed class EntityRefJsonConverter : JsonConverter<EntityRef> {
         if (root.TryGetProperty("kind", out JsonElement kindElement) && kindElement.ValueKind == JsonValueKind.String) {
             Enum.TryParse(kindElement.GetString(), out kind);
         }
-        Uuid source = root.TryGetProperty("sourceAsset", out JsonElement sa) ? Uuid.Parse(sa.GetString()) : Uuid.None;
-        Uuid local = root.TryGetProperty("localFileId", out JsonElement lf) ? Uuid.Parse(lf.GetString()) : Uuid.None;
+        UUID source = root.TryGetProperty("sourceAsset", out JsonElement sa) ? UUID.Parse(sa.GetString()) : UUID.None;
+        UUID local = root.TryGetProperty("localFileId", out JsonElement lf) ? UUID.Parse(lf.GetString()) : UUID.None;
         return new EntityRef(kind, source, local);
     }
 
@@ -75,7 +75,7 @@ public sealed class AssetRefJsonConverter<TAsset> : JsonConverter<AssetRef<TAsse
         using JsonDocument doc = JsonDocument.ParseValue(ref reader);
         JsonElement root = doc.RootElement;
         if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("assetId", out JsonElement id)) {
-            return new AssetRef<TAsset>(Uuid.Parse(id.GetString()));
+            return new AssetRef<TAsset>(UUID.Parse(id.GetString()));
         }
         return AssetRef<TAsset>.None;
     }
@@ -118,7 +118,7 @@ public sealed class ScriptRefJsonConverter<T> : JsonConverter<ScriptRef<T>> wher
         if (root.TryGetProperty("entity", out JsonElement entityElement)) {
             entity = entityElement.Deserialize<EntityRef>(options);
         }
-        Uuid slot = root.TryGetProperty("scriptSlotId", out JsonElement s) ? Uuid.Parse(s.GetString()) : Uuid.None;
+        UUID slot = root.TryGetProperty("scriptSlotId", out JsonElement s) ? UUID.Parse(s.GetString()) : UUID.None;
         string typeId = root.TryGetProperty("scriptTypeId", out JsonElement t) ? (t.GetString() ?? string.Empty) : string.Empty;
         return new ScriptRef<T>(entity, slot, typeId);
     }

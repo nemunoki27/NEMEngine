@@ -3,13 +3,13 @@
   "stages": [
     {
       "stage": "VS",
-      "file": "Builtin/Sprite/defaultSprite.VS.hlsl",
+      "file": "54837bc26b01ce62",
       "entry": "main",
       "profile": "vs_6_0"
     },
     {
       "stage": "PS",
-      "file": "Builtin/Sprite/defaultSprite.PS.hlsl",
+      "file": "abe45545f515d014",
       "entry": "main",
       "profile": "ps_6_0"
     }

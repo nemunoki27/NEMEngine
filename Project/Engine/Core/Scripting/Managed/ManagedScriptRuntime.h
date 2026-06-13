@@ -290,6 +290,8 @@ namespace Engine {
 		static void __cdecl DestroyEntityCallback(ManagedNativeEntity entity);
 		static int32_t __cdecl GetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotId);
 		static void __cdecl SetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotId, int32_t enabled);
+		// GetComponent<Script> v9でowner Entity上のscriptTypeId一致instanceハンドルを返す
+		static ManagedScriptInstanceHandle __cdecl GetScriptInstanceCallback(ManagedNativeEntity owner, const char* scriptTypeId);
 		// Gameplay v7のTime拡張とTimeScaleでscaledはgetDeltaTimeとgetFixedDeltaTimeが返す既存値
 		static float __cdecl GetUnscaledDeltaTimeCallback();
 		static float __cdecl GetUnscaledFixedDeltaTimeCallback();

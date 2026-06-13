@@ -15,7 +15,8 @@ internal static class ManagedAbi {
     // v6: 自動生成 component binding 用の typed property access(get/set + string)を追加
     // v7: gameplay API(Time拡張/TimeScale, AssetRef解決, Entity生成, Prefab/Scene, Input拡張, Audio/Animation/Application)を追加
     // v8: 診断 API(reportScriptException) と script descriptor の defaultExecutionOrder を追加
-    internal const uint Version = 8;
+    // v9: GetComponent<Script> 用に entity の script instance を scriptTypeId で引く getScriptInstance を追加
+    internal const uint Version = 9;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -163,6 +164,7 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> DestroyEntity;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, int> GetScriptEnabled;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, int, void> SetScriptEnabled;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle> GetScriptInstance;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> GetComponentProperty;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> SetComponentProperty;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int*, int> GetComponentStringProperty;
@@ -252,6 +254,7 @@ internal static unsafe class NativeApi {
         DestroyEntity = callbacks->destroyEntity;
         GetScriptEnabled = callbacks->getScriptEnabled;
         SetScriptEnabled = callbacks->setScriptEnabled;
+        GetScriptInstance = callbacks->getScriptInstance;
         GetComponentProperty = callbacks->getComponentProperty;
         SetComponentProperty = callbacks->setComponentProperty;
         GetComponentStringProperty = callbacks->getComponentStringProperty;
@@ -552,6 +555,18 @@ internal static unsafe class NativeApi {
         }
     }
 
+    // entity 上で scriptTypeId 一致の script instance ハンドルを引く。未解決は Null
+    internal static NativeScriptInstanceHandle FindScriptInstance(NativeEntity owner, string scriptTypeId) {
+        if (GetScriptInstance == null || string.IsNullOrEmpty(scriptTypeId)) {
+            return NativeScriptInstanceHandle.Null;
+        }
+        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(scriptTypeId) + 1];
+        Encoding.UTF8.GetBytes(scriptTypeId, 0, scriptTypeId.Length, bytes, 0);
+        fixed (byte* ptr = bytes) {
+            return GetScriptInstance(owner, ptr);
+        }
+    }
+
     //========================================================================
     //	自動生成 component wrapper 用の typed property access（NEM.ComponentBindingGen が呼ぶ）
     //========================================================================
@@ -801,4 +816,5 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, int> audioIsPlaying;
     // Diagnostics(v8): script callback 例外の構造化報告（JSON DTO を 1 件渡す）
     public delegate* unmanaged[Cdecl]<byte*, void> reportScriptException;
+    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle> getScriptInstance;
 }

@@ -12,6 +12,8 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
+#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackSerializer.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 
 // imgui
@@ -241,6 +243,46 @@ namespace {
 		// 古い呼び出し経路でも反映できるように、実体を指すactiveSceneHeaderを最後の手段として使う
 		return const_cast<Engine::SceneHeader*>(context.activeSceneHeader);
 	}
+
+	// postProcessStack未設定のシーンで、シーンのベース直下PostProcess/に新規設定ファイルを作って結びつける
+	// 既に設定があるシーンや解決できない場合は何もせず空を返す
+	Engine::AssetID EnsureActiveStackAsset(const Engine::EditorToolContext& context) {
+
+		const Engine::ToolContext& toolContext = context.toolContext;
+		Engine::AssetDatabase* assetDatabase = toolContext.assetDatabase;
+		Engine::SceneHeader* header = ResolveActiveSceneHeader(toolContext);
+		if (!assetDatabase || !header || header->postProcessStack) {
+			return {};
+		}
+
+		// 現在のシーンのassetパスを解決する
+		std::string scenePath;
+		if (toolContext.sceneInstances && toolContext.activeSceneInstanceID) {
+			if (const Engine::SceneInstance* instance = toolContext.sceneInstances->Find(toolContext.activeSceneInstanceID)) {
+				if (const Engine::AssetMeta* meta = assetDatabase->Find(instance->sceneAsset)) {
+					scenePath = meta->assetPath;
+				}
+			}
+		}
+		if (scenePath.empty()) {
+			return {};
+		}
+
+		// シーンのベース込みの既定パスにフォルダを用意し、現在の設定でファイルを作る
+		const std::string defaultPath = Engine::MakeDefaultPostProcessStackPath(scenePath);
+		const std::filesystem::path fullPath = assetDatabase->ResolveAssetPath(defaultPath);
+		std::error_code ec;
+		std::filesystem::create_directories(fullPath.parent_path(), ec);
+
+		Engine::PostProcessStackService& service = Engine::PostProcessStackService::GetInstance();
+		Engine::PostProcessStackSerializer::Save(fullPath, service.GetSettings());
+
+		// assetとして登録し、シーンheaderへ結びつけてサービスのアクティブ設定にする
+		const Engine::AssetID stackAsset = assetDatabase->ImportOrGet(defaultPath, Engine::AssetType::PostProcessStack);
+		header->postProcessStack = stackAsset;
+		service.SetActiveSettingsAsset(stackAsset, assetDatabase);
+		return stackAsset;
+	}
 }
 
 void Engine::PostProcessStackTool::Tick(ToolContext& context) {
@@ -303,6 +345,11 @@ void Engine::PostProcessStackTool::DrawWindow(const EditorToolContext& context) 
 
 	// Save / Reloadボタン
 	if (ImGui::Button("Save")) {
+		// 設定ファイルが無いシーンでは、シーンのベース直下PostProcess/へ新規作成してから保存する
+		if (const AssetID created = EnsureActiveStackAsset(context)) {
+			lastStackAsset_ = created;
+			selectedPassIndex_ = -1;
+		}
 		service.Save();
 		service.ClearDirty();
 	}

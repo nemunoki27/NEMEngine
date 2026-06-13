@@ -30,10 +30,11 @@ namespace Engine {
 	namespace RenderPassExecutionHelper {
 
 		// 描画パスの共通実行処理でリソース状態遷移とバインドとビューポート設定とディスパッチを行う
+		// depthOverrideを渡すと色サーフェスとは別の深度をバインドできる、3Dテキストの深度遮蔽用
 		void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 			const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
 			RenderPhase phase, MultiRenderTarget* target, MaterialPassKind passKind = MaterialPassKind::Draw,
-			bool forceVertexMeshVariant = false);
+			bool forceVertexMeshVariant = false, DepthTexture2D* depthOverride = nullptr);
 
 		// 指定されたアイテムリストを使用して描画パスを実行する
 		void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,

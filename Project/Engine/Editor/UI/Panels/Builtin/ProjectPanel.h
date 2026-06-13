@@ -8,6 +8,7 @@
 #include <Engine/Editor/Assets/Project/ProjectAssetIndex.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetThumbnailCache.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
+#include <Engine/Editor/UI/Common/TextSearchFilter.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 
@@ -64,6 +65,11 @@ namespace Engine {
 		// 現在選択されているディレクトリの仮想パスとアセットID
 		std::string selectedDirectory_ = "Engine/Assets";
 		AssetID selectedAsset_{};
+
+		// 左側フォルダツリーの検索フィルタ
+		TextSearchFilter folderSearchFilter_;
+		// 左ツリーと右アイコン表示エリアの境界幅、スプリッタのドラッグで変化する
+		float folderTreeWidth_ = 200.0f;
 
 		// trueのときAssetDatabaseから表示用Indexを再構築する
 		bool dirty_ = true;
@@ -173,6 +179,9 @@ namespace Engine {
 		ProjectAssetFileResult pendingFileOperationResult_{};
 		// ファイル操作後の再構築が保留されているか
 		bool hasPendingFileOperationRefresh_ = false;
+		// Ctrl+C/Ctrl+Vのコピペで控えるアセットの内部クリップボード
+		ProjectAssetEntry copiedAsset_{};
+		bool hasCopiedAsset_ = false;
 
 		//--------- functions ----------------------------------------------------
 
@@ -184,6 +193,12 @@ namespace Engine {
 		void DrawSourceSelector(const EditorPanelContext& context, AssetDatabase& database);
 		// 現在ディレクトリ内のフォルダとアセットを描画する
 		void DrawDirectoryContents(const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
+		// 左側にUnity風のフォルダ階層ツリーと検索ボックスを描画する
+		void DrawFolderTree(AssetDatabase& database);
+		// フォルダツリーの1ノードを再帰的に描画する
+		void DrawFolderTreeNode(AssetDatabase& database, const ProjectDirectoryNode& node);
+		// 検索中にノード自身か子孫がフィルタに一致するか
+		bool FolderTreeMatchesSearch(const ProjectDirectoryNode& node) const;
 		// 現在ディレクトリ内のモデルを1枚のRenderTextureへまとめて描画する
 		void PrepareModelPreviewAtlas(const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
 		// モデルプレビューAtlas用の一時Worldとスロットを構築する

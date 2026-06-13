@@ -317,6 +317,30 @@ void Engine::BehaviorSystem::SetScriptEnabled(const Entity& owner, const UUID& s
 	}
 }
 
+Engine::MonoBehavior* Engine::BehaviorSystem::FindScriptInstance(const Entity& owner, const std::string& scriptTypeId) {
+
+	if (!activeSystem_ || !activeSystem_->activeWorld_) {
+		return nullptr;
+	}
+
+	// owner Entity上でscriptTypeId一致のScriptEntryを探し、live instanceを返す
+	ScriptComponent* component = activeSystem_->activeWorld_->TryGetComponent<ScriptComponent>(owner);
+	if (!component) {
+		return nullptr;
+	}
+	for (ScriptEntry& entry : component->scripts) {
+		if (entry.scriptTypeId != scriptTypeId) {
+			continue;
+		}
+		if (BehaviorRecord* record = activeSystem_->runtime_.GetRecord(entry.handle)) {
+			if (record->instance) {
+				return record->instance.get();
+			}
+		}
+	}
+	return nullptr;
+}
+
 void Engine::BehaviorSystem::EnsureActiveWorld(ECSWorld& world, SystemContext& context) {
 
 	// プレイ中でないときにアクティブにしない

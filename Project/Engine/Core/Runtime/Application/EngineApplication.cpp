@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Rendering/Renderer/Outline/EditorSelectionOutlineRequestService.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
@@ -37,6 +38,7 @@
 namespace {
 
 	constexpr const char* kActiveSceneConfigPath = "Config/activeScene.exeConfig.json";
+	constexpr const char* kFrameRateConfigPath = "Config/frameRate.exeConfig.json";
 
 	Engine::EngineApplication* g_activeEngineApplication = nullptr;
 
@@ -131,6 +133,9 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	assetDataBase_.RebuildMeta();
 	LoadActiveSceneConfig();
 
+	// フレームレート上限を設定ファイルから読み込む
+	FrameRateSettings::GetInstance().Load(RuntimePaths::GetEngineAssetPath(kFrameRateConfigPath).string());
+
 	// 骨アニメーション管理の初期化
 	skinnedAnimationManager_.Init();
 	// Audio管理の初期化
@@ -160,6 +165,16 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	if constexpr (BuildConfig::kEditorEnabled) {
 
 		editorManager_.Init(graphicsCore);
+
+		// アセットの外部編集を非同期監視し、texture/modelを自動でホットリロードする
+		assetWatchService_.Start(&assetDataBase_, &graphicsCore.GetTextureUploadService(),
+			{ RuntimePaths::GetGameRoot() / "GameAssets", RuntimePaths::GetEngineAssetsRoot() });
+		// モデル変更時のリロードは描画バックエンドのメッシュ管理へ委譲する
+		assetWatchService_.SetMeshReloadCallback([this](AssetID meshAssetID) {
+			if (renderPipeline_) {
+				renderPipeline_->ReloadMesh(meshAssetID);
+			}
+			});
 	}
 }
 
@@ -267,6 +282,9 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	EditorSelectionOutlineRequestService::GetInstance().BeginFrame();
 #endif
 
+	// アセットの外部編集を非同期検知し、変更があればtexture/modelをホットリロードする
+	assetWatchService_.Update();
+
 	// システムコンテキストの更新
 	systemContext_.engineContext = &graphicsCore.GetContext();
 	systemContext_.graphicsPlatform = &graphicsCore.GetDXObject();
@@ -293,6 +311,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		const bool advancePlayTime = ShouldAdvanceActiveWorld() && systemContext_.mode == WorldMode::Play;
 		const float rawDelta = ShouldAdvanceActiveWorld() ? deltaTime : 0.0f;
 		systemContext_.deltaTime = ManagedScriptRuntime::AdvanceTime(rawDelta, systemContext_.fixedDeltaTime, advancePlayTime);
+		// Editでもプレビュー再生が進むようTimeScale非適用のリアルdeltaを渡す、scaled deltaTimeはPlay時のみ非ゼロになる
+		systemContext_.unscaledDeltaTime = rawDelta;
 	}
 
 	ECSWorld* world = GetActiveWorld();
@@ -816,6 +836,9 @@ void Engine::EngineApplication::Finalize() {
 	}
 	WinApp::SetCloseRequestCallback(nullptr);
 	Assert::SetPreAssertHandler(nullptr);
+
+	// アセット監視スレッドを止めてから他のリソースを解放する
+	assetWatchService_.Stop();
 
 	// 終了時点のWorldに合わせてSystemContextを更新してから切り離す
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;

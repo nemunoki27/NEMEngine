@@ -3,8 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
-#include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxImmutableBuffer.h>
 
 // c++
 #include <cstdint>
@@ -33,13 +32,13 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		ID3D12Resource* GetResource() const { return resource_.Get(); }
+		ID3D12Resource* GetResource() const { return buffer_.GetResource(); }
 
 		// SRVのビュー記述子を生成する
 		D3D12_SHADER_RESOURCE_VIEW_DESC GetSRVDesc() const;
 
 		uint32_t GetElementCount() const { return elementCount_; }
-		bool IsCreatedResource() const { return resource_ != nullptr; }
+		bool IsCreatedResource() const { return buffer_.IsCreatedResource(); }
 	private:
 		//============================================================================
 		//	private Methods
@@ -47,7 +46,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		ComPtr<ID3D12Resource> resource_;
+		// DEFAULT heapの静的バッファ
+		DxImmutableBuffer buffer_;
 		uint32_t elementCount_ = 0;
 	};
 
@@ -64,12 +64,8 @@ namespace Engine {
 		}
 
 		elementCount_ = static_cast<uint32_t>(data.size());
-		const size_t sizeInBytes = sizeof(T) * data.size();
 
-		// DEFAULT heapのバッファは作成時COMMONでコピー用のCOPY_DEST遷移はBufferUploadServiceで積む
-		DxUtils::CreateDefaultBufferResource(device, resource_, sizeInBytes);
-
-		uploadService.EnqueueBufferUpload(resource_.Get(), std::as_bytes(data), finalState);
+		buffer_.Create(device, uploadService, std::as_bytes(data), finalState);
 	}
 
 	template<typename T>
@@ -88,4 +84,3 @@ namespace Engine {
 		return srvDesc;
 	}
 } // Engine
-

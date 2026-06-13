@@ -67,6 +67,8 @@ public:
 	void SetViewportAndScissor(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 
 	// リソースバリア遷移処理
+	void TransitionBarriers(ID3D12Resource* resource,
+		D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter);
 	void TransitionBarriers(const std::vector<ID3D12Resource*>& resources,
 		D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter);
 
@@ -99,6 +101,8 @@ private:
 	ComPtr<ID3D12Fence> fence_;
 	uint64_t fenceValue_;
 	HANDLE fenceEvent_;
+	// FPS待機を低CPUのsleep主体にする高解像度waitableタイマーでnullなら従来のspinへフォールバックする
+	HANDLE frameTimer_ = nullptr;
 
 	std::chrono::steady_clock::time_point reference_;
 

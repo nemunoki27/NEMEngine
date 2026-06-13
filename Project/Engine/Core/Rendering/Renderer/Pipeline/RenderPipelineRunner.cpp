@@ -7,7 +7,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
-#include <Engine/Core/Rendering/Profiling/GpuFrameProfiler.h>
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Sprite/SpriteRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Text/TextRenderItemExtractor.h>
@@ -59,6 +59,9 @@ void RenderPipelineRunner::Init() {
 	previewBackendRegistry_.Register(std::make_unique<SpriteRenderBackend>());
 	previewBackendRegistry_.Register(std::make_unique<TextRenderBackend>());
 	previewBackendRegistry_.Register(std::make_unique<MeshRenderBackend>());
+	// 型付きMeshバックエンドをキャッシュして毎フレームのdynamic_castを避ける
+	meshBackend_ = dynamic_cast<MeshRenderBackend*>(backendRegistry_.Find(RenderBackendID::Mesh));
+	previewMeshBackend_ = dynamic_cast<MeshRenderBackend*>(previewBackendRegistry_.Find(RenderBackendID::Mesh));
 	// ライト抽出器の登録
 	lightExtractorRegistry_.Clear();
 	lightExtractorRegistry_.Register(std::make_unique<DirectionalLightExtractor>());
@@ -107,15 +110,28 @@ void RenderPipelineRunner::Init() {
 	lastRenderedWorld_ = nullptr;
 }
 
+void RenderPipelineRunner::ReloadMesh(AssetID meshAssetID) {
+
+	// 本番用とプレビュー用の両メッシュバックエンドへ再ロードを伝える
+	if (meshBackend_) {
+		meshBackend_->RequestMeshReload(meshAssetID);
+	}
+	if (previewMeshBackend_) {
+		previewMeshBackend_->RequestMeshReload(meshAssetID);
+	}
+}
+
 void RenderPipelineRunner::Finalize() {
 
 	// GPU計測用のクエリヒープ/リードバックバッファはここで解放する
 	// シングルトンのため放置するとDeviceより後まで生き残り、LeakCheckerに残る
-	GpuFrameProfiler::GetInstance().Finalize();
+	GPUFrameProfiler::GetInstance().Finalize();
 
 	renderPath_.Finalize();
 	backendRegistry_.Clear();
 	previewBackendRegistry_.Clear();
+	meshBackend_ = nullptr;
+	previewMeshBackend_ = nullptr;
 	extractorRegistry_.Clear();
 	renderAssetLibrary_.Clear();
 	pipelineStateCache_.Clear();
@@ -171,14 +187,12 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 	// ワールドが切り替わった場合は静的バッチキャッシュを即時破棄してSRV重複確保を防ぐ
 	if (request.world != lastRenderedWorld_) {
-		auto clearMeshCache = [](RenderBackendRegistry& registry) {
-			auto* base = registry.Find(RenderBackendID::Mesh);
-			if (auto* mesh = dynamic_cast<MeshRenderBackend*>(base)) {
-				mesh->ClearStaticBatchCache();
-			}
-		};
-		clearMeshCache(backendRegistry_);
-		clearMeshCache(previewBackendRegistry_);
+		if (meshBackend_) {
+			meshBackend_->ClearStaticBatchCache();
+		}
+		if (previewMeshBackend_) {
+			previewMeshBackend_->ClearStaticBatchCache();
+		}
 		lastRenderedWorld_ = request.world;
 	}
 
@@ -195,7 +209,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		});
 
 	// GPU計測のフレーム開始(前フレームの結果をFrameProfilerへ反映し、記録をリセット)
-	GpuFrameProfiler::GetInstance().BeginFrame(graphicsCore.GetDXObject().GetDevice(),
+	GPUFrameProfiler::GetInstance().BeginFrame(graphicsCore.GetDXObject().GetDevice(),
 		graphicsCore.GetDXObject().GetDxCommand()->GetQueue());
 
 	// 描画アイテムの抽出
@@ -226,32 +240,32 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		}
 	}
 
-	// メッシュ描画クラスの取得
-	auto* meshBackendBase = backendRegistry_.Find(RenderBackendID::Mesh);
-	auto* meshBackend = dynamic_cast<MeshRenderBackend*>(meshBackendBase);
+	// メッシュ描画クラスの取得(Initでキャッシュ済み)
+	MeshRenderBackend* meshBackend = meshBackend_;
 
-	std::unordered_set<AssetID> visibleMeshSet{};
-	visibleMeshSet.reserve(renderBatch_.GetItems().size());
+	// 毎フレーム使い回すスクラッチをクリアする(容量は保持して再確保を避ける)
+	visibleMeshSet_.clear();
+	visibleMeshSet_.reserve(renderBatch_.GetItems().size());
 
 	// ビューごとに可視なメッシュアセットIDを収集
 	if (meshBackend && activeScene) {
 		if (gameView_.valid) {
-			CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, gameView_, visibleMeshSet);
+			CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, gameView_, visibleMeshSet_);
 		}
 		if (sceneView_.valid) {
-			CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, sceneView_, visibleMeshSet);
+			CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, sceneView_, visibleMeshSet_);
 		}
 	}
 
-	std::vector<AssetID> visibleMeshes{};
-	visibleMeshes.reserve(visibleMeshSet.size());
-	for (const AssetID& id : visibleMeshSet) {
-		visibleMeshes.emplace_back(id);
+	visibleMeshes_.clear();
+	visibleMeshes_.reserve(visibleMeshSet_.size());
+	for (const AssetID& id : visibleMeshSet_) {
+		visibleMeshes_.emplace_back(id);
 	}
 	// GPUに可視なメッシュの情報を要求して、必要なリソースを準備
-	if (meshBackend && !visibleMeshes.empty()) {
+	if (meshBackend && !visibleMeshes_.empty()) {
 
-		meshBackend->RequestMeshes(graphicsCore, *request.assetDatabase, visibleMeshes);
+		meshBackend->RequestMeshes(graphicsCore, *request.assetDatabase, visibleMeshes_);
 	}
 
 	// ビューごとのライト集合クリア
@@ -314,14 +328,14 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		if (!context.sceneInstance) {
 			return;
 		}
-		RenderPassPhaseBuckets passBuckets{};
+		// バケットはメンバを使い回して内部vectorの容量を保持する(BuildBucketsForViewAndScene内でClearされる)
 		RenderPassItemCollector::BuildBucketsForViewAndScene(
-			renderBatch_, view, context.sceneInstance->instanceID, passBuckets);
+			renderBatch_, view, context.sceneInstance->instanceID, passBuckets_);
 
 		// スキニングメッシュの頂点更新
 		if (meshBackend) {
 			PreDispatchVisibleMeshSkinning(graphicsCore, context,
-				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
+				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets_);
 
 			// レイトレーシングシーンの構築
 			// gRaytracingSceneInstances/gRaytracingSubMeshesはcontext.bufferRegistryへ登録する必要があるため、
@@ -352,7 +366,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		}
 
 		// 固定RenderPathを実行
-		renderPath_.Execute(graphicsCore, passBuckets, context);
+		renderPath_.Execute(graphicsCore, passBuckets_, context);
 
 		// 終了後に全ターゲットをシェーダーリード状態へ遷移
 		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
@@ -372,7 +386,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	renderView(RenderViewKind::Scene, sceneView_);
 
 	// 記録したパスのタイムスタンプを解決してリードバックバッファへ書き出す
-	GpuFrameProfiler::GetInstance().Resolve(graphicsCore.GetDXObject().GetDxCommand()->GetCommandList());
+	GPUFrameProfiler::GetInstance().Resolve(graphicsCore.GetDXObject().GetDxCommand()->GetCommandList());
 }
 
 bool RenderPipelineRunner::PresentViewToBackBuffer(

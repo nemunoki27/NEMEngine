@@ -6,29 +6,16 @@
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 
 //============================================================================
 //	RaytracingPipelineState classMethods
 //============================================================================
 namespace {
-	// シェーダーファイルのパスを解決する関数
+	// シェーダーファイルのパスを解決する関数、GUID参照にも対応するため共通リゾルバへ委譲する
 	std::filesystem::path ResolveShaderPath(const std::string& file) {
 
-		const std::filesystem::path resolved = Engine::RuntimePaths::ResolveAssetPath(file);
-		if (std::filesystem::exists(resolved) && std::filesystem::is_regular_file(resolved)) {
-			return resolved;
-		}
-
-		const std::filesystem::path base = Engine::RuntimePaths::GetEngineAssetPath("Shaders");
-		std::filesystem::path direct = base / file;
-		if (std::filesystem::exists(direct)) {
-			return direct;
-		}
-		std::filesystem::path raw(file);
-		if (std::filesystem::exists(raw)) {
-			return raw;
-		}
-		return {};
+		return Engine::ShaderSourcePath::Resolve(file);
 	}
 	// シェーダーアセットから指定されたエントリーポイントを持つライブラリステージを探す関数
 	const Engine::ShaderStageEntry* FindLibraryStageByEntry(const Engine::ShaderAsset& shaderAsset, const std::string_view& entryName) {

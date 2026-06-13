@@ -150,6 +150,37 @@ public struct Vector3 {
     // inputをnormalに反射させたベクトルを返す
     public static Vector3 Reflect(Vector3 input, Vector3 normal) => input - normal * (2.0f * Dot(input, normal));
 
+    // 2点間の距離を返す
+    public static float Distance(Vector3 lhs, Vector3 rhs) => Length(lhs - rhs);
+
+    // 長さの二乗を返す、平方根を避けたい距離比較用
+    public static float SqrMagnitude(Vector3 value) => Dot(value, value);
+
+    // 2ベクトルのなす角(度)を返す
+    public static float Angle(Vector3 lhs, Vector3 rhs) {
+        float denom = Length(lhs) * Length(rhs);
+        if (denom <= 0.001f) {
+            return 0.0f;
+        }
+        return Math.RadToDeg(Math.Acos(Math.Clamp(Dot(lhs, rhs) / denom, -1.0f, 1.0f)));
+    }
+
+    // 長さがmaxLengthを超えないようにクランプする
+    public static Vector3 ClampMagnitude(Vector3 value, float maxLength) {
+        float len = Length(value);
+        return len > maxLength && len > 0.001f ? value / len * maxLength : value;
+    }
+
+    // currentからtargetへmaxDistanceDeltaを上限に近づける
+    public static Vector3 MoveTowards(Vector3 current, Vector3 target, float maxDistanceDelta) {
+        Vector3 diff = target - current;
+        float dist = Length(diff);
+        if (dist <= maxDistanceDelta || dist <= 0.001f) {
+            return target;
+        }
+        return current + diff / dist * maxDistanceDelta;
+    }
+
     // 近似比較
     public static bool NearlyEqual(Vector3 lhs, Vector3 rhs) => Math.NearlyEqual(lhs.x, rhs.x) && Math.NearlyEqual(lhs.y, rhs.y) && Math.NearlyEqual(lhs.z, rhs.z);
 
@@ -336,6 +367,15 @@ public struct Quaternion {
         return Normalize(lhs * scale0 + rhs * scale1);
     }
 
+    // 球面線形補間、Lerpが既に球面補間のためそのエイリアス
+    public static Quaternion Slerp(Quaternion lhs, Quaternion rhs, float t) => Lerp(lhs, rhs, t);
+
+    // 2回転のなす角(度)を返す
+    public static float Angle(Quaternion lhs, Quaternion rhs) {
+        float dot = Math.Abs(Math.Clamp(Dot(lhs, rhs), -1.0f, 1.0f));
+        return Math.RadToDeg(2.0f * Math.Acos(dot));
+    }
+
     // 近似比較
     public static bool NearlyEqual(Quaternion lhs, Quaternion rhs) => 1.0f - 0.001f <= Math.Abs(Dot(lhs, rhs));
 
@@ -459,6 +499,10 @@ public static class Math {
     public const float pi = System.MathF.PI;
     // degreeからradianへ変換する係数
     public const float radian = pi / 180.0f;
+    // 正の無限大
+    public const float infinity = float.PositiveInfinity;
+    // 表現可能な最小の正の値
+    public const float epsilon = float.Epsilon;
 
     //--------- wrapper ------------------------------------------------------
 
@@ -481,6 +525,60 @@ public static class Math {
 
     // 線形補間
     public static float Lerp(float lhs, float rhs, float t) => lhs + (rhs - lhs) * t;
+
+    // 0..1へ収める
+    public static float Clamp01(float value) => System.Math.Clamp(value, 0.0f, 1.0f);
+
+    // 値の符号を1か-1で返す
+    public static float Sign(float value) => value >= 0.0f ? 1.0f : -1.0f;
+
+    public static float Floor(float value) => System.MathF.Floor(value);
+    public static float Ceil(float value) => System.MathF.Ceiling(value);
+    public static float Round(float value) => System.MathF.Round(value);
+    public static float Exp(float value) => System.MathF.Exp(value);
+    public static float Log(float value) => System.MathF.Log(value);
+
+    // lhs..rhs間でのvalueの正規化位置を返す
+    public static float InverseLerp(float lhs, float rhs, float value) => lhs == rhs ? 0.0f : Clamp01((value - lhs) / (rhs - lhs));
+
+    // currentからtargetへmaxDeltaを上限に近づける
+    public static float MoveTowards(float current, float target, float maxDelta) {
+        if (Abs(target - current) <= maxDelta) {
+            return target;
+        }
+        return current + Sign(target - current) * maxDelta;
+    }
+
+    // 0..lengthでループした値を返す
+    public static float Repeat(float t, float length) => Clamp(t - Floor(t / length) * length, 0.0f, length);
+
+    // 0..lengthを往復した値を返す
+    public static float PingPong(float t, float length) {
+        t = Repeat(t, length * 2.0f);
+        return length - Abs(t - length);
+    }
+
+    // 0..1のtでなめらかに補間する
+    public static float SmoothStep(float lhs, float rhs, float t) {
+        t = Clamp01(t);
+        t = t * t * (3.0f - 2.0f * t);
+        return lhs + (rhs - lhs) * t;
+    }
+
+    // 2角度の最短差分(度)を返す
+    public static float DeltaAngle(float current, float target) {
+        float delta = Repeat(target - current, 360.0f);
+        if (delta > 180.0f) {
+            delta -= 360.0f;
+        }
+        return delta;
+    }
+
+    // 角度(度)を最短経路で補間する
+    public static float LerpAngle(float lhs, float rhs, float t) => lhs + DeltaAngle(lhs, rhs) * t;
+
+    // 近似比較のUnity互換エイリアス
+    public static bool Approximately(float lhs, float rhs) => NearlyEqual(lhs, rhs);
 
     // ラジアンから度に変換する
     public static float RadToDeg(float rad) => rad * (180.0f / pi);

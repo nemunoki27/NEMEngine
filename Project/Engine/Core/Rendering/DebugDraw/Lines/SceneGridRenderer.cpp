@@ -436,11 +436,11 @@ void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
 	GraphicsPipelineDesc desc{};
 	desc.type = PipelineType::Vertex;
 
-	desc.preRaster.file = "Builtin/Line/analyticGrid.VS.hlsl";
+	desc.preRaster.file = "bec9516b4cd54de2";
 	desc.preRaster.entry = "main";
 	desc.preRaster.profile = "vs_6_0";
 
-	desc.pixel.file = "Builtin/Line/analyticGrid.PS.hlsl";
+	desc.pixel.file = "a31bb01681f8ac3d";
 	desc.pixel.entry = "main";
 	desc.pixel.profile = "ps_6_0";
 

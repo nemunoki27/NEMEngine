@@ -7,6 +7,7 @@
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
+#include <Engine/Core/Scripting/Managed/ManagedBehavior.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 namespace Engine {
@@ -93,6 +94,19 @@ namespace Engine {
 
 		const Entity resolved = ResolveEntity(owner);
 		BehaviorSystem::SetScriptEnabled(resolved, UUID{ scriptSlotId }, enabled != 0);
+	}
+
+	ManagedScriptInstanceHandle ManagedScriptRuntime::GetScriptInstanceCallback(ManagedNativeEntity owner, const char* scriptTypeId) {
+
+		// owner Entity上でscriptTypeId一致のscript instanceを引き、ManagedBehaviorならC#側handleを返す
+		if (!scriptTypeId) {
+			return ManagedScriptInstanceHandle::Null();
+		}
+		const Entity resolved = ResolveEntity(owner);
+		MonoBehavior* instance = BehaviorSystem::FindScriptInstance(resolved, scriptTypeId);
+		// C#由来のscriptだけがhandleを持つ、C++ MonoBehaviorはNullになる
+		ManagedBehavior* managed = dynamic_cast<ManagedBehavior*>(instance);
+		return managed ? managed->GetManagedHandle() : ManagedScriptInstanceHandle::Null();
 	}
 
 } // Engine

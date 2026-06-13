@@ -7,17 +7,29 @@
 
 namespace Engine {
 
-	class DxGpuEventScope final {
+	//============================================================================
+	//	DxGPUEventScope class
+	// commandListにイベントを記録する
+	//============================================================================
+	class DxGPUEventScope final {
 	public:
-		DxGpuEventScope(ID3D12GraphicsCommandList* commandList, std::string_view label);
-		DxGpuEventScope(ID3D12GraphicsCommandList* commandList, const wchar_t* label);
-		~DxGpuEventScope();
+		//============================================================================
+		//	public Methods
+		//============================================================================
 
-		DxGpuEventScope(const DxGpuEventScope&) = delete;
-		DxGpuEventScope& operator=(const DxGpuEventScope&) = delete;
+		DxGPUEventScope(ID3D12GraphicsCommandList* commandList, std::string_view label);
+		DxGPUEventScope(ID3D12GraphicsCommandList* commandList, const wchar_t* label);
+		~DxGPUEventScope();
 
+		DxGPUEventScope(const DxGPUEventScope&) = delete;
+		DxGPUEventScope& operator=(const DxGPUEventScope&) = delete;
 	private:
+		//============================================================================
+		//	private Methods
+		//============================================================================
+
+		//--------- variables ----------------------------------------------------
+
 		ID3D12GraphicsCommandList* commandList_ = nullptr;
 	};
-
 }

@@ -132,8 +132,8 @@ Engine::SceneComponentOverlayRenderer::PipelinePair* Engine::SceneComponentOverl
 	{
 		GraphicsPipelineDesc desc{};
 		desc.type = PipelineType::Vertex;
-		desc.preRaster = { "Builtin/Editor/SceneOverlaySprite.VS.hlsl", "main", "vs_6_0" };
-		desc.pixel = { "Builtin/Editor/SceneOverlaySprite.PS.hlsl", "main", "ps_6_0" };
+		desc.preRaster = { "edf35b0e885ae326", "main", "vs_6_0" };
+		desc.pixel = { "feaf5c3be1a811cf", "main", "ps_6_0" };
 		desc.staticSamplers.push_back(MakeLinearClampSampler());
 		desc.rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		desc.rasterizer.CullMode = D3D12_CULL_MODE_NONE;

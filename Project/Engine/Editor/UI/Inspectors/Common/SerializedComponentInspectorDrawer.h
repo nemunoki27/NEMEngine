@@ -6,6 +6,7 @@
 #include <Engine/Editor/UI/Inspectors/Core/IInspectorComponentDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/Commands/Components/SetSerializedComponentCommand.h>
+#include <Engine/Editor/Commands/Components/RemoveComponentCommand.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
@@ -128,8 +129,19 @@ namespace Engine {
 			SyncDraftFromWorld(world, entity);
 		}
 
-		// ヘッダーが閉じている場合は描画しない
-		if (!MyGUI::CollapsingHeader(headerLabel_.c_str())) {
+		// ヘッダーを右クリックしたらコンポーネント削除メニューを出す、開閉に関わらず効くようヘッダー直後に置く
+		const bool headerOpen = MyGUI::CollapsingHeader(headerLabel_.c_str());
+		if (ImGui::BeginPopupContextItem()) {
+
+			if (ImGui::MenuItem("Remove Component")) {
+				if (context.host) {
+					context.host->ExecuteEditorCommand(std::make_unique<RemoveComponentCommand>(entity, componentTypeName_));
+				}
+			}
+			ImGui::EndPopup();
+		}
+		// ヘッダーが閉じている場合は中身を描画しない
+		if (!headerOpen) {
 			return;
 		}
 

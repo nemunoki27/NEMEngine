@@ -37,11 +37,14 @@
 
 // c++
 #include <memory>
+#include <vector>
+#include <unordered_set>
 
 namespace Engine {
 
 	// front
 	struct SceneInstance;
+	class MeshRenderBackend;
 	//============================================================================
 	//	RenderPipelineRunner structures
 	//============================================================================
@@ -154,6 +157,9 @@ namespace Engine {
 		// 終了処理
 		void Finalize();
 
+		// 外部編集されたメッシュをバックエンドで再ロードする、アセットのホットリロードから呼ぶ
+		void ReloadMesh(AssetID meshAssetID);
+
 		// 描画ビューのサーフェスをバックバッファに描画する
 		bool PresentViewToBackBuffer(GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material = {});
 		// エディタツール専用RenderTextureへ、指定Entityと子階層だけを描画する
@@ -261,6 +267,14 @@ namespace Engine {
 
 		// ワールド切り替え時の静的バッチキャッシュ破棄用
 		ECSWorld* lastRenderedWorld_ = nullptr;
+
+		// 毎フレーム使い回すスクラッチで再確保を避ける
+		std::unordered_set<AssetID> visibleMeshSet_{};
+		std::vector<AssetID> visibleMeshes_{};
+		RenderPassPhaseBuckets passBuckets_{};
+		// 型付きMeshバックエンドのキャッシュで毎フレームのdynamic_castを避ける
+		MeshRenderBackend* meshBackend_ = nullptr;
+		MeshRenderBackend* previewMeshBackend_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
 

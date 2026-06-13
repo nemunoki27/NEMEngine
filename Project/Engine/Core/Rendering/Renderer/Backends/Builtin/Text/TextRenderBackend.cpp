@@ -226,8 +226,10 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		DefaultMaterialSlot::Text, { MaterialPassKind::Draw }, resolvedPass)) {
 		return;
 	}
+	// 3Dテキストはメッシュと同じく前後遮蔽させたいので深度テスト+書き込みを有効にしたPSOを使う
+	const bool is3D = items.front()->cameraDomain == RenderCameraDomain::Perspective;
 	// パイプラインを解決する
-	const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass);
+	const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass, nullptr, is3D);
 
 	// 描画に使用するフォントを解決する
 	const MSDFFontAsset* font = ResolveFont(context, *items.front());
@@ -240,8 +242,8 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		return;
 	}
 
-	// GPUリソースの更新
-	resources.UpdateView(*context.view);
+	// GPUリソースの更新、2D/3Dで参照するカメラが異なるのでアイテムのドメインに合わせる
+	resources.UpdateView(*context.view, items.front()->cameraDomain);
 
 	// データクリア
 	vsGlyphScratch_.clear();
@@ -273,8 +275,15 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 			continue;
 		}
 		// キャッシュ済みレイアウトからVS/PSインスタンスだけ構築する
+		Matrix4x4 worldMatrix = RenderBillboard::ResolveWorldMatrix(*item, *context.view);
+		if (renderer->dimension == Dimension::Type3D) {
+
+			// グリフ座標はピクセル単位なのでワールド単位へ縮小し、3DはY+が上向きなので上下反転する
+			const float s = renderer->worldScale;
+			worldMatrix = Matrix4x4::MakeScaleMatrix(Vector3(s, -s, s)) * worldMatrix;
+		}
 		AppendGlyphInstancesFromCache(*renderer, payload->color,
-			RenderBillboard::ResolveWorldMatrix(*item, *context.view), vsGlyphScratch_, psGlyphScratch_);
+			worldMatrix, vsGlyphScratch_, psGlyphScratch_);
 	}
 	// 描画に使用するグリフがない場合は描画しない
 	if (vsGlyphScratch_.empty() || psGlyphScratch_.empty()) {

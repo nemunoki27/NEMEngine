@@ -152,8 +152,10 @@ void Engine::SkinnedAnimationUpdateSystem::LateUpdate(ECSWorld& world, SystemCon
 
 			// アニメーションの更新を行うか
 			bool allowTimeAdvance = anim.enabled && (context.mode == WorldMode::Play || anim.playInEditMode);
+			// Play中はTimeScale適用済みのdeltaTime、EditのプレビューはdeltaTimeが0になるためTimeScale非適用のリアル時間を使う
+			float sourceDelta = (context.mode == WorldMode::Play) ? context.deltaTime : context.unscaledDeltaTime;
 			// フレーム時間を再生速度に応じてスケーリング
-			float deltaTime = allowTimeAdvance ? context.deltaTime * anim.playbackSpeed : 0.0f;
+			float deltaTime = allowTimeAdvance ? sourceDelta * anim.playbackSpeed : 0.0f;
 			// スケルトンをバインドポーズで初期化
 			anim.runtimeSkeleton = anim.runtimeBindSkeleton;
 			// アニメーション遷移していないとき

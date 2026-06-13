@@ -3,7 +3,7 @@
   "stages": [
     {
       "stage": "CS",
-      "file": "Builtin/LightCulling/lightCulling.CS.hlsl",
+      "file": "c57f763dc8015d4b",
       "entry": "main",
       "profile": "cs_6_0"
     }

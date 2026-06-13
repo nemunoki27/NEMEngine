@@ -40,9 +40,6 @@ namespace Engine {
 		// 初期化
 		void Init();
 
-		// エディター
-		void ImGui();
-
 		// サウンドをループ再生
 		void Play(const std::string& name, float volume = 1.0f);
 		// サウンドを一度だけ再生

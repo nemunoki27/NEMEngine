@@ -7,6 +7,8 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
 
 //============================================================================
@@ -14,22 +16,47 @@ using namespace Engine;
 //============================================================================
 void DxCommand::UpdateFixFPS() {
 
-	// フレームレートピッタリの時間
-	constexpr std::chrono::microseconds kMinTime(static_cast<uint64_t>(1000000.0f / 60.0f));
+	// 目標フレームレートはGraphicsメニューから設定され0は制限なし
+	const uint32_t targetFps = FrameRateSettings::GetInstance().GetTargetFps();
 
-	// 1/60秒よりわずかに短い時間
-	constexpr std::chrono::microseconds kMinCheckTime(uint64_t(1000000.0f / 64.0f));
+	// 制限なしなら待機せず即座に基準時刻だけ更新する
+	if (targetFps == 0) {
+		reference_ = std::chrono::steady_clock::now();
+		return;
+	}
+
+	// 目標フレームレートぴったりの時間
+	const std::chrono::microseconds minTime(static_cast<uint64_t>(1000000.0 / static_cast<double>(targetFps)));
+	// 取りこぼし防止でわずかに短い確認時間
+	const std::chrono::microseconds minCheckTime(static_cast<uint64_t>(1000000.0 / (static_cast<double>(targetFps) + 4.0)));
 
 	// 現在時間を取得する
 	auto now = std::chrono::steady_clock::now();
 	// 前回記録からの経過時間を取得する
 	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - reference_);
 
-	// 1/60秒(よりわずかに短い時間)経っていない場合
-	if (elapsed < kMinCheckTime) {
-		// 1/60秒経過するまで微小なスリープを繰り返す
-		auto wait_until = reference_ + kMinTime;
-		while (std::chrono::steady_clock::now() < wait_until) {
+	// 目標時間よりわずかに短い時間しか経っていない場合
+	if (elapsed < minCheckTime) {
+
+		const auto waitUntil = reference_ + minTime;
+		// 最後のspin余白より前は高解像度sleepでCPUを使わずに待つ
+		const auto spinMargin = std::chrono::microseconds(1500);
+		const auto sleepUntil = waitUntil - spinMargin;
+
+		const auto sleepFrom = std::chrono::steady_clock::now();
+		if (frameTimer_ && sleepFrom < sleepUntil) {
+
+			// 相対指定は100ns単位の負値で渡す
+			const auto sleepDuration = sleepUntil - sleepFrom;
+			LARGE_INTEGER due{};
+			due.QuadPart = -(std::chrono::duration_cast<std::chrono::nanoseconds>(sleepDuration).count() / 100);
+			if (SetWaitableTimer(frameTimer_, &due, 0, nullptr, nullptr, FALSE)) {
+				WaitForSingleObject(frameTimer_, INFINITE);
+			}
+		}
+
+		// 残りの余白はyieldで詰めて目標時刻まで待つ
+		while (std::chrono::steady_clock::now() < waitUntil) {
 			std::this_thread::yield();
 		}
 	}
@@ -51,6 +78,12 @@ void DxCommand::Create(ID3D12Device* device) {
 	// FenceのSignalを待つためのイベントの作成する
 	fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
 	assert(fenceEvent_ != nullptr);
+
+	// FPS待機用の高解像度waitableタイマーを作成する、非対応環境では通常精度へ落ちさらに失敗時はspinへフォールバックする
+	frameTimer_ = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+	if (!frameTimer_) {
+		frameTimer_ = CreateWaitableTimerExW(nullptr, nullptr, 0, TIMER_ALL_ACCESS);
+	}
 
 	commandQueue_ = nullptr;
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
@@ -80,8 +113,23 @@ void DxCommand::ExecuteGraphicsCommands(IDXGISwapChain4* swapChain) {
 	ID3D12CommandList* commandLists[] = { commandList_.Get() };
 	commandQueue_->ExecuteCommandLists(1, commandLists);
 
+	// 目標フレームレートに応じてvsyncと上限解除を切り替える、0または60超はvsync上限を外す
+	const uint32_t targetFps = FrameRateSettings::GetInstance().GetTargetFps();
+	UINT syncInterval = 1;
+	UINT presentFlags = 0;
+	if (targetFps == 0 || targetFps > 60) {
+
+		// vsyncを外す、ALLOW_TEARINGで作られていればtearing許可フラグで律速を解除する
+		syncInterval = 0;
+		DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
+		if (SUCCEEDED(swapChain->GetDesc1(&swapChainDesc)) &&
+			(swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING)) {
+			presentFlags = DXGI_PRESENT_ALLOW_TEARING;
+		}
+	}
+
 	// GPUとOSに画面の交換を行うように通知する
-	const HRESULT presentResult = swapChain->Present(1, 0);
+	const HRESULT presentResult = swapChain->Present(syncInterval, presentFlags);
 	if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), presentResult, "DxCommand::ExecuteGraphicsCommands/Present")) {
 		Assert::Call(false, "SwapChain Present failed.");
 	}
@@ -96,6 +144,8 @@ void DxCommand::FenceEvent() {
 		Assert::Call(false, "Graphics queue Signal failed.");
 		return;
 	}
+	// GPU完了待ちでCPUがブロックした時間を計測する、DX12のフレームコンテキスト多重化検討の判断材料
+	const std::chrono::high_resolution_clock::time_point waitStart = std::chrono::high_resolution_clock::now();
 
 	// 実行完了を待つ
 	if (fence_->GetCompletedValue() < fenceValue_) {
@@ -109,6 +159,11 @@ void DxCommand::FenceEvent() {
 		// イベントを待つ
 		WaitForFenceValue(fenceValue_, "DxCommand::FenceEvent/Wait");
 	}
+
+	// 待機時間をプロファイラへ加算する、GPUがすでに完了済みならほぼ0になる
+	const std::chrono::duration<float, std::milli> waitElapsed =
+		std::chrono::high_resolution_clock::now() - waitStart;
+	FrameProfiler::GetInstance().AddSample(FrameProfiler::Category::GpuWait, waitElapsed.count());
 }
 
 void DxCommand::ExecuteCommands(IDXGISwapChain4* swapChain) {
@@ -144,7 +199,6 @@ void DxCommand::WaitForGPU() {
 	if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), signalResult, "DxCommand::WaitForGPU/Signal")) {
 		Assert::Call(false, "Graphics queue Signal failed.");
 	}
-
 	// Fenceの値が指定したSignal値にたどり着いているか確認する
 	if (fence_->GetCompletedValue() < fenceValue_) {
 
@@ -191,6 +245,10 @@ void DxCommand::Finalize(HWND hwnd) {
 	if (fenceEvent_) {
 		CloseHandle(fenceEvent_);
 		fenceEvent_ = nullptr;
+	}
+	if (frameTimer_) {
+		CloseHandle(frameTimer_);
+		frameTimer_ = nullptr;
 	}
 	device_.Reset();
 	CloseWindow(hwnd);
@@ -305,6 +363,20 @@ void DxCommand::SetViewportAndScissor(uint32_t x, uint32_t y, uint32_t width, ui
 	commandList_->RSSetScissorRects(1, &scissorRect);
 }
 
+void DxCommand::TransitionBarriers(ID3D12Resource* resource,
+	D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter) {
+
+	// 単一リソースは一時vectorを作らずスタック上のバリア1つで遷移する
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = resource;
+	barrier.Transition.StateBefore = stateBefore;
+	barrier.Transition.StateAfter = stateAfter;
+
+	commandList_->ResourceBarrier(1, &barrier);
+}
+
 void DxCommand::TransitionBarriers(const std::vector<ID3D12Resource*>& resources,
 	D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter) {
 
@@ -350,12 +422,12 @@ void DxCommand::CopyTexture(ID3D12Resource* dstResource, D3D12_RESOURCE_STATES d
 	ID3D12Resource* srcResource, D3D12_RESOURCE_STATES srcState) {
 
 	// 状態遷移
-	TransitionBarriers({ srcResource }, srcState, D3D12_RESOURCE_STATE_COPY_SOURCE);
-	TransitionBarriers({ dstResource }, dstState, D3D12_RESOURCE_STATE_COPY_DEST);
+	TransitionBarriers(srcResource, srcState, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	TransitionBarriers(dstResource, dstState, D3D12_RESOURCE_STATE_COPY_DEST);
 
 	commandList_->CopyResource(dstResource, srcResource);
 
 	// 元の状態に戻す
-	TransitionBarriers({ srcResource }, D3D12_RESOURCE_STATE_COPY_SOURCE, srcState);
-	TransitionBarriers({ dstResource }, D3D12_RESOURCE_STATE_COPY_DEST, dstState);
+	TransitionBarriers(srcResource, D3D12_RESOURCE_STATE_COPY_SOURCE, srcState);
+	TransitionBarriers(dstResource, D3D12_RESOURCE_STATE_COPY_DEST, dstState);
 }

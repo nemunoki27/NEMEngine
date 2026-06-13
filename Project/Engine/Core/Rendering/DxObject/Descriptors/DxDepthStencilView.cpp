@@ -11,6 +11,7 @@ using namespace Engine;
 //============================================================================
 //	DSVDescriptor classMethods
 //============================================================================
+
 void DSVDescriptor::CreateDepthResource(ComPtr<ID3D12Resource>& resource,
 	uint32_t width, uint32_t height,
 	DXGI_FORMAT resourceFormat, DXGI_FORMAT depthClearFormat) {

@@ -1,0 +1,14 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "blurVerticalShader",
+    "sourceShader": "GameAssets/Shaders/PostProcess/BlurVertical/blurVertical.CS.hlsl",
+    "stages": [
+        {
+            "entry": "main",
+            "file": "GameAssets/Shaders/PostProcess/BlurVertical/blurVertical.CS.hlsl",
+            "profile": "cs_6_0",
+            "stage": "CS"
+        }
+    ]
+}

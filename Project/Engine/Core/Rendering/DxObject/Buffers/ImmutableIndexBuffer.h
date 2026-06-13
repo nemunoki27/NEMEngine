@@ -3,8 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
-#include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxImmutableBuffer.h>
 
 // c++
 #include <cstdint>
@@ -40,13 +39,13 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() const { return indexBufferView_; }
-		ID3D12Resource* GetResource() const { return resource_.Get(); }
+		ID3D12Resource* GetResource() const { return buffer_.GetResource(); }
 		DXGI_FORMAT GetFormat() const { return indexBufferView_.Format; }
 		// 1インデックスのバイト数(R16なら2、R32なら4)
 		uint32_t GetIndexSizeInBytes() const {
 			return (indexBufferView_.Format == DXGI_FORMAT_R16_UINT) ? sizeof(uint16_t) : sizeof(uint32_t);
 		}
-		bool IsCreatedResource() const { return resource_ != nullptr; }
+		bool IsCreatedResource() const { return buffer_.IsCreatedResource(); }
 	private:
 		//============================================================================
 		//	private Methods
@@ -54,8 +53,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		ComPtr<ID3D12Resource> resource_;
+		// DEFAULT heapの静的バッファ
+		DxImmutableBuffer buffer_;
 		D3D12_INDEX_BUFFER_VIEW indexBufferView_{};
 	};
 } // Engine
-

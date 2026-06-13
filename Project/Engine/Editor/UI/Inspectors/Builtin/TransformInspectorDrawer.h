@@ -8,6 +8,8 @@
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 
+#include <optional>
+
 namespace Engine {
 
 	//============================================================================
@@ -54,6 +56,8 @@ namespace Engine {
 
 		// 2Dモードか3Dモードか
 		Dimension editDimension_ = Dimension::Type3D;
+		// 直近に観測したTextRendererの次元、Inspectorでの次元切り替えに追従するために持つ
+		std::optional<Dimension> lastObservedTextDimension_;
 
 		//--------- functions ----------------------------------------------------
 

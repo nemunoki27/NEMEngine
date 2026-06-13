@@ -151,9 +151,8 @@ namespace Engine {
 		ComPtr<IDirectInput8> dInput_;
 		ComPtr<IDirectInputDevice8> keyboard_;
 
-		// gamePad
+		// gamePad、状態はindex0の多gamepad snapshotを共有して保持する
 		XINPUT_STATE gamepadState_{};
-		XINPUT_STATE gamepadStatePre_{};
 		bool gamepadConnected_ = false;
 
 		std::array<bool, static_cast<size_t>(GamePadButtons::Counts)> gamepadButtons_{};

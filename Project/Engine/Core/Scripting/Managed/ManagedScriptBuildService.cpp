@@ -147,6 +147,8 @@ void Engine::ManagedScriptBuildService::Initialize(ManagedScriptRuntime* runtime
 void Engine::ManagedScriptBuildService::Shutdown() {
 
 	process_.Terminate();
+	watcher_.Stop();
+	watchedRoot_.clear();
 	state_ = State::Idle;
 	runtime_ = nullptr;
 }
@@ -190,17 +192,32 @@ void Engine::ManagedScriptBuildService::RequestPlayBuild() {
 void Engine::ManagedScriptBuildService::PollSourceChanges() {
 
 	const auto now = std::chrono::steady_clock::now();
-	if (now < nextScanTime_) {
-		return;
-	}
-	nextScanTime_ = now + scanInterval_;
 
 	const std::filesystem::path projectPath = runtime_->GameScriptProjectPath();
 	if (projectPath.empty()) {
 		sourceSnapshot_.clear();
 		hasSnapshot_ = false;
+		watcher_.Stop();
+		watchedRoot_.clear();
 		return;
 	}
+
+	// Scriptsルートとその兄弟のGameAssetsを含む共通の親をwatcherで監視する
+	const std::filesystem::path watchRoot = projectPath.parent_path().parent_path();
+	if (watchRoot != watchedRoot_) {
+
+		watcher_.Start(watchRoot);
+		watchedRoot_ = watchRoot;
+		// 張り直し直後は確実に一度scanするため安全scanの期限をリセットする
+		nextScanTime_ = std::chrono::steady_clock::time_point{};
+	}
+
+	// watcherが変更を検知したか、取りこぼし対策の安全scan期限が来た時だけ実scanする
+	const bool changedByWatcher = watcher_.ConsumeChanged();
+	if (!changedByWatcher && now < nextScanTime_) {
+		return;
+	}
+	nextScanTime_ = now + scanInterval_;
 
 	// csproj単体+ Scriptsルート+ GameAssetsルートを集約する
 	std::unordered_map<std::string, SourceStamp> current;

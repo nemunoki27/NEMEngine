@@ -68,5 +68,15 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawEnumComboField("キュー", draft.queue);
 			});
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawEnumComboField("次元", draft.dimension);
+			});
+		// ワールドスケールは3D描画でのみ意味を持つので2Dでは表示しない
+		if (draft.dimension == Dimension::Type3D) {
+			DrawField(anyItemActive, [&]() {
+				return MyGUI::DragFloat("ワールドスケール", draft.worldScale,
+					{ .dragSpeed = 0.001f, .minValue = 0.0001f, .maxValue = 1000.0f });
+				});
+		}
 	}
 }

@@ -317,17 +317,6 @@ namespace {
 		return path;
 	}
 
-	// 論理パスの "/Shaders/" セグメントを別のセグメントに置き換える
-	std::string ReplaceShaderSegment(const std::string& path, const std::string& replacement) {
-
-		const std::string target = "/Shaders/";
-		const size_t pos = path.find(target);
-		if (pos == std::string::npos) {
-			return {};
-		}
-		return path.substr(0, pos) + "/" + replacement + "/" + path.substr(pos + target.size());
-	}
-
 	// .CS.hlslの論理パスからbaseNameを取得する
 	std::string BaseNameFromCsHlsl(const std::string& csHlslPath) {
 
@@ -417,20 +406,10 @@ Engine::AssetID Engine::PostProcessAssetGenerator::EnsureUserAsset(AssetDatabase
 		std::filesystem::path(normalized).parent_path().generic_string());
 
 	// 各アセットの論理パスを導出する
+	// pipeline/materialはシェーダーと同じフォルダに生成し、Pipelines/Materialsツリーは使わない
 	const std::string shaderAssetPath = parentDir + "/" + baseName + ".shader.json";
-	const std::string pipelineDirStr = ReplaceShaderSegment(parentDir, "Pipelines");
-	const std::string materialDirStr = ReplaceShaderSegment(parentDir, "Materials");
-
-	std::string pipelineAssetPath;
-	std::string materialAssetPath;
-	if (pipelineDirStr.empty() || materialDirStr.empty()) {
-		// /Shaders/セグメントがない場合は同一ディレクトリに生成する
-		pipelineAssetPath = parentDir + "/" + baseName + ".pipeline.json";
-		materialAssetPath = parentDir + "/" + baseName + ".material.json";
-	} else {
-		pipelineAssetPath = pipelineDirStr + "/" + baseName + ".pipeline.json";
-		materialAssetPath = materialDirStr + "/" + baseName + ".material.json";
-	}
+	const std::string pipelineAssetPath = parentDir + "/" + baseName + ".pipeline.json";
+	const std::string materialAssetPath = parentDir + "/" + baseName + ".material.json";
 
 	// 既存アセットがあればそれを使う
 	const AssetMeta* existing = database->FindByPath(materialAssetPath);
@@ -471,18 +450,9 @@ Engine::AssetID Engine::PostProcessAssetGenerator::FindOrCreateMaterialForShader
 	const std::string parentDir = NormalizeSeparators(
 		std::filesystem::path(normalized).parent_path().generic_string());
 
-	const std::string pipelineDirStr = ReplaceShaderSegment(parentDir, "Pipelines");
-	const std::string materialDirStr = ReplaceShaderSegment(parentDir, "Materials");
-
-	std::string pipelineAssetPath;
-	std::string materialAssetPath;
-	if (pipelineDirStr.empty() || materialDirStr.empty()) {
-		pipelineAssetPath = parentDir + "/" + baseName + ".pipeline.json";
-		materialAssetPath = parentDir + "/" + baseName + ".material.json";
-	} else {
-		pipelineAssetPath = pipelineDirStr + "/" + baseName + ".pipeline.json";
-		materialAssetPath = materialDirStr + "/" + baseName + ".material.json";
-	}
+	// pipeline/materialはシェーダーと同じフォルダに生成する
+	const std::string pipelineAssetPath = parentDir + "/" + baseName + ".pipeline.json";
+	const std::string materialAssetPath = parentDir + "/" + baseName + ".material.json";
 
 	// 既存アセットがあればそれを使う
 	const AssetMeta* existing = database->FindByPath(materialAssetPath);

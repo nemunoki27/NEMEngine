@@ -32,6 +32,8 @@ namespace Engine {
 		void BeginFrame(GraphicsCore& graphicsCore);
 		// 指定メッシュIDの読み込みを要求
 		void RequestMesh(AssetDatabase& assetDatabase, AssetID meshAssetID);
+		// 既にロード済みのメッシュを破棄して再インポートを要求する、外部編集のホットリロード用で未ロードは無視する
+		void RequestReload(AssetID meshAssetID);
 		// 読み込み待ちのメッシュアセットがあればGPUにアップロードする
 		void FlushUploads();
 
@@ -67,6 +69,8 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		void UploadImported(const ImportedMeshAsset& imported);
+		// メッシュGPUリソースが持つ全SRVを解放する、破棄と再ロードで共用する
+		void ReleaseMeshResource(MeshGPUResource& mesh);
 	};
 } // Engine
 

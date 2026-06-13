@@ -161,6 +161,8 @@ namespace {
 			}
 			ImGui::EndTooltip();
 		}
+		// ECSのarchetype数でForEachが走査する数、多いほどquery plan cacheの効果が見込める
+		ImGui::Text("Archetype数       : %u", profiler.GetArchetypeCount());
 		ImGui::Text("C#処理            : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Script));
 
 		// 描画処理でホバーでGPUの処理時間を各パスごとに表示する
@@ -220,6 +222,12 @@ namespace {
 			}
 			ImGui::EndTooltip();
 		}
+
+		// Meshバッチ構築/GPU転送のCPUコストで描画処理の内訳、staticキャッシュMISSやSkinned/Billboardで増える
+		ImGui::Text("  Meshバッチ転送  : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::MeshBatchUpload));
+
+		// GPU完了待ちでCPUがブロックした時間、大きいほどフレームコンテキスト多重化の効果が見込める
+		ImGui::Text("GPU待ち           : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::GpuWait));
 	}
 }
 

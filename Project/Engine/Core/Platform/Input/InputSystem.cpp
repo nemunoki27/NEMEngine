@@ -534,15 +534,21 @@ void Input::Update() {
 	hr = keyboard_->GetDeviceState(static_cast<DWORD>(key_.size()), key_.data());
 
 	// 前回のゲームパッドの状態を保存
-	gamepadStatePre_ = gamepadState_;
 	std::memcpy(gamepadButtonsPre_.data(), gamepadButtons_.data(), gamepadButtons_.size());
 
-	// ゲームパッドの現在の状態を取得
-	ZeroMemory(&gamepadState_, sizeof(XINPUT_STATE));
-	DWORD dwResult = XInputGetState(0, &gamepadState_);
-	gamepadConnected_ = (dwResult == ERROR_SUCCESS);
+	// gameplay用の多gamepad snapshotを更新する、indexはC# GamepadButton / GamepadAxis enumに対応する
+	padsPre_ = pads_;
+	padConnectedPre_ = padConnected_;
+	for (int i = 0; i < kMaxGamepads; ++i) {
+		ZeroMemory(&pads_[i], sizeof(XINPUT_STATE));
+		padConnected_[i] = (XInputGetState(static_cast<DWORD>(i), &pads_[i]) == ERROR_SUCCESS);
+	}
 
-	if (dwResult == ERROR_SUCCESS) {
+	// 既存single-gamepad pathはindex0のsnapshotを共有し、XInputGetStateの二重ポーリングを避ける
+	gamepadState_ = pads_[0];
+	gamepadConnected_ = padConnected_[0];
+
+	if (gamepadConnected_) {
 
 #pragma region ///ゲームパッドが接続されている場合の処理 ///
 		gamepadButtons_[static_cast<size_t>(GamePadButtons::ARROW_UP)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0;
@@ -583,14 +589,6 @@ void Input::Update() {
 
 		leftTriggerValue_ = 0.0f;
 		rightTriggerValue_ = 0.0f;
-	}
-
-	// gameplay用の多gamepad snapshotを更新する、既存single-gamepad pathとは独立
-	padsPre_ = pads_;
-	padConnectedPre_ = padConnected_;
-	for (int i = 0; i < kMaxGamepads; ++i) {
-		ZeroMemory(&pads_[i], sizeof(XINPUT_STATE));
-		padConnected_[i] = (XInputGetState(static_cast<DWORD>(i), &pads_[i]) == ERROR_SUCCESS);
 	}
 
 	// 文字入力を確定し直前のmessage pumpで溜めたWM_CHAR分をframe-localテキストにする

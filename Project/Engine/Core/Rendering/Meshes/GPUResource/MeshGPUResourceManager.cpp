@@ -278,18 +278,7 @@ void Engine::MeshGPUResourceManager::Finalize() {
 	{
 		std::scoped_lock lock(mutex_);
 		for (auto& [id, mesh] : gpuMeshes_) {
-			mesh.vertexSRV.Release(srvDescriptor_);
-			mesh.packedVertexSRV.Release(srvDescriptor_);
-			mesh.indexSRV.Release(srvDescriptor_);
-			mesh.vertexSubMeshIndexSRV.Release(srvDescriptor_);
-			mesh.primitiveSubMeshIndexSRV.Release(srvDescriptor_);
-			mesh.meshletSRV.Release(srvDescriptor_);
-			mesh.meshletDrawSRV.Release(srvDescriptor_);
-			mesh.meshletBoundsSRV.Release(srvDescriptor_);
-			mesh.meshletVertexIndexSRV.Release(srvDescriptor_);
-			mesh.packedMeshletVertexIndexSRV.Release(srvDescriptor_);
-			mesh.meshletPrimitiveIndexSRV.Release(srvDescriptor_);
-			mesh.skinInfluenceSRV.Release(srvDescriptor_);
+			ReleaseMeshResource(mesh);
 		}
 		gpuMeshes_.clear();
 		requested_.clear();
@@ -335,6 +324,50 @@ void Engine::MeshGPUResourceManager::RequestMesh(AssetDatabase& assetDatabase, A
 	if (!gpuMeshes_.contains(meshAssetID)) {
 		requested_.insert(meshAssetID);
 	}
+}
+
+void Engine::MeshGPUResourceManager::RequestReload(AssetID meshAssetID) {
+
+	if (!meshAssetID || !assetDatabase_) {
+		return;
+	}
+
+	{
+		std::scoped_lock lock(mutex_);
+		auto it = gpuMeshes_.find(meshAssetID);
+		// まだロードされていないメッシュは差し替える対象が無いので無視する
+		if (it == gpuMeshes_.end()) {
+			return;
+		}
+
+		// 旧GPUリソースを解放して破棄する、呼び出しは描画前のフレーム先頭で前フレームのGPU使用は完了している
+		ReleaseMeshResource(it->second);
+		gpuMeshes_.erase(it);
+		requested_.erase(meshAssetID);
+	}
+
+	// インポートサービスは初回ロード後にidの記録を残さないため、同じ要求で再パースされる
+	if (importService_.RequestLoadAsync(*assetDatabase_, meshAssetID)) {
+
+		std::scoped_lock lock(mutex_);
+		requested_.insert(meshAssetID);
+	}
+}
+
+void Engine::MeshGPUResourceManager::ReleaseMeshResource(MeshGPUResource& mesh) {
+
+	mesh.vertexSRV.Release(srvDescriptor_);
+	mesh.packedVertexSRV.Release(srvDescriptor_);
+	mesh.indexSRV.Release(srvDescriptor_);
+	mesh.vertexSubMeshIndexSRV.Release(srvDescriptor_);
+	mesh.primitiveSubMeshIndexSRV.Release(srvDescriptor_);
+	mesh.meshletSRV.Release(srvDescriptor_);
+	mesh.meshletDrawSRV.Release(srvDescriptor_);
+	mesh.meshletBoundsSRV.Release(srvDescriptor_);
+	mesh.meshletVertexIndexSRV.Release(srvDescriptor_);
+	mesh.packedMeshletVertexIndexSRV.Release(srvDescriptor_);
+	mesh.meshletPrimitiveIndexSRV.Release(srvDescriptor_);
+	mesh.skinInfluenceSRV.Release(srvDescriptor_);
 }
 
 void Engine::MeshGPUResourceManager::FlushUploads() {

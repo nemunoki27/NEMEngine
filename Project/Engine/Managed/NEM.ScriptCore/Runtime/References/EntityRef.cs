@@ -20,11 +20,11 @@ public readonly struct EntityRef {
     // 参照の種別
     public readonly EntityRefKind kind;
     // 参照元の scene / prefab asset の UUID
-    public readonly Uuid sourceAsset;
+    public readonly UUID sourceAsset;
     // scene / prefab ファイル内での安定 ID（SceneObjectComponent.localFileID）
-    public readonly Uuid localFileId;
+    public readonly UUID localFileId;
 
-    public EntityRef(EntityRefKind kind, Uuid sourceAsset, Uuid localFileId) {
+    public EntityRef(EntityRefKind kind, UUID sourceAsset, UUID localFileId) {
         this.kind = kind;
         this.sourceAsset = sourceAsset;
         this.localFileId = localFileId;
@@ -32,11 +32,11 @@ public readonly struct EntityRef {
 
     public bool isValid => kind != EntityRefKind.Null && localFileId.isValid;
 
-    public static EntityRef Null => new(EntityRefKind.Null, Uuid.None, Uuid.None);
+    public static EntityRef Null => new(EntityRefKind.Null, UUID.None, UUID.None);
 
-    public static EntityRef Scene(Uuid sceneAsset, Uuid localFileId)
+    public static EntityRef Scene(UUID sceneAsset, UUID localFileId)
         => new(EntityRefKind.Scene, sceneAsset, localFileId);
 
-    public static EntityRef Prefab(Uuid prefabAsset, Uuid localFileId)
+    public static EntityRef Prefab(UUID prefabAsset, UUID localFileId)
         => new(EntityRefKind.Prefab, prefabAsset, localFileId);
 }

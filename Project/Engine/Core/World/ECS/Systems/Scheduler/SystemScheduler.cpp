@@ -20,11 +20,14 @@ void Engine::SystemScheduler::AddSystem(std::unique_ptr<ISystem> system, int32_t
 	entry.system = std::move(system);
 	systems_.emplace_back(std::move(entry));
 
-	// システムの処理順をソートする
-	SortIfNeeded();
+	// 追加で並び替えが必要になったことを記録し、次のTickで一度だけソートする
+	needsSort_ = true;
 }
 
 void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context) {
+
+	// 追加されたシステムを一度だけ並び替える
+	SortIfNeeded();
 
 	// ワールドが切り替わったら
 	if (currentWorld_ != activeWorld) {
@@ -55,8 +58,9 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 	// 固定更新の時間を蓄積する
 	accumulator_ += context.deltaTime;
 
-	// プロファイラ用にシステムごとの処理時間(Fixed/Update/LateUpdate合計)を計測する
-	std::vector<float> systemMs(systems_.size(), 0.0f);
+	// プロファイラ用にシステムごとの処理時間をFixed/Update/LateUpdate合計で計測する
+	systemMsScratch_.assign(systems_.size(), 0.0f);
+	std::vector<float>& systemMs = systemMsScratch_;
 	auto measure = [&systemMs](size_t index, auto&& fn) {
 
 		const auto begin = std::chrono::high_resolution_clock::now();
@@ -96,14 +100,17 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 	currentWorld_->FlushWorldCommands();
 
 	// 計測結果を処理順のままプロファイラへ渡す
-	std::vector<FrameProfiler::NamedTime> systemTimes;
-	systemTimes.reserve(systems_.size());
+	systemTimesScratch_.clear();
+	systemTimesScratch_.reserve(systems_.size());
+	std::vector<FrameProfiler::NamedTime>& systemTimes = systemTimesScratch_;
 	for (size_t i = 0; i < systems_.size(); ++i) {
 
 		const char* name = systems_[i].system->GetName();
 		systemTimes.push_back({ name ? name : "Unknown", systemMs[i] });
 	}
 	FrameProfiler::GetInstance().SetEcsSystemTimes(systemTimes);
+	// archetype数をプロファイラへ渡す、ForEachの走査数の目安
+	FrameProfiler::GetInstance().SetArchetypeCount(currentWorld_->GetArchetypeCount());
 
 	// Update/LateUpdate中に予約されたエンティティ破棄をフレーム終端でまとめて反映する
 	currentWorld_->FlushPendingDestroyEntities();
@@ -125,10 +132,16 @@ void Engine::SystemScheduler::DetachCurrentWorld(SystemContext& context) {
 
 void Engine::SystemScheduler::SortIfNeeded() {
 
+	// 追加が無ければ並び替えしない
+	if (!needsSort_) {
+		return;
+	}
+
 	// システムの処理順をソートする
 	std::sort(systems_.begin(), systems_.end(), [](const Entry& entryA, const Entry& entryB) {
 		return entryA.order < entryB.order;
 		});
+	needsSort_ = false;
 }
 
 void Engine::SystemScheduler::AttachWorld(ECSWorld& world, SystemContext& context) {

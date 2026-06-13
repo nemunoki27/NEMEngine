@@ -134,7 +134,8 @@ bool Engine::PipelineCacheKey::operator==(const PipelineCacheKey& rhs) const noe
 		formatHash == rhs.formatHash &&
 		meshEnabled == rhs.meshEnabled &&
 		inlineRayTracingEnabled == rhs.inlineRayTracingEnabled &&
-		dispatchRaysEnabled == rhs.dispatchRaysEnabled;
+		dispatchRaysEnabled == rhs.dispatchRaysEnabled &&
+		depthForcedTestWrite == rhs.depthForcedTestWrite;
 }
 
 const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPlatform& graphicsPlatform,
@@ -149,7 +150,8 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPlatform& graphicsPlatform,
 	RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, PipelineVariantKind desiredKind,
 	std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
-	const GraphicsRuntimeFeatures& runtimeFeatures) {
+	const GraphicsRuntimeFeatures& runtimeFeatures,
+	const PipelineVariantDesc** outVariant, bool forceDepthTestWrite) {
 
 	// アセットライブラリからパイプラインアセットをロード
 	const RenderPipelineAsset* pipelineAsset = assetLibrary.LoadPipeline(pipelineAssetID);
@@ -163,6 +165,10 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	if (!variant) {
 		return nullptr;
 	}
+	// 呼び出し側が同じロードとバリアント解決を繰り返さずに済むよう、解決済みバリアントを返す
+	if (outVariant) {
+		*outVariant = variant;
+	}
 
 	// キャッシュキーを構築して、キャッシュに存在するか確認する
 	PipelineCacheKey key{};
@@ -171,6 +177,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	key.meshEnabled = runtimeFeatures.useMeshShader;
 	key.inlineRayTracingEnabled = runtimeFeatures.useInlineRayTracing;
 	key.dispatchRaysEnabled = runtimeFeatures.useDispatchRays;
+	key.depthForcedTestWrite = forceDepthTestWrite;
 	key.formatHash = HashFormats(runtimeRTVFormats, (variant->dsvFormat != DXGI_FORMAT_UNKNOWN) ? variant->dsvFormat : runtimeDSVFormat);
 
 	// キャッシュに存在する場合はそれを返す
@@ -196,6 +203,14 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 		GraphicsPipelineDesc desc{};
 		if (!BuildGraphicsPipelineDesc(*variant, *shaderAsset, runtimeRTVFormats, runtimeDSVFormat, desc)) {
 			return nullptr;
+		}
+		// 次元で深度挙動を変える描画用に、深度テスト+書き込みを強制する
+		// 3DテキストをMeshと同じく前後遮蔽させたいが、2Dと同じパイプラインを使うためここで上書きする
+		if (forceDepthTestWrite) {
+
+			desc.depthStencil.DepthEnable = TRUE;
+			desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+			desc.depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 		}
 		// パイプラインステートオブジェクトを生成
 		created = pipelineState->CreateGraphics(graphicsPlatform.GetDevice(),

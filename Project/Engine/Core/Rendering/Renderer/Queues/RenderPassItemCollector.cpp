@@ -51,7 +51,7 @@ void Engine::RenderPassItemCollector::BuildBucketsForViewAndScene(const RenderSc
 		if (!IsVisibleToView(item, view)) {
 			continue;
 		}
-		// シーンインスタンスIDが一致しているアイテムのみ
+		// アクティブscene由来のitemのみ描く、subsceneは別RTへ描いて参照する設計のためここでは混ぜない
 		if (sceneInstanceID && item.sceneInstanceID != sceneInstanceID) {
 			continue;
 		}

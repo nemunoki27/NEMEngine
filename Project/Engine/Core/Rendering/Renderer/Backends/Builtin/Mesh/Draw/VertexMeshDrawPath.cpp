@@ -113,10 +113,10 @@ bool Engine::VertexMeshDrawPath::BuildIndexedIndirectArgs(const MeshPathDrawCont
 	ID3D12Resource* indirectArgs = prepared.resources->GetIndexedIndirectArgsResource();
 	ID3D12Resource* visibleInstances = prepared.resources->GetVisibleInstanceMeshResource();
 	// ComputeがIndirectArgsと可視インスタンス配列を書き込める状態にする
-	dxCommand->TransitionBarriers({ indirectArgs }, prepared.resources->GetIndexedIndirectArgsState(),
+	dxCommand->TransitionBarriers(indirectArgs, prepared.resources->GetIndexedIndirectArgsState(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	prepared.resources->SetIndexedIndirectArgsState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	dxCommand->TransitionBarriers({ visibleInstances }, prepared.resources->GetVisibleInstanceMeshState(),
+	dxCommand->TransitionBarriers(visibleInstances, prepared.resources->GetVisibleInstanceMeshState(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	prepared.resources->SetVisibleInstanceMeshState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -160,12 +160,12 @@ bool Engine::VertexMeshDrawPath::BuildIndexedIndirectArgs(const MeshPathDrawCont
 	// 書き込み完了後、IndirectArgsはExecuteIndirect用、可視インスタンスはSRV用へ戻す
 	dxCommand->UAVBarrier(indirectArgs);
 	dxCommand->UAVBarrier(visibleInstances);
-	dxCommand->TransitionBarriers({ indirectArgs }, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+	dxCommand->TransitionBarriers(indirectArgs, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 	prepared.resources->SetIndexedIndirectArgsState(D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 	D3D12_RESOURCE_STATES visibleReadState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	dxCommand->TransitionBarriers({ visibleInstances }, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, visibleReadState);
+	dxCommand->TransitionBarriers(visibleInstances, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, visibleReadState);
 	prepared.resources->SetVisibleInstanceMeshState(visibleReadState);
 	return true;
 }

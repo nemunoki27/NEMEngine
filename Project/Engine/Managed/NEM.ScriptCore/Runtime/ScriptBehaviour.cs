@@ -76,6 +76,20 @@ public abstract class ScriptBehaviour {
     protected void Add<T>() where T : struct, IComponentRef<T> => owner.Add<T>();
     protected void Remove<T>() where T : struct, IComponentRef<T> => owner.Remove<T>();
 
+    // 自身や子孫 / 祖先から component を辿って取得する（owner Entity への委譲）
+    protected bool TryGetInChildren<T>(out T component) where T : struct, IComponentRef<T> => owner.TryGetInChildren(out component);
+    protected T GetInChildren<T>() where T : struct, IComponentRef<T> => owner.GetInChildren<T>();
+    protected bool TryGetInParent<T>(out T component) where T : struct, IComponentRef<T> => owner.TryGetInParent(out component);
+    protected T GetInParent<T>() where T : struct, IComponentRef<T> => owner.GetInParent<T>();
+    protected List<T> GetAllInChildren<T>() where T : struct, IComponentRef<T> => owner.GetAllInChildren<T>();
+
+    // 同 Entity 上の C# スクリプトを型で取得する（Unity の GetComponent<Script> 相当・owner Entity への委譲）
+    protected T? GetComponent<T>() where T : ScriptBehaviour => owner.GetComponent<T>();
+    protected bool TryGetComponent<T>(out T script) where T : ScriptBehaviour => owner.TryGetComponent(out script);
+    // 自身か子孫 / 祖先から script を辿って取得する（owner Entity への委譲）
+    protected T? GetComponentInChildren<T>() where T : ScriptBehaviour => owner.GetComponentInChildren<T>();
+    protected T? GetComponentInParent<T>() where T : ScriptBehaviour => owner.GetComponentInParent<T>();
+
     // 指定 Entity を破棄する（WorldCommandBuffer 経由で遅延）
     protected void Destroy(Entity entity) => entity.Destroy();
     // 自分の owner Entity を破棄する

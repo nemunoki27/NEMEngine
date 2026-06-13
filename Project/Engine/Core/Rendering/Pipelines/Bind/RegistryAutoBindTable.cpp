@@ -14,16 +14,21 @@ using namespace Engine;
 void RegistryAutoBindTable::Sync(const PipelineState& pipeline,
 	const RenderBufferRegistry& registry) {
 
-	// パイプラインとレジストリ構成が変わっていなければキャッシュを再利用
-	if (&pipeline == lastPipeline_ && registry.GetCount() == lastRegistryCount_) {
+	// パイプライン・レジストリ実体・エントリ数が変わっていなければキャッシュを再利用
+	if (&pipeline == lastPipeline_ && &registry == lastRegistry_ &&
+		registry.GetCount() == lastRegistryCount_) {
 		return;
 	}
 	lastPipeline_ = &pipeline;
+	lastRegistry_ = &registry;
 	lastRegistryCount_ = registry.GetCount();
 	resolvedEntries_.clear();
 
-	// 全エントリをパイプラインスロットと照合し、一致するものだけキャッシュする
-	for (const RegisteredRenderBuffer& entry : registry.GetEntries()) {
+	// 全エントリをパイプラインスロットと照合し、一致するものだけインデックス付きでキャッシュする
+	const std::vector<RegisteredRenderBuffer>& entries = registry.GetEntries();
+	for (size_t i = 0; i < entries.size(); ++i) {
+
+		const RegisteredRenderBuffer& entry = entries[i];
 
 		const RootBindingLocation* cbv =
 			pipeline.FindBindingByName(entry.alias, ShaderBindingKind::CBV);
@@ -37,29 +42,31 @@ void RegistryAutoBindTable::Sync(const PipelineState& pipeline,
 		if (!cbv && !srv && !uav && !accel) {
 			continue;
 		}
-		resolvedEntries_.push_back({ entry.alias, cbv, srv, uav, accel });
+		resolvedEntries_.push_back({ entry.alias, i, cbv, srv, uav, accel });
 	}
 }
 
 void RegistryAutoBindTable::BindCompute(const RenderBufferRegistry& registry,
 	ID3D12GraphicsCommandList* commandList) const {
 
+	const std::vector<RegisteredRenderBuffer>& entries = registry.GetEntries();
 	for (const ResolvedEntry& resolved : resolvedEntries_) {
 
-		const RegisteredRenderBuffer* entry = registry.Find(resolved.alias);
-		if (!entry) {
+		// Syncで解決済みのインデックスで直接参照する(毎描画の文字列Findを避ける)
+		if (resolved.entryIndex >= entries.size()) {
 			continue;
 		}
-		if (resolved.cbvLocation && entry->gpuAddress != 0) {
-			RootBindingCommand::SetComputeCBV(commandList, resolved.cbvLocation, entry->gpuAddress);
+		const RegisteredRenderBuffer& entry = entries[resolved.entryIndex];
+		if (resolved.cbvLocation && entry.gpuAddress != 0) {
+			RootBindingCommand::SetComputeCBV(commandList, resolved.cbvLocation, entry.gpuAddress);
 		}
-		if (resolved.srvLocation && (entry->gpuAddress != 0 || entry->srvGPUHandle.ptr != 0)) {
+		if (resolved.srvLocation && (entry.gpuAddress != 0 || entry.srvGPUHandle.ptr != 0)) {
 			RootBindingCommand::SetComputeSRV(commandList, resolved.srvLocation,
-				entry->gpuAddress, entry->srvGPUHandle);
+				entry.gpuAddress, entry.srvGPUHandle);
 		}
-		if (resolved.uavLocation && (entry->gpuAddress != 0 || entry->uavGPUHandle.ptr != 0)) {
+		if (resolved.uavLocation && (entry.gpuAddress != 0 || entry.uavGPUHandle.ptr != 0)) {
 			RootBindingCommand::SetComputeUAV(commandList, resolved.uavLocation,
-				entry->gpuAddress, entry->uavGPUHandle);
+				entry.gpuAddress, entry.uavGPUHandle);
 		}
 	}
 }
@@ -67,23 +74,25 @@ void RegistryAutoBindTable::BindCompute(const RenderBufferRegistry& registry,
 void RegistryAutoBindTable::BindGraphics(const RenderBufferRegistry& registry,
 	ID3D12GraphicsCommandList* commandList) const {
 
+	const std::vector<RegisteredRenderBuffer>& entries = registry.GetEntries();
 	for (const ResolvedEntry& resolved : resolvedEntries_) {
 
-		const RegisteredRenderBuffer* entry = registry.Find(resolved.alias);
-		if (!entry) {
+		// Syncで解決済みのインデックスで直接参照する(毎描画の文字列Findを避ける)
+		if (resolved.entryIndex >= entries.size()) {
 			continue;
 		}
-		if (resolved.cbvLocation && entry->gpuAddress != 0) {
-			RootBindingCommand::SetGraphicsCBV(commandList, resolved.cbvLocation, entry->gpuAddress);
+		const RegisteredRenderBuffer& entry = entries[resolved.entryIndex];
+		if (resolved.cbvLocation && entry.gpuAddress != 0) {
+			RootBindingCommand::SetGraphicsCBV(commandList, resolved.cbvLocation, entry.gpuAddress);
 		}
-		if (resolved.srvLocation && (entry->gpuAddress != 0 || entry->srvGPUHandle.ptr != 0)) {
+		if (resolved.srvLocation && (entry.gpuAddress != 0 || entry.srvGPUHandle.ptr != 0)) {
 			RootBindingCommand::SetGraphicsSRV(commandList, resolved.srvLocation,
-				entry->gpuAddress, entry->srvGPUHandle);
+				entry.gpuAddress, entry.srvGPUHandle);
 		}
-		if (resolved.accelStructLocation && entry->gpuAddress != 0) {
+		if (resolved.accelStructLocation && entry.gpuAddress != 0) {
 			// AccelStructはSRVコマンドでgpuAddress直指定
 			RootBindingCommand::SetGraphicsSRV(commandList, resolved.accelStructLocation,
-				entry->gpuAddress, {});
+				entry.gpuAddress, {});
 		}
 	}
 }

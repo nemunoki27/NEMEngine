@@ -27,7 +27,7 @@ public static unsafe class HostBridge {
     private const int MaxExceptionFrames = 24;
 
     // public fieldをJSONへ含めるための共通設定。
-    // AssetRef/EntityRef/ScriptRef/Uuid は専用 converter で identity だけを round-trip する。
+    // AssetRef/EntityRef/ScriptRef/UUID は専用 converter で identity だけを round-trip する。
     private static readonly JsonSerializerOptions jsonOptions = CreateJsonOptions();
 
     private static JsonSerializerOptions CreateJsonOptions() {
@@ -37,7 +37,7 @@ public static unsafe class HostBridge {
             // MathTypesのlength/normalizedなどは保存値ではないのでJSON化しない
             IgnoreReadOnlyProperties = true
         };
-        options.Converters.Add(new UuidJsonConverter());
+        options.Converters.Add(new UUIDJsonConverter());
         options.Converters.Add(new EntityRefJsonConverter());
         options.Converters.Add(new AssetRefJsonConverterFactory());
         options.Converters.Add(new ScriptRefJsonConverterFactory());
@@ -534,6 +534,17 @@ public static unsafe class HostBridge {
         var slot = new ScriptInstanceSlot { generation = 1, instance = script, inUse = true, retired = false };
         slots.Add(slot);
         return new NativeScriptInstanceHandle((uint)(slots.Count - 1), slot.generation);
+    }
+
+    // 同 Entity 上の T 型スクリプト instance を引く（Entity.GetComponent<T> / ScriptBehaviour.GetComponent<T> から呼ぶ）。
+    // 型 -> Stable GUID を解決し、native registry から handle を引いて managed instance へ戻す。未解決は null。
+    internal static T? FindScript<T>(NativeEntity owner) where T : ScriptBehaviour {
+
+        if (!typeToEntry.TryGetValue(typeof(T), out ScriptTypeEntry? entry)) {
+            return null;
+        }
+        NativeScriptInstanceHandle handle = NativeApi.FindScriptInstance(owner, entry.scriptTypeId);
+        return TryResolveSlot(handle, out ScriptBehaviour script) ? script as T : null;
     }
 
     // handleからinstanceをO(1)で解決する。範囲・retired・inUse・instance・generationを全て検証する

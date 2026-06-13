@@ -8,6 +8,7 @@
 #include <Engine/Core/Assets/Async/AssetWorkerPool.h>
 
 // c++
+#include <filesystem>
 #include <unordered_map>
 #include <unordered_set>
 // directX
@@ -38,6 +39,8 @@ namespace Engine {
 
 		// WICロード時にsRGBとして扱うか
 		bool forceSRGB = false;
+		// ホットリロードでの再アップロードか、trueなら既存SRVインデックスへ上書きする
+		bool reload = false;
 	};
 
 	//============================================================================
@@ -62,6 +65,11 @@ namespace Engine {
 		void RequestSolidColor1x1(const std::string& key, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 		void RequestTextureFile(const TextureFileRequestDesc& desc);
 		void RequestTextureFile(const std::string& key, const std::string& assetPath);
+
+		// 既にロード済みのファイル由来テクスチャを再デコードして同一SRVインデックスへ差し替える、未ロードやsolid colorは無視する
+		void RequestReload(const std::string& key);
+		// 指定ファイルを指す全てのキー(描画用base/sRGBやProjectPanelサムネイル等)をまとめて再ロードする
+		void RequestReloadByFile(const std::filesystem::path& fullPath);
 
 		// 終了処理
 		void Finalize();
@@ -92,6 +100,8 @@ namespace Engine {
 
 			// アップロードの成功フラグ
 			bool success = false;
+			// ホットリロードでの再アップロードか
+			bool reload = false;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -111,6 +121,8 @@ namespace Engine {
 		std::unordered_map<std::string, GPUTextureResource> readyTextures_;
 		std::unordered_set<std::string> queuedKeys_;
 		std::unordered_set<std::string> failedKeys_;
+		// ファイル由来テクスチャの再デコードに使う元リクエスト、keyごとにassetPath/forceSRGBを覚えておく
+		std::unordered_map<std::string, TextureFileRequestDesc> keyRequests_;
 
 		//--------- functions ----------------------------------------------------
 
@@ -118,7 +130,8 @@ namespace Engine {
 		void DecodeTextureWorker(TextureFileRequestDesc&& job, uint32_t workerIndex);
 		// アップロードジョブの処理
 		GPUTextureResource UploadSolidColor1x1(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-		GPUTextureResource UploadScratchImage(const DirectX::ScratchImage& image, const DirectX::TexMetadata& meta);
+		GPUTextureResource UploadScratchImage(const DirectX::ScratchImage& image, const DirectX::TexMetadata& meta,
+			uint32_t reuseSrvIndex = UINT32_MAX);
 	};
 } // Engine
 

@@ -149,13 +149,13 @@ namespace Engine {
 		desc.type = PipelineType::Geometry;
 
 		// シェーダー設定
-		desc.preRaster.file = "Builtin/Line/lineGeometry.VS.hlsl";
+		desc.preRaster.file = "b2995658d93cd4ab";
 		desc.preRaster.entry = "main";
 		desc.preRaster.profile = "vs_6_0";
-		desc.geometry.file = "Builtin/Line/lineGeometry.GS.hlsl";
+		desc.geometry.file = "0f434bd88135ee44";
 		desc.geometry.entry = "main";
 		desc.geometry.profile = "gs_6_0";
-		desc.pixel.file = "Builtin/Line/lineGeometry.PS.hlsl";
+		desc.pixel.file = "bfddf777ae6b39b6";
 		desc.pixel.entry = "main";
 		desc.pixel.profile = "ps_6_0";
 

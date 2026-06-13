@@ -99,7 +99,7 @@ namespace Engine::RenderPassExecutionHelper {
 	void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 		const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
 		RenderPhase phase, MultiRenderTarget* target, MaterialPassKind passKind,
-		bool forceVertexMeshVariant) {
+		bool forceVertexMeshVariant, DepthTexture2D* depthOverride) {
 
 		// 指定phaseのバケットをそのままtargetへ流すラッパー
 		const RenderPassItemList* list = passBuckets.Find(phase);
@@ -107,7 +107,7 @@ namespace Engine::RenderPassExecutionHelper {
 			return;
 		}
 		DispatchInternal(graphicsCore, context, list->items, deps,
-			RenderPassSurfaceBinding{ target, nullptr }, passKind, forceVertexMeshVariant, false);
+			RenderPassSurfaceBinding{ target, depthOverride }, passKind, forceVertexMeshVariant, false);
 	}
 
 	void Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context,

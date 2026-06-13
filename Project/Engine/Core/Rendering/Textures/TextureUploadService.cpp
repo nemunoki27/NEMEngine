@@ -142,6 +142,16 @@ void Engine::TextureUploadService::TickFinalize() {
 	// 記録されたジョブを処理する
 	for (auto& job : jobs) {
 
+		// reload時は既存のSRVインデックスを再利用して差し替える、index据え置きなのでバッチキャッシュ等の参照を壊さない
+		uint32_t reuseSrvIndex = UINT32_MAX;
+		if (job.reload) {
+			std::scoped_lock lock(mutex_);
+			auto existing = readyTextures_.find(job.key);
+			if (existing != readyTextures_.end() && existing->second.srvIndex != UINT32_MAX) {
+				reuseSrvIndex = existing->second.srvIndex;
+			}
+		}
+
 		GPUTextureResource uploaded{};
 		// 単色テクスチャのアップロード
 		if (job.isSolidColor) {
@@ -151,16 +161,23 @@ void Engine::TextureUploadService::TickFinalize() {
 		}
 		// 画像テクスチャのアップロード
 		else if (job.success) {
-			uploaded = UploadScratchImage(job.image, job.metadata);
+			uploaded = UploadScratchImage(job.image, job.metadata, reuseSrvIndex);
 		}
 
 		// アップロード結果を反映する
 		std::scoped_lock lock(mutex_);
 		queuedKeys_.erase(job.key);
+
+		// reloadのデコードに失敗した時は、書き込み途中や一時的な破損なので既存の有効なテクスチャを壊さず保持する
+		if (job.reload && !uploaded.valid) {
+			continue;
+		}
+
 		failedKeys_.erase(job.key);
 		auto it = readyTextures_.find(job.key);
 		if (it != readyTextures_.end()) {
-			if (srvDescriptor_ && it->second.srvIndex != UINT32_MAX) {
+			// 再利用indexで上書きした時は同じindexなのでFreeしない、別indexになった時のみ旧indexを解放する
+			if (srvDescriptor_ && it->second.srvIndex != UINT32_MAX && it->second.srvIndex != uploaded.srvIndex) {
 				srvDescriptor_->Free(it->second.srvIndex);
 			}
 			readyTextures_.erase(it);
@@ -232,6 +249,10 @@ void Engine::TextureUploadService::RequestTextureFile(const TextureFileRequestDe
 		// 再試行可能にする
 		failedKeys_.erase(desc.key);
 		queuedKeys_.insert(desc.key);
+		// 再デコード用に元リクエストを覚えておく、reloadフラグは持ち越さない
+		TextureFileRequestDesc stored = desc;
+		stored.reload = false;
+		keyRequests_[desc.key] = std::move(stored);
 		shouldEnqueue = true;
 	}
 	if (!shouldEnqueue) {
@@ -254,6 +275,69 @@ void Engine::TextureUploadService::RequestTextureFile(const std::string& key, co
 	RequestTextureFile(desc);
 }
 
+void Engine::TextureUploadService::RequestReload(const std::string& key) {
+
+	TextureFileRequestDesc desc{};
+	{
+		std::scoped_lock lock(mutex_);
+		// 元のファイルリクエストが無いキーはsolid colorや未ロードなので対象外
+		auto it = keyRequests_.find(key);
+		if (it == keyRequests_.end()) {
+			return;
+		}
+		// まだロードされていないキーや、既に再ロードが進行中のキーは重ねて投げない
+		if (!readyTextures_.contains(key) || queuedKeys_.contains(key)) {
+			return;
+		}
+
+		desc = it->second;
+		desc.reload = true;
+		queuedKeys_.insert(key);
+	}
+
+	decodeWorkers_.Enqueue(desc);
+	Logger::Output(LogType::Engine, "[TextureReload][Queue] key={} path={}", desc.key, desc.assetPath);
+}
+
+void Engine::TextureUploadService::RequestReloadByFile(const std::filesystem::path& fullPath) {
+
+	// 比較はlexically_normal+小文字化でWindowsの大小やセパレータ差を吸収する
+	const std::string target = Algorithm::ToLower(fullPath.lexically_normal().generic_string());
+	if (target.empty()) {
+		return;
+	}
+
+	std::vector<TextureFileRequestDesc> toEnqueue;
+	{
+		std::scoped_lock lock(mutex_);
+		for (const auto& [key, desc] : keyRequests_) {
+
+			// ロード済みで再ロード進行中でないキーだけを対象にする
+			if (!readyTextures_.contains(key) || queuedKeys_.contains(key)) {
+				continue;
+			}
+
+			// このキーが指すファイルの絶対パスを求めて変更ファイルと一致するか確認する
+			const std::filesystem::path candidate = std::filesystem::path(desc.assetPath).is_absolute() ?
+				std::filesystem::path(desc.assetPath) : RuntimePaths::ResolveAssetPath(desc.assetPath);
+			if (Algorithm::ToLower(candidate.lexically_normal().generic_string()) != target) {
+				continue;
+			}
+
+			TextureFileRequestDesc reloadDesc = desc;
+			reloadDesc.reload = true;
+			queuedKeys_.insert(key);
+			toEnqueue.emplace_back(std::move(reloadDesc));
+		}
+	}
+
+	for (TextureFileRequestDesc& desc : toEnqueue) {
+
+		decodeWorkers_.Enqueue(desc);
+		Logger::Output(LogType::Engine, "[TextureReload][Queue] key={} path={}", desc.key, desc.assetPath);
+	}
+}
+
 void Engine::TextureUploadService::Finalize() {
 
 	decodeWorkers_.Stop();
@@ -271,6 +355,7 @@ void Engine::TextureUploadService::Finalize() {
 		readyTextures_.clear();
 		queuedKeys_.clear();
 		failedKeys_.clear();
+		keyRequests_.clear();
 	}
 
 	uploadCommand_.reset();
@@ -311,6 +396,7 @@ void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& 
 
 	PendingUploadJob result{};
 	result.key = job.key;
+	result.reload = job.reload;
 
 	// ファイルパスからテクスチャをデコードする
 	const std::filesystem::path fullPath = RuntimePaths::ResolveAssetPath(job.assetPath);
@@ -446,7 +532,7 @@ Engine::GPUTextureResource Engine::TextureUploadService::UploadSolidColor1x1(
 }
 
 Engine::GPUTextureResource Engine::TextureUploadService::UploadScratchImage(
-	const DirectX::ScratchImage& image, const DirectX::TexMetadata& meta) {
+	const DirectX::ScratchImage& image, const DirectX::TexMetadata& meta, uint32_t reuseSrvIndex) {
 
 	GPUTextureResource result{};
 	if (!image.GetImages() || image.GetImageCount() == 0) {
@@ -531,9 +617,16 @@ Engine::GPUTextureResource Engine::TextureUploadService::UploadScratchImage(
 	// コマンドを実行する
 	uploadCommand_->ExecuteCommands(graphicsQueue_);
 
-	// SRVを作成する
+	// SRVを作成する、reload時は既存indexへ上書きしてgpuHandleを変えない
 	const D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = BuildSRVDesc(meta);
-	srvDescriptor_->CreateSRV(result.srvIndex, result.resource.Get(), srvDesc);
+	if (reuseSrvIndex != UINT32_MAX) {
+
+		result.srvIndex = reuseSrvIndex;
+		srvDescriptor_->RecreateSRV(reuseSrvIndex, result.resource.Get(), srvDesc);
+	} else {
+
+		srvDescriptor_->CreateSRV(result.srvIndex, result.resource.Get(), srvDesc);
+	}
 	result.gpuHandle = srvDescriptor_->GetGPUHandle(result.srvIndex);
 	result.valid = true;
 	return result;
