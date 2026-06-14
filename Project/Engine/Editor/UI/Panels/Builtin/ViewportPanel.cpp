@@ -28,12 +28,23 @@
 //============================================================================
 namespace {
 
+	// クォータニオンでベクトルを回す、中心ピボットで各位置をorbitさせるために使う
+	Engine::Vector3 RotateVectorByQuaternion(const Engine::Quaternion& q, const Engine::Vector3& v) {
+
+		const Engine::Vector3 axis(q.x, q.y, q.z);
+		const Engine::Vector3 t = Engine::Vector3::Cross(axis, v) * 2.0f;
+		return v + t * q.w + Engine::Vector3::Cross(axis, t);
+	}
+
 	bool Prefers2DGizmo(const Engine::EditorPanelContext& context,
 		Engine::ECSWorld& world, const Engine::Entity& entity) {
 
+		// Textは2D/3D両対応なのでdimensionで判定する
+		if (world.HasComponent<Engine::TextRendererComponent>(entity)) {
+			return world.GetComponent<Engine::TextRendererComponent>(entity).dimension == Engine::Dimension::Type2D;
+		}
 		// 2D描画に関係するコンポーネントがある場合は2Dギズモを優先
 		if (world.HasComponent<Engine::SpriteRendererComponent>(entity) ||
-			world.HasComponent<Engine::TextRendererComponent>(entity) ||
 			world.HasComponent<Engine::OrthographicCameraComponent>(entity)) {
 			return true;
 		}
@@ -219,6 +230,8 @@ Engine::ViewportPanel::ViewportPanel(const char* windowName, const char* label, 
 	icons_.manualCamera2DKey = "sceneCameraMode2D.dds";
 	icons_.manualCamera3DKey = "sceneCameraMode3D.dds";
 	icons_.drawGridKey = "enabeDrawGrid.png";
+	icons_.gizmoCenterPivotKey = "gizmoCenterPivot.png";
+	icons_.eachEntityOriginKey = "eachEntityOrigin.png";
 
 	// アイコンの読み込み要求
 	RequestIcons();
@@ -384,6 +397,15 @@ void Engine::ViewportPanel::DrawSceneGizmo(const EditorPanelContext& context) {
 	//	エンティティ選択中
 	//============================================================================
 	{
+		// 複数選択中は中心ピボットで各エンティティを個別原点で動かすギズモへ切り替える
+		if (context.editorState->SelectionCount() > 1) {
+
+			FinalizeEntityGizmoSession(context, world);
+			DrawMultiEntityGizmo(context, world, rect);
+			return;
+		}
+		FinalizeMultiEntityGizmoSession(context, world);
+
 		const Entity entity = context.editorState->selectedEntity;
 		// 編集不可なエンティティの場合はギズモセッションを終了して何もしない
 		if (!world.IsAlive(entity) || !world.HasComponent<TransformComponent>(entity)) {
@@ -464,6 +486,138 @@ void Engine::ViewportPanel::FinalizeEntityGizmoSession(const EditorPanelContext&
 	entityGizmoSession_ = {};
 }
 
+void Engine::ViewportPanel::DrawMultiEntityGizmo(const EditorPanelContext& context, ECSWorld& world,
+	const GizmoViewportRect& rect) {
+
+	// 生存かつTransformを持つ対象だけ集め、中心を求める
+	std::vector<Entity> targets{};
+	Vector3 centerSum = Vector3::AnyInit(0.0f);
+	for (const Entity& entity : context.editorState->GetSelectedEntities()) {
+
+		if (world.IsAlive(entity) && world.HasComponent<TransformComponent>(entity)) {
+			targets.push_back(entity);
+			centerSum += world.GetComponent<TransformComponent>(entity).worldMatrix.GetTranslationValue();
+		}
+	}
+	if (targets.size() < 2) {
+		FinalizeMultiEntityGizmoSession(context, world);
+		return;
+	}
+	const Vector3 center = centerSum / static_cast<float>(targets.size());
+
+	// 次元はアクティブなエンティティに合わせる、選択は同次元なので代表でよい
+	const bool use2DTarget = Prefers2DGizmo(context, world, context.editorState->selectedEntity);
+	const ResolvedCameraView* camera = SelectSceneGizmoCamera(*context.sceneRenderView, use2DTarget);
+	if (!camera) {
+		FinalizeMultiEntityGizmoSession(context, world);
+		return;
+	}
+
+	// ドラッグ中はピボットを持続させ、idleは中心へ単位姿勢で置く
+	TransformComponent pivot{};
+	if (multiGizmoSession_.active) {
+		pivot = multiGizmoSession_.pivot;
+	} else {
+		pivot.localPos = center;
+		pivot.localRotation = Quaternion::Identity();
+		pivot.localScale = Vector3::AnyInit(1.0f);
+	}
+	const TransformComponent prevPivot = pivot;
+
+	GizmoViewContext gizmoContext{};
+	gizmoContext.rect = rect;
+	gizmoContext.viewMatrix = camera->matrices.viewMatrix;
+	gizmoContext.projectionMatrix = camera->matrices.projectionMatrix;
+	gizmoContext.parentWorldMatrix = Matrix4x4::Identity();
+	gizmoContext.mode = context.editorState->sceneViewManipulatorMode;
+	gizmoContext.orthographic = camera == &context.sceneRenderView->orthographic;
+	gizmoContext.allowAxisFlip = !use2DTarget;
+
+	const GizmoEditResult result = use2DTarget ?
+		MyGUI::Manipulate2D("##SceneMultiGizmo2D", gizmoContext, pivot) :
+		MyGUI::Manipulate3D("##SceneMultiGizmo3D", gizmoContext, pivot);
+
+	context.editorState->useSceneGizmo = result.IsUse();
+
+	// ドラッグ開始時にundo用の操作前姿勢を控える
+	if (result.isUsing && !multiGizmoSession_.active) {
+
+		multiGizmoSession_.active = true;
+		multiGizmoSession_.beforeTransforms.clear();
+		for (const Entity& entity : targets) {
+			multiGizmoSession_.beforeTransforms.emplace_back(
+				world.GetUUID(entity), world.GetComponent<TransformComponent>(entity));
+		}
+	}
+
+	// ピボットのフレーム差分を各エンティティへ個別原点で適用する
+	if (multiGizmoSession_.active && result.valueChanged) {
+
+		const Vector3 deltaPos = pivot.localPos - prevPivot.localPos;
+		const Quaternion deltaRot = pivot.localRotation * Quaternion::Inverse(prevPivot.localRotation);
+		const Vector3 deltaScale(
+			prevPivot.localScale.x != 0.0f ? pivot.localScale.x / prevPivot.localScale.x : 1.0f,
+			prevPivot.localScale.y != 0.0f ? pivot.localScale.y / prevPivot.localScale.y : 1.0f,
+			prevPivot.localScale.z != 0.0f ? pivot.localScale.z / prevPivot.localScale.z : 1.0f);
+
+		// 中心ピボットなら位置を中心周りにorbitさせ、個別原点なら位置はそのままにする
+		const bool pivotAtCenter = context.editorState->gizmoPivotAtCenter;
+		const Vector3 pivotCenter = prevPivot.localPos;
+		for (const Entity& entity : targets) {
+
+			TransformComponent transform = world.GetComponent<TransformComponent>(entity);
+			// 移動は共通デルタ
+			transform.localPos = transform.localPos + deltaPos;
+			if (pivotAtCenter) {
+
+				// 回転と拡縮で位置を選択中心周りに動かす、modeは排他なので片方は単位
+				const Vector3 offset = transform.localPos - pivotCenter;
+				transform.localPos = pivotCenter + RotateVectorByQuaternion(deltaRot, offset) * deltaScale;
+			}
+			// 回転と拡縮は各自のトランスフォームへ相対適用する
+			transform.localRotation = Quaternion::Normalize(deltaRot * transform.localRotation);
+			transform.localScale = transform.localScale * deltaScale;
+			TransformEditUtility::ApplyImmediate(world, entity, transform);
+		}
+	}
+
+	if (multiGizmoSession_.active && !result.isUsing) {
+		FinalizeMultiEntityGizmoSession(context, world);
+	} else if (multiGizmoSession_.active) {
+		multiGizmoSession_.pivot = pivot;
+	}
+}
+
+void Engine::ViewportPanel::FinalizeMultiEntityGizmoSession(const EditorPanelContext& context, ECSWorld& world) {
+
+	if (!multiGizmoSession_.active) {
+		return;
+	}
+	if (context.host && context.editorState) {
+
+		// SetTransformCommandは非アクティブ対象を単一選択へ戻すため、複数選択を退避して後で復元する
+		const std::vector<Entity> savedSelection = context.editorState->GetSelectedEntities();
+
+		// 操作前後で変化したエンティティだけまとめてコマンド化する
+		for (const auto& [uuid, beforeTransform] : multiGizmoSession_.beforeTransforms) {
+
+			const Entity entity = world.FindByUUID(uuid);
+			if (!world.IsAlive(entity) || !world.HasComponent<TransformComponent>(entity)) {
+				continue;
+			}
+			const TransformComponent afterTransform = world.GetComponent<TransformComponent>(entity);
+			if (!SetTransformCommand::NearlyEqualTransform(beforeTransform, afterTransform)) {
+
+				context.host->ExecuteEditorCommand(
+					std::make_unique<SetTransformCommand>(entity, beforeTransform, afterTransform));
+			}
+		}
+		// 退避していた複数選択を復元する
+		context.editorState->SetSelectedEntities(savedSelection);
+	}
+	multiGizmoSession_ = {};
+}
+
 void Engine::ViewportPanel::RequestIcons() {
 
 	if (!textureUploadService_) {
@@ -494,6 +648,10 @@ void Engine::ViewportPanel::RequestIcons() {
 		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.manualCamera3DKey));
 	textureUploadService_->RequestTextureFile(icons_.drawGridKey,
 		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.drawGridKey));
+	textureUploadService_->RequestTextureFile(icons_.gizmoCenterPivotKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.gizmoCenterPivotKey));
+	textureUploadService_->RequestTextureFile(icons_.eachEntityOriginKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.eachEntityOriginKey));
 }
 
 ImTextureID Engine::ViewportPanel::GetTextureID(const std::string& key) const {
@@ -602,6 +760,20 @@ void Engine::ViewportPanel::DrawManipulatorSection(const EditorPanelContext& con
 	}
 	if (ImGui::IsItemHovered()) {
 		ImGui::SetTooltip("拡縮編集");
+	}
+
+	// 複数選択ギズモのピボット切り替え、現在のモードのアイコンを表示する
+	const std::string& pivotIcon = context.editorState->gizmoPivotAtCenter ?
+		icons_.gizmoCenterPivotKey : icons_.eachEntityOriginKey;
+	if (DrawIconButton("##GizmoPivotMode", GetTextureID(pivotIcon), true, buttonSize_)) {
+
+		context.editorState->gizmoPivotAtCenter = !context.editorState->gizmoPivotAtCenter;
+	}
+	if (ImGui::IsItemHovered()) {
+
+		std::string tooltip = std::string("複数選択ギズモのピボット\n現在: ") +
+			(context.editorState->gizmoPivotAtCenter ? "選択中心" : "各エンティティ原点");
+		ImGui::SetTooltip("%s", tooltip.c_str());
 	}
 
 	EditorSelectionKind& kind = context.editorState->selectKind;

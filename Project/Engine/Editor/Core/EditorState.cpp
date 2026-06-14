@@ -4,7 +4,47 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h> 
+#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/Components/Camera/CameraComponent.h>
+#include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
+#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
+
+// c++
+#include <algorithm>
+#include <optional>
+
+//============================================================================
+//	EditorState internal
+//============================================================================
+namespace {
+
+	// 複数選択の次元ガード用にエンティティの2D/3Dを判定する、確定できなければnullopt
+	// TextはMeshと違い2D/3D両対応なのでdimensionで切り替える
+	std::optional<Engine::Dimension> ResolveEntityDimension(Engine::ECSWorld& world, const Engine::Entity& entity) {
+
+		if (!world.IsAlive(entity)) {
+			return std::nullopt;
+		}
+		if (world.HasComponent<Engine::SpriteRendererComponent>(entity) ||
+			world.HasComponent<Engine::OrthographicCameraComponent>(entity)) {
+			return Engine::Dimension::Type2D;
+		}
+		if (world.HasComponent<Engine::TextRendererComponent>(entity)) {
+			return world.GetComponent<Engine::TextRendererComponent>(entity).dimension;
+		}
+		if (world.HasComponent<Engine::MeshRendererComponent>(entity) ||
+			world.HasComponent<Engine::PerspectiveCameraComponent>(entity) ||
+			world.HasComponent<Engine::DirectionalLightComponent>(entity) ||
+			world.HasComponent<Engine::PointLightComponent>(entity) ||
+			world.HasComponent<Engine::SpotLightComponent>(entity)) {
+			return Engine::Dimension::Type3D;
+		}
+		return std::nullopt;
+	}
+}
 
 //============================================================================
 //	EditorState classMethods
@@ -15,12 +55,20 @@ void Engine::EditorState::ValidateSelection(ECSWorld* world) {
 	if (selectionKind == EditorSelectionKind::Asset) {
 		return;
 	}
-
-	// 選択しているエンティティがワールドに存在しない場合は選択をクリアする
-	if (!world || !world->IsAlive(selectedEntity)) {
-
+	if (!world) {
 		ClearSelection();
 		return;
+	}
+
+	// 死んだエンティティを複数選択から除去し、全滅ならクリア、アクティブは生存個体へ寄せる
+	selectedEntities.erase(std::remove_if(selectedEntities.begin(), selectedEntities.end(),
+		[&](const Entity& entity) { return !world->IsAlive(entity); }), selectedEntities.end());
+	if (selectedEntities.empty()) {
+		ClearSelection();
+		return;
+	}
+	if (!world->IsAlive(selectedEntity)) {
+		selectedEntity = selectedEntities.back();
 	}
 
 	// サブメッシュが選択されている場合は、選択が有効か確認する
@@ -54,6 +102,87 @@ void Engine::EditorState::SelectEntity(const Entity& entity) {
 	selectedAsset = {};
 	selectedSubMeshIndex = 0;
 	selectedSubMeshStableID = UUID{};
+	selectedEntities.clear();
+	if (entity.IsValid()) {
+		selectedEntities.push_back(entity);
+	}
+}
+
+void Engine::EditorState::AddEntityToSelection(const Entity& entity) {
+
+	if (!entity.IsValid()) {
+		return;
+	}
+	selectionKind = EditorSelectionKind::Entity;
+	selectedAsset = {};
+	selectedSubMeshIndex = 0;
+	selectedSubMeshStableID = UUID{};
+	if (std::find(selectedEntities.begin(), selectedEntities.end(), entity) == selectedEntities.end()) {
+		selectedEntities.push_back(entity);
+	}
+	// アクティブは最後に触れたエンティティにする
+	selectedEntity = entity;
+}
+
+void Engine::EditorState::ToggleEntityInSelection(const Entity& entity) {
+
+	if (!entity.IsValid()) {
+		return;
+	}
+	auto it = std::find(selectedEntities.begin(), selectedEntities.end(), entity);
+	if (it != selectedEntities.end()) {
+
+		selectedEntities.erase(it);
+		if (selectedEntities.empty()) {
+			ClearSelection();
+			return;
+		}
+		selectionKind = EditorSelectionKind::Entity;
+		selectedEntity = selectedEntities.back();
+		return;
+	}
+	AddEntityToSelection(entity);
+}
+
+void Engine::EditorState::SetSelectedEntities(const std::vector<Entity>& entities) {
+
+	selectedEntities.clear();
+	for (const Entity& entity : entities) {
+
+		if (entity.IsValid() &&
+			std::find(selectedEntities.begin(), selectedEntities.end(), entity) == selectedEntities.end()) {
+			selectedEntities.push_back(entity);
+		}
+	}
+	if (selectedEntities.empty()) {
+		ClearSelection();
+		return;
+	}
+	selectionKind = EditorSelectionKind::Entity;
+	selectedAsset = {};
+	selectedSubMeshIndex = 0;
+	selectedSubMeshStableID = UUID{};
+	selectedEntity = selectedEntities.back();
+}
+
+bool Engine::EditorState::CanMultiSelect(ECSWorld& world, const Entity& candidate) const {
+
+	if (selectedEntities.empty()) {
+		return true;
+	}
+	const std::optional<Dimension> candidateDim = ResolveEntityDimension(world, candidate);
+	if (!candidateDim) {
+		return true;
+	}
+	// 既存選択の確定次元と食い違ったら追加させない
+	for (const Entity& entity : selectedEntities) {
+
+		const std::optional<Dimension> dim = ResolveEntityDimension(world, entity);
+		if (dim && *dim != *candidateDim) {
+			return false;
+		}
+	}
+	return true;
 }
 
 void Engine::EditorState::SelectMeshSubMesh(const Entity& entity, uint32_t subMeshIndex, UUID stableID) {
@@ -63,6 +192,10 @@ void Engine::EditorState::SelectMeshSubMesh(const Entity& entity, uint32_t subMe
 	selectedAsset = {};
 	selectedSubMeshIndex = subMeshIndex;
 	selectedSubMeshStableID = stableID;
+	selectedEntities.clear();
+	if (entity.IsValid()) {
+		selectedEntities.push_back(entity);
+	}
 }
 
 void Engine::EditorState::SelectAsset(AssetID asset) {
@@ -71,6 +204,7 @@ void Engine::EditorState::SelectAsset(AssetID asset) {
 	selectedAsset = asset;
 	++assetSelectionRevision;
 	selectedEntity = Entity::Null();
+	selectedEntities.clear();
 	selectedSubMeshIndex = 0;
 	selectedSubMeshStableID = UUID{};
 }
@@ -137,7 +271,10 @@ bool Engine::EditorState::TryResolveSelectedSubMeshIndex(ECSWorld* world, uint32
 
 bool Engine::EditorState::IsEntitySelected(const Entity& entity) const {
 
-	return selectionKind == EditorSelectionKind::Entity && selectedEntity == entity;
+	if (selectionKind != EditorSelectionKind::Entity) {
+		return false;
+	}
+	return std::find(selectedEntities.begin(), selectedEntities.end(), entity) != selectedEntities.end();
 }
 
 bool Engine::EditorState::IsMeshSubMeshSelected(const Entity& entity, UUID stableID, uint32_t subMeshIndex) const {
@@ -176,6 +313,7 @@ void Engine::EditorState::ClearSelection() {
 
 	selectionKind = EditorSelectionKind::None;
 	selectedEntity = Entity::Null();
+	selectedEntities.clear();
 	selectedAsset = {};
 	selectedSubMeshIndex = 0;
 	selectedSubMeshStableID = UUID{};

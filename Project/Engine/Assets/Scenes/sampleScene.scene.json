@@ -221,7 +221,8 @@
                             },
                             "name": "Mesh_0",
                             "parameterOverrides": {
-                                "baseColorTexture": "447d5b4a4a7fec3d",
+                                "Metallic": 1.0,
+                                "baseColorTexture": "cf3513fc74564db7",
                                 "color": {
                                     "a": 1.0,
                                     "b": 1.0,
@@ -233,7 +234,9 @@
                                     "b": 0.0,
                                     "g": 0.0,
                                     "r": 0.0
-                                }
+                                },
+                                "normalTexture": "aa93672d260a2909",
+                                "occlusionTexture": "110b475387a788d2"
                             },
                             "sourcePivot": {
                                 "x": 0.0,
@@ -248,8 +251,8 @@
                             },
                             "uvRotation": 0.0,
                             "uvScale": {
-                                "x": 64.0,
-                                "y": 64.0
+                                "x": 128.0,
+                                "y": 128.0
                             }
                         }
                     ],
@@ -295,13 +298,13 @@
                         "r": 1.0
                     },
                     "direction": {
-                        "x": 0.025994541123509407,
-                        "y": -0.9996621012687683,
-                        "z": 0.0
+                        "x": -0.3568897843360901,
+                        "y": -0.9267727732658386,
+                        "z": 0.11714066565036774
                     },
                     "enabled": true,
                     "intensity": 0.38999998569488525,
-                    "shadowStrength": 0.0
+                    "shadowStrength": 1.0
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
@@ -370,7 +373,7 @@
                             "name": "球",
                             "parameterOverrides": {
                                 "Metallic": 1.0,
-                                "Roughness": 0.5,
+                                "Roughness": 0.3700000047683716,
                                 "_materialPad0": 0,
                                 "baseColorTexture": "cf3513fc74564db7",
                                 "color": {
@@ -516,9 +519,9 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": -3.463593006134033,
+                        "x": -3.6261651515960693,
                         "y": 1.8289697170257568,
-                        "z": -0.8012853264808655
+                        "z": -0.8012852668762207
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -616,7 +619,7 @@
                     "localPos": {
                         "x": -6.663362979888916,
                         "y": 1.8289697170257568,
-                        "z": -0.8012853264808655
+                        "z": -0.9474085569381714
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -810,9 +813,9 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": -3.463593006134033,
-                        "y": 4.9174299240112305,
-                        "z": -0.8012853264808655
+                        "x": -3.3944003582000732,
+                        "y": 4.841652870178223,
+                        "z": -0.7670578956604004
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -910,7 +913,7 @@
                     "localPos": {
                         "x": -6.633896350860596,
                         "y": 4.9174299240112305,
-                        "z": -0.8012853264808655
+                        "z": -0.8012853860855103
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -1006,7 +1009,7 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": -9.715753555297852,
+                        "x": -10.021883010864258,
                         "y": 4.9174299240112305,
                         "z": -0.8012853264808655
                     },
@@ -3711,7 +3714,7 @@
                 "Transform": {
                     "localPos": {
                         "x": -13.063300132751465,
-                        "y": 1.47062349319458,
+                        "y": 0.0,
                         "z": -4.09182071685791
                     },
                     "localRotation": {
@@ -3761,7 +3764,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-0",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.10980399698019028,
+                                    "g": 0.1411760002374649,
+                                    "r": 0.16862699389457703
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": -0.09139229357242584,
@@ -3796,7 +3814,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-1",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.45097988843917847,
+                                    "r": 0.7450979948043823
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.22885748744010925,
                                 "y": 0.061051834374666214,
@@ -3831,7 +3864,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-2",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.5411760210990906,
+                                    "g": 0.5411760210990906,
+                                    "r": 0.5411760210990906
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -1.1102885007858276,
                                 "y": 0.010122809559106827,
@@ -3866,7 +3914,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-3",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.17647099494934082,
+                                    "g": 0.1450980007648468,
+                                    "r": 0.019607799127697945
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": -0.01391109824180603,
@@ -3901,7 +3964,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-4",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.9686279892921448,
+                                    "g": 0.9686279892921448,
+                                    "r": 0.9686279892921448
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": -0.0794488787651062,
@@ -3936,7 +4014,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-5",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.36078399419784546,
+                                    "g": 0.4352940022945404,
+                                    "r": 0.48235300183296204
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.033662665635347366,
@@ -3971,7 +4064,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-6",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.2627449929714203,
+                                    "g": 0.2627449929714203,
+                                    "r": 0.2627449929714203
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": -0.00024523958563804626,
@@ -4006,7 +4114,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-7",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.9882349967956543,
+                                    "g": 0.9882349967956543,
+                                    "r": 0.9882349967956543
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.028681643307209015,
@@ -4041,7 +4164,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-8",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.8980389833450317,
+                                    "g": 0.8980389833450317,
+                                    "r": 0.8980389833450317
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.0005992315709590912,
@@ -4076,7 +4214,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-9",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.3803919851779938,
+                                    "g": 0.45097988843917847,
+                                    "r": 0.49803900718688965
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": -0.07141003757715225,
@@ -4111,7 +4264,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-10",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.4588240087032318,
+                                    "g": 0.4588240087032318,
+                                    "r": 0.4588240087032318
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.01780637353658676,
@@ -4146,7 +4314,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-11",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.3294120132923126,
+                                    "g": 0.4078429937362671,
+                                    "r": 0.4627450108528137
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.23730964958667755,
                                 "y": -0.022383302450180054,
@@ -4181,7 +4364,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-12",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.20784300565719604,
+                                    "g": 0.18431399762630463,
+                                    "r": 0.0784313976764679
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.04246184229850769,
@@ -4216,7 +4414,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-13",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.37647101283073425,
+                                    "g": 0.4627450108528137,
+                                    "r": 0.521569013595581
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.07022316753864288,
@@ -4251,7 +4464,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-14",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.1568630039691925,
+                                    "g": 0.19607800245285034,
+                                    "r": 0.24313700199127197
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.033531367778778076,
@@ -4286,7 +4514,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-15",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.3803919851779938,
+                                    "g": 0.45097988843917847,
+                                    "r": 0.49803900718688965
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": -0.0803867056965828,
@@ -4321,7 +4564,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-16",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.5333330035209656,
+                                    "g": 0.6352940201759338,
+                                    "r": 0.6823530197143555
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.0850163996219635,
@@ -4356,7 +4614,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-17",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.36078399419784546,
+                                    "g": 0.4352940022945404,
+                                    "r": 0.48235300183296204
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.06408809870481491,
@@ -4391,7 +4664,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-18",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.05842805281281471,
@@ -4426,7 +4714,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-19",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.2784309983253479,
+                                    "g": 0.32548999786376953,
+                                    "r": 0.35686299204826355
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.01725548505783081,
@@ -4461,7 +4764,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-20",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": -0.020774003118276596,
@@ -4496,7 +4814,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-21",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.24313700199127197,
+                                    "g": 0.2705880105495453,
+                                    "r": 0.0
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": -0.011275403201580048,
@@ -4531,7 +4864,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-22",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.282353013753891,
+                                    "g": 0.34902000427246094,
+                                    "r": 0.38431400060653687
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.1620194911956787,
                                 "y": -0.011010803282260895,
@@ -4566,7 +4914,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-23",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.36078399419784546,
+                                    "g": 0.4352940022945404,
+                                    "r": 0.48235300183296204
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.039782509207725525,
                                 "y": -0.05162174999713898,
@@ -4601,7 +4964,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-24",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.24313700199127197,
+                                    "g": 0.19215700030326843,
+                                    "r": 0.0
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.04762643203139305,
@@ -4636,7 +5014,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-25",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.20000000298023224,
+                                    "r": 0.4313730001449585
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.03248506411910057,
@@ -4671,7 +5064,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-26",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.2705880105495453,
+                                    "g": 0.6862750053405762,
+                                    "r": 0.9176470041275024
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.04427613317966461,
                                 "y": 0.03818373754620552,
@@ -4706,7 +5114,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-27",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.33725500106811523,
+                                    "g": 0.2666670083999634,
+                                    "r": 0.0
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.0015590488910675049,
                                 "y": 0.055686578154563904,
@@ -4741,7 +5164,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-28",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.8705880045890808,
+                                    "g": 0.48235300183296204,
+                                    "r": 0.0
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.09938919544219971,
                                 "y": 0.05638762190937996,
@@ -4776,7 +5214,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-29",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.12156900018453598,
+                                    "g": 0.1568630039691925,
+                                    "r": 0.18823499977588654
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.09657956659793854,
@@ -4811,7 +5264,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-30",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.49803900718688965,
+                                    "g": 0.49803900718688965,
+                                    "r": 0.49803900718688965
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.13328394293785095,
@@ -4846,7 +5314,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-31",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.5372549891471863,
+                                    "g": 0.5372549891471863,
+                                    "r": 0.5372549891471863
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.03741377219557762,
                                 "y": 0.13241100311279297,
@@ -4881,7 +5364,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-32",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.36078399419784546,
+                                    "g": 0.36078399419784546,
+                                    "r": 0.36078399419784546
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.03656681254506111,
@@ -4916,7 +5414,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-33",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.019607799127697945,
+                                    "g": 0.21960799396038055,
+                                    "r": 0.4549019932746887
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": 0.08847355842590332,
@@ -4951,7 +5464,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-34",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.05882349982857704,
+                                    "g": 0.4078429937362671,
+                                    "r": 0.6705880165100098
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.1772289276123047,
                                 "y": 0.038823097944259644,
@@ -4986,7 +5514,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-35",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.2901960015296936,
+                                    "g": 0.2901960015296936,
+                                    "r": 0.2901960015296936
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.0,
                                 "y": -0.0034251026809215546,
@@ -5021,7 +5564,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-36",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.7099869847297668,
+                                    "g": 0.19880999624729156,
+                                    "r": 0.20729400217533112
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.11287404596805573,
                                 "y": 0.0451773963868618,
@@ -5056,7 +5614,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-37",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.37647101283073425,
+                                    "g": 0.4588240087032318,
+                                    "r": 0.5098040103912354
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.20851370692253113,
                                 "y": 0.043492306023836136,
@@ -5091,7 +5664,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-38",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.017341583967208862,
                                 "y": 0.0382329523563385,
@@ -5126,7 +5714,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-39",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.18270018696784973,
                                 "y": 0.06282520294189453,
@@ -5161,7 +5764,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-40",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.20000000298023224,
+                                    "g": 0.1647060066461563,
+                                    "r": 0.019607799127697945
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.2009654939174652,
                                 "y": 0.01726716384291649,
@@ -5196,7 +5814,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-41",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.20000000298023224,
+                                    "g": 0.20000000298023224,
+                                    "r": 0.20000000298023224
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.20662546157836914,
                                 "y": 0.043747782707214355,
@@ -5231,7 +5864,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-42",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.1411760002374649,
+                                    "g": 0.11764699965715408,
+                                    "r": 0.023529399186372757
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.20109787583351135,
                                 "y": 0.038390129804611206,
@@ -5266,7 +5914,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-43",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.37254899740219116,
+                                    "g": 0.4549019932746887,
+                                    "r": 0.513725996017456
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.15370303392410278,
                                 "y": 0.03623035550117493,
@@ -5301,7 +5964,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-44",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.549996018409729,
+                                    "g": 0.2585029900074005,
+                                    "r": 0.26819300651550293
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.8634021878242493,
                                 "y": 0.04683244973421097,
@@ -5336,7 +6014,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-45",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.0784313976764679,
+                                    "g": 0.48627498745918274,
+                                    "r": 0.764706015586853
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.982993483543396,
                                 "y": 0.08014603704214096,
@@ -5371,7 +6064,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-46",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.9589980840682983,
                                 "y": 0.16588164865970612,
@@ -5406,7 +6114,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-47",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.9882349967956543,
+                                    "g": 0.9882349967956543,
+                                    "r": 0.9882349967956543
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.9684381484985352,
                                 "y": 0.06841164827346802,
@@ -5441,7 +6164,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-48",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.1254899948835373,
+                                    "g": 0.1254899948835373,
+                                    "r": 0.1254899948835373
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.7756352424621582,
                                 "y": 0.024491701275110245,
@@ -5476,7 +6214,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-49",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.35294100642204285,
+                                    "g": 0.35294100642204285,
+                                    "r": 0.35294100642204285
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.9205235242843628,
                                 "y": 0.039215654134750366,
@@ -5511,7 +6264,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-50",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.4117650091648102,
+                                    "g": 0.4196079969406128,
+                                    "r": 0.4196079969406128
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.947921872138977,
                                 "y": 0.03781777620315552,
@@ -5546,7 +6314,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-51",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.35999101400375366,
+                                    "g": 0.35999101400375366,
+                                    "r": 0.35999101400375366
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.9444973468780518,
                                 "y": 0.07449488341808319,
@@ -5581,7 +6364,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-52",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.5058820247650146,
+                                    "g": 0.5058820247650146,
+                                    "r": 0.5058820247650146
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.4936133921146393,
                                 "y": 0.051685500890016556,
@@ -5616,7 +6414,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-53",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.2549020051956177,
+                                    "g": 0.2549020051956177,
+                                    "r": 0.2549020051956177
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.003185749053955078,
                                 "y": -0.02981988713145256,
@@ -5651,7 +6464,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-54",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.24313700199127197,
+                                    "g": 0.6509799957275391,
+                                    "r": 0.8627449870109558
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.0011396445333957672,
                                 "y": -0.021569248288869858,
@@ -5686,7 +6514,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-55",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.2549020051956177,
+                                    "g": 0.5411760210990906,
+                                    "r": 0.7098039984703064
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.008226573467254639,
                                 "y": -0.032620664685964584,
@@ -5721,7 +6564,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-56",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.062745101749897,
+                                    "g": 0.5176470279693604,
+                                    "r": 0.8274509906768799
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": -0.025798894464969635,
                                 "y": -0.04147513210773468,
@@ -5756,7 +6614,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-57",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.9882349967956543,
+                                    "g": 0.9882349967956543,
+                                    "r": 0.9882349967956543
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.06100180000066757,
                                 "y": -0.14918360114097595,
@@ -5791,7 +6664,22 @@
                                 "z": 1.0
                             },
                             "name": "Figure_2_geometry-58",
-                            "parameterOverrides": {},
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
                             "sourcePivot": {
                                 "x": 0.06100180745124817,
                                 "y": -0.1404930055141449,
@@ -5831,7 +6719,7 @@
                 "Transform": {
                     "localPos": {
                         "x": -15.408927917480469,
-                        "y": 1.47062349319458,
+                        "y": 0.0,
                         "z": 6.155572891235352
                     },
                     "localRotation": {

@@ -11,7 +11,14 @@
 // json
 #include <json.hpp>
 
+// c++
+#include <utility>
+#include <vector>
+
 namespace Engine {
+
+	// front
+	struct GizmoViewportRect;
 
 	//============================================================================
 	//	ViewportPanel enum class
@@ -58,6 +65,15 @@ namespace Engine {
 			UUID entityUUID{};
 			TransformComponent beforeTransform{};
 		};
+		// 複数選択ギズモのセッション、中心ピボットを保持し各エンティティへ相対適用する
+		struct MultiEntityGizmoSession {
+
+			bool active = false;
+			// ドラッグ中フレーム間で持続する中心ピボット
+			TransformComponent pivot{};
+			// undo用の操作前トランスフォーム
+			std::vector<std::pair<UUID, TransformComponent>> beforeTransforms{};
+		};
 		// アイコン
 		struct IconSet {
 
@@ -80,6 +96,10 @@ namespace Engine {
 			std::string manualCamera2DKey;
 			std::string manualCamera3DKey;
 			std::string drawGridKey;
+
+			// 複数選択ギズモのピボット切り替え用、中心ピボットと各原点
+			std::string gizmoCenterPivotKey;
+			std::string eachEntityOriginKey;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -92,6 +112,7 @@ namespace Engine {
 
 		// ギズモ操作セッションの情報
 		EntityGizmoSession entityGizmoSession_{};
+		MultiEntityGizmoSession multiGizmoSession_{};
 
 		TextureUploadService* textureUploadService_ = nullptr;
 
@@ -107,8 +128,12 @@ namespace Engine {
 
 		// シーンギズモの描画
 		void DrawSceneGizmo(const EditorPanelContext& context);
+		// 複数選択ギズモの描画、中心ピボットの差分を各エンティティへ個別原点で適用する
+		void DrawMultiEntityGizmo(const EditorPanelContext& context, ECSWorld& world,
+			const GizmoViewportRect& rect);
 		// ギズモ終了
 		void FinalizeEntityGizmoSession(const EditorPanelContext& context, ECSWorld& world);
+		void FinalizeMultiEntityGizmoSession(const EditorPanelContext& context, ECSWorld& world);
 
 		// アイコン読み込み
 		void RequestIcons();

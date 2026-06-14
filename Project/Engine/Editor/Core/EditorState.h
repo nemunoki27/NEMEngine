@@ -9,6 +9,9 @@
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 
+// c++
+#include <vector>
+
 namespace Engine {
 
 	//============================================================================
@@ -58,8 +61,10 @@ namespace Engine {
 	// エディタの状態を管理する構造体
 	struct EditorState {
 
-		// 現在選択しているエンティティ
+		// 現在選択しているエンティティ、複数選択時はアクティブな1件
 		Entity selectedEntity = Entity::Null();
+		// 複数選択しているエンティティ一覧、selectedEntityもこの中に含む
+		std::vector<Entity> selectedEntities{};
 		// 現在選択しているアセット
 		AssetID selectedAsset{};
 		// アセット選択操作が行われるたびに進むカウンタ
@@ -76,9 +81,11 @@ namespace Engine {
 
 		// Undo / Redo履歴
 		EditorCommandHistory commandHistory{};
-		// Copy / Paste用クリップボード
+		// Copy / Paste用クリップボード、複数選択をまとめて保持する
 		EditorEntityTreeSnapshot clipboardSnapshot{};
 		UUID clipboardParentStableUUID{};
+		std::vector<EditorEntityTreeSnapshot> clipboardSnapshots{};
+		std::vector<UUID> clipboardParentUUIDs{};
 
 		// シーンビューのカメラ選択状態
 		SceneViewCameraSelection sceneViewCamera{};
@@ -93,9 +100,20 @@ namespace Engine {
 		SceneViewManipulatorMode sceneViewManipulatorMode = SceneViewManipulatorMode::Translate;
 		// ギズモを使用中か
 		bool useSceneGizmo = false;
+		// 複数選択ギズモの回転拡縮を選択中心基準で行うか、falseなら各エンティティ自身の原点基準
+		bool gizmoPivotAtCenter = true;
 
 		// 選択しているエンティティがワールドに存在するか確認し、存在しない場合は選択をクリアする
 		void ValidateSelection(ECSWorld* world);
+
+		// 複数選択操作、追加トグルや範囲指定での置き換え
+		void AddEntityToSelection(const Entity& entity);
+		void ToggleEntityInSelection(const Entity& entity);
+		void SetSelectedEntities(const std::vector<Entity>& entities);
+		const std::vector<Entity>& GetSelectedEntities() const { return selectedEntities; }
+		size_t SelectionCount() const { return selectedEntities.size(); }
+		// 次元が一致して複数選択へ追加できるか、Textはdimensionで2D/3Dを切り替える
+		bool CanMultiSelect(ECSWorld& world, const Entity& candidate) const;
 
 		// エンティティやサブメッシュを選択する
 		void SelectEntity(const Entity& entity);
@@ -114,6 +132,6 @@ namespace Engine {
 		void ClearSelection();
 
 		bool HasValidSelection(ECSWorld* world) const;
-		bool HasClipboard() const { return !clipboardSnapshot.IsEmpty(); }
+		bool HasClipboard() const { return !clipboardSnapshots.empty(); }
 	};
 } // Engine

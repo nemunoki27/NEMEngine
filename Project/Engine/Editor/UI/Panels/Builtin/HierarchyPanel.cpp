@@ -177,7 +177,17 @@ void Engine::HierarchyPanel::DrawActiveToggleIcon(const EditorPanelContext& cont
 
 	if (toggled && world.IsAlive(entity)) {
 
-		context.host->ExecuteEditorCommand(std::make_unique<SetEntityActiveCommand>(entity, !activeSelf));
+		// 選択中のエンティティなら全選択へ同じ状態を適用する
+		const bool newActive = !activeSelf;
+		if (context.editorState && context.editorState->IsEntitySelected(entity)) {
+			for (const Entity& target : context.editorState->GetSelectedEntities()) {
+				if (world.IsAlive(target)) {
+					context.host->ExecuteEditorCommand(std::make_unique<SetEntityActiveCommand>(target, newActive));
+				}
+			}
+		} else {
+			context.host->ExecuteEditorCommand(std::make_unique<SetEntityActiveCommand>(entity, newActive));
+		}
 	}
 }
 
@@ -245,13 +255,24 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	//	左側のアクティブチェックボックス
 	//============================================================================
 	// チェックボックスがクリックされたか
+	// 左シフト併用はSceneViewと同じく次元が合えばトグルで追加選択する
+	const bool additiveSelect = ImGui::IsKeyDown(ImGuiKey_LeftShift);
+	auto selectEntityInHierarchy = [&]() {
+		if (additiveSelect && context.editorState->selectKind == EditorSelectionKind::Entity &&
+			context.editorState->CanMultiSelect(world, entity)) {
+			context.editorState->ToggleEntityInSelection(entity);
+		} else {
+			context.editorState->SelectEntity(entity);
+		}
+		};
+
 	bool checkboxLeftClicked = false;
 	bool checkboxRightClicked = false;
 	DrawActiveToggleIcon(context, world, entity, activeSelf, checkboxLeftClicked, checkboxRightClicked);
 
 	// チェックボックスクリックでも選択状態にする
 	if (checkboxLeftClicked || checkboxRightClicked) {
-		context.editorState->SelectEntity(entity);
+		selectEntityInHierarchy();
 	}
 
 	// チェックボックス上で右クリックしたときもコンテキストメニューを開く
@@ -285,8 +306,10 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	bool nodeLeftClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
 	bool nodeRightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
 
-	// ノードがクリックされたら選択状態にする
-	if (nodeLeftClicked || nodeRightClicked) {
+	// ノードがクリックされたら選択状態にする、右クリックで既に複数選択に含むなら維持する
+	if (nodeLeftClicked) {
+		selectEntityInHierarchy();
+	} else if (nodeRightClicked && !context.editorState->IsEntitySelected(entity)) {
 		context.editorState->SelectEntity(entity);
 	}
 
@@ -300,13 +323,24 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	//============================================================================
 	if (ImGui::BeginPopup("HierarchyEntityContextMenu")) {
 
-		context.editorState->SelectEntity(entity);
+		// 既に複数選択へ含まれているなら維持し、含まれていなければ単体選択にする
+		if (!context.editorState->IsEntitySelected(entity)) {
+			context.editorState->SelectEntity(entity);
+		}
 
-		// アクティブ切り替え
+		// アクティブ切り替え、選択中なら全選択へ同じ状態を適用する
 		if (ImGui::MenuItem(activeSelf ? "Set Inactive" : "Set Active", nullptr, false, context.CanEditScene())) {
 
-			context.host->ExecuteEditorCommand(
-				std::make_unique<SetEntityActiveCommand>(entity, !activeSelf));
+			const bool newActive = !activeSelf;
+			if (context.editorState->IsEntitySelected(entity)) {
+				for (const Entity& target : context.editorState->GetSelectedEntities()) {
+					if (world.IsAlive(target)) {
+						context.host->ExecuteEditorCommand(std::make_unique<SetEntityActiveCommand>(target, newActive));
+					}
+				}
+			} else {
+				context.host->ExecuteEditorCommand(std::make_unique<SetEntityActiveCommand>(entity, newActive));
+			}
 		}
 
 		ImGui::Separator();
@@ -327,10 +361,15 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 
 			context.host->CopySelectionToClipboard();
 		}
-		// エンティティを削除
+		// エンティティを削除、複数選択ならまとめて消す
 		if (ImGui::MenuItem("Delete", "Del", false, context.CanEditScene())) {
 
-			context.host->ExecuteEditorCommand(std::make_unique<DeleteEntityCommand>(entity));
+			const std::vector<Entity> targets = context.editorState->GetSelectedEntities();
+			for (const Entity& target : targets) {
+				if (world.IsAlive(target)) {
+					context.host->ExecuteEditorCommand(std::make_unique<DeleteEntityCommand>(target));
+				}
+			}
 		}
 		ImGui::EndPopup();
 	}

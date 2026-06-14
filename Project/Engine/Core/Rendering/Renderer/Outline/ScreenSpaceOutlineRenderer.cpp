@@ -66,6 +66,14 @@ namespace {
 			item.entity.index == request.entity.index &&
 			item.entity.generation == request.entity.generation;
 	}
+	// styleが完全一致するか、複数選択でstyleIDを共有して描画パスをまとめるために使う
+	bool IsSameOutlineStyleGPU(const ScreenSpaceOutlineStyleGPU& a, const ScreenSpaceOutlineStyleGPU& b) {
+
+		return a.color.r == b.color.r && a.color.g == b.color.g &&
+			a.color.b == b.color.b && a.color.a == b.color.a &&
+			a.widthPixels == b.widthPixels && a.priority == b.priority &&
+			a.visibilityMode == b.visibilityMode && a.regionMode == b.regionMode;
+	}
 }
 
 ScreenSpaceOutlineRenderer::ScreenSpaceOutlineRenderer() {
@@ -150,16 +158,6 @@ bool ScreenSpaceOutlineRenderer::BuildDrawRecords(
 		if (!std::isfinite(request.style.widthPixels) || request.style.widthPixels <= 0.0f) {
 			continue;
 		}
-		if (styleScratch_.size() >= kMaxScreenSpaceOutlineStyles) {
-
-			if (!overflowLogged_) {
-				Logger::Output(LogType::Engine, spdlog::level::warn,
-					"[ScreenSpaceOutline] request count exceeded {}. Extra requests are ignored.",
-					kMaxScreenSpaceOutlineStyles);
-				overflowLogged_ = true;
-			}
-			break;
-		}
 
 		// GPUへ渡す前に必ず半径上限でclampする、巨大値はDilationのGPU Hang原因になる
 		const float width = std::clamp(request.style.widthPixels, 0.0f,
@@ -171,14 +169,36 @@ bool ScreenSpaceOutlineRenderer::BuildDrawRecords(
 		gpuStyle.visibilityMode = static_cast<uint32_t>(request.style.visibilityMode);
 		gpuStyle.regionMode = static_cast<uint32_t>(request.style.regionMode);
 
-		styleScratch_.emplace_back(gpuStyle);
+		// 同一styleは集約してstyleIDを共有する、複数選択で同じ見た目なら1枠で済む
+		uint32_t styleID = 0;
+		for (size_t i = 0; i < styleScratch_.size(); ++i) {
+			if (IsSameOutlineStyleGPU(styleScratch_[i], gpuStyle)) {
+				styleID = static_cast<uint32_t>(i + 1);
+				break;
+			}
+		}
+		if (styleID == 0) {
+
+			if (styleScratch_.size() >= kMaxScreenSpaceOutlineStyles) {
+
+				if (!overflowLogged_) {
+					Logger::Output(LogType::Engine, spdlog::level::warn,
+						"[ScreenSpaceOutline] style count exceeded {}. Extra requests are ignored.",
+						kMaxScreenSpaceOutlineStyles);
+					overflowLogged_ = true;
+				}
+				break;
+			}
+			styleScratch_.emplace_back(gpuStyle);
+			styleID = static_cast<uint32_t>(styleScratch_.size());
+		}
 
 		ScreenSpaceOutlineRequest sanitized = request;
 		sanitized.style.widthPixels = width;
 
 		DrawRecord record{};
 		record.request = sanitized;
-		record.styleID = static_cast<uint32_t>(styleScratch_.size());
+		record.styleID = styleID;
 		drawScratch_.emplace_back(record);
 
 		outMaxRadiusPixels = (std::max)(outMaxRadiusPixels,
@@ -259,35 +279,57 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
 	DxGPUEventScope eventScope{ commandList, L"SSOutline.MaskDraw" };
 
+	// 同じstyleIDとsubMeshIndexのrecordをまとめて1パスで描く、複数選択でもパス数が増えない
+	auto drawGroupedMask = [&](const RenderPassSurfaceBinding& binding, MaterialPassKind passKind, bool coverageOnly) {
+
+		for (size_t groupBegin = 0; groupBegin < drawScratch_.size(); ) {
+
+			const uint32_t groupStyleID = drawScratch_[groupBegin].styleID;
+			const int32_t groupSubMeshIndex = drawScratch_[groupBegin].request.subMeshIndex;
+			const ScreenSpaceOutlineRegionMode groupRegion = drawScratch_[groupBegin].request.style.regionMode;
+
+			size_t groupEnd = groupBegin;
+			while (groupEnd < drawScratch_.size() &&
+				drawScratch_[groupEnd].styleID == groupStyleID &&
+				drawScratch_[groupEnd].request.subMeshIndex == groupSubMeshIndex) {
+				++groupEnd;
+			}
+
+			// CoverageはExteriorPreferredのstyleだけ描く、groupは同styleなので一括で判定できる
+			if (!coverageOnly || groupRegion == ScreenSpaceOutlineRegionMode::ExteriorPreferred) {
+
+				itemScratch_.clear();
+				for (size_t recordIndex = groupBegin; recordIndex < groupEnd; ++recordIndex) {
+
+					for (const RenderItem* item : list->items) {
+
+						if (!item || item->backendID != RenderBackendID::Mesh) {
+							continue;
+						}
+						if (!IsSameEntity(*item, drawScratch_[recordIndex].request)) {
+							continue;
+						}
+						itemScratch_.emplace_back(item);
+					}
+				}
+				if (!itemScratch_.empty()) {
+
+					context.screenSpaceOutlineMaskStyleID = groupStyleID;
+					context.screenSpaceOutlineMaskRestrictSubMeshIndex = groupSubMeshIndex;
+					RenderPassExecutionHelper::Execute(graphicsCore, context, itemScratch_, deps,
+						binding, passKind, false, false);
+				}
+			}
+			groupBegin = groupEnd;
+		}
+		};
+
 	// 1. Visible Mask (Depth Testあり)
 	{
 		RenderPassSurfaceBinding maskBinding{};
 		maskBinding.colorSurface = resources.mask.get();
 		maskBinding.depthOverride = sceneDepth;
-
-		for (const DrawRecord& record : drawScratch_) {
-
-			itemScratch_.clear();
-			for (const RenderItem* item : list->items) {
-
-				if (!item || item->backendID != RenderBackendID::Mesh) {
-					continue;
-				}
-				if (!IsSameEntity(*item, record.request)) {
-					continue;
-				}
-				itemScratch_.emplace_back(item);
-			}
-			if (itemScratch_.empty()) {
-				continue;
-			}
-
-			context.screenSpaceOutlineMaskStyleID = record.styleID;
-			context.screenSpaceOutlineMaskRestrictSubMeshIndex = record.request.subMeshIndex;
-
-			RenderPassExecutionHelper::Execute(graphicsCore, context, itemScratch_, deps,
-				maskBinding, kMaskPassKind, false, false);
-		}
+		drawGroupedMask(maskBinding, kMaskPassKind, false);
 	}
 
 	// 2. Projected Coverage Mask (Depth Test無し)
@@ -295,35 +337,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 		RenderPassSurfaceBinding coverageBinding{};
 		coverageBinding.colorSurface = resources.projectedCoverageMask.get();
 		// 遮蔽判定を行わないのでDepth不要
-
-		for (const DrawRecord& record : drawScratch_) {
-
-			// ExteriorPreferred指定がないStyleはCoverage Maskへの描画をスキップする
-			if (record.request.style.regionMode != ScreenSpaceOutlineRegionMode::ExteriorPreferred) {
-				continue;
-			}
-
-			itemScratch_.clear();
-			for (const RenderItem* item : list->items) {
-
-				if (!item || item->backendID != RenderBackendID::Mesh) {
-					continue;
-				}
-				if (!IsSameEntity(*item, record.request)) {
-					continue;
-				}
-				itemScratch_.emplace_back(item);
-			}
-			if (itemScratch_.empty()) {
-				continue;
-			}
-
-			context.screenSpaceOutlineMaskStyleID = record.styleID;
-			context.screenSpaceOutlineMaskRestrictSubMeshIndex = record.request.subMeshIndex;
-
-			RenderPassExecutionHelper::Execute(graphicsCore, context, itemScratch_, deps,
-				coverageBinding, kCoverageMaskPassKind, false, false);
-		}
+		drawGroupedMask(coverageBinding, kCoverageMaskPassKind, true);
 	}
 
 	context.screenSpaceOutlineMaskStyleID = prevStyleID;
