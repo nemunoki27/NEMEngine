@@ -34,6 +34,16 @@ namespace Engine {
 
 		// モデルファイルから読み取ったデフォルトテクスチャ
 		ImportedMeshTextureAssetSet defaultTextureAssets{};
+
+		// モデルファイルから読み取ったマテリアル係数、has付きで設定済みのものだけ再適用する
+		Color4 baseColorFactor = Color4::White();
+		Color4 emissiveFactor = Color4(0.0f, 0.0f, 0.0f, 1.0f);
+		float metallicFactor = 0.0f;
+		float roughnessFactor = 1.0f;
+		bool hasBaseColorFactor = false;
+		bool hasEmissiveFactor = false;
+		bool hasMetallicFactor = false;
+		bool hasRoughnessFactor = false;
 	};
 } // Engine
 namespace Engine::MeshSubMeshAuthoring {

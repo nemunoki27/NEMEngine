@@ -134,6 +134,36 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_EMISSIVE, aiTextureType_EMISSION_COLOR })));
 			item.defaultTextureAssets.occlusionTexture = resolveAsset(textureResolver.ResolveAssetPath(
 				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP })));
+
+			// マテリアル係数を読む、PBRのBASE_COLORが無ければmtl系のCOLOR_DIFFUSEへフォールバックする
+			aiColor4D baseColor{};
+			if (material->Get(AI_MATKEY_BASE_COLOR, baseColor) == AI_SUCCESS) {
+
+				item.baseColorFactor = Color4(baseColor.r, baseColor.g, baseColor.b, baseColor.a);
+				item.hasBaseColorFactor = true;
+			} else {
+
+				aiColor3D diffuse{};
+				if (material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse) == AI_SUCCESS) {
+					item.baseColorFactor = Color4(diffuse.r, diffuse.g, diffuse.b, 1.0f);
+					item.hasBaseColorFactor = true;
+				}
+			}
+			aiColor3D emissive{};
+			if (material->Get(AI_MATKEY_COLOR_EMISSIVE, emissive) == AI_SUCCESS) {
+				item.emissiveFactor = Color4(emissive.r, emissive.g, emissive.b, 1.0f);
+				item.hasEmissiveFactor = true;
+			}
+			ai_real metallic = 0.0f;
+			if (material->Get(AI_MATKEY_METALLIC_FACTOR, metallic) == AI_SUCCESS) {
+				item.metallicFactor = static_cast<float>(metallic);
+				item.hasMetallicFactor = true;
+			}
+			ai_real roughness = 1.0f;
+			if (material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) == AI_SUCCESS) {
+				item.roughnessFactor = static_cast<float>(roughness);
+				item.hasRoughnessFactor = true;
+			}
 		}
 
 		outLayout.emplace_back(std::move(item));
