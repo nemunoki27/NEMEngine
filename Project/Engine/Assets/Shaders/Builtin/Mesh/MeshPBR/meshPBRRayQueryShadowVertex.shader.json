@@ -1,5 +1,5 @@
 {
-  "name": "RayQueryShadowVertex",
+  "name": "MeshPBRRayQueryShadowVertex",
   "stages": [
     {
       "stage": "VS",

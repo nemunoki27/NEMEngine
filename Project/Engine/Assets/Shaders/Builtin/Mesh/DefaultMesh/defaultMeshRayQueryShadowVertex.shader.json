@@ -1,5 +1,5 @@
 {
-  "name": "LambertRayQueryShadowVertex",
+  "name": "DefaultMeshRayQueryShadowVertex",
   "stages": [
     { "stage": "VS", "file": "f6485468f3b0f105", "entry": "main", "profile": "vs_6_0" },
     { "stage": "PS", "file": "a6e3a7dfe8a89404", "entry": "main", "profile": "ps_6_6" }

@@ -1,5 +1,5 @@
 {
-  "name": "DefaultMeshLambertTransparentPipeline",
+  "name": "DefaultMeshTransparentPipeline",
   "variants": [
     {
       "kind": "GraphicsMesh", "pipelineType": "Mesh", "shader": "b68998e0aac38d45",

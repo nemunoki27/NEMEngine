@@ -1,5 +1,5 @@
 {
-  "name": "DefaultMeshTransparentPipeline",
+  "name": "MeshPBRTransparentPipeline",
   "variants": [
     {
       "kind": "GraphicsMesh",

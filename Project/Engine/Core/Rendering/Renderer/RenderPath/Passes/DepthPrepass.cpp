@@ -20,9 +20,10 @@ void Engine::DepthPrepass::Execute(GraphicsCore& graphicsCore,
 	}
 
 	// OpaqueバケットからZPrepass対象だけを集め、SceneMainの深度へ書き込む
+	// UseMeshShaderの設定どおりにパスを選ばせるためVertexは強制しない
 	std::vector<const RenderItem*> items = CollectItems(context, passBuckets);
 	RenderPassExecutionHelper::Execute(graphicsCore, context, items, deps_,
-		context.resources->GetSceneMain(), MaterialPassKind::ZPrepass, true, true);
+		context.resources->GetSceneMain(), MaterialPassKind::ZPrepass, false, true);
 }
 
 std::vector<const Engine::RenderItem*> Engine::DepthPrepass::CollectItems(
