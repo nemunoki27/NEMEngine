@@ -98,7 +98,16 @@ namespace {
 		}
 
 		Engine::ECSWorld* world = context.GetWorld();
-		if (!world || !world->IsAlive(context.editorState->selectedEntity)) {
+		if (!world) {
+			return;
+		}
+
+		// Ctrl併用時は選択を変えずカーソル下から拾ったエンティティをドラッグ対象にする
+		const bool ctrlHeld = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
+		const Engine::Entity dragEntity =
+			(ctrlHeld && world->IsAlive(context.editorState->scenePickDragEntity)) ?
+			context.editorState->scenePickDragEntity : context.editorState->selectedEntity;
+		if (!world->IsAlive(dragEntity)) {
 			return;
 		}
 
@@ -106,7 +115,7 @@ namespace {
 		// hover中だけに限定すると、ドロップ先へ移動した瞬間にSource描画が切れて"..."表示になる
 		if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 
-			const Engine::Entity entity = context.editorState->selectedEntity;
+			const Engine::Entity entity = dragEntity;
 			const Engine::UUID stableUUID = world->GetUUID(entity);
 			ImGui::SetDragDropPayload(Engine::IEditorPanel::kHierarchyDragDropPayloadType, &stableUUID, sizeof(Engine::UUID));
 

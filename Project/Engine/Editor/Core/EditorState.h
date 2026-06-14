@@ -65,6 +65,8 @@ namespace Engine {
 		Entity selectedEntity = Entity::Null();
 		// 複数選択しているエンティティ一覧、selectedEntityもこの中に含む
 		std::vector<Entity> selectedEntities{};
+		// Ctrl+ドラッグ用に選択を変えずカーソル下から拾ったエンティティ、Viewportのドラッグ対象に使う
+		Entity scenePickDragEntity = Entity::Null();
 		// 現在選択しているアセット
 		AssetID selectedAsset{};
 		// アセット選択操作が行われるたびに進むカウンタ

@@ -117,6 +117,23 @@ namespace Engine {
 		void AppendTextInputUtf16(wchar_t code) { pendingWide_.push_back(code); }
 		void SetWindowFocus(bool focused) { hasFocus_ = focused; }
 
+		// 外部エクスプローラーからのファイルドロップでWM_DROPFILESからmain threadで積む、点はscreen座標
+		void PushDroppedFiles(const std::vector<std::string>& paths, const Vector2& screenPoint) {
+			if (paths.empty()) { return; }
+			droppedFiles_ = paths;
+			droppedFilesScreenPoint_ = screenPoint;
+			hasDroppedFiles_ = true;
+		}
+		// 溜めたファイルドロップを取り出して消費する、未着なら何もせずfalse
+		bool TakeDroppedFiles(std::vector<std::string>& outPaths, Vector2& outScreenPoint) {
+			if (!hasDroppedFiles_) { return false; }
+			outPaths = std::move(droppedFiles_);
+			outScreenPoint = droppedFilesScreenPoint_;
+			droppedFiles_.clear();
+			hasDroppedFiles_ = false;
+			return true;
+		}
+
 		// singleton
 		static Input* GetInstance();
 		static void Finalize();
@@ -169,6 +186,11 @@ namespace Engine {
 		std::string frameText_;
 		// ウィンドウフォーカス状態
 		bool hasFocus_ = true;
+
+		// 外部からドロップされたファイル、screen座標の点と一緒に消費待ちで持つ
+		std::vector<std::string> droppedFiles_{};
+		Vector2 droppedFilesScreenPoint_{};
+		bool hasDroppedFiles_ = false;
 
 		std::array<std::chrono::steady_clock::time_point, 256> keyStartTime_{};
 		std::array<bool, 256> keyStayLogged_{};

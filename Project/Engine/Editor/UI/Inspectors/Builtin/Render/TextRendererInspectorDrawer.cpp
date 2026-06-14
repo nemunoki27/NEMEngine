@@ -50,6 +50,10 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 				{ .dragSpeed = 0.01f, .minValue = -1000.0f, .maxValue = 1000.0f });
 			});
 		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragVector2("ピボット", draft.pivot,
+				{ .dragSpeed = 0.01f, .minValue = -1.0f, .maxValue = 1.0f });
+			});
+		DrawField(anyItemActive, [&]() {
 			return MyGUI::ColorEdit("色", draft.color);
 			});
 

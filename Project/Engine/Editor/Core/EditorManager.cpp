@@ -633,8 +633,14 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 
 			// 左シフト併用はBlender風の追加選択にする
 			const bool additive = ImGui::IsKeyDown(ImGuiKey_LeftShift);
+			// Ctrl併用は選択を変えずカーソル下のエンティティをドラッグ対象にするだけにする
+			const bool dragOnly = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
 			// シフト併用かつエンティティ選択モードなら次元が合う場合だけトグル、それ以外は置き換え
 			auto selectHit = [&](const Entity& hit) {
+				if (dragOnly) {
+					editorState_.scenePickDragEntity = hit;
+					return;
+				}
 				if (additive && editorState_.selectKind == EditorSelectionKind::Entity &&
 					context.activeWorld && editorState_.CanMultiSelect(*context.activeWorld, hit)) {
 					editorState_.ToggleEntityInSelection(hit);
@@ -664,7 +670,7 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 
 			// メッシュピック処理を実行、シフト状態は結果消費時のトグル判定に使う
 			meshSubMeshPicker_->ExecutePick(graphicsCore, renderPipeline.GetResolvedView(viewKind),
-				mousePosInView.value(), pickRecords, tlasResource, additive);
+				mousePosInView.value(), pickRecords, tlasResource, additive, dragOnly);
 			return true;
 		};
 

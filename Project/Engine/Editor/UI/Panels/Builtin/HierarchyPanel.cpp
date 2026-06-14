@@ -257,6 +257,8 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	// チェックボックスがクリックされたか
 	// 左シフト併用はSceneViewと同じく次元が合えばトグルで追加選択する
 	const bool additiveSelect = ImGui::IsKeyDown(ImGuiKey_LeftShift);
+	// Ctrl併用時は選択を切り替えずにエンティティをドラッグできるようにする
+	const bool ctrlHeld = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
 	auto selectEntityInHierarchy = [&]() {
 		if (additiveSelect && context.editorState->selectKind == EditorSelectionKind::Entity &&
 			context.editorState->CanMultiSelect(world, entity)) {
@@ -307,7 +309,8 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	bool nodeRightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
 
 	// ノードがクリックされたら選択状態にする、右クリックで既に複数選択に含むなら維持する
-	if (nodeLeftClicked) {
+	// Ctrl併用時は選択を変えずにドラッグだけ行えるよう選択をスキップする
+	if (nodeLeftClicked && !ctrlHeld) {
 		selectEntityInHierarchy();
 	} else if (nodeRightClicked && !context.editorState->IsEntitySelected(entity)) {
 		context.editorState->SelectEntity(entity);

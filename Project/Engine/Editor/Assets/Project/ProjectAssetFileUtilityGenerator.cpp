@@ -38,7 +38,32 @@ namespace Engine {
 			// C#スクリプトでcsprojから名前空間を取得しファイル名から有効なクラス名を生成して適用
 			const std::string rootNamespace = LoadGameScriptRootNamespace();
 			const std::string className = MakeCSharpClassName(assetName);
-			return std::format("using NEMEngine;\n\nnamespace {};\n\npublic sealed class {} : ScriptBehaviour\n{{\n\tpublic override void Start()\n\t{{\n\t}}\n\n\tpublic override void Update()\n\t{{\n\t}}\n}}\n", rootNamespace, className);
+			return std::format(
+				"using NEMEngine;\n"
+				"\n"
+				"namespace {0};\n"
+				"\n"
+				"//============================================================================\n"
+				"//\t{1}\n"
+				"//============================================================================\n"
+				"public sealed class {1} : ScriptBehaviour\n"
+				"{{\n"
+				"\n"
+				"    //========================================================================\n"
+				"    //\t開始時処理\n"
+				"    //========================================================================\n"
+				"    public override void Start()\n"
+				"    {{\n"
+				"    }}\n"
+				"\n"
+				"    //========================================================================\n"
+				"    //\t毎フレーム更新処理\n"
+				"    //========================================================================\n"
+				"    public override void Update()\n"
+				"    {{\n"
+				"    }}\n"
+				"}}\n",
+				rootNamespace, className);
 		}
 		case ProjectAssetFileKind::Scene:
 			// シーンファイルで最低限のヘッダーと空のEntityリストを持つJSON

@@ -73,6 +73,9 @@ namespace Engine {
 		// 指定アセットを別ディレクトリへコピーする、コピペ操作で使う
 		static ProjectAssetFileResult CopyAsset(const ProjectAssetEntry& asset, ProjectAssetSource targetSource,
 			const std::string& targetDirectoryVirtualPath);
+		// 外部エクスプローラーからドロップされたファイルを指定ディレクトリへ取り込む
+		static ProjectAssetFileResult ImportExternalFile(ProjectAssetSource targetSource,
+			const std::string& targetDirectoryVirtualPath, const std::filesystem::path& externalFilePath);
 		// 指定アセットの保護サフィックスより前の名前を変更する
 		static ProjectAssetFileResult RenameAsset(const ProjectAssetEntry& asset, const std::string& requestedName);
 		// 指定ディレクトリを同じ階層に複製する

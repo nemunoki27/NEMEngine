@@ -17,6 +17,11 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
 	HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #pragma comment(lib,"winmm.lib")
 
+// 外部ファイルドロップ用
+#include <shellapi.h>
+#include <vector>
+#pragma comment(lib,"shell32.lib")
+
 //============================================================================
 //	WinApp classMethods
 //============================================================================
@@ -169,6 +174,9 @@ void WinApp::Create(uint32_t sizeX, uint32_t sizeY, const wchar_t* title) {
 		nullptr,
 		GetModuleHandle(nullptr),
 		nullptr);
+
+	// 外部エクスプローラーからのファイルドロップを受け付ける
+	DragAcceptFiles(hwnd_, TRUE);
 
 	ShowWindow(hwnd_, SW_MAXIMIZE);
 
@@ -358,6 +366,42 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 		// ウィンドウ移動・サイズ変更後は再適用
 		ApplyCursorClipIfNeeded();
 		return 0;
+
+	case WM_DROPFILES:
+	{
+		// 外部エクスプローラーからドロップされたファイルをInputへ積みProjectPanelが消費する
+		HDROP hDrop = reinterpret_cast<HDROP>(wparam);
+		POINT dropPoint{};
+		DragQueryPoint(hDrop, &dropPoint);
+		ClientToScreen(hwnd, &dropPoint);
+
+		const UINT fileCount = DragQueryFileW(hDrop, 0xFFFFFFFFu, nullptr, 0);
+		std::vector<std::string> paths;
+		paths.reserve(fileCount);
+		for (UINT i = 0; i < fileCount; ++i) {
+
+			const UINT length = DragQueryFileW(hDrop, i, nullptr, 0);
+			if (length == 0) {
+				continue;
+			}
+			std::wstring wide(length, L'\0');
+			DragQueryFileW(hDrop, i, wide.data(), length + 1);
+			// ワイド文字列をUTF-8へ変換する
+			const int utf8Size = ::WideCharToMultiByte(CP_UTF8, 0, wide.c_str(),
+				static_cast<int>(wide.size()), nullptr, 0, nullptr, nullptr);
+			std::string utf8(static_cast<size_t>(utf8Size), '\0');
+			::WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), static_cast<int>(wide.size()),
+				utf8.data(), utf8Size, nullptr, nullptr);
+			paths.emplace_back(std::move(utf8));
+		}
+		DragFinish(hDrop);
+
+		if (Input* input = Input::GetInstance()) {
+			input->PushDroppedFiles(paths,
+				Vector2(static_cast<float>(dropPoint.x), static_cast<float>(dropPoint.y)));
+		}
+		return 0;
+	}
 	}
 
 	// ImGuiマウス有効

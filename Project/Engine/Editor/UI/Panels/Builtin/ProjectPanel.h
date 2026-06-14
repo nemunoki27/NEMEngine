@@ -187,6 +187,8 @@ namespace Engine {
 
 		// インデックスとサムネイルキャッシュを再構築する
 		void Rebuild(AssetDatabase& database);
+		// 外部エクスプローラーからドロップされたファイルをカレントフォルダへ取り込む
+		void HandleExternalFileDrop(const EditorPanelContext& context, AssetDatabase& database);
 		// ヘッダー部分のパンくずと更新ボタンを描画する
 		void DrawHeader(const EditorPanelContext& context, AssetDatabase& database);
 		// Engine/Gameのソース切り替えを描画する

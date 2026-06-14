@@ -381,6 +381,9 @@ std::vector<Engine::AssetID> Engine::AssetDatabase::ExtractDependencies(const As
 
 void Engine::AssetDatabase::DetectOrphanMeta(const std::vector<std::filesystem::path>& scanRoots) {
 
+	// 走査中にファイルを消すとiteratorが壊れるので、先に孤立.metaを集めてから削除する
+	std::vector<std::filesystem::path> orphanMetas;
+
 	for (const std::filesystem::path& scanRoot : scanRoots) {
 
 		std::error_code ec;
@@ -415,11 +418,22 @@ void Engine::AssetDatabase::DetectOrphanMeta(const std::vector<std::filesystem::
 			std::filesystem::path assetFull = metaPath;
 			assetFull.replace_extension("");
 			if (!std::filesystem::exists(assetFull, ec)) {
-
-				AddIssue({ AssetDatabaseIssueType::OrphanMeta, {}, {},
-					AssetType::Unknown, AssetType::Unknown,
-					RuntimePaths::ToAssetPath(assetFull), metaPath.generic_string(), "orphan .meta" });
+				orphanMetas.emplace_back(metaPath);
 			}
+		}
+	}
+
+	// 元アセットが消えた孤立.metaは自動削除する、読み取り専用などで消せなければ警告だけ出す
+	for (const std::filesystem::path& metaPath : orphanMetas) {
+
+		std::error_code ec;
+		if (std::filesystem::remove(metaPath, ec)) {
+
+			Logger::Output(LogType::Engine, "[AssetDatabase] removed orphan .meta. path={}", metaPath.generic_string());
+		} else {
+
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"[AssetDatabase] failed to remove orphan .meta. path={}", metaPath.generic_string());
 		}
 	}
 }

@@ -572,3 +572,46 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::MoveDirectory(Pr
 	result.assetPath = ToAssetPath(targetPath);
 	return result;
 }
+
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::ImportExternalFile(ProjectAssetSource targetSource,
+	const std::string& targetDirectoryVirtualPath, const std::filesystem::path& externalFilePath) {
+
+	ProjectAssetFileResult result{};
+
+	std::error_code ec;
+	// ディレクトリや存在しないものは取り込まない
+	if (externalFilePath.empty() || !std::filesystem::exists(externalFilePath, ec) ||
+		std::filesystem::is_directory(externalFilePath, ec)) {
+		result.message = "Dropped path is not a file.";
+		return result;
+	}
+
+	// 取り込み先ディレクトリを解決して確保する
+	const std::filesystem::path targetDirectory = ResolveVirtualDirectory(targetSource, targetDirectoryVirtualPath);
+	if (targetDirectory.empty()) {
+		result.message = "Target folder was not found.";
+		return result;
+	}
+	std::filesystem::create_directories(targetDirectory, ec);
+	if (ec) {
+		result.message = "Failed to create target folder.";
+		return result;
+	}
+
+	// 既存アセットとの競合回避でコピー先を決めて取り込む、.metaはRebuildで自動発番される
+	const std::filesystem::path targetPath = MakeUniquePath(targetDirectory / externalFilePath.filename());
+	if (targetPath.empty()) {
+		result.message = "Failed to build import file path.";
+		return result;
+	}
+	std::filesystem::copy_file(externalFilePath, targetPath, std::filesystem::copy_options::none, ec);
+	if (ec) {
+		result.message = "Failed to copy dropped file.";
+		return result;
+	}
+
+	result.success = true;
+	result.fullPath = targetPath;
+	result.assetPath = ToAssetPath(targetPath);
+	return result;
+}

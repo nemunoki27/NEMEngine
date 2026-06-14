@@ -155,9 +155,9 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 0.0,
-                        "y": 1.3145391941070557,
-                        "z": 0.0
+                        "x": -0.5866889953613281,
+                        "y": 1.5174617767333984,
+                        "z": -0.21026611328125
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -291,9 +291,9 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 2.2269859313964844,
-                        "y": 1.3145391941070557,
-                        "z": 0.0
+                        "x": 1.6402969360351563,
+                        "y": 1.5174617767333984,
+                        "z": -0.21026611328125
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -389,12 +389,12 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": 0.0,
+                        "y": 4.0,
                         "z": -8.535229682922363
                     },
                     "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
+                        "w": 0.9944303035736084,
+                        "x": 0.10539630800485611,
                         "y": 0.0,
                         "z": 0.0
                     },
@@ -449,6 +449,127 @@
                 }
             },
             "LocalFileID": "a8cc88ff61d9d6f9"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 6
+                },
+                "Name": {
+                    "name": "GameSceneText"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "1490e22f0a00778e",
+                    "visibilityLayerMask": 4294967295
+                },
+                "TextRenderer": {
+                    "blendMode": "Normal",
+                    "charSpacing": 0.0,
+                    "charTransforms": [
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        }
+                    ],
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "dimension": 1,
+                    "enableOutline": false,
+                    "font": "82699d49374109f2",
+                    "fontSize": 151.0,
+                    "layer": 0,
+                    "material": "",
+                    "order": 0,
+                    "outlineColor": {
+                        "a": 1.0,
+                        "b": 0.0,
+                        "g": 0.0,
+                        "r": 0.0
+                    },
+                    "outlineWidth": 2.0,
+                    "queue": "ScreenUI",
+                    "text": "ゲームシーンです",
+                    "visible": true,
+                    "worldScale": 0.009999999776482582
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": -4.1168317794799805,
+                        "y": 4.411971092224121,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": -5.526579371917251e-08
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "1490e22f0a00778e"
         }
     ],
     "Header": {

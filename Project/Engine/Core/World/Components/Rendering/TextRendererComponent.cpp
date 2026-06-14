@@ -15,6 +15,10 @@ void Engine::from_json(const nlohmann::json& in, TextRendererComponent& componen
 	component.text = in.value("text", component.text);
 	component.fontSize = in.value("fontSize", component.fontSize);
 	component.charSpacing = in.value("charSpacing", component.charSpacing);
+	// 未設定なら既定の左上原点を保つためcontainsで判定する
+	if (in.contains("pivot")) {
+		component.pivot = Vector2::FromJson(in["pivot"]);
+	}
 	component.color = Color4::FromJson(in.value("color", nlohmann::json()));
 	component.enableOutline = in.value("enableOutline", component.enableOutline);
 	// 未設定なら既定の黒を保つためcontainsで判定する
@@ -54,6 +58,7 @@ void Engine::to_json(nlohmann::json& out, const TextRendererComponent& component
 	out["text"] = component.text;
 	out["fontSize"] = component.fontSize;
 	out["charSpacing"] = component.charSpacing;
+	out["pivot"] = component.pivot.ToJson();
 	out["color"] = component.color.ToJson();
 	out["enableOutline"] = component.enableOutline;
 	out["outlineColor"] = component.outlineColor.ToJson();

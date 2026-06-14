@@ -67,6 +67,11 @@ void Engine::MeshSubMeshPicker::ConsumePendingResult(ECSWorld* world, EditorStat
 	if (result.instanceID == kInvalidPickInstanceID ||
 		result.instanceID >= pendingRecords_.size()) {
 		pendingRecords_.clear();
+		// ドラッグ専用は選択を触らず、ヒット無しなら候補だけ空にする
+		if (pendingDragOnly_) {
+			editorState.scenePickDragEntity = Entity::Null();
+			return;
+		}
 		if (!pendingAdditive_) {
 			editorState.ClearSelection();
 		}
@@ -77,6 +82,12 @@ void Engine::MeshSubMeshPicker::ConsumePendingResult(ECSWorld* world, EditorStat
 	const auto& record = pendingRecords_[result.instanceID];
 	pendingRecords_.clear();
 	if (!world->IsAlive(record.entity)) {
+		return;
+	}
+
+	// Ctrl併用のドラッグ専用は選択を変えずドラッグ対象だけ更新する
+	if (pendingDragOnly_) {
+		editorState.scenePickDragEntity = record.entity;
 		return;
 	}
 
@@ -94,10 +105,11 @@ void Engine::MeshSubMeshPicker::ConsumePendingResult(ECSWorld* world, EditorStat
 
 void Engine::MeshSubMeshPicker::ExecutePick(GraphicsCore& graphicsCore, const ResolvedRenderView& view,
 	const Vector2& inputPixel, std::span<const MeshSubMeshPickRecord> pickRecords, ID3D12Resource* tlasResource,
-	bool additive) {
+	bool additive, bool dragOnly) {
 
-	// 結果消費時にシフト併用だったか判定するため保持する
+	// 結果消費時にシフト/Ctrl併用だったか判定するため保持する
 	pendingAdditive_ = additive;
+	pendingDragOnly_ = dragOnly;
 
 	// 無効な状態のときは何もしない
 	if (!initialized_ || !tlasResource) {

@@ -49,6 +49,8 @@ namespace Engine {
 		Vector2 atlasSize = Vector2::AnyInit(1.0f);
 		float pxRange = 8.0f;
 		std::vector<TextLayoutGlyph> glyphs{};
+		// テキストブロック全体のサイズ、ピボット適用の基準に使う
+		Vector2 boundsSize = Vector2::AnyInit(0.0f);
 
 		// キャッシュが有効か
 		bool valid = false;
@@ -67,6 +69,8 @@ namespace Engine {
 		float fontSize = 32.0f;
 		// 文字間隔
 		float charSpacing = 0.0f;
+		// ピボット、テキストブロックを正規化した0-1基準でこの点が原点に合う、スプライトと同じ扱い
+		Vector2 pivot = Vector2::AnyInit(0.0f);
 
 		// 色
 		Color4 color = Color4::White();

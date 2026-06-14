@@ -162,6 +162,8 @@ namespace {
 		}
 
 		const Engine::Vector2 origin = boundsMin;
+		// ブロック全体のサイズを保存しておきインスタンス構築時のピボット基準にする
+		cache.boundsSize = Engine::Vector2(boundsMax.x - boundsMin.x, boundsMax.y - boundsMin.y);
 		for (auto& glyph : cache.glyphs) {
 			glyph.rectMin -= origin;
 			glyph.rectMax -= origin;
@@ -189,9 +191,18 @@ namespace {
 		const auto& charTransforms = renderer.charTransforms;
 		const uint32_t enableOutline = renderer.enableOutline ? 1u : 0u;
 
+		// ピボット分のオフセット、スプライトと同じく正規化0-1基準のこの点を原点へ合わせる
+		const Engine::Vector2 pivotOffset(
+			-renderer.pivot.x * cache.boundsSize.x,
+			-renderer.pivot.y * cache.boundsSize.y);
+
 		for (size_t glyphIndex = 0; glyphIndex < cache.glyphs.size(); ++glyphIndex) {
 
 			const Engine::TextLayoutGlyph& glyph = cache.glyphs[glyphIndex];
+
+			// ピボット分シフトしたグリフ矩形を基準に各処理を行う
+			const Engine::Vector2 rectMin(glyph.rectMin.x + pivotOffset.x, glyph.rectMin.y + pivotOffset.y);
+			const Engine::Vector2 rectMax(glyph.rectMax.x + pivotOffset.x, glyph.rectMax.y + pivotOffset.y);
 
 			// グリフ中心を基準に文字ごとのSRTを掛けてからエンティティのワールド行列へ合成する
 			Engine::Matrix4x4 glyphMatrix = worldMatrix;
@@ -199,8 +210,8 @@ namespace {
 
 				const Engine::TextCharTransform& charTransform = charTransforms[glyphIndex];
 				const Engine::Vector2 pivot(
-					(glyph.rectMin.x + glyph.rectMax.x) * 0.5f,
-					(glyph.rectMin.y + glyph.rectMax.y) * 0.5f);
+					(rectMin.x + rectMax.x) * 0.5f,
+					(rectMin.y + rectMax.y) * 0.5f);
 				// ピボットを原点へ寄せてからピボット+オフセット位置でSRTを掛ける
 				const Engine::Matrix4x4 toOrigin = Engine::Matrix4x4::MakeAffineMatrix(
 					Engine::Vector3(1.0f, 1.0f, 1.0f), Engine::Vector3(0.0f, 0.0f, 0.0f),
@@ -213,8 +224,8 @@ namespace {
 			}
 
 			Engine::TextVSInstanceData vs{};
-			vs.rectMin = glyph.rectMin;
-			vs.rectMax = glyph.rectMax;
+			vs.rectMin = rectMin;
+			vs.rectMax = rectMax;
 			vs.uvMin = glyph.uvMin;
 			vs.uvMax = glyph.uvMax;
 			vs.worldMatrix = glyphMatrix;

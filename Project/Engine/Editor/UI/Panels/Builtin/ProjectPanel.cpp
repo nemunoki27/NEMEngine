@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Editor/Scripting/ManagedIdeLauncher.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
@@ -255,6 +256,43 @@ void Engine::ProjectPanel::Rebuild(AssetDatabase& database) {
 	dirty_ = false;
 }
 
+void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorPanelContext& context, AssetDatabase& database) {
+
+	Input* input = Input::GetInstance();
+	if (!input) {
+		return;
+	}
+	std::vector<std::string> droppedPaths;
+	Vector2 dropScreenPoint{};
+	if (!input->TakeDroppedFiles(droppedPaths, dropScreenPoint)) {
+		return;
+	}
+
+	// ドロップ位置がProjectウィンドウ内のときだけ取り込む、それ以外は破棄する
+	const ImVec2 windowPos = ImGui::GetWindowPos();
+	const ImVec2 windowSize = ImGui::GetWindowSize();
+	const bool insidePanel =
+		dropScreenPoint.x >= windowPos.x && dropScreenPoint.x <= windowPos.x + windowSize.x &&
+		dropScreenPoint.y >= windowPos.y && dropScreenPoint.y <= windowPos.y + windowSize.y;
+	if (!insidePanel) {
+		return;
+	}
+
+	// カレントフォルダへコピー取り込みする、.metaはRebuildで自動発番される
+	bool imported = false;
+	for (const std::string& path : droppedPaths) {
+
+		const ProjectAssetFileResult result =
+			ProjectAssetFileUtility::ImportExternalFile(assetSource_, selectedDirectory_, path);
+		if (result.success) {
+			imported = true;
+		}
+	}
+	if (imported) {
+		Rebuild(database);
+	}
+}
+
 void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	// プロジェクトパネルの表示状態を確認
@@ -284,6 +322,9 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	if (dirty_) {
 		Rebuild(database);
 	}
+
+	// 外部エクスプローラーからドロップされたファイルをカレントフォルダへ取り込む
+	HandleExternalFileDrop(context, database);
 
 	ImGui::SetWindowFontScale(0.8f);
 	DrawSourceSelector(context, database);
