@@ -1,4 +1,4 @@
-#include "PostProcessParameterBufferBuilder.h"
+#include "MaterialParameterBufferBuilder.h"
 
 //============================================================================
 //	include
@@ -12,9 +12,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <type_traits>
+#include <variant>
 
 //============================================================================
-//	PostProcessParameterBufferBuilder classMethods
+//	MaterialParameterBufferBuilder classMethods
 //============================================================================
 namespace {
 
@@ -95,14 +96,14 @@ namespace {
 #if defined(_MSC_VER)
 			char* value = nullptr;
 			size_t length = 0;
-			if (_dupenv_s(&value, &length, "NEM_PP_PARAM_DEBUG") != 0 || value == nullptr) {
+			if (_dupenv_s(&value, &length, "NEM_MATERIAL_PARAM_DEBUG") != 0 || value == nullptr) {
 				return false;
 			}
 			const bool result = length > 0 && value[0] != '\0' && value[0] != '0';
 			std::free(value);
 			return result;
 #else
-			const char* value = std::getenv("NEM_PP_PARAM_DEBUG");
+			const char* value = std::getenv("NEM_MATERIAL_PARAM_DEBUG");
 			return value != nullptr && value[0] != '\0' && value[0] != '0';
 #endif
 		}();
@@ -269,7 +270,7 @@ namespace {
 				layoutSizeInBytes);
 			break;
 		default:
-			Engine::Logger::Output(Engine::LogType::Engine, "[PostProcess] unsupported parameter type. name=" + variable.name);
+			Engine::Logger::Output(Engine::LogType::Engine, "[Material] unsupported parameter type. name=" + variable.name);
 			break;
 		}
 
@@ -277,7 +278,7 @@ namespace {
 			uint32_t floatCount = 0;
 			const std::array<float, 4> values = ToFloatArray(parameter, floatCount);
 			Engine::Logger::Output(Engine::LogType::Engine,
-				"[PP Param Debug] name={} offset={} size={} declaredComponents={} declaredBytes={} valueType={} normalizedType={} writeCount={} values=({}, {}, {}, {})",
+				"[Material Param Debug] name={} offset={} size={} declaredComponents={} declaredBytes={} valueType={} normalizedType={} writeCount={} values=({}, {}, {}, {})",
 				variable.name, variable.offset, variable.size, variable.declaredComponentCount,
 				variable.declaredByteSize, sourceValueTypeName, GetParameterValueTypeName(parameter), writeCount,
 				values[0], values[1], values[2], values[3]);
@@ -285,8 +286,8 @@ namespace {
 	}
 }
 
-std::vector<uint8_t> Engine::PostProcessParameterBufferBuilder::Build(
-	const MaterialAsset& material, const PostProcessParameterLayout& layout) {
+std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::Build(
+	const MaterialAsset& material, const MaterialParameterLayout& layout) {
 
 	const uint32_t layoutSizeInBytes = layout.GetSizeInBytes();
 	std::vector<uint8_t> bytes((std::max)(layoutSizeInBytes, 16u), 0);
@@ -305,6 +306,63 @@ std::vector<uint8_t> Engine::PostProcessParameterBufferBuilder::Build(
 
 		// Reflectionのoffsetへ直接詰めることで、HLSL側のパッキングに追従する
 		WriteParameterValue(bytes, variable, parameter, sourceValueTypeName, layoutSizeInBytes);
+	}
+	return bytes;
+}
+
+std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::BuildElement(
+	const std::unordered_map<std::string, MaterialParameterValue>& defaults,
+	const std::unordered_map<std::string, MaterialParameterValue>& overrides,
+	const MaterialParameterLayout& layout,
+	const TextureResolver& resolveTexture) {
+
+	const uint32_t layoutSizeInBytes = layout.GetSizeInBytes();
+	std::vector<uint8_t> bytes((std::max)(layoutSizeInBytes, 16u), 0);
+	const std::vector<ShaderConstantBufferVariable>& variables = layout.GetVariables();
+
+	// 1変数分を詰める、AssetID値はテクスチャ扱いでbindless indexへ解決しuintとして書く
+	auto writeOne = [&](const ShaderConstantBufferVariable& variable, const MaterialParameterValue& value) {
+
+		if (std::holds_alternative<AssetID>(value.value)) {
+
+			const uint32_t index = resolveTexture ? resolveTexture(variable.name, std::get<AssetID>(value.value)) : 0u;
+			if (static_cast<size_t>(variable.offset) + sizeof(uint32_t) <= bytes.size()) {
+				std::memcpy(bytes.data() + variable.offset, &index, sizeof(uint32_t));
+			}
+			return;
+		}
+		const char* sourceValueTypeName = GetParameterValueTypeName(value);
+		const MaterialParameterValue parameter = NormalizeParameterValueForVariable(variable, value);
+		WriteParameterValue(bytes, variable, parameter, sourceValueTypeName, layoutSizeInBytes);
+		};
+
+	// 名前からテクスチャparamかを判定する、未指定時にkNoTextureを入れるため使う
+	auto isTextureParam = [](const std::string& name) -> bool {
+		return name.find("Texture") != std::string::npos ||
+			name.find("texture") != std::string::npos ||
+			name.find("Map") != std::string::npos;
+		};
+
+	for (const ShaderConstantBufferVariable& variable : variables) {
+
+		// 上書きを優先しなければマテリアル既定値を使う
+		auto overrideIt = overrides.find(variable.name);
+		if (overrideIt != overrides.end()) {
+			writeOne(variable, overrideIt->second);
+			continue;
+		}
+		auto defaultIt = defaults.find(variable.name);
+		if (defaultIt != defaults.end()) {
+			writeOne(variable, defaultIt->second);
+			continue;
+		}
+		// どちらも無いテクスチャindexはkNoTextureにしてシェーダーのテクスチャなし分岐へ乗せる
+		if (isTextureParam(variable.name) &&
+			static_cast<size_t>(variable.offset) + sizeof(uint32_t) <= bytes.size()) {
+
+			const uint32_t noTexture = 0xFFFFFFFFu;
+			std::memcpy(bytes.data() + variable.offset, &noTexture, sizeof(uint32_t));
+		}
 	}
 	return bytes;
 }

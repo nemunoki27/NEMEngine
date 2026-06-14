@@ -470,11 +470,7 @@ namespace {
 		const std::string prefix = std::format("subMeshes[{}]", SubMeshIndex);
 		const std::string displayPrefix = std::format("MeshRenderer.subMeshes[{}]", SubMeshIndex);
 
-		Register(registry, "MeshRenderer", std::format("{}.color", prefix).c_str(),
-			std::format("{}.color", displayPrefix).c_str(), Engine::AnimationValueType::Color4,
-			HasMeshSubMesh<SubMeshIndex>,
-			GetSubMeshMember<SubMeshIndex, Engine::Color4, &Engine::SubMeshMaterial::color>,
-			SetSubMeshMember<SubMeshIndex, Engine::Color4, &Engine::SubMeshMaterial::color>);
+		// 色はparameterOverridesへ移したのでメンバポインタでのアニメーション登録はしない
 		Register(registry, "MeshRenderer", std::format("{}.uvPos", prefix).c_str(),
 			std::format("{}.uvPos", displayPrefix).c_str(), Engine::AnimationValueType::Vector2,
 			HasMeshSubMesh<SubMeshIndex>,

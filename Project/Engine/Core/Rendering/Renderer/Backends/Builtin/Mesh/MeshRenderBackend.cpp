@@ -11,6 +11,7 @@
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/Draw/VertexMeshDrawPath.h>
@@ -128,6 +129,8 @@ Engine::MeshRenderBackend::MeshRenderBackend() {
 	subMeshSRVSlot_      = sharedBindCache_.AddSlot("gSubMeshes",             ShaderBindingKind::SRV);
 	outlineSRVSlot_      = sharedBindCache_.AddSlot("gMeshOutlines",          ShaderBindingKind::SRV);
 	screenSpaceOutlineMaskCBVSlot_ = sharedBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 1, 1);
+	materialParamsCBVSlot_ = sharedBindCache_.AddSlot("MaterialParameters", ShaderBindingKind::CBV);
+	subMeshMaterialParamSRVSlot_ = sharedBindCache_.AddSlot("gMeshMaterialParameters", ShaderBindingKind::SRV);
 
 	// スキニングComputeバインドスロットを初期化時に登録する
 	skinConstCBVSlot_     = skinningBindCache_.AddSlot("SkinningConstants",      ShaderBindingKind::CBV);
@@ -236,6 +239,8 @@ void Engine::MeshRenderBackend::BeginFrame(GraphicsCore& graphicsCore) {
 
 	resourcePool_.BeginFrame();
 	subMeshCBPool_.BeginFrame();
+	// マテリアルパラメータCBVのアップロード位置を戻す
+	materialParamBinder_.BeginFrame();
 
 	meshResourceManager_.BeginFrame(graphicsCore);
 	meshResourceManager_.FlushUploads();
@@ -436,6 +441,8 @@ bool Engine::MeshRenderBackend::PrepareBatch(const RenderDrawContext& context,
 	if (!outPrepared.pipelineState) {
 		return false;
 	}
+	// MaterialParameters cbufferへ詰めるため解決済みマテリアルを保持する
+	outPrepared.material = resolvedPass.material;
 	return true;
 }
 
@@ -456,6 +463,34 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 	if (sharedBindCache_.Has(drawCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, sharedBindCache_.Get(drawCBVSlot_),
 			prepared.resources->GetDrawGPUAddress());
+	}
+	// シェーダーがMaterialParameters cbufferを宣言している場合のみ、reflection駆動でマテリアル値を詰めてバインドする
+	// Builtinメッシュシェーダーはこのcbufferを持たずslotが解決されないため、ここは何もしない
+	if (sharedBindCache_.Has(materialParamsCBVSlot_) && prepared.material) {
+
+		ID3D12Device* device = context.graphicsCore->GetDXObject().GetDevice();
+		const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =
+			materialParamBinder_.ResolveAndUpload(device, *prepared.pipelineState, *prepared.material);
+		if (materialParamsAddress != 0) {
+			RootBindingCommand::SetGraphicsCBV(commandList, sharedBindCache_.Get(materialParamsCBVSlot_),
+				materialParamsAddress);
+		}
+	}
+	// reflection駆動のサブメッシュ単位マテリアルパラメータを詰めて構造化バッファとしてバインドする
+	if (sharedBindCache_.Has(subMeshMaterialParamSRVSlot_) && prepared.material) {
+
+		MaterialParameterLayout subMeshLayout{};
+		subMeshLayout.Build(prepared.pipelineState->GetGraphicsReflection(), "gMeshMaterialParameters");
+		prepared.resources->UploadSubMeshMaterialParams(prepared.material, subMeshLayout, context);
+		if (prepared.resources->HasSubMeshMaterialParams()) {
+			RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(subMeshMaterialParamSRVSlot_),
+				prepared.resources->GetSubMeshMaterialParamGPUAddress(),
+				prepared.resources->GetSubMeshMaterialParamGPUHandle());
+		}
+	}
+	// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
+	if (prepared.material) {
+		BackendDrawCommon::BindMaterialTextures(context, *prepared.pipelineState, *prepared.material, commandList);
 	}
 	if (sharedBindCache_.Has(packedVtxSRVSlot_)) {
 		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(packedVtxSRVSlot_),

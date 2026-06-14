@@ -40,6 +40,9 @@ namespace Engine {
 		const MaterialAsset* LoadMaterial(AssetID assetID);
 		const MSDFFontAsset* LoadFont(AssetID assetID);
 
+		// マテリアルのキャッシュを破棄して次回ロードでファイルから読み直させる、実行中の編集反映に使う
+		void InvalidateMaterial(AssetID assetID) { materialCache_.erase(assetID); }
+
 		//--------- accessor -----------------------------------------------------
 
 		AssetDatabase* GetDatabase() const { return database_; }

@@ -207,6 +207,7 @@ namespace {
 void Engine::TextRenderBackend::BeginFrame([[maybe_unused]] GraphicsCore& graphicsCore) {
 
 	resourcePool_.BeginFrame();
+	materialParamBinder_.BeginFrame();
 }
 
 void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
@@ -327,6 +328,22 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		if (perDrawBindCache_.Has(atlasSRVSlot_) && atlasTexture->gpuHandle.ptr != 0) {
 			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(atlasSRVSlot_),
 				0, atlasTexture->gpuHandle);
+		}
+		// シェーダーがMaterialParameters cbufferを宣言している場合のみreflection駆動でバインドする
+		// Builtinテキストシェーダーはこのcbufferがなくslotもないため何もしない
+		if (perDrawBindCache_.Has(materialParamsCBVSlot_) && resolvedPass.material) {
+
+			ID3D12Device* device = context.graphicsCore->GetDXObject().GetDevice();
+			const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =
+				materialParamBinder_.ResolveAndUpload(device, *pipelineState, *resolvedPass.material);
+			if (materialParamsAddress != 0) {
+				RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(materialParamsCBVSlot_),
+					materialParamsAddress);
+			}
+		}
+		// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
+		if (resolvedPass.material) {
+			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, *resolvedPass.material, commandList);
 		}
 	}
 

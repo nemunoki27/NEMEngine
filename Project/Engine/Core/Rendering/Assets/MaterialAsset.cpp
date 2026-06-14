@@ -107,6 +107,16 @@ namespace {
 	}
 }
 
+bool Engine::ParseMaterialParameterValue(const nlohmann::json& data, MaterialParameterValue& outValue) {
+
+	return TryParseParameterValue(data, outValue);
+}
+
+nlohmann::json Engine::SerializeMaterialParameterValue(const MaterialParameterValue& parameter) {
+
+	return SerializeParameterValue(parameter);
+}
+
 bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 
 	if (!data.is_object()) {

@@ -9,6 +9,9 @@
 
 namespace Engine {
 
+	// front
+	struct ShaderReflectionInfo;
+
 	//============================================================================
 	//	MeshRendererInspectorDrawer class
 	//	メッシュレンダラーコンポーネントのインスペクター描画
@@ -35,6 +38,11 @@ namespace Engine {
 		std::vector<MeshSubMeshLayoutItem> cachedSubMeshLayout_{};
 		bool cachedSubMeshLayoutResolved_ = false;
 
+		// マテリアル既定値とreflection解決のためのキャッシュ
+		AssetID cachedMaterialID_{};
+		MaterialAsset cachedMaterial_{};
+		bool cachedMaterialValid_ = false;
+
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
@@ -55,6 +63,11 @@ namespace Engine {
 		// サブメッシュのフィールドを描画する
 		void DrawSubMeshFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, SubMeshMaterial& subMesh, bool& anyItemActive);
+		// マテリアルのDrawパスreflectionを解決しキャッシュする、失敗時はnullptr
+		const ShaderReflectionInfo* EnsureMaterialReflection(const EditorPanelContext& context, AssetID materialID);
+		// シェーダーreflection駆動でサブメッシュ単位のマテリアルパラメータを編集する
+		void DrawSubMeshReflectedParameters(const EditorPanelContext& context,
+			AssetID materialID, SubMeshMaterial& subMesh, bool& anyItemActive);
 		// ドラフトの内容をワールドのコンポーネントに反映する前の追加処理
 		void UpdateDraftRuntime(ECSWorld& world, const Entity& entity,
 			MeshRendererComponent& draft) const;

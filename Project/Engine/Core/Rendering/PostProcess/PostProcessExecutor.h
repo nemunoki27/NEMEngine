@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessParameterLayout.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 #include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
@@ -94,7 +94,7 @@ namespace Engine {
 		// 最後に実行されたマテリアルのIDを取得する
 		AssetID GetLastExecutedMaterial() const { return lastExecutedMaterial_; }
 		// 最後に実行されたパラメータレイアウトを取得する
-		const PostProcessParameterLayout* GetLastExecutedLayout() const { return lastExecutedLayout_; }
+		const MaterialParameterLayout* GetLastExecutedLayout() const { return lastExecutedLayout_; }
 		// 最後に実行されたSRVバインディングを取得する
 		const std::vector<ShaderResourceBinding>& GetLastExecutedSRVBindings() const { return lastExecutedSRVBindings_; }
 	private:
@@ -107,7 +107,7 @@ namespace Engine {
 		// パイプラインごとのキャッシュエントリでフレーム定数バインドの有無も初回のみ解決して保持する
 		struct PipelineCacheEntry {
 
-			PostProcessParameterLayout layout;
+			MaterialParameterLayout layout;
 			bool hasFrameConstantsByName = false;
 			bool hasFrameConstantsByRegister = false;
 		};
@@ -120,7 +120,7 @@ namespace Engine {
 		uint32_t frameIndex_ = 0;
 
 		AssetID lastExecutedMaterial_{};
-		const PostProcessParameterLayout* lastExecutedLayout_ = nullptr;
+		const MaterialParameterLayout* lastExecutedLayout_ = nullptr;
 		std::vector<ShaderResourceBinding> lastExecutedSRVBindings_{};
 	};
 } // Engine

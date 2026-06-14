@@ -2,6 +2,7 @@
 //	include
 //============================================================================
 #include "../Common/defaultMesh.hlsli"
+#include "../Common/meshPBRMaterial.hlsli"
 
 //============================================================================
 //	output
@@ -256,20 +257,30 @@ bool TraceDirectionalShadow(float3 worldPos, float3 worldNormal, float3 lightDir
 }
 
 // ワールド法線の計算(法線マップを考慮)
-float3 ComputeWorldNormal(VSOutput input, SubMeshShaderData subMesh, float2 uv) {
+float3 ComputeWorldNormal(VSOutput input, uint normalTextureIndex, float2 uv) {
 
 	float3 N = normalize(input.normal);
-	if (subMesh.normalTextureIndex == kNoTexture) {
+	if (normalTextureIndex == kNoTexture) {
 		return N;
 	}
 
 	// 通常PSと同じ共通TBN helperを使う(tangentSign/orientationSign補正込み)
 	float3x3 TBN = BuildMeshTBN(input);
 
-	Texture2D<float4> normalTex = ResourceDescriptorHeap[NonUniformResourceIndex(subMesh.normalTextureIndex)];
+	Texture2D<float4> normalTex = ResourceDescriptorHeap[NonUniformResourceIndex(normalTextureIndex)];
 	float3 tangentNormal = normalTex.Sample(gSampler, uv).xyz * 2.0f - 1.0f;
 
 	return normalize(mul(tangentNormal, TBN));
+}
+
+// bindless indexのテクスチャをサンプルする、未指定kNoTextureはfallbackValueを返す
+float4 SamplePBRTexture(uint textureIndex, float2 uv, float4 fallbackValue) {
+
+	if (textureIndex == kNoTexture) {
+		return fallbackValue;
+	}
+	Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(textureIndex)];
+	return tex.Sample(gSampler, uv);
 }
 
 // PBR平行光源(シャドウあり)
@@ -398,52 +409,34 @@ float3 EvaluatePBRSpotLight(SpotLight light, float3 worldPos, float3 N, float3 V
 PSOutput main(VSOutput input) {
 
 	SubMeshShaderData subMesh = GetInstanceSubMesh(input.instanceID, input.subMeshIndex);
+	MeshMaterialParameters params = GetInstanceMeshMaterialParameters(input.instanceID, input.subMeshIndex);
 
 	PSOutput output;
 
 	// UV変換
 	float2 uv = mul(float4(input.uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;
 
-	// ベースカラー
-	Texture2D<float4> baseColorTex = ResourceDescriptorHeap[NonUniformResourceIndex(subMesh.baseColorTextureIndex)];
-	float4 baseColor = baseColorTex.Sample(gSampler, uv);
-	baseColor *= subMesh.importedBaseColor;
-	baseColor *= subMesh.color;
+	// ベースカラー = マテリアル色 × ベースカラーテクスチャ
+	float4 baseColor = SamplePBRTexture(params.baseColorTexture, uv, 1.0f.xxxx);
+	baseColor *= params.color;
 
-	// メタリック/ラフネス
-	float metallic = subMesh.metallic;
-	float roughness = subMesh.roughness;
-	if (subMesh.metallicRoughnessTextureIndex != kNoTexture) {
-
-		Texture2D<float4> mrTex = ResourceDescriptorHeap[NonUniformResourceIndex(subMesh.metallicRoughnessTextureIndex)];
-		float4 mrSample = mrTex.Sample(gSampler, uv);
-		metallic = mrSample.r;
-		roughness = mrSample.g;
-	}
+	// メタリックとラフネスは係数にmetallicRoughnessテクスチャを掛ける、glTF流でB=metallic G=roughness
+	float4 mrSample = SamplePBRTexture(params.metallicRoughnessTexture, uv, 1.0f.xxxx);
+	float metallic = saturate(params.Metallic * mrSample.b);
+	float roughness = saturate(params.Roughness * mrSample.g);
 	roughness = max(roughness, 0.04f);
 
-	// AO
-	float ao = 1.0f;
-	if (subMesh.occlusionTextureIndex != kNoTexture) {
-
-		Texture2D<float4> aoTex = ResourceDescriptorHeap[NonUniformResourceIndex(subMesh.occlusionTextureIndex)];
-		ao = aoTex.Sample(gSampler, uv).r;
-	}
+	// AOはocclusionテクスチャから取る、未指定なら白で1になる
+	float ao = SamplePBRTexture(params.occlusionTexture, uv, 1.0f.xxxx).r;
 
 	// ワールド法線
-	float3 N = ComputeWorldNormal(input, subMesh, uv);
+	float3 N = ComputeWorldNormal(input, params.normalTexture, uv);
 
 	// 視線ベクトル
 	float3 V = normalize(renderCameraPos - input.worldPos);
 
-	// Fresnel F0
+	// Fresnel F0、金属はalbedo、非金属は0.04
 	float3 F0 = lerp(0.04f.xxx, baseColor.rgb, metallic);
-	if (subMesh.specularTextureIndex != kNoTexture) {
-
-		Texture2D<float4> specTex = ResourceDescriptorHeap[NonUniformResourceIndex(subMesh.specularTextureIndex)];
-		float3 specColor = specTex.Sample(gSampler, uv).rgb;
-		F0 = lerp(specColor, baseColor.rgb, metallic);
-	}
 
 	//============================================================================
 	//	ライティング
@@ -513,12 +506,8 @@ PSOutput main(VSOutput input) {
 	float3 ambient = 0.03f * baseColor.rgb * ao;
 
 	// 発光
-	float3 emissive = subMesh.emissiveColor.rgb;
-	if (subMesh.emissiveTextureIndex != kNoTexture) {
-
-		Texture2D<float4> emissiveTex = ResourceDescriptorHeap[NonUniformResourceIndex(subMesh.emissiveTextureIndex)];
-		emissive *= emissiveTex.Sample(gSampler, uv).rgb;
-	}
+	float3 emissive = params.emissiveColor.rgb;
+	emissive *= SamplePBRTexture(params.emissiveTexture, uv, 1.0f.xxxx).rgb;
 
 	float3 finalColor = Lo + ambient + emissive;
 

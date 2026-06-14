@@ -14,6 +14,7 @@
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Core/Rendering/Renderer/Views/SceneViewCameraController.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
@@ -72,6 +73,7 @@
 #include <limits>
 #include <string_view>
 #include <type_traits>
+#include <unordered_set>
 #include <vector>
 
 #include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
@@ -836,11 +838,106 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 		}
 	}
 
+	// シェーダーが要求するパラメータ名をreflectionから集める、描画済みパイプラインのみ取得できる
+	std::unordered_set<std::string> reflectedNames;
+	std::vector<const ShaderReflectionInfo*> reflections;
+	if (context.renderPipeline) {
+
+		std::unordered_set<AssetID> seenPipelines;
+		for (const MaterialPassBinding& pass : materialDraft_.passes) {
+
+			if (!pass.pipeline || seenPipelines.count(pass.pipeline) != 0) {
+				continue;
+			}
+			seenPipelines.insert(pass.pipeline);
+			const ShaderReflectionInfo* reflection = context.renderPipeline->FindPipelineGraphicsReflection(pass.pipeline);
+			if (!reflection) {
+				continue;
+			}
+			reflections.push_back(reflection);
+			for (const ShaderConstantBufferInfo& cb : reflection->constantBuffers) {
+				if (cb.name == "MaterialParameters") {
+					for (const ShaderConstantBufferVariable& var : cb.variables) {
+						reflectedNames.insert(var.name);
+					}
+				}
+			}
+			// space2のテクスチャSRVもマテリアルテクスチャとして自動列挙対象にする
+			for (const ShaderResourceBinding& res : reflection->resources) {
+				if (res.kind == ShaderBindingKind::SRV && res.space == 2 && res.rawType == D3D_SIT_TEXTURE) {
+					reflectedNames.insert(res.name);
+				}
+			}
+		}
+	}
+
+	// シェーダーのMaterialParameters cbufferを最初から編集可能な状態で自動列挙する
 	ImGui::Spacing();
-	if (MyGUI::CollapsingHeader("Parameters")) {
+	if (MyGUI::CollapsingHeader("Shader Parameters", true)) {
+
+		if (reflections.empty()) {
+
+			ImGui::TextDisabled("シェーダー未構築か MaterialParameters cbuffer がありません");
+			ImGui::TextDisabled("対象マテリアルが一度描画されると自動で列挙されます");
+		} else {
+			for (const ShaderReflectionInfo* reflection : reflections) {
+				if (MaterialParameterEditor::DrawReflectedCBufferParameters(
+					*reflection, "MaterialParameters", materialDraft_.parameters)) {
+
+					saveRequested = true;
+				}
+			}
+		}
+	}
+
+	// space2のマテリアルテクスチャをreflectionから自動列挙する、未指定なら描画時に白テクスチャになる
+	ImGui::Spacing();
+	if (MyGUI::CollapsingHeader("Shader Textures", true)) {
+
+		std::unordered_set<std::string> drawnTextures;
+		bool anyTexture = false;
+		for (const ShaderReflectionInfo* reflection : reflections) {
+			for (const ShaderResourceBinding& res : reflection->resources) {
+
+				if (res.kind != ShaderBindingKind::SRV || res.space != 2 || res.rawType != D3D_SIT_TEXTURE) {
+					continue;
+				}
+				if (drawnTextures.count(res.name) != 0) {
+					continue;
+				}
+				drawnTextures.insert(res.name);
+				anyTexture = true;
+
+				AssetID textureID{};
+				auto it = materialDraft_.parameters.find(res.name);
+				if (it != materialDraft_.parameters.end()) {
+					if (const AssetID* id = std::get_if<AssetID>(&it->second.value)) {
+						textureID = *id;
+					}
+				}
+				if (MyGUI::AssetReferenceField(res.name.c_str(), textureID,
+					context.editorContext->assetDatabase, { AssetType::Texture }).editFinished) {
+
+					materialDraft_.parameters[res.name].value = textureID;
+					saveRequested = true;
+				}
+			}
+		}
+		if (!anyTexture) {
+			ImGui::TextDisabled("space2のマテリアルテクスチャがありません");
+		}
+	}
+
+	ImGui::Spacing();
+	if (MyGUI::CollapsingHeader("Custom Parameters")) {
 
 		std::string removeKey;
 		for (auto& [key, parameter] : materialDraft_.parameters) {
+
+			// シェーダーが要求するパラメータはShader Parametersで編集するため重複表示しない
+			if (reflectedNames.count(key) != 0) {
+				continue;
+			}
 
 			ImGui::PushID(key.c_str());
 			ImGui::TextDisabled("%s", GetMaterialParameterTypeName(parameter));
@@ -937,6 +1034,11 @@ void Engine::InspectorPanel::SaveMaterialDraft(const EditorPanelContext& context
 	}
 
 	JsonAdapter::Save(path.string(), ToJson(materialDraft_));
+
+	// 実行中のマテリアルキャッシュを破棄して編集を即反映する、エディタを止めずに調整できるようにする
+	if (context.renderPipeline) {
+		context.renderPipeline->ReloadMaterial(meta.guid);
+	}
 }
 
 void Engine::InspectorPanel::DrawComponentToolbar(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {

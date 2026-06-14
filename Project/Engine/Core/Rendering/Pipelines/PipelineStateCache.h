@@ -67,6 +67,10 @@ namespace Engine {
 		void Clear();
 		// 指定パイプラインアセットIDに一致するエントリを削除する
 		void InvalidateByPipelineAsset(AssetID pipelineAssetID);
+
+		// 既に構築済みのグラフィックスパイプラインの統合reflectionを引く、未構築ならnullptr
+		// エディタのマテリアルインスペクタがPSOを再生成せずパラメータ一覧を得るために使う
+		const ShaderReflectionInfo* FindGraphicsReflection(AssetID pipelineAssetID) const;
 	private:
 		//============================================================================
 		//	private Methods
@@ -91,6 +95,8 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::unordered_map<PipelineCacheKey, std::unique_ptr<PipelineState>, PipelineCacheKeyHash> cache_;
+		// pipelineAsset別の統合reflection、エディタからPSO再生成なしで参照するために保持する
+		std::unordered_map<AssetID, ShaderReflectionInfo> graphicsReflectionByPipeline_;
 
 		//--------- functions ----------------------------------------------------
 

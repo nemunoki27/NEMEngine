@@ -191,7 +191,7 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		}
 
 		// エディタUI用にリフレクション情報をキャッシュする
-		const PostProcessParameterLayout* layout = deps_.postProcessExecutor->GetLastExecutedLayout();
+		const MaterialParameterLayout* layout = deps_.postProcessExecutor->GetLastExecutedLayout();
 		if (layout) {
 			service.CacheReflection(pass.material,
 				layout->GetVariables(),

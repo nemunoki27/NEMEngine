@@ -95,6 +95,8 @@ namespace Engine {
 		UINT GetThreadGroupZ() const { return threadGroupZ_; }
 		// コンピュートシェーダーのリフレクション情報を取得する
 		const ShaderReflectionInfo& GetComputeReflection() const { return computeReflection_; }
+		// グラフィックス全ステージを統合したリフレクション情報を取得する、マテリアルパラメータ解決に使う
+		const ShaderReflectionInfo& GetGraphicsReflection() const { return graphicsReflection_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -150,6 +152,8 @@ namespace Engine {
 		UINT threadGroupZ_ = 1;
 		// Compute用の定数バッファ構造をPostProcess側で参照する
 		ShaderReflectionInfo computeReflection_{};
+		// グラフィックス全ステージ統合のリフレクション情報、マテリアルパラメータ/SRV解決に使う
+		ShaderReflectionInfo graphicsReflection_{};
 
 		//--------- functions ----------------------------------------------------
 

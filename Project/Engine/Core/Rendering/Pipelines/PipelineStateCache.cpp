@@ -238,7 +238,20 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	}
 	// キャッシュに保存
 	auto [it, inserted] = cache_.emplace(key, std::move(pipelineState));
+	// マテリアルインスペクタ等がエディタ側でPSOを再生成せず、reflectionを引けるようpipelineAsset別に保存する
+	if (variant->kind != PipelineVariantKind::Compute) {
+		graphicsReflectionByPipeline_[pipelineAssetID] = it->second->GetGraphicsReflection();
+	}
 	return it->second.get();
+}
+
+const Engine::ShaderReflectionInfo* Engine::PipelineStateCache::FindGraphicsReflection(AssetID pipelineAssetID) const {
+
+	auto found = graphicsReflectionByPipeline_.find(pipelineAssetID);
+	if (found == graphicsReflectionByPipeline_.end()) {
+		return nullptr;
+	}
+	return &found->second;
 }
 
 void Engine::PipelineStateCache::Clear() {
@@ -249,6 +262,7 @@ void Engine::PipelineStateCache::Clear() {
 		state.reset();
 	}
 	cache_.clear();
+	graphicsReflectionByPipeline_.clear();
 }
 
 void Engine::PipelineStateCache::InvalidateByPipelineAsset(AssetID pipelineAssetID) {
@@ -263,6 +277,7 @@ void Engine::PipelineStateCache::InvalidateByPipelineAsset(AssetID pipelineAsset
 			++it;
 		}
 	}
+	graphicsReflectionByPipeline_.erase(pipelineAssetID);
 }
 
 uint64_t Engine::PipelineStateCache::HashFormats(std::span<const DXGI_FORMAT> rtvFormats, DXGI_FORMAT dsvFormat) {

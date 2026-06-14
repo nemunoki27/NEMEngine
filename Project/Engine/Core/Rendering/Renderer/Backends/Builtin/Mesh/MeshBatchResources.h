@@ -13,17 +13,22 @@
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 
 // c++
 #include <vector>
 #include <span>
+#include <string>
+#include <unordered_map>
 
 namespace Engine {
 
 	// front
 	class GraphicsCore;
 	class ECSWorld;
+	class SRVDescriptor;
 	struct RenderDrawContext;
 	struct MeshGPUResource;
 	struct MeshRendererComponent;
@@ -85,6 +90,9 @@ namespace Engine {
 		// worldMatrixの線形部の行列式の符号で負スケールのmirror時に-1
 		float orientationSign = 1.0f;
 		uint32_t _outlinePad[2] = { 0, 0 };
+
+		// per-instanceの乗算色tint、同マテリアルのまま個体ごとに色を変えるために使う
+		Color4 color = Color4::White();
 	};
 	static_assert(sizeof(MeshInstanceData) % 16 == 0);
 	// MeshInstanceDataのflagsで、スキニングするか
@@ -143,6 +151,10 @@ namespace Engine {
 		// ExecuteIndirectで使用する頂点描画引数の定数を更新する
 		void UpdateIndexedIndirectArgsConstants(uint32_t indexCount);
 
+		// reflection駆動のサブメッシュ単位マテリアルパラメータを詰めて可変stride構造化バッファへ転送する
+		void UploadSubMeshMaterialParams(const MaterialAsset* material,
+			const MaterialParameterLayout& layout, const RenderDrawContext& drawContext);
+
 		// スキニングに使用するリソースを確保する
 		void EnsureSkinningResources(GraphicsCore& graphicsCore);
 
@@ -173,6 +185,13 @@ namespace Engine {
 		D3D12_GPU_VIRTUAL_ADDRESS GetDrawGPUAddress() const { return draw_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetIndirectArgsConstantsGPUAddress() const { return indirectArgs_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshGPUAddress() const { return subMeshData_.GetGPUAddress(); }
+		// reflection駆動のサブメッシュ単位マテリアルパラメータバッファ
+		bool HasSubMeshMaterialParams() const { return subMeshParamAvailable_; }
+		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshMaterialParamGPUAddress() const {
+			return subMeshParamBuffer_ ? subMeshParamBuffer_->GetGPUVirtualAddress() : 0;
+		}
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSubMeshMaterialParamGPUHandle() const { return subMeshParamHandle_; }
+		std::string_view GetSubMeshMaterialParamBindingName() const { return "gMeshMaterialParameters"; }
 		// 背面法アウトラインのインスタンス別GPUデータ
 		D3D12_GPU_VIRTUAL_ADDRESS GetOutlineGPUAddress() const { return outlineData_.GetGPUAddress(); }
 		std::string_view GetOutlineBindingName() const { return outlineData_.GetBindingName(); }
@@ -263,6 +282,20 @@ namespace Engine {
 		StructuredInstanceBuffer<MeshSubMeshShaderData> subMeshData_{ "gSubMeshes" };
 		// 背面法アウトラインのインスタンス別GPUデータ
 		StructuredInstanceBuffer<MeshOutlineGPUData> outlineData_{ "gMeshOutlines" };
+
+		// サブメッシュ単位マテリアルパラメータ用の可変stride構造化バッファ
+		ID3D12Device* device_ = nullptr;
+		SRVDescriptor* srvDescriptor_ = nullptr;
+		ComPtr<ID3D12Resource> subMeshParamBuffer_{};
+		uint8_t* subMeshParamMapped_ = nullptr;
+		D3D12_GPU_DESCRIPTOR_HANDLE subMeshParamHandle_{};
+		uint32_t subMeshParamSrvIndex_ = UINT32_MAX;
+		uint32_t subMeshParamCapacityBytes_ = 0;
+		uint32_t subMeshParamStride_ = 0;
+		uint32_t subMeshParamElementCount_ = 0;
+		bool subMeshParamAvailable_ = false;
+		// UploadBatchDataで集めるインスタンス×サブメッシュ単位の上書きパラメータ
+		std::vector<std::unordered_map<std::string, MaterialParameterValue>> subMeshParamScratch_{};
 		ComPtr<ID3D12Resource> indexedIndirectArgs_{};
 		// ExecuteIndirect引数バッファの現在状態
 		D3D12_RESOURCE_STATES indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;

@@ -10,7 +10,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/ComputeRootBinder.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessParameterBufferBuilder.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
@@ -342,7 +342,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 	if (layoutIt == parameterLayoutCache_.end()) {
 
 		PipelineCacheEntry entry{};
-		entry.layout.Build(reflection);
+		entry.layout.Build(reflection, "PostProcessParameters");
 		entry.hasFrameConstantsByName = (pipelineState->FindBindingByName(kFrameConstantsName, ShaderBindingKind::CBV) != nullptr);
 		entry.hasFrameConstantsByRegister = (pipelineState->FindBinding(ShaderBindingKind::CBV, 0, 0) != nullptr);
 		layoutIt = parameterLayoutCache_.emplace(pipelineState, std::move(entry)).first;
@@ -366,7 +366,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 
 	// ポストプロセス固有のパラメータバッファの構築
 	// バッファがあればバインド
-	PostProcessParameterLayout& parameterLayout = cacheEntry.layout;
+	MaterialParameterLayout& parameterLayout = cacheEntry.layout;
 	if (parameterLayout.IsValid()) {
 
 		std::vector<uint8_t> bytes;
@@ -376,9 +376,9 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const Rend
 			for (const auto& [name, val] : desc.parameterOverrides) {
 				merged.parameters[name] = val;
 			}
-			bytes = PostProcessParameterBufferBuilder::Build(merged, parameterLayout);
+			bytes = MaterialParameterBufferBuilder::Build(merged, parameterLayout);
 		} else {
-			bytes = PostProcessParameterBufferBuilder::Build(*materialAsset, parameterLayout);
+			bytes = MaterialParameterBufferBuilder::Build(*materialAsset, parameterLayout);
 		}
 
 		auto allocation = constantBufferAllocator_.AllocateAndUploadBytes(graphicsCore.GetDXObject().GetDevice(), bytes);
@@ -456,7 +456,7 @@ bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 	auto layoutIt = parameterLayoutCache_.find(pipelineState);
 	if (layoutIt == parameterLayoutCache_.end()) {
 		PipelineCacheEntry entry{};
-		entry.layout.Build(reflection);
+		entry.layout.Build(reflection, "PostProcessParameters");
 		entry.hasFrameConstantsByName = (pipelineState->FindBindingByName(kFrameConstantsName, ShaderBindingKind::CBV) != nullptr);
 		entry.hasFrameConstantsByRegister = (pipelineState->FindBinding(ShaderBindingKind::CBV, 0, 0) != nullptr);
 		layoutIt = parameterLayoutCache_.emplace(pipelineState, std::move(entry)).first;

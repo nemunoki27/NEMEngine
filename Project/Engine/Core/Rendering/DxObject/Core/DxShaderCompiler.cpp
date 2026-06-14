@@ -160,25 +160,59 @@ namespace {
 					continue;
 				}
 
+				ID3D12ShaderReflectionType* type = variable->GetType();
+				D3D12_SHADER_TYPE_DESC typeDesc{};
+				const bool hasType = type && SUCCEEDED(type->GetDesc(&typeDesc));
+
+				// StructuredBufferの要素structは1変数として現れるため、メンバを展開してフラットなレイアウトにする
+				if (hasType && typeDesc.Class == D3D_SVC_STRUCT && typeDesc.Members > 0) {
+
+					for (UINT memberIndex = 0; memberIndex < typeDesc.Members; ++memberIndex) {
+
+						ID3D12ShaderReflectionType* memberType = type->GetMemberTypeByIndex(memberIndex);
+						const char* memberName = type->GetMemberTypeName(memberIndex);
+						if (!memberType || !memberName) {
+							continue;
+						}
+						D3D12_SHADER_TYPE_DESC memberDesc{};
+						if (FAILED(memberType->GetDesc(&memberDesc))) {
+							continue;
+						}
+
+						ShaderConstantBufferVariable memberInfo{};
+						memberInfo.name = memberName;
+						// memberDesc.Offsetは要素struct内での相対オフセットなので変数先頭と合算する
+						memberInfo.offset = variableDesc.StartOffset + memberDesc.Offset;
+						memberInfo.valueClass = memberDesc.Class;
+						memberInfo.valueType = memberDesc.Type;
+						memberInfo.rows = memberDesc.Rows;
+						memberInfo.columns = memberDesc.Columns;
+						memberInfo.elements = memberDesc.Elements;
+						memberInfo.declaredComponentCount = GetDeclaredComponentCount(memberDesc);
+						memberInfo.declaredByteSize =
+							memberInfo.declaredComponentCount * GetDeclaredScalarByteSize(memberDesc.Type);
+						// TYPE_DESCはSizeを持たないため宣言バイト数で代用する
+						memberInfo.size = memberInfo.declaredByteSize;
+						bufferInfo.variables.emplace_back(std::move(memberInfo));
+					}
+					continue;
+				}
+
 				ShaderConstantBufferVariable variableInfo{};
 				variableInfo.name = variableDesc.Name ? variableDesc.Name : "";
 				variableInfo.offset = variableDesc.StartOffset;
 				variableInfo.size = variableDesc.Size;
 
-				if (ID3D12ShaderReflectionType* type = variable->GetType()) {
+				if (hasType) {
 
-					D3D12_SHADER_TYPE_DESC typeDesc{};
-					if (SUCCEEDED(type->GetDesc(&typeDesc))) {
-
-						variableInfo.valueClass = typeDesc.Class;
-						variableInfo.valueType = typeDesc.Type;
-						variableInfo.rows = typeDesc.Rows;
-						variableInfo.columns = typeDesc.Columns;
-						variableInfo.elements = typeDesc.Elements;
-						variableInfo.declaredComponentCount = GetDeclaredComponentCount(typeDesc);
-						variableInfo.declaredByteSize =
-							variableInfo.declaredComponentCount * GetDeclaredScalarByteSize(typeDesc.Type);
-					}
+					variableInfo.valueClass = typeDesc.Class;
+					variableInfo.valueType = typeDesc.Type;
+					variableInfo.rows = typeDesc.Rows;
+					variableInfo.columns = typeDesc.Columns;
+					variableInfo.elements = typeDesc.Elements;
+					variableInfo.declaredComponentCount = GetDeclaredComponentCount(typeDesc);
+					variableInfo.declaredByteSize =
+						variableInfo.declaredComponentCount * GetDeclaredScalarByteSize(typeDesc.Type);
 				}
 				if (!variableInfo.name.empty()) {
 					bufferInfo.variables.emplace_back(std::move(variableInfo));

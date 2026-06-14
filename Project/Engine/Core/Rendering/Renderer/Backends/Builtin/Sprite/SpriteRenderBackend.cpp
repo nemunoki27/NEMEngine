@@ -21,6 +21,7 @@ void Engine::SpriteRenderBackend::BeginFrame([[maybe_unused]] GraphicsCore& grap
 
 	// フレーム開始時にプールをリセットする
 	resourcePool_.BeginFrame();
+	materialParamBinder_.BeginFrame();
 }
 
 void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
@@ -86,6 +87,22 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 		if (perDrawBindCache_.Has(textureSRVSlot_) && texture && texture->gpuHandle.ptr != 0) {
 			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(textureSRVSlot_),
 				0, texture->gpuHandle);
+		}
+		// シェーダーがMaterialParameters cbufferを宣言している場合のみreflection駆動でバインドする
+		// Builtinスプライトシェーダーはこのcbufferがなくslotもないため何もしない
+		if (perDrawBindCache_.Has(materialParamsCBVSlot_) && resolvedPass.material) {
+
+			ID3D12Device* device = context.graphicsCore->GetDXObject().GetDevice();
+			const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =
+				materialParamBinder_.ResolveAndUpload(device, *pipelineState, *resolvedPass.material);
+			if (materialParamsAddress != 0) {
+				RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(materialParamsCBVSlot_),
+					materialParamsAddress);
+			}
+		}
+		// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
+		if (resolvedPass.material) {
+			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, *resolvedPass.material, commandList);
 		}
 	}
 

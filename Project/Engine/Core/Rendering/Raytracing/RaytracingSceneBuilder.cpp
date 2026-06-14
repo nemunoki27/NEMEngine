@@ -15,6 +15,9 @@
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
 
+// c++
+#include <variant>
+
 //============================================================================
 //	RaytracingSceneBuilder classMethods
 //============================================================================
@@ -269,10 +272,23 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			if (hasMesh) {
 
 				const auto& authoring = src.renderer->subMeshes[subMeshIndex];
-				subMeshData.color = authoring.color;
-				subMeshData.emissiveColor = authoring.emissiveColor;
-				subMeshData.metallic = authoring.metallic;
-				subMeshData.roughness = authoring.roughness;
+				// RTはfixedなSubMeshShaderDataを使うのでparameterOverridesから既知名を取り出して詰める
+				const auto& params = authoring.parameterOverrides;
+				auto findColor = [&](const char* name, const Color4& fallback) -> Color4 {
+					auto it = params.find(name);
+					return (it != params.end() && std::holds_alternative<Color4>(it->second.value)) ?
+						std::get<Color4>(it->second.value) : fallback;
+					};
+				auto findFloat = [&](const char* name, float fallback) -> float {
+					auto it = params.find(name);
+					return (it != params.end() && std::holds_alternative<float>(it->second.value)) ?
+						std::get<float>(it->second.value) : fallback;
+					};
+				// テクスチャindexはMeshDrawPathCommonのresolverがparameterOverridesを見て解決済み
+				subMeshData.color = findColor("color", Color4::White());
+				subMeshData.emissiveColor = findColor("emissiveColor", Color4(0.0f, 0.0f, 0.0f, 0.0f));
+				subMeshData.metallic = findFloat("Metallic", subMeshData.metallic);
+				subMeshData.roughness = findFloat("Roughness", subMeshData.roughness);
 				subMeshData.uvMatrix = authoring.uvMatrix;
 				subMeshData.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
 				const MeshNormalMatrixResult localNormal = BuildSafeMeshNormalMatrix(subMeshData.localMatrix);

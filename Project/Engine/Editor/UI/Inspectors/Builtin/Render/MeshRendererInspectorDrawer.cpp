@@ -4,11 +4,19 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+
+// c++
+#include <filesystem>
+#include <variant>
 
 //============================================================================
 //	MeshRendererInspectorDrawer classMethods
@@ -210,22 +218,6 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 			ImGui::Separator();
 			MyGUI::TextMatrix4x4("ワールド行列", subMesh.worldMatrix);
 			ImGui::Separator();
-			// 色
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::ColorEdit("色", subMesh.color);
-				});
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::ColorEdit("発光色", subMesh.emissiveColor);
-				});
-			// PBRパラメータ
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragFloat("メタリック", subMesh.metallic,
-					{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
-				});
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragFloat("ラフネス", subMesh.roughness,
-					{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
-				});
 			// UV
 			DrawField(anyItemActive, [&]() {
 				return MyGUI::DragVector2("UV位置", subMesh.uvPos,
@@ -242,28 +234,137 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 			MyGUI::TextMatrix4x4("UV行列", subMesh.uvMatrix);
 			ImGui::Separator();
 		}
-	// サブメッシュのテクスチャ設定
-		{
-			auto DrawTextureField = [&](const char* label, AssetID& textureID) {
+		// 色やテクスチャはシェーダーreflection駆動でマテリアルパラメータとして編集する
+		DrawSubMeshReflectedParameters(context, GetDraft().material, subMesh, anyItemActive);
+}
 
-				DrawField(anyItemActive, [&]() {
+const Engine::ShaderReflectionInfo* Engine::MeshRendererInspectorDrawer::EnsureMaterialReflection(
+	const EditorPanelContext& context, AssetID materialID) {
 
-					// テクスチャプレビュー(ツールチップ)と右クリック削除はAssetReferenceFieldの共通機能で処理する
-					AssetEditSetting setting{};
-					setting.graphicsCore = context.graphicsCore;
+	if (!context.renderPipeline || !context.editorContext || !context.editorContext->assetDatabase) {
+		return nullptr;
+	}
+	// マテリアルが変わったときだけファイルを読み直す
+	if (!cachedMaterialValid_ || cachedMaterialID_ != materialID) {
 
-					return MyGUI::AssetReferenceField(label, textureID,
-						context.editorContext->assetDatabase, { AssetType::Texture }, setting);
-					});
-				};
+		cachedMaterialValid_ = false;
+		cachedMaterialID_ = materialID;
+		cachedMaterial_ = MaterialAsset{};
+		const std::filesystem::path path = context.editorContext->assetDatabase->ResolveFullPath(materialID);
+		if (!path.empty()) {
 
-			DrawTextureField("ベース色", subMesh.baseColorTexture);
-			DrawTextureField("法線", subMesh.normalTexture);
-			DrawTextureField("メタリック/ラフネス", subMesh.metallicRoughnessTexture);
-			DrawTextureField("スペキュラ", subMesh.specularTexture);
-			DrawTextureField("発光", subMesh.emissiveTexture);
-			DrawTextureField("遮蔽(AO)", subMesh.occlusionTexture);
+			nlohmann::json data = JsonAdapter::Load(path.string(), false);
+			cachedMaterialValid_ = FromJson(data, cachedMaterial_);
 		}
+	}
+	if (!cachedMaterialValid_) {
+		return nullptr;
+	}
+	const MaterialPassBinding* drawPass = FindPass(cachedMaterial_, MaterialPassKind::Draw);
+	if (!drawPass || !drawPass->pipeline) {
+		return nullptr;
+	}
+	return context.renderPipeline->FindPipelineGraphicsReflection(drawPass->pipeline);
+}
+
+void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
+	const EditorPanelContext& context, AssetID materialID, SubMeshMaterial& subMesh, bool& anyItemActive) {
+
+	const ShaderReflectionInfo* reflection = EnsureMaterialReflection(context, materialID);
+	if (!reflection) {
+		ImGui::TextDisabled("マテリアルのパラメータを取得できません");
+		return;
+	}
+
+	const ShaderConstantBufferInfo* cb = nullptr;
+	for (const ShaderConstantBufferInfo& candidate : reflection->constantBuffers) {
+		if (candidate.name == "gMeshMaterialParameters") {
+			cb = &candidate;
+			break;
+		}
+	}
+	if (!cb) {
+		return;
+	}
+
+	ImGui::SeparatorText("シェーダーパラメータ");
+
+	// pad用の詰め物paramはインスペクタに出さない
+	auto isPaddingParam = [](const std::string& name) {
+		return !name.empty() && (name.front() == '_' ||
+			name.find("pad") != std::string::npos || name.find("Pad") != std::string::npos);
+		};
+	// テクスチャparamはuintのbindless indexだが編集はAssetID参照で行う
+	auto isTextureParam = [](const std::string& name) {
+		return name.find("Texture") != std::string::npos ||
+			name.find("texture") != std::string::npos || name.find("Map") != std::string::npos;
+		};
+	// 既存値が無ければマテリアル既定値、それも無ければ型既定値を初期表示にする
+	auto resolveValue = [&](const ShaderConstantBufferVariable& var) {
+		auto it = subMesh.parameterOverrides.find(var.name);
+		if (it != subMesh.parameterOverrides.end()) {
+			return it->second;
+		}
+		auto defaultIt = cachedMaterial_.parameters.find(var.name);
+		return defaultIt != cachedMaterial_.parameters.end() ?
+			defaultIt->second : MaterialParameterEditor::DefaultValueForVariable(var);
+		};
+	// paramごとのRangeとDragValueを返す、必要なものだけ個別設定する
+	auto resolveFloatSetting = [](const std::string& name) {
+		Engine::FloatEditSetting setting{};
+		if (name == "Metallic" || name == "Roughness") {
+			setting.dragSpeed = 0.01f;
+			setting.minValue = 0.0f;
+			setting.maxValue = 1.0f;
+		}
+		return setting;
+		};
+
+	// Drag編集paramを先に出す
+	for (const ShaderConstantBufferVariable& var : cb->variables) {
+
+		if (isPaddingParam(var.name) || isTextureParam(var.name)) {
+			continue;
+		}
+		MaterialParameterValue value = resolveValue(var);
+		const Engine::FloatEditSetting floatSetting = resolveFloatSetting(var.name);
+		DrawField(anyItemActive, [&]() {
+
+			const bool changed = MaterialParameterEditor::DrawValueEdit(var, value, floatSetting);
+			if (changed) {
+				subMesh.parameterOverrides[var.name] = value;
+			}
+			Engine::ValueEditResult editResult{};
+			editResult.valueChanged = changed;
+			return editResult;
+			});
+	}
+
+	// テクスチャparamは下にまとめて出す
+	for (const ShaderConstantBufferVariable& var : cb->variables) {
+
+		if (isPaddingParam(var.name) || !isTextureParam(var.name)) {
+			continue;
+		}
+		auto it = subMesh.parameterOverrides.find(var.name);
+		AssetID textureID{};
+		if (it != subMesh.parameterOverrides.end() && std::holds_alternative<AssetID>(it->second.value)) {
+			textureID = std::get<AssetID>(it->second.value);
+		}
+		DrawField(anyItemActive, [&]() {
+
+			AssetEditSetting setting{};
+			setting.graphicsCore = context.graphicsCore;
+			auto result = MyGUI::AssetReferenceField(var.name.c_str(), textureID,
+				context.editorContext->assetDatabase, { AssetType::Texture }, setting);
+			if (result.valueChanged) {
+				MaterialParameterValue value{};
+				value.value = textureID;
+				subMesh.parameterOverrides[var.name] = value;
+			}
+			return result;
+			});
+	}
 }
 
 void Engine::MeshRendererInspectorDrawer::UpdateDraftRuntime(

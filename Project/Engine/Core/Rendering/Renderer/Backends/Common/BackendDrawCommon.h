@@ -76,6 +76,13 @@ namespace Engine::BackendDrawCommon {
 	const GPUTextureResource* ResolveTextureAsset(const RenderDrawContext& context,
 		GraphicsCore& graphicsCore, AssetID textureAssetID);
 
+	// マテリアルテクスチャをreflection駆動でバインドする
+	// 規約はregister space2のテクスチャSRVだけマテリアルテクスチャ扱い、エンジン供給SRVはspace0か1
+	// material.parametersの同名AssetIDを解決し、未指定や失敗なら既定の白テクスチャを使う
+	// space2テクスチャを宣言しないBuiltinでは何もせず無回帰
+	void BindMaterialTextures(const RenderDrawContext& context, const PipelineState& pipelineState,
+		const MaterialAsset& material, ID3D12GraphicsCommandList* commandList);
+
 	// 描画アイテムがバッチ可能か
 	bool CanBatchBasic(const RenderItem& first, const RenderItem& next);
 } // Engine

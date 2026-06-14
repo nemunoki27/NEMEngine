@@ -121,6 +121,13 @@ void RenderPipelineRunner::ReloadMesh(AssetID meshAssetID) {
 	}
 }
 
+void RenderPipelineRunner::ReloadMaterial(AssetID materialAssetID) {
+
+	// マテリアルキャッシュを破棄して次フレームのLoadMaterialでファイルから読み直させる
+	// インスペクタでの編集を実行中に即反映するため
+	renderAssetLibrary_.InvalidateMaterial(materialAssetID);
+}
+
 void RenderPipelineRunner::Finalize() {
 
 	// GPU計測用のクエリヒープ/リードバックバッファはここで解放する

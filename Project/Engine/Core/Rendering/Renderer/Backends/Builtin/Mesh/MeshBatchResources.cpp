@@ -9,6 +9,8 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
@@ -78,6 +80,9 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 
 	ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
 	SRVDescriptor* srvDescriptor = &graphicsCore.GetSRVDescriptor();
+	// 可変stride構造化バッファを後から生成するため保持しておく
+	device_ = device;
+	srvDescriptor_ = srvDescriptor;
 
 	// バッファ作成
 	for (auto& viewBuffer : view_) {
@@ -113,6 +118,20 @@ void Engine::MeshBatchResources::Finalize() {
 
 	// OptionalSkinningResourcesは内部にSRV/UAV付きGPUバッファを持つため、終了時に明示resetする
 	skinning_.reset();
+	// 可変strideマテリアルパラメータバッファのSRVとリソースを解放する
+	if (srvDescriptor_ && subMeshParamSrvIndex_ != UINT32_MAX) {
+		srvDescriptor_->Free(subMeshParamSrvIndex_);
+		subMeshParamSrvIndex_ = UINT32_MAX;
+	}
+	subMeshParamBuffer_.Reset();
+	subMeshParamMapped_ = nullptr;
+	subMeshParamCapacityBytes_ = 0;
+	subMeshParamStride_ = 0;
+	subMeshParamElementCount_ = 0;
+	subMeshParamAvailable_ = false;
+	subMeshParamScratch_.clear();
+	device_ = nullptr;
+	srvDescriptor_ = nullptr;
 	meshScratch_.clear();
 	subMeshScratch_.clear();
 	outlineScratch_.clear();
@@ -273,6 +292,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	// データクリア
 	meshScratch_.clear();
 	subMeshScratch_.clear();
+	subMeshParamScratch_.clear();
 	outlineScratch_.clear();
 	paletteScratch_.clear();
 	skinnedRecords_.clear();
@@ -311,12 +331,6 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	// エラーテクスチャのSRVインデックスを取得する
 	const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
 	uint32_t fallbackSRVIndex = (fallback && fallback->srvIndex != UINT32_MAX) ? fallback->srvIndex : 0;
-	// 元々ベースカラーテクスチャが設定されていないMesh用の白テクスチャ
-	// 白を掛けてもベースカラー(importedBaseColor/color)がそのまま出るため、未設定時はこちらを使う
-	const GPUTextureResource* whiteTexture = graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
-	uint32_t whiteSRVIndex = (whiteTexture && whiteTexture->srvIndex != UINT32_MAX) ? whiteTexture->srvIndex : fallbackSRVIndex;
-	std::unordered_map<AssetID, uint32_t> baseColorSRVCache{};
-	baseColorSRVCache.reserve(gpuMesh.subMeshes.size() + 1);
 
 	// テクスチャアセットIDからSRVインデックスを取得するヘルパー
 	// assetIDが無効ならUINT32_MAXを返しシェーダー側で未使用として扱う
@@ -354,6 +368,8 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			MeshNormalMatrixResult instanceNormal = BuildSafeMeshNormalMatrix(instance.worldMatrix);
 			instance.normalMatrix = instanceNormal.matrix;
 			instance.orientationSign = instanceNormal.orientationSign;
+			// 色はサブメッシュ単位のreflection paramへ移したのでper-instance tintは白固定にする
+			instance.color = Color4::White();
 			instance.subMeshDataOffset = static_cast<uint32_t>(subMeshScratch_.size());
 			instance.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
 
@@ -417,61 +433,12 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 
 		for (uint32_t subMeshIndex = 0; subMeshIndex < static_cast<uint32_t>(gpuMesh.subMeshes.size()); ++subMeshIndex) {
 
-			// ベースカラーはsRGB、それ以外はLinear
-			AssetID baseColorAsset = MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetID(gpuMesh, renderer, subMeshIndex);
-			uint32_t baseColorSRVIndex;
-			if (baseColorAsset) {
-
-				// 解決対象は重複解決を避けるためAssetID単位でキャッシュする
-				// 割り当て済みだが見つからない(解決失敗)場合はエラーテクスチャにフォールバックする
-				auto cachedTexture = baseColorSRVCache.find(baseColorAsset);
-				if (cachedTexture != baseColorSRVCache.end()) {
-
-					baseColorSRVIndex = cachedTexture->second;
-				} else {
-
-					const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
-						graphicsCore, drawContext.assetDatabase, baseColorAsset, true);
-					baseColorSRVIndex = (texture && texture->srvIndex != UINT32_MAX) ? texture->srvIndex : fallbackSRVIndex;
-					if (texture == fallback) {
-						usesFallbackTexture_ = true;
-					}
-					baseColorSRVCache.emplace(baseColorAsset, baseColorSRVIndex);
-				}
-			} else {
-
-				// 解決後AssetIDが空で元々割り当てがありマテリアルで宣言済みだが見つからないならエラー、
-				// 未割り当てのテクスチャなしなら白にフォールバックする
-				const bool assigned = MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(gpuMesh, renderer, subMeshIndex);
-				baseColorSRVIndex = assigned ? fallbackSRVIndex : whiteSRVIndex;
-				if (assigned) {
-					usesFallbackTexture_ = true;
-				}
-			}
-
-			AssetID normalAsset = MeshDrawPathCommon::ResolveSubMeshNormalTextureAssetID(gpuMesh, renderer, subMeshIndex);
-			AssetID metallicRoughnessAsset = MeshDrawPathCommon::ResolveSubMeshMetallicRoughnessTextureAssetID(gpuMesh, renderer, subMeshIndex);
-			AssetID emissiveAsset = MeshDrawPathCommon::ResolveSubMeshEmissiveTextureAssetID(gpuMesh, renderer, subMeshIndex);
-			AssetID occlusionAsset = MeshDrawPathCommon::ResolveSubMeshOcclusionTextureAssetID(gpuMesh, renderer, subMeshIndex);
-			AssetID specularAsset = MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(gpuMesh, renderer, subMeshIndex);
-
-			// サブメッシュデータの構築
+			// 色やテクスチャはreflection paramへ移したのでgSubMeshesには幾何情報のみ詰める
 			MeshSubMeshShaderData data{};
-			data.baseColorTextureIndex = baseColorSRVIndex;
-			data.normalTextureIndex = ResolveSRVIndex(normalAsset, false);
-			data.metallicRoughnessTextureIndex = ResolveSRVIndex(metallicRoughnessAsset, false);
-			data.emissiveTextureIndex = ResolveSRVIndex(emissiveAsset, true);
-			data.occlusionTextureIndex = ResolveSRVIndex(occlusionAsset, false);
-			data.specularTextureIndex = ResolveSRVIndex(specularAsset, false);
-
 			data.importedBaseColor = gpuMesh.subMeshes[subMeshIndex].baseColor;
 			if (renderer && subMeshIndex < renderer->subMeshes.size()) {
 
 				const auto& authoring = renderer->subMeshes[subMeshIndex];
-				data.color = authoring.color;
-				data.emissiveColor = authoring.emissiveColor;
-				data.metallic = authoring.metallic;
-				data.roughness = authoring.roughness;
 				data.uvMatrix = authoring.uvMatrix;
 				data.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
 				// localMatrixからも法線変換行列を構築し最終的にinstance.normalMatrixと合成される
@@ -480,6 +447,12 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				data.localOrientationSign = localNormal.orientationSign;
 				// Position Scaling膨張の基準で原点基準にならないようサブメッシュのピボットを渡す
 				data.sourcePivot = authoring.sourcePivot;
+				// reflection paramの上書きをインスタンス×サブメッシュ単位で集める
+				subMeshParamScratch_.emplace_back(authoring.parameterOverrides);
+			} else {
+
+				// rendererが無いときも要素数をgSubMeshesと揃える
+				subMeshParamScratch_.emplace_back();
 			}
 			subMeshScratch_.emplace_back(data);
 		}
@@ -531,4 +504,87 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			skinning_->skinnedPackedVertexState = D3D12_RESOURCE_STATE_COMMON;
 		}
 	}
+}
+
+void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset* material,
+	const MaterialParameterLayout& layout, const RenderDrawContext& drawContext) {
+
+	// シェーダーがMaterialParameters構造化バッファを宣言していないバッチはここで早期に無効化する
+	subMeshParamAvailable_ = false;
+	if (!layout.IsValid() || subMeshParamScratch_.empty() || !device_ || !srvDescriptor_) {
+		return;
+	}
+
+	GraphicsCore& graphicsCore = *drawContext.graphicsCore;
+	const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
+	const uint32_t fallbackIndex = (fallback && fallback->srvIndex != UINT32_MAX) ? fallback->srvIndex : 0;
+
+	// テクスチャparamのAssetIDをbindless indexへ解決する、名前でsRGB可否を判定する
+	// 未指定はkNoTextureを返しシェーダー側でテクスチャなしの分岐に乗せる
+	auto resolveTexture = [&](const std::string& name, const AssetID& id) -> uint32_t {
+
+		if (!id) {
+			return UINT32_MAX;
+		}
+		const bool sRGB = name.find("baseColor") != std::string::npos ||
+			name.find("BaseColor") != std::string::npos ||
+			name.find("emissive") != std::string::npos ||
+			name.find("Emissive") != std::string::npos;
+		const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
+			graphicsCore, drawContext.assetDatabase, id, sRGB);
+		if (!texture || texture->srvIndex == UINT32_MAX) {
+			return fallbackIndex;
+		}
+		return texture->srvIndex;
+		};
+
+	const std::unordered_map<std::string, MaterialParameterValue> emptyMap{};
+	const std::unordered_map<std::string, MaterialParameterValue>& defaults =
+		material ? material->parameters : emptyMap;
+
+	// strideは16整列したレイアウトサイズでHLSLの構造化バッファ要素サイズと一致させる
+	const uint32_t stride = (std::max)(layout.GetSizeInBytes(), 16u);
+	const uint32_t elementCount = static_cast<uint32_t>(subMeshParamScratch_.size());
+	std::vector<uint8_t> packed(static_cast<size_t>(stride) * elementCount, 0);
+	for (uint32_t i = 0; i < elementCount; ++i) {
+
+		const std::vector<uint8_t> element = MaterialParameterBufferBuilder::BuildElement(
+			defaults, subMeshParamScratch_[i], layout, resolveTexture);
+		const size_t copyBytes = (std::min)(static_cast<size_t>(stride), element.size());
+		std::memcpy(packed.data() + static_cast<size_t>(stride) * i, element.data(), copyBytes);
+	}
+
+	// 容量不足やstride変更時のみリソースとSRVを作り直す
+	const uint32_t requiredBytes = static_cast<uint32_t>(packed.size());
+	if (requiredBytes > subMeshParamCapacityBytes_ || stride != subMeshParamStride_ || !subMeshParamBuffer_) {
+
+		if (subMeshParamSrvIndex_ != UINT32_MAX) {
+			srvDescriptor_->Free(subMeshParamSrvIndex_);
+			subMeshParamSrvIndex_ = UINT32_MAX;
+		}
+		subMeshParamMapped_ = nullptr;
+		const uint32_t newCapacityBytes = (std::max)(requiredBytes, 4096u);
+		DxUtils::CreateBufferResource(device_, subMeshParamBuffer_, newCapacityBytes);
+		HRESULT hr = subMeshParamBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&subMeshParamMapped_));
+		Assert::Call(SUCCEEDED(hr), "failed to map subMesh material parameter buffer");
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		srvDesc.Buffer.FirstElement = 0;
+		srvDesc.Buffer.NumElements = (std::max)(newCapacityBytes / stride, 1u);
+		srvDesc.Buffer.StructureByteStride = stride;
+		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+		srvDescriptor_->CreateSRV(subMeshParamSrvIndex_, subMeshParamBuffer_.Get(), srvDesc);
+		subMeshParamHandle_ = srvDescriptor_->GetGPUHandle(subMeshParamSrvIndex_);
+		subMeshParamCapacityBytes_ = newCapacityBytes;
+		subMeshParamStride_ = stride;
+	}
+
+	if (subMeshParamMapped_ && !packed.empty()) {
+		std::memcpy(subMeshParamMapped_, packed.data(), packed.size());
+	}
+	subMeshParamElementCount_ = elementCount;
+	subMeshParamAvailable_ = true;
 }

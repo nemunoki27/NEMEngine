@@ -6,26 +6,27 @@
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 
 // c++
-#include <optional>
 #include <string>
 #include <vector>
 
 namespace Engine {
 
 	//============================================================================
-	//	PostProcessParameterLayout class
-	// ReflectionからPostProcessParametersのCBVレイアウトだけを切り出して保持する
+	//	MaterialParameterLayout class
+	// Reflectionから指定名の定数バッファのCBVレイアウトだけを切り出して保持する
+	// PostProcess/通常マテリアル共通で使うため、対象cbuffer名は呼び出し側が指定する
 	//============================================================================
-	class PostProcessParameterLayout {
+	class MaterialParameterLayout {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
-		PostProcessParameterLayout() = default;
-		~PostProcessParameterLayout() = default;
+		MaterialParameterLayout() = default;
+		~MaterialParameterLayout() = default;
 
-		// Reflection内のPostProcessParametersからレイアウトを作成する
-		void Build(const ShaderReflectionInfo& reflection);
+		// Reflection内の指定名cbufferからレイアウトを作成する、既定はMaterialParameters
+		void Build(const ShaderReflectionInfo& reflection,
+			const std::string& cbufferName = "MaterialParameters");
 
 		//--------- accessor -----------------------------------------------------
 
@@ -47,4 +48,3 @@ namespace Engine {
 		std::vector<ShaderConstantBufferVariable> variables_{};
 	};
 } // Engine
-

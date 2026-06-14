@@ -1,10 +1,10 @@
-#include "PostProcessParameterLayout.h"
+#include "MaterialParameterLayout.h"
 
 // c++
 #include <algorithm>
 
 //============================================================================
-//	PostProcessParameterLayout classMethods
+//	MaterialParameterLayout classMethods
 //============================================================================
 namespace {
 
@@ -26,7 +26,8 @@ namespace {
 	}
 }
 
-void Engine::PostProcessParameterLayout::Build(const ShaderReflectionInfo& reflection) {
+void Engine::MaterialParameterLayout::Build(const ShaderReflectionInfo& reflection,
+	const std::string& cbufferName) {
 
 	sizeInBytes_ = 0;
 	bindPoint_ = 1;
@@ -34,7 +35,7 @@ void Engine::PostProcessParameterLayout::Build(const ShaderReflectionInfo& refle
 	variables_.clear();
 
 	for (const ShaderConstantBufferInfo& buffer : reflection.constantBuffers) {
-		if (buffer.name != "PostProcessParameters") {
+		if (buffer.name != cbufferName) {
 			continue;
 		}
 

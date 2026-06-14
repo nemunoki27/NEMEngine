@@ -6,11 +6,15 @@
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPhase.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
+
+// c++
+#include <unordered_map>
 
 namespace Engine {
 
@@ -27,23 +31,8 @@ namespace Engine {
 		// 元メッシュ内でのインデックス
 		uint32_t sourceSubMeshIndex = 0;
 
-		// 設定するテクスチャ(読みこまれた時点で設定されていればそのテクスチャが設定される)
-		AssetID baseColorTexture{};
-		AssetID normalTexture{};
-		AssetID metallicRoughnessTexture{};
-		AssetID specularTexture{};
-		AssetID emissiveTexture{};
-		AssetID occlusionTexture{};
-
-		// サブメッシュパラメータ
-		// 色
-		Color4 color = Color4::White();
-		// 発光色
-		Color4 emissiveColor = Color4(0.0f, 0.0f, 0.0f, 0.0f);
-
-		// PBRパラメータ
-		float metallic = 0.0f;
-		float roughness = 0.5f;
+		// シェーダーごとのマテリアルパラメータ
+		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides{};
 
 		// UV
 		Vector2 uvPos = Vector2::AnyInit(0.0f);

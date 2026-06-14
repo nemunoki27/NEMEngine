@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/FrameBatchResourcePool.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterBinder.h>
 
 // c++
 #include <vector>
@@ -30,6 +31,7 @@ namespace Engine {
 			vsInstSRVSlot_ = perDrawBindCache_.AddSlot("gVSInstances",  ShaderBindingKind::SRV);
 			psInstSRVSlot_ = perDrawBindCache_.AddSlot("gPSInstances",  ShaderBindingKind::SRV);
 			atlasSRVSlot_  = perDrawBindCache_.AddSlot("gAtlas",        ShaderBindingKind::SRV);
+			materialParamsCBVSlot_ = perDrawBindCache_.AddSlot("MaterialParameters", ShaderBindingKind::CBV);
 		}
 		~TextRenderBackend() override;
 
@@ -64,6 +66,9 @@ namespace Engine {
 		PipelineBindingCache::SlotID vsInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID psInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID atlasSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		// reflection駆動のマテリアルパラメータcbuffer、カスタムマテリアル用でBuiltinには存在しない
+		PipelineBindingCache::SlotID materialParamsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		MaterialParameterBinder materialParamBinder_{};
 	};
 } // Engine
 
