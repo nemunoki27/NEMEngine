@@ -41,8 +41,8 @@ namespace Engine {
 		// ToolPanelへ登録する情報
 		ToolDescriptor descriptor_{
 			.id = "engine.collision_manager",
-			.name = "CollisionManager",
-			.category = "Physics",
+			.name = "衝突設定",
+			.category = "物理",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::AllowPlayMode,
 			.order = 0,

@@ -83,8 +83,8 @@ namespace Engine {
 
 		ToolDescriptor descriptor_{
 			.id = "engine.animation_clip",
-			.name = "AnimationClip",
-			.category = "Animation",
+			.name = "アニメクリップ作成",
+			.category = "アニメーション",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::EditOnly,
 			.order = 2,

@@ -54,8 +54,8 @@ namespace Engine {
 		// ToolPanelへ登録する情報
 		ToolDescriptor descriptor_{
 			.id = "engine.sceneViewCamera",
-			.name = "SceneViewCamera",
-			.category = "Camera",
+			.name = "シーンカメラ設定",
+			.category = "カメラ",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::EditOnly,
 			.order = 0,
@@ -69,6 +69,11 @@ namespace Engine {
 
 		// カメラの状態
 		ManualRenderCameraState cameraState_;
+
+		// カメラ操作速度、シリアライズ対象
+		float rotateSpeed_ = 0.005f;
+		float zoomRate_ = 0.4f;
+		float panSpeed_ = 0.02f;
 
 		//--------- functions ----------------------------------------------------
 
