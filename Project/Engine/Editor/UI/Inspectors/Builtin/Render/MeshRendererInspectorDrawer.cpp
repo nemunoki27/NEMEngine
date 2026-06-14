@@ -8,6 +8,7 @@
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
@@ -132,7 +133,7 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			});
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
-			setting.defaultAssetID = BuiltinAssets::Materials::DefaultMesh;
+			setting.defaultAssetID = DefaultMaterialSettings::GetInstance().GetMeshOrBuiltin();
 			return MyGUI::AssetReferenceField("マテリアル", draft.material,
 				context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
@@ -333,6 +334,10 @@ const Engine::ShaderReflectionInfo* Engine::MeshRendererInspectorDrawer::EnsureM
 	if (!context.renderPipeline || !context.editorContext || !context.editorContext->assetDatabase) {
 		return nullptr;
 	}
+	// 空マテリアルは描画時にデフォルトへ解決されるので、reflectionも実効デフォルトから引く
+	if (!materialID) {
+		materialID = DefaultMaterialSettings::GetInstance().GetMeshOrBuiltin();
+	}
 	// マテリアルが変わったときだけファイルを読み直す
 	if (!cachedMaterialValid_ || cachedMaterialID_ != materialID) {
 
@@ -522,11 +527,10 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 			const Engine::FloatEditSetting floatSetting = MakeReflectedFloatSetting(var.name);
 			DrawField(anyItemActive, [&]() {
 
-				ValueEditResult result{};
-				if (MaterialParameterEditor::DrawValueEdit(var, value, floatSetting)) {
+				// valueChangedで全サブメッシュへ反映、editFinishedでcommitされUndo/dirtyに乗る
+				ValueEditResult result = MaterialParameterEditor::DrawValueEdit(var, value, floatSetting);
+				if (result.valueChanged) {
 					applyToAll(var.name, value);
-					result.valueChanged = true;
-					result.editFinished = true;
 				}
 				return result;
 				});
@@ -597,13 +601,12 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 		const Engine::FloatEditSetting floatSetting = resolveFloatSetting(var.name);
 		DrawField(anyItemActive, [&]() {
 
-			const bool changed = MaterialParameterEditor::DrawValueEdit(var, value, floatSetting);
-			if (changed) {
+			// valueChangedでプレビュー更新、editFinishedでcommitされUndo/dirtyに乗る
+			Engine::ValueEditResult result = MaterialParameterEditor::DrawValueEdit(var, value, floatSetting);
+			if (result.valueChanged) {
 				subMesh.parameterOverrides[var.name] = value;
 			}
-			Engine::ValueEditResult editResult{};
-			editResult.valueChanged = changed;
-			return editResult;
+			return result;
 			});
 	}
 

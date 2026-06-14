@@ -381,7 +381,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 			if (it != pass.parameterOverrides.end()) {
 
 				// オーバーライドあり:そのまま編集、xボタンでデフォルトへ戻す
-				if (MaterialParameterEditor::DrawValueEdit(var, it->second)) {
+				if (MaterialParameterEditor::DrawValueEdit(var, it->second).valueChanged) {
 					anyParamChanged = true;
 				}
 				ImGui::SameLine();
@@ -393,7 +393,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 
 				// オーバーライドが無くても最初から編集可能にする、編集した時点でオーバーライドを作る
 				MaterialParameterValue temp = MaterialParameterEditor::DefaultValueForVariable(var);
-				if (MaterialParameterEditor::DrawValueEdit(var, temp)) {
+				if (MaterialParameterEditor::DrawValueEdit(var, temp).valueChanged) {
 					pass.parameterOverrides[var.name] = temp;
 					anyParamChanged = true;
 				}

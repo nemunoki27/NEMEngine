@@ -102,9 +102,10 @@ namespace Engine::MaterialParameterEditor {
 			}, value.value);
 	}
 
-	// reflectionの型情報とラベルに基づいてUIを表示し、値を更新したらtrueを返す
+	// reflectionの型情報とラベルに基づいてUIを表示し、編集結果をValueEditResultで返す
+	// valueChangedは毎フレーム、editFinishedは確定時に立つのでcommit判定に使える
 	// バリアントの格納型ではなくvar.valueType/成分数を基準にするため型不一致のバグが出ない
-	inline bool DrawValueEdit(const ShaderConstantBufferVariable& var, MaterialParameterValue& value,
+	inline ValueEditResult DrawValueEdit(const ShaderConstantBufferVariable& var, MaterialParameterValue& value,
 		const FloatEditSetting& floatSetting = FloatEditSetting{}) {
 
 		const char* label = var.name.c_str();
@@ -115,43 +116,37 @@ namespace Engine::MaterialParameterEditor {
 
 			if (componentCount <= 1) {
 				float v = ExtractFloatComponent(value, 0);
-				if (MyGUI::DragFloat(label, v, floatSetting).valueChanged) {
-					value.value = v;
-					return true;
-				}
+				ValueEditResult result = MyGUI::DragFloat(label, v, floatSetting);
+				if (result.valueChanged) { value.value = v; }
+				return result;
 			} else if (componentCount == 2) {
 				Vector2 v{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1) };
-				if (MyGUI::DragVector2(label, v, floatSetting).valueChanged) {
-					value.value = v;
-					return true;
-				}
+				ValueEditResult result = MyGUI::DragVector2(label, v, floatSetting);
+				if (result.valueChanged) { value.value = v; }
+				return result;
 			} else if (componentCount == 3) {
 				if (isColor) {
 					Color3 c{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1), ExtractFloatComponent(value, 2) };
-					if (MyGUI::ColorEdit(label, c).valueChanged) {
-						value.value = Vector3{ c.r, c.g, c.b };
-						return true;
-					}
+					ValueEditResult result = MyGUI::ColorEdit(label, c);
+					if (result.valueChanged) { value.value = Vector3{ c.r, c.g, c.b }; }
+					return result;
 				} else {
 					Vector3 v{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1), ExtractFloatComponent(value, 2) };
-					if (MyGUI::DragVector3(label, v, floatSetting).valueChanged) {
-						value.value = v;
-						return true;
-					}
+					ValueEditResult result = MyGUI::DragVector3(label, v, floatSetting);
+					if (result.valueChanged) { value.value = v; }
+					return result;
 				}
 			} else {
 				if (isColor) {
 					Color4 c{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1), ExtractFloatComponent(value, 2), ExtractFloatComponent(value, 3) };
-					if (MyGUI::ColorEdit(label, c).valueChanged) {
-						value.value = c;
-						return true;
-					}
+					ValueEditResult result = MyGUI::ColorEdit(label, c);
+					if (result.valueChanged) { value.value = c; }
+					return result;
 				} else {
 					Vector4 v{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1), ExtractFloatComponent(value, 2), ExtractFloatComponent(value, 3) };
-					if (MyGUI::DragVector4(label, v, floatSetting).valueChanged) {
-						value.value = v;
-						return true;
-					}
+					ValueEditResult result = MyGUI::DragVector4(label, v, floatSetting);
+					if (result.valueChanged) { value.value = v; }
+					return result;
 				}
 			}
 		} else if (var.valueType == D3D_SVT_INT) {
@@ -163,10 +158,9 @@ namespace Engine::MaterialParameterEditor {
 				else if constexpr (std::is_same_v<T, bool>) return val ? 1 : 0;
 				else return 0;
 				}, value.value);
-			if (MyGUI::DragInt(label, v).valueChanged) {
-				value.value = v;
-				return true;
-			}
+			ValueEditResult result = MyGUI::DragInt(label, v);
+			if (result.valueChanged) { value.value = v; }
+			return result;
 		} else if (var.valueType == D3D_SVT_UINT) {
 			int32_t iv = std::visit([](const auto& val) -> int32_t {
 				using T = std::decay_t<decltype(val)>;
@@ -176,10 +170,9 @@ namespace Engine::MaterialParameterEditor {
 				else if constexpr (std::is_same_v<T, bool>) return val ? 1 : 0;
 				else return 0;
 				}, value.value);
-			if (MyGUI::DragInt(label, iv).valueChanged) {
-				value.value = static_cast<uint32_t>((std::max)(0, iv));
-				return true;
-			}
+			ValueEditResult result = MyGUI::DragInt(label, iv);
+			if (result.valueChanged) { value.value = static_cast<uint32_t>((std::max)(0, iv)); }
+			return result;
 		} else if (var.valueType == D3D_SVT_BOOL) {
 			bool v = std::visit([](const auto& val) -> bool {
 				using T = std::decay_t<decltype(val)>;
@@ -188,12 +181,16 @@ namespace Engine::MaterialParameterEditor {
 				else if constexpr (std::is_same_v<T, float>) return val != 0.0f;
 				else return false;
 				}, value.value);
+			// Checkboxはトグルが即確定なのでvalueChangedとeditFinishedを同時に立てる
+			ValueEditResult result{};
 			if (MyGUI::Checkbox(label, v)) {
 				value.value = v;
-				return true;
+				result.valueChanged = true;
+				result.editFinished = true;
 			}
+			return result;
 		}
-		return false;
+		return ValueEditResult{};
 	}
 
 	// reflectionの指定cbufferの変数を列挙して編集UIを描く、値が変わったらtrueを返す
@@ -214,7 +211,7 @@ namespace Engine::MaterialParameterEditor {
 					// シェーダーが要求するパラメータをUIへ出すため既定値で補完する
 					it = parameters.emplace(var.name, DefaultValueForVariable(var)).first;
 				}
-				if (DrawValueEdit(var, it->second)) {
+				if (DrawValueEdit(var, it->second).valueChanged) {
 					valueChanged = true;
 				}
 			}

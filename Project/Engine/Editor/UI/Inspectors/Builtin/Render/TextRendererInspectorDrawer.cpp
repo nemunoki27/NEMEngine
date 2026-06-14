@@ -8,6 +8,7 @@
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 
 //============================================================================
 //	TextRendererInspectorDrawer classMethods
@@ -28,7 +29,7 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 			});
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
-			setting.defaultAssetID = BuiltinAssets::Materials::DefaultText;
+			setting.defaultAssetID = DefaultMaterialSettings::GetInstance().GetTextOrBuiltin();
 			return MyGUI::AssetReferenceField("マテリアル", draft.material,
 				context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});

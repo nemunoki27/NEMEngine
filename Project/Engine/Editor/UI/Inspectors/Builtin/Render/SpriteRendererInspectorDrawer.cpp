@@ -6,6 +6,7 @@
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 
@@ -54,7 +55,7 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 			});
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
-				setting.defaultAssetID = BuiltinAssets::Materials::DefaultSprite;
+				setting.defaultAssetID = DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin();
 				return MyGUI::AssetReferenceField("マテリアル", draft.material,
 					context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
