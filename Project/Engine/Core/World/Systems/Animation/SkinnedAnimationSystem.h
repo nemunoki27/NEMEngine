@@ -7,9 +7,6 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 
-// c++
-#include <execution>
-
 namespace Engine {
 
 	//============================================================================
