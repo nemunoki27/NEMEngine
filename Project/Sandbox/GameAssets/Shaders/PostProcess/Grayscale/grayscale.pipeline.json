@@ -1,0 +1,12 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "grayscalePipeline",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "3d251b2e7464d5c6"
+        }
+    ]
+}

@@ -1,0 +1,14 @@
+{
+    "domain": "Compute",
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "bloomMaterial",
+    "parameters": {},
+    "passes": [
+        {
+            "passKind": "PostProcess",
+            "pipeline": "6b3b18d539d68d98",
+            "preferredVariant": "Compute"
+        }
+    ]
+}

@@ -24,6 +24,14 @@ namespace Engine {
 		Vector2 uvMin{};
 		Vector2 uvMax{};
 	};
+	// 文字ごとのトランスフォーム、グリフ中心を基準にSRTを掛ける
+	struct TextCharTransform {
+
+		Vector2 translation{};
+		// Z回転(度)
+		float rotation = 0.0f;
+		Vector2 scale = Vector2::AnyInit(1.0f);
+	};
 	// ランタイムキャッシュデータ
 	struct TextLayoutRuntime {
 
@@ -62,6 +70,16 @@ namespace Engine {
 
 		// 色
 		Color4 color = Color4::White();
+
+		// アウトラインを有効にするか
+		bool enableOutline = false;
+		// アウトライン色
+		Color4 outlineColor = Color4::Black();
+		// アウトライン幅(ピクセル単位)
+		float outlineWidth = 2.0f;
+
+		// 文字ごとのトランスフォーム、描画グリフ数に合わせて伸縮する
+		std::vector<TextCharTransform> charTransforms{};
 
 		// 描画レイヤー
 		int32_t layer = 0;

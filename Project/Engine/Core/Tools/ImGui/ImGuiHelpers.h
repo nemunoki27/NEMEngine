@@ -116,6 +116,8 @@ namespace Engine {
 		GraphicsCore* graphicsCore = nullptr;
 		// 右クリックメニューでアセット設定を削除できるようにするか
 		bool allowDelete = true;
+		// 値が未設定のとき既定として効くアセットを表示用に渡す(描画側で既定が解決される場合に何が効くか示す)
+		AssetID defaultAssetID{};
 		// プロパティ行設定
 		PropertyRowSetting propertyRow{};
 	};

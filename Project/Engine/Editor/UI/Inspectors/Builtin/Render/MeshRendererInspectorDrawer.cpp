@@ -7,6 +7,7 @@
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
@@ -130,8 +131,10 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			return result;
 			});
 		DrawField(anyItemActive, [&]() {
+			AssetEditSetting setting{};
+			setting.defaultAssetID = BuiltinAssets::Materials::DefaultMesh;
 			return MyGUI::AssetReferenceField("マテリアル", draft.material,
-				context.editorContext->assetDatabase, { AssetType::Material });
+				context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
 
 		// モデルファイルのマテリアル係数やテクスチャを現shaderのパラメータへ再適用する
