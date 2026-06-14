@@ -6,6 +6,7 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
@@ -167,6 +168,15 @@ void Engine::EditorState::SetSelectedEntities(const std::vector<Entity>& entitie
 
 bool Engine::EditorState::CanMultiSelect(ECSWorld& world, const Entity& candidate) const {
 
+	// Skyboxは背景専用なので複数選択の対象外にして単一選択のみ許す
+	if (world.HasComponent<SkyboxRendererComponent>(candidate)) {
+		return false;
+	}
+	for (const Entity& entity : selectedEntities) {
+		if (world.IsAlive(entity) && world.HasComponent<SkyboxRendererComponent>(entity)) {
+			return false;
+		}
+	}
 	if (selectedEntities.empty()) {
 		return true;
 	}

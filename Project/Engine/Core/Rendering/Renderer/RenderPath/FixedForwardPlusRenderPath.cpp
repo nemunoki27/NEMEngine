@@ -11,6 +11,7 @@
 // c++
 #include <string>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/ClearRenderTargetsPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/SkyboxPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DepthPrepass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/LightCullingPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/OpaqueRenderPass.h>
@@ -37,6 +38,7 @@ void Engine::FixedForwardPlusRenderPath::Initialize(const RenderPipelineDeps& de
 	passes_.reserve(15);
 
 	passes_.emplace_back(std::make_unique<ClearRenderTargetsPass>(deps_));
+	passes_.emplace_back(std::make_unique<SkyboxPass>(deps_));
 	passes_.emplace_back(std::make_unique<DepthPrepass>(deps_));
 	passes_.emplace_back(std::make_unique<LightCullingPass>(deps_));
 	passes_.emplace_back(std::make_unique<OpaqueRenderPass>(deps_));

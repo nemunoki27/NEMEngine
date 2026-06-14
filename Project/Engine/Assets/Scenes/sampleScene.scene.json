@@ -4,7 +4,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 6
+                    "siblingOrder": 5
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -192,7 +192,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 3
+                    "siblingOrder": 4
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -343,7 +343,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 6
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -542,7 +542,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 8
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -640,7 +640,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 9
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -738,7 +738,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 10
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -836,7 +836,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 11
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -934,7 +934,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 12
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -1032,7 +1032,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 13
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -1130,7 +1130,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 14
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -1228,7 +1228,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 15
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -1326,7 +1326,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 8
+                    "siblingOrder": 19
                 },
                 "Name": {
                     "name": "PointL"
@@ -1374,7 +1374,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 8
+                    "siblingOrder": 20
                 },
                 "Name": {
                     "name": "PointL_1"
@@ -1422,7 +1422,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 8
+                    "siblingOrder": 21
                 },
                 "Name": {
                     "name": "PointL_2"
@@ -1470,7 +1470,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 8
+                    "siblingOrder": 22
                 },
                 "Name": {
                     "name": "PointL_3"
@@ -1518,7 +1518,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 16
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -1616,7 +1616,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 17
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -3736,7 +3736,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 18
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -6736,6 +6736,51 @@
                 }
             },
             "LocalFileID": "51cd45efbfcaaca1"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 3
+                },
+                "Name": {
+                    "name": "Skybox"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "9db8761687b47186",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SkyboxRenderer": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 0.03634648025035858,
+                        "g": 0.08202728629112244,
+                        "r": 0.16577541828155518
+                    },
+                    "cubemapTexture": "da18161c5ffe1aba",
+                    "visible": true
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "9db8761687b47186"
         }
     ],
     "Header": {
