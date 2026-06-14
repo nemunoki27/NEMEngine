@@ -87,6 +87,9 @@ struct MeshInstance {
 	// worldMatrixの線形部の行列式の符号。負スケール(mirror)時に-1
 	float orientationSign;
 	uint2 _outlinePad;
+
+	// per-instanceの乗算色tint
+	float4 color;
 };
 
 static const uint MESH_INSTANCE_FLAG_SKINNED = 1u;

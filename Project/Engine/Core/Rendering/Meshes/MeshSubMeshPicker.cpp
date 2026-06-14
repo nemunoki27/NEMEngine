@@ -63,10 +63,13 @@ void Engine::MeshSubMeshPicker::ConsumePendingResult(ECSWorld* world, EditorStat
 	// ピック結果を取得
 	const PickResult result = readbackBuffer_.GetReadbackData();
 
-	// ヒットなし
+	// ヒットなし、追加選択でない通常クリックなら空クリック扱いで選択を解除する
 	if (result.instanceID == kInvalidPickInstanceID ||
 		result.instanceID >= pendingRecords_.size()) {
 		pendingRecords_.clear();
+		if (!pendingAdditive_) {
+			editorState.ClearSelection();
+		}
 		return;
 	}
 
@@ -77,12 +80,24 @@ void Engine::MeshSubMeshPicker::ConsumePendingResult(ECSWorld* world, EditorStat
 		return;
 	}
 
-	// エディタの選択状態を更新
+	// シフト併用かつエンティティ選択モードなら次元が合う場合だけトグルで追加選択する
+	if (pendingAdditive_ && editorState.selectKind == EditorSelectionKind::Entity) {
+
+		if (editorState.CanMultiSelect(*world, record.entity)) {
+			editorState.ToggleEntityInSelection(record.entity);
+		}
+		return;
+	}
+	// 通常クリックは従来通り選択を置き換える
 	editorState.SelectFromScenePick(record.entity, record.subMeshIndex, record.subMeshStableID);
 }
 
 void Engine::MeshSubMeshPicker::ExecutePick(GraphicsCore& graphicsCore, const ResolvedRenderView& view,
-	const Vector2& inputPixel, std::span<const MeshSubMeshPickRecord> pickRecords, ID3D12Resource* tlasResource) {
+	const Vector2& inputPixel, std::span<const MeshSubMeshPickRecord> pickRecords, ID3D12Resource* tlasResource,
+	bool additive) {
+
+	// 結果消費時にシフト併用だったか判定するため保持する
+	pendingAdditive_ = additive;
 
 	// 無効な状態のときは何もしない
 	if (!initialized_ || !tlasResource) {

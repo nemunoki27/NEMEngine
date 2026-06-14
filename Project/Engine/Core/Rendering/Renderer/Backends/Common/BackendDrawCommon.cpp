@@ -5,6 +5,13 @@
 //============================================================================
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Pipelines/PipelineState.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
+#include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
+
+// c++
+#include <variant>
 
 //============================================================================
 //	BackendDrawCommon classMethods
@@ -145,6 +152,48 @@ const Engine::GPUTextureResource* Engine::BackendDrawCommon::ResolveTextureAsset
 	const RenderDrawContext& context, GraphicsCore& graphicsCore, AssetID textureAssetID) {
 
 	return RuntimeTextureResolver::Resolve(graphicsCore, context.assetDatabase, textureAssetID);
+}
+
+void Engine::BackendDrawCommon::BindMaterialTextures(const RenderDrawContext& context,
+	const PipelineState& pipelineState, const MaterialAsset& material,
+	ID3D12GraphicsCommandList* commandList) {
+
+	GraphicsCore& graphicsCore = *context.graphicsCore;
+	const GPUTextureResource* whiteTexture = graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
+
+	const ShaderReflectionInfo& reflection = pipelineState.GetGraphicsReflection();
+	for (const ShaderResourceBinding& resource : reflection.resources) {
+
+		// マテリアルテクスチャの規約はspace2のテクスチャSRVだけ、それ以外はエンジンが供給する
+		if (resource.kind != ShaderBindingKind::SRV || resource.space != 2 ||
+			resource.rawType != D3D_SIT_TEXTURE) {
+			continue;
+		}
+		const RootBindingLocation* binding =
+			pipelineState.FindBinding(ShaderBindingKind::SRV, resource.bindPoint, resource.space);
+		if (!binding) {
+			continue;
+		}
+
+		// 同名のmaterial paramからテクスチャのAssetIDを引く
+		AssetID textureID{};
+		auto found = material.parameters.find(resource.name);
+		if (found != material.parameters.end()) {
+			if (const AssetID* id = std::get_if<AssetID>(&found->second.value)) {
+				textureID = *id;
+			}
+		}
+
+		// 未指定や解決失敗は白テクスチャを使い、テクスチャ無しでも破綻させない
+		const GPUTextureResource* texture = textureID ?
+			ResolveTextureAsset(context, graphicsCore, textureID) : nullptr;
+		D3D12_GPU_DESCRIPTOR_HANDLE handle = (texture && texture->gpuHandle.ptr != 0) ?
+			texture->gpuHandle : (whiteTexture ? whiteTexture->gpuHandle : D3D12_GPU_DESCRIPTOR_HANDLE{});
+		if (handle.ptr == 0) {
+			continue;
+		}
+		RootBindingCommand::SetGraphicsSRV(commandList, binding, 0, handle);
+	}
 }
 
 bool Engine::BackendDrawCommon::CanBatchBasic(const RenderItem& first, const RenderItem& next) {

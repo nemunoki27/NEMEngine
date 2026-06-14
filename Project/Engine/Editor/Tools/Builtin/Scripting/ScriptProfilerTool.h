@@ -39,8 +39,8 @@ namespace Engine {
 
 		ToolDescriptor descriptor_{
 			.id = "engine.script_profiler",
-			.name = "Script Profiler",
-			.category = "Scripting",
+			.name = "スクリプトプロファイラー",
+			.category = "スクリプト",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::AllowPlayMode,
 			.order = 0,

@@ -9,13 +9,16 @@
     },
     {
       "passKind": "Draw",
-      "pipeline": "966f3e8a34595313",
+      "pipeline": "cb1dfc9e9ef2bae9",
       "preferredVariant": "GraphicsMesh"
     },
     {
       "passKind": "Transparent",
-      "pipeline": "b8996e4516e31236",
+      "pipeline": "70a440da60fc61a5",
       "preferredVariant": "GraphicsMesh"
     }
-  ]
+  ],
+  "parameters": {
+    "color": { "r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0 }
+  }
 }

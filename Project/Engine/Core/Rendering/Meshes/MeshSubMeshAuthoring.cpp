@@ -12,6 +12,19 @@
 //============================================================================
 namespace {
 
+	// モデル既定テクスチャを未設定のparameterOverridesへAssetIDとして入れる、設定済みは触らない
+	bool SetTextureParamIfEmpty(Engine::SubMeshMaterial& subMesh, const char* paramName,
+		const Engine::AssetID& texture) {
+
+		if (!texture || subMesh.parameterOverrides.count(paramName)) {
+			return false;
+		}
+		Engine::MaterialParameterValue value{};
+		value.value = texture;
+		subMesh.parameterOverrides[paramName] = value;
+		return true;
+	}
+
 	// サブメッシュ表示名生成
 	std::string BuildSubMeshName(const aiMesh* mesh, uint32_t meshIndex, const aiMaterial* material) {
 
@@ -121,6 +134,36 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_EMISSIVE, aiTextureType_EMISSION_COLOR })));
 			item.defaultTextureAssets.occlusionTexture = resolveAsset(textureResolver.ResolveAssetPath(
 				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP })));
+
+			// マテリアル係数を読む、PBRのBASE_COLORが無ければmtl系のCOLOR_DIFFUSEへフォールバックする
+			aiColor4D baseColor{};
+			if (material->Get(AI_MATKEY_BASE_COLOR, baseColor) == AI_SUCCESS) {
+
+				item.baseColorFactor = Color4(baseColor.r, baseColor.g, baseColor.b, baseColor.a);
+				item.hasBaseColorFactor = true;
+			} else {
+
+				aiColor3D diffuse{};
+				if (material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse) == AI_SUCCESS) {
+					item.baseColorFactor = Color4(diffuse.r, diffuse.g, diffuse.b, 1.0f);
+					item.hasBaseColorFactor = true;
+				}
+			}
+			aiColor3D emissive{};
+			if (material->Get(AI_MATKEY_COLOR_EMISSIVE, emissive) == AI_SUCCESS) {
+				item.emissiveFactor = Color4(emissive.r, emissive.g, emissive.b, 1.0f);
+				item.hasEmissiveFactor = true;
+			}
+			ai_real metallic = 0.0f;
+			if (material->Get(AI_MATKEY_METALLIC_FACTOR, metallic) == AI_SUCCESS) {
+				item.metallicFactor = static_cast<float>(metallic);
+				item.hasMetallicFactor = true;
+			}
+			ai_real roughness = 1.0f;
+			if (material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) == AI_SUCCESS) {
+				item.roughnessFactor = static_cast<float>(roughness);
+				item.hasRoughnessFactor = true;
+			}
 		}
 
 		outLayout.emplace_back(std::move(item));
@@ -166,12 +209,9 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 			if (!preserveOverrides) {
 
 				const auto& def = layout[i].defaultTextureAssets;
-				if (!current.baseColorTexture          && def.baseColorTexture)          { current.baseColorTexture          = def.baseColorTexture;          updated = true; }
-				if (!current.normalTexture             && def.normalTexture)             { current.normalTexture             = def.normalTexture;             updated = true; }
-				if (!current.metallicRoughnessTexture  && def.metallicRoughnessTexture)  { current.metallicRoughnessTexture  = def.metallicRoughnessTexture;  updated = true; }
-				if (!current.specularTexture           && def.specularTexture)           { current.specularTexture           = def.specularTexture;           updated = true; }
-				if (!current.emissiveTexture           && def.emissiveTexture)           { current.emissiveTexture           = def.emissiveTexture;           updated = true; }
-				if (!current.occlusionTexture          && def.occlusionTexture)          { current.occlusionTexture          = def.occlusionTexture;          updated = true; }
+				updated |= SetTextureParamIfEmpty(current, "baseColorTexture", def.baseColorTexture);
+				updated |= SetTextureParamIfEmpty(current, "normalTexture", def.normalTexture);
+				updated |= SetTextureParamIfEmpty(current, "emissiveTexture", def.emissiveTexture);
 			}
 		}
 		if (alreadyMatched) {
@@ -224,34 +264,16 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 			if (!preserveOverrides) {
 
 				const auto& def = layout[i].defaultTextureAssets;
-				if (!entry.baseColorTexture          && def.baseColorTexture)          entry.baseColorTexture          = def.baseColorTexture;
-				if (!entry.normalTexture             && def.normalTexture)             entry.normalTexture             = def.normalTexture;
-				if (!entry.metallicRoughnessTexture  && def.metallicRoughnessTexture)  entry.metallicRoughnessTexture  = def.metallicRoughnessTexture;
-				if (!entry.specularTexture           && def.specularTexture)           entry.specularTexture           = def.specularTexture;
-				if (!entry.emissiveTexture           && def.emissiveTexture)           entry.emissiveTexture           = def.emissiveTexture;
-				if (!entry.occlusionTexture          && def.occlusionTexture)          entry.occlusionTexture          = def.occlusionTexture;
+				SetTextureParamIfEmpty(entry, "baseColorTexture", def.baseColorTexture);
+				SetTextureParamIfEmpty(entry, "normalTexture", def.normalTexture);
+				SetTextureParamIfEmpty(entry, "emissiveTexture", def.emissiveTexture);
 			}
 		} else {
 			// 新規エントリはモデルのデフォルトテクスチャで初期化
 			const auto& defaults = layout[i].defaultTextureAssets;
-			if (defaults.baseColorTexture) {
-				entry.baseColorTexture = defaults.baseColorTexture;
-			}
-			if (defaults.normalTexture) {
-				entry.normalTexture = defaults.normalTexture;
-			}
-			if (defaults.metallicRoughnessTexture) {
-				entry.metallicRoughnessTexture = defaults.metallicRoughnessTexture;
-			}
-			if (defaults.specularTexture) {
-				entry.specularTexture = defaults.specularTexture;
-			}
-			if (defaults.emissiveTexture) {
-				entry.emissiveTexture = defaults.emissiveTexture;
-			}
-			if (defaults.occlusionTexture) {
-				entry.occlusionTexture = defaults.occlusionTexture;
-			}
+			SetTextureParamIfEmpty(entry, "baseColorTexture", defaults.baseColorTexture);
+			SetTextureParamIfEmpty(entry, "normalTexture", defaults.normalTexture);
+			SetTextureParamIfEmpty(entry, "emissiveTexture", defaults.emissiveTexture);
 		}
 
 		// 正規レイアウトを上書き

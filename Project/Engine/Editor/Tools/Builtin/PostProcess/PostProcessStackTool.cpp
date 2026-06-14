@@ -15,6 +15,7 @@
 #include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackSerializer.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 
 // imgui
 #include <imgui.h>
@@ -42,178 +43,6 @@ namespace {
 		return str.rfind(suffix) == str.size() - suffix.size();
 	}
 
-	uint32_t GetScalarComponentCount(const Engine::ShaderConstantBufferVariable& var) {
-
-		uint32_t count = (std::max)(1u, var.declaredComponentCount);
-		if (var.columns > 0) {
-			count = (std::max)(count, var.columns);
-		}
-		if (var.rows > 0 && var.columns > 0) {
-			count = (std::max)(count, var.rows * var.columns);
-		}
-		if (count <= 1 && var.size > sizeof(float)) {
-			count = static_cast<uint32_t>(var.size / sizeof(float));
-		}
-		return (std::min)(count, 4u);
-	}
-
-	bool IsColorParameterName(const std::string& name) {
-
-		return name.find("color") != std::string::npos ||
-			name.find("Color") != std::string::npos ||
-			name.find("tint") != std::string::npos ||
-			name.find("Tint") != std::string::npos;
-	}
-
-	// 変数タイプからMaterialParameterValueを生成する
-	Engine::MaterialParameterValue DefaultValueForVariable(const Engine::ShaderConstantBufferVariable& var) {
-
-		Engine::MaterialParameterValue result{};
-		const bool isColor = IsColorParameterName(var.name);
-		if (var.valueType == D3D_SVT_FLOAT) {
-			const uint32_t componentCount = GetScalarComponentCount(var);
-			if (componentCount <= 1) {
-				result.value = 0.0f;
-			} else if (componentCount == 2) {
-				result.value = Engine::Vector2{};
-			} else if (componentCount == 3) {
-				result.value = Engine::Vector3{};
-			} else {
-				if (isColor) {
-					result.value = Engine::Color4(0.0f, 0.0f, 0.0f, 1.0f);
-				} else {
-					result.value = Engine::Vector4{};
-				}
-			}
-		} else if (var.valueType == D3D_SVT_INT) {
-			result.value = int32_t(0);
-		} else if (var.valueType == D3D_SVT_UINT) {
-			result.value = uint32_t(0);
-		} else if (var.valueType == D3D_SVT_BOOL) {
-			result.value = false;
-		} else {
-			result.value = 0.0f;
-		}
-		return result;
-	}
-
-	// バリアントからi番目のfloat成分を取り出し型が違っても安全に変換する
-	float ExtractFloatComponent(const Engine::MaterialParameterValue& value, int idx) {
-
-		return std::visit([idx](const auto& v) -> float {
-			using T = std::decay_t<decltype(v)>;
-			if constexpr (std::is_same_v<T, float>) {
-				return (idx == 0) ? v : 0.0f;
-			} else if constexpr (std::is_same_v<T, Engine::Vector2>) {
-				return (idx == 0) ? v.x : (idx == 1 ? v.y : 0.0f);
-			} else if constexpr (std::is_same_v<T, Engine::Vector3>) {
-				return (idx == 0) ? v.x : (idx == 1 ? v.y : (idx == 2 ? v.z : 0.0f));
-			} else if constexpr (std::is_same_v<T, Engine::Vector4>) {
-				return (idx == 0) ? v.x : (idx == 1 ? v.y : (idx == 2 ? v.z : (idx == 3 ? v.w : 0.0f)));
-			} else if constexpr (std::is_same_v<T, Engine::Color4>) {
-				return (idx == 0) ? v.r : (idx == 1 ? v.g : (idx == 2 ? v.b : (idx == 3 ? v.a : 0.0f)));
-			} else if constexpr (std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>) {
-				return (idx == 0) ? static_cast<float>(v) : 0.0f;
-			} else if constexpr (std::is_same_v<T, bool>) {
-				return (idx == 0 && v) ? 1.0f : 0.0f;
-			} else {
-				return 0.0f;
-			}
-		}, value.value);
-	}
-
-	// varの型情報とラベル名に基づいてUIウィジェットを表示し値を更新する
-	// バリアントの格納型ではなくリフレクションの成分数/var.valueTypeを基準にするため型不一致のバグが出ない
-	bool DrawParameterValueEdit(const Engine::ShaderConstantBufferVariable& var, Engine::MaterialParameterValue& value) {
-
-		const char* label = var.name.c_str();
-		const bool isColor = IsColorParameterName(var.name);
-		const uint32_t componentCount = GetScalarComponentCount(var);
-
-		if (var.valueType == D3D_SVT_FLOAT) {
-
-			if (componentCount <= 1) {
-				float v = ExtractFloatComponent(value, 0);
-				if (Engine::MyGUI::DragFloat(label, v).valueChanged) {
-					value.value = v;
-					return true;
-				}
-			} else if (componentCount == 2) {
-				Engine::Vector2 v{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1) };
-				if (Engine::MyGUI::DragVector2(label, v).valueChanged) {
-					value.value = v;
-					return true;
-				}
-			} else if (componentCount == 3) {
-				if (isColor) {
-					Engine::Color3 c{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1), ExtractFloatComponent(value, 2) };
-					if (Engine::MyGUI::ColorEdit(label, c).valueChanged) {
-						value.value = Engine::Vector3{ c.r, c.g, c.b };
-						return true;
-					}
-				} else {
-					Engine::Vector3 v{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1), ExtractFloatComponent(value, 2) };
-					if (Engine::MyGUI::DragVector3(label, v).valueChanged) {
-						value.value = v;
-						return true;
-					}
-				}
-			} else {
-				if (isColor) {
-					Engine::Color4 c{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1), ExtractFloatComponent(value, 2), ExtractFloatComponent(value, 3) };
-					if (Engine::MyGUI::ColorEdit(label, c).valueChanged) {
-						value.value = c;
-						return true;
-					}
-				} else {
-					Engine::Vector4 v{ ExtractFloatComponent(value, 0), ExtractFloatComponent(value, 1), ExtractFloatComponent(value, 2), ExtractFloatComponent(value, 3) };
-					if (Engine::MyGUI::DragVector4(label, v).valueChanged) {
-						value.value = v;
-						return true;
-					}
-				}
-			}
-		} else if (var.valueType == D3D_SVT_INT) {
-			int32_t v = std::visit([](const auto& val) -> int32_t {
-				using T = std::decay_t<decltype(val)>;
-				if constexpr (std::is_same_v<T, int32_t>) return val;
-				else if constexpr (std::is_same_v<T, uint32_t>) return static_cast<int32_t>(val);
-				else if constexpr (std::is_same_v<T, float>) return static_cast<int32_t>(val);
-				else if constexpr (std::is_same_v<T, bool>) return val ? 1 : 0;
-				else return 0;
-			}, value.value);
-			if (Engine::MyGUI::DragInt(label, v).valueChanged) {
-				value.value = v;
-				return true;
-			}
-		} else if (var.valueType == D3D_SVT_UINT) {
-			int32_t iv = std::visit([](const auto& val) -> int32_t {
-				using T = std::decay_t<decltype(val)>;
-				if constexpr (std::is_same_v<T, uint32_t>) return static_cast<int32_t>(val);
-				else if constexpr (std::is_same_v<T, int32_t>) return val;
-				else if constexpr (std::is_same_v<T, float>) return static_cast<int32_t>(val);
-				else if constexpr (std::is_same_v<T, bool>) return val ? 1 : 0;
-				else return 0;
-			}, value.value);
-			if (Engine::MyGUI::DragInt(label, iv).valueChanged) {
-				value.value = static_cast<uint32_t>((std::max)(0, iv));
-				return true;
-			}
-		} else if (var.valueType == D3D_SVT_BOOL) {
-			bool v = std::visit([](const auto& val) -> bool {
-				using T = std::decay_t<decltype(val)>;
-				if constexpr (std::is_same_v<T, bool>) return val;
-				else if constexpr (std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>) return val != 0;
-				else if constexpr (std::is_same_v<T, float>) return val != 0.0f;
-				else return false;
-			}, value.value);
-			if (Engine::MyGUI::Checkbox(label, v)) {
-				value.value = v;
-				return true;
-			}
-		}
-		return false;
-	}
 
 	bool IsMaterialJsonFile(const std::string& path) {
 
@@ -549,24 +378,23 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 			ImGui::PushID(var.name.c_str());
 
 			auto it = pass.parameterOverrides.find(var.name);
-			if (it == pass.parameterOverrides.end()) {
+			if (it != pass.parameterOverrides.end()) {
 
-				// オーバーライドなし:デフォルト値を灰色で表示し、+ボタンでオーバーライドを追加する
-				ImGui::TextDisabled("[default] %s", var.name.c_str());
-				ImGui::SameLine();
-				if (ImGui::SmallButton("+##Override")) {
-					pass.parameterOverrides[var.name] = DefaultValueForVariable(var);
-					anyParamChanged = true;
-				}
-			} else {
-
-				// オーバーライドあり:値を編集可能に表示し、xボタンで削除できる
-				if (DrawParameterValueEdit(var, it->second)) {
+				// オーバーライドあり:そのまま編集、xボタンでデフォルトへ戻す
+				if (MaterialParameterEditor::DrawValueEdit(var, it->second).valueChanged) {
 					anyParamChanged = true;
 				}
 				ImGui::SameLine();
 				if (ImGui::SmallButton("x##RemoveOverride")) {
 					pass.parameterOverrides.erase(it);
+					anyParamChanged = true;
+				}
+			} else {
+
+				// オーバーライドが無くても最初から編集可能にする、編集した時点でオーバーライドを作る
+				MaterialParameterValue temp = MaterialParameterEditor::DefaultValueForVariable(var);
+				if (MaterialParameterEditor::DrawValueEdit(var, temp).valueChanged) {
+					pass.parameterOverrides[var.name] = temp;
 					anyParamChanged = true;
 				}
 			}

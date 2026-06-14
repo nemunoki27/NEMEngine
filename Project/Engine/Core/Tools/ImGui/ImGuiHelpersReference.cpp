@@ -14,10 +14,48 @@
 namespace Engine {
 	namespace {
 
+		// AssetTypeごとに受け付ける主な拡張子を返す
+		// ドロップ先で何を渡せばよいか分かるようプレースホルダへ添えて使う
+		std::string_view AcceptedExtensionsForType(AssetType type) {
+			switch (type) {
+			case AssetType::Texture:          return ".png/.jpg/.dds";
+			case AssetType::Material:         return ".material";
+			case AssetType::Mesh:             return ".gltf/.obj";
+			case AssetType::Font:             return ".font";
+			case AssetType::Audio:            return ".wav/.mp3";
+			case AssetType::AnimationClip:    return ".animclip";
+			case AssetType::Prefab:           return ".prefab";
+			case AssetType::Scene:            return ".scene";
+			case AssetType::Shader:           return ".hlsl/.shader";
+			case AssetType::RenderPipeline:   return ".pipeline";
+			case AssetType::Script:           return ".cs";
+			case AssetType::CollisionSettings: return ".collisionSettings";
+			case AssetType::PostProcessStack: return ".postProcessStack";
+			default:                          return "";
+			}
+		}
+
+		// 受付AssetType一覧から拡張子ヒント文字列を構築する
+		std::string BuildAcceptedExtensionsHint(const std::initializer_list<AssetType>& acceptedTypes) {
+			std::string hint;
+			for (AssetType type : acceptedTypes) {
+
+				const std::string_view extensions = AcceptedExtensionsForType(type);
+				if (extensions.empty()) { continue; }
+				if (!hint.empty()) { hint += " "; }
+				hint += extensions;
+			}
+			return hint;
+		}
+
 		// アセット参照のラベルテキストを構築する
-		std::string BuildAssetReferenceLabel(AssetID assetID, const AssetDatabase* assetDatabase) {
-			// アセットが未設定の場合
-			if (!assetID) { return "None (Drop asset here)"; }
+		std::string BuildAssetReferenceLabel(AssetID assetID, const AssetDatabase* assetDatabase,
+			const std::initializer_list<AssetType>& acceptedTypes) {
+			// アセットが未設定の場合は受付拡張子を添える
+			if (!assetID) {
+				const std::string hint = BuildAcceptedExtensionsHint(acceptedTypes);
+				return hint.empty() ? "None (Drop asset here)" : std::format("None (Drop {} here)", hint);
+			}
 			// データベースがない場合はIDのみ表示
 			if (!assetDatabase) { return std::format("GUID: {}", Engine::ToString(assetID)); }
 
@@ -30,8 +68,12 @@ namespace Engine {
 		}
 
 		// アセット参照のツールチップテキストを構築する
-		std::string BuildAssetReferenceTooltip(AssetID assetID, const AssetDatabase* assetDatabase) {
-			if (!assetID) { return "Drop asset here"; }
+		std::string BuildAssetReferenceTooltip(AssetID assetID, const AssetDatabase* assetDatabase,
+			const std::initializer_list<AssetType>& acceptedTypes) {
+			if (!assetID) {
+				const std::string hint = BuildAcceptedExtensionsHint(acceptedTypes);
+				return hint.empty() ? "Drop asset here" : std::format("Drop asset here\nAccepted: {}", hint);
+			}
 			if (!assetDatabase) { return std::format("GUID: {}", Engine::ToString(assetID)); }
 			const AssetMeta* meta = assetDatabase->Find(assetID);
 			if (!meta) { return std::format("Missing Asset\nGUID: {}", Engine::ToString(assetID)); }
@@ -75,23 +117,33 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 	// 行の開始
 	if (setting.useAutoPropertyRow) { if (!BeginPropertyRow(label, setting.propertyRow)) { return result; } }
 
-	const std::string displayText = BuildAssetReferenceLabel(value, assetDatabase);
 	const bool hasValue = static_cast<bool>(value);
+	// 値が未設定でも既定アセットが渡されていれば、描画で効く既定の名前を表示する
+	const bool usesDefault = !hasValue && static_cast<bool>(setting.defaultAssetID);
+	std::string displayText = BuildAssetReferenceLabel(value, assetDatabase, acceptedTypes);
+	if (usesDefault) {
 
-	// プレビュー画像の解決で設定がなければデータベースから検索
-	ImTextureID resolvedPreviewID = setting.previewTextureID;
-	if (resolvedPreviewID == ImTextureID{}) {
-		resolvedPreviewID = ResolveTextureAssetPreview(setting.graphicsCore, assetDatabase, value);
+		const AssetMeta* defaultMeta = assetDatabase ? assetDatabase->Find(setting.defaultAssetID) : nullptr;
+		const std::string defaultName = defaultMeta ?
+			MakeAssetDisplayNameFromPath(defaultMeta->assetPath) : Engine::ToString(setting.defaultAssetID);
+		displayText = std::format("Default: {}", defaultName);
 	}
 
-	// 未設定時はグレーアウト
-	if (!hasValue) { ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)); }
+	// プレビュー画像の解決で設定がなければデータベースから検索
+	const AssetID previewAssetID = hasValue ? value : setting.defaultAssetID;
+	ImTextureID resolvedPreviewID = setting.previewTextureID;
+	if (resolvedPreviewID == ImTextureID{}) {
+		resolvedPreviewID = ResolveTextureAssetPreview(setting.graphicsCore, assetDatabase, previewAssetID);
+	}
+
+	// 完全な未設定時のみグレーアウトし、既定が効くときは通常表示にする
+	if (!hasValue && !usesDefault) { ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)); }
 
 	float buttonWidth = (std::max)(1.0f, ImGui::GetContentRegionAvail().x - setting.reserveRightWidth);
 	ImVec2 button = setting.buttonSize.has_value() ? setting.buttonSize.value() : ImVec2(buttonWidth, ImGui::GetFrameHeight());
 	ImGui::Button(displayText.c_str(), button);
 
-	if (!hasValue) { ImGui::PopStyleColor(); }
+	if (!hasValue && !usesDefault) { ImGui::PopStyleColor(); }
 
 	result.anyItemActive = ImGui::IsItemActive();
 
@@ -103,7 +155,7 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 
 	// ツールチップとプレビュー画像の表示
 	if (setting.showTooltip && ImGui::BeginItemTooltip()) {
-		const std::string tooltip = BuildAssetReferenceTooltip(value, assetDatabase);
+		const std::string tooltip = BuildAssetReferenceTooltip(value, assetDatabase, acceptedTypes);
 		ImGui::TextUnformatted(tooltip.c_str());
 		if (resolvedPreviewID != ImTextureID{}) {
 			ImGui::Image(resolvedPreviewID, ImVec2(128.0f, 128.0f));

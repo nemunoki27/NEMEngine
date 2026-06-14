@@ -7,7 +7,14 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 
+// c++
+#include <string>
+#include <unordered_set>
+
 namespace Engine {
+
+	// front
+	struct ShaderReflectionInfo;
 
 	//============================================================================
 	//	MeshRendererInspectorDrawer class
@@ -35,6 +42,15 @@ namespace Engine {
 		std::vector<MeshSubMeshLayoutItem> cachedSubMeshLayout_{};
 		bool cachedSubMeshLayoutResolved_ = false;
 
+		// マテリアル既定値とreflection解決のためのキャッシュ
+		AssetID cachedMaterialID_{};
+		MaterialAsset cachedMaterial_{};
+		bool cachedMaterialValid_ = false;
+
+		// サブメッシュのマテリアルパラメータをまとめて編集するモードと上書き許可済みparam
+		bool batchEditSubMeshMaterials_ = false;
+		std::unordered_set<std::string> batchOverrideAllowed_{};
+
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
@@ -55,6 +71,16 @@ namespace Engine {
 		// サブメッシュのフィールドを描画する
 		void DrawSubMeshFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, SubMeshMaterial& subMesh, bool& anyItemActive);
+		// マテリアルのDrawパスreflectionを解決しキャッシュする、失敗時はnullptr
+		const ShaderReflectionInfo* EnsureMaterialReflection(const EditorPanelContext& context, AssetID materialID);
+		// モデルファイルのマテリアル係数とテクスチャを現shaderのparameterOverridesへ再適用する
+		void ApplyModelMaterialParameters(const EditorPanelContext& context, MeshRendererComponent& draft);
+		// シェーダーreflection駆動でサブメッシュ単位のマテリアルパラメータを編集する
+		void DrawSubMeshReflectedParameters(const EditorPanelContext& context,
+			AssetID materialID, SubMeshMaterial& subMesh, bool& anyItemActive);
+		// 全サブメッシュへ同じマテリアルパラメータをまとめて適用する編集UI
+		void DrawBatchSubMeshMaterialEditor(const EditorPanelContext& context,
+			MeshRendererComponent& draft, bool& anyItemActive);
 		// ドラフトの内容をワールドのコンポーネントに反映する前の追加処理
 		void UpdateDraftRuntime(ECSWorld& world, const Entity& entity,
 			MeshRendererComponent& draft) const;

@@ -45,9 +45,9 @@ namespace Engine {
 		// 前フレームで仕込んだ結果をフレーム頭で消費する
 		void ConsumePendingResult(ECSWorld* world, EditorState& editorState);
 
-		// シービュー左クリック時に実行
+		// シービュー左クリック時に実行、additiveはシフト併用の複数選択
 		void ExecutePick(GraphicsCore& graphicsCore, const ResolvedRenderView& view, const Vector2& inputPixel,
-			std::span<const MeshSubMeshPickRecord> pickRecords, ID3D12Resource* tlasResource);
+			std::span<const MeshSubMeshPickRecord> pickRecords, ID3D12Resource* tlasResource, bool additive);
 
 		// 終了処理
 		void Finalize();
@@ -110,5 +110,7 @@ namespace Engine {
 		// 初期化済みかどうか
 		bool initialized_ = false;
 		bool pendingReadback_ = false;
+		// 直近のピックがシフト併用の追加選択だったか、結果消費時に判定する
+		bool pendingAdditive_ = false;
 	};
 } // Engine

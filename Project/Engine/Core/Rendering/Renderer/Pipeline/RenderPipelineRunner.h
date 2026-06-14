@@ -160,6 +160,15 @@ namespace Engine {
 		// 外部編集されたメッシュをバックエンドで再ロードする、アセットのホットリロードから呼ぶ
 		void ReloadMesh(AssetID meshAssetID);
 
+		// 編集されたマテリアルのキャッシュを破棄して実行中に反映する、インスペクタ保存から呼ぶ
+		void ReloadMaterial(AssetID materialAssetID);
+
+		// 構築済みグラフィックスパイプラインの統合reflectionを引く、未構築ならnullptr
+		// マテリアルインスペクタがシェーダーの要求パラメータを自動列挙するために使う
+		const ShaderReflectionInfo* FindPipelineGraphicsReflection(AssetID pipelineAssetID) const {
+			return pipelineStateCache_.FindGraphicsReflection(pipelineAssetID);
+		}
+
 		// 描画ビューのサーフェスをバックバッファに描画する
 		bool PresentViewToBackBuffer(GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material = {});
 		// エディタツール専用RenderTextureへ、指定Entityと子階層だけを描画する

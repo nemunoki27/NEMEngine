@@ -56,8 +56,8 @@ namespace Engine {
 
 		// 2Dモードか3Dモードか
 		Dimension editDimension_ = Dimension::Type3D;
-		// 直近に観測したTextRendererの次元、Inspectorでの次元切り替えに追従するために持つ
-		std::optional<Dimension> lastObservedTextDimension_;
+		// 直近に観測したコンポーネント構成由来の次元、構成変化への追従基準として持つ
+		std::optional<Dimension> lastObservedImpliedDimension_;
 
 		//--------- functions ----------------------------------------------------
 

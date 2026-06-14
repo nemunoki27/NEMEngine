@@ -18,6 +18,7 @@ namespace Engine {
 
 	// front
 	class MeshBatchResources;
+	struct MaterialAsset;
 
 	//============================================================================
 	//	MeshRenderBackendTypes class
@@ -34,6 +35,8 @@ namespace Engine {
 
 		const PipelineVariantDesc* variant = nullptr;
 		const PipelineState* pipelineState = nullptr;
+		// 解決済みマテリアル、reflection駆動のMaterialParametersバインドに使う
+		const MaterialAsset* material = nullptr;
 
 		uint32_t instanceCount = 0;
 	};

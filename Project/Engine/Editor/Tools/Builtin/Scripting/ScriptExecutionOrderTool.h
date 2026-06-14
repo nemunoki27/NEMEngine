@@ -43,8 +43,8 @@ namespace Engine {
 		// ToolPanelへ登録する情報
 		ToolDescriptor descriptor_{
 			.id = "engine.script_execution_order",
-			.name = "ScriptExecutionOrder",
-			.category = "Scripting",
+			.name = "スクリプト実行順",
+			.category = "スクリプト",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::AllowPlayMode,
 			.order = 0,

@@ -185,20 +185,48 @@ namespace {
 		outVS.reserve(outVS.size() + cache.glyphs.size());
 		outPS.reserve(outPS.size() + cache.glyphs.size());
 
-		for (const auto& glyph : cache.glyphs) {
+		// 文字ごとトランスフォームは描画グリフ順で対応付ける、足りない分は単位変換にする
+		const auto& charTransforms = renderer.charTransforms;
+		const uint32_t enableOutline = renderer.enableOutline ? 1u : 0u;
+
+		for (size_t glyphIndex = 0; glyphIndex < cache.glyphs.size(); ++glyphIndex) {
+
+			const Engine::TextLayoutGlyph& glyph = cache.glyphs[glyphIndex];
+
+			// グリフ中心を基準に文字ごとのSRTを掛けてからエンティティのワールド行列へ合成する
+			Engine::Matrix4x4 glyphMatrix = worldMatrix;
+			if (glyphIndex < charTransforms.size()) {
+
+				const Engine::TextCharTransform& charTransform = charTransforms[glyphIndex];
+				const Engine::Vector2 pivot(
+					(glyph.rectMin.x + glyph.rectMax.x) * 0.5f,
+					(glyph.rectMin.y + glyph.rectMax.y) * 0.5f);
+				// ピボットを原点へ寄せてからピボット+オフセット位置でSRTを掛ける
+				const Engine::Matrix4x4 toOrigin = Engine::Matrix4x4::MakeAffineMatrix(
+					Engine::Vector3(1.0f, 1.0f, 1.0f), Engine::Vector3(0.0f, 0.0f, 0.0f),
+					Engine::Vector3(-pivot.x, -pivot.y, 0.0f));
+				const Engine::Matrix4x4 srt = Engine::Matrix4x4::MakeAffineMatrix(
+					Engine::Vector3(charTransform.scale.x, charTransform.scale.y, 1.0f),
+					Engine::Vector3(0.0f, 0.0f, charTransform.rotation),
+					Engine::Vector3(pivot.x + charTransform.translation.x, pivot.y + charTransform.translation.y, 0.0f));
+				glyphMatrix = (toOrigin * srt) * worldMatrix;
+			}
 
 			Engine::TextVSInstanceData vs{};
 			vs.rectMin = glyph.rectMin;
 			vs.rectMax = glyph.rectMax;
 			vs.uvMin = glyph.uvMin;
 			vs.uvMax = glyph.uvMax;
-			vs.worldMatrix = worldMatrix;
+			vs.worldMatrix = glyphMatrix;
 			outVS.emplace_back(vs);
 
 			Engine::TextPSInstanceData ps{};
 			ps.color = color;
+			ps.outlineColor = renderer.outlineColor;
 			ps.atlasSize = cache.atlasSize;
 			ps.pxRange = cache.pxRange;
+			ps.outlineWidthPx = renderer.outlineWidth;
+			ps.enableOutline = enableOutline;
 			outPS.emplace_back(ps);
 		}
 	}
@@ -207,6 +235,7 @@ namespace {
 void Engine::TextRenderBackend::BeginFrame([[maybe_unused]] GraphicsCore& graphicsCore) {
 
 	resourcePool_.BeginFrame();
+	materialParamBinder_.BeginFrame();
 }
 
 void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
@@ -327,6 +356,22 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		if (perDrawBindCache_.Has(atlasSRVSlot_) && atlasTexture->gpuHandle.ptr != 0) {
 			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(atlasSRVSlot_),
 				0, atlasTexture->gpuHandle);
+		}
+		// シェーダーがMaterialParameters cbufferを宣言している場合のみreflection駆動でバインドする
+		// Builtinテキストシェーダーはこのcbufferがなくslotもないため何もしない
+		if (perDrawBindCache_.Has(materialParamsCBVSlot_) && resolvedPass.material) {
+
+			ID3D12Device* device = context.graphicsCore->GetDXObject().GetDevice();
+			const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =
+				materialParamBinder_.ResolveAndUpload(device, *pipelineState, *resolvedPass.material);
+			if (materialParamsAddress != 0) {
+				RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(materialParamsCBVSlot_),
+					materialParamsAddress);
+			}
+		}
+		// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
+		if (resolvedPass.material) {
+			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, *resolvedPass.material, commandList);
 		}
 	}
 

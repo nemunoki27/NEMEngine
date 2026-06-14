@@ -4,7 +4,7 @@
     {
       "kind": "GraphicsMesh",
       "pipelineType": "Mesh",
-      "shader": "47352e9162dcffef",
+      "shader": "8e1ed5c5a5d17b2b",
       "numRenderTargets": 3,
       "dynamicRenderTargetFormats": true,
       "dsvFormat": "DXGI_FORMAT_UNKNOWN",
@@ -33,7 +33,7 @@
     {
       "kind": "GraphicsVertex",
       "pipelineType": "Vertex",
-      "shader": "b23132f46d0d5e20",
+      "shader": "0e384b7b10af1c99",
       "numRenderTargets": 3,
       "dynamicRenderTargetFormats": true,
       "dsvFormat": "DXGI_FORMAT_UNKNOWN",
@@ -61,7 +61,7 @@
     {
       "kind": "GraphicsMesh",
       "pipelineType": "Mesh",
-      "shader": "5cea6ee9e474022f",
+      "shader": "bbbc60302555edcf",
       "numRenderTargets": 3,
       "dynamicRenderTargetFormats": true,
       "dsvFormat": "DXGI_FORMAT_UNKNOWN",
@@ -89,7 +89,7 @@
     {
       "kind": "GraphicsVertex",
       "pipelineType": "Vertex",
-      "shader": "5cea6ee9e474022f",
+      "shader": "bbbc60302555edcf",
       "numRenderTargets": 3,
       "dynamicRenderTargetFormats": true,
       "dsvFormat": "DXGI_FORMAT_UNKNOWN",

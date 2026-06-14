@@ -126,6 +126,11 @@ bool Engine::ProjectAssetIndex::ShouldHideInBrowser(const std::filesystem::path&
 		return true;
 	}
 
+	// hlsliはinclude専用で直接編集対象にしないので非表示にする
+	if (extension == ".hlsli") {
+		return true;
+	}
+
 	// .objの付属ファイル
 	if (extension == ".mtl" && ExistsSiblingWithSameStem(fullPath, ".obj")) {
 		return true;

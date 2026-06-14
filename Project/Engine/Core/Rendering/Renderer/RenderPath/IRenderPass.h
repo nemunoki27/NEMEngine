@@ -16,6 +16,7 @@ namespace Engine {
 	enum class RenderPathPassKind : uint8_t {
 
 		ClearRenderTargets,
+		Skybox,
 		DepthPrepass,
 		LightCulling,
 		Opaque,

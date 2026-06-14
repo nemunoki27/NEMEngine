@@ -7,15 +7,13 @@
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 
+// c++
+#include <algorithm>
+#include <cmath>
+
 //============================================================================
 //	SkinnedAnimationUpdateSystem classMethods
 //============================================================================
-namespace {
-
-	// 並列処理するジョイントの閾値
-	static constexpr size_t kParallelJointThreshold = 8;
-}
-
 template<>
 Engine::Vector3 Engine::SkinnedAnimationUpdateSystem::SampleKeyframes<Engine::Vector3>(
 	const std::vector<KeyframeVector3>& keys, float time) {
@@ -135,8 +133,10 @@ void Engine::SkinnedAnimationUpdateSystem::LateUpdate(ECSWorld& world, SystemCon
 
 			// 再生するクリップの名前を取得
 			std::string desiredClip = ResolveInitialClip(*animationSet, anim.clip);
+			bool clipChanged = false;
 			if (!desiredClip.empty() && desiredClip != anim.runtimeCurrentClip && !anim.runtimeInTransition) {
 
+				clipChanged = true;
 				anim.runtimeFromClip = anim.runtimeCurrentClip;
 				anim.runtimeToClip = desiredClip;
 				anim.runtimeFromTime = anim.runtimeTime;
@@ -156,6 +156,14 @@ void Engine::SkinnedAnimationUpdateSystem::LateUpdate(ECSWorld& world, SystemCon
 			float sourceDelta = (context.mode == WorldMode::Play) ? context.deltaTime : context.unscaledDeltaTime;
 			// フレーム時間を再生速度に応じてスケーリング
 			float deltaTime = allowTimeAdvance ? sourceDelta * anim.playbackSpeed : 0.0f;
+
+			// 一時停止中や再生停止中はdeltaTimeが0でポーズが前フレームと同一になるため再計算を省く
+			const bool poseDirty = meshChanged || clipChanged || anim.runtimeInTransition ||
+				deltaTime != 0.0f || !anim.runtimeInitialized || anim.palette.empty();
+			if (!poseDirty) {
+				return;
+			}
+
 			// スケルトンをバインドポーズで初期化
 			anim.runtimeSkeleton = anim.runtimeBindSkeleton;
 			// アニメーション遷移していないとき
@@ -262,15 +270,10 @@ void Engine::SkinnedAnimationUpdateSystem::ApplyClipToSkeleton(Skeleton& skeleto
 			joint.transform.scale = SampleKeyframes<Vector3>(track->scale.keyframes, time);
 		}
 		};
-	// ジョイントの数が閾値未満の場合は単純にループで処理し、閾値以上の場合は並列処理する
-	if (skeleton.joints.size() < kParallelJointThreshold) {
-		for (Joint& joint : skeleton.joints) {
+	// ジョイント単位の並列化はスケジューリングのオーバーヘッドが処理本体を上回るため直列で回す
+	for (Joint& joint : skeleton.joints) {
 
-			applyOne(joint);
-		}
-	} else {
-
-		std::for_each(std::execution::par_unseq, skeleton.joints.begin(), skeleton.joints.end(), applyOne);
+		applyOne(joint);
 	}
 }
 
@@ -335,15 +338,10 @@ void Engine::SkinnedAnimationUpdateSystem::BlendClipsToSkeleton(Skeleton& skelet
 		joint.transform.rotation = Quaternion::Lerp(fromR, toR, alpha).Normalize();
 		joint.transform.scale = Vector3::Lerp(fromS, toS, alpha);
 		};
-	// ジョイントの数が閾値未満の場合は単純にループで処理し、閾値以上の場合は並列処理する
-	if (skeleton.joints.size() < kParallelJointThreshold) {
-		for (Joint& joint : skeleton.joints) {
+	// ジョイント単位の並列化はスケジューリングのオーバーヘッドが処理本体を上回るため直列で回す
+	for (Joint& joint : skeleton.joints) {
 
-			blendOne(joint);
-		}
-	} else {
-
-		std::for_each(std::execution::par_unseq, skeleton.joints.begin(), skeleton.joints.end(), blendOne);
+		blendOne(joint);
 	}
 }
 
@@ -379,15 +377,10 @@ void Engine::SkinnedAnimationUpdateSystem::BuildPalette(const Skeleton& skeleton
 			skeleton.joints[jointIndex].skeletonSpaceMatrix;
 		well.skeletonSpaceInverseTransposeMatrix = Matrix4x4::Transpose(Matrix4x4::Inverse(well.skeletonSpaceMatrix));
 		};
-	// ジョイントの数が閾値未満の場合は単純にループで処理し、閾値以上の場合は並列処理する
-	if (outPalette.size() < kParallelJointThreshold) {
-		for (WellForGPU& well : outPalette) {
+	// ジョイント単位の並列化はスケジューリングのオーバーヘッドが処理本体を上回るため直列で回す
+	for (WellForGPU& well : outPalette) {
 
-			buildOne(well);
-		}
-	} else {
-
-		std::for_each(std::execution::par_unseq, outPalette.begin(), outPalette.end(), buildOne);
+		buildOne(well);
 	}
 }
 

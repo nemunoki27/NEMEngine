@@ -5,9 +5,9 @@
 //============================================================================
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Editor/Tools/Builtin/Animation/AnimationClipTool.h>
-#include <Engine/Editor/Tools/Builtin/Camera/CameraManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/Collision/CollisionManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/PostProcess/PostProcessStackTool.h>
+#include <Engine/Editor/Tools/Builtin/Material/MaterialEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptExecutionOrderTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptBuildDiagnosticsTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptExceptionListTool.h>
@@ -39,13 +39,11 @@ namespace {
 
 void Engine::RegisterBuiltinEditorTools() {
 
-	RegisterBuiltinEditorTool<CameraManagerTool>();
 	RegisterBuiltinEditorTool<SceneViewCameraController>();
 	RegisterBuiltinEditorTool<CollisionManagerTool>();
 	RegisterBuiltinEditorTool<AnimationClipTool>();
 	RegisterBuiltinEditorTool<PostProcessStackTool>();
+	RegisterBuiltinEditorTool<MaterialEditorTool>();
 	RegisterBuiltinEditorTool<ScriptExecutionOrderTool>();
-	RegisterBuiltinEditorTool<ScriptBuildDiagnosticsTool>();
-	RegisterBuiltinEditorTool<ScriptExceptionListTool>();
 	RegisterBuiltinEditorTool<ScriptProfilerTool>();
 }

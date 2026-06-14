@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 
 //============================================================================
 //	MaterialResolver classMethods
@@ -13,6 +15,22 @@ Engine::AssetID Engine::MaterialResolver::ResolveORDefault(AssetDatabase& databa
 	// 要求されたIDが有効であればそれを返す
 	if (requested) {
 		return requested;
+	}
+
+	// マテリアルツールで設定されたデフォルトがあればbuiltinより優先する
+	// 設定はGUID参照なのでDBに存在しMaterialのときだけ採用し、壊れていればbuiltinへ落とす
+	AssetID configured{};
+	switch (slot) {
+	case DefaultMaterialSlot::Mesh:   configured = DefaultMaterialSettings::GetInstance().GetMesh();   break;
+	case DefaultMaterialSlot::Sprite: configured = DefaultMaterialSettings::GetInstance().GetSprite(); break;
+	case DefaultMaterialSlot::Text:   configured = DefaultMaterialSettings::GetInstance().GetText();   break;
+	default: break;
+	}
+	if (configured) {
+		const AssetMeta* meta = database.Find(configured);
+		if (meta && meta->type == AssetType::Material) {
+			return configured;
+		}
 	}
 
 	// デフォルトマテリアルのIDを確保する

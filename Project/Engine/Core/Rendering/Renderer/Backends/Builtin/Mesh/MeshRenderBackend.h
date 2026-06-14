@@ -11,6 +11,7 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshGPUResourceManager.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterBinder.h>
 
 // c++
 #include <memory>
@@ -167,6 +168,11 @@ namespace Engine {
 		PipelineBindingCache::SlotID subMeshSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID outlineSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID screenSpaceOutlineMaskCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		// reflection駆動のマテリアルパラメータcbuffer、カスタムマテリアル用でBuiltinには存在しない
+		PipelineBindingCache::SlotID materialParamsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		MaterialParameterBinder materialParamBinder_{};
+		// reflection駆動のサブメッシュ単位マテリアルパラメータ構造化バッファのスロット
+		PipelineBindingCache::SlotID subMeshMaterialParamSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		// スキニングComputeバインドのパイプラインスロットID
 		PipelineBindingCache skinningBindCache_{};
 		PipelineBindingCache::SlotID skinConstCBVSlot_ = PipelineBindingCache::kInvalidSlot;

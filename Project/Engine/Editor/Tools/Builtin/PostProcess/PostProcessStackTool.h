@@ -46,8 +46,8 @@ namespace Engine {
 		// ToolPanelへ登録する情報
 		ToolDescriptor descriptor_{
 			.id = "engine.postprocess_stack",
-			.name = "PostProcessStack",
-			.category = "Rendering",
+			.name = "ポストプロセス設定",
+			.category = "レンダリング",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::AllowPlayMode,
 			.order = 0,

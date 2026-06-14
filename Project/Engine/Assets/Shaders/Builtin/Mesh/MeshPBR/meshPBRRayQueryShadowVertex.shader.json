@@ -1,0 +1,17 @@
+{
+  "name": "MeshPBRRayQueryShadowVertex",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "edc59e3d4ed50db3",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "PS",
+      "file": "a68a1f2318787f16",
+      "entry": "main",
+      "profile": "ps_6_6"
+    }
+  ]
+}

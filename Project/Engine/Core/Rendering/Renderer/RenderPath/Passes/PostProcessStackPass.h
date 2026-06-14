@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 
 namespace Engine {
 
@@ -18,7 +19,9 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
-		explicit PostProcessStackPass(const RenderPipelineDeps& deps) : deps_(deps) {}
+		explicit PostProcessStackPass(const RenderPipelineDeps& deps) : deps_(deps) {
+			previewToneMapSrcColorSlot_ = previewToneMapSRVCache_.AddSlotByRegister(ShaderBindingKind::SRV, 0, 0);
+		}
 		~PostProcessStackPass() override = default;
 
 		RenderPathPassKind GetKind() const override { return RenderPathPassKind::PostProcessStack; }
@@ -32,6 +35,10 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
+
+		// プレビューをGameViewと同じトーンマップ後の見た目で出すための全画面blit用SRVキャッシュ
+		PipelineBindingCache previewToneMapSRVCache_{};
+		PipelineBindingCache::SlotID previewToneMapSrcColorSlot_ = PipelineBindingCache::kInvalidSlot;
 	};
 } // Engine
 

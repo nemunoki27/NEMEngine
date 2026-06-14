@@ -204,7 +204,24 @@ bool Engine::EditorManager::DuplicateSelection() {
 	if (!editorState_.HasValidSelection(currentRenderContext_->activeWorld) || currentRenderContext_->isPlaying) {
 		return false;
 	}
-	return ExecuteEditorCommand(std::make_unique<DuplicateEntityCommand>(editorState_.selectedEntity));
+	// 複数選択を順に複製する、選択や生存が変わるため対象を先にコピーしておく
+	ECSWorld* world = currentRenderContext_->activeWorld;
+	const std::vector<Entity> targets = editorState_.GetSelectedEntities();
+	std::vector<Entity> duplicated;
+	for (const Entity& target : targets) {
+		if (world && world->IsAlive(target)) {
+			// 各コマンドは複製ルートをselectedEntityへ入れるので実行後に集約する
+			if (ExecuteEditorCommand(std::make_unique<DuplicateEntityCommand>(target))) {
+				duplicated.push_back(editorState_.selectedEntity);
+			}
+		}
+	}
+	if (duplicated.empty()) {
+		return false;
+	}
+	// 複製した分をまとめて選択し直す
+	editorState_.SetSelectedEntities(duplicated);
+	return true;
 }
 
 bool Engine::EditorManager::CopySelectionToClipboardInternal(const EditorContext& context) {
@@ -214,27 +231,37 @@ bool Engine::EditorManager::CopySelectionToClipboardInternal(const EditorContext
 	}
 
 	ECSWorld& world = *context.activeWorld;
-	const Entity selected = editorState_.selectedEntity;
 
-	// 選択しているエンティティとその子孫をスナップショットに保存する
-	EditorEntitySnapshotUtility::CaptureSubtree(world, selected, editorState_.clipboardSnapshot);
-	if (editorState_.clipboardSnapshot.IsEmpty()) {
-		return false;
-	}
+	// 複数選択をそれぞれ独立スナップショットとしてクリップボードへ保存する
+	editorState_.clipboardSnapshots.clear();
+	editorState_.clipboardParentUUIDs.clear();
+	const std::vector<Entity> targets = editorState_.GetSelectedEntities();
+	for (const Entity& selected : targets) {
 
-	// 選択しているエンティティの親のUUIDを保存
-	editorState_.clipboardParentStableUUID = UUID{};
-	if (world.HasComponent<HierarchyComponent>(selected)) {
-
-		const auto& hierarchy = world.GetComponent<HierarchyComponent>(selected);
-		if (world.IsAlive(hierarchy.parent)) {
-			editorState_.clipboardParentStableUUID = world.GetUUID(hierarchy.parent);
+		if (!world.IsAlive(selected)) {
+			continue;
 		}
-	}
+		EditorEntityTreeSnapshot snapshot{};
+		EditorEntitySnapshotUtility::CaptureSubtree(world, selected, snapshot);
+		if (snapshot.IsEmpty()) {
+			continue;
+		}
 
-	// クリップボードは外部親を持たない独立スナップショットにしておく
-	EditorEntityDuplicateUtility::ClearRootParentLink(editorState_.clipboardSnapshot);
-	return true;
+		// 各エンティティの親UUIDも控えておき、貼り付けは元の親付近へ行う
+		UUID parentUUID{};
+		if (world.HasComponent<HierarchyComponent>(selected)) {
+
+			const auto& hierarchy = world.GetComponent<HierarchyComponent>(selected);
+			if (world.IsAlive(hierarchy.parent)) {
+				parentUUID = world.GetUUID(hierarchy.parent);
+			}
+		}
+		// クリップボードは外部親を持たない独立スナップショットにしておく
+		EditorEntityDuplicateUtility::ClearRootParentLink(snapshot);
+		editorState_.clipboardSnapshots.emplace_back(std::move(snapshot));
+		editorState_.clipboardParentUUIDs.emplace_back(parentUUID);
+	}
+	return !editorState_.clipboardSnapshots.empty();
 }
 
 bool Engine::EditorManager::CopySelectionToClipboard() {
@@ -253,9 +280,22 @@ bool Engine::EditorManager::PasteClipboard() {
 	if (currentRenderContext_->isPlaying || !editorState_.HasClipboard()) {
 		return false;
 	}
-	// クリップボードの内容をシーンに貼り付けるコマンドを実行する
-	return ExecuteEditorCommand(std::make_unique<PasteEntityTreeCommand>(
-		editorState_.clipboardSnapshot, editorState_.clipboardParentStableUUID));
+	// クリップボードの各スナップショットを順に貼り付け、貼り付け先をまとめて選択する
+	std::vector<Entity> pasted;
+	for (size_t i = 0; i < editorState_.clipboardSnapshots.size(); ++i) {
+
+		const UUID parentUUID = i < editorState_.clipboardParentUUIDs.size() ?
+			editorState_.clipboardParentUUIDs[i] : UUID{};
+		if (ExecuteEditorCommand(std::make_unique<PasteEntityTreeCommand>(
+			editorState_.clipboardSnapshots[i], parentUUID))) {
+			pasted.push_back(editorState_.selectedEntity);
+		}
+	}
+	if (pasted.empty()) {
+		return false;
+	}
+	editorState_.SetSelectedEntities(pasted);
+	return true;
 }
 
 void Engine::EditorManager::RequestPlayToggle() {
@@ -591,12 +631,24 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 				return false;
 			}
 
+			// 左シフト併用はBlender風の追加選択にする
+			const bool additive = ImGui::IsKeyDown(ImGuiKey_LeftShift);
+			// シフト併用かつエンティティ選択モードなら次元が合う場合だけトグル、それ以外は置き換え
+			auto selectHit = [&](const Entity& hit) {
+				if (additive && editorState_.selectKind == EditorSelectionKind::Entity &&
+					context.activeWorld && editorState_.CanMultiSelect(*context.activeWorld, hit)) {
+					editorState_.ToggleEntityInSelection(hit);
+				} else {
+					editorState_.SelectFromScenePick(hit, 0);
+				}
+				};
+
 			// SceneView専用Overlayは通常2D/TLASより優先してEntity単位で選択する
 			if (viewKind == RenderViewKind::Scene) {
 				Entity overlayHit = Entity::Null();
 				if (sceneComponentOverlayPicker_.Pick(context.activeWorld,
 					renderPipeline.GetResolvedView(viewKind), mousePosInView.value(), overlayHit)) {
-					editorState_.SelectFromScenePick(overlayHit, 0);
+					selectHit(overlayHit);
 					return true;
 				}
 			}
@@ -604,15 +656,15 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			// 2Dエンティティのピック処理を優先実行
 			Entity hitEntity2D = Execute2DPick(mousePosInView.value(), renderPipeline.GetResolvedView(viewKind), context.activeWorld);
 			if (hitEntity2D.IsValid()) {
-				
+
 				// 2Dが優先されるため、GPUによる3Dピックは行わず、即座に選択を確定する
-				editorState_.SelectFromScenePick(hitEntity2D, 0);
+				selectHit(hitEntity2D);
 				return true;
 			}
 
-			// メッシュピック処理を実行
+			// メッシュピック処理を実行、シフト状態は結果消費時のトグル判定に使う
 			meshSubMeshPicker_->ExecutePick(graphicsCore, renderPipeline.GetResolvedView(viewKind),
-				mousePosInView.value(), pickRecords, tlasResource);
+				mousePosInView.value(), pickRecords, tlasResource, additive);
 			return true;
 		};
 
@@ -675,11 +727,16 @@ void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) 
 		PasteClipboard();
 		return;
 	}
-	// 削除
+	// 削除、複数選択をまとめて消すため対象を先にコピーしてからループする
 	if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
 		if (editorState_.HasValidSelection(context.activeWorld) && !context.isPlaying) {
 
-			ExecuteEditorCommand(std::make_unique<DeleteEntityCommand>(editorState_.selectedEntity));
+			const std::vector<Entity> targets = editorState_.GetSelectedEntities();
+			for (const Entity& target : targets) {
+				if (context.activeWorld && context.activeWorld->IsAlive(target)) {
+					ExecuteEditorCommand(std::make_unique<DeleteEntityCommand>(target));
+				}
+			}
 		}
 	}
 }
@@ -756,7 +813,16 @@ void Engine::EditorManager::DrawSceneDebugObjects(const EditorContext& context) 
 		editorState_.TryResolveSelectedSubMeshIndex(context.activeWorld, resolvedSubMeshIndex)) {
 		selectionSubMeshIndex = static_cast<int32_t>(resolvedSubMeshIndex);
 	}
-	InspectorDrawerCommon::DrawEntityDebugObject(*context.activeWorld, editorState_.selectedEntity, selectionSubMeshIndex);
+	// 複数選択時は全選択にアウトラインを出す、サブメッシュ番号はアクティブのみ反映し他は全体
+	const std::vector<Entity>& selectedEntities = editorState_.GetSelectedEntities();
+	if (selectedEntities.size() <= 1) {
+		InspectorDrawerCommon::DrawEntityDebugObject(*context.activeWorld, editorState_.selectedEntity, selectionSubMeshIndex);
+	} else {
+		for (const Entity& selected : selectedEntities) {
+			const int32_t subMesh = (selected == editorState_.selectedEntity) ? selectionSubMeshIndex : -1;
+			InspectorDrawerCommon::DrawEntityDebugObject(*context.activeWorld, selected, subMesh);
+		}
+	}
 #else
 	(void)context;
 #endif

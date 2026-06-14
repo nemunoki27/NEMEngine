@@ -15,11 +15,6 @@
 //============================================================================
 namespace {
 
-	// カメラ操作定数
-	constexpr float kRotateSpeed = 0.005f;
-	constexpr float kZoomRate = 0.4f;
-	constexpr float kPanSpeed = 0.02f;
-
 	// カメラ保存パス
 	const std::string kCameraJsonPath = "Config/initExeData.exeConfig.json";
 }
@@ -48,6 +43,12 @@ Engine::SceneViewCameraController::~SceneViewCameraController() {
 		data["perspectiveNearClip"] = cameraState_.perspectiveNearClip;
 		data["perspectiveFarClip"] = cameraState_.perspectiveFarClip;
 		data["perspectiveCullingMask"] = cameraState_.perspectiveCullingMask;
+	}
+	// カメラ操作速度
+	{
+		data["rotateSpeed"] = rotateSpeed_;
+		data["zoomRate"] = zoomRate_;
+		data["panSpeed"] = panSpeed_;
 	}
 
 	JsonAdapter::Save(savePath_, data);
@@ -91,6 +92,12 @@ void Engine::SceneViewCameraController::MakeFromJson(const std::string& filePath
 		cameraState_.perspectiveNearClip = data["perspectiveNearClip"].get<float>();
 		cameraState_.perspectiveFarClip = data["perspectiveFarClip"].get<float>();
 		cameraState_.perspectiveCullingMask = data["perspectiveCullingMask"].get<int32_t>();
+	}
+	// カメラ操作速度、古いConfigにキーが無ければ既定値を保つ
+	{
+		rotateSpeed_ = data.value("rotateSpeed", rotateSpeed_);
+		zoomRate_ = data.value("zoomRate", zoomRate_);
+		panSpeed_ = data.value("panSpeed", panSpeed_);
 	}
 }
 
@@ -155,7 +162,7 @@ void Engine::SceneViewCameraController::Update3D() {
 	Matrix4x4 rotateMatrix = Matrix4x4::MakeRotateMatrix(prevEulerDeg);
 	Matrix4x4 worldMatrix = Matrix4x4::MakeAffineMatrix(Vector3::AnyInit(1.0f), prevEulerDeg, cameraState_.transform3D.pos);
 
-	const float rotateSpeedDeg = Math::RadToDeg(kRotateSpeed);
+	const float rotateSpeedDeg = Math::RadToDeg(rotateSpeed_);
 
 	// 右ドラッグ:回転
 	if (input->PushMouseRight()) {
@@ -168,8 +175,8 @@ void Engine::SceneViewCameraController::Update3D() {
 	// 中ドラッグ:パン
 	if (input->PushMouseCenter()) {
 
-		Vector3 right = { kPanSpeed * mouseDelta.x, 0.0f, 0.0f };
-		Vector3 up = { 0.0f, -kPanSpeed * mouseDelta.y, 0.0f };
+		Vector3 right = { panSpeed_ * mouseDelta.x, 0.0f, 0.0f };
+		Vector3 up = { 0.0f, -panSpeed_ * mouseDelta.y, 0.0f };
 
 		right = Vector3::TransferNormal(right, worldMatrix);
 		up = Vector3::TransferNormal(up, worldMatrix);
@@ -180,7 +187,7 @@ void Engine::SceneViewCameraController::Update3D() {
 	// ホイール:前後移動
 	if (wheel != 0.0f) {
 
-		Vector3 forward = { 0.0f, 0.0f, wheel * kZoomRate };
+		Vector3 forward = { 0.0f, 0.0f, wheel * zoomRate_ };
 		forward = Vector3::TransferNormal(forward, rotateMatrix);
 
 		cameraState_.transform3D.pos += forward;
@@ -202,8 +209,6 @@ void Engine::SceneViewCameraController::DrawEditorTool([[maybe_unused]] const Ed
 			ImGui::End();
 			return;
 		}
-
-		ImGui::SetWindowFontScale(0.64f);
 
 		ImGui::SeparatorText("2D");
 		{
@@ -230,8 +235,16 @@ void Engine::SceneViewCameraController::DrawEditorTool([[maybe_unused]] const Ed
 
 			ImGui::PopID();
 		}
+		ImGui::SeparatorText("操作速度");
+		{
+			ImGui::PushID("SceneViewCameraControl");
 
-		ImGui::SetWindowFontScale(1.0f);
+			ImGui::DragFloat("回転速度", &rotateSpeed_, 0.0001f, 0.0f, 1.0f, "%.4f");
+			ImGui::DragFloat("ズーム速度", &zoomRate_, 0.01f, 0.0f, 100.0f);
+			ImGui::DragFloat("パン速度", &panSpeed_, 0.001f, 0.0f, 10.0f, "%.3f");
+
+			ImGui::PopID();
+		}
 
 		ImGui::End();
 	}

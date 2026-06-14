@@ -85,6 +85,10 @@ namespace Engine {
 	bool FromJson(const nlohmann::json& data, MaterialAsset& outAsset);
 	nlohmann::json ToJson(const MaterialAsset& asset);
 
+	// 単一パラメータ値のjson変換でサブメッシュ側のparameterOverridesでも共用する
+	bool ParseMaterialParameterValue(const nlohmann::json& data, MaterialParameterValue& outValue);
+	nlohmann::json SerializeMaterialParameterValue(const MaterialParameterValue& parameter);
+
 	// マテリアルアセットからパス情報を検索する
 	const MaterialPassBinding* FindPass(const MaterialAsset& asset, MaterialPassKind passKind);
 } // Engine

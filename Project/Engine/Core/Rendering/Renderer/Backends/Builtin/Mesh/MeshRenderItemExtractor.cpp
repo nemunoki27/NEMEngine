@@ -10,6 +10,9 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <string>
+#include <unordered_map>
+#include <variant>
 
 //============================================================================
 //	MeshRenderItemExtractor internal
@@ -60,6 +63,24 @@ namespace {
 		MixHash(h, outline->useStencil ? 1ull : 0ull);
 	}
 
+	// reflection paramの上書きマップを順序非依存で内容ハッシュへ混ぜる
+	void MixSubMeshParameterHash(uint64_t& h,
+		const std::unordered_map<std::string, Engine::MaterialParameterValue>& parameters) {
+
+		MixHash(h, static_cast<uint64_t>(parameters.size()));
+		uint64_t combined = 0;
+		for (const auto& [name, value] : parameters) {
+
+			uint64_t entry = std::hash<std::string>{}(name);
+			std::visit([&](const auto& v) {
+				MixBytes(entry, &v, sizeof(v));
+				}, value.value);
+			// XOR集約で要素順に依存しないハッシュにする
+			combined ^= entry;
+		}
+		MixHash(h, combined);
+	}
+
 	// 静的バッチキャッシュキー用の、1アイテム分の内容ハッシュを抽出時に1度だけ計算する
 	// backendが毎パス再計算していたbyte走査とcomponent再取得をここへ集約する
 	uint64_t ComputeMeshContentHash(const Engine::Entity& entity, Engine::AssetID material,
@@ -82,16 +103,8 @@ namespace {
 			// サブメッシュ編集情報もGPUへ渡すため、内容ハッシュへ含める
 			MixBytes(h, &subMesh.stableID, sizeof(subMesh.stableID));
 			MixHash(h, subMesh.sourceSubMeshIndex);
-			MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(subMesh.baseColorTexture)));
-			MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(subMesh.normalTexture)));
-			MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(subMesh.metallicRoughnessTexture)));
-			MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(subMesh.emissiveTexture)));
-			MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(subMesh.occlusionTexture)));
-			MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(subMesh.specularTexture)));
-			MixBytes(h, &subMesh.color, sizeof(subMesh.color));
-			MixBytes(h, &subMesh.emissiveColor, sizeof(subMesh.emissiveColor));
-			MixBytes(h, &subMesh.metallic, sizeof(subMesh.metallic));
-			MixBytes(h, &subMesh.roughness, sizeof(subMesh.roughness));
+			// reflection paramの上書きが変わるとパラメータバッファが変わる
+			MixSubMeshParameterHash(h, subMesh.parameterOverrides);
 			MixBytes(h, &subMesh.uvMatrix, sizeof(subMesh.uvMatrix));
 			MixBytes(h, &subMesh.localPos, sizeof(subMesh.localPos));
 			MixBytes(h, &subMesh.localRotation, sizeof(subMesh.localRotation));

@@ -80,6 +80,8 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	customExtensionIcons_[".collisionSettings.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
 	customExtensionIcons_[".postProcessStack.json"].textureKey = "exeConfig.png";
 	customExtensionIcons_[".postProcessStack.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
+	customExtensionIcons_[".materialSettings.json"].textureKey = "exeConfig.png";
+	customExtensionIcons_[".materialSettings.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
 
 	for (const auto& [type, icon] : defaultIcons_) {
 

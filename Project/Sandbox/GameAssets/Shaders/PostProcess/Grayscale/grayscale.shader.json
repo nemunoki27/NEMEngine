@@ -1,0 +1,14 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "grayscaleShader",
+    "sourceShader": "GameAssets/Shaders/PostProcess/Grayscale/grayscale.CS.hlsl",
+    "stages": [
+        {
+            "entry": "main",
+            "file": "GameAssets/Shaders/PostProcess/Grayscale/grayscale.CS.hlsl",
+            "profile": "cs_6_0",
+            "stage": "CS"
+        }
+    ]
+}

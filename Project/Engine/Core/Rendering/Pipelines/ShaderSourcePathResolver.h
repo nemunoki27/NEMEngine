@@ -16,7 +16,7 @@
 //============================================================================
 //	ShaderSourcePathResolver
 //	shader.jsonやインラインdescで指定されたシェーダーソース参照を実体パスへ解決する
-//	参照はGUID(.metaのguid)でもShadersルート相対パスでも受け付ける
+//	参照は.metaのguidでもShadersルート相対パスでも受け付ける
 //	PipelineStateとRaytracingPipelineStateで同じ解決を使うため共通化している
 //============================================================================
 namespace Engine::ShaderSourcePath {
@@ -87,7 +87,7 @@ namespace Engine::ShaderSourcePath {
 		return index;
 	}
 
-	// GUID->実体パスの索引、シェーダーソース(.hlsl/.hlsli)の横の.metaから構築する
+	// GUID->実体パスの索引、シェーダーソースの.hlslや.hlsliの横の.metaから構築する
 	inline const Index& GetGuidIndex() {
 
 		static const Index index = []() {
@@ -121,7 +121,7 @@ namespace Engine::ShaderSourcePath {
 		return index;
 	}
 
-	// シェーダーソース参照(GUIDまたはパス)を実体パスへ解決する
+	// シェーダーソース参照のGUIDまたはパスを実体パスへ解決する
 	inline std::filesystem::path Resolve(const std::string& fileOrGuid) {
 
 		if (fileOrGuid.empty()) {

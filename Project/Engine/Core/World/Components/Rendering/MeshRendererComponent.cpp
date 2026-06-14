@@ -6,6 +6,40 @@
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 //============================================================================
+//	MeshRendererComponent internal
+//============================================================================
+namespace {
+
+	// 旧色フィールドが残るシーンはparameterOverridesへ移行し見た目を保持する
+	void MigrateLegacyColor(const nlohmann::json& in, const char* legacyKey,
+		const char* paramName, Engine::SubMeshMaterial& subMeshMaterial) {
+
+		if (!in.contains(legacyKey) || subMeshMaterial.parameterOverrides.count(paramName)) {
+			return;
+		}
+		Engine::MaterialParameterValue value{};
+		value.value = Engine::Color4::FromJson(in[legacyKey]);
+		subMeshMaterial.parameterOverrides[paramName] = value;
+	}
+
+	// 旧テクスチャフィールドが残るシーンはAssetID値としてparameterOverridesへ移行する
+	void MigrateLegacyTexture(const nlohmann::json& in, const char* legacyKey,
+		const char* paramName, Engine::SubMeshMaterial& subMeshMaterial) {
+
+		if (subMeshMaterial.parameterOverrides.count(paramName)) {
+			return;
+		}
+		const Engine::AssetID id = Engine::ParseAssetID(in, legacyKey);
+		if (!id) {
+			return;
+		}
+		Engine::MaterialParameterValue value{};
+		value.value = id;
+		subMeshMaterial.parameterOverrides[paramName] = value;
+	}
+}
+
+//============================================================================
 //	MeshRendererComponent classMethods
 //============================================================================
 void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMaterial) {
@@ -14,18 +48,25 @@ void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMateria
 	const std::string stableID = in.value("stableID", "");
 	subMeshMaterial.stableID = stableID.empty() ? UUID{} : FromString16Hex(stableID);
 	subMeshMaterial.sourceSubMeshIndex = in.value("sourceSubMeshIndex", 0u);
-	subMeshMaterial.baseColorTexture = ParseAssetID(in, "baseColorTexture");
-	subMeshMaterial.normalTexture = ParseAssetID(in, "normalTexture");
-	subMeshMaterial.metallicRoughnessTexture = ParseAssetID(in, "metallicRoughnessTexture");
-	subMeshMaterial.specularTexture = ParseAssetID(in, "specularTexture");
-	subMeshMaterial.emissiveTexture = ParseAssetID(in, "emissiveTexture");
-	subMeshMaterial.occlusionTexture = ParseAssetID(in, "occlusionTexture");
 
-	// サブメッシュパラメータ
-	subMeshMaterial.color = Color4::FromJson(in.value("color", nlohmann::json{}));
-	subMeshMaterial.emissiveColor = Color4::FromJson(in.value("emissiveColor", nlohmann::json{}));
-	subMeshMaterial.metallic = in.value("metallic", 0.0f);
-	subMeshMaterial.roughness = in.value("roughness", 0.5f);
+	// reflection駆動のパラメータ上書きを読む
+	subMeshMaterial.parameterOverrides.clear();
+	if (in.contains("parameterOverrides") && in["parameterOverrides"].is_object()) {
+		for (auto it = in["parameterOverrides"].begin(); it != in["parameterOverrides"].end(); ++it) {
+
+			MaterialParameterValue value{};
+			if (ParseMaterialParameterValue(it.value(), value)) {
+				subMeshMaterial.parameterOverrides[it.key()] = std::move(value);
+			}
+		}
+	}
+	// 旧フィールドが残るシーンは同名のparameterOverridesへ移行する
+	MigrateLegacyColor(in, "color", "color", subMeshMaterial);
+	MigrateLegacyColor(in, "emissiveColor", "emissiveColor", subMeshMaterial);
+	MigrateLegacyTexture(in, "baseColorTexture", "baseColorTexture", subMeshMaterial);
+	MigrateLegacyTexture(in, "normalTexture", "normalTexture", subMeshMaterial);
+	MigrateLegacyTexture(in, "emissiveTexture", "emissiveTexture", subMeshMaterial);
+
 	subMeshMaterial.uvPos = Vector2::FromJson(in.value("uvPos", nlohmann::json{}));
 	subMeshMaterial.uvRotation = in.value("uvRotation", 0.0f);
 	subMeshMaterial.uvScale = Vector2::FromJson(in.value("uvScale", nlohmann::json{}));
@@ -45,18 +86,14 @@ void Engine::to_json(nlohmann::json& out, const SubMeshMaterial& subMeshMaterial
 	out["name"] = subMeshMaterial.name;
 	out["stableID"] = subMeshMaterial.stableID ? ToString(subMeshMaterial.stableID) : "";
 	out["sourceSubMeshIndex"] = subMeshMaterial.sourceSubMeshIndex;
-	out["baseColorTexture"] = ToAssetReferenceJson(subMeshMaterial.baseColorTexture);
-	out["normalTexture"] = ToAssetReferenceJson(subMeshMaterial.normalTexture);
-	out["metallicRoughnessTexture"] = ToAssetReferenceJson(subMeshMaterial.metallicRoughnessTexture);
-	out["specularTexture"] = ToAssetReferenceJson(subMeshMaterial.specularTexture);
-	out["emissiveTexture"] = ToAssetReferenceJson(subMeshMaterial.emissiveTexture);
-	out["occlusionTexture"] = ToAssetReferenceJson(subMeshMaterial.occlusionTexture);
 
-	// サブメッシュパラメータ
-	out["color"] = subMeshMaterial.color.ToJson();
-	out["emissiveColor"] = subMeshMaterial.emissiveColor.ToJson();
-	out["metallic"] = subMeshMaterial.metallic;
-	out["roughness"] = subMeshMaterial.roughness;
+	// reflection駆動のパラメータ上書きを書き出す
+	out["parameterOverrides"] = nlohmann::json::object();
+	for (const auto& [name, value] : subMeshMaterial.parameterOverrides) {
+
+		out["parameterOverrides"][name] = SerializeMaterialParameterValue(value);
+	}
+
 	out["uvPos"] = subMeshMaterial.uvPos.ToJson();
 	out["uvRotation"] = subMeshMaterial.uvRotation;
 	out["uvScale"] = subMeshMaterial.uvScale.ToJson();
