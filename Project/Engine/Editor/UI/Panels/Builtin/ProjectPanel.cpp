@@ -263,17 +263,22 @@ void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorP
 		return;
 	}
 	std::vector<std::string> droppedPaths;
-	Vector2 dropScreenPoint{};
-	if (!input->TakeDroppedFiles(droppedPaths, dropScreenPoint)) {
+	Vector2 dropPoint{};
+	if (!input->TakeDroppedFiles(droppedPaths, dropPoint)) {
 		return;
 	}
+
+	// クライアント座標のドロップ点をImGui座標へ合わせる、viewports無効ではmain viewportのposは0
+	const ImVec2 viewportPos = ImGui::GetMainViewport()->Pos;
+	const float dropX = dropPoint.x + viewportPos.x;
+	const float dropY = dropPoint.y + viewportPos.y;
 
 	// ドロップ位置がProjectウィンドウ内のときだけ取り込む、それ以外は破棄する
 	const ImVec2 windowPos = ImGui::GetWindowPos();
 	const ImVec2 windowSize = ImGui::GetWindowSize();
 	const bool insidePanel =
-		dropScreenPoint.x >= windowPos.x && dropScreenPoint.x <= windowPos.x + windowSize.x &&
-		dropScreenPoint.y >= windowPos.y && dropScreenPoint.y <= windowPos.y + windowSize.y;
+		dropX >= windowPos.x && dropX <= windowPos.x + windowSize.x &&
+		dropY >= windowPos.y && dropY <= windowPos.y + windowSize.y;
 	if (!insidePanel) {
 		return;
 	}
@@ -480,6 +485,8 @@ void Engine::ProjectPanel::DrawSourceSelector([[maybe_unused]] const EditorPanel
 
 void Engine::ProjectPanel::DrawFolderTree(AssetDatabase& database) {
 
+	ImGui::SetWindowFontScale(0.72f);
+
 	// HierarchyPanelと同じく一番上に検索ボックスを置く
 	// 検索ボックスはスクロール領域の外に置き、ツリーをスクロールしても常に見えるようにする
 	folderSearchFilter_.DrawInput("##ProjectFolderSearch");
@@ -492,6 +499,8 @@ void Engine::ProjectPanel::DrawFolderTree(AssetDatabase& database) {
 		DrawFolderTreeNode(database, assetIndex_.GetRoot());
 	}
 	ImGui::EndChild();
+
+	ImGui::SetWindowFontScale(1.0f);
 }
 
 void Engine::ProjectPanel::DrawFolderTreeNode(AssetDatabase& database, const ProjectDirectoryNode& node) {
@@ -658,7 +667,7 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 	ImGui::EndTable();
 
 	ImGui::Spacing();
-	ImGui::Button("Drop Here", ImVec2(ImGui::GetContentRegionAvail().x, 24.0f));
+	ImGui::Button("ドラッグアンドドロップしてプレファブ化", ImVec2(ImGui::GetContentRegionAvail().x, 24.0f));
 	DrawPrefabCreateDropTarget(context, database, node.virtualPath);
 	DrawProjectItemMoveDropTarget(database, node.virtualPath);
 	DrawDirectoryContextMenu(database, node);

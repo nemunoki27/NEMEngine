@@ -52,15 +52,21 @@ namespace Engine {
 		bool openWindow_ = false;
 		// シーン上のCollision形状を描画するか
 		bool drawCollisionWorld_ = false;
+		// 設定に未保存の編集があるか
+		bool dirty_ = false;
+		// 削除コンボで選択中のCollisionタイプindex
+		int32_t removeTypeIndex_ = 0;
 
 		//--------- functions ----------------------------------------------------
 
 		// CollisionManagerウィンドウを描画する
 		void DrawWindow(const EditorToolContext& context);
-		// Collisionタイプ一覧を描画する
-		void DrawTypes();
-		// Collisionタイプ同士の衝突マトリクスを描画する
-		void DrawMatrix();
+		// Collisionタイプ一覧を描画する、変更があればtrue
+		bool DrawTypes();
+		// Collisionタイプ同士の衝突マトリクスを描画する、変更があればtrue
+		bool DrawMatrix();
+		// 現在のシーンにCollision設定ファイルが無ければ作って結びつける、PostProcessStackと同じ作法
+		void EnsureActiveCollisionSettingsAsset(const EditorToolContext& context);
 		// World内のCollision形状をLineRendererで描画する
 		void DrawCollisionWorld(ECSWorld& world) const;
 	};

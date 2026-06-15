@@ -49,7 +49,7 @@ namespace {
 			ImGui::SetClipboardText(text.c_str());
 		}
 		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("Click to copy");
+			ImGui::SetTooltip("クリックでコピー");
 		}
 
 		ImGui::Spacing();

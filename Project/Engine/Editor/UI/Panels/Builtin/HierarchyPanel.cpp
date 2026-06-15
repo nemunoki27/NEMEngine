@@ -332,7 +332,7 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		}
 
 		// アクティブ切り替え、選択中なら全選択へ同じ状態を適用する
-		if (ImGui::MenuItem(activeSelf ? "Set Inactive" : "Set Active", nullptr, false, context.CanEditScene())) {
+		if (ImGui::MenuItem(activeSelf ? "非アクティブにする" : "アクティブにする", nullptr, false, context.CanEditScene())) {
 
 			const bool newActive = !activeSelf;
 			if (context.editorState->IsEntitySelected(entity)) {
@@ -349,23 +349,23 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		ImGui::Separator();
 
 		// 子に空エンティティを追加
-		if (ImGui::MenuItem("Create Empty Child", nullptr, false, context.CanEditScene())) {
+		if (ImGui::MenuItem("子に空オブジェクトを作成", nullptr, false, context.CanEditScene())) {
 
 			context.host->ExecuteEditorCommand(
 				std::make_unique<CreateEntityCommand>("Entity", world.GetUUID(entity)));
 		}
 		// エンティティを複製
-		if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, context.CanEditScene())) {
+		if (ImGui::MenuItem("複製", "Ctrl+D", false, context.CanEditScene())) {
 
 			context.host->DuplicateSelection();
 		}
 		// クリップボードにエンティティをコピー
-		if (ImGui::MenuItem("Copy", "Ctrl+C", false, context.CanEditScene())) {
+		if (ImGui::MenuItem("コピー", "Ctrl+C", false, context.CanEditScene())) {
 
 			context.host->CopySelectionToClipboard();
 		}
 		// エンティティを削除、複数選択ならまとめて消す
-		if (ImGui::MenuItem("Delete", "Del", false, context.CanEditScene())) {
+		if (ImGui::MenuItem("削除", "Del", false, context.CanEditScene())) {
 
 			const std::vector<Entity> targets = context.editorState->GetSelectedEntities();
 			for (const Entity& target : targets) {
@@ -512,7 +512,7 @@ void Engine::HierarchyPanel::DrawSubMeshNodes(const EditorPanelContext& context,
 
 	ImGui::PushID("SubMeshesRoot");
 	ImGui::Indent();
-	if (MyGUI::CollapsingHeader("SubMeshes", false)) {
+	if (MyGUI::CollapsingHeader("サブメッシュ", false)) {
 
 		ImGui::Indent();
 		for (uint32_t subMeshIndex = 0; subMeshIndex < static_cast<uint32_t>(meshRenderer.subMeshes.size()); ++subMeshIndex) {
@@ -560,13 +560,13 @@ void Engine::HierarchyPanel::DrawBackgroundContextMenu(const EditorPanelContext&
 		ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
 
 		// 空エンティティを追加
-		if (ImGui::MenuItem("Create Empty", nullptr, false, context.CanEditScene())) {
+		if (ImGui::MenuItem("空オブジェクトを作成", nullptr, false, context.CanEditScene())) {
 
 			context.host->ExecuteEditorCommand(std::make_unique<CreateEntityCommand>("Entity"));
 		}
 		// コピーエンティティを作成
 		const bool canPaste = context.editorState && context.editorState->HasClipboard() && context.CanEditScene();
-		if (ImGui::MenuItem("Paste", "Ctrl+V", false, canPaste)) {
+		if (ImGui::MenuItem("コピー済みをペースト", "Ctrl+V", false, canPaste)) {
 
 			context.host->PasteClipboard();
 		}
@@ -578,7 +578,7 @@ void Engine::HierarchyPanel::DrawRootDropTarget(const EditorPanelContext& contex
 
 	ImGui::Spacing();
 	ImGui::Separator();
-	ImGui::TextDisabled("Drop here to make root");
+	ImGui::TextDisabled("エンティティをルートに戻す");
 	ImGui::InvisibleButton("HierarchyRootDropTarget", ImVec2(ImGui::GetContentRegionAvail().x, 24.0f));
 
 	//============================================================================

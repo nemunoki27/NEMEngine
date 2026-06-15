@@ -39,6 +39,8 @@ namespace Engine {
 		bool AddType(const std::string& name);
 		// 最後のCollisionタイプを削除する
 		void RemoveLastType();
+		// 指定indexのCollisionタイプを削除し、マトリクスを詰め直す
+		void RemoveType(uint32_t index);
 		// Collisionタイプ名を変更する
 		void SetTypeName(uint32_t index, const std::string& name);
 		// Collisionタイプの有効状態を変更する

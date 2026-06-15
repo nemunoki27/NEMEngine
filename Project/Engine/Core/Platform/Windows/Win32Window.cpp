@@ -371,9 +371,9 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	{
 		// 外部エクスプローラーからドロップされたファイルをInputへ積みProjectPanelが消費する
 		HDROP hDrop = reinterpret_cast<HDROP>(wparam);
+		// DragQueryPointはクライアント座標を返す、ImGuiもviewports無効ではクライアント座標なので変換しない
 		POINT dropPoint{};
 		DragQueryPoint(hDrop, &dropPoint);
-		ClientToScreen(hwnd, &dropPoint);
 
 		const UINT fileCount = DragQueryFileW(hDrop, 0xFFFFFFFFu, nullptr, 0);
 		std::vector<std::string> paths;

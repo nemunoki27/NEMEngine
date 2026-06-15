@@ -83,24 +83,63 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawTypeMaskField(Coll
 	CollisionSettings& settings = CollisionSettings::GetInstance();
 	const auto& types = settings.GetTypes();
 
-	// CollisionManagerで作成したタイプを複数選択できるようにする
+	// 付与済みのタイプを1行ずつ縦に並べ、各行で解除できるようにする
+	// タイプ数が増えても横にはみ出さないよう、追加形式のリストにする
+	int32_t removeIndex = -1;
+	uint32_t assignedCount = 0;
 	for (uint32_t i = 0; i < static_cast<uint32_t>(types.size()); ++i) {
 
-		if (i != 0) {
+		if (!HasCollisionType(component.typeMask, i)) {
+			continue;
+		}
+		++assignedCount;
+
+		ImGui::PushID(static_cast<int32_t>(i));
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextUnformatted(types[i].name.c_str());
+
+		// 解除ボタンを行末へ寄せる
+		ImGui::SameLine();
+		const float buttonWidth = 48.0f;
+		const float pad = ImGui::GetContentRegionAvail().x - buttonWidth;
+		if (0.0f < pad) {
+			ImGui::Dummy(ImVec2(pad, 0.0f));
 			ImGui::SameLine();
 		}
-		bool enabled = HasCollisionType(component.typeMask, i);
-		if (ImGui::Checkbox(types[i].name.c_str(), &enabled)) {
-			if (enabled) {
-				component.typeMask |= MakeCollisionTypeBit(i);
-			} else {
-				component.typeMask &= ~MakeCollisionTypeBit(i);
-			}
-			result.valueChanged = true;
-			result.editFinished = true;
+		if (ImGui::SmallButton("解除")) {
+			removeIndex = static_cast<int32_t>(i);
 		}
 		result.anyItemActive |= ImGui::IsItemActive();
+		ImGui::PopID();
 	}
+	if (assignedCount == 0) {
+		ImGui::TextDisabled("未設定");
+	}
+
+	// 解除指定があればビットを下ろす
+	if (0 <= removeIndex) {
+		component.typeMask &= ~MakeCollisionTypeBit(static_cast<uint32_t>(removeIndex));
+		result.valueChanged = true;
+		result.editFinished = true;
+	}
+
+	// まだ付与していないタイプをコンボから選んで追加する、選択した時点で付与する
+	ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+	if (ImGui::BeginCombo("##AddCollisionType", "＋ タイプを追加", ImGuiComboFlags_HeightLargest)) {
+		for (uint32_t i = 0; i < static_cast<uint32_t>(types.size()); ++i) {
+
+			if (HasCollisionType(component.typeMask, i)) {
+				continue;
+			}
+			if (ImGui::Selectable(types[i].name.c_str())) {
+				component.typeMask |= MakeCollisionTypeBit(i);
+				result.valueChanged = true;
+				result.editFinished = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	result.anyItemActive |= ImGui::IsItemActive();
 	MyGUI::EndPropertyRow();
 	return result;
 }

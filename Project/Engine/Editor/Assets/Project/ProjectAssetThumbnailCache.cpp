@@ -44,8 +44,8 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 
 	defaultIcons_[AssetType::Scene].textureKey = "scene.dds";
 	defaultIcons_[AssetType::Scene].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "scene.dds");
-	defaultIcons_[AssetType::Prefab].textureKey = "prefab.dds";
-	defaultIcons_[AssetType::Prefab].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "prefab.dds");
+	defaultIcons_[AssetType::Prefab].textureKey = "prefab.png";
+	defaultIcons_[AssetType::Prefab].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "prefab.png");
 	defaultIcons_[AssetType::Material].textureKey = "material.dds";
 	defaultIcons_[AssetType::Material].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "material.dds");
 	defaultIcons_[AssetType::Shader].textureKey = "shader.dds";

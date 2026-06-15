@@ -6,6 +6,7 @@
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
@@ -87,6 +88,21 @@ namespace {
 		auto& transform = world.GetComponent<Engine::TransformComponent>(entity);
 		transform.localPos += delta;
 		Engine::MarkTransformSubtreeDirty(world, entity);
+
+		// 押し戻し直後にworldMatrixも更新する
+		// TransformUpdateSystemはこのフレームではもう走らないので、更新しないと次フレームに
+		// スクリプトがworldMatrix由来の古いpositionを読み、その読み書きで押し戻しが打ち消されて貫通する
+		Engine::Matrix4x4 parentWorld = Engine::Matrix4x4::Identity();
+		if (world.HasComponent<Engine::HierarchyComponent>(entity)) {
+
+			const auto& hierarchy = world.GetComponent<Engine::HierarchyComponent>(entity);
+			if (world.IsAlive(hierarchy.parent) && world.HasComponent<Engine::TransformComponent>(hierarchy.parent)) {
+				parentWorld = world.GetComponent<Engine::TransformComponent>(hierarchy.parent).worldMatrix;
+			}
+		}
+		const Engine::Matrix4x4 localMatrix = Engine::Matrix4x4::MakeAffineMatrix(
+			transform.localScale, transform.localRotation, transform.localPos);
+		transform.worldMatrix = localMatrix * parentWorld;
 	}
 }
 

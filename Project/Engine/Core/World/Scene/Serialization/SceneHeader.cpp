@@ -97,9 +97,14 @@ std::string Engine::MakeDefaultCollisionSettingsPath(const std::string& scenePat
 
 void Engine::EnsureSceneCollisionSettings(SceneHeader& sceneHeader, const std::string& scenePath, AssetDatabase* assetDatabase) {
 
-	if (sceneHeader.collisionSettings || !assetDatabase) {
+	if (!assetDatabase) {
 		return;
 	}
+	// 既に解決できる参照を持っているなら触らない
+	if (sceneHeader.collisionSettings && assetDatabase->Find(sceneHeader.collisionSettings)) {
+		return;
+	}
+	// 未参照、または保存し直しでguidが変わってリンク切れになった場合は既定ファイルから貼り直す
 	const std::string defaultPath = MakeDefaultCollisionSettingsPath(scenePath);
 	if (std::filesystem::exists(assetDatabase->ResolveAssetPath(defaultPath))) {
 		sceneHeader.collisionSettings = assetDatabase->ImportOrGet(defaultPath, AssetType::CollisionSettings);
@@ -136,9 +141,14 @@ std::string Engine::MakeDefaultPostProcessStackPath(const std::string& scenePath
 
 void Engine::EnsureScenePostProcessStack(SceneHeader& sceneHeader, const std::string& scenePath, AssetDatabase* assetDatabase) {
 
-	if (sceneHeader.postProcessStack || !assetDatabase) {
+	if (!assetDatabase) {
 		return;
 	}
+	// 既に解決できる参照を持っているなら触らない
+	if (sceneHeader.postProcessStack && assetDatabase->Find(sceneHeader.postProcessStack)) {
+		return;
+	}
+	// 未参照、または保存し直しでguidが変わってリンク切れになった場合は既定ファイルから貼り直す
 	const std::string defaultPath = MakeDefaultPostProcessStackPath(scenePath);
 	if (std::filesystem::exists(assetDatabase->ResolveAssetPath(defaultPath))) {
 		sceneHeader.postProcessStack = assetDatabase->ImportOrGet(defaultPath, AssetType::PostProcessStack);

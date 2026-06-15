@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEMEngine C# スクリプティング API ガイド</title>
+<style>
+  :root {
+    --bg: #1b1d23;
+    --bg-alt: #23262e;
+    --panel: #2a2e38;
+    --border: #3a3f4b;
+    --text: #d6d9e0;
+    --muted: #9aa0ad;
+    --accent: #6db3f2;
+    --accent2: #b48ead;
+    --green: #a3be8c;
+    --yellow: #ebcb8b;
+    --red: #bf616a;
+    --code-bg: #161820;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+    line-height: 1.7;
+    font-size: 15px;
+  }
+  .layout { display: flex; align-items: flex-start; }
+  nav {
+    position: sticky;
+    top: 0;
+    width: 260px;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--bg-alt);
+    border-right: 1px solid var(--border);
+    padding: 24px 18px;
+    flex-shrink: 0;
+  }
+  nav h2 { font-size: 15px; color: var(--accent); margin: 0 0 12px; }
+  nav a {
+    display: block;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 13.5px;
+  }
+  nav a:hover { background: var(--panel); color: var(--text); }
+  main { flex: 1; max-width: 980px; padding: 36px 48px 120px; }
+  header.hero {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+    margin-bottom: 32px;
+  }
+  header.hero h1 { margin: 0 0 6px; font-size: 30px; }
+  header.hero p { margin: 0; color: var(--muted); }
+  h2.section {
+    margin-top: 48px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 23px;
+    color: var(--accent);
+  }
+  h3 { margin-top: 32px; font-size: 18px; color: var(--accent2); }
+  p { margin: 12px 0; }
+  code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 13px;
+    color: #e6d7a8;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 16px 0;
+  }
+  pre code { background: none; padding: 0; color: var(--text); font-size: 13px; line-height: 1.6; }
+  .kw { color: #81a1c1; }
+  .typ { color: #8fbcbb; }
+  .str { color: #a3be8c; }
+  .num { color: #d08770; }
+  .cmt { color: #6b7280; font-style: italic; }
+  .fn { color: #ebcb8b; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13.5px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--panel); color: var(--accent); }
+  tr:nth-child(even) td { background: var(--bg-alt); }
+  .note, .warn {
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 18px 0;
+    border-left: 4px solid var(--accent);
+    background: var(--panel);
+  }
+  .warn { border-left-color: var(--yellow); }
+  .note strong, .warn strong { color: var(--accent); }
+  .warn strong { color: var(--yellow); }
+  .pill {
+    display: inline-block;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1px 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h2>目次</h2>
+  <a href="#intro">1. はじめに</a>
+  <a href="#lifecycle">2. ライフサイクル</a>
+  <a href="#attributes">3. 属性一覧</a>
+  <a href="#input">4. 入力</a>
+  <a href="#transform">5. Transform 操作</a>
+  <a href="#time">6. 時間 (Time)</a>
+  <a href="#instantiate">7. インスタンス生成</a>
+  <a href="#destroy">8. Entity の破棄</a>
+  <a href="#component">9. コンポーネント取得</a>
+  <a href="#scene">10. シーン遷移</a>
+  <a href="#collision">11. 衝突コールバック</a>
+  <a href="#coroutine">12. コルーチン / タイマー</a>
+  <a href="#log">13. ログ出力</a>
+  <a href="#sample">14. 実践サンプル</a>
+</nav>
+<main>
+<header class="hero">
+  <h1>NEMEngine C# スクリプティング API ガイド</h1>
+  <p>ゲーム制作でよく使う C# API のまとめ。すべて <code>namespace NEMEngine</code> に属する。</p>
+</header>
+
+<h2 class="section" id="intro">1. はじめに</h2>
+<p>
+ゲームの挙動は <code>ScriptBehaviour</code> を継承したクラスに書く。クラスは <code>partial</code> でなくてよく、
+<code>public sealed class</code> 推奨。ファイル先頭で <code>using NEMEngine;</code> を書き、自前の
+<code>namespace</code>（例 <code>SandboxScripts</code>）に置く。
+</p>
+<pre><code><span class="kw">using</span> NEMEngine;
+
+<span class="kw">namespace</span> SandboxScripts;
+
+<span class="kw">public sealed class</span> <span class="typ">MyScript</span> : <span class="typ">ScriptBehaviour</span>
+{
+    <span class="kw">public override void</span> <span class="fn">Update</span>()
+    {
+        <span class="typ">Debug</span>.<span class="fn">Log</span>(<span class="str">"毎フレーム呼ばれる"</span>);
+    }
+}</code></pre>
+<p>
+スクリプトはエンティティへコンポーネントとして付与する。インスペクターに公開した値は
+<code>[SerializeField]</code> 付きのフィールドで設定でき、シーンへ保存される。スクリプトを保存すると
+エディターが自動でリロード（ホットリロード）する。
+</p>
+<div class="note"><strong>ヒント:</strong> <code>transform</code> と <code>entity</code> は <code>ScriptBehaviour</code> が標準で持つ。自分が付いているエンティティを指す。</div>
+
+<h2 class="section" id="lifecycle">2. ライフサイクル</h2>
+<p><code>ScriptBehaviour</code> の <code>virtual</code> メソッドを <code>override</code> して使う。呼ばれる順序は次の通り。</p>
+<table>
+  <tr><th>メソッド</th><th>呼ばれるタイミング</th></tr>
+  <tr><td><code>Awake()</code></td><td>生成直後に1回。参照の初期化向け。</td></tr>
+  <tr><td><code>OnEnable()</code></td><td>有効化された時。</td></tr>
+  <tr><td><code>Start()</code></td><td>最初の <code>Update</code> 前に1回。</td></tr>
+  <tr><td><code>FixedUpdate()</code></td><td>固定ステップ毎。物理向け。<code>Time.fixedDeltaTime</code> を使う。</td></tr>
+  <tr><td><code>Update()</code></td><td>毎フレーム。通常のゲームロジック。</td></tr>
+  <tr><td><code>LateUpdate()</code></td><td>全 <code>Update</code> の後。カメラ追従など。</td></tr>
+  <tr><td><code>OnDisable()</code></td><td>無効化された時。</td></tr>
+  <tr><td><code>OnDestroy()</code></td><td>破棄される時。後始末向け。</td></tr>
+  <tr><td><code>OnCollisionEnter/Stay/Exit(Collision)</code></td><td>衝突の開始/継続/終了。詳細は <a href="#collision">11章</a>。</td></tr>
+</table>
+<p>有効/無効は <code>Enabled</code> プロパティで制御できる。<code>IsActiveAndEnabled</code> は階層が active かつ自身が有効な時に true。</p>
+
+<h2 class="section" id="attributes">3. 属性一覧</h2>
+<p>フィールドに付ける属性。インスペクター表示やシリアライズの挙動を変える。</p>
+<table>
+  <tr><th>属性</th><th>説明</th></tr>
+  <tr><td><code>[SerializeField]</code></td><td><code>private</code> フィールドをインスペクターに公開し、シーンへ保存する。</td></tr>
+  <tr><td><code>[Header("見出し")]</code></td><td>フィールドの上に見出しを表示する（表示専用）。</td></tr>
+  <tr><td><code>[Tooltip("説明")]</code></td><td>ホバー時に説明を表示する（表示専用）。</td></tr>
+  <tr><td><code>[Range(min, max)]</code></td><td>数値をスライダー表示し、範囲内へ制限する。</td></tr>
+  <tr><td><code>[Min(min)]</code></td><td>数値の下限を設定する。</td></tr>
+  <tr><td><code>[DragSpeed(speed)]</code></td><td>数値ドラッグ編集の速さを設定する。</td></tr>
+  <tr><td><code>[Multiline]</code></td><td><code>string</code> を複数行で編集する。</td></tr>
+  <tr><td><code>[ReadOnly]</code></td><td>表示はするが編集不可。値は保存される。</td></tr>
+  <tr><td><code>[HideInInspector]</code></td><td>インスペクターに出さないが値は保存される。</td></tr>
+  <tr><td><code>[DefaultExecutionOrder(order)]</code></td><td>スクリプトの実行順を制御する（小さいほど先）。クラスに付ける。</td></tr>
+</table>
+<pre><code><span class="cmt">// インスペクターに公開、見出しと範囲制限つき</span>
+[<span class="typ">Header</span>(<span class="str">"移動設定"</span>)]
+[<span class="typ">SerializeField</span>, <span class="typ">Range</span>(<span class="num">0.0f</span>, <span class="num">20.0f</span>)]
+<span class="kw">private float</span> moveSpeed = <span class="num">5.0f</span>;
+
+[<span class="typ">SerializeField</span>, <span class="typ">Tooltip</span>(<span class="str">"発生させる Prefab"</span>)]
+<span class="kw">private</span> <span class="typ">AssetRef</span>&lt;<span class="typ">PrefabAsset</span>&gt; bullet;</code></pre>
+
+<h2 class="section" id="input">4. 入力</h2>
+<p>静的クラス <code>Input</code> から取得する。状態は毎フレーム更新される。</p>
+<h3>キーボード</h3>
+<table>
+  <tr><th>API</th><th>説明</th></tr>
+  <tr><td><code>Input.GetKey(KeyCode)</code></td><td>押されている間 true。</td></tr>
+  <tr><td><code>Input.GetKeyDown(KeyCode)</code></td><td>押した瞬間のフレームのみ true。</td></tr>
+  <tr><td><code>Input.GetKeyUp(KeyCode)</code></td><td>離した瞬間のフレームのみ true。</td></tr>
+</table>
+<p><code>KeyCode</code> 例: <code>W A S D</code>, <code>Space</code>, <code>Return</code>, <code>Escape</code>, <code>LeftShift</code>, <code>LeftArrow</code> など。</p>
+<h3>マウス</h3>
+<table>
+  <tr><td><code>Input.GetMouseButton/Down/Up(MouseButton)</code></td><td>左=<code>Left</code> 右=<code>Right</code> 中=<code>Middle</code>。int 版(0/1/2)もあり。</td></tr>
+  <tr><td><code>Input.mousePosition</code> / <code>mouseDelta</code> / <code>mouseWheel</code></td><td>位置・移動量・ホイール量。</td></tr>
+</table>
+<h3>ゲームパッド</h3>
+<table>
+  <tr><td><code>Input.leftStick</code> / <code>rightStick</code></td><td>スティック入力 (<code>Vector2</code>)。</td></tr>
+  <tr><td><code>Input.leftTrigger</code> / <code>rightTrigger</code></td><td>トリガー (0..1)。</td></tr>
+  <tr><td><code>Input.GetGamepadButton/Down/Up(GamepadButton)</code></td><td>ボタン状態（index 0 の単一パッド）。</td></tr>
+  <tr><td><code>Input.isGamepadConnected</code></td><td>接続有無。</td></tr>
+  <tr><td><code>Input.GetGamepadButton(index, GamepadButton)</code></td><td>多パッド版（最大4台）。<code>GetGamepadAxis(index, GamepadAxis)</code> も。</td></tr>
+</table>
+<h3>その他</h3>
+<p><code>Input.TextInput</code>（このフレームの確定文字列）、<code>Input.HasFocus</code>（ウィンドウフォーカス）。</p>
+<pre><code><span class="kw">public override void</span> <span class="fn">Update</span>()
+{
+    <span class="cmt">// WASD で入力ベクトルを組む</span>
+    <span class="typ">Vector2</span> input = <span class="typ">Vector2</span>.zero;
+    <span class="kw">if</span> (<span class="typ">Input</span>.<span class="fn">GetKey</span>(<span class="typ">KeyCode</span>.W)) { input.y += <span class="num">1.0f</span>; }
+    <span class="kw">if</span> (<span class="typ">Input</span>.<span class="fn">GetKey</span>(<span class="typ">KeyCode</span>.S)) { input.y -= <span class="num">1.0f</span>; }
+
+    <span class="cmt">// ゲームパッド左スティックを加える</span>
+    input.x += <span class="typ">Input</span>.leftStick.x;
+
+    <span class="cmt">// ジャンプはトリガー（押した瞬間）で判定</span>
+    <span class="kw">if</span> (<span class="typ">Input</span>.<span class="fn">GetKeyDown</span>(<span class="typ">KeyCode</span>.Space)) { <span class="fn">Jump</span>(); }
+}</code></pre>
+
+<h2 class="section" id="transform">5. Transform 操作</h2>
+<p><code>transform</code> プロパティから位置・回転・スケール・親子関係を操作する。</p>
+<table>
+  <tr><th>メンバ</th><th>説明</th></tr>
+  <tr><td><code>position</code> / <code>rotation</code></td><td>ワールド座標・ワールド回転（読み書き）。</td></tr>
+  <tr><td><code>localPosition</code> / <code>localRotation</code> / <code>localScale</code></td><td>ローカル SRT（読み書き）。</td></tr>
+  <tr><td><code>forward</code> / <code>right</code> / <code>up</code></td><td>ワールド回転基準の方向ベクトル（読み取り）。</td></tr>
+  <tr><td><code>lossyScale</code></td><td>ワールドスケール近似（読み取り）。</td></tr>
+  <tr><td><code>parent</code> / <code>SetParent(Transform)</code></td><td>親の取得・設定。</td></tr>
+  <tr><td><code>SetParent(Entity, worldPositionStays=true)</code></td><td>付け替え。true で見た目を維持する。</td></tr>
+  <tr><td><code>childCount</code> / <code>GetChild(index)</code></td><td>子の数・index 番目の子。</td></tr>
+</table>
+<pre><code><span class="cmt">// 前方へ移動し、進行方向へ向く</span>
+transform.position += transform.forward * (speed * <span class="typ">Time</span>.deltaTime);
+
+<span class="cmt">// Y 軸ヨーを目標へ滑らかに補間</span>
+<span class="typ">Quaternion</span> target = <span class="typ">Quaternion</span>.<span class="fn">FromEulerDegrees</span>(<span class="kw">new</span> <span class="typ">Vector3</span>(<span class="num">0</span>, yaw, <span class="num">0</span>));
+<span class="kw">float</span> t = <span class="num">1.0f</span> - <span class="typ">Math</span>.<span class="fn">Exp</span>(-<span class="num">12.0f</span> * <span class="typ">Time</span>.deltaTime);
+transform.rotation = <span class="typ">Quaternion</span>.<span class="fn">Slerp</span>(transform.rotation, target, t);</code></pre>
+
+<h2 class="section" id="time">6. 時間 (Time)</h2>
+<table>
+  <tr><th>API</th><th>説明</th></tr>
+  <tr><td><code>Time.deltaTime</code></td><td>前フレームからの経過秒（TimeScale 適用後）。移動量に掛ける。</td></tr>
+  <tr><td><code>Time.UnscaledDeltaTime</code></td><td>TimeScale を無視した経過秒（ポーズ中も進む）。</td></tr>
+  <tr><td><code>Time.fixedDeltaTime</code></td><td>固定ステップ間隔。<code>FixedUpdate</code> で使う。</td></tr>
+  <tr><td><code>Time.TimeScale</code></td><td>全体の時間倍率。<code>0</code> でポーズ相当（読み書き）。</td></tr>
+  <tr><td><code>Time.TimeSinceStartup</code> / <code>FrameCount</code></td><td>Play 開始からの経過秒・フレーム数。</td></tr>
+</table>
+<pre><code><span class="cmt">// ポーズ切り替え</span>
+<span class="typ">Time</span>.TimeScale = paused ? <span class="num">0.0f</span> : <span class="num">1.0f</span>;</code></pre>
+
+<h2 class="section" id="instantiate">7. インスタンス生成</h2>
+<p>
+Prefab の生成は <code>Prefab.Instantiate</code> を使う。生成対象は <code>AssetRef&lt;PrefabAsset&gt;</code> 型の
+<code>[SerializeField]</code> フィールドに用意し、インスペクターで <code>.prefab</code> を割り当てる。
+</p>
+<table>
+  <tr><th>オーバーロード</th><th>説明</th></tr>
+  <tr><td><code>Instantiate(prefab)</code></td><td>原点に生成。</td></tr>
+  <tr><td><code>Instantiate(prefab, position, rotation)</code></td><td>指定の位置・回転で生成。</td></tr>
+  <tr><td><code>Instantiate(prefab, position, rotation, parent)</code></td><td>さらに親 Entity を指定して生成。</td></tr>
+</table>
+<div class="note"><strong>仕組み:</strong> 生成はコマンドバッファ経由で遅延適用される。ルート <code>Entity</code> は即時に返るが、コンポーネントの実体化は次の flush で行われる。</div>
+<pre><code>[<span class="typ">SerializeField</span>]
+<span class="kw">private</span> <span class="typ">AssetRef</span>&lt;<span class="typ">PrefabAsset</span>&gt; bullet;
+
+<span class="kw">private void</span> <span class="fn">Fire</span>()
+{
+    <span class="cmt">// 未割り当てなら何もしない</span>
+    <span class="kw">if</span> (bullet.IsNull) { <span class="kw">return</span>; }
+
+    <span class="cmt">// 自分の位置・向きで生成する</span>
+    <span class="typ">Entity</span> spawned = <span class="typ">Prefab</span>.<span class="fn">Instantiate</span>(bullet, transform.position, transform.rotation);
+}</code></pre>
+
+<h2 class="section" id="destroy">8. Entity の破棄</h2>
+<table>
+  <tr><td><code>Destroy(Entity)</code></td><td>指定の Entity を破棄する（遅延適用）。</td></tr>
+  <tr><td><code>DestroySelf()</code></td><td>自分の Entity を破棄する。</td></tr>
+  <tr><td><code>entity.Destroy()</code></td><td>Entity から直接破棄する。</td></tr>
+</table>
+<pre><code><span class="cmt">// 一定時間後に自分を消す</span>
+<span class="kw">private float</span> life = <span class="num">3.0f</span>;
+<span class="kw">public override void</span> <span class="fn">Update</span>()
+{
+    life -= <span class="typ">Time</span>.deltaTime;
+    <span class="kw">if</span> (life &lt;= <span class="num">0.0f</span>) { <span class="fn">DestroySelf</span>(); }
+}</code></pre>
+
+<h2 class="section" id="component">9. コンポーネント取得</h2>
+<p>同じ Entity（や子孫・祖先）のコンポーネントや他スクリプトを取得する。<code>ScriptBehaviour</code> のメソッドとして使える。</p>
+<table>
+  <tr><th>API</th><th>説明</th></tr>
+  <tr><td><code>Get&lt;T&gt;()</code> / <code>TryGet&lt;T&gt;(out T)</code></td><td>コンポーネントを取得 / 安全に取得。</td></tr>
+  <tr><td><code>Has&lt;T&gt;()</code></td><td>保有判定。</td></tr>
+  <tr><td><code>Add&lt;T&gt;()</code> / <code>Remove&lt;T&gt;()</code></td><td>追加 / 削除。</td></tr>
+  <tr><td><code>GetInChildren&lt;T&gt;()</code> / <code>GetInParent&lt;T&gt;()</code></td><td>子孫 / 祖先から探索取得。</td></tr>
+  <tr><td><code>GetComponent&lt;TScript&gt;()</code></td><td>同 Entity の別 C# スクリプトを取得（Unity の GetComponent 相当）。</td></tr>
+  <tr><td><code>GetComponentInChildren/InParent&lt;TScript&gt;()</code></td><td>子孫 / 祖先のスクリプトを取得。</td></tr>
+</table>
+<p>取得できるコンポーネント型の例: <code>MeshRenderer</code>, <code>SpriteRenderer</code>, <code>TextRenderer</code>,
+<code>AudioSource</code>, <code>SkinnedAnimation</code>, <code>PerspectiveCamera</code>, <code>OrthographicCamera</code>,
+<code>DirectionalLight</code>, <code>PointLight</code>, <code>SpotLight</code>, <code>UVTransform</code>。</p>
+<pre><code><span class="cmt">// 同じ Entity の別スクリプトを参照する</span>
+<span class="typ">PlayerHealth</span>? health = <span class="fn">GetComponent</span>&lt;<span class="typ">PlayerHealth</span>&gt;();
+<span class="kw">if</span> (health != <span class="kw">null</span>) { health.<span class="fn">TakeDamage</span>(<span class="num">10</span>); }
+
+<span class="cmt">// コンポーネントを安全に取得して書き換える</span>
+<span class="kw">if</span> (<span class="fn">TryGet</span>&lt;<span class="typ">SpriteRenderer</span>&gt;(<span class="kw">out var</span> sprite))
+{
+    <span class="cmt">// sprite の値を編集する</span>
+}</code></pre>
+
+<h2 class="section" id="scene">10. シーン遷移</h2>
+<p>
+シーンは <code>SceneManager</code> で加算ロード／アンロードする。読み込むシーンは
+<code>AssetRef&lt;SceneAsset&gt;</code> で指定する。別シーンへ「切り替える」には、
+次のシーンを <code>LoadAdditive</code> し、現在のシーンのハンドルを <code>Unload</code> する。
+</p>
+<table>
+  <tr><th>API</th><th>説明</th></tr>
+  <tr><td><code>SceneManager.LoadAdditive(AssetRef&lt;SceneAsset&gt;)</code></td><td>シーンを加算ロードし <code>SceneHandle</code> を返す（適用は次の flush）。</td></tr>
+  <tr><td><code>SceneManager.Unload(SceneHandle)</code></td><td>シーンインスタンスをアンロードする。</td></tr>
+  <tr><td><code>SceneManager.SceneLoaded</code> / <code>SceneUnloaded</code></td><td>ロード／アンロード完了イベント。</td></tr>
+  <tr><td><code>SceneHandle.IsValid</code></td><td>インスタンスがまだ存在するか。</td></tr>
+</table>
+<pre><code>[<span class="typ">SerializeField</span>]
+<span class="kw">private</span> <span class="typ">AssetRef</span>&lt;<span class="typ">SceneAsset</span>&gt; nextScene;
+
+<span class="kw">private</span> <span class="typ">SceneHandle</span> loaded;
+
+<span class="kw">private void</span> <span class="fn">GoNext</span>()
+{
+    <span class="cmt">// 次のシーンを読み込む。完了は SceneLoaded で受け取れる</span>
+    loaded = <span class="typ">SceneManager</span>.<span class="fn">LoadAdditive</span>(nextScene);
+}
+
+<span class="kw">public override void</span> <span class="fn">Start</span>()
+{
+    <span class="typ">SceneManager</span>.SceneLoaded += <span class="fn">OnSceneLoaded</span>;
+}
+
+<span class="kw">private void</span> <span class="fn">OnSceneLoaded</span>(<span class="typ">SceneEvent</span> e)
+{
+    <span class="typ">Debug</span>.<span class="fn">Log</span>(<span class="str">"シーン読み込み完了"</span>);
+}</code></pre>
+<div class="warn"><strong>注意:</strong> ロード／アンロードは即時ではなく、次の flush で適用される。完了を待つ処理はイベントか <code>SceneHandle.IsValid</code> で確認する。</div>
+
+<h2 class="section" id="collision">11. 衝突コールバック</h2>
+<p>
+<code>CollisionComponent</code> を持つ Entity 同士が当たると、スクリプトの衝突コールバックが呼ばれる。
+当たり判定のタイプ（Layer）は CollisionManager で定義し、インスペクターで割り当てる。
+</p>
+<table>
+  <tr><td><code>OnCollisionEnter(Collision)</code></td><td>接触した瞬間。</td></tr>
+  <tr><td><code>OnCollisionStay(Collision)</code></td><td>接触している間。</td></tr>
+  <tr><td><code>OnCollisionExit(Collision)</code></td><td>離れた瞬間。</td></tr>
+</table>
+<p><code>Collision</code> の主なフィールド: <code>entity</code>（相手）, <code>self</code>（自分）, <code>normal</code>, <code>point</code>, <code>penetration</code>, <code>isTrigger</code>。</p>
+<pre><code><span class="kw">public override void</span> <span class="fn">OnCollisionEnter</span>(<span class="typ">Collision</span> c)
+{
+    <span class="cmt">// 相手の名前で分岐する</span>
+    <span class="kw">if</span> (c.entity.name == <span class="str">"Enemy"</span>)
+    {
+        <span class="typ">Debug</span>.<span class="fn">Log</span>(<span class="str">"敵に接触"</span>);
+    }
+}</code></pre>
+
+<h2 class="section" id="coroutine">12. コルーチン / タイマー</h2>
+<h3>コルーチン</h3>
+<p><code>IEnumerator</code> を <code>StartCoroutine</code> で起動する。<code>yield return</code> で待機できる。</p>
+<table>
+  <tr><td><code>WaitForSeconds(秒)</code></td><td>スケール適用時間で待つ。</td></tr>
+  <tr><td><code>WaitForSecondsRealtime(秒)</code></td><td>実時間で待つ（ポーズ無視）。</td></tr>
+  <tr><td><code>WaitForFixedUpdate()</code></td><td>次の <code>FixedUpdate</code> まで待つ。</td></tr>
+  <tr><td><code>WaitForEndOfFrame()</code></td><td>フレーム終端まで待つ。</td></tr>
+</table>
+<pre><code><span class="kw">using</span> System.Collections;
+
+<span class="kw">public override void</span> <span class="fn">Start</span>()
+{
+    <span class="fn">StartCoroutine</span>(<span class="fn">Blink</span>());
+}
+
+<span class="kw">private</span> <span class="typ">IEnumerator</span> <span class="fn">Blink</span>()
+{
+    <span class="kw">while</span> (<span class="kw">true</span>)
+    {
+        <span class="typ">Debug</span>.<span class="fn">Log</span>(<span class="str">"点滅"</span>);
+        <span class="kw">yield return new</span> <span class="typ">WaitForSeconds</span>(<span class="num">0.5f</span>);
+    }
+}</code></pre>
+<h3>タイマー</h3>
+<table>
+  <tr><td><code>ScheduleTimer(秒, Action)</code></td><td>指定秒後に1回呼ぶ。</td></tr>
+  <tr><td><code>ScheduleRepeatingTimer(間隔, Action)</code></td><td>一定間隔で繰り返す。</td></tr>
+  <tr><td><code>ScheduleUnscaledTimer(秒, Action)</code></td><td>実時間で1回呼ぶ。</td></tr>
+</table>
+<pre><code><span class="cmt">// 2秒後に発火する</span>
+<span class="fn">ScheduleTimer</span>(<span class="num">2.0f</span>, () =&gt; <span class="typ">Debug</span>.<span class="fn">Log</span>(<span class="str">"2秒経過"</span>));</code></pre>
+<div class="note"><strong>自動停止:</strong> コルーチン・タイマーは owner（このスクリプト）の破棄、Play 停止、DLL リロードで自動的に停止する。</div>
+
+<h2 class="section" id="log">13. ログ出力</h2>
+<table>
+  <tr><td><code>Debug.Log(message)</code></td><td>情報ログ。</td></tr>
+  <tr><td><code>Debug.LogWarning(message)</code></td><td>警告ログ。</td></tr>
+  <tr><td><code>Debug.LogError(message)</code></td><td>エラーログ。</td></tr>
+</table>
+
+<h2 class="section" id="sample">14. 実践サンプル</h2>
+<p>WASD ／ゲームパッドで移動し、進行方向へ滑らかに向き、スペースで Prefab を生成するプレイヤー。</p>
+<pre><code><span class="kw">using</span> NEMEngine;
+
+<span class="kw">namespace</span> SandboxScripts;
+
+<span class="kw">public sealed class</span> <span class="typ">PlayerAction</span> : <span class="typ">ScriptBehaviour</span>
+{
+    [<span class="typ">Header</span>(<span class="str">"移動"</span>)]
+    [<span class="typ">SerializeField</span>] <span class="kw">private float</span> moveSpeed = <span class="num">5.0f</span>;
+    [<span class="typ">SerializeField</span>] <span class="kw">private float</span> rotationLerpRate = <span class="num">12.0f</span>;
+    [<span class="typ">SerializeField</span>] <span class="kw">private float</span> stickDeadZone = <span class="num">0.2f</span>;
+
+    [<span class="typ">Header</span>(<span class="str">"生成"</span>)]
+    [<span class="typ">SerializeField</span>] <span class="kw">private</span> <span class="typ">AssetRef</span>&lt;<span class="typ">PrefabAsset</span>&gt; sphere;
+
+    <span class="kw">public override void</span> <span class="fn">Update</span>()
+    {
+        <span class="fn">CreateObject</span>();
+        <span class="fn">Move</span>();
+    }
+
+    <span class="kw">private void</span> <span class="fn">CreateObject</span>()
+    {
+        <span class="kw">if</span> (<span class="typ">Input</span>.<span class="fn">GetKeyDown</span>(<span class="typ">KeyCode</span>.Space) &amp;&amp; !sphere.IsNull)
+        {
+            <span class="typ">Prefab</span>.<span class="fn">Instantiate</span>(sphere, transform.position, transform.rotation);
+        }
+    }
+
+    <span class="kw">private void</span> <span class="fn">Move</span>()
+    {
+        <span class="typ">Vector2</span> input = <span class="typ">Vector2</span>.zero;
+        <span class="kw">if</span> (<span class="typ">Input</span>.<span class="fn">GetKey</span>(<span class="typ">KeyCode</span>.W)) { input.y += <span class="num">1.0f</span>; }
+        <span class="kw">if</span> (<span class="typ">Input</span>.<span class="fn">GetKey</span>(<span class="typ">KeyCode</span>.S)) { input.y -= <span class="num">1.0f</span>; }
+        <span class="kw">if</span> (<span class="typ">Input</span>.<span class="fn">GetKey</span>(<span class="typ">KeyCode</span>.D)) { input.x += <span class="num">1.0f</span>; }
+        <span class="kw">if</span> (<span class="typ">Input</span>.<span class="fn">GetKey</span>(<span class="typ">KeyCode</span>.A)) { input.x -= <span class="num">1.0f</span>; }
+
+        <span class="typ">Vector2</span> stick = <span class="typ">Input</span>.leftStick;
+        <span class="kw">if</span> (stickDeadZone &lt; stick.length) { input.x += stick.x; input.y += stick.y; }
+
+        <span class="kw">float</span> len = input.length;
+        <span class="kw">if</span> (len &lt;= <span class="num">0.0001f</span>) { <span class="kw">return</span>; }
+        <span class="kw">if</span> (<span class="num">1.0f</span> &lt; len) { input = input.normalized; len = <span class="num">1.0f</span>; }
+
+        <span class="typ">Vector3</span> dir = <span class="typ">Vector3</span>.<span class="fn">Normalize</span>(<span class="kw">new</span> <span class="typ">Vector3</span>(input.x, <span class="num">0.0f</span>, input.y));
+        transform.position += dir * (moveSpeed * len * <span class="typ">Time</span>.deltaTime);
+
+        <span class="kw">float</span> yaw = <span class="typ">Math</span>.<span class="fn">RadToDeg</span>(<span class="typ">Math</span>.<span class="fn">Atan2</span>(dir.x, dir.z));
+        <span class="typ">Quaternion</span> target = <span class="typ">Quaternion</span>.<span class="fn">FromEulerDegrees</span>(<span class="kw">new</span> <span class="typ">Vector3</span>(<span class="num">0.0f</span>, yaw, <span class="num">0.0f</span>));
+        <span class="kw">float</span> t = <span class="num">1.0f</span> - <span class="typ">Math</span>.<span class="fn">Exp</span>(-rotationLerpRate * <span class="typ">Time</span>.deltaTime);
+        transform.rotation = <span class="typ">Quaternion</span>.<span class="fn">Slerp</span>(transform.rotation, target, t);
+    }
+}</code></pre>
+
+<footer>
+  NEMEngine C# スクリプティング API ガイド &middot; 本ドキュメントはエンジンの実装（NEM.ScriptCore）に基づく。
+</footer>
+</main>
+</div>
+</body>
+</html>

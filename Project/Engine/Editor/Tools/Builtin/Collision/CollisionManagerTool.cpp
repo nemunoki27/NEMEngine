@@ -8,6 +8,7 @@
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Quaternion.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
@@ -28,6 +29,17 @@
 //	CollisionManagerTool classMethods
 //============================================================================
 namespace {
+
+	// SceneInstanceManagerから実体のSceneHeaderを取得する、無ければtoolContextの参照へフォールバック
+	Engine::SceneHeader* ResolveActiveSceneHeader(const Engine::ToolContext& context) {
+
+		if (context.sceneInstances && context.activeSceneInstanceID) {
+			if (Engine::SceneInstance* activeScene = context.sceneInstances->Find(context.activeSceneInstanceID)) {
+				return &activeScene->header;
+			}
+		}
+		return const_cast<Engine::SceneHeader*>(context.activeSceneHeader);
+	}
 
 	// Vector3の各要素を絶対値にする
 	Engine::Vector3 AbsVector(const Engine::Vector3& value) {
@@ -233,50 +245,83 @@ void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) 
 		return;
 	}
 
+	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
+	SceneHeader* header = ResolveActiveSceneHeader(context.toolContext);
+
 	CollisionSettings& settings = CollisionSettings::GetInstance();
-	if (context.toolContext.activeSceneHeader) {
-		settings.SetActiveSettingsAsset(context.toolContext.activeSceneHeader->collisionSettings,
-			context.toolContext.assetDatabase);
+	if (header) {
+		settings.SetActiveSettingsAsset(header->collisionSettings, assetDatabase);
 	}
 	settings.EnsureLoaded();
 
 	ImGui::SetWindowFontScale(0.64f);
 
 	// 現在開いているシーンが参照するCollision設定ファイルを表示する
-	if (context.toolContext.activeSceneHeader) {
-		std::string displayPath = ToString(context.toolContext.activeSceneHeader->collisionSettings);
-		if (context.toolContext.assetDatabase) {
-			if (const AssetMeta* meta = context.toolContext.assetDatabase->Find(
-				context.toolContext.activeSceneHeader->collisionSettings)) {
-
+	if (header) {
+		std::string displayPath = ToString(header->collisionSettings);
+		if (assetDatabase) {
+			if (const AssetMeta* meta = assetDatabase->Find(header->collisionSettings)) {
 				displayPath = meta->assetPath;
 			}
 		}
-		ImGui::TextDisabled("Settings: %s", displayPath.c_str());
+		ImGui::TextDisabled("Settings: %s%s", displayPath.c_str(), dirty_ ? " *" : "");
 	} else {
 		const std::string settingsPath = settings.GetSettingsPath().generic_string();
 		ImGui::TextDisabled("Settings: %s", settingsPath.c_str());
 	}
 
+	// Save/Reloadボタン、PostProcessStackと同じ作法
+	if (ImGui::Button("Save")) {
+		EnsureActiveCollisionSettingsAsset(context);
+		settings.Save();
+		dirty_ = false;
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Reload")) {
+		settings.Load();
+		dirty_ = false;
+	}
+
+	// 別シーンのCollision設定ファイルを参照して現在のシーンへ結びつける
+	if (header) {
+		AssetID picked = header->collisionSettings;
+		AssetEditSetting setting{};
+		if (MyGUI::AssetReferenceField("読み込み", picked, assetDatabase,
+			{ AssetType::CollisionSettings }, setting).valueChanged) {
+
+			header->collisionSettings = picked;
+			settings.SetActiveSettingsAsset(picked, assetDatabase);
+			settings.Load();
+			dirty_ = false;
+		}
+	}
+
+	ImGui::Separator();
+
 	// デバッグ用のCollision描画設定
 	ImGui::Checkbox("DrawCollisionWorld", &drawCollisionWorld_);
 	ImGui::Separator();
-	DrawTypes();
+	if (DrawTypes()) {
+		dirty_ = true;
+	}
 	ImGui::Spacing();
 	ImGui::Separator();
-	DrawMatrix();
+	if (DrawMatrix()) {
+		dirty_ = true;
+	}
 
-	ImGui::SetWindowFontScale(0.64f);
+	ImGui::SetWindowFontScale(1.0f);
 
 	ImGui::End();
 }
 
-void Engine::CollisionManagerTool::DrawTypes() {
+bool Engine::CollisionManagerTool::DrawTypes() {
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
+	bool changed = false;
 
 	if (!MyGUI::CollapsingHeader("Collision Types")) {
-		return;
+		return changed;
 	}
 
 	const auto& types = settings.GetTypes();
@@ -288,11 +333,13 @@ void Engine::CollisionManagerTool::DrawTypes() {
 		std::string name = types[i].name;
 		if (MyGUI::InputText("Name", name).editFinished) {
 			settings.SetTypeName(i, name);
+			changed = true;
 		}
 
 		bool enabled = types[i].enabled;
 		if (ImGui::Checkbox("Enabled", &enabled)) {
 			settings.SetTypeEnabled(i, enabled);
+			changed = true;
 		}
 		ImGui::Separator();
 		ImGui::PopID();
@@ -300,26 +347,63 @@ void Engine::CollisionManagerTool::DrawTypes() {
 
 	if (ImGui::Button("Add Collision Type", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 		settings.AddType("CollisionType" + std::to_string(settings.GetTypeCount()));
+		changed = true;
 	}
+
+	// タイプが複数ある時だけ、コンボで選んだタイプを削除できるようにする
 	if (settings.GetTypeCount() > 1) {
-		if (ImGui::Button("Remove Last Collision Type", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-			settings.RemoveLastType();
+
+		// 一覧が縮んで選択が範囲外になっていたら先頭へ戻す
+		if (removeTypeIndex_ >= static_cast<int32_t>(types.size())) {
+			removeTypeIndex_ = 0;
+		}
+
+		// 削除ボタンの幅だけ余白を残してコンボを置く
+		const float deleteButtonWidth = 60.0f;
+		if (MyGUI::BeginPropertyRow("Remove Type")) {
+
+			const float comboWidth = ImGui::GetContentRegionAvail().x - (deleteButtonWidth + ImGui::GetStyle().ItemSpacing.x);
+			ImGui::SetNextItemWidth(comboWidth <= 1.0f ? 1.0f : comboWidth);
+
+			if (ImGui::BeginCombo("##RemoveTarget", types[removeTypeIndex_].name.c_str())) {
+				for (uint32_t i = 0; i < static_cast<uint32_t>(types.size()); ++i) {
+
+					const bool selected = (removeTypeIndex_ == static_cast<int32_t>(i));
+					if (ImGui::Selectable(types[i].name.c_str(), selected)) {
+						removeTypeIndex_ = static_cast<int32_t>(i);
+					}
+					if (selected) {
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+				ImGui::EndCombo();
+			}
+
+			ImGui::SameLine();
+			if (ImGui::Button("削除", ImVec2(deleteButtonWidth, 0.0f))) {
+				settings.RemoveType(static_cast<uint32_t>(removeTypeIndex_));
+				removeTypeIndex_ = 0;
+				changed = true;
+			}
+			MyGUI::EndPropertyRow();
 		}
 	}
+	return changed;
 }
 
-void Engine::CollisionManagerTool::DrawMatrix() {
+bool Engine::CollisionManagerTool::DrawMatrix() {
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
 	const auto& types = settings.GetTypes();
 	const uint32_t count = static_cast<uint32_t>(types.size());
+	bool changed = false;
 
 	if (!MyGUI::CollapsingHeader("Layer Collision Matrix")) {
-		return;
+		return changed;
 	}
 	if (count == 0) {
 		ImGui::TextDisabled("Collision type is empty.");
-		return;
+		return changed;
 	}
 
 	const ImGuiTableFlags flags =
@@ -328,7 +412,7 @@ void Engine::CollisionManagerTool::DrawMatrix() {
 		ImGuiTableFlags_SizingFixedFit |
 		ImGuiTableFlags_ScrollX;
 	if (!ImGui::BeginTable("##CollisionMatrix", static_cast<int32_t>(count + 1), flags)) {
-		return;
+		return changed;
 	}
 
 	ImGui::TableSetupColumn("Type");
@@ -351,13 +435,56 @@ void Engine::CollisionManagerTool::DrawMatrix() {
 			bool enabled = settings.IsPairEnabled(y, x);
 			if (ImGui::Checkbox("##Pair", &enabled)) {
 				settings.SetPairEnabled(y, x, enabled);
-				settings.Save();
+				changed = true;
 			}
 			ImGui::PopID();
 		}
 	}
 
 	ImGui::EndTable();
+	return changed;
+}
+
+void Engine::CollisionManagerTool::EnsureActiveCollisionSettingsAsset(const EditorToolContext& context) {
+
+	const ToolContext& toolContext = context.toolContext;
+	AssetDatabase* assetDatabase = toolContext.assetDatabase;
+	SceneHeader* header = ResolveActiveSceneHeader(toolContext);
+
+	if (!assetDatabase || !header) {
+		return;
+	}
+	// 解決できる参照を既に持っているなら作り直さない、リンク切れ時は貼り直す
+	if (header->collisionSettings && assetDatabase->Find(header->collisionSettings)) {
+		return;
+	}
+
+	// 現在のシーンのassetパスを解決する
+	std::string scenePath;
+	if (toolContext.sceneInstances && toolContext.activeSceneInstanceID) {
+		if (const SceneInstance* instance = toolContext.sceneInstances->Find(toolContext.activeSceneInstanceID)) {
+			if (const AssetMeta* meta = assetDatabase->Find(instance->sceneAsset)) {
+				scenePath = meta->assetPath;
+			}
+		}
+	}
+	if (scenePath.empty()) {
+		return;
+	}
+
+	// シーンのベース込みの既定パスにフォルダを用意し、現在の設定でファイルを作る
+	const std::string defaultPath = MakeDefaultCollisionSettingsPath(scenePath);
+	const std::filesystem::path fullPath = assetDatabase->ResolveAssetPath(defaultPath);
+	std::error_code ec;
+	std::filesystem::create_directories(fullPath.parent_path(), ec);
+
+	CollisionSettings& settings = CollisionSettings::GetInstance();
+	settings.SetActiveSettingsPath(fullPath);
+	settings.Save();
+
+	// assetとして登録し、シーンheaderへ結びつけてアクティブ設定にする
+	header->collisionSettings = assetDatabase->ImportOrGet(defaultPath, AssetType::CollisionSettings);
+	settings.SetActiveSettingsAsset(header->collisionSettings, assetDatabase);
 }
 
 void Engine::CollisionManagerTool::DrawCollisionWorld(ECSWorld& world) const {

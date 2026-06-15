@@ -95,7 +95,7 @@ namespace {
 			ImGui::SetClipboardText(valueText.c_str());
 		}
 		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("Click to copy");
+			ImGui::SetTooltip("クリックでコピー");
 		}
 		ImGui::EndGroup();
 		ImGui::PopID();

@@ -51,7 +51,14 @@ namespace Engine {
 	inline bool TextSearchFilter::DrawInput(const char* id) {
 
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-		return ImGui::InputText(id, &text_);
+
+		// 検索入力の高さを20.0fに固定する、フレーム高さはフォント高+上下余白で決まる
+		const float inputHeight = 20.0f;
+		const float paddingY = (std::max)(0.0f, (inputHeight - ImGui::GetFontSize()) * 0.5f);
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, paddingY));
+		const bool changed = ImGui::InputText(id, &text_);
+		ImGui::PopStyleVar();
+		return changed;
 	}
 
 	inline bool TextSearchFilter::IsActive() const {

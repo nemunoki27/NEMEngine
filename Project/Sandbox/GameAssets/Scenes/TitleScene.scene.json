@@ -45,41 +45,6 @@
                             "sy": 1.0,
                             "tx": 0.0,
                             "ty": 0.0
-                        },
-                        {
-                            "rotation": 0.0,
-                            "sx": 1.0,
-                            "sy": 1.0,
-                            "tx": 0.0,
-                            "ty": 0.0
-                        },
-                        {
-                            "rotation": 0.0,
-                            "sx": 1.0,
-                            "sy": 1.0,
-                            "tx": 0.0,
-                            "ty": 0.0
-                        },
-                        {
-                            "rotation": 0.0,
-                            "sx": 1.0,
-                            "sy": 1.0,
-                            "tx": 0.0,
-                            "ty": 0.0
-                        },
-                        {
-                            "rotation": 0.0,
-                            "sx": 1.0,
-                            "sy": 1.0,
-                            "tx": 0.0,
-                            "ty": 0.0
-                        },
-                        {
-                            "rotation": 0.0,
-                            "sx": 1.0,
-                            "sy": 1.0,
-                            "tx": 0.0,
-                            "ty": 0.0
                         }
                     ],
                     "color": {
@@ -88,10 +53,10 @@
                         "g": 1.0,
                         "r": 1.0
                     },
-                    "dimension": 1,
+                    "dimension": 0,
                     "enableOutline": false,
                     "font": "82699d49374109f2",
-                    "fontSize": 151.0,
+                    "fontSize": 131.6000213623047,
                     "layer": 0,
                     "material": "",
                     "order": 0,
@@ -102,22 +67,26 @@
                         "r": 0.0
                     },
                     "outlineWidth": 0.0,
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5
+                    },
                     "queue": "ScreenUI",
-                    "text": "タイトルシーンです",
+                    "text": "タイトル",
                     "visible": true,
                     "worldScale": 0.009999999776482582
                 },
                 "Transform": {
                     "localPos": {
-                        "x": -4.513309478759766,
-                        "y": 4.411971092224121,
+                        "x": 971.1390380859375,
+                        "y": 99.35794067382813,
                         "z": 0.0
                     },
                     "localRotation": {
                         "w": 1.0,
                         "x": 0.0,
                         "y": 0.0,
-                        "z": -5.526579371917251e-08
+                        "z": -5.526577950831779e-08
                     },
                     "localScale": {
                         "x": 1.0,
@@ -227,13 +196,13 @@
                         "r": 1.0
                     },
                     "direction": {
-                        "x": 0.0,
-                        "y": -1.0,
-                        "z": 0.0
+                        "x": 0.4189199209213257,
+                        "y": -0.841513454914093,
+                        "z": 0.3411175310611725
                     },
                     "enabled": true,
-                    "intensity": 0.38999998569488525,
-                    "shadowStrength": 1.0
+                    "intensity": 5.389999866485596,
+                    "shadowStrength": 0.38999998569488525
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
@@ -267,97 +236,6 @@
                 }
             },
             "LocalFileID": "051ee75fb3576ee8"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 5
-                },
-                "MeshRenderer": {
-                    "blendMode": "Normal",
-                    "enableZPrepass": true,
-                    "layer": 0,
-                    "material": "",
-                    "mesh": "4bb71d39f94dfe7a",
-                    "order": 0,
-                    "queue": "Opaque",
-                    "subMeshes": [
-                        {
-                            "localPos": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "localRotation": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "localScale": {
-                                "x": 1.0,
-                                "y": 1.0,
-                                "z": 1.0
-                            },
-                            "name": "球",
-                            "parameterOverrides": {
-                                "Metallic": 1.0,
-                                "Roughness": 0.5,
-                                "color": {
-                                    "a": 1.0,
-                                    "b": 0.8508679270744324,
-                                    "g": 0.8508679270744324,
-                                    "r": 0.9144384860992432
-                                }
-                            },
-                            "sourcePivot": {
-                                "x": 5.066394805908203e-07,
-                                "y": 0.0,
-                                "z": 5.066394805908203e-07
-                            },
-                            "sourceSubMeshIndex": 0,
-                            "stableID": "d3a5177c3a130bdc",
-                            "uvPos": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "uvRotation": 0.0,
-                            "uvScale": {
-                                "x": 1.0,
-                                "y": 1.0
-                            }
-                        }
-                    ],
-                    "visible": true
-                },
-                "Name": {
-                    "name": "Sphere"
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileID": "72b98a1fc7df874a",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "localPos": {
-                        "x": 1.6402969360351563,
-                        "y": 1.5174617767333984,
-                        "z": -0.21026611328125
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "72b98a1fc7df874a"
         },
         {
             "Components": {
@@ -406,16 +284,51 @@
         },
         {
             "Components": {
+                "Collision": {
+                    "enablePushback": true,
+                    "enabled": true,
+                    "isStatic": false,
+                    "shapes": [
+                        {
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 3.1699984073638916,
+                                "y": 3.1699984073638916,
+                                "z": 3.1699984073638916
+                            },
+                            "halfSize2D": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "isTrigger": false,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 3.25,
+                                "z": 0.0
+                            },
+                            "radius": 3.9200000762939453,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "OBB3D",
+                            "useTransformRotation": true
+                        }
+                    ],
+                    "typeMask": 2
+                },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 5
+                    "siblingOrder": 7
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
                     "enableZPrepass": true,
                     "layer": 0,
                     "material": "",
-                    "mesh": "6f6bfe556d726c30",
+                    "mesh": "47b726cfe0a81324",
                     "order": 0,
                     "queue": "Opaque",
                     "subMeshes": [
@@ -435,17 +348,880 @@
                                 "y": 1.0,
                                 "z": 1.0
                             },
-                            "name": "Mesh_0",
+                            "name": "平面.009",
                             "parameterOverrides": {
-                                "baseColorTexture": "c2ea9f4498073ab3"
+                                "Metallic": 1.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.1528806835412979,
+                                    "g": 0.12653836607933044,
+                                    "r": 0.10360093414783478
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
                             },
                             "sourcePivot": {
+                                "x": 0.041383445262908936,
+                                "y": 4.671097755432129,
+                                "z": -0.21539711952209473
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "stableID": "4d885636cbf36f09",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
                                 "x": 0.0,
                                 "y": 0.0,
                                 "z": 0.0
                             },
-                            "sourceSubMeshIndex": 0,
-                            "stableID": "031e0fe3f7aecea1",
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "平面.007",
+                            "parameterOverrides": {
+                                "Metallic": 1.0,
+                                "Roughness": 0.6499999761581421,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 0.022255659103393555,
+                                "y": 3.0667574405670166,
+                                "z": -1.9939210414886475
+                            },
+                            "sourceSubMeshIndex": 1,
+                            "stableID": "60cd007c32652503",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "平面.010",
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.1766051948070526,
+                                    "g": 0.014099033549427986,
+                                    "r": 0.06150742620229721
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 0.05567479133605957,
+                                "y": 1.8109755516052246,
+                                "z": -2.2584218978881836
+                            },
+                            "sourceSubMeshIndex": 2,
+                            "stableID": "b37a30f7e6a79e1d",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "平面.006",
+                            "parameterOverrides": {
+                                "Metallic": 1.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.11009568721055984,
+                                    "g": 0.8000156879425049,
+                                    "r": 0.7965072989463806
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 0.04162830114364624,
+                                "y": 3.268733501434326,
+                                "z": 1.6765589714050293
+                            },
+                            "sourceSubMeshIndex": 3,
+                            "stableID": "4a6eba94948a46df",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "平面.008",
+                            "parameterOverrides": {
+                                "Metallic": 1.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.2404923141002655,
+                                    "g": 0.21341463923454285,
+                                    "r": 0.15513448417186737
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 0.041383981704711914,
+                                "y": 3.9294707775115967,
+                                "z": 0.6574219465255737
+                            },
+                            "sourceSubMeshIndex": 4,
+                            "stableID": "5fc038d266d247ef",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球.016",
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.2404923141002655,
+                                    "g": 0.21341463923454285,
+                                    "r": 0.15513448417186737
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": -3.7793784141540527,
+                                "y": 1.6661406755447388,
+                                "z": 0.2280663251876831
+                            },
+                            "sourceSubMeshIndex": 5,
+                            "stableID": "a892a7b50c719463",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球.005",
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.2404923141002655,
+                                    "g": 0.21341463923454285,
+                                    "r": 0.15513448417186737
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 3.9123644828796387,
+                                "y": 1.6439950466156006,
+                                "z": 0.13476872444152832
+                            },
+                            "sourceSubMeshIndex": 6,
+                            "stableID": "abe03f7f1ef92da6",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球.023",
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.1528806835412979,
+                                    "g": 0.12653836607933044,
+                                    "r": 0.10360093414783478
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": -1.3755543231964111,
+                                "y": 0.5445151329040527,
+                                "z": 0.07489001750946045
+                            },
+                            "sourceSubMeshIndex": 7,
+                            "stableID": "dba706bc89d703cf",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球.020",
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.1528806835412979,
+                                    "g": 0.12653836607933044,
+                                    "r": 0.10360093414783478
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 1.4285470247268677,
+                                "y": 0.5445156693458557,
+                                "z": 0.09669947624206543
+                            },
+                            "sourceSubMeshIndex": 8,
+                            "stableID": "23533dd03b1b4ea7",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球.014-0",
+                            "parameterOverrides": {
+                                "Metallic": 1.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.141476109623909,
+                                    "g": 0.0,
+                                    "r": 0.00042291023419238627
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": -3.117037773132324,
+                                "y": 3.7125768661499023,
+                                "z": -0.5933609008789063
+                            },
+                            "sourceSubMeshIndex": 9,
+                            "stableID": "736f5629940bb38e",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球.014-1",
+                            "parameterOverrides": {
+                                "Metallic": 1.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.5443800091743469,
+                                    "r": 0.5768302083015442
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": -2.7738380432128906,
+                                "y": 3.4877777099609375,
+                                "z": -0.6705204248428345
+                            },
+                            "sourceSubMeshIndex": 10,
+                            "stableID": "c32293ac24c16e18",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球.014-2",
+                            "parameterOverrides": {
+                                "Metallic": 1.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.5700556635856628,
+                                    "g": 0.5769235491752625,
+                                    "r": 0.5677781105041504
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": -2.7747974395751953,
+                                "y": 3.493842363357544,
+                                "z": -0.6685268878936768
+                            },
+                            "sourceSubMeshIndex": 11,
+                            "stableID": "74262ce07d28785f",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球.014-3",
+                            "parameterOverrides": {
+                                "Metallic": 1.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.8004969358444214,
+                                    "g": 0.4092237949371338,
+                                    "r": 0.4142324924468994
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": -3.102609395980835,
+                                "y": 4.1308913230896,
+                                "z": -0.6042118072509766
+                            },
+                            "sourceSubMeshIndex": 12,
+                            "stableID": "5f80c951e0139afb",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球.047-0",
+                            "parameterOverrides": {
+                                "Metallic": 1.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.8004969358444214,
+                                    "g": 0.4092237949371338,
+                                    "r": 0.4142324924468994
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 3.3481500148773193,
+                                "y": 4.046478748321533,
+                                "z": -0.2697877883911133
+                            },
+                            "sourceSubMeshIndex": 13,
+                            "stableID": "6b152740e0c39882",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球.047-1",
+                            "parameterOverrides": {
+                                "Metallic": 1.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.141476109623909,
+                                    "g": 0.0,
+                                    "r": 0.00042291023419238627
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 3.273256778717041,
+                                "y": 3.6099464893341064,
+                                "z": -0.25532621145248413
+                            },
+                            "sourceSubMeshIndex": 14,
+                            "stableID": "0caf9e3d9aedae6e",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球.047-2",
+                            "parameterOverrides": {
+                                "Metallic": 1.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.5443800091743469,
+                                    "r": 0.5768302083015442
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 2.8541693687438965,
+                                "y": 3.4205923080444336,
+                                "z": -0.2584362030029297
+                            },
+                            "sourceSubMeshIndex": 15,
+                            "stableID": "3c51c49779baf730",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球.047-3",
+                            "parameterOverrides": {
+                                "Metallic": 1.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.5700556635856628,
+                                    "g": 0.5769235491752625,
+                                    "r": 0.5677781105041504
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 2.8559539318084717,
+                                "y": 3.4266152381896973,
+                                "z": -0.25763899087905884
+                            },
+                            "sourceSubMeshIndex": 16,
+                            "stableID": "824749929a27d048",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "円.001",
+                            "parameterOverrides": {
+                                "Metallic": 1.0,
+                                "Roughness": 0.4300000071525574,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": -0.01601386070251465,
+                                "y": 1.4411544799804688,
+                                "z": -1.6345871686935425
+                            },
+                            "sourceSubMeshIndex": 17,
+                            "stableID": "d7bba307434a40e5",
                             "uvPos": {
                                 "x": 0.0,
                                 "y": 0.0
@@ -460,18 +1236,63 @@
                     "visible": true
                 },
                 "Name": {
-                    "name": "Cube"
+                    "name": "Player"
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "3e6f5e73cd24700b",
+                    "localFileID": "6d6cda8f769c6a9c",
                     "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.PlayerAction",
+                        "scriptAsset": "",
+                        "scriptSlotID": "7795eafdd400d608",
+                        "scriptTypeId": "db3421b7-49fd-4e8c-bc05-03257af3d1f5",
+                        "serializedFields": {
+                            "fields": {
+                                "292c25da-a25d-42d0-8ad2-293997b193ed": {
+                                    "name": "moveSpeed",
+                                    "type": "float",
+                                    "value": 5
+                                },
+                                "d455b071-d5f2-4f1e-ae2a-a385f8400e3e": {
+                                    "name": "rotationLerpRate",
+                                    "type": "float",
+                                    "value": 12
+                                },
+                                "f7a8aed8-b4ab-4e96-8af9-f1f2452e2aad": {
+                                    "name": "stickDeadZone",
+                                    "type": "float",
+                                    "value": 0.2
+                                },
+                                "fcf4cef6-4ca1-4188-a627-84fde4a964d0": {
+                                    "name": "sphere",
+                                    "type": "AssetRef",
+                                    "value": {
+                                        "assetId": ""
+                                    }
+                                }
+                            },
+                            "schemaVersion": 2,
+                            "unresolvedFields": {}
+                        }
+                    }
+                ],
+                "SkinnedAnimation": {
+                    "clip": "walk",
+                    "enabled": true,
+                    "loop": true,
+                    "playInEditMode": false,
+                    "playbackSpeed": 1.0,
+                    "transitionDuration": 0.15000000596046448
                 },
                 "Transform": {
                     "localPos": {
-                        "x": -0.5866889953613281,
-                        "y": 1.5174617767333984,
-                        "z": -0.21026611328125
+                        "x": 0.02366386353969574,
+                        "y": 0.11329194903373718,
+                        "z": -2.2828197479248047
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -480,13 +1301,13 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
+                        "x": 0.2999997138977051,
+                        "y": 0.2999997138977051,
+                        "z": 0.2999997138977051
                     }
                 }
             },
-            "LocalFileID": "3e6f5e73cd24700b"
+            "LocalFileID": "6d6cda8f769c6a9c"
         },
         {
             "Components": {
@@ -577,10 +1398,220 @@
                 }
             },
             "LocalFileID": "6fe12a97a65c9a37"
+        },
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": true,
+                    "enabled": true,
+                    "isStatic": true,
+                    "shapes": [
+                        {
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 0.9999996423721313,
+                                "y": 0.9999996423721313,
+                                "z": 0.9999996423721313
+                            },
+                            "halfSize2D": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "isTrigger": false,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "radius": 0.5,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "OBB3D",
+                            "useTransformRotation": true
+                        }
+                    ],
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "",
+                    "mesh": "6f6bfe556d726c30",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "Mesh_0",
+                            "parameterOverrides": {
+                                "baseColorTexture": "c2ea9f4498073ab3"
+                            },
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "stableID": "c15106cc0a78b015",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "ab0cbb13e851d99f",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 1.0446159839630127,
+                        "z": 6.400527477264404
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.7000001072883606,
+                        "y": 0.7000001072883606,
+                        "z": 0.7000001072883606
+                    }
+                }
+            },
+            "LocalFileID": "ab0cbb13e851d99f"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 9
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "",
+                    "mesh": "4bb71d39f94dfe7a",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "球",
+                            "parameterOverrides": {
+                                "Metallic": 0.0,
+                                "Roughness": 1.0
+                            },
+                            "sourcePivot": {
+                                "x": 5.066394805908203e-07,
+                                "y": 0.0,
+                                "z": 5.066394805908203e-07
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "stableID": "783915dbd802faab",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Object"
+                },
+                "PrefabLink": {
+                    "isPrefabRoot": true,
+                    "prefabAsset": "f318cb4482d55416",
+                    "prefabInstanceID": "745fae0b39d9483c",
+                    "prefabLocalFileID": "4697ebacacc55088"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "4697ebacacc55088",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 1.1612751483917236,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "4697ebacacc55088"
         }
     ],
     "Header": {
-        "collisionSettings": "a31cb25cb8ce4d7a",
+        "collisionSettings": "ff3d77c2175d301d",
         "guid": "14e725af11db39f0",
         "name": "TitleScene",
         "postProcessStack": "421a1287b7323a99",

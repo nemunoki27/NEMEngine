@@ -188,6 +188,20 @@ void Engine::PostProcessStackTool::DrawWindow(const EditorToolContext& context) 
 		selectedPassIndex_ = -1;
 	}
 
+	// 別シーンのPostProcessStack設定ファイルを参照して現在のシーンへ結びつける
+	if (SceneHeader* header = ResolveActiveSceneHeader(context.toolContext)) {
+		AssetID picked = header->postProcessStack;
+		AssetEditSetting setting{};
+		if (MyGUI::AssetReferenceField("読み込み", picked, context.toolContext.assetDatabase,
+			{ AssetType::PostProcessStack }, setting).valueChanged) {
+
+			header->postProcessStack = picked;
+			service.SetActiveSettingsAsset(picked, context.toolContext.assetDatabase);
+			lastStackAsset_ = picked;
+			selectedPassIndex_ = -1;
+		}
+	}
+
 	ImGui::Separator();
 
 	// .postProcessStack.jsonドロップゾーン

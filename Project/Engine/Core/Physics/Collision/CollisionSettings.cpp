@@ -152,6 +152,37 @@ void Engine::CollisionSettings::RemoveLastType() {
 	Save();
 }
 
+void Engine::CollisionSettings::RemoveType(uint32_t index) {
+
+	EnsureLoaded();
+	// 最低1つは残す、範囲外は無視する
+	if (index >= types_.size() || types_.size() <= 1) {
+		return;
+	}
+
+	// 詰める前のペア衝突可否を退避し、indexを除いて行列を作り直す
+	const std::array<uint32_t, kMaxCollisionTypes> oldRows = matrixRows_;
+	types_.erase(types_.begin() + index);
+
+	matrixRows_.fill(0);
+	const uint32_t newCount = GetTypeCount();
+	for (uint32_t y = 0; y < newCount; ++y) {
+
+		// 削除indexをまたぐ位置は元の行/列を1つ繰り上げて引き継ぐ
+		const uint32_t srcY = (y < index) ? y : y + 1;
+		for (uint32_t x = 0; x < newCount; ++x) {
+
+			const uint32_t srcX = (x < index) ? x : x + 1;
+			if ((oldRows[srcY] & MakeCollisionTypeBit(srcX)) != 0) {
+				matrixRows_[y] |= MakeCollisionTypeBit(x);
+			}
+		}
+	}
+
+	TrimMatrix();
+	Save();
+}
+
 void Engine::CollisionSettings::SetTypeName(uint32_t index, const std::string& name) {
 
 	EnsureLoaded();

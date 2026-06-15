@@ -1054,11 +1054,11 @@ void Engine::InspectorPanel::DrawComponentToolbar(const EditorPanelContext& cont
 	}
 
 	// コンポーネントの追加、削除のボタンを表示する
-	if (ImGui::Button("Add Component", ImVec2(width, 0.0f))) {
+	if (ImGui::Button("コンポーネント追加", ImVec2(width, 0.0f))) {
 		ImGui::OpenPopup("##Inspector_AddComponentPopup");
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Remove Component", ImVec2(width, 0.0f))) {
+	if (ImGui::Button("コンポーネント削除", ImVec2(width, 0.0f))) {
 		ImGui::OpenPopup("##Inspector_RemoveComponentPopup");
 	}
 
