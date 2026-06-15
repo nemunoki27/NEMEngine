@@ -33,7 +33,20 @@
                             },
                             "name": "球",
                             "parameterOverrides": {
-                                "Metallic": 1.0
+                                "Metallic": 0.0,
+                                "Roughness": 1.0,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.6000000238418579,
+                                    "g": 0.6000000238418579,
+                                    "r": 0.6000000238418579
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
                             },
                             "sourcePivot": {
                                 "x": 5.066394805908203e-07,
@@ -60,14 +73,14 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "71ccfcbaaa694678",
+                    "localFileID": "769826118c91b638",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 0.0,
-                        "y": 1.229780912399292,
-                        "z": 0.9773397445678711
+                        "x": -0.1119229793548584,
+                        "y": 0.0,
+                        "z": 0.0
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -82,13 +95,13 @@
                     }
                 }
             },
-            "LocalFileID": "71ccfcbaaa694678"
+            "LocalFileID": "769826118c91b638"
         }
     ],
     "Header": {
         "guid": "0dde87f33c37f88b",
         "name": "Object",
-        "rootLocalFileID": "71ccfcbaaa694678",
+        "rootLocalFileID": "769826118c91b638",
         "version": 1
     }
 }

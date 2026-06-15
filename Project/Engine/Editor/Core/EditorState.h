@@ -72,6 +72,11 @@ namespace Engine {
 		// アセット選択操作が行われるたびに進むカウンタ
 		uint64_t assetSelectionRevision = 0;
 
+		// プレファブ編集モード、.prefabダブルクリックで一時インスタンスを生成して編集する
+		// 編集中はSceneViewをプレビュー表示へ切り替え、選択解除で一時インスタンスを破棄して.prefabへ保存する
+		AssetID prefabEditAsset{};
+		Entity prefabEditInstance = Entity::Null();
+
 		// 現在選択しているオブジェクトの種類
 		EditorSelectionKind selectionKind = EditorSelectionKind::None;
 		uint32_t selectedSubMeshIndex = 0;

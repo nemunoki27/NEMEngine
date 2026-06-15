@@ -861,6 +861,7 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	panelContext.graphicsPlatform = &graphicsCore.GetDXObject();
 	panelContext.renderPipeline = renderPipeline;
 	panelContext.sceneRenderView = sceneRenderView;
+	panelContext.sceneViewCamera = GetSceneViewCameraState();
 
 	// ドッキングスペースの描画
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PostScene);

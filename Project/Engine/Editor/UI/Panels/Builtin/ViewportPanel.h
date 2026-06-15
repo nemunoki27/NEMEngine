@@ -7,11 +7,13 @@
 #include <Engine/Core/Platform/Input/InputTypes.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 
 // json
 #include <json.hpp>
 
 // c++
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -122,9 +124,18 @@ namespace Engine {
 		// アイコンボタンのサイズ
 		const ImVec2 buttonSize_ = ImVec2(32.0f, 32.0f);
 
+		// プレファブ編集プレビュー用の描画先、編集中だけSceneViewへ表示する
+		std::unique_ptr<MultiRenderTarget> prefabPreviewSurface_;
+		uint32_t prefabPreviewWidth_ = 0;
+		uint32_t prefabPreviewHeight_ = 0;
+
 		//--------- functions ----------------------------------------------------
 
 		void DrawViewportContent(const EditorPanelContext& context, const char* id, const ImVec2& size);
+
+		// プレファブ編集中なら編集インスタンスをプレビューサーフェスへ描画し、表示用テクスチャを返す
+		// 編集中でなければnullptrを返し、通常のSceneView画像を表示させる
+		const RenderTexture2D* RenderPrefabEditPreview(const EditorPanelContext& context, uint32_t width, uint32_t height);
 
 		// シーンギズモの描画
 		void DrawSceneGizmo(const EditorPanelContext& context);

@@ -6,6 +6,7 @@
 #include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Core/EditorLayoutState.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 
 namespace Engine {
 
@@ -40,6 +41,8 @@ namespace Engine {
 		// ビューポート描画に必要なリソースを管理するサービス
 		const ViewportRenderService* viewportRenderService = nullptr;
 		const ResolvedRenderView* sceneRenderView = nullptr;
+		// SceneViewのカメラ状態、プレファブ編集プレビューの描画に流用する
+		ManualRenderCameraState sceneViewCamera{};
 
 		ECSWorld* GetWorld() const { return editorContext ? editorContext->activeWorld : nullptr; }
 

@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Views/ViewportRenderService.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTexture2D.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
@@ -292,6 +295,14 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 
 	if (const RenderTexture2D* display = context.viewportRenderService->GetDisplayTexture(viewKind)) {
 
+		// プレファブ編集中はSceneViewの画像を編集インスタンスのプレビューへ切り替える
+		const RenderTexture2D* shown = display;
+		if (const RenderTexture2D* preview = RenderPrefabEditPreview(context,
+			display->GetRenderTarget().width, display->GetRenderTarget().height)) {
+
+			shown = preview;
+		}
+
 		// 表示サイズ
 		Vector2 srcSize(static_cast<float>(display->GetRenderTarget().width), static_cast<float>(display->GetRenderTarget().height));
 
@@ -348,8 +359,8 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		Input::GetInstance()->SetViewRect(inputArea, Vector2(imagePos.x, imagePos.y),
 			Vector2(viewSize_.x, viewSize_.y), srcSize);
 
-		// 描画ビューのサーフェスをImGuiに描画
-		ImGui::Image(static_cast<ImTextureID>(display->GetSRVGPUHandle().ptr), viewSize_);
+		// 描画ビューのサーフェスをImGuiに描画、プレファブ編集中はプレビュー画像を表示する
+		ImGui::Image(static_cast<ImTextureID>(shown->GetSRVGPUHandle().ptr), viewSize_);
 
 		// シーンビューの場合はシーンギズモも描画
 		bool blockDragByGizmo = false;
@@ -361,6 +372,74 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		DrawViewportEntityDragDropSource(context, blockDragByGizmo);
 	}
 	ImGui::EndChild();
+}
+
+const Engine::RenderTexture2D* Engine::ViewportPanel::RenderPrefabEditPreview(
+	const EditorPanelContext& context, uint32_t width, uint32_t height) {
+
+	// SceneViewのみが対象、編集中でなければ通常のSceneView画像へ戻す
+	if (kind_ != ViewportPanelKind::Scene || !context.editorState ||
+		!context.graphicsCore || !context.renderPipeline || !context.editorContext) {
+		return nullptr;
+	}
+	ECSWorld* world = context.GetWorld();
+	const Entity instance = context.editorState->prefabEditInstance;
+	AssetDatabase* assetDatabase = context.editorContext->assetDatabase;
+	if (!instance.IsValid() || !world || !world->IsAlive(instance) || !assetDatabase ||
+		width == 0 || height == 0) {
+		return nullptr;
+	}
+
+	// サイズが変わったら描画先を作り直す
+	if (!prefabPreviewSurface_ || prefabPreviewWidth_ != width || prefabPreviewHeight_ != height) {
+
+		prefabPreviewSurface_ = std::make_unique<MultiRenderTarget>();
+
+		// SceneViewと同じ構成のサーフェスを作る、色はHDR、深度はSceneViewと同形式
+		MultiRenderTargetCreateDesc desc{};
+		desc.width = width;
+		desc.height = height;
+		ColorAttachmentDesc color{};
+		color.name = "Preview.Color";
+		color.format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		color.clearColor = Color4::FromHex(0x306030ff);
+		color.createUAV = false;
+		desc.colors.emplace_back(color);
+		DepthTextureCreateDesc depth{};
+		depth.width = width;
+		depth.height = height;
+		depth.resourceFormat = DXGI_FORMAT_R24G8_TYPELESS;
+		depth.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		depth.srvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		depth.debugName = L"PrefabPreviewDepth";
+		desc.depth = depth;
+
+		prefabPreviewSurface_->Create(context.graphicsCore->GetDXObject().GetDevice(),
+			&context.graphicsCore->GetRTVDescriptor(), &context.graphicsCore->GetDSVDescriptor(),
+			&context.graphicsCore->GetSRVDescriptor(), desc);
+		prefabPreviewWidth_ = width;
+		prefabPreviewHeight_ = height;
+	}
+	if (!prefabPreviewSurface_->IsValid()) {
+		return nullptr;
+	}
+
+	// 既存のSceneViewカメラで、編集インスタンスだけをプレビューサーフェスへ描画する
+	EntityPreviewRenderRequest request{};
+	request.world = world;
+	request.assetDatabase = assetDatabase;
+	request.sceneHeader = context.editorContext->activeSceneHeader;
+	request.sceneInstanceID = context.editorContext->activeSceneInstanceID;
+	request.rootEntity = instance;
+	request.surface = prefabPreviewSurface_.get();
+	request.camera = context.sceneViewCamera;
+	request.clearSurface = true;
+	request.drawGrid3D = context.editorState->drawSceneViewDefaultGrid;
+	if (!context.renderPipeline->RenderEntityPreview(*context.graphicsCore, request)) {
+		return nullptr;
+	}
+
+	return prefabPreviewSurface_->GetColorTexture(0);
 }
 
 void Engine::ViewportPanel::DrawSceneGizmo(const EditorPanelContext& context) {
