@@ -24,7 +24,8 @@ namespace Engine {
 	// v7: gameplay APIとしてTime拡張TimeScale frame tickやEntity生成やPrefab SceneやAssetRef解決やInput拡張やAudio Animation Applicationを追加
 	// v8:診断APIのreportScriptExceptionとscript descriptorのdefaultExecutionOrderを追加
 	// v9: GetComponent<Script>用にentityのscript instanceをscriptTypeIdで引くgetScriptInstanceを追加
-	inline constexpr uint32_t kManagedAbiVersion = 9;
+	// v10: Scene単一load用のloadSceneSingleを追加
+	inline constexpr uint32_t kManagedAbiVersion = 10;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -397,6 +398,8 @@ namespace Engine {
 		ReportStringCallback reportScriptException = nullptr;
 		// GetComponent<Script> v9のentityのscript instanceをscriptTypeIdで引く
 		GetScriptInstanceCallback getScriptInstance = nullptr;
+		// SceneTransition v10のScene単一load、新sceneをactiveにし旧sceneを全unloadする
+		LoadSceneCallback loadSceneSingle = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

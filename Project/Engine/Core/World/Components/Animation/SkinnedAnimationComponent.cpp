@@ -11,6 +11,7 @@ void Engine::from_json(const nlohmann::json& in, SkinnedAnimationComponent& comp
 	component.playbackSpeed = in.value("playbackSpeed", 1.0f);
 	component.transitionDuration = in.value("transitionDuration", 0.15f);
 	component.clip = in.value("clip", std::string("Default"));
+	component.isDisplayBone = in.value("isDisplayBone", false);
 
 	// ランタイムデータは初期化
 	component.runtimeMesh = {};
@@ -39,4 +40,5 @@ void Engine::to_json(nlohmann::json& out, const SkinnedAnimationComponent& compo
 	out["playbackSpeed"] = component.playbackSpeed;
 	out["transitionDuration"] = component.transitionDuration;
 	out["clip"] = component.clip;
+	out["isDisplayBone"] = component.isDisplayBone;
 }

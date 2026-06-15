@@ -240,6 +240,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.createEntity = &ManagedScriptRuntime::CreateEntityCallback;
 	callbacks.instantiatePrefab = &ManagedScriptRuntime::InstantiatePrefabCallback;
 	callbacks.loadSceneAdditive = &ManagedScriptRuntime::LoadSceneAdditiveCallback;
+	callbacks.loadSceneSingle = &ManagedScriptRuntime::LoadSceneSingleCallback;
 	callbacks.unloadScene = &ManagedScriptRuntime::UnloadSceneCallback;
 	callbacks.isSceneInstanceAlive = &ManagedScriptRuntime::IsSceneInstanceAliveCallback;
 	callbacks.setParentKeepWorld = &ManagedScriptRuntime::SetParentKeepWorldCallback;

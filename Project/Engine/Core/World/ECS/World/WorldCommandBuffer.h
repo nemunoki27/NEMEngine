@@ -74,6 +74,8 @@ namespace Engine {
 		// Sceneをadditive load / unloadする、instanceはUUID
 		void EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, const UUID& sceneAsset);
 		void EnqueueUnloadScene(const UUID& sceneInstanceID);
+		// Sceneを単一loadする、新sceneをloadしてactiveにし、それまでの全sceneをunloadする
+		void EnqueueLoadSceneSingle(const UUID& sceneInstanceID, const UUID& sceneAsset);
 
 		// 予約直後のEntityへのtransform書き込みをstagingする、flush前は実componentが無いため
 		// 対象がpending CreateEntity / InstantiatePrefabコマンドに無ければfalseで呼び出し側は通常処理へ
@@ -112,6 +114,7 @@ namespace Engine {
 			CreateEntity,
 			InstantiatePrefab,
 			LoadSceneAdditive,
+			LoadSceneSingle,
 			UnloadScene,
 		};
 

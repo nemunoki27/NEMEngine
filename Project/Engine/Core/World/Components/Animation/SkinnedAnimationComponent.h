@@ -60,6 +60,9 @@ namespace Engine {
 
 		// 再生可能なアニメーションクリップの名前
 		std::vector<std::string> runtimeAvailableClips{};
+
+		// エディター上でボーンを表示するか
+		bool isDisplayBone = false;
 	};
 
 	// json変換

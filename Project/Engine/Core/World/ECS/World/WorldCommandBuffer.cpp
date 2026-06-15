@@ -222,6 +222,15 @@ void Engine::WorldCommandBuffer::EnqueueUnloadScene(const UUID& sceneInstanceID)
 	commands_.emplace_back(std::move(command));
 }
 
+void Engine::WorldCommandBuffer::EnqueueLoadSceneSingle(const UUID& sceneInstanceID, const UUID& sceneAsset) {
+
+	Command command{};
+	command.kind = CommandKind::LoadSceneSingle;
+	command.sceneInstanceID = sceneInstanceID;
+	command.assetID = sceneAsset;
+	commands_.emplace_back(std::move(command));
+}
+
 Engine::WorldCommandBuffer::Command* Engine::WorldCommandBuffer::FindPendingCreateCommand(const Entity& reserved) {
 
 	auto it = createCommandIndex_.find(EntityKey(reserved));
@@ -334,7 +343,8 @@ void Engine::WorldCommandBuffer::Clear() {
 void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) {
 
 	// Sceneコマンドはtarget Entityを持たないため、IsAlive検証より前に処理する
-	if (command.kind == CommandKind::LoadSceneAdditive || command.kind == CommandKind::UnloadScene) {
+	if (command.kind == CommandKind::LoadSceneAdditive || command.kind == CommandKind::LoadSceneSingle ||
+		command.kind == CommandKind::UnloadScene) {
 
 		const WorldCommandServices& services = world.GetCommandServices();
 		if (!services.sceneInstances || !services.assetDatabase || !services.sceneSystem) {
@@ -345,6 +355,24 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 		if (command.kind == CommandKind::LoadSceneAdditive) {
 			services.sceneInstances->LoadAdditive(*services.assetDatabase, *services.sceneSystem, world,
 				AssetID{ command.assetID }, command.sceneInstanceID);
+		} else if (command.kind == CommandKind::LoadSceneSingle) {
+
+			// 単一ロード、UnityのadditiveでないLoadScene相当
+			// 新sceneをloadする前に現在ロード中のsceneIDを退避し、新sceneをactiveにしてから旧sceneを全てunloadする
+			std::vector<UUID> previousScenes;
+			previousScenes.reserve(services.sceneInstances->GetAll().size());
+			for (const SceneInstance& scene : services.sceneInstances->GetAll()) {
+				previousScenes.emplace_back(scene.instanceID);
+			}
+			services.sceneInstances->LoadAdditive(*services.assetDatabase, *services.sceneSystem, world,
+				AssetID{ command.assetID }, command.sceneInstanceID);
+			services.sceneInstances->SetActive(command.sceneInstanceID);
+			// 新scene以外の旧sceneを全てunloadする
+			for (const UUID& previous : previousScenes) {
+				if (previous != command.sceneInstanceID) {
+					services.sceneInstances->Unload(world, previous);
+				}
+			}
 		} else {
 			services.sceneInstances->Unload(world, command.sceneInstanceID);
 		}

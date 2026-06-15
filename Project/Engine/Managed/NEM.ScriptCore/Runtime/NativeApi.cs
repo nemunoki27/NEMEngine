@@ -16,7 +16,8 @@ internal static class ManagedAbi {
     // v7: gameplay API(Time拡張/TimeScale, AssetRef解決, Entity生成, Prefab/Scene, Input拡張, Audio/Animation/Application)を追加
     // v8: 診断 API(reportScriptException) と script descriptor の defaultExecutionOrder を追加
     // v9: GetComponent<Script> 用に entity の script instance を scriptTypeId で引く getScriptInstance を追加
-    internal const uint Version = 9;
+    // v10: Scene 単一load用の loadSceneSingle を追加
+    internal const uint Version = 10;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -183,6 +184,7 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity, NativeEntity> CreateEntity;
     internal static delegate* unmanaged[Cdecl]<ulong, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> InstantiatePrefab;
     internal static delegate* unmanaged[Cdecl]<ulong, ulong> LoadSceneAdditive;
+    internal static delegate* unmanaged[Cdecl]<ulong, ulong> LoadSceneSingle;
     internal static delegate* unmanaged[Cdecl]<ulong, void> UnloadScene;
     internal static delegate* unmanaged[Cdecl]<ulong, int> IsSceneInstanceAlive;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity, int, void> SetParentKeepWorld;
@@ -271,6 +273,7 @@ internal static unsafe class NativeApi {
         CreateEntity = callbacks->createEntity;
         InstantiatePrefab = callbacks->instantiatePrefab;
         LoadSceneAdditive = callbacks->loadSceneAdditive;
+        LoadSceneSingle = callbacks->loadSceneSingle;
         UnloadScene = callbacks->unloadScene;
         IsSceneInstanceAlive = callbacks->isSceneInstanceAlive;
         SetParentKeepWorld = callbacks->setParentKeepWorld;
@@ -651,6 +654,7 @@ internal static unsafe class NativeApi {
     }
 
     internal static ulong SceneLoadAdditive(ulong sceneAssetId) => LoadSceneAdditive != null ? LoadSceneAdditive(sceneAssetId) : 0ul;
+    internal static ulong SceneLoadSingle(ulong sceneAssetId) => LoadSceneSingle != null ? LoadSceneSingle(sceneAssetId) : 0ul;
     internal static void SceneUnload(ulong sceneInstanceId) { if (UnloadScene != null) { UnloadScene(sceneInstanceId); } }
     internal static bool SceneInstanceAlive(ulong sceneInstanceId) => IsSceneInstanceAlive != null && IsSceneInstanceAlive(sceneInstanceId) != 0;
     internal static void ReparentKeepWorld(NativeEntity child, NativeEntity parent, bool worldPositionStays) {
@@ -817,4 +821,6 @@ public unsafe struct NativeApiTable {
     // Diagnostics(v8): script callback 例外の構造化報告（JSON DTO を 1 件渡す）
     public delegate* unmanaged[Cdecl]<byte*, void> reportScriptException;
     public delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle> getScriptInstance;
+    // SceneTransition(v10): Scene 単一load（C++ ManagedNativeApiTable と同一順）
+    public delegate* unmanaged[Cdecl]<ulong, ulong> loadSceneSingle;
 }

@@ -74,6 +74,19 @@ namespace Engine {
 		return instanceID.value;
 	}
 
+	uint64_t ManagedScriptRuntime::LoadSceneSingleCallback(uint64_t sceneAssetId) {
+
+		const SystemContext* context = GetCurrentContext();
+		ECSWorld* world = context ? context->world : nullptr;
+		if (!world || sceneAssetId == 0) {
+			return 0;
+		}
+		// 単一ロード、新sceneをactiveにし旧sceneを全てunloadする処理はflushで行う
+		const UUID instanceID = UUID::New();
+		world->GetCommandBuffer().EnqueueLoadSceneSingle(instanceID, UUID{ sceneAssetId });
+		return instanceID.value;
+	}
+
 	void ManagedScriptRuntime::UnloadSceneCallback(uint64_t sceneInstanceId) {
 
 		const SystemContext* context = GetCurrentContext();

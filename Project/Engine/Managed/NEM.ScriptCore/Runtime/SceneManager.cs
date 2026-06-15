@@ -1,5 +1,14 @@
 namespace NEMEngine;
 
+// シーンの読み込みモード。Unity の LoadSceneMode 相当。
+public enum LoadSceneMode {
+
+    // 現在の scene を全て unload してから読み込み、新 scene を active にする（完全切り替え）
+    Single,
+    // 現在の scene を残したまま加算で読み込む
+    Additive,
+}
+
 // シーンインスタンスへの opaque handle。native の scene instance UUID を保持する（pointer は持たない）。
 public readonly struct SceneHandle : IEquatable<SceneHandle> {
 
@@ -45,6 +54,23 @@ public static class SceneManager {
     // 追加シーンを load する。SceneHandle を即時返す（load 自体は次の flush で適用）。
     public static SceneHandle LoadAdditive(AssetRef<SceneAsset> scene) {
         ulong id = NativeApi.SceneLoadAdditive(scene.id.value);
+        if (id == 0) {
+            return default;
+        }
+        var handle = new SceneHandle(id);
+        pendingLoad.Add((handle, scene.id));
+        return handle;
+    }
+
+    // Unity の SceneManager.LoadScene 相当。mode で単一/加算を切り替える。
+    // Single は新 scene を active にし、それまでに load 済みの scene を全て unload する（完全切り替え）。
+    // Additive は現在の scene を残したまま新 scene を読み込む（LoadAdditive と同じ）。
+    public static SceneHandle LoadScene(AssetRef<SceneAsset> scene, LoadSceneMode mode = LoadSceneMode.Single) {
+        if (mode == LoadSceneMode.Additive) {
+            return LoadAdditive(scene);
+        }
+
+        ulong id = NativeApi.SceneLoadSingle(scene.id.value);
         if (id == 0) {
             return default;
         }

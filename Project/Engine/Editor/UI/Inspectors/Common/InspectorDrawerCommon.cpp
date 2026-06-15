@@ -161,9 +161,10 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {
 
 		auto& animation = world.GetComponent<SkinnedAnimationComponent>(entity);
-
-		// スケルトンのジョイントを描画
-		renderer3D->DrawSkeleton(transform.worldMatrix, animation.runtimeSkeleton);
+		if (animation.isDisplayBone) {
+			// スケルトンのジョイントを描画
+			renderer3D->DrawSkeleton(transform.worldMatrix, animation.runtimeSkeleton);
+		}
 	}
 	// 平行光源
 	if (world.HasComponent<DirectionalLightComponent>(entity)) {

@@ -38,6 +38,9 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields([[maybe_unused]] const 
 			return MyGUI::DragFloat("遷移時間", draft.transitionDuration,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 10.0f });
 			});
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawCheckboxField("骨表示", draft.isDisplayBone);
+			});
 	}
 
 	ImGui::Separator();

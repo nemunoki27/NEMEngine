@@ -1283,6 +1283,7 @@
                 "SkinnedAnimation": {
                     "clip": "walk",
                     "enabled": true,
+                    "isDisplayBone": false,
                     "loop": true,
                     "playInEditMode": false,
                     "playbackSpeed": 1.0,
@@ -1521,6 +1522,63 @@
                 }
             },
             "LocalFileID": "ab0cbb13e851d99f"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 9
+                },
+                "Name": {
+                    "name": "ToGameEvent"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "e8611522539f03c3",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ToGameEvent",
+                        "scriptAsset": "",
+                        "scriptSlotID": "bb5d8ac1534f0924",
+                        "scriptTypeId": "fbaa8692-dc7e-46bb-bdc0-1d1372812d77",
+                        "serializedFields": {
+                            "fields": {
+                                "08a519e2-d797-4aac-861b-98c886139f8a": {
+                                    "name": "gameScene",
+                                    "type": "AssetRef",
+                                    "value": {
+                                        "assetId": "8fd751029b486799"
+                                    }
+                                }
+                            },
+                            "schemaVersion": 2,
+                            "unresolvedFields": {}
+                        }
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "e8611522539f03c3"
         }
     ],
     "Header": {
