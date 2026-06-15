@@ -3,12 +3,12 @@ using NEMEngine;
 namespace SandboxScripts;
 
 //============================================================================
-//	ToGameEvent
+//	ToNextSceneEvent
 //============================================================================
-public sealed class ToGameEvent : ScriptBehaviour
+public sealed class ToNextSceneEvent : ScriptBehaviour
 {
     [SerializeField]
-    private AssetRef<SceneAsset> gameScene;
+    private AssetRef<SceneAsset> nextScene;
     // シーンリクエストフラグ
     private bool requested;
 
@@ -31,11 +31,11 @@ public sealed class ToGameEvent : ScriptBehaviour
     {
 
         // 遷移不可の時は処理しない
-        if (gameScene.IsNull || requested)
+        if (nextScene.IsNull || requested)
         {
             return;
         }
-        SceneManager.LoadScene(gameScene, LoadSceneMode.Single);
+        SceneManager.LoadScene(nextScene, LoadSceneMode.Single);
         // シーンリクエスト済み
         requested = true;
     }
