@@ -17,9 +17,12 @@ public sealed class PlayerAction : ScriptBehaviour
     [SerializeField]
     private float stickDeadZone = 0.2f;
 
+    // プレファブ発生オフセットY
+    [SerializeField]
+    private float createPrefabPosY = 0.0f;
     // 発生させるPrefab
     [SerializeField]
-    private AssetRef<PrefabAsset> sphere;
+    private AssetRef<PrefabAsset> prefab;
 
     //========================================================================
     //	更新フレーム開始処理
@@ -55,12 +58,15 @@ public sealed class PlayerAction : ScriptBehaviour
         if (Input.GetKeyDown(KeyCode.Space))
         {
             // Prefabが未割り当てなら何もしない
-            if (sphere.IsNull)
+            if (prefab.IsNull)
             {
                 return;
             }
+            Vector3 createPos = transform.position;
+            createPos.y = createPrefabPosY;
+
             // プレイヤーの足元へ現在の向きで生成する
-            Prefab.Instantiate(sphere, transform.position, transform.rotation);
+            Prefab.Instantiate(prefab, createPos, transform.rotation);
         }
     }
     //========================================================================
