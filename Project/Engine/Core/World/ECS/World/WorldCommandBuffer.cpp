@@ -425,6 +425,20 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 
 		// 予約済みの空EntityをGameObjectとしてmaterializeしTransform/SceneObject/Nameを付与する
 		SceneAuthoring::EnsureGameObjectDefaults(world, command.target);
+		// 生成EntityをsceneInstanceへ所属させる、InstantiatePrefabと同様に未設定だと描画フィルタで除外される
+		const WorldCommandServices& services = world.GetCommandServices();
+		if (SceneObjectComponent* sceneObject = world.TryGetComponent<SceneObjectComponent>(command.target)) {
+			if (world.IsAlive(command.parent)) {
+				if (const SceneObjectComponent* parentSceneObject = world.TryGetComponent<SceneObjectComponent>(command.parent)) {
+					sceneObject->sceneInstanceID = parentSceneObject->sceneInstanceID;
+				}
+			}
+			if (!sceneObject->sceneInstanceID && services.sceneInstances) {
+				if (const SceneInstance* activeScene = services.sceneInstances->GetActive()) {
+					sceneObject->sceneInstanceID = activeScene->instanceID;
+				}
+			}
+		}
 		if (!command.text.empty()) {
 			NameComponent* nameComponent = world.TryGetComponent<NameComponent>(command.target);
 			if (!nameComponent) {
@@ -466,6 +480,19 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 		desc.parent = world.IsAlive(command.parent) ? command.parent : Entity::Null();
 		// 予約済みルートをPrefabSystemのルートとして使わせる、deferredでも実root handleを返せるようにする
 		desc.reservedRoot = command.target;
+		// 生成インスタンスをsceneInstanceへ所属させる、未設定だとsceneInstanceIDが空のままになり
+		// RenderPassItemCollectorのscene振り分けで除外されてDrawが発行されない
+		// 親があれば親のsceneを継ぎ、無ければアクティブsceneへ所属させる
+		if (world.IsAlive(desc.parent)) {
+			if (const SceneObjectComponent* parentSceneObject = world.TryGetComponent<SceneObjectComponent>(desc.parent)) {
+				desc.ownerSceneInstanceID = parentSceneObject->sceneInstanceID;
+			}
+		}
+		if (!desc.ownerSceneInstanceID && services.sceneInstances) {
+			if (const SceneInstance* activeScene = services.sceneInstances->GetActive()) {
+				desc.ownerSceneInstanceID = activeScene->instanceID;
+			}
+		}
 		if (!prefabSystem.InstantiatePrefab(*services.assetDatabase, hierarchySystem, world,
 			AssetID{ command.assetID }, result, desc)) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,

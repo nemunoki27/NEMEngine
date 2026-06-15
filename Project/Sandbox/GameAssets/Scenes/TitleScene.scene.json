@@ -1271,7 +1271,7 @@
                                     "name": "sphere",
                                     "type": "AssetRef",
                                     "value": {
-                                        "assetId": ""
+                                        "assetId": "0dde87f33c37f88b"
                                     }
                                 }
                             },
@@ -1517,97 +1517,6 @@
                 }
             },
             "LocalFileID": "ab0cbb13e851d99f"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 9
-                },
-                "MeshRenderer": {
-                    "blendMode": "Normal",
-                    "enableZPrepass": true,
-                    "layer": 0,
-                    "material": "",
-                    "mesh": "4bb71d39f94dfe7a",
-                    "order": 0,
-                    "queue": "Opaque",
-                    "subMeshes": [
-                        {
-                            "localPos": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "localRotation": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "localScale": {
-                                "x": 1.0,
-                                "y": 1.0,
-                                "z": 1.0
-                            },
-                            "name": "球",
-                            "parameterOverrides": {
-                                "Metallic": 0.0,
-                                "Roughness": 1.0
-                            },
-                            "sourcePivot": {
-                                "x": 5.066394805908203e-07,
-                                "y": 0.0,
-                                "z": 5.066394805908203e-07
-                            },
-                            "sourceSubMeshIndex": 0,
-                            "stableID": "783915dbd802faab",
-                            "uvPos": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "uvRotation": 0.0,
-                            "uvScale": {
-                                "x": 1.0,
-                                "y": 1.0
-                            }
-                        }
-                    ],
-                    "visible": true
-                },
-                "Name": {
-                    "name": "Object"
-                },
-                "PrefabLink": {
-                    "isPrefabRoot": true,
-                    "prefabAsset": "f318cb4482d55416",
-                    "prefabInstanceID": "745fae0b39d9483c",
-                    "prefabLocalFileID": "4697ebacacc55088"
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileID": "4697ebacacc55088",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "localPos": {
-                        "x": 0.0,
-                        "y": 1.1612751483917236,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "4697ebacacc55088"
         }
     ],
     "Header": {

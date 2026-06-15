@@ -7,7 +7,9 @@
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
 //============================================================================
@@ -84,8 +86,13 @@ bool Engine::PrefabSystem::SavePrefab(AssetDatabase& database, ECSWorld& world,
 		fileJson["Entities"].push_back(std::move(entityJson));
 	}
 
-	// ファイルに保存
-	JsonAdapter::Save(prefabAssetPath, fileJson);
+	// ファイルに保存、prefabAssetPathはGameAssets相対の論理パスなので物理パスへ解決してから書き出す
+	// 解決前のままだとCWD相対の存在しない場所へ書こうとして保存に失敗する
+	std::filesystem::path savePath = database.ResolveAssetPath(prefabAssetPath);
+	if (savePath.empty()) {
+		savePath = prefabAssetPath;
+	}
+	JsonAdapter::Save(savePath.string(), fileJson);
 	return true;
 }
 
@@ -183,6 +190,19 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 			}
 			world.AddComponentFromJson(entity, typeName, data);
 		}
+	}
+
+	//============================================================================
+	//	MeshRendererのサブメッシュをmesh実体へ正規化する、SceneSystem::LoadFromJsonと同じ後処理
+	//	これを行わないとsubMeshが未解決のままでmeshが描画されない
+	//============================================================================
+	for (const Entity& entity : outResult.createdEntities) {
+
+		if (!world.IsAlive(entity) || !world.HasComponent<MeshRendererComponent>(entity)) {
+			continue;
+		}
+		auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
+		MeshSubMeshAuthoring::SyncComponent(&database, meshRenderer, true);
 	}
 
 	//============================================================================

@@ -13,6 +13,7 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
@@ -287,9 +288,16 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	//============================================================================
 	//	ツリーノード本体
 	//============================================================================
-	// アクティブでない場合はテキストを薄く表示する
+	// アクティブでない場合はテキストを薄く表示する、プレファブインスタンスは水色で表示する
+	// 非アクティブ表示を優先し、アクティブなプレファブインスタンスのみ水色にする
+	const bool isPrefabInstance = world.HasComponent<PrefabLinkComponent>(entity);
+	bool pushedTextColor = false;
 	if (!activeInHierarchy) {
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+		pushedTextColor = true;
+	} else if (isPrefabInstance) {
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.45f, 0.80f, 1.0f, 1.0f));
+		pushedTextColor = true;
 	}
 
 	const ImGuiStyle& style = ImGui::GetStyle();
@@ -300,7 +308,7 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::PopStyleVar(2);
 
-	if (!activeInHierarchy) {
+	if (pushedTextColor) {
 		ImGui::PopStyleColor();
 	}
 
