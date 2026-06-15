@@ -27,8 +27,8 @@ namespace Engine {
 
 		//---------- drawers -----------------------------------------------------
 
-		// グリッド描画
-		void DrawGrid();
+		// グリッド描画、minorStepが0より大きいとカメラ距離の自動フィットでなくその固定間隔で描画する
+		void DrawGrid(float minorStep = 0.0f);
 		// SceneViewのデフォルトグリッド描画
 		void RenderDefaultGrid(GraphicsCore& graphicsCore, const ResolvedRenderView& view, MultiRenderTarget& surface);
 
@@ -72,6 +72,8 @@ namespace Engine {
 		std::unique_ptr<SceneGridRenderer> gridRenderer_{};
 		// DrawGridで要求されたグリッド描画数
 		uint32_t gridDrawCount_ = 0;
+		// DrawGridで指定された固定グリッド間隔、0なら自動フィット
+		float gridMinorStep_ = 0.0f;
 
 		//--------- functions ----------------------------------------------------
 

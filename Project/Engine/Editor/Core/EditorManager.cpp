@@ -621,6 +621,13 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			if (!input->IsMouseOnView(inputArea)) {
 				return false;
 			}
+			// ビューのImageが最前面でホバーされている時だけ反応する
+			// 他のImGuiウィンドウやポップアップが上にある状態での誤選択を防ぐ
+			const bool viewportHovered = (viewKind == RenderViewKind::Game) ?
+				editorState_.gameViewportHovered : editorState_.sceneViewportHovered;
+			if (!viewportHovered) {
+				return false;
+			}
 			if (!input->TriggerMouse(MouseButton::Left)) {
 				return false;
 			}
@@ -829,6 +836,26 @@ void Engine::EditorManager::DrawSceneDebugObjects(const EditorContext& context) 
 			InspectorDrawerCommon::DrawEntityDebugObject(*context.activeWorld, selected, subMesh);
 		}
 	}
+
+	// スナップグリッドを描画する、選択中エンティティの次元で2D/3Dを切り替える
+	// グリッド描画アルゴリズムはLineRendererに集約、3Dは距離減衰の解析グリッド 2Dは画面いっぱいのグリッド
+	// SceneViewの描画パス前に積む必要があるためここで要求する、ViewportPanelはPostSceneで間に合わない
+	// スナップ操作が有効かつ座標編集モードのときだけ描画する、表示フラグだけでは出さない
+	if (editorState_.snapSettings.drawSnapGrid &&
+		editorState_.enableSnapEditEntity &&
+		editorState_.sceneViewManipulatorMode == SceneViewManipulatorMode::Translate &&
+		context.activeWorld->IsAlive(editorState_.selectedEntity)) {
+
+		const bool use2D = ResolveEntityDimension(*context.activeWorld, editorState_.selectedEntity)
+			.value_or(editorState_.manualCameraDimension) == Dimension::Type2D;
+		const EntitySnapSettings& snap = editorState_.snapSettings;
+		// グリッド間隔は座標のスナップ距離に合わせる
+		if (use2D) {
+			LineRenderer::GetInstance()->Get2D()->DrawGrid(snap.translate2D.size);
+		} else {
+			LineRenderer::GetInstance()->Get3D()->DrawGrid(snap.translate3D.size);
+		}
+	}
 #else
 	(void)context;
 #endif
@@ -939,6 +966,36 @@ void Engine::EditorManager::LoadViewportPanelState() {
 	if (sceneView.contains("drawDefaultGrid") && sceneView["drawDefaultGrid"].is_boolean()) {
 		editorState_.drawSceneViewDefaultGrid = sceneView["drawDefaultGrid"].get<bool>();
 	}
+	if (sceneView.contains("enableSnapEditEntity") && sceneView["enableSnapEditEntity"].is_boolean()) {
+		editorState_.enableSnapEditEntity = sceneView["enableSnapEditEntity"].get<bool>();
+	}
+	// ギズモのスナップ設定を読み込む
+	if (sceneView.contains("snap") && sceneView["snap"].is_object()) {
+
+		const nlohmann::json& snap = sceneView["snap"];
+		auto loadAxis = [&snap](const char* key, GridSnapAxis& axis) {
+			if (!snap.contains(key) || !snap[key].is_object()) {
+				return;
+			}
+			const nlohmann::json& a = snap[key];
+			if (a.contains("size") && a["size"].is_number()) {
+				axis.size = a["size"].get<float>();
+			}
+			if (a.contains("absolute") && a["absolute"].is_boolean()) {
+				axis.absolute = a["absolute"].get<bool>();
+			}
+			};
+		EntitySnapSettings& s = editorState_.snapSettings;
+		loadAxis("translate2D", s.translate2D);
+		loadAxis("rotate2D", s.rotate2D);
+		loadAxis("scale2D", s.scale2D);
+		loadAxis("translate3D", s.translate3D);
+		loadAxis("rotate3D", s.rotate3D);
+		loadAxis("scale3D", s.scale3D);
+		if (snap.contains("drawGrid") && snap["drawGrid"].is_boolean()) {
+			s.drawSnapGrid = snap["drawGrid"].get<bool>();
+		}
+	}
 
 	LoadEnumValue(sceneView, "manipulatorMode", editorState_.sceneViewManipulatorMode);
 	LoadEnumValue(sceneView, "cameraMode", editorState_.sceneViewCamera.mode);
@@ -953,6 +1010,23 @@ void Engine::EditorManager::SaveViewportPanelState() const {
 
 	nlohmann::json sceneView = nlohmann::json::object();
 	sceneView["drawDefaultGrid"] = editorState_.drawSceneViewDefaultGrid;
+	sceneView["enableSnapEditEntity"] = editorState_.enableSnapEditEntity;
+	// ギズモのスナップ設定を書き出す
+	{
+		auto saveAxis = [](const GridSnapAxis& axis) {
+			return nlohmann::json{ { "size", axis.size }, { "absolute", axis.absolute } };
+			};
+		const EntitySnapSettings& s = editorState_.snapSettings;
+		nlohmann::json snap = nlohmann::json::object();
+		snap["translate2D"] = saveAxis(s.translate2D);
+		snap["rotate2D"] = saveAxis(s.rotate2D);
+		snap["scale2D"] = saveAxis(s.scale2D);
+		snap["translate3D"] = saveAxis(s.translate3D);
+		snap["rotate3D"] = saveAxis(s.rotate3D);
+		snap["scale3D"] = saveAxis(s.scale3D);
+		snap["drawGrid"] = s.drawSnapGrid;
+		sceneView["snap"] = snap;
+	}
 	sceneView["manipulatorMode"] = EnumAdapter<SceneViewManipulatorMode>::ToString(editorState_.sceneViewManipulatorMode);
 	sceneView["cameraMode"] = EnumAdapter<SceneViewCameraMode>::ToString(editorState_.sceneViewCamera.mode);
 	sceneView["manualCameraDimension"] = EnumAdapter<Dimension>::ToString(editorState_.manualCameraDimension);

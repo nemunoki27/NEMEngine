@@ -39,7 +39,10 @@ namespace Engine {
 		// フレーム開始処理
 		void BeginFrame();
 
-		void Render(GraphicsCore& graphicsCore, const ResolvedCameraView& camera, MultiRenderTarget& surface);
+		// fixedMinorStepが0より大きいとき、自動フィットせずその値を最小グリッド間隔として描画する
+		// スナップ距離に合わせたグリッドを出す用途で使う、α減衰や軸色は通常時と同じ
+		void Render(GraphicsCore& graphicsCore, const ResolvedCameraView& camera, MultiRenderTarget& surface,
+			float fixedMinorStep = 0.0f);
 
 		void Edit();
 	private:
@@ -189,7 +192,8 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		GridPassConstants BuildPassConstants(const ResolvedCameraView& camera, uint32_t width, uint32_t height) const;
+		GridPassConstants BuildPassConstants(const ResolvedCameraView& camera, uint32_t width, uint32_t height,
+			float fixedMinorStep) const;
 		DxConstBuffer<GridPassConstants>& AllocatePassBuffer(GraphicsCore& graphicsCore);
 	};
 } // Engine

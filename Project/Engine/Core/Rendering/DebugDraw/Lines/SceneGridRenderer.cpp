@@ -474,7 +474,7 @@ void Engine::SceneGridRenderer::BeginFrame() {
 }
 
 Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPassConstants(
-	const ResolvedCameraView& camera, uint32_t width, uint32_t height) const {
+	const ResolvedCameraView& camera, uint32_t width, uint32_t height, float fixedMinorStep) const {
 
 	GridPassConstants constants{};
 
@@ -486,23 +486,36 @@ Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPas
 		gridMaxGroundRayDistance_,
 		polygon);
 
-	GridStepBlend stepBlend = DetermineMinorStepBlend(
-		camera,
-		width,
-		height,
-		polygon,
-		gridPlaneY_,
-		gridMaxGroundRayDistance_,
-		gridMinorBaseHeightDivisor_,
-		gridMinorBaseMinStep_,
-		gridMinorTargetPixelMin_,
-		gridMinorTargetPixelMax_);
+	// fixedMinorStep指定時は自動フィットせず固定間隔にする、未指定時は従来通りカメラ距離で自動調整する
+	float minorStep0;
+	float minorStep1;
+	float stepBlendValue;
+	if (fixedMinorStep > 0.0f) {
 
-	float minorStep0 = stepBlend.minorStep0;
+		minorStep0 = fixedMinorStep;
+		minorStep1 = fixedMinorStep;
+		stepBlendValue = 0.0f;
+	} else {
+
+		const GridStepBlend stepBlend = DetermineMinorStepBlend(
+			camera,
+			width,
+			height,
+			polygon,
+			gridPlaneY_,
+			gridMaxGroundRayDistance_,
+			gridMinorBaseHeightDivisor_,
+			gridMinorBaseMinStep_,
+			gridMinorTargetPixelMin_,
+			gridMinorTargetPixelMax_);
+		minorStep0 = stepBlend.minorStep0;
+		minorStep1 = stepBlend.minorStep1;
+		stepBlendValue = stepBlend.blend;
+	}
+
 	float majorStep0 = minorStep0 * 10.0f;
 	float coarseStep0 = majorStep0 * 10.0f;
 
-	float minorStep1 = stepBlend.minorStep1;
 	float majorStep1 = minorStep1 * 10.0f;
 	float coarseStep1 = majorStep1 * 10.0f;
 
@@ -531,7 +544,7 @@ Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPas
 		minorStep1,
 		majorStep1,
 		coarseStep1,
-		stepBlend.blend);
+		stepBlendValue);
 
 	const auto makeFadeStartDistance = [&](float rate) {
 		return visibleRadius * std::clamp(rate, 0.0f, 10.0f);
@@ -619,7 +632,7 @@ Engine::DxConstBuffer<Engine::SceneGridRenderer::GridPassConstants>& Engine::Sce
 }
 
 void Engine::SceneGridRenderer::Render(GraphicsCore& graphicsCore,
-	const ResolvedCameraView& camera, MultiRenderTarget& surface) {
+	const ResolvedCameraView& camera, MultiRenderTarget& surface, float fixedMinorStep) {
 
 	if (!initialized_) {
 		return;
@@ -651,7 +664,7 @@ void Engine::SceneGridRenderer::Render(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	GridPassConstants constants = BuildPassConstants(camera, surface.GetWidth(), surface.GetHeight());
+	GridPassConstants constants = BuildPassConstants(camera, surface.GetWidth(), surface.GetHeight(), fixedMinorStep);
 	DxConstBuffer<GridPassConstants>& passBuffer = AllocatePassBuffer(graphicsCore);
 	passBuffer.TransferData(constants);
 

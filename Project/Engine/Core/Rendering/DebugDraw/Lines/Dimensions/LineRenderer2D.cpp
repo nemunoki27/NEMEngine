@@ -21,11 +21,13 @@ void Engine::LineRenderer2D::BeginFrame() {
 
 	LineRendererBase<Vector2>::BeginFrame();
 	gridDrawCount_ = 0;
+	gridCellSize_ = 0.0f;
 }
 
-void Engine::LineRenderer2D::DrawGrid() {
+void Engine::LineRenderer2D::DrawGrid(float cellSize) {
 
 	++gridDrawCount_;
+	gridCellSize_ = cellSize;
 }
 
 void Engine::LineRenderer2D::DrawRect(const Vector2& center, const Vector2& size,
@@ -115,10 +117,13 @@ void Engine::LineRenderer2D::DrawLineImpl(GraphicsCore& /*graphicsCore*/,
 	if (!camera) {
 
 		gridDrawCount_ = 0;
+		gridCellSize_ = 0.0f;
 		return;
 	}
 
-	constexpr float kGridCellSize = 64.0f;
+	constexpr float kDefaultGridCellSize = 64.0f;
+	// DrawGridで指定があればそのセル幅、無ければ既定値を使う
+	const float kGridCellSize = gridCellSize_ > 0.0f ? gridCellSize_ : kDefaultGridCellSize;
 	constexpr float kGridLineThickness = 1.0f;
 	constexpr float kGridCenterLineThickness = 2.4f;
 	const Color4 kGridColor = Color4::White(0.32f);
@@ -144,4 +149,5 @@ void Engine::LineRenderer2D::DrawLineImpl(GraphicsCore& /*graphicsCore*/,
 		}
 	}
 	gridDrawCount_ = 0;
+	gridCellSize_ = 0.0f;
 }

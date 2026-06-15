@@ -260,10 +260,6 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 		}
 	}
 
-	// MeshはMSを入れたときだけメッシュシェーダパイプラインにする
-	const bool useMeshShader = (createType_ == MaterialCreateType::Mesh) && static_cast<bool>(createMS_);
-	const int numRenderTargets = (createType_ == MaterialCreateType::Mesh) ? 3 : 1;
-
 	// パイプライン設定、エンジン仕様で固定の項目は編集不可でテキスト表示する
 	ImGui::SeparatorText("ラスタライズ設定");
 	{

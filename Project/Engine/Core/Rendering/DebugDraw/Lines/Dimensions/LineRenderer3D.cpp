@@ -23,12 +23,14 @@ void Engine::LineRenderer3D::BeginFrame() {
 
 	LineRendererBase<Vector3>::BeginFrame();
 	gridDrawCount_ = 0;
+	gridMinorStep_ = 0.0f;
 	gridRenderer_->BeginFrame();
 }
 
-void Engine::LineRenderer3D::DrawGrid() {
+void Engine::LineRenderer3D::DrawGrid(float minorStep) {
 
 	++gridDrawCount_;
+	gridMinorStep_ = minorStep;
 }
 
 void Engine::LineRenderer3D::RenderDefaultGrid(GraphicsCore& graphicsCore,
@@ -282,8 +284,9 @@ void Engine::LineRenderer3D::DrawLineImpl(GraphicsCore& graphicsCore,
 
 	for (uint32_t i = 0; i < gridDrawCount_; ++i) {
 
-		// グリッド描画
-		gridRenderer_->Render(graphicsCore, *camera, surface);
+		// グリッド描画、DrawGridで固定間隔が指定されていればそれを使う
+		gridRenderer_->Render(graphicsCore, *camera, surface, gridMinorStep_);
 	}
 	gridDrawCount_ = 0;
+	gridMinorStep_ = 0.0f;
 }

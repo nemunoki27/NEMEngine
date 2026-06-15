@@ -159,6 +159,11 @@ namespace Engine {
 		// ギズモの操作空間
 		bool orthographic = false;
 		bool allowAxisFlip = true;
+
+		// スナップを有効にするか、trueならsnapValuesをImGuizmoへ渡してグリッド単位に操作する
+		bool useSnap = false;
+		// SRTいずれかのスナップ単位、ImGuizmoはoperationに応じてsnapValues[0]等を解釈する
+		float snapValues[3] = { 0.0f, 0.0f, 0.0f };
 	};
 	// ギズモの編集結果
 	struct GizmoEditResult {

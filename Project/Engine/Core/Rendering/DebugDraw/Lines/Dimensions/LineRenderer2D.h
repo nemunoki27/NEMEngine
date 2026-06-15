@@ -25,8 +25,8 @@ namespace Engine {
 
 		//---------- drawers -----------------------------------------------------
 
-		// グリッド描画
-		void DrawGrid();
+		// グリッド描画、cellSizeが0より大きいとそのセル幅で描画する、0なら既定のセル幅
+		void DrawGrid(float cellSize = 0.0f);
 
 		// アンカー付き/無し矩形
 		void DrawRect(const Vector2& center, const Vector2& size, const Vector2& anchor, const Color4& color, float thickness = 1.0f);
@@ -46,6 +46,8 @@ namespace Engine {
 
 		// DrawGridで要求されたグリッド描画数
 		uint32_t gridDrawCount_ = 0;
+		// DrawGridで指定されたセル幅、0なら既定のセル幅
+		float gridCellSize_ = 0.0f;
 
 		//--------- functions ----------------------------------------------------
 

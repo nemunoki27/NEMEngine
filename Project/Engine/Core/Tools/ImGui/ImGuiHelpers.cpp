@@ -536,7 +536,8 @@ Engine::GizmoEditResult Engine::MyGUI::Manipulate2D(const char* id,
 	// ギズモ操作を開始する
 	BeginGizmoManipulate(id, context, true);
 
-	result.valueChanged = ImGuizmo::Manipulate(view, projection, operation, ImGuizmo::LOCAL, matrix);
+	result.valueChanged = ImGuizmo::Manipulate(view, projection, operation, ImGuizmo::LOCAL, matrix,
+		nullptr, context.useSnap ? context.snapValues : nullptr);
 	result.isOver = ImGuizmo::IsOver();
 	result.isUsing = ImGuizmo::IsUsing();
 
@@ -605,7 +606,8 @@ Engine::GizmoEditResult Engine::MyGUI::Manipulate3D(const char* id,
 	// ギズモ操作を開始する
 	BeginGizmoManipulate(id, context, false);
 
-	result.valueChanged = ImGuizmo::Manipulate(view, projection, operation, ImGuizmo::LOCAL, matrix);
+	result.valueChanged = ImGuizmo::Manipulate(view, projection, operation, ImGuizmo::LOCAL, matrix,
+		nullptr, context.useSnap ? context.snapValues : nullptr);
 	result.isOver = ImGuizmo::IsOver();
 	result.isUsing = ImGuizmo::IsUsing();
 

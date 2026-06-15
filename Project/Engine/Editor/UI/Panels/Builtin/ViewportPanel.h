@@ -102,6 +102,8 @@ namespace Engine {
 			// 複数選択ギズモのピボット切り替え用、中心ピボットと各原点
 			std::string gizmoCenterPivotKey;
 			std::string eachEntityOriginKey;
+			// オブジェクトのスナップ操作アイコン
+			std::string snapEditEntityKey;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -122,7 +124,7 @@ namespace Engine {
 		IconSet icons_{};
 
 		// アイコンボタンのサイズ
-		const ImVec2 buttonSize_ = ImVec2(32.0f, 32.0f);
+		const ImVec2 buttonSize_ = ImVec2(24.0f, 24.0f);
 
 		// プレファブ編集プレビュー用の描画先、編集中だけSceneViewへ表示する
 		std::unique_ptr<MultiRenderTarget> prefabPreviewSurface_;
@@ -154,6 +156,8 @@ namespace Engine {
 		bool DrawIconButton(const char* id, ImTextureID textureID, bool active, const ImVec2& size) const;
 		void DrawCameraSection(const EditorPanelContext& context);
 		void DrawManipulatorSection(const EditorPanelContext& context);
+		// スナップ設定の右クリックポップアップ、SRTのグリッド単位と絶対スナップ、グリッド表示を編集する
+		void DrawSnapSettingsPopup(const EditorPanelContext& context);
 		void DrawGridSection(const EditorPanelContext& context);
 		void DrawEntityCameraPopup(const EditorPanelContext& context);
 	};

@@ -11,8 +11,12 @@
 
 // c++
 #include <vector>
+#include <optional>
 
 namespace Engine {
+
+	// エンティティのレンダラ等から2D/3Dを判定する、確定できなければnullopt
+	std::optional<Dimension> ResolveEntityDimension(ECSWorld& world, const Entity& entity);
 
 	//============================================================================
 	//	EditorState structures
@@ -58,6 +62,31 @@ namespace Engine {
 		Asset,
 	};
 
+	// 1つのSRT軸のスナップ設定、グリッド単位と絶対スナップの有無を持つ
+	struct GridSnapAxis {
+
+		// スナップ単位、移動なら距離、回転なら度、拡縮なら倍率
+		float size = 1.0f;
+		// trueなら結果を最寄りのグリッドへ強制する、falseならグリッド単位の移動量にする
+		bool absolute = false;
+	};
+
+	// ギズモ操作のスナップ設定、SRTそれぞれを2D/3Dで分けて持つ
+	struct EntitySnapSettings {
+
+		// 2D
+		GridSnapAxis translate2D{ 1.0f, false };
+		GridSnapAxis rotate2D{ 15.0f, false };
+		GridSnapAxis scale2D{ 0.2f, false };
+		// 3D
+		GridSnapAxis translate3D{ 1.0f, false };
+		GridSnapAxis rotate3D{ 15.0f, false };
+		GridSnapAxis scale3D{ 0.2f, false };
+
+		// 選択中エンティティの次元に応じてスナップグリッド線を描画するか
+		bool drawSnapGrid = false;
+	};
+
 	// エディタの状態を管理する構造体
 	struct EditorState {
 
@@ -101,12 +130,20 @@ namespace Engine {
 
 		// ピッキング機能のオン/オフ
 		bool enableScenePick = true;
+		// SceneView/GameViewのImageが最前面でホバーされているか、ViewportPanelが毎フレーム更新する
+		// 他のImGuiウィンドウやポップアップが上にある時はfalseになり、ピッキングを抑止する
+		bool sceneViewportHovered = false;
+		bool gameViewportHovered = false;
 		// SceneViewのデフォルトグリッド表示
 		bool drawSceneViewDefaultGrid = false;
 		// シーンビューのマニピュレーター選択状態
 		SceneViewManipulatorMode sceneViewManipulatorMode = SceneViewManipulatorMode::Translate;
 		// ギズモを使用中か
 		bool useSceneGizmo = false;
+		// スナップ操作の有効/無効
+		bool enableSnapEditEntity = false;
+		// ギズモのスナップ設定、シリアライズ対象
+		EntitySnapSettings snapSettings{};
 		// 複数選択ギズモの回転拡縮を選択中心基準で行うか、falseなら各エンティティ自身の原点基準
 		bool gizmoPivotAtCenter = true;
 

@@ -20,31 +20,29 @@
 //============================================================================
 //	EditorState internal
 //============================================================================
-namespace {
 
-	// 複数選択の次元ガード用にエンティティの2D/3Dを判定する、確定できなければnullopt
-	// TextはMeshと違い2D/3D両対応なのでdimensionで切り替える
-	std::optional<Engine::Dimension> ResolveEntityDimension(Engine::ECSWorld& world, const Engine::Entity& entity) {
+// 複数選択の次元ガードやスナップグリッド描画用にエンティティの2D/3Dを判定する、確定できなければnullopt
+// TextはMeshと違い2D/3D両対応なのでdimensionで切り替える
+std::optional<Engine::Dimension> Engine::ResolveEntityDimension(ECSWorld& world, const Entity& entity) {
 
-		if (!world.IsAlive(entity)) {
-			return std::nullopt;
-		}
-		if (world.HasComponent<Engine::SpriteRendererComponent>(entity) ||
-			world.HasComponent<Engine::OrthographicCameraComponent>(entity)) {
-			return Engine::Dimension::Type2D;
-		}
-		if (world.HasComponent<Engine::TextRendererComponent>(entity)) {
-			return world.GetComponent<Engine::TextRendererComponent>(entity).dimension;
-		}
-		if (world.HasComponent<Engine::MeshRendererComponent>(entity) ||
-			world.HasComponent<Engine::PerspectiveCameraComponent>(entity) ||
-			world.HasComponent<Engine::DirectionalLightComponent>(entity) ||
-			world.HasComponent<Engine::PointLightComponent>(entity) ||
-			world.HasComponent<Engine::SpotLightComponent>(entity)) {
-			return Engine::Dimension::Type3D;
-		}
+	if (!world.IsAlive(entity)) {
 		return std::nullopt;
 	}
+	if (world.HasComponent<SpriteRendererComponent>(entity) ||
+		world.HasComponent<OrthographicCameraComponent>(entity)) {
+		return Dimension::Type2D;
+	}
+	if (world.HasComponent<TextRendererComponent>(entity)) {
+		return world.GetComponent<TextRendererComponent>(entity).dimension;
+	}
+	if (world.HasComponent<MeshRendererComponent>(entity) ||
+		world.HasComponent<PerspectiveCameraComponent>(entity) ||
+		world.HasComponent<DirectionalLightComponent>(entity) ||
+		world.HasComponent<PointLightComponent>(entity) ||
+		world.HasComponent<SpotLightComponent>(entity)) {
+		return Dimension::Type3D;
+	}
+	return std::nullopt;
 }
 
 //============================================================================
