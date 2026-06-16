@@ -129,3 +129,13 @@ bool Math::NearlyEqual(float lhs, float rhs) {
 
 	return std::fabs(lhs - rhs) <= 0.001f;
 }
+
+float Math::Lerp(float a, float b, float t) {
+
+	return a + (b - a) * t;
+}
+
+float Math::Saturate(float v) {
+
+	return std::clamp(v, 0.0f, 1.0f);
+}

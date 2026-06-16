@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Math/Math.h>
 
 // imgui
 #include <imgui.h>
@@ -37,14 +38,6 @@ namespace {
 
 	constexpr float kEpsilon = 1e-5f;
 	constexpr float kPointMergeEpsilon = 1e-3f;
-
-	float Saturate(float v) {
-		return std::clamp(v, 0.0f, 1.0f);
-	}
-
-	float Lerp(float a, float b, float t) {
-		return a + (b - a) * t;
-	}
 
 	// 1 / 2 / 5 * 10^nにスナップ
 	float SnapGridStep(float rawStep) {
@@ -226,22 +219,22 @@ namespace {
 		// 下辺
 		for (int i = 0; i < sampleCount; ++i) {
 			float t = static_cast<float>(i) / static_cast<float>(sampleCount - 1);
-			addSample(Lerp(-1.0f, 1.0f, t), -1.0f);
+			addSample(Math::Lerp(-1.0f, 1.0f, t), -1.0f);
 		}
 		// 右辺
 		for (int i = 1; i < sampleCount - 1; ++i) {
 			float t = static_cast<float>(i) / static_cast<float>(sampleCount - 1);
-			addSample(1.0f, Lerp(-1.0f, 1.0f, t));
+			addSample(1.0f, Math::Lerp(-1.0f, 1.0f, t));
 		}
 		// 上辺
 		for (int i = sampleCount - 1; i >= 0; --i) {
 			float t = static_cast<float>(i) / static_cast<float>(sampleCount - 1);
-			addSample(Lerp(-1.0f, 1.0f, t), 1.0f);
+			addSample(Math::Lerp(-1.0f, 1.0f, t), 1.0f);
 		}
 		// 左辺
 		for (int i = sampleCount - 2; i >= 1; --i) {
 			float t = static_cast<float>(i) / static_cast<float>(sampleCount - 1);
-			addSample(-1.0f, Lerp(-1.0f, 1.0f, t));
+			addSample(-1.0f, Math::Lerp(-1.0f, 1.0f, t));
 		}
 
 		if (outPolygon.size() < 3) {
@@ -402,7 +395,7 @@ namespace {
 		if (std::abs(denom) > kEpsilon) {
 			blend = std::log(idealMinorStep / lower) / denom;
 		}
-		blend = Saturate(blend);
+		blend = Math::Saturate(blend);
 
 		// cubic smooth
 		blend = blend * blend * (3.0f - 2.0f * blend);

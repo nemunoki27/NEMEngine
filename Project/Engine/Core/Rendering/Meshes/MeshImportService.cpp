@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
+#include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
 #include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
@@ -27,35 +28,6 @@ namespace {
 			}
 		}
 		return "SubMesh_" + std::to_string(meshIndex);
-	}
-	// メッシュノードからスケルトンを構築するための再帰関数
-	int32_t CreateJointRecursive(const Engine::MeshNode& node,
-		const std::optional<int32_t> parent, std::vector<Engine::Joint>& joints) {
-
-		Engine::Joint joint{};
-		joint.name = node.name;
-		joint.localMatrix = node.localMatrix;
-		joint.transform = node.transform;
-		joint.index = static_cast<int32_t>(joints.size());
-		joint.parent = parent;
-
-		joints.emplace_back(joint);
-		for (const auto& child : node.children) {
-
-			int32_t childIndex = CreateJointRecursive(child, joint.index, joints);
-			joints[joint.index].children.emplace_back(childIndex);
-		}
-		return joint.index;
-	}
-	// メッシュノードからスケルトンを構築
-	Engine::Skeleton BuildSkeletonFromMeshNode(const Engine::MeshNode& rootNode) {
-
-		Engine::Skeleton skeleton{};
-		skeleton.root = CreateJointRecursive(rootNode, std::nullopt, skeleton.joints);
-		for (const auto& joint : skeleton.joints) {
-			skeleton.jointMap.emplace(joint.name, joint.index);
-		}
-		return skeleton;
 	}
 	// 頂点のジョイント影響を正規化
 	void NormalizeInfluence(Engine::VertexInfluence& influence) {

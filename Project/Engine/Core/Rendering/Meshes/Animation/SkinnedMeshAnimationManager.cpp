@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
+#include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
 
 //============================================================================
 //	SkinnedMeshAnimationManager classMethods
@@ -42,35 +43,6 @@ namespace {
 		return result;
 	}
 
-	int32_t CreateJointRecursive(const Engine::MeshNode& node,
-		const std::optional<int32_t> parent, std::vector<Engine::Joint>& joints) {
-
-		// Jointを作成して追加
-		Engine::Joint joint{};
-		joint.name = node.name;
-		joint.localMatrix = node.localMatrix;
-		joint.transform = node.transform;
-		joint.index = static_cast<int32_t>(joints.size());
-		joint.parent = parent;
-		joints.emplace_back(joint);
-		for (const auto& child : node.children) {
-
-			int32_t childIndex = CreateJointRecursive(child, joint.index, joints);
-			joints[joint.index].children.emplace_back(childIndex);
-		}
-		return joint.index;
-	}
-	// メッシュノードからスケルトンを構築
-	Engine::Skeleton BuildSkeleton(const Engine::MeshNode& rootNode) {
-
-		Engine::Skeleton skeleton{};
-		skeleton.root = CreateJointRecursive(rootNode, std::nullopt, skeleton.joints);
-		for (const auto& joint : skeleton.joints) {
-
-			skeleton.jointMap.emplace(joint.name, joint.index);
-		}
-		return skeleton;
-	}
 	// アニメーションの名前を解決
 	std::string ResolveClipName(const aiAnimation* anim, uint32_t index, uint32_t totalCount) {
 
@@ -209,7 +181,7 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 
 	// ノード階層を再帰的に読み込んでスケルトンを構築
 	MeshNode rootNode = ReadNodeForAnimation(scene->mRootNode);
-	result.skeleton = BuildSkeleton(rootNode);
+	result.skeleton = BuildSkeletonFromMeshNode(rootNode);
 
 	result.skinCluster.inverseBindPoseMatrices.resize(result.skeleton.joints.size(), Matrix4x4::Identity());
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {

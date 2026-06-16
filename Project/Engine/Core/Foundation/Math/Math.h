@@ -70,4 +70,9 @@ namespace Math {
 	//============================================================================
 	// 近似比較
 	bool NearlyEqual(float lhs, float rhs);
+
+	// 線形補間
+	float Lerp(float a, float b, float t);
+	// [0, 1]へクランプ
+	float Saturate(float v);
 } // Math

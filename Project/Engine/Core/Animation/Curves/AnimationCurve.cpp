@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Enum/Axis.h>
+#include <Engine/Core/Foundation/Math/Math.h>
 
 #include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
 
@@ -15,16 +16,6 @@
 //	AnimationCurve classMethods
 //============================================================================
 namespace {
-
-	float Clamp01(float value) {
-
-		return (std::clamp)(value, 0.0f, 1.0f);
-	}
-
-	float Lerp(float a, float b, float t) {
-
-		return a + (b - a) * t;
-	}
 
 	float Hermite(float p0, float p1, float m0, float m1, float t, float length) {
 
@@ -58,7 +49,7 @@ namespace {
 
 		// Tangentが設定されていない古いデータでは、Linearに近い見た目へ倒す
 		if (std::abs(prev.outTangent.x) <= 0.00001f && std::abs(next.inTangent.x) <= 0.00001f) {
-			return Lerp(prev.value, next.value, normalizedT);
+			return Math::Lerp(prev.value, next.value, normalizedT);
 		}
 
 		float low = 0.0f;
@@ -156,13 +147,13 @@ float Engine::CurveChannel::Evaluate(float time) const {
 		return prev.value;
 	}
 
-	const float t = Clamp01((time - prev.time) / length);
+	const float t = Math::Saturate((time - prev.time) / length);
 	switch (prev.interpolation) {
 	case CurveInterpolationMode::Constant:
 		// 次キー直前まで値を保持する
 		return prev.value;
 	case CurveInterpolationMode::Linear:
-		return Lerp(prev.value, next.value, t);
+		return Math::Lerp(prev.value, next.value, t);
 	case CurveInterpolationMode::Bezier:
 		return EvaluateBezierSegment(prev, next, time, t);
 	case CurveInterpolationMode::Spline:

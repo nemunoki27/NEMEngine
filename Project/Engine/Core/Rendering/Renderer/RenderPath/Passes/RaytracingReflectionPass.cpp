@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTargetCopyUtility.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineState.h>
@@ -19,28 +20,6 @@
 //	RaytracingReflectionPass classMethods
 //============================================================================
 namespace {
-
-	bool CopyColor0Resource(Engine::GraphicsCore& graphicsCore,
-		Engine::MultiRenderTarget* source, Engine::MultiRenderTarget* dest) {
-
-		if (!source || !dest) {
-			return false;
-		}
-		Engine::RenderTexture2D* sourceColor = source->GetColorTexture(0);
-		Engine::RenderTexture2D* destColor = dest->GetColorTexture(0);
-		if (!sourceColor || !destColor ||
-			sourceColor->GetFormat() != destColor->GetFormat() ||
-			sourceColor->GetRenderTarget().width != destColor->GetRenderTarget().width ||
-			sourceColor->GetRenderTarget().height != destColor->GetRenderTarget().height) {
-			return false;
-		}
-
-		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
-		sourceColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_SOURCE);
-		destColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_DEST);
-		dxCommand->GetCommandList()->CopyResource(destColor->GetResource(), sourceColor->GetResource());
-		return true;
-	}
 
 	bool ExecuteFullscreenBlit(Engine::GraphicsCore& graphicsCore,
 		const Engine::SceneExecutionContext& context,
@@ -147,7 +126,7 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 			*deps_.assetLibrary, *deps_.pipelineCache, *deps_.materialResolver,
 			blitSRVCache_, srcColorSlot_)) {
 
-			CopyColor0Resource(graphicsCore, sceneMain, sceneFinal);
+			MultiRenderTargetCopy::CopyColor0Resource(graphicsCore, sceneMain, sceneFinal);
 		}
 		};
 

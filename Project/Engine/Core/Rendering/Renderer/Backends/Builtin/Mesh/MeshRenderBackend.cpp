@@ -21,6 +21,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <cstdint>
@@ -30,11 +31,7 @@
 //============================================================================
 namespace {
 
-	void MixHash(uint64_t& hash, uint64_t value) {
-
-		hash ^= value;
-		hash *= 1099511628211ull;
-	}
+	using Engine::Algorithm::HashCombine;
 
 	// メッシュ描画に使用するパスをマテリアルから解決する
 	bool ResolveMeshPass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterialID,
@@ -566,7 +563,7 @@ uint64_t Engine::MeshRenderBackend::BuildBatchHash(std::span<const RenderItem* c
 			continue;
 		}
 		// 抽出時に計算済みのアイテム内容ハッシュ(entity/material/outline/submesh等)を混ぜる
-		MixHash(h, item->contentHash);
+		HashCombine(h, item->contentHash);
 	}
 	return h;
 }
@@ -576,14 +573,14 @@ uint64_t Engine::MeshRenderBackend::BuildStaticBatchHash(const RenderDrawContext
 
 	uint64_t h = 1469598103934665603ull;
 	// ランタイム機能が変わるとGPUへ渡す定数も変わるためHashに含める
-	MixHash(h, static_cast<uint64_t>(items.size()));
-	MixHash(h, static_cast<uint64_t>(std::hash<AssetID>{}(gpuMesh.assetID)));
-	MixHash(h, context.runtimeFeatures.useFrustumCulling ? 1ull : 0ull);
-	MixHash(h, context.runtimeFeatures.useContributionCulling ? 1ull : 0ull);
-	MixHash(h, context.runtimeFeatures.useNormalConeCulling ? 1ull : 0ull);
-	MixHash(h, context.runtimeFeatures.useMeshShader ? 1ull : 0ull);
-	MixHash(h, context.forceVertexMeshVariant ? 1ull : 0ull);
-	MixHash(h, context.cullingView && context.cullingView->valid ? 1ull : 0ull);
+	HashCombine(h, static_cast<uint64_t>(items.size()));
+	HashCombine(h, static_cast<uint64_t>(std::hash<AssetID>{}(gpuMesh.assetID)));
+	HashCombine(h, context.runtimeFeatures.useFrustumCulling ? 1ull : 0ull);
+	HashCombine(h, context.runtimeFeatures.useContributionCulling ? 1ull : 0ull);
+	HashCombine(h, context.runtimeFeatures.useNormalConeCulling ? 1ull : 0ull);
+	HashCombine(h, context.runtimeFeatures.useMeshShader ? 1ull : 0ull);
+	HashCombine(h, context.forceVertexMeshVariant ? 1ull : 0ull);
+	HashCombine(h, context.cullingView && context.cullingView->valid ? 1ull : 0ull);
 
 	for (const RenderItem* item : items) {
 		if (!item) {
@@ -591,7 +588,7 @@ uint64_t Engine::MeshRenderBackend::BuildStaticBatchHash(const RenderDrawContext
 		}
 		// 抽出時に計算済みのアイテム内容ハッシュ(entity/material/blendMode/worldMatrix/outline/submesh)を混ぜる
 		// component再取得やbyte再走査をここでは行わない
-		MixHash(h, item->contentHash);
+		HashCombine(h, item->contentHash);
 	}
 	return h;
 }

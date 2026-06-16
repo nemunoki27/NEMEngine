@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <cstdint>
@@ -19,11 +20,7 @@
 //============================================================================
 namespace {
 
-	void MixHash(uint64_t& hash, uint64_t value) {
-
-		hash ^= value;
-		hash *= 1099511628211ull;
-	}
+	using Engine::Algorithm::HashCombine;
 
 	void MixBytes(uint64_t& hash, const void* data, size_t size) {
 
@@ -34,11 +31,11 @@ namespace {
 
 			uint64_t chunk;
 			std::memcpy(&chunk, bytes + offset, sizeof(uint64_t));
-			MixHash(hash, chunk);
+			HashCombine(hash, chunk);
 		}
 		// 8バイトに満たない端数はバイト単位で混ぜる
 		for (; offset < size; ++offset) {
-			MixHash(hash, bytes[offset]);
+			HashCombine(hash, bytes[offset]);
 		}
 	}
 
@@ -46,28 +43,28 @@ namespace {
 	// 通常描画とアウトライン描画でリソースを共有するため、編集が即時反映されるようにする
 	void MixOutlineComponentHash(uint64_t& h, const Engine::InvertedHullOutlineComponent* outline) {
 
-		MixHash(h, outline ? 1ull : 0ull);
+		HashCombine(h, outline ? 1ull : 0ull);
 		if (!outline) {
 			return;
 		}
-		MixHash(h, outline->enabled ? 1ull : 0ull);
+		HashCombine(h, outline->enabled ? 1ull : 0ull);
 		MixBytes(h, &outline->width, sizeof(outline->width));
 		MixBytes(h, &outline->color, sizeof(outline->color));
-		MixHash(h, static_cast<uint64_t>(outline->expansionMode));
-		MixHash(h, static_cast<uint64_t>(outline->widthMode));
+		HashCombine(h, static_cast<uint64_t>(outline->expansionMode));
+		HashCombine(h, static_cast<uint64_t>(outline->widthMode));
 		MixBytes(h, &outline->cameraZOffset, sizeof(outline->cameraZOffset));
-		MixHash(h, outline->useBakedNormal ? 1ull : 0ull);
-		MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(outline->bakedNormalTexture)));
-		MixHash(h, outline->useOutlineSampler ? 1ull : 0ull);
-		MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(outline->outlineSamplerTexture)));
-		MixHash(h, outline->useStencil ? 1ull : 0ull);
+		HashCombine(h, outline->useBakedNormal ? 1ull : 0ull);
+		HashCombine(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(outline->bakedNormalTexture)));
+		HashCombine(h, outline->useOutlineSampler ? 1ull : 0ull);
+		HashCombine(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(outline->outlineSamplerTexture)));
+		HashCombine(h, outline->useStencil ? 1ull : 0ull);
 	}
 
 	// reflection paramの上書きマップを順序非依存で内容ハッシュへ混ぜる
 	void MixSubMeshParameterHash(uint64_t& h,
 		const std::unordered_map<std::string, Engine::MaterialParameterValue>& parameters) {
 
-		MixHash(h, static_cast<uint64_t>(parameters.size()));
+		HashCombine(h, static_cast<uint64_t>(parameters.size()));
 		uint64_t combined = 0;
 		for (const auto& [name, value] : parameters) {
 
@@ -78,7 +75,7 @@ namespace {
 			// XOR集約で要素順に依存しないハッシュにする
 			combined ^= entry;
 		}
-		MixHash(h, combined);
+		HashCombine(h, combined);
 	}
 
 	// 静的バッチキャッシュキー用の、1アイテム分の内容ハッシュを抽出時に1度だけ計算する
@@ -88,21 +85,21 @@ namespace {
 		const Engine::MeshRendererComponent& renderer, const Engine::InvertedHullOutlineComponent* outline) {
 
 		uint64_t h = 1469598103934665603ull;
-		MixHash(h, entity.index);
-		MixHash(h, entity.generation);
-		MixHash(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(material)));
-		MixHash(h, static_cast<uint64_t>(blendMode));
+		HashCombine(h, entity.index);
+		HashCombine(h, entity.generation);
+		HashCombine(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(material)));
+		HashCombine(h, static_cast<uint64_t>(blendMode));
 		// Transformが変わるとInstanceDataが変わる
 		MixBytes(h, &worldMatrix, sizeof(worldMatrix));
 		// アウトライン設定が変わるとGPUデータが変わる
 		MixOutlineComponentHash(h, outline);
 
-		MixHash(h, static_cast<uint64_t>(renderer.subMeshes.size()));
+		HashCombine(h, static_cast<uint64_t>(renderer.subMeshes.size()));
 		for (const Engine::SubMeshMaterial& subMesh : renderer.subMeshes) {
 
 			// サブメッシュ編集情報もGPUへ渡すため、内容ハッシュへ含める
 			MixBytes(h, &subMesh.stableID, sizeof(subMesh.stableID));
-			MixHash(h, subMesh.sourceSubMeshIndex);
+			HashCombine(h, subMesh.sourceSubMeshIndex);
 			// reflection paramの上書きが変わるとパラメータバッファが変わる
 			MixSubMeshParameterHash(h, subMesh.parameterOverrides);
 			MixBytes(h, &subMesh.uvMatrix, sizeof(subMesh.uvMatrix));

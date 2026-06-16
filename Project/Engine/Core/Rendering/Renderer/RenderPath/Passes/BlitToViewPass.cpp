@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTargetCopyUtility.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
@@ -47,30 +48,6 @@ namespace {
 		// 深度はnulloptで渡しviewportをdest解像度へ合わせる
 		dxCommand->BindRenderTargets(renderTargets, std::nullopt);
 		dxCommand->SetViewportAndScissor(target->GetWidth(), target->GetHeight());
-		return true;
-	}
-
-	bool CopyColor0Resource(Engine::GraphicsCore& graphicsCore,
-		Engine::MultiRenderTarget* source, Engine::MultiRenderTarget* dest) {
-
-		if (!source || !dest) {
-			return false;
-		}
-		// blit失敗時のfallbackで、format とサイズが完全一致するときだけresource copyできる
-		Engine::RenderTexture2D* sourceColor = source->GetColorTexture(0);
-		Engine::RenderTexture2D* destColor = dest->GetColorTexture(0);
-		if (!sourceColor || !destColor ||
-			sourceColor->GetFormat() != destColor->GetFormat() ||
-			sourceColor->GetRenderTarget().width != destColor->GetRenderTarget().width ||
-			sourceColor->GetRenderTarget().height != destColor->GetRenderTarget().height) {
-			return false;
-		}
-
-		// copy元と先をそれぞれの状態へ遷移してからCopyResourceで丸ごと転送する
-		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
-		sourceColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_SOURCE);
-		destColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_DEST);
-		dxCommand->GetCommandList()->CopyResource(destColor->GetResource(), sourceColor->GetResource());
 		return true;
 	}
 
@@ -182,6 +159,6 @@ void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 	if (!ExecuteFullscreenBlit(graphicsCore, context, source, dest,
 		*deps_.assetLibrary, *deps_.pipelineCache, blitSRVCache_, srcColorSlot_)) {
 
-		CopyColor0Resource(graphicsCore, source, dest);
+		MultiRenderTargetCopy::CopyColor0Resource(graphicsCore, source, dest);
 	}
 }

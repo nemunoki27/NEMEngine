@@ -11,6 +11,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/Foundation/Math/Math.h>
 
 // c++
 #include <algorithm>
@@ -34,18 +35,6 @@ namespace {
 		// SceneViewカメラとの距離でアイコンサイズと非表示判定に使う
 		float distance = 0.0f;
 	};
-
-	// 0..1へ丸める小さな補助関数
-	float Clamp01(float value) {
-
-		return std::clamp(value, 0.0f, 1.0f);
-	}
-
-	// アイコンサイズ補間用の線形補間
-	float Lerp(float a, float b, float t) {
-
-		return a + (b - a) * t;
-	}
 
 	// Transformの現在値からワールド行列を作りworldMatrixキャッシュが未更新でもSceneView位置を合わせるために使う
 	Engine::Matrix4x4 ComputeWorldMatrixFromTransform(Engine::ECSWorld& world, const Engine::Entity& entity) {
@@ -106,8 +95,8 @@ namespace {
 	float ComputeLightIconPixelSize(float distance, const Engine::SceneComponentOverlaySettings& settings) {
 
 		const float denominator = (std::max)(settings.lightIconFarDistance - settings.lightIconNearDistance, 0.001f);
-		const float t = Clamp01((distance - settings.lightIconNearDistance) / denominator);
-		return Lerp(settings.lightIconMaxPixelSize, settings.lightIconMinPixelSize, t);
+		const float t = Math::Saturate((distance - settings.lightIconNearDistance) / denominator);
+		return Math::Lerp(settings.lightIconMaxPixelSize, settings.lightIconMinPixelSize, t);
 	}
 
 	// 完全に重なるアイコンをフレームごとに揺れない順序で少しずらす

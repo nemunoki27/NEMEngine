@@ -6,6 +6,7 @@
 #include <Engine/Core/Foundation/IDentity/UUID.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 
 // c++
 #include <filesystem>
@@ -13,89 +14,6 @@
 //============================================================================
 //	PostProcessStackSerializer classMethods
 //============================================================================
-namespace {
-
-	bool TryParseParameterValue(const nlohmann::json& data, Engine::MaterialParameterValue& outValue) {
-
-		if (data.is_number_float()) {
-			outValue.value = data.get<float>();
-			return true;
-		}
-		if (data.is_boolean()) {
-			outValue.value = data.get<bool>();
-			return true;
-		}
-		if (data.is_number_integer()) {
-			outValue.value = static_cast<int32_t>(data.get<int64_t>());
-			return true;
-		}
-		if (data.is_number_unsigned()) {
-			outValue.value = static_cast<uint32_t>(data.get<uint64_t>());
-			return true;
-		}
-		if (data.is_string()) {
-			const std::string text = data.get<std::string>();
-			if (text.size() == 16) {
-				outValue.value = Engine::FromString16Hex(text);
-				return true;
-			}
-			return false;
-		}
-		if (data.is_array()) {
-			if (data.size() == 2 && data[0].is_number() && data[1].is_number()) {
-				outValue.value = Engine::Vector2(data[0].get<float>(), data[1].get<float>());
-				return true;
-			}
-			if (data.size() == 3 && data[0].is_number() && data[1].is_number() && data[2].is_number()) {
-				outValue.value = Engine::Vector3(data[0].get<float>(), data[1].get<float>(), data[2].get<float>());
-				return true;
-			}
-			if (data.size() == 4 && data[0].is_number() && data[1].is_number() && data[2].is_number() && data[3].is_number()) {
-				outValue.value = Engine::Vector4(data[0].get<float>(), data[1].get<float>(), data[2].get<float>(), data[3].get<float>());
-				return true;
-			}
-		}
-		if (data.is_object()) {
-			if (data.contains("r") && data.contains("g") && data.contains("b") && data.contains("a")) {
-				outValue.value = Engine::Color4(data.value("r", 0.0f), data.value("g", 0.0f), data.value("b", 0.0f), data.value("a", 1.0f));
-				return true;
-			}
-		}
-		return false;
-	}
-
-	nlohmann::json SerializeParameterValue(const Engine::MaterialParameterValue& parameter) {
-
-		return std::visit([](const auto& value) -> nlohmann::json {
-			using ValueType = std::decay_t<decltype(value)>;
-
-			if constexpr (std::is_same_v<ValueType, float> ||
-				std::is_same_v<ValueType, int32_t> ||
-				std::is_same_v<ValueType, uint32_t> ||
-				std::is_same_v<ValueType, bool>) {
-				return value;
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector2>) {
-				return nlohmann::json::array({ value.x, value.y });
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector3>) {
-				return nlohmann::json::array({ value.x, value.y, value.z });
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector4>) {
-				return nlohmann::json::array({ value.x, value.y, value.z, value.w });
-			} else if constexpr (std::is_same_v<ValueType, Engine::Color4>) {
-				return nlohmann::json{
-					{ "r", value.r },
-					{ "g", value.g },
-					{ "b", value.b },
-					{ "a", value.a },
-				};
-			} else if constexpr (std::is_same_v<ValueType, Engine::AssetID>) {
-				return Engine::ToAssetReferenceJson(value);
-			} else {
-				return nlohmann::json{};
-			}
-			}, parameter.value);
-	}
-}
-
 bool Engine::PostProcessStackSerializer::Load(const std::filesystem::path& path, PostProcessStackSettings& outSettings) {
 
 	if (!std::filesystem::exists(path)) {
@@ -154,7 +72,7 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 		if (passJson.contains("parameters") && passJson["parameters"].is_object()) {
 			for (auto it = passJson["parameters"].begin(); it != passJson["parameters"].end(); ++it) {
 				MaterialParameterValue value{};
-				if (TryParseParameterValue(it.value(), value)) {
+				if (Engine::ParseMaterialParameterValue(it.value(), value)) {
 					pass.parameterOverrides[it.key()] = std::move(value);
 				}
 			}
@@ -195,7 +113,7 @@ nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStack
 
 		passJson["parameters"] = nlohmann::json::object();
 		for (const auto& [name, value] : pass.parameterOverrides) {
-			passJson["parameters"][name] = SerializeParameterValue(value);
+			passJson["parameters"][name] = Engine::SerializeMaterialParameterValue(value);
 		}
 
 		passJson["textures"] = nlohmann::json::object();
