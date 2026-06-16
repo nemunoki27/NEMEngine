@@ -6,27 +6,12 @@
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/Scripting/Managed/ScriptExecutionOrderTable.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <algorithm>
 #include <cctype>
 #include <string>
-
-namespace {
-
-	// 大文字小文字を無視した部分一致
-	bool ContainsCaseInsensitive(const std::string& haystack, const char* needle) {
-
-		if (!needle || needle[0] == '\0') {
-			return true;
-		}
-		std::string lower(haystack);
-		std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-		std::string needleLower(needle);
-		std::transform(needleLower.begin(), needleLower.end(), needleLower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-		return lower.find(needleLower) != std::string::npos;
-	}
-}
 
 void Engine::ScriptExecutionOrderTool::OpenEditorTool() {
 
@@ -97,7 +82,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow([[maybe_unused]] const EditorT
 				continue;
 			}
 			const std::string& label = !info.displayName.empty() ? info.displayName : info.name;
-			if (!ContainsCaseInsensitive(label, searchBuffer_)) {
+			if (!Algorithm::ContainsCaseInsensitive(label, searchBuffer_)) {
 				continue;
 			}
 

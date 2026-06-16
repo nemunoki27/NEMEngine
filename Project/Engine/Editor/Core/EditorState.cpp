@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
@@ -43,6 +44,18 @@ std::optional<Engine::Dimension> Engine::ResolveEntityDimension(ECSWorld& world,
 		return Dimension::Type3D;
 	}
 	return std::nullopt;
+}
+
+std::string Engine::GetEntityDisplayName(ECSWorld& world, const Entity& entity) {
+
+	if (world.HasComponent<NameComponent>(entity)) {
+
+		const std::string& name = world.GetComponent<NameComponent>(entity).name;
+		if (!name.empty()) {
+			return name;
+		}
+	}
+	return "Entity";
 }
 
 //============================================================================

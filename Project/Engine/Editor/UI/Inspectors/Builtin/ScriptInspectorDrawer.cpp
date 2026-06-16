@@ -769,21 +769,6 @@ namespace {
 		}
 	}
 
-	// ScriptEntryを生成する、永続主キーはscriptTypeIdでslot IDは必ず発番する
-	Engine::ScriptEntry MakeScriptEntry(const std::string& scriptTypeId, const std::string& typeName,
-		Engine::AssetID scriptAsset = {}) {
-
-		Engine::ScriptEntry entry{};
-		entry.scriptTypeId = scriptTypeId;
-		entry.lastKnownTypeName = typeName;
-		entry.scriptSlotID = Engine::UUID::New();
-		entry.scriptAsset = scriptAsset;
-		entry.enabled = true;
-		entry.serializedFields = nlohmann::json::object();
-		entry.handle = Engine::BehaviorHandle::Null();
-		return entry;
-	}
-
 	// Scriptアセットの参照フィールドを描画する
 	Engine::ValueEditResult DrawScriptAssetField(const Engine::EditorPanelContext& context, Engine::ScriptEntry& entry) {
 

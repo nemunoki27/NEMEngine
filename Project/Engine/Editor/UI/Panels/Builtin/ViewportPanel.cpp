@@ -42,23 +42,11 @@ namespace {
 	bool Prefers2DGizmo(const Engine::EditorPanelContext& context,
 		Engine::ECSWorld& world, const Engine::Entity& entity) {
 
-		// Textは2D/3D両対応なのでdimensionで判定する
-		if (world.HasComponent<Engine::TextRendererComponent>(entity)) {
-			return world.GetComponent<Engine::TextRendererComponent>(entity).dimension == Engine::Dimension::Type2D;
-		}
-		// 2D描画に関係するコンポーネントがある場合は2Dギズモを優先
-		if (world.HasComponent<Engine::SpriteRendererComponent>(entity) ||
-			world.HasComponent<Engine::OrthographicCameraComponent>(entity)) {
-			return true;
-		}
-		if (world.HasComponent<Engine::MeshRendererComponent>(entity) ||
-			world.HasComponent<Engine::PerspectiveCameraComponent>(entity) ||
-			world.HasComponent<Engine::DirectionalLightComponent>(entity) ||
-			world.HasComponent<Engine::PointLightComponent>(entity) ||
-			world.HasComponent<Engine::SpotLightComponent>(entity)) {
-			return false;
-		}
-		return context.editorState && context.editorState->manualCameraDimension == Engine::Dimension::Type2D;
+		// 描画コンポーネントからの2D/3D判定は共有のResolveEntityDimensionを使う
+		// 判定できないときは現在のマニュアルカメラ次元へフォールバックする
+		const Engine::Dimension fallback = context.editorState ?
+			context.editorState->manualCameraDimension : Engine::Dimension::Type3D;
+		return Engine::ResolveEntityDimension(world, entity).value_or(fallback) == Engine::Dimension::Type2D;
 	}
 	// シーンギズモの描画に使用するカメラビューを選択する
 	const Engine::ResolvedCameraView* SelectSceneGizmoCamera(const Engine::ResolvedRenderView& view, bool prefer2DTarget) {
@@ -166,13 +154,7 @@ namespace {
 			const Engine::UUID stableUUID = world->GetUUID(entity);
 			ImGui::SetDragDropPayload(Engine::IEditorPanel::kHierarchyDragDropPayloadType, &stableUUID, sizeof(Engine::UUID));
 
-			std::string displayName = "Entity";
-			if (world->HasComponent<Engine::NameComponent>(entity)) {
-				displayName = world->GetComponent<Engine::NameComponent>(entity).name;
-			}
-			if (displayName.empty()) {
-				displayName = "Entity";
-			}
+			const std::string displayName = Engine::GetEntityDisplayName(*world, entity);
 			ImGui::Text("%s", displayName.c_str());
 			ImGui::EndDragDropSource();
 		}
@@ -188,10 +170,7 @@ namespace {
 	// カメラ選択肢のラベルを作る
 	std::string MakeCameraLabel(Engine::ECSWorld& world, Engine::Entity entity, const char* suffix) {
 
-		std::string name = "Entity";
-		if (world.HasComponent<Engine::NameComponent>(entity)) {
-			name = world.GetComponent<Engine::NameComponent>(entity).name;
-		}
+		std::string name = Engine::GetEntityDisplayName(world, entity);
 		name += " [";
 		name += suffix;
 		name += "]";

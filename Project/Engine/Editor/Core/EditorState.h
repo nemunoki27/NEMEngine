@@ -12,11 +12,15 @@
 // c++
 #include <vector>
 #include <optional>
+#include <string>
 
 namespace Engine {
 
 	// エンティティのレンダラ等から2D/3Dを判定する、確定できなければnullopt
 	std::optional<Dimension> ResolveEntityDimension(ECSWorld& world, const Entity& entity);
+
+	// エンティティの表示名を返す、NameComponentが無いか名前が空なら"Entity"を返す
+	std::string GetEntityDisplayName(ECSWorld& world, const Entity& entity);
 
 	//============================================================================
 	//	EditorState structures

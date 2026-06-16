@@ -10,6 +10,7 @@
 #include <Engine/Editor/Scripting/ManagedIdeLauncher.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptExceptionStore.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // imgui
 #include <imgui.h>
@@ -20,17 +21,6 @@
 #include <string>
 
 namespace {
-
-	bool ContainsCaseInsensitive(const std::string& haystack, const char* needle) {
-		if (!needle || needle[0] == '\0') {
-			return true;
-		}
-		std::string h(haystack);
-		std::transform(h.begin(), h.end(), h.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-		std::string n(needle);
-		std::transform(n.begin(), n.end(), n.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-		return h.find(n) != std::string::npos;
-	}
 
 	// 完全修飾型名から表示用の短い名前を取り出す、識別には使わない
 	std::string ShortTypeName(const std::string& fullName) {
@@ -95,9 +85,9 @@ void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& contex
 		for (const ManagedScriptException& exc : store.Entries()) {
 
 			const std::string shortType = ShortTypeName(exc.typeName);
-			if (!ContainsCaseInsensitive(shortType, textFilter_)
-				&& !ContainsCaseInsensitive(exc.message, textFilter_)
-				&& !ContainsCaseInsensitive(exc.exceptionType, textFilter_)) {
+			if (!Algorithm::ContainsCaseInsensitive(shortType, textFilter_)
+				&& !Algorithm::ContainsCaseInsensitive(exc.message, textFilter_)
+				&& !Algorithm::ContainsCaseInsensitive(exc.exceptionType, textFilter_)) {
 				continue;
 			}
 

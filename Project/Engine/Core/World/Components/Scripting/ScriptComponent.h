@@ -48,6 +48,22 @@ namespace Engine {
 		std::vector<ScriptEntry> scripts;
 	};
 
+	// 新規ScriptEntryを生成する、scriptSlotIDを新規採番しランタイムキャッシュを初期化する
+	// scriptTypeIdが未確定の経路では空文字を渡す
+	inline ScriptEntry MakeScriptEntry(const std::string& scriptTypeId,
+		const std::string& lastKnownTypeName, AssetID scriptAsset = {}) {
+
+		ScriptEntry entry{};
+		entry.scriptTypeId = scriptTypeId;
+		entry.lastKnownTypeName = lastKnownTypeName;
+		entry.scriptSlotID = UUID::New();
+		entry.scriptAsset = scriptAsset;
+		entry.enabled = true;
+		entry.serializedFields = nlohmann::json::object();
+		entry.handle = BehaviorHandle::Null();
+		return entry;
+	}
+
 	// json変換
 	void from_json(const nlohmann::json& in, ScriptEntry& entry);
 	void to_json(nlohmann::json& out, const ScriptEntry& entry);

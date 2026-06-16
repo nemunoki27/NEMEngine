@@ -27,14 +27,6 @@ namespace {
 		}
 		return world.GetUUID(hierarchy.parent);
 	}
-	// エンティティの名前を返す
-	std::string GetEntityName(Engine::ECSWorld& world, const Engine::Entity& entity) {
-
-		if (world.HasComponent<Engine::NameComponent>(entity)) {
-			return world.GetComponent<Engine::NameComponent>(entity).name;
-		}
-		return "Entity";
-	}
 }
 
 Engine::DuplicateEntityCommand::DuplicateEntityCommand(const Entity& targetEntity) :
@@ -102,7 +94,7 @@ bool Engine::DuplicateEntityCommand::Execute(EditorCommandContext& context) {
 		}
 
 		// 複製エンティティの名前
-		const std::string duplicatedName = EditorEntityDuplicateUtility::MakeUniqueDuplicatedName(*world, GetEntityName(*world, initialTarget_));
+		const std::string duplicatedName = EditorEntityDuplicateUtility::MakeUniqueDuplicatedName(*world, GetEntityDisplayName(*world, initialTarget_));
 		// 複製用スナップショットの構築
 		EditorEntityDuplicateUtility::BuildDuplicateSnapshot(sourceSnapshot, duplicatedName, preparedSnapshot_);
 		// 既存の壊れたエンティティでも複製できるように補完

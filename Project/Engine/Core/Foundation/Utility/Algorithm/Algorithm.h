@@ -90,6 +90,9 @@ namespace Engine {
 		// 文字列が特定のサフィックスで終わるか
 		bool EndsWith(const std::string& s, const std::string& suf);
 
+		// haystackにneedleが大小無視で含まれるか、needleが空なら常にtrue
+		bool ContainsCaseInsensitive(const std::string& haystack, const std::string& needle);
+
 		// UTF-8をUnicodeコードポイント列(char32_t)へ変換
 		// 不正なシーケンスはU+FFFDに置換
 		std::vector<char32_t> Utf8ToCodepoints(const std::string& s);

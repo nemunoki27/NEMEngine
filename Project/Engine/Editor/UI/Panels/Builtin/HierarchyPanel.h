@@ -58,8 +58,6 @@ namespace Engine {
 		bool CanReorder(ECSWorld& world, const Entity& child, const Entity& anchor) const;
 		// ドロップされたペイロードからエンティティを取得する
 		Entity ResolveDraggedEntity(ECSWorld& world, const ImGuiPayload* payload) const;
-		// エンティティの表示名を取得する
-		std::string GetEntityDisplayName(ECSWorld& world, const Entity& entity) const;
 		// 検索条件に一致するエンティティか
 		bool EntityMatchesSearch(ECSWorld& world, const Entity& entity) const;
 		// 自分または子孫に検索条件へ一致するエンティティがあるか

@@ -17,38 +17,6 @@
 //============================================================================
 //	TransformInspectorDrawer classMethods
 //============================================================================
-namespace {
-
-	// ワールドのトランスフォームとドラフトのトランスフォームを比較して、どこかが変化しているかどうかを判定する
-	bool HasExternalTransformChanged(const Engine::TransformComponent& worldTransform,
-		const Engine::TransformComponent& draftTransform) {
-
-		return !Engine::Vector3::NearlyEqual(worldTransform.localPos, draftTransform.localPos) ||
-			!Engine::Quaternion::NearlyEqual(worldTransform.localRotation, draftTransform.localRotation) ||
-			!Engine::Vector3::NearlyEqual(worldTransform.localScale, draftTransform.localScale);
-	}
-
-	// 所持する描画コンポーネントから編集次元を導く、判定できなければnullopt
-	// TextはMeshと違い2D/3D両対応なのでdimensionをそのまま使う
-	std::optional<Engine::Dimension> ResolveComponentImpliedDimension(
-		Engine::ECSWorld& world, const Engine::Entity& entity) {
-
-		using namespace Engine;
-		if (const TextRendererComponent* text = world.TryGetComponent<TextRendererComponent>(entity)) {
-			return text->dimension;
-		}
-		if (world.HasComponent<MeshRendererComponent>(entity) ||
-			world.HasComponent<PerspectiveCameraComponent>(entity)) {
-			return Dimension::Type3D;
-		}
-		if (world.HasComponent<SpriteRendererComponent>(entity) ||
-			world.HasComponent<OrthographicCameraComponent>(entity)) {
-			return Dimension::Type2D;
-		}
-		return std::nullopt;
-	}
-}
-
 void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
 
 	// 描画できない場合は何もしない
@@ -62,7 +30,8 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	if (!shouldSyncFromWorld && !isEditing_) {
 
 		const auto& worldTransform = world.GetComponent<TransformComponent>(entity);
-		shouldSyncFromWorld = HasExternalTransformChanged(worldTransform, draftTransform_);
+		// ワールド側のtransformが外部で変化したらドラフトを同期する、判定はSetTransformCommandと共通化する
+		shouldSyncFromWorld = !SetTransformCommand::NearlyEqualTransform(worldTransform, draftTransform_);
 	}
 	if (shouldSyncFromWorld) {
 		SyncDraftFromWorld(world, entity);
@@ -70,7 +39,7 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 
 	// 所持コンポーネント構成から導いた編集次元へ追従する
 	// Textの次元切り替えやMeshRendererの後付けなど構成変化に追従させる、手動での次元選択は尊重する
-	const std::optional<Dimension> impliedDimension = ResolveComponentImpliedDimension(world, entity);
+	const std::optional<Dimension> impliedDimension = ResolveEntityDimension(world, entity);
 	if (impliedDimension && lastObservedImpliedDimension_ != impliedDimension) {
 		editDimension_ = *impliedDimension;
 	}

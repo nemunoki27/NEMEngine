@@ -369,23 +369,9 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 			const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
 			Input::GetInstance()->SetViewRect(InputViewArea::Game, Vector2(0.0f, 0.0f),
 				windowSetting.engineSizeFloat, windowSetting.gameSizeFloat);
-		} else {
-
-			// C++ツールの更新でUI描画とは分離してGame側ツールも同じ経路で扱う
-			ToolContext toolContext{};
-			toolContext.world = world;
-			toolContext.assetDatabase = &assetDataBase_;
-			toolContext.systemContext = &systemContext_;
-			toolContext.sceneInstances = &activeScenes;
-			toolContext.activeSceneHeader = header;
-			toolContext.activeSceneAsset = editorContext_.activeSceneAsset;
-			toolContext.activeSceneInstanceID = editorContext_.activeSceneInstanceID;
-			toolContext.activeScenePath = activeScenePath_;
-			toolContext.isPlaying = worldManager_.IsPlaying();
-			toolContext.canEditScene = !worldManager_.IsPlaying() && world;
-			toolContext.deltaTime = deltaTime;
-			ToolRegistry::GetInstance().Tick(toolContext);
 		}
+		// C++ツールのTickはECSシステム更新の後で行う(下のscheduler_.Tickの後)
+		// Collision可視化などがupdate後のworldMatrixを参照でき、表示が1フレーム遅れないようにするため
 
 		// エディタのフレーム開始処理
 		editorManager_.BeginFrame(graphicsCore, editorContext_);
@@ -402,6 +388,28 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 		playFrameStepRequested_ = false;
 		systemContext_.deltaTime = 0.0f;
+	}
+
+	// C++ツールの更新、ECSシステム更新の後に行うことでCollision可視化等がupdate後のworldMatrixを参照する
+	// UI描画とは分離した経路で、パネル表示中のみ実行する
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		if (!editorManager_.GetLayoutState().hidePanels) {
+
+			ToolContext toolContext{};
+			toolContext.world = world;
+			toolContext.assetDatabase = &assetDataBase_;
+			toolContext.systemContext = &systemContext_;
+			toolContext.sceneInstances = &activeScenes;
+			toolContext.activeSceneHeader = header;
+			toolContext.activeSceneAsset = editorContext_.activeSceneAsset;
+			toolContext.activeSceneInstanceID = editorContext_.activeSceneInstanceID;
+			toolContext.activeScenePath = activeScenePath_;
+			toolContext.isPlaying = worldManager_.IsPlaying();
+			toolContext.canEditScene = !worldManager_.IsPlaying() && world;
+			toolContext.deltaTime = deltaTime;
+			ToolRegistry::GetInstance().Tick(toolContext);
+		}
 	}
 }
 

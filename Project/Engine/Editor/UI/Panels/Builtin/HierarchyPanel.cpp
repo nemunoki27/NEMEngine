@@ -701,14 +701,6 @@ Engine::Entity Engine::HierarchyPanel::ResolveDraggedEntity(ECSWorld& world, con
 	return world.FindByUUID(stableUUID);
 }
 
-std::string Engine::HierarchyPanel::GetEntityDisplayName(ECSWorld& world, const Entity& entity) const {
-
-	if (world.HasComponent<NameComponent>(entity)) {
-		return world.GetComponent<NameComponent>(entity).name;
-	}
-	return "Entity";
-}
-
 bool Engine::HierarchyPanel::EntityMatchesSearch(ECSWorld& world, const Entity& entity) const {
 
 	if (!searchFilter_.IsActive()) {

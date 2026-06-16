@@ -9,22 +9,6 @@
 //============================================================================
 //	AddScriptEntryCommand classMethods
 //============================================================================
-namespace {
-
-	// ScriptEntryを生成する、コンポーネントメニューからの追加は型未設定の空スロットだが同type複数attachを識別できるようslot IDだけは必ず発番しておく
-	Engine::ScriptEntry MakeScriptEntry(const std::string& typeName, Engine::AssetID scriptAsset) {
-
-		Engine::ScriptEntry entry{};
-		entry.lastKnownTypeName = typeName;
-		entry.scriptSlotID = Engine::UUID::New();
-		entry.scriptAsset = scriptAsset;
-		entry.enabled = true;
-		entry.serializedFields = nlohmann::json::object();
-		entry.handle = Engine::BehaviorHandle::Null();
-		return entry;
-	}
-}
-
 Engine::AddScriptEntryCommand::AddScriptEntryCommand(const Entity& targetEntity,
 	const std::string_view& typeName, AssetID scriptAsset) :
 	initialTarget_(targetEntity),
@@ -58,7 +42,8 @@ bool Engine::AddScriptEntryCommand::ApplyAdd(EditorCommandContext& context) {
 	}
 
 	auto& component = world->GetComponent<ScriptComponent>(target);
-	component.scripts.emplace_back(MakeScriptEntry(typeName_, scriptAsset_));
+	// コンポーネントメニューからの追加は型未設定の空スロット、slot IDは共有ファクトリが必ず発番する
+	component.scripts.emplace_back(MakeScriptEntry("", typeName_, scriptAsset_));
 
 	if (context.editorState) {
 		context.editorState->SelectEntity(target);

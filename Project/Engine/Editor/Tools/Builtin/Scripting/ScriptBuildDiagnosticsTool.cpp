@@ -10,6 +10,7 @@
 #include <Engine/Core/Scripting/Managed/ManagedScriptBuildService.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedBuildDiagnosticStore.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
@@ -58,17 +59,6 @@ namespace {
 		case Engine::AlcUnloadStatus::LeakSuspected: return "LeakSuspected";
 		default: return "Unknown";
 		}
-	}
-
-	bool ContainsCaseInsensitive(const std::string& haystack, const char* needle) {
-		if (!needle || needle[0] == '\0') {
-			return true;
-		}
-		std::string h(haystack);
-		std::transform(h.begin(), h.end(), h.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-		std::string n(needle);
-		std::transform(n.begin(), n.end(), n.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-		return h.find(n) != std::string::npos;
 	}
 
 	// GameScripts.csprojを無条件再生成せず、必須要素をvalidateして不足をdiagnosticに出す
@@ -211,7 +201,7 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 			if (d.severity == DiagnosticSeverity::Warning && !showWarnings_) { continue; }
 			if (d.severity == DiagnosticSeverity::Info) { continue; }
 			if (latestBuildOnly_ && latestBuildId != 0 && d.buildId != latestBuildId) { continue; }
-			if (!ContainsCaseInsensitive(d.message, textFilter_) && !ContainsCaseInsensitive(d.file, textFilter_)) {
+			if (!Algorithm::ContainsCaseInsensitive(d.message, textFilter_) && !Algorithm::ContainsCaseInsensitive(d.file, textFilter_)) {
 				continue;
 			}
 

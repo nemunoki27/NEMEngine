@@ -140,6 +140,14 @@ bool Algorithm::EndsWith(const std::string& s, const std::string& suf) {
 	return s.size() >= suf.size() && s.compare(s.size() - suf.size(), suf.size(), suf) == 0;
 }
 
+bool Algorithm::ContainsCaseInsensitive(const std::string& haystack, const std::string& needle) {
+
+	if (needle.empty()) {
+		return true;
+	}
+	return ToLower(haystack).find(ToLower(needle)) != std::string::npos;
+}
+
 std::vector<char32_t> Algorithm::Utf8ToCodepoints(const std::string& s) {
 
 	std::vector<char32_t> out;
