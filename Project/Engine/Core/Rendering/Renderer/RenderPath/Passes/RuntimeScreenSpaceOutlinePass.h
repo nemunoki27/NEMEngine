@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineRenderer.h>
 
 // c++
@@ -14,8 +14,7 @@ namespace Engine {
 
 	//============================================================================
 	//	RuntimeScreenSpaceOutlinePass class
-	// ScreenSpaceOutlineComponent由来のoutlineをSceneFinalへ合成する
-	// PostProcess前に実行し、GameView/SceneViewの両方で表示する
+	//スクリーンスペースアウトラインの合成
 	//============================================================================
 	class RuntimeScreenSpaceOutlinePass :
 		public IRenderPass {
@@ -23,12 +22,16 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit RuntimeScreenSpaceOutlinePass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~RuntimeScreenSpaceOutlinePass() override = default;
 
-		RenderPathPassKind GetKind() const override { return RenderPathPassKind::RuntimeScreenSpaceOutline; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::RuntimeScreenSpaceOutline; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -42,8 +45,7 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		void CollectRequests(const SceneExecutionContext& context,
-			const RenderPassPhaseBuckets& passBuckets);
+		void CollectRequests(const SceneExecutionContext& context, const RenderPassPhaseBuckets& passBuckets);
 	};
 } // Engine
 

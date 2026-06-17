@@ -44,7 +44,6 @@ namespace Engine {
 		Blit,
 		Fullscreen,
 		PostProcess,
-		LightCulling,
 		Reflection,
 	};
 

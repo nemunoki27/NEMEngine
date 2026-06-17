@@ -4,13 +4,13 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 
 namespace Engine {
 
 	//============================================================================
 	//	DepthPrepass class
-	// Opaqueキューの深度プリパスでLightCulling/Overdraw削減用
+	//	不透明キューの深度プリパスでオーバーDraw削減パス
 	//============================================================================
 	class DepthPrepass :
 		public IRenderPass {
@@ -18,12 +18,16 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit DepthPrepass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~DepthPrepass() override = default;
 
-		RenderPathPassKind GetKind() const override { return RenderPathPassKind::DepthPrepass; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::DepthPrepass; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -40,4 +44,3 @@ namespace Engine {
 			const RenderPassPhaseBuckets& passBuckets) const;
 	};
 } // Engine
-

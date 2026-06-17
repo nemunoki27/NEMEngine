@@ -192,6 +192,33 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 	color2.createUAV = false;
 	desc.colors.emplace_back(color2);
 
+	// SceneMaterialMain、Deferredライティングが参照するmetallic/roughness/occlusionを束ねる
+	// rgbに各係数を入れ、8bitで足りる質感パラメータなのでR8G8B8A8で帯域を抑える
+	ColorAttachmentDesc color3{};
+	color3.name = "SceneMaterialMain";
+	color3.format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	color3.clearColor = Color4::Black();
+	color3.createUAV = false;
+	desc.colors.emplace_back(color3);
+
+	// SceneEmissiveMain、自己発光をHDRで保持しライティング加算の初期色に使う
+	// intensityを乗算済みの発光色を入れるためalpha不要のR11G11B10で十分
+	ColorAttachmentDesc color4{};
+	color4.name = "SceneEmissiveMain";
+	color4.format = DXGI_FORMAT_R11G11B10_FLOAT;
+	color4.clearColor = Color4::Black();
+	color4.createUAV = false;
+	desc.colors.emplace_back(color4);
+
+	// SceneFlagsMain、マテリアル単位の挙動フラグをライティングパスへ渡す
+	// EnableLighting無効画素のスキップ等に使い、0クリアで未描画画素を非ライティング扱いにする
+	ColorAttachmentDesc color5{};
+	color5.name = "SceneFlagsMain";
+	color5.format = DXGI_FORMAT_R32_UINT;
+	color5.clearColor = Color4::Black();
+	color5.createUAV = false;
+	desc.colors.emplace_back(color5);
+
 	// 深度バッファ
 	DepthTextureCreateDesc depth{};
 	depth.width = width;

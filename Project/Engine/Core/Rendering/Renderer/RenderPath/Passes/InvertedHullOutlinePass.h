@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 
 // c++
 #include <vector>
@@ -16,8 +16,7 @@ namespace Engine {
 
 	//============================================================================
 	//	InvertedHullOutlinePass class
-	//	背面法アウトラインの追加描画パスでOpaqueバケットからOutline対象を抽出し
-	//	SceneFinalの色とSceneMainの深度を組み合わせてHullを描画する
+	//	背面法アウトラインの追加描画パス
 	//============================================================================
 	class InvertedHullOutlinePass :
 		public IRenderPass {
@@ -25,12 +24,16 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit InvertedHullOutlinePass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~InvertedHullOutlinePass() override = default;
 
-		RenderPathPassKind GetKind() const override { return RenderPathPassKind::InvertedHullOutline; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::InvertedHullOutline; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -47,14 +50,14 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		const RenderPipelineDeps& deps_;
+		// 全アウトラインエンティティの共通のステンシル予約値
+		static constexpr UINT kOutlineStencilReference = 1;
 
-		// 全outlined entity共通のステンシル予約値
-		static constexpr UINT kOutlineStencilReference = 1u;
+		const RenderPipelineDeps& deps_;
 
 		//--------- functions ----------------------------------------------------
 
-		// Outline対象アイテムを収集する
+		// アウトライン対象アイテムを収集する
 		OutlineItemGroups CollectItems(const SceneExecutionContext& context,
 			const RenderPassPhaseBuckets& passBuckets) const;
 	};

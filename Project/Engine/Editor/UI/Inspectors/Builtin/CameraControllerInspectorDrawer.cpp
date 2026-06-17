@@ -18,6 +18,7 @@
 //============================================================================
 //	CameraControllerInspectorDrawer classMethods
 //============================================================================
+
 namespace {
 
 	// UUIDから表示名を作成する
@@ -112,11 +113,11 @@ Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawModeField(C
 		CameraControlMode::FollowLookAt,
 	};
 
-	if (ImGui::BeginCombo("##Value", ToString(mode))) {
+	if (ImGui::BeginCombo("##Value", EnumAdapter<CameraControlMode>::ToString(mode))) {
 		for (CameraControlMode candidate : kModes) {
 
 			const bool selected = candidate == mode;
-			if (ImGui::Selectable(ToString(candidate), selected)) {
+			if (ImGui::Selectable(EnumAdapter<CameraControlMode>::ToString(candidate), selected)) {
 				mode = candidate;
 				result.valueChanged = true;
 				result.editFinished = true;

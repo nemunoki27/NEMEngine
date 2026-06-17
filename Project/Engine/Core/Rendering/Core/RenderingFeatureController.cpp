@@ -5,7 +5,6 @@
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
-#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
@@ -17,28 +16,6 @@
 namespace {
 
 	constexpr const char* kGraphicsFeatureConfigPath = "Config/graphicsFeatureSettings.exeConfig.json";
-
-	const char* ToLightCullingModeName(Engine::LightCullingMode mode) {
-
-		switch (mode) {
-		case Engine::LightCullingMode::Disabled:
-			return "Disabled";
-		case Engine::LightCullingMode::Tile2D:
-			return "Tile2D";
-		case Engine::LightCullingMode::Clustered:
-			return "Clustered";
-		case Engine::LightCullingMode::DebugAllLightsPerCluster:
-			return "DebugAllLightsPerCluster";
-		default:
-			return "Unknown";
-		}
-	}
-
-	Engine::LightCullingMode LoadLightCullingMode(const nlohmann::json& data, Engine::LightCullingMode fallback) {
-
-		const std::string value = data.value("lightCullingMode", std::string(Engine::EnumAdapter<Engine::LightCullingMode>::ToString(fallback)));
-		return Engine::EnumAdapter<Engine::LightCullingMode>::FromString(value).value_or(fallback);
-	}
 }
 
 void Engine::GraphicsFeatureController::ApplyDetectedSupport(
@@ -122,33 +99,6 @@ void Engine::GraphicsFeatureController::SetAllowFrustumCulling(bool enabled) {
 	Logger::Output(LogType::Engine, "Frustum Culling -> {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
 }
 
-void Engine::GraphicsFeatureController::SetAllowLightCulling(bool enabled) {
-
-	// ライトカリングはGPU機能に依存せずOFF時はPS側で全ローカルライト評価へ戻す
-	if (preferences_.allowLightCulling == enabled) {
-		return;
-	}
-
-	preferences_.allowLightCulling = enabled;
-	RebuildRuntimeFeatures();
-	SavePreferencesToConfig();
-
-	Logger::Output(LogType::Engine, "Light Culling -> {}", runtimeFeatures_.useLightCulling ? "Enabled" : "Disabled");
-}
-
-void Engine::GraphicsFeatureController::SetLightCullingMode(LightCullingMode mode) {
-
-	if (preferences_.lightCullingMode == mode) {
-		return;
-	}
-
-	preferences_.lightCullingMode = mode;
-	RebuildRuntimeFeatures();
-	SavePreferencesToConfig();
-
-	Logger::Output(LogType::Engine, "Light Culling Mode -> {}", ToLightCullingModeName(runtimeFeatures_.lightCullingMode));
-}
-
 void Engine::GraphicsFeatureController::SetAllowContributionCulling(bool enabled) {
 
 	// VS経路とMS経路の両方で使うため、共通のRuntimeFeaturesへ反映する
@@ -197,9 +147,6 @@ void Engine::GraphicsFeatureController::RebuildRuntimeFeatures() {
 	runtimeFeatures_.useInlineRayTracing = support_.SupportsRayTracingPath() && preferences_.allowInlineRayTracing;
 	runtimeFeatures_.useDispatchRays = support_.SupportsRayTracingPath() && preferences_.allowDispatchRays;
 	runtimeFeatures_.useFrustumCulling = preferences_.allowFrustumCulling;
-	runtimeFeatures_.lightCullingMode = preferences_.allowLightCulling ?
-		preferences_.lightCullingMode : LightCullingMode::Disabled;
-	runtimeFeatures_.useLightCulling = runtimeFeatures_.lightCullingMode != LightCullingMode::Disabled;
 	runtimeFeatures_.useContributionCulling = preferences_.allowContributionCulling;
 	runtimeFeatures_.useNormalConeCulling = preferences_.allowNormalConeCulling;
 }
@@ -223,8 +170,6 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 	Logger::Output(LogType::Engine, "Runtime DispatchRays: {}", runtimeFeatures_.useDispatchRays ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime RayScene Build: {}", runtimeFeatures_.UsesAnyRayTracing() ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Frustum Culling: {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
-	Logger::Output(LogType::Engine, "Runtime Light Culling: {}", runtimeFeatures_.useLightCulling ? "Enabled" : "Disabled");
-	Logger::Output(LogType::Engine, "Runtime Light Culling Mode: {}", ToLightCullingModeName(runtimeFeatures_.lightCullingMode));
 	Logger::Output(LogType::Engine, "Runtime Contribution Culling: {}", runtimeFeatures_.useContributionCulling ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Normal Cone Culling: {}", runtimeFeatures_.useNormalConeCulling ? "Enabled" : "Disabled");
 
@@ -247,8 +192,6 @@ void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
 	preferences_.allowInlineRayTracing = data.value("allowInlineRayTracing", preferences_.allowInlineRayTracing);
 	preferences_.allowDispatchRays = data.value("allowDispatchRays", preferences_.allowDispatchRays);
 	preferences_.allowFrustumCulling = data.value("allowFrustumCulling", preferences_.allowFrustumCulling);
-	preferences_.allowLightCulling = data.value("allowLightCulling", preferences_.allowLightCulling);
-	preferences_.lightCullingMode = LoadLightCullingMode(data, preferences_.lightCullingMode);
 	preferences_.allowContributionCulling = data.value("allowContributionCulling", preferences_.allowContributionCulling);
 	preferences_.allowNormalConeCulling = data.value("allowNormalConeCulling", preferences_.allowNormalConeCulling);
 }
@@ -260,8 +203,6 @@ void Engine::GraphicsFeatureController::SavePreferencesToConfig() const {
 	data["allowInlineRayTracing"] = preferences_.allowInlineRayTracing;
 	data["allowDispatchRays"] = preferences_.allowDispatchRays;
 	data["allowFrustumCulling"] = preferences_.allowFrustumCulling;
-	data["allowLightCulling"] = preferences_.allowLightCulling;
-	data["lightCullingMode"] = EnumAdapter<LightCullingMode>::ToString(preferences_.lightCullingMode);
 	data["allowContributionCulling"] = preferences_.allowContributionCulling;
 	data["allowNormalConeCulling"] = preferences_.allowNormalConeCulling;
 

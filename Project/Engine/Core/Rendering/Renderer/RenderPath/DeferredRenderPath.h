@@ -29,7 +29,7 @@ namespace Engine {
 
 	//============================================================================
 	//	RenderPipelineDeps structure
-	//	FixedForwardPlusRenderPathおよびIRenderPass実装が使うパイプライン依存
+	//	DeferredRenderPath、RenderPass実装が使うパイプライン依存
 	//============================================================================
 	struct RenderPipelineDeps {
 
@@ -47,20 +47,21 @@ namespace Engine {
 	};
 
 	//============================================================================
-	//	FixedForwardPlusRenderPath class
-	//	固定描画順のForward+ RenderPathを管理・実行するクラス
+	//	DeferredRenderPath class
+	//	固定描画順のディファードRenderPathを管理・実行するクラス
+	//	不透明はGBuffer+LightingPass、半透明はforwardで描く
 	//============================================================================
-	class FixedForwardPlusRenderPath {
+	class DeferredRenderPath {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
-		FixedForwardPlusRenderPath() = default;
-		~FixedForwardPlusRenderPath() = default;
+		DeferredRenderPath() = default;
+		~DeferredRenderPath() = default;
 
 		// コピー禁止
-		FixedForwardPlusRenderPath(const FixedForwardPlusRenderPath&) = delete;
-		FixedForwardPlusRenderPath& operator=(const FixedForwardPlusRenderPath&) = delete;
+		DeferredRenderPath(const DeferredRenderPath&) = delete;
+		DeferredRenderPath& operator=(const DeferredRenderPath&) = delete;
 
 		// パスの初期化でdepsはRenderPipelineRunnerが所有するメンバーへのポインタを渡す
 		void Initialize(const RenderPipelineDeps& deps);

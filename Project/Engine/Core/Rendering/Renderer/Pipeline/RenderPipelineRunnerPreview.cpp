@@ -37,7 +37,6 @@ bool RenderPipelineRunner::RenderEntityPreview(
 
 		previewBackendRegistry_.BeginFrame(graphicsCore);
 		previewLightBufferPool_.BeginFrame();
-		previewLightCullingBufferPool_.BeginFrame();
 		previewBackendFrameStarted_ = true;
 	}
 	extractorRegistry_.BuildBatch(*request.world, renderBatch_);
@@ -85,7 +84,6 @@ bool RenderPipelineRunner::RenderEntityPreview(
 	context.viewportHeight = request.viewportHeight;
 	context.disableInlineRayTracing = true;
 	context.forceVertexMeshVariant = request.forceVertexMeshVariant;
-	context.forceDirectLocalLightEvaluation = true;
 	context.world = request.world;
 	context.systemContext = request.systemContext;
 	context.assetDatabase = request.assetDatabase;
@@ -97,14 +95,8 @@ bool RenderPipelineRunner::RenderEntityPreview(
 		[](ViewLightBufferSet& buffers, GraphicsCore& core) {
 			buffers.Init(core);
 		});
-	ViewLightCullingBufferSet& previewLightCullingBuffers = previewLightCullingBufferPool_.Acquire(graphicsCore,
-		[](ViewLightCullingBufferSet& buffers, GraphicsCore& core) {
-			buffers.Init(core);
-	});
 	previewLightBuffers.Upload(previewLightSet_);
-	previewLightCullingBuffers.Upload(previewView, previewLightSet_, LightCullingMode::Disabled);
 	previewLightBuffers.RegisterTo(context.bufferRegistry);
-	previewLightCullingBuffers.RegisterTo(context.bufferRegistry);
 
 	auto* meshBackendBase = previewBackendRegistry_.Find(RenderBackendID::Mesh);
 	auto* meshBackend = dynamic_cast<MeshRenderBackend*>(meshBackendBase);

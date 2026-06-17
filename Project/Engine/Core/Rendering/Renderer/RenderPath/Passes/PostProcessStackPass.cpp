@@ -27,6 +27,7 @@
 //============================================================================
 //	PostProcessStackPass classMethods
 //============================================================================
+
 namespace {
 
 	constexpr const char* kSceneColorFinal = "SceneColorFinal";
@@ -51,13 +52,11 @@ namespace {
 		dxCommand->GetCommandList()->CopyResource(destColor->GetResource(), sourceColor->GetResource());
 		dest->TransitionForShaderRead(*dxCommand);
 		// sourceをCOPY_SOURCEのまま残すと、直後にsourceを入力読みするパスとの間で状態追跡がずれる
-		// 先頭パスのsource(SceneFinal)で顕著なので読み取り状態へ戻して整合させる
 		source->TransitionForShaderRead(*dxCommand);
 		return true;
 	}
 
 	// sourceをGameViewと同じToneMapToViewでdestへ全画面blitする、プレビューの見た目をGameViewへ合わせる用途
-	// 退避先のdestは表示できるよう最後にシェーダー読み取り状態へ戻す
 	bool ToneMapBlitToPreview(Engine::GraphicsCore& graphicsCore,
 		const Engine::SceneExecutionContext& context,
 		Engine::MultiRenderTarget* source, Engine::MultiRenderTarget* dest,
@@ -140,9 +139,8 @@ namespace {
 }
 
 void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
-	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
+	[[maybe_unused]] const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
-	(void)passBuckets;
 	if (!context.resources || !context.targetRegistry ||
 		!deps_.postProcessExecutor || !deps_.postProcessTargetPool ||
 		!deps_.assetLibrary || !deps_.pipelineCache) {
@@ -185,9 +183,7 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	// エディタの選択中パスを基準に、そのパス実行前後の結果をプレビューへ退避する
-	// GameViewの結果のみを対象にすることで、ビューごとにサイズが異なっても
-	// プレビュー用一時RTが再生成され続けるのを防ぐ
+	// エディタの選択中パスを基準に、そのパス実行前後の結果をプレビューへ退避
 	const UUID previewPassId = service.GetPreviewPassId();
 	const bool capturePreview = (context.kind == RenderViewKind::Game) && static_cast<bool>(previewPassId);
 	MultiRenderTarget* previewBefore = nullptr;
@@ -226,7 +222,7 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		}
 	}
 
-	// パスのsource/dest名から、対応する中間RTを引く(プレビュー退避用)
+	// パスのsource/dest名から、対応する中間RTを引く
 	auto resolveTargetByName = [&](const char* name) -> MultiRenderTarget* {
 		if (!name) {
 			return nullptr;
@@ -241,7 +237,7 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 			return pong;
 		}
 		return nullptr;
-	};
+		};
 
 	const size_t passCount = activePasses.size();
 	for (size_t i = 0; i < passCount; ++i) {
@@ -261,7 +257,7 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		}
 
 		// 選択中パスなら、実行前のsource内容をbeforeへ退避する
-		// GameViewと同じトーンマップを通して退避し、見た目を一致させる(失敗時は生コピーへfallback)
+		// GameViewと同じトーンマップを通して退避し、見た目を一致させる
 		const bool isPreviewTarget = capturePreview && previewBefore && previewAfter &&
 			(pass.id == previewPassId);
 		if (isPreviewTarget) {

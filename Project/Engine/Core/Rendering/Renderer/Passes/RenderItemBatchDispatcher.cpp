@@ -45,11 +45,6 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 		drawContext.runtimeFeatures.useInlineRayTracing = false;
 		drawContext.runtimeFeatures.useDispatchRays = false;
 	}
-	if (sceneContext.forceDirectLocalLightEvaluation) {
-
-		drawContext.runtimeFeatures.useLightCulling = false;
-		drawContext.runtimeFeatures.lightCullingMode = LightCullingMode::Disabled;
-	}
 
 	drawContext.rtvFormats.fill(DXGI_FORMAT_UNKNOWN);
 	drawContext.numRTVFormats = 0;

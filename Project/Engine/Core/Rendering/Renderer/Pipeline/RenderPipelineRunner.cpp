@@ -102,10 +102,7 @@ void RenderPipelineRunner::Init() {
 	// ビューライトバッファの初期化
 	gameViewLightBuffers_.Release();
 	sceneViewLightBuffers_.Release();
-	gameViewLightCullingBuffers_.Release();
-	sceneViewLightCullingBuffers_.Release();
 	previewLightBufferPool_.Clear();
-	previewLightCullingBufferPool_.Clear();
 	previewBackendFrameStarted_ = false;
 	lastRenderedWorld_ = nullptr;
 }
@@ -126,6 +123,21 @@ void RenderPipelineRunner::ReloadMaterial(AssetID materialAssetID) {
 	// マテリアルキャッシュを破棄して次フレームのLoadMaterialでファイルから読み直させる
 	// インスペクタでの編集を実行中に即反映するため
 	renderAssetLibrary_.InvalidateMaterial(materialAssetID);
+}
+
+Engine::RenderTexture2D* RenderPipelineRunner::GetViewGBufferTexture(RenderViewKind kind, GBufferAttachment attachment) {
+
+	// GameViewはgameViewResources_、それ以外はsceneViewResources_のGBufferを参照する
+	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewResources_ : sceneViewResources_;
+	return resources.GetGBuffer(attachment);
+}
+
+Engine::DepthTexture2D* RenderPipelineRunner::GetViewDepthTexture(RenderViewKind kind) {
+
+	// 深度はGBufferの色ではなくSceneMainの深度アタッチメントを参照する
+	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewResources_ : sceneViewResources_;
+	MultiRenderTarget* sceneMain = resources.GetSceneMain();
+	return sceneMain ? sceneMain->GetDepthTexture() : nullptr;
 }
 
 void RenderPipelineRunner::Finalize() {
@@ -152,10 +164,7 @@ void RenderPipelineRunner::Finalize() {
 	previewLightSet_.Clear();
 	gameViewLightBuffers_.Release();
 	sceneViewLightBuffers_.Release();
-	gameViewLightCullingBuffers_.Release();
-	sceneViewLightCullingBuffers_.Release();
 	previewLightBufferPool_.Clear();
-	previewLightCullingBufferPool_.Clear();
 	if (viewportRenderService_) {
 		viewportRenderService_->Finalize();
 		viewportRenderService_.reset();
@@ -278,14 +287,14 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	// ビューごとのライト集合クリア
 	gameViewLightSet_.Clear();
 	sceneViewLightSet_.Clear();
-	const bool sceneViewUsesGameLightCulling = sceneView_.valid && gameView_.valid;
+	const bool sceneViewSharesGameLightBuffers = sceneView_.valid && gameView_.valid;
 	// ルートシーン用のビューライト構築
 	if (activeScene) {
 		if (gameView_.valid) {
 
 			ViewLightCollector::CollectForView(frameLightBatch_, activeScene, gameView_, gameViewLightSet_);
 		}
-		if (sceneView_.valid && !sceneViewUsesGameLightCulling) {
+		if (sceneView_.valid && !sceneViewSharesGameLightBuffers) {
 
 			ViewLightCollector::CollectForView(frameLightBatch_, activeScene, sceneView_, sceneViewLightSet_);
 		}
@@ -295,24 +304,14 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	if (!gameViewLightBuffers_.IsInitialized()) {
 		gameViewLightBuffers_.Init(graphicsCore);
 	}
-	if (!sceneViewUsesGameLightCulling && !sceneViewLightBuffers_.IsInitialized()) {
+	if (!sceneViewSharesGameLightBuffers && !sceneViewLightBuffers_.IsInitialized()) {
 		sceneViewLightBuffers_.Init(graphicsCore);
 	}
-	if (!gameViewLightCullingBuffers_.IsInitialized()) {
-		gameViewLightCullingBuffers_.Init(graphicsCore);
-	}
-	if (!sceneViewUsesGameLightCulling && !sceneViewLightCullingBuffers_.IsInitialized()) {
-		sceneViewLightCullingBuffers_.Init(graphicsCore);
-	}
-	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	// ビューごとのライト集合をGPUへ転送
 	gameViewLightBuffers_.Upload(gameViewLightSet_);
-	// ビューごとのライトカリングデータをGPUへ転送
-	gameViewLightCullingBuffers_.Upload(gameView_, gameViewLightSet_, runtimeFeatures.lightCullingMode);
-	if (!sceneViewUsesGameLightCulling) {
+	if (!sceneViewSharesGameLightBuffers) {
 
 		sceneViewLightBuffers_.Upload(sceneViewLightSet_);
-		sceneViewLightCullingBuffers_.Upload(sceneView_, sceneViewLightSet_, runtimeFeatures.lightCullingMode);
 	}
 
 	// レイトレーシングビュー関連バッファの初期化と転送
@@ -516,10 +515,6 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.requireRaytracingSceneForEditorPicking = request.requireRaytracingSceneForEditorPicking;
 	context.drawSceneViewDefaultGrid = request.drawSceneViewDefaultGrid;
 	context.allowSceneComponentOverlay = (kind == RenderViewKind::Scene);
-	context.lightCullingBufferSet = (kind == RenderViewKind::Game || !gameView_.valid) ?
-		((kind == RenderViewKind::Game) ? &gameViewLightCullingBuffers_ : &sceneViewLightCullingBuffers_) :
-		&gameViewLightCullingBuffers_;
-	context.shouldExecuteLightCullingPass = !(kind == RenderViewKind::Scene && gameView_.valid);
 	// 種類に応じたターゲットレジストリを選択
 	RenderTargetRegistry* registry = kind == RenderViewKind::Game ?
 		&gameViewTargetRegistry_ : &sceneViewTargetRegistry_;
@@ -543,14 +538,12 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.resources = &resources;
 	// ビルボードはGameViewを基準にする
 	context.billboardView = (kind == RenderViewKind::Scene && gameView_.valid) ? &gameView_ : &view;
-	// SceneViewは描画カメラだけSceneViewにして、カリング基準はGameViewに揃える
-	context.lightCullingResources = (kind == RenderViewKind::Scene && gameView_.valid) ?
-		&gameViewResources_ : &resources;
 
 	// 中間RenderTargetをレジストリに登録してPostProcessExecutorが名前で解決できるようにする
 	if (resources.GetSceneMain()) {
 		registry->Register("SceneMain", resources.GetSceneMain(),
-			{ "SceneColorMain", "SceneNormalMain", "ScenePositionMain" }, std::string("SceneDepth"));
+			{ "SceneColorMain", "SceneNormalMain", "ScenePositionMain",
+			  "SceneMaterialMain", "SceneEmissiveMain", "SceneFlagsMain" }, std::string("SceneDepth"));
 	}
 	if (resources.GetSceneFinal()) {
 		registry->Register("SceneFinal", resources.GetSceneFinal(), { "SceneColorFinal" }, std::nullopt);
@@ -561,7 +554,6 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	case RenderViewKind::Game:
 
 		gameViewLightBuffers_.RegisterTo(context.bufferRegistry);
-		gameViewLightCullingBuffers_.RegisterTo(context.bufferRegistry);
 		gameViewRaytracingBuffers_.RegisterTo(context.bufferRegistry);
 		break;
 	case RenderViewKind::Scene:
@@ -569,11 +561,9 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 		if (gameView_.valid) {
 
 			gameViewLightBuffers_.RegisterTo(context.bufferRegistry);
-			gameViewLightCullingBuffers_.RegisterTo(context.bufferRegistry);
 		} else {
 
 			sceneViewLightBuffers_.RegisterTo(context.bufferRegistry);
-			sceneViewLightCullingBuffers_.RegisterTo(context.bufferRegistry);
 		}
 		sceneViewRaytracingBuffers_.RegisterTo(context.bufferRegistry);
 		break;

@@ -117,10 +117,6 @@ namespace Engine {
 		CameraShakeSettings shake{};
 	};
 
-	// 制御方法を表示用文字列へ変換する
-	const char* ToString(CameraControlMode mode);
-	// 表示用文字列から制御方法へ変換する
-	CameraControlMode CameraControlModeFromString(const std::string& text);
 	// ランタイム用の揺れを開始する
 	void RequestCameraShake(CameraControllerComponent& component,
 		float amplitude, float duration, float frequency = -1.0f);

@@ -1,4 +1,4 @@
-#include "PostProcessMaskedUiPass.h"
+#include "PostProcessMaskedUIPass.h"
 
 //============================================================================
 //	include
@@ -9,9 +9,10 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 
 //============================================================================
-//	PostProcessMaskedUiPass classMethods
+//	PostProcessMaskedUIPass classMethods
 //============================================================================
-void Engine::PostProcessMaskedUiPass::Execute(GraphicsCore& graphicsCore,
+
+void Engine::PostProcessMaskedUIPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
 	if (!context.resources) {
@@ -21,6 +22,5 @@ void Engine::PostProcessMaskedUiPass::Execute(GraphicsCore& graphicsCore,
 	// ポストプロセス適用前にSceneFinalへ合成するUIだけを描画する
 	const RenderPassItemList& items = passBuckets.Get(RenderPhase::PostProcessMaskedUI);
 
-	RenderPassExecutionHelper::Execute(graphicsCore, context, items.items, deps_,
-		context.resources->GetSceneFinal());
+	RenderPassExecutionHelper::Execute(graphicsCore, context, items.items, deps_, context.resources->GetSceneFinal());
 }

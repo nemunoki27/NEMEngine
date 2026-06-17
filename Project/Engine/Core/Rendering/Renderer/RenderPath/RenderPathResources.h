@@ -38,6 +38,21 @@ namespace Engine {
 	};
 
 	//============================================================================
+	//	GBufferAttachment enum
+	//	SceneMainのcolorアタッチメント並びと一致させるDeferred GBufferのインデックス
+	//============================================================================
+	enum class GBufferAttachment : uint32_t {
+
+		Albedo = 0,
+		Normal = 1,
+		Position = 2,
+		Material = 3,
+		Emissive = 4,
+		Flags = 5,
+		Count
+	};
+
+	//============================================================================
 	//	RenderPathResources class
 	//	固定RenderPathが使用するView単位の中間レンダーターゲットを管理するクラス
 	//============================================================================
@@ -64,10 +79,22 @@ namespace Engine {
 		// 有効か
 		bool IsValid() const { return sceneMain_ && sceneMain_->IsValid() && sceneFinal_ && sceneFinal_->IsValid(); }
 
-		// Opaque/DepthPrepass/LightCulling用の3色+深度サーフェス
+		// DeferredのGBufferサーフェス、color並びはGBufferAttachmentと一致させる
+		// color0 albedo / color1 normal / color2 worldPosition / color3 material / color4 emissive / color5 flags + 深度
+		// color0は移行中ライティング済み色を保持し、color2のworldPositionは将来depth復元へ置換予定
 		MultiRenderTarget* GetSceneMain() const { return sceneMain_.get(); }
-		// Raytracing/Transparent/PostProcess用の1色(UAV)サーフェス
+		// Raytracing/Transparent/PostProcess用の1色(UAV)サーフェス、ライティング結果の合成先
 		MultiRenderTarget* GetSceneFinal() const { return sceneFinal_.get(); }
+
+		// GBuffer各アタッチメントの取得、ライティングパスが属性ごとに参照する
+		RenderTexture2D* GetGBufferAlbedo() const { return GetGBufferColor(GBufferAttachment::Albedo); }
+		RenderTexture2D* GetGBufferNormal() const { return GetGBufferColor(GBufferAttachment::Normal); }
+		RenderTexture2D* GetGBufferPosition() const { return GetGBufferColor(GBufferAttachment::Position); }
+		RenderTexture2D* GetGBufferMaterial() const { return GetGBufferColor(GBufferAttachment::Material); }
+		RenderTexture2D* GetGBufferEmissive() const { return GetGBufferColor(GBufferAttachment::Emissive); }
+		RenderTexture2D* GetGBufferFlags() const { return GetGBufferColor(GBufferAttachment::Flags); }
+		// 属性を動的に選んで取得する、GBufferデバッグ表示などで使う
+		RenderTexture2D* GetGBuffer(GBufferAttachment attachment) const { return GetGBufferColor(attachment); }
 		// Runtime Component用のScreen-space Outline中間RT
 		ScreenSpaceOutlineViewResources& GetRuntimeScreenSpaceOutline() { return runtimeOutline_; }
 		const ScreenSpaceOutlineViewResources& GetRuntimeScreenSpaceOutline() const { return runtimeOutline_; }
@@ -94,6 +121,16 @@ namespace Engine {
 		ScreenSpaceOutlineViewResources editorSelectionOutline_{};
 
 		//--------- functions ----------------------------------------------------
+
+		// GBufferの指定アタッチメントを取得する、未生成や範囲外はnullptr
+		RenderTexture2D* GetGBufferColor(GBufferAttachment attachment) const {
+
+			const uint32_t index = static_cast<uint32_t>(attachment);
+			if (!sceneMain_ || index >= sceneMain_->GetColorCount()) {
+				return nullptr;
+			}
+			return sceneMain_->GetColorTexture(index);
+		}
 
 		static MultiRenderTargetCreateDesc BuildSceneMainDesc(uint32_t width, uint32_t height);
 		static MultiRenderTargetCreateDesc BuildSceneFinalDesc(uint32_t width, uint32_t height);

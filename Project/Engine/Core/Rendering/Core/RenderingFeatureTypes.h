@@ -14,14 +14,6 @@ namespace Engine {
 	//============================================================================
 	//	GraphicsFeatureTypes structures
 	//============================================================================
-	enum class LightCullingMode : uint32_t {
-
-		Disabled = 0,
-		Tile2D = 1,
-		Clustered = 2,
-		// PIX/検証用に全ローカルライトを各クラスタへ複製する低速経路で直接評価baselineではない
-		DebugAllLightsPerCluster = 3,
-	};
 
 	// GPUアダプタの基本情報
 	struct GraphicsAdapterInfo {
@@ -60,10 +52,6 @@ namespace Engine {
 		bool allowDispatchRays = false;
 		// GameViewのカメラを基準にしたフラスタムカリングを行うか
 		bool allowFrustumCulling = true;
-		// GameViewのカメラを基準にしたタイル単位のライトカリングを行うか
-		bool allowLightCulling = true;
-		// ライトカリングの分割方式で初期実装はClusteredを標準にする
-		LightCullingMode lightCullingMode = LightCullingMode::Clustered;
 		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
 		bool allowContributionCulling = true;
 		// MeshShader経路でメッシュレットの法線コーン判定を行うか
@@ -79,8 +67,6 @@ namespace Engine {
 		bool useDispatchRays = false;
 		// 描画パスごとに参照するカリング機能
 		bool useFrustumCulling = false;
-		bool useLightCulling = false;
-		LightCullingMode lightCullingMode = LightCullingMode::Disabled;
 		bool useContributionCulling = false;
 		bool useNormalConeCulling = false;
 

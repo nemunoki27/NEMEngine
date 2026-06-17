@@ -8,6 +8,8 @@
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
+#include <Engine/Core/Rendering/Renderer/Debug/DepthVisualizer.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 
 // json
 #include <json.hpp>
@@ -131,6 +133,12 @@ namespace Engine {
 		uint32_t prefabPreviewWidth_ = 0;
 		uint32_t prefabPreviewHeight_ = 0;
 
+		// GBufferデバッグのDepth表示用、深度を線形化グレースケールへ変換して表示する
+		DepthVisualizer depthVisualizer_{};
+		std::unique_ptr<MultiRenderTarget> depthVisualizeSurface_;
+		uint32_t depthVisualizeWidth_ = 0;
+		uint32_t depthVisualizeHeight_ = 0;
+
 		//--------- functions ----------------------------------------------------
 
 		void DrawViewportContent(const EditorPanelContext& context, const char* id, const ImVec2& size);
@@ -138,6 +146,10 @@ namespace Engine {
 		// プレファブ編集中なら編集インスタンスをプレビューサーフェスへ描画し、表示用テクスチャを返す
 		// 編集中でなければnullptrを返し、通常のSceneView画像を表示させる
 		const RenderTexture2D* RenderPrefabEditPreview(const EditorPanelContext& context, uint32_t width, uint32_t height);
+
+		// GBufferデバッグのDepth表示で、ビューの深度を可視化サーフェスへ描いて表示用テクスチャを返す
+		const RenderTexture2D* RenderDepthVisualization(const EditorPanelContext& context,
+			RenderViewKind viewKind, uint32_t width, uint32_t height);
 
 		// シーンギズモの描画
 		void DrawSceneGizmo(const EditorPanelContext& context);

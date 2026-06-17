@@ -20,13 +20,22 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		EditorOverlayPass() = default;
 		~EditorOverlayPass() override = default;
 
+		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) override;
+
+		//--------- accessor -----------------------------------------------------
+
 		RenderPathPassKind GetKind() const override { return RenderPathPassKind::EditorOverlay; }
-		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
-			SceneExecutionContext& context) override;
 	private:
+		//============================================================================
+		//	private Methods
+		//============================================================================
+
+		//--------- variables ----------------------------------------------------
+
 		SceneComponentOverlaySettings settings_{};
 		SceneComponentOverlayRegistry registry_{};
 		SceneComponentOverlayCollector collector_{};

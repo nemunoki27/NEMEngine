@@ -1,4 +1,4 @@
-#include "ScreenUiPass.h"
+#include "ScreenUIPass.h"
 
 //============================================================================
 //	include
@@ -8,14 +8,14 @@
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 
 //============================================================================
-//	ScreenUiPass classMethods
+//	ScreenUIPass classMethods
 //============================================================================
-void Engine::ScreenUiPass::Execute(GraphicsCore& graphicsCore,
+
+void Engine::ScreenUIPass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
 	// ViewportへのBlit後に重ねるScreen UIだけを描画する
 	const RenderPassItemList& items = passBuckets.Get(RenderPhase::ScreenUI);
 
-	RenderPassExecutionHelper::Execute(graphicsCore, context, items.items, deps_,
-		context.defaultSurface);
+	RenderPassExecutionHelper::Execute(graphicsCore, context, items.items, deps_, context.defaultSurface);
 }

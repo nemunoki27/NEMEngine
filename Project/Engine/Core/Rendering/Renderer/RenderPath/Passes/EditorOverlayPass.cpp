@@ -10,10 +10,10 @@
 //============================================================================
 //	EditorOverlayPass classMethods
 //============================================================================
-void Engine::EditorOverlayPass::Execute(GraphicsCore& graphicsCore,
-	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
-	(void)passBuckets;
+void Engine::EditorOverlayPass::Execute(GraphicsCore& graphicsCore,
+	[[maybe_unused]] const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
+
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// SceneViewでOverlay許可がある時だけ描く、前提が崩れたらstateを片付けて抜ける
 	if (context.kind != RenderViewKind::Scene ||
@@ -35,8 +35,7 @@ void Engine::EditorOverlayPass::Execute(GraphicsCore& graphicsCore,
 	if (MultiRenderTarget* sceneMain = context.resources->GetSceneMain()) {
 		sceneDepth = sceneMain->GetDepthTexture();
 	}
-	renderer_.Render(graphicsCore, *context.assetDatabase, *context.view,
-		*context.defaultSurface, sceneDepth, context.world, items_);
+	renderer_.Render(graphicsCore, *context.assetDatabase, *context.view, *context.defaultSurface, sceneDepth, context.world, items_);
 #else
 	(void)graphicsCore;
 	(void)context;

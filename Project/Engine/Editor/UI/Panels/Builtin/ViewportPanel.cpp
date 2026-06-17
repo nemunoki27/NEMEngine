@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Views/ViewportRenderService.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTexture2D.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/DepthTexture2D.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -327,6 +328,34 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			shown = preview;
 		}
 
+		// 通常はshownのSRVを表示する、GBufferデバッグが有効ならそのバッファ/深度のSRVへ差し替える
+		D3D12_GPU_DESCRIPTOR_HANDLE imageSRV = shown->GetSRVGPUHandle();
+		if (context.editorState->gbufferDebugView != GBufferDebugView::None &&
+			context.renderPipeline && context.graphicsCore) {
+
+			if (context.editorState->gbufferDebugView == GBufferDebugView::Depth) {
+
+				// 深度はそのままだと確認しづらいので、線形化グレースケールへ変換した可視化テクスチャを表示する
+				if (const RenderTexture2D* depthViz = RenderDepthVisualization(context, viewKind,
+					display->GetRenderTarget().width, display->GetRenderTarget().height)) {
+
+					imageSRV = depthViz->GetSRVGPUHandle();
+				}
+			} else {
+
+				// 色アタッチメントはImGuiがPixelShaderでサンプルするのでPIXEL_SHADER_RESOURCEへ遷移してから渡す
+				// None分だけGBufferAttachmentから+1ずれているので戻す
+				const GBufferAttachment attachment = static_cast<GBufferAttachment>(
+					static_cast<uint32_t>(context.editorState->gbufferDebugView) - 1u);
+				if (RenderTexture2D* gbuffer = context.renderPipeline->GetViewGBufferTexture(viewKind, attachment)) {
+
+					gbuffer->Transition(*context.graphicsCore->GetDXObject().GetDxCommand(),
+						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+					imageSRV = gbuffer->GetSRVGPUHandle();
+				}
+			}
+		}
+
 		// 表示サイズ
 		Vector2 srcSize(static_cast<float>(display->GetRenderTarget().width), static_cast<float>(display->GetRenderTarget().height));
 
@@ -377,8 +406,8 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		Input::GetInstance()->SetViewRect(inputArea, Vector2(imagePos.x, imagePos.y),
 			Vector2(viewSize_.x, viewSize_.y), srcSize);
 
-		// 描画ビューのサーフェスをImGuiに描画、プレファブ編集中はプレビュー画像を表示する
-		ImGui::Image(static_cast<ImTextureID>(shown->GetSRVGPUHandle().ptr), viewSize_);
+		// 描画ビューのサーフェスをImGuiに描画、プレファブ編集中はプレビュー、GBufferデバッグ時はそのバッファを表示する
+		ImGui::Image(static_cast<ImTextureID>(imageSRV.ptr), viewSize_);
 
 		// Imageが最前面でホバーされているかを記録する、上に別のImGui/ポップアップがあるとfalseになる
 		// この値をピッキング側で参照し、ビューの上に他UIがあるときの誤選択を防ぐ
@@ -470,6 +499,46 @@ const Engine::RenderTexture2D* Engine::ViewportPanel::RenderPrefabEditPreview(
 	}
 
 	return prefabPreviewSurface_->GetColorTexture(0);
+}
+
+const Engine::RenderTexture2D* Engine::ViewportPanel::RenderDepthVisualization(
+	const EditorPanelContext& context, RenderViewKind viewKind, uint32_t width, uint32_t height) {
+
+	if (!context.graphicsCore || !context.renderPipeline || width == 0 || height == 0) {
+		return nullptr;
+	}
+	DepthTexture2D* depth = context.renderPipeline->GetViewDepthTexture(viewKind);
+	if (!depth) {
+		return nullptr;
+	}
+
+	// サイズが変わったら可視化サーフェスを作り直す、深度は持たない1色のグレースケール出力
+	if (!depthVisualizeSurface_ || depthVisualizeWidth_ != width || depthVisualizeHeight_ != height) {
+
+		depthVisualizeSurface_ = std::make_unique<MultiRenderTarget>();
+
+		MultiRenderTargetCreateDesc desc{};
+		desc.width = width;
+		desc.height = height;
+		ColorAttachmentDesc color{};
+		color.name = "GBufferDebug.Depth";
+		color.format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		color.clearColor = Color4::Black();
+		color.createUAV = false;
+		desc.colors.emplace_back(color);
+
+		depthVisualizeSurface_->Create(context.graphicsCore->GetDXObject().GetDevice(),
+			&context.graphicsCore->GetRTVDescriptor(), &context.graphicsCore->GetDSVDescriptor(),
+			&context.graphicsCore->GetSRVDescriptor(), desc);
+		depthVisualizeWidth_ = width;
+		depthVisualizeHeight_ = height;
+	}
+	if (!depthVisualizeSurface_->IsValid()) {
+		return nullptr;
+	}
+
+	// 深度を線形化グレースケールへ変換して可視化サーフェスへ描く
+	return depthVisualizer_.Render(*context.graphicsCore, depth, *depthVisualizeSurface_);
 }
 
 void Engine::ViewportPanel::DrawSnapSettingsPopup(const EditorPanelContext& context) {
