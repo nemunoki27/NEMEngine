@@ -1,0 +1,12 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "chromaticAberrationPipeline",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "271942fa421f6949"
+        }
+    ]
+}

@@ -93,6 +93,8 @@ namespace Engine {
 		RenderTexture2D* GetGBufferMaterial() const { return GetGBufferColor(GBufferAttachment::Material); }
 		RenderTexture2D* GetGBufferEmissive() const { return GetGBufferColor(GBufferAttachment::Emissive); }
 		RenderTexture2D* GetGBufferFlags() const { return GetGBufferColor(GBufferAttachment::Flags); }
+		// 属性を動的に選んで取得する、GBufferデバッグ表示などで使う
+		RenderTexture2D* GetGBuffer(GBufferAttachment attachment) const { return GetGBufferColor(attachment); }
 		// Runtime Component用のScreen-space Outline中間RT
 		ScreenSpaceOutlineViewResources& GetRuntimeScreenSpaceOutline() { return runtimeOutline_; }
 		const ScreenSpaceOutlineViewResources& GetRuntimeScreenSpaceOutline() const { return runtimeOutline_; }

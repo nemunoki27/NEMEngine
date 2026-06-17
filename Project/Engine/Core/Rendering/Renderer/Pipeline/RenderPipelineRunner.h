@@ -185,6 +185,11 @@ namespace Engine {
 		const std::vector<MeshSubMeshPickRecord>& GetGameViewPickRecords() const { return pickRecords_; }
 		ID3D12Resource* GetSceneViewTLASResource() const { return tlasResource_; }
 		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return pickRecords_; }
+
+		// 指定ビューのGBufferアタッチメントテクスチャを取得する、GBufferデバッグ表示用、未生成はnullptr
+		RenderTexture2D* GetViewGBufferTexture(RenderViewKind kind, GBufferAttachment attachment);
+		// 指定ビューのSceneMain深度テクスチャを取得する、GBufferデバッグ表示の深度用、未生成はnullptr
+		DepthTexture2D* GetViewDepthTexture(RenderViewKind kind);
 	private:
 		//============================================================================
 		//	private Methods

@@ -7,6 +7,7 @@
 #include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 //============================================================================
 //	MenuBarPanel classMethods
@@ -211,6 +212,37 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::Text("Inline RayTracing : %s", runtime.useInlineRayTracing ? "Enabled" : "Disabled");
 		ImGui::Text("DispatchRays      : %s", runtime.useDispatchRays ? "Enabled" : "Disabled");
 		ImGui::Text("Ray Scene Build   : %s", runtime.UsesAnyRayTracing() ? "Enabled" : "Disabled");
+
+		ImGui::Separator();
+
+		// DeferredのGBufferをGameView/SceneViewへ表示する、チェックは常に1つだけ、全部外すと通常描画へ戻る
+		ImGui::TextDisabled("Deferred GBuffer View (1つだけ)");
+		if (context.editorState) {
+
+			struct GBufferDebugItem {
+
+				const char* label;
+				GBufferDebugView view;
+			};
+			static const GBufferDebugItem kItems[] = {
+				{ "Albedo", GBufferDebugView::Albedo },
+				{ "Normal", GBufferDebugView::Normal },
+				{ "World Pos",    GBufferDebugView::Position },
+				{ "Material", GBufferDebugView::Material },
+				{ "Depth", GBufferDebugView::Depth },
+			};
+
+			GBufferDebugView& current = context.editorState->gbufferDebugView;
+			for (const GBufferDebugItem& item : kItems) {
+
+				bool checked = (current == item.view);
+				if (ImGui::Checkbox(item.label, &checked)) {
+					// 1つだけ選べるようにし、同じ項目を外したらNoneへ戻す
+					current = checked ? item.view : GBufferDebugView::None;
+				}
+			}
+			ImGui::Text("Current: %s", EnumAdapter<GBufferDebugView>::ToString(current));
+		}
 
 		ImGui::SetWindowFontScale(1.0f);
 

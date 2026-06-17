@@ -91,6 +91,18 @@ namespace Engine {
 		bool drawSnapGrid = false;
 	};
 
+	// DeferredのGBufferデバッグ表示、Noneなら通常描画、それ以外はそのバッファをViewへ表示する
+	enum class GBufferDebugView :
+		uint8_t {
+
+		None,
+		Albedo,
+		Normal,
+		Position,
+		Material,
+		Depth,
+	};
+
 	// エディタの状態を管理する構造体
 	struct EditorState {
 
@@ -150,6 +162,9 @@ namespace Engine {
 		EntitySnapSettings snapSettings{};
 		// 複数選択ギズモの回転拡縮を選択中心基準で行うか、falseなら各エンティティ自身の原点基準
 		bool gizmoPivotAtCenter = true;
+
+		// GBufferデバッグ表示、Noneなら通常描画、選べるのは常に1つだけ
+		GBufferDebugView gbufferDebugView = GBufferDebugView::None;
 
 		// 選択しているエンティティがワールドに存在するか確認し、存在しない場合は選択をクリアする
 		void ValidateSelection(ECSWorld* world);

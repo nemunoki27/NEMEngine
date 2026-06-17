@@ -125,6 +125,21 @@ void RenderPipelineRunner::ReloadMaterial(AssetID materialAssetID) {
 	renderAssetLibrary_.InvalidateMaterial(materialAssetID);
 }
 
+Engine::RenderTexture2D* RenderPipelineRunner::GetViewGBufferTexture(RenderViewKind kind, GBufferAttachment attachment) {
+
+	// GameViewはgameViewResources_、それ以外はsceneViewResources_のGBufferを参照する
+	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewResources_ : sceneViewResources_;
+	return resources.GetGBuffer(attachment);
+}
+
+Engine::DepthTexture2D* RenderPipelineRunner::GetViewDepthTexture(RenderViewKind kind) {
+
+	// 深度はGBufferの色ではなくSceneMainの深度アタッチメントを参照する
+	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewResources_ : sceneViewResources_;
+	MultiRenderTarget* sceneMain = resources.GetSceneMain();
+	return sceneMain ? sceneMain->GetDepthTexture() : nullptr;
+}
+
 void RenderPipelineRunner::Finalize() {
 
 	// GPU計測用のクエリヒープ/リードバックバッファはここで解放する
