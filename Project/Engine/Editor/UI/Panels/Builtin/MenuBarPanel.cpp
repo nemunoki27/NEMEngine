@@ -24,6 +24,8 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	if (ImGui::BeginMenu("File")) {
 
+		ImGui::SetWindowFontScale(0.72f);
+
 		const bool canEditScene = context.CanEditScene();
 		if (ImGui::MenuItem("New Scene", nullptr, false, canEditScene)) {
 			context.host->RequestNewScene();
@@ -34,6 +36,9 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		}
 		ImGui::Separator();
 		ImGui::MenuItem("Save Selected As Prefab", nullptr, false, false);
+
+		ImGui::SetWindowFontScale(1.0f);
+
 		ImGui::EndMenu();
 	}
 
@@ -42,10 +47,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	if (ImGui::BeginMenu("Edit")) {
 
-		if (!context.editorState) {
-			ImGui::EndMenu();
-			return;
-		}
+		ImGui::SetWindowFontScale(0.72f);
 
 		// それぞれの操作の実行可能かどうかを判定する
 		const bool canUndo = context.editorState && context.editorState->commandHistory.CanUndo();
@@ -84,6 +86,9 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		if (ImGui::MenuItem("Delete", "Del", false, canMutateSelection)) {
 			context.host->ExecuteEditorCommand(std::make_unique<DeleteEntityCommand>(context.editorState->selectedEntity));
 		}
+
+		ImGui::SetWindowFontScale(1.0f);
+
 		ImGui::EndMenu();
 	}
 
@@ -91,6 +96,8 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//	エディタウィンドウ表示設定
 	//============================================================================
 	if (ImGui::BeginMenu("Window")) {
+
+		ImGui::SetWindowFontScale(0.72f);
 
 		ImGui::MenuItem("HidePanels", "Tab+Esc", &context.layoutState->hidePanels);
 		ImGui::Separator();
@@ -104,6 +111,8 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::MenuItem("SceneView", nullptr, &context.layoutState->showSceneView);
 		ImGui::MenuItem("GameView", nullptr, &context.layoutState->showGameView);
 
+		ImGui::SetWindowFontScale(1.0f);
+
 		ImGui::EndMenu();
 	}
 
@@ -111,6 +120,8 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//	グラフィックス機能表示/切り替え
 	//============================================================================
 	if (ImGui::BeginMenu("Graphics")) {
+
+		ImGui::SetWindowFontScale(0.72f);
 
 		// GPUから検出した機能サポート状況とユーザー設定を表示し、切り替え可能なものは切り替える
 		auto& featureController = context.graphicsPlatform->GetFeatureController();
@@ -173,61 +184,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		}
 		ImGui::Text("Frustum Culling: %s", runtime.useFrustumCulling ? "Enabled" : "Disabled");
 
-		bool allowLightCulling = preferences.allowLightCulling;
-		if (ImGui::Checkbox("Use Light Culling", &allowLightCulling)) {
-			featureController.SetAllowLightCulling(allowLightCulling);
-		}
-		ImGui::Text("Light Culling: %s", runtime.useLightCulling ? "Enabled" : "Disabled");
-		const char* lightCullingModeItems[] = {
-			"Tile2D Forward+",
-			"Clustered",
-			"Debug: Replicate All Lights Per Cluster (Slow)"
-		};
-		int lightCullingModeIndex = 1;
-		switch (preferences.lightCullingMode) {
-		case LightCullingMode::Tile2D:
-			lightCullingModeIndex = 0;
-			break;
-		case LightCullingMode::DebugAllLightsPerCluster:
-			lightCullingModeIndex = 2;
-			break;
-		case LightCullingMode::Clustered:
-		default:
-			lightCullingModeIndex = 1;
-			break;
-		}
-		ImGui::BeginDisabled(!allowLightCulling);
-		if (ImGui::Combo("Light Culling Mode", &lightCullingModeIndex, lightCullingModeItems, 3)) {
-			switch (lightCullingModeIndex) {
-			case 0:
-				featureController.SetLightCullingMode(LightCullingMode::Tile2D);
-				break;
-			case 2:
-				featureController.SetLightCullingMode(LightCullingMode::DebugAllLightsPerCluster);
-				break;
-			case 1:
-			default:
-				featureController.SetLightCullingMode(LightCullingMode::Clustered);
-				break;
-			}
-		}
-		ImGui::EndDisabled();
-		ImGui::TextDisabled("For an uncullled lighting baseline, turn off Use Light Culling.");
-
-		bool allowContributionCulling = preferences.allowContributionCulling;
-		if (ImGui::Checkbox("Use Contribution Culling", &allowContributionCulling)) {
-			featureController.SetAllowContributionCulling(allowContributionCulling);
-		}
-		bool allowNormalConeCulling = preferences.allowNormalConeCulling;
-		// NormalConeはAS/MS内で処理するので、Vertex経路では編集できないようにする
-		ImGui::BeginDisabled(!runtime.useMeshShader);
-		if (ImGui::Checkbox("Use Normal Cone Culling", &allowNormalConeCulling)) {
-			featureController.SetAllowNormalConeCulling(allowNormalConeCulling);
-		}
-		ImGui::EndDisabled();
-		ImGui::Text("Contribution Culling: %s", runtime.useContributionCulling ? "Enabled" : "Disabled");
-		ImGui::Text("Normal Cone Culling : %s", runtime.useNormalConeCulling ? "Enabled" : "Disabled");
-
 		ImGui::Separator();
 
 		bool allowInlineRayTracing = preferences.allowInlineRayTracing;
@@ -255,6 +211,8 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::Text("Inline RayTracing : %s", runtime.useInlineRayTracing ? "Enabled" : "Disabled");
 		ImGui::Text("DispatchRays      : %s", runtime.useDispatchRays ? "Enabled" : "Disabled");
 		ImGui::Text("Ray Scene Build   : %s", runtime.UsesAnyRayTracing() ? "Enabled" : "Disabled");
+
+		ImGui::SetWindowFontScale(1.0f);
 
 		ImGui::EndMenu();
 	}

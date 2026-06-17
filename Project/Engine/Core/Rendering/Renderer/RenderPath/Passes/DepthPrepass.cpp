@@ -11,16 +11,16 @@
 //============================================================================
 //	DepthPrepass classMethods
 //============================================================================
+
 void Engine::DepthPrepass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
-	// RenderPathが持つ共有リソースが無ければ描画対象も無いので抜ける
+	// 共有リソースが無ければ描画不可
 	if (!context.resources) {
 		return;
 	}
 
-	// OpaqueバケットからZPrepass対象だけを集め、SceneMainの深度へ書き込む
-	// UseMeshShaderの設定どおりにパスを選ばせるためVertexは強制しない
+	// 不透明アイテムから深度に描画する対象のみ取得
 	std::vector<const RenderItem*> items = CollectItems(context, passBuckets);
 	RenderPassExecutionHelper::Execute(graphicsCore, context, items, deps_,
 		context.resources->GetSceneMain(), MaterialPassKind::ZPrepass, false, true);
@@ -29,14 +29,14 @@ void Engine::DepthPrepass::Execute(GraphicsCore& graphicsCore,
 std::vector<const Engine::RenderItem*> Engine::DepthPrepass::CollectItems(
 	const SceneExecutionContext& context, const RenderPassPhaseBuckets& passBuckets) const {
 
-	// Opaqueバケットが空ならZPrepassの対象も無い
+	// 不透明アイテムが空ならZPrepassの対象も無い
 	std::vector<const RenderItem*> result{};
 	const RenderPassItemList* list = passBuckets.Find(RenderPhase::Opaque);
-	if (!list || list->IsEmpty()) {
+	if (list->IsEmpty()) {
 		return result;
 	}
-	// 深度はPerspectiveカメラ基準で書くため対応するカメラが無ければ抜ける
-	const ResolvedCameraView* camera = context.view ? context.view->FindCamera(RenderCameraDomain::Perspective) : nullptr;
+	// 深度は透視投影カメラ基準で書くため対応するカメラが無ければ描画不可
+	const ResolvedCameraView* camera = context.view->FindCamera(RenderCameraDomain::Perspective);
 	if (!camera) {
 		return result;
 	}
@@ -47,17 +47,17 @@ std::vector<const Engine::RenderItem*> Engine::DepthPrepass::CollectItems(
 		if (!item) {
 			continue;
 		}
-		// メッシュ以外は深度プリパスへ出さない
+		// メッシュ以外は深度描画なし
 		if (item->backendID != RenderBackendID::Mesh) {
 			continue;
 		}
-		// カメラのcullingMaskで弾かれるレイヤーは除外する
+		// カメラのカリングマスクで弾かれるレイヤーは除外する
 		if ((item->visibilityLayerMask & camera->cullingMask) == 0) {
 			continue;
 		}
-		// payloadがZPrepass有効を明示したアイテムだけを採用する
+		// メッシュペイロードデータの中で深度描画が有効な場合のみ
 		const MeshRenderPayload* payload = deps_.renderBatch->GetPayload<MeshRenderPayload>(*item);
-		if (!payload || !payload->enableZPrepass) {
+		if (!payload->enableZPrepass) {
 			continue;
 		}
 		result.emplace_back(item);

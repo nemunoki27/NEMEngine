@@ -19,7 +19,7 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPassExecutionHelper.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineConstants.h>

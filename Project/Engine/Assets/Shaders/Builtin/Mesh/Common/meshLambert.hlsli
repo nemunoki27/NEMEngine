@@ -69,51 +69,19 @@ float3 EvaluateLambertSpot(SpotLight light, float3 worldPos, float3 N) {
 	return lambert * light.color.rgb * light.intensity * distanceAttenuation * coneAttenuation;
 }
 
-// 点光源/スポットライトをタイルカリングを考慮して集計する、平行光源はPS側で足す
+// 点光源/スポットライトを全ライト直接集計する、平行光源はPS側で足す
+// ライトカリング廃止に伴い、タイル/クラスタ参照はやめて全ライトをループする
 float3 AccumulateLocalLambertLighting(float3 worldPos, float3 N) {
 
 	float3 lit = 0.0f.xxx;
-	if (localCount <= 0) {
-		return lit;
+
+	[loop]
+	for (uint i = 0; i < pointCount; ++i) {
+		lit += EvaluateLambertPoint(gPointLights[i], worldPos, N);
 	}
-
-	if (lightCullingEnabled != 0u && lightCullingMode != kLightCullingModeDisabled) {
-
-		const bool usesClusterGrid =
-			lightCullingMode == kLightCullingModeClustered ||
-			lightCullingMode == kLightCullingModeDebugAllLightsPerCluster;
-		uint lightGridIndex = usesClusterGrid ?
-			ComputeClusterIndex(worldPos) :
-			ComputeTileIndex(worldPos);
-		TileLightGridEntry grid = gTileLightGrid[lightGridIndex];
-		uint listCapacity = usesClusterGrid ? maxLocalLightsPerCluster : maxLocalLightsPerTile;
-		uint loopCount = min(grid.count, listCapacity);
-		[loop]
-		for (uint i = 0; i < loopCount; ++i) {
-
-			uint localLightIndex = gTileLightIndexList[grid.offset + i];
-			if (localLightIndex < pointCount) {
-
-				lit += EvaluateLambertPoint(gPointLights[localLightIndex], worldPos, N);
-			} else {
-
-				uint spotIndex = localLightIndex - pointCount;
-				if (spotIndex < spotCount) {
-
-					lit += EvaluateLambertSpot(gSpotLights[spotIndex], worldPos, N);
-				}
-			}
-		}
-	} else {
-
-		[loop]
-		for (uint i = 0; i < pointCount; ++i) {
-			lit += EvaluateLambertPoint(gPointLights[i], worldPos, N);
-		}
-		[loop]
-		for (uint i = 0; i < spotCount; ++i) {
-			lit += EvaluateLambertSpot(gSpotLights[i], worldPos, N);
-		}
+	[loop]
+	for (uint i = 0; i < spotCount; ++i) {
+		lit += EvaluateLambertSpot(gSpotLights[i], worldPos, N);
 	}
 	return lit;
 }

@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+
 // c++
 #include <algorithm>
 
@@ -102,36 +104,6 @@ namespace {
 	}
 }
 
-const char* Engine::ToString(CameraControlMode mode) {
-
-	switch (mode) {
-	case CameraControlMode::None:
-		return "None";
-	case CameraControlMode::Follow:
-		return "Follow";
-	case CameraControlMode::LookAt:
-		return "LookAt";
-	case CameraControlMode::FollowLookAt:
-		return "FollowLookAt";
-	default:
-		return "Unknown";
-	}
-}
-
-Engine::CameraControlMode Engine::CameraControlModeFromString(const std::string& text) {
-
-	if (text == "Follow") {
-		return CameraControlMode::Follow;
-	}
-	if (text == "LookAt") {
-		return CameraControlMode::LookAt;
-	}
-	if (text == "FollowLookAt") {
-		return CameraControlMode::FollowLookAt;
-	}
-	return CameraControlMode::None;
-}
-
 void Engine::RequestCameraShake(CameraControllerComponent& component,
 	float amplitude, float duration, float frequency) {
 
@@ -151,7 +123,7 @@ void Engine::RequestCameraShake(CameraControllerComponent& component,
 void Engine::from_json(const nlohmann::json& in, CameraControllerComponent& component) {
 
 	component.enabled = in.value("enabled", component.enabled);
-	component.mode = CameraControlModeFromString(in.value("mode", std::string(ToString(component.mode))));
+	component.mode = EnumAdapter<CameraControlMode>::FromString(in.value("mode", "None")).value();
 
 	if (in.contains("follow") && in["follow"].is_object()) {
 		ReadFollowSettings(in["follow"], component.follow);
@@ -167,7 +139,7 @@ void Engine::from_json(const nlohmann::json& in, CameraControllerComponent& comp
 void Engine::to_json(nlohmann::json& out, const CameraControllerComponent& component) {
 
 	out["enabled"] = component.enabled;
-	out["mode"] = ToString(component.mode);
+	out["mode"] = EnumAdapter<CameraControlMode>::ToString(component.mode);
 	out["follow"] = WriteFollowSettings(component.follow);
 	out["lookAt"] = WriteLookAtSettings(component.lookAt);
 	out["shake"] = WriteShakeSettings(component.shake);

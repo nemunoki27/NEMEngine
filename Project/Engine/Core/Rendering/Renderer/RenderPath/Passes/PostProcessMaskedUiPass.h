@@ -4,26 +4,30 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 
 namespace Engine {
 
 	//============================================================================
-	//	PostProcessMaskedUiPass class
+	//	PostProcessMaskedUIPass class
 	//	PostProcessMaskedUIフェーズのアイテムをSceneFinalへ描画するパス
 	//============================================================================
-	class PostProcessMaskedUiPass :
+	class PostProcessMaskedUIPass :
 		public IRenderPass {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
-		explicit PostProcessMaskedUiPass(const RenderPipelineDeps& deps) : deps_(deps) {}
-		~PostProcessMaskedUiPass() override = default;
 
-		RenderPathPassKind GetKind() const override { return RenderPathPassKind::PostProcessMaskedUI; }
+		explicit PostProcessMaskedUIPass(const RenderPipelineDeps& deps) : deps_(deps) {}
+		~PostProcessMaskedUIPass() override = default;
+
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::PostProcessMaskedUI; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -34,4 +38,3 @@ namespace Engine {
 		const RenderPipelineDeps& deps_;
 	};
 } // Engine
-

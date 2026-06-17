@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
@@ -18,7 +18,6 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/FrameLightBatch.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Registry/LightExtractorRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/GPU/ViewLightBufferSet.h>
-#include <Engine/Core/Rendering/Renderer/Lighting/GPU/ViewLightCullingBufferSet.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
@@ -69,14 +68,6 @@ namespace Engine {
 		RenderPathResources* resources = nullptr;
 		// ビルボードの計算基準にするビュー
 		const ResolvedRenderView* billboardView = nullptr;
-		// ライトカリングだけ別ビューの深度とサイズを基準にしたい場合に使用する
-		RenderPathResources* lightCullingResources = nullptr;
-		// このビューが使用するライトカリングGPUバッファ
-		ViewLightCullingBufferSet* lightCullingBufferSet = nullptr;
-		// 固定RenderPath内でLightCulling computeを実行するか
-		bool shouldExecuteLightCullingPass = true;
-		// Previewなど、grid未生成時にPixel Shaderの直接ライト評価へ固定する
-		bool forceDirectLocalLightEvaluation = false;
 		// ツールプレビューなど、1枚のRT内の一部だけへ描く時の描画矩形
 		bool useViewportRect = false;
 		uint32_t viewportX = 0;
@@ -212,7 +203,7 @@ namespace Engine {
 		ResolvedRenderView sceneView_{};
 
 		// 固定RenderPath
-		FixedForwardPlusRenderPath renderPath_{};
+		DeferredRenderPath renderPath_{};
 		// ビューごとの中間レンダーターゲット
 		RenderPathResources gameViewResources_{};
 		RenderPathResources sceneViewResources_{};
@@ -260,11 +251,8 @@ namespace Engine {
 		// ビューごとのGPUライトバッファ
 		ViewLightBufferSet gameViewLightBuffers_{};
 		ViewLightBufferSet sceneViewLightBuffers_{};
-		ViewLightCullingBufferSet gameViewLightCullingBuffers_{};
-		ViewLightCullingBufferSet sceneViewLightCullingBuffers_{};
 		// ツールプレビューは同一フレーム内に複数回描くため、ライトGPUバッファも描画ごとに分ける
 		FrameBatchResourcePool<ViewLightBufferSet> previewLightBufferPool_{};
-		FrameBatchResourcePool<ViewLightCullingBufferSet> previewLightCullingBufferPool_{};
 
 		// ツールプレビュー専用の描画バックエンドでメインビューのGPUバッファを上書きしないため分離する
 		RenderBackendRegistry previewBackendRegistry_{};

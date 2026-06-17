@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 
 namespace Engine {
 
@@ -18,12 +18,16 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit OpaqueRenderPass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~OpaqueRenderPass() override = default;
 
-		RenderPathPassKind GetKind() const override { return RenderPathPassKind::Opaque; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::Opaque; }
 	private:
 		//============================================================================
 		//	private Methods

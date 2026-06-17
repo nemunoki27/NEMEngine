@@ -251,10 +251,9 @@ void ReflectionRayGen() {
 
 	float2 uv = (float2(pixel) + 0.5f) / float2(dim);
 	float depthValue = gSourceDepth.Load(int3(pixel, 0));
-	float3 baseColor = gSourceColor.Load(int3(pixel, 0)).rgb;
 
+	// 背景画素はLightingPassがskyboxを書いているのでそのまま残す
 	if (depthValue >= 1.0f) {
-		gDestColor[pixel] = float4(baseColor, 1.0f);
 		return;
 	}
 
@@ -296,6 +295,8 @@ void ReflectionRayGen() {
 	float fresnel = pow(1.0f - NdotV, 5.0f);
 	float reflectionWeight = saturate(gReflectionIntensity * lerp(gFresnelMin, 1.0f, fresnel));
 
-	float3 finalColor = baseColor + reflectionColor * reflectionWeight;
+	// ベース色はLightingPassが書いた照明済みSceneColorFinalをUAVから読み、その上に反射を加算する
+	float3 litColor = gDestColor[pixel].rgb;
+	float3 finalColor = litColor + reflectionColor * reflectionWeight;
 	gDestColor[pixel] = float4(finalColor, 1.0f);
 }

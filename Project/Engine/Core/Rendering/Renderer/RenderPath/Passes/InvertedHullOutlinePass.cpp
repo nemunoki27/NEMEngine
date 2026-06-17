@@ -15,6 +15,7 @@
 //============================================================================
 //	InvertedHullOutlinePass classMethods
 //============================================================================
+
 void Engine::InvertedHullOutlinePass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
@@ -36,7 +37,7 @@ void Engine::InvertedHullOutlinePass::Execute(GraphicsCore& graphicsCore,
 	}
 	DepthTexture2D* sceneDepth = sceneMain->GetDepthTexture();
 
-	// アウトラインHullはSceneFinalの色+ SceneMainの深度を組み合わせて描く
+	// アウトラインHullはSceneFinalの色 + SceneMainの深度を組み合わせて描く
 	RenderPassSurfaceBinding hullBinding{};
 	hullBinding.colorSurface = sceneFinal;
 	hullBinding.depthOverride = sceneDepth;
@@ -92,17 +93,14 @@ Engine::InvertedHullOutlinePass::OutlineItemGroups Engine::InvertedHullOutlinePa
 		return result;
 	}
 
-	// 可視判定はPerspectiveカメラ基準
-	const ResolvedCameraView* camera = context.view
-		? context.view->FindCamera(RenderCameraDomain::Perspective)
-		: nullptr;
+	// 可視判定は透視投影カメラ基準
+	const ResolvedCameraView* camera = context.view ? context.view->FindCamera(RenderCameraDomain::Perspective) : nullptr;
 	if (!camera) {
 		return result;
 	}
 
 	result.regularItems.reserve(list->items.size());
 	result.stencilItems.reserve(list->items.size());
-
 	for (const RenderItem* item : list->items) {
 
 		// メッシュかつworld参照を持つアイテムだけが対象

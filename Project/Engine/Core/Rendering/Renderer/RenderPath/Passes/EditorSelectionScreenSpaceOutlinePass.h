@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineRenderer.h>
 
 // c++
@@ -23,12 +23,15 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit EditorSelectionScreenSpaceOutlinePass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~EditorSelectionScreenSpaceOutlinePass() override = default;
 
+		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) override;
+
+		//--------- accessor -----------------------------------------------------
+
 		RenderPathPassKind GetKind() const override { return RenderPathPassKind::EditorSelectionScreenSpaceOutline; }
-		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
-			SceneExecutionContext& context) override;
 	private:
 		//============================================================================
 		//	private Methods

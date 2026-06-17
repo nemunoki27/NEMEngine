@@ -4,26 +4,29 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 
 namespace Engine {
 
 	//============================================================================
-	//	ScreenUiPass class
+	//	ScreenUIPass class
 	//	ScreenUIフェーズのアイテムをViewport表示後のViewへ描画するパス
 	//============================================================================
-	class ScreenUiPass :
+	class ScreenUIPass :
 		public IRenderPass {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
-		explicit ScreenUiPass(const RenderPipelineDeps& deps) : deps_(deps) {}
-		~ScreenUiPass() override = default;
+
+		explicit ScreenUIPass(const RenderPipelineDeps& deps) : deps_(deps) {}
+		~ScreenUIPass() override = default;
+
+		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) override;
+
+		//--------- accessor -----------------------------------------------------
 
 		RenderPathPassKind GetKind() const override { return RenderPathPassKind::ScreenUI; }
-		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
-			SceneExecutionContext& context) override;
 	private:
 		//============================================================================
 		//	private Methods

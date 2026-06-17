@@ -17,11 +17,14 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		DebugOverlayPass() = default;
 		~DebugOverlayPass() override = default;
 
+		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) override;
+
+		//--------- accessor -----------------------------------------------------
+
 		RenderPathPassKind GetKind() const override { return RenderPathPassKind::DebugOverlay; }
-		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
-			SceneExecutionContext& context) override;
 	};
 } // Engine

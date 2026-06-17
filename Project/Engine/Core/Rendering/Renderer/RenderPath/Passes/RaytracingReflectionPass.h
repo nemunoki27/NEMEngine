@@ -4,15 +4,15 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/FixedForwardPlusRenderPath.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 
 namespace Engine {
 
 	//============================================================================
 	//	RaytracingReflectionPass class
-	//	SceneMain → SceneFinalへレイトレーシング反射を合成するパス
+	//	LightingPassが書いたSceneColorFinalへレイトレーシング反射を加算するパス
+	//	GBufferの法線/位置を入力にし、ベース色はSceneColorFinal自身から読む
 	//============================================================================
 	class RaytracingReflectionPass :
 		public IRenderPass {
@@ -20,14 +20,16 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
-		explicit RaytracingReflectionPass(const RenderPipelineDeps& deps) : deps_(deps) {
-			srcColorSlot_ = blitSRVCache_.AddSlotByRegister(ShaderBindingKind::SRV, 0, 0);
-		}
+
+		explicit RaytracingReflectionPass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~RaytracingReflectionPass() override = default;
 
-		RenderPathPassKind GetKind() const override { return RenderPathPassKind::RaytracingReflection; }
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::RaytracingReflection; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -37,17 +39,13 @@ namespace Engine {
 
 		const RenderPipelineDeps& deps_;
 
-		// フォールバック用フルスクリーンブリットのSRVスロットでソースカラーt0のキャッシュ
-		PipelineBindingCache blitSRVCache_{};
-		PipelineBindingCache::SlotID srcColorSlot_ = PipelineBindingCache::kInvalidSlot;
-
 		mutable AssetID cachedMaterialID_{};
 		mutable bool materialSearched_ = false;
 
 		//--------- functions ----------------------------------------------------
 
 		// リフレクションマテリアルのIDを取得する
-		AssetID ResolveMaterial(AssetDatabase& database) const;
+		AssetID ResolveMaterial() const;
 	};
 } // Engine
 

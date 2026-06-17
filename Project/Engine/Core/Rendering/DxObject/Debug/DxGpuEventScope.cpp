@@ -2,6 +2,10 @@
 
 // engine
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
+// c++
+#include <string>
+// pix
+#include <WinPixEventRuntime/pix3.h>
 
 //============================================================================
 //	DxGPUEventScope classMethods
@@ -13,7 +17,8 @@ namespace Engine {
 		: commandList_(commandList) {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		if (commandList_) {
-			commandList_->BeginEvent(0, label.data(), static_cast<UINT>(label.size()));
+			const std::string text(label);
+			PIXBeginEvent(commandList_, PIX_COLOR_DEFAULT, "%s", text.c_str());
 		}
 #else
 		(void)label;
@@ -24,7 +29,7 @@ namespace Engine {
 		: commandList_(commandList) {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		if (commandList_) {
-			commandList_->BeginEvent(0, label, static_cast<UINT>((wcslen(label) + 1) * sizeof(wchar_t)));
+			PIXBeginEvent(commandList_, PIX_COLOR_DEFAULT, L"%ls", label);
 		}
 #else
 		(void)label;
@@ -34,7 +39,7 @@ namespace Engine {
 	DxGPUEventScope::~DxGPUEventScope() {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		if (commandList_) {
-			commandList_->EndEvent();
+			PIXEndEvent(commandList_);
 		}
 #endif
 	}

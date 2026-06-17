@@ -1,4 +1,4 @@
-#include "FixedForwardPlusRenderPath.h"
+#include "DeferredRenderPath.h"
 
 //============================================================================
 //	include
@@ -6,58 +6,53 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxGPUEventScope.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
-
-// c++
-#include <string>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/ClearRenderTargetsPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/SkyboxPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DepthPrepass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/LightCullingPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/OpaqueRenderPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/LightingPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RaytracingReflectionPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/InvertedHullOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/TransparentRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RuntimeScreenSpaceOutlinePass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessMaskedUiPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessMaskedUIPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessStackPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/EditorSelectionScreenSpaceOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/BlitToViewPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/ScreenUiPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/ScreenUIPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DebugOverlayPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/EditorOverlayPass.h>
 
 //============================================================================
-//	FixedForwardPlusRenderPath classMethods
+//	DeferredRenderPath classMethods
 //============================================================================
-void Engine::FixedForwardPlusRenderPath::Initialize(const RenderPipelineDeps& deps) {
+void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 
-	deps_ = deps;
-	Finalize();
 	deps_ = deps;
 	passes_.reserve(15);
 
+	// 設定されたパス順に実行される
 	passes_.emplace_back(std::make_unique<ClearRenderTargetsPass>(deps_));
-	passes_.emplace_back(std::make_unique<SkyboxPass>(deps_));
 	passes_.emplace_back(std::make_unique<DepthPrepass>(deps_));
-	passes_.emplace_back(std::make_unique<LightCullingPass>(deps_));
 	passes_.emplace_back(std::make_unique<OpaqueRenderPass>(deps_));
+	passes_.emplace_back(std::make_unique<LightingPass>());
 	passes_.emplace_back(std::make_unique<RaytracingReflectionPass>(deps_));
 	passes_.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
 	passes_.emplace_back(std::make_unique<TransparentRenderPass>(deps_));
 	passes_.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(deps_));
-	passes_.emplace_back(std::make_unique<PostProcessMaskedUiPass>(deps_));
+	passes_.emplace_back(std::make_unique<PostProcessMaskedUIPass>(deps_));
 	passes_.emplace_back(std::make_unique<PostProcessStackPass>(deps_));
 	passes_.emplace_back(std::make_unique<EditorSelectionScreenSpaceOutlinePass>(deps_));
 	passes_.emplace_back(std::make_unique<BlitToViewPass>(deps_));
-	passes_.emplace_back(std::make_unique<ScreenUiPass>(deps_));
+	passes_.emplace_back(std::make_unique<ScreenUIPass>(deps_));
 	passes_.emplace_back(std::make_unique<DebugOverlayPass>());
 	passes_.emplace_back(std::make_unique<EditorOverlayPass>());
 }
 
-void Engine::FixedForwardPlusRenderPath::Finalize() {
+void Engine::DeferredRenderPath::Finalize() {
 
-	// RenderPassのunique_ptrはclear任せにせず、終了時に明示resetする
 	for (auto& pass : passes_) {
 		pass.reset();
 	}
@@ -65,18 +60,27 @@ void Engine::FixedForwardPlusRenderPath::Finalize() {
 	deps_ = {};
 }
 
-void Engine::FixedForwardPlusRenderPath::Execute(GraphicsCore& graphicsCore,
+void Engine::DeferredRenderPath::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
-	// GameView/SceneViewで同名パスが重複するため、ビュー種別を接頭辞に付けて区別する
-	ID3D12GraphicsCommandList6* commandList = graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
-	const char* viewPrefix = (context.kind == RenderViewKind::Game) ? "Game/" : "Scene/";
-
+	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	for (auto& pass : passes_) {
 
-		GPUFrameProfiler::GetInstance().BeginPass(commandList,
-			viewPrefix + std::string(EnumAdapter<RenderPathPassKind>::ToStringView(pass->GetKind())));
+		ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
+
+		// イベントパス名を取得、シーンごとに名前を分ける
+		std::string eventPassName = std::string(EnumAdapter<RenderViewKind>::ToStringView(context.kind)) + "/" +
+			std::string(EnumAdapter<RenderPathPassKind>::ToStringView(pass->GetKind()));
+
+		// GPUPIXイベント発行
+		DxGPUEventScope eventScope{ commandList, eventPassName };
+
+		// GPU計測
+		GPUFrameProfiler::GetInstance().BeginPass(commandList, eventPassName);
+
+		// パス実行
 		pass->Execute(graphicsCore, passBuckets, context);
+
 		GPUFrameProfiler::GetInstance().EndPass(commandList);
 	}
 }

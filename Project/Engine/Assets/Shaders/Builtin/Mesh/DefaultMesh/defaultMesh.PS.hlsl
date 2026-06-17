@@ -4,17 +4,11 @@
 #include "../Common/defaultMesh.hlsli"
 #include "../Common/meshLighting.hlsli"
 #include "../Common/meshLambert.hlsli"
+#include "../Common/deferredGBuffer.hlsli"
 
 //============================================================================
 //	output
 //============================================================================
-struct PSOutput {
-
-	float4 color : SV_TARGET0;
-	float4 normal : SV_TARGET1;
-	float4 worldPos : SV_TARGET2;
-};
-
 struct TransparentPSOutput {
 
 	float4 color : SV_TARGET0;
@@ -22,10 +16,40 @@ struct TransparentPSOutput {
 
 //============================================================================
 //	main
-//	色とUVとベースカラーテクスチャだけを使い、ハーフランバートで3種のライトを受ける
-//	PBRパラメータのmetallicやroughnessは一切参照しない
 //============================================================================
-PSOutput main(VSOutput input) {
+GBufferOutput main(VSOutput input) {
+
+	SubMeshShaderData subMesh = GetInstanceSubMesh(input.instanceID, input.subMeshIndex);
+	MeshMaterialParameters params = GetInstanceMeshMaterialParameters(input.instanceID, input.subMeshIndex);
+
+	float2 uv = mul(float4(input.uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;
+	float4 baseColor = ResolveLambertBaseColor(params, uv);
+	float3 N = ComputeWorldNormal(input, params.normalTexture, uv);
+
+	// 発光はベースカラーと別にGBufferへ持たせ、ライティングの初期色に使う
+	float3 emissive = params.emissiveColor.rgb;
+	if (params.emissiveTexture != kNoTexture) {
+
+		Texture2D<float4> emissiveTex = ResourceDescriptorHeap[NonUniformResourceIndex(params.emissiveTexture)];
+		emissive *= emissiveTex.Sample(gSampler, uv).rgb;
+	}
+
+	MeshSurface surface;
+	surface.albedo = baseColor.rgb;
+	surface.normal = N;
+	surface.worldPos = input.worldPos;
+	surface.metallic = 0.0f;
+	surface.roughness = 1.0f;
+	surface.occlusion = 1.0f;
+	surface.emissive = emissive;
+
+	return EncodeGBuffer(surface);
+}
+
+//============================================================================
+//	mainTransparent
+//============================================================================
+TransparentPSOutput mainTransparent(VSOutput input) {
 
 	SubMeshShaderData subMesh = GetInstanceSubMesh(input.instanceID, input.subMeshIndex);
 	MeshMaterialParameters params = GetInstanceMeshMaterialParameters(input.instanceID, input.subMeshIndex);
@@ -42,18 +66,7 @@ PSOutput main(VSOutput input) {
 	}
 	lit += AccumulateLocalLambertLighting(input.worldPos, N);
 
-	PSOutput output;
-	output.color = ComposeLambertColor(params, uv, baseColor, lit);
-	output.normal = float4(N * 0.5f + 0.5f, 1.0f);
-	output.worldPos = float4(input.worldPos, 1.0f);
-	return output;
-}
-
-TransparentPSOutput mainTransparent(VSOutput input) {
-
-	PSOutput lit = main(input);
-
 	TransparentPSOutput output;
-	output.color = lit.color;
+	output.color = ComposeLambertColor(params, uv, baseColor, lit);
 	return output;
 }

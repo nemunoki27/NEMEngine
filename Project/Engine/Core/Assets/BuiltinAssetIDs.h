@@ -19,7 +19,6 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultMeshOutline{ 0x9ed9dab27dc8ba93ull };
 		inline constexpr AssetID FullscreenCopy{ 0x93946a52e2bc7030ull };
 		inline constexpr AssetID ToneMapToView{ 0xaa28624401e1e4b6ull };
-		inline constexpr AssetID LightCulling{ 0xa8b3c1c806a8f747ull };
 		inline constexpr AssetID RaytracingReflection{ 0x375384bc3bf6bb7cull };
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x7c1d9a4b8e2f6031ull };
 		inline constexpr AssetID ScreenSpaceOutlineDilate{ 0x7c1d9a4b8e2f6032ull };
