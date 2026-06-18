@@ -93,42 +93,60 @@ void Engine::AssetWatchService::Update() {
 	const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
 	// 変更を受理時刻付きで控える、連続書き込みは最後の時刻で上書きしてdebounceを延ばす
+	// 削除やディレクトリの変更も構造変更として扱うため、存在チェックでは弾かずに全て控える
 	for (const std::filesystem::path& path : changed) {
-
-		std::error_code ec{};
-		// ディレクトリ変更や削除は対象外、実ファイルだけを扱う
-		if (!std::filesystem::is_regular_file(path, ec) || ec) {
-			continue;
-		}
 		pendingChanges_[path.generic_string()] = now;
 	}
 
-	// debounce窓を過ぎて安定した変更だけをリロードへ回す
+	// debounce窓を過ぎて安定した変更だけを処理へ回す
+	// 内容リロードできなかった変更(追加/削除/リネーム等)はアセット集合の構造変更とみなす
+	bool structureChanged = false;
 	for (auto it = pendingChanges_.begin(); it != pendingChanges_.end();) {
 
 		if (now - it->second >= kDebounceDuration) {
 
-			DispatchReload(std::filesystem::path(it->first));
+			const std::filesystem::path path(it->first);
+			if (!DispatchReload(path)) {
+
+				// .metaはRebuildMetaが自前で発番する管理ファイルなので、再構築ループ回避のため無視する
+				if (Algorithm::ToLower(path.extension().string()) != ".meta") {
+					structureChanged = true;
+				}
+			}
 			it = pendingChanges_.erase(it);
 		} else {
 			++it;
 		}
 	}
+
+	// 構造変更があればAssetDatabaseを作り直し、構造リビジョンを進めてProjectPanel等へ知らせる
+	if (structureChanged && assetDatabase_) {
+		assetDatabase_->RebuildMeta();
+	}
 }
 
-void Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path) {
+bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path) {
+
+	if (!assetDatabase_) {
+		return false;
+	}
+
+	// 削除されたパスやディレクトリは内容リロードの対象にできない、構造変更として扱わせる
+	std::error_code ec{};
+	const bool isRegularFile = std::filesystem::is_regular_file(path, ec) && !ec;
 
 	const std::string extension = Algorithm::ToLower(path.extension().string());
 
-	if (!assetDatabase_) {
-		return;
+	// 内容リロードは実ファイルが存在するときだけ行う、削除やディレクトリ変更は構造変更へ回す
+	if (!isRegularFile) {
+		return false;
 	}
 
 	// .mtlはアセットそのものではないので、同じstemの.objを探してそのモデルを再ロードする
 	if (extension == ".mtl") {
 
 		if (!meshReloadCallback_) {
-			return;
+			return false;
 		}
 		std::filesystem::path objPath = path;
 		objPath.replace_extension(".obj");
@@ -138,25 +156,25 @@ void Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 			meshReloadCallback_(objMeta->guid);
 			Logger::Output(LogType::Engine, "[AssetWatch] mtl changed, reload requested for model: {}", objAssetPath);
 		}
-		return;
+		return true;
 	}
 
 	const bool isTexture = IsTextureExtension(extension);
 	const bool isModel = IsModelExtension(extension);
 	if (!isTexture && !isModel) {
-		return;
+		return false;
 	}
 
 	// 監視ルート外のパスはアセットパスへ変換できないので無視する
 	const std::string assetPath = RuntimePaths::ToAssetPath(path.string());
 	if (assetPath.empty()) {
-		return;
+		return false;
 	}
 
-	// AssetDatabaseに登録済みのアセットだけを対象にする
+	// AssetDatabaseに未登録なら新規追加とみなし、内容リロードではなく構造変更として扱わせる
 	const AssetMeta* meta = assetDatabase_->FindByPath(assetPath);
 	if (!meta) {
-		return;
+		return false;
 	}
 
 	if (isTexture && textureUploadService_) {
@@ -170,4 +188,5 @@ void Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 		meshReloadCallback_(meta->guid);
 		Logger::Output(LogType::Engine, "[AssetWatch] model changed, reload requested: {}", assetPath);
 	}
+	return true;
 }

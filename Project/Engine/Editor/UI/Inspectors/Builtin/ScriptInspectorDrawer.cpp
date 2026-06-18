@@ -13,7 +13,9 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Editor/Commands/Components/ApplyRuntimeToAuthoringCommand.h>
+#include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <memory>
@@ -965,7 +967,8 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 			}
 			{
 				// 型comboは選択名からGUIDを引き直すReassignでserializedFieldsはclearせず、新schemaでのMigrateAuthoringがnameやformerNames一致fieldを移行し移行できない値はunresolvedFieldsとして保持してpayloadを失わない
-				ValueEditResult result = InspectorDrawerCommon::DrawBehaviorTypeField("型", entry.lastKnownTypeName);
+				const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
+				ValueEditResult result = InspectorDrawerCommon::DrawBehaviorTypeField("型", entry.lastKnownTypeName, searchIcon);
 				if (result.valueChanged) {
 					if (const BehaviorTypeInfo* info =
 						BehaviorTypeRegistry::GetInstance().FindByName(entry.lastKnownTypeName)) {

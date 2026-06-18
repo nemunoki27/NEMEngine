@@ -92,6 +92,9 @@ namespace Engine {
 		bool HasReferencers(AssetID id) const;
 		const std::vector<AssetDatabaseIssue>& GetIssues() const { return issues_; }
 
+		// アセット集合の構造リビジョンを取得、RebuildMetaのたびに増えるので差分監視に使う
+		uint64_t GetStructureRevision() const { return structureRevision_; }
+
 		// ファイルパスのルートを取得
 		const std::filesystem::path& GetProjectRoot() const { return projectRoot_; }
 		const std::filesystem::path& GetAssetsRoot() const { return assetsRoot_; }
@@ -116,6 +119,8 @@ namespace Engine {
 		std::unordered_map<AssetID, std::vector<AssetID>> referencersByGuid_;
 		// 構築時に検出した問題一覧
 		std::vector<AssetDatabaseIssue> issues_;
+		// アセット集合の構造リビジョン、RebuildMetaのたびに増える
+		uint64_t structureRevision_ = 0;
 
 		//--------- functions ----------------------------------------------------
 

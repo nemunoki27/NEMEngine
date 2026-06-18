@@ -66,13 +66,13 @@ namespace Engine {
 		std::string selectedDirectory_ = "Engine/Assets";
 		AssetID selectedAsset_{};
 
-		// 左側フォルダツリーの検索フィルタ
-		TextSearchFilter folderSearchFilter_;
-		// 左ツリーと右アイコン表示エリアの境界幅、スプリッタのドラッグで変化する
-		float folderTreeWidth_ = 200.0f;
+		// 上部のファイル検索フィルタ、入力中は右側に一致ファイルの一覧を表示する
+		TextSearchFilter fileSearchFilter_;
 
 		// trueのときAssetDatabaseから表示用Indexを再構築する
 		bool dirty_ = true;
+		// 最後に取り込んだAssetDatabaseの構造リビジョン、外部のファイル追加削除を検知して再構築する
+		uint64_t lastSeenStructureRevision_ = 0;
 
 		struct ModelPreviewBounds {
 
@@ -128,9 +128,7 @@ namespace Engine {
 			float lightIntensity = 1.5f;
 		};
 
-		// モデルプレビュー表示設定ウィンドウを開くか
-		bool showModelPreviewSettingsWindow_ = false;
-		// モデルプレビューの見た目に関する調整パラメータ
+		// モデルプレビューの見た目に関する調整パラメータ、初期値固定で表示する
 		ModelPreviewAppearanceSettings modelPreviewSettings_{};
 		// モデルプレビュー専用の一時World
 		std::unique_ptr<ECSWorld> modelPreviewWorld_;
@@ -146,8 +144,6 @@ namespace Engine {
 		uint64_t modelPreviewSignature_ = 0;
 		// 1枚だけ持つモデルプレビューAtlasのピクセルサイズ
 		Vector2I modelPreviewAtlasSize_;
-		// Atlasの再作成が必要な設定変更が入ったか
-		bool modelPreviewAtlasRebuildRequested_ = false;
 
 		// 新規作成ポップアップで作るアセット種別
 		ProjectAssetFileKind pendingCreateKind_ = ProjectAssetFileKind::Folder;
@@ -189,18 +185,26 @@ namespace Engine {
 		void Rebuild(AssetDatabase& database);
 		// 外部エクスプローラーからドロップされたファイルをカレントフォルダへ取り込む
 		void HandleExternalFileDrop(const EditorPanelContext& context, AssetDatabase& database);
-		// ヘッダー部分のパンくずと更新ボタンを描画する
-		void DrawHeader(const EditorPanelContext& context, AssetDatabase& database);
+		// 上部のファイル検索ボックスを描画する、左端に検索アイコンを重ねる
+		void DrawSearchBar(const EditorPanelContext& context);
+		// 右側コンテンツ上部のパンくずを描画する
+		void DrawBreadcrumb(const EditorPanelContext& context, AssetDatabase& database);
 		// Engine/Gameのソース切り替えを描画する
 		void DrawSourceSelector(const EditorPanelContext& context, AssetDatabase& database);
 		// 現在ディレクトリ内のフォルダとアセットを描画する
 		void DrawDirectoryContents(const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
-		// 左側にUnity風のフォルダ階層ツリーと検索ボックスを描画する
-		void DrawFolderTree(AssetDatabase& database);
-		// フォルダツリーの1ノードを再帰的に描画する
-		void DrawFolderTreeNode(AssetDatabase& database, const ProjectDirectoryNode& node);
-		// 検索中にノード自身か子孫がフィルタに一致するか
-		bool FolderTreeMatchesSearch(const ProjectDirectoryNode& node) const;
+		// 検索中に一致したフォルダとアセットを横断的に一覧表示する
+		void DrawSearchResults(const EditorPanelContext& context, AssetDatabase& database);
+		// 検索フィルタに一致するフォルダとアセットをツリー全体から集める
+		void CollectSearchMatches(const ProjectDirectoryNode& node,
+			std::vector<const ProjectDirectoryNode*>& outFolders,
+			std::vector<const ProjectAssetEntry*>& outAssets) const;
+		// グリッドのフォルダ1項目を描画する、クリックで移動し検索を解除する
+		void DrawFolderGridItem(const EditorPanelContext& context, AssetDatabase& database,
+			const ProjectDirectoryNode& node, float iconSize);
+		// グリッドのアセット1項目を描画する
+		void DrawAssetGridItem(const EditorPanelContext& context, AssetDatabase& database,
+			const ProjectAssetEntry& asset, float iconSize);
 		// 現在ディレクトリ内のモデルを1枚のRenderTextureへまとめて描画する
 		void PrepareModelPreviewAtlas(const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
 		// モデルプレビューAtlas用の一時Worldとスロットを構築する
@@ -208,14 +212,8 @@ namespace Engine {
 			const std::vector<const ProjectAssetEntry*>& meshAssets, uint64_t signature);
 		// モデルプレビューAtlasを描画する
 		void RenderModelPreviewAtlas(const EditorToolContext& toolContext, EditorToolRenderTexture& atlas);
-		// モデルプレビュー表示設定ウィンドウを描画する
-		void DrawModelPreviewSettingsWindow();
-		// モデルプレビュー表示設定を有効範囲へ補正する
-		void ClampModelPreviewSettings();
 		// プレビューWorld内のライトへ現在の表示設定を反映する
 		void ApplyModelPreviewLightSettings();
-		// 表示設定変更後に一時Worldとスロットを破棄してAtlasを再描画させる
-		void InvalidateModelPreviewAtlas();
 		// AssetIDからモデルプレビューの表示情報を取得する
 		bool TryGetModelPreviewImage(AssetID assetID, ImTextureID& outTextureID, ImVec2& outUV0, ImVec2& outUV1) const;
 		// アセットリストからプレビュー再構築用の署名を作る

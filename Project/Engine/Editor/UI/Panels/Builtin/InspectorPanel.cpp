@@ -19,6 +19,7 @@
 #include <Engine/Core/Rendering/Renderer/Views/SceneViewCameraController.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
+#include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
@@ -537,21 +538,17 @@ void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext
 void Engine::InspectorPanel::DrawTextureAssetInspector(const EditorPanelContext& context, const AssetMeta& meta) {
 
 	// プレビュー用テクスチャを解決する(GUIプレビューと同じキーを共有する)
-	const GPUTextureResource* tex = nullptr;
-	if (context.graphicsCore) {
+	auto& texService = context.graphicsCore->GetTextureUploadService();
+	const std::string previewKey = "gui:texture:preview:" + meta.assetPath;
+	if (texService.GetState(previewKey) == TextureRequestState::None) {
 
-		auto& texService = context.graphicsCore->GetTextureUploadService();
-		const std::string previewKey = "gui:texture:preview:" + meta.assetPath;
-		if (texService.GetState(previewKey) == TextureRequestState::None) {
-
-			TextureFileRequestDesc desc{};
-			desc.key = previewKey;
-			desc.assetPath = meta.assetPath;
-			desc.forceSRGB = true;
-			texService.RequestTextureFile(desc);
-		}
-		tex = texService.GetTexture(previewKey);
+		TextureFileRequestDesc desc{};
+		desc.key = previewKey;
+		desc.assetPath = meta.assetPath;
+		desc.forceSRGB = true;
+		texService.RequestTextureFile(desc);
 	}
+	const GPUTextureResource* tex = texService.GetTexture(previewKey);
 
 	// プレビュー(256x256)
 	if (tex && tex->valid) {
@@ -1079,7 +1076,9 @@ void Engine::InspectorPanel::DrawAddComponentPopup(const EditorPanelContext& con
 		return;
 	}
 
-	addComponentSearchFilter_.DrawInput("##AddComponentSearch");
+	// 検索欄の左端にProjectPanelと同じ虫眼鏡アイコンを重ねる
+	const ImTextureID addSearchIcon = EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
+	addComponentSearchFilter_.DrawInput("##AddComponentSearch", addSearchIcon, "検索...");
 	ImGui::Separator();
 
 	// 追加できるコンポーネントのメニューを表示する
@@ -1129,7 +1128,9 @@ void Engine::InspectorPanel::DrawRemoveComponentPopup(const EditorPanelContext& 
 		return;
 	}
 
-	removeComponentSearchFilter_.DrawInput("##RemoveComponentSearch");
+	// 検索欄の左端にProjectPanelと同じ虫眼鏡アイコンを重ねる
+	const ImTextureID removeSearchIcon = EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
+	removeComponentSearchFilter_.DrawInput("##RemoveComponentSearch", removeSearchIcon, "検索...");
 	ImGui::Separator();
 
 	// 削除できるコンポーネントのメニューを表示する

@@ -38,18 +38,17 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 		return;
 	}
 
-	folderIconKey_ = "folder.dds";
-	textureUploadService_->RequestTextureFile(folderIconKey_,
-		EditorTextureHelper::MakeEditorTexturePath("File", folderIconKey_));
+	folderIconKey_ = "folder.png";
+	textureUploadService_->RequestTextureFile(folderIconKey_, EditorTextureHelper::MakeEditorTexturePath("File", folderIconKey_));
 
-	defaultIcons_[AssetType::Scene].textureKey = "scene.dds";
-	defaultIcons_[AssetType::Scene].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "scene.dds");
+	defaultIcons_[AssetType::Scene].textureKey = "scene.png";
+	defaultIcons_[AssetType::Scene].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "scene.png");
 	defaultIcons_[AssetType::Prefab].textureKey = "prefab.png";
 	defaultIcons_[AssetType::Prefab].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "prefab.png");
-	defaultIcons_[AssetType::Material].textureKey = "material.dds";
-	defaultIcons_[AssetType::Material].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "material.dds");
-	defaultIcons_[AssetType::Shader].textureKey = "shader.dds";
-	defaultIcons_[AssetType::Shader].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "shader.dds");
+	defaultIcons_[AssetType::Material].textureKey = "material.png";
+	defaultIcons_[AssetType::Material].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "material.png");
+	defaultIcons_[AssetType::Shader].textureKey = "writeFile.dds";
+	defaultIcons_[AssetType::Shader].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "writeFile.dds");
 	defaultIcons_[AssetType::Texture].textureKey = "texture.dds";
 	defaultIcons_[AssetType::Texture].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "texture.dds");
 	defaultIcons_[AssetType::Mesh].textureKey = "mesh.dds";
@@ -58,8 +57,8 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	defaultIcons_[AssetType::RenderPipeline].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "renderPipeline.dds");
 	defaultIcons_[AssetType::Font].textureKey = "font.dds";
 	defaultIcons_[AssetType::Font].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "font.dds");
-	defaultIcons_[AssetType::Script].textureKey = "shader.dds";
-	defaultIcons_[AssetType::Script].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "shader.dds");
+	defaultIcons_[AssetType::Script].textureKey = "writeFile.dds";
+	defaultIcons_[AssetType::Script].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "writeFile.dds");
 	defaultIcons_[AssetType::Audio].textureKey = "audio.dds";
 	defaultIcons_[AssetType::Audio].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "audio.dds");
 	defaultIcons_[AssetType::AnimationClip].textureKey = "animationClip.dds";
@@ -135,7 +134,7 @@ ImTextureID Engine::ProjectAssetThumbnailCache::GetDefaultTypeIcon(AssetType typ
 ImTextureID Engine::ProjectAssetThumbnailCache::GetCustomExtensionIcon(const std::string& assetPath) const {
 
 	for (const auto& [ext, icon] : customExtensionIcons_) {
-		if (assetPath.length() >= ext.length() && 
+		if (assetPath.length() >= ext.length() &&
 			assetPath.compare(assetPath.length() - ext.length(), ext.length(), ext) == 0) {
 			ImTextureID id = TryGetTextureID(icon.textureKey);
 			if (id != ImTextureID{}) {

@@ -47,4 +47,14 @@ namespace Engine::EditorTextureHelper {
 		}
 		return tryGetValid(BuiltinTextureLibrary::kErrorTextureKey);
 	}
+
+	// 検索ボックス共通の虫眼鏡アイコンを取得する、未要求なら要求してから返す
+	inline ImTextureID GetSearchIcon(TextureUploadService& service) {
+
+		static const std::string kSearchIconKey = "searchFile.png";
+		if (service.GetState(kSearchIconKey) == TextureRequestState::None) {
+			service.RequestTextureFile(kSearchIconKey, MakeEditorTexturePath("Project", kSearchIconKey));
+		}
+		return GetImTextureID(service, kSearchIconKey);
+	}
 }

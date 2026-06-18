@@ -25,6 +25,8 @@ namespace Engine {
 		//============================================================================
 		// ラベルなしの検索入力を描画する
 		bool DrawInput(const char* id);
+		// 左端にアイコンを重ねた検索入力を描画する、hintは空欄時のプレースホルダ
+		bool DrawInput(const char* id, ImTextureID icon, const char* hint = nullptr);
 		// 検索文字が入力されているか
 		bool IsActive() const;
 		// テキストが検索に一致するか
@@ -58,6 +60,37 @@ namespace Engine {
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, paddingY));
 		const bool changed = ImGui::InputText(id, &text_);
 		ImGui::PopStyleVar();
+		return changed;
+	}
+
+	inline bool TextSearchFilter::DrawInput(const char* id, ImTextureID icon, const char* hint) {
+
+		const ImGuiStyle& style = ImGui::GetStyle();
+		const float inputHeight = 20.0f;
+		const float paddingY = (std::max)(0.0f, (inputHeight - ImGui::GetFontSize()) * 0.5f);
+		// アイコンは枠の高さに収まる正方形にする
+		const float iconSize = (std::max)(1.0f, ImGui::GetFontSize());
+		const float iconGap = style.ItemInnerSpacing.x;
+
+		// 入力枠の左上を控えておき、後からアイコンを枠内へ重ねて描く
+		const ImVec2 framePos = ImGui::GetCursorScreenPos();
+
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		// テキスト開始位置をアイコン幅ぶん右へずらすため、左のFramePaddingを広げる
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
+			ImVec2(style.FramePadding.x + iconSize + iconGap, paddingY));
+		const bool changed = hint ?
+			ImGui::InputTextWithHint(id, hint, &text_) : ImGui::InputText(id, &text_);
+		ImGui::PopStyleVar();
+
+		if (icon != ImTextureID{}) {
+
+			const float frameHeight = ImGui::GetFontSize() + paddingY * 2.0f;
+			const ImVec2 iconMin(framePos.x + style.FramePadding.x,
+				framePos.y + (frameHeight - iconSize) * 0.5f);
+			ImGui::GetWindowDrawList()->AddImage(icon, iconMin,
+				ImVec2(iconMin.x + iconSize, iconMin.y + iconSize));
+		}
 		return changed;
 	}
 

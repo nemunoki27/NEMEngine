@@ -26,6 +26,8 @@
 #include <Engine/Editor/Commands/Entity/InstantiatePrefabCommand.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
+#include <Engine/Editor/Utility/EditorTextureHelper.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
@@ -258,6 +260,8 @@ void Engine::ProjectPanel::Rebuild(AssetDatabase& database) {
 	if (!assetIndex_.FindDirectory(selectedDirectory_)) {
 		selectedDirectory_ = assetIndex_.GetRoot().virtualPath;
 	}
+	// 取り込んだ構造リビジョンを控えておき、外部のファイル追加削除との差分で再構築を判断する
+	lastSeenStructureRevision_ = database.GetStructureRevision();
 	dirty_ = false;
 }
 
@@ -330,9 +334,9 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	// 変更された場合のインデックスの再構築
+	// 自前のdirtyか、外部のファイル追加削除で進んだ構造リビジョンの差分でインデックスを再構築する
 	AssetDatabase& database = *context.editorContext->assetDatabase;
-	if (dirty_) {
+	if (dirty_ || database.GetStructureRevision() != lastSeenStructureRevision_) {
 		Rebuild(database);
 	}
 
@@ -341,32 +345,26 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	ImGui::SetWindowFontScale(0.8f);
 	DrawSourceSelector(context, database);
-	DrawHeader(context, database);
+	DrawSearchBar(context);
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::Separator();
 
-	// 左右の子領域の高さを合わせるため残り高さを先に取っておく
+	// 残り領域の高さを取り、内容表示の子領域へ渡す
 	const float regionHeight = ImGui::GetContentRegionAvail().y;
 
-	// 左ツリーが極端に潰れないよう、また右を潰しきらないよう幅の最小最大を制約する
-	const float regionWidth = ImGui::GetContentRegionAvail().x;
-	const float maxTreeWidth = (std::max)(120.0f, regionWidth - 140.0f);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(120.0f, regionHeight), ImVec2(maxTreeWidth, regionHeight));
-
-	// 左側にUnity風のフォルダ階層ツリーと検索ボックスを表示する
-	// 子の右枠自体をドラッグして幅を変えられるようにResizeXを付ける
-	if (ImGui::BeginChild("##ProjectFolderTree", ImVec2(folderTreeWidth_, regionHeight),
-		ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX)) {
-
-		DrawFolderTree(database);
-	}
-	ImGui::EndChild();
-
-	ImGui::SameLine();
-
-	// 右側に選択ディレクトリの内容をアイコンで描画する
+	// 選択ディレクトリの内容をアイコンで描画する、検索中は一致ファイルの一覧へ切り替える
 	if (ImGui::BeginChild("##ProjectContent", ImVec2(0.0f, regionHeight), true)) {
-		if (const ProjectDirectoryNode* node = assetIndex_.FindDirectory(selectedDirectory_)) {
+
+		// パンくずは右側コンテンツの一番上に置く
+		ImGui::SetWindowFontScale(0.8f);
+		DrawBreadcrumb(context, database);
+		ImGui::SetWindowFontScale(1.0f);
+		ImGui::Separator();
+
+		if (fileSearchFilter_.IsActive()) {
+
+			DrawSearchResults(context, database);
+		} else if (const ProjectDirectoryNode* node = assetIndex_.FindDirectory(selectedDirectory_)) {
 
 			DrawDirectoryContents(context, database, *node);
 		}
@@ -383,24 +381,31 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 		SavePersistentState();
 	}
-
-	if (context.layoutState->showProject && showModelPreviewSettingsWindow_) {
-
-		DrawModelPreviewSettingsWindow();
-	}
 }
 
 void Engine::ProjectPanel::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
-
-	// ProjectPanelはToolPanel上の独立ウィンドウを持たず、RenderTexture作成機能だけを利用する
 }
 
-void Engine::ProjectPanel::DrawHeader([[maybe_unused]] const EditorPanelContext& context, AssetDatabase& database) {
+void Engine::ProjectPanel::DrawSearchBar(const EditorPanelContext& context) {
+
+	// 入力枠の左端に虫眼鏡アイコンを重ねて、その右に入力文字が並ぶようにする
+	const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
+	fileSearchFilter_.DrawInput("##ProjectFileSearch", searchIcon, "ファイル検索...");
+}
+
+void Engine::ProjectPanel::DrawBreadcrumb([[maybe_unused]] const EditorPanelContext& context, AssetDatabase& database) {
+
+	// パンくずからの移動でも検索状態は解除する
+	auto navigate = [&](const std::string& virtualPath) {
+
+		selectedDirectory_ = virtualPath;
+		selectedAsset_ = {};
+		fileSearchFilter_.Clear();
+		};
 
 	// ルートへ戻る
 	if (ImGui::Button(GetSourceRootPath())) {
-		selectedDirectory_ = assetIndex_.GetRoot().virtualPath;
-		selectedAsset_ = {};
+		navigate(assetIndex_.GetRoot().virtualPath);
 	}
 	DrawProjectItemMoveDropTarget(database, assetIndex_.GetRoot().virtualPath);
 
@@ -414,8 +419,7 @@ void Engine::ProjectPanel::DrawHeader([[maybe_unused]] const EditorPanelContext&
 		ImGui::SameLine();
 
 		if (ImGui::Button(trail[i]->name.c_str())) {
-			selectedDirectory_ = trail[i]->virtualPath;
-			selectedAsset_ = {};
+			navigate(trail[i]->virtualPath);
 		}
 		DrawProjectItemMoveDropTarget(database, trail[i]->virtualPath);
 	}
@@ -427,42 +431,6 @@ void Engine::ProjectPanel::DrawHeader([[maybe_unused]] const EditorPanelContext&
 
 	const char* currentName = trail.empty() ? GetSourceRootPath() : trail.back()->name.c_str();
 	ImGui::TextUnformatted(currentName);
-
-	// 右端にRefresh
-	const char* label = "Refresh";
-	float buttonWidth = ImGui::CalcTextSize(label).x + ImGui::GetStyle().FramePadding.x * 2.0f;
-	const char* createLabel = "Create";
-	float createButtonWidth = ImGui::CalcTextSize(createLabel).x + ImGui::GetStyle().FramePadding.x * 2.0f;
-	const char* previewSettingsLabel = "プレビュー設定";
-	float previewSettingsButtonWidth =
-		ImGui::CalcTextSize(previewSettingsLabel).x + ImGui::GetStyle().FramePadding.x * 2.0f;
-
-	float rightX = ImGui::GetWindowContentRegionMax().x - buttonWidth -
-		createButtonWidth - previewSettingsButtonWidth - 24.0f;
-	const float nextX = (std::max)(ImGui::GetCursorPosX() + 16.0f, rightX);
-
-	ImGui::SameLine(nextX);
-	if (ImGui::Button(previewSettingsLabel, ImVec2(previewSettingsButtonWidth, 0.0f))) {
-
-		showModelPreviewSettingsWindow_ = true;
-		SavePersistentState();
-	}
-
-	ImGui::SameLine();
-	if (ImGui::Button(createLabel, ImVec2(createButtonWidth, 0.0f))) {
-		ImGui::OpenPopup("##ProjectCreateMenu");
-	}
-	if (ImGui::BeginPopup("##ProjectCreateMenu")) {
-
-		DrawCreateMenuItems(selectedDirectory_);
-		ImGui::EndPopup();
-	}
-
-	ImGui::SameLine();
-	if (ImGui::Button(label, ImVec2(buttonWidth, 0.0f))) {
-		Rebuild(database);
-		selectedAsset_ = {};
-	}
 }
 
 void Engine::ProjectPanel::DrawSourceSelector([[maybe_unused]] const EditorPanelContext& context, AssetDatabase& database) {
@@ -491,80 +459,6 @@ void Engine::ProjectPanel::DrawSourceSelector([[maybe_unused]] const EditorPanel
 	ImGui::Separator();
 }
 
-void Engine::ProjectPanel::DrawFolderTree(AssetDatabase& database) {
-
-	ImGui::SetWindowFontScale(0.72f);
-
-	// HierarchyPanelと同じく一番上に検索ボックスを置く
-	// 検索ボックスはスクロール領域の外に置き、ツリーをスクロールしても常に見えるようにする
-	folderSearchFilter_.DrawInput("##ProjectFolderSearch");
-	ImGui::Separator();
-
-	// ツリー本体だけを別の子領域でスクロールさせる
-	if (ImGui::BeginChild("##ProjectFolderTreeScroll", ImVec2(0.0f, 0.0f), false)) {
-
-		// ルートから再帰的にフォルダ階層を描画する
-		DrawFolderTreeNode(database, assetIndex_.GetRoot());
-	}
-	ImGui::EndChild();
-
-	ImGui::SetWindowFontScale(1.0f);
-}
-
-void Engine::ProjectPanel::DrawFolderTreeNode(AssetDatabase& database, const ProjectDirectoryNode& node) {
-
-	// 検索中は自身か子孫が一致するノードだけ表示する
-	if (folderSearchFilter_.IsActive() && !FolderTreeMatchesSearch(node)) {
-		return;
-	}
-
-	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-	if (node.virtualPath == selectedDirectory_) {
-		flags |= ImGuiTreeNodeFlags_Selected;
-	}
-	const bool isLeaf = node.children.empty();
-	if (isLeaf) {
-		flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-	}
-	// 検索中は階層を開いて一致フォルダを見えるようにする
-	if (folderSearchFilter_.IsActive() && !isLeaf) {
-		ImGui::SetNextItemOpen(true);
-	}
-
-	ImGui::PushID(node.virtualPath.c_str());
-	const bool opened = ImGui::TreeNodeEx("##FolderNode", flags, "%s", node.name.c_str());
-	// 展開矢印以外のラベルクリックで表示ディレクトリを切り替える
-	if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
-
-		selectedDirectory_ = node.virtualPath;
-		selectedAsset_ = {};
-	}
-	// 右側のグリッドと同じくフォルダ移動のドロップ先にする
-	DrawProjectItemMoveDropTarget(database, node.virtualPath);
-
-	if (opened && !isLeaf) {
-
-		for (const auto& child : node.children) {
-			DrawFolderTreeNode(database, *child);
-		}
-		ImGui::TreePop();
-	}
-	ImGui::PopID();
-}
-
-bool Engine::ProjectPanel::FolderTreeMatchesSearch(const ProjectDirectoryNode& node) const {
-
-	if (folderSearchFilter_.Matches(node.name)) {
-		return true;
-	}
-	for (const auto& child : node.children) {
-		if (FolderTreeMatchesSearch(*child)) {
-			return true;
-		}
-	}
-	return false;
-}
-
 void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& context,
 	AssetDatabase& database, const ProjectDirectoryNode& node) {
 
@@ -582,94 +476,14 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 	for (const auto& child : node.children) {
 
 		ImGui::TableNextColumn();
-		ImGui::PushID(child->virtualPath.c_str());
-
-		ImGui::BeginGroup();
-
-		if (ImGui::ImageButton("##FolderButton", thumbnailCache_.GetFolderIconTextureID(), ImVec2(iconSize, iconSize),
-			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), ImVec4(0.06f, 0.06f, 0.06f, 1.0f))) {
-
-			// Project内のフォルダ移動ではInspectorの選択状態を変更しない
-			selectedDirectory_ = child->virtualPath;
-			selectedAsset_ = {};
-		}
-
-		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-			// ダブルクリックでもInspectorの選択状態は維持する
-			selectedDirectory_ = child->virtualPath;
-			selectedAsset_ = {};
-		}
-		DrawProjectFileMoveSource(child->virtualPath, true, child->name.c_str());
-
-		ImGui::SetWindowFontScale(0.8f);
-		ImGui::TextWrapped("%s", child->name.c_str());
-		ImGui::SetWindowFontScale(1.0f);
-
-		if (ImGui::BeginItemTooltip()) {
-			ImGui::TextUnformatted(child->virtualPath.c_str());
-			ImGui::EndTooltip();
-		}
-
-		ImGui::EndGroup();
-		DrawProjectItemMoveDropTarget(database, child->virtualPath);
-		DrawPrefabCreateDropTarget(context, database, child->virtualPath);
-		DrawFolderContextMenu(database, *child);
-		ImGui::PopID();
+		DrawFolderGridItem(context, database, *child, iconSize);
 	}
 
 	// アセット
 	for (const auto& asset : node.assets) {
 
 		ImGui::TableNextColumn();
-		ImGui::PushID(asset.assetPath.c_str());
-
-		ImGui::BeginGroup();
-
-		ImTextureID textureID = thumbnailCache_.GetAssetTextureID(asset.assetPath, asset.type);
-		ImVec2 uv0(0.0f, 0.0f);
-		ImVec2 uv1(1.0f, 1.0f);
-		if (asset.type == AssetType::Mesh) {
-
-			ImTextureID previewTextureID = static_cast<ImTextureID>(0);
-			ImVec2 previewUV0{};
-			ImVec2 previewUV1{};
-			if (TryGetModelPreviewImage(asset.assetID, previewTextureID, previewUV0, previewUV1)) {
-				textureID = previewTextureID;
-				uv0 = previewUV0;
-				uv1 = previewUV1;
-			}
-		}
-
-		if (ImGui::ImageButton("##AssetButton", textureID, ImVec2(iconSize, iconSize),
-			uv0, uv1, ImVec4(0.06f, 0.06f, 0.06f, 1.0f))) {
-
-			// 単クリックはProject内の選択だけに留め、Inspectorへは反映しない
-			selectedAsset_ = asset.assetID;
-		}
-		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-			// Inspectorへ表示するのはダブルクリック時だけにする
-			selectedAsset_ = asset.assetID;
-			context.editorState->SelectAsset(asset.assetID);
-			HandleAssetDoubleClick(context, asset);
-		}
-
-		DrawAssetDragDropSource(asset);
-
-		ImGui::SetWindowFontScale(0.5f);
-		ImGui::TextWrapped("%s", asset.displayName.c_str());
-		ImGui::SetWindowFontScale(1.0f);
-		DrawAssetDragDropSource(asset, ImGuiDragDropFlags_SourceAllowNullID);
-
-		if (ImGui::BeginItemTooltip()) {
-			ImGui::Text("Path: %s", asset.assetPath.c_str());
-			ImGui::Text("Type: %s", EnumAdapter<AssetType>::ToString(asset.type));
-			ImGui::Text("ID:   %s", Engine::ToString(asset.assetID).c_str());
-			ImGui::EndTooltip();
-		}
-
-		ImGui::EndGroup();
-		DrawAssetContextMenu(context, database, asset);
-		ImGui::PopID();
+		DrawAssetGridItem(context, database, asset, iconSize);
 	}
 
 	ImGui::EndTable();
@@ -705,7 +519,156 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 	}
 }
 
-void Engine::ProjectPanel::DrawDirectoryContextMenu(AssetDatabase& database, const ProjectDirectoryNode& node) {
+void Engine::ProjectPanel::DrawFolderGridItem(const EditorPanelContext& context, AssetDatabase& database,
+	const ProjectDirectoryNode& node, float iconSize) {
+
+	// フォルダへ移動する、検索中なら検索を解除して通常のフォルダ表示へ戻す
+	auto navigate = [&]() {
+
+		selectedDirectory_ = node.virtualPath;
+		selectedAsset_ = {};
+		fileSearchFilter_.Clear();
+		};
+
+	ImGui::PushID(node.virtualPath.c_str());
+	ImGui::BeginGroup();
+
+	if (ImGui::ImageButton("##FolderButton", thumbnailCache_.GetFolderIconTextureID(), ImVec2(iconSize, iconSize),
+		ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), ImVec4(0.06f, 0.06f, 0.06f, 1.0f))) {
+
+		// Project内のフォルダ移動ではInspectorの選択状態を変更しない
+		navigate();
+	}
+	if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+		// ダブルクリックでもInspectorの選択状態は維持する
+		navigate();
+	}
+	DrawProjectFileMoveSource(node.virtualPath, true, node.name.c_str());
+
+	ImGui::SetWindowFontScale(0.8f);
+	ImGui::TextWrapped("%s", node.name.c_str());
+	ImGui::SetWindowFontScale(1.0f);
+
+	if (ImGui::BeginItemTooltip()) {
+		ImGui::TextUnformatted(node.virtualPath.c_str());
+		ImGui::EndTooltip();
+	}
+
+	ImGui::EndGroup();
+	DrawProjectItemMoveDropTarget(database, node.virtualPath);
+	DrawPrefabCreateDropTarget(context, database, node.virtualPath);
+	DrawFolderContextMenu(database, node);
+	ImGui::PopID();
+}
+
+void Engine::ProjectPanel::DrawAssetGridItem(const EditorPanelContext& context, AssetDatabase& database,
+	const ProjectAssetEntry& asset, float iconSize) {
+
+	ImGui::PushID(asset.assetPath.c_str());
+	ImGui::BeginGroup();
+
+	ImTextureID textureID = thumbnailCache_.GetAssetTextureID(asset.assetPath, asset.type);
+	ImVec2 uv0(0.0f, 0.0f);
+	ImVec2 uv1(1.0f, 1.0f);
+	if (asset.type == AssetType::Mesh) {
+
+		// モデルプレビューAtlasが用意できているときだけ実プレビューへ差し替える(検索一覧では型アイコンへフォールバック)
+		ImTextureID previewTextureID = static_cast<ImTextureID>(0);
+		ImVec2 previewUV0{};
+		ImVec2 previewUV1{};
+		if (TryGetModelPreviewImage(asset.assetID, previewTextureID, previewUV0, previewUV1)) {
+			textureID = previewTextureID;
+			uv0 = previewUV0;
+			uv1 = previewUV1;
+		}
+	}
+
+	if (ImGui::ImageButton("##AssetButton", textureID, ImVec2(iconSize, iconSize),
+		uv0, uv1, ImVec4(0.06f, 0.06f, 0.06f, 1.0f))) {
+
+		// 単クリックはProject内の選択だけに留め、Inspectorへは反映しない
+		selectedAsset_ = asset.assetID;
+	}
+	if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+		// Inspectorへ表示するのはダブルクリック時だけにする
+		selectedAsset_ = asset.assetID;
+		context.editorState->SelectAsset(asset.assetID);
+		HandleAssetDoubleClick(context, asset);
+	}
+
+	DrawAssetDragDropSource(asset);
+
+	ImGui::SetWindowFontScale(0.5f);
+	ImGui::TextWrapped("%s", asset.displayName.c_str());
+	ImGui::SetWindowFontScale(1.0f);
+	DrawAssetDragDropSource(asset, ImGuiDragDropFlags_SourceAllowNullID);
+
+	if (ImGui::BeginItemTooltip()) {
+		ImGui::Text("Path: %s", asset.assetPath.c_str());
+		ImGui::Text("Type: %s", EnumAdapter<AssetType>::ToString(asset.type));
+		ImGui::Text("ID:   %s", Engine::ToString(asset.assetID).c_str());
+		ImGui::EndTooltip();
+	}
+
+	ImGui::EndGroup();
+	DrawAssetContextMenu(context, database, asset);
+	ImGui::PopID();
+}
+
+void Engine::ProjectPanel::CollectSearchMatches(const ProjectDirectoryNode& node,
+	std::vector<const ProjectDirectoryNode*>& outFolders,
+	std::vector<const ProjectAssetEntry*>& outAssets) const {
+
+	// 子フォルダは名前で、アセットは表示名で一致判定しながらツリー全体を辿る
+	for (const auto& child : node.children) {
+
+		if (fileSearchFilter_.Matches(child->name)) {
+			outFolders.emplace_back(child.get());
+		}
+		CollectSearchMatches(*child, outFolders, outAssets);
+	}
+	for (const ProjectAssetEntry& asset : node.assets) {
+
+		if (fileSearchFilter_.Matches(asset.displayName)) {
+			outAssets.emplace_back(&asset);
+		}
+	}
+}
+
+void Engine::ProjectPanel::DrawSearchResults(const EditorPanelContext& context, AssetDatabase& database) {
+
+	// 検索は現在のソース全体(Engine/またはGame/)を対象にツリーのルートから集める
+	std::vector<const ProjectDirectoryNode*> folders;
+	std::vector<const ProjectAssetEntry*> assets;
+	CollectSearchMatches(assetIndex_.GetRoot(), folders, assets);
+
+	if (folders.empty() && assets.empty()) {
+
+		ImGui::TextDisabled("一致するファイルがありません");
+		return;
+	}
+
+	const float iconSize = 64.0f;
+	const int32_t columnCount = CalcGridColumnCount(ImGui::GetContentRegionAvail().x, iconSize + 8.0f);
+	if (!ImGui::BeginTable("##ProjectSearchGrid", columnCount, ImGuiTableFlags_SizingFixedFit)) {
+		return;
+	}
+
+	for (const ProjectDirectoryNode* folder : folders) {
+
+		ImGui::TableNextColumn();
+		DrawFolderGridItem(context, database, *folder, iconSize);
+	}
+	for (const ProjectAssetEntry* asset : assets) {
+
+		ImGui::TableNextColumn();
+		DrawAssetGridItem(context, database, *asset, iconSize);
+	}
+
+	ImGui::EndTable();
+}
+
+void Engine::ProjectPanel::DrawDirectoryContextMenu([[maybe_unused]] AssetDatabase& database, const ProjectDirectoryNode& node) {
 
 	if (!ImGui::BeginPopupContextWindow("ProjectDirectoryContextMenu",
 		ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
@@ -716,11 +679,6 @@ void Engine::ProjectPanel::DrawDirectoryContextMenu(AssetDatabase& database, con
 
 		DrawCreateMenuItems(node.virtualPath);
 		ImGui::EndMenu();
-	}
-	if (ImGui::MenuItem("Refresh")) {
-
-		Rebuild(database);
-		selectedAsset_ = {};
 	}
 	ImGui::EndPopup();
 }
@@ -1303,34 +1261,6 @@ void Engine::ProjectPanel::LoadPersistentState() {
 		selectedDirectory_ = defaultDirectory;
 	}
 	selectedAsset_ = {};
-
-	if (data.contains("modelPreview") && data["modelPreview"].is_object()) {
-
-		const nlohmann::json& modelPreview = data["modelPreview"];
-		showModelPreviewSettingsWindow_ = modelPreview.value("showSettingsWindow", showModelPreviewSettingsWindow_);
-		if (modelPreview.contains("settings") && modelPreview["settings"].is_object()) {
-
-			const nlohmann::json& settings = modelPreview["settings"];
-			modelPreviewSettings_.tileSize = settings.value("tileSize", modelPreviewSettings_.tileSize);
-			if (settings.contains("clearColor")) {
-
-				modelPreviewSettings_.clearColor = Color4::FromJson(settings["clearColor"]);
-			}
-			modelPreviewSettings_.cameraFovY = settings.value("cameraFovY", modelPreviewSettings_.cameraFovY);
-			modelPreviewSettings_.cameraDistanceScale =
-				settings.value("cameraDistanceScale", modelPreviewSettings_.cameraDistanceScale);
-			modelPreviewSettings_.cameraPitchDegrees =
-				settings.value("cameraPitchDegrees", modelPreviewSettings_.cameraPitchDegrees);
-			modelPreviewSettings_.cameraYawDegrees =
-				settings.value("cameraYawDegrees", modelPreviewSettings_.cameraYawDegrees);
-			if (settings.contains("lightDirection")) {
-
-				modelPreviewSettings_.lightDirection = Vector3::FromJson(settings["lightDirection"]);
-			}
-			modelPreviewSettings_.lightIntensity = settings.value("lightIntensity", modelPreviewSettings_.lightIntensity);
-		}
-	}
-	ClampModelPreviewSettings();
 }
 
 void Engine::ProjectPanel::SavePersistentState() const {
@@ -1338,19 +1268,6 @@ void Engine::ProjectPanel::SavePersistentState() const {
 	nlohmann::json data = nlohmann::json::object();
 	data["assetSource"] = EnumAdapter<ProjectAssetSource>::ToString(assetSource_);
 	data["selectedDirectory"] = selectedDirectory_;
-	data["modelPreview"] = {
-		{"showSettingsWindow", showModelPreviewSettingsWindow_},
-		{"settings", {
-			{"tileSize", modelPreviewSettings_.tileSize},
-			{"clearColor", modelPreviewSettings_.clearColor.ToJson()},
-			{"cameraFovY", modelPreviewSettings_.cameraFovY},
-			{"cameraDistanceScale", modelPreviewSettings_.cameraDistanceScale},
-			{"cameraPitchDegrees", modelPreviewSettings_.cameraPitchDegrees},
-			{"cameraYawDegrees", modelPreviewSettings_.cameraYawDegrees},
-			{"lightDirection", modelPreviewSettings_.lightDirection.ToJson()},
-			{"lightIntensity", modelPreviewSettings_.lightIntensity},
-		}},
-	};
 
 	JsonAdapter::Save(GetProjectPanelStatePath().string(), data);
 }

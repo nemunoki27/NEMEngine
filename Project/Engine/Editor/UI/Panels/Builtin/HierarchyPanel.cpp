@@ -60,7 +60,9 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 
 	RequestActiveIconTextures();
 
-	searchFilter_.DrawInput("##HierarchySearch");
+	// 検索欄の左端にProjectPanelと同じ虫眼鏡アイコンを重ねる
+	const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(*textureUploadService_);
+	searchFilter_.DrawInput("##HierarchySearch", searchIcon, "検索...");
 
 	ImGui::Separator();
 

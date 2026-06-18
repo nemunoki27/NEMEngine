@@ -53,7 +53,7 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawLayerMaskField(const 
 	return result;
 }
 
-Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(const char* label, std::string& type) {
+Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(const char* label, std::string& type, ImTextureID searchIcon) {
 
 	ValueEditResult result{};
 	if (!MyGUI::BeginPropertyRow(label)) {
@@ -82,8 +82,8 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 
 	if (ImGui::BeginCombo("##Value", preview.c_str())) {
 
-		// Add Componentと同じく、上部に検索ボックスを置く
-		typeFilter.DrawInput("##BehaviorTypeSearch");
+		// Add Componentと同じく、上部に虫眼鏡アイコン付きの検索ボックスを置く
+		typeFilter.DrawInput("##BehaviorTypeSearch", searchIcon, "検索...");
 		ImGui::Separator();
 
 		for (uint32_t i = 0; i < registry.GetBehaviorTypeCount(); ++i) {

@@ -55,8 +55,8 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// 安定した変更パスを種別ごとにリロードへ振り分ける
-		void DispatchReload(const std::filesystem::path& path);
+		// 安定した変更パスを種別ごとにリロードへ振り分ける、内容リロードとして処理できたらtrueを返す
+		bool DispatchReload(const std::filesystem::path& path);
 
 		//--------- variables ----------------------------------------------------
 

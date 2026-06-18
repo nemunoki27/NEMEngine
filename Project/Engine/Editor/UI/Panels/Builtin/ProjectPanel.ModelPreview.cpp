@@ -68,113 +68,6 @@ namespace {
 	}
 }
 
-void Engine::ProjectPanel::DrawModelPreviewSettingsWindow() {
-
-	const bool wasOpen = showModelPreviewSettingsWindow_;
-	ImGui::SetNextWindowSize(ImVec2(360.0f, 0.0f), ImGuiCond_FirstUseEver);
-	if (!ImGui::Begin("モデルプレビュー設定", &showModelPreviewSettingsWindow_)) {
-
-		ImGui::End();
-		if (wasOpen && !showModelPreviewSettingsWindow_) {
-
-			SavePersistentState();
-		}
-		return;
-	}
-
-	bool changed = false;
-	bool saveRequested = false;
-	bool atlasRebuildRequested = false;
-	auto consumeEditState = [&](bool valueChanged, bool rebuildAtlasOnCommit) {
-
-		changed |= valueChanged;
-		if (ImGui::IsItemDeactivatedAfterEdit()) {
-
-			saveRequested = true;
-			atlasRebuildRequested |= rebuildAtlasOnCommit;
-		}
-	};
-
-	ImGui::TextUnformatted("アトラス");
-	consumeEditState(ImGui::DragInt("スロットサイズ", &modelPreviewSettings_.tileSize, 1.0f, 64, 512), true);
-
-	float clearColor[4] = {
-		modelPreviewSettings_.clearColor.r,
-		modelPreviewSettings_.clearColor.g,
-		modelPreviewSettings_.clearColor.b,
-		modelPreviewSettings_.clearColor.a,
-	};
-	const bool clearColorChanged = ImGui::ColorEdit4("背景色", clearColor);
-	if (clearColorChanged) {
-
-		modelPreviewSettings_.clearColor = Color4(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
-	}
-	consumeEditState(clearColorChanged, true);
-
-	ImGui::Separator();
-	ImGui::TextUnformatted("カメラ");
-	consumeEditState(ImGui::DragFloat("視野角", &modelPreviewSettings_.cameraFovY, 0.1f, 10.0f, 80.0f, "%.1f"), false);
-	consumeEditState(ImGui::DragFloat("距離倍率", &modelPreviewSettings_.cameraDistanceScale, 0.01f, 0.5f, 6.0f, "%.2f"), false);
-	consumeEditState(ImGui::DragFloat("ピッチ角", &modelPreviewSettings_.cameraPitchDegrees, 0.1f, -45.0f, 45.0f, "%.1f"), false);
-	consumeEditState(ImGui::DragFloat("ヨー角", &modelPreviewSettings_.cameraYawDegrees, 0.1f, -360.0f, 360.0f, "%.1f"), false);
-
-	ImGui::Separator();
-	ImGui::TextUnformatted("ライト");
-	float lightDirection[3] = {
-		modelPreviewSettings_.lightDirection.x,
-		modelPreviewSettings_.lightDirection.y,
-		modelPreviewSettings_.lightDirection.z,
-	};
-	const bool lightDirectionChanged = ImGui::DragFloat3("ライト方向", lightDirection, 0.01f, -1.0f, 1.0f, "%.2f");
-	if (lightDirectionChanged) {
-
-		modelPreviewSettings_.lightDirection = Vector3(lightDirection[0], lightDirection[1], lightDirection[2]);
-	}
-	consumeEditState(lightDirectionChanged, false);
-	consumeEditState(ImGui::DragFloat("ライト強度", &modelPreviewSettings_.lightIntensity, 0.01f, 0.0f, 10.0f, "%.2f"), false);
-
-	ImGui::Separator();
-	if (ImGui::Button("初期値に戻す")) {
-
-		modelPreviewSettings_ = ModelPreviewAppearanceSettings{};
-		changed = true;
-		saveRequested = true;
-		atlasRebuildRequested = true;
-	}
-
-	if (changed) {
-
-		ClampModelPreviewSettings();
-	}
-	if (atlasRebuildRequested) {
-
-		InvalidateModelPreviewAtlas();
-	}
-	if (saveRequested) {
-
-		SavePersistentState();
-	}
-
-	ImGui::End();
-	if (wasOpen && !showModelPreviewSettingsWindow_) {
-
-		SavePersistentState();
-	}
-}
-
-void Engine::ProjectPanel::ClampModelPreviewSettings() {
-
-	modelPreviewSettings_.tileSize = std::clamp(modelPreviewSettings_.tileSize, 64, 512);
-	modelPreviewSettings_.cameraFovY = std::clamp(modelPreviewSettings_.cameraFovY, 10.0f, 80.0f);
-	modelPreviewSettings_.cameraDistanceScale = std::clamp(modelPreviewSettings_.cameraDistanceScale, 0.5f, 6.0f);
-	modelPreviewSettings_.cameraPitchDegrees = std::clamp(modelPreviewSettings_.cameraPitchDegrees, -45.0f, 45.0f);
-	modelPreviewSettings_.lightIntensity = std::clamp(modelPreviewSettings_.lightIntensity, 0.0f, 10.0f);
-	if (modelPreviewSettings_.lightDirection.Length() <= 0.001f) {
-
-		modelPreviewSettings_.lightDirection = ModelPreviewAppearanceSettings{}.lightDirection;
-	}
-}
-
 void Engine::ProjectPanel::ApplyModelPreviewLightSettings() {
 
 	if (!modelPreviewWorld_ || !modelPreviewWorld_->IsAlive(modelPreviewLightEntity_)) {
@@ -188,18 +81,6 @@ void Engine::ProjectPanel::ApplyModelPreviewLightSettings() {
 
 	light->direction = modelPreviewSettings_.lightDirection.Normalize();
 	light->intensity = modelPreviewSettings_.lightIntensity;
-}
-
-void Engine::ProjectPanel::InvalidateModelPreviewAtlas() {
-
-	modelPreviewWorld_.reset();
-	modelPreviewLightEntity_ = Entity::Null();
-	modelPreviewSlots_.clear();
-	modelPreviewSlotByAsset_.clear();
-	modelPreviewDirectory_.clear();
-	modelPreviewSignature_ = 0;
-	modelPreviewAtlasSize_ = Vector2I{};
-	modelPreviewAtlasRebuildRequested_ = true;
 }
 
 void Engine::ProjectPanel::PrepareModelPreviewAtlas(const EditorPanelContext& context,
@@ -250,8 +131,7 @@ void Engine::ProjectPanel::PrepareModelPreviewAtlas(const EditorPanelContext& co
 
 	EditorToolRenderTexture* atlas = FindRenderTexture(kProjectModelPreviewAtlasName);
 	if (atlas && (atlas->size.x != modelPreviewAtlasSize_.x ||
-		atlas->size.y != modelPreviewAtlasSize_.y ||
-		(modelPreviewAtlasRebuildRequested_ && atlas->clearColor != modelPreviewSettings_.clearColor))) {
+		atlas->size.y != modelPreviewAtlasSize_.y)) {
 
 		DestroyRenderTexture(kProjectModelPreviewAtlasName);
 		atlas = nullptr;
@@ -262,7 +142,6 @@ void Engine::ProjectPanel::PrepareModelPreviewAtlas(const EditorPanelContext& co
 	}
 	if (atlas) {
 		RenderModelPreviewAtlas(toolContext, *atlas);
-		modelPreviewAtlasRebuildRequested_ = false;
 	}
 
 	EndEditorToolFrame();

@@ -185,6 +185,9 @@ bool Engine::AssetDatabase::RebuildMeta() {
 			static_cast<int>(issue.type), ToString(issue.assetID), ToString(issue.referencedAssetID),
 			issue.assetPath, issue.detail);
 	}
+
+	// アセット集合が変わったことを外部へ知らせる、ProjectPanel等がこのリビジョン差分で再構築を判断する
+	++structureRevision_;
 	return true;
 }
 

@@ -43,8 +43,8 @@ namespace Engine::InspectorDrawerCommon {
 		MyGUI::EndPropertyRow();
 		return result;
 	}
-	// ビヘイビアの型選択フィールドを描画する
-	ValueEditResult DrawBehaviorTypeField(const char* label, std::string& type);
+	// ビヘイビアの型選択フィールドを描画する、searchIconはcombo内検索欄に重ねる虫眼鏡
+	ValueEditResult DrawBehaviorTypeField(const char* label, std::string& type, ImTextureID searchIcon);
 
 	// エンティティの種類に応じてデバッグラインを描画する
 	void DrawEntityDebugObject(ECSWorld& world, const Entity& entity, int32_t selectionSubMeshIndex = -1);
