@@ -126,10 +126,9 @@ namespace {
 }
 
 void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
-	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
+	[[maybe_unused]] const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
 	// 最終合成結果を出力先へ写すだけなのでバケットは使わない
-	(void)passBuckets;
 	if (!context.resources || !context.defaultSurface ||
 		!deps_.assetLibrary || !deps_.pipelineCache) {
 		return;

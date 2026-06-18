@@ -50,11 +50,9 @@ void Engine::PostProcessExecutor::Release() {
 	frameIndex_ = 0;
 }
 
-bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, const RenderFrameRequest& request,
+bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_unused]] const RenderFrameRequest& request,
 	const SceneExecutionContext& context, RenderAssetLibrary& assetLibrary,
 	PipelineStateCache& pipelineCache, const PostProcessExecutionDesc& desc) {
-
-	(void)request;
 
 	if (!context.targetRegistry || !context.assetDatabase) {
 		return false;

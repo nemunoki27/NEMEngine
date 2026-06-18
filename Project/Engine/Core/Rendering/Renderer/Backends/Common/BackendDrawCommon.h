@@ -11,6 +11,8 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/GraphicsRootBinder.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterBinder.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/Textures/BuiltinTextureLibrary.h>
@@ -82,6 +84,14 @@ namespace Engine::BackendDrawCommon {
 	// space2テクスチャを宣言しないBuiltinでは何もせず無回帰
 	void BindMaterialTextures(const RenderDrawContext& context, const PipelineState& pipelineState,
 		const MaterialAsset& material, ID3D12GraphicsCommandList* commandList);
+
+	// MaterialParameters cbufferをreflection駆動でアップロードしバインドする
+	// overridesはエンティティごとの個別マテリアル用、nullや空なら既定値のみになる
+	void BindReflectedMaterialParameters(const RenderDrawContext& context, MaterialParameterBinder& binder,
+		const PipelineState& pipelineState, const MaterialAsset& material,
+		const std::unordered_map<std::string, MaterialParameterValue>* overrides,
+		PipelineBindingCache& bindCache, PipelineBindingCache::SlotID slot,
+		ID3D12GraphicsCommandList* commandList);
 
 	// 描画アイテムがバッチ可能か
 	bool CanBatchBasic(const RenderItem& first, const RenderItem& next);

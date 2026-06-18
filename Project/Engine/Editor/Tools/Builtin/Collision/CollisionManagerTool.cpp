@@ -487,7 +487,7 @@ void Engine::CollisionManagerTool::EnsureActiveCollisionSettingsAsset(const Edit
 	settings.SetActiveSettingsAsset(header->collisionSettings, assetDatabase);
 }
 
-void Engine::CollisionManagerTool::DrawCollisionWorld(ECSWorld& world) const {
+void Engine::CollisionManagerTool::DrawCollisionWorld([[maybe_unused]] ECSWorld& world) const {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// World内の有効なCollision形状をすべて描画する
@@ -504,7 +504,5 @@ void Engine::CollisionManagerTool::DrawCollisionWorld(ECSWorld& world) const {
 				DrawCollisionShape(shape, transform);
 			}
 		});
-#else
-	(void)world;
 #endif
 }

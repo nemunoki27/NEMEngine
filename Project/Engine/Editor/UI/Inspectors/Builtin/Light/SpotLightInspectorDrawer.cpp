@@ -38,13 +38,7 @@ void Engine::SpotLightInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 			return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 			});
 		DrawField(anyItemActive, [&]() {
-			int32_t layerMask = static_cast<int32_t>(draft.affectLayerMask);
-			auto result = MyGUI::DragInt("レイヤーマスク", layerMask, { .dragSpeed = 1,.minValue = 0,.maxValue = 0xfffffff });
-			if (result.valueChanged) {
-
-				draft.affectLayerMask = static_cast<uint32_t>(layerMask);
-			}
-			return result;
+			return InspectorDrawerCommon::DrawLayerMaskField("レイヤーマスク", draft.affectLayerMask);
 			});
 	}
 }

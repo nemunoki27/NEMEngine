@@ -240,7 +240,16 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	auto [it, inserted] = cache_.emplace(key, std::move(pipelineState));
 	// マテリアルインスペクタ等がエディタ側でPSOを再生成せず、reflectionを引けるようpipelineAsset別に保存する
 	if (variant->kind != PipelineVariantKind::Compute) {
-		graphicsReflectionByPipeline_[pipelineAssetID] = it->second->GetGraphicsReflection();
+
+		ShaderReflectionInfo reflection = it->second->GetGraphicsReflection();
+		// シェーダー側メタデータで宣言された色paramにisColorを立てる
+		for (ShaderConstantBufferInfo& cb : reflection.constantBuffers) {
+			for (ShaderConstantBufferVariable& var : cb.variables) {
+				var.isColor = std::find(shaderAsset->colorParameters.begin(),
+					shaderAsset->colorParameters.end(), var.name) != shaderAsset->colorParameters.end();
+			}
+		}
+		graphicsReflectionByPipeline_[pipelineAssetID] = std::move(reflection);
 	}
 	return it->second.get();
 }
@@ -257,9 +266,8 @@ const Engine::ShaderReflectionInfo* Engine::PipelineStateCache::FindGraphicsRefl
 void Engine::PipelineStateCache::Clear() {
 
 	// PipelineStateはRootSignature/PSOを持つため、cache破棄前に明示resetする
-	for (auto& [key, state] : cache_) {
-		(void)key;
-		state.reset();
+	for (auto& entry : cache_) {
+		entry.second.reset();
 	}
 	cache_.clear();
 	graphicsReflectionByPipeline_.clear();

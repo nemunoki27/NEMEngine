@@ -202,12 +202,12 @@ Engine::SceneComponentOverlayRenderer::GetOrCreateSpriteRunBuffer(GraphicsCore& 
 	return *spriteRunInstances_[runIndex];
 }
 
-void Engine::SceneComponentOverlayRenderer::Render(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
-	const ResolvedRenderView& view, MultiRenderTarget& surface, DepthTexture2D* sceneDepth,
-	ECSWorld* world, SceneComponentOverlayItemList& items) {
+void Engine::SceneComponentOverlayRenderer::Render([[maybe_unused]] GraphicsCore& graphicsCore,
+	[[maybe_unused]] AssetDatabase& assetDatabase, [[maybe_unused]] const ResolvedRenderView& view,
+	[[maybe_unused]] MultiRenderTarget& surface, [[maybe_unused]] DepthTexture2D* sceneDepth,
+	[[maybe_unused]] ECSWorld* world, [[maybe_unused]] SceneComponentOverlayItemList& items) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	(void)sceneDepth;
 	// 前フレームの描画済みアイテムがPickerへ残らないよう、最初に必ず消す
 	SceneComponentOverlayState::GetInstance().Clear(world);
 	if (items.empty() || !view.valid || surface.GetWidth() == 0 || surface.GetHeight() == 0) {
@@ -230,14 +230,6 @@ void Engine::SceneComponentOverlayRenderer::Render(GraphicsCore& graphicsCore, A
 
 	// 実際に描けたアイテムだけをCPU Pickerへ渡す
 	SceneComponentOverlayState::GetInstance().SetRenderedItems(world, renderedItems);
-#else
-	(void)graphicsCore;
-	(void)assetDatabase;
-	(void)view;
-	(void)surface;
-	(void)sceneDepth;
-	(void)world;
-	(void)items;
 #endif
 }
 

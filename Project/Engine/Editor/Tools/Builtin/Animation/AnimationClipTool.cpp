@@ -652,19 +652,25 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 		if (!world || !world->IsAlive(targetEntity)) {
 			ImGui::TextDisabled("アニメ対象のエンティティが設定されていません");
 		} else {
+			// reflection駆動で個別マテリアルパラメータも動的に列挙するためコンテキストを渡す
+			AnimationPropertyQueryContext queryContext{};
+			queryContext.assetDatabase = context.toolContext.assetDatabase;
+			queryContext.renderPipeline = context.panelContext ? context.panelContext->renderPipeline : nullptr;
+			const std::vector<AnimationPropertyDescriptor> collectedProperties =
+				AnimationPropertyRegistry::GetInstance().CollectProperties(*world, targetEntity, queryContext);
+
 			std::unordered_map<std::string, std::vector<const AnimationPropertyDescriptor*>> groups{};
-			for (const AnimationPropertyDescriptor* desc :
-				AnimationPropertyRegistry::GetInstance().GetPropertiesForEntity(*world, targetEntity)) {
-				if (desc->componentName == "Transform") {
+			for (const AnimationPropertyDescriptor& desc : collectedProperties) {
+				if (desc.componentName == "Transform") {
 					// 2D/3D表示モードに合わないTransform Propertyは追加候補から外す
-					if (effectiveDimension == AnimationClipEditDimension::Mode2D && Is3DTransformProperty(desc->propertyPath)) {
+					if (effectiveDimension == AnimationClipEditDimension::Mode2D && Is3DTransformProperty(desc.propertyPath)) {
 						continue;
 					}
-					if (effectiveDimension == AnimationClipEditDimension::Mode3D && Is2DTransformProperty(desc->propertyPath)) {
+					if (effectiveDimension == AnimationClipEditDimension::Mode3D && Is2DTransformProperty(desc.propertyPath)) {
 						continue;
 					}
 				}
-				groups[desc->componentName].emplace_back(desc);
+				groups[desc.componentName].emplace_back(&desc);
 			}
 			for (auto& [componentName, properties] : groups) {
 				if (!ImGui::BeginMenu(componentName.c_str())) {
@@ -706,8 +712,11 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 	for (size_t i = 0; i < clip_.curveTracks.size();) {
 
 		AnimationCurveTrack& track = clip_.curveTracks[i];
-		const AnimationPropertyDescriptor* desc = AnimationPropertyRegistry::GetInstance().Find(
-			track.binding.componentName, track.binding.propertyPath);
+		std::optional<AnimationPropertyDescriptor> desc;
+		if (world && world->IsAlive(targetEntity)) {
+			desc = AnimationPropertyRegistry::GetInstance().ResolveProperty(
+				*world, targetEntity, track.binding.componentName, track.binding.propertyPath, track.binding.valueType);
+		}
 		const bool missing = !world || !world->IsAlive(targetEntity) ||
 			!desc || !desc->hasComponent || !desc->hasComponent(*world, targetEntity);
 
@@ -1488,8 +1497,8 @@ void AnimationClipTool::CachePreviewBaseValues(ECSWorld& world, const Entity& en
 	previewBaseValues_.clear();
 	for (const AnimationCurveTrack& track : clip_.curveTracks) {
 
-		const AnimationPropertyDescriptor* desc = AnimationPropertyRegistry::GetInstance().Find(
-			track.binding.componentName, track.binding.propertyPath);
+		const std::optional<AnimationPropertyDescriptor> desc = AnimationPropertyRegistry::GetInstance().ResolveProperty(
+			world, entity, track.binding.componentName, track.binding.propertyPath, track.binding.valueType);
 		if (!desc || !desc->getValue || !desc->hasComponent || !desc->hasComponent(world, entity)) {
 			continue;
 		}
@@ -1507,8 +1516,8 @@ void AnimationClipTool::RestorePreviewBaseValues(ECSWorld& world, const Entity& 
 
 	for (const AnimationPreviewBaseValue& baseValue : previewBaseValues_) {
 
-		const AnimationPropertyDescriptor* desc = AnimationPropertyRegistry::GetInstance().Find(
-			baseValue.binding.componentName, baseValue.binding.propertyPath);
+		const std::optional<AnimationPropertyDescriptor> desc = AnimationPropertyRegistry::GetInstance().ResolveProperty(
+			world, entity, baseValue.binding.componentName, baseValue.binding.propertyPath, baseValue.binding.valueType);
 		if (!desc || !desc->setValue || !desc->hasComponent || !desc->hasComponent(world, entity)) {
 			continue;
 		}

@@ -5,5 +5,6 @@
     { "stage": "AS", "file": "06811f98f605bb52", "entry": "main", "profile": "as_6_6" },
     { "stage": "MS", "file": "109772a2d84dd757", "entry": "main", "profile": "ms_6_6" },
     { "stage": "PS", "file": "320e4d577cc61f92", "entry": "main", "profile": "ps_6_6" }
-  ]
+  ],
+  "colorParameters": [ "color", "emissiveColor" ]
 }

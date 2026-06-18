@@ -160,6 +160,9 @@ namespace Engine {
 			return pipelineStateCache_.FindGraphicsReflection(pipelineAssetID);
 		}
 
+		// マテリアルのDrawパスのグラフィックスreflectionを引く、未構築やDrawパス無ならnullptr
+		const ShaderReflectionInfo* FindMaterialDrawReflection(const MaterialAsset& material) const;
+
 		// 描画ビューのサーフェスをバックバッファに描画する
 		bool PresentViewToBackBuffer(GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material = {});
 		// エディタツール専用RenderTextureへ、指定Entityと子階層だけを描画する

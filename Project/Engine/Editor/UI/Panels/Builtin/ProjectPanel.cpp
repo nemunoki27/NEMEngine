@@ -1230,9 +1230,7 @@ void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtu
 	}
 }
 
-void Engine::ProjectPanel::RefreshAfterFileOperation(AssetDatabase& database, const ProjectAssetFileResult& result) {
-
-	(void)database;
+void Engine::ProjectPanel::RefreshAfterFileOperation([[maybe_unused]] AssetDatabase& database, const ProjectAssetFileResult& result) {
 
 	if (!result.success) {
 

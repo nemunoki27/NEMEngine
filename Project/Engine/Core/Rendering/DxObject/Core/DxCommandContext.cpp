@@ -163,7 +163,7 @@ void DxCommand::FenceEvent() {
 	// 待機時間をプロファイラへ加算する、GPUがすでに完了済みならほぼ0になる
 	const std::chrono::duration<float, std::milli> waitElapsed =
 		std::chrono::high_resolution_clock::now() - waitStart;
-	FrameProfiler::GetInstance().AddSample(FrameProfiler::Category::GpuWait, waitElapsed.count());
+	FrameProfiler::GetInstance().AddSample(FrameProfiler::Category::GPUWait, waitElapsed.count());
 }
 
 void DxCommand::ExecuteCommands(IDXGISwapChain4* swapChain) {

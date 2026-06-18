@@ -32,12 +32,16 @@ void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatc
 		payload.pivot = renderer.pivot;
 		payload.color = renderer.color;
 		payload.uvMatrix = uvMatrix;
+		// 個別マテリアルパラメータはコンポーネントのmapを指す、描画時に既定値へ重ねる
+		payload.materialOverrides = &renderer.parameterOverrides;
 		// 描画アイテムの構築
 		RenderItem item{};
 		RenderItemExtract::FillCommonFields(item, world, entity, renderer, RenderItemExtract::GetWorldMatrix(world, entity));
 		item.backendID = RenderBackendID::Sprite;
 		item.material = renderer.material;
-		item.batchKey = renderer.texture.value;
+		// 個別マテリアルパラメータを持つアイテムは専用cbufferが要るので、エンティティ単位で一意化して単独描画にする
+		item.batchKey = renderer.parameterOverrides.empty() ? renderer.texture.value :
+			((static_cast<uint64_t>(entity.generation) << 32) | entity.index);
 		item.cameraDomain = RenderCameraDomain::Orthographic;
 		item.payload = batch.PushPayload(payload);
 		// 描画アイテムをバッチに追加

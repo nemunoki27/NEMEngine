@@ -196,6 +196,26 @@ void Engine::BackendDrawCommon::BindMaterialTextures(const RenderDrawContext& co
 	}
 }
 
+void Engine::BackendDrawCommon::BindReflectedMaterialParameters(const RenderDrawContext& context,
+	MaterialParameterBinder& binder, const PipelineState& pipelineState, const MaterialAsset& material,
+	const std::unordered_map<std::string, MaterialParameterValue>* overrides,
+	PipelineBindingCache& bindCache, PipelineBindingCache::SlotID slot, ID3D12GraphicsCommandList* commandList) {
+
+	// cbufferを宣言していないBuiltinシェーダーはslot未登録なので何もしない
+	if (!bindCache.Has(slot)) {
+		return;
+	}
+	static const std::unordered_map<std::string, MaterialParameterValue> kEmptyOverrides{};
+	const std::unordered_map<std::string, MaterialParameterValue>& effectiveOverrides =
+		overrides ? *overrides : kEmptyOverrides;
+	ID3D12Device* device = context.graphicsCore->GetDXObject().GetDevice();
+	const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =
+		binder.ResolveAndUpload(device, pipelineState, material, effectiveOverrides);
+	if (materialParamsAddress != 0) {
+		RootBindingCommand::SetGraphicsCBV(commandList, bindCache.Get(slot), materialParamsAddress);
+	}
+}
+
 bool Engine::BackendDrawCommon::CanBatchBasic(const RenderItem& first, const RenderItem& next) {
 
 	return first.sortingLayer == next.sortingLayer &&

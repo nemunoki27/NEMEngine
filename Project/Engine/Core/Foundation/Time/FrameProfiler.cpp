@@ -44,7 +44,7 @@ void Engine::FrameProfiler::AddSample(Category category, float milliseconds) {
 	measures_[index].accumulator += milliseconds;
 }
 
-void Engine::FrameProfiler::SetGpuPassTimes(const std::vector<NamedTime>& passes) {
+void Engine::FrameProfiler::SetGPUPassTimes(const std::vector<NamedTime>& passes) {
 
 	gpuPassTimes_ = passes;
 }
@@ -70,10 +70,10 @@ float Engine::FrameProfiler::GetAverageMs(Category category) const {
 	return sum / static_cast<float>(measure.samples.size());
 }
 
-float Engine::FrameProfiler::GetGpuTotalMs() const {
+float Engine::FrameProfiler::GetGPUTotalMs() const {
 
 	float total = 0.0f;
-	for (const GpuPassTime& pass : gpuPassTimes_) {
+	for (const GPUPassTime& pass : gpuPassTimes_) {
 		total += pass.milliseconds;
 	}
 	return total;

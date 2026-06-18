@@ -20,38 +20,13 @@
 //============================================================================
 namespace Engine::MaterialParameterEditor {
 
-	// reflectionの成分数を求める、宣言成分数とサイズから安全側に決める
-	inline uint32_t GetScalarComponentCount(const ShaderConstantBufferVariable& var) {
-
-		uint32_t count = (std::max)(1u, var.declaredComponentCount);
-		if (var.columns > 0) {
-			count = (std::max)(count, var.columns);
-		}
-		if (var.rows > 0 && var.columns > 0) {
-			count = (std::max)(count, var.rows * var.columns);
-		}
-		if (count <= 1 && var.size > sizeof(float)) {
-			count = static_cast<uint32_t>(var.size / sizeof(float));
-		}
-		return (std::min)(count, 4u);
-	}
-
-	// 名前から色パラメータかどうかを判定する
-	inline bool IsColorParameterName(const std::string& name) {
-
-		return name.find("color") != std::string::npos ||
-			name.find("Color") != std::string::npos ||
-			name.find("tint") != std::string::npos ||
-			name.find("Tint") != std::string::npos;
-	}
-
 	// 変数タイプから既定のMaterialParameterValueを生成する
 	inline MaterialParameterValue DefaultValueForVariable(const ShaderConstantBufferVariable& var) {
 
 		MaterialParameterValue result{};
-		const bool isColor = IsColorParameterName(var.name);
+		const bool isColor = var.isColor;
 		if (var.valueType == D3D_SVT_FLOAT) {
-			const uint32_t componentCount = GetScalarComponentCount(var);
+			const uint32_t componentCount = Engine::GetVariableComponentCount(var);
 			if (componentCount <= 1) {
 				result.value = 0.0f;
 			} else if (componentCount == 2) {
@@ -109,8 +84,8 @@ namespace Engine::MaterialParameterEditor {
 		const FloatEditSetting& floatSetting = FloatEditSetting{}) {
 
 		const char* label = var.name.c_str();
-		const bool isColor = IsColorParameterName(var.name);
-		const uint32_t componentCount = GetScalarComponentCount(var);
+		const bool isColor = var.isColor;
+		const uint32_t componentCount = Engine::GetVariableComponentCount(var);
 
 		if (var.valueType == D3D_SVT_FLOAT) {
 

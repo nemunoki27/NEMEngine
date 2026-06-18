@@ -12,6 +12,18 @@
 namespace Engine {
 
 	//============================================================================
+	//	マテリアルパラメータcbufferのバインド識別名
+	//	シェーダー宣言と一致必須の名前を1箇所へ集約する
+	//============================================================================
+	namespace MaterialParameterCBuffer {
+
+		// Meshの個別マテリアルパラメータを格納する構造化バッファ名
+		inline constexpr const char* kMesh = "gMeshMaterialParameters";
+		// Sprite/Text等のサーフェスマテリアルパラメータcbuffer名
+		inline constexpr const char* kSurface = "MaterialParameters";
+	}
+
+	//============================================================================
 	//	MaterialParameterLayout class
 	// Reflectionから指定名の定数バッファのCBVレイアウトだけを切り出して保持する
 	// PostProcess/通常マテリアル共通で使うため、対象cbuffer名は呼び出し側が指定する
@@ -26,7 +38,7 @@ namespace Engine {
 
 		// Reflection内の指定名cbufferからレイアウトを作成する、既定はMaterialParameters
 		void Build(const ShaderReflectionInfo& reflection,
-			const std::string& cbufferName = "MaterialParameters");
+			const std::string& cbufferName = MaterialParameterCBuffer::kSurface);
 
 		//--------- accessor -----------------------------------------------------
 

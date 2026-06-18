@@ -25,5 +25,6 @@
       "entry": "main",
       "profile": "ps_6_6"
     }
-  ]
+  ],
+  "colorParameters": [ "color", "emissiveColor" ]
 }

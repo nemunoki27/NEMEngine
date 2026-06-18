@@ -25,6 +25,8 @@ namespace Engine::InspectorDrawerCommon {
 
 	// チェックボックスフィールドを描画する
 	ValueEditResult DrawCheckboxField(const char* label, bool& value);
+	// uint32のレイヤーマスクをDragIntで描画する、内部はint32経由で編集する
+	ValueEditResult DrawLayerMaskField(const char* label, uint32_t& value);
 	// enum型のコンボボックスフィールドを描画する
 	template <typename Enum>
 	ValueEditResult DrawEnumComboField(const char* label, Enum& value) {

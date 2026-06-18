@@ -8,8 +8,13 @@
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPhase.h>
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
+
+// c++
+#include <string>
+#include <unordered_map>
 
 namespace Engine {
 
@@ -62,6 +67,8 @@ namespace Engine {
 		AssetID font{};
 		// マテリアル
 		AssetID material{};
+		// エンティティごとのマテリアルパラメータ上書き、reflection駆動で描画/アニメーションに使う
+		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides{};
 		// 描画するテキスト
 		std::string text = "Text";
 

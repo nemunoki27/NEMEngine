@@ -7,6 +7,7 @@
 
 // c++
 #include <string>
+#include <string_view>
 #include <vector>
 #include <cstdint>
 // directX
@@ -83,6 +84,10 @@ namespace Engine {
 		UINT elements = 0;
 		UINT declaredComponentCount = 1;
 		UINT declaredByteSize = 4;
+		// シェーダーで実際に使われているか、padding除外に使う
+		bool used = true;
+		// 色として編集するか、シェーダー側メタデータで立てる
+		bool isColor = false;
 	};
 	// 定数バッファの情報
 	struct ShaderConstantBufferInfo {
@@ -127,4 +132,10 @@ namespace Engine {
 		// シェーダーのリフレクション情報
 		ShaderReflectionInfo reflection;
 	};
+
+	// reflectionから指定名の定数バッファを探す、無ければnullptr
+	const ShaderConstantBufferInfo* FindConstantBuffer(const ShaderReflectionInfo& reflection, std::string_view name);
+
+	// 変数のスカラー成分数を安全側に求める、宣言成分数とサイズから1から4で返す
+	uint32_t GetVariableComponentCount(const ShaderConstantBufferVariable& variable);
 } // Engine

@@ -60,6 +60,10 @@ namespace Engine::MeshSubMeshAuthoring {
 	bool SyncComponent(AssetDatabase* assetDatabase,
 		MeshRendererComponent& renderer, bool preserveOverrides);
 
+	// モデルのマテリアル係数とテクスチャをparameterOverridesへ再適用する、reload用に上書きする
+	void ApplyModelMaterialParameters(const std::vector<MeshSubMeshLayoutItem>& layout,
+		MeshRendererComponent& renderer);
+
 	// IDから現在のサブメッシュインデックスを解決する
 	int32_t FindSubMeshIndexByStableID(const MeshRendererComponent& renderer, UUID stableID);
 } // Engine

@@ -88,6 +88,12 @@ namespace Engine {
 	bool ParseMaterialParameterValue(const nlohmann::json& data, MaterialParameterValue& outValue);
 	nlohmann::json SerializeMaterialParameterValue(const MaterialParameterValue& parameter);
 
+	// parameterOverridesマップのjson入出力、Mesh/Sprite/Text等の個別マテリアルで共用する
+	void ReadMaterialParameterOverrides(const nlohmann::json& in,
+		std::unordered_map<std::string, MaterialParameterValue>& outOverrides);
+	nlohmann::json WriteMaterialParameterOverrides(
+		const std::unordered_map<std::string, MaterialParameterValue>& overrides);
+
 	// マテリアルアセットからパス情報を検索する
 	const MaterialPassBinding* FindPass(const MaterialAsset& asset, MaterialPassKind passKind);
 } // Engine

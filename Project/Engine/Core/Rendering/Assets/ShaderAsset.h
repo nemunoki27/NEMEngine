@@ -32,6 +32,8 @@ namespace Engine {
 
 		// 使用されるシェーダーリスト
 		std::vector<ShaderStageEntry> stages;
+		// 色として編集するマテリアルパラメータ名、reflectionに色情報が無いのでここで宣言する
+		std::vector<std::string> colorParameters;
 	};
 
 	// json変換

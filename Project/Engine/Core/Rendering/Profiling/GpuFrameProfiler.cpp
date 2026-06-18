@@ -144,7 +144,7 @@ void Engine::GPUFrameProfiler::CollectResolved() {
 	const D3D12_RANGE writtenRange{ 0, 0 };
 	readbackBuffer_->Unmap(0, &writtenRange);
 
-	FrameProfiler::GetInstance().SetGpuPassTimes(passTimes);
+	FrameProfiler::GetInstance().SetGPUPassTimes(passTimes);
 }
 
 void Engine::GPUFrameProfiler::Finalize() {

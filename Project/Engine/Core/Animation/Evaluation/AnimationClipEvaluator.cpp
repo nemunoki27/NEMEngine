@@ -532,10 +532,14 @@ bool Engine::AnimationClipEvaluator::ApplyTrack(ECSWorld& world, const Entity& e
 	const AnimationCurveTrack& track, const AnimationClipAsset& clip,
 	const AnimationResolvedTime& time, const AnimationPropertyValue* baseValueOrNull) {
 
-	// 登録済みPropertyだけを適用しMissing Propertyは編集を止めずにスキップする
-	const AnimationPropertyDescriptor* desc = AnimationPropertyRegistry::GetInstance().Find(
-		track.binding.componentName, track.binding.propertyPath);
-	if (!desc || !desc->hasComponent || !desc->setValue || !desc->hasComponent(world, entity)) {
+	// 静的/動的どちらのPropertyも解決する、Missing Propertyは編集を止めずにスキップする
+	const std::optional<AnimationPropertyDescriptor> descOpt = AnimationPropertyRegistry::GetInstance().ResolveProperty(
+		world, entity, track.binding.componentName, track.binding.propertyPath, track.binding.valueType);
+	if (!descOpt) {
+		return false;
+	}
+	const AnimationPropertyDescriptor& desc = *descOpt;
+	if (!desc.hasComponent || !desc.setValue || !desc.hasComponent(world, entity)) {
 		return false;
 	}
 	if (!HasAnyKey(track)) {
@@ -545,7 +549,7 @@ bool Engine::AnimationClipEvaluator::ApplyTrack(ECSWorld& world, const Entity& e
 	AnimationPropertyValue curveValue{};
 	AnimationPropertyValue currentValue{};
 	const AnimationPropertyValue* fallbackValue = baseValueOrNull;
-	if (!fallbackValue && desc->getValue && desc->getValue(world, entity, currentValue)) {
+	if (!fallbackValue && desc.getValue && desc.getValue(world, entity, currentValue)) {
 		// 通常適用時は現在値をfallbackにして、未編集成分を残す
 		fallbackValue = &currentValue;
 	}
@@ -569,7 +573,7 @@ bool Engine::AnimationClipEvaluator::ApplyTrack(ECSWorld& world, const Entity& e
 			return false;
 		}
 	}
-	return desc->setValue(world, entity, finalValue);
+	return desc.setValue(world, entity, finalValue);
 }
 
 void Engine::AnimationClipEvaluator::ApplyClip(ECSWorld& world, const Entity& entity,

@@ -52,13 +52,6 @@ namespace {
 		return std::clamp<uint32_t>(count, 1u, 4u);
 	}
 
-	bool IsColorParameterName(const std::string& name) {
-
-		return name.find("color") != std::string::npos ||
-			name.find("Color") != std::string::npos ||
-			name.find("tint") != std::string::npos ||
-			name.find("Tint") != std::string::npos;
-	}
 
 	const char* GetParameterValueTypeName(const Engine::MaterialParameterValue& parameter) {
 
@@ -194,11 +187,8 @@ namespace {
 		} else if (componentCount == 3) {
 			out.value = Engine::Vector3{ x, y, z };
 		} else {
-			if (IsColorParameterName(variable.name)) {
-				out.value = Engine::Color4{ x, y, z, w };
-			} else {
-				out.value = Engine::Vector4{ x, y, z, w };
-			}
+			// 色かベクタかでpack後のバイト列は同じなのでVector4へ正規化する
+			out.value = Engine::Vector4{ x, y, z, w };
 		}
 		return out;
 	}
@@ -336,13 +326,6 @@ std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::BuildElement(
 		WriteParameterValue(bytes, variable, parameter, sourceValueTypeName, layoutSizeInBytes);
 		};
 
-	// 名前からテクスチャparamかを判定する、未指定時にkNoTextureを入れるため使う
-	auto isTextureParam = [](const std::string& name) -> bool {
-		return name.find("Texture") != std::string::npos ||
-			name.find("texture") != std::string::npos ||
-			name.find("Map") != std::string::npos;
-		};
-
 	for (const ShaderConstantBufferVariable& variable : variables) {
 
 		// 上書きを優先しなければマテリアル既定値を使う
@@ -356,8 +339,8 @@ std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::BuildElement(
 			writeOne(variable, defaultIt->second);
 			continue;
 		}
-		// どちらも無いテクスチャindexはkNoTextureにしてシェーダーのテクスチャなし分岐へ乗せる
-		if (isTextureParam(variable.name) &&
+		// テクスチャindexはcbuffer内でuintとして現れる、未指定はkNoTextureにしてテクスチャなし分岐へ乗せる
+		if (variable.valueType == D3D_SVT_UINT &&
 			static_cast<size_t>(variable.offset) + sizeof(uint32_t) <= bytes.size()) {
 
 			const uint32_t noTexture = 0xFFFFFFFFu;

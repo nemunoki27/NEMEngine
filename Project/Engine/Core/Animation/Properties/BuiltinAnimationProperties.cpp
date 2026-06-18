@@ -470,7 +470,8 @@ namespace {
 		const std::string prefix = std::format("subMeshes[{}]", SubMeshIndex);
 		const std::string displayPrefix = std::format("MeshRenderer.subMeshes[{}]", SubMeshIndex);
 
-		// 色はparameterOverridesへ移したのでメンバポインタでのアニメーション登録はしない
+		// 色やテクスチャなどのマテリアルパラメータはparameterOverridesへ移ったため
+		// メンバポインタでは登録せず、MaterialAnimationAccessorがreflection駆動で動的に扱う
 		Register(registry, "MeshRenderer", std::format("{}.uvPos", prefix).c_str(),
 			std::format("{}.uvPos", displayPrefix).c_str(), Engine::AnimationValueType::Vector2,
 			HasMeshSubMesh<SubMeshIndex>,
@@ -758,4 +759,7 @@ void Engine::RegisterBuiltinAnimationProperties() {
 		RegisterMeshSubMeshProperties<6>(registry);
 		RegisterMeshSubMeshProperties<7>(registry);
 	}
+
+	// 個別マテリアルパラメータ(色/Metallic/Roughness等)はreflection駆動のアクセサで動的に扱う
+	RegisterMaterialAnimationAccessors();
 }

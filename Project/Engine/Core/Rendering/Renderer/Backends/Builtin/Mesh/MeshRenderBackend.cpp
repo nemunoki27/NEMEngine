@@ -126,8 +126,8 @@ Engine::MeshRenderBackend::MeshRenderBackend() {
 	subMeshSRVSlot_      = sharedBindCache_.AddSlot("gSubMeshes",             ShaderBindingKind::SRV);
 	outlineSRVSlot_      = sharedBindCache_.AddSlot("gMeshOutlines",          ShaderBindingKind::SRV);
 	screenSpaceOutlineMaskCBVSlot_ = sharedBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 1, 1);
-	materialParamsCBVSlot_ = sharedBindCache_.AddSlot("MaterialParameters", ShaderBindingKind::CBV);
-	subMeshMaterialParamSRVSlot_ = sharedBindCache_.AddSlot("gMeshMaterialParameters", ShaderBindingKind::SRV);
+	materialParamsCBVSlot_ = sharedBindCache_.AddSlot(MaterialParameterCBuffer::kSurface, ShaderBindingKind::CBV);
+	subMeshMaterialParamSRVSlot_ = sharedBindCache_.AddSlot(MaterialParameterCBuffer::kMesh, ShaderBindingKind::SRV);
 
 	// スキニングComputeバインドスロットを初期化時に登録する
 	skinConstCBVSlot_     = skinningBindCache_.AddSlot("SkinningConstants",      ShaderBindingKind::CBV);
@@ -156,9 +156,8 @@ Engine::MeshRenderBackend::~MeshRenderBackend() {
 void Engine::MeshRenderBackend::ClearStaticBatchCache() {
 
 	// StaticBatchCacheEntry内のunique_ptr<MeshBatchResources>を明示resetしてからキャッシュを破棄する
-	for (auto& [key, entry] : staticBatchCache_) {
-		(void)key;
-		entry.resources.reset();
+	for (auto& entry : staticBatchCache_) {
+		entry.second.resources.reset();
 	}
 	staticBatchCache_.clear();
 }
@@ -477,7 +476,7 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 	if (sharedBindCache_.Has(subMeshMaterialParamSRVSlot_) && prepared.material) {
 
 		MaterialParameterLayout subMeshLayout{};
-		subMeshLayout.Build(prepared.pipelineState->GetGraphicsReflection(), "gMeshMaterialParameters");
+		subMeshLayout.Build(prepared.pipelineState->GetGraphicsReflection(), MaterialParameterCBuffer::kMesh);
 		prepared.resources->UploadSubMeshMaterialParams(prepared.material, subMeshLayout, context);
 		if (prepared.resources->HasSubMeshMaterialParams()) {
 			RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(subMeshMaterialParamSRVSlot_),

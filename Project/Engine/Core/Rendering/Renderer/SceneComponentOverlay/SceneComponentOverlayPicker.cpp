@@ -33,8 +33,9 @@ namespace {
 //============================================================================
 //	SceneComponentOverlayPicker classMethods
 //============================================================================
-bool Engine::SceneComponentOverlayPicker::Pick(ECSWorld* world, const ResolvedRenderView& view,
-	const Vector2& inputPixel, Entity& outEntity) const {
+bool Engine::SceneComponentOverlayPicker::Pick([[maybe_unused]] ECSWorld* world,
+	[[maybe_unused]] const ResolvedRenderView& view, [[maybe_unused]] const Vector2& inputPixel,
+	Entity& outEntity) const {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	outEntity = Entity::Null();
@@ -81,9 +82,6 @@ bool Engine::SceneComponentOverlayPicker::Pick(ECSWorld* world, const ResolvedRe
 	outEntity = hits.front().entity;
 	return outEntity.IsValid();
 #else
-	(void)world;
-	(void)view;
-	(void)inputPixel;
 	outEntity = Entity::Null();
 	return false;
 #endif

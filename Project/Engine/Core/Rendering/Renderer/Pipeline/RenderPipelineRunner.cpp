@@ -132,6 +132,15 @@ Engine::RenderTexture2D* RenderPipelineRunner::GetViewGBufferTexture(RenderViewK
 	return resources.GetGBuffer(attachment);
 }
 
+const Engine::ShaderReflectionInfo* RenderPipelineRunner::FindMaterialDrawReflection(const MaterialAsset& material) const {
+
+	const MaterialPassBinding* drawPass = FindPass(material, MaterialPassKind::Draw);
+	if (!drawPass || !drawPass->pipeline) {
+		return nullptr;
+	}
+	return FindPipelineGraphicsReflection(drawPass->pipeline);
+}
+
 Engine::DepthTexture2D* RenderPipelineRunner::GetViewDepthTexture(RenderViewKind kind) {
 
 	// 深度はGBufferの色ではなくSceneMainの深度アタッチメントを参照する

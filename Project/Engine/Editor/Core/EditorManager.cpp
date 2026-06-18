@@ -818,7 +818,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	DrawCloseUnsavedScenePopup();
 }
 
-void Engine::EditorManager::DrawSceneDebugObjects(const EditorContext& context) {
+void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorContext& context) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	if (!initialized_ || layoutState_.hidePanels || !layoutState_.showSceneView || !context.activeWorld) {
@@ -865,8 +865,6 @@ void Engine::EditorManager::DrawSceneDebugObjects(const EditorContext& context) 
 			LineRenderer::GetInstance()->Get3D()->DrawGrid(snap.translate3D.size);
 		}
 	}
-#else
-	(void)context;
 #endif
 }
 

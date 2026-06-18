@@ -191,7 +191,7 @@ namespace Engine {
 			return subMeshParamBuffer_ ? subMeshParamBuffer_->GetGPUVirtualAddress() : 0;
 		}
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSubMeshMaterialParamGPUHandle() const { return subMeshParamHandle_; }
-		std::string_view GetSubMeshMaterialParamBindingName() const { return "gMeshMaterialParameters"; }
+		std::string_view GetSubMeshMaterialParamBindingName() const { return MaterialParameterCBuffer::kMesh; }
 		// 背面法アウトラインのインスタンス別GPUデータ
 		D3D12_GPU_VIRTUAL_ADDRESS GetOutlineGPUAddress() const { return outlineData_.GetGPUAddress(); }
 		std::string_view GetOutlineBindingName() const { return outlineData_.GetBindingName(); }

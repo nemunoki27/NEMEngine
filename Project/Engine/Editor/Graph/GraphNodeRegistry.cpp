@@ -32,10 +32,9 @@ std::vector<const Engine::GraphNodeDefinition*> Engine::GraphNodeRegistry::GetCr
 
 	std::vector<const GraphNodeDefinition*> result{};
 	result.reserve(definitions_.size());
-	for (const auto& [type, definition] : definitions_) {
-		(void)type;
-		if (definition.canCreateFromMenu) {
-			result.emplace_back(&definition);
+	for (const auto& entry : definitions_) {
+		if (entry.second.canCreateFromMenu) {
+			result.emplace_back(&entry.second);
 		}
 	}
 

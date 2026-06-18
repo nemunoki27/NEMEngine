@@ -202,6 +202,8 @@ namespace {
 				variableInfo.name = variableDesc.Name ? variableDesc.Name : "";
 				variableInfo.offset = variableDesc.StartOffset;
 				variableInfo.size = variableDesc.Size;
+				// 未使用変数はpaddingとみなして編集対象から外す
+				variableInfo.used = (variableDesc.uFlags & D3D_SVF_USED) != 0;
 
 				if (hasType) {
 

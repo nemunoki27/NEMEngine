@@ -13,8 +13,8 @@
 //============================================================================
 //	EditorSelectionScreenSpaceOutlinePass classMethods
 //============================================================================
-void Engine::EditorSelectionScreenSpaceOutlinePass::Execute(GraphicsCore& graphicsCore,
-	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
+void Engine::EditorSelectionScreenSpaceOutlinePass::Execute([[maybe_unused]] GraphicsCore& graphicsCore,
+	[[maybe_unused]] const RenderPassPhaseBuckets& passBuckets, [[maybe_unused]] SceneExecutionContext& context) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// 選択アウトラインはSceneViewのEditor描画専用
@@ -42,9 +42,5 @@ void Engine::EditorSelectionScreenSpaceOutlinePass::Execute(GraphicsCore& graphi
 	// Editor専用のScreenSpaceOutlineへ描いてruntime用とは分離する
 	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests_,
 		context.resources->GetEditorSelectionScreenSpaceOutline());
-#else
-	(void)graphicsCore;
-	(void)passBuckets;
-	(void)context;
 #endif
 }

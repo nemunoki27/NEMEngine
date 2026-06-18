@@ -7,9 +7,14 @@
 #include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPhase.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
 #include <Engine/Core/Foundation/Math/Color.h>
+
+// c++
+#include <string>
+#include <unordered_map>
 
 namespace Engine {
 
@@ -23,6 +28,8 @@ namespace Engine {
 		AssetID texture{};
 		// マテリアル
 		AssetID material{};
+		// エンティティごとのマテリアルパラメータ上書き、reflection駆動で描画/アニメーションに使う
+		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides{};
 
 		// サイズ
 		Vector2 size = Vector2::AnyInit(32.0f);

@@ -30,7 +30,7 @@ namespace Engine {
 			Ecs,     // ECSシステムの処理
 			Script,  // C#スクリプトの処理
 			Draw,    // 描画処理
-			GpuWait, // GPU完了待ちでCPUがブロックした時間
+			GPUWait, // GPU完了待ちでCPUがブロックした時間
 			MeshBatchUpload, // Meshバッチデータ構築とGPU転送のCPUコストでstaticキャッシュMISSやSkinned/Billboardで走る
 			Count
 		};
@@ -42,7 +42,7 @@ namespace Engine {
 			float milliseconds = 0.0f;
 		};
 		// 後方互換のための別名
-		using GpuPassTime = NamedTime;
+		using GPUPassTime = NamedTime;
 
 		static FrameProfiler& GetInstance();
 
@@ -51,7 +51,7 @@ namespace Engine {
 		// カテゴリへ計測時間(ms)を加算する
 		void AddSample(Category category, float milliseconds);
 		// GPU計測結果を各パスごとに設定する、空なら未計測扱い
-		void SetGpuPassTimes(const std::vector<NamedTime>& passes);
+		void SetGPUPassTimes(const std::vector<NamedTime>& passes);
 		// ECSシステムごとの処理時間を処理順で設定する、空なら未計測扱い
 		void SetEcsSystemTimes(const std::vector<NamedTime>& systems);
 		// ECSのarchetype数を設定する、ForEachが走査するarchetypeの数
@@ -65,9 +65,9 @@ namespace Engine {
 		// カテゴリの平均処理時間(ms)
 		float GetAverageMs(Category category) const;
 
-		const std::vector<NamedTime>& GetGpuPassTimes() const { return gpuPassTimes_; }
-		float GetGpuTotalMs() const;
-		bool HasGpuData() const { return !gpuPassTimes_.empty(); }
+		const std::vector<NamedTime>& GetGPUPassTimes() const { return gpuPassTimes_; }
+		float GetGPUTotalMs() const;
+		bool HasGPUData() const { return !gpuPassTimes_.empty(); }
 
 		// ECSシステムごとの処理時間を処理順で保持
 		const std::vector<NamedTime>& GetEcsSystemTimes() const { return ecsSystemTimes_; }

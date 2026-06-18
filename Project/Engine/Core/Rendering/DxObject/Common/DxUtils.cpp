@@ -46,12 +46,11 @@ void DxUtils::CreateUploadBufferResource(ID3D12Device* device, ComPtr<ID3D12Reso
 }
 
 void DxUtils::CreateDefaultBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes,
-	D3D12_RESOURCE_STATES initialState, D3D12_RESOURCE_FLAGS flags) {
+	[[maybe_unused]] D3D12_RESOURCE_STATES initialState, D3D12_RESOURCE_FLAGS flags) {
 
 	// GPU専用のDEFAULT heap
 	// D3D12 bufferはCreateCommittedResourceのInitialStateにCOPY_DEST等を指定してもCOMMONとして扱われる
 	// Debug Layer #1328を避けるため作成時はCOMMON固定にし、必要な遷移は呼び出し側のCommandListで行う
-	(void)initialState;
 	D3D12_HEAP_PROPERTIES defaultHeapProperties{};
 	defaultHeapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
 	D3D12_RESOURCE_DESC resourceDesc = MakeBufferResourceDesc(sizeInBytes, flags);

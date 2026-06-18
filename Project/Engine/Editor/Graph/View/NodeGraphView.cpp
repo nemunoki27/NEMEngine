@@ -142,9 +142,7 @@ bool Engine::NodeGraphView::Draw(NodeGraphContext& context, GraphDocument& docum
 	return changed;
 }
 
-void Engine::NodeGraphView::DrawGroupNode(GraphNode& node, const NodeGraphViewDesc& desc) {
-
-	(void)desc;
+void Engine::NodeGraphView::DrawGroupNode(GraphNode& node, [[maybe_unused]] const NodeGraphViewDesc& desc) {
 
 	const float r = node.properties.value("colorR", 0.25f);
 	const float g = node.properties.value("colorG", 0.38f);
@@ -185,9 +183,7 @@ void Engine::NodeGraphView::DrawGroupNode(GraphNode& node, const NodeGraphViewDe
 	ed::PopStyleColor(2);
 }
 
-void Engine::NodeGraphView::DrawNode(GraphDocument& document, GraphNode& node, const NodeGraphViewDesc& desc) {
-
-	(void)document;
+void Engine::NodeGraphView::DrawNode([[maybe_unused]] GraphDocument& document, GraphNode& node, const NodeGraphViewDesc& desc) {
 
 	if (desc.isGroupNode && desc.isGroupNode(node)) {
 		DrawGroupNode(node, desc);

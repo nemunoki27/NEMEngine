@@ -17,9 +17,8 @@ void Engine::SceneComponentOverlayState::SetRenderedItems(ECSWorld* world,
 	renderedItems_ = items;
 }
 
-void Engine::SceneComponentOverlayState::Clear(ECSWorld* world) {
+void Engine::SceneComponentOverlayState::Clear([[maybe_unused]] ECSWorld* world) {
 
-	(void)world;
 	// World指定は将来拡張用
 	world_ = nullptr;
 	renderedItems_.clear();

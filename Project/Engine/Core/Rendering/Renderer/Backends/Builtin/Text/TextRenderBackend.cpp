@@ -368,17 +368,12 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(atlasSRVSlot_),
 				0, atlasTexture->gpuHandle);
 		}
-		// シェーダーがMaterialParameters cbufferを宣言している場合のみreflection駆動でバインドする
-		// Builtinテキストシェーダーはこのcbufferがなくslotもないため何もしない
-		if (perDrawBindCache_.Has(materialParamsCBVSlot_) && resolvedPass.material) {
-
-			ID3D12Device* device = context.graphicsCore->GetDXObject().GetDevice();
-			const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =
-				materialParamBinder_.ResolveAndUpload(device, *pipelineState, *resolvedPass.material);
-			if (materialParamsAddress != 0) {
-				RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(materialParamsCBVSlot_),
-					materialParamsAddress);
-			}
+		// overrides持ちはバッチ分割で単独描画になるので先頭の上書きを使う、cbuffer無のBuiltinは無回帰
+		if (resolvedPass.material) {
+			const TextRenderPayload* firstPayload = context.batch->GetPayload<TextRenderPayload>(*items.front());
+			BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, *pipelineState,
+				*resolvedPass.material, firstPayload ? firstPayload->materialOverrides : nullptr,
+				perDrawBindCache_, materialParamsCBVSlot_, commandList);
 		}
 		// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
 		if (resolvedPass.material) {

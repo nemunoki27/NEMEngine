@@ -13,8 +13,8 @@
 //	DebugOverlayPass classMethods
 //============================================================================
 
-void Engine::DebugOverlayPass::Execute(GraphicsCore& graphicsCore,
-	[[maybe_unused]] const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
+void Engine::DebugOverlayPass::Execute([[maybe_unused]] GraphicsCore& graphicsCore,
+	[[maybe_unused]] const RenderPassPhaseBuckets& passBuckets, [[maybe_unused]] SceneExecutionContext& context) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// SceneViewのときだけグリッドやデバッグ線を最後に重ねる
@@ -22,8 +22,5 @@ void Engine::DebugOverlayPass::Execute(GraphicsCore& graphicsCore,
 		LineRenderer::GetInstance()->RenderSceneView(
 			graphicsCore, *context.view, *context.defaultSurface, context.drawSceneViewDefaultGrid);
 	}
-#else
-	(void)graphicsCore;
-	(void)context;
 #endif
 }

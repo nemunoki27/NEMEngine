@@ -170,13 +170,13 @@ namespace {
 		if (ImGui::IsItemHovered()) {
 
 			ImGui::BeginTooltip();
-			if (profiler.HasGpuData()) {
+			if (profiler.HasGPUData()) {
 
-				ImGui::Text("GPU合計 : %.3f ms", profiler.GetGpuTotalMs());
+				ImGui::Text("GPU合計 : %.3f ms", profiler.GetGPUTotalMs());
 				ImGui::Spacing();
 
 				// パス名と時間を列で揃えて表示しGame/やScene/のビュー接頭辞でグループ分けする
-				if (ImGui::BeginTable("##GpuPassTimes", 2,
+				if (ImGui::BeginTable("##GPUPassTimes", 2,
 					ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
 
 					ImGui::TableSetupColumn("Pass", ImGuiTableColumnFlags_WidthFixed, 230.0f);
@@ -184,7 +184,7 @@ namespace {
 					ImGui::TableHeadersRow();
 
 					std::string currentGroup = "\x01";
-					for (const Engine::FrameProfiler::GpuPassTime& pass : profiler.GetGpuPassTimes()) {
+					for (const Engine::FrameProfiler::GPUPassTime& pass : profiler.GetGPUPassTimes()) {
 
 						const size_t slash = pass.name.find('/');
 						const std::string group = (slash != std::string::npos) ? pass.name.substr(0, slash) : std::string();
@@ -227,7 +227,7 @@ namespace {
 		ImGui::Text("  Meshバッチ転送  : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::MeshBatchUpload));
 
 		// GPU完了待ちでCPUがブロックした時間、大きいほどフレームコンテキスト多重化の効果が見込める
-		ImGui::Text("GPU待ち           : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::GpuWait));
+		ImGui::Text("GPU待ち           : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::GPUWait));
 	}
 }
 

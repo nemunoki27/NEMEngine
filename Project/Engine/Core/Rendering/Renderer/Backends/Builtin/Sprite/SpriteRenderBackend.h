@@ -27,7 +27,7 @@ namespace Engine {
 			vsInstSRVSlot_  = perDrawBindCache_.AddSlot("gVSInstances",  ShaderBindingKind::SRV);
 			psInstSRVSlot_  = perDrawBindCache_.AddSlot("gPSInstances",  ShaderBindingKind::SRV);
 			textureSRVSlot_ = perDrawBindCache_.AddSlot("gTexture",      ShaderBindingKind::SRV);
-			materialParamsCBVSlot_ = perDrawBindCache_.AddSlot("MaterialParameters", ShaderBindingKind::CBV);
+			materialParamsCBVSlot_ = perDrawBindCache_.AddSlot(MaterialParameterCBuffer::kSurface, ShaderBindingKind::CBV);
 		}
 		~SpriteRenderBackend() override;
 

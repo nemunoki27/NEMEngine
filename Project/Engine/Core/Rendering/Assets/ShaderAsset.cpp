@@ -37,6 +37,14 @@ bool Engine::FromJson(const nlohmann::json& data, ShaderAsset& outAsset) {
 			outAsset.stages.emplace_back(std::move(entry));
 		}
 	}
+	// 色として扱うパラメータ名を読む
+	if (data.contains("colorParameters") && data["colorParameters"].is_array()) {
+		for (const auto& nameJson : data["colorParameters"]) {
+			if (nameJson.is_string()) {
+				outAsset.colorParameters.emplace_back(nameJson.get<std::string>());
+			}
+		}
+	}
 	return true;
 }
 
@@ -56,6 +64,7 @@ nlohmann::json Engine::ToJson(const ShaderAsset& asset) {
 		item["profile"] = stage.profile;
 		data["stages"].push_back(item);
 	}
+	data["colorParameters"] = asset.colorParameters;
 	return data;
 }
 

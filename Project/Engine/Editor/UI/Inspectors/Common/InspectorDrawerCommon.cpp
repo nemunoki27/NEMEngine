@@ -42,6 +42,17 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawCheckboxField(const c
 	return result;
 }
 
+Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawLayerMaskField(const char* label, uint32_t& value) {
+
+	// DragIntはint32を扱うため、編集中だけ符号付きに変換する
+	int32_t layerMask = static_cast<int32_t>(value);
+	ValueEditResult result = MyGUI::DragInt(label, layerMask, { .dragSpeed = 1,.minValue = 0,.maxValue = 0xfffffff });
+	if (result.valueChanged) {
+		value = static_cast<uint32_t>(layerMask);
+	}
+	return result;
+}
+
 Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(const char* label, std::string& type) {
 
 	ValueEditResult result{};
@@ -116,7 +127,8 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 	return result;
 }
 
-void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const Entity& entity, int32_t selectionSubMeshIndex) {
+void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWorld& world,
+	[[maybe_unused]] const Entity& entity, [[maybe_unused]] int32_t selectionSubMeshIndex) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// トランスフォームコンポーネントが無い、もしくは無効の場合
@@ -190,9 +202,5 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject(ECSWorld& world, const
 		renderer3D->DrawArrow(transform.worldMatrix.GetTranslationValue(), 4.0f,
 			rotation, spotLight.color, 1.0f);
 	}
-#else
-	// Releaseではエディター用のデバッグライン描画を持たない
-	(void)world;
-	(void)entity;
 #endif
 }

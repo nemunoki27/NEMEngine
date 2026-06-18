@@ -34,21 +34,19 @@ void Engine::MaterialParameterLayout::Build(const ShaderReflectionInfo& reflecti
 	space_ = 0;
 	variables_.clear();
 
-	for (const ShaderConstantBufferInfo& buffer : reflection.constantBuffers) {
-		if (buffer.name != cbufferName) {
-			continue;
-		}
-
-		sizeInBytes_ = buffer.size;
-		bindPoint_ = buffer.bindPoint;
-		space_ = buffer.space;
-		variables_ = buffer.variables;
-
-		for (const ShaderConstantBufferVariable& variable : variables_) {
-			const uint32_t declaredEnd = variable.offset + GetDeclaredVariableByteSize(variable);
-			sizeInBytes_ = (std::max)(sizeInBytes_, declaredEnd);
-		}
-		sizeInBytes_ = AlignConstantBufferSize(sizeInBytes_);
+	const ShaderConstantBufferInfo* buffer = FindConstantBuffer(reflection, cbufferName);
+	if (!buffer) {
 		return;
 	}
+
+	sizeInBytes_ = buffer->size;
+	bindPoint_ = buffer->bindPoint;
+	space_ = buffer->space;
+	variables_ = buffer->variables;
+
+	for (const ShaderConstantBufferVariable& variable : variables_) {
+		const uint32_t declaredEnd = variable.offset + GetDeclaredVariableByteSize(variable);
+		sizeInBytes_ = (std::max)(sizeInBytes_, declaredEnd);
+	}
+	sizeInBytes_ = AlignConstantBufferSize(sizeInBytes_);
 }

@@ -15,6 +15,7 @@
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Renderer/Views/SceneViewCameraController.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
@@ -858,11 +859,9 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 				continue;
 			}
 			reflections.push_back(reflection);
-			for (const ShaderConstantBufferInfo& cb : reflection->constantBuffers) {
-				if (cb.name == "MaterialParameters") {
-					for (const ShaderConstantBufferVariable& var : cb.variables) {
-						reflectedNames.insert(var.name);
-					}
+			if (const ShaderConstantBufferInfo* cb = FindConstantBuffer(*reflection, MaterialParameterCBuffer::kSurface)) {
+				for (const ShaderConstantBufferVariable& var : cb->variables) {
+					reflectedNames.insert(var.name);
 				}
 			}
 			// space2のテクスチャSRVもマテリアルテクスチャとして自動列挙対象にする
@@ -885,7 +884,7 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 		} else {
 			for (const ShaderReflectionInfo* reflection : reflections) {
 				if (MaterialParameterEditor::DrawReflectedCBufferParameters(
-					*reflection, "MaterialParameters", materialDraft_.parameters)) {
+					*reflection, MaterialParameterCBuffer::kSurface, materialDraft_.parameters)) {
 
 					saveRequested = true;
 				}

@@ -117,6 +117,32 @@ nlohmann::json Engine::SerializeMaterialParameterValue(const MaterialParameterVa
 	return SerializeParameterValue(parameter);
 }
 
+void Engine::ReadMaterialParameterOverrides(const nlohmann::json& in,
+	std::unordered_map<std::string, MaterialParameterValue>& outOverrides) {
+
+	outOverrides.clear();
+	if (!in.is_object()) {
+		return;
+	}
+	for (auto it = in.begin(); it != in.end(); ++it) {
+
+		MaterialParameterValue value{};
+		if (ParseMaterialParameterValue(it.value(), value)) {
+			outOverrides[it.key()] = std::move(value);
+		}
+	}
+}
+
+nlohmann::json Engine::WriteMaterialParameterOverrides(
+	const std::unordered_map<std::string, MaterialParameterValue>& overrides) {
+
+	nlohmann::json out = nlohmann::json::object();
+	for (const auto& [name, value] : overrides) {
+		out[name] = SerializeMaterialParameterValue(value);
+	}
+	return out;
+}
+
 bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 
 	if (!data.is_object()) {

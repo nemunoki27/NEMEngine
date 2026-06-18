@@ -31,6 +31,20 @@ void Engine::AnimationPropertyRegistry::Register(const AnimationPropertyDescript
 	properties_.emplace_back(desc);
 }
 
+void Engine::AnimationPropertyRegistry::RegisterMaterialAccessor(const MaterialAnimationAccessor& accessor) {
+
+	if (accessor.componentName.empty() || !accessor.enumerate || !accessor.resolve) {
+		return;
+	}
+	// 同じComponentのアクセサは重複登録しない
+	for (const MaterialAnimationAccessor& registered : materialAccessors_) {
+		if (registered.componentName == accessor.componentName) {
+			return;
+		}
+	}
+	materialAccessors_.emplace_back(accessor);
+}
+
 const Engine::AnimationPropertyDescriptor* Engine::AnimationPropertyRegistry::Find(
 	std::string_view componentName, std::string_view propertyPath) const {
 
@@ -41,19 +55,44 @@ const Engine::AnimationPropertyDescriptor* Engine::AnimationPropertyRegistry::Fi
 	return it != properties_.end() ? &(*it) : nullptr;
 }
 
-std::vector<const Engine::AnimationPropertyDescriptor*> Engine::AnimationPropertyRegistry::GetPropertiesForEntity(
-	ECSWorld& world, const Entity& entity) const {
+std::vector<Engine::AnimationPropertyDescriptor> Engine::AnimationPropertyRegistry::CollectProperties(
+	ECSWorld& world, const Entity& entity, const AnimationPropertyQueryContext& context) const {
 
-	std::vector<const AnimationPropertyDescriptor*> result{};
+	std::vector<AnimationPropertyDescriptor> result{};
 	if (!world.IsAlive(entity)) {
 		return result;
 	}
 
+	// 静的に登録されたプロパティ
 	for (const AnimationPropertyDescriptor& desc : properties_) {
 		if (!desc.hasComponent || !desc.hasComponent(world, entity)) {
 			continue;
 		}
-		result.emplace_back(&desc);
+		result.emplace_back(desc);
+	}
+
+	// 個別マテリアルパラメータはreflection駆動で動的に列挙する
+	for (const MaterialAnimationAccessor& accessor : materialAccessors_) {
+		accessor.enumerate(context, world, entity, result);
 	}
 	return result;
+}
+
+std::optional<Engine::AnimationPropertyDescriptor> Engine::AnimationPropertyRegistry::ResolveProperty(
+	ECSWorld& world, const Entity& entity, std::string_view componentName,
+	std::string_view propertyPath, AnimationValueType valueType) const {
+
+	// 静的に登録済みならそのまま使う
+	if (const AnimationPropertyDescriptor* desc = Find(componentName, propertyPath)) {
+		return *desc;
+	}
+
+	// 動的なマテリアルパラメータはアクセサへ委ねる
+	for (const MaterialAnimationAccessor& accessor : materialAccessors_) {
+		if (accessor.componentName != componentName) {
+			continue;
+		}
+		return accessor.resolve(world, entity, propertyPath, valueType);
+	}
+	return std::nullopt;
 }

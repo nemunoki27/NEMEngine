@@ -88,17 +88,11 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(textureSRVSlot_),
 				0, texture->gpuHandle);
 		}
-		// シェーダーがMaterialParameters cbufferを宣言している場合のみreflection駆動でバインドする
-		// Builtinスプライトシェーダーはこのcbufferがなくslotもないため何もしない
-		if (perDrawBindCache_.Has(materialParamsCBVSlot_) && resolvedPass.material) {
-
-			ID3D12Device* device = context.graphicsCore->GetDXObject().GetDevice();
-			const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =
-				materialParamBinder_.ResolveAndUpload(device, *pipelineState, *resolvedPass.material);
-			if (materialParamsAddress != 0) {
-				RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(materialParamsCBVSlot_),
-					materialParamsAddress);
-			}
+		// overrides持ちはCanBatchで単独描画になるので先頭の上書きを使う、cbuffer無のBuiltinは無回帰
+		if (resolvedPass.material) {
+			BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, *pipelineState,
+				*resolvedPass.material, firstPayload ? firstPayload->materialOverrides : nullptr,
+				perDrawBindCache_, materialParamsCBVSlot_, commandList);
 		}
 		// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
 		if (resolvedPass.material) {

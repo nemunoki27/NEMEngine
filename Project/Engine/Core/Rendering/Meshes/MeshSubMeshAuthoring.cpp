@@ -12,17 +12,47 @@
 //============================================================================
 namespace {
 
-	// モデル既定テクスチャを未設定のparameterOverridesへAssetIDとして入れる、設定済みは触らない
-	bool SetTextureParamIfEmpty(Engine::SubMeshMaterial& subMesh, const char* paramName,
-		const Engine::AssetID& texture) {
+	// モデルのマテリアル係数とテクスチャをparameterOverridesへ流す、overwrite=falseは未設定のみ
+	// param名とモデル係数の対応はインポーター側のここに集約する
+	bool ApplyLayoutItemToSubMesh(Engine::SubMeshMaterial& subMesh,
+		const Engine::MeshSubMeshLayoutItem& item, bool overwrite) {
 
-		if (!texture || subMesh.parameterOverrides.count(paramName)) {
-			return false;
-		}
-		Engine::MaterialParameterValue value{};
-		value.value = texture;
-		subMesh.parameterOverrides[paramName] = value;
-		return true;
+		bool changed = false;
+		auto setParam = [&](const char* name, const Engine::MaterialParameterValue& value) {
+			if (!overwrite && subMesh.parameterOverrides.count(name)) {
+				return;
+			}
+			subMesh.parameterOverrides[name] = value;
+			changed = true;
+			};
+		auto setTexture = [&](const char* name, const Engine::AssetID& texture) {
+			if (!texture) {
+				return;
+			}
+			Engine::MaterialParameterValue value{};
+			value.value = texture;
+			setParam(name, value);
+			};
+		auto colorValue = [](const Engine::Color4& c) {
+			Engine::MaterialParameterValue v{}; v.value = c; return v;
+			};
+		auto floatValue = [](float f) {
+			Engine::MaterialParameterValue v{}; v.value = f; return v;
+			};
+
+		if (item.hasBaseColorFactor) { setParam("color", colorValue(item.baseColorFactor)); }
+		if (item.hasEmissiveFactor) { setParam("emissiveColor", colorValue(item.emissiveFactor)); }
+		if (item.hasMetallicFactor) { setParam("Metallic", floatValue(item.metallicFactor)); }
+		if (item.hasRoughnessFactor) { setParam("Roughness", floatValue(item.roughnessFactor)); }
+
+		const auto& tex = item.defaultTextureAssets;
+		setTexture("baseColorTexture", tex.baseColorTexture);
+		setTexture("normalTexture", tex.normalTexture);
+		setTexture("emissiveTexture", tex.emissiveTexture);
+		setTexture("metallicRoughnessTexture", tex.metallicRoughnessTexture);
+		setTexture("occlusionTexture", tex.occlusionTexture);
+		setTexture("specularTexture", tex.specularTexture);
+		return changed;
 	}
 
 	// サブメッシュ表示名生成
@@ -207,11 +237,7 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 			}
 			// preserveOverrides=trueのとき、空スロットもユーザーの明示的な削除として扱い上書きしない
 			if (!preserveOverrides) {
-
-				const auto& def = layout[i].defaultTextureAssets;
-				updated |= SetTextureParamIfEmpty(current, "baseColorTexture", def.baseColorTexture);
-				updated |= SetTextureParamIfEmpty(current, "normalTexture", def.normalTexture);
-				updated |= SetTextureParamIfEmpty(current, "emissiveTexture", def.emissiveTexture);
+				updated |= ApplyLayoutItemToSubMesh(current, layout[i], false);
 			}
 		}
 		if (alreadyMatched) {
@@ -262,18 +288,11 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 			used[reusableOldIndex] = true;
 			// preserveOverrides=trueのとき、空スロットもユーザーの明示的な削除として扱い上書きしない
 			if (!preserveOverrides) {
-
-				const auto& def = layout[i].defaultTextureAssets;
-				SetTextureParamIfEmpty(entry, "baseColorTexture", def.baseColorTexture);
-				SetTextureParamIfEmpty(entry, "normalTexture", def.normalTexture);
-				SetTextureParamIfEmpty(entry, "emissiveTexture", def.emissiveTexture);
+				ApplyLayoutItemToSubMesh(entry, layout[i], false);
 			}
 		} else {
-			// 新規エントリはモデルのデフォルトテクスチャで初期化
-			const auto& defaults = layout[i].defaultTextureAssets;
-			SetTextureParamIfEmpty(entry, "baseColorTexture", defaults.baseColorTexture);
-			SetTextureParamIfEmpty(entry, "normalTexture", defaults.normalTexture);
-			SetTextureParamIfEmpty(entry, "emissiveTexture", defaults.emissiveTexture);
+			// 新規エントリはモデルの係数とデフォルトテクスチャで初期化
+			ApplyLayoutItemToSubMesh(entry, layout[i], false);
 		}
 
 		// 正規レイアウトを上書き
@@ -309,6 +328,25 @@ bool Engine::MeshSubMeshAuthoring::SyncComponent(AssetDatabase* assetDatabase,
 		return false;
 	}
 	return SyncComponentToLayout(layout, renderer, preserveOverrides);
+}
+
+void Engine::MeshSubMeshAuthoring::ApplyModelMaterialParameters(
+	const std::vector<MeshSubMeshLayoutItem>& layout, MeshRendererComponent& renderer) {
+
+	for (SubMeshMaterial& subMesh : renderer.subMeshes) {
+
+		// 元のサブメッシュインデックスでモデル側の対応itemを探す
+		const MeshSubMeshLayoutItem* item = nullptr;
+		for (const MeshSubMeshLayoutItem& layoutItem : layout) {
+			if (layoutItem.sourceSubMeshIndex == subMesh.sourceSubMeshIndex) {
+				item = &layoutItem;
+				break;
+			}
+		}
+		if (item) {
+			ApplyLayoutItemToSubMesh(subMesh, *item, true);
+		}
+	}
 }
 
 int32_t Engine::MeshSubMeshAuthoring::FindSubMeshIndexByStableID(

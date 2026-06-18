@@ -12,6 +12,7 @@ void Engine::from_json(const nlohmann::json& in, TextRendererComponent& componen
 
 	component.font = ParseAssetID(in, "font");
 	component.material = ParseAssetID(in, "material");
+	ReadMaterialParameterOverrides(in.value("parameterOverrides", nlohmann::json::object()), component.parameterOverrides);
 	component.text = in.value("text", component.text);
 	component.fontSize = in.value("fontSize", component.fontSize);
 	component.charSpacing = in.value("charSpacing", component.charSpacing);
@@ -55,6 +56,7 @@ void Engine::to_json(nlohmann::json& out, const TextRendererComponent& component
 
 	out["font"] = ToAssetReferenceJson(component.font);
 	out["material"] = ToAssetReferenceJson(component.material);
+	out["parameterOverrides"] = WriteMaterialParameterOverrides(component.parameterOverrides);
 	out["text"] = component.text;
 	out["fontSize"] = component.fontSize;
 	out["charSpacing"] = component.charSpacing;

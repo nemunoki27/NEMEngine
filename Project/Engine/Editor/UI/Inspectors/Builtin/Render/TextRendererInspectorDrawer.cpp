@@ -3,11 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Editor/Commands/Components/SetSerializedComponentCommand.h>
-#include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
-#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 
 //============================================================================

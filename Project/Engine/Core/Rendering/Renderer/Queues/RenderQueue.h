@@ -16,11 +16,14 @@
 // c++
 #include <vector>
 #include <cstdint>
+#include <string>
+#include <unordered_map>
 
 namespace Engine {
 
 	// front
 	class ECSWorld;
+	struct MaterialParameterValue;
 
 	//============================================================================
 	//	RenderQueue structures
@@ -44,6 +47,10 @@ namespace Engine {
 
 		Color4 color = Color4::White();
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
+
+		// エンティティごとのマテリアルパラメータ上書き、コンポーネントのmapを指す(同フレーム内のみ有効)
+		// 非nullかつ非空ならバッチを分割して、このエンティティ専用のMaterialParametersを詰める
+		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;
 	};
 	// テキスト描画データ
 	struct TextRenderPayload {
@@ -55,6 +62,9 @@ namespace Engine {
 		float fontSize = 32.0f;
 		float charSpacing = 0.0f;
 		Color4 color = Color4::White();
+
+		// エンティティごとのマテリアルパラメータ上書き、コンポーネントのmapを指す(同フレーム内のみ有効)
+		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;
 	};
 	// メッシュ描画データ
 	struct MeshRenderPayload {
