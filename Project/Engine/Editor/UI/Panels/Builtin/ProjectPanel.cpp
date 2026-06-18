@@ -72,6 +72,21 @@ namespace {
 		}
 		return (std::max)(1, static_cast<int32_t>(availableWidth / itemWidth));
 	}
+	// アイコン中心に揃うようにラベルを中央寄せで折り返し描画する、widthはアイコンボタンの表示幅
+	void DrawCenteredItemLabel(const char* text, float width) {
+
+		const float startX = ImGui::GetCursorPosX();
+		// 現在のフォントスケール下での折り返し後サイズを測る
+		const ImVec2 textSize = ImGui::CalcTextSize(text, nullptr, false, width);
+		// ラベルがアイコンより狭いときだけ中央へ寄せる、はみ出すときは左端のまま折り返す
+		const float offsetX = (width - textSize.x) * 0.5f;
+		if (offsetX > 0.0f) {
+			ImGui::SetCursorPosX(startX + offsetX);
+		}
+		ImGui::PushTextWrapPos(startX + width);
+		ImGui::TextWrapped("%s", text);
+		ImGui::PopTextWrapPos();
+	}
 	// ドラッグ&ドロップのソースを描画する
 	void DrawAssetDragDropSource(const Engine::ProjectAssetEntry& asset,
 		ImGuiDragDropFlags flags = ImGuiDragDropFlags_None) {
@@ -546,7 +561,7 @@ void Engine::ProjectPanel::DrawFolderGridItem(const EditorPanelContext& context,
 	DrawProjectFileMoveSource(node.virtualPath, true, node.name.c_str());
 
 	ImGui::SetWindowFontScale(0.8f);
-	ImGui::TextWrapped("%s", node.name.c_str());
+	DrawCenteredItemLabel(node.name.c_str(), iconSize + ImGui::GetStyle().FramePadding.x * 2.0f);
 	ImGui::SetWindowFontScale(1.0f);
 
 	if (ImGui::BeginItemTooltip()) {
@@ -599,7 +614,7 @@ void Engine::ProjectPanel::DrawAssetGridItem(const EditorPanelContext& context, 
 	DrawAssetDragDropSource(asset);
 
 	ImGui::SetWindowFontScale(0.5f);
-	ImGui::TextWrapped("%s", asset.displayName.c_str());
+	DrawCenteredItemLabel(asset.displayName.c_str(), iconSize + ImGui::GetStyle().FramePadding.x * 2.0f);
 	ImGui::SetWindowFontScale(1.0f);
 	DrawAssetDragDropSource(asset, ImGuiDragDropFlags_SourceAllowNullID);
 

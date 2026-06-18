@@ -112,16 +112,16 @@ namespace Engine {
 
 			// 1モデルに割り当てるAtlas上の正方形スロットサイズ
 			int32_t tileSize = 192;
-			// プレビューAtlasをクリアするときの背景色
-			Color4 clearColor = Color4(0.10f, 0.11f, 0.13f, 1.0f);
+			// プレビューAtlasをクリアするときの背景色、暗めの青
+			Color4 clearColor = Color4(0.04f, 0.06f, 0.16f, 1.0f);
 			// モデルを収めるためのカメラ縦視野角
 			float cameraFovY = 35.0f;
-			// 境界半径から求めたカメラ距離に掛ける倍率
-			float cameraDistanceScale = 2.0f;
-			// 少し上から見下ろすためのカメラPitch角
-			float cameraPitchDegrees = 8.0f;
-			// モデルを見る向きを調整するカメラYaw角
-			float cameraYawDegrees = 180.0f;
+			// 境界半径から求めたカメラ距離に掛ける倍率、近づける
+			float cameraDistanceScale = 0.8f;
+			// 上から見下ろすためのカメラPitch角
+			float cameraPitchDegrees = 25.0f;
+			// 右寄りから見る3/4ビューにするためのカメラYaw角
+			float cameraYawDegrees = 215.0f;
 			// プレビューWorldで使うDirectionalLightの向き
 			Vector3 lightDirection = Vector3(0.35f, -0.65f, 0.65f);
 			// プレビューWorldで使うDirectionalLightの強さ
