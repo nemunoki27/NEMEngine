@@ -25,30 +25,59 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DebugOverlayPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/EditorOverlayPass.h>
 
+// c++
+#include <array>
+
 //============================================================================
 //	DeferredRenderPath classMethods
 //============================================================================
 void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 
 	deps_ = deps;
-	passes_.reserve(15);
 
-	// 設定されたパス順に実行される
-	passes_.emplace_back(std::make_unique<ClearRenderTargetsPass>(deps_));
-	passes_.emplace_back(std::make_unique<DepthPrepass>(deps_));
-	passes_.emplace_back(std::make_unique<OpaqueRenderPass>(deps_));
-	passes_.emplace_back(std::make_unique<LightingPass>());
-	passes_.emplace_back(std::make_unique<RaytracingReflectionPass>(deps_));
-	passes_.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
-	passes_.emplace_back(std::make_unique<TransparentRenderPass>(deps_));
-	passes_.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(deps_));
-	passes_.emplace_back(std::make_unique<PostProcessMaskedUIPass>(deps_));
-	passes_.emplace_back(std::make_unique<PostProcessStackPass>(deps_));
-	passes_.emplace_back(std::make_unique<EditorSelectionScreenSpaceOutlinePass>(deps_));
-	passes_.emplace_back(std::make_unique<BlitToViewPass>(deps_));
-	passes_.emplace_back(std::make_unique<ScreenUIPass>(deps_));
-	passes_.emplace_back(std::make_unique<DebugOverlayPass>());
-	passes_.emplace_back(std::make_unique<EditorOverlayPass>());
+	// 固定のパス列、PostProcessStackはここには入れずアンカー位置へ後から挿入する
+	std::vector<std::unique_ptr<IRenderPass>> fixedPasses;
+	fixedPasses.reserve(14);
+	fixedPasses.emplace_back(std::make_unique<ClearRenderTargetsPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<DepthPrepass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<OpaqueRenderPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<LightingPass>());
+	fixedPasses.emplace_back(std::make_unique<RaytracingReflectionPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<TransparentRenderPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<PostProcessMaskedUIPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<EditorSelectionScreenSpaceOutlinePass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<BlitToViewPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<ScreenUIPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<DebugOverlayPass>());
+	fixedPasses.emplace_back(std::make_unique<EditorOverlayPass>());
+
+	// アンカーと、その直前に置くパス種別の対応表、アンカーの増減はこの表とPostProcessAnchorの編集で済む
+	struct AnchorPoint {
+		PostProcessAnchor anchor;
+		RenderPathPassKind after;
+	};
+	const std::array<AnchorPoint, 5> kAnchorPoints = { {
+		{ PostProcessAnchor::AfterLighting, RenderPathPassKind::Lighting },
+		{ PostProcessAnchor::AfterRaytracingReflection, RenderPathPassKind::RaytracingReflection },
+		{ PostProcessAnchor::AfterTransparent, RenderPathPassKind::Transparent },
+		{ PostProcessAnchor::AfterMaskedUI, RenderPathPassKind::PostProcessMaskedUI },
+		{ PostProcessAnchor::BeforeBlit, RenderPathPassKind::EditorSelectionScreenSpaceOutline },
+	} };
+
+	// 固定パスを順に積みつつ、対応するパス種別の直後へPostProcessStackPassを挿入する
+	passes_.reserve(fixedPasses.size() + kAnchorPoints.size());
+	for (auto& pass : fixedPasses) {
+
+		const RenderPathPassKind kind = pass->GetKind();
+		passes_.emplace_back(std::move(pass));
+		for (const AnchorPoint& point : kAnchorPoints) {
+			if (point.after == kind) {
+				passes_.emplace_back(std::make_unique<PostProcessStackPass>(deps_, point.anchor));
+			}
+		}
+	}
 }
 
 void Engine::DeferredRenderPath::Finalize() {

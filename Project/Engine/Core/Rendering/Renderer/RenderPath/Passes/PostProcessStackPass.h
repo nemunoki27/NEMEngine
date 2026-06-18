@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
+#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessAnchor.h>
 
 namespace Engine {
 
@@ -20,7 +21,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		explicit PostProcessStackPass(const RenderPipelineDeps& deps) : deps_(deps) {
+		PostProcessStackPass(const RenderPipelineDeps& deps, PostProcessAnchor anchor) : deps_(deps), anchor_(anchor) {
 			previewToneMapSrcColorSlot_ = previewToneMapSRVCache_.AddSlotByRegister(ShaderBindingKind::SRV, 0, 0);
 		}
 		~PostProcessStackPass() override = default;
@@ -38,6 +39,9 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
+
+		// このパスインスタンスが担当する挿入位置、ここに割り当てられたポストだけを実行する
+		PostProcessAnchor anchor_;
 
 		// プレビューをGameViewと同じトーンマップ後の見た目で出すための全画面blit用SRVキャッシュ
 		PipelineBindingCache previewToneMapSRVCache_{};

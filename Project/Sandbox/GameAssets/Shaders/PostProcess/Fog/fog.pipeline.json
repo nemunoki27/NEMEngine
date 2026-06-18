@@ -1,0 +1,12 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "fogPipeline",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "a7184093a2f21cf6"
+        }
+    ]
+}

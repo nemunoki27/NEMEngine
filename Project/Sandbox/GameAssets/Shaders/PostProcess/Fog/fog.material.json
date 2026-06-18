@@ -1,0 +1,14 @@
+{
+    "domain": "Compute",
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "fogMaterial",
+    "parameters": {},
+    "passes": [
+        {
+            "passKind": "PostProcess",
+            "pipeline": "0b8704b22e71a728",
+            "preferredVariant": "Compute"
+        }
+    ]
+}

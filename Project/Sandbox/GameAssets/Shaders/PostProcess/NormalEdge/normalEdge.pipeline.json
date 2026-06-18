@@ -1,0 +1,12 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "normalEdgePipeline",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "cf5ab4dfbc38363f"
+        }
+    ]
+}

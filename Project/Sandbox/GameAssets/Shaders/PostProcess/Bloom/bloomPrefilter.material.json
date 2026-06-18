@@ -1,0 +1,14 @@
+{
+    "domain": "Compute",
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "bloomPrefilterMaterial",
+    "parameters": {},
+    "passes": [
+        {
+            "passKind": "PostProcess",
+            "pipeline": "cb30ea304a19ba75",
+            "preferredVariant": "Compute"
+        }
+    ]
+}

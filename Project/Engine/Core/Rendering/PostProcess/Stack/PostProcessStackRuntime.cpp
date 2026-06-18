@@ -3,10 +3,10 @@
 //============================================================================
 //	PostProcessStackRuntime classMethods
 //============================================================================
-bool Engine::PostProcessStackRuntime::HasEnabledPasses() const {
+bool Engine::PostProcessStackRuntime::HasEnabledPassesForAnchor(PostProcessAnchor anchor) const {
 
 	for (const auto& pass : passes) {
-		if (pass.enabled) {
+		if (pass.enabled && pass.anchor == anchor) {
 			return true;
 		}
 	}

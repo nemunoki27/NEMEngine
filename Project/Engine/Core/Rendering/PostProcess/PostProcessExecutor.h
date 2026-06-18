@@ -33,7 +33,12 @@ namespace Engine {
 		float time = 0.0f;
 		float deltaTime = 0.0f;
 		uint32_t frameIndex = 0;
-		float padding = 0.0f;
+		// 深度の線形化に使うアクティブカメラのクリップ距離
+		float cameraNear = 0.0f;
+		float cameraFar = 0.0f;
+		float framePadding0 = 0.0f;
+		float framePadding1 = 0.0f;
+		float framePadding2 = 0.0f;
 	};
 
 	enum class ComputeDispatchMode : uint8_t {

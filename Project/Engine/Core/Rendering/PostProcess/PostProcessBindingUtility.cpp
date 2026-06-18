@@ -94,10 +94,18 @@ namespace Engine {
 		else if (!binding.name.empty()) {
 			// 標準名以外はdesc.extraSourcesでの追加のパス入力指定を確認
 			auto found = desc.extraSources.find(binding.name);
-			if (found != desc.extraSources.end()) {
-				MultiRenderTarget* extra = ResolveExtraSource(context, found->second);
-				texture = GetFirstColor(extra);
-				resolvedName = binding.name;
+			if (found != desc.extraSources.end() && context.targetRegistry) {
+				// GBufferの色名→特定アタッチメント、深度名→深度、エイリアス→color0 の順で解決する
+				if (RenderTexture2D* color = context.targetRegistry->FindColorByName(found->second)) {
+					texture = color;
+					resolvedName = binding.name;
+				} else if (DepthTexture2D* foundDepth = context.targetRegistry->FindDepthByName(found->second)) {
+					depth = foundDepth;
+					resolvedName = binding.name;
+				} else if (MultiRenderTarget* extra = ResolveExtraSource(context, found->second)) {
+					texture = GetFirstColor(extra);
+					resolvedName = binding.name;
+				}
 			}
 		}
 

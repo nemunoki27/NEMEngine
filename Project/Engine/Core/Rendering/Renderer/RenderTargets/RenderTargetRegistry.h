@@ -75,6 +75,10 @@ namespace Engine {
 		MultiRenderTarget* Find(const std::string& alias) const;
 		// 参照からレンダーターゲットセットを検索する
 		MultiRenderTarget* Resolve(const RenderTargetSetReference& reference) const;
+		// 色アタッチメント名から登録セット内の特定の色テクスチャを返す、未登録はnullptr
+		RenderTexture2D* FindColorByName(const std::string& colorName) const;
+		// 深度アタッチメント名から登録セットの深度テクスチャを返す、未登録はnullptr
+		DepthTexture2D* FindDepthByName(const std::string& depthName) const;
 
 		std::vector<MultiRenderTarget*> GatherUniqueSurfaces() const;
 	private:

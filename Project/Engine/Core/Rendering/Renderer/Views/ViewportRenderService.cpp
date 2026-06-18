@@ -34,7 +34,7 @@ Engine::MultiRenderTargetCreateDesc Engine::ViewportRenderService::BuildDefaultD
 	depth.resourceFormat = DXGI_FORMAT_R24G8_TYPELESS;
 	depth.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	depth.srvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-	depth.debugName = (kind == RenderViewKind::Game) ? L"GameDepth" : L"SceneDepth";
+	depth.debugName = (kind == RenderViewKind::Game) ? L"GameDepth" : L"SceneViewDepth";
 	desc.depth = depth;
 
 	return desc;
@@ -136,5 +136,6 @@ const char* Engine::ViewportRenderService::GetPrimaryColorName(RenderViewKind ki
 
 const char* Engine::ViewportRenderService::GetPrimaryDepthName(RenderViewKind kind) {
 
-	return (kind == RenderViewKind::Game) ? "GameDepth" : "SceneDepth";
+	// SceneView表示サーフェスの深度名はGBufferのSceneMain深度"SceneDepth"と衝突させない
+	return (kind == RenderViewKind::Game) ? "GameDepth" : "SceneViewDepth";
 }

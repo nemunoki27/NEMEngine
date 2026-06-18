@@ -13,6 +13,7 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
@@ -163,6 +164,16 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 		constants.time = elapsedTime_;
 		constants.deltaTime = context.systemContext->deltaTime;
 		constants.frameIndex = frameIndex_;
+		// 深度線形化用に、アクティブビューの透視カメラのクリップ距離を渡す
+		constants.cameraNear = 0.1f;
+		constants.cameraFar = 1000.0f;
+		if (context.view) {
+			if (const ResolvedCameraView* camera = context.view->FindCamera(RenderCameraDomain::Perspective);
+				camera && camera->valid) {
+				constants.cameraNear = camera->nearClip;
+				constants.cameraFar = camera->farClip;
+			}
+		}
 
 		auto allocation = constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetDevice(), constants);
 		binds.push_back({ cacheEntry.hasFrameConstantsByName ? std::string_view(kFrameConstantsName) : std::string_view{},

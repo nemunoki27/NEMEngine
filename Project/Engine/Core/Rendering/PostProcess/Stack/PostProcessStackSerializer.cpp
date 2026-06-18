@@ -69,6 +69,10 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 		}
 		pass.passKind = *passKind;
 
+		// anchor未指定の旧データは従来位置のAfterMaskedUIへ寄せる
+		pass.anchor = EnumAdapter<PostProcessAnchor>::FromString(passJson.value("anchor", ""))
+			.value_or(PostProcessAnchor::AfterMaskedUI);
+
 		if (passJson.contains("parameters") && passJson["parameters"].is_object()) {
 			for (auto it = passJson["parameters"].begin(); it != passJson["parameters"].end(); ++it) {
 				MaterialParameterValue value{};
@@ -86,6 +90,14 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 				const std::string texGuidStr = it.value().value("textureGuid", "");
 				if (texGuidStr.size() == 16) {
 					pass.textureGuids[it.key()] = FromString16Hex(texGuidStr);
+				}
+			}
+		}
+
+		if (passJson.contains("renderTargetInputs") && passJson["renderTargetInputs"].is_object()) {
+			for (auto it = passJson["renderTargetInputs"].begin(); it != passJson["renderTargetInputs"].end(); ++it) {
+				if (it.value().is_string()) {
+					pass.renderTargetInputs[it.key()] = it.value().get<std::string>();
 				}
 			}
 		}
@@ -110,6 +122,7 @@ nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStack
 		passJson["enabled"] = pass.enabled;
 		passJson["materialGuid"] = ToAssetReferenceJson(pass.materialGuid);
 		passJson["passKind"] = EnumAdapter<MaterialPassKind>::ToString(pass.passKind);
+		passJson["anchor"] = EnumAdapter<PostProcessAnchor>::ToString(pass.anchor);
 
 		passJson["parameters"] = nlohmann::json::object();
 		for (const auto& [name, value] : pass.parameterOverrides) {
@@ -121,6 +134,11 @@ nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStack
 			nlohmann::json texJson = nlohmann::json::object();
 			texJson["textureGuid"] = ToAssetReferenceJson(guid);
 			passJson["textures"][name] = texJson;
+		}
+
+		passJson["renderTargetInputs"] = nlohmann::json::object();
+		for (const auto& [name, source] : pass.renderTargetInputs) {
+			passJson["renderTargetInputs"][name] = source;
 		}
 
 		data["passes"].push_back(std::move(passJson));

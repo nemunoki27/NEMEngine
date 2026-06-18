@@ -9,7 +9,11 @@ cbuffer PostProcessFrameConstants : register(b0) {
 	float time;
 	float deltaTime;
 	uint frameIndex;
-	float framePadding;
+	float cameraNear; // 深度線形化用のアクティブカメラの近クリップ距離
+	float cameraFar;  // 深度線形化用のアクティブカメラの遠クリップ距離
+	float framePadding0;
+	float framePadding1;
+	float framePadding2;
 };
 
 //============================================================================
@@ -41,4 +45,11 @@ float4 LoadSource(uint2 pixelPos) {
 float4 LoadSourceClamp(int2 pixelPos) {
 
 	return gSourceColor.Load(int3(ClampPixel(pixelPos), 0));
+}
+
+// 標準DXのLH射影[0,1]の非線形深度を、near..farを0..1へ正規化した線形深度へ変換する
+float LinearizeDepth01(float rawDepth) {
+
+	float eyeZ = (cameraFar * cameraNear) / max(cameraFar - rawDepth * (cameraFar - cameraNear), 1e-6f);
+	return saturate((eyeZ - cameraNear) / max(cameraFar - cameraNear, 1e-6f));
 }

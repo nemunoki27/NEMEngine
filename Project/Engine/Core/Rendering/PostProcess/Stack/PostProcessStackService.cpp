@@ -112,8 +112,10 @@ void Engine::PostProcessStackService::RebuildRuntime() {
 		runtimePass.enabled = passSetting.enabled;
 		runtimePass.material = passSetting.materialGuid;
 		runtimePass.passKind = passSetting.passKind;
+		runtimePass.anchor = passSetting.anchor;
 		runtimePass.parameterOverrides = passSetting.parameterOverrides;
 		runtimePass.textureGuids = passSetting.textureGuids;
+		runtimePass.renderTargetInputs = passSetting.renderTargetInputs;
 		runtime_.passes.emplace_back(std::move(runtimePass));
 	}
 }

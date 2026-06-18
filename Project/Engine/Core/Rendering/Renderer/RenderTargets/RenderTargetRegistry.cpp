@@ -190,6 +190,32 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::Resolve(
 	return nullptr;
 }
 
+Engine::RenderTexture2D* Engine::RenderTargetRegistry::FindColorByName(const std::string& colorName) const {
+
+	// 登録セットのcolorNamesは色インデックスと並びが一致するので、名前位置の色テクスチャを返す
+	for (const auto& entry : entries_) {
+		if (!entry.surface) {
+			continue;
+		}
+		for (size_t i = 0; i < entry.colorNames.size(); ++i) {
+			if (entry.colorNames[i] == colorName) {
+				return entry.surface->GetColorTexture(static_cast<uint32_t>(i));
+			}
+		}
+	}
+	return nullptr;
+}
+
+Engine::DepthTexture2D* Engine::RenderTargetRegistry::FindDepthByName(const std::string& depthName) const {
+
+	for (const auto& entry : entries_) {
+		if (entry.surface && entry.depthName.has_value() && *entry.depthName == depthName) {
+			return entry.surface->GetDepthTexture();
+		}
+	}
+	return nullptr;
+}
+
 std::vector<Engine::MultiRenderTarget*> Engine::RenderTargetRegistry::GatherUniqueSurfaces() const {
 
 	std::vector<MultiRenderTarget*> result{};

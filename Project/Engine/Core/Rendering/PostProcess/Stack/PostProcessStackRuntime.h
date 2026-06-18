@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessAnchor.h>
 
 // c++
 #include <string>
@@ -25,8 +26,10 @@ namespace Engine {
 		bool enabled = true;
 		AssetID material{};
 		MaterialPassKind passKind = MaterialPassKind::PostProcess;
+		PostProcessAnchor anchor = PostProcessAnchor::AfterMaskedUI;
 		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides;
 		std::unordered_map<std::string, AssetID> textureGuids;
+		std::unordered_map<std::string, std::string> renderTargetInputs;
 	};
 
 	// ランタイム実行用のPostProcessStack全体データ
@@ -34,7 +37,7 @@ namespace Engine {
 
 		std::vector<PostProcessStackRuntimePass> passes;
 
-		// 有効なパスが1つ以上あるか
-		bool HasEnabledPasses() const;
+		// 指定アンカーに割り当てられた有効なパスが1つ以上あるか
+		bool HasEnabledPassesForAnchor(PostProcessAnchor anchor) const;
 	};
 } // Engine

@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/IDentity/UUID.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackService.h>
+#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessInputSources.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
@@ -357,6 +358,12 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 		service.RebuildRuntime();
 	}
 
+	// このパスを差し込む固定パス上の位置
+	if (MyGUI::EnumCombo("Anchor", pass.anchor).editFinished) {
+		service.MarkDirty();
+		service.RebuildRuntime();
+	}
+
 	ImGui::Separator();
 
 	// マテリアル参照フィールド
@@ -434,6 +441,26 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 
 			ImGui::PushID(srv.name.c_str());
 
+			// 中間RT(GBuffer/深度など)の割り当て、設定すると.pngより優先される
+			auto rtIt = pass.renderTargetInputs.find(srv.name);
+			const std::string currentRT = (rtIt != pass.renderTargetInputs.end()) ? rtIt->second : std::string();
+			const std::string rtLabel = srv.name + " (RT)";
+			if (ImGui::BeginCombo(rtLabel.c_str(), currentRT.empty() ? "(None)" : currentRT.c_str())) {
+
+				if (ImGui::Selectable("(None)", currentRT.empty())) {
+					pass.renderTargetInputs.erase(srv.name);
+					anySRVChanged = true;
+				}
+				for (const char* sourceName : kPostProcessInputSources) {
+					if (ImGui::Selectable(sourceName, currentRT == sourceName)) {
+						pass.renderTargetInputs[srv.name] = sourceName;
+						anySRVChanged = true;
+					}
+				}
+				ImGui::EndCombo();
+			}
+
+			// .png等の個別テクスチャ割り当て、RT未指定時のフォールバック入力
 			auto it = pass.textureGuids.find(srv.name);
 			AssetID texGuid = (it != pass.textureGuids.end()) ? it->second : AssetID{};
 

@@ -18,6 +18,7 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 
 // c++
+#include <algorithm>
 #include <cstring>
 #include <array>
 #include <span>
@@ -156,15 +157,15 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 	service.EnsureLoaded();
 	const PostProcessStackRuntime& runtime = service.GetRuntime();
 
-	if (!runtime.HasEnabledPasses()) {
+	if (!runtime.HasEnabledPassesForAnchor(anchor_)) {
 		return;
 	}
 
-	// 有効なパスだけ抽出
+	// このアンカーに割り当てられた有効なパスだけ抽出する
 	std::vector<const PostProcessStackRuntimePass*> activePasses;
 	activePasses.reserve(runtime.passes.size());
 	for (const auto& pass : runtime.passes) {
-		if (pass.enabled && pass.material) {
+		if (pass.enabled && pass.material && pass.anchor == anchor_) {
 			activePasses.push_back(&pass);
 		}
 	}
@@ -184,8 +185,12 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 	}
 
 	// エディタの選択中パスを基準に、そのパス実行前後の結果をプレビューへ退避
+	// 選択中パスがこのアンカーに含まれるときだけ退避先を確保する
 	const UUID previewPassId = service.GetPreviewPassId();
-	const bool capturePreview = (context.kind == RenderViewKind::Game) && static_cast<bool>(previewPassId);
+	const bool anchorHasPreviewPass = static_cast<bool>(previewPassId) &&
+		std::any_of(activePasses.begin(), activePasses.end(),
+			[&](const PostProcessStackRuntimePass* p) { return p->id == previewPassId; });
+	const bool capturePreview = (context.kind == RenderViewKind::Game) && anchorHasPreviewPass;
 	MultiRenderTarget* previewBefore = nullptr;
 	MultiRenderTarget* previewAfter = nullptr;
 	bool previewCaptured = false;
@@ -274,6 +279,8 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		desc.dest.colors = { destName };
 		desc.parameterOverrides = pass.parameterOverrides;
 		desc.textureOverrides = pass.textureGuids;
+		// SRVバインド名へ割り当てたGBuffer/深度などの中間RTを入力として渡す
+		desc.extraSources = pass.renderTargetInputs;
 		desc.dispatchMode = ComputeDispatchMode::FromDestSize;
 
 		if (!deps_.postProcessExecutor->Execute(graphicsCore, RenderFrameRequest{},

@@ -1,0 +1,14 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "normalEdgeShader",
+    "sourceShader": "GameAssets/Shaders/PostProcess/NormalEdge/normalEdge.CS.hlsl",
+    "stages": [
+        {
+            "entry": "main",
+            "file": "GameAssets/Shaders/PostProcess/NormalEdge/normalEdge.CS.hlsl",
+            "profile": "cs_6_0",
+            "stage": "CS"
+        }
+    ]
+}

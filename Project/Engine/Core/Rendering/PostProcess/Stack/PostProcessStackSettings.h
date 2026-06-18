@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessAnchor.h>
 
 // c++
 #include <string>
@@ -29,10 +30,14 @@ namespace Engine {
 		AssetID materialGuid{};
 		// 実行するパス種別
 		MaterialPassKind passKind = MaterialPassKind::PostProcess;
+		// このパスを差し込む固定パス上の位置
+		PostProcessAnchor anchor = PostProcessAnchor::AfterMaskedUI;
 		// CBufferパラメータのScene毎overrideマップ
 		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides;
 		// TextureのScene毎overrideマップ
 		std::unordered_map<std::string, AssetID> textureGuids;
+		// SRVバインド名から中間RT名(GBuffer/深度など)への割り当て、.pngより優先される
+		std::unordered_map<std::string, std::string> renderTargetInputs;
 	};
 
 	// シーンごとのPostProcessStackの設定データ
