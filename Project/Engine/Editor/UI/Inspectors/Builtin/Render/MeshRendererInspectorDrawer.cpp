@@ -48,6 +48,10 @@ namespace {
 			setting.dragSpeed = 0.01f;
 			setting.minValue = 0.0f;
 			setting.maxValue = 1.0f;
+		} else if (name == "emissiveIntensity") {
+			// 発光強度はHDRで1.0超まで上げられるよう上限は設けず、負値だけ禁止する
+			setting.dragSpeed = 0.01f;
+			setting.minValue = 0.0f;
 		}
 		return setting;
 	}

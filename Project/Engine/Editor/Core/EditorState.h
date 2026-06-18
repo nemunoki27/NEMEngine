@@ -100,6 +100,7 @@ namespace Engine {
 		Normal,
 		Position,
 		Material,
+		Emissive,
 		Depth,
 	};
 

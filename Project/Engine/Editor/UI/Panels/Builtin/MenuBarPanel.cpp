@@ -229,6 +229,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 				{ "Normal", GBufferDebugView::Normal },
 				{ "World Pos",    GBufferDebugView::Position },
 				{ "Material", GBufferDebugView::Material },
+				{ "Emissive", GBufferDebugView::Emissive },
 				{ "Depth", GBufferDebugView::Depth },
 			};
 

@@ -217,8 +217,8 @@ ResolvedPBRMaterial ResolvePBRMaterial(VSOutput input) {
 	// ワールド法線
 	float3 N = ComputeWorldNormal(input, params.normalTexture, uv);
 
-	// 発光
-	float3 emissive = params.emissiveColor.rgb;
+	// 発光、色×強度にテクスチャを掛ける、強度0で発光オフ
+	float3 emissive = params.emissiveColor.rgb * params.emissiveIntensity;
 	emissive *= SamplePBRTexture(params.emissiveTexture, uv, 1.0f.xxxx).rgb;
 
 	ResolvedPBRMaterial m;

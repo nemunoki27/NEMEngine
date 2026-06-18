@@ -95,7 +95,7 @@ struct MeshMaterialParameters {
 	uint baseColorTexture;
 	uint normalTexture;
 	uint emissiveTexture;
-	uint _materialPad0;
+	float emissiveIntensity;
 };
 StructuredBuffer<MeshMaterialParameters> gMeshMaterialParameters : register(t0, space3);
 
@@ -126,7 +126,7 @@ float4 ResolveLambertBaseColor(MeshMaterialParameters params, float2 uv) {
 float4 ComposeLambertColor(MeshMaterialParameters params, float2 uv, float4 baseColor, float3 lit) {
 
 	float3 ambient = 0.03f * baseColor.rgb;
-	float3 emissive = params.emissiveColor.rgb;
+	float3 emissive = params.emissiveColor.rgb * params.emissiveIntensity;
 	if (params.emissiveTexture != kNoTexture) {
 
 		Texture2D<float4> emissiveTex = ResourceDescriptorHeap[NonUniformResourceIndex(params.emissiveTexture)];

@@ -26,8 +26,8 @@ GBufferOutput main(VSOutput input) {
 	float4 baseColor = ResolveLambertBaseColor(params, uv);
 	float3 N = ComputeWorldNormal(input, params.normalTexture, uv);
 
-	// 発光はベースカラーと別にGBufferへ持たせ、ライティングの初期色に使う
-	float3 emissive = params.emissiveColor.rgb;
+	// 発光はベースカラーと別にGBufferへ持たせ、ライティングの初期色に使う、色×強度で制御する
+	float3 emissive = params.emissiveColor.rgb * params.emissiveIntensity;
 	if (params.emissiveTexture != kNoTexture) {
 
 		Texture2D<float4> emissiveTex = ResourceDescriptorHeap[NonUniformResourceIndex(params.emissiveTexture)];

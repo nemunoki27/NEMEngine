@@ -583,6 +583,15 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 			maxY = (std::max)(maxY, glyph.rectMax.y);
 		}
 
+		// グリフ矩形はピボット未適用なので、描画側と同じオフセットを加えて判定位置を合わせる
+		// 正規化0-1基準のpivotがブロック全体のboundsSize上のこの点を原点へ寄せる
+		const float pivotOffsetX = -renderer.pivot.x * renderer.runtimeLayout.boundsSize.x;
+		const float pivotOffsetY = -renderer.pivot.y * renderer.runtimeLayout.boundsSize.y;
+		minX += pivotOffsetX;
+		maxX += pivotOffsetX;
+		minY += pivotOffsetY;
+		maxY += pivotOffsetY;
+
 		if (hitPoint.x >= minX && hitPoint.x <= maxX &&
 			hitPoint.y >= minY && hitPoint.y <= maxY) {
 			hits.push_back({ entity, renderer.layer, renderer.order });

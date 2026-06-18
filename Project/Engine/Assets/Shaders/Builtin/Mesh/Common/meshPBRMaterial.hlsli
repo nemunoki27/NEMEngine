@@ -15,7 +15,7 @@ struct MeshMaterialParameters {
 	uint occlusionTexture;
 	float Metallic;
 	float Roughness;
-	uint _materialPad0;
+	float emissiveIntensity;
 };
 StructuredBuffer<MeshMaterialParameters> gMeshMaterialParameters : register(t0, space3);
 

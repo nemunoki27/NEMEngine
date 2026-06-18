@@ -19,7 +19,7 @@ struct GBufferOutput {
 	float4 normal : SV_TARGET1;   // rgb worldNormal*0.5+0.5
 	float4 worldPos : SV_TARGET2; // rgb worldPosition
 	float4 material : SV_TARGET3; // r metallic, g roughness, b occlusion
-	float3 emissive : SV_TARGET4; // rgb emissive
+	float4 emissive : SV_TARGET4; // rgb emissive、αは描画時αブレンドを通すため常に1
 	uint flags : SV_TARGET5;      // materialFlags
 };
 
@@ -43,7 +43,7 @@ GBufferOutput EncodeGBuffer(MeshSurface surface) {
 	o.normal = float4(surface.normal * 0.5f + 0.5f, 1.0f);
 	o.worldPos = float4(surface.worldPos, 1.0f);
 	o.material = float4(surface.metallic, surface.roughness, surface.occlusion, 1.0f);
-	o.emissive = surface.emissive;
+	o.emissive = float4(surface.emissive, 1.0f);
 	o.flags = kMaterialFlagSurface;
 	return o;
 }
