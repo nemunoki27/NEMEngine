@@ -15,6 +15,7 @@ namespace Engine {
 
 	// front
 	struct ShaderReflectionInfo;
+	struct ShaderConstantBufferVariable;
 
 	//============================================================================
 	//	MeshRendererInspectorDrawer class
@@ -73,6 +74,9 @@ namespace Engine {
 			const Entity& entity, SubMeshMaterial& subMesh, bool& anyItemActive);
 		// マテリアルのDrawパスreflectionを解決しキャッシュする、失敗時はnullptr
 		const ShaderReflectionInfo* EnsureMaterialReflection(const EditorPanelContext& context, AssetID materialID);
+		// サブメッシュのparam最終値を解決する、上書き無しはマテリアル既定値か型既定値
+		MaterialParameterValue ResolveSubMeshParamValue(const SubMeshMaterial& subMesh,
+			const ShaderConstantBufferVariable& var) const;
 		// モデルファイルのマテリアル係数とテクスチャを現shaderのparameterOverridesへ再適用する
 		void ApplyModelMaterialParameters(const EditorPanelContext& context, MeshRendererComponent& draft);
 		// シェーダーreflection駆動でサブメッシュ単位のマテリアルパラメータを編集する

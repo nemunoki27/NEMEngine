@@ -249,6 +249,17 @@ namespace {
 		}
 		ImGui::EndCombo();
 	}
+	// ツール間の区切り
+	void DrawToolSeparator(const ImVec2& buttonSize) {
+
+		ImGui::Spacing();
+
+		const ImVec2 pos = ImGui::GetCursorScreenPos();
+		ImGui::GetWindowDrawList()->AddLine(pos, ImVec2(pos.x + buttonSize.x + buttonSize.x / 2.0f, pos.y), ImGui::GetColorU32(ImGuiCol_Separator));
+		ImGui::Dummy(ImVec2(buttonSize.x, 1.0f));
+
+		ImGui::Spacing();
+	}
 }
 
 Engine::ViewportPanel::ViewportPanel(const char* windowName, const char* label, ViewportPanelKind kind, TextureUploadService& textureUploadService) :
@@ -374,14 +385,11 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		if (kind_ == ViewportPanelKind::Scene) {
 
 			ImGui::BeginGroup();
+
 			DrawManipulatorSection(context);
-			ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing();
+			DrawToolSeparator(buttonSize_);
 			DrawCameraSection(context);
-			ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing();
+			DrawToolSeparator(buttonSize_);
 			DrawGridSection(context);
 			DrawEntityCameraPopup(context);
 			ImGui::EndGroup();
@@ -1017,9 +1025,7 @@ void Engine::ViewportPanel::DrawManipulatorSection(const EditorPanelContext& con
 			ImGui::SetTooltip("%s", tooltip.c_str());
 		}
 	}
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
+	DrawToolSeparator(buttonSize_);
 	// SRT編集
 	{
 		if (DrawIconButton("##ManipulatorTranslate", GetTextureID(icons_.translateKey),
@@ -1047,9 +1053,7 @@ void Engine::ViewportPanel::DrawManipulatorSection(const EditorPanelContext& con
 			ImGui::SetTooltip("拡縮編集");
 		}
 	}
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
+	DrawToolSeparator(buttonSize_);
 	// オブジェクトのスナップ操作の有効/無効
 	{
 		if (DrawIconButton("##EnableSnapEntity", GetTextureID(icons_.snapEditEntityKey),

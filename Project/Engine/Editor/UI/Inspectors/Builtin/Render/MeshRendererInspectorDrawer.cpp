@@ -361,6 +361,18 @@ const Engine::ShaderReflectionInfo* Engine::MeshRendererInspectorDrawer::EnsureM
 	return context.renderPipeline->FindPipelineGraphicsReflection(drawPass->pipeline);
 }
 
+Engine::MaterialParameterValue Engine::MeshRendererInspectorDrawer::ResolveSubMeshParamValue(
+	const SubMeshMaterial& subMesh, const ShaderConstantBufferVariable& var) const {
+
+	auto it = subMesh.parameterOverrides.find(var.name);
+	if (it != subMesh.parameterOverrides.end()) {
+		return it->second;
+	}
+	auto defaultIt = cachedMaterial_.parameters.find(var.name);
+	return defaultIt != cachedMaterial_.parameters.end() ?
+		defaultIt->second : MaterialParameterEditor::DefaultValueForVariable(var);
+}
+
 void Engine::MeshRendererInspectorDrawer::ApplyModelMaterialParameters(
 	const EditorPanelContext& context, MeshRendererComponent& draft) {
 
@@ -443,16 +455,6 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 		return;
 	}
 
-	// サブメッシュ1件分の最終値を返す、上書き無しはマテリアル既定値か型既定値
-	auto resolveForSubMesh = [&](const SubMeshMaterial& subMesh, const ShaderConstantBufferVariable& var) {
-		auto it = subMesh.parameterOverrides.find(var.name);
-		if (it != subMesh.parameterOverrides.end()) {
-			return it->second;
-		}
-		auto defaultIt = cachedMaterial_.parameters.find(var.name);
-		return defaultIt != cachedMaterial_.parameters.end() ?
-			defaultIt->second : MaterialParameterEditor::DefaultValueForVariable(var);
-		};
 	// 編集確定値を全サブメッシュへ書き込む
 	auto applyToAll = [&](const std::string& name, const MaterialParameterValue& value) {
 		for (SubMeshMaterial& subMesh : draft.subMeshes) {
@@ -460,17 +462,14 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 		}
 		};
 
-	for (const ShaderConstantBufferVariable& var : cb->variables) {
-
-		if (IsReflectedPaddingParam(var.name)) {
-			continue;
-		}
+	// 1変数分の編集行を描画する、混在時は - 表示にして上書き許可ボタンを出す
+	auto drawVar = [&](const ShaderConstantBufferVariable& var) {
 
 		// 全サブメッシュで値が一致しているか調べ、混在していれば既定では編集無効にする
-		MaterialParameterValue common = resolveForSubMesh(draft.subMeshes.front(), var);
+		MaterialParameterValue common = ResolveSubMeshParamValue(draft.subMeshes.front(), var);
 		bool mixed = false;
 		for (size_t i = 1; i < draft.subMeshes.size(); ++i) {
-			if (!ParamValueEqual(resolveForSubMesh(draft.subMeshes[i], var), common)) {
+			if (!ParamValueEqual(ResolveSubMeshParamValue(draft.subMeshes[i], var), common)) {
 				mixed = true;
 				break;
 			}
@@ -494,7 +493,7 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 				}
 				MyGUI::EndPropertyRow();
 			}
-			continue;
+			return;
 		}
 
 		// 一致または許可済みは通常編集、変更を全サブメッシュへ適用する
@@ -535,6 +534,24 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 				return result;
 				});
 		}
+		};
+
+	// サブメッシュ単体編集と表示順を揃えるため、Drag編集paramを先に出す
+	for (const ShaderConstantBufferVariable& var : cb->variables) {
+
+		if (IsReflectedPaddingParam(var.name) || IsReflectedTextureParam(var.name)) {
+			continue;
+		}
+		drawVar(var);
+	}
+
+	// テクスチャparamは下にまとめて出す
+	for (const ShaderConstantBufferVariable& var : cb->variables) {
+
+		if (IsReflectedPaddingParam(var.name) || !IsReflectedTextureParam(var.name)) {
+			continue;
+		}
+		drawVar(var);
 	}
 }
 
@@ -560,45 +577,14 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 
 	ImGui::SeparatorText("シェーダーパラメータ");
 
-	// pad用の詰め物paramはインスペクタに出さない
-	auto isPaddingParam = [](const std::string& name) {
-		return !name.empty() && (name.front() == '_' ||
-			name.find("pad") != std::string::npos || name.find("Pad") != std::string::npos);
-		};
-	// テクスチャparamはuintのbindless indexだが編集はAssetID参照で行う
-	auto isTextureParam = [](const std::string& name) {
-		return name.find("Texture") != std::string::npos ||
-			name.find("texture") != std::string::npos || name.find("Map") != std::string::npos;
-		};
-	// 既存値が無ければマテリアル既定値、それも無ければ型既定値を初期表示にする
-	auto resolveValue = [&](const ShaderConstantBufferVariable& var) {
-		auto it = subMesh.parameterOverrides.find(var.name);
-		if (it != subMesh.parameterOverrides.end()) {
-			return it->second;
-		}
-		auto defaultIt = cachedMaterial_.parameters.find(var.name);
-		return defaultIt != cachedMaterial_.parameters.end() ?
-			defaultIt->second : MaterialParameterEditor::DefaultValueForVariable(var);
-		};
-	// paramごとのRangeとDragValueを返す、必要なものだけ個別設定する
-	auto resolveFloatSetting = [](const std::string& name) {
-		Engine::FloatEditSetting setting{};
-		if (name == "Metallic" || name == "Roughness") {
-			setting.dragSpeed = 0.01f;
-			setting.minValue = 0.0f;
-			setting.maxValue = 1.0f;
-		}
-		return setting;
-		};
-
 	// Drag編集paramを先に出す
 	for (const ShaderConstantBufferVariable& var : cb->variables) {
 
-		if (isPaddingParam(var.name) || isTextureParam(var.name)) {
+		if (IsReflectedPaddingParam(var.name) || IsReflectedTextureParam(var.name)) {
 			continue;
 		}
-		MaterialParameterValue value = resolveValue(var);
-		const Engine::FloatEditSetting floatSetting = resolveFloatSetting(var.name);
+		MaterialParameterValue value = ResolveSubMeshParamValue(subMesh, var);
+		const Engine::FloatEditSetting floatSetting = MakeReflectedFloatSetting(var.name);
 		DrawField(anyItemActive, [&]() {
 
 			// valueChangedでプレビュー更新、editFinishedでcommitされUndo/dirtyに乗る
@@ -613,7 +599,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 	// テクスチャparamは下にまとめて出す
 	for (const ShaderConstantBufferVariable& var : cb->variables) {
 
-		if (isPaddingParam(var.name) || !isTextureParam(var.name)) {
+		if (IsReflectedPaddingParam(var.name) || !IsReflectedTextureParam(var.name)) {
 			continue;
 		}
 		auto it = subMesh.parameterOverrides.find(var.name);
