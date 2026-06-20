@@ -8,14 +8,15 @@
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessBindingNames.h>
 
 namespace Engine {
 
 	namespace {
-		// 標準的なシェーダリソース名でこれらと一致するバインディングは自動的に現在のパスのターゲットが割り当てられる
-		constexpr const char* kSourceColorName = "gSourceColor";
-		constexpr const char* kSourceDepthName = "gSourceDepth";
-		constexpr const char* kDestColorName = "gDestColor";
+		// 予約済みのバインド名は共有定義を使う、これらと一致するバインディングは現在のパスのターゲットが割り当てられる
+		constexpr const char* kSourceColorName = PostProcessBindingNames::kSourceColor;
+		constexpr const char* kSourceDepthName = PostProcessBindingNames::kSourceDepth;
+		constexpr const char* kDestColorName = PostProcessBindingNames::kDestColor;
 	}
 
 	bool IsResourceBinding(const ShaderResourceBinding& binding) {

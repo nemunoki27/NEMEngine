@@ -473,17 +473,30 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 	lastBuildWorkingDir_ = projectPath.parent_path();
 
 	// build前に.cs.metaのStable ID採番と維持を非同期で実行する、ツールが無ければ飛ばして直接ビルドする
+	// metadata sync toolはレイアウトで配置が異なるため候補を順に探す
+	// エンジンソース構成: Project/Engine/Managed/NEM.ScriptMetaSync/bin/<profile>/net10.0/
+	// prebuilt SDK構成: <GameRoot>/External/NEMEngine/Managed/Tools/
 	const std::filesystem::path projectRoot = projectPath.parent_path().parent_path().parent_path();
-	const std::filesystem::path syncToolDll = projectRoot / "Engine" / "Managed" / "NEM.ScriptMetaSync" /
-		"bin" / BuildProfile() / "net10.0" / "NEM.ScriptMetaSync.dll";
+	const std::filesystem::path syncToolCandidates[] = {
+		projectRoot / "Engine" / "Managed" / "NEM.ScriptMetaSync" / "bin" / BuildProfile() / "net10.0" / "NEM.ScriptMetaSync.dll",
+		projectRoot.parent_path() / "External" / "NEMEngine" / "Managed" / "Tools" / "NEM.ScriptMetaSync.dll",
+	};
+	std::filesystem::path syncToolDll;
+	for (const std::filesystem::path& candidate : syncToolCandidates) {
+
+		std::error_code candidateExists{};
+		if (std::filesystem::exists(candidate, candidateExists) && !candidateExists) {
+			syncToolDll = candidate;
+			break;
+		}
+	}
 	const std::filesystem::path scriptsRoot = projectPath.parent_path().parent_path() / "GameAssets";
 
-	std::error_code toolExists{};
-	if (!std::filesystem::exists(syncToolDll, toolExists) || toolExists) {
+	if (syncToolDll.empty()) {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptBuildService: script metadata sync tool not found ({}). Skipping sync; relying on existing .cs.meta.",
-			ToUtf8Path(syncToolDll));
+			"ManagedScriptBuildService: script metadata sync tool not found ({} | {}). Skipping sync; relying on existing .cs.meta.",
+			ToUtf8Path(syncToolCandidates[0]), ToUtf8Path(syncToolCandidates[1]));
 		return StartGameScriptsBuild();
 	}
 

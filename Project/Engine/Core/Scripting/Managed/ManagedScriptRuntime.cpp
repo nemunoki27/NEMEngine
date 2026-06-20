@@ -57,12 +57,24 @@ namespace {
 		return {};
 	}
 
+	// 実行ファイルのあるディレクトリを返す、prebuilt配布ではここへ全ランタイムを配置している
+	std::filesystem::path GetExecutableDirectory() {
+		std::vector<wchar_t> buffer(1024);
+		const DWORD length = ::GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+		if (length == 0 || length >= buffer.size()) {
+			return {};
+		}
+		return std::filesystem::path(std::wstring(buffer.data(), length)).parent_path();
+	}
+
 	// ScriptCoreのアセンブリパスを解決
 	std::filesystem::path ResolveScriptCoreAssemblyPath() {
 		const std::string profile = GetBuildProfile();
 		const std::filesystem::path current = std::filesystem::current_path();
+		const std::filesystem::path exeDir = GetExecutableDirectory();
 		const std::filesystem::path engineRoot = Engine::RuntimePaths::GetEngineProjectRoot().parent_path();
 		return FindFirstExistingPath({
+			exeDir / "Managed/NEM.ScriptCore.dll",
 			Engine::RuntimePaths::GetEngineLibraryRoot() / "Managed" / profile / "NEM.ScriptCore.dll",
 			engineRoot / "Generated/Managed/NEM.ScriptCore" / profile / "NEM.ScriptCore.dll",
 			Engine::RuntimePaths::GetGameRoot() / "Managed" / profile / "NEM.ScriptCore.dll",
@@ -74,7 +86,9 @@ namespace {
 	std::filesystem::path ResolveGameAssemblyPath() {
 		const std::string profile = GetBuildProfile();
 		const std::filesystem::path current = std::filesystem::current_path();
+		const std::filesystem::path exeDir = GetExecutableDirectory();
 		return FindFirstExistingPath({
+			exeDir / "Managed/GameScripts.dll",
 			Engine::RuntimePaths::GetGameRoot() / "Managed" / profile / "GameScripts.dll",
 			current / "Managed/GameScripts.dll"
 			});

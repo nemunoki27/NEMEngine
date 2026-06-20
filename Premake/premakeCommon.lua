@@ -11,7 +11,7 @@ NEM_GENERATED_ROOT = NEM_OUTPUT_ROOT
 function NEM_ConfigureWorkspaceLayout(runtimeDebugDir)
     objdir(path.join(NEM_OUTPUT_ROOT, "Intermediate/%{prj.name}/%{cfg.buildcfg}"))
 
-    filter "kind:StaticLib"
+    filter "kind:StaticLib or kind:SharedLib"
         targetdir(path.join(NEM_OUTPUT_ROOT, "Bin/%{cfg.buildcfg}/%{prj.name}"))
 
     filter "kind:ConsoleApp or kind:WindowedApp"
@@ -95,14 +95,10 @@ function NEM_AddEngineIncludeSettings()
     }
 end
 
-function NEM_AddEngineRuntimeLinkSettings()
-    NEM_AddEngineIncludeSettings()
-
-    local scriptCoreProject = path.join(NEM_PROJECT_ROOT, "Engine/Managed/NEM.ScriptCore/NEM.ScriptCore.csproj")
-    local scriptCoreOutput = path.join(NEM_ENGINE_GENERATED_ROOT, "Managed/NEM.ScriptCore")
-
+-- エンジンDLL自身が同梱する外部ライブラリとシステムライブラリをリンクする
+-- 外部ライブラリはDLL内部に静的に取り込み、利用側からは見えなくする
+function NEM_AddEngineDllLinkSettings()
     links {
-        "NEMEngine",
         "imgui",
         "imgui_node_editor",
         "DirectXTex",
@@ -116,39 +112,46 @@ function NEM_AddEngineRuntimeLinkSettings()
         "iphlpapi",
     }
 
-    -- .NET native hosting: nethost.dll は実行ファイル横へ配置し、DotnetHostResolverが
-    -- 実行時に動的ロードして get_hostfxr_path を取得する（静的libnethostはリリースCRT固定で
-    -- Debug /MTd とリンクできないため、リンクせず動的ロードする）。
-    -- DLLコピーは patch_vcxproj_managed_config.ps1 の PostBuildEvent に集約している
-    -- (このスクリプトが Sandbox の PostBuildEvent を上書きするため)。
+    linkoptions {
+        "/WX",
+        "/IGNORE:4099",
+    }
+
+    -- WinPixEventRuntime。Debugではpix3.hが_DEBUG経由でUSE_PIXを有効化しPIXシンボルを参照するため
+    -- import libをリンクする。DLL本体の配置はアプリ側postbuildで実行ファイル横へコピーする
+    filter "configurations:Debug"
+        libdirs { path.translate(path.join(NEM_PROJECT_ROOT, "Externals/WinPixEventRuntime/bin/x64"), "\\") }
+        links { "WinPixEventRuntime" }
+
+    filter {}
+end
+
+-- アプリ(Sandbox / Game)側のエンジン参照設定
+-- 公開ヘッダとNEMEngineのimport libだけに依存させ、エンジンソースや外部ライブラリには触れさせない
+-- managedビルドと実行時DLL配置(NEMEngine.dll / dxc / nethost / Managed等)は
+-- patch_vcxproj_managed_config.ps1 のPre/PostBuildEventで一元管理する
+function NEM_AddEngineRuntimeLinkSettings()
+    includedirs {
+        path.join(NEM_PROJECT_ROOT, "Engine/Public"),
+    }
+
+    links {
+        "NEMEngine",
+    }
 
     linkoptions {
         "/WX",
         "/IGNORE:4099",
     }
 
-	prebuildcommands {
-		'set DOTNET_CLI_UI_LANGUAGE=en',
-		'dotnet build "' .. scriptCoreProject .. '" -c "$(Configuration)"',
-		'if exist "$(ProjectDir)Scripts\\GameScripts.csproj" dotnet build "$(ProjectDir)Scripts\\GameScripts.csproj" -c "$(Configuration)" --no-dependencies',
-	}
-
-    postbuildcommands {
-        'copy /Y "$(WindowsSdkDir)bin\\$(TargetPlatformVersion)\\x64\\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"',
-        'copy /Y "$(WindowsSdkDir)bin\\$(TargetPlatformVersion)\\x64\\dxil.dll" "$(TargetDir)dxil.dll"',
-        'if exist "' .. scriptCoreOutput .. '\\$(Configuration)\\*" xcopy /Y /I "' .. scriptCoreOutput .. '\\$(Configuration)\\*" "$(TargetDir)Managed\\"',
-        'if exist "$(ProjectDir)Managed\\$(Configuration)\\*" xcopy /Y /I "$(ProjectDir)Managed\\$(Configuration)\\*" "$(TargetDir)Managed\\"',
-        'if "$(Configuration)"=="Debug" copy /Y "$(ProjectDir)..\\Externals\\WinPixEventRuntime\\bin\\x64\\WinPixEventRuntime.dll" "$(TargetDir)WinPixEventRuntime.dll"',
+    -- managedビルドと実行時DLL配置の本体は patch_vcxproj_managed_config.ps1 が上書きする
+    -- パッチが書き込む先のPre/PostBuildEventを生成しておくためのプレースホルダ
+    prebuildcommands {
+        'set DOTNET_CLI_UI_LANGUAGE=en',
     }
-
-    -- WinPixEventRuntime。Debugではpix3.hが_DEBUG経由でUSE_PIXを有効化しPIXシンボルを参照するため、
-    -- import libをリンクする。DLLの配置はpatch_vcxproj_managed_config.ps1のpostbuildで行う
-    -- (このスクリプトがPostBuildEventを上書きするため、コピーはそちらへ集約している)。
-    filter "configurations:Debug"
-        libdirs { path.translate(path.join(NEM_PROJECT_ROOT, "Externals/WinPixEventRuntime/bin/x64"), "\\") }
-        links { "WinPixEventRuntime" }
-
-    filter {}
+    postbuildcommands {
+        'rem NEMEngine deployment is configured by patch_vcxproj_managed_config.ps1',
+    }
 end
 
 function NEM_MakeProjectSourcePatterns(projectRoot)

@@ -308,11 +308,15 @@ void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorP
 	}
 
 	// カレントフォルダへコピー取り込みする、.metaはRebuildで自動発番される
+	// フォルダがドロップされたときは中身ごと再帰コピーする
 	bool imported = false;
 	for (const std::string& path : droppedPaths) {
 
-		const ProjectAssetFileResult result =
-			ProjectAssetFileUtility::ImportExternalFile(assetSource_, selectedDirectory_, path);
+		std::error_code ec;
+		const std::filesystem::path externalPath(path);
+		const ProjectAssetFileResult result = std::filesystem::is_directory(externalPath, ec) ?
+			ProjectAssetFileUtility::ImportExternalDirectory(assetSource_, selectedDirectory_, externalPath) :
+			ProjectAssetFileUtility::ImportExternalFile(assetSource_, selectedDirectory_, externalPath);
 		if (result.success) {
 			imported = true;
 		}
@@ -709,6 +713,10 @@ void Engine::ProjectPanel::DrawFolderContextMenu(AssetDatabase& database, const 
 		selectedDirectory_ = node.virtualPath;
 		selectedAsset_ = {};
 	}
+	if (ImGui::MenuItem("Rename")) {
+
+		BeginRenameDirectory(node);
+	}
 	if (ImGui::BeginMenu("Create")) {
 
 		DrawCreateMenuItems(node.virtualPath);
@@ -841,8 +849,8 @@ void Engine::ProjectPanel::DrawRenameAssetPopup(AssetDatabase& database) {
 		return;
 	}
 
-	ImGui::Text("Rename Asset");
-	ImGui::TextDisabled("%s", pendingRenameAsset_.assetPath.c_str());
+	ImGui::Text(pendingRenameIsDirectory_ ? "Rename Folder" : "Rename Asset");
+	ImGui::TextDisabled("%s", pendingRenameIsDirectory_ ? pendingRenameDirectoryPath_.c_str() : pendingRenameAsset_.assetPath.c_str());
 	if (!renameProtectedSuffix_.empty()) {
 		ImGui::TextDisabled("Protected suffix: %s", renameProtectedSuffix_.c_str());
 	}
@@ -855,9 +863,9 @@ void Engine::ProjectPanel::DrawRenameAssetPopup(AssetDatabase& database) {
 
 	if (inputResult.submitted) {
 
-		ProjectAssetFileResult result = ProjectAssetFileUtility::RenameAsset(
-			pendingRenameAsset_,
-			renameNameBuffer_);
+		ProjectAssetFileResult result = pendingRenameIsDirectory_ ?
+			ProjectAssetFileUtility::RenameDirectory(assetSource_, pendingRenameDirectoryPath_, renameNameBuffer_) :
+			ProjectAssetFileUtility::RenameAsset(pendingRenameAsset_, renameNameBuffer_);
 
 		if (result.success) {
 
@@ -1174,9 +1182,20 @@ void Engine::ProjectPanel::BeginCreateAsset(ProjectAssetFileKind kind, const std
 
 void Engine::ProjectPanel::BeginRenameAsset(const ProjectAssetEntry& asset) {
 
+	pendingRenameIsDirectory_ = false;
 	pendingRenameAsset_ = asset;
 	renameNameBuffer_ = ProjectAssetFileUtility::GetEditableAssetName(asset);
 	renameProtectedSuffix_ = ProjectAssetFileUtility::GetProtectedAssetSuffix(asset);
+	renameErrorMessage_.clear();
+	requestOpenRenamePopup_ = true;
+}
+
+void Engine::ProjectPanel::BeginRenameDirectory(const ProjectDirectoryNode& node) {
+
+	pendingRenameIsDirectory_ = true;
+	pendingRenameDirectoryPath_ = node.virtualPath;
+	renameNameBuffer_ = node.name;
+	renameProtectedSuffix_.clear();
 	renameErrorMessage_.clear();
 	requestOpenRenamePopup_ = true;
 }

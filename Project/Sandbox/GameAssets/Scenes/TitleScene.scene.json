@@ -67,6 +67,7 @@
                         "r": 0.0
                     },
                     "outlineWidth": 0.0,
+                    "parameterOverrides": {},
                     "pivot": {
                         "x": 0.5,
                         "y": 0.5
@@ -1321,7 +1322,7 @@
                     "enableZPrepass": true,
                     "layer": 0,
                     "material": "317efcbf7aca8e61",
-                    "mesh": "6f6bfe556d726c30",
+                    "mesh": "a31d53b333db8b8b",
                     "order": 0,
                     "queue": "Opaque",
                     "subMeshes": [
@@ -1351,6 +1352,12 @@
                                     "b": 0.12299466133117676,
                                     "g": 0.12299466133117676,
                                     "r": 0.12299466133117676
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
                                 },
                                 "metallicRoughnessTexture": "2ff5059acd4beb9f",
                                 "normalTexture": "320e12dfc078b594",
@@ -1451,7 +1458,7 @@
                     "enableZPrepass": true,
                     "layer": 0,
                     "material": "",
-                    "mesh": "6f6bfe556d726c30",
+                    "mesh": "a31d53b333db8b8b",
                     "order": 0,
                     "queue": "Opaque",
                     "subMeshes": [
@@ -1473,7 +1480,19 @@
                             },
                             "name": "Mesh_0",
                             "parameterOverrides": {
-                                "baseColorTexture": "c2ea9f4498073ab3"
+                                "baseColorTexture": "c2ea9f4498073ab3",
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.6000000238418579,
+                                    "g": 0.6000000238418579,
+                                    "r": 0.6000000238418579
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
                             },
                             "sourcePivot": {
                                 "x": 0.0,

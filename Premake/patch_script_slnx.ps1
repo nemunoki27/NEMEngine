@@ -2,8 +2,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$SlnxPath,
 
-    [Parameter(Mandatory = $true)]
-    [string]$ScriptCoreProject,
+    [Parameter(Mandatory = $false)]
+    [string]$ScriptCoreProject = "",
 
     [Parameter(Mandatory = $true)]
     [string]$GameScriptsProject

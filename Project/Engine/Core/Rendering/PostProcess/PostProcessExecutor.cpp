@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessBindingUtility.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessBindingNames.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/ComputeRootBinder.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
@@ -30,9 +31,9 @@ namespace {
 
 	constexpr const char* kFrameConstantsName = "PostProcessFrameConstants";
 	constexpr const char* kParameterConstantsName = "PostProcessParameters";
-	constexpr const char* kSourceColorName = "gSourceColor";
-	constexpr const char* kSourceDepthName = "gSourceDepth";
-	constexpr const char* kDestColorName = "gDestColor";
+	// 予約済みの入力名は共有定義を使う、出力名gDestColorはBindingUtility側でのみ参照する
+	constexpr const char* kSourceColorName = Engine::PostProcessBindingNames::kSourceColor;
+	constexpr const char* kSourceDepthName = Engine::PostProcessBindingNames::kSourceDepth;
 
 }
 
@@ -122,7 +123,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 
 	std::vector<ComputeBindItem> binds{};
 	binds.reserve(8);
-	// リフレクション情報からバッファをバインドするa
+	// リフレクション情報からバッファをバインドする
 	const ShaderReflectionInfo& reflection = pipelineState->GetComputeReflection();
 	for (const ShaderResourceBinding& binding : reflection.resources) {
 		if (!IsResourceBinding(binding)) {
@@ -148,7 +149,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	if (layoutIt == parameterLayoutCache_.end()) {
 
 		PipelineCacheEntry entry{};
-		entry.layout.Build(reflection, "PostProcessParameters");
+		entry.layout.Build(reflection, kParameterConstantsName);
 		entry.hasFrameConstantsByName = (pipelineState->FindBindingByName(kFrameConstantsName, ShaderBindingKind::CBV) != nullptr);
 		entry.hasFrameConstantsByRegister = (pipelineState->FindBinding(ShaderBindingKind::CBV, 0, 0) != nullptr);
 		layoutIt = parameterLayoutCache_.emplace(pipelineState, std::move(entry)).first;
@@ -272,7 +273,7 @@ bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 	auto layoutIt = parameterLayoutCache_.find(pipelineState);
 	if (layoutIt == parameterLayoutCache_.end()) {
 		PipelineCacheEntry entry{};
-		entry.layout.Build(reflection, "PostProcessParameters");
+		entry.layout.Build(reflection, kParameterConstantsName);
 		entry.hasFrameConstantsByName = (pipelineState->FindBindingByName(kFrameConstantsName, ShaderBindingKind::CBV) != nullptr);
 		entry.hasFrameConstantsByRegister = (pipelineState->FindBinding(ShaderBindingKind::CBV, 0, 0) != nullptr);
 		layoutIt = parameterLayoutCache_.emplace(pipelineState, std::move(entry)).first;

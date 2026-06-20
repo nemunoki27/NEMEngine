@@ -58,7 +58,7 @@
         },
         {
             "anchor": "AfterMaskedUI",
-            "enabled": true,
+            "enabled": false,
             "id": "450dc91a125eb489",
             "materialGuid": "0f3b28fa936b8269",
             "name": "fog",

@@ -8,9 +8,23 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Platforms>AnyCPU;x64</Platforms>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <OutputPath>..\Managed\$(Configuration)\</OutputPath>
+    <!-- portable pdb を出力してC#ゲームスクリプトにブレークポイントを置けるようにする -->
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
+    <!-- [SerializeField] はengineのdeserializationが代入するためCS0649/CS0414のfalse positiveを抑制する -->
+    <NoWarn>$(NoWarn);CS0649;CS0414</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    Edit reload / Toolbar Play の staging build 専用の出力先切り替え。
+    エディタは dotnet build に -p:NEMScriptStagingOutput=<stagingDir> を渡し、成果物をその場所で検証する。
+    この切り替えが無いと staging へ出力されず成果物検証に失敗し、Play がキャンセルされ reload も反映されない。
+    NEMScriptStagingOutput が渡されたときだけ GameScripts 自身の OutputPath を staging へ向ける。
+  -->
+  <PropertyGroup>
+    <NEMScriptStagingOutput Condition="'$(NEMScriptStagingOutput)' == ''"></NEMScriptStagingOutput>
+    <OutputPath Condition="'$(NEMScriptStagingOutput)' == ''">..\Managed\$(Configuration)\</OutputPath>
+    <OutputPath Condition="'$(NEMScriptStagingOutput)' != ''">$(NEMScriptStagingOutput)\</OutputPath>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Develop'">
@@ -18,9 +32,30 @@
     <DefineConstants>TRACE;DEVELOP</DefineConstants>
   </PropertyGroup>
 
+  <!-- Stable Script Type GUID の正は sidecar metadata(.cs.meta)。未指定時は EditorSync(寛容) -->
+  <PropertyGroup>
+    <NEMScriptMetadataMode Condition="'$(NEMScriptMetadataMode)' == ''">EditorSync</NEMScriptMetadataMode>
+  </PropertyGroup>
+
+  <!-- prebuilt NEMEngine SDK(External/NEMEngine)のmanagedツールチェーンを参照する。エンジンソースには依存しない -->
+  <PropertyGroup>
+    <NEMEngineSdkManaged>..\..\..\External\NEMEngine\Managed</NEMEngineSdkManaged>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Include="..\GameAssets\**\*.cs" Link="GameAssets\%(RecursiveDir)%(Filename)%(Extension)" />
-    <ProjectReference Include="..\..\..\..\External\NEMEngine\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" Condition="Exists('..\..\..\..\External\NEMEngine\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj')" />
-    <ProjectReference Include="..\..\..\..\NEMEngine\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" Condition="Exists('..\..\..\..\NEMEngine\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj')" />
+    <!-- sidecar metadata を source generator へ AdditionalFiles として渡す（Stable ID の正） -->
+    <AdditionalFiles Include="..\GameAssets\**\*.cs.meta" />
+    <CompilerVisibleProperty Include="NEMScriptMetadataMode" />
+
+    <!-- gameplay API はSDK同梱のDLLを参照する -->
+    <Reference Include="NEM.ScriptCore">
+      <HintPath>$(NEMEngineSdkManaged)\Ref\NEM.ScriptCore.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <!-- Stable ID 生成と ScriptBehaviour 診断の Roslyn analyzer（出力には含めない） -->
+    <Analyzer Include="$(NEMEngineSdkManaged)\Analyzers\NEM.ScriptCodeGen.dll" />
+    <Analyzer Include="$(NEMEngineSdkManaged)\Analyzers\NEM.ScriptAnalyzers.dll" />
   </ItemGroup>
 </Project>

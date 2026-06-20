@@ -338,6 +338,54 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameAsset(cons
 	return result;
 }
 
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameDirectory(ProjectAssetSource source,
+	const std::string& directoryVirtualPath, const std::string& requestedName) {
+
+	ProjectAssetFileResult result{};
+	result.isDirectory = true;
+
+	const std::filesystem::path sourcePath = ResolveVirtualDirectory(source, directoryVirtualPath);
+	const std::filesystem::path rootPath = GetSourceRoot(source);
+	// ルートフォルダ自身はリネーム禁止
+	if (sourcePath.empty() || sourcePath == rootPath ||
+		!std::filesystem::exists(sourcePath) || !std::filesystem::is_directory(sourcePath)) {
+		result.message = "Source folder was not found or cannot be renamed.";
+		return result;
+	}
+
+	// フォルダ名にも使えない文字は除去する、空になったら元の名前を維持する
+	std::string baseName = SanitizeFileName(requestedName.empty() ? sourcePath.filename().string() : requestedName);
+	if (baseName.empty()) {
+		baseName = sourcePath.filename().string();
+	}
+
+	const std::filesystem::path targetPath = sourcePath.parent_path() / baseName;
+	// 変更がないなら成功扱い
+	if (targetPath == sourcePath) {
+		result.success = true;
+		result.fullPath = sourcePath;
+		result.assetPath = directoryVirtualPath;
+		return result;
+	}
+	if (std::filesystem::exists(targetPath)) {
+		result.message = "Target folder already exists.";
+		return result;
+	}
+
+	// フォルダ名変更はアセットのGUID参照に影響しない、.meta内のGUIDで参照されるためRebuildで再解決される
+	std::error_code ec;
+	std::filesystem::rename(sourcePath, targetPath, ec);
+	if (ec) {
+		result.message = "Failed to rename folder.";
+		return result;
+	}
+
+	result.success = true;
+	result.fullPath = targetPath;
+	result.assetPath = ToAssetPath(targetPath);
+	return result;
+}
+
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateDirectory(ProjectAssetSource source,
 	const std::string& directoryVirtualPath) {
 
@@ -613,5 +661,74 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::ImportExternalFi
 	result.success = true;
 	result.fullPath = targetPath;
 	result.assetPath = ToAssetPath(targetPath);
+	return result;
+}
+
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::ImportExternalDirectory(ProjectAssetSource targetSource,
+	const std::string& targetDirectoryVirtualPath, const std::filesystem::path& externalDirectoryPath) {
+
+	ProjectAssetFileResult result{};
+	result.isDirectory = true;
+
+	std::error_code ec;
+	// フォルダ以外や存在しないものは取り込まない
+	if (externalDirectoryPath.empty() || !std::filesystem::is_directory(externalDirectoryPath, ec)) {
+		result.message = "Dropped path is not a folder.";
+		return result;
+	}
+
+	// 取り込み先ディレクトリを解決して確保する
+	const std::filesystem::path targetDirectory = ResolveVirtualDirectory(targetSource, targetDirectoryVirtualPath);
+	if (targetDirectory.empty()) {
+		result.message = "Target folder was not found.";
+		return result;
+	}
+	std::filesystem::create_directories(targetDirectory, ec);
+	if (ec) {
+		result.message = "Failed to create target folder.";
+		return result;
+	}
+
+	// ドロップしたフォルダ名で取り込み先に新フォルダを作る、既存と衝突したら連番にする
+	const std::filesystem::path destinationRoot = MakeUniquePath(targetDirectory / externalDirectoryPath.filename());
+	if (destinationRoot.empty()) {
+		result.message = "Failed to build import folder path.";
+		return result;
+	}
+	std::filesystem::create_directories(destinationRoot, ec);
+	if (ec) {
+		result.message = "Failed to create imported folder.";
+		return result;
+	}
+
+	// 中身を再帰的にコピーする、.meta等のサイドカーはRebuildで再発番させるためスキップする
+	for (const auto& entry : std::filesystem::recursive_directory_iterator(externalDirectoryPath, ec)) {
+		if (ec) {
+			result.message = "Failed to scan dropped folder.";
+			return result;
+		}
+
+		const std::filesystem::path relative = std::filesystem::relative(entry.path(), externalDirectoryPath, ec);
+		if (ec || !IsSafeRelativePath(relative)) {
+			continue;
+		}
+
+		const std::filesystem::path destination = destinationRoot / relative;
+		if (entry.is_directory()) {
+			std::filesystem::create_directories(destination, ec);
+		}
+		else if (entry.is_regular_file() && !ShouldSkipCopyFile(entry.path())) {
+			std::filesystem::create_directories(destination.parent_path(), ec);
+			std::filesystem::copy_file(entry.path(), destination, std::filesystem::copy_options::none, ec);
+		}
+		if (ec) {
+			result.message = "Failed to copy dropped folder contents.";
+			return result;
+		}
+	}
+
+	result.success = true;
+	result.fullPath = destinationRoot;
+	result.assetPath = ToAssetPath(destinationRoot);
 	return result;
 }

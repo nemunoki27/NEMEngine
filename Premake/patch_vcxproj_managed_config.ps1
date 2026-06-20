@@ -104,6 +104,8 @@ $preBuildCommand = @(
 ) -join "`r`n"
 
 $postBuildCommand = @(
+    # NEMEngine.dll を実行ファイル横へ配置する（in-repo は Generated/Bin から、利用側はimport lib参照のみ）
+    'if exist "$(ProjectDir)..\..\Generated\Bin\$(Configuration)\NEMEngine\NEMEngine.dll" copy /Y "$(ProjectDir)..\..\Generated\Bin\$(Configuration)\NEMEngine\NEMEngine.dll" "$(TargetDir)NEMEngine.dll"',
     'copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"',
     'copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dxil.dll"',
     ('if exist "' + $scriptCoreOutput + '\$(Configuration)\*" xcopy /Y /I "' + $scriptCoreOutput + '\$(Configuration)\*" "$(TargetDir)Managed\"'),

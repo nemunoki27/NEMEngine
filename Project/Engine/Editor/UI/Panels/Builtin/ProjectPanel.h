@@ -157,6 +157,10 @@ namespace Engine {
 		bool requestOpenCreatePopup_ = false;
 		// リネーム対象アセットの情報
 		ProjectAssetEntry pendingRenameAsset_{};
+		// リネーム対象がフォルダかどうか、trueならpendingRenameDirectoryPath_を使う
+		bool pendingRenameIsDirectory_ = false;
+		// リネーム対象フォルダの仮想パス
+		std::string pendingRenameDirectoryPath_;
 		// リネーム入力で編集できるファイル名部分
 		std::string renameNameBuffer_;
 		// リネーム時に固定表示する保護サフィックス
@@ -258,6 +262,8 @@ namespace Engine {
 		void BeginCreateAsset(ProjectAssetFileKind kind, const std::string& directoryVirtualPath);
 		// リネーム処理の入力状態を初期化する
 		void BeginRenameAsset(const ProjectAssetEntry& asset);
+		// フォルダのリネーム入力状態を初期化する
+		void BeginRenameDirectory(const ProjectDirectoryNode& node);
 		// 作成メニュー項目を描画する
 		void DrawCreateMenuItems(const std::string& directoryVirtualPath);
 		// ファイル操作後にAssetDatabaseと表示を更新する
