@@ -232,10 +232,15 @@
         { "managedName": "UseGravity", "nativeMember": "useGravity", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "GravityScale", "nativeMember": "gravityScale", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "LinearDamping", "nativeMember": "linearDamping", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Restitution", "nativeMember": "restitution", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Friction", "nativeMember": "friction", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "AngularDamping", "nativeMember": "angularDamping", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "FreezePositionX", "nativeMember": "freezePositionX", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "FreezePositionY", "nativeMember": "freezePositionY", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "FreezePositionZ", "nativeMember": "freezePositionZ", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "AllowTopple", "nativeMember": "allowTopple", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "LinearVelocity", "nativeMember": "linearVelocity", "kind": "Vector3", "access": "ReadWrite" },
+        { "managedName": "AngularVelocity", "nativeMember": "angularVelocity", "kind": "Vector3", "access": "ReadWrite" },
         { "managedName": "AccumulatedForce", "nativeMember": "accumulatedForce", "kind": "Vector3", "access": "ReadWrite" }
       ]
     },
@@ -252,9 +257,14 @@
         { "managedName": "UseGravity", "nativeMember": "useGravity", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "GravityScale", "nativeMember": "gravityScale", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "LinearDamping", "nativeMember": "linearDamping", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Restitution", "nativeMember": "restitution", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Friction", "nativeMember": "friction", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "AngularDamping", "nativeMember": "angularDamping", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "AngularVelocity", "nativeMember": "angularVelocity", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "FreezePositionX", "nativeMember": "freezePositionX", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "FreezePositionY", "nativeMember": "freezePositionY", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "FreezeRotation", "nativeMember": "freezeRotation", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "AllowTopple", "nativeMember": "allowTopple", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "LinearVelocity", "nativeMember": "linearVelocity", "kind": "Vector2", "access": "ReadWrite" },
         { "managedName": "AccumulatedForce", "nativeMember": "accumulatedForce", "kind": "Vector2", "access": "ReadWrite" }
       ]

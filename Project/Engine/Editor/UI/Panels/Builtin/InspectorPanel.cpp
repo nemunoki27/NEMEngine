@@ -65,6 +65,8 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/SkinnedAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Audio/AudioSourceInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/CollisionInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/RigidbodyInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Rigidbody2DInspectorDrawer.h>
 
 // c++
 #include <algorithm>
@@ -121,7 +123,7 @@ namespace {
 		const char* category;
 	};
 	// 追加できるコンポーネントのメニューエントリー
-	constexpr std::array<InspectorComponentMenuEntry, 18> kOptionalComponentMenuEntries = { {
+	constexpr std::array<InspectorComponentMenuEntry, 20> kOptionalComponentMenuEntries = { {
 
 		{ "PerspectiveCamera",  "PerspectiveCamera",  "Camera" },
 		{ "OrthographicCamera", "OrthographicCamera", "Camera" },
@@ -129,6 +131,8 @@ namespace {
 		{ "Script",             "Script",             "Scripting" },
 		{ "Audio Source",       "AudioSource",        "Audio" },
 		{ "Collision",          "Collision",          "Physics" },
+		{ "Rigidbody",          "Rigidbody",          "Physics" },
+		{ "Rigidbody 2D",       "Rigidbody2D",        "Physics" },
 		{ "Mesh Renderer",      "MeshRenderer",       "Rendering" },
 		{ "Sprite Renderer",    "SpriteRenderer",     "Rendering" },
 		{ "Text Renderer",      "TextRenderer",       "Rendering" },
@@ -362,6 +366,8 @@ Engine::InspectorPanel::InspectorPanel() {
 	componentDrawers_.emplace_back(std::make_unique<SpotLightInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<AudioSourceInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<CollisionInspectorDrawer>());
+	componentDrawers_.emplace_back(std::make_unique<RigidbodyInspectorDrawer>());
+	componentDrawers_.emplace_back(std::make_unique<Rigidbody2DInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<ScriptInspectorDrawer>());
 }
 

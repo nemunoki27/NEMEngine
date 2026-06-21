@@ -25,16 +25,30 @@ namespace {
 		return Engine::Vector3::NormalizeOr(b.center - a.center, Engine::Vector3(1.0f, 0.0f, 0.0f));
 	}
 
-	// 接触情報をCollisionContactへ詰める
+	// Box上でpointに最も近い点を求める、Quadもz半幅0のBoxとして扱える
+	Engine::Vector3 ClosestPointOnBox(const Engine::CollisionShapeInstance& box, const Engine::Vector3& point) {
+
+		Engine::Vector3 closest = box.center;
+		const Engine::Vector3 local = point - box.center;
+		for (uint32_t i = 0; i < 3; ++i) {
+
+			const float halfExtent = i == 0 ? box.halfExtents.x : (i == 1 ? box.halfExtents.y : box.halfExtents.z);
+			const float distance = std::clamp(Engine::Vector3::Dot(local, box.axes[i]), -halfExtent, halfExtent);
+			closest += box.axes[i] * distance;
+		}
+		return closest;
+	}
+
+	// 接触情報をCollisionContactへ詰める、pointは実際の接触面の代表点
 	void FillContact(const Engine::CollisionShapeInstance& a, const Engine::CollisionShapeInstance& b,
-		Engine::CollisionContact& outContact, const Engine::Vector3& normal, float penetration) {
+		Engine::CollisionContact& outContact, const Engine::Vector3& normal, float penetration, const Engine::Vector3& point) {
 
 		outContact.self = a.entity;
 		outContact.other = b.entity;
 		outContact.selfShapeIndex = a.shapeIndex;
 		outContact.otherShapeIndex = b.shapeIndex;
 		outContact.normal = normal;
-		outContact.point = (a.center + b.center) * 0.5f;
+		outContact.point = point;
 		outContact.penetration = penetration;
 		outContact.trigger = a.trigger || b.trigger;
 	}
@@ -57,7 +71,7 @@ namespace {
 		const Engine::Vector3 normal = distance > kEpsilon ?
 			Engine::Vector3(delta.x / distance, delta.y / distance, 0.0f) :
 			Engine::Vector3(1.0f, 0.0f, 0.0f);
-		FillContact(a, b, outContact, normal, radius - distance);
+		FillContact(a, b, outContact, normal, radius - distance, a.center + normal * a.radius);
 		return true;
 	}
 
@@ -106,7 +120,7 @@ namespace {
 		if (Engine::Vector3::Dot(bestAxis, b.center - a.center) < 0.0f) {
 			bestAxis = -bestAxis;
 		}
-		FillContact(a, b, outContact, bestAxis, minPenetration);
+		FillContact(a, b, outContact, bestAxis, minPenetration, ClosestPointOnBox(b, a.center));
 		return true;
 	}
 
@@ -143,9 +157,9 @@ namespace {
 		}
 
 		if (circleIsA) {
-			FillContact(circle, quad, outContact, normalCircleToQuad, penetration);
+			FillContact(circle, quad, outContact, normalCircleToQuad, penetration, closest);
 		} else {
-			FillContact(quad, circle, outContact, -normalCircleToQuad, penetration);
+			FillContact(quad, circle, outContact, -normalCircleToQuad, penetration, closest);
 		}
 		return true;
 	}
@@ -165,22 +179,9 @@ namespace {
 		}
 
 		const float distance = std::sqrt(distanceSq);
-		FillContact(a, b, outContact, Engine::Vector3::NormalizeOr(delta, Engine::Vector3(1.0f, 0.0f, 0.0f)), radius - distance);
+		const Engine::Vector3 normal = Engine::Vector3::NormalizeOr(delta, Engine::Vector3(1.0f, 0.0f, 0.0f));
+		FillContact(a, b, outContact, normal, radius - distance, a.center + normal * a.radius);
 		return true;
-	}
-
-	// Box上でpointに最も近い点を求める
-	Engine::Vector3 ClosestPointOnBox(const Engine::CollisionShapeInstance& box, const Engine::Vector3& point) {
-
-		Engine::Vector3 closest = box.center;
-		const Engine::Vector3 local = point - box.center;
-		for (uint32_t i = 0; i < 3; ++i) {
-
-			const float halfExtent = i == 0 ? box.halfExtents.x : (i == 1 ? box.halfExtents.y : box.halfExtents.z);
-			const float distance = std::clamp(Engine::Vector3::Dot(local, box.axes[i]), -halfExtent, halfExtent);
-			closest += box.axes[i] * distance;
-		}
-		return closest;
 	}
 
 	// Sphere3DとBoxの衝突判定
@@ -214,9 +215,9 @@ namespace {
 		}
 
 		if (sphereIsA) {
-			FillContact(sphere, box, outContact, normalSphereToBox, penetration);
+			FillContact(sphere, box, outContact, normalSphereToBox, penetration, closest);
 		} else {
-			FillContact(box, sphere, outContact, -normalSphereToBox, penetration);
+			FillContact(box, sphere, outContact, -normalSphereToBox, penetration, closest);
 		}
 		return true;
 	}
@@ -271,7 +272,7 @@ namespace {
 		if (Engine::Vector3::Dot(bestAxis, centerDelta) < 0.0f) {
 			bestAxis = -bestAxis;
 		}
-		FillContact(a, b, outContact, bestAxis, minPenetration);
+		FillContact(a, b, outContact, bestAxis, minPenetration, ClosestPointOnBox(b, a.center));
 		return true;
 	}
 }

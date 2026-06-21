@@ -197,13 +197,13 @@
                         "r": 1.0
                     },
                     "direction": {
-                        "x": 0.6004685759544373,
-                        "y": -0.7137882709503174,
-                        "z": -0.3604773283004761
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
                     },
                     "enabled": true,
-                    "intensity": 1.3200000524520874,
-                    "shadowStrength": 0.38999998569488525
+                    "intensity": 8.6899995803833,
+                    "shadowStrength": 1.0
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
@@ -1239,6 +1239,30 @@
                 "Name": {
                     "name": "Player"
                 },
+                "Rigidbody": {
+                    "allowTopple": false,
+                    "angularDamping": 0.05000000074505806,
+                    "angularVelocity": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "bodyType": "Dynamic",
+                    "freezePositionX": false,
+                    "freezePositionY": false,
+                    "freezePositionZ": false,
+                    "friction": 0.4000000059604645,
+                    "gravityScale": 1.0,
+                    "linearDamping": 0.0,
+                    "linearVelocity": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "mass": 1.0,
+                    "restitution": 0.0,
+                    "useGravity": true
+                },
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "6d6cda8f769c6a9c",
@@ -1292,9 +1316,9 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 0.02366386353969574,
-                        "y": 0.11329194903373718,
-                        "z": -2.2828197479248047
+                        "x": 0.0,
+                        "y": 0.47530263662338257,
+                        "z": 0.0
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -1313,6 +1337,41 @@
         },
         {
             "Components": {
+                "Collision": {
+                    "enablePushback": true,
+                    "enabled": true,
+                    "isStatic": true,
+                    "shapes": [
+                        {
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "halfSize2D": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "isTrigger": false,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "radius": 0.5,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "AABB3D",
+                            "useTransformRotation": true
+                        }
+                    ],
+                    "typeMask": 1
+                },
                 "Hierarchy": {
                     "parentLocalFileID": "",
                     "siblingOrder": 4
@@ -1394,7 +1453,7 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": 0.0,
+                        "y": -0.5820400714874268,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -1404,9 +1463,9 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 128.0,
-                        "y": 0.10000000149011612,
-                        "z": 128.0
+                        "x": 128.9398956298828,
+                        "y": 1.0399996042251587,
+                        "z": 128.9398956298828
                     }
                 }
             },
@@ -1525,19 +1584,19 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": 0.9371592402458191,
-                        "z": 6.400527477264404
+                        "y": 0.813086986541748,
+                        "z": 6.435870170593262
                     },
                     "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
+                        "w": 0.9903891682624817,
+                        "x": -0.1383088082075119,
                         "y": 0.0,
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 0.7000001072883606,
-                        "y": 0.7000001072883606,
-                        "z": 0.7000001072883606
+                        "x": 2.570000410079956,
+                        "y": 0.7000006437301636,
+                        "z": 5.39000129699707
                     }
                 }
             },
@@ -1606,6 +1665,399 @@
                 }
             },
             "LocalFileID": "e8611522539f03c3"
+        },
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": true,
+                    "enabled": true,
+                    "isStatic": true,
+                    "shapes": [
+                        {
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 0.9999996423721313,
+                                "y": 0.9999996423721313,
+                                "z": 0.9999996423721313
+                            },
+                            "halfSize2D": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "isTrigger": false,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "radius": 0.5,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "OBB3D",
+                            "useTransformRotation": true
+                        }
+                    ],
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "",
+                    "mesh": "a31d53b333db8b8b",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "Mesh_0",
+                            "parameterOverrides": {
+                                "baseColorTexture": "c2ea9f4498073ab3",
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.6000000238418579,
+                                    "g": 0.6000000238418579,
+                                    "r": 0.6000000238418579
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "stableID": "c15106cc0a78b015",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_1"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "7e5ea89724ef6be2",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 2.2629189491271973,
+                        "z": 16.799076080322266
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 2.570000410079956,
+                        "y": 0.7000006437301636,
+                        "z": 5.39000129699707
+                    }
+                }
+            },
+            "LocalFileID": "7e5ea89724ef6be2"
+        },
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": true,
+                    "enabled": true,
+                    "isStatic": true,
+                    "shapes": [
+                        {
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 0.9999996423721313,
+                                "y": 0.9999996423721313,
+                                "z": 0.9999996423721313
+                            },
+                            "halfSize2D": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "isTrigger": false,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "radius": 0.5,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "OBB3D",
+                            "useTransformRotation": true
+                        }
+                    ],
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "",
+                    "mesh": "a31d53b333db8b8b",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "Mesh_0",
+                            "parameterOverrides": {
+                                "baseColorTexture": "c2ea9f4498073ab3",
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.6000000238418579,
+                                    "g": 0.6000000238418579,
+                                    "r": 0.6000000238418579
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "stableID": "c15106cc0a78b015",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_2"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "d01d388eb151aac3",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 7.926916122436523,
+                        "y": 3.6192469596862793,
+                        "z": 19.582904815673828
+                    },
+                    "localRotation": {
+                        "w": 0.701453447341919,
+                        "x": -0.08923611789941788,
+                        "y": 0.701453447341919,
+                        "z": 0.0892360731959343
+                    },
+                    "localScale": {
+                        "x": 2.5700273513793945,
+                        "y": 0.7000076770782471,
+                        "z": 5.3900556564331055
+                    }
+                }
+            },
+            "LocalFileID": "d01d388eb151aac3"
+        },
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": true,
+                    "enabled": true,
+                    "isStatic": true,
+                    "shapes": [
+                        {
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 0.9999996423721313,
+                                "y": 0.9999996423721313,
+                                "z": 0.9999996423721313
+                            },
+                            "halfSize2D": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "isTrigger": false,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "radius": 0.5,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "OBB3D",
+                            "useTransformRotation": true
+                        }
+                    ],
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "",
+                    "mesh": "a31d53b333db8b8b",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "Mesh_0",
+                            "parameterOverrides": {
+                                "baseColorTexture": "c2ea9f4498073ab3",
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.6000000238418579,
+                                    "g": 0.6000000238418579,
+                                    "r": 0.6000000238418579
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "stableID": "c15106cc0a78b015",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube_3"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "5030dfe78936672f",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 18.344131469726563,
+                        "y": 4.934080123901367,
+                        "z": 19.582904815673828
+                    },
+                    "localRotation": {
+                        "w": 0.7071068286895752,
+                        "x": 0.0,
+                        "y": 0.7071068286895752,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 2.5700490474700928,
+                        "y": 0.7000131011009216,
+                        "z": 5.390099048614502
+                    }
+                }
+            },
+            "LocalFileID": "5030dfe78936672f"
         }
     ],
     "Header": {

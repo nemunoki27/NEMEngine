@@ -32,6 +32,33 @@ namespace Engine {
 			return rotation;
 		}
 
+		// 親階層を辿ってworld座標を組み立てる、worldMatrixはLateUpdateまで古いのでlocal値から毎回求める
+		// これがないとFixedUpdateの重力でlocalPosが動いてもUpdate中のpositionが古い値を返し、書き戻しで重力が打ち消される
+		Vector3 ComputeWorldPosition(ECSWorld& world, const Entity& entity) {
+
+			TransformComponent* self = world.TryGetComponent<TransformComponent>(entity);
+			if (!self) {
+				return Vector3::AnyInit(0.0f);
+			}
+
+			// 自分のlocal行列から始め、親のlocal行列を右から掛けてworldを作る
+			Matrix4x4 matrix = Matrix4x4::MakeAffineMatrix(self->localScale, self->localRotation, self->localPos);
+			Entity current = entity;
+			for (int32_t guard = 0; guard < 1024; ++guard) {
+				HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(current);
+				if (!hierarchy || !world.IsAlive(hierarchy->parent)) {
+					break;
+				}
+				const Entity parent = hierarchy->parent;
+				if (TransformComponent* parentTransform = world.TryGetComponent<TransformComponent>(parent)) {
+					matrix = matrix * Matrix4x4::MakeAffineMatrix(
+						parentTransform->localScale, parentTransform->localRotation, parentTransform->localPos);
+				}
+				current = parent;
+			}
+			return matrix.GetTranslationValue();
+		}
+
 		// 親階層のlocalScaleを成分積で累積したworldのlossy scale、回転による剪断は無視するUnityのlossyScale相当
 		Vector3 ComputeWorldScale(ECSWorld& world, const Entity& entity) {
 
@@ -68,9 +95,9 @@ namespace Engine {
 			return {};
 		}
 
+		// worldMatrixはLateUpdateでしか更新されないため、Update中でも正しい値になるようlocal連鎖から毎回求める
 		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-		// ワールド行列の平行移動成分つまりワールド座標を抽出して返す
-		return transform ? ToManagedVector3(transform->worldMatrix.GetTranslationValue()) : ManagedVector3{};
+		return transform ? ToManagedVector3(ComputeWorldPosition(*world, resolved)) : ManagedVector3{};
 	}
 
 	void ManagedScriptRuntime::SetPositionCallback(ManagedNativeEntity entity, ManagedVector3 value) {

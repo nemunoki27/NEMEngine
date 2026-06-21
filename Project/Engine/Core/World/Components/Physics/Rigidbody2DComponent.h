@@ -25,12 +25,22 @@ namespace Engine {
 		float gravityScale = 1.0f;
 		// 速度の減衰率
 		float linearDamping = 0.0f;
+		// はね返り係数、0で跳ねず1で完全反発
+		float restitution = 0.0f;
+		// 接線方向の摩擦、0で滑り続け1で即止まる
+		float friction = 0.4f;
+		// 角速度の減衰率
+		float angularDamping = 0.05f;
+		// Z軸まわりの角速度、rad/s
+		float angularVelocity = 0.0f;
 
 		// 軸ごとの移動拘束
 		bool freezePositionX = false;
 		bool freezePositionY = false;
 		// 回転を固定するか
 		bool freezeRotation = false;
+		// 支えが重心からずれたとき倒れて落ちるか
+		bool allowTopple = false;
 
 		// 線形速度
 		Vector2 linearVelocity = Vector2::AnyInit(0.0f);

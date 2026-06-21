@@ -9,6 +9,7 @@
 
 // c++
 #include <algorithm>
+#include <cmath>
 
 namespace {
 
@@ -38,7 +39,7 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 
 	// 3D剛体
 	world.ForEach<RigidbodyComponent, TransformComponent>(
-		[&]([[maybe_unused]] Entity entity, RigidbodyComponent& body, TransformComponent& transform) {
+		[&](Entity entity, RigidbodyComponent& body, TransformComponent& transform) {
 
 			// Dynamic以外は積分せず蓄積力だけ消費する
 			if (body.bodyType != RigidbodyType::Dynamic) {
@@ -57,11 +58,24 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 			// 位置を更新して蓄積力を消費する
 			transform.localPos += body.linearVelocity * dt;
 			body.accumulatedForce = Vector3::AnyInit(0.0f);
+
+			// 角速度で姿勢を更新して減衰させる
+			const float angSpeed = body.angularVelocity.Length();
+			if (angSpeed > 1e-5f) {
+
+				const Vector3 axis = Vector3::Normalize(body.angularVelocity);
+				const Quaternion spin = Quaternion::MakeAxisAngle(axis, angSpeed * dt);
+				transform.localRotation = Quaternion::Normalize(spin * transform.localRotation);
+			}
+			body.angularVelocity *= std::clamp(1.0f - body.angularDamping * dt, 0.0f, 1.0f);
+
+			// localPosとlocalRotationを直接動かすので、TransformSystemへ再計算を促すためdirtyにする
+			MarkTransformSubtreeDirty(world, entity);
 		});
 
 	// 2D剛体、XY平面のみ動かしZは変えない
 	world.ForEach<Rigidbody2DComponent, TransformComponent>(
-		[&]([[maybe_unused]] Entity entity, Rigidbody2DComponent& body, TransformComponent& transform) {
+		[&](Entity entity, Rigidbody2DComponent& body, TransformComponent& transform) {
 
 			if (body.bodyType != RigidbodyType::Dynamic) {
 				body.accumulatedForce = Vector2::AnyInit(0.0f);
@@ -77,5 +91,16 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 			transform.localPos.x += body.linearVelocity.x * dt;
 			transform.localPos.y += body.linearVelocity.y * dt;
 			body.accumulatedForce = Vector2::AnyInit(0.0f);
+
+			// Z軸まわりの角速度で姿勢を更新して減衰させる
+			if (!body.freezeRotation && std::fabs(body.angularVelocity) > 1e-5f) {
+
+				const Quaternion spin = Quaternion::MakeAxisAngle(Vector3(0.0f, 0.0f, 1.0f), body.angularVelocity * dt);
+				transform.localRotation = Quaternion::Normalize(spin * transform.localRotation);
+			}
+			body.angularVelocity *= std::clamp(1.0f - body.angularDamping * dt, 0.0f, 1.0f);
+
+			// localPosとlocalRotationを直接動かすので、TransformSystemへ再計算を促すためdirtyにする
+			MarkTransformSubtreeDirty(world, entity);
 		});
 }
