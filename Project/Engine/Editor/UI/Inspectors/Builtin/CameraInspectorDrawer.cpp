@@ -44,6 +44,12 @@ void Engine::OrthographicCameraInspectorDrawer::DrawFields([[maybe_unused]] cons
 			return MyGUI::DragFloat("遠クリップ", draft.farClip, clipSetting);
 			});
 	}
+
+	//============================================================================
+	//	行列
+	//============================================================================
+
+	MyGUI::TextMatrix4x4("ビュープロジェクト行列", draft.common.viewProjectionMatrix);
 }
 
 void Engine::OrthographicCameraInspectorDrawer::OnBeforeCommit([[maybe_unused]] const OrthographicCameraComponent& beforeComponent,

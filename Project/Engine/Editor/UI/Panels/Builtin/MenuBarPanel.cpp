@@ -9,6 +9,26 @@
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
+// c++
+#include <string>
+
+namespace {
+
+	// エンジンDLLのビルド時刻を "Mmm dd hh:mm" で返す、SDK(エンジン)を作り直すと更新される
+	const char* GetEngineBuildVersion() {
+
+		static const std::string version = []() {
+			const std::string date = __DATE__; // "Mmm dd yyyy"
+			const std::string time = __TIME__; // "hh:mm:ss"
+			std::string day = date.substr(4, 2);
+			// 1桁の日はスペース埋めされるので0埋めへ直す
+			if (!day.empty() && day[0] == ' ') { day[0] = '0'; }
+			return date.substr(0, 3) + " " + day + " " + time.substr(0, 5);
+			}();
+		return version.c_str();
+	}
+}
+
 //============================================================================
 //	MenuBarPanel classMethods
 //============================================================================
@@ -28,15 +48,12 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::SetWindowFontScale(0.72f);
 
 		const bool canEditScene = context.CanEditScene();
-		if (ImGui::MenuItem("New Scene", nullptr, false, canEditScene)) {
+		if (ImGui::MenuItem("シーン作成", nullptr, false, canEditScene)) {
 			context.host->RequestNewScene();
 		}
-		ImGui::MenuItem("Open Scene...", nullptr, false, false);
-		if (ImGui::MenuItem("Save Scene", "Ctrl+S", false, canEditScene)) {
+		if (ImGui::MenuItem("シーンを保存", "Ctrl+S", false, canEditScene)) {
 			context.host->RequestSaveScene();
 		}
-		ImGui::Separator();
-		ImGui::MenuItem("Save Selected As Prefab", nullptr, false, false);
 
 		ImGui::SetWindowFontScale(1.0f);
 
@@ -216,7 +233,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::Separator();
 
 		// DeferredのGBufferをGameView/SceneViewへ表示する、チェックは常に1つだけ、全部外すと通常描画へ戻る
-		ImGui::TextDisabled("Deferred GBuffer View (1つだけ)");
+		ImGui::TextDisabled("Deferred GBuffer View");
 		if (context.editorState) {
 
 			struct GBufferDebugItem {
@@ -249,6 +266,10 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 		ImGui::EndMenu();
 	}
+
+	// 一番右にエンジンのビルド時刻をバージョンとして表示する
+	ImGui::TextDisabled("Engine %s", GetEngineBuildVersion());
+
 	ImGui::SetWindowFontScale(1.0f);
 
 	ImGui::EndMainMenuBar();

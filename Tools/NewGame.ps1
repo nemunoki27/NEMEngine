@@ -63,7 +63,7 @@ try {
     }
 
     # テンプレ内の __GAME_NAME__ トークンを置換し、ファイル名のトークンもリネームする
-    Get-ChildItem -Recurse -File $gameRoot | Where-Object { $_.Extension -in '.lua','.csproj','.cs','.json','.code-workspace','.txt','.md','.bat' } | ForEach-Object {
+    Get-ChildItem -Recurse -File $gameRoot | Where-Object { $_.Extension -in '.lua','.csproj','.cs','.json','.txt','.md','.bat' } | ForEach-Object {
         # テンプレはUTF-8なので必ずUTF-8として読み書きする（既定コードページで読むと日本語コメントが化ける）
         $text = [System.IO.File]::ReadAllText($_.FullName)
         $replaced = $text.Replace('__GAME_NAME__', $Name)
@@ -107,7 +107,7 @@ try {
     Write-Host "  ゲームプロジェクト : $gameRoot"
     Write-Host "  Visual Studioで開く : $gameRoot\Project\$Name.slnx"
     Write-Host "  '$Name' プロジェクトを Debug / x64 でビルドして実行してください。"
-    Write-Host "  C#スクリプトの場所  : $gameRoot\Project\$Name\GameAssets\ （デバッグは .code-workspace を VS Code で開く）"
+    Write-Host "  C#スクリプトの場所  : $gameRoot\Project\$Name\GameAssets\ （デバッグは Visual Studio でソリューションを開く）"
 }
 catch {
     Write-Host ""

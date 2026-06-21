@@ -137,6 +137,8 @@ namespace Engine {
 		void RebuildIndex(const std::vector<std::filesystem::path>& scanRoots);
 		// 索引構築後に依存関係・逆引き参照・参照診断を構築する
 		void RebuildDependencies();
+		// font.jsonのatlasTexture参照を隣接アトラス画像の現在GUIDへ揃えて書き戻す
+		void ReconcileFontAtlasReferences();
 		// 1つのアセットファイルを索引へ登録する
 		AssetID RegisterAssetFile(const std::filesystem::path& assetFullPath);
 		// 指定アセットの依存先を抽出する

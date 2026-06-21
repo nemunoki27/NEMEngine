@@ -55,28 +55,6 @@
                 "gSceneColor": "SceneColorFinal"
             },
             "textures": {}
-        },
-        {
-            "anchor": "AfterMaskedUI",
-            "enabled": false,
-            "id": "450dc91a125eb489",
-            "materialGuid": "0f3b28fa936b8269",
-            "name": "fog",
-            "parameters": {
-                "fogColor": [
-                    0.5899999737739563,
-                    0.7200000286102295,
-                    0.7200000286102295
-                ],
-                "fogEnd": 0.2199999988079071,
-                "fogMaxAmount": 0.800000011920929,
-                "fogStart": 0.0
-            },
-            "passKind": "PostProcess",
-            "renderTargetInputs": {
-                "gSceneDepth": "SceneDepth"
-            },
-            "textures": {}
         }
     ],
     "version": 1

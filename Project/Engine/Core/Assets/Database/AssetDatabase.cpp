@@ -50,6 +50,7 @@ namespace {
 			{ "occlusionTexture", Engine::AssetType::Texture },
 			{ "specularTexture", Engine::AssetType::Texture },
 			{ "font", Engine::AssetType::Font },
+			{ "atlasTexture", Engine::AssetType::Texture },
 			{ "audioClip", Engine::AssetType::Audio },
 			{ "script", Engine::AssetType::Script },
 			{ "prefab", Engine::AssetType::Prefab },
@@ -149,6 +150,8 @@ bool Engine::AssetDatabase::RebuildMeta() {
 	// 依存抽出を索引構築と同時にやると、後から登録される正常アセットをMissing扱いしてしまう
 	RebuildIndex(scanRoots);
 	DetectOrphanMeta(scanRoots);
+	// 依存解決の前に、font.jsonのatlasTextureを隣接アトラスの現在GUIDへ直しておく
+	ReconcileFontAtlasReferences();
 	RebuildDependencies();
 
 	// 診断のサマリをまとめて出力する(詳細は先頭数件のみ)
@@ -189,6 +192,47 @@ bool Engine::AssetDatabase::RebuildMeta() {
 	// アセット集合が変わったことを外部へ知らせる、ProjectPanel等がこのリビジョン差分で再構築を判断する
 	++structureRevision_;
 	return true;
+}
+
+void Engine::AssetDatabase::ReconcileFontAtlasReferences() {
+
+	// .font.jsonのatlasTextureを隣接する同名アトラス画像の現在GUIDへ揃えて書き戻す
+	// フォントを.meta無しでコピーするとGUIDが再採番され参照が切れるため、永続的に直す
+	const std::string fontSuffix = ".font.json";
+	for (const auto& [guid, meta] : guidToMeta_) {
+
+		if (meta.type != AssetType::Font || !Algorithm::EndsWith(meta.assetPath, fontSuffix)) {
+			continue;
+		}
+		// <name>.font.jsonと同じ場所の<name>.pngをアトラスとする
+		const std::string atlasPath = meta.assetPath.substr(0, meta.assetPath.size() - fontSuffix.size()) + ".png";
+		const AssetMeta* atlasMeta = FindByPath(atlasPath);
+		if (!atlasMeta) {
+			continue;
+		}
+		const std::filesystem::path fullPath = ResolveFullPath(guid);
+		nlohmann::json data = LoadJsonFileNoThrow(fullPath);
+		if (!data.is_object()) {
+			continue;
+		}
+		// 既に有効なTextureのGUIDを指しているなら尊重して触らない、ここが冪等性も担保する
+		if (const std::optional<AssetID> currentGuid = TryParseUUID16Hex(data.value("atlasTexture", std::string{}))) {
+			const AssetMeta* current = Find(*currentGuid);
+			if (current && current->type == AssetType::Texture) {
+				continue;
+			}
+		}
+
+		// 参照が切れている(パス指定/空/未登録GUID)ので隣接アトラスのGUIDへ直す
+		data["atlasTexture"] = ToString(atlasMeta->guid);
+		std::ofstream ofs(fullPath, std::ios::binary | std::ios::trunc);
+		if (!ofs.is_open()) {
+			continue;
+		}
+		ofs << data.dump(2);
+		Logger::Output(LogType::Engine, spdlog::level::info,
+			"[AssetDatabase] font atlas relinked. font={} atlas={}", meta.assetPath, atlasPath);
+	}
 }
 
 void Engine::AssetDatabase::RebuildIndex(const std::vector<std::filesystem::path>& scanRoots) {

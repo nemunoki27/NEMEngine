@@ -154,8 +154,10 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::ResolveBestOrthographicCa
 			camera.common.aspectRatio = static_cast<float>(width) / static_cast<float>((std::max)(height, 1u));
 			// カメラ行列を更新
 			camera.common.viewMatrix = Matrix4x4::Inverse(transform.worldMatrix);
+			// 深度範囲を前後対称にし、カメラと同じz平面のSpriteがニアクリップ境界で消えないようにする
+			const float orthoDepthRange = (std::max)(camera.farClip, 1.0f);
 			camera.common.projectionMatrix = Matrix4x4::MakeOrthographicMatrix(0.0f, 0.0f,
-				static_cast<float>(width), static_cast<float>(height), camera.nearClip, camera.farClip);
+				static_cast<float>(width), static_cast<float>(height), -orthoDepthRange, orthoDepthRange);
 			camera.common.viewProjectionMatrix = camera.common.viewMatrix * camera.common.projectionMatrix;
 
 			CameraCandidate<OrthographicCameraComponent> candidate{};
@@ -275,8 +277,10 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::BuildManualOrthographic(
 	Matrix4x4 world = BuildManualWorld(state.transform2D);
 	out.matrices.inverseViewMatrix = world;
 	out.matrices.viewMatrix = Matrix4x4::Inverse(world);
+	// 2Dカメラと同様に深度範囲を前後対称にする
+	const float orthoDepthRange = (std::max)(out.farClip, 1.0f);
 	out.matrices.projectionMatrix = Matrix4x4::MakeOrthographicMatrix(0.0f, 0.0f,
-		static_cast<float>(width), static_cast<float>(height), out.nearClip, out.farClip);
+		static_cast<float>(width), static_cast<float>(height), -orthoDepthRange, orthoDepthRange);
 	out.matrices.inverseProjectionMatrix = Matrix4x4::Inverse(out.matrices.projectionMatrix);
 	out.matrices.viewProjectionMatrix = out.matrices.viewMatrix * out.matrices.projectionMatrix;
 

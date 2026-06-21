@@ -157,8 +157,9 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	ApplyPreviewIfNeeded(world, entity);
 
 	//============================================================================
-	//	Matrix
+	//	行列
 	//============================================================================
+
 	MyGUI::TextMatrix4x4("ワールド行列", draftTransform_.worldMatrix);
 
 	// アイテムを操作している場合は編集状態にする

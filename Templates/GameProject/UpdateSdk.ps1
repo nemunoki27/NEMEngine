@@ -1,7 +1,7 @@
 ﻿# ゲームが参照する NEMEngine SDK を最新へ更新する
 # - git submodule 参照: SDK専用リポジトリから最新を取得する
 # - ローカル junction 参照: SDK作成.bat の再エクスポート結果がそのまま反映されるため取得は不要
-# 最後に Visual Studio プロジェクトを再生成する
+# 最後に Visual Studio プロジェクトを再生成し、全構成(Debug/Develop/Release)をリビルドする
 
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 $ErrorActionPreference = "Stop"
@@ -64,7 +64,47 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "[完了] SDKを更新しました。"
-Write-Host "  Visual Studio でソリューションを開き直し、ビルドし直してください。"
+Write-Host "全構成をリビルドします（Debug/Develop/Release）..."
+Write-Host "  ※ エディター/ゲームを閉じていないとDLLがロックされて失敗します。"
+
+# msbuild を vswhere で特定する
+$vswhere = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+$msbuild = ""
+if (Test-Path $vswhere) {
+    $msbuild = & $vswhere -latest -prerelease -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
+}
+# ゲームのソリューション(.slnx)を探す
+$slnx = Get-ChildItem -LiteralPath (Join-Path $gameRoot "Project") -Filter "*.slnx" -ErrorAction SilentlyContinue | Select-Object -First 1
+
+if ([string]::IsNullOrWhiteSpace($msbuild) -or -not (Test-Path $msbuild) -or -not $slnx) {
+    Write-Host ""
+    Write-Host "[完了] SDKは更新しました。MSBuildまたはソリューションが見つからないため、Visual Studio で手動ビルドしてください。"
+    Read-Host "Enterキーを押すと終了します"
+    exit 0
+}
+
+# msbuildは進捗をstderrへ出すことがあるため、ネイティブstderrで止めない
+$prevBuildEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+$buildOk = $true
+foreach ($cfg in @("Debug", "Develop", "Release")) {
+    Write-Host ""
+    Write-Host "  [$cfg] リビルド中..."
+    # SDKのDLLを確実に実行フォルダへ配置するためRebuildする
+    # 初回はC#のproject.assets.jsonが無いと NETSDK1004 になるため-restoreで先に復元する
+    & $msbuild $slnx.FullName -restore -t:Rebuild -p:Configuration=$cfg -p:Platform=x64 -m -v:m -nologo
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  [$cfg] ビルドに失敗しました。"
+        $buildOk = $false
+    }
+}
+$ErrorActionPreference = $prevBuildEAP
+
+Write-Host ""
+if ($buildOk) {
+    Write-Host "[完了] SDK更新と全構成のリビルドが完了しました。"
+} else {
+    Write-Host "[完了] SDKは更新しましたが、一部構成のビルドに失敗しました。ログを確認してください。"
+}
 Write-Host ""
 Read-Host "Enterキーを押すと終了します"
