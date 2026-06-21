@@ -25,6 +25,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ProjectAssetThumbnailCache() = default;
 		~ProjectAssetThumbnailCache() = default;
 

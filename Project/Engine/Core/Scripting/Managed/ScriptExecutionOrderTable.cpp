@@ -49,7 +49,7 @@ void Engine::ScriptExecutionOrderTable::Reload() {
 	const std::string path = SettingsPath();
 	std::error_code ec;
 	if (!std::filesystem::exists(path, ec)) {
-		// 設定ファイルが無い場合はoverride無しでmalformedではない、空tableにして良い
+		// 設定ファイルが無い場合は上書き無しで不正ではない、空テーブルにして良い
 		entries_.clear();
 		orderByGuid_.clear();
 		return;
@@ -57,13 +57,13 @@ void Engine::ScriptExecutionOrderTable::Reload() {
 
 	std::ifstream file(path);
 	if (!file.is_open()) {
-		// 開けない場合はmalformedと同様に直前のusable tableを保持する
+		// 開けない場合は不正と同様に直前の有効なテーブルを保持する
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ScriptExecutionOrderTable: cannot open {}. keeping previous table.", path);
 		return;
 	}
 
-	// parseはtempへ行い成功時のみswapする、malformed JSONで旧tableを失わない
+	// 解析は一時へ行い成功時のみ入れ替える、不正JSONで旧テーブルを失わない
 	nlohmann::json root;
 	try {
 		file >> root;
@@ -75,7 +75,7 @@ void Engine::ScriptExecutionOrderTable::Reload() {
 	}
 
 	if (!root.is_object() || !root.contains("entries") || !root["entries"].is_array()) {
-		// 構造が不正な場合はmalformed扱いで直前のusable tableを保持する
+		// 構造が不正な場合は直前の有効なテーブルを保持する
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ScriptExecutionOrderTable: malformed structure in {}. keeping previous table.", path);
 		return;
@@ -95,7 +95,7 @@ void Engine::ScriptExecutionOrderTable::Reload() {
 		if (entry.scriptTypeId.empty()) {
 			continue;
 		}
-		// duplicate scriptTypeIdは最初のものを採用し、以降は診断する
+		// 重複するscriptTypeIdは最初のものを採用し以降は診断する
 		if (parsedLookup.find(entry.scriptTypeId) != parsedLookup.end()) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
 				"ScriptExecutionOrderTable: duplicate scriptTypeId '{}' ignored.", entry.scriptTypeId);
@@ -133,7 +133,7 @@ int32_t Engine::ScriptExecutionOrderTable::GetOrder(const std::string_view& scri
 
 bool Engine::ScriptExecutionOrderTable::TryGetOverride(const std::string_view& scriptTypeId, int32_t& outOrder) const {
 
-	// override無しと、明示的に0を設定した状態を区別する、GetOrderはどちらも0を返すため
+	// 上書き無しと明示的に0を設定した状態を区別する、GetOrderはどちらも0を返すため
 	if (scriptTypeId.empty()) {
 		return false;
 	}
@@ -193,7 +193,7 @@ bool Engine::ScriptExecutionOrderTable::Save() const {
 	std::error_code ec;
 	std::filesystem::create_directories(target.parent_path(), ec);
 
-	// temp fileへflushしてからbackupとsafe replaceとrollbackで置換する
+	// 一時ファイルへ書き出してからバックアップと安全な置換とロールバックで置換する
 	const std::filesystem::path temp = target.string() + ".tmp";
 	{
 		std::ofstream file(temp, std::ios::binary | std::ios::trunc);
@@ -216,7 +216,7 @@ bool Engine::ScriptExecutionOrderTable::Save() const {
 	const bool targetExists = std::filesystem::exists(target, ec);
 	const std::filesystem::path backup = target.string() + ".bak";
 	if (targetExists) {
-		// 既存をbackupへ退避する、Windowsでtempからtargetの直接renameが失敗しても元を失わない
+		// 既存をバックアップへ退避する、Windowsで一時から対象への直接renameが失敗しても元を失わない
 		std::filesystem::remove(backup, ec);
 		std::filesystem::rename(target, backup, ec);
 		if (ec) {
@@ -229,7 +229,7 @@ bool Engine::ScriptExecutionOrderTable::Save() const {
 
 	std::filesystem::rename(temp, target, ec);
 	if (ec) {
-		// 置換失敗時はbackupからrollbackして元のusable fileを復元する
+		// 置換失敗時はバックアップからロールバックして元の有効なファイルを復元する
 		std::error_code rollbackEc;
 		if (targetExists) {
 			std::filesystem::rename(backup, target, rollbackEc);
@@ -240,7 +240,7 @@ bool Engine::ScriptExecutionOrderTable::Save() const {
 		return false;
 	}
 
-	// 置換成功、backupのcleanup失敗はwarningに留める、usable fileは既に正
+	// 置換成功、バックアップの掃除失敗は警告に留める、有効なファイルは既に正
 	if (targetExists) {
 		std::filesystem::remove(backup, ec);
 		if (ec) {

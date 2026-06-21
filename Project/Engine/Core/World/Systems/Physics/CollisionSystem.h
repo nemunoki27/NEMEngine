@@ -25,6 +25,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		CollisionSystem() = default;
 		~CollisionSystem() override = default;
 

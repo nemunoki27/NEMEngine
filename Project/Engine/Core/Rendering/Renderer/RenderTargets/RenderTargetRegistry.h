@@ -45,6 +45,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RenderTargetRegistry() = default;
 		~RenderTargetRegistry() = default;
 

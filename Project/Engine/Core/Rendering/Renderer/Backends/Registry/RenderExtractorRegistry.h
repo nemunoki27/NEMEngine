@@ -21,6 +21,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RenderExtractorRegistry() = default;
 		~RenderExtractorRegistry() override = default;
 

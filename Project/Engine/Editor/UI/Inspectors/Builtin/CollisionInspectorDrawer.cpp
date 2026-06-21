@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 
@@ -45,7 +46,8 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 
 		ImGui::PushID(static_cast<int32_t>(i));
 		CollisionShape& shape = draft.shapes[i];
-		if (ImGui::TreeNodeEx("Shape", ImGuiTreeNodeFlags_DefaultOpen, "Shape %u : %s", i, ToString(shape.type))) {
+		if (ImGui::TreeNodeEx("Shape", ImGuiTreeNodeFlags_DefaultOpen, "Shape %u : %s", i,
+			EnumAdapter<ColliderShapeType>::ToString(shape.type))) {
 
 			PushEditResult(DrawShapeField(shape, i), anyItemActive);
 			if (ImGui::Button("形状を削除", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
@@ -151,29 +153,9 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeTypeField(Col
 		return result;
 	}
 
-	constexpr ColliderShapeType kTypes[] = {
-		ColliderShapeType::Circle2D,
-		ColliderShapeType::Quad2D,
-		ColliderShapeType::Sphere3D,
-		ColliderShapeType::AABB3D,
-		ColliderShapeType::OBB3D,
-	};
-
-	const char* current = ToString(type);
-	if (ImGui::BeginCombo("##Value", current)) {
-		// 今後形状を追加する場合はkTypesへ追加する
-		for (ColliderShapeType candidate : kTypes) {
-			const bool selected = candidate == type;
-			if (ImGui::Selectable(ToString(candidate), selected)) {
-				type = candidate;
-				result.valueChanged = true;
-				result.editFinished = true;
-			}
-			if (selected) {
-				ImGui::SetItemDefaultFocus();
-			}
-		}
-		ImGui::EndCombo();
+	if (EnumAdapter<ColliderShapeType>::Combo("##Value", &type)) {
+		result.valueChanged = true;
+		result.editFinished = true;
 	}
 	result.anyItemActive = ImGui::IsItemActive();
 	MyGUI::EndPropertyRow();

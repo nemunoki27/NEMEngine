@@ -61,6 +61,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RenderPathResources() = default;
 		~RenderPathResources() = default;
 

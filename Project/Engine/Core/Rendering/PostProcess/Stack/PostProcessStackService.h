@@ -41,6 +41,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		PostProcessStackService() = default;
 		~PostProcessStackService() = default;
 

@@ -18,7 +18,7 @@
 
 namespace {
 
-	// 現在時刻をYYYY-MM-DD HH:MM:SSのlocal timeのUTF-8文字列で返すsnapshot表示用
+	// 現在時刻をローカル時刻のUTF-8文字列で返すスナップショット表示用
 	std::string NowTimeStringUtf8() {
 		const std::time_t now = std::time(nullptr);
 		std::tm local{};
@@ -34,7 +34,7 @@ namespace {
 
 	// GameScriptsのアセンブリ/付随ファイル名
 	constexpr const wchar_t* kAssemblyFileName = L"GameScripts.dll";
-	// Script ManifestはStable Script Type GUIDの一覧でload前に検証するbuild artifact
+	// マニフェストは安定スクリプト型GUIDの一覧でロード前に検証する成果物
 	constexpr const wchar_t* kManifestFileName = L"GameScripts.scriptmanifest.json";
 
 	std::string ToUtf8Path(const std::filesystem::path& path) {
@@ -50,7 +50,7 @@ namespace {
 		return _PROFILE;
 	}
 
-	// 監視対象から外すディレクトリ名で大小無視、生成物とVCSとreload作業領域を含む
+	// 監視から外すディレクトリ名で大小無視、生成物とVCSとリロード作業領域を含む
 	bool IsExcludedDirectory(const std::wstring& directoryName) {
 		static const wchar_t* kExcluded[] = {
 			L"bin", L"obj", L".git", L".vs", L"Generated", L"Library", L"Temp",
@@ -102,7 +102,7 @@ namespace {
 		return std::chrono::duration<double, std::milli>(end - begin).count();
 	}
 
-	// build出力行がcompilerやMSBuild errorを含むかで、大小無視でerrorトークンを拾う
+	// 出力行がコンパイラやMSBuildのエラーを含むか大小無視で判定する
 	bool ContainsErrorToken(const std::string& line) {
 
 		std::string lower;
@@ -110,7 +110,7 @@ namespace {
 		for (char c : line) {
 			lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
 		}
-		// 集計行 "N Error(s)" は実エラー本文ではないので除外し、実際の error 行だけを対象にする
+		// 集計行は実エラー本文ではないので除外し実際のエラー行だけを対象にする
 		if (lower.find("error(s)") != std::string::npos) {
 			return false;
 		}
@@ -136,11 +136,11 @@ void Engine::ManagedScriptBuildService::Initialize(ManagedScriptRuntime* runtime
 	playBuildRequested_ = false;
 	playBuildResult_ = PlayBuildResult::Succeeded;
 
-	// 起動時にsource baselineを取得する、初回は変更扱いにしない
+	// 起動時にソースの基準を取得する、初回は変更扱いにしない
 	PollSourceChanges();
 	dirty_ = false;
 
-	// 現在ロード中の正常DLLをlast-known-goodとして確保しておく、初回reload失敗時の復旧用
+	// 現在ロード中の正常DLLを最後の正常版として確保する、初回リロード失敗時の復旧用
 	SeedLastKnownGood();
 }
 
@@ -159,7 +159,7 @@ void Engine::ManagedScriptBuildService::Tick(bool playing) {
 		return;
 	}
 
-	// 変更検知でPlay中もdirtyは記録するがreloadはしない
+	// 変更検知でPlay中もdirtyは記録するがリロードはしない
 	PollSourceChanges();
 
 	// Play中に変更があったら「Stop後に反映」を一度だけ通知する
@@ -183,7 +183,7 @@ void Engine::ManagedScriptBuildService::RequestPlayBuild() {
 	playBuildRequested_ = true;
 	playBuildResult_ = PlayBuildResult::Pending;
 
-	// ビルド対象が無ければ即成功でmanaged scriptなしでもPlay可能
+	// ビルド対象が無ければ即成功でスクリプト無しでもPlay可能
 	if (!runtime_ || runtime_->GameScriptProjectPath().empty()) {
 		playBuildResult_ = PlayBuildResult::Succeeded;
 	}
@@ -202,17 +202,17 @@ void Engine::ManagedScriptBuildService::PollSourceChanges() {
 		return;
 	}
 
-	// Scriptsルートとその兄弟のGameAssetsを含む共通の親をwatcherで監視する
+	// Scriptsルートと兄弟のGameAssetsを含む共通の親を監視する
 	const std::filesystem::path watchRoot = projectPath.parent_path().parent_path();
 	if (watchRoot != watchedRoot_) {
 
 		watcher_.Start(watchRoot);
 		watchedRoot_ = watchRoot;
-		// 張り直し直後は確実に一度scanするため安全scanの期限をリセットする
+		// 張り直し直後は確実に一度走査するため安全走査の期限をリセットする
 		nextScanTime_ = std::chrono::steady_clock::time_point{};
 	}
 
-	// watcherが変更を検知したか、取りこぼし対策の安全scan期限が来た時だけ実scanする
+	// 変更を検知したか取りこぼし対策の安全走査期限が来た時だけ実走査する
 	const bool changedByWatcher = watcher_.ConsumeChanged();
 	if (!changedByWatcher && now < nextScanTime_) {
 		return;
@@ -244,7 +244,7 @@ void Engine::ManagedScriptBuildService::PollSourceChanges() {
 		if (!std::filesystem::exists(root, rootExists) || rootExists) {
 			continue;
 		}
-		// permission errorで監視全体を止めないようerror_code版で走査する
+		// アクセス権エラーで監視全体を止めないようerror_code版で走査する
 		std::error_code iterateError{};
 		auto iterator = std::filesystem::recursive_directory_iterator(
 			root, std::filesystem::directory_options::skip_permission_denied, iterateError);
@@ -318,7 +318,7 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 			StartBuild(true);
 			return;
 		}
-		// 通常のEdit変更はdebounceへ
+		// 通常のEdit変更はデバウンスへ
 		if (!playing && dirty_) {
 			SetState(State::Debouncing);
 		}
@@ -340,9 +340,9 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 	case State::MetadataSyncing:
 	{
 		const bool finished = process_.Poll([this](const std::string& line) {
-			// 同期ツールの出力つまり採番やrenameや曖昧診断をEditor consoleへ転送する
+			// 同期ツールの出力つまり採番やリネームや曖昧診断をエディタコンソールへ転送する
 			Logger::Output(LogType::GameLogic, spdlog::level::info, "[ScriptMetaSync] {}", line);
-			// ingestion点で構造化診断storeへ入れ、Console文字列の再解析はしない
+			// 取り込み点で構造化診断ストアへ入れコンソール文字列は再解析しない
 			ManagedBuildDiagnosticStore::GetInstance().Ingest(diagnostics_.buildId, diagnostics_.reloadId,
 				ManagedBuildProcessKind::MetadataSync, line);
 			if (ContainsErrorToken(line)) {
@@ -356,10 +356,10 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 
 			const int32_t exitCode = process_.ExitCode();
 			if (exitCode == 0) {
-				// 採番成功→ staging buildへ
+				// 採番成功でステージングビルドへ
 				StartGameScriptsBuild();
 			} else {
-				// exit 2は手動解決が必要な曖昧renameでexit 1は失敗、いずれも現行DLLを維持して保留する
+				// exit 2は手動解決が必要な曖昧リネームでexit 1は失敗、いずれも現行DLLを維持して保留する
 				Logger::Output(LogType::Engine, spdlog::level::err,
 					"ManagedScriptBuildService: script metadata sync failed/held. exitCode={} "
 					"(keeping the currently loaded assembly). first='{}' last='{}'. See gameLogic.log.",
@@ -377,12 +377,12 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 	case State::Building:
 	{
 		const bool finished = process_.Poll([this](const std::string& line) {
-			// build出力をEditor consoleつまりGameLogicログへ逐次転送する
+			// ビルド出力をエディタコンソールつまりGameLogicログへ逐次転送する
 			Logger::Output(LogType::GameLogic, spdlog::level::info, "[GameScripts build] {}", line);
-			// ingestion点で構造化診断storeへ入れMSBuildやCSCのerrorとwarningをparseする
+			// 取り込み点で構造化診断ストアへ入れMSBuildやCSCのエラーと警告を解析する
 			ManagedBuildDiagnosticStore::GetInstance().Ingest(diagnostics_.buildId, diagnostics_.reloadId,
 				ManagedBuildProcessKind::Build, line);
-			// engine.log要約用にerror行の最初と最後を保持する、全文はgameLogic.log側
+			// engine.log要約用にエラー行の最初と最後を保持する、全文はgameLogic.log側
 			if (ContainsErrorToken(line)) {
 				if (firstErrorLine_.empty()) {
 					firstErrorLine_ = line;
@@ -397,7 +397,7 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 	}
 	case State::ReloadPending:
 	{
-		// reloadの適用はmain threadかつEditモードでのみ行う
+		// リロードの適用はメインスレッドかつEditモードでのみ行う
 		if (playing) {
 			return;
 		}
@@ -405,7 +405,7 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 		return;
 	}
 	default:
-		// 他の状態はOnBuildFinished / ApplyReload / ApplyFallback内で同期的に遷移済み
+		// 他の状態はOnBuildFinished/ApplyReload/ApplyFallback内で同期的に遷移済み
 		return;
 	}
 }
@@ -424,7 +424,7 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 		return false;
 	}
 
-	// --no-dependencies buildのため前提成果物の有無を先に確認する、ScriptCoreはEditorがロード済みで作り直さない
+	// --no-dependenciesビルドのため前提成果物の有無を先に確認する、ScriptCoreはエディタがロード済みで作り直さない
 	if (!VerifyBuildPrerequisites()) {
 
 		if (forPlay) {
@@ -436,18 +436,18 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 		return false;
 	}
 
-	// 変更は消費する、ビルド中の追加変更はPollSourceChangesが再びdirtyにする
+	// 変更は消費する、ビルド中の追加変更はPollSourceChangesが再びdirtyへ戻す
 	dirty_ = false;
 	currentForPlay_ = forPlay;
 	buildStartTime_ = std::chrono::steady_clock::now();
 	diagnostics_ = ReloadDiagnostics{};
 	diagnostics_.buildId = ++buildCounter_;
-	// 新しいbuildサイクルの開始を診断storeへ通知し、古いbuildの履歴を上限で間引く
+	// 新しいビルドサイクルの開始を診断ストアへ通知し、古いビルドの履歴を上限で間引く
 	ManagedBuildDiagnosticStore::GetInstance().BeginBuild(diagnostics_.buildId);
 	firstErrorLine_.clear();
 	lastErrorLine_.clear();
 
-	// stagingディレクトリ作成の失敗は無視せず、絶対パスとerrorを出して中断する
+	// ステージングディレクトリ作成の失敗は無視せず、絶対パスとエラーを出して中断する
 	std::error_code dirError{};
 	currentStagingDir_ = StagingRoot() / std::to_wstring(diagnostics_.buildId);
 	std::filesystem::create_directories(currentStagingDir_, dirError);
@@ -464,7 +464,7 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 		return false;
 	}
 
-	// staging出力へdotnet buildし実行中DLLは触らない、NEMScriptStagingOutputでこのprojectだけstagingへ向けmetadata modeはEditorSync
+	// ステージング出力へdotnet buildし実行中DLLは触らない、NEMScriptStagingOutputでこのプロジェクトだけステージングへ向ける
 	pendingBuildCommand_ =
 		L"dotnet build \"" + projectPath.wstring() + L"\" -c " + Widen(BuildProfile()) +
 		L" --nologo --no-dependencies -p:DebugType=portable -p:DebugSymbols=true -p:Optimize=false" +
@@ -472,7 +472,7 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 		L" -p:NEMScriptStagingOutput=\"" + currentStagingDir_.wstring() + L"\"";
 	lastBuildWorkingDir_ = projectPath.parent_path();
 
-	// build前に.cs.metaのStable ID採番と維持を非同期で実行する、ツールが無ければ飛ばして直接ビルドする
+	// ビルド前に.cs.metaの安定ID採番と維持を非同期で実行する、ツールが無ければ飛ばして直接ビルドする
 	// metadata sync toolはレイアウトで配置が異なるため候補を順に探す
 	// エンジンソース構成: Project/Engine/Managed/NEM.ScriptMetaSync/bin/<profile>/net10.0/
 	// prebuilt SDK構成: <GameRoot>/External/NEMEngine/Managed/Tools/
@@ -511,7 +511,7 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 
 	if (!process_.Start(syncCommand, lastBuildWorkingDir_)) {
 
-		// 同期を起動できないときは、既存.cs.metaを前提にそのままビルドへ進む
+		// 同期を起動できないときは既存.cs.metaを前提にそのままビルドへ進む
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ManagedScriptBuildService: failed to start metadata sync process. Proceeding to build with existing .cs.meta.");
 		return StartGameScriptsBuild();
@@ -552,7 +552,7 @@ bool Engine::ManagedScriptBuildService::VerifyBuildPrerequisites() const {
 		return true;
 	}
 
-	// GameScripts.csprojの位置とreference ..\..\Engine\ManagedからengineのManagedディレクトリを導出する
+	// GameScripts.csprojの位置からエンジンのManagedディレクトリを導出する
 	const std::filesystem::path projectRoot = projectPath.parent_path().parent_path().parent_path();
 	const std::filesystem::path engineManagedDir = projectRoot / "Engine" / "Managed";
 
@@ -564,11 +564,11 @@ bool Engine::ManagedScriptBuildService::VerifyBuildPrerequisites() const {
 
 	const std::string profile = BuildProfile();
 
-	// Roslyn analyzerのNEM.ScriptCodeGen.dllは--no-dependenciesでは作られないため必須
+	// NEM.ScriptCodeGen.dllは--no-dependenciesでは作られないため必須
 	const std::filesystem::path codeGenDll =
 		engineManagedDir / "NEM.ScriptCodeGen" / "bin" / profile / "netstandard2.0" / "NEM.ScriptCodeGen.dll";
 
-	// NEM.ScriptCore.dllは配置先がデプロイ構成で異なるため候補を順に確認する
+	// NEM.ScriptCore.dllは配置先が構成で異なるため候補を順に確認する
 	const std::filesystem::path repoRoot = projectRoot.parent_path();
 	const std::filesystem::path scriptCoreCandidates[] = {
 		repoRoot / "Generated" / "Managed" / "NEM.ScriptCore" / profile / "NEM.ScriptCore.dll",
@@ -607,7 +607,7 @@ bool Engine::ManagedScriptBuildService::VerifyBuildPrerequisites() const {
 
 	if (!ok) {
 
-		// --no-dependencies buildは前提を作り直さないため明確な復旧手順を出す
+		// --no-dependenciesビルドは前提を作り直さないため明確な復旧手順を出す
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"ManagedScriptBuildService: cannot run the GameScripts staging build because prerequisites are missing. "
 			"Rebuild Sandbox (or the Editor) for profile '{}' so NEM.ScriptCore / NEM.ScriptCodeGen are produced. "
@@ -625,7 +625,7 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 
 	if (diagnostics_.buildExitCode != 0) {
 
-		// build失敗時は正常DLLをunloadせず維持する、全文はgameLogic.logでengine.logには要約を残す
+		// ビルド失敗時は正常DLLを解放せず維持する、全文はgameLogic.logでengine.logには要約を残す
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"ManagedScriptBuildService: build failed. exitCode={} buildId={} (keeping the currently loaded assembly).",
 			diagnostics_.buildExitCode, diagnostics_.buildId);
@@ -646,7 +646,7 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 		return;
 	}
 
-	// staging artifact検証
+	// ステージング成果物の検証
 	diagnostics_.artifactValid = ValidateArtifacts(currentStagingDir_);
 	if (!diagnostics_.artifactValid) {
 
@@ -658,7 +658,7 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 	}
 	SetState(State::BuildSucceeded);
 
-	// Script Manifestをstagingへ生成する、対象DLLは一時ALCで読むだけで現行DLLに触れずGUID形式や重複の検証失敗時はloadしない
+	// マニフェストをステージングへ生成する、対象DLLは一時ALCで読むだけで現行DLLに触れず検証失敗時はロードしない
 	const auto manifestStart = std::chrono::steady_clock::now();
 	const std::filesystem::path stagedDll = currentStagingDir_ / kAssemblyFileName;
 	const std::filesystem::path stagedManifest = currentStagingDir_ / kManifestFileName;
@@ -675,7 +675,7 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 		return;
 	}
 
-	// shadow copyを作成し、stagingからコピーする
+	// シャドウコピーを作成しステージングからコピーする
 	const auto stagingStart = std::chrono::steady_clock::now();
 	SetState(State::Staging);
 	diagnostics_.reloadId = ++reloadCounter_;
@@ -683,7 +683,7 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 	std::error_code dirError{};
 	std::filesystem::create_directories(currentShadowDir_, dirError);
 
-	// dll/pdb/deps/runtimeconfigと一緒にmanifestもshadowへコピーされる
+	// dll/pdb/deps/runtimeconfigと一緒にマニフェストもシャドウへコピーされる
 	if (!CopyArtifacts(currentStagingDir_, currentShadowDir_) || !ValidateArtifacts(currentShadowDir_)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
@@ -693,7 +693,7 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 		return;
 	}
 
-	// load前にshadowにmanifestが確実に存在することを確認し、揃っていなければloadしない
+	// ロード前にシャドウにマニフェストが確実に存在するか確認し揃っていなければロードしない
 	std::error_code shadowManifestExists{};
 	if (!std::filesystem::exists(currentShadowDir_ / kManifestFileName, shadowManifestExists) || shadowManifestExists) {
 
@@ -705,7 +705,7 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 	}
 	diagnostics_.shadowCopyMs = DurationMs(stagingStart, std::chrono::steady_clock::now());
 
-	// 実際のunloadとloadは次のTickで行う、main threadかつEdit確認後
+	// 実際の解放とロードは次のTickで行う、メインスレッドかつEdit確認後
 	SetState(State::ReloadPending);
 }
 
@@ -716,22 +716,22 @@ void Engine::ManagedScriptBuildService::ApplyReload() {
 	const auto loadStart = std::chrono::steady_clock::now();
 	const std::filesystem::path shadowDll = currentShadowDir_ / kAssemblyFileName;
 
-	// 現在のassemblyをunloadし、shadow copyからcollectible ALCへloadする
+	// 現在のアセンブリを解放しシャドウコピーから回収可能なALCへロードする
 	const bool loaded = runtime_->LoadGameAssemblyFromPath(shadowDll);
 	diagnostics_.loadMs = DurationMs(loadStart, std::chrono::steady_clock::now());
 	diagnostics_.scriptTypeCount = runtime_->ManagedScriptTypeCount();
 
-	// 旧assemblyのcollectible ALC unloadのtyped statusをlog scrapingせず取り込む、reload pathのみでUnknownは正常扱いしない
+	// 旧アセンブリのALC解放の状態をログ解析せず取り込む、リロード経路のみでUnknownは正常扱いしない
 	alcUnloadStatus_ = runtime_->GetLastAlcUnloadStatus();
 	alcLeakSuspected_ = (alcUnloadStatus_ == AlcUnloadStatus::LeakSuspected);
 
 	if (loaded) {
 
 		SetState(State::ReloadSucceeded);
-		// snapshot用に最終成功時刻を記録する、log文字列ではなく構造化状態として保持する
+		// スナップショット用に最終成功時刻を記録する、ログ文字列ではなく構造化状態として保持する
 		lastSuccessfulBuildTimeUtf8_ = NowTimeStringUtf8();
 		lastFailureSummaryUtf8_.clear();
-		// type refreshまで成功したのでlast-known-goodを更新する
+		// 型更新まで成功したので最後の正常版を更新する
 		UpdateLastKnownGood(currentShadowDir_);
 		PruneDirectories(StagingRoot());
 		PruneDirectories(ShadowRoot());
@@ -747,7 +747,7 @@ void Engine::ManagedScriptBuildService::ApplyReload() {
 		return;
 	}
 
-	// reload失敗：last-known-goodから復旧を試みる
+	// リロード失敗、最後の正常版から復旧を試みる
 	SetState(State::ReloadFailed);
 	Logger::Output(LogType::Engine, spdlog::level::err,
 		"ManagedScriptBuildService: reload failed. buildId={} reloadId={}. attempting fallback to last-known-good.",
@@ -769,7 +769,7 @@ void Engine::ManagedScriptBuildService::ApplyFallback() {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ManagedScriptBuildService: recovered using last-known-good assembly. path={}",
 			ToUtf8Path(lastKnownGoodDll));
-		// Editは復旧したが、最新ビルドのreloadには失敗しているためPlay成功とはしない
+		// Editは復旧したが最新ビルドのリロードには失敗しているためPlay成功とはしない
 		FinishCycle(false);
 		return;
 	}
@@ -782,7 +782,7 @@ void Engine::ManagedScriptBuildService::ApplyFallback() {
 
 void Engine::ManagedScriptBuildService::FinishCycle(bool succeeded) {
 
-	// Play用ビルドの結果を確定する、このcycleがforPlayの場合のみ
+	// Play用ビルドの結果を確定する、このサイクルがforPlayの場合のみ
 	if (currentForPlay_) {
 		playBuildResult_ = succeeded ? PlayBuildResult::Succeeded : PlayBuildResult::Failed;
 	}
@@ -799,7 +799,7 @@ bool Engine::ManagedScriptBuildService::ValidateArtifacts(const std::filesystem:
 		return false;
 	}
 
-	// optionalなpdbとdeps.jsonとruntimeconfig.jsonで、欠落はwarningに留める
+	// 任意のpdbとdeps.jsonとruntimeconfig.jsonで欠落は警告に留める
 	const std::filesystem::path optional[] = {
 		directory / L"GameScripts.pdb",
 		directory / L"GameScripts.deps.json",
@@ -817,7 +817,7 @@ bool Engine::ManagedScriptBuildService::ValidateArtifacts(const std::filesystem:
 
 bool Engine::ManagedScriptBuildService::CopyArtifacts(const std::filesystem::path& from, const std::filesystem::path& to) const {
 
-	// build出力ディレクトリの内容を丸ごとshadowへコピーする、dllとpdbとdepsとruntimeconfigと依存DLLを含む
+	// ビルド出力ディレクトリの内容を丸ごとシャドウへコピーする、dll/pdb/deps/runtimeconfigと依存DLLを含む
 	std::error_code copyError{};
 	std::filesystem::create_directories(to, copyError);
 	std::filesystem::copy(from, to,
@@ -840,7 +840,7 @@ void Engine::ManagedScriptBuildService::UpdateLastKnownGood(const std::filesyste
 	const std::filesystem::path backup = lkg.string() + ".old";
 	std::error_code ec{};
 
-	// 1. incomingを空にしてshadowをコピー
+	// 1.incomingを空にしてシャドウをコピー
 	std::filesystem::remove_all(incoming, ec);
 	if (!CopyArtifacts(shadowDirectory, incoming)) {
 		std::filesystem::remove_all(incoming, ec);
@@ -850,7 +850,7 @@ void Engine::ManagedScriptBuildService::UpdateLastKnownGood(const std::filesyste
 		return;
 	}
 
-	// 2.必須output(DLL等)をvalidateしてから置換する
+	// 2.必須の出力DLL等を検証してから置換する
 	if (!ValidateArtifacts(incoming)) {
 		std::filesystem::remove_all(incoming, ec);
 		lastKnownGoodUpdateFailed_ = true;
@@ -978,7 +978,7 @@ void Engine::ManagedScriptBuildService::PruneDirectories(const std::filesystem::
 		std::error_code removeError{};
 		std::filesystem::remove_all(directories[i], removeError);
 		if (removeError) {
-			// 掃除失敗はwarningのみでreload本体は失敗させない
+			// 掃除失敗は警告のみでリロード本体は失敗させない
 			Logger::Output(LogType::Engine, spdlog::level::warn,
 				"ManagedScriptBuildService: failed to prune old directory. path={}", ToUtf8Path(directories[i]));
 		}
@@ -994,7 +994,7 @@ void Engine::ManagedScriptBuildService::SetState(State next) {
 		"ManagedScriptBuildService: state {} -> {}", StateName(state_), StateName(next));
 	state_ = next;
 
-	// 失敗系へ遷移したらsnapshot用のfailure summaryを構造化状態として記録する、log再解析しない
+	// 失敗系へ遷移したらスナップショット用の失敗要約を構造化状態として記録する、ログ再解析しない
 	if (next == State::BuildFailed || next == State::ReloadFailed || next == State::FallbackFailed) {
 		lastFailureSummaryUtf8_ = firstErrorLine_.empty()
 			? std::string(StateName(next))
@@ -1024,7 +1024,7 @@ Engine::ManagedScriptBuildService::Snapshot Engine::ManagedScriptBuildService::G
 
 void Engine::ManagedScriptBuildService::RequestRebuild() {
 
-	// 次の安全地点でbuildやreloadを開始させる、状態機械は触らずdirtyを立てdebounce経過扱いにするだけでPlay中はdeferされる
+	// 次の安全地点でビルドやリロードを開始させる、状態機械は触らずdirtyを立てるだけでPlay中は保留される
 	dirty_ = true;
 	lastChangeTime_ = std::chrono::steady_clock::now() - debounce_;
 }
@@ -1036,12 +1036,12 @@ void Engine::ManagedScriptBuildService::RequestRetry() {
 
 void Engine::ManagedScriptBuildService::RequestMetadataSync() {
 
-	// buildサイクルの先頭でmetadata同期が走るため、rebuild要求と同じ経路で良い
+	// ビルドサイクルの先頭でメタデータ同期が走るため再ビルド要求と同じ経路で良い
 	RequestRebuild();
 }
 
 void Engine::ManagedScriptBuildService::RequestReloadWhenSafe() {
 
-	// 安全になった時点でreloadし、Play中は既存defer ruleつまりStop後反映に従う
+	// 安全になった時点でリロードし、Play中は既存の保留規則つまりStop後反映に従う
 	RequestRebuild();
 }

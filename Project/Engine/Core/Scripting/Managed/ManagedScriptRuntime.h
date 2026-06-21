@@ -33,6 +33,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ManagedScriptRuntime() = default;
 		~ManagedScriptRuntime() = default;
 

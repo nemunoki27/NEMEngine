@@ -17,6 +17,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		CollisionManagerTool() = default;
 		~CollisionManagerTool() override = default;
 

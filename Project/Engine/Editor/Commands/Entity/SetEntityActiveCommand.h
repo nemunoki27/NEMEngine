@@ -19,6 +19,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		SetEntityActiveCommand(const Entity& targetEntity, bool activeSelf);
 		~SetEntityActiveCommand() = default;
 

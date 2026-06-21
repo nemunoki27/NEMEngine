@@ -22,6 +22,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RenameEntityCommand(const Entity& targetEntity, const std::string_view& newName);
 		~RenameEntityCommand() = default;
 

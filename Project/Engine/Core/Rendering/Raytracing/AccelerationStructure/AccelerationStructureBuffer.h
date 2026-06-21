@@ -21,6 +21,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		AccelerationStructureBuffer() = default;
 		~AccelerationStructureBuffer() = default;
 

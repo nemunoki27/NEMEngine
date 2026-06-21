@@ -18,6 +18,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		SkinnedAnimationInspectorDrawer() :
 			SerializedComponentInspectorDrawer("SkinnedAnimation", "SkinnedAnimation") {}
 		~SkinnedAnimationInspectorDrawer() = default;

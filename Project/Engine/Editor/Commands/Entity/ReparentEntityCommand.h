@@ -22,6 +22,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit ReparentEntityCommand(const Entity& targetEntity, UUID newParentStableUUID = UUID{});
 		~ReparentEntityCommand() = default;
 
@@ -64,6 +65,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ReorderEntityCommand(const Entity& targetEntity, const Entity& anchorEntity, bool insertAfter);
 		~ReorderEntityCommand() = default;
 

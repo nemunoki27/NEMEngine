@@ -28,6 +28,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ImGuiManager() = default;
 		~ImGuiManager() = default;
 
@@ -48,6 +49,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		static void AllocateSRVDescriptor(::ImGui_ImplDX12_InitInfo* info,
 			D3D12_CPU_DESCRIPTOR_HANDLE* outCPUHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGPUHandle);
 		static void FreeSRVDescriptor(::ImGui_ImplDX12_InitInfo* info,

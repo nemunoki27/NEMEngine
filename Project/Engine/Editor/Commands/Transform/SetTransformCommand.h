@@ -20,6 +20,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		SetTransformCommand(const Entity& targetEntity,
 			const TransformComponent& beforeTransform,
 			const TransformComponent& afterTransform);

@@ -43,6 +43,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ComputeRootBinder(const PipelineState& pipeline) : pipeline_(&pipeline) {}
 		~ComputeRootBinder() = default;
 

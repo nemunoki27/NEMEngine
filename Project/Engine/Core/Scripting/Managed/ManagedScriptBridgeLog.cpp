@@ -16,7 +16,7 @@
 namespace Engine {
 
 	//============================================================================
-	//	Log / Time Callbacks
+	//	ログ/時間コールバック
 	//	C#側のDebug/Timeクラスから呼び出されるネイティブ実装
 	//============================================================================
 
@@ -26,7 +26,7 @@ namespace Engine {
 	}
 
 	void ManagedScriptRuntime::LogCallback(int32_t level, const char* message) {
-		// ログレベルの変換、0はInfo 1はWarning 2はError
+		// ログレベルの変換、0は情報 1は警告 2はエラー
 		spdlog::level::level_enum logLevel = spdlog::level::info;
 		if (level == 1) {
 			logLevel = spdlog::level::warn;
@@ -51,8 +51,8 @@ namespace Engine {
 	}
 
 	//============================================================================
-	//	Time拡張/ TimeScale Callbacks
-	//	scaledなdeltaTimeとfixedDeltaTimeは上の既存callbackが返す、ここではunscaled系と累積値を返す
+	//	Time拡張とTimeScaleのコールバック
+	//	scaled系のdeltaTimeとfixedDeltaTimeは上の既存コールバックが返す、ここではunscaled系と累積値を返す
 	//============================================================================
 	float ManagedScriptRuntime::GetUnscaledDeltaTimeCallback() {
 		return unscaledDeltaTime_;
@@ -76,7 +76,7 @@ namespace Engine {
 	}
 
 	void ManagedScriptRuntime::SetTimeScaleCallback(float value) {
-		// serviceがtime scaleのauthorityで、authoringのTimeScaleComponentへは書き戻さない
+		// サービスが時間スケールの権威で、TimeScaleComponentへは書き戻さない
 		timeScale_ = (!std::isfinite(value)) ? 1.0f : (value < 0.0f ? 0.0f : value);
 	}
 
@@ -85,8 +85,8 @@ namespace Engine {
 	}
 
 	//============================================================================
-	//	AssetRef runtime resolve Callbacks
-	//	UUID主体でnative resourceやGPUやfilesystem pathは返さない、表示名はstemのみ
+	//	AssetRefの実行時解決コールバック
+	//	UUID主体でネイティブリソースやGPUやファイルパスは返さない、表示名はstemのみ
 	//============================================================================
 	int32_t ManagedScriptRuntime::AssetExistsCallback(uint64_t assetId) {
 
@@ -110,7 +110,7 @@ namespace Engine {
 
 	int32_t ManagedScriptRuntime::CopyProjectRootCallback(char* buffer, int32_t capacity) {
 
-		// InputActions.json等のProjectSettings解決用でGameAssetsが属するgame rootをUTF-8で返す、ProjectSettingsはGameAssetsと同じ階層に置く運用
+		// InputActions.json等のProjectSettings解決用でGameAssetsが属するゲームルートをUTF-8で返す、ProjectSettingsはGameAssetsと同じ階層に置く運用
 		const std::string root = RuntimePaths::GetGameRoot().string();
 		return CopyStringToBuffer(root, buffer, capacity);
 	}

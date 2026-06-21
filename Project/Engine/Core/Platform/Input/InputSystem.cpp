@@ -152,7 +152,7 @@ std::optional<Vector2> Input::GetMousePosInView(InputViewArea viewArea) const {
 
 uint32_t Engine::Input::PlayVibration(const InputVibrationParams& params) {
 
-	// duration must be positive
+	// 再生時間が正でなければ無効
 	if (params.duration <= 0.0f) {
 		return 0;
 	}
@@ -667,7 +667,7 @@ void Input::UpdateVibration() {
 	}
 
 	if (vibEffects_.empty()) {
-		// ensure motor is off
+		// モーターを確実に停止する
 		ApplyVibration(0, 0);
 		return;
 	}
@@ -706,7 +706,7 @@ void Input::UpdateVibration() {
 
 void Input::ApplyVibration(uint16_t left, uint16_t right) {
 
-	// avoid redundant calls
+	// 同じ値なら呼び出しを省く
 	if (left == lastMotorLeft_ && right == lastMotorRight_) {
 		return;
 	}

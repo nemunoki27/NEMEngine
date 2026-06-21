@@ -52,6 +52,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		TextureUploadService() = default;
 		~TextureUploadService() = default;
 

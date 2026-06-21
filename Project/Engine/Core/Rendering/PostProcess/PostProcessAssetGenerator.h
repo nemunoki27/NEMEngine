@@ -23,6 +23,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		PostProcessAssetGenerator() = default;
 		~PostProcessAssetGenerator() = default;
 

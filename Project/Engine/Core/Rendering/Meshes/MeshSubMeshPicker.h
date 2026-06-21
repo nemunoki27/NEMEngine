@@ -32,6 +32,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		MeshSubMeshPicker() {
 			tlasSlot_       = pickBindCache_.AddSlotByRegister(ShaderBindingKind::AccelStruct, 0, 0);
 			outputUAVSlot_  = pickBindCache_.AddSlotByRegister(ShaderBindingKind::UAV,         0, 0);

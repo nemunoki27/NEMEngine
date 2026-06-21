@@ -35,6 +35,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ScreenSpaceOutlineRenderer();
 		~ScreenSpaceOutlineRenderer();
 

@@ -26,6 +26,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		TextRenderBackend() {
 			viewCBVSlot_   = perDrawBindCache_.AddSlot("ViewConstants", ShaderBindingKind::CBV);
 			vsInstSRVSlot_ = perDrawBindCache_.AddSlot("gVSInstances",  ShaderBindingKind::SRV);

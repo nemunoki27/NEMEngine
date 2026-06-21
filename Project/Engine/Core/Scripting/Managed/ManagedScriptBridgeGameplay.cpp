@@ -14,13 +14,13 @@
 namespace Engine {
 
 	//============================================================================
-	//	Gameplay structural Callbacks
+	//	ゲームプレイの構造変更コールバック
 	//	Entity生成とPrefabとSceneとSetParent、構造変更はWorldCommandBuffer経由で遅延適用する
-	//	生成系は空Entityを即時予約してhandleを返しcomponentとnameとparentはflushで適用する
+	//	生成系は空Entityを即時予約してハンドルを返しコンポーネントと名前とparentはflushで適用する
 	//============================================================================
 	namespace {
 
-		// callback実行中に対象とすべきworldを解決する、parentが有効ならそのworldを無効なら現在tickのactive worldつまりSystemContextを使う
+		// コールバック中に対象worldを解決する、parentが有効ならそのworld無効なら現在のactive world
 		ECSWorld* ResolveTargetWorld(ManagedNativeEntity parent) {
 
 			if (ECSWorld* fromParent = ResolveWorld(parent)) {
@@ -37,7 +37,7 @@ namespace Engine {
 		if (!world) {
 			return MakeNullNativeEntity();
 		}
-		// 空Entityを即時予約する、emptyArchetypeへのrow追加のみでcomponent追加つまりarchetype migrationはflushへ
+		// 空Entityを即時予約する、emptyArchetypeへの行追加のみでコンポーネント追加つまりarchetype移行はflushへ
 		const Entity reserved = world->CreateEntity();
 		const Entity parentEntity = world->IsAlive(ResolveEntity(parent)) ? ResolveEntity(parent) : Entity::Null();
 		world->GetCommandBuffer().EnqueueCreateEntity(reserved, name ? name : "", parentEntity);
@@ -51,7 +51,7 @@ namespace Engine {
 		if (!world || prefabAssetId == 0) {
 			return MakeNullNativeEntity();
 		}
-		// ルートEntityを即時予約しPrefabSystemにはreservedRootを渡して実体化させる、deferredでも実rootを返す
+		// ルートEntityを即時予約しPrefabSystemにはreservedRootを渡して実体化させる、遅延でも実rootを返す
 		const Entity reservedRoot = world->CreateEntity();
 		const Entity parentEntity = world->IsAlive(ResolveEntity(parent)) ? ResolveEntity(parent) : Entity::Null();
 		world->GetCommandBuffer().EnqueueInstantiatePrefab(reservedRoot, UUID{ prefabAssetId },
@@ -81,7 +81,7 @@ namespace Engine {
 		if (!world || sceneAssetId == 0) {
 			return 0;
 		}
-		// 単一ロード、新sceneをactiveにし旧sceneを全てunloadする処理はflushで行う
+		// 単一ロード、新sceneをactiveにし旧sceneを全てアンロードする処理はflushで行う
 		const UUID instanceID = UUID::New();
 		world->GetCommandBuffer().EnqueueLoadSceneSingle(instanceID, UUID{ sceneAssetId });
 		return instanceID.value;
@@ -123,12 +123,12 @@ namespace Engine {
 	}
 
 	//============================================================================
-	//	AudioSource gameplay method
-	//	実際のvoice制御はAudioSourceSystemがruntimePlayRequestを消費して行い1フレーム遅延する
+	//	AudioSourceのゲームプレイメソッド
+	//	実際の音声制御はAudioSourceSystemがruntimePlayRequestを消費して行い1フレーム遅延する
 	//============================================================================
 	namespace {
 
-		// 対象entityのAudioSourceComponentを取得する、stale entityやmissing componentはnullptr
+		// 対象entityのAudioSourceComponentを取得する、無効entityやcomponent無しはnullptr
 		AudioSourceComponent* ResolveAudioSource(ManagedNativeEntity entity) {
 			ECSWorld* world = ResolveWorld(entity);
 			if (!world) {

@@ -22,6 +22,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		IRenderItemExtractor() = default;
 		virtual ~IRenderItemExtractor() = default;
 

@@ -21,6 +21,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit HierarchyPanel(TextureUploadService& textureUploadService);
 		~HierarchyPanel() = default;
 

@@ -26,6 +26,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		static EditorSelectionOutlineRequestService& GetInstance() {
 
 			static EditorSelectionOutlineRequestService instance;

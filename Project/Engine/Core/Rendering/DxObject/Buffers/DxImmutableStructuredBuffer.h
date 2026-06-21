@@ -23,6 +23,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		DxImmutableStructuredBuffer() = default;
 		~DxImmutableStructuredBuffer() = default;
 

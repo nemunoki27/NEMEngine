@@ -64,6 +64,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		SpriteBatchResources() = default;
 		~SpriteBatchResources() = default;
 

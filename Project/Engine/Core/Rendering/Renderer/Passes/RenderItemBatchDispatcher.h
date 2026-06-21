@@ -25,6 +25,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RenderItemBatchDispatcher() = default;
 		~RenderItemBatchDispatcher() = default;
 

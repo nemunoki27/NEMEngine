@@ -18,6 +18,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RenderBackendRegistry() = default;
 		~RenderBackendRegistry() override = default;
 

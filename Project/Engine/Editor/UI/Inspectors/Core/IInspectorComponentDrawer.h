@@ -16,6 +16,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		IInspectorComponentDrawer() = default;
 		virtual ~IInspectorComponentDrawer() = default;
 

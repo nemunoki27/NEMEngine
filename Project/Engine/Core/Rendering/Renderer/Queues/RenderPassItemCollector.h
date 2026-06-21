@@ -50,6 +50,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RenderPassItemCollector() = default;
 		~RenderPassItemCollector() = default;
 

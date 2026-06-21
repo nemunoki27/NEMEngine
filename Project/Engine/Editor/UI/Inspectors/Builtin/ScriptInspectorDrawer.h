@@ -18,6 +18,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ScriptInspectorDrawer() :
 			SerializedComponentInspectorDrawer("Script", "Script") {
 		}

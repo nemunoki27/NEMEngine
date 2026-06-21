@@ -24,6 +24,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RegistryAutoBindTable() = default;
 		~RegistryAutoBindTable() = default;
 

@@ -18,6 +18,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		InvertedHullOutlineInspectorDrawer() :
 			SerializedComponentInspectorDrawer("Inverted Hull Outline", "InvertedHullOutline") {}
 		~InvertedHullOutlineInspectorDrawer() = default;

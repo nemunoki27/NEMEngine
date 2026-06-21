@@ -33,6 +33,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		MaterialParameterLayout() = default;
 		~MaterialParameterLayout() = default;
 

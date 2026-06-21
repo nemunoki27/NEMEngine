@@ -25,6 +25,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		MaterialParameterBufferBuilder() = default;
 		~MaterialParameterBufferBuilder() = default;
 

@@ -34,6 +34,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		AutoInputLayoutBuilder() = default;
 		~AutoInputLayoutBuilder() = default;
 

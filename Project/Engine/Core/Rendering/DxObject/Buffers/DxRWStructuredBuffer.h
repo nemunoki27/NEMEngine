@@ -25,6 +25,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		StructuredRWBuffer() = default;
 		StructuredRWBuffer(const std::string& bindingName) : bindingName_(bindingName) {}
 		~StructuredRWBuffer() { Release(); }

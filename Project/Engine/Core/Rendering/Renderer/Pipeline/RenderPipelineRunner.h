@@ -136,6 +136,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RenderPipelineRunner() = default;
 		~RenderPipelineRunner() = default;
 

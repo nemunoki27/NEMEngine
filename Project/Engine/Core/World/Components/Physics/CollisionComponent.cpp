@@ -1,6 +1,11 @@
 #include "CollisionComponent.h"
 
 //============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+
+//============================================================================
 //	CollisionComponent classMethods
 //============================================================================
 namespace {
@@ -13,7 +18,8 @@ namespace {
 			return shape;
 		}
 
-		shape.type = Engine::ColliderShapeTypeFromString(in.value("type", "Sphere3D"));
+		shape.type = Engine::EnumAdapter<Engine::ColliderShapeType>::FromString(
+			in.value("type", "Sphere3D")).value_or(Engine::ColliderShapeType::Sphere3D);
 		shape.enabled = in.value("enabled", shape.enabled);
 		shape.isTrigger = in.value("isTrigger", shape.isTrigger);
 		shape.useTransformRotation = in.value("useTransformRotation", shape.useTransformRotation);
@@ -38,7 +44,7 @@ namespace {
 	nlohmann::json SaveShape(const Engine::CollisionShape& shape) {
 
 		nlohmann::json out = nlohmann::json::object();
-		out["type"] = Engine::ToString(shape.type);
+		out["type"] = Engine::EnumAdapter<Engine::ColliderShapeType>::ToString(shape.type);
 		out["enabled"] = shape.enabled;
 		out["isTrigger"] = shape.isTrigger;
 		out["useTransformRotation"] = shape.useTransformRotation;

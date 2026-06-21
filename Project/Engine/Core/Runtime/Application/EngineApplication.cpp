@@ -32,6 +32,7 @@
 #include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
 #include <Engine/Core/World/Systems/Camera/CameraControllerSystem.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
+#include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
 
 //============================================================================
 //	EngineApplication classMethods
@@ -68,6 +69,8 @@ void Engine::EngineApplication::InitSystems() {
 	// システムの追加、orderが小さいほど先に処理される
 	scheduler_.AddSystem(std::make_unique<HierarchySystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
+	// 物理はスクリプトのFixedUpdateの後でTransform更新の前に積分する
+	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<TransformUpdateSystem>(), ++order);
@@ -299,7 +302,6 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 
 	// 非同期build/reload状態機械を進める、Play中はreloadを適用せず変更検知のdirtyのみ行う
-	// Editor main threadをblockしない
 	scriptBuildService_.Tick(worldManager_.IsPlaying());
 
 	// プレイモードの切り替え
@@ -310,13 +312,10 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	HandleEditorSceneRequests();
 	// Play/Stopでワールド状態が変わった後のモードを、このフレームのECS処理へ反映する
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
-	// gameplay time serviceを1フレーム進め、time scale適用後のdeltaTimeを全システムへ渡す
-	// deltaTimeをscaleするとschedulerのfixed substep累積も自動的にscaleされTimeScale=0で停止する
 	{
-		const bool advancePlayTime = ShouldAdvanceActiveWorld() && systemContext_.mode == WorldMode::Play;
-		const float rawDelta = ShouldAdvanceActiveWorld() ? deltaTime : 0.0f;
+		bool advancePlayTime = ShouldAdvanceActiveWorld() && systemContext_.mode == WorldMode::Play;
+		float rawDelta = ShouldAdvanceActiveWorld() ? deltaTime : 0.0f;
 		systemContext_.deltaTime = ManagedScriptRuntime::AdvanceTime(rawDelta, systemContext_.fixedDeltaTime, advancePlayTime);
-		// Editでもプレビュー再生が進むようTimeScale非適用のリアルdeltaを渡す、scaled deltaTimeはPlay時のみ非ゼロになる
 		systemContext_.unscaledDeltaTime = rawDelta;
 	}
 
@@ -325,12 +324,11 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	SceneInstanceManager& activeScenes = GetActiveScenes();
 	const SceneInstance* activeSceneInstance = activeScenes.GetActive();
 
-	// scripting callbackがparent無しEntity生成等で参照するactive worldをcontextへ載せる
+	//Entity生成等で参照するアクティブワールドをシステムに設定
 	systemContext_.world = world;
-
-	// Prefab/SceneのWorldCommandBufferコマンドがFlush時に参照する外部サービスをactive worldへ設定する
 	// 非所有ポインタでworld切替やEdit/Play切替に追従して毎フレーム更新する
 	if (world) {
+
 		WorldCommandServices services{};
 		services.assetDatabase = &assetDataBase_;
 		services.sceneInstances = &activeScenes;
@@ -338,7 +336,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		world->SetCommandServices(services);
 	}
 
-	// シーンごとのCollision設定を、Editor/Play共通の現在設定へ反映する
+	// シーンごとの衝突設定を、Editor/Play共通の現在設定へ反映する
 	systemContext_.activeSceneHeader = header;
 	if (header) {
 		CollisionSettings::GetInstance().SetActiveSettingsAsset(header->collisionSettings, systemContext_.assetDatabase);
@@ -357,21 +355,18 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		editorContext_.activeSceneInstanceID = activeSceneInstance ? activeSceneInstance->instanceID : UUID{};
 		editorContext_.sceneInstances = &activeScenes;
 		editorContext_.activeWorld = world;
-		// EditWorldはPlay中でも常に有効でApply Runtime Values To Authoringで参照する
 		editorContext_.editWorld = &worldManager_.GetEditWorld();
 		editorContext_.assetDatabase = &assetDataBase_;
-		// managed scriptingのEditor向けサービス境界を公開する、read-only snapshot + request interface
 		editorContext_.scriptBuildService = &scriptBuildService_;
 
-		const bool hidePanels = editorManager_.GetLayoutState().hidePanels;
+		// パネルをすべて非表示にする
+		bool hidePanels = editorManager_.GetLayoutState().hidePanels;
 		if (hidePanels) {
 
 			const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
 			Input::GetInstance()->SetViewRect(InputViewArea::Game, Vector2(0.0f, 0.0f),
 				windowSetting.engineSizeFloat, windowSetting.gameSizeFloat);
 		}
-		// C++ツールのTickはECSシステム更新の後で行う(下のscheduler_.Tickの後)
-		// Collision可視化などがupdate後のworldMatrixを参照でき、表示が1フレーム遅れないようにするため
 
 		// エディタのフレーム開始処理
 		editorManager_.BeginFrame(graphicsCore, editorContext_);
@@ -390,10 +385,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		systemContext_.deltaTime = 0.0f;
 	}
 
-	// C++ツールの更新、ECSシステム更新の後に行うことでCollision可視化等がupdate後のworldMatrixを参照する
-	// UI描画とは分離した経路で、パネル表示中のみ実行する
+	// C++ツールの更新、ECSシステム更新の後に行うことで衝突判定可視化等が更新後のワールド行列を参照する
 	if constexpr (BuildConfig::kEditorEnabled) {
-
 		if (!editorManager_.GetLayoutState().hidePanels) {
 
 			ToolContext toolContext{};

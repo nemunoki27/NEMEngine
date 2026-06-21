@@ -19,6 +19,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		PasteEntityTreeCommand(const EditorEntityTreeSnapshot& sourceSnapshot, UUID parentStableUUID);
 		~PasteEntityTreeCommand() = default;
 

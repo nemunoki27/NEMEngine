@@ -26,6 +26,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		AddScriptEntryCommand(const Entity& targetEntity, const std::string_view& typeName = {},
 			AssetID scriptAsset = {});
 		~AddScriptEntryCommand() = default;

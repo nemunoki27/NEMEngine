@@ -22,6 +22,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RaytracingPipelineStateCache() = default;
 		~RaytracingPipelineStateCache() = default;
 

@@ -21,6 +21,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		TextureAssetResolver() = default;
 		~TextureAssetResolver() = default;
 

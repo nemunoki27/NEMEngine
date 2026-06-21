@@ -16,6 +16,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		GraphicsFeatureController() = default;
 		~GraphicsFeatureController() = default;
 

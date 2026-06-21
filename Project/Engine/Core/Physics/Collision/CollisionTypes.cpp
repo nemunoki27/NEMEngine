@@ -51,44 +51,6 @@ size_t Engine::CollisionPairKeyHash::operator()(const CollisionPairKey& key) con
 //============================================================================
 //	Collision utility
 //============================================================================
-const char* Engine::ToString(ColliderShapeType type) {
-
-	switch (type) {
-	case ColliderShapeType::Circle2D:
-		return "Circle2D";
-	case ColliderShapeType::Quad2D:
-		return "Quad2D";
-	case ColliderShapeType::Sphere3D:
-		return "Sphere3D";
-	case ColliderShapeType::AABB3D:
-		return "AABB3D";
-	case ColliderShapeType::OBB3D:
-		return "OBB3D";
-	default:
-		return "Sphere3D";
-	}
-}
-
-Engine::ColliderShapeType Engine::ColliderShapeTypeFromString(const std::string& text, ColliderShapeType fallback) {
-
-	if (text == "Circle2D") {
-		return ColliderShapeType::Circle2D;
-	}
-	if (text == "Quad2D") {
-		return ColliderShapeType::Quad2D;
-	}
-	if (text == "Sphere3D") {
-		return ColliderShapeType::Sphere3D;
-	}
-	if (text == "AABB3D") {
-		return ColliderShapeType::AABB3D;
-	}
-	if (text == "OBB3D") {
-		return ColliderShapeType::OBB3D;
-	}
-	return fallback;
-}
-
 uint32_t Engine::MakeCollisionTypeBit(uint32_t typeIndex) {
 
 	if (typeIndex >= kMaxCollisionTypes) {

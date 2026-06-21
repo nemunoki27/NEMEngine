@@ -19,59 +19,6 @@
 //============================================================================
 namespace {
 
-	struct ValueTypeName {
-
-		Engine::AnimationValueType type = Engine::AnimationValueType::Float;
-		std::string_view name;
-	};
-
-	struct ApplyModeName {
-
-		Engine::AnimationApplyMode mode = Engine::AnimationApplyMode::Override;
-		std::string_view name;
-	};
-
-	struct InterpolationName {
-
-		Engine::CurveInterpolationMode mode = Engine::CurveInterpolationMode::Linear;
-		std::string_view name;
-	};
-
-	struct QuaternionMultiplyOrderName {
-
-		Engine::QuaternionMultiplyOrder order = Engine::QuaternionMultiplyOrder::BaseThenCurve;
-		std::string_view name;
-	};
-
-	constexpr std::array<ValueTypeName, 7> kValueTypeNames{ {
-		{ Engine::AnimationValueType::Float, "Float" },
-		{ Engine::AnimationValueType::Vector2, "Vector2" },
-		{ Engine::AnimationValueType::Vector3, "Vector3" },
-		{ Engine::AnimationValueType::Vector4, "Vector4" },
-		{ Engine::AnimationValueType::Color3, "Color3" },
-		{ Engine::AnimationValueType::Color4, "Color4" },
-		{ Engine::AnimationValueType::Quaternion, "Quaternion" },
-	} };
-
-	constexpr std::array<ApplyModeName, 3> kApplyModeNames{ {
-		{ Engine::AnimationApplyMode::Override, "Override" },
-		{ Engine::AnimationApplyMode::Add, "Add" },
-		{ Engine::AnimationApplyMode::Multiply, "Multiply" },
-	} };
-
-	constexpr std::array<InterpolationName, 5> kInterpolationNames{ {
-		{ Engine::CurveInterpolationMode::Constant, "Constant" },
-		{ Engine::CurveInterpolationMode::Linear, "Linear" },
-		{ Engine::CurveInterpolationMode::Bezier, "Bezier" },
-		{ Engine::CurveInterpolationMode::Spline, "Spline" },
-		{ Engine::CurveInterpolationMode::Squad, "Squad" },
-	} };
-
-	constexpr std::array<QuaternionMultiplyOrderName, 2> kQuaternionMultiplyOrderNames{ {
-		{ Engine::QuaternionMultiplyOrder::BaseThenCurve, "BaseThenCurve" },
-		{ Engine::QuaternionMultiplyOrder::CurveThenBase, "CurveThenBase" },
-	} };
-
 	Engine::Color4 GetChannelColor(std::string_view name) {
 
 		// X/Y/Z/WとR/G/B/Aを同じ色規則にして、Vector/Colorで見た目を揃える
@@ -269,75 +216,52 @@ namespace {
 
 std::string Engine::ToString(AnimationValueType type) {
 
-	for (const auto& item : kValueTypeNames) {
-		if (item.type == type) {
-			return std::string(item.name);
-		}
-	}
-	return "Float";
+	return std::string(EnumAdapter<AnimationValueType>::ToString(type));
 }
 
 bool Engine::TryParseAnimationValueType(std::string_view text, AnimationValueType& out) {
 
-	for (const auto& item : kValueTypeNames) {
-		if (item.name == text) {
-			out = item.type;
-			return true;
-		}
+	const std::optional<AnimationValueType> parsed = EnumAdapter<AnimationValueType>::FromString(text);
+	if (!parsed) {
+		return false;
 	}
-	return false;
+	out = *parsed;
+	return true;
 }
 
 std::string Engine::ToString(AnimationApplyMode mode) {
 
-	for (const auto& item : kApplyModeNames) {
-		if (item.mode == mode) {
-			return std::string(item.name);
-		}
-	}
-	return "Override";
+	return std::string(EnumAdapter<AnimationApplyMode>::ToString(mode));
 }
 
 bool Engine::TryParseAnimationApplyMode(std::string_view text, AnimationApplyMode& out) {
 
-	for (const auto& item : kApplyModeNames) {
-		if (item.name == text) {
-			out = item.mode;
-			return true;
-		}
+	const std::optional<AnimationApplyMode> parsed = EnumAdapter<AnimationApplyMode>::FromString(text);
+	if (!parsed) {
+		return false;
 	}
-	return false;
+	out = *parsed;
+	return true;
 }
 
 std::string Engine::ToString(QuaternionMultiplyOrder order) {
 
-	for (const auto& item : kQuaternionMultiplyOrderNames) {
-		if (item.order == order) {
-			return std::string(item.name);
-		}
-	}
-	return "BaseThenCurve";
+	return std::string(EnumAdapter<QuaternionMultiplyOrder>::ToString(order));
 }
 
 bool Engine::TryParseQuaternionMultiplyOrder(std::string_view text, QuaternionMultiplyOrder& out) {
 
-	for (const auto& item : kQuaternionMultiplyOrderNames) {
-		if (item.name == text) {
-			out = item.order;
-			return true;
-		}
+	const std::optional<QuaternionMultiplyOrder> parsed = EnumAdapter<QuaternionMultiplyOrder>::FromString(text);
+	if (!parsed) {
+		return false;
 	}
-	return false;
+	out = *parsed;
+	return true;
 }
 
 std::string Engine::ToString(CurveInterpolationMode mode) {
 
-	for (const auto& item : kInterpolationNames) {
-		if (item.mode == mode) {
-			return std::string(item.name);
-		}
-	}
-	return "Linear";
+	return std::string(EnumAdapter<CurveInterpolationMode>::ToString(mode));
 }
 
 bool Engine::TryParseCurveInterpolationMode(std::string_view text, CurveInterpolationMode& out) {
@@ -347,13 +271,12 @@ bool Engine::TryParseCurveInterpolationMode(std::string_view text, CurveInterpol
 		out = CurveInterpolationMode::Spline;
 		return true;
 	}
-	for (const auto& item : kInterpolationNames) {
-		if (item.name == text) {
-			out = item.mode;
-			return true;
-		}
+	const std::optional<CurveInterpolationMode> parsed = EnumAdapter<CurveInterpolationMode>::FromString(text);
+	if (!parsed) {
+		return false;
 	}
-	return false;
+	out = *parsed;
+	return true;
 }
 
 uint32_t Engine::GetAnimationValueTypeChannelCount(AnimationValueType type) {

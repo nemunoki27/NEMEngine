@@ -20,6 +20,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit DeleteEntityCommand(const Entity& targetEntity);
 		~DeleteEntityCommand() = default;
 

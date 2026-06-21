@@ -40,6 +40,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		BaseDescriptor(uint32_t maxDescriptorCount);
 		virtual ~BaseDescriptor() = default;
 

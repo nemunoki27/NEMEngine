@@ -51,6 +51,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		SceneInstanceManager() = default;
 		~SceneInstanceManager() = default;
 

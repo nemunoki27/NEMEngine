@@ -31,6 +31,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit SkyboxPass(const RenderPipelineDeps& deps) : deps_(deps) {
 			cbvSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
 		}

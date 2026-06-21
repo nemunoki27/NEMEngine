@@ -839,7 +839,7 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 		}
 	}
 
-	// シェーダーが要求するパラメータ名をreflectionから集める、描画済みパイプラインのみ取得できる
+	// シェーダーが要求するパラメータ名をリフレクションから集める、描画済みパイプラインのみ取得できる
 	std::unordered_set<std::string> reflectedNames;
 	std::vector<const ShaderReflectionInfo*> reflections;
 	if (context.renderPipeline) {
@@ -889,7 +889,7 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 		}
 	}
 
-	// space2のマテリアルテクスチャをreflectionから自動列挙する、未指定なら描画時に白テクスチャになる
+	// space2のマテリアルテクスチャをリフレクションから自動列挙する、未指定なら描画時に白テクスチャになる
 	ImGui::Spacing();
 	if (MyGUI::CollapsingHeader("Shader Textures", true)) {
 

@@ -20,6 +20,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit EntityArchetype(const EntitySignature& signature, const std::vector<uint32_t>& types);
 		~EntityArchetype() = default;
 

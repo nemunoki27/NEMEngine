@@ -75,6 +75,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ManagedScriptBuildService() = default;
 		~ManagedScriptBuildService();
 

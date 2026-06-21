@@ -22,6 +22,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		MeshGPUResourceManager() = default;
 		~MeshGPUResourceManager();
 

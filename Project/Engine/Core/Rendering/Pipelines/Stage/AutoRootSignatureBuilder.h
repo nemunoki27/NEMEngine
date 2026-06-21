@@ -53,6 +53,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		AutoRootSignatureBuilder() = default;
 		~AutoRootSignatureBuilder() = default;
 

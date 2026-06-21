@@ -20,6 +20,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit DuplicateEntityCommand(const Entity& targetEntity);
 		~DuplicateEntityCommand() = default;
 

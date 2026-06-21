@@ -18,6 +18,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		CameraControllerInspectorDrawer() :
 			SerializedComponentInspectorDrawer("CameraController", "CameraController") {
 		}

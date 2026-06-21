@@ -8,6 +8,7 @@
 #include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptProfilerStore.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 
 // imgui
@@ -145,7 +146,7 @@ void Engine::ScriptProfilerTool::DrawWindow(const EditorToolContext& context) {
 			ImGui::Text("%d", entry.slot);
 
 			ImGui::TableSetColumnIndex(3);
-			ImGui::TextUnformatted(ToString(entry.callback));
+			ImGui::TextUnformatted(EnumAdapter<ScriptCallbackKind>::ToString(entry.callback));
 
 			ImGui::TableSetColumnIndex(4);
 			ImGui::Text("%llu", static_cast<unsigned long long>(entry.callCount));

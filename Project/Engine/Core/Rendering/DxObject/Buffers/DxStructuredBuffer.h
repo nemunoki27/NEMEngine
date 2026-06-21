@@ -21,6 +21,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		DxStructuredBuffer() = default;
 		virtual ~DxStructuredBuffer() = default;
 

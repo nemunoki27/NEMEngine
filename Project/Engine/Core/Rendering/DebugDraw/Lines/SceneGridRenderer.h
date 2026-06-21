@@ -29,6 +29,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		SceneGridRenderer() {
 			gridCBVSlot_ = gridBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
 		}
@@ -125,7 +126,7 @@ namespace Engine {
 		float gridMaxGroundRayDistance_ = 20000.0f;
 
 		//------------------------------------------------------------------------
-		// minor step auto fitting
+		// 補助線ステップの自動調整
 		//------------------------------------------------------------------------
 
 		float gridMinorBaseHeightDivisor_ = 20.0f;

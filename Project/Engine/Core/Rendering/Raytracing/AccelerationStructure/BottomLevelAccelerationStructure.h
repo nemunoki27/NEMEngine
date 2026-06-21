@@ -17,6 +17,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		BottomLevelAccelerationStructure() = default;
 		~BottomLevelAccelerationStructure() = default;
 

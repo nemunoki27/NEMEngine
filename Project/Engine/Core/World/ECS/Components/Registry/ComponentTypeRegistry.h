@@ -24,6 +24,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ComponentTypeRegistry() = default;
 		~ComponentTypeRegistry() = default;
 

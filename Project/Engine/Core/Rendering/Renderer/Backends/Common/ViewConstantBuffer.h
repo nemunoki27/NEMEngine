@@ -17,6 +17,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ViewConstantBuffer() = default;
 		ViewConstantBuffer(const std::string& bindingName) : bindingName_(std::move(bindingName)) {}
 		~ViewConstantBuffer() = default;

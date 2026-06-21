@@ -21,6 +21,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		FrameBatchResourcePool() = default;
 		~FrameBatchResourcePool() = default;
 

@@ -72,6 +72,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		static AnimationPropertyRegistry& GetInstance();
 
 		void Register(const AnimationPropertyDescriptor& desc);
@@ -92,6 +93,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		std::vector<AnimationPropertyDescriptor> properties_;
 		std::vector<MaterialAnimationAccessor> materialAccessors_;
 	};

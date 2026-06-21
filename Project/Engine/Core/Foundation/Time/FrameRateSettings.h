@@ -18,6 +18,7 @@ namespace Engine {
 		//========================================================================
 		//	public Methods
 		//========================================================================
+
 		FrameRateSettings() = default;
 		~FrameRateSettings() = default;
 

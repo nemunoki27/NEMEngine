@@ -20,6 +20,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		// 設定ファイルから読み込む
 		static bool Load(const std::filesystem::path& path, PostProcessStackSettings& outSettings);
 		// 設定ファイルへ保存する

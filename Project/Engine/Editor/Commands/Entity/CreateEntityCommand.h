@@ -21,6 +21,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit CreateEntityCommand(const std::string& name = "Entity", UUID parentStableUUID = UUID{});
 		~CreateEntityCommand() = default;
 

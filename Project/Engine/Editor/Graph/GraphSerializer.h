@@ -21,6 +21,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		// GraphDocumentをJSONへ変換する
 		static nlohmann::json ToJson(const GraphDocument& document);
 		// JSONからGraphDocumentを復元する

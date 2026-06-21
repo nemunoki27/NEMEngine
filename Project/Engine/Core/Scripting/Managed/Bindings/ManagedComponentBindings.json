@@ -23,6 +23,15 @@
         { "name": "ScreenUI", "value": 3 },
         { "name": "EditorOverlay", "value": 4 }
       ]
+    },
+    {
+      "managedType": "RigidbodyType",
+      "nativeType": "RigidbodyType",
+      "members": [
+        { "name": "Dynamic", "value": 0 },
+        { "name": "Kinematic", "value": 1 },
+        { "name": "Static", "value": 2 }
+      ]
     }
   ],
   "components": [
@@ -208,6 +217,46 @@
         { "managedName": "Position", "nativeMember": "pos", "kind": "Vector2", "access": "ReadWrite" },
         { "managedName": "Rotation", "nativeMember": "rotation", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "Scale", "nativeMember": "scale", "kind": "Vector2", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "Rigidbody",
+      "nativeType": "RigidbodyComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/RigidbodyComponent.h",
+      "managedType": "Rigidbody",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "BodyType", "nativeMember": "bodyType", "kind": "Enum", "enumType": "RigidbodyType", "access": "ReadWrite" },
+        { "managedName": "Mass", "nativeMember": "mass", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "UseGravity", "nativeMember": "useGravity", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "GravityScale", "nativeMember": "gravityScale", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "LinearDamping", "nativeMember": "linearDamping", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "FreezePositionX", "nativeMember": "freezePositionX", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "FreezePositionY", "nativeMember": "freezePositionY", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "FreezePositionZ", "nativeMember": "freezePositionZ", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "LinearVelocity", "nativeMember": "linearVelocity", "kind": "Vector3", "access": "ReadWrite" },
+        { "managedName": "AccumulatedForce", "nativeMember": "accumulatedForce", "kind": "Vector3", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "Rigidbody2D",
+      "nativeType": "Rigidbody2DComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/Rigidbody2DComponent.h",
+      "managedType": "Rigidbody2D",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "BodyType", "nativeMember": "bodyType", "kind": "Enum", "enumType": "RigidbodyType", "access": "ReadWrite" },
+        { "managedName": "Mass", "nativeMember": "mass", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "UseGravity", "nativeMember": "useGravity", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "GravityScale", "nativeMember": "gravityScale", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "LinearDamping", "nativeMember": "linearDamping", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "FreezePositionX", "nativeMember": "freezePositionX", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "FreezePositionY", "nativeMember": "freezePositionY", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "FreezeRotation", "nativeMember": "freezeRotation", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "LinearVelocity", "nativeMember": "linearVelocity", "kind": "Vector2", "access": "ReadWrite" },
+        { "managedName": "AccumulatedForce", "nativeMember": "accumulatedForce", "kind": "Vector2", "access": "ReadWrite" }
       ]
     }
   ]

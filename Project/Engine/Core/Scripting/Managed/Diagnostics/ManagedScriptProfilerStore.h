@@ -22,8 +22,6 @@ namespace Engine {
 		Count,
 	};
 
-	const char* ToString(ScriptCallbackKind kind);
-
 	//============================================================================
 	//	ManagedScriptProfileEntry struct
 	//	typeIDとslotとcallbackの組に対する累積計測

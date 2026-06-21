@@ -20,6 +20,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		IEditorPanelHost() = default;
 		virtual ~IEditorPanelHost() = default;
 

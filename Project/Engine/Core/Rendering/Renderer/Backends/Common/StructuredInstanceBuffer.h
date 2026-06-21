@@ -24,6 +24,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		StructuredInstanceBuffer() = default;
 		StructuredInstanceBuffer(const std::string& bindingName) : bindingName_(std::move(bindingName)) {}
 		~StructuredInstanceBuffer() { Release(); }

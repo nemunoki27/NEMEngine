@@ -22,6 +22,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ILightExtractor() = default;
 		virtual ~ILightExtractor() = default;
 

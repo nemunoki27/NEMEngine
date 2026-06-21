@@ -17,6 +17,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		UVTransformUpdateSystem() = default;
 		~UVTransformUpdateSystem() = default;
 

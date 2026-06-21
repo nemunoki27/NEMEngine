@@ -18,6 +18,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		PointLightInspectorDrawer() :
 			SerializedComponentInspectorDrawer("PointLight", "PointLight") {}
 		~PointLightInspectorDrawer() = default;

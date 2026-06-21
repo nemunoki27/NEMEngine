@@ -43,6 +43,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		GraphicsRootBinder(const PipelineState& pipeline) : pipeline_(&pipeline) {}
 		~GraphicsRootBinder() = default;
 

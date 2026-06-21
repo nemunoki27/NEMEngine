@@ -216,7 +216,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 		return false;
 	}
 
-	// 以降の失敗経路では必ずFreeLibraryし、成功時のみcommitで保持する
+	// 以降の失敗経路では必ずFreeLibraryし、成功時のみ確定して保持する
 	bool commit = false;
 	struct LibraryGuard {
 		HMODULE handle;
@@ -260,7 +260,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 		return false;
 	}
 
-	// contextは成功と失敗どちらの経路でも必ずcloseする、デリゲート取得後は不要
+	// コンテキストは成功と失敗どちらの経路でも必ず閉じる、デリゲート取得後は不要
 	struct ContextGuard {
 		hostfxr_close_fn close;
 		hostfxr_handle handle;
@@ -287,7 +287,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 
 void Engine::DotnetHostResolver::Shutdown() {
 
-	// 先にデリゲートを無効化してからライブラリを解放し、unload後のpointer参照を防ぐ
+	// 先にデリゲートを無効化してからライブラリを解放し、解放後のポインタ参照を防ぐ
 	loadAssemblyDelegate_ = nullptr;
 	if (library_) {
 

@@ -40,6 +40,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		PostProcessTemporaryTargetPool() = default;
 		~PostProcessTemporaryTargetPool() = default;
 

@@ -53,6 +53,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ProjectAssetFileUtility() = delete;
 		~ProjectAssetFileUtility() = delete;
 

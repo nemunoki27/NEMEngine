@@ -17,6 +17,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		LineRenderer2D(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain);
 		~LineRenderer2D() = default;
 

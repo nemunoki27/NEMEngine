@@ -19,6 +19,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain);
 		~LineRenderer3D() override;
 

@@ -17,6 +17,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		SpotLightExtractor() = default;
 		~SpotLightExtractor() override = default;
 

@@ -43,6 +43,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RenderBufferRegistry() = default;
 		~RenderBufferRegistry() = default;
 

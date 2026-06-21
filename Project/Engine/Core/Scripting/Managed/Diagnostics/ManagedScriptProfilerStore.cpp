@@ -19,15 +19,6 @@ namespace {
 	}
 }
 
-const char* Engine::ToString(ScriptCallbackKind kind) {
-	switch (kind) {
-	case ScriptCallbackKind::FixedUpdate: return "FixedUpdate";
-	case ScriptCallbackKind::Update:      return "Update";
-	case ScriptCallbackKind::LateUpdate:  return "LateUpdate";
-	default:                              return "Unknown";
-	}
-}
-
 void Engine::ManagedScriptProfilerStore::Record([[maybe_unused]] uint32_t typeID, [[maybe_unused]] uint32_t entityIndex,
 	[[maybe_unused]] int32_t slot, [[maybe_unused]] ScriptCallbackKind callback,
 	[[maybe_unused]] float milliseconds, [[maybe_unused]] bool threwException) {

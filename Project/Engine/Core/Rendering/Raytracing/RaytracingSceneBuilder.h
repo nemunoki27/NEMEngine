@@ -42,6 +42,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RaytracingSceneBuilder() = default;
 		~RaytracingSceneBuilder() = default;
 

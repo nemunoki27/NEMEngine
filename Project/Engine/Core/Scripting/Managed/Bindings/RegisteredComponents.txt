@@ -11,6 +11,8 @@ OrthographicCamera
 PerspectiveCamera
 PointLight
 PrefabLink
+Rigidbody
+Rigidbody2D
 SceneObject
 ScreenSpaceOutline
 Script

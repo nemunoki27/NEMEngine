@@ -31,6 +31,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ProjectPanel(TextureUploadService& textureUploadService);
 		~ProjectPanel();
 

@@ -31,6 +31,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		SerializedComponentInspectorDrawer(const std::string_view& headerLabel, const std::string_view& componentTypeName) :
 			headerLabel_(headerLabel), componentTypeName_(componentTypeName) {}
 		~SerializedComponentInspectorDrawer() = default;

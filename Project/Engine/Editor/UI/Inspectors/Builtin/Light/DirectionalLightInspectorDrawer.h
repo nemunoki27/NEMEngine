@@ -18,6 +18,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		DirectionalLightInspectorDrawer() :
 			SerializedComponentInspectorDrawer("DirectionalLight", "DirectionalLight") {}
 		~DirectionalLightInspectorDrawer() = default;

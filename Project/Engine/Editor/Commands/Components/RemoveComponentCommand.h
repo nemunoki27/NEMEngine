@@ -25,6 +25,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RemoveComponentCommand(const Entity& targetEntity, const std::string_view& typeName);
 		~RemoveComponentCommand() = default;
 

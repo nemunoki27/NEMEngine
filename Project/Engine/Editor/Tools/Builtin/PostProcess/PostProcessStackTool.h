@@ -22,6 +22,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		PostProcessStackTool() = default;
 		~PostProcessStackTool() override = default;
 

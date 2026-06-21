@@ -52,6 +52,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		BehaviorTypeRegistry() = default;
 		~BehaviorTypeRegistry() = default;
 

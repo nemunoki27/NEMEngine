@@ -239,7 +239,7 @@ void ScreenSpaceOutlineRenderer::ClearMask(
 		resources.mask->Clear(*dxCommand, clear);
 	}
 
-	// Projected Coverage Mask
+	// 投影カバレッジマスク
 	{
 		resources.projectedCoverageMask->TransitionForRender(*dxCommand);
 		resources.projectedCoverageMask->Bind(*dxCommand);

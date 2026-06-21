@@ -87,6 +87,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		IEditorTool() = default;
 		~IEditorTool() override { ClearRenderTextures(); }
 

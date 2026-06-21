@@ -57,7 +57,7 @@ namespace {
 		return {};
 	}
 
-	// 実行ファイルのあるディレクトリを返す、prebuilt配布ではここへ全ランタイムを配置している
+	// 実行ファイルのあるディレクトリを返す、プレビルド配布ではここへ全ランタイムを配置する
 	std::filesystem::path GetExecutableDirectory() {
 		std::vector<wchar_t> buffer(1024);
 		const DWORD length = ::GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
@@ -137,7 +137,7 @@ namespace {
 		}
 		~ScopedEnvironmentVariableOverride() {
 
-			// 復元はSetEnvironmentVariableWのみで、wstringが所有するバッファをfreeしてはいけない
+			// 復元はSetEnvironmentVariableWのみで、wstringが所有するバッファを解放してはいけない
 			::SetEnvironmentVariableW(name_, hadPreviousValue_ ? previousValue_.c_str() : nullptr);
 		}
 
@@ -182,7 +182,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 
 	// ネイティブ側APIつまりC++側の機能をC#から呼ぶための関数群を初期化する
 	ManagedNativeApiTable callbacks{};
-	// ABIヘッダを先頭に設定する、C#側はversionとsizeとcapabilityを検証し不一致なら初期化を拒否する
+	// ABIヘッダを先頭に設定する、C#側はバージョンとサイズと機能を検証し不一致なら初期化を拒否する
 	callbacks.header.abiVersion = kManagedAbiVersion;
 	callbacks.header.structSize = static_cast<uint32_t>(sizeof(ManagedNativeApiTable));
 	callbacks.header.capabilities = kManagedCapabilitiesAll;
@@ -234,12 +234,12 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getScriptEnabled = &ManagedScriptRuntime::GetScriptEnabledCallback;
 	callbacks.setScriptEnabled = &ManagedScriptRuntime::SetScriptEnabledCallback;
 	callbacks.getScriptInstance = &ManagedScriptRuntime::GetScriptInstanceCallback;
-	// 自動生成component bindingのtyped property dispatchでManagedComponentBindings.json由来
+	// 自動生成コンポーネントバインディングの型付きプロパティ振り分け、ManagedComponentBindings.json由来
 	callbacks.getComponentProperty = &GeneratedComponentBindings::GetComponentProperty;
 	callbacks.setComponentProperty = &GeneratedComponentBindings::SetComponentProperty;
 	callbacks.getComponentStringProperty = &GeneratedComponentBindings::GetComponentStringProperty;
 	callbacks.setComponentStringProperty = &GeneratedComponentBindings::SetComponentStringProperty;
-	// Gameplay(v7): Time拡張/ TimeScale
+	// Gameplay v7のTime拡張とTimeScale
 	callbacks.getUnscaledDeltaTime = &ManagedScriptRuntime::GetUnscaledDeltaTimeCallback;
 	callbacks.getUnscaledFixedDeltaTime = &ManagedScriptRuntime::GetUnscaledFixedDeltaTimeCallback;
 	callbacks.getTimeSinceStartup = &ManagedScriptRuntime::GetTimeSinceStartupCallback;
@@ -247,10 +247,10 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getTimeScale = &ManagedScriptRuntime::GetTimeScaleCallback;
 	callbacks.setTimeScale = &ManagedScriptRuntime::SetTimeScaleCallback;
 	callbacks.getFrameCount = &ManagedScriptRuntime::GetFrameCountCallback;
-	// Gameplay(v7): AssetRef runtime resolve
+	// Gameplay v7のAssetRef実行時解決
 	callbacks.assetExists = &ManagedScriptRuntime::AssetExistsCallback;
 	callbacks.copyAssetDisplayName = &ManagedScriptRuntime::CopyAssetDisplayNameCallback;
-	// Gameplay(v7): Entity生成/ Prefab / Scene / SetParent(worldPositionStays)
+	// Gameplay v7のEntity生成/Prefab/Scene/SetParent
 	callbacks.createEntity = &ManagedScriptRuntime::CreateEntityCallback;
 	callbacks.instantiatePrefab = &ManagedScriptRuntime::InstantiatePrefabCallback;
 	callbacks.loadSceneAdditive = &ManagedScriptRuntime::LoadSceneAdditiveCallback;
@@ -258,7 +258,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.unloadScene = &ManagedScriptRuntime::UnloadSceneCallback;
 	callbacks.isSceneInstanceAlive = &ManagedScriptRuntime::IsSceneInstanceAliveCallback;
 	callbacks.setParentKeepWorld = &ManagedScriptRuntime::SetParentKeepWorldCallback;
-	// Gameplay v7のraw Input拡張多gamepadとaxisとtextとfocus
+	// Gameplay v7の入力拡張で複数ゲームパッドや軸や文字や入力フォーカス
 	callbacks.getGamepadButtonIndexed = &ManagedScriptRuntime::GetGamepadButtonIndexedCallback;
 	callbacks.getGamepadButtonDownIndexed = &ManagedScriptRuntime::GetGamepadButtonDownIndexedCallback;
 	callbacks.getGamepadButtonUpIndexed = &ManagedScriptRuntime::GetGamepadButtonUpIndexedCallback;
@@ -268,7 +268,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getHasFocus = &ManagedScriptRuntime::GetHasFocusCallback;
 	callbacks.copyTextInput = &ManagedScriptRuntime::CopyTextInputCallback;
 	callbacks.copyProjectRoot = &ManagedScriptRuntime::CopyProjectRootCallback;
-	// Gameplay(v7): AudioSource gameplay method
+	// Gameplay v7のAudioSourceメソッド
 	callbacks.audioPlay = &ManagedScriptRuntime::AudioPlayCallback;
 	callbacks.audioPause = &ManagedScriptRuntime::AudioPauseCallback;
 	callbacks.audioStop = &ManagedScriptRuntime::AudioStopCallback;
@@ -284,7 +284,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 
 	initialized_ = true;
 
-	// 初期アセンブリつまり現行ビルド出力をロードする、Edit中の以降のreloadはManagedScriptBuildServiceが行う
+	// 初期アセンブリつまり現行ビルド出力をロードする、Edit中の以降のリロードはManagedScriptBuildServiceが行う
 	if (!ReloadGameAssembly()) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ManagedScriptRuntime: GameScripts.dll was not loaded. Managed scripts will be unavailable.");
@@ -294,7 +294,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 
 void Engine::ManagedScriptRuntime::Finalize() {
 
-	// assembly unloadより前にApplication.Quittingを発火する、unloadで購読が解除されるため
+	// アセンブリ解放より前にApplication.Quittingを発火する、解放で購読が解除されるため
 	RaiseApplicationQuitting();
 
 	UnloadGameAssembly();
@@ -359,7 +359,7 @@ void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 		if (copyScriptTypeInfo_(i, &descriptor) != ManagedStatus::Ok || descriptor.scriptTypeId[0] == '\0') {
 			continue;
 		}
-		// Stable GUIDを主キーに登録する、型名とsourcePathは表示とlegacy照合とdrag&drop用
+		// 安定GUIDを主キーに登録する、型名とソースパスは表示と旧照合とドラッグ用
 		BehaviorTypeRegistry::GetInstance().RegisterManaged(
 			descriptor.scriptTypeId, descriptor.fullTypeName, descriptor.displayName, descriptor.sourcePath,
 			descriptor.defaultExecutionOrder);
@@ -392,7 +392,7 @@ bool Engine::ManagedScriptRuntime::LoadGameAssemblyFromPath(const std::filesyste
 	};
 
 	if (waitForManagedDebugger) {
-		// managed debuggerのattach待ちはユーザーの明示オプションでenv経由でC#側へ伝える
+		// マネージドデバッガのアタッチ待ちはユーザーの明示オプションで環境変数経由でC#側へ伝える
 		ScopedEnvironmentVariableOverride waitOverride(L"NEM_MANAGED_WAIT_FOR_DEBUGGER", L"1");
 		return doReload();
 	}
@@ -495,7 +495,7 @@ Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionExit(ManagedS
 
 namespace {
 
-	// schema JSON の "kind" 文字列を enum へ
+	// スキーマJSONのkind文字列を列挙へ
 	Engine::ManagedSerializedFieldKind ParseFieldKind(const std::string& kind) {
 
 		using K = Engine::ManagedSerializedFieldKind;
@@ -512,7 +512,7 @@ namespace {
 		return it != kMap.end() ? it->second : K::Unsupported;
 	}
 
-	// 1フィールドのschema nodeをparseする、collectionやnullableはelementを再帰する
+	// 1フィールドのスキーマノードを解析する、配列やnullableは要素を再帰する
 	Engine::ManagedFieldSchema ParseFieldSchema(const nlohmann::json& node) {
 
 		Engine::ManagedFieldSchema field{};
@@ -580,7 +580,7 @@ const Engine::ManagedScriptSchema& Engine::ManagedScriptRuntime::GetScriptSchema
 		return kEmpty;
 	}
 
-	// 二段階blobで必要sizeを取得してからvector確保してcopyする、固定長bufferを使わない
+	// 二段階blobで必要サイズを取得してからvector確保してコピーする、固定長バッファを使わない
 	int32_t size = 0;
 	if (getScriptSchemaJsonSize_(scriptTypeId.c_str(), &size) != ManagedStatus::Ok || size <= 0) {
 		return kEmpty;
@@ -616,7 +616,7 @@ const Engine::ManagedScriptSchema& Engine::ManagedScriptRuntime::GetScriptSchema
 nlohmann::json Engine::ManagedScriptRuntime::BuildSerializedValueMap(const std::string& scriptTypeId,
 	const nlohmann::json& serializedFields) {
 
-	// instanceへ適用するfieldGuidからvalueのマップを作る、新形式はそのままlegacy flatは名前でmigrationする
+	// インスタンスへ適用するfieldGuidから値のマップを作る、新形式はそのまま旧形式は名前で移行する
 	nlohmann::json result = nlohmann::json::object();
 	if (!serializedFields.is_object()) {
 		return result;
@@ -635,7 +635,7 @@ nlohmann::json Engine::ManagedScriptRuntime::BuildSerializedValueMap(const std::
 		return result;
 	}
 
-	// legacy flatなnameからvalue形式で、schemaのnameやformerNamesからguidを引いて移行する
+	// 旧形式の名前から値の形式で、スキーマの名前や旧名からguidを引いて移行する
 	const ManagedScriptSchema& schema = GetScriptSchema(scriptTypeId);
 	std::unordered_map<std::string, std::string> nameToGuid;
 	for (const ManagedFieldSchema& field : schema.fields) {
@@ -694,7 +694,7 @@ Engine::ManagedStatus Engine::ManagedScriptRuntime::GenerateScriptManifest(
 	if (!initialized_ || !generateScriptManifest_) {
 		return ManagedStatus::Unsupported;
 	}
-	// C#側が一時collectible ALCで対象DLLを反射し検証してmanifest JSONを書き出す、現行DLLは触らない
+	// C#側が一時的な回収可能ALCで対象DLLを反射し検証してマニフェストJSONを書き出す、現行DLLは触らない
 	const std::string dll = ToUtf8Path(assemblyPath);
 	const std::string out = ToUtf8Path(manifestOutputPath);
 	return generateScriptManifest_(dll.c_str(), out.c_str());
@@ -783,7 +783,7 @@ Engine::ManagedStatus Engine::ManagedScriptRuntime::Invoke(InvokeFn function, Ma
 		return ManagedStatus::InvalidInstanceHandle;
 	}
 	FrameProfiler::ScopedSample scriptSample(FrameProfiler::Category::Script);
-	// contextはRAIIで設定しC#側で例外が起きても確実に元へ戻す
+	// コンテキストはRAIIで設定しC#側で例外が起きても確実に元へ戻す
 	ScopedInvocationContext contextScope(context);
 	return function(handle);
 }
@@ -800,11 +800,11 @@ Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollision(InvokeCollis
 }
 
 //============================================================================
-//	invocation contextのthread_local実体とRAIIガード
+//	呼び出しコンテキストのthread_local実体とRAIIガード
 //============================================================================
 thread_local const Engine::SystemContext* Engine::ManagedScriptRuntime::currentContext_ = nullptr;
 
-// gameplay time serviceの状態でmain threadのみが更新する
+// ゲーム時間サービスの状態でメインスレッドのみが更新する
 float Engine::ManagedScriptRuntime::timeScale_ = 1.0f;
 float Engine::ManagedScriptRuntime::scaledDeltaTime_ = 0.0f;
 float Engine::ManagedScriptRuntime::unscaledDeltaTime_ = 0.0f;
@@ -819,7 +819,7 @@ const Engine::SystemContext* Engine::ManagedScriptRuntime::GetCurrentContext() {
 
 namespace {
 
-	// NaNやinfは等速1.0へ、負値は0へ丸めてtime scaleを安全化する
+	// NaNやinfは等速1.0へ、負値は0へ丸めて時間スケールを安全化する
 	float SanitizeTimeScale(float value) {
 		if (!std::isfinite(value)) {
 			return 1.0f;
@@ -830,7 +830,7 @@ namespace {
 
 void Engine::ManagedScriptRuntime::BeginPlayTime(ECSWorld* playWorld) {
 
-	// authoringのTimeScaleComponentがあれば初期scaleとして読み、最後に見つかった値を採用する
+	// TimeScaleComponentがあれば初期スケールとして読み、最後に見つかった値を採用する
 	timeScale_ = 1.0f;
 	if (playWorld) {
 		playWorld->ForEach<TimeScaleComponent>([&](Entity, TimeScaleComponent& component) {
@@ -848,7 +848,7 @@ float Engine::ManagedScriptRuntime::AdvanceTime(float rawDeltaTime, float fixedD
 
 	fixedDeltaTime_ = fixedDeltaTime;
 	if (!advancing) {
-		// Editや停止中は累積せずunscaledも進めない、Play worldの時間のみを扱う
+		// Editや停止中は累積せずunscaledも進めない、Play側の時間のみを扱う
 		scaledDeltaTime_ = 0.0f;
 		unscaledDeltaTime_ = 0.0f;
 		return 0.0f;
@@ -863,7 +863,7 @@ float Engine::ManagedScriptRuntime::AdvanceTime(float rawDeltaTime, float fixedD
 
 void Engine::ManagedScriptRuntime::PumpSceneEvents() {
 
-	// C#側でSceneのload/unload完了を検出してSceneLoaded/SceneUnloadedを発火する
+	// C#側でSceneのロード/アンロード完了を検出してSceneLoaded/SceneUnloadedを発火する
 	if (pumpSceneEvents_) {
 		pumpSceneEvents_();
 	}
@@ -871,7 +871,7 @@ void Engine::ManagedScriptRuntime::PumpSceneEvents() {
 
 void Engine::ManagedScriptRuntime::RaiseApplicationQuitting() {
 
-	// application shutdown前にC# Application.Quittingを一度だけ発火する
+	// 終了処理前にC#のApplication.Quittingを一度だけ発火する
 	if (raiseApplicationQuitting_) {
 		raiseApplicationQuitting_();
 	}
@@ -879,7 +879,7 @@ void Engine::ManagedScriptRuntime::RaiseApplicationQuitting() {
 
 void Engine::ManagedScriptRuntime::TickFrame(int32_t phase) {
 
-	// TimerとCoroutineをmain threadで駆動する、phaseは0がUpdate 1がFixedUpdate 2がEndOfFrame
+	// TimerとCoroutineをメインスレッドで駆動する、phaseは0がUpdate 1がFixedUpdate 2がEndOfFrame
 	if (tickFrame_) {
 		tickFrame_(phase);
 	}
@@ -902,7 +902,7 @@ Engine::AlcUnloadStatus Engine::ManagedScriptRuntime::GetLastAlcUnloadStatus() {
 
 Engine::ManagedScriptRuntime::ScopedInvocationContext::ScopedInvocationContext(const SystemContext& context) :
 	previous_(currentContext_) {
-	// ネスト呼び出しに備えて以前のcontextを退避してから差し替える
+	// ネスト呼び出しに備えて以前のコンテキストを退避してから差し替える
 	currentContext_ = &context;
 }
 

@@ -61,6 +61,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		RaytracingViewBufferSet() = default;
 		~RaytracingViewBufferSet() = default;
 

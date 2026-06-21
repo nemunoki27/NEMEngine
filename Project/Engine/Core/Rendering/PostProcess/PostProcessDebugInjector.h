@@ -40,6 +40,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		PostProcessDebugInjector() = default;
 		~PostProcessDebugInjector() = default;
 

@@ -34,6 +34,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		PostProcessConstantBufferAllocator() = default;
 		~PostProcessConstantBufferAllocator() = default;
 

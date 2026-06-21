@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
+#include <Engine/Core/World/Components/Physics/RigidbodyComponent.h>
+#include <Engine/Core/World/Components/Physics/Rigidbody2DComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -103,6 +105,28 @@ namespace {
 		const Engine::Matrix4x4 localMatrix = Engine::Matrix4x4::MakeAffineMatrix(
 			transform.localScale, transform.localRotation, transform.localPos);
 		transform.worldMatrix = localMatrix * parentWorld;
+	}
+
+	// 押し戻し方向と逆へ向かうDynamic剛体の速度を消し、面にめり込み続けないようにする
+	void StopVelocityIntoSurface(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::Vector3& pushOutDir) {
+
+		if (world.HasComponent<Engine::RigidbodyComponent>(entity)) {
+
+			auto& body = world.GetComponent<Engine::RigidbodyComponent>(entity);
+			const float into = Engine::Vector3::Dot(body.linearVelocity, pushOutDir);
+			if (body.bodyType == Engine::RigidbodyType::Dynamic && into < 0.0f) {
+				body.linearVelocity -= pushOutDir * into;
+			}
+		}
+		if (world.HasComponent<Engine::Rigidbody2DComponent>(entity)) {
+
+			auto& body = world.GetComponent<Engine::Rigidbody2DComponent>(entity);
+			const Engine::Vector2 pushOut2D = Engine::Vector2(pushOutDir.x, pushOutDir.y);
+			const float into = Engine::Vector2::Dot(body.linearVelocity, pushOut2D);
+			if (body.bodyType == Engine::RigidbodyType::Dynamic && into < 0.0f) {
+				body.linearVelocity -= pushOut2D * into;
+			}
+		}
 	}
 }
 
@@ -263,14 +287,18 @@ void Engine::CollisionSystem::ApplyPushback(ECSWorld& world,
 		// 双方が動ける場合はめり込み量を半分ずつ分ける
 		MoveEntity(world, a.entity, -contact.normal * (contact.penetration * 0.5f));
 		MoveEntity(world, b.entity, contact.normal * (contact.penetration * 0.5f));
+		StopVelocityIntoSurface(world, a.entity, -contact.normal);
+		StopVelocityIntoSurface(world, b.entity, contact.normal);
 		return;
 	}
 	if (movableA) {
 		MoveEntity(world, a.entity, -contact.normal * contact.penetration);
+		StopVelocityIntoSurface(world, a.entity, -contact.normal);
 		return;
 	}
 	if (movableB) {
 		MoveEntity(world, b.entity, contact.normal * contact.penetration);
+		StopVelocityIntoSurface(world, b.entity, contact.normal);
 	}
 }
 

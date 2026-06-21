@@ -25,6 +25,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		SetSerializedComponentCommand(const Entity& targetEntity, const std::string_view& typeName,
 			const nlohmann::json& beforeData, const nlohmann::json& afterData);
 		~SetSerializedComponentCommand() = default;

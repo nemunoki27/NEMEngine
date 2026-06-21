@@ -22,6 +22,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		static constexpr const char* kErrorTextureKey = "builtin:error1x1";
 		static constexpr const char* kWhiteTextureKey = "builtin:white1x1";
 

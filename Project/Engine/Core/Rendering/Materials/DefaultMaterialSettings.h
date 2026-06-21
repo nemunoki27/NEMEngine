@@ -20,6 +20,7 @@ namespace Engine {
 		//========================================================================
 		//	public Methods
 		//========================================================================
+
 		DefaultMaterialSettings() = default;
 		~DefaultMaterialSettings() = default;
 

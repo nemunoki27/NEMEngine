@@ -18,6 +18,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ScreenSpaceOutlineInspectorDrawer() :
 			SerializedComponentInspectorDrawer("Screen Space Outline", "ScreenSpaceOutline") {}
 		~ScreenSpaceOutlineInspectorDrawer() = default;

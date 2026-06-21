@@ -21,6 +21,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		ManagedBehavior(std::string scriptTypeId, std::string displayName);
 		~ManagedBehavior() override = default;
 

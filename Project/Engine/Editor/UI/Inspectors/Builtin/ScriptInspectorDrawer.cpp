@@ -32,16 +32,16 @@ namespace {
 
 	using Kind = Engine::ManagedSerializedFieldKind;
 
-	// managed scriptの解決状態でtype existenceはregistryを正としschema field数では判定しない、serialized field 0件のvalid ScriptをMissingと誤判定しないため
+	// スクリプトの解決状態、型の登録有無で判定しフィールド数では判定しない
 	enum class ManagedScriptResolutionReason {
 
-		Resolved,        // registry に型があり解決済み、field が 0 件でも resolved
-		Unassigned,      // scriptTypeId 未設定の空 slot
-		TypeNotRegistered, // scriptTypeId はあるが registry に未登録の Missing Script
-		SchemaUnavailable, // 型は解決済みだが schema が未取得で Missing とは別扱い
+		Resolved,          // 型が登録済みで解決済み
+		Unassigned,        // 型ID未設定の空スロット
+		TypeNotRegistered, // 型IDはあるが未登録の欠落スクリプト
+		SchemaUnavailable, // 解決済みだがスキーマ未取得
 	};
 
-	// entryのscriptTypeIdをregistryのstable Script type existenceで解決する、schema field数は判定に使わずtypeがregistryに居ればresolvedで0 fieldでもMissingにしない
+	// 型IDから登録レジストリで解決状態を求める
 	ManagedScriptResolutionReason ResolveScriptReason(const Engine::ScriptEntry& entry) {
 
 		if (entry.scriptTypeId.empty()) {
@@ -49,7 +49,7 @@ namespace {
 		}
 		const Engine::BehaviorTypeInfo* info =
 			Engine::BehaviorTypeRegistry::GetInstance().FindByStableScriptTypeID(entry.scriptTypeId);
-		// registryに型が居なければMissing、payloadは保持して削除しない
+		// 未登録なら欠落扱い、値は保持して削除しない
 		return info ? ManagedScriptResolutionReason::Resolved
 			: ManagedScriptResolutionReason::TypeNotRegistered;
 	}
@@ -64,14 +64,14 @@ namespace {
 		}
 	}
 
-	// 完全修飾型名から表示用のクラス名だけ取り出す、識別子はscriptTypeId側が持つ
+	// 完全修飾名から表示用のクラス名だけ取り出す
 	std::string ScriptTypeShortName(const std::string& fullName) {
 
 		const size_t dot = fullName.find_last_of('.');
 		return dot == std::string::npos ? fullName : fullName.substr(dot + 1);
 	}
 
-	// kindを保存用type文字列にする、authoring entryのtype表示と診断用
+	// 種別を保存用の型文字列にする
 	const char* KindToTypeString(Kind kind) {
 		switch (kind) {
 		case Kind::Bool: return "bool";
@@ -103,7 +103,7 @@ namespace {
 		}
 	}
 
-	// アセット種別名をAssetTypeへ変換する、schemaのassetType filter用で依存を増やさず手書き
+	// アセット種別名を列挙へ変換する
 	Engine::AssetType AssetTypeFromName(const std::string& name) {
 		if (name == "Texture") { return Engine::AssetType::Texture; }
 		if (name == "Material") { return Engine::AssetType::Material; }
@@ -117,7 +117,7 @@ namespace {
 		return Engine::AssetType::Unknown;
 	}
 
-	// schema fieldから空の既定値を作る、collectionの新要素や型不一致時の補填に使う
+	// スキーマから空の既定値を作る
 	nlohmann::json DefaultForKind(const Engine::ManagedFieldSchema& field) {
 		switch (field.kind) {
 		case Kind::Bool: return false;
@@ -145,7 +145,7 @@ namespace {
 		}
 	}
 
-	// fieldの既定値JSONを取得する、schemaのdefaultValueJsonをparseし無ければDefaultForKind
+	// 既定値JSONを取得する、無ければ種別ごとの既定値を使う
 	nlohmann::json ParseDefaultValue(const Engine::ManagedFieldSchema& field) {
 		if (!field.defaultValueJson.empty() && field.defaultValueJson != "null") {
 			try {
@@ -157,7 +157,7 @@ namespace {
 		return DefaultForKind(field);
 	}
 
-	//--------- Vector/Color json <->型--------------------------------------
+	//--------- Vector/Colorの変換 ------------------------------------------
 
 	Engine::Vector2 ReadVector2(const nlohmann::json& v) {
 		Engine::Vector2 r{};
@@ -196,7 +196,7 @@ namespace {
 	nlohmann::json WriteColor3(const Engine::Color3& v) { return { {"r", v.r}, {"g", v.g}, {"b", v.b} }; }
 	nlohmann::json WriteColor4(const Engine::Color4& v) { return { {"r", v.r}, {"g", v.g}, {"b", v.b}, {"a", v.a} }; }
 
-	// float drag設定をschema属性から作る
+	// float編集設定をスキーマ属性から作る
 	Engine::FloatEditSetting MakeFloatSetting(const Engine::ManagedFieldSchema& field) {
 		Engine::FloatEditSetting s{};
 		if (field.hasDragSpeed) { s.dragSpeed = field.dragSpeed; }
@@ -209,7 +209,7 @@ namespace {
 		return s;
 	}
 
-	// header / tooltipの補助
+	// ヘッダーの補助
 	void DrawHeaderIfAny(const Engine::ManagedFieldSchema& field) {
 		if (!field.header.empty()) {
 			ImGui::SeparatorText(field.header.c_str());
@@ -221,7 +221,7 @@ namespace {
 		}
 	}
 
-	// 64bit整数/ doubleをInputTextで精度を保って編集する
+	// 64bit整数やdoubleを精度を保って編集する
 	Engine::ValueEditResult DrawTextNumber(const char* label, std::string& text) {
 		return Engine::MyGUI::InputText(label, text);
 	}
@@ -232,7 +232,7 @@ namespace {
 		bool readOnly = false;
 	};
 
-	// 値編集の本体、valueをin-placeで書き換え変更有無を返す、collectionやnullableは再帰
+	// 値編集の本体、配列やnullableは再帰する
 	Engine::ValueEditResult DrawValue(const Engine::ManagedFieldSchema& field, nlohmann::json& value,
 		const DrawContext& ctx, const char* label);
 
@@ -258,7 +258,7 @@ namespace {
 		return r;
 	}
 
-	// 64bit整数を符号付きと符号無しで文字列編集して精度維持する
+	// 64bit整数を文字列で編集して精度を保つ
 	Engine::ValueEditResult DrawLong(const char* label, nlohmann::json& value, bool isUnsigned) {
 
 		std::string text;
@@ -298,7 +298,7 @@ namespace {
 		return r;
 	}
 
-	// enumをunderlying値で保持しunknownでも破壊しない
+	// 列挙を数値で保持し未知値でも壊さない
 	Engine::ValueEditResult DrawEnum(const char* label, nlohmann::json& value, const Engine::ManagedFieldSchema& field) {
 
 		Engine::ValueEditResult result{};
@@ -335,7 +335,7 @@ namespace {
 		return result;
 	}
 
-	// AssetRefのtyped picker、UUIDを保存しMissingでも値は保持する
+	// アセット参照のピッカー、UUIDを保存し欠落でも値を保持する
 	Engine::ValueEditResult DrawAssetRef(const char* label, nlohmann::json& value,
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx) {
 
@@ -351,7 +351,7 @@ namespace {
 		return r;
 	}
 
-	// EntityRefの最小selector、Hierarchyからのdragで設定しClearで解除してMissingも表示する
+	// エンティティ参照の選択、ドラッグで設定しクリアで解除する
 	Engine::ValueEditResult DrawEntityRef(const char* label, nlohmann::json& value, const DrawContext& ctx) {
 
 		Engine::ValueEditResult result{};
@@ -367,7 +367,7 @@ namespace {
 			? std::string("<None>") : (kind + ":" + localFileId);
 		ImGui::Button(preview.c_str(), ImVec2(ImGui::GetContentRegionAvail().x - 60.0f, 0.0f));
 
-		// HierarchyからのEntity dragを受け取ってidentityを設定する
+		// ドラッグされたエンティティを参照に設定する
 		if (ImGui::BeginDragDropTarget()) {
 			if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(Engine::IEditorPanel::kHierarchyDragDropPayloadType)) {
 				if (payload->IsDelivery() && payload->DataSize == sizeof(Engine::UUID) && ctx.world) {
@@ -397,7 +397,7 @@ namespace {
 		return result;
 	}
 
-	// ScriptRefの最小selector、ownerをHierarchy dragで設定し対象typeのslotをcombo選択する
+	// スクリプト参照の選択、所有エンティティと対象スロットを選ぶ
 	Engine::ValueEditResult DrawScriptRef(const char* label, nlohmann::json& value,
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx) {
 
@@ -409,15 +409,15 @@ namespace {
 			value["entity"] = nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} };
 		}
 
-		// owner EntityのEntityRef部分
+		// 所有エンティティの参照部分
 		Engine::ValueEditResult ownerResult = DrawEntityRef(label, value["entity"], ctx);
 		if (ownerResult.valueChanged) { result.valueChanged = true; }
 		result.anyItemActive |= ownerResult.anyItemActive;
 
-		// ownerが設定済みなら、そのEntity上の同type script slotを選ばせる
+		// 所有エンティティ上の同型スロットを選ばせる
 		const std::string ownerLocal = value["entity"].value("localFileId", std::string{});
 		if (!ownerLocal.empty() && ctx.world) {
-			// 対象EntityをlocalFileIDで探索する
+			// 対象エンティティをlocalFileIDで探す
 			Engine::Entity owner = Engine::Entity::Null();
 			ctx.world->ForEach<Engine::SceneObjectComponent>([&](Engine::Entity e, Engine::SceneObjectComponent& so) {
 				if (Engine::ToString(so.localFileID) == ownerLocal) { owner = e; }
@@ -432,7 +432,7 @@ namespace {
 					const std::string preview = currentSlot.empty() ? std::string("<None>") : currentSlot;
 					if (ImGui::BeginCombo("##slot", preview.c_str())) {
 						for (const Engine::ScriptEntry& slotEntry : scriptComponent.scripts) {
-							// 型制約TとscriptTypeIdが一致するslotのみ候補にする
+							// 型が一致するスロットのみ候補にする
 							if (!field.scriptType.empty() && !slotEntry.scriptTypeId.empty()) {
 								const auto* info = Engine::BehaviorTypeRegistry::GetInstance()
 									.FindByStableScriptTypeID(slotEntry.scriptTypeId);
@@ -458,7 +458,7 @@ namespace {
 		return result;
 	}
 
-	// 配列/ List
+	// 配列とリスト
 	Engine::ValueEditResult DrawCollection(const char* label, nlohmann::json& value,
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx) {
 
@@ -516,7 +516,7 @@ namespace {
 		return result;
 	}
 
-	// nullableをnullトグルと値editorで編集する
+	// nullableをトグルと値編集で扱う
 	Engine::ValueEditResult DrawNullable(const char* label, nlohmann::json& value,
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx) {
 
@@ -623,7 +623,7 @@ namespace {
 		}
 	}
 
-	// ScriptEntry.serializedFieldsを新形式schemaVersionとfieldsとunresolvedFieldsへ正規化し、legacy flatなnameからvalueはschemaのnameとformerNamesでmigrateして解決不能はunresolvedFieldsに残す、既存GUIDは維持しunknownも捨てずround-tripさせる
+	// 保存フィールドを新形式へ正規化し移行できない値は未解決として保持する
 	bool MigrateAuthoring(Engine::ScriptEntry& entry, const Engine::ManagedScriptSchema& schema) {
 
 		nlohmann::json& sf = entry.serializedFields;
@@ -639,13 +639,13 @@ namespace {
 			return false;
 		}
 
-		// legacy flat ->新形式
+		// 旧形式から新形式へ
 		nlohmann::json migrated = nlohmann::json::object();
 		migrated["schemaVersion"] = schema.schemaVersion != 0 ? schema.schemaVersion : 2;
 		migrated["fields"] = nlohmann::json::object();
 		migrated["unresolvedFields"] = nlohmann::json::object();
 
-		// name / formerName -> field schema
+		// 名前と旧名からスキーマを引く
 		std::unordered_map<std::string, const Engine::ManagedFieldSchema*> byName;
 		for (const Engine::ManagedFieldSchema& f : schema.fields) {
 			byName[f.name] = &f;
@@ -659,7 +659,7 @@ namespace {
 				migrated["fields"][f->fieldId] = nlohmann::json{
 					{"name", f->name}, {"type", KindToTypeString(f->kind)}, {"value", val} };
 			} else {
-				// 解決不能legacy fieldは捨てずに保持する
+				// 解決できない旧フィールドは捨てずに保持する
 				migrated["unresolvedFields"][name] = val;
 			}
 		}
@@ -667,7 +667,7 @@ namespace {
 		return true;
 	}
 
-	// fields[guid]を取得し、無ければdefaultで作ってvalue参照を返す
+	// フィールド値を取得し無ければ既定値で作る
 	nlohmann::json& EnsureFieldValue(nlohmann::json& sf, const Engine::ManagedFieldSchema& field) {
 
 		nlohmann::json& fields = sf["fields"];
@@ -676,14 +676,14 @@ namespace {
 				{"name", field.name}, {"type", KindToTypeString(field.kind)}, {"value", ParseDefaultValue(field)} };
 		}
 		nlohmann::json& entry = fields[field.fieldId];
-		// 現在の名前と型は最新へ更新する、migration補助と診断用
+		// 名前と型は最新へ更新する
 		entry["name"] = field.name;
 		entry["type"] = KindToTypeString(field.kind);
 		if (!entry.contains("value")) { entry["value"] = ParseDefaultValue(field); }
 		return entry["value"];
 	}
 
-	// authoringの1 schema fieldを描画する、変更されたらtrueを返す
+	// 編集用フィールドを1つ描画し変更ならtrueを返す
 	bool DrawAuthoringField(const Engine::ManagedFieldSchema& field, nlohmann::json& sf,
 		const DrawContext& ctx, bool& anyItemActive) {
 
@@ -698,7 +698,7 @@ namespace {
 		bool changed = false;
 		if (field.isReadOnly) {
 			ImGui::BeginDisabled();
-			// ReadOnlyは編集結果を反映しないため戻り値は使わない
+			// 読み取り専用は結果を使わない
 			[[maybe_unused]] Engine::ValueEditResult r = DrawValue(field, value, ctx, label.c_str());
 			DrawTooltipIfAny(field);
 			ImGui::EndDisabled();
@@ -711,7 +711,7 @@ namespace {
 		return changed;
 	}
 
-	// Play中のruntime値を描画する、live instanceへ即時反映しauthoringへは保存しない
+	// 実行中の値を描画し実体へ即時反映する
 	void DrawRuntimeField(const Engine::ManagedFieldSchema& field, nlohmann::json& runtimeState,
 		const DrawContext& ctx, Engine::BehaviorHandle handle) {
 
@@ -736,12 +736,12 @@ namespace {
 		Engine::ValueEditResult r = DrawValue(field, fieldValue, ctx, label.c_str());
 		DrawTooltipIfAny(field);
 		if (r.valueChanged) {
-			// runtime instanceだけへ即時反映しStopでauthoringに戻る
+			// 実行中の実体だけへ即時反映する
 			Engine::BehaviorSystem::SetRuntimeSerializedField(handle, field.fieldId, fieldValue);
 		}
 	}
 
-	// entityのlive ScriptComponentから、scriptSlotID一致のentryのBehaviorHandleを引く
+	// スロットID一致の実行中ハンドルを引く
 	Engine::BehaviorHandle FindLiveHandle(Engine::ECSWorld& world, const Engine::Entity& entity,
 		const Engine::UUID& scriptSlotID) {
 
@@ -757,13 +757,13 @@ namespace {
 		return Engine::BehaviorHandle::Null();
 	}
 
-	// MissingScriptやunresolved fieldを安全に表示する、値は保持しraw表示のみ
+	// 未解決フィールドを安全に表示する
 	void DrawUnresolved(const nlohmann::json& sf) {
 
 		if (!sf.contains("unresolvedFields") || !sf["unresolvedFields"].is_object() || sf["unresolvedFields"].empty()) {
 			return;
 		}
-		if (ImGui::TreeNodeEx("未解決フィールド (保持中)", ImGuiTreeNodeFlags_SpanAvailWidth)) {
+		if (ImGui::TreeNodeEx("未解決フィールド", ImGuiTreeNodeFlags_SpanAvailWidth)) {
 			for (auto& [name, val] : sf["unresolvedFields"].items()) {
 				ImGui::TextDisabled("%s = %s", name.c_str(), val.dump().c_str());
 			}
@@ -798,7 +798,7 @@ namespace {
 		return result;
 	}
 
-	// ScriptアセットのドロップでScriptEntryを追加する
+	// スクリプトのドロップで項目を追加する
 	Engine::ValueEditResult DrawScriptDropField(const Engine::EditorPanelContext& context, Engine::ScriptComponent& component) {
 
 		Engine::ValueEditResult result{};
@@ -823,83 +823,6 @@ namespace {
 		Engine::MyGUI::EndPropertyRow();
 		return result;
 	}
-
-	// Apply Runtime Values To Authoringの専用workflowでruntime entityのstable UUIDからEditWorldの対応entityをlookupしslotをscriptSlotIDで照合する、型互換fieldのみauthoringへmergeしunresolvedや非runtime fieldは保持してauthoring commandでUndo可能に適用、通常のCanEditSceneは広げずEditWorldを直接対象にする
-	void ApplyRuntimeValuesToAuthoring(const Engine::EditorPanelContext& context, Engine::ECSWorld& world,
-		const Engine::Entity& entity, const Engine::ScriptEntry& entry, const Engine::ManagedScriptSchema& schema,
-		const nlohmann::json& runtimeState) {
-
-		Engine::ECSWorld* editWorld = context.editorContext ? context.editorContext->editWorld : nullptr;
-		const Engine::UUID stableUUID = world.IsAlive(entity) ? world.GetUUID(entity) : Engine::UUID{};
-		const bool canApply = editWorld != nullptr && stableUUID;
-
-		ImGui::BeginDisabled(!canApply);
-		const bool clicked = ImGui::Button("Runtime 値を Authoring へ適用");
-		ImGui::EndDisabled();
-		if (!clicked || !canApply) {
-			return;
-		}
-
-		// EditWorldの対応entityをstable entity UUIDで解決しruntime handleはdereferenceしない
-		const Engine::Entity editEntity = editWorld->FindByUUID(stableUUID);
-		if (!editWorld->IsAlive(editEntity) || !editWorld->HasComponent<Engine::ScriptComponent>(editEntity)) {
-			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-				"Apply Runtime Values: EditWorld entity / ScriptComponent not found.");
-			return;
-		}
-		const Engine::ScriptComponent& editComponent = editWorld->GetComponent<Engine::ScriptComponent>(editEntity);
-
-		// slotをscriptSlotIDで照合する、display nameやindexでidentityを決めない
-		Engine::ScriptComponent editCopy = editComponent;
-		int32_t matched = -1;
-		for (size_t s = 0; s < editCopy.scripts.size(); ++s) {
-			if (editCopy.scripts[s].scriptSlotID == entry.scriptSlotID) {
-				matched = static_cast<int32_t>(s);
-				break;
-			}
-		}
-		if (matched < 0) {
-			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-				"Apply Runtime Values: matching authoring slot (scriptSlotID) not found in EditWorld.");
-			return;
-		}
-
-		// 型互換fieldのみmergeしunresolvedFieldsやruntimeに無いfieldは保持する
-		nlohmann::json& sf = editCopy.scripts[matched].serializedFields;
-		if (!sf.is_object()) {
-			sf = nlohmann::json::object();
-		}
-		if (!sf.contains("schemaVersion")) {
-			sf["schemaVersion"] = 2;
-		}
-		if (!sf.contains("fields") || !sf["fields"].is_object()) {
-			sf["fields"] = nlohmann::json::object();
-		}
-		if (!sf.contains("unresolvedFields") || !sf["unresolvedFields"].is_object()) {
-			sf["unresolvedFields"] = nlohmann::json::object();
-		}
-		for (const Engine::ManagedFieldSchema& field : schema.fields) {
-			const auto it = runtimeState.find(field.fieldId);
-			if (it == runtimeState.end() || it->is_null()) {
-				continue;
-			}
-			nlohmann::json fieldEntry;
-			fieldEntry["name"] = field.name;
-			fieldEntry["type"] = KindToTypeString(field.kind);
-			fieldEntry["value"] = *it;
-			sf["fields"][field.fieldId] = std::move(fieldEntry);
-		}
-
-		const nlohmann::json before = editComponent;
-		const nlohmann::json after = editCopy;
-		if (before == after) {
-			return;
-		}
-		if (context.host) {
-			context.host->ExecuteEditorCommand(std::make_unique<Engine::ApplyRuntimeToAuthoringCommand>(
-				stableUUID, "Script", before, after));
-		}
-	}
 }
 
 void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context,
@@ -909,18 +832,17 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 	auto& runtime = ManagedScriptRuntime::GetInstance();
 	const bool playing = context.IsPlaying();
 
-	// runtime値のreadback throttle、selected entityのみで約10Hzのbounded cache
+	// 実行中値の読み戻しを約10Hzに制限する
 	static std::unordered_map<uint64_t, std::pair<std::chrono::steady_clock::time_point, nlohmann::json>> runtimeCache;
 	const auto now = std::chrono::steady_clock::now();
 
-	// runtime cacheのlifecycle管理でPlay停止や非Playではruntime値が無効なので捨てreloadでPlayから抜けた直後も含む、これでPlay stopやassembly reloadやscene changeでpruneされる
 	if (!playing && !runtimeCache.empty()) {
 		runtimeCache.clear();
 	}
-	// 容量上限、selected entityを跨いだ蓄積で無制限growthしないよう超過時は古い順に間引く
+	// 容量上限を超えたら古い順に間引く
 	constexpr size_t kMaxRuntimeCacheEntries = 64;
 	if (runtimeCache.size() > kMaxRuntimeCacheEntries) {
-		// 最も古いreadbackから削除して上限以下へ戻す、O(n)だが構造変更時のみでhot pathではない
+		// 最も古い項目から削除して上限以下へ戻す
 		while (runtimeCache.size() > kMaxRuntimeCacheEntries) {
 			auto oldest = runtimeCache.begin();
 			for (auto it = runtimeCache.begin(); it != runtimeCache.end(); ++it) {
@@ -940,10 +862,10 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 		ImGui::PushID(static_cast<int32_t>(i));
 		ScriptEntry& entry = draft.scripts[i];
 
-		// 型解決状態はregistryのstable Script type existenceで判定しschema field数に依存しない
+		// 型の解決状態はレジストリで判定する
 		const ManagedScriptResolutionReason resolutionReason = ResolveScriptReason(entry);
 
-		// 表示名はregistryに型が無いときだけMissing Scriptにする
+		// 未登録のときだけ欠落表示にする
 		std::string headerText;
 		if (resolutionReason == ManagedScriptResolutionReason::TypeNotRegistered) {
 			headerText = entry.lastKnownTypeName.empty()
@@ -966,7 +888,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				ImGui::Separator();
 			}
 			{
-				// 型comboは選択名からGUIDを引き直すReassignでserializedFieldsはclearせず、新schemaでのMigrateAuthoringがnameやformerNames一致fieldを移行し移行できない値はunresolvedFieldsとして保持してpayloadを失わない
+				// 型コンボはGUIDを引き直すだけで値は保持し新スキーマで移行する
 				const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
 				ValueEditResult result = InspectorDrawerCommon::DrawBehaviorTypeField("型", entry.lastKnownTypeName, searchIcon);
 				if (result.valueChanged) {
@@ -977,7 +899,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 						entry.scriptTypeId.clear();
 					}
 					entry.scriptAsset = {};
-					// 既存のserialized値は保持し、新形式ならmigrationが走って旧type固有の値はunresolvedに残る
+					// 既存値は保持し移行できない値は未解決へ残る
 				}
 				PushEditResult(result, anyItemActive);
 				ImGui::Separator();
@@ -986,14 +908,14 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				return InspectorDrawerCommon::DrawCheckboxField("有効", entry.enabled);
 				});
 
-			// 型はregistryで解決済みかを見てschema field数では判定しない、解決済みならserialized fieldが0件でもMissing扱いにしない
+			// 解決済みかはレジストリで判定しフィールド数では判定しない
 			const ManagedScriptSchema& schema = runtime.GetScriptSchema(entry.scriptTypeId);
 			const bool resolved = (resolutionReason == ManagedScriptResolutionReason::Resolved);
 
-			// fieldを描画するのは解決済みかつschemaにfieldがある場合のみで0 fieldのvalid Scriptはここを通らないがMissingメッセージも出さない
+			// 解決済みかつフィールドがある場合のみ描画する
 			if (resolved && !schema.fields.empty()) {
 
-				// 保存形式のmigrationはdraft上のin-memoryのみでloadしただけでは保存せず実際に値が編集されたとき下のRequestCommitで新形式に確定する
+				// 移行はメモリ上のみで実際の編集時に確定する
 				MigrateAuthoring(entry, schema);
 
 				DrawContext ctx{};
@@ -1002,8 +924,8 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 
 				if (playing) {
 
-					// Playではlive instanceのruntime値を表示編集しauthoringには保存しない
-					ImGui::TextDisabled("Runtime 値 (Play中・保存されません)");
+					// 実行中は実体の値を表示編集し保存しない
+					ImGui::TextDisabled("Runtime 値");
 					const BehaviorHandle handle = FindLiveHandle(world, entity, entry.scriptSlotID);
 
 					const uint64_t key = (static_cast<uint64_t>(handle.index) << 32) | handle.generation;
@@ -1018,24 +940,21 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 					for (const ManagedFieldSchema& field : schema.fields) {
 						DrawRuntimeField(field, cached.second, ctx, handle);
 					}
-
-					// Apply Runtime Values To Authoringの専用workflowでCanEditSceneは広げずruntime entityのstable UUIDでEditWorldの対応entityとslotを照合しauthoring commandで適用する
-					ApplyRuntimeValuesToAuthoring(context, world, entity, entry, schema, cached.second);
 				} else {
 
-					// Edit: authoring値を編集する
+					// 編集中は編集用の値を扱う
 					bool changed = false;
 					for (const ManagedFieldSchema& field : schema.fields) {
 						changed |= DrawAuthoringField(field, entry.serializedFields, ctx, anyItemActive);
 					}
 					if (changed) {
-						// revisionを進めてlifecycle syncのgateでruntimeへ再適用させる
+						// リビジョンを進めて実行側へ再適用させる
 						++entry.serializedRevision;
 						RequestCommit();
 					}
 				}
 			} else if (resolutionReason == ManagedScriptResolutionReason::TypeNotRegistered) {
-				// registryに型が無い場合のみMissing表示しpayloadは保持して自動削除しない
+				// 未登録のときだけ欠落表示し値は保持する
 				ImGui::TextDisabled("型を解決できません (Missing Script)。値は保持されます。");
 				ImGui::BulletText("last known type: %s",
 					entry.lastKnownTypeName.empty() ? "(unknown)" : entry.lastKnownTypeName.c_str());
@@ -1050,10 +969,10 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				ImGui::TextDisabled("型を選び直すと Reassign（上の「型」で型を変更）");
 			}
 
-			// 未解決フィールドは常に保持し、参照できるよう表示する
+			// 未解決フィールドは保持して表示する
 			DrawUnresolved(entry.serializedFields);
 
-			// 並べ替えはexecution orderとは別で同一Entity内のslot順、draftを入れ替えてcommitする
+			// 並べ替えは同一エンティティ内のスロット順
 			ImGui::BeginDisabled(i == 0);
 			if (ImGui::SmallButton("▲")) {
 				moveUpIndex = static_cast<int32_t>(i);
@@ -1084,7 +1003,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 		draft.scripts.erase(draft.scripts.begin() + removeIndex);
 		RequestCommit();
 	}
-	// slot並べ替えはdraftを入れ替えてcommitしSetSerializedComponentCommandでUndo Redo可能
+	// スロット並べ替えは入れ替えて確定しUndoできる
 	else if (0 < moveUpIndex && moveUpIndex < static_cast<int32_t>(draft.scripts.size())) {
 		std::swap(draft.scripts[moveUpIndex], draft.scripts[moveUpIndex - 1]);
 		RequestCommit();
@@ -1111,7 +1030,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				if (info.name.empty() || !info.construct) {
 					continue;
 				}
-				// メニュー表示はクラス名のみでentryには完全修飾名を保持する
+				// 表示はクラス名のみで内部は完全修飾名を保持する
 				if (ImGui::MenuItem(ScriptTypeShortName(info.name).c_str())) {
 					draft.scripts.emplace_back(MakeScriptEntry(info.scriptTypeId, info.name));
 					RequestCommit();

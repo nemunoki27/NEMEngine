@@ -13,8 +13,8 @@
 namespace Engine {
 
 	//============================================================================
-	//	Object Model Callbacks
-	//	C#側Entity / IComponentRef / ScriptBehaviour.Enabledから呼ばれるgenericな操作
+	//	オブジェクトモデルのコールバック
+	//	C#側Entity/IComponentRef/ScriptBehaviour.Enabledから呼ばれる汎用操作
 	//============================================================================
 
 	int32_t ManagedScriptRuntime::GetComponentTypeIdCallback(const char* name) {
@@ -38,7 +38,7 @@ namespace Engine {
 		if (static_cast<uint32_t>(typeId) >= registry.GetComponentTypeCount()) {
 			return 0;
 		}
-		// compact idから登録名を引いて存在判定する、O(1)のcomponent mask照合
+		// compact idから登録名を引いて存在判定する、O(1)のcomponentマスク照合
 		return world->HasComponent(resolved, registry.GetInfo(static_cast<uint32_t>(typeId)).name) ? 1 : 0;
 	}
 
@@ -53,7 +53,7 @@ namespace Engine {
 		if (static_cast<uint32_t>(typeId) >= registry.GetComponentTypeCount()) {
 			return;
 		}
-		// archetype移動を伴う構造変更はForEach走査を壊さないようWorldCommandBuffer経由で遅延適用する、duplicate addや適用前のentity失効はApply側で再検証され安全に扱われる
+		// archetype移動を伴う構造変更はForEach走査を壊さないようWorldCommandBuffer経由で遅延適用する、重複追加や適用前のentity失効はApply側で再検証され安全に扱われる
 		world->GetCommandBuffer().EnqueueAddComponentByName(resolved, registry.GetInfo(static_cast<uint32_t>(typeId)).name);
 	}
 
@@ -68,7 +68,7 @@ namespace Engine {
 		if (static_cast<uint32_t>(typeId) >= registry.GetComponentTypeCount()) {
 			return;
 		}
-		// missing remove /適用前のentity失効もApply側で安全にno-opになる
+		// 対象無しの削除や適用前のentity失効もApply側で安全に無処理になる
 		world->GetCommandBuffer().EnqueueRemoveComponentByName(resolved, registry.GetInfo(static_cast<uint32_t>(typeId)).name);
 	}
 
@@ -79,13 +79,13 @@ namespace Engine {
 		if (!world || !world->IsAlive(resolved)) {
 			return;
 		}
-		// callback中の即時破棄は走査を壊すため安全地点まで遅延する、duplicate destroyはApply側で吸収する
+		// コールバック中の即時破棄は走査を壊すため安全地点まで遅延する、重複破棄はApply側で吸収する
 		world->GetCommandBuffer().EnqueueDestroyEntity(resolved);
 	}
 
 	int32_t ManagedScriptRuntime::GetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotId) {
 
-		// owner EntityとscriptSlotIDでruntime entryを特定しruntime enabledを返す、-1は未解決
+		// 所有EntityとscriptSlotIDで実行中entryを特定し有効状態を返す、-1は未解決
 		const Entity resolved = ResolveEntity(owner);
 		return BehaviorSystem::GetScriptEnabled(resolved, UUID{ scriptSlotId });
 	}

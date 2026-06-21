@@ -30,6 +30,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		MaterialParameterBinder() = default;
 		~MaterialParameterBinder() = default;
 

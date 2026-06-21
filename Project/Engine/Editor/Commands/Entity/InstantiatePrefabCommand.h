@@ -19,6 +19,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		explicit InstantiatePrefabCommand(AssetID prefabAsset, UUID parentStableUUID = UUID{});
 		~InstantiatePrefabCommand() = default;
 

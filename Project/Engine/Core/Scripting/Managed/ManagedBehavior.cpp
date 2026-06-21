@@ -47,7 +47,7 @@ void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializ
 		serializedFields_ = nlohmann::json::object();
 	}
 
-	// 生成済みのC#インスタンスにはPlay中のInspector変更をその場で反映する、authoring形式はfieldGuidからvalueの形へ正規化してから渡す
+	// 生成済みのC#インスタンスにはPlay中のインスペクター変更をその場で反映する、編集用形式はfieldGuidから値の形へ正規化してから渡す
 	if (managedHandle_.IsValid()) {
 		auto& runtime = ManagedScriptRuntime::GetInstance();
 		runtime.SetSerializedFields(managedHandle_, runtime.BuildSerializedValueMap(scriptTypeId_, serializedFields_));
@@ -72,7 +72,7 @@ void Engine::ManagedBehavior::SetRuntimeSerializedField(const std::string& field
 
 void Engine::ManagedBehavior::Awake([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
 
-	// インスタンス生成はライフサイクルのPass1(EnsureInstance)で済ませてある
+	// インスタンス生成はライフサイクルのPass1で済ませてある
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
@@ -112,7 +112,7 @@ void Engine::ManagedBehavior::OnDestroy([[maybe_unused]] ECSWorld& world,
 	if (!managedHandle_.IsValid()) {
 		return;
 	}
-	// faultedでなければOnDestroyを通知する、faulted時はgameplay callbackを呼ばず解放だけ行う
+	// 異常でなければOnDestroyを通知する、異常時はコールバックを呼ばず解放だけ行う
 	if (!faulted_) {
 		HandleStatus(ManagedScriptRuntime::GetInstance().InvokeOnDestroy(managedHandle_, context), "OnDestroy", entity);
 	}
@@ -205,7 +205,7 @@ void Engine::ManagedBehavior::HandleStatus(ManagedStatus status, const char* cal
 	if (status == ManagedStatus::Ok) {
 		return;
 	}
-	// C#側でユーザーcallbackが例外を投げた場合のみfaulted化する、例外全文はC#側GuardInstanceがログ済みでここでは型とcallbackとentityを残す
+	// C#側でユーザーのコールバックが例外を投げた場合のみ異常化する、全文はC#側GuardInstanceがログ済みでここでは型とコールバックとエンティティを残す
 	if (status == ManagedStatus::ScriptException && !faulted_) {
 
 		faulted_ = true;

@@ -27,6 +27,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		BufferUploadService() = default;
 		~BufferUploadService() = default;
 

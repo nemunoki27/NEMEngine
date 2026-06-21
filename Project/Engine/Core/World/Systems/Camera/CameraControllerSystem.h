@@ -17,6 +17,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		CameraControllerSystem() = default;
 		~CameraControllerSystem() override = default;
 

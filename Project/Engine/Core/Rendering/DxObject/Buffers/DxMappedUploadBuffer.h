@@ -21,6 +21,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		DxMappedUploadBuffer() = default;
 		~DxMappedUploadBuffer() = default;
 

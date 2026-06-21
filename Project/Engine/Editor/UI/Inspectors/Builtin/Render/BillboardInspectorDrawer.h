@@ -18,6 +18,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		BillboardInspectorDrawer() :
 			SerializedComponentInspectorDrawer("Billboard", "Billboard") {}
 		~BillboardInspectorDrawer() = default;

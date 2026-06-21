@@ -85,7 +85,7 @@ namespace {
 			return {};
 		}
 
-		// 現在のシーンのassetパスを解決する
+		// 現在のシーンのアセットパスを解決する
 		std::string scenePath;
 		if (toolContext.sceneInstances && toolContext.activeSceneInstanceID) {
 			if (const Engine::SceneInstance* instance = toolContext.sceneInstances->Find(toolContext.activeSceneInstanceID)) {
@@ -107,7 +107,7 @@ namespace {
 		Engine::PostProcessStackService& service = Engine::PostProcessStackService::GetInstance();
 		Engine::PostProcessStackSerializer::Save(fullPath, service.GetSettings());
 
-		// assetとして登録し、シーンheaderへ結びつけてサービスのアクティブ設定にする
+		// アセットとして登録し、シーンヘッダーへ結びつけてサービスのアクティブ設定にする
 		const Engine::AssetID stackAsset = assetDatabase->ImportOrGet(defaultPath, Engine::AssetType::PostProcessStack);
 		header->postProcessStack = stackAsset;
 		service.SetActiveSettingsAsset(stackAsset, assetDatabase);

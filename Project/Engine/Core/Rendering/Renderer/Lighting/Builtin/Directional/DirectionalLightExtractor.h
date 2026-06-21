@@ -17,6 +17,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		DirectionalLightExtractor() = default;
 		~DirectionalLightExtractor() override = default;
 

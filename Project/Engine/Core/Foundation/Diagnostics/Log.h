@@ -46,6 +46,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		Logger() = default;
 		~Logger() = default;
 
@@ -123,6 +124,7 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
 		static void EnsureInitialized();
 		static std::string_view TypeToFileName(LogType type);
 		static std::string_view TypeToLoggerName(LogType type);

@@ -17,6 +17,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		SpriteRenderItemExtractor() = default;
 		~SpriteRenderItemExtractor() = default;
 

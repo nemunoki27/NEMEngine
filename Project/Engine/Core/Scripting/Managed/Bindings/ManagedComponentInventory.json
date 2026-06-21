@@ -323,6 +323,34 @@
       "inspector": "script inspector drawer",
       "runtime": "managed lifecycle が直接管理",
       "tests": []
+    },
+    {
+      "nativeName": "Rigidbody",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.Rigidbody",
+      "reason": "速度や質量や重力や力を generated property で公開する3D剛体。AddForce は手書き partial の facade。",
+      "readableFields": ["BodyType", "Mass", "UseGravity", "GravityScale", "LinearDamping", "FreezePositionX", "FreezePositionY", "FreezePositionZ", "LinearVelocity", "AccumulatedForce"],
+      "writableFields": ["BodyType", "Mass", "UseGravity", "GravityScale", "LinearDamping", "FreezePositionX", "FreezePositionY", "FreezePositionZ", "LinearVelocity", "AccumulatedForce"],
+      "commands": [],
+      "events": [],
+      "serialization": "component JSON",
+      "inspector": "builtin inspector",
+      "runtime": "PhysicsSystem が FixedUpdate で積分する",
+      "tests": []
+    },
+    {
+      "nativeName": "Rigidbody2D",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.Rigidbody2D",
+      "reason": "XY平面の速度や質量や重力や力を generated property で公開する2D剛体。AddForce は手書き partial の facade。",
+      "readableFields": ["BodyType", "Mass", "UseGravity", "GravityScale", "LinearDamping", "FreezePositionX", "FreezePositionY", "FreezeRotation", "LinearVelocity", "AccumulatedForce"],
+      "writableFields": ["BodyType", "Mass", "UseGravity", "GravityScale", "LinearDamping", "FreezePositionX", "FreezePositionY", "FreezeRotation", "LinearVelocity", "AccumulatedForce"],
+      "commands": [],
+      "events": [],
+      "serialization": "component JSON",
+      "inspector": "builtin inspector",
+      "runtime": "PhysicsSystem が FixedUpdate で積分する",
+      "tests": []
     }
   ]
 }

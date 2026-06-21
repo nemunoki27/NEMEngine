@@ -18,6 +18,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		UVTransformInspectorDrawer() :
 			SerializedComponentInspectorDrawer("UVTransform", "UVTransform") {}
 		~UVTransformInspectorDrawer() = default;

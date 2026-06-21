@@ -18,6 +18,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		LightExtractorRegistry() = default;
 		~LightExtractorRegistry() override = default;
 

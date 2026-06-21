@@ -23,6 +23,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		AddComponentCommand(const Entity& targetEntity, const std::string_view& typeName);
 		~AddComponentCommand() = default;
 

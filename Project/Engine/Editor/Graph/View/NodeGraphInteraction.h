@@ -16,6 +16,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		// Pin同士を接続する
 		static bool TryCreateLink(GraphDocument& document, GraphID fromPinID, GraphID toPinID);
 		// Linkを削除する

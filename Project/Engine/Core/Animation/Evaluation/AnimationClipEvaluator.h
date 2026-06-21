@@ -44,6 +44,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		// Track単体を指定時刻で評価する
 		static bool EvaluateTrack(const AnimationCurveTrack& track, float time, AnimationPropertyValue& outValue);
 		// Resolve済み時刻を使い、LoopBridgeも含めてTrackを評価する

@@ -123,11 +123,6 @@ namespace Engine {
 		size_t operator()(const CollisionPairKey& key) const noexcept;
 	};
 
-	// ColliderShapeTypeを文字列へ変換する
-	const char* ToString(ColliderShapeType type);
-	// 文字列からColliderShapeTypeへ変換する
-	ColliderShapeType ColliderShapeTypeFromString(const std::string& text, ColliderShapeType fallback = ColliderShapeType::Sphere3D);
-
 	// 衝突タイプインデックスからビットを作成する
 	uint32_t MakeCollisionTypeBit(uint32_t typeIndex);
 	// マスクに指定衝突タイプが含まれているか

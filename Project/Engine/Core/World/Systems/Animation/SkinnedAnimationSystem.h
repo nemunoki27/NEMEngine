@@ -19,6 +19,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		SkinnedAnimationUpdateSystem() = default;
 		~SkinnedAnimationUpdateSystem() = default;
 

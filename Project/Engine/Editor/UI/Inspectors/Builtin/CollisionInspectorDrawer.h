@@ -18,6 +18,7 @@ namespace Engine {
 		//============================================================================
 		//	public Methods
 		//============================================================================
+
 		CollisionInspectorDrawer() :
 			SerializedComponentInspectorDrawer("Collision", "Collision") {
 		}
