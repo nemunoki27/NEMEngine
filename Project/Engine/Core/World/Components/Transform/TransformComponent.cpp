@@ -9,6 +9,7 @@
 //============================================================================
 //	TransformComponent classMethods
 //============================================================================
+
 void Engine::from_json(const nlohmann::json& in, TransformComponent& component) {
 
 	component.localPos = Vector3::FromJson(in.value("localPos", nlohmann::json{}));

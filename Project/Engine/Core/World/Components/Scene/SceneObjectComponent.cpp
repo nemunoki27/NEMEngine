@@ -8,6 +8,7 @@
 //============================================================================
 //	SceneObjectComponent classMethods
 //============================================================================
+
 void Engine::from_json(const nlohmann::json& in, SceneObjectComponent& component) {
 
 	const std::string localID = in.value("localFileID", "");
@@ -30,10 +31,8 @@ void Engine::to_json(nlohmann::json& out, const SceneObjectComponent& component)
 
 bool Engine::IsEntityActiveInHierarchy(ECSWorld& world, const Entity& entity) {
 
-	// HasComponent+GetComponentの二重ルックアップを避け、1度のTryGetComponentで解決する
 	if (const SceneObjectComponent* sceneObject = world.TryGetComponent<Engine::SceneObjectComponent>(entity)) {
 		return sceneObject->activeInHierarchy;
 	}
-	// SceneObjectComponentを持たない場合は、生存していればactive扱いとする
 	return world.IsAlive(entity);
 }

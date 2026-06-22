@@ -38,9 +38,22 @@ namespace Engine::SceneObjectUtility {
 	bool IsInScene(ECSWorld& world, Entity entity, UUID sceneInstanceID) {
 
 		if (!sceneInstanceID) {
-			return true; // インスタンスID未指定なら全シーン対象とみなす既存互換
+			return true;
 		}
 		return GetSceneInstanceID(world, entity) == sceneInstanceID;
 	}
 
+	Entity FindByLocalFileID(ECSWorld& world, UUID localFileID) {
+
+		if (!localFileID) {
+			return Entity::Null();
+		}
+		Entity found = Entity::Null();
+		world.ForEach<SceneObjectComponent>([&](Entity entity, SceneObjectComponent& sceneObject) {
+			if (!found.IsValid() && sceneObject.localFileID == localFileID) {
+				found = entity;
+			}
+			});
+		return found;
+	}
 } // Engine::SceneObjectUtility

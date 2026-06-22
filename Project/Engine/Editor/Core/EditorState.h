@@ -113,6 +113,10 @@ namespace Engine {
 		std::vector<Entity> selectedEntities{};
 		// Ctrl+ドラッグ用に選択を変えずカーソル下から拾ったエンティティ、Viewportのドラッグ対象に使う
 		Entity scenePickDragEntity = Entity::Null();
+		// ダブルクリックでシーンカメラを寄せたいエンティティ、EditorManagerが消費する
+		Entity cameraFocusRequest = Entity::Null();
+		// シーンカメラがフォーカスで寄っている最中か、フォーカス中はギズモ操作を無効にする
+		bool cameraFocusing = false;
 		// 現在選択しているアセット
 		AssetID selectedAsset{};
 		// アセット選択操作が行われるたびに進むカウンタ

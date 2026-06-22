@@ -798,6 +798,27 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	ImGuizmo::BeginFrame();
 	DrawDockSpace();
 
+	// ダブルクリックで要求されたフォーカスを消費する、3DマニュアルカメラのときだけEntityへ寄せる
+	if (sceneViewCameraController_ && editorState_.cameraFocusRequest.IsValid()) {
+
+		ECSWorld* focusWorld = context.activeWorld;
+		const Entity focusTarget = editorState_.cameraFocusRequest;
+		editorState_.cameraFocusRequest = Entity::Null();
+		if (focusWorld && focusWorld->IsAlive(focusTarget) &&
+			editorState_.manualCameraDimension == Dimension::Type3D) {
+
+			sceneViewCameraController_->FocusOn(
+				RenderItemExtract::GetWorldMatrix(*focusWorld, focusTarget).GetTranslationValue());
+		}
+	}
+	// フォーカス中の寄りを毎フレーム進める、入力可否に関わらず行う
+	if (sceneViewCameraController_) {
+
+		sceneViewCameraController_->UpdateFocus();
+		// フォーカス中はギズモ操作を無効にして誤移動を防ぐ
+		editorState_.cameraFocusing = sceneViewCameraController_->IsFocusing();
+	}
+
 	// シーンビューのマニュアルカメラを更新
 	UpdateSceneViewManualCamera();
 

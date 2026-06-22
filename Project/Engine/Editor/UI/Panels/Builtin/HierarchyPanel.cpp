@@ -326,6 +326,11 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		context.editorState->SelectEntity(entity);
 	}
 
+	// ダブルクリックでシーンカメラをそのエンティティへ寄せる
+	if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+		context.editorState->cameraFocusRequest = entity;
+	}
+
 	// ノード右クリックでもコンテキストメニューを開く
 	if (nodeRightClicked) {
 		ImGui::OpenPopup("HierarchyEntityContextMenu");

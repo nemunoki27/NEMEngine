@@ -427,9 +427,21 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			} else {
 				context.editorState->gameViewportHovered = imageHovered;
 			}
+
+			// ビューでエンティティをダブルクリックしたらシーンカメラを選択中のエンティティへ寄せる
+			if (imageHovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+
+				Engine::ECSWorld* world = context.GetWorld();
+				if (world && world->IsAlive(context.editorState->selectedEntity)) {
+
+					context.editorState->cameraFocusRequest = context.editorState->selectedEntity;
+					// フォーカス開始のこのフレームからギズモを無効にして、ダブルクリックでの誤移動を防ぐ
+					context.editorState->cameraFocusing = true;
+				}
+			}
 		}
 
-		// シーンビューの場合はシーンギズモも描画
+		// シーンビューの場合はシーンギズモも描画、フォーカス中はDrawSceneGizmo内で操作を無効化する
 		bool blockDragByGizmo = false;
 		if (kind_ == ViewportPanelKind::Scene) {
 
@@ -609,6 +621,12 @@ void Engine::ViewportPanel::DrawSceneGizmo(const EditorPanelContext& context) {
 		return;
 	}
 	ECSWorld& world = *worldPtr;
+
+	// フォーカスで寄っている最中はギズモを操作させない、ダブルクリックでの誤移動を防ぐ
+	if (context.editorState->cameraFocusing) {
+		FinalizeEntityGizmoSession(context, world);
+		return;
+	}
 
 	// 編集不可の場合はギズモセッションを終了して何もしない
 	if (!context.CanEditScene() || !context.sceneRenderView || !context.sceneRenderView->valid ||

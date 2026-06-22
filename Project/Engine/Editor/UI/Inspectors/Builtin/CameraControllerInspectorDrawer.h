@@ -41,8 +41,5 @@ namespace Engine {
 		ValueEditResult DrawFollowSettings(ECSWorld& world, CameraFollowSettings& settings);
 		// 注視設定を描画する
 		ValueEditResult DrawLookAtSettings(ECSWorld& world, CameraLookAtSettings& settings);
-		// 揺れ設定を描画する
-		ValueEditResult DrawShakeSettings(CameraShakeSettings& settings);
 	};
 } // Engine
-

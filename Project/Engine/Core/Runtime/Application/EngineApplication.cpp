@@ -69,7 +69,6 @@ void Engine::EngineApplication::InitSystems() {
 	// システムの追加、orderが小さいほど先に処理される
 	scheduler_.AddSystem(std::make_unique<HierarchySystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
-	// 物理はスクリプトのFixedUpdateの後でTransform更新の前に積分する
 	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);

@@ -82,8 +82,11 @@ namespace Engine {
 		// 補間
 		static Quaternion Lerp(Quaternion q0, const Quaternion& q1, float lerpT);
 
-		// 関数の説明
+		// +Y軸をdirection方向へ向ける最小回転を作る
 		static Quaternion FromToY(const Vector3& direction);
+
+		// forward方向を向き、upを上とする回転計算
+		static Quaternion LookRotation(const Vector3& forward, const Vector3& up);
 
 		//------------------------------------------------------------------------
 		//	オイラー変換

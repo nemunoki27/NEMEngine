@@ -14,6 +14,7 @@
 //============================================================================
 //	SkinnedAnimationUpdateSystem classMethods
 //============================================================================
+
 template<>
 Engine::Vector3 Engine::SkinnedAnimationUpdateSystem::SampleKeyframes<Engine::Vector3>(
 	const std::vector<KeyframeVector3>& keys, float time) {

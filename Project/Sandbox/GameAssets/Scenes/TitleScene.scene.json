@@ -143,6 +143,37 @@
         },
         {
             "Components": {
+                "CameraController": {
+                    "editorPreview": true,
+                    "enabled": true,
+                    "follow": {
+                        "axisMask": {
+                            "x": 1.0,
+                            "y": 1.0,
+                            "z": 1.0
+                        },
+                        "enabled": true,
+                        "offset": {
+                            "x": 0.0,
+                            "y": 3.7899999618530273,
+                            "z": -5.059999942779541
+                        },
+                        "posLerpSpeed": 9.600000381469727,
+                        "target": "6d6cda8f769c6a9c"
+                    },
+                    "lookAt": {
+                        "enabled": true,
+                        "lockRoll": false,
+                        "offset": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "rotationLerpSpeed": 8.510000228881836,
+                        "target": "6d6cda8f769c6a9c"
+                    },
+                    "mode": "Follow"
+                },
                 "Hierarchy": {
                     "parentLocalFileID": "",
                     "siblingOrder": 0
@@ -168,12 +199,12 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": 4.0,
-                        "z": -8.535229682922363
+                        "y": 4.265302658081055,
+                        "z": -5.059999942779541
                     },
                     "localRotation": {
-                        "w": 0.9944303035736084,
-                        "x": 0.10539630800485611,
+                        "w": 0.9788674116134644,
+                        "x": 0.20449605584144592,
                         "y": 0.0,
                         "z": 0.0
                     },

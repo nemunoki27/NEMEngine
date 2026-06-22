@@ -32,6 +32,13 @@ namespace Engine {
 		// カメラの状態を更新する
 		void Update(Dimension dimension, InputViewArea viewArea);
 
+		// 指定ワールド座標へ向けて滑らかに寄る、3Dマニュアルカメラ用
+		void FocusOn(const Vector3& worldPosition);
+		// フォーカス中の寄りを毎フレーム進める、入力可否に関わらず呼ぶ
+		void UpdateFocus();
+		// フォーカスで寄っている最中か
+		bool IsFocusing() const { return focusActive_; }
+
 		// ToolPanelの一覧からツールを開く
 		void OpenEditorTool() override;
 		// CameraManagerウィンドウを描画する
@@ -70,6 +77,11 @@ namespace Engine {
 
 		// カメラの状態
 		ManualRenderCameraState cameraState_;
+
+		// フォーカス中か
+		bool focusActive_ = false;
+		// 寄り先のカメラ位置
+		Vector3 focusTargetPos_ = Vector3::AnyInit(0.0f);
 
 		// カメラ操作速度、シリアライズ対象
 		float rotateSpeed_ = 0.005f;

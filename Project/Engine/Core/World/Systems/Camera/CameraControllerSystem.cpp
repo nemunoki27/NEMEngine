@@ -1,5 +1,7 @@
 #include "CameraControllerSystem.h"
 
+using namespace Engine;
+
 //============================================================================
 //	include
 //============================================================================
@@ -7,7 +9,7 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Core/Foundation/Math/Math.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
 // c++
 #include <algorithm>
@@ -17,12 +19,6 @@
 //	CameraControllerSystem classMethods
 //============================================================================
 namespace {
-
-	// 値を0から1の範囲へ収める
-	float Clamp01(float value) {
-
-		return (std::clamp)(value, 0.0f, 1.0f);
-	}
 
 	// 補間速度とdeltaTimeからフレーム非依存の補間率を作る
 	float MakeLerpRate(float speed, float deltaTime) {
@@ -34,29 +30,28 @@ namespace {
 	}
 
 	// Vector3の各要素を範囲内へ収める
-	Engine::Vector3 ClampVector(const Engine::Vector3& value,
-		const Engine::Vector3& minValue, const Engine::Vector3& maxValue) {
+	Vector3 ClampVector(const Vector3& value,
+		const Vector3& minValue, const Vector3& maxValue) {
 
-		return Engine::Vector3(
-			(std::clamp)(value.x, minValue.x, maxValue.x),
+		return Vector3((std::clamp)(value.x, minValue.x, maxValue.x),
 			(std::clamp)(value.y, minValue.y, maxValue.y),
 			(std::clamp)(value.z, minValue.z, maxValue.z));
 	}
 
 	// 現在のTransform値からワールド行列を再帰的に解決する
-	Engine::Matrix4x4 ResolveWorldMatrix(Engine::ECSWorld& world, const Engine::Entity& entity) {
+	Matrix4x4 ResolveWorldMatrix(ECSWorld& world, const Entity& entity) {
 
-		if (!world.IsAlive(entity) || !world.HasComponent<Engine::TransformComponent>(entity)) {
-			return Engine::Matrix4x4::Identity();
+		if (!world.IsAlive(entity) || !world.HasComponent<TransformComponent>(entity)) {
+			return Matrix4x4::Identity();
 		}
 
-		const auto& transform = world.GetComponent<Engine::TransformComponent>(entity);
-		Engine::Matrix4x4 localMatrix = MakeLocalMatrix(transform);
-		if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
+		const auto& transform = world.GetComponent<TransformComponent>(entity);
+		Matrix4x4 localMatrix = MakeLocalMatrix(transform);
+		if (!world.HasComponent<HierarchyComponent>(entity)) {
 			return localMatrix;
 		}
 
-		const Engine::Entity parent = world.GetComponent<Engine::HierarchyComponent>(entity).parent;
+		const Entity parent = world.GetComponent<HierarchyComponent>(entity).parent;
 		if (!parent.IsValid() || !world.IsAlive(parent)) {
 			return localMatrix;
 		}
@@ -64,204 +59,111 @@ namespace {
 	}
 
 	// Entityのワールド位置を取得する
-	Engine::Vector3 GetWorldPosition(Engine::ECSWorld& world, const Engine::Entity& entity) {
+	Vector3 GetWorldPosition(ECSWorld& world, const Entity& entity) {
 
 		return ResolveWorldMatrix(world, entity).GetTranslationValue();
 	}
 
 	// ワールド位置をカメラの親空間へ変換する
-	Engine::Vector3 WorldToParentLocal(Engine::ECSWorld& world,
-		const Engine::Entity& entity, const Engine::Vector3& worldPosition) {
+	Vector3 WorldToParentLocal(ECSWorld& world,
+		const Entity& entity, const Vector3& worldPosition) {
 
-		if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
+		if (!world.HasComponent<HierarchyComponent>(entity)) {
 			return worldPosition;
 		}
 
-		const Engine::Entity parent = world.GetComponent<Engine::HierarchyComponent>(entity).parent;
-		if (!parent.IsValid() || !world.IsAlive(parent) || !world.HasComponent<Engine::TransformComponent>(parent)) {
+		const Entity parent = world.GetComponent<HierarchyComponent>(entity).parent;
+		if (!parent.IsValid() || !world.IsAlive(parent) || !world.HasComponent<TransformComponent>(parent)) {
 			return worldPosition;
 		}
-		return Engine::Vector3::Transform(worldPosition,
-			Engine::Matrix4x4::Inverse(ResolveWorldMatrix(world, parent)));
-	}
-
-	// 追従対象を解決する
-	Engine::Entity ResolveTarget(Engine::ECSWorld& world, Engine::UUID target) {
-
-		if (!target) {
-			return Engine::Entity::Null();
-		}
-		return world.FindByUUID(target);
+		return Vector3::Transform(worldPosition, Matrix4x4::Inverse(ResolveWorldMatrix(world, parent)));
 	}
 
 	// 追従処理を実行し、揺れを除いたローカル位置を返す
-	Engine::Vector3 ApplyFollow(Engine::ECSWorld& world, const Engine::Entity& entity,
-		Engine::TransformComponent& transform, const Engine::CameraFollowSettings& follow, float deltaTime) {
+	Vector3 ApplyFollow(ECSWorld& world, const Entity& entity, TransformComponent& transform, const CameraFollowSettings& follow, float deltaTime) {
 
-		Engine::Vector3 baseLocalPos = transform.localPos;
+		Vector3 baseLocalPos = transform.localPos;
+		// 追従が無効ならそのまま座標を返す
 		if (!follow.enabled) {
 			return baseLocalPos;
 		}
 
-		const Engine::Entity target = ResolveTarget(world, follow.target);
-		if (!target.IsValid() || !world.IsAlive(target)) {
+		// 追従対象のエンティティを取得
+		const Entity target = SceneObjectUtility::FindByLocalFileID(world, follow.target);
+		if (!world.IsAlive(target)) {
 			return baseLocalPos;
 		}
+		// 追従先の座標を取得
+		Vector3 desiredWorldPos = GetWorldPosition(world, target) + follow.offset;
+		Vector3 desiredLocalPos = WorldToParentLocal(world, entity, desiredWorldPos);
+		// 軸マスクで補間率を座標ごとに調整
+		desiredLocalPos = Vector3::Lerp(baseLocalPos, desiredLocalPos, follow.axisMask);
 
-		Engine::Vector3 desiredWorldPos = GetWorldPosition(world, target) + follow.offset;
-		if (follow.useBounds) {
-			desiredWorldPos = ClampVector(desiredWorldPos, follow.boundsMin, follow.boundsMax);
-		}
-
-		Engine::Vector3 desiredLocalPos = WorldToParentLocal(world, entity, desiredWorldPos);
-		const Engine::Vector3 axisMask(
-			Clamp01(follow.axisMask.x),
-			Clamp01(follow.axisMask.y),
-			Clamp01(follow.axisMask.z));
-		desiredLocalPos = Engine::Vector3::Lerp(baseLocalPos, desiredLocalPos, axisMask);
-
-		return Engine::Vector3::Lerp(baseLocalPos, desiredLocalPos,
-			MakeLerpRate(follow.positionLerpSpeed, deltaTime));
-	}
-
-	// 注視方向から回転を作成する
-	Engine::Quaternion MakeLookAtRotation(const Engine::Vector3& direction, bool lockRoll) {
-
-		Engine::Vector3 forward = direction;
-		const float length = forward.Length();
-		if (length <= 0.0001f) {
-			return Engine::Quaternion::Identity();
-		}
-		forward /= length;
-
-		const float yaw = std::atan2(forward.x, forward.z);
-		const float planarLength = std::sqrt(forward.x * forward.x + forward.z * forward.z);
-		const float pitch = std::atan2(-forward.y, planarLength);
-
-		Engine::Vector3 euler = Math::RadToDeg(Engine::Vector3(pitch, yaw, 0.0f));
-		if (lockRoll) {
-			euler.z = 0.0f;
-		}
-		return Engine::Quaternion::FromEulerDegrees(euler);
+		// 追従先補間
+		return Vector3::Lerp(baseLocalPos, desiredLocalPos, MakeLerpRate(follow.posLerpSpeed, deltaTime));
 	}
 
 	// 注視処理を実行する
-	bool ApplyLookAt(Engine::ECSWorld& world, const Engine::Entity& entity,
-		Engine::TransformComponent& transform, const Engine::CameraLookAtSettings& lookAt, float deltaTime) {
+	bool ApplyLookAt(ECSWorld& world, const Entity& entity, TransformComponent& transform, const CameraLookAtSettings& lookAt, float deltaTime) {
 
 		if (!lookAt.enabled) {
 			return false;
 		}
 
-		const Engine::Entity target = ResolveTarget(world, lookAt.target);
-		if (!target.IsValid() || !world.IsAlive(target)) {
+		// 追従対象のエンティティを取得
+		const Entity target = SceneObjectUtility::FindByLocalFileID(world, lookAt.target);
+		if (!world.IsAlive(target)) {
 			return false;
 		}
 
-		const Engine::Vector3 selfWorldPos = GetWorldPosition(world, entity);
-		const Engine::Vector3 targetWorldPos = GetWorldPosition(world, target) + lookAt.offset;
-		const Engine::Quaternion desiredRotation = MakeLookAtRotation(targetWorldPos - selfWorldPos, lookAt.lockRoll);
-		const Engine::Quaternion nextRotation = Engine::Quaternion::Lerp(
-			transform.localRotation, desiredRotation, MakeLerpRate(lookAt.rotationLerpSpeed, deltaTime));
+		// 追従先の座標、回転を取得
+		Vector3 targetWorldPos = GetWorldPosition(world, target) + lookAt.offset;
+		// ジンバルロック回避のためオイラーを介さずQuaternionで注視回転を作る
+		Quaternion desiredRotation = Quaternion::LookRotation(targetWorldPos - GetWorldPosition(world, entity), Vector3(0.0f, 1.0f, 0.0f));
+		// 回転補間
+		transform.localRotation = Quaternion::Lerp(transform.localRotation, desiredRotation, MakeLerpRate(lookAt.rotationLerpSpeed, deltaTime));
 
-		if (Engine::Quaternion::NearlyEqual(transform.localRotation, nextRotation)) {
-			return false;
-		}
-
-		transform.localRotation = nextRotation;
 		return true;
-	}
-
-	// 揺れオフセットを作成する
-	Engine::Vector3 MakeShakeOffset(const Engine::CameraShakeSettings& shake) {
-
-		if (shake.runtimeDuration <= 0.0f || shake.runtimeAmplitude <= 0.0f) {
-			return Engine::Vector3::AnyInit(0.0f);
-		}
-
-		const float normalizedTime = Clamp01(shake.runtimeTime / shake.runtimeDuration);
-		const float fade = std::pow(1.0f - normalizedTime, (std::max)(0.0f, shake.damping));
-		const float phase = shake.runtimeTime * shake.frequency;
-
-		return Engine::Vector3(
-			std::sin(phase * 12.9898f),
-			std::sin(phase * 78.2330f),
-			std::sin(phase * 37.7190f)) * (shake.runtimeAmplitude * fade) * shake.axisMask;
-	}
-
-	// 揺れ処理を実行し、最終ローカル位置を返す
-	Engine::Vector3 ApplyShake(Engine::CameraShakeSettings& shake,
-		const Engine::Vector3& baseLocalPos, float deltaTime) {
-
-		if (!shake.enabled || shake.runtimeDuration <= 0.0f || shake.runtimeAmplitude <= 0.0f) {
-
-			shake.runtimeTime = 0.0f;
-			shake.runtimeDuration = 0.0f;
-			shake.runtimeAmplitude = 0.0f;
-			shake.runtimeLastOffset = Engine::Vector3::AnyInit(0.0f);
-			shake.runtimeApplied = false;
-			return baseLocalPos;
-		}
-
-		shake.runtimeTime += (std::max)(0.0f, deltaTime);
-		if (shake.runtimeDuration <= shake.runtimeTime) {
-
-			shake.runtimeTime = 0.0f;
-			shake.runtimeDuration = 0.0f;
-			shake.runtimeAmplitude = 0.0f;
-			shake.runtimeLastOffset = Engine::Vector3::AnyInit(0.0f);
-			shake.runtimeApplied = false;
-			return baseLocalPos;
-		}
-
-		const Engine::Vector3 offset = MakeShakeOffset(shake);
-		shake.runtimeLastOffset = offset;
-		shake.runtimeApplied = true;
-		return baseLocalPos + offset;
 	}
 }
 
-void Engine::CameraControllerSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
+void CameraControllerSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
 
-	// Play中だけゲームカメラ制御を実行する
-	if (context.mode != WorldMode::Play) {
-		return;
-	}
-
+	// ゲーム再生中か
+	bool isPlay = context.mode == WorldMode::Play;
+	// 状態に応じたdeltaTimeを取得
+	float deltaTime = isPlay ? context.deltaTime : context.unscaledDeltaTime;
 	world.ForEach<CameraControllerComponent, TransformComponent>([&](
 		Entity entity, CameraControllerComponent& controller, TransformComponent& transform) {
 
-			if (!controller.enabled || !IsEntityActiveInHierarchy(world, entity)) {
+			// 無効再生中なら処理しない
+			if (!controller.enabled || (!isPlay && !controller.editorPreview)) {
+				return;
+			}
+			// エンティティが有効か
+			if (!IsEntityActiveInHierarchy(world, entity)) {
 				return;
 			}
 
-			// 前フレームの揺れを取り除いた位置を基準にする
-			if (controller.shake.runtimeApplied) {
-				transform.localPos -= controller.shake.runtimeLastOffset;
-			}
-
+			// モードごとに使う設定を選ぶ
 			bool changed = false;
-			Engine::Vector3 baseLocalPos = transform.localPos;
-			if (controller.mode == CameraControlMode::Follow ||
-				controller.mode == CameraControlMode::FollowLookAt) {
+			if (controller.mode == CameraControlMode::Follow) {
 
-				baseLocalPos = ApplyFollow(world, entity, transform, controller.follow, context.deltaTime);
+				transform.localPos = ApplyFollow(world, entity, transform, controller.follow, deltaTime);
+				changed |= controller.follow.enabled;
+			} else if (controller.mode == CameraControlMode::LookAt) {
+
+				changed |= ApplyLookAt(world, entity, transform, controller.lookAt, deltaTime);
+			} else if (controller.mode == CameraControlMode::FollowLookAt) {
+
+				// 注視は更新後の位置を使うので追従を先に適用する
+				transform.localPos = ApplyFollow(world, entity, transform, controller.followLookAt.follow, deltaTime);
+				changed |= controller.followLookAt.follow.enabled;
+				changed |= ApplyLookAt(world, entity, transform, controller.followLookAt.lookAt, deltaTime);
 			}
-
-			const Engine::Vector3 finalLocalPos = ApplyShake(controller.shake, baseLocalPos, context.deltaTime);
-			if (!Engine::Vector3::NearlyEqual(transform.localPos, finalLocalPos)) {
-
-				transform.localPos = finalLocalPos;
-				changed = true;
-			}
-
-			if (controller.mode == CameraControlMode::LookAt ||
-				controller.mode == CameraControlMode::FollowLookAt) {
-
-				changed |= ApplyLookAt(world, entity, transform, controller.lookAt, context.deltaTime);
-			}
-
+			// パラメータに変更があればトランスフォームを更新させる
 			if (changed) {
+
 				MarkTransformSubtreeDirty(world, entity);
 			}
 		});

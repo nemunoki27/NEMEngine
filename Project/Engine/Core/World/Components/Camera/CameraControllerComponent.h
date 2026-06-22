@@ -16,12 +16,13 @@ namespace Engine {
 	//	CameraControlMode enum
 	//	カメラ制御の適用方法
 	//============================================================================
-	enum class CameraControlMode : int32_t {
+	enum class CameraControlMode :
+		int32_t {
 
 		None,
-		Follow,
-		LookAt,
-		FollowLookAt,
+		Follow,       // 追従
+		LookAt,       // 注視
+		FollowLookAt, // 追従と注視
 	};
 
 	//============================================================================
@@ -39,14 +40,7 @@ namespace Engine {
 		// 追従する軸は0で現在値を維持し、1で追従する
 		Vector3 axisMask = Vector3::AnyInit(1.0f);
 		// 0以下の場合は補間せず即座に追従する
-		float positionLerpSpeed = 8.0f;
-
-		// ワールド座標の移動範囲を制限するか
-		bool useBounds = false;
-		// 移動範囲の最小値
-		Vector3 boundsMin = Vector3(-100.0f, -100.0f, -100.0f);
-		// 移動範囲の最大値
-		Vector3 boundsMax = Vector3(100.0f, 100.0f, 100.0f);
+		float posLerpSpeed = 8.0f;
 	};
 
 	//============================================================================
@@ -68,34 +62,13 @@ namespace Engine {
 	};
 
 	//============================================================================
-	//	CameraShakeSettings structure
-	//	カメラ揺れに必要な設定
+	//	CameraFollowLookAtSettings structure
+	//	追従と注視を同時に行うモードの設定
 	//============================================================================
-	struct CameraShakeSettings {
+	struct CameraFollowLookAtSettings {
 
-		// 揺れ処理を有効にするか
-		bool enabled = true;
-		// 揺れの強さ
-		float amplitude = 0.2f;
-		// 揺れ時間
-		float duration = 0.3f;
-		// 1秒あたりの揺れ周期
-		float frequency = 18.0f;
-		// 終端へ向けて減衰させる強さ
-		float damping = 1.0f;
-		// 揺れを適用する軸
-		Vector3 axisMask = Vector3(1.0f, 1.0f, 0.0f);
-
-		// 実行中の揺れ時間
-		float runtimeTime = 0.0f;
-		// 実行中の揺れ全体時間
-		float runtimeDuration = 0.0f;
-		// 実行中の揺れ強度
-		float runtimeAmplitude = 0.0f;
-		// 前フレームに適用した揺れオフセット
-		Vector3 runtimeLastOffset = Vector3::AnyInit(0.0f);
-		// 前フレームの揺れオフセットがTransformに残っているか
-		bool runtimeApplied = false;
+		CameraFollowSettings follow{};
+		CameraLookAtSettings lookAt{};
 	};
 
 	//============================================================================
@@ -107,19 +80,17 @@ namespace Engine {
 		// コントローラー全体の有効状態
 		bool enabled = true;
 		// 適用する制御方法
-		CameraControlMode mode = CameraControlMode::FollowLookAt;
+		CameraControlMode mode = CameraControlMode::Follow;
+		// Editモード中もプレビューとして制御を動かすか
+		bool editorPreview = false;
 
 		// ターゲット追従設定
 		CameraFollowSettings follow{};
 		// ターゲット注視設定
 		CameraLookAtSettings lookAt{};
-		// カメラ揺れ設定
-		CameraShakeSettings shake{};
+		// 追従と注視を同時に行うモードの設定
+		CameraFollowLookAtSettings followLookAt{};
 	};
-
-	// ランタイム用の揺れを開始する
-	void RequestCameraShake(CameraControllerComponent& component,
-		float amplitude, float duration, float frequency = -1.0f);
 
 	// jsonからコンポーネントへ変換する
 	void from_json(const nlohmann::json& in, CameraControllerComponent& component);

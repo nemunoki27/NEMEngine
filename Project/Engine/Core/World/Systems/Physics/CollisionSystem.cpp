@@ -23,6 +23,7 @@
 //============================================================================
 //	CollisionSystem classMethods
 //============================================================================
+
 namespace {
 
 	// Vector3の各要素を絶対値にする
@@ -92,8 +93,6 @@ namespace {
 		Engine::MarkTransformSubtreeDirty(world, entity);
 
 		// 押し戻し直後にworldMatrixも更新する
-		// TransformUpdateSystemはこのフレームではもう走らないので、更新しないと次フレームに
-		// スクリプトがworldMatrix由来の古いpositionを読み、その読み書きで押し戻しが打ち消されて貫通する
 		Engine::Matrix4x4 parentWorld = Engine::Matrix4x4::Identity();
 		if (world.HasComponent<Engine::HierarchyComponent>(entity)) {
 
@@ -139,7 +138,7 @@ namespace {
 	// 整列の角速度の上限 rad/s
 	constexpr float kSettleMaxRate = 2.0f;
 	// これ以下のsinはほぼ平らとみなす
-	constexpr float kFlatEpsilon = 0.03f;
+	constexpr float kFlatEpsilon = 0.02f;
 
 	// 回転を使わないときの線形のみの反発と摩擦
 	template <typename Vec>
@@ -311,7 +310,6 @@ namespace {
 	}
 
 	// 接触面で速度を反発と摩擦で更新する、allowToppleがONなら接触点まわりの回転も解く
-	// pushOutDirは面から剛体側へ向かう単位法線、restitution=0で停止1で完全反発
 	void ResolveContactVelocity(Engine::ECSWorld& world, const Engine::Entity& entity,
 		const Engine::Vector3& pushOutDir, const Engine::Vector3& contactPoint) {
 

@@ -663,18 +663,10 @@ void Engine::RegisterBuiltinAnimationProperties() {
 			HasComponent<CameraControllerComponent>,
 			GetChildMember<CameraControllerComponent, CameraFollowSettings, Vector3, &CameraControllerComponent::follow, &CameraFollowSettings::axisMask>,
 			SetChildMember<CameraControllerComponent, CameraFollowSettings, Vector3, &CameraControllerComponent::follow, &CameraFollowSettings::axisMask>);
-		Register(registry, "CameraController", "follow.positionLerpSpeed", "CameraController.follow.positionLerpSpeed", AnimationValueType::Float,
+		Register(registry, "CameraController", "follow.posLerpSpeed", "CameraController.follow.posLerpSpeed", AnimationValueType::Float,
 			HasComponent<CameraControllerComponent>,
-			GetChildMember<CameraControllerComponent, CameraFollowSettings, float, &CameraControllerComponent::follow, &CameraFollowSettings::positionLerpSpeed>,
-			SetChildMember<CameraControllerComponent, CameraFollowSettings, float, &CameraControllerComponent::follow, &CameraFollowSettings::positionLerpSpeed>);
-		Register(registry, "CameraController", "follow.boundsMin", "CameraController.follow.boundsMin", AnimationValueType::Vector3,
-			HasComponent<CameraControllerComponent>,
-			GetChildMember<CameraControllerComponent, CameraFollowSettings, Vector3, &CameraControllerComponent::follow, &CameraFollowSettings::boundsMin>,
-			SetChildMember<CameraControllerComponent, CameraFollowSettings, Vector3, &CameraControllerComponent::follow, &CameraFollowSettings::boundsMin>);
-		Register(registry, "CameraController", "follow.boundsMax", "CameraController.follow.boundsMax", AnimationValueType::Vector3,
-			HasComponent<CameraControllerComponent>,
-			GetChildMember<CameraControllerComponent, CameraFollowSettings, Vector3, &CameraControllerComponent::follow, &CameraFollowSettings::boundsMax>,
-			SetChildMember<CameraControllerComponent, CameraFollowSettings, Vector3, &CameraControllerComponent::follow, &CameraFollowSettings::boundsMax>);
+			GetChildMember<CameraControllerComponent, CameraFollowSettings, float, &CameraControllerComponent::follow, &CameraFollowSettings::posLerpSpeed>,
+			SetChildMember<CameraControllerComponent, CameraFollowSettings, float, &CameraControllerComponent::follow, &CameraFollowSettings::posLerpSpeed>);
 		Register(registry, "CameraController", "lookAt.offset", "CameraController.lookAt.offset", AnimationValueType::Vector3,
 			HasComponent<CameraControllerComponent>,
 			GetChildMember<CameraControllerComponent, CameraLookAtSettings, Vector3, &CameraControllerComponent::lookAt, &CameraLookAtSettings::offset>,
@@ -683,26 +675,6 @@ void Engine::RegisterBuiltinAnimationProperties() {
 			HasComponent<CameraControllerComponent>,
 			GetChildMember<CameraControllerComponent, CameraLookAtSettings, float, &CameraControllerComponent::lookAt, &CameraLookAtSettings::rotationLerpSpeed>,
 			SetChildMember<CameraControllerComponent, CameraLookAtSettings, float, &CameraControllerComponent::lookAt, &CameraLookAtSettings::rotationLerpSpeed>);
-		Register(registry, "CameraController", "shake.amplitude", "CameraController.shake.amplitude", AnimationValueType::Float,
-			HasComponent<CameraControllerComponent>,
-			GetChildMember<CameraControllerComponent, CameraShakeSettings, float, &CameraControllerComponent::shake, &CameraShakeSettings::amplitude>,
-			SetChildMember<CameraControllerComponent, CameraShakeSettings, float, &CameraControllerComponent::shake, &CameraShakeSettings::amplitude>);
-		Register(registry, "CameraController", "shake.duration", "CameraController.shake.duration", AnimationValueType::Float,
-			HasComponent<CameraControllerComponent>,
-			GetChildMember<CameraControllerComponent, CameraShakeSettings, float, &CameraControllerComponent::shake, &CameraShakeSettings::duration>,
-			SetChildMember<CameraControllerComponent, CameraShakeSettings, float, &CameraControllerComponent::shake, &CameraShakeSettings::duration>);
-		Register(registry, "CameraController", "shake.frequency", "CameraController.shake.frequency", AnimationValueType::Float,
-			HasComponent<CameraControllerComponent>,
-			GetChildMember<CameraControllerComponent, CameraShakeSettings, float, &CameraControllerComponent::shake, &CameraShakeSettings::frequency>,
-			SetChildMember<CameraControllerComponent, CameraShakeSettings, float, &CameraControllerComponent::shake, &CameraShakeSettings::frequency>);
-		Register(registry, "CameraController", "shake.damping", "CameraController.shake.damping", AnimationValueType::Float,
-			HasComponent<CameraControllerComponent>,
-			GetChildMember<CameraControllerComponent, CameraShakeSettings, float, &CameraControllerComponent::shake, &CameraShakeSettings::damping>,
-			SetChildMember<CameraControllerComponent, CameraShakeSettings, float, &CameraControllerComponent::shake, &CameraShakeSettings::damping>);
-		Register(registry, "CameraController", "shake.axisMask", "CameraController.shake.axisMask", AnimationValueType::Vector3,
-			HasComponent<CameraControllerComponent>,
-			GetChildMember<CameraControllerComponent, CameraShakeSettings, Vector3, &CameraControllerComponent::shake, &CameraShakeSettings::axisMask>,
-			SetChildMember<CameraControllerComponent, CameraShakeSettings, Vector3, &CameraControllerComponent::shake, &CameraShakeSettings::axisMask>);
 	}
 	//============================================================================
 	//	Audio / UV / SkinnedAnimation

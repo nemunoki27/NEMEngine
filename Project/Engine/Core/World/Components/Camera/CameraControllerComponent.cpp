@@ -29,10 +29,7 @@ namespace {
 		settings.target = Engine::FromString16Hex(in.value("target", std::string{}));
 		settings.offset = ReadVector3(in, "offset", settings.offset);
 		settings.axisMask = ReadVector3(in, "axisMask", settings.axisMask);
-		settings.positionLerpSpeed = in.value("positionLerpSpeed", settings.positionLerpSpeed);
-		settings.useBounds = in.value("useBounds", settings.useBounds);
-		settings.boundsMin = ReadVector3(in, "boundsMin", settings.boundsMin);
-		settings.boundsMax = ReadVector3(in, "boundsMax", settings.boundsMax);
+		settings.posLerpSpeed = in.value("posLerpSpeed", settings.posLerpSpeed);
 	}
 
 	// 注視設定をjsonから読み込む
@@ -45,24 +42,6 @@ namespace {
 		settings.lockRoll = in.value("lockRoll", settings.lockRoll);
 	}
 
-	// 揺れ設定をjsonから読み込む
-	void ReadShakeSettings(const nlohmann::json& in, Engine::CameraShakeSettings& settings) {
-
-		settings.enabled = in.value("enabled", settings.enabled);
-		settings.amplitude = in.value("amplitude", settings.amplitude);
-		settings.duration = in.value("duration", settings.duration);
-		settings.frequency = in.value("frequency", settings.frequency);
-		settings.damping = in.value("damping", settings.damping);
-		settings.axisMask = ReadVector3(in, "axisMask", settings.axisMask);
-
-		// ランタイム状態はシリアライズしない
-		settings.runtimeTime = 0.0f;
-		settings.runtimeDuration = 0.0f;
-		settings.runtimeAmplitude = 0.0f;
-		settings.runtimeLastOffset = Engine::Vector3::AnyInit(0.0f);
-		settings.runtimeApplied = false;
-	}
-
 	// 追従設定をjsonへ書き込む
 	nlohmann::json WriteFollowSettings(const Engine::CameraFollowSettings& settings) {
 
@@ -71,10 +50,7 @@ namespace {
 		out["target"] = Engine::ToString(settings.target);
 		out["offset"] = settings.offset.ToJson();
 		out["axisMask"] = settings.axisMask.ToJson();
-		out["positionLerpSpeed"] = settings.positionLerpSpeed;
-		out["useBounds"] = settings.useBounds;
-		out["boundsMin"] = settings.boundsMin.ToJson();
-		out["boundsMax"] = settings.boundsMax.ToJson();
+		out["posLerpSpeed"] = settings.posLerpSpeed;
 		return out;
 	}
 
@@ -89,41 +65,13 @@ namespace {
 		out["lockRoll"] = settings.lockRoll;
 		return out;
 	}
-
-	// 揺れ設定をjsonへ書き込む
-	nlohmann::json WriteShakeSettings(const Engine::CameraShakeSettings& settings) {
-
-		nlohmann::json out{};
-		out["enabled"] = settings.enabled;
-		out["amplitude"] = settings.amplitude;
-		out["duration"] = settings.duration;
-		out["frequency"] = settings.frequency;
-		out["damping"] = settings.damping;
-		out["axisMask"] = settings.axisMask.ToJson();
-		return out;
-	}
-}
-
-void Engine::RequestCameraShake(CameraControllerComponent& component,
-	float amplitude, float duration, float frequency) {
-
-	CameraShakeSettings& shake = component.shake;
-	if (!shake.enabled) {
-		return;
-	}
-
-	shake.runtimeTime = 0.0f;
-	shake.runtimeDuration = (std::max)(0.0f, duration);
-	shake.runtimeAmplitude = (std::max)(0.0f, amplitude);
-	if (0.0f < frequency) {
-		shake.frequency = frequency;
-	}
 }
 
 void Engine::from_json(const nlohmann::json& in, CameraControllerComponent& component) {
 
 	component.enabled = in.value("enabled", component.enabled);
-	component.mode = EnumAdapter<CameraControlMode>::FromString(in.value("mode", "None")).value();
+	component.mode = EnumAdapter<CameraControlMode>::FromString(in.value("mode", "Follow")).value_or(component.mode);
+	component.editorPreview = in.value("editorPreview", component.editorPreview);
 
 	if (in.contains("follow") && in["follow"].is_object()) {
 		ReadFollowSettings(in["follow"], component.follow);
@@ -131,8 +79,16 @@ void Engine::from_json(const nlohmann::json& in, CameraControllerComponent& comp
 	if (in.contains("lookAt") && in["lookAt"].is_object()) {
 		ReadLookAtSettings(in["lookAt"], component.lookAt);
 	}
-	if (in.contains("shake") && in["shake"].is_object()) {
-		ReadShakeSettings(in["shake"], component.shake);
+	// FollowLookAtモード専用の設定を読み込む
+	if (in.contains("followLookAt") && in["followLookAt"].is_object()) {
+
+		const nlohmann::json& followLookAt = in["followLookAt"];
+		if (followLookAt.contains("follow") && followLookAt["follow"].is_object()) {
+			ReadFollowSettings(followLookAt["follow"], component.followLookAt.follow);
+		}
+		if (followLookAt.contains("lookAt") && followLookAt["lookAt"].is_object()) {
+			ReadLookAtSettings(followLookAt["lookAt"], component.followLookAt.lookAt);
+		}
 	}
 }
 
@@ -140,7 +96,9 @@ void Engine::to_json(nlohmann::json& out, const CameraControllerComponent& compo
 
 	out["enabled"] = component.enabled;
 	out["mode"] = EnumAdapter<CameraControlMode>::ToString(component.mode);
+	out["editorPreview"] = component.editorPreview;
 	out["follow"] = WriteFollowSettings(component.follow);
 	out["lookAt"] = WriteLookAtSettings(component.lookAt);
-	out["shake"] = WriteShakeSettings(component.shake);
+	out["followLookAt"]["follow"] = WriteFollowSettings(component.followLookAt.follow);
+	out["followLookAt"]["lookAt"] = WriteLookAtSettings(component.followLookAt.lookAt);
 }

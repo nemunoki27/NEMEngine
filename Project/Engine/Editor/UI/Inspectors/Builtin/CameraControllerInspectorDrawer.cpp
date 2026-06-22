@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
@@ -28,7 +30,7 @@ namespace {
 			return "なし";
 		}
 
-		const Engine::Entity entity = world.FindByUUID(target);
+		const Engine::Entity entity = Engine::SceneObjectUtility::FindByLocalFileID(world, target);
 		if (!entity.IsValid() || !world.IsAlive(entity)) {
 			return "不明 : " + Engine::ToString(target);
 		}
@@ -46,20 +48,6 @@ namespace {
 		result.anyItemActive |= item.anyItemActive;
 		result.editFinished |= item.editFinished;
 	}
-
-	// Boundsの最小最大を正しい順番へ整える
-	void NormalizeBounds(Engine::Vector3& minValue, Engine::Vector3& maxValue) {
-
-		if (maxValue.x < minValue.x) {
-			std::swap(minValue.x, maxValue.x);
-		}
-		if (maxValue.y < minValue.y) {
-			std::swap(minValue.y, maxValue.y);
-		}
-		if (maxValue.z < minValue.z) {
-			std::swap(minValue.z, maxValue.z);
-		}
-	}
 }
 
 void Engine::CameraControllerInspectorDrawer::DrawFields([[maybe_unused]] const EditorPanelContext& context,
@@ -74,15 +62,30 @@ void Engine::CameraControllerInspectorDrawer::DrawFields([[maybe_unused]] const 
 	DrawField(anyItemActive, [&]() {
 		return DrawModeField(draft.mode);
 		});
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField("編集中プレビュー", draft.editorPreview);
+		});
 
-	if (MyGUI::CollapsingHeader("Follow")) {
-		PushEditResult(DrawFollowSettings(world, draft.follow), anyItemActive);
-	}
-	if (MyGUI::CollapsingHeader("LookAt")) {
-		PushEditResult(DrawLookAtSettings(world, draft.lookAt), anyItemActive);
-	}
-	if (MyGUI::CollapsingHeader("Shake")) {
-		PushEditResult(DrawShakeSettings(draft.shake), anyItemActive);
+	// 選択中のモードのパラメータだけを表示する、FollowLookAtは専用パラメータを表示する
+	if (draft.mode == CameraControlMode::Follow) {
+		if (MyGUI::CollapsingHeader("Follow")) {
+
+			PushEditResult(DrawFollowSettings(world, draft.follow), anyItemActive);
+		}
+	} else if (draft.mode == CameraControlMode::LookAt) {
+		if (MyGUI::CollapsingHeader("LookAt")) {
+
+			PushEditResult(DrawLookAtSettings(world, draft.lookAt), anyItemActive);
+		}
+	} else if (draft.mode == CameraControlMode::FollowLookAt) {
+		if (MyGUI::CollapsingHeader("Follow")) {
+
+			PushEditResult(DrawFollowSettings(world, draft.followLookAt.follow), anyItemActive);
+		}
+		if (MyGUI::CollapsingHeader("LookAt")) {
+
+			PushEditResult(DrawLookAtSettings(world, draft.followLookAt.lookAt), anyItemActive);
+		}
 	}
 }
 
@@ -90,47 +93,15 @@ void Engine::CameraControllerInspectorDrawer::OnBeforeCommit(
 	[[maybe_unused]] const CameraControllerComponent& beforeComponent, CameraControllerComponent& afterComponent) {
 
 	// 入力値を実行時に扱いやすい範囲へ収める
-	afterComponent.follow.positionLerpSpeed = (std::max)(0.0f, afterComponent.follow.positionLerpSpeed);
+	afterComponent.follow.posLerpSpeed = (std::max)(0.0f, afterComponent.follow.posLerpSpeed);
 	afterComponent.lookAt.rotationLerpSpeed = (std::max)(0.0f, afterComponent.lookAt.rotationLerpSpeed);
-	afterComponent.shake.amplitude = (std::max)(0.0f, afterComponent.shake.amplitude);
-	afterComponent.shake.duration = (std::max)(0.0f, afterComponent.shake.duration);
-	afterComponent.shake.frequency = (std::max)(0.0f, afterComponent.shake.frequency);
-	afterComponent.shake.damping = (std::max)(0.0f, afterComponent.shake.damping);
-	NormalizeBounds(afterComponent.follow.boundsMin, afterComponent.follow.boundsMax);
+	afterComponent.followLookAt.follow.posLerpSpeed = (std::max)(0.0f, afterComponent.followLookAt.follow.posLerpSpeed);
+	afterComponent.followLookAt.lookAt.rotationLerpSpeed = (std::max)(0.0f, afterComponent.followLookAt.lookAt.rotationLerpSpeed);
 }
 
 Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawModeField(CameraControlMode& mode) {
 
-	ValueEditResult result{};
-	if (!MyGUI::BeginPropertyRow("モード")) {
-		return result;
-	}
-
-	constexpr CameraControlMode kModes[] = {
-		CameraControlMode::None,
-		CameraControlMode::Follow,
-		CameraControlMode::LookAt,
-		CameraControlMode::FollowLookAt,
-	};
-
-	if (ImGui::BeginCombo("##Value", EnumAdapter<CameraControlMode>::ToString(mode))) {
-		for (CameraControlMode candidate : kModes) {
-
-			const bool selected = candidate == mode;
-			if (ImGui::Selectable(EnumAdapter<CameraControlMode>::ToString(candidate), selected)) {
-				mode = candidate;
-				result.valueChanged = true;
-				result.editFinished = true;
-			}
-			if (selected) {
-				ImGui::SetItemDefaultFocus();
-			}
-		}
-		ImGui::EndCombo();
-	}
-	result.anyItemActive = ImGui::IsItemActive();
-	MyGUI::EndPropertyRow();
-	return result;
+	return InspectorDrawerCommon::DrawEnumComboField("モード", mode);
 }
 
 Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawEntityTargetField(
@@ -151,9 +122,15 @@ Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawEntityTarge
 		const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType);
 		if (payload && payload->DataSize == sizeof(UUID)) {
 
+			// ヒエラルキーのpayloadはrecords_のuuidなので、Edit/Playで安定するlocalFileIDへ変換して持つ
 			const UUID droppedUUID = *static_cast<const UUID*>(payload->Data);
-			if (target != droppedUUID) {
-				target = droppedUUID;
+			const Entity dropped = world.FindByUUID(droppedUUID);
+			UUID localFileID{};
+			if (dropped.IsValid() && world.HasComponent<SceneObjectComponent>(dropped)) {
+				localFileID = world.GetComponent<SceneObjectComponent>(dropped).localFileID;
+			}
+			if (localFileID && target != localFileID) {
+				target = localFileID;
 				result.valueChanged = true;
 				result.editFinished = true;
 			}
@@ -179,12 +156,7 @@ Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawFollowSetti
 	Accumulate(result, DrawEntityTargetField("対象", world, settings.target));
 	Accumulate(result, MyGUI::DragVector3("オフセット", settings.offset, { .dragSpeed = 0.01f }));
 	Accumulate(result, MyGUI::DragVector3("軸マスク", settings.axisMask, { .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f }));
-	Accumulate(result, MyGUI::DragFloat("位置補間", settings.positionLerpSpeed, { .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("範囲制限", settings.useBounds));
-	if (settings.useBounds) {
-		Accumulate(result, MyGUI::DragVector3("範囲最小", settings.boundsMin, { .dragSpeed = 0.1f }));
-		Accumulate(result, MyGUI::DragVector3("範囲最大", settings.boundsMax, { .dragSpeed = 0.1f }));
-	}
+	Accumulate(result, MyGUI::DragFloat("位置補間", settings.posLerpSpeed, { .dragSpeed = 0.01f, .minValue = 0.0f }));
 	return result;
 }
 
@@ -197,17 +169,5 @@ Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawLookAtSetti
 	Accumulate(result, MyGUI::DragVector3("オフセット", settings.offset, { .dragSpeed = 0.01f }));
 	Accumulate(result, MyGUI::DragFloat("回転補間", settings.rotationLerpSpeed, { .dragSpeed = 0.01f, .minValue = 0.0f }));
 	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("ロール固定", settings.lockRoll));
-	return result;
-}
-
-Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawShakeSettings(CameraShakeSettings& settings) {
-
-	ValueEditResult result{};
-	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("有効", settings.enabled));
-	Accumulate(result, MyGUI::DragFloat("振幅", settings.amplitude, { .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, MyGUI::DragFloat("時間", settings.duration, { .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, MyGUI::DragFloat("周波数", settings.frequency, { .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, MyGUI::DragFloat("減衰", settings.damping, { .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, MyGUI::DragVector3("軸マスク", settings.axisMask, { .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f }));
 	return result;
 }

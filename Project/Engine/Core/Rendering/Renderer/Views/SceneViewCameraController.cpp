@@ -17,6 +17,12 @@ namespace {
 
 	// カメラ保存パス
 	const std::string kCameraJsonPath = "Config/initExeData.exeConfig.json";
+	// フォーカス時に対象から離す距離
+	constexpr float kFocusDistance = 20.0f;
+	// フォーカスの寄り速度、1フレームあたりの補間率
+	constexpr float kFocusLerpRate = 0.2f;
+	// これ以下まで近づいたらフォーカス完了
+	constexpr float kFocusReachEpsilon = 0.01f;
 }
 
 Engine::SceneViewCameraController::SceneViewCameraController() {
@@ -123,6 +129,30 @@ void Engine::SceneViewCameraController::Update(Dimension dimension, InputViewAre
 #endif
 }
 
+void Engine::SceneViewCameraController::FocusOn(const Vector3& worldPosition) {
+
+	// 現在の前方を保ったまま対象が画面中心へ来る位置を寄り先にする、回転は変えないので注視になる
+	const Matrix4x4 rotateMatrix = Matrix4x4::MakeRotateMatrix(cameraState_.transform3D.rotation);
+	const Vector3 forward = Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), rotateMatrix);
+	focusTargetPos_ = worldPosition - forward * kFocusDistance;
+	focusActive_ = true;
+}
+
+void Engine::SceneViewCameraController::UpdateFocus() {
+
+	if (!focusActive_) {
+		return;
+	}
+
+	// 寄り先へ滑らかに近づける、到達したら完了する
+	cameraState_.transform3D.pos = Vector3::Lerp(cameraState_.transform3D.pos, focusTargetPos_, kFocusLerpRate);
+	if ((focusTargetPos_ - cameraState_.transform3D.pos).Length() <= kFocusReachEpsilon) {
+
+		cameraState_.transform3D.pos = focusTargetPos_;
+		focusActive_ = false;
+	}
+}
+
 bool Engine::SceneViewCameraController::CanUpdate(InputViewArea viewArea) {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
@@ -155,6 +185,9 @@ void Engine::SceneViewCameraController::Update3D() {
 	if (!input->PushMouseRight() && !input->PushMouseCenter() && wheel == 0.0f) {
 		return;
 	}
+
+	// 手動操作が入ったらフォーカスを中断する
+	focusActive_ = false;
 
 	// 操作感を合わせるために更新前の回転を使って行列を作る
 	Vector3 prevEulerDeg = cameraState_.transform3D.rotation;

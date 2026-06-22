@@ -203,6 +203,66 @@ Quaternion Engine::Quaternion::FromToY(const Vector3& direction) {
 	return Quaternion::MakeAxisAngle(axis, ang);
 }
 
+Quaternion Engine::Quaternion::LookRotation(const Vector3& forward, const Vector3& up) {
+
+	// forwardをローカル+Zに合わせる、長さが無ければ回転なし
+	const float forwardLength = forward.Length();
+	if (forwardLength <= 1e-6f) {
+		return Quaternion::Identity();
+	}
+	const Vector3 axisZ = forward * (1.0f / forwardLength);
+
+	// 右ベクトルはup×forward、upがforwardと平行なら別の基準upでやり直す
+	Vector3 right = Vector3::Cross(up, axisZ);
+	float rightLength = right.Length();
+	if (rightLength <= 1e-6f) {
+
+		const Vector3 fallbackUp = std::fabs(axisZ.y) < 0.99f ? Vector3(0.0f, 1.0f, 0.0f) : Vector3(1.0f, 0.0f, 0.0f);
+		right = Vector3::Cross(fallbackUp, axisZ);
+		rightLength = right.Length();
+	}
+	const Vector3 axisX = right * (1.0f / rightLength);
+	const Vector3 axisY = Vector3::Cross(axisZ, axisX);
+
+	// 各軸を行に並べた回転行列はMakeRotateMatrixと同じレイアウト、そこからクォータニオンを復元する
+	const float m00 = axisX.x, m01 = axisX.y, m02 = axisX.z;
+	const float m10 = axisY.x, m11 = axisY.y, m12 = axisY.z;
+	const float m20 = axisZ.x, m21 = axisZ.y, m22 = axisZ.z;
+
+	Quaternion result{};
+	const float trace = m00 + m11 + m22;
+	if (trace > 0.0f) {
+
+		const float s = std::sqrt(trace + 1.0f) * 2.0f;
+		result.w = 0.25f * s;
+		result.x = (m12 - m21) / s;
+		result.y = (m20 - m02) / s;
+		result.z = (m01 - m10) / s;
+	} else if (m00 > m11 && m00 > m22) {
+
+		const float s = std::sqrt(1.0f + m00 - m11 - m22) * 2.0f;
+		result.w = (m12 - m21) / s;
+		result.x = 0.25f * s;
+		result.y = (m01 + m10) / s;
+		result.z = (m20 + m02) / s;
+	} else if (m11 > m22) {
+
+		const float s = std::sqrt(1.0f + m11 - m00 - m22) * 2.0f;
+		result.w = (m20 - m02) / s;
+		result.x = (m01 + m10) / s;
+		result.y = 0.25f * s;
+		result.z = (m12 + m21) / s;
+	} else {
+
+		const float s = std::sqrt(1.0f + m22 - m00 - m11) * 2.0f;
+		result.w = (m01 - m10) / s;
+		result.x = (m20 + m02) / s;
+		result.y = (m12 + m21) / s;
+		result.z = 0.25f * s;
+	}
+	return Normalize(result);
+}
+
 Quaternion Quaternion::EulerToQuaternion(const Vector3& eulerDegrees) {
 
 	return FromEulerDegrees(eulerDegrees);

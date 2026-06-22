@@ -24,12 +24,9 @@ void Engine::BottomLevelAccelerationStructure::FillGeometryDesc(const Raytracing
 		(input.overrideVertexAddress + offsetof(MeshVertex, position)) :
 		(mesh.vertexSRV.buffer->GetResource()->GetGPUVirtualAddress() + offsetof(MeshVertex, position));
 	// 頂点数
-	UINT vertexCount = useOverrideVertexBuffer ?
-		static_cast<UINT>(input.overrideVertexCount) :
-		static_cast<UINT>(mesh.vertexCount);
+	UINT vertexCount = useOverrideVertexBuffer ? static_cast<UINT>(input.overrideVertexCount) : static_cast<UINT>(mesh.vertexCount);
 
 	// インデックスGPUアドレスはサブメッシュ範囲まで
-	// IBVが16bit化されている場合もあるため、Indexサイズを見てオフセットする
 	D3D12_GPU_VIRTUAL_ADDRESS indexBaseAddress = mesh.indexBuffer.GetResource()->GetGPUVirtualAddress() +
 		mesh.indexBuffer.GetIndexSizeInBytes() * static_cast<uint64_t>(input.indexOffset);
 
