@@ -6,6 +6,9 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Editor/Scripting/ManagedIdeLauncher.h>
+#include <Engine/Editor/Utility/EditorShell.h>
+#include <Engine/Editor/Assets/Importer/Font/MSDFFontGenerator.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -779,6 +782,22 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 			context.host->ExecuteEditorCommand(std::make_unique<InstantiatePrefabCommand>(asset.assetID));
 		}
 	}
+	// フォントソースは隣接MSDFの作り直し口を出す、game_charset編集後の反映にも使う
+	if (MSDFFontGenerator::IsFontSourceExtension(asset.assetPath)) {
+
+		ImGui::Separator();
+		if (ImGui::MenuItem("フォントデータ再生成")) {
+
+			// 強制再生成、生成物の登録反映は次フレームの構造リビジョン差分で行われる
+			const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
+			const MSDFFontGenerator::Result result = MSDFFontGenerator::EnsureGenerated(database, sourcePath, true);
+			if (!result.success) {
+
+				Logger::Output(LogType::Engine, spdlog::level::warn,
+					"ProjectPanel: font regeneration failed. {}", result.message);
+			}
+		}
+	}
 	ImGui::EndPopup();
 }
 
@@ -939,6 +958,14 @@ void Engine::ProjectPanel::DrawDeleteAssetPopup(AssetDatabase& database) {
 }
 
 void Engine::ProjectPanel::HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset) {
+
+	// .txtは専用エディタを持たないのでOS既定の関連付けで開く、game_charsetの編集はこの経路
+	const std::string extension = Algorithm::ToLower(std::filesystem::path(asset.assetPath).extension().string());
+	if (extension == ".txt") {
+
+		EditorShell::OpenWithSystemDefault(RuntimePaths::ResolveAssetPath(asset.assetPath));
+		return;
+	}
 
 	if (asset.type == AssetType::Scene) {
 		if (context.host) {

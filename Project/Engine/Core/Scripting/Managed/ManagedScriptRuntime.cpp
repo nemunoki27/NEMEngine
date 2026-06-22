@@ -255,6 +255,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.instantiatePrefab = &ManagedScriptRuntime::InstantiatePrefabCallback;
 	callbacks.loadSceneAdditive = &ManagedScriptRuntime::LoadSceneAdditiveCallback;
 	callbacks.loadSceneSingle = &ManagedScriptRuntime::LoadSceneSingleCallback;
+	callbacks.resolveEntityRef = &ManagedScriptRuntime::ResolveEntityRefCallback;
 	callbacks.unloadScene = &ManagedScriptRuntime::UnloadSceneCallback;
 	callbacks.isSceneInstanceAlive = &ManagedScriptRuntime::IsSceneInstanceAliveCallback;
 	callbacks.setParentKeepWorld = &ManagedScriptRuntime::SetParentKeepWorldCallback;

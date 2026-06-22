@@ -10,6 +10,8 @@ using namespace Engine;
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+#include <Engine/Core/Platform/Input/InputSystem.h>
+#include <Engine/Core/Foundation/Math/Math.h>
 
 // c++
 #include <algorithm>
@@ -79,8 +81,52 @@ namespace {
 		return Vector3::Transform(worldPosition, Matrix4x4::Inverse(ResolveWorldMatrix(world, parent)));
 	}
 
-	// 追従処理を実行し、揺れを除いたローカル位置を返す
-	Vector3 ApplyFollow(ECSWorld& world, const Entity& entity, TransformComponent& transform, const CameraFollowSettings& follow, float deltaTime) {
+	// 入力でカメラのオービット回転をインクリメンタルに更新する、オイラー非経由
+	Quaternion UpdateOrbitRotation(const Quaternion& current, CameraFollowSettings& follow, float deltaTime) {
+
+		Input* input = Input::GetInstance();
+		if (!input) {
+			return current;
+		}
+
+		// パッドは右スティック、それ以外はマウス移動量を入力にする
+		const bool isPad = input->GetType() == InputType::GamePad;
+		const Vector2 rawInput = isPad ? input->GetRightStickVal() : input->GetMouseMoveValue();
+
+		// 入力を平滑化する
+		const float lerpT = std::clamp(follow.inputLerpRate * deltaTime, 0.0f, 1.0f);
+		follow.smoothedInput = Vector2::Lerp(follow.smoothedInput, rawInput, lerpT);
+
+		// 感度を掛ける、マウスは移動量がフレーム量なのでdtを掛けない
+		const Vector2 sensitivity = isPad ? follow.padSensitivity : follow.mouseSensitivity;
+		const float dtScale = isPad ? deltaTime : 1.0f;
+		const float yawDelta = follow.smoothedInput.x * sensitivity.x * dtScale;
+		const float pitchSign = follow.invertPitch ? 1.0f : -1.0f;
+		const float pitchDelta = follow.smoothedInput.y * sensitivity.y * dtScale * pitchSign;
+
+		// 横回転はワールド上軸まわり、縦回転は横回転後の右軸まわりに合成する
+		const Vector3 worldUp(0.0f, 1.0f, 0.0f);
+		const Quaternion yawRot = Quaternion::Normalize(Quaternion::MakeAxisAngle(worldUp, yawDelta) * current);
+		const Vector3 rightAxis = Vector3::Normalize(
+			Vector3::TransferNormal(Vector3(1.0f, 0.0f, 0.0f), Quaternion::MakeRotateMatrix(yawRot)));
+		const Quaternion pitchRot = Quaternion::MakeAxisAngle(rightAxis, pitchDelta);
+		const Quaternion candidate = Quaternion::Normalize(pitchRot * yawRot);
+
+		// 縦回転は前方ベクトルのy成分で角度制限する、限界を越えて更に倒す入力だけ弾く
+		const Vector3 currentForward = Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), Quaternion::MakeRotateMatrix(current));
+		const Vector3 candidateForward = Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), Quaternion::MakeRotateMatrix(candidate));
+		const float minY = std::sin(follow.minPitchDegrees * (Math::pi / 180.0f));
+		const float maxY = std::sin(follow.maxPitchDegrees * (Math::pi / 180.0f));
+		if ((candidateForward.y > maxY && candidateForward.y > currentForward.y) ||
+			(candidateForward.y < minY && candidateForward.y < currentForward.y)) {
+			return yawRot;
+		}
+		return candidate;
+	}
+
+	// 追従処理を実行し、揺れを除いたローカル位置を返す、allowInputならオービット回転も行う
+	Vector3 ApplyFollow(ECSWorld& world, const Entity& entity, TransformComponent& transform,
+		CameraFollowSettings& follow, float deltaTime, bool allowInput) {
 
 		Vector3 baseLocalPos = transform.localPos;
 		// 追従が無効ならそのまま座標を返す
@@ -93,8 +139,18 @@ namespace {
 		if (!world.IsAlive(target)) {
 			return baseLocalPos;
 		}
+
+		// 入力でオービット回転するときは回転をカメラへ適用し、offsetも回転して対象を中心に回る
+		Vector3 offset = follow.offset;
+		if (follow.enableInputRotation && allowInput) {
+
+			const Quaternion orbit = UpdateOrbitRotation(transform.localRotation, follow, deltaTime);
+			transform.localRotation = orbit;
+			offset = Vector3::TransferNormal(follow.offset, Quaternion::MakeRotateMatrix(orbit));
+		}
+
 		// 追従先の座標を取得
-		Vector3 desiredWorldPos = GetWorldPosition(world, target) + follow.offset;
+		Vector3 desiredWorldPos = GetWorldPosition(world, target) + offset;
 		Vector3 desiredLocalPos = WorldToParentLocal(world, entity, desiredWorldPos);
 		// 軸マスクで補間率を座標ごとに調整
 		desiredLocalPos = Vector3::Lerp(baseLocalPos, desiredLocalPos, follow.axisMask);
@@ -145,11 +201,14 @@ void CameraControllerSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 				return;
 			}
 
+			// オービット入力はPlay中だけ受け付ける、Editプレビューでマウスがエディタ操作と干渉しないようにする
+			const bool allowInput = isPlay;
+
 			// モードごとに使う設定を選ぶ
 			bool changed = false;
 			if (controller.mode == CameraControlMode::Follow) {
 
-				transform.localPos = ApplyFollow(world, entity, transform, controller.follow, deltaTime);
+				transform.localPos = ApplyFollow(world, entity, transform, controller.follow, deltaTime, allowInput);
 				changed |= controller.follow.enabled;
 			} else if (controller.mode == CameraControlMode::LookAt) {
 
@@ -157,7 +216,7 @@ void CameraControllerSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 			} else if (controller.mode == CameraControlMode::FollowLookAt) {
 
 				// 注視は更新後の位置を使うので追従を先に適用する
-				transform.localPos = ApplyFollow(world, entity, transform, controller.followLookAt.follow, deltaTime);
+				transform.localPos = ApplyFollow(world, entity, transform, controller.followLookAt.follow, deltaTime, allowInput);
 				changed |= controller.followLookAt.follow.enabled;
 				changed |= ApplyLookAt(world, entity, transform, controller.followLookAt.lookAt, deltaTime);
 			}

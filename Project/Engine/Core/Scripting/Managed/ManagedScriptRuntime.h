@@ -309,6 +309,8 @@ namespace Engine {
 		static ManagedNativeEntity __cdecl InstantiatePrefabCallback(uint64_t prefabAssetId, ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent);
 		static uint64_t __cdecl LoadSceneAdditiveCallback(uint64_t sceneAssetId);
 		static uint64_t __cdecl LoadSceneSingleCallback(uint64_t sceneAssetId);
+		// EntityRefをlocalFileIDからruntime entityへ解決する、対象が無ければNull
+		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(uint64_t sourceAsset, uint64_t localFileId);
 		static void __cdecl UnloadSceneCallback(uint64_t sceneInstanceId);
 		static int32_t __cdecl IsSceneInstanceAliveCallback(uint64_t sceneInstanceId);
 		static void __cdecl SetParentKeepWorldCallback(ManagedNativeEntity child, ManagedNativeEntity parent, int32_t worldPositionStays);

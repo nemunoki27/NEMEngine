@@ -181,3 +181,53 @@ externalproject "libcurl_object"
     configmap {
         ["Develop"] = "Release",
     }
+
+-- msdf-atlas-gen はsubmodule未取得でも生成が止まらないよう、ソースがある時だけプロジェクトを宣言する
+local MSDF_BUILD_DIR = path.join(NEMENGINE_ROOT, "Generated/Externals/msdf")
+if os.isfile(path.join(NEMENGINE_ROOT, "Project/Externals/msdf-atlas-gen/CMakeLists.txt")) then
+
+externalproject "freetype"
+    location (path.join(MSDF_BUILD_DIR, "freetype"))
+    filename "freetype"
+    kind "StaticLib"
+    language "C"
+
+    configmap {
+        ["Develop"] = "Release",
+    }
+
+externalproject "msdfgen-core"
+    location (path.join(MSDF_BUILD_DIR, "msdf-atlas-gen/msdfgen"))
+    filename "msdfgen-core"
+    kind "StaticLib"
+    language "C++"
+
+    configmap {
+        ["Develop"] = "Release",
+    }
+
+externalproject "msdfgen-ext"
+    location (path.join(MSDF_BUILD_DIR, "msdf-atlas-gen/msdfgen"))
+    filename "msdfgen-ext"
+    kind "StaticLib"
+    language "C++"
+
+    dependson { "freetype", "msdfgen-core" }
+
+    configmap {
+        ["Develop"] = "Release",
+    }
+
+externalproject "msdf-atlas-gen"
+    location (path.join(MSDF_BUILD_DIR, "msdf-atlas-gen"))
+    filename "msdf-atlas-gen"
+    kind "StaticLib"
+    language "C++"
+
+    dependson { "msdfgen-core", "msdfgen-ext" }
+
+    configmap {
+        ["Develop"] = "Release",
+    }
+
+end

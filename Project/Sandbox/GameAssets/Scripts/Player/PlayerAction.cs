@@ -10,7 +10,7 @@ public sealed class PlayerAction : ScriptBehaviour
     // 移動速度
     [SerializeField]
     private float moveSpeed = 5.0f;
-    // 進行方向への回転補間の速さ、大きいほど素早く向く
+    // 進行方向への回転補間の速さ
     [SerializeField]
     private float rotationLerpRate = 12.0f;
     // 左スティックのデッドゾーン
@@ -23,6 +23,12 @@ public sealed class PlayerAction : ScriptBehaviour
     // 発生させるPrefab
     [SerializeField]
     private AssetRef<PrefabAsset> prefab;
+
+    // 移動の正面に使うカメラEntity、未設定ならワールド軸基準で移動する
+    [SerializeField]
+    private EntityRef cameraEntity;
+    // 解決済みカメラのキャッシュ、EntityRef探索を毎フレーム行わない
+    private Entity cachedCamera;
 
     //========================================================================
     //	更新フレーム開始処理
@@ -105,8 +111,24 @@ public sealed class PlayerAction : ScriptBehaviour
             return;
         }
 
-        // XZ平面のワールド移動方向
-        Vector3 moveDirection = new Vector3(input.x, 0.0f, input.y);
+        // カメラの向きを正面として入力を回す、カメラが無ければワールド軸そのまま
+        Vector3 forward = new Vector3(0.0f, 0.0f, 1.0f);
+        Vector3 right = new Vector3(1.0f, 0.0f, 0.0f);
+        Entity camera = GetCamera();
+        if (camera.isAlive)
+        {
+            Transform camTransform = camera.transform;
+            // 地面移動なので前方と右方向を水平化して使う
+            forward = camTransform.forward;
+            right = camTransform.right;
+            forward.y = 0.0f;
+            right.y = 0.0f;
+            forward = Vector3.Normalize(forward);
+            right = Vector3.Normalize(right);
+        }
+
+        // カメラ相対のXZ移動方向
+        Vector3 moveDirection = right * input.x + forward * input.y;
         Vector3 direction = Vector3.Normalize(moveDirection);
 
         // 入力の強さに応じて速度を変えて移動する
@@ -117,5 +139,17 @@ public sealed class PlayerAction : ScriptBehaviour
         Quaternion target = Quaternion.FromEulerDegrees(new Vector3(0.0f, yawDegree, 0.0f));
         float lerpRate = 1.0f - Math.Exp(-rotationLerpRate * Time.deltaTime);
         transform.rotation = Quaternion.Slerp(transform.rotation, target, lerpRate);
+    }
+
+    //========================================================================
+    //	カメラEntityの取得
+    //========================================================================
+    private Entity GetCamera()
+    {
+        if (!cachedCamera.isAlive)
+        {
+            cachedCamera = cameraEntity.Resolve();
+        }
+        return cachedCamera;
     }
 }

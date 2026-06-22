@@ -25,7 +25,7 @@ namespace Engine {
 	// v8:診断APIのreportScriptExceptionとscript descriptorのdefaultExecutionOrderを追加
 	// v9: GetComponent<Script>用にentityのscript instanceをscriptTypeIdで引くgetScriptInstanceを追加
 	// v10: Scene単一load用のloadSceneSingleを追加
-	inline constexpr uint32_t kManagedAbiVersion = 10;
+	inline constexpr uint32_t kManagedAbiVersion = 11;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -303,6 +303,7 @@ namespace Engine {
 		using ReportStringCallback = void(__cdecl*)(const char*);
 		// GetComponent<Script> v9のentity上でscriptTypeId一致のscript instanceハンドルを引く
 		using GetScriptInstanceCallback = ManagedScriptInstanceHandle(__cdecl*)(ManagedNativeEntity, const char*);
+		using ResolveEntityRefCallback = ManagedNativeEntity(__cdecl*)(uint64_t, uint64_t);
 
 		GetDeltaTimeCallback getDeltaTime = nullptr;
 		GetDeltaTimeCallback getFixedDeltaTime = nullptr;
@@ -400,6 +401,8 @@ namespace Engine {
 		GetScriptInstanceCallback getScriptInstance = nullptr;
 		// SceneTransition v10のScene単一load、新sceneをactiveにし旧sceneを全unloadする
 		LoadSceneCallback loadSceneSingle = nullptr;
+
+		ResolveEntityRefCallback resolveEntityRef = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

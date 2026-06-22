@@ -131,6 +131,20 @@ bool Engine::ProjectAssetIndex::ShouldHideInBrowser(const std::filesystem::path&
 		return true;
 	}
 
+	// MSDFフォントの生成物はブラウザ上では扱わせない、参照元の.ttf/.otfへ操作を集約するため非表示にする
+	// .font.json本体と、隣接する同名アトラス(<stem>.font.jsonを持つ.png)の両方を隠す
+	if (Engine::Algorithm::EndsWith(fileName, ".font.json")) {
+		return true;
+	}
+	if (extension == ".png" && ExistsSiblingWithSameStem(fullPath, ".font.json")) {
+		return true;
+	}
+
+	// base_charsetは固定の基底文字集合なので直接編集対象にしない、game_charsetのみ編集させる
+	if (fileName == "base_charset.txt") {
+		return true;
+	}
+
 	// .objの付属ファイル
 	if (extension == ".mtl" && ExistsSiblingWithSameStem(fullPath, ".obj")) {
 		return true;

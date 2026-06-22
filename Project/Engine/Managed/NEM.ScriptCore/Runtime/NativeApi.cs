@@ -17,7 +17,8 @@ internal static class ManagedAbi {
     // v8: 診断 API(reportScriptException) と script descriptor の defaultExecutionOrder を追加
     // v9: GetComponent<Script> 用に entity の script instance を scriptTypeId で引く getScriptInstance を追加
     // v10: Scene 単一load用の loadSceneSingle を追加
-    internal const uint Version = 10;
+    // v11: EntityRef を runtime entity へ解決する resolveEntityRef を追加
+    internal const uint Version = 11;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -205,6 +206,8 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> AudioIsPlaying;
     // Diagnostics(v8): script callback 例外の構造化報告
     internal static delegate* unmanaged[Cdecl]<byte*, void> ReportScriptException;
+    // v11: EntityRef(sourceAsset, localFileId) を runtime entity へ解決する
+    internal static delegate* unmanaged[Cdecl]<ulong, ulong, NativeEntity> ResolveEntityRef;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -291,6 +294,7 @@ internal static unsafe class NativeApi {
         AudioStop = callbacks->audioStop;
         AudioIsPlaying = callbacks->audioIsPlaying;
         ReportScriptException = callbacks->reportScriptException;
+        ResolveEntityRef = callbacks->resolveEntityRef;
     }
 
     internal static float ReadDeltaTime() {
@@ -653,6 +657,10 @@ internal static unsafe class NativeApi {
             NativeQuaternion.From(rotation), useTransform ? 1 : 0, parent.native));
     }
 
+    // EntityRefをruntime entityへ解決する、未解決はnull。結果はスクリプト側でキャッシュ推奨
+    internal static Entity ResolveEntityReference(ulong sourceAsset, ulong localFileId)
+        => (ResolveEntityRef != null && localFileId != 0) ? new Entity(ResolveEntityRef(sourceAsset, localFileId)) : Entity.nullEntity;
+
     internal static ulong SceneLoadAdditive(ulong sceneAssetId) => LoadSceneAdditive != null ? LoadSceneAdditive(sceneAssetId) : 0ul;
     internal static ulong SceneLoadSingle(ulong sceneAssetId) => LoadSceneSingle != null ? LoadSceneSingle(sceneAssetId) : 0ul;
     internal static void SceneUnload(ulong sceneInstanceId) { if (UnloadScene != null) { UnloadScene(sceneInstanceId); } }
@@ -823,4 +831,6 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle> getScriptInstance;
     // SceneTransition(v10): Scene 単一load（C++ ManagedNativeApiTable と同一順）
     public delegate* unmanaged[Cdecl]<ulong, ulong> loadSceneSingle;
+    // EntityRef(v11): EntityRef を runtime entity へ解決（C++ ManagedNativeApiTable と同一順）
+    public delegate* unmanaged[Cdecl]<ulong, ulong, NativeEntity> resolveEntityRef;
 }

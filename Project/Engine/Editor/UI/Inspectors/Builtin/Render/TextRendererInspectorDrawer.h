@@ -27,14 +27,12 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
-		//--------- variables ----------------------------------------------------
-
-		// フォントアセット
-		std::string fontBuffer_{};
-
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, bool& anyItemActive) override;
+
+		// フォント欄に.ttf/.otfがドロップされたらMSDFを生成し.font.jsonの参照へ差し替える
+		void ResolveFontSourceDrop(const EditorPanelContext& context);
 	};
 } // Engine

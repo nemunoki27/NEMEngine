@@ -6,6 +6,10 @@
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
+#include <Engine/Editor/Assets/Importer/Font/MSDFFontGenerator.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Editor/Core/EditorContext.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 //============================================================================
 //	TextRendererInspectorDrawer classMethods
@@ -24,6 +28,8 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 			return MyGUI::AssetReferenceField("フォント", draft.font,
 				context.editorContext->assetDatabase, { AssetType::Font });
 			});
+		// ドロップ直後はdraft.fontが.ttf/.otfを指すので、MSDFを生成して.font.jsonの参照へ寄せる
+		ResolveFontSourceDrop(context);
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
 			setting.defaultAssetID = DefaultMaterialSettings::GetInstance().GetTextOrBuiltin();
@@ -140,4 +146,34 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 			}
 		}
 	}
+}
+
+void Engine::TextRendererInspectorDrawer::ResolveFontSourceDrop(const EditorPanelContext& context) {
+
+	auto& draft = GetDraft();
+
+	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
+	if (!database || !draft.font) {
+		return;
+	}
+
+	// 参照先がソースフォント以外なら触らない、生成済みの.font.jsonはそのまま使う
+	const AssetMeta* meta = database->Find(draft.font);
+	if (!meta || !MSDFFontGenerator::IsFontSourceExtension(meta->assetPath)) {
+		return;
+	}
+
+	// 未生成なら隣にMSDFを作る、成否いずれでもdraft.fontはソース以外へ抜けるので毎フレーム再入はしない
+	const std::filesystem::path sourcePath = database->ResolveFullPath(draft.font);
+	const MSDFFontGenerator::Result result = MSDFFontGenerator::EnsureGenerated(*database, sourcePath, false);
+	if (result.success) {
+
+		draft.font = result.fontAssetID;
+	} else {
+
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"[TextRendererInspector] font generation failed. {}", result.message);
+		draft.font = AssetID{};
+	}
+	RequestCommit();
 }

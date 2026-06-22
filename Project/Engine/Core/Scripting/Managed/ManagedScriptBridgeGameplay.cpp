@@ -7,6 +7,7 @@
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
@@ -29,6 +30,25 @@ namespace Engine {
 			const SystemContext* context = ManagedScriptRuntime::GetCurrentContext();
 			return context ? context->world : nullptr;
 		}
+	}
+
+	ManagedNativeEntity ManagedScriptRuntime::ResolveEntityRefCallback([[maybe_unused]] uint64_t sourceAsset, uint64_t localFileId) {
+
+		// localFileIDはEdit/Playをまたいで安定するため、これで現在のworldのentityを引く
+		// sourceAssetは将来のマルチシーン絞り込み用で現状は未使用
+		const SystemContext* context = GetCurrentContext();
+		ECSWorld* world = context ? context->world : nullptr;
+		if (!world || localFileId == 0) {
+			return MakeNullNativeEntity();
+		}
+
+		UUID id{};
+		id.value = localFileId;
+		const Entity entity = SceneObjectUtility::FindByLocalFileID(*world, id);
+		if (!world->IsAlive(entity)) {
+			return MakeNullNativeEntity();
+		}
+		return MakeNativeEntity(*world, entity);
 	}
 
 	ManagedNativeEntity ManagedScriptRuntime::CreateEntityCallback(const char* name, ManagedNativeEntity parent) {

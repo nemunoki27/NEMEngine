@@ -4,3 +4,9 @@
 [submodule "Project/Externals/imgui-node-editor"]
 	path = Project/Externals/imgui-node-editor
 	url = https://github.com/thedmd/imgui-node-editor.git
+[submodule "Project/Externals/msdf-atlas-gen"]
+	path = Project/Externals/msdf-atlas-gen
+	url = https://github.com/Chlumsky/msdf-atlas-gen.git
+[submodule "Project/Externals/freetype"]
+	path = Project/Externals/freetype
+	url = https://github.com/freetype/freetype.git

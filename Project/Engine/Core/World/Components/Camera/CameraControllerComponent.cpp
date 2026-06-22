@@ -22,6 +22,15 @@ namespace {
 		return Engine::Vector3::FromJson(in.value(key, nlohmann::json{}));
 	}
 
+	// jsonからVector2を読み込む
+	Engine::Vector2 ReadVector2(const nlohmann::json& in, const char* key, const Engine::Vector2& fallback) {
+
+		if (!in.contains(key)) {
+			return fallback;
+		}
+		return Engine::Vector2::FromJson(in.value(key, nlohmann::json{}));
+	}
+
 	// 追従設定をjsonから読み込む
 	void ReadFollowSettings(const nlohmann::json& in, Engine::CameraFollowSettings& settings) {
 
@@ -30,6 +39,13 @@ namespace {
 		settings.offset = ReadVector3(in, "offset", settings.offset);
 		settings.axisMask = ReadVector3(in, "axisMask", settings.axisMask);
 		settings.posLerpSpeed = in.value("posLerpSpeed", settings.posLerpSpeed);
+		settings.enableInputRotation = in.value("enableInputRotation", settings.enableInputRotation);
+		settings.inputLerpRate = in.value("inputLerpRate", settings.inputLerpRate);
+		settings.padSensitivity = ReadVector2(in, "padSensitivity", settings.padSensitivity);
+		settings.mouseSensitivity = ReadVector2(in, "mouseSensitivity", settings.mouseSensitivity);
+		settings.minPitchDegrees = in.value("minPitchDegrees", settings.minPitchDegrees);
+		settings.maxPitchDegrees = in.value("maxPitchDegrees", settings.maxPitchDegrees);
+		settings.invertPitch = in.value("invertPitch", settings.invertPitch);
 	}
 
 	// 注視設定をjsonから読み込む
@@ -51,6 +67,13 @@ namespace {
 		out["offset"] = settings.offset.ToJson();
 		out["axisMask"] = settings.axisMask.ToJson();
 		out["posLerpSpeed"] = settings.posLerpSpeed;
+		out["enableInputRotation"] = settings.enableInputRotation;
+		out["inputLerpRate"] = settings.inputLerpRate;
+		out["padSensitivity"] = settings.padSensitivity.ToJson();
+		out["mouseSensitivity"] = settings.mouseSensitivity.ToJson();
+		out["minPitchDegrees"] = settings.minPitchDegrees;
+		out["maxPitchDegrees"] = settings.maxPitchDegrees;
+		out["invertPitch"] = settings.invertPitch;
 		return out;
 	}
 

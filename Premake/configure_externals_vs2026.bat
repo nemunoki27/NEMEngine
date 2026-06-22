@@ -94,6 +94,28 @@ if errorlevel 1 (
     exit /b 1
 )
 
+rem msdf-atlas-gen はsubmodule未取得でも他のビルドを止めないよう、ソースがある時だけconfigureする
+set "MSDF_SRC=%ENGINE_ROOT%\Project\Externals\msdf-atlas-gen"
+set "MSDF_BUILD=%ENGINE_ROOT%\Generated\Externals\msdf"
+set "MSDF_CACHE=%ENGINE_ROOT%\Premake\cmake\msdf-cache.cmake"
+
+if exist "%MSDF_SRC%\CMakeLists.txt" (
+    echo ===== Configure msdf-atlas-gen =====
+    cmake -S "%ENGINE_ROOT%\Premake\cmake\msdf" -B "%MSDF_BUILD%" -G "Visual Studio 18 2026" -A x64 -C "%MSDF_CACHE%"
+    if errorlevel 1 (
+        echo [ERROR] msdf-atlas-gen configure failed.
+        exit /b 1
+    )
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%ENGINE_ROOT%\Premake\patch_cmake_vcxproj.ps1" -BuildRoot "%MSDF_BUILD%"
+    if errorlevel 1 (
+        echo [ERROR] msdf-atlas-gen project patch failed.
+        exit /b 1
+    )
+) else (
+    echo [SKIP] msdf-atlas-gen source not found, skipping its configure.
+)
+
 echo [OK] External projects configured.
 endlocal
 exit /b 0

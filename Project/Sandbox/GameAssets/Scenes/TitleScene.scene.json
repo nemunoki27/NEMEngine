@@ -152,14 +152,68 @@
                             "y": 1.0,
                             "z": 1.0
                         },
+                        "enableInputRotation": false,
                         "enabled": true,
+                        "inputLerpRate": 12.0,
+                        "invertPitch": false,
+                        "maxPitchDegrees": 60.0,
+                        "minPitchDegrees": -60.0,
+                        "mouseSensitivity": {
+                            "x": 0.004999999888241291,
+                            "y": 0.004999999888241291
+                        },
                         "offset": {
                             "x": 0.0,
                             "y": 3.7899999618530273,
                             "z": -5.059999942779541
                         },
+                        "padSensitivity": {
+                            "x": 2.5,
+                            "y": 1.7999999523162842
+                        },
                         "posLerpSpeed": 9.600000381469727,
                         "target": "6d6cda8f769c6a9c"
+                    },
+                    "followLookAt": {
+                        "follow": {
+                            "axisMask": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "enableInputRotation": false,
+                            "enabled": true,
+                            "inputLerpRate": 12.0,
+                            "invertPitch": false,
+                            "maxPitchDegrees": 60.0,
+                            "minPitchDegrees": -60.0,
+                            "mouseSensitivity": {
+                                "x": 0.004999999888241291,
+                                "y": 0.004999999888241291
+                            },
+                            "offset": {
+                                "x": 0.0,
+                                "y": 3.0,
+                                "z": -8.0
+                            },
+                            "padSensitivity": {
+                                "x": 2.5,
+                                "y": 1.7999999523162842
+                            },
+                            "posLerpSpeed": 8.0,
+                            "target": "0000000000000000"
+                        },
+                        "lookAt": {
+                            "enabled": false,
+                            "lockRoll": true,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "rotationLerpSpeed": 12.0,
+                            "target": "0000000000000000"
+                        }
                     },
                     "lookAt": {
                         "enabled": true,
@@ -1313,6 +1367,20 @@
                                     "type": "float",
                                     "value": 5
                                 },
+                                "35a3b796-8f54-4fbb-a71b-8ce0dbc5fcc1": {
+                                    "name": "createPrefabPosY",
+                                    "type": "float",
+                                    "value": 0
+                                },
+                                "9f9adbb9-cee1-4d2c-be5c-c97d00fdbd0f": {
+                                    "name": "cameraEntity",
+                                    "type": "EntityRef",
+                                    "value": {
+                                        "kind": "Scene",
+                                        "localFileId": "6d6cda8f769c6a9c",
+                                        "sourceAsset": "c682f5f3da26eac6"
+                                    }
+                                },
                                 "d455b071-d5f2-4f1e-ae2a-a385f8400e3e": {
                                     "name": "rotationLerpRate",
                                     "type": "float",
@@ -1324,7 +1392,7 @@
                                     "value": 0.2
                                 },
                                 "fcf4cef6-4ca1-4188-a627-84fde4a964d0": {
-                                    "name": "sphere",
+                                    "name": "prefab",
                                     "type": "AssetRef",
                                     "value": {
                                         "assetId": "0dde87f33c37f88b"

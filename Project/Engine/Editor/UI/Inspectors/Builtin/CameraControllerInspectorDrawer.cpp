@@ -157,6 +157,18 @@ Engine::ValueEditResult Engine::CameraControllerInspectorDrawer::DrawFollowSetti
 	Accumulate(result, MyGUI::DragVector3("オフセット", settings.offset, { .dragSpeed = 0.01f }));
 	Accumulate(result, MyGUI::DragVector3("軸マスク", settings.axisMask, { .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f }));
 	Accumulate(result, MyGUI::DragFloat("位置補間", settings.posLerpSpeed, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+
+	// 入力でのオービット回転
+	Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("入力で回転", settings.enableInputRotation));
+	if (settings.enableInputRotation) {
+
+		Accumulate(result, MyGUI::DragFloat("入力補間", settings.inputLerpRate, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+		Accumulate(result, MyGUI::DragVector2("パッド感度", settings.padSensitivity, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+		Accumulate(result, MyGUI::DragVector2("マウス感度", settings.mouseSensitivity, { .dragSpeed = 0.001f, .minValue = 0.0f }));
+		Accumulate(result, MyGUI::DragFloat("縦回転下限", settings.minPitchDegrees, { .dragSpeed = 0.1f, .minValue = -89.0f, .maxValue = 0.0f }));
+		Accumulate(result, MyGUI::DragFloat("縦回転上限", settings.maxPitchDegrees, { .dragSpeed = 0.1f, .minValue = 0.0f, .maxValue = 89.0f }));
+		Accumulate(result, InspectorDrawerCommon::DrawCheckboxField("縦回転反転", settings.invertPitch));
+	}
 	return result;
 }
 

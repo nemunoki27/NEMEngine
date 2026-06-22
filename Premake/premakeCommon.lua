@@ -8,6 +8,9 @@ NEM_ENGINE_GENERATED_ROOT = NEM_ENGINE_GENERATED_ROOT or path.join(NEMENGINE_ROO
 NEM_OUTPUT_ROOT = NEM_OUTPUT_ROOT or NEM_GENERATED_ROOT or NEM_ENGINE_GENERATED_ROOT
 NEM_GENERATED_ROOT = NEM_OUTPUT_ROOT
 
+-- msdf-atlas-gen のsubmoduleが取得済みかどうか、未取得でもエンジンビルドが通るよう分岐に使う
+NEM_MSDF_AVAILABLE = os.isfile(path.join(NEM_PROJECT_ROOT, "Externals/msdf-atlas-gen/CMakeLists.txt"))
+
 function NEM_ConfigureWorkspaceLayout(runtimeDebugDir)
     objdir(path.join(NEM_OUTPUT_ROOT, "Intermediate/%{prj.name}/%{cfg.buildcfg}"))
 
@@ -87,12 +90,31 @@ function NEM_AddEngineIncludeSettings()
         path.join(NEM_PROJECT_ROOT, "Externals/dotnet-hosting/include"),
     }
 
+    -- msdf-atlas-gen: <msdf-atlas-gen/msdf-atlas-gen.h> と内部の <msdfgen.h> / <core/...>
+    if NEM_MSDF_AVAILABLE then
+        externalincludedirs {
+            path.join(NEM_PROJECT_ROOT, "Externals/msdf-atlas-gen"),
+            path.join(NEM_PROJECT_ROOT, "Externals/msdf-atlas-gen/msdfgen"),
+        }
+    end
+
     defines {
         '_PROFILE="$(Configuration)"',
         "NOMINMAX",
         "IMGUI_DEFINE_MATH_OPERATORS",
         "CURL_STATICLIB",
     }
+
+    -- msdf-atlas-gen は静的リンクなので公開マクロを空定義し、ライブラリと同じC++11設定に揃える
+    if NEM_MSDF_AVAILABLE then
+        defines {
+            "NEM_USE_MSDF_ATLAS_GEN",
+            "MSDFGEN_PUBLIC=",
+            "MSDFGEN_EXT_PUBLIC=",
+            "MSDF_ATLAS_PUBLIC=",
+            "MSDFGEN_USE_CPP11",
+        }
+    end
 end
 
 -- エンジンDLL自身が同梱する外部ライブラリとシステムライブラリをリンクする
@@ -111,6 +133,16 @@ function NEM_AddEngineDllLinkSettings()
         "advapi32",
         "iphlpapi",
     }
+
+    -- msdf-atlas-gen 一式、依存順にmsdf-atlas-gen -> msdfgen -> freetypeで取り込む
+    if NEM_MSDF_AVAILABLE then
+        links {
+            "msdf-atlas-gen",
+            "msdfgen-ext",
+            "msdfgen-core",
+            "freetype",
+        }
+    end
 
     linkoptions {
         "/WX",
