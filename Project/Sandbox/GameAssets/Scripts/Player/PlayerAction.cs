@@ -17,18 +17,23 @@ public sealed class PlayerAction : ScriptBehaviour
     [SerializeField]
     private float stickDeadZone = 0.2f;
 
-    // プレファブ発生オフセットY
+    // ジャンプの強さ、Rigidbodyへ上方向の瞬間的な力として加える
     [SerializeField]
-    private float createPrefabPosY = 0.0f;
-    // 発生させるPrefab
+    private float jumpForce = 6.0f;
+    // 接地猶予、地面を離れてからこの秒数はジャンプを受け付ける
     [SerializeField]
-    private AssetRef<PrefabAsset> prefab;
+    private float coyoteTime = 0.1f;
 
     // 移動の正面に使うカメラEntity、未設定ならワールド軸基準で移動する
     [SerializeField]
     private EntityRef cameraEntity;
     // 解決済みカメラのキャッシュ、EntityRef探索を毎フレーム行わない
     private Entity cachedCamera;
+
+    // ジャンプ入力のフラグ、Updateで拾いFixedUpdateで消費する
+    private bool jumpRequested;
+    // 接地の残り猶予秒数、0より大きければ接地中とみなす
+    private float groundedTimer;
 
     //========================================================================
     //	更新フレーム開始処理
@@ -49,32 +54,47 @@ public sealed class PlayerAction : ScriptBehaviour
     //========================================================================
     public override void Update()
     {
-        // オブジェクトの発生
-        CreateCube();
         // プレイヤーの移動
         Move();
+        // ジャンプ入力の取得
+        ReadJumpInput();
     }
-
     //========================================================================
-    //	オブジェクトの発生
+    //	物理更新、ジャンプの適用と接地猶予の減衰
     //========================================================================
-    private void CreateCube()
+    public override void FixedUpdate()
     {
-        // スペース入力でその場にオブジェクトを作成
-        if (Input.GetKeyDown(KeyCode.Space))
+        // 接地猶予を減らす、接地中は衝突コールバックが毎ステップ補充する
+        if (groundedTimer > 0.0f)
         {
-            // Prefabが未割り当てなら何もしない
-            if (prefab.IsNull)
-            {
-                return;
-            }
-            Vector3 createPos = transform.position;
-            createPos.y = createPrefabPosY;
-
-            // プレイヤーの足元へ現在の向きで生成する
-            Prefab.Instantiate(prefab, createPos, transform.rotation);
+            groundedTimer -= Time.fixedDeltaTime;
         }
+
+        // 接地中にジャンプ要求があれば上方向へ瞬間的な力を加える
+        if (jumpRequested && groundedTimer > 0.0f)
+        {
+            // Rigidbodyが無ければジャンプできない、プレイヤーにRigidbodyとCollisionが必要
+            if (TryGet<Rigidbody>(out Rigidbody body))
+            {
+                body.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+            }
+            // 多段ジャンプを防ぐため接地状態を消費する
+            groundedTimer = 0.0f;
+        }
+        jumpRequested = false;
     }
+    //========================================================================
+    //	衝突開始と継続で接地を判定する
+    //========================================================================
+    public override void OnCollisionEnter(Collision collision)
+    {
+        UpdateGrounded(collision);
+    }
+    public override void OnCollisionStay(Collision collision)
+    {
+        UpdateGrounded(collision);
+    }
+
     //========================================================================
     //	移動処理
     //========================================================================
@@ -141,6 +161,28 @@ public sealed class PlayerAction : ScriptBehaviour
         transform.rotation = Quaternion.Slerp(transform.rotation, target, lerpRate);
     }
 
+    //========================================================================
+    //	ジャンプ入力の取得
+    //========================================================================
+    private void ReadJumpInput()
+    {
+        // スペースかゲームパッドAでジャンプ要求を立てる、適用はFixedUpdateで行う
+        if (Input.GetKeyDown(KeyCode.Space) || Input.GetGamepadButtonDown(GamepadButton.A))
+        {
+            jumpRequested = true;
+        }
+    }
+    //========================================================================
+    //	接地判定の更新
+    //========================================================================
+    private void UpdateGrounded(Collision collision)
+    {
+        // 接触点がプレイヤー中心より下なら床と判断して接地猶予を補充する
+        if (collision.point.y < transform.position.y)
+        {
+            groundedTimer = coyoteTime;
+        }
+    }
     //========================================================================
     //	カメラEntityの取得
     //========================================================================

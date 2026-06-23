@@ -151,6 +151,8 @@ namespace Engine {
 
 		// source変更を検知してdirtyを更新するthrottle付きpolling
 		void PollSourceChanges();
+		// 起動前の編集を検出する、ロード済みアセンブリよりソースが新しければtrue
+		bool IsSourceNewerThanLoadedAssembly() const;
 		// 状態機械を1ステップ進める
 		void AdvanceState(bool playing);
 

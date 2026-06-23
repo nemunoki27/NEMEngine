@@ -140,6 +140,15 @@ void Engine::ManagedScriptBuildService::Initialize(ManagedScriptRuntime* runtime
 	PollSourceChanges();
 	dirty_ = false;
 
+	// ただしロード済みアセンブリよりソースが新しければEdit中に再ビルドさせる
+	// エディタ起動前に編集した.csを、Playを押さずにインスペクターへ反映するため
+	if (IsSourceNewerThanLoadedAssembly()) {
+
+		dirty_ = true;
+		// すぐにビルドへ進ませるためデバウンス済み扱いにする
+		lastChangeTime_ = std::chrono::steady_clock::now() - debounce_;
+	}
+
 	// 現在ロード中の正常DLLを最後の正常版として確保する、初回リロード失敗時の復旧用
 	SeedLastKnownGood();
 }
@@ -306,6 +315,35 @@ void Engine::ManagedScriptBuildService::PollSourceChanges() {
 		lastChangeTime_ = now;
 		diagnostics_.changedSourceCount = changedCount;
 	}
+}
+
+bool Engine::ManagedScriptBuildService::IsSourceNewerThanLoadedAssembly() const {
+
+	if (!runtime_) {
+		return false;
+	}
+
+	// 起動時に実際にロードされるアセンブリ自体の時刻を基準にする
+	// Edit中ビルドはステージングへ出るためロード元のcanonicalは更新されない、ここはロード対象そのものを見る
+	const std::filesystem::path assemblyPath = runtime_->ActiveAssemblyPath();
+	std::error_code existsError{};
+	if (assemblyPath.empty() || !std::filesystem::exists(assemblyPath, existsError) || existsError) {
+		// ロード済みアセンブリが無ければ新旧を判断できないのでPlay側のビルドに任せる
+		return false;
+	}
+	std::error_code timeError{};
+	const auto assemblyTime = std::filesystem::last_write_time(assemblyPath, timeError);
+	if (timeError) {
+		return false;
+	}
+
+	// 監視中ソースのどれかがロード対象より新しければ起動前に編集されたとみなす
+	for (const auto& [path, stamp] : sourceSnapshot_) {
+		if (stamp.time > assemblyTime) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
