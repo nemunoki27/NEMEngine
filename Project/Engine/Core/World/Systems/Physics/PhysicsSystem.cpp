@@ -41,9 +41,10 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 	world.ForEach<RigidbodyComponent, TransformComponent>(
 		[&](Entity entity, RigidbodyComponent& body, TransformComponent& transform) {
 
-			// Dynamic以外は積分せず蓄積力だけ消費する
+			// Dynamic以外は積分せず蓄積力とトルクだけ消費する
 			if (body.bodyType != RigidbodyType::Dynamic) {
 				body.accumulatedForce = Vector3::AnyInit(0.0f);
+				body.accumulatedTorque = Vector3::AnyInit(0.0f);
 				return;
 			}
 			const float mass = body.mass > 0.0f ? body.mass : 1.0f;
@@ -58,6 +59,10 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 			// 位置を更新して蓄積力を消費する
 			transform.localPos += body.linearVelocity * dt;
 			body.accumulatedForce = Vector3::AnyInit(0.0f);
+
+			// 蓄積トルクを角速度へ反映する、慣性は質量スカラで近似する
+			body.angularVelocity += body.accumulatedTorque * (dt / mass);
+			body.accumulatedTorque = Vector3::AnyInit(0.0f);
 
 			// 角速度で姿勢を更新して減衰させる
 			const float angSpeed = body.angularVelocity.Length();
@@ -79,6 +84,7 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 
 			if (body.bodyType != RigidbodyType::Dynamic) {
 				body.accumulatedForce = Vector2::AnyInit(0.0f);
+				body.accumulatedTorque = 0.0f;
 				return;
 			}
 			const float mass = body.mass > 0.0f ? body.mass : 1.0f;
@@ -91,6 +97,10 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 			transform.localPos.x += body.linearVelocity.x * dt;
 			transform.localPos.y += body.linearVelocity.y * dt;
 			body.accumulatedForce = Vector2::AnyInit(0.0f);
+
+			// 蓄積トルクをZ軸角速度へ反映する、慣性は質量スカラで近似する
+			body.angularVelocity += body.accumulatedTorque * (dt / mass);
+			body.accumulatedTorque = 0.0f;
 
 			// Z軸まわりの角速度で姿勢を更新して減衰させる
 			if (!body.freezeRotation && std::fabs(body.angularVelocity) > 1e-5f) {

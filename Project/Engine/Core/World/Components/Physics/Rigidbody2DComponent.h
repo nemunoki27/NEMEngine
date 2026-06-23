@@ -46,6 +46,8 @@ namespace Engine {
 		Vector2 linearVelocity = Vector2::AnyInit(0.0f);
 		// このステップで適用する蓄積力、保存しない
 		Vector2 accumulatedForce = Vector2::AnyInit(0.0f);
+		// このステップで適用する蓄積トルク、Z軸まわり、保存しない
+		float accumulatedTorque = 0.0f;
 	};
 
 	// jsonからコンポーネントへ変換する

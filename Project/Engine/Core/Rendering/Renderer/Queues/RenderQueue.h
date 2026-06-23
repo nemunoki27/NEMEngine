@@ -34,6 +34,7 @@ namespace Engine {
 		static constexpr uint32_t Sprite = 0x1001;
 		static constexpr uint32_t Text = 0x1002;
 		static constexpr uint32_t Mesh = 0x1003;
+		static constexpr uint32_t Line = 0x1004;
 	}
 
 	// スプライト描画データ

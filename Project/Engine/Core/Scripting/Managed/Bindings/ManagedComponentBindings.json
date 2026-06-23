@@ -111,6 +111,27 @@
       ]
     },
     {
+      "registryName": "LineRenderer",
+      "nativeType": "LineRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/LineRendererComponent.h",
+      "managedType": "LineRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "MaterialAsset", "access": "ReadWrite" },
+        { "managedName": "Loop", "nativeMember": "loop", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "Is2D", "nativeMember": "is2D", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "UseWorldSpace", "nativeMember": "useWorldSpace", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "IgnoreParentScale", "nativeMember": "ignoreParentScale", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "IgnoreParentRotation", "nativeMember": "ignoreParentRotation", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "Layer", "nativeMember": "layer", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Order", "nativeMember": "order", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Visible", "nativeMember": "visible", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "BlendMode", "nativeMember": "blendMode", "kind": "Enum", "enumType": "BlendMode", "access": "ReadWrite" },
+        { "managedName": "Queue", "nativeMember": "queue", "kind": "Enum", "enumType": "RenderPhase", "access": "ReadWrite" }
+      ]
+    },
+    {
       "registryName": "DirectionalLight",
       "nativeType": "DirectionalLightComponent",
       "nativeHeader": "Engine/Core/World/Components/Lighting/DirectionalLightComponent.h",
@@ -241,7 +262,8 @@
         { "managedName": "AllowTopple", "nativeMember": "allowTopple", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "LinearVelocity", "nativeMember": "linearVelocity", "kind": "Vector3", "access": "ReadWrite" },
         { "managedName": "AngularVelocity", "nativeMember": "angularVelocity", "kind": "Vector3", "access": "ReadWrite" },
-        { "managedName": "AccumulatedForce", "nativeMember": "accumulatedForce", "kind": "Vector3", "access": "ReadWrite" }
+        { "managedName": "AccumulatedForce", "nativeMember": "accumulatedForce", "kind": "Vector3", "access": "ReadWrite" },
+        { "managedName": "AccumulatedTorque", "nativeMember": "accumulatedTorque", "kind": "Vector3", "access": "ReadWrite" }
       ]
     },
     {
@@ -266,7 +288,8 @@
         { "managedName": "FreezeRotation", "nativeMember": "freezeRotation", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "AllowTopple", "nativeMember": "allowTopple", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "LinearVelocity", "nativeMember": "linearVelocity", "kind": "Vector2", "access": "ReadWrite" },
-        { "managedName": "AccumulatedForce", "nativeMember": "accumulatedForce", "kind": "Vector2", "access": "ReadWrite" }
+        { "managedName": "AccumulatedForce", "nativeMember": "accumulatedForce", "kind": "Vector2", "access": "ReadWrite" },
+        { "managedName": "AccumulatedTorque", "nativeMember": "accumulatedTorque", "kind": "Float", "access": "ReadWrite" }
       ]
     }
   ]

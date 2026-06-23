@@ -70,6 +70,27 @@ public readonly struct Entity : IEquatable<Entity> {
     public Entity nextSibling => NativeApi.ReadNextSibling(native);
     public Transform transform => new(this);
 
+    // ゲームプレイ用タグ、固定リスト(ProjectSettings/TagSettings.json)から選ぶ
+    public string tag {
+        get => NativeApi.ReadTag(native);
+        set => NativeApi.WriteTag(native, value);
+    }
+
+    // 指定タグと一致するか、Unityのcompareと同じく完全一致で判定する
+    public bool CompareTag(string other) => NativeApi.ReadTag(native) == other;
+
+    // 描画カリング用のレイヤーマスク、カメラのcullingMaskと照合される
+    public uint visibilityLayerMask {
+        get => NativeApi.ReadVisibilityLayerMask(native);
+        set => NativeApi.WriteVisibilityLayerMask(native, value);
+    }
+
+    // 衝突フィルタ用のタイプビットマスク、CollisionComponentが無ければ0
+    public uint collisionTypeMask {
+        get => NativeApi.ReadCollisionTypeMask(native);
+        set => NativeApi.WriteCollisionTypeMask(native, value);
+    }
+
     // gameplay 向け PascalCase エイリアス（既存 lowercase へ委譲。二重ロジックは持たない）
     public Transform Transform => new(this);
     public bool ActiveSelf {
@@ -79,6 +100,10 @@ public readonly struct Entity : IEquatable<Entity> {
     public string Name {
         get => name;
         set => name = value;
+    }
+    public string Tag {
+        get => tag;
+        set => tag = value;
     }
 
     public void SetActive(bool active) {

@@ -814,6 +814,21 @@ void Engine::ViewportPanel::DrawMultiEntityGizmo(const EditorPanelContext& conte
 	gizmoContext.orthographic = camera == &context.sceneRenderView->orthographic;
 	gizmoContext.allowAxisFlip = !use2DTarget;
 
+	// スナップ有効時は単体ギズモと同様にmodeと次元に応じたグリッド単位をImGuizmoへ渡す
+	// ピボットの差分がグリッド単位に丸まるので各エンティティの移動もグリッド刻みになる
+	const GridSnapAxis* snapAxis = nullptr;
+	if (context.editorState->enableSnapEditEntity) {
+
+		snapAxis = SelectSnapAxis(context.editorState->snapSettings, gizmoContext.mode, use2DTarget);
+		if (snapAxis && snapAxis->size > 0.0f) {
+
+			gizmoContext.useSnap = true;
+			gizmoContext.snapValues[0] = snapAxis->size;
+			gizmoContext.snapValues[1] = snapAxis->size;
+			gizmoContext.snapValues[2] = snapAxis->size;
+		}
+	}
+
 	const GizmoEditResult result = use2DTarget ?
 		MyGUI::Manipulate2D("##SceneMultiGizmo2D", gizmoContext, pivot) :
 		MyGUI::Manipulate3D("##SceneMultiGizmo3D", gizmoContext, pivot);
@@ -858,6 +873,10 @@ void Engine::ViewportPanel::DrawMultiEntityGizmo(const EditorPanelContext& conte
 			// 回転と拡縮は各自のトランスフォームへ相対適用する
 			transform.localRotation = Quaternion::Normalize(deltaRot * transform.localRotation);
 			transform.localScale = transform.localScale * deltaScale;
+			// 絶対スナップ指定なら各エンティティの成分を最寄りのグリッドへ丸める、単体と同じ挙動
+			if (snapAxis && snapAxis->absolute && snapAxis->size > 0.0f) {
+				ApplyAbsoluteSnap(transform, gizmoContext.mode, snapAxis->size);
+			}
 			TransformEditUtility::ApplyImmediate(world, entity, transform);
 		}
 	}

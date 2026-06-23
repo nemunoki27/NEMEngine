@@ -6,6 +6,9 @@
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 
+// c++
+#include <string>
+
 namespace Engine {
 
 	// front
@@ -23,6 +26,9 @@ namespace Engine {
 
 		// 自分自身のアクティブ状態
 		bool activeSelf = true;
+
+		// ゲームプレイ用のタグ、固定リストから選ぶ。CompareTagやFindWithTagで使う
+		std::string tag = "Untagged";
 
 		// ランタイム使用用
 		AssetID sourceAsset{};

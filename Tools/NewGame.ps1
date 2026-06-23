@@ -82,6 +82,9 @@ try {
             git branch -M main 2>$null | Out-Null
             git -c protocol.file.allow=always submodule add $SdkUrl External/NEMEngine
             git submodule update --init --recursive
+            # 各自つねに最新SDKを取得する運用にするため、submoduleのポインタ変更は追跡しない
+            # UpdateSDKでHEADが進んでも status/commit に乗らず、メンバー間のポインタ衝突を防ぐ
+            git config -f .gitmodules submodule.External/NEMEngine.ignore all
         } finally { Pop-Location }
     } else {
         $resolvedSdk = (Resolve-Path -LiteralPath $SdkPath).Path

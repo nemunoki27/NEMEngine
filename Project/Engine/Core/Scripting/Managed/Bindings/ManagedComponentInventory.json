@@ -129,6 +129,20 @@
       "tests": ["TextRendererBindingSmoke"]
     },
     {
+      "nativeName": "LineRenderer",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.LineRenderer",
+      "reason": "material/layer/order/visible/blend/loop/is2D/useWorldSpace を generated property で公開。点列は可変長なので SetPoints/Clear の手書き partial facade。",
+      "readableFields": ["Material", "Loop", "Is2D", "UseWorldSpace", "IgnoreParentScale", "IgnoreParentRotation", "Layer", "Order", "Visible", "BlendMode", "Queue"],
+      "writableFields": ["Material", "Loop", "Is2D", "UseWorldSpace", "IgnoreParentScale", "IgnoreParentRotation", "Layer", "Order", "Visible", "BlendMode", "Queue"],
+      "commands": ["lineSetPoints", "lineAddPoint"],
+      "events": [],
+      "serialization": "component JSON",
+      "inspector": "builtin inspector",
+      "runtime": "Play 中 property read/write + 点列の SetPoints/Clear",
+      "tests": ["LineRendererBindingSmoke"]
+    },
+    {
       "nativeName": "SkinnedAnimation",
       "exposure": "GeneratedBinding",
       "managedSurface": "NEMEngine.SkinnedAnimation",

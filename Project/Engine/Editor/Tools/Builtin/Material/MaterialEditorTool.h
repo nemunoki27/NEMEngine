@@ -22,6 +22,7 @@ namespace Engine {
 		Mesh,
 		Sprite,
 		Text,
+		Line,
 	};
 
 	//============================================================================
@@ -97,6 +98,8 @@ namespace Engine {
 		AssetID createPS_{};
 		AssetID createMS_{};
 		AssetID createAS_{};
+		// Lineタイプで使うジオメトリシェーダー
+		AssetID createGS_{};
 		// 既存マテリアルからパイプライン設定を取り込む元、生成自体には使わない
 		AssetID createSourceMaterial_{};
 		// 取り込み元マテリアルの参照シェーダーも一緒に設定するか

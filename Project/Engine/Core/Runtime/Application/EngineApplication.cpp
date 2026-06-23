@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Outline/EditorSelectionOutlineRequestService.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
@@ -371,6 +372,9 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		editorManager_.BeginFrame(graphicsCore, editorContext_);
 		HandleCloseRequestResult();
 	}
+
+	// 即時ライン描画は1フレームで消えるので、スクリプトが発行する前にクリアする
+	LineImmediateBuffer::GetInstance().BeginFrame();
 
 	// ECSシステムの更新
 	if (ShouldAdvanceActiveWorld()) {

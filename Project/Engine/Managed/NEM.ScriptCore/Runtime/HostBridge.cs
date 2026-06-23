@@ -547,6 +547,29 @@ public static unsafe class HostBridge {
         return TryResolveSlot(handle, out ScriptBehaviour script) ? script as T : null;
     }
 
+    // 生存する全script instanceから指定型の最初の1件を返す、未発見はnull。FindObjectOfType用のO(n)走査
+    internal static T? FindScriptOfType<T>() where T : ScriptBehaviour {
+
+        foreach (ScriptInstanceSlot slot in slots) {
+            if (slot.inUse && !slot.retired && slot.instance is T match) {
+                return match;
+            }
+        }
+        return null;
+    }
+
+    // 生存する全script instanceから指定型を全て返す。FindObjectsOfType用のO(n)走査
+    internal static T[] FindScriptsOfType<T>() where T : ScriptBehaviour {
+
+        var result = new List<T>();
+        foreach (ScriptInstanceSlot slot in slots) {
+            if (slot.inUse && !slot.retired && slot.instance is T match) {
+                result.Add(match);
+            }
+        }
+        return result.ToArray();
+    }
+
     // handleからinstanceをO(1)で解決する。範囲・retired・inUse・instance・generationを全て検証する
     private static bool TryResolveSlot(NativeScriptInstanceHandle handle, out ScriptBehaviour script) {
 

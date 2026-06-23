@@ -53,6 +53,28 @@ namespace {
 
 		return Engine::Matrix4x4::MakeAffineMatrix(Engine::Vector3::AnyInit(1.0f), transform.rotation, transform.pos);
 	}
+	// OrthographicカメラのviewとprojectionをトランスフォームとビューポートからBest/Preferred共通で再計算する
+	static void UpdateOrthographicCameraMatrices(const Engine::TransformComponent& transform,
+		Engine::OrthographicCameraComponent& camera, uint32_t width, uint32_t height) {
+
+		camera.common.aspectRatio = static_cast<float>(width) / static_cast<float>((std::max)(height, 1u));
+		camera.common.viewMatrix = Engine::Matrix4x4::Inverse(transform.worldMatrix);
+		// 深度範囲を前後対称にし、カメラと同じz平面のSpriteがニアクリップ境界で消えないようにする
+		const float orthoDepthRange = (std::max)(camera.farClip, 1.0f);
+		camera.common.projectionMatrix = Engine::Matrix4x4::MakeOrthographicMatrix(0.0f, 0.0f,
+			static_cast<float>(width), static_cast<float>(height), -orthoDepthRange, orthoDepthRange);
+		camera.common.viewProjectionMatrix = camera.common.viewMatrix * camera.common.projectionMatrix;
+	}
+	// PerspectiveカメラのviewとprojectionをトランスフォームとビューポートからBest/Preferred共通で再計算する
+	static void UpdatePerspectiveCameraMatrices(const Engine::TransformComponent& transform,
+		Engine::PerspectiveCameraComponent& camera, uint32_t width, uint32_t height) {
+
+		camera.common.aspectRatio = static_cast<float>(width) / static_cast<float>((std::max)(height, 1u));
+		camera.common.viewMatrix = Engine::Matrix4x4::Inverse(transform.worldMatrix);
+		camera.common.projectionMatrix = Engine::Matrix4x4::MakePerspectiveFovMatrix(
+			camera.fovY, camera.common.aspectRatio, camera.nearClip, camera.farClip);
+		camera.common.viewProjectionMatrix = camera.common.viewMatrix * camera.common.projectionMatrix;
+	}
 }
 
 Engine::ResolvedRenderView Engine::RenderViewResolver::Resolve(
@@ -95,11 +117,11 @@ Engine::ResolvedRenderView Engine::RenderViewResolver::ResolveWorldCameraView(Re
 	// 指定カメラを優先
 	if (preferredOrthographicCameraUUID) {
 		view.orthographic = ResolvePreferredOrthographicCamera(
-			world, preferredOrthographicCameraUUID);
+			world, preferredOrthographicCameraUUID, width, height);
 	}
 	if (preferredPerspectiveCameraUUID) {
 		view.perspective = ResolvePreferredPerspectiveCamera(
-			world, preferredPerspectiveCameraUUID);
+			world, preferredPerspectiveCameraUUID, width, height);
 	}
 	// 指定カメラが無効な場合はワールド内の全てのカメラから最適なものを選ぶ
 	if (!view.orthographic.valid) {
@@ -150,15 +172,8 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::ResolveBestOrthographicCa
 				return;
 			}
 
-			// アスペクト比を計算
-			camera.common.aspectRatio = static_cast<float>(width) / static_cast<float>((std::max)(height, 1u));
-			// カメラ行列を更新
-			camera.common.viewMatrix = Matrix4x4::Inverse(transform.worldMatrix);
-			// 深度範囲を前後対称にし、カメラと同じz平面のSpriteがニアクリップ境界で消えないようにする
-			const float orthoDepthRange = (std::max)(camera.farClip, 1.0f);
-			camera.common.projectionMatrix = Matrix4x4::MakeOrthographicMatrix(0.0f, 0.0f,
-				static_cast<float>(width), static_cast<float>(height), -orthoDepthRange, orthoDepthRange);
-			camera.common.viewProjectionMatrix = camera.common.viewMatrix * camera.common.projectionMatrix;
+			// トランスフォームとビューポートからカメラ行列を更新する
+			UpdateOrthographicCameraMatrices(transform, camera, width, height);
 
 			CameraCandidate<OrthographicCameraComponent> candidate{};
 			candidate.entity = entity;
@@ -187,13 +202,8 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::ResolveBestPerspectiveCam
 				return;
 			}
 
-			// アスペクト比を計算
-			camera.common.aspectRatio = static_cast<float>(width) / static_cast<float>((std::max)(height, 1u));
-			// カメラ行列を更新
-			camera.common.viewMatrix = Matrix4x4::Inverse(transform.worldMatrix);
-			camera.common.projectionMatrix = Matrix4x4::MakePerspectiveFovMatrix(
-				camera.fovY, camera.common.aspectRatio, camera.nearClip, camera.farClip);
-			camera.common.viewProjectionMatrix = camera.common.viewMatrix * camera.common.projectionMatrix;
+			// トランスフォームとビューポートからカメラ行列を更新する
+			UpdatePerspectiveCameraMatrices(transform, camera, width, height);
 
 			CameraCandidate<PerspectiveCameraComponent> candidate{};
 			candidate.entity = entity;
@@ -287,7 +297,8 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::BuildManualOrthographic(
 	return out;
 }
 
-Engine::ResolvedCameraView Engine::RenderViewResolver::ResolvePreferredOrthographicCamera(ECSWorld& world, UUID preferredCameraUUID) {
+Engine::ResolvedCameraView Engine::RenderViewResolver::ResolvePreferredOrthographicCamera(
+	ECSWorld& world, UUID preferredCameraUUID, uint32_t width, uint32_t height) {
 
 	if (!preferredCameraUUID) {
 		return {};
@@ -303,6 +314,8 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::ResolvePreferredOrthograp
 	if (!camera->common.enabled) {
 		return {};
 	}
+	// Best経路と同様に現在のトランスフォームとビューポートから行列を作り直す、これが無いと移動が反映されない
+	UpdateOrthographicCameraMatrices(*transform, *camera, width, height);
 	return BuildFromOrthographicCamera(entity, *transform, *camera);
 }
 
@@ -334,7 +347,8 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::BuildManualPerspective(
 	return out;
 }
 
-Engine::ResolvedCameraView Engine::RenderViewResolver::ResolvePreferredPerspectiveCamera(ECSWorld& world, UUID preferredCameraUUID) {
+Engine::ResolvedCameraView Engine::RenderViewResolver::ResolvePreferredPerspectiveCamera(
+	ECSWorld& world, UUID preferredCameraUUID, uint32_t width, uint32_t height) {
 
 	if (!preferredCameraUUID) {
 		return {};
@@ -350,5 +364,7 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::ResolvePreferredPerspecti
 	if (!camera->common.enabled) {
 		return {};
 	}
+	// Best経路と同様に現在のトランスフォームとビューポートから行列を作り直す、これが無いと移動が反映されない
+	UpdatePerspectiveCameraMatrices(*transform, *camera, width, height);
 	return BuildFromPerspectiveCamera(entity, *transform, *camera);
 }

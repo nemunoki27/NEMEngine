@@ -49,7 +49,8 @@ namespace Engine {
 		static ResolvedCameraView BuildFromOrthographicCamera(const Entity& entity,
 			const TransformComponent& transform, OrthographicCameraComponent& camera);
 		static ResolvedCameraView BuildManualOrthographic(const ManualRenderCameraState& state, uint32_t width, uint32_t height);
-		static ResolvedCameraView ResolvePreferredOrthographicCamera(ECSWorld& world, UUID preferredCameraUUID);
+		static ResolvedCameraView ResolvePreferredOrthographicCamera(ECSWorld& world, UUID preferredCameraUUID,
+			uint32_t width, uint32_t height);
 
 		//-------- perspective ---------------------------------------------------
 
@@ -57,6 +58,7 @@ namespace Engine {
 		static ResolvedCameraView BuildFromPerspectiveCamera(const Entity& entity,
 			const TransformComponent& transform, PerspectiveCameraComponent& camera);
 		static ResolvedCameraView BuildManualPerspective(const ManualRenderCameraState& state, uint32_t width, uint32_t height);
-		static ResolvedCameraView ResolvePreferredPerspectiveCamera(ECSWorld& world, UUID preferredCameraUUID);
+		static ResolvedCameraView ResolvePreferredPerspectiveCamera(ECSWorld& world, UUID preferredCameraUUID,
+			uint32_t width, uint32_t height);
 	};
 } // Engine

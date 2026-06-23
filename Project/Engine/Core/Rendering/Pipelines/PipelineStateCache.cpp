@@ -62,9 +62,16 @@ namespace {
 			break;
 		case Engine::PipelineType::Geometry:
 
-			outDesc.preRaster.file = gs->file;
-			outDesc.preRaster.entry = ResolveEntryOrDefault(gs);
-			outDesc.preRaster.profile = ResolveProfileOrDefault(Engine::ShaderStage::GS, gs);
+			// GSパイプラインはVS→GS→PSの3段、VSで頂点を通しGSで太線へ展開する
+			if (!vs || !gs || !ps) {
+				return false;
+			}
+			outDesc.preRaster.file = vs->file;
+			outDesc.preRaster.entry = ResolveEntryOrDefault(vs);
+			outDesc.preRaster.profile = ResolveProfileOrDefault(Engine::ShaderStage::VS, vs);
+			outDesc.geometry.file = gs->file;
+			outDesc.geometry.entry = ResolveEntryOrDefault(gs);
+			outDesc.geometry.profile = ResolveProfileOrDefault(Engine::ShaderStage::GS, gs);
 			outDesc.pixel.file = ps->file;
 			outDesc.pixel.entry = ResolveEntryOrDefault(ps);
 			outDesc.pixel.profile = ResolveProfileOrDefault(Engine::ShaderStage::PS, ps);

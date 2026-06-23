@@ -18,7 +18,11 @@ internal static class ManagedAbi {
     // v9: GetComponent<Script> 用に entity の script instance を scriptTypeId で引く getScriptInstance を追加
     // v10: Scene 単一load用の loadSceneSingle を追加
     // v11: EntityRef を runtime entity へ解決する resolveEntityRef を追加
-    internal const uint Version = 11;
+    // v12: ライン描画の lineSetPoints と即時描画の lineDrawImmediate lineDrawSphereImmediate を追加
+    // v13: LineRendererComponent へ1点追加する lineAddPoint を追加
+    // v14: Tag公開(copyTag/setTag)とLayerマスク公開(visibility/collision typeMask)とEntity検索(byName/byTag/byComponent)を追加
+    // v15: 即時形状描画の汎用 lineDrawShape を追加
+    internal const uint Version = 15;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -94,6 +98,24 @@ public struct NativeVector2 {
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public struct NativeColor4 {
+
+    public float r;
+    public float g;
+    public float b;
+    public float a;
+
+    public static NativeColor4 From(Color4 value) {
+        return new NativeColor4 {
+            r = value.r,
+            g = value.g,
+            b = value.b,
+            a = value.a
+        };
+    }
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct NativeQuaternion {
 
     public float x;
@@ -113,6 +135,37 @@ public struct NativeQuaternion {
     public Quaternion ToQuaternion() {
         return new Quaternion(x, y, z, w);
     }
+}
+
+// 即時形状描画の種類、値は C++ ManagedLineShapeKind と一致させる
+public enum LineShapeType {
+
+    Circle2D = 0,
+    Rect2D,
+    Hemisphere,
+    AABB,
+    OBB,
+    Cone,
+    Arrow,
+    Axis,
+}
+
+// C++側 ManagedLineShape と同一レイアウト、materialID を先頭に置き8バイト境界を揃える
+[StructLayout(LayoutKind.Sequential)]
+public struct NativeLineShape {
+
+    public ulong materialID;
+    public int shapeType;
+    public int division;
+    public int is2D;
+    public float radius;
+    public float radius2;
+    public float height;
+    public float thickness;
+    public NativeVector3 a;
+    public NativeVector3 b;
+    public NativeQuaternion rotation;
+    public NativeColor4 color;
 }
 
 internal static unsafe class NativeApi {
@@ -208,6 +261,23 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<byte*, void> ReportScriptException;
     // v11: EntityRef(sourceAsset, localFileId) を runtime entity へ解決する
     internal static delegate* unmanaged[Cdecl]<ulong, ulong, NativeEntity> ResolveEntityRef;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint*, int, int, void> LineSetPoints;
+    internal static delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, ulong, void> LineDrawImmediate;
+    internal static delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, ulong, void> LineDrawSphereImmediate;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, void> LineAddPoint;
+    // v14: Tag / Layerマスク / Entity検索
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> CopyTag;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> SetTag;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetVisibilityLayerMask;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetVisibilityLayerMask;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetCollisionTypeMask;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetCollisionTypeMask;
+    internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity> FindEntityByName;
+    internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity> FindEntityByTag;
+    internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity*, int, int> FindEntitiesByTag;
+    internal static delegate* unmanaged[Cdecl]<int, NativeEntity> FindEntityByComponent;
+    internal static delegate* unmanaged[Cdecl]<int, NativeEntity*, int, int> FindEntitiesByComponent;
+    internal static delegate* unmanaged[Cdecl]<NativeLineShape*, void> LineDrawShape;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -295,6 +365,22 @@ internal static unsafe class NativeApi {
         AudioIsPlaying = callbacks->audioIsPlaying;
         ReportScriptException = callbacks->reportScriptException;
         ResolveEntityRef = callbacks->resolveEntityRef;
+        LineSetPoints = callbacks->lineSetPoints;
+        LineDrawImmediate = callbacks->lineDrawImmediate;
+        LineDrawSphereImmediate = callbacks->lineDrawSphereImmediate;
+        LineAddPoint = callbacks->lineAddPoint;
+        CopyTag = callbacks->copyTag;
+        SetTag = callbacks->setTag;
+        GetVisibilityLayerMask = callbacks->getVisibilityLayerMask;
+        SetVisibilityLayerMask = callbacks->setVisibilityLayerMask;
+        GetCollisionTypeMask = callbacks->getCollisionTypeMask;
+        SetCollisionTypeMask = callbacks->setCollisionTypeMask;
+        FindEntityByName = callbacks->findEntityByName;
+        FindEntityByTag = callbacks->findEntityByTag;
+        FindEntitiesByTag = callbacks->findEntitiesByTag;
+        FindEntityByComponent = callbacks->findEntityByComponent;
+        FindEntitiesByComponent = callbacks->findEntitiesByComponent;
+        LineDrawShape = callbacks->lineDrawShape;
     }
 
     internal static float ReadDeltaTime() {
@@ -661,6 +747,50 @@ internal static unsafe class NativeApi {
     internal static Entity ResolveEntityReference(ulong sourceAsset, ulong localFileId)
         => (ResolveEntityRef != null && localFileId != 0) ? new Entity(ResolveEntityRef(sourceAsset, localFileId)) : Entity.nullEntity;
 
+    // LineRendererComponent の点列を差し替える、count0でクリア
+    internal static void LineSetComponentPoints(NativeEntity entity, ReadOnlySpan<LinePoint> points, bool loop) {
+        if (LineSetPoints == null) {
+            return;
+        }
+        fixed (LinePoint* p = points) {
+            LineSetPoints(entity, p, points.Length, loop ? 1 : 0);
+        }
+    }
+
+    // LineRendererComponent の末尾へ1点追加する
+    internal static void LineAddComponentPoint(NativeEntity entity, LinePoint point) {
+        if (LineAddPoint == null) {
+            return;
+        }
+        LineAddPoint(entity, point);
+    }
+
+    // 即時ライン描画でこのフレームだけ任意ポリラインを描く
+    internal static void LineDrawImmediatePolyline(ReadOnlySpan<LinePoint> points, bool loop, bool is2D, ulong materialID) {
+        if (LineDrawImmediate == null || points.Length < 2) {
+            return;
+        }
+        fixed (LinePoint* p = points) {
+            LineDrawImmediate(p, points.Length, loop ? 1 : 0, is2D ? 1 : 0, materialID);
+        }
+    }
+
+    // 即時球描画で組み込みの球生成を使う
+    internal static void LineDrawImmediateSphere(Vector3 center, float radius, Color4 color, int division, float thickness, ulong materialID) {
+        if (LineDrawSphereImmediate == null) {
+            return;
+        }
+        LineDrawSphereImmediate(NativeVector3.From(center), radius, NativeColor4.From(color), division, thickness, materialID);
+    }
+
+    // 即時形状描画、記述子1件を渡してC++側で線分へ展開する
+    internal static void LineDrawShapeImmediate(NativeLineShape shape) {
+        if (LineDrawShape == null) {
+            return;
+        }
+        LineDrawShape(&shape);
+    }
+
     internal static ulong SceneLoadAdditive(ulong sceneAssetId) => LoadSceneAdditive != null ? LoadSceneAdditive(sceneAssetId) : 0ul;
     internal static ulong SceneLoadSingle(ulong sceneAssetId) => LoadSceneSingle != null ? LoadSceneSingle(sceneAssetId) : 0ul;
     internal static void SceneUnload(ulong sceneInstanceId) { if (UnloadScene != null) { UnloadScene(sceneInstanceId); } }
@@ -734,6 +864,113 @@ internal static unsafe class NativeApi {
             int written = CopyAssetDisplayName(assetId, ptr, needed + 1);
             return written <= 0 ? string.Empty : Encoding.UTF8.GetString(bytes, 0, written);
         }
+    }
+
+    //========================================================================
+    //	Tag / Layerマスク公開（v14）
+    //========================================================================
+    internal static string ReadTag(NativeEntity entity) {
+        if (CopyTag == null) {
+            return "Untagged";
+        }
+        byte* buffer = stackalloc byte[NameBufferSize];
+        int length = CopyTag(entity, buffer, NameBufferSize);
+        return length <= 0 ? "Untagged" : Encoding.UTF8.GetString(buffer, length);
+    }
+
+    internal static void WriteTag(NativeEntity entity, string value) {
+        if (SetTag == null) {
+            return;
+        }
+        string safe = value ?? "Untagged";
+        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(safe) + 1];
+        Encoding.UTF8.GetBytes(safe, 0, safe.Length, bytes, 0);
+        fixed (byte* ptr = bytes) {
+            SetTag(entity, ptr);
+        }
+    }
+
+    internal static uint ReadVisibilityLayerMask(NativeEntity entity)
+        => GetVisibilityLayerMask != null ? (uint)GetVisibilityLayerMask(entity) : 0u;
+    internal static void WriteVisibilityLayerMask(NativeEntity entity, uint mask) {
+        if (SetVisibilityLayerMask != null) { SetVisibilityLayerMask(entity, (int)mask); }
+    }
+    internal static uint ReadCollisionTypeMask(NativeEntity entity)
+        => GetCollisionTypeMask != null ? (uint)GetCollisionTypeMask(entity) : 0u;
+    internal static void WriteCollisionTypeMask(NativeEntity entity, uint mask) {
+        if (SetCollisionTypeMask != null) { SetCollisionTypeMask(entity, (int)mask); }
+    }
+
+    //========================================================================
+    //	Entity検索（v14）。走査はネイティブのアクティブワールド全体に対するO(n)
+    //========================================================================
+    internal static Entity FindByName(string name) {
+        if (FindEntityByName == null || string.IsNullOrEmpty(name)) {
+            return Entity.nullEntity;
+        }
+        byte[] bytes = Encoding.UTF8.GetBytes(name + "\0");
+        fixed (byte* ptr = bytes) {
+            return new Entity(FindEntityByName(ptr));
+        }
+    }
+
+    internal static Entity FindByTag(string tag) {
+        if (FindEntityByTag == null || string.IsNullOrEmpty(tag)) {
+            return Entity.nullEntity;
+        }
+        byte[] bytes = Encoding.UTF8.GetBytes(tag + "\0");
+        fixed (byte* ptr = bytes) {
+            return new Entity(FindEntityByTag(ptr));
+        }
+    }
+
+    internal static Entity[] FindManyByTag(string tag) {
+        if (FindEntitiesByTag == null || string.IsNullOrEmpty(tag)) {
+            return System.Array.Empty<Entity>();
+        }
+        byte[] bytes = Encoding.UTF8.GetBytes(tag + "\0");
+        fixed (byte* ptr = bytes) {
+            // length-query で総数を得てから確保し、再取得して詰める
+            int count = FindEntitiesByTag(ptr, null, 0);
+            if (count <= 0) {
+                return System.Array.Empty<Entity>();
+            }
+            var buffer = new NativeEntity[count];
+            fixed (NativeEntity* bp = buffer) {
+                int written = FindEntitiesByTag(ptr, bp, count);
+                return MakeEntityArray(buffer, written < count ? written : count);
+            }
+        }
+    }
+
+    internal static Entity FindByComponent(int typeId) {
+        if (FindEntityByComponent == null || typeId < 0) {
+            return Entity.nullEntity;
+        }
+        return new Entity(FindEntityByComponent(typeId));
+    }
+
+    internal static Entity[] FindManyByComponent(int typeId) {
+        if (FindEntitiesByComponent == null || typeId < 0) {
+            return System.Array.Empty<Entity>();
+        }
+        int count = FindEntitiesByComponent(typeId, null, 0);
+        if (count <= 0) {
+            return System.Array.Empty<Entity>();
+        }
+        var buffer = new NativeEntity[count];
+        fixed (NativeEntity* bp = buffer) {
+            int written = FindEntitiesByComponent(typeId, bp, count);
+            return MakeEntityArray(buffer, written < count ? written : count);
+        }
+    }
+
+    private static Entity[] MakeEntityArray(NativeEntity[] buffer, int count) {
+        var result = new Entity[count];
+        for (int i = 0; i < count; ++i) {
+            result[i] = new Entity(buffer[i]);
+        }
+        return result;
     }
 }
 
@@ -833,4 +1070,24 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<ulong, ulong> loadSceneSingle;
     // EntityRef(v11): EntityRef を runtime entity へ解決（C++ ManagedNativeApiTable と同一順）
     public delegate* unmanaged[Cdecl]<ulong, ulong, NativeEntity> resolveEntityRef;
+    // Line(v12): component 点列設定と即時描画（C++ ManagedNativeApiTable と同一順）
+    public delegate* unmanaged[Cdecl]<NativeEntity, LinePoint*, int, int, void> lineSetPoints;
+    public delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, ulong, void> lineDrawImmediate;
+    public delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, ulong, void> lineDrawSphereImmediate;
+    // Line(v13): component へ1点追加（C++ ManagedNativeApiTable と同一順）
+    public delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, void> lineAddPoint;
+    // Tag/Layer/検索(v14): C++ ManagedNativeApiTable と同一順
+    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> copyTag;
+    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> setTag;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int> getVisibilityLayerMask;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> setVisibilityLayerMask;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int> getCollisionTypeMask;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> setCollisionTypeMask;
+    public delegate* unmanaged[Cdecl]<byte*, NativeEntity> findEntityByName;
+    public delegate* unmanaged[Cdecl]<byte*, NativeEntity> findEntityByTag;
+    public delegate* unmanaged[Cdecl]<byte*, NativeEntity*, int, int> findEntitiesByTag;
+    public delegate* unmanaged[Cdecl]<int, NativeEntity> findEntityByComponent;
+    public delegate* unmanaged[Cdecl]<int, NativeEntity*, int, int> findEntitiesByComponent;
+    // Line(v15): 即時形状描画（C++ ManagedNativeApiTable と同一順）
+    public delegate* unmanaged[Cdecl]<NativeLineShape*, void> lineDrawShape;
 }

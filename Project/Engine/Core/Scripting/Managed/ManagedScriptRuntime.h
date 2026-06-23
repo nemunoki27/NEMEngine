@@ -311,6 +311,28 @@ namespace Engine {
 		static uint64_t __cdecl LoadSceneSingleCallback(uint64_t sceneAssetId);
 		// EntityRefをlocalFileIDからruntime entityへ解決する、対象が無ければNull
 		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(uint64_t sourceAsset, uint64_t localFileId);
+		// ライン描画v12でLineRendererComponentの点列を置き換える、count0でクリア
+		static void __cdecl LineSetPointsCallback(ManagedNativeEntity entity, const ManagedLinePoint* points, int32_t count, int32_t loop);
+		// LineRendererComponentの末尾へ1点追加する
+		static void __cdecl LineAddPointCallback(ManagedNativeEntity entity, ManagedLinePoint point);
+		// 即時ライン描画、任意ポリラインをこのフレームだけ描く
+		static void __cdecl LineDrawImmediateCallback(const ManagedLinePoint* points, int32_t count, int32_t loop, int32_t is2D, uint64_t materialID);
+		// 即時球描画、組み込みの球生成で線分を発行する
+		static void __cdecl LineDrawSphereImmediateCallback(ManagedVector3 center, float radius, ManagedColor4 color, int32_t division, float thickness, uint64_t materialID);
+		// v14のTag公開とLayerマスク公開と検索
+		static int32_t __cdecl CopyTagCallback(ManagedNativeEntity entity, char* buffer, int32_t capacity);
+		static void __cdecl SetTagCallback(ManagedNativeEntity entity, const char* tag);
+		static int32_t __cdecl GetVisibilityLayerMaskCallback(ManagedNativeEntity entity);
+		static void __cdecl SetVisibilityLayerMaskCallback(ManagedNativeEntity entity, int32_t mask);
+		static int32_t __cdecl GetCollisionTypeMaskCallback(ManagedNativeEntity entity);
+		static void __cdecl SetCollisionTypeMaskCallback(ManagedNativeEntity entity, int32_t mask);
+		static ManagedNativeEntity __cdecl FindEntityByNameCallback(const char* name);
+		static ManagedNativeEntity __cdecl FindEntityByTagCallback(const char* tag);
+		static int32_t __cdecl FindEntitiesByTagCallback(const char* tag, ManagedNativeEntity* buffer, int32_t capacity);
+		static ManagedNativeEntity __cdecl FindEntityByComponentCallback(int32_t typeId);
+		static int32_t __cdecl FindEntitiesByComponentCallback(int32_t typeId, ManagedNativeEntity* buffer, int32_t capacity);
+		// v15の即時形状描画、記述子から線分を生成して即時バッファへ積む
+		static void __cdecl LineDrawShapeCallback(const ManagedLineShape* shape);
 		static void __cdecl UnloadSceneCallback(uint64_t sceneInstanceId);
 		static int32_t __cdecl IsSceneInstanceAliveCallback(uint64_t sceneInstanceId);
 		static void __cdecl SetParentKeepWorldCallback(ManagedNativeEntity child, ManagedNativeEntity parent, int32_t worldPositionStays);

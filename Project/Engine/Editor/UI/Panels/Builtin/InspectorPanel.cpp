@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Commands/Entity/RenameEntityCommand.h>
+#include <Engine/Editor/Commands/Entity/SetEntityTagCommand.h>
+#include <Engine/Editor/Settings/ProjectTagSettings.h>
 #include <Engine/Editor/Commands/Components/AddComponentCommand.h>
 #include <Engine/Editor/Commands/Components/AddScriptEntryCommand.h>
 #include <Engine/Editor/Commands/Components/RemoveComponentCommand.h>
@@ -53,6 +55,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/CameraInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/CameraControllerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SpriteRendererInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/LineRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SkyboxRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/TextRendererInspectorDrawer.h>
@@ -80,6 +83,7 @@
 #include <type_traits>
 #include <unordered_set>
 #include <vector>
+#include <span>
 
 #include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
 #include <Engine/Editor/Assets/Preview/ModelPreviewUtility.h>
@@ -123,7 +127,7 @@ namespace {
 		const char* category;
 	};
 	// 追加できるコンポーネントのメニューエントリー
-	constexpr std::array<InspectorComponentMenuEntry, 20> kOptionalComponentMenuEntries = { {
+	constexpr std::array<InspectorComponentMenuEntry, 21> kOptionalComponentMenuEntries = { {
 
 		{ "PerspectiveCamera",  "PerspectiveCamera",  "Camera" },
 		{ "OrthographicCamera", "OrthographicCamera", "Camera" },
@@ -136,6 +140,7 @@ namespace {
 		{ "Mesh Renderer",      "MeshRenderer",       "Rendering" },
 		{ "Sprite Renderer",    "SpriteRenderer",     "Rendering" },
 		{ "Text Renderer",      "TextRenderer",       "Rendering" },
+		{ "Line Renderer",      "LineRenderer",       "Rendering" },
 		{ "UVTransform",        "UVTransform",        "Rendering" },
 		{ "Billboard",          "Billboard",          "Rendering" },
 		{ "Inverted Hull Outline", "InvertedHullOutline", "Rendering" },
@@ -349,6 +354,7 @@ Engine::InspectorPanel::InspectorPanel() {
 	componentDrawers_.emplace_back(std::make_unique<PerspectiveCameraInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<CameraControllerInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<SpriteRendererInspectorDrawer>());
+	componentDrawers_.emplace_back(std::make_unique<LineRendererInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<SkyboxRendererInspectorDrawer>());
 	{
 		auto meshDrawer = std::make_unique<MeshRendererInspectorDrawer>();
@@ -495,6 +501,23 @@ void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context,
 	if (!editResult.anyItemActive) {
 		SyncNameBufferIfNeeded(world, entity);
 	}
+
+	//============================================================================
+	//	タグ、固定リストから選ぶ
+	//============================================================================
+	std::string currentTag = "Untagged";
+	if (world.HasComponent<SceneObjectComponent>(entity)) {
+		currentTag = world.GetComponent<SceneObjectComponent>(entity).tag;
+	}
+
+	const std::vector<std::string>& tags = ProjectTagSettings::GetTags();
+	std::string editTag = currentTag;
+	auto tagResult = MyGUI::StringCombo("Tag", editTag, std::span<const std::string>(tags.data(), tags.size()));
+	if (tagResult.valueChanged && editTag != currentTag) {
+
+		context.host->ExecuteEditorCommand(std::make_unique<SetEntityTagCommand>(entity, editTag));
+	}
+
 	ImGui::Spacing();
 	ImGui::Separator();
 }

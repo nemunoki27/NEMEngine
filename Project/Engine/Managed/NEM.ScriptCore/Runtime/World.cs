@@ -16,4 +16,31 @@ public static class World {
     public static Entity CreateEntity(string? name, Entity parent) {
         return NativeApi.SpawnEntity(name, parent);
     }
+
+    //========================================================================
+    //	検索（アクティブワールド全体のO(n)走査。頻繁に呼ぶ場合は結果をキャッシュ推奨）
+    //========================================================================
+
+    // 名前が一致する最初のEntityを返す、未発見はnull Entity
+    public static Entity Find(string name) => NativeApi.FindByName(name);
+
+    // タグが一致する最初のEntityを返す、未発見はnull Entity
+    public static Entity FindWithTag(string tag) => NativeApi.FindByTag(tag);
+
+    // タグが一致する全Entityを返す
+    public static Entity[] FindEntitiesWithTag(string tag) => NativeApi.FindManyByTag(tag);
+
+    // 指定型のスクリプトを1つ返す、未発見はnull。Unityの FindObjectOfType 相当
+    public static T? FindObjectOfType<T>() where T : ScriptBehaviour => HostBridge.FindScriptOfType<T>();
+
+    // 指定型のスクリプトを全て返す
+    public static T[] FindObjectsOfType<T>() where T : ScriptBehaviour => HostBridge.FindScriptsOfType<T>();
+
+    // 指定componentを持つ最初のEntityを返す、未発見はnull Entity
+    public static Entity FindEntityWithComponent<T>() where T : struct, IComponentRef<T>
+        => NativeApi.FindByComponent(ComponentType<T>.Id);
+
+    // 指定componentを持つ全Entityを返す
+    public static Entity[] FindEntitiesWithComponent<T>() where T : struct, IComponentRef<T>
+        => NativeApi.FindManyByComponent(ComponentType<T>.Id);
 }

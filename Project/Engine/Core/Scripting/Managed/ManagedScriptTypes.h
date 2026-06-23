@@ -25,7 +25,12 @@ namespace Engine {
 	// v8:診断APIのreportScriptExceptionとscript descriptorのdefaultExecutionOrderを追加
 	// v9: GetComponent<Script>用にentityのscript instanceをscriptTypeIdで引くgetScriptInstanceを追加
 	// v10: Scene単一load用のloadSceneSingleを追加
-	inline constexpr uint32_t kManagedAbiVersion = 11;
+	// v11: EntityRef解決用のresolveEntityRefを追加
+	// v12: ライン描画のlineSetPointsと即時描画のlineDrawImmediate lineDrawSphereImmediateを追加
+	// v13: LineRendererComponentへ1点追加するlineAddPointを追加
+	// v14: Tag公開とLayerマスク公開visibility typeMaskとEntity検索byName byTag byComponentを追加
+	// v15: 即時形状描画の汎用lineDrawShapeを追加、円や箱や錐などをC++側生成で発行する
+	inline constexpr uint32_t kManagedAbiVersion = 15;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -237,6 +242,45 @@ namespace Engine {
 		float a = 0.0f;
 	};
 
+	// C#と共有するライン1点で、Engine::LinePointと同一レイアウト
+	struct ManagedLinePoint {
+
+		ManagedVector3 position{};
+		ManagedColor4 color{};
+		float thickness = 1.0f;
+	};
+
+	// 即時形状描画の種類、値はC#のLineShapeTypeと一致させる
+	enum class ManagedLineShapeKind : int32_t {
+
+		Circle2D = 0,
+		Rect2D,
+		Hemisphere,
+		AABB,
+		OBB,
+		Cone,
+		Arrow,
+		Axis,
+	};
+
+	// C#と共有する即時形状の記述子、全形状を1つの構造で表す
+	// materialIDを先頭に置き8バイト境界を揃える、以降は4バイト要素で詰める
+	struct ManagedLineShape {
+
+		uint64_t materialID = 0;
+		int32_t shapeType = 0;
+		int32_t division = 8;
+		int32_t is2D = 0;
+		float radius = 1.0f;
+		float radius2 = 0.0f;
+		float height = 1.0f;
+		float thickness = 1.0f;
+		ManagedVector3 a{};
+		ManagedVector3 b{};
+		ManagedQuaternion rotation{};
+		ManagedColor4 color{};
+	};
+
 	// ネイティブAPIテーブル先頭に置くABIヘッダでversionとsizeとcapabilityを検証に使う
 	struct ManagedAbiHeader {
 
@@ -304,6 +348,18 @@ namespace Engine {
 		// GetComponent<Script> v9のentity上でscriptTypeId一致のscript instanceハンドルを引く
 		using GetScriptInstanceCallback = ManagedScriptInstanceHandle(__cdecl*)(ManagedNativeEntity, const char*);
 		using ResolveEntityRefCallback = ManagedNativeEntity(__cdecl*)(uint64_t, uint64_t);
+		// ライン描画v12でcomponentの点列設定と即時描画
+		using LineSetPointsCallback = void(__cdecl*)(ManagedNativeEntity, const ManagedLinePoint*, int32_t, int32_t);
+		using LineAddPointCallback = void(__cdecl*)(ManagedNativeEntity, ManagedLinePoint);
+		using LineDrawImmediateCallback = void(__cdecl*)(const ManagedLinePoint*, int32_t, int32_t, int32_t, uint64_t);
+		using LineDrawSphereImmediateCallback = void(__cdecl*)(ManagedVector3, float, ManagedColor4, int32_t, float, uint64_t);
+		// v14のEntity検索で名前やタグから1件、タグやcomponentから複数件をbufferへ詰める
+		using FindByStringCallback = ManagedNativeEntity(__cdecl*)(const char*);
+		using FindManyByStringCallback = int32_t(__cdecl*)(const char*, ManagedNativeEntity*, int32_t);
+		using FindByComponentCallback = ManagedNativeEntity(__cdecl*)(int32_t);
+		using FindManyByComponentCallback = int32_t(__cdecl*)(int32_t, ManagedNativeEntity*, int32_t);
+		// v15の即時形状描画、記述子1件を渡してC++側で線分へ展開する
+		using LineDrawShapeCallback = void(__cdecl*)(const ManagedLineShape*);
 
 		GetDeltaTimeCallback getDeltaTime = nullptr;
 		GetDeltaTimeCallback getFixedDeltaTime = nullptr;
@@ -403,6 +459,30 @@ namespace Engine {
 		LoadSceneCallback loadSceneSingle = nullptr;
 
 		ResolveEntityRefCallback resolveEntityRef = nullptr;
+
+		// ライン描画v12のcomponent点列設定と即時描画
+		LineSetPointsCallback lineSetPoints = nullptr;
+		LineDrawImmediateCallback lineDrawImmediate = nullptr;
+		LineDrawSphereImmediateCallback lineDrawSphereImmediate = nullptr;
+
+		// ライン描画v13のcomponentへ1点追加
+		LineAddPointCallback lineAddPoint = nullptr;
+
+		// v14のTag公開とLayerマスク公開と検索、tagはSceneObjectComponent、maskはvisibilityと衝突typeMask
+		CopyStringCallback copyTag = nullptr;
+		SetStringCallback setTag = nullptr;
+		GetBoolCallback getVisibilityLayerMask = nullptr;
+		SetBoolCallback setVisibilityLayerMask = nullptr;
+		GetBoolCallback getCollisionTypeMask = nullptr;
+		SetBoolCallback setCollisionTypeMask = nullptr;
+		FindByStringCallback findEntityByName = nullptr;
+		FindByStringCallback findEntityByTag = nullptr;
+		FindManyByStringCallback findEntitiesByTag = nullptr;
+		FindByComponentCallback findEntityByComponent = nullptr;
+		FindManyByComponentCallback findEntitiesByComponent = nullptr;
+
+		// v15の即時形状描画
+		LineDrawShapeCallback lineDrawShape = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

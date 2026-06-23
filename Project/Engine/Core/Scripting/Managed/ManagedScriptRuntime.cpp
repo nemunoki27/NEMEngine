@@ -256,6 +256,11 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.loadSceneAdditive = &ManagedScriptRuntime::LoadSceneAdditiveCallback;
 	callbacks.loadSceneSingle = &ManagedScriptRuntime::LoadSceneSingleCallback;
 	callbacks.resolveEntityRef = &ManagedScriptRuntime::ResolveEntityRefCallback;
+	// ライン描画v12のcomponent点列設定と即時描画
+	callbacks.lineSetPoints = &ManagedScriptRuntime::LineSetPointsCallback;
+	callbacks.lineDrawImmediate = &ManagedScriptRuntime::LineDrawImmediateCallback;
+	callbacks.lineDrawSphereImmediate = &ManagedScriptRuntime::LineDrawSphereImmediateCallback;
+	callbacks.lineAddPoint = &ManagedScriptRuntime::LineAddPointCallback;
 	callbacks.unloadScene = &ManagedScriptRuntime::UnloadSceneCallback;
 	callbacks.isSceneInstanceAlive = &ManagedScriptRuntime::IsSceneInstanceAliveCallback;
 	callbacks.setParentKeepWorld = &ManagedScriptRuntime::SetParentKeepWorldCallback;
@@ -275,6 +280,19 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.audioStop = &ManagedScriptRuntime::AudioStopCallback;
 	callbacks.audioIsPlaying = &ManagedScriptRuntime::AudioIsPlayingCallback;
 	callbacks.reportScriptException = &ManagedScriptRuntime::ReportScriptExceptionCallback;
+	// v14のTag公開とLayerマスク公開とEntity検索
+	callbacks.copyTag = &ManagedScriptRuntime::CopyTagCallback;
+	callbacks.setTag = &ManagedScriptRuntime::SetTagCallback;
+	callbacks.getVisibilityLayerMask = &ManagedScriptRuntime::GetVisibilityLayerMaskCallback;
+	callbacks.setVisibilityLayerMask = &ManagedScriptRuntime::SetVisibilityLayerMaskCallback;
+	callbacks.getCollisionTypeMask = &ManagedScriptRuntime::GetCollisionTypeMaskCallback;
+	callbacks.setCollisionTypeMask = &ManagedScriptRuntime::SetCollisionTypeMaskCallback;
+	callbacks.findEntityByName = &ManagedScriptRuntime::FindEntityByNameCallback;
+	callbacks.findEntityByTag = &ManagedScriptRuntime::FindEntityByTagCallback;
+	callbacks.findEntitiesByTag = &ManagedScriptRuntime::FindEntitiesByTagCallback;
+	callbacks.findEntityByComponent = &ManagedScriptRuntime::FindEntityByComponentCallback;
+	callbacks.findEntitiesByComponent = &ManagedScriptRuntime::FindEntitiesByComponentCallback;
+	callbacks.lineDrawShape = &ManagedScriptRuntime::LineDrawShapeCallback;
 
 	if (!initializeNativeApi_ || initializeNativeApi_(&callbacks) != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,

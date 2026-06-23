@@ -61,6 +61,8 @@ namespace Engine {
 		Vector3 angularVelocity = Vector3::AnyInit(0.0f);
 		// このステップで適用する蓄積力、保存しない
 		Vector3 accumulatedForce = Vector3::AnyInit(0.0f);
+		// このステップで適用する蓄積トルク、保存しない
+		Vector3 accumulatedTorque = Vector3::AnyInit(0.0f);
 	};
 
 	// jsonからコンポーネントへ変換する

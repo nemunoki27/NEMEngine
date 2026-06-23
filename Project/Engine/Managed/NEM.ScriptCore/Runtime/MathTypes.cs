@@ -71,6 +71,56 @@ public struct Vector2 {
     // 成分ごとの補間率で線形補間
     public static Vector2 Lerp(Vector2 lhs, Vector2 rhs, Vector2 t) => new(Math.Lerp(lhs.x, rhs.x, t.x), Math.Lerp(lhs.y, rhs.y, t.y));
 
+    // 2点間の距離を返す
+    public static float Distance(Vector2 lhs, Vector2 rhs) => Length(lhs - rhs);
+
+    // 長さの二乗を返す、平方根を避けたい距離比較用
+    public static float SqrMagnitude(Vector2 value) => Dot(value, value);
+
+    // 2ベクトルのなす角(度)を返す
+    public static float Angle(Vector2 lhs, Vector2 rhs) {
+        float denom = Length(lhs) * Length(rhs);
+        return denom <= 0.001f ? 0.0f : Math.RadToDeg(Math.Acos(Math.Clamp(Dot(lhs, rhs) / denom, -1.0f, 1.0f)));
+    }
+
+    // fromからtoへの符号付き角度(度)、反時計回りが正
+    public static float SignedAngle(Vector2 from, Vector2 to) {
+        float sign = (from.x * to.y - from.y * to.x) < 0.0f ? -1.0f : 1.0f;
+        return Angle(from, to) * sign;
+    }
+
+    // 反時計回りに90度回した垂直ベクトル
+    public static Vector2 Perpendicular(Vector2 value) => new(-value.y, value.x);
+
+    // currentからtargetへmaxDistanceDeltaを上限に近づける
+    public static Vector2 MoveTowards(Vector2 current, Vector2 target, float maxDistanceDelta) {
+        Vector2 diff = target - current;
+        float dist = Length(diff);
+        return (dist <= maxDistanceDelta || dist <= 0.001f) ? target : current + diff / dist * maxDistanceDelta;
+    }
+
+    // 長さがmaxLengthを超えないようにクランプする
+    public static Vector2 ClampMagnitude(Vector2 value, float maxLength) {
+        float len = Length(value);
+        return len > maxLength && len > 0.001f ? value / len * maxLength : value;
+    }
+
+    // 減衰しながらtargetへ滑らかに近づける、currentVelocityは呼び出し側で保持する
+    public static Vector2 SmoothDamp(Vector2 current, Vector2 target, ref Vector2 currentVelocity,
+        float smoothTime, float deltaTime, float maxSpeed = Math.infinity) {
+
+        // 成分ごとにVector3版の臨界減衰ばねを使い回す
+        Vector3 vel = new(currentVelocity.x, currentVelocity.y, 0.0f);
+        Vector3 result = Vector3.SmoothDamp(new Vector3(current.x, current.y, 0.0f),
+            new Vector3(target.x, target.y, 0.0f), ref vel, smoothTime, deltaTime, maxSpeed);
+        currentVelocity = new Vector2(vel.x, vel.y);
+        return new Vector2(result.x, result.y);
+    }
+
+    // deltaTime省略版、フレーム間秒数を自動で使う
+    public static Vector2 SmoothDamp(Vector2 current, Vector2 target, ref Vector2 currentVelocity, float smoothTime)
+        => SmoothDamp(current, target, ref currentVelocity, smoothTime, Time.DeltaTime);
+
     public override readonly string ToString() => $"({x}, {y})";
 }
 
@@ -97,6 +147,14 @@ public struct Vector3 {
     public static Vector3 zero => new(0.0f, 0.0f, 0.0f);
     // すべての成分が1のベクトル
     public static Vector3 one => new(1.0f, 1.0f, 1.0f);
+
+    // 方向定数、左手座標系で+Zが前方
+    public static Vector3 forward => new(0.0f, 0.0f, 1.0f);
+    public static Vector3 back => new(0.0f, 0.0f, -1.0f);
+    public static Vector3 up => new(0.0f, 1.0f, 0.0f);
+    public static Vector3 down => new(0.0f, -1.0f, 0.0f);
+    public static Vector3 right => new(1.0f, 0.0f, 0.0f);
+    public static Vector3 left => new(-1.0f, 0.0f, 0.0f);
 
     // ベクトルの長さ
     public readonly float length => Math.Sqrt(x * x + y * y + z * z);
@@ -190,6 +248,75 @@ public struct Vector3 {
         Math.MakeContinuousAngleDegrees(rawEuler.y, referenceEuler.y),
         Math.MakeContinuousAngleDegrees(rawEuler.z, referenceEuler.z)
     );
+
+    // onNormal方向への射影
+    public static Vector3 Project(Vector3 value, Vector3 onNormal) {
+        float sqr = Dot(onNormal, onNormal);
+        return sqr < 1e-12f ? zero : onNormal * (Dot(value, onNormal) / sqr);
+    }
+
+    // planeNormalを法線とする平面への射影、normal成分を取り除く
+    public static Vector3 ProjectOnPlane(Vector3 value, Vector3 planeNormal) => value - Project(value, planeNormal);
+
+    // axis周りで測ったfromからtoへの符号付き角度(度)
+    public static float SignedAngle(Vector3 from, Vector3 to, Vector3 axis) {
+        float sign = Dot(axis, Cross(from, to)) < 0.0f ? -1.0f : 1.0f;
+        return Angle(from, to) * sign;
+    }
+
+    // 球面線形補間、向きと長さを別々に補間する
+    public static Vector3 Slerp(Vector3 lhs, Vector3 rhs, float t) {
+        float lenL = Length(lhs);
+        float lenR = Length(rhs);
+        // どちらかが0なら球面補間できないので線形補間へ退避する
+        if (lenL < 1e-6f || lenR < 1e-6f) {
+            return Lerp(lhs, rhs, t);
+        }
+        Vector3 dirL = lhs / lenL;
+        Vector3 dirR = rhs / lenR;
+        float dot = Math.Clamp(Dot(dirL, dirR), -1.0f, 1.0f);
+        float theta = Math.Acos(dot) * t;
+        Vector3 relative = Normalize(dirR - dirL * dot);
+        Vector3 dir = dirL * Math.Cos(theta) + relative * Math.Sin(theta);
+        return dir * Math.Lerp(lenL, lenR, t);
+    }
+
+    // 減衰しながらtargetへ滑らかに近づける、currentVelocityは呼び出し側で保持する
+    public static Vector3 SmoothDamp(Vector3 current, Vector3 target, ref Vector3 currentVelocity,
+        float smoothTime, float deltaTime, float maxSpeed = Math.infinity) {
+
+        // 臨界減衰ばねによる追従、Game Programming Gems 4 の式
+        smoothTime = Math.Max(0.0001f, smoothTime);
+        float omega = 2.0f / smoothTime;
+        float x = omega * deltaTime;
+        float exp = 1.0f / (1.0f + x + 0.48f * x * x + 0.235f * x * x * x);
+
+        Vector3 change = current - target;
+        Vector3 originalTo = target;
+        // 速度上限を移動量へ換算してクランプする
+        float maxChange = maxSpeed * smoothTime;
+        float maxChangeSq = maxChange * maxChange;
+        float sqrMag = Dot(change, change);
+        if (sqrMag > maxChangeSq && sqrMag > 0.0f) {
+            change = change / Math.Sqrt(sqrMag) * maxChange;
+        }
+        target = current - change;
+
+        Vector3 temp = (currentVelocity + change * omega) * deltaTime;
+        currentVelocity = (currentVelocity - temp * omega) * exp;
+        Vector3 output = target + (change + temp) * exp;
+
+        // 目標を行き過ぎたら張り付かせて振動を防ぐ
+        if (Dot(originalTo - current, output - originalTo) > 0.0f) {
+            output = originalTo;
+            currentVelocity = (output - originalTo) / deltaTime;
+        }
+        return output;
+    }
+
+    // deltaTime省略版、フレーム間秒数を自動で使う
+    public static Vector3 SmoothDamp(Vector3 current, Vector3 target, ref Vector3 currentVelocity, float smoothTime)
+        => SmoothDamp(current, target, ref currentVelocity, smoothTime, Time.DeltaTime);
 
     public override readonly string ToString() => $"({x}, {y}, {z})";
 }
@@ -378,6 +505,111 @@ public struct Quaternion {
 
     // 近似比較
     public static bool NearlyEqual(Quaternion lhs, Quaternion rhs) => 1.0f - 0.001f <= Math.Abs(Dot(lhs, rhs));
+
+    // 度数指定の任意軸回転、Unity互換の引数順(角度,軸)。軸は正規化する
+    public static Quaternion AngleAxis(float angleDegrees, Vector3 axis) => MakeAxisAngle(Vector3.Normalize(axis), Math.DegToRad(angleDegrees));
+
+    // 度数法オイラー角からの生成、Unity互換エイリアス
+    public static Quaternion Euler(float xDegrees, float yDegrees, float zDegrees) => FromEulerDegrees(new Vector3(xDegrees, yDegrees, zDegrees));
+    public static Quaternion Euler(Vector3 eulerDegrees) => FromEulerDegrees(eulerDegrees);
+
+    // forwardを+Zへ、upを基準に向ける回転、ネイティブQuaternion::LookRotationと同一規約(左手系)
+    public static Quaternion LookRotation(Vector3 forward, Vector3 up) {
+        float forwardLength = Vector3.Length(forward);
+        if (forwardLength <= 1e-6f) {
+            return identity;
+        }
+        Vector3 axisZ = forward / forwardLength;
+
+        // 右ベクトルはup×forward、forwardと平行なら別の基準upでやり直す
+        Vector3 r = Vector3.Cross(up, axisZ);
+        float rightLength = Vector3.Length(r);
+        if (rightLength <= 1e-6f) {
+            Vector3 fallbackUp = Math.Abs(axisZ.y) < 0.99f ? Vector3.up : Vector3.right;
+            r = Vector3.Cross(fallbackUp, axisZ);
+            rightLength = Vector3.Length(r);
+        }
+        Vector3 axisX = r / rightLength;
+        Vector3 axisY = Vector3.Cross(axisZ, axisX);
+
+        // 各軸を行に並べた回転行列からクォータニオンを復元する
+        float m00 = axisX.x, m01 = axisX.y, m02 = axisX.z;
+        float m10 = axisY.x, m11 = axisY.y, m12 = axisY.z;
+        float m20 = axisZ.x, m21 = axisZ.y, m22 = axisZ.z;
+
+        Quaternion result;
+        float trace = m00 + m11 + m22;
+        if (trace > 0.0f) {
+            float s = Math.Sqrt(trace + 1.0f) * 2.0f;
+            result = new Quaternion((m12 - m21) / s, (m20 - m02) / s, (m01 - m10) / s, 0.25f * s);
+        } else if (m00 > m11 && m00 > m22) {
+            float s = Math.Sqrt(1.0f + m00 - m11 - m22) * 2.0f;
+            result = new Quaternion(0.25f * s, (m01 + m10) / s, (m20 + m02) / s, (m12 - m21) / s);
+        } else if (m11 > m22) {
+            float s = Math.Sqrt(1.0f + m11 - m00 - m22) * 2.0f;
+            result = new Quaternion((m01 + m10) / s, 0.25f * s, (m12 + m21) / s, (m20 - m02) / s);
+        } else {
+            float s = Math.Sqrt(1.0f + m22 - m00 - m11) * 2.0f;
+            result = new Quaternion((m20 + m02) / s, (m12 + m21) / s, 0.25f * s, (m01 - m10) / s);
+        }
+        return Normalize(result);
+    }
+
+    // up省略版、ワールド上方向を基準にする
+    public static Quaternion LookRotation(Vector3 forward) => LookRotation(forward, Vector3.up);
+
+    // fromの向きをtoの向きへ合わせる最小回転
+    public static Quaternion FromToRotation(Vector3 from, Vector3 to) {
+        Vector3 f = Vector3.Normalize(from);
+        Vector3 t = Vector3.Normalize(to);
+        float dot = Math.Clamp(Vector3.Dot(f, t), -1.0f, 1.0f);
+        // ほぼ同方向は回転なし
+        if (dot >= 1.0f - 1e-6f) {
+            return identity;
+        }
+        // ほぼ逆方向はfに直交する任意軸で180度回す
+        if (dot <= -1.0f + 1e-6f) {
+            Vector3 axis = Vector3.Cross(Vector3.right, f);
+            if (Vector3.Length(axis) < 1e-6f) {
+                axis = Vector3.Cross(Vector3.up, f);
+            }
+            return MakeAxisAngle(Vector3.Normalize(axis), Math.pi);
+        }
+        return MakeAxisAngle(Vector3.Normalize(Vector3.Cross(f, t)), Math.Acos(dot));
+    }
+
+    // fromからtoへ最大maxDegreesDeltaだけ回す
+    public static Quaternion RotateTowards(Quaternion from, Quaternion to, float maxDegreesDelta) {
+        float angle = Angle(from, to);
+        return angle <= 1e-6f ? to : Slerp(from, to, Math.Clamp01(maxDegreesDelta / angle));
+    }
+
+    // 度数法オイラー角へ変換する、表示・デバッグ用。回転計算はQuaternionのまま行うこと
+    // ネイティブQuaternion::ToEulerRadiansと同一の抽出順
+    public readonly Vector3 eulerAngles => Math.RadToDeg(ToEulerRadians(this));
+
+    // クォータニオンからオイラー角(ラジアン)を抽出する
+    private static Vector3 ToEulerRadians(Quaternion quaternion) {
+        Quaternion q = Normalize(quaternion);
+        // 回転行列の必要要素だけ展開する
+        float xx = q.x * q.x, yy = q.y * q.y, zz = q.z * q.z, ww = q.w * q.w;
+        float xy = q.x * q.y, xz = q.x * q.z, yz = q.y * q.z;
+        float wx = q.w * q.x, wy = q.w * q.y, wz = q.w * q.z;
+        float m00 = ww + xx - yy - zz;
+        float m01 = 2.0f * (xy + wz);
+        float m02 = 2.0f * (xz - wy);
+        float m11 = ww - xx + yy - zz;
+        float m12 = 2.0f * (yz + wx);
+        float m21 = 2.0f * (yz - wx);
+        float m22 = ww - xx - yy + zz;
+
+        float ay = Math.Asin(Math.Clamp(-m02, -1.0f, 1.0f));
+        float cy = Math.Cos(ay);
+        // ジンバルロック時はxへ寄せてzを0にする
+        return Math.Abs(cy) > 1e-6f
+            ? new Vector3(Math.Atan2(m12, m22), ay, Math.Atan2(m01, m00))
+            : new Vector3(Math.Atan2(-m21, m11), ay, 0.0f);
+    }
 
     public override readonly string ToString() => $"({x}, {y}, {z}, {w})";
 }

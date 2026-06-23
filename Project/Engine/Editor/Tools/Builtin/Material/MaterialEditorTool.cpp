@@ -53,9 +53,9 @@ namespace {
 		};
 	}
 
-	// shader.jsonを作る、Mesh以外はMS/ASを含めない
+	// shader.jsonを作る、Mesh以外はMS/ASを含めずLineはGSを含める
 	nlohmann::json MakeShaderJson(const std::string& name, Engine::AssetID vs, Engine::AssetID ps,
-		Engine::AssetID ms, Engine::AssetID as, bool includeMeshStages) {
+		Engine::AssetID ms, Engine::AssetID as, Engine::AssetID gs, bool includeMeshStages, bool includeGeometryStage) {
 
 		nlohmann::json stages = nlohmann::json::array();
 		stages.push_back(MakeStageJson("VS", vs, "vs_6_6"));
@@ -65,6 +65,9 @@ namespace {
 		if (includeMeshStages && ms) {
 			stages.push_back(MakeStageJson("MS", ms, "ms_6_6"));
 		}
+		if (includeGeometryStage && gs) {
+			stages.push_back(MakeStageJson("GS", gs, "gs_6_6"));
+		}
 		stages.push_back(MakeStageJson("PS", ps, "ps_6_6"));
 
 		return nlohmann::json{ { "name", name + "Shader" }, { "stages", stages } };
@@ -72,16 +75,21 @@ namespace {
 
 	// pipeline.jsonを作る、kind/pipelineType/numRenderTargets等はエンジン仕様で確定する
 	nlohmann::json MakePipelineJson(const std::string& name, Engine::AssetID shaderID,
-		bool useMeshShader, int numRenderTargets, const Engine::PipelineCreateSettings& settings) {
+		bool useMeshShader, bool useGeometryShader, int numRenderTargets, const Engine::PipelineCreateSettings& settings) {
+
+		const char* kind = useMeshShader ? "GraphicsMesh" : (useGeometryShader ? "GraphicsGeometry" : "GraphicsVertex");
+		const char* pipelineType = useMeshShader ? "Mesh" : (useGeometryShader ? "Geometry" : "Vertex");
+		const char* topology = useGeometryShader ?
+			"D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE" : "D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE";
 
 		nlohmann::json variant{
-			{ "kind", useMeshShader ? "GraphicsMesh" : "GraphicsVertex" },
-			{ "pipelineType", useMeshShader ? "Mesh" : "Vertex" },
+			{ "kind", kind },
+			{ "pipelineType", pipelineType },
 			{ "shader", Engine::ToAssetReferenceJson(shaderID) },
 			{ "numRenderTargets", numRenderTargets },
 			{ "dynamicRenderTargetFormats", true },
 			{ "dsvFormat", "DXGI_FORMAT_UNKNOWN" },
-			{ "topologyType", "D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE" },
+			{ "topologyType", topology },
 			{ "rasterizer", {
 				{ "fillMode", EnumToJsonString(settings.fillMode) },
 				{ "cullMode", EnumToJsonString(settings.cullMode) },
@@ -115,10 +123,12 @@ namespace {
 
 	// material.jsonを作る、domain/passKindはタイプで決める
 	nlohmann::json MakeMaterialJson(const std::string& name, Engine::AssetID pipelineID,
-		Engine::MaterialCreateType type, bool useMeshShader) {
+		Engine::MaterialCreateType type, bool useMeshShader, bool useGeometryShader) {
 
-		const char* domain = (type == Engine::MaterialCreateType::Mesh) ? "Surface" : "UI";
-		const char* preferredVariant = useMeshShader ? "GraphicsMesh" : "GraphicsVertex";
+		// MeshとLineは3Dワールド描画なのでSurface、Sprite/TextはUI
+		const bool surfaceDomain = (type == Engine::MaterialCreateType::Mesh) || (type == Engine::MaterialCreateType::Line);
+		const char* domain = surfaceDomain ? "Surface" : "UI";
+		const char* preferredVariant = useMeshShader ? "GraphicsMesh" : (useGeometryShader ? "GraphicsGeometry" : "GraphicsVertex");
 
 		return nlohmann::json{
 			{ "name", name },
@@ -213,6 +223,8 @@ void Engine::MaterialEditorTool::DrawDefaultMaterialSection(const EditorToolCont
 		[&](AssetID id) { settings.SetSprite(id); });
 	drawSlot("Text", settings.GetText(), settings.GetTextOrBuiltin(),
 		[&](AssetID id) { settings.SetText(id); });
+	drawSlot("Line", settings.GetLine(), settings.GetLineOrBuiltin(),
+		[&](AssetID id) { settings.SetLine(id); });
 }
 
 void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolContext& context) {
@@ -235,6 +247,11 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 
 			MyGUI::AssetReferenceField("MeshShader 任意", createMS_, assetDatabase, { AssetType::Shader }, setting);
 			MyGUI::AssetReferenceField("AmplificationShader 任意", createAS_, assetDatabase, { AssetType::Shader }, setting);
+		}
+		// Lineは太線展開のGeometryShaderが必須
+		if (createType_ == MaterialCreateType::Line) {
+
+			MyGUI::AssetReferenceField("GeometryShader 必須", createGS_, assetDatabase, { AssetType::Shader }, setting);
 		}
 
 		// 既存マテリアルをドロップするとそのパイプライン設定を下の編集欄へ取り込む
@@ -312,6 +329,14 @@ void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 
 		// スプライトは深度無効でラップサンプリング
 		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	} else if (type == MaterialCreateType::Line) {
+
+		// ラインは3Dワールドに描くので深度テスト有効で裏面カリングしない
+		settings.cullMode = D3D12_CULL_MODE_NONE;
+		settings.depthEnable = true;
+		settings.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		settings.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	} else {
 
 		// テキストは深度無効でクランプサンプリング
@@ -324,6 +349,11 @@ void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 
 		createMS_ = AssetID{};
 		createAS_ = AssetID{};
+	}
+	// Line以外はジオメトリシェーダーを使わないのでクリアする
+	if (type != MaterialCreateType::Line) {
+
+		createGS_ = AssetID{};
 	}
 }
 
@@ -485,6 +515,11 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 		createMessage_ = "VertexShaderとPixelShaderは必須です";
 		return false;
 	}
+	// LineはGSで太線へ展開するのでGeometryShaderも必須
+	if (createType_ == MaterialCreateType::Line && !createGS_) {
+		createMessage_ = "LineはGeometryShaderも必須です";
+		return false;
+	}
 
 	// 入力パスの前後区切りを整理してファイル名を取り出す
 	std::string relativePath = createRelativePath_;
@@ -504,6 +539,7 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 	}
 
 	const bool useMeshShader = (createType_ == MaterialCreateType::Mesh) && static_cast<bool>(createMS_);
+	const bool useGeometryShader = (createType_ == MaterialCreateType::Line);
 	const int numRenderTargets = (createType_ == MaterialCreateType::Mesh) ? 3 : 1;
 
 	// 3ファイルともGameAssets/Materials/以下の同じ階層へ同じ基底名で書き出す
@@ -517,7 +553,7 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 
 	// shaderを書き出して登録し、得たGUIDをpipelineが参照する
 	JsonAdapter::Save(shaderPath.string(),
-		MakeShaderJson(baseName, createVS_, createPS_, createMS_, createAS_, useMeshShader));
+		MakeShaderJson(baseName, createVS_, createPS_, createMS_, createAS_, createGS_, useMeshShader, useGeometryShader));
 	const AssetID shaderID = assetDatabase->ImportOrGet(shaderLogical, AssetType::Shader);
 	if (!shaderID) {
 		createMessage_ = "shader.jsonの登録に失敗しました";
@@ -526,7 +562,7 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 
 	// pipelineを書き出して登録し、得たGUIDをmaterialが参照する
 	JsonAdapter::Save(assetDatabase->ResolveAssetPath(pipelineLogical).string(),
-		MakePipelineJson(baseName, shaderID, useMeshShader, numRenderTargets, createPipeline_));
+		MakePipelineJson(baseName, shaderID, useMeshShader, useGeometryShader, numRenderTargets, createPipeline_));
 	const AssetID pipelineID = assetDatabase->ImportOrGet(pipelineLogical, AssetType::RenderPipeline);
 	if (!pipelineID) {
 		createMessage_ = "pipeline.jsonの登録に失敗しました";
@@ -535,7 +571,7 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 
 	// materialを書き出して登録する
 	JsonAdapter::Save(assetDatabase->ResolveAssetPath(materialLogical).string(),
-		MakeMaterialJson(baseName, pipelineID, createType_, useMeshShader));
+		MakeMaterialJson(baseName, pipelineID, createType_, useMeshShader, useGeometryShader));
 	const AssetID materialID = assetDatabase->ImportOrGet(materialLogical, AssetType::Material);
 	if (!materialID) {
 		createMessage_ = "material.jsonの登録に失敗しました";

@@ -17,6 +17,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultText{ 0x39346ff93864d791ull };
 		inline constexpr AssetID DefaultMesh{ 0xb876437b44304df0ull };
 		inline constexpr AssetID DefaultMeshOutline{ 0x9ed9dab27dc8ba93ull };
+		inline constexpr AssetID DefaultLine{ 0x7a9d3c5e1b6f4084ull };
 		inline constexpr AssetID FullscreenCopy{ 0x93946a52e2bc7030ull };
 		inline constexpr AssetID ToneMapToView{ 0xaa28624401e1e4b6ull };
 		inline constexpr AssetID RaytracingReflection{ 0x375384bc3bf6bb7cull };
@@ -29,6 +30,7 @@ namespace Engine::BuiltinAssets {
 
 		inline constexpr AssetID DefaultMeshZPrepass{ 0xf09836087840b1d2ull };
 		inline constexpr AssetID DefaultMesh{ 0x966f3e8a34595313ull };
+		inline constexpr AssetID DefaultLine{ 0x7a9d3c5e1b6f4083ull };
 		inline constexpr AssetID Skinning{ 0xda1205f1e1e19bdbull };
 		inline constexpr AssetID BuildIndexedIndirectArgs{ 0xe0400afbd444f5d6ull };
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x7c1d9a4b8e2f6021ull };

@@ -14,6 +14,7 @@ void Engine::from_json(const nlohmann::json& in, SceneObjectComponent& component
 	const std::string localID = in.value("localFileID", "");
 	component.localFileID = localID.empty() ? UUID::New() : FromString16Hex(localID);
 	component.activeSelf = in.value("activeSelf", true);
+	component.tag = in.value("tag", std::string("Untagged"));
 	component.visibilityLayerMask = in.value("visibilityLayerMask", 0xFFFFFFFFu);
 
 	// ランタイム使用用のIDはシリアライズされないため、初期化しておく
@@ -26,6 +27,7 @@ void Engine::to_json(nlohmann::json& out, const SceneObjectComponent& component)
 
 	out["localFileID"] = component.localFileID ? ToString(component.localFileID) : "";
 	out["activeSelf"] = component.activeSelf;
+	out["tag"] = component.tag;
 	out["visibilityLayerMask"] = component.visibilityLayerMask;
 }
 
