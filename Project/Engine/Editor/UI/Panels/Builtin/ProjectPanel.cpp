@@ -331,9 +331,6 @@ void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorP
 
 void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
-	// 選択がプレファブ編集インスタンスから外れていたら編集を終了する、パネル表示状態に依らず毎フレーム確認する
-	UpdatePrefabEditLifecycle(context);
-
 	// プロジェクトパネルの表示状態を確認
 	if (!context.layoutState->showProject) {
 		return;
@@ -974,7 +971,10 @@ void Engine::ProjectPanel::HandleAssetDoubleClick(const EditorPanelContext& cont
 		return;
 	}
 	if (asset.type == AssetType::Prefab) {
-		BeginPrefabEdit(context, asset.assetID);
+		// プレファブはエンジン側で隔離ワールドへ展開して編集モードへ入る
+		if (context.host) {
+			context.host->RequestEnterPrefabEdit(asset.assetID);
+		}
 		return;
 	}
 	if (asset.type != AssetType::Script) {
@@ -982,103 +982,6 @@ void Engine::ProjectPanel::HandleAssetDoubleClick(const EditorPanelContext& cont
 	}
 
 	OpenScriptAssetInVisualStudio(asset);
-}
-
-void Engine::ProjectPanel::BeginPrefabEdit(const EditorPanelContext& context, AssetID prefabAsset) {
-
-	// Play中はシーンを編集できないため、編集モードに入らない
-	if (!context.CanEditScene() || !context.GetWorld() || !context.editorContext ||
-		!context.editorContext->assetDatabase || !context.editorState || !prefabAsset) {
-		return;
-	}
-
-	// 既に別のプレファブを編集中なら、先に保存して片付ける
-	EndPrefabEdit(context);
-
-	ECSWorld& world = *context.GetWorld();
-	AssetDatabase& database = *context.editorContext->assetDatabase;
-
-	// 一時インスタンスを生成する、アクティブsceneへ所属させて描画されるようにする
-	HierarchySystem hierarchySystem{};
-	PrefabSystem prefabSystem{};
-	PrefabInstantiateResult result{};
-	PrefabInstantiateDesc desc{};
-	desc.ownerSceneInstanceID = context.editorContext->activeSceneInstanceID;
-	if (!prefabSystem.InstantiatePrefab(database, hierarchySystem, world, prefabAsset, result, desc) ||
-		!world.IsAlive(result.root)) {
-		return;
-	}
-
-	// 編集対象として記録し、Inspectorへ出すために選択する
-	context.editorState->prefabEditAsset = prefabAsset;
-	context.editorState->prefabEditInstance = result.root;
-	context.editorState->SelectEntity(result.root);
-}
-
-void Engine::ProjectPanel::EndPrefabEdit(const EditorPanelContext& context) {
-
-	EditorState* editorState = context.editorState;
-	if (!editorState || !editorState->prefabEditInstance.IsValid()) {
-		return;
-	}
-
-	ECSWorld* world = context.GetWorld();
-	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
-	const Entity instance = editorState->prefabEditInstance;
-	const AssetID prefabAsset = editorState->prefabEditAsset;
-
-	// 先に状態をクリアしておき、破棄に伴う選択変更で再入しても二重処理しないようにする
-	editorState->prefabEditAsset = {};
-	editorState->prefabEditInstance = Entity::Null();
-
-	if (world && world->IsAlive(instance)) {
-
-		// 編集結果を元の.prefabへ保存する
-		if (database && prefabAsset) {
-			if (const AssetMeta* meta = database->Find(prefabAsset)) {
-				PrefabSystem prefabSystem{};
-				prefabSystem.SavePrefab(*database, *world, instance, meta->assetPath);
-			}
-		}
-		// 一時インスタンスをサブツリーごと破棄する
-		EditorEntitySnapshotUtility::DestroySubtree(*world, instance);
-	}
-}
-
-void Engine::ProjectPanel::UpdatePrefabEditLifecycle(const EditorPanelContext& context) {
-
-	EditorState* editorState = context.editorState;
-	if (!editorState || !editorState->prefabEditInstance.IsValid()) {
-		return;
-	}
-
-	ECSWorld* world = context.GetWorld();
-	const Entity instance = editorState->prefabEditInstance;
-
-	// 一時インスタンスが消えていたら編集状態だけ片付ける
-	if (!world || !world->IsAlive(instance)) {
-		editorState->prefabEditAsset = {};
-		editorState->prefabEditInstance = Entity::Null();
-		return;
-	}
-
-	// 選択がプレファブ編集インスタンス(またはその子孫)から外れたら編集を終了する
-	const Entity selected = editorState->selectedEntity;
-	bool stillEditing = false;
-	for (Entity current = selected; world->IsAlive(current); ) {
-
-		if (current == instance) {
-			stillEditing = true;
-			break;
-		}
-		if (!world->HasComponent<HierarchyComponent>(current)) {
-			break;
-		}
-		current = world->GetComponent<HierarchyComponent>(current).parent;
-	}
-	if (!stillEditing) {
-		EndPrefabEdit(context);
-	}
 }
 
 bool Engine::ProjectPanel::SaveDroppedEntityAsPrefab(const EditorPanelContext& context,

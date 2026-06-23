@@ -50,5 +50,15 @@ namespace Engine {
 		virtual void RequestOpenScene(AssetID sceneAsset) = 0;
 		// アクティブシーンの保存要求
 		virtual void RequestSaveScene() = 0;
+		// プレファブ編集モードへ入る要求、隔離ワールドで編集する
+		virtual void RequestEnterPrefabEdit(AssetID prefabAsset) = 0;
+		// プレファブ編集モードを抜ける要求、ネスト中は1階層戻る
+		virtual void RequestExitPrefabEdit() = 0;
+		// プレファブ編集を一括で抜けて元のシーン編集へ戻る要求
+		virtual void RequestExitPrefabEditAll() = 0;
+		// In-Context編集のオンオフ切り替え要求、オンで元シーンに置いて編集する
+		virtual void RequestTogglePrefabInContext() = 0;
+		// 編集中プレファブの保存要求
+		virtual void RequestSavePrefab() = 0;
 	};
 } // Engine

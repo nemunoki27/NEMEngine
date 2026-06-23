@@ -12,6 +12,8 @@
 // c++
 #include <stack>
 #include <filesystem>
+#include <vector>
+#include <utility>
 
 namespace Engine {
 
@@ -30,6 +32,12 @@ namespace Engine {
 		// 予約済みルートEntityで有効なら新規生成せずこのEntityをルートとして使う
 		// deferred Prefab.Instantiateが即時にroot handleを返すための仕組み
 		Entity reservedRoot = Entity::Null();
+
+		// 有効ならインスタンスIDを新規採番せずこの値を使う、薄い保存からの復元で同一性を保つ
+		UUID forcedInstanceID{};
+		// プレファブ内ローカルIDからシーンローカルIDへの対応で、薄い保存からの復元時に同一性を保つ
+		// 非所有ポインタで参照、対応が無いローカルIDは従来通り新規採番する
+		const std::vector<std::pair<UUID, UUID>>* localFileIDRemap = nullptr;
 	};
 	// プレファブ生成の結果
 	struct PrefabInstantiateResult {
@@ -59,9 +67,13 @@ namespace Engine {
 		PrefabSystem() = default;
 		~PrefabSystem() = default;
 
-		// プレファブ保存
+		// プレファブ保存、rootサブツリーを保存する
 		bool SavePrefab(AssetDatabase& database, ECSWorld& world,
 			const Entity& root, const std::string& prefabAssetPath) const;
+		// 明示したエンティティ集合を保存する、複数ルートのプレファブ編集で使う
+		// headerのrootLocalFileIDにはrootのlocalFileIDを使う
+		bool SavePrefabFromEntities(AssetDatabase& database, ECSWorld& world, const Entity& root,
+			const std::vector<Entity>& entities, const std::string& prefabAssetPath) const;
 
 		// プレファブ生成
 		bool InstantiatePrefab(AssetDatabase& database, HierarchySystem& hierarchySystem, ECSWorld& world,

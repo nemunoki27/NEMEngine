@@ -1,0 +1,868 @@
+#include "PrefabOverrideUtility.h"
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/World/Prefab/Override/PrefabJsonDiff.h>
+#include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+
+// c++
+#include <algorithm>
+#include <filesystem>
+#include <system_error>
+#include <unordered_set>
+
+//============================================================================
+//	PrefabOverrideUtility internalMethods
+//============================================================================
+// グローバルの::UUID(Windows)と衝突するため、Engine名前空間内に置いて近いスコープで解決させる
+namespace Engine {
+namespace {
+
+	// 差分の対象外にするコンポーネント、同一性とランタイムと階層は別経路で扱う
+	const std::vector<std::string> kExcludedDiffTypes = { "SceneObject", "PrefabLink", "Hierarchy" };
+
+	// エンティティのシーン内ローカルIDを返す
+	UUID SceneLocalOf(ECSWorld& world, const Entity& entity) {
+
+		if (!world.IsAlive(entity) || !world.HasComponent<SceneObjectComponent>(entity)) {
+			return UUID{};
+		}
+		return world.GetComponent<SceneObjectComponent>(entity).localFileID;
+	}
+
+	// エンティティのランタイム親を返す
+	Entity ParentOf(ECSWorld& world, const Entity& entity) {
+
+		if (!world.IsAlive(entity) || !world.HasComponent<HierarchyComponent>(entity)) {
+			return Entity::Null();
+		}
+		return world.GetComponent<HierarchyComponent>(entity).parent;
+	}
+
+	// シーンインスタンスとローカルIDからエンティティを線形探索する
+	Entity FindBySceneLocal(ECSWorld& world, UUID sceneInstanceID, UUID localFileID) {
+
+		Entity found = Entity::Null();
+		if (!localFileID) {
+			return found;
+		}
+		world.ForEachAliveEntity([&](Entity entity) {
+
+			if (found.IsValid() || !world.HasComponent<SceneObjectComponent>(entity)) {
+				return;
+			}
+			const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
+			if (sceneObject.sceneInstanceID == sceneInstanceID && sceneObject.localFileID == localFileID) {
+				found = entity;
+			}
+			});
+		return found;
+	}
+
+	// ルートを含むサブツリーの実体を集める
+	void CollectSubtree(ECSWorld& world, const Entity& root, std::vector<Entity>& out) {
+
+		if (!world.IsAlive(root)) {
+			return;
+		}
+		out.emplace_back(root);
+		if (!world.HasComponent<HierarchyComponent>(root)) {
+			return;
+		}
+		Entity child = world.GetComponent<HierarchyComponent>(root).firstChild;
+		while (world.IsAlive(child)) {
+
+			const Entity next = world.HasComponent<HierarchyComponent>(child) ?
+				world.GetComponent<HierarchyComponent>(child).nextSibling : Entity::Null();
+			CollectSubtree(world, child, out);
+			child = next;
+		}
+	}
+
+	// プレファブ由来でない追加実体を、サブツリーごと収集する
+	void CollectAddedSubtree(ECSWorld& world, const Entity& entity, std::vector<PrefabAddedEntity>& out) {
+
+		if (!world.IsAlive(entity)) {
+			return;
+		}
+
+		PrefabAddedEntity added{};
+		added.sceneLocalFileID = SceneLocalOf(world, entity);
+		added.parentSceneLocalFileID = SceneLocalOf(world, ParentOf(world, entity));
+		world.SerializeEntityComponents(entity, added.components);
+		out.emplace_back(std::move(added));
+
+		// 子も追加実体として再帰収集する
+		if (!world.HasComponent<HierarchyComponent>(entity)) {
+			return;
+		}
+		Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
+		while (world.IsAlive(child)) {
+
+			const Entity next = world.HasComponent<HierarchyComponent>(child) ?
+				world.GetComponent<HierarchyComponent>(child).nextSibling : Entity::Null();
+			CollectAddedSubtree(world, child, out);
+			child = next;
+		}
+	}
+}
+} // namespace Engine
+
+//============================================================================
+//	PrefabOverrideUtility classMethods
+//============================================================================
+std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabOverrideUtility::LoadPrefabBaseEntities(
+	AssetDatabase& database, AssetID prefabAsset, UUID* outRootLocalFileID) {
+
+	std::unordered_map<UUID, PrefabBaseEntity> result;
+
+	// プレファブファイルを読み込む
+	auto fullPath = database.ResolveFullPath(prefabAsset);
+	if (fullPath.empty()) {
+		return result;
+	}
+	nlohmann::json fileJson = JsonAdapter::Load(fullPath.string(), true);
+	if (!fileJson.is_object() || !fileJson.contains("Entities") || !fileJson["Entities"].is_array()) {
+		return result;
+	}
+
+	// ルートのローカルIDを取得する
+	UUID rootLocalFileID{};
+	if (fileJson.contains("Header") && fileJson["Header"].is_object()) {
+
+		const std::string rootStr = fileJson["Header"].value("rootLocalFileID", "");
+		rootLocalFileID = rootStr.empty() ? UUID{} : FromString16Hex(rootStr);
+	}
+	if (outRootLocalFileID) {
+		*outRootLocalFileID = rootLocalFileID;
+	}
+
+	// 実体ごとにベース情報を構築する
+	for (const auto& entityJson : fileJson["Entities"]) {
+
+		const std::string localStr = entityJson.value("LocalFileID", entityJson.value("UUID", ""));
+		const UUID localFileID = localStr.empty() ? UUID{} : FromString16Hex(localStr);
+
+		PrefabBaseEntity base{};
+		base.localFileID = localFileID;
+		base.isRoot = (localFileID == rootLocalFileID);
+		if (entityJson.contains("Components") && entityJson["Components"].is_object()) {
+
+			base.components = entityJson["Components"];
+			// 親ローカルIDはHierarchyから取り出す
+			if (base.components.contains("Hierarchy") && base.components["Hierarchy"].is_object()) {
+
+				const std::string parentStr = base.components["Hierarchy"].value("parentLocalFileID", "");
+				base.parentLocalFileID = parentStr.empty() ? UUID{} : FromString16Hex(parentStr);
+			}
+		}
+		result.emplace(localFileID, std::move(base));
+	}
+	return result;
+}
+
+const std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity>&
+Engine::PrefabOverrideUtility::LoadPrefabBaseEntitiesCached(AssetDatabase& database, AssetID prefabAsset) {
+
+	// プレファブアセットごとに、最後に読み込んだ時刻と内容を保持する
+	struct CacheEntry {
+
+		bool loaded = false;
+		std::filesystem::file_time_type writeTime{};
+		std::unordered_map<UUID, PrefabBaseEntity> base;
+	};
+	// エディタは単一スレッドなので関数ローカルstaticで十分
+	static std::unordered_map<AssetID, CacheEntry> cache;
+
+	CacheEntry& entry = cache[prefabAsset];
+
+	// ファイルの更新時刻を見て、変化が無ければ読み直さずキャッシュを返す
+	const auto fullPath = database.ResolveFullPath(prefabAsset);
+	std::error_code ec;
+	const std::filesystem::file_time_type currentTime =
+		fullPath.empty() ? std::filesystem::file_time_type{} : std::filesystem::last_write_time(fullPath, ec);
+
+	if (entry.loaded && !ec && currentTime == entry.writeTime) {
+		return entry.base;
+	}
+
+	// 初回または更新があった場合だけファイルから読み直す
+	entry.base = LoadPrefabBaseEntities(database, prefabAsset);
+	entry.writeTime = currentTime;
+	entry.loaded = true;
+	return entry.base;
+}
+
+std::vector<Engine::Entity> Engine::PrefabOverrideUtility::CollectInstanceEntities(ECSWorld& world, UUID instanceID) {
+
+	std::vector<Entity> entities;
+	if (!instanceID) {
+		return entities;
+	}
+	world.ForEachAliveEntity([&](Entity entity) {
+
+		if (!world.HasComponent<PrefabLinkComponent>(entity)) {
+			return;
+		}
+		if (world.GetComponent<PrefabLinkComponent>(entity).prefabInstanceID == instanceID) {
+			entities.emplace_back(entity);
+		}
+		});
+	return entities;
+}
+
+Engine::PrefabInstanceData Engine::PrefabOverrideUtility::CaptureInstance(ECSWorld& world, UUID instanceID,
+	const std::unordered_map<UUID, PrefabBaseEntity>& base) {
+
+	PrefabInstanceData data{};
+	data.instanceID = instanceID;
+
+	// インスタンスに属するエンティティを集め、プレファブ内ローカルIDから引けるようにする
+	const std::vector<Entity> instanceEntities = CollectInstanceEntities(world, instanceID);
+	std::unordered_map<UUID, Entity> instanceByPrefabLocal;
+	for (const Entity& entity : instanceEntities) {
+
+		const auto& link = world.GetComponent<PrefabLinkComponent>(entity);
+		instanceByPrefabLocal.emplace(link.prefabLocalFileID, entity);
+		data.prefabAsset = link.prefabAsset;
+	}
+
+	// 各インスタンスエンティティの差分を抽出する
+	for (const Entity& entity : instanceEntities) {
+
+		const auto& link = world.GetComponent<PrefabLinkComponent>(entity);
+		const UUID localID = link.prefabLocalFileID;
+		data.entityMap.emplace_back(localID, SceneLocalOf(world, entity));
+
+		auto baseIt = base.find(localID);
+		// プレファブ側に存在しないインスタンスエンティティはv1では対象外として無視する
+		if (baseIt == base.end()) {
+			continue;
+		}
+
+		// コンポーネント差分
+		nlohmann::json instanceComponents;
+		world.SerializeEntityComponents(entity, instanceComponents);
+		const ComponentMapDiff diff = PrefabJsonDiff::DiffComponentMaps(
+			baseIt->second.components, instanceComponents, kExcludedDiffTypes);
+		for (const auto& [path, value] : diff.modifications) {
+			data.modifications.push_back({ localID, path, value });
+		}
+		for (const auto& [type, value] : diff.addedComponents) {
+			data.addedComponents.push_back({ localID, type, value });
+		}
+		for (const auto& type : diff.removedComponents) {
+			data.removedComponents.push_back({ localID, type, nlohmann::json{} });
+		}
+
+		// 階層差分
+		PrefabHierarchyModification hierarchyMod{};
+		hierarchyMod.target = localID;
+		bool hasHierarchyOverride = false;
+
+		const Entity parent = ParentOf(world, entity);
+		if (link.isPrefabRoot) {
+
+			// ルートが別実体の子になっている場合はインスタンス全体の親として覚える
+			if (world.IsAlive(parent)) {
+				data.rootParentSceneLocalFileID = SceneLocalOf(world, parent);
+			}
+		} else {
+
+			// 非ルートはベースの親との差を構造オーバーライドとして扱う
+			UUID instanceParentPrefabLocal{};
+			bool parentExternal = false;
+			UUID externalScene{};
+			if (world.IsAlive(parent)) {
+
+				if (world.HasComponent<PrefabLinkComponent>(parent) &&
+					world.GetComponent<PrefabLinkComponent>(parent).prefabInstanceID == instanceID) {
+					instanceParentPrefabLocal = world.GetComponent<PrefabLinkComponent>(parent).prefabLocalFileID;
+				} else {
+					parentExternal = true;
+					externalScene = SceneLocalOf(world, parent);
+				}
+			}
+			if (parentExternal) {
+				hierarchyMod.hasParentOverride = true;
+				hierarchyMod.externalParentSceneLocalFileID = externalScene;
+				hasHierarchyOverride = true;
+			} else if (instanceParentPrefabLocal != baseIt->second.parentLocalFileID) {
+				hierarchyMod.hasParentOverride = true;
+				hierarchyMod.newParentPrefabLocalFileID = instanceParentPrefabLocal;
+				hasHierarchyOverride = true;
+			}
+		}
+
+		// 兄弟順の差分
+		const int32_t instanceSibling = world.HasComponent<HierarchyComponent>(entity) ?
+			world.GetComponent<HierarchyComponent>(entity).siblingOrder : 0;
+		int32_t baseSibling = 0;
+		if (baseIt->second.components.contains("Hierarchy") &&
+			baseIt->second.components["Hierarchy"].contains("siblingOrder")) {
+			baseSibling = baseIt->second.components["Hierarchy"]["siblingOrder"].get<int32_t>();
+		}
+		if (instanceSibling != baseSibling) {
+			hierarchyMod.hasSiblingOrder = true;
+			hierarchyMod.siblingOrder = instanceSibling;
+			hasHierarchyOverride = true;
+		}
+
+		if (hasHierarchyOverride) {
+			data.hierarchyModifications.push_back(hierarchyMod);
+		}
+	}
+
+	// ベースに在りインスタンスに無いものは削除された実体
+	for (const auto& [localID, baseEntity] : base) {
+
+		if (instanceByPrefabLocal.find(localID) == instanceByPrefabLocal.end()) {
+			data.removedEntities.push_back(localID);
+		}
+	}
+
+	// インスタンスエンティティの子のうち、プレファブ由来でないものを追加実体として収集する
+	for (const Entity& entity : instanceEntities) {
+
+		if (!world.HasComponent<HierarchyComponent>(entity)) {
+			continue;
+		}
+		Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
+		while (world.IsAlive(child)) {
+
+			const Entity next = world.HasComponent<HierarchyComponent>(child) ?
+				world.GetComponent<HierarchyComponent>(child).nextSibling : Entity::Null();
+
+			const bool isInstanceChild = world.HasComponent<PrefabLinkComponent>(child) &&
+				world.GetComponent<PrefabLinkComponent>(child).prefabInstanceID == instanceID;
+			if (!isInstanceChild) {
+				CollectAddedSubtree(world, child, data.addedEntities);
+			}
+			child = next;
+		}
+	}
+	return data;
+}
+
+Engine::EntityOverrideInfo Engine::PrefabOverrideUtility::CaptureEntityOverride(
+	ECSWorld& world, const Entity& entity, AssetDatabase& database) {
+
+	EntityOverrideInfo info{};
+	if (!world.IsAlive(entity) || !world.HasComponent<PrefabLinkComponent>(entity)) {
+		return info;
+	}
+
+	const auto& link = world.GetComponent<PrefabLinkComponent>(entity);
+	info.isPrefabInstance = true;
+	info.instanceID = link.prefabInstanceID;
+	info.prefabLocalFileID = link.prefabLocalFileID;
+	info.prefabAsset = link.prefabAsset;
+
+	// ベース実体が見つからなければ差分は出さない
+	const auto base = LoadPrefabBaseEntities(database, link.prefabAsset);
+	auto baseIt = base.find(link.prefabLocalFileID);
+	if (baseIt == base.end()) {
+		return info;
+	}
+
+	nlohmann::json instanceComponents;
+	world.SerializeEntityComponents(entity, instanceComponents);
+	const ComponentMapDiff diff = PrefabJsonDiff::DiffComponentMaps(
+		baseIt->second.components, instanceComponents, kExcludedDiffTypes);
+	for (const auto& [path, value] : diff.modifications) {
+		info.modifiedPaths.push_back(path);
+	}
+	for (const auto& [type, value] : diff.addedComponents) {
+		info.addedComponentTypes.push_back(type);
+	}
+	for (const auto& type : diff.removedComponents) {
+		info.removedComponentTypes.push_back(type);
+	}
+	return info;
+}
+
+Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, AssetDatabase& database,
+	HierarchySystem& hierarchySystem, const PrefabInstanceData& data, UUID sceneInstanceID) {
+
+	if (!data.prefabAsset) {
+		return Entity::Null();
+	}
+
+	// ベースのプレファブを、同一インスタンスIDと保存済みローカルIDの対応付きで展開する
+	PrefabSystem prefabSystem{};
+	PrefabInstantiateResult result{};
+	PrefabInstantiateDesc desc{};
+	desc.ownerSceneInstanceID = sceneInstanceID;
+	desc.forcedInstanceID = data.instanceID;
+	desc.localFileIDRemap = &data.entityMap;
+	if (!prefabSystem.InstantiatePrefab(database, hierarchySystem, world, data.prefabAsset, result, desc)) {
+		return Entity::Null();
+	}
+
+	// プレファブ内ローカルIDから生成済みエンティティを引く
+	auto findByTarget = [&](UUID target) -> Entity {
+		auto it = result.sourceLocalToEntity.find(target);
+		return it != result.sourceLocalToEntity.end() ? it->second : Entity::Null();
+		};
+
+	// 削除された実体を破棄する
+	for (const UUID& target : data.removedEntities) {
+
+		const Entity entity = findByTarget(target);
+		if (world.IsAlive(entity)) {
+			world.DestroyEntity(entity);
+		}
+	}
+	world.FlushPendingDestroyEntities();
+
+	// 削除されたコンポーネントを外す
+	for (const auto& removed : data.removedComponents) {
+
+		const Entity entity = findByTarget(removed.target);
+		if (world.IsAlive(entity)) {
+			world.RemoveComponentByName(entity, removed.type);
+		}
+	}
+	// 追加されたコンポーネントを足す
+	for (const auto& added : data.addedComponents) {
+
+		const Entity entity = findByTarget(added.target);
+		if (world.IsAlive(entity)) {
+			world.AddComponentFromJson(entity, added.type, added.value);
+		}
+	}
+
+	// プロパティ差分を、対象とコンポーネント単位にまとめてから適用する
+	std::unordered_map<UUID, std::unordered_map<std::string, nlohmann::json>> builders;
+	for (const auto& mod : data.modifications) {
+
+		const Entity entity = findByTarget(mod.target);
+		if (!world.IsAlive(entity)) {
+			continue;
+		}
+		// 経路の先頭セグメントがコンポーネント型名、残りがコンポーネント内のリーフ経路
+		const size_t slash = mod.path.find('/');
+		const std::string type = (slash == std::string::npos) ? mod.path : mod.path.substr(0, slash);
+		const std::string leaf = (slash == std::string::npos) ? std::string{} : mod.path.substr(slash + 1);
+
+		auto& typeMap = builders[mod.target];
+		auto builderIt = typeMap.find(type);
+		if (builderIt == typeMap.end()) {
+
+			nlohmann::json current;
+			world.SerializeComponentToJson(entity, type, current);
+			builderIt = typeMap.emplace(type, std::move(current)).first;
+		}
+		PrefabJsonDiff::SetAtPath(builderIt->second, leaf, mod.value);
+	}
+	for (auto& [target, typeMap] : builders) {
+
+		const Entity entity = findByTarget(target);
+		if (!world.IsAlive(entity)) {
+			continue;
+		}
+		for (auto& [type, componentJson] : typeMap) {
+			world.AddComponentFromJson(entity, type, componentJson);
+		}
+	}
+
+	// 追加実体を生成して所属とローカルIDを復元する
+	std::vector<Entity> addedEntities;
+	for (const auto& added : data.addedEntities) {
+
+		const Entity entity = world.CreateEntity();
+		if (added.components.is_object()) {
+			for (auto it = added.components.begin(); it != added.components.end(); ++it) {
+				world.AddComponentFromJson(entity, it.key(), it.value());
+			}
+		}
+		SceneAuthoring::EnsureGameObjectDefaults(world, entity);
+		auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
+		if (added.sceneLocalFileID) {
+			sceneObject.localFileID = added.sceneLocalFileID;
+		}
+		sceneObject.sceneInstanceID = sceneInstanceID;
+
+		// 親への接続はローカルID経由でリンク再構築に任せる
+		if (added.parentSceneLocalFileID) {
+			if (!world.HasComponent<HierarchyComponent>(entity)) {
+				world.AddComponent<HierarchyComponent>(entity);
+			}
+			world.GetComponent<HierarchyComponent>(entity).parentLocalFileID = added.parentSceneLocalFileID;
+		}
+		addedEntities.emplace_back(entity);
+	}
+
+	// 兄弟順とインスタンス内の親付け替えを適用する
+	for (const auto& hierarchyMod : data.hierarchyModifications) {
+
+		const Entity entity = findByTarget(hierarchyMod.target);
+		if (!world.IsAlive(entity)) {
+			continue;
+		}
+		if (!world.HasComponent<HierarchyComponent>(entity)) {
+			world.AddComponent<HierarchyComponent>(entity);
+		}
+		auto& hierarchy = world.GetComponent<HierarchyComponent>(entity);
+		if (hierarchyMod.hasParentOverride) {
+
+			if (hierarchyMod.externalParentSceneLocalFileID) {
+				hierarchy.parentLocalFileID = hierarchyMod.externalParentSceneLocalFileID;
+			} else if (hierarchyMod.newParentPrefabLocalFileID) {
+
+				const Entity newParent = findByTarget(hierarchyMod.newParentPrefabLocalFileID);
+				hierarchy.parentLocalFileID = SceneLocalOf(world, newParent);
+			} else {
+				hierarchy.parentLocalFileID = UUID{};
+			}
+		}
+		if (hierarchyMod.hasSiblingOrder) {
+			hierarchy.siblingOrder = hierarchyMod.siblingOrder;
+		}
+	}
+
+	// インスタンスと追加実体のランタイムリンクを再構築する
+	std::vector<Entity> linkScope;
+	linkScope.reserve(result.createdEntities.size() + addedEntities.size());
+	for (const Entity& entity : result.createdEntities) {
+		if (world.IsAlive(entity)) {
+			linkScope.emplace_back(entity);
+		}
+	}
+	for (const Entity& entity : addedEntities) {
+		linkScope.emplace_back(entity);
+	}
+	hierarchySystem.RebuildRuntimeLinks(world, linkScope);
+
+	// ルートを別実体の子にしている場合は、その親へ接続する
+	if (data.rootParentSceneLocalFileID && world.IsAlive(result.root)) {
+
+		const Entity parent = FindBySceneLocal(world, sceneInstanceID, data.rootParentSceneLocalFileID);
+		if (world.IsAlive(parent)) {
+			hierarchySystem.SetParent(world, result.root, parent);
+		}
+	}
+
+	// メッシュのサブメッシュをmesh実体へ正規化する、差分適用でmeshが変わった場合に必要
+	for (const Entity& entity : linkScope) {
+
+		if (world.IsAlive(entity) && world.HasComponent<MeshRendererComponent>(entity)) {
+			MeshSubMeshAuthoring::SyncComponent(&database, world.GetComponent<MeshRendererComponent>(entity), true);
+		}
+	}
+	return result.root;
+}
+
+void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetDatabase& database,
+	HierarchySystem& hierarchySystem, AssetID prefabAsset, const std::unordered_map<UUID, PrefabBaseEntity>& oldBase) {
+
+	if (!prefabAsset) {
+		return;
+	}
+
+	// 伝播対象のインスタンスごとに、所属シーンとルートを集める
+	struct InstanceTarget {
+
+		UUID sceneInstanceID{};
+		Entity root = Entity::Null();
+	};
+	std::unordered_map<UUID, InstanceTarget> targets;
+	world.ForEachAliveEntity([&](Entity entity) {
+
+		if (!world.HasComponent<PrefabLinkComponent>(entity)) {
+			return;
+		}
+		const auto& link = world.GetComponent<PrefabLinkComponent>(entity);
+		if (link.prefabAsset != prefabAsset) {
+			return;
+		}
+		InstanceTarget& target = targets[link.prefabInstanceID];
+		if (world.HasComponent<SceneObjectComponent>(entity)) {
+			target.sceneInstanceID = world.GetComponent<SceneObjectComponent>(entity).sceneInstanceID;
+		}
+		if (link.isPrefabRoot) {
+			target.root = entity;
+		}
+		});
+
+	// 各インスタンスを、現在のオーバーライドを保持したまま新しいプレファブで作り直す
+	for (auto& [instanceID, target] : targets) {
+
+		PrefabInstanceData data = CaptureInstance(world, instanceID, oldBase);
+		data.prefabAsset = prefabAsset;
+
+		// 旧インスタンスを全メンバーのサブツリーごと破棄する、複数ルートや追加した子も漏らさない
+		std::vector<Entity> toDestroy;
+		for (const Entity& member : CollectInstanceEntities(world, instanceID)) {
+			CollectSubtree(world, member, toDestroy);
+		}
+		std::unordered_set<uint64_t> destroyed;
+		for (auto it = toDestroy.rbegin(); it != toDestroy.rend(); ++it) {
+
+			const uint64_t key = (static_cast<uint64_t>(it->generation) << 32) | it->index;
+			if (!destroyed.insert(key).second) {
+				continue;
+			}
+			if (world.IsAlive(*it)) {
+				world.DestroyEntity(*it);
+			}
+		}
+		world.FlushPendingDestroyEntities();
+
+		RebuildInstance(world, database, hierarchySystem, data, target.sceneInstanceID);
+	}
+}
+
+//============================================================================
+//	プレファブファイルJSON編集ヘルパー
+//============================================================================
+namespace {
+
+	// プレファブファイルJSON内で指定ローカルIDの実体のComponentsを返す、無ければnullptr
+	nlohmann::json* FindPrefabEntityComponents(nlohmann::json& prefabFileJson, Engine::UUID targetLocalFileID) {
+
+		if (!prefabFileJson.is_object() || !prefabFileJson.contains("Entities") ||
+			!prefabFileJson["Entities"].is_array()) {
+			return nullptr;
+		}
+		const std::string targetStr = Engine::ToString(targetLocalFileID);
+		for (auto& entityJson : prefabFileJson["Entities"]) {
+
+			const std::string localStr = entityJson.value("LocalFileID", entityJson.value("UUID", ""));
+			if (localStr != targetStr) {
+				continue;
+			}
+			if (!entityJson.contains("Components") || !entityJson["Components"].is_object()) {
+				entityJson["Components"] = nlohmann::json::object();
+			}
+			return &entityJson["Components"];
+		}
+		return nullptr;
+	}
+}
+
+bool Engine::PrefabOverrideUtility::SetPrefabEntityLeaf(nlohmann::json& prefabFileJson, UUID targetLocalFileID,
+	const std::string& path, const nlohmann::json& value) {
+
+	nlohmann::json* components = FindPrefabEntityComponents(prefabFileJson, targetLocalFileID);
+	if (!components) {
+		return false;
+	}
+	// 経路の先頭セグメントが型名、残りがコンポーネント内のリーフ経路
+	const size_t slash = path.find('/');
+	const std::string type = (slash == std::string::npos) ? path : path.substr(0, slash);
+	const std::string leaf = (slash == std::string::npos) ? std::string{} : path.substr(slash + 1);
+	if (!(*components).contains(type) || !(*components)[type].is_object()) {
+		(*components)[type] = nlohmann::json::object();
+	}
+	PrefabJsonDiff::SetAtPath((*components)[type], leaf, value);
+	return true;
+}
+
+bool Engine::PrefabOverrideUtility::SetPrefabEntityComponent(nlohmann::json& prefabFileJson, UUID targetLocalFileID,
+	const std::string& type, const nlohmann::json& value) {
+
+	nlohmann::json* components = FindPrefabEntityComponents(prefabFileJson, targetLocalFileID);
+	if (!components) {
+		return false;
+	}
+	(*components)[type] = value;
+	return true;
+}
+
+bool Engine::PrefabOverrideUtility::RemovePrefabEntityComponent(nlohmann::json& prefabFileJson,
+	UUID targetLocalFileID, const std::string& type) {
+
+	nlohmann::json* components = FindPrefabEntityComponents(prefabFileJson, targetLocalFileID);
+	if (!components) {
+		return false;
+	}
+	components->erase(type);
+	return true;
+}
+
+//============================================================================
+//	PrefabInstanceData json変換
+//============================================================================
+namespace {
+
+	// UUIDを文字列へ、空なら空文字列にする
+	std::string UUIDToStringOrEmpty(Engine::UUID id) {
+		return id ? Engine::ToString(id) : std::string{};
+	}
+	// 文字列をUUIDへ、空ならゼロにする
+	Engine::UUID StringToUUIDOrZero(const std::string& str) {
+		return str.empty() ? Engine::UUID{} : Engine::FromString16Hex(str);
+	}
+}
+
+nlohmann::json Engine::ToJson(const PrefabInstanceData& data) {
+
+	nlohmann::json json = nlohmann::json::object();
+	json["PrefabAsset"] = UUIDToStringOrEmpty(data.prefabAsset);
+	json["InstanceID"] = UUIDToStringOrEmpty(data.instanceID);
+	json["RootParent"] = UUIDToStringOrEmpty(data.rootParentSceneLocalFileID);
+
+	nlohmann::json entityMap = nlohmann::json::array();
+	for (const auto& [prefabLocal, sceneLocal] : data.entityMap) {
+
+		nlohmann::json pair = nlohmann::json::object();
+		pair["P"] = UUIDToStringOrEmpty(prefabLocal);
+		pair["S"] = UUIDToStringOrEmpty(sceneLocal);
+		entityMap.push_back(std::move(pair));
+	}
+	json["EntityMap"] = std::move(entityMap);
+
+	nlohmann::json modifications = nlohmann::json::array();
+	for (const auto& mod : data.modifications) {
+
+		nlohmann::json item = nlohmann::json::object();
+		item["Target"] = UUIDToStringOrEmpty(mod.target);
+		item["Path"] = mod.path;
+		item["Value"] = mod.value;
+		modifications.push_back(std::move(item));
+	}
+	json["Modifications"] = std::move(modifications);
+
+	nlohmann::json addedComponents = nlohmann::json::array();
+	for (const auto& added : data.addedComponents) {
+
+		nlohmann::json item = nlohmann::json::object();
+		item["Target"] = UUIDToStringOrEmpty(added.target);
+		item["Type"] = added.type;
+		item["Value"] = added.value;
+		addedComponents.push_back(std::move(item));
+	}
+	json["AddedComponents"] = std::move(addedComponents);
+
+	nlohmann::json removedComponents = nlohmann::json::array();
+	for (const auto& removed : data.removedComponents) {
+
+		nlohmann::json item = nlohmann::json::object();
+		item["Target"] = UUIDToStringOrEmpty(removed.target);
+		item["Type"] = removed.type;
+		removedComponents.push_back(std::move(item));
+	}
+	json["RemovedComponents"] = std::move(removedComponents);
+
+	nlohmann::json hierarchyMods = nlohmann::json::array();
+	for (const auto& hierarchyMod : data.hierarchyModifications) {
+
+		nlohmann::json item = nlohmann::json::object();
+		item["Target"] = UUIDToStringOrEmpty(hierarchyMod.target);
+		item["HasParent"] = hierarchyMod.hasParentOverride;
+		item["NewParentPrefab"] = UUIDToStringOrEmpty(hierarchyMod.newParentPrefabLocalFileID);
+		item["ExternalParent"] = UUIDToStringOrEmpty(hierarchyMod.externalParentSceneLocalFileID);
+		item["HasSibling"] = hierarchyMod.hasSiblingOrder;
+		item["Sibling"] = hierarchyMod.siblingOrder;
+		hierarchyMods.push_back(std::move(item));
+	}
+	json["HierarchyMods"] = std::move(hierarchyMods);
+
+	nlohmann::json removedEntities = nlohmann::json::array();
+	for (const UUID& removed : data.removedEntities) {
+		removedEntities.push_back(UUIDToStringOrEmpty(removed));
+	}
+	json["RemovedEntities"] = std::move(removedEntities);
+
+	nlohmann::json addedEntities = nlohmann::json::array();
+	for (const auto& added : data.addedEntities) {
+
+		nlohmann::json item = nlohmann::json::object();
+		item["SceneLocalFileID"] = UUIDToStringOrEmpty(added.sceneLocalFileID);
+		item["Parent"] = UUIDToStringOrEmpty(added.parentSceneLocalFileID);
+		item["Components"] = added.components;
+		addedEntities.push_back(std::move(item));
+	}
+	json["AddedEntities"] = std::move(addedEntities);
+
+	return json;
+}
+
+bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& data) {
+
+	if (!json.is_object()) {
+		return false;
+	}
+
+	data = PrefabInstanceData{};
+	data.prefabAsset = StringToUUIDOrZero(json.value("PrefabAsset", ""));
+	data.instanceID = StringToUUIDOrZero(json.value("InstanceID", ""));
+	data.rootParentSceneLocalFileID = StringToUUIDOrZero(json.value("RootParent", ""));
+
+	if (json.contains("EntityMap") && json["EntityMap"].is_array()) {
+		for (const auto& pair : json["EntityMap"]) {
+			data.entityMap.emplace_back(
+				StringToUUIDOrZero(pair.value("P", "")), StringToUUIDOrZero(pair.value("S", "")));
+		}
+	}
+	if (json.contains("Modifications") && json["Modifications"].is_array()) {
+		for (const auto& item : json["Modifications"]) {
+
+			PrefabPropertyModification mod{};
+			mod.target = StringToUUIDOrZero(item.value("Target", ""));
+			mod.path = item.value("Path", "");
+			mod.value = item.contains("Value") ? item["Value"] : nlohmann::json{};
+			data.modifications.push_back(std::move(mod));
+		}
+	}
+	if (json.contains("AddedComponents") && json["AddedComponents"].is_array()) {
+		for (const auto& item : json["AddedComponents"]) {
+
+			PrefabComponentModification added{};
+			added.target = StringToUUIDOrZero(item.value("Target", ""));
+			added.type = item.value("Type", "");
+			added.value = item.contains("Value") ? item["Value"] : nlohmann::json{};
+			data.addedComponents.push_back(std::move(added));
+		}
+	}
+	if (json.contains("RemovedComponents") && json["RemovedComponents"].is_array()) {
+		for (const auto& item : json["RemovedComponents"]) {
+
+			PrefabComponentModification removed{};
+			removed.target = StringToUUIDOrZero(item.value("Target", ""));
+			removed.type = item.value("Type", "");
+			data.removedComponents.push_back(std::move(removed));
+		}
+	}
+	if (json.contains("HierarchyMods") && json["HierarchyMods"].is_array()) {
+		for (const auto& item : json["HierarchyMods"]) {
+
+			PrefabHierarchyModification hierarchyMod{};
+			hierarchyMod.target = StringToUUIDOrZero(item.value("Target", ""));
+			hierarchyMod.hasParentOverride = item.value("HasParent", false);
+			hierarchyMod.newParentPrefabLocalFileID = StringToUUIDOrZero(item.value("NewParentPrefab", ""));
+			hierarchyMod.externalParentSceneLocalFileID = StringToUUIDOrZero(item.value("ExternalParent", ""));
+			hierarchyMod.hasSiblingOrder = item.value("HasSibling", false);
+			hierarchyMod.siblingOrder = item.value("Sibling", 0);
+			data.hierarchyModifications.push_back(std::move(hierarchyMod));
+		}
+	}
+	if (json.contains("RemovedEntities") && json["RemovedEntities"].is_array()) {
+		for (const auto& item : json["RemovedEntities"]) {
+			data.removedEntities.push_back(StringToUUIDOrZero(item.get<std::string>()));
+		}
+	}
+	if (json.contains("AddedEntities") && json["AddedEntities"].is_array()) {
+		for (const auto& item : json["AddedEntities"]) {
+
+			PrefabAddedEntity added{};
+			added.sceneLocalFileID = StringToUUIDOrZero(item.value("SceneLocalFileID", ""));
+			added.parentSceneLocalFileID = StringToUUIDOrZero(item.value("Parent", ""));
+			added.components = item.contains("Components") ? item["Components"] : nlohmann::json::object();
+			data.addedEntities.push_back(std::move(added));
+		}
+	}
+	return true;
+}

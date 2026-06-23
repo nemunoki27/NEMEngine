@@ -4,14 +4,14 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 9
+                    "siblingOrder": 0
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
                     "enableZPrepass": true,
                     "layer": 0,
                     "material": "",
-                    "mesh": "4bb71d39f94dfe7a",
+                    "mesh": "a31d53b333db8b8b",
                     "order": 0,
                     "queue": "Opaque",
                     "subMeshes": [
@@ -31,10 +31,9 @@
                                 "y": 1.0,
                                 "z": 1.0
                             },
-                            "name": "球",
+                            "name": "Mesh_0",
                             "parameterOverrides": {
-                                "Metallic": 0.0,
-                                "Roughness": 1.0,
+                                "baseColorTexture": "c2ea9f4498073ab3",
                                 "color": {
                                     "a": 1.0,
                                     "b": 0.6000000238418579,
@@ -49,12 +48,12 @@
                                 }
                             },
                             "sourcePivot": {
-                                "x": 5.066394805908203e-07,
+                                "x": 0.0,
                                 "y": 0.0,
-                                "z": 5.066394805908203e-07
+                                "z": 0.0
                             },
                             "sourceSubMeshIndex": 0,
-                            "stableID": "36a059e49a9ecbaa",
+                            "stableID": "75073ba58b708dac",
                             "uvPos": {
                                 "x": 0.0,
                                 "y": 0.0
@@ -69,16 +68,53 @@
                     "visible": true
                 },
                 "Name": {
-                    "name": "Object"
+                    "name": "cube"
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "769826118c91b638",
+                    "localFileID": "fe71f5701f4105e6",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
                     "localPos": {
-                        "x": -0.1119229793548584,
+                        "x": 4.0,
+                        "y": 0.0,
+                        "z": -4.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "fe71f5701f4105e6"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 3
+                },
+                "Name": {
+                    "name": "Entity"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "eb81a0e435e28c40",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
                         "y": 0.0,
                         "z": 0.0
                     },
@@ -95,13 +131,85 @@
                     }
                 }
             },
-            "LocalFileID": "769826118c91b638"
+            "LocalFileID": "eb81a0e435e28c40"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 4
+                },
+                "Name": {
+                    "name": "Entity"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "e336d232de1831ae",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "e336d232de1831ae"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 5
+                },
+                "Name": {
+                    "name": "Entity"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "2cf3a2048b8572a0",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "2cf3a2048b8572a0"
         }
     ],
     "Header": {
         "guid": "0dde87f33c37f88b",
-        "name": "Object",
-        "rootLocalFileID": "769826118c91b638",
+        "name": "cube",
+        "rootLocalFileID": "fe71f5701f4105e6",
         "version": 1
     }
 }

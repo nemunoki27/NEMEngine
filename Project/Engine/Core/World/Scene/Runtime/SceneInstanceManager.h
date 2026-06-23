@@ -57,6 +57,9 @@ namespace Engine {
 
 		// シーンをロードしてインスタンスを作成し、forcedInstanceIDが有効ならそのinstance IDを使ってC#側で先行採番したSceneHandleと一致させる
 		bool LoadAdditive(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world, AssetID sceneAsset, UUID forcedInstanceID = UUID{});
+		// シーンアセットを持たない一時シーンインスタンスを作成してアクティブにする、プレファブ編集の隔離ワールド用
+		// headerは環境(スカイボックス/ライティング等)の流用元、新規IDを採番して返す
+		UUID CreateScratchScene(const SceneHeader& header);
 		// シーンインスタンスをアンロード
 		bool Unload(ECSWorld& world, UUID instanceID);
 		// 全てのシーンインスタンスをアンロード

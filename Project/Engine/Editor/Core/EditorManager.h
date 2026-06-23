@@ -40,6 +40,11 @@ namespace Engine {
 		SaveScene,
 		SaveAndNewScene,
 		SaveAndOpenScene,
+		EnterPrefabEdit,
+		ExitPrefabEdit,
+		ExitPrefabEditAll,
+		TogglePrefabInContext,
+		SavePrefab,
 	};
 
 	enum class EditorUnsavedScenePopupResult :
@@ -117,6 +122,12 @@ namespace Engine {
 		void RequestOpenScene(AssetID sceneAsset) override;
 		// アクティブシーンの保存要求
 		void RequestSaveScene() override;
+		// プレファブ編集の開始/終了/保存要求
+		void RequestEnterPrefabEdit(AssetID prefabAsset) override;
+		void RequestExitPrefabEdit() override;
+		void RequestExitPrefabEditAll() override;
+		void RequestTogglePrefabInContext() override;
+		void RequestSavePrefab() override;
 		// 終了時の未保存確認ポップアップ表示要求
 		void RequestCloseUnsavedScenePopup();
 		// 終了時の未保存確認結果

@@ -15,7 +15,6 @@ Engine::LineRenderer3D::LineRenderer3D(GraphicsCore& graphicsCore, RenderCameraD
 
 Engine::LineRenderer3D::~LineRenderer3D() {
 
-	// SceneGridRendererが持つGPUバッファをLineRenderer破棄時に明示解放する
 	gridRenderer_.reset();
 }
 
@@ -24,6 +23,7 @@ void Engine::LineRenderer3D::BeginFrame() {
 	LineRendererBase<Vector3>::BeginFrame();
 	gridDrawCount_ = 0;
 	gridMinorStep_ = 0.0f;
+	snapGridOcclusionDepth_ = nullptr;
 	gridRenderer_->BeginFrame();
 }
 
@@ -284,9 +284,10 @@ void Engine::LineRenderer3D::DrawLineImpl(GraphicsCore& graphicsCore,
 
 	for (uint32_t i = 0; i < gridDrawCount_; ++i) {
 
-		// グリッド描画、DrawGridで固定間隔が指定されていればそれを使う
-		gridRenderer_->Render(graphicsCore, *camera, surface, gridMinorStep_);
+		// スナップグリッド描画、固定間隔とシーン深度を渡してメッシュに隠れるようにする
+		gridRenderer_->Render(graphicsCore, *camera, surface, gridMinorStep_, snapGridOcclusionDepth_);
 	}
 	gridDrawCount_ = 0;
 	gridMinorStep_ = 0.0f;
+	snapGridOcclusionDepth_ = nullptr;
 }

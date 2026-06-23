@@ -28,9 +28,10 @@ namespace Engine {
 		// フレーム開始処理
 		void BeginFrame();
 
-		// 描画
+		// 描画、snapGridOcclusionDepthを渡すとスナップグリッドがメッシュに隠れる
 		void RenderSceneView(GraphicsCore& graphicsCore, const ResolvedRenderView& view,
-			MultiRenderTarget& surface, bool drawDefaultGrid = true, bool drawQueuedLines = true);
+			MultiRenderTarget& surface, bool drawDefaultGrid = true, bool drawQueuedLines = true,
+			DepthTexture2D* snapGridOcclusionDepth = nullptr);
 
 		//--------- accessor -----------------------------------------------------
 

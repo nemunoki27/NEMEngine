@@ -15,6 +15,9 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Editor/Utility/AssetEntityFactory.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
@@ -40,6 +43,41 @@ namespace {
 		}
 		return world.GetComponent<Engine::HierarchyComponent>(entity).siblingOrder;
 	}
+
+	// プロジェクトからドロップされたアセットをエンティティとして原点に作成する、parentがあればその子にする
+	void DropProjectAssetToHierarchy(const Engine::EditorPanelContext& context, Engine::ECSWorld& world,
+		const Engine::EditorAssetDragDropPayload& payload, const Engine::Entity& parent) {
+
+		if (!context.CanEditScene() || !context.editorContext || !context.editorContext->assetDatabase || !context.host) {
+			return;
+		}
+
+		// プレファブは既存のコマンド経路を使い、Undo対応のままインスタンス化する
+		if (payload.assetType == Engine::AssetType::Prefab) {
+
+			const Engine::UUID parentUUID = world.IsAlive(parent) ? world.GetUUID(parent) : Engine::UUID{};
+			context.host->ExecuteEditorCommand(
+				std::make_unique<Engine::InstantiatePrefabCommand>(payload.assetID, parentUUID));
+			return;
+		}
+
+		// モデル/テクスチャ/テキストはファクトリで生成し、親があればぶら下げる
+		if (!Engine::AssetEntityFactory::CanSpawn(payload)) {
+			return;
+		}
+		Engine::HierarchySystem hierarchySystem{};
+		const Engine::AssetSpawnResult spawn = Engine::AssetEntityFactory::Spawn(world,
+			*context.editorContext->assetDatabase, hierarchySystem, payload, context.editorContext->activeSceneInstanceID);
+		if (!spawn.valid) {
+			return;
+		}
+		if (world.IsAlive(parent)) {
+			hierarchySystem.SetParent(world, spawn.root, parent);
+		}
+		if (context.editorState) {
+			context.editorState->SelectEntity(spawn.root);
+		}
+	}
 }
 
 Engine::HierarchyPanel::HierarchyPanel(TextureUploadService& textureUploadService) :
@@ -60,6 +98,21 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 
 	RequestActiveIconTextures();
 
+	// プレファブ編集中はバナーを出し、戻るボタンで一回の操作で元のシーン編集へ戻る
+	if (context.editorContext && context.editorContext->isPrefabEditing) {
+
+		if (ImGui::Button("< 戻る") && context.host) {
+			context.host->RequestExitPrefabEditAll();
+		}
+		ImGui::SameLine();
+		if (context.editorContext->isPrefabInContext) {
+			ImGui::Text("Prefab: %s  (In-Context)", context.editorContext->prefabEditName.c_str());
+		} else {
+			ImGui::Text("Prefab: %s", context.editorContext->prefabEditName.c_str());
+		}
+		ImGui::Separator();
+	}
+
 	// 検索欄の左端にProjectPanelと同じ虫眼鏡アイコンを重ねる
 	const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(*textureUploadService_);
 	searchFilter_.DrawInput("##HierarchySearch", searchIcon, "検索...");
@@ -78,6 +131,12 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
+	// プレファブ編集中は環境エンティティ(複製したカメラ/平行光源)や周囲のシーンを隠し、プレファブの中身だけを出す
+	const bool prefabEditing = context.editorContext && context.editorContext->isPrefabEditing;
+	const bool inContext = context.editorContext && context.editorContext->isPrefabInContext;
+	const UUID inContextInstanceID = context.editorContext ? context.editorContext->prefabInContextInstanceID : UUID{};
+	const std::vector<Entity>* environmentEntities = context.editorContext ? context.editorContext->prefabEnvironmentEntities : nullptr;
+
 	std::vector<Entity> rootEntities;
 	rootEntities.reserve(world->GetRecordCount());
 	world->ForEachAliveEntity([&](Entity entity) {
@@ -85,6 +144,24 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		// ルートエンティティでない場合はスキップ
 		if (!IsRootEntity(*world, entity)) {
 			return;
+		}
+		// プレファブ編集中の絞り込み
+		if (prefabEditing) {
+
+			if (inContext) {
+
+				// In-Contextは編集インスタンスのメンバーだけを出す、周囲のシーンは隠す
+				if (!world->HasComponent<PrefabLinkComponent>(entity) ||
+					world->GetComponent<PrefabLinkComponent>(entity).prefabInstanceID != inContextInstanceID) {
+					return;
+				}
+			} else if (environmentEntities) {
+
+				// 隔離編集は環境エンティティ以外を全て出す、新規作成した実体もPrefabLinkを待たずに即表示される
+				if (std::find(environmentEntities->begin(), environmentEntities->end(), entity) != environmentEntities->end()) {
+					return;
+				}
+			}
 		}
 
 		rootEntities.emplace_back(entity);
@@ -291,10 +368,19 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	//	ツリーノード本体
 	//============================================================================
 	// アクティブでない場合はテキストを薄く表示する、プレファブインスタンスは水色で表示する
-	// 非アクティブ表示を優先し、アクティブなプレファブインスタンスのみ水色にする
+	// プレファブ参照が解決できない壊れた/欠落インスタンスは赤文字を最優先で表示する
 	const bool isPrefabInstance = world.HasComponent<PrefabLinkComponent>(entity);
+	bool isBrokenPrefab = false;
+	if (isPrefabInstance && context.editorContext && context.editorContext->assetDatabase) {
+
+		const AssetID prefabAsset = world.GetComponent<PrefabLinkComponent>(entity).prefabAsset;
+		isBrokenPrefab = !prefabAsset || !context.editorContext->assetDatabase->Find(prefabAsset);
+	}
 	bool pushedTextColor = false;
-	if (!activeInHierarchy) {
+	if (isBrokenPrefab) {
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
+		pushedTextColor = true;
+	} else if (!activeInHierarchy) {
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 		pushedTextColor = true;
 	} else if (isPrefabInstance) {
@@ -421,11 +507,10 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kProjectAssetDragDropPayloadType)) {
 			if (payload->IsDelivery() && context.CanEditScene() && payload->DataSize == sizeof(EditorAssetDragDropPayload)) {
 
+				// 重なっているエンティティの子としてアセットエンティティを原点に作成する
 				const auto* assetPayload = static_cast<const EditorAssetDragDropPayload*>(payload->Data);
-				if (assetPayload && assetPayload->assetType == AssetType::Prefab) {
-
-					context.host->ExecuteEditorCommand(
-						std::make_unique<InstantiatePrefabCommand>(assetPayload->assetID, world.GetUUID(entity)));
+				if (assetPayload) {
+					DropProjectAssetToHierarchy(context, world, *assetPayload, entity);
 				}
 			}
 		}
@@ -624,11 +709,10 @@ void Engine::HierarchyPanel::DrawRootDropTarget(const EditorPanelContext& contex
 		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kProjectAssetDragDropPayloadType)) {
 			if (payload->IsDelivery() && context.CanEditScene() && payload->DataSize == sizeof(EditorAssetDragDropPayload)) {
 
+				// 何にも重なっていない空き領域へのドロップはルートエンティティとして原点に作成する
 				const auto* assetPayload = static_cast<const EditorAssetDragDropPayload*>(payload->Data);
-				if (assetPayload && assetPayload->assetType == AssetType::Prefab) {
-
-					context.host->ExecuteEditorCommand(
-						std::make_unique<InstantiatePrefabCommand>(assetPayload->assetID));
+				if (assetPayload) {
+					DropProjectAssetToHierarchy(context, world, *assetPayload, Entity::Null());
 				}
 			}
 		}

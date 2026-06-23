@@ -16,6 +16,8 @@
 #include <array>
 #include <memory>
 #include <vector>
+#include <string>
+#include <unordered_map>
 
 namespace Engine {
 
@@ -77,6 +79,9 @@ namespace Engine {
 
 		// メッシュインスペクター
 		MeshRendererInspectorDrawer* meshRendererDrawer_ = nullptr;
+
+		// オーバーライドポップアップの各差分の選択、0=そのまま 1=Apply 2=Revert
+		std::unordered_map<std::string, int> overrideChoices_;
 
 		struct ModelAssetPreviewBounds {
 
@@ -151,6 +156,8 @@ namespace Engine {
 		void DrawRemoveComponentPopup(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 		// サブメッシュが選択されているときのヘッダーを描画する
 		void DrawSelectedSubMeshHeader(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
+		// プレファブインスタンスのオーバーライド表示UI、水色強調トークンの構築とオーバーライドポップアップを描画する
+		void DrawPrefabOverrideUI(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 	};
 } // Engine
 

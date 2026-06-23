@@ -48,11 +48,17 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::SetWindowFontScale(0.72f);
 
 		const bool canEditScene = context.CanEditScene();
-		if (ImGui::MenuItem("シーン作成", nullptr, false, canEditScene)) {
+		const bool isPrefabEditing = context.editorContext && context.editorContext->isPrefabEditing;
+		if (ImGui::MenuItem("シーン作成", nullptr, false, canEditScene && !isPrefabEditing)) {
 			context.host->RequestNewScene();
 		}
-		if (ImGui::MenuItem("シーンを保存", "Ctrl+S", false, canEditScene)) {
-			context.host->RequestSaveScene();
+		// プレファブ編集中は同じ項目で隔離ワールドを.prefabへ保存する
+		if (ImGui::MenuItem(isPrefabEditing ? "プレファブを保存" : "シーンを保存", "Ctrl+S", false, canEditScene)) {
+			if (isPrefabEditing) {
+				context.host->RequestSavePrefab();
+			} else {
+				context.host->RequestSaveScene();
+			}
 		}
 
 		ImGui::SetWindowFontScale(1.0f);

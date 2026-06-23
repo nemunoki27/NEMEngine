@@ -19,6 +19,7 @@ namespace Engine {
 
 	// front
 	class GraphicsCore;
+	class DepthTexture2D;
 
 	//============================================================================
 	//	SceneGridRenderer class
@@ -42,8 +43,9 @@ namespace Engine {
 
 		// fixedMinorStepが0より大きいとき、自動フィットせずその値を最小グリッド間隔として描画する
 		// スナップ距離に合わせたグリッドを出す用途で使う、α減衰や軸色は通常時と同じ
+		// occlusionDepthを渡すとsurfaceの深度ではなくその深度でテストし、線がメッシュに隠れる
 		void Render(GraphicsCore& graphicsCore, const ResolvedCameraView& camera, MultiRenderTarget& surface,
-			float fixedMinorStep = 0.0f);
+			float fixedMinorStep = 0.0f, DepthTexture2D* occlusionDepth = nullptr);
 
 		void Edit();
 	private:

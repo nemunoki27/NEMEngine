@@ -12,6 +12,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "1490e22f0a00778e",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "TextRenderer": {
@@ -118,6 +119,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "a8cc88ff61d9d6f9",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -248,6 +250,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "daa4966cef6bc35a",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -300,6 +303,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "051ee75fb3576ee8",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -335,6 +339,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "9db8761687b47186",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "SkyboxRenderer": {
@@ -1351,6 +1356,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "6d6cda8f769c6a9c",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Script": [
@@ -1547,6 +1553,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "6fe12a97a65c9a37",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -1678,6 +1685,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "ab0cbb13e851d99f",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -1713,6 +1721,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "e8611522539f03c3",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Script": [
@@ -1873,6 +1882,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "7e5ea89724ef6be2",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -2004,6 +2014,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "d01d388eb151aac3",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -2135,6 +2146,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "5030dfe78936672f",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {

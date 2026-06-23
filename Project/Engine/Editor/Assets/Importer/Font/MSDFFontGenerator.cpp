@@ -273,6 +273,20 @@ Engine::MSDFFontGenerator::Result Engine::MSDFFontGenerator::EnsureGenerated(
 	const bool alreadyGenerated =
 		std::filesystem::exists(fontJsonPath, ec) && std::filesystem::exists(atlasPath, ec);
 
+	const std::string fontAssetPath = RuntimePaths::ToAssetPath(fontJsonPath);
+
+	// 既に生成済みかつDBにも登録済みなら、再走査せずそのまま既存アセットを使う
+	// これでドロップのたびにRebuildMeta(全アセット再走査)が走って重くなるのを防ぐ
+	if (!forceRegenerate && alreadyGenerated) {
+		if (const AssetMeta* existing = database.FindByPath(fontAssetPath)) {
+
+			result.success = true;
+			result.fontAssetID = existing->guid;
+			result.fontAssetPath = fontAssetPath;
+			return result;
+		}
+	}
+
 	if (forceRegenerate || !alreadyGenerated) {
 
 		const std::filesystem::path charsetPath = GameCharsetPath();
@@ -303,7 +317,6 @@ Engine::MSDFFontGenerator::Result Engine::MSDFFontGenerator::EnsureGenerated(
 	// 新規生成物に.metaを発番し、atlasTextureを隣接アトラスのGUIDへ貼り直す
 	database.RebuildMeta();
 
-	const std::string fontAssetPath = RuntimePaths::ToAssetPath(fontJsonPath);
 	const AssetMeta* meta = database.FindByPath(fontAssetPath);
 	if (!meta) {
 

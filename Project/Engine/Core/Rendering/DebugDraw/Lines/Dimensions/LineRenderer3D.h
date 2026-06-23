@@ -32,6 +32,8 @@ namespace Engine {
 		void DrawGrid(float minorStep = 0.0f);
 		// SceneViewのデフォルトグリッド描画
 		void RenderDefaultGrid(GraphicsCore& graphicsCore, const ResolvedRenderView& view, MultiRenderTarget& surface);
+		// スナップグリッドをメッシュに隠すための深度を設定する、次のRenderSceneViewでだけ使い切る
+		void SetSnapGridOcclusionDepth(DepthTexture2D* depth) { snapGridOcclusionDepth_ = depth; }
 
 		// 球
 		void DrawSphere(const Vector3& center, float radius, const Color4& color, uint32_t division = 8, float thickness = 1.0f);
@@ -75,6 +77,8 @@ namespace Engine {
 		uint32_t gridDrawCount_ = 0;
 		// DrawGridで指定された固定グリッド間隔、0なら自動フィット
 		float gridMinorStep_ = 0.0f;
+		// スナップグリッドをメッシュに隠すためのシーン深度、非所有でフレームごとに設定される
+		DepthTexture2D* snapGridOcclusionDepth_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
 

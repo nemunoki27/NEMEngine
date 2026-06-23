@@ -84,6 +84,23 @@ bool Engine::SceneInstanceManager::LoadAdditive(AssetDatabase& database,
 	return true;
 }
 
+Engine::UUID Engine::SceneInstanceManager::CreateScratchScene(const SceneHeader& header) {
+
+	SceneInstance instance{};
+	// ファイル実体を持たない一時シーンなのでsceneAssetは空、IDだけ新規採番する
+	instance.instanceID = UUID::New();
+	instance.parentInstanceID = UUID{};
+	instance.sceneAsset = AssetID{};
+	// スカイボックスやライティングを流用して、プレファブを通常シーンと同じ環境で見られるようにする
+	instance.header = header;
+
+	const UUID id = instance.instanceID;
+	// 一時シーンを唯一のアクティブシーンにする
+	active_ = id;
+	scenes_.emplace_back(std::move(instance));
+	return id;
+}
+
 bool Engine::SceneInstanceManager::Unload(ECSWorld& world, UUID instanceID) {
 
 	for (size_t i = 0; i < scenes_.size(); ++i) {
@@ -139,7 +156,7 @@ bool Engine::SceneInstanceManager::SaveActive(AssetDatabase& database, const Sce
 	}
 
 	const std::vector<Entity> ownedEntities = CollectSceneEntities(world, *activeScene);
-	return sceneSystem.SaveScene(fullPath.string(), world, activeScene->header, &ownedEntities);
+	return sceneSystem.SaveScene(fullPath.string(), world, activeScene->header, &ownedEntities, &database);
 }
 
 nlohmann::json Engine::SceneInstanceManager::SerializeSnapshot(const SceneSystem& sceneSystem, ECSWorld& world) const {

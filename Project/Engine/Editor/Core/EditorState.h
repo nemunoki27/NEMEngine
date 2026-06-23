@@ -122,11 +122,6 @@ namespace Engine {
 		// アセット選択操作が行われるたびに進むカウンタ
 		uint64_t assetSelectionRevision = 0;
 
-		// プレファブ編集モード、.prefabダブルクリックで一時インスタンスを生成して編集する
-		// 編集中はSceneViewをプレビュー表示へ切り替え、選択解除で一時インスタンスを破棄して.prefabへ保存する
-		AssetID prefabEditAsset{};
-		Entity prefabEditInstance = Entity::Null();
-
 		// 現在選択しているオブジェクトの種類
 		EditorSelectionKind selectionKind = EditorSelectionKind::None;
 		uint32_t selectedSubMeshIndex = 0;
@@ -165,6 +160,8 @@ namespace Engine {
 		bool enableSnapEditEntity = false;
 		// ギズモのスナップ設定、シリアライズ対象
 		EntitySnapSettings snapSettings{};
+		// アセットを3DでSceneViewへドラッグ中か、スナップグリッド表示のためViewportPanelが毎フレーム更新する
+		bool assetDragSnapGridActive = false;
 		// 複数選択ギズモの回転拡縮を選択中心基準で行うか、falseなら各エンティティ自身の原点基準
 		bool gizmoPivotAtCenter = true;
 

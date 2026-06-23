@@ -337,6 +337,34 @@ void Engine::EditorManager::RequestSaveScene() {
 	sceneRequest_ = { EditorSceneRequestType::SaveScene, AssetID{} };
 }
 
+void Engine::EditorManager::RequestEnterPrefabEdit(AssetID prefabAsset) {
+
+	if (!prefabAsset) {
+		return;
+	}
+	sceneRequest_ = { EditorSceneRequestType::EnterPrefabEdit, prefabAsset };
+}
+
+void Engine::EditorManager::RequestExitPrefabEdit() {
+
+	sceneRequest_ = { EditorSceneRequestType::ExitPrefabEdit, AssetID{} };
+}
+
+void Engine::EditorManager::RequestExitPrefabEditAll() {
+
+	sceneRequest_ = { EditorSceneRequestType::ExitPrefabEditAll, AssetID{} };
+}
+
+void Engine::EditorManager::RequestTogglePrefabInContext() {
+
+	sceneRequest_ = { EditorSceneRequestType::TogglePrefabInContext, AssetID{} };
+}
+
+void Engine::EditorManager::RequestSavePrefab() {
+
+	sceneRequest_ = { EditorSceneRequestType::SavePrefab, AssetID{} };
+}
+
 void Engine::EditorManager::RequestCloseUnsavedScenePopup() {
 
 	requestOpenCloseUnsavedPopup_ = true;
@@ -731,10 +759,14 @@ void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) 
 		DuplicateSelection();
 		return;
 	}
-	// シーン保存
+	// シーン保存、プレファブ編集中は隔離ワールドを.prefabへ保存する
 	if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_S)) {
 
-		RequestSaveScene();
+		if (context.isPrefabEditing) {
+			RequestSavePrefab();
+		} else {
+			RequestSaveScene();
+		}
 		return;
 	}
 	// コピー
@@ -845,6 +877,16 @@ void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorC
 	if (!initialized_ || layoutState_.hidePanels || !layoutState_.showSceneView || !context.activeWorld) {
 		return;
 	}
+
+	// 3DアセットをSceneViewへスナップ有効でドラッグ中はスナップグリッドを出す、選択が無くても表示する
+	// マニピュレーターが座標移動でなくても出す、グリッド間隔は現在の3D座標スナップ設定に合わせる
+	if (editorState_.snapSettings.drawSnapGrid &&
+		editorState_.enableSnapEditEntity &&
+		editorState_.assetDragSnapGridActive) {
+
+		LineRenderer::GetInstance()->Get3D()->DrawGrid(editorState_.snapSettings.translate3D.size);
+	}
+
 	if (!editorState_.HasValidSelection(context.activeWorld)) {
 		return;
 	}
@@ -871,8 +913,10 @@ void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorC
 	// グリッド描画アルゴリズムはLineRendererに集約、3Dは距離減衰の解析グリッド 2Dは画面いっぱいのグリッド
 	// SceneViewの描画パス前に積む必要があるためここで要求する、ViewportPanelはPostSceneで間に合わない
 	// スナップ操作が有効かつ座標編集モードのときだけ描画する、表示フラグだけでは出さない
+	// ドラッグ中グリッドを既に出している場合は二重描画しない
 	if (editorState_.snapSettings.drawSnapGrid &&
 		editorState_.enableSnapEditEntity &&
+		!editorState_.assetDragSnapGridActive &&
 		editorState_.sceneViewManipulatorMode == SceneViewManipulatorMode::Translate &&
 		context.activeWorld->IsAlive(editorState_.selectedEntity)) {
 

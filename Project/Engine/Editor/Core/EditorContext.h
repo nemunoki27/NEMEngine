@@ -10,6 +10,7 @@
 
 // c++
 #include <string>
+#include <vector>
 
 namespace Engine {
 
@@ -28,6 +29,19 @@ namespace Engine {
 		bool isPlaying = false;
 		// Play中に一時停止しているかどうか
 		bool isPlayPaused = false;
+
+		// プレファブ編集中かどうか、trueならヒエラルキー等は隔離ワールドを指す
+		bool isPrefabEditing = false;
+		// 編集中プレファブの表示名、ヒエラルキーのバナーに使う
+		std::string prefabEditName;
+		// プレファブ編集のネスト深さ、0なら通常編集
+		int prefabEditDepth = 0;
+		// In-Context編集中かどうか、trueなら元シーンに置いて編集している
+		bool isPrefabInContext = false;
+		// In-Context編集で表示対象を絞り込むためのプレファブインスタンスID
+		UUID prefabInContextInstanceID{};
+		// 隔離プレファブ編集で隠す環境エンティティ(複製したカメラ/平行光源)、非所有でエンジンが毎フレーム設定する
+		const std::vector<Entity>* prefabEnvironmentEntities = nullptr;
 
 		// シーンのパス
 		std::string activeScenePath;

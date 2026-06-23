@@ -6,7 +6,14 @@
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
+#include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+
+// c++
+#include <unordered_set>
+#include <unordered_map>
 
 //============================================================================
 //	SceneSystem classMethods
@@ -32,12 +39,82 @@ bool Engine::SceneSystem::LoadScene(const std::string& scenePath, ECSWorld& worl
 }
 
 bool Engine::SceneSystem::SaveScene(const std::string& scenePath, ECSWorld& world,
-	const SceneHeader& header, const std::vector<Entity>* entitiesSubset) const {
+	const SceneHeader& header, const std::vector<Entity>* entitiesSubset, AssetDatabase* database) const {
 
 	nlohmann::json root = nlohmann::json::object();
-
 	root["Header"] = ToJson(header);
-	root["Entities"] = SerializeEntities(world, entitiesSubset);
+
+	// databaseが無ければ従来通り全実体をfat保存する、後方互換のため
+	if (!database) {
+
+		root["Entities"] = SerializeEntities(world, entitiesSubset);
+		JsonAdapter::Save(scenePath, root);
+		return true;
+	}
+
+	// 対象実体の中からプレファブインスタンスを集め、薄い差分形式で保存する
+	// インスタンスに取り込まれた実体のシーンローカルIDを覚えておき、fat側の重複保存を防ぐ
+	std::unordered_set<UUID> consumedSceneLocalIDs;
+	std::unordered_map<UUID, AssetID> instanceToPrefab;
+
+	auto collectInstanceIDs = [&](const Entity& entity) {
+
+		if (!world.HasComponent<PrefabLinkComponent>(entity)) {
+			return;
+		}
+		const auto& link = world.GetComponent<PrefabLinkComponent>(entity);
+		instanceToPrefab[link.prefabInstanceID] = link.prefabAsset;
+		};
+	if (entitiesSubset) {
+		for (const Entity& entity : *entitiesSubset) {
+			if (world.IsAlive(entity)) {
+				collectInstanceIDs(entity);
+			}
+		}
+	} else {
+		world.ForEachAliveEntity(collectInstanceIDs);
+	}
+
+	// プレファブインスタンスごとに差分を抽出する
+	nlohmann::json prefabInstances = nlohmann::json::array();
+	for (const auto& [instanceID, prefabAsset] : instanceToPrefab) {
+
+		const auto base = PrefabOverrideUtility::LoadPrefabBaseEntities(*database, prefabAsset);
+		PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(world, instanceID, base);
+		data.prefabAsset = prefabAsset;
+
+		// このインスタンスが取り込んだ実体のシーンローカルIDを記録する
+		for (const auto& [prefabLocal, sceneLocal] : data.entityMap) {
+			consumedSceneLocalIDs.insert(sceneLocal);
+		}
+		for (const auto& added : data.addedEntities) {
+			consumedSceneLocalIDs.insert(added.sceneLocalFileID);
+		}
+		prefabInstances.push_back(ToJson(data));
+	}
+	root["PrefabInstances"] = std::move(prefabInstances);
+
+	// インスタンスに取り込まれなかった実体だけをfat保存する
+	std::vector<Entity> fatEntities;
+	auto appendFatEntity = [&](const Entity& entity) {
+
+		if (!world.IsAlive(entity)) {
+			return;
+		}
+		if (world.HasComponent<SceneObjectComponent>(entity) &&
+			consumedSceneLocalIDs.count(world.GetComponent<SceneObjectComponent>(entity).localFileID)) {
+			return;
+		}
+		fatEntities.emplace_back(entity);
+		};
+	if (entitiesSubset) {
+		for (const Entity& entity : *entitiesSubset) {
+			appendFatEntity(entity);
+		}
+	} else {
+		world.ForEachAliveEntity(appendFatEntity);
+	}
+	root["Entities"] = SerializeEntities(world, &fatEntities);
 
 	JsonAdapter::Save(scenePath, root);
 	return true;
@@ -104,22 +181,10 @@ bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& wor
 		return false;
 	}
 
-	// Entitiesが無いなら「空シーン」として成功扱い
-	if (!root.contains("Entities")) {
-		return true;
-	}
-
-	const nlohmann::json& entitiesNode = root["Entities"];
-
-	// {}も空シーンとして受け入れる
-	if (entitiesNode.is_object() && entitiesNode.empty()) {
-		return true;
-	}
-
-	// []以外は不正
-	if (!entitiesNode.is_array()) {
-		return false;
-	}
+	// fat保存された実体を読み込む、Entitiesが配列でなければ空として扱いPrefabInstancesのみ処理する
+	const nlohmann::json emptyArray = nlohmann::json::array();
+	const nlohmann::json& entitiesNode =
+		(root.contains("Entities") && root["Entities"].is_array()) ? root["Entities"] : emptyArray;
 
 	// "Entities"配列をループしてエンティティを作成し、コンポーネントを追加する
 	for (const auto& entityJson : entitiesNode) {
@@ -168,6 +233,30 @@ bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& wor
 
 			auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
 			MeshSubMeshAuthoring::SyncComponent(assetDatabase, meshRenderer, true);
+		}
+	}
+
+	// 薄い差分形式で保存されたプレファブインスタンスを展開する
+	if (assetDatabase && root.contains("PrefabInstances") && root["PrefabInstances"].is_array()) {
+
+		HierarchySystem hierarchySystem{};
+		for (const auto& instanceJson : root["PrefabInstances"]) {
+
+			PrefabInstanceData data{};
+			if (!FromJson(instanceJson, data)) {
+				continue;
+			}
+			const Entity instanceRoot =
+				PrefabOverrideUtility::RebuildInstance(world, *assetDatabase, hierarchySystem, data, sceneInstanceID);
+			if (!world.IsAlive(instanceRoot)) {
+				continue;
+			}
+			// 生成したインスタンスの実体を作成リストへ加える、追加実体はsceneInstanceIDで保存時に回収される
+			if (outCreatedEntities) {
+				for (const Entity& entity : PrefabOverrideUtility::CollectInstanceEntities(world, data.instanceID)) {
+					outCreatedEntities->emplace_back(entity);
+				}
+			}
 		}
 	}
 	return true;

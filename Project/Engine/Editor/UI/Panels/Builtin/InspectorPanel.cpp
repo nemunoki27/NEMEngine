@@ -42,6 +42,10 @@
 #include <Engine/Editor/Commands/Entity/SetEntityActiveCommand.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
+#include <Engine/Core/World/Prefab/Override/PrefabJsonDiff.h>
+#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
@@ -433,6 +437,9 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	DrawEntityHeader(context, *world, selected);
 	// コンポーネント操作UI
 	DrawComponentToolbar(context, *world, selected);
+
+	// プレファブインスタンスならオーバーライド一覧UIを描画する
+	DrawPrefabOverrideUI(context, *world, selected);
 
 	// 登録済みコンポーネント描画
 	for (const auto& drawer : componentDrawers_) {
@@ -1237,4 +1244,192 @@ void Engine::InspectorPanel::DrawSelectedSubMeshHeader(const EditorPanelContext&
 	}
 	ImGui::Spacing();
 	ImGui::Separator();
+}
+
+void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
+
+	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
+	if (!database || !world.HasComponent<PrefabLinkComponent>(entity)) {
+		return;
+	}
+	const auto& link = world.GetComponent<PrefabLinkComponent>(entity);
+
+	// インスタンス全体の差分を抽出する、ベースはファイル更新時刻でキャッシュして毎フレームの再読込を避ける
+	const auto& base = PrefabOverrideUtility::LoadPrefabBaseEntitiesCached(*database, link.prefabAsset);
+	PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(world, link.prefabInstanceID, base);
+	data.prefabAsset = link.prefabAsset;
+
+	const int overrideCount = static_cast<int>(data.modifications.size() + data.addedComponents.size() +
+		data.removedComponents.size() + data.addedEntities.size() + data.removedEntities.size());
+
+	// オーバーライド一覧を開くボタン、件数も出す
+	const std::string buttonLabel = overrideCount > 0 ?
+		("Prefab Overrides (" + std::to_string(overrideCount) + ")###PrefabOverrideButton") :
+		std::string("Prefab : 差分なし###PrefabOverrideButton");
+	if (ImGui::Button(buttonLabel.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+		overrideChoices_.clear();
+		ImGui::OpenPopup("PrefabOverridesPopup");
+	}
+	ImGui::Spacing();
+
+	if (!ImGui::BeginPopup("PrefabOverridesPopup")) {
+		return;
+	}
+
+	ImGui::TextDisabled("Apply=プレファブへ反映  Revert=元に戻す  そのまま=このインスタンスのみ維持");
+	const bool applyClicked = ImGui::Button("適用");
+	ImGui::Separator();
+
+	// 各差分の選択ボタンを描画する、アクティブな選択を青で強調しデフォルトはそのまま
+	auto drawChoice = [&](const std::string& key, bool allowApply) {
+
+		int& choice = overrideChoices_[key];
+		auto button = [&](const char* label, int value, bool enabled) {
+
+			const bool active = (choice == value);
+			if (active) { ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.55f, 0.95f, 1.0f)); }
+			if (!enabled) { ImGui::BeginDisabled(); }
+			if (ImGui::SmallButton((std::string(label) + "##" + key).c_str())) { choice = value; }
+			if (!enabled) { ImGui::EndDisabled(); }
+			if (active) { ImGui::PopStyleColor(); }
+			};
+		button("Apply", 1, allowApply);
+		ImGui::SameLine();
+		button("Revert", 2, true);
+		ImGui::SameLine();
+		button("そのまま", 0, true);
+		};
+
+	if (overrideCount == 0) {
+		ImGui::TextDisabled("差分はありません");
+	}
+
+	// プロパティ差分
+	for (const auto& mod : data.modifications) {
+
+		const std::string key = "M|" + ToString(mod.target) + "|" + mod.path;
+		const nlohmann::json* baseValue = nullptr;
+		auto baseIt = base.find(mod.target);
+		if (baseIt != base.end()) {
+			baseValue = PrefabJsonDiff::GetAtPath(baseIt->second.components, mod.path);
+		}
+		ImGui::TextUnformatted(mod.path.c_str());
+		const std::string valueText = (baseValue ? baseValue->dump() : std::string("(none)")) + "  ->  " + mod.value.dump();
+		ImGui::TextDisabled("%s", valueText.c_str());
+		drawChoice(key, true);
+		ImGui::Separator();
+	}
+	// 追加コンポーネント
+	for (const auto& added : data.addedComponents) {
+
+		const std::string key = "AC|" + ToString(added.target) + "|" + added.type;
+		ImGui::Text("+ %s  追加コンポーネント", added.type.c_str());
+		drawChoice(key, true);
+		ImGui::Separator();
+	}
+	// 削除コンポーネント
+	for (const auto& removed : data.removedComponents) {
+
+		const std::string key = "RC|" + ToString(removed.target) + "|" + removed.type;
+		ImGui::Text("- %s  削除コンポーネント", removed.type.c_str());
+		drawChoice(key, true);
+		ImGui::Separator();
+	}
+	// 追加実体と削除実体はv1では一覧表示のみ
+	for (size_t i = 0; i < data.addedEntities.size(); ++i) {
+		ImGui::TextDisabled("+ 追加された子エンティティ");
+	}
+	for (size_t i = 0; i < data.removedEntities.size(); ++i) {
+		ImGui::TextDisabled("- 取り除かれた子エンティティ");
+	}
+
+	// 適用ボタンで各差分の選択を反映する
+	if (applyClicked) {
+
+		// インスタンス内の対象エンティティを引く
+		auto findInstanceEntity = [&](UUID target) -> Entity {
+
+			for (const Entity& candidate : PrefabOverrideUtility::CollectInstanceEntities(world, link.prefabInstanceID)) {
+				if (world.GetComponent<PrefabLinkComponent>(candidate).prefabLocalFileID == target) {
+					return candidate;
+				}
+			}
+			return Entity::Null();
+			};
+
+		// プレファブファイルを読み、Apply対象を書き込む
+		const auto prefabPath = database->ResolveFullPath(link.prefabAsset);
+		nlohmann::json prefabFileJson = JsonAdapter::Load(prefabPath.string(), true);
+		const auto oldBase = base;
+		bool prefabChanged = false;
+
+		for (const auto& mod : data.modifications) {
+
+			const std::string key = "M|" + ToString(mod.target) + "|" + mod.path;
+			const int choice = overrideChoices_.count(key) ? overrideChoices_[key] : 0;
+			if (choice == 1) {
+
+				prefabChanged |= PrefabOverrideUtility::SetPrefabEntityLeaf(prefabFileJson, mod.target, mod.path, mod.value);
+			} else if (choice == 2) {
+
+				// インスタンスの値をベースへ戻す、伝播時に差分が消えて元に戻る
+				const Entity target = findInstanceEntity(mod.target);
+				auto baseIt = base.find(mod.target);
+				if (world.IsAlive(target) && baseIt != base.end()) {
+
+					const nlohmann::json* baseValue = PrefabJsonDiff::GetAtPath(baseIt->second.components, mod.path);
+					if (baseValue) {
+
+						const size_t slash = mod.path.find('/');
+						const std::string type = (slash == std::string::npos) ? mod.path : mod.path.substr(0, slash);
+						const std::string leaf = (slash == std::string::npos) ? std::string{} : mod.path.substr(slash + 1);
+						nlohmann::json current;
+						world.SerializeComponentToJson(target, type, current);
+						PrefabJsonDiff::SetAtPath(current, leaf, *baseValue);
+						world.AddComponentFromJson(target, type, current);
+					}
+				}
+			}
+		}
+		for (const auto& added : data.addedComponents) {
+
+			const std::string key = "AC|" + ToString(added.target) + "|" + added.type;
+			const int choice = overrideChoices_.count(key) ? overrideChoices_[key] : 0;
+			if (choice == 1) {
+
+				prefabChanged |= PrefabOverrideUtility::SetPrefabEntityComponent(prefabFileJson, added.target, added.type, added.value);
+			} else if (choice == 2) {
+
+				const Entity target = findInstanceEntity(added.target);
+				if (world.IsAlive(target)) { world.RemoveComponentByName(target, added.type); }
+			}
+		}
+		for (const auto& removed : data.removedComponents) {
+
+			const std::string key = "RC|" + ToString(removed.target) + "|" + removed.type;
+			const int choice = overrideChoices_.count(key) ? overrideChoices_[key] : 0;
+			if (choice == 1) {
+
+				prefabChanged |= PrefabOverrideUtility::RemovePrefabEntityComponent(prefabFileJson, removed.target, removed.type);
+			} else if (choice == 2) {
+
+				const Entity target = findInstanceEntity(removed.target);
+				auto baseIt = base.find(removed.target);
+				if (world.IsAlive(target) && baseIt != base.end() && baseIt->second.components.contains(removed.type)) {
+					world.AddComponentFromJson(target, removed.type, baseIt->second.components[removed.type]);
+				}
+			}
+		}
+
+		if (prefabChanged) {
+			JsonAdapter::Save(prefabPath.string(), prefabFileJson);
+		}
+		// 変更を全インスタンスへ伝播する、各インスタンスの残りのオーバーライドは保持される
+		HierarchySystem hierarchySystem{};
+		PrefabOverrideUtility::PropagateToInstances(world, *database, hierarchySystem, link.prefabAsset, oldBase);
+
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
 }

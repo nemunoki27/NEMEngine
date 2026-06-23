@@ -242,12 +242,6 @@ namespace Engine {
 		void DrawDeleteAssetPopup(AssetDatabase& database);
 		// アセットのダブルクリック操作を処理する
 		void HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset);
-		// .prefabのプレビュー編集を開始する、一時インスタンスを生成して選択する
-		void BeginPrefabEdit(const EditorPanelContext& context, AssetID prefabAsset);
-		// プレビュー編集を終了する、編集結果を.prefabへ保存して一時インスタンスを破棄する
-		void EndPrefabEdit(const EditorPanelContext& context);
-		// 選択がプレファブ編集インスタンスから外れていたら編集を終了する、毎フレーム呼ぶ
-		void UpdatePrefabEditLifecycle(const EditorPanelContext& context);
 		// HierarchyからドロップされたEntityをPrefabとして保存する
 		bool SaveDroppedEntityAsPrefab(const EditorPanelContext& context, AssetDatabase& database,
 			const std::string& directoryVirtualPath, const void* payloadData, int32_t payloadSize);

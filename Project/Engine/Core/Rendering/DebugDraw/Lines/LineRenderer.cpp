@@ -55,13 +55,17 @@ void Engine::LineRenderer::BeginFrame() {
 }
 
 void Engine::LineRenderer::RenderSceneView(GraphicsCore& graphicsCore,
-	const ResolvedRenderView& view, MultiRenderTarget& surface, bool drawDefaultGrid, bool drawQueuedLines) {
+	const ResolvedRenderView& view, MultiRenderTarget& surface, bool drawDefaultGrid, bool drawQueuedLines,
+	DepthTexture2D* snapGridOcclusionDepth) {
 
 	if (drawDefaultGrid) {
 
-		// SceneViewのデフォルトグリッドは、SceneView側のカメラで直接描画
+		// SceneViewのデフォルトグリッドは、SceneView側のカメラで直接描画、こちらは占有させない
 		renderer3D_->RenderDefaultGrid(graphicsCore, view, surface);
 	}
+
+	// スナップグリッドだけメッシュに隠すためのシーン深度を渡す
+	renderer3D_->SetSnapGridOcclusionDepth(snapGridOcclusionDepth);
 
 	// 各次元のライン描画クラスに描画呼び出し
 	renderer2D_->RenderSceneView(graphicsCore, view, surface, drawQueuedLines);

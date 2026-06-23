@@ -17,8 +17,12 @@
 #include <Engine/Core/Scripting/Managed/ManagedScriptBuildService.h>
 #include <Engine/Editor/Core/EditorManager.h>
 #include <Engine/Editor/Core/EditorContext.h>
+#include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 
 namespace Engine {
+
+	// front
+	struct PrefabInstantiateResult;
 
 	//============================================================================
 	//	EngineApplication class
@@ -77,6 +81,36 @@ namespace Engine {
 		SystemScheduler scheduler_;
 		SystemContext systemContext_;
 
+		// プレファブ編集の1階層分、隔離ワールドにプレファブだけを展開して編集する
+		struct PrefabEditStage {
+
+			// 編集中の.prefabアセット
+			AssetID asset{};
+			// プレファブ専用の隔離ワールド
+			std::unique_ptr<ECSWorld> world;
+			// プレファブワールドのシーン管理、シーンを持たないので描画フィルタは無効になる
+			SceneInstanceManager scenes;
+			// プレファブのルートエンティティ
+			Entity root = Entity::Null();
+			// 表示名、ヒエラルキーのバナーに使う
+			std::string name;
+			// 遷移元から複製した環境エンティティ(カメラ/平行光源)、プレファブの一部ではなく保存対象外
+			std::vector<Entity> environmentEntities;
+			// 編集開始時点のプレファブベース、退出時のインスタンスへのオーバーライド伝播に使う
+			std::unordered_map<UUID, PrefabBaseEntity> baseAtEnter;
+
+			// In-Context編集中か、trueなら隔離ワールドではなくhostWorldに置いて編集する
+			bool inContext = false;
+			// In-Context編集の置き場、遷移元ワールドで非所有
+			ECSWorld* hostWorld = nullptr;
+			// In-Context編集での所属シーンインスタンスID
+			UUID hostSceneInstanceID{};
+			// プレファブを束ねるインスタンスID、ヒエラルキー絞り込みに使う
+			UUID instanceID{};
+		};
+		// プレファブ編集スタック、ネスト中は末尾が現在の編集対象
+		std::vector<PrefabEditStage> prefabStages_;
+
 		// 描画パイプラインの実行管理
 		std::unique_ptr<RenderPipelineRunner> renderPipeline_;
 
@@ -132,10 +166,57 @@ namespace Engine {
 		// 終了を確定して、必要ならウィンドウ破棄まで進める
 		void AcceptCloseRequest(bool destroyWindow);
 
-		// アクティブなワールドとシーンの取得
-		ECSWorld* GetActiveWorld() { return worldManager_.IsPlaying() ? worldManager_.GetPlayWorld() : &worldManager_.GetEditWorld(); }
-		SceneInstanceManager& GetActiveScenes() { return worldManager_.IsPlaying() ? playScenes_ : editScenes_; }
-		const SceneHeader* GetActiveSceneHeader() const;
+		// プレファブ編集中か、ネスト含めいずれかのステージがあればtrue
+		bool IsPrefabEditing() const { return !prefabStages_.empty(); }
+
+		// アクティブなワールドとシーンの取得、優先度はPlay > プレファブ編集 > Edit
+		// In-Context編集中は隔離ワールドではなく遷移元のhostWorldを使う
+		ECSWorld* GetActiveWorld() {
+			if (worldManager_.IsPlaying()) { return worldManager_.GetPlayWorld(); }
+			if (!prefabStages_.empty()) {
+				PrefabEditStage& top = prefabStages_.back();
+				return top.inContext ? top.hostWorld : top.world.get();
+			}
+			return &worldManager_.GetEditWorld();
+		}
+		SceneInstanceManager& GetActiveScenes() {
+			if (worldManager_.IsPlaying()) { return playScenes_; }
+			if (!prefabStages_.empty()) {
+				PrefabEditStage& top = prefabStages_.back();
+				if (top.inContext) { return ResolveHostScenes(top); }
+				return top.scenes;
+			}
+			return editScenes_;
+		}
+		// In-Context編集のhostWorldが属するシーン管理を引く
+		SceneInstanceManager& ResolveHostScenes(PrefabEditStage& stage) {
+			if (stage.hostWorld == &worldManager_.GetEditWorld()) { return editScenes_; }
+			for (size_t i = prefabStages_.size(); i-- > 0; ) {
+				if (prefabStages_[i].world.get() == stage.hostWorld) { return prefabStages_[i].scenes; }
+			}
+			return editScenes_;
+		}
+		const SceneHeader* GetActiveSceneHeader();
+
+		// プレファブ編集の開始/終了/保存、隔離ワールドへの展開と.prefab保存を行う
+		void EnterPrefabEdit(AssetID prefabAsset);
+		void ExitPrefabEdit();
+		// プレファブ編集を一括で抜けて元のシーン編集へ戻る、各階層を保存しながら戻る
+		void ExitAllPrefabEdit();
+		// In-Context編集のオンオフを切り替える、現在の編集内容を保存してから置き場を変える
+		void TogglePrefabInContextMode();
+		void SaveCurrentPrefab();
+		// プレファブを指定ワールドへ編集用に展開する、localFileIDは恒等で保存往復が壊れないようにする
+		bool MaterializePrefabForEdit(ECSWorld& world, AssetID prefabAsset, UUID sceneInstanceID,
+			UUID instanceID, PrefabInstantiateResult& outResult);
+		// 遷移元の3Dカメラと平行光源を編集ワールドへ環境として複製する
+		void CopyPrefabEditEnvironment(ECSWorld& targetWorld, ECSWorld* sourceWorld, UUID sceneInstanceID,
+			std::vector<Entity>& outEnvironmentEntities);
+		// プレファブ編集中に新規作成されたエンティティを、プレファブの一部(rootの子+PrefabLink)へ取り込む
+		void SyncPrefabEditedEntities();
+		// 編集後のプレファブを、指定ワールドの該当インスタンスへ伝播する、オーバーライドは保持する
+		void PropagatePrefabToInstances(ECSWorld& world, AssetID prefabAsset,
+			const std::unordered_map<UUID, PrefabBaseEntity>& oldBase);
 
 		// エディタ状態を描画要求へ変換する
 		RenderFrameRequest BuildRenderFrameRequest(GraphicsCore& graphicsCore, ECSWorld* world, const SceneHeader* header);

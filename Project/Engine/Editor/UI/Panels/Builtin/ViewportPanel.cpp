@@ -19,6 +19,11 @@
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+#include <Engine/Editor/Utility/AssetEntityFactory.h>
+#include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Editor/Commands/Components/SetSerializedComponentCommand.h>
 #include <Engine/Editor/Commands/Transform/SetTransformCommand.h>
@@ -26,6 +31,10 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
+
+// c++
+#include <cmath>
+#include <algorithm>
 
 //============================================================================
 //	ViewportPanel classMethods
@@ -280,6 +289,7 @@ Engine::ViewportPanel::ViewportPanel(const char* windowName, const char* label, 
 	icons_.gizmoCenterPivotKey = "gizmoCenterPivot.png";
 	icons_.eachEntityOriginKey = "eachEntityOrigin.png";
 	icons_.snapEditEntityKey = "snapEditEntity.png";
+	icons_.prefabExitKey = "scene.png";
 
 	// アイコンの読み込み要求
 	RequestIcons();
@@ -331,13 +341,8 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 
 	if (const RenderTexture2D* display = context.viewportRenderService->GetDisplayTexture(viewKind)) {
 
-		// プレファブ編集中はSceneViewの画像を編集インスタンスのプレビューへ切り替える
+		// プレファブ編集中はアクティブワールドごと隔離ワールドへ切り替わるので、通常のSceneView画像がそのままプレファブを映す
 		const RenderTexture2D* shown = display;
-		if (const RenderTexture2D* preview = RenderPrefabEditPreview(context,
-			display->GetRenderTarget().width, display->GetRenderTarget().height)) {
-
-			shown = preview;
-		}
 
 		// 通常はshownのSRVを表示する、GBufferデバッグが有効ならそのバッファ/深度のSRVへ差し替える
 		D3D12_GPU_DESCRIPTOR_HANDLE imageSRV = shown->GetSRVGPUHandle();
@@ -385,6 +390,23 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		if (kind_ == ViewportPanelKind::Scene) {
 
 			ImGui::BeginGroup();
+
+			// プレファブ編集中のみ、ツール列の最上段にIn-Context編集のトグルを置く、デフォルトはオフ
+			if (context.editorContext && context.editorContext->isPrefabEditing) {
+
+				const bool inContextActive = context.editorContext->isPrefabInContext;
+				if (DrawIconButton("##TogglePrefabInContext", GetTextureID(icons_.prefabExitKey), inContextActive, buttonSize_) &&
+					context.host) {
+					context.host->RequestTogglePrefabInContext();
+				}
+				if (ImGui::IsItemHovered()) {
+
+					std::string tooltip = std::string("In-Context編集の切り替え\nオンで元シーンに置いて編集\n現在: ") +
+						(inContextActive ? "オン" : "オフ");
+					ImGui::SetTooltip("%s", tooltip.c_str());
+				}
+				DrawToolSeparator(buttonSize_);
+			}
 
 			DrawManipulatorSection(context);
 			DrawToolSeparator(buttonSize_);
@@ -441,6 +463,10 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			}
 		}
 
+		// プロジェクトからのアセットのドラッグ&ドロップ配置、Image直後に処理してドロップ対象をImageに対応させる
+		HandleAssetDropPlacement(context, viewKind, imagePos,
+			display->GetRenderTarget().width, display->GetRenderTarget().height, ImGui::IsItemHovered());
+
 		// シーンビューの場合はシーンギズモも描画、フォーカス中はDrawSceneGizmo内で操作を無効化する
 		bool blockDragByGizmo = false;
 		if (kind_ == ViewportPanelKind::Scene) {
@@ -453,72 +479,173 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 	ImGui::EndChild();
 }
 
-const Engine::RenderTexture2D* Engine::ViewportPanel::RenderPrefabEditPreview(
-	const EditorPanelContext& context, uint32_t width, uint32_t height) {
+void Engine::ViewportPanel::HandleAssetDropPlacement(const EditorPanelContext& context, RenderViewKind viewKind,
+	const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight, bool imageHovered) {
 
-	// SceneViewのみが対象、編集中でなければ通常のSceneView画像へ戻す
-	if (kind_ != ViewportPanelKind::Scene || !context.editorState ||
-		!context.graphicsCore || !context.renderPipeline || !context.editorContext) {
-		return nullptr;
-	}
 	ECSWorld* world = context.GetWorld();
-	const Entity instance = context.editorState->prefabEditInstance;
-	AssetDatabase* assetDatabase = context.editorContext->assetDatabase;
-	if (!instance.IsValid() || !world || !world->IsAlive(instance) || !assetDatabase ||
-		width == 0 || height == 0) {
-		return nullptr;
+	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
+
+	// ドラッグ中はIsItemHoveredがアクティブアイテムにブロックされてfalseになるため、矩形内判定で重なりを見る
+	(void)imageHovered;
+	const ImVec2 mousePos = ImGui::GetMousePos();
+	const bool overImage = mousePos.x >= imagePos.x && mousePos.x <= imagePos.x + viewSize_.x &&
+		mousePos.y >= imagePos.y && mousePos.y <= imagePos.y + viewSize_.y;
+
+	// 現在ドラッグ中のプロジェクトアセットを覗き見る、ドロップ前でも参照できる
+	const ImGuiPayload* dragging = ImGui::GetDragDropPayload();
+	const bool draggingAsset = dragging && dragging->IsDataType(IEditorPanel::kProjectAssetDragDropPayloadType) &&
+		dragging->Data && dragging->DataSize == static_cast<int>(sizeof(EditorAssetDragDropPayload));
+	const EditorAssetDragDropPayload* assetPayload =
+		draggingAsset ? static_cast<const EditorAssetDragDropPayload*>(dragging->Data) : nullptr;
+
+	// ドラッグが終わったらキャンセル状態を解除する
+	if (!draggingAsset) {
+		dropPreviewCanceled_ = false;
+	}
+	// 右クリックでこのドラッグのプレビューをキャンセルする
+	if (draggingAsset && overImage && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+		dropPreviewCanceled_ = true;
 	}
 
-	// サイズが変わったら描画先を作り直す
-	if (!prefabPreviewSurface_ || prefabPreviewWidth_ != width || prefabPreviewHeight_ != height) {
+	// プレビューを出してよい条件、ビュー上をドラッグ中で配置可能なアセットのとき
+	const bool canPreview = draggingAsset && overImage && !dropPreviewCanceled_ && assetPayload &&
+		world && database && context.CanEditScene() && AssetEntityFactory::CanSpawn(*assetPayload);
 
-		prefabPreviewSurface_ = std::make_unique<MultiRenderTarget>();
+	if (canPreview) {
 
-		// SceneViewと同じ構成のサーフェスを作る、色はHDR、深度はSceneViewと同形式
-		MultiRenderTargetCreateDesc desc{};
-		desc.width = width;
-		desc.height = height;
-		ColorAttachmentDesc color{};
-		color.name = "Preview.Color";
-		color.format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		color.clearColor = Color4::FromHex(0x306030ff);
-		color.createUAV = false;
-		desc.colors.emplace_back(color);
-		DepthTextureCreateDesc depth{};
-		depth.width = width;
-		depth.height = height;
-		depth.resourceFormat = DXGI_FORMAT_R24G8_TYPELESS;
-		depth.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		depth.srvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-		depth.debugName = L"PrefabPreviewDepth";
-		desc.depth = depth;
+		// アセットが変わった、または別ワールドのときは作り直す
+		if (!dropPreviewActive_ || dropPreviewAsset_ != assetPayload->assetID || dropPreviewWorld_ != world) {
 
-		prefabPreviewSurface_->Create(context.graphicsCore->GetDXObject().GetDevice(),
-			&context.graphicsCore->GetRTVDescriptor(), &context.graphicsCore->GetDSVDescriptor(),
-			&context.graphicsCore->GetSRVDescriptor(), desc);
-		prefabPreviewWidth_ = width;
-		prefabPreviewHeight_ = height;
-	}
-	if (!prefabPreviewSurface_->IsValid()) {
-		return nullptr;
-	}
+			DestroyDropPreview();
+			HierarchySystem hierarchySystem{};
+			const AssetSpawnResult spawn = AssetEntityFactory::Spawn(*world, *database, hierarchySystem,
+				*assetPayload, context.editorContext->activeSceneInstanceID);
+			if (spawn.valid) {
 
-	// 既存のSceneViewカメラで、編集インスタンスだけをプレビューサーフェスへ描画する
-	EntityPreviewRenderRequest request{};
-	request.world = world;
-	request.assetDatabase = assetDatabase;
-	request.sceneHeader = context.editorContext->activeSceneHeader;
-	request.sceneInstanceID = context.editorContext->activeSceneInstanceID;
-	request.rootEntity = instance;
-	request.surface = prefabPreviewSurface_.get();
-	request.camera = context.sceneViewCamera;
-	request.clearSurface = true;
-	request.drawGrid3D = context.editorState->drawSceneViewDefaultGrid;
-	if (!context.renderPipeline->RenderEntityPreview(*context.graphicsCore, request)) {
-		return nullptr;
+				dropPreviewEntity_ = spawn.root;
+				dropPreviewIsThreeD_ = spawn.isThreeD;
+				dropPreviewActive_ = true;
+				dropPreviewAsset_ = assetPayload->assetID;
+				dropPreviewWorld_ = world;
+			}
+		}
+		// プレビュー位置を毎フレーム更新する、非同期ロードは描画側に任せ準備でき次第表示される
+		if (dropPreviewActive_ && world->IsAlive(dropPreviewEntity_) &&
+			world->HasComponent<TransformComponent>(dropPreviewEntity_)) {
+
+			Vector3 position = ComputeDropPosition(context, viewKind, dropPreviewIsThreeD_, imagePos, renderWidth, renderHeight);
+			ApplyDropSnap(context, position, dropPreviewIsThreeD_);
+			auto& transform = world->GetComponent<TransformComponent>(dropPreviewEntity_);
+			transform.localPos = position;
+			transform.isDirty = true;
+		}
+	} else if (dropPreviewActive_) {
+
+		// ビュー外/キャンセル/ドラッグ終了でプレビューを片付ける
+		DestroyDropPreview();
 	}
 
-	return prefabPreviewSurface_->GetColorTexture(0);
+	// ドロップ確定、Imageの上で離されたときだけ受理する
+	if (ImGui::BeginDragDropTarget()) {
+
+		if (const ImGuiPayload* accepted =
+			ImGui::AcceptDragDropPayload(IEditorPanel::kProjectAssetDragDropPayloadType)) {
+
+			if (!dropPreviewCanceled_ && dropPreviewActive_ && world && world->IsAlive(dropPreviewEntity_)) {
+
+				// プレビューをそのまま確定して選択する、破棄対象から外す
+				if (context.editorState) {
+					context.editorState->SelectEntity(dropPreviewEntity_);
+				}
+				dropPreviewActive_ = false;
+				dropPreviewEntity_ = Entity::Null();
+				dropPreviewWorld_ = nullptr;
+				dropPreviewAsset_ = AssetID{};
+			}
+		}
+		ImGui::EndDragDropTarget();
+	}
+
+	// SceneViewで3Dアセットをスナップ有効でドラッグ中なら、スナップグリッド表示を要求する
+	// DrawSceneDebugObjectsは描画前に走るため、ここで立てたフラグは次フレームのグリッドに反映される
+	if (kind_ == ViewportPanelKind::Scene && context.editorState) {
+		context.editorState->assetDragSnapGridActive =
+			dropPreviewActive_ && dropPreviewIsThreeD_ && context.editorState->enableSnapEditEntity;
+	}
+}
+
+void Engine::ViewportPanel::ApplyDropSnap(const EditorPanelContext& context, Vector3& position, bool isThreeD) const {
+
+	// スナップ有効時は現在の座標スナップ設定の間隔へ吸着させる、表示しているスナップグリッドと一致させる
+	if (!context.editorState || !context.editorState->enableSnapEditEntity) {
+		return;
+	}
+	const EntitySnapSettings& snap = context.editorState->snapSettings;
+	const float size = isThreeD ? snap.translate3D.size : snap.translate2D.size;
+	if (size <= 0.0f) {
+		return;
+	}
+	// 最寄りのグリッド線へ丸める
+	auto snapAxis = [size](float value) { return std::round(value / size) * size; };
+	position.x = snapAxis(position.x);
+	position.y = snapAxis(position.y);
+	position.z = snapAxis(position.z);
+}
+
+Engine::Vector3 Engine::ViewportPanel::ComputeDropPosition(const EditorPanelContext& context, RenderViewKind viewKind,
+	bool isThreeD, const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight) const {
+
+	const ImVec2 mouse = ImGui::GetMousePos();
+	float nx = (viewSize_.x > 0.0f) ? (mouse.x - imagePos.x) / viewSize_.x : 0.5f;
+	float ny = (viewSize_.y > 0.0f) ? (mouse.y - imagePos.y) / viewSize_.y : 0.5f;
+	nx = std::clamp(nx, 0.0f, 1.0f);
+	ny = std::clamp(ny, 0.0f, 1.0f);
+
+	// 2Dは画面のピクセル空間に置く、正射影は左上原点のピクセル基準
+	if (!isThreeD) {
+		return Vector3(nx * static_cast<float>(renderWidth), ny * static_cast<float>(renderHeight), 0.0f);
+	}
+
+	// 3Dは透視カメラ光線と地面Y=0平面の交点に置く
+	if (!context.renderPipeline) {
+		return Vector3::AnyInit(0.0f);
+	}
+	const ResolvedRenderView& view = context.renderPipeline->GetResolvedView(viewKind);
+	const ResolvedCameraView& camera = view.perspective;
+	if (!camera.valid) {
+		return Vector3::AnyInit(0.0f);
+	}
+	const Matrix4x4 invViewProj = camera.matrices.inverseProjectionMatrix * camera.matrices.inverseViewMatrix;
+	const float ndcX = nx * 2.0f - 1.0f;
+	const float ndcY = 1.0f - ny * 2.0f;
+	const Vector3 nearPoint = Vector3::Transform(Vector3(ndcX, ndcY, 0.0f), invViewProj);
+	const Vector3 farPoint = Vector3::Transform(Vector3(ndcX, ndcY, 1.0f), invViewProj);
+	const Vector3 direction = Vector3::Normalize(farPoint - nearPoint);
+	const Vector3 origin = camera.cameraPos;
+
+	// 地面と交わるならその点、平行に近ければカメラ前方の一定距離へ置く
+	if (std::abs(direction.y) > 1e-4f) {
+
+		const float t = -origin.y / direction.y;
+		if (t > 0.0f) {
+			return origin + direction * t;
+		}
+	}
+	return origin + direction * 10.0f;
+}
+
+void Engine::ViewportPanel::DestroyDropPreview() {
+
+	if (!dropPreviewActive_) {
+		return;
+	}
+	if (dropPreviewWorld_ && dropPreviewWorld_->IsAlive(dropPreviewEntity_)) {
+		EditorEntitySnapshotUtility::DestroySubtree(*dropPreviewWorld_, dropPreviewEntity_);
+	}
+	dropPreviewActive_ = false;
+	dropPreviewEntity_ = Entity::Null();
+	dropPreviewWorld_ = nullptr;
+	dropPreviewAsset_ = AssetID{};
 }
 
 const Engine::RenderTexture2D* Engine::ViewportPanel::RenderDepthVisualization(
@@ -954,6 +1081,8 @@ void Engine::ViewportPanel::RequestIcons() {
 		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.eachEntityOriginKey));
 	textureUploadService_->RequestTextureFile(icons_.snapEditEntityKey,
 		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.snapEditEntityKey));
+	textureUploadService_->RequestTextureFile(icons_.prefabExitKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.prefabExitKey));
 }
 
 ImTextureID Engine::ViewportPanel::GetTextureID(const std::string& key) const {

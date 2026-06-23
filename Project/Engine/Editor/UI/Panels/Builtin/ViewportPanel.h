@@ -107,6 +107,8 @@ namespace Engine {
 			std::string eachEntityOriginKey;
 			// オブジェクトのスナップ操作アイコン
 			std::string snapEditEntityKey;
+			// プレファブ編集を抜けて通常のシーン表示へ戻る用、編集中だけツール列の最上段に出す
+			std::string prefabExitKey;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -129,10 +131,15 @@ namespace Engine {
 		// アイコンボタンのサイズ
 		const ImVec2 buttonSize_ = ImVec2(24.0f, 24.0f);
 
-		// プレファブ編集プレビュー用の描画先、編集中だけSceneViewへ表示する
-		std::unique_ptr<MultiRenderTarget> prefabPreviewSurface_;
-		uint32_t prefabPreviewWidth_ = 0;
-		uint32_t prefabPreviewHeight_ = 0;
+		// プロジェクトからのドラッグ&ドロップ配置のプレビュー状態
+		// ドラッグ中に仮エンティティを作って実際に置きながら見せ、ドロップで確定する
+		Entity dropPreviewEntity_ = Entity::Null();
+		bool dropPreviewActive_ = false;
+		bool dropPreviewIsThreeD_ = false;
+		AssetID dropPreviewAsset_{};
+		ECSWorld* dropPreviewWorld_ = nullptr;
+		// 右クリックで一度キャンセルしたら、そのドラッグが終わるまでプレビューを作らない
+		bool dropPreviewCanceled_ = false;
 
 		// GBufferデバッグのDepth表示用、深度を線形化グレースケールへ変換して表示する
 		DepthVisualizer depthVisualizer_{};
@@ -144,9 +151,16 @@ namespace Engine {
 
 		void DrawViewportContent(const EditorPanelContext& context, const char* id, const ImVec2& size);
 
-		// プレファブ編集中なら編集インスタンスをプレビューサーフェスへ描画し、表示用テクスチャを返す
-		// 編集中でなければnullptrを返し、通常のSceneView画像を表示させる
-		const RenderTexture2D* RenderPrefabEditPreview(const EditorPanelContext& context, uint32_t width, uint32_t height);
+		// プロジェクトからのドラッグ&ドロップ配置を処理する、ドラッグ中プレビューとドロップ確定を扱う
+		void HandleAssetDropPlacement(const EditorPanelContext& context, RenderViewKind viewKind,
+			const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight, bool imageHovered);
+		// マウス位置から配置先のワールド座標を求める、3Dはカメラ光線と地面、2Dは画面のピクセル空間
+		Vector3 ComputeDropPosition(const EditorPanelContext& context, RenderViewKind viewKind, bool isThreeD,
+			const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight) const;
+		// スナップ有効時に配置座標を現在の座標スナップ設定の間隔へ吸着させる、isThreeDで2D/3Dの設定を切り替える
+		void ApplyDropSnap(const EditorPanelContext& context, Vector3& position, bool isThreeD) const;
+		// 配置プレビューの仮エンティティを破棄する
+		void DestroyDropPreview();
 
 		// GBufferデバッグのDepth表示で、ビューの深度を可視化サーフェスへ描いて表示用テクスチャを返す
 		const RenderTexture2D* RenderDepthVisualization(const EditorPanelContext& context,

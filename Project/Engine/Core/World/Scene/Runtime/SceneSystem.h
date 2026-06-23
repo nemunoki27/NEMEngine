@@ -28,9 +28,10 @@ namespace Engine {
 		// ファイルからワールドをロード
 		bool LoadScene(const std::string& scenePath, ECSWorld& world, AssetDatabase* assetDatabase, AssetID sourceAsset = AssetID{},
 			UUID sceneInstanceID = UUID{}, SceneHeader* outHeader = nullptr, std::vector<Entity>* outCreatedEntities = nullptr) const;
-		// ワールドをファイルへセーブ
+		// ワールドをファイルへセーブ、databaseがあればプレファブインスタンスを薄い差分形式で保存する
 		bool SaveScene(const std::string& scenePath, ECSWorld& world,
-			const SceneHeader& header, const std::vector<Entity>* entitiesSubset = nullptr) const;
+			const SceneHeader& header, const std::vector<Entity>* entitiesSubset = nullptr,
+			AssetDatabase* database = nullptr) const;
 
 		// nlohmann::jsonスナップショット
 		nlohmann::json SerializeEntities(ECSWorld& world, const std::vector<Entity>* subset = nullptr) const;

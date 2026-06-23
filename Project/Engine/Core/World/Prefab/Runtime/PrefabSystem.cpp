@@ -32,15 +32,20 @@ bool Engine::PrefabSystem::SavePrefab(AssetDatabase& database, ECSWorld& world,
 	if (!world.IsAlive(root)) {
 		return false;
 	}
+	// rootのサブツリーを集めて保存する
+	const std::vector<Entity> subtree = CollectSubtree(world, root);
+	return SavePrefabFromEntities(database, world, root, subtree, prefabAssetPath);
+}
+
+bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWorld& world, const Entity& root,
+	const std::vector<Entity>& entities, const std::string& prefabAssetPath) const {
+
+	if (!world.IsAlive(root) || entities.empty()) {
+		return false;
+	}
 
 	// プレファブアセットを登録
 	const AssetID prefabAsset = database.ImportOrGet(prefabAssetPath, AssetType::Prefab);
-
-	// サブツリー収集
-	std::vector<Entity> subtree = CollectSubtree(world, root);
-	if (subtree.empty()) {
-		return false;
-	}
 
 	// ルート情報をデフォルト構築
 	SceneAuthoring::EnsureGameObjectDefaults(world, root);
@@ -59,7 +64,7 @@ bool Engine::PrefabSystem::SavePrefab(AssetDatabase& database, ECSWorld& world,
 	fileJson["Entities"] = nlohmann::json::array();
 
 	// エンティティごとにコンポーネントをシリアライズしてファイルのnlohmann::jsonに追加
-	for (const Entity& entity : subtree) {
+	for (const Entity& entity : entities) {
 
 		if (!world.IsAlive(entity)) {
 			continue;
@@ -124,8 +129,16 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		header.guid = prefabAsset;
 	}
 
-	// シーン内で一意なプレファブインスタンスIDを生成
-	outResult.prefabInstanceID = UUID::New();
+	// シーン内で一意なプレファブインスタンスIDを生成、薄い保存からの復元では指定IDを使い同一性を保つ
+	outResult.prefabInstanceID = desc.forcedInstanceID ? desc.forcedInstanceID : UUID::New();
+
+	// プレファブ内ローカルIDから復元すべきシーンローカルIDを引くための一時マップ
+	std::unordered_map<UUID, UUID> remapLookup;
+	if (desc.localFileIDRemap) {
+		for (const auto& pair : *desc.localFileIDRemap) {
+			remapLookup.emplace(pair.first, pair.second);
+		}
+	}
 
 	std::unordered_map<UUID, UUID> prefabLocalToSceneLocal;
 	std::vector<std::pair<Entity, const nlohmann::json*>> pendingLoads;
@@ -147,7 +160,13 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 			entity = world.CreateEntity();
 		}
 		SceneAuthoring::EnsureGameObjectDefaults(world, entity);
-		UUID newSceneLocalFileID = AllocateUniqueLocalFileID(world);
+		// 復元時は保存済みのシーンローカルIDを使い、無ければ新規採番する
+		UUID newSceneLocalFileID{};
+		if (auto remapIt = remapLookup.find(prefabLocalFileID); remapIt != remapLookup.end() && remapIt->second) {
+			newSceneLocalFileID = remapIt->second;
+		} else {
+			newSceneLocalFileID = AllocateUniqueLocalFileID(world);
+		}
 		// シーンオブジェクト初期化
 		{
 			auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);

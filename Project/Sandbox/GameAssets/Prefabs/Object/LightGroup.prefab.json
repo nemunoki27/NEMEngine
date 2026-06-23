@@ -11,7 +11,8 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "fee1a7770075bd60",
+                    "localFileID": "cf71a60370c2ddf1",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -33,12 +34,12 @@
                     }
                 }
             },
-            "LocalFileID": "fee1a7770075bd60"
+            "LocalFileID": "cf71a60370c2ddf1"
         },
         {
             "Components": {
                 "Hierarchy": {
-                    "parentLocalFileID": "fee1a7770075bd60",
+                    "parentLocalFileID": "cf71a60370c2ddf1",
                     "siblingOrder": 4
                 },
                 "Name": {
@@ -59,7 +60,8 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "e66bed4caa3d44b0",
+                    "localFileID": "cdb79f7d71c18555",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -81,12 +83,12 @@
                     }
                 }
             },
-            "LocalFileID": "e66bed4caa3d44b0"
+            "LocalFileID": "cdb79f7d71c18555"
         },
         {
             "Components": {
                 "Hierarchy": {
-                    "parentLocalFileID": "fee1a7770075bd60",
+                    "parentLocalFileID": "cf71a60370c2ddf1",
                     "siblingOrder": 3
                 },
                 "Name": {
@@ -107,7 +109,8 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "cabe567906331d28",
+                    "localFileID": "4666fdbb29bf0fd5",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -129,12 +132,12 @@
                     }
                 }
             },
-            "LocalFileID": "cabe567906331d28"
+            "LocalFileID": "4666fdbb29bf0fd5"
         },
         {
             "Components": {
                 "Hierarchy": {
-                    "parentLocalFileID": "fee1a7770075bd60",
+                    "parentLocalFileID": "cf71a60370c2ddf1",
                     "siblingOrder": 2
                 },
                 "Name": {
@@ -155,7 +158,8 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "f20bcf90f394f6b9",
+                    "localFileID": "9a36293bbbc11375",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -177,12 +181,12 @@
                     }
                 }
             },
-            "LocalFileID": "f20bcf90f394f6b9"
+            "LocalFileID": "9a36293bbbc11375"
         },
         {
             "Components": {
                 "Hierarchy": {
-                    "parentLocalFileID": "fee1a7770075bd60",
+                    "parentLocalFileID": "cf71a60370c2ddf1",
                     "siblingOrder": 1
                 },
                 "Name": {
@@ -203,7 +207,8 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "8f82b2fe225e6821",
+                    "localFileID": "b5011360e23e521a",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -225,12 +230,12 @@
                     }
                 }
             },
-            "LocalFileID": "8f82b2fe225e6821"
+            "LocalFileID": "b5011360e23e521a"
         },
         {
             "Components": {
                 "Hierarchy": {
-                    "parentLocalFileID": "fee1a7770075bd60",
+                    "parentLocalFileID": "cf71a60370c2ddf1",
                     "siblingOrder": 0
                 },
                 "Name": {
@@ -251,7 +256,8 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "215b97556d60f35f",
+                    "localFileID": "ebd93e56870cb988",
+                    "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -273,13 +279,13 @@
                     }
                 }
             },
-            "LocalFileID": "215b97556d60f35f"
+            "LocalFileID": "ebd93e56870cb988"
         }
     ],
     "Header": {
         "guid": "54c1448f4dfe3143",
         "name": "LightGroup",
-        "rootLocalFileID": "fee1a7770075bd60",
+        "rootLocalFileID": "cf71a60370c2ddf1",
         "version": 1
     }
 }

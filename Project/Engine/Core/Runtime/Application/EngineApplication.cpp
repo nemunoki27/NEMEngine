@@ -29,6 +29,19 @@
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
 #include <Engine/Core/World/Systems/Rendering/UVTransformSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
+#include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
+
+// プレファブ編集の環境複製/メンバー判定で参照するコンポーネント
+#include <Engine/Core/World/Components/Camera/CameraComponent.h>
+#include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
+#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
+#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+
+// c++
+#include <algorithm>
+#include <unordered_set>
 #include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
 #include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
 #include <Engine/Core/World/Systems/Camera/CameraControllerSystem.h>
@@ -186,11 +199,355 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	}
 }
 
-const Engine::SceneHeader* Engine::EngineApplication::GetActiveSceneHeader() const {
+const Engine::SceneHeader* Engine::EngineApplication::GetActiveSceneHeader() {
 
-	// Play中はPlayWorld側、それ以外はEditWorld側のアクティブシーンを参照する
-	const SceneInstance* instance = worldManager_.IsPlaying() ? playScenes_.GetActive() : editScenes_.GetActive();
+	// アクティブシーンの取得はGetActiveScenesへ集約し、In-Context編集ではhostシーンを参照する
+	const SceneInstance* instance = GetActiveScenes().GetActive();
 	return instance ? &instance->header : nullptr;
+}
+
+void Engine::EngineApplication::EnterPrefabEdit(AssetID prefabAsset) {
+
+	// プレファブ以外や無効IDは無視する、Play中は呼ばれない前提
+	const AssetMeta* meta = assetDataBase_.Find(prefabAsset);
+	if (!meta || meta->type != AssetType::Prefab) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"EngineApplication: EnterPrefabEdit ignored. asset is not a prefab.");
+		return;
+	}
+
+	// 隔離ワールドを新規に作り、そこへプレファブだけを展開する、デフォルトは隔離編集
+	PrefabEditStage stage{};
+	stage.asset = prefabAsset;
+	stage.world = std::make_unique<ECSWorld>();
+	stage.name = std::filesystem::path(meta->assetPath).stem().string();
+	stage.inContext = false;
+	// 編集前のベースを控えておき、退出時にインスタンスへ伝播する際のオーバーライド判定に使う
+	stage.baseAtEnter = PrefabOverrideUtility::LoadPrefabBaseEntities(assetDataBase_, prefabAsset);
+	// 編集セッションを束ねるインスタンスID、In-Context切替後もヒエラルキー絞り込みに使う
+	stage.instanceID = UUID::New();
+
+	// 遷移元(Editまたは親プレファブ)のワールドとシーンを、In-Context置き場と環境複製元として控える
+	stage.hostWorld = GetActiveWorld();
+	const SceneInstance* baseScene = GetActiveScenes().GetActive();
+	stage.hostSceneInstanceID = baseScene ? baseScene->instanceID : UUID{};
+	const SceneHeader baseHeader = baseScene ? baseScene->header : SceneHeader{};
+
+	// 隔離ワールドに一時シーンを作り、プレファブを編集用に展開する、これが無いと描画でactiveSceneが無くビュー更新されない
+	const UUID sceneInstanceID = stage.scenes.CreateScratchScene(baseHeader);
+	PrefabInstantiateResult result{};
+	if (!MaterializePrefabForEdit(*stage.world, prefabAsset, sceneInstanceID, stage.instanceID, result)) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"EngineApplication: failed to enter prefab edit. instantiate failed. name={}", stage.name);
+		return;
+	}
+	stage.root = result.root;
+
+	// 遷移元の3Dカメラと平行光源を環境として隔離ワールドへ複製する、保存対象にもヒエラルキーにも出さない
+	CopyPrefabEditEnvironment(*stage.world, stage.hostWorld, sceneInstanceID, stage.environmentEntities);
+
+	// 隔離ワールドへ切り替わるので、別ワールドのエンティティを指す選択や履歴を片付ける
+	editorManager_.ResetSceneEditingState();
+
+	// 末尾を現在の編集対象としてスタックへ積む、ネスト編集はこの上にさらに積む
+	prefabStages_.emplace_back(std::move(stage));
+}
+
+bool Engine::EngineApplication::MaterializePrefabForEdit(ECSWorld& world, AssetID prefabAsset,
+	UUID sceneInstanceID, UUID instanceID, PrefabInstantiateResult& outResult) {
+
+	// プレファブ自身のlocalFileIDをそのまま使う恒等remapを作る
+	// これで編集→保存でlocalFileIDが変わらず、既存インスタンスのオーバーライド参照が壊れない
+	const auto base = PrefabOverrideUtility::LoadPrefabBaseEntities(assetDataBase_, prefabAsset);
+	std::vector<std::pair<UUID, UUID>> identityRemap;
+	identityRemap.reserve(base.size());
+	for (const auto& [localID, baseEntity] : base) {
+		identityRemap.emplace_back(localID, localID);
+	}
+
+	HierarchySystem hierarchySystem{};
+	PrefabSystem prefabSystem{};
+	PrefabInstantiateDesc desc{};
+	desc.ownerSceneInstanceID = sceneInstanceID;
+	desc.forcedInstanceID = instanceID;
+	desc.localFileIDRemap = &identityRemap;
+	return prefabSystem.InstantiatePrefab(assetDataBase_, hierarchySystem, world, prefabAsset, outResult, desc) &&
+		world.IsAlive(outResult.root);
+}
+
+void Engine::EngineApplication::CopyPrefabEditEnvironment(ECSWorld& targetWorld, ECSWorld* sourceWorld,
+	UUID sceneInstanceID, std::vector<Entity>& outEnvironmentEntities) {
+
+	if (!sourceWorld) {
+		return;
+	}
+
+	// サブツリーをスナップショット経由でワールド間コピーし、一時シーンへ所属させて描画/ライティングへ反映する
+	HierarchySystem hierarchySystem{};
+	auto copyEnvironment = [&](const Entity& sourceEntity) {
+
+		if (!sourceWorld->IsAlive(sourceEntity)) {
+			return;
+		}
+		EditorEntityTreeSnapshot snapshot{};
+		EditorEntitySnapshotUtility::CaptureSubtree(*sourceWorld, sourceEntity, snapshot);
+		std::vector<Entity> restored = EditorEntitySnapshotUtility::RestoreSubtree(targetWorld, snapshot);
+
+		for (const Entity& entity : restored) {
+
+			if (targetWorld.HasComponent<SceneObjectComponent>(entity)) {
+				targetWorld.GetComponent<SceneObjectComponent>(entity).sceneInstanceID = sceneInstanceID;
+			}
+			outEnvironmentEntities.emplace_back(entity);
+		}
+		hierarchySystem.RebuildRuntimeLinks(targetWorld, restored);
+		};
+
+	// 最初に見つかった3Dカメラと平行光源を複製する
+	Entity sourceCamera = Entity::Null();
+	sourceWorld->ForEach<PerspectiveCameraComponent>([&](const Entity& entity, PerspectiveCameraComponent&) {
+		if (!sourceCamera.IsValid()) { sourceCamera = entity; }
+		});
+	Entity sourceLight = Entity::Null();
+	sourceWorld->ForEach<DirectionalLightComponent>([&](const Entity& entity, DirectionalLightComponent&) {
+		if (!sourceLight.IsValid()) { sourceLight = entity; }
+		});
+	copyEnvironment(sourceCamera);
+	copyEnvironment(sourceLight);
+}
+
+void Engine::EngineApplication::ExitPrefabEdit() {
+
+	if (prefabStages_.empty()) {
+		return;
+	}
+	// 伝播に必要な情報を退出前に控える
+	PrefabEditStage& top = prefabStages_.back();
+	const AssetID editedAsset = top.asset;
+	const std::unordered_map<UUID, PrefabBaseEntity> oldBase = top.baseAtEnter;
+	const bool wasInContext = top.inContext;
+	ECSWorld* hostWorld = top.hostWorld;
+
+	// 退出時は現在の編集内容を元の.prefabへ自動保存する、保存内でrootが付け替わる場合があるので後で参照する
+	SaveCurrentPrefab();
+	const Entity tempRoot = top.root;
+
+	if (wasInContext) {
+
+		// In-Context編集は一時オーサリング実体をhostWorldから破棄する、ワールド自体は破棄しない
+		if (hostWorld && hostWorld->IsAlive(tempRoot)) {
+			EditorEntitySnapshotUtility::DestroySubtree(*hostWorld, tempRoot);
+		}
+		prefabStages_.pop_back();
+	} else {
+
+		// 隔離編集はワールドごと破棄する、Schedulerが指したままだと次TickのDetachWorldがdangling参照になる
+		scheduler_.DetachCurrentWorld(systemContext_);
+		prefabStages_.pop_back();
+	}
+
+	// 戻り先ワールドの該当プレファブインスタンスへ編集結果を即時伝播する、各インスタンスのオーバーライドは保持される
+	if (ECSWorld* targetWorld = GetActiveWorld()) {
+		PropagatePrefabToInstances(*targetWorld, editedAsset, oldBase);
+	}
+
+	// 破棄したワールドのエンティティを指す選択や履歴を片付ける
+	editorManager_.ResetSceneEditingState();
+}
+
+void Engine::EngineApplication::ExitAllPrefabEdit() {
+
+	// 各階層を保存・伝播しながら全て抜け、一回の操作で元のシーン編集へ戻す
+	while (!prefabStages_.empty()) {
+		ExitPrefabEdit();
+	}
+}
+
+void Engine::EngineApplication::TogglePrefabInContextMode() {
+
+	if (prefabStages_.empty()) {
+		return;
+	}
+	PrefabEditStage& top = prefabStages_.back();
+
+	// 切り替え前に現在の編集内容を.prefabへ保存して、置き場が変わっても編集が失われないようにする
+	SaveCurrentPrefab();
+
+	const AssetID asset = top.asset;
+	const UUID instanceID = top.instanceID;
+
+	if (!top.inContext) {
+
+		// 隔離 -> In-Context、隔離ワールドを捨ててhostWorldへ展開する
+		scheduler_.DetachCurrentWorld(systemContext_);
+		top.world.reset();
+		top.scenes = SceneInstanceManager{};
+		top.environmentEntities.clear();
+		top.inContext = true;
+
+		PrefabInstantiateResult result{};
+		if (top.hostWorld && MaterializePrefabForEdit(*top.hostWorld, asset, top.hostSceneInstanceID, instanceID, result)) {
+			top.root = result.root;
+		}
+	} else {
+
+		// In-Context -> 隔離、hostWorldの一時実体を捨てて隔離ワールドへ展開する
+		if (top.hostWorld && top.hostWorld->IsAlive(top.root)) {
+			EditorEntitySnapshotUtility::DestroySubtree(*top.hostWorld, top.root);
+		}
+		top.inContext = false;
+		top.world = std::make_unique<ECSWorld>();
+
+		const SceneInstance* hostScene = ResolveHostScenes(top).Find(top.hostSceneInstanceID);
+		const SceneHeader baseHeader = hostScene ? hostScene->header : SceneHeader{};
+		const UUID sceneInstanceID = top.scenes.CreateScratchScene(baseHeader);
+
+		PrefabInstantiateResult result{};
+		if (MaterializePrefabForEdit(*top.world, asset, sceneInstanceID, instanceID, result)) {
+			top.root = result.root;
+		}
+		CopyPrefabEditEnvironment(*top.world, top.hostWorld, sceneInstanceID, top.environmentEntities);
+	}
+
+	editorManager_.ResetSceneEditingState();
+}
+
+void Engine::EngineApplication::SaveCurrentPrefab() {
+
+	if (prefabStages_.empty()) {
+		return;
+	}
+	// 保存前に新規作成エンティティをプレファブのサブツリーへ取り込み、保存漏れを防ぐ
+	SyncPrefabEditedEntities();
+
+	PrefabEditStage& stage = prefabStages_.back();
+	const AssetMeta* meta = assetDataBase_.Find(stage.asset);
+	// In-Context編集ではhostWorld、隔離編集では隔離ワールドの実体を書き戻す
+	ECSWorld* editWorld = stage.inContext ? stage.hostWorld : stage.world.get();
+	// rootが削除されていても保存できるようにする、root健在チェックは保存ルート確定後に行う
+	if (!meta || !editWorld) {
+		return;
+	}
+
+	auto entityKey = [](const Entity& e) { return (static_cast<uint64_t>(e.generation) << 32) | e.index; };
+	auto isHierarchyRoot = [&](const Entity& e) {
+		return !editWorld->HasComponent<HierarchyComponent>(e) ||
+			!editWorld->IsAlive(editWorld->GetComponent<HierarchyComponent>(e).parent);
+		};
+
+	// 保存ルートを決める、隔離編集は環境以外の全ルート、In-Contextは編集インスタンスのメンバールートのみ
+	std::vector<Entity> saveRoots;
+	if (stage.inContext) {
+
+		const std::vector<Entity> members = PrefabOverrideUtility::CollectInstanceEntities(*editWorld, stage.instanceID);
+		std::unordered_set<uint64_t> memberKeys;
+		for (const Entity& member : members) {
+			memberKeys.insert(entityKey(member));
+		}
+		for (const Entity& member : members) {
+
+			Entity parent = editWorld->HasComponent<HierarchyComponent>(member) ?
+				editWorld->GetComponent<HierarchyComponent>(member).parent : Entity::Null();
+			if (!(editWorld->IsAlive(parent) && memberKeys.count(entityKey(parent)))) {
+				saveRoots.emplace_back(member);
+			}
+		}
+	} else {
+
+		// 環境エンティティ(複製したカメラ/平行光源)を除いたルートを保存対象にする、新規作成した複数ルートも含む
+		editWorld->ForEachAliveEntity([&](Entity entity) {
+
+			if (!isHierarchyRoot(entity)) {
+				return;
+			}
+			if (std::find(stage.environmentEntities.begin(), stage.environmentEntities.end(), entity) !=
+				stage.environmentEntities.end()) {
+				return;
+			}
+			saveRoots.emplace_back(entity);
+			});
+	}
+
+	// 元のrootが削除されていたら、現在の保存ルートの先頭を新しいrootに採用する
+	// これで全削除→追加した場合でも保存され、再オープン時に削除前のデータへ戻らない
+	if (!editWorld->IsAlive(stage.root)) {
+		stage.root = saveRoots.empty() ? Entity::Null() : saveRoots.front();
+	}
+	if (!editWorld->IsAlive(stage.root)) {
+		// プレファブが完全に空、ヘッダのrootを決められないので保存しない
+		return;
+	}
+
+	// 各保存ルートのサブツリー(追加した子も含む)を重複なく集める
+	std::vector<Entity> saveEntities;
+	std::unordered_set<uint64_t> seen;
+	for (const Entity& root : saveRoots) {
+		for (const Entity& entity : EditorEntitySnapshotUtility::CollectSubtreeEntities(*editWorld, root)) {
+			if (seen.insert(entityKey(entity)).second) {
+				saveEntities.emplace_back(entity);
+			}
+		}
+	}
+
+	PrefabSystem prefabSystem{};
+	prefabSystem.SavePrefabFromEntities(assetDataBase_, *editWorld, stage.root, saveEntities, meta->assetPath);
+}
+
+void Engine::EngineApplication::SyncPrefabEditedEntities() {
+
+	if (prefabStages_.empty()) {
+		return;
+	}
+	PrefabEditStage& stage = prefabStages_.back();
+	// In-Context編集ではhostWorldにシーンの実体も混在するため、誤って取り込まないよう自動取り込みは行わない
+	// In-Contextでは新規実体をプレファブrootの子に手動で入れればSavePrefabのサブツリー収集で保存される
+	if (stage.inContext || !stage.world) {
+		return;
+	}
+	ECSWorld& world = *stage.world;
+
+	// 編集セッションのインスタンスIDで束ねる、rootを全削除した後でも新規実体にPrefabLinkを付けて水色表示にする
+	const UUID rootInstanceID = stage.instanceID;
+
+	// PrefabLink未付与かつ環境でもないエンティティ = 編集中に新規作成されたもの
+	// 反復中の構造変更を避けるため、先に対象を集めてからまとめて処理する
+	std::vector<Entity> newcomers;
+	world.ForEachAliveEntity([&](Entity entity) {
+
+		if (entity == stage.root || world.HasComponent<PrefabLinkComponent>(entity)) {
+			return;
+		}
+		if (std::find(stage.environmentEntities.begin(), stage.environmentEntities.end(), entity) !=
+			stage.environmentEntities.end()) {
+			return;
+		}
+		newcomers.emplace_back(entity);
+		});
+	if (newcomers.empty()) {
+		return;
+	}
+
+	for (const Entity& entity : newcomers) {
+
+		// プレファブメンバーとして登録するだけで親付けはしない、作成位置の階層をそのまま尊重する
+		// これでルート作成はルートのまま残り、子付けは右クリックの子作成やroot上へのD&Dでのみ行われる
+		auto& prefabLink = world.AddComponent<PrefabLinkComponent>(entity);
+		prefabLink.prefabAsset = stage.asset;
+		prefabLink.prefabInstanceID = rootInstanceID;
+		prefabLink.isPrefabRoot = false;
+		if (world.HasComponent<SceneObjectComponent>(entity)) {
+			prefabLink.prefabLocalFileID = world.GetComponent<SceneObjectComponent>(entity).localFileID;
+		}
+	}
+}
+
+void Engine::EngineApplication::PropagatePrefabToInstances(ECSWorld& world, AssetID prefabAsset,
+	const std::unordered_map<UUID, PrefabBaseEntity>& oldBase) {
+
+	// 伝播の本体はCore側ユーティリティへ集約し、シーンロード時の展開と同じ経路を再利用する
+	HierarchySystem hierarchySystem{};
+	PrefabOverrideUtility::PropagateToInstances(world, assetDataBase_, hierarchySystem, prefabAsset, oldBase);
 }
 
 Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
@@ -204,10 +561,12 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 	request.systemContext = &systemContext_;
 	request.assetDatabase = &assetDataBase_;
 
-	// アクティブなシーンインスタンスのIDを取得する
-	const SceneInstance* activeInstance = worldManager_.IsPlaying() ? playScenes_.GetActive() : editScenes_.GetActive();
-	// ワールドの状態に応じてシーンインスタンスのリストを切り替える
-	request.sceneInstances = worldManager_.IsPlaying() ? &playScenes_ : &editScenes_;
+	// Play > プレファブ編集 > Editの順でシーンインスタンスを切り替える
+	// プレファブ中はシーン無しなのでactiveSceneInstanceID=0となり、描画フィルタが無効化されプレファブ全体が描画される
+	// アクティブシーンの選択はGetActiveScenesへ集約する、In-Context編集ではhostシーンを参照する
+	SceneInstanceManager* activeScenes = &GetActiveScenes();
+	const SceneInstance* activeInstance = activeScenes->GetActive();
+	request.sceneInstances = activeScenes;
 	request.activeSceneInstanceID = activeInstance ? activeInstance->instanceID : UUID{};
 
 	const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
@@ -359,6 +718,18 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		editorContext_.assetDatabase = &assetDataBase_;
 		editorContext_.scriptBuildService = &scriptBuildService_;
 
+		// プレファブ編集中はヒエラルキー等が隔離ワールドを指す、ネスト末尾を現在の編集対象とする
+		editorContext_.isPrefabEditing = IsPrefabEditing();
+		editorContext_.prefabEditDepth = static_cast<int>(prefabStages_.size());
+		editorContext_.prefabEditName = prefabStages_.empty() ? std::string{} : prefabStages_.back().name;
+		// In-Context編集の状態、ヒエラルキー絞り込みとSceneViewトグルのアクティブ表示に使う
+		editorContext_.isPrefabInContext = !prefabStages_.empty() && prefabStages_.back().inContext;
+		editorContext_.prefabInContextInstanceID =
+			editorContext_.isPrefabInContext ? prefabStages_.back().instanceID : UUID{};
+		// 隔離編集のときだけ、隠すべき環境エンティティ(カメラ/平行光源)の一覧をヒエラルキーへ渡す
+		editorContext_.prefabEnvironmentEntities =
+			(!prefabStages_.empty() && !prefabStages_.back().inContext) ? &prefabStages_.back().environmentEntities : nullptr;
+
 		// パネルをすべて非表示にする
 		bool hidePanels = editorManager_.GetLayoutState().hidePanels;
 		if (hidePanels) {
@@ -375,6 +746,12 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 	// 即時ライン描画は1フレームで消えるので、スクリプトが発行する前にクリアする
 	LineImmediateBuffer::GetInstance().BeginFrame();
+
+	// プレファブ編集中はこのフレームのUIで作られたエンティティをプレファブの一部へ取り込む
+	// ECS更新の前に行い、親子付け後のワールド行列が同フレームで正しく計算されるようにする
+	if (IsPrefabEditing()) {
+		SyncPrefabEditedEntities();
+	}
 
 	// ECSシステムの更新
 	if (ShouldAdvanceActiveWorld()) {
@@ -649,6 +1026,26 @@ void Engine::EngineApplication::HandleEditorSceneRequests() {
 			if (SaveActiveEditScene()) {
 				OpenEditScene(request.sceneAsset);
 			}
+			break;
+		case EditorSceneRequestType::EnterPrefabEdit:
+			// プレファブを隔離ワールドへ展開して編集モードへ入る、ネストも可
+			EnterPrefabEdit(request.sceneAsset);
+			break;
+		case EditorSceneRequestType::ExitPrefabEdit:
+			// 現在のプレファブ編集を保存して1階層戻る
+			ExitPrefabEdit();
+			break;
+		case EditorSceneRequestType::ExitPrefabEditAll:
+			// プレファブ編集を一括で抜けて元のシーン編集へ戻る
+			ExitAllPrefabEdit();
+			break;
+		case EditorSceneRequestType::TogglePrefabInContext:
+			// In-Context編集のオンオフを切り替える
+			TogglePrefabInContextMode();
+			break;
+		case EditorSceneRequestType::SavePrefab:
+			// 現在のプレファブ編集を保存する、退出はしない
+			SaveCurrentPrefab();
 			break;
 		case EditorSceneRequestType::None:
 		default:

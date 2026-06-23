@@ -570,7 +570,9 @@ Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPas
 		gridHorizonFadeStart_,
 		gridHorizonFadeEnd_);
 
-	constants.minorColor = Color4(1.0f, 1.0f, 1.0f, gridMinorBaseAlpha_);
+	// 等間隔(スナップ用)グリッドはMinorを不透明で描く、通常グリッドは設定値のまま
+	const float minorAlpha = (fixedMinorStep > 0.0f) ? 1.0f : gridMinorBaseAlpha_;
+	constants.minorColor = Color4(1.0f, 1.0f, 1.0f, minorAlpha);
 	constants.minorParams0 = Vector4(
 		gridMinorLineThickness_,
 		gridMinorFarThicknessRate_,
@@ -625,7 +627,7 @@ Engine::DxConstBuffer<Engine::SceneGridRenderer::GridPassConstants>& Engine::Sce
 }
 
 void Engine::SceneGridRenderer::Render(GraphicsCore& graphicsCore,
-	const ResolvedCameraView& camera, MultiRenderTarget& surface, float fixedMinorStep) {
+	const ResolvedCameraView& camera, MultiRenderTarget& surface, float fixedMinorStep, DepthTexture2D* occlusionDepth) {
 
 	if (!initialized_) {
 		return;
@@ -643,7 +645,13 @@ void Engine::SceneGridRenderer::Render(GraphicsCore& graphicsCore,
 	surface.TransitionForRender(*dxCommand);
 	if (RenderTexture2D* color = surface.GetColorTexture(0)) {
 
-		if (DepthTexture2D* depth = surface.GetDepthTexture()) {
+		if (occlusionDepth) {
+
+			// シーン深度でテストして線をメッシュに隠す、深度書き込みはZEROなので内容は壊さない
+			occlusionDepth->Transition(*dxCommand, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+			dxCommand->BindRenderTargets(std::optional<RenderTarget>(color->GetRenderTarget()),
+				occlusionDepth->GetDSVCPUHandle());
+		} else if (DepthTexture2D* depth = surface.GetDepthTexture()) {
 
 			dxCommand->BindRenderTargets(std::optional<RenderTarget>(color->GetRenderTarget()),
 				depth->GetDSVCPUHandle());
