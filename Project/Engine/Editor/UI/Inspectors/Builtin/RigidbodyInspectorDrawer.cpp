@@ -38,11 +38,11 @@ void Engine::RigidbodyInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 				{ .dragSpeed = 0.01f, .minValue = 0.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("はね返り", draft.restitution,
+			return MyGUI::DragFloat("はね返り率", draft.restitution,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("摩擦", draft.friction,
+			return MyGUI::DragFloat("摩擦の強さ", draft.friction,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
 			});
 		DrawField(anyItemActive, [&]() {
@@ -69,7 +69,7 @@ void Engine::RigidbodyInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 			return InspectorDrawerCommon::DrawCheckboxField("Z位置を固定", draft.freezePositionZ);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("支えが外れたら倒れる", draft.allowTopple);
+			return InspectorDrawerCommon::DrawCheckboxField("支点が外れたら倒れる", draft.allowTopple);
 			});
 	}
 }

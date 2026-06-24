@@ -256,6 +256,38 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		outResult.root = outResult.createdEntities.front();
 	}
 
+	// Unityのようにインスタンスのルート名を.prefabのベース名にする、ヒエラルキー表示もこの名前になる
+	// 新規生成時のみ適用し、シーン復元では保存済みの名前(リネーム済みインスタンス名)を尊重する
+	if (desc.renameRootToPrefabName && world.IsAlive(outResult.root) &&
+		world.HasComponent<NameComponent>(outResult.root)) {
+
+		// プレファブは ".prefab.json" の二重拡張子なので、stemを二段かけて純粋な名前を取り出す
+		std::filesystem::path namePath = fullPath.stem();
+		if (namePath.extension() == ".prefab") {
+			namePath = namePath.stem();
+		}
+		const std::string baseName = namePath.string();
+		if (!baseName.empty()) {
+			world.GetComponent<NameComponent>(outResult.root).name = baseName;
+		}
+	}
+
+	// Unityのように1インスタンス1ルートを保証する、親を持たないトップレベル実体はルート配下へ入れる
+	// 複数ルートだった旧プレファブを生成してもバラけず単一ルートにまとまる
+	if (outResult.root.IsValid()) {
+		for (const Entity& entity : outResult.createdEntities) {
+
+			if (entity == outResult.root || !world.IsAlive(entity)) {
+				continue;
+			}
+			const bool isRoot = !world.HasComponent<HierarchyComponent>(entity) ||
+				!world.IsAlive(world.GetComponent<HierarchyComponent>(entity).parent);
+			if (isRoot) {
+				hierarchySystem.SetParent(world, entity, outResult.root);
+			}
+		}
+	}
+
 	// 親が指定されている場合は、ルートを親にぶら下げる
 	if (world.IsAlive(desc.parent) && outResult.root.IsValid()) {
 
@@ -337,6 +369,10 @@ std::string Engine::PrefabSystem::BuildDefaultPrefabName(ECSWorld& world,
 		}
 	}
 	// ルートエンティティの名前が空の場合は、ファイル名をベースにする
-	std::filesystem::path path(prefabAssetPath);
-	return path.stem().string();
+	// プレファブは ".prefab.json" の二重拡張子なので、stemを二段かけて純粋な名前にする
+	std::filesystem::path path = std::filesystem::path(prefabAssetPath).stem();
+	if (path.extension() == ".prefab") {
+		path = path.stem();
+	}
+	return path.string();
 }

@@ -22,7 +22,8 @@ internal static class ManagedAbi {
     // v13: LineRendererComponent へ1点追加する lineAddPoint を追加
     // v14: Tag公開(copyTag/setTag)とLayerマスク公開(visibility/collision typeMask)とEntity検索(byName/byTag/byComponent)を追加
     // v15: 即時形状描画の汎用 lineDrawShape を追加
-    internal const uint Version = 15;
+    // v16: Transform 親追従の継承フラグ(ignoreParentRotation/ignoreParentScale)を追加
+    internal const uint Version = 16;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -278,6 +279,10 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<int, NativeEntity> FindEntityByComponent;
     internal static delegate* unmanaged[Cdecl]<int, NativeEntity*, int, int> FindEntitiesByComponent;
     internal static delegate* unmanaged[Cdecl]<NativeLineShape*, void> LineDrawShape;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetIgnoreParentRotation;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetIgnoreParentRotation;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetIgnoreParentScale;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetIgnoreParentScale;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -381,6 +386,10 @@ internal static unsafe class NativeApi {
         FindEntityByComponent = callbacks->findEntityByComponent;
         FindEntitiesByComponent = callbacks->findEntitiesByComponent;
         LineDrawShape = callbacks->lineDrawShape;
+        GetIgnoreParentRotation = callbacks->getIgnoreParentRotation;
+        SetIgnoreParentRotation = callbacks->setIgnoreParentRotation;
+        GetIgnoreParentScale = callbacks->getIgnoreParentScale;
+        SetIgnoreParentScale = callbacks->setIgnoreParentScale;
     }
 
     internal static float ReadDeltaTime() {
@@ -519,6 +528,28 @@ internal static unsafe class NativeApi {
     internal static void WriteActiveSelf(NativeEntity entity, bool value) {
         if (SetActiveSelf != null) {
             SetActiveSelf(entity, value ? 1 : 0);
+        }
+    }
+
+    // 親追従で回転を無視するか。座標は常に追従するので位置の無視は持たない
+    internal static bool ReadIgnoreParentRotation(NativeEntity entity) {
+        return GetIgnoreParentRotation != null && GetIgnoreParentRotation(entity) != 0;
+    }
+
+    internal static void WriteIgnoreParentRotation(NativeEntity entity, bool value) {
+        if (SetIgnoreParentRotation != null) {
+            SetIgnoreParentRotation(entity, value ? 1 : 0);
+        }
+    }
+
+    // 親追従でスケールを無視するか
+    internal static bool ReadIgnoreParentScale(NativeEntity entity) {
+        return GetIgnoreParentScale != null && GetIgnoreParentScale(entity) != 0;
+    }
+
+    internal static void WriteIgnoreParentScale(NativeEntity entity, bool value) {
+        if (SetIgnoreParentScale != null) {
+            SetIgnoreParentScale(entity, value ? 1 : 0);
         }
     }
 
@@ -1090,4 +1121,9 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<int, NativeEntity*, int, int> findEntitiesByComponent;
     // Line(v15): 即時形状描画（C++ ManagedNativeApiTable と同一順）
     public delegate* unmanaged[Cdecl]<NativeLineShape*, void> lineDrawShape;
+    // Transform(v16): 親追従の継承フラグ（回転/スケールを任意で無視、座標は常に追従）
+    public delegate* unmanaged[Cdecl]<NativeEntity, int> getIgnoreParentRotation;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> setIgnoreParentRotation;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int> getIgnoreParentScale;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> setIgnoreParentScale;
 }

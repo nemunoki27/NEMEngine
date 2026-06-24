@@ -31,43 +31,17 @@ public static class Application {
         }
         if (focus != prevFocus) {
             prevFocus = focus;
-            RaiseBool(FocusChanged, focus);
+            EventDispatch.Raise(FocusChanged, focus, "Application");
         }
         if (paused != prevPaused) {
             prevPaused = paused;
-            RaiseBool(PauseChanged, paused);
+            EventDispatch.Raise(PauseChanged, paused, "Application");
         }
     }
 
     // application shutdown 前に native から一度だけ呼ばれる。
     internal static void RaiseQuitting() {
-        Action? handlers = Quitting;
-        if (handlers == null) {
-            return;
-        }
-        foreach (Action handler in handlers.GetInvocationList()) {
-            try {
-                handler();
-            }
-            catch (Exception e) {
-                NativeApi.WriteLog(2, $"[Application] Quitting handler threw\n{e}");
-            }
-        }
-    }
-
-    // callback 例外を封じ込め、残りの購読者へ伝播させない
-    private static void RaiseBool(Action<bool>? handlers, bool value) {
-        if (handlers == null) {
-            return;
-        }
-        foreach (Action<bool> handler in handlers.GetInvocationList()) {
-            try {
-                handler(value);
-            }
-            catch (Exception e) {
-                NativeApi.WriteLog(2, $"[Application] event handler threw\n{e}");
-            }
-        }
+        EventDispatch.Raise(Quitting, "Application");
     }
 
     // DLL reload(unload) 前に呼ばれ、古い assembly の delegate を手放す。

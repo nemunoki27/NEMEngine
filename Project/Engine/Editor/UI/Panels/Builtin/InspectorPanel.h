@@ -158,6 +158,8 @@ namespace Engine {
 		void DrawSelectedSubMeshHeader(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 		// プレファブインスタンスのオーバーライド表示UI、水色強調トークンの構築とオーバーライドポップアップを描画する
 		void DrawPrefabOverrideUI(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
+		// スキンメッシュのジョイントが選択されているときのインスペクターを描画する
+		void DrawJointInspector(const EditorPanelContext& context);
 	};
 } // Engine
 

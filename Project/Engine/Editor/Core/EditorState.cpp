@@ -8,6 +8,7 @@
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
+#include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
@@ -72,6 +73,16 @@ void Engine::EditorState::ValidateSelection(ECSWorld* world) {
 		return;
 	}
 
+	// ジョイント選択は複数選択を持たないので個別に検証する、無効化したらクリアする
+	// SelectJointがselectedEntitiesを空にするため、ここで弾かないと次フレームにクリアされてしまう
+	if (selectionKind == EditorSelectionKind::Joint) {
+
+		if (!HasValidJointSelection(world)) {
+			ClearSelection();
+		}
+		return;
+	}
+
 	// 死んだエンティティを複数選択から除去し、全滅ならクリア、アクティブは生存個体へ寄せる
 	selectedEntities.erase(std::remove_if(selectedEntities.begin(), selectedEntities.end(),
 		[&](const Entity& entity) { return !world->IsAlive(entity); }), selectedEntities.end());
@@ -114,10 +125,47 @@ void Engine::EditorState::SelectEntity(const Entity& entity) {
 	selectedAsset = {};
 	selectedSubMeshIndex = 0;
 	selectedSubMeshStableID = UUID{};
+	selectedJointSkinnedEntity = Entity::Null();
+	selectedJointIndex = -1;
 	selectedEntities.clear();
 	if (entity.IsValid()) {
 		selectedEntities.push_back(entity);
 	}
+}
+
+void Engine::EditorState::SelectJoint(const Entity& skinnedEntity, int32_t jointIndex) {
+
+	const bool valid = skinnedEntity.IsValid() && jointIndex >= 0;
+	selectionKind = valid ? EditorSelectionKind::Joint : EditorSelectionKind::None;
+	selectedJointSkinnedEntity = skinnedEntity;
+	selectedJointIndex = jointIndex;
+	// 文脈としてスキンメッシュエンティティを選択扱いにしておく、インスペクターはJoint種別で分岐する
+	selectedEntity = skinnedEntity;
+	selectedAsset = {};
+	selectedSubMeshIndex = 0;
+	selectedSubMeshStableID = UUID{};
+	selectedEntities.clear();
+}
+
+bool Engine::EditorState::HasValidJointSelection(ECSWorld* world) const {
+
+	if (!world || selectionKind != EditorSelectionKind::Joint) {
+		return false;
+	}
+	if (!world->IsAlive(selectedJointSkinnedEntity) || selectedJointIndex < 0) {
+		return false;
+	}
+	if (!world->HasComponent<SkinnedAnimationComponent>(selectedJointSkinnedEntity)) {
+		return false;
+	}
+	const auto& anim = world->GetComponent<SkinnedAnimationComponent>(selectedJointSkinnedEntity);
+	return selectedJointIndex < static_cast<int32_t>(anim.runtimeSkeleton.joints.size());
+}
+
+bool Engine::EditorState::IsJointSelected(const Entity& skinnedEntity, int32_t jointIndex) const {
+
+	return selectionKind == EditorSelectionKind::Joint &&
+		selectedJointSkinnedEntity == skinnedEntity && selectedJointIndex == jointIndex;
 }
 
 void Engine::EditorState::AddEntityToSelection(const Entity& entity) {
@@ -213,6 +261,8 @@ void Engine::EditorState::SelectMeshSubMesh(const Entity& entity, uint32_t subMe
 	selectedAsset = {};
 	selectedSubMeshIndex = subMeshIndex;
 	selectedSubMeshStableID = stableID;
+	selectedJointSkinnedEntity = Entity::Null();
+	selectedJointIndex = -1;
 	selectedEntities.clear();
 	if (entity.IsValid()) {
 		selectedEntities.push_back(entity);
@@ -327,6 +377,9 @@ bool Engine::EditorState::HasValidSelection(ECSWorld* world) const {
 	if (selectionKind == EditorSelectionKind::MeshSubMesh) {
 		return HasValidSubMeshSelection(world);
 	}
+	if (selectionKind == EditorSelectionKind::Joint) {
+		return HasValidJointSelection(world);
+	}
 	return selectionKind == EditorSelectionKind::Entity;
 }
 
@@ -338,6 +391,8 @@ void Engine::EditorState::ClearSelection() {
 	selectedAsset = {};
 	selectedSubMeshIndex = 0;
 	selectedSubMeshStableID = UUID{};
+	selectedJointSkinnedEntity = Entity::Null();
+	selectedJointIndex = -1;
 }
 
 void Engine::SceneViewCameraSelection::ClearAssignedCameras() {

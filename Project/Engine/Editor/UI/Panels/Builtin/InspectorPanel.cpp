@@ -6,6 +6,8 @@
 #include <Engine/Editor/Commands/Entity/RenameEntityCommand.h>
 #include <Engine/Editor/Commands/Entity/SetEntityTagCommand.h>
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
+#include <Engine/Editor/Tools/Core/IEditorTool.h>
+#include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Editor/Commands/Components/AddComponentCommand.h>
 #include <Engine/Editor/Commands/Components/AddScriptEntryCommand.h>
 #include <Engine/Editor/Commands/Components/RemoveComponentCommand.h>
@@ -44,6 +46,8 @@
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 #include <Engine/Core/World/Prefab/Override/PrefabJsonDiff.h>
+#include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
+#include <Engine/Editor/Utility/JointAttachmentUtility.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
@@ -407,6 +411,15 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 		ImGui::End();
 		return;
 	}
+	// スキンメッシュのジョイント選択時は専用のインスペクターを出す
+	if (context.editorState->selectionKind == EditorSelectionKind::Joint) {
+
+		ImGui::SetWindowFontScale(fontScale_);
+		DrawJointInspector(context);
+		ImGui::SetWindowFontScale(1.0f);
+		ImGui::End();
+		return;
+	}
 
 	if (!context.editorState->HasValidSelection(world)) {
 
@@ -523,6 +536,16 @@ void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context,
 	if (tagResult.valueChanged && editTag != currentTag) {
 
 		context.host->ExecuteEditorCommand(std::make_unique<SetEntityTagCommand>(entity, editTag));
+	}
+
+	// タグの追加削除はTag Managerツールで行う、Unityのタグ管理と同じ導線
+	ImGui::SameLine();
+	if (ImGui::SmallButton("...##OpenTagManager")) {
+		if (ITool* tool = ToolRegistry::GetInstance().Find("engine.tag_manager")) {
+			if (auto* tagManager = dynamic_cast<IEditorTool*>(tool)) {
+				tagManager->OpenEditorTool();
+			}
+		}
 	}
 
 	ImGui::Spacing();
@@ -1432,4 +1455,65 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 	}
 
 	ImGui::EndPopup();
+}
+
+void Engine::InspectorPanel::DrawJointInspector(const EditorPanelContext& context) {
+
+	ECSWorld* world = context.GetWorld();
+	if (!world || !context.editorState) {
+		return;
+	}
+	const Entity skinned = context.editorState->selectedJointSkinnedEntity;
+	const int32_t jointIndex = context.editorState->selectedJointIndex;
+	if (!world->IsAlive(skinned) || !world->HasComponent<SkinnedAnimationComponent>(skinned)) {
+
+		ImGui::TextDisabled("Joint is not available.");
+		return;
+	}
+	const Skeleton& skeleton = world->GetComponent<SkinnedAnimationComponent>(skinned).runtimeSkeleton;
+	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(skeleton.joints.size())) {
+
+		ImGui::TextDisabled("Joint is not available.");
+		return;
+	}
+	const Joint& joint = skeleton.joints[jointIndex];
+
+	// ジョイントの基本情報を出す、リネーム等はしない
+	ImGui::Text("Joint : %s", joint.name.empty() ? "(no name)" : joint.name.c_str());
+	ImGui::Text("Index : %d", jointIndex);
+	if (joint.parent && *joint.parent >= 0 && *joint.parent < static_cast<int32_t>(skeleton.joints.size())) {
+		ImGui::Text("Parent : %s", skeleton.joints[*joint.parent].name.c_str());
+	} else {
+		ImGui::TextDisabled("Parent : (root)");
+	}
+
+	// このジョイントへ親子付けされた子エンティティがあるか調べる
+	UUID skinnedLocalFileID{};
+	if (world->HasComponent<SceneObjectComponent>(skinned)) {
+		skinnedLocalFileID = world->GetComponent<SceneObjectComponent>(skinned).localFileID;
+	}
+	bool hasAttachedEntity = false;
+	if (skinnedLocalFileID) {
+		world->ForEachAliveEntity([&](Entity other) {
+
+			if (hasAttachedEntity || !world->HasComponent<JointAttachmentComponent>(other)) {
+				return;
+			}
+			const auto& attachment = world->GetComponent<JointAttachmentComponent>(other);
+			if (attachment.skinnedEntityLocalFileID == skinnedLocalFileID && attachment.jointName == joint.name) {
+				hasAttachedEntity = true;
+			}
+			});
+	}
+
+	// 子エンティティがある場合は、ジョイントのワールド行列をTransformの行列表示と同じ形で出す
+	if (hasAttachedEntity) {
+
+		ImGui::Spacing();
+		ImGui::Separator();
+		Matrix4x4 jointWorld{};
+		if (JointAttachmentUtility::GetJointWorldMatrix(*world, skinned, joint.name, jointWorld)) {
+			MyGUI::TextMatrix4x4("ワールド行列", jointWorld);
+		}
+	}
 }

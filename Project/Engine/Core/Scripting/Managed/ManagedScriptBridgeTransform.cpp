@@ -266,4 +266,52 @@ namespace Engine {
 		return ToManagedVector3(ComputeWorldScale(*world, resolved));
 	}
 
+	int32_t ManagedScriptRuntime::GetIgnoreParentRotationCallback(ManagedNativeEntity entity) {
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		if (!world) {
+			return 0;
+		}
+		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		return (transform && transform->ignoreParentRotation) ? 1 : 0;
+	}
+
+	void ManagedScriptRuntime::SetIgnoreParentRotationCallback(ManagedNativeEntity entity, int32_t value) {
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		if (!world) {
+			return;
+		}
+		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		if (!transform) {
+			return;
+		}
+		transform->ignoreParentRotation = value != 0;
+		MarkDirty(*world, resolved);
+	}
+
+	int32_t ManagedScriptRuntime::GetIgnoreParentScaleCallback(ManagedNativeEntity entity) {
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		if (!world) {
+			return 0;
+		}
+		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		return (transform && transform->ignoreParentScale) ? 1 : 0;
+	}
+
+	void ManagedScriptRuntime::SetIgnoreParentScaleCallback(ManagedNativeEntity entity, int32_t value) {
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		if (!world) {
+			return;
+		}
+		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		if (!transform) {
+			return;
+		}
+		transform->ignoreParentScale = value != 0;
+		MarkDirty(*world, resolved);
+	}
+
 } // Engine

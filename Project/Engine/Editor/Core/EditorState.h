@@ -64,6 +64,7 @@ namespace Engine {
 		Entity,
 		MeshSubMesh,
 		Asset,
+		Joint,
 	};
 
 	// 1つのSRT軸のスナップ設定、グリッド単位と絶対スナップの有無を持つ
@@ -131,6 +132,10 @@ namespace Engine {
 		// 現在の選択の種類
 		EditorSelectionKind selectKind = EditorSelectionKind::Entity;
 
+		// 選択中ジョイント、スキンメッシュエンティティとジョイントindex
+		Entity selectedJointSkinnedEntity = Entity::Null();
+		int32_t selectedJointIndex = -1;
+
 		// Undo / Redo履歴
 		EditorCommandHistory commandHistory{};
 		// Copy / Paste用クリップボード、複数選択をまとめて保持する
@@ -160,8 +165,10 @@ namespace Engine {
 		bool enableSnapEditEntity = false;
 		// ギズモのスナップ設定、シリアライズ対象
 		EntitySnapSettings snapSettings{};
-		// アセットを3DでSceneViewへドラッグ中か、スナップグリッド表示のためViewportPanelが毎フレーム更新する
+		// アセットをSceneViewへスナップ有効でドラッグ中か、スナップグリッド表示のためViewportPanelが毎フレーム更新する
 		bool assetDragSnapGridActive = false;
+		// ドラッグ中アセットが3Dか、グリッドの2D/3Dをドラッグ対象の次元に切り替えるのに使う
+		bool assetDragSnapGridIs3D = false;
 		// 複数選択ギズモの回転拡縮を選択中心基準で行うか、falseなら各エンティティ自身の原点基準
 		bool gizmoPivotAtCenter = true;
 
@@ -183,6 +190,12 @@ namespace Engine {
 		// エンティティやサブメッシュを選択する
 		void SelectEntity(const Entity& entity);
 		void SelectMeshSubMesh(const Entity& entity, uint32_t subMeshIndex, UUID stableID = UUID{});
+		// スキンメッシュのジョイントを選択する
+		void SelectJoint(const Entity& skinnedEntity, int32_t jointIndex);
+		// 現在ジョイントが選択されているか、有効なら情報表示する
+		bool HasValidJointSelection(ECSWorld* world) const;
+		// 特定のジョイントが選択されているか
+		bool IsJointSelected(const Entity& skinnedEntity, int32_t jointIndex) const;
 		void SelectAsset(AssetID asset);
 		void SelectFromScenePick(const Entity& entity, uint32_t subMeshIndex, UUID stableID = UUID{});
 		// 現在の選択がエンティティかサブメッシュか

@@ -792,6 +792,55 @@ void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) 
 				}
 			}
 		}
+		return;
+	}
+	// ギズモ操作のショートカット
+	{
+		// シーンビューにカーソルが合っているときのみ
+
+		// 座標移動
+		if (ImGui::IsKeyPressed(ImGuiKey_T)) {
+
+			editorState_.sceneViewManipulatorMode = SceneViewManipulatorMode::Translate;
+			return;
+		}
+		// 回転
+		if (ImGui::IsKeyPressed(ImGuiKey_R)) {
+
+			editorState_.sceneViewManipulatorMode = SceneViewManipulatorMode::Rotate;
+			return;
+		}
+		// 拡縮
+		if (ImGui::IsKeyPressed(ImGuiKey_S)) {
+
+			editorState_.sceneViewManipulatorMode = SceneViewManipulatorMode::Scale;
+			return;
+		}
+		// 選択のみ
+		if (ImGui::IsKeyPressed(ImGuiKey_H)) {
+
+			editorState_.sceneViewManipulatorMode = SceneViewManipulatorMode::None;
+			return;
+		}
+		// グリッド操作切り替え
+		if (ImGui::IsKeyPressed(ImGuiKey_G)) {
+
+			editorState_.enableSnapEditEntity = !editorState_.enableSnapEditEntity;
+			return;
+		}
+		// エンティティ選択単位の切り替え
+		if (ImGui::IsKeyPressed(ImGuiKey_E)) {
+			// エンティティ選択中ならサブメッシュ選択中に切り替える
+			if (editorState_.selectKind == EditorSelectionKind::Entity) {
+
+				editorState_.selectKind = EditorSelectionKind::MeshSubMesh;
+				return;
+			} else if (editorState_.selectKind == EditorSelectionKind::MeshSubMesh) {
+
+				editorState_.selectKind = EditorSelectionKind::Entity;
+				return;
+			}
+		}
 	}
 }
 
@@ -878,13 +927,18 @@ void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorC
 		return;
 	}
 
-	// 3DアセットをSceneViewへスナップ有効でドラッグ中はスナップグリッドを出す、選択が無くても表示する
-	// マニピュレーターが座標移動でなくても出す、グリッド間隔は現在の3D座標スナップ設定に合わせる
+	// アセットをSceneViewへスナップ有効でドラッグ中はスナップグリッドを出す、選択が無くても表示する
+	// マニピュレーターが座標移動でなくても出す、グリッドの2D/3Dはドラッグ中アセットの次元に合わせる
 	if (editorState_.snapSettings.drawSnapGrid &&
 		editorState_.enableSnapEditEntity &&
 		editorState_.assetDragSnapGridActive) {
 
-		LineRenderer::GetInstance()->Get3D()->DrawGrid(editorState_.snapSettings.translate3D.size);
+		const EntitySnapSettings& snap = editorState_.snapSettings;
+		if (editorState_.assetDragSnapGridIs3D) {
+			LineRenderer::GetInstance()->Get3D()->DrawGrid(snap.translate3D.size);
+		} else {
+			LineRenderer::GetInstance()->Get2D()->DrawGrid(snap.translate2D.size);
+		}
 	}
 
 	if (!editorState_.HasValidSelection(context.activeWorld)) {
@@ -910,10 +964,6 @@ void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorC
 	}
 
 	// スナップグリッドを描画する、選択中エンティティの次元で2D/3Dを切り替える
-	// グリッド描画アルゴリズムはLineRendererに集約、3Dは距離減衰の解析グリッド 2Dは画面いっぱいのグリッド
-	// SceneViewの描画パス前に積む必要があるためここで要求する、ViewportPanelはPostSceneで間に合わない
-	// スナップ操作が有効かつ座標編集モードのときだけ描画する、表示フラグだけでは出さない
-	// ドラッグ中グリッドを既に出している場合は二重描画しない
 	if (editorState_.snapSettings.drawSnapGrid &&
 		editorState_.enableSnapEditEntity &&
 		!editorState_.assetDragSnapGridActive &&

@@ -361,6 +361,11 @@ void Engine::CollisionSystem::OnWorldExit([[maybe_unused]] ECSWorld& world, [[ma
 
 void Engine::CollisionSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
 
+	// 形状描画の衝突中フラグを毎フレーム初期化する、衝突したものだけ後で立てる
+	world.ForEach<CollisionComponent>([](Entity, CollisionComponent& collision) {
+		collision.runtimeColliding = false;
+		});
+
 	// Play中のみ衝突判定とコールバックを実行する
 	if (context.mode != WorldMode::Play) {
 		previousContacts_.clear();
@@ -431,6 +436,14 @@ void Engine::CollisionSystem::LateUpdate(ECSWorld& world, SystemContext& context
 
 			const CollisionPairKey key = CollisionPairKey::Make(a.entity, b.entity);
 			currentContacts[key] = bestContact;
+
+			// 衝突中フラグを立てて形状描画を赤くする、トリガーの重なりも衝突として扱う
+			if (a.collision) {
+				a.collision->runtimeColliding = true;
+			}
+			if (b.collision) {
+				b.collision->runtimeColliding = true;
+			}
 			ApplyPushback(world, a, b, bestContact);
 
 			// 前フレームの接触履歴からEnter / Stayを分ける

@@ -109,6 +109,13 @@ public abstract class ScriptBehaviour {
     protected TimerHandle ScheduleRepeatingTimer(float intervalSeconds, Action callback) => Timers.ScheduleRepeating(intervalSeconds, callback, this);
     protected TimerHandle ScheduleUnscaledTimer(float delaySeconds, Action callback) => Timers.ScheduleUnscaled(delaySeconds, callback, this);
 
+    //========================================================================
+    //	EventBus（owner=this で購読し、owner 破棄時に自動解除される）
+    //========================================================================
+    protected EventSubscription Subscribe<T>(Action<T> handler) => EventBus.Subscribe(this, handler);
+    protected void Publish<T>(in T evt) => EventBus.Publish(evt);
+    protected void PublishDeferred<T>(in T evt) => EventBus.PublishDeferred(evt);
+
     public virtual void Awake() {}
     public virtual void Start() {}
     public virtual void OnEnable() {}

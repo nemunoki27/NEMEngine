@@ -19,9 +19,9 @@ namespace Engine {
 	enum class RigidbodyType :
 		int32_t {
 
-		Dynamic = 0,
-		Kinematic,
-		Static,
+		Dynamic = 0, // 動的、物理的な挙動
+		Kinematic,   // 物理演算なし、移動などは自分で書く
+		Static,      // 完全に動かない
 	};
 
 	//============================================================================

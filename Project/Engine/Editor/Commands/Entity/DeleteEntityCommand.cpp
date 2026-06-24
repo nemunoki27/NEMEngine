@@ -4,7 +4,32 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Core/EditorState.h>
+#include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
+
+//============================================================================
+//	DeleteEntityCommand internal
+//============================================================================
+namespace {
+
+	// Unity準拠、プレファブ編集中のルートだけ削除不可にする、シーン編集中のインスタンスは削除してよい
+	bool IsProtectedPrefabRoot(Engine::ECSWorld& world, const Engine::Entity& entity,
+		const Engine::EditorContext* editorContext) {
+
+		// プレファブ編集中でなければ(シーン編集中なら)インスタンスのルートでも削除可能
+		if (!editorContext || !editorContext->isPrefabEditing) {
+			return false;
+		}
+		// プレファブのルートかつ階層のトップ(親なし)＝編集中プレファブのルートだけ守る、ネストした子は対象外
+		if (!world.HasComponent<Engine::PrefabLinkComponent>(entity) ||
+			!world.GetComponent<Engine::PrefabLinkComponent>(entity).isPrefabRoot) {
+			return false;
+		}
+		return !world.HasComponent<Engine::HierarchyComponent>(entity) ||
+			!world.IsAlive(world.GetComponent<Engine::HierarchyComponent>(entity).parent);
+	}
+}
 
 //============================================================================
 //	DeleteEntityCommand classMethods
@@ -60,6 +85,11 @@ bool Engine::DeleteEntityCommand::Execute(EditorCommandContext& context) {
 
 		// 対象エンティティが存在するか
 		if (!world->IsAlive(initialTarget_)) {
+			return false;
+		}
+
+		// プレファブインスタンスのルートはシーン上で削除させない
+		if (IsProtectedPrefabRoot(*world, initialTarget_, context.editorContext)) {
 			return false;
 		}
 

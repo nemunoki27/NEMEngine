@@ -44,8 +44,8 @@ public sealed class SpriteMove : ScriptBehaviour
         Vector2 input = Vector2.zero;
 
         // WASDキー入力
-        if (Input.GetKey(KeyCode.W)) { input.y -= 1.0f; }
-        if (Input.GetKey(KeyCode.S)) { input.y += 1.0f; }
+        if (Input.GetKey(KeyCode.W)) { input.y += 1.0f; }
+        if (Input.GetKey(KeyCode.S)) { input.y -= 1.0f; }
         if (Input.GetKey(KeyCode.D)) { input.x += 1.0f; }
         if (Input.GetKey(KeyCode.A)) { input.x -= 1.0f; }
 
@@ -62,7 +62,7 @@ public sealed class SpriteMove : ScriptBehaviour
             return;
         }
         // XZ平面のワールド移動方向
-        Vector3 moveDirection = new Vector3(input.x, input.y, 0.0f);
+        Vector3 moveDirection = new Vector3(input.x, 0.0f, input.y);
         Vector3 direction = Vector3.Normalize(moveDirection);
 
         // 入力の強さに応じて速度を変えて移動する

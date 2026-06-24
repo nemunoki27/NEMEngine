@@ -35,6 +35,9 @@ namespace Engine {
 
 		// 有効ならインスタンスIDを新規採番せずこの値を使う、薄い保存からの復元で同一性を保つ
 		UUID forcedInstanceID{};
+
+		// 生成したルートの名前を.prefabのベース名にするか、新規生成時のみtrueにしシーン復元では既存名を尊重する
+		bool renameRootToPrefabName = false;
 		// プレファブ内ローカルIDからシーンローカルIDへの対応で、薄い保存からの復元時に同一性を保つ
 		// 非所有ポインタで参照、対応が無いローカルIDは従来通り新規採番する
 		const std::vector<std::pair<UUID, UUID>>* localFileIDRemap = nullptr;

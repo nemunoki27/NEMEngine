@@ -283,6 +283,11 @@ namespace Engine {
 		static ManagedQuaternion __cdecl GetRotationCallback(ManagedNativeEntity entity);
 		static void __cdecl SetRotationCallback(ManagedNativeEntity entity, ManagedQuaternion value);
 		static ManagedVector3 __cdecl GetLossyScaleCallback(ManagedNativeEntity entity);
+		// v16のTransform親追従の継承フラグ、回転とスケールを任意で無視する
+		static int32_t __cdecl GetIgnoreParentRotationCallback(ManagedNativeEntity entity);
+		static void __cdecl SetIgnoreParentRotationCallback(ManagedNativeEntity entity, int32_t value);
+		static int32_t __cdecl GetIgnoreParentScaleCallback(ManagedNativeEntity entity);
+		static void __cdecl SetIgnoreParentScaleCallback(ManagedNativeEntity entity, int32_t value);
 		// generic component access / Entity破棄/ ScriptBehaviour.Enabled
 		static int32_t __cdecl GetComponentTypeIdCallback(const char* name);
 		static int32_t __cdecl HasComponentCallback(ManagedNativeEntity entity, int32_t typeId);

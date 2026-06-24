@@ -20,6 +20,8 @@ bool Engine::TransformEditUtility::ApplyImmediate(ECSWorld& world,
 	dst.localPos = transform.localPos;
 	dst.localRotation = transform.localRotation;
 	dst.localScale = transform.localScale;
+	dst.ignoreParentScale = transform.ignoreParentScale;
+	dst.ignoreParentRotation = transform.ignoreParentRotation;
 	dst.isDirty = true;
 	MarkTransformSubtreeDirty(world, entity);
 	return true;

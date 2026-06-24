@@ -97,6 +97,9 @@ public static class ScriptRuntimeLifetime {
 			InputActions.ResetForReload();
 			Timers.ResetForReload();
 			Coroutines.ResetForReload();
+			EventBus.ResetForReload();
+			EventOwnerTracker.ResetForReload();
+			EventDispatch.ResetForReload();
 		}
 		catch (Exception ex) {
 			NativeApi.WriteLog(2, $"[ScriptRuntimeLifetime] gameplay reset failed\n{ex}");

@@ -6,46 +6,7 @@
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
-
-//============================================================================
-//	LineRenderItemExtractor internal
-//============================================================================
-namespace {
-
-	// 親ワールド行列から、スケール/回転の無視フラグを反映した追従用行列を作る
-	Engine::Matrix4x4 BuildParentFollowMatrix(const Engine::Matrix4x4& parentWorld,
-		bool ignoreScale, bool ignoreRotation) {
-
-		using namespace Engine;
-		if (!ignoreScale && !ignoreRotation) {
-			return parentWorld;
-		}
-
-		const Vector3 translation = parentWorld.GetTranslationValue();
-		const Vector3 axisX(parentWorld.m[0][0], parentWorld.m[0][1], parentWorld.m[0][2]);
-		const Vector3 axisY(parentWorld.m[1][0], parentWorld.m[1][1], parentWorld.m[1][2]);
-		const Vector3 axisZ(parentWorld.m[2][0], parentWorld.m[2][1], parentWorld.m[2][2]);
-		const float scaleX = axisX.Length();
-		const float scaleY = axisY.Length();
-		const float scaleZ = axisZ.Length();
-
-		// 回転無視ならワールド軸、そうでなければ正規化した軸方向を使う
-		const Vector3 dirX = ignoreRotation ? Vector3(1.0f, 0.0f, 0.0f) : (scaleX > 1e-6f ? axisX / scaleX : Vector3(1.0f, 0.0f, 0.0f));
-		const Vector3 dirY = ignoreRotation ? Vector3(0.0f, 1.0f, 0.0f) : (scaleY > 1e-6f ? axisY / scaleY : Vector3(0.0f, 1.0f, 0.0f));
-		const Vector3 dirZ = ignoreRotation ? Vector3(0.0f, 0.0f, 1.0f) : (scaleZ > 1e-6f ? axisZ / scaleZ : Vector3(0.0f, 0.0f, 1.0f));
-		// スケール無視なら等倍
-		const float useX = ignoreScale ? 1.0f : scaleX;
-		const float useY = ignoreScale ? 1.0f : scaleY;
-		const float useZ = ignoreScale ? 1.0f : scaleZ;
-
-		Matrix4x4 result = Matrix4x4::Identity();
-		result.m[0][0] = dirX.x * useX; result.m[0][1] = dirX.y * useX; result.m[0][2] = dirX.z * useX;
-		result.m[1][0] = dirY.x * useY; result.m[1][1] = dirY.y * useY; result.m[1][2] = dirY.z * useY;
-		result.m[2][0] = dirZ.x * useZ; result.m[2][1] = dirZ.y * useZ; result.m[2][2] = dirZ.z * useZ;
-		result.m[3][0] = translation.x; result.m[3][1] = translation.y; result.m[3][2] = translation.z;
-		return result;
-	}
-}
+#include <Engine/Core/Foundation/Math/AffineDecompose.h>
 
 //============================================================================
 //	LineRenderItemExtractor classMethods

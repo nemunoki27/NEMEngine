@@ -31,7 +31,6 @@ float4 WorldToClip(float3 worldPos) {
 
 //============================================================================
 //	main
-//	線分の周りに6角形リングを押し出した円柱チューブにし、両端にキャップを付けて中の空洞を塞ぐ
 //============================================================================
 [maxvertexcount(26)]
 void main(line VSOutput input[2], inout TriangleStream<TubeGSOutput> triStream) {

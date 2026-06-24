@@ -28,6 +28,11 @@ namespace Engine {
 		// ワールド行列
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
 
+		// 親追従の継承設定、座標は常に追従し回転とスケールは任意で無視できる
+		// 親はエンティティ階層でもスキンメッシュのジョイントでも同じ扱いにする
+		bool ignoreParentScale = false;
+		bool ignoreParentRotation = false;
+
 		// 変更検知
 		bool isDirty = true;
 	};

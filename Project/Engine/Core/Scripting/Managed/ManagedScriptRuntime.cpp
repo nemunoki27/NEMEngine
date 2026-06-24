@@ -293,6 +293,11 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.findEntityByComponent = &ManagedScriptRuntime::FindEntityByComponentCallback;
 	callbacks.findEntitiesByComponent = &ManagedScriptRuntime::FindEntitiesByComponentCallback;
 	callbacks.lineDrawShape = &ManagedScriptRuntime::LineDrawShapeCallback;
+	// v16のTransform親追従の継承フラグ
+	callbacks.getIgnoreParentRotation = &ManagedScriptRuntime::GetIgnoreParentRotationCallback;
+	callbacks.setIgnoreParentRotation = &ManagedScriptRuntime::SetIgnoreParentRotationCallback;
+	callbacks.getIgnoreParentScale = &ManagedScriptRuntime::GetIgnoreParentScaleCallback;
+	callbacks.setIgnoreParentScale = &ManagedScriptRuntime::SetIgnoreParentScaleCallback;
 
 	if (!initializeNativeApi_ || initializeNativeApi_(&callbacks) != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,

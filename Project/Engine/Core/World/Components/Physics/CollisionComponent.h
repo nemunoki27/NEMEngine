@@ -25,6 +25,10 @@ namespace Engine {
 
 		// Entityに設定された衝突形状一覧
 		std::vector<CollisionShape> shapes = { CollisionShape{} };
+
+		// 実行時に何かと衝突しているか、形状描画を赤くするためにCollisionSystemが毎フレーム更新する
+		// シリアライズしない実行時専用フラグ
+		bool runtimeColliding = false;
 	};
 
 	// jsonからコンポーネントへ変換する

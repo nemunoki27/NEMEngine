@@ -82,7 +82,7 @@ namespace Engine {
 		ToolDescriptor descriptor_{
 			.id = "engine.material_editor",
 			.name = "マテリアル作成",
-			.category = "Rendering",
+			.category = "レンダリング",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::EditOnly,
 			.order = 1,

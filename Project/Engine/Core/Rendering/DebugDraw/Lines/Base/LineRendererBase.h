@@ -63,6 +63,11 @@ namespace Engine {
 		uint32_t GetMaxLineCount() const { return kMaxLineCount_; }
 		// 現在積まれているライン数
 		uint32_t GetCurrentLineCount() const { return static_cast<uint32_t>(vertices_.size() / 2); }
+
+		// 以降のDrawLineを深度オクルージョン対象バッチへ積むかどうか、衝突形状などメッシュに隠したい線に使う
+		void SetOccludedMode(bool enable) { occludedMode_ = enable; }
+		// 深度オクルージョン用のシーン深度を設定する、次のRenderSceneViewでだけ使い切る
+		void SetOcclusionDepth(DepthTexture2D* depth) { occlusionDepth_ = depth; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -107,6 +112,8 @@ namespace Engine {
 
 		// パイプライン
 		PipelineState pipeline_{};
+		// 深度オクルージョン用パイプライン、シーン深度でテストし書き込みはしない
+		PipelineState occludedPipeline_{};
 
 		// ラインパス定数バッファb0のスロットキャッシュ
 		PipelineBindingCache lineBindCache_{};
@@ -116,8 +123,14 @@ namespace Engine {
 		std::vector<std::unique_ptr<RenderResource>> renderResources_{};
 		uint32_t renderResourceIndex_ = 0;
 
-		// 描画するラインの頂点情報
+		// 描画するラインの頂点情報、常に手前に描くオーバーレイ線
 		std::vector<LineVertex> vertices_{};
+		// 深度オクルージョン対象のラインの頂点情報、メッシュに隠れる線
+		std::vector<LineVertex> occludedVertices_{};
+		// 現在のDrawLineをどちらのバッチへ積むか
+		bool occludedMode_ = false;
+		// 深度オクルージョン用のシーン深度、非所有でフレームごとに設定される
+		DepthTexture2D* occlusionDepth_ = nullptr;
 
 		// 使用するカメラの種類
 		RenderCameraDomain cameraDomain_{};
@@ -128,6 +141,12 @@ namespace Engine {
 		const ResolvedCameraView* FindSceneCamera(const ResolvedRenderView& view) const;
 		// 描画ごとのGPUバッファを取得する
 		RenderResource& AllocateRenderResource(GraphicsCore& graphicsCore);
+		// 現在のモードに応じた積み先の頂点バッチを返す
+		std::vector<LineVertex>& ActiveVertices() { return occludedMode_ ? occludedVertices_ : vertices_; }
+		// 1つの頂点バッチを指定パイプラインと深度で描画する、occlusionDepth指定時はそれをテスト用DSVに使う
+		void RenderLineBatch(GraphicsCore& graphicsCore, const ResolvedCameraView* camera,
+			MultiRenderTarget& surface, std::vector<LineVertex>& batch, PipelineState& pipeline,
+			DepthTexture2D* occlusionDepth);
 
 		// 派生ライン描画呼び出し
 		virtual void DrawLineImpl(GraphicsCore& /*graphicsCore*/,
@@ -183,6 +202,11 @@ namespace Engine {
 		bool created = pipeline_.CreateGraphics(device, compiler, desc);
 		Assert::Call(created, "DebugLineRenderer pipeline create failed");
 
+		// 深度オクルージョン用パイプライン、シーン深度でテストするが書き込みはしないので深度を壊さない
+		desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		bool occludedCreated = occludedPipeline_.CreateGraphics(device, compiler, desc);
+		Assert::Call(occludedCreated, "DebugLineRenderer occluded pipeline create failed");
+
 		// 描画用バッファは同じフレーム内の描画回数に応じて確保する
 		renderResources_.reserve(4);
 
@@ -194,6 +218,9 @@ namespace Engine {
 	inline void LineRendererBase<T>::BeginFrame() {
 
 		vertices_.clear();
+		occludedVertices_.clear();
+		occludedMode_ = false;
+		occlusionDepth_ = nullptr;
 		renderResourceIndex_ = 0;
 	}
 
@@ -207,9 +234,6 @@ namespace Engine {
 			return;
 		}
 
-		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
-		auto* commandList = dxCommand->GetCommandList();
-
 		// 派生クラスのライン描画呼び出し
 		DrawLineImpl(graphicsCore, camera, surface);
 
@@ -217,32 +241,52 @@ namespace Engine {
 			return;
 		}
 
-		// デバッグラインが無ければここで終了
-		if (vertices_.empty()) {
+		// 通常のオーバーレイ線はサーフェスの深度に従う、基本は常に手前に描く
+		RenderLineBatch(graphicsCore, camera, surface, vertices_, pipeline_, nullptr);
+		// 深度オクルージョン対象の線はシーン深度でテストしてメッシュに隠す
+		RenderLineBatch(graphicsCore, camera, surface, occludedVertices_, occludedPipeline_, occlusionDepth_);
+	}
+
+	template<typename T>
+	inline void LineRendererBase<T>::RenderLineBatch(GraphicsCore& graphicsCore,
+		const ResolvedCameraView* camera, MultiRenderTarget& surface, std::vector<LineVertex>& batch,
+		PipelineState& pipeline, DepthTexture2D* occlusionDepth) {
+
+		// 積まれた線が無ければ描かない
+		if (batch.empty()) {
 			return;
 		}
+
+		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
+		auto* commandList = dxCommand->GetCommandList();
 
 		// 現在サーフェスに重ねて描画
 		surface.TransitionForRender(*dxCommand);
-		if (RenderTexture2D* color = surface.GetColorTexture(0)) {
-
-			if (DepthTexture2D* depth = surface.GetDepthTexture()) {
-
-				dxCommand->BindRenderTargets(std::optional<RenderTarget>(color->GetRenderTarget()),
-					depth->GetDSVCPUHandle());
-			} else {
-
-				dxCommand->BindRenderTargets(std::optional<RenderTarget>(color->GetRenderTarget()), std::nullopt);
-			}
-			dxCommand->SetViewportAndScissor(surface.GetWidth(), surface.GetHeight());
-		} else {
-
+		RenderTexture2D* color = surface.GetColorTexture(0);
+		if (!color) {
+			batch.clear();
 			return;
 		}
 
+		if (occlusionDepth) {
+
+			// シーン深度でテストして線をメッシュに隠す、深度書き込みはZEROなので内容は壊さない
+			occlusionDepth->Transition(*dxCommand, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+			dxCommand->BindRenderTargets(std::optional<RenderTarget>(color->GetRenderTarget()),
+				occlusionDepth->GetDSVCPUHandle());
+		} else if (DepthTexture2D* depth = surface.GetDepthTexture()) {
+
+			dxCommand->BindRenderTargets(std::optional<RenderTarget>(color->GetRenderTarget()),
+				depth->GetDSVCPUHandle());
+		} else {
+
+			dxCommand->BindRenderTargets(std::optional<RenderTarget>(color->GetRenderTarget()), std::nullopt);
+		}
+		dxCommand->SetViewportAndScissor(surface.GetWidth(), surface.GetHeight());
+
 		// GPUリソース更新
 		RenderResource& renderResource = AllocateRenderResource(graphicsCore);
-		renderResource.vertexBuffer.TransferData(vertices_);
+		renderResource.vertexBuffer.TransferData(batch);
 
 		// 定数バッファ更新
 		LinePassConstants constants{};
@@ -254,23 +298,23 @@ namespace Engine {
 		renderResource.passBuffer.TransferData(constants);
 
 		// パイプライン設定
-		commandList->SetGraphicsRootSignature(pipeline_.GetRootSignature());
-		commandList->SetPipelineState(pipeline_.GetGraphicsPipeline(BlendMode::Normal));
+		commandList->SetGraphicsRootSignature(pipeline.GetRootSignature());
+		commandList->SetPipelineState(pipeline.GetGraphicsPipeline(BlendMode::Normal));
 
 		// IAステージ設定
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 		commandList->IASetVertexBuffers(0, 1, &renderResource.vertexBuffer.GetVertexBufferView());
 
 		// ルートパラメータのバインドでパイプラインが変わった時だけスロットを再解決する
-		lineBindCache_.Sync(pipeline_);
+		lineBindCache_.Sync(pipeline);
 		if (lineBindCache_.Has(lineCBVSlot_)) {
 			RootBindingCommand::SetGraphicsCBV(commandList, lineBindCache_.Get(lineCBVSlot_),
 				renderResource.passBuffer.GetResource()->GetGPUVirtualAddress());
 		}
 
 		// 描画
-		commandList->DrawInstanced(static_cast<UINT>(vertices_.size()), 1, 0, 0);
-		vertices_.clear();
+		commandList->DrawInstanced(static_cast<UINT>(batch.size()), 1, 0, 0);
+		batch.clear();
 	}
 
 	template<typename T>

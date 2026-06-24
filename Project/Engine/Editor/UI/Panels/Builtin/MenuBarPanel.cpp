@@ -38,12 +38,12 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	ImGui::SetWindowFontScale(0.72f);
+	ImGui::SetWindowFontScale(0.85f);
 
 	//============================================================================
 	//	シーンファイル操作
 	//============================================================================
-	if (ImGui::BeginMenu("File")) {
+	if (ImGui::BeginMenu("ファイル")) {
 
 		ImGui::SetWindowFontScale(0.72f);
 
@@ -69,7 +69,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	編集操作
 	//============================================================================
-	if (ImGui::BeginMenu("Edit")) {
+	if (ImGui::BeginMenu("編集補助")) {
 
 		ImGui::SetWindowFontScale(0.72f);
 
@@ -92,22 +92,28 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::Separator();
 
 		// 選択しているエンティティを複製する
-		if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, canMutateSelection)) {
+		if (ImGui::MenuItem("複製", "Ctrl+D", false, canMutateSelection)) {
 			context.host->DuplicateSelection();
 		}
 		// 選択しているエンティティをクリップボードにコピーする
-		if (ImGui::MenuItem("Copy", "Ctrl+C", false, canMutateSelection)) {
+		if (ImGui::MenuItem("コピー", "Ctrl+C", false, canMutateSelection)) {
 			context.host->CopySelectionToClipboard();
 		}
 		// クリップボードの内容をシーンに貼り付ける
-		if (ImGui::MenuItem("Paste", "Ctrl+V", false, canPaste)) {
+		if (ImGui::MenuItem("コピー済みをペースト", "Ctrl+V", false, canPaste)) {
 			context.host->PasteClipboard();
 		}
 
 		ImGui::Separator();
 
 		// 選択しているエンティティを削除する
-		if (ImGui::MenuItem("Delete", "Del", false, canMutateSelection)) {
+		if (ImGui::MenuItem("削除", "Del", false, canMutateSelection)) {
+			context.host->ExecuteEditorCommand(std::make_unique<DeleteEntityCommand>(context.editorState->selectedEntity));
+		}
+		ImGui::Separator();
+
+		// 複数選択
+		if (ImGui::MenuItem("複数選択", "Shift+左クリック", false, canMutateSelection)) {
 			context.host->ExecuteEditorCommand(std::make_unique<DeleteEntityCommand>(context.editorState->selectedEntity));
 		}
 
@@ -119,11 +125,11 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	エディタウィンドウ表示設定
 	//============================================================================
-	if (ImGui::BeginMenu("Window")) {
+	if (ImGui::BeginMenu("ウィンドウ")) {
 
 		ImGui::SetWindowFontScale(0.72f);
 
-		ImGui::MenuItem("HidePanels", "Tab+Esc", &context.layoutState->hidePanels);
+		ImGui::MenuItem("パネルを全て非表示", "Tab+Esc", &context.layoutState->hidePanels);
 		ImGui::Separator();
 
 		ImGui::MenuItem("Toolbar", nullptr, &context.layoutState->showToolbar);
@@ -143,9 +149,9 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	グラフィックス機能表示/切り替え
 	//============================================================================
-	if (ImGui::BeginMenu("Graphics")) {
+	if (ImGui::BeginMenu("グラフィックス設定")) {
 
-		ImGui::SetWindowFontScale(0.72f);
+		ImGui::SetWindowFontScale(0.85f);
 
 		// GPUから検出した機能サポート状況とユーザー設定を表示し、切り替え可能なものは切り替える
 		auto& featureController = context.graphicsPlatform->GetFeatureController();
@@ -164,29 +170,28 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 		ImGui::Text("Mesh Shader Tier: %s", GraphicsFeatureText::ToString(support.meshShaderTier));
 		ImGui::Text("RayTracing Tier : %s", GraphicsFeatureText::ToString(support.raytracingTier));
-		ImGui::Text("Wave Ops        : %s", support.waveOps ? "Supported" : "Not Supported");
 
 		ImGui::Separator();
 
 		// メッシュ描画経路はGPU対応状況を見ながら切り替える
 		bool allowMeshShader = preferences.allowMeshShader;
 		ImGui::BeginDisabled(!support.SupportsMeshShaderPath());
-		if (ImGui::Checkbox("Use Mesh Shader", &allowMeshShader)) {
+		if (ImGui::Checkbox("メッシュシェーダーを使用", &allowMeshShader)) {
 			featureController.SetAllowMeshShader(allowMeshShader);
 		}
 		ImGui::EndDisabled();
 
 		if (!support.SupportsMeshShaderPath()) {
-			ImGui::TextDisabled("Mesh Shader path is unavailable on this GPU.");
+			ImGui::TextDisabled("メッシュシェーダーに対応していないGPUです");
 		}
-		ImGui::Text("Current Mesh Path: %s", runtime.useMeshShader ? "Mesh Shader" : "Legacy Raster Fallback");
+		ImGui::Text("現在のメッシュパス: %s", runtime.useMeshShader ? "メッシュシェーダー" : "頂点シェーダ―");
 
 		ImGui::Separator();
 
 		// フレームレート上限はここで切り替えて.exeConfigへ保存する、0は制限なし
 		FrameRateSettings& frameRate = FrameRateSettings::GetInstance();
 		const uint32_t fpsOptions[] = { 30u, 60u, 120u, 0u };
-		const char* fpsLabels[] = { "30", "60", "120", "Unlimited" };
+		const char* fpsLabels[] = { "30", "60", "120", "未制限" };
 		int fpsIndex = 1;
 		for (int i = 0; i < 4; ++i) {
 			if (fpsOptions[i] == frameRate.GetTargetFps()) {
@@ -194,7 +199,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 				break;
 			}
 		}
-		if (ImGui::Combo("Frame Rate Limit", &fpsIndex, fpsLabels, 4)) {
+		if (ImGui::Combo("フレームレート制限", &fpsIndex, fpsLabels, 4)) {
 			frameRate.SetTargetFps(fpsOptions[fpsIndex]);
 			frameRate.Save();
 		}
@@ -203,38 +208,38 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 		// カリング系はGameView基準の結果を確認しやすいよう、Graphicsメニューから個別に切り替える
 		bool allowFrustumCulling = preferences.allowFrustumCulling;
-		if (ImGui::Checkbox("Use Frustum Culling", &allowFrustumCulling)) {
+		if (ImGui::Checkbox("視錐台カリング有効", &allowFrustumCulling)) {
 			featureController.SetAllowFrustumCulling(allowFrustumCulling);
 		}
-		ImGui::Text("Frustum Culling: %s", runtime.useFrustumCulling ? "Enabled" : "Disabled");
+		ImGui::Text("視錐台カリング: %s", runtime.useFrustumCulling ? "有効" : "無効");
 
 		ImGui::Separator();
 
 		bool allowInlineRayTracing = preferences.allowInlineRayTracing;
 		ImGui::BeginDisabled(!support.SupportsRayTracingPath());
-		if (ImGui::Checkbox("Use Inline RayTracing", &allowInlineRayTracing)) {
+		if (ImGui::Checkbox("インラインシャドウ有効", &allowInlineRayTracing)) {
 			featureController.SetAllowInlineRayTracing(allowInlineRayTracing);
 		}
 		ImGui::EndDisabled();
 
 		if (!support.SupportsRayTracingPath()) {
-			ImGui::TextDisabled("Inline RayTracing path is unavailable on this GPU.");
+			ImGui::TextDisabled("インラインレイトレーシングに対応していないGPUです");
 		}
 
 		bool allowDispatchRays = preferences.allowDispatchRays;
 		ImGui::BeginDisabled(!support.SupportsRayTracingPath());
-		if (ImGui::Checkbox("Use DispatchRays (DXR)", &allowDispatchRays)) {
+		if (ImGui::Checkbox("マテリアル反射パス有効", &allowDispatchRays)) {
 			featureController.SetAllowDispatchRays(allowDispatchRays);
 		}
 		ImGui::EndDisabled();
 
 		if (!support.SupportsRayTracingPath()) {
-			ImGui::TextDisabled("DispatchRays path is unavailable on this GPU.");
+			ImGui::TextDisabled("レイトレーシングに対応していないGPUです");
 		}
 
-		ImGui::Text("Inline RayTracing : %s", runtime.useInlineRayTracing ? "Enabled" : "Disabled");
-		ImGui::Text("DispatchRays      : %s", runtime.useDispatchRays ? "Enabled" : "Disabled");
-		ImGui::Text("Ray Scene Build   : %s", runtime.UsesAnyRayTracing() ? "Enabled" : "Disabled");
+		ImGui::Text("インラインシャドウ : %s", runtime.useInlineRayTracing ? "有効" : "無効");
+		ImGui::Text("マテリアル反射パス : %s", runtime.useDispatchRays ? "有効" : "無効");
+		ImGui::Text("TLAS ビルド      : %s", runtime.UsesAnyRayTracing() ? "有効" : "無効");
 
 		ImGui::Separator();
 
@@ -265,7 +270,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 					current = checked ? item.view : GBufferDebugView::None;
 				}
 			}
-			ImGui::Text("Current: %s", EnumAdapter<GBufferDebugView>::ToString(current));
+			ImGui::Text("現在の表示: %s", EnumAdapter<GBufferDebugView>::ToString(current));
 		}
 
 		ImGui::SetWindowFontScale(1.0f);
@@ -274,7 +279,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	}
 
 	// 一番右にエンジンのビルド時刻をバージョンとして表示する
-	ImGui::TextDisabled("Engine %s", GetEngineBuildVersion());
+	ImGui::TextDisabled("エンジンのバージョン: %s", GetEngineBuildVersion());
 
 	ImGui::SetWindowFontScale(1.0f);
 

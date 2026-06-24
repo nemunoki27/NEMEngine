@@ -17,7 +17,12 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
+#include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Editor/Utility/AssetEntityFactory.h>
+#include <Engine/Editor/Utility/JointAttachmentUtility.h>
+#include <Engine/Editor/Commands/Entity/CreateDroppedEntityCommand.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
@@ -77,6 +82,8 @@ namespace {
 		if (context.editorState) {
 			context.editorState->SelectEntity(spawn.root);
 		}
+		// 作成済みエンティティをUndo/Redo対象として履歴へ登録する
+		context.host->ExecuteEditorCommand(std::make_unique<Engine::CreateDroppedEntityCommand>(spawn.root));
 	}
 }
 
@@ -134,7 +141,6 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 	// プレファブ編集中は環境エンティティ(複製したカメラ/平行光源)や周囲のシーンを隠し、プレファブの中身だけを出す
 	const bool prefabEditing = context.editorContext && context.editorContext->isPrefabEditing;
 	const bool inContext = context.editorContext && context.editorContext->isPrefabInContext;
-	const UUID inContextInstanceID = context.editorContext ? context.editorContext->prefabInContextInstanceID : UUID{};
 	const std::vector<Entity>* environmentEntities = context.editorContext ? context.editorContext->prefabEnvironmentEntities : nullptr;
 
 	std::vector<Entity> rootEntities;
@@ -145,22 +151,17 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		if (!IsRootEntity(*world, entity)) {
 			return;
 		}
+		// ジョイントへ親子付けされたエンティティはルート一覧に出さず、ジョイント直下に表示する
+		if (world->HasComponent<JointAttachmentComponent>(entity)) {
+			return;
+		}
 		// プレファブ編集中の絞り込み
-		if (prefabEditing) {
+		// In-Context編集は周囲のシーンも文脈として表示する(Unityのin-context)ので絞り込まない、メンバーは水色で編集対象になる
+		// 隔離編集だけは複製した環境エンティティ(カメラ/平行光源)を隠し、プレファブの中身だけを出す
+		if (prefabEditing && !inContext && environmentEntities) {
 
-			if (inContext) {
-
-				// In-Contextは編集インスタンスのメンバーだけを出す、周囲のシーンは隠す
-				if (!world->HasComponent<PrefabLinkComponent>(entity) ||
-					world->GetComponent<PrefabLinkComponent>(entity).prefabInstanceID != inContextInstanceID) {
-					return;
-				}
-			} else if (environmentEntities) {
-
-				// 隔離編集は環境エンティティ以外を全て出す、新規作成した実体もPrefabLinkを待たずに即表示される
-				if (std::find(environmentEntities->begin(), environmentEntities->end(), entity) != environmentEntities->end()) {
-					return;
-				}
+			if (std::find(environmentEntities->begin(), environmentEntities->end(), entity) != environmentEntities->end()) {
+				return;
 			}
 		}
 
@@ -309,9 +310,16 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		const auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
 		hasSubMeshChildren = !meshRenderer.subMeshes.empty();
 	}
+	// スキンメッシュのジョイントを持っているか
+	bool hasSkinnedMeshChildren = false;
+	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {
+
+		const auto& anim = world.GetComponent<SkinnedAnimationComponent>(entity);
+		hasSkinnedMeshChildren = !anim.runtimeSkeleton.joints.empty();
+	}
 
 	// ツリー表示できる子がいるか
-	bool hasAnyTreeChildren = hasChildren || hasSubMeshChildren;
+	bool hasAnyTreeChildren = hasChildren || hasSubMeshChildren || hasSkinnedMeshChildren;
 
 	// ノードのフラグを設定
 	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -334,8 +342,8 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	//============================================================================
 	//	左側のアクティブチェックボックス
 	//============================================================================
+
 	// チェックボックスがクリックされたか
-	// 左シフト併用はSceneViewと同じく次元が合えばトグルで追加選択する
 	const bool additiveSelect = ImGui::IsKeyDown(ImGuiKey_LeftShift);
 	// Ctrl併用時は選択を切り替えずにエンティティをドラッグできるようにする
 	const bool ctrlHeld = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
@@ -367,8 +375,8 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	//============================================================================
 	//	ツリーノード本体
 	//============================================================================
+
 	// アクティブでない場合はテキストを薄く表示する、プレファブインスタンスは水色で表示する
-	// プレファブ参照が解決できない壊れた/欠落インスタンスは赤文字を最優先で表示する
 	const bool isPrefabInstance = world.HasComponent<PrefabLinkComponent>(entity);
 	bool isBrokenPrefab = false;
 	if (isPrefabInstance && context.editorContext && context.editorContext->assetDatabase) {
@@ -465,8 +473,14 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 
 			context.host->CopySelectionToClipboard();
 		}
+		// Unity準拠、プレファブ編集中のルート(プレファブ名エンティティ)だけ削除不可、シーン編集中のインスタンスは削除可
+		const bool prefabEditing = context.editorContext && context.editorContext->isPrefabEditing;
+		const bool isProtectedPrefabRoot = prefabEditing &&
+			world.HasComponent<PrefabLinkComponent>(entity) &&
+			world.GetComponent<PrefabLinkComponent>(entity).isPrefabRoot &&
+			IsRootEntity(world, entity);
 		// エンティティを削除、複数選択ならまとめて消す
-		if (ImGui::MenuItem("削除", "Del", false, context.CanEditScene())) {
+		if (ImGui::MenuItem("削除", "Del", false, context.CanEditScene() && !isProtectedPrefabRoot)) {
 
 			const std::vector<Entity> targets = context.editorState->GetSelectedEntities();
 			for (const Entity& target : targets) {
@@ -499,6 +513,8 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 				Entity dragged = ResolveDraggedEntity(world, payload);
 				if (CanReparent(world, dragged, entity)) {
 
+					// ジョイントへ親子付け中なら先に解除してからエンティティの子にする
+					JointAttachmentUtility::Detach(world, dragged);
 					context.host->ExecuteEditorCommand(
 						std::make_unique<ReparentEntityCommand>(dragged, world.GetUUID(entity)));
 				}
@@ -548,6 +564,15 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 			ImGui::SetWindowFontScale(0.72f);
 
 			DrawSubMeshNodes(context, world, entity);
+
+			ImGui::SetWindowFontScale(1.0f);
+		}
+		// スキンメッシュのジョイント階層の表示
+		if (hasSkinnedMeshChildren) {
+
+			ImGui::SetWindowFontScale(0.72f);
+
+			DrawSkinnedMeshNodes(context, world, entity);
 
 			ImGui::SetWindowFontScale(1.0f);
 		}
@@ -651,6 +676,132 @@ void Engine::HierarchyPanel::DrawSubMeshNodes(const EditorPanelContext& context,
 	ImGui::PopID();
 }
 
+void Engine::HierarchyPanel::DrawSkinnedMeshNodes(const EditorPanelContext& context,
+	ECSWorld& world, const Entity& entity) {
+
+	if (!world.HasComponent<SkinnedAnimationComponent>(entity)) {
+		return;
+	}
+	const Skeleton& skeleton = world.GetComponent<SkinnedAnimationComponent>(entity).runtimeSkeleton;
+	if (skeleton.joints.empty()) {
+		return;
+	}
+
+	// このスキンメッシュへ親子付けされたエンティティをジョイントindexごとに集める
+	UUID skinnedLocalFileID{};
+	if (world.HasComponent<SceneObjectComponent>(entity)) {
+		skinnedLocalFileID = world.GetComponent<SceneObjectComponent>(entity).localFileID;
+	}
+	std::unordered_map<int32_t, std::vector<Entity>> attachedByJoint;
+	if (skinnedLocalFileID) {
+		world.ForEachAliveEntity([&](Entity other) {
+
+			if (!world.HasComponent<JointAttachmentComponent>(other)) {
+				return;
+			}
+			const auto& attachment = world.GetComponent<JointAttachmentComponent>(other);
+			if (attachment.skinnedEntityLocalFileID != skinnedLocalFileID) {
+				return;
+			}
+			auto jointIt = skeleton.jointMap.find(attachment.jointName);
+			if (jointIt != skeleton.jointMap.end()) {
+				attachedByJoint[jointIt->second].emplace_back(other);
+			}
+			});
+	}
+
+	ImGui::PushID("SkinnedMeshRoot");
+	ImGui::Indent();
+	if (MyGUI::CollapsingHeader("スキンメッシュ", false)) {
+
+		ImGui::Indent();
+		// ルートジョイントから描画する、rootが無効なら親のいないジョイントを全て描く
+		if (skeleton.root >= 0 && skeleton.root < static_cast<int32_t>(skeleton.joints.size())) {
+			DrawJointNode(context, world, entity, skeleton.root, attachedByJoint);
+		} else {
+			for (int32_t i = 0; i < static_cast<int32_t>(skeleton.joints.size()); ++i) {
+				if (!skeleton.joints[i].parent) {
+					DrawJointNode(context, world, entity, i, attachedByJoint);
+				}
+			}
+		}
+		ImGui::Unindent();
+	}
+	ImGui::Unindent();
+	ImGui::PopID();
+}
+
+void Engine::HierarchyPanel::DrawJointNode(const EditorPanelContext& context, ECSWorld& world,
+	const Entity& skinnedEntity, int32_t jointIndex,
+	const std::unordered_map<int32_t, std::vector<Entity>>& attachedByJoint) {
+
+	if (!world.HasComponent<SkinnedAnimationComponent>(skinnedEntity)) {
+		return;
+	}
+	const Skeleton& skeleton = world.GetComponent<SkinnedAnimationComponent>(skinnedEntity).runtimeSkeleton;
+	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(skeleton.joints.size())) {
+		return;
+	}
+	const Joint& joint = skeleton.joints[jointIndex];
+
+	ImGui::PushID(jointIndex);
+
+	// 子ジョイントまたは親子付けエンティティを持つか
+	auto attachedIt = attachedByJoint.find(jointIndex);
+	const bool hasAttached = attachedIt != attachedByJoint.end() && !attachedIt->second.empty();
+	const bool hasChildren = !joint.children.empty() || hasAttached;
+
+	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+	if (!hasChildren) {
+		flags |= ImGuiTreeNodeFlags_Leaf;
+	}
+	const bool selected = context.editorState && context.editorState->IsJointSelected(skinnedEntity, jointIndex);
+	if (selected) {
+		flags |= ImGuiTreeNodeFlags_Selected;
+	}
+
+	const std::string label = joint.name.empty() ? ("Joint_" + std::to_string(jointIndex)) : joint.name;
+	const bool opened = ImGui::TreeNodeEx("##JointNode", flags, "%s", label.c_str());
+	if (ImGui::IsItemClicked() && context.editorState) {
+		context.editorState->SelectJoint(skinnedEntity, jointIndex);
+	}
+
+	// ドロップ目標、別エンティティをこのジョイントへ親子付けする
+	if (ImGui::BeginDragDropTarget()) {
+
+		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kHierarchyDragDropPayloadType)) {
+			if (payload->IsDelivery() && context.CanEditScene()) {
+
+				const Entity dragged = ResolveDraggedEntity(world, payload);
+				if (world.IsAlive(dragged) && dragged != skinnedEntity) {
+
+					HierarchySystem hierarchySystem{};
+					JointAttachmentUtility::Attach(world, hierarchySystem, dragged, skinnedEntity, joint.name);
+				}
+			}
+		}
+		ImGui::EndDragDropTarget();
+	}
+
+	if (opened) {
+
+		// 子ジョイントを再帰描画する
+		for (int32_t childJoint : joint.children) {
+			DrawJointNode(context, world, skinnedEntity, childJoint, attachedByJoint);
+		}
+		// 親子付けエンティティを実エンティティノードとして表示する
+		if (hasAttached) {
+			for (const Entity& attached : attachedIt->second) {
+				if (world.IsAlive(attached)) {
+					DrawEntityNode(context, world, attached, true);
+				}
+			}
+		}
+		ImGui::TreePop();
+	}
+	ImGui::PopID();
+}
+
 void Engine::HierarchyPanel::DrawBackgroundContextMenu(const EditorPanelContext& context) {
 
 	//============================================================================
@@ -692,16 +843,22 @@ void Engine::HierarchyPanel::DrawRootDropTarget(const EditorPanelContext& contex
 				Entity dragged = ResolveDraggedEntity(world, payload);
 				if (world.IsAlive(dragged)) {
 
-					// ドロップされたエンティティの現在の親を取得
-					Entity currentParent = Entity::Null();
-					if (world.HasComponent<HierarchyComponent>(dragged)) {
-						currentParent = world.GetComponent<HierarchyComponent>(dragged).parent;
-					}
+					if (world.HasComponent<JointAttachmentComponent>(dragged)) {
 
-					// すでにルートなら何もしない
-					if (world.IsAlive(currentParent)) {
+						// ジョイントへ親子付け中ならルートへ戻す、ワールド位置は維持する
+						JointAttachmentUtility::Detach(world, dragged);
+					} else {
 
-						context.host->ExecuteEditorCommand(std::make_unique<ReparentEntityCommand>(dragged, UUID{}));
+						// ドロップされたエンティティの現在の親を取得
+						Entity currentParent = Entity::Null();
+						if (world.HasComponent<HierarchyComponent>(dragged)) {
+							currentParent = world.GetComponent<HierarchyComponent>(dragged).parent;
+						}
+						// すでにルートなら何もしない
+						if (world.IsAlive(currentParent)) {
+
+							context.host->ExecuteEditorCommand(std::make_unique<ReparentEntityCommand>(dragged, UUID{}));
+						}
 					}
 				}
 			}

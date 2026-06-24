@@ -86,7 +86,6 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawTypeMaskField(Coll
 	const auto& types = settings.GetTypes();
 
 	// 付与済みのタイプを1行ずつ縦に並べ、各行で解除できるようにする
-	// タイプ数が増えても横にはみ出さないよう、追加形式のリストにする
 	int32_t removeIndex = -1;
 	uint32_t assignedCount = 0;
 	for (uint32_t i = 0; i < static_cast<uint32_t>(types.size()); ++i) {
@@ -173,21 +172,21 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeField(Collisi
 
 	accumulate(DrawShapeTypeField(shape.type));
 	accumulate(InspectorDrawerCommon::DrawCheckboxField("有効", shape.enabled));
-	accumulate(InspectorDrawerCommon::DrawCheckboxField("トリガー", shape.isTrigger));
-	accumulate(InspectorDrawerCommon::DrawCheckboxField("変換回転", shape.useTransformRotation));
+	accumulate(InspectorDrawerCommon::DrawCheckboxField("押し戻しなしでコールバックのみ", shape.isTrigger));
+	accumulate(InspectorDrawerCommon::DrawCheckboxField("自トランスフォームの回転使用", shape.useTransformRotation));
 	accumulate(MyGUI::DragVector3("オフセット", shape.offset));
 	accumulate(MyGUI::DragVector3("回転", shape.rotationDegrees, { .dragSpeed = 0.1f }));
 
 	// 形状タイプに必要なパラメータだけを表示する
 	if (shape.type == ColliderShapeType::Circle2D || shape.type == ColliderShapeType::Sphere3D) {
-		accumulate(MyGUI::DragFloat("半径", shape.radius, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+		accumulate(MyGUI::DragFloat("半径", shape.radius, { .dragSpeed = 0.1f, .minValue = 0.0f }));
 	}
 	if (shape.type == ColliderShapeType::Quad2D) {
 		accumulate(InspectorDrawerCommon::DrawCheckboxField("回転四角", shape.rotatedQuad));
-		accumulate(MyGUI::DragVector2("半サイズ", shape.halfSize2D, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+		accumulate(MyGUI::DragVector2("半サイズ", shape.halfSize2D, { .dragSpeed = 0.1f, .minValue = 0.0f }));
 	}
 	if (shape.type == ColliderShapeType::AABB3D || shape.type == ColliderShapeType::OBB3D) {
-		accumulate(MyGUI::DragVector3("半径寸法", shape.halfExtents3D, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+		accumulate(MyGUI::DragVector3("半サイズ", shape.halfExtents3D, { .dragSpeed = 0.01f, .minValue = 0.0f }));
 	}
 	return result;
 }

@@ -173,6 +173,8 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 		PrefabInstantiateResult instantiateResult{};
 		PrefabInstantiateDesc desc{};
 		desc.ownerSceneInstanceID = sceneInstanceID;
+		// 新規生成なのでルート名を.prefabのベース名にする
+		desc.renameRootToPrefabName = true;
 		if (prefabSystem.InstantiatePrefab(database, hierarchySystem, world, payload.assetID, instantiateResult, desc) &&
 			world.IsAlive(instantiateResult.root)) {
 

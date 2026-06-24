@@ -40,18 +40,18 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "cf71a60370c2ddf1",
-                    "siblingOrder": 4
+                    "siblingOrder": 0
                 },
                 "Name": {
-                    "name": "PointLight"
+                    "name": "PointLight_4"
                 },
                 "PointLight": {
                     "affectLayerMask": 4294967295,
                     "color": {
                         "a": 1.0,
-                        "b": 1.0,
-                        "g": 1.0,
-                        "r": 1.0
+                        "b": 0.0,
+                        "g": 0.3000943660736084,
+                        "r": 0.8502674102783203
                     },
                     "decay": 1.0,
                     "enabled": true,
@@ -60,7 +60,7 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "cdb79f7d71c18555",
+                    "localFileID": "ebd93e56870cb988",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
@@ -68,7 +68,7 @@
                     "localPos": {
                         "x": 0.0,
                         "y": 0.0,
-                        "z": 0.0
+                        "z": -4.0
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -83,105 +83,7 @@
                     }
                 }
             },
-            "LocalFileID": "cdb79f7d71c18555"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "cf71a60370c2ddf1",
-                    "siblingOrder": 3
-                },
-                "Name": {
-                    "name": "PointLight_1"
-                },
-                "PointLight": {
-                    "affectLayerMask": 4294967295,
-                    "color": {
-                        "a": 1.0,
-                        "b": 0.8814791440963745,
-                        "g": 0.893048107624054,
-                        "r": 0.1719236820936203
-                    },
-                    "decay": 1.0,
-                    "enabled": true,
-                    "intensity": 16.0,
-                    "radius": 10.319999694824219
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileID": "4666fdbb29bf0fd5",
-                    "tag": "Untagged",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "localPos": {
-                        "x": 4.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "4666fdbb29bf0fd5"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "cf71a60370c2ddf1",
-                    "siblingOrder": 2
-                },
-                "Name": {
-                    "name": "PointLight_2"
-                },
-                "PointLight": {
-                    "affectLayerMask": 4294967295,
-                    "color": {
-                        "a": 1.0,
-                        "b": 0.893048107624054,
-                        "g": 0.1719236820936203,
-                        "r": 0.8506289720535278
-                    },
-                    "decay": 1.0,
-                    "enabled": true,
-                    "intensity": 16.0,
-                    "radius": 10.319999694824219
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileID": "9a36293bbbc11375",
-                    "tag": "Untagged",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "localPos": {
-                        "x": -4.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "9a36293bbbc11375"
+            "LocalFileID": "ebd93e56870cb988"
         },
         {
             "Components": {
@@ -236,18 +138,18 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "cf71a60370c2ddf1",
-                    "siblingOrder": 0
+                    "siblingOrder": 2
                 },
                 "Name": {
-                    "name": "PointLight_4"
+                    "name": "PointLight_2"
                 },
                 "PointLight": {
                     "affectLayerMask": 4294967295,
                     "color": {
                         "a": 1.0,
-                        "b": 0.0,
-                        "g": 0.3000943660736084,
-                        "r": 0.8502674102783203
+                        "b": 0.893048107624054,
+                        "g": 0.1719236820936203,
+                        "r": 0.8506289720535278
                     },
                     "decay": 1.0,
                     "enabled": true,
@@ -256,15 +158,15 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "ebd93e56870cb988",
+                    "localFileID": "9a36293bbbc11375",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 0.0,
+                        "x": -4.0,
                         "y": 0.0,
-                        "z": -4.0
+                        "z": 0.0
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -279,7 +181,105 @@
                     }
                 }
             },
-            "LocalFileID": "ebd93e56870cb988"
+            "LocalFileID": "9a36293bbbc11375"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "cf71a60370c2ddf1",
+                    "siblingOrder": 3
+                },
+                "Name": {
+                    "name": "PointLight_1"
+                },
+                "PointLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 0.8814791440963745,
+                        "g": 0.893048107624054,
+                        "r": 0.1719236820936203
+                    },
+                    "decay": 1.0,
+                    "enabled": true,
+                    "intensity": 16.0,
+                    "radius": 10.319999694824219
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "4666fdbb29bf0fd5",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 4.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "4666fdbb29bf0fd5"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "cf71a60370c2ddf1",
+                    "siblingOrder": 4
+                },
+                "Name": {
+                    "name": "PointLight"
+                },
+                "PointLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "decay": 1.0,
+                    "enabled": true,
+                    "intensity": 16.0,
+                    "radius": 10.319999694824219
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "cdb79f7d71c18555",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "cdb79f7d71c18555"
         }
     ],
     "Header": {

@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptBuildService.h>
 
 //============================================================================
 //	ToolbarPanel classMethods
@@ -37,7 +38,7 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	ImGui::SetWindowFontScale(0.8f);
+	ImGui::SetWindowFontScale(0.85f);
 
 	//============================================================================
 	//	現在のシーン名、モード、Undo/Redoの状態を表示
@@ -48,16 +49,16 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 
 	if (context.editorContext && context.editorContext->activeSceneHeader) {
 
-		ImGui::Text("Scene : %s", context.editorContext->activeSceneHeader->name.c_str());
+		ImGui::Text("現在のシーン : %s", context.editorContext->activeSceneHeader->name.c_str());
 	} else {
 
-		ImGui::Text("Scene : <None>");
+		ImGui::Text("現在のシーン : <None>");
 	}
 
 	ImGui::SameLine(0.0f, 16.0f);
 	ImGui::TextDisabled("|");
 	ImGui::SameLine();
-	ImGui::Text("Mode : %s", context.IsPlayPaused() ? "Pause" : (context.IsPlaying() ? "Play" : "Edit"));
+	ImGui::Text("モード : %s", context.IsPlayPaused() ? "ポーズ中" : (context.IsPlaying() ? "再生中" : "編集中"));
 
 	//============================================================================
 	//	シーンのプレイ/ストップ切り替え
@@ -77,6 +78,17 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 		}
 		if (ImGui::IsItemHovered()) {
 			ImGui::SetTooltip("再生");
+		}
+
+		// Play押下後はGameScriptsのbuild/reload完了までPlayモードに入らないので、その間は進行中であることを示す
+		const bool playBuildPending = context.editorContext && context.editorContext->scriptBuildService &&
+			context.editorContext->scriptBuildService->PollPlayBuild() ==
+			ManagedScriptBuildService::PlayBuildResult::Pending;
+		if (playBuildPending) {
+
+			ImGui::SameLine(0.0f, 8.0f);
+			ImGui::AlignTextToFramePadding();
+			ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "ビルド中...");
 		}
 	} else {
 

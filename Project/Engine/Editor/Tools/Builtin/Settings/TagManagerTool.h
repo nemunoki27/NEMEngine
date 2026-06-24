@@ -1,0 +1,70 @@
+#pragma once
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Editor/Tools/Core/IEditorTool.h>
+
+// c++
+#include <string>
+
+namespace Engine {
+
+	//============================================================================
+	//	TagManagerTool class
+	//	プロジェクトのタグ一覧を追加削除リネームするツール
+	//============================================================================
+	class TagManagerTool :
+		public IEditorTool {
+	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
+		TagManagerTool() = default;
+		~TagManagerTool() override = default;
+
+		// ToolPanelの一覧からツールを開く
+		void OpenEditorTool() override;
+		// タグ編集ウィンドウを描画する
+		void DrawEditorTool(const EditorToolContext& context) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }
+	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- functions ----------------------------------------------------
+
+		void DrawWindow(const EditorToolContext& context);
+
+		// fromからtoへ開いているシーンのタグを付け替えるコマンドを発行する
+		void RequestRemap(const EditorToolContext& context, const std::string& from, const std::string& to);
+
+		//--------- variables ----------------------------------------------------
+
+		// ToolPanelへ登録する情報
+		ToolDescriptor descriptor_{
+			.id = "engine.tag_manager",
+			.name = "タグ",
+			.category = "プロジェクト設定",
+			.owner = ToolOwner::Engine,
+			.flags = ToolFlags::EditOnly,
+			.order = 0,
+		};
+
+		// ウィンドウ表示状態
+		bool openWindow_ = false;
+		// 追加するタグ名の入力
+		char addBuffer_[128]{};
+		// リネーム中のタグ名、空ならリネームしていない
+		std::string renamingTag_;
+		// リネーム後の入力
+		char renameBuffer_[128]{};
+		// 未保存の編集があるか
+		bool dirty_ = false;
+	};
+} // Engine

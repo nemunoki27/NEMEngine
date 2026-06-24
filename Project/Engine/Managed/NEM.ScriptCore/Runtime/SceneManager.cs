@@ -98,7 +98,7 @@ public static class SceneManager {
             if (NativeApi.SceneInstanceAlive(pendingLoad[i].handle.instanceId)) {
                 SceneEvent ev = new(pendingLoad[i].handle, pendingLoad[i].asset);
                 pendingLoad.RemoveAt(i);
-                Raise(SceneLoaded, ev);
+                EventDispatch.Raise(SceneLoaded, ev, "SceneManager");
             }
         }
         // unload 完了検出（instance が alive でなくなった）
@@ -106,22 +106,7 @@ public static class SceneManager {
             if (!NativeApi.SceneInstanceAlive(pendingUnload[i].handle.instanceId)) {
                 SceneEvent ev = new(pendingUnload[i].handle, pendingUnload[i].asset);
                 pendingUnload.RemoveAt(i);
-                Raise(SceneUnloaded, ev);
-            }
-        }
-    }
-
-    // callback 例外を封じ込め、残りの購読者へ伝播させない
-    private static void Raise(Action<SceneEvent>? handlers, SceneEvent ev) {
-        if (handlers == null) {
-            return;
-        }
-        foreach (Action<SceneEvent> handler in handlers.GetInvocationList()) {
-            try {
-                handler(ev);
-            }
-            catch (Exception e) {
-                NativeApi.WriteLog(2, $"[SceneManager] event handler threw\n{e}");
+                EventDispatch.Raise(SceneUnloaded, ev, "SceneManager");
             }
         }
     }

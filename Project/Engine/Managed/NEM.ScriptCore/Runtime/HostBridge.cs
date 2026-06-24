@@ -197,13 +197,15 @@ public static unsafe class HostBridge {
     }
 
     // BehaviorSystem の各 phase 末から呼ばれる per-frame tick。phase: 0=Update, 1=FixedUpdate, 2=EndOfFrame。
-    // Update で Timer tick + Coroutine(Update)、FixedUpdate で Coroutine(Fixed)、EndOfFrame で Coroutine(EndOfFrame)。
+    // Update で 遅延イベント flush + Timer tick + Coroutine(Update)、FixedUpdate で Coroutine(Fixed)、EndOfFrame で Coroutine(EndOfFrame)。
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int TickFrame(int phase) {
 
         return (int)Guard(nameof(TickFrame), () => {
             switch (phase) {
             case 0:
+                // 前フレームに積まれた遅延イベントをフレーム頭で 1 回ドレインする
+                EventDispatch.FlushDeferred();
                 Timers.Tick();
                 Coroutines.Tick(CoroutinePhase.Update);
                 break;
@@ -596,10 +598,11 @@ public static unsafe class HostBridge {
             return;
         }
 
-        // owner script 破棄時に、その owner に紐づく coroutine / timer を停止・cancel する
+        // owner script 破棄時に、その owner に紐づく coroutine / timer / event 購読を停止・解除する
         if (slot.instance != null) {
             Coroutines.StopAllForOwner(slot.instance);
             Timers.CancelOwnedBy(slot.instance);
+            EventOwnerTracker.CancelOwnedBy(slot.instance);
         }
         slot.instance = null;
         slot.inUse = false;

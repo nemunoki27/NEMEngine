@@ -256,8 +256,8 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": 4.265302658081055,
-                        "z": -5.059999942779541
+                        "y": 4.11765193939209,
+                        "z": -9.059999465942383
                     },
                     "localRotation": {
                         "w": 0.9788674116134644,
@@ -1356,7 +1356,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "6d6cda8f769c6a9c",
-                    "tag": "Untagged",
+                    "tag": "Player",
                     "visibilityLayerMask": 4294967295
                 },
                 "Script": [
@@ -1422,8 +1422,8 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": 0.47530263662338257,
-                        "z": 0.0
+                        "y": 0.3276519775390625,
+                        "z": -4.0
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -1553,13 +1553,13 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "6fe12a97a65c9a37",
-                    "tag": "Untagged",
+                    "tag": "Ground",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": -0.5820400714874268,
+                        "y": -0.10000000149011612,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -1570,7 +1570,7 @@
                     },
                     "localScale": {
                         "x": 128.9398956298828,
-                        "y": 1.0399996042251587,
+                        "y": 0.009999999776482582,
                         "z": 128.9398956298828
                     }
                 }
@@ -1685,7 +1685,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "ab0cbb13e851d99f",
-                    "tag": "Untagged",
+                    "tag": "StageObject",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -1708,71 +1708,6 @@
                 }
             },
             "LocalFileID": "ab0cbb13e851d99f"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 9
-                },
-                "Name": {
-                    "name": "ToGameEvent"
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileID": "e8611522539f03c3",
-                    "tag": "Untagged",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Script": [
-                    {
-                        "enabled": true,
-                        "lastKnownTypeName": "SandboxScripts.ToGameEvent",
-                        "scriptAsset": "14c858eda84d3cf3",
-                        "scriptSlotID": "86a63bf6b74cea33",
-                        "scriptTypeId": "fbaa8692-dc7e-46bb-bdc0-1d1372812d77",
-                        "serializedFields": {
-                            "fields": {
-                                "08a519e2-d797-4aac-861b-98c886139f8a": {
-                                    "name": "gameScene",
-                                    "type": "AssetRef",
-                                    "value": {
-                                        "assetId": "8fd751029b486799"
-                                    }
-                                },
-                                "23ba02ca-c02c-4ada-83ac-61f57a9e4143": {
-                                    "name": "nextScene",
-                                    "type": "AssetRef",
-                                    "value": {
-                                        "assetId": "8fd751029b486799"
-                                    }
-                                }
-                            },
-                            "schemaVersion": 2,
-                            "unresolvedFields": {}
-                        }
-                    }
-                ],
-                "Transform": {
-                    "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "e8611522539f03c3"
         },
         {
             "Components": {
@@ -1882,7 +1817,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "7e5ea89724ef6be2",
-                    "tag": "Untagged",
+                    "tag": "StageObject",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -2014,7 +1949,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "d01d388eb151aac3",
-                    "tag": "Untagged",
+                    "tag": "StageObject",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -2146,7 +2081,7 @@
                 "SceneObject": {
                     "activeSelf": true,
                     "localFileID": "5030dfe78936672f",
-                    "tag": "Untagged",
+                    "tag": "StageObject",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
@@ -2169,6 +2104,107 @@
                 }
             },
             "LocalFileID": "5030dfe78936672f"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 9
+                },
+                "JointAttachment": {
+                    "jointName": "hand.R",
+                    "skinnedEntityLocalFileID": "6d6cda8f769c6a9c"
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "",
+                    "mesh": "a31d53b333db8b8b",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "Mesh_0",
+                            "parameterOverrides": {
+                                "baseColorTexture": "c2ea9f4498073ab3",
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.6000000238418579,
+                                    "g": 0.6000000238418579,
+                                    "r": 0.6000000238418579
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "stableID": "1a25a3164e77dc4e",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "cube"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "3861274ae386cb31",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 7.070000171661377,
+                        "y": 0.8109999895095825,
+                        "z": -2.384185791015625e-07
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": -1.762207233468871e-07,
+                        "y": -3.032749162912296e-08,
+                        "z": -3.032749162912296e-08
+                    },
+                    "localScale": {
+                        "x": 7.21999979019165,
+                        "y": 0.5100002884864807,
+                        "z": 0.5100003480911255
+                    }
+                }
+            },
+            "LocalFileID": "3861274ae386cb31"
         }
     ],
     "Header": {
@@ -2177,5 +2213,83 @@
         "name": "TitleScene",
         "postProcessStack": "799b3b15597cb842",
         "subScenes": []
-    }
+    },
+    "PrefabInstances": [
+        {
+            "AddedComponents": [],
+            "AddedEntities": [],
+            "EntityMap": [
+                {
+                    "P": "9f23d3aa4c99dbff",
+                    "S": "f74dd92231ec2ed0"
+                },
+                {
+                    "P": "db8704fc4d0e978c",
+                    "S": "38f9a3a1283bc384"
+                },
+                {
+                    "P": "e7acff030aae1504",
+                    "S": "4d3c51f8b24e8c5f"
+                },
+                {
+                    "P": "1604030d040a8a32",
+                    "S": "14def9ddfc449d3b"
+                },
+                {
+                    "P": "9f23d3aa4c99dbff",
+                    "S": "7533764a244c3d16"
+                },
+                {
+                    "P": "db8704fc4d0e978c",
+                    "S": "9036b8fa15e2ce43"
+                },
+                {
+                    "P": "e7acff030aae1504",
+                    "S": "8dbbb16695f96564"
+                },
+                {
+                    "P": "1604030d040a8a32",
+                    "S": "807b8daf4c01b11c"
+                }
+            ],
+            "HierarchyMods": [],
+            "InstanceID": "737911ab49af262b",
+            "Modifications": [
+                {
+                    "Path": "Name/name",
+                    "Target": "9f23d3aa4c99dbff",
+                    "Value": "cube.prefab_1"
+                },
+                {
+                    "Path": "Transform/localPos/x",
+                    "Target": "9f23d3aa4c99dbff",
+                    "Value": 8.0
+                },
+                {
+                    "Path": "Transform/localPos/z",
+                    "Target": "9f23d3aa4c99dbff",
+                    "Value": -6.0
+                },
+                {
+                    "Path": "Name/name",
+                    "Target": "9f23d3aa4c99dbff",
+                    "Value": "cube.prefab_2"
+                },
+                {
+                    "Path": "Transform/localPos/x",
+                    "Target": "9f23d3aa4c99dbff",
+                    "Value": 4.0
+                },
+                {
+                    "Path": "Transform/localPos/z",
+                    "Target": "9f23d3aa4c99dbff",
+                    "Value": 10.0
+                }
+            ],
+            "PrefabAsset": "a533fef6a74106f7",
+            "RemovedComponents": [],
+            "RemovedEntities": [],
+            "RootParent": ""
+        }
+    ]
 }

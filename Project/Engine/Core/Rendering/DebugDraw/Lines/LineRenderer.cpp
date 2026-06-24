@@ -64,8 +64,9 @@ void Engine::LineRenderer::RenderSceneView(GraphicsCore& graphicsCore,
 		renderer3D_->RenderDefaultGrid(graphicsCore, view, surface);
 	}
 
-	// スナップグリッドだけメッシュに隠すためのシーン深度を渡す
+	// スナップグリッドと深度オクルージョン対象の3D線をメッシュに隠すためのシーン深度を渡す
 	renderer3D_->SetSnapGridOcclusionDepth(snapGridOcclusionDepth);
+	renderer3D_->SetOcclusionDepth(snapGridOcclusionDepth);
 
 	// 各次元のライン描画クラスに描画呼び出し
 	renderer2D_->RenderSceneView(graphicsCore, view, surface, drawQueuedLines);

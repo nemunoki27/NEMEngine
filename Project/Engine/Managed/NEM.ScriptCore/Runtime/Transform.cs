@@ -52,6 +52,18 @@ public sealed class Transform : IComponentRef {
     // world(lossy) scale。親階層の localScale を成分積で累積した近似値（読み取り専用）
     public Vector3 lossyScale => NativeApi.ReadLossyScale(owner.native);
 
+    // 親(エンティティ階層 / スキンメッシュのジョイント)追従で回転を無視するか。座標は常に追従する
+    public bool ignoreParentRotation {
+        get => NativeApi.ReadIgnoreParentRotation(owner.native);
+        set => NativeApi.WriteIgnoreParentRotation(owner.native, value);
+    }
+
+    // 親追従でスケールを無視するか
+    public bool ignoreParentScale {
+        get => NativeApi.ReadIgnoreParentScale(owner.native);
+        set => NativeApi.WriteIgnoreParentScale(owner.native, value);
+    }
+
     // world 回転を基準にした各方向ベクトル
     public Vector3 forward => RotateVector(rotation, new Vector3(0.0f, 0.0f, 1.0f));
     public Vector3 right => RotateVector(rotation, new Vector3(1.0f, 0.0f, 0.0f));

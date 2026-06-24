@@ -596,6 +596,18 @@ void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetD
 		}
 		});
 
+	// 破棄→再生成方式なので、再生成元のプレファブが確実に読める時だけ伝播する
+	// 解決できない/空のプレファブだと再生成に失敗してインスタンスが復元されず消えてしまうため、その場合は一切壊さず温存する
+	const auto prefabFullPath = database.ResolveFullPath(prefabAsset);
+	if (prefabFullPath.empty()) {
+		return;
+	}
+	const nlohmann::json prefabProbe = JsonAdapter::Load(prefabFullPath.string(), true);
+	if (!prefabProbe.is_object() || !prefabProbe.contains("Entities") ||
+		!prefabProbe["Entities"].is_array() || prefabProbe["Entities"].empty()) {
+		return;
+	}
+
 	// 各インスタンスを、現在のオーバーライドを保持したまま新しいプレファブで作り直す
 	for (auto& [instanceID, target] : targets) {
 

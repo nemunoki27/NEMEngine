@@ -31,9 +31,7 @@ public struct NativeEntity {
     };
 }
 
-// runtime 操作用の Entity facade。ECSWorld* / native pointer は保持せず、
-// world handle(index/generation) + entity index/generation の opaque handle だけを持つ。
-// JSON へ直接保存しない（serialization 用 identity は EntityRef）。
+// ランタイム操作用のEntity
 public readonly struct Entity : IEquatable<Entity> {
 
     internal readonly NativeEntity native;
@@ -44,11 +42,7 @@ public readonly struct Entity : IEquatable<Entity> {
         this.native = native;
     }
 
-    // 生ポインタ判定ではなく、world handleとentity indexの有効値で判定する。
-    // default(Entity) は world handle が無効なので安全に invalid。
     public bool isValid => native.world.isValid && native.index != 0xffffffffu;
-    // world generation / entity generation の検証は native 側 IsAlive が行う。
-    // Stop 後の古い Entity や次 Play world の別 Entity を誤参照しない
     public bool isAlive => isValid && NativeApi.ReadIsAlive(native);
 
     public string name {
@@ -70,13 +64,13 @@ public readonly struct Entity : IEquatable<Entity> {
     public Entity nextSibling => NativeApi.ReadNextSibling(native);
     public Transform transform => new(this);
 
-    // ゲームプレイ用タグ、固定リスト(ProjectSettings/TagSettings.json)から選ぶ
+    // ゲームプレイ用タグから選ぶ
     public string tag {
         get => NativeApi.ReadTag(native);
         set => NativeApi.WriteTag(native, value);
     }
 
-    // 指定タグと一致するか、Unityのcompareと同じく完全一致で判定する
+    // 指定タグと一致するか
     public bool CompareTag(string other) => NativeApi.ReadTag(native) == other;
 
     // 描画カリング用のレイヤーマスク、カメラのcullingMaskと照合される
@@ -135,7 +129,7 @@ public readonly struct Entity : IEquatable<Entity> {
         return false;
     }
 
-    // wrapper を返す。欠落時は明確な例外（呼び出し側は Has/TryGet で確認するのが推奨）
+    // wrapper を返す。欠落時は明確な例外
     public T Get<T>() where T : struct, IComponentRef<T> {
         if (!Has<T>()) {
             throw new InvalidOperationException(
@@ -144,7 +138,7 @@ public readonly struct Entity : IEquatable<Entity> {
         return T.FromEntity(this);
     }
 
-    // component 追加。archetype 移動は WorldCommandBuffer 経由で安全地点まで遅延される（duplicate add は native 側で吸収）
+    // component 追加
     public void Add<T>() where T : struct, IComponentRef<T> {
         if (isValid) {
             NativeApi.EnqueueAddComponent(native, ComponentType<T>.Id);

@@ -1,12 +1,8 @@
 {
-  "schemaVersion": 1,
   "tags": [
     "Untagged",
     "Player",
-    "Enemy",
-    "Respawn",
-    "Finish",
-    "GameController",
-    "MainCamera"
+    "StageObject",
+    "Ground"
   ]
 }

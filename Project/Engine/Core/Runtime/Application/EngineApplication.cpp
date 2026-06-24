@@ -43,6 +43,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
+#include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
 #include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
 #include <Engine/Core/World/Systems/Camera/CameraControllerSystem.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
@@ -90,6 +91,8 @@ void Engine::EngineApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UVTransformUpdateSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<SkinnedAnimationUpdateSystem>(), ++order);
+	// ジョイント追従はスケルトン更新の後でないとジョイントのワールド行列が確定しないため、最後に動かす
+	scheduler_.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);
 }
 
 void Engine::EngineApplication::InitFirstScene() {
@@ -322,22 +325,26 @@ void Engine::EngineApplication::ExitPrefabEdit() {
 	if (prefabStages_.empty()) {
 		return;
 	}
-	// 伝播に必要な情報を退出前に控える
+	// 退出処理に必要な情報を退出前に控える
 	PrefabEditStage& top = prefabStages_.back();
-	const AssetID editedAsset = top.asset;
-	const std::unordered_map<UUID, PrefabBaseEntity> oldBase = top.baseAtEnter;
 	const bool wasInContext = top.inContext;
 	ECSWorld* hostWorld = top.hostWorld;
+	const UUID editInstanceID = top.instanceID;
 
-	// 退出時は現在の編集内容を元の.prefabへ自動保存する、保存内でrootが付け替わる場合があるので後で参照する
+	// 退出時は現在の編集内容を元の.prefabへ自動保存する
 	SaveCurrentPrefab();
-	const Entity tempRoot = top.root;
 
 	if (wasInContext) {
 
-		// In-Context編集は一時オーサリング実体をhostWorldから破棄する、ワールド自体は破棄しない
-		if (hostWorld && hostWorld->IsAlive(tempRoot)) {
-			EditorEntitySnapshotUtility::DestroySubtree(*hostWorld, tempRoot);
+		// In-Context編集は一時オーサリング実体(編集セッションのinstanceID)だけをhostWorldから破棄する、ワールド自体は破棄しない
+		// 編集セッションのinstanceIDはこの場限りの採番なので、元シーンの実インスタンス(別ID)には一切触れない
+		if (hostWorld) {
+			const std::vector<Entity> members = PrefabOverrideUtility::CollectInstanceEntities(*hostWorld, editInstanceID);
+			for (const Entity& member : members) {
+				if (hostWorld->IsAlive(member)) {
+					EditorEntitySnapshotUtility::DestroySubtree(*hostWorld, member);
+				}
+			}
 		}
 		prefabStages_.pop_back();
 	} else {
@@ -347,10 +354,9 @@ void Engine::EngineApplication::ExitPrefabEdit() {
 		prefabStages_.pop_back();
 	}
 
-	// 戻り先ワールドの該当プレファブインスタンスへ編集結果を即時伝播する、各インスタンスのオーバーライドは保持される
-	if (ECSWorld* targetWorld = GetActiveWorld()) {
-		PropagatePrefabToInstances(*targetWorld, editedAsset, oldBase);
-	}
+	// プレファブ編集は隔離された編集シーンで行うので、戻り先の元シーンには干渉しない
+	// 編集結果は.prefabへ保存済みで、各インスタンスは次回のシーン読み込み時に新しいプレファブから展開される
+	// 破棄→再生成方式の即時伝播は元シーンのインスタンスを失わせるため行わない
 
 	// 破棄したワールドのエンティティを指す選択や履歴を片付ける
 	editorManager_.ResetSceneEditingState();
@@ -392,9 +398,15 @@ void Engine::EngineApplication::TogglePrefabInContextMode() {
 		}
 	} else {
 
-		// In-Context -> 隔離、hostWorldの一時実体を捨てて隔離ワールドへ展開する
-		if (top.hostWorld && top.hostWorld->IsAlive(top.root)) {
-			EditorEntitySnapshotUtility::DestroySubtree(*top.hostWorld, top.root);
+		// In-Context -> 隔離、hostWorldの一時実体をinstanceIDで全て捨ててから隔離ワールドへ展開する
+		// ルート外や複数ルートの実体も漏らさず消し、元シーンへ残さない
+		if (top.hostWorld) {
+			const std::vector<Entity> members = PrefabOverrideUtility::CollectInstanceEntities(*top.hostWorld, instanceID);
+			for (const Entity& member : members) {
+				if (top.hostWorld->IsAlive(member)) {
+					EditorEntitySnapshotUtility::DestroySubtree(*top.hostWorld, member);
+				}
+			}
 		}
 		top.inContext = false;
 		top.world = std::make_unique<ECSWorld>();
@@ -509,35 +521,50 @@ void Engine::EngineApplication::SyncPrefabEditedEntities() {
 
 	// 編集セッションのインスタンスIDで束ねる、rootを全削除した後でも新規実体にPrefabLinkを付けて水色表示にする
 	const UUID rootInstanceID = stage.instanceID;
+	const bool hasRoot = world.IsAlive(stage.root);
 
-	// PrefabLink未付与かつ環境でもないエンティティ = 編集中に新規作成されたもの
-	// 反復中の構造変更を避けるため、先に対象を集めてからまとめて処理する
-	std::vector<Entity> newcomers;
+	// ルートと環境エンティティ(複製カメラ/平行光源)以外を対象にする、反復中の構造変更を避けて先に集める
+	std::vector<Entity> targets;
 	world.ForEachAliveEntity([&](Entity entity) {
 
-		if (entity == stage.root || world.HasComponent<PrefabLinkComponent>(entity)) {
+		if (entity == stage.root) {
 			return;
 		}
 		if (std::find(stage.environmentEntities.begin(), stage.environmentEntities.end(), entity) !=
 			stage.environmentEntities.end()) {
 			return;
 		}
-		newcomers.emplace_back(entity);
+		targets.emplace_back(entity);
 		});
-	if (newcomers.empty()) {
+	if (targets.empty()) {
 		return;
 	}
 
-	for (const Entity& entity : newcomers) {
+	HierarchySystem hierarchySystem{};
+	for (const Entity& entity : targets) {
 
-		// プレファブメンバーとして登録するだけで親付けはしない、作成位置の階層をそのまま尊重する
-		// これでルート作成はルートのまま残り、子付けは右クリックの子作成やroot上へのD&Dでのみ行われる
-		auto& prefabLink = world.AddComponent<PrefabLinkComponent>(entity);
-		prefabLink.prefabAsset = stage.asset;
-		prefabLink.prefabInstanceID = rootInstanceID;
-		prefabLink.isPrefabRoot = false;
-		if (world.HasComponent<SceneObjectComponent>(entity)) {
-			prefabLink.prefabLocalFileID = world.GetComponent<SceneObjectComponent>(entity).localFileID;
+		if (!world.IsAlive(entity)) {
+			continue;
+		}
+
+		// Unity準拠で1プレファブ1ルートを強制する、トップレベルになった実体はプレファブルート配下へ入れる
+		// 新規作成もroot上以外へのD&Dも、ここで必ずルート配下にまとまる
+		const bool isRoot = !world.HasComponent<HierarchyComponent>(entity) ||
+			!world.IsAlive(world.GetComponent<HierarchyComponent>(entity).parent);
+		if (hasRoot && isRoot) {
+			hierarchySystem.SetParent(world, entity, stage.root);
+		}
+
+		// 新規作成された実体はプレファブメンバーとして登録し、水色表示と保存対象にする
+		if (!world.HasComponent<PrefabLinkComponent>(entity)) {
+
+			auto& prefabLink = world.AddComponent<PrefabLinkComponent>(entity);
+			prefabLink.prefabAsset = stage.asset;
+			prefabLink.prefabInstanceID = rootInstanceID;
+			prefabLink.isPrefabRoot = false;
+			if (world.HasComponent<SceneObjectComponent>(entity)) {
+				prefabLink.prefabLocalFileID = world.GetComponent<SceneObjectComponent>(entity).localFileID;
+			}
 		}
 	}
 }

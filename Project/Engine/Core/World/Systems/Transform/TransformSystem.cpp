@@ -6,6 +6,7 @@
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/Foundation/Math/AffineDecompose.h>
 
 //============================================================================
 //	TransformUpdateSystem classMethods
@@ -63,8 +64,11 @@ void Engine::TransformUpdateSystem::LateUpdate(ECSWorld& world, [[maybe_unused]]
 				bool childNeedsUpdate = parentDirty || childTransform.isDirty;
 				if (childNeedsUpdate) {
 
+					// 子の継承設定に応じて親ワールドを調整する、座標は常に追従し回転スケールは任意で無視する
+					const Matrix4x4 followParent = BuildParentFollowMatrix(parentWorld,
+						childTransform.ignoreParentScale, childTransform.ignoreParentRotation);
 					Matrix4x4 childLocal = MakeLocalMatrix(childTransform);
-					childTransform.worldMatrix = childLocal * parentWorld;
+					childTransform.worldMatrix = childLocal * followParent;
 					childTransform.isDirty = false;
 				}
 				// 子エンティティをスタックに積む

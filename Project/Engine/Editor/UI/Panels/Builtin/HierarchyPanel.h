@@ -6,6 +6,11 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Editor/UI/Common/TextSearchFilter.h>
 
+// c++
+#include <cstdint>
+#include <vector>
+#include <unordered_map>
+
 namespace Engine {
 
 	// front
@@ -44,6 +49,11 @@ namespace Engine {
 		void DrawSiblingDropTarget(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& anchorEntity, bool insertAfter);
 		void DrawSubMeshNodes(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
+		// スキンメッシュのジョイント階層を描画する、サブメッシュと同様にエンティティの下に出す
+		void DrawSkinnedMeshNodes(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
+		// ジョイントノードを再帰的に描画する、ジョイント直下に親子付けエンティティも出す
+		void DrawJointNode(const EditorPanelContext& context, ECSWorld& world, const Entity& skinnedEntity,
+			int32_t jointIndex, const std::unordered_map<int32_t, std::vector<Entity>>& attachedByJoint);
 		// ヒエラルキーパネルの背景を右クリックしたときのコンテキストメニューを描画する
 		void DrawBackgroundContextMenu(const EditorPanelContext& context);
 		// ルートエンティティでないエンティティをドロップしてルートエンティティにするためのドロップ目標を描画する

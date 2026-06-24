@@ -44,8 +44,6 @@ local function NEM_AddGameAppFiles()
         path.join(GAME_APP_ROOT, "**.inl"),
         path.join(GAME_APP_ROOT, "**.cpp"),
         path.join(GAME_APP_ROOT, "**.c"),
-        path.join(GAME_APP_ROOT, "**.cs"),
-        path.join(GAME_APP_ROOT, "**.csproj"),
         path.join(GAME_APP_ROOT, "**.hlsl"),
         path.join(GAME_APP_ROOT, "**.hlsli"),
         path.join(GAME_APP_ROOT, "GameAssets/**.*"),
@@ -58,8 +56,6 @@ local function NEM_AddGameAppFiles()
             path.join(GAME_APP_ROOT, "**.inl"),
             path.join(GAME_APP_ROOT, "**.cpp"),
             path.join(GAME_APP_ROOT, "**.c"),
-            path.join(GAME_APP_ROOT, "**.cs"),
-            path.join(GAME_APP_ROOT, "**.csproj"),
         },
         ["Shaders/*"] = {
             path.join(GAME_APP_ROOT, "**.hlsl"),
@@ -77,10 +73,14 @@ local function NEM_AddGameAppFiles()
         buildaction "None"
     filter {}
 
+    -- C#(.cs/.csproj)はGameScripts(C#)プロジェクト専用にする。C++プロジェクトにも含めると
+    -- Solution Explorerでそちら側から開けてしまい、C#言語サービスが効かず白文字・無補完になる
     removefiles {
         path.join(GAME_APP_ROOT, "**/bin/**"),
         path.join(GAME_APP_ROOT, "**/obj/**"),
         path.join(GAME_APP_ROOT, "Managed/**"),
+        path.join(GAME_APP_ROOT, "**.cs"),
+        path.join(GAME_APP_ROOT, "**.csproj"),
     }
 end
 

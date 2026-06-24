@@ -8,6 +8,7 @@
 #include <Engine/Editor/Tools/Builtin/Collision/CollisionManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/PostProcess/PostProcessStackTool.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialEditorTool.h>
+#include <Engine/Editor/Tools/Builtin/Settings/TagManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptExecutionOrderTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptBuildDiagnosticsTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptExceptionListTool.h>
@@ -44,6 +45,7 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<AnimationClipTool>();
 	RegisterBuiltinEditorTool<PostProcessStackTool>();
 	RegisterBuiltinEditorTool<MaterialEditorTool>();
+	RegisterBuiltinEditorTool<TagManagerTool>();
 	RegisterBuiltinEditorTool<ScriptExecutionOrderTool>();
 	RegisterBuiltinEditorTool<ScriptProfilerTool>();
 }

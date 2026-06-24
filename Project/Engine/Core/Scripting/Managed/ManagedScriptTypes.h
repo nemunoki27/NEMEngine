@@ -30,7 +30,8 @@ namespace Engine {
 	// v13: LineRendererComponentへ1点追加するlineAddPointを追加
 	// v14: Tag公開とLayerマスク公開visibility typeMaskとEntity検索byName byTag byComponentを追加
 	// v15: 即時形状描画の汎用lineDrawShapeを追加、円や箱や錐などをC++側生成で発行する
-	inline constexpr uint32_t kManagedAbiVersion = 15;
+	// v16: Transform親追従の継承フラグ公開でignoreParentRotation ignoreParentScaleを追加
+	inline constexpr uint32_t kManagedAbiVersion = 16;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -483,6 +484,12 @@ namespace Engine {
 
 		// v15の即時形状描画
 		LineDrawShapeCallback lineDrawShape = nullptr;
+
+		// v16のTransform親追従の継承フラグ公開、座標は常に追従し回転スケールを任意で無視する
+		GetBoolCallback getIgnoreParentRotation = nullptr;
+		SetBoolCallback setIgnoreParentRotation = nullptr;
+		GetBoolCallback getIgnoreParentScale = nullptr;
+		SetBoolCallback setIgnoreParentScale = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

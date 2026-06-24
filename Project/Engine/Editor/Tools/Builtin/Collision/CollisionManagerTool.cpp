@@ -190,10 +190,12 @@ namespace {
 			MakeShapeRotationMatrix(shape, transform), color, thickness);
 	}
 
-	// 形状タイプごとの描画関数へ振り分ける
-	void DrawCollisionShape(const Engine::CollisionShape& shape, const Engine::TransformComponent& transform) {
+	// 形状タイプごとの描画関数へ振り分ける、collidingなら衝突中として赤で描く
+	void DrawCollisionShape(const Engine::CollisionShape& shape,
+		const Engine::TransformComponent& transform, bool colliding) {
 
-		const Engine::Color4 color = GetShapeColor(shape);
+		// 衝突中は形状種別に関わらず赤、それ以外はTrigger黄/通常シアン
+		const Engine::Color4 color = colliding ? Engine::Color4::Red(1.0f) : GetShapeColor(shape);
 		const float thickness = 2.0f;
 		switch (shape.type) {
 		case Engine::ColliderShapeType::Circle2D:
@@ -203,14 +205,26 @@ namespace {
 			DrawQuad2D(shape, transform, color, thickness);
 			break;
 		case Engine::ColliderShapeType::Sphere3D:
-			DrawSphere3D(shape, transform, color, thickness);
-			break;
 		case Engine::ColliderShapeType::AABB3D:
-			DrawAABB3D(shape, transform, color, thickness);
+		case Engine::ColliderShapeType::OBB3D: {
+
+			// 3D形状は不透明メッシュに隠れるよう深度オクルージョン対象バッチへ積む
+			Engine::LineRenderer3D* renderer = Engine::LineRenderer::GetInstance()->Get3D();
+			if (renderer) {
+				renderer->SetOccludedMode(true);
+			}
+			if (shape.type == Engine::ColliderShapeType::Sphere3D) {
+				DrawSphere3D(shape, transform, color, thickness);
+			} else if (shape.type == Engine::ColliderShapeType::AABB3D) {
+				DrawAABB3D(shape, transform, color, thickness);
+			} else {
+				DrawOBB3D(shape, transform, color, thickness);
+			}
+			if (renderer) {
+				renderer->SetOccludedMode(false);
+			}
 			break;
-		case Engine::ColliderShapeType::OBB3D:
-			DrawOBB3D(shape, transform, color, thickness);
-			break;
+		}
 		default:
 			break;
 		}
@@ -501,7 +515,7 @@ void Engine::CollisionManagerTool::DrawCollisionWorld([[maybe_unused]] ECSWorld&
 				if (!shape.enabled) {
 					continue;
 				}
-				DrawCollisionShape(shape, transform);
+				DrawCollisionShape(shape, transform, collision.runtimeColliding);
 			}
 		});
 #endif

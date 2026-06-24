@@ -20,10 +20,14 @@
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/Foundation/Math/AffineDecompose.h>
+#include <Engine/Editor/Utility/JointAttachmentUtility.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Editor/Utility/AssetEntityFactory.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
+#include <Engine/Editor/Commands/Entity/CreateDroppedEntityCommand.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Editor/Commands/Components/SetSerializedComponentCommand.h>
 #include <Engine/Editor/Commands/Transform/SetTransformCommand.h>
@@ -78,18 +82,31 @@ namespace {
 		}
 		return nullptr;
 	}
-	// エンティティの親のワールド行列を取得する
+	// エンティティの親のワールド行列を取得する、ジョイント親子付け中はジョイントを親とみなす
 	Engine::Matrix4x4 GetEntityParentWorldMatrix(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
-		if (!world.IsAlive(entity) || !world.HasComponent<Engine::HierarchyComponent>(entity)) {
-			return Engine::Matrix4x4::Identity();
+		using namespace Engine;
+		if (!world.IsAlive(entity) || !world.HasComponent<TransformComponent>(entity)) {
+			return Matrix4x4::Identity();
 		}
-		const auto& hierarchy = world.GetComponent<Engine::HierarchyComponent>(entity);
-		if (!world.IsAlive(hierarchy.parent) || !world.HasComponent<Engine::TransformComponent>(hierarchy.parent)) {
+		const auto& transform = world.GetComponent<TransformComponent>(entity);
 
-			return Engine::Matrix4x4::Identity();
+		// ジョイント親子付け中はジョイントのワールド行列を親に使う、それ以外はエンティティ階層の親を使う
+		Matrix4x4 rawParentWorld = Matrix4x4::Identity();
+		Matrix4x4 jointWorld{};
+		if (world.HasComponent<JointAttachmentComponent>(entity) &&
+			JointAttachmentUtility::GetAttachedJointWorldMatrix(world, entity, jointWorld)) {
+
+			rawParentWorld = jointWorld;
+		} else if (world.HasComponent<HierarchyComponent>(entity)) {
+
+			const auto& hierarchy = world.GetComponent<HierarchyComponent>(entity);
+			if (world.IsAlive(hierarchy.parent) && world.HasComponent<TransformComponent>(hierarchy.parent)) {
+				rawParentWorld = world.GetComponent<TransformComponent>(hierarchy.parent).worldMatrix;
+			}
 		}
-		return world.GetComponent<Engine::TransformComponent>(hierarchy.parent).worldMatrix;
+		// 継承設定を反映した実効親ワールドを返し、ギズモのローカル変換をsystemの計算と一致させる
+		return BuildParentFollowMatrix(rawParentWorld, transform.ignoreParentScale, transform.ignoreParentRotation);
 	}
 	// グリッド単位へ値を丸める
 	float SnapValueToGrid(float value, float grid) {
@@ -557,6 +574,10 @@ void Engine::ViewportPanel::HandleAssetDropPlacement(const EditorPanelContext& c
 				if (context.editorState) {
 					context.editorState->SelectEntity(dropPreviewEntity_);
 				}
+				// 作成済みエンティティをUndo/Redo対象として履歴へ登録する
+				if (context.host) {
+					context.host->ExecuteEditorCommand(std::make_unique<CreateDroppedEntityCommand>(dropPreviewEntity_));
+				}
 				dropPreviewActive_ = false;
 				dropPreviewEntity_ = Entity::Null();
 				dropPreviewWorld_ = nullptr;
@@ -566,11 +587,11 @@ void Engine::ViewportPanel::HandleAssetDropPlacement(const EditorPanelContext& c
 		ImGui::EndDragDropTarget();
 	}
 
-	// SceneViewで3Dアセットをスナップ有効でドラッグ中なら、スナップグリッド表示を要求する
-	// DrawSceneDebugObjectsは描画前に走るため、ここで立てたフラグは次フレームのグリッドに反映される
+	// SceneViewでアセットをスナップ有効でドラッグ中なら、スナップグリッド表示を要求する
 	if (kind_ == ViewportPanelKind::Scene && context.editorState) {
-		context.editorState->assetDragSnapGridActive =
-			dropPreviewActive_ && dropPreviewIsThreeD_ && context.editorState->enableSnapEditEntity;
+
+		context.editorState->assetDragSnapGridActive = dropPreviewActive_ && context.editorState->enableSnapEditEntity;
+		context.editorState->assetDragSnapGridIs3D = dropPreviewIsThreeD_;
 	}
 }
 
@@ -701,8 +722,6 @@ void Engine::ViewportPanel::DrawSnapSettingsPopup(const EditorPanelContext& cont
 	EntitySnapSettings& settings = context.editorState->snapSettings;
 
 	// ラベル直後にDragを置き、その右へチェックボックスを並べるコンパクトな1行
-	// BeginPopupはAlwaysAutoResizeなのでDragは固定幅にする、可変幅だと循環依存で極小化する
-	// 絶対スナップのチェックがtrueなら、操作結果を最寄りグリッドへ強制する
 	auto drawSnapRow = [](const char* id, const char* label, GridSnapAxis& axis, float dragSpeed) {
 
 		ImGui::PushID(id);
@@ -1167,7 +1186,7 @@ void Engine::ViewportPanel::DrawManipulatorSection(const EditorPanelContext& con
 			mode = SceneViewManipulatorMode::None;
 		}
 		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("マニュピレーター表示なし");
+			ImGui::SetTooltip("マニュピレーター表示なし H");
 		}
 	}
 	// エンティティ/サブメッシュ選択モードの切り替え
@@ -1187,7 +1206,7 @@ void Engine::ViewportPanel::DrawManipulatorSection(const EditorPanelContext& con
 		if (ImGui::IsItemHovered()) {
 
 			std::string tooltip = std::string("選択対象の切り替え\n現在の対象: ") +
-				(kind == EditorSelectionKind::Entity ? "エンティティ単位" : "サブメッシュ単位");
+				(kind == EditorSelectionKind::Entity ? "エンティティ単位" : "サブメッシュ単位 E");
 			ImGui::SetTooltip("%s", tooltip.c_str());
 		}
 	}
@@ -1200,7 +1219,7 @@ void Engine::ViewportPanel::DrawManipulatorSection(const EditorPanelContext& con
 			mode = SceneViewManipulatorMode::Translate;
 		}
 		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("座標編集");
+			ImGui::SetTooltip("座標編集 T");
 		}
 		if (DrawIconButton("##ManipulatorRotate", GetTextureID(icons_.rotateKey),
 			mode == SceneViewManipulatorMode::Rotate, buttonSize_)) {
@@ -1208,7 +1227,7 @@ void Engine::ViewportPanel::DrawManipulatorSection(const EditorPanelContext& con
 			mode = SceneViewManipulatorMode::Rotate;
 		}
 		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("回転編集");
+			ImGui::SetTooltip("回転編集 R");
 		}
 		if (DrawIconButton("##ManipulatorScale", GetTextureID(icons_.scaleKey),
 			mode == SceneViewManipulatorMode::Scale, buttonSize_)) {
@@ -1216,7 +1235,7 @@ void Engine::ViewportPanel::DrawManipulatorSection(const EditorPanelContext& con
 			mode = SceneViewManipulatorMode::Scale;
 		}
 		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("拡縮編集");
+			ImGui::SetTooltip("拡縮編集 S");
 		}
 	}
 	DrawToolSeparator(buttonSize_);
@@ -1230,7 +1249,7 @@ void Engine::ViewportPanel::DrawManipulatorSection(const EditorPanelContext& con
 		if (ImGui::IsItemHovered()) {
 
 			std::string tooltip = std::string("エンティティスナップ操作の有効/無効切り替え\n左クリックで切替 右クリックで設定\n現在の状態: ") +
-				(context.editorState->enableSnapEditEntity ? "有効" : "無効");
+				(context.editorState->enableSnapEditEntity ? "有効" : "無効 G");
 			ImGui::SetTooltip("%s", tooltip.c_str());
 		}
 		// 右クリックでスナップ単位の調整ポップアップを開く
@@ -1327,18 +1346,18 @@ void Engine::ViewportPanel::DrawEntityCameraPopup(const EditorPanelContext& cont
 	}
 
 	ImGui::PushItemWidth(256.0f);
-	DrawCameraChoiceCombo("2D Camera", selection.orthographicCameraUUID, orthoChoices, "<Auto 2D>");
-	DrawCameraChoiceCombo("3D Camera", selection.perspectiveCameraUUID, perspChoices, "<Auto 3D>");
+	DrawCameraChoiceCombo("2D カメラ", selection.orthographicCameraUUID, orthoChoices, "<Auto 2D>");
+	DrawCameraChoiceCombo("3D カメラ", selection.perspectiveCameraUUID, perspChoices, "<Auto 3D>");
 	ImGui::PopItemWidth();
 
 	ImGui::Separator();
 
-	if (ImGui::Button("Clear")) {
+	if (ImGui::Button("選択クリア")) {
 
 		selection.ClearAssignedCameras();
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Use Debug Camera")) {
+	if (ImGui::Button("デバッグカメラに戻す")) {
 
 		selection.mode = SceneViewCameraMode::DebugManual;
 		selection.ClearAssignedCameras();

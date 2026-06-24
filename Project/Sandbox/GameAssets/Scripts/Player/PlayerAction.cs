@@ -88,6 +88,12 @@ public sealed class PlayerAction : ScriptBehaviour
     //========================================================================
     public override void OnCollisionEnter(Collision collision)
     {
+
+        if (collision.entity.CompareTag(""))
+        {
+
+        }
+
         UpdateGrounded(collision);
     }
     public override void OnCollisionStay(Collision collision)

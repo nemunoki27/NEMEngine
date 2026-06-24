@@ -44,6 +44,8 @@ bool Engine::InstantiatePrefabCommand::InstantiateInternal(EditorCommandContext&
 	PrefabInstantiateDesc desc{};
 	desc.ownerSceneInstanceID = context.editorContext->activeSceneInstanceID;
 	desc.parent = parent;
+	// 新規生成なのでルート名を.prefabのベース名にする
+	desc.renameRootToPrefabName = true;
 
 	HierarchySystem hierarchySystem{};
 	PrefabSystem prefabSystem{};
