@@ -412,7 +412,7 @@
                             "y": 1.0,
                             "z": 1.0
                         },
-                        "enableInputRotation": true,
+                        "enableInputRotation": false,
                         "enabled": true,
                         "inputLerpRate": 12.0,
                         "invertPitch": false,
@@ -656,14 +656,14 @@
                                 "y": 3.25,
                                 "z": 0.0
                             },
-                            "radius": 3.9200000762939453,
+                            "radius": 3.5199999809265137,
                             "rotatedQuad": false,
                             "rotationDegrees": {
                                 "x": 0.0,
                                 "y": 0.0,
                                 "z": 0.0
                             },
-                            "type": "OBB3D",
+                            "type": "Sphere3D",
                             "useTransformRotation": true
                         }
                     ],
@@ -1639,6 +1639,11 @@
                                         "assetId": "31d6a34a3ec5018a"
                                     }
                                 },
+                                "2187cd94-c4da-4726-9165-3e9c4bebd2b5": {
+                                    "name": "invincibleTime",
+                                    "type": "float",
+                                    "value": 0.5
+                                },
                                 "23e91a8b-82f4-4636-ba1c-3fc2c724f645": {
                                     "name": "scoreKeeper",
                                     "type": "ScriptRef",
@@ -1679,7 +1684,7 @@
                                 "80f083c9-8adf-41f4-9280-962af80e6aac": {
                                     "name": "maxHP",
                                     "type": "int",
-                                    "value": 10
+                                    "value": 99
                                 },
                                 "98342073-37b9-4f43-967e-4ac5b75e4d4a": {
                                     "name": "spawnPrefab",

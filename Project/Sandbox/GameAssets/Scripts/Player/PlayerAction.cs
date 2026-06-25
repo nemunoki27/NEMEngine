@@ -52,6 +52,12 @@ public sealed class PlayerAction : ScriptBehaviour
     [Range(1.0f, 99.0f)]
     [Tooltip("最大HP。被弾で1ずつ減り0でゲームオーバー")]
     private int maxHP = 5;
+    // 被弾後の無敵時間、敵と離脱再接触を繰り返しても1接触1ダメージに抑える
+    [SerializeField]
+    [Label("無敵時間")]
+    [DragSpeed(0.1f)]
+    [Tooltip("被弾後この秒数は再被弾しない。敵に触れ続けた連続被弾を防ぐ")]
+    private float invincibleTime = 0.5f;
 
     // HP表示用のTextRendererを持つEntity、現在HP / 最大HP を表示する
     [SeparatorText("UI")]
@@ -111,6 +117,8 @@ public sealed class PlayerAction : ScriptBehaviour
 
     // 現在HP、実行時のみ保持しシリアライズしない
     private int currentHP;
+    // 被弾無敵の残り秒数、0より大きい間は被弾しない
+    private float invincibleTimer;
     // 移動入力があるか、Moveで更新しアニメーション切り替えに使う
     private bool isMoving;
     // 現在再生中のクリップ名、変化時だけ切り替えて再生をリセットしない
@@ -176,6 +184,11 @@ public sealed class PlayerAction : ScriptBehaviour
     //========================================================================
     public override void Update()
     {
+        // 被弾無敵の残り時間を減らす
+        if (invincibleTimer > 0.0f)
+        {
+            invincibleTimer -= Time.deltaTime;
+        }
         // プレイヤーの移動
         Move();
         // 移動状態に応じて歩行と待機のアニメーションを切り替える
@@ -230,6 +243,11 @@ public sealed class PlayerAction : ScriptBehaviour
     public override void OnCollisionStay(Collision collision)
     {
         UpdateGrounded(collision);
+    }
+    public override void OnCollisionExit(Collision collision)
+    {
+        // 衝突相手のエンティティをログ出力する
+        Debug.Log($"OnCollisionExit 相手={collision.entity.name} タグ={collision.entity.tag}");
     }
 
     //========================================================================
@@ -358,6 +376,13 @@ public sealed class PlayerAction : ScriptBehaviour
     //========================================================================
     private void TakeDamage(int amount)
     {
+        // 無敵中は再接触の被弾を無視する、敵から離脱再接触したときの連続被弾を防ぐ
+        if (invincibleTimer > 0.0f)
+        {
+            return;
+        }
+        invincibleTimer = invincibleTime;
+
         currentHP -= amount;
         if (currentHP < 0)
         {
