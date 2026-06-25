@@ -176,7 +176,7 @@ public sealed class PlayerAction : ScriptBehaviour
         }
         else
         {
-            Debug.Log("hpTextComponent未設定または解決できません");
+            Debug.Log("hpTextComponent未設定または解決できませんS");
         }
     }
     //========================================================================
