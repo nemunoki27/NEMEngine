@@ -8,6 +8,8 @@ using namespace Engine;
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // imgui
 #include <imgui.h>
@@ -515,6 +517,133 @@ void Input::Init(WinApp* winApp) {
 
 	// マウスの取得開始
 	hr = mouse_->Acquire();
+
+	// 入力タイプ切替の既定トリガ、スティック/マウス移動と主要ボタンで切り替える
+	detectTriggers_ = {
+		{ InputType::GamePad, true, 0 },
+		{ InputType::GamePad, false, static_cast<int32_t>(GamePadButtons::A) },
+		{ InputType::Keyboard, true, 0 },
+	};
+	// 保存済み設定があれば上書きする
+	LoadConfig();
+}
+
+namespace {
+	// 入力デバイス設定の保存先
+	constexpr const char* kInputDeviceConfigPath = "Config/inputDevice.exeConfig.json";
+}
+
+void Input::LoadConfig() {
+
+	const std::filesystem::path path = RuntimePaths::GetEngineAssetPath(kInputDeviceConfigPath);
+	if (!JsonAdapter::Check(path.string())) {
+		return;
+	}
+	const nlohmann::json data = JsonAdapter::Load(path.string());
+	if (!data.is_object()) {
+		return;
+	}
+
+	deadZone_ = data.value("deadZone", deadZone_);
+	autoUpdateInputType_ = data.value("autoUpdateInputType", autoUpdateInputType_);
+	movementThreshold_ = data.value("movementThreshold", movementThreshold_);
+
+	// 検知トリガを復元する
+	if (data.contains("detectTriggers") && data["detectTriggers"].is_array()) {
+		detectTriggers_.clear();
+		for (const nlohmann::json& node : data["detectTriggers"]) {
+			InputDetectTrigger trigger{};
+			trigger.device = static_cast<InputType>(node.value("device", 0));
+			trigger.isMovement = node.value("isMovement", false);
+			trigger.code = node.value("code", 0);
+			detectTriggers_.push_back(trigger);
+		}
+	}
+
+	// マウス範囲制御を復元する
+	mouseRangeControl_ = data.value("mouseRangeControl", mouseRangeControl_);
+	mouseAreaPos_.x = data.value("mouseAreaPosX", mouseAreaPos_.x);
+	mouseAreaPos_.y = data.value("mouseAreaPosY", mouseAreaPos_.y);
+	mouseAreaSize_.x = data.value("mouseAreaSizeX", mouseAreaSize_.x);
+	mouseAreaSize_.y = data.value("mouseAreaSizeY", mouseAreaSize_.y);
+	mouseReleaseModKey_ = data.value("mouseReleaseModKey", mouseReleaseModKey_);
+	mouseReleaseTriggerKey_ = data.value("mouseReleaseTriggerKey", mouseReleaseTriggerKey_);
+}
+
+void Input::SaveConfig() const {
+
+	nlohmann::json data{};
+	data["deadZone"] = deadZone_;
+	data["autoUpdateInputType"] = autoUpdateInputType_;
+	data["movementThreshold"] = movementThreshold_;
+
+	nlohmann::json triggers = nlohmann::json::array();
+	for (const InputDetectTrigger& trigger : detectTriggers_) {
+		nlohmann::json node{};
+		node["device"] = static_cast<int32_t>(trigger.device);
+		node["isMovement"] = trigger.isMovement;
+		node["code"] = trigger.code;
+		triggers.push_back(node);
+	}
+	data["detectTriggers"] = triggers;
+
+	data["mouseRangeControl"] = mouseRangeControl_;
+	data["mouseAreaPosX"] = mouseAreaPos_.x;
+	data["mouseAreaPosY"] = mouseAreaPos_.y;
+	data["mouseAreaSizeX"] = mouseAreaSize_.x;
+	data["mouseAreaSizeY"] = mouseAreaSize_.y;
+	data["mouseReleaseModKey"] = mouseReleaseModKey_;
+	data["mouseReleaseTriggerKey"] = mouseReleaseTriggerKey_;
+
+	JsonAdapter::Save(RuntimePaths::GetEngineAssetPath(kInputDeviceConfigPath).string(), data);
+}
+
+void Input::UpdateInputDevice() {
+
+	// マウス移動の判定しきい値、ピクセル単位
+	constexpr float kMouseMoveThreshold = 2.0f;
+
+	// 検知トリガから入力タイプを自動更新する、最初に成立したトリガのデバイスへ切り替える
+	if (autoUpdateInputType_) {
+		for (const InputDetectTrigger& trigger : detectTriggers_) {
+
+			bool active = false;
+			if (trigger.isMovement) {
+				// 切替先がパッドなら右スティック、それ以外はマウス移動量で判定する
+				if (trigger.device == InputType::GamePad) {
+					const Vector2 stick = GetRightStickVal();
+					const float magnitude = std::sqrt(stick.x * stick.x + stick.y * stick.y) / maxStickValue_;
+					active = magnitude > movementThreshold_;
+				} else {
+					const Vector2 move = GetMouseMoveValue();
+					active = std::sqrt(move.x * move.x + move.y * move.y) > kMouseMoveThreshold;
+				}
+			} else if (trigger.device == InputType::GamePad) {
+				active = PushGamepadButton(static_cast<GamePadButtons>(trigger.code));
+			} else {
+				active = PushKey(static_cast<BYTE>(trigger.code));
+			}
+			if (active) {
+				inputType_ = trigger.device;
+				break;
+			}
+		}
+	}
+
+	// 範囲制御中はショートカット(modKey押下+triggerKey)で解除できるようにする
+	if (mouseRangeControl_ &&
+		PushKey(static_cast<BYTE>(mouseReleaseModKey_)) &&
+		TriggerKey(static_cast<BYTE>(mouseReleaseTriggerKey_))) {
+		mouseRangeControl_ = false;
+	}
+
+	// 範囲制御中は毎フレーム指定矩形へクリップし直し、位置とサイズの変更も反映する
+	if (mouseRangeControl_) {
+		WinApp::ClipCursorToClientRect(mouseAreaSize_, mouseAreaPos_);
+	} else if (mouseRangeControlPrev_) {
+		WinApp::ReleaseCursorClip();
+	}
+	mouseRangeControlPrev_ = mouseRangeControl_;
 }
 
 void Input::Update() {

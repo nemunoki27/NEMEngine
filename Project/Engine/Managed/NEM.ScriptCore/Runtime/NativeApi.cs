@@ -23,7 +23,7 @@ internal static class ManagedAbi {
     // v14: Tag公開(copyTag/setTag)とLayerマスク公開(visibility/collision typeMask)とEntity検索(byName/byTag/byComponent)を追加
     // v15: 即時形状描画の汎用 lineDrawShape を追加
     // v16: Transform 親追従の継承フラグ(ignoreParentRotation/ignoreParentScale)を追加
-    internal const uint Version = 16;
+    internal const uint Version = 17;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -284,6 +284,12 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetIgnoreParentScale;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetIgnoreParentScale;
 
+    // v17: 入力デバイス
+    internal static delegate* unmanaged[Cdecl]<int> GetInputType;
+    internal static delegate* unmanaged[Cdecl]<int, void> SetInputType;
+    internal static delegate* unmanaged[Cdecl]<int> GetMouseRangeControl;
+    internal static delegate* unmanaged[Cdecl]<int, void> SetMouseRangeControl;
+
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
         // C++側から渡されたECSアクセス用の関数テーブルを保持する
@@ -390,6 +396,10 @@ internal static unsafe class NativeApi {
         SetIgnoreParentRotation = callbacks->setIgnoreParentRotation;
         GetIgnoreParentScale = callbacks->getIgnoreParentScale;
         SetIgnoreParentScale = callbacks->setIgnoreParentScale;
+        GetInputType = callbacks->getInputType;
+        SetInputType = callbacks->setInputType;
+        GetMouseRangeControl = callbacks->getMouseRangeControl;
+        SetMouseRangeControl = callbacks->setMouseRangeControl;
     }
 
     internal static float ReadDeltaTime() {
@@ -552,6 +562,11 @@ internal static unsafe class NativeApi {
             SetIgnoreParentScale(entity, value ? 1 : 0);
         }
     }
+
+    internal static int ReadInputType() => GetInputType != null ? GetInputType() : 0;
+    internal static void WriteInputType(int type) { if (SetInputType != null) { SetInputType(type); } }
+    internal static bool ReadMouseRangeControl() => GetMouseRangeControl != null && GetMouseRangeControl() != 0;
+    internal static void WriteMouseRangeControl(bool enabled) { if (SetMouseRangeControl != null) { SetMouseRangeControl(enabled ? 1 : 0); } }
 
     internal static bool ReadActiveInHierarchy(NativeEntity entity) {
         return GetActiveInHierarchy != null && GetActiveInHierarchy(entity) != 0;
@@ -1126,4 +1141,10 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, int, void> setIgnoreParentRotation;
     public delegate* unmanaged[Cdecl]<NativeEntity, int> getIgnoreParentScale;
     public delegate* unmanaged[Cdecl]<NativeEntity, int, void> setIgnoreParentScale;
+
+    // v17の入力デバイス、入力タイプとマウス範囲制御
+    public delegate* unmanaged[Cdecl]<int> getInputType;
+    public delegate* unmanaged[Cdecl]<int, void> setInputType;
+    public delegate* unmanaged[Cdecl]<int> getMouseRangeControl;
+    public delegate* unmanaged[Cdecl]<int, void> setMouseRangeControl;
 }

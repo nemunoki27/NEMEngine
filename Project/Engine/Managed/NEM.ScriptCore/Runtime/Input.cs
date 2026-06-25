@@ -98,12 +98,30 @@ public enum GamepadAxis {
     RightTrigger = 5
 }
 
+// 入力デバイス種別、C++ InputTypeと値を一致させる
+public enum InputType {
+
+    Keyboard,
+    GamePad,
+}
+
 public static class Input {
 
     public static Vector2 mousePosition => NativeApi.ReadMousePosition();
     public static Vector2 mouseDelta => NativeApi.ReadMouseDelta();
     public static float mouseWheel => NativeApi.ReadMouseWheel();
     public static bool isGamepadConnected => NativeApi.ReadIsGamepadConnected();
+
+    // 現在の入力タイプ、取得と設定ができる
+    public static InputType inputType {
+        get => (InputType)NativeApi.ReadInputType();
+        set => NativeApi.WriteInputType((int)value);
+    }
+    // マウス移動範囲制御のON/OFF
+    public static bool mouseRangeControl {
+        get => NativeApi.ReadMouseRangeControl();
+        set => NativeApi.WriteMouseRangeControl(value);
+    }
     public static Vector2 leftStick => NativeApi.ReadLeftStick();
     public static Vector2 rightStick => NativeApi.ReadRightStick();
     public static float leftTrigger => NativeApi.ReadLeftTrigger();

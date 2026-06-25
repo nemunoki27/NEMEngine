@@ -70,6 +70,8 @@ void Framework::Tick() {
 
 	// 入力更新
 	Input::GetInstance()->Update();
+	// 検知トリガから入力タイプを自動更新し、マウス範囲制御も適用する
+	Input::GetInstance()->UpdateInputDevice();
 
 	// エンジン機能更新
 	{

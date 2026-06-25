@@ -100,6 +100,17 @@ enum class InputType {
 	Count
 };
 
+// 入力タイプ自動更新の検知トリガ、指定デバイスのボタン/キーまたはアナログ移動で切り替える
+struct InputDetectTrigger {
+
+	// 切り替え先のデバイス種別
+	InputType device = InputType::Keyboard;
+	// trueならスティック/マウス移動量で判定、falseならcodeのボタン/キーで判定
+	bool isMovement = false;
+	// isMovement=falseのときの判定コード、GamePadはGamePadButtons、KeyboardはDIKキー
+	int32_t code = 0;
+};
+
 // 入力検知位置
 enum class InputViewArea {
 

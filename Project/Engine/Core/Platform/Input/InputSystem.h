@@ -80,6 +80,34 @@ namespace Engine {
 		void SetDeadZone(float deadZone);
 		float GetDeadZone() const { return deadZone_; }
 
+		// 入力デバイス自動更新、検知トリガから入力タイプを更新しマウス範囲制御も行う
+		void UpdateInputDevice();
+
+		// 入力タイプ自動更新フラグ
+		void SetAutoUpdateInputType(bool enabled) { autoUpdateInputType_ = enabled; }
+		bool GetAutoUpdateInputType() const { return autoUpdateInputType_; }
+		// 入力タイプ切替の検知トリガ、ツールから追加削除する
+		std::vector<InputDetectTrigger>& DetectTriggers() { return detectTriggers_; }
+		const std::vector<InputDetectTrigger>& DetectTriggers() const { return detectTriggers_; }
+		// アナログ移動の判定しきい値
+		void SetMovementThreshold(float threshold) { movementThreshold_ = threshold; }
+		float GetMovementThreshold() const { return movementThreshold_; }
+
+		// マウス移動範囲制御
+		void SetMouseRangeControl(bool enabled) { mouseRangeControl_ = enabled; }
+		bool GetMouseRangeControl() const { return mouseRangeControl_; }
+		void SetMouseArea(const Vector2& pos, const Vector2& size) { mouseAreaPos_ = pos; mouseAreaSize_ = size; }
+		Vector2 GetMouseAreaPos() const { return mouseAreaPos_; }
+		Vector2 GetMouseAreaSize() const { return mouseAreaSize_; }
+		// 範囲制御解除ショートカット、modKeyを押しながらtriggerKeyで解除、共にDIKコード
+		void SetMouseReleaseShortcut(int32_t modKey, int32_t triggerKey) { mouseReleaseModKey_ = modKey; mouseReleaseTriggerKey_ = triggerKey; }
+		int32_t GetMouseReleaseModKey() const { return mouseReleaseModKey_; }
+		int32_t GetMouseReleaseTriggerKey() const { return mouseReleaseTriggerKey_; }
+
+		// .exeConfigの読み書き、Engine/Assets/Config/inputDevice.exeConfig.json
+		void LoadConfig();
+		void SaveConfig() const;
+
 		// maxStickValue
 		float GetMaxStickValue() const { return maxStickValue_; }
 
@@ -211,6 +239,21 @@ namespace Engine {
 		float deadZone_ = 8000.0f;
 		// スティック入力の最大値
 		const float maxStickValue_ = 32767.0f;
+
+		// 入力タイプ自動更新
+		bool autoUpdateInputType_ = true;
+		std::vector<InputDetectTrigger> detectTriggers_{};
+		// アナログ移動の判定しきい値、スティックは正規化値0-1、マウスはピクセル換算で使う
+		float movementThreshold_ = 0.3f;
+
+		// マウス移動範囲制御
+		bool mouseRangeControl_ = false;
+		bool mouseRangeControlPrev_ = false;
+		Vector2 mouseAreaPos_{};
+		Vector2 mouseAreaSize_{};
+		// 範囲制御解除ショートカット(DIK)、既定はCtrl+Enter
+		int32_t mouseReleaseModKey_ = 0x1D;     // DIK_LCONTROL
+		int32_t mouseReleaseTriggerKey_ = 0x1C; // DIK_RETURN
 
 		// LTボタン
 		float leftTriggerValue_ = 0.0f;

@@ -306,6 +306,12 @@ namespace Engine {
 		static float __cdecl GetTimeScaleCallback();
 		static void __cdecl SetTimeScaleCallback(float value);
 		static uint64_t __cdecl GetFrameCountCallback();
+
+		// v17の入力デバイス、入力タイプとマウス範囲制御の取得設定
+		static int32_t __cdecl GetInputTypeCallback();
+		static void __cdecl SetInputTypeCallback(int32_t type);
+		static int32_t __cdecl GetMouseRangeControlCallback();
+		static void __cdecl SetMouseRangeControlCallback(int32_t enabled);
 		// Gameplay v7のAssetRef runtime resolve
 		static int32_t __cdecl AssetExistsCallback(uint64_t assetId);
 		static int32_t __cdecl CopyAssetDisplayNameCallback(uint64_t assetId, char* buffer, int32_t capacity);

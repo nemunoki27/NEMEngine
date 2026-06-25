@@ -10,6 +10,7 @@
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptExceptionStore.h>
+#include <Engine/Core/Platform/Input/InputSystem.h>
 
 #include <cmath>
 
@@ -82,6 +83,22 @@ namespace Engine {
 
 	uint64_t ManagedScriptRuntime::GetFrameCountCallback() {
 		return frameCount_;
+	}
+
+	int32_t ManagedScriptRuntime::GetInputTypeCallback() {
+		return static_cast<int32_t>(Input::GetInstance()->GetType());
+	}
+
+	void ManagedScriptRuntime::SetInputTypeCallback(int32_t type) {
+		Input::GetInstance()->SetInputType(static_cast<InputType>(type));
+	}
+
+	int32_t ManagedScriptRuntime::GetMouseRangeControlCallback() {
+		return Input::GetInstance()->GetMouseRangeControl() ? 1 : 0;
+	}
+
+	void ManagedScriptRuntime::SetMouseRangeControlCallback(int32_t enabled) {
+		Input::GetInstance()->SetMouseRangeControl(enabled != 0);
 	}
 
 	//============================================================================

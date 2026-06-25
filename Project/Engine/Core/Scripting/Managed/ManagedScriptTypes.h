@@ -31,7 +31,7 @@ namespace Engine {
 	// v14: Tag公開とLayerマスク公開visibility typeMaskとEntity検索byName byTag byComponentを追加
 	// v15: 即時形状描画の汎用lineDrawShapeを追加、円や箱や錐などをC++側生成で発行する
 	// v16: Transform親追従の継承フラグ公開でignoreParentRotation ignoreParentScaleを追加
-	inline constexpr uint32_t kManagedAbiVersion = 16;
+	inline constexpr uint32_t kManagedAbiVersion = 17;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -308,6 +308,7 @@ namespace Engine {
 		using LogCallback = void(__cdecl*)(int32_t, const char*);
 		using GetInputButtonCallback = int32_t(__cdecl*)(int32_t);
 		using GetNativeBoolCallback = int32_t(__cdecl*)();
+		using SetNativeIntCallback = void(__cdecl*)(int32_t);
 		using IsAliveCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using GetBoolCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using SetBoolCallback = void(__cdecl*)(ManagedNativeEntity, int32_t);
@@ -493,6 +494,12 @@ namespace Engine {
 		SetBoolCallback setIgnoreParentRotation = nullptr;
 		GetBoolCallback getIgnoreParentScale = nullptr;
 		SetBoolCallback setIgnoreParentScale = nullptr;
+
+		// v17の入力デバイス公開、入力タイプとマウス範囲制御をC#から取得設定する
+		GetNativeBoolCallback getInputType = nullptr;
+		SetNativeIntCallback setInputType = nullptr;
+		GetNativeBoolCallback getMouseRangeControl = nullptr;
+		SetNativeIntCallback setMouseRangeControl = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

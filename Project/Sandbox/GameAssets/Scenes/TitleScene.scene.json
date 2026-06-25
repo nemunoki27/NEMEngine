@@ -406,26 +406,27 @@
                     "editorPreview": true,
                     "enabled": true,
                     "follow": {
+                        "autoInputDevice": false,
                         "axisMask": {
                             "x": 1.0,
                             "y": 1.0,
                             "z": 1.0
                         },
-                        "enableInputRotation": false,
+                        "enableInputRotation": true,
                         "enabled": true,
                         "inputLerpRate": 12.0,
                         "invertPitch": false,
-                        "maxPitchDegrees": 60.0,
-                        "minPitchDegrees": -60.0,
+                        "mouseEnabled": true,
                         "mouseSensitivity": {
-                            "x": 0.004999999888241291,
-                            "y": 0.004999999888241291
+                            "x": 0.0020000000949949026,
+                            "y": 0.0020000000949949026
                         },
                         "offset": {
                             "x": 0.0,
                             "y": 3.7899999618530273,
                             "z": -5.059999942779541
                         },
+                        "padEnabled": false,
                         "padSensitivity": {
                             "x": 2.5,
                             "y": 1.7999999523162842
@@ -435,6 +436,7 @@
                     },
                     "followLookAt": {
                         "follow": {
+                            "autoInputDevice": false,
                             "axisMask": {
                                 "x": 1.0,
                                 "y": 1.0,
@@ -444,8 +446,7 @@
                             "enabled": true,
                             "inputLerpRate": 12.0,
                             "invertPitch": false,
-                            "maxPitchDegrees": 60.0,
-                            "minPitchDegrees": -60.0,
+                            "mouseEnabled": true,
                             "mouseSensitivity": {
                                 "x": 0.004999999888241291,
                                 "y": 0.004999999888241291
@@ -455,6 +456,7 @@
                                 "y": 3.0,
                                 "z": -8.0
                             },
+                            "padEnabled": true,
                             "padSensitivity": {
                                 "x": 2.5,
                                 "y": 1.7999999523162842

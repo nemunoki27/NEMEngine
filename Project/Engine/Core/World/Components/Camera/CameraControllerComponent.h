@@ -41,22 +41,28 @@ namespace Engine {
 		// 追従する軸は0で現在値を維持し、1で追従する
 		Vector3 axisMask = Vector3::AnyInit(1.0f);
 		// 0以下の場合は補間せず即座に追従する
-		float posLerpSpeed = 8.0f;
+		float posLerpSpeed = 4.8f;
 
 		// 入力でカメラをオービット回転させるか、ONならoffsetを回転して対象を中心に回る
 		bool enableInputRotation = false;
 		// 入力の平滑化の速さ
-		float inputLerpRate = 12.0f;
+		float inputLerpRate = 7.8f;
 		// 回転感度、xが横回転yが縦回転、ゲームパッドとマウスで分ける
-		Vector2 padSensitivity = Vector2(2.5f, 1.8f);
-		Vector2 mouseSensitivity = Vector2(0.005f, 0.005f);
-		// 縦回転の角度制限、度
-		float minPitchDegrees = -60.0f;
-		float maxPitchDegrees = 60.0f;
+		Vector2 padSensitivity = Vector2(1.91f, 2.88f);
+		Vector2 mouseSensitivity = Vector2(0.002f, 0.002f);
+		// パッド入力を有効にするか
+		bool padEnabled = true;
+		// マウス入力を有効にするか
+		bool mouseEnabled = true;
+		// 現在操作中のデバイスに応じてpad/mouseの有効を自動で切り替えるか
+		bool autoInputDevice = false;
 		// 縦入力を反転するか
 		bool invertPitch = false;
 		// 実行時の平滑化入力、保存しない
 		Vector2 smoothedInput = Vector2::AnyInit(0.0f);
+		// 実行時の平滑化ターゲット座標と初期化フラグ、保存しない
+		Vector3 smoothedTarget = Vector3::AnyInit(0.0f);
+		bool targetInitialized = false;
 	};
 
 	//============================================================================

@@ -43,8 +43,9 @@ namespace {
 		settings.inputLerpRate = in.value("inputLerpRate", settings.inputLerpRate);
 		settings.padSensitivity = ReadVector2(in, "padSensitivity", settings.padSensitivity);
 		settings.mouseSensitivity = ReadVector2(in, "mouseSensitivity", settings.mouseSensitivity);
-		settings.minPitchDegrees = in.value("minPitchDegrees", settings.minPitchDegrees);
-		settings.maxPitchDegrees = in.value("maxPitchDegrees", settings.maxPitchDegrees);
+		settings.padEnabled = in.value("padEnabled", settings.padEnabled);
+		settings.mouseEnabled = in.value("mouseEnabled", settings.mouseEnabled);
+		settings.autoInputDevice = in.value("autoInputDevice", settings.autoInputDevice);
 		settings.invertPitch = in.value("invertPitch", settings.invertPitch);
 	}
 
@@ -71,8 +72,9 @@ namespace {
 		out["inputLerpRate"] = settings.inputLerpRate;
 		out["padSensitivity"] = settings.padSensitivity.ToJson();
 		out["mouseSensitivity"] = settings.mouseSensitivity.ToJson();
-		out["minPitchDegrees"] = settings.minPitchDegrees;
-		out["maxPitchDegrees"] = settings.maxPitchDegrees;
+		out["padEnabled"] = settings.padEnabled;
+		out["mouseEnabled"] = settings.mouseEnabled;
+		out["autoInputDevice"] = settings.autoInputDevice;
 		out["invertPitch"] = settings.invertPitch;
 		return out;
 	}

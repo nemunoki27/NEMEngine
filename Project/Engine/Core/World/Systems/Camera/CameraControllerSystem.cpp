@@ -89,11 +89,24 @@ namespace {
 			return current;
 		}
 
-		// パッドは右スティック、それ以外はマウス移動量を入力にする
+		// 現在操作中のデバイスを判定する、パッドは右スティックそれ以外はマウス移動量を入力にする
 		const bool isPad = input->GetType() == InputType::GamePad;
-		const Vector2 rawInput = isPad ? input->GetRightStickVal() : input->GetMouseMoveValue();
 
-		// 入力を平滑化する
+		// 自動設定が有効なら操作中のデバイスに合わせてpad/mouseの有効を切り替える
+		if (follow.autoInputDevice) {
+			follow.padEnabled = isPad;
+			follow.mouseEnabled = !isPad;
+		}
+
+		// 現在のデバイスが無効なら入力を0にして回転させない
+		const bool deviceEnabled = isPad ? follow.padEnabled : follow.mouseEnabled;
+		// パッドスティックは生値(最大32767)なので正規化してから使う
+		const Vector2 padInput = input->GetRightStickVal() * (1.0f / input->GetMaxStickValue());
+		const Vector2 rawInput = !deviceEnabled
+			? Vector2::AnyInit(0.0f)
+			: (isPad ? padInput : input->GetMouseMoveValue());
+
+		// TD4_1準拠でパッドもマウスも同じく平滑化する
 		const float lerpT = std::clamp(follow.inputLerpRate * deltaTime, 0.0f, 1.0f);
 		follow.smoothedInput = Vector2::Lerp(follow.smoothedInput, rawInput, lerpT);
 
@@ -101,7 +114,9 @@ namespace {
 		const Vector2 sensitivity = isPad ? follow.padSensitivity : follow.mouseSensitivity;
 		const float dtScale = isPad ? deltaTime : 1.0f;
 		const float yawDelta = follow.smoothedInput.x * sensitivity.x * dtScale;
-		const float pitchSign = follow.invertPitch ? 1.0f : -1.0f;
+		// 縦回転の符号はTD4_1準拠でマウスは+パッドは-、invertPitchで反転する
+		const float pitchBaseSign = isPad ? -1.0f : 1.0f;
+		const float pitchSign = follow.invertPitch ? -pitchBaseSign : pitchBaseSign;
 		const float pitchDelta = follow.smoothedInput.y * sensitivity.y * dtScale * pitchSign;
 
 		// 横回転はワールド上軸まわり、縦回転は横回転後の右軸まわりに合成する
@@ -111,16 +126,6 @@ namespace {
 			Vector3::TransferNormal(Vector3(1.0f, 0.0f, 0.0f), Quaternion::MakeRotateMatrix(yawRot)));
 		const Quaternion pitchRot = Quaternion::MakeAxisAngle(rightAxis, pitchDelta);
 		const Quaternion candidate = Quaternion::Normalize(pitchRot * yawRot);
-
-		// 縦回転は前方ベクトルのy成分で角度制限する、限界を越えて更に倒す入力だけ弾く
-		const Vector3 currentForward = Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), Quaternion::MakeRotateMatrix(current));
-		const Vector3 candidateForward = Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), Quaternion::MakeRotateMatrix(candidate));
-		const float minY = std::sin(follow.minPitchDegrees * (Math::pi / 180.0f));
-		const float maxY = std::sin(follow.maxPitchDegrees * (Math::pi / 180.0f));
-		if ((candidateForward.y > maxY && candidateForward.y > currentForward.y) ||
-			(candidateForward.y < minY && candidateForward.y < currentForward.y)) {
-			return yawRot;
-		}
 		return candidate;
 	}
 
@@ -140,7 +145,7 @@ namespace {
 			return baseLocalPos;
 		}
 
-		// 入力でオービット回転するときは回転をカメラへ適用し、offsetも回転して対象を中心に回る
+		// 入力でオービット回転する、回転をカメラへ適用しoffsetも回して対象を中心に回る
 		Vector3 offset = follow.offset;
 		if (follow.enableInputRotation && allowInput) {
 
@@ -149,14 +154,20 @@ namespace {
 			offset = Vector3::TransferNormal(follow.offset, Quaternion::MakeRotateMatrix(orbit));
 		}
 
-		// 追従先の座標を取得
-		Vector3 desiredWorldPos = GetWorldPosition(world, target) + offset;
-		Vector3 desiredLocalPos = WorldToParentLocal(world, entity, desiredWorldPos);
-		// 軸マスクで補間率を座標ごとに調整
-		desiredLocalPos = Vector3::Lerp(baseLocalPos, desiredLocalPos, follow.axisMask);
+		// 追従対象だけを平滑化し、offsetは平滑化せず即時に足してオービットの遅延を無くす
+		const Vector3 targetWorldPos = GetWorldPosition(world, target);
+		// 初回はスナップして補間開始点を対象へ合わせる
+		if (!follow.targetInitialized) {
+			follow.smoothedTarget = targetWorldPos;
+			follow.targetInitialized = true;
+		}
+		follow.smoothedTarget = Vector3::Lerp(follow.smoothedTarget, targetWorldPos, MakeLerpRate(follow.posLerpSpeed, deltaTime));
 
-		// 追従先補間
-		return Vector3::Lerp(baseLocalPos, desiredLocalPos, MakeLerpRate(follow.posLerpSpeed, deltaTime));
+		// カメラ座標は平滑化ターゲット + 回転済みoffsetで、回転に座標が即時追従する
+		Vector3 desiredWorldPos = follow.smoothedTarget + offset;
+		Vector3 desiredLocalPos = WorldToParentLocal(world, entity, desiredWorldPos);
+		// 軸マスクで座標ごとに追従と固定を切り替える
+		return Vector3::Lerp(baseLocalPos, desiredLocalPos, follow.axisMask);
 	}
 
 	// 注視処理を実行する

@@ -246,6 +246,10 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getUnscaledTime = &ManagedScriptRuntime::GetUnscaledTimeCallback;
 	callbacks.getTimeScale = &ManagedScriptRuntime::GetTimeScaleCallback;
 	callbacks.setTimeScale = &ManagedScriptRuntime::SetTimeScaleCallback;
+	callbacks.getInputType = &ManagedScriptRuntime::GetInputTypeCallback;
+	callbacks.setInputType = &ManagedScriptRuntime::SetInputTypeCallback;
+	callbacks.getMouseRangeControl = &ManagedScriptRuntime::GetMouseRangeControlCallback;
+	callbacks.setMouseRangeControl = &ManagedScriptRuntime::SetMouseRangeControlCallback;
 	callbacks.getFrameCount = &ManagedScriptRuntime::GetFrameCountCallback;
 	// Gameplay v7のAssetRef実行時解決
 	callbacks.assetExists = &ManagedScriptRuntime::AssetExistsCallback;
