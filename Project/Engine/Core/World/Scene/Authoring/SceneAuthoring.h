@@ -15,4 +15,10 @@ namespace Engine::SceneAuthoring {
 	Entity CreateGameObject(ECSWorld& world, const std::string_view& name = "Entity");
 	// ゲームオブジェクトのデフォルトコンポーネントを追加する
 	void EnsureGameObjectDefaults(ECSWorld& world, const Entity& entity, const std::string_view& defaultName = "Entity");
+
+	// 名前を base_N 形式として解析する、解析できなければfalse
+	bool TryParseIndexedName(const std::string& name, std::string& outBase, uint32_t& outIndex);
+	// シーン内で重複しないエンティティ名を返す、未使用ならそのまま、衝突時は base_N にする、excludeは判定対象から外す
+	std::string MakeUniqueEntityName(ECSWorld& world, const std::string_view& desiredName,
+		const Entity& exclude = Entity::Null());
 } // Engine

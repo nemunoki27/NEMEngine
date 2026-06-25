@@ -402,6 +402,16 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
+	// D&D中はImGui既定のホイールが効かないので、インスペクター上なら手動でスクロールする
+	if (ImGui::GetDragDropPayload() != nullptr &&
+		ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem | ImGuiHoveredFlags_ChildWindows)) {
+
+		const float wheel = ImGui::GetIO().MouseWheel;
+		if (wheel != 0.0f) {
+			ImGui::SetScrollY(ImGui::GetScrollY() - wheel * ImGui::GetFontSize() * 3.0f);
+		}
+	}
+
 	ECSWorld* world = context.GetWorld();
 	if (context.editorState->selectionKind == EditorSelectionKind::Asset) {
 

@@ -14,7 +14,8 @@ public struct ManagedWorldHandle {
         generation = 0
     };
 
-    public bool isValid => index != 0xffffffffu;
+    // generation 0 はゼロ初期化Entityなので無効、有効ハンドルは1始まり
+    public bool isValid => index != 0xffffffffu && generation != 0;
 }
 
 [StructLayout(LayoutKind.Sequential)]

@@ -109,7 +109,7 @@ namespace Engine {
 		// 直近のcollectible ALC unloadのtyped statusを返す、reload後にEditorが参照する
 		AlcUnloadStatus GetLastAlcUnloadStatus();
 		// 各phase末から呼ぶper-frame tickでphaseは0がUpdate 1がFixedUpdate 2がEndOfFrame、TimerとCoroutineを駆動する
-		void TickFrame(int32_t phase);
+		void TickFrame(int32_t phase, const SystemContext& context);
 
 		// Play開始時に時間状態を初期化し、worldのTimeScaleComponentがあれば初期scaleを読む
 		static void BeginPlayTime(ECSWorld* playWorld);

@@ -4,14 +4,14 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 6
+                    "siblingOrder": 13
                 },
                 "Name": {
-                    "name": "TitleSceneText"
+                    "name": "HPDisplay"
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "1490e22f0a00778e",
+                    "localFileID": "297c0c78ee4ab4be",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
@@ -19,13 +19,6 @@
                     "blendMode": "Normal",
                     "charSpacing": 0.0,
                     "charTransforms": [
-                        {
-                            "rotation": 0.0,
-                            "sx": 1.0,
-                            "sy": 1.0,
-                            "tx": 0.0,
-                            "ty": 0.0
-                        },
                         {
                             "rotation": 0.0,
                             "sx": 1.0,
@@ -57,7 +50,7 @@
                     "dimension": 0,
                     "enableOutline": false,
                     "font": "82699d49374109f2",
-                    "fontSize": 131.6000213623047,
+                    "fontSize": 76.0999984741211,
                     "layer": 0,
                     "material": "",
                     "order": 0,
@@ -67,28 +60,28 @@
                         "g": 0.0,
                         "r": 0.0
                     },
-                    "outlineWidth": 0.0,
+                    "outlineWidth": 2.0,
                     "parameterOverrides": {},
                     "pivot": {
-                        "x": 0.5,
-                        "y": 0.5
+                        "x": 0.0,
+                        "y": 0.0
                     },
                     "queue": "ScreenUI",
-                    "text": "タイトル",
+                    "text": "10 / 10",
                     "visible": true,
                     "worldScale": 0.009999999776482582
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 971.1390380859375,
-                        "y": 99.35794067382813,
+                        "x": 144.45709228515625,
+                        "y": 54.85711669921875,
                         "z": 0.0
                     },
                     "localRotation": {
                         "w": 1.0,
                         "x": 0.0,
                         "y": 0.0,
-                        "z": -5.526577950831779e-08
+                        "z": 0.0
                     },
                     "localScale": {
                         "x": 1.0,
@@ -97,7 +90,271 @@
                     }
                 }
             },
-            "LocalFileID": "1490e22f0a00778e"
+            "LocalFileID": "297c0c78ee4ab4be"
+        },
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": true,
+                    "enabled": true,
+                    "isStatic": false,
+                    "shapes": [
+                        {
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 1.0199999809265137,
+                                "y": 1.0199999809265137,
+                                "z": 1.0199999809265137
+                            },
+                            "halfSize2D": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "isTrigger": false,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "radius": 0.5,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "OBB3D",
+                            "useTransformRotation": true
+                        }
+                    ],
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 12
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "",
+                    "mesh": "a31d53b333db8b8b",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "Mesh_0",
+                            "parameterOverrides": {
+                                "baseColorTexture": "c2ea9f4498073ab3",
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.6235237121582031,
+                                    "r": 0.8449198007583618
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "stableID": "d39689f581788e8c",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Enemy_1"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "c116b53e40ff8144",
+                    "tag": "Enemy",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 11.986512184143066,
+                        "y": 0.9873318672180176,
+                        "z": 4.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "c116b53e40ff8144"
+        },
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": true,
+                    "enabled": true,
+                    "isStatic": false,
+                    "shapes": [
+                        {
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 1.0199999809265137,
+                                "y": 1.0199999809265137,
+                                "z": 1.0199999809265137
+                            },
+                            "halfSize2D": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "isTrigger": false,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "radius": 0.5,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "OBB3D",
+                            "useTransformRotation": true
+                        }
+                    ],
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 12
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "material": "",
+                    "mesh": "a31d53b333db8b8b",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "subMeshes": [
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "Mesh_0",
+                            "parameterOverrides": {
+                                "baseColorTexture": "c2ea9f4498073ab3",
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.6235237121582031,
+                                    "r": 0.8449198007583618
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "stableID": "d39689f581788e8c",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Enemy"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "6a152902453e57bf",
+                    "tag": "Enemy",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 8.705573081970215,
+                        "y": 0.9873318672180176,
+                        "z": 4.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "6a152902453e57bf"
         },
         {
             "Components": {
@@ -256,7 +513,7 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": 4.11765193939209,
+                        "y": 3.8380000591278076,
                         "z": -9.059999465942383
                     },
                     "localRotation": {
@@ -412,7 +669,7 @@
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 6
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -1368,6 +1625,31 @@
                         "scriptTypeId": "db3421b7-49fd-4e8c-bc05-03257af3d1f5",
                         "serializedFields": {
                             "fields": {
+                                "125c2786-bc27-43a1-996d-fb3bc0d7e680": {
+                                    "name": "jumpForce",
+                                    "type": "float",
+                                    "value": 6
+                                },
+                                "1b2296d9-ba2a-4e49-a81f-a3bbcb239315": {
+                                    "name": "gameOverScene",
+                                    "type": "AssetRef",
+                                    "value": {
+                                        "assetId": "31d6a34a3ec5018a"
+                                    }
+                                },
+                                "23e91a8b-82f4-4636-ba1c-3fc2c724f645": {
+                                    "name": "scoreKeeper",
+                                    "type": "ScriptRef",
+                                    "value": {
+                                        "entity": {
+                                            "kind": "Scene",
+                                            "localFileId": "6f91dc6e55ff8ef0",
+                                            "sourceAsset": "c682f5f3da26eac6"
+                                        },
+                                        "scriptSlotId": "9266a96e6595516f",
+                                        "scriptTypeId": "2241e3d4-2fc8-4797-8995-b72b29ad16f8"
+                                    }
+                                },
                                 "292c25da-a25d-42d0-8ad2-293997b193ed": {
                                     "name": "moveSpeed",
                                     "type": "float",
@@ -1378,19 +1660,81 @@
                                     "type": "float",
                                     "value": 0
                                 },
+                                "3b91719a-e5be-4d1c-b735-c931cde101e1": {
+                                    "name": "idleClip",
+                                    "type": "string",
+                                    "value": "idle"
+                                },
+                                "3cc212ed-898a-4d36-9a59-55e77ac7ef8b": {
+                                    "name": "hpTextEntity",
+                                    "type": "EntityRef",
+                                    "value": {
+                                        "kind": "Scene",
+                                        "localFileId": "297c0c78ee4ab4be",
+                                        "sourceAsset": "c682f5f3da26eac6"
+                                    }
+                                },
+                                "80f083c9-8adf-41f4-9280-962af80e6aac": {
+                                    "name": "maxHP",
+                                    "type": "int",
+                                    "value": 10
+                                },
+                                "98342073-37b9-4f43-967e-4ac5b75e4d4a": {
+                                    "name": "spawnPrefab",
+                                    "type": "AssetRef",
+                                    "value": {
+                                        "assetId": "54c1448f4dfe3143"
+                                    }
+                                },
                                 "9f9adbb9-cee1-4d2c-be5c-c97d00fdbd0f": {
                                     "name": "cameraEntity",
                                     "type": "EntityRef",
                                     "value": {
                                         "kind": "Scene",
-                                        "localFileId": "6d6cda8f769c6a9c",
+                                        "localFileId": "daa4966cef6bc35a",
                                         "sourceAsset": "c682f5f3da26eac6"
                                     }
+                                },
+                                "a658f557-dbd6-46a0-9d73-287d0a740432": {
+                                    "name": "spawnHeightOffset",
+                                    "type": "float",
+                                    "value": 3.0
+                                },
+                                "bab5373c-fa66-44b4-81c4-1f0701652ca2": {
+                                    "name": "testNumbers",
+                                    "type": "list",
+                                    "value": [
+                                        0,
+                                        1,
+                                        2,
+                                        45
+                                    ]
+                                },
+                                "c79231a1-2a4d-4c22-9191-0de78b0f143e": {
+                                    "name": "hpTextComponent",
+                                    "type": "ComponentRef",
+                                    "value": {
+                                        "entity": {
+                                            "kind": "Scene",
+                                            "localFileId": "297c0c78ee4ab4be",
+                                            "sourceAsset": "c682f5f3da26eac6"
+                                        }
+                                    }
+                                },
+                                "d3da75d3-8726-49c7-8dc7-647b3ec84b0c": {
+                                    "name": "coyoteTime",
+                                    "type": "float",
+                                    "value": 0.1
                                 },
                                 "d455b071-d5f2-4f1e-ae2a-a385f8400e3e": {
                                     "name": "rotationLerpRate",
                                     "type": "float",
                                     "value": 12
+                                },
+                                "f60fa896-f1ce-45ca-8635-a8f9584a5269": {
+                                    "name": "walkClip",
+                                    "type": "string",
+                                    "value": "walk"
                                 },
                                 "f7a8aed8-b4ab-4e96-8af9-f1f2452e2aad": {
                                     "name": "stickDeadZone",
@@ -1422,7 +1766,7 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": 0.3276519775390625,
+                        "y": 0.04800000041723251,
                         "z": -4.0
                     },
                     "localRotation": {
@@ -1616,7 +1960,7 @@
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 8
+                    "siblingOrder": 10
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -1748,7 +2092,7 @@
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 8
+                    "siblingOrder": 9
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -1840,6 +2184,99 @@
                 }
             },
             "LocalFileID": "7e5ea89724ef6be2"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 14
+                },
+                "Name": {
+                    "name": "Score"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileID": "6f91dc6e55ff8ef0",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ScoreKeeper",
+                        "scriptAsset": "",
+                        "scriptSlotID": "9266a96e6595516f",
+                        "scriptTypeId": "2241e3d4-2fc8-4797-8995-b72b29ad16f8",
+                        "serializedFields": {
+                            "fields": {
+                                "e2eb0a40-0af4-42de-ab2c-e3da54116fe7": {
+                                    "name": "player",
+                                    "type": "ScriptRef",
+                                    "value": {
+                                        "entity": {
+                                            "kind": "Scene",
+                                            "localFileId": "6d6cda8f769c6a9c",
+                                            "sourceAsset": "c682f5f3da26eac6"
+                                        },
+                                        "scriptSlotId": "7795eafdd400d608",
+                                        "scriptTypeId": "db3421b7-49fd-4e8c-bc05-03257af3d1f5"
+                                    }
+                                },
+                                "f9c00471-ea55-4811-99d2-3476655e18bb": {
+                                    "name": "score",
+                                    "type": "int",
+                                    "value": 1
+                                }
+                            },
+                            "schemaVersion": 2,
+                            "unresolvedFields": {}
+                        }
+                    }
+                ],
+                "SpriteRenderer": {
+                    "blendMode": "Normal",
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "layer": 0,
+                    "material": "",
+                    "order": 0,
+                    "parameterOverrides": {},
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5
+                    },
+                    "queue": "ScreenUI",
+                    "size": {
+                        "x": 32.0,
+                        "y": 32.0
+                    },
+                    "texture": "",
+                    "visible": true
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 4.335799694061279,
+                        "y": 4.335799694061279,
+                        "z": 1.3299999237060547
+                    }
+                }
+            },
+            "LocalFileID": "6f91dc6e55ff8ef0"
         },
         {
             "Components": {
@@ -2012,7 +2449,7 @@
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 8
+                    "siblingOrder": 7
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -2109,7 +2546,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 9
+                    "siblingOrder": 11
                 },
                 "JointAttachment": {
                     "jointName": "hand.R",
@@ -2214,82 +2651,5 @@
         "postProcessStack": "799b3b15597cb842",
         "subScenes": []
     },
-    "PrefabInstances": [
-        {
-            "AddedComponents": [],
-            "AddedEntities": [],
-            "EntityMap": [
-                {
-                    "P": "9f23d3aa4c99dbff",
-                    "S": "f74dd92231ec2ed0"
-                },
-                {
-                    "P": "db8704fc4d0e978c",
-                    "S": "38f9a3a1283bc384"
-                },
-                {
-                    "P": "e7acff030aae1504",
-                    "S": "4d3c51f8b24e8c5f"
-                },
-                {
-                    "P": "1604030d040a8a32",
-                    "S": "14def9ddfc449d3b"
-                },
-                {
-                    "P": "9f23d3aa4c99dbff",
-                    "S": "7533764a244c3d16"
-                },
-                {
-                    "P": "db8704fc4d0e978c",
-                    "S": "9036b8fa15e2ce43"
-                },
-                {
-                    "P": "e7acff030aae1504",
-                    "S": "8dbbb16695f96564"
-                },
-                {
-                    "P": "1604030d040a8a32",
-                    "S": "807b8daf4c01b11c"
-                }
-            ],
-            "HierarchyMods": [],
-            "InstanceID": "737911ab49af262b",
-            "Modifications": [
-                {
-                    "Path": "Name/name",
-                    "Target": "9f23d3aa4c99dbff",
-                    "Value": "cube.prefab_1"
-                },
-                {
-                    "Path": "Transform/localPos/x",
-                    "Target": "9f23d3aa4c99dbff",
-                    "Value": 8.0
-                },
-                {
-                    "Path": "Transform/localPos/z",
-                    "Target": "9f23d3aa4c99dbff",
-                    "Value": -6.0
-                },
-                {
-                    "Path": "Name/name",
-                    "Target": "9f23d3aa4c99dbff",
-                    "Value": "cube.prefab_2"
-                },
-                {
-                    "Path": "Transform/localPos/x",
-                    "Target": "9f23d3aa4c99dbff",
-                    "Value": 4.0
-                },
-                {
-                    "Path": "Transform/localPos/z",
-                    "Target": "9f23d3aa4c99dbff",
-                    "Value": 10.0
-                }
-            ],
-            "PrefabAsset": "a533fef6a74106f7",
-            "RemovedComponents": [],
-            "RemovedEntities": [],
-            "RootParent": ""
-        }
-    ]
+    "PrefabInstances": []
 }

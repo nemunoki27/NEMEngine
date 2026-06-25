@@ -41,6 +41,7 @@ public static unsafe class HostBridge {
         options.Converters.Add(new EntityRefJsonConverter());
         options.Converters.Add(new AssetRefJsonConverterFactory());
         options.Converters.Add(new ScriptRefJsonConverterFactory());
+        options.Converters.Add(new ComponentRefJsonConverterFactory());
         return options;
     }
 

@@ -570,7 +570,7 @@ Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPas
 		gridHorizonFadeStart_,
 		gridHorizonFadeEnd_);
 
-	// 等間隔(スナップ用)グリッドはMinorを不透明で描く、通常グリッドは設定値のまま
+	// スナップ用の等間隔グリッドはMinorを不透明で描く、通常グリッドは設定値のまま
 	const float minorAlpha = (fixedMinorStep > 0.0f) ? 1.0f : gridMinorBaseAlpha_;
 	constants.minorColor = Color4(1.0f, 1.0f, 1.0f, minorAlpha);
 	constants.minorParams0 = Vector4(

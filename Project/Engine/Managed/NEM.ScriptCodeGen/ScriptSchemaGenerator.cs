@@ -30,7 +30,8 @@ namespace NEM.ScriptCodeGen
         private const string DragSpeedAttributeName = "NEMEngine.DragSpeedAttribute";
         private const string ReadOnlyAttributeName = "NEMEngine.ReadOnlyAttribute";
         private const string MultilineAttributeName = "NEMEngine.MultilineAttribute";
-        private const string HeaderAttributeName = "NEMEngine.HeaderAttribute";
+        private const string SeparatorTextAttributeName = "NEMEngine.SeparatorTextAttribute";
+        private const string LabelAttributeName = "NEMEngine.LabelAttribute";
         private const string TooltipAttributeName = "NEMEngine.TooltipAttribute";
         private const string NativeAssetTypeAttributeName = "NEMEngine.NativeAssetTypeAttribute";
 
@@ -64,7 +65,7 @@ namespace NEM.ScriptCodeGen
         private static readonly DiagnosticDescriptor UnsupportedFieldRule = new DiagnosticDescriptor(
             "NEMSG013",
             "Unsupported serialized field type",
-            "Serialized field '{0}.{1}' has unsupported type '{2}' and will be skipped. Use a supported scalar, enum, math type, AssetRef/EntityRef/ScriptRef, array, List, or Nullable.",
+            "Serialized field '{0}.{1}' has unsupported type '{2}' and will be skipped. Use a supported scalar, enum, math type, AssetRef/EntityRef/ScriptRef/ComponentRef, array, List, or Nullable.",
             "NEMScript", DiagnosticSeverity.Warning, isEnabledByDefault: true);
 
         private sealed class TypeSchema
@@ -94,6 +95,7 @@ namespace NEM.ScriptCodeGen
             public float DragSpeed;
             public string? Tooltip;
             public string? Header;
+            public string? Label;
             public bool Multiline;
             public bool RawIdInvalid;
             public string RawId = string.Empty;
@@ -110,6 +112,7 @@ namespace NEM.ScriptCodeGen
             public List<string> EnumValues = new List<string>();
             public string? AssetType;
             public string? ScriptType;
+            public string? ComponentType;
         }
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -253,10 +256,16 @@ namespace NEM.ScriptCodeGen
                             schema.DragSpeed = ToFloat(attr.ConstructorArguments[0].Value);
                         }
                         break;
-                    case HeaderAttributeName:
-                        if (attr.ConstructorArguments.Length == 1 && attr.ConstructorArguments[0].Value is string headerText)
+                    case SeparatorTextAttributeName:
+                        if (attr.ConstructorArguments.Length == 1 && attr.ConstructorArguments[0].Value is string separatorText)
                         {
-                            schema.Header = headerText;
+                            schema.Header = separatorText;
+                        }
+                        break;
+                    case LabelAttributeName:
+                        if (attr.ConstructorArguments.Length == 1 && attr.ConstructorArguments[0].Value is string labelText)
+                        {
+                            schema.Label = labelText;
                         }
                         break;
                     case TooltipAttributeName:
@@ -325,6 +334,11 @@ namespace NEM.ScriptCodeGen
                         ScriptType = named.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat
                             .WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted)),
                     };
+                }
+                if (constructed == "NEMEngine.ComponentRef<T>")
+                {
+                    // 単純名がネイティブのコンポーネント登録名と一致する
+                    return new KindInfo { Kind = "ComponentRef", ComponentType = named.TypeArguments[0].Name };
                 }
             }
 
@@ -545,6 +559,10 @@ namespace NEM.ScriptCodeGen
             {
                 json.Append(",\"header\":").Append(JsonString(field.Header));
             }
+            if (field.Label != null)
+            {
+                json.Append(",\"label\":").Append(JsonString(field.Label));
+            }
             json.Append(',');
             EmitKind(json, field.Kind);
             json.Append('}');
@@ -578,6 +596,10 @@ namespace NEM.ScriptCodeGen
             if (kind.ScriptType != null)
             {
                 json.Append(",\"scriptType\":").Append(JsonString(kind.ScriptType));
+            }
+            if (kind.ComponentType != null)
+            {
+                json.Append(",\"componentType\":").Append(JsonString(kind.ComponentType));
             }
             if (kind.Element != null)
             {

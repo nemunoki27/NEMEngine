@@ -25,6 +25,39 @@ namespace {
 	}
 }
 
+void Engine::PrefabSystem::SetPrefabLink(ECSWorld& world, const Entity& entity, AssetID prefabAsset,
+	UUID prefabLocalFileID, UUID prefabInstanceID, bool isPrefabRoot) const {
+
+	if (!world.IsAlive(entity)) {
+		return;
+	}
+	auto& prefabLink = world.HasComponent<PrefabLinkComponent>(entity) ?
+		world.GetComponent<PrefabLinkComponent>(entity) :
+		world.AddComponent<PrefabLinkComponent>(entity);
+	prefabLink.prefabAsset = prefabAsset;
+	prefabLink.prefabLocalFileID = prefabLocalFileID;
+	prefabLink.prefabInstanceID = prefabInstanceID;
+	prefabLink.isPrefabRoot = isPrefabRoot;
+}
+
+Engine::UUID Engine::PrefabSystem::SetPrefabLinkToSubtree(ECSWorld& world, const Entity& root,
+	AssetID prefabAsset, UUID prefabInstanceID) const {
+
+	if (!world.IsAlive(root) || !prefabAsset) {
+		return UUID{};
+	}
+	const UUID resolvedInstanceID = prefabInstanceID ? prefabInstanceID : UUID::New();
+	for (const Entity& entity : CollectSubtree(world, root)) {
+
+		if (!world.HasComponent<SceneObjectComponent>(entity)) {
+			continue;
+		}
+		const UUID prefabLocalFileID = world.GetComponent<SceneObjectComponent>(entity).localFileID;
+		SetPrefabLink(world, entity, prefabAsset, prefabLocalFileID, resolvedInstanceID, entity == root);
+	}
+	return resolvedInstanceID;
+}
+
 bool Engine::PrefabSystem::SavePrefab(AssetDatabase& database, ECSWorld& world,
 	const Entity& root, const std::string& prefabAssetPath) const {
 
@@ -175,13 +208,8 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 			sceneObject.sceneInstanceID = desc.ownerSceneInstanceID;
 		}
 		// プレファブリンク初期化
-		{
-			auto& prefabLink = world.AddComponent<PrefabLinkComponent>(entity);
-			prefabLink.prefabAsset = prefabAsset;
-			prefabLink.prefabLocalFileID = prefabLocalFileID;
-			prefabLink.prefabInstanceID = outResult.prefabInstanceID;
-			prefabLink.isPrefabRoot = (prefabLocalFileID == header.rootLocalFileID);
-		}
+		SetPrefabLink(world, entity, prefabAsset, prefabLocalFileID,
+			outResult.prefabInstanceID, prefabLocalFileID == header.rootLocalFileID);
 
 		// 作成したエンティティを結果に追加
 		outResult.createdEntities.emplace_back(entity);
@@ -256,8 +284,7 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		outResult.root = outResult.createdEntities.front();
 	}
 
-	// Unityのようにインスタンスのルート名を.prefabのベース名にする、ヒエラルキー表示もこの名前になる
-	// 新規生成時のみ適用し、シーン復元では保存済みの名前(リネーム済みインスタンス名)を尊重する
+	// 新規生成のときだけルート名を.prefabのベース名にする、シーン復元では保存済みの名前を尊重する
 	if (desc.renameRootToPrefabName && world.IsAlive(outResult.root) &&
 		world.HasComponent<NameComponent>(outResult.root)) {
 
@@ -268,7 +295,10 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		}
 		const std::string baseName = namePath.string();
 		if (!baseName.empty()) {
-			world.GetComponent<NameComponent>(outResult.root).name = baseName;
+
+			// 同名インスタンスがあれば name_N へずらす、生成中のルート自身は判定から外す
+			world.GetComponent<NameComponent>(outResult.root).name =
+				SceneAuthoring::MakeUniqueEntityName(world, baseName, outResult.root);
 		}
 	}
 

@@ -6,38 +6,23 @@
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 
 //============================================================================
 //	EditorEntityDuplicateUtility classMethods
 //============================================================================
 namespace {
 
-	// 名前がEntity_Nの形式かを判定し、そうであればベース名とインデックスを分割する
-	bool TryParseIndexedName(const std::string& name, std::string& outBase, uint32_t& outIndex) {
-
-		const size_t pos = name.rfind('_');
-		if (pos == std::string::npos || pos == 0 || pos + 1 >= name.size()) {
-			return false;
-		}
-		for (size_t i = pos + 1; i < name.size(); ++i) {
-			if (!std::isdigit(static_cast<unsigned char>(name[i]))) {
-
-				return false;
-			}
-		}
-		outBase = name.substr(0, pos);
-		outIndex = static_cast<uint32_t>(std::stoul(name.substr(pos + 1)));
-		return true;
-	}
-	// Entity_Nの形式の名前であればEntityを返し、そうでなければそのまま返す
+	// base_N の形式ならベース名を返し、そうでなければそのまま返す
 	std::string NormalizeDuplicateBaseName(const std::string_view& sourceName) {
 
 		std::string name = sourceName.empty() ? "Entity" : std::string(sourceName);
 
 		std::string base;
 		uint32_t index = 0;
-		if (TryParseIndexedName(name, base, index)) {
+		if (Engine::SceneAuthoring::TryParseIndexedName(name, base, index)) {
 			return base.empty() ? name : base;
 		}
 		return name;
@@ -129,35 +114,9 @@ namespace {
 std::string Engine::EditorEntityDuplicateUtility::MakeUniqueDuplicatedName(
 	ECSWorld& world, const std::string_view& sourceName) {
 
-	// ルート名からEntity_Nの形式のベース名を抽出する
+	// 複製元は必ず存在するので、ベース名へ正規化して共通の一意名生成へ委ねれば base_N になる
 	const std::string baseName = NormalizeDuplicateBaseName(sourceName);
-	std::unordered_set<uint32_t> usedIndices;
-	world.ForEachAliveEntity([&](Entity entity) {
-
-		if (!world.HasComponent<NameComponent>(entity)) {
-			return;
-		}
-
-		// 名前がEntity_Nの形式でベース名が同じものがあればインデックスを記録する
-		const std::string& currentName = world.GetComponent<NameComponent>(entity).name;
-		if (currentName == baseName) {
-			usedIndices.insert(0);
-			return;
-		}
-
-		// インデックスを解析してベース名が同じものがあればインデックスを記録する
-		std::string currentBase;
-		uint32_t currentIndex = 0;
-		if (TryParseIndexedName(currentName, currentBase, currentIndex) && currentBase == baseName) {
-			usedIndices.insert(currentIndex);
-		}
-		});
-	// 1から始まる最小の未使用インデックスを見つけてベース名に付加する
-	uint32_t candidate = 1;
-	while (usedIndices.contains(candidate)) {
-		++candidate;
-	}
-	return baseName + "_" + std::to_string(candidate);
+	return SceneAuthoring::MakeUniqueEntityName(world, baseName);
 }
 
 void Engine::EditorEntityDuplicateUtility::ClearRootParentLink(EditorEntityTreeSnapshot& snapshot) {
@@ -178,10 +137,12 @@ void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEn
 
 	std::unordered_map<UUID, UUID> stableUUIDMap;
 	std::unordered_map<UUID, UUID> localFileIDMap;
+	std::unordered_map<UUID, UUID> prefabInstanceIDMap;
 	stableUUIDMap.reserve(sourceSnapshot.entities.size());
 	localFileIDMap.reserve(sourceSnapshot.entities.size());
+	prefabInstanceIDMap.reserve(sourceSnapshot.entities.size());
 
-	// 複製後に使用するUUID、ローカルファイルIDを生成
+	// 複製後に使用するUUID、ローカルファイルID、プレファブインスタンスIDを生成
 	for (const auto& sourceEntity : sourceSnapshot.entities) {
 
 		stableUUIDMap[sourceEntity.stableUUID] = UUID::New();
@@ -189,6 +150,16 @@ void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEn
 		if (oldLocalFileID) {
 
 			localFileIDMap[oldLocalFileID] = UUID::New();
+		}
+		if (sourceEntity.components.contains("PrefabLink")) {
+
+			const PrefabLinkComponent prefabLink =
+				sourceEntity.components["PrefabLink"].get<PrefabLinkComponent>();
+			if (prefabLink.isPrefabRoot && prefabLink.prefabInstanceID &&
+				!prefabInstanceIDMap.contains(prefabLink.prefabInstanceID)) {
+
+				prefabInstanceIDMap[prefabLink.prefabInstanceID] = UUID::New();
+			}
 		}
 	}
 
@@ -208,6 +179,15 @@ void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEn
 		if (oldLocalFileID && localFileIDMap.contains(oldLocalFileID)) {
 
 			WriteLocalFileIDToComponents(duplicatedEntity.components, localFileIDMap.at(oldLocalFileID));
+		}
+		if (duplicatedEntity.components.contains("PrefabLink")) {
+
+			PrefabLinkComponent prefabLink = duplicatedEntity.components["PrefabLink"].get<PrefabLinkComponent>();
+			if (prefabLink.prefabInstanceID && prefabInstanceIDMap.contains(prefabLink.prefabInstanceID)) {
+
+				prefabLink.prefabInstanceID = prefabInstanceIDMap.at(prefabLink.prefabInstanceID);
+				duplicatedEntity.components["PrefabLink"] = prefabLink;
+			}
 		}
 
 		// ヒエラルキーのローカルフィールドIDを内部複製用に張り替える

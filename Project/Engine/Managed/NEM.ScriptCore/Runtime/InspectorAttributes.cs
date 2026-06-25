@@ -54,15 +54,26 @@ public sealed class ReadOnlyAttribute : Attribute {
 public sealed class MultilineAttribute : Attribute {
 }
 
-// field 上に表示する見出し。Editor 表示専用。
+// field の上に区切り見出しを表示する。Editor 表示専用。
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
-public sealed class HeaderAttribute : Attribute {
+public sealed class SeparatorTextAttribute : Attribute {
 
-    public HeaderAttribute(string header) {
-        Header = header;
+    public SeparatorTextAttribute(string text) {
+        Text = text;
     }
 
-    public string Header { get; }
+    public string Text { get; }
+}
+
+// field の表示ラベルを変数名から差し替える。Editor 表示専用。
+[AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
+public sealed class LabelAttribute : Attribute {
+
+    public LabelAttribute(string label) {
+        Label = label;
+    }
+
+    public string Label { get; }
 }
 
 // field のホバー時に表示する説明。Editor 表示専用。

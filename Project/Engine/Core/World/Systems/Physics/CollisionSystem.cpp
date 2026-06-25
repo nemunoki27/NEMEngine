@@ -366,11 +366,8 @@ void Engine::CollisionSystem::LateUpdate(ECSWorld& world, SystemContext& context
 		collision.runtimeColliding = false;
 		});
 
-	// Play中のみ衝突判定とコールバックを実行する
-	if (context.mode != WorldMode::Play) {
-		previousContacts_.clear();
-		return;
-	}
+	// 判定自体はEdit中も走らせて衝突表示を赤くする、押し戻しとコールバックはPlay中だけにする
+	const bool isPlaying = (context.mode == WorldMode::Play);
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
 	if (context.activeSceneHeader) {
@@ -444,15 +441,23 @@ void Engine::CollisionSystem::LateUpdate(ECSWorld& world, SystemContext& context
 			if (b.collision) {
 				b.collision->runtimeColliding = true;
 			}
-			ApplyPushback(world, a, b, bestContact);
 
-			// 前フレームの接触履歴からEnter / Stayを分ける
-			if (previousContacts_.contains(key)) {
-				DispatchCollisionStay(world, context, bestContact);
-			} else {
-				DispatchCollisionEnter(world, context, bestContact);
+			// 押し戻しとEnter / Stayの分配はPlay中のみ行う
+			if (isPlaying) {
+				ApplyPushback(world, a, b, bestContact);
+				if (previousContacts_.contains(key)) {
+					DispatchCollisionStay(world, context, bestContact);
+				} else {
+					DispatchCollisionEnter(world, context, bestContact);
+				}
 			}
 		}
+	}
+
+	// Edit中はコールバックも履歴も持たず、表示用フラグだけ更新して終える
+	if (!isPlaying) {
+		previousContacts_.clear();
+		return;
 	}
 
 	// 前フレームにだけ存在した接触はExitとして扱う

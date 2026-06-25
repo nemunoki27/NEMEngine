@@ -53,7 +53,7 @@ namespace Engine {
 		struct Slot {
 
 			ECSWorld* world = nullptr;
-			uint32_t generation = 0;
+			uint32_t generation = 1; // 1始まりでゼロ初期化Entityのworldハンドルと衝突させない
 			bool inUse = false;
 		};
 

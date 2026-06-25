@@ -6,69 +6,8 @@
                     "parentLocalFileID": "",
                     "siblingOrder": 10
                 },
-                "MeshRenderer": {
-                    "blendMode": "Normal",
-                    "enableZPrepass": true,
-                    "layer": 0,
-                    "material": "",
-                    "mesh": "a31d53b333db8b8b",
-                    "order": 0,
-                    "queue": "Opaque",
-                    "subMeshes": [
-                        {
-                            "localPos": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "localRotation": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "localScale": {
-                                "x": 1.0,
-                                "y": 1.0,
-                                "z": 1.0
-                            },
-                            "name": "Mesh_0",
-                            "parameterOverrides": {
-                                "baseColorTexture": "c2ea9f4498073ab3",
-                                "color": {
-                                    "a": 1.0,
-                                    "b": 0.5789003372192383,
-                                    "g": 0.9197860956192017,
-                                    "r": 0.1328032910823822
-                                },
-                                "emissiveColor": {
-                                    "a": 1.0,
-                                    "b": 0.0,
-                                    "g": 0.0,
-                                    "r": 0.0
-                                }
-                            },
-                            "sourcePivot": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "sourceSubMeshIndex": 0,
-                            "stableID": "d1c373601e722b09",
-                            "uvPos": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "uvRotation": 0.0,
-                            "uvScale": {
-                                "x": 1.0,
-                                "y": 1.0
-                            }
-                        }
-                    ],
-                    "visible": true
-                },
                 "Name": {
-                    "name": "cube"
+                    "name": "Cubes"
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -165,7 +104,7 @@
                     "visible": true
                 },
                 "Name": {
-                    "name": "cube_1"
+                    "name": "middleCube"
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -175,8 +114,8 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 2.0,
-                        "y": 2.0,
+                        "x": 0.0,
+                        "y": 4.0,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -186,9 +125,9 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
+                        "x": 1.8000000715255737,
+                        "y": 0.20000000298023224,
+                        "z": 2.799999952316284
                     }
                 }
             },
@@ -227,19 +166,22 @@
                             },
                             "name": "Mesh_0",
                             "parameterOverrides": {
-                                "baseColorTexture": "c2ea9f4498073ab3",
+                                "baseColorTexture": "f43646c08cfd179c",
                                 "color": {
                                     "a": 1.0,
-                                    "b": 0.08916188776493073,
-                                    "g": 0.6631016135215759,
-                                    "r": 0.05673597753047943
+                                    "b": 0.13211701810359955,
+                                    "g": 0.4394480288028717,
+                                    "r": 0.5882352590560913
                                 },
                                 "emissiveColor": {
                                     "a": 1.0,
-                                    "b": 0.0,
-                                    "g": 0.0,
-                                    "r": 0.0
-                                }
+                                    "b": 0.7647058963775635,
+                                    "g": 0.1562257558107376,
+                                    "r": 0.04907204583287239
+                                },
+                                "emissiveIntensity": 0.07000000029802322,
+                                "metallicRoughnessTexture": "2ff5059acd4beb9f",
+                                "normalTexture": "320e12dfc078b594"
                             },
                             "sourcePivot": {
                                 "x": 0.0,
@@ -252,28 +194,28 @@
                                 "x": 0.0,
                                 "y": 0.0
                             },
-                            "uvRotation": 0.0,
+                            "uvRotation": 45.0,
                             "uvScale": {
-                                "x": 1.0,
-                                "y": 1.0
+                                "x": 7.599999904632568,
+                                "y": 7.519999980926514
                             }
                         }
                     ],
                     "visible": true
                 },
                 "Name": {
-                    "name": "cube_2"
+                    "name": "bigCube"
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "e7acff030aae1504",
+                    "localFileID": "4dfdc87a263d14ba",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 4.0,
-                        "y": 4.0,
+                        "x": 0.0,
+                        "y": 0.0,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -283,13 +225,13 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
+                        "x": 5.0,
+                        "y": 0.4000000059604645,
+                        "z": 5.800000190734863
                     }
                 }
             },
-            "LocalFileID": "e7acff030aae1504"
+            "LocalFileID": "4dfdc87a263d14ba"
         },
         {
             "Components": {
@@ -324,19 +266,21 @@
                             },
                             "name": "Mesh_0",
                             "parameterOverrides": {
-                                "baseColorTexture": "c2ea9f4498073ab3",
+                                "baseColorTexture": "cf3513fc74564db7",
                                 "color": {
                                     "a": 1.0,
-                                    "b": 0.6000000238418579,
-                                    "g": 0.6000000238418579,
-                                    "r": 0.6000000238418579
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
                                 },
                                 "emissiveColor": {
                                     "a": 1.0,
                                     "b": 0.0,
                                     "g": 0.0,
                                     "r": 0.0
-                                }
+                                },
+                                "emissiveIntensity": 0.0,
+                                "normalTexture": "aa93672d260a2909"
                             },
                             "sourcePivot": {
                                 "x": 0.0,
@@ -351,15 +295,15 @@
                             },
                             "uvRotation": 0.0,
                             "uvScale": {
-                                "x": 1.0,
-                                "y": 1.0
+                                "x": 1.2799999713897705,
+                                "y": 0.25999999046325684
                             }
                         }
                     ],
                     "visible": true
                 },
                 "Name": {
-                    "name": "cube_3"
+                    "name": "smallCube"
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -369,8 +313,8 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 6.0,
-                        "y": 6.0,
+                        "x": 0.0,
+                        "y": 8.0,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -380,8 +324,8 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
+                        "x": 0.800000011920929,
+                        "y": 0.20000000298023224,
                         "z": 1.0
                     }
                 }
@@ -391,7 +335,7 @@
     ],
     "Header": {
         "guid": "a533fef6a74106f7",
-        "name": "cube",
+        "name": "Cubes",
         "rootLocalFileID": "9f23d3aa4c99dbff",
         "version": 1
     }

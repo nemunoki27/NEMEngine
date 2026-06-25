@@ -58,7 +58,8 @@ void Engine::ManagedWorldRegistry::Unregister(ManagedWorldHandle handle) {
 	// 枠を解放し、generationを進めて古いハンドルを無効化する
 	slot.world = nullptr;
 	slot.inUse = false;
-	++slot.generation;
+	// 0はゼロ初期化Entityと衝突するためwrap時は1へ飛ばす
+	if (++slot.generation == 0) { slot.generation = 1; }
 	free_.emplace_back(handle.index);
 }
 

@@ -531,6 +531,7 @@ namespace {
 			{ "Quaternion", K::Quaternion }, { "Color3", K::Color3 }, { "Color4", K::Color4 },
 			{ "Nullable", K::Nullable }, { "Array", K::Array }, { "List", K::List },
 			{ "AssetRef", K::AssetRef }, { "EntityRef", K::EntityRef }, { "ScriptRef", K::ScriptRef },
+			{ "ComponentRef", K::ComponentRef },
 		};
 		auto it = kMap.find(kind);
 		return it != kMap.end() ? it->second : K::Unsupported;
@@ -550,9 +551,11 @@ namespace {
 		field.multiline = node.value("multiline", false);
 		field.tooltip = node.value("tooltip", std::string{});
 		field.header = node.value("header", std::string{});
+		field.label = node.value("label", std::string{});
 		field.enumUnderlying = node.value("enumUnderlying", std::string{});
 		field.assetType = node.value("assetType", std::string{});
 		field.scriptType = node.value("scriptType", std::string{});
+		field.componentType = node.value("componentType", std::string{});
 		field.defaultValueJson = node.value("defaultValueJson", std::string("null"));
 
 		if (node.contains("formerNames") && node["formerNames"].is_array()) {
@@ -901,10 +904,12 @@ void Engine::ManagedScriptRuntime::RaiseApplicationQuitting() {
 	}
 }
 
-void Engine::ManagedScriptRuntime::TickFrame(int32_t phase) {
+void Engine::ManagedScriptRuntime::TickFrame(int32_t phase, const SystemContext& context) {
 
 	// TimerとCoroutineをメインスレッドで駆動する、phaseは0がUpdate 1がFixedUpdate 2がEndOfFrame
 	if (tickFrame_) {
+		// deltaTime参照のためcallback中だけコンテキストを設定する
+		ScopedInvocationContext contextScope(context);
 		tickFrame_(phase);
 	}
 }

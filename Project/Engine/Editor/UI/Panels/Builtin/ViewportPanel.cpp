@@ -164,10 +164,9 @@ namespace {
 			return;
 		}
 
-		// Ctrl併用時は選択を変えずカーソル下から拾ったエンティティをドラッグ対象にする
-		const bool ctrlHeld = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
+		// ドラッグ中に拾ったカーソル下のエンティティを優先し、無ければ選択中のものをドラッグする
 		const Engine::Entity dragEntity =
-			(ctrlHeld && world->IsAlive(context.editorState->scenePickDragEntity)) ?
+			world->IsAlive(context.editorState->scenePickDragEntity) ?
 			context.editorState->scenePickDragEntity : context.editorState->selectedEntity;
 		if (!world->IsAlive(dragEntity)) {
 			return;

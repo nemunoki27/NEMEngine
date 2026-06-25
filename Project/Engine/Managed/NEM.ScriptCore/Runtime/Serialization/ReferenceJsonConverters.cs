@@ -133,3 +133,45 @@ public sealed class ScriptRefJsonConverter<T> : JsonConverter<ScriptRef<T>> wher
         writer.WriteEndObject();
     }
 }
+
+// ComponentRef<T> <-> { "entity":{...} }（型Tはジェネリックで決まるため値には保存しない）
+public sealed class ComponentRefJsonConverterFactory : JsonConverterFactory {
+
+    public override bool CanConvert(Type typeToConvert) {
+        return typeToConvert.IsGenericType && typeToConvert.GetGenericTypeDefinition() == typeof(ComponentRef<>);
+    }
+
+    public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options) {
+        Type component = typeToConvert.GetGenericArguments()[0];
+        return (JsonConverter)Activator.CreateInstance(typeof(ComponentRefJsonConverter<>).MakeGenericType(component))!;
+    }
+}
+
+public sealed class ComponentRefJsonConverter<T> : JsonConverter<ComponentRef<T>> where T : struct, IComponentRef<T> {
+
+    public override ComponentRef<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+
+        if (reader.TokenType == JsonTokenType.Null) {
+            return ComponentRef<T>.Null;
+        }
+        using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+        JsonElement root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object) {
+            return ComponentRef<T>.Null;
+        }
+
+        EntityRef entity = EntityRef.Null;
+        if (root.TryGetProperty("entity", out JsonElement entityElement)) {
+            entity = entityElement.Deserialize<EntityRef>(options);
+        }
+        return new ComponentRef<T>(entity);
+    }
+
+    public override void Write(Utf8JsonWriter writer, ComponentRef<T> value, JsonSerializerOptions options) {
+
+        writer.WriteStartObject();
+        writer.WritePropertyName("entity");
+        JsonSerializer.Serialize(writer, value.entity, options);
+        writer.WriteEndObject();
+    }
+}

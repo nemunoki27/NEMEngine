@@ -112,8 +112,14 @@ namespace Engine {
 		Entity selectedEntity = Entity::Null();
 		// 複数選択しているエンティティ一覧、selectedEntityもこの中に含む
 		std::vector<Entity> selectedEntities{};
-		// Ctrl+ドラッグ用に選択を変えずカーソル下から拾ったエンティティ、Viewportのドラッグ対象に使う
+		// ドラッグ用に選択を変えずカーソル下から拾ったエンティティ、Viewportのドラッグ対象兼クリック候補に使う
 		Entity scenePickDragEntity = Entity::Null();
+		// クリック確定までのピック候補のサブメッシュ、リリース時に選択を確定するため保持する
+		uint32_t scenePickCandidateSubMesh = 0;
+		UUID scenePickCandidateSubMeshId{};
+		// ドラッグせず離したクリックの保留状態、候補が揃ったら確定する
+		bool scenePickClickPending = false;
+		bool scenePickClickAdditive = false;
 		// ダブルクリックでシーンカメラを寄せたいエンティティ、EditorManagerが消費する
 		Entity cameraFocusRequest = Entity::Null();
 		// シーンカメラがフォーカスで寄っている最中か、フォーカス中はギズモ操作を無効にする
@@ -198,6 +204,8 @@ namespace Engine {
 		bool IsJointSelected(const Entity& skinnedEntity, int32_t jointIndex) const;
 		void SelectAsset(AssetID asset);
 		void SelectFromScenePick(const Entity& entity, uint32_t subMeshIndex, UUID stableID = UUID{});
+		// 保留中のクリック選択をピック候補で確定する、候補が無ければ選択解除する
+		void CommitScenePick(ECSWorld& world);
 		// 現在の選択がエンティティかサブメッシュか
 		bool HasValidSubMeshSelection(ECSWorld* world) const;
 		bool TryResolveSelectedSubMeshIndex(ECSWorld* world, uint32_t& outSubMeshIndex) const;

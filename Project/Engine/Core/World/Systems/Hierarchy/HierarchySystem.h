@@ -33,6 +33,8 @@ namespace Engine {
 		void RefreshActiveTree(ECSWorld& world, const Entity& root);
 		// 指定エンティティ以下のアクティブ状態を親を考慮して更新する
 		void UpdateActiveInHierarchy(ECSWorld& world, const Entity& entity);
+		// 指定の親アクティブ状態を起点に、エンティティ以下のアクティブを再計算する、ジョイント追従などで親が階層外のときに使う
+		void RefreshActiveRecursive(ECSWorld& world, const Entity& entity, bool parentActive);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -53,6 +55,5 @@ namespace Engine {
 		void AttachLast(ECSWorld& world, const Entity& child, const Entity& parent);
 		// 階層内のアクティブをルート以下で再計算するためのヘルパー
 		void RefreshAllActiveStates(ECSWorld& world, const std::vector<Entity>& scope);
-		void RefreshActiveRecursive(ECSWorld& world, const Entity& entity, bool parentActive);
 	};
 } // Engine

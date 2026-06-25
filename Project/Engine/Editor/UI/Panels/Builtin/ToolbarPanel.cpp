@@ -49,7 +49,9 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 
 	if (context.editorContext && context.editorContext->activeSceneHeader) {
 
-		ImGui::Text("現在のシーン : %s", context.editorContext->activeSceneHeader->name.c_str());
+		// 未保存の変更があれば末尾に*を付けて保存状態を分かるようにする
+		const char* dirtyMark = context.editorContext->activeSceneDirty ? "*" : "";
+		ImGui::Text("現在のシーン : %s%s", context.editorContext->activeSceneHeader->name.c_str(), dirtyMark);
 	} else {
 
 		ImGui::Text("現在のシーン : <None>");

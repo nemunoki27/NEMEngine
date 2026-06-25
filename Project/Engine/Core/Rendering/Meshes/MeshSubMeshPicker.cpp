@@ -63,18 +63,12 @@ void Engine::MeshSubMeshPicker::ConsumePendingResult(ECSWorld* world, EditorStat
 	// ピック結果を取得
 	const PickResult result = readbackBuffer_.GetReadbackData();
 
-	// ヒットなし、追加選択でない通常クリックなら空クリック扱いで選択を解除する
+	// ヒットなしは候補を空にしてから保留中のクリックを確定する、空クリックは選択解除になる
 	if (result.instanceID == kInvalidPickInstanceID ||
 		result.instanceID >= pendingRecords_.size()) {
 		pendingRecords_.clear();
-		// ドラッグ専用は選択を触らず、ヒット無しなら候補だけ空にする
-		if (pendingDragOnly_) {
-			editorState.scenePickDragEntity = Entity::Null();
-			return;
-		}
-		if (!pendingAdditive_) {
-			editorState.ClearSelection();
-		}
+		editorState.scenePickDragEntity = Entity::Null();
+		editorState.CommitScenePick(*world);
 		return;
 	}
 
@@ -82,25 +76,16 @@ void Engine::MeshSubMeshPicker::ConsumePendingResult(ECSWorld* world, EditorStat
 	const auto& record = pendingRecords_[result.instanceID];
 	pendingRecords_.clear();
 	if (!world->IsAlive(record.entity)) {
+		editorState.scenePickDragEntity = Entity::Null();
+		editorState.CommitScenePick(*world);
 		return;
 	}
 
-	// Ctrl併用のドラッグ専用は選択を変えずドラッグ対象だけ更新する
-	if (pendingDragOnly_) {
-		editorState.scenePickDragEntity = record.entity;
-		return;
-	}
-
-	// シフト併用かつエンティティ選択モードなら次元が合う場合だけトグルで追加選択する
-	if (pendingAdditive_ && editorState.selectKind == EditorSelectionKind::Entity) {
-
-		if (editorState.CanMultiSelect(*world, record.entity)) {
-			editorState.ToggleEntityInSelection(record.entity);
-		}
-		return;
-	}
-	// 通常クリックは従来通り選択を置き換える
-	editorState.SelectFromScenePick(record.entity, record.subMeshIndex, record.subMeshStableID);
+	// ピック候補を更新し、保留中のクリックがあればここで選択を確定する
+	editorState.scenePickDragEntity = record.entity;
+	editorState.scenePickCandidateSubMesh = record.subMeshIndex;
+	editorState.scenePickCandidateSubMeshId = record.subMeshStableID;
+	editorState.CommitScenePick(*world);
 }
 
 void Engine::MeshSubMeshPicker::ExecutePick(GraphicsCore& graphicsCore, const ResolvedRenderView& view,

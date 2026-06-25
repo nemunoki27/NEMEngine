@@ -107,6 +107,7 @@ namespace Engine {
 		AssetRef,
 		EntityRef,
 		ScriptRef,
+		ComponentRef,
 		Unsupported,
 	};
 
@@ -129,6 +130,7 @@ namespace Engine {
 		// reference filter
 		std::string assetType;   // AssetRef<T> の native AssetType 名
 		std::string scriptType;  // ScriptRef<T> の対象 script 完全名
+		std::string componentType; // ComponentRef<T> の対象 component 登録名
 
 		// Inspector属性
 		bool isPublic = false;
@@ -143,7 +145,8 @@ namespace Engine {
 		bool hasDragSpeed = false;
 		float dragSpeed = 0.0f;
 		std::string tooltip;
-		std::string header;
+		std::string header;  // [SeparatorText] の区切り見出し
+		std::string label;   // [Label] の表示ラベル上書き、空なら field 名を使う
 
 		// C#インスタンス生成直後の既定値JSONでauthoring未設定時の初期値
 		std::string defaultValueJson;

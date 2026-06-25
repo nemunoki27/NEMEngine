@@ -301,6 +301,27 @@ void Engine::EditorState::SelectFromScenePick(const Entity& entity, uint32_t sub
 	}
 }
 
+void Engine::EditorState::CommitScenePick(ECSWorld& world) {
+
+	// ドラッグせず離したクリックだけ確定する
+	if (!scenePickClickPending) {
+		return;
+	}
+	scenePickClickPending = false;
+
+	// 候補が生存していれば選択、空の場所をクリックしたなら選択解除する
+	if (world.IsAlive(scenePickDragEntity)) {
+		if (scenePickClickAdditive && selectKind == EditorSelectionKind::Entity &&
+			CanMultiSelect(world, scenePickDragEntity)) {
+			ToggleEntityInSelection(scenePickDragEntity);
+		} else {
+			SelectFromScenePick(scenePickDragEntity, scenePickCandidateSubMesh, scenePickCandidateSubMeshId);
+		}
+	} else if (!scenePickClickAdditive) {
+		ClearSelection();
+	}
+}
+
 bool Engine::EditorState::HasValidSubMeshSelection(ECSWorld* world) const {
 
 	if (!world || selectionKind != EditorSelectionKind::MeshSubMesh || !world->IsAlive(selectedEntity)) {

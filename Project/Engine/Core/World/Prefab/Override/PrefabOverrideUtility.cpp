@@ -564,6 +564,100 @@ Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, A
 	return result.root;
 }
 
+namespace {
+
+	// 破棄→再生成の安全策、インスタンス実体の完全な状態を控えて再生成失敗時に元へ戻せるようにする
+	struct InstanceEntityBackup {
+
+		Engine::UUID localFileID{};
+		Engine::UUID parentLocalFileID{};
+		int32_t siblingOrder = 0;
+		nlohmann::json components;
+	};
+
+	// 破棄前に各実体のローカルID/親/兄弟順と全コンポーネントを控える
+	std::vector<InstanceEntityBackup> CaptureInstanceBackup(Engine::ECSWorld& world, const std::vector<Engine::Entity>& entities) {
+
+		std::vector<InstanceEntityBackup> backup;
+		backup.reserve(entities.size());
+		for (const Engine::Entity& entity : entities) {
+
+			if (!world.IsAlive(entity)) {
+				continue;
+			}
+			InstanceEntityBackup state{};
+			if (world.HasComponent<Engine::SceneObjectComponent>(entity)) {
+				state.localFileID = world.GetComponent<Engine::SceneObjectComponent>(entity).localFileID;
+			}
+			if (world.HasComponent<Engine::HierarchyComponent>(entity)) {
+				state.parentLocalFileID = world.GetComponent<Engine::HierarchyComponent>(entity).parentLocalFileID;
+				state.siblingOrder = world.GetComponent<Engine::HierarchyComponent>(entity).siblingOrder;
+			}
+			world.SerializeEntityComponents(entity, state.components);
+			backup.emplace_back(std::move(state));
+		}
+		return backup;
+	}
+
+	// 控えた状態から実体を作り直し、ローカルIDと親子付けを復元する
+	void RestoreInstanceBackup(Engine::ECSWorld& world, Engine::HierarchySystem& hierarchySystem,
+		const std::vector<InstanceEntityBackup>& backup, Engine::UUID sceneInstanceID) {
+
+		std::vector<Engine::Entity> restored;
+		restored.reserve(backup.size());
+		for (const InstanceEntityBackup& state : backup) {
+
+			const Engine::Entity entity = world.CreateEntity();
+			if (state.components.is_object()) {
+				for (auto it = state.components.begin(); it != state.components.end(); ++it) {
+					world.AddComponentFromJson(entity, it.key(), it.value());
+				}
+			}
+			Engine::SceneAuthoring::EnsureGameObjectDefaults(world, entity);
+
+			// ローカルIDと所属シーン、親子付けは控えた値で確定させる
+			auto& sceneObject = world.GetComponent<Engine::SceneObjectComponent>(entity);
+			if (state.localFileID) {
+				sceneObject.localFileID = state.localFileID;
+			}
+			sceneObject.sceneInstanceID = sceneInstanceID;
+			auto& hierarchy = world.GetComponent<Engine::HierarchyComponent>(entity);
+			hierarchy.parentLocalFileID = state.parentLocalFileID;
+			hierarchy.siblingOrder = state.siblingOrder;
+			restored.emplace_back(entity);
+		}
+		hierarchySystem.RebuildRuntimeLinks(world, restored);
+	}
+
+	// オーバーライド判定用にベースを正規化する
+	// インスタンスは from_json -> 生成時後処理 -> to_json を経るため、生のプレファブJSONと差分が出て誤検出になる
+	// ベースも同じ経路で一度通し、インスタンスと同じ表現へ揃えてから比較する
+	std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> NormalizeBaseForDiff(
+		Engine::AssetDatabase& database, const std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity>& base) {
+
+		std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> normalized = base;
+		Engine::ECSWorld temp;
+		for (auto& [localID, baseEntity] : normalized) {
+
+			const nlohmann::json sourceComponents = baseEntity.components;
+			const Engine::Entity entity = temp.CreateEntity();
+			if (sourceComponents.is_object()) {
+				for (auto it = sourceComponents.begin(); it != sourceComponents.end(); ++it) {
+					temp.AddComponentFromJson(entity, it.key(), it.value());
+				}
+			}
+			// 生成時と同じサブメッシュ正規化を通し、インスタンス側の表現に揃える
+			if (temp.HasComponent<Engine::MeshRendererComponent>(entity)) {
+				Engine::MeshSubMeshAuthoring::SyncComponent(&database, temp.GetComponent<Engine::MeshRendererComponent>(entity), true);
+			}
+			nlohmann::json normalizedComponents;
+			temp.SerializeEntityComponents(entity, normalizedComponents);
+			baseEntity.components = std::move(normalizedComponents);
+		}
+		return normalized;
+	}
+}
+
 void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetDatabase& database,
 	HierarchySystem& hierarchySystem, AssetID prefabAsset, const std::unordered_map<UUID, PrefabBaseEntity>& oldBase) {
 
@@ -596,8 +690,7 @@ void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetD
 		}
 		});
 
-	// 破棄→再生成方式なので、再生成元のプレファブが確実に読める時だけ伝播する
-	// 解決できない/空のプレファブだと再生成に失敗してインスタンスが復元されず消えてしまうため、その場合は一切壊さず温存する
+	// 再生成元のプレファブが読めない時は壊さず温存する、再生成失敗でインスタンスを失わないための前段ガード
 	const auto prefabFullPath = database.ResolveFullPath(prefabAsset);
 	if (prefabFullPath.empty()) {
 		return;
@@ -608,10 +701,13 @@ void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetD
 		return;
 	}
 
+	// ベースをインスタンスと同じ表現へ正規化し、ラウンドトリップ由来の誤オーバーライド検出を防ぐ
+	const std::unordered_map<UUID, PrefabBaseEntity> normalizedBase = NormalizeBaseForDiff(database, oldBase);
+
 	// 各インスタンスを、現在のオーバーライドを保持したまま新しいプレファブで作り直す
 	for (auto& [instanceID, target] : targets) {
 
-		PrefabInstanceData data = CaptureInstance(world, instanceID, oldBase);
+		PrefabInstanceData data = CaptureInstance(world, instanceID, normalizedBase);
 		data.prefabAsset = prefabAsset;
 
 		// 旧インスタンスを全メンバーのサブツリーごと破棄する、複数ルートや追加した子も漏らさない
@@ -619,6 +715,10 @@ void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetD
 		for (const Entity& member : CollectInstanceEntities(world, instanceID)) {
 			CollectSubtree(world, member, toDestroy);
 		}
+
+		// 破棄前に完全な状態を控える、再生成が失敗してもインスタンスを失わないための安全策
+		const std::vector<InstanceEntityBackup> backup = CaptureInstanceBackup(world, toDestroy);
+
 		std::unordered_set<uint64_t> destroyed;
 		for (auto it = toDestroy.rbegin(); it != toDestroy.rend(); ++it) {
 
@@ -633,6 +733,11 @@ void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetD
 		world.FlushPendingDestroyEntities();
 
 		RebuildInstance(world, database, hierarchySystem, data, target.sceneInstanceID);
+
+		// 再生成でインスタンスが消えていたら、控えておいた状態から元に戻す、元シーンの実体を絶対に失わせない
+		if (CollectInstanceEntities(world, instanceID).empty()) {
+			RestoreInstanceBackup(world, hierarchySystem, backup, target.sceneInstanceID);
+		}
 	}
 }
 

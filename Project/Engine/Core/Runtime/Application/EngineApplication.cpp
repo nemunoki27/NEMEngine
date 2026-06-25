@@ -325,8 +325,10 @@ void Engine::EngineApplication::ExitPrefabEdit() {
 	if (prefabStages_.empty()) {
 		return;
 	}
-	// 退出処理に必要な情報を退出前に控える
+	// 退出処理と伝播に必要な情報を退出前に控える
 	PrefabEditStage& top = prefabStages_.back();
+	const AssetID editedAsset = top.asset;
+	const std::unordered_map<UUID, PrefabBaseEntity> oldBase = top.baseAtEnter;
 	const bool wasInContext = top.inContext;
 	ECSWorld* hostWorld = top.hostWorld;
 	const UUID editInstanceID = top.instanceID;
@@ -336,8 +338,7 @@ void Engine::EngineApplication::ExitPrefabEdit() {
 
 	if (wasInContext) {
 
-		// In-Context編集は一時オーサリング実体(編集セッションのinstanceID)だけをhostWorldから破棄する、ワールド自体は破棄しない
-		// 編集セッションのinstanceIDはこの場限りの採番なので、元シーンの実インスタンス(別ID)には一切触れない
+		// In-Context編集はセッション専用instanceIDの一時実体だけ破棄する、別IDの元シーン実インスタンスには触れない
 		if (hostWorld) {
 			const std::vector<Entity> members = PrefabOverrideUtility::CollectInstanceEntities(*hostWorld, editInstanceID);
 			for (const Entity& member : members) {
@@ -354,9 +355,10 @@ void Engine::EngineApplication::ExitPrefabEdit() {
 		prefabStages_.pop_back();
 	}
 
-	// プレファブ編集は隔離された編集シーンで行うので、戻り先の元シーンには干渉しない
-	// 編集結果は.prefabへ保存済みで、各インスタンスは次回のシーン読み込み時に新しいプレファブから展開される
-	// 破棄→再生成方式の即時伝播は元シーンのインスタンスを失わせるため行わない
+	// 戻り先の元シーンのインスタンスへ編集を反映する、再生成失敗時はバックアップ復元で実体を失わない
+	if (ECSWorld* targetWorld = GetActiveWorld()) {
+		PropagatePrefabToInstances(*targetWorld, editedAsset, oldBase);
+	}
 
 	// 破棄したワールドのエンティティを指す選択や履歴を片付ける
 	editorManager_.ResetSceneEditingState();
@@ -523,7 +525,7 @@ void Engine::EngineApplication::SyncPrefabEditedEntities() {
 	const UUID rootInstanceID = stage.instanceID;
 	const bool hasRoot = world.IsAlive(stage.root);
 
-	// ルートと環境エンティティ(複製カメラ/平行光源)以外を対象にする、反復中の構造変更を避けて先に集める
+	// ルートと環境エンティティ以外を対象にする、反復中の構造変更を避けて先に集める
 	std::vector<Entity> targets;
 	world.ForEachAliveEntity([&](Entity entity) {
 
@@ -541,14 +543,14 @@ void Engine::EngineApplication::SyncPrefabEditedEntities() {
 	}
 
 	HierarchySystem hierarchySystem{};
+	PrefabSystem prefabSystem{};
 	for (const Entity& entity : targets) {
 
 		if (!world.IsAlive(entity)) {
 			continue;
 		}
 
-		// Unity準拠で1プレファブ1ルートを強制する、トップレベルになった実体はプレファブルート配下へ入れる
-		// 新規作成もroot上以外へのD&Dも、ここで必ずルート配下にまとまる
+		// Unity準拠で1プレファブ1ルートを強制し、トップレベルになった実体はプレファブルート配下へ入れる
 		const bool isRoot = !world.HasComponent<HierarchyComponent>(entity) ||
 			!world.IsAlive(world.GetComponent<HierarchyComponent>(entity).parent);
 		if (hasRoot && isRoot) {
@@ -558,13 +560,12 @@ void Engine::EngineApplication::SyncPrefabEditedEntities() {
 		// 新規作成された実体はプレファブメンバーとして登録し、水色表示と保存対象にする
 		if (!world.HasComponent<PrefabLinkComponent>(entity)) {
 
-			auto& prefabLink = world.AddComponent<PrefabLinkComponent>(entity);
-			prefabLink.prefabAsset = stage.asset;
-			prefabLink.prefabInstanceID = rootInstanceID;
-			prefabLink.isPrefabRoot = false;
+			UUID prefabLocalFileID{};
 			if (world.HasComponent<SceneObjectComponent>(entity)) {
-				prefabLink.prefabLocalFileID = world.GetComponent<SceneObjectComponent>(entity).localFileID;
+				prefabLocalFileID = world.GetComponent<SceneObjectComponent>(entity).localFileID;
 			}
+			prefabSystem.SetPrefabLink(
+				world, entity, stage.asset, prefabLocalFileID, rootInstanceID, false);
 		}
 	}
 }
@@ -699,8 +700,12 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	// Play/Stopでワールド状態が変わった後のモードを、このフレームのECS処理へ反映する
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 	{
-		bool advancePlayTime = ShouldAdvanceActiveWorld() && systemContext_.mode == WorldMode::Play;
-		float rawDelta = ShouldAdvanceActiveWorld() ? deltaTime : 0.0f;
+		// Play開始直後の最初の1フレームは進めず、貫通の原因になる大きなdeltaを捨てる
+		const bool skipFirstAdvance = playWorldJustStarted_;
+		playWorldJustStarted_ = false;
+
+		bool advancePlayTime = !skipFirstAdvance && ShouldAdvanceActiveWorld() && systemContext_.mode == WorldMode::Play;
+		float rawDelta = (!skipFirstAdvance && ShouldAdvanceActiveWorld()) ? deltaTime : 0.0f;
 		systemContext_.deltaTime = ManagedScriptRuntime::AdvanceTime(rawDelta, systemContext_.fixedDeltaTime, advancePlayTime);
 		systemContext_.unscaledDeltaTime = rawDelta;
 	}
@@ -736,6 +741,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		editorContext_.isPlaying = worldManager_.IsPlaying();
 		editorContext_.isPlayPaused = playPaused_;
 		editorContext_.activeScenePath = activeScenePath_;
+		editorContext_.activeSceneDirty = editorManager_.IsActiveSceneDirty();
 		editorContext_.activeSceneHeader = header;
 		editorContext_.activeSceneAsset = activeSceneInstance ? activeSceneInstance->sceneAsset : activeScene_;
 		editorContext_.activeSceneInstanceID = activeSceneInstance ? activeSceneInstance->instanceID : UUID{};
@@ -977,6 +983,9 @@ void Engine::EngineApplication::StartPlayWorld() {
 	ManagedScriptRuntime::BeginPlayTime(worldManager_.GetPlayWorld());
 	playPaused_ = false;
 	playFrameStepRequested_ = false;
+	// 実際にPlayWorldが立ち上がったこのフレームでdeltaをリセットし、最初の1フレームは進めない
+	requestFrameDeltaReset_ = true;
+	playWorldJustStarted_ = true;
 }
 
 void Engine::EngineApplication::HandlePlayPauseRequests() {

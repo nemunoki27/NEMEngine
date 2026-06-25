@@ -17,11 +17,11 @@ namespace {
 	bool IsProtectedPrefabRoot(Engine::ECSWorld& world, const Engine::Entity& entity,
 		const Engine::EditorContext* editorContext) {
 
-		// プレファブ編集中でなければ(シーン編集中なら)インスタンスのルートでも削除可能
+		// シーン編集中ならインスタンスのルートでも削除を許可する
 		if (!editorContext || !editorContext->isPrefabEditing) {
 			return false;
 		}
-		// プレファブのルートかつ階層のトップ(親なし)＝編集中プレファブのルートだけ守る、ネストした子は対象外
+		// プレファブのルートかつ階層トップの編集中プレファブのルートだけ守る、ネストした子は対象外
 		if (!world.HasComponent<Engine::PrefabLinkComponent>(entity) ||
 			!world.GetComponent<Engine::PrefabLinkComponent>(entity).isPrefabRoot) {
 			return false;

@@ -648,6 +648,22 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 	}
 
 	Input* input = Input::GetInstance();
+
+	// クリック(ドラッグせず離した)時に選択を確定する、候補が未解決ならreadback到着時に確定する
+	if (input->ReleaseMouse(MouseButton::Left)) {
+
+		const bool overViewport = editorState_.sceneViewportHovered || editorState_.gameViewportHovered;
+		if (overViewport && !ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Left)) {
+
+			editorState_.scenePickClickPending = true;
+			editorState_.scenePickClickAdditive = ImGui::IsKeyDown(ImGuiKey_LeftShift);
+			// 即時候補や空クリックはreadback待ちが無ければその場で確定する
+			if (!meshSubMeshPicker_->HasPendingReadback() && context.activeWorld) {
+				editorState_.CommitScenePick(*context.activeWorld);
+			}
+		}
+	}
+
 	auto executePick = [&](InputViewArea inputArea, RenderViewKind viewKind,
 		ID3D12Resource* tlasResource, const std::vector<MeshSubMeshPickRecord>& pickRecords) {
 
@@ -668,6 +684,9 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			if (!input->TriggerMouse(MouseButton::Left)) {
 				return false;
 			}
+			// 押すたびに候補と保留クリックをリセットする、選択はリリースまで遅延する
+			editorState_.scenePickDragEntity = Entity::Null();
+			editorState_.scenePickClickPending = false;
 
 			// マウス座標を取得
 			const std::optional<Vector2> mousePosInView = input->GetMousePosInView(inputArea);
@@ -675,22 +694,11 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 				return false;
 			}
 
-			// 左シフト併用はBlender風の追加選択にする
-			const bool additive = ImGui::IsKeyDown(ImGuiKey_LeftShift);
-			// Ctrl併用は選択を変えずカーソル下のエンティティをドラッグ対象にするだけにする
-			const bool dragOnly = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
-			// シフト併用かつエンティティ選択モードなら次元が合う場合だけトグル、それ以外は置き換え
+			// 即時ピック(2D/Overlay)はここで候補だけ設定し、選択はリリース時に確定する
 			auto selectHit = [&](const Entity& hit) {
-				if (dragOnly) {
-					editorState_.scenePickDragEntity = hit;
-					return;
-				}
-				if (additive && editorState_.selectKind == EditorSelectionKind::Entity &&
-					context.activeWorld && editorState_.CanMultiSelect(*context.activeWorld, hit)) {
-					editorState_.ToggleEntityInSelection(hit);
-				} else {
-					editorState_.SelectFromScenePick(hit, 0);
-				}
+				editorState_.scenePickDragEntity = hit;
+				editorState_.scenePickCandidateSubMesh = 0;
+				editorState_.scenePickCandidateSubMeshId = UUID{};
 				};
 
 			// SceneView専用Overlayは通常2D/TLASより優先してEntity単位で選択する
@@ -714,7 +722,7 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 
 			// メッシュピック処理を実行、シフト状態は結果消費時のトグル判定に使う
 			meshSubMeshPicker_->ExecutePick(graphicsCore, renderPipeline.GetResolvedView(viewKind),
-				mousePosInView.value(), pickRecords, tlasResource, additive, dragOnly);
+				mousePosInView.value(), pickRecords, tlasResource, false, false);
 			return true;
 		};
 

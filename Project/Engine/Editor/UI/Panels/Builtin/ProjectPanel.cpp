@@ -17,7 +17,6 @@
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
-#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
@@ -55,7 +54,6 @@
 #include <fstream>
 #include <filesystem>
 #include <initializer_list>
-#include <stack>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -209,53 +207,6 @@ namespace {
 		return Engine::ManagedIdeLauncher::OpenFile(scriptPath, 1, 1);
 	}
 
-	// Prefab保存元のEntityツリーへPrefabLinkを設定する
-	void AttachPrefabLinkToSourceTree(Engine::ECSWorld& world, const Engine::Entity& root, Engine::AssetID prefabAsset) {
-
-		if (!world.IsAlive(root) || !prefabAsset) {
-			return;
-		}
-
-		// 同じPrefab化操作で作られたEntity群をまとめるID
-		const Engine::UUID prefabInstanceID = Engine::UUID::New();
-
-		std::stack<Engine::Entity> stack;
-		stack.push(root);
-		while (!stack.empty()) {
-
-			const Engine::Entity entity = stack.top();
-			stack.pop();
-
-			if (!world.IsAlive(entity) || !world.HasComponent<Engine::SceneObjectComponent>(entity)) {
-				continue;
-			}
-
-			const auto& sceneObject = world.GetComponent<Engine::SceneObjectComponent>(entity);
-			auto& prefabLink = world.HasComponent<Engine::PrefabLinkComponent>(entity) ?
-				world.GetComponent<Engine::PrefabLinkComponent>(entity) :
-				world.AddComponent<Engine::PrefabLinkComponent>(entity);
-
-			// Prefabファイル内のLocalFileIDは保存時点のSceneObject.localFileIDと同じ値を使う
-			prefabLink.prefabAsset = prefabAsset;
-			prefabLink.prefabLocalFileID = sceneObject.localFileID;
-			prefabLink.prefabInstanceID = prefabInstanceID;
-			prefabLink.isPrefabRoot = entity == root;
-
-			if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
-				continue;
-			}
-
-			Engine::Entity child = world.GetComponent<Engine::HierarchyComponent>(entity).firstChild;
-			while (child.IsValid() && world.IsAlive(child)) {
-
-				stack.push(child);
-				if (!world.HasComponent<Engine::HierarchyComponent>(child)) {
-					break;
-				}
-				child = world.GetComponent<Engine::HierarchyComponent>(child).nextSibling;
-			}
-		}
-	}
 }
 
 Engine::ProjectPanel::ProjectPanel(TextureUploadService& textureUploadService) {
@@ -1030,7 +981,7 @@ bool Engine::ProjectPanel::SaveDroppedEntityAsPrefab(const EditorPanelContext& c
 	}
 
 	const AssetID prefabAsset = database.ImportOrGet(result.assetPath, AssetType::Prefab);
-	AttachPrefabLinkToSourceTree(world, entity, prefabAsset);
+	prefabSystem.SetPrefabLinkToSubtree(world, entity, prefabAsset);
 
 	RefreshAfterFileOperation(database, result);
 	return true;

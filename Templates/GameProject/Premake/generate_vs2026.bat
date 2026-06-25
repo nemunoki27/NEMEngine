@@ -32,7 +32,8 @@ if not exist "%NEM_SDK_ROOT%\Premake\premake5.exe" (
 )
 
 echo ===== Cleanup Old Project Files =====
-if exist "%GAME_ROOT%\Project\%GAME_NAME%.slnx" del /q "%GAME_ROOT%\Project\%GAME_NAME%.slnx"
+rem 旧 .slnx は名前に依存せず一掃する。cloneフォルダ名と project 名がズレていても確実に作り直す
+if exist "%GAME_ROOT%\Project\*.slnx" del /q "%GAME_ROOT%\Project\*.slnx"
 if exist "%GAME_ROOT%\Project\%GAME_NAME%\%GAME_NAME%.vcxproj" del /q "%GAME_ROOT%\Project\%GAME_NAME%\%GAME_NAME%.vcxproj"
 if exist "%GAME_ROOT%\Project\%GAME_NAME%\%GAME_NAME%.vcxproj.filters" del /q "%GAME_ROOT%\Project\%GAME_NAME%\%GAME_NAME%.vcxproj.filters"
 
@@ -48,6 +49,18 @@ if errorlevel 1 (
 )
 
 echo [OK] Premake generation succeeded.
+
+rem premake が実際に生成した .slnx から GAME_NAME を確定する。
+rem clone フォルダ名と project 名がズレていても、生成物の名前へ追従させて patch 先を一致させる。
+rem .slnx が無い＝premake が生成していない場合はここで明示的に失敗させる（patch 側の不明瞭なエラーを防ぐ）。
+set "GENERATED_SLNX="
+for %%F in ("%GAME_ROOT%\Project\*.slnx") do set "GENERATED_SLNX=%%~fF"
+if not defined GENERATED_SLNX (
+    echo [ERROR] No .slnx was generated under Project\. Check premake5.lua GAME_NAME and the SDK.
+    popd
+    exit /b 1
+)
+for %%F in ("%GENERATED_SLNX%") do set "GAME_NAME=%%~nF"
 
 rem Add the C# script project to the solution and set the debugger working directory.
 if exist "%NEM_SDK_ROOT%\Premake\patch_script_slnx.ps1" powershell -NoProfile -ExecutionPolicy Bypass -File "%NEM_SDK_ROOT%\Premake\patch_script_slnx.ps1" -SlnxPath "%GAME_ROOT%\Project\%GAME_NAME%.slnx" -GameScriptsProject "%GAME_ROOT%\Project\%GAME_NAME%\Scripts\GameScripts.csproj"

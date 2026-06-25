@@ -43,8 +43,10 @@ namespace Engine {
 		// 初期化
 		void Init(GraphicsCore& graphicsCore);
 
-		// 前フレームで仕込んだ結果をフレーム頭で消費する
+		// 前フレームで仕込んだ結果をフレーム頭で消費し、ピック候補を更新して保留クリックを確定する
 		void ConsumePendingResult(ECSWorld* world, EditorState& editorState);
+		// GPUピックのreadback待ちが残っているか、クリック確定の遅延判定に使う
+		bool HasPendingReadback() const { return pendingReadback_; }
 
 		// シービュー左クリック時に実行、additiveはシフト併用の複数選択、dragOnlyはCtrl併用で選択を変えずドラッグ対象だけ拾う
 		void ExecutePick(GraphicsCore& graphicsCore, const ResolvedRenderView& view, const Vector2& inputPixel,

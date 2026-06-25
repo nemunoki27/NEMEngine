@@ -135,12 +135,12 @@ void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context
 	// FixedUpdate末でWaitForFixedUpdateのコルーチンをresumeする
 	if constexpr (ManagedScriptProfilerStore::kDetailEnabled) {
 		const auto t0 = std::chrono::high_resolution_clock::now();
-		ManagedScriptRuntime::GetInstance().TickFrame(1);
+		ManagedScriptRuntime::GetInstance().TickFrame(1, context);
 		const std::chrono::duration<float, std::milli> ms = std::chrono::high_resolution_clock::now() - t0;
 		ManagedScriptProfilerStore::GetInstance().RecordCoroutineResume(ms.count());
 	}
 	else {
-		ManagedScriptRuntime::GetInstance().TickFrame(1);
+		ManagedScriptRuntime::GetInstance().TickFrame(1, context);
 	}
 }
 
@@ -171,12 +171,12 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 	// Update末でTimerとコルーチンを駆動する
 	if constexpr (ManagedScriptProfilerStore::kDetailEnabled) {
 		const auto t0 = std::chrono::high_resolution_clock::now();
-		ManagedScriptRuntime::GetInstance().TickFrame(0);
+		ManagedScriptRuntime::GetInstance().TickFrame(0, context);
 		const std::chrono::duration<float, std::milli> ms = std::chrono::high_resolution_clock::now() - t0;
 		ManagedScriptProfilerStore::GetInstance().RecordCoroutineResume(ms.count());
 	}
 	else {
-		ManagedScriptRuntime::GetInstance().TickFrame(0);
+		ManagedScriptRuntime::GetInstance().TickFrame(0, context);
 	}
 }
 
@@ -205,12 +205,12 @@ void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 	// LateUpdate末でWaitForEndOfFrameのコルーチンをresumeする
 	if constexpr (ManagedScriptProfilerStore::kDetailEnabled) {
 		const auto t0 = std::chrono::high_resolution_clock::now();
-		ManagedScriptRuntime::GetInstance().TickFrame(2);
+		ManagedScriptRuntime::GetInstance().TickFrame(2, context);
 		const std::chrono::duration<float, std::milli> ms = std::chrono::high_resolution_clock::now() - t0;
 		ManagedScriptProfilerStore::GetInstance().RecordCoroutineResume(ms.count());
 	}
 	else {
-		ManagedScriptRuntime::GetInstance().TickFrame(2);
+		ManagedScriptRuntime::GetInstance().TickFrame(2, context);
 	}
 }
 

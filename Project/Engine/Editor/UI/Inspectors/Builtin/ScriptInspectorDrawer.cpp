@@ -7,6 +7,7 @@
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
 #include <Engine/Editor/Scripting/DragDrop/ScriptAssetDragDrop.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
@@ -31,6 +32,9 @@
 namespace {
 
 	using Kind = Engine::ManagedSerializedFieldKind;
+
+	// List要素のドラッグ並び替え用ペイロード、ドラッグ元の要素indexを運ぶ
+	constexpr const char* kListElementDragDropType = "SCRIPT_LIST_ELEMENT";
 
 	// スクリプトの解決状態、型の登録有無で判定しフィールド数では判定しない
 	enum class ManagedScriptResolutionReason {
@@ -99,6 +103,7 @@ namespace {
 		case Kind::AssetRef: return "AssetRef";
 		case Kind::EntityRef: return "EntityRef";
 		case Kind::ScriptRef: return "ScriptRef";
+		case Kind::ComponentRef: return "ComponentRef";
 		default: return "unsupported";
 		}
 	}
@@ -141,6 +146,8 @@ namespace {
 		case Kind::ScriptRef:
 			return nlohmann::json{ {"entity", nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} }},
 				{"scriptSlotId", ""}, {"scriptTypeId", ""} };
+		case Kind::ComponentRef:
+			return nlohmann::json{ {"entity", nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} }} };
 		default: return nullptr;
 		}
 	}
@@ -214,6 +221,10 @@ namespace {
 		if (!field.header.empty()) {
 			ImGui::SeparatorText(field.header.c_str());
 		}
+	}
+	// 表示ラベル、Label属性があればそれを使い無ければ変数名を使う
+	const std::string& FieldDisplayLabel(const Engine::ManagedFieldSchema& field) {
+		return field.label.empty() ? field.name : field.label;
 	}
 	void DrawTooltipIfAny(const Engine::ManagedFieldSchema& field) {
 		if (!field.tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
@@ -351,6 +362,20 @@ namespace {
 		return r;
 	}
 
+	// EntityRefのlocalFileIdから現在ワールドの表示名を引く、見つからなければ空
+	std::string ResolveEntityRefName(Engine::ECSWorld* world, const std::string& localFileId) {
+
+		if (!world || localFileId.empty()) { return {}; }
+		std::string name;
+		world->ForEach<Engine::SceneObjectComponent>([&](Engine::Entity e, Engine::SceneObjectComponent& so) {
+			if (name.empty() && Engine::ToString(so.localFileID) == localFileId) {
+				const Engine::NameComponent* nameComponent = world->TryGetComponent<Engine::NameComponent>(e);
+				name = nameComponent ? nameComponent->name : std::string("Entity");
+			}
+			});
+		return name;
+	}
+
 	// エンティティ参照の選択、ドラッグで設定しクリアで解除する
 	Engine::ValueEditResult DrawEntityRef(const char* label, nlohmann::json& value, const DrawContext& ctx) {
 
@@ -363,9 +388,32 @@ namespace {
 		if (!Engine::MyGUI::BeginPropertyRow(label)) {
 			return result;
 		}
-		const std::string preview = (kind == "Null" || localFileId.empty())
-			? std::string("<None>") : (kind + ":" + localFileId);
-		ImGui::Button(preview.c_str(), ImVec2(ImGui::GetContentRegionAvail().x - 60.0f, 0.0f));
+		// AssetRefと同じ見た目に合わせる、行幅いっぱいのボタンで未設定はグレーアウトする
+		const bool hasValue = !(kind == "Null" || localFileId.empty());
+		std::string preview;
+		if (!hasValue) {
+			preview = "None (Drop entity here)";
+		} else {
+			// AssetRefと同じくName表示にし、解決できなければ欠落表示にする
+			const std::string name = ResolveEntityRefName(ctx.world, localFileId);
+			preview = name.empty() ? ("Missing Entity | " + localFileId) : ("Name: " + name);
+		}
+
+		ImGui::PushID(label);
+		if (!hasValue) { ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)); }
+		ImGui::Button(preview.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
+		if (!hasValue) { ImGui::PopStyleColor(); }
+		result.anyItemActive = ImGui::IsItemActive();
+
+		// 解除はClearボタンではなくAssetRefと同じ右クリックの削除メニューで行う
+		if (hasValue && ImGui::BeginPopupContextItem("##entityRefDelete")) {
+			if (ImGui::MenuItem("削除")) {
+				value = nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} };
+				result.valueChanged = true;
+				result.editFinished = true;
+			}
+			ImGui::EndPopup();
+		}
 
 		// ドラッグされたエンティティを参照に設定する
 		if (ImGui::BeginDragDropTarget()) {
@@ -387,17 +435,34 @@ namespace {
 			}
 			ImGui::EndDragDropTarget();
 		}
-		ImGui::SameLine();
-		if (ImGui::SmallButton("Clear")) {
-			value = nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} };
-			result.valueChanged = true;
-			result.editFinished = true;
-		}
+		ImGui::PopID();
 		Engine::MyGUI::EndPropertyRow();
 		return result;
 	}
 
 	// スクリプト参照の選択、所有エンティティと対象スロットを選ぶ
+	// コンポーネント参照、所有エンティティを選び型Tのコンポーネントを解決対象にする
+	Engine::ValueEditResult DrawComponentRef(const char* label, nlohmann::json& value,
+		const Engine::ManagedFieldSchema& field, const DrawContext& ctx) {
+
+		Engine::ValueEditResult result{};
+		if (!value.is_object()) {
+			value = DefaultForKind(field);
+		}
+		if (!value.contains("entity") || !value["entity"].is_object()) {
+			value["entity"] = nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} };
+		}
+
+		// ラベルに対象コンポーネント型を添えてエンティティ参照として描く
+		const std::string entityLabel = field.componentType.empty()
+			? std::string(label) : (std::string(label) + " (" + field.componentType + ")");
+		Engine::ValueEditResult entityResult = DrawEntityRef(entityLabel.c_str(), value["entity"], ctx);
+		result.valueChanged |= entityResult.valueChanged;
+		result.anyItemActive |= entityResult.anyItemActive;
+		result.editFinished |= entityResult.editFinished;
+		return result;
+	}
+
 	Engine::ValueEditResult DrawScriptRef(const char* label, nlohmann::json& value,
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx) {
 
@@ -428,9 +493,18 @@ namespace {
 				const auto& scriptComponent = ctx.world->GetComponent<Engine::ScriptComponent>(owner);
 				const std::string currentSlot = value.value("scriptSlotId", std::string{});
 
-				if (Engine::MyGUI::BeginPropertyRow("  slot")) {
-					const std::string preview = currentSlot.empty() ? std::string("<None>") : currentSlot;
+				if (Engine::MyGUI::BeginPropertyRow("  対象スクリプト")) {
+					// 候補は型名で表示する、内部IDは分かりにくいので既定プレビューには出さない
+					std::string preview = "未選択";
+					for (const Engine::ScriptEntry& slotEntry : scriptComponent.scripts) {
+						if (Engine::ToString(slotEntry.scriptSlotID) == currentSlot) {
+							preview = slotEntry.lastKnownTypeName;
+							break;
+						}
+					}
 					if (ImGui::BeginCombo("##slot", preview.c_str())) {
+						// 同型が複数あるときの区別用に候補の通し番号を振る
+						int candidateOrder = 0;
 						for (const Engine::ScriptEntry& slotEntry : scriptComponent.scripts) {
 							// 型が一致するスロットのみ候補にする
 							if (!field.scriptType.empty() && !slotEntry.scriptTypeId.empty()) {
@@ -440,8 +514,10 @@ namespace {
 									continue;
 								}
 							}
+							++candidateOrder;
 							const std::string slotId = Engine::ToString(slotEntry.scriptSlotID);
-							const std::string itemLabel = slotEntry.lastKnownTypeName + " (" + slotId + ")";
+							// 内部IDは見せず型名と通し番号で表示する
+							const std::string itemLabel = slotEntry.lastKnownTypeName + " #" + std::to_string(candidateOrder);
 							if (ImGui::Selectable(itemLabel.c_str(), slotId == currentSlot)) {
 								value["scriptSlotId"] = slotId;
 								value["scriptTypeId"] = slotEntry.scriptTypeId;
@@ -469,8 +545,11 @@ namespace {
 			return result;
 		}
 
-		const std::string headerLabel = label + std::string(" [") + std::to_string(value.size()) + "]";
-		if (ImGui::TreeNodeEx(headerLabel.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+		// TreeNodeのIDは要素数を含めず安定させる、要素追加で開閉状態が消えないようにする
+		ImGui::PushID(label);
+		const bool open = ImGui::TreeNodeEx("##collection",
+			ImGuiTreeNodeFlags_SpanAvailWidth, "%s [%zu]", label, value.size());
+		if (open) {
 
 			int removeIndex = -1;
 			int moveFrom = -1;
@@ -478,24 +557,42 @@ namespace {
 			for (size_t i = 0; i < value.size(); ++i) {
 
 				ImGui::PushID(static_cast<int>(i));
-				const std::string elementLabel = std::to_string(i);
+				// 要素ごとに区切り線を入れて境界を分かりやすくする
+				if (i > 0) { ImGui::Separator(); }
+
+				const std::string elementLabel = std::string("要素 ") + std::to_string(i);
 				Engine::ValueEditResult r = DrawValue(*field.element, value[i], ctx, elementLabel.c_str());
 				if (r.valueChanged) { result.valueChanged = true; }
 				result.anyItemActive |= r.anyItemActive;
 
+				// 値はプロパティ行(table)で描かれ後続のSameLineが効かないので操作行を別に出す
 				if (!ctx.readOnly) {
+					// このハンドルを掴んで別要素へドロップすると並び替えできる
+					ImGui::SmallButton("ドラッグで移動");
+					if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+						const int srcIndex = static_cast<int>(i);
+						ImGui::SetDragDropPayload(kListElementDragDropType, &srcIndex, sizeof(int));
+						ImGui::Text("要素 %d を移動", srcIndex);
+						ImGui::EndDragDropSource();
+					}
+					if (ImGui::BeginDragDropTarget()) {
+						if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kListElementDragDropType)) {
+							if (payload->IsDelivery() && payload->DataSize == sizeof(int)) {
+								moveFrom = *static_cast<const int*>(payload->Data);
+								moveTo = static_cast<int>(i);
+							}
+						}
+						ImGui::EndDragDropTarget();
+					}
 					ImGui::SameLine();
-					if (ImGui::SmallButton("X")) { removeIndex = static_cast<int>(i); }
-					ImGui::SameLine();
-					if (ImGui::SmallButton("^") && i > 0) { moveFrom = static_cast<int>(i); moveTo = static_cast<int>(i) - 1; }
-					ImGui::SameLine();
-					if (ImGui::SmallButton("v") && i + 1 < value.size()) { moveFrom = static_cast<int>(i); moveTo = static_cast<int>(i) + 1; }
+					if (ImGui::SmallButton("削除")) { removeIndex = static_cast<int>(i); }
 				}
 				ImGui::PopID();
 			}
 
 			if (!ctx.readOnly) {
-				if (ImGui::SmallButton("+ Add")) {
+				ImGui::Separator();
+				if (ImGui::SmallButton("要素追加")) {
 					value.push_back(DefaultForKind(*field.element));
 					result.valueChanged = true;
 					result.editFinished = true;
@@ -505,14 +602,19 @@ namespace {
 					result.valueChanged = true;
 					result.editFinished = true;
 				}
-				if (moveFrom >= 0 && moveTo >= 0) {
-					std::swap(value[moveFrom], value[moveTo]);
+				// ドラッグした要素をドロップ位置へ挿入し直して並び替える
+				if (moveFrom >= 0 && moveTo >= 0 && moveFrom != moveTo) {
+					nlohmann::json moved = value[moveFrom];
+					value.erase(value.begin() + moveFrom);
+					const int insertAt = moveTo > moveFrom ? moveTo - 1 : moveTo;
+					value.insert(value.begin() + insertAt, moved);
 					result.valueChanged = true;
 					result.editFinished = true;
 				}
 			}
 			ImGui::TreePop();
 		}
+		ImGui::PopID();
 		return result;
 	}
 
@@ -617,6 +719,7 @@ namespace {
 		case Kind::AssetRef: return DrawAssetRef(label, value, field, ctx);
 		case Kind::EntityRef: return DrawEntityRef(label, value, ctx);
 		case Kind::ScriptRef: return DrawScriptRef(label, value, field, ctx);
+		case Kind::ComponentRef: return DrawComponentRef(label, value, field, ctx);
 		default:
 			ImGui::TextDisabled("%s : 未対応の型", label);
 			return {};
@@ -693,7 +796,7 @@ namespace {
 		DrawHeaderIfAny(field);
 
 		nlohmann::json& value = EnsureFieldValue(sf, field);
-		const std::string label = field.name;
+		const std::string label = FieldDisplayLabel(field);
 
 		bool changed = false;
 		if (field.isReadOnly) {
@@ -724,7 +827,7 @@ namespace {
 		if (fieldValue.is_null() && field.kind != Kind::Nullable) {
 			fieldValue = ParseDefaultValue(field);
 		}
-		const std::string label = field.name;
+		const std::string label = FieldDisplayLabel(field);
 
 		if (field.isReadOnly) {
 			ImGui::BeginDisabled();

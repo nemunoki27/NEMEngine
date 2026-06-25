@@ -78,6 +78,13 @@ namespace Engine {
 		bool SavePrefabFromEntities(AssetDatabase& database, ECSWorld& world, const Entity& root,
 			const std::vector<Entity>& entities, const std::string& prefabAssetPath) const;
 
+		// EntityへPrefabLinkを設定する
+		void SetPrefabLink(ECSWorld& world, const Entity& entity, AssetID prefabAsset,
+			UUID prefabLocalFileID, UUID prefabInstanceID, bool isPrefabRoot) const;
+		// サブツリーを1つのプレファブインスタンスとして設定し、使用したインスタンスIDを返す
+		UUID SetPrefabLinkToSubtree(ECSWorld& world, const Entity& root, AssetID prefabAsset,
+			UUID prefabInstanceID = UUID{}) const;
+
 		// プレファブ生成
 		bool InstantiatePrefab(AssetDatabase& database, HierarchySystem& hierarchySystem, ECSWorld& world,
 			AssetID prefabAsset, PrefabInstantiateResult& outResult, const PrefabInstantiateDesc& desc = {}) const;

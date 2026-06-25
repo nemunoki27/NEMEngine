@@ -9,6 +9,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/Foundation/Math/AffineDecompose.h>
 
 // c++
@@ -38,6 +39,9 @@ void Engine::JointAttachmentSystem::LateUpdate(ECSWorld& world, [[maybe_unused]]
 		return;
 	}
 
+	// アクティブ状態の伝播に使う、RefreshActiveRecursiveは状態を持たないのでローカル生成でよい
+	HierarchySystem hierarchySystem{};
+
 	// 親子付けされたエンティティを、ジョイントのワールド行列へ追従させる
 	world.ForEach<JointAttachmentComponent, TransformComponent>([&](
 		Entity entity, JointAttachmentComponent& attachment, TransformComponent& transform) {
@@ -54,6 +58,11 @@ void Engine::JointAttachmentSystem::LateUpdate(ECSWorld& world, [[maybe_unused]]
 			if (!world.IsAlive(skinned) || !world.HasComponent<TransformComponent>(skinned)) {
 				return;
 			}
+
+			// スキンメッシュの非アクティブを親子付けエンティティと子へも伝える、エンティティ親子付けと同じ挙動にする
+			const bool skinnedActive = IsEntityActiveInHierarchy(world, skinned);
+			hierarchySystem.RefreshActiveRecursive(world, entity, skinnedActive);
+
 			const auto& anim = world.GetComponent<SkinnedAnimationComponent>(skinned);
 
 			// ジョイントを名前で解決する

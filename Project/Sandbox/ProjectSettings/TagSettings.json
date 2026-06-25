@@ -3,6 +3,7 @@
     "Untagged",
     "Player",
     "StageObject",
-    "Ground"
+    "Ground",
+    "Enemy"
   ]
 }

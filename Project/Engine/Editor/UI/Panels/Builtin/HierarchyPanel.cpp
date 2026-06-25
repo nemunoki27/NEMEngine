@@ -138,9 +138,11 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	// プレファブ編集中は環境エンティティ(複製したカメラ/平行光源)や周囲のシーンを隠し、プレファブの中身だけを出す
+	// プレファブ編集中の表示制御、隔離編集は環境を隠し、In-Context編集は編集中のプレファブだけを出す
 	const bool prefabEditing = context.editorContext && context.editorContext->isPrefabEditing;
 	const bool inContext = context.editorContext && context.editorContext->isPrefabInContext;
+	const UUID inContextInstanceID = context.editorContext ?
+		context.editorContext->prefabInContextInstanceID : UUID{};
 	const std::vector<Entity>* environmentEntities = context.editorContext ? context.editorContext->prefabEnvironmentEntities : nullptr;
 
 	std::vector<Entity> rootEntities;
@@ -155,10 +157,14 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		if (world->HasComponent<JointAttachmentComponent>(entity)) {
 			return;
 		}
-		// プレファブ編集中の絞り込み
-		// In-Context編集は周囲のシーンも文脈として表示する(Unityのin-context)ので絞り込まない、メンバーは水色で編集対象になる
-		// 隔離編集だけは複製した環境エンティティ(カメラ/平行光源)を隠し、プレファブの中身だけを出す
-		if (prefabEditing && !inContext && environmentEntities) {
+		// In-Context編集は描画だけ元シーンを残し、ヒエラルキーは編集中インスタンスのルートだけに絞る
+		if (prefabEditing && inContext) {
+
+			if (!world->HasComponent<PrefabLinkComponent>(entity) ||
+				world->GetComponent<PrefabLinkComponent>(entity).prefabInstanceID != inContextInstanceID) {
+				return;
+			}
+		} else if (prefabEditing && environmentEntities) {
 
 			if (std::find(environmentEntities->begin(), environmentEntities->end(), entity) != environmentEntities->end()) {
 				return;
@@ -345,8 +351,6 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 
 	// チェックボックスがクリックされたか
 	const bool additiveSelect = ImGui::IsKeyDown(ImGuiKey_LeftShift);
-	// Ctrl併用時は選択を切り替えずにエンティティをドラッグできるようにする
-	const bool ctrlHeld = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
 	auto selectEntityInHierarchy = [&]() {
 		if (additiveSelect && context.editorState->selectKind == EditorSelectionKind::Entity &&
 			context.editorState->CanMultiSelect(world, entity)) {
@@ -408,13 +412,15 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		ImGui::PopStyleColor();
 	}
 
-	// ノードがクリックされたか
-	bool nodeLeftClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+	// 右クリックは押した時に判定する
 	bool nodeRightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
+	// Unity同様ドラッグせず離した時だけ選択し、ドラッグはD&Dとして選択を変えない
+	bool nodeLeftClickedNoDrag = ImGui::IsItemHovered() &&
+		ImGui::IsMouseReleased(ImGuiMouseButton_Left) &&
+		!ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Left);
 
-	// ノードがクリックされたら選択状態にする、右クリックで既に複数選択に含むなら維持する
-	// Ctrl併用時は選択を変えずにドラッグだけ行えるよう選択をスキップする
-	if (nodeLeftClicked && !ctrlHeld) {
+	// 左クリックで選択状態にする、右クリックで既に複数選択に含むなら維持する
+	if (nodeLeftClickedNoDrag) {
 		selectEntityInHierarchy();
 	} else if (nodeRightClicked && !context.editorState->IsEntitySelected(entity)) {
 		context.editorState->SelectEntity(entity);
@@ -473,7 +479,7 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 
 			context.host->CopySelectionToClipboard();
 		}
-		// Unity準拠、プレファブ編集中のルート(プレファブ名エンティティ)だけ削除不可、シーン編集中のインスタンスは削除可
+		// Unity準拠でプレファブ編集中のルートだけ削除不可にする、シーン編集中のインスタンスは削除できる
 		const bool prefabEditing = context.editorContext && context.editorContext->isPrefabEditing;
 		const bool isProtectedPrefabRoot = prefabEditing &&
 			world.HasComponent<PrefabLinkComponent>(entity) &&

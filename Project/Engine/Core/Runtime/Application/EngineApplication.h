@@ -128,6 +128,8 @@ namespace Engine {
 		bool playPaused_ = false;
 		bool playFrameStepRequested_ = false;
 		bool requestFrameDeltaReset_ = false;
+		// Play開始直後の最初の1フレームはビルド待ちで大きくなったdeltaによる貫通を防ぐため進めない
+		bool playWorldJustStarted_ = false;
 		bool shutdownAccepted_ = false;
 		bool closeRequestPending_ = false;
 		bool handlingAssertAbort_ = false;
