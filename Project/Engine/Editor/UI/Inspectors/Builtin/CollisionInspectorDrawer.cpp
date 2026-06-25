@@ -36,7 +36,7 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 
 	ImGui::Indent();
 
-	if (!MyGUI::CollapsingHeader("Shapes")) {
+	if (!MyGUI::CollapsingHeader("形状一覧")) {
 		return;
 	}
 
@@ -46,7 +46,7 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 
 		ImGui::PushID(static_cast<int32_t>(i));
 		CollisionShape& shape = draft.shapes[i];
-		if (ImGui::TreeNodeEx("Shape", ImGuiTreeNodeFlags_DefaultOpen, "Shape %u : %s", i,
+		if (ImGui::TreeNodeEx("形状", ImGuiTreeNodeFlags_DefaultOpen, "形状 %u : %s", i,
 			EnumAdapter<ColliderShapeType>::ToString(shape.type))) {
 
 			PushEditResult(DrawShapeField(shape, i), anyItemActive);
@@ -172,8 +172,8 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeField(Collisi
 
 	accumulate(DrawShapeTypeField(shape.type));
 	accumulate(InspectorDrawerCommon::DrawCheckboxField("有効", shape.enabled));
-	accumulate(InspectorDrawerCommon::DrawCheckboxField("押し戻しなしでコールバックのみ", shape.isTrigger));
-	accumulate(InspectorDrawerCommon::DrawCheckboxField("自トランスフォームの回転使用", shape.useTransformRotation));
+	accumulate(InspectorDrawerCommon::DrawCheckboxField("コールバックのみ", shape.isTrigger));
+	accumulate(InspectorDrawerCommon::DrawCheckboxField("トランスフォーム回転使用", shape.useTransformRotation));
 	accumulate(MyGUI::DragVector3("オフセット", shape.offset));
 	accumulate(MyGUI::DragVector3("回転", shape.rotationDegrees, { .dragSpeed = 0.1f }));
 

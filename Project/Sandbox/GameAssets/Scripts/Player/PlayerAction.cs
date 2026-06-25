@@ -114,9 +114,16 @@ public sealed class PlayerAction : ScriptBehaviour
     [SerializeField]
     [Label("歩行クリップ")]
     private string walkClip = "walk";
+    // 死亡時に再生するAnimationPlayerの状態名、再生終了後にゲームオーバーへ移る
+    [SerializeField]
+    [Label("死亡アニメーション")]
+    [Tooltip("HPが0のとき再生するAnimationPlayerの状態名。ループ形式は一度だけにしておくこと")]
+    private string deathAnimation = "death";
 
     // 現在HP、実行時のみ保持しシリアライズしない
     private int currentHP;
+    // 死亡演出中か、死亡アニメ再生完了でゲームオーバーへ移る
+    private bool isDying;
     // 被弾無敵の残り秒数、0より大きい間は被弾しない
     private float invincibleTimer;
     // 移動入力があるか、Moveで更新しアニメーション切り替えに使う
@@ -158,6 +165,9 @@ public sealed class PlayerAction : ScriptBehaviour
         // Listのランタイム挙動確認、後ろから1秒おきに削除し、空になったら復元する動作を繰り返す
         StartCoroutine(RunListDemo());
 
+        // メッシュ色の動作確認、1秒ごとに色を巡回しながらアルファを0から1へ繰り返す
+        StartCoroutine(ColorDemo());
+
         // スクリプト間参照の動作確認、参照先のメソッドを呼んで現在値を読む
         if (TryResolveScoreKeeper(out ScoreKeeper keeper))
         {
@@ -184,6 +194,16 @@ public sealed class PlayerAction : ScriptBehaviour
     //========================================================================
     public override void Update()
     {
+        // 死亡演出中は操作を止め、死亡アニメの再生終了を待ってゲームオーバーへ移る
+        if (isDying)
+        {
+            if (TryGet<AnimationPlayer>(out AnimationPlayer deathAnim) && deathAnim.Finished)
+            {
+                GoToGameOver();
+            }
+            return;
+        }
+
         // 被弾無敵の残り時間を減らす
         if (invincibleTimer > 0.0f)
         {
@@ -397,11 +417,59 @@ public sealed class PlayerAction : ScriptBehaviour
             keeper.AddScore(10);
         }
 
-        // HPが尽きたら死亡イベントを発火しゲームオーバーへ移る
+        // HPが尽きたら死亡演出を開始する
         if (currentHP <= 0)
         {
-            OnPlayerDied.Invoke();
-            GoToGameOver();
+            BeginDeath();
+        }
+    }
+    //========================================================================
+    //	死亡演出の開始、死亡アニメを再生し終了後にゲームオーバーへ移る
+    //========================================================================
+    private void BeginDeath()
+    {
+        if (isDying)
+        {
+            return;
+        }
+        OnPlayerDied.Invoke();
+
+        // 死亡アニメが設定され再生できるなら、終了をUpdateで待つ
+        if (!string.IsNullOrEmpty(deathAnimation) && TryGet<AnimationPlayer>(out AnimationPlayer anim))
+        {
+            isDying = true;
+            anim.Play(deathAnimation);
+            return;
+        }
+        // 再生できなければ即ゲームオーバーへ移る
+        GoToGameOver();
+    }
+    //========================================================================
+    //	メッシュ色の動作確認、1秒ごとに赤→青→黄を巡回しアルファを0から1へ繰り返す
+    //========================================================================
+    private IEnumerator ColorDemo()
+    {
+        // 巡回する色、赤→青→黄
+        Color3[] colors = { new(1.0f, 0.0f, 0.0f), new(0.0f, 0.0f, 1.0f), new(1.0f, 1.0f, 0.0f) };
+        int index = 0;
+
+        while (true)
+        {
+            // 1秒かけて現在色のアルファを0から1へ上げる
+            float elapsed = 0.0f;
+            while (elapsed < 1.0f)
+            {
+                elapsed += Time.deltaTime;
+                float alpha = elapsed < 1.0f ? elapsed : 1.0f;
+                if (TryGet<MeshRenderer>(out MeshRenderer mesh))
+                {
+                    Color3 c = colors[index];
+                    mesh.SetColor(new Color4(c.r, c.g, c.b, alpha));
+                }
+                yield return null;
+            }
+            // 次の色へ巡回し、またアルファ0から繰り返す
+            index = (index + 1) % colors.Length;
         }
     }
     //========================================================================

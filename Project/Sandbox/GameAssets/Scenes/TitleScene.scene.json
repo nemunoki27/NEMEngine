@@ -226,6 +226,21 @@
         },
         {
             "Components": {
+                "AnimationPlayer": {
+                    "defaultState": "upper",
+                    "enabled": true,
+                    "globalSpeed": 1.0,
+                    "playInEditMode": false,
+                    "playOnStart": true,
+                    "states": [
+                        {
+                            "clip": "023bad51e5f30b78",
+                            "name": "upper",
+                            "speed": 1.0,
+                            "wrapMode": "Loop"
+                        }
+                    ]
+                },
                 "Collision": {
                     "enablePushback": true,
                     "enabled": true,
@@ -294,10 +309,10 @@
                             "parameterOverrides": {
                                 "baseColorTexture": "c2ea9f4498073ab3",
                                 "color": {
-                                    "a": 1.0,
-                                    "b": 0.0,
-                                    "g": 0.6235237121582031,
-                                    "r": 0.8449198007583618
+                                    "a": 1.0618823766708374,
+                                    "b": 0.9838756918907166,
+                                    "g": 1.0,
+                                    "r": 0.9977862238883972
                                 },
                                 "emissiveColor": {
                                     "a": 1.0,
@@ -338,18 +353,18 @@
                 "Transform": {
                     "localPos": {
                         "x": 8.705573081970215,
-                        "y": 0.9873318672180176,
+                        "y": 2.0438647270202637,
                         "z": 4.0
                     },
                     "localRotation": {
-                        "w": 1.0,
+                        "w": -0.08123703300952911,
                         "x": 0.0,
-                        "y": 0.0,
+                        "y": -0.9966948628425598,
                         "z": 0.0
                     },
                     "localScale": {
                         "x": 1.0,
-                        "y": 1.0,
+                        "y": 0.9897610545158386,
                         "z": 1.0
                     }
                 }

@@ -155,7 +155,7 @@ void Engine::PostProcessStackTool::DrawEditorTool(const EditorToolContext& conte
 void Engine::PostProcessStackTool::DrawWindow(const EditorToolContext& context) {
 
 	ImGui::SetNextWindowSize(ImVec2(720.0f, 480.0f), ImGuiCond_FirstUseEver);
-	if (!ImGui::Begin("PostProcessStack", &openWindow_)) {
+	if (!ImGui::Begin("ポストプロセス設定", &openWindow_)) {
 		ImGui::End();
 		return;
 	}
@@ -167,14 +167,14 @@ void Engine::PostProcessStackTool::DrawWindow(const EditorToolContext& context) 
 	{
 		const std::string pathStr = service.GetCurrentPath().generic_string();
 		if (service.IsDirty()) {
-			ImGui::TextDisabled("Settings: %s *", pathStr.c_str());
+			ImGui::TextDisabled("設定ファイル: %s *", pathStr.c_str());
 		} else {
-			ImGui::TextDisabled("Settings: %s", pathStr.c_str());
+			ImGui::TextDisabled("設定ファイル: %s", pathStr.c_str());
 		}
 	}
 
 	// Save / Reloadボタン
-	if (ImGui::Button("Save")) {
+	if (ImGui::Button("保存")) {
 		// 設定ファイルが無いシーンでは、シーンのベース直下PostProcess/へ新規作成してから保存する
 		if (const AssetID created = EnsureActiveStackAsset(context)) {
 			lastStackAsset_ = created;
@@ -184,7 +184,7 @@ void Engine::PostProcessStackTool::DrawWindow(const EditorToolContext& context) 
 		service.ClearDirty();
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Reload")) {
+	if (ImGui::Button("再読み込み")) {
 		service.Reload();
 		selectedPassIndex_ = -1;
 	}
@@ -244,7 +244,7 @@ void Engine::PostProcessStackTool::DrawPassList() {
 	PostProcessStackSettings& settings = service.GetSettings();
 	auto& passes = settings.passes;
 
-	ImGui::TextUnformatted("Passes");
+	ImGui::TextUnformatted("パス一覧");
 	ImGui::Separator();
 
 	int32_t reorderFrom = -1;
@@ -264,7 +264,7 @@ void Engine::PostProcessStackTool::DrawPassList() {
 
 		// パス名の選択アイテム
 		const bool isSelected = (selectedPassIndex_ == i);
-		if (ImGui::Selectable(pass.name.empty() ? "(Unnamed)" : pass.name.c_str(),
+		if (ImGui::Selectable(pass.name.empty() ? "(名前なし)" : pass.name.c_str(),
 			isSelected, ImGuiSelectableFlags_None, ImVec2(0.0f, 0.0f))) {
 			selectedPassIndex_ = i;
 		}
@@ -272,7 +272,7 @@ void Engine::PostProcessStackTool::DrawPassList() {
 		// ドラッグソース:パスの並び替え
 		if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 			ImGui::SetDragDropPayload(kPassReorderPayloadType, &i, sizeof(int32_t));
-			ImGui::TextUnformatted(pass.name.empty() ? "(Unnamed)" : pass.name.c_str());
+			ImGui::TextUnformatted(pass.name.empty() ? "(名前なし)" : pass.name.c_str());
 			ImGui::EndDragDropSource();
 		}
 
@@ -287,7 +287,7 @@ void Engine::PostProcessStackTool::DrawPassList() {
 
 		// 右クリックコンテキストメニュー
 		if (ImGui::BeginPopupContextItem("##PassContext")) {
-			if (ImGui::MenuItem("Delete")) {
+			if (ImGui::MenuItem("削除")) {
 				passes.erase(passes.begin() + i);
 				if (selectedPassIndex_ >= static_cast<int32_t>(passes.size())) {
 					selectedPassIndex_ = static_cast<int32_t>(passes.size()) - 1;
@@ -331,7 +331,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 	auto& passes = settings.passes;
 
 	if (selectedPassIndex_ < 0 || selectedPassIndex_ >= static_cast<int32_t>(passes.size())) {
-		ImGui::TextDisabled("Select a pass to edit.");
+		ImGui::TextDisabled("編集するパスを選択してください");
 		return;
 	}
 
@@ -341,25 +341,25 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 	service.SetPreviewPassId(pass.id);
 
 	// 選択中パスのシェーダーを再コンパイルしてパラメータを再読み込みする
-	if (ImGui::Button("Reload Reflection")) {
+	if (ImGui::Button("リフレクション再読み込み")) {
 		PostProcessStackService::GetInstance().RequestShaderReload(pass.materialGuid);
 	}
 
 	ImGui::Separator();
 
 	// パス名編集
-	if (MyGUI::InputText("Name", pass.name).editFinished) {
+	if (MyGUI::InputText("名前", pass.name).editFinished) {
 		service.MarkDirty();
 	}
 
 	// パスシェーダーパス種別
-	if (MyGUI::EnumCombo("Pass Kind", pass.passKind).editFinished) {
+	if (MyGUI::EnumCombo("パス種別", pass.passKind).editFinished) {
 		service.MarkDirty();
 		service.RebuildRuntime();
 	}
 
 	// このパスを差し込む固定パス上の位置
-	if (MyGUI::EnumCombo("Anchor", pass.anchor).editFinished) {
+	if (MyGUI::EnumCombo("アンカー", pass.anchor).editFinished) {
 		service.MarkDirty();
 		service.RebuildRuntime();
 	}
@@ -370,7 +370,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 	{
 		AssetID matGuid = pass.materialGuid;
 		AssetEditSetting setting{};
-		if (MyGUI::AssetReferenceField("Material", matGuid,
+		if (MyGUI::AssetReferenceField("マテリアル", matGuid,
 			context.toolContext.assetDatabase, { AssetType::Material }, setting).valueChanged) {
 
 			pass.materialGuid = matGuid;
@@ -385,7 +385,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 	const std::vector<ShaderConstantBufferVariable>* vars = service.FindReflectionVars(pass.materialGuid);
 	if (vars && !vars->empty()) {
 
-		ImGui::TextUnformatted("Parameters");
+		ImGui::TextUnformatted("パラメータ");
 		ImGui::Separator();
 
 		bool anyParamChanged = false;
@@ -433,7 +433,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 	const std::vector<ShaderResourceBinding>* srvs = service.FindReflectionSRVs(pass.materialGuid);
 	if (srvs && !srvs->empty()) {
 
-		ImGui::TextUnformatted("Textures");
+		ImGui::TextUnformatted("テクスチャ");
 		ImGui::Separator();
 
 		bool anySRVChanged = false;
@@ -445,9 +445,9 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 			auto rtIt = pass.renderTargetInputs.find(srv.name);
 			const std::string currentRT = (rtIt != pass.renderTargetInputs.end()) ? rtIt->second : std::string();
 			const std::string rtLabel = srv.name + " (RT)";
-			if (ImGui::BeginCombo(rtLabel.c_str(), currentRT.empty() ? "(None)" : currentRT.c_str())) {
+			if (ImGui::BeginCombo(rtLabel.c_str(), currentRT.empty() ? "(なし)" : currentRT.c_str())) {
 
-				if (ImGui::Selectable("(None)", currentRT.empty())) {
+				if (ImGui::Selectable("(なし)", currentRT.empty())) {
 					pass.renderTargetInputs.erase(srv.name);
 					anySRVChanged = true;
 				}
@@ -488,21 +488,21 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 	ImGui::Separator();
 
 	// 選択中パスの実行前後プレビュー(デフォルトは閉じておく)
-	if (MyGUI::CollapsingHeader("Preview", false)) {
+	if (MyGUI::CollapsingHeader("プレビュー", false)) {
 
 		const PostProcessStackService::PreviewImage& preview = service.GetPreviewImage();
 		if (!preview.valid) {
-			ImGui::TextDisabled("No preview available.");
+			ImGui::TextDisabled("プレビューはありません");
 		} else {
 
 			// 表示できる範囲の幅から16:9でサイズを決める
 			const float availWidth = ImGui::GetContentRegionAvail().x;
 			const ImVec2 imageSize(availWidth, availWidth * 9.0f / 16.0f);
 
-			ImGui::TextUnformatted("Before");
+			ImGui::TextUnformatted("適用前");
 			ImGui::Image(static_cast<ImTextureID>(preview.beforeSrvPtr), imageSize);
 
-			ImGui::TextUnformatted("After");
+			ImGui::TextUnformatted("適用後");
 			ImGui::Image(static_cast<ImTextureID>(preview.afterSrvPtr), imageSize);
 		}
 	}
@@ -517,7 +517,7 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 	{
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 0.5f));
 		const float zoneHeight = 24.0f;
-		ImGui::Button("Drop .postProcessStack.json to load", ImVec2(ImGui::GetContentRegionAvail().x, zoneHeight));
+		ImGui::Button(".postProcessStack.json をドロップで読み込み", ImVec2(ImGui::GetContentRegionAvail().x, zoneHeight));
 		ImGui::PopStyleColor();
 
 		if (ImGui::BeginDragDropTarget()) {
@@ -554,7 +554,7 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 	{
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 0.5f));
 		const float zoneHeight = 24.0f;
-		ImGui::Button("Drop .material.json / .shader.json / .CS.hlsl to add PostProcess pass",
+		ImGui::Button(".material.json / .shader.json / .CS.hlsl をドロップでパス追加",
 			ImVec2(ImGui::GetContentRegionAvail().x, zoneHeight));
 		ImGui::PopStyleColor();
 
@@ -666,13 +666,13 @@ void Engine::PostProcessStackTool::DrawUnsavedConfirmPopup(const EditorToolConte
 		return;
 	}
 
-	ImGui::TextUnformatted("PostProcessStack has unsaved changes.");
-	ImGui::TextUnformatted("Switch scene without saving?");
+	ImGui::TextUnformatted("ポストプロセス設定に未保存の変更があります");
+	ImGui::TextUnformatted("保存せずにシーンを切り替えますか？");
 	ImGui::Spacing();
 
 	PostProcessStackService& service = PostProcessStackService::GetInstance();
 
-	if (ImGui::Button("Save & Switch", ImVec2(110.0f, 0.0f))) {
+	if (ImGui::Button("保存して切り替え", ImVec2(110.0f, 0.0f))) {
 		service.Save();
 		service.ClearDirty();
 		service.SetActiveSettingsAsset(pendingNextStackAsset_, context.toolContext.assetDatabase);
@@ -683,7 +683,7 @@ void Engine::PostProcessStackTool::DrawUnsavedConfirmPopup(const EditorToolConte
 		ImGui::CloseCurrentPopup();
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Discard & Switch", ImVec2(110.0f, 0.0f))) {
+	if (ImGui::Button("破棄して切り替え", ImVec2(110.0f, 0.0f))) {
 		service.SetActiveSettingsAsset(pendingNextStackAsset_, context.toolContext.assetDatabase);
 		lastStackAsset_ = pendingNextStackAsset_;
 		selectedPassIndex_ = -1;
@@ -692,7 +692,7 @@ void Engine::PostProcessStackTool::DrawUnsavedConfirmPopup(const EditorToolConte
 		ImGui::CloseCurrentPopup();
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Cancel", ImVec2(80.0f, 0.0f))) {
+	if (ImGui::Button("キャンセル", ImVec2(80.0f, 0.0f))) {
 		pendingScenePathChange_ = false;
 		pendingNextStackAsset_ = {};
 		ImGui::CloseCurrentPopup();

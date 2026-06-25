@@ -10,6 +10,7 @@ namespace Engine {
 	class GraphicsPlatform;
 	class AssetDatabase;
 	class SkinnedMeshAnimationManager;
+	class AnimationClipManager;
 	class ECSWorld;
 	struct SceneHeader;
 
@@ -35,6 +36,7 @@ namespace Engine {
 		GraphicsPlatform* graphicsPlatform = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
 		SkinnedMeshAnimationManager* skinnedAnimationManager = nullptr;
+		AnimationClipManager* animationClipManager = nullptr;
 		const SceneHeader* activeSceneHeader = nullptr;
 
 		// ワールドの現在のモード

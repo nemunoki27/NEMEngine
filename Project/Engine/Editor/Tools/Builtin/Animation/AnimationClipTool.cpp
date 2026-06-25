@@ -47,9 +47,39 @@ namespace {
 		return before != easingType;
 	}
 
-	std::string BuildTrackLabel(const AnimationCurveTrack& track) {
+	std::string BuildTrackLabel(const AnimationCurveTrack& track, ECSWorld* world, const Entity& entity) {
 
-		return track.binding.componentName + "." + track.binding.propertyPath;
+		// Component名は冗長なので変数パスだけを表示する
+		std::string path = track.binding.propertyPath;
+		if (track.binding.componentName != "MeshRenderer") {
+			return path;
+		}
+		// allMeshは全メッシュ、subMeshes[N]は実際のサブメッシュ名で表示する
+		if (path.rfind("allMesh", 0) == 0) {
+			return "全メッシュ" + path.substr(std::string_view("allMesh").size());
+		}
+		if (path.rfind("subMeshes[", 0) == 0 && world && world->IsAlive(entity)) {
+
+			const size_t rb = path.find(']');
+			if (rb != std::string::npos && rb > 10) {
+
+				uint32_t index = 0;
+				bool valid = true;
+				for (size_t i = 10; i < rb; ++i) {
+					const char c = path[i];
+					if (c < '0' || c > '9') { valid = false; break; }
+					index = index * 10u + static_cast<uint32_t>(c - '0');
+				}
+				if (valid) {
+					if (MeshRendererComponent* renderer = world->TryGetComponent<MeshRendererComponent>(entity)) {
+						if (index < renderer->subMeshes.size() && !renderer->subMeshes[index].name.empty()) {
+							return renderer->subMeshes[index].name + path.substr(rb + 1);
+						}
+					}
+				}
+			}
+		}
+		return path;
 	}
 
 	const char* DetectedDimensionText(AnimationClipDetectedDimension dimension) {
@@ -360,7 +390,7 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 		return;
 	}
 
-	if (!ImGui::Begin("AnimationClip Clip", &openWindow_)) {
+	if (!ImGui::Begin("アニメーションクリップ作成ツール", &openWindow_)) {
 		ImGui::End();
 		// 折りたたみ中は操作できないため、Preview状態だけは必ず解放する
 		EndPreviewAndRestore(context);
@@ -534,6 +564,13 @@ void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 
 			UpdateAnimationClipAutoDuration(clip_);
 			previewTime_ = (std::clamp)(previewTime_, 0.0f, AnimationClipEvaluator::GetPlaybackDuration(clip_));
+			clipDirty_ = true;
+		}
+
+		// 再生開始時の向きを正面として位置/回転を相対適用する、アクション制作向け
+		if (MyGUI::Checkbox("向き相対(位置/回転)", clip_.relativeTransform)) {
+			// 適用方法が変わるので、現在のPreview値を一度戻してから捕捉し直す
+			EndPreviewAndRestore(context);
 			clipDirty_ = true;
 		}
 
@@ -726,8 +763,21 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 		if (missing) {
 			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
 		}
-		const std::string label = BuildTrackLabel(track);
-		const float rowWidth = (std::max)(120.0f, ImGui::GetContentRegionAvail().x - 250.0f);
+		const std::string label = BuildTrackLabel(track, world, targetEntity);
+
+		// 適用コンボ + (順番コンボ) + 削除ボタンの幅を先に確保し、ラベルは残りに詰めて確実に収める
+		const ImGuiStyle& style = ImGui::GetStyle();
+		const bool isQuaternionTrack = track.binding.valueType == AnimationValueType::Quaternion;
+		const bool showOrderCombo = isQuaternionTrack && track.applyMode == AnimationApplyMode::Multiply;
+		constexpr float kApplyComboWidth = 90.0f;
+		constexpr float kOrderComboWidth = 120.0f;
+		const float applyLabelWidth = ImGui::CalcTextSize("適用").x + style.ItemInnerSpacing.x;
+		const float deleteWidth = ImGui::CalcTextSize("削除").x + style.FramePadding.x * 2.0f;
+		float controlsWidth = kApplyComboWidth + applyLabelWidth + style.ItemSpacing.x + deleteWidth;
+		if (showOrderCombo) {
+			controlsWidth += kOrderComboWidth + style.ItemSpacing.x;
+		}
+		const float rowWidth = (std::max)(30.0f, ImGui::GetContentRegionAvail().x - controlsWidth - style.ItemSpacing.x);
 		if (ImGui::Selectable(label.c_str(), selected, ImGuiSelectableFlags_None, ImVec2(rowWidth, 0.0f))) {
 			StoreSelectedTrackEditorView();
 			selectedTrackIndex_ = static_cast<int>(i);
@@ -744,13 +794,13 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 		}
 
 		ImGui::SameLine();
-		ImGui::SetNextItemWidth(110.0f);
-		if (track.binding.valueType == AnimationValueType::Quaternion) {
+		ImGui::SetNextItemWidth(kApplyComboWidth);
+		if (isQuaternionTrack) {
 			constexpr std::array<int, 2> kQuaternionApplyValues{
 				static_cast<int>(AnimationApplyMode::Override),
 				static_cast<int>(AnimationApplyMode::Multiply),
 			};
-			if (ImGui::BeginCombo("Apply", EnumAdapter<AnimationApplyMode>::ToString(track.applyMode))) {
+			if (ImGui::BeginCombo("適用", EnumAdapter<AnimationApplyMode>::ToString(track.applyMode))) {
 				for (int value : kQuaternionApplyValues) {
 					const AnimationApplyMode applyMode = static_cast<AnimationApplyMode>(value);
 					const bool isSelected = track.applyMode == applyMode;
@@ -764,17 +814,34 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 				}
 				ImGui::EndCombo();
 			}
-			ImGui::SameLine();
-			ImGui::SetNextItemWidth(216.0f);
-			if (EnumAdapter<QuaternionMultiplyOrder>::Combo("Order", &track.quaternionMultiplyOrder)) {
-				clipDirty_ = true;
+			// 積の順番はMultiply時だけ意味を持つので、その時だけ式で選ばせる
+			if (showOrderCombo) {
+
+				const auto orderFormula = [](QuaternionMultiplyOrder order) {
+					return order == QuaternionMultiplyOrder::BaseThenCurve ? "base * curve" : "curve * base";
+					};
+				ImGui::SameLine();
+				ImGui::SetNextItemWidth(kOrderComboWidth);
+				if (ImGui::BeginCombo("##Order", orderFormula(track.quaternionMultiplyOrder))) {
+					for (QuaternionMultiplyOrder order : { QuaternionMultiplyOrder::BaseThenCurve, QuaternionMultiplyOrder::CurveThenBase }) {
+						const bool isSelected = track.quaternionMultiplyOrder == order;
+						if (ImGui::Selectable(orderFormula(order), isSelected)) {
+							track.quaternionMultiplyOrder = order;
+							clipDirty_ = true;
+						}
+						if (isSelected) {
+							ImGui::SetItemDefaultFocus();
+						}
+					}
+					ImGui::EndCombo();
+				}
 			}
-		} else if (EnumAdapter<AnimationApplyMode>::Combo("Apply", &track.applyMode)) {
+		} else if (EnumAdapter<AnimationApplyMode>::Combo("適用", &track.applyMode)) {
 			clipDirty_ = true;
 		}
 
 		ImGui::SameLine();
-		if (ImGui::SmallButton("Remove")) {
+		if (ImGui::SmallButton("削除")) {
 			EndPreviewAndRestore(context);
 			clip_.curveTracks.erase(clip_.curveTracks.begin() + i);
 			curveState_.ClearSelection();
@@ -812,8 +879,6 @@ void AnimationClipTool::DrawCurveEditorUI(const EditorToolContext& context) {
 		LoadSelectedTrackEditorView();
 	}
 
-	ImGui::SeparatorText("Curve Editor");
-	ImGui::TextUnformatted(BuildTrackLabel(track).c_str());
 	if (track.channels.empty()) {
 		ImGui::TextDisabled("Visible curve track is empty.");
 		return;
@@ -902,6 +967,43 @@ void AnimationClipTool::DrawCurveEditorUI(const EditorToolContext& context) {
 		break;
 	}
 	}
+
+	// Color系はカーブだけでは色変化が分かりにくいので、可視時間範囲の色遷移を帯で表示する
+	const bool isColorTrack = track.binding.valueType == AnimationValueType::Color3 ||
+		track.binding.valueType == AnimationValueType::Color4;
+	if (isColorTrack && track.channels.size() >= 3) {
+
+		const float barHeight = 18.0f;
+		const float barWidth = ImGui::GetContentRegionAvail().x;
+		const ImVec2 origin = ImGui::GetCursorScreenPos();
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+		const float timeMin = curveState_.visibleTimeMin;
+		const float timeMax = (std::max)(curveState_.visibleTimeMax, timeMin + 0.001f);
+		const bool hasAlpha = track.binding.valueType == AnimationValueType::Color4;
+		constexpr int kSegments = 64;
+		const float segWidth = barWidth / static_cast<float>(kSegments);
+
+		// CurveEditorの時間軸に合わせて区間ごとに色を評価しグラデーションでつなぐ
+		auto sampleColor = [&](float ratio) {
+			const float time = timeMin + (timeMax - timeMin) * ratio;
+			const float r = track.channels[0].Evaluate(time);
+			const float g = track.channels[1].Evaluate(time);
+			const float b = track.channels[2].Evaluate(time);
+			const float a = hasAlpha ? track.channels[3].Evaluate(time) : 1.0f;
+			return ImGui::ColorConvertFloat4ToU32(ImVec4(r, g, b, a));
+			};
+		for (int s = 0; s < kSegments; ++s) {
+
+			const ImU32 left = sampleColor(static_cast<float>(s) / kSegments);
+			const ImU32 right = sampleColor(static_cast<float>(s + 1) / kSegments);
+			const ImVec2 p0(origin.x + segWidth * static_cast<float>(s), origin.y);
+			const ImVec2 p1(origin.x + segWidth * static_cast<float>(s + 1), origin.y + barHeight);
+			drawList->AddRectFilledMultiColor(p0, p1, left, right, right, left);
+		}
+		ImGui::Dummy(ImVec2(barWidth, barHeight));
+	}
+
 	StoreSelectedTrackEditorView();
 
 	if (result.valueChanged || result.editFinished) {
@@ -1112,7 +1214,7 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 	MyGUI::DragInt("キー数", generatorSampleCount_, { .dragSpeed = 1.0f,.minValue = 2,.maxValue = 1024 });
 	generatorSampleCount_ = (std::max)(generatorSampleCount_, 2);
 
-	MyGUI::EnumCombo("適用先", generatorApplyTo_, { .reserveRightWidth = ImGui::GetContentRegionAvail().x / 6.0f });
+	MyGUI::EnumCombo("適用先", generatorApplyTo_, { .reserveRightWidth = 0.0f });
 	MyGUI::Checkbox("範囲内のキーを置き換える", generatorReplaceKeys_);
 
 	if (!ImGui::Button("生成", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
@@ -1506,9 +1608,41 @@ void AnimationClipTool::CachePreviewBaseValues(ECSWorld& world, const Entity& en
 		// Clipに含まれるPropertyだけ退避し、無関係なComponent値は触らない
 		AnimationPreviewBaseValue baseValue{};
 		baseValue.binding = track.binding;
+		// material override未設定などは値が無いので、復元時に除去できるよう有無を記録する
+		baseValue.present = !desc->hasValue || desc->hasValue(world, entity);
 		if (desc->getValue(world, entity, baseValue.value)) {
 			previewBaseValues_.emplace_back(std::move(baseValue));
 		}
+	}
+
+	// 向き相対クリップは基準の位置/回転が必須なので、未アニメでも捕捉しておく
+	if (clip_.relativeTransform) {
+
+		const auto ensureTransformBase = [&](const char* propertyPath, AnimationValueType valueType) {
+
+			for (const AnimationPreviewBaseValue& base : previewBaseValues_) {
+				if (base.binding.componentName == "Transform" && base.binding.propertyPath == propertyPath) {
+					return;
+				}
+			}
+			const std::optional<AnimationPropertyDescriptor> desc = AnimationPropertyRegistry::GetInstance().ResolveProperty(
+				world, entity, "Transform", propertyPath, valueType);
+			if (!desc || !desc->getValue || !desc->hasComponent || !desc->hasComponent(world, entity)) {
+				return;
+			}
+			AnimationPreviewBaseValue base{};
+			base.binding.componentName = "Transform";
+			base.binding.propertyPath = propertyPath;
+			base.binding.valueType = valueType;
+			base.present = !desc->hasValue || desc->hasValue(world, entity);
+			if (desc->getValue(world, entity, base.value)) {
+				previewBaseValues_.emplace_back(std::move(base));
+			}
+		};
+		ensureTransformBase("localPos", AnimationValueType::Vector3);
+		ensureTransformBase("localRotation", AnimationValueType::Quaternion);
+		ensureTransformBase("localPos2D", AnimationValueType::Vector2);
+		ensureTransformBase("localRotationZ", AnimationValueType::Float);
 	}
 }
 
@@ -1518,12 +1652,18 @@ void AnimationClipTool::RestorePreviewBaseValues(ECSWorld& world, const Entity& 
 
 		const std::optional<AnimationPropertyDescriptor> desc = AnimationPropertyRegistry::GetInstance().ResolveProperty(
 			world, entity, baseValue.binding.componentName, baseValue.binding.propertyPath, baseValue.binding.valueType);
-		if (!desc || !desc->setValue || !desc->hasComponent || !desc->hasComponent(world, entity)) {
+		if (!desc || !desc->hasComponent || !desc->hasComponent(world, entity)) {
 			continue;
 		}
 
-		// Tool Previewで触った値だけを元に戻し本番適用はController側に任せる
-		desc->setValue(world, entity, baseValue.value);
+		// Preview前に値が有ったものは戻し、無かったものは除去して既定の見た目へ戻す
+		if (baseValue.present) {
+			if (desc->setValue) {
+				desc->setValue(world, entity, baseValue.value);
+			}
+		} else if (desc->clearValue) {
+			desc->clearValue(world, entity);
+		}
 	}
 }
 

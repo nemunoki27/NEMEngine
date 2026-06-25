@@ -115,7 +115,7 @@ namespace Engine {
 		ImVec2 modelPreviewImagePos_{};
 
 		// 表示文字サイズ
-		const float fontScale_ = 0.72f;
+		const float fontScale_ = 0.92f;
 		// Inspectorモデルプレビュー用レンダーターゲットの基本サイズ
 		const Vector2I kModelPreviewSize_ = Vector2I(512, 288);
 		// Inspectorモデルプレビューの背景色

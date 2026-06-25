@@ -45,6 +45,10 @@ namespace Engine {
 		std::function<bool(ECSWorld& world, const Entity& entity)> hasComponent;
 		std::function<bool(ECSWorld& world, const Entity& entity, AnimationPropertyValue& out)> getValue;
 		std::function<bool(ECSWorld& world, const Entity& entity, const AnimationPropertyValue& value)> setValue;
+		// 値が現在格納されているか、material overrideの有無判定に使う、空なら常に有りとみなす
+		std::function<bool(ECSWorld& world, const Entity& entity)> hasValue;
+		// 格納値を消去して既定へ戻す、material override除去に使う、静的プロパティでは空
+		std::function<bool(ECSWorld& world, const Entity& entity)> clearValue;
 	};
 
 	// 動的プロパティ列挙時に渡すreflectionアクセス手段、Runtime解決には不要で空でよい

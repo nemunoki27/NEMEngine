@@ -157,6 +157,20 @@
       "tests": ["SkinnedAnimationBindingSmoke"]
     },
     {
+      "nativeName": "AnimationPlayer",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.AnimationPlayer",
+      "reason": "globalSpeed/enabled の制御 + state/finished の read-only を generated property で公開。Play/CrossFade/Stop は要求フィールド経由で system が処理する。",
+      "readableFields": ["Enabled", "GlobalSpeed", "CurrentState", "IsPlayingValue", "Finished", "PlayRequest", "PlayFade", "StopRequest"],
+      "writableFields": ["Enabled", "GlobalSpeed", "PlayRequest", "PlayFade", "StopRequest"],
+      "commands": [],
+      "events": [],
+      "serialization": "component JSON",
+      "inspector": "builtin inspector",
+      "runtime": "Play 中 property read/write + read-only state",
+      "tests": []
+    },
+    {
       "nativeName": "UVTransform",
       "exposure": "GeneratedBinding",
       "managedSurface": "NEMEngine.UVTransform",

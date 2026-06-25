@@ -8,6 +8,7 @@
 
 // c++
 #include <span>
+#include <vector>
 
 namespace Engine {
 
@@ -23,6 +24,8 @@ namespace Engine {
 		// Preview開始時に戻すための元値
 		AnimationPropertyBinding binding;
 		AnimationPropertyValue value;
+		// Preview開始時に値が存在したか、material override未設定はfalseで復元時に除去する
+		bool present = true;
 	};
 
 	struct AnimationResolvedTime {
@@ -33,6 +36,13 @@ namespace Engine {
 		bool inLoopBridge = false;
 		// LoopBridge内の0-1補間率
 		float bridgeT = 0.0f;
+	};
+
+	// Clipを書き込まずに評価した1プロパティ分の最終値、クロスフェード合成に使う
+	struct AnimationEvaluatedValue {
+
+		AnimationPropertyBinding binding;
+		AnimationPropertyValue value;
 	};
 
 	//============================================================================
@@ -60,5 +70,18 @@ namespace Engine {
 		// Clip全体を対象Entityへ反映する
 		static void ApplyClip(ECSWorld& world, const Entity& entity, const AnimationClipAsset& clip,
 			float time, std::span<const AnimationPreviewBaseValue> baseValues);
+		// Clip全体を書き込まず、各プロパティの最終値だけを評価して返す、時刻解決は呼び出し側が行う
+		static void EvaluateClipValues(ECSWorld& world, const Entity& entity, const AnimationClipAsset& clip,
+			const AnimationResolvedTime& time, std::span<const AnimationPreviewBaseValue> baseValues,
+			std::vector<AnimationEvaluatedValue>& outValues);
+		// from/to2つの評価済み値をweightで合成する、片側に無いプロパティはbaseへ寄せる
+		static void BlendValues(std::span<const AnimationEvaluatedValue> fromValues,
+			std::span<const AnimationEvaluatedValue> toValues, std::span<const AnimationPreviewBaseValue> baseValues,
+			float weight, std::vector<AnimationEvaluatedValue>& outValues);
+		// 評価済み値を対象EntityのComponentへ書き込む
+		static void WriteValues(ECSWorld& world, const Entity& entity, std::span<const AnimationEvaluatedValue> values);
+		// Transformの位置/回転をbaseValuesの基準姿勢を正面として相対化する、向き相対クリップ用
+		static void ComposeRelativeTransform(std::vector<AnimationEvaluatedValue>& values,
+			std::span<const AnimationPreviewBaseValue> baseValues);
 	};
 } // Engine

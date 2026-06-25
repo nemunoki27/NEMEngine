@@ -74,6 +74,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/PointLightInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/SpotLightInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/SkinnedAnimationInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Animation/AnimationPlayerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Audio/AudioSourceInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/CollisionInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/RigidbodyInspectorDrawer.h>
@@ -135,7 +136,7 @@ namespace {
 		const char* category;
 	};
 	// 追加できるコンポーネントのメニューエントリー
-	constexpr std::array<InspectorComponentMenuEntry, 21> kOptionalComponentMenuEntries = { {
+	constexpr std::array<InspectorComponentMenuEntry, 22> kOptionalComponentMenuEntries = { {
 
 		{ "PerspectiveCamera",  "PerspectiveCamera",  "Camera" },
 		{ "OrthographicCamera", "OrthographicCamera", "Camera" },
@@ -155,6 +156,7 @@ namespace {
 		{ "Screen Space Outline", "ScreenSpaceOutline", "Rendering" },
 		{ "Skybox Renderer",    "SkyboxRenderer",     "Rendering" },
 		{ "Skinned Animation",  "SkinnedAnimation",   "Animation" },
+		{ "Animation Player",   "AnimationPlayer",    "Animation" },
 		{ "DirectionalLight",   "DirectionalLight",   "Lighting" },
 		{ "PointLight",         "PointLight",         "Lighting" },
 		{ "SpotLight",          "SpotLight",          "Lighting" },
@@ -370,6 +372,7 @@ Engine::InspectorPanel::InspectorPanel() {
 		componentDrawers_.emplace_back(std::move(meshDrawer));
 	}
 	componentDrawers_.emplace_back(std::make_unique<SkinnedAnimationInspectorDrawer>());
+	componentDrawers_.emplace_back(std::make_unique<AnimationPlayerInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<TextRendererInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<UVTransformInspectorDrawer>());
 	componentDrawers_.emplace_back(std::make_unique<BillboardInspectorDrawer>());

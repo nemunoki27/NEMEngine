@@ -215,8 +215,31 @@ namespace {
 				(*map)[paramName] = AnimationValueToMaterial(value);
 				return true;
 			};
+		// override未設定のparamはPreview前に値が無いので、復元時はsetでなく除去して既定の見た目へ戻す
+		desc.hasValue = [locator, paramName](Engine::ECSWorld& world, const Engine::Entity& entity) {
+
+				OverridesMap* map = locator(world, entity);
+				return map && map->find(paramName) != map->end();
+			};
+		desc.clearValue = [locator, paramName](Engine::ECSWorld& world, const Engine::Entity& entity) {
+
+				OverridesMap* map = locator(world, entity);
+				if (!map) {
+					return false;
+				}
+				map->erase(paramName);
+				return true;
+			};
 		return desc;
 	}
+
+	// 1slot分の情報、pathPrefixはpropertyPath用、displayPrefixは表示用でサブメッシュ名などを入れる
+	struct MaterialSlotInfo {
+
+		std::string pathPrefix;
+		std::string displayPrefix;
+		Engine::AssetID material{};
+	};
 
 	//============================================================================
 	//	汎用Material slotプロバイダ、Component別にslot列挙とoverrides解決だけ差し替える
@@ -226,8 +249,8 @@ namespace {
 		std::string componentName;
 		// reflectionで参照するマテリアルパラメータcbuffer名
 		std::string cbufferName;
-		// editor列挙、各slotのpathPrefixと実効マテリアルAssetIDを返す
-		std::function<std::vector<std::pair<std::string, Engine::AssetID>>(Engine::ECSWorld&, const Engine::Entity&)> enumerateSlots;
+		// editor列挙、各slotのpath/表示prefixと実効マテリアルAssetIDを返す
+		std::function<std::vector<MaterialSlotInfo>(Engine::ECSWorld&, const Engine::Entity&)> enumerateSlots;
 		// runtime、pathPrefixからoverrides mapを引く
 		std::function<OverridesMap* (Engine::ECSWorld&, const Engine::Entity&, std::string_view)> locateOverrides;
 	};
@@ -248,9 +271,9 @@ namespace {
 		const Engine::AnimationPropertyQueryContext& context, Engine::ECSWorld& world, const Engine::Entity& entity,
 		std::vector<Engine::AnimationPropertyDescriptor>& out) {
 
-		for (const auto& [prefix, material] : provider.enumerateSlots(world, entity)) {
+		for (const MaterialSlotInfo& slot : provider.enumerateSlots(world, entity)) {
 
-			const Engine::ShaderReflectionInfo* reflection = GetMaterialDrawReflection(context, material);
+			const Engine::ShaderReflectionInfo* reflection = GetMaterialDrawReflection(context, slot.material);
 			if (!reflection) {
 				continue;
 			}
@@ -261,10 +284,11 @@ namespace {
 
 				const std::string componentName = provider.componentName;
 				const auto& locateOverrides = provider.locateOverrides;
-				out.emplace_back(MakeMaterialParamDescriptor(componentName, MakeMaterialParamPath(prefix, name),
-					MakeMaterialParamDisplay(componentName, prefix, name), type, name,
-					[locateOverrides, prefix](Engine::ECSWorld& world, const Engine::Entity& entity) {
-						return locateOverrides(world, entity, prefix);
+				const std::string pathPrefix = slot.pathPrefix;
+				out.emplace_back(MakeMaterialParamDescriptor(componentName, MakeMaterialParamPath(slot.pathPrefix, name),
+					MakeMaterialParamDisplay(componentName, slot.displayPrefix, name), type, name,
+					[locateOverrides, pathPrefix](Engine::ECSWorld& world, const Engine::Entity& entity) {
+						return locateOverrides(world, entity, pathPrefix);
 					}));
 			}
 		}
@@ -315,13 +339,18 @@ namespace {
 		provider.cbufferName = Engine::MaterialParameterCBuffer::kMesh;
 		provider.enumerateSlots = [](Engine::ECSWorld& world, const Engine::Entity& entity) {
 
-			std::vector<std::pair<std::string, Engine::AssetID>> slots{};
+			std::vector<MaterialSlotInfo> slots{};
 			if (Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
 				// 空マテリアルは描画時に既定へ解決されるので、reflectionも実効デフォルトから引く
 				const Engine::AssetID material = renderer->material ?
 					renderer->material : Engine::DefaultMaterialSettings::GetInstance().GetMeshOrBuiltin();
 				for (size_t i = 0; i < renderer->subMeshes.size(); ++i) {
-					slots.emplace_back(std::format("subMeshes[{}]", i), material);
+					MaterialSlotInfo slot{};
+					slot.pathPrefix = std::format("subMeshes[{}]", i);
+					// 表示はサブメッシュ名、未設定ならpathPrefixをそのまま使う
+					slot.displayPrefix = renderer->subMeshes[i].name.empty() ? slot.pathPrefix : renderer->subMeshes[i].name;
+					slot.material = material;
+					slots.emplace_back(std::move(slot));
 				}
 			}
 			return slots;
@@ -352,10 +381,12 @@ namespace {
 		provider.cbufferName = Engine::MaterialParameterCBuffer::kSurface;
 		provider.enumerateSlots = [resolveDefaultMaterial](Engine::ECSWorld& world, const Engine::Entity& entity) {
 
-			std::vector<std::pair<std::string, Engine::AssetID>> slots{};
+			std::vector<MaterialSlotInfo> slots{};
 			if (Component* renderer = world.TryGetComponent<Component>(entity)) {
 				const Engine::AssetID material = renderer->material ? renderer->material : resolveDefaultMaterial();
-				slots.emplace_back(std::string{}, material);
+				MaterialSlotInfo slot{};
+				slot.material = material;
+				slots.emplace_back(std::move(slot));
 			}
 			return slots;
 			};
@@ -373,6 +404,113 @@ namespace {
 			};
 		return provider;
 	}
+
+	// 全サブメッシュへ同じparamを設定するdescriptor、get/hasは先頭サブメッシュ、set/clearは全サブメッシュへ反映する
+	Engine::AnimationPropertyDescriptor MakeAllMeshParamDescriptor(std::string propertyPath,
+		std::string displayName, Engine::AnimationValueType valueType, std::string paramName) {
+
+		Engine::AnimationPropertyDescriptor desc{};
+		desc.componentName = "MeshRenderer";
+		desc.propertyPath = std::move(propertyPath);
+		desc.displayName = std::move(displayName);
+		desc.valueType = valueType;
+		desc.hasComponent = [](Engine::ECSWorld& world, const Engine::Entity& entity) {
+			return world.HasComponent<Engine::MeshRendererComponent>(entity);
+			};
+		desc.getValue = [paramName, valueType](Engine::ECSWorld& world, const Engine::Entity& entity,
+			Engine::AnimationPropertyValue& out) {
+
+				Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity);
+				if (!renderer || renderer->subMeshes.empty()) {
+					return false;
+				}
+				// 先頭サブメッシュを代表値とし、未設定なら0を現在値として返す
+				const auto& map = renderer->subMeshes[0].parameterOverrides;
+				auto it = map.find(paramName);
+				if (it != map.end() && MaterialValueToAnimation(it->second, valueType, out)) {
+					return true;
+				}
+				out = ZeroAnimationValue(valueType);
+				return true;
+			};
+		desc.setValue = [paramName](Engine::ECSWorld& world, const Engine::Entity& entity,
+			const Engine::AnimationPropertyValue& value) {
+
+				Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity);
+				if (!renderer) {
+					return false;
+				}
+				const Engine::MaterialParameterValue materialValue = AnimationValueToMaterial(value);
+				for (Engine::SubMeshMaterial& subMesh : renderer->subMeshes) {
+					subMesh.parameterOverrides[paramName] = materialValue;
+				}
+				return true;
+			};
+		desc.hasValue = [paramName](Engine::ECSWorld& world, const Engine::Entity& entity) {
+			Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity);
+			return renderer && !renderer->subMeshes.empty() &&
+				renderer->subMeshes[0].parameterOverrides.find(paramName) != renderer->subMeshes[0].parameterOverrides.end();
+			};
+		desc.clearValue = [paramName](Engine::ECSWorld& world, const Engine::Entity& entity) {
+			Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity);
+			if (!renderer) {
+				return false;
+			}
+			for (Engine::SubMeshMaterial& subMesh : renderer->subMeshes) {
+				subMesh.parameterOverrides.erase(paramName);
+			}
+			return true;
+			};
+		return desc;
+	}
+
+	// 全サブメッシュ共通のparamを列挙する、全slotは同じマテリアルを参照するので先頭のreflectionを使う
+	void EnumerateAllMeshProperties(const MaterialSlotProvider& provider,
+		const Engine::AnimationPropertyQueryContext& context, Engine::ECSWorld& world, const Engine::Entity& entity,
+		std::vector<Engine::AnimationPropertyDescriptor>& out) {
+
+		const std::vector<MaterialSlotInfo> slots = provider.enumerateSlots(world, entity);
+		if (slots.empty()) {
+			return;
+		}
+		const Engine::ShaderReflectionInfo* reflection = GetMaterialDrawReflection(context, slots.front().material);
+		if (!reflection) {
+			return;
+		}
+		std::vector<std::pair<std::string, Engine::AnimationValueType>> params{};
+		CollectFloatFamilyParams(*reflection, provider.cbufferName, params);
+		for (const auto& [name, type] : params) {
+			out.emplace_back(MakeAllMeshParamDescriptor(std::format("allMesh.material.{}", name),
+				MakeMaterialParamDisplay(provider.componentName, "全メッシュ", name), type, name));
+		}
+	}
+
+	// MeshRenderer用のアクセサ、AllMeshを先頭に列挙しサブメッシュ個別と併せて公開する
+	void RegisterMeshAnimationAccessor(Engine::AnimationPropertyRegistry& registry) {
+
+		MaterialSlotProvider provider = MakeMeshProvider();
+		Engine::MaterialAnimationAccessor accessor{};
+		accessor.componentName = provider.componentName;
+		accessor.enumerate = [provider](const Engine::AnimationPropertyQueryContext& context, Engine::ECSWorld& world,
+			const Engine::Entity& entity, std::vector<Engine::AnimationPropertyDescriptor>& out) {
+
+				// 追加メニューには全メッシュのみ出す、subMeshes[N]個別は出さない
+				EnumerateAllMeshProperties(provider, context, world, entity, out);
+			};
+		accessor.resolve = [provider](Engine::ECSWorld&, const Engine::Entity&,
+			std::string_view propertyPath, Engine::AnimationValueType valueType)
+			-> std::optional<Engine::AnimationPropertyDescriptor> {
+
+				std::string prefix{};
+				std::string name{};
+				if (SplitMaterialParamPath(propertyPath, prefix, name) && prefix == "allMesh") {
+					return MakeAllMeshParamDescriptor(std::string(propertyPath),
+						MakeMaterialParamDisplay(provider.componentName, "全メッシュ", name), valueType, name);
+				}
+				return ResolveMaterialProperty(provider, propertyPath, valueType);
+			};
+		registry.RegisterMaterialAccessor(accessor);
+	}
 }
 
 //============================================================================
@@ -389,7 +527,7 @@ void Engine::RegisterMaterialAnimationAccessors() {
 
 	AnimationPropertyRegistry& registry = AnimationPropertyRegistry::GetInstance();
 
-	RegisterMaterialSlotProvider(registry, MakeMeshProvider());
+	RegisterMeshAnimationAccessor(registry);
 	RegisterMaterialSlotProvider(registry, MakeSingleSlotProvider<SpriteRendererComponent>(
 		"SpriteRenderer", []() { return DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin(); }));
 	RegisterMaterialSlotProvider(registry, MakeSingleSlotProvider<TextRendererComponent>(

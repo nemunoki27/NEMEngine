@@ -548,6 +548,7 @@ void Engine::to_json(nlohmann::json& out, const AnimationClipAsset& clip) {
 	out["duration"] = clip.duration;
 	out["autoDuration"] = clip.autoDuration;
 	out["loop"] = clip.loop;
+	out["relativeTransform"] = clip.relativeTransform;
 	ToJson(clip.loopBridge, out["loopBridge"]);
 	out["curveTracks"] = clip.curveTracks;
 	out["eventTracks"] = nlohmann::json::array();
@@ -564,6 +565,7 @@ void Engine::from_json(const nlohmann::json& in, AnimationClipAsset& clip) {
 	}
 	clip.autoDuration = in.value("autoDuration", clip.autoDuration);
 	clip.loop = in.value("loop", clip.loop);
+	clip.relativeTransform = in.value("relativeTransform", clip.relativeTransform);
 	if (const auto it = in.find("loopBridge"); it != in.end()) {
 		clip.loopBridge = ParseLoopBridge(*it);
 	}

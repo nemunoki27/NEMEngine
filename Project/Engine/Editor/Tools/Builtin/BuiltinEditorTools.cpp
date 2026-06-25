@@ -47,7 +47,8 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<PostProcessStackTool>();
 	RegisterBuiltinEditorTool<MaterialEditorTool>();
 	RegisterBuiltinEditorTool<TagManagerTool>();
-	RegisterBuiltinEditorTool<InputDeviceTool>();
+	// 動作が不安定なため、処理しない
+	//RegisterBuiltinEditorTool<InputDeviceTool>();
 	RegisterBuiltinEditorTool<ScriptExecutionOrderTool>();
 	RegisterBuiltinEditorTool<ScriptProfilerTool>();
 }

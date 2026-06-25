@@ -312,6 +312,12 @@ namespace Engine {
 		static void __cdecl SetInputTypeCallback(int32_t type);
 		static int32_t __cdecl GetMouseRangeControlCallback();
 		static void __cdecl SetMouseRangeControlCallback(int32_t enabled);
+		// Mesh/Sprite/Textのマテリアルcolorを上書きする、componentType 0=Mesh 1=Sprite 2=Text、subMeshIndex<0で全サブメッシュ
+		static void __cdecl SetRendererMaterialColorCallback(ManagedNativeEntity entity, int32_t componentType,
+			int32_t subMeshIndex, const char* param, float r, float g, float b, float a);
+		// Mesh/Sprite/Textのマテリアルcolorを取得する、未設定は白を返す
+		static ManagedColor4 __cdecl GetRendererMaterialColorCallback(ManagedNativeEntity entity,
+			int32_t componentType, int32_t subMeshIndex);
 		// Gameplay v7のAssetRef runtime resolve
 		static int32_t __cdecl AssetExistsCallback(uint64_t assetId);
 		static int32_t __cdecl CopyAssetDisplayNameCallback(uint64_t assetId, char* buffer, int32_t capacity);

@@ -728,10 +728,13 @@ Engine::ValueEditResult Engine::MyGUI::StringCombo(const char* label, std::strin
 			}
 		}
 
+		int itemIndex = 0;
 		for (const std::string& item : items) {
 
+			ImGui::PushID(itemIndex);
 			const bool selected = (currentValue == item);
-			if (ImGui::Selectable(item.c_str(), selected)) {
+			const char* itemLabel = item.empty() ? "##empty" : item.c_str();
+			if (ImGui::Selectable(itemLabel, selected)) {
 				if (currentValue != item) {
 					currentValue = item;
 					result.valueChanged = true;
@@ -740,6 +743,8 @@ Engine::ValueEditResult Engine::MyGUI::StringCombo(const char* label, std::strin
 			if (selected) {
 				ImGui::SetItemDefaultFocus();
 			}
+			ImGui::PopID();
+			++itemIndex;
 		}
 		ImGui::EndCombo();
 	}
@@ -750,5 +755,3 @@ Engine::ValueEditResult Engine::MyGUI::StringCombo(const char* label, std::strin
 	EndPropertyRow();
 	return result;
 }
-
-// AssetReferenceField / EntityReferenceFieldの実装はImGuiHelpersReference.cppへ分離

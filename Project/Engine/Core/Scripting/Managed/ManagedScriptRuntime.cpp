@@ -250,6 +250,8 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.setInputType = &ManagedScriptRuntime::SetInputTypeCallback;
 	callbacks.getMouseRangeControl = &ManagedScriptRuntime::GetMouseRangeControlCallback;
 	callbacks.setMouseRangeControl = &ManagedScriptRuntime::SetMouseRangeControlCallback;
+	callbacks.setRendererMaterialColor = &ManagedScriptRuntime::SetRendererMaterialColorCallback;
+	callbacks.getRendererMaterialColor = &ManagedScriptRuntime::GetRendererMaterialColorCallback;
 	callbacks.getFrameCount = &ManagedScriptRuntime::GetFrameCountCallback;
 	// Gameplay v7のAssetRef実行時解決
 	callbacks.assetExists = &ManagedScriptRuntime::AssetExistsCallback;

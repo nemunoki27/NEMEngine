@@ -254,7 +254,7 @@ void Engine::CollisionManagerTool::DrawEditorTool(const EditorToolContext& conte
 
 void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin("CollisionManager", &openWindow_)) {
+	if (!ImGui::Begin("衝突設定", &openWindow_)) {
 		ImGui::End();
 		return;
 	}
@@ -268,7 +268,7 @@ void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) 
 	}
 	settings.EnsureLoaded();
 
-	ImGui::SetWindowFontScale(0.64f);
+	ImGui::SetWindowFontScale(0.9f);
 
 	// 現在開いているシーンが参照するCollision設定ファイルを表示する
 	if (header) {
@@ -278,20 +278,20 @@ void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) 
 				displayPath = meta->assetPath;
 			}
 		}
-		ImGui::TextDisabled("Settings: %s%s", displayPath.c_str(), dirty_ ? " *" : "");
+		ImGui::TextDisabled("衝突設定ファイル: %s%s", displayPath.c_str(), dirty_ ? " *" : "");
 	} else {
 		const std::string settingsPath = settings.GetSettingsPath().generic_string();
-		ImGui::TextDisabled("Settings: %s", settingsPath.c_str());
+		ImGui::TextDisabled("衝突設定ファイル: %s", settingsPath.c_str());
 	}
 
 	// Save/Reloadボタン、PostProcessStackと同じ作法
-	if (ImGui::Button("Save")) {
+	if (ImGui::Button("保存")) {
 		EnsureActiveCollisionSettingsAsset(context);
 		settings.Save();
 		dirty_ = false;
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Reload")) {
+	if (ImGui::Button("読み込み##RELOAD")) {
 		settings.Load();
 		dirty_ = false;
 	}
@@ -313,7 +313,7 @@ void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) 
 	ImGui::Separator();
 
 	// デバッグ用のCollision描画設定
-	ImGui::Checkbox("DrawCollisionWorld", &drawCollisionWorld_);
+	ImGui::Checkbox("衝突判定形状を全て描画", &drawCollisionWorld_);
 	ImGui::Separator();
 	if (DrawTypes()) {
 		dirty_ = true;
@@ -334,7 +334,7 @@ bool Engine::CollisionManagerTool::DrawTypes() {
 	CollisionSettings& settings = CollisionSettings::GetInstance();
 	bool changed = false;
 
-	if (!MyGUI::CollapsingHeader("Collision Types")) {
+	if (!MyGUI::CollapsingHeader("衝突タイプ一覧")) {
 		return changed;
 	}
 
@@ -345,13 +345,13 @@ bool Engine::CollisionManagerTool::DrawTypes() {
 
 		ImGui::PushID(static_cast<int32_t>(i));
 		std::string name = types[i].name;
-		if (MyGUI::InputText("Name", name).editFinished) {
+		if (MyGUI::InputText("名前", name).editFinished) {
 			settings.SetTypeName(i, name);
 			changed = true;
 		}
 
 		bool enabled = types[i].enabled;
-		if (ImGui::Checkbox("Enabled", &enabled)) {
+		if (ImGui::Checkbox("有効", &enabled)) {
 			settings.SetTypeEnabled(i, enabled);
 			changed = true;
 		}
@@ -359,7 +359,7 @@ bool Engine::CollisionManagerTool::DrawTypes() {
 		ImGui::PopID();
 	}
 
-	if (ImGui::Button("Add Collision Type", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+	if (ImGui::Button("衝突タイプを追加", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 		settings.AddType("CollisionType" + std::to_string(settings.GetTypeCount()));
 		changed = true;
 	}
@@ -374,7 +374,7 @@ bool Engine::CollisionManagerTool::DrawTypes() {
 
 		// 削除ボタンの幅だけ余白を残してコンボを置く
 		const float deleteButtonWidth = 60.0f;
-		if (MyGUI::BeginPropertyRow("Remove Type")) {
+		if (MyGUI::BeginPropertyRow("選択中のタイプを削除")) {
 
 			const float comboWidth = ImGui::GetContentRegionAvail().x - (deleteButtonWidth + ImGui::GetStyle().ItemSpacing.x);
 			ImGui::SetNextItemWidth(comboWidth <= 1.0f ? 1.0f : comboWidth);
@@ -412,11 +412,11 @@ bool Engine::CollisionManagerTool::DrawMatrix() {
 	const uint32_t count = static_cast<uint32_t>(types.size());
 	bool changed = false;
 
-	if (!MyGUI::CollapsingHeader("Layer Collision Matrix")) {
+	if (!MyGUI::CollapsingHeader("衝突レイヤーマトリックス")) {
 		return changed;
 	}
 	if (count == 0) {
-		ImGui::TextDisabled("Collision type is empty.");
+		ImGui::TextDisabled("衝突タイプが設定されていません");
 		return changed;
 	}
 
@@ -429,7 +429,7 @@ bool Engine::CollisionManagerTool::DrawMatrix() {
 		return changed;
 	}
 
-	ImGui::TableSetupColumn("Type");
+	ImGui::TableSetupColumn("タイプ");
 	for (uint32_t i = 0; i < count; ++i) {
 		ImGui::TableSetupColumn(types[i].name.c_str());
 	}

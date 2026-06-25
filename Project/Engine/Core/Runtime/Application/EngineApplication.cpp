@@ -44,6 +44,7 @@
 #include <unordered_set>
 #include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
 #include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
+#include <Engine/Core/World/Systems/Animation/AnimationPlayerSystem.h>
 #include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
 #include <Engine/Core/World/Systems/Camera/CameraControllerSystem.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
@@ -84,6 +85,8 @@ void Engine::EngineApplication::InitSystems() {
 	// システムの追加、orderが小さいほど先に処理される
 	scheduler_.AddSystem(std::make_unique<HierarchySystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
+	// プロパティアニメはスクリプトの後で適用し、LateUpdateのTransform確定前に値を書く
+	scheduler_.AddSystem(std::make_unique<AnimationPlayerSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
@@ -686,6 +689,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	systemContext_.deltaTime = deltaTime;
 	systemContext_.assetDatabase = &assetDataBase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
+	systemContext_.animationClipManager = &animationClipManager_;
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 
 	// 非同期build/reload状態機械を進める、Play中はreloadを適用せず変更検知のdirtyのみ行う

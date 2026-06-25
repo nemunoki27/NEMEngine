@@ -73,19 +73,57 @@ namespace {
 		}
 		return (std::max)(1, static_cast<int32_t>(availableWidth / itemWidth));
 	}
+	// 折り返しで3行以上になるときは2行目末尾を...で省略した表示文字列を作る
+	std::string BuildTwoLineLabel(const char* text, float width) {
+
+		ImFont* font = ImGui::GetFont();
+		const float fontSize = ImGui::GetFontSize();
+		const char* textEnd = text + std::strlen(text);
+
+		// 1行目の折り返し位置、収まるならそのまま返す
+		const char* line1End = font->CalcWordWrapPosition(fontSize, text, textEnd, width);
+		if (line1End >= textEnd) {
+			return std::string(text, textEnd);
+		}
+
+		// 折り返しでスキップされる空白を飛ばして2行目の先頭を決める
+		const char* line2Begin = line1End;
+		while (line2Begin < textEnd && *line2Begin == ' ') {
+			++line2Begin;
+		}
+		std::string display(text, line1End);
+		display.push_back('\n');
+
+		const char* line2End = font->CalcWordWrapPosition(fontSize, line2Begin, textEnd, width);
+		if (line2End >= textEnd) {
+			display.append(line2Begin, textEnd);
+			return display;
+		}
+
+		// 2行に収まらないので...分の幅を空けて詰めて省略する
+		const float ellipsisWidth = ImGui::CalcTextSize("...").x;
+		const float trimWidth = (std::max)(1.0f, width - ellipsisWidth);
+		const char* fit = font->CalcWordWrapPosition(fontSize, line2Begin, textEnd, trimWidth);
+		display.append(line2Begin, fit);
+		display.append("...");
+		return display;
+	}
 	// アイコン中心に揃うようにラベルを中央寄せで折り返し描画する、widthはアイコンボタンの表示幅
 	void DrawCenteredItemLabel(const char* text, float width) {
 
+		// 3行以上にならないよう2行へ省略してから描画する
+		const std::string display = BuildTwoLineLabel(text, width);
+
 		const float startX = ImGui::GetCursorPosX();
 		// 現在のフォントスケール下での折り返し後サイズを測る
-		const ImVec2 textSize = ImGui::CalcTextSize(text, nullptr, false, width);
+		const ImVec2 textSize = ImGui::CalcTextSize(display.c_str(), nullptr, false, width);
 		// ラベルがアイコンより狭いときだけ中央へ寄せる、はみ出すときは左端のまま折り返す
 		const float offsetX = (width - textSize.x) * 0.5f;
 		if (offsetX > 0.0f) {
 			ImGui::SetCursorPosX(startX + offsetX);
 		}
 		ImGui::PushTextWrapPos(startX + width);
-		ImGui::TextWrapped("%s", text);
+		ImGui::TextWrapped("%s", display.c_str());
 		ImGui::PopTextWrapPos();
 	}
 	// ドラッグ&ドロップのソースを描画する
@@ -519,12 +557,12 @@ void Engine::ProjectPanel::DrawFolderGridItem(const EditorPanelContext& context,
 	DrawCenteredItemLabel(node.name.c_str(), iconSize + ImGui::GetStyle().FramePadding.x * 2.0f);
 	ImGui::SetWindowFontScale(1.0f);
 
+	ImGui::EndGroup();
+	// アイコンと名前のどちらにカーソルを当ててもツールチップを出すため、グループ全体で判定する
 	if (ImGui::BeginItemTooltip()) {
 		ImGui::TextUnformatted(node.virtualPath.c_str());
 		ImGui::EndTooltip();
 	}
-
-	ImGui::EndGroup();
 	DrawProjectItemMoveDropTarget(database, node.virtualPath);
 	DrawPrefabCreateDropTarget(context, database, node.virtualPath);
 	DrawFolderContextMenu(database, node);
@@ -568,19 +606,19 @@ void Engine::ProjectPanel::DrawAssetGridItem(const EditorPanelContext& context, 
 
 	DrawAssetDragDropSource(asset);
 
-	ImGui::SetWindowFontScale(0.5f);
+	ImGui::SetWindowFontScale(0.8f);
 	DrawCenteredItemLabel(asset.displayName.c_str(), iconSize + ImGui::GetStyle().FramePadding.x * 2.0f);
 	ImGui::SetWindowFontScale(1.0f);
 	DrawAssetDragDropSource(asset, ImGuiDragDropFlags_SourceAllowNullID);
 
+	ImGui::EndGroup();
+	// アイコンと名前のどちらにカーソルを当ててもツールチップを出すため、グループ全体で判定する
 	if (ImGui::BeginItemTooltip()) {
 		ImGui::Text("Path: %s", asset.assetPath.c_str());
 		ImGui::Text("Type: %s", EnumAdapter<AssetType>::ToString(asset.type));
 		ImGui::Text("ID:   %s", Engine::ToString(asset.assetID).c_str());
 		ImGui::EndTooltip();
 	}
-
-	ImGui::EndGroup();
 	DrawAssetContextMenu(context, database, asset);
 	ImGui::PopID();
 }

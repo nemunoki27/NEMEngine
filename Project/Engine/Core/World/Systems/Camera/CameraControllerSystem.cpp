@@ -106,7 +106,7 @@ namespace {
 			? Vector2::AnyInit(0.0f)
 			: (isPad ? padInput : input->GetMouseMoveValue());
 
-		// TD4_1準拠でパッドもマウスも同じく平滑化する
+		// 平滑化
 		const float lerpT = std::clamp(follow.inputLerpRate * deltaTime, 0.0f, 1.0f);
 		follow.smoothedInput = Vector2::Lerp(follow.smoothedInput, rawInput, lerpT);
 
@@ -114,7 +114,7 @@ namespace {
 		const Vector2 sensitivity = isPad ? follow.padSensitivity : follow.mouseSensitivity;
 		const float dtScale = isPad ? deltaTime : 1.0f;
 		const float yawDelta = follow.smoothedInput.x * sensitivity.x * dtScale;
-		// 縦回転の符号はTD4_1準拠でマウスは+パッドは-、invertPitchで反転する
+		// マウスは+パッドは-、invertPitchで反転
 		const float pitchBaseSign = isPad ? -1.0f : 1.0f;
 		const float pitchSign = follow.invertPitch ? -pitchBaseSign : pitchBaseSign;
 		const float pitchDelta = follow.smoothedInput.y * sensitivity.y * dtScale * pitchSign;

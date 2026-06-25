@@ -31,7 +31,10 @@ namespace Engine {
 	// v14: Tag公開とLayerマスク公開visibility typeMaskとEntity検索byName byTag byComponentを追加
 	// v15: 即時形状描画の汎用lineDrawShapeを追加、円や箱や錐などをC++側生成で発行する
 	// v16: Transform親追従の継承フラグ公開でignoreParentRotation ignoreParentScaleを追加
-	inline constexpr uint32_t kManagedAbiVersion = 17;
+	// v17: 入力タイプとマウス範囲制御のget/setを追加
+	// v18: MeshRendererのマテリアルcolor上書きsetMeshMaterialColorを追加
+	// v19: MeshRendererのマテリアルcolor取得getMeshMaterialColorを追加
+	inline constexpr uint32_t kManagedAbiVersion = 19;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -309,6 +312,9 @@ namespace Engine {
 		using GetInputButtonCallback = int32_t(__cdecl*)(int32_t);
 		using GetNativeBoolCallback = int32_t(__cdecl*)();
 		using SetNativeIntCallback = void(__cdecl*)(int32_t);
+		// componentType 0=Mesh 1=Sprite 2=Text、subMeshIndex<0で全サブメッシュ
+		using SetRendererColorCallback = void(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const char*, float, float, float, float);
+		using GetRendererColorCallback = ManagedColor4(__cdecl*)(ManagedNativeEntity, int32_t, int32_t);
 		using IsAliveCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using GetBoolCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using SetBoolCallback = void(__cdecl*)(ManagedNativeEntity, int32_t);
@@ -500,6 +506,8 @@ namespace Engine {
 		SetNativeIntCallback setInputType = nullptr;
 		GetNativeBoolCallback getMouseRangeControl = nullptr;
 		SetNativeIntCallback setMouseRangeControl = nullptr;
+		SetRendererColorCallback setRendererMaterialColor = nullptr;
+		GetRendererColorCallback getRendererMaterialColor = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

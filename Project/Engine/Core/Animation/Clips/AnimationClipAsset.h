@@ -108,6 +108,8 @@ namespace Engine {
 		float duration = 1.0f;
 		bool autoDuration = false;
 		bool loop = false;
+		// 再生開始時の向きを正面として位置/回転を相対適用するか
+		bool relativeTransform = false;
 		AnimationLoopBridgeSettings loopBridge{};
 		std::vector<AnimationCurveTrack> curveTracks;
 		std::vector<AnimationEventTrack> eventTracks;

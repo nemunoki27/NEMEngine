@@ -10,10 +10,19 @@
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+
+// c++
+#include <string>
+#include <unordered_map>
+#include <variant>
+#include <vector>
 
 namespace Engine {
 
@@ -91,6 +100,109 @@ namespace Engine {
 			}
 		}
 		line->loop = (loop != 0);
+	}
+
+	namespace {
+
+		using OverridesMap = std::unordered_map<std::string, Engine::MaterialParameterValue>;
+
+		// componentTypeとsubMeshIndexから上書き対象のparameterOverridesを集める、0=Mesh 1=Sprite 2=Text
+		std::vector<OverridesMap*> CollectColorTargets(Engine::ECSWorld& world, const Engine::Entity& entity,
+			int32_t componentType, int32_t subMeshIndex) {
+
+			std::vector<OverridesMap*> targets;
+			if (componentType == 0) {
+
+				if (Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
+					if (subMeshIndex < 0) {
+						for (Engine::SubMeshMaterial& subMesh : renderer->subMeshes) {
+							targets.emplace_back(&subMesh.parameterOverrides);
+						}
+					} else if (static_cast<size_t>(subMeshIndex) < renderer->subMeshes.size()) {
+						targets.emplace_back(&renderer->subMeshes[static_cast<size_t>(subMeshIndex)].parameterOverrides);
+					}
+				}
+			} else if (componentType == 1) {
+
+				if (Engine::SpriteRendererComponent* renderer = world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
+					targets.emplace_back(&renderer->parameterOverrides);
+				}
+			} else if (componentType == 2) {
+
+				if (Engine::TextRendererComponent* renderer = world.TryGetComponent<Engine::TextRendererComponent>(entity)) {
+					targets.emplace_back(&renderer->parameterOverrides);
+				}
+			}
+			return targets;
+		}
+	}
+
+	void ManagedScriptRuntime::SetRendererMaterialColorCallback(ManagedNativeEntity entity, int32_t componentType,
+		int32_t subMeshIndex, const char* param, float r, float g, float b, float a) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		if (!world->IsAlive(resolved)) {
+			return;
+		}
+
+		// バッファ構築側で宣言成分数へ詰めるのでColor4で保持しfloat3 float4どちらにも対応する
+		MaterialParameterValue value{};
+		value.value = Color4(r, g, b, a);
+
+		// パラメータ名未指定は標準的なcolor名へフォールバックして設定する、未使用キーは描画側で無視される
+		std::vector<std::string> names;
+		if (param != nullptr && param[0] != '\0') {
+			names.emplace_back(param);
+		} else {
+			names = { "color", "baseColor", "albedo" };
+		}
+
+		for (std::unordered_map<std::string, MaterialParameterValue>* overrides :
+			CollectColorTargets(*world, resolved, componentType, subMeshIndex)) {
+
+			for (const std::string& name : names) {
+				(*overrides)[name] = value;
+			}
+		}
+	}
+
+	ManagedColor4 ManagedScriptRuntime::GetRendererMaterialColorCallback(ManagedNativeEntity entity,
+		int32_t componentType, int32_t subMeshIndex) {
+
+		// 未設定や対象が無い場合は白を返す
+		ManagedColor4 result{ 1.0f, 1.0f, 1.0f, 1.0f };
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return result;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		if (!world->IsAlive(resolved)) {
+			return result;
+		}
+
+		const std::vector<std::unordered_map<std::string, MaterialParameterValue>*> targets =
+			CollectColorTargets(*world, resolved, componentType, subMeshIndex < 0 ? 0 : subMeshIndex);
+		if (targets.empty()) {
+			return result;
+		}
+
+		// 代表として先頭対象から、color名のフォールバック順で最初に見つかった値を返す
+		const std::unordered_map<std::string, MaterialParameterValue>& overrides = *targets.front();
+		for (const char* name : { "color", "baseColor", "albedo" }) {
+
+			const auto it = overrides.find(name);
+			if (it == overrides.end()) {
+				continue;
+			}
+			if (const Color4* c = std::get_if<Color4>(&it->second.value)) { return ManagedColor4{ c->r, c->g, c->b, c->a }; }
+			if (const Vector4* v = std::get_if<Vector4>(&it->second.value)) { return ManagedColor4{ v->x, v->y, v->z, v->w }; }
+			if (const Vector3* v = std::get_if<Vector3>(&it->second.value)) { return ManagedColor4{ v->x, v->y, v->z, 1.0f }; }
+		}
+		return result;
 	}
 
 	void ManagedScriptRuntime::LineAddPointCallback(ManagedNativeEntity entity, ManagedLinePoint point) {

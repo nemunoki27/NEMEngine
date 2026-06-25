@@ -23,7 +23,10 @@ internal static class ManagedAbi {
     // v14: Tag公開(copyTag/setTag)とLayerマスク公開(visibility/collision typeMask)とEntity検索(byName/byTag/byComponent)を追加
     // v15: 即時形状描画の汎用 lineDrawShape を追加
     // v16: Transform 親追従の継承フラグ(ignoreParentRotation/ignoreParentScale)を追加
-    internal const uint Version = 17;
+    // v17: 入力タイプとマウス範囲制御の get/set を追加
+    // v18: MeshRenderer のマテリアル color 上書き setMeshMaterialColor を追加
+    // v19: Mesh/Sprite/Text のマテリアル color の get/set(setRendererMaterialColor/getRendererMaterialColor)を追加
+    internal const uint Version = 19;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -113,6 +116,10 @@ public struct NativeColor4 {
             b = value.b,
             a = value.a
         };
+    }
+
+    public Color4 ToColor4() {
+        return new Color4(r, g, b, a);
     }
 }
 
@@ -287,6 +294,8 @@ internal static unsafe class NativeApi {
     // v17: 入力デバイス
     internal static delegate* unmanaged[Cdecl]<int> GetInputType;
     internal static delegate* unmanaged[Cdecl]<int, void> SetInputType;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, float, float, float, float, void> SetRendererMaterialColor;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeColor4> GetRendererMaterialColor;
     internal static delegate* unmanaged[Cdecl]<int> GetMouseRangeControl;
     internal static delegate* unmanaged[Cdecl]<int, void> SetMouseRangeControl;
 
@@ -400,6 +409,8 @@ internal static unsafe class NativeApi {
         SetInputType = callbacks->setInputType;
         GetMouseRangeControl = callbacks->getMouseRangeControl;
         SetMouseRangeControl = callbacks->setMouseRangeControl;
+        SetRendererMaterialColor = callbacks->setRendererMaterialColor;
+        GetRendererMaterialColor = callbacks->getRendererMaterialColor;
     }
 
     internal static float ReadDeltaTime() {
@@ -567,6 +578,26 @@ internal static unsafe class NativeApi {
     internal static void WriteInputType(int type) { if (SetInputType != null) { SetInputType(type); } }
     internal static bool ReadMouseRangeControl() => GetMouseRangeControl != null && GetMouseRangeControl() != 0;
     internal static void WriteMouseRangeControl(bool enabled) { if (SetMouseRangeControl != null) { SetMouseRangeControl(enabled ? 1 : 0); } }
+    // componentType 0=Mesh 1=Sprite 2=Text、subMeshIndex<0で全サブメッシュ、param空でcolor/baseColor/albedoへフォールバック設定する
+    internal static void WriteRendererMaterialColor(NativeEntity entity, int componentType, int subMeshIndex,
+        string param, float r, float g, float b, float a) {
+
+        if (SetRendererMaterialColor == null) {
+            return;
+        }
+        string safe = param ?? string.Empty;
+        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(safe) + 1];
+        Encoding.UTF8.GetBytes(safe, 0, safe.Length, bytes, 0);
+        fixed (byte* ptr = bytes) {
+            SetRendererMaterialColor(entity, componentType, subMeshIndex, ptr, r, g, b, a);
+        }
+    }
+    // マテリアルcolorを取得する、未設定や対象なしは白を返す
+    internal static Color4 ReadRendererMaterialColor(NativeEntity entity, int componentType, int subMeshIndex) {
+        return GetRendererMaterialColor != null
+            ? GetRendererMaterialColor(entity, componentType, subMeshIndex).ToColor4()
+            : new Color4(1.0f, 1.0f, 1.0f, 1.0f);
+    }
 
     internal static bool ReadActiveInHierarchy(NativeEntity entity) {
         return GetActiveInHierarchy != null && GetActiveInHierarchy(entity) != 0;
@@ -1147,4 +1178,6 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<int, void> setInputType;
     public delegate* unmanaged[Cdecl]<int> getMouseRangeControl;
     public delegate* unmanaged[Cdecl]<int, void> setMouseRangeControl;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, float, float, float, float, void> setRendererMaterialColor;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeColor4> getRendererMaterialColor;
 }
