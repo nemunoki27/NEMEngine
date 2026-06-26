@@ -355,7 +355,7 @@ Engine::InspectorPanel::InspectorPanel() {
 
 	modelPreviewCameraController_ = std::make_unique<SceneViewCameraController>();
 	modelPreviewCameraController_->MakeDefaultState();
-	modelPreviewCameraController_->SetSavePath(RuntimePaths::GetEngineAssetPath(
+	modelPreviewCameraController_->SetSavePath(RuntimePaths::GetGameConfigPath(
 		"Config/inspectorModelPreviewCamera.exeConfig.json").string());
 
 	// コンポーネント描画の登録

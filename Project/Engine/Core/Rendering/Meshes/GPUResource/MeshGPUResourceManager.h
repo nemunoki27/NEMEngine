@@ -66,6 +66,8 @@ namespace Engine {
 		mutable std::mutex mutex_;
 		std::unordered_map<AssetID, MeshGPUResource> gpuMeshes_;
 		std::unordered_set<AssetID> requested_;
+		// メッシュごとのホットリロード世代、リロード要求のたびに増やす
+		std::unordered_map<AssetID, uint32_t> reloadGeneration_;
 
 		//--------- functions ----------------------------------------------------
 

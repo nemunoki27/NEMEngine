@@ -40,6 +40,8 @@ namespace Engine {
 
 		// Engine/Assets配下のパスを取得
 		static std::filesystem::path GetEngineAssetPath(const std::filesystem::path& relativePath);
+		// ゲームルート配下のパスを取得、SDK更新で消えない永続設定の保存先に使う
+		static std::filesystem::path GetGameConfigPath(const std::filesystem::path& relativePath);
 		// 論理アセットパスから実ファイルパスを取得
 		static std::filesystem::path ResolveAssetPath(const std::filesystem::path& assetPath);
 		// 実ファイルパスから論理アセットパスを取得

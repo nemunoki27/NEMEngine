@@ -7,6 +7,9 @@ using namespace Engine;
 //============================================================================*/
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
+// c++
+#include <filesystem>
+
 //============================================================================*/
 //	JsonAdapter classMethods
 //============================================================================*/
@@ -14,6 +17,14 @@ using namespace Engine;
 void JsonAdapter::Save(const std::string& directoryFilePath, const nlohmann::json& data) {
 
 	const std::string fullPath = directoryFilePath;
+
+	// 親ディレクトリが無ければ作成する、ゲーム側Configなど初回保存でも失敗しないようにする
+	const std::filesystem::path parentPath = std::filesystem::path(fullPath).parent_path();
+	if (!parentPath.empty()) {
+		std::error_code ec;
+		std::filesystem::create_directories(parentPath, ec);
+	}
+
 	std::ofstream file(fullPath);
 
 	// 書き込めなかった場合

@@ -226,7 +226,7 @@ namespace {
 	// ProjectPanelの表示状態を保存するパスを返す
 	std::filesystem::path GetProjectPanelStatePath() {
 
-		return Engine::RuntimePaths::GetEngineAssetPath("Config/projectPanel.exeConfig.json");
+		return Engine::RuntimePaths::GetGameConfigPath("Config/projectPanel.exeConfig.json");
 	}
 
 	// ScriptアセットをVisual Studioで開く

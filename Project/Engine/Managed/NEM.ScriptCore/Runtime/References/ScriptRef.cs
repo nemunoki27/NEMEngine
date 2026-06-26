@@ -22,4 +22,20 @@ public readonly struct ScriptRef<T> where T : ScriptBehaviour {
     public bool isValid => entity.isValid && scriptSlotId.isValid;
 
     public static ScriptRef<T> Null => new(EntityRef.Null, UUID.None, string.Empty);
+
+    // 参照先 Entity 上の script を取得する、entity.Resolve().GetComponent の短縮
+    public TScript? GetComponent<TScript>() where TScript : ScriptBehaviour {
+        Entity owner = entity.Resolve();
+        return owner.isAlive ? owner.GetComponent<TScript>() : null;
+    }
+
+    // 参照先 Entity 上の script 取得を試みる
+    public bool TryGetComponent<TScript>(out TScript script) where TScript : ScriptBehaviour {
+        Entity owner = entity.Resolve();
+        if (owner.isAlive) {
+            return owner.TryGetComponent(out script);
+        }
+        script = null!;
+        return false;
+    }
 }

@@ -29,8 +29,8 @@ Engine::SceneViewCameraController::SceneViewCameraController() {
 
 	MakeDefaultState();
 	// jsonから元のカメラ復元
-	MakeFromJson(RuntimePaths::GetEngineAssetPath(kCameraJsonPath).string());
-	savePath_ = RuntimePaths::GetEngineAssetPath(kCameraJsonPath).string();
+	MakeFromJson(RuntimePaths::GetGameConfigPath(kCameraJsonPath).string());
+	savePath_ = RuntimePaths::GetGameConfigPath(kCameraJsonPath).string();
 }
 
 Engine::SceneViewCameraController::~SceneViewCameraController() {

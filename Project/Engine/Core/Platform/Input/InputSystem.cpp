@@ -535,7 +535,7 @@ namespace {
 
 void Input::LoadConfig() {
 
-	const std::filesystem::path path = RuntimePaths::GetEngineAssetPath(kInputDeviceConfigPath);
+	const std::filesystem::path path = RuntimePaths::GetGameConfigPath(kInputDeviceConfigPath);
 	if (!JsonAdapter::Check(path.string())) {
 		return;
 	}
@@ -595,7 +595,7 @@ void Input::SaveConfig() const {
 	data["mouseReleaseModKey"] = mouseReleaseModKey_;
 	data["mouseReleaseTriggerKey"] = mouseReleaseTriggerKey_;
 
-	JsonAdapter::Save(RuntimePaths::GetEngineAssetPath(kInputDeviceConfigPath).string(), data);
+	JsonAdapter::Save(RuntimePaths::GetGameConfigPath(kInputDeviceConfigPath).string(), data);
 }
 
 void Input::UpdateInputDevice() {

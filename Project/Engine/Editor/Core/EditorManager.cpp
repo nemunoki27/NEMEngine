@@ -1082,7 +1082,7 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 
 void Engine::EditorManager::LoadViewportPanelState() {
 
-	const std::filesystem::path configPath = RuntimePaths::GetEngineAssetPath(kViewportPanelStateConfigPath);
+	const std::filesystem::path configPath = RuntimePaths::GetGameConfigPath(kViewportPanelStateConfigPath);
 	if (!JsonAdapter::Check(configPath.string(), false)) {
 		return;
 	}
@@ -1164,7 +1164,7 @@ void Engine::EditorManager::SaveViewportPanelState() const {
 	nlohmann::json data = nlohmann::json::object();
 	data["sceneView"] = sceneView;
 
-	const std::filesystem::path configPath = RuntimePaths::GetEngineAssetPath(kViewportPanelStateConfigPath);
+	const std::filesystem::path configPath = RuntimePaths::GetGameConfigPath(kViewportPanelStateConfigPath);
 	JsonAdapter::Save(configPath.string(), data);
 }
 

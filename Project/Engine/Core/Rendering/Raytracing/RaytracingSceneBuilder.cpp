@@ -57,6 +57,7 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 
 	blases_.clear();
 	dynamicBlases_.clear();
+	meshBlasGeneration_.clear();
 	firstTLASBuild_ = true;
 	initialized_ = false;
 	builtThisFrame_ = false;
@@ -154,6 +155,20 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		bool hasSkinnedSource = meshResource->isSkinned && meshBackend->FindSkinnedVertexSource(
 			src.world, src.entity, src.meshAssetID, skinnedSource);
 
+		// ホットリロードで世代が変わったら、このメッシュの旧世代BLASを破棄してから作り直す
+		const uint32_t reloadGeneration = meshResource->reloadGeneration;
+		auto generationIt = meshBlasGeneration_.find(src.meshAssetID);
+		if (generationIt != meshBlasGeneration_.end() && generationIt->second != reloadGeneration) {
+
+			std::erase_if(blases_, [&](const auto& pair) {
+				return pair.first.meshAssetID == src.meshAssetID && pair.first.reloadGeneration != reloadGeneration;
+				});
+			std::erase_if(dynamicBlases_, [&](const auto& pair) {
+				return pair.first.meshAssetID == src.meshAssetID && pair.first.reloadGeneration != reloadGeneration;
+				});
+		}
+		meshBlasGeneration_[src.meshAssetID] = reloadGeneration;
+
 		// サブメッシュ単位でBLASを構築し、TLASインスタンスを準備する
 		for (uint32_t subMeshIndex = 0; subMeshIndex < static_cast<uint32_t>(meshResource->subMeshes.size()); ++subMeshIndex) {
 
@@ -173,6 +188,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				key.entity = src.entity;
 				key.meshAssetID = src.meshAssetID;
 				key.subMeshIndex = subMeshIndex;
+				key.reloadGeneration = reloadGeneration;
 
 				BottomLevelAccelerationStructure& blas = dynamicBlases_[key];
 
@@ -204,6 +220,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				BLASKey key{};
 				key.meshAssetID = src.meshAssetID;
 				key.subMeshIndex = subMeshIndex;
+				key.reloadGeneration = reloadGeneration;
 
 				BottomLevelAccelerationStructure& blas = blases_[key];
 

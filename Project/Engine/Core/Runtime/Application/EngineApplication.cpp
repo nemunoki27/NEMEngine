@@ -15,6 +15,7 @@
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
 #include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptExceptionStore.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Core/Audio/AudioSystem.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -111,9 +112,15 @@ void Engine::EngineApplication::InitFirstScene() {
 void Engine::EngineApplication::LoadActiveSceneConfig() {
 
 	// 前回終了時に開いていたシーンがあれば、初期シーンとして使う
-	const std::filesystem::path configPath = RuntimePaths::GetEngineAssetPath(kActiveSceneConfigPath);
+	std::filesystem::path configPath = RuntimePaths::GetGameConfigPath(kActiveSceneConfigPath);
 	if (!JsonAdapter::Check(configPath.string(), false)) {
-		return;
+
+		// 旧版はEngine/Assets/Config(SDK内)に保存していたので、移行のため旧パスも読む
+		const std::filesystem::path legacyPath = RuntimePaths::GetEngineAssetPath(kActiveSceneConfigPath);
+		if (!JsonAdapter::Check(legacyPath.string(), false)) {
+			return;
+		}
+		configPath = legacyPath;
 	}
 
 	const nlohmann::json data = JsonAdapter::Load(configPath.string(), false);
@@ -139,11 +146,11 @@ void Engine::EngineApplication::LoadActiveSceneConfig() {
 
 void Engine::EngineApplication::SaveActiveSceneConfig() const {
 
-	// .exeConfig系と同じくEngine/Assets/Config配下へ小さなJSONで保存する
+	// SDK更新で消えないよう、ゲームルート配下のConfigへ小さなJSONで保存する
 	nlohmann::json data = nlohmann::json::object();
 	data["activeScene"] = ToAssetReferenceJson(activeScene_);
 
-	const std::filesystem::path configPath = RuntimePaths::GetEngineAssetPath(kActiveSceneConfigPath);
+	const std::filesystem::path configPath = RuntimePaths::GetGameConfigPath(kActiveSceneConfigPath);
 	JsonAdapter::Save(configPath.string(), data);
 }
 
@@ -159,7 +166,7 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	LoadActiveSceneConfig();
 
 	// フレームレート上限を設定ファイルから読み込む
-	FrameRateSettings::GetInstance().Load(RuntimePaths::GetEngineAssetPath(kFrameRateConfigPath).string());
+	FrameRateSettings::GetInstance().Load(RuntimePaths::GetGameConfigPath(kFrameRateConfigPath).string());
 	// 描画タイプごとのデフォルトマテリアル設定をGameAssets配下から読み込む
 	DefaultMaterialSettings::GetInstance().Load((RuntimePaths::GetGameRoot() / kDefaultMaterialConfigPath).string());
 
@@ -794,7 +801,18 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	if (ShouldAdvanceActiveWorld()) {
 
 		FrameProfiler::ScopedSample ecsSample(FrameProfiler::Category::Ecs);
+		// Play中にscript例外が出たらUnity風にEditへ戻すため、tick前後で例外storeのversionを比べる
+		const bool playingThisTick = worldManager_.IsPlaying();
+		const uint64_t scriptExceptionVersion = playingThisTick ?
+			ManagedScriptExceptionStore::GetInstance().Version() : 0;
 		scheduler_.Tick(GetActiveWorld(), systemContext_);
+		if (playingThisTick &&
+			ManagedScriptExceptionStore::GetInstance().Version() != scriptExceptionVersion) {
+
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"EngineApplication: script exception during Play. Returning to Edit mode.");
+			StopPlayWorld();
+		}
 	}
 	if (playFrameStepRequested_) {
 
@@ -914,18 +932,23 @@ void Engine::EngineApplication::HandlePlayToggle() {
 		ProcessPendingPlayStart();
 	} else {
 
-		// Stop時は実行中WorldからSchedulerを切り離して、PlayWorldを破棄する
-		scheduler_.DetachCurrentWorld(systemContext_);
-		// 破棄前にレジストリから解除し、古いハンドルが新しいPlayWorldを指さないようにする
-		if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
-			ManagedWorldRegistry::GetInstance().Unregister(
-				ManagedWorldRegistry::GetInstance().TryGetHandle(*playWorld));
-		}
-		worldManager_.DestroyPlayWorld();
-		playScenes_ = SceneInstanceManager{};
-		playPaused_ = false;
-		playFrameStepRequested_ = false;
+		StopPlayWorld();
 	}
+}
+
+void Engine::EngineApplication::StopPlayWorld() {
+
+	// 実行中WorldからSchedulerを切り離して、PlayWorldを破棄する
+	scheduler_.DetachCurrentWorld(systemContext_);
+	// 破棄前にレジストリから解除し、古いハンドルが新しいPlayWorldを指さないようにする
+	if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
+		ManagedWorldRegistry::GetInstance().Unregister(
+			ManagedWorldRegistry::GetInstance().TryGetHandle(*playWorld));
+	}
+	worldManager_.DestroyPlayWorld();
+	playScenes_ = SceneInstanceManager{};
+	playPaused_ = false;
+	playFrameStepRequested_ = false;
 }
 
 void Engine::EngineApplication::ProcessPendingPlayStart() {

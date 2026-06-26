@@ -344,6 +344,8 @@ void Engine::MeshGPUResourceManager::RequestReload(AssetID meshAssetID) {
 		ReleaseMeshResource(it->second);
 		gpuMeshes_.erase(it);
 		requested_.erase(meshAssetID);
+		// 世代を進めて、TLAS等のキャッシュが古いジオメトリを使わないようにする
+		++reloadGeneration_[meshAssetID];
 	}
 
 	// インポートサービスは初回ロード後にidの記録を残さないため、同じ要求で再パースされる
@@ -539,6 +541,8 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 	// GPUリソースを保存
 	{
 		std::scoped_lock lock(mutex_);
+		// 現在のリロード世代を焼き込み、BLAS等のキャッシュが差し替えを検知できるようにする
+		mesh.reloadGeneration = reloadGeneration_[imported.assetID];
 		gpuMeshes_.emplace(imported.assetID, std::move(mesh));
 	}
 }

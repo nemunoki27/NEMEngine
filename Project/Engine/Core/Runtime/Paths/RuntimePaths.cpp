@@ -187,6 +187,12 @@ std::filesystem::path Engine::RuntimePaths::GetEngineAssetPath(const std::filesy
 	return (GetEngineAssetsRoot() / relativePath).lexically_normal();
 }
 
+std::filesystem::path Engine::RuntimePaths::GetGameConfigPath(const std::filesystem::path& relativePath) {
+
+	// ゲームルートはSDK(External/NEMEngine)の外なので、SDK更新で上書き/破棄されない
+	return (GetGameRoot() / relativePath).lexically_normal();
+}
+
 std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const std::filesystem::path& assetPath) {
 
 	if (assetPath.empty()) {

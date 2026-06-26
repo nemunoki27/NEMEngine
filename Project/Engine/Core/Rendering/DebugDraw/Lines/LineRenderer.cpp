@@ -60,8 +60,8 @@ void Engine::LineRenderer::RenderSceneView(GraphicsCore& graphicsCore,
 
 	if (drawDefaultGrid) {
 
-		// SceneViewのデフォルトグリッドは、SceneView側のカメラで直接描画、こちらは占有させない
-		renderer3D_->RenderDefaultGrid(graphicsCore, view, surface);
+		// SceneViewのデフォルトグリッドもシーン深度でテストしてメッシュに隠れるようにする
+		renderer3D_->RenderDefaultGrid(graphicsCore, view, surface, snapGridOcclusionDepth);
 	}
 
 	// スナップグリッドと深度オクルージョン対象の3D線をメッシュに隠すためのシーン深度を渡す

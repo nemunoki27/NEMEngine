@@ -261,6 +261,8 @@ namespace Engine {
 
 		// アセットID
 		AssetID assetID{};
+		// ホットリロード世代、リロードで増えるのでBLAS等のキャッシュ無効化に使う
+		uint32_t reloadGeneration = 0;
 
 		// バッファ
 		MeshStructuredHandle<MeshVertex> vertexSRV;

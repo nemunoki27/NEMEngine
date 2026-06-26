@@ -30,8 +30,9 @@ namespace Engine {
 
 		// グリッド描画、minorStepが0より大きいとカメラ距離の自動フィットでなくその固定間隔で描画する
 		void DrawGrid(float minorStep = 0.0f);
-		// SceneViewのデフォルトグリッド描画
-		void RenderDefaultGrid(GraphicsCore& graphicsCore, const ResolvedRenderView& view, MultiRenderTarget& surface);
+		// SceneViewのデフォルトグリッド描画、occlusionDepthでメッシュに隠す
+		void RenderDefaultGrid(GraphicsCore& graphicsCore, const ResolvedRenderView& view, MultiRenderTarget& surface,
+			DepthTexture2D* occlusionDepth);
 		// スナップグリッドをメッシュに隠すための深度を設定する、次のRenderSceneViewでだけ使い切る
 		void SetSnapGridOcclusionDepth(DepthTexture2D* depth) { snapGridOcclusionDepth_ = depth; }
 

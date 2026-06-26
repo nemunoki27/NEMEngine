@@ -34,15 +34,15 @@ void Engine::LineRenderer3D::DrawGrid(float minorStep) {
 }
 
 void Engine::LineRenderer3D::RenderDefaultGrid(GraphicsCore& graphicsCore,
-	const ResolvedRenderView& view, MultiRenderTarget& surface) {
+	const ResolvedRenderView& view, MultiRenderTarget& surface, DepthTexture2D* occlusionDepth) {
 
 	const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Perspective);
 	if (!camera) {
 		return;
 	}
 
-	// SceneViewのカメラでデフォルトグリッドを描画
-	gridRenderer_->Render(graphicsCore, *camera, surface);
+	// SceneViewのカメラでデフォルトグリッドを描画、シーン深度を渡してメッシュに隠れるようにする
+	gridRenderer_->Render(graphicsCore, *camera, surface, 0.0f, occlusionDepth);
 }
 
 void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius,

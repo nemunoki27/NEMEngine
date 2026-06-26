@@ -76,16 +76,21 @@ namespace Engine {
 
 			AssetID meshAssetID{};
 			uint32_t subMeshIndex = 0;
+			// ホットリロード世代、差し替えで別キーになり古いBLASを再利用しない
+			uint32_t reloadGeneration = 0;
 
 			bool operator==(const BLASKey& rhs) const noexcept {
-				return meshAssetID == rhs.meshAssetID && subMeshIndex == rhs.subMeshIndex;
+				return meshAssetID == rhs.meshAssetID && subMeshIndex == rhs.subMeshIndex &&
+					reloadGeneration == rhs.reloadGeneration;
 			}
 		};
 		struct BLASKeyHash {
 			size_t operator()(const BLASKey& key) const noexcept {
 				const size_t h0 = std::hash<AssetID>{}(key.meshAssetID);
 				const size_t h1 = std::hash<uint32_t>{}(key.subMeshIndex);
-				return h0 ^ (h1 + 0x9e3779b9u + (h0 << 6) + (h0 >> 2));
+				const size_t h2 = std::hash<uint32_t>{}(key.reloadGeneration);
+				size_t h = h0 ^ (h1 + 0x9e3779b9u + (h0 << 6) + (h0 >> 2));
+				return h ^ (h2 + 0x9e3779b9u + (h << 6) + (h >> 2));
 			}
 		};
 		// BLASのコレクション
@@ -104,10 +109,13 @@ namespace Engine {
 			Entity entity = Entity::Null();
 			AssetID meshAssetID{};
 			uint32_t subMeshIndex = 0;
+			// ホットリロード世代、差し替えで別キーになり古いBLASを再利用しない
+			uint32_t reloadGeneration = 0;
 
 			bool operator==(const DynamicBLASKey& rhs) const noexcept {
 				return world == rhs.world && entity.index == rhs.entity.index && entity.generation == rhs.entity.generation &&
-					meshAssetID == rhs.meshAssetID && subMeshIndex == rhs.subMeshIndex;
+					meshAssetID == rhs.meshAssetID && subMeshIndex == rhs.subMeshIndex &&
+					reloadGeneration == rhs.reloadGeneration;
 			}
 		};
 		struct DynamicBLASKeyHash {
@@ -117,6 +125,7 @@ namespace Engine {
 				h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
 				h ^= (std::hash<AssetID>{}(key.meshAssetID) << 3);
 				h ^= (std::hash<uint32_t>{}(key.subMeshIndex) << 4);
+				h ^= (std::hash<uint32_t>{}(key.reloadGeneration) << 5);
 				return h;
 			}
 		};
@@ -126,6 +135,8 @@ namespace Engine {
 		// BLAS
 		std::unordered_map<BLASKey, BottomLevelAccelerationStructure, BLASKeyHash> blases_;
 		std::unordered_map<DynamicBLASKey, BottomLevelAccelerationStructure, DynamicBLASKeyHash> dynamicBlases_{};
+		// メッシュごとに最後に構築したリロード世代、変化時に旧世代BLASを破棄する
+		std::unordered_map<AssetID, uint32_t> meshBlasGeneration_;
 		// TLAS
 		TopLevelAccelerationStructure tlas_;
 
