@@ -17,9 +17,15 @@ end
 
 GAME_NAME = GAME_NAME or "__GAME_NAME__"
 
--- SDKルートの解決: --engine-root → local_settings(NEM_SDK_ROOT) → External/NEMEngine
+-- SDKルートの解決: --engine-root → local_settings(NEM_SDK_ROOT) → 環境変数 → External/NEMEngine
 if _OPTIONS["engine-root"] then
     NEM_SDK_ROOT = path.getabsolute(_OPTIONS["engine-root"])
+end
+if not NEM_SDK_ROOT then
+    local envSdkRoot = os.getenv("NEM_SDK_ROOT")
+    if envSdkRoot and envSdkRoot ~= "" then
+        NEM_SDK_ROOT = path.getabsolute(envSdkRoot)
+    end
 end
 if not NEM_SDK_ROOT then
     local bundled = path.join(GAME_ROOT, "External", "NEMEngine")

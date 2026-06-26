@@ -10,6 +10,93 @@ $ErrorActionPreference = "Stop"
 $gameRoot = $PSScriptRoot
 $externalEngine = Join-Path $gameRoot "External\NEMEngine"
 
+function Write-Utf8NoBom([string]$Path, [string]$Text) {
+    $dir = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($dir)) {
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    }
+    [System.IO.File]::WriteAllText($Path, $Text, [System.Text.UTF8Encoding]::new($false))
+}
+
+function Get-GameProjectName {
+    $premakePath = Join-Path $gameRoot "Premake\premake5.lua"
+    if (Test-Path -LiteralPath $premakePath) {
+        $text = [System.IO.File]::ReadAllText($premakePath)
+        $match = [regex]::Match($text, 'GAME_NAME\s*=\s*GAME_NAME\s*or\s*"([^"]+)"')
+        if ($match.Success -and $match.Groups[1].Value -ne "__GAME_NAME__") {
+            return $match.Groups[1].Value
+        }
+    }
+
+    $projectRoot = Join-Path $gameRoot "Project"
+    if (Test-Path -LiteralPath $projectRoot) {
+        $scriptProject = Get-ChildItem -LiteralPath $projectRoot -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName "Scripts\GameScripts.csproj") } |
+            Select-Object -First 1
+        if ($scriptProject) {
+            return $scriptProject.Name
+        }
+    }
+
+    return Split-Path -Leaf $gameRoot
+}
+
+function Add-TextFileRule([string]$Path, [string]$Rule, [string]$Header) {
+    if (-not (Test-Path -LiteralPath $Path)) {
+        Write-Utf8NoBom $Path ($Rule + [Environment]::NewLine)
+        return $true
+    }
+
+    $text = [System.IO.File]::ReadAllText($Path)
+    $lines = $text -split "`r?`n"
+    if ($lines -contains $Rule) {
+        return $false
+    }
+
+    $separator = if ($text.EndsWith("`r`n") -or $text.EndsWith("`n")) { "" } else { [Environment]::NewLine }
+    $append = $separator + [Environment]::NewLine + $Header + [Environment]::NewLine + $Rule + [Environment]::NewLine
+    Write-Utf8NoBom $Path ($text + $append)
+    return $true
+}
+
+function Sync-GameProjectSupportFiles {
+    $supportRoot = Join-Path $externalEngine "GameProject"
+    if (-not (Test-Path -LiteralPath $supportRoot)) {
+        Write-Host "SDK内にGameProjectサポートファイルが無いため、ゲーム側Premake同期はスキップします。"
+        return
+    }
+
+    Write-Host ""
+    Write-Host "ゲーム側サポートファイルを同期します..."
+
+    $gameName = Get-GameProjectName
+    $gamePremakeDir = Join-Path $gameRoot "Premake"
+    New-Item -ItemType Directory -Force -Path $gamePremakeDir | Out-Null
+
+    $srcPremakeLua = Join-Path $supportRoot "Premake\premake5.lua"
+    if (Test-Path -LiteralPath $srcPremakeLua) {
+        $text = [System.IO.File]::ReadAllText($srcPremakeLua).Replace("__GAME_NAME__", $gameName)
+        Write-Utf8NoBom (Join-Path $gamePremakeDir "premake5.lua") $text
+        Write-Host "  更新: Premake\premake5.lua"
+    }
+
+    $srcGenerateBat = Join-Path $supportRoot "Premake\generate_vs2026.bat"
+    if (Test-Path -LiteralPath $srcGenerateBat) {
+        Copy-Item -Force -LiteralPath $srcGenerateBat -Destination (Join-Path $gamePremakeDir "generate_vs2026.bat")
+        Write-Host "  更新: Premake\generate_vs2026.bat"
+    }
+
+    $gitIgnoreChanged = Add-TextFileRule (Join-Path $gameRoot ".gitignore") "Project/**/*.exeConfig.json" "# NEMEngine local editor/runtime config"
+    if ($gitIgnoreChanged) {
+        Write-Host "  更新: .gitignore"
+    }
+
+    $gitAttributesChanged = Add-TextFileRule (Join-Path $gameRoot ".gitattributes") "*.bat text eol=crlf" "# NEMEngine Windows scripts"
+    if ($gitAttributesChanged) {
+        Write-Host "  更新: .gitattributes"
+    }
+}
+
 Write-Host "============================================"
 Write-Host "  NEMEngine SDK 更新"
 Write-Host "============================================"
@@ -53,6 +140,8 @@ if ($isJunction) {
         exit 1
     }
 }
+
+Sync-GameProjectSupportFiles
 
 Write-Host ""
 Write-Host "Visual Studio プロジェクトを再生成します..."

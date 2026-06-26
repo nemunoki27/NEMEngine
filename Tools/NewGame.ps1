@@ -56,6 +56,7 @@ try {
     Copy-Item -Recurse -Force (Join-Path $template "Premake\*") (Join-Path $gameRoot "Premake")
     Copy-Item -Recurse -Force (Join-Path $template "Project\__GAME_NAME__\*") $appRoot
     if (Test-Path (Join-Path $template ".gitignore")) { Copy-Item -Force (Join-Path $template ".gitignore") (Join-Path $gameRoot ".gitignore") }
+    if (Test-Path (Join-Path $template ".gitattributes")) { Copy-Item -Force (Join-Path $template ".gitattributes") (Join-Path $gameRoot ".gitattributes") }
     if (Test-Path (Join-Path $engineRoot "Project\EditorLayout.ini")) { Copy-Item -Force (Join-Path $engineRoot "Project\EditorLayout.ini") (Join-Path $gameRoot "Project\EditorLayout.ini") }
     # ゲームルート直下のツール(SDK更新.bat / UpdateSdk.ps1 等)をコピーする
     Get-ChildItem -LiteralPath $template -File | Where-Object { $_.Extension -in '.bat','.ps1' } | ForEach-Object {
@@ -63,7 +64,7 @@ try {
     }
 
     # テンプレ内の __GAME_NAME__ トークンを置換し、ファイル名のトークンもリネームする
-    Get-ChildItem -Recurse -File $gameRoot | Where-Object { $_.Extension -in '.lua','.csproj','.cs','.json','.txt','.md','.bat' } | ForEach-Object {
+    Get-ChildItem -Recurse -File $gameRoot | Where-Object { $_.Extension -in '.lua','.csproj','.cs','.json','.txt','.md','.bat' -or $_.Name -eq '.gitattributes' } | ForEach-Object {
         # テンプレはUTF-8なので必ずUTF-8として読み書きする（既定コードページで読むと日本語コメントが化ける）
         $text = [System.IO.File]::ReadAllText($_.FullName)
         $replaced = $text.Replace('__GAME_NAME__', $Name)

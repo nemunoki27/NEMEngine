@@ -65,6 +65,20 @@ foreach ($f in @("premake5.exe","nem_game.lua","patch_script_slnx.ps1","patch_vc
     if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkPremake $f) }
 }
 
+# 既存ゲーム側の Premake / 更新ツールを SDK 更新時に同期できるよう、ゲームプロジェクト用サポートファイルも同梱する
+$gameTemplate = Join-Path $engineRoot "Templates\GameProject"
+$sdkGameProject = Join-Path $OutDir "GameProject"
+$sdkGamePremake = Join-Path $sdkGameProject "Premake"
+New-Item -ItemType Directory -Force -Path $sdkGamePremake | Out-Null
+foreach ($f in @("premake5.lua","generate_vs2026.bat")) {
+    $src = Join-Path $gameTemplate "Premake\$f"
+    if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkGamePremake $f) }
+}
+foreach ($f in @(".gitignore",".gitattributes","SDK更新.bat","UpdateSdk.ps1")) {
+    $src = Join-Path $gameTemplate $f
+    if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkGameProject $f) }
+}
+
 # C#ゲームビルド用ツールチェーン（参照DLL / Roslynアナライザ / メタ同期ツール）
 # 参照はネイティブ構成に依存しないので代表構成（Debug優先）から書き出す
 $refConfig = if ($Configurations -contains "Debug") { "Debug" } else { $Configurations[0] }

@@ -30,6 +30,7 @@ Premake/local_settings.lua
 Premake/local_settings.bat
 Premake/premake_error.log
 Project/EditorLayout.ini
+Project/**/*.exeConfig.json
 
 # ===== ツール/OS のキャッシュ =====
 .serena/

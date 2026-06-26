@@ -38,12 +38,22 @@ if exist "%GAME_ROOT%\Project\%GAME_NAME%\%GAME_NAME%.vcxproj" del /q "%GAME_ROO
 if exist "%GAME_ROOT%\Project\%GAME_NAME%\%GAME_NAME%.vcxproj.filters" del /q "%GAME_ROOT%\Project\%GAME_NAME%\%GAME_NAME%.vcxproj.filters"
 
 echo ===== Generate Start =====
-"%NEM_SDK_ROOT%\Premake\premake5.exe" --file="%~dp0premake5.lua" --engine-root="%NEM_SDK_ROOT%" vs2026 > "%~dp0premake_error.log" 2>&1
+"%NEM_SDK_ROOT%\Premake\premake5.exe" --file="%~dp0premake5.lua" vs2026 > "%~dp0premake_error.log" 2>&1
+set "PREMAKE_RC=%ERRORLEVEL%"
 type "%~dp0premake_error.log"
 echo.
 
-if errorlevel 1 (
-    echo [ERROR] Premake generation failed.
+findstr /c:"Error:" "%~dp0premake_error.log" >nul
+set "FINDSTR_RC=%ERRORLEVEL%"
+
+if not "%PREMAKE_RC%"=="0" (
+    echo [ERROR] Premake generation failed. ^(premake exit code=%PREMAKE_RC%^)
+    popd
+    exit /b 1
+)
+
+if "%FINDSTR_RC%"=="0" (
+    echo [ERROR] Premake generation failed. ^(Error: found in premake_error.log^)
     popd
     exit /b 1
 )
