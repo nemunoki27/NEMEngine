@@ -74,7 +74,7 @@ foreach ($f in @("premake5.lua","generate_vs2026.bat")) {
     $src = Join-Path $gameTemplate "Premake\$f"
     if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkGamePremake $f) }
 }
-foreach ($f in @(".gitignore",".gitattributes","SDK更新.bat","UpdateSdk.ps1")) {
+foreach ($f in @(".gitignore",".gitattributes","SDK更新.bat","UpdateSdk.ps1","RepairGameProject.ps1","ゲームプロジェクト修復.bat")) {
     $src = Join-Path $gameTemplate $f
     if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkGameProject $f) }
 }

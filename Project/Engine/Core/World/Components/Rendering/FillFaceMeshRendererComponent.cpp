@@ -5,7 +5,6 @@
 //============================================================================
 
 void Engine::from_json(const nlohmann::json& in, FillMeshRendererComponent& component) {
-
 	in;
 	component;
 }

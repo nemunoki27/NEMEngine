@@ -13,6 +13,7 @@ namespace Engine {
 	class ECSWorld;
 	class AssetDatabase;
 	class HierarchySystem;
+	class GraphicsCore;
 
 	//============================================================================
 	//	AssetSpawnResult struct
@@ -38,7 +39,7 @@ namespace Engine {
 		bool CanSpawn(const EditorAssetDragDropPayload& payload);
 
 		// アセットからエンティティを生成する、prefabは展開しisThreeDは3D要素の有無で決まる
-		AssetSpawnResult Spawn(ECSWorld& world, AssetDatabase& database, HierarchySystem& hierarchySystem,
-			const EditorAssetDragDropPayload& payload, UUID sceneInstanceID);
+		AssetSpawnResult Spawn(ECSWorld& world, AssetDatabase& database, GraphicsCore& graphicsCore,
+			HierarchySystem& hierarchySystem, const EditorAssetDragDropPayload& payload, UUID sceneInstanceID);
 	}
 } // Engine

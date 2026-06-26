@@ -1,7 +1,154 @@
 {
-  "guid": "",
+  "autoDuration": true,
+  "curveTracks": [
+    {
+      "applyMode": "Override",
+      "channels": [
+        {
+          "defaultValue": -0.0,
+          "keys": [],
+          "name": "X"
+        },
+        {
+          "defaultValue": 0.0,
+          "keys": [],
+          "name": "Y"
+        },
+        {
+          "defaultValue": 4.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.4000000059604645,
+              "value": 4.0
+            }
+          ],
+          "name": "Z"
+        }
+      ],
+      "component": "Transform",
+      "editorView": {
+        "timeMax": 0.5,
+        "timeMin": 0.0,
+        "valueMax": 4.0,
+        "valueMin": -4.0
+      },
+      "property": "localPos",
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Vector3",
+      "visible": true
+    },
+    {
+      "applyMode": "Override",
+      "channels": [
+        {
+          "defaultValue": 0.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Constant",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 0.0
+            }
+          ],
+          "name": "Axis"
+        },
+        {
+          "defaultValue": 0.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.4000000059604645,
+              "value": 360.0
+            }
+          ],
+          "name": "Angle"
+        }
+      ],
+      "component": "Transform",
+      "editorView": {
+        "timeMax": 0.5,
+        "timeMin": 0.0,
+        "valueMax": 360.0,
+        "valueMin": -180.0
+      },
+      "property": "localRotation",
+      "quaternionAxisKeys": [
+        {
+          "axes": [
+            "X"
+          ],
+          "customAxis": {
+            "x": 1.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "useCustomAxis": false
+        }
+      ],
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Quaternion",
+      "visible": true
+    }
+  ],
+  "duration": 0.4000000059604645,
+  "eventTracks": [],
+  "guid": "eea19201da6ef81d",
+  "loop": true,
+  "loopBridge": {
+    "duration": 0.3310000002384186,
+    "enabled": false,
+    "interpolation": "Spline"
+  },
   "name": "DEMO_0",
-  "duration": 1.0,
-  "curveTracks": [],
-  "eventTracks": []
+  "relativeTransform": true
 }

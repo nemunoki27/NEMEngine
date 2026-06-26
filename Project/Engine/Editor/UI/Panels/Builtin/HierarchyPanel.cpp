@@ -67,12 +67,13 @@ namespace {
 		}
 
 		// モデル/テクスチャ/テキストはファクトリで生成し、親があればぶら下げる
-		if (!Engine::AssetEntityFactory::CanSpawn(payload)) {
+		if (!Engine::AssetEntityFactory::CanSpawn(payload) || !context.graphicsCore) {
 			return;
 		}
 		Engine::HierarchySystem hierarchySystem{};
 		const Engine::AssetSpawnResult spawn = Engine::AssetEntityFactory::Spawn(world,
-			*context.editorContext->assetDatabase, hierarchySystem, payload, context.editorContext->activeSceneInstanceID);
+			*context.editorContext->assetDatabase, *context.graphicsCore, hierarchySystem, payload,
+			context.editorContext->activeSceneInstanceID);
 		if (!spawn.valid) {
 			return;
 		}

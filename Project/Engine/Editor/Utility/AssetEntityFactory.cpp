@@ -15,6 +15,7 @@
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Editor/Assets/Importer/Font/MSDFFontGenerator.h>
 
@@ -109,7 +110,8 @@ bool Engine::AssetEntityFactory::CanSpawn(const EditorAssetDragDropPayload& payl
 }
 
 Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, AssetDatabase& database,
-	HierarchySystem& hierarchySystem, const EditorAssetDragDropPayload& payload, UUID sceneInstanceID) {
+	GraphicsCore& graphicsCore, HierarchySystem& hierarchySystem,
+	const EditorAssetDragDropPayload& payload, UUID sceneInstanceID) {
 
 	AssetSpawnResult result{};
 
@@ -137,6 +139,12 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 		const Entity entity = CreateBaseEntity(world, payload.assetPath, sceneInstanceID);
 		auto& renderer = world.AddComponent<SpriteRendererComponent>(entity);
 		renderer.texture = payload.assetID;
+
+		// 初期サイズをテクスチャの実サイズに合わせる、未ロードなら既定サイズのままにする
+		Vector2 textureSize{};
+		if (RuntimeTextureResolver::TryResolveSize(graphicsCore, &database, renderer.texture, textureSize)) {
+			renderer.size = textureSize;
+		}
 
 		result.root = entity;
 		result.isThreeD = false;

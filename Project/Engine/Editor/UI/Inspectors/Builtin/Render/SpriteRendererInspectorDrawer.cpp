@@ -18,18 +18,11 @@ namespace {
 	bool TryResolveTextureSize(const Engine::EditorPanelContext& context,
 		Engine::AssetID textureID, Engine::Vector2& outSize) {
 
-		if (!textureID || !context.graphicsCore ||
-			!context.editorContext || !context.editorContext->assetDatabase) {
+		if (!context.graphicsCore || !context.editorContext) {
 			return false;
 		}
-		const Engine::GPUTextureResource* texture = Engine::RuntimeTextureResolver::Resolve(
-			*context.graphicsCore, context.editorContext->assetDatabase, textureID, false);
-		if (!texture || !texture->valid || !texture->resource) {
-			return false;
-		}
-		const D3D12_RESOURCE_DESC desc = texture->resource->GetDesc();
-		outSize = Engine::Vector2(static_cast<float>(desc.Width), static_cast<float>(desc.Height));
-		return true;
+		return Engine::RuntimeTextureResolver::TryResolveSize(
+			*context.graphicsCore, context.editorContext->assetDatabase, textureID, outSize);
 	}
 }
 
@@ -49,8 +42,19 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
 				setting.graphicsCore = context.graphicsCore;
-				return MyGUI::AssetReferenceField("テクスチャ", draft.texture,
+				const AssetID previousTexture = draft.texture;
+				ValueEditResult result = MyGUI::AssetReferenceField("テクスチャ", draft.texture,
 					context.editorContext->assetDatabase, { AssetType::Texture }, setting);
+
+				// テクスチャを差し替えたら既定でそのテクスチャの実サイズへ合わせる
+				if (result.valueChanged && draft.texture && draft.texture != previousTexture) {
+
+					Vector2 textureSize{};
+					if (TryResolveTextureSize(context, draft.texture, textureSize)) {
+						draft.size = textureSize;
+					}
+				}
+				return result;
 			});
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};

@@ -525,7 +525,8 @@ void Engine::ViewportPanel::HandleAssetDropPlacement(const EditorPanelContext& c
 
 	// プレビューを出してよい条件、ビュー上をドラッグ中で配置可能なアセットのとき
 	const bool canPreview = draggingAsset && overImage && !dropPreviewCanceled_ && assetPayload &&
-		world && database && context.CanEditScene() && AssetEntityFactory::CanSpawn(*assetPayload);
+		world && database && context.graphicsCore && context.CanEditScene() &&
+		AssetEntityFactory::CanSpawn(*assetPayload);
 
 	if (canPreview) {
 
@@ -534,8 +535,8 @@ void Engine::ViewportPanel::HandleAssetDropPlacement(const EditorPanelContext& c
 
 			DestroyDropPreview();
 			HierarchySystem hierarchySystem{};
-			const AssetSpawnResult spawn = AssetEntityFactory::Spawn(*world, *database, hierarchySystem,
-				*assetPayload, context.editorContext->activeSceneInstanceID);
+			const AssetSpawnResult spawn = AssetEntityFactory::Spawn(*world, *database, *context.graphicsCore,
+				hierarchySystem, *assetPayload, context.editorContext->activeSceneInstanceID);
 			if (spawn.valid) {
 
 				dropPreviewEntity_ = spawn.root;

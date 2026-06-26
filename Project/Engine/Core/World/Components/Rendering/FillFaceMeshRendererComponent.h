@@ -18,7 +18,10 @@ namespace Engine {
 	//	FillMeshRendererComponent struct
 	//============================================================================
 	// 座標を受け取って、メッシュ面を構築して描画
-	class FillMeshRendererComponent {
+	struct FillMeshRendererComponent {
+
+		// メッシュ構築フラグ、trueのフレームで構築
+		bool buildMesh = false;
 
 		// マテリアル
 		AssetID material{};
