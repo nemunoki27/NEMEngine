@@ -8,6 +8,7 @@
 #include <Engine/Editor/Assets/Project/ProjectAssetIndex.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetThumbnailCache.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
+#include <Engine/Editor/Assets/Project/AssetActionRegistry.h>
 #include <Engine/Editor/UI/Common/TextSearchFilter.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
@@ -50,6 +51,8 @@ namespace Engine {
 		// プロジェクト内のアセットのインデックスとサムネイルキャッシュ
 		ProjectAssetIndex assetIndex_;
 		ProjectAssetThumbnailCache thumbnailCache_;
+		// アセット種別ごとの操作登録
+		AssetActionRegistry assetActionRegistry_{};
 		// モデルプレビューAtlas用の内部EditorTool定義
 		ToolDescriptor descriptor_{
 			.id = "engine.project_panel",
@@ -210,6 +213,10 @@ namespace Engine {
 		// グリッドのアセット1項目を描画する
 		void DrawAssetGridItem(const EditorPanelContext& context, AssetDatabase& database,
 			const ProjectAssetEntry& asset, float iconSize);
+		// アセット種別ごとのアイコンを解決する
+		ImTextureID ResolveAssetIconTextureID(const ProjectAssetEntry& asset, ImVec2& outUV0, ImVec2& outUV1);
+		// アセットのドラッグソースを描画する
+		void DrawAssetDragDropSource(const ProjectAssetEntry& asset, ImGuiDragDropFlags flags = ImGuiDragDropFlags_None);
 		// 現在ディレクトリ内のモデルを1枚のRenderTextureへまとめて描画する
 		void PrepareModelPreviewAtlas(const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
 		// モデルプレビューAtlas用の一時Worldとスロットを構築する
@@ -240,6 +247,8 @@ namespace Engine {
 		void DrawRenameAssetPopup(AssetDatabase& database);
 		// 削除確認ポップアップを描画する(参照元があれば警告する)
 		void DrawDeleteAssetPopup(AssetDatabase& database);
+		// アセット種別ごとの操作をRegistryへ登録する
+		void RegisterAssetActions();
 		// アセットのダブルクリック操作を処理する
 		void HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset);
 		// HierarchyからドロップされたEntityをPrefabとして保存する

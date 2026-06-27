@@ -12,8 +12,8 @@
 void Engine::from_json(const nlohmann::json& in, CameraShakeComponent& component) {
 
 	component.duration = in.value("duration", component.duration);
-	component.mode = EnumAdapter<CameraShakeMode>::FromString(in.value("mode", "Linear")).value();
-	component.easingType = EnumAdapter<EasingType>::FromString(in.value("easingType", "Linear")).value();
+	component.mode = EnumAdapter<CameraShakeMode>::FromString(in.value("mode", "Impact")).value_or(component.mode);
+	component.easingType = EnumAdapter<EasingType>::FromString(in.value("easingType", "Linear")).value_or(component.easingType);
 	component.strength = Vector3::FromJson(in.value("strength", nlohmann::json()));
 
 	// ランタイム値をリセット

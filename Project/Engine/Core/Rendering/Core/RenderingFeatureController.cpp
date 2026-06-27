@@ -6,6 +6,7 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 
 // c++
 #include <algorithm>
@@ -15,7 +16,7 @@
 //============================================================================
 namespace {
 
-	constexpr const char* kGraphicsFeatureConfigPath = "Config/graphicsFeatureSettings.exeConfig.json";
+	constexpr const char* kGraphicsFeatureConfigPath = Engine::ConfigPaths::kGraphicsFeatureSettings;
 }
 
 void Engine::GraphicsFeatureController::ApplyDetectedSupport(

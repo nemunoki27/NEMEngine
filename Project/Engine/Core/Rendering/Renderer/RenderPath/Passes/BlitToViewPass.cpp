@@ -9,6 +9,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTargetCopyUtility.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
@@ -145,7 +146,7 @@ void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 		deps_.postProcessTargetPool && deps_.postProcessAssetGenerator) {
 
 		deps_.postProcessDebugInjector->TryExecuteBeforeBlit(graphicsCore,
-			context, "SceneColorFinal", "View",
+			context, Engine::RenderTargetNames::kSceneColorFinal, "View",
 			*deps_.assetLibrary, *deps_.pipelineCache,
 			*deps_.postProcessExecutor, *deps_.postProcessTargetPool,
 			*deps_.postProcessAssetGenerator, source);

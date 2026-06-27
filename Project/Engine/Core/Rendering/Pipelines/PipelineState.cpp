@@ -240,6 +240,9 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 		MergeShaderReflection(graphicsReflection_, shader.reflection);
 	}
 
+	// PSO生成の成否、失敗したBlendModeがあればfalseを返す
+	bool success = true;
+
 	switch (desc.type) {
 	case PipelineType::Vertex:
 	case PipelineType::Geometry:
@@ -290,7 +293,11 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 
 			// パイプラインステートオブジェクトの生成
 			HRESULT hr = device->CreateGraphicsPipelineState(&pipelineDesc, IID_PPV_ARGS(&graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
-			Assert::Call(SUCCEEDED(hr), "CreateGraphicsPipelineState failed");
+			if (FAILED(hr)) {
+				Logger::Output(LogType::Engine, "CreateGraphicsPipelineState failed: {} [{}]", desc.pixel.file, mode);
+				success = false;
+				continue;
+			}
 
 			const std::string psoName = std::filesystem::path(desc.preRaster.file).stem().string() +
 				"|" + std::filesystem::path(desc.pixel.file).stem().string() + "[" + mode + "]";
@@ -346,7 +353,11 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 
 			// パイプラインステートオブジェクトの生成
 			HRESULT hr = device->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
-			Assert::Call(SUCCEEDED(hr), "CreatePipelineState failed");
+			if (FAILED(hr)) {
+				Logger::Output(LogType::Engine, "CreatePipelineState failed: {} [{}]", desc.pixel.file, mode);
+				success = false;
+				continue;
+			}
 
 			const std::string psoName = std::filesystem::path(desc.preRaster.file).stem().string() +
 				"|" + std::filesystem::path(desc.pixel.file).stem().string() + "[" + mode + "]";
@@ -357,7 +368,7 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 	}
 	Logger::Output(LogType::Engine, "Created GraphicsPipeline");
 	Logger::EndSection(LogType::Engine);
-	return true;
+	return success;
 }
 
 bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompiler* compiler, const ComputePipelineDesc& desc) {

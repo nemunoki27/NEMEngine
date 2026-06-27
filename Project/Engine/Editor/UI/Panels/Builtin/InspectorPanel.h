@@ -6,7 +6,8 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Editor/UI/Common/TextSearchFilter.h>
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
-#include <Engine/Editor/UI/Inspectors/Core/IInspectorComponentDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Core/ComponentEditorRegistry.h>
+#include <Engine/Editor/UI/Inspectors/Core/AssetInspectorRegistry.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Renderer/Views/SceneViewCameraController.h>
@@ -72,10 +73,12 @@ namespace Engine {
 		MaterialAsset materialDraft_{};
 		bool materialDraftValid_ = false;
 
-		// コンポーネントの編集
-		std::vector<std::unique_ptr<IInspectorComponentDrawer>> componentDrawers_{};
+		// コンポーネントの追加メニューと描画登録
+		ComponentEditorRegistry componentEditorRegistry_{};
 		TextSearchFilter addComponentSearchFilter_;
 		TextSearchFilter removeComponentSearchFilter_;
+		// アセット種別ごとのInspector表示登録
+		AssetInspectorRegistry assetInspectorRegistry_{};
 
 		// メッシュインスペクター
 		MeshRendererInspectorDrawer* meshRendererDrawer_ = nullptr;
@@ -141,8 +144,6 @@ namespace Engine {
 		void ResetModelAssetPreviewCamera();
 		// Materialアセットのインスペクターを描画する
 		void DrawMaterialAssetInspector(const EditorPanelContext& context, const AssetMeta& meta);
-		// Textureアセットのプレビューと詳細を描画する
-		void DrawTextureAssetInspector(const EditorPanelContext& context, const AssetMeta& meta);
 		// Materialアセットの編集用データを読み込む
 		bool LoadMaterialDraft(const EditorPanelContext& context, const AssetMeta& meta);
 		// Materialアセットの編集用データを保存する
@@ -154,6 +155,11 @@ namespace Engine {
 		// コンポーネントの追加、削除のポップアップを描画する
 		void DrawAddComponentPopup(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 		void DrawRemoveComponentPopup(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
+		// 追加削除ポップアップ共通の検索とカテゴリ区切りつきメニュー描画、判定と実行は呼び出し側が渡す
+		void DrawComponentPopupEntries(const EditorPanelContext& context, TextSearchFilter& searchFilter,
+			const char* searchInputId, const char* emptyText,
+			const std::function<bool(const ComponentEditorDescriptor&)>& shouldShow,
+			const std::function<void(const ComponentEditorDescriptor&)>& onSelect);
 		// サブメッシュが選択されているときのヘッダーを描画する
 		void DrawSelectedSubMeshHeader(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 		// プレファブインスタンスのオーバーライド表示UI、水色強調トークンの構築とオーバーライドポップアップを描画する

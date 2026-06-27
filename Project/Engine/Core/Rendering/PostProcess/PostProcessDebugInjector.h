@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
+
 // c++
 #include <string>
 #include <string_view>
@@ -27,7 +29,7 @@ namespace Engine {
 
 		bool enabled = false;
 		std::string materialName = "Grayscale";
-		std::string sourceName = "SceneColorFinal";
+		std::string sourceName = RenderTargetNames::kSceneColorFinal;
 		std::string tempName = "PostProcessDebugTemp";
 	};
 

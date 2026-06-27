@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
 //============================================================================
@@ -16,7 +17,7 @@
 namespace {
 
 	// カメラ保存パス
-	const std::string kCameraJsonPath = "Config/initExeData.exeConfig.json";
+	const std::string kCameraJsonPath = Engine::ConfigPaths::kSceneViewCamera;
 	// フォーカス時に対象から離す距離
 	constexpr float kFocusDistance = 20.0f;
 	// フォーカスの寄り速度、1フレームあたりの補間率

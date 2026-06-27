@@ -17,22 +17,17 @@
 #include <Engine/Editor/Commands/Entity/DuplicateEntityCommand.h>
 #include <Engine/Editor/Commands/Entity/PasteEntityTreeCommand.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/Core/SceneViewInteractionPolicy.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 
-// パネル群
-#include <Engine/Editor/UI/Panels/Builtin/MenuBarPanel.h>
-#include <Engine/Editor/UI/Panels/Builtin/ToolbarPanel.h>
-#include <Engine/Editor/UI/Panels/Builtin/HierarchyPanel.h>
-#include <Engine/Editor/UI/Panels/Builtin/InspectorPanel.h>
-#include <Engine/Editor/UI/Panels/Builtin/ProjectPanel.h>
-#include <Engine/Editor/UI/Panels/Builtin/ConsolePanel.h>
-#include <Engine/Editor/UI/Panels/Builtin/ViewportPanel.h>
-#include <Engine/Editor/UI/Panels/Builtin/ToolPanel.h>
+// パネル群、生成はファクトリへ集約する
+#include <Engine/Editor/UI/Panels/Builtin/BuiltinEditorPanelRegistration.h>
 #include <Engine/Editor/Tools/Builtin/BuiltinEditorTools.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <algorithm>
@@ -54,7 +49,7 @@ namespace {
 	constexpr const char* kCloseUnsavedScenePopupName = "シーン未保存通知##CloseApplication";
 	// ImGuiのレイアウト保存ファイルパス
 	constexpr const char* kEditorLayoutIniPath = "EditorLayout.ini";
-	constexpr const char* kViewportPanelStateConfigPath = "Config/viewportPanel.exeConfig.json";
+	constexpr const char* kViewportPanelStateConfigPath = Engine::ConfigPaths::kViewportPanel;
 
 	bool IsHidePanelsShortcutTriggered() {
 
@@ -130,16 +125,11 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 		Engine::ToolRegistry::GetInstance().Find("engine.sceneViewCamera"));
 	LoadViewportPanelState();
 
-	// 各パネルの生成と登録
-	panels_.emplace_back(std::make_unique<MenuBarPanel>());
-	panels_.emplace_back(std::make_unique<ToolbarPanel>(graphicsCore.GetTextureUploadService()));
-	panels_.emplace_back(std::make_unique<HierarchyPanel>(graphicsCore.GetTextureUploadService()));
-	panels_.emplace_back(std::make_unique<InspectorPanel>());
-	panels_.emplace_back(std::make_unique<ConsolePanel>());
-	panels_.emplace_back(std::make_unique<ToolPanel>());
-	panels_.emplace_back(std::make_unique<ProjectPanel>(graphicsCore.GetTextureUploadService()));
-	panels_.emplace_back(std::make_unique<ViewportPanel>("GameView", "GameView", ViewportPanelKind::Game, graphicsCore.GetTextureUploadService()));
-	panels_.emplace_back(std::make_unique<ViewportPanel>("SceneView", "SceneView", ViewportPanelKind::Scene, graphicsCore.GetTextureUploadService()));
+	// 各パネルの生成と登録、生成順と依存注入はファクトリへ集約する
+	EditorPanelCreateContext panelCreateContext{ graphicsCore.GetTextureUploadService() };
+	for (auto& panel : CreateBuiltinEditorPanels(panelCreateContext)) {
+		panels_.emplace_back(std::move(panel));
+	}
 
 	// シーンビューのメッシュピック処理の初期化
 	meshSubMeshPicker_ = std::make_unique<MeshSubMeshPicker>();
@@ -935,17 +925,15 @@ void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorC
 		return;
 	}
 
-	// アセットをSceneViewへスナップ有効でドラッグ中はスナップグリッドを出す、選択が無くても表示する
-	// マニピュレーターが座標移動でなくても出す、グリッドの2D/3Dはドラッグ中アセットの次元に合わせる
-	if (editorState_.snapSettings.drawSnapGrid &&
-		editorState_.enableSnapEditEntity &&
-		editorState_.assetDragSnapGridActive) {
+	// スナップグリッドの表示判定はSceneViewInteractionPolicyへ集約し、ここは結果を描画するだけにする
+	const SceneViewSnapGridDecision gridDecision =
+		ResolveSceneViewSnapGridDecision(editorState_, context.activeWorld);
+	if (gridDecision.visible) {
 
-		const EntitySnapSettings& snap = editorState_.snapSettings;
-		if (editorState_.assetDragSnapGridIs3D) {
-			LineRenderer::GetInstance()->Get3D()->DrawGrid(snap.translate3D.size);
+		if (gridDecision.use2D) {
+			LineRenderer::GetInstance()->Get2D()->DrawGrid(gridDecision.cellSize);
 		} else {
-			LineRenderer::GetInstance()->Get2D()->DrawGrid(snap.translate2D.size);
+			LineRenderer::GetInstance()->Get3D()->DrawGrid(gridDecision.cellSize);
 		}
 	}
 
@@ -971,23 +959,6 @@ void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorC
 		}
 	}
 
-	// スナップグリッドを描画する、選択中エンティティの次元で2D/3Dを切り替える
-	if (editorState_.snapSettings.drawSnapGrid &&
-		editorState_.enableSnapEditEntity &&
-		!editorState_.assetDragSnapGridActive &&
-		editorState_.sceneViewManipulatorMode == SceneViewManipulatorMode::Translate &&
-		context.activeWorld->IsAlive(editorState_.selectedEntity)) {
-
-		const bool use2D = ResolveEntityDimension(*context.activeWorld, editorState_.selectedEntity)
-			.value_or(editorState_.manualCameraDimension) == Dimension::Type2D;
-		const EntitySnapSettings& snap = editorState_.snapSettings;
-		// グリッド間隔は座標のスナップ距離に合わせる
-		if (use2D) {
-			LineRenderer::GetInstance()->Get2D()->DrawGrid(snap.translate2D.size);
-		} else {
-			LineRenderer::GetInstance()->Get3D()->DrawGrid(snap.translate3D.size);
-		}
-	}
 #endif
 }
 

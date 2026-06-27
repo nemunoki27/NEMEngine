@@ -10,6 +10,7 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 
 // imgui
 #include <imgui.h>
@@ -530,7 +531,7 @@ void Input::Init(WinApp* winApp) {
 
 namespace {
 	// 入力デバイス設定の保存先
-	constexpr const char* kInputDeviceConfigPath = "Config/inputDevice.exeConfig.json";
+	constexpr const char* kInputDeviceConfigPath = ConfigPaths::kInputDevice;
 }
 
 void Input::LoadConfig() {

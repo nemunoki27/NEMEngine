@@ -19,6 +19,7 @@
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Core/Audio/AudioSystem.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
@@ -56,8 +57,8 @@
 //============================================================================
 namespace {
 
-	constexpr const char* kActiveSceneConfigPath = "Config/activeScene.exeConfig.json";
-	constexpr const char* kFrameRateConfigPath = "Config/frameRate.exeConfig.json";
+	constexpr const char* kActiveSceneConfigPath = Engine::ConfigPaths::kActiveScene;
+	constexpr const char* kFrameRateConfigPath = Engine::ConfigPaths::kFrameRate;
 	// デフォルトマテリアル設定はチームで共有したいのでgit管理されるGameAssets配下へ置く
 	constexpr const char* kDefaultMaterialConfigPath = "GameAssets/Materials/Config/defaultMaterials.materialSettings.json";
 

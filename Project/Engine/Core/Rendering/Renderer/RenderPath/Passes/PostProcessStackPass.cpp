@@ -11,6 +11,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
@@ -31,7 +32,7 @@
 
 namespace {
 
-	constexpr const char* kSceneColorFinal = "SceneColorFinal";
+	constexpr const char* kSceneColorFinal = Engine::RenderTargetNames::kSceneColorFinal;
 	constexpr const char* kPingName = "PostProcessPing";
 	constexpr const char* kPongName = "PostProcessPong";
 

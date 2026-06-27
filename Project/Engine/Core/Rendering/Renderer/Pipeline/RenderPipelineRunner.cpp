@@ -9,6 +9,7 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
 #include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Sprite/SpriteRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Text/TextRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderItemExtractor.h>
@@ -556,11 +557,12 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	// 中間RenderTargetをレジストリに登録してPostProcessExecutorが名前で解決できるようにする
 	if (resources.GetSceneMain()) {
 		registry->Register("SceneMain", resources.GetSceneMain(),
-			{ "SceneColorMain", "SceneNormalMain", "ScenePositionMain",
-			  "SceneMaterialMain", "SceneEmissiveMain", "SceneFlagsMain" }, std::string("SceneDepth"));
+			{ RenderTargetNames::kSceneColorMain, RenderTargetNames::kSceneNormalMain, RenderTargetNames::kScenePositionMain,
+			  RenderTargetNames::kSceneMaterialMain, RenderTargetNames::kSceneEmissiveMain, RenderTargetNames::kSceneFlagsMain },
+			std::string(RenderTargetNames::kSceneDepth));
 	}
 	if (resources.GetSceneFinal()) {
-		registry->Register("SceneFinal", resources.GetSceneFinal(), { "SceneColorFinal" }, std::nullopt);
+		registry->Register("SceneFinal", resources.GetSceneFinal(), { RenderTargetNames::kSceneColorFinal }, std::nullopt);
 	}
 
 	// ビューごとのライトGPUバッファを登録

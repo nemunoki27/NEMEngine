@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
 
 // c++
 #include <algorithm>
@@ -170,7 +171,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 
 	// SceneColorMain
 	ColorAttachmentDesc color0{};
-	color0.name = "SceneColorMain";
+	color0.name = RenderTargetNames::kSceneColorMain;
 	color0.format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	color0.clearColor = Color4::FromHex(0x303030ff);
 	color0.createUAV = false;
@@ -178,7 +179,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 
 	// SceneNormalMain
 	ColorAttachmentDesc color1{};
-	color1.name = "SceneNormalMain";
+	color1.name = RenderTargetNames::kSceneNormalMain;
 	color1.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	color1.clearColor = Color4::Black();
 	color1.createUAV = false;
@@ -186,7 +187,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 
 	// ScenePositionMain
 	ColorAttachmentDesc color2{};
-	color2.name = "ScenePositionMain";
+	color2.name = RenderTargetNames::kScenePositionMain;
 	color2.format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	color2.clearColor = Color4::Black();
 	color2.createUAV = false;
@@ -195,7 +196,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 	// SceneMaterialMain、Deferredライティングが参照するmetallic/roughness/occlusionを束ねる
 	// rgbに各係数を入れ、8bitで足りる質感パラメータなのでR8G8B8A8で帯域を抑える
 	ColorAttachmentDesc color3{};
-	color3.name = "SceneMaterialMain";
+	color3.name = RenderTargetNames::kSceneMaterialMain;
 	color3.format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	color3.clearColor = Color4::Black();
 	color3.createUAV = false;
@@ -204,7 +205,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 	// SceneEmissiveMain、自己発光をHDRで保持しライティング加算の初期色に使う
 	// intensityを乗算済みの発光色を入れるためalpha不要のR11G11B10で十分
 	ColorAttachmentDesc color4{};
-	color4.name = "SceneEmissiveMain";
+	color4.name = RenderTargetNames::kSceneEmissiveMain;
 	color4.format = DXGI_FORMAT_R11G11B10_FLOAT;
 	color4.clearColor = Color4::Black();
 	color4.createUAV = false;
@@ -213,7 +214,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 	// SceneFlagsMain、マテリアル単位の挙動フラグをライティングパスへ渡す
 	// EnableLighting無効画素のスキップ等に使い、0クリアで未描画画素を非ライティング扱いにする
 	ColorAttachmentDesc color5{};
-	color5.name = "SceneFlagsMain";
+	color5.name = RenderTargetNames::kSceneFlagsMain;
 	color5.format = DXGI_FORMAT_R32_UINT;
 	color5.clearColor = Color4::Black();
 	color5.createUAV = false;
@@ -240,7 +241,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneFinal
 
 	// SceneColorFinal (UAV付き、RaytracingのDispatchRays書き込み先)
 	ColorAttachmentDesc color{};
-	color.name = "SceneColorFinal";
+	color.name = RenderTargetNames::kSceneColorFinal;
 	color.format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	color.clearColor = Color4::Black();
 	color.createUAV = true;

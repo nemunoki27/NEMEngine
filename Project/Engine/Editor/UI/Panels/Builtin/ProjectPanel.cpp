@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Editor/Scripting/ManagedIdeLauncher.h>
 #include <Engine/Editor/Utility/EditorShell.h>
@@ -126,9 +127,14 @@ namespace {
 		ImGui::TextWrapped("%s", display.c_str());
 		ImGui::PopTextWrapPos();
 	}
-	// ドラッグ&ドロップのソースを描画する
-	void DrawAssetDragDropSource(const Engine::ProjectAssetEntry& asset,
-		ImGuiDragDropFlags flags = ImGuiDragDropFlags_None) {
+	// アセットアイコンの標準解決
+	ImTextureID ResolveDefaultAssetIcon(Engine::ProjectAssetThumbnailCache& thumbnailCache,
+		const Engine::ProjectAssetEntry& asset) {
+
+		return thumbnailCache.GetAssetTextureID(asset.assetPath, asset.type);
+	}
+	// ドラッグ&ドロップの標準ソースを描画する
+	void DrawDefaultAssetDragDropSource(const Engine::ProjectAssetEntry& asset, ImGuiDragDropFlags flags) {
 
 		if (ImGui::BeginDragDropSource(flags)) {
 
@@ -226,7 +232,7 @@ namespace {
 	// ProjectPanelの表示状態を保存するパスを返す
 	std::filesystem::path GetProjectPanelStatePath() {
 
-		return Engine::RuntimePaths::GetGameConfigPath("Config/projectPanel.exeConfig.json");
+		return Engine::RuntimePaths::GetGameConfigPath(Engine::ConfigPaths::kProjectPanel);
 	}
 
 	// ScriptアセットをVisual Studioで開く
@@ -250,6 +256,7 @@ namespace {
 Engine::ProjectPanel::ProjectPanel(TextureUploadService& textureUploadService) {
 
 	thumbnailCache_.Init(textureUploadService);
+	RegisterAssetActions();
 	LoadPersistentState();
 	dirty_ = true;
 }
@@ -569,27 +576,57 @@ void Engine::ProjectPanel::DrawFolderGridItem(const EditorPanelContext& context,
 	ImGui::PopID();
 }
 
+ImTextureID Engine::ProjectPanel::ResolveAssetIconTextureID(const ProjectAssetEntry& asset,
+	ImVec2& outUV0, ImVec2& outUV1) {
+
+	outUV0 = ImVec2(0.0f, 0.0f);
+	outUV1 = ImVec2(1.0f, 1.0f);
+
+	ImTextureID textureID = {};
+	if (const AssetActionDescriptor* action = assetActionRegistry_.Find(asset.type)) {
+		if (action->iconResolver) {
+			textureID = action->iconResolver(thumbnailCache_, asset);
+		}
+	}
+	if (textureID == ImTextureID{}) {
+		textureID = ResolveDefaultAssetIcon(thumbnailCache_, asset);
+	}
+	if (asset.type == AssetType::Mesh) {
+
+		// モデルプレビューAtlasが用意できているときだけ実プレビューへ差し替える
+		ImTextureID previewTextureID = static_cast<ImTextureID>(0);
+		ImVec2 previewUV0{};
+		ImVec2 previewUV1{};
+		if (TryGetModelPreviewImage(asset.assetID, previewTextureID, previewUV0, previewUV1)) {
+			textureID = previewTextureID;
+			outUV0 = previewUV0;
+			outUV1 = previewUV1;
+		}
+	}
+	return textureID;
+}
+
+void Engine::ProjectPanel::DrawAssetDragDropSource(const ProjectAssetEntry& asset, ImGuiDragDropFlags flags) {
+
+	if (const AssetActionDescriptor* action = assetActionRegistry_.Find(asset.type)) {
+		if (action->onDragSource) {
+
+			action->onDragSource(asset, flags);
+			return;
+		}
+	}
+	DrawDefaultAssetDragDropSource(asset, flags);
+}
+
 void Engine::ProjectPanel::DrawAssetGridItem(const EditorPanelContext& context, AssetDatabase& database,
 	const ProjectAssetEntry& asset, float iconSize) {
 
 	ImGui::PushID(asset.assetPath.c_str());
 	ImGui::BeginGroup();
 
-	ImTextureID textureID = thumbnailCache_.GetAssetTextureID(asset.assetPath, asset.type);
 	ImVec2 uv0(0.0f, 0.0f);
 	ImVec2 uv1(1.0f, 1.0f);
-	if (asset.type == AssetType::Mesh) {
-
-		// モデルプレビューAtlasが用意できているときだけ実プレビューへ差し替える(検索一覧では型アイコンへフォールバック)
-		ImTextureID previewTextureID = static_cast<ImTextureID>(0);
-		ImVec2 previewUV0{};
-		ImVec2 previewUV1{};
-		if (TryGetModelPreviewImage(asset.assetID, previewTextureID, previewUV0, previewUV1)) {
-			textureID = previewTextureID;
-			uv0 = previewUV0;
-			uv1 = previewUV1;
-		}
-	}
+	ImTextureID textureID = ResolveAssetIconTextureID(asset, uv0, uv1);
 
 	if (ImGui::ImageButton("##AssetButton", textureID, ImVec2(iconSize, iconSize),
 		uv0, uv1, ImVec4(0.06f, 0.06f, 0.06f, 1.0f))) {
@@ -614,8 +651,10 @@ void Engine::ProjectPanel::DrawAssetGridItem(const EditorPanelContext& context, 
 	ImGui::EndGroup();
 	// アイコンと名前のどちらにカーソルを当ててもツールチップを出すため、グループ全体で判定する
 	if (ImGui::BeginItemTooltip()) {
+		const AssetActionDescriptor* action = assetActionRegistry_.Find(asset.type);
+		const char* typeName = action ? action->displayName.c_str() : EnumAdapter<AssetType>::ToString(asset.type);
 		ImGui::Text("Path: %s", asset.assetPath.c_str());
-		ImGui::Text("Type: %s", EnumAdapter<AssetType>::ToString(asset.type));
+		ImGui::Text("Type: %s", typeName);
 		ImGui::Text("ID:   %s", Engine::ToString(asset.assetID).c_str());
 		ImGui::EndTooltip();
 	}
@@ -760,15 +799,13 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 		}
 		requestOpenDeletePopup_ = true;
 	}
-	if (asset.type == AssetType::Prefab) {
-
-		ImGui::Separator();
-		if (ImGui::MenuItem("Instantiate Prefab", nullptr, false, context.CanEditScene())) {
-
-			context.host->ExecuteEditorCommand(std::make_unique<InstantiatePrefabCommand>(asset.assetID));
+	// アセット種別固有の右クリック項目はRegistryへ委ねる
+	if (const AssetActionDescriptor* action = assetActionRegistry_.Find(asset.type)) {
+		if (action->onContextMenu) {
+			action->onContextMenu(context, asset);
 		}
 	}
-	// フォントソースは隣接MSDFの作り直し口を出す、game_charset編集後の反映にも使う
+	// フォントソースは隣接MSDFの作り直し項目を出す、game_charset編集後の反映にも使う
 	if (MSDFFontGenerator::IsFontSourceExtension(asset.assetPath)) {
 
 		ImGui::Separator();
@@ -943,6 +980,56 @@ void Engine::ProjectPanel::DrawDeleteAssetPopup(AssetDatabase& database) {
 	ImGui::EndPopup();
 }
 
+void Engine::ProjectPanel::RegisterAssetActions() {
+
+	// Sceneはエディターへ開く要求を出す
+	AssetActionDescriptor scene{};
+	scene.type = AssetType::Scene;
+	scene.displayName = "Scene";
+	scene.iconResolver = ResolveDefaultAssetIcon;
+	scene.onDoubleClick = [](const EditorPanelContext& context, const ProjectAssetEntry& asset) {
+		if (context.host) {
+			context.host->RequestOpenScene(asset.assetID);
+		}
+	};
+	scene.onDragSource = DrawDefaultAssetDragDropSource;
+	assetActionRegistry_.Register(std::move(scene));
+
+	// Prefabは隔離ワールドへ展開して編集モードへ入る、右クリックではインスタンス化項目を出す
+	AssetActionDescriptor prefab{};
+	prefab.type = AssetType::Prefab;
+	prefab.displayName = "Prefab";
+	prefab.iconResolver = ResolveDefaultAssetIcon;
+	prefab.onDoubleClick = [](const EditorPanelContext& context, const ProjectAssetEntry& asset) {
+		if (context.host) {
+			context.host->RequestEnterPrefabEdit(asset.assetID);
+		}
+	};
+	prefab.onContextMenu = [](const EditorPanelContext& context, const ProjectAssetEntry& asset) {
+
+		ImGui::Separator();
+		if (ImGui::MenuItem("Instantiate Prefab", nullptr, false, context.CanEditScene())) {
+
+			if (context.host) {
+				context.host->ExecuteEditorCommand(std::make_unique<InstantiatePrefabCommand>(asset.assetID));
+			}
+		}
+	};
+	prefab.onDragSource = DrawDefaultAssetDragDropSource;
+	assetActionRegistry_.Register(std::move(prefab));
+
+	// Scriptは共通IDE launcherで開く
+	AssetActionDescriptor script{};
+	script.type = AssetType::Script;
+	script.displayName = "Script";
+	script.iconResolver = ResolveDefaultAssetIcon;
+	script.onDoubleClick = [](const EditorPanelContext& /*context*/, const ProjectAssetEntry& asset) {
+		OpenScriptAssetInVisualStudio(asset);
+	};
+	script.onDragSource = DrawDefaultAssetDragDropSource;
+	assetActionRegistry_.Register(std::move(script));
+}
+
 void Engine::ProjectPanel::HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset) {
 
 	// .txtは専用エディタを持たないのでOS既定の関連付けで開く、game_charsetの編集はこの経路
@@ -953,24 +1040,12 @@ void Engine::ProjectPanel::HandleAssetDoubleClick(const EditorPanelContext& cont
 		return;
 	}
 
-	if (asset.type == AssetType::Scene) {
-		if (context.host) {
-			context.host->RequestOpenScene(asset.assetID);
+	// アセット種別ごとのダブルクリック処理はRegistryへ委ねる
+	if (const AssetActionDescriptor* action = assetActionRegistry_.Find(asset.type)) {
+		if (action->onDoubleClick) {
+			action->onDoubleClick(context, asset);
 		}
-		return;
 	}
-	if (asset.type == AssetType::Prefab) {
-		// プレファブはエンジン側で隔離ワールドへ展開して編集モードへ入る
-		if (context.host) {
-			context.host->RequestEnterPrefabEdit(asset.assetID);
-		}
-		return;
-	}
-	if (asset.type != AssetType::Script) {
-		return;
-	}
-
-	OpenScriptAssetInVisualStudio(asset);
 }
 
 bool Engine::ProjectPanel::SaveDroppedEntityAsPrefab(const EditorPanelContext& context,

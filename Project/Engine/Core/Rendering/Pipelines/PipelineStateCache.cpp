@@ -53,6 +53,9 @@ namespace {
 		switch (variant.pipelineType) {
 		case Engine::PipelineType::Vertex:
 
+			if (!vs || !ps) {
+				return false;
+			}
 			outDesc.preRaster.file = vs->file;
 			outDesc.preRaster.entry = ResolveEntryOrDefault(vs);
 			outDesc.preRaster.profile = ResolveProfileOrDefault(Engine::ShaderStage::VS, vs);
@@ -78,6 +81,9 @@ namespace {
 			break;
 		case Engine::PipelineType::Mesh:
 
+			if (!ms || !ps) {
+				return false;
+			}
 			outDesc.preRaster.file = ms->file;
 			outDesc.preRaster.entry = ResolveEntryOrDefault(ms);
 			outDesc.preRaster.profile = ResolveProfileOrDefault(Engine::ShaderStage::MS, ms);
@@ -128,6 +134,9 @@ namespace {
 
 		// シェーダーステージのエントリを取得
 		const Engine::ShaderStageEntry* cs = Engine::FindShaderStage(shaderAsset, Engine::ShaderStage::CS);
+		if (!cs) {
+			return false;
+		}
 		outDesc.compute.file = cs->file;
 		outDesc.compute.entry = ResolveEntryOrDefault(cs);
 		outDesc.compute.profile = ResolveProfileOrDefault(Engine::ShaderStage::CS, cs);
