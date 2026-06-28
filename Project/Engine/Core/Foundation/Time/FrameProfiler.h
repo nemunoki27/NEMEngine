@@ -42,7 +42,6 @@ namespace Engine {
 			std::string name;
 			float milliseconds = 0.0f;
 		};
-		// 後方互換のための別名
 		using GPUPassTime = NamedTime;
 
 		static FrameProfiler& GetInstance();

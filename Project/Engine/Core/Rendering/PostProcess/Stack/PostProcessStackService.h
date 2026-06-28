@@ -63,20 +63,20 @@ namespace Engine {
 		void RebuildRuntime();
 
 		// マテリアルのリフレクション情報をキャッシュする
-		void CacheReflection(AssetID materialId,
+		void CacheReflection(AssetID materialID,
 			const std::vector<ShaderConstantBufferVariable>& vars,
 			const std::vector<ShaderResourceBinding>& srvBindings);
 		// キャッシュ済みCBufferリフレクション変数を取得する
-		const std::vector<ShaderConstantBufferVariable>* FindReflectionVars(AssetID materialId) const;
+		const std::vector<ShaderConstantBufferVariable>* FindReflectionVars(AssetID materialID) const;
 		// キャッシュ済みSRVバインディングを取得する
-		const std::vector<ShaderResourceBinding>* FindReflectionSRVs(AssetID materialId) const;
+		const std::vector<ShaderResourceBinding>* FindReflectionSRVs(AssetID materialID) const;
 		// 指定マテリアルのリフレクションキャッシュを削除する
-		void ClearReflection(AssetID materialId);
+		void ClearReflection(AssetID materialID);
 
 		// シェーダーリロードを要求する
-		void RequestShaderReload(AssetID materialId);
+		void RequestShaderReload(AssetID materialID);
 		// リロード要求を取り出し存在した場合はtrueを返し要求を削除する
-		bool TakeReloadRequest(AssetID materialId);
+		bool TakeReloadRequest(AssetID materialID);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -94,8 +94,8 @@ namespace Engine {
 		const PreviewImage& GetPreviewImage() const { return preview_; }
 
 		// プレビュー対象のパスIDを設定する(エディタの選択中パスをPostProcessStackPassへ伝える)
-		void SetPreviewPassId(const UUID& id) { previewPassId_ = id; }
-		const UUID& GetPreviewPassId() const { return previewPassId_; }
+		void SetPreviewPassId(const UUID& id) { previewPassID_ = id; }
+		const UUID& GetPreviewPassId() const { return previewPassID_; }
 
 		// シングルトンインスタンスを取得する
 		static PostProcessStackService& GetInstance();
@@ -118,6 +118,6 @@ namespace Engine {
 		std::unordered_set<AssetID> pendingReflectionReloads_{};
 
 		PreviewImage preview_{};
-		UUID previewPassId_{};
+		UUID previewPassID_{};
 	};
 } // Engine

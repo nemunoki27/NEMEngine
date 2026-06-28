@@ -66,12 +66,12 @@ namespace Engine {
 		// ネイティブMonoBehaviorは保存対象を持たないため既定で空
 		virtual nlohmann::json GetRuntimeSerializedState() { return nlohmann::json::object(); }
 		// runtime instanceの単一fieldを即時更新する、authoringへは保存しない
-		virtual void SetRuntimeSerializedField([[maybe_unused]] const std::string& fieldId,
+		virtual void SetRuntimeSerializedField([[maybe_unused]] const std::string& fieldID,
 			[[maybe_unused]] const nlohmann::json& value) {}
 
 		// 所属するScriptEntryのscriptSlotIDを渡しC#へ転送してEnabled制御のidentityにする
 		// ネイティブMonoBehaviorは使わないため既定でno-op
-		virtual void SetSlotId([[maybe_unused]] uint64_t scriptSlotId) {}
+		virtual void SetSlotID([[maybe_unused]] uint64_t scriptSlotID) {}
 
 		// 実体のmanaged instance等を必要なら生成する、生成済み/不要ならtrueを返す
 		// inactive hierarchyでもライフサイクル前に全件生成するために使う

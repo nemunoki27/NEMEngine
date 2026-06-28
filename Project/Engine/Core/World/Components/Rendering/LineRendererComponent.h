@@ -4,10 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
-#include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
-#include <Engine/Core/Rendering/Renderer/Queues/RenderPhase.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineRenderTypes.h>
-#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 
 // c++

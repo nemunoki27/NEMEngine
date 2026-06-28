@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Renderer/Views/ViewportRenderService.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
@@ -20,7 +20,7 @@
 #include <Engine/Editor/Core/SceneViewInteractionPolicy.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 
-// パネル群、生成はファクトリへ集約する
+// パネル群
 #include <Engine/Editor/UI/Panels/Builtin/BuiltinEditorPanelRegistration.h>
 #include <Engine/Editor/Tools/Builtin/BuiltinEditorTools.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
@@ -95,7 +95,7 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 
 	// ImGuiの初期化
 	imguiManager_.Init(engineContext.GetWinApp()->GetHwnd(), graphicsCore.GetSwapChainDesc().BufferCount,
-		graphicsPlatform.GetDevice(), graphicsPlatform.GetDxCommand()->GetQueue(),
+		graphicsPlatform.GetDevice(), graphicsPlatform.GetCommandQueue()->GetQueue(),
 		&graphicsCore.GetSRVDescriptor(), graphicsSetting.swapChainFormat, DXGI_FORMAT_D24_UNORM_S8_UINT);
 
 	// ImGuizmoのImGuiコンテキストを設定
@@ -125,7 +125,7 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 		Engine::ToolRegistry::GetInstance().Find("engine.sceneViewCamera"));
 	LoadViewportPanelState();
 
-	// 各パネルの生成と登録、生成順と依存注入はファクトリへ集約する
+	// 各パネルの生成と登録
 	EditorPanelCreateContext panelCreateContext{ graphicsCore.GetTextureUploadService() };
 	for (auto& panel : CreateBuiltinEditorPanels(panelCreateContext)) {
 		panels_.emplace_back(std::move(panel));
@@ -688,7 +688,7 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			auto selectHit = [&](const Entity& hit) {
 				editorState_.scenePickDragEntity = hit;
 				editorState_.scenePickCandidateSubMesh = 0;
-				editorState_.scenePickCandidateSubMeshId = UUID{};
+				editorState_.scenePickCandidateSubMeshID = UUID{};
 				};
 
 			// SceneView専用Overlayは通常2D/TLASより優先してEntity単位で選択する
@@ -869,8 +869,18 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 		}
 	}
 
-	// シーンビューのメッシュピック処理の結果を使用する
-	meshSubMeshPicker_->ConsumePendingResult(context.activeWorld, editorState_);
+	// シーンビューのメッシュピック処理の結果を選択状態へ適用する
+	const MeshSubMeshPickOutcome pickOutcome = meshSubMeshPicker_->ConsumePendingResult(context.activeWorld);
+	if (pickOutcome.committed) {
+
+		// ヒットなしは選択解除、ヒット時のみ候補サブメッシュを更新する
+		editorState_.scenePickDragEntity = pickOutcome.hit ? pickOutcome.entity : Entity::Null();
+		if (pickOutcome.hit) {
+			editorState_.scenePickCandidateSubMesh = pickOutcome.subMeshIndex;
+			editorState_.scenePickCandidateSubMeshID = pickOutcome.subMeshStableID;
+		}
+		editorState_.CommitScenePick(*context.activeWorld);
+	}
 
 	editorState_.ValidateSelection(context.activeWorld);
 
@@ -925,7 +935,7 @@ void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorC
 		return;
 	}
 
-	// スナップグリッドの表示判定はSceneViewInteractionPolicyへ集約し、ここは結果を描画するだけにする
+	// スナップグリッドの表示判定の結果を描画するだけにする
 	const SceneViewSnapGridDecision gridDecision =
 		ResolveSceneViewSnapGridDecision(editorState_, context.activeWorld);
 	if (gridDecision.visible) {

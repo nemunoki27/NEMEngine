@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
@@ -48,7 +48,6 @@ namespace {
 			cache.fontSize != renderer.fontSize || cache.charSpacing != renderer.charSpacing;
 	}
 
-	// //追加:
 	// レイアウトだけをキャッシュする
 	bool RebuildTextLayoutCache(const Engine::MSDFFontAsset& font, Engine::TextRendererComponent& renderer) {
 

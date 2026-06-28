@@ -125,7 +125,7 @@ nlohmann::json Engine::GraphSerializer::ToJson(const GraphDocument& document) {
 	nlohmann::json data = nlohmann::json::object();
 	data["version"] = document.version;
 	data["graphType"] = document.graphType;
-	data["nextId"] = document.nextId;
+	data["nextId"] = document.nextID;
 	data["metadata"] = document.metadata;
 
 	data["nodes"] = nlohmann::json::array();
@@ -157,7 +157,7 @@ bool Engine::GraphSerializer::FromJson(const nlohmann::json& data, GraphDocument
 	GraphDocument temp{};
 	temp.version = data.value("version", 1u);
 	temp.graphType = data.value("graphType", "");
-	temp.nextId = data.value("nextId", 1ull);
+	temp.nextID = data.value("nextId", 1ull);
 	temp.metadata = data.value("metadata", nlohmann::json::object());
 
 	if (data.contains("nodes") && data["nodes"].is_array()) {

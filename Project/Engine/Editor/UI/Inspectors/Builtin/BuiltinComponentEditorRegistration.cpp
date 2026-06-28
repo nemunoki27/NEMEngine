@@ -60,64 +60,56 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 	MeshRendererInspectorDrawer*& meshRendererDrawer) {
 
 	// Transformは描画登録だけ行い追加削除メニューには出さない
-	ComponentEditorDescriptor transformDescriptor = MakeComponentEditorDescriptor<TransformInspectorDrawer>(
-		"Transform", "Transform", "Core");
+	ComponentEditorDescriptor transformDescriptor = MakeComponentEditorDescriptor<TransformInspectorDrawer>("Transform", "Transform", "Core");
 	transformDescriptor.showInComponentMenu = false;
 	registry.Register(std::move(transformDescriptor));
-	registry.Register(MakeComponentEditorDescriptor<PerspectiveCameraInspectorDrawer>(
-		"PerspectiveCamera", "PerspectiveCamera", "Camera"));
-	registry.Register(MakeComponentEditorDescriptor<OrthographicCameraInspectorDrawer>(
-		"OrthographicCamera", "OrthographicCamera", "Camera"));
-	registry.Register(MakeComponentEditorDescriptor<CameraControllerInspectorDrawer>(
-		"Camera Controller", "CameraController", "Camera"));
-
-	// Scriptは複数追加可能で専用の追加コマンドを使う
-	ComponentEditorDescriptor scriptDescriptor = MakeComponentEditorDescriptor<ScriptInspectorDrawer>(
-		"Script", "Script", "Scripting");
-	scriptDescriptor.allowMultiple = true;
-	scriptDescriptor.addCommandFactory = [](const Entity& entity) {
-		return std::make_unique<AddScriptEntryCommand>(entity);
-	};
-	registry.Register(std::move(scriptDescriptor));
-
-	registry.Register(MakeComponentEditorDescriptor<AudioSourceInspectorDrawer>(
-		"Audio Source", "AudioSource", "Audio"));
-	registry.Register(MakeComponentEditorDescriptor<CollisionInspectorDrawer>(
-		"Collision", "Collision", "Physics"));
-	registry.Register(MakeComponentEditorDescriptor<RigidbodyInspectorDrawer>(
-		"Rigidbody", "Rigidbody", "Physics"));
-	registry.Register(MakeComponentEditorDescriptor<Rigidbody2DInspectorDrawer>(
-		"Rigidbody 2D", "Rigidbody2D", "Physics"));
-
-	// MeshRendererはモデルプレビューで使う参照を呼び出し側へ返す
-	meshRendererDrawer = static_cast<MeshRendererInspectorDrawer*>(registry.Register(
-		MakeComponentEditorDescriptor<MeshRendererInspectorDrawer>("Mesh Renderer", "MeshRenderer", "Rendering")));
-	registry.Register(MakeComponentEditorDescriptor<SpriteRendererInspectorDrawer>(
-		"Sprite Renderer", "SpriteRenderer", "Rendering"));
-	registry.Register(MakeComponentEditorDescriptor<TextRendererInspectorDrawer>(
-		"Text Renderer", "TextRenderer", "Rendering"));
-	registry.Register(MakeComponentEditorDescriptor<LineRendererInspectorDrawer>(
-		"Line Renderer", "LineRenderer", "Rendering"));
-	registry.Register(MakeComponentEditorDescriptor<UVTransformInspectorDrawer>(
-		"UVTransform", "UVTransform", "Rendering"));
-	registry.Register(MakeComponentEditorDescriptor<BillboardInspectorDrawer>(
-		"Billboard", "Billboard", "Rendering"));
-	registry.Register(MakeComponentEditorDescriptor<InvertedHullOutlineInspectorDrawer>(
-		"Inverted Hull Outline", "InvertedHullOutline", "Rendering"));
-	registry.Register(MakeComponentEditorDescriptor<ScreenSpaceOutlineInspectorDrawer>(
-		"Screen Space Outline", "ScreenSpaceOutline", "Rendering"));
-	registry.Register(MakeComponentEditorDescriptor<SkyboxRendererInspectorDrawer>(
-		"Skybox Renderer", "SkyboxRenderer", "Rendering"));
-
-	registry.Register(MakeComponentEditorDescriptor<SkinnedAnimationInspectorDrawer>(
-		"Skinned Animation", "SkinnedAnimation", "Animation"));
-	registry.Register(MakeComponentEditorDescriptor<AnimationPlayerInspectorDrawer>(
-		"Animation Player", "AnimationPlayer", "Animation"));
-
-	registry.Register(MakeComponentEditorDescriptor<DirectionalLightInspectorDrawer>(
-		"DirectionalLight", "DirectionalLight", "Lighting"));
-	registry.Register(MakeComponentEditorDescriptor<PointLightInspectorDrawer>(
-		"PointLight", "PointLight", "Lighting"));
-	registry.Register(MakeComponentEditorDescriptor<SpotLightInspectorDrawer>(
-		"SpotLight", "SpotLight", "Lighting"));
+	// オーディオ
+	{
+		registry.Register(MakeComponentEditorDescriptor<AudioSourceInspectorDrawer>("Audio Source", "AudioSource", "Audio"));
+	}
+	// カメラ
+	{
+		registry.Register(MakeComponentEditorDescriptor<PerspectiveCameraInspectorDrawer>("PerspectiveCamera", "PerspectiveCamera", "Camera"));
+		registry.Register(MakeComponentEditorDescriptor<OrthographicCameraInspectorDrawer>("OrthographicCamera", "OrthographicCamera", "Camera"));
+		registry.Register(MakeComponentEditorDescriptor<CameraControllerInspectorDrawer>("Camera Controller", "CameraController", "Camera"));
+	}
+	// 衝突
+	{
+		registry.Register(MakeComponentEditorDescriptor<CollisionInspectorDrawer>("Collision", "Collision", "Physics"));
+		registry.Register(MakeComponentEditorDescriptor<RigidbodyInspectorDrawer>("Rigidbody", "Rigidbody", "Physics"));
+		registry.Register(MakeComponentEditorDescriptor<Rigidbody2DInspectorDrawer>("Rigidbody 2D", "Rigidbody2D", "Physics"));
+	}
+	// 描画系
+	{
+		meshRendererDrawer = static_cast<MeshRendererInspectorDrawer*>(registry.Register(MakeComponentEditorDescriptor<
+			MeshRendererInspectorDrawer>("Mesh Renderer", "MeshRenderer", "Rendering")));
+		registry.Register(MakeComponentEditorDescriptor<SpriteRendererInspectorDrawer>("Sprite Renderer", "SpriteRenderer", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<TextRendererInspectorDrawer>("Text Renderer", "TextRenderer", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<SkyboxRendererInspectorDrawer>("Skybox Renderer", "SkyboxRenderer", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<LineRendererInspectorDrawer>("Line Renderer", "LineRenderer", "Rendering"));
+	}
+	{
+		registry.Register(MakeComponentEditorDescriptor<UVTransformInspectorDrawer>("UVTransform", "UVTransform", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<BillboardInspectorDrawer>("Billboard", "Billboard", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<InvertedHullOutlineInspectorDrawer>("Inverted Hull Outline", "InvertedHullOutline", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<ScreenSpaceOutlineInspectorDrawer>("Screen Space Outline", "ScreenSpaceOutline", "Rendering"));
+	}
+	// アニメーション系
+	{
+		registry.Register(MakeComponentEditorDescriptor<SkinnedAnimationInspectorDrawer>("Skinned Animation", "SkinnedAnimation", "Animation"));
+		registry.Register(MakeComponentEditorDescriptor<AnimationPlayerInspectorDrawer>("Animation Player", "AnimationPlayer", "Animation"));
+	}
+	// ライト系
+	{
+		registry.Register(MakeComponentEditorDescriptor<DirectionalLightInspectorDrawer>("DirectionalLight", "DirectionalLight", "Lighting"));
+		registry.Register(MakeComponentEditorDescriptor<PointLightInspectorDrawer>("PointLight", "PointLight", "Lighting"));
+		registry.Register(MakeComponentEditorDescriptor<SpotLightInspectorDrawer>("SpotLight", "SpotLight", "Lighting"));
+	}
+	// スクリプト
+	{
+		ComponentEditorDescriptor scriptDescriptor = MakeComponentEditorDescriptor<ScriptInspectorDrawer>("Script", "Script", "Scripting");
+		scriptDescriptor.allowMultiple = true;
+		scriptDescriptor.addCommandFactory = [](const Entity& entity) {return std::make_unique<AddScriptEntryCommand>(entity); };
+		registry.Register(std::move(scriptDescriptor));
+	}
 }

@@ -37,8 +37,6 @@ namespace Engine {
 		RenderPassItemList& Get(RenderPhase phase);
 		// 指定フェーズのバケットを取得する
 		const RenderPassItemList& Get(RenderPhase phase) const;
-		// 指定フェーズのバケットを参照する
-		const RenderPassItemList* Find(RenderPhase phase) const;
 	};
 
 	//============================================================================

@@ -31,7 +31,7 @@ namespace Engine {
 		bool managed = false;
 
 		// managed scriptの安定識別子で正規化済みGUID文字列の永続主キー
-		std::string scriptTypeId;
+		std::string scriptTypeID;
 		// 表示名
 		std::string displayName;
 		// 定義元.csパスでdrag&dropのsource照合用、永続識別には使わない
@@ -60,7 +60,7 @@ namespace Engine {
 		template <typename T>
 		uint32_t Register(const std::string_view& name);
 		// C#スクリプトの型をStable GUID主キーで登録する
-		uint32_t RegisterManaged(const std::string_view& scriptTypeId, const std::string_view& fullName,
+		uint32_t RegisterManaged(const std::string_view& scriptTypeID, const std::string_view& fullName,
 			const std::string_view& displayName, const std::string_view& sourcePath, int32_t defaultExecutionOrder = 0);
 		// C#スクリプトの型登録をクリア
 		void ClearManaged();
@@ -69,7 +69,7 @@ namespace Engine {
 
 		const BehaviorTypeInfo& GetInfo(uint32_t id) const;
 		// Stable Script Type GUIDで解決するruntime解決の正
-		const BehaviorTypeInfo* FindByStableScriptTypeID(const std::string_view& scriptTypeId) const;
+		const BehaviorTypeInfo* FindByStableScriptTypeID(const std::string_view& scriptTypeID) const;
 		// 完全修飾型名で解決するlegacy移行と表示用
 		const BehaviorTypeInfo* FindByName(const std::string_view& name) const;
 		// 単純名で解決するlegacy移行用で複数候補なら曖昧としてnullptr

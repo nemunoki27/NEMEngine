@@ -46,14 +46,14 @@ namespace Engine {
 
 		// Play中runtime Inspector用にBehaviorHandleからlive instanceの現在値を取得設定
 		static nlohmann::json GetRuntimeSerializedState(BehaviorHandle handle);
-		static void SetRuntimeSerializedField(BehaviorHandle handle, const std::string& fieldId, const nlohmann::json& value);
+		static void SetRuntimeSerializedField(BehaviorHandle handle, const std::string& fieldID, const nlohmann::json& value);
 
 		// ScriptBehaviour.Enabled用にowner EntityとscriptSlotIDでruntime entryを特定
 		static int32_t GetScriptEnabled(const Entity& owner, const UUID& scriptSlotID);
 		static void SetScriptEnabled(const Entity& owner, const UUID& scriptSlotID, bool enabled);
 
-		// GetComponent<Script>用にowner Entity上でscriptTypeId一致のscript instanceを返す、未解決はnullptr
-		static MonoBehavior* FindScriptInstance(const Entity& owner, const std::string& scriptTypeId);
+		// GetComponent<Script>用にowner Entity上でscriptTypeID一致のscript instanceを返す、未解決はnullptr
+		static MonoBehavior* FindScriptInstance(const Entity& owner, const std::string& scriptTypeID);
 
 		// participant cacheを再ソート
 		static void InvalidateExecutionOrder();

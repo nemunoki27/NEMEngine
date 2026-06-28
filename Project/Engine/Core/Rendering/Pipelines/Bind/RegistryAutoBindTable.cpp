@@ -15,11 +15,11 @@ void RegistryAutoBindTable::Sync(const PipelineState& pipeline,
 	const RenderBufferRegistry& registry) {
 
 	// パイプライン・レジストリ実体・エントリ数が変わっていなければキャッシュを再利用
-	if (&pipeline == lastPipeline_ && &registry == lastRegistry_ &&
+	if (pipeline.GetUniqueID() == lastPipelineID_ && &registry == lastRegistry_ &&
 		registry.GetCount() == lastRegistryCount_) {
 		return;
 	}
-	lastPipeline_ = &pipeline;
+	lastPipelineID_ = pipeline.GetUniqueID();
 	lastRegistry_ = &registry;
 	lastRegistryCount_ = registry.GetCount();
 	resolvedEntries_.clear();

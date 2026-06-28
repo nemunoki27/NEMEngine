@@ -5,7 +5,8 @@
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
-#include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
+#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
+#include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 
 //============================================================================
 //	MeshSubMeshAuthoring classMethods
@@ -13,7 +14,6 @@
 namespace {
 
 	// モデルのマテリアル係数とテクスチャをparameterOverridesへ流す、overwrite=falseは未設定のみ
-	// param名とモデル係数の対応はインポーター側のここに集約する
 	bool ApplyLayoutItemToSubMesh(Engine::SubMeshMaterial& subMesh,
 		const Engine::MeshSubMeshLayoutItem& item, bool overwrite) {
 
@@ -55,20 +55,6 @@ namespace {
 		return changed;
 	}
 
-	// サブメッシュ表示名生成
-	std::string BuildSubMeshName(const aiMesh* mesh, uint32_t meshIndex, const aiMaterial* material) {
-
-		if (mesh && mesh->mName.length > 0) {
-			return mesh->mName.C_Str();
-		}
-		if (material) {
-			aiString materialName;
-			if (material->Get(AI_MATKEY_NAME, materialName) == AI_SUCCESS && materialName.length > 0) {
-				return materialName.C_Str();
-			}
-		}
-		return "SubMesh_" + std::to_string(meshIndex);
-	}
 	Engine::Vector3 ComputeMeshLocalCenter(const aiMesh* mesh) {
 
 		if (!mesh || mesh->mNumVertices == 0) {
@@ -129,7 +115,7 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 			scene->mMaterials[mesh->mMaterialIndex] : nullptr;
 		MeshSubMeshLayoutItem item{};
 		item.sourceSubMeshIndex = meshIndex;
-		item.name = BuildSubMeshName(mesh, meshIndex, material);
+		item.name = Engine::MeshImportUtility::BuildSubMeshName(mesh, meshIndex, material);
 		item.sourcePivot = ComputeMeshLocalCenter(mesh);
 
 		if (material && assetDatabase) {

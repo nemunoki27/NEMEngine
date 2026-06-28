@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 
 //============================================================================
 //	LineBatchResources classMethods

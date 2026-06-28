@@ -12,11 +12,11 @@
 #include <cmath>
 
 //============================================================================
-//	SkinnedAnimationUpdateSystem classMethods
+//	SkinnedAnimationSystem classMethods
 //============================================================================
 
 template<>
-Engine::Vector3 Engine::SkinnedAnimationUpdateSystem::SampleKeyframes<Engine::Vector3>(
+Engine::Vector3 Engine::SkinnedAnimationSystem::SampleKeyframes<Engine::Vector3>(
 	const std::vector<KeyframeVector3>& keys, float time) {
 
 	if (keys.empty()) {
@@ -47,7 +47,7 @@ Engine::Vector3 Engine::SkinnedAnimationUpdateSystem::SampleKeyframes<Engine::Ve
 }
 
 template<>
-Engine::Quaternion Engine::SkinnedAnimationUpdateSystem::SampleKeyframes<Engine::Quaternion>(
+Engine::Quaternion Engine::SkinnedAnimationSystem::SampleKeyframes<Engine::Quaternion>(
 	const std::vector<KeyframeQuaternion>& keys, float time) {
 
 	if (keys.empty()) {
@@ -77,7 +77,7 @@ Engine::Quaternion Engine::SkinnedAnimationUpdateSystem::SampleKeyframes<Engine:
 	return Engine::Quaternion::Lerp(prev.value, next.value, t).Normalize();
 }
 
-void Engine::SkinnedAnimationUpdateSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
+void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
 
 	// MeshRendererComponentとSkinnedAnimationComponentを持つエンティティに対して処理を行う
 	world.ForEach<MeshRendererComponent, SkinnedAnimationComponent>([&]([[maybe_unused]] const Entity& entity,
@@ -239,7 +239,7 @@ void Engine::SkinnedAnimationUpdateSystem::LateUpdate(ECSWorld& world, SystemCon
 		});
 }
 
-void Engine::SkinnedAnimationUpdateSystem::ApplyClipToSkeleton(Skeleton& skeleton,
+void Engine::SkinnedAnimationSystem::ApplyClipToSkeleton(Skeleton& skeleton,
 	const std::vector<const NodeAnimation*>& jointTracks, float time) {
 
 	if (skeleton.joints.empty()) {
@@ -278,7 +278,7 @@ void Engine::SkinnedAnimationUpdateSystem::ApplyClipToSkeleton(Skeleton& skeleto
 	}
 }
 
-void Engine::SkinnedAnimationUpdateSystem::BlendClipsToSkeleton(Skeleton& skeleton,
+void Engine::SkinnedAnimationSystem::BlendClipsToSkeleton(Skeleton& skeleton,
 	const std::vector<const NodeAnimation*>& fromTracks, float fromTime,
 	const std::vector<const NodeAnimation*>& toTracks, float toTime, float alpha) {
 
@@ -346,7 +346,7 @@ void Engine::SkinnedAnimationUpdateSystem::BlendClipsToSkeleton(Skeleton& skelet
 	}
 }
 
-void Engine::SkinnedAnimationUpdateSystem::UpdateSkeletonHierarchy(Skeleton& skeleton) {
+void Engine::SkinnedAnimationSystem::UpdateSkeletonHierarchy(Skeleton& skeleton) {
 
 	for (auto& joint : skeleton.joints) {
 
@@ -364,7 +364,7 @@ void Engine::SkinnedAnimationUpdateSystem::UpdateSkeletonHierarchy(Skeleton& ske
 	}
 }
 
-void Engine::SkinnedAnimationUpdateSystem::BuildPalette(const Skeleton& skeleton,
+void Engine::SkinnedAnimationSystem::BuildPalette(const Skeleton& skeleton,
 	const SkinCluster& skinCluster, std::vector<WellForGPU>& outPalette) {
 
 	outPalette.resize(skeleton.joints.size());
@@ -385,7 +385,7 @@ void Engine::SkinnedAnimationUpdateSystem::BuildPalette(const Skeleton& skeleton
 	}
 }
 
-std::string Engine::SkinnedAnimationUpdateSystem::ResolveInitialClip(
+std::string Engine::SkinnedAnimationSystem::ResolveInitialClip(
 	const SkinnedMeshAnimationSet& animationSet, const std::string& requestedClip) {
 
 	if (!requestedClip.empty()) {

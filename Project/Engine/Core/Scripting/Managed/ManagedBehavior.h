@@ -22,7 +22,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		ManagedBehavior(std::string scriptTypeId, std::string displayName);
+		ManagedBehavior(std::string scriptTypeID, std::string displayName);
 		~ManagedBehavior() override = default;
 
 		// シリアライズフィールドを設定する
@@ -30,10 +30,10 @@ namespace Engine {
 
 		// Play中runtime Inspector用：C#インスタンスの現在値取得/単一field即時設定
 		nlohmann::json GetRuntimeSerializedState() override;
-		void SetRuntimeSerializedField(const std::string& fieldId, const nlohmann::json& value) override;
+		void SetRuntimeSerializedField(const std::string& fieldID, const nlohmann::json& value) override;
 
 		// scriptSlotIDを受け取り、CreateInstance時にC#へ転送する
-		void SetSlotId(uint64_t scriptSlotId) override { scriptSlotId_ = scriptSlotId; }
+		void SetSlotID(uint64_t scriptSlotID) override { scriptSlotID_ = scriptSlotID; }
 
 		// C#インスタンスを未生成なら生成し、生成可否を返す
 		bool EnsureInstance(ECSWorld& world, const Entity& entity) override;
@@ -68,11 +68,11 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		// C#側のStable Script Type GUIDでinstance生成のキー
-		std::string scriptTypeId_;
+		std::string scriptTypeID_;
 		// 表示名で診断ログ用
 		std::string displayName_;
 		// 所属ScriptEntryのscriptSlotID、C#のEnabled制御identityでCreateInstance時に転送する
-		uint64_t scriptSlotId_ = 0;
+		uint64_t scriptSlotID_ = 0;
 		// ScriptComponentから渡されたシリアライズ値
 		nlohmann::json serializedFields_ = nlohmann::json::object();
 		// C#側インスタンスハンドルで世代付き、未生成はNull

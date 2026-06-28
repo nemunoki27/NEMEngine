@@ -8,20 +8,14 @@
 
 // directX
 #include <d3d12.h>
-#include <dxgi1_6.h>
 // c++
 #include <cstdint>
 #include <vector>
-#include <array>
 #include <optional>
-#include <chrono>
-#include <thread>
-#include <future>
-#include <string_view>
 
 //============================================================================
 //	DxCommand class
-// Direct3D12のコマンドキュー/アロケータ/リストを管理し、実行と同期を提供する
+// コマンドリストとアロケータを保持し描画コマンドの記録を提供する
 //============================================================================
 namespace Engine {
 
@@ -34,17 +28,13 @@ public:
 	DxCommand() = default;
 	~DxCommand() = default;
 
-	// デバイスからキュー/アロケータ/リスト/フェンスを生成し初期化する
+	// デバイスからアロケータ/リストを生成し初期化する
 	void Create(ID3D12Device* device);
 
-	// コマンドをキューへ提出し必要に応じてPresent前の処理に備える
-	void ExecuteCommands(IDXGISwapChain4* swapChain);
-
-	// フェンスを用いてGPU完了まで待機する
-	void WaitForGPU();
-
-	// 終了処理:フェンス/イベント等のリソースを破棄する
-	void Finalize(HWND hwnd);
+	// 提出前にコマンドリストを閉じる
+	void CloseCommandList();
+	// 次フレーム用にアロケータとコマンドリストをリセットする
+	void ResetCommandList();
 
 	// ルートで使用するディスクリプタヒープ配列をセットする
 	void SetDescriptorHeaps(const std::vector<ID3D12DescriptorHeap*>& descriptorHeaps);
@@ -83,42 +73,16 @@ public:
 
 	//--------- accessor -----------------------------------------------------
 
-	ID3D12CommandQueue* GetQueue() const { return commandQueue_.Get(); }
 	ID3D12GraphicsCommandList6* GetCommandList() const { return commandList_.Get(); }
 private:
 	//============================================================================
 	//	private Methods
 	//============================================================================
 
-		//--------- variables ----------------------------------------------------
-
-	ComPtr<ID3D12Device> device_;
+	//--------- variables ----------------------------------------------------
 
 	ComPtr<ID3D12GraphicsCommandList6> commandList_;
 	ComPtr<ID3D12CommandAllocator> commandAllocator_;
-
-	ComPtr<ID3D12CommandQueue> commandQueue_;
-
-	ComPtr<ID3D12Fence> fence_;
-	uint64_t fenceValue_;
-	HANDLE fenceEvent_;
-	// FPS待機を低CPUのsleep主体にする高解像度waitableタイマーでnullなら従来のspinへフォールバックする
-	HANDLE frameTimer_ = nullptr;
-
-	std::chrono::steady_clock::time_point reference_;
-
-	//--------- functions ----------------------------------------------------
-
-	// 特定のフェンス値を診断可能ループで待機する
-	bool WaitForFenceValue(uint64_t expectedValue, std::string_view operation);
-
-	// グラフィックスパスのコマンドを提出する
-	void ExecuteGraphicsCommands(IDXGISwapChain4* swapChain);
-	// フェンス値をシグナルし、イベントによる待機を設定する
-	void FenceEvent();
-	// 固定FPS向けにCPU側の待機/時間調整を行う
-	void UpdateFixFPS();
 };
 
 }; // Engine
-

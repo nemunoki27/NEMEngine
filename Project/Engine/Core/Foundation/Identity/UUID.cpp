@@ -70,7 +70,7 @@ std::optional<Engine::UUID> Engine::TryParseUUID16Hex(std::string_view text) noe
 
 Engine::UUID Engine::FromString16Hex(std::string_view text) noexcept {
 
-	// パースの実体はTryParseUUID16Hexに一本化し、不正な入力は無効値を返す
+	// 不正な入力は無効値を返す
 	const std::optional<UUID> parsed = TryParseUUID16Hex(text);
 	return parsed ? *parsed : UUID{};
 }

@@ -11,6 +11,7 @@
 #include <d3d12.h>
 
 // c++
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 
@@ -56,8 +57,9 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// パイプラインごとのレイアウトキャッシュ、reflection解析を毎回しない
-		std::unordered_map<const PipelineState*, MaterialParameterLayout> layoutCache_{};
+		// パイプライン一意IDごとのレイアウトキャッシュ、reflection解析を毎回しない
+		// 破棄後の同アドレス再利用による誤ヒットを避けるためポインタではなくIDで引く
+		std::unordered_map<uint64_t, MaterialParameterLayout> layoutCache_{};
 		PostProcessConstantBufferAllocator allocator_{};
 	};
 } // Engine

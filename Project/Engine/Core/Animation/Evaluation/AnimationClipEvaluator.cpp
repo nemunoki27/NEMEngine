@@ -446,7 +446,7 @@ namespace {
 		const Engine::AnimationClipAsset& clip, const Engine::AnimationResolvedTime& time,
 		const Engine::AnimationPropertyValue* baseValueOrNull, Engine::AnimationPropertyValue& out) {
 
-		// 適用と値評価で同じ計算を使うため、書き込み手前までの最終値計算をここへまとめる
+		// 適用と値評価で同じ計算を使うため、書き込み手前までの最終値を計算する
 		if (!HasAnyKey(track)) {
 			return false;
 		}

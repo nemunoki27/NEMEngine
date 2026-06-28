@@ -7,7 +7,7 @@
 #include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
-#include <Engine/Core/Rendering/Renderer/Views/SceneViewCameraController.h>
+#include <Engine/Editor/Tools/Builtin/Camera/SceneViewCameraController.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshPicker.h>
 #include <Engine/Core/Rendering/Renderer/SceneComponentOverlay/SceneComponentOverlayPicker.h>

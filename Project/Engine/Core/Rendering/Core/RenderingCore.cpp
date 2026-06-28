@@ -27,16 +27,16 @@ void Engine::GraphicsCore::Init() {
 
 	// スワップチェーン初期化
 	swapChain_ = std::make_unique<DxSwapChain>();
-	swapChain_->Create(engineContext_->GetWinApp(), graphicsPlatform_->GetDxgiFactory(), graphicsPlatform_->GetDxCommand()->GetQueue(),
+	swapChain_->Create(engineContext_->GetWinApp(), graphicsPlatform_->GetDxgiFactory(), graphicsPlatform_->GetCommandQueue()->GetQueue(),
 		rtvDescriptor_.get(), window.engineSize.x, window.engineSize.y, graphics.swapChainFormat, graphics.clearColor);
 
 	// 静的GPUバッファ転送サービスの初期化(テクスチャ用とは独立)
 	bufferUploadService_ = std::make_unique<BufferUploadService>();
-	bufferUploadService_->Init(device, graphicsPlatform_->GetDxCommand()->GetQueue());
+	bufferUploadService_->Init(device, graphicsPlatform_->GetCommandQueue()->GetQueue());
 
 	// テクスチャ関連の初期化
 	textureUploadService_ = std::make_unique<TextureUploadService>();
-	textureUploadService_->Init(device, srvDescriptor_.get(), graphicsPlatform_->GetDxCommand()->GetQueue());
+	textureUploadService_->Init(device, srvDescriptor_.get(), graphicsPlatform_->GetCommandQueue()->GetQueue());
 	builtinTextureLibrary_ = std::make_unique<BuiltinTextureLibrary>();
 	builtinTextureLibrary_->Init(*textureUploadService_);
 }
@@ -75,14 +75,14 @@ void Engine::GraphicsCore::EndRenderFrame() {
 	dxCommand->TransitionBarriers({ swapChain_->GetCurrentResource() },
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-	// コマンド実行
-	dxCommand->ExecuteCommands(swapChain_->Get());
+	// コマンド提出からPresentまで
+	graphicsPlatform_->PresentFrame(swapChain_->Get());
 }
 
 void Engine::GraphicsCore::Finalize() {
 
 	// GPUが完了するまで待機
-	graphicsPlatform_->GetDxCommand()->WaitForGPU();
+	graphicsPlatform_->WaitForGPU();
 
 	// Device/Queue/Descriptorを参照するサービスはGraphicsPlatformより先に解放する
 	if (builtinTextureLibrary_) {

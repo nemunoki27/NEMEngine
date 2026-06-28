@@ -34,7 +34,7 @@
 namespace {
 
 	constexpr const char* kPassReorderPayloadType = "PP_PASS_REORDER";
-	constexpr const char* kUnsavedPopupId = "UnsavedPostProcessStack##Popup";
+	constexpr const char* kUnsavedPopupID = "UnsavedPostProcessStack##Popup";
 
 	bool EndsWith(const std::string_view& str, const std::string_view& suffix) {
 
@@ -70,7 +70,7 @@ namespace {
 			}
 		}
 
-		// 古い呼び出し経路でも反映できるように、実体を指すactiveSceneHeaderを最後の手段として使う
+		// 実体を指すactiveSceneHeaderを最後の手段として使う
 		return const_cast<Engine::SceneHeader*>(context.activeSceneHeader);
 	}
 
@@ -656,12 +656,12 @@ void Engine::PostProcessStackTool::DrawDropZones(const EditorToolContext& contex
 void Engine::PostProcessStackTool::DrawUnsavedConfirmPopup(const EditorToolContext& context) {
 
 	if (pendingScenePathChange_) {
-		ImGui::OpenPopup(kUnsavedPopupId);
+		ImGui::OpenPopup(kUnsavedPopupID);
 		pendingScenePathChange_ = false;
 	}
 
 	ImGui::SetNextWindowSize(ImVec2(340.0f, 120.0f), ImGuiCond_Always);
-	if (!ImGui::BeginPopupModal(kUnsavedPopupId, nullptr,
+	if (!ImGui::BeginPopupModal(kUnsavedPopupID, nullptr,
 		ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
 		return;
 	}

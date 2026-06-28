@@ -386,16 +386,16 @@ void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 	for (int32_t i = 0; i < typeCount; ++i) {
 
 		ManagedScriptTypeDescriptor descriptor{};
-		if (copyScriptTypeInfo_(i, &descriptor) != ManagedStatus::Ok || descriptor.scriptTypeId[0] == '\0') {
+		if (copyScriptTypeInfo_(i, &descriptor) != ManagedStatus::Ok || descriptor.scriptTypeID[0] == '\0') {
 			continue;
 		}
 		// 安定GUIDを主キーに登録する、型名とソースパスは表示と旧照合とドラッグ用
 		BehaviorTypeRegistry::GetInstance().RegisterManaged(
-			descriptor.scriptTypeId, descriptor.fullTypeName, descriptor.displayName, descriptor.sourcePath,
+			descriptor.scriptTypeID, descriptor.fullTypeName, descriptor.displayName, descriptor.sourcePath,
 			descriptor.defaultExecutionOrder);
 		Logger::Output(LogType::Engine, spdlog::level::info,
 			"ManagedScriptRuntime: registered managed script type={} id={}",
-			descriptor.fullTypeName, descriptor.scriptTypeId);
+			descriptor.fullTypeName, descriptor.scriptTypeID);
 	}
 }
 
@@ -443,8 +443,8 @@ std::filesystem::path Engine::ManagedScriptRuntime::GameScriptProjectPath() cons
 	return ResolveGameScriptProjectPath();
 }
 
-Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance(const std::string& scriptTypeId,
-	ECSWorld& world, const Entity& entity, const nlohmann::json& serializedFields, uint64_t scriptSlotId) {
+Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance(const std::string& scriptTypeID,
+	ECSWorld& world, const Entity& entity, const nlohmann::json& serializedFields, uint64_t scriptSlotID) {
 
 	if (!initialized_ || !createInstance_) {
 		return ManagedScriptInstanceHandle::Null();
@@ -452,8 +452,8 @@ Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance
 
 	const std::string json = serializedFields.is_object() ? serializedFields.dump() : std::string("{}");
 	ManagedScriptInstanceHandle createdHandle = ManagedScriptInstanceHandle::Null();
-	const ManagedStatus status = createInstance_(scriptTypeId.c_str(), MakeNativeEntity(world, entity), json.c_str(),
-		scriptSlotId, &createdHandle);
+	const ManagedStatus status = createInstance_(scriptTypeID.c_str(), MakeNativeEntity(world, entity), json.c_str(),
+		scriptSlotID, &createdHandle);
 	// 生成失敗時は無効ハンドルを返す
 	return status == ManagedStatus::Ok ? createdHandle : ManagedScriptInstanceHandle::Null();
 }
@@ -547,7 +547,7 @@ namespace {
 	Engine::ManagedFieldSchema ParseFieldSchema(const nlohmann::json& node) {
 
 		Engine::ManagedFieldSchema field{};
-		field.fieldId = node.value("fieldId", std::string{});
+		field.fieldID = node.value("fieldId", std::string{});
 		field.name = node.value("name", std::string{});
 		field.declaringType = node.value("declaringType", std::string{});
 		field.kind = ParseFieldKind(node.value("kind", std::string("Unsupported")));
@@ -599,14 +599,14 @@ namespace {
 	}
 }
 
-const Engine::ManagedScriptSchema& Engine::ManagedScriptRuntime::GetScriptSchema(const std::string& scriptTypeId) {
+const Engine::ManagedScriptSchema& Engine::ManagedScriptRuntime::GetScriptSchema(const std::string& scriptTypeID) {
 
 	static const ManagedScriptSchema kEmpty{};
 
-	if (scriptTypeId.empty()) {
+	if (scriptTypeID.empty()) {
 		return kEmpty;
 	}
-	if (auto it = schemaCache_.find(scriptTypeId); it != schemaCache_.end()) {
+	if (auto it = schemaCache_.find(scriptTypeID); it != schemaCache_.end()) {
 		return it->second;
 	}
 	if (!initialized_ || !getScriptSchemaJsonSize_ || !copyScriptSchemaJson_) {
@@ -615,18 +615,18 @@ const Engine::ManagedScriptSchema& Engine::ManagedScriptRuntime::GetScriptSchema
 
 	// 二段階blobで必要サイズを取得してからvector確保してコピーする、固定長バッファを使わない
 	int32_t size = 0;
-	if (getScriptSchemaJsonSize_(scriptTypeId.c_str(), &size) != ManagedStatus::Ok || size <= 0) {
+	if (getScriptSchemaJsonSize_(scriptTypeID.c_str(), &size) != ManagedStatus::Ok || size <= 0) {
 		return kEmpty;
 	}
 	std::string buffer(static_cast<size_t>(size), '\0');
 	int32_t written = 0;
-	if (copyScriptSchemaJson_(scriptTypeId.c_str(), buffer.data(), size, &written) != ManagedStatus::Ok) {
+	if (copyScriptSchemaJson_(scriptTypeID.c_str(), buffer.data(), size, &written) != ManagedStatus::Ok) {
 		return kEmpty;
 	}
 	buffer.resize(static_cast<size_t>(written));
 
 	ManagedScriptSchema schema{};
-	schema.scriptTypeId = scriptTypeId;
+	schema.scriptTypeID = scriptTypeID;
 	try {
 		nlohmann::json root = nlohmann::json::parse(buffer);
 		schema.schemaVersion = root.value("schemaVersion", 0);
@@ -639,14 +639,14 @@ const Engine::ManagedScriptSchema& Engine::ManagedScriptRuntime::GetScriptSchema
 	}
 	catch (const nlohmann::json::exception& e) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptRuntime: failed to parse script schema for {}: {}", scriptTypeId, e.what());
+			"ManagedScriptRuntime: failed to parse script schema for {}: {}", scriptTypeID, e.what());
 	}
 
-	auto [it, inserted] = schemaCache_.emplace(scriptTypeId, std::move(schema));
+	auto [it, inserted] = schemaCache_.emplace(scriptTypeID, std::move(schema));
 	return it->second;
 }
 
-nlohmann::json Engine::ManagedScriptRuntime::BuildSerializedValueMap(const std::string& scriptTypeId,
+nlohmann::json Engine::ManagedScriptRuntime::BuildSerializedValueMap(const std::string& scriptTypeID,
 	const nlohmann::json& serializedFields) {
 
 	// インスタンスへ適用するfieldGuidから値のマップを作る、新形式はそのまま旧形式は名前で移行する
@@ -669,12 +669,12 @@ nlohmann::json Engine::ManagedScriptRuntime::BuildSerializedValueMap(const std::
 	}
 
 	// 旧形式の名前から値の形式で、スキーマの名前や旧名からguidを引いて移行する
-	const ManagedScriptSchema& schema = GetScriptSchema(scriptTypeId);
+	const ManagedScriptSchema& schema = GetScriptSchema(scriptTypeID);
 	std::unordered_map<std::string, std::string> nameToGuid;
 	for (const ManagedFieldSchema& field : schema.fields) {
-		nameToGuid[field.name] = field.fieldId;
+		nameToGuid[field.name] = field.fieldID;
 		for (const std::string& former : field.formerNames) {
-			nameToGuid.emplace(former, field.fieldId);
+			nameToGuid.emplace(former, field.fieldID);
 		}
 	}
 	for (auto& [name, value] : serializedFields.items()) {
@@ -712,13 +712,13 @@ nlohmann::json Engine::ManagedScriptRuntime::GetRuntimeSerializedState(ManagedSc
 }
 
 void Engine::ManagedScriptRuntime::SetRuntimeSerializedField(ManagedScriptInstanceHandle handle,
-	const std::string& fieldId, const nlohmann::json& value) {
+	const std::string& fieldID, const nlohmann::json& value) {
 
-	if (!initialized_ || !setRuntimeField_ || !handle.IsValid() || fieldId.empty()) {
+	if (!initialized_ || !setRuntimeField_ || !handle.IsValid() || fieldID.empty()) {
 		return;
 	}
 	const std::string valueJson = value.dump();
-	setRuntimeField_(handle, fieldId.c_str(), valueJson.c_str());
+	setRuntimeField_(handle, fieldID.c_str(), valueJson.c_str());
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::GenerateScriptManifest(
@@ -740,7 +740,7 @@ Engine::ManagedScriptRuntime& Engine::ManagedScriptRuntime::GetInstance() {
 
 bool Engine::ManagedScriptRuntime::LoadHostfxr() {
 
-	// nethostのget_hostfxr_pathを使った公式フローでhostfxrを解決して初期化する、探索とロードとデリゲート取得とRAIIによる失敗時cleanupはDotnetHostResolverに集約している
+	// nethostのget_hostfxr_pathを使った公式フローでhostfxrを解決して初期化する
 	const std::filesystem::path runtimeConfigPath =
 		scriptCoreAssemblyPath_.parent_path() / "NEM.ScriptCore.runtimeconfig.json";
 

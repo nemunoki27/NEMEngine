@@ -10,7 +10,7 @@
 #include <Engine/Editor/UI/Inspectors/Core/AssetInspectorRegistry.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
-#include <Engine/Core/Rendering/Renderer/Views/SceneViewCameraController.h>
+#include <Engine/Editor/Tools/Builtin/Camera/SceneViewCameraController.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
@@ -157,7 +157,7 @@ namespace Engine {
 		void DrawRemoveComponentPopup(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 		// 追加削除ポップアップ共通の検索とカテゴリ区切りつきメニュー描画、判定と実行は呼び出し側が渡す
 		void DrawComponentPopupEntries(const EditorPanelContext& context, TextSearchFilter& searchFilter,
-			const char* searchInputId, const char* emptyText,
+			const char* searchInputID, const char* emptyText,
 			const std::function<bool(const ComponentEditorDescriptor&)>& shouldShow,
 			const std::function<void(const ComponentEditorDescriptor&)>& onSelect);
 		// サブメッシュが選択されているときのヘッダーを描画する

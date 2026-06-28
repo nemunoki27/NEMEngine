@@ -21,7 +21,7 @@
 
 namespace {
 
-	// runtime typeIDから表示名を解決する、無ければidを出し識別自体はscriptTypeIdが正
+	// runtime typeIDから表示名を解決する、無ければidを出し識別自体はscriptTypeIDが正
 	std::string ResolveTypeLabel(uint32_t typeID) {
 
 		Engine::BehaviorTypeRegistry& registry = Engine::BehaviorTypeRegistry::GetInstance();

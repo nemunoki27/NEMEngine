@@ -10,24 +10,24 @@
 namespace Engine {
 
 	//============================================================================
-	//	SkinnedAnimationUpdateSystem class
+	//	SkinnedAnimationSystem class
 	//	骨アニメーションデータの更新を行うシステム
 	//============================================================================
-	class SkinnedAnimationUpdateSystem :
+	class SkinnedAnimationSystem :
 		public ISystem {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
 
-		SkinnedAnimationUpdateSystem() = default;
-		~SkinnedAnimationUpdateSystem() = default;
+		SkinnedAnimationSystem() = default;
+		~SkinnedAnimationSystem() = default;
 
 		void LateUpdate(ECSWorld& world, SystemContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
 
-		const char* GetName() const override { return "SkinnedAnimationUpdateSystem"; }
+		const char* GetName() const override { return "SkinnedAnimationSystem"; }
 	private:
 		//============================================================================
 		//	private Methods

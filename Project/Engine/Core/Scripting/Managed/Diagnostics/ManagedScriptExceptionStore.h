@@ -31,8 +31,8 @@ namespace Engine {
 		uint64_t id = 0;             // 受け入れ順の単調増加 ID
 		std::string timestamp;       // HH:MM:SS
 		std::string callback;        // Update 等、例外が出た lifecycle callback
-		uint64_t scriptSlotId = 0;   // runtime の script slot id、owner Entity 内で entry を一意化
-		std::string scriptTypeId;    // Stable Script Type GUID、解決できれば canonical identity
+		uint64_t scriptSlotID = 0;   // runtime の script slot id、owner Entity 内で entry を一意化
+		std::string scriptTypeID;    // Stable Script Type GUID、解決できれば canonical identity
 		std::string typeName;        // 完全修飾型名、表示用
 		std::string exceptionType;   // System.NullReferenceException 等
 		std::string message;         // 例外メッセージ
@@ -93,7 +93,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::deque<ManagedScriptException> entries_;
-		uint64_t nextId_ = 1;
+		uint64_t nextID_ = 1;
 		uint64_t version_ = 0;
 	};
 } // Engine

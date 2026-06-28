@@ -11,7 +11,7 @@
 
 void Engine::from_json(const nlohmann::json& in, SceneObjectComponent& component) {
 
-	const std::string localID = in.value("localFileID", "");
+	const std::string localID = in.value("localFileId", "");
 	component.localFileID = localID.empty() ? UUID::New() : FromString16Hex(localID);
 	component.activeSelf = in.value("activeSelf", true);
 	component.tag = in.value("tag", std::string("Untagged"));
@@ -25,7 +25,7 @@ void Engine::from_json(const nlohmann::json& in, SceneObjectComponent& component
 
 void Engine::to_json(nlohmann::json& out, const SceneObjectComponent& component) {
 
-	out["localFileID"] = component.localFileID ? ToString(component.localFileID) : "";
+	out["localFileId"] = component.localFileID ? ToString(component.localFileID) : "";
 	out["activeSelf"] = component.activeSelf;
 	out["tag"] = component.tag;
 	out["visibilityLayerMask"] = component.visibilityLayerMask;

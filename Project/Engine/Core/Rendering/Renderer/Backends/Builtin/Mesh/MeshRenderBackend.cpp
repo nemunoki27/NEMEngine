@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
@@ -586,7 +586,6 @@ uint64_t Engine::MeshRenderBackend::BuildStaticBatchHash(const RenderDrawContext
 			continue;
 		}
 		// 抽出時に計算済みのアイテム内容ハッシュ(entity/material/blendMode/worldMatrix/outline/submesh)を混ぜる
-		// component再取得やbyte再走査をここでは行わない
 		HashCombine(h, item->contentHash);
 	}
 	return h;

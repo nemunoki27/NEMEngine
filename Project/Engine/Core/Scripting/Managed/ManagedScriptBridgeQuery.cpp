@@ -151,19 +151,19 @@ namespace Engine {
 		return count;
 	}
 
-	ManagedNativeEntity ManagedScriptRuntime::FindEntityByComponentCallback(int32_t typeId) {
+	ManagedNativeEntity ManagedScriptRuntime::FindEntityByComponentCallback(int32_t typeID) {
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : nullptr;
-		if (!world || typeId < 0) {
+		if (!world || typeID < 0) {
 			return MakeNullNativeEntity();
 		}
 
 		// compact type idから登録名を引き、名前ベースのHasComponentで走査する
 		ComponentTypeRegistry& registry = ComponentTypeRegistry::GetInstance();
-		if (static_cast<uint32_t>(typeId) >= registry.GetComponentTypeCount()) {
+		if (static_cast<uint32_t>(typeID) >= registry.GetComponentTypeCount()) {
 			return MakeNullNativeEntity();
 		}
-		const std::string typeName = registry.GetInfo(static_cast<uint32_t>(typeId)).name;
+		const std::string typeName = registry.GetInfo(static_cast<uint32_t>(typeID)).name;
 
 		Entity found = Entity::Null();
 		world->ForEachAliveEntity([&](Entity entity) {
@@ -174,18 +174,18 @@ namespace Engine {
 		return found.IsValid() ? MakeNativeEntity(*world, found) : MakeNullNativeEntity();
 	}
 
-	int32_t ManagedScriptRuntime::FindEntitiesByComponentCallback(int32_t typeId, ManagedNativeEntity* buffer, int32_t capacity) {
+	int32_t ManagedScriptRuntime::FindEntitiesByComponentCallback(int32_t typeID, ManagedNativeEntity* buffer, int32_t capacity) {
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : nullptr;
-		if (!world || typeId < 0) {
+		if (!world || typeID < 0) {
 			return 0;
 		}
 
 		ComponentTypeRegistry& registry = ComponentTypeRegistry::GetInstance();
-		if (static_cast<uint32_t>(typeId) >= registry.GetComponentTypeCount()) {
+		if (static_cast<uint32_t>(typeID) >= registry.GetComponentTypeCount()) {
 			return 0;
 		}
-		const std::string typeName = registry.GetInfo(static_cast<uint32_t>(typeId)).name;
+		const std::string typeName = registry.GetInfo(static_cast<uint32_t>(typeID)).name;
 
 		int32_t count = 0;
 		world->ForEachAliveEntity([&](Entity entity) {

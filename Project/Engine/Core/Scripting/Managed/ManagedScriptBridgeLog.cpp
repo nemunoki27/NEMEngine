@@ -105,22 +105,22 @@ namespace Engine {
 	//	AssetRefの実行時解決コールバック
 	//	UUID主体でネイティブリソースやGPUやファイルパスは返さない、表示名はstemのみ
 	//============================================================================
-	int32_t ManagedScriptRuntime::AssetExistsCallback(uint64_t assetId) {
+	int32_t ManagedScriptRuntime::AssetExistsCallback(uint64_t assetID) {
 
 		const SystemContext* context = GetCurrentContext();
-		if (!context || !context->assetDatabase || assetId == 0) {
+		if (!context || !context->assetDatabase || assetID == 0) {
 			return 0;
 		}
-		return context->assetDatabase->Find(AssetID{ assetId }) != nullptr ? 1 : 0;
+		return context->assetDatabase->Find(AssetID{ assetID }) != nullptr ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::CopyAssetDisplayNameCallback(uint64_t assetId, char* buffer, int32_t capacity) {
+	int32_t ManagedScriptRuntime::CopyAssetDisplayNameCallback(uint64_t assetID, char* buffer, int32_t capacity) {
 
 		const SystemContext* context = GetCurrentContext();
 		std::string name;
-		if (context && context->assetDatabase && assetId != 0 && context->assetDatabase->Find(AssetID{ assetId })) {
+		if (context && context->assetDatabase && assetID != 0 && context->assetDatabase->Find(AssetID{ assetID })) {
 			// 表示名はasset pathのstemつまり拡張子なしファイル名で、path自体はC#へ渡さない
-			name = context->assetDatabase->ResolveFullPath(AssetID{ assetId }).stem().string();
+			name = context->assetDatabase->ResolveFullPath(AssetID{ assetID }).stem().string();
 		}
 		return CopyStringToBuffer(name, buffer, capacity);
 	}

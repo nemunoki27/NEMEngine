@@ -29,8 +29,8 @@ namespace {
 	}
 }
 
-Engine::ManagedBehavior::ManagedBehavior(std::string scriptTypeId, std::string displayName) :
-	scriptTypeId_(std::move(scriptTypeId)), displayName_(std::move(displayName)) {
+Engine::ManagedBehavior::ManagedBehavior(std::string scriptTypeID, std::string displayName) :
+	scriptTypeID_(std::move(scriptTypeID)), displayName_(std::move(displayName)) {
 }
 
 void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializedFields) {
@@ -50,7 +50,7 @@ void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializ
 	// 生成済みのC#インスタンスにはPlay中のインスペクター変更をその場で反映する、編集用形式はfieldGuidから値の形へ正規化してから渡す
 	if (managedHandle_.IsValid()) {
 		auto& runtime = ManagedScriptRuntime::GetInstance();
-		runtime.SetSerializedFields(managedHandle_, runtime.BuildSerializedValueMap(scriptTypeId_, serializedFields_));
+		runtime.SetSerializedFields(managedHandle_, runtime.BuildSerializedValueMap(scriptTypeID_, serializedFields_));
 	}
 }
 
@@ -62,12 +62,12 @@ nlohmann::json Engine::ManagedBehavior::GetRuntimeSerializedState() {
 	return ManagedScriptRuntime::GetInstance().GetRuntimeSerializedState(managedHandle_);
 }
 
-void Engine::ManagedBehavior::SetRuntimeSerializedField(const std::string& fieldId, const nlohmann::json& value) {
+void Engine::ManagedBehavior::SetRuntimeSerializedField(const std::string& fieldID, const nlohmann::json& value) {
 
 	if (!managedHandle_.IsValid()) {
 		return;
 	}
-	ManagedScriptRuntime::GetInstance().SetRuntimeSerializedField(managedHandle_, fieldId, value);
+	ManagedScriptRuntime::GetInstance().SetRuntimeSerializedField(managedHandle_, fieldID, value);
 }
 
 void Engine::ManagedBehavior::Awake([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
@@ -196,8 +196,8 @@ void Engine::ManagedBehavior::EnsureCreated(ECSWorld& world, const Entity& entit
 		return;
 	}
 	auto& runtime = ManagedScriptRuntime::GetInstance();
-	managedHandle_ = runtime.CreateInstance(scriptTypeId_, world, entity,
-		runtime.BuildSerializedValueMap(scriptTypeId_, serializedFields_), scriptSlotId_);
+	managedHandle_ = runtime.CreateInstance(scriptTypeID_, world, entity,
+		runtime.BuildSerializedValueMap(scriptTypeID_, serializedFields_), scriptSlotID_);
 }
 
 void Engine::ManagedBehavior::HandleStatus(ManagedStatus status, const char* callbackName, const Entity& entity) {
@@ -210,7 +210,7 @@ void Engine::ManagedBehavior::HandleStatus(ManagedStatus status, const char* cal
 
 		faulted_ = true;
 		Logger::Output(LogType::GameLogic, spdlog::level::err,
-			"ManagedBehavior: script faulted and will be disabled. type={} scriptTypeId={} callback={} entity={}:{}",
-			displayName_, scriptTypeId_, callbackName, entity.index, entity.generation);
+			"ManagedBehavior: script faulted and will be disabled. type={} scriptTypeID={} callback={} entity={}:{}",
+			displayName_, scriptTypeID_, callbackName, entity.index, entity.generation);
 	}
 }

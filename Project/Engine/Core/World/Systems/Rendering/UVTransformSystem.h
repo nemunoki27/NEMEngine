@@ -8,23 +8,23 @@
 namespace Engine {
 
 	//============================================================================
-	//	UVTransformUpdateSystem class
+	//	UVTransformSystem class
 	//	UVトランスフォームの更新、管理を行うシステム
 	//============================================================================
-	class UVTransformUpdateSystem :
+	class UVTransformSystem :
 		public ISystem {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
 
-		UVTransformUpdateSystem() = default;
-		~UVTransformUpdateSystem() = default;
+		UVTransformSystem() = default;
+		~UVTransformSystem() = default;
 
 		void LateUpdate(ECSWorld& world, SystemContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
 
-		const char* GetName() const override { return "UVTransformUpdateSystem"; }
+		const char* GetName() const override { return "UVTransformSystem"; }
 	};
 } // Engine

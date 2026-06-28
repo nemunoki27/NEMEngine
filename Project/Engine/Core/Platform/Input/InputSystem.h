@@ -251,9 +251,9 @@ namespace Engine {
 		bool mouseRangeControlPrev_ = false;
 		Vector2 mouseAreaPos_{};
 		Vector2 mouseAreaSize_{};
-		// 範囲制御解除ショートカット(DIK)、既定はCtrl+Enter
-		int32_t mouseReleaseModKey_ = 0x1D;     // DIK_LCONTROL
-		int32_t mouseReleaseTriggerKey_ = 0x1C; // DIK_RETURN
+		// 範囲制御解除ショートカットのDIKキー、既定はCtrl+Enter
+		int32_t mouseReleaseModKey_ = DIK_LCONTROL;
+		int32_t mouseReleaseTriggerKey_ = DIK_RETURN;
 
 		// LTボタン
 		float leftTriggerValue_ = 0.0f;

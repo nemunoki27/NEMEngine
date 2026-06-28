@@ -13,8 +13,7 @@ namespace Engine {
 	//============================================================================
 	//	AssetTypeResolver class
 	// ファイルパスからAssetTypeを一意に判定する共通処理
-	//	AssetDatabaseとProjectAssetFileUtilityの両方から利用し、
-	// 拡張子・複合サフィックスの判定を一箇所へ集約する
+	//	AssetDatabaseとProjectAssetFileUtilityの両方から利用する
 	//============================================================================
 	class AssetTypeResolver {
 	public:

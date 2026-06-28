@@ -19,7 +19,7 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
-#include <Engine/Core/Rendering/Renderer/Views/SceneViewCameraController.h>
+#include <Engine/Editor/Tools/Builtin/Camera/SceneViewCameraController.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
@@ -55,9 +55,6 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
-
-
-// インスペクター描画、ビルトイン登録は専用ファイルへ分離、モデルプレビューで使うMeshRendererだけ直接参照する
 #include <Engine/Editor/UI/Inspectors/Builtin/BuiltinComponentEditorRegistration.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
 
@@ -75,7 +72,7 @@
 #include <vector>
 #include <span>
 
-#include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
+#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 #include <Engine/Editor/Assets/Preview/ModelPreviewUtility.h>
 
 //============================================================================
@@ -273,10 +270,9 @@ Engine::InspectorPanel::InspectorPanel() {
 	modelPreviewCameraController_->SetSavePath(RuntimePaths::GetGameConfigPath(
 		ConfigPaths::kInspectorModelPreviewCamera).string());
 
-	// ビルトインコンポーネントの登録は専用ファイルへ集約する
 	RegisterBuiltinComponentEditors(componentEditorRegistry_, meshRendererDrawer_);
 
-	// アセット種別ごとのInspector表示を登録する、副作用の少ない読み取り表示のTextureから移行している
+	// アセット種別ごとのInspector表示を登録する
 	assetInspectorRegistry_.Register(std::make_unique<TextureAssetInspectorDrawer>());
 }
 
@@ -647,7 +643,6 @@ void Engine::InspectorPanel::RenderModelAssetPreview(const EditorToolContext& to
 Engine::InspectorPanel::ModelAssetPreviewBounds Engine::InspectorPanel::ComputeModelAssetPreviewBounds(
 	const EditorPanelContext& context, const AssetMeta& meta) const {
 
-	// モデル境界の計算は共有のModelPreviewUtilityへ集約している
 	ModelAssetPreviewBounds bounds{};
 	const AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
 	if (database) {
@@ -992,13 +987,13 @@ void Engine::InspectorPanel::DrawComponentToolbar(const EditorPanelContext& cont
 }
 
 void Engine::InspectorPanel::DrawComponentPopupEntries(const EditorPanelContext& context,
-	TextSearchFilter& searchFilter, const char* searchInputId, const char* emptyText,
+	TextSearchFilter& searchFilter, const char* searchInputID, const char* emptyText,
 	const std::function<bool(const ComponentEditorDescriptor&)>& shouldShow,
 	const std::function<void(const ComponentEditorDescriptor&)>& onSelect) {
 
 	// 検索欄の左端にProjectPanelと同じ虫眼鏡アイコンを重ねる
 	const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
-	searchFilter.DrawInput(searchInputId, searchIcon, "検索...");
+	searchFilter.DrawInput(searchInputID, searchIcon, "検索...");
 	ImGui::Separator();
 
 	// カテゴリ区切りつきで対象コンポーネントのメニューを表示する

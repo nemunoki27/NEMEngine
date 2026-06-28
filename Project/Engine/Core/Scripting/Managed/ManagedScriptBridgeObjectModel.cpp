@@ -27,49 +27,49 @@ namespace Engine {
 		return info ? static_cast<int32_t>(info->id) : -1;
 	}
 
-	int32_t ManagedScriptRuntime::HasComponentCallback(ManagedNativeEntity entity, int32_t typeId) {
+	int32_t ManagedScriptRuntime::HasComponentCallback(ManagedNativeEntity entity, int32_t typeID) {
 
 		ECSWorld* world = ResolveWorld(entity);
 		const Entity resolved = ResolveEntity(entity);
-		if (!world || !world->IsAlive(resolved) || typeId < 0) {
+		if (!world || !world->IsAlive(resolved) || typeID < 0) {
 			return 0;
 		}
 		auto& registry = ComponentTypeRegistry::GetInstance();
-		if (static_cast<uint32_t>(typeId) >= registry.GetComponentTypeCount()) {
+		if (static_cast<uint32_t>(typeID) >= registry.GetComponentTypeCount()) {
 			return 0;
 		}
 		// compact idから登録名を引いて存在判定する、O(1)のcomponentマスク照合
-		return world->HasComponent(resolved, registry.GetInfo(static_cast<uint32_t>(typeId)).name) ? 1 : 0;
+		return world->HasComponent(resolved, registry.GetInfo(static_cast<uint32_t>(typeID)).name) ? 1 : 0;
 	}
 
-	void ManagedScriptRuntime::AddComponentCallback(ManagedNativeEntity entity, int32_t typeId) {
+	void ManagedScriptRuntime::AddComponentCallback(ManagedNativeEntity entity, int32_t typeID) {
 
 		ECSWorld* world = ResolveWorld(entity);
 		const Entity resolved = ResolveEntity(entity);
-		if (!world || !world->IsAlive(resolved) || typeId < 0) {
+		if (!world || !world->IsAlive(resolved) || typeID < 0) {
 			return;
 		}
 		auto& registry = ComponentTypeRegistry::GetInstance();
-		if (static_cast<uint32_t>(typeId) >= registry.GetComponentTypeCount()) {
+		if (static_cast<uint32_t>(typeID) >= registry.GetComponentTypeCount()) {
 			return;
 		}
 		// archetype移動を伴う構造変更はForEach走査を壊さないようWorldCommandBuffer経由で遅延適用する、重複追加や適用前のentity失効はApply側で再検証され安全に扱われる
-		world->GetCommandBuffer().EnqueueAddComponentByName(resolved, registry.GetInfo(static_cast<uint32_t>(typeId)).name);
+		world->GetCommandBuffer().EnqueueAddComponentByName(resolved, registry.GetInfo(static_cast<uint32_t>(typeID)).name);
 	}
 
-	void ManagedScriptRuntime::RemoveComponentCallback(ManagedNativeEntity entity, int32_t typeId) {
+	void ManagedScriptRuntime::RemoveComponentCallback(ManagedNativeEntity entity, int32_t typeID) {
 
 		ECSWorld* world = ResolveWorld(entity);
 		const Entity resolved = ResolveEntity(entity);
-		if (!world || !world->IsAlive(resolved) || typeId < 0) {
+		if (!world || !world->IsAlive(resolved) || typeID < 0) {
 			return;
 		}
 		auto& registry = ComponentTypeRegistry::GetInstance();
-		if (static_cast<uint32_t>(typeId) >= registry.GetComponentTypeCount()) {
+		if (static_cast<uint32_t>(typeID) >= registry.GetComponentTypeCount()) {
 			return;
 		}
 		// 対象無しの削除や適用前のentity失効もApply側で安全に無処理になる
-		world->GetCommandBuffer().EnqueueRemoveComponentByName(resolved, registry.GetInfo(static_cast<uint32_t>(typeId)).name);
+		world->GetCommandBuffer().EnqueueRemoveComponentByName(resolved, registry.GetInfo(static_cast<uint32_t>(typeID)).name);
 	}
 
 	void ManagedScriptRuntime::DestroyEntityCallback(ManagedNativeEntity entity) {
@@ -83,27 +83,27 @@ namespace Engine {
 		world->GetCommandBuffer().EnqueueDestroyEntity(resolved);
 	}
 
-	int32_t ManagedScriptRuntime::GetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotId) {
+	int32_t ManagedScriptRuntime::GetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotID) {
 
 		// 所有EntityとscriptSlotIDで実行中entryを特定し有効状態を返す、-1は未解決
 		const Entity resolved = ResolveEntity(owner);
-		return BehaviorSystem::GetScriptEnabled(resolved, UUID{ scriptSlotId });
+		return BehaviorSystem::GetScriptEnabled(resolved, UUID{ scriptSlotID });
 	}
 
-	void ManagedScriptRuntime::SetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotId, int32_t enabled) {
+	void ManagedScriptRuntime::SetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotID, int32_t enabled) {
 
 		const Entity resolved = ResolveEntity(owner);
-		BehaviorSystem::SetScriptEnabled(resolved, UUID{ scriptSlotId }, enabled != 0);
+		BehaviorSystem::SetScriptEnabled(resolved, UUID{ scriptSlotID }, enabled != 0);
 	}
 
-	ManagedScriptInstanceHandle ManagedScriptRuntime::GetScriptInstanceCallback(ManagedNativeEntity owner, const char* scriptTypeId) {
+	ManagedScriptInstanceHandle ManagedScriptRuntime::GetScriptInstanceCallback(ManagedNativeEntity owner, const char* scriptTypeID) {
 
-		// owner Entity上でscriptTypeId一致のscript instanceを引き、ManagedBehaviorならC#側handleを返す
-		if (!scriptTypeId) {
+		// owner Entity上でscriptTypeID一致のscript instanceを引き、ManagedBehaviorならC#側handleを返す
+		if (!scriptTypeID) {
 			return ManagedScriptInstanceHandle::Null();
 		}
 		const Entity resolved = ResolveEntity(owner);
-		MonoBehavior* instance = BehaviorSystem::FindScriptInstance(resolved, scriptTypeId);
+		MonoBehavior* instance = BehaviorSystem::FindScriptInstance(resolved, scriptTypeID);
 		// C#由来のscriptだけがhandleを持つ、C++ MonoBehaviorはNullになる
 		ManagedBehavior* managed = dynamic_cast<ManagedBehavior*>(instance);
 		return managed ? managed->GetManagedHandle() : ManagedScriptInstanceHandle::Null();

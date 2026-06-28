@@ -4,8 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
+#include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
@@ -31,12 +32,12 @@ void Engine::SkyboxPass::EnsurePipeline(GraphicsCore& graphicsCore) {
 	GraphicsPipelineDesc desc{};
 	desc.type = PipelineType::Vertex;
 
-	desc.preRaster.file = "5b1c0a7e3f9d2486";
+	desc.preRaster.file = BuiltinShaderSource::Skybox::VS;
 	desc.preRaster.entry = "main";
 	desc.preRaster.profile = "vs_6_0";
 
 	// cubemapをbindlessで引くためPixelはSM6_6を使う
-	desc.pixel.file = "7e2f4a9c1d8b6053";
+	desc.pixel.file = BuiltinShaderSource::Skybox::PS;
 	desc.pixel.entry = "main";
 	desc.pixel.profile = "ps_6_6";
 

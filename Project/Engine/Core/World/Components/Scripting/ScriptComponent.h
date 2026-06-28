@@ -18,7 +18,7 @@ namespace Engine {
 
 		// 永続保存の主キー= Stable Script Type GUIDで正規化済み文字列
 		// ファイル名/クラス名/namespace/列挙順/runtime indexに依存しない
-		std::string scriptTypeId;
+		std::string scriptTypeID;
 		// 同一entityに同typeを複数attachしても識別できる安定slot ID
 		UUID scriptSlotID{};
 		// 参照しているC#スクリプトアセット
@@ -49,12 +49,12 @@ namespace Engine {
 	};
 
 	// 新規ScriptEntryを生成する、scriptSlotIDを新規採番しランタイムキャッシュを初期化する
-	// scriptTypeIdが未確定の経路では空文字を渡す
-	inline ScriptEntry MakeScriptEntry(const std::string& scriptTypeId,
+	// scriptTypeIDが未確定の経路では空文字を渡す
+	inline ScriptEntry MakeScriptEntry(const std::string& scriptTypeID,
 		const std::string& lastKnownTypeName, AssetID scriptAsset = {}) {
 
 		ScriptEntry entry{};
-		entry.scriptTypeId = scriptTypeId;
+		entry.scriptTypeID = scriptTypeID;
 		entry.lastKnownTypeName = lastKnownTypeName;
 		entry.scriptSlotID = UUID::New();
 		entry.scriptAsset = scriptAsset;

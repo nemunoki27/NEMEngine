@@ -4,7 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Core/DxDevice.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommandQueue.h>
+#include <Engine/Core/Rendering/DxObject/Core/FramePresenter.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureController.h>
 
@@ -27,11 +29,17 @@ namespace Engine {
 		GraphicsPlatform() = default;
 		~GraphicsPlatform() = default;
 
-		// DxDevice/DxCommand/DxShaderCompilerの生成と初期化を行う
+		// DxDevice/Command/Queue/Presenter/DxShaderCompilerの生成と初期化を行う
 		void Init();
 
 		// コマンドキュー終端などの後処理を実行し、各リソースを破棄する
 		void Finalize(HWND hwnd);
+
+		// フレーム終端でコマンドを提出しPresentまで行う
+		void PresentFrame(IDXGISwapChain4* swapChain);
+
+		// 現在積んでいるコマンドを実行しGPU完了まで待機する
+		void WaitForGPU();
 
 		//--------- accessor -----------------------------------------------------
 
@@ -39,6 +47,7 @@ namespace Engine {
 		IDXGIFactory7* GetDxgiFactory() const { return dxDevice_->GetDxgiFactory(); }
 
 		DxCommand* GetDxCommand() const { return dxCommand_.get(); }
+		DxCommandQueue* GetCommandQueue() const { return dxCommandQueue_.get(); }
 		DxShaderCompiler* GetDxShaderCompiler() const { return dxShaderComplier_.get(); }
 
 		GraphicsFeatureController& GetFeatureController() { return featureController_; }
@@ -57,7 +66,9 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::unique_ptr<DxDevice> dxDevice_;
+		std::unique_ptr<DxCommandQueue> dxCommandQueue_;
 		std::unique_ptr<DxCommand> dxCommand_;
+		std::unique_ptr<FramePresenter> framePresenter_;
 		std::unique_ptr<DxShaderCompiler> dxShaderComplier_;
 
 		GraphicsFeatureController featureController_{};

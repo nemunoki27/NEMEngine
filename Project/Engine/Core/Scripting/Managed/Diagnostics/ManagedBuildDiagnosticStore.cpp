@@ -137,18 +137,18 @@ std::optional<Engine::ManagedBuildDiagnostic> Engine::ManagedBuildDiagnosticStor
 	return diagnostic;
 }
 
-void Engine::ManagedBuildDiagnosticStore::BeginBuild(uint64_t buildId) {
+void Engine::ManagedBuildDiagnosticStore::BeginBuild(uint64_t buildID) {
 
 	// 新しいbuildを履歴へ積み、上限超過で最古buildのentryを間引く
-	if (buildHistory_.empty() || buildHistory_.back() != buildId) {
-		buildHistory_.push_back(buildId);
+	if (buildHistory_.empty() || buildHistory_.back() != buildID) {
+		buildHistory_.push_back(buildID);
 	}
 	while (buildHistory_.size() > kMaxBuildHistory) {
 		const uint64_t oldest = buildHistory_.front();
 		buildHistory_.pop_front();
 		const size_t before = entries_.size();
 		entries_.erase(std::remove_if(entries_.begin(), entries_.end(),
-			[oldest](const ManagedBuildDiagnostic& d) { return d.buildId == oldest; }), entries_.end());
+			[oldest](const ManagedBuildDiagnostic& d) { return d.buildID == oldest; }), entries_.end());
 		if (entries_.size() != before) {
 			++version_;
 		}
@@ -156,15 +156,15 @@ void Engine::ManagedBuildDiagnosticStore::BeginBuild(uint64_t buildId) {
 	RecountSeverities();
 }
 
-bool Engine::ManagedBuildDiagnosticStore::Ingest(uint64_t buildId, uint64_t reloadId,
+bool Engine::ManagedBuildDiagnosticStore::Ingest(uint64_t buildID, uint64_t reloadID,
 	ManagedBuildProcessKind kind, const std::string& rawLine) {
 
 	std::optional<ManagedBuildDiagnostic> parsed = ParseLine(rawLine);
 	if (!parsed) {
 		return false;
 	}
-	parsed->buildId = buildId;
-	parsed->reloadId = reloadId;
+	parsed->buildID = buildID;
+	parsed->reloadID = reloadID;
 	parsed->processKind = kind;
 
 	if (parsed->severity == DiagnosticSeverity::Error) {

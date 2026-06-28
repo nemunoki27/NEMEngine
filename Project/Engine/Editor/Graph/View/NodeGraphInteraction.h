@@ -20,7 +20,7 @@ namespace Engine {
 		// Pin同士を接続する
 		static bool TryCreateLink(GraphDocument& document, GraphID fromPinID, GraphID toPinID);
 		// Linkを削除する
-		static bool TryDeleteLink(GraphDocument& document, GraphID linkId);
+		static bool TryDeleteLink(GraphDocument& document, GraphID linkID);
 		// Nodeを削除する
 		static bool TryDeleteNode(GraphDocument& document, GraphID nodeID);
 	};

@@ -8,6 +8,9 @@
 //============================================================================
 namespace {
 
+	// PushEditorStyleで積むStyleVarの本数、PopEditorStyleと一致させる
+	constexpr int kEditorStyleVarPushCount = 27;
+
 	nlohmann::json ImVec2ToJson(const ImVec2& value) {
 
 		// ImVec2はx/y配列ではなく名前付きObjectで保存する
@@ -125,7 +128,7 @@ void Engine::NodeGraphStyle::PopEditorStyle() const {
 
 	// PushEditorStyle()で積んだStyleを全て戻す
 	ed::PopStyleColor(ed::StyleColor_Count);
-	ed::PopStyleVar(27);
+	ed::PopStyleVar(kEditorStyleVarPushCount);
 }
 
 ImVec4 Engine::NodeGraphStyle::GetNodeAccentColor(const std::string& nodeType) const {

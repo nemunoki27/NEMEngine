@@ -59,8 +59,8 @@ namespace Engine {
 		struct Snapshot {
 
 			State state = State::Idle;
-			uint64_t buildId = 0;
-			uint64_t reloadId = 0;
+			uint64_t buildID = 0;
+			uint64_t reloadID = 0;
 			bool hasPendingSourceChanges = false;
 			bool reloadDeferredByPlayMode = false;
 			bool hasUsableLastKnownGood = false;
@@ -130,8 +130,8 @@ namespace Engine {
 		// 1回のreloadサイクルの診断情報
 		struct ReloadDiagnostics {
 
-			uint64_t buildId = 0;
-			uint64_t reloadId = 0;
+			uint64_t buildID = 0;
+			uint64_t reloadID = 0;
 			int32_t changedSourceCount = 0;
 			int32_t buildExitCode = 0;
 			int32_t scriptTypeCount = 0;

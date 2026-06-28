@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Foundation/Math/Color.h>
+#include <Engine/Core/Assets/RenderComponentTypes.h>
 
 // c++
 #include <cstdint>
@@ -13,21 +14,9 @@
 
 namespace Engine {
 
-	// front
-	struct MaterialParameterValue;
-
 	//============================================================================
 	//	LineRenderTypes structures
 	//============================================================================
-	// ライン1点の情報、頂点ごとに太さと色を持てる
-	struct LinePoint {
-
-		Vector3 position = Vector3::AnyInit(0.0f);
-		Color4 color = Color4::White();
-		// ライン半幅
-		float thickness = 1.0f;
-	};
-
 	// ライン描画データ
 	// 点列はコンポーネントor即時バッファを指す、同フレーム内のみ有効
 	struct LineRenderPayload {

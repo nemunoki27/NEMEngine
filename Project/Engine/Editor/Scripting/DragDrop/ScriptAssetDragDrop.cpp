@@ -52,7 +52,7 @@ bool Engine::ScriptAssetDragDrop::ResolveScriptType(const EditorPanelContext& co
 		return false;
 	}
 
-	outType.scriptTypeId = candidates.front()->scriptTypeId;
+	outType.scriptTypeID = candidates.front()->scriptTypeID;
 	outType.typeName = candidates.front()->name;
 	return true;
 }

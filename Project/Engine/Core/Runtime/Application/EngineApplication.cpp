@@ -92,10 +92,10 @@ void Engine::EngineApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<TransformUpdateSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<TransformSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<UVTransformUpdateSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<SkinnedAnimationUpdateSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<UVTransformSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<SkinnedAnimationSystem>(), ++order);
 	// ジョイント追従はスケルトン更新の後でないとジョイントのワールド行列が確定しないため、最後に動かす
 	scheduler_.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);
 }
@@ -215,7 +215,7 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 
 const Engine::SceneHeader* Engine::EngineApplication::GetActiveSceneHeader() {
 
-	// アクティブシーンの取得はGetActiveScenesへ集約し、In-Context編集ではhostシーンを参照する
+	// In-Context編集ではhostシーンを参照する
 	const SceneInstance* instance = GetActiveScenes().GetActive();
 	return instance ? &instance->header : nullptr;
 }
@@ -584,7 +584,7 @@ void Engine::EngineApplication::SyncPrefabEditedEntities() {
 void Engine::EngineApplication::PropagatePrefabToInstances(ECSWorld& world, AssetID prefabAsset,
 	const std::unordered_map<UUID, PrefabBaseEntity>& oldBase) {
 
-	// 伝播の本体はCore側ユーティリティへ集約し、シーンロード時の展開と同じ経路を再利用する
+	// シーンロード時の展開と同じ経路を再利用する
 	HierarchySystem hierarchySystem{};
 	PrefabOverrideUtility::PropagateToInstances(world, assetDataBase_, hierarchySystem, prefabAsset, oldBase);
 }
@@ -602,7 +602,7 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 
 	// Play > プレファブ編集 > Editの順でシーンインスタンスを切り替える
 	// プレファブ中はシーン無しなのでactiveSceneInstanceID=0となり、描画フィルタが無効化されプレファブ全体が描画される
-	// アクティブシーンの選択はGetActiveScenesへ集約する、In-Context編集ではhostシーンを参照する
+	// In-Context編集ではhostシーンを参照する
 	SceneInstanceManager* activeScenes = &GetActiveScenes();
 	const SceneInstance* activeInstance = activeScenes->GetActive();
 	request.sceneInstances = activeScenes;

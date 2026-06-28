@@ -64,7 +64,8 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::vector<ResolvedEntry> resolvedEntries_;
-		const PipelineState* lastPipeline_ = nullptr;
+		// 直近にSyncしたパイプラインの一意ID、ポインタ同一性だと再生成時に誤判定するためIDで持つ
+		uint64_t lastPipelineID_ = 0;
 		// レジストリ実体が変わった時も再解決する(インデックス参照の整合のため)
 		const RenderBufferRegistry* lastRegistry_ = nullptr;
 		// レジストリエントリ数が変わった時も再解決する

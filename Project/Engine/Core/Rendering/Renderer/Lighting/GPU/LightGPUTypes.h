@@ -29,6 +29,7 @@ namespace Engine {
 		float shadowStrength = 1.0f;
 		float pad[3] = { 0.0f, 0.0f, 0.0f };
 	};
+	static_assert(sizeof(DirectionalLightGPU) % 16 == 0, "DirectionalLightGPU must be 16 byte aligned");
 	// 点光源
 	struct PointLightGPU {
 
@@ -46,6 +47,7 @@ namespace Engine {
 		float decay = 1.0f;
 		float pad[2] = { 0.0f, 0.0f };
 	};
+	static_assert(sizeof(PointLightGPU) % 16 == 0, "PointLightGPU must be 16 byte aligned");
 	// スポットライト
 	struct SpotLightGPU {
 
@@ -64,11 +66,12 @@ namespace Engine {
 
 		// 減衰
 		float decay = 1.0f;
-		// 影響角度
-		float cosAngle = Math::pi / 3.0f;
+		// 影響角度のcos、既定はcos60度
+		float cosAngle = 0.5f;
 		float cosFalloffStart = 1.0f;
 		float pad = 0.0f;
 	};
+	static_assert(sizeof(SpotLightGPU) % 16 == 0, "SpotLightGPU must be 16 byte aligned");
 	// ライトの数
 	struct LightCountsGPU {
 
@@ -77,4 +80,5 @@ namespace Engine {
 		uint32_t spotCount = 0;
 		uint32_t localCount = 0;
 	};
+	static_assert(sizeof(LightCountsGPU) % 16 == 0, "LightCountsGPU must be 16 byte aligned");
 }

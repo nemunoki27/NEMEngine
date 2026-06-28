@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
@@ -101,12 +101,9 @@ namespace Engine::RenderPassExecutionHelper {
 		RenderPhase phase, MultiRenderTarget* target, MaterialPassKind passKind,
 		bool forceVertexMeshVariant, DepthTexture2D* depthOverride) {
 
-		// 指定phaseのバケットをそのままtargetへ流すラッパー
-		const RenderPassItemList* list = passBuckets.Find(phase);
-		if (!list) {
-			return;
-		}
-		DispatchInternal(graphicsCore, context, list->items, deps,
+		// 指定phaseのバケットをそのままtargetへ流す
+		const RenderPassItemList& list = passBuckets.Get(phase);
+		DispatchInternal(graphicsCore, context, list.items, deps,
 			RenderPassSurfaceBinding{ target, depthOverride }, passKind, forceVertexMeshVariant, false);
 	}
 
@@ -115,7 +112,7 @@ namespace Engine::RenderPassExecutionHelper {
 		MultiRenderTarget* target, MaterialPassKind passKind,
 		bool forceVertexMeshVariant, bool depthOnly) {
 
-		// 収集済みアイテム配列を深度のみ込みでtargetへ流すラッパー
+		// 収集済みアイテム配列を深度のみ込みでtargetへ流す
 		DispatchInternal(graphicsCore, context, items, deps,
 			RenderPassSurfaceBinding{ target, nullptr }, passKind, forceVertexMeshVariant, depthOnly);
 	}
@@ -125,7 +122,7 @@ namespace Engine::RenderPassExecutionHelper {
 		const RenderPassSurfaceBinding& surface, MaterialPassKind passKind,
 		bool forceVertexMeshVariant, bool depthOnly) {
 
-		// 色サーフェスと外部DSVの組み合わせを明示指定するラッパー
+		// 色サーフェスと外部DSVの組み合わせを明示指定する
 		DispatchInternal(graphicsCore, context, items, deps, surface, passKind, forceVertexMeshVariant, depthOnly);
 	}
 

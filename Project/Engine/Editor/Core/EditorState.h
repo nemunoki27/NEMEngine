@@ -116,7 +116,7 @@ namespace Engine {
 		Entity scenePickDragEntity = Entity::Null();
 		// クリック確定までのピック候補のサブメッシュ、リリース時に選択を確定するため保持する
 		uint32_t scenePickCandidateSubMesh = 0;
-		UUID scenePickCandidateSubMeshId{};
+		UUID scenePickCandidateSubMeshID{};
 		// ドラッグせず離したクリックの保留状態、候補が揃ったら確定する
 		bool scenePickClickPending = false;
 		bool scenePickClickAdditive = false;

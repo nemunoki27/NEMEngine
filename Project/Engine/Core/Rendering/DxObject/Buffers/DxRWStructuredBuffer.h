@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Buffers/DxStructuredBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++

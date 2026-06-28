@@ -31,8 +31,8 @@ std::vector<const Engine::RenderItem*> Engine::DepthPrepass::CollectItems(
 
 	// 不透明アイテムが空ならZPrepassの対象も無い
 	std::vector<const RenderItem*> result{};
-	const RenderPassItemList* list = passBuckets.Find(RenderPhase::Opaque);
-	if (list->IsEmpty()) {
+	const RenderPassItemList& list = passBuckets.Get(RenderPhase::Opaque);
+	if (list.IsEmpty()) {
 		return result;
 	}
 	// 深度は透視投影カメラ基準で書くため対応するカメラが無ければ描画不可
@@ -41,8 +41,8 @@ std::vector<const Engine::RenderItem*> Engine::DepthPrepass::CollectItems(
 		return result;
 	}
 
-	result.reserve(list->items.size());
-	for (const RenderItem* item : list->items) {
+	result.reserve(list.items.size());
+	for (const RenderItem* item : list.items) {
 
 		if (!item) {
 			continue;
@@ -57,7 +57,7 @@ std::vector<const Engine::RenderItem*> Engine::DepthPrepass::CollectItems(
 		}
 		// メッシュペイロードデータの中で深度描画が有効な場合のみ
 		const MeshRenderPayload* payload = deps_.renderBatch->GetPayload<MeshRenderPayload>(*item);
-		if (!payload->enableZPrepass) {
+		if (!payload || !payload->enableZPrepass) {
 			continue;
 		}
 		result.emplace_back(item);

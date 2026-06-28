@@ -23,7 +23,7 @@ namespace Engine {
 	// v6:自動生成component binding用の汎用typed property accessとManagedColor3 4を追加
 	// v7: gameplay APIとしてTime拡張TimeScale frame tickやEntity生成やPrefab SceneやAssetRef解決やInput拡張やAudio Animation Applicationを追加
 	// v8:診断APIのreportScriptExceptionとscript descriptorのdefaultExecutionOrderを追加
-	// v9: GetComponent<Script>用にentityのscript instanceをscriptTypeIdで引くgetScriptInstanceを追加
+	// v9: GetComponent<Script>用にentityのscript instanceをscriptTypeIDで引くgetScriptInstanceを追加
 	// v10: Scene単一load用のloadSceneSingleを追加
 	// v11: EntityRef解決用のresolveEntityRefを追加
 	// v12: ライン描画のlineSetPointsと即時描画のlineDrawImmediate lineDrawSphereImmediateを追加
@@ -117,7 +117,7 @@ namespace Engine {
 	// 1フィールドのschemaでcollectionやnullableはelementを持つ再帰構造、buildやreload時にschema JSONを一度だけparseして構築しInspectorが参照する
 	struct ManagedFieldSchema {
 
-		std::string fieldId;             // Stable Serialized Field GUID で保存の主キー
+		std::string fieldID;             // Stable Serialized Field GUID で保存の主キー
 		std::string name;                // 現在の field 名で表示と legacy 照合に使う
 		std::string declaringType;       // 宣言型で継承時の識別に使う
 		std::vector<std::string> formerNames; // [FormerlySerializedAs] の旧名
@@ -158,7 +158,7 @@ namespace Engine {
 	// 1 script型のserialized field schema
 	struct ManagedScriptSchema {
 
-		std::string scriptTypeId;
+		std::string scriptTypeID;
 		std::string fullTypeName;
 		int32_t schemaVersion = 0;
 		std::vector<ManagedFieldSchema> fields;
@@ -356,7 +356,7 @@ namespace Engine {
 		using EntityActionCallback = void(__cdecl*)(ManagedNativeEntity);
 		// Diagnostics v8のscript callback例外の構造化報告でJSON DTOを1件渡す
 		using ReportStringCallback = void(__cdecl*)(const char*);
-		// GetComponent<Script> v9のentity上でscriptTypeId一致のscript instanceハンドルを引く
+		// GetComponent<Script> v9のentity上でscriptTypeID一致のscript instanceハンドルを引く
 		using GetScriptInstanceCallback = ManagedScriptInstanceHandle(__cdecl*)(ManagedNativeEntity, const char*);
 		using ResolveEntityRefCallback = ManagedNativeEntity(__cdecl*)(uint64_t, uint64_t);
 		// ライン描画v12でcomponentの点列設定と即時描画
@@ -464,7 +464,7 @@ namespace Engine {
 		GetBoolCallback audioIsPlaying = nullptr;
 		// Diagnostics v8のscript callback例外の構造化報告
 		ReportStringCallback reportScriptException = nullptr;
-		// GetComponent<Script> v9のentityのscript instanceをscriptTypeIdで引く
+		// GetComponent<Script> v9のentityのscript instanceをscriptTypeIDで引く
 		GetScriptInstanceCallback getScriptInstance = nullptr;
 		// SceneTransition v10のScene単一load、新sceneをactiveにし旧sceneを全unloadする
 		LoadSceneCallback loadSceneSingle = nullptr;
@@ -513,7 +513,7 @@ namespace Engine {
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI
 	struct ManagedScriptTypeDescriptor {
 
-		char scriptTypeId[40]{};   // 正規化GUID 36 文字と null
+		char scriptTypeID[40]{};   // 正規化GUID 36 文字と null
 		char fullTypeName[256]{};
 		char displayName[128]{};
 		char sourcePath[260]{};    // 定義元 .cs パスで drag&drop source 照合用

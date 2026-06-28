@@ -51,15 +51,15 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 	requests_.clear();
 
 	// outline対象はOpaqueメッシュなのでそのバケットだけ走査する
-	const RenderPassItemList* list = passBuckets.Find(RenderPhase::Opaque);
-	if (!list || list->IsEmpty()) {
+	const RenderPassItemList& list = passBuckets.Get(RenderPhase::Opaque);
+	if (list.IsEmpty()) {
 		return;
 	}
 
 	// 同一Entityが複数サブメッシュで来ても二重登録しないよう既出を記録する
 	std::unordered_set<uint64_t> visited{};
-	visited.reserve(list->items.size());
-	for (const RenderItem* item : list->items) {
+	visited.reserve(list.items.size());
+	for (const RenderItem* item : list.items) {
 
 		if (!item || item->backendID != RenderBackendID::Mesh || !item->world) {
 			continue;

@@ -419,7 +419,7 @@ namespace {
 		bool (*getValue)(Engine::ECSWorld&, const Engine::Entity&, Engine::AnimationPropertyValue&),
 		bool (*setValue)(Engine::ECSWorld&, const Engine::Entity&, const Engine::AnimationPropertyValue&)) {
 
-		// ToolとRuntimeの両方から同じDescriptorを引けるよう、登録情報を一箇所に集約する
+		// ToolとRuntimeの両方から同じDescriptorを引けるようにする
 		Engine::AnimationPropertyDescriptor desc{};
 		desc.componentName = componentName;
 		desc.propertyPath = propertyPath;

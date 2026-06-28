@@ -59,7 +59,7 @@
 #include <system_error>
 #include <vector>
 
-#include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
+#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 
 //============================================================================
 //	ProjectPanel classMethods
@@ -225,9 +225,6 @@ namespace {
 
 		return trail;
 	}
-
-	// .cs openは共通IDE launcherのManagedIdeLauncherへ統一した
-	// 以前のOpenWithShell / FindVisualStudioExecutableはlauncher側へ移管したため削除
 
 	// ProjectPanelの表示状態を保存するパスを返す
 	std::filesystem::path GetProjectPanelStatePath() {
@@ -859,7 +856,7 @@ void Engine::ProjectPanel::DrawCreateAssetPopup(AssetDatabase& database) {
 			createErrorMessage_.clear();
 			RefreshAfterFileOperation(database, result);
 			// C# Script作成時は共通IDE launcherで開く
-			// .cs.metaのscriptTypeId発番/ build / reloadはsource watcherが新規.csを検知して
+			// .cs.metaのscriptTypeID発番/ build / reloadはsource watcherが新規.csを検知して
 			// 既存のasync metadata syncからbuildパイプラインで行い、inline UUIDはtemplateに出さない
 			if (pendingCreateKind_ == ProjectAssetFileKind::Script && !result.fullPath.empty()) {
 				ManagedIdeLauncher::OpenFile(result.fullPath, 1, 1);

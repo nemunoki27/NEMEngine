@@ -78,7 +78,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow([[maybe_unused]] const EditorT
 
 			const BehaviorTypeInfo& info = registry.GetInfo(i);
 			// managed scriptかつStable GUIDを持つ型のみ対象でnative behaviorは対象外
-			if (!info.managed || info.scriptTypeId.empty()) {
+			if (!info.managed || info.scriptTypeID.empty()) {
 				continue;
 			}
 			const std::string& label = !info.displayName.empty() ? info.displayName : info.name;
@@ -90,7 +90,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow([[maybe_unused]] const EditorT
 			// precedenceはoverrideがdefaultより優先でdefaultは0が既定、effectiveはoverride優先で算出する
 			const int32_t defaultOrder = info.defaultExecutionOrder;
 			int32_t overrideValue = 0;
-			const bool hasOverride = table.TryGetOverride(info.scriptTypeId, overrideValue);
+			const bool hasOverride = table.TryGetOverride(info.scriptTypeID, overrideValue);
 			const int32_t effective = hasOverride ? overrideValue : defaultOrder;
 
 			ImGui::TableNextRow();
@@ -99,7 +99,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow([[maybe_unused]] const EditorT
 			ImGui::TableSetColumnIndex(0);
 			ImGui::TextUnformatted(label.c_str());
 			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip("%s", info.scriptTypeId.c_str());
+				ImGui::SetTooltip("%s", info.scriptTypeID.c_str());
 			}
 
 			ImGui::TableSetColumnIndex(1);
@@ -110,7 +110,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow([[maybe_unused]] const EditorT
 			int editValue = hasOverride ? overrideValue : defaultOrder;
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			if (ImGui::InputInt("##order", &editValue)) {
-				table.SetOrder(info.scriptTypeId, label, editValue);
+				table.SetOrder(info.scriptTypeID, label, editValue);
 				dirty_ = true;
 			}
 			if (!hasOverride) {
@@ -125,7 +125,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow([[maybe_unused]] const EditorT
 			// Resetは値0の書き込みではなくoverride entryの削除
 			ImGui::BeginDisabled(!hasOverride);
 			if (ImGui::SmallButton("Override削除")) {
-				table.Remove(info.scriptTypeId);
+				table.Remove(info.scriptTypeID);
 				dirty_ = true;
 			}
 			ImGui::EndDisabled();

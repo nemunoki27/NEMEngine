@@ -6,6 +6,7 @@
 #include <Engine/Editor/UI/Inspectors/Common/SerializedComponentInspectorDrawer.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 
 // c++
 #include <string>

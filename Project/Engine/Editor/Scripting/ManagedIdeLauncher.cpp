@@ -51,7 +51,7 @@ namespace {
 		return result;
 	}
 
-	// インストール済みVisual Studioのdevenv.exeを探す、従来ProjectPanelと同じ探索順
+	// インストール済みVisual Studioのdevenv.exeを探す
 	std::filesystem::path FindVisualStudioExecutable() {
 
 		const std::filesystem::path roots[] = {
@@ -192,7 +192,7 @@ bool Engine::ManagedIdeLauncher::OpenFile(const std::filesystem::path& file, int
 
 		const std::filesystem::path devenv = FindVisualStudioExecutable();
 		if (!devenv.empty()) {
-			// /Editは既存インスタンスがあればそれでfileを開く、従来ProjectPanelと同じ
+			// /Editは既存インスタンスがあればそれでfileを開く
 			const std::wstring parameters = L"/Edit \"" + file.wstring() + L"\"";
 			const HINSTANCE result = ::ShellExecuteW(nullptr, L"open", devenv.wstring().c_str(),
 				parameters.c_str(), nullptr, SW_SHOWNORMAL);

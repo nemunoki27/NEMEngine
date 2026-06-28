@@ -22,7 +22,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		// imgui-node-editorへ渡すEditor ID
-		const char* editorId = "NodeGraph";
+		const char* editorID = "NodeGraph";
 		// Node生成に使用するRegistry
 		GraphNodeRegistry* registry = nullptr;
 		// NodeのプロパティUI描画

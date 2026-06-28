@@ -6,42 +6,12 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
+#include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 
 //============================================================================
 //	SkinnedMeshAnimationManager classMethods
 //============================================================================
 namespace {
-
-	// アニメーションのためのノードを再帰的に読み込む
-	Engine::MeshNode ReadNodeForAnimation(aiNode* node) {
-
-		Engine::MeshNode result{};
-		if (!node) {
-			return result;
-		}
-
-		aiVector3D scale, translate;
-		aiQuaternion rotate;
-		// Assimpのノードの変換行列をスケール、回転、平行移動に分解
-		node->mTransformation.Decompose(scale, rotate, translate);
-
-		result.transform.scale = { scale.x, scale.y, scale.z };
-		result.transform.rotation = { rotate.x, -rotate.y, -rotate.z, rotate.w };
-		result.transform.translation = { -translate.x, translate.y, translate.z };
-
-		// スケール、回転、平行移動からローカル変換行列を作成
-		result.localMatrix = Engine::Matrix4x4::MakeAffineMatrix(result.transform.scale,
-			result.transform.rotation, result.transform.translation);
-		result.name = node->mName.C_Str();
-
-		// 子ノードも再帰的に読み込む
-		result.children.resize(node->mNumChildren);
-		for (uint32_t i = 0; i < node->mNumChildren; ++i) {
-
-			result.children[i] = ReadNodeForAnimation(node->mChildren[i]);
-		}
-		return result;
-	}
 
 	// アニメーションの名前を解決
 	std::string ResolveClipName(const aiAnimation* anim, uint32_t index, uint32_t totalCount) {
@@ -180,7 +150,7 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 	}
 
 	// ノード階層を再帰的に読み込んでスケルトンを構築
-	MeshNode rootNode = ReadNodeForAnimation(scene->mRootNode);
+	MeshNode rootNode = Engine::MeshImportUtility::ReadMeshNodeTree(scene->mRootNode);
 	result.skeleton = BuildSkeletonFromMeshNode(rootNode);
 
 	result.skinCluster.inverseBindPoseMatrices.resize(result.skeleton.joints.size(), Matrix4x4::Identity());

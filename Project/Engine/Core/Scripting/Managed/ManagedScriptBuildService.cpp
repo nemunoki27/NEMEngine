@@ -381,7 +381,7 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 			// 同期ツールの出力つまり採番やリネームや曖昧診断をエディタコンソールへ転送する
 			Logger::Output(LogType::GameLogic, spdlog::level::info, "[ScriptMetaSync] {}", line);
 			// 取り込み点で構造化診断ストアへ入れコンソール文字列は再解析しない
-			ManagedBuildDiagnosticStore::GetInstance().Ingest(diagnostics_.buildId, diagnostics_.reloadId,
+			ManagedBuildDiagnosticStore::GetInstance().Ingest(diagnostics_.buildID, diagnostics_.reloadID,
 				ManagedBuildProcessKind::MetadataSync, line);
 			if (ContainsErrorToken(line)) {
 				if (firstErrorLine_.empty()) {
@@ -418,7 +418,7 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 			// ビルド出力をエディタコンソールつまりGameLogicログへ逐次転送する
 			Logger::Output(LogType::GameLogic, spdlog::level::info, "[GameScripts build] {}", line);
 			// 取り込み点で構造化診断ストアへ入れMSBuildやCSCのエラーと警告を解析する
-			ManagedBuildDiagnosticStore::GetInstance().Ingest(diagnostics_.buildId, diagnostics_.reloadId,
+			ManagedBuildDiagnosticStore::GetInstance().Ingest(diagnostics_.buildID, diagnostics_.reloadID,
 				ManagedBuildProcessKind::Build, line);
 			// engine.log要約用にエラー行の最初と最後を保持する、全文はgameLogic.log側
 			if (ContainsErrorToken(line)) {
@@ -479,15 +479,15 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 	currentForPlay_ = forPlay;
 	buildStartTime_ = std::chrono::steady_clock::now();
 	diagnostics_ = ReloadDiagnostics{};
-	diagnostics_.buildId = ++buildCounter_;
+	diagnostics_.buildID = ++buildCounter_;
 	// 新しいビルドサイクルの開始を診断ストアへ通知し、古いビルドの履歴を上限で間引く
-	ManagedBuildDiagnosticStore::GetInstance().BeginBuild(diagnostics_.buildId);
+	ManagedBuildDiagnosticStore::GetInstance().BeginBuild(diagnostics_.buildID);
 	firstErrorLine_.clear();
 	lastErrorLine_.clear();
 
 	// ステージングディレクトリ作成の失敗は無視せず、絶対パスとエラーを出して中断する
 	std::error_code dirError{};
-	currentStagingDir_ = StagingRoot() / std::to_wstring(diagnostics_.buildId);
+	currentStagingDir_ = StagingRoot() / std::to_wstring(diagnostics_.buildID);
 	std::filesystem::create_directories(currentStagingDir_, dirError);
 	if (dirError) {
 
@@ -542,8 +542,8 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 		L"dotnet \"" + syncToolDll.wstring() + L"\" --root \"" + scriptsRoot.wstring() + L"\" --mode EditorSync";
 
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptBuildService: build start. buildId={} forPlay={} staging={}",
-		diagnostics_.buildId, forPlay, ToUtf8Path(currentStagingDir_));
+		"ManagedScriptBuildService: build start. buildID={} forPlay={} staging={}",
+		diagnostics_.buildID, forPlay, ToUtf8Path(currentStagingDir_));
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"ManagedScriptBuildService: metadata sync. cmd={}", Algorithm::ConvertString(syncCommand));
 
@@ -665,8 +665,8 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 
 		// ビルド失敗時は正常DLLを解放せず維持する、全文はgameLogic.logでengine.logには要約を残す
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: build failed. exitCode={} buildId={} (keeping the currently loaded assembly).",
-			diagnostics_.buildExitCode, diagnostics_.buildId);
+			"ManagedScriptBuildService: build failed. exitCode={} buildID={} (keeping the currently loaded assembly).",
+			diagnostics_.buildExitCode, diagnostics_.buildID);
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"  cwd={}", ToUtf8Path(lastBuildWorkingDir_));
 		Logger::Output(LogType::Engine, spdlog::level::err,
@@ -716,8 +716,8 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 	// シャドウコピーを作成しステージングからコピーする
 	const auto stagingStart = std::chrono::steady_clock::now();
 	SetState(State::Staging);
-	diagnostics_.reloadId = ++reloadCounter_;
-	currentShadowDir_ = ShadowRoot() / std::to_wstring(diagnostics_.reloadId);
+	diagnostics_.reloadID = ++reloadCounter_;
+	currentShadowDir_ = ShadowRoot() / std::to_wstring(diagnostics_.reloadID);
 	std::error_code dirError{};
 	std::filesystem::create_directories(currentShadowDir_, dirError);
 
@@ -775,9 +775,9 @@ void Engine::ManagedScriptBuildService::ApplyReload() {
 		PruneDirectories(ShadowRoot());
 
 		Logger::Output(LogType::Engine, spdlog::level::info,
-			"ManagedScriptBuildService: reload succeeded. buildId={} reloadId={} changed={} "
+			"ManagedScriptBuildService: reload succeeded. buildID={} reloadID={} changed={} "
 			"buildMs={:.1f} manifestMs={:.1f} shadowMs={:.1f} loadMs={:.1f} types={} fallback={}",
-			diagnostics_.buildId, diagnostics_.reloadId, diagnostics_.changedSourceCount,
+			diagnostics_.buildID, diagnostics_.reloadID, diagnostics_.changedSourceCount,
 			diagnostics_.buildMs, diagnostics_.manifestMs, diagnostics_.shadowCopyMs, diagnostics_.loadMs,
 			diagnostics_.scriptTypeCount, diagnostics_.fallbackUsed);
 
@@ -788,8 +788,8 @@ void Engine::ManagedScriptBuildService::ApplyReload() {
 	// リロード失敗、最後の正常版から復旧を試みる
 	SetState(State::ReloadFailed);
 	Logger::Output(LogType::Engine, spdlog::level::err,
-		"ManagedScriptBuildService: reload failed. buildId={} reloadId={}. attempting fallback to last-known-good.",
-		diagnostics_.buildId, diagnostics_.reloadId);
+		"ManagedScriptBuildService: reload failed. buildID={} reloadID={}. attempting fallback to last-known-good.",
+		diagnostics_.buildID, diagnostics_.reloadID);
 	ApplyFallback();
 }
 
@@ -1044,8 +1044,8 @@ Engine::ManagedScriptBuildService::Snapshot Engine::ManagedScriptBuildService::G
 
 	Snapshot snapshot{};
 	snapshot.state = state_;
-	snapshot.buildId = diagnostics_.buildId;
-	snapshot.reloadId = diagnostics_.reloadId;
+	snapshot.buildID = diagnostics_.buildID;
+	snapshot.reloadID = diagnostics_.reloadID;
 	snapshot.hasPendingSourceChanges = dirty_;
 	snapshot.reloadDeferredByPlayMode = playDirtyNotified_;
 	std::error_code ec{};

@@ -19,13 +19,13 @@ bool Engine::NodeGraphInteraction::TryCreateLink(GraphDocument& document, GraphI
 	return result;
 }
 
-bool Engine::NodeGraphInteraction::TryDeleteLink(GraphDocument& document, GraphID linkId) {
+bool Engine::NodeGraphInteraction::TryDeleteLink(GraphDocument& document, GraphID linkID) {
 
 	// ViewからはIDだけを受け取り、実データ削除はDocumentへ任せる
-	const bool result = document.RemoveLink(linkId);
+	const bool result = document.RemoveLink(linkID);
 	if (result) {
 		Logger::Output(LogType::Engine, spdlog::level::debug,
-			"NodeGraph: delete link. id={}", linkId);
+			"NodeGraph: delete link. id={}", linkID);
 	}
 	return result;
 }

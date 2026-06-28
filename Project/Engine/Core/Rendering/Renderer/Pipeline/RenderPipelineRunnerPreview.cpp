@@ -13,7 +13,7 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/Passes/RenderItemBatchDispatcher.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>

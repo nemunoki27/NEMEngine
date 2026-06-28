@@ -88,7 +88,7 @@ namespace Engine {
 
 		// 実行なしでマテリアルのリフレクション情報を取得する
 		bool TryGetReflection(GraphicsCore& graphicsCore, RenderAssetLibrary& assetLibrary,
-			PipelineStateCache& pipelineCache, AssetID materialId, MaterialPassKind passKind,
+			PipelineStateCache& pipelineCache, AssetID materialID, MaterialPassKind passKind,
 			std::vector<ShaderConstantBufferVariable>& outVars,
 			std::vector<ShaderResourceBinding>& outSRVs);
 

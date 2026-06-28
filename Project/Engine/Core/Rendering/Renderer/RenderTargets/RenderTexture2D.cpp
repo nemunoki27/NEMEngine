@@ -7,7 +7,7 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 

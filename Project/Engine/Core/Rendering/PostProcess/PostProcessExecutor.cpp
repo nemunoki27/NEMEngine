@@ -163,7 +163,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 		constants.resolution = Vector2(static_cast<float>(dest->GetWidth()), static_cast<float>(dest->GetHeight()));
 		constants.invResolution = Vector2(1.0f / (std::max)(constants.resolution.x, 1.0f), 1.0f / (std::max)(constants.resolution.y, 1.0f));
 		constants.time = elapsedTime_;
-		constants.deltaTime = context.systemContext->deltaTime;
+		constants.deltaTime = context.systemContext ? context.systemContext->deltaTime : 0.0f;
 		constants.frameIndex = frameIndex_;
 		// 深度線形化用に、アクティブビューの透視カメラのクリップ距離を渡す
 		constants.cameraNear = 0.1f;
@@ -247,11 +247,11 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 
 bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 	RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache,
-	AssetID materialId, MaterialPassKind passKind,
+	AssetID materialID, MaterialPassKind passKind,
 	std::vector<ShaderConstantBufferVariable>& outVars,
 	std::vector<ShaderResourceBinding>& outSRVs) {
 
-	const MaterialAsset* materialAsset = assetLibrary.LoadMaterial(materialId);
+	const MaterialAsset* materialAsset = assetLibrary.LoadMaterial(materialID);
 	if (!materialAsset) {
 		return false;
 	}

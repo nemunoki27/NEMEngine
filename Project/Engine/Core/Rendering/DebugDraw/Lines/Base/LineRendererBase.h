@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
+#include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
@@ -169,13 +170,13 @@ namespace Engine {
 		desc.type = PipelineType::Geometry;
 
 		// シェーダー設定
-		desc.preRaster.file = "b2995658d93cd4ab";
+		desc.preRaster.file = BuiltinShaderSource::Line::GeometryVS;
 		desc.preRaster.entry = "main";
 		desc.preRaster.profile = "vs_6_0";
-		desc.geometry.file = "0f434bd88135ee44";
+		desc.geometry.file = BuiltinShaderSource::Line::GeometryGS;
 		desc.geometry.entry = "main";
 		desc.geometry.profile = "gs_6_0";
-		desc.pixel.file = "bfddf777ae6b39b6";
+		desc.pixel.file = BuiltinShaderSource::Line::GeometryPS;
 		desc.pixel.entry = "main";
 		desc.pixel.profile = "ps_6_0";
 

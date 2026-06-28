@@ -25,12 +25,12 @@ D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D
 	const PipelineState& pipeline, const MaterialAsset& material) {
 
 	// パイプラインごとにレイアウトを一度だけ構築してキャッシュする
-	auto found = layoutCache_.find(&pipeline);
+	auto found = layoutCache_.find(pipeline.GetUniqueID());
 	if (found == layoutCache_.end()) {
 
 		MaterialParameterLayout layout{};
 		layout.Build(pipeline.GetGraphicsReflection(), MaterialParameterCBuffer::kSurface);
-		found = layoutCache_.emplace(&pipeline, std::move(layout)).first;
+		found = layoutCache_.emplace(pipeline.GetUniqueID(), std::move(layout)).first;
 	}
 
 	const MaterialParameterLayout& layout = found->second;
@@ -58,12 +58,12 @@ D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D
 		return ResolveAndUpload(device, pipeline, material);
 	}
 
-	auto found = layoutCache_.find(&pipeline);
+	auto found = layoutCache_.find(pipeline.GetUniqueID());
 	if (found == layoutCache_.end()) {
 
 		MaterialParameterLayout layout{};
 		layout.Build(pipeline.GetGraphicsReflection(), MaterialParameterCBuffer::kSurface);
-		found = layoutCache_.emplace(&pipeline, std::move(layout)).first;
+		found = layoutCache_.emplace(pipeline.GetUniqueID(), std::move(layout)).first;
 	}
 
 	const MaterialParameterLayout& layout = found->second;

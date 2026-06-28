@@ -315,7 +315,7 @@ void Engine::EditorState::CommitScenePick(ECSWorld& world) {
 			CanMultiSelect(world, scenePickDragEntity)) {
 			ToggleEntityInSelection(scenePickDragEntity);
 		} else {
-			SelectFromScenePick(scenePickDragEntity, scenePickCandidateSubMesh, scenePickCandidateSubMeshId);
+			SelectFromScenePick(scenePickDragEntity, scenePickCandidateSubMesh, scenePickCandidateSubMeshID);
 		}
 	} else if (!scenePickClickAdditive) {
 		ClearSelection();

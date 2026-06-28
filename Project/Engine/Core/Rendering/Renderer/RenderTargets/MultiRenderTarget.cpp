@@ -7,7 +7,7 @@
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxDepthStencilView.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 
 //============================================================================
 //	MultiRenderTarget classMethods

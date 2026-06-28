@@ -284,7 +284,7 @@ void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) 
 		ImGui::TextDisabled("衝突設定ファイル: %s", settingsPath.c_str());
 	}
 
-	// Save/Reloadボタン、PostProcessStackと同じ作法
+	// Save/Reloadボタン
 	if (ImGui::Button("保存")) {
 		EnsureActiveCollisionSettingsAsset(context);
 		settings.Save();

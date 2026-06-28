@@ -10,7 +10,6 @@
 #include <Engine/Core/Rendering/DxObject/Buffers/DxStructuredBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
-#include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 
 // c++
@@ -22,6 +21,26 @@ namespace Engine {
 	// front
 	class GraphicsCore;
 	class ECSWorld;
+
+	//============================================================================
+	//	MeshSubMeshPicker structures
+	//============================================================================
+
+	// ピック結果を呼び出し側へ渡すための情報
+	struct MeshSubMeshPickOutcome {
+
+		// CommitScenePickを行うべきか、readback未完了や対象ワールド無しならfalse
+		bool committed = false;
+		// エンティティにヒットしたか、ヒットなしは選択解除になる
+		bool hit = false;
+
+		// ヒットしたエンティティ
+		Entity entity = Entity::Null();
+		// ヒットしたサブメッシュ番号
+		uint32_t subMeshIndex = 0;
+		// ヒットしたサブメッシュの安定ID
+		UUID subMeshStableID{};
+	};
 
 	//============================================================================
 	//	MeshSubMeshPicker class
@@ -43,8 +62,8 @@ namespace Engine {
 		// 初期化
 		void Init(GraphicsCore& graphicsCore);
 
-		// 前フレームで仕込んだ結果をフレーム頭で消費し、ピック候補を更新して保留クリックを確定する
-		void ConsumePendingResult(ECSWorld* world, EditorState& editorState);
+		// 前フレームで仕込んだ結果をフレーム頭で消費し、選択へ適用するための結果を返す
+		MeshSubMeshPickOutcome ConsumePendingResult(ECSWorld* world);
 		// GPUピックのreadback待ちが残っているか、クリック確定の遅延判定に使う
 		bool HasPendingReadback() const { return pendingReadback_; }
 

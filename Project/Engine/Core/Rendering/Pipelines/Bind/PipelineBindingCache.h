@@ -69,7 +69,8 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::vector<SlotEntry> slots_;
-		const PipelineState* lastPipeline_ = nullptr;
+		// 直近にSyncしたパイプラインの一意ID、ポインタ同一性だと再生成時に誤判定するためIDで持つ
+		uint64_t lastPipelineID_ = 0;
 	};
 } // Engine
 

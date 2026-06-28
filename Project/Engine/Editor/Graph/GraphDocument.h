@@ -33,7 +33,7 @@ namespace Engine {
 		std::vector<GraphLink> links;
 
 		// 次に割り当てるID
-		GraphID nextId = 1;
+		GraphID nextID = 1;
 
 		// Toolごとの追加情報
 		nlohmann::json metadata = nlohmann::json::object();

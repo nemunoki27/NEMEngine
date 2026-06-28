@@ -6,10 +6,10 @@
 #include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
 
 //============================================================================
-//	UVTransformUpdateSystem classMethods
+//	UVTransformSystem classMethods
 //============================================================================
 
-void Engine::UVTransformUpdateSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
+void Engine::UVTransformSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
 	world.ForEach<UVTransformComponent>([&]([[maybe_unused]] Entity entity, UVTransformComponent& uvTransform) {
 

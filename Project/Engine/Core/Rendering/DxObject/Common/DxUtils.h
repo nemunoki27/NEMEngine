@@ -30,12 +30,12 @@ namespace DxUtils {
 	// CPU書き込み可能なUPLOAD heapバッファを作成する
 	void CreateUploadBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes);
 	// GPU専用のDEFAULT heapバッファを作成する
-	// D3D12 bufferのCreateCommittedResource初期状態は実質COMMONになるため、initialStateは互換引数として残す
+	// D3D12 bufferのCreateCommittedResource初期状態は実質COMMONになる
 	void CreateDefaultBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes,
 		D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
 
-	// 通常のGPUバッファリソースをUPLOAD heapで作成し互換のためCreateUploadBufferResourceへ委譲する
+	// 通常のGPUバッファリソースをUPLOAD heapで作成する
 	void CreateBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes);
 	// UAV用途のバッファリソースを作成する
 	void CreateUavBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes);

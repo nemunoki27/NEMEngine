@@ -427,11 +427,11 @@ Engine::AssetID Engine::PostProcessAssetGenerator::EnsureUserAsset(AssetDatabase
 	WriteGeneratedJson(pipelineFullPath, MakeUserPipelineJson(shaderID, baseName));
 	const AssetID pipelineID = database->ImportOrGet(pipelineAssetPath, AssetType::RenderPipeline);
 	WriteGeneratedJson(materialFullPath, MakeUserMaterialJson(pipelineID, baseName));
-	const AssetID materialId = database->ImportOrGet(materialAssetPath, AssetType::Material);
+	const AssetID materialID = database->ImportOrGet(materialAssetPath, AssetType::Material);
 
 	Logger::Output(LogType::Engine,
 		"[PostProcessAssetGenerator] user asset ready. material={}", materialAssetPath);
-	return materialId;
+	return materialID;
 }
 
 Engine::AssetID Engine::PostProcessAssetGenerator::FindOrCreateMaterialForShader(AssetDatabase* database,
@@ -469,9 +469,9 @@ Engine::AssetID Engine::PostProcessAssetGenerator::FindOrCreateMaterialForShader
 	WriteGeneratedJson(pipelineFullPath, MakeUserPipelineJson(shaderID, baseName));
 	const AssetID pipelineID = database->ImportOrGet(pipelineAssetPath, AssetType::RenderPipeline);
 	WriteGeneratedJson(materialFullPath, MakeUserMaterialJson(pipelineID, baseName));
-	const AssetID materialId = database->ImportOrGet(materialAssetPath, AssetType::Material);
+	const AssetID materialID = database->ImportOrGet(materialAssetPath, AssetType::Material);
 
 	Logger::Output(LogType::Engine,
 		"[PostProcessAssetGenerator] material created for shader. material={}", materialAssetPath);
-	return materialId;
+	return materialID;
 }

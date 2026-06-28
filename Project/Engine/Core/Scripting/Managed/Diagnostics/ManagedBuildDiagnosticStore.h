@@ -40,8 +40,8 @@ namespace Engine {
 	//============================================================================
 	struct ManagedBuildDiagnostic {
 
-		uint64_t buildId = 0;
-		uint64_t reloadId = 0;
+		uint64_t buildID = 0;
+		uint64_t reloadID = 0;
 		ManagedBuildProcessKind processKind = ManagedBuildProcessKind::Other;
 		DiagnosticSeverity severity = DiagnosticSeverity::Info;
 		std::string code;     // CS1002 や MSB3021 等
@@ -74,10 +74,10 @@ namespace Engine {
 		//========================================================================
 
 		// 新しいbuildサイクルの開始を記録する、古いbuildの履歴を上限で間引く
-		void BeginBuild(uint64_t buildId);
+		void BeginBuild(uint64_t buildID);
 
 		// 1行をingestionし診断としてparseできた場合のみstoreへ追加しtrueを返す、parse不能行は入れずConsole logは呼び出し側が残す
-		bool Ingest(uint64_t buildId, uint64_t reloadId, ManagedBuildProcessKind kind, const std::string& rawLine);
+		bool Ingest(uint64_t buildID, uint64_t reloadID, ManagedBuildProcessKind kind, const std::string& rawLine);
 
 		// 全entryを破棄する
 		void Clear();
@@ -114,7 +114,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::deque<ManagedBuildDiagnostic> entries_;
-		std::deque<uint64_t> buildHistory_; // 受け入れ順の buildId
+		std::deque<uint64_t> buildHistory_; // 受け入れ順の buildID
 		size_t errorCount_ = 0;
 		size_t warningCount_ = 0;
 		uint64_t version_ = 0;

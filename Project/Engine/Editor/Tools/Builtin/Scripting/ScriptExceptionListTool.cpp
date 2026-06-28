@@ -51,7 +51,7 @@ void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& contex
 	ManagedScriptExceptionStore& store = ManagedScriptExceptionStore::GetInstance();
 
 	ImGui::TextWrapped("Script callback で送出された未処理の例外。該当 instance のみ faulted 化され engine 全体は停止しません。");
-	ImGui::TextDisabled("identity は scriptTypeId の Stable GUID。表示名は識別には使いません。");
+	ImGui::TextDisabled("identity は scriptTypeID の Stable GUID。表示名は識別には使いません。");
 
 	//--------- filter + actions ---------------------------------------------
 	ImGui::SetNextItemWidth(200.0f);
@@ -81,7 +81,7 @@ void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& contex
 		ImGui::TableSetupColumn("Exception", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableHeadersRow();
 
-		int rowId = 0;
+		int rowID = 0;
 		for (const ManagedScriptException& exc : store.Entries()) {
 
 			const std::string shortType = ShortTypeName(exc.typeName);
@@ -92,7 +92,7 @@ void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& contex
 			}
 
 			ImGui::TableNextRow();
-			ImGui::PushID(rowId++);
+			ImGui::PushID(rowID++);
 
 			ImGui::TableSetColumnIndex(0);
 			ImGui::TextUnformatted(exc.timestamp.c_str());
@@ -103,10 +103,10 @@ void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& contex
 			ImGui::TableSetColumnIndex(2);
 			ImGui::TextUnformatted(shortType.c_str());
 			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip("%s\nscriptTypeId: %s\nslot: %llu",
+				ImGui::SetTooltip("%s\nscriptTypeID: %s\nslot: %llu",
 					exc.typeName.c_str(),
-					exc.scriptTypeId.empty() ? "(unresolved)" : exc.scriptTypeId.c_str(),
-					static_cast<unsigned long long>(exc.scriptSlotId));
+					exc.scriptTypeID.empty() ? "(unresolved)" : exc.scriptTypeID.c_str(),
+					static_cast<unsigned long long>(exc.scriptSlotID));
 			}
 
 			ImGui::TableSetColumnIndex(3);

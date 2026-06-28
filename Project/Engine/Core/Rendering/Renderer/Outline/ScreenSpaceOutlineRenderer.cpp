@@ -11,7 +11,7 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxGPUEventScope.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
@@ -267,8 +267,8 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 		return;
 	}
 
-	const RenderPassItemList* list = passBuckets.Find(RenderPhase::Opaque);
-	if (!list || list->IsEmpty()) {
+	const RenderPassItemList& list = passBuckets.Get(RenderPhase::Opaque);
+	if (list.IsEmpty()) {
 		return;
 	}
 
@@ -301,7 +301,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 				itemScratch_.clear();
 				for (size_t recordIndex = groupBegin; recordIndex < groupEnd; ++recordIndex) {
 
-					for (const RenderItem* item : list->items) {
+					for (const RenderItem* item : list.items) {
 
 						if (!item || item->backendID != RenderBackendID::Mesh) {
 							continue;

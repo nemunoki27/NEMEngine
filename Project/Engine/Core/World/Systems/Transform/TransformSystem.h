@@ -8,24 +8,24 @@
 namespace Engine {
 
 	//============================================================================
-	//	TransformUpdateSystem class
+	//	TransformSystem class
 	//	トランスフォームの更新、管理を行うシステム
 	//============================================================================
-	class TransformUpdateSystem :
+	class TransformSystem :
 		public ISystem {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
 
-		TransformUpdateSystem() = default;
-		~TransformUpdateSystem() = default;
+		TransformSystem() = default;
+		~TransformSystem() = default;
 
 		void LateUpdate(ECSWorld& world, SystemContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
 
-		const char* GetName() const override { return "TransformUpdateSystem"; }
+		const char* GetName() const override { return "TransformSystem"; }
 	private:
 		//============================================================================
 		//	private Methods

@@ -8,27 +8,14 @@
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
-#include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
+#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
+#include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 
 //============================================================================
 //	MeshImportService classMethods
 //============================================================================
 namespace {
 
-	// サブメッシュの名前を構築
-	std::string BuildSubMeshName(const aiMesh* mesh, uint32_t meshIndex, const aiMaterial* material) {
-
-		if (mesh && mesh->mName.length > 0) {
-			return mesh->mName.C_Str();
-		}
-		if (material) {
-			aiString materialName;
-			if (material->Get(AI_MATKEY_NAME, materialName) == AI_SUCCESS && materialName.length > 0) {
-				return materialName.C_Str();
-			}
-		}
-		return "SubMesh_" + std::to_string(meshIndex);
-	}
 	// 頂点のジョイント影響を正規化
 	void NormalizeInfluence(Engine::VertexInfluence& influence) {
 
@@ -306,7 +293,7 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 			SubMeshDesc subMesh{};
 			subMesh.indexOffset = subMeshIndexOffset;
 			subMesh.indexCount = subMeshIndexCount;
-			subMesh.name = BuildSubMeshName(mesh, meshIndex, material);
+			subMesh.name = Engine::MeshImportUtility::BuildSubMeshName(mesh, meshIndex, material);
 
 			// マテリアルがあれば、テクスチャの参照を取得
 			if (material) {
@@ -400,25 +387,5 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 
 Engine::MeshNode Engine::MeshImportService::ReadNode(aiNode* node) const {
 
-	MeshNode result{};
-	if (!node) {
-		return result;
-	}
-
-	aiVector3D scale, translate;
-	aiQuaternion rotate;
-	node->mTransformation.Decompose(scale, rotate, translate);
-
-	// ノードの変換をエンジンの座標系に合わせて変換して保存
-	result.transform.scale = { scale.x, scale.y, scale.z };
-	result.transform.rotation = { rotate.x, -rotate.y, -rotate.z, rotate.w };
-	result.transform.translation = { -translate.x, translate.y, translate.z };
-	result.localMatrix = Matrix4x4::MakeAffineMatrix(result.transform.scale, result.transform.rotation, result.transform.translation);
-	result.name = node->mName.C_Str();
-	result.children.resize(node->mNumChildren);
-	for (uint32_t i = 0; i < node->mNumChildren; ++i) {
-
-		result.children[i] = ReadNode(node->mChildren[i]);
-	}
-	return result;
+	return MeshImportUtility::ReadMeshNodeTree(node);
 }

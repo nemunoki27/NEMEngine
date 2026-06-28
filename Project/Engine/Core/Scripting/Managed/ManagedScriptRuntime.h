@@ -58,9 +58,9 @@ namespace Engine {
 		// 直近のRefreshScriptTypesで反映したmanaged script型数でreload診断用
 		int32_t ManagedScriptTypeCount() const { return lastManagedTypeCount_; }
 
-		// Stable Script Type GUIDからinstanceを作成し失敗時は無効ハンドル、scriptSlotIdはC#がruntime entry特定に使う
-		ManagedScriptInstanceHandle CreateInstance(const std::string& scriptTypeId, ECSWorld& world,
-			const Entity& entity, const nlohmann::json& serializedFields, uint64_t scriptSlotId);
+		// Stable Script Type GUIDからinstanceを作成し失敗時は無効ハンドル、scriptSlotIDはC#がruntime entry特定に使う
+		ManagedScriptInstanceHandle CreateInstance(const std::string& scriptTypeID, ECSWorld& world,
+			const Entity& entity, const nlohmann::json& serializedFields, uint64_t scriptSlotID);
 		// 対象DLLを検証してScript ManifestのJSONを生成する、buildやreload時のみで現行DLLは触らない
 		ManagedStatus GenerateScriptManifest(const std::filesystem::path& assemblyPath,
 			const std::filesystem::path& manifestOutputPath);
@@ -88,14 +88,14 @@ namespace Engine {
 
 		bool IsInitialized() const { return initialized_; }
 		// Inspector描画用にserialized field schemaを取得する、blobを一度だけparseしてcacheし未解決は空schema
-		const ManagedScriptSchema& GetScriptSchema(const std::string& scriptTypeId);
+		const ManagedScriptSchema& GetScriptSchema(const std::string& scriptTypeID);
 		// 任意形式のauthoring serializedFieldsからfieldGuidとvalueの値マップをmigration込みで作る
-		nlohmann::json BuildSerializedValueMap(const std::string& scriptTypeId, const nlohmann::json& serializedFields);
+		nlohmann::json BuildSerializedValueMap(const std::string& scriptTypeID, const nlohmann::json& serializedFields);
 
 		// Play中runtime Inspector用：instanceの現在値を{ fieldGuid: value }で取得する
 		nlohmann::json GetRuntimeSerializedState(ManagedScriptInstanceHandle handle);
 		// runtime instanceの単一fieldを即時更新する、authoringへは保存しない
-		void SetRuntimeSerializedField(ManagedScriptInstanceHandle handle, const std::string& fieldId, const nlohmann::json& value);
+		void SetRuntimeSerializedField(ManagedScriptInstanceHandle handle, const std::string& fieldID, const nlohmann::json& value);
 
 		// 現在のライフサイクル呼び出しのコンテキストでmain threadのcallbackから参照する
 		static const SystemContext* GetCurrentContext();
@@ -290,14 +290,14 @@ namespace Engine {
 		static void __cdecl SetIgnoreParentScaleCallback(ManagedNativeEntity entity, int32_t value);
 		// generic component access / Entity破棄/ ScriptBehaviour.Enabled
 		static int32_t __cdecl GetComponentTypeIdCallback(const char* name);
-		static int32_t __cdecl HasComponentCallback(ManagedNativeEntity entity, int32_t typeId);
-		static void __cdecl AddComponentCallback(ManagedNativeEntity entity, int32_t typeId);
-		static void __cdecl RemoveComponentCallback(ManagedNativeEntity entity, int32_t typeId);
+		static int32_t __cdecl HasComponentCallback(ManagedNativeEntity entity, int32_t typeID);
+		static void __cdecl AddComponentCallback(ManagedNativeEntity entity, int32_t typeID);
+		static void __cdecl RemoveComponentCallback(ManagedNativeEntity entity, int32_t typeID);
 		static void __cdecl DestroyEntityCallback(ManagedNativeEntity entity);
-		static int32_t __cdecl GetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotId);
-		static void __cdecl SetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotId, int32_t enabled);
-		// GetComponent<Script> v9でowner Entity上のscriptTypeId一致instanceハンドルを返す
-		static ManagedScriptInstanceHandle __cdecl GetScriptInstanceCallback(ManagedNativeEntity owner, const char* scriptTypeId);
+		static int32_t __cdecl GetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotID);
+		static void __cdecl SetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotID, int32_t enabled);
+		// GetComponent<Script> v9でowner Entity上のscriptTypeID一致instanceハンドルを返す
+		static ManagedScriptInstanceHandle __cdecl GetScriptInstanceCallback(ManagedNativeEntity owner, const char* scriptTypeID);
 		// Gameplay v7のTime拡張とTimeScaleでscaledはgetDeltaTimeとgetFixedDeltaTimeが返す既存値
 		static float __cdecl GetUnscaledDeltaTimeCallback();
 		static float __cdecl GetUnscaledFixedDeltaTimeCallback();
@@ -319,15 +319,15 @@ namespace Engine {
 		static ManagedColor4 __cdecl GetRendererMaterialColorCallback(ManagedNativeEntity entity,
 			int32_t componentType, int32_t subMeshIndex);
 		// Gameplay v7のAssetRef runtime resolve
-		static int32_t __cdecl AssetExistsCallback(uint64_t assetId);
-		static int32_t __cdecl CopyAssetDisplayNameCallback(uint64_t assetId, char* buffer, int32_t capacity);
+		static int32_t __cdecl AssetExistsCallback(uint64_t assetID);
+		static int32_t __cdecl CopyAssetDisplayNameCallback(uint64_t assetID, char* buffer, int32_t capacity);
 		// Gameplay v7のEntity生成とPrefabとSceneとSetParentのworldPositionStays
 		static ManagedNativeEntity __cdecl CreateEntityCallback(const char* name, ManagedNativeEntity parent);
-		static ManagedNativeEntity __cdecl InstantiatePrefabCallback(uint64_t prefabAssetId, ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent);
-		static uint64_t __cdecl LoadSceneAdditiveCallback(uint64_t sceneAssetId);
-		static uint64_t __cdecl LoadSceneSingleCallback(uint64_t sceneAssetId);
+		static ManagedNativeEntity __cdecl InstantiatePrefabCallback(uint64_t prefabAssetID, ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent);
+		static uint64_t __cdecl LoadSceneAdditiveCallback(uint64_t sceneAssetID);
+		static uint64_t __cdecl LoadSceneSingleCallback(uint64_t sceneAssetID);
 		// EntityRefをlocalFileIDからruntime entityへ解決する、対象が無ければNull
-		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(uint64_t sourceAsset, uint64_t localFileId);
+		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(uint64_t sourceAsset, uint64_t localFileID);
 		// ライン描画v12でLineRendererComponentの点列を置き換える、count0でクリア
 		static void __cdecl LineSetPointsCallback(ManagedNativeEntity entity, const ManagedLinePoint* points, int32_t count, int32_t loop);
 		// LineRendererComponentの末尾へ1点追加する
@@ -346,12 +346,12 @@ namespace Engine {
 		static ManagedNativeEntity __cdecl FindEntityByNameCallback(const char* name);
 		static ManagedNativeEntity __cdecl FindEntityByTagCallback(const char* tag);
 		static int32_t __cdecl FindEntitiesByTagCallback(const char* tag, ManagedNativeEntity* buffer, int32_t capacity);
-		static ManagedNativeEntity __cdecl FindEntityByComponentCallback(int32_t typeId);
-		static int32_t __cdecl FindEntitiesByComponentCallback(int32_t typeId, ManagedNativeEntity* buffer, int32_t capacity);
+		static ManagedNativeEntity __cdecl FindEntityByComponentCallback(int32_t typeID);
+		static int32_t __cdecl FindEntitiesByComponentCallback(int32_t typeID, ManagedNativeEntity* buffer, int32_t capacity);
 		// v15の即時形状描画、記述子から線分を生成して即時バッファへ積む
 		static void __cdecl LineDrawShapeCallback(const ManagedLineShape* shape);
-		static void __cdecl UnloadSceneCallback(uint64_t sceneInstanceId);
-		static int32_t __cdecl IsSceneInstanceAliveCallback(uint64_t sceneInstanceId);
+		static void __cdecl UnloadSceneCallback(uint64_t sceneInstanceID);
+		static int32_t __cdecl IsSceneInstanceAliveCallback(uint64_t sceneInstanceID);
 		static void __cdecl SetParentKeepWorldCallback(ManagedNativeEntity child, ManagedNativeEntity parent, int32_t worldPositionStays);
 		// Gameplay v7のraw Input拡張多gamepadとaxisとtextとfocus
 		static int32_t __cdecl GetGamepadButtonIndexedCallback(int32_t index, int32_t button);

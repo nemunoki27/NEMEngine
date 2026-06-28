@@ -187,10 +187,10 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 
 	// エディタの選択中パスを基準に、そのパス実行前後の結果をプレビューへ退避
 	// 選択中パスがこのアンカーに含まれるときだけ退避先を確保する
-	const UUID previewPassId = service.GetPreviewPassId();
-	const bool anchorHasPreviewPass = static_cast<bool>(previewPassId) &&
+	const UUID previewPassID = service.GetPreviewPassId();
+	const bool anchorHasPreviewPass = static_cast<bool>(previewPassID) &&
 		std::any_of(activePasses.begin(), activePasses.end(),
-			[&](const PostProcessStackRuntimePass* p) { return p->id == previewPassId; });
+			[&](const PostProcessStackRuntimePass* p) { return p->id == previewPassID; });
 	const bool capturePreview = (context.kind == RenderViewKind::Game) && anchorHasPreviewPass;
 	MultiRenderTarget* previewBefore = nullptr;
 	MultiRenderTarget* previewAfter = nullptr;
@@ -265,7 +265,7 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		// 選択中パスなら、実行前のsource内容をbeforeへ退避する
 		// GameViewと同じトーンマップを通して退避し、見た目を一致させる
 		const bool isPreviewTarget = capturePreview && previewBefore && previewAfter &&
-			(pass.id == previewPassId);
+			(pass.id == previewPassID);
 		if (isPreviewTarget) {
 			if (!ToneMapBlitToPreview(graphicsCore, context, resolveTargetByName(sourceName), previewBefore,
 				*deps_.assetLibrary, *deps_.pipelineCache, previewToneMapSRVCache_, previewToneMapSrcColorSlot_)) {

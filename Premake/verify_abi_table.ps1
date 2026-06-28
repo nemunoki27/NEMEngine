@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 function Get-NativeFields([string]$path) {
     $fields = New-Object System.Collections.Generic.List[string]
     $inStruct = $false
-    foreach ($line in (Get-Content -LiteralPath $path)) {
+    foreach ($line in (Get-Content -LiteralPath $path -Encoding UTF8)) {
         if (-not $inStruct) {
             if ($line -match 'struct\s+ManagedNativeApiTable\s*\{') {
                 $inStruct = $true
@@ -32,7 +32,7 @@ function Get-NativeFields([string]$path) {
 function Get-CsFields([string]$path) {
     $fields = New-Object System.Collections.Generic.List[string]
     $inStruct = $false
-    foreach ($line in (Get-Content -LiteralPath $path)) {
+    foreach ($line in (Get-Content -LiteralPath $path -Encoding UTF8)) {
         if (-not $inStruct) {
             if ($line -match 'struct\s+NativeApiTable\s*\{') {
                 $inStruct = $true

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Math/Color.h>
+#include <Engine/Core/Assets/RenderComponentTypes.h>
 
 // directX
 #include <d3d12.h>
@@ -27,14 +28,4 @@ namespace Engine {
 		Color4 clearColor;
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
 	};
-
-	enum BlendMode {
-
-		Normal,   // 通常αブレンド
-		Add,      // 加算
-		Subtract, // 減算
-		Multiply, // 乗算
-		Screen,   // スクリーン
-	};
-	static constexpr const uint32_t kBlendModeCount = static_cast<uint32_t>(BlendMode::Screen) + 1;
 }; // Engine

@@ -66,7 +66,7 @@ namespace Engine {
 		bool DrawTypes();
 		// Collisionタイプ同士の衝突マトリクスを描画する、変更があればtrue
 		bool DrawMatrix();
-		// 現在のシーンにCollision設定ファイルが無ければ作って結びつける、PostProcessStackと同じ作法
+		// 現在のシーンにCollision設定ファイルが無ければ作って結びつける
 		void EnsureActiveCollisionSettingsAsset(const EditorToolContext& context);
 		// World内のCollision形状をLineRendererで描画する
 		void DrawCollisionWorld(ECSWorld& world) const;

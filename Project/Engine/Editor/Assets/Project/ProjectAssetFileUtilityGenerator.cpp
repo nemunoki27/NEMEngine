@@ -82,7 +82,7 @@ namespace Engine {
           "nearClip": 0.01,
           "priority": 0
         },
-        "SceneObject": { "activeSelf": true, "localFileID": "a1b2c3d4e5f60003", "visibilityLayerMask": 4294967295 },
+        "SceneObject": { "activeSelf": true, "localFileId": "a1b2c3d4e5f60003", "visibilityLayerMask": 4294967295 },
         "Transform": {
           "localPos": { "x": 0.0, "y": 3.48, "z": -16.0 },
           "localRotation": { "w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0 },
@@ -103,7 +103,7 @@ namespace Engine {
           "nearClip": 0.0,
           "priority": 0
         },
-        "SceneObject": { "activeSelf": true, "localFileID": "a1b2c3d4e5f60002", "visibilityLayerMask": 4294967295 },
+        "SceneObject": { "activeSelf": true, "localFileId": "a1b2c3d4e5f60002", "visibilityLayerMask": 4294967295 },
         "Transform": {
           "localPos": { "x": 0.0, "y": 0.0, "z": 0.0 },
           "localRotation": { "w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0 },
@@ -124,7 +124,7 @@ namespace Engine {
         },
         "Hierarchy": { "parentLocalFileID": "", "siblingOrder": 2 },
         "Name": { "name": "DirectionalLight" },
-        "SceneObject": { "activeSelf": true, "localFileID": "a1b2c3d4e5f60001", "visibilityLayerMask": 4294967295 },
+        "SceneObject": { "activeSelf": true, "localFileId": "a1b2c3d4e5f60001", "visibilityLayerMask": 4294967295 },
         "Transform": {
           "localPos": { "x": 0.0, "y": 10.0, "z": 0.0 },
           "localRotation": { "w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0 },

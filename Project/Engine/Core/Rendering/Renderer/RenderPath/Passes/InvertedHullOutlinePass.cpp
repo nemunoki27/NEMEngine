@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPassExecutionHelper.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
@@ -88,8 +88,8 @@ Engine::InvertedHullOutlinePass::OutlineItemGroups Engine::InvertedHullOutlinePa
 
 	// アウトラインはOpaqueの不透明メッシュにだけ付くのでそのバケットだけ見る
 	OutlineItemGroups result{};
-	const RenderPassItemList* list = passBuckets.Find(RenderPhase::Opaque);
-	if (!list || list->IsEmpty()) {
+	const RenderPassItemList& list = passBuckets.Get(RenderPhase::Opaque);
+	if (list.IsEmpty()) {
 		return result;
 	}
 
@@ -99,9 +99,9 @@ Engine::InvertedHullOutlinePass::OutlineItemGroups Engine::InvertedHullOutlinePa
 		return result;
 	}
 
-	result.regularItems.reserve(list->items.size());
-	result.stencilItems.reserve(list->items.size());
-	for (const RenderItem* item : list->items) {
+	result.regularItems.reserve(list.items.size());
+	result.stencilItems.reserve(list.items.size());
+	for (const RenderItem* item : list.items) {
 
 		// メッシュかつworld参照を持つアイテムだけが対象
 		if (!item || item->backendID != RenderBackendID::Mesh || !item->world) {

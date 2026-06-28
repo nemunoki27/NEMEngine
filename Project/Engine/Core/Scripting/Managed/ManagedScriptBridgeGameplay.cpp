@@ -44,18 +44,18 @@ namespace Engine {
 		}
 	}
 
-	ManagedNativeEntity ManagedScriptRuntime::ResolveEntityRefCallback([[maybe_unused]] uint64_t sourceAsset, uint64_t localFileId) {
+	ManagedNativeEntity ManagedScriptRuntime::ResolveEntityRefCallback([[maybe_unused]] uint64_t sourceAsset, uint64_t localFileID) {
 
 		// localFileIDはEdit/Playをまたいで安定するため、これで現在のworldのentityを引く
 		// sourceAssetは将来のマルチシーン絞り込み用で現状は未使用
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : nullptr;
-		if (!world || localFileId == 0) {
+		if (!world || localFileID == 0) {
 			return MakeNullNativeEntity();
 		}
 
 		UUID id{};
-		id.value = localFileId;
+		id.value = localFileID;
 		const Entity entity = SceneObjectUtility::FindByLocalFileID(*world, id);
 		if (!world->IsAlive(entity)) {
 			return MakeNullNativeEntity();
@@ -311,71 +311,71 @@ namespace Engine {
 		return MakeNativeEntity(*world, reserved);
 	}
 
-	ManagedNativeEntity ManagedScriptRuntime::InstantiatePrefabCallback(uint64_t prefabAssetId,
+	ManagedNativeEntity ManagedScriptRuntime::InstantiatePrefabCallback(uint64_t prefabAssetID,
 		ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent) {
 
 		ECSWorld* world = ResolveTargetWorld(parent);
-		if (!world || prefabAssetId == 0) {
+		if (!world || prefabAssetID == 0) {
 			return MakeNullNativeEntity();
 		}
 		// ルートEntityを即時予約しPrefabSystemにはreservedRootを渡して実体化させる、遅延でも実rootを返す
 		const Entity reservedRoot = world->CreateEntity();
 		const Entity parentEntity = world->IsAlive(ResolveEntity(parent)) ? ResolveEntity(parent) : Entity::Null();
-		world->GetCommandBuffer().EnqueueInstantiatePrefab(reservedRoot, UUID{ prefabAssetId },
+		world->GetCommandBuffer().EnqueueInstantiatePrefab(reservedRoot, UUID{ prefabAssetID },
 			Vector3(position.x, position.y, position.z),
 			Quaternion(rotation.x, rotation.y, rotation.z, rotation.w),
 			useTransform != 0, parentEntity);
 		return MakeNativeEntity(*world, reservedRoot);
 	}
 
-	uint64_t ManagedScriptRuntime::LoadSceneAdditiveCallback(uint64_t sceneAssetId) {
+	uint64_t ManagedScriptRuntime::LoadSceneAdditiveCallback(uint64_t sceneAssetID) {
 
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : nullptr;
-		if (!world || sceneAssetId == 0) {
+		if (!world || sceneAssetID == 0) {
 			return 0;
 		}
 		// instance IDを先行採番してC#のSceneHandleと一致させ、load自体はflushへ回す
 		const UUID instanceID = UUID::New();
-		world->GetCommandBuffer().EnqueueLoadSceneAdditive(instanceID, UUID{ sceneAssetId });
+		world->GetCommandBuffer().EnqueueLoadSceneAdditive(instanceID, UUID{ sceneAssetID });
 		return instanceID.value;
 	}
 
-	uint64_t ManagedScriptRuntime::LoadSceneSingleCallback(uint64_t sceneAssetId) {
+	uint64_t ManagedScriptRuntime::LoadSceneSingleCallback(uint64_t sceneAssetID) {
 
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : nullptr;
-		if (!world || sceneAssetId == 0) {
+		if (!world || sceneAssetID == 0) {
 			return 0;
 		}
 		// 単一ロード、新sceneをactiveにし旧sceneを全てアンロードする処理はflushで行う
 		const UUID instanceID = UUID::New();
-		world->GetCommandBuffer().EnqueueLoadSceneSingle(instanceID, UUID{ sceneAssetId });
+		world->GetCommandBuffer().EnqueueLoadSceneSingle(instanceID, UUID{ sceneAssetID });
 		return instanceID.value;
 	}
 
-	void ManagedScriptRuntime::UnloadSceneCallback(uint64_t sceneInstanceId) {
+	void ManagedScriptRuntime::UnloadSceneCallback(uint64_t sceneInstanceID) {
 
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : nullptr;
-		if (!world || sceneInstanceId == 0) {
+		if (!world || sceneInstanceID == 0) {
 			return;
 		}
-		world->GetCommandBuffer().EnqueueUnloadScene(UUID{ sceneInstanceId });
+		world->GetCommandBuffer().EnqueueUnloadScene(UUID{ sceneInstanceID });
 	}
 
-	int32_t ManagedScriptRuntime::IsSceneInstanceAliveCallback(uint64_t sceneInstanceId) {
+	int32_t ManagedScriptRuntime::IsSceneInstanceAliveCallback(uint64_t sceneInstanceID) {
 
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : nullptr;
-		if (!world || sceneInstanceId == 0) {
+		if (!world || sceneInstanceID == 0) {
 			return 0;
 		}
 		const WorldCommandServices& services = world->GetCommandServices();
 		if (!services.sceneInstances) {
 			return 0;
 		}
-		return services.sceneInstances->Find(UUID{ sceneInstanceId }) != nullptr ? 1 : 0;
+		return services.sceneInstances->Find(UUID{ sceneInstanceID }) != nullptr ? 1 : 0;
 	}
 
 	void ManagedScriptRuntime::SetParentKeepWorldCallback(ManagedNativeEntity child, ManagedNativeEntity parent, int32_t worldPositionStays) {

@@ -165,7 +165,7 @@ namespace {
 			return;
 		}
 
-		// 静的メッシュデータはDEFAULT heapへ置き、初期転送だけをUploadServiceへ集約する
+		// 静的メッシュデータはDEFAULT heapへ置き、初期転送だけをUploadServiceで行う
 		out.buffer = std::make_unique<Engine::DxImmutableStructuredBuffer<T>>();
 		out.buffer->Create(device, uploadService, std::span<const T>(data.data(), data.size()));
 		if (ID3D12Resource* resource = out.buffer->GetResource()) {

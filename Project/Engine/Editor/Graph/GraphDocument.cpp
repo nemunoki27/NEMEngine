@@ -30,10 +30,10 @@ namespace {
 Engine::GraphID Engine::GraphDocument::GenerateID() {
 
 	// 0は無効値として残す
-	if (nextId == 0) {
-		nextId = 1;
+	if (nextID == 0) {
+		nextID = 1;
 	}
-	return nextId++;
+	return nextID++;
 }
 
 Engine::GraphNode* Engine::GraphDocument::FindNode(GraphID id) {

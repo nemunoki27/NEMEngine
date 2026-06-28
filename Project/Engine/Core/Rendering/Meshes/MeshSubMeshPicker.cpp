@@ -5,8 +5,10 @@
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
+#include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 //============================================================================
 //	MeshSubMeshPicker classMethods
@@ -22,7 +24,7 @@ void Engine::MeshSubMeshPicker::Init(GraphicsCore& graphicsCore) {
 
 	// ピック用のコンピュートシェーダーのパイプラインを生成
 	ComputePipelineDesc desc{};
-	desc.compute.file = "8d50435034671c29";
+	desc.compute.file = BuiltinShaderSource::Editor::PickMeshInstanceCS;
 	desc.compute.entry = "main";
 	desc.compute.profile = "cs_6_6";
 	pipeline_.CreateCompute(platform.GetDevice(), platform.GetDxShaderCompiler(), desc);
@@ -47,45 +49,47 @@ void Engine::MeshSubMeshPicker::Finalize() {
 	pendingReadback_ = false;
 }
 
-void Engine::MeshSubMeshPicker::ConsumePendingResult(ECSWorld* world, EditorState& editorState) {
+Engine::MeshSubMeshPickOutcome Engine::MeshSubMeshPicker::ConsumePendingResult(ECSWorld* world) {
 
-	// ピック結果のreadbackが完了していないなら何もしない
+	MeshSubMeshPickOutcome outcome{};
+
+	// ピック結果のreadbackが完了していないなら消費せず返す
 	if (!pendingReadback_) {
-		return;
+		return outcome;
 	}
 	pendingReadback_ = false;
 
 	if (!world) {
 		pendingRecords_.clear();
-		return;
+		return outcome;
 	}
+
+	// ここから先は呼び出し側で選択確定すべきケース
+	outcome.committed = true;
 
 	// ピック結果を取得
 	const PickResult result = readbackBuffer_.GetReadbackData();
 
-	// ヒットなしは候補を空にしてから保留中のクリックを確定する、空クリックは選択解除になる
+	// ヒットなしは選択解除へ倒す、空クリックは選択解除になる
 	if (result.instanceID == kInvalidPickInstanceID ||
 		result.instanceID >= pendingRecords_.size()) {
 		pendingRecords_.clear();
-		editorState.scenePickDragEntity = Entity::Null();
-		editorState.CommitScenePick(*world);
-		return;
+		return outcome;
 	}
 
-	// ピック結果に対応するサブメッシュ情報を取得
-	const auto& record = pendingRecords_[result.instanceID];
+	// clearで参照がdanglingしないよう値でコピーしてから保持配列を空にする
+	const MeshSubMeshPickRecord picked = pendingRecords_[result.instanceID];
 	pendingRecords_.clear();
-	if (!world->IsAlive(record.entity)) {
-		editorState.scenePickDragEntity = Entity::Null();
-		editorState.CommitScenePick(*world);
-		return;
+	if (!world->IsAlive(picked.entity)) {
+		return outcome;
 	}
 
-	// ピック候補を更新し、保留中のクリックがあればここで選択を確定する
-	editorState.scenePickDragEntity = record.entity;
-	editorState.scenePickCandidateSubMesh = record.subMeshIndex;
-	editorState.scenePickCandidateSubMeshId = record.subMeshStableID;
-	editorState.CommitScenePick(*world);
+	// ヒット、呼び出し側で候補を更新し選択を確定する
+	outcome.hit = true;
+	outcome.entity = picked.entity;
+	outcome.subMeshIndex = picked.subMeshIndex;
+	outcome.subMeshStableID = picked.subMeshStableID;
+	return outcome;
 }
 
 void Engine::MeshSubMeshPicker::ExecutePick(GraphicsCore& graphicsCore, const ResolvedRenderView& view,

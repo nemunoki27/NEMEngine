@@ -120,44 +120,44 @@ void Engine::PostProcessStackService::RebuildRuntime() {
 	}
 }
 
-void Engine::PostProcessStackService::CacheReflection(AssetID materialId,
+void Engine::PostProcessStackService::CacheReflection(AssetID materialID,
 	const std::vector<ShaderConstantBufferVariable>& vars,
 	const std::vector<ShaderResourceBinding>& srvBindings) {
 
-	reflectionVars_[materialId] = vars;
-	reflectionSRVs_[materialId] = srvBindings;
+	reflectionVars_[materialID] = vars;
+	reflectionSRVs_[materialID] = srvBindings;
 }
 
-const std::vector<Engine::ShaderConstantBufferVariable>* Engine::PostProcessStackService::FindReflectionVars(AssetID materialId) const {
+const std::vector<Engine::ShaderConstantBufferVariable>* Engine::PostProcessStackService::FindReflectionVars(AssetID materialID) const {
 
-	auto it = reflectionVars_.find(materialId);
+	auto it = reflectionVars_.find(materialID);
 	if (it == reflectionVars_.end()) {
 		return nullptr;
 	}
 	return &it->second;
 }
 
-const std::vector<ShaderResourceBinding>* PostProcessStackService::FindReflectionSRVs(AssetID materialId) const {
+const std::vector<ShaderResourceBinding>* PostProcessStackService::FindReflectionSRVs(AssetID materialID) const {
 
-	auto it = reflectionSRVs_.find(materialId);
+	auto it = reflectionSRVs_.find(materialID);
 	if (it == reflectionSRVs_.end()) {
 		return nullptr;
 	}
 	return &it->second;
 }
 
-void PostProcessStackService::ClearReflection(AssetID materialId) {
+void PostProcessStackService::ClearReflection(AssetID materialID) {
 
-	reflectionVars_.erase(materialId);
-	reflectionSRVs_.erase(materialId);
+	reflectionVars_.erase(materialID);
+	reflectionSRVs_.erase(materialID);
 }
 
-void Engine::PostProcessStackService::RequestShaderReload(AssetID materialId) {
+void Engine::PostProcessStackService::RequestShaderReload(AssetID materialID) {
 
-	pendingReflectionReloads_.insert(materialId);
+	pendingReflectionReloads_.insert(materialID);
 }
 
-bool Engine::PostProcessStackService::TakeReloadRequest(AssetID materialId) {
+bool Engine::PostProcessStackService::TakeReloadRequest(AssetID materialID) {
 
-	return pendingReflectionReloads_.erase(materialId) > 0;
+	return pendingReflectionReloads_.erase(materialID) > 0;
 }

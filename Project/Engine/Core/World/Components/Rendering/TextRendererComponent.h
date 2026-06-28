@@ -4,11 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
-#include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
-#include <Engine/Core/Rendering/Renderer/Queues/RenderPhase.h>
+#include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 #include <Engine/Core/Assets/AssetTypes.h>
-#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
 

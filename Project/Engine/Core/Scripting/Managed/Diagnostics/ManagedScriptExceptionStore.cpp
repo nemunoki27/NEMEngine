@@ -62,11 +62,11 @@ void Engine::ManagedScriptExceptionStore::ReportJson(const char* jsonUtf8) {
 	}
 
 	ManagedScriptException entry{};
-	entry.id = nextId_++;
+	entry.id = nextID_++;
 	entry.timestamp = NowTimeString();
 	entry.callback = ReadString(root, "callback", kMaxStringLength);
-	entry.scriptSlotId = static_cast<uint64_t>(ReadInt(root, "slotId", 0));
-	entry.scriptTypeId = ReadString(root, "scriptTypeId", kMaxStringLength);
+	entry.scriptSlotID = static_cast<uint64_t>(ReadInt(root, "slotId", 0));
+	entry.scriptTypeID = ReadString(root, "scriptTypeId", kMaxStringLength);
 	entry.typeName = ReadString(root, "typeName", kMaxStringLength);
 	entry.exceptionType = ReadString(root, "exceptionType", kMaxStringLength);
 	entry.message = ReadString(root, "message", kMaxMessageLength);

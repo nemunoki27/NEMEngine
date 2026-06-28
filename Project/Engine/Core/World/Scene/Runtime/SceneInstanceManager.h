@@ -80,7 +80,7 @@ namespace Engine {
 		// UUIDからシーンインスタンスを検索する
 		const SceneInstance* Find(UUID id) const;
 		SceneInstance* Find(UUID id);
-		const SceneInstance* FindChildBySlot(UUID parentId, const std::string_view& slotName) const;
+		const SceneInstance* FindChildBySlot(UUID parentID, const std::string_view& slotName) const;
 
 		// アクティブなシーンインスタンスを取得する
 		const SceneInstance* GetActive() const;

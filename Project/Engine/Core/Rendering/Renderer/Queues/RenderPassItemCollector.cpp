@@ -20,11 +20,6 @@ const Engine::RenderPassItemList& Engine::RenderPassPhaseBuckets::Get(RenderPhas
 	return buckets[Engine::EnumAdapter<Engine::RenderPhase>::GetIndex(phase)];
 }
 
-const Engine::RenderPassItemList* Engine::RenderPassPhaseBuckets::Find(RenderPhase phase) const {
-
-	return &Get(phase);
-}
-
 void Engine::RenderPassItemCollector::CollectForView(const RenderSceneBatch& batch,
 	RenderPhase renderPhase, const ResolvedRenderView& view, RenderPassItemList& outList) {
 

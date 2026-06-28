@@ -11,12 +11,12 @@
 //============================================================================
 //	BehaviorTypeRegistry classMethods
 //============================================================================
-uint32_t Engine::BehaviorTypeRegistry::RegisterManaged(const std::string_view& scriptTypeId,
+uint32_t Engine::BehaviorTypeRegistry::RegisterManaged(const std::string_view& scriptTypeID,
 	const std::string_view& fullName, const std::string_view& displayName, const std::string_view& sourcePath,
 	int32_t defaultExecutionOrder) {
 
 	// 既に同じGUIDで登録済みならそのIDを返す、GUIDが永続主キー
-	auto existing = guidToID_.find(std::string(scriptTypeId));
+	auto existing = guidToID_.find(std::string(scriptTypeID));
 	if (existing != guidToID_.end()) {
 		// 既存登録でもdefault orderは最新を反映する、reloadでattribute値が変わり得る
 		infos_[existing->second].defaultExecutionOrder = defaultExecutionOrder;
@@ -26,13 +26,13 @@ uint32_t Engine::BehaviorTypeRegistry::RegisterManaged(const std::string_view& s
 	// 新しい型情報を作成する、constructはStable GUIDでC# instanceを生成する
 	BehaviorTypeInfo info{};
 	info.name = std::string(fullName);
-	info.scriptTypeId = std::string(scriptTypeId);
+	info.scriptTypeID = std::string(scriptTypeID);
 	info.displayName = displayName.empty() ? info.name : std::string(displayName);
 	info.sourcePath = std::string(sourcePath);
 	info.defaultExecutionOrder = defaultExecutionOrder;
 	info.id = static_cast<uint32_t>(infos_.size());
 	info.managed = true;
-	info.construct = [id = info.scriptTypeId, name = info.displayName]() -> std::unique_ptr<MonoBehavior> {
+	info.construct = [id = info.scriptTypeID, name = info.displayName]() -> std::unique_ptr<MonoBehavior> {
 		return std::make_unique<ManagedBehavior>(id, name);
 		};
 
@@ -45,13 +45,13 @@ uint32_t Engine::BehaviorTypeRegistry::RegisterManaged(const std::string_view& s
 		info.id = slot.id;
 		slot = std::move(info);
 		nameToID_[slot.name] = slot.id;
-		guidToID_[slot.scriptTypeId] = slot.id;
+		guidToID_[slot.scriptTypeID] = slot.id;
 		return slot.id;
 	}
 
 	infos_.emplace_back(info);
 	nameToID_[info.name] = info.id;
-	guidToID_[info.scriptTypeId] = info.id;
+	guidToID_[info.scriptTypeID] = info.id;
 	return info.id;
 }
 
@@ -64,9 +64,9 @@ void Engine::BehaviorTypeRegistry::ClearManaged() {
 		}
 
 		nameToID_.erase(info.name);
-		guidToID_.erase(info.scriptTypeId);
+		guidToID_.erase(info.scriptTypeID);
 		info.name.clear();
-		info.scriptTypeId.clear();
+		info.scriptTypeID.clear();
 		info.displayName.clear();
 		info.sourcePath.clear();
 		info.managed = false;
@@ -80,9 +80,9 @@ const Engine::BehaviorTypeInfo& Engine::BehaviorTypeRegistry::GetInfo(uint32_t i
 	return infos_[id];
 }
 
-const Engine::BehaviorTypeInfo* Engine::BehaviorTypeRegistry::FindByStableScriptTypeID(const std::string_view& scriptTypeId) const {
+const Engine::BehaviorTypeInfo* Engine::BehaviorTypeRegistry::FindByStableScriptTypeID(const std::string_view& scriptTypeID) const {
 
-	auto it = guidToID_.find(std::string(scriptTypeId));
+	auto it = guidToID_.find(std::string(scriptTypeID));
 	if (it == guidToID_.end()) {
 		return nullptr;
 	}

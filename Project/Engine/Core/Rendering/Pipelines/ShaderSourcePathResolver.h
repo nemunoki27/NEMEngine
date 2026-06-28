@@ -17,7 +17,6 @@
 //	ShaderSourcePathResolver
 //	shader.jsonやインラインdescで指定されたシェーダーソース参照を実体パスへ解決する
 //	参照は.metaのguidでもShadersルート相対パスでも受け付ける
-//	PipelineStateとRaytracingPipelineStateで同じ解決を使うため共通化している
 //============================================================================
 namespace Engine::ShaderSourcePath {
 

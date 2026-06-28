@@ -44,7 +44,6 @@ namespace {
 		}
 
 		// 親から取れなければアクティブシーンを使う
-		// 親から取れなければアクティブシーンを使う
 		if (context.editorContext) {
 
 			if (!outSceneInstanceID) {

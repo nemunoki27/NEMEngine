@@ -14,7 +14,7 @@
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptBuildDiagnosticsTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptExceptionListTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptProfilerTool.h>
-#include <Engine/Core/Rendering/Renderer/Views/SceneViewCameraController.h>
+#include <Engine/Editor/Tools/Builtin/Camera/SceneViewCameraController.h>
 
 // c++
 #include <memory>

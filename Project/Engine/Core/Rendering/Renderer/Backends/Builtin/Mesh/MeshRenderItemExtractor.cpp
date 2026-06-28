@@ -79,7 +79,6 @@ namespace {
 	}
 
 	// 静的バッチキャッシュキー用の、1アイテム分の内容ハッシュを抽出時に1度だけ計算する
-	// backendが毎パス再計算していたbyte走査とcomponent再取得をここへ集約する
 	uint64_t ComputeMeshContentHash(const Engine::Entity& entity, Engine::AssetID material,
 		Engine::BlendMode blendMode, const Engine::Matrix4x4& worldMatrix,
 		const Engine::MeshRendererComponent& renderer, const Engine::InvertedHullOutlineComponent* outline) {

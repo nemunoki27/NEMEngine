@@ -12,7 +12,7 @@
 //	RaytracingPipelineState classMethods
 //============================================================================
 namespace {
-	// シェーダーファイルのパスを解決する関数、GUID参照にも対応するため共通リゾルバへ委譲する
+	// シェーダーファイルのパスを解決する関数、GUID参照にも対応する
 	std::filesystem::path ResolveShaderPath(const std::string& file) {
 
 		return Engine::ShaderSourcePath::Resolve(file);

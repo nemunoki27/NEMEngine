@@ -44,12 +44,12 @@
 #include <system_error>
 #include <vector>
 
-#include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
+#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 #include <Engine/Editor/Assets/Preview/ModelPreviewUtility.h>
 
 //============================================================================
 //	ProjectPanel modelPreview classMethods
-//	モデルサムネイルプレビューのatlas生成と描画でProjectPanel本体から分割
+//	モデルサムネイルプレビューのatlas生成と描画
 //============================================================================
 namespace {
 
@@ -293,7 +293,6 @@ uint64_t Engine::ProjectPanel::BuildModelPreviewSignature(const ProjectDirectory
 Engine::ProjectPanel::ModelPreviewBounds Engine::ProjectPanel::ComputeModelPreviewBounds(
 	AssetDatabase& database, AssetID meshAssetID) const {
 
-	// モデル境界の計算は共有のModelPreviewUtilityへ集約している
 	ModelPreviewBounds bounds{};
 	bounds.valid = ModelPreviewUtility::ComputeBounds(database, meshAssetID,
 		bounds.min, bounds.max, bounds.center, bounds.radius);

@@ -48,11 +48,11 @@ namespace {
 	// 型IDから登録レジストリで解決状態を求める
 	ManagedScriptResolutionReason ResolveScriptReason(const Engine::ScriptEntry& entry) {
 
-		if (entry.scriptTypeId.empty()) {
+		if (entry.scriptTypeID.empty()) {
 			return ManagedScriptResolutionReason::Unassigned;
 		}
 		const Engine::BehaviorTypeInfo* info =
-			Engine::BehaviorTypeRegistry::GetInstance().FindByStableScriptTypeID(entry.scriptTypeId);
+			Engine::BehaviorTypeRegistry::GetInstance().FindByStableScriptTypeID(entry.scriptTypeID);
 		// 未登録なら欠落扱い、値は保持して削除しない
 		return info ? ManagedScriptResolutionReason::Resolved
 			: ManagedScriptResolutionReason::TypeNotRegistered;
@@ -61,7 +61,7 @@ namespace {
 	const char* ResolutionReasonLabel(ManagedScriptResolutionReason reason) {
 		switch (reason) {
 		case ManagedScriptResolutionReason::Resolved:          return "Resolved";
-		case ManagedScriptResolutionReason::Unassigned:        return "Unassigned (scriptTypeId 未設定)";
+		case ManagedScriptResolutionReason::Unassigned:        return "Unassigned (scriptTypeID 未設定)";
 		case ManagedScriptResolutionReason::TypeNotRegistered: return "TypeNotRegistered (registry に型が無い)";
 		case ManagedScriptResolutionReason::SchemaUnavailable: return "SchemaUnavailable";
 		default:                                               return "Unknown";
@@ -351,24 +351,24 @@ namespace {
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx) {
 
 		if (!value.is_object()) { value = nlohmann::json{ {"assetId", ""} }; }
-		Engine::AssetID assetId = Engine::FromString16Hex(value.value("assetId", std::string{}));
+		Engine::AssetID assetID = Engine::FromString16Hex(value.value("assetId", std::string{}));
 
 		const Engine::AssetDatabase* db = (ctx.panel && ctx.panel->editorContext) ? ctx.panel->editorContext->assetDatabase : nullptr;
-		Engine::ValueEditResult r = Engine::MyGUI::AssetReferenceField(label, assetId, db,
+		Engine::ValueEditResult r = Engine::MyGUI::AssetReferenceField(label, assetID, db,
 			{ AssetTypeFromName(field.assetType) });
 		if (r.valueChanged) {
-			value["assetId"] = assetId ? Engine::ToString(assetId) : std::string{};
+			value["assetId"] = assetID ? Engine::ToString(assetID) : std::string{};
 		}
 		return r;
 	}
 
-	// EntityRefのlocalFileIdから現在ワールドの表示名を引く、見つからなければ空
-	std::string ResolveEntityRefName(Engine::ECSWorld* world, const std::string& localFileId) {
+	// EntityRefのlocalFileIDから現在ワールドの表示名を引く、見つからなければ空
+	std::string ResolveEntityRefName(Engine::ECSWorld* world, const std::string& localFileID) {
 
-		if (!world || localFileId.empty()) { return {}; }
+		if (!world || localFileID.empty()) { return {}; }
 		std::string name;
 		world->ForEach<Engine::SceneObjectComponent>([&](Engine::Entity e, Engine::SceneObjectComponent& so) {
-			if (name.empty() && Engine::ToString(so.localFileID) == localFileId) {
+			if (name.empty() && Engine::ToString(so.localFileID) == localFileID) {
 				const Engine::NameComponent* nameComponent = world->TryGetComponent<Engine::NameComponent>(e);
 				name = nameComponent ? nameComponent->name : std::string("Entity");
 			}
@@ -383,20 +383,20 @@ namespace {
 		if (!value.is_object()) { value = nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} }; }
 
 		const std::string kind = value.value("kind", std::string("Null"));
-		const std::string localFileId = value.value("localFileId", std::string{});
+		const std::string localFileID = value.value("localFileId", std::string{});
 
 		if (!Engine::MyGUI::BeginPropertyRow(label)) {
 			return result;
 		}
 		// AssetRefと同じ見た目に合わせる、行幅いっぱいのボタンで未設定はグレーアウトする
-		const bool hasValue = !(kind == "Null" || localFileId.empty());
+		const bool hasValue = !(kind == "Null" || localFileID.empty());
 		std::string preview;
 		if (!hasValue) {
 			preview = "None (Drop entity here)";
 		} else {
 			// AssetRefと同じくName表示にし、解決できなければ欠落表示にする
-			const std::string name = ResolveEntityRefName(ctx.world, localFileId);
-			preview = name.empty() ? ("Missing Entity | " + localFileId) : ("Name: " + name);
+			const std::string name = ResolveEntityRefName(ctx.world, localFileID);
+			preview = name.empty() ? ("Missing Entity | " + localFileID) : ("Name: " + name);
 		}
 
 		ImGui::PushID(label);
@@ -507,20 +507,20 @@ namespace {
 						int candidateOrder = 0;
 						for (const Engine::ScriptEntry& slotEntry : scriptComponent.scripts) {
 							// 型が一致するスロットのみ候補にする
-							if (!field.scriptType.empty() && !slotEntry.scriptTypeId.empty()) {
+							if (!field.scriptType.empty() && !slotEntry.scriptTypeID.empty()) {
 								const auto* info = Engine::BehaviorTypeRegistry::GetInstance()
-									.FindByStableScriptTypeID(slotEntry.scriptTypeId);
+									.FindByStableScriptTypeID(slotEntry.scriptTypeID);
 								if (info && info->name != field.scriptType) {
 									continue;
 								}
 							}
 							++candidateOrder;
-							const std::string slotId = Engine::ToString(slotEntry.scriptSlotID);
+							const std::string slotID = Engine::ToString(slotEntry.scriptSlotID);
 							// 内部IDは見せず型名と通し番号で表示する
 							const std::string itemLabel = slotEntry.lastKnownTypeName + " #" + std::to_string(candidateOrder);
-							if (ImGui::Selectable(itemLabel.c_str(), slotId == currentSlot)) {
-								value["scriptSlotId"] = slotId;
-								value["scriptTypeId"] = slotEntry.scriptTypeId;
+							if (ImGui::Selectable(itemLabel.c_str(), slotID == currentSlot)) {
+								value["scriptSlotId"] = slotID;
+								value["scriptTypeId"] = slotEntry.scriptTypeID;
 								result.valueChanged = true;
 								result.editFinished = true;
 							}
@@ -759,7 +759,7 @@ namespace {
 			auto it = byName.find(name);
 			if (it != byName.end()) {
 				const Engine::ManagedFieldSchema* f = it->second;
-				migrated["fields"][f->fieldId] = nlohmann::json{
+				migrated["fields"][f->fieldID] = nlohmann::json{
 					{"name", f->name}, {"type", KindToTypeString(f->kind)}, {"value", val} };
 			} else {
 				// 解決できない旧フィールドは捨てずに保持する
@@ -774,11 +774,11 @@ namespace {
 	nlohmann::json& EnsureFieldValue(nlohmann::json& sf, const Engine::ManagedFieldSchema& field) {
 
 		nlohmann::json& fields = sf["fields"];
-		if (!fields.contains(field.fieldId) || !fields[field.fieldId].is_object()) {
-			fields[field.fieldId] = nlohmann::json{
+		if (!fields.contains(field.fieldID) || !fields[field.fieldID].is_object()) {
+			fields[field.fieldID] = nlohmann::json{
 				{"name", field.name}, {"type", KindToTypeString(field.kind)}, {"value", ParseDefaultValue(field)} };
 		}
-		nlohmann::json& entry = fields[field.fieldId];
+		nlohmann::json& entry = fields[field.fieldID];
 		// 名前と型は最新へ更新する
 		entry["name"] = field.name;
 		entry["type"] = KindToTypeString(field.kind);
@@ -823,7 +823,7 @@ namespace {
 		}
 		DrawHeaderIfAny(field);
 
-		nlohmann::json& fieldValue = runtimeState[field.fieldId];
+		nlohmann::json& fieldValue = runtimeState[field.fieldID];
 		if (fieldValue.is_null() && field.kind != Kind::Nullable) {
 			fieldValue = ParseDefaultValue(field);
 		}
@@ -840,7 +840,7 @@ namespace {
 		DrawTooltipIfAny(field);
 		if (r.valueChanged) {
 			// 実行中の実体だけへ即時反映する
-			Engine::BehaviorSystem::SetRuntimeSerializedField(handle, field.fieldId, fieldValue);
+			Engine::BehaviorSystem::SetRuntimeSerializedField(handle, field.fieldID, fieldValue);
 		}
 	}
 
@@ -892,9 +892,9 @@ namespace {
 			result.editFinished = false;
 			return result;
 		}
-		if (entry.scriptTypeId != resolved.scriptTypeId) {
+		if (entry.scriptTypeID != resolved.scriptTypeID) {
 
-			entry.scriptTypeId = resolved.scriptTypeId;
+			entry.scriptTypeID = resolved.scriptTypeID;
 			entry.lastKnownTypeName = resolved.typeName;
 			entry.serializedFields = nlohmann::json::object();
 		}
@@ -917,7 +917,7 @@ namespace {
 			Engine::ScriptAssetDragDrop::ResolvedScriptType resolved{};
 			if (Engine::ScriptAssetDragDrop::AcceptScriptAssetDrop(context, scriptAsset, resolved)) {
 
-				component.scripts.emplace_back(MakeScriptEntry(resolved.scriptTypeId, resolved.typeName, scriptAsset));
+				component.scripts.emplace_back(MakeScriptEntry(resolved.scriptTypeID, resolved.typeName, scriptAsset));
 				result.valueChanged = true;
 				result.editFinished = true;
 			}
@@ -997,9 +997,9 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				if (result.valueChanged) {
 					if (const BehaviorTypeInfo* info =
 						BehaviorTypeRegistry::GetInstance().FindByName(entry.lastKnownTypeName)) {
-						entry.scriptTypeId = info->scriptTypeId;
+						entry.scriptTypeID = info->scriptTypeID;
 					} else {
-						entry.scriptTypeId.clear();
+						entry.scriptTypeID.clear();
 					}
 					entry.scriptAsset = {};
 					// 既存値は保持し移行できない値は未解決へ残る
@@ -1012,7 +1012,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				});
 
 			// 解決済みかはレジストリで判定しフィールド数では判定しない
-			const ManagedScriptSchema& schema = runtime.GetScriptSchema(entry.scriptTypeId);
+			const ManagedScriptSchema& schema = runtime.GetScriptSchema(entry.scriptTypeID);
 			const bool resolved = (resolutionReason == ManagedScriptResolutionReason::Resolved);
 
 			// 解決済みかつフィールドがある場合のみ描画する
@@ -1061,12 +1061,12 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				ImGui::TextDisabled("型を解決できません (Missing Script)。値は保持されます。");
 				ImGui::BulletText("last known type: %s",
 					entry.lastKnownTypeName.empty() ? "(unknown)" : entry.lastKnownTypeName.c_str());
-				ImGui::BulletText("scriptTypeId: %s", entry.scriptTypeId.c_str());
+				ImGui::BulletText("scriptTypeID: %s", entry.scriptTypeID.c_str());
 				ImGui::BulletText("source asset: %016llx", static_cast<unsigned long long>(entry.scriptAsset.value));
 				ImGui::BulletText("slot id: %016llx", static_cast<unsigned long long>(entry.scriptSlotID.value));
 				ImGui::BulletText("reason: %s", ResolutionReasonLabel(resolutionReason));
 				if (ImGui::SmallButton("GUID をコピー")) {
-					ImGui::SetClipboardText(entry.scriptTypeId.c_str());
+					ImGui::SetClipboardText(entry.scriptTypeID.c_str());
 				}
 				ImGui::SameLine();
 				ImGui::TextDisabled("型を選び直すと Reassign（上の「型」で型を変更）");
@@ -1135,7 +1135,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				}
 				// 表示はクラス名のみで内部は完全修飾名を保持する
 				if (ImGui::MenuItem(ScriptTypeShortName(info.name).c_str())) {
-					draft.scripts.emplace_back(MakeScriptEntry(info.scriptTypeId, info.name));
+					draft.scripts.emplace_back(MakeScriptEntry(info.scriptTypeID, info.name));
 					RequestCommit();
 					ImGui::CloseCurrentPopup();
 				}

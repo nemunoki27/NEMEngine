@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 
@@ -129,14 +129,14 @@ void Engine::LineRenderBackend::DrawBatch(const RenderDrawContext& context,
 			RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_),
 				resources.GetViewGPUAddress());
 		}
-		// overrides持ちはCanBatchで単独描画になるので先頭の上書きを使う、cbuffer無のBuiltinは無回帰
+		// overrides持ちはCanBatchで単独描画になるので先頭の上書きを使う
 		const LineRenderPayload* firstPayload = context.batch->GetPayload<LineRenderPayload>(*items.front());
 		if (resolvedPass.material) {
 			BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, *pipelineState,
 				*resolvedPass.material, firstPayload ? firstPayload->materialOverrides : nullptr,
 				perDrawBindCache_, materialParamsCBVSlot_, commandList);
 		}
-		// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
+		// space2のマテリアルテクスチャをreflection駆動でバインドする
 		if (resolvedPass.material) {
 			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, *resolvedPass.material, commandList);
 		}

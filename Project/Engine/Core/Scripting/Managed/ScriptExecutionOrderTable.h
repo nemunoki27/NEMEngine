@@ -26,7 +26,7 @@ namespace Engine {
 		// UI表示と編集用のエントリ
 		struct Entry {
 
-			std::string scriptTypeId;
+			std::string scriptTypeID;
 			std::string displayName;
 			int32_t executionOrder = 0;
 		};
@@ -38,22 +38,22 @@ namespace Engine {
 		// 強制的に再読込する、設定変更やproject load時
 		void Reload();
 
-		// 指定scriptTypeIdの実行順を返す、未登録は0でoverride有無は区別しない
-		int32_t GetOrder(const std::string_view& scriptTypeId) const;
+		// 指定scriptTypeIDの実行順を返す、未登録は0でoverride有無は区別しない
+		int32_t GetOrder(const std::string_view& scriptTypeID) const;
 
 		// overrideが登録されているときのみtrueを返しoutOrderへ値を入れる、override無しと明示的に0を設定した状態を区別するUIとReset用
-		bool TryGetOverride(const std::string_view& scriptTypeId, int32_t& outOrder) const;
+		bool TryGetOverride(const std::string_view& scriptTypeID, int32_t& outOrder) const;
 
 		// 実行順を設定する、UI編集用でdisplayNameは表示補助
-		void SetOrder(const std::string_view& scriptTypeId, const std::string_view& displayName, int32_t order);
+		void SetOrder(const std::string_view& scriptTypeID, const std::string_view& displayName, int32_t order);
 		// エントリを削除する
-		void Remove(const std::string_view& scriptTypeId);
+		void Remove(const std::string_view& scriptTypeID);
 		// temp fileとrenameで原子的に保存する
 		bool Save() const;
 
 		//--------- accessor -----------------------------------------------------
 
-		// UI用のエントリ一覧、scriptTypeIdでソート済み
+		// UI用のエントリ一覧、scriptTypeIDでソート済み
 		const std::vector<Entry>& GetEntries() const { return entries_; }
 
 		// シングルトン

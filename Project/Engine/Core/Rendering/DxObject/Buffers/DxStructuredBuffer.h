@@ -8,6 +8,7 @@
 // c++
 #include <vector>
 #include <cassert>
+#include <cstring>
 
 namespace Engine {
 
@@ -71,6 +72,8 @@ namespace Engine {
 		D3D12_GPU_DESCRIPTOR_HANDLE uavGPUHandle_;
 
 		bool isCreated_ = false;
+		// 確保した要素数、転送時の容量超過チェックに使う
+		UINT capacity_ = 0;
 	};
 
 	//============================================================================
@@ -79,6 +82,7 @@ namespace Engine {
 	template<typename T>
 	inline void DxStructuredBuffer<T>::CreateSRVBuffer(ID3D12Device* device, UINT instanceCount) {
 
+		capacity_ = instanceCount;
 		DxUtils::CreateBufferResource(device, resource_, sizeof(T) * instanceCount);
 
 		// マッピング
@@ -91,6 +95,7 @@ namespace Engine {
 	template<typename T>
 	inline void DxStructuredBuffer<T>::CreateUAVBuffer(ID3D12Device* device, UINT instanceCount) {
 
+		capacity_ = instanceCount;
 		DxUtils::CreateUavBufferResource(device, resource_, sizeof(T) * instanceCount);
 		// マッピング処理は行わない
 		isCreated_ = true;
@@ -101,6 +106,7 @@ namespace Engine {
 
 		if (mappedData_) {
 
+			assert(data.size() <= capacity_ && "DxStructuredBuffer capacity exceeded");
 			std::memcpy(mappedData_, data.data(), sizeof(T) * data.size());
 		}
 	}
@@ -110,6 +116,7 @@ namespace Engine {
 
 		if (mappedData_) {
 
+			assert(count <= capacity_ && "DxStructuredBuffer capacity exceeded");
 			std::memcpy(mappedData_, data.data(), sizeof(T) * count);
 		}
 	}
@@ -121,6 +128,7 @@ namespace Engine {
 			return;
 		}
 
+		assert(count <= capacity_ && "DxStructuredBuffer capacity exceeded");
 		std::memcpy(mappedData_, data, sizeof(T) * count);
 	}
 

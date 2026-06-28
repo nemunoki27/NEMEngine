@@ -5,8 +5,9 @@
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
+#include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/SceneComponentOverlay/SceneComponentOverlayState.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
@@ -132,8 +133,8 @@ Engine::SceneComponentOverlayRenderer::PipelinePair* Engine::SceneComponentOverl
 	{
 		GraphicsPipelineDesc desc{};
 		desc.type = PipelineType::Vertex;
-		desc.preRaster = { "edf35b0e885ae326", "main", "vs_6_0" };
-		desc.pixel = { "feaf5c3be1a811cf", "main", "ps_6_0" };
+		desc.preRaster = { BuiltinShaderSource::Editor::SceneOverlaySpriteVS, "main", "vs_6_0" };
+		desc.pixel = { BuiltinShaderSource::Editor::SceneOverlaySpritePS, "main", "ps_6_0" };
 		desc.staticSamplers.push_back(MakeLinearClampSampler());
 		desc.rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		desc.rasterizer.CullMode = D3D12_CULL_MODE_NONE;

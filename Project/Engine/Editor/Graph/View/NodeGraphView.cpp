@@ -86,7 +86,7 @@ bool Engine::NodeGraphView::Draw(NodeGraphContext& context, GraphDocument& docum
 	// NodeEditorのContextをこのViewに切り替える
 	ed::SetCurrentEditor(context.Get());
 	style_.PushEditorStyle();
-	ed::Begin(desc.editorId, ImVec2(0.0f, 0.0f));
+	ed::Begin(desc.editorID, ImVec2(0.0f, 0.0f));
 
 	// グループNodeは他のNodeより先に描画して背面に表示する
 	for (GraphNode& node : document.nodes) {
@@ -291,13 +291,13 @@ bool Engine::NodeGraphView::DrawCreateLink(GraphDocument& document) {
 	const bool creating = ed::BeginCreate(style_.GetLinkColor(GraphValueType::Flow), style_.createLinkThickness);
 	if (creating) {
 
-		ed::PinId startId{};
-		ed::PinId endId{};
-		if (ed::QueryNewLink(&startId, &endId)) {
+		ed::PinId startID{};
+		ed::PinId endID{};
+		if (ed::QueryNewLink(&startID, &endID)) {
 
 			// QueryNewLinkはドラッグ方向を問わず返すため、あとでOutput -> Inputへ揃える
-			GraphID startPin = FromPinID(startId);
-			GraphID endPin = FromPinID(endId);
+			GraphID startPin = FromPinID(startID);
+			GraphID endPin = FromPinID(endID);
 			const GraphPin* start = document.FindPin(startPin);
 			const GraphPin* end = document.FindPin(endPin);
 

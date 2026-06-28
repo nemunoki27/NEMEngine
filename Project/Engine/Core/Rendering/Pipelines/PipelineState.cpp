@@ -18,13 +18,22 @@ using namespace Engine;
 #include <iterator>
 #include <system_error>
 #include <unordered_map>
+#include <atomic>
 
 //============================================================================
 //	PipelineState classMethods
 //============================================================================
+
+uint64_t Engine::PipelineState::NextUniqueID() {
+
+	// 生成のたびに増える、0は未設定を表すため1から始める
+	static std::atomic<uint64_t> counter{ 0 };
+	return ++counter;
+}
+
 namespace {
 
-	// シェーダーソース参照(GUIDまたはパス)を実体パスへ解決する、解決処理はShaderSourcePathへ共通化している
+	// シェーダーソース参照(GUIDまたはパス)を実体パスへ解決する
 	std::filesystem::path ResolveShaderPath(const std::string& file) {
 
 		return ShaderSourcePath::Resolve(file);

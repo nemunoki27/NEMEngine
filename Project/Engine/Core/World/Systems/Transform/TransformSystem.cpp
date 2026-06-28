@@ -9,9 +9,9 @@
 #include <Engine/Core/Foundation/Math/AffineDecompose.h>
 
 //============================================================================
-//	TransformUpdateSystem classMethods
+//	TransformSystem classMethods
 //============================================================================
-void Engine::TransformUpdateSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
+void Engine::TransformSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
 	// ルートクリア
 	roots_.clear();

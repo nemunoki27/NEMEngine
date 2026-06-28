@@ -62,9 +62,12 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// 起動時に開く既定シーンの.meta GUID
+		static constexpr AssetID kDefaultStartupScene{ 0x129d80fee6b506d1ull };
+
 		// 現在アクティブなシーンで初期シーンもパスではなく.meta GUIDで参照する
 		std::string activeScenePath_{};
-		AssetID activeScene_{ 0x129d80fee6b506d1ull };
+		AssetID activeScene_{ kDefaultStartupScene };
 
 		// アセット管理
 		AssetDatabase assetDataBase_;

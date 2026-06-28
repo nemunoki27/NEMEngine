@@ -89,19 +89,19 @@ void Engine::ScriptExecutionOrderTable::Reload() {
 			continue;
 		}
 		Entry entry{};
-		entry.scriptTypeId = entryJson.value("scriptTypeId", std::string{});
+		entry.scriptTypeID = entryJson.value("scriptTypeId", std::string{});
 		entry.displayName = entryJson.value("displayName", std::string{});
 		entry.executionOrder = entryJson.value("executionOrder", 0);
-		if (entry.scriptTypeId.empty()) {
+		if (entry.scriptTypeID.empty()) {
 			continue;
 		}
-		// 重複するscriptTypeIdは最初のものを採用し以降は診断する
-		if (parsedLookup.find(entry.scriptTypeId) != parsedLookup.end()) {
+		// 重複するscriptTypeIDは最初のものを採用し以降は診断する
+		if (parsedLookup.find(entry.scriptTypeID) != parsedLookup.end()) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"ScriptExecutionOrderTable: duplicate scriptTypeId '{}' ignored.", entry.scriptTypeId);
+				"ScriptExecutionOrderTable: duplicate scriptTypeID '{}' ignored.", entry.scriptTypeID);
 			continue;
 		}
-		parsedLookup.emplace(entry.scriptTypeId, entry.executionOrder);
+		parsedLookup.emplace(entry.scriptTypeID, entry.executionOrder);
 		parsed.emplace_back(std::move(entry));
 	}
 
@@ -112,32 +112,32 @@ void Engine::ScriptExecutionOrderTable::Reload() {
 
 void Engine::ScriptExecutionOrderTable::RebuildLookup() {
 
-	// scriptTypeIdで安定ソートしておく、UI表示と決定的な書き出しのため
+	// scriptTypeIDで安定ソートしておく、UI表示と決定的な書き出しのため
 	std::sort(entries_.begin(), entries_.end(), [](const Entry& lhs, const Entry& rhs) {
-		return lhs.scriptTypeId < rhs.scriptTypeId;
+		return lhs.scriptTypeID < rhs.scriptTypeID;
 		});
 	orderByGuid_.clear();
 	for (const Entry& entry : entries_) {
-		orderByGuid_[entry.scriptTypeId] = entry.executionOrder;
+		orderByGuid_[entry.scriptTypeID] = entry.executionOrder;
 	}
 }
 
-int32_t Engine::ScriptExecutionOrderTable::GetOrder(const std::string_view& scriptTypeId) const {
+int32_t Engine::ScriptExecutionOrderTable::GetOrder(const std::string_view& scriptTypeID) const {
 
-	if (scriptTypeId.empty()) {
+	if (scriptTypeID.empty()) {
 		return 0;
 	}
-	const auto it = orderByGuid_.find(std::string(scriptTypeId));
+	const auto it = orderByGuid_.find(std::string(scriptTypeID));
 	return it != orderByGuid_.end() ? it->second : 0;
 }
 
-bool Engine::ScriptExecutionOrderTable::TryGetOverride(const std::string_view& scriptTypeId, int32_t& outOrder) const {
+bool Engine::ScriptExecutionOrderTable::TryGetOverride(const std::string_view& scriptTypeID, int32_t& outOrder) const {
 
 	// 上書き無しと明示的に0を設定した状態を区別する、GetOrderはどちらも0を返すため
-	if (scriptTypeId.empty()) {
+	if (scriptTypeID.empty()) {
 		return false;
 	}
-	const auto it = orderByGuid_.find(std::string(scriptTypeId));
+	const auto it = orderByGuid_.find(std::string(scriptTypeID));
 	if (it == orderByGuid_.end()) {
 		return false;
 	}
@@ -145,14 +145,14 @@ bool Engine::ScriptExecutionOrderTable::TryGetOverride(const std::string_view& s
 	return true;
 }
 
-void Engine::ScriptExecutionOrderTable::SetOrder(const std::string_view& scriptTypeId, const std::string_view& displayName, int32_t order) {
+void Engine::ScriptExecutionOrderTable::SetOrder(const std::string_view& scriptTypeID, const std::string_view& displayName, int32_t order) {
 
-	if (scriptTypeId.empty()) {
+	if (scriptTypeID.empty()) {
 		return;
 	}
-	const std::string guid(scriptTypeId);
+	const std::string guid(scriptTypeID);
 	for (Entry& entry : entries_) {
-		if (entry.scriptTypeId == guid) {
+		if (entry.scriptTypeID == guid) {
 			entry.executionOrder = order;
 			if (!displayName.empty()) {
 				entry.displayName = std::string(displayName);
@@ -165,11 +165,11 @@ void Engine::ScriptExecutionOrderTable::SetOrder(const std::string_view& scriptT
 	RebuildLookup();
 }
 
-void Engine::ScriptExecutionOrderTable::Remove(const std::string_view& scriptTypeId) {
+void Engine::ScriptExecutionOrderTable::Remove(const std::string_view& scriptTypeID) {
 
-	const std::string guid(scriptTypeId);
+	const std::string guid(scriptTypeID);
 	entries_.erase(std::remove_if(entries_.begin(), entries_.end(), [&](const Entry& entry) {
-		return entry.scriptTypeId == guid;
+		return entry.scriptTypeID == guid;
 		}), entries_.end());
 	RebuildLookup();
 }
@@ -182,7 +182,7 @@ bool Engine::ScriptExecutionOrderTable::Save() const {
 	for (const Entry& entry : entries_) {
 
 		nlohmann::json item;
-		item["scriptTypeId"] = entry.scriptTypeId;
+		item["scriptTypeId"] = entry.scriptTypeID;
 		item["displayName"] = entry.displayName;
 		item["executionOrder"] = entry.executionOrder;
 		arr.emplace_back(std::move(item));

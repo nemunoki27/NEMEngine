@@ -175,13 +175,13 @@ namespace Engine {
 		const ViewportRenderService& GetViewportRenderService() const { return *viewportRenderService_.get(); }
 
 		// 種類に応じた描画ビューの情報の取得
-		const ResolvedRenderView& GetResolvedView(RenderViewKind kind) const { return (kind == RenderViewKind::Game) ? gameView_ : sceneView_; }
+		const ResolvedRenderView& GetResolvedView(RenderViewKind kind) const { return (kind == RenderViewKind::Game) ? gameViewState_.view : sceneViewState_.view; }
 
 		//今フレームの全ライト
 		const FrameLightBatch& GetFrameLightBatch() const { return frameLightBatch_; }
 		// ルートシーン用のビュー別ライト集合
 		const PerViewLightSet& GetResolvedViewLightSet(RenderViewKind kind) const {
-			return (kind == RenderViewKind::Game || gameView_.valid) ? gameViewLightSet_ : sceneViewLightSet_;
+			return (kind == RenderViewKind::Game || gameViewState_.view.valid) ? gameViewState_.lightSet : sceneViewState_.lightSet;
 		}
 
 		// ピック用のTLASリソースとサブメッシュ情報の取得
@@ -199,6 +199,19 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		// 描画ビュー1つ分の状態をまとめる、ゲーム/シーンの2ビューで同型を使う
+		struct PerViewRenderState {
+
+			ResolvedRenderView view{};
+			RenderPathResources resources{};
+			RaytracingViewBufferSet raytracingBuffers{};
+			RenderTargetRegistry targetRegistry{};
+			PerViewLightSet lightSet{};
+			ViewLightBufferSet lightBuffers{};
+		};
+
 		//--------- variables ----------------------------------------------------
 
 		// 描画バッチ
@@ -207,21 +220,15 @@ namespace Engine {
 		FrameLightBatch frameLightBatch_{};
 		// ビューポート描画サービス
 		std::unique_ptr<ViewportRenderService> viewportRenderService_;
-		// 描画ビュー情報
-		ResolvedRenderView gameView_{};
-		ResolvedRenderView sceneView_{};
+		// 描画ビューごとの状態、ゲーム/シーンで同型
+		PerViewRenderState gameViewState_{};
+		PerViewRenderState sceneViewState_{};
 
 		// 固定RenderPath
 		DeferredRenderPath renderPath_{};
-		// ビューごとの中間レンダーターゲット
-		RenderPathResources gameViewResources_{};
-		RenderPathResources sceneViewResources_{};
 
 		// レイトレーシングのパイプライン
 		RaytracingPipelineStateCache raytracingPipelineStateCache_{};
-		// ビュー関連のレイトレーシングバッファ
-		RaytracingViewBufferSet gameViewRaytracingBuffers_{};
-		RaytracingViewBufferSet sceneViewRaytracingBuffers_{};
 		// レイトレシーンの構築でBillboardはゲームビューにのみ合わせるため1つでよい
 		RaytracingSceneBuilder raytracingSceneBuilder_{};
 
@@ -236,10 +243,6 @@ namespace Engine {
 		// ライト抽出器のレジストリ
 		LightExtractorRegistry lightExtractorRegistry_{};
 
-		// 描画ビューごとの描画ターゲットレジストリ
-		RenderTargetRegistry gameViewTargetRegistry_{};
-		RenderTargetRegistry sceneViewTargetRegistry_{};
-
 		// 描画アセット
 		RenderAssetLibrary renderAssetLibrary_;
 		PipelineStateCache pipelineStateCache_;
@@ -253,13 +256,8 @@ namespace Engine {
 		PostProcessDebugInjector postProcessDebugInjector_{};
 		PostProcessAssetGenerator postProcessAssetGenerator_{};
 
-		// ルートシーン用のビュー別ライト集合
-		PerViewLightSet gameViewLightSet_{};
-		PerViewLightSet sceneViewLightSet_{};
+		// ツールプレビュー専用のライト集合
 		PerViewLightSet previewLightSet_{};
-		// ビューごとのGPUライトバッファ
-		ViewLightBufferSet gameViewLightBuffers_{};
-		ViewLightBufferSet sceneViewLightBuffers_{};
 		// ツールプレビューは同一フレーム内に複数回描くため、ライトGPUバッファも描画ごとに分ける
 		FrameBatchResourcePool<ViewLightBufferSet> previewLightBufferPool_{};
 

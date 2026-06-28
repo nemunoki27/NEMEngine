@@ -195,7 +195,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 		return false;
 	}
 
-	// nethostでhostfxrを解決する、旧来の手動探索を置き換える
+	// nethostでhostfxrを解決する
 	const std::filesystem::path hostfxrPath = ResolveHostfxrPath(scriptCoreAssemblyPath);
 	if (hostfxrPath.empty()) {
 		// 失敗理由はResolveHostfxrPath側でログ済み

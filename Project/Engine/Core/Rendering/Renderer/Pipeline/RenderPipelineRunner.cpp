@@ -30,7 +30,7 @@ using namespace Engine;
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackService.h>
 
@@ -80,13 +80,13 @@ void RenderPipelineRunner::Init() {
 	postProcessExecutor_.Release();
 	postProcessAssetGenerator_.Clear();
 	frameLightBatch_.Clear();
-	gameViewLightSet_.Clear();
-	sceneViewLightSet_.Clear();
+	gameViewState_.lightSet.Clear();
+	sceneViewState_.lightSet.Clear();
 	previewLightSet_.Clear();
 
 	raytracingPipelineStateCache_.Clear();
-	gameViewRaytracingBuffers_.Release();
-	sceneViewRaytracingBuffers_.Release();
+	gameViewState_.raytracingBuffers.Release();
+	sceneViewState_.raytracingBuffers.Release();
 
 	// 固定RenderPathの初期化
 	{
@@ -106,8 +106,8 @@ void RenderPipelineRunner::Init() {
 	}
 
 	// ビューライトバッファの初期化
-	gameViewLightBuffers_.Release();
-	sceneViewLightBuffers_.Release();
+	gameViewState_.lightBuffers.Release();
+	sceneViewState_.lightBuffers.Release();
 	previewLightBufferPool_.Clear();
 	previewBackendFrameStarted_ = false;
 	lastRenderedWorld_ = nullptr;
@@ -133,8 +133,8 @@ void RenderPipelineRunner::ReloadMaterial(AssetID materialAssetID) {
 
 Engine::RenderTexture2D* RenderPipelineRunner::GetViewGBufferTexture(RenderViewKind kind, GBufferAttachment attachment) {
 
-	// GameViewはgameViewResources_、それ以外はsceneViewResources_のGBufferを参照する
-	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewResources_ : sceneViewResources_;
+	// GameViewはgameViewState_.resources、それ以外はsceneViewState_.resourcesのGBufferを参照する
+	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewState_.resources : sceneViewState_.resources;
 	return resources.GetGBuffer(attachment);
 }
 
@@ -150,7 +150,7 @@ const Engine::ShaderReflectionInfo* RenderPipelineRunner::FindMaterialDrawReflec
 Engine::DepthTexture2D* RenderPipelineRunner::GetViewDepthTexture(RenderViewKind kind) {
 
 	// 深度はGBufferの色ではなくSceneMainの深度アタッチメントを参照する
-	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewResources_ : sceneViewResources_;
+	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewState_.resources : sceneViewState_.resources;
 	MultiRenderTarget* sceneMain = resources.GetSceneMain();
 	return sceneMain ? sceneMain->GetDepthTexture() : nullptr;
 }
@@ -174,24 +174,24 @@ void RenderPipelineRunner::Finalize() {
 	postProcessAssetGenerator_.Clear();
 	lightExtractorRegistry_.Clear();
 	frameLightBatch_.Clear();
-	gameViewLightSet_.Clear();
-	sceneViewLightSet_.Clear();
+	gameViewState_.lightSet.Clear();
+	sceneViewState_.lightSet.Clear();
 	previewLightSet_.Clear();
-	gameViewLightBuffers_.Release();
-	sceneViewLightBuffers_.Release();
+	gameViewState_.lightBuffers.Release();
+	sceneViewState_.lightBuffers.Release();
 	previewLightBufferPool_.Clear();
 	if (viewportRenderService_) {
 		viewportRenderService_->Finalize();
 		viewportRenderService_.reset();
 	}
 	raytracingPipelineStateCache_.Clear();
-	gameViewRaytracingBuffers_.Release();
-	sceneViewRaytracingBuffers_.Release();
+	gameViewState_.raytracingBuffers.Release();
+	sceneViewState_.raytracingBuffers.Release();
 	previewBackendFrameStarted_ = false;
 	lastRenderedWorld_ = nullptr;
 	raytracingSceneBuilder_.Finalize();
-	gameViewResources_.Destroy();
-	sceneViewResources_.Destroy();
+	gameViewState_.resources.Destroy();
+	sceneViewState_.resources.Destroy();
 }
 
 void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameRequest& request) {
@@ -241,7 +241,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 	// GPU計測のフレーム開始(前フレームの結果をFrameProfilerへ反映し、記録をリセット)
 	GPUFrameProfiler::GetInstance().BeginFrame(graphicsCore.GetDXObject().GetDevice(),
-		graphicsCore.GetDXObject().GetDxCommand()->GetQueue());
+		graphicsCore.GetDXObject().GetCommandQueue()->GetQueue());
 
 	// 描画アイテムの抽出
 	extractorRegistry_.BuildBatch(*request.world, renderBatch_);
@@ -280,11 +280,11 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 	// ビューごとに可視なメッシュアセットIDを収集
 	if (meshBackend && activeScene) {
-		if (gameView_.valid) {
-			CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, gameView_, visibleMeshSet_);
+		if (gameViewState_.view.valid) {
+			CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, gameViewState_.view, visibleMeshSet_);
 		}
-		if (sceneView_.valid) {
-			CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, sceneView_, visibleMeshSet_);
+		if (sceneViewState_.view.valid) {
+			CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, sceneViewState_.view, visibleMeshSet_);
 		}
 	}
 
@@ -300,44 +300,44 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	}
 
 	// ビューごとのライト集合クリア
-	gameViewLightSet_.Clear();
-	sceneViewLightSet_.Clear();
-	const bool sceneViewSharesGameLightBuffers = sceneView_.valid && gameView_.valid;
+	gameViewState_.lightSet.Clear();
+	sceneViewState_.lightSet.Clear();
+	const bool sceneViewSharesGameLightBuffers = sceneViewState_.view.valid && gameViewState_.view.valid;
 	// ルートシーン用のビューライト構築
 	if (activeScene) {
-		if (gameView_.valid) {
+		if (gameViewState_.view.valid) {
 
-			ViewLightCollector::CollectForView(frameLightBatch_, activeScene, gameView_, gameViewLightSet_);
+			ViewLightCollector::CollectForView(frameLightBatch_, activeScene, gameViewState_.view, gameViewState_.lightSet);
 		}
-		if (sceneView_.valid && !sceneViewSharesGameLightBuffers) {
+		if (sceneViewState_.view.valid && !sceneViewSharesGameLightBuffers) {
 
-			ViewLightCollector::CollectForView(frameLightBatch_, activeScene, sceneView_, sceneViewLightSet_);
+			ViewLightCollector::CollectForView(frameLightBatch_, activeScene, sceneViewState_.view, sceneViewState_.lightSet);
 		}
 	}
 
 	// GPUライトバッファ初期化
-	if (!gameViewLightBuffers_.IsInitialized()) {
-		gameViewLightBuffers_.Init(graphicsCore);
+	if (!gameViewState_.lightBuffers.IsInitialized()) {
+		gameViewState_.lightBuffers.Init(graphicsCore);
 	}
-	if (!sceneViewSharesGameLightBuffers && !sceneViewLightBuffers_.IsInitialized()) {
-		sceneViewLightBuffers_.Init(graphicsCore);
+	if (!sceneViewSharesGameLightBuffers && !sceneViewState_.lightBuffers.IsInitialized()) {
+		sceneViewState_.lightBuffers.Init(graphicsCore);
 	}
 	// ビューごとのライト集合をGPUへ転送
-	gameViewLightBuffers_.Upload(gameViewLightSet_);
+	gameViewState_.lightBuffers.Upload(gameViewState_.lightSet);
 	if (!sceneViewSharesGameLightBuffers) {
 
-		sceneViewLightBuffers_.Upload(sceneViewLightSet_);
+		sceneViewState_.lightBuffers.Upload(sceneViewState_.lightSet);
 	}
 
 	// レイトレーシングビュー関連バッファの初期化と転送
-	if (!gameViewRaytracingBuffers_.IsInitialized()) {
-		gameViewRaytracingBuffers_.Init(graphicsCore);
+	if (!gameViewState_.raytracingBuffers.IsInitialized()) {
+		gameViewState_.raytracingBuffers.Init(graphicsCore);
 	}
-	if (!sceneViewRaytracingBuffers_.IsInitialized()) {
-		sceneViewRaytracingBuffers_.Init(graphicsCore);
+	if (!sceneViewState_.raytracingBuffers.IsInitialized()) {
+		sceneViewState_.raytracingBuffers.Init(graphicsCore);
 	}
-	gameViewRaytracingBuffers_.Upload(gameView_);
-	sceneViewRaytracingBuffers_.Upload(sceneView_);
+	gameViewState_.raytracingBuffers.Upload(gameViewState_.view);
+	sceneViewState_.raytracingBuffers.Upload(sceneViewState_.view);
 
 	// 描画ビューごとに描画を実行
 	auto renderView = [&](RenderViewKind kind, const ResolvedRenderView& view) {
@@ -363,8 +363,8 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			// コピーではなく実際のcontextへ直接構築する、コピーへ構築すると登録が破棄され反射パスが早期リターンする
 			// TLAS構築の基準ビューだけ一時的にGameViewへ差し替え、構築後に元へ戻す
 			const ResolvedRenderView* prevTlasView = context.view;
-			if (gameView_.valid) {
-				context.view = &gameView_;
+			if (gameViewState_.view.valid) {
+				context.view = &gameViewState_.view;
 			}
 			raytracingSceneBuilder_.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, renderBatch_, context);
 			context.view = prevTlasView;
@@ -403,8 +403,8 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			}
 		}
 		};
-	renderView(RenderViewKind::Game, gameView_);
-	renderView(RenderViewKind::Scene, sceneView_);
+	renderView(RenderViewKind::Game, gameViewState_.view);
+	renderView(RenderViewKind::Scene, sceneViewState_.view);
 
 	// 記録したパスのタイムスタンプを解決してリードバックバッファへ書き出す
 	GPUFrameProfiler::GetInstance().Resolve(graphicsCore.GetDXObject().GetDxCommand()->GetCommandList());
@@ -477,8 +477,6 @@ bool RenderPipelineRunner::PresentViewToBackBuffer(
 	return true;
 }
 
-// RenderEntityPreviewの実装はRenderPipelineRunnerPreview.cppへ分離
-
 void RenderPipelineRunner::SyncRequestedSurfaces(
 	GraphicsCore& graphicsCore, const RenderFrameRequest& request) {
 
@@ -493,19 +491,19 @@ void RenderPipelineRunner::SyncRequestedSurfaces(
 
 void RenderPipelineRunner::ResolveViews(const RenderFrameRequest& request) {
 
-	gameView_ = {};
-	sceneView_ = {};
+	gameViewState_.view = {};
+	sceneViewState_.view = {};
 	for (const auto& viewRequest : request.views) {
 
 		ResolvedRenderView resolved = RenderViewResolver::Resolve(viewRequest, *request.world);
 		switch (viewRequest.kind) {
 		case RenderViewKind::Game:
 
-			gameView_ = resolved;
+			gameViewState_.view = resolved;
 			break;
 		case RenderViewKind::Scene:
 
-			sceneView_ = resolved;
+			sceneViewState_.view = resolved;
 			break;
 		}
 	}
@@ -522,7 +520,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.sceneInstance = sceneInstance;
 	context.view = &view;
 	// SceneViewの描画カメラはSceneViewのまま、カリングだけGameView基準にする
-	context.cullingView = (kind == RenderViewKind::Scene && gameView_.valid) ? &gameView_ : &view;
+	context.cullingView = (kind == RenderViewKind::Scene && gameViewState_.view.valid) ? &gameViewState_.view : &view;
 	context.defaultSurface = viewportRenderService_->GetSurface(kind);
 	context.world = request.world;
 	context.systemContext = request.systemContext;
@@ -532,7 +530,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.allowSceneComponentOverlay = (kind == RenderViewKind::Scene);
 	// 種類に応じたターゲットレジストリを選択
 	RenderTargetRegistry* registry = kind == RenderViewKind::Game ?
-		&gameViewTargetRegistry_ : &sceneViewTargetRegistry_;
+		&gameViewState_.targetRegistry : &sceneViewState_.targetRegistry;
 	context.targetRegistry = registry;
 
 	// フレーム開始処理
@@ -548,11 +546,11 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	}
 
 	// ビューごとの中間レンダーターゲットを確保してコンテキストに設定
-	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewResources_ : sceneViewResources_;
+	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewState_.resources : sceneViewState_.resources;
 	resources.Resize(graphicsCore, view.width, view.height);
 	context.resources = &resources;
 	// ビルボードはGameViewを基準にする
-	context.billboardView = (kind == RenderViewKind::Scene && gameView_.valid) ? &gameView_ : &view;
+	context.billboardView = (kind == RenderViewKind::Scene && gameViewState_.view.valid) ? &gameViewState_.view : &view;
 
 	// 中間RenderTargetをレジストリに登録してPostProcessExecutorが名前で解決できるようにする
 	if (resources.GetSceneMain()) {
@@ -569,19 +567,19 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	switch (kind) {
 	case RenderViewKind::Game:
 
-		gameViewLightBuffers_.RegisterTo(context.bufferRegistry);
-		gameViewRaytracingBuffers_.RegisterTo(context.bufferRegistry);
+		gameViewState_.lightBuffers.RegisterTo(context.bufferRegistry);
+		gameViewState_.raytracingBuffers.RegisterTo(context.bufferRegistry);
 		break;
 	case RenderViewKind::Scene:
 
-		if (gameView_.valid) {
+		if (gameViewState_.view.valid) {
 
-			gameViewLightBuffers_.RegisterTo(context.bufferRegistry);
+			gameViewState_.lightBuffers.RegisterTo(context.bufferRegistry);
 		} else {
 
-			sceneViewLightBuffers_.RegisterTo(context.bufferRegistry);
+			sceneViewState_.lightBuffers.RegisterTo(context.bufferRegistry);
 		}
-		sceneViewRaytracingBuffers_.RegisterTo(context.bufferRegistry);
+		sceneViewState_.raytracingBuffers.RegisterTo(context.bufferRegistry);
 		break;
 	}
 	return context;

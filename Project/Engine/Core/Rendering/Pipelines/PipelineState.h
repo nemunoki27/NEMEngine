@@ -10,6 +10,8 @@
 
 // directX
 #include <Externals/DirectX12/d3dx12.h>
+// c++
+#include <cstdint>
 
 namespace Engine {
 
@@ -98,6 +100,8 @@ namespace Engine {
 		const ShaderReflectionInfo& GetComputeReflection() const { return computeReflection_; }
 		// グラフィックス全ステージを統合したリフレクション情報を取得する、マテリアルパラメータ解決に使う
 		const ShaderReflectionInfo& GetGraphicsReflection() const { return graphicsReflection_; }
+		// パイプラインごとに一意なID、破棄後の同アドレス再利用でもキャッシュ誤ヒットを防ぐために使う
+		uint64_t GetUniqueID() const { return uniqueID_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -156,10 +160,16 @@ namespace Engine {
 		// グラフィックス全ステージ統合のリフレクション情報、マテリアルパラメータ/SRV解決に使う
 		ShaderReflectionInfo graphicsReflection_{};
 
+		// パイプラインごとに一意なID、生成のたびに採番される
+		uint64_t uniqueID_ = NextUniqueID();
+
 		//--------- functions ----------------------------------------------------
 
 		// 検索テーブルを再構築する
 		void RebuildBindingLookupTables();
+
+		// パイプライン生成のたびに一意なIDを採番する
+		static uint64_t NextUniqueID();
 	};
 } // Engine
 

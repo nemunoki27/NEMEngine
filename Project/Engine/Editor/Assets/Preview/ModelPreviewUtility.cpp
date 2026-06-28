@@ -6,7 +6,7 @@
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
-#include <Engine/Editor/Assets/Importer/Model/AssimpMaterialTextureExtractor.h>
+#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 
 // assimp
 #include <assimp/Importer.hpp>

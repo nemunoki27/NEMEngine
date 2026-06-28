@@ -117,9 +117,13 @@ void GraphicsPlatform::Init() {
 	dxDevice_ = std::make_unique<DxDevice>();
 	InitDXDevice();
 
-	// command初期化
+	// command初期化、キュー/記録/フレーム終端の順で生成する
+	dxCommandQueue_ = std::make_unique<DxCommandQueue>();
+	dxCommandQueue_->Create(dxDevice_->Get());
 	dxCommand_ = std::make_unique<DxCommand>();
 	dxCommand_->Create(dxDevice_->Get());
+	framePresenter_ = std::make_unique<FramePresenter>();
+	framePresenter_->Create(dxDevice_->Get(), dxCommand_.get(), dxCommandQueue_.get());
 
 	// DXC初期化
 	dxShaderComplier_ = std::make_unique<DxShaderCompiler>();
@@ -128,11 +132,33 @@ void GraphicsPlatform::Init() {
 
 void GraphicsPlatform::Finalize(HWND hwnd) {
 
-	// DxCommandはDeviceを参照しているため、Deviceより先にFinalize/resetする
-	if (dxCommand_) {
-		dxCommand_->Finalize(hwnd);
-		dxCommand_.reset();
+	// Queue/Presenterはフェンスやタイマーを抱えるためDeviceより先に破棄する
+	if (framePresenter_) {
+		framePresenter_->Finalize();
+		framePresenter_.reset();
+	}
+	dxCommand_.reset();
+	if (dxCommandQueue_) {
+		dxCommandQueue_->Finalize();
+		dxCommandQueue_.reset();
 	}
 	dxShaderComplier_.reset();
 	dxDevice_.reset();
+
+	// ウィンドウを閉じる
+	CloseWindow(hwnd);
+}
+
+void GraphicsPlatform::PresentFrame(IDXGISwapChain4* swapChain) {
+
+	framePresenter_->Present(swapChain);
+}
+
+void GraphicsPlatform::WaitForGPU() {
+
+	// 現在積んでいるリストを実行してGPU完了まで待つ、終了時のドレイン用
+	dxCommand_->CloseCommandList();
+	dxCommandQueue_->ExecuteCommandList(dxCommand_->GetCommandList());
+	dxCommandQueue_->SignalAndWait();
+	dxCommand_->ResetCommandList();
 }

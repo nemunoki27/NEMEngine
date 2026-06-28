@@ -34,7 +34,7 @@ namespace {
 			return Engine::UUID{};
 		}
 
-		const std::string localID = components["SceneObject"].value("localFileID", "");
+		const std::string localID = components["SceneObject"].value("localFileId", "");
 		return localID.empty() ? Engine::UUID{} : Engine::FromString16Hex(localID);
 	}
 	// コンポーネントにシーンオブジェクトのローカルファイルIDを書き込む
@@ -43,7 +43,7 @@ namespace {
 		if (!components.contains("SceneObject")) {
 			components["SceneObject"] = nlohmann::json::object();
 		}
-		components["SceneObject"]["localFileID"] = localFileID ? Engine::ToString(localFileID) : "";
+		components["SceneObject"]["localFileId"] = localFileID ? Engine::ToString(localFileID) : "";
 	}
 	// コンポーネントから親のローカルファイルIDを読み取る
 	Engine::UUID ReadParentLocalFileIDFromComponents(const nlohmann::json& components) {

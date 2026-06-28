@@ -132,8 +132,8 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 		const ManagedScriptBuildService::Snapshot snapshot = service->GetSnapshot();
 		ImGui::Text("State: %s  | build #%llu  reload #%llu",
 			BuildStateLabel(snapshot.state),
-			static_cast<unsigned long long>(snapshot.buildId),
-			static_cast<unsigned long long>(snapshot.reloadId));
+			static_cast<unsigned long long>(snapshot.buildID),
+			static_cast<unsigned long long>(snapshot.reloadID));
 		ImGui::Text("pending changes: %s | reload deferred(Play): %s | LKG usable: %s | LKG update failed: %s",
 			snapshot.hasPendingSourceChanges ? "yes" : "no",
 			snapshot.reloadDeferredByPlayMode ? "yes" : "no",
@@ -176,10 +176,10 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 		static_cast<unsigned long long>(store.WarningCount()),
 		static_cast<unsigned long long>(ManagedBuildDiagnosticStore::kMaxEntries));
 
-	// latest build idを決定する、最後のentryのbuildIdを使う
-	uint64_t latestBuildId = 0;
+	// latest build idを決定する、最後のentryのbuildIDを使う
+	uint64_t latestBuildID = 0;
 	if (!store.Entries().empty()) {
-		latestBuildId = store.Entries().back().buildId;
+		latestBuildID = store.Entries().back().buildID;
 	}
 
 	//--------- list ---------------------------------------------------------
@@ -194,19 +194,19 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 		ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableHeadersRow();
 
-		int rowId = 0;
+		int rowID = 0;
 		for (const ManagedBuildDiagnostic& d : store.Entries()) {
 
 			if (d.severity == DiagnosticSeverity::Error && !showErrors_) { continue; }
 			if (d.severity == DiagnosticSeverity::Warning && !showWarnings_) { continue; }
 			if (d.severity == DiagnosticSeverity::Info) { continue; }
-			if (latestBuildOnly_ && latestBuildId != 0 && d.buildId != latestBuildId) { continue; }
+			if (latestBuildOnly_ && latestBuildID != 0 && d.buildID != latestBuildID) { continue; }
 			if (!Algorithm::ContainsCaseInsensitive(d.message, textFilter_) && !Algorithm::ContainsCaseInsensitive(d.file, textFilter_)) {
 				continue;
 			}
 
 			ImGui::TableNextRow();
-			ImGui::PushID(rowId++);
+			ImGui::PushID(rowID++);
 
 			const ImVec4 color = (d.severity == DiagnosticSeverity::Error)
 				? ImVec4(0.95f, 0.45f, 0.45f, 1.0f) : ImVec4(0.95f, 0.85f, 0.40f, 1.0f);

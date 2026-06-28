@@ -4,8 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/DxObject/Core/DxCommandContext.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
+#include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 
@@ -429,11 +430,11 @@ void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
 	GraphicsPipelineDesc desc{};
 	desc.type = PipelineType::Vertex;
 
-	desc.preRaster.file = "bec9516b4cd54de2";
+	desc.preRaster.file = BuiltinShaderSource::Line::AnalyticGridVS;
 	desc.preRaster.entry = "main";
 	desc.preRaster.profile = "vs_6_0";
 
-	desc.pixel.file = "a31bb01681f8ac3d";
+	desc.pixel.file = BuiltinShaderSource::Line::AnalyticGridPS;
 	desc.pixel.entry = "main";
 	desc.pixel.profile = "ps_6_0";
 
@@ -814,13 +815,6 @@ void Engine::SceneGridRenderer::Edit() {
 		gridMajorFadeStartRate_ = 0.000f;
 		gridMajorFadeEndRate_ = 4.311f;
 		gridMajorFadePower_ = 3.200f;
-
-		gridMinorBaseAlpha_ = 0.050f;
-		gridMinorLineThickness_ = 1.000f;
-		gridMinorFarThicknessRate_ = 0.150f;
-		gridMinorFadeStartRate_ = 0.000f;
-		gridMinorFadeEndRate_ = 0.980f;
-		gridMinorFadePower_ = 0.790f;
 
 		gridMinorBaseAlpha_ = 0.12f;
 		gridMinorLineThickness_ = 1.00f;

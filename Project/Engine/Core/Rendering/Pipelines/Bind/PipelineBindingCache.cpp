@@ -21,10 +21,10 @@ Engine::PipelineBindingCache::SlotID Engine::PipelineBindingCache::AddSlotByRegi
 void Engine::PipelineBindingCache::Sync(const PipelineState& pipeline) {
 
 	// パイプラインが変わっていなければキャッシュを再利用
-	if (&pipeline == lastPipeline_) {
+	if (pipeline.GetUniqueID() == lastPipelineID_) {
 		return;
 	}
-	lastPipeline_ = &pipeline;
+	lastPipelineID_ = pipeline.GetUniqueID();
 
 	for (SlotEntry& slot : slots_) {
 

@@ -63,7 +63,6 @@ void DxUtils::CreateDefaultBufferResource(ID3D12Device* device, ComPtr<ID3D12Res
 
 void DxUtils::CreateBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes) {
 
-	// 互換維持のためのラッパーで新規実装では用途が明確な関数を直接呼ぶこと
 	CreateUploadBufferResource(device, resource, sizeInBytes);
 }
 

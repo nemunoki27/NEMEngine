@@ -383,9 +383,9 @@ Engine::SceneInstance* Engine::SceneInstanceManager::Find(UUID id) {
 }
 
 const Engine::SceneInstance* Engine::SceneInstanceManager::FindChildBySlot(
-	UUID parentId, const std::string_view& slotName) const {
+	UUID parentID, const std::string_view& slotName) const {
 
-	const SceneInstance* parent = Find(parentId);
+	const SceneInstance* parent = Find(parentID);
 	if (!parent) {
 		return nullptr;
 	}
