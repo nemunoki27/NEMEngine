@@ -10,13 +10,57 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
 
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
+#include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
 
 // c++
+#include <cstddef>
+#include <memory>
+#include <span>
+#include <unordered_set>
 #include <variant>
+
+//============================================================================
+//	RaytracingSceneBuilder internal
+//============================================================================
+namespace {
+
+	template <typename T>
+	void CreateImmutableSRV(ID3D12Device* device, Engine::BufferUploadService& uploadService,
+		Engine::SRVDescriptor& srvDescriptor, Engine::MeshStructuredHandle<T>& out,
+		const std::vector<T>& data, const wchar_t* debugName) {
+
+		if (data.empty()) {
+			return;
+		}
+
+		out.buffer = std::make_unique<Engine::DxImmutableStructuredBuffer<T>>();
+		out.buffer->Create(device, uploadService, std::span<const T>(data.data(), data.size()));
+		if (ID3D12Resource* resource = out.buffer->GetResource()) {
+			resource->SetName(debugName);
+		}
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = out.buffer->GetSRVDesc();
+		srvDescriptor.CreateSRV(out.srvIndex, out.buffer->GetResource(), srvDesc);
+		out.srvGPUHandle = srvDescriptor.GetGPUHandle(out.srvIndex);
+	}
+
+	bool HasValidFillMeshIndices(const std::vector<uint32_t>& indices, size_t vertexCount) {
+
+		if (indices.empty() || indices.size() % 3 != 0) {
+			return false;
+		}
+		for (uint32_t index : indices) {
+			if (vertexCount <= index) {
+				return false;
+			}
+		}
+		return true;
+	}
+}
 
 //============================================================================
 //	RaytracingSceneBuilder classMethods
@@ -30,6 +74,7 @@ void Engine::RaytracingSceneBuilder::Init(GraphicsCore& graphicsCore) {
 	// バッファ初期化
 	sceneInstances_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
 	sceneSubMeshes_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
+	srvDescriptor_ = &graphicsCore.GetSRVDescriptor();
 	// 事前にある程度の容量を確保しておく
 	sceneInstances_.EnsureCapacity(256);
 	sceneSubMeshes_.EnsureCapacity(256);
@@ -57,7 +102,12 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 
 	blases_.clear();
 	dynamicBlases_.clear();
+	for (auto& pair : fillMeshRTResources_) {
+		pair.second.Release(srvDescriptor_);
+	}
+	fillMeshRTResources_.clear();
 	meshBlasGeneration_.clear();
+	srvDescriptor_ = nullptr;
 	firstTLASBuild_ = true;
 	initialized_ = false;
 	builtThisFrame_ = false;
@@ -86,7 +136,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	if (!canBuildRaytracingScene) {
 		return;
 	}
-	if (!context.sceneInstance || !meshBackend) {
+	if (!context.sceneInstance) {
 		return;
 	}
 
@@ -100,8 +150,12 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 	// シーン内の可視メッシュインスタンスを収集する
 	std::vector<CollectedMeshInstance> sceneMeshes;
-	CollectSceneMeshInstances(renderBatch, context, sceneMeshes);
-	if (sceneMeshes.empty()) {
+	if (meshBackend) {
+		CollectSceneMeshInstances(renderBatch, context, sceneMeshes);
+	}
+	std::vector<CollectedFillMeshInstance> sceneFillMeshes;
+	CollectSceneFillMeshInstances(renderBatch, context, sceneFillMeshes);
+	if (sceneMeshes.empty() && sceneFillMeshes.empty()) {
 		return;
 	}
 
@@ -121,10 +175,13 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 		requiredMeshes.emplace_back(meshAssetID);
 	}
-	meshBackend->RequestMeshes(graphicsCore, assetDatabase, requiredMeshes);
+	if (meshBackend && !requiredMeshes.empty()) {
+		meshBackend->RequestMeshes(graphicsCore, assetDatabase, requiredMeshes);
+	}
 
 	ID3D12Device8* device = graphicsCore.GetDXObject().GetDevice();
 	ID3D12GraphicsCommandList6* commandList = graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
+	BufferUploadService& uploadService = graphicsCore.GetBufferUploadService();
 
 	// データクリア
 	sceneInstanceScratch_.clear();
@@ -132,7 +189,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 	// BLASの構築とTLASインスタンスの準備
 	std::vector<RaytracingTLASInstance> tlasInstances;
-	tlasInstances.reserve(sceneMeshes.size());
+	tlasInstances.reserve(sceneMeshes.size() + sceneFillMeshes.size());
 
 	for (const CollectedMeshInstance& src : sceneMeshes) {
 
@@ -356,6 +413,67 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		}
 	}
 
+	for (const CollectedFillMeshInstance& src : sceneFillMeshes) {
+
+		const FillMeshRendererComponent& renderer = *src.renderer;
+
+		FillMeshRTKey key{};
+		key.world = src.world;
+		key.entity = src.entity;
+
+		FillMeshRaytracingResource& resource = fillMeshRTResources_[key];
+		if (resource.builtGeneration != renderer.geometryGeneration || !resource.blas.IsBuilt()) {
+
+			if (!BuildFillMeshRaytracingResource(device, commandList, uploadService, src, resource)) {
+				continue;
+			}
+		}
+		if (!resource.blas.GetResource() || !resource.vertexSRV.buffer || !resource.indexSRV.buffer) {
+			continue;
+		}
+
+		const uint32_t subMeshDataIndex = static_cast<uint32_t>(sceneSubMeshScratch_.size());
+
+		MeshSubMeshShaderData subMeshData{};
+		subMeshData.importedBaseColor = renderer.color;
+		subMeshData.baseColorTextureIndex = UINT32_MAX;
+		subMeshData.normalTextureIndex = UINT32_MAX;
+		subMeshData.metallicRoughnessTextureIndex = UINT32_MAX;
+		subMeshData.emissiveTextureIndex = UINT32_MAX;
+		subMeshData.occlusionTextureIndex = UINT32_MAX;
+		subMeshData.specularTextureIndex = UINT32_MAX;
+		subMeshData.localMatrix = Matrix4x4::Identity();
+		subMeshData.localNormalMatrix = Matrix4x4::Identity();
+		subMeshData.color = Color4::White();
+		subMeshData.emissiveColor = Color4(0.0f, 0.0f, 0.0f, 0.0f);
+		subMeshData.uvMatrix = Matrix4x4::Identity();
+		subMeshData.roughness = 1.0f;
+		sceneSubMeshScratch_.emplace_back(subMeshData);
+
+		RaytracingInstanceShaderData instanceShaderData{};
+		instanceShaderData.vertexDescriptorIndex = resource.vertexSRV.srvIndex;
+		instanceShaderData.indexDescriptorIndex = resource.indexSRV.srvIndex;
+		instanceShaderData.vertexOffset = 0;
+		instanceShaderData.subMeshDataIndex = subMeshDataIndex;
+		instanceShaderData.indexOffset = 0;
+		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(sceneInstanceScratch_.size());
+		sceneInstanceScratch_.emplace_back(instanceShaderData);
+
+		MeshSubMeshPickRecord pickRecord{};
+		pickRecord.entity = src.entity;
+		pickRecord.subMeshIndex = 0;
+		scenePickRecords_.emplace_back(pickRecord);
+
+		RaytracingTLASInstance instance{};
+		instance.blas = resource.blas.GetResource();
+		instance.instanceID = shaderInstanceIndex;
+		instance.hitGroupIndex = 0;
+		instance.mask = 0xFF;
+		instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+		instance.worldMatrix = src.worldMatrix;
+		tlasInstances.emplace_back(instance);
+	}
+
 	// TLASインスタンスがない場合は処理しない
 	if (tlasInstances.empty()) {
 		return;
@@ -422,6 +540,106 @@ void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderScene
 		}
 		outInstances.emplace_back(instance);
 	}
+}
+
+void Engine::RaytracingSceneBuilder::CollectSceneFillMeshInstances(const RenderSceneBatch& renderBatch,
+	const SceneExecutionContext& context, std::vector<CollectedFillMeshInstance>& outInstances) {
+
+	outInstances.clear();
+
+	const UUID sceneInstanceID = context.sceneInstance ? context.sceneInstance->instanceID : UUID{};
+	for (const RenderItem& item : renderBatch.GetItems()) {
+
+		if (item.backendID != RenderBackendID::FillMesh) {
+			continue;
+		}
+		if (sceneInstanceID && item.sceneInstanceID != sceneInstanceID) {
+			continue;
+		}
+		if (!item.world || !item.world->IsAlive(item.entity)) {
+			continue;
+		}
+		if (!item.world->HasComponent<FillMeshRendererComponent>(item.entity)) {
+			continue;
+		}
+
+		const FillMeshRendererComponent& renderer = item.world->GetComponent<FillMeshRendererComponent>(item.entity);
+		if (renderer.triangleIndices.empty()) {
+			continue;
+		}
+
+		CollectedFillMeshInstance instance{};
+		instance.entity = item.entity;
+		instance.world = item.world;
+		instance.worldMatrix = item.worldMatrix;
+		if (context.view) {
+			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *context.view);
+		}
+		instance.renderer = &renderer;
+		outInstances.emplace_back(instance);
+	}
+}
+
+bool Engine::RaytracingSceneBuilder::BuildFillMeshRaytracingResource(ID3D12Device8* device,
+	ID3D12GraphicsCommandList6* commandList, BufferUploadService& uploadService,
+	const CollectedFillMeshInstance& src, FillMeshRaytracingResource& resource) {
+
+	if (!src.renderer || !srvDescriptor_) {
+		return false;
+	}
+
+	const FillMeshRendererComponent& renderer = *src.renderer;
+	if (!HasValidFillMeshIndices(renderer.triangleIndices, renderer.facePositions.size())) {
+		return false;
+	}
+
+	resource.Release(srvDescriptor_);
+	resource.indexBuffer = {};
+	resource.blas = {};
+
+	std::vector<MeshVertex> vertices{};
+	vertices.reserve(renderer.facePositions.size());
+	for (const Vector3& point : renderer.facePositions) {
+
+		MeshVertex vertex{};
+		vertex.normal = Vector3(0.0f, 1.0f, 0.0f);
+		vertex.tangent = Vector3(1.0f, 0.0f, 0.0f);
+		vertex.tangentSign = 1.0f;
+		vertex.uv = Vector2::AnyInit(0.0f);
+		vertex.position = Vector4(point.x, 0.0f, point.z, 1.0f);
+		vertices.emplace_back(vertex);
+	}
+
+	CreateImmutableSRV(device, uploadService, *srvDescriptor_,
+		resource.vertexSRV, vertices, L"FillMeshRTVertices");
+	CreateImmutableSRV(device, uploadService, *srvDescriptor_,
+		resource.indexSRV, renderer.triangleIndices, L"FillMeshRTIndices");
+	resource.indexBuffer.Create(device, uploadService,
+		std::span<const uint32_t>(renderer.triangleIndices.data(), renderer.triangleIndices.size()),
+		DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+	if (!resource.vertexSRV.buffer || !resource.indexSRV.buffer || !resource.indexBuffer.IsCreatedResource()) {
+		resource.Release(srvDescriptor_);
+		resource.indexBuffer = {};
+		return false;
+	}
+
+	uploadService.SubmitBatch();
+
+	RaytracingBLASInput input{};
+	input.meshResource = nullptr;
+	input.customVertexAddress = resource.vertexSRV.buffer->GetResource()->GetGPUVirtualAddress() + offsetof(MeshVertex, position);
+	input.customVertexStride = sizeof(MeshVertex);
+	input.customVertexCount = static_cast<uint32_t>(vertices.size());
+	input.customVertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+	input.customIndexAddress = resource.indexBuffer.GetResource()->GetGPUVirtualAddress();
+	input.customIndexFormat = resource.indexBuffer.GetFormat();
+	input.indexCount = static_cast<uint32_t>(renderer.triangleIndices.size());
+	input.allowUpdate = false;
+
+	resource.blas.Build(device, commandList, input);
+	resource.builtGeneration = renderer.geometryGeneration;
+	return resource.blas.IsBuilt();
 }
 
 uint32_t Engine::RaytracingSceneBuilder::ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,

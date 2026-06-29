@@ -11,6 +11,7 @@
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
+#include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
 
 // c++
@@ -35,6 +36,7 @@ namespace Engine {
 		static constexpr uint32_t Text = 0x1002;
 		static constexpr uint32_t Mesh = 0x1003;
 		static constexpr uint32_t Line = 0x1004;
+		static constexpr uint32_t FillMesh = 0x1005;
 	}
 
 	// スプライト描画データ
@@ -75,6 +77,18 @@ namespace Engine {
 
 		// 深度前描画を有効にするか
 		bool enableZPrepass = true;
+	};
+	// 面メッシュ描画データ
+	struct FillMeshRenderPayload {
+
+		// Systemが構築した点列と三角形分割インデックスを指す、同フレーム内のみ有効
+		const std::vector<Vector3>* positions = nullptr;
+		const std::vector<uint32_t>* indices = nullptr;
+
+		Color4 color = Color4::White();
+
+		// マテリアルパラメータ上書き、コンポーネントのmapを指す
+		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;
 	};
 	// 描画アイテム
 	struct RenderItem {

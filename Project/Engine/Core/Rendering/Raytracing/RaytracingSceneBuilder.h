@@ -19,8 +19,11 @@ namespace Engine {
 	class GraphicsCore;
 	class AssetDatabase;
 	class MeshRenderBackend;
+	class BufferUploadService;
+	class SRVDescriptor;
 	struct SceneExecutionContext;
 	struct MeshRendererComponent;
+	struct FillMeshRendererComponent;
 
 	//============================================================================
 	//	RaytracingSceneBuilder structures
@@ -102,6 +105,48 @@ namespace Engine {
 			Matrix4x4 worldMatrix = Matrix4x4::Identity();
 			const MeshRendererComponent* renderer = nullptr;
 		};
+		// FillMeshのコレクション
+		struct CollectedFillMeshInstance {
+
+			Entity entity = Entity::Null();
+			ECSWorld* world = nullptr;
+			Matrix4x4 worldMatrix = Matrix4x4::Identity();
+			const FillMeshRendererComponent* renderer = nullptr;
+		};
+		// FillMeshのRTリソースキー
+		struct FillMeshRTKey {
+
+			ECSWorld* world = nullptr;
+			Entity entity = Entity::Null();
+
+			bool operator==(const FillMeshRTKey& rhs) const noexcept {
+				return world == rhs.world && entity.index == rhs.entity.index &&
+					entity.generation == rhs.entity.generation;
+			}
+		};
+		struct FillMeshRTKeyHash {
+			size_t operator()(const FillMeshRTKey& key) const noexcept {
+				size_t h = std::hash<void*>{}(key.world);
+				h ^= (std::hash<uint32_t>{}(key.entity.index) << 1);
+				h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
+				return h;
+			}
+		};
+		// FillMeshのレイトレ用GPUリソース
+		struct FillMeshRaytracingResource {
+
+			MeshStructuredHandle<MeshVertex> vertexSRV{};
+			MeshStructuredHandle<uint32_t> indexSRV{};
+			ImmutableIndexBuffer indexBuffer{};
+			BottomLevelAccelerationStructure blas{};
+			uint32_t builtGeneration = 0;
+
+			// SRVを解放する
+			void Release(SRVDescriptor* srvDescriptor) {
+				vertexSRV.Release(srvDescriptor);
+				indexSRV.Release(srvDescriptor);
+			}
+		};
 		// 動的BLASのキー
 		struct DynamicBLASKey {
 
@@ -135,6 +180,7 @@ namespace Engine {
 		// BLAS
 		std::unordered_map<BLASKey, BottomLevelAccelerationStructure, BLASKeyHash> blases_;
 		std::unordered_map<DynamicBLASKey, BottomLevelAccelerationStructure, DynamicBLASKeyHash> dynamicBlases_{};
+		std::unordered_map<FillMeshRTKey, FillMeshRaytracingResource, FillMeshRTKeyHash> fillMeshRTResources_{};
 		// メッシュごとに最後に構築したリロード世代、変化時に旧世代BLASを破棄する
 		std::unordered_map<AssetID, uint32_t> meshBlasGeneration_;
 		// TLAS
@@ -155,6 +201,7 @@ namespace Engine {
 		// テクスチャ解決キャッシュ
 		mutable std::unordered_map<AssetID, std::string> textureKeyCache_{};
 		mutable std::unordered_map<AssetID, uint32_t> textureDescriptorIndexCache_{};
+		SRVDescriptor* srvDescriptor_ = nullptr;
 
 		// 初期化済みか
 		bool initialized_ = false;
@@ -170,6 +217,13 @@ namespace Engine {
 		// 可視メッシュインスタンスの収集
 		void CollectSceneMeshInstances(const RenderSceneBatch& renderBatch,
 			const SceneExecutionContext& context, std::vector<CollectedMeshInstance>& outInstances);
+		// 可視FillMeshインスタンスの収集
+		void CollectSceneFillMeshInstances(const RenderSceneBatch& renderBatch,
+			const SceneExecutionContext& context, std::vector<CollectedFillMeshInstance>& outInstances);
+		// FillMeshのレイトレ用GPUリソースを構築する
+		bool BuildFillMeshRaytracingResource(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList,
+			BufferUploadService& uploadService, const CollectedFillMeshInstance& src,
+			FillMeshRaytracingResource& resource);
 		// テクスチャデスクリプタインデックスの解決
 		uint32_t ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
 			AssetDatabase& assetDatabase, AssetID textureAssetID) const;

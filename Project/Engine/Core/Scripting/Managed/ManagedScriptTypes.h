@@ -249,12 +249,14 @@ namespace Engine {
 		float a = 0.0f;
 	};
 
-	// C#と共有するライン1点で、Engine::LinePointと同一レイアウト
+	// C#のLinePointと同一レイアウト。indexはコンポーネント点列内の位置で、Engine::LinePointには持たせず変換時に無視する
 	struct ManagedLinePoint {
 
 		ManagedVector3 position{};
 		ManagedColor4 color{};
 		float thickness = 1.0f;
+		// 点列内での位置。AddPointで採番されUpdatePointの対象指定に使う。-1は未追加
+		int32_t index = -1;
 	};
 
 	// 即時形状描画の種類、値はC#のLineShapeTypeと一致させる
@@ -361,7 +363,8 @@ namespace Engine {
 		using ResolveEntityRefCallback = ManagedNativeEntity(__cdecl*)(uint64_t, uint64_t);
 		// ライン描画v12でcomponentの点列設定と即時描画
 		using LineSetPointsCallback = void(__cdecl*)(ManagedNativeEntity, const ManagedLinePoint*, int32_t, int32_t);
-		using LineAddPointCallback = void(__cdecl*)(ManagedNativeEntity, ManagedLinePoint);
+		using LineAddPointCallback = int32_t(__cdecl*)(ManagedNativeEntity, ManagedLinePoint);
+		using LineUpdatePointCallback = void(__cdecl*)(ManagedNativeEntity, ManagedLinePoint);
 		using LineDrawImmediateCallback = void(__cdecl*)(const ManagedLinePoint*, int32_t, int32_t, int32_t, uint64_t);
 		using LineDrawSphereImmediateCallback = void(__cdecl*)(ManagedVector3, float, ManagedColor4, int32_t, float, uint64_t);
 		// v14のEntity検索で名前やタグから1件、タグやcomponentから複数件をbufferへ詰める
@@ -371,6 +374,8 @@ namespace Engine {
 		using FindManyByComponentCallback = int32_t(__cdecl*)(int32_t, ManagedNativeEntity*, int32_t);
 		// v15の即時形状描画、記述子1件を渡してC++側で線分へ展開する
 		using LineDrawShapeCallback = void(__cdecl*)(const ManagedLineShape*);
+		// FillMeshRendererComponentの点列を置き換える、count0でクリア
+		using FillMeshSetPositionsCallback = void(__cdecl*)(ManagedNativeEntity, const ManagedVector3*, int32_t);
 
 		GetDeltaTimeCallback getDeltaTime = nullptr;
 		GetDeltaTimeCallback getFixedDeltaTime = nullptr;
@@ -476,8 +481,10 @@ namespace Engine {
 		LineDrawImmediateCallback lineDrawImmediate = nullptr;
 		LineDrawSphereImmediateCallback lineDrawSphereImmediate = nullptr;
 
-		// ライン描画v13のcomponentへ1点追加
+		// ライン描画v13のcomponentへ1点追加、戻り値は採番されたindex
 		LineAddPointCallback lineAddPoint = nullptr;
+		// componentのindexの点を更新する
+		LineUpdatePointCallback lineUpdatePoint = nullptr;
 
 		// v14のTag公開とLayerマスク公開と検索、tagはSceneObjectComponent、maskはvisibilityと衝突typeMask
 		CopyStringCallback copyTag = nullptr;
@@ -508,6 +515,7 @@ namespace Engine {
 		SetNativeIntCallback setMouseRangeControl = nullptr;
 		SetRendererColorCallback setRendererMaterialColor = nullptr;
 		GetRendererColorCallback getRendererMaterialColor = nullptr;
+		FillMeshSetPositionsCallback fillMeshSetPositions = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

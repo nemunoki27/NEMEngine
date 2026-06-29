@@ -26,7 +26,7 @@ namespace Engine {
 		AssetID texture{};
 		// マテリアル
 		AssetID material{};
-		// エンティティごとのマテリアルパラメータ上書き、reflection駆動で描画/アニメーションに使う
+		// エンティティごとのマテリアルパラメータ
 		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides{};
 
 		// サイズ

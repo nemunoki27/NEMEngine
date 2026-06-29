@@ -6,7 +6,7 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
-// .NET公式native hostingヘッダ、nethostはリンクせず実行時にnethost.dllを動的ロードしget_hostfxr_pathはGetProcAddress経由でのみ呼ぶためdllimportシンボルは参照されずNETHOST_USE_AS_STATICは不要
+// .NET公式native hosting
 #include <nethost.h>
 #include <hostfxr.h>
 #include <coreclr_delegates.h>

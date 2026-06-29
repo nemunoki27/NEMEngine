@@ -16,6 +16,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/LineRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SkyboxRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/FillMeshRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/TextRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/InvertedHullOutlineInspectorDrawer.h>
@@ -87,6 +88,7 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<TextRendererInspectorDrawer>("Text Renderer", "TextRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<SkyboxRendererInspectorDrawer>("Skybox Renderer", "SkyboxRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<LineRendererInspectorDrawer>("Line Renderer", "LineRenderer", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<FillMeshRendererInspectorDrawer>("Fill Mesh Renderer", "FillMeshRenderer", "Rendering"));
 	}
 	{
 		registry.Register(MakeComponentEditorDescriptor<UVTransformInspectorDrawer>("UVTransform", "UVTransform", "Rendering"));

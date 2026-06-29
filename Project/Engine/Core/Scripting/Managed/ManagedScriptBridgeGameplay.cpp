@@ -10,6 +10,7 @@
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
@@ -100,6 +101,31 @@ namespace Engine {
 			}
 		}
 		line->loop = (loop != 0);
+	}
+
+	void ManagedScriptRuntime::FillMeshSetPositionsCallback(ManagedNativeEntity entity,
+		const ManagedVector3* points, int32_t count) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		FillMeshRendererComponent* fillMesh = world->IsAlive(resolved) ?
+			world->TryGetComponent<FillMeshRendererComponent>(resolved) : nullptr;
+		if (!fillMesh) {
+			return;
+		}
+
+		// count0はクリア扱い、点列を丸ごと差し替える
+		fillMesh->facePositions.clear();
+		if (points != nullptr && count > 0) {
+
+			fillMesh->facePositions.reserve(static_cast<size_t>(count));
+			for (int32_t i = 0; i < count; ++i) {
+				fillMesh->facePositions.emplace_back(points[i].x, points[i].y, points[i].z);
+			}
+		}
 	}
 
 	namespace {
@@ -205,7 +231,24 @@ namespace Engine {
 		return result;
 	}
 
-	void ManagedScriptRuntime::LineAddPointCallback(ManagedNativeEntity entity, ManagedLinePoint point) {
+	int32_t ManagedScriptRuntime::LineAddPointCallback(ManagedNativeEntity entity, ManagedLinePoint point) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return -1;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		LineRendererComponent* line = world->IsAlive(resolved) ?
+			world->TryGetComponent<LineRendererComponent>(resolved) : nullptr;
+		if (!line) {
+			return -1;
+		}
+		line->points.emplace_back(ToLinePoint(point));
+		// 追加した点の位置をC#へ返す、UpdatePointの対象指定に使う
+		return static_cast<int32_t>(line->points.size() - 1);
+	}
+
+	void ManagedScriptRuntime::LineUpdatePointCallback(ManagedNativeEntity entity, ManagedLinePoint point) {
 
 		ECSWorld* world = ResolveWorld(entity);
 		if (!world) {
@@ -217,7 +260,11 @@ namespace Engine {
 		if (!line) {
 			return;
 		}
-		line->points.emplace_back(ToLinePoint(point));
+		// indexが現在の点列範囲外なら更新しない、Clear/SetPoints後の古いindexを弾く
+		if (point.index < 0 || static_cast<size_t>(point.index) >= line->points.size()) {
+			return;
+		}
+		line->points[static_cast<size_t>(point.index)] = ToLinePoint(point);
 	}
 
 	void ManagedScriptRuntime::LineDrawImmediateCallback(const ManagedLinePoint* points,

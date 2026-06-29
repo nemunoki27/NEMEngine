@@ -3,26 +3,24 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/World/ECS/Systems/Core/ISystem.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
 
 namespace Engine {
 
 	//============================================================================
-	//	FillFaceMeshRendererSystem class
-	//	点からメッシュを構築するシステム
+	//	FillMeshRenderItemExtractor class
+	//	面メッシュ描画アイテム抽出器
 	//============================================================================
-	class FillFaceMeshRendererSystem :
-		public ISystem {
+	class FillMeshRenderItemExtractor :
+		public IRenderItemExtractor {
 	public:
 		//========================================================================
 		//	public Methods
 		//========================================================================
 
-		FillFaceMeshRendererSystem() = default;
-		~FillFaceMeshRendererSystem() = default;
+		FillMeshRenderItemExtractor() = default;
+		~FillMeshRenderItemExtractor() = default;
 
-		void Update(ECSWorld& world, SystemContext& context) override;
-
-		const char* GetName() const override { return "FillFaceMeshRendererSystem"; }
+		void Extract(ECSWorld& world, RenderSceneBatch& batch) override;
 	};
 } // Engine

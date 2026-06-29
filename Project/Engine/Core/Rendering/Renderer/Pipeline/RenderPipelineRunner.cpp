@@ -14,10 +14,12 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Text/TextRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineRenderItemExtractor.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/FillMesh/FillMeshRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Sprite/SpriteRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Text/TextRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineRenderBackend.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/FillMesh/FillMeshRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Builtin/Directional/DirectionalLightExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Builtin/Point/PointLightExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Builtin/Spot/SpotLightExtractor.h>
@@ -53,18 +55,21 @@ void RenderPipelineRunner::Init() {
 	extractorRegistry_.Register(std::make_unique<TextRenderItemExtractor>());
 	extractorRegistry_.Register(std::make_unique<MeshRenderItemExtractor>());
 	extractorRegistry_.Register(std::make_unique<LineRenderItemExtractor>());
+	extractorRegistry_.Register(std::make_unique<FillMeshRenderItemExtractor>());
 	// 描画バックエンドの登録
 	backendRegistry_.Clear();
 	backendRegistry_.Register(std::make_unique<SpriteRenderBackend>());
 	backendRegistry_.Register(std::make_unique<TextRenderBackend>());
 	backendRegistry_.Register(std::make_unique<MeshRenderBackend>());
 	backendRegistry_.Register(std::make_unique<LineRenderBackend>());
+	backendRegistry_.Register(std::make_unique<FillMeshRenderBackend>());
 	// ツールプレビューはメインビューとは別のGPUバッファを持たせる
 	previewBackendRegistry_.Clear();
 	previewBackendRegistry_.Register(std::make_unique<SpriteRenderBackend>());
 	previewBackendRegistry_.Register(std::make_unique<TextRenderBackend>());
 	previewBackendRegistry_.Register(std::make_unique<MeshRenderBackend>());
 	previewBackendRegistry_.Register(std::make_unique<LineRenderBackend>());
+	previewBackendRegistry_.Register(std::make_unique<FillMeshRenderBackend>());
 	// 型付きMeshバックエンドをキャッシュして毎フレームのdynamic_castを避ける
 	meshBackend_ = dynamic_cast<MeshRenderBackend*>(backendRegistry_.Find(RenderBackendID::Mesh));
 	previewMeshBackend_ = dynamic_cast<MeshRenderBackend*>(previewBackendRegistry_.Find(RenderBackendID::Mesh));

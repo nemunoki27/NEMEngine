@@ -37,6 +37,7 @@ void Engine::DefaultMaterialSettings::Load(const std::string& configPath) {
 	sprite_ = ParseAssetID(data, "sprite");
 	text_ = ParseAssetID(data, "text");
 	line_ = ParseAssetID(data, "line");
+	fillMesh_ = ParseAssetID(data, "fillMesh");
 }
 
 void Engine::DefaultMaterialSettings::Save() const {
@@ -55,6 +56,7 @@ void Engine::DefaultMaterialSettings::Save() const {
 	data["sprite"] = ToAssetReferenceJson(sprite_);
 	data["text"] = ToAssetReferenceJson(text_);
 	data["line"] = ToAssetReferenceJson(line_);
+	data["fillMesh"] = ToAssetReferenceJson(fillMesh_);
 	JsonAdapter::Save(configPath_, data);
 }
 
@@ -76,4 +78,9 @@ Engine::AssetID Engine::DefaultMaterialSettings::GetTextOrBuiltin() const {
 Engine::AssetID Engine::DefaultMaterialSettings::GetLineOrBuiltin() const {
 
 	return line_ ? line_ : BuiltinAssets::Materials::DefaultLine;
+}
+
+Engine::AssetID Engine::DefaultMaterialSettings::GetFillMeshOrBuiltin() const {
+
+	return fillMesh_ ? fillMesh_ : BuiltinAssets::Materials::DefaultFillMesh;
 }

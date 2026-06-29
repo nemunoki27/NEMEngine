@@ -29,6 +29,14 @@ namespace Engine {
 		// BLAS構築時に頂点データを上書きするか
 		D3D12_GPU_VIRTUAL_ADDRESS overrideVertexAddress = 0;
 		uint32_t overrideVertexCount = 0;
+
+		// 汎用ジオメトリ入力
+		D3D12_GPU_VIRTUAL_ADDRESS customVertexAddress = 0;
+		uint32_t customVertexStride = 0;
+		uint32_t customVertexCount = 0;
+		DXGI_FORMAT customVertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+		D3D12_GPU_VIRTUAL_ADDRESS customIndexAddress = 0;
+		DXGI_FORMAT customIndexFormat = DXGI_FORMAT_R32_UINT;
 	};
 	// TLASインスタンス
 	struct RaytracingTLASInstance {

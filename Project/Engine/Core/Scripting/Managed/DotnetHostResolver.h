@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+
 // c++
 #include <filesystem>
 
@@ -11,6 +12,7 @@ namespace Engine {
 	//============================================================================
 	//	DotnetHostResolver class
 	//	nethostでhostfxrを探索しload_assembly_and_get_function_pointerデリゲートまで取得して保持するRAIIサービス
+	//============================================================================
 	class DotnetHostResolver {
 	public:
 		//============================================================================
@@ -20,13 +22,12 @@ namespace Engine {
 		DotnetHostResolver() = default;
 		~DotnetHostResolver();
 
-		// 多重解放・二重復元を防ぐためコピー/ムーブ禁止
+		// 多重解放、二重復元を防ぐためコピー/ムーブ禁止
 		DotnetHostResolver(const DotnetHostResolver&) = delete;
 		DotnetHostResolver& operator=(const DotnetHostResolver&) = delete;
 
-		// hostfxr初期化からload_assembly_and_get_function_pointer取得までを実行し失敗段階ごとに診断ログを出してリソースを解放する、成功でtrueで多重呼び出し時は先にShutdownしてから再初期化する
-		bool Initialize(const std::filesystem::path& scriptCoreAssemblyPath,
-			const std::filesystem::path& runtimeConfigPath);
+		// 初期化
+		bool Initialize(const std::filesystem::path& scriptCoreAssemblyPath, const std::filesystem::path& runtimeConfigPath);
 
 		// hostfxrライブラリを解放しデリゲートを無効化する、複数回呼び出しても安全
 		void Shutdown();

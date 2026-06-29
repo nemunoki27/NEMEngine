@@ -330,8 +330,12 @@ namespace Engine {
 		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(uint64_t sourceAsset, uint64_t localFileID);
 		// ライン描画v12でLineRendererComponentの点列を置き換える、count0でクリア
 		static void __cdecl LineSetPointsCallback(ManagedNativeEntity entity, const ManagedLinePoint* points, int32_t count, int32_t loop);
-		// LineRendererComponentの末尾へ1点追加する
-		static void __cdecl LineAddPointCallback(ManagedNativeEntity entity, ManagedLinePoint point);
+		// LineRendererComponentの末尾へ1点追加し、採番したindexを返す
+		static int32_t __cdecl LineAddPointCallback(ManagedNativeEntity entity, ManagedLinePoint point);
+		// LineRendererComponentのpoint.indexの点を更新する、範囲外は何もしない
+		static void __cdecl LineUpdatePointCallback(ManagedNativeEntity entity, ManagedLinePoint point);
+		// FillMeshRendererComponentの点列を置き換える、count0でクリア
+		static void __cdecl FillMeshSetPositionsCallback(ManagedNativeEntity entity, const ManagedVector3* points, int32_t count);
 		// 即時ライン描画、任意ポリラインをこのフレームだけ描く
 		static void __cdecl LineDrawImmediateCallback(const ManagedLinePoint* points, int32_t count, int32_t loop, int32_t is2D, uint64_t materialID);
 		// 即時球描画、組み込みの球生成で線分を発行する

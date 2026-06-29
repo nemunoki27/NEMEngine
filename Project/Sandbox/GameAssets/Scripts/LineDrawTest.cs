@@ -1,4 +1,5 @@
 using NEMEngine;
+using System.Collections.Generic;
 
 namespace SandboxScripts;
 
@@ -11,6 +12,15 @@ public sealed class LineDrawTest : ScriptBehaviour {
 	// ラインの太さ、ワールド単位
 	[SerializeField]
 	private float lineThickness = 0.1f;
+	// 頂点カラーのグラデーション速度、1で約1秒に1周
+	[SerializeField]
+	private float gradientSpeed = 0.5f;
+	// 隣り合う頂点どうしの色のずれ、大きいほどグラデーションが急になる
+	[SerializeField]
+	private float gradientPhasePerVertex = 0.15f;
+
+	// Awakeで積んだポリラインの各点。UpdatePointで色を差し替えるため保持する
+	private List<LinePoint> linePoints = new List<LinePoint>();
 	// 形状の太さ、ワールド単位
 	[SerializeField]
 	private float shapeThickness = 0.04f;
@@ -75,10 +85,21 @@ public sealed class LineDrawTest : ScriptBehaviour {
 	//========================================================================
 	//	開始処理
 	//========================================================================
-	public override void Awake() {
+	public override void Start() {
 		// ライン描画用のコンポーネントを確保する、追加は次フレームに反映される
 		if (!entity.Has<LineRenderer>()) {
 			entity.Add<LineRenderer>();
+		}
+
+		// ポリラインを1度だけ積む。AddPointの戻り値はindex付きのLinePointなので保持しておく
+		if (entity.TryGet<LineRenderer>(out LineRenderer line)) {
+			line.Clear();
+			linePoints = new List<LinePoint> {
+				line.AddPoint(new Vector3(-6.0f, 0.0f, 0.0f), Color4.red, lineThickness),
+				line.AddPoint(new Vector3(-6.0f, 4.0f, 0.0f), Color4.red, lineThickness),
+				line.AddPoint(new Vector3(-2.0f, 4.0f, 0.0f), Color4.green, lineThickness),
+				line.AddPoint(new Vector3(-2.0f, 0.0f, 0.0f), Color4.blue, lineThickness),
+			};
 		}
 	}
 
@@ -86,13 +107,18 @@ public sealed class LineDrawTest : ScriptBehaviour {
 	//	毎フレーム更新処理
 	//========================================================================
 	public override void Update() {
-		// コンポーネントへ毎フレームポリラインを積み直す
-		if (entity.TryGet<LineRenderer>(out LineRenderer line)) {
-			line.Clear();
-			line.AddPoint(new Vector3(-6.0f, 0.0f, 0.0f), Color4.red, lineThickness);
-			line.AddPoint(new Vector3(-6.0f, 4.0f, 0.0f), Color4.red, lineThickness);
-			line.AddPoint(new Vector3(-2.0f, 4.0f, 0.0f), Color4.green, lineThickness);
-			line.AddPoint(new Vector3(-2.0f, 0.0f, 0.0f), Color4.blue, lineThickness);
+
+		// Awakeで積んだ各頂点の色を時間で進める。indexごとに位相をずらして色を流す
+		if (linePoints.Count > 0 && entity.TryGet<LineRenderer>(out LineRenderer line)) {
+			float time = (float)Time.TimeSinceStartup;
+			for (int i = 0; i < linePoints.Count; ++i) {
+				// LinePointはstructなので一旦取り出して書き換え、Listへ書き戻す
+				LinePoint point = linePoints[i];
+				point.color = Rainbow(time * gradientSpeed + i * gradientPhasePerVertex);
+				linePoints[i] = point;
+				// 保持しているindexの点だけを差し替える、座標と太さはAwakeのまま
+				line.UpdatePoint(point);
+			}
 		}
 
 		Quaternion noRotation = Quaternion.FromEulerDegrees(new Vector3(0.0f, 0.0f, 0.0f));
@@ -106,5 +132,18 @@ public sealed class LineDrawTest : ScriptBehaviour {
 		// 2D形状の即時描画、座標と太さは画面ピクセル基準
 		LineDraw.DrawCircle(circleCenter, circleRadius, circleColor, 24, shape2DThickness);
 		LineDraw.DrawRect(rectCenter, rectSize, rectColor, rectRotationDegrees, shape2DThickness);
+	}
+
+	//========================================================================
+	//	位相を虹色へ変換する
+	//	RGBを120度ずつ位相をずらしたsin波で出し、phaseが1進むと一周する
+	//========================================================================
+	private static Color4 Rainbow(float phase) {
+		float angle = phase * Math.pi * 2.0f;
+		float r = 0.5f + 0.5f * Math.Sin(angle);
+		float g = 0.5f + 0.5f * Math.Sin(angle + Math.pi * 2.0f / 3.0f);
+		float b = 0.5f + 0.5f * Math.Sin(angle + Math.pi * 4.0f / 3.0f);
+		float a = 0.5f + 0.5f * Math.Sin(angle + Math.pi * 4.0f / 3.0f); ;
+		return new Color4(r, g, b, a);
 	}
 }

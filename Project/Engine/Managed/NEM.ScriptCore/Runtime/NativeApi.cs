@@ -272,7 +272,8 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint*, int, int, void> LineSetPoints;
     internal static delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, ulong, void> LineDrawImmediate;
     internal static delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, ulong, void> LineDrawSphereImmediate;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, void> LineAddPoint;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, int> LineAddPoint;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, void> LineUpdatePoint;
     // v14: Tag / Layerマスク / Entity検索
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> CopyTag;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> SetTag;
@@ -296,6 +297,7 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<int, void> SetInputType;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, float, float, float, float, void> SetRendererMaterialColor;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeColor4> GetRendererMaterialColor;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, void> FillMeshSetPositions;
     internal static delegate* unmanaged[Cdecl]<int> GetMouseRangeControl;
     internal static delegate* unmanaged[Cdecl]<int, void> SetMouseRangeControl;
 
@@ -389,6 +391,7 @@ internal static unsafe class NativeApi {
         LineDrawImmediate = callbacks->lineDrawImmediate;
         LineDrawSphereImmediate = callbacks->lineDrawSphereImmediate;
         LineAddPoint = callbacks->lineAddPoint;
+        LineUpdatePoint = callbacks->lineUpdatePoint;
         CopyTag = callbacks->copyTag;
         SetTag = callbacks->setTag;
         GetVisibilityLayerMask = callbacks->getVisibilityLayerMask;
@@ -411,6 +414,7 @@ internal static unsafe class NativeApi {
         SetMouseRangeControl = callbacks->setMouseRangeControl;
         SetRendererMaterialColor = callbacks->setRendererMaterialColor;
         GetRendererMaterialColor = callbacks->getRendererMaterialColor;
+        FillMeshSetPositions = callbacks->fillMeshSetPositions;
     }
 
     internal static float ReadDeltaTime() {
@@ -834,12 +838,39 @@ internal static unsafe class NativeApi {
         }
     }
 
-    // LineRendererComponent の末尾へ1点追加する
-    internal static void LineAddComponentPoint(NativeEntity entity, LinePoint point) {
-        if (LineAddPoint == null) {
+    // FillMeshRendererComponent の点列を差し替える、count0でクリア
+    internal static void FillMeshSetFacePositions(NativeEntity entity, ReadOnlySpan<Vector3> positions) {
+        if (FillMeshSetPositions == null) {
             return;
         }
-        LineAddPoint(entity, point);
+        int count = positions.Length;
+        if (count == 0) {
+            FillMeshSetPositions(entity, null, 0);
+            return;
+        }
+        NativeVector3[] native = new NativeVector3[count];
+        for (int i = 0; i < count; ++i) {
+            native[i] = NativeVector3.From(positions[i]);
+        }
+        fixed (NativeVector3* p = native) {
+            FillMeshSetPositions(entity, p, count);
+        }
+    }
+
+    // LineRendererComponent の末尾へ1点追加し、追加した位置のindexを返す。失敗時は-1
+    internal static int LineAddComponentPoint(NativeEntity entity, LinePoint point) {
+        if (LineAddPoint == null) {
+            return -1;
+        }
+        return LineAddPoint(entity, point);
+    }
+
+    // LineRendererComponent の point.index の点を更新する。indexが範囲外なら何もしない
+    internal static void LineUpdateComponentPoint(NativeEntity entity, LinePoint point) {
+        if (LineUpdatePoint == null) {
+            return;
+        }
+        LineUpdatePoint(entity, point);
     }
 
     // 即時ライン描画でこのフレームだけ任意ポリラインを描く
@@ -1151,8 +1182,9 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, LinePoint*, int, int, void> lineSetPoints;
     public delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, ulong, void> lineDrawImmediate;
     public delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, ulong, void> lineDrawSphereImmediate;
-    // Line(v13): component へ1点追加（C++ ManagedNativeApiTable と同一順）
-    public delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, void> lineAddPoint;
+    // Line(v13): component へ1点追加し採番indexを返す/indexの点を更新（C++ ManagedNativeApiTable と同一順）
+    public delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, int> lineAddPoint;
+    public delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, void> lineUpdatePoint;
     // Tag/Layer/検索(v14): C++ ManagedNativeApiTable と同一順
     public delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> copyTag;
     public delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> setTag;
@@ -1180,4 +1212,5 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<int, void> setMouseRangeControl;
     public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, float, float, float, float, void> setRendererMaterialColor;
     public delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeColor4> getRendererMaterialColor;
+    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, void> fillMeshSetPositions;
 }

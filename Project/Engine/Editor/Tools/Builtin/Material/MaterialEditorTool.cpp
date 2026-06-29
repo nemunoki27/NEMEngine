@@ -125,8 +125,9 @@ namespace {
 	nlohmann::json MakeMaterialJson(const std::string& name, Engine::AssetID pipelineID,
 		Engine::MaterialCreateType type, bool useMeshShader, bool useGeometryShader) {
 
-		// MeshとLineは3Dワールド描画なのでSurface、Sprite/TextはUI
-		const bool surfaceDomain = (type == Engine::MaterialCreateType::Mesh) || (type == Engine::MaterialCreateType::Line);
+		// Mesh/Line/FillFaceMeshは3DワールドなのでSurface、Sprite/TextはUI
+		const bool surfaceDomain = (type == Engine::MaterialCreateType::Mesh) ||
+			(type == Engine::MaterialCreateType::Line) || (type == Engine::MaterialCreateType::FillFaceMesh);
 		const char* domain = surfaceDomain ? "Surface" : "UI";
 		const char* preferredVariant = useMeshShader ? "GraphicsMesh" : (useGeometryShader ? "GraphicsGeometry" : "GraphicsVertex");
 
@@ -225,6 +226,8 @@ void Engine::MaterialEditorTool::DrawDefaultMaterialSection(const EditorToolCont
 		[&](AssetID id) { settings.SetText(id); });
 	drawSlot("Line", settings.GetLine(), settings.GetLineOrBuiltin(),
 		[&](AssetID id) { settings.SetLine(id); });
+	drawSlot("FillFaceMesh", settings.GetFillMesh(), settings.GetFillMeshOrBuiltin(),
+		[&](AssetID id) { settings.SetFillMesh(id); });
 }
 
 void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolContext& context) {
@@ -337,6 +340,14 @@ void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 		settings.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 		settings.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	} else if (type == MaterialCreateType::FillFaceMesh) {
+
+		// 面は両面表示で深度テスト書き込み有効、GBufferへ書く
+		settings.cullMode = D3D12_CULL_MODE_NONE;
+		settings.depthEnable = true;
+		settings.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		settings.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	} else {
 
 		// テキストは深度無効でクランプサンプリング
@@ -540,7 +551,8 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 
 	const bool useMeshShader = (createType_ == MaterialCreateType::Mesh) && static_cast<bool>(createMS_);
 	const bool useGeometryShader = (createType_ == MaterialCreateType::Line);
-	const int numRenderTargets = (createType_ == MaterialCreateType::Mesh) ? 3 : 1;
+	const int numRenderTargets = (createType_ == MaterialCreateType::Mesh ||
+		createType_ == MaterialCreateType::FillFaceMesh) ? 3 : 1;
 
 	// 3ファイルともGameAssets/Materials/以下の同じ階層へ同じ基底名で書き出す
 	const std::string shaderLogical = "GameAssets/Materials/" + relativePath + ".shader.json";

@@ -9,7 +9,9 @@
 #include <Engine/Core/Foundation/Math/Vector3.h>
 
 // c++
+#include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace Engine {
 
@@ -24,11 +26,13 @@ namespace Engine {
 
 		// マテリアル
 		AssetID material{};
+		// エンティティごとのマテリアルパラメータ
+		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides{};
 
-		// 面を構築するワールド座標
-		std::vector<Vector3> facePostions{};
+		// 面を構築するローカル座標、XZ平面
+		std::vector<Vector3> facePositions{};
 
-		// とりあえず色だけ
+		// 色
 		Color4 color = Color4::White();
 
 		// 描画レイヤー
@@ -41,7 +45,12 @@ namespace Engine {
 		// ブレンドモード
 		BlendMode blendMode = BlendMode::Normal;
 		// 描画キュー
-		RenderPhase queue = RenderPhase::ScreenUI;
+		RenderPhase queue = RenderPhase::Opaque;
+
+		// Systemが作る三角形分割済みインデックス、保存しない
+		std::vector<uint32_t> triangleIndices{};
+		// ジオメトリ更新世代、GPU側の再構築判定に使う、保存しない
+		uint32_t geometryGeneration = 0;
 	};
 
 	// json変換

@@ -115,6 +115,20 @@
       "tests": ["SpriteRendererBindingSmoke"]
     },
     {
+      "nativeName": "FillMeshRenderer",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.FillMeshRenderer",
+      "reason": "material/color/buildMesh/layer/order/visible/blend を generated property で公開。点列は SetFacePositions で設定。",
+      "readableFields": ["Material", "Color", "BuildMesh", "Layer", "Order", "Visible", "BlendMode", "Queue"],
+      "writableFields": ["Material", "Color", "BuildMesh", "Layer", "Order", "Visible", "BlendMode", "Queue"],
+      "commands": [],
+      "events": [],
+      "serialization": "component JSON",
+      "inspector": "builtin inspector",
+      "runtime": "Play 中 property read/write",
+      "tests": []
+    },
+    {
       "nativeName": "TextRenderer",
       "exposure": "GeneratedBinding",
       "managedSurface": "NEMEngine.TextRenderer",

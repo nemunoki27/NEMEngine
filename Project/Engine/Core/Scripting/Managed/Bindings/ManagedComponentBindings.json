@@ -90,6 +90,24 @@
       ]
     },
     {
+      "registryName": "FillMeshRenderer",
+      "nativeType": "FillMeshRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h",
+      "managedType": "FillMeshRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "MaterialAsset", "access": "ReadWrite" },
+        { "managedName": "Color", "nativeMember": "color", "kind": "Color4", "access": "ReadWrite" },
+        { "managedName": "BuildMesh", "nativeMember": "buildMesh", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "Layer", "nativeMember": "layer", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Order", "nativeMember": "order", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Visible", "nativeMember": "visible", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "BlendMode", "nativeMember": "blendMode", "kind": "Enum", "enumType": "BlendMode", "access": "ReadWrite" },
+        { "managedName": "Queue", "nativeMember": "queue", "kind": "Enum", "enumType": "RenderPhase", "access": "ReadWrite" }
+      ]
+    },
+    {
       "registryName": "MeshRenderer",
       "nativeType": "MeshRendererComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/MeshRendererComponent.h",

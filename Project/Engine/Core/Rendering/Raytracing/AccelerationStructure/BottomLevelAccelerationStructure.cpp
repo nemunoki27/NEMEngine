@@ -10,25 +10,49 @@
 //============================================================================
 void Engine::BottomLevelAccelerationStructure::FillGeometryDesc(const RaytracingBLASInput& input) {
 
-	// メッシュリソースの取得と検査
-	const MeshGPUResource& mesh = *input.meshResource;
+	D3D12_GPU_VIRTUAL_ADDRESS vertexBaseAddress = 0;
+	UINT vertexCount = 0;
+	UINT vertexStride = 0;
+	DXGI_FORMAT vertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+	D3D12_GPU_VIRTUAL_ADDRESS indexBaseAddress = 0;
+	DXGI_FORMAT indexFormat = DXGI_FORMAT_R32_UINT;
+	// 通常のMeshRenderer経由描画
+	if (input.meshResource) {
 
-	Assert::Call(input.subMeshIndex < mesh.subMeshes.size(), "Invalid subMeshIndex.");
-	Assert::Call((input.indexOffset + input.indexCount) <= mesh.indexCount, "SubMesh index range out of bounds.");
+		// メッシュリソースの取得と検査
+		const MeshGPUResource& mesh = *input.meshResource;
 
-	// スキニング結果の頂点データを使用するか
-	bool useOverrideVertexBuffer = input.overrideVertexAddress != 0 && input.overrideVertexCount != 0;
+		Assert::Call(input.subMeshIndex < mesh.subMeshes.size(), "Invalid subMeshIndex.");
+		Assert::Call((input.indexOffset + input.indexCount) <= mesh.indexCount, "SubMesh index range out of bounds.");
 
-	// 頂点GPUアドレス
-	D3D12_GPU_VIRTUAL_ADDRESS vertexBaseAddress = useOverrideVertexBuffer ?
-		(input.overrideVertexAddress + offsetof(MeshVertex, position)) :
-		(mesh.vertexSRV.buffer->GetResource()->GetGPUVirtualAddress() + offsetof(MeshVertex, position));
-	// 頂点数
-	UINT vertexCount = useOverrideVertexBuffer ? static_cast<UINT>(input.overrideVertexCount) : static_cast<UINT>(mesh.vertexCount);
+		// スキニング結果の頂点データを使用するか
+		const bool useOverrideVertexBuffer = input.overrideVertexAddress != 0 && input.overrideVertexCount != 0;
 
-	// インデックスGPUアドレスはサブメッシュ範囲まで
-	D3D12_GPU_VIRTUAL_ADDRESS indexBaseAddress = mesh.indexBuffer.GetResource()->GetGPUVirtualAddress() +
-		mesh.indexBuffer.GetIndexSizeInBytes() * static_cast<uint64_t>(input.indexOffset);
+		// 頂点はMeshVertexのtepositionを先頭にしてstrideはMeshVertexサイズ
+		vertexBaseAddress = (useOverrideVertexBuffer ? input.overrideVertexAddress :
+			mesh.vertexSRV.buffer->GetResource()->GetGPUVirtualAddress()) + offsetof(MeshVertex, position);
+		vertexCount = useOverrideVertexBuffer ? static_cast<UINT>(input.overrideVertexCount) : static_cast<UINT>(mesh.vertexCount);
+		vertexStride = static_cast<UINT>(sizeof(MeshVertex));
+		vertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+
+		// インデックスGPUアドレスはサブメッシュ範囲まで、BLAS側にもIBVと同じFormatを渡す
+		indexBaseAddress = mesh.indexBuffer.GetResource()->GetGPUVirtualAddress() +
+			mesh.indexBuffer.GetIndexSizeInBytes() * static_cast<uint64_t>(input.indexOffset);
+		indexFormat = mesh.indexBuffer.GetFormat();
+	}
+	// カスタムメッシュ描画の設定
+	else {
+
+		Assert::Call(input.customVertexAddress != 0 && input.customVertexStride != 0, "Custom BLAS geometry requires a vertex buffer.");
+
+		// 入力設定をそのままセット
+		vertexBaseAddress = input.customVertexAddress;
+		vertexCount = static_cast<UINT>(input.customVertexCount);
+		vertexStride = static_cast<UINT>(input.customVertexStride);
+		vertexFormat = input.customVertexFormat;
+		indexBaseAddress = input.customIndexAddress;
+		indexFormat = input.customIndexFormat;
+	}
 
 	// ジオメトリ記述の設定
 	geometryDesc_ = {};
@@ -36,13 +60,12 @@ void Engine::BottomLevelAccelerationStructure::FillGeometryDesc(const Raytracing
 	geometryDesc_.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 	geometryDesc_.Triangles.Transform3x4 = 0;
 	// 頂点
-	geometryDesc_.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+	geometryDesc_.Triangles.VertexFormat = vertexFormat;
 	geometryDesc_.Triangles.VertexCount = vertexCount;
 	geometryDesc_.Triangles.VertexBuffer.StartAddress = vertexBaseAddress;
-	geometryDesc_.Triangles.VertexBuffer.StrideInBytes = sizeof(MeshVertex);
+	geometryDesc_.Triangles.VertexBuffer.StrideInBytes = vertexStride;
 	// インデックス
-	// BLAS側にもIBVと同じFormatを渡す
-	geometryDesc_.Triangles.IndexFormat = mesh.indexBuffer.GetFormat();
+	geometryDesc_.Triangles.IndexFormat = indexFormat;
 	geometryDesc_.Triangles.IndexCount = static_cast<UINT>(input.indexCount);
 	geometryDesc_.Triangles.IndexBuffer = indexBaseAddress;
 }

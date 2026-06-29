@@ -252,6 +252,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.setMouseRangeControl = &ManagedScriptRuntime::SetMouseRangeControlCallback;
 	callbacks.setRendererMaterialColor = &ManagedScriptRuntime::SetRendererMaterialColorCallback;
 	callbacks.getRendererMaterialColor = &ManagedScriptRuntime::GetRendererMaterialColorCallback;
+	callbacks.fillMeshSetPositions = &ManagedScriptRuntime::FillMeshSetPositionsCallback;
 	callbacks.getFrameCount = &ManagedScriptRuntime::GetFrameCountCallback;
 	// Gameplay v7のAssetRef実行時解決
 	callbacks.assetExists = &ManagedScriptRuntime::AssetExistsCallback;
@@ -267,6 +268,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.lineDrawImmediate = &ManagedScriptRuntime::LineDrawImmediateCallback;
 	callbacks.lineDrawSphereImmediate = &ManagedScriptRuntime::LineDrawSphereImmediateCallback;
 	callbacks.lineAddPoint = &ManagedScriptRuntime::LineAddPointCallback;
+	callbacks.lineUpdatePoint = &ManagedScriptRuntime::LineUpdatePointCallback;
 	callbacks.unloadScene = &ManagedScriptRuntime::UnloadSceneCallback;
 	callbacks.isSceneInstanceAlive = &ManagedScriptRuntime::IsSceneInstanceAliveCallback;
 	callbacks.setParentKeepWorld = &ManagedScriptRuntime::SetParentKeepWorldCallback;

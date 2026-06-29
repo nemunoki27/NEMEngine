@@ -30,6 +30,7 @@
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
 #include <Engine/Core/World/Systems/Rendering/UVTransformSystem.h>
+#include <Engine/Core/World/Systems/Rendering/FillFaceMeshRendererSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
@@ -95,6 +96,7 @@ void Engine::EngineApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<TransformSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UVTransformSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<FillFaceMeshRendererSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<SkinnedAnimationSystem>(), ++order);
 	// ジョイント追従はスケルトン更新の後でないとジョイントのワールド行列が確定しないため、最後に動かす
 	scheduler_.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);

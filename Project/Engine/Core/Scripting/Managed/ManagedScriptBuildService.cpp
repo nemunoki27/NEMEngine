@@ -32,6 +32,20 @@ namespace {
 		return std::string(buffer);
 	}
 
+	// ビルド出力1行のseverityをコンソール色分け用のログレベルへ変換する、警告はwarnでエラーはerr
+	spdlog::level::level_enum DiagnosticLogLevel(const std::string& line) {
+
+		if (const auto diagnostic = Engine::ManagedBuildDiagnosticStore::ParseLine(line)) {
+
+			switch (diagnostic->severity) {
+			case Engine::DiagnosticSeverity::Error:   return spdlog::level::err;
+			case Engine::DiagnosticSeverity::Warning: return spdlog::level::warn;
+			default:                                  return spdlog::level::info;
+			}
+		}
+		return spdlog::level::info;
+	}
+
 	// GameScriptsのアセンブリ/付随ファイル名
 	constexpr const wchar_t* kAssemblyFileName = L"GameScripts.dll";
 	// マニフェストは安定スクリプト型GUIDの一覧でロード前に検証する成果物
@@ -378,8 +392,8 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 	case State::MetadataSyncing:
 	{
 		const bool finished = process_.Poll([this](const std::string& line) {
-			// 同期ツールの出力つまり採番やリネームや曖昧診断をエディタコンソールへ転送する
-			Logger::Output(LogType::GameLogic, spdlog::level::info, "[ScriptMetaSync] {}", line);
+			// 同期ツールの出力つまり採番やリネームや曖昧診断をエディタコンソールへ転送する、警告/エラーは色分けされる
+			Logger::Output(LogType::GameLogic, DiagnosticLogLevel(line), "[ScriptMetaSync] {}", line);
 			// 取り込み点で構造化診断ストアへ入れコンソール文字列は再解析しない
 			ManagedBuildDiagnosticStore::GetInstance().Ingest(diagnostics_.buildID, diagnostics_.reloadID,
 				ManagedBuildProcessKind::MetadataSync, line);
@@ -415,8 +429,8 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 	case State::Building:
 	{
 		const bool finished = process_.Poll([this](const std::string& line) {
-			// ビルド出力をエディタコンソールつまりGameLogicログへ逐次転送する
-			Logger::Output(LogType::GameLogic, spdlog::level::info, "[GameScripts build] {}", line);
+			// ビルド出力をエディタコンソールつまりGameLogicログへ逐次転送する、警告は黄エラーは赤で色分けされる
+			Logger::Output(LogType::GameLogic, DiagnosticLogLevel(line), "[GameScripts build] {}", line);
 			// 取り込み点で構造化診断ストアへ入れMSBuildやCSCのエラーと警告を解析する
 			ManagedBuildDiagnosticStore::GetInstance().Ingest(diagnostics_.buildID, diagnostics_.reloadID,
 				ManagedBuildProcessKind::Build, line);

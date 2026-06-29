@@ -25,6 +25,7 @@ Engine::AssetID Engine::MaterialResolver::ResolveORDefault(AssetDatabase& databa
 	case DefaultMaterialSlot::Sprite: configured = DefaultMaterialSettings::GetInstance().GetSprite(); break;
 	case DefaultMaterialSlot::Text:   configured = DefaultMaterialSettings::GetInstance().GetText();   break;
 	case DefaultMaterialSlot::Line:   configured = DefaultMaterialSettings::GetInstance().GetLine();   break;
+	case DefaultMaterialSlot::FillMesh: configured = DefaultMaterialSettings::GetInstance().GetFillMesh(); break;
 	default: break;
 	}
 	if (configured) {
@@ -72,6 +73,7 @@ void Engine::MaterialResolver::EnsureDefaults(AssetDatabase& database) const {
 	assignIfRegistered(DefaultMaterialSlot::MeshOutline, AssetType::Material);
 	assignIfRegistered(DefaultMaterialSlot::FullscreenCopy, AssetType::Material);
 	assignIfRegistered(DefaultMaterialSlot::Line, AssetType::Material);
+	assignIfRegistered(DefaultMaterialSlot::FillMesh, AssetType::Material);
 
 	// 初期化済み
 	initialized_ = true;
@@ -93,6 +95,8 @@ Engine::AssetID Engine::MaterialResolver::GetDefaultAssetID(DefaultMaterialSlot 
 		return BuiltinAssets::Materials::FullscreenCopy;
 	case DefaultMaterialSlot::Line:
 		return BuiltinAssets::Materials::DefaultLine;
+	case DefaultMaterialSlot::FillMesh:
+		return BuiltinAssets::Materials::DefaultFillMesh;
 	}
 	return AssetID{};
 }

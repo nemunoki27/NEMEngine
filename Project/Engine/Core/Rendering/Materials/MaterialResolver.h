@@ -23,8 +23,9 @@ namespace Engine {
 		MeshOutline,
 		FullscreenCopy,
 		Line,
+		FillMesh,
 	};
-	static constexpr const uint32_t kDefaultMaterialCount = static_cast<uint32_t>(DefaultMaterialSlot::Line) + 1;
+	static constexpr const uint32_t kDefaultMaterialCount = static_cast<uint32_t>(DefaultMaterialSlot::FillMesh) + 1;
 
 	//============================================================================
 	//	MaterialResolver class
