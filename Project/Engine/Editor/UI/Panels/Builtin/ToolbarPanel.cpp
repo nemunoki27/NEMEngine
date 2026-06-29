@@ -64,7 +64,7 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 
 	// Undo/Redoの数チェック
 	ImGui::SameLine(0.0f, 16.0f);
-	ImGui::Text("Undo: %d / Redo: %d", context.editorState->commandHistory.GetUndoCount(),
+	ImGui::Text("Undo:%d / Redo: %d", context.editorState->commandHistory.GetUndoCount(),
 		context.editorState->commandHistory.GetRedoCount());
 
 	//============================================================================
@@ -88,9 +88,8 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 		}
 
 		// Play押下後はGameScriptsのbuild/reload完了までPlayモードに入らないので、その間は進行中であることを示す
-		const bool playBuildPending = context.editorContext && context.editorContext->scriptBuildService &&
-			context.editorContext->scriptBuildService->PollPlayBuild() ==
-			ManagedScriptBuildService::PlayBuildResult::Pending;
+		bool playBuildPending = context.editorContext && context.editorContext->scriptBuildService &&
+			context.editorContext->scriptBuildService->PollPlayBuild() == ManagedScriptBuildService::PlayBuildResult::Pending;
 		if (playBuildPending) {
 
 			ImGui::SameLine(0.0f, 8.0f);

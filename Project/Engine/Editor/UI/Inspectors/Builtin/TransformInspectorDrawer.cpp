@@ -239,7 +239,7 @@ void Engine::TransformInspectorDrawer::CommitTransformIfNeeded(
 	}
 
 	// 変更前トランスフォーム
-	const TransformComponent beforeTransform = world.GetComponent<TransformComponent>(entity);
+	const TransformComponent beforeTransform = previewActive_ ? previewBeginTransform_ : world.GetComponent<TransformComponent>(entity);
 	// 変更後トランスフォーム
 	TransformComponent afterTransform = draftTransform_;
 	afterTransform.localRotation = Quaternion::Normalize(Quaternion::EulerToQuaternion(draftEulerDegrees_));
