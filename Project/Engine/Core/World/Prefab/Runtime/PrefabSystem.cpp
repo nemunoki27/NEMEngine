@@ -9,6 +9,7 @@
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
@@ -22,6 +23,43 @@ namespace {
 
 		std::string localFileID = entityJson.value("LocalFileID", entityJson.value("UUID", ""));
 		return localFileID.empty() ? Engine::UUID::New() : Engine::FromString16Hex(localFileID);
+	}
+
+	// 保存時に使うPrefab内ローカルIDを解決する
+	static Engine::UUID ResolvePrefabLocalFileID(Engine::ECSWorld& world, const Engine::Entity& entity,
+		Engine::AssetID prefabAsset) {
+
+		if (world.HasComponent<Engine::PrefabLinkComponent>(entity)) {
+
+			const auto& prefabLink = world.GetComponent<Engine::PrefabLinkComponent>(entity);
+			if (prefabLink.prefabAsset == prefabAsset && prefabLink.prefabLocalFileID) {
+				return prefabLink.prefabLocalFileID;
+			}
+		}
+		if (!world.HasComponent<Engine::SceneObjectComponent>(entity)) {
+			return Engine::UUID{};
+		}
+		return world.GetComponent<Engine::SceneObjectComponent>(entity).localFileID;
+	}
+
+	// SceneローカルIDからPrefabローカルIDへの変換表を作る
+	static Engine::PrefabReferenceRemapper::LocalFileIDMap BuildSceneToPrefabLocalMap(
+		Engine::ECSWorld& world, const std::vector<Engine::Entity>& entities, Engine::AssetID prefabAsset) {
+
+		Engine::PrefabReferenceRemapper::LocalFileIDMap result;
+		for (const Engine::Entity& entity : entities) {
+
+			if (!world.IsAlive(entity)) {
+				continue;
+			}
+			Engine::SceneAuthoring::EnsureGameObjectDefaults(world, entity);
+			const auto& sceneObject = world.GetComponent<Engine::SceneObjectComponent>(entity);
+			const Engine::UUID prefabLocalFileID = ResolvePrefabLocalFileID(world, entity, prefabAsset);
+			if (sceneObject.localFileID && prefabLocalFileID) {
+				result.emplace(sceneObject.localFileID, prefabLocalFileID);
+			}
+		}
+		return result;
 	}
 }
 
@@ -79,16 +117,18 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 
 	// プレファブアセットを登録
 	const AssetID prefabAsset = database.ImportOrGet(prefabAssetPath, AssetType::Prefab);
+	const PrefabReferenceRemapper::LocalFileIDMap sceneToPrefabLocal =
+		BuildSceneToPrefabLocalMap(world, entities, prefabAsset);
 
 	// ルート情報をデフォルト構築
 	SceneAuthoring::EnsureGameObjectDefaults(world, root);
-	const auto& rootSceneObject = world.GetComponent<SceneObjectComponent>(root);
+	const UUID rootLocalFileID = ResolvePrefabLocalFileID(world, root, prefabAsset);
 
 	// プレファブファイルの構築
 	PrefabHeader header{};
 	header.guid = prefabAsset;
 	header.name = BuildDefaultPrefabName(world, root, prefabAssetPath);
-	header.rootLocalFileID = rootSceneObject.localFileID;
+	header.rootLocalFileID = rootLocalFileID;
 	header.version = 1;
 
 	nlohmann::json fileJson = nlohmann::json::object();
@@ -107,14 +147,20 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 		SceneAuthoring::EnsureGameObjectDefaults(world, entity);
 
 		const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
+		const UUID prefabLocalFileID = ResolvePrefabLocalFileID(world, entity, prefabAsset);
 
 		// エンティティ
 		nlohmann::json entityJson = nlohmann::json::object();
-		entityJson["LocalFileID"] = ToString(sceneObject.localFileID);
+		entityJson["LocalFileID"] = ToString(prefabLocalFileID ? prefabLocalFileID : sceneObject.localFileID);
 
 		// コンポーネント
 		nlohmann::json components = nlohmann::json::object();
 		world.SerializeEntityComponents(entity, components);
+		if (components.contains("SceneObject") && components["SceneObject"].is_object()) {
+			components["SceneObject"]["localFileId"] =
+				(prefabLocalFileID ? ToString(prefabLocalFileID) : ToString(sceneObject.localFileID));
+		}
+		PrefabReferenceRemapper::RemapComponents(components, sceneToPrefabLocal, PrefabReferenceRemapper::ReferenceSpace::Prefab, prefabAsset);
 
 		// プレファブ自体の中に、別プレファブ由来情報は持ち込まない
 		components.erase("PrefabLink");
@@ -124,8 +170,7 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 		fileJson["Entities"].push_back(std::move(entityJson));
 	}
 
-	// ファイルに保存、prefabAssetPathはGameAssets相対の論理パスなので物理パスへ解決してから書き出す
-	// 解決前のままだとCWD相対の存在しない場所へ書こうとして保存に失敗する
+	// ファイルに保存
 	std::filesystem::path savePath = database.ResolveAssetPath(prefabAssetPath);
 	if (savePath.empty()) {
 		savePath = prefabAssetPath;
@@ -151,6 +196,7 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 	if (!fileJson.is_object() || !fileJson.contains("Entities") || !fileJson["Entities"].is_array()) {
 		return false;
 	}
+	PrefabReferenceRemapper::RepairPrefabFileScriptRefs(fileJson, prefabAsset);
 
 	// ファイルからプレファブ読み込み
 	PrefabHeader header{};
@@ -231,10 +277,12 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		for (auto it = components.begin(); it != components.end(); ++it) {
 
 			const std::string& typeName = it.key();
-			const nlohmann::json& data = it.value();
 			if (typeName == "SceneObject" || typeName == "PrefabLink") {
 				continue;
 			}
+			nlohmann::json data = it.value();
+			PrefabReferenceRemapper::RemapComponent(
+				typeName, data, prefabLocalToSceneLocal, PrefabReferenceRemapper::ReferenceSpace::Scene, prefabAsset);
 			world.AddComponentFromJson(entity, typeName, data);
 		}
 	}
@@ -266,7 +314,9 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 			continue;
 		}
 		auto it = prefabLocalToSceneLocal.find(hierarchy.parentLocalFileID);
-		hierarchy.parentLocalFileID = (it != prefabLocalToSceneLocal.end()) ? it->second : UUID{};
+		if (it != prefabLocalToSceneLocal.end()) {
+			hierarchy.parentLocalFileID = it->second;
+		}
 	}
 
 	// ランタイムのリンクを再構築する

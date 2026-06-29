@@ -30,15 +30,14 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	if (!shouldSyncFromWorld && !isEditing_) {
 
 		const auto& worldTransform = world.GetComponent<TransformComponent>(entity);
-		// ワールド側のtransformが外部で変化したらドラフトを同期する、判定はSetTransformCommandと共通化する
+		// ワールド側のtransformが外部で変化したらドラフトを同期する
 		shouldSyncFromWorld = !SetTransformCommand::NearlyEqualTransform(worldTransform, draftTransform_);
 	}
 	if (shouldSyncFromWorld) {
 		SyncDraftFromWorld(world, entity);
 	}
 
-	// 所持コンポーネント構成から導いた編集次元へ追従する
-	// Textの次元切り替えやMeshRendererの後付けなど構成変化に追従させる、手動での次元選択は尊重する
+	// 所持コンポーネント構成から編集次元へ追従
 	const std::optional<Dimension> impliedDimension = ResolveEntityDimension(world, entity);
 	if (impliedDimension && lastObservedImpliedDimension_ != impliedDimension) {
 		editDimension_ = *impliedDimension;

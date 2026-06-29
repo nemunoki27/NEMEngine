@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/Prefab/Override/PrefabJsonDiff.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
+#include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
@@ -116,6 +117,43 @@ namespace {
 			child = next;
 		}
 	}
+
+	// インスタンス内のSceneローカルIDからPrefabローカルIDへの変換表を作る
+	PrefabReferenceRemapper::LocalFileIDMap BuildSceneToPrefabLocalMap(
+		ECSWorld& world, const std::vector<Entity>& instanceEntities) {
+
+		PrefabReferenceRemapper::LocalFileIDMap result;
+		for (const Entity& entity : instanceEntities) {
+
+			if (!world.IsAlive(entity) || !world.HasComponent<PrefabLinkComponent>(entity)) {
+				continue;
+			}
+			const UUID sceneLocalFileID = SceneLocalOf(world, entity);
+			const UUID prefabLocalFileID = world.GetComponent<PrefabLinkComponent>(entity).prefabLocalFileID;
+			if (sceneLocalFileID && prefabLocalFileID) {
+				result.emplace(sceneLocalFileID, prefabLocalFileID);
+			}
+		}
+		return result;
+	}
+
+	// 生成済みインスタンスからPrefabローカルIDからSceneローカルIDへの変換表を作る
+	PrefabReferenceRemapper::LocalFileIDMap BuildPrefabToSceneLocalMap(
+		ECSWorld& world, const PrefabInstantiateResult& result) {
+
+		PrefabReferenceRemapper::LocalFileIDMap localMap;
+		for (const auto& [prefabLocalFileID, entity] : result.sourceLocalToEntity) {
+
+			if (!world.IsAlive(entity) || !world.HasComponent<SceneObjectComponent>(entity)) {
+				continue;
+			}
+			const UUID sceneLocalFileID = world.GetComponent<SceneObjectComponent>(entity).localFileID;
+			if (prefabLocalFileID && sceneLocalFileID) {
+				localMap.emplace(prefabLocalFileID, sceneLocalFileID);
+			}
+		}
+		return localMap;
+	}
 }
 } // namespace Engine
 
@@ -136,6 +174,7 @@ std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabOverrid
 	if (!fileJson.is_object() || !fileJson.contains("Entities") || !fileJson["Entities"].is_array()) {
 		return result;
 	}
+	PrefabReferenceRemapper::RepairPrefabFileScriptRefs(fileJson, prefabAsset);
 
 	// ルートのローカルIDを取得する
 	UUID rootLocalFileID{};
@@ -237,6 +276,8 @@ Engine::PrefabInstanceData Engine::PrefabOverrideUtility::CaptureInstance(ECSWor
 		instanceByPrefabLocal.emplace(link.prefabLocalFileID, entity);
 		data.prefabAsset = link.prefabAsset;
 	}
+	const PrefabReferenceRemapper::LocalFileIDMap sceneToPrefabLocal =
+		BuildSceneToPrefabLocalMap(world, instanceEntities);
 
 	// 各インスタンスエンティティの差分を抽出する
 	for (const Entity& entity : instanceEntities) {
@@ -254,6 +295,8 @@ Engine::PrefabInstanceData Engine::PrefabOverrideUtility::CaptureInstance(ECSWor
 		// コンポーネント差分
 		nlohmann::json instanceComponents;
 		world.SerializeEntityComponents(entity, instanceComponents);
+		PrefabReferenceRemapper::RemapComponents(
+			instanceComponents, sceneToPrefabLocal, PrefabReferenceRemapper::ReferenceSpace::Prefab, data.prefabAsset);
 		const ComponentMapDiff diff = PrefabJsonDiff::DiffComponentMaps(
 			baseIt->second.components, instanceComponents, kExcludedDiffTypes);
 		for (const auto& [path, value] : diff.modifications) {
@@ -378,6 +421,11 @@ Engine::EntityOverrideInfo Engine::PrefabOverrideUtility::CaptureEntityOverride(
 
 	nlohmann::json instanceComponents;
 	world.SerializeEntityComponents(entity, instanceComponents);
+	const std::vector<Entity> instanceEntities = CollectInstanceEntities(world, link.prefabInstanceID);
+	const PrefabReferenceRemapper::LocalFileIDMap sceneToPrefabLocal =
+		BuildSceneToPrefabLocalMap(world, instanceEntities);
+	PrefabReferenceRemapper::RemapComponents(
+		instanceComponents, sceneToPrefabLocal, PrefabReferenceRemapper::ReferenceSpace::Prefab, link.prefabAsset);
 	const ComponentMapDiff diff = PrefabJsonDiff::DiffComponentMaps(
 		baseIt->second.components, instanceComponents, kExcludedDiffTypes);
 	for (const auto& [path, value] : diff.modifications) {
@@ -409,6 +457,8 @@ Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, A
 	if (!prefabSystem.InstantiatePrefab(database, hierarchySystem, world, data.prefabAsset, result, desc)) {
 		return Entity::Null();
 	}
+	const PrefabReferenceRemapper::LocalFileIDMap prefabToSceneLocal =
+		BuildPrefabToSceneLocalMap(world, result);
 
 	// プレファブ内ローカルIDから生成済みエンティティを引く
 	auto findByTarget = [&](UUID target) -> Entity {
@@ -439,7 +489,10 @@ Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, A
 
 		const Entity entity = findByTarget(added.target);
 		if (world.IsAlive(entity)) {
-			world.AddComponentFromJson(entity, added.type, added.value);
+			nlohmann::json value = added.value;
+			PrefabReferenceRemapper::RemapComponent(
+				added.type, value, prefabToSceneLocal, PrefabReferenceRemapper::ReferenceSpace::Scene, data.prefabAsset);
+			world.AddComponentFromJson(entity, added.type, value);
 		}
 	}
 
@@ -464,7 +517,10 @@ Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, A
 			world.SerializeComponentToJson(entity, type, current);
 			builderIt = typeMap.emplace(type, std::move(current)).first;
 		}
-		PrefabJsonDiff::SetAtPath(builderIt->second, leaf, mod.value);
+		nlohmann::json value = mod.value;
+		PrefabReferenceRemapper::RemapValue(
+			value, mod.path, prefabToSceneLocal, PrefabReferenceRemapper::ReferenceSpace::Scene, data.prefabAsset);
+		PrefabJsonDiff::SetAtPath(builderIt->second, leaf, value);
 	}
 	for (auto& [target, typeMap] : builders) {
 

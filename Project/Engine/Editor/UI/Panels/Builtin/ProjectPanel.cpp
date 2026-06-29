@@ -395,8 +395,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	}
 }
 
-void Engine::ProjectPanel::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
-}
+void Engine::ProjectPanel::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {}
 
 void Engine::ProjectPanel::DrawSearchBar(const EditorPanelContext& context) {
 
@@ -719,7 +718,7 @@ void Engine::ProjectPanel::DrawDirectoryContextMenu([[maybe_unused]] AssetDataba
 		return;
 	}
 
-	if (ImGui::BeginMenu("Create")) {
+	if (ImGui::BeginMenu("作成")) {
 
 		DrawCreateMenuItems(node.virtualPath);
 		ImGui::EndMenu();
@@ -733,26 +732,26 @@ void Engine::ProjectPanel::DrawFolderContextMenu(AssetDatabase& database, const 
 		return;
 	}
 
-	if (ImGui::MenuItem("Open")) {
+	if (ImGui::MenuItem("開く")) {
 
 		selectedDirectory_ = node.virtualPath;
 		selectedAsset_ = {};
 	}
-	if (ImGui::MenuItem("Rename")) {
+	if (ImGui::MenuItem("名前変更")) {
 
 		BeginRenameDirectory(node);
 	}
-	if (ImGui::BeginMenu("Create")) {
+	if (ImGui::BeginMenu("作成")) {
 
 		DrawCreateMenuItems(node.virtualPath);
 		ImGui::EndMenu();
 	}
-	if (ImGui::MenuItem("Duplicate")) {
+	if (ImGui::MenuItem("複製")) {
 
 		ProjectAssetFileResult result = ProjectAssetFileUtility::DuplicateDirectory(assetSource_, node.virtualPath);
 		RefreshAfterFileOperation(database, result);
 	}
-	if (ImGui::MenuItem("Delete")) {
+	if (ImGui::MenuItem("削除")) {
 
 		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteDirectory(assetSource_, node.virtualPath);
 		RefreshAfterFileOperation(database, result);
@@ -769,22 +768,22 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 
 	selectedAsset_ = asset.assetID;
 
-	if (ImGui::MenuItem("Rename")) {
+	if (ImGui::MenuItem("名前変更")) {
 
 		BeginRenameAsset(asset);
 	}
 	ImGui::Separator();
-	if (ImGui::MenuItem("Open")) {
+	if (ImGui::MenuItem("開く")) {
 
 		context.editorState->SelectAsset(asset.assetID);
 		HandleAssetDoubleClick(context, asset);
 	}
-	if (ImGui::MenuItem("Duplicate")) {
+	if (ImGui::MenuItem("複製")) {
 
 		ProjectAssetFileResult result = ProjectAssetFileUtility::DuplicateAsset(asset);
 		RefreshAfterFileOperation(database, result);
 	}
-	if (ImGui::MenuItem("Delete")) {
+	if (ImGui::MenuItem("削除")) {
 
 		// 削除前に参照元を集めて確認ポップアップを開く
 		pendingDeleteAsset_ = asset;
@@ -825,21 +824,21 @@ void Engine::ProjectPanel::DrawCreateAssetPopup(AssetDatabase& database) {
 
 	if (requestOpenCreatePopup_) {
 
-		ImGui::OpenPopup("Create Project Asset");
+		ImGui::OpenPopup("アセットの作成");
 		requestOpenCreatePopup_ = false;
 	}
 
-	if (!ImGui::BeginPopupModal("Create Project Asset", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+	if (!ImGui::BeginPopupModal("アセットの作成", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 		return;
 	}
 
 	const char* kindLabel = ProjectAssetFileUtility::GetCreateMenuLabel(pendingCreateKind_);
-	ImGui::Text("Create %s", kindLabel);
+	ImGui::Text("作成 %s", kindLabel);
 	ImGui::TextDisabled("%s", pendingCreateDirectory_.c_str());
 	ImGui::Separator();
 
 	TextInputPopupResult inputResult = MyGUI::InputTextPopupContent(
-		"Name",
+		"名前",
 		createNameBuffer_,
 		createErrorMessage_.empty() ? nullptr : createErrorMessage_.c_str());
 
@@ -855,9 +854,7 @@ void Engine::ProjectPanel::DrawCreateAssetPopup(AssetDatabase& database) {
 
 			createErrorMessage_.clear();
 			RefreshAfterFileOperation(database, result);
-			// C# Script作成時は共通IDE launcherで開く
-			// .cs.metaのscriptTypeID発番/ build / reloadはsource watcherが新規.csを検知して
-			// 既存のasync metadata syncからbuildパイプラインで行い、inline UUIDはtemplateに出さない
+			// スクリプトタイプの場合、VisualStudioで開く
 			if (pendingCreateKind_ == ProjectAssetFileKind::Script && !result.fullPath.empty()) {
 				ManagedIdeLauncher::OpenFile(result.fullPath, 1, 1);
 			}
@@ -880,24 +877,22 @@ void Engine::ProjectPanel::DrawRenameAssetPopup(AssetDatabase& database) {
 
 	if (requestOpenRenamePopup_) {
 
-		ImGui::OpenPopup("Rename Project Asset");
+		ImGui::OpenPopup("アセットの名前変更");
 		requestOpenRenamePopup_ = false;
 	}
 
-	if (!ImGui::BeginPopupModal("Rename Project Asset", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+	if (!ImGui::BeginPopupModal("アセットの名前変更", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 		return;
 	}
 
-	ImGui::Text(pendingRenameIsDirectory_ ? "Rename Folder" : "Rename Asset");
+	ImGui::Text(pendingRenameIsDirectory_ ? "フォルダ名変更" : "アセット名変更");
 	ImGui::TextDisabled("%s", pendingRenameIsDirectory_ ? pendingRenameDirectoryPath_.c_str() : pendingRenameAsset_.assetPath.c_str());
 	if (!renameProtectedSuffix_.empty()) {
-		ImGui::TextDisabled("Protected suffix: %s", renameProtectedSuffix_.c_str());
+		ImGui::TextDisabled("変更不可拡張子: %s", renameProtectedSuffix_.c_str());
 	}
 	ImGui::Separator();
 
-	TextInputPopupResult inputResult = MyGUI::InputTextPopupContent(
-		"Name",
-		renameNameBuffer_,
+	TextInputPopupResult inputResult = MyGUI::InputTextPopupContent("名前", renameNameBuffer_,
 		renameErrorMessage_.empty() ? nullptr : renameErrorMessage_.c_str());
 
 	if (inputResult.submitted) {
@@ -913,7 +908,7 @@ void Engine::ProjectPanel::DrawRenameAssetPopup(AssetDatabase& database) {
 			ImGui::CloseCurrentPopup();
 		} else {
 
-			renameErrorMessage_ = result.message.empty() ? "Failed to rename asset." : result.message;
+			renameErrorMessage_ = result.message.empty() ? "ファイル名の変更に失敗しました" : result.message;
 		}
 	}
 	if (inputResult.canceled) {
@@ -929,38 +924,19 @@ void Engine::ProjectPanel::DrawDeleteAssetPopup(AssetDatabase& database) {
 
 	if (requestOpenDeletePopup_) {
 
-		ImGui::OpenPopup("Delete Project Asset");
+		ImGui::OpenPopup("アセットの削除");
 		requestOpenDeletePopup_ = false;
 	}
 
-	if (!ImGui::BeginPopupModal("Delete Project Asset", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+	if (!ImGui::BeginPopupModal("アセットの削除", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 		return;
 	}
 
-	ImGui::Text("Delete Asset");
+	ImGui::Text("アセット削除");
 	ImGui::TextDisabled("%s", pendingDeleteAsset_.assetPath.c_str());
 	ImGui::Separator();
 
-	// 参照元があるなら、消すと参照切れになることを警告して一覧表示する
-	if (!pendingDeleteReferencers_.empty()) {
-
-		ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f),
-			"This asset is referenced by %zu asset(s).", pendingDeleteReferencers_.size());
-		ImGui::TextDisabled("Deleting it will leave missing references.");
-
-		if (ImGui::BeginChild("##DeleteReferencers", ImVec2(360.0f, 120.0f), true)) {
-			for (const std::string& referencer : pendingDeleteReferencers_) {
-				ImGui::BulletText("%s", referencer.c_str());
-			}
-		}
-		ImGui::EndChild();
-	} else {
-
-		ImGui::TextUnformatted("No other asset references this asset.");
-	}
-	ImGui::Separator();
-
-	if (ImGui::Button("Delete")) {
+	if (ImGui::Button("削除")) {
 
 		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteAsset(pendingDeleteAsset_);
 		RefreshAfterFileOperation(database, result);
@@ -968,7 +944,7 @@ void Engine::ProjectPanel::DrawDeleteAssetPopup(AssetDatabase& database) {
 		ImGui::CloseCurrentPopup();
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Cancel")) {
+	if (ImGui::Button("キャンセル")) {
 
 		pendingDeleteReferencers_.clear();
 		ImGui::CloseCurrentPopup();
@@ -988,7 +964,7 @@ void Engine::ProjectPanel::RegisterAssetActions() {
 		if (context.host) {
 			context.host->RequestOpenScene(asset.assetID);
 		}
-	};
+		};
 	scene.onDragSource = DrawDefaultAssetDragDropSource;
 	assetActionRegistry_.Register(std::move(scene));
 
@@ -1001,7 +977,7 @@ void Engine::ProjectPanel::RegisterAssetActions() {
 		if (context.host) {
 			context.host->RequestEnterPrefabEdit(asset.assetID);
 		}
-	};
+		};
 	prefab.onContextMenu = [](const EditorPanelContext& context, const ProjectAssetEntry& asset) {
 
 		ImGui::Separator();
@@ -1011,7 +987,7 @@ void Engine::ProjectPanel::RegisterAssetActions() {
 				context.host->ExecuteEditorCommand(std::make_unique<InstantiatePrefabCommand>(asset.assetID));
 			}
 		}
-	};
+		};
 	prefab.onDragSource = DrawDefaultAssetDragDropSource;
 	assetActionRegistry_.Register(std::move(prefab));
 
@@ -1022,7 +998,7 @@ void Engine::ProjectPanel::RegisterAssetActions() {
 	script.iconResolver = ResolveDefaultAssetIcon;
 	script.onDoubleClick = [](const EditorPanelContext& /*context*/, const ProjectAssetEntry& asset) {
 		OpenScriptAssetInVisualStudio(asset);
-	};
+		};
 	script.onDragSource = DrawDefaultAssetDragDropSource;
 	assetActionRegistry_.Register(std::move(script));
 }
@@ -1217,8 +1193,7 @@ void Engine::ProjectPanel::RefreshAfterFileOperation([[maybe_unused]] AssetDatab
 
 	if (!result.success) {
 
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ProjectPanel: file operation failed. message={}", result.message);
+		Logger::Output(LogType::Engine, spdlog::level::warn, "ProjectPanel: file operation failed. message={}", result.message);
 		return;
 	}
 

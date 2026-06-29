@@ -62,6 +62,11 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 	ImGui::SameLine();
 	ImGui::Text("モード : %s", context.IsPlayPaused() ? "ポーズ中" : (context.IsPlaying() ? "再生中" : "編集中"));
 
+	// Undo/Redoの数チェック
+	ImGui::SameLine(0.0f, 16.0f);
+	ImGui::Text("Undo: %d / Redo: %d", context.editorState->commandHistory.GetUndoCount(),
+		context.editorState->commandHistory.GetRedoCount());
+
 	//============================================================================
 	//	シーンのプレイ/ストップ切り替え
 	//============================================================================

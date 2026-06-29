@@ -15,8 +15,12 @@ void Engine::from_json(const nlohmann::json& in, ScriptEntry& entry) {
 		entry.lastKnownTypeName = in.value("type", std::string{});
 	}
 
-	// scriptSlotIDは無ければ新規発番して同type複数attachを識別できるようにする
-	const UUID parsedSlot = FromString16Hex(in.value("scriptSlotId", std::string{}));
+	// scriptSlotIDは旧表記も読み、新規発番によるScriptRef切れを防ぐ
+	std::string slotText = in.value("scriptSlotId", std::string{});
+	if (slotText.empty()) {
+		slotText = in.value("scriptSlotID", std::string{});
+	}
+	const UUID parsedSlot = FromString16Hex(slotText);
 	entry.scriptSlotID = parsedSlot ? parsedSlot : UUID::New();
 
 	entry.scriptAsset = ParseAssetID(in, "scriptAsset");

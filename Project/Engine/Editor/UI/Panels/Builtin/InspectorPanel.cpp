@@ -1135,7 +1135,7 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 
 	// オーバーライド一覧を開くボタン、件数も出す
 	const std::string buttonLabel = overrideCount > 0 ?
-		("Prefab Overrides (" + std::to_string(overrideCount) + ")###PrefabOverrideButton") :
+		("Prefab 上書きパラメータ (" + std::to_string(overrideCount) + ")###PrefabOverrideButton") :
 		std::string("Prefab : 差分なし###PrefabOverrideButton");
 	if (ImGui::Button(buttonLabel.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 		overrideChoices_.clear();
@@ -1147,8 +1147,7 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 		return;
 	}
 
-	ImGui::TextDisabled("Apply=プレファブへ反映  Revert=元に戻す  そのまま=このインスタンスのみ維持");
-	const bool applyClicked = ImGui::Button("適用");
+	const bool applyClicked = ImGui::Button("設定を適用");
 	ImGui::Separator();
 
 	// 各差分の選択ボタンを描画する、アクティブな選択を青で強調しデフォルトはそのまま
@@ -1158,17 +1157,17 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 		auto button = [&](const char* label, int value, bool enabled) {
 
 			const bool active = (choice == value);
-			if (active) { ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.55f, 0.95f, 1.0f)); }
+			if (active) { ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.1f, 0.95f, 1.0f)); }
 			if (!enabled) { ImGui::BeginDisabled(); }
 			if (ImGui::SmallButton((std::string(label) + "##" + key).c_str())) { choice = value; }
 			if (!enabled) { ImGui::EndDisabled(); }
 			if (active) { ImGui::PopStyleColor(); }
 			};
-		button("Apply", 1, allowApply);
+		button("プレファブへ反映", 1, allowApply);
 		ImGui::SameLine();
-		button("Revert", 2, true);
+		button("元に戻す", 2, true);
 		ImGui::SameLine();
-		button("そのまま", 0, true);
+		button("このインスタンスのみ維持", 0, true);
 		};
 
 	if (overrideCount == 0) {

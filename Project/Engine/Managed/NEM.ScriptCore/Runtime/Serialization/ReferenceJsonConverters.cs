@@ -118,7 +118,9 @@ public sealed class ScriptRefJsonConverter<T> : JsonConverter<ScriptRef<T>> wher
         if (root.TryGetProperty("entity", out JsonElement entityElement)) {
             entity = entityElement.Deserialize<EntityRef>(options);
         }
-        UUID slot = root.TryGetProperty("scriptSlotId", out JsonElement s) ? UUID.Parse(s.GetString()) : UUID.None;
+        UUID slot = root.TryGetProperty("scriptSlotId", out JsonElement s)
+            ? UUID.Parse(s.GetString())
+            : (root.TryGetProperty("scriptSlotID", out JsonElement oldSlot) ? UUID.Parse(oldSlot.GetString()) : UUID.None);
         string typeId = root.TryGetProperty("scriptTypeId", out JsonElement t) ? (t.GetString() ?? string.Empty) : string.Empty;
         return new ScriptRef<T>(entity, slot, typeId);
     }

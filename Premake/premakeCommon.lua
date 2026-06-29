@@ -31,7 +31,7 @@ function NEM_ApplyDefaultCppSettings()
     staticruntime "On"
     warnings "High"
     multiprocessorcompile "On"
-    buildoptions { "/utf-8" }
+    buildoptions { "/utf-8", "/FS" }
 
     -- VS2022を明示したいときだけ固定
     filter "action:vs2022"
