@@ -6,36 +6,38 @@ namespace NEMEngine;
 // Missing Script でも参照 identity を保持し、reload 後に再解決できる。
 public readonly struct ScriptRef<T> where T : ScriptBehaviour {
 
-    // 参照先 script を持つ Entity
-    public readonly EntityRef entity;
-    // owner Entity 内で script slot を一意に識別する ID（ScriptEntry.scriptSlotID）
-    public readonly UUID scriptSlotId;
-    // 期待する Stable Script Type GUID（128bit 文字列）。型制約 T の検証・候補絞り込みに使う
-    public readonly string scriptTypeId;
+	// 参照先 script を持つ Entity
+	public readonly EntityRef entity;
+	// owner Entity 内で script slot を一意に識別する ID（ScriptEntry.scriptSlotID）
+	public readonly UUID scriptSlotId;
+	// 期待する Stable Script Type GUID（128bit 文字列）。型制約 T の検証・候補絞り込みに使う
+	public readonly string scriptTypeId;
 
-    public ScriptRef(EntityRef entity, UUID scriptSlotId, string scriptTypeId) {
-        this.entity = entity;
-        this.scriptSlotId = scriptSlotId;
-        this.scriptTypeId = scriptTypeId ?? string.Empty;
-    }
+	public ScriptRef(EntityRef entity, UUID scriptSlotId, string scriptTypeId) {
+		this.entity = entity;
+		this.scriptSlotId = scriptSlotId;
+		this.scriptTypeId = scriptTypeId ?? string.Empty;
+	}
 
-    public bool isValid => entity.isValid && scriptSlotId.isValid;
+	public bool isValid => entity.isValid && scriptSlotId.isValid;
+	public bool IsValid => isValid;
+	public bool IsNull => !isValid;
 
-    public static ScriptRef<T> Null => new(EntityRef.Null, UUID.None, string.Empty);
+	public static ScriptRef<T> Null => new(EntityRef.Null, UUID.None, string.Empty);
 
-    // 参照先 Entity 上の script を取得する、entity.Resolve().GetComponent の短縮
-    public TScript? GetComponent<TScript>() where TScript : ScriptBehaviour {
-        Entity owner = entity.Resolve();
-        return owner.isAlive ? owner.GetComponent<TScript>() : null;
-    }
+	// 参照先 Entity 上の script を取得する、entity.Resolve().GetComponent の短縮
+	public TScript? GetComponent<TScript>() where TScript : ScriptBehaviour {
+		Entity owner = entity.Resolve();
+		return owner.isAlive ? owner.GetComponent<TScript>() : null;
+	}
 
-    // 参照先 Entity 上の script 取得を試みる
-    public bool TryGetComponent<TScript>(out TScript script) where TScript : ScriptBehaviour {
-        Entity owner = entity.Resolve();
-        if (owner.isAlive) {
-            return owner.TryGetComponent(out script);
-        }
-        script = null!;
-        return false;
-    }
+	// 参照先 Entity 上の script 取得を試みる
+	public bool TryGetComponent<TScript>(out TScript script) where TScript : ScriptBehaviour {
+		Entity owner = entity.Resolve();
+		if (owner.isAlive) {
+			return owner.TryGetComponent(out script);
+		}
+		script = null!;
+		return false;
+	}
 }

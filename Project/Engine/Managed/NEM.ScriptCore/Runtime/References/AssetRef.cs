@@ -39,8 +39,6 @@ public readonly struct AssetRef<TAsset> where TAsset : class, IAssetType {
     }
 
     public bool isValid => id.isValid;
-
-    // gameplay 向け PascalCase アクセサ。実体の存在確認は Assets.Exists<T>() で別途行う（hot path で path lookup しない）。
     public bool IsNull => !id.isValid;
     public bool IsValid => id.isValid;
     public UUID AssetId => id;
