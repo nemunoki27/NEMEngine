@@ -27,8 +27,6 @@ public sealed class NativeAssetTypeAttribute : Attribute {
 [NativeAssetType("Font")] public sealed class FontAsset : IAssetType { }
 [NativeAssetType("AnimationClip")] public sealed class AnimationClipAsset : IAssetType { }
 
-// typed asset 参照。runtime pointer や filesystem path ではなく asset UUID を保存する。
-// 参照先が見つからなくても UUID は保持し、Missing Asset でも値を破壊しない。
 public readonly struct AssetRef<TAsset> where TAsset : class, IAssetType {
 
     // 参照先 asset の UUID（64bit）。0 は未設定。
