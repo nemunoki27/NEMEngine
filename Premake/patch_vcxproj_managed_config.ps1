@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Mandatory = $true)]
     [string]$ProjectPath,
 
@@ -6,7 +6,13 @@ param(
     [string]$ScriptCoreProjectPath,
 
     [Parameter(Mandatory = $true)]
-    [string]$ScriptCoreManagedOutputPath
+    [string]$ScriptCoreManagedOutputPath,
+
+    # ProjectDirからリポジトリルートまでの相対プレフィックス(末尾の\は不要、区切りはこのスクリプトが付与する)。
+    # Sandbox(Project/Sandbox)は "..\.."、取り込みゲーム(Project/GameProjects/<name>/<name>)は "..\..\..\.."。
+    # 末尾に\を付けてバッチから "..\..\..\..\" のように渡すと、cmd→powershellの引数解析で末尾 \" が
+    # エスケープ扱いされ値が壊れる(末尾に引用符が混入する)ため、呼び出し側は末尾\を付けないこと。
+    [string]$RepoRootFromProject = "..\.."
 )
 
 Set-StrictMode -Version Latest
@@ -103,17 +109,26 @@ $preBuildCommand = @(
     'if exist "$(ProjectDir)Scripts\GameScripts.csproj" dotnet build "$(ProjectDir)Scripts\GameScripts.csproj" -c "$(Configuration)" --no-dependencies -p:NEMScriptMetadataMode=%NEMScriptMetadataMode%'
 ) -join "`r`n"
 
+# Generated/ と Project/Externals/ はリポジトリルート基準で参照する。プロジェクトの階層深さ
+# (Sandbox=Project/Sandbox, ゲーム=Project/GameProjects/<name>)で $(ProjectDir) からの距離が変わるため、
+# $RepoRootFromProject でリポジトリルートまで遡ってから絶対的な配置に解決する。
+# 末尾の\有無に依存しないよう正規化し、区切りはここで明示的に付与する
+$repoRoot = '$(ProjectDir)' + $RepoRootFromProject.TrimEnd('\')
+$generatedBinDll = $repoRoot + '\Generated\Bin\$(Configuration)\NEMEngine\NEMEngine.dll'
+$winPixDll = $repoRoot + '\Project\Externals\WinPixEventRuntime\bin\x64\WinPixEventRuntime.dll'
+$nethostDll = $repoRoot + '\Project\Externals\dotnet-hosting\bin\x64\nethost.dll'
+
 $postBuildCommand = @(
     # NEMEngine.dll を実行ファイル横へ配置する（in-repo は Generated/Bin から、利用側はimport lib参照のみ）
-    'if exist "$(ProjectDir)..\..\Generated\Bin\$(Configuration)\NEMEngine\NEMEngine.dll" copy /Y "$(ProjectDir)..\..\Generated\Bin\$(Configuration)\NEMEngine\NEMEngine.dll" "$(TargetDir)NEMEngine.dll"',
+    ('if exist "' + $generatedBinDll + '" copy /Y "' + $generatedBinDll + '" "$(TargetDir)NEMEngine.dll"'),
     'copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"',
     'copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dxil.dll"',
     ('if exist "' + $scriptCoreOutput + '\$(Configuration)\*" xcopy /Y /I "' + $scriptCoreOutput + '\$(Configuration)\*" "$(TargetDir)Managed\"'),
     'if exist "$(ProjectDir)Managed\$(Configuration)\*" xcopy /Y /I "$(ProjectDir)Managed\$(Configuration)\*" "$(TargetDir)Managed\"',
     # WinPixEventRuntime.dll は USE_PIX が有効な Debug のみ実行ファイル横へ配置する
-    'if "$(Configuration)"=="Debug" copy /Y "$(ProjectDir)..\Externals\WinPixEventRuntime\bin\x64\WinPixEventRuntime.dll" "$(TargetDir)WinPixEventRuntime.dll"',
+    ('if "$(Configuration)"=="Debug" copy /Y "' + $winPixDll + '" "$(TargetDir)WinPixEventRuntime.dll"'),
     # nethost.dll を実行ファイル横へ配置する。DotnetHostResolver が動的ロードして get_hostfxr_path を取得する（全構成）
-    'copy /Y "$(ProjectDir)..\Externals\dotnet-hosting\bin\x64\nethost.dll" "$(TargetDir)nethost.dll"'
+    ('copy /Y "' + $nethostDll + '" "$(TargetDir)nethost.dll"')
 ) -join "`r`n"
 
 $document = New-Object xml

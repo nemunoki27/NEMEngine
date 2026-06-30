@@ -113,6 +113,68 @@ if errorlevel 1 (
     popd
     exit /b 1
 )
+
+echo ===== Patch Imported Game Projects =====
+rem Tools/Import で取り込んだ Project/GameProjects/* を、Sandboxと同様に
+rem slnx登録 / managed設定 / デバッガ設定 / nativeデバッグ設定までパッチする。
+rem ゲームはProject/GameProjects 配下と1階層深いので、相対パスや作業ディレクトリを補正して渡す。
+if exist "%ENGINE_ROOT%\Project\GameProjects" (
+    for /d %%G in ("%ENGINE_ROOT%\Project\GameProjects\*") do (
+        if exist "%%G\%%~nxG\GameAssets" (
+            call :PatchGameProject "%%G"
+            if errorlevel 1 (
+                popd
+                exit /b 1
+            )
+        )
+    )
+)
+
 popd
+endlocal
+exit /b 0
+
+rem ============================================================================
+rem  取り込みゲーム1件分のVSプロジェクトをパッチする
+rem  %1 = ゲームプロジェクトのコンテナフォルダ (Project/GameProjects 配下)
+rem ============================================================================
+:PatchGameProject
+setlocal
+rem %1 = コンテナ(Project/GameProjects 配下)。アプリ本体はその中の同名フォルダ。
+set "GP_CONTAINER=%~1"
+set "GP_NAME=%~nx1"
+set "GP_APP=%GP_CONTAINER%\%GP_NAME%"
+echo --- Game project: %GP_NAME% ---
+
+rem ゲームのGameScripts.csprojはslnxへ登録しない。
+rem エンジンはcsproj名/アセンブリ名を"GameScripts"固定で要求するためリネームできず、
+rem Sandboxと同名「GameScripts」プロジェクトが2つ並ぶとVSがslnxを読み込めなくなる。
+rem ゲームのC#はvcxprojのprebuild(patch_vcxproj_managed_config)でビルドされるので実行・デバッグは可能。
+
+rem 作業ディレクトリはアプリの1つ上(コンテナ)。コンテナ直下でGameAssetsを持つのはappだけなので、
+rem RuntimePaths がSandboxへフォールバックせず確実にこのゲームを拾う。エンジンのProjectルートは環境変数で示す。
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_vcxproj_user_debugger.ps1" -ProjectUserPath "%GP_APP%\%GP_NAME%.vcxproj.user" -WorkingDirectory ".." -EnvironmentVariables "NEMENGINE_ROOT=%ENGINE_ROOT%\Project"
+if errorlevel 1 (
+    echo [ERROR] Failed to patch debugger settings: %GP_NAME%
+    endlocal
+    exit /b 1
+)
+
+rem アプリは Project/GameProjects 配下で2段ネスト(コンテナ/アプリ)と4階層深いので、リポジトリルートまでは ..\..\..\.. 。
+rem 末尾に\を付けるとcmd→powershellの引数解析で末尾 \" がエスケープ扱いされ値が壊れるため、末尾\無しで渡す。
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_vcxproj_managed_config.ps1" -ProjectPath "%GP_APP%\%GP_NAME%.vcxproj" -ScriptCoreProjectPath "%ENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" -ScriptCoreManagedOutputPath "%ENGINE_ROOT%\Generated\Managed\NEM.ScriptCore" -RepoRootFromProject "..\..\..\.."
+if errorlevel 1 (
+    echo [ERROR] Failed to patch managed build/copy settings: %GP_NAME%
+    endlocal
+    exit /b 1
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_native_debug_settings.ps1" -ProjectPaths "%GP_APP%\%GP_NAME%.vcxproj"
+if errorlevel 1 (
+    echo [ERROR] Failed to patch native debug settings: %GP_NAME%
+    endlocal
+    exit /b 1
+)
+
 endlocal
 exit /b 0

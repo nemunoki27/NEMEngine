@@ -1,3 +1,6 @@
+# Imported game projects (Tools/Import で取り込む外部ゲーム、ローカル専用でGitには上げない)
+Project/GameProjects/
+
 # Visual Studio / Premake generated
 .vs/
 Generated/

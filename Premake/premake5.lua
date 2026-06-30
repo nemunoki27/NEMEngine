@@ -18,3 +18,6 @@ group ""
 
 include "premakeNemengine.lua"
 include "sandbox.lua"
+
+-- Project/GameProjects/* に取り込んだ外部ゲームを自動でプロジェクト化する
+include "gameProjects.lua"
