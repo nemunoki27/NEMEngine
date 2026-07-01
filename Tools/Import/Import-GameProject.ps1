@@ -150,20 +150,23 @@ function Write-UpdateBatch {
     )
 
     $batPath = Join-Path $DestinationDir ("Update" + $Name + "Project.bat")
+    # 注意: @(...) 配列リテラル内で '文字列' + $変数 + '文字列' と連結すると、
+    # + $変数 が単項プラス扱いされ別々の配列要素に分割される(1行のはずが複数要素になりバッチが壊れる)。
+    # 変数を含む行は必ず文字列補間("... $Name ...")で1要素の文字列として組み立てること。
     $lines = @(
         '@echo off',
         'setlocal',
-        'rem ' + $Name + ' を最新のGit状態へ更新する。',
+        "rem $Name を最新のGit状態へ更新する。",
         'rem ソース/アセット/設定のみ上書きし、Config/Log/Managed はローカル保持する。',
         'rem このファイルは Tools/Import/Import-GameProject.ps1 が自動生成している。',
-        'powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0..\..\..\Tools\Import\Import-GameProject.ps1" -GitUrl "' + $Url + '" -ProjectName "' + $Name + '" -Update',
+        "powershell -NoProfile -ExecutionPolicy Bypass -File `"%~dp0..\..\..\Tools\Import\Import-GameProject.ps1`" -GitUrl `"$Url`" -ProjectName `"$Name`" -Update",
         'set "RC=%ERRORLEVEL%"',
         'if not "%RC%"=="0" (',
-        '    echo [ERROR] ' + $Name + ' の更新に失敗しました。',
+        "    echo [ERROR] $Name の更新に失敗しました。",
         '    pause',
         '    exit /b %RC%',
         ')',
-        'echo [OK] ' + $Name + ' を更新しました。',
+        "echo [OK] $Name を更新しました。",
         'endlocal'
     )
     # cmd(日本語コンソール=cp932)で文字化けせず実行できるよう Shift-JIS(cp932)/CRLF で書き出す

@@ -708,8 +708,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	HandlePlayPauseRequests();
 	// エディタから要求されたシーン操作
 	HandleEditorSceneRequests();
-	// Play/Stopでワールド状態が変わった後のモードを、このフレームのECS処理へ反映する
-	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
+	// Play/Stopやシーン操作後のActive Worldを、このフレームの各Contextへ反映する
+	RefreshActiveWorldContext();
 	{
 		// Play開始直後の最初の1フレームは進めず、貫通の原因になる大きなdeltaを捨てる
 		const bool skipFirstAdvance = playWorldJustStarted_;
@@ -721,58 +721,10 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		systemContext_.unscaledDeltaTime = rawDelta;
 	}
 
-	ECSWorld* world = GetActiveWorld();
-	const SceneHeader* header = GetActiveSceneHeader();
-	SceneInstanceManager& activeScenes = GetActiveScenes();
-	const SceneInstance* activeSceneInstance = activeScenes.GetActive();
-
-	//Entity生成等で参照するアクティブワールドをシステムに設定
-	systemContext_.world = world;
-	// 非所有ポインタでworld切替やEdit/Play切替に追従して毎フレーム更新する
-	if (world) {
-
-		WorldCommandServices services{};
-		services.assetDatabase = &assetDataBase_;
-		services.sceneInstances = &activeScenes;
-		services.sceneSystem = &sceneSystem_;
-		world->SetCommandServices(services);
-	}
-
-	// シーンごとの衝突設定を、Editor/Play共通の現在設定へ反映する
-	systemContext_.activeSceneHeader = header;
-	if (header) {
-		CollisionSettings::GetInstance().SetActiveSettingsAsset(header->collisionSettings, systemContext_.assetDatabase);
-	} else {
-		CollisionSettings::GetInstance().SetActiveSettingsAsset({}, systemContext_.assetDatabase);
-	}
+	ECSWorld* world = systemContext_.world;
+	const SceneHeader* header = systemContext_.activeSceneHeader;
 
 	if constexpr (BuildConfig::kEditorEnabled) {
-
-		// エディタUIとツールが参照する現在の状態をまとめる
-		editorContext_.isPlaying = worldManager_.IsPlaying();
-		editorContext_.isPlayPaused = playPaused_;
-		editorContext_.activeScenePath = activeScenePath_;
-		editorContext_.activeSceneDirty = editorManager_.IsActiveSceneDirty();
-		editorContext_.activeSceneHeader = header;
-		editorContext_.activeSceneAsset = activeSceneInstance ? activeSceneInstance->sceneAsset : activeScene_;
-		editorContext_.activeSceneInstanceID = activeSceneInstance ? activeSceneInstance->instanceID : UUID{};
-		editorContext_.sceneInstances = &activeScenes;
-		editorContext_.activeWorld = world;
-		editorContext_.editWorld = &worldManager_.GetEditWorld();
-		editorContext_.assetDatabase = &assetDataBase_;
-		editorContext_.scriptBuildService = &scriptBuildService_;
-
-		// プレファブ編集中はヒエラルキー等が隔離ワールドを指す、ネスト末尾を現在の編集対象とする
-		editorContext_.isPrefabEditing = IsPrefabEditing();
-		editorContext_.prefabEditDepth = static_cast<int>(prefabStages_.size());
-		editorContext_.prefabEditName = prefabStages_.empty() ? std::string{} : prefabStages_.back().name;
-		// In-Context編集の状態、ヒエラルキー絞り込みとSceneViewトグルのアクティブ表示に使う
-		editorContext_.isPrefabInContext = !prefabStages_.empty() && prefabStages_.back().inContext;
-		editorContext_.prefabInContextInstanceID =
-			editorContext_.isPrefabInContext ? prefabStages_.back().instanceID : UUID{};
-		// 隔離編集のときだけ、隠すべき環境エンティティ(カメラ/平行光源)の一覧をヒエラルキーへ渡す
-		editorContext_.prefabEnvironmentEntities =
-			(!prefabStages_.empty() && !prefabStages_.back().inContext) ? &prefabStages_.back().environmentEntities : nullptr;
 
 		// パネルをすべて非表示にする
 		bool hidePanels = editorManager_.GetLayoutState().hidePanels;
@@ -812,6 +764,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 			Logger::Output(LogType::Engine, spdlog::level::err,
 				"EngineApplication: script exception during Play. Returning to Edit mode.");
 			StopPlayWorld();
+			world = systemContext_.world;
+			header = systemContext_.activeSceneHeader;
 		}
 	}
 	if (playFrameStepRequested_) {
@@ -828,7 +782,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 			toolContext.world = world;
 			toolContext.assetDatabase = &assetDataBase_;
 			toolContext.systemContext = &systemContext_;
-			toolContext.sceneInstances = &activeScenes;
+			toolContext.sceneInstances = editorContext_.sceneInstances;
 			toolContext.activeSceneHeader = header;
 			toolContext.activeSceneAsset = editorContext_.activeSceneAsset;
 			toolContext.activeSceneInstanceID = editorContext_.activeSceneInstanceID;
@@ -949,6 +903,59 @@ void Engine::EngineApplication::StopPlayWorld() {
 	playScenes_ = SceneInstanceManager{};
 	playPaused_ = false;
 	playFrameStepRequested_ = false;
+	RefreshActiveWorldContext();
+}
+
+void Engine::EngineApplication::RefreshActiveWorldContext() {
+
+	ECSWorld* world = GetActiveWorld();
+	const SceneHeader* header = GetActiveSceneHeader();
+	SceneInstanceManager& activeScenes = GetActiveScenes();
+	const SceneInstance* activeSceneInstance = activeScenes.GetActive();
+
+	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
+	systemContext_.world = world;
+
+	if (world) {
+
+		WorldCommandServices services{};
+		services.assetDatabase = &assetDataBase_;
+		services.sceneInstances = &activeScenes;
+		services.sceneSystem = &sceneSystem_;
+		world->SetCommandServices(services);
+	}
+
+	systemContext_.activeSceneHeader = header;
+	if (header) {
+		CollisionSettings::GetInstance().SetActiveSettingsAsset(header->collisionSettings, systemContext_.assetDatabase);
+	} else {
+		CollisionSettings::GetInstance().SetActiveSettingsAsset({}, systemContext_.assetDatabase);
+	}
+
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		editorContext_.isPlaying = worldManager_.IsPlaying();
+		editorContext_.isPlayPaused = playPaused_;
+		editorContext_.activeScenePath = activeScenePath_;
+		editorContext_.activeSceneDirty = editorManager_.IsActiveSceneDirty();
+		editorContext_.activeSceneHeader = header;
+		editorContext_.activeSceneAsset = activeSceneInstance ? activeSceneInstance->sceneAsset : activeScene_;
+		editorContext_.activeSceneInstanceID = activeSceneInstance ? activeSceneInstance->instanceID : UUID{};
+		editorContext_.sceneInstances = &activeScenes;
+		editorContext_.activeWorld = world;
+		editorContext_.editWorld = &worldManager_.GetEditWorld();
+		editorContext_.assetDatabase = &assetDataBase_;
+		editorContext_.scriptBuildService = &scriptBuildService_;
+
+		editorContext_.isPrefabEditing = IsPrefabEditing();
+		editorContext_.prefabEditDepth = static_cast<int>(prefabStages_.size());
+		editorContext_.prefabEditName = prefabStages_.empty() ? std::string{} : prefabStages_.back().name;
+		editorContext_.isPrefabInContext = !prefabStages_.empty() && prefabStages_.back().inContext;
+		editorContext_.prefabInContextInstanceID =
+			editorContext_.isPrefabInContext ? prefabStages_.back().instanceID : UUID{};
+		editorContext_.prefabEnvironmentEntities =
+			(!prefabStages_.empty() && !prefabStages_.back().inContext) ? &prefabStages_.back().environmentEntities : nullptr;
+	}
 }
 
 void Engine::EngineApplication::ProcessPendingPlayStart() {
