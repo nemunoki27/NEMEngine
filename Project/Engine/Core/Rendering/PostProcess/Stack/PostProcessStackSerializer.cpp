@@ -161,13 +161,13 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 	return settings;
 }
 
-nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStackSettings& settings) {
+nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStackSettings& stackSettings) {
 
 	nlohmann::json data = nlohmann::json::object();
-	data["version"] = settings.version;
+	data["version"] = stackSettings.version;
 
 	data["passes"] = nlohmann::json::array();
-	for (const auto& pass : settings.passes) {
+	for (const auto& pass : stackSettings.passes) {
 
 		nlohmann::json passJson = nlohmann::json::object();
 		passJson["id"] = ToString(pass.id);

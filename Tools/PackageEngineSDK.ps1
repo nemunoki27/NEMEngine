@@ -30,8 +30,14 @@ if (-not $SkipBuild) {
     if ($LASTEXITCODE -ne 0) { throw "generate_vs2026.bat に失敗しました。" }
     foreach ($cfg in $Configurations) {
         Write-Host "[2/4] エンジンをビルド中（$cfg）... 数分かかる場合があります"
-        # 外部ライブラリの構成対応(configmapでDevelop->Release等)はソリューション側にあるため、.slnxをビルドする
-        & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") -p:Configuration=$cfg -p:Platform=x64 -m -v:m -nologo
+        # 外部ライブラリの構成対応(configmapでDevelop->Release等)はソリューション側にあるため、.slnx経由でビルドする。
+        # ただしターゲットはSandboxのみに限定する。理由:
+        #   - SDKにゲームプロジェクト(Project/GameProjects/*)は不要（SDKはエンジンDLL+公開ヘッダ+管理ツールチェーンのみ）。
+        #   - 取り込んだゲームappとSandboxは同じC#管理ツールチェーン(NEM.ScriptCore/CodeGen/Analyzers/MetaSync)を
+        #     プリビルドで同一出力先へビルドするため、-mの並列ビルドで同時実行されるとファイルロック競合で失敗する。
+        # Sandboxを介してエンジン(NEMEngine)・外部ライブラリ・管理ツールチェーンまで一式ビルドされ、
+        # GameProjectsはSandboxの依存に含まれないため巻き込まれない。
+        & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") -t:Sandbox -p:Configuration=$cfg -p:Platform=x64 -m -v:m -nologo
         if ($LASTEXITCODE -ne 0) { throw "エンジンビルドに失敗しました（$cfg）。" }
     }
 }
