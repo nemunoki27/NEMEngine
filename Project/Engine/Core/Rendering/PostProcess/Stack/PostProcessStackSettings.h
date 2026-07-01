@@ -38,6 +38,8 @@ namespace Engine {
 		std::unordered_map<std::string, AssetID> textureGuids;
 		// SRVバインド名から中間RT名(GBuffer/深度など)への割り当て、.pngより優先される
 		std::unordered_map<std::string, std::string> renderTargetInputs;
+		// SamplerState名から静的サンプラー設定へのScene毎overrideマップ
+		std::unordered_map<std::string, PipelineStaticSamplerSettings> samplerOverrides;
 	};
 
 	// シーンごとのPostProcessStackの設定データ

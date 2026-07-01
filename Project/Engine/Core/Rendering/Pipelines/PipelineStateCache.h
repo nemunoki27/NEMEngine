@@ -35,6 +35,8 @@ namespace Engine {
 		bool dispatchRaysEnabled = false;
 		// 深度テスト+書き込みを強制した派生PSOか、3Dテキストなど次元で深度挙動を変える用途で別エントリにする
 		bool depthForcedTestWrite = false;
+		// 静的サンプラー上書きのハッシュ値
+		uint64_t samplerHash = 0;
 
 		// 比較演算子
 		bool operator==(const PipelineCacheKey& rhs) const noexcept;
@@ -62,7 +64,8 @@ namespace Engine {
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, PipelineVariantKind desiredKind,
 			std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
 			const GraphicsRuntimeFeatures& runtimeFeatures,
-			const PipelineVariantDesc** outVariant = nullptr, bool forceDepthTestWrite = false);
+			const PipelineVariantDesc** outVariant = nullptr, bool forceDepthTestWrite = false,
+			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr);
 
 		// データクリア
 		void Clear();
@@ -89,6 +92,7 @@ namespace Engine {
 				h ^= (std::hash<bool>{}(key.inlineRayTracingEnabled) << 4);
 				h ^= (std::hash<bool>{}(key.dispatchRaysEnabled) << 5);
 				h ^= (std::hash<bool>{}(key.depthForcedTestWrite) << 6);
+				h ^= (std::hash<uint64_t>{}(key.samplerHash) << 7);
 				return h;
 			}
 		};
@@ -103,6 +107,8 @@ namespace Engine {
 
 		// フォーマットのハッシュ値を計算する
 		uint64_t HashFormats(std::span<const DXGI_FORMAT> rtvFormats, DXGI_FORMAT dsvFormat);
+		// 静的サンプラー上書きのハッシュ値を計算する
+		uint64_t HashStaticSamplerOverrides(const PipelineStaticSamplerOverrideSet* samplerOverrides);
 	};
 } // Engine
 

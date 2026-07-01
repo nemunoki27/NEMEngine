@@ -13,12 +13,13 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 
 // c++
+#include <algorithm>
+#include <atomic>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <system_error>
 #include <unordered_map>
-#include <atomic>
 
 //============================================================================
 //	PipelineState classMethods
@@ -197,6 +198,84 @@ namespace {
 			result.emplace_back(&shader);
 		}
 		return result;
+	}
+
+	bool IsSameStaticSamplerSlot(const D3D12_STATIC_SAMPLER_DESC& sampler, UINT shaderRegister, UINT registerSpace) {
+
+		return sampler.ShaderRegister == shaderRegister && sampler.RegisterSpace == registerSpace;
+	}
+
+	D3D12_STATIC_SAMPLER_DESC MakeStaticSamplerDesc(
+		const PipelineStaticSamplerSettings& settings, UINT shaderRegister, UINT registerSpace) {
+
+		D3D12_STATIC_SAMPLER_DESC sampler{};
+		sampler.Filter = settings.filter;
+		sampler.AddressU = settings.addressU;
+		sampler.AddressV = settings.addressV;
+		sampler.AddressW = settings.addressW;
+		sampler.MipLODBias = settings.mipLODBias;
+		sampler.MaxAnisotropy = (std::clamp)(settings.maxAnisotropy, 1u, 16u);
+		sampler.ComparisonFunc = settings.comparisonFunc;
+		sampler.BorderColor = settings.borderColor;
+		sampler.MinLOD = settings.minLOD;
+		sampler.MaxLOD = settings.maxLOD;
+		sampler.ShaderRegister = shaderRegister;
+		sampler.RegisterSpace = registerSpace;
+		sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		return sampler;
+	}
+
+	void ReplaceStaticSampler(std::vector<D3D12_STATIC_SAMPLER_DESC>& staticSamplers,
+		const D3D12_STATIC_SAMPLER_DESC& sampler) {
+
+		auto found = std::find_if(staticSamplers.begin(), staticSamplers.end(), [&](const D3D12_STATIC_SAMPLER_DESC& existing) {
+			return IsSameStaticSamplerSlot(existing, sampler.ShaderRegister, sampler.RegisterSpace);
+			});
+		if (found != staticSamplers.end()) {
+			*found = sampler;
+			return;
+		}
+		staticSamplers.emplace_back(sampler);
+	}
+
+	bool HasStaticSamplerSlot(const std::vector<D3D12_STATIC_SAMPLER_DESC>& staticSamplers,
+		UINT shaderRegister, UINT registerSpace) {
+
+		return std::any_of(staticSamplers.begin(), staticSamplers.end(), [&](const D3D12_STATIC_SAMPLER_DESC& sampler) {
+			return IsSameStaticSamplerSlot(sampler, shaderRegister, registerSpace);
+			});
+	}
+
+	std::vector<D3D12_STATIC_SAMPLER_DESC> BuildComputeStaticSamplers(
+		const ShaderReflectionInfo& reflection, const std::vector<D3D12_STATIC_SAMPLER_DESC>& baseSamplers,
+		const PipelineStaticSamplerOverrideSet& overrides) {
+
+		std::vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers = baseSamplers;
+		for (const ShaderResourceBinding& binding : reflection.resources) {
+
+			if (binding.kind != ShaderBindingKind::Sampler) {
+				continue;
+			}
+
+			const auto overrideIt = overrides.byName.find(binding.name);
+			const bool hasOverride = overrideIt != overrides.byName.end();
+			if (!hasOverride && !overrides.fillMissingSamplers) {
+				continue;
+			}
+
+			const PipelineStaticSamplerSettings settings =
+				hasOverride ? overrideIt->second : PipelineStaticSamplerSettings{};
+			const UINT count = (std::max)(1u, binding.bindCount);
+			for (UINT i = 0; i < count; ++i) {
+
+				const UINT shaderRegister = binding.bindPoint + i;
+				if (!hasOverride && HasStaticSamplerSlot(staticSamplers, shaderRegister, binding.space)) {
+					continue;
+				}
+				ReplaceStaticSampler(staticSamplers, MakeStaticSamplerDesc(settings, shaderRegister, binding.space));
+			}
+		}
+		return staticSamplers;
 	}
 }
 
@@ -412,7 +491,9 @@ bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompile
 
 	// ルートシグネイチャの自動生成
 	AutoRootSignatureBuilder builder;
-	auto rootSignatureResult = builder.Build(device, PipelineType::Compute, { &shader }, desc.staticSamplers);
+	const std::vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers =
+		BuildComputeStaticSamplers(shader.reflection, desc.staticSamplers, desc.staticSamplerOverrides);
+	auto rootSignatureResult = builder.Build(device, PipelineType::Compute, { &shader }, staticSamplers);
 	// 結果を設定
 	rootSignature_ = rootSignatureResult.rootSignature;
 	bindings_ = std::move(rootSignatureResult.bindings);

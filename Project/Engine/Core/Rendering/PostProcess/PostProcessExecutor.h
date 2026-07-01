@@ -57,6 +57,7 @@ namespace Engine {
 		std::unordered_map<std::string, std::string> extraSources;
 		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides;
 		std::unordered_map<std::string, AssetID> textureOverrides;
+		std::unordered_map<std::string, PipelineStaticSamplerSettings> samplerOverrides;
 		ComputeDispatchMode dispatchMode = ComputeDispatchMode::FromDestSize;
 		uint32_t groupCountX = 1;
 		uint32_t groupCountY = 1;
@@ -90,7 +91,8 @@ namespace Engine {
 		bool TryGetReflection(GraphicsCore& graphicsCore, RenderAssetLibrary& assetLibrary,
 			PipelineStateCache& pipelineCache, AssetID materialID, MaterialPassKind passKind,
 			std::vector<ShaderConstantBufferVariable>& outVars,
-			std::vector<ShaderResourceBinding>& outSRVs);
+			std::vector<ShaderResourceBinding>& outSRVs,
+			std::vector<ShaderResourceBinding>& outSamplers);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -103,6 +105,8 @@ namespace Engine {
 		const MaterialParameterLayout* GetLastExecutedLayout() const { return lastExecutedLayout_; }
 		// 最後に実行されたSRVバインディングを取得する
 		const std::vector<ShaderResourceBinding>& GetLastExecutedSRVBindings() const { return lastExecutedSRVBindings_; }
+		// 最後に実行されたSamplerバインディングを取得する
+		const std::vector<ShaderResourceBinding>& GetLastExecutedSamplerBindings() const { return lastExecutedSamplerBindings_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -128,6 +132,6 @@ namespace Engine {
 		AssetID lastExecutedMaterial_{};
 		const MaterialParameterLayout* lastExecutedLayout_ = nullptr;
 		std::vector<ShaderResourceBinding> lastExecutedSRVBindings_{};
+		std::vector<ShaderResourceBinding> lastExecutedSamplerBindings_{};
 	};
 } // Engine
-

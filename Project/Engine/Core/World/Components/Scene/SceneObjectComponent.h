@@ -27,7 +27,7 @@ namespace Engine {
 		// 自分自身のアクティブ状態
 		bool activeSelf = true;
 
-		// ゲームプレイ用のタグ、固定リストから選ぶ。CompareTagやFindWithTagで使う
+		// ゲームプレイ用のタグ、固定リストから選ぶ
 		std::string tag = "Untagged";
 
 		// ランタイム使用用

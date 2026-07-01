@@ -96,8 +96,12 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	}
 
 	// パイプラインを取得
+	PipelineStaticSamplerOverrideSet samplerOverrides{};
+	samplerOverrides.fillMissingSamplers = true;
+	samplerOverrides.byName = desc.samplerOverrides;
 	const PipelineState* pipelineState = pipelineCache.GetORCreate(graphicsCore.GetDXObject(),
-		assetLibrary, passBinding->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN);
+		assetLibrary, passBinding->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
+		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures(), nullptr, false, &samplerOverrides);
 	if (!pipelineState || !pipelineState->GetComputePipeline()) {
 		Logger::Output(LogType::Engine, logHeader + "pipeline is missing or compile failed.");
 		return false;
@@ -207,11 +211,15 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	lastExecutedMaterial_ = desc.material;
 	lastExecutedLayout_ = parameterLayout.IsValid() ? &parameterLayout : nullptr;
 	lastExecutedSRVBindings_.clear();
+	lastExecutedSamplerBindings_.clear();
 	for (const auto& binding : reflection.resources) {
 		if (binding.kind == ShaderBindingKind::SRV &&
 			binding.name != kSourceColorName &&
 			binding.name != kSourceDepthName) {
 			lastExecutedSRVBindings_.push_back(binding);
+		}
+		if (binding.kind == ShaderBindingKind::Sampler) {
+			lastExecutedSamplerBindings_.push_back(binding);
 		}
 	}
 	// 追加されたバインドデータをバインディング
@@ -249,7 +257,8 @@ bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 	RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache,
 	AssetID materialID, MaterialPassKind passKind,
 	std::vector<ShaderConstantBufferVariable>& outVars,
-	std::vector<ShaderResourceBinding>& outSRVs) {
+	std::vector<ShaderResourceBinding>& outSRVs,
+	std::vector<ShaderResourceBinding>& outSamplers) {
 
 	const MaterialAsset* materialAsset = assetLibrary.LoadMaterial(materialID);
 	if (!materialAsset) {
@@ -261,8 +270,11 @@ bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 		return false;
 	}
 
+	PipelineStaticSamplerOverrideSet samplerOverrides{};
+	samplerOverrides.fillMissingSamplers = true;
 	const PipelineState* pipelineState = pipelineCache.GetORCreate(graphicsCore.GetDXObject(),
-		assetLibrary, passBinding->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN);
+		assetLibrary, passBinding->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
+		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures(), nullptr, false, &samplerOverrides);
 	if (!pipelineState || !pipelineState->GetComputePipeline()) {
 		return false;
 	}
@@ -282,11 +294,15 @@ bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 
 	// gSourceColor / gSourceDepthを除くユーザー向けSRVを収集する
 	outSRVs.clear();
+	outSamplers.clear();
 	for (const auto& binding : reflection.resources) {
 		if (binding.kind == ShaderBindingKind::SRV &&
 			binding.name != kSourceColorName &&
 			binding.name != kSourceDepthName) {
 			outSRVs.push_back(binding);
+		}
+		if (binding.kind == ShaderBindingKind::Sampler) {
+			outSamplers.push_back(binding);
 		}
 	}
 

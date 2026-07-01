@@ -30,6 +30,7 @@ namespace Engine {
 		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides;
 		std::unordered_map<std::string, AssetID> textureGuids;
 		std::unordered_map<std::string, std::string> renderTargetInputs;
+		std::unordered_map<std::string, PipelineStaticSamplerSettings> samplerOverrides;
 	};
 
 	// ランタイム実行用のPostProcessStack全体データ

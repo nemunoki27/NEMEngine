@@ -157,8 +157,7 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 		nlohmann::json components = nlohmann::json::object();
 		world.SerializeEntityComponents(entity, components);
 		if (components.contains("SceneObject") && components["SceneObject"].is_object()) {
-			components["SceneObject"]["localFileId"] =
-				(prefabLocalFileID ? ToString(prefabLocalFileID) : ToString(sceneObject.localFileID));
+			components["SceneObject"]["localFileId"] = (prefabLocalFileID ? ToString(prefabLocalFileID) : ToString(sceneObject.localFileID));
 		}
 		PrefabReferenceRemapper::RemapComponents(components, sceneToPrefabLocal, PrefabReferenceRemapper::ReferenceSpace::Prefab, prefabAsset);
 
@@ -245,6 +244,12 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 			newSceneLocalFileID = remapIt->second;
 		} else {
 			newSceneLocalFileID = AllocateUniqueLocalFileID(world);
+		}
+		if (entityJson.contains("Components") && entityJson["Components"].is_object()) {
+			const auto& components = entityJson["Components"];
+			if (components.contains("SceneObject") && components["SceneObject"].is_object()) {
+				world.AddComponentFromJson(entity, "SceneObject", components["SceneObject"]);
+			}
 		}
 		// シーンオブジェクト初期化
 		{

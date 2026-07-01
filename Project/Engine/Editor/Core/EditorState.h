@@ -158,7 +158,6 @@ namespace Engine {
 		// ピッキング機能のオン/オフ
 		bool enableScenePick = true;
 		// SceneView/GameViewのImageが最前面でホバーされているか、ViewportPanelが毎フレーム更新する
-		// 他のImGuiウィンドウやポップアップが上にある時はfalseになり、ピッキングを抑止する
 		bool sceneViewportHovered = false;
 		bool gameViewportHovered = false;
 		// SceneViewのデフォルトグリッド表示

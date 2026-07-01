@@ -60,6 +60,30 @@ namespace {
 		return EndsWith(path, ".CS.hlsl");
 	}
 
+	std::string MakeSamplerLabel(const Engine::ShaderResourceBinding& sampler) {
+
+		std::string label = sampler.name.empty() ? std::string("Sampler") : sampler.name;
+		label += " : s" + std::to_string(sampler.bindPoint);
+		if (sampler.space != 0) {
+			label += " space" + std::to_string(sampler.space);
+		}
+		return label;
+	}
+
+	bool DrawSamplerSettings(Engine::PipelineStaticSamplerSettings& settings) {
+
+		bool changed = false;
+
+		changed |= Engine::MyGUI::EnumCombo("フィルタ", settings.filter).valueChanged;
+		changed |= Engine::MyGUI::EnumCombo("Address U", settings.addressU).valueChanged;
+		changed |= Engine::MyGUI::EnumCombo("Address V", settings.addressV).valueChanged;
+		changed |= Engine::MyGUI::EnumCombo("Address W", settings.addressW).valueChanged;
+		changed |= Engine::MyGUI::EnumCombo("境界色", settings.borderColor).valueChanged;
+		changed |= Engine::MyGUI::EnumCombo("比較", settings.comparisonFunc).valueChanged;
+
+		return changed;
+	}
+
 	Engine::SceneHeader* ResolveActiveSceneHeader(const Engine::ToolContext& context) {
 
 		// 通常はSceneInstanceManagerから実体のSceneHeaderを取得する
@@ -327,8 +351,8 @@ void Engine::PostProcessStackTool::DrawPassList() {
 void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& context) {
 
 	PostProcessStackService& service = PostProcessStackService::GetInstance();
-	PostProcessStackSettings& settings = service.GetSettings();
-	auto& passes = settings.passes;
+	PostProcessStackSettings& stackSettings = service.GetSettings();
+	auto& passes = stackSettings.passes;
 
 	if (selectedPassIndex_ < 0 || selectedPassIndex_ >= static_cast<int32_t>(passes.size())) {
 		ImGui::TextDisabled("編集するパスを選択してください");
@@ -352,14 +376,8 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 		service.MarkDirty();
 	}
 
-	// パスシェーダーパス種別
-	if (MyGUI::EnumCombo("パス種別", pass.passKind).editFinished) {
-		service.MarkDirty();
-		service.RebuildRuntime();
-	}
-
 	// このパスを差し込む固定パス上の位置
-	if (MyGUI::EnumCombo("アンカー", pass.anchor).editFinished) {
+	if (MyGUI::EnumCombo("実行パス位置", pass.anchor).editFinished) {
 		service.MarkDirty();
 		service.RebuildRuntime();
 	}
@@ -480,6 +498,55 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 		}
 
 		if (anySRVChanged) {
+			service.MarkDirty();
+			service.RebuildRuntime();
+		}
+	}
+
+	// SamplerStateオーバーライドUI
+	const std::vector<ShaderResourceBinding>* samplers = service.FindReflectionSamplers(pass.materialGuid);
+	if (samplers && !samplers->empty()) {
+
+		ImGui::TextUnformatted("サンプラー");
+		ImGui::Separator();
+
+		bool anySamplerChanged = false;
+		for (const auto& sampler : *samplers) {
+
+			if (sampler.name.empty()) {
+				ImGui::PushID(static_cast<int32_t>(sampler.bindPoint));
+			} else {
+				ImGui::PushID(sampler.name.c_str());
+			}
+
+			const std::string label = MakeSamplerLabel(sampler);
+			if (MyGUI::CollapsingHeader(label.c_str(), true)) {
+
+				auto it = sampler.name.empty() ? pass.samplerOverrides.end() : pass.samplerOverrides.find(sampler.name);
+				PipelineStaticSamplerSettings settings =
+					(it != pass.samplerOverrides.end()) ? it->second : PipelineStaticSamplerSettings{};
+
+				ImGui::BeginDisabled(sampler.name.empty());
+				if (ImGui::SmallButton("デフォルトへ戻す")) {
+					if (it != pass.samplerOverrides.end()) {
+						pass.samplerOverrides.erase(it);
+						anySamplerChanged = true;
+					}
+				}
+				ImGui::EndDisabled();
+
+				if (sampler.name.empty()) {
+					ImGui::TextDisabled("SamplerStateに名前を付けてください");
+				} else if (DrawSamplerSettings(settings)) {
+					pass.samplerOverrides[sampler.name] = settings;
+					anySamplerChanged = true;
+				}
+			}
+
+			ImGui::PopID();
+		}
+
+		if (anySamplerChanged) {
 			service.MarkDirty();
 			service.RebuildRuntime();
 		}

@@ -222,9 +222,10 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		}
 		std::vector<ShaderConstantBufferVariable> vars;
 		std::vector<ShaderResourceBinding> srvs;
+		std::vector<ShaderResourceBinding> samplers;
 		if (deps_.postProcessExecutor->TryGetReflection(graphicsCore, *deps_.assetLibrary,
-			*deps_.pipelineCache, passPtr->material, passPtr->passKind, vars, srvs)) {
-			service.CacheReflection(passPtr->material, vars, srvs);
+			*deps_.pipelineCache, passPtr->material, passPtr->passKind, vars, srvs, samplers)) {
+			service.CacheReflection(passPtr->material, vars, srvs, samplers);
 		}
 	}
 
@@ -280,6 +281,7 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		desc.dest.colors = { destName };
 		desc.parameterOverrides = pass.parameterOverrides;
 		desc.textureOverrides = pass.textureGuids;
+		desc.samplerOverrides = pass.samplerOverrides;
 		// SRVバインド名へ割り当てたGBuffer/深度などの中間RTを入力として渡す
 		desc.extraSources = pass.renderTargetInputs;
 		desc.dispatchMode = ComputeDispatchMode::FromDestSize;
@@ -297,7 +299,8 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		if (layout) {
 			service.CacheReflection(pass.material,
 				layout->GetVariables(),
-				deps_.postProcessExecutor->GetLastExecutedSRVBindings());
+				deps_.postProcessExecutor->GetLastExecutedSRVBindings(),
+				deps_.postProcessExecutor->GetLastExecutedSamplerBindings());
 		}
 
 		// 選択中パスなら、実行後のdest内容をafterへ退避する

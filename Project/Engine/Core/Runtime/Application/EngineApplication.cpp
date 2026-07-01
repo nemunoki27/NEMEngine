@@ -577,8 +577,7 @@ void Engine::EngineApplication::SyncPrefabEditedEntities() {
 			if (world.HasComponent<SceneObjectComponent>(entity)) {
 				prefabLocalFileID = world.GetComponent<SceneObjectComponent>(entity).localFileID;
 			}
-			prefabSystem.SetPrefabLink(
-				world, entity, stage.asset, prefabLocalFileID, rootInstanceID, false);
+			prefabSystem.SetPrefabLink(world, entity, stage.asset, prefabLocalFileID, rootInstanceID, false);
 		}
 	}
 }
@@ -602,9 +601,7 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 	request.systemContext = &systemContext_;
 	request.assetDatabase = &assetDataBase_;
 
-	// Play > プレファブ編集 > Editの順でシーンインスタンスを切り替える
-	// プレファブ中はシーン無しなのでactiveSceneInstanceID=0となり、描画フィルタが無効化されプレファブ全体が描画される
-	// In-Context編集ではhostシーンを参照する
+	// Play->プレファブ編集->Editの順でシーンインスタンスを切り替える
 	SceneInstanceManager* activeScenes = &GetActiveScenes();
 	const SceneInstance* activeInstance = activeScenes->GetActive();
 	request.sceneInstances = activeScenes;
@@ -1094,6 +1091,10 @@ void Engine::EngineApplication::HandleEditorSceneRequests() {
 			}
 			break;
 		case EditorSceneRequestType::EnterPrefabEdit:
+			// 既にPrefab編集中なら、現在の編集内容を保存してから次のPrefabを開く
+			if (IsPrefabEditing()) {
+				SaveCurrentPrefab();
+			}
 			// プレファブを隔離ワールドへ展開して編集モードへ入る、ネストも可
 			EnterPrefabEdit(request.sceneAsset);
 			break;

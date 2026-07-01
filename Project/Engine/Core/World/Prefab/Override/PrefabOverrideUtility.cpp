@@ -30,8 +30,44 @@
 namespace Engine {
 namespace {
 
-	// 差分の対象外にするコンポーネント、同一性とランタイムと階層は別経路で扱う
-	const std::vector<std::string> kExcludedDiffTypes = { "SceneObject", "PrefabLink", "Hierarchy" };
+	// 差分の対象外にするコンポーネント、Prefab同一性と階層は別経路で扱う
+	const std::vector<std::string> kExcludedDiffTypes = { "PrefabLink", "Hierarchy" };
+
+	// SceneObjectのうちPrefab/Scene内同一性に使う値は比較から外し、編集値だけ差分対象にする
+	void NormalizeSceneObjectForDiff(nlohmann::json& components) {
+
+		if (!components.is_object()) {
+			return;
+		}
+		if (!components.contains("SceneObject") || !components["SceneObject"].is_object()) {
+			components["SceneObject"] = nlohmann::json::object();
+		}
+		nlohmann::json& sceneObject = components["SceneObject"];
+		sceneObject.erase("localFileId");
+		if (!sceneObject.contains("activeSelf")) {
+			sceneObject["activeSelf"] = true;
+		}
+		if (!sceneObject.contains("tag")) {
+			sceneObject["tag"] = "Untagged";
+		}
+		if (!sceneObject.contains("visibilityLayerMask")) {
+			sceneObject["visibilityLayerMask"] = 0xFFFFFFFFu;
+		}
+	}
+
+	void RestoreSceneObjectRuntimeFields(ECSWorld& world, const Entity& entity,
+		AssetID sourceAsset, UUID sceneInstanceID, UUID localFileID) {
+
+		if (!world.IsAlive(entity) || !world.HasComponent<SceneObjectComponent>(entity)) {
+			return;
+		}
+		auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
+		if (localFileID) {
+			sceneObject.localFileID = localFileID;
+		}
+		sceneObject.sourceAsset = sourceAsset;
+		sceneObject.sceneInstanceID = sceneInstanceID;
+	}
 
 	// エンティティのシーン内ローカルIDを返す
 	UUID SceneLocalOf(ECSWorld& world, const Entity& entity) {
@@ -297,8 +333,11 @@ Engine::PrefabInstanceData Engine::PrefabOverrideUtility::CaptureInstance(ECSWor
 		world.SerializeEntityComponents(entity, instanceComponents);
 		PrefabReferenceRemapper::RemapComponents(
 			instanceComponents, sceneToPrefabLocal, PrefabReferenceRemapper::ReferenceSpace::Prefab, data.prefabAsset);
+		nlohmann::json baseComponents = baseIt->second.components;
+		NormalizeSceneObjectForDiff(baseComponents);
+		NormalizeSceneObjectForDiff(instanceComponents);
 		const ComponentMapDiff diff = PrefabJsonDiff::DiffComponentMaps(
-			baseIt->second.components, instanceComponents, kExcludedDiffTypes);
+			baseComponents, instanceComponents, kExcludedDiffTypes);
 		for (const auto& [path, value] : diff.modifications) {
 			data.modifications.push_back({ localID, path, value });
 		}
@@ -426,8 +465,11 @@ Engine::EntityOverrideInfo Engine::PrefabOverrideUtility::CaptureEntityOverride(
 		BuildSceneToPrefabLocalMap(world, instanceEntities);
 	PrefabReferenceRemapper::RemapComponents(
 		instanceComponents, sceneToPrefabLocal, PrefabReferenceRemapper::ReferenceSpace::Prefab, link.prefabAsset);
+	nlohmann::json baseComponents = baseIt->second.components;
+	NormalizeSceneObjectForDiff(baseComponents);
+	NormalizeSceneObjectForDiff(instanceComponents);
 	const ComponentMapDiff diff = PrefabJsonDiff::DiffComponentMaps(
-		baseIt->second.components, instanceComponents, kExcludedDiffTypes);
+		baseComponents, instanceComponents, kExcludedDiffTypes);
 	for (const auto& [path, value] : diff.modifications) {
 		info.modifiedPaths.push_back(path);
 	}
@@ -489,10 +531,14 @@ Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, A
 
 		const Entity entity = findByTarget(added.target);
 		if (world.IsAlive(entity)) {
+			const UUID sceneLocalFileID = added.type == "SceneObject" ? SceneLocalOf(world, entity) : UUID{};
 			nlohmann::json value = added.value;
 			PrefabReferenceRemapper::RemapComponent(
 				added.type, value, prefabToSceneLocal, PrefabReferenceRemapper::ReferenceSpace::Scene, data.prefabAsset);
 			world.AddComponentFromJson(entity, added.type, value);
+			if (added.type == "SceneObject") {
+				RestoreSceneObjectRuntimeFields(world, entity, data.prefabAsset, sceneInstanceID, sceneLocalFileID);
+			}
 		}
 	}
 
@@ -529,7 +575,11 @@ Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, A
 			continue;
 		}
 		for (auto& [type, componentJson] : typeMap) {
+			const UUID sceneLocalFileID = type == "SceneObject" ? SceneLocalOf(world, entity) : UUID{};
 			world.AddComponentFromJson(entity, type, componentJson);
+			if (type == "SceneObject") {
+				RestoreSceneObjectRuntimeFields(world, entity, data.prefabAsset, sceneInstanceID, sceneLocalFileID);
+			}
 		}
 	}
 

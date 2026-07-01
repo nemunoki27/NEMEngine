@@ -1,8 +1,16 @@
 #include "PipelineStateCache.h"
 
 //============================================================================
+//	include
+//============================================================================
+#include <algorithm>
+#include <string>
+#include <vector>
+
+//============================================================================
 //	PipelineStateCache classMethods
 //============================================================================
+
 namespace {
 
 	// シェーダーステージエントリからエントリポイントを解決する、存在しない場合は "main" を返す
@@ -126,11 +134,15 @@ namespace {
 	}
 	// パイプラインバリアントの情報とシェーダーアセットからコンピュートパイプラインの記述を構築する
 	bool BuildComputePipelineDesc(const Engine::PipelineVariantDesc& variant,
-		const Engine::ShaderAsset& shaderAsset, Engine::ComputePipelineDesc& outDesc) {
+		const Engine::ShaderAsset& shaderAsset,
+		const Engine::PipelineStaticSamplerOverrideSet* samplerOverrides, Engine::ComputePipelineDesc& outDesc) {
 
 		// 基本的な情報をセット
 		outDesc = Engine::ComputePipelineDesc{};
 		outDesc.staticSamplers = variant.staticSamplers;
+		if (samplerOverrides) {
+			outDesc.staticSamplerOverrides = *samplerOverrides;
+		}
 
 		// シェーダーステージのエントリを取得
 		const Engine::ShaderStageEntry* cs = Engine::FindShaderStage(shaderAsset, Engine::ShaderStage::CS);
@@ -151,7 +163,8 @@ bool Engine::PipelineCacheKey::operator==(const PipelineCacheKey& rhs) const noe
 		meshEnabled == rhs.meshEnabled &&
 		inlineRayTracingEnabled == rhs.inlineRayTracingEnabled &&
 		dispatchRaysEnabled == rhs.dispatchRaysEnabled &&
-		depthForcedTestWrite == rhs.depthForcedTestWrite;
+		depthForcedTestWrite == rhs.depthForcedTestWrite &&
+		samplerHash == rhs.samplerHash;
 }
 
 const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPlatform& graphicsPlatform,
@@ -167,7 +180,8 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, PipelineVariantKind desiredKind,
 	std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
 	const GraphicsRuntimeFeatures& runtimeFeatures,
-	const PipelineVariantDesc** outVariant, bool forceDepthTestWrite) {
+	const PipelineVariantDesc** outVariant, bool forceDepthTestWrite,
+	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
 
 	// アセットライブラリからパイプラインアセットをロード
 	const RenderPipelineAsset* pipelineAsset = assetLibrary.LoadPipeline(pipelineAssetID);
@@ -195,6 +209,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	key.dispatchRaysEnabled = runtimeFeatures.useDispatchRays;
 	key.depthForcedTestWrite = forceDepthTestWrite;
 	key.formatHash = HashFormats(runtimeRTVFormats, (variant->dsvFormat != DXGI_FORMAT_UNKNOWN) ? variant->dsvFormat : runtimeDSVFormat);
+	key.samplerHash = HashStaticSamplerOverrides(samplerOverrides);
 
 	// キャッシュに存在する場合はそれを返す
 	auto found = cache_.find(key);
@@ -237,7 +252,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	{
 		// コンピュートパイプラインの記述を構築
 		ComputePipelineDesc desc{};
-		if (!BuildComputePipelineDesc(*variant, *shaderAsset, desc)) {
+		if (!BuildComputePipelineDesc(*variant, *shaderAsset, samplerOverrides, desc)) {
 			return nullptr;
 		}
 		// パイプラインステートオブジェクトを生成
@@ -315,6 +330,49 @@ uint64_t Engine::PipelineStateCache::HashFormats(std::span<const DXGI_FORMAT> rt
 	mix(static_cast<uint64_t>(dsvFormat));
 	for (DXGI_FORMAT format : rtvFormats) {
 		mix(static_cast<uint64_t>(format));
+	}
+	return hash;
+}
+
+uint64_t Engine::PipelineStateCache::HashStaticSamplerOverrides(
+	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
+
+	if (!samplerOverrides) {
+		return 0;
+	}
+
+	uint64_t hash = 1469598103934665603ull;
+	auto mix = [&](uint64_t value) {
+		hash ^= value;
+		hash *= 1099511628211ull;
+		};
+	auto mixFloat = [&](float value) {
+		mix(std::hash<float>{}(value));
+		};
+
+	mix(samplerOverrides->fillMissingSamplers ? 1ull : 0ull);
+
+	std::vector<std::string> names;
+	names.reserve(samplerOverrides->byName.size());
+	for (const auto& [name, settings] : samplerOverrides->byName) {
+		names.emplace_back(name);
+	}
+	std::sort(names.begin(), names.end());
+
+	for (const std::string& name : names) {
+
+		mix(std::hash<std::string>{}(name));
+		const PipelineStaticSamplerSettings& settings = samplerOverrides->byName.at(name);
+		mix(static_cast<uint64_t>(settings.filter));
+		mix(static_cast<uint64_t>(settings.addressU));
+		mix(static_cast<uint64_t>(settings.addressV));
+		mix(static_cast<uint64_t>(settings.addressW));
+		mix(static_cast<uint64_t>(settings.borderColor));
+		mix(static_cast<uint64_t>(settings.comparisonFunc));
+		mix(static_cast<uint64_t>(settings.maxAnisotropy));
+		mixFloat(settings.mipLODBias);
+		mixFloat(settings.minLOD);
+		mixFloat(settings.maxLOD);
 	}
 	return hash;
 }

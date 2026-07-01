@@ -65,11 +65,14 @@ namespace Engine {
 		// マテリアルのリフレクション情報をキャッシュする
 		void CacheReflection(AssetID materialID,
 			const std::vector<ShaderConstantBufferVariable>& vars,
-			const std::vector<ShaderResourceBinding>& srvBindings);
+			const std::vector<ShaderResourceBinding>& srvBindings,
+			const std::vector<ShaderResourceBinding>& samplerBindings);
 		// キャッシュ済みCBufferリフレクション変数を取得する
 		const std::vector<ShaderConstantBufferVariable>* FindReflectionVars(AssetID materialID) const;
 		// キャッシュ済みSRVバインディングを取得する
 		const std::vector<ShaderResourceBinding>* FindReflectionSRVs(AssetID materialID) const;
+		// キャッシュ済みSamplerバインディングを取得する
+		const std::vector<ShaderResourceBinding>* FindReflectionSamplers(AssetID materialID) const;
 		// 指定マテリアルのリフレクションキャッシュを削除する
 		void ClearReflection(AssetID materialID);
 
@@ -115,6 +118,7 @@ namespace Engine {
 
 		std::unordered_map<AssetID, std::vector<ShaderConstantBufferVariable>> reflectionVars_{};
 		std::unordered_map<AssetID, std::vector<ShaderResourceBinding>> reflectionSRVs_{};
+		std::unordered_map<AssetID, std::vector<ShaderResourceBinding>> reflectionSamplers_{};
 		std::unordered_set<AssetID> pendingReflectionReloads_{};
 
 		PreviewImage preview_{};

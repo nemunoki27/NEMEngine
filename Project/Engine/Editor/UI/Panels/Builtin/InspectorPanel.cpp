@@ -1119,6 +1119,11 @@ void Engine::InspectorPanel::DrawSelectedSubMeshHeader(const EditorPanelContext&
 
 void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
 
+	// プレファブ編集中はUIを表示しない
+	if (context.editorContext->isPrefabEditing) {
+		return;
+	}
+
 	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
 	if (!database || !world.HasComponent<PrefabLinkComponent>(entity)) {
 		return;
@@ -1157,7 +1162,7 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 		auto button = [&](const char* label, int value, bool enabled) {
 
 			const bool active = (choice == value);
-			if (active) { ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.1f, 0.95f, 1.0f)); }
+			if (active) { ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.05f, 0.05f, 0.95f, 1.0f)); }
 			if (!enabled) { ImGui::BeginDisabled(); }
 			if (ImGui::SmallButton((std::string(label) + "##" + key).c_str())) { choice = value; }
 			if (!enabled) { ImGui::EndDisabled(); }
@@ -1314,13 +1319,13 @@ void Engine::InspectorPanel::DrawJointInspector(const EditorPanelContext& contex
 	const int32_t jointIndex = context.editorState->selectedJointIndex;
 	if (!world->IsAlive(skinned) || !world->HasComponent<SkinnedAnimationComponent>(skinned)) {
 
-		ImGui::TextDisabled("Joint is not available.");
+		ImGui::TextDisabled("ジョイントが無効です");
 		return;
 	}
 	const Skeleton& skeleton = world->GetComponent<SkinnedAnimationComponent>(skinned).runtimeSkeleton;
 	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(skeleton.joints.size())) {
 
-		ImGui::TextDisabled("Joint is not available.");
+		ImGui::TextDisabled("ジョイントが無効です");
 		return;
 	}
 	const Joint& joint = skeleton.joints[jointIndex];
@@ -1329,9 +1334,9 @@ void Engine::InspectorPanel::DrawJointInspector(const EditorPanelContext& contex
 	ImGui::Text("Joint : %s", joint.name.empty() ? "(no name)" : joint.name.c_str());
 	ImGui::Text("Index : %d", jointIndex);
 	if (joint.parent && *joint.parent >= 0 && *joint.parent < static_cast<int32_t>(skeleton.joints.size())) {
-		ImGui::Text("Parent : %s", skeleton.joints[*joint.parent].name.c_str());
+		ImGui::Text("親 : %s", skeleton.joints[*joint.parent].name.c_str());
 	} else {
-		ImGui::TextDisabled("Parent : (root)");
+		ImGui::TextDisabled("親 : (root)");
 	}
 
 	// このジョイントへ親子付けされた子エンティティがあるか調べる

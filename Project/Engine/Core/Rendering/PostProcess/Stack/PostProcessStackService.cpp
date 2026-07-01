@@ -116,16 +116,19 @@ void Engine::PostProcessStackService::RebuildRuntime() {
 		runtimePass.parameterOverrides = passSetting.parameterOverrides;
 		runtimePass.textureGuids = passSetting.textureGuids;
 		runtimePass.renderTargetInputs = passSetting.renderTargetInputs;
+		runtimePass.samplerOverrides = passSetting.samplerOverrides;
 		runtime_.passes.emplace_back(std::move(runtimePass));
 	}
 }
 
 void Engine::PostProcessStackService::CacheReflection(AssetID materialID,
 	const std::vector<ShaderConstantBufferVariable>& vars,
-	const std::vector<ShaderResourceBinding>& srvBindings) {
+	const std::vector<ShaderResourceBinding>& srvBindings,
+	const std::vector<ShaderResourceBinding>& samplerBindings) {
 
 	reflectionVars_[materialID] = vars;
 	reflectionSRVs_[materialID] = srvBindings;
+	reflectionSamplers_[materialID] = samplerBindings;
 }
 
 const std::vector<Engine::ShaderConstantBufferVariable>* Engine::PostProcessStackService::FindReflectionVars(AssetID materialID) const {
@@ -146,10 +149,20 @@ const std::vector<ShaderResourceBinding>* PostProcessStackService::FindReflectio
 	return &it->second;
 }
 
+const std::vector<ShaderResourceBinding>* PostProcessStackService::FindReflectionSamplers(AssetID materialID) const {
+
+	auto it = reflectionSamplers_.find(materialID);
+	if (it == reflectionSamplers_.end()) {
+		return nullptr;
+	}
+	return &it->second;
+}
+
 void PostProcessStackService::ClearReflection(AssetID materialID) {
 
 	reflectionVars_.erase(materialID);
 	reflectionSRVs_.erase(materialID);
+	reflectionSamplers_.erase(materialID);
 }
 
 void Engine::PostProcessStackService::RequestShaderReload(AssetID materialID) {

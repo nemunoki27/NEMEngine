@@ -3,6 +3,7 @@
 //============================================================================
 //	PrefabLinkComponent classMethods
 //============================================================================
+
 void Engine::from_json(const nlohmann::json& in, PrefabLinkComponent& component) {
 
 	std::string prefabAsset = in.value("prefabAsset", "");

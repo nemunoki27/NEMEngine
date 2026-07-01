@@ -10,7 +10,7 @@ public struct LinePoint {
     public Vector3 position;
     public Color4 color;
     public float thickness;
-    // LineRendererComponentの点列内での位置。AddPointで採番される。-1は未追加(即時描画やSetPoints用)
+    // LineRendererComponentの点列内での位置
     public int index;
 
     public LinePoint(Vector3 position, Color4 color, float thickness = 1.0f) {

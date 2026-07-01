@@ -38,6 +38,17 @@ public sealed class FillMeshCircleTest : ScriptBehaviour {
 			return;
 		}
 
+		// 点をクリア
+		circlePoints.Clear();
 		// 円上に点を配置
+		for (int i = 0; i < divisions; ++i) {
+
+			// i番目の角度、位置
+			float angle = (float)(System.Math.PI * 2.0 / divisions * i);
+			float cos = Math.Cos(angle) * radius;
+			float sin = Math.Sin(angle) * radius;
+
+			circlePoints.Add(new Vector3(cos, 0.0f, sin));
+		}
 	}
 }

@@ -11,6 +11,53 @@
 // c++
 #include <filesystem>
 
+namespace {
+
+	// JSONから静的サンプラー設定を読む
+	Engine::PipelineStaticSamplerSettings ParseSamplerSettings(const nlohmann::json& data) {
+
+		Engine::PipelineStaticSamplerSettings settings{};
+		if (!data.is_object()) {
+			return settings;
+		}
+
+		settings.filter = Engine::EnumAdapter<D3D12_FILTER>::FromString(data.value("filter",
+			std::string(Engine::EnumAdapter<D3D12_FILTER>::ToString(settings.filter)))).value_or(settings.filter);
+		settings.addressU = Engine::EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::FromString(data.value("addressU",
+			std::string(Engine::EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::ToString(settings.addressU)))).value_or(settings.addressU);
+		settings.addressV = Engine::EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::FromString(data.value("addressV",
+			std::string(Engine::EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::ToString(settings.addressV)))).value_or(settings.addressV);
+		settings.addressW = Engine::EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::FromString(data.value("addressW",
+			std::string(Engine::EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::ToString(settings.addressW)))).value_or(settings.addressW);
+		settings.borderColor = Engine::EnumAdapter<D3D12_STATIC_BORDER_COLOR>::FromString(data.value("borderColor",
+			std::string(Engine::EnumAdapter<D3D12_STATIC_BORDER_COLOR>::ToString(settings.borderColor)))).value_or(settings.borderColor);
+		settings.comparisonFunc = Engine::EnumAdapter<D3D12_COMPARISON_FUNC>::FromString(data.value("comparisonFunc",
+			std::string(Engine::EnumAdapter<D3D12_COMPARISON_FUNC>::ToString(settings.comparisonFunc)))).value_or(settings.comparisonFunc);
+		settings.maxAnisotropy = data.value("maxAnisotropy", settings.maxAnisotropy);
+		settings.mipLODBias = data.value("mipLODBias", settings.mipLODBias);
+		settings.minLOD = data.value("minLOD", settings.minLOD);
+		settings.maxLOD = data.value("maxLOD", settings.maxLOD);
+		return settings;
+	}
+
+	// 静的サンプラー設定をJSONへ書く
+	nlohmann::json WriteSamplerSettings(const Engine::PipelineStaticSamplerSettings& settings) {
+
+		nlohmann::json data = nlohmann::json::object();
+		data["filter"] = Engine::EnumAdapter<D3D12_FILTER>::ToString(settings.filter);
+		data["addressU"] = Engine::EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::ToString(settings.addressU);
+		data["addressV"] = Engine::EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::ToString(settings.addressV);
+		data["addressW"] = Engine::EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::ToString(settings.addressW);
+		data["borderColor"] = Engine::EnumAdapter<D3D12_STATIC_BORDER_COLOR>::ToString(settings.borderColor);
+		data["comparisonFunc"] = Engine::EnumAdapter<D3D12_COMPARISON_FUNC>::ToString(settings.comparisonFunc);
+		data["maxAnisotropy"] = settings.maxAnisotropy;
+		data["mipLODBias"] = settings.mipLODBias;
+		data["minLOD"] = settings.minLOD;
+		data["maxLOD"] = settings.maxLOD;
+		return data;
+	}
+}
+
 //============================================================================
 //	PostProcessStackSerializer classMethods
 //============================================================================
@@ -102,6 +149,12 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 			}
 		}
 
+		if (passJson.contains("samplers") && passJson["samplers"].is_object()) {
+			for (auto it = passJson["samplers"].begin(); it != passJson["samplers"].end(); ++it) {
+				pass.samplerOverrides[it.key()] = ParseSamplerSettings(it.value());
+			}
+		}
+
 		settings.passes.emplace_back(std::move(pass));
 	}
 
@@ -139,6 +192,11 @@ nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStack
 		passJson["renderTargetInputs"] = nlohmann::json::object();
 		for (const auto& [name, source] : pass.renderTargetInputs) {
 			passJson["renderTargetInputs"][name] = source;
+		}
+
+		passJson["samplers"] = nlohmann::json::object();
+		for (const auto& [name, settings] : pass.samplerOverrides) {
+			passJson["samplers"][name] = WriteSamplerSettings(settings);
 		}
 
 		data["passes"].push_back(std::move(passJson));

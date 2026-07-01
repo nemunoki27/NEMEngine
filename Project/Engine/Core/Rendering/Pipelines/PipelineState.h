@@ -11,7 +11,11 @@
 // directX
 #include <Externals/DirectX12/d3dx12.h>
 // c++
+#include <array>
 #include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace Engine {
 
@@ -24,6 +28,26 @@ namespace Engine {
 		std::string file;
 		std::string entry = "main";
 		std::string profile;
+	};
+	// 静的サンプラーの編集可能な設定
+	struct PipelineStaticSamplerSettings {
+
+		D3D12_FILTER filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		D3D12_TEXTURE_ADDRESS_MODE addressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		D3D12_TEXTURE_ADDRESS_MODE addressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		D3D12_TEXTURE_ADDRESS_MODE addressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		D3D12_STATIC_BORDER_COLOR borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+		D3D12_COMPARISON_FUNC comparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		uint32_t maxAnisotropy = 1;
+		float mipLODBias = 0.0f;
+		float minLOD = 0.0f;
+		float maxLOD = D3D12_FLOAT32_MAX;
+	};
+	// シェーダー内SamplerState名をキーにした静的サンプラー上書き
+	struct PipelineStaticSamplerOverrideSet {
+
+		bool fillMissingSamplers = false;
+		std::unordered_map<std::string, PipelineStaticSamplerSettings> byName;
 	};
 	// グラフィックスパイプラインの生成に必要な情報
 	struct GraphicsPipelineDesc {
@@ -62,6 +86,7 @@ namespace Engine {
 
 		// サンプラー情報
 		std::vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers;
+		PipelineStaticSamplerOverrideSet staticSamplerOverrides;
 	};
 
 	//============================================================================
