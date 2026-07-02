@@ -20,11 +20,11 @@ void Engine::TransparentRenderPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	// SceneFinalには深度が無いので、3Dテキスト等の深度遮蔽用にSceneMainの深度をバインドする
+	// SceneFinalには深度が無いので、不透明メッシュとの前後遮蔽用にSceneMainの深度をバインドする
 	MultiRenderTarget* sceneMain = context.resources->GetSceneMain();
 	DepthTexture2D* sceneDepth = sceneMain ? sceneMain->GetDepthTexture() : nullptr;
 
-	// Transparentバケットを半透明設定でSceneFinalへ合成する、不透明描画結果の上に重ねる
+	// Transparentバケットを半透明設定でSceneFinalへ合成する、深度テストのみで書き込みはしない
 	RenderPassExecutionHelper::Execute(graphicsCore, context, passBuckets, deps_, RenderPhase::Transparent,
 		context.resources->GetSceneFinal(), MaterialPassKind::Transparent, false, sceneDepth);
 }
