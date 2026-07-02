@@ -112,6 +112,8 @@ namespace Engine {
 		EntityRef,
 		ScriptRef,
 		ComponentRef,
+		Object,
+		ManagedReference,
 		Unsupported,
 	};
 
@@ -135,6 +137,20 @@ namespace Engine {
 		std::string assetType;   // AssetRef<T> の native AssetType 名
 		std::string scriptType;  // ScriptRef<T> の対象 script 完全名
 		std::string componentType; // ComponentRef<T> の対象 component 登録名
+
+		// ManagedReference の候補型
+		struct ReferenceCandidate {
+
+			std::string type; // 候補型の完全名
+			std::vector<std::shared_ptr<ManagedFieldSchema>> members;
+		};
+
+		// Object/ManagedReference の型完全名
+		std::string objectType;
+		// Object のメンバschema
+		std::vector<std::shared_ptr<ManagedFieldSchema>> members;
+		// ManagedReference の候補型一覧
+		std::vector<ReferenceCandidate> candidates;
 
 		// Inspector属性
 		bool isPublic = false;

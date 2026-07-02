@@ -36,9 +36,14 @@ namespace NEM.ScriptCodeGen
         private const string LabelAttributeName = "NEMEngine.LabelAttribute";
         private const string TooltipAttributeName = "NEMEngine.TooltipAttribute";
         private const string NativeAssetTypeAttributeName = "NEMEngine.NativeAssetTypeAttribute";
+        private const string SerializeReferenceAttributeName = "NEMEngine.SerializeReferenceAttribute";
+        private const string SerializableAttributeName = "System.SerializableAttribute";
 
         // schema 全体のバージョン。保存形式 schemaVersion と揃える
         private const int SchemaVersion = 2;
+
+        // [Serializable]型のメンバ展開の深さ上限。自己参照型はここで打ち切る(Unityの入れ子上限と同等)
+        private const int MaxObjectDepth = 7;
 
         private static readonly DiagnosticDescriptor MissingFieldIdRule = new DiagnosticDescriptor(
             "NEMSG010",
@@ -104,7 +109,7 @@ namespace NEM.ScriptCodeGen
             public Location Location = Location.None;
         }
 
-        // 再帰的な値種別。collection / nullable は Element を持つ
+        // 再帰的な値種別。collection / nullable は Element を、Object はメンバを、ManagedReference は候補型を持つ
         private sealed class KindInfo
         {
             public string Kind = "Unsupported";
@@ -115,6 +120,9 @@ namespace NEM.ScriptCodeGen
             public string? AssetType;
             public string? ScriptType;
             public string? ComponentType;
+            public string? ObjectType;
+            public List<FieldSchema> Members = new List<FieldSchema>();
+            public List<KindInfo> Candidates = new List<KindInfo>();
         }
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -178,7 +186,7 @@ namespace NEM.ScriptCodeGen
                     {
                         continue;
                     }
-                    FieldSchema? fieldSchema = AnalyzeField(field, ownerName, scriptTypeId);
+                    FieldSchema? fieldSchema = AnalyzeField(field, ownerName, scriptTypeId, ctx.SemanticModel.Compilation);
                     if (fieldSchema != null)
                     {
                         schema.Fields.Add(fieldSchema);
@@ -188,7 +196,7 @@ namespace NEM.ScriptCodeGen
             return schema;
         }
 
-        // public field または [SerializeField] 付き field。static/const/readonly は対象外
+        // public field または [SerializeField]/[SerializeReference] 付き field。static/const/readonly は対象外
         private static bool IsSerializedField(IFieldSymbol field)
         {
             if (field.IsStatic || field.IsConst || field.IsReadOnly)
@@ -196,11 +204,11 @@ namespace NEM.ScriptCodeGen
                 return false;
             }
             bool hasSerializeField = field.GetAttributes()
-                .Any(a => a.AttributeClass?.ToDisplayString() == SerializeFieldAttributeName);
+                .Any(a => a.AttributeClass?.ToDisplayString() is SerializeFieldAttributeName or SerializeReferenceAttributeName);
             return field.DeclaredAccessibility == Accessibility.Public || hasSerializeField;
         }
 
-        private static FieldSchema? AnalyzeField(IFieldSymbol field, string declaringType, string scriptTypeId)
+        private static FieldSchema? AnalyzeField(IFieldSymbol field, string declaringType, string scriptTypeId, Compilation compilation)
         {
             var schema = new FieldSchema
             {
@@ -210,6 +218,39 @@ namespace NEM.ScriptCodeGen
                 Location = field.Locations.FirstOrDefault() ?? Location.None,
             };
 
+            ParseFieldAttributes(field, schema);
+
+            // [SerializeReference]付きは派生型を保存できる参照として扱う
+            bool serializeReference = field.GetAttributes()
+                .Any(a => a.AttributeClass?.ToDisplayString() == SerializeReferenceAttributeName);
+            schema.Kind = serializeReference
+                ? ResolveSerializeReferenceKind(field.Type, compilation)
+                : ResolveKind(field.Type);
+
+            // origin name は rename を跨いで安定させるため、最も古い FormerlySerializedAs を優先する
+            string originName = schema.FormerNames.Count > 0 ? schema.FormerNames[0] : schema.Name;
+            if (!string.IsNullOrWhiteSpace(schema.RawId))
+            {
+                if (TryNormalizeGuid(schema.RawId, out string normalized))
+                {
+                    schema.FieldId = normalized;
+                }
+                else
+                {
+                    schema.RawIdInvalid = true;
+                    schema.FieldId = DeterministicGuid("NEMEngine.ScriptField:" + scriptTypeId + "/" + declaringType + "/" + originName);
+                }
+            }
+            else
+            {
+                schema.FieldId = DeterministicGuid("NEMEngine.ScriptField:" + scriptTypeId + "/" + declaringType + "/" + originName);
+            }
+            return schema;
+        }
+
+        // field の Inspector 属性群を schema へ反映する
+        private static void ParseFieldAttributes(IFieldSymbol field, FieldSchema schema)
+        {
             foreach (AttributeData attr in field.GetAttributes())
             {
                 switch (attr.AttributeClass?.ToDisplayString())
@@ -279,36 +320,15 @@ namespace NEM.ScriptCodeGen
                 }
             }
 
-            schema.Kind = ResolveKind(field.Type);
-
-            // origin name は rename を跨いで安定させるため、最も古い FormerlySerializedAs を優先する
-            string originName = schema.FormerNames.Count > 0 ? schema.FormerNames[0] : schema.Name;
-            if (!string.IsNullOrWhiteSpace(schema.RawId))
-            {
-                if (TryNormalizeGuid(schema.RawId, out string normalized))
-                {
-                    schema.FieldId = normalized;
-                }
-                else
-                {
-                    schema.RawIdInvalid = true;
-                    schema.FieldId = DeterministicGuid("NEMEngine.ScriptField:" + scriptTypeId + "/" + declaringType + "/" + originName);
-                }
-            }
-            else
-            {
-                schema.FieldId = DeterministicGuid("NEMEngine.ScriptField:" + scriptTypeId + "/" + declaringType + "/" + originName);
-            }
-            return schema;
         }
 
-        // ITypeSymbol を valueKind へ分類する（collection / nullable は再帰）
-        private static KindInfo ResolveKind(ITypeSymbol type)
+        // ITypeSymbol を valueKind へ分類する（collection / nullable / object は再帰、depthはObject入れ子の深さ）
+        private static KindInfo ResolveKind(ITypeSymbol type, int depth = 0)
         {
             // 配列
             if (type is IArrayTypeSymbol arrayType)
             {
-                return new KindInfo { Kind = "Array", Element = ResolveKind(arrayType.ElementType) };
+                return new KindInfo { Kind = "Array", Element = ResolveKind(arrayType.ElementType, depth) };
             }
 
             if (type is INamedTypeSymbol named)
@@ -316,13 +336,13 @@ namespace NEM.ScriptCodeGen
                 // Nullable<T>
                 if (named.IsGenericType && named.ConstructedFrom.SpecialType == SpecialType.System_Nullable_T)
                 {
-                    return new KindInfo { Kind = "Nullable", Element = ResolveKind(named.TypeArguments[0]) };
+                    return new KindInfo { Kind = "Nullable", Element = ResolveKind(named.TypeArguments[0], depth) };
                 }
 
                 string constructed = named.ConstructedFrom.ToDisplayString();
                 if (constructed == "System.Collections.Generic.List<T>")
                 {
-                    return new KindInfo { Kind = "List", Element = ResolveKind(named.TypeArguments[0]) };
+                    return new KindInfo { Kind = "List", Element = ResolveKind(named.TypeArguments[0], depth) };
                 }
 
                 // 参照型は型宣言の基底クラスだけで判定する（ScriptBehaviourはComponent派生なので先に判定）
@@ -375,7 +395,164 @@ namespace NEM.ScriptCodeGen
             {
                 return new KindInfo { Kind = scalar };
             }
+
+            // 既知の型に該当しない[Serializable]クラス/構造体はメンバ展開して編集対象にする
+            if (type is INamedTypeSymbol objectType && IsSerializableObjectType(objectType))
+            {
+                return ResolveObjectKind(objectType, depth);
+            }
             return new KindInfo { Kind = "Unsupported" };
+        }
+
+        // Unityの[Serializable]相当としてメンバ展開できる型か
+        private static bool IsSerializableObjectType(INamedTypeSymbol type)
+        {
+            if (type.IsAbstract || type.IsGenericType || type.SpecialType != SpecialType.None)
+            {
+                return false;
+            }
+            if (type.TypeKind != TypeKind.Class && type.TypeKind != TypeKind.Struct)
+            {
+                return false;
+            }
+            // エンジンの参照型階層はメンバ展開の対象にしない
+            if (DerivesFrom(type, "NEMEngine.Object"))
+            {
+                return false;
+            }
+            return type.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == SerializableAttributeName);
+        }
+
+        // [Serializable]型のメンバschemaを再帰収集する
+        private static KindInfo ResolveObjectKind(INamedTypeSymbol type, int depth)
+        {
+            var info = new KindInfo { Kind = "Object", ObjectType = FullTypeName(type) };
+
+            // 深さ上限を超えた入れ子はメンバ無しで打ち切る(自己参照型の無限展開を防ぐ)
+            if (depth >= MaxObjectDepth)
+            {
+                return info;
+            }
+
+            // 継承を含めたメンバ集合(baseから先に、宣言順)を集める
+            var declaring = new List<INamedTypeSymbol>();
+            for (INamedTypeSymbol? cur = type; cur != null && cur.SpecialType != SpecialType.System_Object; cur = cur.BaseType)
+            {
+                declaring.Add(cur);
+            }
+            declaring.Reverse();
+
+            foreach (INamedTypeSymbol owner in declaring)
+            {
+                foreach (ISymbol member in owner.GetMembers())
+                {
+                    if (member is not IFieldSymbol field || field.IsImplicitlyDeclared || !IsSerializedField(field))
+                    {
+                        continue;
+                    }
+                    info.Members.Add(AnalyzeMemberField(field, depth + 1));
+                }
+            }
+            return info;
+        }
+
+        // ネスト型のメンバ1件分のschemaを作る。Stable GUIDは持たず名前キーで保存する
+        private static FieldSchema AnalyzeMemberField(IFieldSymbol field, int depth)
+        {
+            var schema = new FieldSchema
+            {
+                Name = field.Name,
+                IsPublic = field.DeclaredAccessibility == Accessibility.Public,
+                Location = field.Locations.FirstOrDefault() ?? Location.None,
+            };
+            ParseFieldAttributes(field, schema);
+            schema.Kind = ResolveKind(field.Type, depth);
+            return schema;
+        }
+
+        //====================================================================
+        //	SerializeReference(基底型フィールドへの派生型保存)
+        //====================================================================
+
+        // [SerializeReference]フィールドの種別を作る。List<T>/T[]は要素へ適用する(Unityと同じ)
+        private static KindInfo ResolveSerializeReferenceKind(ITypeSymbol type, Compilation compilation)
+        {
+            if (type is IArrayTypeSymbol arrayType)
+            {
+                return new KindInfo { Kind = "Array", Element = ResolveManagedReferenceKind(arrayType.ElementType, compilation) };
+            }
+            if (type is INamedTypeSymbol named && named.IsGenericType &&
+                named.ConstructedFrom.ToDisplayString() == "System.Collections.Generic.List<T>")
+            {
+                return new KindInfo { Kind = "List", Element = ResolveManagedReferenceKind(named.TypeArguments[0], compilation) };
+            }
+            return ResolveManagedReferenceKind(type, compilation);
+        }
+
+        // 基底型に代入できるコンパイル内の[Serializable]具象型を候補として列挙する
+        private static KindInfo ResolveManagedReferenceKind(ITypeSymbol baseType, Compilation compilation)
+        {
+            if (baseType is not INamedTypeSymbol namedBase ||
+                (namedBase.TypeKind != TypeKind.Class && namedBase.TypeKind != TypeKind.Interface))
+            {
+                return new KindInfo { Kind = "Unsupported" };
+            }
+
+            var info = new KindInfo { Kind = "ManagedReference", ObjectType = FullTypeName(namedBase) };
+            CollectManagedReferenceCandidates(compilation.Assembly.GlobalNamespace, namedBase, info);
+            // 表示と出力を安定させるため型名でソートする
+            info.Candidates.Sort((a, b) => string.CompareOrdinal(a.ObjectType, b.ObjectType));
+            return info;
+        }
+
+        private static void CollectManagedReferenceCandidates(INamespaceSymbol ns, INamedTypeSymbol baseType, KindInfo info)
+        {
+            foreach (INamespaceOrTypeSymbol member in ns.GetMembers())
+            {
+                if (member is INamespaceSymbol childNamespace)
+                {
+                    CollectManagedReferenceCandidates(childNamespace, baseType, info);
+                }
+                else if (member is INamedTypeSymbol candidate)
+                {
+                    CollectManagedReferenceCandidateType(candidate, baseType, info);
+                }
+            }
+        }
+
+        private static void CollectManagedReferenceCandidateType(INamedTypeSymbol candidate, INamedTypeSymbol baseType, KindInfo info)
+        {
+            if (IsSerializableObjectType(candidate) && IsAssignableTo(candidate, baseType))
+            {
+                info.Candidates.Add(ResolveObjectKind(candidate, 0));
+            }
+            foreach (INamedTypeSymbol nested in candidate.GetTypeMembers())
+            {
+                CollectManagedReferenceCandidateType(nested, baseType, info);
+            }
+        }
+
+        private static bool IsAssignableTo(INamedTypeSymbol candidate, INamedTypeSymbol baseType)
+        {
+            if (baseType.TypeKind == TypeKind.Interface)
+            {
+                return candidate.AllInterfaces.Contains(baseType, SymbolEqualityComparer.Default);
+            }
+            for (INamedTypeSymbol? cur = candidate; cur != null; cur = cur.BaseType)
+            {
+                if (SymbolEqualityComparer.Default.Equals(cur, baseType))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // global namespace無しの完全名にする
+        private static string FullTypeName(ITypeSymbol type)
+        {
+            return type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat
+                .WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted));
         }
 
         private static string? ResolveScalarKind(string fullName, SpecialType special)
@@ -620,6 +797,42 @@ namespace NEM.ScriptCodeGen
             if (kind.ComponentType != null)
             {
                 json.Append(",\"componentType\":").Append(JsonString(kind.ComponentType));
+            }
+            if (kind.ObjectType != null)
+            {
+                json.Append(",\"objectType\":").Append(JsonString(kind.ObjectType));
+            }
+            if (kind.Members.Count > 0)
+            {
+                json.Append(",\"members\":[");
+                for (int i = 0; i < kind.Members.Count; ++i)
+                {
+                    if (i > 0) json.Append(',');
+                    EmitField(json, kind.Members[i]);
+                }
+                json.Append(']');
+            }
+            if (kind.Candidates.Count > 0)
+            {
+                json.Append(",\"candidates\":[");
+                for (int i = 0; i < kind.Candidates.Count; ++i)
+                {
+                    if (i > 0) json.Append(',');
+                    KindInfo candidate = kind.Candidates[i];
+                    json.Append("{\"type\":").Append(JsonString(candidate.ObjectType ?? string.Empty));
+                    if (candidate.Members.Count > 0)
+                    {
+                        json.Append(",\"members\":[");
+                        for (int m = 0; m < candidate.Members.Count; ++m)
+                        {
+                            if (m > 0) json.Append(',');
+                            EmitField(json, candidate.Members[m]);
+                        }
+                        json.Append(']');
+                    }
+                    json.Append('}');
+                }
+                json.Append(']');
             }
             if (kind.Element != null)
             {

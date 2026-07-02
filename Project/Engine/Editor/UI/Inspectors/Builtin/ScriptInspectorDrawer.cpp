@@ -105,6 +105,8 @@ namespace {
 		case Kind::EntityRef: return "EntityRef";
 		case Kind::ScriptRef: return "ScriptRef";
 		case Kind::ComponentRef: return "ComponentRef";
+		case Kind::Object: return "object";
+		case Kind::ManagedReference: return "managedReference";
 		default: return "unsupported";
 		}
 	}
@@ -149,6 +151,15 @@ namespace {
 				{"scriptSlotId", ""}, {"scriptTypeId", ""} };
 		case Kind::ComponentRef:
 			return nlohmann::json{ {"entity", nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} }} };
+		case Kind::Object: {
+			nlohmann::json members = nlohmann::json::object();
+			for (const auto& member : field.members) {
+				if (member) { members[member->name] = DefaultForKind(*member); }
+			}
+			return members;
+		}
+		case Kind::ManagedReference:
+			return nlohmann::json{ {"type", ""}, {"value", nlohmann::json::object()} };
 		default: return nullptr;
 		}
 	}
@@ -243,6 +254,10 @@ namespace {
 		Engine::ECSWorld* world = nullptr;
 		bool readOnly = false;
 	};
+
+	// メンバschema配列の描画、Objectとcollection要素の展開で使う
+	Engine::ValueEditResult DrawObjectMembers(nlohmann::json& value,
+		const std::vector<std::shared_ptr<Engine::ManagedFieldSchema>>& members, const DrawContext& ctx);
 
 	// 値編集の本体、配列やnullableは再帰する
 	Engine::ValueEditResult DrawValue(const Engine::ManagedFieldSchema& field, nlohmann::json& value,
@@ -636,18 +651,10 @@ namespace {
 			for (size_t i = 0; i < value.size(); ++i) {
 
 				ImGui::PushID(static_cast<int>(i));
-				// 要素ごとに区切り線を入れて境界を分かりやすくする
-				if (i > 0) { ImGui::Separator(); }
 
-				const std::string elementLabel = std::string("要素 ") + std::to_string(i);
-				Engine::ValueEditResult r = DrawValue(*field.element, value[i], ctx, elementLabel.c_str());
-				if (r.valueChanged) { result.valueChanged = true; }
-				result.anyItemActive |= r.anyItemActive;
-
-				// 値はプロパティ行(table)で描かれ後続のSameLineが効かないので操作行を別に出す
+				// 要素はTreeNodeで折りたたみ、ノード自体を掴んで別要素のノードへドロップすると並び替えできる
+				const bool open = ImGui::TreeNodeEx("##element", ImGuiTreeNodeFlags_None, "要素 %d", static_cast<int>(i));
 				if (!ctx.readOnly) {
-					// このハンドルを掴んで別要素へドロップすると並び替えできる
-					ImGui::SmallButton("ドラッグで移動");
 					if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
 						const int srcIndex = static_cast<int>(i);
 						ImGui::SetDragDropPayload(kListElementDragDropType, &srcIndex, sizeof(int));
@@ -663,8 +670,23 @@ namespace {
 						}
 						ImGui::EndDragDropTarget();
 					}
+					// 削除はノードと同じ行に置く
 					ImGui::SameLine();
 					if (ImGui::SmallButton("削除")) { removeIndex = static_cast<int>(i); }
+				}
+				if (open) {
+
+					Engine::ValueEditResult r{};
+					if (field.element->kind == Kind::Object) {
+						// 要素ノードの中で二重に折りたたまないようメンバを直接展開する
+						r = DrawObjectMembers(value[i], field.element->members, ctx);
+					} else {
+						r = DrawValue(*field.element, value[i], ctx, "値");
+					}
+					if (r.valueChanged) { result.valueChanged = true; }
+					result.anyItemActive |= r.anyItemActive;
+					result.editFinished |= r.editFinished;
+					ImGui::TreePop();
 				}
 				ImGui::PopID();
 			}
@@ -681,12 +703,11 @@ namespace {
 					result.valueChanged = true;
 					result.editFinished = true;
 				}
-				// ドラッグした要素をドロップ位置へ挿入し直して並び替える
+				// ドラッグした要素がドロップ先のindexへ来るよう挿入し直して並び替える
 				if (moveFrom >= 0 && moveTo >= 0 && moveFrom != moveTo) {
 					nlohmann::json moved = value[moveFrom];
 					value.erase(value.begin() + moveFrom);
-					const int insertAt = moveTo > moveFrom ? moveTo - 1 : moveTo;
-					value.insert(value.begin() + insertAt, moved);
+					value.insert(value.begin() + moveTo, moved);
 					result.valueChanged = true;
 					result.editFinished = true;
 				}
@@ -718,6 +739,114 @@ namespace {
 			if (r.valueChanged) { result.valueChanged = true; }
 			result.anyItemActive |= r.anyItemActive;
 		}
+		return result;
+	}
+
+	// メンバschema配列をまとめて描く共通部、ObjectとManagedReferenceの展開描画で使う
+	Engine::ValueEditResult DrawObjectMembers(nlohmann::json& value,
+		const std::vector<std::shared_ptr<Engine::ManagedFieldSchema>>& members, const DrawContext& ctx) {
+
+		Engine::ValueEditResult result{};
+		if (!value.is_object()) { value = nlohmann::json::object(); }
+		for (const auto& member : members) {
+
+			if (!member || member->isHidden) { continue; }
+			// 欠落メンバは既定値で補完する
+			if (!value.contains(member->name)) { value[member->name] = DefaultForKind(*member); }
+
+			const std::string memberLabel = member->label.empty() ? member->name : member->label;
+			Engine::ValueEditResult r = DrawValue(*member, value[member->name], ctx, memberLabel.c_str());
+			if (r.valueChanged) { result.valueChanged = true; }
+			result.anyItemActive |= r.anyItemActive;
+			result.editFinished |= r.editFinished;
+		}
+		return result;
+	}
+
+	// [Serializable]クラス/構造体を折りたたみでメンバ展開して描く
+	Engine::ValueEditResult DrawObject(const char* label, nlohmann::json& value,
+		const Engine::ManagedFieldSchema& field, const DrawContext& ctx) {
+
+		Engine::ValueEditResult result{};
+		if (field.members.empty()) {
+			ImGui::TextDisabled("%s (編集できるメンバ無し)", label);
+			return result;
+		}
+
+		ImGui::PushID(label);
+		const bool open = ImGui::TreeNodeEx("##object", ImGuiTreeNodeFlags_SpanAvailWidth, "%s", label);
+		if (open) {
+			result = DrawObjectMembers(value, field.members, ctx);
+			ImGui::TreePop();
+		}
+		ImGui::PopID();
+		return result;
+	}
+
+	// 基底型フィールドへの派生型選択、型Comboと選択型のメンバ編集を描く
+	Engine::ValueEditResult DrawManagedReference(const char* label, nlohmann::json& value,
+		const Engine::ManagedFieldSchema& field, const DrawContext& ctx) {
+
+		Engine::ValueEditResult result{};
+		if (!value.is_object()) { value = nlohmann::json{ {"type", ""}, {"value", nlohmann::json::object()} }; }
+		if (!value.contains("type") || !value["type"].is_string()) { value["type"] = ""; }
+		if (!value.contains("value") || !value["value"].is_object()) { value["value"] = nlohmann::json::object(); }
+
+		ImGui::PushID(label);
+
+		// 派生型の選択、Noneで未設定に戻す
+		const std::string currentType = value["type"].get<std::string>();
+		if (Engine::MyGUI::BeginPropertyRow(label)) {
+			const std::string preview = currentType.empty() ? "None" : ToShortTypeName(currentType);
+			if (ImGui::BeginCombo("##managedRefType", preview.c_str())) {
+				if (ImGui::Selectable("None", currentType.empty()) && !currentType.empty()) {
+					value["type"] = "";
+					value["value"] = nlohmann::json::object();
+					result.valueChanged = true;
+					result.editFinished = true;
+				}
+				for (const auto& candidate : field.candidates) {
+					if (ImGui::Selectable(ToShortTypeName(candidate.type).c_str(), candidate.type == currentType) &&
+						candidate.type != currentType) {
+
+						// 型変更時は選択型の既定値で値を作り直す
+						nlohmann::json members = nlohmann::json::object();
+						for (const auto& member : candidate.members) {
+							if (member) { members[member->name] = DefaultForKind(*member); }
+						}
+						value["type"] = candidate.type;
+						value["value"] = std::move(members);
+						result.valueChanged = true;
+						result.editFinished = true;
+					}
+				}
+				ImGui::EndCombo();
+			}
+			result.anyItemActive |= ImGui::IsItemActive();
+			Engine::MyGUI::EndPropertyRow();
+		}
+
+		// 選択型のメンバ編集、候補から外れた保存型は値を保持したまま欠落表示にする
+		const std::string selectedType = value["type"].get<std::string>();
+		if (!selectedType.empty()) {
+
+			const Engine::ManagedFieldSchema::ReferenceCandidate* selected = nullptr;
+			for (const auto& candidate : field.candidates) {
+				if (candidate.type == selectedType) {
+					selected = &candidate;
+					break;
+				}
+			}
+			if (selected) {
+				Engine::ValueEditResult r = DrawObjectMembers(value["value"], selected->members, ctx);
+				if (r.valueChanged) { result.valueChanged = true; }
+				result.anyItemActive |= r.anyItemActive;
+				result.editFinished |= r.editFinished;
+			} else {
+				ImGui::TextDisabled("  Missing type | %s", selectedType.c_str());
+			}
+		}
+		ImGui::PopID();
 		return result;
 	}
 
@@ -799,6 +928,8 @@ namespace {
 		case Kind::EntityRef: return DrawEntityRef(label, value, ctx);
 		case Kind::ScriptRef: return DrawScriptRef(label, value, field, ctx);
 		case Kind::ComponentRef: return DrawComponentRef(label, value, field, ctx);
+		case Kind::Object: return DrawObject(label, value, field, ctx);
+		case Kind::ManagedReference: return DrawManagedReference(label, value, field, ctx);
 		default:
 			ImGui::TextDisabled("%s : 未対応の型", label);
 			return {};

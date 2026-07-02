@@ -1376,6 +1376,122 @@
                             "schemaVersion": 2,
                             "unresolvedFields": {}
                         }
+                    },
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "GameScripts.SerializableTypesTest",
+                        "scriptAsset": "",
+                        "scriptSlotId": "4d88e1b0c5dc84b0",
+                        "scriptTypeId": "ed78e4bc-d9d7-42e9-a3ed-1c411266aa26",
+                        "serializedFields": {
+                            "fields": {
+                                "1e7df29a-135a-439d-a007-4196ac4dee06": {
+                                    "name": "attacks",
+                                    "type": "list",
+                                    "value": [
+                                        {
+                                            "damage": 0.0,
+                                            "effectMesh": {
+                                                "assetId": ""
+                                            },
+                                            "name": "",
+                                            "offset": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0
+                                            }
+                                        },
+                                        {
+                                            "damage": 0.0,
+                                            "effectMesh": {
+                                                "assetId": ""
+                                            },
+                                            "name": "AA",
+                                            "offset": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0
+                                            }
+                                        },
+                                        {
+                                            "damage": 0.0,
+                                            "effectMesh": {
+                                                "assetId": ""
+                                            },
+                                            "name": "CC",
+                                            "offset": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0
+                                            }
+                                        },
+                                        {
+                                            "damage": 0.0,
+                                            "effectMesh": {
+                                                "assetId": ""
+                                            },
+                                            "name": "BB",
+                                            "offset": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0
+                                            }
+                                        }
+                                    ]
+                                },
+                                "573e9bac-50ab-4ca8-bacf-b46103e5f80f": {
+                                    "name": "holder",
+                                    "type": "object",
+                                    "value": {
+                                        "cooldowns": [],
+                                        "primary": {
+                                            "damage": 0.0,
+                                            "effectMesh": {
+                                                "assetId": ""
+                                            },
+                                            "name": "",
+                                            "offset": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0
+                                            }
+                                        },
+                                        "setName": ""
+                                    }
+                                },
+                                "80959974-c70e-70f2-958c-a41b6db53bb1": {
+                                    "name": "action",
+                                    "type": "managedReference",
+                                    "value": {
+                                        "type": "",
+                                        "value": {}
+                                    }
+                                },
+                                "d6222a2b-b353-ce98-8515-7a7541452cd0": {
+                                    "name": "actionList",
+                                    "type": "list",
+                                    "value": []
+                                },
+                                "f0102eb7-be43-4e84-a2de-af9b73dbd682": {
+                                    "name": "mainAttack",
+                                    "type": "object",
+                                    "value": {
+                                        "damage": 0,
+                                        "effectMesh": {
+                                            "assetId": ""
+                                        },
+                                        "name": null,
+                                        "offset": {
+                                            "x": 0,
+                                            "y": 0,
+                                            "z": 0
+                                        }
+                                    }
+                                }
+                            },
+                            "schemaVersion": 2,
+                            "unresolvedFields": {}
+                        }
                     }
                 ],
                 "Transform": {

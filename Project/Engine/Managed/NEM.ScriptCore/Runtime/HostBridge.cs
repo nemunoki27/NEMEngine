@@ -6,6 +6,7 @@ using System.Runtime.Loader;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 
 namespace NEMEngine;
@@ -35,7 +36,8 @@ public static unsafe class HostBridge {
         var options = new JsonSerializerOptions {
             IncludeFields = true,
             // MathTypesのlength/normalizedなどは保存値ではないのでJSON化しない
-            IgnoreReadOnlyProperties = true
+            IgnoreReadOnlyProperties = true,
+            TypeInfoResolver = CreateTypeInfoResolver()
         };
         options.Converters.Add(new UUIDJsonConverter());
         options.Converters.Add(new EntityRefJsonConverter());
@@ -44,6 +46,33 @@ public static unsafe class HostBridge {
         options.Converters.Add(new ScriptBehaviourJsonConverterFactory());
         options.Converters.Add(new ComponentJsonConverterFactory());
         return options;
+    }
+
+    // IncludeFieldsはpublicフィールドしか対象にしないため、
+    // [Serializable]型のprivate [SerializeField]フィールドもJSONへ含めるresolverを作る
+    private static IJsonTypeInfoResolver CreateTypeInfoResolver() {
+
+        var resolver = new DefaultJsonTypeInfoResolver();
+        resolver.Modifiers.Add(static typeInfo => {
+
+            if (typeInfo.Kind != JsonTypeInfoKind.Object || !HasSerializableFlag(typeInfo.Type)) {
+                return;
+            }
+            // 基底クラスのprivateフィールドはGetFieldsで列挙されないため継承チェーンを辿る
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+            for (Type? t = typeInfo.Type; t != null && t != typeof(object); t = t.BaseType) {
+                foreach (FieldInfo fieldInfo in t.GetFields(flags)) {
+                    if (fieldInfo.GetCustomAttribute<SerializeFieldAttribute>() == null) {
+                        continue;
+                    }
+                    JsonPropertyInfo property = typeInfo.CreateJsonPropertyInfo(fieldInfo.FieldType, fieldInfo.Name);
+                    property.Get = fieldInfo.GetValue;
+                    property.Set = fieldInfo.SetValue;
+                    typeInfo.Properties.Add(property);
+                }
+            }
+        });
+        return resolver;
     }
 
     // 参照解決型フィールドの適用保留リスト。シーンロード時は参照先のscript instanceが未生成のことがあるため、
@@ -830,8 +859,9 @@ public static unsafe class HostBridge {
                     FieldInfo? info = ResolveFieldInfo(entry.type, declaringType, fieldName);
                     if (info != null && !string.IsNullOrEmpty(fieldId)) {
                         entry.fieldMap[fieldId] = info;
-                        // 参照解決を伴うフィールドは適用を遅延させる
-                        if (IsDeferredReferenceType(info.FieldType)) {
+                        // 参照解決を伴うフィールドは適用を遅延させる([SerializeReference]は候補型に参照が含まれ得る)
+                        if (info.GetCustomAttribute<SerializeReferenceAttribute>() != null ||
+                            IsDeferredReferenceType(info.FieldType, null)) {
                             entry.deferredFields.Add(fieldId);
                         }
                     }
@@ -1319,35 +1349,165 @@ public static unsafe class HostBridge {
         pendingReferenceFields.Clear();
     }
 
-    // Entity / Component / ScriptBehaviour 参照を含む型か（配列 / List / Nullable の要素も辿る）
-    private static bool IsDeferredReferenceType(Type type) {
+    // Entity / Component / ScriptBehaviour 参照を含む型か（配列 / List / Nullable / [Serializable]型のメンバも辿る）
+    private static bool IsDeferredReferenceType(Type type, HashSet<Type>? visited) {
 
         if (type == typeof(Entity) || typeof(Component).IsAssignableFrom(type)) {
             return true;
         }
         if (type.IsArray) {
-            return IsDeferredReferenceType(type.GetElementType()!);
+            return IsDeferredReferenceType(type.GetElementType()!, visited);
         }
         if (type.IsGenericType) {
             Type def = type.GetGenericTypeDefinition();
             if (def == typeof(List<>) || def == typeof(Nullable<>)) {
-                return IsDeferredReferenceType(type.GetGenericArguments()[0]);
+                return IsDeferredReferenceType(type.GetGenericArguments()[0], visited);
+            }
+        }
+        // [Serializable]ネスト型はメンバを辿る、自己参照型は訪問済みsetで打ち切る
+        if (IsSerializableObjectType(type)) {
+            visited ??= new HashSet<Type>();
+            if (!visited.Add(type)) {
+                return false;
+            }
+            foreach (FieldInfo field in EnumerateNestedSerializedFields(type)) {
+                if (IsDeferredReferenceType(field.FieldType, visited)) {
+                    return true;
+                }
             }
         }
         return false;
+    }
+
+    // Unityの[Serializable]相当としてメンバ展開する対象の型か
+    private static bool IsSerializableObjectType(Type type) {
+
+        if (!HasSerializableFlag(type) || type.IsPrimitive || type.IsEnum || type == typeof(string) ||
+            type.IsAbstract || type.IsGenericType) {
+            return false;
+        }
+        if (!type.IsClass && !type.IsValueType) {
+            return false;
+        }
+        // エンジンの参照型階層とBCL型は対象外
+        return !typeof(Object).IsAssignableFrom(type) && type.Assembly != typeof(object).Assembly;
+    }
+
+    // [Serializable]のメタデータフラグ判定
+    // BinaryFormatter廃止で旧形式扱いだが、ここではUnity互換のマーカーとしてフラグだけを読む
+#pragma warning disable SYSLIB0050
+    private static bool HasSerializableFlag(Type type) {
+        return (type.Attributes & TypeAttributes.Serializable) != 0;
+    }
+#pragma warning restore SYSLIB0050
+
+    // ネスト型の保存対象フィールド(publicまたは[SerializeField])を継承込みで列挙する
+    private static IEnumerable<FieldInfo> EnumerateNestedSerializedFields(Type type) {
+
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+        for (Type? t = type; t != null && t != typeof(object); t = t.BaseType) {
+            foreach (FieldInfo field in t.GetFields(flags)) {
+                if (field.IsStatic || field.IsInitOnly || field.IsLiteral) {
+                    continue;
+                }
+                if (field.IsPublic || field.GetCustomAttribute<SerializeFieldAttribute>() != null) {
+                    yield return field;
+                }
+            }
+        }
     }
 
     // JsonElement を field 型へ復元して設定する。reference 型は専用 converter 経由。
     private static void SetFieldFromElement(ScriptBehaviour script, FieldInfo field, JsonElement value) {
 
         try {
-            object? deserialized = value.Deserialize(field.FieldType, jsonOptions);
+            // [SerializeReference]は保存型を候補検証してからインスタンス化する
+            object? deserialized = field.GetCustomAttribute<SerializeReferenceAttribute>() != null
+                ? DeserializeManagedReference(field.FieldType, value)
+                : value.Deserialize(field.FieldType, jsonOptions);
             field.SetValue(script, deserialized);
         }
         catch (Exception ex) {
             // 型不一致などはその field だけ skip し、他 field と instance を壊さない
             NativeApi.WriteLog(1, $"Failed to apply field '{field.Name}' on '{script.GetType().FullName}': {ex.Message}");
         }
+    }
+
+    // [SerializeReference]フィールドの復元。List<T>/T[]は要素単位で復元する
+    private static object? DeserializeManagedReference(Type declaredType, JsonElement value) {
+
+        if (declaredType.IsArray) {
+            Type element = declaredType.GetElementType()!;
+            if (value.ValueKind != JsonValueKind.Array) {
+                return null;
+            }
+            var array = Array.CreateInstance(element, value.GetArrayLength());
+            int index = 0;
+            foreach (JsonElement item in value.EnumerateArray()) {
+                array.SetValue(DeserializeManagedReferenceValue(element, item), index++);
+            }
+            return array;
+        }
+        if (declaredType.IsGenericType && declaredType.GetGenericTypeDefinition() == typeof(List<>)) {
+            Type element = declaredType.GetGenericArguments()[0];
+            var list = (System.Collections.IList)Activator.CreateInstance(declaredType)!;
+            if (value.ValueKind == JsonValueKind.Array) {
+                foreach (JsonElement item in value.EnumerateArray()) {
+                    list.Add(DeserializeManagedReferenceValue(element, item));
+                }
+            }
+            return list;
+        }
+        return DeserializeManagedReferenceValue(declaredType, value);
+    }
+
+    // {"type","value"}形式1件の復元。宣言基底へ代入できる[Serializable]具象型だけを許可する
+    private static object? DeserializeManagedReferenceValue(Type baseType, JsonElement value) {
+
+        if (value.ValueKind != JsonValueKind.Object ||
+            !value.TryGetProperty("type", out JsonElement typeElement) || typeElement.ValueKind != JsonValueKind.String) {
+            return null;
+        }
+        string typeName = typeElement.GetString() ?? string.Empty;
+        if (string.IsNullOrEmpty(typeName) || gameAssembly == null) {
+            return null;
+        }
+        Type? resolved = gameAssembly.GetType(typeName, throwOnError: false);
+        if (resolved == null || resolved.IsAbstract || !HasSerializableFlag(resolved) || !baseType.IsAssignableFrom(resolved)) {
+            return null;
+        }
+        return value.TryGetProperty("value", out JsonElement body) && body.ValueKind == JsonValueKind.Object
+            ? body.Deserialize(resolved, jsonOptions)
+            : Activator.CreateInstance(resolved);
+    }
+
+    // [SerializeReference]フィールドを{"type","value"}形式へ変換する(runtime Inspector表示用)
+    private static JsonNode? SerializeManagedReference(Type declaredType, object? value) {
+
+        if (declaredType.IsArray ||
+            (declaredType.IsGenericType && declaredType.GetGenericTypeDefinition() == typeof(List<>))) {
+
+            var array = new JsonArray();
+            if (value is System.Collections.IEnumerable items) {
+                foreach (object? item in items) {
+                    array.Add(SerializeManagedReferenceValue(item));
+                }
+            }
+            return array;
+        }
+        return SerializeManagedReferenceValue(value);
+    }
+
+    private static JsonNode SerializeManagedReferenceValue(object? value) {
+
+        if (value == null) {
+            return new JsonObject { ["type"] = "", ["value"] = new JsonObject() };
+        }
+        Type actual = value.GetType();
+        return new JsonObject {
+            ["type"] = actual.FullName ?? string.Empty,
+            ["value"] = JsonSerializer.SerializeToNode(value, actual, jsonOptions),
+        };
     }
 
     // 単一 field（value のみの JSON）を runtime instance へ設定する
@@ -1373,7 +1533,9 @@ public static unsafe class HostBridge {
         foreach (KeyValuePair<string, FieldInfo> kv in entry.fieldMap) {
             try {
                 object? value = kv.Value.GetValue(script);
-                obj[kv.Key] = JsonSerializer.SerializeToNode(value, kv.Value.FieldType, jsonOptions);
+                obj[kv.Key] = kv.Value.GetCustomAttribute<SerializeReferenceAttribute>() != null
+                    ? SerializeManagedReference(kv.Value.FieldType, value)
+                    : JsonSerializer.SerializeToNode(value, kv.Value.FieldType, jsonOptions);
             }
             catch {
                 // 取得できない field は省略する
@@ -1408,7 +1570,7 @@ public static unsafe class HostBridge {
         return null;
     }
 
-    // public field または [SerializeField] 付き field を継承込みで列挙する（reflection fallback 用）
+    // public field または [SerializeField]/[SerializeReference] 付き field を継承込みで列挙する（reflection fallback 用）
     private static IEnumerable<FieldInfo> EnumerateSerializedFields(Type type) {
 
         var chain = new List<Type>();
@@ -1423,7 +1585,8 @@ public static unsafe class HostBridge {
                 if (field.IsStatic || field.IsInitOnly || field.IsLiteral) {
                     continue;
                 }
-                bool serialize = field.GetCustomAttribute<SerializeFieldAttribute>() != null;
+                bool serialize = field.GetCustomAttribute<SerializeFieldAttribute>() != null ||
+                    field.GetCustomAttribute<SerializeReferenceAttribute>() != null;
                 if (!field.IsPublic && !serialize) {
                     continue;
                 }
@@ -1465,6 +1628,7 @@ public static unsafe class HostBridge {
         if (type == typeof(Quaternion)) return "Quaternion";
         if (type == typeof(Color3)) return "Color3";
         if (type == typeof(Color4)) return "Color4";
+        if (IsSerializableObjectType(type)) return "Object";
         return "Unsupported";
     }
 
@@ -1493,6 +1657,9 @@ public static unsafe class HostBridge {
         }
         try {
             object? value = defaults != null ? field.GetValue(defaults) : null;
+            if (field.GetCustomAttribute<SerializeReferenceAttribute>() != null) {
+                return SerializeManagedReference(field.FieldType, value)?.ToJsonString() ?? "null";
+            }
             return JsonSerializer.Serialize(value, field.FieldType, jsonOptions);
         }
         catch {

@@ -541,6 +541,7 @@ namespace {
 			{ "Nullable", K::Nullable }, { "Array", K::Array }, { "List", K::List },
 			{ "AssetRef", K::AssetRef }, { "EntityRef", K::EntityRef }, { "ScriptRef", K::ScriptRef },
 			{ "ComponentRef", K::ComponentRef },
+			{ "Object", K::Object }, { "ManagedReference", K::ManagedReference },
 		};
 		auto it = kMap.find(kind);
 		return it != kMap.end() ? it->second : K::Unsupported;
@@ -597,6 +598,25 @@ namespace {
 		}
 		if (node.contains("element") && node["element"].is_object()) {
 			field.element = std::make_shared<Engine::ManagedFieldSchema>(ParseFieldSchema(node["element"]));
+		}
+		field.objectType = node.value("objectType", std::string{});
+		if (node.contains("members") && node["members"].is_array()) {
+			for (const auto& memberNode : node["members"]) {
+				field.members.emplace_back(std::make_shared<Engine::ManagedFieldSchema>(ParseFieldSchema(memberNode)));
+			}
+		}
+		if (node.contains("candidates") && node["candidates"].is_array()) {
+			for (const auto& candidateNode : node["candidates"]) {
+
+				Engine::ManagedFieldSchema::ReferenceCandidate candidate{};
+				candidate.type = candidateNode.value("type", std::string{});
+				if (candidateNode.contains("members") && candidateNode["members"].is_array()) {
+					for (const auto& memberNode : candidateNode["members"]) {
+						candidate.members.emplace_back(std::make_shared<Engine::ManagedFieldSchema>(ParseFieldSchema(memberNode)));
+					}
+				}
+				field.candidates.emplace_back(std::move(candidate));
+			}
 		}
 		return field;
 	}
