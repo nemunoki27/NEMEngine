@@ -10,6 +10,7 @@ void Engine::from_json(const nlohmann::json& in, SkyboxRendererComponent& compon
 	if (in.contains("color")) {
 		component.color = Color4::FromJson(in["color"]);
 	}
+	component.iblIntensity = in.value("iblIntensity", component.iblIntensity);
 	component.visible = in.value("visible", component.visible);
 }
 
@@ -17,5 +18,6 @@ void Engine::to_json(nlohmann::json& out, const SkyboxRendererComponent& compone
 
 	out["cubemapTexture"] = ToAssetReferenceJson(component.cubemapTexture);
 	out["color"] = component.color.ToJson();
+	out["iblIntensity"] = component.iblIntensity;
 	out["visible"] = component.visible;
 }

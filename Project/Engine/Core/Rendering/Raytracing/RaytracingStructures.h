@@ -14,6 +14,12 @@ namespace Engine {
 	//============================================================================
 	//	RaytracingStructures structures
 	//============================================================================
+	// TLASインスタンスマスク、レイの用途ごとに当たるインスタンスを分ける
+	static constexpr uint8_t kRaytracingMaskShadowCaster = 1u;
+	static constexpr uint8_t kRaytracingMaskReflectionCaster = 1u << 1;
+	// ピックなど常に当てたいレイ用、全インスタンスで必ず立てる
+	static constexpr uint8_t kRaytracingMaskAlwaysHit = 1u << 2;
+
 	// BLAS構築入力
 	struct RaytracingBLASInput {
 

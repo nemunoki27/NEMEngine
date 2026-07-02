@@ -116,6 +116,18 @@ void Engine::from_json(const nlohmann::json& in, MeshRendererComponent& componen
 	component.enableZPrepass = in.value("enableZPrepass", component.enableZPrepass);
 	component.blendMode = EnumAdapter<BlendMode>::FromString(in.value("blendMode", "Normal")).value();
 
+	// フラグを増やしても旧シーンでデフォルト値が効くよう、ビットごとに名前付きboolで読む
+	auto readRenderFlag = [&](const char* key, MeshRenderFlags flag) {
+		SetMeshRenderFlag(component.renderFlags, flag,
+			in.value(key, HasMeshRenderFlag(component.renderFlags, flag)));
+		};
+	readRenderFlag("lighting", MeshRenderFlags::Lighting);
+	readRenderFlag("castShadow", MeshRenderFlags::CastShadow);
+	readRenderFlag("receiveShadow", MeshRenderFlags::ReceiveShadow);
+	readRenderFlag("receiveIBL", MeshRenderFlags::ReceiveIBL);
+	readRenderFlag("castReflection", MeshRenderFlags::CastReflection);
+	readRenderFlag("receiveReflection", MeshRenderFlags::ReceiveReflection);
+
 	component.subMeshes.clear();
 	if (in.contains("subMeshes") && in["subMeshes"].is_array()) {
 		for (const auto& subMeshJson : in["subMeshes"]) {
@@ -135,6 +147,14 @@ void Engine::to_json(nlohmann::json& out, const MeshRendererComponent& component
 	out["visible"] = component.visible;
 	out["enableZPrepass"] = component.enableZPrepass;
 	out["blendMode"] = EnumAdapter<BlendMode>::ToString(component.blendMode);
+
+	// フラグはビットごとに名前付きboolで書き出す
+	out["lighting"] = HasMeshRenderFlag(component.renderFlags, MeshRenderFlags::Lighting);
+	out["castShadow"] = HasMeshRenderFlag(component.renderFlags, MeshRenderFlags::CastShadow);
+	out["receiveShadow"] = HasMeshRenderFlag(component.renderFlags, MeshRenderFlags::ReceiveShadow);
+	out["receiveIBL"] = HasMeshRenderFlag(component.renderFlags, MeshRenderFlags::ReceiveIBL);
+	out["castReflection"] = HasMeshRenderFlag(component.renderFlags, MeshRenderFlags::CastReflection);
+	out["receiveReflection"] = HasMeshRenderFlag(component.renderFlags, MeshRenderFlags::ReceiveReflection);
 
 	out["subMeshes"] = nlohmann::json::array();
 	for (const auto& subMesh : component.subMeshes) {

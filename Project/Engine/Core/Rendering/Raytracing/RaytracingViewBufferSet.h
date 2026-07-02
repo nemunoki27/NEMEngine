@@ -9,11 +9,13 @@
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
+#include <Engine/Core/Foundation/Math/Color.h>
 
 namespace Engine {
 
 	// front
 	class GraphicsCore;
+	struct SceneSkyboxInfo;
 
 	//============================================================================
 	//	RaytracingViewBufferSet structures
@@ -50,6 +52,12 @@ namespace Engine {
 		float skyIntensity = 0.01f;
 		float fresnelMin = 0.054f;
 		float _pad0 = 0.0f;
+
+		// 反射レイのミス時に参照するskybox
+		Color4 skyboxColor = Color4::White();
+		uint32_t skyboxCubemapIndex = 0xFFFFFFFF;
+		uint32_t hasSkybox = 0;
+		float _pad1[2] = { 0.0f, 0.0f };
 	};
 
 	//============================================================================
@@ -68,8 +76,8 @@ namespace Engine {
 		// 初期化
 		void Init(GraphicsCore& graphicsCore);
 
-		// データ転送
-		void Upload(const ResolvedRenderView& view);
+		// データ転送、skyboxは反射レイのミス時の背景に使う
+		void Upload(const ResolvedRenderView& view, const SceneSkyboxInfo& skybox);
 
 		// 描画バッファレジストリに自身のバッファを登録する
 		void RegisterTo(RenderBufferRegistry& registry) const;

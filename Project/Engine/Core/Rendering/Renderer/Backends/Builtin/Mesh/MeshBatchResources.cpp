@@ -373,6 +373,21 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			instance.subMeshDataOffset = static_cast<uint32_t>(subMeshScratch_.size());
 			instance.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
 
+			// MeshRenderFlagsのうちピクセル側で参照するものをinstance.flagsへ写す
+			const MeshRenderFlags renderFlags = renderer ? renderer->renderFlags : MeshRenderFlags::Default;
+			if (HasMeshRenderFlag(renderFlags, MeshRenderFlags::Lighting)) {
+				instance.flags |= kMeshInstanceFlagLighting;
+			}
+			if (HasMeshRenderFlag(renderFlags, MeshRenderFlags::ReceiveShadow)) {
+				instance.flags |= kMeshInstanceFlagReceiveShadow;
+			}
+			if (HasMeshRenderFlag(renderFlags, MeshRenderFlags::ReceiveIBL)) {
+				instance.flags |= kMeshInstanceFlagReceiveIBL;
+			}
+			if (HasMeshRenderFlag(renderFlags, MeshRenderFlags::ReceiveReflection)) {
+				instance.flags |= kMeshInstanceFlagReceiveReflection;
+			}
+
 			// スキニングする場合の設定
 			if (gpuMesh.isSkinned && skinning_ && skinnedAnim && skinnedAnim->runtimeInitialized &&
 				skinnedAnim->palette.size() == gpuMesh.boneCount) {
@@ -395,7 +410,6 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			}
 
 			// アウトラインGPUデータをインスタンスごとに必ず1件作る
-			// コンポーネントが無い通常メッシュにもゼロ初期値を入れて対応を崩さない
 			MeshOutlineGPUData outlineGPU{};
 			if (const InvertedHullOutlineComponent* outline = ResolveOutline(item)) {
 
@@ -421,8 +435,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				} else {
 					outlineMetrics_.maxModelExpansion = (std::max)(outlineMetrics_.maxModelExpansion, outlineGPU.width);
 				}
-				outlineMetrics_.maxAbsCameraZOffset = (std::max)(
-					outlineMetrics_.maxAbsCameraZOffset, std::abs(outlineGPU.cameraZOffset));
+				outlineMetrics_.maxAbsCameraZOffset = (std::max)(outlineMetrics_.maxAbsCameraZOffset, std::abs(outlineGPU.cameraZOffset));
 			}
 
 			instance.outlineDataIndex = static_cast<uint32_t>(outlineScratch_.size());

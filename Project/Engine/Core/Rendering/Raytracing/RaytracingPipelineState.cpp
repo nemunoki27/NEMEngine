@@ -91,8 +91,11 @@ void Engine::RaytracingPipelineState::BuildGlobalRootSignature(ID3D12Device8* de
 	CD3DX12_DESCRIPTOR_RANGE destRange{};
 	destRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
 
+	CD3DX12_DESCRIPTOR_RANGE sourceFlagsRange{};
+	sourceFlagsRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7);
+
 	// ルートパラメータの構築
-	CD3DX12_ROOT_PARAMETER rootParameters[9]{};
+	CD3DX12_ROOT_PARAMETER rootParameters[10]{};
 	rootParameters[kRootIndexTLAS].InitAsShaderResourceView(0);                              // t0
 	rootParameters[kRootIndexSourceColor].InitAsDescriptorTable(1, &sourceColorRange);       // t1
 	rootParameters[kRootIndexSourceDepth].InitAsDescriptorTable(1, &sourceDepthRange);       // t2
@@ -102,6 +105,7 @@ void Engine::RaytracingPipelineState::BuildGlobalRootSignature(ID3D12Device8* de
 	rootParameters[kRootIndexSceneSubMeshes].InitAsDescriptorTable(1, &sceneSubMeshesRange); // t6
 	rootParameters[kRootIndexDestUAV].InitAsDescriptorTable(1, &destRange);                  // u0
 	rootParameters[kRootIndexViewCBV].InitAsConstantBufferView(0);                           // b0
+	rootParameters[kRootIndexSourceFlags].InitAsDescriptorTable(1, &sourceFlagsRange);       // t7
 	// 静的サンプラーの構築
 	D3D12_STATIC_SAMPLER_DESC staticSampler{};
 	staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;

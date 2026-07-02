@@ -24,6 +24,7 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Renderer/Lighting/Builtin/Point/PointLightExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Builtin/Spot/SpotLightExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/ViewLightCollector.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/Passes/RenderItemBatchDispatcher.h>
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
@@ -341,8 +342,10 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	if (!sceneViewState_.raytracingBuffers.IsInitialized()) {
 		sceneViewState_.raytracingBuffers.Init(graphicsCore);
 	}
-	gameViewState_.raytracingBuffers.Upload(gameViewState_.view);
-	sceneViewState_.raytracingBuffers.Upload(sceneViewState_.view);
+	// 反射レイのミス時に参照するskyboxを解決して渡す
+	const SceneSkyboxInfo skyboxInfo = SceneSkyboxResolver::Resolve(graphicsCore, request.assetDatabase, request.world);
+	gameViewState_.raytracingBuffers.Upload(gameViewState_.view, skyboxInfo);
+	sceneViewState_.raytracingBuffers.Upload(sceneViewState_.view, skyboxInfo);
 
 	// 描画ビューごとに描画を実行
 	auto renderView = [&](RenderViewKind kind, const ResolvedRenderView& view) {

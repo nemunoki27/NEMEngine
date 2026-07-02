@@ -88,6 +88,8 @@ namespace {
 		HashCombine(h, entity.generation);
 		HashCombine(h, static_cast<uint64_t>(std::hash<Engine::AssetID>{}(material)));
 		HashCombine(h, static_cast<uint64_t>(blendMode));
+		// renderFlagsはInstanceDataのflagsへ写すため、切替を即時反映できるよう含める
+		HashCombine(h, static_cast<uint64_t>(renderer.renderFlags));
 		// Transformが変わるとInstanceDataが変わる
 		MixBytes(h, &worldMatrix, sizeof(worldMatrix));
 		// アウトライン設定が変わるとGPUデータが変わる

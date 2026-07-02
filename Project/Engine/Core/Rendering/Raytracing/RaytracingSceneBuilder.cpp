@@ -397,7 +397,19 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			instance.blas = blasResource;
 			instance.instanceID = shaderInstanceIndex;
 			instance.hitGroupIndex = 0;
-			instance.mask = 0xFF;
+			// CastShadow/CastReflectionに応じて影レイと反射レイの当たり判定を分ける
+			instance.mask = kRaytracingMaskAlwaysHit;
+			if (src.renderer) {
+				if (HasMeshRenderFlag(src.renderer->renderFlags, MeshRenderFlags::CastShadow)) {
+					instance.mask |= kRaytracingMaskShadowCaster;
+				}
+				if (HasMeshRenderFlag(src.renderer->renderFlags, MeshRenderFlags::CastReflection)) {
+					instance.mask |= kRaytracingMaskReflectionCaster;
+				}
+			} else {
+
+				instance.mask |= kRaytracingMaskShadowCaster | kRaytracingMaskReflectionCaster;
+			}
 			instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 			if (hasMesh) {
 
@@ -468,7 +480,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		instance.blas = resource.blas.GetResource();
 		instance.instanceID = shaderInstanceIndex;
 		instance.hitGroupIndex = 0;
-		instance.mask = 0xFF;
+		// FillMeshはフラグを持たないため全てのレイに当てる
+		instance.mask = kRaytracingMaskAlwaysHit | kRaytracingMaskShadowCaster | kRaytracingMaskReflectionCaster;
 		instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 		instance.worldMatrix = src.worldMatrix;
 		tlasInstances.emplace_back(instance);

@@ -23,6 +23,9 @@ void Engine::SkyboxRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 		return MyGUI::ColorEdit("色", draft.color);
 		});
 	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("IBL強度", draft.iblIntensity, { .dragSpeed = 0.01f, .minValue = 0.0f });
+		});
+	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
 		});
 }

@@ -19,6 +19,8 @@ namespace Engine {
 		AssetID cubemapTexture{};
 		// cubemapへ掛ける色
 		Color4 color = Color4::White();
+		// cubemapから作る拡散IBL環境光の強さ
+		float iblIntensity = 1.0f;
 		// 表示フラグ
 		bool visible = true;
 	};

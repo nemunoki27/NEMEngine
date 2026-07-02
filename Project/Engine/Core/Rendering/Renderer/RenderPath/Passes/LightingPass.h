@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/SkyboxIrradianceMap.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
@@ -67,8 +68,10 @@ namespace Engine {
 			// 平行光源シャドウのレイ設定、mainShadowed側でのみ使う
 			float shadowNormalBias = 0.05f;
 			float shadowMaxDistance = 100000.0f;
-			float shadowPad0 = 0.0f;
-			float shadowPad1 = 0.0f;
+			// skyboxから畳み込んだ放射照度cubemap、無い場合は無効値
+			uint32_t irradianceCubemapIndex = 0xFFFFFFFF;
+			// 拡散IBL環境光の強さ
+			float iblIntensity = 1.0f;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -96,6 +99,9 @@ namespace Engine {
 
 		// ライトバッファをレジストリから自動バインドする
 		RegistryAutoBindTable registryAutoBindTable_{};
+
+		// skyboxのcubemapから作る拡散IBL用の放射照度cubemap
+		SkyboxIrradianceMap irradianceMap_{};
 
 		//--------- functions ----------------------------------------------------
 

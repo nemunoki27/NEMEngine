@@ -47,6 +47,7 @@ namespace Engine {
 		static constexpr UINT kRootIndexSceneSubMeshes = 6;
 		static constexpr UINT kRootIndexDestUAV = 7;
 		static constexpr UINT kRootIndexViewCBV = 8;
+		static constexpr UINT kRootIndexSourceFlags = 9;
 
 		//--------- functions ----------------------------------------------------
 

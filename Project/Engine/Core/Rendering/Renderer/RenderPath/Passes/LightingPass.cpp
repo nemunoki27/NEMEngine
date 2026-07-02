@@ -11,11 +11,7 @@
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTexture2D.h>
-#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
-#include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
-#include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
-#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
-#include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.h>
 
 //============================================================================
 //	LightingPass classMethods
@@ -152,6 +148,16 @@ void Engine::LightingPass::Execute(GraphicsCore& graphicsCore,
 
 	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
 
+	// 背景に使うskyboxを探す、最初に見つかったskyboxが対象
+	const SceneSkyboxInfo skybox = SceneSkyboxResolver::Resolve(graphicsCore, context.assetDatabase, context.world);
+	uint32_t irradianceCubemapIndex = 0xFFFFFFFF;
+	if (skybox.found) {
+
+		// 拡散IBL用の放射照度cubemapを更新する、描画PSO設定前にコンピュートを積む
+		irradianceMap_.Update(graphicsCore, skybox.cubemapAssetID, skybox.cubemapIndex);
+		irradianceCubemapIndex = irradianceMap_.GetSRVIndex();
+	}
+
 	// inlineRTが使えてTLASが構築済みのときだけ、平行光源シャドウ付きPSOを選ぶ
 	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	const bool tlasAvailable = context.bufferRegistry.Find("gSceneTLAS") != nullptr;
@@ -174,42 +180,14 @@ void Engine::LightingPass::Execute(GraphicsCore& graphicsCore,
 	BindGBufferSRV(commandList, emissiveSlot_, sceneMain->GetColorTexture(4));
 	BindGBufferSRV(commandList, flagsSlot_, sceneMain->GetColorTexture(5));
 
-	// 背景に使うskyboxを探す、最初に見つかったskyboxが対象
-	uint32_t cubemapIndex = 0xFFFFFFFF;
-	uint32_t hasSkybox = 0;
-	Color4 skyboxColor = Color4::FromHex(0x303030ff);
-	if (context.world) {
-
-		SkyboxRendererComponent* skybox = nullptr;
-		context.world->ForEach<SkyboxRendererComponent>([&](Entity entity, SkyboxRendererComponent& component) {
-
-			if (skybox || !component.visible || !component.cubemapTexture) {
-				return;
-			}
-			if (!IsEntityActiveInHierarchy(*context.world, entity)) {
-				return;
-			}
-			skybox = &component;
-			});
-		if (skybox) {
-
-			const GPUTextureResource* cubemap = RuntimeTextureResolver::Resolve(
-				graphicsCore, context.assetDatabase, skybox->cubemapTexture, false);
-			if (cubemap && cubemap->srvIndex != UINT32_MAX) {
-
-				cubemapIndex = cubemap->srvIndex;
-				hasSkybox = 1;
-				skyboxColor = skybox->color;
-			}
-		}
-	}
-
 	// 背景復元用の逆ビュー射影と視点を集める、2Dビューでは背景を出さない
 	LightingConstants constants{};
 	constants.ambientIntensity = 0.03f;
-	constants.skyboxColor = skyboxColor;
-	constants.skyboxCubemapIndex = cubemapIndex;
-	constants.hasSkybox = hasSkybox;
+	constants.skyboxColor = skybox.found ? skybox.color : Color4::FromHex(0x303030ff);
+	constants.skyboxCubemapIndex = skybox.found ? skybox.cubemapIndex : 0xFFFFFFFF;
+	constants.hasSkybox = skybox.found ? 1u : 0u;
+	constants.irradianceCubemapIndex = irradianceCubemapIndex;
+	constants.iblIntensity = skybox.iblIntensity;
 	constants.viewportWidth = sceneFinal->GetWidth();
 	constants.viewportHeight = sceneFinal->GetHeight();
 

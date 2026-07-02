@@ -19,6 +19,45 @@ namespace Engine {
 	//============================================================================
 	//	MeshRendererComponent struct
 	//============================================================================
+	// ライティングや影の適用をビット単位で切り替えるフラグ
+	enum class MeshRenderFlags : uint32_t {
+
+		None = 0,
+		// ライティングを行うか、無効ならUnlitでアルベドと発光をそのまま出す
+		Lighting = 1 << 0,
+		// 他のメッシュへ影を落とすか
+		CastShadow = 1 << 1,
+		// 平行光源の影を受けるか
+		ReceiveShadow = 1 << 2,
+		// SkyboxのIBL環境光を受けるか
+		ReceiveIBL = 1 << 3,
+		// 他のメッシュの反射に映るか
+		CastReflection = 1 << 4,
+		// レイトレ反射を受けるか
+		ReceiveReflection = 1 << 5,
+		// 全フラグ有効、追加時はここにも足す
+		Default = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5),
+	};
+
+	inline MeshRenderFlags operator|(MeshRenderFlags lhs, MeshRenderFlags rhs) {
+
+		return static_cast<MeshRenderFlags>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+	}
+
+	inline bool HasMeshRenderFlag(MeshRenderFlags flags, MeshRenderFlags target) {
+
+		return (static_cast<uint32_t>(flags) & static_cast<uint32_t>(target)) != 0;
+	}
+
+	inline void SetMeshRenderFlag(MeshRenderFlags& flags, MeshRenderFlags target, bool enabled) {
+
+		if (enabled) {
+			flags = static_cast<MeshRenderFlags>(static_cast<uint32_t>(flags) | static_cast<uint32_t>(target));
+		} else {
+			flags = static_cast<MeshRenderFlags>(static_cast<uint32_t>(flags) & ~static_cast<uint32_t>(target));
+		}
+	}
+
 	struct SubMeshMaterial {
 
 		// 表示用の名前
@@ -73,6 +112,9 @@ namespace Engine {
 
 		// Zプリパスを有効にするか
 		bool enableZPrepass = true;
+
+		// ライティングや影の適用を切り替えるフラグ
+		MeshRenderFlags renderFlags = MeshRenderFlags::Default;
 
 		// サブメッシュごとのマテリアル設定
 		std::vector<SubMeshMaterial> subMeshes{};

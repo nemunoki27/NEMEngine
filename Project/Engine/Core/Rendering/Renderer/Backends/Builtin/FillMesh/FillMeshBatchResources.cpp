@@ -28,7 +28,7 @@ void Engine::FillMeshBatchResources::UploadVertices(const std::vector<Vector3>& 
 	scratch_.reserve(indices.size());
 	for (uint32_t index : indices) {
 
-		if (index >= positions.size()) {
+		if (positions.size() <= index) {
 			continue;
 		}
 		const Vector3& p = positions[index];

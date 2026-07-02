@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // imgui
@@ -24,7 +25,7 @@ void Engine::RaytracingViewBufferSet::Init(GraphicsCore& graphicsCore) {
 	initialized_ = true;
 }
 
-void Engine::RaytracingViewBufferSet::Upload(const ResolvedRenderView& view) {
+void Engine::RaytracingViewBufferSet::Upload(const ResolvedRenderView& view, const SceneSkyboxInfo& skybox) {
 
 	/*{
 		char windowTitle[64];
@@ -90,6 +91,11 @@ void Engine::RaytracingViewBufferSet::Upload(const ResolvedRenderView& view) {
 		debugData_.nearClip = camera->nearClip;
 		debugData_.farClip = camera->farClip;
 	}
+
+	// 反射レイのミス時に参照するskybox情報を設定
+	debugData_.skyboxColor = skybox.color;
+	debugData_.skyboxCubemapIndex = skybox.cubemapIndex;
+	debugData_.hasSkybox = skybox.found ? 1u : 0u;
 
 	// データ転送
 	params_.Upload(debugData_);

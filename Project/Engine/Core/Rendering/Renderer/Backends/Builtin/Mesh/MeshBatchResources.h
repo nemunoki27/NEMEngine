@@ -97,6 +97,11 @@ namespace Engine {
 	static_assert(sizeof(MeshInstanceData) % 16 == 0);
 	// MeshInstanceDataのflagsで、スキニングするか
 	static constexpr uint32_t kMeshInstanceFlagSkinned = 1u;
+	// MeshRenderFlagsから写すピクセル側で参照するフラグ
+	static constexpr uint32_t kMeshInstanceFlagLighting = 1u << 1;
+	static constexpr uint32_t kMeshInstanceFlagReceiveShadow = 1u << 2;
+	static constexpr uint32_t kMeshInstanceFlagReceiveIBL = 1u << 3;
+	static constexpr uint32_t kMeshInstanceFlagReceiveReflection = 1u << 4;
 
 	// スキニングメッシュを持つエンティティの記録
 	struct SkinnedEntityRecord {

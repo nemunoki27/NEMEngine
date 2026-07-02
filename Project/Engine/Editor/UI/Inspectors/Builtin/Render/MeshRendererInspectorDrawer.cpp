@@ -134,6 +134,25 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawEnumComboField("キュー", draft.queue);
 			});
+
+		// ライティングや影の適用フラグ、ビット単位で持つためboolへ写してから書き戻す
+		auto drawRenderFlagField = [&](const char* label, MeshRenderFlags flag) {
+			DrawField(anyItemActive, [&]() {
+				bool enabled = HasMeshRenderFlag(draft.renderFlags, flag);
+				ValueEditResult result = InspectorDrawerCommon::DrawCheckboxField(label, enabled);
+				if (result.valueChanged) {
+
+					SetMeshRenderFlag(draft.renderFlags, flag, enabled);
+				}
+				return result;
+				});
+			};
+		drawRenderFlagField("ライティング", MeshRenderFlags::Lighting);
+		drawRenderFlagField("影を落とす", MeshRenderFlags::CastShadow);
+		drawRenderFlagField("影を受ける", MeshRenderFlags::ReceiveShadow);
+		drawRenderFlagField("IBLを受ける", MeshRenderFlags::ReceiveIBL);
+		drawRenderFlagField("反射に映す", MeshRenderFlags::CastReflection);
+		drawRenderFlagField("反射を受ける", MeshRenderFlags::ReceiveReflection);
 	}
 
 	// 一番下に全サブメッシュ同時編集UIを置く
