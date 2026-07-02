@@ -24,6 +24,7 @@
 // c++
 #include <charconv>
 #include <chrono>
+#include <functional>
 #include <unordered_map>
 
 //============================================================================
@@ -376,8 +377,13 @@ namespace {
 		return name;
 	}
 
+	// ドロップ受け入れ判定、trueを返したエンティティだけ参照に設定できる
+	using EntityDropFilter = std::function<bool(Engine::ECSWorld&, Engine::Entity)>;
+
 	// エンティティ参照の選択、ドラッグで設定しクリアで解除する
-	Engine::ValueEditResult DrawEntityRef(const char* label, nlohmann::json& value, const DrawContext& ctx) {
+	// dropFilter指定時は判定を通らないエンティティのドロップを受け付けない
+	Engine::ValueEditResult DrawEntityRef(const char* label, nlohmann::json& value, const DrawContext& ctx,
+		const EntityDropFilter& dropFilter = {}, const char* rejectTooltip = nullptr) {
 
 		Engine::ValueEditResult result{};
 		if (!value.is_object()) { value = nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} }; }
@@ -415,21 +421,40 @@ namespace {
 			ImGui::EndPopup();
 		}
 
-		// ドラッグされたエンティティを参照に設定する
+		// ドラッグされたエンティティを参照に設定する、フィルタを通らないエンティティは受け付けない
 		if (ImGui::BeginDragDropTarget()) {
-			if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(Engine::IEditorPanel::kHierarchyDragDropPayloadType)) {
-				if (payload->IsDelivery() && payload->DataSize == sizeof(Engine::UUID) && ctx.world) {
 
-					Engine::UUID draggedUUID = *static_cast<const Engine::UUID*>(payload->Data);
+			// Accept前にpayloadを覗いて判定する、受け入れない場合はハイライトを出さずUnityの禁止表示相当にする
+			bool acceptable = true;
+			if (dropFilter && ctx.world) {
+				const ImGuiPayload* hovered = ImGui::GetDragDropPayload();
+				if (hovered && hovered->IsDataType(Engine::IEditorPanel::kHierarchyDragDropPayloadType) &&
+					hovered->DataSize == sizeof(Engine::UUID)) {
+
+					Engine::UUID draggedUUID = *static_cast<const Engine::UUID*>(hovered->Data);
 					Engine::Entity target = ctx.world->FindByUUID(draggedUUID);
-					if (ctx.world->IsAlive(target) && ctx.world->HasComponent<Engine::SceneObjectComponent>(target)) {
+					acceptable = ctx.world->IsAlive(target) && dropFilter(*ctx.world, target);
+					if (!acceptable && rejectTooltip) {
+						ImGui::SetTooltip("%s", rejectTooltip);
+					}
+				}
+			}
 
-						const auto& sceneObject = ctx.world->GetComponent<Engine::SceneObjectComponent>(target);
-						value["kind"] = "Scene";
-						value["sourceAsset"] = sceneObject.sourceAsset ? Engine::ToString(sceneObject.sourceAsset) : std::string{};
-						value["localFileId"] = Engine::ToString(sceneObject.localFileID);
-						result.valueChanged = true;
-						result.editFinished = true;
+			if (acceptable) {
+				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(Engine::IEditorPanel::kHierarchyDragDropPayloadType)) {
+					if (payload->IsDelivery() && payload->DataSize == sizeof(Engine::UUID) && ctx.world) {
+
+						Engine::UUID draggedUUID = *static_cast<const Engine::UUID*>(payload->Data);
+						Engine::Entity target = ctx.world->FindByUUID(draggedUUID);
+						if (ctx.world->IsAlive(target) && ctx.world->HasComponent<Engine::SceneObjectComponent>(target)) {
+
+							const auto& sceneObject = ctx.world->GetComponent<Engine::SceneObjectComponent>(target);
+							value["kind"] = "Scene";
+							value["sourceAsset"] = sceneObject.sourceAsset ? Engine::ToString(sceneObject.sourceAsset) : std::string{};
+							value["localFileId"] = Engine::ToString(sceneObject.localFileID);
+							result.valueChanged = true;
+							result.editFinished = true;
+						}
 					}
 				}
 			}
@@ -453,14 +478,36 @@ namespace {
 			value["entity"] = nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} };
 		}
 
-		// ラベルに対象コンポーネント型を添えてエンティティ参照として描く
-		const std::string entityLabel = field.componentType.empty()
-			? std::string(label) : (std::string(label) + " (" + field.componentType + ")");
-		Engine::ValueEditResult entityResult = DrawEntityRef(entityLabel.c_str(), value["entity"], ctx);
+		// 対象コンポーネントを持つエンティティだけドロップを受け入れる
+		const std::string rejectTooltip = field.componentType + " を持っていません";
+		Engine::ValueEditResult entityResult = DrawEntityRef(label, value["entity"], ctx,
+			[&field](Engine::ECSWorld& world, Engine::Entity target) {
+				return field.componentType.empty() || world.HasComponent(target, field.componentType);
+			}, rejectTooltip.c_str());
 		result.valueChanged |= entityResult.valueChanged;
 		result.anyItemActive |= entityResult.anyItemActive;
 		result.editFinished |= entityResult.editFinished;
 		return result;
+	}
+
+	// 名前空間を除いた型名にする
+	std::string ToShortTypeName(const std::string& typeName) {
+
+		const size_t pos = typeName.find_last_of('.');
+		return pos == std::string::npos ? typeName : typeName.substr(pos + 1);
+	}
+
+	// スロットがフィールドの対象スクリプト型と一致するか
+	bool MatchesFieldScriptType(const Engine::ScriptEntry& slotEntry, const Engine::ManagedFieldSchema& field) {
+
+		if (field.scriptType.empty()) {
+			return true;
+		}
+		if (slotEntry.scriptTypeID.empty()) {
+			return false;
+		}
+		const auto* info = Engine::BehaviorTypeRegistry::GetInstance().FindByStableScriptTypeID(slotEntry.scriptTypeID);
+		return info && info->name == field.scriptType;
 	}
 
 	Engine::ValueEditResult DrawScriptRef(const char* label, nlohmann::json& value,
@@ -474,9 +521,27 @@ namespace {
 			value["entity"] = nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} };
 		}
 
-		// 所有エンティティの参照部分
-		Engine::ValueEditResult ownerResult = DrawEntityRef(label, value["entity"], ctx);
-		if (ownerResult.valueChanged) { result.valueChanged = true; }
+		// 所有エンティティの参照部分、対象スクリプトを持つエンティティだけドロップを受け入れる
+		const std::string rejectTooltip = ToShortTypeName(field.scriptType) + " を持っていません";
+		Engine::ValueEditResult ownerResult = DrawEntityRef(label, value["entity"], ctx,
+			[&field](Engine::ECSWorld& world, Engine::Entity target) {
+				const Engine::ScriptComponent* scripts = world.TryGetComponent<Engine::ScriptComponent>(target);
+				if (!scripts) {
+					return false;
+				}
+				for (const Engine::ScriptEntry& slotEntry : scripts->scripts) {
+					if (MatchesFieldScriptType(slotEntry, field)) {
+						return true;
+					}
+				}
+				return false;
+			}, rejectTooltip.c_str());
+		if (ownerResult.valueChanged) {
+			result.valueChanged = true;
+			// 所有エンティティが変わったら旧エンティティのスロット選択を破棄する
+			value["scriptSlotId"] = "";
+			value["scriptTypeId"] = "";
+		}
 		result.anyItemActive |= ownerResult.anyItemActive;
 
 		// 所有エンティティ上の同型スロットを選ばせる
@@ -491,6 +556,24 @@ namespace {
 			if (ctx.world->IsAlive(owner) && ctx.world->HasComponent<Engine::ScriptComponent>(owner)) {
 
 				const auto& scriptComponent = ctx.world->GetComponent<Engine::ScriptComponent>(owner);
+
+				// ドロップ直後は一致スロットが1つだけなら自動選択する、複数あるときだけComboで選ばせる
+				if (ownerResult.valueChanged) {
+					const Engine::ScriptEntry* matched = nullptr;
+					int matchCount = 0;
+					for (const Engine::ScriptEntry& slotEntry : scriptComponent.scripts) {
+						if (MatchesFieldScriptType(slotEntry, field)) {
+							matched = &slotEntry;
+							++matchCount;
+						}
+					}
+					if (matchCount == 1) {
+						value["scriptSlotId"] = Engine::ToString(matched->scriptSlotID);
+						value["scriptTypeId"] = matched->scriptTypeID;
+						result.editFinished = true;
+					}
+				}
+
 				const std::string currentSlot = value.value("scriptSlotId", std::string{});
 
 				if (Engine::MyGUI::BeginPropertyRow("  対象スクリプト")) {
@@ -498,7 +581,7 @@ namespace {
 					std::string preview = "未選択";
 					for (const Engine::ScriptEntry& slotEntry : scriptComponent.scripts) {
 						if (Engine::ToString(slotEntry.scriptSlotID) == currentSlot) {
-							preview = slotEntry.lastKnownTypeName;
+							preview = ToShortTypeName(slotEntry.lastKnownTypeName);
 							break;
 						}
 					}
@@ -507,17 +590,13 @@ namespace {
 						int candidateOrder = 0;
 						for (const Engine::ScriptEntry& slotEntry : scriptComponent.scripts) {
 							// 型が一致するスロットのみ候補にする
-							if (!field.scriptType.empty() && !slotEntry.scriptTypeID.empty()) {
-								const auto* info = Engine::BehaviorTypeRegistry::GetInstance()
-									.FindByStableScriptTypeID(slotEntry.scriptTypeID);
-								if (info && info->name != field.scriptType) {
-									continue;
-								}
+							if (!MatchesFieldScriptType(slotEntry, field)) {
+								continue;
 							}
 							++candidateOrder;
 							const std::string slotID = Engine::ToString(slotEntry.scriptSlotID);
-							// 内部IDは見せず型名と通し番号で表示する
-							const std::string itemLabel = slotEntry.lastKnownTypeName + " #" + std::to_string(candidateOrder);
+							// 内部IDは見せず名前空間を除いた型名と通し番号で表示する
+							const std::string itemLabel = ToShortTypeName(slotEntry.lastKnownTypeName) + " #" + std::to_string(candidateOrder);
 							if (ImGui::Selectable(itemLabel.c_str(), slotID == currentSlot)) {
 								value["scriptSlotId"] = slotID;
 								value["scriptTypeId"] = slotEntry.scriptTypeID;

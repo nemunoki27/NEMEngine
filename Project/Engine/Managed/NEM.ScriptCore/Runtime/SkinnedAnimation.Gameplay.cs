@@ -4,7 +4,7 @@ namespace NEMEngine;
 // 既存 SkinnedAnimationSystem の clip 遷移ステートマシンを利用する:
 //   clip を設定すると runtimeCurrentClip への遷移が始まり、enabled が time advance を gate する。
 // state 名は呼び出し時のみ設定/取得し、毎フレームの文字列 scan はしない。
-public readonly partial struct SkinnedAnimation {
+public sealed partial class SkinnedAnimation {
 
     // 指定 state(clip) へ遷移再生する。
     public void Play(string stateName) {

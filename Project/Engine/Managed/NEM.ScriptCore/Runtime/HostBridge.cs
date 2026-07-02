@@ -27,7 +27,7 @@ public static unsafe class HostBridge {
     private const int MaxExceptionFrames = 24;
 
     // public fieldをJSONへ含めるための共通設定。
-    // AssetRef/EntityRef/ScriptRef/UUID は専用 converter で identity だけを round-trip する。
+    // Asset/Entity/Component/ScriptBehaviour/UUID は専用 converter で identity だけを round-trip する。
     private static readonly JsonSerializerOptions jsonOptions = CreateJsonOptions();
 
     private static JsonSerializerOptions CreateJsonOptions() {
@@ -39,11 +39,16 @@ public static unsafe class HostBridge {
         };
         options.Converters.Add(new UUIDJsonConverter());
         options.Converters.Add(new EntityRefJsonConverter());
-        options.Converters.Add(new AssetRefJsonConverterFactory());
-        options.Converters.Add(new ScriptRefJsonConverterFactory());
-        options.Converters.Add(new ComponentRefJsonConverterFactory());
+        options.Converters.Add(new EntityJsonConverter());
+        options.Converters.Add(new AssetJsonConverterFactory());
+        options.Converters.Add(new ScriptBehaviourJsonConverterFactory());
+        options.Converters.Add(new ComponentJsonConverterFactory());
         return options;
     }
+
+    // 参照解決型フィールドの適用保留リスト。シーンロード時は参照先のscript instanceが未生成のことがあるため、
+    // 全インスタンス生成後の最初のlifecycle呼び出し前に一括適用する
+    private static readonly List<(ScriptBehaviour script, FieldInfo field, JsonElement value)> pendingReferenceFields = new();
 
     // managed script instanceの世代付き格納枠。生成/解放を繰り返しても
     // 古いhandleが再利用後の別instanceを指さないようにgenerationで識別する
@@ -78,6 +83,8 @@ public static unsafe class HostBridge {
         internal string schemaJson = string.Empty;
         // Stable Field GUID -> FieldInfo。runtime get/set と authoring 適用に使う（hot path では reflection しない）
         internal Dictionary<string, FieldInfo> fieldMap = new(StringComparer.Ordinal);
+        // 参照解決を全インスタンス生成後まで遅らせるフィールドのGUID集合(Entity/Component/ScriptBehaviour参照)
+        internal HashSet<string> deferredFields = new(StringComparer.Ordinal);
     }
 
     // 現在ロード中のゲームDLLの ScriptBehaviour 型一覧（native へは CopyScriptTypeInfo で順次渡す）
@@ -441,6 +448,7 @@ public static unsafe class HostBridge {
         if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
             return (int)ManagedStatus.InvalidInstanceHandle;
         }
+        FlushPendingReferenceFields();
         try {
             script.OnCollisionEnter(new Collision(collision));
             return (int)ManagedStatus.Ok;
@@ -457,6 +465,7 @@ public static unsafe class HostBridge {
         if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
             return (int)ManagedStatus.InvalidInstanceHandle;
         }
+        FlushPendingReferenceFields();
         try {
             script.OnCollisionStay(new Collision(collision));
             return (int)ManagedStatus.Ok;
@@ -473,6 +482,7 @@ public static unsafe class HostBridge {
         if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
             return (int)ManagedStatus.InvalidInstanceHandle;
         }
+        FlushPendingReferenceFields();
         try {
             script.OnCollisionExit(new Collision(collision));
             return (int)ManagedStatus.Ok;
@@ -505,6 +515,9 @@ public static unsafe class HostBridge {
         if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
             return ManagedStatus.InvalidInstanceHandle;
         }
+
+        // 保留中の参照フィールドをlifecycle実行前に解決する
+        FlushPendingReferenceFields();
 
         try {
             body(script);
@@ -539,15 +552,54 @@ public static unsafe class HostBridge {
         return new NativeScriptInstanceHandle((uint)(slots.Count - 1), slot.generation);
     }
 
-    // 同 Entity 上の T 型スクリプト instance を引く（Entity.GetComponent<T> / ScriptBehaviour.GetComponent<T> から呼ぶ）。
+    // 同 Entity 上の T 型スクリプト instance を引く（Entity.GetComponent<T> から呼ぶ）。
     // 型 -> Stable GUID を解決し、native registry から handle を引いて managed instance へ戻す。未解決は null。
-    internal static T? FindScript<T>(NativeEntity owner) where T : ScriptBehaviour {
+    // GetComponent<T>のTはComponent制約のためclass制約で受けてcastする
+    internal static T? FindScriptAs<T>(NativeEntity owner) where T : class {
 
         if (!typeToEntry.TryGetValue(typeof(T), out ScriptTypeEntry? entry)) {
             return null;
         }
         NativeScriptInstanceHandle handle = NativeApi.FindScriptInstance(owner, entry.scriptTypeId);
         return TryResolveSlot(handle, out ScriptBehaviour script) ? script as T : null;
+    }
+
+    // Stable GUID 指定で同 Entity 上の script instance を引く（参照フィールドの復元用）
+    internal static ScriptBehaviour? FindScriptByGuid(NativeEntity owner, string scriptTypeId) {
+
+        if (string.IsNullOrEmpty(scriptTypeId)) {
+            return null;
+        }
+        NativeScriptInstanceHandle handle = NativeApi.FindScriptInstance(owner, scriptTypeId);
+        return TryResolveSlot(handle, out ScriptBehaviour script) ? script : null;
+    }
+
+    // 型の Stable Script Type GUID を返す。未登録型は null（参照フィールドの保存用）
+    internal static string? GetScriptTypeGuid(Type type) {
+        return typeToEntry.TryGetValue(type, out ScriptTypeEntry? entry) ? entry.scriptTypeId : null;
+    }
+
+    // 生存する全script instanceから指定型の最初の1件を返す（World.FindEntityWithComponent<Script>用）
+    internal static ScriptBehaviour? FindScriptOfTypeByType(Type type) {
+
+        foreach (ScriptInstanceSlot slot in slots) {
+            if (slot.inUse && !slot.retired && slot.instance != null && type.IsInstanceOfType(slot.instance)) {
+                return slot.instance;
+            }
+        }
+        return null;
+    }
+
+    // 生存する全script instanceから指定型を全て返す
+    internal static List<ScriptBehaviour> FindScriptsOfTypeByType(Type type) {
+
+        var result = new List<ScriptBehaviour>();
+        foreach (ScriptInstanceSlot slot in slots) {
+            if (slot.inUse && !slot.retired && slot.instance != null && type.IsInstanceOfType(slot.instance)) {
+                result.Add(slot.instance);
+            }
+        }
+        return result;
     }
 
     // 生存する全script instanceから指定型の最初の1件を返す、未発見はnull。FindObjectOfType用のO(n)走査
@@ -693,6 +745,8 @@ public static unsafe class HostBridge {
         guidToEntry.Clear();
         typeToEntry.Clear();
         defaultInstanceCache.Clear();
+        // 旧assemblyのinstanceを指す保留参照はreloadで無効になるため破棄する
+        pendingReferenceFields.Clear();
 
         if (gameAssembly == null) {
             return;
@@ -776,6 +830,10 @@ public static unsafe class HostBridge {
                     FieldInfo? info = ResolveFieldInfo(entry.type, declaringType, fieldName);
                     if (info != null && !string.IsNullOrEmpty(fieldId)) {
                         entry.fieldMap[fieldId] = info;
+                        // 参照解決を伴うフィールドは適用を遅延させる
+                        if (IsDeferredReferenceType(info.FieldType)) {
+                            entry.deferredFields.Add(fieldId);
+                        }
                     }
                     // 既定値（authoring 未設定時の初期値）を埋める
                     fieldObj["defaultValueJson"] = SerializeFieldDefault(info, defaults);
@@ -1222,6 +1280,7 @@ public static unsafe class HostBridge {
 
     // authoring の field 値（{ "<fieldGuid>": <value> } 形式）を instance へ適用する。
     // Stable Field GUID で fieldMap を引くので field 名変更に強い。未知 GUID は skip（C++側で unresolved 保持）。
+    // 参照解決を伴うフィールドは参照先が未生成のことがあるため保留リストへ積み、lifecycle呼び出し前に適用する
     private static void ApplySerializedFields(ScriptBehaviour script, string? json) {
 
         if (string.IsNullOrWhiteSpace(json)) {
@@ -1236,10 +1295,46 @@ public static unsafe class HostBridge {
             return;
         }
         foreach (JsonProperty prop in document.RootElement.EnumerateObject()) {
-            if (entry.fieldMap.TryGetValue(prop.Name, out FieldInfo? field)) {
+            if (!entry.fieldMap.TryGetValue(prop.Name, out FieldInfo? field)) {
+                continue;
+            }
+            if (entry.deferredFields.Contains(prop.Name)) {
+                // JsonDocumentのdispose後も値を保持できるようCloneして積む
+                pendingReferenceFields.Add((script, field, prop.Value.Clone()));
+            } else {
                 SetFieldFromElement(script, field, prop.Value);
             }
         }
+    }
+
+    // 保留していた参照フィールドを適用する。lifecycle呼び出しの前に必ず空にする
+    private static void FlushPendingReferenceFields() {
+
+        if (pendingReferenceFields.Count == 0) {
+            return;
+        }
+        foreach ((ScriptBehaviour script, FieldInfo field, JsonElement value) in pendingReferenceFields) {
+            SetFieldFromElement(script, field, value);
+        }
+        pendingReferenceFields.Clear();
+    }
+
+    // Entity / Component / ScriptBehaviour 参照を含む型か（配列 / List / Nullable の要素も辿る）
+    private static bool IsDeferredReferenceType(Type type) {
+
+        if (type == typeof(Entity) || typeof(Component).IsAssignableFrom(type)) {
+            return true;
+        }
+        if (type.IsArray) {
+            return IsDeferredReferenceType(type.GetElementType()!);
+        }
+        if (type.IsGenericType) {
+            Type def = type.GetGenericTypeDefinition();
+            if (def == typeof(List<>) || def == typeof(Nullable<>)) {
+                return IsDeferredReferenceType(type.GetGenericArguments()[0]);
+            }
+        }
+        return false;
     }
 
     // JsonElement を field 型へ復元して設定する。reference 型は専用 converter 経由。
@@ -1267,6 +1362,9 @@ public static unsafe class HostBridge {
 
     // runtime instance の現在値を { "<fieldGuid>": <value> } で返す（runtime Inspector 用）
     private static string BuildRuntimeStateJson(ScriptBehaviour script) {
+
+        // 未適用の参照フィールドが残っていると現在値が空に見えるため先に解決する
+        FlushPendingReferenceFields();
 
         if (!typeToEntry.TryGetValue(script.GetType(), out ScriptTypeEntry? entry)) {
             return "{}";
@@ -1343,9 +1441,12 @@ public static unsafe class HostBridge {
             Type def = type.GetGenericTypeDefinition();
             if (def == typeof(List<>)) return "List";
             if (def == typeof(Nullable<>)) return "Nullable";
-            if (def == typeof(AssetRef<>)) return "AssetRef";
-            if (def == typeof(ScriptRef<>)) return "ScriptRef";
         }
+        // 参照型は基底クラスで判定する(ScriptBehaviourはComponent派生なので先に判定)
+        if (typeof(Asset).IsAssignableFrom(type)) return "AssetRef";
+        if (typeof(ScriptBehaviour).IsAssignableFrom(type)) return "ScriptRef";
+        if (typeof(Component).IsAssignableFrom(type)) return "ComponentRef";
+        if (type == typeof(Entity)) return "EntityRef";
         if (type == typeof(bool)) return "Bool";
         if (type == typeof(byte)) return "Byte";
         if (type == typeof(sbyte)) return "SByte";
@@ -1364,7 +1465,6 @@ public static unsafe class HostBridge {
         if (type == typeof(Quaternion)) return "Quaternion";
         if (type == typeof(Color3)) return "Color3";
         if (type == typeof(Color4)) return "Color4";
-        if (type == typeof(EntityRef)) return "EntityRef";
         return "Unsupported";
     }
 

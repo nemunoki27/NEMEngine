@@ -32,68 +32,50 @@ public readonly struct Collision {
     }
 }
 
-public abstract class ScriptBehaviour {
+public abstract class ScriptBehaviour : Component {
 
-    private Entity owner;
-    private Transform? cachedTransform;
     // owner Entity 内で自身の runtime entry を識別する scriptSlotID（CreateInstance 時に native から渡される）。
     // runtime managed instance handle ではない（混同しない）。Enabled 制御の identity に使う
     internal ulong scriptSlotId;
     // record 未生成時のフォールバック用。runtime entry があればそちらが正
     private bool enabledFallback = true;
 
-    public Entity entity {
-        get => owner;
-        internal set {
-            owner = value;
-            cachedTransform = null;
-        }
-    }
-    public Transform transform => cachedTransform ??= new Transform(owner);
+    // 同型複数attachがあるためscriptは参照同一性で比較する（destroyed時のnull等値はObject側が担う）
+    private protected override bool EqualsObject(Object other) => ReferenceEquals(this, other);
+    public override int GetHashCode() => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
 
     // runtime の有効/無効。lifecycle multi-pass の同期境界で OnEnable/OnDisable へ反映される。
     // authoring の ScriptEntry.enabled へは書き戻さない（Play終了で authoring に戻る）
     public bool Enabled {
         get {
-            int state = NativeApi.ReadScriptEnabled(owner.native, scriptSlotId);
+            int state = NativeApi.ReadScriptEnabled(entity.native, scriptSlotId);
             return state >= 0 ? state != 0 : enabledFallback;
         }
         set {
             enabledFallback = value;
-            NativeApi.WriteScriptEnabled(owner.native, scriptSlotId, value);
+            NativeApi.WriteScriptEnabled(entity.native, scriptSlotId, value);
         }
     }
 
     // owner が active hierarchy にあり、かつ Enabled なとき true
-    public bool IsActiveAndEnabled => owner.activeInHierarchy && Enabled;
+    public bool IsActiveAndEnabled => entity.activeInHierarchy && Enabled;
 
-    //========================================================================
-    //	generic component access（owner Entity への委譲。hot path で reflection しない）
-    //========================================================================
-    protected bool Has<T>() where T : struct, IComponentRef<T> => owner.Has<T>();
-    protected bool TryGet<T>(out T component) where T : struct, IComponentRef<T> => owner.TryGet(out component);
-    protected T Get<T>() where T : struct, IComponentRef<T> => owner.Get<T>();
-    protected void Add<T>() where T : struct, IComponentRef<T> => owner.Add<T>();
-    protected void Remove<T>() where T : struct, IComponentRef<T> => owner.Remove<T>();
-
-    // 自身や子孫 / 祖先から component を辿って取得する（owner Entity への委譲）
-    protected bool TryGetInChildren<T>(out T component) where T : struct, IComponentRef<T> => owner.TryGetInChildren(out component);
-    protected T GetInChildren<T>() where T : struct, IComponentRef<T> => owner.GetInChildren<T>();
-    protected bool TryGetInParent<T>(out T component) where T : struct, IComponentRef<T> => owner.TryGetInParent(out component);
-    protected T GetInParent<T>() where T : struct, IComponentRef<T> => owner.GetInParent<T>();
-    protected List<T> GetAllInChildren<T>() where T : struct, IComponentRef<T> => owner.GetAllInChildren<T>();
-
-    // 同 Entity 上の C# スクリプトを型で取得する（Unity の GetComponent<Script> 相当・owner Entity への委譲）
-    protected T? GetComponent<T>() where T : ScriptBehaviour => owner.GetComponent<T>();
-    protected bool TryGetComponent<T>(out T script) where T : ScriptBehaviour => owner.TryGetComponent(out script);
-    // 自身か子孫 / 祖先から script を辿って取得する（owner Entity への委譲）
-    protected T? GetComponentInChildren<T>() where T : ScriptBehaviour => owner.GetComponentInChildren<T>();
-    protected T? GetComponentInParent<T>() where T : ScriptBehaviour => owner.GetComponentInParent<T>();
+    // component access(GetComponent<T>等)はComponent基底が提供する（owner Entityへの委譲）
 
     // 指定 Entity を破棄する（WorldCommandBuffer 経由で遅延）
     protected void Destroy(Entity entity) => entity.Destroy();
     // 自分の owner Entity を破棄する
-    protected void DestroySelf() => owner.Destroy();
+    protected void DestroySelf() => entity.Destroy();
+
+    //========================================================================
+    //	Prefab 実体化（Unity の Instantiate 相当の糖衣。nullは安全にnull Entity）
+    //========================================================================
+    protected static Entity Instantiate(Prefab? prefab)
+        => prefab != null ? prefab.Instantiate() : Entity.nullEntity;
+    protected static Entity Instantiate(Prefab? prefab, Vector3 position, Quaternion rotation)
+        => prefab != null ? prefab.Instantiate(position, rotation) : Entity.nullEntity;
+    protected static Entity Instantiate(Prefab? prefab, Vector3 position, Quaternion rotation, Entity parent)
+        => prefab != null ? prefab.Instantiate(position, rotation, parent) : Entity.nullEntity;
 
     //========================================================================
     //	Coroutine（owner=this。owner 破棄 / DLL unload / Play Stop で停止）

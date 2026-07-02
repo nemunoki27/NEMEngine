@@ -36,11 +36,25 @@ public static class World {
     // 指定型のスクリプトを全て返す
     public static T[] FindObjectsOfType<T>() where T : ScriptBehaviour => HostBridge.FindScriptsOfType<T>();
 
-    // 指定componentを持つ最初のEntityを返す、未発見はnull Entity
-    public static Entity FindEntityWithComponent<T>() where T : struct, IComponentRef<T>
-        => NativeApi.FindByComponent(ComponentType<T>.Id);
+    // 指定componentを持つ最初のEntityを返す、未発見はnull Entity。script型はinstance走査で解決する
+    public static Entity FindEntityWithComponent<T>() where T : Component {
+        if (ComponentKind<T>.isScript) {
+            ScriptBehaviour? script = HostBridge.FindScriptOfTypeByType(typeof(T));
+            return script != null ? script.entity : Entity.nullEntity;
+        }
+        return ComponentKind<T>.typeId >= 0 ? NativeApi.FindByComponent(ComponentKind<T>.typeId) : Entity.nullEntity;
+    }
 
     // 指定componentを持つ全Entityを返す
-    public static Entity[] FindEntitiesWithComponent<T>() where T : struct, IComponentRef<T>
-        => NativeApi.FindManyByComponent(ComponentType<T>.Id);
+    public static Entity[] FindEntitiesWithComponent<T>() where T : Component {
+        if (ComponentKind<T>.isScript) {
+            List<ScriptBehaviour> scripts = HostBridge.FindScriptsOfTypeByType(typeof(T));
+            var entities = new Entity[scripts.Count];
+            for (int i = 0; i < scripts.Count; ++i) {
+                entities[i] = scripts[i].entity;
+            }
+            return entities;
+        }
+        return ComponentKind<T>.typeId >= 0 ? NativeApi.FindManyByComponent(ComponentKind<T>.typeId) : Array.Empty<Entity>();
+    }
 }

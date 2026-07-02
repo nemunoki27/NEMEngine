@@ -2,7 +2,7 @@ namespace NEMEngine;
 
 // 自動生成される SpriteRenderer wrapper の gameplay method 拡張（生成ファイルは編集しない）。
 // マテリアルの color を C# から get/set する。パラメータ名は color→baseColor→albedo の順で自動解決する。
-public readonly partial struct SpriteRenderer {
+public sealed partial class SpriteRenderer {
 
     // マテリアル color を上書きする。
     public void SetColor(Color4 color) {

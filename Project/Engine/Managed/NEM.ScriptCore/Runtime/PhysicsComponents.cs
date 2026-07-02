@@ -14,7 +14,7 @@ public enum ForceMode {
 }
 
 // 生成された Rigidbody に物理操作の facade を足す
-public readonly unsafe partial struct Rigidbody {
+public sealed unsafe partial class Rigidbody {
 
     // 力を加える、mode で連続/瞬間と質量の扱いを切り替える
     public void AddForce(Vector3 force, ForceMode mode = ForceMode.Force) {
@@ -42,7 +42,7 @@ public readonly unsafe partial struct Rigidbody {
 }
 
 // 生成された Rigidbody2D に物理操作の facade を足す
-public readonly unsafe partial struct Rigidbody2D {
+public sealed unsafe partial class Rigidbody2D {
 
     // XY平面の力を加える、mode で連続/瞬間と質量の扱いを切り替える
     public void AddForce(Vector2 force, ForceMode mode = ForceMode.Force) {

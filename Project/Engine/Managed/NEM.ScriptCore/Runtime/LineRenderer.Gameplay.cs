@@ -3,7 +3,7 @@ using System;
 namespace NEMEngine;
 
 // 自動生成されるLineRenderer拡張
-public readonly partial struct LineRenderer {
+public sealed partial class LineRenderer {
 
     // 末尾へ1点追加し、indexを採番したLinePointを返す。後でUpdatePointに渡して更新できる
     public LinePoint AddPoint(LinePoint point) {

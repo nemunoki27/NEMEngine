@@ -3,9 +3,11 @@ using System.Text.Json.Serialization;
 
 namespace NEMEngine;
 
-// AssetRef<T> / EntityRef / ScriptRef<T> / UUID を authoring / runtime JSON へ相互変換する。
-// readonly struct のため通常の property setter では復元できないので明示 converter を用意する。
+// Asset / Entity / Component / ScriptBehaviour 参照フィールドを authoring / runtime JSON へ相互変換する。
 // runtime pointer / index は一切保存せず、UUID と identity だけを round-trip する。
+// 保存形式は旧Ref型時代と同一（AssetRef={"assetId"} / EntityRef={"kind","sourceAsset","localFileId"} 等）で、
+// C++側のInspector / PrefabReferenceRemapperはそのまま動く。
+// 読み込みはidentityを現在のworldの生きた参照へ解決する（未解決はnull / null Entity）。
 
 // UUID <-> 16桁hex 文字列（"" は None）
 public sealed class UUIDJsonConverter : JsonConverter<UUID> {
@@ -19,8 +21,8 @@ public sealed class UUIDJsonConverter : JsonConverter<UUID> {
     }
 }
 
-// EntityRef <-> { "kind":"Scene|Prefab|Null", "sourceAsset":"hex", "localFileId":"hex" }
-public sealed class EntityRefJsonConverter : JsonConverter<EntityRef> {
+// EntityRef(内部identity) <-> { "kind":"Scene|Prefab|Null", "sourceAsset":"hex", "localFileId":"hex" }
+internal sealed class EntityRefJsonConverter : JsonConverter<EntityRef> {
 
     public override EntityRef Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
 
@@ -28,11 +30,19 @@ public sealed class EntityRefJsonConverter : JsonConverter<EntityRef> {
             return EntityRef.Null;
         }
         using JsonDocument doc = JsonDocument.ParseValue(ref reader);
-        JsonElement root = doc.RootElement;
+        return ReadIdentity(doc.RootElement);
+    }
+
+    public override void Write(Utf8JsonWriter writer, EntityRef value, JsonSerializerOptions options) {
+        WriteIdentity(writer, value);
+    }
+
+    // JsonElementからidentityを読む（Entity/Component/Scriptコンバータと共用）
+    internal static EntityRef ReadIdentity(JsonElement root) {
+
         if (root.ValueKind != JsonValueKind.Object) {
             return EntityRef.Null;
         }
-
         EntityRefKind kind = EntityRefKind.Null;
         if (root.TryGetProperty("kind", out JsonElement kindElement) && kindElement.ValueKind == JsonValueKind.String) {
             Enum.TryParse(kindElement.GetString(), out kind);
@@ -42,7 +52,7 @@ public sealed class EntityRefJsonConverter : JsonConverter<EntityRef> {
         return new EntityRef(kind, source, local);
     }
 
-    public override void Write(Utf8JsonWriter writer, EntityRef value, JsonSerializerOptions options) {
+    internal static void WriteIdentity(Utf8JsonWriter writer, EntityRef value) {
 
         writer.WriteStartObject();
         writer.WriteString("kind", value.kind.ToString());
@@ -52,128 +62,172 @@ public sealed class EntityRefJsonConverter : JsonConverter<EntityRef> {
     }
 }
 
-// AssetRef<T> <-> { "assetId":"hex" }
-public sealed class AssetRefJsonConverterFactory : JsonConverterFactory {
+// Entity <-> identity JSON。読み込みは現在のworldの生きたEntityへ解決し、書き込みはSceneObjectのidentityへ逆引きする
+internal sealed class EntityJsonConverter : JsonConverter<Entity> {
 
-    public override bool CanConvert(Type typeToConvert) {
-        return typeToConvert.IsGenericType && typeToConvert.GetGenericTypeDefinition() == typeof(AssetRef<>);
+    public override Entity Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+
+        if (reader.TokenType == JsonTokenType.Null) {
+            return Entity.nullEntity;
+        }
+        using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+        return EntityRefJsonConverter.ReadIdentity(doc.RootElement).Resolve();
     }
 
-    public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options) {
-        Type asset = typeToConvert.GetGenericArguments()[0];
-        return (JsonConverter)Activator.CreateInstance(typeof(AssetRefJsonConverter<>).MakeGenericType(asset))!;
+    public override void Write(Utf8JsonWriter writer, Entity value, JsonSerializerOptions options) {
+
+        EntityRef identity = value.isAlive
+            ? NativeApi.ReadEntityReferenceIdentity(value.native)
+            : EntityRef.Null;
+        EntityRefJsonConverter.WriteIdentity(writer, identity);
     }
 }
 
-public sealed class AssetRefJsonConverter<TAsset> : JsonConverter<AssetRef<TAsset>> where TAsset : class, IAssetType {
+// Asset派生クラス <-> { "assetId":"hex" }。nullも空identityのobjectとして書く（C++側の既定値形状と揃える）
+internal sealed class AssetJsonConverterFactory : JsonConverterFactory {
 
-    public override AssetRef<TAsset> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+    public override bool CanConvert(Type typeToConvert) {
+        return typeof(Asset).IsAssignableFrom(typeToConvert) && !typeToConvert.IsAbstract;
+    }
+
+    public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options) {
+        return (JsonConverter)Activator.CreateInstance(typeof(AssetJsonConverter<>).MakeGenericType(typeToConvert))!;
+    }
+}
+
+internal sealed class AssetJsonConverter<TAsset> : JsonConverter<TAsset> where TAsset : Asset {
+
+    // ctorはinternalのためreflectionで一度だけ引く
+    private static readonly System.Reflection.ConstructorInfo? ctor = typeof(TAsset).GetConstructor(
+        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
+        new[] { typeof(UUID) });
+
+    public override bool HandleNull => true;
+
+    public override TAsset? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
 
         if (reader.TokenType == JsonTokenType.Null) {
-            return AssetRef<TAsset>.None;
+            return null;
         }
         using JsonDocument doc = JsonDocument.ParseValue(ref reader);
         JsonElement root = doc.RootElement;
-        if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("assetId", out JsonElement id)) {
-            return new AssetRef<TAsset>(UUID.Parse(id.GetString()));
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("assetId", out JsonElement id)) {
+            return null;
         }
-        return AssetRef<TAsset>.None;
+        UUID assetId = UUID.Parse(id.GetString());
+        return assetId.isValid && ctor != null ? (TAsset)ctor.Invoke(new object[] { assetId }) : null;
     }
 
-    public override void Write(Utf8JsonWriter writer, AssetRef<TAsset> value, JsonSerializerOptions options) {
+    public override void Write(Utf8JsonWriter writer, TAsset? value, JsonSerializerOptions options) {
 
         writer.WriteStartObject();
-        writer.WriteString("assetId", value.id.isValid ? value.id.ToString() : string.Empty);
+        writer.WriteString("assetId", value != null && value.id.isValid ? value.id.ToString() : string.Empty);
         writer.WriteEndObject();
     }
 }
 
-// ScriptRef<T> <-> { "entity":{...}, "scriptSlotId":"hex", "scriptTypeId":"guid" }
-public sealed class ScriptRefJsonConverterFactory : JsonConverterFactory {
+// 組込みcomponentクラス <-> { "entity":{...} }（型はフィールド宣言で決まるため値には保存しない）
+internal sealed class ComponentJsonConverterFactory : JsonConverterFactory {
 
     public override bool CanConvert(Type typeToConvert) {
-        return typeToConvert.IsGenericType && typeToConvert.GetGenericTypeDefinition() == typeof(ScriptRef<>);
+        return typeof(Component).IsAssignableFrom(typeToConvert)
+            && !typeof(ScriptBehaviour).IsAssignableFrom(typeToConvert)
+            && !typeToConvert.IsAbstract
+            && typeof(IComponentRef<>).MakeGenericType(typeToConvert).IsAssignableFrom(typeToConvert);
     }
 
     public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options) {
-        Type script = typeToConvert.GetGenericArguments()[0];
-        return (JsonConverter)Activator.CreateInstance(typeof(ScriptRefJsonConverter<>).MakeGenericType(script))!;
+        return (JsonConverter)Activator.CreateInstance(typeof(ComponentJsonConverter<>).MakeGenericType(typeToConvert))!;
     }
 }
 
-public sealed class ScriptRefJsonConverter<T> : JsonConverter<ScriptRef<T>> where T : ScriptBehaviour {
+internal sealed class ComponentJsonConverter<T> : JsonConverter<T> where T : Component, IComponentRef<T> {
 
-    public override ScriptRef<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+    public override bool HandleNull => true;
+
+    public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
 
         if (reader.TokenType == JsonTokenType.Null) {
-            return ScriptRef<T>.Null;
+            return null;
+        }
+        using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+        JsonElement root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("entity", out JsonElement entityElement)) {
+            return null;
+        }
+        Entity owner = EntityRefJsonConverter.ReadIdentity(entityElement).Resolve();
+        if (!owner.isAlive || ComponentType<T>.Id < 0 || !NativeApi.ReadHasComponent(owner.native, ComponentType<T>.Id)) {
+            return null;
+        }
+        return T.FromEntity(owner);
+    }
+
+    public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options) {
+
+        EntityRef identity = value != null && value.entity.isAlive
+            ? NativeApi.ReadEntityReferenceIdentity(value.entity.native)
+            : EntityRef.Null;
+        writer.WriteStartObject();
+        writer.WritePropertyName("entity");
+        EntityRefJsonConverter.WriteIdentity(writer, identity);
+        writer.WriteEndObject();
+    }
+}
+
+// ScriptBehaviour派生クラス <-> { "entity":{...}, "scriptSlotId":"hex", "scriptTypeId":"guid" }
+// 読み込みは保存されたscriptTypeId(無ければフィールド宣言型のGUID)でnative registryから生きたinstanceを引く
+internal sealed class ScriptBehaviourJsonConverterFactory : JsonConverterFactory {
+
+    public override bool CanConvert(Type typeToConvert) {
+        return typeof(ScriptBehaviour).IsAssignableFrom(typeToConvert);
+    }
+
+    public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options) {
+        return (JsonConverter)Activator.CreateInstance(typeof(ScriptBehaviourJsonConverter<>).MakeGenericType(typeToConvert))!;
+    }
+}
+
+internal sealed class ScriptBehaviourJsonConverter<T> : JsonConverter<T> where T : ScriptBehaviour {
+
+    public override bool HandleNull => true;
+
+    public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+
+        if (reader.TokenType == JsonTokenType.Null) {
+            return null;
         }
         using JsonDocument doc = JsonDocument.ParseValue(ref reader);
         JsonElement root = doc.RootElement;
         if (root.ValueKind != JsonValueKind.Object) {
-            return ScriptRef<T>.Null;
+            return null;
         }
 
-        EntityRef entity = EntityRef.Null;
-        if (root.TryGetProperty("entity", out JsonElement entityElement)) {
-            entity = entityElement.Deserialize<EntityRef>(options);
+        Entity owner = root.TryGetProperty("entity", out JsonElement entityElement)
+            ? EntityRefJsonConverter.ReadIdentity(entityElement).Resolve()
+            : Entity.nullEntity;
+        if (!owner.isAlive) {
+            return null;
         }
-        UUID slot = root.TryGetProperty("scriptSlotId", out JsonElement s)
-            ? UUID.Parse(s.GetString())
-            : (root.TryGetProperty("scriptSlotID", out JsonElement oldSlot) ? UUID.Parse(oldSlot.GetString()) : UUID.None);
+
+        // 保存された型GUIDを優先し、無ければ宣言型のGUIDで引く（宣言型がabstractでも保存GUIDで解決できる）
         string typeId = root.TryGetProperty("scriptTypeId", out JsonElement t) ? (t.GetString() ?? string.Empty) : string.Empty;
-        return new ScriptRef<T>(entity, slot, typeId);
+        if (string.IsNullOrEmpty(typeId)) {
+            typeId = HostBridge.GetScriptTypeGuid(typeof(T)) ?? string.Empty;
+        }
+        return HostBridge.FindScriptByGuid(owner.native, typeId) as T;
     }
 
-    public override void Write(Utf8JsonWriter writer, ScriptRef<T> value, JsonSerializerOptions options) {
+    public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options) {
 
+        bool alive = value != null && value.entity.isAlive;
+        EntityRef identity = alive
+            ? NativeApi.ReadEntityReferenceIdentity(value!.entity.native)
+            : EntityRef.Null;
         writer.WriteStartObject();
         writer.WritePropertyName("entity");
-        JsonSerializer.Serialize(writer, value.entity, options);
-        writer.WriteString("scriptSlotId", value.scriptSlotId.isValid ? value.scriptSlotId.ToString() : string.Empty);
-        writer.WriteString("scriptTypeId", value.scriptTypeId ?? string.Empty);
-        writer.WriteEndObject();
-    }
-}
-
-// ComponentRef<T> <-> { "entity":{...} }（型Tはジェネリックで決まるため値には保存しない）
-public sealed class ComponentRefJsonConverterFactory : JsonConverterFactory {
-
-    public override bool CanConvert(Type typeToConvert) {
-        return typeToConvert.IsGenericType && typeToConvert.GetGenericTypeDefinition() == typeof(ComponentRef<>);
-    }
-
-    public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options) {
-        Type component = typeToConvert.GetGenericArguments()[0];
-        return (JsonConverter)Activator.CreateInstance(typeof(ComponentRefJsonConverter<>).MakeGenericType(component))!;
-    }
-}
-
-public sealed class ComponentRefJsonConverter<T> : JsonConverter<ComponentRef<T>> where T : struct, IComponentRef<T> {
-
-    public override ComponentRef<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
-
-        if (reader.TokenType == JsonTokenType.Null) {
-            return ComponentRef<T>.Null;
-        }
-        using JsonDocument doc = JsonDocument.ParseValue(ref reader);
-        JsonElement root = doc.RootElement;
-        if (root.ValueKind != JsonValueKind.Object) {
-            return ComponentRef<T>.Null;
-        }
-
-        EntityRef entity = EntityRef.Null;
-        if (root.TryGetProperty("entity", out JsonElement entityElement)) {
-            entity = entityElement.Deserialize<EntityRef>(options);
-        }
-        return new ComponentRef<T>(entity);
-    }
-
-    public override void Write(Utf8JsonWriter writer, ComponentRef<T> value, JsonSerializerOptions options) {
-
-        writer.WriteStartObject();
-        writer.WritePropertyName("entity");
-        JsonSerializer.Serialize(writer, value.entity, options);
+        EntityRefJsonConverter.WriteIdentity(writer, identity);
+        writer.WriteString("scriptSlotId", alive && value!.scriptSlotId != 0 ? new UUID(value.scriptSlotId).ToString() : string.Empty);
+        writer.WriteString("scriptTypeId", alive ? HostBridge.GetScriptTypeGuid(value!.GetType()) ?? string.Empty : string.Empty);
         writer.WriteEndObject();
     }
 }

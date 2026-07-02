@@ -328,6 +328,8 @@ namespace Engine {
 		static uint64_t __cdecl LoadSceneSingleCallback(uint64_t sceneAssetID);
 		// EntityRefをlocalFileIDからruntime entityへ解決する、対象が無ければNull
 		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(uint64_t sourceAsset, uint64_t localFileID);
+		// EntityのSceneObject識別子を逆引きする、参照フィールドの保存表現に使う
+		static void __cdecl GetEntityReferenceIdentityCallback(ManagedNativeEntity entity, uint64_t* sourceAsset, uint64_t* localFileID, int32_t* kind);
 		// ライン描画v12でLineRendererComponentの点列を置き換える、count0でクリア
 		static void __cdecl LineSetPointsCallback(ManagedNativeEntity entity, const ManagedLinePoint* points, int32_t count, int32_t loop);
 		// LineRendererComponentの末尾へ1点追加し、採番したindexを返す

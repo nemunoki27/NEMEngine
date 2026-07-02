@@ -26,7 +26,8 @@ internal static class ManagedAbi {
     // v17: 入力タイプとマウス範囲制御の get/set を追加
     // v18: MeshRenderer のマテリアル color 上書き setMeshMaterialColor を追加
     // v19: Mesh/Sprite/Text のマテリアル color の get/set(setRendererMaterialColor/getRendererMaterialColor)を追加
-    internal const uint Version = 19;
+    // v20: Entityの保存identityを逆引きする getEntityReferenceIdentity を追加
+    internal const uint Version = 20;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -300,6 +301,8 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, void> FillMeshSetPositions;
     internal static delegate* unmanaged[Cdecl]<int> GetMouseRangeControl;
     internal static delegate* unmanaged[Cdecl]<int, void> SetMouseRangeControl;
+    // v20: Entityの保存identityを逆引きする
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong*, ulong*, int*, void> GetEntityReferenceIdentity;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -415,6 +418,7 @@ internal static unsafe class NativeApi {
         SetRendererMaterialColor = callbacks->setRendererMaterialColor;
         GetRendererMaterialColor = callbacks->getRendererMaterialColor;
         FillMeshSetPositions = callbacks->fillMeshSetPositions;
+        GetEntityReferenceIdentity = callbacks->getEntityReferenceIdentity;
     }
 
     internal static float ReadDeltaTime() {
@@ -828,6 +832,18 @@ internal static unsafe class NativeApi {
     internal static Entity ResolveEntityReference(ulong sourceAsset, ulong localFileId)
         => (ResolveEntityRef != null && localFileId != 0) ? new Entity(ResolveEntityRef(sourceAsset, localFileId)) : Entity.nullEntity;
 
+    // Entityの保存identityを逆引きする。SceneObjectが無ければNull identity
+    internal static EntityRef ReadEntityReferenceIdentity(NativeEntity entity) {
+        if (GetEntityReferenceIdentity == null) {
+            return EntityRef.Null;
+        }
+        ulong sourceAsset = 0;
+        ulong localFileId = 0;
+        int kind = 0;
+        GetEntityReferenceIdentity(entity, &sourceAsset, &localFileId, &kind);
+        return new EntityRef((EntityRefKind)kind, new UUID(sourceAsset), new UUID(localFileId));
+    }
+
     // LineRendererComponent の点列を差し替える、count0でクリア
     internal static void LineSetComponentPoints(NativeEntity entity, ReadOnlySpan<LinePoint> points, bool loop) {
         if (LineSetPoints == null) {
@@ -1213,4 +1229,6 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, float, float, float, float, void> setRendererMaterialColor;
     public delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeColor4> getRendererMaterialColor;
     public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, void> fillMeshSetPositions;
+    // v20: Entityの保存identity(sourceAsset/localFileId/kind)を逆引きする
+    public delegate* unmanaged[Cdecl]<NativeEntity, ulong*, ulong*, int*, void> getEntityReferenceIdentity;
 }

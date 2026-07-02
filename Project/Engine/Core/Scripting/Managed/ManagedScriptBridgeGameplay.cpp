@@ -8,6 +8,7 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h>
@@ -62,6 +63,28 @@ namespace Engine {
 			return MakeNullNativeEntity();
 		}
 		return MakeNativeEntity(*world, entity);
+	}
+
+	void ManagedScriptRuntime::GetEntityReferenceIdentityCallback(ManagedNativeEntity entity,
+		uint64_t* sourceAsset, uint64_t* localFileID, int32_t* kind) {
+
+		if (sourceAsset) { *sourceAsset = 0; }
+		if (localFileID) { *localFileID = 0; }
+		if (kind) { *kind = 0; }
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		if (!world || !world->IsAlive(resolved)) {
+			return;
+		}
+		const SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(resolved);
+		if (!sceneObject || !sceneObject->localFileID) {
+			return;
+		}
+		if (sourceAsset) { *sourceAsset = sceneObject->sourceAsset.value; }
+		if (localFileID) { *localFileID = sceneObject->localFileID.value; }
+		// runtime worldのentityはScene由来として扱う
+		if (kind) { *kind = 1; }
 	}
 
 	namespace {

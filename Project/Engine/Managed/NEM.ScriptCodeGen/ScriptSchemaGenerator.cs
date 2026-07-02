@@ -20,6 +20,8 @@ namespace NEM.ScriptCodeGen
     public sealed class ScriptSchemaGenerator : IIncrementalGenerator
     {
         private const string ScriptBehaviourFullName = "NEMEngine.ScriptBehaviour";
+        private const string AssetFullName = "NEMEngine.Asset";
+        private const string ComponentFullName = "NEMEngine.Component";
         private const string ScriptTypeIdAttributeName = "NEMEngine.ScriptTypeIdAttribute";
         private const string SerializeFieldAttributeName = "NEMEngine.SerializeFieldAttribute";
         private const string SerializedFieldIdAttributeName = "NEMEngine.SerializedFieldIdAttribute";
@@ -65,7 +67,7 @@ namespace NEM.ScriptCodeGen
         private static readonly DiagnosticDescriptor UnsupportedFieldRule = new DiagnosticDescriptor(
             "NEMSG013",
             "Unsupported serialized field type",
-            "Serialized field '{0}.{1}' has unsupported type '{2}' and will be skipped. Use a supported scalar, enum, math type, AssetRef/EntityRef/ScriptRef/ComponentRef, array, List, or Nullable.",
+            "Serialized field '{0}.{1}' has unsupported type '{2}' and will be skipped. Use a supported scalar, enum, math type, asset/Entity/component/ScriptBehaviour reference, array, List, or Nullable.",
             "NEMScript", DiagnosticSeverity.Warning, isEnabledByDefault: true);
 
         private sealed class TypeSchema
@@ -322,23 +324,28 @@ namespace NEM.ScriptCodeGen
                 {
                     return new KindInfo { Kind = "List", Element = ResolveKind(named.TypeArguments[0]) };
                 }
-                if (constructed == "NEMEngine.AssetRef<TAsset>")
+
+                // 参照型は型宣言の基底クラスだけで判定する（ScriptBehaviourはComponent派生なので先に判定）
+                if (named.TypeKind == TypeKind.Class)
                 {
-                    return new KindInfo { Kind = "AssetRef", AssetType = ResolveAssetType(named.TypeArguments[0]) };
-                }
-                if (constructed == "NEMEngine.ScriptRef<T>")
-                {
-                    return new KindInfo
+                    if (DerivesFrom(named, AssetFullName))
                     {
-                        Kind = "ScriptRef",
-                        ScriptType = named.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat
-                            .WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted)),
-                    };
-                }
-                if (constructed == "NEMEngine.ComponentRef<T>")
-                {
-                    // 単純名がネイティブのコンポーネント登録名と一致する
-                    return new KindInfo { Kind = "ComponentRef", ComponentType = named.TypeArguments[0].Name };
+                        return new KindInfo { Kind = "AssetRef", AssetType = ResolveAssetType(named) };
+                    }
+                    if (DerivesFrom(named, ScriptBehaviourFullName))
+                    {
+                        return new KindInfo
+                        {
+                            Kind = "ScriptRef",
+                            ScriptType = named.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat
+                                .WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted)),
+                        };
+                    }
+                    if (!named.IsAbstract && DerivesFrom(named, ComponentFullName))
+                    {
+                        // 単純名がネイティブのコンポーネント登録名と一致する
+                        return new KindInfo { Kind = "ComponentRef", ComponentType = named.Name };
+                    }
                 }
             }
 
@@ -396,9 +403,22 @@ namespace NEM.ScriptCodeGen
                 case "NEMEngine.Quaternion": return "Quaternion";
                 case "NEMEngine.Color3": return "Color3";
                 case "NEMEngine.Color4": return "Color4";
-                case "NEMEngine.EntityRef": return "EntityRef";
+                case "NEMEngine.Entity": return "EntityRef";
             }
             return null;
+        }
+
+        // 任意の基底クラス名まで継承チェーンを辿る
+        private static bool DerivesFrom(INamedTypeSymbol symbol, string baseFullName)
+        {
+            for (INamedTypeSymbol? current = symbol.BaseType; current != null; current = current.BaseType)
+            {
+                if (current.ToDisplayString() == baseFullName)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static string ResolveAssetType(ITypeSymbol assetMarker)

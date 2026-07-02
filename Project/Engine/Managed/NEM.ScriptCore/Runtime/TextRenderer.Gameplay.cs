@@ -2,7 +2,7 @@ namespace NEMEngine;
 
 // 自動生成される TextRenderer wrapper の gameplay method 拡張（生成ファイルは編集しない）。
 // マテリアルの color を C# から get/set する。パラメータ名は color→baseColor→albedo の順で自動解決する。
-public readonly partial struct TextRenderer {
+public sealed partial class TextRenderer {
 
     // マテリアル color を上書きする。
     public void SetColor(Color4 color) {

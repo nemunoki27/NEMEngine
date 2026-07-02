@@ -34,7 +34,8 @@ namespace Engine {
 	// v17: 入力タイプとマウス範囲制御のget/setを追加
 	// v18: MeshRendererのマテリアルcolor上書きsetMeshMaterialColorを追加
 	// v19: MeshRendererのマテリアルcolor取得getMeshMaterialColorを追加
-	inline constexpr uint32_t kManagedAbiVersion = 19;
+	// v20: Entityの保存identityを逆引きするgetEntityReferenceIdentityを追加
+	inline constexpr uint32_t kManagedAbiVersion = 20;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -361,6 +362,8 @@ namespace Engine {
 		// GetComponent<Script> v9のentity上でscriptTypeID一致のscript instanceハンドルを引く
 		using GetScriptInstanceCallback = ManagedScriptInstanceHandle(__cdecl*)(ManagedNativeEntity, const char*);
 		using ResolveEntityRefCallback = ManagedNativeEntity(__cdecl*)(uint64_t, uint64_t);
+		// v20のEntity保存identity逆引き、sourceAssetとlocalFileIDとkindを返す
+		using GetEntityRefIdentityCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t*, uint64_t*, int32_t*);
 		// ライン描画v12でcomponentの点列設定と即時描画
 		using LineSetPointsCallback = void(__cdecl*)(ManagedNativeEntity, const ManagedLinePoint*, int32_t, int32_t);
 		using LineAddPointCallback = int32_t(__cdecl*)(ManagedNativeEntity, ManagedLinePoint);
@@ -516,6 +519,9 @@ namespace Engine {
 		SetRendererColorCallback setRendererMaterialColor = nullptr;
 		GetRendererColorCallback getRendererMaterialColor = nullptr;
 		FillMeshSetPositionsCallback fillMeshSetPositions = nullptr;
+
+		// v20のEntity保存identity逆引き、参照フィールドの保存表現に使う
+		GetEntityRefIdentityCallback getEntityReferenceIdentity = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

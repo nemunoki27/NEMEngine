@@ -77,8 +77,8 @@
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
-        { "managedName": "Texture", "nativeMember": "texture", "kind": "AssetRef", "assetType": "TextureAsset", "access": "ReadWrite" },
-        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "MaterialAsset", "access": "ReadWrite" },
+        { "managedName": "Texture", "nativeMember": "texture", "kind": "AssetRef", "assetType": "Texture", "access": "ReadWrite" },
+        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "Material", "access": "ReadWrite" },
         { "managedName": "Size", "nativeMember": "size", "kind": "Vector2", "access": "ReadWrite" },
         { "managedName": "Pivot", "nativeMember": "pivot", "kind": "Vector2", "access": "ReadWrite" },
         { "managedName": "Color", "nativeMember": "color", "kind": "Color4", "access": "ReadWrite" },
@@ -97,7 +97,7 @@
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
-        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "MaterialAsset", "access": "ReadWrite" },
+        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "Material", "access": "ReadWrite" },
         { "managedName": "Color", "nativeMember": "color", "kind": "Color4", "access": "ReadWrite" },
         { "managedName": "BuildMesh", "nativeMember": "buildMesh", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "Layer", "nativeMember": "layer", "kind": "Int", "access": "ReadWrite" },
@@ -115,8 +115,8 @@
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
-        { "managedName": "Mesh", "nativeMember": "mesh", "kind": "AssetRef", "assetType": "MeshAsset", "access": "ReadWrite" },
-        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "MaterialAsset", "access": "ReadWrite" },
+        { "managedName": "Mesh", "nativeMember": "mesh", "kind": "AssetRef", "assetType": "Mesh", "access": "ReadWrite" },
+        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "Material", "access": "ReadWrite" },
         { "managedName": "Layer", "nativeMember": "layer", "kind": "Int", "access": "ReadWrite" },
         { "managedName": "Order", "nativeMember": "order", "kind": "Int", "access": "ReadWrite" },
         { "managedName": "Visible", "nativeMember": "visible", "kind": "Bool", "access": "ReadWrite" },
@@ -133,8 +133,8 @@
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
-        { "managedName": "Font", "nativeMember": "font", "kind": "AssetRef", "assetType": "FontAsset", "access": "ReadWrite" },
-        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "MaterialAsset", "access": "ReadWrite" },
+        { "managedName": "Font", "nativeMember": "font", "kind": "AssetRef", "assetType": "Font", "access": "ReadWrite" },
+        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "Material", "access": "ReadWrite" },
         { "managedName": "Text", "nativeMember": "text", "kind": "String", "access": "ReadWrite" },
         { "managedName": "FontSize", "nativeMember": "fontSize", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "CharSpacing", "nativeMember": "charSpacing", "kind": "Float", "access": "ReadWrite" },
@@ -154,7 +154,7 @@
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
-        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "MaterialAsset", "access": "ReadWrite" },
+        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "Material", "access": "ReadWrite" },
         { "managedName": "Loop", "nativeMember": "loop", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "Is2D", "nativeMember": "is2D", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "UseWorldSpace", "nativeMember": "useWorldSpace", "kind": "Bool", "access": "ReadWrite" },
@@ -256,7 +256,7 @@
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
-        { "managedName": "Clip", "nativeMember": "clip", "kind": "AssetRef", "assetType": "AudioAsset", "access": "ReadWrite" },
+        { "managedName": "Clip", "nativeMember": "clip", "kind": "AssetRef", "assetType": "AudioClip", "access": "ReadWrite" },
         { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "PlayOnAwake", "nativeMember": "playOnAwake", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "Loop", "nativeMember": "loop", "kind": "Bool", "access": "ReadWrite" },

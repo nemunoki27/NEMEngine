@@ -8,60 +8,58 @@ public enum Space {
 }
 
 // Transform facade。owner Entity の opaque handle だけを持ち、native Transform pointer は保持しない。
-// settable property(position/parent 等)を持つため struct ではなく class（一時 struct への代入を防ぐ）。
-public sealed class Transform : IComponentRef {
-
-    private readonly Entity owner;
+public sealed class Transform : Component, IComponentRef<Transform> {
 
     internal Transform(Entity entity) {
-        owner = entity;
+        this.entity = entity;
     }
 
-    public Entity entity => owner;
+    public static string componentTypeName => "Transform";
+    public static Transform FromEntity(Entity entity) => new(entity);
 
     public Vector3 position {
 
         // world positionはECSのworldMatrixから取得し、書き込み時は親Transformを考慮してlocalへ変換される
-        get => NativeApi.ReadPosition(owner.native);
-        set => NativeApi.WritePosition(owner.native, value);
+        get => NativeApi.ReadPosition(entity.native);
+        set => NativeApi.WritePosition(entity.native, value);
     }
 
     public Vector3 localPosition {
 
         // local SRTはTransformComponentの値を直接読み書きする
-        get => NativeApi.ReadLocalPosition(owner.native);
-        set => NativeApi.WriteLocalPosition(owner.native, value);
+        get => NativeApi.ReadLocalPosition(entity.native);
+        set => NativeApi.WriteLocalPosition(entity.native, value);
     }
 
     public Vector3 localScale {
-        get => NativeApi.ReadLocalScale(owner.native);
-        set => NativeApi.WriteLocalScale(owner.native, value);
+        get => NativeApi.ReadLocalScale(entity.native);
+        set => NativeApi.WriteLocalScale(entity.native, value);
     }
 
     public Quaternion localRotation {
-        get => NativeApi.ReadLocalRotation(owner.native);
-        set => NativeApi.WriteLocalRotation(owner.native, value);
+        get => NativeApi.ReadLocalRotation(entity.native);
+        set => NativeApi.WriteLocalRotation(entity.native, value);
     }
 
     // world(親階層を含めた) 回転。set は親の world 回転を考慮して local へ変換される
     public Quaternion rotation {
-        get => NativeApi.ReadRotation(owner.native);
-        set => NativeApi.WriteRotation(owner.native, value);
+        get => NativeApi.ReadRotation(entity.native);
+        set => NativeApi.WriteRotation(entity.native, value);
     }
 
     // world(lossy) scale。親階層の localScale を成分積で累積した近似値（読み取り専用）
-    public Vector3 lossyScale => NativeApi.ReadLossyScale(owner.native);
+    public Vector3 lossyScale => NativeApi.ReadLossyScale(entity.native);
 
     // 親(エンティティ階層 / スキンメッシュのジョイント)追従で回転を無視するか。座標は常に追従する
     public bool ignoreParentRotation {
-        get => NativeApi.ReadIgnoreParentRotation(owner.native);
-        set => NativeApi.WriteIgnoreParentRotation(owner.native, value);
+        get => NativeApi.ReadIgnoreParentRotation(entity.native);
+        set => NativeApi.WriteIgnoreParentRotation(entity.native, value);
     }
 
     // 親追従でスケールを無視するか
     public bool ignoreParentScale {
-        get => NativeApi.ReadIgnoreParentScale(owner.native);
-        set => NativeApi.WriteIgnoreParentScale(owner.native, value);
+        get => NativeApi.ReadIgnoreParentScale(entity.native);
+        set => NativeApi.WriteIgnoreParentScale(entity.native, value);
     }
 
     // world 回転を基準にした各方向ベクトル
@@ -71,10 +69,10 @@ public sealed class Transform : IComponentRef {
 
     public Transform? parent {
         get {
-            Entity parentEntity = owner.parent;
+            Entity parentEntity = entity.parent;
             return parentEntity.isAlive ? parentEntity.transform : null;
         }
-        set => owner.SetParent(value?.entity ?? Entity.nullEntity);
+        set => entity.SetParent(value?.entity ?? Entity.nullEntity);
     }
 
     public void SetParent(Transform? parent) {
@@ -84,14 +82,14 @@ public sealed class Transform : IComponentRef {
     // 親を付け替える。worldPositionStays=true なら付け替え前後で world transform を維持する（native の deferred 適用）。
     // default Entity を渡すと root 化する。循環/invalid parent は native 側で安全に拒否される。
     public void SetParent(Entity parent, bool worldPositionStays = true) {
-        NativeApi.ReparentKeepWorld(owner.native, parent.native, worldPositionStays);
+        NativeApi.ReparentKeepWorld(entity.native, parent.native, worldPositionStays);
     }
 
     // 子の数。firstChild / nextSibling を辿って数える（hierarchy は native 側が一貫管理）
     public int childCount {
         get {
             int count = 0;
-            for (Entity child = owner.firstChild; child.isAlive; child = child.nextSibling) {
+            for (Entity child = entity.firstChild; child.isAlive; child = child.nextSibling) {
                 ++count;
             }
             return count;
@@ -104,7 +102,7 @@ public sealed class Transform : IComponentRef {
             return null;
         }
         int current = 0;
-        for (Entity child = owner.firstChild; child.isAlive; child = child.nextSibling) {
+        for (Entity child = entity.firstChild; child.isAlive; child = child.nextSibling) {
             if (current == index) {
                 return child.transform;
             }

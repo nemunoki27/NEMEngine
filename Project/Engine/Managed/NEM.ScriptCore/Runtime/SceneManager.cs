@@ -52,7 +52,10 @@ public static class SceneManager {
     private static readonly List<(SceneHandle handle, UUID asset)> pendingUnload = new();
 
     // 追加シーンを load する。SceneHandle を即時返す（load 自体は次の flush で適用）。
-    public static SceneHandle LoadAdditive(AssetRef<SceneAsset> scene) {
+    public static SceneHandle LoadAdditive(SceneAsset? scene) {
+        if (scene == null) {
+            return default;
+        }
         ulong id = NativeApi.SceneLoadAdditive(scene.id.value);
         if (id == 0) {
             return default;
@@ -65,7 +68,10 @@ public static class SceneManager {
     // Unity の SceneManager.LoadScene 相当。mode で単一/加算を切り替える。
     // Single は新 scene を active にし、それまでに load 済みの scene を全て unload する（完全切り替え）。
     // Additive は現在の scene を残したまま新 scene を読み込む（LoadAdditive と同じ）。
-    public static SceneHandle LoadScene(AssetRef<SceneAsset> scene, LoadSceneMode mode = LoadSceneMode.Single) {
+    public static SceneHandle LoadScene(SceneAsset? scene, LoadSceneMode mode = LoadSceneMode.Single) {
+        if (scene == null) {
+            return default;
+        }
         if (mode == LoadSceneMode.Additive) {
             return LoadAdditive(scene);
         }

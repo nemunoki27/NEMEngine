@@ -1,7 +1,7 @@
 namespace NEMEngine;
 
 // EntityRef が指す対象の種別
-public enum EntityRefKind
+internal enum EntityRefKind
 {
 
     Null = 0,
@@ -9,7 +9,8 @@ public enum EntityRefKind
     Prefab,
 }
 
-public readonly struct EntityRef
+// Entity参照の保存identity。ゲームコードへは公開せず、Entity型フィールドのシリアライズ内部表現として使う
+internal readonly struct EntityRef
 {
 
     // 参照の種別

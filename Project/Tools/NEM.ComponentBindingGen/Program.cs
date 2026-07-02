@@ -7,7 +7,7 @@ namespace NEM.ComponentBindingGen;
 // 同じ入力からは byte 単位で安定した出力（sorted・LF・UTF-8 no BOM）。
 internal static class Program {
 
-    private const string GeneratorVersion = "1";
+    private const string GeneratorVersion = "2";
     private const int SupportedSchemaVersion = 1;
 
     private sealed class EnumMember { public string Name = ""; public long Value; }
@@ -731,8 +731,7 @@ internal static class Program {
         // wrappers
         foreach (ComponentModel comp in components) {
             sb.Append($"// {comp.NativeType} の調整可能 property を公開する wrapper（owner Entity の opaque handle のみ保持）\n");
-            sb.Append($"public readonly unsafe partial struct {comp.ManagedType} : IComponentRef<{comp.ManagedType}> {{\n\n");
-            sb.Append("    public Entity entity { get; }\n\n");
+            sb.Append($"public sealed unsafe partial class {comp.ManagedType} : Component, IComponentRef<{comp.ManagedType}> {{\n\n");
             sb.Append($"    internal {comp.ManagedType}(Entity entity) {{ this.entity = entity; }}\n\n");
             sb.Append($"    public static string componentTypeName => \"{comp.RegistryName}\";\n");
             sb.Append($"    public static {comp.ManagedType} FromEntity(Entity entity) => new(entity);\n\n");
@@ -764,9 +763,9 @@ internal static class Program {
             }
             case "AssetRef": {
                 string t = prop.AssetType!;
-                sb.Append($"    public AssetRef<{t}> {prop.ManagedName} {{\n");
-                sb.Append($"        get {{ ulong v = 0; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 8); return new AssetRef<{t}>(new UUID(v)); }}\n");
-                if (!prop.ReadOnly) sb.Append($"        set {{ ulong v = value.id.value; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, 8); }}\n");
+                sb.Append($"    public {t}? {prop.ManagedName} {{\n");
+                sb.Append($"        get {{ ulong v = 0; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 8); return v != 0 ? new {t}(new UUID(v)) : null; }}\n");
+                if (!prop.ReadOnly) sb.Append($"        set {{ ulong v = value != null ? value.assetId.value : 0; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, 8); }}\n");
                 sb.Append("    }\n\n");
                 break;
             }
@@ -804,7 +803,8 @@ internal static class Program {
                "//\tAUTO-GENERATED FILE - DO NOT EDIT MANUALLY\n" +
                $"//\tgenerator: NEM.ComponentBindingGen v{GeneratorVersion}\n" +
                $"//\tmetadata schemaVersion: {SupportedSchemaVersion}\n" +
-               "//============================================================================\n";
+               "//============================================================================\n" +
+               "#nullable enable\n";
     }
 
     private static void WriteIfChanged(string path, string content) {
