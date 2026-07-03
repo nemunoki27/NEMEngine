@@ -937,7 +937,7 @@
                     "localPos": {
                         "x": 0.0,
                         "y": 0.0,
-                        "z": 0.0
+                        "z": 8.0
                     },
                     "localRotation": {
                         "w": 4.967052902316027e-08,
@@ -1043,7 +1043,7 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": 0.0,
+                        "y": -0.1899999976158142,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -1203,6 +1203,75 @@
                 }
             },
             "LocalFileID": "a1b2c3d4e5f60003"
+        },
+        {
+            "Components": {
+                "FillMeshRenderer": {
+                    "blendMode": "Normal",
+                    "buildMesh": false,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "facePositions": [
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 8.0
+                        },
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": -8.0
+                        },
+                        {
+                            "x": 8.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        }
+                    ],
+                    "layer": 0,
+                    "material": "",
+                    "order": 0,
+                    "parameterOverrides": {},
+                    "queue": "Opaque",
+                    "visible": true
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 5
+                },
+                "Name": {
+                    "name": "FillMesh"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "d16c3213c46c8caa",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": -2.2648627758026123,
+                        "y": -0.15288639068603516,
+                        "z": 0.11536598205566406
+                    },
+                    "localRotation": {
+                        "w": 0.9638633131980896,
+                        "x": 0.0,
+                        "y": -0.2663973271846771,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "d16c3213c46c8caa"
         }
     ],
     "Header": {

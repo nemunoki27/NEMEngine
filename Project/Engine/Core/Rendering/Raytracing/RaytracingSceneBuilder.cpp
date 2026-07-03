@@ -191,6 +191,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	std::vector<RaytracingTLASInstance> tlasInstances;
 	tlasInstances.reserve(sceneMeshes.size() + sceneFillMeshes.size());
 
+	// BLASリソースを新規/作り直しした場合はTLASのrefitでは反映できないため完全再構築する
+	bool requireTlasRebuild = false;
+
 	for (const CollectedMeshInstance& src : sceneMeshes) {
 
 		// メッシュリソースを取得
@@ -292,6 +295,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 					input.indexCount = importedSubMesh.indexCount;
 					input.allowUpdate = false;
 					blas.Build(device, commandList, input);
+					// 新規BLASを追加したためTLASは完全再構築する
+					requireTlasRebuild = true;
 				}
 				// BLASリソースを設定
 				blasResource = blas.GetResource();
@@ -439,6 +444,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			if (!BuildFillMeshRaytracingResource(device, commandList, uploadService, src, resource)) {
 				continue;
 			}
+			// ジオメトリ変化でBLASを作り直したためTLASは完全再構築する
+			requireTlasRebuild = true;
 		}
 		if (!resource.blas.GetResource() || !resource.vertexSRV.buffer || !resource.indexSRV.buffer) {
 			continue;
@@ -496,8 +503,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	sceneInstances_.Upload(sceneInstanceScratch_);
 	sceneSubMeshes_.Upload(sceneSubMeshScratch_);
 
-	// TLASの構築、必要に応じて更新
-	if (firstTLASBuild_ || !tlas_.IsBuilt()) {
+	// TLASの構築、BLASを新規/作り直しした場合はrefitでは反映できないため完全再構築する
+	if (firstTLASBuild_ || !tlas_.IsBuilt() || requireTlasRebuild) {
 
 		tlas_.Build(device, commandList, tlasInstances, true);
 		firstTLASBuild_ = false;
