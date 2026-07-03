@@ -653,7 +653,7 @@ namespace {
 				ImGui::PushID(static_cast<int>(i));
 
 				// 要素はTreeNodeで折りたたみ、ノード自体を掴んで別要素のノードへドロップすると並び替えできる
-				const bool open = ImGui::TreeNodeEx("##element", ImGuiTreeNodeFlags_None, "要素 %d", static_cast<int>(i));
+				const bool elementOpen = ImGui::TreeNodeEx("##element", ImGuiTreeNodeFlags_None, "要素 %d", static_cast<int>(i));
 				if (!ctx.readOnly) {
 					if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
 						const int srcIndex = static_cast<int>(i);
@@ -674,7 +674,7 @@ namespace {
 					ImGui::SameLine();
 					if (ImGui::SmallButton("削除")) { removeIndex = static_cast<int>(i); }
 				}
-				if (open) {
+				if (elementOpen) {
 
 					Engine::ValueEditResult r{};
 					if (field.element->kind == Kind::Object) {
