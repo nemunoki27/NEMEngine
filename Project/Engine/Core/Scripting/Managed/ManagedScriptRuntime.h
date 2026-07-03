@@ -330,6 +330,16 @@ namespace Engine {
 		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(uint64_t sourceAsset, uint64_t localFileID);
 		// EntityのSceneObject識別子を逆引きする、参照フィールドの保存表現に使う
 		static void __cdecl GetEntityReferenceIdentityCallback(ManagedNativeEntity entity, uint64_t* sourceAsset, uint64_t* localFileID, int32_t* kind);
+		// レイキャストの最近ヒットを返す、ヒット無しは0
+		static int32_t __cdecl PhysicsRaycastCallback(ManagedVector3 origin, ManagedVector3 direction, float maxDistance, uint32_t layerMask, uint32_t targets, ManagedRaycastHit* outHit);
+		// レイキャストの全ヒットを距離昇順で書き込みヒット総数を返す、bufferへはcapacity分だけ書く
+		static int32_t __cdecl PhysicsRaycastAllCallback(ManagedVector3 origin, ManagedVector3 direction, float maxDistance, uint32_t layerMask, uint32_t targets, ManagedRaycastHit* buffer, int32_t capacity);
+		// GameViewピクセル座標からワールドレイを作る、カメラ未解決は0
+		static int32_t __cdecl ScreenPointToRayCallback(float x, float y, ManagedVector3* outOrigin, ManagedVector3* outDirection);
+		// GameView内のマウス座標を描画解像度基準で返す、View外は0
+		static int32_t __cdecl GetMousePositionInViewCallback(ManagedVector2* outPosition);
+		// Collisionタイプ名からビットマスクを引く、未登録は0
+		static uint32_t __cdecl GetCollisionTypeMaskByNameCallback(const char* name);
 		// ライン描画v12でLineRendererComponentの点列を置き換える、count0でクリア
 		static void __cdecl LineSetPointsCallback(ManagedNativeEntity entity, const ManagedLinePoint* points, int32_t count, int32_t loop);
 		// LineRendererComponentの末尾へ1点追加し、採番したindexを返す

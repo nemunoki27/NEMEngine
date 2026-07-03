@@ -35,7 +35,8 @@ namespace Engine {
 	// v18: MeshRendererのマテリアルcolor上書きsetMeshMaterialColorを追加
 	// v19: MeshRendererのマテリアルcolor取得getMeshMaterialColorを追加
 	// v20: Entityの保存identityを逆引きするgetEntityReferenceIdentityを追加
-	inline constexpr uint32_t kManagedAbiVersion = 20;
+	// v21: レイキャストのphysicsRaycast physicsRaycastAllとカメラレイのscreenPointToRay getMousePositionInViewとgetCollisionTypeMaskByNameを追加
+	inline constexpr uint32_t kManagedAbiVersion = 21;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -242,6 +243,26 @@ namespace Engine {
 		int32_t isTrigger = 0;
 	};
 
+	// C#へ渡すレイキャストのヒット情報
+	struct ManagedRaycastHit {
+
+		// ヒットしたEntity
+		ManagedNativeEntity entity{};
+
+		// ワールド空間のヒット点と法線
+		ManagedVector3 point{};
+		ManagedVector3 normal{};
+		// originからの距離
+		float distance = 0.0f;
+
+		// CollisionComponent内の形状index、FillMeshヒット時は-1
+		int32_t shapeIndex = -1;
+		// FillMeshヒット時の三角形index、形状ヒット時は-1
+		int32_t triangleIndex = -1;
+		// Trigger形状へのヒットか
+		int32_t trigger = 0;
+	};
+
 	// C#と共有するQuaternion
 	struct ManagedQuaternion {
 
@@ -380,6 +401,15 @@ namespace Engine {
 		using ResolveEntityRefCallback = ManagedNativeEntity(__cdecl*)(uint64_t, uint64_t);
 		// v20のEntity保存identity逆引き、sourceAssetとlocalFileIDとkindを返す
 		using GetEntityRefIdentityCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t*, uint64_t*, int32_t*);
+		// v21のレイキャスト、単発は最近ヒットを返しAllはヒット総数を返してcapacity分だけ書く
+		using PhysicsRaycastCallback = int32_t(__cdecl*)(ManagedVector3, ManagedVector3, float, uint32_t, uint32_t, ManagedRaycastHit*);
+		using PhysicsRaycastAllCallback = int32_t(__cdecl*)(ManagedVector3, ManagedVector3, float, uint32_t, uint32_t, ManagedRaycastHit*, int32_t);
+		// v21のカメラレイ、GameViewピクセル座標からレイを作る
+		using ScreenPointToRayCallback = int32_t(__cdecl*)(float, float, ManagedVector3*, ManagedVector3*);
+		// v21のGameView内マウス座標、View外は0を返す
+		using GetMousePositionInViewCallback = int32_t(__cdecl*)(ManagedVector2*);
+		// v21のCollisionタイプ名からビットマスクを引く、未登録は0
+		using GetCollisionTypeMaskByNameCallback = uint32_t(__cdecl*)(const char*);
 		// ライン描画v12でcomponentの点列設定と即時描画
 		using LineSetPointsCallback = void(__cdecl*)(ManagedNativeEntity, const ManagedLinePoint*, int32_t, int32_t);
 		using LineAddPointCallback = int32_t(__cdecl*)(ManagedNativeEntity, ManagedLinePoint);
@@ -538,6 +568,13 @@ namespace Engine {
 
 		// v20のEntity保存identity逆引き、参照フィールドの保存表現に使う
 		GetEntityRefIdentityCallback getEntityReferenceIdentity = nullptr;
+
+		// v21のレイキャストとカメラレイとCollisionタイプ名解決
+		PhysicsRaycastCallback physicsRaycast = nullptr;
+		PhysicsRaycastAllCallback physicsRaycastAll = nullptr;
+		ScreenPointToRayCallback screenPointToRay = nullptr;
+		GetMousePositionInViewCallback getMousePositionInView = nullptr;
+		GetCollisionTypeMaskByNameCallback getCollisionTypeMaskByName = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

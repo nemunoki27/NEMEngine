@@ -27,7 +27,8 @@ internal static class ManagedAbi {
     // v18: MeshRenderer のマテリアル color 上書き setMeshMaterialColor を追加
     // v19: Mesh/Sprite/Text のマテリアル color の get/set(setRendererMaterialColor/getRendererMaterialColor)を追加
     // v20: Entityの保存identityを逆引きする getEntityReferenceIdentity を追加
-    internal const uint Version = 20;
+    // v21: レイキャスト(physicsRaycast/physicsRaycastAll)とカメラレイ(screenPointToRay/getMousePositionInView)とCollisionタイプ名解決を追加
+    internal const uint Version = 21;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -100,6 +101,19 @@ public struct NativeVector2 {
     public Vector2 ToVector2() {
         return new Vector2(x, y);
     }
+}
+
+// C++側 ManagedRaycastHit と同一レイアウト
+[StructLayout(LayoutKind.Sequential)]
+public struct NativeRaycastHit {
+
+    public NativeEntity entity;
+    public NativeVector3 point;
+    public NativeVector3 normal;
+    public float distance;
+    public int shapeIndex;
+    public int triangleIndex;
+    public int trigger;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -303,6 +317,12 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<int, void> SetMouseRangeControl;
     // v20: Entityの保存identityを逆引きする
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong*, ulong*, int*, void> GetEntityReferenceIdentity;
+    // v21: レイキャストとカメラレイとCollisionタイプ名解決
+    internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int> PhysicsRaycast;
+    internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int, int> PhysicsRaycastAll;
+    internal static delegate* unmanaged[Cdecl]<float, float, NativeVector3*, NativeVector3*, int> ScreenPointToRay;
+    internal static delegate* unmanaged[Cdecl]<NativeVector2*, int> GetMousePositionInView;
+    internal static delegate* unmanaged[Cdecl]<byte*, uint> GetCollisionTypeMaskByName;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -419,6 +439,11 @@ internal static unsafe class NativeApi {
         GetRendererMaterialColor = callbacks->getRendererMaterialColor;
         FillMeshSetPositions = callbacks->fillMeshSetPositions;
         GetEntityReferenceIdentity = callbacks->getEntityReferenceIdentity;
+        PhysicsRaycast = callbacks->physicsRaycast;
+        PhysicsRaycastAll = callbacks->physicsRaycastAll;
+        ScreenPointToRay = callbacks->screenPointToRay;
+        GetMousePositionInView = callbacks->getMousePositionInView;
+        GetCollisionTypeMaskByName = callbacks->getCollisionTypeMaskByName;
     }
 
     internal static float ReadDeltaTime() {
@@ -832,6 +857,78 @@ internal static unsafe class NativeApi {
     internal static Entity ResolveEntityReference(ulong sourceAsset, ulong localFileId)
         => (ResolveEntityRef != null && localFileId != 0) ? new Entity(ResolveEntityRef(sourceAsset, localFileId)) : Entity.nullEntity;
 
+    // レイキャストの最近ヒットを取得する、ヒット無しはfalse
+    internal static bool RaycastClosest(Vector3 origin, Vector3 direction, float maxDistance,
+        uint layerMask, uint targets, out NativeRaycastHit hit) {
+
+        hit = default;
+        if (PhysicsRaycast == null) {
+            return false;
+        }
+        fixed (NativeRaycastHit* hitPtr = &hit) {
+            return PhysicsRaycast(NativeVector3.From(origin), NativeVector3.From(direction),
+                maxDistance, layerMask, targets, hitPtr) != 0;
+        }
+    }
+
+    // レイキャストの全ヒットをbufferへ書き込み、ヒット総数を返す(capacity超過分は書かれない)
+    internal static int RaycastMany(Vector3 origin, Vector3 direction, float maxDistance,
+        uint layerMask, uint targets, Span<NativeRaycastHit> buffer) {
+
+        if (PhysicsRaycastAll == null) {
+            return 0;
+        }
+        fixed (NativeRaycastHit* bufferPtr = buffer) {
+            return PhysicsRaycastAll(NativeVector3.From(origin), NativeVector3.From(direction),
+                maxDistance, layerMask, targets, bufferPtr, buffer.Length);
+        }
+    }
+
+    // GameViewピクセル座標からワールドレイを作る、カメラ未解決はfalse
+    internal static bool ReadScreenPointToRay(Vector2 screenPos, out Vector3 origin, out Vector3 direction) {
+
+        origin = Vector3.zero;
+        direction = Vector3.zero;
+        if (ScreenPointToRay == null) {
+            return false;
+        }
+        NativeVector3 nativeOrigin = default;
+        NativeVector3 nativeDirection = default;
+        if (ScreenPointToRay(screenPos.x, screenPos.y, &nativeOrigin, &nativeDirection) == 0) {
+            return false;
+        }
+        origin = nativeOrigin.ToVector3();
+        direction = nativeDirection.ToVector3();
+        return true;
+    }
+
+    // GameView内のマウス座標を描画解像度基準で取得する、View外はfalse
+    internal static bool ReadMousePositionInView(out Vector2 position) {
+
+        position = Vector2.zero;
+        if (GetMousePositionInView == null) {
+            return false;
+        }
+        NativeVector2 nativePosition = default;
+        if (GetMousePositionInView(&nativePosition) == 0) {
+            return false;
+        }
+        position = nativePosition.ToVector2();
+        return true;
+    }
+
+    // Collisionタイプ名からビットマスクを引く、未登録は0
+    internal static uint ReadCollisionTypeMask(string name) {
+
+        if (GetCollisionTypeMaskByName == null || string.IsNullOrEmpty(name)) {
+            return 0;
+        }
+        byte[] bytes = Encoding.UTF8.GetBytes(name + "\0");
+        fixed (byte* ptr = bytes) {
+            return GetCollisionTypeMaskByName(ptr);
+        }
+    }
+
     // Entityの保存identityを逆引きする。SceneObjectが無ければNull identity
     internal static EntityRef ReadEntityReferenceIdentity(NativeEntity entity) {
         if (GetEntityReferenceIdentity == null) {
@@ -1231,4 +1328,10 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, void> fillMeshSetPositions;
     // v20: Entityの保存identity(sourceAsset/localFileId/kind)を逆引きする
     public delegate* unmanaged[Cdecl]<NativeEntity, ulong*, ulong*, int*, void> getEntityReferenceIdentity;
+    // v21: レイキャストとカメラレイとCollisionタイプ名解決
+    public delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int> physicsRaycast;
+    public delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int, int> physicsRaycastAll;
+    public delegate* unmanaged[Cdecl]<float, float, NativeVector3*, NativeVector3*, int> screenPointToRay;
+    public delegate* unmanaged[Cdecl]<NativeVector2*, int> getMousePositionInView;
+    public delegate* unmanaged[Cdecl]<byte*, uint> getCollisionTypeMaskByName;
 }

@@ -7,6 +7,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
+#include <Engine/Core/Rendering/Renderer/Views/GameViewCameraSnapshot.h>
 #include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
@@ -346,6 +347,22 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	const SceneSkyboxInfo skyboxInfo = SceneSkyboxResolver::Resolve(graphicsCore, request.assetDatabase, request.world);
 	gameViewState_.raytracingBuffers.Upload(gameViewState_.view, skyboxInfo);
 	sceneViewState_.raytracingBuffers.Upload(sceneViewState_.view, skyboxInfo);
+
+	// スクリプトのScreenPointToRay用にGameViewカメラのスナップショットを更新する
+	GameViewCameraSnapshot::Snapshot cameraSnapshot{};
+	if (gameViewState_.view.valid) {
+		if (const ResolvedCameraView* gameCamera = gameViewState_.view.FindCamera(RenderCameraDomain::Perspective);
+			gameCamera && gameCamera->valid) {
+
+			cameraSnapshot.inverseViewProjection =
+				gameCamera->matrices.inverseProjectionMatrix * gameCamera->matrices.inverseViewMatrix;
+			cameraSnapshot.cameraPos = gameCamera->cameraPos;
+			cameraSnapshot.width = static_cast<float>(gameViewState_.view.width);
+			cameraSnapshot.height = static_cast<float>(gameViewState_.view.height);
+			cameraSnapshot.valid = true;
+		}
+	}
+	GameViewCameraSnapshot::Set(cameraSnapshot);
 
 	// 描画ビューごとに描画を実行
 	auto renderView = [&](RenderViewKind kind, const ResolvedRenderView& view) {

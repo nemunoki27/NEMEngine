@@ -254,6 +254,12 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getRendererMaterialColor = &ManagedScriptRuntime::GetRendererMaterialColorCallback;
 	callbacks.fillMeshSetPositions = &ManagedScriptRuntime::FillMeshSetPositionsCallback;
 	callbacks.getEntityReferenceIdentity = &ManagedScriptRuntime::GetEntityReferenceIdentityCallback;
+	// v21のレイキャストとカメラレイとCollisionタイプ名解決
+	callbacks.physicsRaycast = &ManagedScriptRuntime::PhysicsRaycastCallback;
+	callbacks.physicsRaycastAll = &ManagedScriptRuntime::PhysicsRaycastAllCallback;
+	callbacks.screenPointToRay = &ManagedScriptRuntime::ScreenPointToRayCallback;
+	callbacks.getMousePositionInView = &ManagedScriptRuntime::GetMousePositionInViewCallback;
+	callbacks.getCollisionTypeMaskByName = &ManagedScriptRuntime::GetCollisionTypeMaskByNameCallback;
 	callbacks.getFrameCount = &ManagedScriptRuntime::GetFrameCountCallback;
 	// Gameplay v7のAssetRef実行時解決
 	callbacks.assetExists = &ManagedScriptRuntime::AssetExistsCallback;

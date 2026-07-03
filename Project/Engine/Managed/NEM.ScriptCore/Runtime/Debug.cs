@@ -16,6 +16,16 @@ public static class Debug {
         NativeApi.WriteLog(2, message?.ToString() ?? string.Empty);
     }
 
+    // そのフレームだけGameViewへ線を描く(Unity互換の可視化、LineDrawへの糖衣)
+    public static void DrawLine(Vector3 start, Vector3 end, Color4 color, float thickness = 1.0f) {
+        LineDraw.DrawLine(start, end, color, thickness);
+    }
+
+    // originからdirectionの長さ分だけレイを描く
+    public static void DrawRay(Vector3 origin, Vector3 direction, Color4 color, float thickness = 1.0f) {
+        LineDraw.DrawLine(origin, origin + direction, color, thickness);
+    }
+
     public static bool isDebuggerAttached => Debugger.IsAttached;
 
     public static void Break() {

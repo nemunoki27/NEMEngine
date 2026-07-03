@@ -61,9 +61,6 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// Transformを反映した判定用形状を作成する
-		CollisionShapeInstance BuildShapeInstance(const Entity& entity,
-			const CollisionShape& shape, uint32_t shapeIndex, const TransformComponent& transform) const;
 		// 衝突結果をもとにEntityを押し戻す
 		void ApplyPushback(ECSWorld& world, CollisionRuntimeEntity& a,
 			CollisionRuntimeEntity& b, const CollisionContact& contact) const;
