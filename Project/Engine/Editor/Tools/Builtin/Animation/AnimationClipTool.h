@@ -145,6 +145,7 @@ namespace Engine {
 		void DrawCurveEditorUI(const EditorToolContext& context);
 		void DrawKeyInspectorUI(const EditorToolContext& context);
 		void DrawGeneratorUI(const EditorToolContext& context);
+		void DrawEventListUI(const EditorToolContext& context);
 
 		void LoadClipFromSelectedAsset(const EditorToolContext& context);
 		void SaveClipToSelectedAsset(const EditorToolContext& context);

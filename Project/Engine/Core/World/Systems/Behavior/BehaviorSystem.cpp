@@ -241,6 +241,26 @@ void Engine::BehaviorSystem::DispatchCollisionExit(ECSWorld& world,
 	}
 }
 
+void Engine::BehaviorSystem::DispatchAnimationEvent(ECSWorld& world, SystemContext& context, const Entity& entity,
+	const std::string& name, float floatParam, int32_t intParam, const std::string& stringParam) {
+
+	if (!activeSystem_ || context.mode != WorldMode::Play || activeSystem_->activeWorld_ != &world) {
+		return;
+	}
+
+	// 対象Entityのビヘイビアだけへ通知する
+	activeSystem_->runtime_.ForEachAliveByOwner(entity, [&](BehaviorRecord& record) {
+
+		if (!record.enabled || !record.instance || record.faulted) {
+			return;
+		}
+		record.instance->OnAnimationEvent(world, context, entity, name, floatParam, intParam, stringParam);
+		if (record.instance->IsFaulted()) {
+			record.faulted = true;
+		}
+		});
+}
+
 nlohmann::json Engine::BehaviorSystem::GetRuntimeSerializedState(BehaviorHandle handle) {
 
 	// Play中のinstanceの現在値を返す、無効なら空

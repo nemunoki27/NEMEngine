@@ -3,19 +3,12 @@
         {
             "Components": {
                 "AnimationPlayer": {
-                    "defaultState": "Jump",
+                    "defaultGroup": "",
                     "enabled": true,
                     "globalSpeed": 1.0,
+                    "groups": [],
                     "playInEditMode": false,
-                    "playOnStart": false,
-                    "states": [
-                        {
-                            "clip": "f7552fe695b9c1a1",
-                            "name": "Jump",
-                            "speed": 1.0,
-                            "wrapMode": "Once"
-                        }
-                    ]
+                    "playOnStart": false
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
@@ -479,6 +472,128 @@
                 }
             },
             "LocalFileID": "a1b2c3d4e5f60003"
+        },
+        {
+            "Components": {
+                "AnimationPlayer": {
+                    "defaultGroup": "AnimGroup",
+                    "enabled": true,
+                    "globalSpeed": 1.0,
+                    "groups": [
+                        {
+                            "name": "AnimGroup",
+                            "states": [
+                                {
+                                    "clip": "0ebfc64996ad9135",
+                                    "interval": 0.0,
+                                    "loopBridge": {
+                                        "duration": 0.10000000149011612,
+                                        "enabled": false,
+                                        "interpolation": "Linear"
+                                    },
+                                    "loopCount": 0,
+                                    "name": "FireEvent",
+                                    "pingPongCount": 0,
+                                    "relativeTransform": false,
+                                    "speed": 1.0,
+                                    "startDelay": 0.0,
+                                    "wrapMode": "Once"
+                                }
+                            ]
+                        }
+                    ],
+                    "playInEditMode": false,
+                    "playOnStart": true
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 5
+                },
+                "Name": {
+                    "name": "TestEventAnim"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "f4120832305f1c13",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.AnimationEventDebug",
+                        "scriptAsset": "",
+                        "scriptSlotId": "c8adee4a22d41d71",
+                        "scriptTypeId": "db06ad3e-12ea-4785-804a-254fd0df2522",
+                        "serializedFields": {}
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "f4120832305f1c13"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 6
+                },
+                "Name": {
+                    "name": "ReciveAnimEvent"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "58dfb2f2deb04444",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.AnimationEventDebug",
+                        "scriptAsset": "",
+                        "scriptSlotId": "913c47ff39753fe9",
+                        "scriptTypeId": "db06ad3e-12ea-4785-804a-254fd0df2522",
+                        "serializedFields": {}
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "58dfb2f2deb04444"
         }
     ],
     "Header": {

@@ -9,6 +9,10 @@
 // json
 #include <json.hpp>
 
+// c++
+#include <string>
+#include <cstdint>
+
 namespace Engine {
 
 	// front
@@ -56,6 +60,13 @@ namespace Engine {
 		virtual void OnCollisionStay(ECSWorld&, const SystemContext&, const CollisionContact&) {}
 		// 衝突終了時に呼ばれる
 		virtual void OnCollisionExit(ECSWorld&, const SystemContext&, const CollisionContact&) {}
+
+		//============================================================================
+		//	アニメーションメソッド
+		//============================================================================
+		// アニメーションイベント発火時に呼ばれる
+		virtual void OnAnimationEvent(ECSWorld&, const SystemContext&, const Entity&,
+			const std::string&, float, int32_t, const std::string&) {}
 
 		//============================================================================
 		//	C#スクリプト用

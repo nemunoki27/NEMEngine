@@ -577,6 +577,7 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 		ImGui::TableNextColumn();
 		DrawKeyInspectorUI(context);
 		DrawGeneratorUI(context);
+		DrawEventListUI(context);
 
 		ImGui::EndTable();
 	}
@@ -1188,8 +1189,10 @@ void AnimationClipTool::DrawKeyInspectorUI(const EditorToolContext& context) {
 	if (selectedTrackIndex_ < 0 || static_cast<int>(clip_.curveTracks.size()) <= selectedTrackIndex_) {
 		return;
 	}
+	if (!MyGUI::CollapsingHeader("キーインスペクター")) {
+		return;
+	}
 	if (curveState_.selectedKeys.empty()) {
-		ImGui::SeparatorText("キーインスペクター");
 		ImGui::TextDisabled("キーが選択されていません");
 		return;
 	}
@@ -1204,12 +1207,10 @@ void AnimationClipTool::DrawKeyInspectorUI(const EditorToolContext& context) {
 	CurveChannel& channel = track.channels[selection.channelIndex];
 	CurveKey& key = channel.keys[selection.keyIndex];
 
-	ImGui::SeparatorText("キーインスペクター");
 	ImGui::Text("チャンネル: %s", channel.name.c_str());
 	bool changed = false;
 	float time = key.time;
-	if (MyGUI::DragFloat("キー時間", time, { .dragSpeed = 0.001f,.minValue = 0.0f,
-		.maxValue = 10000.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 4.0f }).valueChanged) {
+	if (MyGUI::DragFloat("キー時間", time, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 10000.0f }).valueChanged) {
 		key.time = (std::max)(0.0f, time);
 		changed = true;
 	}
@@ -1231,8 +1232,7 @@ void AnimationClipTool::DrawKeyInspectorUI(const EditorToolContext& context) {
 				axisKey.axes.emplace_back(Axis::X);
 			}
 			Axis axis = axisKey.axes.front();
-			if (MyGUI::EnumCombo("キー回転軸", axis, {
-				.reserveRightWidth = ImGui::GetContentRegionAvail().x / 6.0f }).valueChanged) {
+			if (MyGUI::EnumCombo("キー回転軸", axis).valueChanged) {
 				axisKey.axes = { axis };
 				changed = true;
 			}
@@ -1241,8 +1241,7 @@ void AnimationClipTool::DrawKeyInspectorUI(const EditorToolContext& context) {
 		key.interpolation = CurveInterpolationMode::Constant;
 	} else if (IsQuaternionAxisAngleTrack(track) && selection.channelIndex == 1u) {
 
-		if (MyGUI::DragFloat("キー角度", key.value, { .dragSpeed = 0.1f,.minValue = -36000.0f,
-			.maxValue = 36000.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 4.0f }).valueChanged) {
+		if (MyGUI::DragFloat("キー角度", key.value, { .dragSpeed = 0.1f,.minValue = -36000.0f,.maxValue = 36000.0f, }).valueChanged) {
 			changed = true;
 		}
 	} else if (CanDrawColorRgbKeyEditor(track, selection.channelIndex)) {
@@ -1250,8 +1249,7 @@ void AnimationClipTool::DrawKeyInspectorUI(const EditorToolContext& context) {
 			changed = true;
 		}
 	} else {
-		if (MyGUI::DragFloat("キー値", key.value, { .dragSpeed = 0.001f,.minValue = -100000.0f,
-			.maxValue = 100000.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 4.0f }).valueChanged) {
+		if (MyGUI::DragFloat("キー値", key.value, { .dragSpeed = 0.001f,.minValue = -100000.0f,.maxValue = 100000.0f }).valueChanged) {
 			changed = true;
 		}
 	}
@@ -1263,10 +1261,7 @@ void AnimationClipTool::DrawKeyInspectorUI(const EditorToolContext& context) {
 		interpolation = CurveInterpolationMode::Spline;
 	}
 
-	if (!(IsQuaternionAxisAngleTrack(track) && selection.channelIndex == 0u) &&
-		MyGUI::BeginPropertyRow("補間方法")) {
-		const float width = ImGui::GetContentRegionAvail().x - ImGui::GetContentRegionAvail().x / 2.0f;
-		ImGui::SetNextItemWidth(width <= 1.0f ? 1.0f : width);
+	if (!(IsQuaternionAxisAngleTrack(track) && selection.channelIndex == 0u) && MyGUI::BeginPropertyRow("補間方法")) {
 		if (quaternionTrack) {
 
 			if (EnumAdapter<CurveInterpolationMode>::Combo("##Value", &interpolation)) {
@@ -1302,14 +1297,12 @@ void AnimationClipTool::DrawKeyInspectorUI(const EditorToolContext& context) {
 
 	if (key.interpolation == CurveInterpolationMode::Bezier) {
 		Vector2 inTangent = key.inTangent;
-		if (MyGUI::DragVector2("入力タンジェント", inTangent, { .dragSpeed = 0.001f,.minValue = -10000.0f,
-			.maxValue = 10000.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 2.0f }).valueChanged) {
+		if (MyGUI::DragVector2("入力タンジェント", inTangent, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f }).valueChanged) {
 			key.inTangent = inTangent;
 			changed = true;
 		}
 		Vector2 outTangent = key.outTangent;
-		if (MyGUI::DragVector2("出力タンジェント", outTangent, { .dragSpeed = 0.001f,.minValue = -10000.0f,
-			.maxValue = 10000.0f,.reserveRightWidth = ImGui::GetContentRegionAvail().x / 2.0f }).valueChanged) {
+		if (MyGUI::DragVector2("出力タンジェント", outTangent, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f }).valueChanged) {
 			key.outTangent = outTangent;
 			changed = true;
 		}
@@ -1346,7 +1339,9 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 		return;
 	}
 
-	ImGui::SeparatorText("カーブ生成");
+	if (!MyGUI::CollapsingHeader("カーブ生成")) {
+		return;
+	}
 
 	// DrawClipAssetUIと同じプロパティ行で、生成条件を縦に並べる
 	MyGUI::EnumCombo("生成タイプ", generatorType_);
@@ -1438,6 +1433,63 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 	}
 
 	UpdateAutoDurationAndPreview(context);
+}
+
+void AnimationClipTool::DrawEventListUI([[maybe_unused]] const EditorToolContext& context) {
+
+	if (!hasClip_) {
+		return;
+	}
+	if (!MyGUI::CollapsingHeader("イベント")) {
+		return;
+	}
+
+	int removeIndex = -1;
+	for (int i = 0; i < static_cast<int>(clip_.events.size()); ++i) {
+
+		ImGui::PushID(i);
+		AnimationEvent& event = clip_.events[static_cast<size_t>(i)];
+		if (ImGui::TreeNodeEx("Event", ImGuiTreeNodeFlags_DefaultOpen, "イベント : %s",
+			event.name.empty() ? "<名前なし>" : event.name.c_str())) {
+
+			if (MyGUI::InputText("名前", event.name).valueChanged) {
+				clipDirty_ = true;
+			}
+			if (MyGUI::DragFloat("時刻", event.time, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 10000.0f }).valueChanged) {
+				event.time = std::clamp(event.time, 0.0f, clip_.duration);
+				clipDirty_ = true;
+			}
+			if (MyGUI::DragFloat("floatパラメータ", event.floatParam, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f }).valueChanged) {
+				clipDirty_ = true;
+			}
+			if (MyGUI::DragInt("intパラメータ", event.intParam, { .dragSpeed = 1.0f,.minValue = -1000000,.maxValue = 1000000 }).valueChanged) {
+				clipDirty_ = true;
+			}
+			if (MyGUI::InputText("stringパラメータ", event.stringParam).valueChanged) {
+				clipDirty_ = true;
+			}
+			if (ImGui::Button("イベントを削除", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+				removeIndex = i;
+			}
+			ImGui::TreePop();
+		}
+		ImGui::Separator();
+		ImGui::PopID();
+	}
+
+	if (0 <= removeIndex && removeIndex < static_cast<int>(clip_.events.size())) {
+		clip_.events.erase(clip_.events.begin() + removeIndex);
+		clipDirty_ = true;
+	}
+	if (ImGui::Button("イベントを追加", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+
+		// 現在のプレビュー再生位置にイベントを追加する
+		AnimationEvent event{};
+		event.time = std::clamp(previewTime_, 0.0f, clip_.duration);
+		event.name = "Event";
+		clip_.events.emplace_back(std::move(event));
+		clipDirty_ = true;
+	}
 }
 
 void AnimationClipTool::LoadClipFromSelectedAsset(const EditorToolContext& context) {

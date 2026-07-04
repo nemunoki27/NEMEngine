@@ -1,0 +1,96 @@
+{
+  "autoDuration": false,
+  "curveTracks": [
+    {
+      "applyMode": "Override",
+      "channels": [
+        {
+          "defaultValue": 0.0,
+          "keys": [],
+          "name": "X"
+        },
+        {
+          "defaultValue": 0.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 0.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Linear",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 1.0,
+              "value": 1.0
+            }
+          ],
+          "name": "Y"
+        },
+        {
+          "defaultValue": 0.0,
+          "keys": [],
+          "name": "Z"
+        }
+      ],
+      "component": "Transform",
+      "editorView": {
+        "timeMax": 3.8310317993164063,
+        "timeMin": 1.0770869255065918,
+        "valueMax": 1.0,
+        "valueMin": 0.0
+      },
+      "property": "localPos",
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Vector3",
+      "visible": true
+    }
+  ],
+  "duration": 1.0,
+  "events": [
+    {
+      "floatParam": 1.0,
+      "intParam": 2,
+      "name": "EventA",
+      "stringParam": "ABC",
+      "time": 0.0
+    },
+    {
+      "floatParam": 2.0,
+      "intParam": 3,
+      "name": "EventB",
+      "stringParam": "DEF",
+      "time": 0.5
+    },
+    {
+      "floatParam": 3.0,
+      "intParam": 4,
+      "name": "EventC",
+      "stringParam": "GHI",
+      "time": 1.0
+    }
+  ],
+  "guid": "0ebfc64996ad9135",
+  "loop": false,
+  "loopBridge": {
+    "duration": 0.10000000149011612,
+    "enabled": false,
+    "interpolation": "Linear"
+  },
+  "name": "TestAnimEvent",
+  "relativeTransform": false
+}

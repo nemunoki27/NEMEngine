@@ -83,6 +83,9 @@ namespace Engine {
 		ManagedStatus InvokeCollisionStay(ManagedScriptInstanceHandle handle, const SystemContext& context, const ManagedCollisionEvent& collision);
 		// C#側のOnCollisionExitを呼び出す
 		ManagedStatus InvokeCollisionExit(ManagedScriptInstanceHandle handle, const SystemContext& context, const ManagedCollisionEvent& collision);
+		// C#側のOnAnimationEventを呼び出す
+		ManagedStatus InvokeAnimationEvent(ManagedScriptInstanceHandle handle, const SystemContext& context,
+			const char* name, float floatParam, int32_t intParam, const char* stringParam);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -147,6 +150,7 @@ namespace Engine {
 		using DestroyInstanceFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle);
 		using InvokeFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle);
 		using InvokeCollisionFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, ManagedCollisionEvent);
+		using InvokeAnimationEventFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*, float, int32_t, const char*);
 
 		//--------- variables ----------------------------------------------------
 
@@ -192,6 +196,9 @@ namespace Engine {
 		InvokeCollisionFn invokeCollisionEnter_ = nullptr;
 		InvokeCollisionFn invokeCollisionStay_ = nullptr;
 		InvokeCollisionFn invokeCollisionExit_ = nullptr;
+
+		// アニメーションイベント呼び出し関数
+		InvokeAnimationEventFn invokeAnimationEvent_ = nullptr;
 
 		// ライフサイクル呼び出し中だけ有効なthread_localコンテキストで、ネストや例外や早期returnでも確実に復元する
 		static thread_local const SystemContext* currentContext_;

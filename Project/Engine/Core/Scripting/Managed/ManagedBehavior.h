@@ -50,6 +50,8 @@ namespace Engine {
 
 		// 衝突イベント
 		void OnCollisionEnter(ECSWorld& world, const SystemContext& context, const CollisionContact& collision) override;
+		void OnAnimationEvent(ECSWorld& world, const SystemContext& context, const Entity& entity,
+			const std::string& name, float floatParam, int32_t intParam, const std::string& stringParam) override;
 		void OnCollisionStay(ECSWorld& world, const SystemContext& context, const CollisionContact& collision) override;
 		void OnCollisionExit(ECSWorld& world, const SystemContext& context, const CollisionContact& collision) override;
 

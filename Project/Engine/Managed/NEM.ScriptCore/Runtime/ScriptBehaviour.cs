@@ -109,4 +109,5 @@ public abstract class ScriptBehaviour : Component {
     public virtual void OnCollisionEnter(Collision collision) {}
     public virtual void OnCollisionStay(Collision collision) {}
     public virtual void OnCollisionExit(Collision collision) {}
+    public virtual void OnAnimationEvent(AnimationEvent evt) {}
 }

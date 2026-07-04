@@ -7,6 +7,7 @@
 #include <Engine/Core/Animation/Evaluation/AnimationClipEvaluator.h>
 
 // c++
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -18,6 +19,8 @@ namespace Engine {
 	struct AnimationState;
 	struct AnimationGroup;
 	struct AnimationClipRuntime;
+	enum class AnimationWrapMode : uint8_t;
+	enum class AnimationClipPhase : uint8_t;
 
 	//============================================================================
 	//	AnimationPlayerSystem class
@@ -64,9 +67,13 @@ namespace Engine {
 			const std::vector<AnimationPreviewBaseValue>& base) const;
 		// 指定グループへ即時またはクロスフェードで切り替える、グループ内クリップを初期化する
 		void BeginGroup(AnimationPlayerComponent& player, const std::string& groupName, float fadeDuration) const;
-		// グループ内クリップ1つ分の開始遅延/時間/回数を進める
+		// グループ内クリップ1つ分の開始遅延/時間/回数を進める、Play中はこのフレームで跨いだイベントをfiredOutへ集める
 		void AdvanceClip(AnimationPlayerComponent& player, const AnimationGroup& group,
-			AnimationClipRuntime& clipRt, SystemContext& context) const;
+			AnimationClipRuntime& clipRt, SystemContext& context, std::vector<AnimationEvent>* firedOut) const;
+		// 進める前後の状態から、本編再生フェーズで跨いだイベントをfiredOutへ集める
+		void CollectClipEvents(const AnimationClipAsset& clip, AnimationWrapMode wrap,
+			float beforeTime, int8_t beforeDir, AnimationClipPhase beforePhase, int32_t beforeRepeat,
+			const AnimationClipRuntime& clipRt, float dur, std::vector<AnimationEvent>& firedOut) const;
 		// グループ内の開始済みクリップを評価しoutValuesへ入れる、競合プロパティは除外する
 		void EvaluateGroupClips(ECSWorld& world, const Entity& entity,
 			const AnimationGroup& group, const std::vector<AnimationClipRuntime>& clips,

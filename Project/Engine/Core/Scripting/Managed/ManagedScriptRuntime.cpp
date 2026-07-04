@@ -373,6 +373,7 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	invokeCollisionEnter_ = nullptr;
 	invokeCollisionStay_ = nullptr;
 	invokeCollisionExit_ = nullptr;
+	invokeAnimationEvent_ = nullptr;
 
 	ReleaseHostfxr();
 }
@@ -532,6 +533,18 @@ Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionStay(ManagedS
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionExit(ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
 	return InvokeCollision(invokeCollisionExit_, handle, context, collision);
+}
+
+Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeAnimationEvent(ManagedScriptInstanceHandle handle,
+	const SystemContext& context, const char* name, float floatParam, int32_t intParam, const char* stringParam) {
+
+	if (!initialized_ || !invokeAnimationEvent_ || !handle.IsValid()) {
+		return ManagedStatus::InvalidInstanceHandle;
+	}
+	FrameProfiler::ScopedSample scriptSample(FrameProfiler::Category::Script);
+	// コンテキストはRAIIで設定しC#側で例外が起きても確実に元へ戻す
+	ScopedInvocationContext contextScope(context);
+	return invokeAnimationEvent_(handle, name ? name : "", floatParam, intParam, stringParam ? stringParam : "");
 }
 
 namespace {
@@ -810,6 +823,7 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	success &= LoadBridgeFunction(invokeCollisionEnter_, L"InvokeCollisionEnter");
 	success &= LoadBridgeFunction(invokeCollisionStay_, L"InvokeCollisionStay");
 	success &= LoadBridgeFunction(invokeCollisionExit_, L"InvokeCollisionExit");
+	success &= LoadBridgeFunction(invokeAnimationEvent_, L"InvokeAnimationEvent");
 	return success;
 }
 

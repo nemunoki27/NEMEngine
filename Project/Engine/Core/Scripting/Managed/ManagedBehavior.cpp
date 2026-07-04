@@ -183,6 +183,19 @@ void Engine::ManagedBehavior::OnCollisionExit(ECSWorld& world,
 		ToManagedCollision(world, collision)), "OnCollisionExit", collision.self);
 }
 
+void Engine::ManagedBehavior::OnAnimationEvent([[maybe_unused]] ECSWorld& world,
+	const SystemContext& context, const Entity& entity,
+	const std::string& name, float floatParam, int32_t intParam, const std::string& stringParam) {
+
+	if (!managedHandle_.IsValid() || faulted_) {
+		return;
+	}
+
+	// C#側のOnAnimationEventへ渡す
+	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeAnimationEvent(managedHandle_, context,
+		name.c_str(), floatParam, intParam, stringParam.c_str()), "OnAnimationEvent", entity);
+}
+
 bool Engine::ManagedBehavior::EnsureInstance(ECSWorld& world, const Entity& entity) {
 
 	EnsureCreated(world, entity);

@@ -10,6 +10,7 @@
 
 // c++
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace Engine {
@@ -43,6 +44,10 @@ namespace Engine {
 		static void DispatchCollisionStay(ECSWorld& world, SystemContext& context, const CollisionContact& collision);
 		// OnCollisionExitを対象Entityのビヘイビアへ渡す
 		static void DispatchCollisionExit(ECSWorld& world, SystemContext& context, const CollisionContact& collision);
+
+		// OnAnimationEventを対象Entityのビヘイビアへ渡す
+		static void DispatchAnimationEvent(ECSWorld& world, SystemContext& context, const Entity& entity,
+			const std::string& name, float floatParam, int32_t intParam, const std::string& stringParam);
 
 		// Play中runtime Inspector用にBehaviorHandleからlive instanceの現在値を取得設定
 		static nlohmann::json GetRuntimeSerializedState(BehaviorHandle handle);

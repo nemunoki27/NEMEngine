@@ -522,6 +522,23 @@ public static unsafe class HostBridge {
         }
     }
 
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int InvokeAnimationEvent(NativeScriptInstanceHandle handle, byte* name, float floatParam, int intParam, byte* stringParam) {
+
+        if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
+            return (int)ManagedStatus.InvalidInstanceHandle;
+        }
+        FlushPendingReferenceFields();
+        try {
+            script.OnAnimationEvent(new AnimationEvent(PtrToString(name) ?? string.Empty, floatParam, intParam, PtrToString(stringParam) ?? string.Empty));
+            return (int)ManagedStatus.Ok;
+        }
+        catch (Exception ex) {
+            LogScriptException(script, nameof(ScriptBehaviour.OnAnimationEvent), ex);
+            return (int)ManagedStatus.ScriptException;
+        }
+    }
+
     //========================================================================
     //	private Methods
     //========================================================================

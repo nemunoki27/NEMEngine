@@ -7,6 +7,7 @@
 #include <Engine/Core/Animation/Clips/AnimationClipManager.h>
 #include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 
 // c++
 #include <algorithm>
@@ -300,7 +301,8 @@ void Engine::AnimationPlayerSystem::BeginGroup(AnimationPlayerComponent& player,
 }
 
 void Engine::AnimationPlayerSystem::AdvanceClip(AnimationPlayerComponent& player,
-	const AnimationGroup& group, AnimationClipRuntime& clipRt, SystemContext& context) const {
+	const AnimationGroup& group, AnimationClipRuntime& clipRt, SystemContext& context,
+	std::vector<AnimationEvent>* firedOut) const {
 
 	const AnimationState* state = FindStateInGroup(group, clipRt.stateName);
 	if (!state) {
@@ -332,6 +334,12 @@ void Engine::AnimationPlayerSystem::AdvanceClip(AnimationPlayerComponent& player
 	const AnimationWrapMode curWrap = EffectiveWrap(state->wrapMode, clip->loop);
 	const float dur = (std::max)(clip->duration, 0.001f);
 
+	// このフレームで跨いだイベント検出のため、進める前の状態を控える
+	const float beforeTime = clipRt.time;
+	const int8_t beforeDir = clipRt.dir;
+	const AnimationClipPhase beforePhase = clipRt.phase;
+	const int32_t beforeRepeat = clipRt.repeatCount;
+
 	// ループ/往復はフェーズ機械で繋ぎ補間とインターバルを扱う、それ以外は素直に進める
 	if (curWrap == AnimationWrapMode::Loop) {
 
@@ -347,6 +355,76 @@ void Engine::AnimationPlayerSystem::AdvanceClip(AnimationPlayerComponent& player
 			clipRt.playing = false;
 			clipRt.finished = true;
 		}
+	}
+
+	// Play中のみ、本編再生フェーズで跨いだイベントを集める
+	if (firedOut && context.mode == WorldMode::Play && !clip->events.empty()) {
+		CollectClipEvents(*clip, curWrap, beforeTime, beforeDir, beforePhase, beforeRepeat, clipRt, dur, *firedOut);
+	}
+}
+
+void Engine::AnimationPlayerSystem::CollectClipEvents(const AnimationClipAsset& clip, AnimationWrapMode wrap,
+	float beforeTime, int8_t beforeDir, AnimationClipPhase beforePhase, int32_t beforeRepeat,
+	const AnimationClipRuntime& clipRt, float dur, std::vector<AnimationEvent>& firedOut) const {
+
+	// 半開区間 (lo, hi] を跨いだイベントを積む、上向きに通過した瞬間に発火する
+	// 区間始点がクリップ先頭(0)のときは時刻0のイベントも含める(再生開始フレームやループ先頭で発火させる)
+	const auto emit = [&](float lo, float hi) {
+		if (hi <= lo) {
+			return;
+		}
+		const bool includeStart = lo <= 0.0f;
+		for (const AnimationEvent& event : clip.events) {
+			const bool inRange = includeStart ? (0.0f <= event.time && event.time <= hi) : (lo < event.time && event.time <= hi);
+			if (inRange) {
+				firedOut.push_back(event);
+			}
+		}
+		};
+
+	if (wrap == AnimationWrapMode::Loop) {
+
+		const bool cycled = clipRt.repeatCount != beforeRepeat;
+		if (beforePhase == AnimationClipPhase::Play) {
+
+			if (!cycled && clipRt.phase == AnimationClipPhase::Play) {
+				emit(beforeTime, clipRt.time);
+			} else {
+
+				// 今周の終端まで再生した、繋ぎ補間/インターバルが0で同フレームに次周へ入ったら先頭側も見る
+				emit(beforeTime, dur);
+				if (cycled && clipRt.phase == AnimationClipPhase::Play) {
+					emit(0.0f, clipRt.time);
+				}
+			}
+		} else if (clipRt.phase == AnimationClipPhase::Play) {
+
+			// 繋ぎ補間/インターバルを終えて次周の本編へ入った
+			emit(0.0f, clipRt.time);
+		}
+	} else if (wrap == AnimationWrapMode::PingPong) {
+
+		if (beforePhase == AnimationClipPhase::Play && clipRt.phase == AnimationClipPhase::Play) {
+
+			if (beforeDir == clipRt.dir) {
+				emit((std::min)(beforeTime, clipRt.time), (std::max)(beforeTime, clipRt.time));
+			} else if (beforeDir == 1) {
+
+				// 端で折り返した、行き(→dur)と戻り(dur→)の両方で発火する
+				emit(beforeTime, dur);
+				emit(clipRt.time, dur);
+			} else {
+
+				emit(0.0f, beforeTime);
+				emit(0.0f, clipRt.time);
+			}
+		} else if (beforePhase == AnimationClipPhase::Interval && clipRt.phase == AnimationClipPhase::Play) {
+			emit(0.0f, clipRt.time);
+		}
+	} else {
+
+		// Once、単調前進
+		emit(beforeTime, clipRt.time);
 	}
 }
 
@@ -515,8 +593,10 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(ECSWorld& world, const Entity& 
 	}
 
 	// 現在グループのクリップを進めて評価する、競合プロパティは除外される
+	// 発火分は再入を避けるため一旦ためて、書き込み後にまとめて配送する
+	std::vector<AnimationEvent> firedEvents;
 	for (AnimationClipRuntime& clipRt : player.runtimeCurrentClips) {
-		AdvanceClip(player, *currentGroup, clipRt, context);
+		AdvanceClip(player, *currentGroup, clipRt, context, &firedEvents);
 	}
 	std::vector<AnimationEvaluatedValue> outValues;
 	EvaluateGroupClips(world, entity, *currentGroup, player.runtimeCurrentClips, *baseStore, context, outValues);
@@ -528,7 +608,7 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(ECSWorld& world, const Entity& 
 		if (fromGroup) {
 
 			for (AnimationClipRuntime& clipRt : player.runtimeFromClips) {
-				AdvanceClip(player, *fromGroup, clipRt, context);
+				AdvanceClip(player, *fromGroup, clipRt, context, nullptr);
 			}
 			std::vector<AnimationEvaluatedValue> fromValues;
 			EvaluateGroupClips(world, entity, *fromGroup, player.runtimeFromClips, *baseStore, context, fromValues);
@@ -546,6 +626,12 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(ECSWorld& world, const Entity& 
 		}
 	}
 	AnimationClipEvaluator::WriteValues(world, entity, outValues);
+
+	// 書き込み後にイベントを配送する、ハンドラ内でPlay/Stopを呼んでも次フレーム消費で安全
+	for (const AnimationEvent& event : firedEvents) {
+		BehaviorSystem::DispatchAnimationEvent(world, context, entity,
+			event.name, event.floatParam, event.intParam, event.stringParam);
+	}
 
 	// C#公開用ミラーを更新する、いずれかのクリップが再生中ならplaying、全て終端ならfinished
 	player.runtimeCurrent = player.runtimeCurrentGroup;

@@ -95,8 +95,17 @@ namespace Engine {
 		std::vector<CurveQuaternionAxisKey> quaternionAxisKeys;
 	};
 
-	// 将来のEvent Track用で今はJSON上で空配列を維持するための置き場所だけを持つ
-	struct AnimationEventTrack {
+	// 指定時刻にスクリプトへ通知するアニメーションイベント、ハンドラはname/paramで分岐する
+	struct AnimationEvent {
+
+		// クリップ内の発火時刻
+		float time = 0.0f;
+		// ハンドラ側の識別子
+		std::string name;
+		// 任意パラメータ
+		float floatParam = 0.0f;
+		int32_t intParam = 0;
+		std::string stringParam;
 	};
 
 	// 再利用可能なAnimationClipアセット本体
@@ -112,7 +121,7 @@ namespace Engine {
 		bool relativeTransform = false;
 		AnimationLoopBridgeSettings loopBridge{};
 		std::vector<AnimationCurveTrack> curveTracks;
-		std::vector<AnimationEventTrack> eventTracks;
+		std::vector<AnimationEvent> events;
 	};
 
 	//============================================================================

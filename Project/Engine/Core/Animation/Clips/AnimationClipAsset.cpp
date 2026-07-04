@@ -551,7 +551,17 @@ void Engine::to_json(nlohmann::json& out, const AnimationClipAsset& clip) {
 	out["relativeTransform"] = clip.relativeTransform;
 	ToJson(clip.loopBridge, out["loopBridge"]);
 	out["curveTracks"] = clip.curveTracks;
-	out["eventTracks"] = nlohmann::json::array();
+	out["events"] = nlohmann::json::array();
+	for (const AnimationEvent& event : clip.events) {
+
+		nlohmann::json eventJson;
+		eventJson["time"] = event.time;
+		eventJson["name"] = event.name;
+		eventJson["floatParam"] = event.floatParam;
+		eventJson["intParam"] = event.intParam;
+		eventJson["stringParam"] = event.stringParam;
+		out["events"].push_back(std::move(eventJson));
+	}
 }
 
 void Engine::from_json(const nlohmann::json& in, AnimationClipAsset& clip) {
@@ -577,7 +587,18 @@ void Engine::from_json(const nlohmann::json& in, AnimationClipAsset& clip) {
 		}
 	}
 
-	// 初期実装ではEvent Trackは編集せずキーが無くても保存時に空配列として維持する
-	clip.eventTracks.clear();
+	clip.events.clear();
+	if (const auto it = in.find("events"); it != in.end() && it->is_array()) {
+		for (const nlohmann::json& eventJson : *it) {
+
+			AnimationEvent event{};
+			event.time = eventJson.value("time", 0.0f);
+			event.name = eventJson.value("name", std::string());
+			event.floatParam = eventJson.value("floatParam", 0.0f);
+			event.intParam = eventJson.value("intParam", 0);
+			event.stringParam = eventJson.value("stringParam", std::string());
+			clip.events.emplace_back(std::move(event));
+		}
+	}
 	UpdateAnimationClipAutoDuration(clip);
 }
