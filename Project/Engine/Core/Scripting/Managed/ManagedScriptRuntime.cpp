@@ -234,6 +234,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getScriptEnabled = &ManagedScriptRuntime::GetScriptEnabledCallback;
 	callbacks.setScriptEnabled = &ManagedScriptRuntime::SetScriptEnabledCallback;
 	callbacks.getScriptInstance = &ManagedScriptRuntime::GetScriptInstanceCallback;
+	callbacks.attachScript = &ManagedScriptRuntime::AttachScriptCallback;
 	// 自動生成コンポーネントバインディングの型付きプロパティ振り分け、ManagedComponentBindings.json由来
 	callbacks.getComponentProperty = &GeneratedComponentBindings::GetComponentProperty;
 	callbacks.setComponentProperty = &GeneratedComponentBindings::SetComponentProperty;

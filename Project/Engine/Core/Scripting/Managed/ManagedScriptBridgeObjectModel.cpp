@@ -109,4 +109,14 @@ namespace Engine {
 		return managed ? managed->GetManagedHandle() : ManagedScriptInstanceHandle::Null();
 	}
 
+	int32_t ManagedScriptRuntime::AttachScriptCallback(ManagedNativeEntity owner, const char* scriptTypeID) {
+
+		// owner EntityへscriptTypeIDのscriptをruntime attachし、instance生成の成否を返す
+		if (!scriptTypeID) {
+			return 0;
+		}
+		const Entity resolved = ResolveEntity(owner);
+		return BehaviorSystem::AttachScript(resolved, scriptTypeID) ? 1 : 0;
+	}
+
 } // Engine

@@ -1152,6 +1152,36 @@ namespace {
 			return;
 		}
 
+		// 色カーブはR/G/Bを1キーとしてまとめて消し、Alphaは別チャンネルとして消す
+		if (IsColorCurveSet(channels)) {
+			std::vector<uint32_t> rgbKeys{};
+			std::vector<uint32_t> alphaKeys{};
+			for (const Engine::CurveKeySelection& selection : state.selectedKeys) {
+				if (HasAlphaChannel(channels) && selection.channelIndex == 3u) {
+					alphaKeys.emplace_back(selection.keyIndex);
+				} else if (selection.channelIndex < 3u) {
+					rgbKeys.emplace_back(selection.keyIndex);
+				}
+			}
+			// indexずれを避けるため降順にし、重複keyは1回だけ消す
+			const auto sortUniqueDesc = [](std::vector<uint32_t>& keys) {
+				std::sort(keys.begin(), keys.end(), [](uint32_t lhs, uint32_t rhs) { return lhs > rhs; });
+				keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
+				};
+			sortUniqueDesc(rgbKeys);
+			sortUniqueDesc(alphaKeys);
+			for (uint32_t keyIndex : rgbKeys) {
+				RemoveColorRgbKey(channels, keyIndex);
+			}
+			for (uint32_t keyIndex : alphaKeys) {
+				if (3u < channels.size()) {
+					channels[3].RemoveKey(keyIndex);
+				}
+			}
+			state.ClearSelection();
+			return;
+		}
+
 		// 後ろから削除できるようにチャンネル/キーを降順に並べる
 		std::sort(state.selectedKeys.begin(), state.selectedKeys.end(),
 			[](const Engine::CurveKeySelection& lhs, const Engine::CurveKeySelection& rhs) {
@@ -1177,17 +1207,16 @@ namespace {
 		const float previousFontScale = ImGui::GetCurrentWindow()->FontWindowScale;
 		ImGui::SetWindowFontScale(kCurveEditorFontScale);
 
-		if (DrawToolbarButton("Frame")) {
+		if (DrawToolbarButton("全体表示")) {
 			state.frameSelectionRequest = true;
 			result.valueChanged = true;
 		}
 		ImGui::SameLine();
 
-		DrawToolbarCheckbox("Snap", state.snapEnabled);
-		ImGui::SameLine();
-		DrawToolbarDragFloat("Step", state.snapInterval, 0.001f, 0.001f, 10.0f, "%.3f");
-		ImGui::SameLine();
-		DrawToolbarDragFloat("Time", state.currentTime, 0.01f, 0.0f, 10000.0f, "%.3f");
+		// Snapは常に有効、Stepは0.001固定にしてどちらもUI編集は行わない
+		state.snapEnabled = true;
+		state.snapInterval = 0.001f;
+		DrawToolbarDragFloat("時間", state.currentTime, 0.01f, 0.0f, 10000.0f, "%.3f");
 		DrawToolbarCurrentValues(channels, state, quaternionAxisKeys);
 
 		ImGui::SetWindowFontScale(previousFontScale);
@@ -1433,9 +1462,21 @@ namespace {
 
 		ImGuiIO& io = ImGui::GetIO();
 		const ImVec2 mouse = io.MousePos;
-		const bool hovered = RectContains(graphRect, mouse);
+		// コンテキストメニューが開いている間はグラフのマウス操作を無効化する
+		// ポップアップ上のクリックがグラフにも伝わり、選択解除やマーキー選択を誤爆させるのを防ぐ
+		const bool popupOpen = ImGui::IsPopupOpen("##CurveContextMenu");
+		const bool hovered = RectContains(graphRect, mouse) && !popupOpen;
 
 		state.hasHoveredKey = hovered && HitTestKey(graphRect, channels, state, mouse, state.hoveredKey);
+
+		// 選択中キーをまとめて削除する、矩形選択やCtrlクリックで複数選択したキーをDelete/Backspaceで消せる
+		if (hovered && !state.selectedKeys.empty() &&
+			(ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace))) {
+			DeleteSelectedKeys(channels, state, quaternionAxisKeys);
+			result.valueChanged = true;
+			result.selectionChanged = true;
+			return;
+		}
 
 		if (hovered && io.MouseWheel != 0.0f) {
 			ZoomTimeAroundMouse(graphRect, state, mouse, io.MouseWheel);
@@ -1476,52 +1517,38 @@ namespace {
 			state.contextMenuOnKey = state.hasHoveredKey;
 			if (state.contextMenuOnKey) {
 				state.contextMenuKey = state.hoveredKey;
+				// 未選択のキーを右クリックしたときはそのキーだけを選択して削除対象にする
+				if (!state.IsSelected(state.hoveredKey.channelIndex, state.hoveredKey.keyIndex)) {
+					state.SelectSingle(state.hoveredKey.channelIndex, state.hoveredKey.keyIndex);
+					result.selectionChanged = true;
+				}
 			}
 			ImGui::OpenPopup("##CurveContextMenu");
 		}
 
 		if (ImGui::BeginPopup("##CurveContextMenu")) {
-			if (state.contextMenuOnKey) {
-				if (ImGui::MenuItem("Delete Key")) {
-					if (IsQuaternionCurveSet(channels) && IsQuaternionSelection(channels, state.contextMenuKey)) {
-						RemoveQuaternionKey(channels, quaternionAxisKeys, state.contextMenuKey);
-						result.valueChanged = true;
-						result.selectionChanged = true;
-						state.ClearSelection();
-					} else if (IsColorCurveSet(channels) && IsRgbSelection(channels, state.contextMenuKey)) {
-						RemoveColorRgbKey(channels, state.contextMenuKey.keyIndex);
-						result.valueChanged = true;
-						result.selectionChanged = true;
-						state.ClearSelection();
-					} else if (IsColorCurveSet(channels) && IsAlphaSelection(channels, state.contextMenuKey)) {
-						channels[3].RemoveKey(state.contextMenuKey.keyIndex);
-						result.valueChanged = true;
-						result.selectionChanged = true;
-						state.ClearSelection();
-					} else if (state.contextMenuKey.channelIndex < channels.size()) {
-						Engine::CurveChannel& channel = channels[state.contextMenuKey.channelIndex];
-						if (state.contextMenuKey.keyIndex < channel.keys.size()) {
-							channel.RemoveKey(state.contextMenuKey.keyIndex);
-							result.valueChanged = true;
-							result.selectionChanged = true;
-							state.ClearSelection();
-						}
-					}
+			// 選択中キーをまとめて削除する、右クリックしたキーも選択に含めているので単体削除も兼ねる
+			if (!state.selectedKeys.empty()) {
+				if (ImGui::MenuItem("選択キーを削除")) {
+					DeleteSelectedKeys(channels, state, quaternionAxisKeys);
+					result.valueChanged = true;
+					result.selectionChanged = true;
 				}
-			} else {
-				if (ImGui::BeginMenu("Add Key")) {
+			}
+			if (!state.contextMenuOnKey) {
+				if (ImGui::BeginMenu("キー追加")) {
 
 					const float time = SnapTime((std::max)(0.0f, state.contextMenuWorld.x), state.snapEnabled, state.snapInterval);
 
 					if (IsQuaternionCurveSet(channels)) {
-						if (ImGui::MenuItem("Axis")) {
+						if (ImGui::MenuItem("軸")) {
 							const uint32_t newKeyIndex = AddQuaternionAxisKey(channels, quaternionAxisKeys, time);
 							state.ClearSelection();
 							state.selectedKeys.push_back({ 0, newKeyIndex });
 							result.valueChanged = true;
 							result.selectionChanged = true;
 						}
-						if (ImGui::MenuItem("Angle")) {
+						if (ImGui::MenuItem("角度")) {
 							const uint32_t newKeyIndex = AddQuaternionAngleKey(channels, time);
 							state.ClearSelection();
 							state.selectedKeys.push_back({ 1, newKeyIndex });

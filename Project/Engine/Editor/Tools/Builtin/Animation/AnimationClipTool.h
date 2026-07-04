@@ -65,19 +65,13 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// 選択中Channel/Trackへ波形キーをまとめて生成するための一時設定
+		// 対象Channelへ波形キーをまとめて生成するための一時設定
 		enum class GeneratorType :
 			uint8_t {
 
 			Sin,
 			Cos,
 			Easing,
-		};
-		enum class GeneratorApplyTo :
-			uint8_t {
-
-			SelectedChannel,
-			SelectedTrack,
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -117,12 +111,18 @@ namespace Engine {
 		float previewTime_ = 0.0f;
 		float previewSpeed_ = 1.0f;
 		std::vector<AnimationPreviewBaseValue> previewBaseValues_;
+		// Previewでtoolが最後に書き込んだ値、Entityの現在値とズレていたら外部編集とみなす検知に使う
+		std::vector<AnimationPreviewBaseValue> lastAppliedValues_;
+		// 編集が起きたフレームだけ検知するため、前フレームのUndo/Redoカウントを覚えておく
+		size_t lastUndoCount_ = 0;
+		size_t lastRedoCount_ = 0;
 
 		// Transform系Propertyの2D/3D候補を絞るための表示フィルタ
 		AnimationClipEditDimension editDimension_ = AnimationClipEditDimension::Auto;
 
 		GeneratorType generatorType_ = GeneratorType::Sin;
-		GeneratorApplyTo generatorApplyTo_ = GeneratorApplyTo::SelectedChannel;
+		// ベイクの適用先チャネル、値型ごとの候補(Vector3ならXYZ / QuaternionならAngle / ColorならRGB,Alpha)から選ぶ
+		int generatorTargetIndex_ = 0;
 		float generatorStartTime_ = 0.0f;
 		float generatorEndTime_ = 1.0f;
 		float generatorStartValue_ = 0.0f;
@@ -164,9 +164,19 @@ namespace Engine {
 		void ApplyPreviewAtCurrentTime(const EditorToolContext& context, bool keepActive);
 		void BeginPreview(const EditorToolContext& context);
 		void EndPreviewAndRestore(const EditorToolContext& context);
-		// Preview終了時に戻せるよう、編集前の値だけを保持する
+		// Target設定時やProperty追加時に、そのpropertyがアニメで動く前のクリーンな値を基準として捕捉する
+		// 既に捕捉済みのpropertyは上書きせず、未捕捉のtrackだけ現在値から追加する
 		void CachePreviewBaseValues(ECSWorld& world, const Entity& entity);
 		void RestorePreviewBaseValues(ECSWorld& world, const Entity& entity);
+		// Track削除時に、そのPropertyだけを元のシーン値へ戻しbaseからも取り除く
+		void RestoreAndDropPreviewBaseValue(const EditorToolContext& context, const AnimationPropertyBinding& binding);
+		// 指定bindingの基準値を既に保持しているか
+		bool HasPreviewBaseValue(const AnimationPropertyBinding& binding) const;
+		// Previewでtoolが書き込んだ現在値を退避する、外部編集検知の基準にする
+		void CaptureLastAppliedValues(ECSWorld& world, const Entity& entity);
+		// マニピュレータ/インスペクタでの編集を検知する
+		// 停止中はbaseを更新し、再生中は自動停止して編集値を新baseへ採用する
+		void SyncPreviewBaseFromEntityEdits(const EditorToolContext& context);
 		void AddKeyToChannel(AnimationCurveTrack& track, uint32_t channelIndex, float time);
 		void UpdateAutoDurationAndPreview(const EditorToolContext& context);
 	};

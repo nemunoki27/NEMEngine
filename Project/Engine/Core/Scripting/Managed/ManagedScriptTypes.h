@@ -36,7 +36,8 @@ namespace Engine {
 	// v19: MeshRendererのマテリアルcolor取得getMeshMaterialColorを追加
 	// v20: Entityの保存identityを逆引きするgetEntityReferenceIdentityを追加
 	// v21: レイキャストのphysicsRaycast physicsRaycastAllとカメラレイのscreenPointToRay getMousePositionInViewとgetCollisionTypeMaskByNameを追加
-	inline constexpr uint32_t kManagedAbiVersion = 21;
+	// v22: AddComponent<Script>用にowner EntityへscriptTypeIDのscriptをruntime attachするattachScriptを追加
+	inline constexpr uint32_t kManagedAbiVersion = 22;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -398,6 +399,8 @@ namespace Engine {
 		using ReportStringCallback = void(__cdecl*)(const char*);
 		// GetComponent<Script> v9のentity上でscriptTypeID一致のscript instanceハンドルを引く
 		using GetScriptInstanceCallback = ManagedScriptInstanceHandle(__cdecl*)(ManagedNativeEntity, const char*);
+		// AddComponent<Script> v22のentityへscriptTypeIDのscriptをruntime attachする、成否を返す
+		using AttachScriptCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*);
 		using ResolveEntityRefCallback = ManagedNativeEntity(__cdecl*)(uint64_t, uint64_t);
 		// v20のEntity保存identity逆引き、sourceAssetとlocalFileIDとkindを返す
 		using GetEntityRefIdentityCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t*, uint64_t*, int32_t*);
@@ -520,6 +523,8 @@ namespace Engine {
 		ReportStringCallback reportScriptException = nullptr;
 		// GetComponent<Script> v9のentityのscript instanceをscriptTypeIDで引く
 		GetScriptInstanceCallback getScriptInstance = nullptr;
+		// AddComponent<Script> v22のentityへscriptをruntime attachする
+		AttachScriptCallback attachScript = nullptr;
 		// SceneTransition v10のScene単一load、新sceneをactiveにし旧sceneを全unloadする
 		LoadSceneCallback loadSceneSingle = nullptr;
 

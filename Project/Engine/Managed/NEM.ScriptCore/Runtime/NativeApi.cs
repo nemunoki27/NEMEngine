@@ -28,7 +28,8 @@ internal static class ManagedAbi {
     // v19: Mesh/Sprite/Text のマテリアル color の get/set(setRendererMaterialColor/getRendererMaterialColor)を追加
     // v20: Entityの保存identityを逆引きする getEntityReferenceIdentity を追加
     // v21: レイキャスト(physicsRaycast/physicsRaycastAll)とカメラレイ(screenPointToRay/getMousePositionInView)とCollisionタイプ名解決を追加
-    internal const uint Version = 21;
+    // v22: AddComponent<Script> 用に entity へ script を runtime attach する attachScript を追加
+    internal const uint Version = 22;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -243,6 +244,7 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, int> GetScriptEnabled;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, int, void> SetScriptEnabled;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle> GetScriptInstance;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int> AttachScript;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> GetComponentProperty;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> SetComponentProperty;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int*, int> GetComponentStringProperty;
@@ -375,6 +377,7 @@ internal static unsafe class NativeApi {
         GetScriptEnabled = callbacks->getScriptEnabled;
         SetScriptEnabled = callbacks->setScriptEnabled;
         GetScriptInstance = callbacks->getScriptInstance;
+        AttachScript = callbacks->attachScript;
         GetComponentProperty = callbacks->getComponentProperty;
         SetComponentProperty = callbacks->setComponentProperty;
         GetComponentStringProperty = callbacks->getComponentStringProperty;
@@ -767,6 +770,18 @@ internal static unsafe class NativeApi {
         Encoding.UTF8.GetBytes(scriptTypeId, 0, scriptTypeId.Length, bytes, 0);
         fixed (byte* ptr = bytes) {
             return GetScriptInstance(owner, ptr);
+        }
+    }
+
+    // entity へ scriptTypeId の script を runtime attach する。生成成否を返す
+    internal static bool TryAttachScript(NativeEntity owner, string scriptTypeId) {
+        if (AttachScript == null || string.IsNullOrEmpty(scriptTypeId)) {
+            return false;
+        }
+        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(scriptTypeId) + 1];
+        Encoding.UTF8.GetBytes(scriptTypeId, 0, scriptTypeId.Length, bytes, 0);
+        fixed (byte* ptr = bytes) {
+            return AttachScript(owner, ptr) != 0;
         }
     }
 
@@ -1287,6 +1302,8 @@ public unsafe struct NativeApiTable {
     // Diagnostics(v8): script callback 例外の構造化報告（JSON DTO を 1 件渡す）
     public delegate* unmanaged[Cdecl]<byte*, void> reportScriptException;
     public delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle> getScriptInstance;
+    // AddComponent<Script>(v22): entity へ scriptTypeId の script を runtime attach する
+    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, int> attachScript;
     // SceneTransition(v10): Scene 単一load（C++ ManagedNativeApiTable と同一順）
     public delegate* unmanaged[Cdecl]<ulong, ulong> loadSceneSingle;
     // EntityRef(v11): EntityRef を runtime entity へ解決（C++ ManagedNativeApiTable と同一順）

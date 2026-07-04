@@ -81,7 +81,9 @@ namespace Engine {
 		// 評価済み値を対象EntityのComponentへ書き込む
 		static void WriteValues(ECSWorld& world, const Entity& entity, std::span<const AnimationEvaluatedValue> values);
 		// Transformの位置/回転をbaseValuesの基準姿勢を正面として相対化する、向き相対クリップ用
+		// clipNeutralはクリップ開始姿勢(t=0)で、作成時のEntity位置に依存しないようここからの差分だけを基準へ適用する
 		static void ComposeRelativeTransform(std::vector<AnimationEvaluatedValue>& values,
-			std::span<const AnimationPreviewBaseValue> baseValues);
+			std::span<const AnimationPreviewBaseValue> baseValues,
+			std::span<const AnimationEvaluatedValue> clipNeutral);
 	};
 } // Engine

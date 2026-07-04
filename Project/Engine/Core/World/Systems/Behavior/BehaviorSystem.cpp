@@ -342,6 +342,54 @@ Engine::MonoBehavior* Engine::BehaviorSystem::FindScriptInstance(const Entity& o
 	return nullptr;
 }
 
+bool Engine::BehaviorSystem::AttachScript(const Entity& owner, const std::string& scriptTypeID) {
+
+	if (!activeSystem_ || !activeSystem_->activeWorld_ || scriptTypeID.empty()) {
+		return false;
+	}
+	ECSWorld& world = *activeSystem_->activeWorld_;
+	if (!world.IsAlive(owner)) {
+		return false;
+	}
+
+	// 型GUIDから実行時型IDを解決する、未登録なら失敗
+	const BehaviorTypeInfo* info = BehaviorTypeRegistry::GetInstance().FindByStableScriptTypeID(scriptTypeID);
+	if (!info) {
+		return false;
+	}
+
+	// ScriptComponentが無ければ付与する、すでにscriptを持つEntityへの追加はvectorへのappendのみで構造変更しない
+	ScriptComponent* component = world.TryGetComponent<ScriptComponent>(owner);
+	if (!component) {
+		component = &world.AddComponent<ScriptComponent>(owner);
+	}
+
+	// ScriptEntryを追加してinstanceを即時生成する、Awake/Startは次の同期パスで走る
+	ScriptEntry& entry = component->scripts.emplace_back(MakeScriptEntry(info->scriptTypeID, info->name));
+	entry.resolvedRuntimeTypeID = info->id;
+	entry.resolvedRuntimeTypeValid = true;
+	entry.handle = activeSystem_->runtime_.Create(info->id, owner);
+
+	BehaviorRecord* record = activeSystem_->runtime_.GetRecord(entry.handle);
+	if (!record || !record->instance) {
+
+		entry.handle = BehaviorHandle::Null();
+		component->scripts.pop_back();
+		return false;
+	}
+
+	// scriptSlotIDを渡し、既定のserialized fieldsを適用してからinstanceを確定する
+	record->instance->SetSlotID(entry.scriptSlotID.value);
+	record->instance->SetSerializedFields(entry.serializedFields);
+	record->appliedSerializedRevision = entry.serializedRevision;
+	if (!record->instance->EnsureInstance(world, owner)) {
+
+		record->faulted = true;
+	}
+	activeSystem_->participantsDirty_ = true;
+	return true;
+}
+
 void Engine::BehaviorSystem::EnsureActiveWorld(ECSWorld& world, SystemContext& context) {
 
 	// プレイ中でないときにアクティブにしない

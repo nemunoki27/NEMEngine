@@ -320,7 +320,12 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(ECSWorld& world, const Entity& 
 
 	// 向き相対クリップは合成後の値を基準姿勢を正面として相対化する
 	if (currentClip->relativeTransform) {
-		AnimationClipEvaluator::ComposeRelativeTransform(outValues, *baseStore);
+
+		// クリップ開始姿勢(t=0)を中立として相対化するため、t=0の値を評価して渡す
+		AnimationResolvedTime neutralTime{};
+		std::vector<AnimationEvaluatedValue> neutralValues;
+		AnimationClipEvaluator::EvaluateClipValues(world, entity, *currentClip, neutralTime, *baseStore, neutralValues);
+		AnimationClipEvaluator::ComposeRelativeTransform(outValues, *baseStore, neutralValues);
 	}
 	AnimationClipEvaluator::WriteValues(world, entity, outValues);
 }

@@ -34,6 +34,135 @@ using namespace Engine;
 //============================================================================
 namespace {
 
+	// アニメーション値を成分ごとに近似比較する、外部編集検知で微小なfloat差を無視するために使う
+	bool ApproxEqualValue(const AnimationPropertyValue& lhs, const AnimationPropertyValue& rhs) {
+
+		if (lhs.index() != rhs.index()) {
+			return false;
+		}
+		constexpr float kEpsilon = 1.0e-4f;
+		const auto nearly = [](float a, float b) { return std::fabs(a - b) <= kEpsilon; };
+
+		if (const float* v = std::get_if<float>(&lhs)) { return nearly(*v, std::get<float>(rhs)); }
+		if (const Vector2* v = std::get_if<Vector2>(&lhs)) {
+			const Vector2& o = std::get<Vector2>(rhs); return nearly(v->x, o.x) && nearly(v->y, o.y);
+		}
+		if (const Vector3* v = std::get_if<Vector3>(&lhs)) {
+			const Vector3& o = std::get<Vector3>(rhs); return nearly(v->x, o.x) && nearly(v->y, o.y) && nearly(v->z, o.z);
+		}
+		if (const Vector4* v = std::get_if<Vector4>(&lhs)) {
+			const Vector4& o = std::get<Vector4>(rhs);
+			return nearly(v->x, o.x) && nearly(v->y, o.y) && nearly(v->z, o.z) && nearly(v->w, o.w);
+		}
+		if (const Color3* v = std::get_if<Color3>(&lhs)) {
+			const Color3& o = std::get<Color3>(rhs); return nearly(v->r, o.r) && nearly(v->g, o.g) && nearly(v->b, o.b);
+		}
+		if (const Color4* v = std::get_if<Color4>(&lhs)) {
+			const Color4& o = std::get<Color4>(rhs);
+			return nearly(v->r, o.r) && nearly(v->g, o.g) && nearly(v->b, o.b) && nearly(v->a, o.a);
+		}
+		if (const Quaternion* v = std::get_if<Quaternion>(&lhs)) {
+			const Quaternion& o = std::get<Quaternion>(rhs);
+			return nearly(v->x, o.x) && nearly(v->y, o.y) && nearly(v->z, o.z) && nearly(v->w, o.w);
+		}
+		return true;
+	}
+
+	// 外部編集をbaseへ取り込むとき、キーのあるチャネルはbase値を保ち、キーの無いチャネルだけ編集値を採用する
+	// 例: PosYのみアニメ中にXZを編集した場合、Yはアニメ途中値ではなくbaseを維持する
+	AnimationPropertyValue MergeEditedBaseValue(const AnimationCurveTrack& track,
+		const AnimationPropertyValue& current, const AnimationPropertyValue& base) {
+
+		if (current.index() != base.index()) {
+			return current;
+		}
+		// 成分indexに対応するチャネルがキーを持つ(=アニメされる)か
+		const auto keyed = [&](size_t channelIndex) {
+			return channelIndex < track.channels.size() && !track.channels[channelIndex].keys.empty();
+			};
+
+		if (std::get_if<float>(&current)) {
+			return keyed(0) ? base : current;
+		}
+		if (const Vector2* c = std::get_if<Vector2>(&current)) {
+			const Vector2& b = std::get<Vector2>(base);
+			return Vector2(keyed(0) ? b.x : c->x, keyed(1) ? b.y : c->y);
+		}
+		if (const Vector3* c = std::get_if<Vector3>(&current)) {
+			const Vector3& b = std::get<Vector3>(base);
+			return Vector3(keyed(0) ? b.x : c->x, keyed(1) ? b.y : c->y, keyed(2) ? b.z : c->z);
+		}
+		if (const Vector4* c = std::get_if<Vector4>(&current)) {
+			const Vector4& b = std::get<Vector4>(base);
+			return Vector4(keyed(0) ? b.x : c->x, keyed(1) ? b.y : c->y, keyed(2) ? b.z : c->z, keyed(3) ? b.w : c->w);
+		}
+		if (const Color3* c = std::get_if<Color3>(&current)) {
+			const Color3& b = std::get<Color3>(base);
+			return Color3(keyed(0) ? b.r : c->r, keyed(1) ? b.g : c->g, keyed(2) ? b.b : c->b);
+		}
+		if (const Color4* c = std::get_if<Color4>(&current)) {
+			const Color4& b = std::get<Color4>(base);
+			return Color4(keyed(0) ? b.r : c->r, keyed(1) ? b.g : c->g, keyed(2) ? b.b : c->b, keyed(3) ? b.a : c->a);
+		}
+		if (std::get_if<Quaternion>(&current)) {
+			// Quaternionはaxis/angleチャネルで成分対応しないため、1つでもキーがあればbaseを保つ
+			const bool anyKeyed = std::any_of(track.channels.begin(), track.channels.end(),
+				[](const CurveChannel& channel) { return !channel.keys.empty(); });
+			return anyKeyed ? base : current;
+		}
+		return current;
+	}
+
+	// 適用方法の表示ラベル、保存用のToString(英語)とは別にUIだけ日本語で見せる
+	const char* ApplyModeLabel(AnimationApplyMode mode) {
+		switch (mode) {
+		case AnimationApplyMode::Override: return "上書き";
+		case AnimationApplyMode::Add:      return "加算";
+		case AnimationApplyMode::Multiply: return "乗算";
+		}
+		return "上書き";
+	}
+
+	// ベイクの適用先候補、ラベルと対象チャネルindexの組で表す
+	struct BakeTargetOption {
+
+		std::string label;
+		std::vector<uint32_t> channelIndices;
+	};
+
+	// 値型ごとにベイク可能なチャネル候補を作る、複数選択はせず1候補を選んで適用する
+	std::vector<BakeTargetOption> BuildBakeTargets(const AnimationCurveTrack& track) {
+
+		const uint32_t channelCount = static_cast<uint32_t>(track.channels.size());
+		std::vector<BakeTargetOption> options{};
+		switch (track.binding.valueType) {
+		case AnimationValueType::Vector2:
+			if (channelCount >= 2) { options = { { "X", { 0u } }, { "Y", { 1u } } }; }
+			break;
+		case AnimationValueType::Vector3:
+			if (channelCount >= 3) { options = { { "X", { 0u } }, { "Y", { 1u } }, { "Z", { 2u } } }; }
+			break;
+		case AnimationValueType::Vector4:
+			if (channelCount >= 4) { options = { { "X", { 0u } }, { "Y", { 1u } }, { "Z", { 2u } }, { "W", { 3u } } }; }
+			break;
+		case AnimationValueType::Quaternion:
+			// QuaternionはAxis(ch0)とAngle(ch1)のうちAngleだけをベイク対象にする
+			if (channelCount >= 2) { options = { { "Angle", { 1u } } }; }
+			break;
+		case AnimationValueType::Color3:
+			if (channelCount >= 3) { options = { { "RGB", { 0u, 1u, 2u } } }; }
+			break;
+		case AnimationValueType::Color4:
+			if (channelCount >= 4) { options = { { "RGB", { 0u, 1u, 2u } }, { "Alpha", { 3u } } }; }
+			break;
+		case AnimationValueType::Float:
+		default:
+			if (channelCount >= 1) { options = { { "値", { 0u } } }; }
+			break;
+		}
+		return options;
+	}
+
 	bool DrawEasingComboProperty(const char* label, EasingType& easingType, float reserveRightWidth = 0.0f) {
 
 		if (!MyGUI::BeginPropertyRow(label)) {
@@ -397,6 +526,20 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 		return;
 	}
 
+	// マニピュレータ/インスペクタでの編集があったフレームだけ検知する、毎フレームの差分比較は避ける
+	// ギズモ操作中(useSceneGizmo)か、Undo/Redoでコマンド数が変わったフレームだけ走らせる
+	if (context.panelContext && context.panelContext->editorState) {
+
+		const EditorState& editorState = *context.panelContext->editorState;
+		const size_t undoCount = editorState.commandHistory.GetUndoCount();
+		const size_t redoCount = editorState.commandHistory.GetRedoCount();
+		if (editorState.useSceneGizmo || undoCount != lastUndoCount_ || redoCount != lastRedoCount_) {
+			SyncPreviewBaseFromEntityEdits(context);
+		}
+		lastUndoCount_ = undoCount;
+		lastRedoCount_ = redoCount;
+	}
+
 	//============================================================================
 	//	AnimationClip編集UI
 	//============================================================================
@@ -519,6 +662,8 @@ void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 
 			// Targetを変える前に、旧Targetへ適用していたPreview値を戻す
 			EndPreviewAndRestore(context);
+			// 旧Targetの基準値を破棄し、新Targetのクリーンな値を捕捉し直す
+			previewBaseValues_.clear();
 			targetEntityUUID_ = nextTargetUUID;
 			previewTime_ = hasClip_ ? (std::clamp)(previewTime_, 0.0f, clip_.duration) : 0.0f;
 			curveState_.currentTime = previewTime_;
@@ -534,6 +679,7 @@ void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 
 			// 編集中にTargetへ適用していた値を戻してから参照を外す
 			EndPreviewAndRestore(context);
+			previewBaseValues_.clear();
 			targetEntityUUID_ = {};
 		}
 		if (!hasTargetEntity) {
@@ -800,11 +946,11 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 				static_cast<int>(AnimationApplyMode::Override),
 				static_cast<int>(AnimationApplyMode::Multiply),
 			};
-			if (ImGui::BeginCombo("適用", EnumAdapter<AnimationApplyMode>::ToString(track.applyMode))) {
+			if (ImGui::BeginCombo("適用", ApplyModeLabel(track.applyMode))) {
 				for (int value : kQuaternionApplyValues) {
 					const AnimationApplyMode applyMode = static_cast<AnimationApplyMode>(value);
 					const bool isSelected = track.applyMode == applyMode;
-					if (ImGui::Selectable(EnumAdapter<AnimationApplyMode>::ToString(applyMode), isSelected)) {
+					if (ImGui::Selectable(ApplyModeLabel(applyMode), isSelected)) {
 						track.applyMode = applyMode;
 						clipDirty_ = true;
 					}
@@ -836,13 +982,25 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 					ImGui::EndCombo();
 				}
 			}
-		} else if (EnumAdapter<AnimationApplyMode>::Combo("適用", &track.applyMode)) {
-			clipDirty_ = true;
+		} else if (ImGui::BeginCombo("適用", ApplyModeLabel(track.applyMode))) {
+			for (AnimationApplyMode applyMode : { AnimationApplyMode::Override,
+				AnimationApplyMode::Add, AnimationApplyMode::Multiply }) {
+				const bool isSelected = track.applyMode == applyMode;
+				if (ImGui::Selectable(ApplyModeLabel(applyMode), isSelected)) {
+					track.applyMode = applyMode;
+					clipDirty_ = true;
+				}
+				if (isSelected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
 		}
 
 		ImGui::SameLine();
 		if (ImGui::SmallButton("削除")) {
-			EndPreviewAndRestore(context);
+			// プレビュー中は削除するpropertyだけ元のシーン値へ戻し、残りの再生は止めない
+			RestoreAndDropPreviewBaseValue(context, track.binding);
 			clip_.curveTracks.erase(clip_.curveTracks.begin() + i);
 			curveState_.ClearSelection();
 			if (selectedTrackIndex_ == static_cast<int>(i)) {
@@ -852,6 +1010,10 @@ void AnimationClipTool::DrawPropertyTreeUI(const EditorToolContext& context) {
 				--selectedTrackIndex_;
 			}
 			clipDirty_ = true;
+			// 残ったtrackを現在時刻で反映し直す、プレビューは継続する
+			if (previewActive_) {
+				ApplyPreviewAtCurrentTime(context, true);
+			}
 			ImGui::PopID();
 			continue;
 		}
@@ -1214,7 +1376,28 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 	MyGUI::DragInt("キー数", generatorSampleCount_, { .dragSpeed = 1.0f,.minValue = 2,.maxValue = 1024 });
 	generatorSampleCount_ = (std::max)(generatorSampleCount_, 2);
 
-	MyGUI::EnumCombo("適用先", generatorApplyTo_, { .reserveRightWidth = 0.0f });
+	// 値型ごとの候補から適用先チャネルを選ぶ、候補が1つだけの型でも明示表示する
+	const std::vector<BakeTargetOption> bakeTargets = BuildBakeTargets(track);
+	if (bakeTargets.empty()) {
+		return;
+	}
+	generatorTargetIndex_ = std::clamp(generatorTargetIndex_, 0, static_cast<int>(bakeTargets.size()) - 1);
+	if (MyGUI::BeginPropertyRow("適用先")) {
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::BeginCombo("##BakeTarget", bakeTargets[static_cast<size_t>(generatorTargetIndex_)].label.c_str())) {
+			for (int t = 0; t < static_cast<int>(bakeTargets.size()); ++t) {
+				const bool isSelected = generatorTargetIndex_ == t;
+				if (ImGui::Selectable(bakeTargets[static_cast<size_t>(t)].label.c_str(), isSelected)) {
+					generatorTargetIndex_ = t;
+				}
+				if (isSelected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
+		MyGUI::EndPropertyRow();
+	}
 	MyGUI::Checkbox("範囲内のキーを置き換える", generatorReplaceKeys_);
 
 	if (!ImGui::Button("生成", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
@@ -1253,15 +1436,8 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 		}
 		};
 
-	if (generatorApplyTo_ == GeneratorApplyTo::SelectedTrack) {
-		for (CurveChannel& channel : track.channels) {
-			bakeChannel(channel);
-		}
-	} else {
-		uint32_t channelIndex = 0;
-		if (!curveState_.selectedKeys.empty()) {
-			channelIndex = curveState_.selectedKeys.front().channelIndex;
-		}
+	// 選択した候補のチャネルへだけベイクする、RGBのように複数chまとめた候補は各chへ適用する
+	for (uint32_t channelIndex : bakeTargets[static_cast<size_t>(generatorTargetIndex_)].channelIndices) {
 		if (channelIndex < track.channels.size()) {
 			bakeChannel(track.channels[channelIndex]);
 		}
@@ -1277,6 +1453,8 @@ void AnimationClipTool::LoadClipFromSelectedAsset(const EditorToolContext& conte
 	hasClip_ = false;
 	clipDirty_ = false;
 	loadedClipAssetID_ = {};
+	// Clipが変わるとtrack構成も変わるため、旧Clipの基準値は破棄して次のPreviewで捕捉し直す
+	previewBaseValues_.clear();
 
 	if (!clipAssetID_) {
 		clip_ = AnimationClipAsset{};
@@ -1392,6 +1570,9 @@ void AnimationClipTool::AddPropertyTrack(const AnimationPropertyDescriptor& desc
 	NormalizeAnimationTrackChannels(track);
 	selectedTrackIndex_ = static_cast<int>(clip_.curveTracks.size());
 	clip_.curveTracks.emplace_back(std::move(track));
+	// 追加したpropertyはまだアニメで動いていないので、この時点のクリーンな現在値を基準として捕捉する
+	// 再生中に追加した場合でも、そのproperty自体は未編集なので汚染されない
+	CachePreviewBaseValues(world, entity);
 	LoadSelectedTrackEditorView();
 	clipDirty_ = true;
 	curveState_.ClearSelection();
@@ -1555,6 +1736,9 @@ void AnimationClipTool::ApplyPreviewAtCurrentTime(const EditorToolContext& conte
 	AnimationClipEvaluator::ApplyClip(*world, entity, clip_, previewTime_, previewBaseValues_);
 	if (!keepActive && !previewPlaying_) {
 		EndPreviewAndRestore(context);
+	} else {
+		// Previewを継続する場合は、書き込んだ値を退避して次フレームの外部編集検知の基準にする
+		CaptureLastAppliedValues(*world, entity);
 	}
 }
 
@@ -1589,15 +1773,34 @@ void AnimationClipTool::EndPreviewAndRestore(const EditorToolContext& context) {
 		RestorePreviewBaseValues(*world, entity);
 	}
 
-	previewBaseValues_.clear();
+	// 基準値はTargetやClipが変わるまで保持する、途中でのStop/再生でクリーンな基準が汚染されないようにする
+	// 適用済み値はPreview停止で無効になるので破棄する
+	lastAppliedValues_.clear();
 	previewActive_ = false;
 	previewPlaying_ = false;
 }
 
+bool AnimationClipTool::HasPreviewBaseValue(const AnimationPropertyBinding& binding) const {
+
+	for (const AnimationPreviewBaseValue& base : previewBaseValues_) {
+		if (base.binding.componentName == binding.componentName &&
+			base.binding.propertyPath == binding.propertyPath &&
+			base.binding.valueType == binding.valueType) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void AnimationClipTool::CachePreviewBaseValues(ECSWorld& world, const Entity& entity) {
 
-	previewBaseValues_.clear();
+	// 既に捕捉済みのpropertyはクリーンな値を保持するため上書きしない、未捕捉のtrackだけ現在値から捕捉する
+	// Target設定直後やProperty追加直後など、そのpropertyがアニメで動く前に呼ぶことでクリーンな基準になる
 	for (const AnimationCurveTrack& track : clip_.curveTracks) {
+
+		if (HasPreviewBaseValue(track.binding)) {
+			continue;
+		}
 
 		const std::optional<AnimationPropertyDescriptor> desc = AnimationPropertyRegistry::GetInstance().ResolveProperty(
 			world, entity, track.binding.componentName, track.binding.propertyPath, track.binding.valueType);
@@ -1620,10 +1823,12 @@ void AnimationClipTool::CachePreviewBaseValues(ECSWorld& world, const Entity& en
 
 		const auto ensureTransformBase = [&](const char* propertyPath, AnimationValueType valueType) {
 
-			for (const AnimationPreviewBaseValue& base : previewBaseValues_) {
-				if (base.binding.componentName == "Transform" && base.binding.propertyPath == propertyPath) {
-					return;
-				}
+			AnimationPropertyBinding transformBinding{};
+			transformBinding.componentName = "Transform";
+			transformBinding.propertyPath = propertyPath;
+			transformBinding.valueType = valueType;
+			if (HasPreviewBaseValue(transformBinding)) {
+				return;
 			}
 			const std::optional<AnimationPropertyDescriptor> desc = AnimationPropertyRegistry::GetInstance().ResolveProperty(
 				world, entity, "Transform", propertyPath, valueType);
@@ -1664,6 +1869,160 @@ void AnimationClipTool::RestorePreviewBaseValues(ECSWorld& world, const Entity& 
 		} else if (desc->clearValue) {
 			desc->clearValue(world, entity);
 		}
+	}
+}
+
+void AnimationClipTool::RestoreAndDropPreviewBaseValue(const EditorToolContext& context, const AnimationPropertyBinding& binding) {
+
+	if (!previewActive_) {
+		return;
+	}
+
+	ECSWorld* world = context.GetWorld();
+	const Entity entity = GetTargetEntity(context);
+	if (!world || !world->IsAlive(entity)) {
+		return;
+	}
+
+	// 削除するPropertyに一致するbaseだけを元へ戻し、previewBaseValues_からも取り除く
+	for (auto it = previewBaseValues_.begin(); it != previewBaseValues_.end();) {
+
+		if (it->binding.componentName != binding.componentName ||
+			it->binding.propertyPath != binding.propertyPath ||
+			it->binding.valueType != binding.valueType) {
+			++it;
+			continue;
+		}
+
+		const std::optional<AnimationPropertyDescriptor> desc = AnimationPropertyRegistry::GetInstance().ResolveProperty(
+			*world, entity, it->binding.componentName, it->binding.propertyPath, it->binding.valueType);
+		if (desc && desc->hasComponent && desc->hasComponent(*world, entity)) {
+
+			if (it->present) {
+				if (desc->setValue) {
+					desc->setValue(*world, entity, it->value);
+				}
+			} else if (desc->clearValue) {
+				desc->clearValue(*world, entity);
+			}
+		}
+		it = previewBaseValues_.erase(it);
+	}
+}
+
+void AnimationClipTool::CaptureLastAppliedValues(ECSWorld& world, const Entity& entity) {
+
+	// Previewでtoolが書き込んだ直後の現在値を退避する、次フレームの外部編集検知の基準になる
+	lastAppliedValues_.clear();
+	for (const AnimationPreviewBaseValue& base : previewBaseValues_) {
+
+		const std::optional<AnimationPropertyDescriptor> desc = AnimationPropertyRegistry::GetInstance().ResolveProperty(
+			world, entity, base.binding.componentName, base.binding.propertyPath, base.binding.valueType);
+		if (!desc || !desc->getValue || !desc->hasComponent || !desc->hasComponent(world, entity)) {
+			continue;
+		}
+		AnimationPreviewBaseValue applied{};
+		applied.binding = base.binding;
+		if (desc->getValue(world, entity, applied.value)) {
+			lastAppliedValues_.emplace_back(std::move(applied));
+		}
+	}
+}
+
+void AnimationClipTool::SyncPreviewBaseFromEntityEdits(const EditorToolContext& context) {
+
+	ECSWorld* world = context.GetWorld();
+	const Entity entity = GetTargetEntity(context);
+	if (!world || !world->IsAlive(entity) || previewBaseValues_.empty()) {
+		return;
+	}
+
+	const auto resolve = [&](const AnimationPropertyBinding& binding) {
+		return AnimationPropertyRegistry::GetInstance().ResolveProperty(
+			*world, entity, binding.componentName, binding.propertyPath, binding.valueType);
+		};
+	// bindingに対応するtrackを引く、キー有無からマージ対象チャネルを判定するのに使う
+	const auto findTrack = [&](const AnimationPropertyBinding& binding) -> const AnimationCurveTrack* {
+		for (const AnimationCurveTrack& track : clip_.curveTracks) {
+			if (track.binding.componentName == binding.componentName &&
+				track.binding.propertyPath == binding.propertyPath &&
+				track.binding.valueType == binding.valueType) {
+				return &track;
+			}
+		}
+		return nullptr;
+		};
+
+	if (previewActive_) {
+
+		// toolが最後に書いた値と現在値がズレていたら、マニピュレータ/インスペクタで編集されたとみなす
+		std::vector<AnimationPreviewBaseValue> edited{};
+		for (const AnimationPreviewBaseValue& applied : lastAppliedValues_) {
+
+			const std::optional<AnimationPropertyDescriptor> desc = resolve(applied.binding);
+			if (!desc || !desc->getValue || !desc->hasComponent || !desc->hasComponent(*world, entity)) {
+				continue;
+			}
+			AnimationPropertyValue current{};
+			if (!desc->getValue(*world, entity, current) || ApproxEqualValue(current, applied.value)) {
+				continue;
+			}
+			AnimationPreviewBaseValue edit{};
+			edit.binding = applied.binding;
+			edit.value = current;
+			edit.present = !desc->hasValue || desc->hasValue(*world, entity);
+			edited.emplace_back(std::move(edit));
+		}
+		if (edited.empty()) {
+			return;
+		}
+
+		// 編集を検知したら自動停止する、まず全プロパティをbaseへ戻し非編集分を確実に復元する
+		EndPreviewAndRestore(context);
+		// 編集されたプロパティはユーザー編集値を新baseとして採用し、Entityへも反映する
+		for (const AnimationPreviewBaseValue& edit : edited) {
+
+			AnimationPreviewBaseValue* baseEntry = nullptr;
+			for (AnimationPreviewBaseValue& base : previewBaseValues_) {
+				if (base.binding.componentName == edit.binding.componentName &&
+					base.binding.propertyPath == edit.binding.propertyPath &&
+					base.binding.valueType == edit.binding.valueType) {
+					baseEntry = &base;
+					break;
+				}
+			}
+			// キーのあるチャネル(=アニメ軸)はbaseを保ち、キーの無いチャネルだけ編集値を採用する
+			const AnimationCurveTrack* track = findTrack(edit.binding);
+			const AnimationPropertyValue merged = (baseEntry && track) ?
+				MergeEditedBaseValue(*track, edit.value, baseEntry->value) : edit.value;
+
+			const std::optional<AnimationPropertyDescriptor> desc = resolve(edit.binding);
+			if (desc && desc->setValue) {
+				desc->setValue(*world, entity, merged);
+			}
+			if (baseEntry) {
+				baseEntry->value = merged;
+				baseEntry->present = edit.present;
+			}
+		}
+		return;
+	}
+
+	// 停止中: baseとズレていたらユーザー編集なのでbaseを更新する
+	for (AnimationPreviewBaseValue& base : previewBaseValues_) {
+
+		const std::optional<AnimationPropertyDescriptor> desc = resolve(base.binding);
+		if (!desc || !desc->getValue || !desc->hasComponent || !desc->hasComponent(*world, entity)) {
+			continue;
+		}
+		AnimationPropertyValue current{};
+		if (!desc->getValue(*world, entity, current) || ApproxEqualValue(current, base.value)) {
+			continue;
+		}
+		// キーのあるチャネルはbaseを保ち、キーの無いチャネルだけ編集値を採用する
+		const AnimationCurveTrack* track = findTrack(base.binding);
+		base.value = track ? MergeEditedBaseValue(*track, current, base.value) : current;
+		base.present = !desc->hasValue || desc->hasValue(*world, entity);
 	}
 }
 

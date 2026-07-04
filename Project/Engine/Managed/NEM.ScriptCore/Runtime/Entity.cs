@@ -140,10 +140,16 @@ public readonly struct Entity : IEquatable<Entity> {
         return GetComponent<T>() != null;
     }
 
-    // component追加。構造変更はWorldCommandBuffer経由で遅延適用され、flushまで他のAPIからは見えない。
-    // ScriptBehaviourのruntime attachは未対応でnullを返す
+    // component追加。組込みcomponentの構造変更はWorldCommandBuffer経由で遅延適用され、flushまで他のAPIからは見えない。
+    // ScriptBehaviourはruntime attachしてinstanceを即時生成し、Awake/Startは次のライフサイクル同期で走る
     public T? AddComponent<T>() where T : Component {
-        if (!isValid || ComponentKind<T>.isScript || ComponentKind<T>.typeId < 0) {
+        if (!isValid) {
+            return null;
+        }
+        if (ComponentKind<T>.isScript) {
+            return HostBridge.AttachScriptAs<T>(native);
+        }
+        if (ComponentKind<T>.typeId < 0) {
             return null;
         }
         NativeApi.EnqueueAddComponent(native, ComponentKind<T>.typeId);

@@ -608,6 +608,15 @@ public static unsafe class HostBridge {
         return typeToEntry.TryGetValue(type, out ScriptTypeEntry? entry) ? entry.scriptTypeId : null;
     }
 
+    // AddComponent<Script>用に owner Entity へ T を runtime attach し、生成した managed instance を返す。未登録/失敗は null
+    internal static T? AttachScriptAs<T>(NativeEntity owner) where T : class {
+
+        if (!typeToEntry.TryGetValue(typeof(T), out ScriptTypeEntry? entry)) {
+            return null;
+        }
+        return NativeApi.TryAttachScript(owner, entry.scriptTypeId) ? FindScriptAs<T>(owner) : null;
+    }
+
     // 生存する全script instanceから指定型の最初の1件を返す（World.FindEntityWithComponent<Script>用）
     internal static ScriptBehaviour? FindScriptOfTypeByType(Type type) {
 

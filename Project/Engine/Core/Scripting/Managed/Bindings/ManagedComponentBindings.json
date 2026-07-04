@@ -47,8 +47,11 @@
         { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "Loop", "nativeMember": "loop", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "PlaybackSpeed", "nativeMember": "playbackSpeed", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "TransitionDuration", "nativeMember": "transitionDuration", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "CurrentState", "nativeMember": "runtimeCurrentClip", "kind": "String", "access": "ReadOnly" },
-        { "managedName": "Finished", "nativeMember": "runtimeAnimationFinished", "kind": "Bool", "access": "ReadOnly" }
+        { "managedName": "Finished", "nativeMember": "runtimeAnimationFinished", "kind": "Bool", "access": "ReadOnly" },
+        { "managedName": "InTransition", "nativeMember": "runtimeInTransition", "kind": "Bool", "access": "ReadOnly" },
+        { "managedName": "RepeatCount", "nativeMember": "runtimeRepeatCount", "kind": "Int", "access": "ReadOnly" }
       ]
     },
     {
