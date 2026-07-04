@@ -62,6 +62,8 @@ namespace Engine {
 			const AnimationClipAsset& clip, AnimationPropertyValue& outValue);
 		// 再生時間をClip内時刻へ変換する
 		static AnimationResolvedTime ResolveClipEvaluationTime(const AnimationClipAsset& clip, float playbackTime);
+		// LoopBridgeの0-1補間率を指定モードで曲げて返す、実行時のstate側補間を使う合成に使う
+		static float BridgeInterp(float t, CurveInterpolationMode mode);
 		// LoopBridge込みの再生上限時間を返す
 		static float GetPlaybackDuration(const AnimationClipAsset& clip);
 		// 1Trackを対象EntityのComponentへ反映する
@@ -80,6 +82,10 @@ namespace Engine {
 			float weight, std::vector<AnimationEvaluatedValue>& outValues);
 		// 評価済み値を対象EntityのComponentへ書き込む
 		static void WriteValues(ECSWorld& world, const Entity& entity, std::span<const AnimationEvaluatedValue> values);
+		// キーの無いチャネルは書き込まず、対象Entityの現在値のまま残す(スクリプト等が持つ未キー成分を保持する)
+		// 例: PosYのみアニメするクリップで、スクリプトが動かすXZを上書きしないようにする
+		static void PreserveUnkeyedChannels(ECSWorld& world, const Entity& entity,
+			const AnimationClipAsset& clip, std::vector<AnimationEvaluatedValue>& values);
 		// Transformの位置/回転をbaseValuesの基準姿勢を正面として相対化する、向き相対クリップ用
 		// clipNeutralはクリップ開始姿勢(t=0)で、作成時のEntity位置に依存しないようここからの差分だけを基準へ適用する
 		static void ComposeRelativeTransform(std::vector<AnimationEvaluatedValue>& values,

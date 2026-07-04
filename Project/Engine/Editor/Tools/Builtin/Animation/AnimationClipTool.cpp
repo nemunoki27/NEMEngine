@@ -11,7 +11,9 @@ using namespace Engine;
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
+#include <Engine/Core/Animation/Clips/AnimationClipManager.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
@@ -1347,30 +1349,22 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 	ImGui::SeparatorText("カーブ生成");
 
 	// DrawClipAssetUIと同じプロパティ行で、生成条件を縦に並べる
-	const float reserveRightWidth = ImGui::GetContentRegionAvail().x / 4.0f;
-	MyGUI::EnumCombo("生成タイプ", generatorType_, { .reserveRightWidth = reserveRightWidth });
+	MyGUI::EnumCombo("生成タイプ", generatorType_);
 
-	MyGUI::DragFloat("開始時間", generatorStartTime_, { .dragSpeed = 0.001f,.minValue = 0.0f,
-		.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
-	MyGUI::DragFloat("終了時間", generatorEndTime_, { .dragSpeed = 0.001f,.minValue = 0.0f,
-		.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
-	MyGUI::DragFloat("開始値", generatorStartValue_, { .dragSpeed = 0.001f,.minValue = -10000.0f,
-		.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
-	MyGUI::DragFloat("終了値", generatorEndValue_, { .dragSpeed = 0.001f,.minValue = -10000.0f,
-		.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
+	MyGUI::DragFloat("開始時間", generatorStartTime_, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 10000.0f, });
+	MyGUI::DragFloat("終了時間", generatorEndTime_, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 10000.0f, });
+	MyGUI::DragFloat("開始値", generatorStartValue_, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
+	MyGUI::DragFloat("終了値", generatorEndValue_, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
 
 	if (generatorType_ != GeneratorType::Easing) {
 
-		MyGUI::DragFloat("振幅", generatorAmplitude_, { .dragSpeed = 0.001f,.minValue = -10000.0f,
-			.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
-		MyGUI::DragFloat("周波数", generatorFrequency_, { .dragSpeed = 0.001f,.minValue = 0.0f,
-			.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
-		MyGUI::DragFloat("位相", generatorPhase_, { .dragSpeed = 0.001f,.minValue = -10000.0f,
-			.maxValue = 10000.0f,.reserveRightWidth = reserveRightWidth });
+		MyGUI::DragFloat("振幅", generatorAmplitude_, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
+		MyGUI::DragFloat("周波数", generatorFrequency_, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 10000.0f, });
+		MyGUI::DragFloat("位相", generatorPhase_, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
 	} else {
 
 		// イージング選択UIはCore側の共通実装を使う
-		DrawEasingComboProperty("イージング", generatorEasingType_, reserveRightWidth);
+		DrawEasingComboProperty("イージング", generatorEasingType_);
 	}
 
 	MyGUI::DragInt("キー数", generatorSampleCount_, { .dragSpeed = 1.0f,.minValue = 2,.maxValue = 1024 });
@@ -1537,6 +1531,13 @@ void AnimationClipTool::SaveClipToSelectedAsset(const EditorToolContext& context
 		return;
 	}
 
+	// 保存したのでランタイム側のキャッシュを破棄し、次回再生でファイルから読み直させる
+	if (SystemContext* systemContext = context.toolContext.systemContext) {
+		if (systemContext->animationClipManager) {
+			systemContext->animationClipManager->Invalidate(clipAssetID_);
+		}
+	}
+
 	clipDirty_ = false;
 }
 
@@ -1571,7 +1572,6 @@ void AnimationClipTool::AddPropertyTrack(const AnimationPropertyDescriptor& desc
 	selectedTrackIndex_ = static_cast<int>(clip_.curveTracks.size());
 	clip_.curveTracks.emplace_back(std::move(track));
 	// 追加したpropertyはまだアニメで動いていないので、この時点のクリーンな現在値を基準として捕捉する
-	// 再生中に追加した場合でも、そのproperty自体は未編集なので汚染されない
 	CachePreviewBaseValues(world, entity);
 	LoadSelectedTrackEditorView();
 	clipDirty_ = true;
@@ -1843,7 +1843,7 @@ void AnimationClipTool::CachePreviewBaseValues(ECSWorld& world, const Entity& en
 			if (desc->getValue(world, entity, base.value)) {
 				previewBaseValues_.emplace_back(std::move(base));
 			}
-		};
+			};
 		ensureTransformBase("localPos", AnimationValueType::Vector3);
 		ensureTransformBase("localRotation", AnimationValueType::Quaternion);
 		ensureTransformBase("localPos2D", AnimationValueType::Vector2);

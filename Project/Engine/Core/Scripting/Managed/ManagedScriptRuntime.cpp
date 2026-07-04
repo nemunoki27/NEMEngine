@@ -261,6 +261,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.screenPointToRay = &ManagedScriptRuntime::ScreenPointToRayCallback;
 	callbacks.getMousePositionInView = &ManagedScriptRuntime::GetMousePositionInViewCallback;
 	callbacks.getCollisionTypeMaskByName = &ManagedScriptRuntime::GetCollisionTypeMaskByNameCallback;
+	callbacks.easedValue = &ManagedScriptRuntime::EasedValueCallback;
 	callbacks.getFrameCount = &ManagedScriptRuntime::GetFrameCountCallback;
 	// Gameplay v7のAssetRef実行時解決
 	callbacks.assetExists = &ManagedScriptRuntime::AssetExistsCallback;

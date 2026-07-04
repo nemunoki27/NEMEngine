@@ -37,7 +37,8 @@ namespace Engine {
 	// v20: Entityの保存identityを逆引きするgetEntityReferenceIdentityを追加
 	// v21: レイキャストのphysicsRaycast physicsRaycastAllとカメラレイのscreenPointToRay getMousePositionInViewとgetCollisionTypeMaskByNameを追加
 	// v22: AddComponent<Script>用にowner EntityへscriptTypeIDのscriptをruntime attachするattachScriptを追加
-	inline constexpr uint32_t kManagedAbiVersion = 22;
+	// v23: イージング関数のeasedValueを追加、EasingTypeとtからイージング済みの値を返す
+	inline constexpr uint32_t kManagedAbiVersion = 23;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -397,6 +398,8 @@ namespace Engine {
 		using EntityActionCallback = void(__cdecl*)(ManagedNativeEntity);
 		// Diagnostics v8のscript callback例外の構造化報告でJSON DTOを1件渡す
 		using ReportStringCallback = void(__cdecl*)(const char*);
+		// v23のイージング関数、EasingTypeとtからイージング済みの値を返す
+		using EasedValueCallback = float(__cdecl*)(int32_t, float);
 		// GetComponent<Script> v9のentity上でscriptTypeID一致のscript instanceハンドルを引く
 		using GetScriptInstanceCallback = ManagedScriptInstanceHandle(__cdecl*)(ManagedNativeEntity, const char*);
 		// AddComponent<Script> v22のentityへscriptTypeIDのscriptをruntime attachする、成否を返す
@@ -580,6 +583,9 @@ namespace Engine {
 		ScreenPointToRayCallback screenPointToRay = nullptr;
 		GetMousePositionInViewCallback getMousePositionInView = nullptr;
 		GetCollisionTypeMaskByNameCallback getCollisionTypeMaskByName = nullptr;
+
+		// v23のイージング関数公開
+		EasedValueCallback easedValue = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

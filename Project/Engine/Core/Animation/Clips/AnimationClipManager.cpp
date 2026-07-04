@@ -39,6 +39,11 @@ const Engine::AnimationClipAsset* Engine::AnimationClipManager::GetOrLoad(AssetD
 	return &it->second;
 }
 
+void Engine::AnimationClipManager::Invalidate(AssetID clipID) {
+
+	loaded_.erase(clipID);
+}
+
 void Engine::AnimationClipManager::Clear() {
 
 	loaded_.clear();

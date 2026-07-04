@@ -64,11 +64,12 @@
       "properties": [
         { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "GlobalSpeed", "nativeMember": "globalSpeed", "kind": "Float", "access": "ReadWrite" },
-        { "managedName": "CurrentState", "nativeMember": "runtimeCurrent", "kind": "String", "access": "ReadOnly" },
+        { "managedName": "CurrentGroup", "nativeMember": "runtimeCurrent", "kind": "String", "access": "ReadOnly" },
         { "managedName": "IsPlayingValue", "nativeMember": "runtimePlaying", "kind": "Bool", "access": "ReadOnly" },
         { "managedName": "Finished", "nativeMember": "runtimeFinished", "kind": "Bool", "access": "ReadOnly" },
         { "managedName": "PlayRequest", "nativeMember": "runtimePlayRequest", "kind": "String", "access": "ReadWrite" },
         { "managedName": "PlayFade", "nativeMember": "runtimePlayFade", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "RepeatCount", "nativeMember": "runtimeRepeatCount", "kind": "Int", "access": "ReadOnly" },
         { "managedName": "StopRequest", "nativeMember": "runtimeStopRequest", "kind": "Bool", "access": "ReadWrite" }
       ]
     },

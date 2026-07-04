@@ -389,6 +389,8 @@ namespace Engine {
 		static int32_t __cdecl AudioIsPlayingCallback(ManagedNativeEntity entity);
 		// Diagnostics v8のscript callback例外の構造化報告でJSON DTOをexception storeへ渡す
 		static void __cdecl ReportScriptExceptionCallback(const char* jsonUtf8);
+		// v23のイージング、EasingTypeとtからイージング済みの値を返す
+		static float __cdecl EasedValueCallback(int32_t easingType, float t);
 	};
 
 	//============================================================================

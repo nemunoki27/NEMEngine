@@ -18,7 +18,6 @@ namespace {
 
 	bool LerpValue(const Engine::AnimationPropertyValue& from,
 		const Engine::AnimationPropertyValue& to, float t, Engine::AnimationPropertyValue& out);
-	float BridgeInterp(float t, Engine::CurveInterpolationMode mode);
 
 	bool SameBinding(const Engine::AnimationPropertyBinding& lhs, const Engine::AnimationPropertyBinding& rhs) {
 
@@ -304,7 +303,7 @@ namespace {
 			return false;
 		}
 		return LerpValue(endValue, beginValue,
-			BridgeInterp(time.bridgeT, clip.loopBridge.interpolation), outValue);
+			Engine::AnimationClipEvaluator::BridgeInterp(time.bridgeT, clip.loopBridge.interpolation), outValue);
 	}
 
 	bool CombineValue(const Engine::AnimationPropertyValue& baseValue,
@@ -371,22 +370,6 @@ namespace {
 		return false;
 	}
 
-	float BridgeInterp(float t, Engine::CurveInterpolationMode mode) {
-
-		// LoopBridgeはハンドルを持たないので、BezierはLinear相当で扱う
-		t = (std::clamp)(t, 0.0f, 1.0f);
-		switch (mode) {
-		case Engine::CurveInterpolationMode::Constant:
-			return 0.0f;
-		case Engine::CurveInterpolationMode::Spline:
-		case Engine::CurveInterpolationMode::Squad:
-			return t * t * (3.0f - 2.0f * t);
-		case Engine::CurveInterpolationMode::Linear:
-		case Engine::CurveInterpolationMode::Bezier:
-		default:
-			return t;
-		}
-	}
 
 	bool LerpValue(const Engine::AnimationPropertyValue& from,
 		const Engine::AnimationPropertyValue& to, float t, Engine::AnimationPropertyValue& out) {
@@ -549,7 +532,7 @@ bool Engine::AnimationClipEvaluator::EvaluateTrack(const AnimationCurveTrack& tr
 		return false;
 	}
 	return LerpValue(endValue, beginValue,
-		BridgeInterp(time.bridgeT, clip.loopBridge.interpolation), outValue);
+		Engine::AnimationClipEvaluator::BridgeInterp(time.bridgeT, clip.loopBridge.interpolation), outValue);
 }
 
 Engine::AnimationResolvedTime Engine::AnimationClipEvaluator::ResolveClipEvaluationTime(
@@ -581,6 +564,23 @@ Engine::AnimationResolvedTime Engine::AnimationClipEvaluator::ResolveClipEvaluat
 
 	result.clipTime = std::fmod((std::max)(0.0f, playbackTime), duration);
 	return result;
+}
+
+float Engine::AnimationClipEvaluator::BridgeInterp(float t, CurveInterpolationMode mode) {
+
+	// LoopBridgeはハンドルを持たないので、BezierはLinear相当で扱う
+	t = (std::clamp)(t, 0.0f, 1.0f);
+	switch (mode) {
+	case CurveInterpolationMode::Constant:
+		return 0.0f;
+	case CurveInterpolationMode::Spline:
+	case CurveInterpolationMode::Squad:
+		return t * t * (3.0f - 2.0f * t);
+	case CurveInterpolationMode::Linear:
+	case CurveInterpolationMode::Bezier:
+	default:
+		return t;
+	}
 }
 
 float Engine::AnimationClipEvaluator::GetPlaybackDuration(const AnimationClipAsset& clip) {
@@ -723,6 +723,77 @@ void Engine::AnimationClipEvaluator::WriteValues(ECSWorld& world, const Entity& 
 			continue;
 		}
 		descOpt->setValue(world, entity, value.value);
+	}
+}
+
+void Engine::AnimationClipEvaluator::PreserveUnkeyedChannels(ECSWorld& world, const Entity& entity,
+	const AnimationClipAsset& clip, std::vector<AnimationEvaluatedValue>& values) {
+
+	if (!world.IsAlive(entity)) {
+		return;
+	}
+
+	// bindingに対応するtrackを引く
+	const auto findTrack = [&](const AnimationPropertyBinding& binding) -> const AnimationCurveTrack* {
+		for (const AnimationCurveTrack& track : clip.curveTracks) {
+			if (SameBinding(track.binding, binding)) {
+				return &track;
+			}
+		}
+		return nullptr;
+		};
+	// 成分indexに対応するチャネルがキーを持つか
+	const auto keyed = [](const AnimationCurveTrack& track, size_t channelIndex) {
+		return channelIndex < track.channels.size() && !track.channels[channelIndex].keys.empty();
+		};
+
+	for (AnimationEvaluatedValue& value : values) {
+
+		const AnimationCurveTrack* track = findTrack(value.binding);
+		if (!track) {
+			continue;
+		}
+
+		// 全チャネルがキーを持つなら現在値を読む必要はない
+		bool anyUnkeyed = false;
+		const size_t channelCount = GetAnimationValueTypeChannelCount(value.binding.valueType);
+		for (size_t i = 0; i < channelCount; ++i) {
+			if (!keyed(*track, i)) { anyUnkeyed = true; break; }
+		}
+		if (!anyUnkeyed) {
+			continue;
+		}
+
+		const std::optional<AnimationPropertyDescriptor> desc = AnimationPropertyRegistry::GetInstance().ResolveProperty(
+			world, entity, value.binding.componentName, value.binding.propertyPath, value.binding.valueType);
+		if (!desc || !desc->getValue || !desc->hasComponent || !desc->hasComponent(world, entity)) {
+			continue;
+		}
+		AnimationPropertyValue current{};
+		if (!desc->getValue(world, entity, current) || current.index() != value.value.index()) {
+			continue;
+		}
+
+		// キーのある成分はアニメ値、キーの無い成分は現在値を採用する
+		const auto merge = [&](auto animComponent, auto currentComponent, size_t channelIndex) {
+			return keyed(*track, channelIndex) ? animComponent : currentComponent;
+			};
+		if (Vector2* v2 = std::get_if<Vector2>(&value.value)) {
+			const Vector2& c = std::get<Vector2>(current);
+			value.value = Vector2(merge(v2->x, c.x, 0), merge(v2->y, c.y, 1));
+		} else if (Vector3* v3 = std::get_if<Vector3>(&value.value)) {
+			const Vector3& c = std::get<Vector3>(current);
+			value.value = Vector3(merge(v3->x, c.x, 0), merge(v3->y, c.y, 1), merge(v3->z, c.z, 2));
+		} else if (Vector4* v4 = std::get_if<Vector4>(&value.value)) {
+			const Vector4& c = std::get<Vector4>(current);
+			value.value = Vector4(merge(v4->x, c.x, 0), merge(v4->y, c.y, 1), merge(v4->z, c.z, 2), merge(v4->w, c.w, 3));
+		} else if (Color3* col3 = std::get_if<Color3>(&value.value)) {
+			const Color3& c = std::get<Color3>(current);
+			value.value = Color3(merge(col3->r, c.r, 0), merge(col3->g, c.g, 1), merge(col3->b, c.b, 2));
+		} else if (Color4* col4 = std::get_if<Color4>(&value.value)) {
+			const Color4& c = std::get<Color4>(current);
+			value.value = Color4(merge(col4->r, c.r, 0), merge(col4->g, c.g, 1), merge(col4->b, c.b, 2), merge(col4->a, c.a, 3));
+		}
 	}
 }
 

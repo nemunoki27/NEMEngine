@@ -16,6 +16,8 @@ namespace Engine {
 	// front
 	struct AnimationPlayerComponent;
 	struct AnimationState;
+	struct AnimationGroup;
+	struct AnimationClipRuntime;
 
 	//============================================================================
 	//	AnimationPlayerSystem class
@@ -52,16 +54,24 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// 指定state名のstateを返す、無ければnullptr
-		const AnimationState* FindState(const AnimationPlayerComponent& player, const std::string& name) const;
-		// 全stateのプロパティのbase値を現在値で捕捉する
+		// 指定名のグループを返す、無ければnullptr
+		const AnimationGroup* FindGroup(const AnimationPlayerComponent& player, const std::string& name) const;
+		// 全グループの全クリップが触るプロパティのbase値を現在値で捕捉する
 		void CaptureBaseValues(ECSWorld& world, const Entity& entity, const AnimationPlayerComponent& player,
 			SystemContext& context, std::vector<AnimationPreviewBaseValue>& out) const;
 		// 捕捉済みbase値を書き戻す
 		void RestoreBaseValues(ECSWorld& world, const Entity& entity,
 			const std::vector<AnimationPreviewBaseValue>& base) const;
-		// 指定stateへ即時またはクロスフェードで切り替える
-		void BeginState(AnimationPlayerComponent& player, const std::string& stateName, float fadeDuration) const;
+		// 指定グループへ即時またはクロスフェードで切り替える、グループ内クリップを初期化する
+		void BeginGroup(AnimationPlayerComponent& player, const std::string& groupName, float fadeDuration) const;
+		// グループ内クリップ1つ分の開始遅延/時間/回数を進める
+		void AdvanceClip(AnimationPlayerComponent& player, const AnimationGroup& group,
+			AnimationClipRuntime& clipRt, SystemContext& context) const;
+		// グループ内の開始済みクリップを評価しoutValuesへ入れる、競合プロパティは除外する
+		void EvaluateGroupClips(ECSWorld& world, const Entity& entity,
+			const AnimationGroup& group, const std::vector<AnimationClipRuntime>& clips,
+			std::span<const AnimationPreviewBaseValue> baseStore, SystemContext& context,
+			std::vector<AnimationEvaluatedValue>& outValues) const;
 		// 1エンティティ分の再生を進めてComponentへ適用する、Editプレビューのbase保持を更新する
 		void UpdatePlayer(ECSWorld& world, const Entity& entity,
 			AnimationPlayerComponent& player, SystemContext& context);

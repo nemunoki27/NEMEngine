@@ -1,4 +1,5 @@
 using NEMEngine;
+using System.Security.Cryptography;
 
 namespace SandboxScripts;
 
@@ -48,12 +49,15 @@ public sealed class PlayerMove : ScriptBehaviour {
 	public override void Update() {
 
 		// アニメーション入力
-		if (Input.GetKeyDown(KeyCode.Space) && !animClipPlayer.IsPlaying) {
+		if (animClipPlayer != null && Input.GetKeyDown(KeyCode.Space) && !animClipPlayer.IsPlaying) {
 
-			animClipPlayer.Play("Jump");
+			animClipPlayer.Play("Test");
 		}
 
+		// イージング動作確認、EasingTypeとtからイージング済みの値を返す
+		float eased = Easing.Evaluate(EasingType.EaseOutQuad, 0.5f);
+
 		// 前方移動
-		transform.localPosition += transform.forward * moveSpeed * Time.deltaTime;
+		transform.localPosition += transform.forward * moveSpeed * eased * Time.deltaTime;
 	}
 }

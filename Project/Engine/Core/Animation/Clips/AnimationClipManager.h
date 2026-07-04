@@ -28,6 +28,8 @@ namespace Engine {
 
 		// 初回だけパースしキャッシュ済みならそれを返す
 		const AnimationClipAsset* GetOrLoad(AssetDatabase& database, AssetID clipID);
+		// 指定クリップのキャッシュを破棄する、次回GetOrLoadでファイルから読み直させる、ツール保存後に使う
+		void Invalidate(AssetID clipID);
 		// キャッシュを破棄する
 		void Clear();
 	private:

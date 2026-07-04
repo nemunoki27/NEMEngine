@@ -11,6 +11,7 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptExceptionStore.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
+#include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 
 #include <cmath>
 
@@ -24,6 +25,11 @@ namespace Engine {
 	void ManagedScriptRuntime::ReportScriptExceptionCallback(const char* jsonUtf8) {
 		// C#境界のGuardInstanceで捕捉した未処理例外の構造化DTOをbounded storeへ渡す、ConsoleログはC#側が出すためここではstoreへの追加のみ行う
 		ManagedScriptExceptionStore::GetInstance().ReportJson(jsonUtf8);
+	}
+
+	float ManagedScriptRuntime::EasedValueCallback(int32_t easingType, float t) {
+		// C#のEasingTypeを列挙値へ戻し、イージング済みのtを返す
+		return ::EasedValue(static_cast<::EasingType>(easingType), t);
 	}
 
 	void ManagedScriptRuntime::LogCallback(int32_t level, const char* message) {

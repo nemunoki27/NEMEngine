@@ -29,7 +29,8 @@ internal static class ManagedAbi {
     // v20: Entityの保存identityを逆引きする getEntityReferenceIdentity を追加
     // v21: レイキャスト(physicsRaycast/physicsRaycastAll)とカメラレイ(screenPointToRay/getMousePositionInView)とCollisionタイプ名解決を追加
     // v22: AddComponent<Script> 用に entity へ script を runtime attach する attachScript を追加
-    internal const uint Version = 22;
+    // v23: イージング関数 easedValue を追加、EasingType と t からイージング済みの値を返す
+    internal const uint Version = 23;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -325,6 +326,8 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<float, float, NativeVector3*, NativeVector3*, int> ScreenPointToRay;
     internal static delegate* unmanaged[Cdecl]<NativeVector2*, int> GetMousePositionInView;
     internal static delegate* unmanaged[Cdecl]<byte*, uint> GetCollisionTypeMaskByName;
+    // v23: EasingType と t からイージング済みの値を返す
+    internal static delegate* unmanaged[Cdecl]<int, float, float> EasedValue;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -447,12 +450,18 @@ internal static unsafe class NativeApi {
         ScreenPointToRay = callbacks->screenPointToRay;
         GetMousePositionInView = callbacks->getMousePositionInView;
         GetCollisionTypeMaskByName = callbacks->getCollisionTypeMaskByName;
+        EasedValue = callbacks->easedValue;
     }
 
     internal static float ReadDeltaTime() {
 
         // ランタイム未初期化時はスクリプトを安全に動かさず0秒として扱う
         return GetDeltaTime != null ? GetDeltaTime() : 0.0f;
+    }
+
+    internal static float ReadEasedValue(int easingType, float t) {
+        // ランタイム未初期化時は補間せずそのままのtを返す
+        return EasedValue != null ? EasedValue(easingType, t) : t;
     }
 
     internal static float ReadFixedDeltaTime() {
@@ -1351,4 +1360,6 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<float, float, NativeVector3*, NativeVector3*, int> screenPointToRay;
     public delegate* unmanaged[Cdecl]<NativeVector2*, int> getMousePositionInView;
     public delegate* unmanaged[Cdecl]<byte*, uint> getCollisionTypeMaskByName;
+    // Easing(v23): EasingType と t からイージング済みの値を返す
+    public delegate* unmanaged[Cdecl]<int, float, float> easedValue;
 }
