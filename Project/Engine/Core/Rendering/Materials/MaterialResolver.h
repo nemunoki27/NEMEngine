@@ -24,8 +24,9 @@ namespace Engine {
 		FullscreenCopy,
 		Line,
 		FillMesh,
+		Primitive,
 	};
-	static constexpr const uint32_t kDefaultMaterialCount = static_cast<uint32_t>(DefaultMaterialSlot::FillMesh) + 1;
+	static constexpr const uint32_t kDefaultMaterialCount = static_cast<uint32_t>(DefaultMaterialSlot::Primitive) + 1;
 
 	//============================================================================
 	//	MaterialResolver class

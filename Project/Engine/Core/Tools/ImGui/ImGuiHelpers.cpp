@@ -25,7 +25,7 @@ namespace {
 	//	レイアウト定数
 	//============================================================================
 	// 左側に表示する文字の幅
-	constexpr float kLabelColumnWidth = 160.0f;
+	constexpr float kLabelColumnWidth = 168.0f;
 	constexpr float kAxisLabelWidth = 14.0f;
 
 	//============================================================================
@@ -40,9 +40,9 @@ namespace {
 	AxisDisplayInfo GetAxisDisplayInfo(char axis) {
 
 		switch (axis) {
-		case 'X': return { "X", ImVec4(1.0f, 0.26f, 0.20f, 1.0f) }; // red
-		case 'Y': return { "Y", ImVec4(0.20f, 0.45f, 1.0f, 1.0f) }; // blue
-		case 'Z': return { "Z", ImVec4(0.20f, 1.0f, 0.25f, 1.0f) }; // green
+		case 'X': return { "X", ImVec4(1.0f, 0.1f, 0.1f, 1.0f) }; // red
+		case 'Y': return { "Y", ImVec4(0.1f, 0.3f, 1.0f, 1.0f) }; // blue
+		case 'Z': return { "Z", ImVec4(0.1f, 1.0f, 0.3f, 1.0f) }; // green
 		case 'W': return { "W", ImVec4(0.90f, 0.78f, 0.20f, 1.0f) }; // yellow
 		default:  return { "-", ImVec4(0.70f, 0.70f, 0.70f, 1.0f) };
 		}

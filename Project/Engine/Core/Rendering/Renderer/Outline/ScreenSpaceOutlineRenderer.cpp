@@ -303,7 +303,10 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 
 					for (const RenderItem* item : list.items) {
 
-						if (!item || item->backendID != RenderBackendID::Mesh) {
+						// マスクを描けるのはMesh/FillMesh/Primitiveバックエンド、それ以外はマスクパスを解決できない
+						if (!item || (item->backendID != RenderBackendID::Mesh &&
+							item->backendID != RenderBackendID::FillMesh &&
+							item->backendID != RenderBackendID::Primitive)) {
 							continue;
 						}
 						if (!IsSameEntity(*item, drawScratch_[recordIndex].request)) {

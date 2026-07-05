@@ -7,6 +7,9 @@
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 
@@ -26,9 +29,28 @@ namespace {
 		Engine::Color4 color = Engine::Color4::White();
 	};
 
+	// 選択アウトラインのマスクは元マテリアルと切り離してFillMesh専用マスクマテリアルから解決する
+	constexpr Engine::AssetID kOutlineMaskMaterial{ 0xfa11e50000000a07ull };
+
 	bool ResolveFillMeshPass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterial,
 		Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
 
+		if (context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineMask ||
+			context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
+
+			const Engine::MaterialAsset* material = context.assetLibrary->LoadMaterial(kOutlineMaskMaterial);
+			if (!material) {
+				return false;
+			}
+			const Engine::MaterialPassBinding* pass = Engine::FindPass(*material, context.passKind);
+			if (!pass) {
+				return false;
+			}
+			outResolved.materialID = kOutlineMaskMaterial;
+			outResolved.material = material;
+			outResolved.pass = pass;
+			return true;
+		}
 		if (context.passKind == Engine::MaterialPassKind::Transparent) {
 			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterial,
 				Engine::DefaultMaterialSlot::FillMesh, { Engine::MaterialPassKind::Transparent }, outResolved)) {
@@ -98,7 +120,10 @@ void Engine::FillMeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 	const PostProcessConstantBufferAllocation viewAlloc = constantBufferAllocator_.AllocateAndUpload(device, viewConstants);
 
 	FillMeshObjectConstants objectConstants{};
-	objectConstants.worldMatrix = item->worldMatrix;
+	// BillboardComponentがあればカメラへ向けたワールド行列に差し替える、影や反射でも常にメインカメラを向く
+	const ResolvedRenderView* billboardView = context.billboardView ? context.billboardView : context.view;
+	objectConstants.worldMatrix = billboardView ?
+		RenderBillboard::ResolveWorldMatrix(*item, *billboardView) : item->worldMatrix;
 	objectConstants.color = payload->color;
 	const PostProcessConstantBufferAllocation objectAlloc = constantBufferAllocator_.AllocateAndUpload(device, objectConstants);
 
@@ -126,6 +151,15 @@ void Engine::FillMeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 		BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, *pipelineState,
 			*resolvedPass.material, payload->materialOverrides,
 			perDrawBindCache_, materialParamsCBVSlot_, commandList);
+	}
+	// 選択アウトラインのマスク描画ではStyle IDを渡す、通常描画は宣言が無いので無回帰
+	if (perDrawBindCache_.Has(outlineMaskCBVSlot_)) {
+
+		ScreenSpaceOutlineMaskConstants maskConstants{};
+		maskConstants.styleID = context.screenSpaceOutlineMaskStyleID;
+		maskConstants.restrictSubMeshIndex = context.screenSpaceOutlineMaskRestrictSubMeshIndex;
+		const PostProcessConstantBufferAllocation maskAlloc = constantBufferAllocator_.AllocateAndUpload(device, maskConstants);
+		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(outlineMaskCBVSlot_), maskAlloc.gpuAddress);
 	}
 
 	// 頂点は展開済みなのでインデックス不要、三角形リストで描画する

@@ -6,7 +6,6 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
-#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/ScreenSpaceOutlineComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
@@ -61,7 +60,10 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 	visited.reserve(list.items.size());
 	for (const RenderItem* item : list.items) {
 
-		if (!item || item->backendID != RenderBackendID::Mesh || !item->world) {
+		// マスクを描けるのはMesh/FillMesh/Primitiveバックエンド、それ以外はマスクパスを解決できない
+		if (!item || !item->world || (item->backendID != RenderBackendID::Mesh &&
+			item->backendID != RenderBackendID::FillMesh &&
+			item->backendID != RenderBackendID::Primitive)) {
 			continue;
 		}
 		// 別worldのアイテムは対象にしない
@@ -72,10 +74,6 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 			continue;
 		}
 
-		const MeshRendererComponent* renderer = item->world->TryGetComponent<MeshRendererComponent>(item->entity);
-		if (!renderer) {
-			continue;
-		}
 		// Outlineが有効でwidthが有限の正値のものだけ採用する
 		const ScreenSpaceOutlineComponent* outline = item->world->TryGetComponent<ScreenSpaceOutlineComponent>(item->entity);
 		if (!outline || !outline->enabled || !std::isfinite(outline->widthPixels) || outline->widthPixels <= 0.0f) {

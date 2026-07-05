@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 
 //============================================================================
 //	FillMeshRendererInspectorDrawer classMethods
@@ -17,6 +18,7 @@ void Engine::FillMeshRendererInspectorDrawer::DrawFields(const EditorPanelContex
 	// マテリアルと色
 	DrawField(anyItemActive, [&]() {
 		AssetEditSetting setting{};
+		setting.defaultAssetID = DefaultMaterialSettings::GetInstance().GetFillMeshOrBuiltin();
 		return MyGUI::AssetReferenceField("マテリアル", draft.material,
 			context.editorContext->assetDatabase, { AssetType::Material }, setting);
 		});

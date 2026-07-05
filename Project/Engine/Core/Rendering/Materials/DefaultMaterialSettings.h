@@ -37,6 +37,7 @@ namespace Engine {
 		AssetID GetText() const { return text_; }
 		AssetID GetLine() const { return line_; }
 		AssetID GetFillMesh() const { return fillMesh_; }
+		AssetID GetPrimitive() const { return primitive_; }
 
 		// 設定値の更新
 		void SetMesh(AssetID id) { mesh_ = id; }
@@ -44,6 +45,7 @@ namespace Engine {
 		void SetText(AssetID id) { text_ = id; }
 		void SetLine(AssetID id) { line_ = id; }
 		void SetFillMesh(AssetID id) { fillMesh_ = id; }
+		void SetPrimitive(AssetID id) { primitive_ = id; }
 
 		// 未設定ならbuiltinデフォルトへフォールバックした実効値を返す
 		AssetID GetMeshOrBuiltin() const;
@@ -51,6 +53,7 @@ namespace Engine {
 		AssetID GetTextOrBuiltin() const;
 		AssetID GetLineOrBuiltin() const;
 		AssetID GetFillMeshOrBuiltin() const;
+		AssetID GetPrimitiveOrBuiltin() const;
 
 		// シングルトン
 		static DefaultMaterialSettings& GetInstance();
@@ -67,6 +70,7 @@ namespace Engine {
 		AssetID text_{};
 		AssetID line_{};
 		AssetID fillMesh_{};
+		AssetID primitive_{};
 
 		// 保存先の設定ファイルパス
 		std::string configPath_{};

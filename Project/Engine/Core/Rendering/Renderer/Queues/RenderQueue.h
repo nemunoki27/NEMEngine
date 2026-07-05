@@ -25,6 +25,7 @@ namespace Engine {
 	// front
 	class ECSWorld;
 	struct MaterialParameterValue;
+	struct PrimitiveRendererComponent;
 
 	//============================================================================
 	//	RenderQueue structures
@@ -37,6 +38,7 @@ namespace Engine {
 		static constexpr uint32_t Mesh = 0x1003;
 		static constexpr uint32_t Line = 0x1004;
 		static constexpr uint32_t FillMesh = 0x1005;
+		static constexpr uint32_t Primitive = 0x1006;
 	}
 
 	// スプライト描画データ
@@ -86,6 +88,18 @@ namespace Engine {
 		const std::vector<uint32_t>* indices = nullptr;
 
 		Color4 color = Color4::White();
+
+		// マテリアルパラメータ上書き、コンポーネントのmapを指す
+		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;
+	};
+	// プロシージャル形状描画データ
+	struct PrimitiveRenderPayload {
+
+		// ジオメトリ生成に使うコンポーネントを指す、同フレーム内のみ有効
+		const PrimitiveRendererComponent* renderer = nullptr;
+
+		// UVTransformComponentのUV行列、無ければ単位行列
+		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 
 		// マテリアルパラメータ上書き、コンポーネントのmapを指す
 		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;

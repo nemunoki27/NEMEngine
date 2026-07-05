@@ -19,6 +19,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultMeshOutline{ 0x9ed9dab27dc8ba93ull };
 		inline constexpr AssetID DefaultLine{ 0x7a9d3c5e1b6f4084ull };
 		inline constexpr AssetID DefaultFillMesh{ 0x4b5a225df5b0044bull };
+		inline constexpr AssetID DefaultPrimitive{ 0x70a1b2c3d4e5f606ull };
 		inline constexpr AssetID FullscreenCopy{ 0x93946a52e2bc7030ull };
 		inline constexpr AssetID ToneMapToView{ 0xaa28624401e1e4b6ull };
 		inline constexpr AssetID RaytracingReflection{ 0x375384bc3bf6bb7cull };

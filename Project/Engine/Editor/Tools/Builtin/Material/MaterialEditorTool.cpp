@@ -228,6 +228,8 @@ void Engine::MaterialEditorTool::DrawDefaultMaterialSection(const EditorToolCont
 		[&](AssetID id) { settings.SetLine(id); });
 	drawSlot("FillFaceMesh", settings.GetFillMesh(), settings.GetFillMeshOrBuiltin(),
 		[&](AssetID id) { settings.SetFillMesh(id); });
+	drawSlot("Primitive", settings.GetPrimitive(), settings.GetPrimitiveOrBuiltin(),
+		[&](AssetID id) { settings.SetPrimitive(id); });
 }
 
 void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolContext& context) {

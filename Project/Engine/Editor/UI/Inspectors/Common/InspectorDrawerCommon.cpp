@@ -11,6 +11,8 @@
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
@@ -150,24 +152,22 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 		renderer3D->DrawCameraFrustum(camera.common.viewMatrix, camera.common.aspectRatio, camera.nearClip,
 			camera.farClip, Math::DegToRad(camera.fovY), camera.common.editorFrustumScale, Color4::Yellow(), 1.0f);
 	}
-	// メッシュ
-	if (world.HasComponent<MeshRendererComponent>(entity)) {
+	// メッシュとプロシージャル形状、それぞれのバックエンドがマスク描画に対応している
+	const bool hasMesh = world.HasComponent<MeshRendererComponent>(entity);
+	const bool hasPrimitive = world.HasComponent<PrimitiveRendererComponent>(entity);
+	const bool hasFillMesh = world.HasComponent<FillMeshRendererComponent>(entity);
+	if (hasMesh || hasPrimitive || hasFillMesh) {
 
-		// 選択中メッシュのアウトラインはシーン保存対象にしない
-		 ScreenSpaceOutlineStyle style{};
+		// 選択中のアウトラインはシーン保存対象にしない
+		ScreenSpaceOutlineStyle style{};
 		style.color = Color4::FromHex(0xF02700FF);
 		style.widthPixels = 4.0f;
 		style.priority = 300;
 		style.regionMode = ScreenSpaceOutlineRegionMode::ExteriorPreferred;
 
-		/*ImGui::Begin("MeshOutlineEdit");
-
-		ImGui::ColorEdit4("color", &style.color.r);
-		ImGui::DragFloat("widthPixels", &style.widthPixels, 0.01f);
-
-		ImGui::End();*/
-
-		EditorSelectionOutlineRequestService::GetInstance().Request(&world, entity, selectionSubMeshIndex, style);
+		// MeshのみSubMesh選択を持つ、Primitive/FillMeshは制限なし
+		const int32_t subMeshIndex = hasMesh ? selectionSubMeshIndex : -1;
+		EditorSelectionOutlineRequestService::GetInstance().Request(&world, entity, subMeshIndex, style);
 	}
 	// スキニングアニメーション
 	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {

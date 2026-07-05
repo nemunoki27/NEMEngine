@@ -156,7 +156,8 @@ const Engine::GPUTextureResource* Engine::BackendDrawCommon::ResolveTextureAsset
 
 void Engine::BackendDrawCommon::BindMaterialTextures(const RenderDrawContext& context,
 	const PipelineState& pipelineState, const MaterialAsset& material,
-	ID3D12GraphicsCommandList* commandList) {
+	ID3D12GraphicsCommandList* commandList,
+	const std::unordered_map<std::string, MaterialParameterValue>* overrides) {
 
 	GraphicsCore& graphicsCore = *context.graphicsCore;
 	const GPUTextureResource* whiteTexture = graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
@@ -175,12 +176,22 @@ void Engine::BackendDrawCommon::BindMaterialTextures(const RenderDrawContext& co
 			continue;
 		}
 
-		// 同名のmaterial paramからテクスチャのAssetIDを引く
+		// 同名のmaterial paramからテクスチャのAssetIDを引く、上書きがあれば優先する
 		AssetID textureID{};
-		auto found = material.parameters.find(resource.name);
-		if (found != material.parameters.end()) {
-			if (const AssetID* id = std::get_if<AssetID>(&found->second.value)) {
-				textureID = *id;
+		if (overrides) {
+			auto overrideIt = overrides->find(resource.name);
+			if (overrideIt != overrides->end()) {
+				if (const AssetID* id = std::get_if<AssetID>(&overrideIt->second.value)) {
+					textureID = *id;
+				}
+			}
+		}
+		if (!textureID) {
+			auto found = material.parameters.find(resource.name);
+			if (found != material.parameters.end()) {
+				if (const AssetID* id = std::get_if<AssetID>(&found->second.value)) {
+					textureID = *id;
+				}
 			}
 		}
 

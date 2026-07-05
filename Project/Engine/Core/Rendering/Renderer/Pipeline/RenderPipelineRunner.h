@@ -44,6 +44,7 @@ namespace Engine {
 	// front
 	struct SceneInstance;
 	class MeshRenderBackend;
+	class PrimitiveRenderBackend;
 	//============================================================================
 	//	RenderPipelineRunner structures
 	//============================================================================
@@ -279,6 +280,7 @@ namespace Engine {
 		// 型付きMeshバックエンドのキャッシュで毎フレームのdynamic_castを避ける
 		MeshRenderBackend* meshBackend_ = nullptr;
 		MeshRenderBackend* previewMeshBackend_ = nullptr;
+		PrimitiveRenderBackend* primitiveBackend_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
 

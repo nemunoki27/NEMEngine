@@ -31,6 +31,8 @@ namespace Engine {
 			objectCBVSlot_ = perDrawBindCache_.AddSlot("ObjectConstants", ShaderBindingKind::CBV);
 			verticesSRVSlot_ = perDrawBindCache_.AddSlot("gVertices", ShaderBindingKind::SRV);
 			materialParamsCBVSlot_ = perDrawBindCache_.AddSlot(MaterialParameterCBuffer::kSurface, ShaderBindingKind::CBV);
+			// 選択アウトラインのマスク描画で使うStyle ID、register(b1, space1)
+			outlineMaskCBVSlot_ = perDrawBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 1, 1);
 		}
 		~FillMeshRenderBackend() override;
 
@@ -60,6 +62,7 @@ namespace Engine {
 		PipelineBindingCache::SlotID objectCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID verticesSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID materialParamsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID outlineMaskCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		MaterialParameterBinder materialParamBinder_{};
 	};
 } // Engine

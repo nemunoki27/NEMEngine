@@ -16,11 +16,13 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/FillMesh/FillMeshRenderItemExtractor.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Sprite/SpriteRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Text/TextRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/FillMesh/FillMeshRenderBackend.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Builtin/Directional/DirectionalLightExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Builtin/Point/PointLightExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Builtin/Spot/SpotLightExtractor.h>
@@ -58,6 +60,7 @@ void RenderPipelineRunner::Init() {
 	extractorRegistry_.Register(std::make_unique<MeshRenderItemExtractor>());
 	extractorRegistry_.Register(std::make_unique<LineRenderItemExtractor>());
 	extractorRegistry_.Register(std::make_unique<FillMeshRenderItemExtractor>());
+	extractorRegistry_.Register(std::make_unique<PrimitiveRenderItemExtractor>());
 	// 描画バックエンドの登録
 	backendRegistry_.Clear();
 	backendRegistry_.Register(std::make_unique<SpriteRenderBackend>());
@@ -65,6 +68,7 @@ void RenderPipelineRunner::Init() {
 	backendRegistry_.Register(std::make_unique<MeshRenderBackend>());
 	backendRegistry_.Register(std::make_unique<LineRenderBackend>());
 	backendRegistry_.Register(std::make_unique<FillMeshRenderBackend>());
+	backendRegistry_.Register(std::make_unique<PrimitiveRenderBackend>());
 	// ツールプレビューはメインビューとは別のGPUバッファを持たせる
 	previewBackendRegistry_.Clear();
 	previewBackendRegistry_.Register(std::make_unique<SpriteRenderBackend>());
@@ -72,9 +76,11 @@ void RenderPipelineRunner::Init() {
 	previewBackendRegistry_.Register(std::make_unique<MeshRenderBackend>());
 	previewBackendRegistry_.Register(std::make_unique<LineRenderBackend>());
 	previewBackendRegistry_.Register(std::make_unique<FillMeshRenderBackend>());
+	previewBackendRegistry_.Register(std::make_unique<PrimitiveRenderBackend>());
 	// 型付きMeshバックエンドをキャッシュして毎フレームのdynamic_castを避ける
 	meshBackend_ = dynamic_cast<MeshRenderBackend*>(backendRegistry_.Find(RenderBackendID::Mesh));
 	previewMeshBackend_ = dynamic_cast<MeshRenderBackend*>(previewBackendRegistry_.Find(RenderBackendID::Mesh));
+	primitiveBackend_ = dynamic_cast<PrimitiveRenderBackend*>(backendRegistry_.Find(RenderBackendID::Primitive));
 	// ライト抽出器の登録
 	lightExtractorRegistry_.Clear();
 	lightExtractorRegistry_.Register(std::make_unique<DirectionalLightExtractor>());
@@ -172,6 +178,7 @@ void RenderPipelineRunner::Finalize() {
 	backendRegistry_.Clear();
 	previewBackendRegistry_.Clear();
 	meshBackend_ = nullptr;
+	primitiveBackend_ = nullptr;
 	previewMeshBackend_ = nullptr;
 	extractorRegistry_.Clear();
 	renderAssetLibrary_.Clear();
@@ -391,7 +398,8 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			if (gameViewState_.view.valid) {
 				context.view = &gameViewState_.view;
 			}
-			raytracingSceneBuilder_.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, renderBatch_, context);
+			PrimitiveGeometryManager* primitiveGeometryManager = primitiveBackend_ ? &primitiveBackend_->GetGeometryManager() : nullptr;
+			raytracingSceneBuilder_.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, primitiveGeometryManager, renderBatch_, context);
 			context.view = prevTlasView;
 
 			if (context.raytracing.tlasResource) {

@@ -82,8 +82,10 @@ namespace Engine::BackendDrawCommon {
 	// 規約はregister space2のテクスチャSRVだけマテリアルテクスチャ扱い、エンジン供給SRVはspace0か1
 	// material.parametersの同名AssetIDを解決し、未指定や失敗なら既定の白テクスチャを使う
 	// space2テクスチャを宣言しないBuiltinでは何もせず無回帰
+	// overridesを渡すとレンダラー個別のテクスチャ上書きをマテリアル既定より優先する
 	void BindMaterialTextures(const RenderDrawContext& context, const PipelineState& pipelineState,
-		const MaterialAsset& material, ID3D12GraphicsCommandList* commandList);
+		const MaterialAsset& material, ID3D12GraphicsCommandList* commandList,
+		const std::unordered_map<std::string, MaterialParameterValue>* overrides = nullptr);
 
 	// MaterialParameters cbufferをreflection駆動でアップロードしバインドする
 	// overridesはエンティティごとの個別マテリアル用、nullや空なら既定値のみになる

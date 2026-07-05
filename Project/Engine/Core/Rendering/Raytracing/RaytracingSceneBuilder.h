@@ -21,9 +21,11 @@ namespace Engine {
 	class MeshRenderBackend;
 	class BufferUploadService;
 	class SRVDescriptor;
+	class PrimitiveGeometryManager;
 	struct SceneExecutionContext;
 	struct MeshRendererComponent;
 	struct FillMeshRendererComponent;
+	struct PrimitiveRendererComponent;
 
 	//============================================================================
 	//	RaytracingSceneBuilder structures
@@ -57,7 +59,8 @@ namespace Engine {
 
 		// シーンの構築
 		void BuildForScene(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
-			MeshRenderBackend* meshBackend, const RenderSceneBatch& renderBatch, SceneExecutionContext& context);
+			MeshRenderBackend* meshBackend, PrimitiveGeometryManager* primitiveGeometryManager,
+			const RenderSceneBatch& renderBatch, SceneExecutionContext& context);
 
 		// 終了処理
 		void Finalize();
@@ -112,6 +115,16 @@ namespace Engine {
 			ECSWorld* world = nullptr;
 			Matrix4x4 worldMatrix = Matrix4x4::Identity();
 			const FillMeshRendererComponent* renderer = nullptr;
+		};
+		// Primitiveのコレクション
+		struct CollectedPrimitiveInstance {
+
+			Entity entity = Entity::Null();
+			ECSWorld* world = nullptr;
+			Matrix4x4 worldMatrix = Matrix4x4::Identity();
+			const PrimitiveRendererComponent* renderer = nullptr;
+			// 形状ハッシュ、共有ジオメトリのキー
+			uint64_t geometryHash = 0;
 		};
 		// FillMeshのRTリソースキー
 		struct FillMeshRTKey {
@@ -220,6 +233,9 @@ namespace Engine {
 		// 可視FillMeshインスタンスの収集
 		void CollectSceneFillMeshInstances(const RenderSceneBatch& renderBatch,
 			const SceneExecutionContext& context, std::vector<CollectedFillMeshInstance>& outInstances);
+		// 可視Primitiveインスタンスの収集
+		void CollectScenePrimitiveInstances(const RenderSceneBatch& renderBatch,
+			const SceneExecutionContext& context, std::vector<CollectedPrimitiveInstance>& outInstances);
 		// FillMeshのレイトレ用GPUリソースを構築する
 		bool BuildFillMeshRaytracingResource(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList,
 			BufferUploadService& uploadService, const CollectedFillMeshInstance& src,

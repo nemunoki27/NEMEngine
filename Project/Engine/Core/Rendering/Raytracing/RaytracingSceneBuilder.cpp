@@ -11,6 +11,9 @@
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
+#include <Engine/Core/Rendering/Primitive/PrimitiveGeometryManager.h>
+#include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
 
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
@@ -126,7 +129,7 @@ void Engine::RaytracingSceneBuilder::BeginFrame(GraphicsCore& graphicsCore) {
 }
 
 void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
-	AssetDatabase& assetDatabase, MeshRenderBackend* meshBackend,
+	AssetDatabase& assetDatabase, MeshRenderBackend* meshBackend, PrimitiveGeometryManager* primitiveGeometryManager,
 	const RenderSceneBatch& renderBatch, SceneExecutionContext& context) {
 
 	// 描画用Raytracingが無効でも、Debug/DevelopエディターのGPUピック用TLASは構築できるようにする
@@ -155,7 +158,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	}
 	std::vector<CollectedFillMeshInstance> sceneFillMeshes;
 	CollectSceneFillMeshInstances(renderBatch, context, sceneFillMeshes);
-	if (sceneMeshes.empty() && sceneFillMeshes.empty()) {
+	std::vector<CollectedPrimitiveInstance> scenePrimitives;
+	if (primitiveGeometryManager) {
+		CollectScenePrimitiveInstances(renderBatch, context, scenePrimitives);
+	}
+	if (sceneMeshes.empty() && sceneFillMeshes.empty() && scenePrimitives.empty()) {
 		return;
 	}
 
@@ -494,6 +501,73 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		tlasInstances.emplace_back(instance);
 	}
 
+	// Primitiveは形状ハッシュ単位で共有BLASを使い、インスタンスごとにTLASへ登録する
+	for (const CollectedPrimitiveInstance& src : scenePrimitives) {
+
+		const PrimitiveRendererComponent& renderer = *src.renderer;
+
+		PrimitiveGeometry* geometry = primitiveGeometryManager->GetOrCreate(graphicsCore, src.geometryHash, renderer);
+		if (!geometry) {
+			continue;
+		}
+		// BLASを共有ジオメトリから作る、初めて作ったフレームだけTLASを完全再構築する
+		const bool wasBuilt = geometry->blasBuilt;
+		if (!primitiveGeometryManager->EnsureBLAS(device, commandList, *geometry)) {
+			continue;
+		}
+		if (!wasBuilt) {
+			requireTlasRebuild = true;
+		}
+
+		const uint32_t subMeshDataIndex = static_cast<uint32_t>(sceneSubMeshScratch_.size());
+
+		MeshSubMeshShaderData subMeshData{};
+		subMeshData.importedBaseColor = Color4::White();
+		subMeshData.baseColorTextureIndex = UINT32_MAX;
+		subMeshData.normalTextureIndex = UINT32_MAX;
+		subMeshData.metallicRoughnessTextureIndex = UINT32_MAX;
+		subMeshData.emissiveTextureIndex = UINT32_MAX;
+		subMeshData.occlusionTextureIndex = UINT32_MAX;
+		subMeshData.specularTextureIndex = UINT32_MAX;
+		subMeshData.localMatrix = Matrix4x4::Identity();
+		subMeshData.localNormalMatrix = Matrix4x4::Identity();
+		subMeshData.color = Color4::White();
+		subMeshData.emissiveColor = Color4(0.0f, 0.0f, 0.0f, 0.0f);
+		subMeshData.uvMatrix = Matrix4x4::Identity();
+		subMeshData.roughness = 1.0f;
+		sceneSubMeshScratch_.emplace_back(subMeshData);
+
+		RaytracingInstanceShaderData instanceShaderData{};
+		instanceShaderData.vertexDescriptorIndex = geometry->vertexBuffer.srvIndex;
+		instanceShaderData.indexDescriptorIndex = geometry->indexSRV.srvIndex;
+		instanceShaderData.vertexOffset = 0;
+		instanceShaderData.subMeshDataIndex = subMeshDataIndex;
+		instanceShaderData.indexOffset = 0;
+		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(sceneInstanceScratch_.size());
+		sceneInstanceScratch_.emplace_back(instanceShaderData);
+
+		MeshSubMeshPickRecord pickRecord{};
+		pickRecord.entity = src.entity;
+		pickRecord.subMeshIndex = 0;
+		scenePickRecords_.emplace_back(pickRecord);
+
+		RaytracingTLASInstance instance{};
+		instance.blas = geometry->blas.GetResource();
+		instance.instanceID = shaderInstanceIndex;
+		instance.hitGroupIndex = 0;
+		// CastShadow/CastReflectionに応じて影レイと反射レイの当たり判定を分ける
+		instance.mask = kRaytracingMaskAlwaysHit;
+		if (HasMeshRenderFlag(renderer.renderFlags, MeshRenderFlags::CastShadow)) {
+			instance.mask |= kRaytracingMaskShadowCaster;
+		}
+		if (HasMeshRenderFlag(renderer.renderFlags, MeshRenderFlags::CastReflection)) {
+			instance.mask |= kRaytracingMaskReflectionCaster;
+		}
+		instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+		instance.worldMatrix = src.worldMatrix;
+		tlasInstances.emplace_back(instance);
+	}
+
 	// TLASインスタンスがない場合は処理しない
 	if (tlasInstances.empty()) {
 		return;
@@ -596,6 +670,43 @@ void Engine::RaytracingSceneBuilder::CollectSceneFillMeshInstances(const RenderS
 			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *context.view);
 		}
 		instance.renderer = &renderer;
+		outInstances.emplace_back(instance);
+	}
+}
+
+void Engine::RaytracingSceneBuilder::CollectScenePrimitiveInstances(const RenderSceneBatch& renderBatch,
+	const SceneExecutionContext& context, std::vector<CollectedPrimitiveInstance>& outInstances) {
+
+	outInstances.clear();
+
+	const UUID sceneInstanceID = context.sceneInstance ? context.sceneInstance->instanceID : UUID{};
+	for (const RenderItem& item : renderBatch.GetItems()) {
+
+		if (item.backendID != RenderBackendID::Primitive) {
+			continue;
+		}
+		if (sceneInstanceID && item.sceneInstanceID != sceneInstanceID) {
+			continue;
+		}
+		if (!item.world || !item.world->IsAlive(item.entity)) {
+			continue;
+		}
+		if (!item.world->HasComponent<PrimitiveRendererComponent>(item.entity)) {
+			continue;
+		}
+
+		const PrimitiveRendererComponent& renderer = item.world->GetComponent<PrimitiveRendererComponent>(item.entity);
+
+		CollectedPrimitiveInstance instance{};
+		instance.entity = item.entity;
+		instance.world = item.world;
+		instance.worldMatrix = item.worldMatrix;
+		if (context.view) {
+			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *context.view);
+		}
+		instance.renderer = &renderer;
+		// batchKeyは上書き分離を含むためBLAS共有には形状ハッシュを使う
+		instance.geometryHash = PrimitiveMeshGenerator::ComputeHash(renderer);
 		outInstances.emplace_back(instance);
 	}
 }
