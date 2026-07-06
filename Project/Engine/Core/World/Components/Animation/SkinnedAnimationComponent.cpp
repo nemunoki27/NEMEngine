@@ -21,7 +21,6 @@ void Engine::from_json(const nlohmann::json& in, SkinnedAnimationComponent& comp
 	component.runtimeToClip.clear();
 	component.runtimeTime = 0.0f;
 	component.runtimeFromTime = 0.0f;
-	component.runtimeNextTime = 0.0f;
 	component.runtimeBlendTime = 0.0f;
 	component.runtimeInTransition = false;
 	component.runtimeAnimationFinished = false;

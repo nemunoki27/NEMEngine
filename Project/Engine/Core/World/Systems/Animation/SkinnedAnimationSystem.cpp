@@ -119,7 +119,6 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 				anim.runtimeToClip.clear();
 				anim.runtimeTime = 0.0f;
 				anim.runtimeFromTime = 0.0f;
-				anim.runtimeNextTime = 0.0f;
 				anim.runtimeBlendTime = 0.0f;
 				anim.runtimeInTransition = false;
 				anim.runtimeAnimationFinished = false;
@@ -145,7 +144,6 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 				anim.runtimeFromClip = anim.runtimeCurrentClip;
 				anim.runtimeToClip = desiredClip;
 				anim.runtimeFromTime = anim.runtimeTime;
-				anim.runtimeNextTime = 0.0f;
 				anim.runtimeBlendTime = 0.0f;
 				anim.runtimeInTransition = (anim.transitionDuration > 0.0f);
 				if (!anim.runtimeInTransition) {
@@ -206,15 +204,8 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			else {
 
 				// 遷移元と遷移先のアニメーションクリップを取得
-				const AnimationData& fromClip = animationSet->clips.at(anim.runtimeFromClip);
 				const AnimationData& toClip = animationSet->clips.at(anim.runtimeToClip);
 				anim.runtimeCurrentDuration = toClip.duration;
-				if (0.0f < fromClip.duration) {
-					anim.runtimeFromTime = std::fmod(anim.runtimeFromTime + deltaTime, fromClip.duration);
-				}
-				if (0.0f < toClip.duration) {
-					anim.runtimeNextTime = std::fmod(anim.runtimeNextTime + deltaTime, toClip.duration);
-				}
 
 				// 遷移時間を進める
 				anim.runtimeBlendTime += deltaTime;
@@ -227,8 +218,7 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 				if (fromTrackIt != animationSet->clipJointTracks.end() &&
 					toTrackIt != animationSet->clipJointTracks.end()) {
 
-					BlendClipsToSkeleton(anim.runtimeSkeleton, fromTrackIt->second, anim.runtimeFromTime,
-						toTrackIt->second, anim.runtimeNextTime, alpha);
+					BlendClipsToSkeleton(anim.runtimeSkeleton, fromTrackIt->second, anim.runtimeFromTime, toTrackIt->second, 0.0f, alpha);
 				}
 
 				// 遷移が完了したら遷移フラグを下ろして遷移先のアニメーションクリップを再生状態にする
@@ -236,7 +226,7 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 
 					anim.runtimeInTransition = false;
 					anim.runtimeCurrentClip = anim.runtimeToClip;
-					anim.runtimeTime = anim.runtimeNextTime;
+					anim.runtimeTime = 0.0f;
 				}
 			}
 			// スケルトンの階層を更新してGPU用のパレットを構築

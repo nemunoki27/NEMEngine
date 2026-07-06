@@ -45,7 +45,6 @@ namespace Engine {
 		float runtimeCurrentDuration = 0.0f;
 		// 遷移時間
 		float runtimeFromTime = 0.0f;
-		float runtimeNextTime = 0.0f;
 		float runtimeBlendTime = 0.0f;
 
 		// 遷移中か

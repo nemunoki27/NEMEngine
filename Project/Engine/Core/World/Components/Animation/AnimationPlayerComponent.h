@@ -119,7 +119,6 @@ namespace Engine {
 		// クロスフェード中か
 		bool runtimeInTransition = false;
 
-		// 以下はC#公開用のミラー
 		// 再生中グループ名
 		std::string runtimeCurrent;
 		// 代表クリップのloop/pingpong完了回数
@@ -142,9 +141,7 @@ namespace Engine {
 		bool runtimeStopRequest = false;
 	};
 
-	//============================================================================
-	//	AnimationPlayerComponent functions
-	//============================================================================
+	// json適用
 	void from_json(const nlohmann::json& in, AnimationPlayerComponent& component);
 	void to_json(nlohmann::json& out, const AnimationPlayerComponent& component);
 
