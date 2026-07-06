@@ -12,6 +12,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Systems/Animation/JointAttachmentUtility.h>
 
 // c++
 #include <cstring>
@@ -89,6 +90,12 @@ namespace Engine {
 	}
 
 	Vector3 MakeLocalPositionFromWorld(ECSWorld& world, const Entity& entity, const Vector3& position) {
+
+		// ジョイント追従なら親はジョイント、そのワールドの逆行列でローカルへ落とす
+		Matrix4x4 jointWorld{};
+		if (JointAttachmentUtility::GetAttachedJointWorldMatrix(world, entity, jointWorld)) {
+			return Vector3::TransformPoint(position, Matrix4x4::Inverse(jointWorld));
+		}
 
 		// 親がいなければワールド座標をそのままローカル座標として扱う
 		const HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(entity);

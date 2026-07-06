@@ -366,6 +366,8 @@ namespace Engine {
 		using CollisionSetShapeCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const void*, int32_t);
 		// 指定クリップ名のアニメーション合計長を返す
 		using GetSkinnedAnimationDurationCallback = float(__cdecl*)(ManagedNativeEntity, const char*);
+		// 指定クリップを頭から再生する、終了フラグを同フレームで下ろす
+		using PlaySkinnedAnimationCallback = void(__cdecl*)(ManagedNativeEntity, const char*);
 		using IsAliveCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using GetBoolCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using SetBoolCallback = void(__cdecl*)(ManagedNativeEntity, int32_t);
@@ -606,6 +608,8 @@ namespace Engine {
 
 		// 指定クリップ名のアニメーション合計長
 		GetSkinnedAnimationDurationCallback getSkinnedAnimationDuration = nullptr;
+		// 指定クリップを頭から再生する
+		PlaySkinnedAnimationCallback playSkinnedAnimation = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

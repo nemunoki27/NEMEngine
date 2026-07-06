@@ -6,6 +6,8 @@
 //============================================================================
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Systems/Animation/JointAttachmentUtility.h>
+#include <Engine/Core/Foundation/Math/AffineDecompose.h>
 
 namespace Engine {
 
@@ -19,6 +21,17 @@ namespace Engine {
 
 			Entity current = entity;
 			for (int32_t guard = 0; guard < 1024; ++guard) {
+				// ジョイント追従エンティティは親階層ではなくジョイントのワールドを親として折り込む
+				Matrix4x4 jointWorld{};
+				if (JointAttachmentUtility::GetAttachedJointWorldMatrix(world, current, jointWorld)) {
+					Vector3 jointPos{};
+					Quaternion jointRotation{};
+					Vector3 jointScale{};
+					if (DecomposeAffine3D(jointWorld, jointPos, jointRotation, jointScale)) {
+						rotation = jointRotation * rotation;
+					}
+					break;
+				}
 				HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(current);
 				if (!hierarchy || !world.IsAlive(hierarchy->parent)) {
 					break;
@@ -45,6 +58,12 @@ namespace Engine {
 			Matrix4x4 matrix = Matrix4x4::MakeAffineMatrix(self->localScale, self->localRotation, self->localPos);
 			Entity current = entity;
 			for (int32_t guard = 0; guard < 1024; ++guard) {
+				// ジョイント追従エンティティは親階層ではなくジョイントのワールドを親として折り込む
+				Matrix4x4 jointWorld{};
+				if (JointAttachmentUtility::GetAttachedJointWorldMatrix(world, current, jointWorld)) {
+					matrix = matrix * jointWorld;
+					break;
+				}
 				HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(current);
 				if (!hierarchy || !world.IsAlive(hierarchy->parent)) {
 					break;
@@ -67,6 +86,17 @@ namespace Engine {
 
 			Entity current = entity;
 			for (int32_t guard = 0; guard < 1024; ++guard) {
+				// ジョイント追従エンティティは親階層ではなくジョイントのワールドスケールを折り込む
+				Matrix4x4 jointWorld{};
+				if (JointAttachmentUtility::GetAttachedJointWorldMatrix(world, current, jointWorld)) {
+					Vector3 jointPos{};
+					Quaternion jointRotation{};
+					Vector3 jointScale{};
+					if (DecomposeAffine3D(jointWorld, jointPos, jointRotation, jointScale)) {
+						scale = Vector3(scale.x * jointScale.x, scale.y * jointScale.y, scale.z * jointScale.z);
+					}
+					break;
+				}
 				HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(current);
 				if (!hierarchy || !world.IsAlive(hierarchy->parent)) {
 					break;
@@ -248,7 +278,16 @@ namespace Engine {
 
 		// world回転を親のworld回転で打ち消してlocal回転へ変換する、localはinverse parentWorldとworldの積
 		Quaternion parentWorld = Quaternion::Identity();
-		if (HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved)) {
+		Matrix4x4 jointWorld{};
+		if (JointAttachmentUtility::GetAttachedJointWorldMatrix(*world, resolved, jointWorld)) {
+			// ジョイント追従なら親回転はジョイントのワールド回転
+			Vector3 jointPos{};
+			Quaternion jointRotation{};
+			Vector3 jointScale{};
+			if (DecomposeAffine3D(jointWorld, jointPos, jointRotation, jointScale)) {
+				parentWorld = jointRotation;
+			}
+		} else if (HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved)) {
 			if (world->IsAlive(hierarchy->parent)) {
 				parentWorld = ComputeWorldRotation(*world, hierarchy->parent);
 			}

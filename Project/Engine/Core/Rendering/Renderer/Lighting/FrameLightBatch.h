@@ -56,6 +56,7 @@ namespace Engine {
 		float intensity = 1.0f;
 		float radius = 8.0f;
 		float decay = 1.0f;
+		float shadowStrength = 1.0f;
 	};
 	// スポット光源
 	struct SpotLightItem {

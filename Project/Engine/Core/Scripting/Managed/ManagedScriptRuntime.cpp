@@ -260,6 +260,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.collisionGetShapeProperty = &ManagedScriptRuntime::CollisionGetShapePropertyCallback;
 	callbacks.collisionSetShapeProperty = &ManagedScriptRuntime::CollisionSetShapePropertyCallback;
 	callbacks.getSkinnedAnimationDuration = &ManagedScriptRuntime::GetSkinnedAnimationDurationCallback;
+	callbacks.playSkinnedAnimation = &ManagedScriptRuntime::PlaySkinnedAnimationCallback;
 	callbacks.fillMeshSetPositions = &ManagedScriptRuntime::FillMeshSetPositionsCallback;
 	callbacks.getEntityReferenceIdentity = &ManagedScriptRuntime::GetEntityReferenceIdentityCallback;
 	// v21のレイキャストとカメラレイとCollisionタイプ名解決

@@ -25,6 +25,7 @@ void Engine::PointLightExtractor::Extract(ECSWorld& world, FrameLightBatch& batc
 		item.intensity = light.intensity;
 		item.radius = light.radius;
 		item.decay = light.decay;
+		item.shadowStrength = light.shadowStrength;
 		batch.Add(std::move(item));
 		});
 }

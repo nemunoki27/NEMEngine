@@ -23,6 +23,8 @@ namespace Engine {
 		float radius = 8.0f;
 		// 減衰
 		float decay = 1.0f;
+		// 影の強さ(0.0=影なし, 1.0=完全に黒)
+		float shadowStrength = 0.92f;
 
 		// 有効フラグ
 		bool enabled = true;

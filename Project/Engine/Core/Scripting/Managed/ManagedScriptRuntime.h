@@ -338,6 +338,8 @@ namespace Engine {
 			int32_t shapeIndex, int32_t propertyId, const void* value, int32_t size);
 		// 指定クリップ名のアニメーション合計長を返す、見つからなければ0
 		static float __cdecl GetSkinnedAnimationDurationCallback(ManagedNativeEntity entity, const char* clipName);
+		// 指定クリップを頭から再生する、clip/enabledを設定し終了フラグを同フレームで下ろす
+		static void __cdecl PlaySkinnedAnimationCallback(ManagedNativeEntity entity, const char* clipName);
 		// Gameplay v7のAssetRef runtime resolve
 		static int32_t __cdecl AssetExistsCallback(uint64_t assetID);
 		static int32_t __cdecl CopyAssetDisplayNameCallback(uint64_t assetID, char* buffer, int32_t capacity);

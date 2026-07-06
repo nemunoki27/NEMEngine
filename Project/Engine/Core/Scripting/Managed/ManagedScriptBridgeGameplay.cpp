@@ -17,6 +17,7 @@
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
+#include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
@@ -409,6 +410,28 @@ namespace Engine {
 		}
 		const auto it = animationSet->clips.find(clipName);
 		return it != animationSet->clips.end() ? it->second.duration : 0.0f;
+	}
+
+	void ManagedScriptRuntime::PlaySkinnedAnimationCallback(ManagedNativeEntity entity, const char* clipName) {
+
+		if (!clipName) {
+			return;
+		}
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		SkinnedAnimationComponent* anim = world->IsAlive(resolved) ?
+			world->TryGetComponent<SkinnedAnimationComponent>(resolved) : nullptr;
+		if (!anim) {
+			return;
+		}
+		// 指定クリップへ切り替えて再生する、終了フラグを同フレームで下ろす
+		// 実際の遷移や再生時間のリセットはSkinnedAnimationSystemが行う
+		anim->clip = clipName;
+		anim->enabled = true;
+		anim->runtimeAnimationFinished = false;
 	}
 
 	int32_t ManagedScriptRuntime::LineAddPointCallback(ManagedNativeEntity entity, ManagedLinePoint point) {

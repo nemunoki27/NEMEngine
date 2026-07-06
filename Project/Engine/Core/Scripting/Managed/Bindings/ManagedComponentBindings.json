@@ -306,6 +306,7 @@
         { "managedName": "Intensity", "nativeMember": "intensity", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "Radius", "nativeMember": "radius", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "Decay", "nativeMember": "decay", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "ShadowStrength", "nativeMember": "shadowStrength", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" }
       ]
     },

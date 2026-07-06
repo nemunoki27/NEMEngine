@@ -337,6 +337,8 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> CollisionSetShapeProperty;
     // 指定クリップ名のアニメーション合計長
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, float> GetSkinnedAnimationDuration;
+    // 指定クリップを頭から再生する
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> PlaySkinnedAnimation;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -467,6 +469,7 @@ internal static unsafe class NativeApi {
         CollisionGetShapeProperty = callbacks->collisionGetShapeProperty;
         CollisionSetShapeProperty = callbacks->collisionSetShapeProperty;
         GetSkinnedAnimationDuration = callbacks->getSkinnedAnimationDuration;
+        PlaySkinnedAnimation = callbacks->playSkinnedAnimation;
     }
 
     internal static float ReadDeltaTime() {
@@ -716,6 +719,19 @@ internal static unsafe class NativeApi {
         Encoding.UTF8.GetBytes(safe, 0, safe.Length, bytes, 0);
         fixed (byte* ptr = bytes) {
             return GetSkinnedAnimationDuration(entity, ptr);
+        }
+    }
+
+    // 指定クリップを頭から再生する、終了フラグを同フレームで下ろす
+    internal static void PlaySkinnedAnimationClip(NativeEntity entity, string clipName) {
+        if (PlaySkinnedAnimation == null) {
+            return;
+        }
+        string safe = clipName ?? string.Empty;
+        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(safe) + 1];
+        Encoding.UTF8.GetBytes(safe, 0, safe.Length, bytes, 0);
+        fixed (byte* ptr = bytes) {
+            PlaySkinnedAnimation(entity, ptr);
         }
     }
 
@@ -1446,4 +1462,6 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> collisionSetShapeProperty;
     // 指定クリップ名のアニメーション合計長
     public delegate* unmanaged[Cdecl]<NativeEntity, byte*, float> getSkinnedAnimationDuration;
+    // 指定クリップを頭から再生する
+    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> playSkinnedAnimation;
 }

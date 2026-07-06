@@ -26,6 +26,9 @@ void Engine::PointLightInspectorDrawer::DrawFields([[maybe_unused]] const Editor
 			return MyGUI::DragFloat("減衰", draft.decay, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 512.0f });
 			});
 		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("影の強さ", draft.shadowStrength, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f });
+			});
+		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 			});
 		DrawField(anyItemActive, [&]() {

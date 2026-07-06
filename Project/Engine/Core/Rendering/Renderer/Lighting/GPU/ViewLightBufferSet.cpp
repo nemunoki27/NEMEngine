@@ -153,6 +153,7 @@ Engine::PointLightGPU Engine::ViewLightBufferSet::ToGPU(const PointLightItem& it
 	light.intensity = item.intensity;
 	light.radius = item.radius;
 	light.decay = item.decay;
+	light.shadowStrength = item.shadowStrength;
 
 	return light;
 }

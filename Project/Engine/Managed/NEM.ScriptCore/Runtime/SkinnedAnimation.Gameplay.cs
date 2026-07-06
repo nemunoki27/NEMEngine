@@ -6,10 +6,9 @@ namespace NEMEngine;
 // state 名は呼び出し時のみ設定/取得し、毎フレームの文字列 scan はしない。
 public sealed partial class SkinnedAnimation {
 
-    // 指定 state(clip) へ遷移再生する。
+    // 指定 state(clip) へ遷移再生する。呼び出したフレームで Finished を false へ戻す。
     public void Play(string stateName) {
-        Clip = stateName;
-        Enabled = true;
+        NativeApi.PlaySkinnedAnimationClip(entity.native, stateName);
     }
 
     // 再生を止める（time advance を停止。clip 状態は保持）。
