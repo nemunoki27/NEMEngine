@@ -24,9 +24,12 @@
 //============================================================================
 namespace {
 
-	// テクスチャparamはcbuffer内でbindless indexのuintとして現れるので、名前ではなく型で判定する
-	bool IsReflectedTextureParam(const Engine::ShaderConstantBufferVariable& var) {
-		return var.valueType == D3D_SVT_UINT;
+	// 描画空間に応じた既定マテリアルを返す
+	Engine::AssetID EffectiveDefaultMaterial(const Engine::PrimitiveRendererComponent& component) {
+
+		return Engine::IsPrimitiveScreen2D(component) ?
+			Engine::DefaultMaterialSettings::GetInstance().GetPrimitive2DOrBuiltin() :
+			Engine::DefaultMaterialSettings::GetInstance().GetPrimitiveOrBuiltin();
 	}
 
 	// テクスチャ欄の表示順、リストにない名前は末尾へ回す
@@ -58,33 +61,25 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 			return InspectorDrawerCommon::DrawEnumComboField("形状", draft.type);
 			});
 	}
+	// 描画空間、Plane/Ringのみ2D描画に切り替えられる
+	if (draft.type == PrimitiveType::Plane || draft.type == PrimitiveType::Ring) {
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawEnumComboField("描画空間", draft.renderSpace);
+			});
+	}
 	// マテリアル
 	{
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
-			setting.defaultAssetID = DefaultMaterialSettings::GetInstance().GetPrimitiveOrBuiltin();
+			setting.defaultAssetID = EffectiveDefaultMaterial(draft);
 			return MyGUI::AssetReferenceField("マテリアル", draft.material,
 				context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
 	}
 	// 描画パラメータ
-	{
-		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("レイヤー", draft.layer);
-			});
-		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("描画順", draft.order);
-			});
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
-			});
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawEnumComboField("ブレンドモード", draft.blendMode);
-			});
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawEnumComboField("キュー", draft.queue);
-			});
-	}
+	InspectorDrawerCommon::DrawCommonRenderFields(
+		[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
+		draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
 	// 影/反射などのフラグ
 	{
 		const auto drawFlag = [&](const char* label, MeshRenderFlags flag) {
@@ -112,8 +107,8 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 		DrawField(anyItemActive, [&]() { return MyGUI::DragVector2("大きさ", draft.plane.size, { .dragSpeed = 0.01f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragVector2("基準点", draft.plane.pivot, { .dragSpeed = 0.01f }); });
 		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawEnumComboField("軸", draft.plane.axis); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("分割X", draft.plane.divideX, { .minValue = 1,.maxValue = 256 }); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("分割Y", draft.plane.divideY, { .minValue = 1,.maxValue = 256 }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("分割X", draft.plane.divideX, { .minValue = 1,.maxValue = kMaxPrimitiveDivide }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("分割Y", draft.plane.divideY, { .minValue = 1,.maxValue = kMaxPrimitiveDivide }); });
 		break;
 	case PrimitiveType::CrossPlane:
 		DrawField(anyItemActive, [&]() { return MyGUI::DragVector2("大きさ", draft.crossPlane.size, { .dragSpeed = 0.01f }); });
@@ -123,27 +118,29 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 	case PrimitiveType::Ring:
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("外周半径", draft.ring.outerRadius, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("内周半径", draft.ring.innerRadius, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("分割数", draft.ring.divide, { .minValue = 3,.maxValue = 256 }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("開始角", draft.ring.startAngle, { .dragSpeed = 0.5f,.minValue = 0.0f,.maxValue = 360.0f }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("終了角", draft.ring.endAngle, { .dragSpeed = 0.5f,.minValue = 0.0f,.maxValue = 360.0f }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("分割数", draft.ring.divide, { .minValue = 3,.maxValue = kMaxPrimitiveDivide }); });
 		break;
 	case PrimitiveType::Cylinder:
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("上面半径", draft.cylinder.topRadius, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("下面半径", draft.cylinder.bottomRadius, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("高さ", draft.cylinder.height, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("展開角", draft.cylinder.maxAngle, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("円周分割", draft.cylinder.radialDivide, { .minValue = 3,.maxValue = 256 }); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("高さ分割", draft.cylinder.heightDivide, { .minValue = 1,.maxValue = 256 }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("円周分割", draft.cylinder.radialDivide, { .minValue = 3,.maxValue = kMaxPrimitiveDivide }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("高さ分割", draft.cylinder.heightDivide, { .minValue = 1,.maxValue = kMaxPrimitiveDivide }); });
 		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawEnumComboField("フタ", draft.cylinder.cap); });
 		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawEnumComboField("UVモード", draft.cylinder.uvMode); });
 		break;
 	case PrimitiveType::Sphere:
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("半径", draft.sphere.radius, { .dragSpeed = 0.01f,.minValue = 0.001f,.maxValue = 10000.0f }); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("経度分割", draft.sphere.longitudeDivide, { .minValue = 3,.maxValue = 256 }); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("緯度分割", draft.sphere.latitudeDivide, { .minValue = 2,.maxValue = 256 }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("経度分割", draft.sphere.longitudeDivide, { .minValue = 3,.maxValue = kMaxPrimitiveDivide }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("緯度分割", draft.sphere.latitudeDivide, { .minValue = 2,.maxValue = kMaxPrimitiveDivide }); });
 		break;
 	case PrimitiveType::Hemisphere:
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("半径", draft.hemisphere.radius, { .dragSpeed = 0.01f,.minValue = 0.001f,.maxValue = 10000.0f }); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("経度分割", draft.hemisphere.longitudeDivide, { .minValue = 3,.maxValue = 256 }); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("緯度分割", draft.hemisphere.latitudeDivide, { .minValue = 2,.maxValue = 256 }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("経度分割", draft.hemisphere.longitudeDivide, { .minValue = 3,.maxValue = kMaxPrimitiveDivide }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("緯度分割", draft.hemisphere.latitudeDivide, { .minValue = 2,.maxValue = kMaxPrimitiveDivide }); });
 		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("底面のフタ", draft.hemisphere.bottomCap); });
 		break;
 	case PrimitiveType::Cube:
@@ -157,14 +154,14 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 }
 
 const Engine::ShaderReflectionInfo* Engine::PrimitiveRendererInspectorDrawer::EnsureMaterialReflection(
-	const EditorPanelContext& context, AssetID materialID) {
+	const EditorPanelContext& context, AssetID materialID, AssetID defaultMaterialID) {
 
 	if (!context.renderPipeline || !context.editorContext || !context.editorContext->assetDatabase) {
 		return nullptr;
 	}
 	// 空マテリアルは描画時にデフォルトへ解決されるので、reflectionも実効デフォルトから引く
 	if (!materialID) {
-		materialID = DefaultMaterialSettings::GetInstance().GetPrimitiveOrBuiltin();
+		materialID = defaultMaterialID;
 	}
 	// マテリアルが変わったときだけファイルを読み直す
 	if (!cachedMaterialValid_ || cachedMaterialID_ != materialID) {
@@ -200,7 +197,7 @@ Engine::MaterialParameterValue Engine::PrimitiveRendererInspectorDrawer::Resolve
 void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 	const EditorPanelContext& context, PrimitiveRendererComponent& draft, bool& anyItemActive) {
 
-	const ShaderReflectionInfo* reflection = EnsureMaterialReflection(context, draft.material);
+	const ShaderReflectionInfo* reflection = EnsureMaterialReflection(context, draft.material, EffectiveDefaultMaterial(draft));
 	if (!reflection) {
 		return;
 	}
@@ -214,7 +211,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 	// Drag編集paramを先に出す
 	for (const ShaderConstantBufferVariable& var : cb->variables) {
 
-		if (!var.used || IsReflectedTextureParam(var)) {
+		if (!var.used || MaterialParameterEditor::IsReflectedTextureParam(var)) {
 			continue;
 		}
 		MaterialParameterValue value = ResolveParamValue(draft, var);

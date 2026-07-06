@@ -28,17 +28,33 @@ namespace Engine {
 	//============================================================================
 	struct PostProcessFrameConstants {
 
-		Vector2 resolution{};
-		Vector2 invResolution{};
-		float time = 0.0f;
-		float deltaTime = 0.0f;
-		uint32_t frameIndex = 0;
-		// 深度の線形化に使うアクティブカメラのクリップ距離
-		float cameraNear = 0.0f;
-		float cameraFar = 0.0f;
-		float framePadding0 = 0.0f;
-		float framePadding1 = 0.0f;
-		float framePadding2 = 0.0f;
+		// 解像度情報
+		Vector2 resolution;
+		Vector2 invResolution;
+
+		// 起動してからの経過時間
+		float time;
+		float deltaTime;
+		// 経過フレーム
+		uint32_t frameIndex;
+		float _pad0;
+
+		// カメラ情報
+		// 近/遠クリップ距離
+		float cameraNear;
+		float cameraFar;
+		float _pad1;
+		float _pad2;
+
+		// ワールド座標
+		Vector3 cameraWorldPos;
+		float _pad3;
+
+		// ビュー情報
+		Matrix4x4 cameraView;
+		Matrix4x4 cameraViewInverse;
+		Matrix4x4 cameraProjection;
+		Matrix4x4 cameraProjectionInverse;
 	};
 
 	enum class ComputeDispatchMode : uint8_t {

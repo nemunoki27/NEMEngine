@@ -245,7 +245,7 @@ namespace {
 void Engine::TextRenderBackend::BeginFrame([[maybe_unused]] GraphicsCore& graphicsCore) {
 
 	resourcePool_.BeginFrame();
-	materialParamBinder_.BeginFrame();
+	BeginFrameCommon();
 }
 
 void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
@@ -344,12 +344,8 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// ルートパラメータをバインド
 	{
-		// バッファレジストリ登録済みバッファをまとめてバインドする
-		registryAutoBindTable_.Sync(*pipelineState, *context.bufferRegistry);
-		registryAutoBindTable_.BindGraphics(*context.bufferRegistry, commandList);
-
-		// 描画固有バインドのスロット解決を更新
-		perDrawBindCache_.Sync(*pipelineState);
+		// レジストリのオートバインドとスロット解決をまとめて行う
+		SyncAndBindRegistry(*pipelineState, context, commandList);
 		if (perDrawBindCache_.Has(viewCBVSlot_)) {
 			RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_),
 				resources.GetViewGPUAddress());
@@ -382,10 +378,4 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// 文字をインスタンシングで描画
 	commandList->DrawIndexedInstanced(6, resources.GetInstanceCount(), 0, 0, 0);
-}
-
-bool Engine::TextRenderBackend::CanBatch(const RenderItem& first,
-	const RenderItem& next, [[maybe_unused]] const GraphicsRuntimeFeatures& features) const {
-
-	return BackendDrawCommon::CanBatchBasic(first, next);
 }

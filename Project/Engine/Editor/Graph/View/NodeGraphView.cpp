@@ -197,7 +197,7 @@ void Engine::NodeGraphView::DrawNode([[maybe_unused]] GraphDocument& document, G
 	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, node.enabled ? 1.0f : style_.disabledNodeAlpha);
 
 	// タイトル部でUnity系GraphViewに寄せて種類色を左に出す
-	ImGui::TextColored(accentColor, node.displayName.empty() ? node.type.c_str() : node.displayName.c_str());
+	ImGui::TextColored(accentColor, "%s", node.displayName.empty() ? node.type.c_str() : node.displayName.c_str());
 	if (desc.isNodeHighlighted && desc.isNodeHighlighted(node)) {
 		ImGui::SameLine();
 		ImGui::TextColored(style_.GetWarningColor(), "*");

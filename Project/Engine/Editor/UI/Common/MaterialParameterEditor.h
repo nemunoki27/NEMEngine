@@ -20,6 +20,11 @@
 //============================================================================
 namespace Engine::MaterialParameterEditor {
 
+	// テクスチャparamはcbuffer内でbindless indexのuintとして現れるので、名前ではなく型で判定する
+	inline bool IsReflectedTextureParam(const ShaderConstantBufferVariable& var) {
+		return var.valueType == D3D_SVT_UINT;
+	}
+
 	// 変数タイプから既定のMaterialParameterValueを生成する
 	inline MaterialParameterValue DefaultValueForVariable(const ShaderConstantBufferVariable& var) {
 

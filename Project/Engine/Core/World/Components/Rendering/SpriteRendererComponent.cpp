@@ -16,11 +16,7 @@ void Engine::from_json(const nlohmann::json& in, SpriteRendererComponent& compon
 	component.size = Vector2::FromJson(in.value("size", nlohmann::json()));
 	component.pivot = Vector2::FromJson(in.value("pivot", nlohmann::json()));
 	component.color = Color4::FromJson(in.value("color", nlohmann::json()));
-	component.queue = RenderPhaseFromString(in.value("queue", std::string(ToString(component.queue))), component.queue);
-	component.layer = in.value("layer", component.layer);
-	component.order = in.value("order", component.order);
-	component.visible = in.value("visible", component.visible);
-	component.blendMode = EnumAdapter<BlendMode>::FromString(in.value("blendMode", "Normal")).value();
+	ReadRenderCommonFields(in, component.layer, component.order, component.visible, component.blendMode, component.queue);
 }
 
 void Engine::to_json(nlohmann::json& out, const SpriteRendererComponent& component) {
@@ -31,9 +27,5 @@ void Engine::to_json(nlohmann::json& out, const SpriteRendererComponent& compone
 	out["size"] = component.size.ToJson();
 	out["pivot"] = component.pivot.ToJson();
 	out["color"] = component.color.ToJson();
-	out["queue"] = std::string(ToString(component.queue));
-	out["layer"] = component.layer;
-	out["order"] = component.order;
-	out["visible"] = component.visible;
-	out["blendMode"] = EnumAdapter<BlendMode>::ToString(component.blendMode);
+	WriteRenderCommonFields(out, component.layer, component.order, component.visible, component.blendMode, component.queue);
 }

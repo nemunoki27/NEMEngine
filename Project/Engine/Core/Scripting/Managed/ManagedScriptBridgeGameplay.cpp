@@ -15,6 +15,7 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
 #include <Engine/Core/Assets/AssetTypes.h>
@@ -155,7 +156,7 @@ namespace Engine {
 
 		using OverridesMap = std::unordered_map<std::string, Engine::MaterialParameterValue>;
 
-		// componentTypeとsubMeshIndexから上書き対象のparameterOverridesを集める、0=Mesh 1=Sprite 2=Text
+		// componentTypeとsubMeshIndexから上書き対象のparameterOverridesを集める、0=Mesh 1=Sprite 2=Text 3=Primitive
 		std::vector<OverridesMap*> CollectColorTargets(Engine::ECSWorld& world, const Engine::Entity& entity,
 			int32_t componentType, int32_t subMeshIndex) {
 
@@ -179,6 +180,11 @@ namespace Engine {
 			} else if (componentType == 2) {
 
 				if (Engine::TextRendererComponent* renderer = world.TryGetComponent<Engine::TextRendererComponent>(entity)) {
+					targets.emplace_back(&renderer->parameterOverrides);
+				}
+			} else if (componentType == 3) {
+
+				if (Engine::PrimitiveRendererComponent* renderer = world.TryGetComponent<Engine::PrimitiveRendererComponent>(entity)) {
 					targets.emplace_back(&renderer->parameterOverrides);
 				}
 			}

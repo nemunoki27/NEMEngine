@@ -34,7 +34,6 @@ namespace {
 	// 予約済みの入力名は共有定義を使う、出力名gDestColorはBindingUtility側でのみ参照する
 	constexpr const char* kSourceColorName = Engine::PostProcessBindingNames::kSourceColor;
 	constexpr const char* kSourceDepthName = Engine::PostProcessBindingNames::kSourceDepth;
-
 }
 
 void Engine::PostProcessExecutor::BeginFrame(float deltaTime) {
@@ -169,14 +168,19 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 		constants.time = elapsedTime_;
 		constants.deltaTime = context.systemContext ? context.systemContext->deltaTime : 0.0f;
 		constants.frameIndex = frameIndex_;
-		// 深度線形化用に、アクティブビューの透視カメラのクリップ距離を渡す
+		// カメラ情報を設定
 		constants.cameraNear = 0.1f;
 		constants.cameraFar = 1000.0f;
 		if (context.view) {
-			if (const ResolvedCameraView* camera = context.view->FindCamera(RenderCameraDomain::Perspective);
-				camera && camera->valid) {
+			if (const ResolvedCameraView* camera = context.view->FindCamera(RenderCameraDomain::Perspective); camera && camera->valid) {
+
 				constants.cameraNear = camera->nearClip;
 				constants.cameraFar = camera->farClip;
+				constants.cameraWorldPos = camera->cameraPos;
+				constants.cameraView = camera->matrices.viewMatrix;
+				constants.cameraViewInverse = camera->matrices.inverseViewMatrix;
+				constants.cameraProjection = camera->matrices.projectionMatrix;
+				constants.cameraProjectionInverse = camera->matrices.inverseProjectionMatrix;
 			}
 		}
 

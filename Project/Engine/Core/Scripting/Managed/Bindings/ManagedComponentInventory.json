@@ -101,6 +101,20 @@
       "tests": ["MeshRendererBindingSmoke"]
     },
     {
+      "nativeName": "PrimitiveRenderer",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.PrimitiveRenderer",
+      "reason": "material/layer/order/visible/blend/type/renderSpace と各形状パラメータを generated property で公開。color は SetColor/GetColor で操作。",
+      "readableFields": ["Material", "Layer", "Order", "Visible", "BlendMode", "Queue", "Type", "RenderSpace", "PlaneSize", "PlanePivot", "PlaneAxis", "PlaneDivideX", "PlaneDivideY", "CrossPlaneSize", "CrossPlanePivot", "CrossPlaneCount", "RingOuterRadius", "RingInnerRadius", "RingStartAngle", "RingEndAngle", "RingDivide", "CylinderTopRadius", "CylinderBottomRadius", "CylinderHeight", "CylinderMaxAngle", "CylinderRadialDivide", "CylinderHeightDivide", "CylinderCap", "CylinderUVMode", "SphereRadius", "SphereLongitudeDivide", "SphereLatitudeDivide", "HemisphereRadius", "HemisphereLongitudeDivide", "HemisphereLatitudeDivide", "HemisphereBottomCap", "CubeSize", "CubePivot"],
+      "writableFields": ["Material", "Layer", "Order", "Visible", "BlendMode", "Queue", "Type", "RenderSpace", "PlaneSize", "PlanePivot", "PlaneAxis", "PlaneDivideX", "PlaneDivideY", "CrossPlaneSize", "CrossPlanePivot", "CrossPlaneCount", "RingOuterRadius", "RingInnerRadius", "RingStartAngle", "RingEndAngle", "RingDivide", "CylinderTopRadius", "CylinderBottomRadius", "CylinderHeight", "CylinderMaxAngle", "CylinderRadialDivide", "CylinderHeightDivide", "CylinderCap", "CylinderUVMode", "SphereRadius", "SphereLongitudeDivide", "SphereLatitudeDivide", "HemisphereRadius", "HemisphereLongitudeDivide", "HemisphereLatitudeDivide", "HemisphereBottomCap", "CubeSize", "CubePivot"],
+      "commands": ["SetColor", "GetColor"],
+      "events": [],
+      "serialization": "component JSON",
+      "inspector": "builtin inspector",
+      "runtime": "Play 中 property read/write + SetColor/GetColor",
+      "tests": ["PrimitiveRendererBindingSmoke"]
+    },
+    {
       "nativeName": "SpriteRenderer",
       "exposure": "GeneratedBinding",
       "managedSurface": "NEMEngine.SpriteRenderer",
@@ -161,7 +175,7 @@
       "exposure": "GeneratedBinding",
       "managedSurface": "NEMEngine.SkinnedAnimation",
       "reason": "clip/loop/speed の制御 + state/finished の read-only を generated property で公開。",
-      "readableFields": ["Clip", "Enabled", "Loop", "PlaybackSpeed", "CurrentState", "Finished"],
+      "readableFields": ["Clip", "Enabled", "Loop", "PlaybackSpeed", "CurrentState", "Finished", "CurrentDuration"],
       "writableFields": ["Clip", "Enabled", "Loop", "PlaybackSpeed"],
       "commands": [],
       "events": [],

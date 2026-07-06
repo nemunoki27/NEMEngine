@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
+#include <Engine/Core/Rendering/Renderer/Queues/RenderBackendCapabilities.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/World/Components/Rendering/ScreenSpaceOutlineComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -60,10 +61,8 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 	visited.reserve(list.items.size());
 	for (const RenderItem* item : list.items) {
 
-		// マスクを描けるのはMesh/FillMesh/Primitiveバックエンド、それ以外はマスクパスを解決できない
-		if (!item || !item->world || (item->backendID != RenderBackendID::Mesh &&
-			item->backendID != RenderBackendID::FillMesh &&
-			item->backendID != RenderBackendID::Primitive)) {
+		// マスクパスを解決できるバックエンドだけを対象にする
+		if (!item || !item->world || !RenderBackendCapabilities::SupportsOutlineMask(item->backendID)) {
 			continue;
 		}
 		// 別worldのアイテムは対象にしない

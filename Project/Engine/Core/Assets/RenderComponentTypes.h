@@ -50,6 +50,8 @@ namespace Engine {
 
 		std::variant<float, Vector2, Vector3, Vector4, Color4, AssetID, int32_t, uint32_t, bool> value;
 	};
+	// 型を増減したらpack(MaterialParameterBufferBuilder)/parse/serialize(MaterialAsset)の全変換を更新すること
+	static_assert(std::variant_size_v<decltype(MaterialParameterValue::value)> == 9);
 
 	// ライン1点の情報、頂点ごとに太さと色を持てる
 	struct LinePoint {
@@ -74,5 +76,11 @@ namespace Engine {
 	std::string_view ToString(RenderPhase phase);
 	bool TryParseRenderPhase(std::string_view value, RenderPhase& outPhase);
 	RenderPhase RenderPhaseFromString(std::string_view value, RenderPhase fallback = RenderPhase::Opaque);
+
+	// 各Rendererコンポーネントが共通で持つ描画フィールドのjson入出力、既定値は現在値を使う
+	void ReadRenderCommonFields(const nlohmann::json& in,
+		int32_t& layer, int32_t& order, bool& visible, BlendMode& blendMode, RenderPhase& queue);
+	void WriteRenderCommonFields(nlohmann::json& out,
+		int32_t layer, int32_t order, bool visible, BlendMode blendMode, RenderPhase queue);
 
 } // Engine

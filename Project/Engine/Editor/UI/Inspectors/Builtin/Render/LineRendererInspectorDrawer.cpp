@@ -133,21 +133,9 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawCheckboxField("始点と終点を閉じる", draft.loop);
 			});
-		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("レイヤー", draft.layer);
-			});
-		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragInt("描画順", draft.order);
-			});
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
-			});
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawEnumComboField("ブレンドモード", draft.blendMode);
-			});
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawEnumComboField("キュー", draft.queue);
-			});
+		InspectorDrawerCommon::DrawCommonRenderFields(
+			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
+			draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
 	}
 	//============================================================================
 	//	点列

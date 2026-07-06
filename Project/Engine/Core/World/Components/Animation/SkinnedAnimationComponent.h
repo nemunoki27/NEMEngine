@@ -41,6 +41,8 @@ namespace Engine {
 
 		// 再生時間
 		float runtimeTime = 0.0f;
+		// 再生中のアニメーションクリップの長さ
+		float runtimeCurrentDuration = 0.0f;
 		// 遷移時間
 		float runtimeFromTime = 0.0f;
 		float runtimeNextTime = 0.0f;

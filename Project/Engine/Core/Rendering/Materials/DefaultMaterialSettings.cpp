@@ -39,6 +39,7 @@ void Engine::DefaultMaterialSettings::Load(const std::string& configPath) {
 	line_ = ParseAssetID(data, "line");
 	fillMesh_ = ParseAssetID(data, "fillMesh");
 	primitive_ = ParseAssetID(data, "primitive");
+	primitive2D_ = ParseAssetID(data, "primitive2D");
 }
 
 void Engine::DefaultMaterialSettings::Save() const {
@@ -59,6 +60,7 @@ void Engine::DefaultMaterialSettings::Save() const {
 	data["line"] = ToAssetReferenceJson(line_);
 	data["fillMesh"] = ToAssetReferenceJson(fillMesh_);
 	data["primitive"] = ToAssetReferenceJson(primitive_);
+	data["primitive2D"] = ToAssetReferenceJson(primitive2D_);
 	JsonAdapter::Save(configPath_, data);
 }
 
@@ -90,4 +92,9 @@ Engine::AssetID Engine::DefaultMaterialSettings::GetFillMeshOrBuiltin() const {
 Engine::AssetID Engine::DefaultMaterialSettings::GetPrimitiveOrBuiltin() const {
 
 	return primitive_ ? primitive_ : BuiltinAssets::Materials::DefaultPrimitive;
+}
+
+Engine::AssetID Engine::DefaultMaterialSettings::GetPrimitive2DOrBuiltin() const {
+
+	return primitive2D_ ? primitive2D_ : BuiltinAssets::Materials::DefaultPrimitive2D;
 }

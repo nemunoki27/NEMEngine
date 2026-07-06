@@ -22,6 +22,9 @@ namespace Engine {
 	//============================================================================
 	//	PrimitiveRendererComponent struct
 	//============================================================================
+	// 分割数の上限、頂点バッファが青天井に膨れないよう生成側とUIで共有する
+	inline constexpr int32_t kMaxPrimitiveDivide = 256;
+
 	// プロシージャルに生成する形状の種類
 	enum class PrimitiveType : uint32_t {
 
@@ -32,6 +35,13 @@ namespace Engine {
 		Sphere,
 		Hemisphere,
 		Cube,
+	};
+
+	// 描画空間、Plane/Ringのみ2D描画に切り替えられる
+	enum class PrimitiveRenderSpace : uint8_t {
+
+		World3D,
+		Screen2D,
 	};
 
 	// 平面を張る軸
@@ -87,6 +97,9 @@ namespace Engine {
 		float outerRadius = 1.0f;
 		// 内周半径
 		float innerRadius = 0.5f;
+		// 円弧の開始角と終了角、度数法で0〜360で全周
+		float startAngle = 0.0f;
+		float endAngle = 360.0f;
 		// 円周方向の分割数
 		int32_t divide = 16;
 	};
@@ -142,6 +155,8 @@ namespace Engine {
 
 		// 描画する形状
 		PrimitiveType type = PrimitiveType::Plane;
+		// 描画空間、Plane/Ringのみ2D描画に切り替えられる
+		PrimitiveRenderSpace renderSpace = PrimitiveRenderSpace::World3D;
 
 		// 形状ごとのパラメータ、切り替えで失わないよう全形状分を保持する
 		PrimitivePlaneParams plane{};
@@ -172,6 +187,13 @@ namespace Engine {
 		// ライティングや影の適用を切り替えるフラグ
 		MeshRenderFlags renderFlags = MeshRenderFlags::Default;
 	};
+
+	// Plane/Ringかつ描画空間がScreen2Dのときだけ2D描画になる
+	inline bool IsPrimitiveScreen2D(const PrimitiveRendererComponent& component) {
+
+		return component.renderSpace == PrimitiveRenderSpace::Screen2D &&
+			(component.type == PrimitiveType::Plane || component.type == PrimitiveType::Ring);
+	}
 
 	// json変換
 	void from_json(const nlohmann::json& in, PrimitiveRendererComponent& component);

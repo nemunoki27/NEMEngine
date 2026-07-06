@@ -56,6 +56,8 @@ namespace {
 		nlohmann::json out;
 		out["outerRadius"] = params.outerRadius;
 		out["innerRadius"] = params.innerRadius;
+		out["startAngle"] = params.startAngle;
+		out["endAngle"] = params.endAngle;
 		out["divide"] = params.divide;
 		return out;
 	}
@@ -65,6 +67,8 @@ namespace {
 		Engine::PrimitiveRingParams params{};
 		params.outerRadius = in.value("outerRadius", params.outerRadius);
 		params.innerRadius = in.value("innerRadius", params.innerRadius);
+		params.startAngle = in.value("startAngle", params.startAngle);
+		params.endAngle = in.value("endAngle", params.endAngle);
 		params.divide = in.value("divide", params.divide);
 		return params;
 	}
@@ -158,6 +162,8 @@ void Engine::from_json(const nlohmann::json& in, PrimitiveRendererComponent& com
 
 	component.type = EnumAdapter<PrimitiveType>::FromString(
 		in.value("type", "Plane")).value_or(PrimitiveType::Plane);
+	component.renderSpace = EnumAdapter<PrimitiveRenderSpace>::FromString(
+		in.value("renderSpace", "World3D")).value_or(PrimitiveRenderSpace::World3D);
 
 	if (const auto it = in.find("plane"); it != in.end()) { component.plane = LoadPlane(*it); }
 	if (const auto it = in.find("crossPlane"); it != in.end()) { component.crossPlane = LoadCrossPlane(*it); }
@@ -170,18 +176,14 @@ void Engine::from_json(const nlohmann::json& in, PrimitiveRendererComponent& com
 	component.material = ParseAssetID(in, "material");
 	ReadMaterialParameterOverrides(in.value("parameterOverrides", nlohmann::json::object()), component.parameterOverrides);
 
-	component.queue = RenderPhaseFromString(in.value("queue", std::string(ToString(component.queue))), component.queue);
-	component.layer = in.value("layer", component.layer);
-	component.order = in.value("order", component.order);
-	component.visible = in.value("visible", component.visible);
-	component.blendMode = EnumAdapter<BlendMode>::FromString(in.value("blendMode", "Normal")).value();
-	component.renderFlags = static_cast<MeshRenderFlags>(
-		in.value("renderFlags", static_cast<uint32_t>(component.renderFlags)));
+	ReadRenderCommonFields(in, component.layer, component.order, component.visible, component.blendMode, component.queue);
+	ReadMeshRenderFlags(in, component.renderFlags);
 }
 
 void Engine::to_json(nlohmann::json& out, const PrimitiveRendererComponent& component) {
 
 	out["type"] = EnumAdapter<PrimitiveType>::ToString(component.type);
+	out["renderSpace"] = EnumAdapter<PrimitiveRenderSpace>::ToString(component.renderSpace);
 
 	out["plane"] = SavePlane(component.plane);
 	out["crossPlane"] = SaveCrossPlane(component.crossPlane);
@@ -194,10 +196,6 @@ void Engine::to_json(nlohmann::json& out, const PrimitiveRendererComponent& comp
 	out["material"] = ToAssetReferenceJson(component.material);
 	out["parameterOverrides"] = WriteMaterialParameterOverrides(component.parameterOverrides);
 
-	out["queue"] = std::string(ToString(component.queue));
-	out["layer"] = component.layer;
-	out["order"] = component.order;
-	out["visible"] = component.visible;
-	out["blendMode"] = EnumAdapter<BlendMode>::ToString(component.blendMode);
-	out["renderFlags"] = static_cast<uint32_t>(component.renderFlags);
+	WriteRenderCommonFields(out, component.layer, component.order, component.visible, component.blendMode, component.queue);
+	WriteMeshRenderFlags(out, component.renderFlags);
 }

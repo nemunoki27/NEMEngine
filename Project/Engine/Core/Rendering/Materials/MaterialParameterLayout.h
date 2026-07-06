@@ -23,6 +23,9 @@ namespace Engine {
 		inline constexpr const char* kSurface = "MaterialParameters";
 	}
 
+	// テクスチャ未設定を表すbindless indexのセンチネル、CPUのpackとシェーダー判定で共有する
+	inline constexpr uint32_t kNoTextureIndex = 0xFFFFFFFFu;
+
 	//============================================================================
 	//	MaterialParameterLayout class
 	// Reflectionから指定名の定数バッファのCBVレイアウトだけを切り出して保持する

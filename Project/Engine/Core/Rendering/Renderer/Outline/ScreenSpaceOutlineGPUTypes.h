@@ -26,6 +26,10 @@ namespace Engine {
 	};
 	static_assert(sizeof(ScreenSpaceOutlineStyleGPU) % 16 == 0);
 
+	// マスク描画のStyle ID定数バッファのレジスタ、各backendとマスクシェーダーで共有する
+	inline constexpr uint32_t kScreenSpaceOutlineMaskCBVRegister = 1;
+	inline constexpr uint32_t kScreenSpaceOutlineMaskCBVSpace = 1;
+
 	// Mask描画1回ぶんのStyle IDとSubMesh制限でMesh backendがMask pipelineへ渡す
 	struct ScreenSpaceOutlineMaskConstants {
 

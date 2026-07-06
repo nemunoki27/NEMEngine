@@ -20,12 +20,17 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultLine{ 0x7a9d3c5e1b6f4084ull };
 		inline constexpr AssetID DefaultFillMesh{ 0x4b5a225df5b0044bull };
 		inline constexpr AssetID DefaultPrimitive{ 0x70a1b2c3d4e5f606ull };
+		// Plane/Ringを2D描画するときの既定マテリアル
+		inline constexpr AssetID DefaultPrimitive2D{ 0x70a1b2c3d4e5f616ull };
 		inline constexpr AssetID FullscreenCopy{ 0x93946a52e2bc7030ull };
 		inline constexpr AssetID ToneMapToView{ 0xaa28624401e1e4b6ull };
 		inline constexpr AssetID RaytracingReflection{ 0x375384bc3bf6bb7cull };
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x7c1d9a4b8e2f6031ull };
 		inline constexpr AssetID ScreenSpaceOutlineDilate{ 0x7c1d9a4b8e2f6032ull };
 		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x7c1d9a4b8e2f6033ull };
+		// Primitive/FillMeshの選択アウトライン用マスクマテリアル
+		inline constexpr AssetID PrimitiveOutlineMask{ 0x70a1b2c3d4e5f610ull };
+		inline constexpr AssetID FillMeshOutlineMask{ 0xfa11e50000000a07ull };
 	}
 
 	namespace Pipelines {

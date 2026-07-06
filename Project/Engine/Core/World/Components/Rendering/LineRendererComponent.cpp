@@ -35,11 +35,7 @@ void Engine::from_json(const nlohmann::json& in, LineRendererComponent& componen
 	component.ignoreParentScale = in.value("ignoreParentScale", component.ignoreParentScale);
 	component.ignoreParentRotation = in.value("ignoreParentRotation", component.ignoreParentRotation);
 
-	component.queue = RenderPhaseFromString(in.value("queue", std::string(ToString(component.queue))), component.queue);
-	component.layer = in.value("layer", component.layer);
-	component.order = in.value("order", component.order);
-	component.visible = in.value("visible", component.visible);
-	component.blendMode = EnumAdapter<BlendMode>::FromString(in.value("blendMode", "Normal")).value();
+	ReadRenderCommonFields(in, component.layer, component.order, component.visible, component.blendMode, component.queue);
 }
 
 void Engine::to_json(nlohmann::json& out, const LineRendererComponent& component) {
@@ -66,9 +62,5 @@ void Engine::to_json(nlohmann::json& out, const LineRendererComponent& component
 	out["ignoreParentScale"] = component.ignoreParentScale;
 	out["ignoreParentRotation"] = component.ignoreParentRotation;
 
-	out["queue"] = std::string(ToString(component.queue));
-	out["layer"] = component.layer;
-	out["order"] = component.order;
-	out["visible"] = component.visible;
-	out["blendMode"] = EnumAdapter<BlendMode>::ToString(component.blendMode);
+	WriteRenderCommonFields(out, component.layer, component.order, component.visible, component.blendMode, component.queue);
 }

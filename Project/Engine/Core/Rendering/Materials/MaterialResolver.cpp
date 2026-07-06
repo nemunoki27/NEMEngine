@@ -27,6 +27,7 @@ Engine::AssetID Engine::MaterialResolver::ResolveORDefault(AssetDatabase& databa
 	case DefaultMaterialSlot::Line:   configured = DefaultMaterialSettings::GetInstance().GetLine();   break;
 	case DefaultMaterialSlot::FillMesh: configured = DefaultMaterialSettings::GetInstance().GetFillMesh(); break;
 	case DefaultMaterialSlot::Primitive: configured = DefaultMaterialSettings::GetInstance().GetPrimitive(); break;
+	case DefaultMaterialSlot::Primitive2D: configured = DefaultMaterialSettings::GetInstance().GetPrimitive2D(); break;
 	default: break;
 	}
 	if (configured) {
@@ -76,6 +77,7 @@ void Engine::MaterialResolver::EnsureDefaults(AssetDatabase& database) const {
 	assignIfRegistered(DefaultMaterialSlot::Line, AssetType::Material);
 	assignIfRegistered(DefaultMaterialSlot::FillMesh, AssetType::Material);
 	assignIfRegistered(DefaultMaterialSlot::Primitive, AssetType::Material);
+	assignIfRegistered(DefaultMaterialSlot::Primitive2D, AssetType::Material);
 
 	// 初期化済み
 	initialized_ = true;
@@ -101,6 +103,8 @@ Engine::AssetID Engine::MaterialResolver::GetDefaultAssetID(DefaultMaterialSlot 
 		return BuiltinAssets::Materials::DefaultFillMesh;
 	case DefaultMaterialSlot::Primitive:
 		return BuiltinAssets::Materials::DefaultPrimitive;
+	case DefaultMaterialSlot::Primitive2D:
+		return BuiltinAssets::Materials::DefaultPrimitive2D;
 	}
 	return AssetID{};
 }

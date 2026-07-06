@@ -63,6 +63,26 @@ namespace {
 		}
 		return true;
 	}
+
+	// テクスチャを持たない単色サブメッシュのシェーダーデータ、FillMesh/Primitiveで共用する
+	Engine::MeshSubMeshShaderData MakeFlatSubMeshData(const Engine::Color4& baseColor) {
+
+		Engine::MeshSubMeshShaderData subMeshData{};
+		subMeshData.importedBaseColor = baseColor;
+		subMeshData.baseColorTextureIndex = UINT32_MAX;
+		subMeshData.normalTextureIndex = UINT32_MAX;
+		subMeshData.metallicRoughnessTextureIndex = UINT32_MAX;
+		subMeshData.emissiveTextureIndex = UINT32_MAX;
+		subMeshData.occlusionTextureIndex = UINT32_MAX;
+		subMeshData.specularTextureIndex = UINT32_MAX;
+		subMeshData.localMatrix = Engine::Matrix4x4::Identity();
+		subMeshData.localNormalMatrix = Engine::Matrix4x4::Identity();
+		subMeshData.color = Engine::Color4::White();
+		subMeshData.emissiveColor = Engine::Color4(0.0f, 0.0f, 0.0f, 0.0f);
+		subMeshData.uvMatrix = Engine::Matrix4x4::Identity();
+		subMeshData.roughness = 1.0f;
+		return subMeshData;
+	}
 }
 
 //============================================================================
@@ -460,20 +480,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 		const uint32_t subMeshDataIndex = static_cast<uint32_t>(sceneSubMeshScratch_.size());
 
-		MeshSubMeshShaderData subMeshData{};
-		subMeshData.importedBaseColor = renderer.color;
-		subMeshData.baseColorTextureIndex = UINT32_MAX;
-		subMeshData.normalTextureIndex = UINT32_MAX;
-		subMeshData.metallicRoughnessTextureIndex = UINT32_MAX;
-		subMeshData.emissiveTextureIndex = UINT32_MAX;
-		subMeshData.occlusionTextureIndex = UINT32_MAX;
-		subMeshData.specularTextureIndex = UINT32_MAX;
-		subMeshData.localMatrix = Matrix4x4::Identity();
-		subMeshData.localNormalMatrix = Matrix4x4::Identity();
-		subMeshData.color = Color4::White();
-		subMeshData.emissiveColor = Color4(0.0f, 0.0f, 0.0f, 0.0f);
-		subMeshData.uvMatrix = Matrix4x4::Identity();
-		subMeshData.roughness = 1.0f;
+		const MeshSubMeshShaderData subMeshData = MakeFlatSubMeshData(renderer.color);
 		sceneSubMeshScratch_.emplace_back(subMeshData);
 
 		RaytracingInstanceShaderData instanceShaderData{};
@@ -521,20 +528,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 		const uint32_t subMeshDataIndex = static_cast<uint32_t>(sceneSubMeshScratch_.size());
 
-		MeshSubMeshShaderData subMeshData{};
-		subMeshData.importedBaseColor = Color4::White();
-		subMeshData.baseColorTextureIndex = UINT32_MAX;
-		subMeshData.normalTextureIndex = UINT32_MAX;
-		subMeshData.metallicRoughnessTextureIndex = UINT32_MAX;
-		subMeshData.emissiveTextureIndex = UINT32_MAX;
-		subMeshData.occlusionTextureIndex = UINT32_MAX;
-		subMeshData.specularTextureIndex = UINT32_MAX;
-		subMeshData.localMatrix = Matrix4x4::Identity();
-		subMeshData.localNormalMatrix = Matrix4x4::Identity();
-		subMeshData.color = Color4::White();
-		subMeshData.emissiveColor = Color4(0.0f, 0.0f, 0.0f, 0.0f);
-		subMeshData.uvMatrix = Matrix4x4::Identity();
-		subMeshData.roughness = 1.0f;
+		const MeshSubMeshShaderData subMeshData = MakeFlatSubMeshData(Color4::White());
 		sceneSubMeshScratch_.emplace_back(subMeshData);
 
 		RaytracingInstanceShaderData instanceShaderData{};
@@ -696,6 +690,11 @@ void Engine::RaytracingSceneBuilder::CollectScenePrimitiveInstances(const Render
 		}
 
 		const PrimitiveRendererComponent& renderer = item.world->GetComponent<PrimitiveRendererComponent>(item.entity);
+
+		// 2D描画はスクリーン空間のUIなので影/反射の対象にしない
+		if (IsPrimitiveScreen2D(renderer)) {
+			continue;
+		}
 
 		CollectedPrimitiveInstance instance{};
 		instance.entity = item.entity;

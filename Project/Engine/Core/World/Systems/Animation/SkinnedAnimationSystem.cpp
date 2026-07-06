@@ -88,6 +88,7 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 				anim.palette.clear();
 				anim.runtimeAvailableClips.clear();
 				anim.runtimeInitialized = false;
+				anim.runtimeCurrentDuration = 0.0f;
 				return;
 			}
 
@@ -98,6 +99,7 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			if (!animationSet || !animationSet->valid || animationSet->clips.empty()) {
 				anim.palette.clear();
 				anim.runtimeAvailableClips.clear();
+				anim.runtimeCurrentDuration = 0.0f;
 				return;
 			}
 
@@ -171,6 +173,7 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			if (!anim.runtimeInTransition) {
 
 				const AnimationData& clip = animationSet->clips.at(anim.runtimeCurrentClip);
+				anim.runtimeCurrentDuration = clip.duration;
 				if (0.0f < clip.duration) {
 
 					if (anim.loop) {
@@ -203,6 +206,7 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 				// 遷移元と遷移先のアニメーションクリップを取得
 				const AnimationData& fromClip = animationSet->clips.at(anim.runtimeFromClip);
 				const AnimationData& toClip = animationSet->clips.at(anim.runtimeToClip);
+				anim.runtimeCurrentDuration = toClip.duration;
 				if (0.0f < fromClip.duration) {
 					anim.runtimeFromTime = std::fmod(anim.runtimeFromTime + deltaTime, fromClip.duration);
 				}

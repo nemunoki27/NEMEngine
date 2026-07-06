@@ -39,11 +39,7 @@ void Engine::from_json(const nlohmann::json& in, TextRendererComponent& componen
 			component.charTransforms.emplace_back(charTransform);
 		}
 	}
-	component.queue = RenderPhaseFromString(in.value("queue", std::string(ToString(component.queue))), component.queue);
-	component.layer = in.value("layer", component.layer);
-	component.order = in.value("order", component.order);
-	component.visible = in.value("visible", component.visible);
-	component.blendMode = EnumAdapter<BlendMode>::FromString(in.value("blendMode", "Normal")).value();
+	ReadRenderCommonFields(in, component.layer, component.order, component.visible, component.blendMode, component.queue);
 	// 次元は単純なint表現で保存する、Type2D=0 / Type3D=1
 	component.dimension = static_cast<Dimension>(in.value("dimension", static_cast<int>(component.dimension)));
 	component.worldScale = in.value("worldScale", component.worldScale);
@@ -78,11 +74,7 @@ void Engine::to_json(nlohmann::json& out, const TextRendererComponent& component
 		charArray.push_back(charData);
 	}
 	out["charTransforms"] = charArray;
-	out["queue"] = std::string(ToString(component.queue));
-	out["layer"] = component.layer;
-	out["order"] = component.order;
-	out["visible"] = component.visible;
-	out["blendMode"] = EnumAdapter<BlendMode>::ToString(component.blendMode);
+	WriteRenderCommonFields(out, component.layer, component.order, component.visible, component.blendMode, component.queue);
 	out["dimension"] = static_cast<int>(component.dimension);
 	out["worldScale"] = component.worldScale;
 }

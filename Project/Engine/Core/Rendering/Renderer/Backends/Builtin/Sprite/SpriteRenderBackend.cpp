@@ -21,7 +21,7 @@ void Engine::SpriteRenderBackend::BeginFrame([[maybe_unused]] GraphicsCore& grap
 
 	// フレーム開始時にプールをリセットする
 	resourcePool_.BeginFrame();
-	materialParamBinder_.BeginFrame();
+	BeginFrameCommon();
 }
 
 void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
@@ -65,12 +65,8 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 	// ルートパラメータをバインド
 	{
-		// バッファレジストリ登録済みバッファをまとめてバインドする
-		registryAutoBindTable_.Sync(*pipelineState, *context.bufferRegistry);
-		registryAutoBindTable_.BindGraphics(*context.bufferRegistry, commandList);
-
-		// 描画固有バインドのスロット解決を更新
-		perDrawBindCache_.Sync(*pipelineState);
+		// レジストリのオートバインドとスロット解決をまとめて行う
+		SyncAndBindRegistry(*pipelineState, context, commandList);
 		if (perDrawBindCache_.Has(viewCBVSlot_)) {
 			RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_),
 				resources.GetViewGPUAddress());
@@ -102,10 +98,4 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// インスタンシングで描画
 	commandList->DrawIndexedInstanced(6, resources.GetInstanceCount(), 0, 0, 0);
-}
-
-bool Engine::SpriteRenderBackend::CanBatch(const RenderItem& first,
-	const RenderItem& next, [[maybe_unused]] const GraphicsRuntimeFeatures& features) const {
-
-	return BackendDrawCommon::CanBatchBasic(first, next);
 }

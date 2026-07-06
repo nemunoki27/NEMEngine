@@ -12,6 +12,7 @@
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
@@ -64,16 +65,21 @@ namespace {
 	// MeshShaderの1グループが担当する三角形数
 	constexpr uint32_t kMeshGroupTriangles = 64;
 
-	// 選択アウトラインのマスクは元マテリアルと切り離してPrimitive専用マスクマテリアルから解決する
-	constexpr Engine::AssetID kOutlineMaskMaterial{ 0x70a1b2c3d4e5f610ull };
-
 	bool ResolvePrimitivePass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterial,
-		Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
+		bool is2D, Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
 
+		// 2D描画は正射投影の前方描画専用マテリアルから解決する、アウトラインや半透明の分岐は持たない
+		if (is2D) {
+			return Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterial,
+				Engine::DefaultMaterialSlot::Primitive2D, { Engine::MaterialPassKind::Draw }, outResolved);
+		}
+
+		// 選択アウトラインのマスクは元マテリアルと切り離してPrimitive専用マスクマテリアルから解決する
 		if (context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineMask ||
 			context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
 
-			const Engine::MaterialAsset* material = context.assetLibrary->LoadMaterial(kOutlineMaskMaterial);
+			const Engine::AssetID materialID = Engine::BuiltinAssets::Materials::PrimitiveOutlineMask;
+			const Engine::MaterialAsset* material = context.assetLibrary->LoadMaterial(materialID);
 			if (!material) {
 				return false;
 			}
@@ -81,7 +87,7 @@ namespace {
 			if (!pass) {
 				return false;
 			}
-			outResolved.materialID = kOutlineMaskMaterial;
+			outResolved.materialID = materialID;
 			outResolved.material = material;
 			outResolved.pass = pass;
 			return true;
@@ -116,8 +122,7 @@ void Engine::PrimitiveRenderBackend::BeginFrame(GraphicsCore& graphicsCore) {
 	}
 	geometryManager_.BeginFrame();
 	resourcePool_.BeginFrame();
-	constantBufferAllocator_.BeginFrame();
-	materialParamBinder_.BeginFrame();
+	BeginFrameCommon();
 }
 
 void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& context,
@@ -155,8 +160,9 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 
 	// マテリアルパスとパイプラインを解決する、解決バリアントでVS経路かMS経路かを分ける
+	const bool is2D = IsPrimitiveScreen2D(*payload->renderer);
 	BackendDrawCommon::ResolvedMaterialPass resolvedPass{};
-	if (!ResolvePrimitivePass(context, item->material, resolvedPass)) {
+	if (!ResolvePrimitivePass(context, item->material, is2D, resolvedPass)) {
 		return;
 	}
 	const PipelineVariantDesc* variant = nullptr;
@@ -199,10 +205,7 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		context, *pipelineState, item->blendMode);
 
 	// ルートパラメータをバインドする
-	registryAutoBindTable_.Sync(*pipelineState, *context.bufferRegistry);
-	registryAutoBindTable_.BindGraphics(*context.bufferRegistry, commandList);
-
-	perDrawBindCache_.Sync(*pipelineState);
+	SyncAndBindRegistry(*pipelineState, context, commandList);
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAlloc.gpuAddress);
 	}
@@ -216,11 +219,7 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 	// reflection駆動のマテリアルパラメータとテクスチャ、宣言しないBuiltinは無回帰
 	if (resolvedPass.material) {
-		BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, *pipelineState,
-			*resolvedPass.material, payload->materialOverrides,
-			perDrawBindCache_, materialParamsCBVSlot_, commandList);
-		BackendDrawCommon::BindMaterialTextures(context, *pipelineState, *resolvedPass.material,
-			commandList, payload->materialOverrides);
+		BindMaterial(context, *pipelineState, *resolvedPass.material, payload->materialOverrides, commandList);
 	}
 	// 選択アウトラインのマスク描画ではStyle IDを渡す、通常描画は宣言が無いので無回帰
 	if (perDrawBindCache_.Has(outlineMaskCBVSlot_)) {
@@ -256,11 +255,4 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		commandList->IASetIndexBuffer(&indexBufferView);
 		commandList->DrawIndexedInstanced(geometry->indexCount, resources.GetInstanceCount(), 0, 0, 0);
 	}
-}
-
-bool Engine::PrimitiveRenderBackend::CanBatch(const RenderItem& first, const RenderItem& next,
-	[[maybe_unused]] const GraphicsRuntimeFeatures& features) const {
-
-	// 同一形状かつ同一マテリアルならインスタンシングでまとめる
-	return BackendDrawCommon::CanBatchBasic(first, next);
 }

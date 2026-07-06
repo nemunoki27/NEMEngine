@@ -125,7 +125,8 @@ Engine::MeshRenderBackend::MeshRenderBackend() {
 	meshInstSRVSlot_     = sharedBindCache_.AddSlot("gMeshInstances",         ShaderBindingKind::SRV);
 	subMeshSRVSlot_      = sharedBindCache_.AddSlot("gSubMeshes",             ShaderBindingKind::SRV);
 	outlineSRVSlot_      = sharedBindCache_.AddSlot("gMeshOutlines",          ShaderBindingKind::SRV);
-	screenSpaceOutlineMaskCBVSlot_ = sharedBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 1, 1);
+	screenSpaceOutlineMaskCBVSlot_ = sharedBindCache_.AddSlotByRegister(ShaderBindingKind::CBV,
+		kScreenSpaceOutlineMaskCBVRegister, kScreenSpaceOutlineMaskCBVSpace);
 	materialParamsCBVSlot_ = sharedBindCache_.AddSlot(MaterialParameterCBuffer::kSurface, ShaderBindingKind::CBV);
 	subMeshMaterialParamSRVSlot_ = sharedBindCache_.AddSlot(MaterialParameterCBuffer::kMesh, ShaderBindingKind::SRV);
 

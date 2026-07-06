@@ -7,6 +7,7 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
@@ -36,6 +37,11 @@ std::optional<Engine::Dimension> Engine::ResolveEntityDimension(ECSWorld& world,
 	}
 	if (world.HasComponent<TextRendererComponent>(entity)) {
 		return world.GetComponent<TextRendererComponent>(entity).dimension;
+	}
+	// PrimitiveはPlane/RingをScreen2Dにしたときだけ2D、それ以外は3D
+	if (world.HasComponent<PrimitiveRendererComponent>(entity)) {
+		return IsPrimitiveScreen2D(world.GetComponent<PrimitiveRendererComponent>(entity)) ?
+			Dimension::Type2D : Dimension::Type3D;
 	}
 	if (world.HasComponent<MeshRendererComponent>(entity) ||
 		world.HasComponent<PerspectiveCameraComponent>(entity) ||

@@ -46,7 +46,9 @@ namespace Engine {
 			const Entity& entity, bool& anyItemActive) override;
 
 		// マテリアルのDrawパスreflectionを解決しキャッシュする、失敗時はnullptr
-		const ShaderReflectionInfo* EnsureMaterialReflection(const EditorPanelContext& context, AssetID materialID);
+		// 空マテリアルはdefaultMaterialIDへ解決してからreflectionを引く
+		const ShaderReflectionInfo* EnsureMaterialReflection(const EditorPanelContext& context,
+			AssetID materialID, AssetID defaultMaterialID);
 		// param最終値を解決する、上書き無しはマテリアル既定値か型既定値
 		MaterialParameterValue ResolveParamValue(const PrimitiveRendererComponent& draft,
 			const ShaderConstantBufferVariable& var) const;

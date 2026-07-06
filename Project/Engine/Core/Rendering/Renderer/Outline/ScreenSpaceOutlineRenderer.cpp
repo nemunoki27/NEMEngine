@@ -19,6 +19,7 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPassExecutionHelper.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
+#include <Engine/Core/Rendering/Renderer/Queues/RenderBackendCapabilities.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
@@ -303,10 +304,8 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 
 					for (const RenderItem* item : list.items) {
 
-						// マスクを描けるのはMesh/FillMesh/Primitiveバックエンド、それ以外はマスクパスを解決できない
-						if (!item || (item->backendID != RenderBackendID::Mesh &&
-							item->backendID != RenderBackendID::FillMesh &&
-							item->backendID != RenderBackendID::Primitive)) {
+						// マスクパスを解決できるバックエンドだけを対象にする
+						if (!item || !RenderBackendCapabilities::SupportsOutlineMask(item->backendID)) {
 							continue;
 						}
 						if (!IsSameEntity(*item, drawScratch_[recordIndex].request)) {

@@ -343,7 +343,7 @@ std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::BuildElement(
 		if (variable.valueType == D3D_SVT_UINT &&
 			static_cast<size_t>(variable.offset) + sizeof(uint32_t) <= bytes.size()) {
 
-			const uint32_t noTexture = 0xFFFFFFFFu;
+			const uint32_t noTexture = kNoTextureIndex;
 			std::memcpy(bytes.data() + variable.offset, &noTexture, sizeof(uint32_t));
 		}
 	}

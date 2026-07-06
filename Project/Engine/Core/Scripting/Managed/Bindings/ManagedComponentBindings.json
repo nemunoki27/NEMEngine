@@ -32,6 +32,54 @@
         { "name": "Kinematic", "value": 1 },
         { "name": "Static", "value": 2 }
       ]
+    },
+    {
+      "managedType": "PrimitiveType",
+      "nativeType": "PrimitiveType",
+      "members": [
+        { "name": "Plane", "value": 0 },
+        { "name": "CrossPlane", "value": 1 },
+        { "name": "Ring", "value": 2 },
+        { "name": "Cylinder", "value": 3 },
+        { "name": "Sphere", "value": 4 },
+        { "name": "Hemisphere", "value": 5 },
+        { "name": "Cube", "value": 6 }
+      ]
+    },
+    {
+      "managedType": "PrimitiveRenderSpace",
+      "nativeType": "PrimitiveRenderSpace",
+      "members": [
+        { "name": "World3D", "value": 0 },
+        { "name": "Screen2D", "value": 1 }
+      ]
+    },
+    {
+      "managedType": "PrimitivePlaneAxis",
+      "nativeType": "PrimitivePlaneAxis",
+      "members": [
+        { "name": "XY", "value": 0 },
+        { "name": "XZ", "value": 1 },
+        { "name": "YZ", "value": 2 }
+      ]
+    },
+    {
+      "managedType": "PrimitiveCylinderCap",
+      "nativeType": "PrimitiveCylinderCap",
+      "members": [
+        { "name": "None", "value": 0 },
+        { "name": "Top", "value": 1 },
+        { "name": "Bottom", "value": 2 },
+        { "name": "Both", "value": 3 }
+      ]
+    },
+    {
+      "managedType": "PrimitiveCylinderUVMode",
+      "nativeType": "PrimitiveCylinderUVMode",
+      "members": [
+        { "name": "None", "value": 0 },
+        { "name": "Radial", "value": 1 }
+      ]
     }
   ],
   "components": [
@@ -51,7 +99,8 @@
         { "managedName": "CurrentState", "nativeMember": "runtimeCurrentClip", "kind": "String", "access": "ReadOnly" },
         { "managedName": "Finished", "nativeMember": "runtimeAnimationFinished", "kind": "Bool", "access": "ReadOnly" },
         { "managedName": "InTransition", "nativeMember": "runtimeInTransition", "kind": "Bool", "access": "ReadOnly" },
-        { "managedName": "RepeatCount", "nativeMember": "runtimeRepeatCount", "kind": "Int", "access": "ReadOnly" }
+        { "managedName": "RepeatCount", "nativeMember": "runtimeRepeatCount", "kind": "Int", "access": "ReadOnly" },
+        { "managedName": "CurrentDuration", "nativeMember": "runtimeCurrentDuration", "kind": "Float", "access": "ReadOnly" }
       ]
     },
     {
@@ -127,6 +176,54 @@
         { "managedName": "BlendMode", "nativeMember": "blendMode", "kind": "Enum", "enumType": "BlendMode", "access": "ReadWrite" },
         { "managedName": "Queue", "nativeMember": "queue", "kind": "Enum", "enumType": "RenderPhase", "access": "ReadWrite" },
         { "managedName": "EnableZPrepass", "nativeMember": "enableZPrepass", "kind": "Bool", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "PrimitiveRenderer",
+      "nativeType": "PrimitiveRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h",
+      "managedType": "PrimitiveRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Material", "nativeMember": "material", "kind": "AssetRef", "assetType": "Material", "access": "ReadWrite" },
+        { "managedName": "Layer", "nativeMember": "layer", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Order", "nativeMember": "order", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Visible", "nativeMember": "visible", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "BlendMode", "nativeMember": "blendMode", "kind": "Enum", "enumType": "BlendMode", "access": "ReadWrite" },
+        { "managedName": "Queue", "nativeMember": "queue", "kind": "Enum", "enumType": "RenderPhase", "access": "ReadWrite" },
+        { "managedName": "Type", "nativeMember": "type", "kind": "Enum", "enumType": "PrimitiveType", "access": "ReadWrite" },
+        { "managedName": "RenderSpace", "nativeMember": "renderSpace", "kind": "Enum", "enumType": "PrimitiveRenderSpace", "access": "ReadWrite" },
+        { "managedName": "PlaneSize", "nativeMember": "plane.size", "kind": "Vector2", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "PlanePivot", "nativeMember": "plane.pivot", "kind": "Vector2", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "PlaneAxis", "nativeMember": "plane.axis", "kind": "Enum", "enumType": "PrimitivePlaneAxis", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "PlaneDivideX", "nativeMember": "plane.divideX", "kind": "Int", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "PlaneDivideY", "nativeMember": "plane.divideY", "kind": "Int", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CrossPlaneSize", "nativeMember": "crossPlane.size", "kind": "Vector2", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CrossPlanePivot", "nativeMember": "crossPlane.pivot", "kind": "Vector2", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CrossPlaneCount", "nativeMember": "crossPlane.planeCount", "kind": "Int", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "RingOuterRadius", "nativeMember": "ring.outerRadius", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "RingInnerRadius", "nativeMember": "ring.innerRadius", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "RingStartAngle", "nativeMember": "ring.startAngle", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "RingEndAngle", "nativeMember": "ring.endAngle", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "RingDivide", "nativeMember": "ring.divide", "kind": "Int", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CylinderTopRadius", "nativeMember": "cylinder.topRadius", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CylinderBottomRadius", "nativeMember": "cylinder.bottomRadius", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CylinderHeight", "nativeMember": "cylinder.height", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CylinderMaxAngle", "nativeMember": "cylinder.maxAngle", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CylinderRadialDivide", "nativeMember": "cylinder.radialDivide", "kind": "Int", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CylinderHeightDivide", "nativeMember": "cylinder.heightDivide", "kind": "Int", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CylinderCap", "nativeMember": "cylinder.cap", "kind": "Enum", "enumType": "PrimitiveCylinderCap", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CylinderUVMode", "nativeMember": "cylinder.uvMode", "kind": "Enum", "enumType": "PrimitiveCylinderUVMode", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "SphereRadius", "nativeMember": "sphere.radius", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "SphereLongitudeDivide", "nativeMember": "sphere.longitudeDivide", "kind": "Int", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "SphereLatitudeDivide", "nativeMember": "sphere.latitudeDivide", "kind": "Int", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "HemisphereRadius", "nativeMember": "hemisphere.radius", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "HemisphereLongitudeDivide", "nativeMember": "hemisphere.longitudeDivide", "kind": "Int", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "HemisphereLatitudeDivide", "nativeMember": "hemisphere.latitudeDivide", "kind": "Int", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "HemisphereBottomCap", "nativeMember": "hemisphere.bottomCap", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CubeSize", "nativeMember": "cube.size", "kind": "Vector3", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "CubePivot", "nativeMember": "cube.pivot", "kind": "Vector3", "access": "ReadWrite", "visibility": "Internal" }
       ]
     },
     {

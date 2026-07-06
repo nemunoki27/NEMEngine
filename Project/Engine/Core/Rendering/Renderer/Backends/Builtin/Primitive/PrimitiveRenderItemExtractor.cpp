@@ -38,6 +38,11 @@ void Engine::PrimitiveRenderItemExtractor::Extract(ECSWorld& world, RenderSceneB
 		item.batchKey = renderer.parameterOverrides.empty() ?
 			shapeHash : (shapeHash ^ (static_cast<uint64_t>(entity.index + 1) * 0x9E3779B97F4A7C15ull));
 		item.cameraDomain = RenderCameraDomain::Perspective;
+		// Plane/Ringのみ2D描画に対応し、正射投影のScreenUIフェーズへ流す
+		if (IsPrimitiveScreen2D(renderer)) {
+			item.cameraDomain = RenderCameraDomain::Orthographic;
+			item.renderPhase = RenderPhase::ScreenUI;
+		}
 		item.payload = batch.PushPayload(payload);
 		batch.Add(std::move(item));
 		});

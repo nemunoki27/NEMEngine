@@ -25,8 +25,9 @@ namespace Engine {
 		Line,
 		FillMesh,
 		Primitive,
+		Primitive2D,
 	};
-	static constexpr const uint32_t kDefaultMaterialCount = static_cast<uint32_t>(DefaultMaterialSlot::Primitive) + 1;
+	static constexpr const uint32_t kDefaultMaterialCount = static_cast<uint32_t>(DefaultMaterialSlot::Primitive2D) + 1;
 
 	//============================================================================
 	//	MaterialResolver class

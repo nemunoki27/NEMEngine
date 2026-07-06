@@ -11,6 +11,7 @@ OrthographicCamera
 PerspectiveCamera
 PointLight
 PrefabLink
+PrimitiveRenderer
 Rigidbody
 Rigidbody2D
 SceneObject

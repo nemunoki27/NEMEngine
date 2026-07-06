@@ -39,10 +39,6 @@ namespace {
 			}, a.value);
 	}
 
-	// テクスチャparamはcbuffer内でbindless indexのuintとして現れるので、名前ではなく型で判定する
-	bool IsReflectedTextureParam(const Engine::ShaderConstantBufferVariable& var) {
-		return var.valueType == D3D_SVT_UINT;
-	}
 }
 
 //============================================================================
@@ -428,7 +424,7 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 		}
 
 		// 一致または許可済みは通常編集、変更を全サブメッシュへ適用する
-		if (IsReflectedTextureParam(var)) {
+		if (MaterialParameterEditor::IsReflectedTextureParam(var)) {
 
 			AssetID textureID{};
 			if (std::holds_alternative<AssetID>(common.value)) {
@@ -470,7 +466,7 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 	// サブメッシュ単体編集と表示順を揃えるため、Drag編集paramを先に出す
 	for (const ShaderConstantBufferVariable& var : cb->variables) {
 
-		if (!var.used || IsReflectedTextureParam(var)) {
+		if (!var.used || MaterialParameterEditor::IsReflectedTextureParam(var)) {
 			continue;
 		}
 		drawVar(var);
@@ -479,7 +475,7 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 	// テクスチャparamは下にまとめて出す
 	for (const ShaderConstantBufferVariable& var : cb->variables) {
 
-		if (!var.used || !IsReflectedTextureParam(var)) {
+		if (!var.used || !MaterialParameterEditor::IsReflectedTextureParam(var)) {
 			continue;
 		}
 		drawVar(var);
@@ -505,7 +501,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 	// Drag編集paramを先に出す
 	for (const ShaderConstantBufferVariable& var : cb->variables) {
 
-		if (!var.used || IsReflectedTextureParam(var)) {
+		if (!var.used || MaterialParameterEditor::IsReflectedTextureParam(var)) {
 			continue;
 		}
 		MaterialParameterValue value = ResolveSubMeshParamValue(subMesh, var);
@@ -524,7 +520,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 	// テクスチャparamは下にまとめて出す
 	for (const ShaderConstantBufferVariable& var : cb->variables) {
 
-		if (!var.used || !IsReflectedTextureParam(var)) {
+		if (!var.used || !MaterialParameterEditor::IsReflectedTextureParam(var)) {
 			continue;
 		}
 		auto it = subMesh.parameterOverrides.find(var.name);

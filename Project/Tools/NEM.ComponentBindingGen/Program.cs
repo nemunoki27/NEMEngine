@@ -24,6 +24,9 @@ internal static class Program {
         public string? EnumType;
         public string Access = "ReadWrite";
         public bool ReadOnly => string.Equals(Access, "ReadOnly", StringComparison.Ordinal);
+        // C# property のアクセス修飾子、形状ごとのネストアクセサへ委譲する低レベル property は Internal にする
+        public string Visibility = "Public";
+        public string CsVisibility => string.Equals(Visibility, "Internal", StringComparison.Ordinal) ? "internal" : "public";
     }
     private sealed class ComponentModel {
         public string RegistryName = "";
@@ -393,9 +396,12 @@ internal static class Program {
                             AssetType = p.TryGetProperty("assetType", out JsonElement at) ? at.GetString() : null,
                             EnumType = p.TryGetProperty("enumType", out JsonElement et) ? et.GetString() : null,
                             Access = p.TryGetProperty("access", out JsonElement ac) ? (ac.GetString() ?? "ReadWrite") : "ReadWrite",
+                            Visibility = p.TryGetProperty("visibility", out JsonElement vis) ? (vis.GetString() ?? "Public") : "Public",
                         };
                         if (!propNames.Add(pm.ManagedName)) Error($"{model.ManagedType}: duplicate property '{pm.ManagedName}'.");
                         if (!IsKnownKind(pm.Kind)) Error($"{model.ManagedType}.{pm.ManagedName}: unknown kind '{pm.Kind}'.");
+                        if (pm.Visibility != "Public" && pm.Visibility != "Internal")
+                            Error($"{model.ManagedType}.{pm.ManagedName}: invalid visibility '{pm.Visibility}'.");
                         if (pm.Kind == "Enum" && (pm.EnumType == null || !enumNames.Contains(pm.EnumType)))
                             Error($"{model.ManagedType}.{pm.ManagedName}: Enum requires a known enumType.");
                         if (pm.Kind == "AssetRef" && string.IsNullOrEmpty(pm.AssetType))
@@ -747,7 +753,7 @@ internal static class Program {
     private static void EmitCsProperty(StringBuilder sb, PropertyModel prop, int propId) {
         switch (prop.Kind) {
             case "Bool": {
-                sb.Append($"    public bool {prop.ManagedName} {{\n");
+                sb.Append($"    {prop.CsVisibility} bool {prop.ManagedName} {{\n");
                 sb.Append($"        get {{ int v = 0; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 4); return v != 0; }}\n");
                 if (!prop.ReadOnly) sb.Append($"        set {{ int v = value ? 1 : 0; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, 4); }}\n");
                 sb.Append("    }\n\n");
@@ -755,7 +761,7 @@ internal static class Program {
             }
             case "Enum": {
                 string t = prop.EnumType!;
-                sb.Append($"    public {t} {prop.ManagedName} {{\n");
+                sb.Append($"    {prop.CsVisibility} {t} {prop.ManagedName} {{\n");
                 sb.Append($"        get {{ int v = 0; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 4); return ({t})v; }}\n");
                 if (!prop.ReadOnly) sb.Append($"        set {{ int v = (int)value; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, 4); }}\n");
                 sb.Append("    }\n\n");
@@ -763,14 +769,14 @@ internal static class Program {
             }
             case "AssetRef": {
                 string t = prop.AssetType!;
-                sb.Append($"    public {t}? {prop.ManagedName} {{\n");
+                sb.Append($"    {prop.CsVisibility} {t}? {prop.ManagedName} {{\n");
                 sb.Append($"        get {{ ulong v = 0; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 8); return v != 0 ? new {t}(new UUID(v)) : null; }}\n");
                 if (!prop.ReadOnly) sb.Append($"        set {{ ulong v = value != null ? value.assetId.value : 0; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, 8); }}\n");
                 sb.Append("    }\n\n");
                 break;
             }
             case "String": {
-                sb.Append($"    public string {prop.ManagedName} {{\n");
+                sb.Append($"    {prop.CsVisibility} string {prop.ManagedName} {{\n");
                 sb.Append($"        get => NativeApi.ComponentGetString(entity.native, TypeId, {propId});\n");
                 if (!prop.ReadOnly) sb.Append($"        set => NativeApi.ComponentSetString(entity.native, TypeId, {propId}, value);\n");
                 sb.Append("    }\n\n");
@@ -778,7 +784,7 @@ internal static class Program {
             }
             default: {
                 (string csType, int size) = PodInfo(prop.Kind);
-                sb.Append($"    public {csType} {prop.ManagedName} {{\n");
+                sb.Append($"    {prop.CsVisibility} {csType} {prop.ManagedName} {{\n");
                 sb.Append($"        get {{ {csType} v = default; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, {size}); return v; }}\n");
                 if (!prop.ReadOnly) sb.Append($"        set {{ NativeApi.ComponentSet(entity.native, TypeId, {propId}, &value, {size}); }}\n");
                 sb.Append("    }\n\n");

@@ -4,16 +4,33 @@
 
 cbuffer PostProcessFrameConstants : register(b0) {
 
+	// 解像度情報
 	float2 resolution;
 	float2 invResolution;
+	
+	// 起動してからの経過時間
 	float time;
 	float deltaTime;
+	// 経過フレーム
 	uint frameIndex;
-	float cameraNear; // 深度線形化用のアクティブカメラの近クリップ距離
-	float cameraFar;  // 深度線形化用のアクティブカメラの遠クリップ距離
-	float framePadding0;
-	float framePadding1;
-	float framePadding2;
+	float _pad0;
+
+	// カメラ情報
+	// 近/遠クリップ距離
+	float cameraNear;
+	float cameraFar;
+	float _pad1;
+	float _pad2;
+
+	// ワールド座標
+	float3 cameraWorldPos;
+	float _pad3;
+	
+	// ビュー情報
+	float4x4 cameraView;
+	float4x4 cameraViewInverse;
+	float4x4 cameraProjection;
+	float4x4 cameraProjectionInverse;
 };
 
 //============================================================================

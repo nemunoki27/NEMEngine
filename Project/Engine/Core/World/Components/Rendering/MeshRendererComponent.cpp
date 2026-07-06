@@ -105,28 +105,42 @@ void Engine::to_json(nlohmann::json& out, const SubMeshMaterial& subMeshMaterial
 	out["sourcePivot"] = subMeshMaterial.sourcePivot.ToJson();
 }
 
+void Engine::ReadMeshRenderFlags(const nlohmann::json& in, MeshRenderFlags& flags) {
+
+	// 旧形式の単一uintがあれば優先して読む
+	if (in.contains("renderFlags") && in["renderFlags"].is_number_integer()) {
+		flags = static_cast<MeshRenderFlags>(in.value("renderFlags", static_cast<uint32_t>(flags)));
+		return;
+	}
+	// フラグを増やしても旧シーンでデフォルト値が効くよう、ビットごとに名前付きboolで読む
+	const auto readFlag = [&](const char* key, MeshRenderFlags flag) {
+		SetMeshRenderFlag(flags, flag, in.value(key, HasMeshRenderFlag(flags, flag)));
+		};
+	readFlag("lighting", MeshRenderFlags::Lighting);
+	readFlag("castShadow", MeshRenderFlags::CastShadow);
+	readFlag("receiveShadow", MeshRenderFlags::ReceiveShadow);
+	readFlag("receiveIBL", MeshRenderFlags::ReceiveIBL);
+	readFlag("castReflection", MeshRenderFlags::CastReflection);
+	readFlag("receiveReflection", MeshRenderFlags::ReceiveReflection);
+}
+
+void Engine::WriteMeshRenderFlags(nlohmann::json& out, MeshRenderFlags flags) {
+
+	out["lighting"] = HasMeshRenderFlag(flags, MeshRenderFlags::Lighting);
+	out["castShadow"] = HasMeshRenderFlag(flags, MeshRenderFlags::CastShadow);
+	out["receiveShadow"] = HasMeshRenderFlag(flags, MeshRenderFlags::ReceiveShadow);
+	out["receiveIBL"] = HasMeshRenderFlag(flags, MeshRenderFlags::ReceiveIBL);
+	out["castReflection"] = HasMeshRenderFlag(flags, MeshRenderFlags::CastReflection);
+	out["receiveReflection"] = HasMeshRenderFlag(flags, MeshRenderFlags::ReceiveReflection);
+}
+
 void Engine::from_json(const nlohmann::json& in, MeshRendererComponent& component) {
 
 	component.mesh = ParseAssetID(in, "mesh");
 	component.material = ParseAssetID(in, "material");
-	component.queue = RenderPhaseFromString(in.value("queue", std::string(ToString(component.queue))), component.queue);
-	component.layer = in.value("layer", component.layer);
-	component.order = in.value("order", component.order);
-	component.visible = in.value("visible", component.visible);
+	ReadRenderCommonFields(in, component.layer, component.order, component.visible, component.blendMode, component.queue);
 	component.enableZPrepass = in.value("enableZPrepass", component.enableZPrepass);
-	component.blendMode = EnumAdapter<BlendMode>::FromString(in.value("blendMode", "Normal")).value();
-
-	// フラグを増やしても旧シーンでデフォルト値が効くよう、ビットごとに名前付きboolで読む
-	auto readRenderFlag = [&](const char* key, MeshRenderFlags flag) {
-		SetMeshRenderFlag(component.renderFlags, flag,
-			in.value(key, HasMeshRenderFlag(component.renderFlags, flag)));
-		};
-	readRenderFlag("lighting", MeshRenderFlags::Lighting);
-	readRenderFlag("castShadow", MeshRenderFlags::CastShadow);
-	readRenderFlag("receiveShadow", MeshRenderFlags::ReceiveShadow);
-	readRenderFlag("receiveIBL", MeshRenderFlags::ReceiveIBL);
-	readRenderFlag("castReflection", MeshRenderFlags::CastReflection);
-	readRenderFlag("receiveReflection", MeshRenderFlags::ReceiveReflection);
+	ReadMeshRenderFlags(in, component.renderFlags);
 
 	component.subMeshes.clear();
 	if (in.contains("subMeshes") && in["subMeshes"].is_array()) {
@@ -141,20 +155,9 @@ void Engine::to_json(nlohmann::json& out, const MeshRendererComponent& component
 
 	out["mesh"] = ToAssetReferenceJson(component.mesh);
 	out["material"] = ToAssetReferenceJson(component.material);
-	out["queue"] = std::string(ToString(component.queue));
-	out["layer"] = component.layer;
-	out["order"] = component.order;
-	out["visible"] = component.visible;
+	WriteRenderCommonFields(out, component.layer, component.order, component.visible, component.blendMode, component.queue);
 	out["enableZPrepass"] = component.enableZPrepass;
-	out["blendMode"] = EnumAdapter<BlendMode>::ToString(component.blendMode);
-
-	// フラグはビットごとに名前付きboolで書き出す
-	out["lighting"] = HasMeshRenderFlag(component.renderFlags, MeshRenderFlags::Lighting);
-	out["castShadow"] = HasMeshRenderFlag(component.renderFlags, MeshRenderFlags::CastShadow);
-	out["receiveShadow"] = HasMeshRenderFlag(component.renderFlags, MeshRenderFlags::ReceiveShadow);
-	out["receiveIBL"] = HasMeshRenderFlag(component.renderFlags, MeshRenderFlags::ReceiveIBL);
-	out["castReflection"] = HasMeshRenderFlag(component.renderFlags, MeshRenderFlags::CastReflection);
-	out["receiveReflection"] = HasMeshRenderFlag(component.renderFlags, MeshRenderFlags::ReceiveReflection);
+	WriteMeshRenderFlags(out, component.renderFlags);
 
 	out["subMeshes"] = nlohmann::json::array();
 	for (const auto& subMesh : component.subMeshes) {

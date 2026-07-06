@@ -10,9 +10,11 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/Assets/RenderComponentTypes.h>
 
 // c++
 #include <initializer_list>
+#include <utility>
 
 //============================================================================
 //	InspectorDrawerCommon namespace
@@ -45,6 +47,18 @@ namespace Engine::InspectorDrawerCommon {
 	}
 	// ビヘイビアの型選択フィールドを描画する、searchIconはcombo内検索欄に重ねる虫眼鏡
 	ValueEditResult DrawBehaviorTypeField(const char* label, std::string& type, ImTextureID searchIcon);
+
+	// 各Rendererコンポーネントが共通で持つ描画フィールドを描く、drawFieldは各Drawerのラップを渡す
+	template <typename DrawFieldFn>
+	void DrawCommonRenderFields(DrawFieldFn&& drawField,
+		int32_t& layer, int32_t& order, bool& visible, BlendMode& blendMode, RenderPhase& queue) {
+
+		drawField([&]() { return MyGUI::DragInt("レイヤー", layer); });
+		drawField([&]() { return MyGUI::DragInt("描画順", order); });
+		drawField([&]() { return DrawCheckboxField("表示", visible); });
+		drawField([&]() { return DrawEnumComboField("ブレンドモード", blendMode); });
+		drawField([&]() { return DrawEnumComboField("キュー", queue); });
+	}
 
 	// エンティティの種類に応じてデバッグラインを描画する
 	void DrawEntityDebugObject(ECSWorld& world, const Entity& entity, int32_t selectionSubMeshIndex = -1);

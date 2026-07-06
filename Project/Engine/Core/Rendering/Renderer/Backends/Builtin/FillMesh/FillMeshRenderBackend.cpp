@@ -10,6 +10,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 
@@ -29,16 +30,15 @@ namespace {
 		Engine::Color4 color = Engine::Color4::White();
 	};
 
-	// 選択アウトラインのマスクは元マテリアルと切り離してFillMesh専用マスクマテリアルから解決する
-	constexpr Engine::AssetID kOutlineMaskMaterial{ 0xfa11e50000000a07ull };
-
 	bool ResolveFillMeshPass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterial,
 		Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
 
+		// 選択アウトラインのマスクは元マテリアルと切り離してFillMesh専用マスクマテリアルから解決する
 		if (context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineMask ||
 			context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
 
-			const Engine::MaterialAsset* material = context.assetLibrary->LoadMaterial(kOutlineMaskMaterial);
+			const Engine::AssetID materialID = Engine::BuiltinAssets::Materials::FillMeshOutlineMask;
+			const Engine::MaterialAsset* material = context.assetLibrary->LoadMaterial(materialID);
 			if (!material) {
 				return false;
 			}
@@ -46,7 +46,7 @@ namespace {
 			if (!pass) {
 				return false;
 			}
-			outResolved.materialID = kOutlineMaskMaterial;
+			outResolved.materialID = materialID;
 			outResolved.material = material;
 			outResolved.pass = pass;
 			return true;
@@ -75,8 +75,7 @@ Engine::FillMeshRenderBackend::~FillMeshRenderBackend() {
 void Engine::FillMeshRenderBackend::BeginFrame([[maybe_unused]] GraphicsCore& graphicsCore) {
 
 	resourcePool_.BeginFrame();
-	constantBufferAllocator_.BeginFrame();
-	materialParamBinder_.BeginFrame();
+	BeginFrameCommon();
 }
 
 void Engine::FillMeshRenderBackend::DrawBatch(const RenderDrawContext& context,
@@ -132,10 +131,7 @@ void Engine::FillMeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 		context, *pipelineState, item->blendMode);
 
 	// ルートパラメータをバインドする
-	registryAutoBindTable_.Sync(*pipelineState, *context.bufferRegistry);
-	registryAutoBindTable_.BindGraphics(*context.bufferRegistry, commandList);
-
-	perDrawBindCache_.Sync(*pipelineState);
+	SyncAndBindRegistry(*pipelineState, context, commandList);
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAlloc.gpuAddress);
 	}
@@ -148,9 +144,7 @@ void Engine::FillMeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 	// reflection駆動のマテリアルパラメータ、cbuffer無のBuiltinは無回帰
 	if (resolvedPass.material) {
-		BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, *pipelineState,
-			*resolvedPass.material, payload->materialOverrides,
-			perDrawBindCache_, materialParamsCBVSlot_, commandList);
+		BindMaterial(context, *pipelineState, *resolvedPass.material, payload->materialOverrides, commandList);
 	}
 	// 選択アウトラインのマスク描画ではStyle IDを渡す、通常描画は宣言が無いので無回帰
 	if (perDrawBindCache_.Has(outlineMaskCBVSlot_)) {
