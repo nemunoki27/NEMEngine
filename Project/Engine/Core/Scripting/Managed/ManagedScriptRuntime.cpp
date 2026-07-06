@@ -253,6 +253,13 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.setMouseRangeControl = &ManagedScriptRuntime::SetMouseRangeControlCallback;
 	callbacks.setRendererMaterialColor = &ManagedScriptRuntime::SetRendererMaterialColorCallback;
 	callbacks.getRendererMaterialColor = &ManagedScriptRuntime::GetRendererMaterialColorCallback;
+	callbacks.collisionShapeCount = &ManagedScriptRuntime::CollisionShapeCountCallback;
+	callbacks.collisionAddShape = &ManagedScriptRuntime::CollisionAddShapeCallback;
+	callbacks.collisionRemoveShapeAt = &ManagedScriptRuntime::CollisionRemoveShapeAtCallback;
+	callbacks.collisionClearShapes = &ManagedScriptRuntime::CollisionClearShapesCallback;
+	callbacks.collisionGetShapeProperty = &ManagedScriptRuntime::CollisionGetShapePropertyCallback;
+	callbacks.collisionSetShapeProperty = &ManagedScriptRuntime::CollisionSetShapePropertyCallback;
+	callbacks.getSkinnedAnimationDuration = &ManagedScriptRuntime::GetSkinnedAnimationDurationCallback;
 	callbacks.fillMeshSetPositions = &ManagedScriptRuntime::FillMeshSetPositionsCallback;
 	callbacks.getEntityReferenceIdentity = &ManagedScriptRuntime::GetEntityReferenceIdentityCallback;
 	// v21のレイキャストとカメラレイとCollisionタイプ名解決

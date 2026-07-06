@@ -140,6 +140,8 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			if (!desiredClip.empty() && desiredClip != anim.runtimeCurrentClip && !anim.runtimeInTransition) {
 
 				clipChanged = true;
+				// 再生開始の瞬間に終了フラグを下ろす、遷移中も前回のtrueを残さない
+				anim.runtimeAnimationFinished = false;
 				anim.runtimeFromClip = anim.runtimeCurrentClip;
 				anim.runtimeToClip = desiredClip;
 				anim.runtimeFromTime = anim.runtimeTime;

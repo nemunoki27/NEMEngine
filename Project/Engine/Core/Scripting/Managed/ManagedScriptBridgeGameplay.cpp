@@ -16,12 +16,15 @@
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
+#include <Engine/Core/World/Components/Physics/CollisionComponent.h>
+#include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
+#include <cstring>
 #include <string>
 #include <unordered_map>
 #include <variant>
@@ -190,6 +193,20 @@ namespace Engine {
 			}
 			return targets;
 		}
+
+		// shapeIndexからCollisionComponentの衝突形状を取得する、範囲外はnullptr
+		Engine::CollisionShape* ResolveCollisionShape(Engine::ECSWorld& world, const Engine::Entity& entity, int32_t shapeIndex) {
+
+			if (!world.IsAlive(entity)) {
+				return nullptr;
+			}
+			Engine::CollisionComponent* collision = world.TryGetComponent<Engine::CollisionComponent>(entity);
+			if (!collision || shapeIndex < 0 ||
+				static_cast<size_t>(shapeIndex) >= collision->shapes.size()) {
+				return nullptr;
+			}
+			return &collision->shapes[static_cast<size_t>(shapeIndex)];
+		}
 	}
 
 	void ManagedScriptRuntime::SetRendererMaterialColorCallback(ManagedNativeEntity entity, int32_t componentType,
@@ -258,6 +275,140 @@ namespace Engine {
 			if (const Vector3* v = std::get_if<Vector3>(&it->second.value)) { return ManagedColor4{ v->x, v->y, v->z, 1.0f }; }
 		}
 		return result;
+	}
+
+	int32_t ManagedScriptRuntime::CollisionShapeCountCallback(ManagedNativeEntity entity) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return 0;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		const CollisionComponent* collision = world->IsAlive(resolved) ?
+			world->TryGetComponent<CollisionComponent>(resolved) : nullptr;
+		return collision ? static_cast<int32_t>(collision->shapes.size()) : 0;
+	}
+
+	void ManagedScriptRuntime::CollisionAddShapeCallback(ManagedNativeEntity entity) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		CollisionComponent* collision = world->IsAlive(resolved) ?
+			world->TryGetComponent<CollisionComponent>(resolved) : nullptr;
+		if (collision) {
+			collision->shapes.emplace_back(CollisionShape{});
+		}
+	}
+
+	void ManagedScriptRuntime::CollisionRemoveShapeAtCallback(ManagedNativeEntity entity, int32_t shapeIndex) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		CollisionComponent* collision = world->IsAlive(resolved) ?
+			world->TryGetComponent<CollisionComponent>(resolved) : nullptr;
+		if (collision && 0 <= shapeIndex && static_cast<size_t>(shapeIndex) < collision->shapes.size()) {
+			collision->shapes.erase(collision->shapes.begin() + shapeIndex);
+		}
+	}
+
+	void ManagedScriptRuntime::CollisionClearShapesCallback(ManagedNativeEntity entity) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		CollisionComponent* collision = world->IsAlive(resolved) ?
+			world->TryGetComponent<CollisionComponent>(resolved) : nullptr;
+		if (collision) {
+			collision->shapes.clear();
+		}
+	}
+
+	int32_t ManagedScriptRuntime::CollisionGetShapePropertyCallback(ManagedNativeEntity entity,
+		int32_t shapeIndex, int32_t propertyId, void* out, int32_t size) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return 0;
+		}
+		const CollisionShape* shape = ResolveCollisionShape(*world, ResolveEntity(entity), shapeIndex);
+		if (!shape || !out) {
+			return 0;
+		}
+
+		// propertyIdはC#側のCollisionShapeRefと対応する
+		switch (propertyId) {
+		case 0: if (size < 4) { return 0; } *reinterpret_cast<int32_t*>(out) = static_cast<int32_t>(shape->type); return 1;
+		case 1: if (size < 4) { return 0; } *reinterpret_cast<int32_t*>(out) = shape->enabled ? 1 : 0; return 1;
+		case 2: if (size < 4) { return 0; } *reinterpret_cast<int32_t*>(out) = shape->isTrigger ? 1 : 0; return 1;
+		case 3: if (size < 4) { return 0; } *reinterpret_cast<int32_t*>(out) = shape->useTransformRotation ? 1 : 0; return 1;
+		case 4: if (size < 4) { return 0; } *reinterpret_cast<int32_t*>(out) = shape->rotatedQuad ? 1 : 0; return 1;
+		case 5: if (size < 12) { return 0; } std::memcpy(out, &shape->offset, 12); return 1;
+		case 6: if (size < 12) { return 0; } std::memcpy(out, &shape->rotationDegrees, 12); return 1;
+		case 7: if (size < 4) { return 0; } std::memcpy(out, &shape->radius, 4); return 1;
+		case 8: if (size < 8) { return 0; } std::memcpy(out, &shape->halfSize2D, 8); return 1;
+		case 9: if (size < 12) { return 0; } std::memcpy(out, &shape->halfExtents3D, 12); return 1;
+		}
+		return 0;
+	}
+
+	int32_t ManagedScriptRuntime::CollisionSetShapePropertyCallback(ManagedNativeEntity entity,
+		int32_t shapeIndex, int32_t propertyId, const void* value, int32_t size) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return 0;
+		}
+		CollisionShape* shape = ResolveCollisionShape(*world, ResolveEntity(entity), shapeIndex);
+		if (!shape || !value) {
+			return 0;
+		}
+
+		switch (propertyId) {
+		case 0: if (size < 4) { return 0; } shape->type = static_cast<ColliderShapeType>(*reinterpret_cast<const int32_t*>(value)); return 1;
+		case 1: if (size < 4) { return 0; } shape->enabled = *reinterpret_cast<const int32_t*>(value) != 0; return 1;
+		case 2: if (size < 4) { return 0; } shape->isTrigger = *reinterpret_cast<const int32_t*>(value) != 0; return 1;
+		case 3: if (size < 4) { return 0; } shape->useTransformRotation = *reinterpret_cast<const int32_t*>(value) != 0; return 1;
+		case 4: if (size < 4) { return 0; } shape->rotatedQuad = *reinterpret_cast<const int32_t*>(value) != 0; return 1;
+		case 5: if (size < 12) { return 0; } std::memcpy(&shape->offset, value, 12); return 1;
+		case 6: if (size < 12) { return 0; } std::memcpy(&shape->rotationDegrees, value, 12); return 1;
+		case 7: if (size < 4) { return 0; } std::memcpy(&shape->radius, value, 4); return 1;
+		case 8: if (size < 8) { return 0; } std::memcpy(&shape->halfSize2D, value, 8); return 1;
+		case 9: if (size < 12) { return 0; } std::memcpy(&shape->halfExtents3D, value, 12); return 1;
+		}
+		return 0;
+	}
+
+	float ManagedScriptRuntime::GetSkinnedAnimationDurationCallback(ManagedNativeEntity entity, const char* clipName) {
+
+		if (!clipName) {
+			return 0.0f;
+		}
+		const SystemContext* context = GetCurrentContext();
+		ECSWorld* world = ResolveWorld(entity);
+		if (!context || !context->skinnedAnimationManager || !world) {
+			return 0.0f;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		const MeshRendererComponent* renderer = world->IsAlive(resolved) ?
+			world->TryGetComponent<MeshRendererComponent>(resolved) : nullptr;
+		if (!renderer || !renderer->mesh) {
+			return 0.0f;
+		}
+		// メッシュのアニメーションセットから指定クリップの合計長を引く
+		const SkinnedMeshAnimationSet* animationSet = context->skinnedAnimationManager->Find(renderer->mesh);
+		if (!animationSet || !animationSet->valid) {
+			return 0.0f;
+		}
+		const auto it = animationSet->clips.find(clipName);
+		return it != animationSet->clips.end() ? it->second.duration : 0.0f;
 	}
 
 	int32_t ManagedScriptRuntime::LineAddPointCallback(ManagedNativeEntity entity, ManagedLinePoint point) {

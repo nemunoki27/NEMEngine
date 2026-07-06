@@ -328,6 +328,15 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<byte*, uint> GetCollisionTypeMaskByName;
     // v23: EasingType と t からイージング済みの値を返す
     internal static delegate* unmanaged[Cdecl]<int, float, float> EasedValue;
+    // Collision形状操作
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int> CollisionShapeCount;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, void> CollisionAddShape;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> CollisionRemoveShapeAt;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, void> CollisionClearShapes;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> CollisionGetShapeProperty;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> CollisionSetShapeProperty;
+    // 指定クリップ名のアニメーション合計長
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, float> GetSkinnedAnimationDuration;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -451,6 +460,13 @@ internal static unsafe class NativeApi {
         GetMousePositionInView = callbacks->getMousePositionInView;
         GetCollisionTypeMaskByName = callbacks->getCollisionTypeMaskByName;
         EasedValue = callbacks->easedValue;
+        CollisionShapeCount = callbacks->collisionShapeCount;
+        CollisionAddShape = callbacks->collisionAddShape;
+        CollisionRemoveShapeAt = callbacks->collisionRemoveShapeAt;
+        CollisionClearShapes = callbacks->collisionClearShapes;
+        CollisionGetShapeProperty = callbacks->collisionGetShapeProperty;
+        CollisionSetShapeProperty = callbacks->collisionSetShapeProperty;
+        GetSkinnedAnimationDuration = callbacks->getSkinnedAnimationDuration;
     }
 
     internal static float ReadDeltaTime() {
@@ -642,6 +658,65 @@ internal static unsafe class NativeApi {
         return GetRendererMaterialColor != null
             ? GetRendererMaterialColor(entity, componentType, subMeshIndex).ToColor4()
             : new Color4(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
+    // Collision形状操作のマネージドラッパー、未登録時は安全な既定値を返す
+    internal static int GetCollisionShapeCount(NativeEntity entity) {
+        return CollisionShapeCount != null ? CollisionShapeCount(entity) : 0;
+    }
+    internal static void AddCollisionShape(NativeEntity entity) {
+        if (CollisionAddShape != null) { CollisionAddShape(entity); }
+    }
+    internal static void RemoveCollisionShapeAt(NativeEntity entity, int shapeIndex) {
+        if (CollisionRemoveShapeAt != null) { CollisionRemoveShapeAt(entity, shapeIndex); }
+    }
+    internal static void ClearCollisionShapes(NativeEntity entity) {
+        if (CollisionClearShapes != null) { CollisionClearShapes(entity); }
+    }
+    internal static int CollisionGetShapeInt(NativeEntity entity, int shapeIndex, int propertyId) {
+        int v = 0;
+        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, shapeIndex, propertyId, &v, 4); }
+        return v;
+    }
+    internal static void CollisionSetShapeInt(NativeEntity entity, int shapeIndex, int propertyId, int value) {
+        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, shapeIndex, propertyId, &value, 4); }
+    }
+    internal static float CollisionGetShapeFloat(NativeEntity entity, int shapeIndex, int propertyId) {
+        float v = 0.0f;
+        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, shapeIndex, propertyId, &v, 4); }
+        return v;
+    }
+    internal static void CollisionSetShapeFloat(NativeEntity entity, int shapeIndex, int propertyId, float value) {
+        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, shapeIndex, propertyId, &value, 4); }
+    }
+    internal static Vector2 CollisionGetShapeVector2(NativeEntity entity, int shapeIndex, int propertyId) {
+        Vector2 v = default;
+        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, shapeIndex, propertyId, &v, 8); }
+        return v;
+    }
+    internal static void CollisionSetShapeVector2(NativeEntity entity, int shapeIndex, int propertyId, Vector2 value) {
+        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, shapeIndex, propertyId, &value, 8); }
+    }
+    internal static Vector3 CollisionGetShapeVector3(NativeEntity entity, int shapeIndex, int propertyId) {
+        Vector3 v = default;
+        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, shapeIndex, propertyId, &v, 12); }
+        return v;
+    }
+    internal static void CollisionSetShapeVector3(NativeEntity entity, int shapeIndex, int propertyId, Vector3 value) {
+        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, shapeIndex, propertyId, &value, 12); }
+    }
+
+    // 指定クリップ名のアニメーション合計長を返す、未登録や未ロードは0
+    internal static float ReadSkinnedAnimationDuration(NativeEntity entity, string clipName) {
+        if (GetSkinnedAnimationDuration == null) {
+            return 0.0f;
+        }
+        string safe = clipName ?? string.Empty;
+        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(safe) + 1];
+        Encoding.UTF8.GetBytes(safe, 0, safe.Length, bytes, 0);
+        fixed (byte* ptr = bytes) {
+            return GetSkinnedAnimationDuration(entity, ptr);
+        }
     }
 
     internal static bool ReadActiveInHierarchy(NativeEntity entity) {
@@ -1362,4 +1437,13 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<byte*, uint> getCollisionTypeMaskByName;
     // Easing(v23): EasingType と t からイージング済みの値を返す
     public delegate* unmanaged[Cdecl]<int, float, float> easedValue;
+    // Collision形状操作: 件数/追加/削除/クリアと、shapeIndex+propIdでのパラメータ読み書き
+    public delegate* unmanaged[Cdecl]<NativeEntity, int> collisionShapeCount;
+    public delegate* unmanaged[Cdecl]<NativeEntity, void> collisionAddShape;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> collisionRemoveShapeAt;
+    public delegate* unmanaged[Cdecl]<NativeEntity, void> collisionClearShapes;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> collisionGetShapeProperty;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> collisionSetShapeProperty;
+    // 指定クリップ名のアニメーション合計長
+    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, float> getSkinnedAnimationDuration;
 }

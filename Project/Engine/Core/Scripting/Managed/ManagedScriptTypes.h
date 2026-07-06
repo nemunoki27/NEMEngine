@@ -357,6 +357,15 @@ namespace Engine {
 		// componentType 0=Mesh 1=Sprite 2=Text、subMeshIndex<0で全サブメッシュ
 		using SetRendererColorCallback = void(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const char*, float, float, float, float);
 		using GetRendererColorCallback = ManagedColor4(__cdecl*)(ManagedNativeEntity, int32_t, int32_t);
+		// Collision形状操作、shapeIndexとpropIdで衝突形状を読み書きする
+		using CollisionShapeCountCallback = int32_t(__cdecl*)(ManagedNativeEntity);
+		using CollisionAddShapeCallback = void(__cdecl*)(ManagedNativeEntity);
+		using CollisionRemoveShapeAtCallback = void(__cdecl*)(ManagedNativeEntity, int32_t);
+		using CollisionClearShapesCallback = void(__cdecl*)(ManagedNativeEntity);
+		using CollisionGetShapeCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, void*, int32_t);
+		using CollisionSetShapeCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const void*, int32_t);
+		// 指定クリップ名のアニメーション合計長を返す
+		using GetSkinnedAnimationDurationCallback = float(__cdecl*)(ManagedNativeEntity, const char*);
 		using IsAliveCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using GetBoolCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using SetBoolCallback = void(__cdecl*)(ManagedNativeEntity, int32_t);
@@ -586,6 +595,17 @@ namespace Engine {
 
 		// v23のイージング関数公開
 		EasedValueCallback easedValue = nullptr;
+
+		// Collision形状操作
+		CollisionShapeCountCallback collisionShapeCount = nullptr;
+		CollisionAddShapeCallback collisionAddShape = nullptr;
+		CollisionRemoveShapeAtCallback collisionRemoveShapeAt = nullptr;
+		CollisionClearShapesCallback collisionClearShapes = nullptr;
+		CollisionGetShapeCallback collisionGetShapeProperty = nullptr;
+		CollisionSetShapeCallback collisionSetShapeProperty = nullptr;
+
+		// 指定クリップ名のアニメーション合計長
+		GetSkinnedAnimationDurationCallback getSkinnedAnimationDuration = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

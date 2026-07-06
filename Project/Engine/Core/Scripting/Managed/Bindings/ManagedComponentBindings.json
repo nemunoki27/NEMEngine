@@ -80,6 +80,17 @@
         { "name": "None", "value": 0 },
         { "name": "Radial", "value": 1 }
       ]
+    },
+    {
+      "managedType": "ColliderShapeType",
+      "nativeType": "ColliderShapeType",
+      "members": [
+        { "name": "Circle2D", "value": 0 },
+        { "name": "Quad2D", "value": 1 },
+        { "name": "Sphere3D", "value": 2 },
+        { "name": "AABB3D", "value": 3 },
+        { "name": "OBB3D", "value": 4 }
+      ]
     }
   ],
   "components": [
@@ -100,7 +111,7 @@
         { "managedName": "Finished", "nativeMember": "runtimeAnimationFinished", "kind": "Bool", "access": "ReadOnly" },
         { "managedName": "InTransition", "nativeMember": "runtimeInTransition", "kind": "Bool", "access": "ReadOnly" },
         { "managedName": "RepeatCount", "nativeMember": "runtimeRepeatCount", "kind": "Int", "access": "ReadOnly" },
-        { "managedName": "CurrentDuration", "nativeMember": "runtimeCurrentDuration", "kind": "Float", "access": "ReadOnly" }
+        { "managedName": "CurrentTime", "nativeMember": "runtimeTime", "kind": "Float", "access": "ReadOnly" }
       ]
     },
     {
@@ -375,6 +386,21 @@
         { "managedName": "Position", "nativeMember": "pos", "kind": "Vector2", "access": "ReadWrite" },
         { "managedName": "Rotation", "nativeMember": "rotation", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "Scale", "nativeMember": "scale", "kind": "Vector2", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "Collision",
+      "nativeType": "CollisionComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/CollisionComponent.h",
+      "managedType": "CollisionComponent",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "IsStatic", "nativeMember": "isStatic", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "EnablePushback", "nativeMember": "enablePushback", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "TypeMask", "nativeMember": "typeMask", "kind": "UInt", "access": "ReadWrite" },
+        { "managedName": "IsColliding", "nativeMember": "runtimeColliding", "kind": "Bool", "access": "ReadOnly" }
       ]
     },
     {

@@ -327,6 +327,17 @@ namespace Engine {
 		// Mesh/Sprite/Textのマテリアルcolorを取得する、未設定は白を返す
 		static ManagedColor4 __cdecl GetRendererMaterialColorCallback(ManagedNativeEntity entity,
 			int32_t componentType, int32_t subMeshIndex);
+		// CollisionComponentのshapes操作、件数取得と追加削除、shapeIndexとpropId指定でパラメータを読み書きする
+		static int32_t __cdecl CollisionShapeCountCallback(ManagedNativeEntity entity);
+		static void __cdecl CollisionAddShapeCallback(ManagedNativeEntity entity);
+		static void __cdecl CollisionRemoveShapeAtCallback(ManagedNativeEntity entity, int32_t shapeIndex);
+		static void __cdecl CollisionClearShapesCallback(ManagedNativeEntity entity);
+		static int32_t __cdecl CollisionGetShapePropertyCallback(ManagedNativeEntity entity,
+			int32_t shapeIndex, int32_t propertyId, void* out, int32_t size);
+		static int32_t __cdecl CollisionSetShapePropertyCallback(ManagedNativeEntity entity,
+			int32_t shapeIndex, int32_t propertyId, const void* value, int32_t size);
+		// 指定クリップ名のアニメーション合計長を返す、見つからなければ0
+		static float __cdecl GetSkinnedAnimationDurationCallback(ManagedNativeEntity entity, const char* clipName);
 		// Gameplay v7のAssetRef runtime resolve
 		static int32_t __cdecl AssetExistsCallback(uint64_t assetID);
 		static int32_t __cdecl CopyAssetDisplayNameCallback(uint64_t assetID, char* buffer, int32_t capacity);

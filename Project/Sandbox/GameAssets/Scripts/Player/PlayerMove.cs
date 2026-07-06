@@ -15,6 +15,8 @@ public sealed class PlayerMove : ScriptBehaviour {
 	// アニメーションクリップ再生
 	private AnimationPlayer? animClipPlayer;
 
+	public float currentDura = 0.0f;
+
 	//========================================================================
 	//	開始時処理
 	//========================================================================
@@ -31,6 +33,10 @@ public sealed class PlayerMove : ScriptBehaviour {
 		if (Input.GetKeyDown(KeyCode.Space) && !animClipPlayer.IsPlaying) {
 
 			animClipPlayer.Play("Test");
+		}
+		if (TryGetComponent<SkinnedAnimation>(out SkinnedAnimation anim)) {
+
+			currentDura = anim.GetDuration("idle");
 		}
 
 		// イージング動作確認、EasingTypeとtからイージング済みの値を返す

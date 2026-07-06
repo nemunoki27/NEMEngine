@@ -20,5 +20,8 @@ public sealed partial class SkinnedAnimation {
     // 再生中か（有効かつ非ループの自然終了に達していない）。
     public bool IsPlaying => Enabled && !Finished;
 
+    // 指定クリップの再生合計時間(秒)を返す。未ロードや未検出は0。
+    public float GetDuration(string clipName) => NativeApi.ReadSkinnedAnimationDuration(entity.native, clipName);
+
     // CurrentState は生成プロパティ（runtimeCurrentClip / ReadOnly）を利用する。
 }
