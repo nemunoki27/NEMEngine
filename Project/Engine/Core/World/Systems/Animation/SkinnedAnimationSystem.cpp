@@ -215,8 +215,7 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 				// 遷移元と遷移先のアニメーションクリップの対応するノードのアニメーションをブレンドしてスケルトンに適用
 				auto fromTrackIt = animationSet->clipJointTracks.find(anim.runtimeFromClip);
 				auto toTrackIt = animationSet->clipJointTracks.find(anim.runtimeToClip);
-				if (fromTrackIt != animationSet->clipJointTracks.end() &&
-					toTrackIt != animationSet->clipJointTracks.end()) {
+				if (fromTrackIt != animationSet->clipJointTracks.end() && toTrackIt != animationSet->clipJointTracks.end()) {
 
 					BlendClipsToSkeleton(anim.runtimeSkeleton, fromTrackIt->second, anim.runtimeFromTime, toTrackIt->second, 0.0f, alpha);
 				}
