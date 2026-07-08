@@ -1,0 +1,96 @@
+{
+  "autoDuration": true,
+  "curveTracks": [
+    {
+      "applyMode": "Override",
+      "channels": [
+        {
+          "defaultValue": 0.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Constant",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 0.0
+            }
+          ],
+          "name": "Axis"
+        },
+        {
+          "defaultValue": 0.0,
+          "keys": [
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.0,
+              "value": 90.0
+            },
+            {
+              "inTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "interpolation": "Spline",
+              "outTangent": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "time": 0.5,
+              "value": 0.0
+            }
+          ],
+          "name": "Angle"
+        }
+      ],
+      "component": "Transform",
+      "editorView": {
+        "timeMax": 1.0,
+        "timeMin": 0.0,
+        "valueMax": 360.0,
+        "valueMin": -360.0
+      },
+      "property": "localRotation",
+      "quaternionAxisKeys": [
+        {
+          "axes": [
+            "X"
+          ],
+          "customAxis": {
+            "x": 1.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "useCustomAxis": false
+        }
+      ],
+      "quaternionMultiplyOrder": "BaseThenCurve",
+      "type": "Quaternion",
+      "visible": true
+    }
+  ],
+  "duration": 0.5,
+  "events": [],
+  "guid": "45b7c26c2ef642a8",
+  "loop": true,
+  "loopBridge": {
+    "duration": 0.10000000149011612,
+    "enabled": false,
+    "interpolation": "Linear"
+  },
+  "name": "Test",
+  "relativeTransform": false
+}

@@ -2,53 +2,29 @@
     "Entities": [
         {
             "Components": {
-                "Collision": {
-                    "enablePushback": true,
-                    "enabled": true,
-                    "isStatic": false,
-                    "shapes": [
-                        {
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 0.5,
-                                "y": 0.5
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 0.5,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Sphere3D",
-                            "useTransformRotation": true
-                        }
-                    ],
-                    "typeMask": 1
-                },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 3
+                    "siblingOrder": 4
                 },
                 "Name": {
-                    "name": "CollisionHas"
+                    "name": "Skybox"
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileId": "774123a5b9b463b4",
+                    "localFileId": "7d04f66cc1f44f18",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
+                },
+                "SkyboxRenderer": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 0.03829789161682129,
+                        "g": 0.03829789161682129,
+                        "r": 0.03829789161682129
+                    },
+                    "cubemapTexture": "da18161c5ffe1aba",
+                    "iblIntensity": 1.0,
+                    "visible": true
                 },
                 "Transform": {
                     "localPos": {
@@ -69,7 +45,7 @@
                     }
                 }
             },
-            "LocalFileID": "774123a5b9b463b4"
+            "LocalFileID": "7d04f66cc1f44f18"
         },
         {
             "Components": {
@@ -216,117 +192,124 @@
         },
         {
             "Components": {
+                "AnimationPlayer": {
+                    "defaultGroup": "Rotate",
+                    "enabled": true,
+                    "globalSpeed": 1.0,
+                    "groups": [
+                        {
+                            "name": "Rotate",
+                            "states": [
+                                {
+                                    "clip": "45b7c26c2ef642a8",
+                                    "interval": 0.0,
+                                    "loopBridge": {
+                                        "duration": 0.10000000149011612,
+                                        "enabled": false,
+                                        "interpolation": "Linear"
+                                    },
+                                    "loopCount": 0,
+                                    "name": "RotateX",
+                                    "pingPongCount": 0,
+                                    "relativeTransform": true,
+                                    "speed": 1.0,
+                                    "startDelay": 0.0,
+                                    "wrapMode": "Once"
+                                }
+                            ]
+                        }
+                    ],
+                    "playInEditMode": false,
+                    "playOnStart": false
+                },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 4
+                    "siblingOrder": 3
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "mesh": "a31d53b333db8b8b",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "subMeshes": [
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "Mesh_0",
+                            "parameterOverrides": {
+                                "baseColorTexture": "c2ea9f4498073ab3",
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.6000000238418579,
+                                    "g": 0.6000000238418579,
+                                    "r": 0.6000000238418579
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "stableID": "ff4ca94d8a5daaf2",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
                 },
                 "Name": {
-                    "name": "Demo"
+                    "name": "Model"
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileId": "fc8771024fa76250",
+                    "localFileId": "5f73c4e05cfa2771",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Script": [
                     {
                         "enabled": true,
-                        "lastKnownTypeName": "SandboxScripts.TestScript",
+                        "lastKnownTypeName": "SandboxScripts.RotateAnim",
                         "scriptAsset": "",
-                        "scriptSlotId": "c2ea512a4e678f92",
-                        "scriptTypeId": "037dd18c-f12e-4ed3-ba9a-ede7917d03a6",
-                        "serializedFields": {
-                            "fields": {
-                                "06166dde-0f0b-4cc8-925e-ccfa68b546e0": {
-                                    "name": "meshRendererRef",
-                                    "type": "ComponentRef",
-                                    "value": {
-                                        "entity": {
-                                            "kind": "Null",
-                                            "localFileId": "",
-                                            "sourceAsset": ""
-                                        }
-                                    }
-                                },
-                                "27d4bb16-8c0a-4a62-971a-54a4065ca572": {
-                                    "name": "entityRef",
-                                    "type": "EntityRef",
-                                    "value": {
-                                        "kind": "Scene",
-                                        "localFileId": "774123a5b9b463b4",
-                                        "sourceAsset": "97c361ef07054655"
-                                    }
-                                },
-                                "4b3e050e-d156-42b1-9b54-0cd1bd8f3b0f": {
-                                    "name": "sceneFileRef",
-                                    "type": "AssetRef",
-                                    "value": {
-                                        "assetId": ""
-                                    }
-                                },
-                                "68f99e85-1cb5-4992-9bd4-bca8c7b06111": {
-                                    "name": "structs",
-                                    "type": "list",
-                                    "value": []
-                                },
-                                "883f7d0d-994f-47e9-b00b-849ddbb7ae5c": {
-                                    "name": "scriptRef",
-                                    "type": "ScriptRef",
-                                    "value": {
-                                        "entity": {
-                                            "kind": "Null",
-                                            "localFileId": "",
-                                            "sourceAsset": ""
-                                        },
-                                        "scriptSlotId": "",
-                                        "scriptTypeId": ""
-                                    }
-                                },
-                                "9a9641aa-4165-4713-aa13-6b31f6d5bd2c": {
-                                    "name": "collisionCompRef",
-                                    "type": "ComponentRef",
-                                    "value": {
-                                        "entity": {
-                                            "kind": "Scene",
-                                            "localFileId": "774123a5b9b463b4",
-                                            "sourceAsset": "97c361ef07054655"
-                                        }
-                                    }
-                                },
-                                "a16500aa-29de-45bf-b5b8-5eaf82f58e15": {
-                                    "name": "fillMeshRendererRef",
-                                    "type": "ComponentRef",
-                                    "value": {
-                                        "entity": {
-                                            "kind": "Null",
-                                            "localFileId": "",
-                                            "sourceAsset": ""
-                                        }
-                                    }
-                                },
-                                "b375430b-6433-4886-bd3b-00e9e542706c": {
-                                    "name": "transformRef",
-                                    "type": "ComponentRef",
-                                    "value": {
-                                        "entity": {
-                                            "kind": "Null",
-                                            "localFileId": "",
-                                            "sourceAsset": ""
-                                        }
-                                    }
-                                },
-                                "f8a85d32-6818-4e60-829d-e4392b4f4336": {
-                                    "name": "meshFileRef",
-                                    "type": "AssetRef",
-                                    "value": {
-                                        "assetId": ""
-                                    }
-                                }
-                            },
-                            "schemaVersion": 2,
-                            "unresolvedFields": {}
-                        }
+                        "scriptSlotId": "e8aeca4a814dc0ee",
+                        "scriptTypeId": "cce55f07-922a-4609-8fa5-a217be4a77fd",
+                        "serializedFields": {}
                     }
                 ],
                 "Transform": {
@@ -336,23 +319,22 @@
                         "z": 0.0
                     },
                     "localRotation": {
-                        "w": 1.0,
+                        "w": 0.969871997833252,
                         "x": 0.0,
-                        "y": 0.0,
+                        "y": -0.2436150163412094,
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
+                        "x": 1.000001072883606,
+                        "y": 1.0000003576278687,
+                        "z": 1.000002145767212
                     }
                 }
             },
-            "LocalFileID": "fc8771024fa76250"
+            "LocalFileID": "5f73c4e05cfa2771"
         }
     ],
     "Header": {
-        "collisionSettings": "",
         "guid": "a2ec123701de0d07",
         "name": "Effect",
         "postProcessStack": "",

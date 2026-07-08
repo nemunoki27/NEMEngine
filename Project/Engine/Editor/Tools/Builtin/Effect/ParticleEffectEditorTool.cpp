@@ -309,7 +309,7 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 			changed |= DrawParticleValueFloat("発生初速度", draft_.emitter.speed, MakeDragSetting(0.0f, 10000.0f));
 		}
 		//========================================================================================================================================================
-		if (MyGUI::CollapsingHeader("形状設定", false)) {
+		if (MyGUI::CollapsingHeader("エミッター形状設定", false)) {
 
 			// 2D描画かどうか
 			bool is2D = draft_.space == PrimitiveRenderSpace::Screen2D;
@@ -471,7 +471,7 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 				changed |= MyGUI::AssetReferenceField("マテリアル", draft_.material, assetDatabase, { AssetType::Material }, setting).valueChanged;
 			}
 			changed |= MyGUI::EnumCombo("ソート", draft_.sortMode).valueChanged;
-			// ビルボード軸、BillboardComponentと同じ軸マスク方式
+			// ビルボード軸
 			{
 				const Axis axes[] = { Axis::X, Axis::Y, Axis::Z };
 				const char* axisLabels[] = { "ビルボードX", "ビルボードY", "ビルボードZ" };
@@ -507,63 +507,74 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 bool ParticleEffectEditorTool::DrawModuleSection() {
 
 	bool changed = false;
-	ImGui::SeparatorText("モジュール");
 
-	// モジュールの追加
-	const std::vector<std::string> registeredIDs = ParticleModuleRegistry::GetInstance().GetRegisteredIDs();
-	if (!registeredIDs.empty()) {
+	//============================================================================
+	//	モジュール編集
+	//============================================================================
+	if (ImGui::BeginTabItem("モジュール")) {
 
-		addModuleIndex_ = std::clamp(addModuleIndex_, 0, static_cast<int32_t>(registeredIDs.size()) - 1);
-		if (ImGui::BeginCombo("##AddModule", registeredIDs[addModuleIndex_].c_str())) {
-			for (int32_t i = 0; i < static_cast<int32_t>(registeredIDs.size()); ++i) {
-				if (ImGui::Selectable(registeredIDs[i].c_str(), i == addModuleIndex_)) {
-					addModuleIndex_ = i;
+		//========================================================================================================================================================
+		// モジュールの追加
+		{
+			const std::vector<std::string> registeredIDs = ParticleModuleRegistry::GetInstance().GetRegisteredIDs();
+			if (!registeredIDs.empty()) {
+
+				addModuleIndex_ = std::clamp(addModuleIndex_, 0, static_cast<int32_t>(registeredIDs.size()) - 1);
+				if (ImGui::BeginCombo("##AddModule", registeredIDs[addModuleIndex_].c_str())) {
+					for (int32_t i = 0; i < static_cast<int32_t>(registeredIDs.size()); ++i) {
+						if (ImGui::Selectable(registeredIDs[i].c_str(), i == addModuleIndex_)) {
+							addModuleIndex_ = i;
+						}
+					}
+					ImGui::EndCombo();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("追加")) {
+
+					ParticleEffectModuleEntry entry{};
+					entry.id = registeredIDs[addModuleIndex_];
+					draft_.modules.emplace_back(std::move(entry));
+					changed = true;
 				}
 			}
-			ImGui::EndCombo();
 		}
-		ImGui::SameLine();
-		if (ImGui::Button("追加")) {
+		//========================================================================================================================================================
+		// モジュール一覧、削除と並べ替えとパラメータ編集
+		int32_t removeIndex = -1;
+		for (int32_t i = 0; i < static_cast<int32_t>(draft_.modules.size()); ++i) {
 
-			ParticleEffectModuleEntry entry{};
-			entry.id = registeredIDs[addModuleIndex_];
-			draft_.modules.emplace_back(std::move(entry));
+			ParticleEffectModuleEntry& entry = draft_.modules[i];
+			ImGui::PushID(i);
+
+			bool open = MyGUI::CollapsingHeader(entry.id.c_str(), false);
+			if (open) {
+
+				if (ImGui::SmallButton("削除")) {
+					removeIndex = i;
+				}
+				ImGui::SameLine();
+				if (ImGui::SmallButton("上へ") && 0 < i) {
+
+					std::swap(draft_.modules[i], draft_.modules[i - 1]);
+					changed = true;
+				}
+				ImGui::SameLine();
+				if (ImGui::SmallButton("下へ") && i + 1 < static_cast<int32_t>(draft_.modules.size())) {
+
+					std::swap(draft_.modules[i], draft_.modules[i + 1]);
+					changed = true;
+				}
+				changed |= DrawModuleParams(entry.id, entry.params, i);
+			}
+			ImGui::PopID();
+		}
+		if (0 <= removeIndex) {
+
+			draft_.modules.erase(draft_.modules.begin() + removeIndex);
 			changed = true;
 		}
-	}
 
-	// モジュール一覧、削除と並べ替えとパラメータ編集
-	int32_t removeIndex = -1;
-	for (int32_t i = 0; i < static_cast<int32_t>(draft_.modules.size()); ++i) {
-
-		ParticleEffectModuleEntry& entry = draft_.modules[i];
-		ImGui::PushID(i);
-		const bool open = ImGui::CollapsingHeader(entry.id.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
-		if (open) {
-
-			if (ImGui::SmallButton("削除")) {
-				removeIndex = i;
-			}
-			ImGui::SameLine();
-			if (ImGui::SmallButton("上へ") && 0 < i) {
-
-				std::swap(draft_.modules[i], draft_.modules[i - 1]);
-				changed = true;
-			}
-			ImGui::SameLine();
-			if (ImGui::SmallButton("下へ") && i + 1 < static_cast<int32_t>(draft_.modules.size())) {
-
-				std::swap(draft_.modules[i], draft_.modules[i + 1]);
-				changed = true;
-			}
-			changed |= DrawModuleParams(entry.id, entry.params, i);
-		}
-		ImGui::PopID();
-	}
-	if (0 <= removeIndex) {
-
-		draft_.modules.erase(draft_.modules.begin() + removeIndex);
-		changed = true;
+		ImGui::EndTabItem();
 	}
 	return changed;
 }

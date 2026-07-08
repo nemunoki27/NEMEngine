@@ -443,6 +443,10 @@ void Engine::AnimationPlayerSystem::EvaluateGroupClips(ECSWorld& world, const En
 		if (!clipRt.started) {
 			continue;
 		}
+		// 終了済みクリップは書き込みを止める、最終ポーズは書き込み済みで外部からの編集を妨げない
+		if (clipRt.finished) {
+			continue;
+		}
 		const AnimationState* state = FindStateInGroup(group, clipRt.stateName);
 		if (!state) {
 			continue;
@@ -570,6 +574,10 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(ECSWorld& world, const Entity& 
 	// 再生要求の消費、無ければ自動開始する、EditプレビューはplayOnStartに依らず常に再生する
 	if (!player.runtimePlayRequest.empty()) {
 
+		// 向き相対の基準をPlayを呼んだ瞬間の姿勢にするため、要求時に捕捉し直す
+		if (isPlay) {
+			CaptureBaseValues(world, entity, player, context, *baseStore);
+		}
 		BeginGroup(player, player.runtimePlayRequest, player.runtimePlayFade);
 		player.runtimePlayRequest.clear();
 		player.runtimePlayFade = 0.0f;

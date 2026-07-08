@@ -61,7 +61,6 @@ namespace {
 			{ "animationClip", Engine::AssetType::AnimationClip },
 			{ "scene", Engine::AssetType::Scene },
 			{ "activeScene", Engine::AssetType::Scene },
-			// 期待型が一意でないものはUnknown(存在確認のみ行う)
 			{ "controller", Engine::AssetType::Unknown },
 		};
 		return kMap;

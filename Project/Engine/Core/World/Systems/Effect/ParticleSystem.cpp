@@ -146,6 +146,7 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 
 		// エミッター形状のデバッグ描画
 		if (emitter.drawEmitterShape) {
+
 			DrawEmitterShape(world, entity, asset.emitter, asset.space == PrimitiveRenderSpace::Screen2D);
 		}
 		});
@@ -360,6 +361,7 @@ void Engine::ParticleSystem::InitEmitterParticles(std::span<Particle> newborn,
 
 void Engine::ParticleSystem::DrawEmitterShape(ECSWorld& world, const Entity& entity,
 	const ParticleEmitterSettings& settings, bool is2D) const {
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
 	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
 	if (!renderer) {
@@ -540,6 +542,7 @@ void Engine::ParticleSystem::DrawEmitterShape(ECSWorld& world, const Entity& ent
 		break;
 	}
 	}
+#endif
 }
 
 void Engine::ParticleSystem::RecordTrails([[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
