@@ -18,11 +18,11 @@ Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::
 	if (Algorithm::EndsWith(filename, ".scene.json") || extension == ".scene") {
 		return AssetType::Scene;
 	}
-	if (Algorithm::EndsWith(filename, ".collisionsettings.json")) {
-		return AssetType::CollisionSettings;
-	}
 	if (Algorithm::EndsWith(filename, ".postprocessstack.json")) {
 		return AssetType::PostProcessStack;
+	}
+	if (Algorithm::EndsWith(filename, ".effect.json") || extension == ".effect") {
+		return AssetType::ParticleEffect;
 	}
 	if (Algorithm::EndsWith(filename, ".prefab.json") || extension == ".prefab") {
 		return AssetType::Prefab;
@@ -71,7 +71,7 @@ bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {
 	case AssetType::Shader:
 	case AssetType::RenderPipeline:
 	case AssetType::PostProcessStack:
-	case AssetType::CollisionSettings:
+	case AssetType::ParticleEffect:
 		return true;
 	default:
 		return false;

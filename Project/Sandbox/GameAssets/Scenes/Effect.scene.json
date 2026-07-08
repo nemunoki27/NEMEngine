@@ -1,0 +1,362 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": true,
+                    "enabled": true,
+                    "isStatic": false,
+                    "shapes": [
+                        {
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 0.5,
+                                "y": 0.5,
+                                "z": 0.5
+                            },
+                            "halfSize2D": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "isTrigger": false,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "radius": 0.5,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "Sphere3D",
+                            "useTransformRotation": true
+                        }
+                    ],
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 3
+                },
+                "Name": {
+                    "name": "CollisionHas"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "774123a5b9b463b4",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "774123a5b9b463b4"
+        },
+        {
+            "Components": {
+                "DirectionalLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "direction": {
+                        "x": -0.3568897843360901,
+                        "y": -0.9267727732658386,
+                        "z": 0.11714066565036774
+                    },
+                    "enabled": true,
+                    "intensity": 2.5,
+                    "shadowStrength": 0.800000011920929
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 2
+                },
+                "Name": {
+                    "name": "DirectionalLight"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "a1b2c3d4e5f60001",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 10.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "a1b2c3d4e5f60001"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "Camera2D"
+                },
+                "OrthographicCamera": {
+                    "cullingMask": -1,
+                    "enabled": true,
+                    "farClip": 1000.0,
+                    "isMain": true,
+                    "nearClip": 0.0,
+                    "priority": 0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "a1b2c3d4e5f60002",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "a1b2c3d4e5f60002"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Camera3D"
+                },
+                "PerspectiveCamera": {
+                    "cullingMask": -1,
+                    "editorFrustumScale": 0.0020000000949949026,
+                    "enabled": true,
+                    "farClip": 4000.0,
+                    "fovY": 60.0,
+                    "isMain": true,
+                    "nearClip": 0.009999999776482582,
+                    "priority": 0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "a1b2c3d4e5f60003",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 3.4800000190734863,
+                        "z": -16.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "a1b2c3d4e5f60003"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 4
+                },
+                "Name": {
+                    "name": "Demo"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "fc8771024fa76250",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.TestScript",
+                        "scriptAsset": "",
+                        "scriptSlotId": "c2ea512a4e678f92",
+                        "scriptTypeId": "037dd18c-f12e-4ed3-ba9a-ede7917d03a6",
+                        "serializedFields": {
+                            "fields": {
+                                "06166dde-0f0b-4cc8-925e-ccfa68b546e0": {
+                                    "name": "meshRendererRef",
+                                    "type": "ComponentRef",
+                                    "value": {
+                                        "entity": {
+                                            "kind": "Null",
+                                            "localFileId": "",
+                                            "sourceAsset": ""
+                                        }
+                                    }
+                                },
+                                "27d4bb16-8c0a-4a62-971a-54a4065ca572": {
+                                    "name": "entityRef",
+                                    "type": "EntityRef",
+                                    "value": {
+                                        "kind": "Scene",
+                                        "localFileId": "774123a5b9b463b4",
+                                        "sourceAsset": "97c361ef07054655"
+                                    }
+                                },
+                                "4b3e050e-d156-42b1-9b54-0cd1bd8f3b0f": {
+                                    "name": "sceneFileRef",
+                                    "type": "AssetRef",
+                                    "value": {
+                                        "assetId": ""
+                                    }
+                                },
+                                "68f99e85-1cb5-4992-9bd4-bca8c7b06111": {
+                                    "name": "structs",
+                                    "type": "list",
+                                    "value": []
+                                },
+                                "883f7d0d-994f-47e9-b00b-849ddbb7ae5c": {
+                                    "name": "scriptRef",
+                                    "type": "ScriptRef",
+                                    "value": {
+                                        "entity": {
+                                            "kind": "Null",
+                                            "localFileId": "",
+                                            "sourceAsset": ""
+                                        },
+                                        "scriptSlotId": "",
+                                        "scriptTypeId": ""
+                                    }
+                                },
+                                "9a9641aa-4165-4713-aa13-6b31f6d5bd2c": {
+                                    "name": "collisionCompRef",
+                                    "type": "ComponentRef",
+                                    "value": {
+                                        "entity": {
+                                            "kind": "Scene",
+                                            "localFileId": "774123a5b9b463b4",
+                                            "sourceAsset": "97c361ef07054655"
+                                        }
+                                    }
+                                },
+                                "a16500aa-29de-45bf-b5b8-5eaf82f58e15": {
+                                    "name": "fillMeshRendererRef",
+                                    "type": "ComponentRef",
+                                    "value": {
+                                        "entity": {
+                                            "kind": "Null",
+                                            "localFileId": "",
+                                            "sourceAsset": ""
+                                        }
+                                    }
+                                },
+                                "b375430b-6433-4886-bd3b-00e9e542706c": {
+                                    "name": "transformRef",
+                                    "type": "ComponentRef",
+                                    "value": {
+                                        "entity": {
+                                            "kind": "Null",
+                                            "localFileId": "",
+                                            "sourceAsset": ""
+                                        }
+                                    }
+                                },
+                                "f8a85d32-6818-4e60-829d-e4392b4f4336": {
+                                    "name": "meshFileRef",
+                                    "type": "AssetRef",
+                                    "value": {
+                                        "assetId": ""
+                                    }
+                                }
+                            },
+                            "schemaVersion": 2,
+                            "unresolvedFields": {}
+                        }
+                    }
+                ],
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "fc8771024fa76250"
+        }
+    ],
+    "Header": {
+        "collisionSettings": "",
+        "guid": "a2ec123701de0d07",
+        "name": "Effect",
+        "postProcessStack": "",
+        "subScenes": []
+    },
+    "PrefabInstances": []
+}

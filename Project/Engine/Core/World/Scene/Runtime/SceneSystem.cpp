@@ -32,7 +32,6 @@ bool Engine::SceneSystem::LoadScene(const std::string& scenePath, ECSWorld& worl
 			outHeader->guid = UUID::New();
 			outHeader->name = "UntitledScene";
 		}
-		EnsureSceneCollisionSettings(*outHeader, scenePath, assetDatabase);
 		EnsureScenePostProcessStack(*outHeader, scenePath, assetDatabase);
 	}
 	return LoadFromJson(root, world, assetDatabase, sourceAsset, sceneInstanceID, outCreatedEntities);

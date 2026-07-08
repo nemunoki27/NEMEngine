@@ -220,7 +220,6 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 		{
 			// 旧スナップショットなどで設定パスがない場合は、シーンごとの既定パスを補完する
 			const std::filesystem::path scenePath = database.ResolveFullPath(instance.sceneAsset);
-			EnsureSceneCollisionSettings(instance.header, scenePath.string(), &database);
 			EnsureScenePostProcessStack(instance.header, scenePath.string(), &database);
 		}
 

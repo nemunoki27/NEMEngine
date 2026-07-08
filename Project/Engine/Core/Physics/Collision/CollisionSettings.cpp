@@ -9,6 +9,12 @@
 // c++
 #include <algorithm>
 
+namespace {
+
+	// 全シーン共通のCollision設定ファイルのプロジェクト相対パス
+	constexpr const char* kGlobalCollisionSettingsPath = "GameAssets/ProjectSettings/CollisionSettings.json";
+}
+
 //============================================================================
 //	CollisionSettings classMethods
 //============================================================================
@@ -39,6 +45,8 @@ void Engine::CollisionSettings::Load() {
 
 		const nlohmann::json data = JsonAdapter::Load(settingsPath_.string(), false);
 		if (data.is_object()) {
+
+			drawCollisionWorld_ = data.value("drawCollisionWorld", false);
 
 			// Collisionタイプを読み込む
 			types_.clear();
@@ -80,6 +88,8 @@ void Engine::CollisionSettings::Save() const {
 
 	nlohmann::json data = nlohmann::json::object();
 
+	data["drawCollisionWorld"] = drawCollisionWorld_;
+
 	// Collisionタイプを書き出す
 	data["types"] = nlohmann::json::array();
 	for (const auto& type : types_) {
@@ -97,18 +107,17 @@ void Engine::CollisionSettings::Save() const {
 	if (settingsPath_.empty()) {
 		return;
 	}
+	std::error_code ec;
+	std::filesystem::create_directories(settingsPath_.parent_path(), ec);
 	JsonAdapter::Save(settingsPath_.string(), data);
 }
 
-void Engine::CollisionSettings::SetActiveSettingsAsset(AssetID assetID, const AssetDatabase* assetDatabase) {
+void Engine::CollisionSettings::BindGlobal(const AssetDatabase* assetDatabase) {
 
-	if (!assetID || !assetDatabase) {
-		SetActiveSettingsPath({});
+	if (!assetDatabase) {
 		return;
 	}
-
-	const std::filesystem::path fullPath = assetDatabase->ResolveFullPath(assetID);
-	SetActiveSettingsPath(fullPath);
+	SetActiveSettingsPath(assetDatabase->ResolveAssetPath(kGlobalCollisionSettingsPath));
 }
 
 void Engine::CollisionSettings::SetActiveSettingsPath(const std::filesystem::path& settingsPath) {

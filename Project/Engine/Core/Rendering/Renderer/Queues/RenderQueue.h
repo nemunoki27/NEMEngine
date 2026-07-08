@@ -26,6 +26,7 @@ namespace Engine {
 	class ECSWorld;
 	struct MaterialParameterValue;
 	struct PrimitiveRendererComponent;
+	struct ParticleEmitterComponent;
 
 	//============================================================================
 	//	RenderQueue structures
@@ -39,6 +40,7 @@ namespace Engine {
 		static constexpr uint32_t Line = 0x1004;
 		static constexpr uint32_t FillMesh = 0x1005;
 		static constexpr uint32_t Primitive = 0x1006;
+		static constexpr uint32_t Particle = 0x1007;
 	}
 
 	// スプライト描画データ
@@ -103,6 +105,12 @@ namespace Engine {
 
 		// マテリアルパラメータ上書き、コンポーネントのmapを指す
 		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;
+	};
+	// パーティクル描画データ
+	struct ParticleRenderPayload {
+
+		// 粒子配列を持つコンポーネントを指す、同フレーム内のみ有効
+		const ParticleEmitterComponent* emitter = nullptr;
 	};
 	// 描画アイテム
 	struct RenderItem {

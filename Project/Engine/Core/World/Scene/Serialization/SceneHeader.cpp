@@ -17,7 +17,6 @@
 //============================================================================
 namespace {
 
-	constexpr const char* kCollisionSettingsRoot = "GameAssets/Collision";
 	constexpr const char* kPostProcessStackRoot = "GameAssets/PostProcess";
 
 	bool StartsWith(const std::string& text, const char* prefix) {
@@ -52,63 +51,6 @@ namespace {
 		return name + ".postProcessStack.json";
 	}
 
-	std::string MakeCollisionSettingsFileName(const std::filesystem::path& scenePath) {
-
-		std::filesystem::path stem = scenePath.stem();
-		if (stem.extension() == ".scene") {
-			stem = stem.stem();
-		}
-
-		std::string name = stem.string();
-		if (name.empty()) {
-			name = "Scene";
-		}
-		return name + ".collisionSettings.json";
-	}
-
-	std::filesystem::path MakeCollisionRelativeSource(const std::string& scenePath) {
-
-		std::string assetPath = Engine::RuntimePaths::ToAssetPath(scenePath);
-		if (assetPath.empty()) {
-			assetPath = std::filesystem::path(scenePath).filename().generic_string();
-		}
-
-		if (std::string relative = StripScenesPrefix(assetPath, "GameAssets/Scenes"); !relative.empty()) {
-			return relative;
-		}
-		if (std::string relative = StripScenesPrefix(assetPath, "Engine/Assets/Scenes"); !relative.empty()) {
-			return relative;
-		}
-		return std::filesystem::path(assetPath).filename();
-	}
-
-}
-
-std::string Engine::MakeDefaultCollisionSettingsPath(const std::string& scenePath) {
-
-	const std::filesystem::path relativeSource = MakeCollisionRelativeSource(scenePath);
-	std::filesystem::path settingsPath = kCollisionSettingsRoot;
-	if (relativeSource.has_parent_path()) {
-		settingsPath /= relativeSource.parent_path();
-	}
-	settingsPath /= MakeCollisionSettingsFileName(relativeSource);
-	return settingsPath.generic_string();
-}
-
-void Engine::EnsureSceneCollisionSettings(SceneHeader& sceneHeader, const std::string& scenePath, AssetDatabase* assetDatabase) {
-
-	if (!assetDatabase) {
-		return;
-	}
-	// 既に解決できる参照を持っているなら触らない
-	if (sceneHeader.collisionSettings && assetDatabase->Find(sceneHeader.collisionSettings)) {
-		return;
-	}
-	// 未参照、または保存し直しでguidが変わってリンク切れになった場合は既定ファイルから貼り直す
-	const std::string defaultPath = MakeDefaultCollisionSettingsPath(scenePath);
-	if (std::filesystem::exists(assetDatabase->ResolveAssetPath(defaultPath))) {
-		sceneHeader.collisionSettings = assetDatabase->ImportOrGet(defaultPath, AssetType::CollisionSettings);
-	}
 }
 
 std::string Engine::MakeDefaultPostProcessStackPath(const std::string& scenePath) {
@@ -167,7 +109,6 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 		std::string guidStr = data.value("guid", "");
 		sceneHeader.guid = guidStr.empty() ? UUID::New() : FromString16Hex(guidStr);
 		sceneHeader.name = data.value("name", "UntitledScene");
-		sceneHeader.collisionSettings = ParseAssetReference(data, "collisionSettings", assetDatabase, AssetType::CollisionSettings);
 		sceneHeader.postProcessStack = ParseAssetReference(data, "postProcessStack", assetDatabase, AssetType::PostProcessStack);
 	}
 
@@ -212,7 +153,6 @@ nlohmann::json Engine::ToJson(const SceneHeader& sceneHeader) {
 
 	data["guid"] = ToString(sceneHeader.guid);
 	data["name"] = sceneHeader.name;
-	data["collisionSettings"] = ToAssetReferenceJson(sceneHeader.collisionSettings);
 	data["postProcessStack"] = ToAssetReferenceJson(sceneHeader.postProcessStack);
 
 	data["subScenes"] = nlohmann::json::array();

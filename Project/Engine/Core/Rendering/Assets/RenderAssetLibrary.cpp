@@ -61,6 +61,7 @@ void Engine::RenderAssetLibrary::Clear() {
 	pipelineCache_.clear();
 	materialCache_.clear();
 	fontCache_.clear();
+	particleEffectCache_.clear();
 }
 
 const Engine::ShaderAsset* Engine::RenderAssetLibrary::LoadShader(AssetID assetID) {
@@ -81,4 +82,9 @@ const Engine::MaterialAsset* Engine::RenderAssetLibrary::LoadMaterial(AssetID as
 const Engine::MSDFFontAsset* Engine::RenderAssetLibrary::LoadFont(AssetID assetID) {
 
 	return LoadCachedAsset(fontCache_, assetID);
+}
+
+const Engine::ParticleEffectAsset* Engine::RenderAssetLibrary::LoadParticleEffect(AssetID assetID) {
+
+	return LoadCachedAsset(particleEffectCache_, assetID);
 }

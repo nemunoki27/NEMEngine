@@ -602,3 +602,13 @@ void Engine::from_json(const nlohmann::json& in, AnimationClipAsset& clip) {
 	}
 	UpdateAnimationClipAutoDuration(clip);
 }
+
+void Engine::to_json(nlohmann::json& out, const CurveChannel& channel) {
+
+	ToJson(channel, out);
+}
+
+void Engine::from_json(const nlohmann::json& in, CurveChannel& channel) {
+
+	channel = ParseCurveChannel(in);
+}

@@ -64,6 +64,27 @@ namespace {
 		return scale;
 	}
 
+	// entityとその子孫をまとめて破棄予約する
+	void DestroyEntitySubtree(ECSWorld& world, const Entity& entity) {
+
+		if (!world.IsAlive(entity)) {
+			return;
+		}
+
+		if (world.HasComponent<HierarchyComponent>(entity)) {
+
+			Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
+			while (child.IsValid() && world.IsAlive(child)) {
+
+				const Entity next = world.HasComponent<HierarchyComponent>(child)
+					? world.GetComponent<HierarchyComponent>(child).nextSibling : Entity::Null();
+				DestroyEntitySubtree(world, child);
+				child = next;
+			}
+		}
+		world.DestroyEntity(entity);
+	}
+
 	// childをnewParentの子にすると循環するか、newParentの祖先にchildが居るか
 	bool WouldCreateCycle(ECSWorld& world, const Entity& child, const Entity& newParent) {
 
@@ -388,7 +409,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 	case CommandKind::DestroyEntity:
 
 		// 同一エンティティへの重複Destroyはpendingで安全に無視される
-		world.DestroyEntity(command.target);
+		DestroyEntitySubtree(world, command.target);
 		break;
 	case CommandKind::AddComponentByName:
 

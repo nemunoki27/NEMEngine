@@ -26,9 +26,8 @@ namespace Engine {
 	//============================================================================
 	//	WorldCommandServices struct
 	//============================================================================
-	// Prefab / SceneコマンドのFlush適用時に必要となる外部サービス
-	// ECSWorld自身は所有しないため、EngineApplicationが毎フレームactive worldへ設定する
-	// PrefabSystem / HierarchySystemはstateを持たないためApply内でローカル生成する
+
+	// Prefab/SceneコマンドのFlush適用時に必要となる外部サービス
 	struct WorldCommandServices {
 
 		AssetDatabase* assetDatabase = nullptr;
@@ -40,10 +39,6 @@ namespace Engine {
 	//	WorldCommandBuffer class
 	//	scripting由来の構造変更を安全地点までキューに積んで遅延適用する
 	//============================================================================
-	// BehaviorSystemのForEach走査中にarchetype移動や親子変更を即時反映すると走査を壊すため、
-	// component追加削除・親子付け・破棄などの構造変更はこのバッファ経由でFlush時にまとめて適用する
-	// 各コマンドは安定ハンドル(Entity index/generation)と必要値をコピーして保持し、
-	// componentへのポインタや参照は一切保持しない
 	class WorldCommandBuffer {
 	public:
 		//============================================================================

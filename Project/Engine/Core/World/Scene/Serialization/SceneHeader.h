@@ -120,15 +120,11 @@ namespace Engine {
 		// シーンが持つサブシーンリスト
 		std::vector<SubSceneSlotDesc> subScenes;
 
-		// シーンごとのCollision設定アセット
-		AssetID collisionSettings{};
 		// シーンごとのPostProcessStackアセット
 		AssetID postProcessStack{};
 	};
 
 	// json変換
-	std::string MakeDefaultCollisionSettingsPath(const std::string& scenePath);
-	void EnsureSceneCollisionSettings(SceneHeader& sceneHeader, const std::string& scenePath, AssetDatabase* assetDatabase);
 	std::string MakeDefaultPostProcessStackPath(const std::string& scenePath);
 	void EnsureScenePostProcessStack(SceneHeader& sceneHeader, const std::string& scenePath, AssetDatabase* assetDatabase);
 	bool FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, AssetDatabase* assetDatabase);

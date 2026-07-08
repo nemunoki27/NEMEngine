@@ -497,7 +497,16 @@ namespace {
 		const std::string rejectTooltip = field.componentType + " を持っていません";
 		Engine::ValueEditResult entityResult = DrawEntityRef(label, value["entity"], ctx,
 			[&field](Engine::ECSWorld& world, Engine::Entity target) {
-				return field.componentType.empty() || world.HasComponent(target, field.componentType);
+				if (field.componentType.empty() || world.HasComponent(target, field.componentType)) {
+					return true;
+				}
+				// componentTypeはwrapper型名で、登録名と異なる場合がある(例 CollisionComponent → Collision)
+				const std::string suffix = "Component";
+				if (field.componentType.size() > suffix.size() &&
+					field.componentType.compare(field.componentType.size() - suffix.size(), suffix.size(), suffix) == 0) {
+					return world.HasComponent(target, field.componentType.substr(0, field.componentType.size() - suffix.size()));
+				}
+				return false;
 			}, rejectTooltip.c_str());
 		result.valueChanged |= entityResult.valueChanged;
 		result.anyItemActive |= entityResult.anyItemActive;

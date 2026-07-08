@@ -6,6 +6,7 @@ namespace SandboxScripts;
 //	TestScript
 //============================================================================
 public sealed class TestScript : ScriptBehaviour {
+
 	// コンポーネントの参照テスト
 	[Label("トランスフォーム")]
 	[SerializeField]
@@ -16,6 +17,9 @@ public sealed class TestScript : ScriptBehaviour {
 	[Label("フィルメッシュ描画")]
 	[SerializeField]
 	private FillMeshRenderer? fillMeshRendererRef;
+	[Label("衝突判定")]
+	[SerializeField]
+	private CollisionComponent? collisionCompRef;
 
 	// エンティティの参照テスト
 	[Label("エンティティ")]

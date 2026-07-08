@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/MSDFFontAsset.h>
+#include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
 
 // c++
 #include <unordered_map>
@@ -40,9 +41,12 @@ namespace Engine {
 		const RenderPipelineAsset* LoadPipeline(AssetID assetID);
 		const MaterialAsset* LoadMaterial(AssetID assetID);
 		const MSDFFontAsset* LoadFont(AssetID assetID);
+		const ParticleEffectAsset* LoadParticleEffect(AssetID assetID);
 
 		// マテリアルのキャッシュを破棄して次回ロードでファイルから読み直させる、実行中の編集反映に使う
 		void InvalidateMaterial(AssetID assetID) { materialCache_.erase(assetID); }
+		// パーティクルエフェクトのキャッシュを破棄する、実行中の編集反映に使う
+		void InvalidateParticleEffect(AssetID assetID) { particleEffectCache_.erase(assetID); }
 
 		//--------- accessor -----------------------------------------------------
 
@@ -67,5 +71,6 @@ namespace Engine {
 		std::unordered_map<AssetID, RenderPipelineAsset> pipelineCache_;
 		std::unordered_map<AssetID, MaterialAsset> materialCache_;
 		std::unordered_map<AssetID, MSDFFontAsset> fontCache_;
+		std::unordered_map<AssetID, ParticleEffectAsset> particleEffectCache_;
 	};
 } // Engine

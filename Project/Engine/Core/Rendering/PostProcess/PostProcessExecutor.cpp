@@ -166,7 +166,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 		constants.resolution = Vector2(static_cast<float>(dest->GetWidth()), static_cast<float>(dest->GetHeight()));
 		constants.invResolution = Vector2(1.0f / (std::max)(constants.resolution.x, 1.0f), 1.0f / (std::max)(constants.resolution.y, 1.0f));
 		constants.time = elapsedTime_;
-		constants.deltaTime = context.systemContext ? context.systemContext->deltaTime : 0.0f;
+		constants.deltaTime = context.systemContext->unscaledDeltaTime;
 		constants.frameIndex = frameIndex_;
 		// カメラ情報を設定
 		constants.cameraNear = 0.1f;

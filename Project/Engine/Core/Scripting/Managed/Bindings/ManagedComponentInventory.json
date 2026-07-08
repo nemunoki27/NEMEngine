@@ -283,6 +283,20 @@
       "tests": ["CollisionCallbackSmoke"]
     },
     {
+      "nativeName": "ParticleEmitter",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "パーティクルエフェクトの再生。C# 公開はエフェクトシステムの機能が固まってから再判断。",
+      "readableFields": [],
+      "writableFields": [],
+      "commands": [],
+      "events": [],
+      "serialization": "component JSON",
+      "inspector": "builtin inspector",
+      "runtime": "ParticleSystem がエフェクトアセットのモジュールで粒子を更新",
+      "tests": []
+    },
+    {
       "nativeName": "Billboard",
       "exposure": "InternalOnly",
       "managedSurface": "",

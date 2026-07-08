@@ -18,6 +18,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/FillMeshRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/PrimitiveRendererInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/ParticleEmitterInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/TextRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/InvertedHullOutlineInspectorDrawer.h>
@@ -91,6 +92,7 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<LineRendererInspectorDrawer>("Line Renderer", "LineRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<FillMeshRendererInspectorDrawer>("Fill Mesh Renderer", "FillMeshRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<PrimitiveRendererInspectorDrawer>("Primitive Renderer", "PrimitiveRenderer", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<ParticleEmitterInspectorDrawer>("Particle Emitter", "ParticleEmitter", "Rendering"));
 	}
 	{
 		registry.Register(MakeComponentEditorDescriptor<UVTransformInspectorDrawer>("UVTransform", "UVTransform", "Rendering"));

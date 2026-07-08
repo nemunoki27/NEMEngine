@@ -195,6 +195,22 @@ namespace Engine {
 			(component.type == PrimitiveType::Plane || component.type == PrimitiveType::Ring);
 	}
 
+	// 形状パラメータのjson変換、コンポーネントとエフェクトアセットで共用する
+	void from_json(const nlohmann::json& in, PrimitivePlaneParams& params);
+	void to_json(nlohmann::json& out, const PrimitivePlaneParams& params);
+	void from_json(const nlohmann::json& in, PrimitiveCrossPlaneParams& params);
+	void to_json(nlohmann::json& out, const PrimitiveCrossPlaneParams& params);
+	void from_json(const nlohmann::json& in, PrimitiveRingParams& params);
+	void to_json(nlohmann::json& out, const PrimitiveRingParams& params);
+	void from_json(const nlohmann::json& in, PrimitiveCylinderParams& params);
+	void to_json(nlohmann::json& out, const PrimitiveCylinderParams& params);
+	void from_json(const nlohmann::json& in, PrimitiveSphereParams& params);
+	void to_json(nlohmann::json& out, const PrimitiveSphereParams& params);
+	void from_json(const nlohmann::json& in, PrimitiveHemisphereParams& params);
+	void to_json(nlohmann::json& out, const PrimitiveHemisphereParams& params);
+	void from_json(const nlohmann::json& in, PrimitiveCubeParams& params);
+	void to_json(nlohmann::json& out, const PrimitiveCubeParams& params);
+
 	// json変換
 	void from_json(const nlohmann::json& in, PrimitiveRendererComponent& component);
 	void to_json(nlohmann::json& out, const PrimitiveRendererComponent& component);

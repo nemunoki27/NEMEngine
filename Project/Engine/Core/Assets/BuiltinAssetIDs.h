@@ -31,6 +31,16 @@ namespace Engine::BuiltinAssets {
 		// Primitive/FillMeshの選択アウトライン用マスクマテリアル
 		inline constexpr AssetID PrimitiveOutlineMask{ 0x70a1b2c3d4e5f610ull };
 		inline constexpr AssetID FillMeshOutlineMask{ 0xfa11e50000000a07ull };
+		// パーティクルの既定マテリアル
+		inline constexpr AssetID DefaultParticle{ 0xeff0000000000006ull };
+		// 2Dパーティクルの既定マテリアル
+		inline constexpr AssetID DefaultParticle2D{ 0xeff0000000000008ull };
+	}
+
+	namespace Effects {
+
+		// パーティクルの既定エフェクト
+		inline constexpr AssetID DefaultParticle{ 0xeff0000000000010ull };
 	}
 
 	namespace Pipelines {
@@ -40,6 +50,10 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultLine{ 0x7a9d3c5e1b6f4083ull };
 		inline constexpr AssetID Skinning{ 0xda1205f1e1e19bdbull };
 		inline constexpr AssetID BuildIndexedIndirectArgs{ 0xe0400afbd444f5d6ull };
+		// パーティクルの形状アニメ用MSパイプラインとトレイル用パイプライン
+		inline constexpr AssetID ParticleRingMS{ 0xeff000000000000bull };
+		inline constexpr AssetID ParticleCylinderMS{ 0xeff000000000000eull };
+		inline constexpr AssetID ParticleTrail{ 0xeff0000000000012ull };
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x7c1d9a4b8e2f6021ull };
 		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x7c1d9a4b8e2f6023ull };
 	}

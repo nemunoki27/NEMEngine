@@ -7,8 +7,6 @@
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
-#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Quaternion.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
@@ -29,17 +27,6 @@
 //	CollisionManagerTool classMethods
 //============================================================================
 namespace {
-
-	// SceneInstanceManagerから実体のSceneHeaderを取得する、無ければtoolContextの参照へフォールバック
-	Engine::SceneHeader* ResolveActiveSceneHeader(const Engine::ToolContext& context) {
-
-		if (context.sceneInstances && context.activeSceneInstanceID) {
-			if (Engine::SceneInstance* activeScene = context.sceneInstances->Find(context.activeSceneInstanceID)) {
-				return &activeScene->header;
-			}
-		}
-		return const_cast<Engine::SceneHeader*>(context.activeSceneHeader);
-	}
 
 	// Vector3の各要素を絶対値にする
 	Engine::Vector3 AbsVector(const Engine::Vector3& value) {
@@ -234,7 +221,7 @@ namespace {
 
 void Engine::CollisionManagerTool::Tick(ToolContext& context) {
 
-	if (!drawCollisionWorld_ || !context.world) {
+	if (!CollisionSettings::GetInstance().GetDrawCollisionWorld() || !context.world) {
 		return;
 	}
 	DrawCollisionWorld(*context.world);
@@ -260,33 +247,19 @@ void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) 
 	}
 
 	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
-	SceneHeader* header = ResolveActiveSceneHeader(context.toolContext);
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
-	if (header) {
-		settings.SetActiveSettingsAsset(header->collisionSettings, assetDatabase);
-	}
+	settings.BindGlobal(assetDatabase);
 	settings.EnsureLoaded();
 
 	ImGui::SetWindowFontScale(0.9f);
 
-	// 現在開いているシーンが参照するCollision設定ファイルを表示する
-	if (header) {
-		std::string displayPath = ToString(header->collisionSettings);
-		if (assetDatabase) {
-			if (const AssetMeta* meta = assetDatabase->Find(header->collisionSettings)) {
-				displayPath = meta->assetPath;
-			}
-		}
-		ImGui::TextDisabled("衝突設定ファイル: %s%s", displayPath.c_str(), dirty_ ? " *" : "");
-	} else {
-		const std::string settingsPath = settings.GetSettingsPath().generic_string();
-		ImGui::TextDisabled("衝突設定ファイル: %s", settingsPath.c_str());
-	}
+	// 全シーン共通のCollision設定ファイルを表示する
+	const std::string settingsPath = settings.GetSettingsPath().generic_string();
+	ImGui::TextDisabled("衝突設定ファイル: %s%s", settingsPath.c_str(), dirty_ ? " *" : "");
 
 	// Save/Reloadボタン
 	if (ImGui::Button("保存")) {
-		EnsureActiveCollisionSettingsAsset(context);
 		settings.Save();
 		dirty_ = false;
 	}
@@ -296,24 +269,14 @@ void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) 
 		dirty_ = false;
 	}
 
-	// 別シーンのCollision設定ファイルを参照して現在のシーンへ結びつける
-	if (header) {
-		AssetID picked = header->collisionSettings;
-		AssetEditSetting setting{};
-		if (MyGUI::AssetReferenceField("読み込み", picked, assetDatabase,
-			{ AssetType::CollisionSettings }, setting).valueChanged) {
-
-			header->collisionSettings = picked;
-			settings.SetActiveSettingsAsset(picked, assetDatabase);
-			settings.Load();
-			dirty_ = false;
-		}
-	}
-
 	ImGui::Separator();
 
 	// デバッグ用のCollision描画設定
-	ImGui::Checkbox("衝突判定形状を全て描画", &drawCollisionWorld_);
+	bool drawWorld = settings.GetDrawCollisionWorld();
+	if (ImGui::Checkbox("衝突判定形状を全て描画", &drawWorld)) {
+		settings.SetDrawCollisionWorld(drawWorld);
+		dirty_ = true;
+	}
 	ImGui::Separator();
 	if (DrawTypes()) {
 		dirty_ = true;
@@ -457,48 +420,6 @@ bool Engine::CollisionManagerTool::DrawMatrix() {
 
 	ImGui::EndTable();
 	return changed;
-}
-
-void Engine::CollisionManagerTool::EnsureActiveCollisionSettingsAsset(const EditorToolContext& context) {
-
-	const ToolContext& toolContext = context.toolContext;
-	AssetDatabase* assetDatabase = toolContext.assetDatabase;
-	SceneHeader* header = ResolveActiveSceneHeader(toolContext);
-
-	if (!assetDatabase || !header) {
-		return;
-	}
-	// 解決できる参照を既に持っているなら作り直さない、リンク切れ時は貼り直す
-	if (header->collisionSettings && assetDatabase->Find(header->collisionSettings)) {
-		return;
-	}
-
-	// 現在のシーンのassetパスを解決する
-	std::string scenePath;
-	if (toolContext.sceneInstances && toolContext.activeSceneInstanceID) {
-		if (const SceneInstance* instance = toolContext.sceneInstances->Find(toolContext.activeSceneInstanceID)) {
-			if (const AssetMeta* meta = assetDatabase->Find(instance->sceneAsset)) {
-				scenePath = meta->assetPath;
-			}
-		}
-	}
-	if (scenePath.empty()) {
-		return;
-	}
-
-	// シーンのベース込みの既定パスにフォルダを用意し、現在の設定でファイルを作る
-	const std::string defaultPath = MakeDefaultCollisionSettingsPath(scenePath);
-	const std::filesystem::path fullPath = assetDatabase->ResolveAssetPath(defaultPath);
-	std::error_code ec;
-	std::filesystem::create_directories(fullPath.parent_path(), ec);
-
-	CollisionSettings& settings = CollisionSettings::GetInstance();
-	settings.SetActiveSettingsPath(fullPath);
-	settings.Save();
-
-	// assetとして登録し、シーンheaderへ結びつけてアクティブ設定にする
-	header->collisionSettings = assetDatabase->ImportOrGet(defaultPath, AssetType::CollisionSettings);
-	settings.SetActiveSettingsAsset(header->collisionSettings, assetDatabase);
 }
 
 void Engine::CollisionManagerTool::DrawCollisionWorld([[maybe_unused]] ECSWorld& world) const {

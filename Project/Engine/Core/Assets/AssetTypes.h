@@ -35,8 +35,8 @@ namespace Engine {
 		Script,
 		Audio,
 		AnimationClip,
-		CollisionSettings,
 		PostProcessStack,
+		ParticleEffect,
 	};
 
 	// アセット参照の診断種別

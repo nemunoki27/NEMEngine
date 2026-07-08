@@ -155,4 +155,7 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, AnimationCurveTrack& track);
 	void to_json(nlohmann::json& out, const AnimationPropertyBinding& binding);
 	void from_json(const nlohmann::json& in, AnimationPropertyBinding& binding);
+	// カーブチャンネルのjson変換、エフェクトのカーブ保存でも共用する
+	void to_json(nlohmann::json& out, const CurveChannel& channel);
+	void from_json(const nlohmann::json& in, CurveChannel& channel);
 } // Engine

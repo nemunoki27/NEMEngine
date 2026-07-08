@@ -8,6 +8,7 @@
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/ParticleEmitterComponent.h>
 #include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
@@ -41,6 +42,11 @@ std::optional<Engine::Dimension> Engine::ResolveEntityDimension(ECSWorld& world,
 	// PrimitiveはPlane/RingをScreen2Dにしたときだけ2D、それ以外は3D
 	if (world.HasComponent<PrimitiveRendererComponent>(entity)) {
 		return IsPrimitiveScreen2D(world.GetComponent<PrimitiveRendererComponent>(entity)) ?
+			Dimension::Type2D : Dimension::Type3D;
+	}
+	// ParticleEmitterはエフェクトの描画空間がScreen2Dのときだけ2D
+	if (world.HasComponent<ParticleEmitterComponent>(entity)) {
+		return world.GetComponent<ParticleEmitterComponent>(entity).runtimeRenderSettings.space == PrimitiveRenderSpace::Screen2D ?
 			Dimension::Type2D : Dimension::Type3D;
 	}
 	if (world.HasComponent<MeshRendererComponent>(entity) ||

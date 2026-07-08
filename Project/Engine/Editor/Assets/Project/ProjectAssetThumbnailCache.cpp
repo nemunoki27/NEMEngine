@@ -66,8 +66,6 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	defaultIcons_[AssetType::Unknown].textureKey = "unknown.dds";
 	defaultIcons_[AssetType::Unknown].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "unknown.dds");
 	// シーンごとの設定ファイルは専用型なので.exeConfigと同じ歯車アイコンを型単位で割り当てる
-	defaultIcons_[AssetType::CollisionSettings].textureKey = "exeConfig.png";
-	defaultIcons_[AssetType::CollisionSettings].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
 	defaultIcons_[AssetType::PostProcessStack].textureKey = "exeConfig.png";
 	defaultIcons_[AssetType::PostProcessStack].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
 
@@ -75,8 +73,6 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	customExtensionIcons_[".exeConfig.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
 	customExtensionIcons_[".windowSetting.json"].textureKey = "exeConfig.png";
 	customExtensionIcons_[".windowSetting.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
-	customExtensionIcons_[".collisionSettings.json"].textureKey = "exeConfig.png";
-	customExtensionIcons_[".collisionSettings.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
 	customExtensionIcons_[".postProcessStack.json"].textureKey = "exeConfig.png";
 	customExtensionIcons_[".postProcessStack.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
 	customExtensionIcons_[".materialSettings.json"].textureKey = "exeConfig.png";

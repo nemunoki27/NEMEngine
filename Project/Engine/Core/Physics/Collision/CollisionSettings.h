@@ -31,10 +31,13 @@ namespace Engine {
 		void Load();
 		// 現在のCollision設定を設定ファイルへ保存する
 		void Save() const;
-		// 使用するCollision設定ファイルをアセットGUIDから切り替える
-		void SetActiveSettingsAsset(AssetID assetID, const AssetDatabase* assetDatabase);
+		// 全シーン共通のCollision設定ファイルへ結び付ける
+		void BindGlobal(const AssetDatabase* assetDatabase);
 		// 使用するCollision設定ファイルを実ファイルパスから切り替える
 		void SetActiveSettingsPath(const std::filesystem::path& settingsPath);
+		// 衝突形状を描画するか
+		void SetDrawCollisionWorld(bool drawEnable) { drawCollisionWorld_ = drawEnable; }
+		bool GetDrawCollisionWorld() const { return drawCollisionWorld_; }
 
 		// Collisionタイプを追加する
 		bool AddType(const std::string& name);
@@ -74,6 +77,8 @@ namespace Engine {
 
 		// 読み込み済みフラグ
 		bool loaded_ = false;
+		// シーン上のCollision形状を描画するか
+		bool drawCollisionWorld_ = false;
 
 		// 設定ファイルパス
 		std::filesystem::path settingsPath_{};

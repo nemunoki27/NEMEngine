@@ -31,6 +31,7 @@
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
 #include <Engine/Core/World/Systems/Rendering/UVTransformSystem.h>
 #include <Engine/Core/World/Systems/Rendering/FillFaceMeshRendererSystem.h>
+#include <Engine/Core/World/Systems/Effect/ParticleSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
@@ -97,6 +98,7 @@ void Engine::EngineApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UVTransformSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<FillFaceMeshRendererSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<ParticleSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<SkinnedAnimationSystem>(), ++order);
 	// ジョイント追従はスケルトン更新の後でないとジョイントのワールド行列が確定しないため、最後に動かす
 	scheduler_.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);
@@ -926,11 +928,7 @@ void Engine::EngineApplication::RefreshActiveWorldContext() {
 	}
 
 	systemContext_.activeSceneHeader = header;
-	if (header) {
-		CollisionSettings::GetInstance().SetActiveSettingsAsset(header->collisionSettings, systemContext_.assetDatabase);
-	} else {
-		CollisionSettings::GetInstance().SetActiveSettingsAsset({}, systemContext_.assetDatabase);
-	}
+	CollisionSettings::GetInstance().BindGlobal(systemContext_.assetDatabase);
 
 	if constexpr (BuildConfig::kEditorEnabled) {
 

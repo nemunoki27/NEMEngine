@@ -29,7 +29,6 @@ namespace Engine {
 			case AssetType::Shader:           return ".hlsl/.shader";
 			case AssetType::RenderPipeline:   return ".pipeline";
 			case AssetType::Script:           return ".cs";
-			case AssetType::CollisionSettings: return ".collisionSettings";
 			case AssetType::PostProcessStack: return ".postProcessStack";
 			default:                          return "";
 			}

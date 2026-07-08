@@ -325,9 +325,7 @@ void Engine::CollisionSystem::LateUpdate(ECSWorld& world, SystemContext& context
 	const bool isPlaying = (context.mode == WorldMode::Play);
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
-	if (context.activeSceneHeader) {
-		settings.SetActiveSettingsAsset(context.activeSceneHeader->collisionSettings, context.assetDatabase);
-	}
+	settings.BindGlobal(context.assetDatabase);
 	settings.EnsureLoaded();
 
 	std::vector<CollisionRuntimeEntity> entities{};
@@ -417,9 +415,14 @@ void Engine::CollisionSystem::LateUpdate(ECSWorld& world, SystemContext& context
 
 	// 前フレームにだけ存在した接触はExitとして扱う
 	for (const auto& [key, contact] : previousContacts_) {
-		if (!currentContacts.contains(key)) {
-			DispatchCollisionExit(world, context, contact);
+		if (currentContacts.contains(key)) {
+			continue;
 		}
+		// 破棄済みEntityはExitで死んだハンドルをスクリプトへ渡さないよう対象外にする
+		if (!world.IsAlive(contact.self) || !world.IsAlive(contact.other)) {
+			continue;
+		}
+		DispatchCollisionExit(world, context, contact);
 	}
 	previousContacts_ = std::move(currentContacts);
 }

@@ -94,7 +94,7 @@ namespace Engine {
 		// ジョイント追従なら親はジョイント、そのワールドの逆行列でローカルへ落とす
 		Matrix4x4 jointWorld{};
 		if (JointAttachmentUtility::GetAttachedJointWorldMatrix(world, entity, jointWorld)) {
-			return Vector3::TransformPoint(position, Matrix4x4::Inverse(jointWorld));
+			return Vector3::Transform(position, Matrix4x4::Inverse(jointWorld));
 		}
 
 		// 親がいなければワールド座標をそのままローカル座標として扱う
@@ -110,7 +110,7 @@ namespace Engine {
 
 		// 親のワールド行列の逆行列でワールド座標をローカル空間へ落とす
 		const Matrix4x4 inverseParent = Matrix4x4::Inverse(parentTransform->worldMatrix);
-		return Vector3::TransformPoint(position, inverseParent);
+		return Vector3::Transform(position, inverseParent);
 	}
 
 	void MarkDirty(ECSWorld& world, const Entity& entity) {

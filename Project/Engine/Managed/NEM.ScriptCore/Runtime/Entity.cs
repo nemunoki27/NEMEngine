@@ -43,7 +43,9 @@ public readonly struct Entity : IEquatable<Entity> {
         this.native = native;
     }
 
+    // ハンドルが非nullかの構造チェックのみ。破棄済みでもtrueを返すので破棄判定には使わない
     public bool isValid => native.world.isValid && native.index != 0xffffffffu;
+    // world上に生存しているか。破棄済み / 世代不一致はfalse。破棄判定はこちらを使う
     public bool isAlive => isValid && NativeApi.ReadIsAlive(native);
 
     public string name {
