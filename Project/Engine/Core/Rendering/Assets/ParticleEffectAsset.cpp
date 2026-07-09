@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 //============================================================================
@@ -26,11 +27,19 @@ Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(const Particle
 	settings.billboardAxes = asset.billboardAxes;
 	settings.trail = asset.trail;
 	settings.emitter = asset.emitter;
-	for (const ParticleEffectModuleEntry& entry : asset.modules) {
-		if (entry.id == "ShapeOverLifetime") {
-			settings.shapeOverLifetime = true;
-			break;
+	// フェーズごとのマテリアルと形状アニメの有無を集める
+	settings.phaseMaterials.reserve(asset.phases.size());
+	for (const ParticleEffectPhase& phase : asset.phases) {
+
+		settings.phaseMaterials.emplace_back(phase.material);
+		for (const ParticleEffectModuleEntry& entry : phase.modules) {
+			if (entry.id == "ShapeOverLifetime") {
+				settings.shapeOverLifetime = true;
+			}
 		}
+	}
+	if (settings.phaseMaterials.empty()) {
+		settings.phaseMaterials.emplace_back();
 	}
 	return settings;
 }
@@ -59,41 +68,25 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 		emitter.emitInterval = e.value("emitInterval", emitter.emitInterval);
 		if (const auto vit = e.find("emitCount"); vit != e.end()) { from_json(*vit, emitter.emitCount); }
 		emitter.maxParticles = e.value("maxParticles", emitter.maxParticles);
-		if (const auto vit = e.find("lifetime"); vit != e.end()) { from_json(*vit, emitter.lifetime); }
 		if (const auto vit = e.find("speed"); vit != e.end()) { from_json(*vit, emitter.speed); }
-		emitter.sphereRadius = e.value("sphereRadius", emitter.sphereRadius);
-		if (const auto vit = e.find("boxSize"); vit != e.end()) { emitter.boxSize = Vector3::FromJson(*vit); }
-		emitter.boxFacePosX = e.value("boxFacePosX", emitter.boxFacePosX);
-		emitter.boxFaceNegX = e.value("boxFaceNegX", emitter.boxFaceNegX);
-		emitter.boxFacePosY = e.value("boxFacePosY", emitter.boxFacePosY);
-		emitter.boxFaceNegY = e.value("boxFaceNegY", emitter.boxFaceNegY);
-		emitter.boxFacePosZ = e.value("boxFacePosZ", emitter.boxFacePosZ);
-		emitter.boxFaceNegZ = e.value("boxFaceNegZ", emitter.boxFaceNegZ);
-		emitter.torusRadius = e.value("torusRadius", emitter.torusRadius);
-		emitter.torusThickness = e.value("torusThickness", emitter.torusThickness);
-		emitter.circleRadius = e.value("circleRadius", emitter.circleRadius);
-		emitter.circleArc = e.value("circleArc", emitter.circleArc);
-		emitter.coneAngle = e.value("coneAngle", emitter.coneAngle);
-		emitter.coneRadius = e.value("coneRadius", emitter.coneRadius);
-		if (const auto vit = e.find("pointDirection"); vit != e.end()) { emitter.pointDirection = Vector3::FromJson(*vit); }
-		if (const auto vit = e.find("rectSize"); vit != e.end()) { emitter.rectSize = Vector2::FromJson(*vit); }
-		emitter.rectEdgePosX = e.value("rectEdgePosX", emitter.rectEdgePosX);
-		emitter.rectEdgeNegX = e.value("rectEdgeNegX", emitter.rectEdgeNegX);
-		emitter.rectEdgePosY = e.value("rectEdgePosY", emitter.rectEdgePosY);
-		emitter.rectEdgeNegY = e.value("rectEdgeNegY", emitter.rectEdgeNegY);
-	}
-	// 描画空間に合わない形状はフォールバックする
-	if (outAsset.space == PrimitiveRenderSpace::Screen2D) {
-		if (!IsParticleEmitterShape2D(outAsset.emitter.shape)) {
-			outAsset.emitter.shape = ParticleEmitterShape::Circle;
+		// 形状パラメータは各形状が自分の分を読む
+		for (const auto& [shape, instance] : ParticleEmitterShapeRegistry::GetInstance().GetMap()) {
+			instance->FromJson(e, emitter);
 		}
-	} else if (outAsset.emitter.shape == ParticleEmitterShape::Rect ||
-		outAsset.emitter.shape == ParticleEmitterShape::Cone2D) {
-		outAsset.emitter.shape = ParticleEmitterShape::Sphere;
 	}
-
 	outAsset.space = EnumAdapter<PrimitiveRenderSpace>::FromString(
 		data.value("space", "World3D")).value_or(PrimitiveRenderSpace::World3D);
+	// 描画空間に合わない発生形状はフォールバックする
+	{
+		const IParticleEmitterShape* shape = ParticleEmitterShapeRegistry::GetInstance().Find(outAsset.emitter.shape);
+		if (outAsset.space == PrimitiveRenderSpace::Screen2D) {
+			if (!shape || !shape->Supports2D()) {
+				outAsset.emitter.shape = ParticleEmitterShape::Circle;
+			}
+		} else if (!shape || !shape->Supports3D()) {
+			outAsset.emitter.shape = ParticleEmitterShape::Sphere;
+		}
+	}
 	outAsset.shape = EnumAdapter<PrimitiveType>::FromString(
 		data.value("shape", "Plane")).value_or(PrimitiveType::Plane);
 	// 2DはPlane/Ringのみ対応、他形状はPlaneへ落とす
@@ -130,9 +123,12 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 		outAsset.trail.width = it->value("width", outAsset.trail.width);
 	}
 
-	// 未知のモジュールは読み飛ばして他のモジュールの再生を継続する
-	if (data.contains("modules") && data["modules"].is_array()) {
-		for (const auto& moduleJson : data["modules"]) {
+	// モジュール配列を読み込む、未知のモジュールは読み飛ばして他のモジュールの再生を継続する
+	const auto readModules = [](const nlohmann::json& parent, std::vector<ParticleEffectModuleEntry>& outModules) {
+		if (!parent.contains("modules") || !parent["modules"].is_array()) {
+			return;
+		}
+		for (const auto& moduleJson : parent["modules"]) {
 
 			if (!moduleJson.is_object()) {
 				continue;
@@ -145,8 +141,38 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 			if (const auto it = moduleJson.find("params"); it != moduleJson.end() && it->is_object()) {
 				entry.params = *it;
 			}
-			outAsset.modules.emplace_back(std::move(entry));
+			outModules.emplace_back(std::move(entry));
 		}
+		};
+
+	// フェーズを読み込む、旧スキーマはトップレベルのモジュールとエミッターの寿命を1フェーズへ移行する
+	if (const auto it = data.find("phases"); it != data.end() && it->is_array()) {
+		for (const auto& phaseJson : *it) {
+
+			if (!phaseJson.is_object()) {
+				continue;
+			}
+			ParticleEffectPhase phase{};
+			phase.name = phaseJson.value("name", phase.name);
+			if (const auto vit = phaseJson.find("lifetime"); vit != phaseJson.end()) { from_json(*vit, phase.lifetime); }
+			phase.lifeEndMode = EnumAdapter<ParticleLifeEndMode>::FromString(
+				phaseJson.value("lifeEndMode", "Kill")).value_or(ParticleLifeEndMode::Kill);
+			phase.material = ParseAssetID(phaseJson, "material");
+			readModules(phaseJson, phase.modules);
+			outAsset.phases.emplace_back(std::move(phase));
+		}
+	} else {
+
+		ParticleEffectPhase phase{};
+		if (const auto eit = data.find("emitter"); eit != data.end() && eit->is_object()) {
+			if (const auto vit = eit->find("lifetime"); vit != eit->end()) { from_json(*vit, phase.lifetime); }
+		}
+		readModules(data, phase.modules);
+		outAsset.phases.emplace_back(std::move(phase));
+	}
+	// フェーズは必ず1つ以上持つ
+	if (outAsset.phases.empty()) {
+		outAsset.phases.emplace_back();
 	}
 	return true;
 }
@@ -166,28 +192,11 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 		e["emitInterval"] = emitter.emitInterval;
 		to_json(e["emitCount"], emitter.emitCount);
 		e["maxParticles"] = emitter.maxParticles;
-		to_json(e["lifetime"], emitter.lifetime);
 		to_json(e["speed"], emitter.speed);
-		e["sphereRadius"] = emitter.sphereRadius;
-		e["boxSize"] = emitter.boxSize.ToJson();
-		e["boxFacePosX"] = emitter.boxFacePosX;
-		e["boxFaceNegX"] = emitter.boxFaceNegX;
-		e["boxFacePosY"] = emitter.boxFacePosY;
-		e["boxFaceNegY"] = emitter.boxFaceNegY;
-		e["boxFacePosZ"] = emitter.boxFacePosZ;
-		e["boxFaceNegZ"] = emitter.boxFaceNegZ;
-		e["torusRadius"] = emitter.torusRadius;
-		e["torusThickness"] = emitter.torusThickness;
-		e["circleRadius"] = emitter.circleRadius;
-		e["circleArc"] = emitter.circleArc;
-		e["coneAngle"] = emitter.coneAngle;
-		e["coneRadius"] = emitter.coneRadius;
-		e["pointDirection"] = emitter.pointDirection.ToJson();
-		e["rectSize"] = emitter.rectSize.ToJson();
-		e["rectEdgePosX"] = emitter.rectEdgePosX;
-		e["rectEdgeNegX"] = emitter.rectEdgeNegX;
-		e["rectEdgePosY"] = emitter.rectEdgePosY;
-		e["rectEdgeNegY"] = emitter.rectEdgeNegY;
+		// 形状パラメータは各形状が自分の分を書く
+		for (const auto& [shape, instance] : ParticleEmitterShapeRegistry::GetInstance().GetMap()) {
+			instance->ToJson(e, emitter);
+		}
 		data["emitter"] = std::move(e);
 	}
 
@@ -214,13 +223,23 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 	data["trail"]["minDistance"] = asset.trail.minDistance;
 	data["trail"]["width"] = asset.trail.width;
 
-	data["modules"] = nlohmann::json::array();
-	for (const ParticleEffectModuleEntry& entry : asset.modules) {
+	data["phases"] = nlohmann::json::array();
+	for (const ParticleEffectPhase& phase : asset.phases) {
 
-		nlohmann::json moduleJson = nlohmann::json::object();
-		moduleJson["id"] = entry.id;
-		moduleJson["params"] = entry.params;
-		data["modules"].push_back(std::move(moduleJson));
+		nlohmann::json phaseJson = nlohmann::json::object();
+		phaseJson["name"] = phase.name;
+		to_json(phaseJson["lifetime"], phase.lifetime);
+		phaseJson["lifeEndMode"] = EnumAdapter<ParticleLifeEndMode>::ToString(phase.lifeEndMode);
+		phaseJson["material"] = ToAssetReferenceJson(phase.material);
+		phaseJson["modules"] = nlohmann::json::array();
+		for (const ParticleEffectModuleEntry& entry : phase.modules) {
+
+			nlohmann::json moduleJson = nlohmann::json::object();
+			moduleJson["id"] = entry.id;
+			moduleJson["params"] = entry.params;
+			phaseJson["modules"].push_back(std::move(moduleJson));
+		}
+		data["phases"].push_back(std::move(phaseJson));
 	}
 	return data;
 }

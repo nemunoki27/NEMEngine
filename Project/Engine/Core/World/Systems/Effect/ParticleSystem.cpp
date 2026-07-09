@@ -5,27 +5,45 @@
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/ParticleEmitterComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Core/Rendering/Particle/ParticleModuleRegistry.h>
+#include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
 #include <Engine/Core/Rendering/Particle/ParticleEffectEditBridge.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
-#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Math/AffineDecompose.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
 // ビルトインモジュールの自己登録をこの翻訳単位で確定させる
-#include <Engine/Core/Rendering/Particle/Modules/ParticleSizeOverLifetimeModule.h>
-#include <Engine/Core/Rendering/Particle/Modules/ParticleColorOverLifetimeModule.h>
-#include <Engine/Core/Rendering/Particle/Modules/ParticleRotationOverLifetimeModule.h>
-#include <Engine/Core/Rendering/Particle/Modules/ParticleGravityForceModule.h>
-#include <Engine/Core/Rendering/Particle/Modules/ParticleNoiseForceModule.h>
-#include <Engine/Core/Rendering/Particle/Modules/ParticleFlipbookModule.h>
-#include <Engine/Core/Rendering/Particle/Modules/ParticleShapeOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleSizeOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleRotationOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleGravityForceModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleNoiseForceModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleFlipbookModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleShapeOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleScaleOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorUVModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleNoiseUVModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleEmissiveModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleAlphaReferenceModule.h>
+
+// パラメトリック形状の自己登録をこの翻訳単位で確定させる
+#include <Engine/Core/Rendering/Particle/Parametric/ParticleRingParametricShape.h>
+#include <Engine/Core/Rendering/Particle/Parametric/ParticleCylinderParametricShape.h>
+
+// 発生形状の自己登録をこの翻訳単位で確定させる
+#include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleSphereEmitterShape.h>
+#include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleHemisphereEmitterShape.h>
+#include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleBoxEmitterShape.h>
+#include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleTorusEmitterShape.h>
+#include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleCircleEmitterShape.h>
+#include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleConeEmitterShape.h>
+#include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticlePointEmitterShape.h>
+#include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleRectEmitterShape.h>
+#include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleCone2DEmitterShape.h>
 
 // c++
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 
 //============================================================================
 //	ParticleSystem classMethods
@@ -71,13 +89,13 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 			emitAllowed = false;
 		}
 
-		// 寿命と移動、死亡した粒子は末尾と入れ替えて破棄する
+		// 寿命と移動、終端はLifeEndModeに従って遷移し、破棄する粒子は末尾と入れ替える
 		std::vector<Particle>& particles = emitter.runtimeParticles;
 		for (size_t i = 0; i < particles.size();) {
 
 			Particle& particle = particles[i];
 			particle.age += deltaTime;
-			if (particle.lifetime <= particle.age) {
+			if (particle.lifetime <= particle.age && !AdvancePhaseOnLifeEnd(particle, effect->phases)) {
 
 				particle = particles.back();
 				particles.pop_back();
@@ -87,10 +105,8 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 			++i;
 		}
 
-		// 生存粒子をモジュールで一括更新する
-		for (const auto& module : effect->modules) {
-			module->OnUpdate(std::span<Particle>(particles), deltaTime);
-		}
+		// 生存粒子をフェーズごとのモジュールで一括更新する
+		UpdatePhaseModules(particles, *effect, deltaTime);
 
 		// 発生間隔ごとに発生させ、上限でクランプする
 		if (emitAllowed) {
@@ -106,13 +122,15 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 			const uint32_t capacity = static_cast<uint32_t>(
 				(std::max)(0, static_cast<int32_t>(emitterSettings.maxParticles) - static_cast<int32_t>(particles.size())));
 			spawnCount = (std::min)(spawnCount, capacity);
-			if (0 < spawnCount) {
+			if (0 < spawnCount && !effect->phases.empty()) {
 
 				particles.resize(particles.size() + spawnCount);
 				std::span<Particle> newborn(particles.data() + particles.size() - spawnCount, spawnCount);
-				// エミッター形状から初期状態を決めてから、各モジュールの発生処理を通す
-				InitEmitterParticles(newborn, emitterSettings, asset.space == PrimitiveRenderSpace::Screen2D);
-				for (const auto& module : effect->modules) {
+				// エミッター形状から初期状態を決めてから、先頭フェーズのモジュールの発生処理を通す
+				const PhaseRuntime& firstPhase = effect->phases.front();
+				InitEmitterParticles(newborn, emitterSettings, firstPhase.lifetime,
+					asset.space == PrimitiveRenderSpace::Screen2D);
+				for (const auto& module : firstPhase.modules) {
 					module->OnSpawn(newborn);
 				}
 
@@ -131,7 +149,7 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 				}
 
 				// 発生した瞬間の見た目を確定させ、初回描画が未補間の色や大きさになるのを防ぐ
-				for (const auto& module : effect->modules) {
+				for (const auto& module : firstPhase.modules) {
 					module->OnUpdate(newborn, 0.0f);
 				}
 			}
@@ -174,7 +192,7 @@ const Engine::ParticleSystem::EffectRuntime* Engine::ParticleSystem::ResolveEffe
 
 			found->second.asset = std::move(editedAsset);
 			found->second.valid = true;
-			BuildModules(found->second);
+			BuildPhases(found->second);
 		} else if (checkReload && !found->second.path.empty()) {
 
 			std::error_code ec;
@@ -196,7 +214,7 @@ const Engine::ParticleSystem::EffectRuntime* Engine::ParticleSystem::ResolveEffe
 Engine::ParticleSystem::EffectRuntime Engine::ParticleSystem::LoadEffect(
 	SystemContext& context, AssetID effectID) const {
 
-	// アセットを読み込みモジュールを構築する、未登録のモジュールは読み飛ばす
+	// アセットを読み込みフェーズを構築する、未登録のモジュールは読み飛ばす
 	EffectRuntime runtime{};
 	runtime.path = context.assetDatabase->ResolveFullPath(effectID);
 	if (runtime.path.empty()) {
@@ -212,150 +230,87 @@ Engine::ParticleSystem::EffectRuntime Engine::ParticleSystem::LoadEffect(
 	}
 
 	runtime.valid = true;
-	BuildModules(runtime);
+	BuildPhases(runtime);
 	return runtime;
 }
 
-void Engine::ParticleSystem::InitEmitterParticles(std::span<Particle> newborn,
-	const ParticleEmitterSettings& settings, bool is2D) const {
+bool Engine::ParticleSystem::AdvancePhaseOnLifeEnd(Particle& particle, const std::vector<PhaseRuntime>& phases) const {
 
-	constexpr float pi = std::numbers::pi_v<float>;
-	constexpr float degToRad = std::numbers::pi_v<float> / 180.0f;
+	if (phases.size() <= particle.phaseIndex) {
+		return false;
+	}
+
+	// 寿命が尽きたときの挙動、値の閉じたenumなのでここで一括処理する
+	switch (phases[particle.phaseIndex].lifeEndMode) {
+	case ParticleLifeEndMode::Advance: {
+
+		// 次フェーズへ遷移する、位置や速度や色は現在値を引き継ぐ
+		const uint32_t next = particle.phaseIndex + 1;
+		if (phases.size() <= next) {
+			return false;
+		}
+		particle.phaseIndex = next;
+		particle.age = 0.0f;
+		particle.lifetime = (std::max)(phases[next].lifetime.Sample(), 0.001f);
+		return true;
+	}
+	case ParticleLifeEndMode::Clamp:
+
+		// 進行度1.0の見た目を保持して生存し続ける
+		particle.age = particle.lifetime;
+		return true;
+	case ParticleLifeEndMode::Reset:
+
+		// 同フェーズを最初からやり直す
+		particle.age = 0.0f;
+		return true;
+	case ParticleLifeEndMode::Kill:
+	default:
+		return false;
+	}
+}
+
+void Engine::ParticleSystem::UpdatePhaseModules(std::vector<Particle>& particles,
+	const EffectRuntime& effect, float deltaTime) const {
+
+	// フェーズ順に並べ、各フェーズのモジュールを連続範囲へ一括適用する
+	std::sort(particles.begin(), particles.end(),
+		[](const Particle& lhs, const Particle& rhs) { return lhs.phaseIndex < rhs.phaseIndex; });
+	size_t begin = 0;
+	while (begin < particles.size()) {
+
+		const uint32_t phaseIndex = particles[begin].phaseIndex;
+		size_t end = begin;
+		while (end < particles.size() && particles[end].phaseIndex == phaseIndex) {
+			++end;
+		}
+		if (phaseIndex < effect.phases.size()) {
+
+			std::span<Particle> range(particles.data() + begin, end - begin);
+			for (const auto& module : effect.phases[phaseIndex].modules) {
+				module->OnUpdate(range, deltaTime);
+			}
+		}
+		begin = end;
+	}
+}
+
+void Engine::ParticleSystem::InitEmitterParticles(std::span<Particle> newborn,
+	const ParticleEmitterSettings& settings, const ParticleValue<float>& lifetime, bool is2D) const {
+
+	const IParticleEmitterShape* shape = ParticleEmitterShapeRegistry::GetInstance().Find(settings.shape);
 
 	for (Particle& particle : newborn) {
 
 		Vector3 position = Vector3::AnyInit(0.0f);
 		Vector3 direction = Vector3(0.0f, 1.0f, 0.0f);
-
-		switch (settings.shape) {
-		case ParticleEmitterShape::Sphere: {
-
-			// 球面上から外向きに飛ばす
-			direction = Vector3::Normalize(RandomGenerator::Generate(Vector3::AnyInit(-1.0f), Vector3::AnyInit(1.0f)));
-			position = direction * settings.sphereRadius;
-			break;
-		}
-		case ParticleEmitterShape::Hemisphere: {
-
-			// Y上向きの半球面から外向きに飛ばす
-			direction = Vector3::Normalize(RandomGenerator::Generate(Vector3::AnyInit(-1.0f), Vector3::AnyInit(1.0f)));
-			direction.y = std::abs(direction.y);
-			position = direction * settings.sphereRadius;
-			break;
-		}
-		case ParticleEmitterShape::Box: {
-
-			// 有効な面からランダムに選び、面上の点から面法線方向へ飛ばす
-			const bool faces[6] = {
-				settings.boxFacePosX, settings.boxFaceNegX, settings.boxFacePosY,
-				settings.boxFaceNegY, settings.boxFacePosZ, settings.boxFaceNegZ };
-			int32_t enabledCount = 0;
-			for (bool face : faces) { enabledCount += face ? 1 : 0; }
-			if (enabledCount == 0) {
-				break;
-			}
-			int32_t pick = RandomGenerator::Generate(0, enabledCount - 1);
-			int32_t faceIndex = 0;
-			for (int32_t i = 0; i < 6; ++i) {
-				if (faces[i] && pick-- == 0) { faceIndex = i; break; }
-			}
-			const Vector3 half = settings.boxSize * 0.5f;
-			position = RandomGenerator::Generate(-half, half);
-			switch (faceIndex) {
-			case 0: position.x = half.x; direction = Vector3(1.0f, 0.0f, 0.0f); break;
-			case 1: position.x = -half.x; direction = Vector3(-1.0f, 0.0f, 0.0f); break;
-			case 2: position.y = half.y; direction = Vector3(0.0f, 1.0f, 0.0f); break;
-			case 3: position.y = -half.y; direction = Vector3(0.0f, -1.0f, 0.0f); break;
-			case 4: position.z = half.z; direction = Vector3(0.0f, 0.0f, 1.0f); break;
-			case 5: position.z = -half.z; direction = Vector3(0.0f, 0.0f, -1.0f); break;
-			}
-			break;
-		}
-		case ParticleEmitterShape::Torus: {
-
-			// 主円周上の管内から管の外向きに飛ばす
-			const float mainAngle = RandomGenerator::Generate(0.0f, pi * 2.0f);
-			const float tubeAngle = RandomGenerator::Generate(0.0f, pi * 2.0f);
-			const float tubeRadius = RandomGenerator::Generate(0.0f, settings.torusThickness);
-			const Vector3 radial(std::cos(mainAngle), 0.0f, std::sin(mainAngle));
-			const Vector3 tubeDir = radial * std::cos(tubeAngle) + Vector3(0.0f, std::sin(tubeAngle), 0.0f);
-			position = radial * settings.torusRadius + tubeDir * tubeRadius;
-			direction = tubeDir;
-			break;
-		}
-		case ParticleEmitterShape::Circle: {
-
-			// 円弧上から外向きに飛ばす、3DはXZ平面で2DはXY平面
-			const float angle = RandomGenerator::Generate(0.0f, settings.circleArc * degToRad);
-			direction = is2D ?
-				Vector3(std::cos(angle), std::sin(angle), 0.0f) :
-				Vector3(std::cos(angle), 0.0f, std::sin(angle));
-			position = direction * settings.circleRadius;
-			break;
-		}
-		case ParticleEmitterShape::Rect: {
-
-			// 有効な辺からランダムに選び、辺上の点から辺法線方向へ飛ばす
-			const bool edges[4] = {
-				settings.rectEdgePosX, settings.rectEdgeNegX, settings.rectEdgePosY, settings.rectEdgeNegY };
-			int32_t enabledCount = 0;
-			for (bool edge : edges) { enabledCount += edge ? 1 : 0; }
-			if (enabledCount == 0) {
-				break;
-			}
-			int32_t pick = RandomGenerator::Generate(0, enabledCount - 1);
-			int32_t edgeIndex = 0;
-			for (int32_t i = 0; i < 4; ++i) {
-				if (edges[i] && pick-- == 0) { edgeIndex = i; break; }
-			}
-			const Vector2 half = settings.rectSize * 0.5f;
-			position = Vector3(RandomGenerator::Generate(-half.x, half.x),
-				RandomGenerator::Generate(-half.y, half.y), 0.0f);
-			switch (edgeIndex) {
-			case 0: position.x = half.x; direction = Vector3(1.0f, 0.0f, 0.0f); break;
-			case 1: position.x = -half.x; direction = Vector3(-1.0f, 0.0f, 0.0f); break;
-			case 2: position.y = half.y; direction = Vector3(0.0f, 1.0f, 0.0f); break;
-			case 3: position.y = -half.y; direction = Vector3(0.0f, -1.0f, 0.0f); break;
-			}
-			break;
-		}
-		case ParticleEmitterShape::Cone2D: {
-
-			// 底辺の線分から開き角の範囲で上向きに飛ばす
-			position = Vector3(RandomGenerator::Generate(-settings.coneRadius, settings.coneRadius), 0.0f, 0.0f);
-			const float tilt = RandomGenerator::Generate(
-				-settings.coneAngle * degToRad, settings.coneAngle * degToRad);
-			direction = Vector3(std::sin(tilt), std::cos(tilt), 0.0f);
-			break;
-		}
-		case ParticleEmitterShape::Cone: {
-
-			// 底面円から開き角に沿って飛ばす、頂点から離れる方向にする
-			const float angle = RandomGenerator::Generate(0.0f, pi * 2.0f);
-			const float radius = RandomGenerator::Generate(0.0f, settings.coneRadius);
-			const Vector3 radial(std::cos(angle), 0.0f, std::sin(angle));
-			position = radial * radius;
-			const float coneAngleRad = settings.coneAngle * degToRad;
-			if (0.001f < coneAngleRad && 0.001f < settings.coneRadius) {
-
-				const float apexDistance = settings.coneRadius / std::tan(coneAngleRad);
-				direction = Vector3::Normalize(position - Vector3(0.0f, -apexDistance, 0.0f));
-			} else {
-				direction = Vector3(0.0f, 1.0f, 0.0f);
-			}
-			break;
-		}
-		case ParticleEmitterShape::Point: {
-
-			// 原点から指定方向へ飛ばす
-			direction = Vector3::NormalizeOr(settings.pointDirection, Vector3(0.0f, 1.0f, 0.0f));
-			break;
-		}
+		if (shape) {
+			shape->InitParticle(position, direction, settings, is2D);
 		}
 
 		particle.position = position;
 		particle.velocity = direction * settings.speed.Sample();
-		particle.lifetime = (std::max)(settings.lifetime.Sample(), 0.001f);
+		particle.lifetime = (std::max)(lifetime.Sample(), 0.001f);
 	}
 }
 
@@ -363,8 +318,8 @@ void Engine::ParticleSystem::DrawEmitterShape(ECSWorld& world, const Entity& ent
 	const ParticleEmitterSettings& settings, bool is2D) const {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
-	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
-	if (!renderer) {
+	const IParticleEmitterShape* shape = ParticleEmitterShapeRegistry::GetInstance().Find(settings.shape);
+	if (!shape) {
 		return;
 	}
 
@@ -376,172 +331,7 @@ void Engine::ParticleSystem::DrawEmitterShape(ECSWorld& world, const Entity& ent
 		Vector3 scale{};
 		DecomposeAffine3D(transform->worldMatrix, center, rotation, scale);
 	}
-	const Matrix4x4 rotationMatrix = Quaternion::MakeRotateMatrix(rotation);
-	const Color4 color = Color4::Red();
-	constexpr float degToRad = std::numbers::pi_v<float> / 180.0f;
-
-	// 2Dはスクリーン空間の2Dレンダラーで描く
-	if (is2D) {
-
-		LineRenderer2D* renderer2D = LineRenderer::GetInstance()->Get2D();
-		if (!renderer2D) {
-			return;
-		}
-		// ローカル点をエンティティの回転と位置でスクリーン座標へ変換する
-		auto toScreen = [&](const Vector3& local) {
-			const Vector3 world = center + Vector3::Transform(local, rotationMatrix);
-			return Vector2(world.x, world.y);
-			};
-
-		switch (settings.shape) {
-		case ParticleEmitterShape::Circle: {
-
-			constexpr uint32_t kDivision = 24;
-			const float arc = settings.circleArc * degToRad;
-			const float step = arc / static_cast<float>(kDivision);
-			for (uint32_t i = 0; i < kDivision; ++i) {
-
-				const float angle0 = step * static_cast<float>(i);
-				const float angle1 = step * static_cast<float>(i + 1);
-				renderer2D->DrawLine(
-					toScreen(Vector3(std::cos(angle0), std::sin(angle0), 0.0f) * settings.circleRadius),
-					toScreen(Vector3(std::cos(angle1), std::sin(angle1), 0.0f) * settings.circleRadius), color);
-			}
-			break;
-		}
-		case ParticleEmitterShape::Rect: {
-
-			const Vector2 half = settings.rectSize * 0.5f;
-			const Vector3 corners[4] = {
-				Vector3(-half.x, -half.y, 0.0f), Vector3(half.x, -half.y, 0.0f),
-				Vector3(half.x, half.y, 0.0f), Vector3(-half.x, half.y, 0.0f) };
-			for (int32_t i = 0; i < 4; ++i) {
-				renderer2D->DrawLine(toScreen(corners[i]), toScreen(corners[(i + 1) % 4]), color);
-			}
-			break;
-		}
-		case ParticleEmitterShape::Point: {
-
-			// 射出方向を線で表す、スクリーン単位なので見やすい長さにする
-			const Vector3 direction = Vector3::NormalizeOr(settings.pointDirection, Vector3(0.0f, 1.0f, 0.0f));
-			renderer2D->DrawCircle(Vector2(center.x, center.y), 4.0f, color);
-			renderer2D->DrawLine(toScreen(Vector3::AnyInit(0.0f)), toScreen(direction * 32.0f), color);
-			break;
-		}
-		case ParticleEmitterShape::Cone2D: {
-
-			// 底辺と開き角の2本の線で扇を表す
-			const float tilt = settings.coneAngle * degToRad;
-			const float rayLength = (std::max)(settings.coneRadius, 32.0f);
-			const Vector3 base0(-settings.coneRadius, 0.0f, 0.0f);
-			const Vector3 base1(settings.coneRadius, 0.0f, 0.0f);
-			renderer2D->DrawLine(toScreen(base0), toScreen(base1), color);
-			renderer2D->DrawLine(toScreen(base0),
-				toScreen(base0 + Vector3(std::sin(-tilt), std::cos(-tilt), 0.0f) * rayLength), color);
-			renderer2D->DrawLine(toScreen(base1),
-				toScreen(base1 + Vector3(std::sin(tilt), std::cos(tilt), 0.0f) * rayLength), color);
-			break;
-		}
-		default:
-			break;
-		}
-		return;
-	}
-
-	switch (settings.shape) {
-	case ParticleEmitterShape::Sphere:
-		renderer->DrawSphere(center, settings.sphereRadius, color, 8u);
-		break;
-	case ParticleEmitterShape::Hemisphere:
-		renderer->DrawHemisphere(center, settings.sphereRadius, rotation, color);
-		break;
-	case ParticleEmitterShape::Box:
-		renderer->DrawOBB(center, settings.boxSize * 0.5f, rotation, color);
-		break;
-	case ParticleEmitterShape::Torus: {
-
-		// 主円周を管の内外2本の円で表す
-		constexpr uint32_t kDivision = 24;
-		constexpr float kStep = 2.0f * std::numbers::pi_v<float> / static_cast<float>(kDivision);
-		for (uint32_t i = 0; i < kDivision; ++i) {
-
-			const float angle0 = kStep * static_cast<float>(i);
-			const float angle1 = kStep * static_cast<float>(i + 1);
-			for (const float radius : { settings.torusRadius - settings.torusThickness,
-				settings.torusRadius + settings.torusThickness }) {
-
-				const Vector3 p0 = center + Vector3::Transform(
-					Vector3(std::cos(angle0) * radius, 0.0f, std::sin(angle0) * radius), rotationMatrix);
-				const Vector3 p1 = center + Vector3::Transform(
-					Vector3(std::cos(angle1) * radius, 0.0f, std::sin(angle1) * radius), rotationMatrix);
-				renderer->DrawLine(p0, p1, color);
-			}
-		}
-		break;
-	}
-	case ParticleEmitterShape::Circle: {
-
-		// 円弧の範囲だけ線を張る
-		constexpr uint32_t kDivision = 24;
-		const float arc = settings.circleArc * degToRad;
-		const float step = arc / static_cast<float>(kDivision);
-		for (uint32_t i = 0; i < kDivision; ++i) {
-
-			const float angle0 = step * static_cast<float>(i);
-			const float angle1 = step * static_cast<float>(i + 1);
-			const Vector3 local0 = is2D ?
-				Vector3(std::cos(angle0), std::sin(angle0), 0.0f) : Vector3(std::cos(angle0), 0.0f, std::sin(angle0));
-			const Vector3 local1 = is2D ?
-				Vector3(std::cos(angle1), std::sin(angle1), 0.0f) : Vector3(std::cos(angle1), 0.0f, std::sin(angle1));
-			renderer->DrawLine(center + Vector3::Transform(local0 * settings.circleRadius, rotationMatrix),
-				center + Vector3::Transform(local1 * settings.circleRadius, rotationMatrix), color);
-		}
-		break;
-	}
-	case ParticleEmitterShape::Rect: {
-
-		// 矩形の外周を線で表す
-		const Vector2 half = settings.rectSize * 0.5f;
-		const Vector3 corners[4] = {
-			Vector3(-half.x, -half.y, 0.0f), Vector3(half.x, -half.y, 0.0f),
-			Vector3(half.x, half.y, 0.0f), Vector3(-half.x, half.y, 0.0f) };
-		for (int32_t i = 0; i < 4; ++i) {
-			renderer->DrawLine(center + Vector3::Transform(corners[i], rotationMatrix),
-				center + Vector3::Transform(corners[(i + 1) % 4], rotationMatrix), color);
-		}
-		break;
-	}
-	case ParticleEmitterShape::Cone2D: {
-
-		// 底辺と開き角の2本の線で扇を表す
-		const float tilt = settings.coneAngle * degToRad;
-		const Vector3 base0(-settings.coneRadius, 0.0f, 0.0f);
-		const Vector3 base1(settings.coneRadius, 0.0f, 0.0f);
-		renderer->DrawLine(center + Vector3::Transform(base0, rotationMatrix),
-			center + Vector3::Transform(base1, rotationMatrix), color);
-		renderer->DrawLine(center + Vector3::Transform(base0, rotationMatrix),
-			center + Vector3::Transform(base0 + Vector3(std::sin(-tilt), std::cos(-tilt), 0.0f), rotationMatrix), color);
-		renderer->DrawLine(center + Vector3::Transform(base1, rotationMatrix),
-			center + Vector3::Transform(base1 + Vector3(std::sin(tilt), std::cos(tilt), 0.0f), rotationMatrix), color);
-		break;
-	}
-	case ParticleEmitterShape::Cone: {
-
-		// 開き角に沿った上面半径で高さ1の円錐を表す
-		const float displayHeight = 1.0f;
-		const float topRadius = settings.coneRadius + std::tan(settings.coneAngle * degToRad) * displayHeight;
-		renderer->DrawCone(center, settings.coneRadius, topRadius, displayHeight, rotation, color);
-		break;
-	}
-	case ParticleEmitterShape::Point: {
-
-		// 射出方向を線で表す
-		const Vector3 direction = Vector3::NormalizeOr(settings.pointDirection, Vector3(0.0f, 1.0f, 0.0f));
-		renderer->DrawSphere(center, 0.05f, color, 8u);
-		renderer->DrawLine(center, center + Vector3::Transform(direction, rotationMatrix), color);
-		break;
-	}
-	}
+	shape->DrawShape(settings, center, rotation, is2D);
 #endif
 }
 
@@ -578,17 +368,25 @@ void Engine::ParticleSystem::RecordTrails([[maybe_unused]] ECSWorld& world, [[ma
 	}
 }
 
-void Engine::ParticleSystem::BuildModules(EffectRuntime& runtime) const {
+void Engine::ParticleSystem::BuildPhases(EffectRuntime& runtime) const {
 
 	// 未登録のモジュールは読み飛ばす
-	runtime.modules.clear();
-	for (const ParticleEffectModuleEntry& entry : runtime.asset.modules) {
+	runtime.phases.clear();
+	runtime.phases.reserve(runtime.asset.phases.size());
+	for (const ParticleEffectPhase& phaseDef : runtime.asset.phases) {
 
-		auto module = ParticleModuleRegistry::GetInstance().Create(entry.id);
-		if (!module) {
-			continue;
+		PhaseRuntime phase{};
+		phase.lifetime = phaseDef.lifetime;
+		phase.lifeEndMode = phaseDef.lifeEndMode;
+		for (const ParticleEffectModuleEntry& entry : phaseDef.modules) {
+
+			auto module = ParticleModuleRegistry::GetInstance().Create(entry.id);
+			if (!module) {
+				continue;
+			}
+			module->FromJson(entry.params);
+			phase.modules.emplace_back(std::move(module));
 		}
-		module->FromJson(entry.params);
-		runtime.modules.emplace_back(std::move(module));
+		runtime.phases.emplace_back(std::move(phase));
 	}
 }

@@ -31,6 +31,10 @@ namespace Engine {
 		Vector4 uvScaleOffset = Vector4(1.0f, 1.0f, 0.0f, 0.0f);
 		// 形状アニメーション用のパラメータ、形状ごとに解釈が変わる
 		Vector4 shapeParams = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+		// 発光色と強さ、wが強さ
+		Vector4 emissive = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+		// xがアルファ棄却の閾値、yzwは予約
+		Vector4 materialParams = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
 	};
 
 	//============================================================================

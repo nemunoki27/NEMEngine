@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Systems/Core/ISystem.h>
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
-#include <Engine/Core/Rendering/Particle/ParticleModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Base/IParticleModule.h>
 
 // c++
 #include <filesystem>
@@ -45,11 +45,19 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// アセットから構築したモジュール一式、アセットID単位で共有する
+		// フェーズ1つ分の実行データ
+		struct PhaseRuntime {
+
+			ParticleValue<float> lifetime{ 1.0f };
+			ParticleLifeEndMode lifeEndMode = ParticleLifeEndMode::Kill;
+			std::vector<std::unique_ptr<IParticleModule>> modules;
+		};
+
+		// アセットから構築したフェーズ一式、アセットID単位で共有する
 		struct EffectRuntime {
 
 			ParticleEffectAsset asset{};
-			std::vector<std::unique_ptr<IParticleModule>> modules;
+			std::vector<PhaseRuntime> phases;
 			bool valid = false;
 
 			// ホットリロード用のファイル情報
@@ -75,17 +83,22 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// エフェクトを取得する、未ロードならアセットを読み込みモジュールを構築する
+		// エフェクトを取得する、未ロードならアセットを読み込みフェーズを構築する
 		const EffectRuntime* ResolveEffect(SystemContext& context, AssetID effectID, bool checkReload);
-		// アセットを読み込んでモジュールを構築する
+		// アセットを読み込んでフェーズを構築する
 		EffectRuntime LoadEffect(SystemContext& context, AssetID effectID) const;
-		// アセットのモジュール定義からモジュールを構築する
-		void BuildModules(EffectRuntime& runtime) const;
+		// アセットのフェーズ定義からモジュールを構築する
+		void BuildPhases(EffectRuntime& runtime) const;
+		// 寿命が尽きた粒子をLifeEndModeに従って遷移させる、破棄するならfalse
+		bool AdvancePhaseOnLifeEnd(Particle& particle, const std::vector<PhaseRuntime>& phases) const;
+		// フェーズ順に並べ、各フェーズのモジュールを連続範囲へ一括適用する
+		void UpdatePhaseModules(std::vector<Particle>& particles, const EffectRuntime& effect, float deltaTime) const;
 		// トレイルの軌跡点をワールド空間で記録し、死亡した粒子の軌跡を破棄する
 		void RecordTrails(ECSWorld& world, const Entity& entity,
 			ParticleEmitterComponent& emitter, const ParticleTrailSettings& trail);
 		// エミッター形状から発生位置と方向と初期状態を決める
-		void InitEmitterParticles(std::span<Particle> newborn, const ParticleEmitterSettings& settings, bool is2D) const;
+		void InitEmitterParticles(std::span<Particle> newborn, const ParticleEmitterSettings& settings,
+			const ParticleValue<float>& lifetime, bool is2D) const;
 		// エミッター形状をデバッグ線で描画する
 		void DrawEmitterShape(ECSWorld& world, const Entity& entity,
 			const ParticleEmitterSettings& settings, bool is2D) const;

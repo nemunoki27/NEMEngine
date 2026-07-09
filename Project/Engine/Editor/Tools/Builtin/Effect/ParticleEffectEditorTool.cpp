@@ -6,7 +6,9 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Particle/ParticleEffectEditBridge.h>
-#include <Engine/Core/Rendering/Particle/ParticleModuleRegistry.h>
+#include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
+#include <Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.h>
+#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
 #include <Engine/Core/World/Components/Rendering/ParticleEmitterComponent.h>
 #include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -14,12 +16,19 @@ using namespace Engine;
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
-#include <Engine/Core/Foundation/Utility/Enum/Easing.h>
+
+// 形状別
+#include <Engine/Editor/Tools/Builtin/Effect/ShapeParams/ParticlePlaneShapeDrawer.h>
+#include <Engine/Editor/Tools/Builtin/Effect/ShapeParams/ParticleCrossPlaneShapeDrawer.h>
+#include <Engine/Editor/Tools/Builtin/Effect/ShapeParams/ParticleRingShapeDrawer.h>
+#include <Engine/Editor/Tools/Builtin/Effect/ShapeParams/ParticleCylinderShapeDrawer.h>
+#include <Engine/Editor/Tools/Builtin/Effect/ShapeParams/ParticleSphereShapeDrawer.h>
+#include <Engine/Editor/Tools/Builtin/Effect/ShapeParams/ParticleHemisphereShapeDrawer.h>
+#include <Engine/Editor/Tools/Builtin/Effect/ShapeParams/ParticleCubeShapeDrawer.h>
 
 // c++
 #include <algorithm>
 #include <filesystem>
-#include <numbers>
 
 //============================================================================
 //	ParticleEffectEditorTool internal
@@ -27,153 +36,20 @@ using namespace Engine;
 namespace {
 
 	// float編集の共通設定
-	FloatEditSetting MakeDragSetting(float minValue, float maxValue, float dragSpeed = 0.01f) {
+	using Engine::ParticleGui::MakeDragSetting;
 
-		FloatEditSetting setting{};
-		setting.dragSpeed = dragSpeed;
-		setting.minValue = minValue;
-		setting.maxValue = maxValue;
-		return setting;
-	}
+	// モジュール並べ替えのドラッグ&ドロップペイロード
+	constexpr const char* kModuleReorderPayloadType = "PARTICLE_MODULE_REORDER";
 
-	// 定数かランダムかを切り替えられるfloat値を編集する
-	bool DrawParticleValueFloat(const char* label, ParticleValue<float>& value,
-		const FloatEditSetting& setting) {
+	// リストの要素をfromからtoへ移動する
+	template <typename T>
+	void MoveListItem(std::vector<T>& list, int32_t from, int32_t to) {
 
-		bool changed = false;
-		ImGui::PushID(label);
-
-		changed |= MyGUI::EnumCombo<ParticleValueType>("タイプ", value.type).valueChanged;
-
-		if (value.type == ParticleValueType::Constant) {
-
-			changed |= MyGUI::DragFloat(label, value.constant, setting).valueChanged;
+		if (from < to) {
+			std::rotate(list.begin() + from, list.begin() + from + 1, list.begin() + to + 1);
 		} else {
-
-			changed |= MyGUI::DragFloat((std::string(label) + " 最小").c_str(), value.min, setting).valueChanged;
-			changed |= MyGUI::DragFloat((std::string(label) + " 最大").c_str(), value.max, setting).valueChanged;
+			std::rotate(list.begin() + to, list.begin() + from, list.begin() + from + 1);
 		}
-		ImGui::PopID();
-		return changed;
-	}
-
-	// 定数かランダムかを切り替えられるuint値を編集する
-	bool DrawParticleValueUInt(const char* label, ParticleValue<uint32_t>& value) {
-
-		bool changed = false;
-		ImGui::PushID(label);
-
-		changed |= MyGUI::EnumCombo<ParticleValueType>("タイプ", value.type).valueChanged;
-
-		auto dragUInt = [&](const char* dragLabel, uint32_t& target) {
-			int32_t intValue = static_cast<int32_t>(target);
-			if (MyGUI::DragInt(dragLabel, intValue).valueChanged) {
-
-				target = static_cast<uint32_t>((std::max)(0, intValue));
-				return true;
-			}
-			return false;
-			};
-		if (value.type == ParticleValueType::Constant) {
-			changed |= dragUInt(label, value.constant);
-		} else {
-
-			changed |= dragUInt((std::string(label) + " 最小").c_str(), value.min);
-			changed |= dragUInt((std::string(label) + " 最大").c_str(), value.max);
-		}
-		ImGui::PopID();
-		return changed;
-	}
-
-	// jsonのfloat値を編集する
-	bool DragJsonFloat(const char* label, nlohmann::json& params, const char* key,
-		float defaultValue, const FloatEditSetting& setting) {
-
-		float value = params.value(key, defaultValue);
-		if (MyGUI::DragFloat(label, value, setting).valueChanged) {
-
-			params[key] = value;
-			return true;
-		}
-		return false;
-	}
-
-	// jsonのint値を編集する
-	bool DragJsonInt(const char* label, nlohmann::json& params, const char* key, int32_t defaultValue) {
-
-		int32_t value = params.value(key, defaultValue);
-		if (MyGUI::DragInt(label, value).valueChanged) {
-
-			params[key] = value;
-			return true;
-		}
-		return false;
-	}
-
-	// jsonの色値を編集する
-	bool ColorEditJson(const char* label, nlohmann::json& params, const char* key, const Color4& defaultValue) {
-
-		Color4 value = defaultValue;
-		if (const auto it = params.find(key); it != params.end()) {
-			value = Color4::FromJson(*it);
-		}
-		if (MyGUI::ColorEdit(label, value).valueChanged) {
-
-			params[key] = value.ToJson();
-			return true;
-		}
-		return false;
-	}
-
-	// jsonのイージングを編集する
-	bool EasingComboJson(nlohmann::json& params, const char* key) {
-
-		EasingType easing = EnumAdapter<EasingType>::FromString(
-			params.value(key, "EaseOutSine")).value_or(EasingType::EaseOutSine);
-		const EasingType previous = easing;
-		Easing::SelectEasingType(easing, "easing");
-		if (easing != previous) {
-
-			params[key] = EnumAdapter<EasingType>::ToString(easing);
-			return true;
-		}
-		return false;
-	}
-
-	// jsonに入っているRing形状パラメータを編集する
-	bool DrawRingParamsJson(const char* label, nlohmann::json& params, const char* key) {
-
-		if (!params.contains(key) || !params[key].is_object()) {
-			params[key] = PrimitiveRingParams{};
-		}
-		nlohmann::json& obj = params[key];
-		bool changed = false;
-		ImGui::SeparatorText(label);
-		ImGui::PushID(label);
-		changed |= DragJsonFloat("外周半径", obj, "outerRadius", 1.0f, MakeDragSetting(0.0f, 10000.0f));
-		changed |= DragJsonFloat("内周半径", obj, "innerRadius", 0.5f, MakeDragSetting(0.0f, 10000.0f));
-		changed |= DragJsonFloat("開始角", obj, "startAngle", 0.0f, MakeDragSetting(0.0f, 360.0f, 0.5f));
-		changed |= DragJsonFloat("終了角", obj, "endAngle", 360.0f, MakeDragSetting(0.0f, 360.0f, 0.5f));
-		ImGui::PopID();
-		return changed;
-	}
-
-	// jsonに入っているCylinder形状パラメータを編集する
-	bool DrawCylinderParamsJson(const char* label, nlohmann::json& params, const char* key) {
-
-		if (!params.contains(key) || !params[key].is_object()) {
-			params[key] = PrimitiveCylinderParams{};
-		}
-		nlohmann::json& obj = params[key];
-		bool changed = false;
-		ImGui::SeparatorText(label);
-		ImGui::PushID(label);
-		changed |= DragJsonFloat("上面半径", obj, "topRadius", 1.0f, MakeDragSetting(0.0f, 10000.0f));
-		changed |= DragJsonFloat("下面半径", obj, "bottomRadius", 1.0f, MakeDragSetting(0.0f, 10000.0f));
-		changed |= DragJsonFloat("高さ", obj, "height", 2.0f, MakeDragSetting(0.0f, 10000.0f));
-		changed |= DragJsonFloat("展開角", obj, "maxAngle", std::numbers::pi_v<float> *2.0f, MakeDragSetting(0.0f, 10.0f));
-		ImGui::PopID();
-		return changed;
 	}
 }
 
@@ -212,7 +88,7 @@ void ParticleEffectEditorTool::DrawWindow(const EditorToolContext& context) {
 		if (ImGui::BeginTabBar("ParticleEffectEditorToolTabBar")) {
 
 			changed |= DrawBasicSection(context);
-			changed |= DrawModuleSection();
+			changed |= DrawPhaseSection(context);
 
 			ImGui::EndTabBar();
 		}
@@ -279,7 +155,7 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 		if (MyGUI::CollapsingHeader("発生設定", false)) {
 
 			changed |= MyGUI::DragFloat("発生間隔", draft_.emitter.emitInterval, MakeDragSetting(0.001f, 60.0f)).valueChanged;
-			changed |= DrawParticleValueUInt("発生数", draft_.emitter.emitCount);
+			changed |= ParticleGui::DrawParticleValueUInt("発生数", draft_.emitter.emitCount);
 			{
 				int32_t maxParticles = static_cast<int32_t>(draft_.emitter.maxParticles);
 				if (MyGUI::DragInt("最大数", maxParticles).valueChanged) {
@@ -305,40 +181,31 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 			changed |= MyGUI::DragFloat("エミッター再生時間", draft_.duration, MakeDragSetting(0.01f, 600.0f)).valueChanged;
 			changed |= MyGUI::Checkbox("ループ再生", draft_.looping);
 
-			changed |= DrawParticleValueFloat("寿命", draft_.emitter.lifetime, MakeDragSetting(0.001f, 600.0f));
-			changed |= DrawParticleValueFloat("発生初速度", draft_.emitter.speed, MakeDragSetting(0.0f, 10000.0f));
+			changed |= ParticleGui::DrawParticleValueFloat("発生初速度", draft_.emitter.speed, MakeDragSetting(0.0f, 10000.0f));
 		}
 		//========================================================================================================================================================
 		if (MyGUI::CollapsingHeader("エミッター形状設定", false)) {
 
-			// 2D描画かどうか
-			bool is2D = draft_.space == PrimitiveRenderSpace::Screen2D;
-			// 3D形状
-			ParticleEmitterShape shapes3D[] = {
-			   ParticleEmitterShape::Sphere, ParticleEmitterShape::Hemisphere, ParticleEmitterShape::Box,
-			   ParticleEmitterShape::Torus, ParticleEmitterShape::Circle, ParticleEmitterShape::Cone, ParticleEmitterShape::Point };
-			// 2D形状
-			ParticleEmitterShape shapes2D[] = {
-			   ParticleEmitterShape::Circle, ParticleEmitterShape::Rect,
-			   ParticleEmitterShape::Point, ParticleEmitterShape::Cone2D };
-			ParticleEmitterShape* shapes = is2D ? shapes2D : shapes3D;
-			// 形状数
-			int32_t shapeCount = is2D ? sizeof(shapes2D) : sizeof(shapes3D);
+			// 空間で使える形状だけを選択候補にする
+			const bool is2D = draft_.space == PrimitiveRenderSpace::Screen2D;
+			ParticleEmitterShapeRegistry& shapeRegistry = ParticleEmitterShapeRegistry::GetInstance();
+			const std::vector<ParticleEmitterShape> shapes = shapeRegistry.GetShapes(is2D);
 
 			// 空間に合わない形状は先頭へフォールバック
 			int32_t currentIndex = 0;
 			bool found = false;
-			for (int32_t i = 0; i < shapeCount; ++i) {
+			for (int32_t i = 0; i < static_cast<int32_t>(shapes.size()); ++i) {
 				if (shapes[i] == draft_.emitter.shape) { currentIndex = i; found = true; break; }
 			}
-			if (!found) {
+			if (!found && !shapes.empty()) {
 
-				draft_.emitter.shape = shapes[0];
+				draft_.emitter.shape = shapes.front();
 				changed = true;
 			}
 
-			if (ImGui::BeginCombo("発生形状", EnumAdapter<ParticleEmitterShape>::ToString(shapes[currentIndex]))) {
-				for (int32_t i = 0; i < shapeCount; ++i) {
+			if (!shapes.empty() &&
+				ImGui::BeginCombo("発生形状", EnumAdapter<ParticleEmitterShape>::ToString(shapes[currentIndex]))) {
+				for (int32_t i = 0; i < static_cast<int32_t>(shapes.size()); ++i) {
 					if (ImGui::Selectable(EnumAdapter<ParticleEmitterShape>::ToString(shapes[i]), i == currentIndex)) {
 
 						draft_.emitter.shape = shapes[i];
@@ -349,75 +216,8 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 			}
 
 			// 形状別パラメータ
-			switch (draft_.emitter.shape) {
-				//============================================================================
-				//	球
-				//============================================================================
-			case ParticleEmitterShape::Sphere:
-			case ParticleEmitterShape::Hemisphere:
-				changed |= MyGUI::DragFloat("半径", draft_.emitter.sphereRadius, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				break;
-				//============================================================================
-				//	ボックス
-				//============================================================================
-			case ParticleEmitterShape::Box:
-				changed |= MyGUI::DragVector3("大きさ", draft_.emitter.boxSize, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				changed |= MyGUI::Checkbox("+X面", draft_.emitter.boxFacePosX);
-				ImGui::SameLine();
-				changed |= MyGUI::Checkbox("-X面", draft_.emitter.boxFaceNegX);
-				changed |= MyGUI::Checkbox("+Y面", draft_.emitter.boxFacePosY);
-				ImGui::SameLine();
-				changed |= MyGUI::Checkbox("-Y面", draft_.emitter.boxFaceNegY);
-				changed |= MyGUI::Checkbox("+Z面", draft_.emitter.boxFacePosZ);
-				ImGui::SameLine();
-				changed |= MyGUI::Checkbox("-Z面", draft_.emitter.boxFaceNegZ);
-				break;
-				//============================================================================
-				//	トーラス
-				//============================================================================
-			case ParticleEmitterShape::Torus:
-				changed |= MyGUI::DragFloat("主半径", draft_.emitter.torusRadius, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				changed |= MyGUI::DragFloat("管半径", draft_.emitter.torusThickness, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				break;
-				//============================================================================
-				//	円
-				//============================================================================
-			case ParticleEmitterShape::Circle:
-				changed |= MyGUI::DragFloat("半径", draft_.emitter.circleRadius, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				changed |= MyGUI::DragFloat("円弧角度", draft_.emitter.circleArc, MakeDragSetting(0.0f, 360.0f, 0.5f)).valueChanged;
-				break;
-				//============================================================================
-				//	3Dコーン型
-				//============================================================================
-			case ParticleEmitterShape::Cone:
-				changed |= MyGUI::DragFloat("開き角", draft_.emitter.coneAngle, MakeDragSetting(0.0f, 89.0f, 0.5f)).valueChanged;
-				changed |= MyGUI::DragFloat("底面半径", draft_.emitter.coneRadius, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				break;
-				//============================================================================
-				//	点
-				//============================================================================
-			case ParticleEmitterShape::Point:
-				changed |= MyGUI::DragVector3("射出方向", draft_.emitter.pointDirection, MakeDragSetting(-1.0f, 1.0f)).valueChanged;
-				break;
-				//============================================================================
-				//	矩形
-				//============================================================================
-			case ParticleEmitterShape::Rect:
-				changed |= MyGUI::DragVector2("大きさ", draft_.emitter.rectSize, MakeDragSetting(0.0f, 100000.0f)).valueChanged;
-				changed |= MyGUI::Checkbox("+X辺", draft_.emitter.rectEdgePosX);
-				ImGui::SameLine();
-				changed |= MyGUI::Checkbox("-X辺", draft_.emitter.rectEdgeNegX);
-				changed |= MyGUI::Checkbox("+Y辺", draft_.emitter.rectEdgePosY);
-				ImGui::SameLine();
-				changed |= MyGUI::Checkbox("-Y辺", draft_.emitter.rectEdgeNegY);
-				break;
-				//============================================================================
-				//	2Dコーン型
-				//============================================================================
-			case ParticleEmitterShape::Cone2D:
-				changed |= MyGUI::DragFloat("開き角", draft_.emitter.coneAngle, MakeDragSetting(0.0f, 89.0f, 0.5f)).valueChanged;
-				changed |= MyGUI::DragFloat("底辺半径", draft_.emitter.coneRadius, MakeDragSetting(0.0f, 100000.0f)).valueChanged;
-				break;
+			if (const IParticleEmitterShape* shape = shapeRegistry.Find(draft_.emitter.shape)) {
+				changed |= shape->DrawImGui(draft_.emitter);
 			}
 		}
 		//========================================================================================================================================================
@@ -427,37 +227,9 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 			changed |= MyGUI::EnumCombo("形状", draft_.shape).valueChanged;
 
 			// 形状ごとのパラメータ
-			switch (draft_.shape) {
-			case PrimitiveType::Plane:
-				changed |= MyGUI::DragVector2("大きさ", draft_.plane.size, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				break;
-			case PrimitiveType::CrossPlane:
-				changed |= MyGUI::DragVector2("大きさ", draft_.crossPlane.size, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				changed |= MyGUI::DragInt("枚数", draft_.crossPlane.planeCount).valueChanged;
-				break;
-			case PrimitiveType::Ring:
-				changed |= MyGUI::DragFloat("外周半径", draft_.ring.outerRadius, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				changed |= MyGUI::DragFloat("内周半径", draft_.ring.innerRadius, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				changed |= MyGUI::DragFloat("開始角", draft_.ring.startAngle, MakeDragSetting(0.0f, 360.0f, 0.5f)).valueChanged;
-				changed |= MyGUI::DragFloat("終了角", draft_.ring.endAngle, MakeDragSetting(0.0f, 360.0f, 0.5f)).valueChanged;
-				changed |= MyGUI::DragInt("分割数", draft_.ring.divide).valueChanged;
-				break;
-			case PrimitiveType::Cylinder:
-				changed |= MyGUI::DragFloat("上面半径", draft_.cylinder.topRadius, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				changed |= MyGUI::DragFloat("下面半径", draft_.cylinder.bottomRadius, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				changed |= MyGUI::DragFloat("高さ", draft_.cylinder.height, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				changed |= MyGUI::DragFloat("展開角", draft_.cylinder.maxAngle, MakeDragSetting(0.0f, 10.0f)).valueChanged;
-				changed |= MyGUI::DragInt("円周分割", draft_.cylinder.radialDivide).valueChanged;
-				break;
-			case PrimitiveType::Sphere:
-				changed |= MyGUI::DragFloat("半径", draft_.sphere.radius, MakeDragSetting(0.001f, 10000.0f)).valueChanged;
-				break;
-			case PrimitiveType::Hemisphere:
-				changed |= MyGUI::DragFloat("半径", draft_.hemisphere.radius, MakeDragSetting(0.001f, 10000.0f)).valueChanged;
-				break;
-			case PrimitiveType::Cube:
-				changed |= MyGUI::DragVector3("大きさ", draft_.cube.size, MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-				break;
+			if (const IParticlePrimitiveShapeDrawer* drawer =
+				ParticlePrimitiveShapeDrawerRegistry::GetInstance().Find(draft_.shape)) {
+				changed |= drawer->DrawImGui(draft_);
 			}
 			// 描画設定
 			{
@@ -504,205 +276,212 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 	return changed;
 }
 
-bool ParticleEffectEditorTool::DrawModuleSection() {
+bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context) {
 
 	bool changed = false;
 
 	//============================================================================
-	//	モジュール編集
+	//	フェーズ編集
 	//============================================================================
-	if (ImGui::BeginTabItem("モジュール")) {
+	if (ImGui::BeginTabItem("フェーズ")) {
 
-		//========================================================================================================================================================
-		// モジュールの追加
-		{
-			const std::vector<std::string> registeredIDs = ParticleModuleRegistry::GetInstance().GetRegisteredIDs();
-			if (!registeredIDs.empty()) {
+		// フェーズは必ず1つ以上持つ
+		if (draft_.phases.empty()) {
 
-				addModuleIndex_ = std::clamp(addModuleIndex_, 0, static_cast<int32_t>(registeredIDs.size()) - 1);
-				if (ImGui::BeginCombo("##AddModule", registeredIDs[addModuleIndex_].c_str())) {
-					for (int32_t i = 0; i < static_cast<int32_t>(registeredIDs.size()); ++i) {
-						if (ImGui::Selectable(registeredIDs[i].c_str(), i == addModuleIndex_)) {
-							addModuleIndex_ = i;
-						}
-					}
-					ImGui::EndCombo();
-				}
-				ImGui::SameLine();
-				if (ImGui::Button("追加")) {
-
-					ParticleEffectModuleEntry entry{};
-					entry.id = registeredIDs[addModuleIndex_];
-					draft_.modules.emplace_back(std::move(entry));
-					changed = true;
-				}
-			}
+			draft_.phases.emplace_back();
+			changed = true;
 		}
+		// 編集用インスタンスの数をフェーズ数へ合わせる
+		if (moduleCache_.size() != draft_.phases.size()) {
+			moduleCache_.resize(draft_.phases.size());
+		}
+		selectedPhase_ = std::clamp(selectedPhase_, 0, static_cast<int32_t>(draft_.phases.size()) - 1);
+
 		//========================================================================================================================================================
-		// モジュール一覧、削除と並べ替えとパラメータ編集
-		int32_t removeIndex = -1;
-		for (int32_t i = 0; i < static_cast<int32_t>(draft_.modules.size()); ++i) {
+		// 左のフェーズリスト、選択と追加と削除と並べ替え
+		ImGui::BeginChild("PhaseList", ImVec2(160.0f, 0.0f), true);
+		for (int32_t i = 0; i < static_cast<int32_t>(draft_.phases.size()); ++i) {
 
-			ParticleEffectModuleEntry& entry = draft_.modules[i];
 			ImGui::PushID(i);
-
-			bool open = MyGUI::CollapsingHeader(entry.id.c_str(), false);
-			if (open) {
-
-				if (ImGui::SmallButton("削除")) {
-					removeIndex = i;
-				}
-				ImGui::SameLine();
-				if (ImGui::SmallButton("上へ") && 0 < i) {
-
-					std::swap(draft_.modules[i], draft_.modules[i - 1]);
-					changed = true;
-				}
-				ImGui::SameLine();
-				if (ImGui::SmallButton("下へ") && i + 1 < static_cast<int32_t>(draft_.modules.size())) {
-
-					std::swap(draft_.modules[i], draft_.modules[i + 1]);
-					changed = true;
-				}
-				changed |= DrawModuleParams(entry.id, entry.params, i);
+			const std::string label = std::to_string(i + 1) + ": " + draft_.phases[i].name;
+			if (ImGui::Selectable(label.c_str(), i == selectedPhase_)) {
+				selectedPhase_ = i;
 			}
 			ImGui::PopID();
 		}
-		if (0 <= removeIndex) {
+		ImGui::Separator();
+		if (ImGui::SmallButton("追加")) {
 
-			draft_.modules.erase(draft_.modules.begin() + removeIndex);
+			ParticleEffectPhase phase{};
+			phase.name = "Phase " + std::to_string(draft_.phases.size() + 1);
+			draft_.phases.emplace_back(std::move(phase));
+			moduleCache_.emplace_back();
+			selectedPhase_ = static_cast<int32_t>(draft_.phases.size()) - 1;
 			changed = true;
 		}
+		ImGui::SameLine();
+		ImGui::BeginDisabled(draft_.phases.size() <= 1);
+		if (ImGui::SmallButton("削除")) {
+
+			draft_.phases.erase(draft_.phases.begin() + selectedPhase_);
+			moduleCache_.erase(moduleCache_.begin() + selectedPhase_);
+			selectedPhase_ = std::clamp(selectedPhase_, 0, static_cast<int32_t>(draft_.phases.size()) - 1);
+			changed = true;
+		}
+		ImGui::EndDisabled();
+		if (ImGui::SmallButton("上へ") && 0 < selectedPhase_) {
+
+			std::swap(draft_.phases[selectedPhase_], draft_.phases[selectedPhase_ - 1]);
+			std::swap(moduleCache_[selectedPhase_], moduleCache_[selectedPhase_ - 1]);
+			--selectedPhase_;
+			changed = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::SmallButton("下へ") && selectedPhase_ + 1 < static_cast<int32_t>(draft_.phases.size())) {
+
+			std::swap(draft_.phases[selectedPhase_], draft_.phases[selectedPhase_ + 1]);
+			std::swap(moduleCache_[selectedPhase_], moduleCache_[selectedPhase_ + 1]);
+			++selectedPhase_;
+			changed = true;
+		}
+		ImGui::EndChild();
+
+		//========================================================================================================================================================
+		// 右の選択フェーズ編集
+		ImGui::SameLine();
+		ImGui::BeginChild("PhaseEdit", ImVec2(0.0f, 0.0f));
+
+		ParticleEffectPhase& phase = draft_.phases[selectedPhase_];
+		changed |= MyGUI::InputText("名前", phase.name).valueChanged;
+		changed |= ParticleGui::DrawParticleValueFloat("寿命", phase.lifetime, MakeDragSetting(0.001f, 600.0f));
+		changed |= MyGUI::EnumCombo("寿命終了時", phase.lifeEndMode).valueChanged;
+		{
+			// 未設定ならエフェクト共通のマテリアルを引き継ぐ
+			AssetEditSetting setting{};
+			changed |= MyGUI::AssetReferenceField("マテリアル", phase.material,
+				context.toolContext.assetDatabase, { AssetType::Material }, setting).valueChanged;
+		}
+
+		ImGui::SeparatorText("モジュール");
+		changed |= DrawPhaseModules(phase);
+		ImGui::EndChild();
 
 		ImGui::EndTabItem();
 	}
 	return changed;
 }
 
-bool ParticleEffectEditorTool::DrawModuleParams(const std::string& id, nlohmann::json& params, int32_t moduleIndex) {
+bool ParticleEffectEditorTool::DrawPhaseModules(ParticleEffectPhase& phase) {
 
 	bool changed = false;
-	if (id == "SizeOverLifetime") {
 
-		changed |= DragJsonFloat("開始倍率", params, "startScale", 1.0f, MakeDragSetting(0.0f, 100.0f));
-		changed |= DragJsonFloat("終了倍率", params, "endScale", 0.0f, MakeDragSetting(0.0f, 100.0f));
-		changed |= EasingComboJson(params, "easingType");
-		bool useCurve = params.value("useCurve", false);
-		if (MyGUI::Checkbox("カーブを使用", useCurve)) {
+	//========================================================================================================================================================
+	// モジュールの追加
+	{
+		const std::vector<std::string> registeredIDs = ParticleModuleRegistry::GetInstance().GetRegisteredIDs();
+		if (!registeredIDs.empty()) {
 
-			params["useCurve"] = useCurve;
-			changed = true;
-		}
-		if (useCurve) {
-
-			CurveFloat curve{};
-			if (const auto it = params.find("curve"); it != params.end() && it->is_object()) {
-				from_json(*it, curve.channel);
+			addModuleIndex_ = std::clamp(addModuleIndex_, 0, static_cast<int32_t>(registeredIDs.size()) - 1);
+			if (ImGui::BeginCombo("##AddModule", registeredIDs[addModuleIndex_].c_str())) {
+				for (int32_t i = 0; i < static_cast<int32_t>(registeredIDs.size()); ++i) {
+					if (ImGui::Selectable(registeredIDs[i].c_str(), i == addModuleIndex_)) {
+						addModuleIndex_ = i;
+					}
+				}
+				ImGui::EndCombo();
 			}
-			CurveEditSetting setting{};
-			setting.size = ImVec2(0.0f, 200.0f);
-			setting.showSidePanels = false;
-			if (MyGUI::CurveEditor("SizeCurve", curve, curveStates_[moduleIndex], setting).valueChanged) {
+			ImGui::SameLine();
+			if (ImGui::Button("追加")) {
 
-				nlohmann::json channelJson;
-				to_json(channelJson, curve.channel);
-				params["curve"] = std::move(channelJson);
+				ParticleEffectModuleEntry entry{};
+				entry.id = registeredIDs[addModuleIndex_];
+				phase.modules.emplace_back(std::move(entry));
 				changed = true;
 			}
 		}
-	} else if (id == "ColorOverLifetime") {
+	}
+	//========================================================================================================================================================
+	// モジュール一覧、削除と並べ替えとパラメータ編集
+	// 編集用インスタンスの数をエントリ数へ合わせる
+	std::vector<ModuleCacheEntry>& cache = moduleCache_[selectedPhase_];
+	if (cache.size() != phase.modules.size()) {
+		cache.resize(phase.modules.size());
+	}
+	int32_t removeIndex = -1;
+	for (int32_t i = 0; i < static_cast<int32_t>(phase.modules.size()); ++i) {
 
-		changed |= ColorEditJson("開始色", params, "startColor", Color4::White());
-		changed |= ColorEditJson("終了色", params, "endColor", Color4(1.0f, 1.0f, 1.0f, 0.0f));
-		changed |= EasingComboJson(params, "easingType");
-		bool useCurve = params.value("useCurve", false);
-		if (MyGUI::Checkbox("カーブを使用", useCurve)) {
+		ParticleEffectModuleEntry& entry = phase.modules[i];
+		ImGui::PushID(i);
 
-			params["useCurve"] = useCurve;
-			changed = true;
+		bool open = MyGUI::CollapsingHeader(entry.id.c_str(), false);
+		// ヘッダーのドラッグ&ドロップで並べ替える
+		if (ImGui::BeginDragDropSource()) {
+
+			ImGui::SetDragDropPayload(kModuleReorderPayloadType, &i, sizeof(i));
+			ImGui::TextUnformatted(entry.id.c_str());
+			ImGui::EndDragDropSource();
 		}
-		if (useCurve) {
+		if (ImGui::BeginDragDropTarget()) {
 
-			CurveColor4 curve{};
-			if (const auto it = params.find("curveChannels"); it != params.end() && it->is_array()) {
+			if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kModuleReorderPayloadType)) {
 
-				const size_t count = (std::min)(curve.channels.size(), it->size());
-				for (size_t c = 0; c < count; ++c) {
-					from_json((*it)[c], curve.channels[c]);
+				const int32_t from = *static_cast<const int32_t*>(payload->Data);
+				if (from != i) {
+
+					MoveListItem(phase.modules, from, i);
+					MoveListItem(cache, from, i);
+					changed = true;
 				}
 			}
-			CurveEditSetting setting{};
-			setting.size = ImVec2(0.0f, 200.0f);
-			setting.showSidePanels = false;
-			if (MyGUI::CurveEditor("ColorCurve", curve, curveStates_[moduleIndex], setting).valueChanged) {
+			ImGui::EndDragDropTarget();
+		}
+		if (open) {
 
-				nlohmann::json channels = nlohmann::json::array();
-				for (const CurveChannel& channel : curve.channels) {
-					channels.push_back(channel);
+			if (ImGui::SmallButton("削除")) {
+				removeIndex = i;
+			}
+			// モジュール自身の編集UIを描画し、変更をエントリへ書き戻す
+			if (IParticleModule* module = ResolveModuleCache(cache[i], phase.modules[i])) {
+				if (module->DrawImGui()) {
+
+					phase.modules[i].params = module->ToJson();
+					changed = true;
 				}
-				params["curveChannels"] = std::move(channels);
-				changed = true;
+			} else {
+				ImGui::TextDisabled("未登録のモジュールです");
 			}
 		}
-	} else if (id == "RotationOverLifetime") {
+		ImGui::PopID();
+	}
+	if (0 <= removeIndex) {
 
-		changed |= DragJsonFloat("初期回転最小", params, "initialMin", 0.0f, MakeDragSetting(-360.0f, 360.0f, 0.5f));
-		changed |= DragJsonFloat("初期回転最大", params, "initialMax", 360.0f, MakeDragSetting(-360.0f, 360.0f, 0.5f));
-		changed |= DragJsonFloat("回転速度最小", params, "speedMin", -90.0f, MakeDragSetting(-3600.0f, 3600.0f, 0.5f));
-		changed |= DragJsonFloat("回転速度最大", params, "speedMax", 90.0f, MakeDragSetting(-3600.0f, 3600.0f, 0.5f));
-	} else if (id == "GravityForce") {
-
-		Vector3 gravity = Vector3(0.0f, -9.8f, 0.0f);
-		if (const auto it = params.find("gravity"); it != params.end()) {
-			gravity = Vector3::FromJson(*it);
-		}
-		if (MyGUI::DragVector3("重力", gravity, MakeDragSetting(-1000.0f, 1000.0f)).valueChanged) {
-
-			params["gravity"] = gravity.ToJson();
-			changed = true;
-		}
-	} else if (id == "NoiseForce") {
-
-		changed |= DragJsonFloat("強さ", params, "strength", 1.0f, MakeDragSetting(0.0f, 1000.0f));
-		changed |= DragJsonFloat("周波数", params, "frequency", 1.0f, MakeDragSetting(0.001f, 100.0f));
-	} else if (id == "Flipbook") {
-
-		changed |= DragJsonInt("分割X", params, "tilesX", 1);
-		changed |= DragJsonInt("分割Y", params, "tilesY", 1);
-		changed |= DragJsonFloat("周回数", params, "cycles", 1.0f, MakeDragSetting(0.01f, 100.0f));
-	} else if (id == "ShapeOverLifetime") {
-
-		// 対象形状の選択
-		PrimitiveType shape = EnumAdapter<PrimitiveType>::FromString(
-			params.value("shape", "Ring")).value_or(PrimitiveType::Ring);
-		const bool isRing = shape == PrimitiveType::Ring;
-		int32_t shapeIndex = isRing ? 0 : 1;
-		const char* shapeNames[] = { "Ring", "Cylinder" };
-		if (ImGui::Combo("対象形状", &shapeIndex, shapeNames, 2)) {
-
-			params["shape"] = shapeNames[shapeIndex];
-			changed = true;
-		}
-		if (shapeIndex == 0) {
-			changed |= DrawRingParamsJson("開始形状", params, "ringStart");
-			changed |= DrawRingParamsJson("終了形状", params, "ringEnd");
-		} else {
-			changed |= DrawCylinderParamsJson("開始形状", params, "cylinderStart");
-			changed |= DrawCylinderParamsJson("終了形状", params, "cylinderEnd");
-		}
-		changed |= EasingComboJson(params, "easingType");
-	} else {
-
-		ImGui::TextDisabled("編集UI未対応のモジュールです");
+		phase.modules.erase(phase.modules.begin() + removeIndex);
+		cache.erase(cache.begin() + removeIndex);
+		changed = true;
 	}
 	return changed;
+}
+
+Engine::IParticleModule* ParticleEffectEditorTool::ResolveModuleCache(ModuleCacheEntry& cache, const ParticleEffectModuleEntry& entry) {
+
+	// idが変わっていたら作り直し、現在のパラメータを読み込ませる
+	if (!cache.module || cache.id != entry.id) {
+
+		cache.id = entry.id;
+		cache.module = ParticleModuleRegistry::GetInstance().Create(entry.id);
+		if (cache.module) {
+			cache.module->FromJson(entry.params);
+		}
+	}
+	return cache.module.get();
 }
 
 void ParticleEffectEditorTool::LoadEffect(const EditorToolContext& context, AssetID effectID) {
 
 	loaded_ = false;
 	editingID_ = effectID;
-	curveStates_.clear();
+	moduleCache_.clear();
+	selectedPhase_ = 0;
 	if (!effectID || !context.toolContext.assetDatabase) {
 		return;
 	}
@@ -746,13 +525,16 @@ void ParticleEffectEditorTool::CreateEffect(const EditorToolContext& context) {
 		return;
 	}
 
-	// 既定のモジュール構成で新規エフェクトを作る
+	// 既定のフェーズ構成で新規エフェクトを作る
 	ParticleEffectAsset asset{};
 	asset.name = createNameBuffer_;
-	asset.modules = {
+	ParticleEffectPhase phase{};
+	phase.name = "Phase 1";
+	phase.modules = {
 		{ "SizeOverLifetime", nlohmann::json::object() },
 		{ "ColorOverLifetime", nlohmann::json::object() },
 	};
+	asset.phases.emplace_back(std::move(phase));
 
 	const std::string logical = "GameAssets/Effects/" + createNameBuffer_ + ".effect.json";
 	const std::filesystem::path path = assetDatabase->ResolveAssetPath(logical);

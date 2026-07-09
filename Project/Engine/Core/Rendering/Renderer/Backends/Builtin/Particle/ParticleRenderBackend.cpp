@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
+#include <Engine/Core/Rendering/Particle/Parametric/ParticleParametricShapeRegistry.h>
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/World/Components/Rendering/ParticleEmitterComponent.h>
@@ -89,17 +90,18 @@ namespace {
 		return shape;
 	}
 
-	// 形状アニメのパラメトリックMS生成を使うか、MS対応GPUかつRing/Cylinderのみ
-	bool UseParametricShape(const Engine::RenderDrawContext& context, const Engine::ParticleRenderSettings& settings) {
+	// 形状アニメのパラメトリックMS生成を解決する、MS対応GPUかつ登録済み形状のみ
+	const Engine::IParticleParametricShape* ResolveParametricShape(
+		const Engine::RenderDrawContext& context, const Engine::ParticleRenderSettings& settings) {
 
 		if (!settings.shapeOverLifetime || settings.model ||
 			settings.space == Engine::PrimitiveRenderSpace::Screen2D) {
-			return false;
+			return nullptr;
 		}
-		if (settings.shape != Engine::PrimitiveType::Ring && settings.shape != Engine::PrimitiveType::Cylinder) {
-			return false;
+		if (!context.runtimeFeatures.useMeshShader || context.forceVertexMeshVariant) {
+			return nullptr;
 		}
-		return context.runtimeFeatures.useMeshShader && !context.forceVertexMeshVariant;
+		return Engine::ParticleParametricShapeRegistry::GetInstance().Find(settings.shape);
 	}
 }
 
@@ -130,9 +132,25 @@ void Engine::ParticleRenderBackend::BeginFrame(GraphicsCore& graphicsCore) {
 }
 
 void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& context,
-	std::span<const RenderItem* const> items, std::vector<ParticleInstanceData>& outInstances) const {
+	std::span<const RenderItem* const> items, std::vector<ParticleInstanceData>& outInstances,
+	std::vector<uint32_t>& outPhaseCounts) const {
 
 	outInstances.clear();
+	outPhaseCounts.clear();
+	if (items.empty()) {
+		return;
+	}
+	// フェーズ数は同じアセットを共有するバッチ先頭から決める
+	const ParticleRenderPayload* firstPayload = context.batch->GetPayload<ParticleRenderPayload>(*items.front());
+	if (!firstPayload || !firstPayload->emitter) {
+		return;
+	}
+	const size_t phaseCount = (std::max)(
+		firstPayload->emitter->runtimeRenderSettings.phaseMaterials.size(), static_cast<size_t>(1));
+	std::vector<std::vector<ParticleInstanceData>> phaseBuckets(phaseCount);
+	bool sortBackToFront = false;
+	Vector3 sortCameraPos = Vector3::AnyInit(0.0f);
+
 	for (const RenderItem* item : items) {
 
 		const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
@@ -147,50 +165,61 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 			!settings.billboardAxes.empty() && camera && camera->valid;
 		BillboardComponent axisMask{};
 		axisMask.axes = settings.billboardAxes;
+		if (settings.sortMode == ParticleSortMode::BackToFront && camera && camera->valid) {
 
-		outInstances.reserve(outInstances.size() + payload->emitter->runtimeParticles.size());
+			sortBackToFront = true;
+			sortCameraPos = camera->cameraPos;
+		}
+
 		for (const Particle& particle : payload->emitter->runtimeParticles) {
 
 			// 粒子はワールド空間でシミュレーション済み
 			const Vector3 worldPos = particle.position;
-			// 面内回転を掛けてからカメラへ向ける
-			const Quaternion roll = Quaternion::MakeAxisAngle(
-				Vector3(0.0f, 0.0f, 1.0f), particle.rotation * Math::radian);
-			Quaternion rotation = roll;
+			// 粒子の回転を掛けてからカメラへ向ける
+			Quaternion rotation = particle.rotation;
 			if (useBillboard) {
 
 				const Quaternion desired = RenderBillboard::MakeCameraBillboardRotation(*camera, worldPos);
 				if (settings.billboardAxes.size() == 3) {
-					rotation = desired * roll;
+					rotation = desired * particle.rotation;
 				} else {
 
 					// 一部軸のみのビルボードは軸マスクで合成する
 					const Vector3 localForward = Vector3::NormalizeOr(Vector3::Transform(
 						Vector3(0.0f, 0.0f, 1.0f), Quaternion::MakeRotateMatrix(desired)), Vector3(0.0f, 0.0f, 1.0f));
-					rotation = RenderBillboard::ApplyAxisMask(roll, desired, axisMask, localForward);
+					rotation = RenderBillboard::ApplyAxisMask(particle.rotation, desired, axisMask, localForward);
 				}
 			}
 
 			ParticleInstanceData instance{};
-			instance.worldMatrix = Matrix4x4::MakeAffineMatrix(Vector3::AnyInit(particle.size), rotation, worldPos);
+			instance.worldMatrix = Matrix4x4::MakeAffineMatrix(
+				Vector3::AnyInit(particle.size) * particle.scale, rotation, worldPos);
 			instance.color = particle.color;
 			instance.uvScaleOffset = Vector4(particle.uvScale.x, particle.uvScale.y,
 				particle.uvOffset.x, particle.uvOffset.y);
 			instance.shapeParams = particle.shapeParams;
-			outInstances.emplace_back(instance);
+			instance.emissive = particle.emissive;
+			instance.materialParams = Vector4(particle.alphaReference, 0.0f, 0.0f, 0.0f);
+			// フェーズのマテリアル別に描くため、フェーズごとに分けて詰める
+			const size_t phaseIndex = (std::min)(static_cast<size_t>(particle.phaseIndex), phaseCount - 1);
+			phaseBuckets[phaseIndex].emplace_back(instance);
 		}
+	}
+
+	// フェーズ順に連結し、ソートはフェーズ範囲内で行う
+	for (std::vector<ParticleInstanceData>& bucket : phaseBuckets) {
 
 		// 半透明の重なりを正しく見せるため、奥から手前の順へ並べ替える
-		if (settings.sortMode == ParticleSortMode::BackToFront && camera && camera->valid) {
-
-			const Vector3 cameraPos = camera->cameraPos;
-			std::sort(outInstances.begin(), outInstances.end(),
-				[&cameraPos](const ParticleInstanceData& lhs, const ParticleInstanceData& rhs) {
-					const Vector3 lhsDiff = lhs.worldMatrix.GetTranslationValue() - cameraPos;
-					const Vector3 rhsDiff = rhs.worldMatrix.GetTranslationValue() - cameraPos;
+		if (sortBackToFront) {
+			std::sort(bucket.begin(), bucket.end(),
+				[&sortCameraPos](const ParticleInstanceData& lhs, const ParticleInstanceData& rhs) {
+					const Vector3 lhsDiff = lhs.worldMatrix.GetTranslationValue() - sortCameraPos;
+					const Vector3 rhsDiff = rhs.worldMatrix.GetTranslationValue() - sortCameraPos;
 					return Vector3::Dot(rhsDiff, rhsDiff) < Vector3::Dot(lhsDiff, lhsDiff);
 				});
 		}
+		outPhaseCounts.emplace_back(static_cast<uint32_t>(bucket.size()));
+		outInstances.insert(outInstances.end(), bucket.begin(), bucket.end());
 	}
 }
 
@@ -336,9 +365,10 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 		return;
 	}
 
-	// バッチのインスタンスデータを集めてアップロードする
+	// バッチのインスタンスデータをフェーズごとに集めてアップロードする
 	std::vector<ParticleInstanceData> instances;
-	CollectInstances(context, items, instances);
+	std::vector<uint32_t> phaseCounts;
+	CollectInstances(context, items, instances, phaseCounts);
 	ParticleBatchResources& resources = resourcePool_.Acquire(graphicsCore,
 		[](ParticleBatchResources& resource, GraphicsCore& core) {
 			resource.Init(core);
@@ -356,132 +386,41 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 	const PostProcessConstantBufferAllocation viewAlloc = constantBufferAllocator_.AllocateAndUpload(device, viewConstants);
 
+	// フェーズごとにマテリアルを解決して連続範囲を描画する、未設定はエフェクト共通へ落とす
 	// 形状アニメはパラメトリックMS、Model粒子はメッシュ、他は共有ジオメトリで描画する
-	bool drawn = false;
-	if (UseParametricShape(context, settings)) {
+	const IParticleParametricShape* parametric = ResolveParametricShape(context, settings);
+	uint32_t instanceOffset = 0;
+	for (size_t phaseIndex = 0; phaseIndex < phaseCounts.size(); ++phaseIndex) {
 
-		// 専用MSパイプラインを解決する、解決できなければ共有ジオメトリへ落とす
-		MaterialPassBinding shapePass{};
-		shapePass.passKind = MaterialPassKind::Transparent;
-		shapePass.pipeline = settings.shape == PrimitiveType::Ring ?
-			BuiltinAssets::Pipelines::ParticleRingMS : BuiltinAssets::Pipelines::ParticleCylinderMS;
-		shapePass.preferredVariant = PipelineVariantKind::GraphicsMesh;
-		const PipelineVariantDesc* variant = nullptr;
-		const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, shapePass, &variant);
-		if (pipelineState && variant && variant->kind == PipelineVariantKind::GraphicsMesh) {
-
-			// 分割数の定数バッファを確保する
-			ParticleShapeConstants shapeConstants{};
-			shapeConstants.divide = static_cast<uint32_t>(std::clamp(
-				settings.shape == PrimitiveType::Ring ? settings.ring.divide : settings.cylinder.radialDivide,
-				3, kMaxPrimitiveDivide));
-			const PostProcessConstantBufferAllocation shapeAlloc = constantBufferAllocator_.AllocateAndUpload(device, shapeConstants);
-
-			ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
-				context, *pipelineState, item->blendMode);
-
-			SyncAndBindRegistry(*pipelineState, context, commandList);
-			if (perDrawBindCache_.Has(viewCBVSlot_)) {
-				RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAlloc.gpuAddress);
-			}
-			if (perDrawBindCache_.Has(shapeConstantsCBVSlot_)) {
-				RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(shapeConstantsCBVSlot_), shapeAlloc.gpuAddress);
-			}
-			if (perDrawBindCache_.Has(instancesSRVSlot_)) {
-				RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(instancesSRVSlot_),
-					resources.GetInstancesGPUAddress(), {});
-			}
-			if (resolvedPass.material) {
-				BindMaterial(context, *pipelineState, *resolvedPass.material, nullptr, commandList);
-			}
-
-			// 1グループ64三角形で全粒子分をDispatchMeshする
-			const uint32_t triangleCount = shapeConstants.divide * 2;
-			const uint32_t groupCount = (triangleCount + kParticleMeshGroupTriangles - 1) / kParticleMeshGroupTriangles;
-			commandList->DispatchMesh(groupCount, resources.GetInstanceCount(), 1);
-			drawn = true;
+		const uint32_t instanceCount = phaseCounts[phaseIndex];
+		if (instanceCount == 0) {
+			continue;
 		}
-	} else if (settings.model) {
+		const AssetID phaseMaterial = (phaseIndex < settings.phaseMaterials.size() && settings.phaseMaterials[phaseIndex]) ?
+			settings.phaseMaterials[phaseIndex] : settings.material;
+		BackendDrawCommon::ResolvedMaterialPass phasePass{};
+		if (!ResolveParticlePass(context, phaseMaterial, is2D, phasePass)) {
 
-		// Model粒子、メッシュのGPUリソースを引きインスタンシング描画する
-		const MeshGPUResource* meshResource = meshResourceManager_.Find(settings.model);
-		if (!meshResource) {
-
-			meshResourceManager_.RequestMesh(*context.assetDatabase, settings.model);
-			meshResourceManager_.FlushUploads();
-			meshResource = meshResourceManager_.Find(settings.model);
+			instanceOffset += instanceCount;
+			continue;
 		}
-		if (meshResource && meshResource->vertexSRV.buffer && meshResource->indexCount != 0) {
+		const D3D12_GPU_VIRTUAL_ADDRESS instancesAddress = resources.GetInstancesGPUAddress() +
+			static_cast<uint64_t>(instanceOffset) * sizeof(ParticleInstanceData);
 
-			const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass);
-			if (pipelineState) {
-
-				ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
-					context, *pipelineState, item->blendMode);
-
-				SyncAndBindRegistry(*pipelineState, context, commandList);
-				if (perDrawBindCache_.Has(viewCBVSlot_)) {
-					RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAlloc.gpuAddress);
-				}
-				if (perDrawBindCache_.Has(verticesSRVSlot_)) {
-					RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(verticesSRVSlot_),
-						meshResource->vertexSRV.buffer->GetResource()->GetGPUVirtualAddress(), {});
-				}
-				if (perDrawBindCache_.Has(instancesSRVSlot_)) {
-					RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(instancesSRVSlot_),
-						resources.GetInstancesGPUAddress(), {});
-				}
-				if (resolvedPass.material) {
-					BindMaterial(context, *pipelineState, *resolvedPass.material, nullptr, commandList);
-				}
-
-				commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-				const D3D12_INDEX_BUFFER_VIEW indexBufferView = meshResource->indexBuffer.GetIndexBufferView();
-				commandList->IASetIndexBuffer(&indexBufferView);
-				commandList->DrawIndexedInstanced(meshResource->indexCount, resources.GetInstanceCount(), 0, 0, 0);
-				drawn = true;
-			}
+		bool drawn = false;
+		if (parametric) {
+			drawn = DrawParametricShapePath(context, item, *parametric, settings, phasePass,
+				instancesAddress, instanceCount, viewAlloc.gpuAddress);
 		}
-	}
-	if (!drawn) {
-
-		// 粒子が共有する形状ジオメトリを取得する、無ければ生成する
-		const PrimitiveRendererComponent shape = MakeShapeComponent(settings);
-		const uint64_t geometryHash = PrimitiveMeshGenerator::ComputeHash(shape);
-		const PrimitiveGeometry* geometry = geometryManager_.GetOrCreate(graphicsCore, geometryHash, shape);
-		if (!geometry || geometry->indexCount == 0 || !geometry->vertexBuffer.buffer) {
-			return;
+		if (!drawn && settings.model) {
+			drawn = DrawModelMeshPath(context, item, settings, phasePass,
+				instancesAddress, instanceCount, viewAlloc.gpuAddress);
 		}
-
-		const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass);
-		if (!pipelineState) {
-			return;
+		if (!drawn) {
+			DrawSharedGeometryPath(context, item, settings, phasePass,
+				instancesAddress, instanceCount, viewAlloc.gpuAddress);
 		}
-
-		ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
-			context, *pipelineState, item->blendMode);
-
-		SyncAndBindRegistry(*pipelineState, context, commandList);
-		if (perDrawBindCache_.Has(viewCBVSlot_)) {
-			RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAlloc.gpuAddress);
-		}
-		if (perDrawBindCache_.Has(verticesSRVSlot_)) {
-			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(verticesSRVSlot_),
-				geometry->vertexBuffer.buffer->GetResource()->GetGPUVirtualAddress(), {});
-		}
-		if (perDrawBindCache_.Has(instancesSRVSlot_)) {
-			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(instancesSRVSlot_),
-				resources.GetInstancesGPUAddress(), {});
-		}
-		if (resolvedPass.material) {
-			BindMaterial(context, *pipelineState, *resolvedPass.material, nullptr, commandList);
-		}
-
-		// 共有インデックスバッファでインスタンシング描画する
-		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		const D3D12_INDEX_BUFFER_VIEW indexBufferView = geometry->indexBuffer.GetIndexBufferView();
-		commandList->IASetIndexBuffer(&indexBufferView);
-		commandList->DrawIndexedInstanced(geometry->indexCount, resources.GetInstanceCount(), 0, 0, 0);
+		instanceOffset += instanceCount;
 	}
 
 	// トレイルは3Dのみリボンを構築して重ねて描画する
@@ -492,4 +431,148 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 		resources.UploadTrailVertices(trailVertices);
 		DrawTrails(context, item, resolvedPass, resources);
 	}
+}
+
+bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawContext& context, const RenderItem* item,
+	const IParticleParametricShape& parametric, const ParticleRenderSettings& settings,
+	const BackendDrawCommon::ResolvedMaterialPass& resolvedPass,
+	D3D12_GPU_VIRTUAL_ADDRESS instancesAddress, uint32_t instanceCount,
+	D3D12_GPU_VIRTUAL_ADDRESS viewAddress) {
+
+	// 専用MSパイプラインを解決する、解決できなければ共有ジオメトリへ落とす
+	MaterialPassBinding shapePass{};
+	shapePass.passKind = MaterialPassKind::Transparent;
+	shapePass.pipeline = parametric.GetPipeline();
+	shapePass.preferredVariant = PipelineVariantKind::GraphicsMesh;
+	const PipelineVariantDesc* variant = nullptr;
+	const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, shapePass, &variant);
+	if (!pipelineState || !variant || variant->kind != PipelineVariantKind::GraphicsMesh) {
+		return false;
+	}
+
+	// 分割数の定数バッファを確保する
+	ID3D12Device* device = context.graphicsCore->GetDXObject().GetDevice();
+	ParticleShapeConstants shapeConstants{};
+	shapeConstants.divide = static_cast<uint32_t>(std::clamp(
+		parametric.GetDivide(settings), 3, kMaxPrimitiveDivide));
+	const PostProcessConstantBufferAllocation shapeAlloc = constantBufferAllocator_.AllocateAndUpload(device, shapeConstants);
+
+	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
+		context, *pipelineState, item->blendMode);
+
+	SyncAndBindRegistry(*pipelineState, context, commandList);
+	if (perDrawBindCache_.Has(viewCBVSlot_)) {
+		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAddress);
+	}
+	if (perDrawBindCache_.Has(shapeConstantsCBVSlot_)) {
+		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(shapeConstantsCBVSlot_), shapeAlloc.gpuAddress);
+	}
+	if (perDrawBindCache_.Has(instancesSRVSlot_)) {
+		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(instancesSRVSlot_),
+			instancesAddress, {});
+	}
+	if (resolvedPass.material) {
+		BindMaterial(context, *pipelineState, *resolvedPass.material, nullptr, commandList);
+	}
+
+	// 1グループ64三角形で全粒子分をDispatchMeshする
+	const uint32_t triangleCount = shapeConstants.divide * 2;
+	const uint32_t groupCount = (triangleCount + kParticleMeshGroupTriangles - 1) / kParticleMeshGroupTriangles;
+	commandList->DispatchMesh(groupCount, instanceCount, 1);
+	return true;
+}
+
+bool Engine::ParticleRenderBackend::DrawModelMeshPath(const RenderDrawContext& context, const RenderItem* item,
+	const ParticleRenderSettings& settings,
+	const BackendDrawCommon::ResolvedMaterialPass& resolvedPass,
+	D3D12_GPU_VIRTUAL_ADDRESS instancesAddress, uint32_t instanceCount,
+	D3D12_GPU_VIRTUAL_ADDRESS viewAddress) {
+
+	// Model粒子、メッシュのGPUリソースを引きインスタンシング描画する
+	const MeshGPUResource* meshResource = meshResourceManager_.Find(settings.model);
+	if (!meshResource) {
+
+		meshResourceManager_.RequestMesh(*context.assetDatabase, settings.model);
+		meshResourceManager_.FlushUploads();
+		meshResource = meshResourceManager_.Find(settings.model);
+	}
+	if (!meshResource || !meshResource->vertexSRV.buffer || meshResource->indexCount == 0) {
+		return false;
+	}
+
+	const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass);
+	if (!pipelineState) {
+		return false;
+	}
+
+	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
+		context, *pipelineState, item->blendMode);
+
+	SyncAndBindRegistry(*pipelineState, context, commandList);
+	if (perDrawBindCache_.Has(viewCBVSlot_)) {
+		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAddress);
+	}
+	if (perDrawBindCache_.Has(verticesSRVSlot_)) {
+		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(verticesSRVSlot_),
+			meshResource->vertexSRV.buffer->GetResource()->GetGPUVirtualAddress(), {});
+	}
+	if (perDrawBindCache_.Has(instancesSRVSlot_)) {
+		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(instancesSRVSlot_),
+			instancesAddress, {});
+	}
+	if (resolvedPass.material) {
+		BindMaterial(context, *pipelineState, *resolvedPass.material, nullptr, commandList);
+	}
+
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_INDEX_BUFFER_VIEW indexBufferView = meshResource->indexBuffer.GetIndexBufferView();
+	commandList->IASetIndexBuffer(&indexBufferView);
+	commandList->DrawIndexedInstanced(meshResource->indexCount, instanceCount, 0, 0, 0);
+	return true;
+}
+
+void Engine::ParticleRenderBackend::DrawSharedGeometryPath(const RenderDrawContext& context, const RenderItem* item,
+	const ParticleRenderSettings& settings,
+	const BackendDrawCommon::ResolvedMaterialPass& resolvedPass,
+	D3D12_GPU_VIRTUAL_ADDRESS instancesAddress, uint32_t instanceCount,
+	D3D12_GPU_VIRTUAL_ADDRESS viewAddress) {
+
+	// 粒子が共有する形状ジオメトリを取得する、無ければ生成する
+	GraphicsCore& graphicsCore = *context.graphicsCore;
+	const PrimitiveRendererComponent shape = MakeShapeComponent(settings);
+	const uint64_t geometryHash = PrimitiveMeshGenerator::ComputeHash(shape);
+	const PrimitiveGeometry* geometry = geometryManager_.GetOrCreate(graphicsCore, geometryHash, shape);
+	if (!geometry || geometry->indexCount == 0 || !geometry->vertexBuffer.buffer) {
+		return;
+	}
+
+	const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass);
+	if (!pipelineState) {
+		return;
+	}
+
+	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
+		context, *pipelineState, item->blendMode);
+
+	SyncAndBindRegistry(*pipelineState, context, commandList);
+	if (perDrawBindCache_.Has(viewCBVSlot_)) {
+		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAddress);
+	}
+	if (perDrawBindCache_.Has(verticesSRVSlot_)) {
+		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(verticesSRVSlot_),
+			geometry->vertexBuffer.buffer->GetResource()->GetGPUVirtualAddress(), {});
+	}
+	if (perDrawBindCache_.Has(instancesSRVSlot_)) {
+		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(instancesSRVSlot_),
+			instancesAddress, {});
+	}
+	if (resolvedPass.material) {
+		BindMaterial(context, *pipelineState, *resolvedPass.material, nullptr, commandList);
+	}
+
+	// 共有インデックスバッファでインスタンシング描画する
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D12_INDEX_BUFFER_VIEW indexBufferView = geometry->indexBuffer.GetIndexBufferView();
+	commandList->IASetIndexBuffer(&indexBufferView);
+	commandList->DrawIndexedInstanced(geometry->indexCount, instanceCount, 0, 0, 0);
 }

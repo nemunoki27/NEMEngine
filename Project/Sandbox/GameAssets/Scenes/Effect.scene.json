@@ -192,126 +192,30 @@
         },
         {
             "Components": {
-                "AnimationPlayer": {
-                    "defaultGroup": "Rotate",
-                    "enabled": true,
-                    "globalSpeed": 1.0,
-                    "groups": [
-                        {
-                            "name": "Rotate",
-                            "states": [
-                                {
-                                    "clip": "45b7c26c2ef642a8",
-                                    "interval": 0.0,
-                                    "loopBridge": {
-                                        "duration": 0.10000000149011612,
-                                        "enabled": false,
-                                        "interpolation": "Linear"
-                                    },
-                                    "loopCount": 0,
-                                    "name": "RotateX",
-                                    "pingPongCount": 0,
-                                    "relativeTransform": true,
-                                    "speed": 1.0,
-                                    "startDelay": 0.0,
-                                    "wrapMode": "Once"
-                                }
-                            ]
-                        }
-                    ],
-                    "playInEditMode": false,
-                    "playOnStart": false
-                },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 3
-                },
-                "MeshRenderer": {
-                    "blendMode": "Normal",
-                    "castReflection": true,
-                    "castShadow": true,
-                    "enableZPrepass": true,
-                    "layer": 0,
-                    "lighting": true,
-                    "material": "",
-                    "mesh": "a31d53b333db8b8b",
-                    "order": 0,
-                    "queue": "Opaque",
-                    "receiveIBL": true,
-                    "receiveReflection": true,
-                    "receiveShadow": true,
-                    "subMeshes": [
-                        {
-                            "localPos": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "localRotation": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "localScale": {
-                                "x": 1.0,
-                                "y": 1.0,
-                                "z": 1.0
-                            },
-                            "name": "Mesh_0",
-                            "parameterOverrides": {
-                                "baseColorTexture": "c2ea9f4498073ab3",
-                                "color": {
-                                    "a": 1.0,
-                                    "b": 0.6000000238418579,
-                                    "g": 0.6000000238418579,
-                                    "r": 0.6000000238418579
-                                },
-                                "emissiveColor": {
-                                    "a": 1.0,
-                                    "b": 0.0,
-                                    "g": 0.0,
-                                    "r": 0.0
-                                }
-                            },
-                            "sourcePivot": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "sourceSubMeshIndex": 0,
-                            "stableID": "ff4ca94d8a5daaf2",
-                            "uvPos": {
-                                "x": 0.0,
-                                "y": 0.0
-                            },
-                            "uvRotation": 0.0,
-                            "uvScale": {
-                                "x": 1.0,
-                                "y": 1.0
-                            }
-                        }
-                    ],
-                    "visible": true
+                    "siblingOrder": 5
                 },
                 "Name": {
-                    "name": "Model"
+                    "name": "Effect"
+                },
+                "ParticleEmitter": {
+                    "blendMode": "Add",
+                    "drawEmitterShape": false,
+                    "effect": "",
+                    "layer": 0,
+                    "order": 0,
+                    "playInEditMode": true,
+                    "playing": true,
+                    "queue": "Transparent",
+                    "visible": true
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileId": "5f73c4e05cfa2771",
+                    "localFileId": "cc80499452f4178e",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
-                "Script": [
-                    {
-                        "enabled": true,
-                        "lastKnownTypeName": "SandboxScripts.RotateAnim",
-                        "scriptAsset": "",
-                        "scriptSlotId": "e8aeca4a814dc0ee",
-                        "scriptTypeId": "cce55f07-922a-4609-8fa5-a217be4a77fd",
-                        "serializedFields": {}
-                    }
-                ],
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
@@ -319,19 +223,19 @@
                         "z": 0.0
                     },
                     "localRotation": {
-                        "w": 0.969871997833252,
+                        "w": 1.0,
                         "x": 0.0,
-                        "y": -0.2436150163412094,
+                        "y": 0.0,
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.000001072883606,
-                        "y": 1.0000003576278687,
-                        "z": 1.000002145767212
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
                     }
                 }
             },
-            "LocalFileID": "5f73c4e05cfa2771"
+            "LocalFileID": "cc80499452f4178e"
         }
     ],
     "Header": {

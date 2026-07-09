@@ -5,11 +5,12 @@
 //============================================================================
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
-#include <Engine/Editor/Animation/Curves/CurveEditorState.h>
+#include <Engine/Core/Rendering/Particle/Module/Base/IParticleModule.h>
 
 // c++
+#include <memory>
 #include <string>
-#include <unordered_map>
+#include <vector>
 
 namespace Engine {
 
@@ -38,6 +39,15 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		// モジュールごとの編集用インスタンス、draft_.modulesと同じ並びで持つ
+		struct ModuleCacheEntry {
+
+			std::string id;
+			std::unique_ptr<IParticleModule> module;
+		};
+
 		//--------- variables ----------------------------------------------------
 
 		ToolDescriptor descriptor_{
@@ -61,11 +71,13 @@ namespace Engine {
 		std::string createNameBuffer_{};
 		// 追加するモジュールの選択位置
 		int32_t addModuleIndex_ = 0;
+		// 選択中のフェーズ
+		int32_t selectedPhase_ = 0;
 		// ステータスメッセージ
 		std::string statusMessage_{};
 
-		// モジュールごとのカーブ編集状態
-		std::unordered_map<int32_t, CurveEditorState> curveStates_;
+		// フェーズごとのモジュール編集用インスタンス
+		std::vector<std::vector<ModuleCacheEntry>> moduleCache_;
 
 		//--------- functions ----------------------------------------------------
 
@@ -75,10 +87,12 @@ namespace Engine {
 		void DrawAssetSection(const EditorToolContext& context);
 		// 再生と描画の基本設定を描画する、変更があればtrue
 		bool DrawBasicSection(const EditorToolContext& context);
-		// モジュール一覧を描画する、変更があればtrue
-		bool DrawModuleSection();
-		// モジュールのパラメータ編集UIを描画する、変更があればtrue
-		bool DrawModuleParams(const std::string& id, nlohmann::json& params, int32_t moduleIndex);
+		// フェーズ一覧と選択フェーズの編集を描画する、変更があればtrue
+		bool DrawPhaseSection(const EditorToolContext& context);
+		// 選択フェーズのモジュール一覧を描画する、変更があればtrue
+		bool DrawPhaseModules(ParticleEffectPhase& phase);
+		// モジュールの編集用インスタンスを取得する、idが変わっていれば作り直す
+		IParticleModule* ResolveModuleCache(ModuleCacheEntry& cache, const ParticleEffectModuleEntry& entry);
 
 		// エフェクトをファイルから読み込む
 		void LoadEffect(const EditorToolContext& context, AssetID effectID);

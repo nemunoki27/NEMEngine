@@ -14,6 +14,7 @@ namespace Engine {
 
 	// front
 	struct ParticleRenderSettings;
+	class IParticleParametricShape;
 
 	//============================================================================
 	//	ParticleRenderBackend class
@@ -66,9 +67,27 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// バッチのインスタンスデータを集める、粒子ごとにビルボードのワールド行列を作る
+		// バッチのインスタンスデータをフェーズごとに集める、粒子ごとにビルボードのワールド行列を作る
 		void CollectInstances(const RenderDrawContext& context, std::span<const RenderItem* const> items,
-			std::vector<ParticleInstanceData>& outInstances) const;
+			std::vector<ParticleInstanceData>& outInstances, std::vector<uint32_t>& outPhaseCounts) const;
+		// パラメトリックMS生成で描画する、パイプラインを解決できなければfalse
+		bool DrawParametricShapePath(const RenderDrawContext& context, const RenderItem* item,
+			const IParticleParametricShape& parametric, const ParticleRenderSettings& settings,
+			const BackendDrawCommon::ResolvedMaterialPass& resolvedPass,
+			D3D12_GPU_VIRTUAL_ADDRESS instancesAddress, uint32_t instanceCount,
+			D3D12_GPU_VIRTUAL_ADDRESS viewAddress);
+		// Model粒子をインスタンシング描画する、メッシュを解決できなければfalse
+		bool DrawModelMeshPath(const RenderDrawContext& context, const RenderItem* item,
+			const ParticleRenderSettings& settings,
+			const BackendDrawCommon::ResolvedMaterialPass& resolvedPass,
+			D3D12_GPU_VIRTUAL_ADDRESS instancesAddress, uint32_t instanceCount,
+			D3D12_GPU_VIRTUAL_ADDRESS viewAddress);
+		// 共有ジオメトリでインスタンシング描画する
+		void DrawSharedGeometryPath(const RenderDrawContext& context, const RenderItem* item,
+			const ParticleRenderSettings& settings,
+			const BackendDrawCommon::ResolvedMaterialPass& resolvedPass,
+			D3D12_GPU_VIRTUAL_ADDRESS instancesAddress, uint32_t instanceCount,
+			D3D12_GPU_VIRTUAL_ADDRESS viewAddress);
 		// トレイルのリボン頂点を構築する
 		void BuildTrailVertices(const RenderDrawContext& context, std::span<const RenderItem* const> items,
 			std::vector<ParticleTrailVertex>& outVertices) const;
