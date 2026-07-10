@@ -49,6 +49,13 @@ namespace Engine {
 		bool snap = true;
 		// スナップする時間間隔
 		float snapInterval = 0.03f;
+
+		// 時間軸を固定範囲で表示するか、進行度0~1のカーブ編集で使う
+		bool fixedTimeRange = false;
+		// 固定表示時の時間範囲と目盛り間隔
+		float fixedTimeMin = 0.0f;
+		float fixedTimeMax = 1.0f;
+		float fixedTimeStep = 0.1f;
 	};
 	// カーブ編集操作の結果
 	struct CurveEditResult {
@@ -79,6 +86,8 @@ namespace Engine {
 		bool snapEnabled = true;
 		// editor state側で保持するスナップ間隔
 		float snapInterval = 0.01f;
+		// キー時刻の上限、0以下で無制限、固定時間範囲の設定から毎フレーム反映される
+		float maxKeyTime = 0.0f;
 		// グリッド線の間隔
 		float gridTimeStep = 0.25f;
 		float gridValueStep = 0.25f;

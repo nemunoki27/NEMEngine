@@ -58,13 +58,54 @@ namespace Engine {
 		float thickness = 0.2f;
 	};
 
+	// 発生位置の決め方
+	enum class ParticleEmitterSpawnMode :
+		uint8_t {
+
+		Random,       // ランダムに選ぶ
+		EvenPerFrame, // 1回の発生数で等間隔に並べる
+		Progressive,  // 発生させるごとに角度を進める
+	};
+
+	// 発生速度の向きの決め方
+	enum class ParticleEmitterVelocityMode :
+		uint8_t {
+
+		Normal,    // 円周の法線方向
+		NextPoint, // 次の発生点へ向ける
+		PrePoint,  // 前の発生点へ向ける
+	};
+
+	// 発生1回分の連番情報
+	struct ParticleSpawnIndex {
+
+		// エミッター全体での発生連番
+		uint32_t global = 0;
+		// この発生回内でのインデックスと発生数
+		uint32_t batchIndex = 0;
+		uint32_t batchCount = 1;
+	};
+
 	// Circleのパラメータ
 	struct ParticleEmitterCircleParams {
 
 		// 半径
 		float radius = 1.0f;
-		// 円弧角度
-		float arc = 360.0f;
+		// 円弧の角度範囲、度数法で0度跨ぎにも対応する
+		float angleMin = 0.0f;
+		float angleMax = 360.0f;
+		// 角度を進める方向を反転するか
+		bool clockwise = false;
+
+		// 発生位置の決め方
+		ParticleEmitterSpawnMode spawnMode = ParticleEmitterSpawnMode::Random;
+		// 角度を進めるモードの1発生あたりのステップ角度
+		float stepAngle = 10.0f;
+
+		// 発生速度の向きの決め方
+		ParticleEmitterVelocityMode velocityMode = ParticleEmitterVelocityMode::Normal;
+		// 角度を進めて最初に戻る瞬間は前の区間の向きを使う
+		bool usePrevSegmentDirectionOnWrap = false;
 	};
 
 	// Cone/Cone2Dのパラメータ
@@ -111,6 +152,8 @@ namespace Engine {
 
 		// 初速
 		ParticleValue<float> speed{ 1.6f };
+		// 発生座標オフセット
+		ParticleValue<Vector3> emitOffset{};
 
 		// 形状ごとのパラメータ
 		ParticleEmitterSphereParams sphere{};

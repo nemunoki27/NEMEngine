@@ -93,12 +93,12 @@ namespace Engine {
 		bool AdvancePhaseOnLifeEnd(Particle& particle, const std::vector<PhaseRuntime>& phases) const;
 		// フェーズ順に並べ、各フェーズのモジュールを連続範囲へ一括適用する
 		void UpdatePhaseModules(std::vector<Particle>& particles, const EffectRuntime& effect, float deltaTime) const;
-		// トレイルの軌跡点をワールド空間で記録し、死亡した粒子の軌跡を破棄する
+		// トレイルの軌跡点をワールド空間で記録し、死亡した粒子と寿命を超えた点を破棄する
 		void RecordTrails(ECSWorld& world, const Entity& entity,
-			ParticleEmitterComponent& emitter, const ParticleTrailSettings& trail);
-		// エミッター形状から発生位置と方向と初期状態を決める
+			ParticleEmitterComponent& emitter, const ParticleTrailSettings& trail, float deltaTime);
+		// エミッター形状から発生位置と方向と初期状態を決める、firstSpawnIndexは発生順の連番の開始値
 		void InitEmitterParticles(std::span<Particle> newborn, const ParticleEmitterSettings& settings,
-			const ParticleValue<float>& lifetime, bool is2D) const;
+			const ParticleValue<float>& lifetime, bool is2D, uint32_t firstSpawnIndex) const;
 		// エミッター形状をデバッグ線で描画する
 		void DrawEmitterShape(ECSWorld& world, const Entity& entity,
 			const ParticleEmitterSettings& settings, bool is2D) const;

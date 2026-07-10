@@ -32,6 +32,12 @@ namespace Engine {
 		// 発生位置と方向を決める、ローカル空間で返す
 		virtual void InitParticle(Vector3& position, Vector3& direction,
 			const ParticleEmitterSettings& settings, bool is2D) const = 0;
+		// 発生順を使う形状はこちらを実装する
+		virtual void InitParticle(Vector3& position, Vector3& direction,
+			const ParticleEmitterSettings& settings, bool is2D,
+			[[maybe_unused]] const ParticleSpawnIndex& spawnIndex) const {
+			InitParticle(position, direction, settings, is2D);
+		}
 		// 形状をデバッグ線で描画する
 		virtual void DrawShape(const ParticleEmitterSettings& settings,
 			const Vector3& center, const Quaternion& rotation, bool is2D) const = 0;

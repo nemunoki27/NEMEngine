@@ -111,8 +111,8 @@ namespace Engine {
 		float bottomRadius = 1.0f;
 		// 高さ
 		float height = 2.0f;
-		// 展開角、2πで全周
-		float maxAngle = std::numbers::pi_v<float> * 2.0f;
+		// 展開角、度数法で360で全周
+		float maxAngle = 360.0f;
 		// 円周方向と高さ方向の分割数
 		int32_t radialDivide = 16;
 		int32_t heightDivide = 1;

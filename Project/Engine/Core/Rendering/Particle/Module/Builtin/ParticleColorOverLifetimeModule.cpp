@@ -71,9 +71,21 @@ bool Engine::ParticleColorOverLifetimeModule::DrawImGui() {
 	if (useCurve_) {
 
 		CurveEditSetting setting{};
-		setting.size = ImVec2(0.0f, 200.0f);
-		setting.showSidePanels = false;
+		setting.size = ImVec2(0.0f, 260.0f);
+		// 進行度のカーブなので時間軸を0~1で固定する
+		setting.fixedTimeRange = true;
 		changed |= MyGUI::CurveEditor("ColorCurve", curve_, curveState_, setting).valueChanged;
+		// 可視時間範囲の色遷移を帯で表示する
+		MyGUI::CurveColorGradientBar(curve_.channels, curveState_.visibleTimeMin, curveState_.visibleTimeMax, true);
+
+		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
+
+			static const CurveBakeTarget targets[] = {
+				{ "RGB", { 0u, 1u, 2u } }, { "R", { 0u } }, { "G", { 1u } }, { "B", { 2u } }, { "A", { 3u } } };
+			if (DrawCurveGenerator(generatorState_, curve_.channels, targets)) {
+				changed = true;
+			}
+		}
 	}
 	changed |= ParticleGui::DrawLoopSettings(loop_);
 	return changed;

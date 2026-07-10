@@ -244,6 +244,9 @@ namespace Engine {
 			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
 		static CurveEditResult CurveEditor(const char* id, CurveQuaternion& curve,
 			CurveEditorState& state, const CurveEditSetting& setting = CurveEditSetting{});
+		// 色カーブの時間範囲の色遷移を帯で表示する
+		static void CurveColorGradientBar(std::span<const CurveChannel> channels,
+			float timeMin, float timeMax, bool hasAlpha);
 
 		//============================================================================
 		//	ギズモ操作

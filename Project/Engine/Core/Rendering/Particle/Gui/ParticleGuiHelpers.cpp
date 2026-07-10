@@ -26,15 +26,17 @@ bool Engine::ParticleGui::DrawParticleValueFloat(const char* label, ParticleValu
 	bool changed = false;
 	ImGui::PushID(label);
 
+	ImGui::SeparatorText(label);
+
 	changed |= MyGUI::EnumCombo<ParticleValueType>("タイプ", value.type).valueChanged;
 
 	if (value.type == ParticleValueType::Constant) {
 
-		changed |= MyGUI::DragFloat(label, value.constant, setting).valueChanged;
+		changed |= MyGUI::DragFloat("定数値", value.constant, setting).valueChanged;
 	} else {
 
-		changed |= MyGUI::DragFloat((std::string(label) + " 最小").c_str(), value.min, setting).valueChanged;
-		changed |= MyGUI::DragFloat((std::string(label) + " 最大").c_str(), value.max, setting).valueChanged;
+		changed |= MyGUI::DragFloat("最小値", value.min, setting).valueChanged;
+		changed |= MyGUI::DragFloat("最大値", value.max, setting).valueChanged;
 	}
 	ImGui::PopID();
 	return changed;
@@ -44,6 +46,8 @@ bool Engine::ParticleGui::DrawParticleValueUInt(const char* label, ParticleValue
 
 	bool changed = false;
 	ImGui::PushID(label);
+
+	ImGui::SeparatorText(label);
 
 	changed |= MyGUI::EnumCombo<ParticleValueType>("タイプ", value.type).valueChanged;
 
@@ -57,11 +61,31 @@ bool Engine::ParticleGui::DrawParticleValueUInt(const char* label, ParticleValue
 		return false;
 		};
 	if (value.type == ParticleValueType::Constant) {
-		changed |= dragUInt(label, value.constant);
+		changed |= dragUInt("定数値", value.constant);
 	} else {
 
-		changed |= dragUInt((std::string(label) + " 最小").c_str(), value.min);
-		changed |= dragUInt((std::string(label) + " 最大").c_str(), value.max);
+		changed |= dragUInt("最小値", value.min);
+		changed |= dragUInt("最大値", value.max);
+	}
+	ImGui::PopID();
+	return changed;
+}
+
+bool Engine::ParticleGui::DrawParticleValueVector3(const char* label, ParticleValue<Vector3>& value,
+	const FloatEditSetting& setting) {
+
+	bool changed = false;
+	ImGui::PushID(label);
+
+	changed |= MyGUI::EnumCombo<ParticleValueType>("タイプ", value.type).valueChanged;
+
+	if (value.type == ParticleValueType::Constant) {
+
+		changed |= MyGUI::DragVector3(label, value.constant, setting).valueChanged;
+	} else {
+
+		changed |= MyGUI::DragVector3((std::string(label) + " 最小").c_str(), value.min, setting).valueChanged;
+		changed |= MyGUI::DragVector3((std::string(label) + " 最大").c_str(), value.max, setting).valueChanged;
 	}
 	ImGui::PopID();
 	return changed;

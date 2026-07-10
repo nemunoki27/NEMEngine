@@ -126,7 +126,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("上面半径", draft.cylinder.topRadius, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("下面半径", draft.cylinder.bottomRadius, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("高さ", draft.cylinder.height, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("展開角", draft.cylinder.maxAngle, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("展開角", draft.cylinder.maxAngle, { .dragSpeed = 0.5f,.minValue = 0.0f,.maxValue = 360.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("円周分割", draft.cylinder.radialDivide, { .minValue = 3,.maxValue = kMaxPrimitiveDivide }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("高さ分割", draft.cylinder.heightDivide, { .minValue = 1,.maxValue = kMaxPrimitiveDivide }); });
 		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawEnumComboField("フタ", draft.cylinder.cap); });

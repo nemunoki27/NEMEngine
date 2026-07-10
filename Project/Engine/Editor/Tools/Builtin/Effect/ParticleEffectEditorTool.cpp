@@ -40,6 +40,8 @@ namespace {
 
 	// モジュール並べ替えのドラッグ&ドロップペイロード
 	constexpr const char* kModuleReorderPayloadType = "PARTICLE_MODULE_REORDER";
+	// フェーズ並べ替えのドラッグ&ドロップペイロード
+	constexpr const char* kPhaseReorderPayloadType = "PARTICLE_PHASE_REORDER";
 
 	// リストの要素をfromからtoへ移動する
 	template <typename T>
@@ -176,12 +178,28 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 				ImGui::Text("現在の発生数: %u / %u", aliveCount, draft_.emitter.maxParticles);
 			}
 			ImGui::Spacing();
-			ImGui::Separator();
-
-			changed |= MyGUI::DragFloat("エミッター再生時間", draft_.duration, MakeDragSetting(0.01f, 600.0f)).valueChanged;
-			changed |= MyGUI::Checkbox("ループ再生", draft_.looping);
 
 			changed |= ParticleGui::DrawParticleValueFloat("発生初速度", draft_.emitter.speed, MakeDragSetting(0.0f, 10000.0f));
+			changed |= ParticleGui::DrawParticleValueVector3("発生オフセット", draft_.emitter.emitOffset, MakeDragSetting(-10000.0f, 10000.0f));
+
+			ImGui::Spacing();
+			ImGui::Separator();
+
+			changed |= MyGUI::DragFloat("発生継続時間", draft_.duration, MakeDragSetting(0.01f, 600.0f)).valueChanged;
+			changed |= MyGUI::Checkbox("ループ再生", draft_.looping);
+
+			// シーン上の対象エミッターをまとめて再生制御する、単発はループを無視して1回だけ発生する
+			if (ImGui::Button("再生")) {
+				RestartEmitters(context, false);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("単発再生")) {
+				RestartEmitters(context, true);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("停止")) {
+				StopEmitters(context);
+			}
 		}
 		//========================================================================================================================================================
 		if (MyGUI::CollapsingHeader("エミッター形状設定", false)) {
@@ -268,7 +286,17 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 
 				changed |= MyGUI::DragInt("軌跡点の上限", draft_.trail.maxPoints).valueChanged;
 				changed |= MyGUI::DragFloat("最小移動距離", draft_.trail.minDistance, MakeDragSetting(0.001f, 100.0f)).valueChanged;
-				changed |= MyGUI::DragFloat("リボン幅", draft_.trail.width, MakeDragSetting(0.001f, 100.0f)).valueChanged;
+				changed |= MyGUI::DragFloat("先頭の幅", draft_.trail.startWidth, MakeDragSetting(0.001f, 100.0f)).valueChanged;
+				changed |= MyGUI::DragFloat("尻尾の幅", draft_.trail.endWidth, MakeDragSetting(0.001f, 100.0f)).valueChanged;
+				changed |= MyGUI::ColorEdit("先頭の色", draft_.trail.startColor).valueChanged;
+				changed |= MyGUI::ColorEdit("尻尾の色", draft_.trail.endColor).valueChanged;
+				changed |= MyGUI::DragFloat("点の寿命", draft_.trail.pointLifetime, MakeDragSetting(0.0f, 60.0f)).valueChanged;
+				{
+					// 未設定なら粒子と同じマテリアルを使う
+					AssetEditSetting setting{};
+					changed |= MyGUI::AssetReferenceField("トレイルマテリアル", draft_.trail.material,
+						assetDatabase, { AssetType::Material }, setting).valueChanged;
+				}
 			}
 		}
 		ImGui::EndTabItem();
@@ -300,17 +328,7 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 		//========================================================================================================================================================
 		// 左のフェーズリスト、選択と追加と削除と並べ替え
 		ImGui::BeginChild("PhaseList", ImVec2(160.0f, 0.0f), true);
-		for (int32_t i = 0; i < static_cast<int32_t>(draft_.phases.size()); ++i) {
-
-			ImGui::PushID(i);
-			const std::string label = std::to_string(i + 1) + ": " + draft_.phases[i].name;
-			if (ImGui::Selectable(label.c_str(), i == selectedPhase_)) {
-				selectedPhase_ = i;
-			}
-			ImGui::PopID();
-		}
-		ImGui::Separator();
-		if (ImGui::SmallButton("追加")) {
+		if (ImGui::Button("追加", ImVec2(-FLT_MIN, 0.0f))) {
 
 			ParticleEffectPhase phase{};
 			phase.name = "Phase " + std::to_string(draft_.phases.size() + 1);
@@ -319,29 +337,59 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 			selectedPhase_ = static_cast<int32_t>(draft_.phases.size()) - 1;
 			changed = true;
 		}
-		ImGui::SameLine();
-		ImGui::BeginDisabled(draft_.phases.size() <= 1);
-		if (ImGui::SmallButton("削除")) {
+		ImGui::Separator();
+		int32_t removePhaseIndex = -1;
+		for (int32_t i = 0; i < static_cast<int32_t>(draft_.phases.size()); ++i) {
 
-			draft_.phases.erase(draft_.phases.begin() + selectedPhase_);
-			moduleCache_.erase(moduleCache_.begin() + selectedPhase_);
+			ImGui::PushID(i);
+			const std::string label = std::to_string(i + 1) + ": " + draft_.phases[i].name;
+			if (ImGui::Selectable(label.c_str(), i == selectedPhase_)) {
+				selectedPhase_ = i;
+			}
+			// ドラッグ&ドロップで並べ替える
+			if (ImGui::BeginDragDropSource()) {
+
+				ImGui::SetDragDropPayload(kPhaseReorderPayloadType, &i, sizeof(i));
+				ImGui::TextUnformatted(label.c_str());
+				ImGui::EndDragDropSource();
+			}
+			if (ImGui::BeginDragDropTarget()) {
+
+				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kPhaseReorderPayloadType)) {
+
+					const int32_t from = *static_cast<const int32_t*>(payload->Data);
+					if (from != i) {
+
+						MoveListItem(draft_.phases, from, i);
+						MoveListItem(moduleCache_, from, i);
+						// 選択中のフェーズを追従させる
+						if (from == selectedPhase_) {
+							selectedPhase_ = i;
+						} else if (from < selectedPhase_ && selectedPhase_ <= i) {
+							--selectedPhase_;
+						} else if (i <= selectedPhase_ && selectedPhase_ < from) {
+							++selectedPhase_;
+						}
+						changed = true;
+					}
+				}
+				ImGui::EndDragDropTarget();
+			}
+			// 右クリックで削除、最後の1つは消せない
+			if (ImGui::BeginPopupContextItem()) {
+
+				if (ImGui::MenuItem("削除", nullptr, false, 1 < draft_.phases.size())) {
+					removePhaseIndex = i;
+				}
+				ImGui::EndPopup();
+			}
+			ImGui::PopID();
+		}
+		if (0 <= removePhaseIndex) {
+
+			draft_.phases.erase(draft_.phases.begin() + removePhaseIndex);
+			moduleCache_.erase(moduleCache_.begin() + removePhaseIndex);
 			selectedPhase_ = std::clamp(selectedPhase_, 0, static_cast<int32_t>(draft_.phases.size()) - 1);
-			changed = true;
-		}
-		ImGui::EndDisabled();
-		if (ImGui::SmallButton("上へ") && 0 < selectedPhase_) {
-
-			std::swap(draft_.phases[selectedPhase_], draft_.phases[selectedPhase_ - 1]);
-			std::swap(moduleCache_[selectedPhase_], moduleCache_[selectedPhase_ - 1]);
-			--selectedPhase_;
-			changed = true;
-		}
-		ImGui::SameLine();
-		if (ImGui::SmallButton("下へ") && selectedPhase_ + 1 < static_cast<int32_t>(draft_.phases.size())) {
-
-			std::swap(draft_.phases[selectedPhase_], draft_.phases[selectedPhase_ + 1]);
-			std::swap(moduleCache_[selectedPhase_], moduleCache_[selectedPhase_ + 1]);
-			++selectedPhase_;
 			changed = true;
 		}
 		ImGui::EndChild();
@@ -435,11 +483,16 @@ bool ParticleEffectEditorTool::DrawPhaseModules(ParticleEffectPhase& phase) {
 			}
 			ImGui::EndDragDropTarget();
 		}
-		if (open) {
+		// 右クリックで削除
+		if (ImGui::BeginPopupContextItem()) {
 
-			if (ImGui::SmallButton("削除")) {
+			if (ImGui::MenuItem("削除")) {
 				removeIndex = i;
 			}
+			ImGui::EndPopup();
+		}
+		if (open) {
+
 			// モジュール自身の編集UIを描画し、変更をエントリへ書き戻す
 			if (IParticleModule* module = ResolveModuleCache(cache[i], phase.modules[i])) {
 				if (module->DrawImGui()) {
@@ -460,6 +513,48 @@ bool ParticleEffectEditorTool::DrawPhaseModules(ParticleEffectPhase& phase) {
 		changed = true;
 	}
 	return changed;
+}
+
+void ParticleEffectEditorTool::RestartEmitters(const EditorToolContext& context, bool oneShot) {
+
+	ECSWorld* world = context.GetWorld();
+	if (!world) {
+		return;
+	}
+	// 対象エフェクトを使っているエミッターを頭から再生する
+	world->ForEach<ParticleEmitterComponent>([&](const Entity&, ParticleEmitterComponent& component) {
+
+		const AssetID resolved = component.effect ? component.effect : BuiltinAssets::Effects::DefaultParticle;
+		if (resolved != editingID_) {
+			return;
+		}
+		component.playing = true;
+		component.runtimeOneShot = oneShot;
+		component.runtimeTime = 0.0f;
+		component.runtimeEmitTimer = 0.0f;
+		component.runtimeParticles.clear();
+		component.runtimeTrails.clear();
+		});
+}
+
+void ParticleEffectEditorTool::StopEmitters(const EditorToolContext& context) {
+
+	ECSWorld* world = context.GetWorld();
+	if (!world) {
+		return;
+	}
+	// 対象エフェクトを使っているエミッターを停止して粒子を消す
+	world->ForEach<ParticleEmitterComponent>([&](const Entity&, ParticleEmitterComponent& component) {
+
+		const AssetID resolved = component.effect ? component.effect : BuiltinAssets::Effects::DefaultParticle;
+		if (resolved != editingID_) {
+			return;
+		}
+		component.playing = false;
+		component.runtimeOneShot = false;
+		component.runtimeParticles.clear();
+		component.runtimeTrails.clear();
+		});
 }
 
 Engine::IParticleModule* ParticleEffectEditorTool::ResolveModuleCache(ModuleCacheEntry& cache, const ParticleEffectModuleEntry& entry) {

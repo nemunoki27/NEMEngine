@@ -75,13 +75,12 @@ bool Engine::ParticleBoxEmitterShape::DrawImGui(ParticleEmitterSettings& setting
 	bool changed = false;
 	changed |= MyGUI::DragVector3("大きさ", settings.box.size, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
 	changed |= MyGUI::Checkbox("+X面", settings.box.facePosX);
-	ImGui::SameLine();
 	changed |= MyGUI::Checkbox("-X面", settings.box.faceNegX);
+	ImGui::Spacing();
 	changed |= MyGUI::Checkbox("+Y面", settings.box.facePosY);
-	ImGui::SameLine();
 	changed |= MyGUI::Checkbox("-Y面", settings.box.faceNegY);
+	ImGui::Spacing();
 	changed |= MyGUI::Checkbox("+Z面", settings.box.facePosZ);
-	ImGui::SameLine();
 	changed |= MyGUI::Checkbox("-Z面", settings.box.faceNegZ);
 	return changed;
 }

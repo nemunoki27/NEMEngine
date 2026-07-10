@@ -26,7 +26,6 @@ namespace {
 	// 上部ボタンサイズ
 	constexpr ImVec2 kCurveToolbarItemSize = ImVec2(80.0f, 20.0f);
 	// 左チャンネル一覧の幅
-	constexpr float kCurveSidePanelWidth = 64.0f;
 	// 右キーインスペクタの幅
 	constexpr float kCurveInspectorWidth = 160.0f;
 	// 右キーインスペクタのアイテムサイズ
@@ -95,6 +94,19 @@ namespace {
 
 		const float desiredTimeStep = 80.0f / state.pixelsPerSecond; // 約80pxごと
 		state.gridTimeStep = NiceStep(desiredTimeStep);
+	}
+	// 時間軸を固定範囲で表示する、パンやズームでも動かさない
+	void ApplyFixedTimeRange(const ImRect& graphRect, const Engine::CurveEditSetting& setting,
+		Engine::CurveEditorState& state) {
+
+		if (!setting.fixedTimeRange) {
+			return;
+		}
+		state.visibleTimeMin = setting.fixedTimeMin;
+		state.visibleTimeMax = (std::max)(setting.fixedTimeMax, setting.fixedTimeMin + 0.001f);
+		state.pixelsPerSecond = SafePixelsPerSecond(
+			(std::max)(1.0f, graphRect.GetWidth()) / SafeRange(state.visibleTimeMin, state.visibleTimeMax));
+		state.gridTimeStep = (std::max)(0.0001f, setting.fixedTimeStep);
 	}
 	// 値方向の表示レンジからズーム係数を再構築する
 	// MaxValueを固定したままMinValueだけ動かした場合でも、
@@ -170,6 +182,15 @@ namespace {
 			return time;
 		}
 		return std::round(time / interval) * interval;
+	}
+	// キー時刻を許可された範囲へ収める
+	float ClampKeyTime(const Engine::CurveEditorState& state, float time) {
+
+		time = (std::max)(0.0f, time);
+		if (0.0f < state.maxKeyTime) {
+			time = (std::min)(time, state.maxKeyTime);
+		}
+		return time;
 	}
 	// グリッド表示で-0.00が出ないように丸める
 	float NormalizeGridValue(float value) {
@@ -1221,34 +1242,6 @@ namespace {
 
 		ImGui::SetWindowFontScale(previousFontScale);
 	}
-	// 左側のチャンネル一覧を描画する
-	void DrawChannelPanel(std::span<Engine::CurveChannel> channels, Engine::CurveEditorState& state, float height) {
-
-		ImGui::BeginChild("##CurveChannels", ImVec2(kCurveSidePanelWidth, height), true);
-		const float previousFontScale = ImGui::GetCurrentWindow()->FontWindowScale;
-		ImGui::SetWindowFontScale(kCurveEditorFontScale);
-
-		ImGui::TextUnformatted("Channels");
-		ImGui::Separator();
-
-		// チャンネルごとに表示ON/OFFとキー数を出す
-		for (uint32_t i = 0; i < channels.size(); ++i) {
-			Engine::CurveChannel& channel = channels[i];
-			bool visible = state.IsChannelVisible(i);
-			ImGui::PushID(static_cast<int>(i));
-			if (ImGui::ColorButton("##Color", ImVec4(channel.displayColor.r, channel.displayColor.g,
-				channel.displayColor.b, channel.displayColor.a), ImGuiColorEditFlags_NoTooltip, ImVec2(14.0f, 14.0f))) {
-			}
-			ImGui::SameLine();
-			if (ImGui::Checkbox(channel.name.c_str(), &visible)) {
-				state.SetChannelVisible(i, visible);
-			}
-			ImGui::TextDisabled("%u keys", static_cast<uint32_t>(channel.keys.size()));
-			ImGui::PopID();
-		}
-		ImGui::SetWindowFontScale(previousFontScale);
-		ImGui::EndChild();
-	}
 	// 右側のキーインスペクタを描画する
 	void DrawInspector(std::span<Engine::CurveChannel> channels,
 		Engine::CurveEditorState& state, Engine::CurveEditResult& result, float height,
@@ -1277,6 +1270,7 @@ namespace {
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
 			float time = keyR.time;
 			if (ImGui::DragFloat("Time", &time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+				time = ClampKeyTime(state, time);
 				keyR.time = time;
 				keyG.time = time;
 				keyB.time = time;
@@ -1310,6 +1304,7 @@ namespace {
 			ImGui::TextUnformatted("Alpha");
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
 			if (ImGui::DragFloat("Time", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+				key.time = ClampKeyTime(state, key.time);
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
@@ -1340,6 +1335,7 @@ namespace {
 			ImGui::TextUnformatted("Axis");
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
 			if (ImGui::DragFloat("Time", &axisKey.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+				axisKey.time = ClampKeyTime(state, axisKey.time);
 				result.valueChanged = true;
 			}
 
@@ -1405,6 +1401,7 @@ namespace {
 			ImGui::TextUnformatted("Angle");
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
 			if (ImGui::DragFloat("Time", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+				key.time = ClampKeyTime(state, key.time);
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
@@ -1436,6 +1433,7 @@ namespace {
 		ImGui::TextUnformatted(channel.name.c_str());
 		ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
 		if (ImGui::DragFloat("Time", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+				key.time = ClampKeyTime(state, key.time);
 			result.valueChanged = true;
 		}
 		ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
@@ -1538,7 +1536,7 @@ namespace {
 			if (!state.contextMenuOnKey) {
 				if (ImGui::BeginMenu("キー追加")) {
 
-					const float time = SnapTime((std::max)(0.0f, state.contextMenuWorld.x), state.snapEnabled, state.snapInterval);
+					const float time = SnapTime(ClampKeyTime(state, state.contextMenuWorld.x), state.snapEnabled, state.snapInterval);
 
 					if (IsQuaternionCurveSet(channels)) {
 						if (ImGui::MenuItem("軸")) {
@@ -1611,7 +1609,7 @@ namespace {
 			for (const Engine::CurveKeySelection& selection : state.selectedKeys) {
 				if (IsQuaternionCurveSet(channels) && IsQuaternionAxisSelection(channels, selection)) {
 					Engine::CurveKey& axisKey = channels[0].keys[selection.keyIndex];
-					const float movedTime = SnapTime((std::max)(0.0f, axisKey.time + dt), state.snapEnabled, state.snapInterval);
+					const float movedTime = SnapTime(ClampKeyTime(state, axisKey.time + dt), state.snapEnabled, state.snapInterval);
 					axisKey.time = movedTime;
 					SyncQuaternionAxisChannel(channels, ToAxisKeySpan(quaternionAxisKeys), selection.keyIndex);
 					axisKey.interpolation = Engine::CurveInterpolationMode::Constant;
@@ -1621,7 +1619,7 @@ namespace {
 					Engine::CurveKey& keyR = channels[0].keys[selection.keyIndex];
 					Engine::CurveKey& keyG = channels[1].keys[selection.keyIndex];
 					Engine::CurveKey& keyB = channels[2].keys[selection.keyIndex];
-					const float movedTime = SnapTime((std::max)(0.0f, keyR.time + dt), state.snapEnabled, state.snapInterval);
+					const float movedTime = SnapTime(ClampKeyTime(state, keyR.time + dt), state.snapEnabled, state.snapInterval);
 					keyR.time = movedTime;
 					keyG.time = movedTime;
 					keyB.time = movedTime;
@@ -1635,7 +1633,7 @@ namespace {
 					continue;
 				}
 				Engine::CurveKey& key = channel.keys[selection.keyIndex];
-				key.time = SnapTime((std::max)(0.0f, key.time + dt), state.snapEnabled, state.snapInterval);
+				key.time = SnapTime(ClampKeyTime(state, key.time + dt), state.snapEnabled, state.snapInterval);
 				if (IsColorCurveSet(channels) && selection.channelIndex == 3) {
 					key.value = (std::clamp)(key.value + dv, 0.0f, 1.0f);
 				} else if (IsQuaternionCurveSet(channels) && selection.channelIndex == 0) {
@@ -1781,6 +1779,8 @@ namespace {
 		state.snapEnabled = setting.snap;
 		state.snapInterval = setting.snapInterval;
 	}
+	// 固定時間範囲のときはキー時刻の上限も揃える
+	state.maxKeyTime = setting.fixedTimeRange ? setting.fixedTimeMax : 0.0f;
 	// 初期表示レンジを明示的に揃える
 	// 旧既定値(-1.0f, 1.0f)や未初期化相当(0.0f, 0.0f)から入っても
 	// Min=0.0f, Max=1.0fを基準に開始する
@@ -1813,12 +1813,6 @@ namespace {
 
 	const float mainAreaHeight = (std::max)(1.0f, ImGui::GetContentRegionAvail().y);
 	const float centerHeight = (std::max)(1.0f, mainAreaHeight);
-	// 左パネルはチャンネル表示とビュー操作をまとめる
-	if (setting.showSidePanels) {
-		DrawChannelPanel(channels, state, mainAreaHeight);
-		ImGui::SameLine();
-	}
-
 	// 右パネル分を差し引いた幅をGraphに使う
 	const float sideWidth = setting.showSidePanels ? kCurveInspectorWidth + ImGui::GetStyle().ItemSpacing.x : 0.0f;
 	ImGui::BeginGroup();
@@ -1854,6 +1848,7 @@ namespace {
 		FitView(graphRect, channels, state);
 		state.frameSelectionRequest = false;
 	}
+	ApplyFixedTimeRange(graphRect, setting, state);
 
 	// ここ重要:グラフ入力をImGuiアイテムとして捕まえる
 	ImGui::SetCursorScreenPos(graphRect.Min);
@@ -1998,4 +1993,40 @@ Engine::CurveEditResult Engine::MyGUI::CurveEditor(const char* id, CurveQuaterni
 
 	curve.EnsureAxisKeyCount();
 	return DrawCurveEditorInternal(id, GetCurveChannels(curve), state, setting, &curve.axisKeys);
+}
+
+void Engine::MyGUI::CurveColorGradientBar(std::span<const CurveChannel> channels,
+	float timeMin, float timeMax, bool hasAlpha) {
+
+	if (channels.size() < 3) {
+		return;
+	}
+
+	const float barHeight = 18.0f;
+	const float barWidth = ImGui::GetContentRegionAvail().x;
+	const ImVec2 origin = ImGui::GetCursorScreenPos();
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+	timeMax = (std::max)(timeMax, timeMin + 0.001f);
+	constexpr int kSegments = 64;
+	const float segWidth = barWidth / static_cast<float>(kSegments);
+
+	// 時間軸に合わせて区間ごとに色を評価しグラデーションでつなぐ
+	auto sampleColor = [&](float ratio) {
+		const float time = timeMin + (timeMax - timeMin) * ratio;
+		const float r = channels[0].Evaluate(time);
+		const float g = channels[1].Evaluate(time);
+		const float b = channels[2].Evaluate(time);
+		const float a = hasAlpha && 3 < channels.size() ? channels[3].Evaluate(time) : 1.0f;
+		return ImGui::ColorConvertFloat4ToU32(ImVec4(r, g, b, a));
+		};
+	for (int s = 0; s < kSegments; ++s) {
+
+		const ImU32 left = sampleColor(static_cast<float>(s) / kSegments);
+		const ImU32 right = sampleColor(static_cast<float>(s + 1) / kSegments);
+		const ImVec2 p0(origin.x + segWidth * static_cast<float>(s), origin.y);
+		const ImVec2 p1(origin.x + segWidth * static_cast<float>(s + 1), origin.y + barHeight);
+		drawList->AddRectFilledMultiColor(p0, p1, left, right, right, left);
+	}
+	ImGui::Dummy(ImVec2(barWidth, barHeight));
 }

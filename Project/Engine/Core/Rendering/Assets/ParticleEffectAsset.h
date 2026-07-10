@@ -35,8 +35,16 @@ namespace Engine {
 		int32_t maxPoints = 16;
 		// 軌跡点を追加する最小移動距離
 		float minDistance = 0.05f;
-		// リボンの幅
-		float width = 0.1f;
+		// リボンの幅、先頭と尻尾で補間する
+		float startWidth = 0.1f;
+		float endWidth = 0.1f;
+		// リボンの色、先頭と尻尾で補間して粒子色へ掛ける
+		Color4 startColor = Color4::White();
+		Color4 endColor = Color4(1.0f, 1.0f, 1.0f, 0.0f);
+		// 軌跡点の寿命、この秒数を超えた点は消える、0以下で無制限
+		float pointLifetime = 0.0f;
+		// トレイル専用マテリアル、未設定なら粒子と同じものを使う
+		AssetID material{};
 	};
 
 	// パーティクルエフェクトアセットの情報

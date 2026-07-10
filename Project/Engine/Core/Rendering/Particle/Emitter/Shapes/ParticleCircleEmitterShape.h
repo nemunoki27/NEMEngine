@@ -9,7 +9,7 @@ namespace Engine {
 
 	//============================================================================
 	//	ParticleCircleEmitterShape class
-	//	円弧上から外向きに飛ばす発生形状、3DはXZ平面で2DはXY平面
+	//	円弧上から飛ばす発生形状、発生位置と速度の向きの決め方を選べる
 	//============================================================================
 	class ParticleCircleEmitterShape :
 		public IParticleEmitterShape {
@@ -26,6 +26,9 @@ namespace Engine {
 
 		void InitParticle(Vector3& position, Vector3& direction,
 			const ParticleEmitterSettings& settings, bool is2D) const override;
+		void InitParticle(Vector3& position, Vector3& direction,
+			const ParticleEmitterSettings& settings, bool is2D,
+			const ParticleSpawnIndex& spawnIndex) const override;
 		void DrawShape(const ParticleEmitterSettings& settings,
 			const Vector3& center, const Quaternion& rotation, bool is2D) const override;
 		bool DrawImGui(ParticleEmitterSettings& settings) const override;

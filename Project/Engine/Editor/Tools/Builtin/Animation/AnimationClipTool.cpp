@@ -125,18 +125,11 @@ namespace {
 		return "上書き";
 	}
 
-	// ベイクの適用先候補、ラベルと対象チャネルindexの組で表す
-	struct BakeTargetOption {
-
-		std::string label;
-		std::vector<uint32_t> channelIndices;
-	};
-
 	// 値型ごとにベイク可能なチャネル候補を作る、複数選択はせず1候補を選んで適用する
-	std::vector<BakeTargetOption> BuildBakeTargets(const AnimationCurveTrack& track) {
+	std::vector<CurveBakeTarget> BuildBakeTargets(const AnimationCurveTrack& track) {
 
 		const uint32_t channelCount = static_cast<uint32_t>(track.channels.size());
-		std::vector<BakeTargetOption> options{};
+		std::vector<CurveBakeTarget> options{};
 		switch (track.binding.valueType) {
 		case AnimationValueType::Vector2:
 			if (channelCount >= 2) { options = { { "X", { 0u } }, { "Y", { 1u } } }; }
@@ -163,19 +156,6 @@ namespace {
 			break;
 		}
 		return options;
-	}
-
-	bool DrawEasingComboProperty(const char* label, EasingType& easingType, float reserveRightWidth = 0.0f) {
-
-		if (!MyGUI::BeginPropertyRow(label)) {
-			return false;
-		}
-
-		const EasingType before = easingType;
-		const float width = ImGui::GetContentRegionAvail().x - reserveRightWidth;
-		Easing::SelectEasingType(easingType, label, width <= 1.0f ? 1.0f : width);
-		MyGUI::EndPropertyRow();
-		return before != easingType;
 	}
 
 	std::string BuildTrackLabel(const AnimationCurveTrack& track, ECSWorld* world, const Entity& entity) {
@@ -1138,35 +1118,9 @@ void AnimationClipTool::DrawCurveEditorUI(const EditorToolContext& context) {
 		track.binding.valueType == AnimationValueType::Color4;
 	if (isColorTrack && track.channels.size() >= 3) {
 
-		const float barHeight = 18.0f;
-		const float barWidth = ImGui::GetContentRegionAvail().x;
-		const ImVec2 origin = ImGui::GetCursorScreenPos();
-		ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-		const float timeMin = curveState_.visibleTimeMin;
-		const float timeMax = (std::max)(curveState_.visibleTimeMax, timeMin + 0.001f);
 		const bool hasAlpha = track.binding.valueType == AnimationValueType::Color4;
-		constexpr int kSegments = 64;
-		const float segWidth = barWidth / static_cast<float>(kSegments);
-
-		// CurveEditorの時間軸に合わせて区間ごとに色を評価しグラデーションでつなぐ
-		auto sampleColor = [&](float ratio) {
-			const float time = timeMin + (timeMax - timeMin) * ratio;
-			const float r = track.channels[0].Evaluate(time);
-			const float g = track.channels[1].Evaluate(time);
-			const float b = track.channels[2].Evaluate(time);
-			const float a = hasAlpha ? track.channels[3].Evaluate(time) : 1.0f;
-			return ImGui::ColorConvertFloat4ToU32(ImVec4(r, g, b, a));
-			};
-		for (int s = 0; s < kSegments; ++s) {
-
-			const ImU32 left = sampleColor(static_cast<float>(s) / kSegments);
-			const ImU32 right = sampleColor(static_cast<float>(s + 1) / kSegments);
-			const ImVec2 p0(origin.x + segWidth * static_cast<float>(s), origin.y);
-			const ImVec2 p1(origin.x + segWidth * static_cast<float>(s + 1), origin.y + barHeight);
-			drawList->AddRectFilledMultiColor(p0, p1, left, right, right, left);
-		}
-		ImGui::Dummy(ImVec2(barWidth, barHeight));
+		MyGUI::CurveColorGradientBar(track.channels,
+			curveState_.visibleTimeMin, curveState_.visibleTimeMax, hasAlpha);
 	}
 
 	StoreSelectedTrackEditorView();
@@ -1343,96 +1297,11 @@ void AnimationClipTool::DrawGeneratorUI(const EditorToolContext& context) {
 		return;
 	}
 
-	// DrawClipAssetUIと同じプロパティ行で、生成条件を縦に並べる
-	MyGUI::EnumCombo("生成タイプ", generatorType_);
-
-	MyGUI::DragFloat("開始時間", generatorStartTime_, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 10000.0f, });
-	MyGUI::DragFloat("終了時間", generatorEndTime_, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 10000.0f, });
-	MyGUI::DragFloat("開始値", generatorStartValue_, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
-	MyGUI::DragFloat("終了値", generatorEndValue_, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
-
-	if (generatorType_ != GeneratorType::Easing) {
-
-		MyGUI::DragFloat("振幅", generatorAmplitude_, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
-		MyGUI::DragFloat("周波数", generatorFrequency_, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 10000.0f, });
-		MyGUI::DragFloat("位相", generatorPhase_, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
-	} else {
-
-		// イージング選択UIはCore側の共通実装を使う
-		DrawEasingComboProperty("イージング", generatorEasingType_);
+	// 生成条件と適用先のUIは共通実装を使う
+	const std::vector<CurveBakeTarget> bakeTargets = BuildBakeTargets(track);
+	if (DrawCurveGenerator(generatorState_, track.channels, bakeTargets)) {
+		UpdateAutoDurationAndPreview(context);
 	}
-
-	MyGUI::DragInt("キー数", generatorSampleCount_, { .dragSpeed = 1.0f,.minValue = 2,.maxValue = 1024 });
-	generatorSampleCount_ = (std::max)(generatorSampleCount_, 2);
-
-	// 値型ごとの候補から適用先チャネルを選ぶ、候補が1つだけの型でも明示表示する
-	const std::vector<BakeTargetOption> bakeTargets = BuildBakeTargets(track);
-	if (bakeTargets.empty()) {
-		return;
-	}
-	generatorTargetIndex_ = std::clamp(generatorTargetIndex_, 0, static_cast<int>(bakeTargets.size()) - 1);
-	if (MyGUI::BeginPropertyRow("適用先")) {
-		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-		if (ImGui::BeginCombo("##BakeTarget", bakeTargets[static_cast<size_t>(generatorTargetIndex_)].label.c_str())) {
-			for (int t = 0; t < static_cast<int>(bakeTargets.size()); ++t) {
-				const bool isSelected = generatorTargetIndex_ == t;
-				if (ImGui::Selectable(bakeTargets[static_cast<size_t>(t)].label.c_str(), isSelected)) {
-					generatorTargetIndex_ = t;
-				}
-				if (isSelected) {
-					ImGui::SetItemDefaultFocus();
-				}
-			}
-			ImGui::EndCombo();
-		}
-		MyGUI::EndPropertyRow();
-	}
-	MyGUI::Checkbox("範囲内のキーを置き換える", generatorReplaceKeys_);
-
-	if (!ImGui::Button("生成", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
-		return;
-	}
-
-	// 開始/終了の入力順に依存しないよう、生成範囲だけ正規化する
-	const float startTime = (std::min)(generatorStartTime_, generatorEndTime_);
-	const float endTime = (std::max)(generatorStartTime_, generatorEndTime_);
-	const float timeRange = (std::max)(endTime - startTime, 0.001f);
-
-	auto bakeChannel = [&](CurveChannel& channel) {
-
-		if (generatorReplaceKeys_) {
-			// 置き換え時は指定範囲内の既存キーだけを消し、範囲外の手作業キーは残す
-			channel.keys.erase(std::remove_if(channel.keys.begin(), channel.keys.end(),
-				[&](const CurveKey& key) {
-					return startTime <= key.time && key.time <= endTime;
-				}), channel.keys.end());
-		}
-
-		for (int i = 0; i < generatorSampleCount_; ++i) {
-			const float normalized = static_cast<float>(i) / static_cast<float>(generatorSampleCount_ - 1);
-			const float time = startTime + timeRange * normalized;
-			float value = generatorStartValue_;
-			// 生成結果は通常編集しやすいよう、まずはLinearキーとして追加する
-			if (generatorType_ == GeneratorType::Sin || generatorType_ == GeneratorType::Cos) {
-				const float angle = normalized * generatorFrequency_ * 2.0f * std::numbers::pi_v<float> +generatorPhase_;
-				const float wave = generatorType_ == GeneratorType::Sin ? std::sin(angle) : std::cos(angle);
-				value = generatorStartValue_ + wave * generatorAmplitude_;
-			} else {
-				const float eased = EasedValue(generatorEasingType_, normalized);
-				value = generatorStartValue_ + (generatorEndValue_ - generatorStartValue_) * eased;
-			}
-			channel.AddKey(time, value, CurveInterpolationMode::Spline);
-		}
-		};
-
-	// 選択した候補のチャネルへだけベイクする、RGBのように複数chまとめた候補は各chへ適用する
-	for (uint32_t channelIndex : bakeTargets[static_cast<size_t>(generatorTargetIndex_)].channelIndices) {
-		if (channelIndex < track.channels.size()) {
-			bakeChannel(track.channels[channelIndex]);
-		}
-	}
-
-	UpdateAutoDurationAndPreview(context);
 }
 
 void AnimationClipTool::DrawEventListUI([[maybe_unused]] const EditorToolContext& context) {

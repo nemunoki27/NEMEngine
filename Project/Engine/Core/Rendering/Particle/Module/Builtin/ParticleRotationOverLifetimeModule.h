@@ -9,7 +9,7 @@ namespace Engine {
 
 	//============================================================================
 	//	ParticleRotationOverLifetimeModule class
-	//	角速度ベクトルで回転を進める、ジンバルロックを避けるためクォータニオンで積分する
+	//	角速度ベクトルで回転
 	//============================================================================
 	class ParticleRotationOverLifetimeModule :
 		public IParticleModule {

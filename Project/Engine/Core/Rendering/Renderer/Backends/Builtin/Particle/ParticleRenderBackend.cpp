@@ -174,7 +174,7 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 		for (const Particle& particle : payload->emitter->runtimeParticles) {
 
 			// 粒子はワールド空間でシミュレーション済み
-			const Vector3 worldPos = particle.position;
+			const Vector3 worldPos = particle.pos;
 			// 粒子の回転を掛けてからカメラへ向ける
 			Quaternion rotation = particle.rotation;
 			if (useBillboard) {
@@ -238,7 +238,6 @@ void Engine::ParticleRenderBackend::BuildTrailVertices(const RenderDrawContext& 
 
 		const ResolvedCameraView* camera = context.view ? context.view->FindCamera(item->cameraDomain) : nullptr;
 		const Vector3 cameraPos = (camera && camera->valid) ? camera->cameraPos : Vector3::AnyInit(0.0f);
-		const float halfWidth = trail.width * 0.5f;
 
 		for (const Particle& particle : emitter.runtimeParticles) {
 
@@ -247,15 +246,22 @@ void Engine::ParticleRenderBackend::BuildTrailVertices(const RenderDrawContext& 
 				continue;
 			}
 			// 記録済みの軌跡点に現在位置を先頭として足してリボンを張る
-			const std::vector<Vector3>& points = trailIt->second;
-			const Vector3 headPos = particle.position;
+			const std::vector<ParticleTrailPoint>& points = trailIt->second;
+			const Vector3 headPos = particle.pos;
 			const size_t pointCount = points.size() + 1;
 			if (pointCount < 2) {
 				continue;
 			}
 
 			auto getPoint = [&](size_t index) -> Vector3 {
-				return index < points.size() ? points[index] : headPos;
+				return index < points.size() ? points[index].position : headPos;
+				};
+			// 尻尾から先頭へ、リボンの色と幅を進行度で補間する
+			auto ribbonColor = [&](float t) {
+				return Color4::Lerp(trail.endColor, trail.startColor, t) * particle.color;
+				};
+			auto ribbonHalfWidth = [&](float t) {
+				return Math::Lerp(trail.endWidth, trail.startWidth, t) * 0.5f;
 				};
 
 			// 隣接する点をつないだセグメントごとに、視線と直交する方向へ幅を張る
@@ -268,24 +274,23 @@ void Engine::ParticleRenderBackend::BuildTrailVertices(const RenderDrawContext& 
 					continue;
 				}
 				const Vector3 viewDir = Vector3::Normalize(cameraPos - p0);
-				const Vector3 side = Vector3::Normalize(Vector3::Cross(Vector3::Normalize(segment), viewDir)) * halfWidth;
+				const Vector3 side = Vector3::Normalize(Vector3::Cross(Vector3::Normalize(segment), viewDir));
 
-				// 尻尾ほど透明にする
 				const float t0 = static_cast<float>(i) / static_cast<float>(pointCount - 1);
 				const float t1 = static_cast<float>(i + 1) / static_cast<float>(pointCount - 1);
-				Color4 color0 = particle.color;
-				color0.a *= t0;
-				Color4 color1 = particle.color;
-				color1.a *= t1;
+				const Color4 color0 = ribbonColor(t0);
+				const Color4 color1 = ribbonColor(t1);
+				const Vector3 side0 = side * ribbonHalfWidth(t0);
+				const Vector3 side1 = side * ribbonHalfWidth(t1);
 
 				ParticleTrailVertex v0{};
-				v0.position = p0 - side; v0.uv = Vector2(t0, 0.0f); v0.color = color0;
+				v0.position = p0 - side0; v0.uv = Vector2(t0, 0.0f); v0.color = color0;
 				ParticleTrailVertex v1{};
-				v1.position = p0 + side; v1.uv = Vector2(t0, 1.0f); v1.color = color0;
+				v1.position = p0 + side0; v1.uv = Vector2(t0, 1.0f); v1.color = color0;
 				ParticleTrailVertex v2{};
-				v2.position = p1 - side; v2.uv = Vector2(t1, 0.0f); v2.color = color1;
+				v2.position = p1 - side1; v2.uv = Vector2(t1, 0.0f); v2.color = color1;
 				ParticleTrailVertex v3{};
-				v3.position = p1 + side; v3.uv = Vector2(t1, 1.0f); v3.color = color1;
+				v3.position = p1 + side1; v3.uv = Vector2(t1, 1.0f); v3.color = color1;
 
 				outVertices.emplace_back(v0);
 				outVertices.emplace_back(v1);
@@ -358,12 +363,7 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 	const ParticleRenderSettings& settings = payload->emitter->runtimeRenderSettings;
 
-	// エミッターの描画設定からマテリアルを解決する
 	const bool is2D = settings.space == PrimitiveRenderSpace::Screen2D;
-	BackendDrawCommon::ResolvedMaterialPass resolvedPass{};
-	if (!ResolveParticlePass(context, settings.material, is2D, resolvedPass)) {
-		return;
-	}
 
 	// バッチのインスタンスデータをフェーズごとに集めてアップロードする
 	std::vector<ParticleInstanceData> instances;
@@ -423,13 +423,18 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 		instanceOffset += instanceCount;
 	}
 
-	// トレイルは3Dのみリボンを構築して重ねて描画する
+	// トレイルは3Dのみリボンを構築して重ねて描画する、専用マテリアル未設定は粒子と同じものを使う
 	if (settings.trail.enabled && !is2D) {
 
-		std::vector<ParticleTrailVertex> trailVertices;
-		BuildTrailVertices(context, items, trailVertices);
-		resources.UploadTrailVertices(trailVertices);
-		DrawTrails(context, item, resolvedPass, resources);
+		const AssetID trailMaterial = settings.trail.material ? settings.trail.material : settings.material;
+		BackendDrawCommon::ResolvedMaterialPass trailPass{};
+		if (ResolveParticlePass(context, trailMaterial, is2D, trailPass)) {
+
+			std::vector<ParticleTrailVertex> trailVertices;
+			BuildTrailVertices(context, items, trailVertices);
+			resources.UploadTrailVertices(trailVertices);
+			DrawTrails(context, item, trailPass, resources);
+		}
 	}
 }
 

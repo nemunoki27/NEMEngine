@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
+#include <Engine/Core/Foundation/Utility/Flipbook/FlipbookFrame.h>
 
 // c++
 #include <algorithm>
@@ -30,20 +31,15 @@ nlohmann::json Engine::ParticleFlipbookModule::ToJson() const {
 
 void Engine::ParticleFlipbookModule::OnUpdate(std::span<Particle> alive, [[maybe_unused]] float deltaTime) {
 
-	const int32_t frameCount = tilesX_ * tilesY_;
-	const Vector2 uvScale(1.0f / static_cast<float>(tilesX_), 1.0f / static_cast<float>(tilesY_));
-
 	for (Particle& particle : alive) {
 
 		// 進行度からコマ番号を求めて左上から右下の順に送る
 		const float progress = std::clamp(particle.age / particle.lifetime, 0.0f, 1.0f);
 		const float cycleT = std::fmod(progress * cycles_, 1.0f);
-		const int32_t frame = (std::min)(static_cast<int32_t>(cycleT * static_cast<float>(frameCount)), frameCount - 1);
+		const FlipbookFrame frame = CalcFlipbookFrame(tilesX_, tilesY_, cycleT);
 
-		particle.uvScale = uvScale;
-		particle.uvOffset = Vector2(
-			static_cast<float>(frame % tilesX_) * uvScale.x,
-			static_cast<float>(frame / tilesX_) * uvScale.y);
+		particle.uvScale = frame.uvScale;
+		particle.uvOffset = frame.uvOffset;
 	}
 }
 

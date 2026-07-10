@@ -69,6 +69,7 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 		if (const auto vit = e.find("emitCount"); vit != e.end()) { from_json(*vit, emitter.emitCount); }
 		emitter.maxParticles = e.value("maxParticles", emitter.maxParticles);
 		if (const auto vit = e.find("speed"); vit != e.end()) { from_json(*vit, emitter.speed); }
+		if (const auto vit = e.find("emitOffset"); vit != e.end()) { from_json(*vit, emitter.emitOffset); }
 		// 形状パラメータは各形状が自分の分を読む
 		for (const auto& [shape, instance] : ParticleEmitterShapeRegistry::GetInstance().GetMap()) {
 			instance->FromJson(e, emitter);
@@ -120,7 +121,18 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 		outAsset.trail.enabled = it->value("enabled", outAsset.trail.enabled);
 		outAsset.trail.maxPoints = it->value("maxPoints", outAsset.trail.maxPoints);
 		outAsset.trail.minDistance = it->value("minDistance", outAsset.trail.minDistance);
-		outAsset.trail.width = it->value("width", outAsset.trail.width);
+		// 旧スキーマの単一幅は両端へ引き継ぐ
+		if (const auto vit = it->find("width"); vit != it->end()) {
+
+			outAsset.trail.startWidth = vit->get<float>();
+			outAsset.trail.endWidth = vit->get<float>();
+		}
+		outAsset.trail.startWidth = it->value("startWidth", outAsset.trail.startWidth);
+		outAsset.trail.endWidth = it->value("endWidth", outAsset.trail.endWidth);
+		if (const auto vit = it->find("startColor"); vit != it->end()) { outAsset.trail.startColor = Color4::FromJson(*vit); }
+		if (const auto vit = it->find("endColor"); vit != it->end()) { outAsset.trail.endColor = Color4::FromJson(*vit); }
+		outAsset.trail.pointLifetime = it->value("pointLifetime", outAsset.trail.pointLifetime);
+		outAsset.trail.material = ParseAssetID(*it, "material");
 	}
 
 	// モジュール配列を読み込む、未知のモジュールは読み飛ばして他のモジュールの再生を継続する
@@ -193,6 +205,7 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 		to_json(e["emitCount"], emitter.emitCount);
 		e["maxParticles"] = emitter.maxParticles;
 		to_json(e["speed"], emitter.speed);
+		to_json(e["emitOffset"], emitter.emitOffset);
 		// 形状パラメータは各形状が自分の分を書く
 		for (const auto& [shape, instance] : ParticleEmitterShapeRegistry::GetInstance().GetMap()) {
 			instance->ToJson(e, emitter);
@@ -221,7 +234,12 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 	data["trail"]["enabled"] = asset.trail.enabled;
 	data["trail"]["maxPoints"] = asset.trail.maxPoints;
 	data["trail"]["minDistance"] = asset.trail.minDistance;
-	data["trail"]["width"] = asset.trail.width;
+	data["trail"]["startWidth"] = asset.trail.startWidth;
+	data["trail"]["endWidth"] = asset.trail.endWidth;
+	data["trail"]["startColor"] = asset.trail.startColor.ToJson();
+	data["trail"]["endColor"] = asset.trail.endColor.ToJson();
+	data["trail"]["pointLifetime"] = asset.trail.pointLifetime;
+	data["trail"]["material"] = ToAssetReferenceJson(asset.trail.material);
 
 	data["phases"] = nlohmann::json::array();
 	for (const ParticleEffectPhase& phase : asset.phases) {

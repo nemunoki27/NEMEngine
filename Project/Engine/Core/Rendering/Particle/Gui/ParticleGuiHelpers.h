@@ -24,6 +24,9 @@ namespace Engine {
 			const FloatEditSetting& setting);
 		// 定数かランダムかを切り替えられるuint値を編集する、変更があればtrue
 		bool DrawParticleValueUInt(const char* label, ParticleValue<uint32_t>& value);
+		// 定数かランダムかを切り替えられるVector3値を編集する、変更があればtrue
+		bool DrawParticleValueVector3(const char* label, ParticleValue<Vector3>& value,
+			const FloatEditSetting& setting);
 
 		// イージングを選択する、変更があればtrue
 		bool SelectEasing(EasingType& easing);

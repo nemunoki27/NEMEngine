@@ -45,6 +45,8 @@ namespace Engine {
 
 		// エミッターの経過時間
 		float runtimeTime = 0.0f;
+		// 単発再生中か、ループを無視して発生継続時間分だけ発生する
+		bool runtimeOneShot = false;
 		// 次の発生までのタイマー
 		float runtimeEmitTimer = 0.0f;
 		// 生存中の粒子
@@ -52,7 +54,7 @@ namespace Engine {
 		// 粒子へ割り当てる次のID
 		uint32_t runtimeNextParticleID = 0;
 		// 粒子IDごとのトレイル軌跡点、ワールド空間で記録する
-		std::unordered_map<uint32_t, std::vector<Vector3>> runtimeTrails{};
+		std::unordered_map<uint32_t, std::vector<ParticleTrailPoint>> runtimeTrails{};
 		// アセットから反映した描画設定、Systemが更新し描画側が参照する
 		ParticleRenderSettings runtimeRenderSettings{};
 	};

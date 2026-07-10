@@ -28,7 +28,7 @@ void Engine::ParticleNoiseForceModule::OnUpdate(std::span<Particle> alive, float
 	for (Particle& particle : alive) {
 
 		// 経過時間を混ぜて同じ位置でも力が揺らぐようにする
-		const Vector3 samplePos = particle.position + Vector3::AnyInit(particle.age * 0.5f);
+		const Vector3 samplePos = particle.pos + Vector3::AnyInit(particle.age * 0.5f);
 		particle.velocity += Math::PerlinNoiseVector3(samplePos, frequency_) * (strength_ * deltaTime);
 	}
 }

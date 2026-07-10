@@ -8,6 +8,7 @@
 #include <Engine/Core/Animation/Curves/AnimationCurve.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 #include <Engine/Editor/Animation/Curves/CurveEditorState.h>
+#include <Engine/Editor/Animation/Curves/CurveGenerator.h>
 
 namespace Engine {
 
@@ -51,6 +52,8 @@ namespace Engine {
 		CurveFloat curve_{};
 		// カーブ編集の状態、編集UIでのみ使用する
 		CurveEditorState curveState_{};
+		// カーブ生成の設定、キー時刻は0~1に制限する
+		CurveGeneratorState generatorState_{ .maxKeyTime = 1.0f };
 	};
 
 	ENGINE_REGISTER_PARTICLE_MODULE(ParticleSizeOverLifetimeModule, "SizeOverLifetime");

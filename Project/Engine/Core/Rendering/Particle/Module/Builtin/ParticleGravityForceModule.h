@@ -38,6 +38,8 @@ namespace Engine {
 
 		// 地面で反射させるか
 		bool reflectGround_ = false;
+		// TODO: エミッターの位置を地面の高さに自動設定する
+		bool autoGroundEmitter_ = false;
 		// 地面の高さ
 		float reflectGroundY_ = 0.0f;
 		// 反発係数

@@ -10,5 +10,8 @@
 //============================================================================
 bool Engine::ParticlePlaneShapeDrawer::DrawImGui(ParticleEffectAsset& asset) const {
 
-	return MyGUI::DragVector2("大きさ", asset.plane.size, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
+	bool changed = false;
+	changed |= MyGUI::EnumCombo("面タイプ", asset.plane.axis).valueChanged;
+	changed |= MyGUI::DragVector2("大きさ", asset.plane.size, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
+	return changed;
 }

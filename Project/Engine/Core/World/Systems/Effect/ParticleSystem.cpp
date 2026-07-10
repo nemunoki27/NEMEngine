@@ -12,7 +12,7 @@
 #include <Engine/Core/Foundation/Math/AffineDecompose.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
-// ビルトインモジュールの自己登録をこの翻訳単位で確定させる
+// 更新モジュール
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleSizeOverLifetimeModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorOverLifetimeModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleRotationOverLifetimeModule.h>
@@ -25,12 +25,9 @@
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleNoiseUVModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleEmissiveModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleAlphaReferenceModule.h>
-
-// パラメトリック形状の自己登録をこの翻訳単位で確定させる
+// 形状別
 #include <Engine/Core/Rendering/Particle/Parametric/ParticleRingParametricShape.h>
 #include <Engine/Core/Rendering/Particle/Parametric/ParticleCylinderParametricShape.h>
-
-// 発生形状の自己登録をこの翻訳単位で確定させる
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleSphereEmitterShape.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleHemisphereEmitterShape.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleBoxEmitterShape.h>
@@ -40,10 +37,6 @@
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticlePointEmitterShape.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleRectEmitterShape.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleCone2DEmitterShape.h>
-
-// c++
-#include <algorithm>
-#include <cmath>
 
 //============================================================================
 //	ParticleSystem classMethods
@@ -78,10 +71,10 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 			return;
 		}
 
-		// エミッターの経過時間、ループなら再生時間内へ折り返す
+		// エミッターの経過時間、ループなら発生継続時間内へ折り返す、単発再生中はループしない
 		emitter.runtimeTime += deltaTime;
 		bool emitAllowed = true;
-		if (asset.looping) {
+		if (asset.looping && !emitter.runtimeOneShot) {
 			if (0.0f < asset.duration) {
 				emitter.runtimeTime = std::fmod(emitter.runtimeTime, asset.duration);
 			}
@@ -101,7 +94,7 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 				particles.pop_back();
 				continue;
 			}
-			particle.position += particle.velocity * deltaTime;
+			particle.pos += particle.velocity * deltaTime;
 			++i;
 		}
 
@@ -129,7 +122,7 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 				// エミッター形状から初期状態を決めてから、先頭フェーズのモジュールの発生処理を通す
 				const PhaseRuntime& firstPhase = effect->phases.front();
 				InitEmitterParticles(newborn, emitterSettings, firstPhase.lifetime,
-					asset.space == PrimitiveRenderSpace::Screen2D);
+					asset.space == PrimitiveRenderSpace::Screen2D, emitter.runtimeNextParticleID);
 				for (const auto& module : firstPhase.modules) {
 					module->OnSpawn(newborn);
 				}
@@ -141,9 +134,9 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 				}
 				for (Particle& particle : newborn) {
 
-					const Vector3 worldPos = Vector3::Transform(particle.position, emitterWorld);
-					particle.velocity = Vector3::Transform(particle.position + particle.velocity, emitterWorld) - worldPos;
-					particle.position = worldPos;
+					const Vector3 worldPos = Vector3::Transform(particle.pos, emitterWorld);
+					particle.velocity = Vector3::Transform(particle.pos + particle.velocity, emitterWorld) - worldPos;
+					particle.pos = worldPos;
 					// トレイル追跡用のIDを割り当てる
 					particle.id = emitter.runtimeNextParticleID++;
 				}
@@ -157,7 +150,7 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 
 		// トレイルの軌跡点をワールド空間で記録する
 		if (asset.trail.enabled) {
-			RecordTrails(world, entity, emitter, asset.trail);
+			RecordTrails(world, entity, emitter, asset.trail, deltaTime);
 		} else if (!emitter.runtimeTrails.empty()) {
 			emitter.runtimeTrails.clear();
 		}
@@ -296,19 +289,26 @@ void Engine::ParticleSystem::UpdatePhaseModules(std::vector<Particle>& particles
 }
 
 void Engine::ParticleSystem::InitEmitterParticles(std::span<Particle> newborn,
-	const ParticleEmitterSettings& settings, const ParticleValue<float>& lifetime, bool is2D) const {
+	const ParticleEmitterSettings& settings, const ParticleValue<float>& lifetime,
+	bool is2D, uint32_t firstSpawnIndex) const {
 
 	const IParticleEmitterShape* shape = ParticleEmitterShapeRegistry::GetInstance().Find(settings.shape);
 
+	ParticleSpawnIndex spawnIndex{};
+	spawnIndex.global = firstSpawnIndex;
+	spawnIndex.batchCount = static_cast<uint32_t>(newborn.size());
 	for (Particle& particle : newborn) {
 
 		Vector3 position = Vector3::AnyInit(0.0f);
 		Vector3 direction = Vector3(0.0f, 1.0f, 0.0f);
 		if (shape) {
-			shape->InitParticle(position, direction, settings, is2D);
+			shape->InitParticle(position, direction, settings, is2D, spawnIndex);
 		}
+		++spawnIndex.global;
+		++spawnIndex.batchIndex;
 
-		particle.position = position;
+		// 発生座標にオフセットを掛ける
+		particle.pos = position + settings.emitOffset.Sample();
 		particle.velocity = direction * settings.speed.Sample();
 		particle.lifetime = (std::max)(lifetime.Sample(), 0.001f);
 	}
@@ -336,7 +336,7 @@ void Engine::ParticleSystem::DrawEmitterShape(ECSWorld& world, const Entity& ent
 }
 
 void Engine::ParticleSystem::RecordTrails([[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
-	ParticleEmitterComponent& emitter, const ParticleTrailSettings& trail) {
+	ParticleEmitterComponent& emitter, const ParticleTrailSettings& trail, float deltaTime) {
 
 	// 死亡した粒子の軌跡を破棄する
 	aliveTrailIDs_.clear();
@@ -351,16 +351,27 @@ void Engine::ParticleSystem::RecordTrails([[maybe_unused]] ECSWorld& world, [[ma
 	const int32_t maxPoints = (std::max)(trail.maxPoints, 2);
 	for (const Particle& particle : emitter.runtimeParticles) {
 
-		const Vector3 worldPos = particle.position;
-		std::vector<Vector3>& points = emitter.runtimeTrails[particle.id];
+		const Vector3 worldPos = particle.pos;
+		std::vector<ParticleTrailPoint>& points = emitter.runtimeTrails[particle.id];
+
+		// 記録済みの点を老化させ、寿命を超えた古い点から消す
+		for (ParticleTrailPoint& point : points) {
+			point.age += deltaTime;
+		}
+		if (0.0f < trail.pointLifetime) {
+			while (!points.empty() && trail.pointLifetime < points.front().age) {
+				points.erase(points.begin());
+			}
+		}
+
 		if (points.empty()) {
-			points.emplace_back(worldPos);
+			points.emplace_back(ParticleTrailPoint{ worldPos, 0.0f });
 			continue;
 		}
-		const Vector3 diff = worldPos - points.back();
+		const Vector3 diff = worldPos - points.back().position;
 		if (trail.minDistance * trail.minDistance <= Vector3::Dot(diff, diff)) {
 
-			points.emplace_back(worldPos);
+			points.emplace_back(ParticleTrailPoint{ worldPos, 0.0f });
 			if (maxPoints < static_cast<int32_t>(points.size())) {
 				points.erase(points.begin());
 			}

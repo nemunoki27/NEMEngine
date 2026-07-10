@@ -351,7 +351,8 @@ void Engine::PrimitiveMeshGenerator::GenerateCylinder(const PrimitiveCylinderPar
 	const float bottomRadius = params.bottomRadius;
 	const float height = params.height;
 	const float halfHeight = height * 0.5f;
-	const float angleStep = params.maxAngle / static_cast<float>(radialDivide);
+	constexpr float degToRad = std::numbers::pi_v<float> / 180.0f;
+	const float angleStep = params.maxAngle * degToRad / static_cast<float>(radialDivide);
 	const float slopeY = bottomRadius - topRadius;
 
 	// 側面、高さと円周のグリッド、中心はローカル原点

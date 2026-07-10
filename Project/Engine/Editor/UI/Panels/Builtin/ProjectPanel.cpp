@@ -1025,7 +1025,7 @@ bool Engine::ProjectPanel::SaveDroppedEntityAsPrefab(const EditorPanelContext& c
 	AssetDatabase& database, const std::string& directoryVirtualPath, const void* payloadData, int32_t payloadSize) {
 
 	// HierarchyのドラッグペイロードはEntityの安定UUIDを保持している
-	if (!context.CanEditScene() || !context.GetWorld() || payloadSize != sizeof(UUID) || payloadData == nullptr) {
+	if (!context.GetWorld() || payloadSize != sizeof(UUID) || payloadData == nullptr) {
 		return false;
 	}
 
@@ -1075,10 +1075,6 @@ bool Engine::ProjectPanel::SaveDroppedEntityAsPrefab(const EditorPanelContext& c
 
 void Engine::ProjectPanel::DrawPrefabCreateDropTarget(const EditorPanelContext& context,
 	AssetDatabase& database, const std::string& directoryVirtualPath) {
-
-	if (!context.CanEditScene()) {
-		return;
-	}
 
 	// Projectのフォルダまたは空白へHierarchy EntityをドロップするとPrefabを作成する
 	if (!ImGui::BeginDragDropTarget()) {

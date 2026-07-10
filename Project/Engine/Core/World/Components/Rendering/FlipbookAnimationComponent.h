@@ -22,6 +22,9 @@ namespace Engine {
 		bool playInEditMode = true;
 		// 再生終了後、何も表示されないようにするか
 		bool endAnimUnDisplay = false;
+		// テクスチャの分割数
+		int32_t tilesX = 1;
+		int32_t tilesY = 1;
 		// 再生にかかる時間
 		float duration = 1.0f;
 		// イージング

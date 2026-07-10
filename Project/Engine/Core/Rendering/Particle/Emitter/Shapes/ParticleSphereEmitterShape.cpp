@@ -34,10 +34,12 @@ void Engine::ParticleSphereEmitterShape::DrawShape(const ParticleEmitterSettings
 	if (!renderer) {
 		return;
 	}
-	renderer->DrawSphere(center, settings.sphere.radius, Color4::Red(), 8u);
+	renderer->DrawSphere(center, settings.sphere.radius, Color4::Red(), 1.0f);
 }
 
 bool Engine::ParticleSphereEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
 
-	return MyGUI::DragFloat("半径", settings.sphere.radius, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
+	bool result = MyGUI::DragFloat("半径", settings.sphere.radius, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
+
+	return result;
 }

@@ -61,9 +61,18 @@ bool Engine::ParticleSizeOverLifetimeModule::DrawImGui() {
 	if (useCurve_) {
 
 		CurveEditSetting setting{};
-		setting.size = ImVec2(0.0f, 200.0f);
-		setting.showSidePanels = false;
+		setting.size = ImVec2(0.0f, 260.0f);
+		// 進行度のカーブなので時間軸を0~1で固定する
+		setting.fixedTimeRange = true;
 		changed |= MyGUI::CurveEditor("SizeCurve", curve_, curveState_, setting).valueChanged;
+
+		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
+
+			static const CurveBakeTarget targets[] = { { "値", { 0u } } };
+			if (DrawCurveGenerator(generatorState_, std::span<CurveChannel>(&curve_.channel, 1), targets)) {
+				changed = true;
+			}
+		}
 	}
 	changed |= ParticleGui::DrawLoopSettings(loop_);
 	return changed;

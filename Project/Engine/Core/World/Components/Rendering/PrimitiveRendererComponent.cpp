@@ -64,7 +64,7 @@ void Engine::to_json(nlohmann::json& out, const PrimitiveCylinderParams& params)
 	out["topRadius"] = params.topRadius;
 	out["bottomRadius"] = params.bottomRadius;
 	out["height"] = params.height;
-	out["maxAngle"] = params.maxAngle;
+	out["maxAngleDegrees"] = params.maxAngle;
 	out["radialDivide"] = params.radialDivide;
 	out["heightDivide"] = params.heightDivide;
 	out["cap"] = EnumAdapter<PrimitiveCylinderCap>::ToString(params.cap);
@@ -76,7 +76,12 @@ void Engine::from_json(const nlohmann::json& in, PrimitiveCylinderParams& params
 	params.topRadius = in.value("topRadius", params.topRadius);
 	params.bottomRadius = in.value("bottomRadius", params.bottomRadius);
 	params.height = in.value("height", params.height);
-	params.maxAngle = in.value("maxAngle", params.maxAngle);
+	if (const auto it = in.find("maxAngleDegrees"); it != in.end()) {
+		params.maxAngle = it->get<float>();
+	}
+	if (const auto it = in.find("maxAngle"); it != in.end()) {
+		params.maxAngle = it->get<float>() * (180.0f / std::numbers::pi_v<float>);
+	}
 	params.radialDivide = in.value("radialDivide", params.radialDivide);
 	params.heightDivide = in.value("heightDivide", params.heightDivide);
 	params.cap = EnumAdapter<PrimitiveCylinderCap>::FromString(

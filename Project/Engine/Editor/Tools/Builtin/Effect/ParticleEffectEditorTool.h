@@ -94,6 +94,11 @@ namespace Engine {
 		// モジュールの編集用インスタンスを取得する、idが変わっていれば作り直す
 		IParticleModule* ResolveModuleCache(ModuleCacheEntry& cache, const ParticleEffectModuleEntry& entry);
 
+		// 対象エフェクトを使っているエミッターを頭から再生する、oneShotはループを無視して1回だけ発生する
+		void RestartEmitters(const EditorToolContext& context, bool oneShot);
+		// 対象エフェクトを使っているエミッターを停止して粒子を消す
+		void StopEmitters(const EditorToolContext& context);
+
 		// エフェクトをファイルから読み込む
 		void LoadEffect(const EditorToolContext& context, AssetID effectID);
 		// エフェクトをファイルへ保存する

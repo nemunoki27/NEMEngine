@@ -53,11 +53,12 @@ void Engine::ParticlePointEmitterShape::DrawShape(const ParticleEmitterSettings&
 		return;
 	}
 	// 射出方向を線で表す
-	renderer->DrawSphere(center, 0.05f, color, 8u);
+	renderer->DrawSphere(center, 0.05f, color, 1.0f);
 	renderer->DrawLine(center, center + Vector3::Transform(direction, rotationMatrix), color);
 }
 
 bool Engine::ParticlePointEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
 
-	return MyGUI::DragVector3("射出方向", settings.point.direction, ParticleGui::MakeDragSetting(-1.0f, 1.0f)).valueChanged;
+	bool result = MyGUI::DragVector3("射出方向", settings.point.direction, ParticleGui::MakeDragSetting(-1.0f, 1.0f)).valueChanged;;
+	return result;
 }

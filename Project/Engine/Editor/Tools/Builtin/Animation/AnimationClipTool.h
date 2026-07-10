@@ -8,6 +8,7 @@
 #include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 #include <Engine/Editor/Animation/Curves/CurveEditorState.h>
+#include <Engine/Editor/Animation/Curves/CurveGenerator.h>
 
 // c++
 #include <string>
@@ -65,15 +66,6 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// 対象Channelへ波形キーをまとめて生成するための一時設定
-		enum class GeneratorType :
-			uint8_t {
-
-			Sin,
-			Cos,
-			Easing,
-		};
-
 		//--------- variables ----------------------------------------------------
 
 		ToolDescriptor descriptor_{
@@ -120,19 +112,8 @@ namespace Engine {
 		// Transform系Propertyの2D/3D候補を絞るための表示フィルタ
 		AnimationClipEditDimension editDimension_ = AnimationClipEditDimension::Auto;
 
-		GeneratorType generatorType_ = GeneratorType::Sin;
-		// ベイクの適用先チャネル、値型ごとの候補(Vector3ならXYZ / QuaternionならAngle / ColorならRGB,Alpha)から選ぶ
-		int generatorTargetIndex_ = 0;
-		float generatorStartTime_ = 0.0f;
-		float generatorEndTime_ = 1.0f;
-		float generatorStartValue_ = 0.0f;
-		float generatorEndValue_ = 1.0f;
-		float generatorAmplitude_ = 1.0f;
-		float generatorFrequency_ = 1.0f;
-		float generatorPhase_ = 0.0f;
-		int generatorSampleCount_ = 16;
-		EasingType generatorEasingType_ = EasingType::Linear;
-		bool generatorReplaceKeys_ = true;
+		// カーブ生成の設定
+		CurveGeneratorState generatorState_{};
 
 		//--------- functions ----------------------------------------------------
 

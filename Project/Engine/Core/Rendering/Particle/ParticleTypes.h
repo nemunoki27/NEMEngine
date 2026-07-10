@@ -21,7 +21,7 @@ namespace Engine {
 	struct Particle {
 
 		// 位置
-		Vector3 position = Vector3::AnyInit(0.0f);
+		Vector3 pos = Vector3::AnyInit(0.0f);
 		// 速度
 		Vector3 velocity = Vector3::AnyInit(0.0f);
 
@@ -42,9 +42,9 @@ namespace Engine {
 		// アルファ棄却の閾値、この値未満のピクセルは描かれない
 		float alphaReference = 0.0f;
 
-		// 現在の回転、ジンバルロックを避けるためクォータニオンで保持する
+		// 現在の回転
 		Quaternion rotation = Quaternion::Identity();
-		// 角速度ベクトル、軸x速さで度数法
+		// 角速度ベクトル
 		Vector3 rotationSpeed = Vector3::AnyInit(0.0f);
 
 		// フリップブックのUVスケールとオフセット
@@ -57,5 +57,14 @@ namespace Engine {
 		uint32_t phaseIndex = 0;
 		// 形状アニメーション用のパラメータ、形状ごとに解釈が変わる
 		Vector4 shapeParams = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+	};
+
+	// トレイルの軌跡点、ワールド空間で記録する
+	struct ParticleTrailPoint {
+
+		// 位置
+		Vector3 position = Vector3::AnyInit(0.0f);
+		// 記録してからの経過時間
+		float age = 0.0f;
 	};
 } // Engine
