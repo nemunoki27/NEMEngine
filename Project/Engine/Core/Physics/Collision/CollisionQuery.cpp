@@ -132,20 +132,20 @@ void Engine::CollisionQuery::RaycastFillMeshes(ECSWorld& world, const Ray& ray, 
 				continue;
 			}
 
-			// 三角形をワールドへ変換して判定する、FillMeshは点数が少ない想定
-			const Vector3 v0 = Vector3::Transform(fillMesh.facePositions[i0], transform->worldMatrix);
-			const Vector3 v1 = Vector3::Transform(fillMesh.facePositions[i1], transform->worldMatrix);
-			const Vector3 v2 = Vector3::Transform(fillMesh.facePositions[i2], transform->worldMatrix);
+			// 頂点位置から行列を掛けてワールド座標に変換する
+			Vector3 worldPos0 = Vector3::Transform(fillMesh.facePositions[i0], transform->worldMatrix);
+			Vector3 worldPos1 = Vector3::Transform(fillMesh.facePositions[i1], transform->worldMatrix);
+			Vector3 worldPos2 = Vector3::Transform(fillMesh.facePositions[i2], transform->worldMatrix);
 
 			float distance = 0.0f;
 			Vector3 normal = Vector3(0.0f, 1.0f, 0.0f);
-			if (!CollisionRaycast::RayVsTriangle(ray, v0, v1, v2, maxDistance, distance, normal)) {
+			if (!CollisionRaycast::RayVsTriangle(ray, worldPos0, worldPos1, worldPos2, maxDistance, distance, normal)) {
 				continue;
 			}
 			if (found && nearest.distance <= distance) {
 				continue;
 			}
-
+			// ヒットした場合、trueを返す
 			found = true;
 			nearest.entity = entity;
 			nearest.point = ray.origin + ray.direction * distance;

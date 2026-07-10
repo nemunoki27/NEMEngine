@@ -29,12 +29,14 @@ void Engine::ParticleSphereEmitterShape::InitParticle(Vector3& position, Vector3
 
 void Engine::ParticleSphereEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
 	const Vector3& center, [[maybe_unused]] const Quaternion& rotation, [[maybe_unused]] bool is2D) const {
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
 	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
 	if (!renderer) {
 		return;
 	}
 	renderer->DrawSphere(center, settings.sphere.radius, Color4::Red(), 1.0f);
+#endif
 }
 
 bool Engine::ParticleSphereEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {

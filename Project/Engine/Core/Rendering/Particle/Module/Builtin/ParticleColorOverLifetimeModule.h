@@ -53,7 +53,7 @@ namespace Engine {
 		// カーブ編集の状態、編集UIでのみ使用する
 		CurveEditorState curveState_{};
 		// カーブ生成の設定、キー時刻は0~1に制限する
-		CurveGeneratorState generatorState_{ .maxKeyTime = 1.0f };
+		CurveGeneratorState generatorState_{ .fixedTimeRange = true, .maxKeyTime = 1.0f };
 	};
 
 	ENGINE_REGISTER_PARTICLE_MODULE(ParticleColorOverLifetimeModule, "ColorOverLifetime");

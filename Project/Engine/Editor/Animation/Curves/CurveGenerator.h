@@ -49,6 +49,8 @@ namespace Engine {
 		bool replaceKeys = true;
 		// 適用先の選択位置
 		int32_t targetIndex = 0;
+		// 生成区間を0~上限で固定するか、進行度0~1のカーブ編集で使う
+		bool fixedTimeRange = false;
 		// キー時刻の上限、0以下で無制限
 		float maxKeyTime = 0.0f;
 	};

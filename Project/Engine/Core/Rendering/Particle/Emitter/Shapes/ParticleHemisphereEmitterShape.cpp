@@ -33,12 +33,14 @@ void Engine::ParticleHemisphereEmitterShape::InitParticle(Vector3& position, Vec
 
 void Engine::ParticleHemisphereEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
 	const Vector3& center, const Quaternion& rotation, [[maybe_unused]] bool is2D) const {
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
 	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
 	if (!renderer) {
 		return;
 	}
 	renderer->DrawHemisphere(center, settings.sphere.radius, rotation, Color4::Red());
+#endif
 }
 
 bool Engine::ParticleHemisphereEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {

@@ -43,6 +43,7 @@ void Engine::ParticleTorusEmitterShape::InitParticle(Vector3& position, Vector3&
 
 void Engine::ParticleTorusEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
 	const Vector3& center, const Quaternion& rotation, [[maybe_unused]] bool is2D) const {
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
 	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
 	if (!renderer) {
@@ -68,6 +69,7 @@ void Engine::ParticleTorusEmitterShape::DrawShape(const ParticleEmitterSettings&
 			renderer->DrawLine(p0, p1, color);
 		}
 	}
+#endif
 }
 
 bool Engine::ParticleTorusEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {

@@ -62,12 +62,14 @@ void Engine::ParticleBoxEmitterShape::InitParticle(Vector3& position, Vector3& d
 
 void Engine::ParticleBoxEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
 	const Vector3& center, const Quaternion& rotation, [[maybe_unused]] bool is2D) const {
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
 	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
 	if (!renderer) {
 		return;
 	}
 	renderer->DrawOBB(center, settings.box.size * 0.5f, rotation, Color4::Red());
+#endif
 }
 
 bool Engine::ParticleBoxEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {

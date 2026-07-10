@@ -234,6 +234,7 @@ void Engine::ParticleCircleEmitterShape::InitParticle(Vector3& position, Vector3
 
 void Engine::ParticleCircleEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
 	const Vector3& center, const Quaternion& rotation, bool is2D) const {
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
 	constexpr uint32_t kDivision = 24;
 
@@ -281,6 +282,7 @@ void Engine::ParticleCircleEmitterShape::DrawShape(const ParticleEmitterSettings
 			center + Vector3::Transform(AngleToDirection(angle0, false) * circle.radius, rotationMatrix),
 			center + Vector3::Transform(AngleToDirection(angle1, false) * circle.radius, rotationMatrix), color);
 	}
+#endif
 }
 
 bool Engine::ParticleCircleEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {

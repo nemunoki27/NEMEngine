@@ -43,9 +43,17 @@ bool Engine::DrawCurveGenerator(CurveGeneratorState& state,
 	// 生成条件を縦に並べる
 	MyGUI::EnumCombo("生成タイプ", state.type);
 
-	const float maxTime = 0.0f < state.maxKeyTime ? state.maxKeyTime : 10000.0f;
-	MyGUI::DragFloat("開始時間", state.startTime, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = maxTime, });
-	MyGUI::DragFloat("終了時間", state.endTime, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = maxTime, });
+	// 区間固定のときは時間を編集させず全区間へ生成する
+	if (state.fixedTimeRange && 0.0f < state.maxKeyTime) {
+
+		state.startTime = 0.0f;
+		state.endTime = state.maxKeyTime;
+	} else {
+
+		const float maxTime = 0.0f < state.maxKeyTime ? state.maxKeyTime : 10000.0f;
+		MyGUI::DragFloat("開始時間", state.startTime, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = maxTime, });
+		MyGUI::DragFloat("終了時間", state.endTime, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = maxTime, });
+	}
 	MyGUI::DragFloat("開始値", state.startValue, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
 	MyGUI::DragFloat("終了値", state.endValue, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
 

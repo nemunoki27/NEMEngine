@@ -29,6 +29,7 @@ void Engine::ParticlePointEmitterShape::InitParticle([[maybe_unused]] Vector3& p
 
 void Engine::ParticlePointEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
 	const Vector3& center, const Quaternion& rotation, bool is2D) const {
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
 	const Matrix4x4 rotationMatrix = Quaternion::MakeRotateMatrix(rotation);
 	const Color4 color = Color4::Red();
@@ -55,6 +56,7 @@ void Engine::ParticlePointEmitterShape::DrawShape(const ParticleEmitterSettings&
 	// 射出方向を線で表す
 	renderer->DrawSphere(center, 0.05f, color, 1.0f);
 	renderer->DrawLine(center, center + Vector3::Transform(direction, rotationMatrix), color);
+#endif
 }
 
 bool Engine::ParticlePointEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {

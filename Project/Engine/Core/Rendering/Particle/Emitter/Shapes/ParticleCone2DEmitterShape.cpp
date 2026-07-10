@@ -41,6 +41,7 @@ void Engine::ParticleCone2DEmitterShape::InitParticle(Vector3& position, Vector3
 
 void Engine::ParticleCone2DEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
 	const Vector3& center, const Quaternion& rotation, bool is2D) const {
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
 	constexpr float degToRad = std::numbers::pi_v<float> / 180.0f;
 
@@ -84,6 +85,7 @@ void Engine::ParticleCone2DEmitterShape::DrawShape(const ParticleEmitterSettings
 		center + Vector3::Transform(base0 + Vector3(std::sin(-tilt), std::cos(-tilt), 0.0f), rotationMatrix), color);
 	renderer->DrawLine(center + Vector3::Transform(base1, rotationMatrix),
 		center + Vector3::Transform(base1 + Vector3(std::sin(tilt), std::cos(tilt), 0.0f), rotationMatrix), color);
+#endif
 }
 
 bool Engine::ParticleCone2DEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {

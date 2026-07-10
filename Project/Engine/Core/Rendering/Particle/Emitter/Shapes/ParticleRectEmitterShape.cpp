@@ -57,6 +57,7 @@ void Engine::ParticleRectEmitterShape::InitParticle(Vector3& position, Vector3& 
 
 void Engine::ParticleRectEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
 	const Vector3& center, const Quaternion& rotation, bool is2D) const {
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
 	const Matrix4x4 rotationMatrix = Quaternion::MakeRotateMatrix(rotation);
 	const Color4 color = Color4::Red();
@@ -93,6 +94,7 @@ void Engine::ParticleRectEmitterShape::DrawShape(const ParticleEmitterSettings& 
 		renderer->DrawLine(center + Vector3::Transform(corners[i], rotationMatrix),
 			center + Vector3::Transform(corners[(i + 1) % 4], rotationMatrix), color);
 	}
+#endif
 }
 
 bool Engine::ParticleRectEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {

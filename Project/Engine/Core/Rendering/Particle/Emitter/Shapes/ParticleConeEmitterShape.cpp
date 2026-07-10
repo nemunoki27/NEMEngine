@@ -48,6 +48,7 @@ void Engine::ParticleConeEmitterShape::InitParticle(Vector3& position, Vector3& 
 
 void Engine::ParticleConeEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
 	const Vector3& center, const Quaternion& rotation, [[maybe_unused]] bool is2D) const {
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
 	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
 	if (!renderer) {
@@ -59,6 +60,7 @@ void Engine::ParticleConeEmitterShape::DrawShape(const ParticleEmitterSettings& 
 	const float displayHeight = 1.0f;
 	const float topRadius = settings.cone.radius + std::tan(settings.cone.angle * degToRad) * displayHeight;
 	renderer->DrawCone(center, settings.cone.radius, topRadius, displayHeight, rotation, Color4::Red());
+#endif
 }
 
 bool Engine::ParticleConeEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
