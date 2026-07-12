@@ -46,10 +46,14 @@
             "y": 1.0,
             "z": 1.0
         },
-        "circleArc": 360.0,
-        "circleOrder": "Random",
-        "circleOrderDivide": 16,
+        "circleAngleMax": 360.0,
+        "circleAngleMin": 0.0,
+        "circleClockwise": false,
         "circleRadius": 1.0,
+        "circleSpawnMode": "Random",
+        "circleStepAngle": 10.0,
+        "circleUsePrevSegmentDirectionOnWrap": false,
+        "circleVelocityMode": "Normal",
         "coneAngle": 8.0,
         "coneRadius": 0.14000000059604645,
         "emitCount": {
@@ -59,7 +63,25 @@
             "type": "Constant"
         },
         "emitInterval": 0.0010000000474974513,
-        "maxParticles": 7230,
+        "emitOffset": {
+            "constant": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "max": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "min": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "type": "Constant"
+        },
+        "maxParticles": 11097,
         "pointDirection": {
             "x": 0.0,
             "y": 1.0,
@@ -99,7 +121,7 @@
             "lifeEndMode": "Kill",
             "lifetime": {
                 "constant": 2.2100000381469727,
-                "max": 3.200000047683716,
+                "max": 5.289999961853027,
                 "min": 0.9900000095367432,
                 "type": "Random"
             },
@@ -335,8 +357,8 @@
                                             "x": 0.0,
                                             "y": 0.0
                                         },
-                                        "time": 0.006000000052154064,
-                                        "value": 0.005208335816860199
+                                        "time": 0.0,
+                                        "value": 0.0
                                     },
                                     {
                                         "inTangent": {
@@ -381,12 +403,12 @@
                         "autoGroundEmitter": false,
                         "gravity": {
                             "x": 0.0,
-                            "y": -1.7000000476837158,
+                            "y": -2.0299999713897705,
                             "z": 0.0
                         },
                         "reflectGround": true,
                         "reflectGroundY": 0.0,
-                        "restitution": 1.0
+                        "restitution": 0.6399999856948853
                     }
                 },
                 {
@@ -406,8 +428,8 @@
             "y": 0.5
         },
         "size": {
-            "x": 0.15000000596046448,
-            "y": 0.15000000596046448
+            "x": 0.17000006139278412,
+            "y": 0.17000006139278412
         }
     },
     "ring": {

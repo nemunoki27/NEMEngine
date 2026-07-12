@@ -53,9 +53,9 @@
         "circleAngleMax": 360.0,
         "circleAngleMin": 0.0,
         "circleClockwise": false,
-        "circleRadius": 1.0,
+        "circleRadius": 12.0,
         "circleSpawnMode": "Random",
-        "circleStepAngle": 10.0,
+        "circleStepAngle": 0.0,
         "circleUsePrevSegmentDirectionOnWrap": false,
         "circleVelocityMode": "Normal",
         "coneAngle": 25.0,
@@ -66,7 +66,7 @@
             "min": 4,
             "type": "Constant"
         },
-        "emitInterval": 0.10000000149011612,
+        "emitInterval": 0.0010000000474974513,
         "emitOffset": {
             "constant": {
                 "x": 0.0,
@@ -85,7 +85,7 @@
             },
             "type": "Constant"
         },
-        "maxParticles": 1024,
+        "maxParticles": 3108,
         "pointDirection": {
             "x": 0.0,
             "y": 1.0,
@@ -99,12 +99,12 @@
             "x": 1.0,
             "y": 1.0
         },
-        "shape": "Sphere",
+        "shape": "Circle",
         "speed": {
             "constant": 1.600000023841858,
-            "max": 1.600000023841858,
-            "min": 1.600000023841858,
-            "type": "Constant"
+            "max": 32.0,
+            "min": 24.0,
+            "type": "Random"
         },
         "sphereRadius": 0.5,
         "torusRadius": 1.0,
@@ -124,20 +124,377 @@
         {
             "lifeEndMode": "Kill",
             "lifetime": {
-                "constant": 1.0,
-                "max": 1.0,
-                "min": 1.0,
-                "type": "Constant"
+                "constant": 4.599999904632568,
+                "max": 3.200000047683716,
+                "min": 0.47999998927116394,
+                "type": "Random"
             },
             "material": "",
             "modules": [
                 {
                     "id": "SizeOverLifetime",
-                    "params": {}
+                    "params": {
+                        "curve": {
+                            "defaultValue": 0.0,
+                            "keys": [],
+                            "name": "Value"
+                        },
+                        "easingType": "EaseOutSine",
+                        "endScale": 0.0,
+                        "loop": {
+                            "loopCount": 4,
+                            "type": "Repeat"
+                        },
+                        "startScale": 1.0,
+                        "useCurve": false
+                    }
                 },
                 {
                     "id": "ColorOverLifetime",
-                    "params": {}
+                    "params": {
+                        "curveChannels": [
+                            {
+                                "defaultValue": 1.0,
+                                "keys": [
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.0,
+                                        "value": 0.5763365030288696
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.1980000138282776,
+                                        "value": 0.7483269572257996
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.39100003242492676,
+                                        "value": 0.8553977012634277
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.6060000061988831,
+                                        "value": 0.03531472012400627
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.7930000424385071,
+                                        "value": 0.03531472012400627
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 1.0,
+                                        "value": 0.5465940833091736
+                                    }
+                                ],
+                                "name": "R"
+                            },
+                            {
+                                "defaultValue": 1.0,
+                                "keys": [
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.0,
+                                        "value": 0.8553977012634277
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.1980000138282776,
+                                        "value": 0.03531472012400627
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.39100003242492676,
+                                        "value": 0.5345929265022278
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.6060000061988831,
+                                        "value": 0.21176722645759583
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.7930000424385071,
+                                        "value": 0.8553977012634277
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 1.0,
+                                        "value": 0.03531472012400627
+                                    }
+                                ],
+                                "name": "G"
+                            },
+                            {
+                                "defaultValue": 1.0,
+                                "keys": [
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.0,
+                                        "value": 0.03531472012400627
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.1980000138282776,
+                                        "value": 0.8553977012634277
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.39100003242492676,
+                                        "value": 0.03531472012400627
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.6060000061988831,
+                                        "value": 0.8553977012634277
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.7930000424385071,
+                                        "value": 0.5607542991638184
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Linear",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 1.0,
+                                        "value": 0.8553977012634277
+                                    }
+                                ],
+                                "name": "B"
+                            },
+                            {
+                                "defaultValue": 1.0,
+                                "keys": [
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Spline",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.0,
+                                        "value": 0.0
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Spline",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 0.49900001287460327,
+                                        "value": 1.0
+                                    },
+                                    {
+                                        "inTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "interpolation": "Spline",
+                                        "outTangent": {
+                                            "x": 0.0,
+                                            "y": 0.0
+                                        },
+                                        "time": 1.0,
+                                        "value": 0.010416686534881592
+                                    }
+                                ],
+                                "name": "A"
+                            }
+                        ],
+                        "easingType": "EaseOutSine",
+                        "endColor": {
+                            "a": 0.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "loop": {
+                            "loopCount": 1,
+                            "type": "Repeat"
+                        },
+                        "startColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "useCurve": true
+                    }
+                },
+                {
+                    "id": "RotationOverLifetime",
+                    "params": {
+                        "initialMax": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "initialMin": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "speedMax": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 360.0
+                        },
+                        "speedMin": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 360.0
+                        }
+                    }
                 }
             ],
             "name": "Phase 1"
@@ -152,20 +509,20 @@
             "y": 0.5
         },
         "size": {
-            "x": 1.0,
-            "y": 1.0
+            "x": 32.0,
+            "y": 32.0
         }
     },
     "ring": {
-        "divide": 16,
+        "divide": 4,
         "endAngle": 360.0,
-        "innerRadius": 0.5,
-        "outerRadius": 1.0,
+        "innerRadius": 24.0,
+        "outerRadius": 32.0,
         "startAngle": 0.0
     },
-    "shape": "Plane",
+    "shape": "Ring",
     "sortMode": "None",
-    "space": "World3D",
+    "space": "Screen2D",
     "sphere": {
         "latitudeDivide": 16,
         "longitudeDivide": 24,

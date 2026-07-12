@@ -197,7 +197,7 @@
                     "siblingOrder": 5
                 },
                 "Name": {
-                    "name": "Effect"
+                    "name": "Effect_0"
                 },
                 "ParticleEmitter": {
                     "blendMode": "Add",
@@ -239,177 +239,34 @@
         },
         {
             "Components": {
-                "FillMeshRenderer": {
-                    "blendMode": "Normal",
-                    "buildMesh": false,
-                    "color": {
-                        "a": 1.0,
-                        "b": 1.0,
-                        "g": 1.0,
-                        "r": 1.0
-                    },
-                    "facePositions": [],
-                    "layer": 0,
-                    "material": "",
-                    "order": 0,
-                    "parameterOverrides": {},
-                    "queue": "Opaque",
-                    "visible": true
-                },
                 "Hierarchy": {
                     "parentLocalFileID": "",
                     "siblingOrder": 6
                 },
                 "Name": {
-                    "name": "FillMesh"
+                    "name": "Effect_1"
                 },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileId": "5720e1069973ead0",
-                    "tag": "Untagged",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Script": [
-                    {
-                        "enabled": true,
-                        "lastKnownTypeName": "SandboxScripts.CreateCircleFillMesh",
-                        "scriptAsset": "",
-                        "scriptSlotId": "45a711e64c4b1503",
-                        "scriptTypeId": "1bea08fe-a366-4584-80a0-97c6a431b1bf",
-                        "serializedFields": {}
-                    }
-                ],
-                "Transform": {
-                    "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "5720e1069973ead0"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 7
-                },
-                "Name": {
-                    "name": "RayCheckEntity"
-                },
-                "PrimitiveRenderer": {
+                "ParticleEmitter": {
                     "blendMode": "Normal",
-                    "castReflection": true,
-                    "castShadow": true,
-                    "crossPlane": {
-                        "pivot": {
-                            "x": 0.5,
-                            "y": 0.5
-                        },
-                        "planeCount": 2,
-                        "size": {
-                            "x": 1.0,
-                            "y": 1.0
-                        }
-                    },
-                    "cube": {
-                        "pivot": {
-                            "x": 0.5,
-                            "y": 0.5,
-                            "z": 0.5
-                        },
-                        "size": {
-                            "x": 1.0,
-                            "y": 1.0,
-                            "z": 1.0
-                        }
-                    },
-                    "cylinder": {
-                        "bottomRadius": 1.0,
-                        "cap": "Both",
-                        "height": 2.0,
-                        "heightDivide": 1,
-                        "maxAngleDegrees": 360.0,
-                        "radialDivide": 16,
-                        "topRadius": 1.0,
-                        "uvMode": "None"
-                    },
-                    "hemisphere": {
-                        "bottomCap": true,
-                        "latitudeDivide": 8,
-                        "longitudeDivide": 24,
-                        "radius": 1.0
-                    },
+                    "drawEmitterShape": true,
+                    "effect": "f04d3fa906af6ab5",
                     "layer": 0,
-                    "lighting": true,
-                    "material": "",
                     "order": 0,
-                    "parameterOverrides": {},
-                    "plane": {
-                        "axis": "XY",
-                        "divideX": 1,
-                        "divideY": 1,
-                        "pivot": {
-                            "x": 0.5,
-                            "y": 0.5
-                        },
-                        "size": {
-                            "x": 1.0,
-                            "y": 1.0
-                        }
-                    },
-                    "queue": "Opaque",
-                    "receiveIBL": true,
-                    "receiveReflection": true,
-                    "receiveShadow": true,
-                    "renderSpace": "World3D",
-                    "ring": {
-                        "divide": 16,
-                        "endAngle": 360.0,
-                        "innerRadius": 0.5,
-                        "outerRadius": 1.0,
-                        "startAngle": 0.0
-                    },
-                    "sphere": {
-                        "latitudeDivide": 16,
-                        "longitudeDivide": 24,
-                        "radius": 0.16000008583068848
-                    },
-                    "type": "Sphere",
+                    "playInEditMode": true,
+                    "playing": true,
+                    "queue": "PostProcessMaskedUI",
                     "visible": true
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileId": "7a3b8a33397a29b9",
+                    "localFileId": "34bcb19844b42e44",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
-                "Script": [
-                    {
-                        "enabled": true,
-                        "lastKnownTypeName": "SandboxScripts.CheckRay",
-                        "scriptAsset": "",
-                        "scriptSlotId": "9419c0f357cf7716",
-                        "scriptTypeId": "37dd8c82-a3d0-4d0b-91a4-adbe7513e801",
-                        "serializedFields": {}
-                    }
-                ],
                 "Transform": {
                     "localPos": {
-                        "x": 3.2605221271514893,
-                        "y": 0.5947287082672119,
+                        "x": 152.74806213378906,
+                        "y": 115.27413940429688,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -425,7 +282,7 @@
                     }
                 }
             },
-            "LocalFileID": "7a3b8a33397a29b9"
+            "LocalFileID": "34bcb19844b42e44"
         }
     ],
     "Header": {
