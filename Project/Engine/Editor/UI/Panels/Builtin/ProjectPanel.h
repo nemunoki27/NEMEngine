@@ -33,14 +33,20 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		ProjectPanel(TextureUploadService& textureUploadService);
+		ProjectPanel(TextureUploadService& textureUploadService,
+			const std::string& instanceID = "project.primary", bool primaryInstance = true,
+			const std::string& displayName = "Project");
 		~ProjectPanel();
 
 		void Draw(const EditorPanelContext& context) override;
 		void DrawEditorTool(const EditorToolContext& context) override;
+		nlohmann::json SaveLayoutState() const override;
+		void LoadLayoutState(const nlohmann::json& state) override;
+		nlohmann::json MakeDuplicateState(const EditorPanelContext& context) const override;
 
 		EditorPanelPhase GetPhase() const override { return EditorPanelPhase::PostScene; }
 		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }
+		bool CanDuplicate([[maybe_unused]] const EditorPanelContext& context) const override { return true; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -66,6 +72,8 @@ namespace Engine {
 
 		// 表示対象にしているアセットソース
 		ProjectAssetSource assetSource_ = ProjectAssetSource::Engine;
+		// ウィンドウの表示名
+		std::string displayName_ = "Project";
 		// 現在選択されているディレクトリの仮想パスとアセットID
 		std::string selectedDirectory_ = "Engine/Assets";
 		AssetID selectedAsset_{};
@@ -148,6 +156,8 @@ namespace Engine {
 		uint64_t modelPreviewSignature_ = 0;
 		// 1枚だけ持つモデルプレビューAtlasのピクセルサイズ
 		Vector2I modelPreviewAtlasSize_;
+		// モデル読込完了までAtlasを更新する残りフレーム数
+		uint32_t modelPreviewRefreshFrames_ = 0;
 
 		// 新規作成ポップアップで作るアセット種別
 		ProjectAssetFileKind pendingCreateKind_ = ProjectAssetFileKind::Folder;
@@ -189,8 +199,10 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// インデックスとサムネイルキャッシュを再構築する
-		void Rebuild(AssetDatabase& database);
+		// 現在のAssetDatabaseから表示用インデックスを再構築する
+		void RebuildIndex(const AssetDatabase& database);
+		// AssetDatabaseを更新して表示用インデックスを再構築する
+		void RefreshDatabaseAndIndex(AssetDatabase& database);
 		// 外部エクスプローラーからドロップされたファイルをカレントフォルダへ取り込む
 		void HandleExternalFileDrop(const EditorPanelContext& context, AssetDatabase& database);
 		// 上部のファイル検索ボックスを描画する、左端に検索アイコンを重ねる

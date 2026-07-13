@@ -134,7 +134,7 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": 0.5065683126449585,
+                        "y": 0.019585996866226196,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -350,6 +350,7 @@
                     "enabled": true,
                     "endAnimUnDisplay": false,
                     "loop": true,
+                    "loopInterval": 0.0,
                     "playInEditMode": true,
                     "tilesX": [
                         4,
@@ -409,15 +410,15 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 0.16000007092952728,
-                        "y": 0.16000007092952728,
+                        "x": 0.15999966859817505,
+                        "y": 0.15999966859817505,
                         "z": 1.0
                     }
                 },
                 "UVTransform": {
                     "pos": {
-                        "x": 0.0,
-                        "y": 0.5
+                        "x": 0.5,
+                        "y": 0.25
                     },
                     "rotation": 0.0,
                     "scale": {
@@ -436,6 +437,7 @@
                     "enabled": true,
                     "endAnimUnDisplay": false,
                     "loop": true,
+                    "loopInterval": 0.0,
                     "playInEditMode": true,
                     "tilesX": [
                         4,
@@ -503,7 +505,7 @@
                 "UVTransform": {
                     "pos": {
                         "x": 0.5,
-                        "y": 0.5
+                        "y": 0.25
                     },
                     "rotation": 0.0,
                     "scale": {

@@ -4,10 +4,13 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
+#include <Engine/Editor/Core/Layout/EditorLayoutTypes.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 
 // c++
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace Engine {
 
@@ -35,6 +38,19 @@ namespace Engine {
 		virtual bool DuplicateSelection() = 0;
 		virtual bool CopySelectionToClipboard() = 0;
 		virtual bool PasteClipboard() = 0;
+
+		// パネル複製要求
+		virtual void RequestDuplicatePanel(const std::string& instanceID) = 0;
+		// エディターレイアウト一覧を取得
+		virtual const std::vector<EditorLayoutMenuEntry>& GetEditorLayoutEntries() const = 0;
+		virtual const std::string& GetActiveEditorLayoutID() const = 0;
+		virtual bool IsEngineLayoutSaveAvailable() const = 0;
+		// エディターレイアウト操作
+		virtual bool RequestSaveEditorLayout(const std::string& name, std::string& outError) = 0;
+		virtual void RequestSaveAllEngineLayouts() = 0;
+		virtual void RequestApplyEditorLayout(const std::string& layoutID) = 0;
+		virtual void RequestDeleteEditorLayout(const std::string& layoutID) = 0;
+		virtual void RequestImportEditorLayouts() = 0;
 
 		// プレイ/ストップの切り替え要求
 		virtual void RequestPlayToggle() = 0;

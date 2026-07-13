@@ -55,6 +55,7 @@ namespace {
 
 	constexpr const char* kProjectModelPreviewAtlasName = "ProjectPanelModelPreviewAtlas";
 	constexpr uint32_t kModelPreviewColorTargetCount = 3;
+	constexpr uint32_t kModelPreviewRefreshFrameCount = 30;
 
 	void HashCombine(uint64_t& seed, uint64_t value) {
 
@@ -95,11 +96,15 @@ void Engine::ProjectPanel::PrepareModelPreviewAtlas(const EditorPanelContext& co
 	}
 
 	if (meshAssets.empty()) {
+		modelPreviewWorld_.reset();
 		modelPreviewSlots_.clear();
 		modelPreviewSlotByAsset_.clear();
 		modelPreviewSignature_ = 0;
 		modelPreviewDirectory_ = node.virtualPath;
 		modelPreviewLightEntity_ = Entity::Null();
+		modelPreviewAtlasSize_.Init();
+		modelPreviewRefreshFrames_ = 0;
+		DestroyRenderTexture(kProjectModelPreviewAtlasName);
 		return;
 	}
 
@@ -135,13 +140,16 @@ void Engine::ProjectPanel::PrepareModelPreviewAtlas(const EditorPanelContext& co
 
 		DestroyRenderTexture(kProjectModelPreviewAtlasName);
 		atlas = nullptr;
+		modelPreviewRefreshFrames_ = kModelPreviewRefreshFrameCount;
 	}
 	if (!atlas) {
+		modelPreviewRefreshFrames_ = kModelPreviewRefreshFrameCount;
 		atlas = CreateRenderTexture(kProjectModelPreviewAtlasName,
 			modelPreviewAtlasSize_, modelPreviewSettings_.clearColor, kModelPreviewColorTargetCount);
 	}
-	if (atlas) {
+	if (atlas && modelPreviewRefreshFrames_ > 0) {
 		RenderModelPreviewAtlas(toolContext, *atlas);
+		--modelPreviewRefreshFrames_;
 	}
 
 	EndEditorToolFrame();
@@ -155,6 +163,7 @@ void Engine::ProjectPanel::RebuildModelPreviewSlots(AssetDatabase& database, con
 	modelPreviewSlotByAsset_.clear();
 	modelPreviewDirectory_ = node.virtualPath;
 	modelPreviewSignature_ = signature;
+	modelPreviewRefreshFrames_ = kModelPreviewRefreshFrameCount;
 
 	const int32_t count = static_cast<int32_t>(meshAssets.size());
 	const int32_t columns = (std::max)(1, static_cast<int32_t>(std::ceil(std::sqrt(static_cast<float>(count)))));
@@ -286,6 +295,12 @@ uint64_t Engine::ProjectPanel::BuildModelPreviewSignature(const ProjectDirectory
 		}
 		HashCombine(signature, asset->assetID.value);
 		HashString(signature, asset->assetPath);
+
+		std::error_code ec{};
+		const auto writeTime = std::filesystem::last_write_time(RuntimePaths::ResolveAssetPath(asset->assetPath), ec);
+		if (!ec) {
+			HashCombine(signature, static_cast<uint64_t>(writeTime.time_since_epoch().count()));
+		}
 	}
 	return signature;
 }

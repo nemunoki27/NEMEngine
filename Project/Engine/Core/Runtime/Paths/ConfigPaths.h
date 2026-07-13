@@ -25,6 +25,10 @@ namespace Engine {
 		inline constexpr const char* kInspectorModelPreviewCamera = "Config/inspectorModelPreviewCamera.exeConfig.json";
 		// プロジェクトパネルの表示状態
 		inline constexpr const char* kProjectPanel = "Config/projectPanel.exeConfig.json";
+		// ユーザーが保存したエディターレイアウト
+		inline constexpr const char* kEditorLayouts = "Config/editorLayouts.exeConfig.json";
+		// 終了時のエディターレイアウト
+		inline constexpr const char* kEditorLayoutSession = "Config/editorLayoutSession.exeConfig.json";
 
 	} // ConfigPaths
 } // Engine

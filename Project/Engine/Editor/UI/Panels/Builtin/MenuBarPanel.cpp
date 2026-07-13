@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 
 // c++
 #include <string>
@@ -278,10 +279,96 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::EndMenu();
 	}
 
+	//============================================================================
+	//	エディターレイアウト設定
+	//============================================================================
+	DrawEditorLayoutMenu(context);
+
 	// 一番右にエンジンのビルド時刻をバージョンとして表示する
 	ImGui::TextDisabled("エンジンのバージョン: %s", GetEngineBuildVersion());
 
 	ImGui::SetWindowFontScale(1.0f);
 
 	ImGui::EndMainMenuBar();
+	DrawLayoutSavePopup(context);
+}
+
+void Engine::MenuBarPanel::DrawEditorLayoutMenu(const EditorPanelContext& context) {
+
+	if (!ImGui::BeginMenu("エディターレイアウト設定")) {
+		return;
+	}
+
+	ImGui::SetWindowFontScale(0.72f);
+	if (ImGui::MenuItem("現在のレイアウトを保存")) {
+
+		layoutNameBuffer_.clear();
+		layoutSaveError_.clear();
+		requestOpenLayoutSavePopup_ = true;
+	}
+	if (!context.host->IsEngineLayoutSaveAvailable() && ImGui::MenuItem("レイアウトインポート")) {
+		context.host->RequestImportEditorLayouts();
+	}
+	if (context.host->IsEngineLayoutSaveAvailable() &&
+		ImGui::MenuItem("エンジン共有レイアウトを保存")) {
+		context.host->RequestSaveAllEngineLayouts();
+	}
+
+	ImGui::Separator();
+	const std::string activeLayoutID = context.host->GetActiveEditorLayoutID();
+	std::string deleteLayoutID;
+	for (const EditorLayoutMenuEntry& entry : context.host->GetEditorLayoutEntries()) {
+
+		ImGui::PushID(entry.layoutID.c_str());
+		const bool selected = activeLayoutID == entry.layoutID;
+		if (ImGui::MenuItem(entry.displayName.c_str(), nullptr, selected)) {
+			context.host->RequestApplyEditorLayout(entry.layoutID);
+		}
+
+		if (!entry.defaultLayout && ImGui::BeginPopupContextItem("##LayoutContext", ImGuiPopupFlags_MouseButtonRight)) {
+
+			if (ImGui::MenuItem("削除")) {
+				deleteLayoutID = entry.layoutID;
+			}
+			ImGui::EndPopup();
+		}
+		ImGui::PopID();
+	}
+	if (!deleteLayoutID.empty()) {
+		context.host->RequestDeleteEditorLayout(deleteLayoutID);
+	}
+
+	ImGui::SetWindowFontScale(1.0f);
+	ImGui::EndMenu();
+}
+
+void Engine::MenuBarPanel::DrawLayoutSavePopup(const EditorPanelContext& context) {
+
+	constexpr const char* popupName = "エディターレイアウトの保存";
+	if (requestOpenLayoutSavePopup_) {
+
+		ImGui::OpenPopup(popupName);
+		requestOpenLayoutSavePopup_ = false;
+	}
+	if (!ImGui::BeginPopupModal(popupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
+	}
+
+	ImGui::Text("レイアウト名");
+	ImGui::Separator();
+	TextInputPopupResult inputResult = MyGUI::InputTextPopupContent("名前", layoutNameBuffer_,
+		layoutSaveError_.empty() ? nullptr : layoutSaveError_.c_str());
+	if (inputResult.submitted) {
+
+		layoutSaveError_.clear();
+		if (context.host->RequestSaveEditorLayout(layoutNameBuffer_, layoutSaveError_)) {
+			ImGui::CloseCurrentPopup();
+		}
+	}
+	if (inputResult.canceled) {
+
+		layoutSaveError_.clear();
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::EndPopup();
 }

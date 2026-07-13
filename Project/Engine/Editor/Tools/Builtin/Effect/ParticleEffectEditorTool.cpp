@@ -479,7 +479,7 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 
 		//========================================================================================================================================================
 		// 左のフェーズリスト、選択と追加と削除と並べ替え
-		ImGui::BeginChild("PhaseList", ImVec2(160.0f, 0.0f), true);
+		ImGui::BeginChild("PhaseList", ImVec2(90.0f, 0.0f), true);
 		if (ImGui::Button("追加", ImVec2(-FLT_MIN, 0.0f))) {
 
 			ParticleEffectPhase phase{};

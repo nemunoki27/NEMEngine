@@ -162,6 +162,13 @@ namespace Engine {
 			hasDroppedFiles_ = false;
 			return true;
 		}
+		// 溜めたファイルドロップを消費せず取得する
+		bool PeekDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint) const {
+			if (!hasDroppedFiles_) { return false; }
+			outPaths = droppedFiles_;
+			outClientPoint = droppedFilesPoint_;
+			return true;
+		}
 
 		// singleton
 		static Input* GetInstance();

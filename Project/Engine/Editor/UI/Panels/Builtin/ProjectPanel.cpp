@@ -250,23 +250,24 @@ namespace {
 
 }
 
-Engine::ProjectPanel::ProjectPanel(TextureUploadService& textureUploadService) {
+Engine::ProjectPanel::ProjectPanel(TextureUploadService& textureUploadService,
+	const std::string& instanceID, bool primaryInstance, const std::string& displayName) :
+	displayName_(displayName) {
 
+	ConfigureInstance("Project", instanceID, primaryInstance);
 	thumbnailCache_.Init(textureUploadService);
 	RegisterAssetActions();
-	LoadPersistentState();
+	if (primaryInstance) {
+		LoadPersistentState();
+	}
 	dirty_ = true;
 }
 
-Engine::ProjectPanel::~ProjectPanel() {
+Engine::ProjectPanel::~ProjectPanel() = default;
 
-	SavePersistentState();
-}
+void Engine::ProjectPanel::RebuildIndex(const AssetDatabase& database) {
 
-void Engine::ProjectPanel::Rebuild(AssetDatabase& database) {
-
-	// インデックスとサムネイルキャッシュを再構築する
-	database.RebuildMeta();
+	// 共有AssetDatabaseを変更せず、このパネルの表示インデックスだけを更新する
 	assetIndex_.Rebuild(database, assetSource_);
 	if (!assetIndex_.FindDirectory(selectedDirectory_)) {
 		selectedDirectory_ = assetIndex_.GetRoot().virtualPath;
@@ -274,6 +275,12 @@ void Engine::ProjectPanel::Rebuild(AssetDatabase& database) {
 	// 取り込んだ構造リビジョンを控えておき、外部のファイル追加削除との差分で再構築を判断する
 	lastSeenStructureRevision_ = database.GetStructureRevision();
 	dirty_ = false;
+}
+
+void Engine::ProjectPanel::RefreshDatabaseAndIndex(AssetDatabase& database) {
+
+	database.RebuildMeta();
+	RebuildIndex(database);
 }
 
 void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorPanelContext& context, AssetDatabase& database) {
@@ -284,7 +291,7 @@ void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorP
 	}
 	std::vector<std::string> droppedPaths;
 	Vector2 dropPoint{};
-	if (!input->TakeDroppedFiles(droppedPaths, dropPoint)) {
+	if (!input->PeekDroppedFiles(droppedPaths, dropPoint)) {
 		return;
 	}
 
@@ -302,8 +309,12 @@ void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorP
 	if (!insidePanel) {
 		return;
 	}
+	// ドロップ先のProjectパネルだけがファイルを消費する
+	if (!input->TakeDroppedFiles(droppedPaths, dropPoint)) {
+		return;
+	}
 
-	// カレントフォルダへコピー取り込みする、.metaはRebuildで自動発番される
+	// カレントフォルダへコピー取り込みする、.metaはRebuildMetaで自動発番される
 	// フォルダがドロップされたときは中身ごと再帰コピーする
 	bool imported = false;
 	for (const std::string& path : droppedPaths) {
@@ -318,26 +329,26 @@ void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorP
 		}
 	}
 	if (imported) {
-		Rebuild(database);
+		RefreshDatabaseAndIndex(database);
 	}
 }
 
 void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	// プロジェクトパネルの表示状態を確認
-	if (!context.layoutState->showProject) {
+	bool* open = ResolveOpenState(&context.layoutState->showProject);
+	if (!*open) {
 		return;
 	}
 
-	const bool wasOpen = context.layoutState->showProject;
-	if (!ImGui::Begin("Project", &context.layoutState->showProject)) {
+	const std::string windowName = MakeWindowName(displayName_);
+	ApplyInitialDock();
+	if (!ImGui::Begin(windowName.c_str(), open)) {
+		DrawTitleBarContextMenu(context);
 		ImGui::End();
-		if (wasOpen && !context.layoutState->showProject) {
-
-			SavePersistentState();
-		}
 		return;
 	}
+	DrawTitleBarContextMenu(context);
 
 	// アセットデータベースが利用できない場合はエラーメッセージを表示して終了
 	if (!context.editorContext || !context.editorContext->assetDatabase) {
@@ -349,7 +360,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	// 自前のdirtyか、外部のファイル追加削除で進んだ構造リビジョンの差分でインデックスを再構築する
 	AssetDatabase& database = *context.editorContext->assetDatabase;
 	if (dirty_ || database.GetStructureRevision() != lastSeenStructureRevision_) {
-		Rebuild(database);
+		RebuildIndex(database);
 	}
 
 	// 外部エクスプローラーからドロップされたファイルをカレントフォルダへ取り込む
@@ -389,13 +400,39 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	ApplyPendingFileOperationRefresh(database);
 
 	ImGui::End();
-	if (wasOpen && !context.layoutState->showProject) {
-
-		SavePersistentState();
-	}
 }
 
 void Engine::ProjectPanel::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {}
+
+nlohmann::json Engine::ProjectPanel::SaveLayoutState() const {
+
+	return {
+		{ "displayName", displayName_ },
+		{ "assetSource", EnumAdapter<ProjectAssetSource>::ToString(assetSource_) },
+		{ "selectedDirectory", selectedDirectory_ },
+	};
+}
+
+void Engine::ProjectPanel::LoadLayoutState(const nlohmann::json& state) {
+
+	if (!state.is_object()) {
+		return;
+	}
+
+	displayName_ = state.value("displayName", displayName_);
+	assetSource_ = EnumAdapter<ProjectAssetSource>::FromString(
+		state.value("assetSource", EnumAdapter<ProjectAssetSource>::ToString(assetSource_))).value_or(assetSource_);
+	selectedDirectory_ = state.value("selectedDirectory", selectedDirectory_);
+	selectedAsset_ = {};
+	dirty_ = true;
+}
+
+nlohmann::json Engine::ProjectPanel::MakeDuplicateState([[maybe_unused]] const EditorPanelContext& context) const {
+
+	nlohmann::json state = SaveLayoutState();
+	state.erase("displayName");
+	return state;
+}
 
 void Engine::ProjectPanel::DrawSearchBar(const EditorPanelContext& context) {
 
@@ -457,7 +494,7 @@ void Engine::ProjectPanel::DrawSourceSelector([[maybe_unused]] const EditorPanel
 			assetSource_ = source;
 			selectedDirectory_ = source == ProjectAssetSource::Engine ? "Engine/Assets" : "GameAssets";
 			selectedAsset_ = {};
-			Rebuild(database);
+			RebuildIndex(database);
 		}
 		if (selected) {
 			ImGui::EndDisabled();
@@ -1209,7 +1246,7 @@ void Engine::ProjectPanel::ApplyPendingFileOperationRefresh(AssetDatabase& datab
 	pendingFileOperationResult_ = {};
 	hasPendingFileOperationRefresh_ = false;
 
-	Rebuild(database);
+	RefreshDatabaseAndIndex(database);
 
 	if (result.isDirectory) {
 

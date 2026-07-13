@@ -263,8 +263,9 @@ namespace {
 	}
 }
 
-Engine::InspectorPanel::InspectorPanel() {
+Engine::InspectorPanel::InspectorPanel(const std::string& instanceID, bool primaryInstance) {
 
+	ConfigureInstance("Inspector", instanceID, primaryInstance);
 	modelPreviewCameraController_ = std::make_unique<SceneViewCameraController>();
 	modelPreviewCameraController_->MakeDefaultState();
 	modelPreviewCameraController_->SetSavePath(RuntimePaths::GetGameConfigPath(
@@ -281,17 +282,83 @@ void Engine::InspectorPanel::DrawEditorTool([[maybe_unused]] const EditorToolCon
 	// InspectorPanelはToolPanel上の独立ウィンドウを持たず、RenderTexture作成機能だけを利用する
 }
 
+nlohmann::json Engine::InspectorPanel::SaveLayoutState() const {
+
+	return {
+		{ "mode", lockedEntityUUID_ ? "LockedEntity" : "FollowSelection" },
+		{ "lockedEntityUUID", lockedEntityUUID_ ? ToString(lockedEntityUUID_) : std::string{} },
+	};
+}
+
+void Engine::InspectorPanel::LoadLayoutState(const nlohmann::json& state) {
+
+	lockedEntityUUID_ = {};
+	if (!state.is_object() || state.value("mode", std::string{}) != "LockedEntity") {
+		return;
+	}
+	lockedEntityUUID_ = FromString16Hex(state.value("lockedEntityUUID", std::string{}));
+}
+
+nlohmann::json Engine::InspectorPanel::MakeDuplicateState(const EditorPanelContext& context) const {
+
+	UUID targetUUID = lockedEntityUUID_;
+	ECSWorld* world = context.GetWorld();
+	const bool entitySelection = context.editorState &&
+		(context.editorState->selectionKind == EditorSelectionKind::Entity ||
+			context.editorState->selectionKind == EditorSelectionKind::MeshSubMesh);
+	if (!targetUUID && world && entitySelection && context.editorState->HasValidSelection(world)) {
+		targetUUID = world->GetUUID(context.editorState->selectedEntity);
+	}
+
+	return {
+		{ "mode", "LockedEntity" },
+		{ "lockedEntityUUID", targetUUID ? ToString(targetUUID) : std::string{} },
+	};
+}
+
+bool Engine::InspectorPanel::CanDuplicate(const EditorPanelContext& context) const {
+
+	ECSWorld* world = context.GetWorld();
+	if (!world) {
+		return false;
+	}
+	if (lockedEntityUUID_) {
+		return world->IsAlive(world->FindByUUID(lockedEntityUUID_));
+	}
+	if (!context.editorState ||
+		(context.editorState->selectionKind != EditorSelectionKind::Entity &&
+			context.editorState->selectionKind != EditorSelectionKind::MeshSubMesh)) {
+		return false;
+	}
+	return context.editorState->HasValidSelection(world);
+}
+
 void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 
 	// インスペクターパネルの表示状態を確認
-	if (!context.layoutState->showInspector) {
+	bool* open = ResolveOpenState(&context.layoutState->showInspector);
+	if (!*open) {
 		return;
 	}
 
-	if (!ImGui::Begin("Inspector", &context.layoutState->showInspector)) {
+	ECSWorld* world = context.GetWorld();
+	Entity lockedEntity = Entity::Null();
+	std::string displayName = "Inspector";
+	if (lockedEntityUUID_) {
+
+		lockedEntity = world ? world->FindByUUID(lockedEntityUUID_) : Entity::Null();
+		displayName = world && world->IsAlive(lockedEntity) ?
+			"Inspector: " + GetEntityDisplayName(*world, lockedEntity) : "Inspector: Missing Entity";
+	}
+
+	const std::string windowName = MakeWindowName(displayName);
+	ApplyInitialDock();
+	if (!ImGui::Begin(windowName.c_str(), open)) {
+		DrawTitleBarContextMenu(context);
 		ImGui::End();
 		return;
 	}
+	DrawTitleBarContextMenu(context);
 
 	// D&D中はImGui既定のホイールが効かないので、インスペクター上なら手動でスクロールする
 	if (ImGui::GetDragDropPayload() != nullptr &&
@@ -303,8 +370,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 		}
 	}
 
-	ECSWorld* world = context.GetWorld();
-	if (context.editorState->selectionKind == EditorSelectionKind::Asset) {
+	if (!lockedEntityUUID_ && context.editorState->selectionKind == EditorSelectionKind::Asset) {
 
 		ImGui::SetWindowFontScale(fontScale_);
 		DrawSelectedAssetInspector(context);
@@ -313,7 +379,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 	// スキンメッシュのジョイント選択時は専用のインスペクターを出す
-	if (context.editorState->selectionKind == EditorSelectionKind::Joint) {
+	if (!lockedEntityUUID_ && context.editorState->selectionKind == EditorSelectionKind::Joint) {
 
 		ImGui::SetWindowFontScale(fontScale_);
 		DrawJointInspector(context);
@@ -322,7 +388,13 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	if (!context.editorState->HasValidSelection(world)) {
+	if (lockedEntityUUID_ && (!world || !world->IsAlive(lockedEntity))) {
+
+		ImGui::TextDisabled("固定したEntityが見つかりません");
+		ImGui::End();
+		return;
+	}
+	if (!lockedEntityUUID_ && !context.editorState->HasValidSelection(world)) {
 
 		ImGui::TextDisabled("Entity is not selected.");
 		ImGui::End();
@@ -330,12 +402,12 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	}
 
 	// 選択されているエンティティを取得
-	Entity selected = context.editorState->selectedEntity;
+	Entity selected = lockedEntityUUID_ ? lockedEntity : context.editorState->selectedEntity;
 
 	ImGui::SetWindowFontScale(fontScale_);
 
 	// サブメッシュが選択されている場合はサブメッシュのインスペクターを表示
-	if (context.editorState->HasValidSubMeshSelection(world)) {
+	if (!lockedEntityUUID_ && context.editorState->HasValidSubMeshSelection(world)) {
 
 		DrawSelectedSubMeshHeader(context, *world, selected);
 		if (meshRendererDrawer_ && meshRendererDrawer_->CanDraw(*world, selected)) {

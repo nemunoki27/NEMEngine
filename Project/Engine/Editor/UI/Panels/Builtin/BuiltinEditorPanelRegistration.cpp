@@ -36,3 +36,17 @@ std::vector<std::unique_ptr<Engine::IEditorPanel>> Engine::CreateBuiltinEditorPa
 	panels.emplace_back(std::make_unique<ViewportPanel>("SceneView", "SceneView", ViewportPanelKind::Scene, textureUploadService));
 	return panels;
 }
+
+std::unique_ptr<Engine::IEditorPanel> Engine::CreateBuiltinEditorPanelInstance(
+	const EditorPanelCreateContext& context, const std::string& typeID,
+	const std::string& instanceID, const std::string& displayName) {
+
+	if (typeID == "Project") {
+		return std::make_unique<ProjectPanel>(context.textureUploadService,
+			instanceID, false, displayName.empty() ? "Project" : displayName);
+	}
+	if (typeID == "Inspector") {
+		return std::make_unique<InspectorPanel>(instanceID, false);
+	}
+	return nullptr;
+}

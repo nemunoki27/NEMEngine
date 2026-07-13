@@ -65,10 +65,6 @@ mkdir "%GAME_ROOT%\Premake" >nul
 mkdir "%GAME_ROOT%\Project" >nul
 mkdir "%GAME_ROOT%\Project\%GAME_NAME%" >nul
 
-if exist "%ENGINE_ROOT%\Project\EditorLayout.ini" (
-    copy /Y "%ENGINE_ROOT%\Project\EditorLayout.ini" "%GAME_ROOT%\Project\EditorLayout.ini" >nul
-)
-
 echo [3/12] Copy sanitized Sandbox to Project\%GAME_NAME%...
 robocopy "%TEMP_SANDBOX%" "%GAME_ROOT%\Project\%GAME_NAME%" /E /NFL /NDL /NJH /NJS /NP ^
     /XD ".vs" "Generated" "Library" "Log" ^

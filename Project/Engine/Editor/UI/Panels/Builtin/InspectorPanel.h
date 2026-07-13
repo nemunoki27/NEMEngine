@@ -38,14 +38,18 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		InspectorPanel();
+		InspectorPanel(const std::string& instanceID = "inspector.primary", bool primaryInstance = true);
 		~InspectorPanel() = default;
 
 		void Draw(const EditorPanelContext& context) override;
 		void DrawEditorTool(const EditorToolContext& context) override;
+		nlohmann::json SaveLayoutState() const override;
+		void LoadLayoutState(const nlohmann::json& state) override;
+		nlohmann::json MakeDuplicateState(const EditorPanelContext& context) const override;
 
 		EditorPanelPhase GetPhase() const override { return EditorPanelPhase::PostScene; }
 		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }
+		bool CanDuplicate(const EditorPanelContext& context) const override;
 	private:
 		//============================================================================
 		//	private Methods
@@ -67,6 +71,8 @@ namespace Engine {
 		// 名前編集用の一時バッファ
 		std::string nameEditBuffer_;
 		UUID editingNameEntityStableUUID_{};
+		// 複製時に固定したエンティティ
+		UUID lockedEntityUUID_{};
 
 		// Materialアセット編集用の一時データ
 		AssetID editingMaterialAsset_{};
@@ -168,4 +174,3 @@ namespace Engine {
 		void DrawJointInspector(const EditorPanelContext& context);
 	};
 } // Engine
-

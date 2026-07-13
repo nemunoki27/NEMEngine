@@ -57,7 +57,6 @@ try {
     Copy-Item -Recurse -Force (Join-Path $template "Project\__GAME_NAME__\*") $appRoot
     if (Test-Path (Join-Path $template ".gitignore")) { Copy-Item -Force (Join-Path $template ".gitignore") (Join-Path $gameRoot ".gitignore") }
     if (Test-Path (Join-Path $template ".gitattributes")) { Copy-Item -Force (Join-Path $template ".gitattributes") (Join-Path $gameRoot ".gitattributes") }
-    if (Test-Path (Join-Path $engineRoot "Project\EditorLayout.ini")) { Copy-Item -Force (Join-Path $engineRoot "Project\EditorLayout.ini") (Join-Path $gameRoot "Project\EditorLayout.ini") }
     # ゲームルート直下のツール(SDK更新.bat / UpdateSdk.ps1 等)をコピーする
     Get-ChildItem -LiteralPath $template -File | Where-Object { $_.Extension -in '.bat','.ps1' } | ForEach-Object {
         Copy-Item -Force $_.FullName (Join-Path $gameRoot $_.Name)

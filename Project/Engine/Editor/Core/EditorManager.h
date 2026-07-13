@@ -6,6 +6,7 @@
 #include <Engine/Editor/UI/ImGui/ImGuiManager.h>
 #include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Editor/Core/EditorState.h>
+#include <Engine/Editor/Core/Layout/EditorLayoutManager.h>
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
 #include <Engine/Editor/Tools/Builtin/Camera/SceneViewCameraController.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
@@ -16,6 +17,7 @@
 
 // c++
 #include <cstdint>
+#include <optional>
 #include <string>
 // imgui
 #include <imgui.h>
@@ -111,6 +113,19 @@ namespace Engine {
 		bool CopySelectionToClipboard() override;
 		bool PasteClipboard() override;
 
+		// パネル複製要求
+		void RequestDuplicatePanel(const std::string& instanceID) override;
+		// エディターレイアウト一覧を取得
+		const std::vector<EditorLayoutMenuEntry>& GetEditorLayoutEntries() const override;
+		const std::string& GetActiveEditorLayoutID() const override;
+		bool IsEngineLayoutSaveAvailable() const override;
+		// エディターレイアウト操作
+		bool RequestSaveEditorLayout(const std::string& name, std::string& outError) override;
+		void RequestSaveAllEngineLayouts() override;
+		void RequestApplyEditorLayout(const std::string& layoutID) override;
+		void RequestDeleteEditorLayout(const std::string& layoutID) override;
+		void RequestImportEditorLayouts() override;
+
 		// プレイ/ストップの切り替え要求
 		void RequestPlayToggle() override;
 		void RequestPlayResume() override;
@@ -164,6 +179,7 @@ namespace Engine {
 		// エディタの状態
 		EditorState editorState_{};
 		EditorLayoutState layoutState_{};
+		EditorLayoutManager editorLayoutManager_{};
 
 		// 初期化済みか
 		bool initialized_ = false;
@@ -184,6 +200,12 @@ namespace Engine {
 		EditorUnsavedScenePopupResult closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
 		// アクティブシーンに未保存の変更があるか
 		bool activeSceneDirty_ = false;
+		// パネル複製要求
+		std::string pendingDuplicatePanelID_;
+		// 次のフレーム開始時に適用するレイアウト
+		std::optional<EditorLayoutSnapshot> pendingEditorLayout_;
+		// ビルトインDefaultドックを再構築するか
+		bool requestBuildDefaultDockLayout_ = false;
 
 		// 各パネル
 		std::vector<std::unique_ptr<IEditorPanel>> panels_;
@@ -223,6 +245,20 @@ namespace Engine {
 		bool CopySelectionToClipboardInternal(const EditorContext& context);
 		// 各フェーズのパネルを描画する
 		void DrawPanelsByPhase(const EditorPanelContext& context, EditorPanelPhase phase);
+		// 現在のエディターレイアウトを取得
+		EditorLayoutSnapshot CaptureEditorLayout() const;
+		// エディターレイアウトを適用
+		void ApplyEditorLayout(const EditorLayoutSnapshot& layout, GraphicsCore& graphicsCore);
+		// 保留中のエディターレイアウトを適用
+		void ApplyPendingEditorLayout(GraphicsCore& graphicsCore);
+		// 保留中のパネル複製を適用
+		void ApplyPendingPanelDuplicate(const EditorPanelContext& context);
+		// 閉じた複製パネルを破棄
+		void RemoveClosedDuplicatedPanels();
+		// インスタンスIDからパネルを取得
+		IEditorPanel* FindPanelByInstanceID(const std::string& instanceID) const;
+		// ビルトインDefaultドックを構築
+		void BuildDefaultDockLayout(ImGuiID dockSpaceID, const ImVec2& dockSpaceSize);
 		// シーンビューのマニュアルカメラを更新する
 		void UpdateSceneViewManualCamera();
 		// ViewportPanelの表示状態を保存、復元する

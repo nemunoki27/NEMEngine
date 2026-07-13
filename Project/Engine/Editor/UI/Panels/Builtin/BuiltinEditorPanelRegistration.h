@@ -5,6 +5,7 @@
 //============================================================================
 // c++
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace Engine {
@@ -25,5 +26,8 @@ namespace Engine {
 
 	// ビルトインエディターパネルを表示順どおりに生成して返す
 	std::vector<std::unique_ptr<IEditorPanel>> CreateBuiltinEditorPanels(const EditorPanelCreateContext& context);
+	// 複製可能なビルトインパネルを生成して返す
+	std::unique_ptr<IEditorPanel> CreateBuiltinEditorPanelInstance(const EditorPanelCreateContext& context,
+		const std::string& typeID, const std::string& instanceID, const std::string& displayName = {});
 
 } // Engine

@@ -28,6 +28,7 @@
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <algorithm>
@@ -47,8 +48,6 @@ namespace {
 	constexpr const char* kDockSpaceID = "EngineEditorDockSpace";
 	constexpr const char* kUnsavedScenePopupName = "シーン未保存通知";
 	constexpr const char* kCloseUnsavedScenePopupName = "シーン未保存通知##CloseApplication";
-	// ImGuiのレイアウト保存ファイルパス
-	constexpr const char* kEditorLayoutIniPath = "EditorLayout.ini";
 	constexpr const char* kViewportPanelStateConfigPath = Engine::ConfigPaths::kViewportPanel;
 
 	bool IsHidePanelsShortcutTriggered() {
@@ -101,9 +100,9 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	// ImGuizmoのImGuiコンテキストを設定
 	ImGuizmo::SetImGuiContext(ImGui::GetCurrentContext());
 
-	// ImGuiのレイアウト保存先
+	// ImGuiのレイアウトはEditorLayoutManagerで管理する
 	ImGuiIO& io = ImGui::GetIO();
-	io.IniFilename = kEditorLayoutIniPath;
+	io.IniFilename = nullptr;
 
 	// レイアウト構築フラグをリセット
 	initialized_ = true;
@@ -117,6 +116,9 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	requestOpenCloseUnsavedPopup_ = false;
 	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
 	activeSceneDirty_ = false;
+	pendingDuplicatePanelID_.clear();
+	pendingEditorLayout_.reset();
+	requestBuildDefaultDockLayout_ = false;
 
 	// エディタ標準ツールの登録
 	RegisterBuiltinEditorTools();
@@ -129,6 +131,13 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	EditorPanelCreateContext panelCreateContext{ graphicsCore.GetTextureUploadService() };
 	for (auto& panel : CreateBuiltinEditorPanels(panelCreateContext)) {
 		panels_.emplace_back(std::move(panel));
+	}
+
+	// 保存済みセッションが無ければエンジンのDefaultレイアウトを適用する
+	editorLayoutManager_.Init();
+	EditorLayoutSnapshot startupLayout{};
+	if (editorLayoutManager_.LoadStartupLayout(startupLayout)) {
+		ApplyEditorLayout(startupLayout, graphicsCore);
 	}
 
 	// シーンビューのメッシュピック処理の初期化
@@ -286,6 +295,81 @@ bool Engine::EditorManager::PasteClipboard() {
 	}
 	editorState_.SetSelectedEntities(pasted);
 	return true;
+}
+
+void Engine::EditorManager::RequestDuplicatePanel(const std::string& instanceID) {
+
+	pendingDuplicatePanelID_ = instanceID;
+}
+
+const std::vector<Engine::EditorLayoutMenuEntry>& Engine::EditorManager::GetEditorLayoutEntries() const {
+
+	return editorLayoutManager_.GetMenuEntries();
+}
+
+const std::string& Engine::EditorManager::GetActiveEditorLayoutID() const {
+
+	return editorLayoutManager_.GetActiveLayoutID();
+}
+
+bool Engine::EditorManager::IsEngineLayoutSaveAvailable() const {
+
+	return editorLayoutManager_.IsEngineSourceProject();
+}
+
+bool Engine::EditorManager::RequestSaveEditorLayout(const std::string& name, std::string& outError) {
+
+	EditorLayoutSnapshot layout = CaptureEditorLayout();
+	std::string layoutID;
+	if (!editorLayoutManager_.SaveUserLayout(name, layout, layoutID, outError)) {
+		return false;
+	}
+
+	if (const EditorLayoutSnapshot* savedLayout = editorLayoutManager_.FindLayout(layoutID)) {
+		editorLayoutManager_.SaveSession(*savedLayout);
+	}
+	return true;
+}
+
+void Engine::EditorManager::RequestSaveAllEngineLayouts() {
+
+	std::string error;
+	if (!editorLayoutManager_.SaveAllEngineLayouts(error)) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"Editor layout export failed: {}", error);
+	}
+}
+
+void Engine::EditorManager::RequestApplyEditorLayout(const std::string& layoutID) {
+
+	const EditorLayoutSnapshot* layout = editorLayoutManager_.FindLayout(layoutID);
+	if (!layout) {
+		return;
+	}
+	pendingEditorLayout_ = *layout;
+	editorLayoutManager_.SetActiveLayoutID(layoutID);
+}
+
+void Engine::EditorManager::RequestDeleteEditorLayout(const std::string& layoutID) {
+
+	const bool deletingActive = editorLayoutManager_.GetActiveLayoutID() == layoutID;
+	if (!editorLayoutManager_.DeleteLayout(layoutID) || !deletingActive) {
+		return;
+	}
+
+	if (const EditorLayoutSnapshot* defaultLayout = editorLayoutManager_.FindLayout(
+		editorLayoutManager_.GetActiveLayoutID())) {
+		pendingEditorLayout_ = *defaultLayout;
+	}
+}
+
+void Engine::EditorManager::RequestImportEditorLayouts() {
+
+	EditorLayoutSnapshot defaultLayout{};
+	std::string error;
+	if (editorLayoutManager_.ImportEngineLayouts(defaultLayout, error)) {
+		pendingEditorLayout_ = std::move(defaultLayout);
+	}
 }
 
 void Engine::EditorManager::RequestPlayToggle() {
@@ -851,6 +935,10 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	// 現在のレンダリングコンテキストを保存
 	currentRenderContext_ = &context;
 
+	// 前フレームのパネル操作をImGuiフレーム開始前に反映する
+	RemoveClosedDuplicatedPanels();
+	ApplyPendingEditorLayout(graphicsCore);
+
 	// フレーム開始
 	imguiManager_.Begin();
 	if (!layoutState_.hidePanels && IsHidePanelsShortcutTriggered()) {
@@ -1003,10 +1091,16 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 
 	// ドッキングスペースの描画
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PostScene);
+	ApplyPendingPanelDuplicate(panelContext);
 
 	//ImGui::ShowDemoWindow();
 
 	imguiManager_.End();
+	if (ImGui::GetIO().WantSaveIniSettings) {
+
+		editorLayoutManager_.SaveSession(CaptureEditorLayout());
+		ImGui::GetIO().WantSaveIniSettings = false;
+	}
 
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	const auto& window = graphicsCore.GetContext().GetWindowSetting();
@@ -1034,6 +1128,168 @@ void Engine::EditorManager::DrawPanelsByPhase(const EditorPanelContext& context,
 		}
 		panel->Draw(context);
 	}
+}
+
+Engine::EditorLayoutSnapshot Engine::EditorManager::CaptureEditorLayout() const {
+
+	EditorLayoutSnapshot layout{};
+	layout.layoutID = editorLayoutManager_.GetActiveLayoutID();
+	if (const EditorLayoutSnapshot* active = editorLayoutManager_.FindLayout(layout.layoutID)) {
+		layout.displayName = active->displayName;
+	}
+	if (layout.displayName.empty()) {
+		layout.displayName = "Current";
+	}
+
+	layout.visibility.showHierarchy = layoutState_.showHierarchy;
+	layout.visibility.showInspector = layoutState_.showInspector;
+	layout.visibility.showProject = layoutState_.showProject;
+	layout.visibility.showConsole = layoutState_.showConsole;
+	layout.visibility.showSceneView = layoutState_.showSceneView;
+	layout.visibility.showGameView = layoutState_.showGameView;
+	layout.visibility.showToolbar = layoutState_.showToolbar;
+	layout.visibility.showTool = layoutState_.showTool;
+
+	for (const auto& panel : panels_) {
+
+		if (panel->GetPanelTypeID() != "Project" && panel->GetPanelTypeID() != "Inspector") {
+			continue;
+		}
+
+		bool open = panel->IsInstanceOpen();
+		if (panel->IsPrimaryInstance()) {
+			open = panel->GetPanelTypeID() == "Project" ?
+				layoutState_.showProject : layoutState_.showInspector;
+		}
+		layout.panels.push_back({
+			.typeID = panel->GetPanelTypeID(),
+			.instanceID = panel->GetInstanceID(),
+			.primary = panel->IsPrimaryInstance(),
+			.open = open,
+			.state = panel->SaveLayoutState(),
+			});
+	}
+
+	size_t iniSize = 0;
+	const char* iniData = ImGui::SaveIniSettingsToMemory(&iniSize);
+	if (iniData && iniSize != 0) {
+		layout.imguiIniData.assign(iniData, iniSize);
+	}
+	return layout;
+}
+
+void Engine::EditorManager::ApplyEditorLayout(const EditorLayoutSnapshot& layout, GraphicsCore& graphicsCore) {
+
+	layoutState_.showHierarchy = layout.visibility.showHierarchy;
+	layoutState_.showInspector = layout.visibility.showInspector;
+	layoutState_.showProject = layout.visibility.showProject;
+	layoutState_.showConsole = layout.visibility.showConsole;
+	layoutState_.showSceneView = layout.visibility.showSceneView;
+	layoutState_.showGameView = layout.visibility.showGameView;
+	layoutState_.showToolbar = layout.visibility.showToolbar;
+	layoutState_.showTool = layout.visibility.showTool;
+
+	// 適用前の複製パネルを破棄しスナップショットから作り直す
+	panels_.erase(std::remove_if(panels_.begin(), panels_.end(), [](const std::unique_ptr<IEditorPanel>& panel) {
+		return !panel->IsPrimaryInstance() && !panel->GetPanelTypeID().empty();
+		}), panels_.end());
+
+	EditorPanelCreateContext createContext{ graphicsCore.GetTextureUploadService() };
+	for (const EditorPanelLayoutSnapshot& panelLayout : layout.panels) {
+
+		if (panelLayout.typeID != "Project" && panelLayout.typeID != "Inspector") {
+			continue;
+		}
+
+		if (panelLayout.primary) {
+
+			auto found = std::find_if(panels_.begin(), panels_.end(), [&](const std::unique_ptr<IEditorPanel>& panel) {
+				return panel->IsPrimaryInstance() && panel->GetPanelTypeID() == panelLayout.typeID;
+				});
+			if (found != panels_.end()) {
+				(*found)->LoadLayoutState(panelLayout.state);
+			}
+			continue;
+		}
+
+		std::unique_ptr<IEditorPanel> panel = CreateBuiltinEditorPanelInstance(
+			createContext, panelLayout.typeID, panelLayout.instanceID);
+		if (!panel) {
+			continue;
+		}
+		panel->SetInstanceOpen(panelLayout.open);
+		panel->LoadLayoutState(panelLayout.state);
+		panels_.emplace_back(std::move(panel));
+	}
+
+	ImGui::ClearIniSettings();
+	if (!layout.imguiIniData.empty()) {
+		ImGui::LoadIniSettingsFromMemory(layout.imguiIniData.c_str(), layout.imguiIniData.size());
+		requestBuildDefaultDockLayout_ = false;
+	} else {
+		requestBuildDefaultDockLayout_ = layout.builtinDefault;
+	}
+}
+
+void Engine::EditorManager::ApplyPendingEditorLayout(GraphicsCore& graphicsCore) {
+
+	if (!pendingEditorLayout_) {
+		return;
+	}
+	ApplyEditorLayout(pendingEditorLayout_.value(), graphicsCore);
+	editorLayoutManager_.SaveSession(pendingEditorLayout_.value());
+	pendingEditorLayout_.reset();
+}
+
+void Engine::EditorManager::ApplyPendingPanelDuplicate(const EditorPanelContext& context) {
+
+	if (pendingDuplicatePanelID_.empty()) {
+		return;
+	}
+
+	IEditorPanel* source = FindPanelByInstanceID(pendingDuplicatePanelID_);
+	pendingDuplicatePanelID_.clear();
+	if (!source || !source->CanDuplicate(context)) {
+		return;
+	}
+
+	const std::string typeID = source->GetPanelTypeID();
+	int32_t panelCount = 0;
+	for (const auto& panel : panels_) {
+		if (panel->GetPanelTypeID() == typeID) {
+			++panelCount;
+		}
+	}
+
+	const std::string instanceID = typeID + "." + ToString(UUID::New());
+	const std::string displayName = typeID == "Project" ?
+		"Project " + std::to_string(panelCount + 1) : std::string{};
+	EditorPanelCreateContext createContext{ context.graphicsCore->GetTextureUploadService() };
+	std::unique_ptr<IEditorPanel> duplicated = CreateBuiltinEditorPanelInstance(
+		createContext, typeID, instanceID, displayName);
+	if (!duplicated) {
+		return;
+	}
+
+	duplicated->LoadLayoutState(source->MakeDuplicateState(context));
+	duplicated->SetInitialDockID(source->GetCurrentDockID());
+	panels_.emplace_back(std::move(duplicated));
+	ImGui::GetIO().WantSaveIniSettings = true;
+}
+
+void Engine::EditorManager::RemoveClosedDuplicatedPanels() {
+
+	panels_.erase(std::remove_if(panels_.begin(), panels_.end(), [](const std::unique_ptr<IEditorPanel>& panel) {
+		return !panel->IsPrimaryInstance() && !panel->IsInstanceOpen();
+		}), panels_.end());
+}
+
+Engine::IEditorPanel* Engine::EditorManager::FindPanelByInstanceID(const std::string& instanceID) const {
+
+	const auto found = std::find_if(panels_.begin(), panels_.end(), [&](const std::unique_ptr<IEditorPanel>& panel) {
+		return panel->GetInstanceID() == instanceID;
+		});
+	return found != panels_.end() ? found->get() : nullptr;
 }
 
 void Engine::EditorManager::UpdateSceneViewManualCamera() {
@@ -1155,8 +1411,8 @@ void Engine::EditorManager::Finalize() {
 		return;
 	}
 
-	// レイアウトを保存
-	ImGui::SaveIniSettingsToDisk(kEditorLayoutIniPath);
+	// 現在のパネル構成とドック状態をユーザーセッションへ保存する
+	editorLayoutManager_.SaveSession(CaptureEditorLayout());
 	SaveViewportPanelState();
 
 	imguiManager_.Finalize();
@@ -1165,10 +1421,11 @@ void Engine::EditorManager::Finalize() {
 	requestResumePlay_ = false;
 	requestPausePlay_ = false;
 	requestPlayFrameStep_ = false;
+	pendingDuplicatePanelID_.clear();
+	pendingEditorLayout_.reset();
+	requestBuildDefaultDockLayout_ = false;
 
-	for (uint32_t i = 0; i < panels_.size(); ++i) {
-		panels_[i].reset();
-	}
+	panels_.clear();
 
 	meshSubMeshPicker_->Finalize();
 	meshSubMeshPicker_.reset();
@@ -1246,6 +1503,44 @@ void Engine::EditorManager::DrawDockSpace() {
 	ImGui::Begin(kDockSpaceHostWindow, &open, windowFlags);
 	ImGui::PopStyleVar(3);
 
-	ImGui::DockSpace(ImGui::GetID(kDockSpaceID), ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+	const ImGuiID dockSpaceID = ImGui::GetID(kDockSpaceID);
+	if (requestBuildDefaultDockLayout_) {
+		BuildDefaultDockLayout(dockSpaceID, viewport->WorkSize);
+		requestBuildDefaultDockLayout_ = false;
+	}
+	ImGui::DockSpace(dockSpaceID, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
 	ImGui::End();
+}
+
+void Engine::EditorManager::BuildDefaultDockLayout(ImGuiID dockSpaceID, const ImVec2& dockSpaceSize) {
+
+	ImGui::DockBuilderRemoveNode(dockSpaceID);
+	ImGui::DockBuilderAddNode(dockSpaceID, ImGuiDockNodeFlags_DockSpace);
+	ImGui::DockBuilderSetNodeSize(dockSpaceID, dockSpaceSize);
+
+	ImGuiID mainDockID = dockSpaceID;
+	ImGuiID toolbarDockID = 0;
+	ImGui::DockBuilderSplitNode(mainDockID, ImGuiDir_Up, 0.035f, &toolbarDockID, &mainDockID);
+
+	ImGuiID inspectorDockID = 0;
+	ImGui::DockBuilderSplitNode(mainDockID, ImGuiDir_Right, 0.44f, &inspectorDockID, &mainDockID);
+
+	ImGuiID bottomDockID = 0;
+	ImGui::DockBuilderSplitNode(mainDockID, ImGuiDir_Down, 0.46f, &bottomDockID, &mainDockID);
+
+	ImGuiID hierarchyDockID = 0;
+	ImGui::DockBuilderSplitNode(mainDockID, ImGuiDir_Left, 0.17f, &hierarchyDockID, &mainDockID);
+
+	ImGuiID consoleDockID = 0;
+	ImGui::DockBuilderSplitNode(bottomDockID, ImGuiDir_Left, 0.24f, &consoleDockID, &bottomDockID);
+
+	ImGui::DockBuilderDockWindow("Toolbar", toolbarDockID);
+	ImGui::DockBuilderDockWindow("Hierarchy", hierarchyDockID);
+	ImGui::DockBuilderDockWindow("Inspector###Inspector:inspector.primary", inspectorDockID);
+	ImGui::DockBuilderDockWindow("Project###Project:project.primary", bottomDockID);
+	ImGui::DockBuilderDockWindow("Console", consoleDockID);
+	ImGui::DockBuilderDockWindow("Tool", consoleDockID);
+	ImGui::DockBuilderDockWindow("SceneView", mainDockID);
+	ImGui::DockBuilderDockWindow("GameView", mainDockID);
+	ImGui::DockBuilderFinish(dockSpaceID);
 }
