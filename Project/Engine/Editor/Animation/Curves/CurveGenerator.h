@@ -32,12 +32,14 @@ namespace Engine {
 
 		// 生成する波形の種類
 		CurveGeneratorType type = CurveGeneratorType::Sin;
-		// 生成範囲の時間と値
+		// 生成範囲の時間
 		float startTime = 0.0f;
 		float endTime = 1.0f;
+		// イージングの開始値と終了値
 		float startValue = 0.0f;
 		float endValue = 1.0f;
 		// 波形のパラメータ
+		float baseValue = 0.0f;
 		float amplitude = 1.0f;
 		float frequency = 1.0f;
 		float phase = 0.0f;

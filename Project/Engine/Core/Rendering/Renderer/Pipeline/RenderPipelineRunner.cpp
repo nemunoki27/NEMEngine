@@ -149,6 +149,19 @@ void RenderPipelineRunner::ReloadMaterial(AssetID materialAssetID) {
 	renderAssetLibrary_.InvalidateMaterial(materialAssetID);
 }
 
+void RenderPipelineRunner::ReloadShader(AssetID shaderAssetID) {
+
+	// 新PSO生成に失敗した場合は退避した旧PSOを継続使用する
+	renderAssetLibrary_.InvalidateShader(shaderAssetID);
+	pipelineStateCache_.InvalidateByShaderOverride(shaderAssetID);
+}
+
+void RenderPipelineRunner::ReloadPipeline(AssetID pipelineAssetID) {
+
+	renderAssetLibrary_.InvalidatePipeline(pipelineAssetID);
+	pipelineStateCache_.InvalidateByPipelineAsset(pipelineAssetID);
+}
+
 Engine::RenderTexture2D* RenderPipelineRunner::GetViewGBufferTexture(RenderViewKind kind, GBufferAttachment attachment) {
 
 	// GameViewはgameViewState_.resources、それ以外はsceneViewState_.resourcesのGBufferを参照する
@@ -159,10 +172,13 @@ Engine::RenderTexture2D* RenderPipelineRunner::GetViewGBufferTexture(RenderViewK
 const Engine::ShaderReflectionInfo* RenderPipelineRunner::FindMaterialDrawReflection(const MaterialAsset& material) const {
 
 	const MaterialPassBinding* drawPass = FindPass(material, MaterialPassKind::Draw);
+	if (!drawPass) {
+		drawPass = FindPass(material, MaterialPassKind::Transparent);
+	}
 	if (!drawPass || !drawPass->pipeline) {
 		return nullptr;
 	}
-	return FindPipelineGraphicsReflection(drawPass->pipeline);
+	return pipelineStateCache_.FindGraphicsReflection(drawPass->pipeline, drawPass->shaderOverride);
 }
 
 Engine::DepthTexture2D* RenderPipelineRunner::GetViewDepthTexture(RenderViewKind kind) {

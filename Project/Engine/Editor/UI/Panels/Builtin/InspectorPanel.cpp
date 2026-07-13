@@ -728,6 +728,10 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 					context.editorContext->assetDatabase, { AssetType::RenderPipeline });
 				saveRequested |= pipelineResult.editFinished;
 
+				ValueEditResult shaderResult = MyGUI::AssetReferenceField("Shader Override", pass.shaderOverride,
+					context.editorContext->assetDatabase, { AssetType::Shader });
+				saveRequested |= shaderResult.editFinished;
+
 				ValueEditResult variantResult = DrawPipelineVariantField("Variant", pass.preferredVariant);
 				saveRequested |= variantResult.editFinished;
 
@@ -760,17 +764,22 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 	std::vector<const ShaderReflectionInfo*> reflections;
 	if (context.renderPipeline) {
 
-		std::unordered_set<AssetID> seenPipelines;
+		std::unordered_set<const ShaderReflectionInfo*> seenReflections;
 		for (const MaterialPassBinding& pass : materialDraft_.passes) {
 
-			if (!pass.pipeline || seenPipelines.count(pass.pipeline) != 0) {
+			if (!pass.pipeline) {
 				continue;
 			}
-			seenPipelines.insert(pass.pipeline);
-			const ShaderReflectionInfo* reflection = context.renderPipeline->FindPipelineGraphicsReflection(pass.pipeline);
-			if (!reflection) {
+			MaterialAsset passMaterial{};
+			passMaterial.passes.emplace_back(pass);
+			const ShaderReflectionInfo* reflection = context.renderPipeline->FindMaterialDrawReflection(passMaterial);
+			if (!reflection && !pass.shaderOverride) {
+				reflection = context.renderPipeline->FindPipelineGraphicsReflection(pass.pipeline);
+			}
+			if (!reflection || seenReflections.count(reflection) != 0) {
 				continue;
 			}
+			seenReflections.insert(reflection);
 			reflections.push_back(reflection);
 			if (const ShaderConstantBufferInfo* cb = FindConstantBuffer(*reflection, MaterialParameterCBuffer::kSurface)) {
 				for (const ShaderConstantBufferVariable& var : cb->variables) {

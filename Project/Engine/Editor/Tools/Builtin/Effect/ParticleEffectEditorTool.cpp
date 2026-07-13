@@ -6,9 +6,14 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Particle/ParticleEffectEditBridge.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialCompatibility.h>
 #include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleCustomShaderParameterModule.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.h>
 #include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/World/Components/Rendering/ParticleEmitterComponent.h>
 #include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -29,6 +34,7 @@ using namespace Engine;
 // c++
 #include <algorithm>
 #include <filesystem>
+#include <optional>
 
 //============================================================================
 //	ParticleEffectEditorTool internal
@@ -52,6 +58,135 @@ namespace {
 		} else {
 			std::rotate(list.begin() + to, list.begin() + from, list.begin() + from + 1);
 		}
+	}
+
+	bool IsPaddingName(const std::string& name) {
+
+		return name.find("pad") != std::string::npos || name.find("Pad") != std::string::npos;
+	}
+
+	bool IsParticleMaterialAnimatable(const ShaderConstantBufferVariable& var) {
+
+		if (!var.used || var.valueType != D3D_SVT_FLOAT || IsPaddingName(var.name)) {
+			return false;
+		}
+		if (var.name == "color") {
+			return false;
+		}
+		return true;
+	}
+
+	AssetID ResolvePhaseMaterialID(const ParticleEffectAsset& asset, const ParticleEffectPhase& phase) {
+
+		if (phase.material) {
+			return phase.material;
+		}
+		if (asset.material) {
+			return asset.material;
+		}
+		return asset.space == PrimitiveRenderSpace::Screen2D ?
+			BuiltinAssets::Materials::DefaultParticle2D : BuiltinAssets::Materials::DefaultParticle;
+	}
+
+	std::optional<MaterialAsset> LoadMaterialAsset(const EditorToolContext& context, AssetID materialID) {
+
+		AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
+		if (!assetDatabase || !materialID) {
+			return std::nullopt;
+		}
+		const std::filesystem::path materialPath = assetDatabase->ResolveFullPath(materialID);
+		if (materialPath.empty()) {
+			return std::nullopt;
+		}
+		MaterialAsset material{};
+		const nlohmann::json data = JsonAdapter::Load(materialPath.string(), false);
+		if (!FromJson(data, material)) {
+			return std::nullopt;
+		}
+		return material;
+	}
+
+	const ShaderReflectionInfo* FindParticleMaterialReflection(
+		const EditorToolContext& context, const MaterialAsset& material) {
+
+		if (!context.panelContext || !context.panelContext->renderPipeline) {
+			return nullptr;
+		}
+		return context.panelContext->renderPipeline->FindMaterialDrawReflection(material);
+	}
+
+	bool ValidateParticleMaterialSelection(const EditorToolContext& context,
+		AssetID materialID, std::string& outMessage) {
+
+		outMessage.clear();
+		if (!materialID) {
+			return true;
+		}
+		const std::optional<MaterialAsset> material = LoadMaterialAsset(context, materialID);
+		if (!material) {
+			outMessage = "マテリアルを読み込めません";
+			return false;
+		}
+		const ParticleMaterialCompatibilityResult compatibility = CheckParticleMaterialCompatibility(
+			*material, FindParticleMaterialReflection(context, *material));
+		if (compatibility.IsCompatible()) {
+			return true;
+		}
+		if (compatibility.status == ParticleMaterialCompatibilityStatus::PendingReflection &&
+			material->usage == MaterialUsage::Particle) {
+			return true;
+		}
+		outMessage = compatibility.message;
+		return false;
+	}
+
+	std::vector<ShaderConstantBufferVariable> CollectMaterialParameters(const ShaderReflectionInfo& reflection) {
+
+		std::vector<ShaderConstantBufferVariable> variables{};
+		if (const ShaderStructuredBufferInfo* buffer =
+			FindStructuredBuffer(reflection, "gParticleCustomParameters")) {
+
+			for (const ShaderConstantBufferVariable& var : buffer->variables) {
+				if (IsParticleMaterialAnimatable(var)) {
+					variables.emplace_back(var);
+				}
+			}
+		}
+		// 旧Particle PSはMaterialParametersからslotへ割り当てる
+		if (!variables.empty()) {
+			return variables;
+		}
+		for (const ShaderConstantBufferInfo& cb : reflection.constantBuffers) {
+			if (cb.name != "MaterialParameters") {
+				continue;
+			}
+			for (const ShaderConstantBufferVariable& var : cb.variables) {
+				if (IsParticleMaterialAnimatable(var)) {
+					variables.emplace_back(var);
+				}
+			}
+		}
+		std::sort(variables.begin(), variables.end(),
+			[](const ShaderConstantBufferVariable& lhs, const ShaderConstantBufferVariable& rhs) {
+				return lhs.name < rhs.name;
+			});
+		return variables;
+	}
+
+	std::vector<ShaderResourceBinding> CollectMaterialTextures(const ShaderReflectionInfo& reflection) {
+
+		std::vector<ShaderResourceBinding> textures{};
+		for (const ShaderResourceBinding& resource : reflection.resources) {
+			if (resource.kind == ShaderBindingKind::SRV && resource.space == 2 &&
+				resource.rawType == D3D_SIT_TEXTURE && resource.name != "baseColorTexture") {
+				textures.emplace_back(resource);
+			}
+		}
+		std::sort(textures.begin(), textures.end(),
+			[](const ShaderResourceBinding& lhs, const ShaderResourceBinding& rhs) {
+				return lhs.name < rhs.name;
+			});
+		return textures;
 	}
 }
 
@@ -258,9 +393,23 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 				AssetEditSetting setting{};
 				setting.defaultAssetID = draft_.space == PrimitiveRenderSpace::Screen2D ?
 					BuiltinAssets::Materials::DefaultParticle2D : BuiltinAssets::Materials::DefaultParticle;
-				changed |= MyGUI::AssetReferenceField("マテリアル", draft_.material, assetDatabase, { AssetType::Material }, setting).valueChanged;
+				AssetID material = draft_.material;
+				if (MyGUI::AssetReferenceField("マテリアル", material,
+					assetDatabase, { AssetType::Material }, setting).valueChanged) {
+
+					std::string message{};
+					if (ValidateParticleMaterialSelection(context, material, message)) {
+						draft_.material = material;
+						changed = true;
+						statusMessage_.clear();
+					} else {
+						statusMessage_ = "Particleマテリアルを設定できません: " + message;
+					}
+				}
 			}
 			changed |= MyGUI::EnumCombo("ソート", draft_.sortMode).valueChanged;
+			changed |= MyGUI::EnumCombo("ブレンドモード", draft_.blendMode).valueChanged;
+			changed |= MyGUI::EnumCombo("キュー", draft_.queue).valueChanged;
 			// ビルボード軸
 			{
 				const Axis axes[] = { Axis::X, Axis::Y, Axis::Z };
@@ -323,6 +472,9 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 		if (moduleCache_.size() != draft_.phases.size()) {
 			moduleCache_.resize(draft_.phases.size());
 		}
+		if (selectedModules_.size() != draft_.phases.size()) {
+			selectedModules_.resize(draft_.phases.size(), 0);
+		}
 		selectedPhase_ = std::clamp(selectedPhase_, 0, static_cast<int32_t>(draft_.phases.size()) - 1);
 
 		//========================================================================================================================================================
@@ -334,6 +486,7 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 			phase.name = "Phase " + std::to_string(draft_.phases.size() + 1);
 			draft_.phases.emplace_back(std::move(phase));
 			moduleCache_.emplace_back();
+			selectedModules_.emplace_back(0);
 			selectedPhase_ = static_cast<int32_t>(draft_.phases.size()) - 1;
 			changed = true;
 		}
@@ -362,6 +515,7 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 
 						MoveListItem(draft_.phases, from, i);
 						MoveListItem(moduleCache_, from, i);
+						MoveListItem(selectedModules_, from, i);
 						// 選択中のフェーズを追従させる
 						if (from == selectedPhase_) {
 							selectedPhase_ = i;
@@ -389,6 +543,7 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 
 			draft_.phases.erase(draft_.phases.begin() + removePhaseIndex);
 			moduleCache_.erase(moduleCache_.begin() + removePhaseIndex);
+			selectedModules_.erase(selectedModules_.begin() + removePhaseIndex);
 			selectedPhase_ = std::clamp(selectedPhase_, 0, static_cast<int32_t>(draft_.phases.size()) - 1);
 			changed = true;
 		}
@@ -406,12 +561,25 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 		{
 			// 未設定ならエフェクト共通のマテリアルを引き継ぐ
 			AssetEditSetting setting{};
-			changed |= MyGUI::AssetReferenceField("マテリアル", phase.material,
-				context.toolContext.assetDatabase, { AssetType::Material }, setting).valueChanged;
+			AssetID material = phase.material;
+			if (MyGUI::AssetReferenceField("マテリアル", material,
+				context.toolContext.assetDatabase, { AssetType::Material }, setting).valueChanged) {
+
+				std::string message{};
+				if (ValidateParticleMaterialSelection(context, material, message)) {
+					phase.material = material;
+					changed = true;
+					statusMessage_.clear();
+				} else {
+					statusMessage_ = "Particleマテリアルを設定できません: " + message;
+				}
+			}
 		}
 
+		changed |= DrawPhaseMaterialSection(context, phase);
+
 		ImGui::SeparatorText("モジュール");
-		changed |= DrawPhaseModules(phase);
+		changed |= DrawPhaseModules(context, phase);
 		ImGui::EndChild();
 
 		ImGui::EndTabItem();
@@ -419,50 +587,107 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 	return changed;
 }
 
-bool ParticleEffectEditorTool::DrawPhaseModules(ParticleEffectPhase& phase) {
+bool ParticleEffectEditorTool::DrawPhaseMaterialSection(const EditorToolContext& context,
+	ParticleEffectPhase& phase) {
 
 	bool changed = false;
+	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
+	ParticlePhaseMaterialSettings& materialSettings = phase.materialSettings;
 
-	//========================================================================================================================================================
-	// モジュールの追加
+	if (!MyGUI::CollapsingHeader("テクスチャ設定", false)) {
+		return false;
+	}
 	{
-		const std::vector<std::string> registeredIDs = ParticleModuleRegistry::GetInstance().GetRegisteredIDs();
-		if (!registeredIDs.empty()) {
+		AssetEditSetting setting{};
+		changed |= MyGUI::AssetReferenceField("ベースカラーテクスチャ", materialSettings.baseColorTexture,
+			assetDatabase, { AssetType::Texture }, setting).valueChanged;
+	}
 
-			addModuleIndex_ = std::clamp(addModuleIndex_, 0, static_cast<int32_t>(registeredIDs.size()) - 1);
-			if (ImGui::BeginCombo("##AddModule", registeredIDs[addModuleIndex_].c_str())) {
-				for (int32_t i = 0; i < static_cast<int32_t>(registeredIDs.size()); ++i) {
-					if (ImGui::Selectable(registeredIDs[i].c_str(), i == addModuleIndex_)) {
-						addModuleIndex_ = i;
-					}
-				}
-				ImGui::EndCombo();
+	const AssetID materialID = ResolvePhaseMaterialID(draft_, phase);
+	const std::optional<MaterialAsset> material = LoadMaterialAsset(context, materialID);
+	if (!material) {
+		ImGui::TextDisabled("マテリアルを解決できません");
+		return changed;
+	}
+	const ShaderReflectionInfo* reflection = FindParticleMaterialReflection(context, *material);
+	if (!reflection) {
+		ImGui::TextDisabled("シェーダーリフレクションを取得できません");
+		return changed;
+	}
+
+	const std::vector<ShaderResourceBinding> textures = CollectMaterialTextures(*reflection);
+	if (!textures.empty()) {
+
+		for (const ShaderResourceBinding& texture : textures) {
+
+			ImGui::PushID(texture.name.c_str());
+			AssetID textureID{};
+			if (auto it = materialSettings.textureOverrides.find(texture.name);
+				it != materialSettings.textureOverrides.end()) {
+				textureID = it->second;
 			}
-			ImGui::SameLine();
-			if (ImGui::Button("追加")) {
+			AssetEditSetting setting{};
+			if (MyGUI::AssetReferenceField(texture.name.c_str(), textureID,
+				assetDatabase, { AssetType::Texture }, setting).valueChanged) {
 
-				ParticleEffectModuleEntry entry{};
-				entry.id = registeredIDs[addModuleIndex_];
-				phase.modules.emplace_back(std::move(entry));
+				if (textureID) {
+					materialSettings.textureOverrides[texture.name] = textureID;
+				} else {
+					materialSettings.textureOverrides.erase(texture.name);
+				}
 				changed = true;
 			}
+			ImGui::PopID();
 		}
 	}
-	//========================================================================================================================================================
-	// モジュール一覧、削除と並べ替えとパラメータ編集
-	// 編集用インスタンスの数をエントリ数へ合わせる
+
+	return changed;
+}
+
+bool ParticleEffectEditorTool::DrawPhaseModules(const EditorToolContext& context, ParticleEffectPhase& phase) {
+
+	bool changed = false;
 	std::vector<ModuleCacheEntry>& cache = moduleCache_[selectedPhase_];
 	if (cache.size() != phase.modules.size()) {
 		cache.resize(phase.modules.size());
 	}
+	int32_t& selectedModule = selectedModules_[selectedPhase_];
+	selectedModule = phase.modules.empty() ? -1 :
+		std::clamp(selectedModule, 0, static_cast<int32_t>(phase.modules.size()) - 1);
+
+	ImGui::BeginChild("ModuleList", ImVec2(190.0f, 0.0f), true);
+	const std::vector<std::string> registeredIDs = ParticleModuleRegistry::GetInstance().GetRegisteredIDs();
+	if (!registeredIDs.empty()) {
+
+		addModuleIndex_ = std::clamp(addModuleIndex_, 0, static_cast<int32_t>(registeredIDs.size()) - 1);
+		ImGui::SetNextItemWidth(-1.0f);
+		if (ImGui::BeginCombo("##AddModule", registeredIDs[addModuleIndex_].c_str())) {
+			for (int32_t i = 0; i < static_cast<int32_t>(registeredIDs.size()); ++i) {
+				if (ImGui::Selectable(registeredIDs[i].c_str(), i == addModuleIndex_)) {
+					addModuleIndex_ = i;
+				}
+			}
+			ImGui::EndCombo();
+		}
+		if (ImGui::Button("追加", ImVec2(-FLT_MIN, 0.0f))) {
+
+			ParticleEffectModuleEntry entry{};
+			entry.id = registeredIDs[addModuleIndex_];
+			phase.modules.emplace_back(std::move(entry));
+			cache.emplace_back();
+			selectedModule = static_cast<int32_t>(phase.modules.size()) - 1;
+			changed = true;
+		}
+	}
+	ImGui::Separator();
 	int32_t removeIndex = -1;
 	for (int32_t i = 0; i < static_cast<int32_t>(phase.modules.size()); ++i) {
 
 		ParticleEffectModuleEntry& entry = phase.modules[i];
 		ImGui::PushID(i);
-
-		bool open = MyGUI::CollapsingHeader(entry.id.c_str(), false);
-		// ヘッダーのドラッグ&ドロップで並べ替える
+		if (ImGui::Selectable(entry.id.c_str(), i == selectedModule)) {
+			selectedModule = i;
+		}
 		if (ImGui::BeginDragDropSource()) {
 
 			ImGui::SetDragDropPayload(kModuleReorderPayloadType, &i, sizeof(i));
@@ -478,12 +703,18 @@ bool ParticleEffectEditorTool::DrawPhaseModules(ParticleEffectPhase& phase) {
 
 					MoveListItem(phase.modules, from, i);
 					MoveListItem(cache, from, i);
+					if (selectedModule == from) {
+						selectedModule = i;
+					} else if (from < selectedModule && selectedModule <= i) {
+						--selectedModule;
+					} else if (i <= selectedModule && selectedModule < from) {
+						++selectedModule;
+					}
 					changed = true;
 				}
 			}
 			ImGui::EndDragDropTarget();
 		}
-		// 右クリックで削除
 		if (ImGui::BeginPopupContextItem()) {
 
 			if (ImGui::MenuItem("削除")) {
@@ -491,25 +722,55 @@ bool ParticleEffectEditorTool::DrawPhaseModules(ParticleEffectPhase& phase) {
 			}
 			ImGui::EndPopup();
 		}
-		if (open) {
-
-			// モジュール自身の編集UIを描画し、変更をエントリへ書き戻す
-			if (IParticleModule* module = ResolveModuleCache(cache[i], phase.modules[i])) {
-				if (module->DrawImGui()) {
-
-					phase.modules[i].params = module->ToJson();
-					changed = true;
-				}
-			} else {
-				ImGui::TextDisabled("未登録のモジュールです");
-			}
-		}
 		ImGui::PopID();
 	}
+	ImGui::EndChild();
+
+	ImGui::SameLine();
+	ImGui::BeginChild("ModuleEdit", ImVec2(0.0f, 0.0f), true);
+	if (0 <= selectedModule && selectedModule < static_cast<int32_t>(phase.modules.size())) {
+
+		ParticleEffectModuleEntry& entry = phase.modules[selectedModule];
+
+		// モジュール名表示
+		std::string moduleName = "モジュール名: " + entry.id;
+		ImGui::Text(moduleName.c_str());
+		ImGui::Separator();
+		// キャッシュされたモジュールリストの中から選択IDで引く
+		if (IParticleModule* module = ResolveModuleCache(cache[selectedModule], entry)) {
+			if (auto* custom = dynamic_cast<ParticleCustomShaderParameterModule*>(module)) {
+
+				std::vector<ShaderConstantBufferVariable> parameters{};
+				const AssetID materialID = ResolvePhaseMaterialID(draft_, phase);
+				if (const std::optional<MaterialAsset> material = LoadMaterialAsset(context, materialID)) {
+					if (const ShaderReflectionInfo* reflection = FindParticleMaterialReflection(context, *material)) {
+						parameters = CollectMaterialParameters(*reflection);
+					}
+				}
+				custom->SetReflectedParameters(parameters);
+			}
+			if (module->DrawImGui()) {
+
+				entry.params = module->ToJson();
+				changed = true;
+			}
+		} else {
+			ImGui::TextDisabled("未登録のモジュールです");
+		}
+	} else {
+		ImGui::TextDisabled("モジュールを選択してください");
+	}
+	ImGui::EndChild();
+
 	if (0 <= removeIndex) {
 
 		phase.modules.erase(phase.modules.begin() + removeIndex);
 		cache.erase(cache.begin() + removeIndex);
+		if (phase.modules.empty()) {
+			selectedModule = -1;
+		} else if (selectedModule >= static_cast<int32_t>(phase.modules.size())) {
+			selectedModule = static_cast<int32_t>(phase.modules.size()) - 1;
+		}
 		changed = true;
 	}
 	return changed;

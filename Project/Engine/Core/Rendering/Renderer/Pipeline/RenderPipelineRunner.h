@@ -155,6 +155,9 @@ namespace Engine {
 
 		// 編集されたマテリアルのキャッシュを破棄して実行中に反映する、インスペクタ保存から呼ぶ
 		void ReloadMaterial(AssetID materialAssetID);
+		// 実行中にシェーダーとパイプラインを再構築する
+		void ReloadShader(AssetID shaderAssetID);
+		void ReloadPipeline(AssetID pipelineAssetID);
 
 		// 構築済みグラフィックスパイプラインの統合reflectionを引く、未構築ならnullptr
 		// マテリアルインスペクタがシェーダーの要求パラメータを自動列挙するために使う

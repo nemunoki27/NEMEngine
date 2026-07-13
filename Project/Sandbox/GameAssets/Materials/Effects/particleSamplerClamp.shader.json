@@ -1,0 +1,11 @@
+{
+    "name": "particleSamplerClampShader",
+    "stages": [
+        {
+            "entry": "main",
+            "file": "eff0000000000003",
+            "profile": "ps_6_6",
+            "stage": "PS"
+        }
+    ]
+}

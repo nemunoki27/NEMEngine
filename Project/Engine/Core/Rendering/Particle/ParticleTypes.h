@@ -50,6 +50,10 @@ namespace Engine {
 		// フリップブックのUVスケールとオフセット
 		Vector2 uvScale = Vector2::AnyInit(1.0f);
 		Vector2 uvOffset = Vector2::AnyInit(0.0f);
+		// UV回転
+		float uvRotation = 0.0f;
+		// UV回転の中心
+		Vector2 uvPivot = Vector2::AnyInit(0.0f);
 
 		// トレイル追跡用のエミッター内で一意なID
 		uint32_t id = 0;

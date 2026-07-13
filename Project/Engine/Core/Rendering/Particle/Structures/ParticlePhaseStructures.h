@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Rendering/Particle/ParticleValue.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialStructures.h>
 
 // c++
 #include <string>
@@ -46,6 +47,8 @@ namespace Engine {
 		ParticleLifeEndMode lifeEndMode = ParticleLifeEndMode::Kill;
 		// フェーズのマテリアル、未設定ならエフェクト共通のものを引き継ぐ
 		AssetID material{};
+		// フェーズ固有のマテリアル上書きと寿命アニメーション
+		ParticlePhaseMaterialSettings materialSettings{};
 		// 使用されるモジュールのリスト
 		std::vector<ParticleEffectModuleEntry> modules;
 	};

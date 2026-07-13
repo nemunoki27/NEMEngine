@@ -38,11 +38,6 @@ namespace Engine {
 		// 表示フラグ
 		bool visible = true;
 
-		// ブレンドモード
-		BlendMode blendMode = BlendMode::Add;
-		// 描画キュー
-		RenderPhase queue = RenderPhase::Transparent;
-
 		// エミッターの経過時間
 		float runtimeTime = 0.0f;
 		// 単発再生中か、ループを無視して発生継続時間分だけ発生する

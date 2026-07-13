@@ -58,6 +58,12 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x7c1d9a4b8e2f6023ull };
 	}
 
+	namespace Shaders {
+
+		// VSと既定PSを持つパーティクルの基本シェーダー
+		inline constexpr AssetID Particle{ 0xeff0000000000004ull };
+	}
+
 	namespace EditorTextures {
 
 		inline constexpr AssetID DirectionalLightIcon{ 0xa0e16f0b78050650ull };

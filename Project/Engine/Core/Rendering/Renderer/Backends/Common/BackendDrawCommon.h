@@ -51,6 +51,10 @@ namespace Engine::BackendDrawCommon {
 	const PipelineState* ResolveGraphicsPipeline(const RenderDrawContext& context,
 		const MaterialPassBinding& passBinding, const PipelineVariantDesc** outVariant = nullptr,
 		bool forceDepthTestWrite = false);
+	// Renderer側の形状パイプラインとMaterial側の部分シェーダーを合成する
+	const PipelineState* ResolveComposedGraphicsPipeline(const RenderDrawContext& context,
+		const MaterialPassBinding& passBinding, AssetID geometryPipeline,
+		PipelineVariantKind desiredKind, const PipelineVariantDesc** outVariant = nullptr);
 
 	// パイプラインをセットアップしてコマンドリストを取得
 	ID3D12GraphicsCommandList6* SetupGraphicsPipeline(const RenderDrawContext& context,

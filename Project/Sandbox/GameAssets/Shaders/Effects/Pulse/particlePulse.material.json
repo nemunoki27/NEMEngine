@@ -1,0 +1,18 @@
+{
+  "name": "particleHotReloadPulse",
+  "domain": "Surface",
+  "passes": [
+    {
+      "passKind": "Transparent",
+      "pipeline": "b220000000000003",
+      "shaderOverride": "b220000000000002",
+      "preferredVariant": "GraphicsVertex"
+    }
+  ],
+  "parameters": {
+    "color": { "r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0 },
+    "baseColorTexture": "c2ea9f4498073ab3",
+    "maskTexture": "c2ea9f4498073ab3",
+    "distortionTexture": "c2ea9f4498073ab3"
+  }
+}

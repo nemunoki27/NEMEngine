@@ -54,15 +54,15 @@ bool Engine::DrawCurveGenerator(CurveGeneratorState& state,
 		MyGUI::DragFloat("開始時間", state.startTime, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = maxTime, });
 		MyGUI::DragFloat("終了時間", state.endTime, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = maxTime, });
 	}
-	MyGUI::DragFloat("開始値", state.startValue, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
-	MyGUI::DragFloat("終了値", state.endValue, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
-
 	if (state.type != CurveGeneratorType::Easing) {
 
+		MyGUI::DragFloat("基準値", state.baseValue, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
 		MyGUI::DragFloat("振幅", state.amplitude, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
 		MyGUI::DragFloat("周波数", state.frequency, { .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 10000.0f, });
 		MyGUI::DragFloat("位相", state.phase, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
 	} else {
+		MyGUI::DragFloat("開始値", state.startValue, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
+		MyGUI::DragFloat("終了値", state.endValue, { .dragSpeed = 0.001f,.minValue = -10000.0f,.maxValue = 10000.0f, });
 		DrawEasingComboProperty("イージング", state.easingType);
 	}
 
@@ -119,9 +119,9 @@ bool Engine::DrawCurveGenerator(CurveGeneratorState& state,
 			float value = state.startValue;
 			// 生成結果は通常編集しやすいよう、まずはLinearキーとして追加する
 			if (state.type == CurveGeneratorType::Sin || state.type == CurveGeneratorType::Cos) {
-				const float angle = normalized * state.frequency * 2.0f * std::numbers::pi_v<float> +state.phase;
+				const float angle = normalized * state.frequency * 2.0f * std::numbers::pi_v<float> + state.phase;
 				const float wave = state.type == CurveGeneratorType::Sin ? std::sin(angle) : std::cos(angle);
-				value = state.startValue + wave * state.amplitude;
+				value = state.baseValue + wave * state.amplitude;
 			} else {
 				const float eased = EasedValue(state.easingType, normalized);
 				value = state.startValue + (state.endValue - state.startValue) * eased;

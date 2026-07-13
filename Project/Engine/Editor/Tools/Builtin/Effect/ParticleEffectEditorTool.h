@@ -6,10 +6,12 @@
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
 #include <Engine/Core/Rendering/Particle/Module/Base/IParticleModule.h>
+#include <Engine/Editor/Animation/Curves/CurveEditorState.h>
 
 // c++
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace Engine {
@@ -47,7 +49,6 @@ namespace Engine {
 			std::string id;
 			std::unique_ptr<IParticleModule> module;
 		};
-
 		//--------- variables ----------------------------------------------------
 
 		ToolDescriptor descriptor_{
@@ -78,6 +79,8 @@ namespace Engine {
 
 		// フェーズごとのモジュール編集用インスタンス
 		std::vector<std::vector<ModuleCacheEntry>> moduleCache_;
+		// フェーズごとの選択中モジュール
+		std::vector<int32_t> selectedModules_;
 
 		//--------- functions ----------------------------------------------------
 
@@ -90,7 +93,9 @@ namespace Engine {
 		// フェーズ一覧と選択フェーズの編集を描画する、変更があればtrue
 		bool DrawPhaseSection(const EditorToolContext& context);
 		// 選択フェーズのモジュール一覧を描画する、変更があればtrue
-		bool DrawPhaseModules(ParticleEffectPhase& phase);
+		bool DrawPhaseModules(const EditorToolContext& context, ParticleEffectPhase& phase);
+		// 選択フェーズのマテリアル設定を描画する、変更があればtrue
+		bool DrawPhaseMaterialSection(const EditorToolContext& context, ParticleEffectPhase& phase);
 		// モジュールの編集用インスタンスを取得する、idが変わっていれば作り直す
 		IParticleModule* ResolveModuleCache(ModuleCacheEntry& cache, const ParticleEffectModuleEntry& entry);
 

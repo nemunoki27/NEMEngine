@@ -7,9 +7,12 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <algorithm>
+#include <filesystem>
+#include <vector>
 
 //============================================================================
 //	DxShaderCompiler classMethods
@@ -138,9 +141,12 @@ namespace {
 			bufferInfo.name = bufferDesc.Name ? bufferDesc.Name : "";
 			bufferInfo.size = bufferDesc.Size;
 
+			const bool isStructuredBuffer = bufferDesc.Type == D3D_CT_RESOURCE_BIND_INFO;
 			// BoundResources側の情報と名前で突き合わせ、register番号も保持する
 			for (const ShaderResourceBinding& resource : out.resources) {
-				if (resource.kind == ShaderBindingKind::CBV && resource.name == bufferInfo.name) {
+				const ShaderBindingKind expectedKind = isStructuredBuffer ?
+					ShaderBindingKind::SRV : ShaderBindingKind::CBV;
+				if (resource.kind == expectedKind && resource.name == bufferInfo.name) {
 					bufferInfo.bindPoint = resource.bindPoint;
 					bufferInfo.space = resource.space;
 					break;
@@ -221,7 +227,18 @@ namespace {
 				}
 			}
 			if (!bufferInfo.name.empty()) {
-				out.constantBuffers.emplace_back(std::move(bufferInfo));
+				if (isStructuredBuffer) {
+
+					ShaderStructuredBufferInfo structuredInfo{};
+					structuredInfo.name = std::move(bufferInfo.name);
+					structuredInfo.bindPoint = bufferInfo.bindPoint;
+					structuredInfo.space = bufferInfo.space;
+					structuredInfo.stride = bufferInfo.size;
+					structuredInfo.variables = std::move(bufferInfo.variables);
+					out.structuredBuffers.emplace_back(std::move(structuredInfo));
+				} else {
+					out.constantBuffers.emplace_back(std::move(bufferInfo));
+				}
 			}
 		}
 
@@ -294,7 +311,13 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	// UTF8の文字コード
 	srcBuf.Encoding = DXC_CP_UTF8;
 
-	LPCWSTR args[] = {
+	std::vector<std::wstring> includePaths{};
+	includePaths.reserve(3);
+	includePaths.emplace_back(std::filesystem::path(filePath).parent_path().wstring());
+	includePaths.emplace_back(RuntimePaths::GetEngineAssetPath("Shaders").wstring());
+	includePaths.emplace_back((RuntimePaths::GetGameRoot() / "GameAssets/Shaders").wstring());
+
+	std::vector<LPCWSTR> args{
 		filePath.c_str(),
 		L"-E", entry,
 		L"-T", profile,
@@ -306,10 +329,14 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 		L"-O3",
 #endif
 	};
+	for (const std::wstring& includePath : includePaths) {
+		args.emplace_back(L"-I");
+		args.emplace_back(includePath.c_str());
+	}
 
 	// コンパイル実行
 	ComPtr<IDxcResult> result;
-	hr = dxcCompiler_->Compile(&srcBuf, args, _countof(args),
+	hr = dxcCompiler_->Compile(&srcBuf, args.data(), static_cast<UINT32>(args.size()),
 		includeHandler_.Get(), IID_PPV_ARGS(&result));
 	if (FAILED(hr)) {
 		Logger::Output(LogType::Engine,

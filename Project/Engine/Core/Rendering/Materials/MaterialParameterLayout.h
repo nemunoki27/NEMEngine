@@ -28,8 +28,8 @@ namespace Engine {
 
 	//============================================================================
 	//	MaterialParameterLayout class
-	// Reflectionから指定名の定数バッファのCBVレイアウトだけを切り出して保持する
-	// PostProcess/通常マテリアル共通で使うため、対象cbuffer名は呼び出し側が指定する
+	// Reflectionから指定名のマテリアルパラメータレイアウトを切り出して保持する
+	// 定数バッファと構造化バッファの両方で使用する
 	//============================================================================
 	class MaterialParameterLayout {
 	public:
@@ -40,7 +40,7 @@ namespace Engine {
 		MaterialParameterLayout() = default;
 		~MaterialParameterLayout() = default;
 
-		// Reflection内の指定名cbufferからレイアウトを作成する、既定はMaterialParameters
+		// Reflection内の指定名バッファからレイアウトを作成する
 		void Build(const ShaderReflectionInfo& reflection,
 			const std::string& cbufferName = MaterialParameterCBuffer::kSurface);
 

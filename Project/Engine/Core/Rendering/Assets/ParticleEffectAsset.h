@@ -84,6 +84,10 @@ namespace Engine {
 		AssetID material{};
 		// 粒子のソート方法
 		ParticleSortMode sortMode = ParticleSortMode::None;
+		// ブレンドモード
+		BlendMode blendMode = BlendMode::Add;
+		// 描画キュー
+		RenderPhase queue = RenderPhase::Transparent;
 		// カメラ方向へ向ける回転軸、BillboardComponentと同じ軸マスク方式
 		std::vector<Axis> billboardAxes{ Axis::X, Axis::Y, Axis::Z };
 		// トレイル設定
@@ -114,6 +118,10 @@ namespace Engine {
 		AssetID material{};
 		// 粒子のソート方法
 		ParticleSortMode sortMode = ParticleSortMode::None;
+		// ブレンドモード
+		BlendMode blendMode = BlendMode::Add;
+		// 描画キュー
+		RenderPhase queue = RenderPhase::Transparent;
 		// カメラ方向へ向ける回転軸
 		std::vector<Axis> billboardAxes{ Axis::X, Axis::Y, Axis::Z };
 		// トレイル設定
@@ -124,6 +132,8 @@ namespace Engine {
 		ParticleEmitterSettings emitter{};
 		// フェーズごとのマテリアル、未設定は共通マテリアルへ落とす
 		std::vector<AssetID> phaseMaterials;
+		// フェーズごとのマテリアル上書きと寿命アニメーション
+		std::vector<ParticlePhaseMaterialSettings> phaseMaterialSettings;
 	};
 
 	// アセットから描画設定を作る

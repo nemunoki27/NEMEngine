@@ -45,3 +45,14 @@ uint32_t Engine::GetVariableComponentCount(const ShaderConstantBufferVariable& v
 	}
 	return (std::min)(count, 4u);
 }
+
+const Engine::ShaderStructuredBufferInfo* Engine::FindStructuredBuffer(
+	const ShaderReflectionInfo& reflection, std::string_view name) {
+
+	for (const ShaderStructuredBufferInfo& buffer : reflection.structuredBuffers) {
+		if (buffer.name == name) {
+			return &buffer;
+		}
+	}
+	return nullptr;
+}

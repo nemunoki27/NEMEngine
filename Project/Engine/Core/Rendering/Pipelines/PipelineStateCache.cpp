@@ -154,10 +154,31 @@ namespace {
 		outDesc.compute.profile = ResolveProfileOrDefault(Engine::ShaderStage::CS, cs);
 		return true;
 	}
+	// 同じステージを部分シェーダーで上書きする
+	void OverlayShaderStages(Engine::ShaderAsset& target, const Engine::ShaderAsset& source) {
+
+		for (const Engine::ShaderStageEntry& sourceStage : source.stages) {
+
+			auto found = std::find_if(target.stages.begin(), target.stages.end(),
+				[&](const Engine::ShaderStageEntry& stage) { return stage.stage == sourceStage.stage; });
+			if (found != target.stages.end()) {
+				*found = sourceStage;
+			} else {
+				target.stages.emplace_back(sourceStage);
+			}
+		}
+		for (const std::string& name : source.colorParameters) {
+			if (std::find(target.colorParameters.begin(), target.colorParameters.end(), name) == target.colorParameters.end()) {
+				target.colorParameters.emplace_back(name);
+			}
+		}
+	}
 }
 
 bool Engine::PipelineCacheKey::operator==(const PipelineCacheKey& rhs) const noexcept {
 	return pipelineAsset == rhs.pipelineAsset &&
+		geometryPipelineAsset == rhs.geometryPipelineAsset &&
+		shaderOverrideAsset == rhs.shaderOverrideAsset &&
 		resolvedKind == rhs.resolvedKind &&
 		formatHash == rhs.formatHash &&
 		meshEnabled == rhs.meshEnabled &&
@@ -165,6 +186,108 @@ bool Engine::PipelineCacheKey::operator==(const PipelineCacheKey& rhs) const noe
 		dispatchRaysEnabled == rhs.dispatchRaysEnabled &&
 		depthForcedTestWrite == rhs.depthForcedTestWrite &&
 		samplerHash == rhs.samplerHash;
+}
+
+const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(GraphicsPlatform& graphicsPlatform,
+	RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, AssetID geometryPipelineAssetID,
+	AssetID shaderOverrideAssetID, PipelineVariantKind desiredKind,
+	std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
+	const GraphicsRuntimeFeatures& runtimeFeatures, const PipelineVariantDesc** outVariant) {
+
+	const RenderPipelineAsset* statePipeline = assetLibrary.LoadPipeline(pipelineAssetID);
+	const RenderPipelineAsset* geometryPipeline = assetLibrary.LoadPipeline(geometryPipelineAssetID);
+	if (!statePipeline || !geometryPipeline) {
+		return nullptr;
+	}
+
+	const PipelineVariantDesc* stateVariant = ResolveBestVariant(*statePipeline, desiredKind, runtimeFeatures);
+	const PipelineVariantDesc* geometryVariant = ResolveBestVariant(*geometryPipeline, desiredKind, runtimeFeatures);
+	if (!stateVariant || !geometryVariant) {
+		return nullptr;
+	}
+	if (outVariant) {
+		*outVariant = geometryVariant;
+	}
+
+	PipelineCacheKey key{};
+	key.pipelineAsset = pipelineAssetID;
+	key.geometryPipelineAsset = geometryPipelineAssetID;
+	key.shaderOverrideAsset = shaderOverrideAssetID;
+	key.resolvedKind = geometryVariant->kind;
+	key.meshEnabled = runtimeFeatures.useMeshShader;
+	key.inlineRayTracingEnabled = runtimeFeatures.useInlineRayTracing;
+	key.dispatchRaysEnabled = runtimeFeatures.useDispatchRays;
+	key.formatHash = HashFormats(runtimeRTVFormats,
+		(stateVariant->dsvFormat != DXGI_FORMAT_UNKNOWN) ? stateVariant->dsvFormat : runtimeDSVFormat);
+
+	if (auto found = cache_.find(key); found != cache_.end()) {
+		return found->second.get();
+	}
+	auto restoreFallback = [&]() -> const PipelineState* {
+
+		auto fallback = fallbackCache_.find(key);
+		if (fallback == fallbackCache_.end()) {
+			return nullptr;
+		}
+		auto [restored, inserted] = cache_.emplace(key, std::move(fallback->second));
+		fallbackCache_.erase(fallback);
+		return restored->second.get();
+		};
+
+	const ShaderAsset* stateShader = assetLibrary.LoadShader(stateVariant->shader);
+	const ShaderAsset* geometryShader = assetLibrary.LoadShader(geometryVariant->shader);
+	if (!stateShader || !geometryShader) {
+		return restoreFallback();
+	}
+	ShaderAsset composedShader = *geometryShader;
+	for (const ShaderStageEntry& stage : stateShader->stages) {
+		if (stage.stage == ShaderStage::PS) {
+			ShaderAsset pixelShader{};
+			pixelShader.stages.emplace_back(stage);
+			pixelShader.colorParameters = stateShader->colorParameters;
+			OverlayShaderStages(composedShader, pixelShader);
+		}
+	}
+	if (shaderOverrideAssetID) {
+		const ShaderAsset* shaderOverride = assetLibrary.LoadShader(shaderOverrideAssetID);
+		if (!shaderOverride) {
+			return restoreFallback();
+		}
+		OverlayShaderStages(composedShader, *shaderOverride);
+	}
+
+	PipelineVariantDesc composedVariant = *stateVariant;
+	composedVariant.kind = geometryVariant->kind;
+	composedVariant.pipelineType = geometryVariant->pipelineType;
+	composedVariant.topologyType = geometryVariant->topologyType;
+	composedVariant.requiresMeshShader = geometryVariant->requiresMeshShader;
+
+	GraphicsPipelineDesc desc{};
+	if (!BuildGraphicsPipelineDesc(composedVariant, composedShader, runtimeRTVFormats, runtimeDSVFormat, desc)) {
+		return restoreFallback();
+	}
+	std::unique_ptr<PipelineState> pipelineState = std::make_unique<PipelineState>();
+	if (!pipelineState->CreateGraphics(graphicsPlatform.GetDevice(), graphicsPlatform.GetDxShaderCompiler(), desc)) {
+		return restoreFallback();
+	}
+
+	auto [it, inserted] = cache_.emplace(key, std::move(pipelineState));
+	fallbackCache_.erase(key);
+	ShaderReflectionInfo reflection = it->second->GetGraphicsReflection();
+	for (ShaderConstantBufferInfo& cb : reflection.constantBuffers) {
+		for (ShaderConstantBufferVariable& var : cb.variables) {
+			var.isColor = std::find(composedShader.colorParameters.begin(),
+				composedShader.colorParameters.end(), var.name) != composedShader.colorParameters.end();
+		}
+	}
+	for (ShaderStructuredBufferInfo& buffer : reflection.structuredBuffers) {
+		for (ShaderConstantBufferVariable& var : buffer.variables) {
+			var.isColor = std::find(composedShader.colorParameters.begin(),
+				composedShader.colorParameters.end(), var.name) != composedShader.colorParameters.end();
+		}
+	}
+	graphicsReflectionByPipeline_[pipelineAssetID] = std::move(reflection);
+	return it->second.get();
 }
 
 const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPlatform& graphicsPlatform,
@@ -280,6 +403,12 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 					shaderAsset->colorParameters.end(), var.name) != shaderAsset->colorParameters.end();
 			}
 		}
+		for (ShaderStructuredBufferInfo& buffer : reflection.structuredBuffers) {
+			for (ShaderConstantBufferVariable& var : buffer.variables) {
+				var.isColor = std::find(shaderAsset->colorParameters.begin(),
+					shaderAsset->colorParameters.end(), var.name) != shaderAsset->colorParameters.end();
+			}
+		}
 		graphicsReflectionByPipeline_[pipelineAssetID] = std::move(reflection);
 	}
 	return it->second.get();
@@ -301,13 +430,17 @@ void Engine::PipelineStateCache::Clear() {
 		entry.second.reset();
 	}
 	cache_.clear();
+	for (auto& entry : fallbackCache_) {
+		entry.second.reset();
+	}
+	fallbackCache_.clear();
 	graphicsReflectionByPipeline_.clear();
 }
 
 void Engine::PipelineStateCache::InvalidateByPipelineAsset(AssetID pipelineAssetID) {
 
 	for (auto it = cache_.begin(); it != cache_.end(); ) {
-		if (it->first.pipelineAsset == pipelineAssetID) {
+		if (it->first.pipelineAsset == pipelineAssetID || it->first.geometryPipelineAsset == pipelineAssetID) {
 			if (it->second) {
 				it->second.reset();
 			}
@@ -332,6 +465,34 @@ uint64_t Engine::PipelineStateCache::HashFormats(std::span<const DXGI_FORMAT> rt
 		mix(static_cast<uint64_t>(format));
 	}
 	return hash;
+}
+
+void Engine::PipelineStateCache::InvalidateByShaderOverride(AssetID shaderOverrideAssetID) {
+
+	for (auto it = cache_.begin(); it != cache_.end(); ) {
+		if (it->first.shaderOverrideAsset == shaderOverrideAssetID) {
+			fallbackCache_[it->first] = std::move(it->second);
+			it = cache_.erase(it);
+		} else {
+			++it;
+		}
+	}
+}
+
+const Engine::ShaderReflectionInfo* Engine::PipelineStateCache::FindGraphicsReflection(
+	AssetID pipelineAssetID, AssetID shaderOverrideAssetID) const {
+
+	for (const auto& [key, pipeline] : cache_) {
+		if (key.pipelineAsset == pipelineAssetID && key.shaderOverrideAsset == shaderOverrideAssetID && pipeline) {
+			return &pipeline->GetGraphicsReflection();
+		}
+	}
+	for (const auto& [key, pipeline] : fallbackCache_) {
+		if (key.pipelineAsset == pipelineAssetID && key.shaderOverrideAsset == shaderOverrideAssetID && pipeline) {
+			return &pipeline->GetGraphicsReflection();
+		}
+	}
+	return FindGraphicsReflection(pipelineAssetID);
 }
 
 uint64_t Engine::PipelineStateCache::HashStaticSamplerOverrides(

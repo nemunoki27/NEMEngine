@@ -22,6 +22,10 @@ namespace Engine {
 
 		// パイプラインアセットID
 		AssetID pipelineAsset{};
+		// Rendererが提供する形状パイプライン
+		AssetID geometryPipelineAsset{};
+		// Materialが提供する部分シェーダー
+		AssetID shaderOverrideAsset{};
 		// バリアントの種類
 		PipelineVariantKind resolvedKind = PipelineVariantKind::GraphicsVertex;
 
@@ -66,15 +70,27 @@ namespace Engine {
 			const GraphicsRuntimeFeatures& runtimeFeatures,
 			const PipelineVariantDesc** outVariant = nullptr, bool forceDepthTestWrite = false,
 			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr);
+		// 状態、形状ステージ、Materialステージを合成して取得する
+		const PipelineState* GetORCreateComposed(GraphicsPlatform& graphicsPlatform,
+			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, AssetID geometryPipelineAssetID,
+			AssetID shaderOverrideAssetID, PipelineVariantKind desiredKind,
+			std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
+			const GraphicsRuntimeFeatures& runtimeFeatures,
+			const PipelineVariantDesc** outVariant = nullptr);
 
 		// データクリア
 		void Clear();
 		// 指定パイプラインアセットIDに一致するエントリを削除する
 		void InvalidateByPipelineAsset(AssetID pipelineAssetID);
+		// 部分シェーダーを使うPSOを退避し、再生成失敗時に旧PSOへ戻せるようにする
+		void InvalidateByShaderOverride(AssetID shaderOverrideAssetID);
 
 		// 既に構築済みのグラフィックスパイプラインの統合reflectionを引く、未構築ならnullptr
 		// エディタのマテリアルインスペクタがPSOを再生成せずパラメータ一覧を得るために使う
 		const ShaderReflectionInfo* FindGraphicsReflection(AssetID pipelineAssetID) const;
+		// 部分シェーダーを含む構築済みパイプラインのreflectionを引く
+		const ShaderReflectionInfo* FindGraphicsReflection(AssetID pipelineAssetID,
+			AssetID shaderOverrideAssetID) const;
 	private:
 		//============================================================================
 		//	private Methods
@@ -86,13 +102,15 @@ namespace Engine {
 		struct PipelineCacheKeyHash {
 			size_t operator()(const PipelineCacheKey& key) const noexcept {
 				size_t h = std::hash<AssetID>{}(key.pipelineAsset);
-				h ^= (std::hash<uint32_t>{}(static_cast<uint32_t>(key.resolvedKind)) << 1);
-				h ^= (std::hash<uint64_t>{}(key.formatHash) << 2);
-				h ^= (std::hash<bool>{}(key.meshEnabled) << 3);
-				h ^= (std::hash<bool>{}(key.inlineRayTracingEnabled) << 4);
-				h ^= (std::hash<bool>{}(key.dispatchRaysEnabled) << 5);
-				h ^= (std::hash<bool>{}(key.depthForcedTestWrite) << 6);
-				h ^= (std::hash<uint64_t>{}(key.samplerHash) << 7);
+				h ^= (std::hash<AssetID>{}(key.geometryPipelineAsset) << 1);
+				h ^= (std::hash<AssetID>{}(key.shaderOverrideAsset) << 2);
+				h ^= (std::hash<uint32_t>{}(static_cast<uint32_t>(key.resolvedKind)) << 3);
+				h ^= (std::hash<uint64_t>{}(key.formatHash) << 4);
+				h ^= (std::hash<bool>{}(key.meshEnabled) << 5);
+				h ^= (std::hash<bool>{}(key.inlineRayTracingEnabled) << 6);
+				h ^= (std::hash<bool>{}(key.dispatchRaysEnabled) << 7);
+				h ^= (std::hash<bool>{}(key.depthForcedTestWrite) << 8);
+				h ^= (std::hash<uint64_t>{}(key.samplerHash) << 9);
 				return h;
 			}
 		};
@@ -100,6 +118,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::unordered_map<PipelineCacheKey, std::unique_ptr<PipelineState>, PipelineCacheKeyHash> cache_;
+		std::unordered_map<PipelineCacheKey, std::unique_ptr<PipelineState>, PipelineCacheKeyHash> fallbackCache_;
 		// pipelineAsset別の統合reflection、エディタからPSO再生成なしで参照するために保持する
 		std::unordered_map<AssetID, ShaderReflectionInfo> graphicsReflectionByPipeline_;
 

@@ -24,22 +24,40 @@ Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(const Particle
 	settings.model = asset.model;
 	settings.material = asset.material;
 	settings.sortMode = asset.sortMode;
+	settings.blendMode = asset.blendMode;
+	settings.queue = asset.queue;
 	settings.billboardAxes = asset.billboardAxes;
 	settings.trail = asset.trail;
 	settings.emitter = asset.emitter;
 	// フェーズごとのマテリアルと形状アニメの有無を集める
 	settings.phaseMaterials.reserve(asset.phases.size());
+	settings.phaseMaterialSettings.reserve(asset.phases.size());
 	for (const ParticleEffectPhase& phase : asset.phases) {
 
 		settings.phaseMaterials.emplace_back(phase.material);
+		settings.phaseMaterialSettings.emplace_back(phase.materialSettings);
 		for (const ParticleEffectModuleEntry& entry : phase.modules) {
 			if (entry.id == "ShapeOverLifetime") {
 				settings.shapeOverLifetime = true;
+			}
+			if (entry.id == "CustomShaderParameter") {
+
+				const auto parameters = entry.params.find("parameters");
+				if (parameters == entry.params.end() || !parameters->is_object()) {
+					continue;
+				}
+				for (auto parameter = parameters->begin(); parameter != parameters->end(); ++parameter) {
+
+					ParticleMaterialAnimatedParameter value{};
+					from_json(parameter.value(), value);
+					settings.phaseMaterialSettings.back().parameters[parameter.key()] = std::move(value);
+				}
 			}
 		}
 	}
 	if (settings.phaseMaterials.empty()) {
 		settings.phaseMaterials.emplace_back();
+		settings.phaseMaterialSettings.emplace_back();
 	}
 	return settings;
 }
@@ -107,6 +125,9 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 	outAsset.material = ParseAssetID(data, "material");
 	outAsset.sortMode = EnumAdapter<ParticleSortMode>::FromString(
 		data.value("sortMode", "None")).value_or(ParticleSortMode::None);
+	outAsset.blendMode = EnumAdapter<BlendMode>::FromString(
+		data.value("blendMode", "Add")).value_or(BlendMode::Add);
+	outAsset.queue = RenderPhaseFromString(data.value("queue", "Transparent"), RenderPhase::Transparent);
 	if (const auto it = data.find("billboardAxes"); it != data.end() && it->is_array()) {
 
 		outAsset.billboardAxes.clear();
@@ -170,7 +191,23 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 			phase.lifeEndMode = EnumAdapter<ParticleLifeEndMode>::FromString(
 				phaseJson.value("lifeEndMode", "Kill")).value_or(ParticleLifeEndMode::Kill);
 			phase.material = ParseAssetID(phaseJson, "material");
+			if (const auto mit = phaseJson.find("materialSettings"); mit != phaseJson.end()) {
+				from_json(*mit, phase.materialSettings);
+			}
 			readModules(phaseJson, phase.modules);
+			// 旧Phase直下のカスタムパラメータは専用モジュールへ移行する
+			if (const auto settings = phaseJson.find("materialSettings");
+				settings != phaseJson.end() && settings->is_object()) {
+
+				if (const auto parameters = settings->find("parameters");
+					parameters != settings->end() && parameters->is_object() && !parameters->empty()) {
+
+					ParticleEffectModuleEntry entry{};
+					entry.id = "CustomShaderParameter";
+					entry.params["parameters"] = *parameters;
+					phase.modules.emplace_back(std::move(entry));
+				}
+			}
 			outAsset.phases.emplace_back(std::move(phase));
 		}
 	} else {
@@ -226,6 +263,8 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 
 	data["material"] = ToAssetReferenceJson(asset.material);
 	data["sortMode"] = EnumAdapter<ParticleSortMode>::ToString(asset.sortMode);
+	data["blendMode"] = EnumAdapter<BlendMode>::ToString(asset.blendMode);
+	data["queue"] = std::string(ToString(asset.queue));
 	data["billboardAxes"] = nlohmann::json::array();
 	for (Axis axis : asset.billboardAxes) {
 		data["billboardAxes"].push_back(EnumAdapter<Axis>::ToString(axis));
@@ -249,6 +288,7 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 		to_json(phaseJson["lifetime"], phase.lifetime);
 		phaseJson["lifeEndMode"] = EnumAdapter<ParticleLifeEndMode>::ToString(phase.lifeEndMode);
 		phaseJson["material"] = ToAssetReferenceJson(phase.material);
+		to_json(phaseJson["materialSettings"], phase.materialSettings);
 		phaseJson["modules"] = nlohmann::json::array();
 		for (const ParticleEffectModuleEntry& entry : phase.modules) {
 

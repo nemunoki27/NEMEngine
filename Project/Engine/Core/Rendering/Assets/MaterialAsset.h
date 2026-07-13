@@ -25,6 +25,18 @@ namespace Engine {
 		Fullscreen,
 		Compute,
 	};
+	// マテリアルを使用する描画機能
+	enum class MaterialUsage :
+		uint8_t {
+
+		Generic,
+		Mesh,
+		Particle,
+		Sprite,
+		Text,
+		Line,
+		FillFaceMesh,
+	};
 
 	// マテリアル内の固定パス種別
 	enum class MaterialPassKind :
@@ -55,6 +67,8 @@ namespace Engine {
 		MaterialPassKind passKind = MaterialPassKind::Invalid;
 		// 使用されるパイプラインアセット
 		AssetID pipeline{};
+		// パイプラインのステージを上書きする部分シェーダー
+		AssetID shaderOverride{};
 		// パイプラインバリアントの種類
 		PipelineVariantKind preferredVariant = PipelineVariantKind::GraphicsVertex;
 	};
@@ -68,6 +82,8 @@ namespace Engine {
 		std::string name;
 		// マテリアルの種類
 		MaterialDomain domain = MaterialDomain::Surface;
+		// マテリアルを使用する描画機能
+		MaterialUsage usage = MaterialUsage::Generic;
 
 		// 使用されるパスのリスト
 		std::vector<MaterialPassBinding> passes;

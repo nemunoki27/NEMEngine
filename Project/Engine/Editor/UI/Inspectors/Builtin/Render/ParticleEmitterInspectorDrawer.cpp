@@ -36,8 +36,9 @@ void Engine::ParticleEmitterInspectorDrawer::DrawFields(const EditorPanelContext
 			return InspectorDrawerCommon::DrawCheckboxField("エミッター形状を描画", draft.drawEmitterShape);
 			});
 	}
-	// 描画パラメータ
-	InspectorDrawerCommon::DrawCommonRenderFields(
-		[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
-		draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
+	DrawField(anyItemActive, [&]() { return MyGUI::DragInt("レイヤー", draft.layer); });
+	DrawField(anyItemActive, [&]() { return MyGUI::DragInt("描画順", draft.order); });
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
+		});
 }

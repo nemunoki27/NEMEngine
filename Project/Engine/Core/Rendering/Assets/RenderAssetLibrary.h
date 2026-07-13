@@ -45,6 +45,9 @@ namespace Engine {
 
 		// マテリアルのキャッシュを破棄して次回ロードでファイルから読み直させる、実行中の編集反映に使う
 		void InvalidateMaterial(AssetID assetID) { materialCache_.erase(assetID); }
+		// シェーダーとパイプラインのアセットキャッシュを破棄する
+		void InvalidateShader(AssetID assetID) { shaderCache_.erase(assetID); }
+		void InvalidatePipeline(AssetID assetID) { pipelineCache_.erase(assetID); }
 		// パーティクルエフェクトのキャッシュを破棄する、実行中の編集反映に使う
 		void InvalidateParticleEffect(AssetID assetID) { particleEffectCache_.erase(assetID); }
 
@@ -61,6 +64,11 @@ namespace Engine {
 		// IDからJSONアセットを読み込みキャッシュへ格納する共通処理
 		template <typename T>
 		const T* LoadCachedAsset(std::unordered_map<AssetID, T>& cache, AssetID assetID);
+		// 読み込んだアセットの実行時参照を解決
+		template <typename T>
+		void ResolveRuntimeReferences(T&) {}
+		// シェーダーソース参照を実体パスへ解決
+		void ResolveRuntimeReferences(ShaderAsset& asset);
 
 		//--------- variables ----------------------------------------------------
 

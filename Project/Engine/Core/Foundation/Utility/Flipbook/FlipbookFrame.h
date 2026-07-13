@@ -7,12 +7,13 @@
 
 // c++
 #include <cstdint>
+#include <span>
 
 namespace Engine {
 
 	//============================================================================
 	//	FlipbookFrame
-	//	フリップブックのコマUV、スプライトとパーティクルで共用する
+	//	フリップブックのコマUV
 	//============================================================================
 	struct FlipbookFrame {
 
@@ -23,5 +24,5 @@ namespace Engine {
 	};
 
 	// 分割数と進行度0~1からコマUVを求める、左上から右下の順に送る
-	FlipbookFrame CalcFlipbookFrame(int32_t tilesX, int32_t tilesY, float progress);
+	FlipbookFrame CalcFlipbookFrame(std::span<const int32_t> tilesX, int32_t tilesY, float progress);
 } // Engine

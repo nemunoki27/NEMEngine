@@ -555,8 +555,8 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 	const std::unordered_map<std::string, MaterialParameterValue>& defaults =
 		material ? material->parameters : emptyMap;
 
-	// strideは16整列したレイアウトサイズでHLSLの構造化バッファ要素サイズと一致させる
-	const uint32_t stride = (std::max)(layout.GetSizeInBytes(), 16u);
+	// リフレクションから取得した構造体strideをそのまま使用する
+	const uint32_t stride = layout.GetSizeInBytes();
 	const uint32_t elementCount = static_cast<uint32_t>(subMeshParamScratch_.size());
 	std::vector<uint8_t> packed(static_cast<size_t>(stride) * elementCount, 0);
 	for (uint32_t i = 0; i < elementCount; ++i) {

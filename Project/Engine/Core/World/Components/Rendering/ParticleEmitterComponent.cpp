@@ -10,7 +10,9 @@ void Engine::from_json(const nlohmann::json& in, ParticleEmitterComponent& compo
 	component.playInEditMode = in.value("playInEditMode", component.playInEditMode);
 	component.drawEmitterShape = in.value("drawEmitterShape", component.drawEmitterShape);
 
-	ReadRenderCommonFields(in, component.layer, component.order, component.visible, component.blendMode, component.queue);
+	component.layer = in.value("layer", component.layer);
+	component.order = in.value("order", component.order);
+	component.visible = in.value("visible", component.visible);
 }
 
 void Engine::to_json(nlohmann::json& out, const ParticleEmitterComponent& component) {
@@ -20,5 +22,7 @@ void Engine::to_json(nlohmann::json& out, const ParticleEmitterComponent& compon
 	out["playInEditMode"] = component.playInEditMode;
 	out["drawEmitterShape"] = component.drawEmitterShape;
 
-	WriteRenderCommonFields(out, component.layer, component.order, component.visible, component.blendMode, component.queue);
+	out["layer"] = component.layer;
+	out["order"] = component.order;
+	out["visible"] = component.visible;
 }

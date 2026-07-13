@@ -65,9 +65,23 @@ const Engine::PipelineState* Engine::BackendDrawCommon::ResolveGraphicsPipeline(
 	const PipelineVariantKind desiredKind = context.forceVertexMeshVariant ?
 		PipelineVariantKind::GraphicsVertex :
 		passBinding.preferredVariant;
+	if (passBinding.shaderOverride) {
+		return context.pipelineCache->GetORCreateComposed(context.graphicsCore->GetDXObject(), *context.assetLibrary,
+			passBinding.pipeline, passBinding.pipeline, passBinding.shaderOverride, desiredKind,
+			context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures, outVariant);
+	}
 	return context.pipelineCache->GetORCreate(context.graphicsCore->GetDXObject(), *context.assetLibrary,
 		passBinding.pipeline, desiredKind, context.GetRTVFormats(), context.dsvFormat,
 		context.runtimeFeatures, outVariant, forceDepthTestWrite);
+}
+
+const Engine::PipelineState* Engine::BackendDrawCommon::ResolveComposedGraphicsPipeline(
+	const RenderDrawContext& context, const MaterialPassBinding& passBinding, AssetID geometryPipeline,
+	PipelineVariantKind desiredKind, const PipelineVariantDesc** outVariant) {
+
+	return context.pipelineCache->GetORCreateComposed(context.graphicsCore->GetDXObject(), *context.assetLibrary,
+		passBinding.pipeline, geometryPipeline, passBinding.shaderOverride, desiredKind,
+		context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures, outVariant);
 }
 
 ID3D12GraphicsCommandList6* Engine::BackendDrawCommon::SetupGraphicsPipeline(const RenderDrawContext& context,

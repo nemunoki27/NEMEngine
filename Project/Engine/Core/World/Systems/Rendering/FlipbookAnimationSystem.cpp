@@ -35,20 +35,31 @@ void Engine::FlipbookAnimationSystem::Update(ECSWorld& world, SystemContext& con
 		// 経過時間を進め、ループか終了を判定する
 		const float duration = (std::max)(flipbook.duration, 0.001f);
 		flipbook.runtimeElapsed += deltaTime;
-		flipbook.runtimePlaying = true;
-		float progress = flipbook.runtimeElapsed / duration;
+		float progress = 0.0f;
 		if (flipbook.loop) {
+
+			const float loopInterval = (std::max)(flipbook.loopInterval, 0.0f);
+			const float loopDuration = duration + loopInterval;
+			if (loopDuration <= flipbook.runtimeElapsed) {
+
+				flipbook.runtimeRepeatCount += static_cast<int32_t>(flipbook.runtimeElapsed / loopDuration);
+				flipbook.runtimeElapsed = std::fmod(flipbook.runtimeElapsed, loopDuration);
+			}
+
+			const bool waitingNextLoop = duration <= flipbook.runtimeElapsed;
+			progress = waitingNextLoop ? 1.0f : flipbook.runtimeElapsed / duration;
+			flipbook.runtimePlaying = !waitingNextLoop;
+			flipbook.runtimeAnimationFinished = false;
+		} else {
+
+			flipbook.runtimePlaying = true;
+			progress = flipbook.runtimeElapsed / duration;
 			if (1.0f <= progress) {
 
-				flipbook.runtimeRepeatCount += static_cast<int32_t>(progress);
-				flipbook.runtimeElapsed = std::fmod(flipbook.runtimeElapsed, duration);
-				progress = flipbook.runtimeElapsed / duration;
+				progress = 1.0f;
+				flipbook.runtimePlaying = false;
+				flipbook.runtimeAnimationFinished = true;
 			}
-		} else if (1.0f <= progress) {
-
-			progress = 1.0f;
-			flipbook.runtimePlaying = false;
-			flipbook.runtimeAnimationFinished = true;
 		}
 
 		// 再生終了後に何も表示させない場合はUVを潰す
@@ -59,8 +70,7 @@ void Engine::FlipbookAnimationSystem::Update(ECSWorld& world, SystemContext& con
 		}
 
 		// イージングを掛けた進行度からコマを求めてUVへ反映する
-		const FlipbookFrame frame = CalcFlipbookFrame(
-			flipbook.tilesX, flipbook.tilesY, EasedValue(flipbook.easingType, progress));
+		const FlipbookFrame frame = CalcFlipbookFrame(flipbook.tilesX, flipbook.tilesY, EasedValue(flipbook.easingType, progress));
 		uvTransform->scale = frame.uvScale;
 		uvTransform->pos = frame.uvOffset;
 		});

@@ -153,6 +153,7 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 	outAsset.guid = ParseAssetID(data, "guid");
 	outAsset.name = data.value("name", "UnnamedMaterial");
 	outAsset.domain = EnumAdapter<MaterialDomain>::FromString(data.value("domain", "Surface")).value_or(MaterialDomain::Surface);
+	outAsset.usage = EnumAdapter<MaterialUsage>::FromString(data.value("usage", "Generic")).value_or(MaterialUsage::Generic);
 	if (data.contains("passes") && data["passes"].is_array()) {
 		for (const auto& passJson : data["passes"]) {
 
@@ -167,6 +168,7 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 			}
 			binding.passKind = *passKind;
 			binding.pipeline = ParseAssetID(passJson, "pipeline");
+			binding.shaderOverride = ParseAssetID(passJson, "shaderOverride");
 			binding.preferredVariant = EnumAdapter<PipelineVariantKind>::FromString(passJson.value("preferredVariant",
 				"GraphicsVertex")).value_or(PipelineVariantKind::GraphicsVertex);
 
@@ -196,11 +198,15 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 	data["guid"] = ToString(asset.guid);
 	data["name"] = asset.name;
 	data["domain"] = EnumAdapter<MaterialDomain>::ToString(asset.domain);
+	data["usage"] = EnumAdapter<MaterialUsage>::ToString(asset.usage);
 	data["passes"] = nlohmann::json::array();
 	for (const auto& pass : asset.passes) {
 		nlohmann::json item = nlohmann::json::object();
 		item["passKind"] = EnumAdapter<MaterialPassKind>::ToString(pass.passKind);
 		item["pipeline"] = ToAssetReferenceJson(pass.pipeline);
+		if (pass.shaderOverride) {
+			item["shaderOverride"] = ToAssetReferenceJson(pass.shaderOverride);
+		}
 		item["preferredVariant"] = EnumAdapter<PipelineVariantKind>::ToString(pass.preferredVariant);
 		data["passes"].push_back(item);
 	}

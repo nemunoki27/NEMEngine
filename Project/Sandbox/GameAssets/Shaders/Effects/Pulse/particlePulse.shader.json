@@ -1,0 +1,12 @@
+{
+  "name": "particleHotReloadPulseShader",
+  "stages": [
+    {
+      "stage": "PS",
+      "file": "b220000000000001",
+      "entry": "main",
+      "profile": "ps_6_6"
+    }
+  ],
+  "colorParameters": [ "emissionColor" ]
+}

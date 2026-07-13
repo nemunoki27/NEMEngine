@@ -330,26 +330,6 @@ namespace {
 		return IM_COL32(r, g, b, 255);
 	}
 
-	std::string MakeAxisLabel(const Engine::CurveQuaternionAxisKey& axisKey) {
-
-		if (axisKey.useCustomAxis) {
-			const Engine::Vector3 axis = Engine::QuaternionAxisKeyUtility::GetAxisDirection(axisKey);
-			return std::format("Custom({:.2f}, {:.2f}, {:.2f})", axis.x, axis.y, axis.z);
-		}
-		if (axisKey.axes.empty()) {
-			return "X";
-		}
-
-		std::string label;
-		for (uint32_t i = 0; i < axisKey.axes.size(); ++i) {
-			if (!label.empty()) {
-				label += "+";
-			}
-			label += Engine::EnumAdapter<Engine::Axis>::ToString(axisKey.axes[i]);
-		}
-		return label;
-	}
-
 	uint32_t FindQuaternionAxisIndex(std::span<Engine::CurveChannel> channels, float time) {
 
 		if (channels.empty() || channels[0].keys.empty()) {
@@ -399,77 +379,12 @@ namespace {
 		channels[0].keys[keyIndex].interpolation = Engine::CurveInterpolationMode::Constant;
 	}
 
-	void DrawToolbarCurrentValues(std::span<Engine::CurveChannel> channels, const Engine::CurveEditorState& state,
-		std::span<Engine::CurveQuaternionAxisKey> quaternionAxisKeys) {
-
-		if (channels.empty()) {
-			return;
-		}
-
-		ImGui::SameLine();
-		ImGui::TextUnformatted("=");
-
-		if (IsColorChannelSet(channels)) {
-			float r = channels[0].Evaluate(state.currentTime);
-			float g = channels[1].Evaluate(state.currentTime);
-			float b = channels[2].Evaluate(state.currentTime);
-			float a = channels.size() >= 4 ? channels[3].Evaluate(state.currentTime) : 1.0f;
-			r = (std::clamp)(r, 0.0f, 1.0f);
-			g = (std::clamp)(g, 0.0f, 1.0f);
-			b = (std::clamp)(b, 0.0f, 1.0f);
-			a = (std::clamp)(a, 0.0f, 1.0f);
-
-			ImGui::SameLine(0.0f, 6.0f);
-			ImGui::ColorButton("##CurrentColorAtTime",
-				ImVec4(r, g, b, a),
-				ImGuiColorEditFlags_NoTooltip,
-				ImVec2(kCurveToolbarItemSize.y, kCurveToolbarItemSize.y));
-
-			for (uint32_t i = 0; i < channels.size(); ++i) {
-				const Engine::CurveChannel& channel = channels[i];
-				const float value = channel.Evaluate(state.currentTime);
-				ImGui::SameLine(0.0f, 6.0f);
-				ImGui::TextColored(
-					ImVec4(channel.displayColor.r, channel.displayColor.g, channel.displayColor.b, channel.displayColor.a),
-					"%s: %.3f",
-					channel.name.c_str(),
-					value);
-			}
-			return;
-		}
-
-		if (IsQuaternionCurveSet(channels)) {
-			const Engine::CurveQuaternionAxisKey axisKey = EvaluateQuaternionAxisKey(channels, quaternionAxisKeys, state.currentTime);
-			const std::string axisLabel = MakeAxisLabel(axisKey);
-			const float angle = channels[1].Evaluate(state.currentTime);
-			ImGui::SameLine(0.0f, 6.0f);
-			ImGui::TextColored(
-				ImGui::ColorConvertU32ToFloat4(GetAxisColor(axisKey)),
-				"Axis: %s",
-				axisLabel.c_str());
-			ImGui::SameLine(0.0f, 6.0f);
-			ImGui::TextColored(
-				ImVec4(channels[1].displayColor.r, channels[1].displayColor.g, channels[1].displayColor.b, channels[1].displayColor.a),
-				"Angle: %.3f",
-				angle);
-			return;
-		}
-
-		for (uint32_t i = 0; i < channels.size(); ++i) {
-			const Engine::CurveChannel& channel = channels[i];
-			const float value = channel.Evaluate(state.currentTime);
-			ImGui::SameLine(0.0f, 6.0f);
-			ImGui::TextColored(
-				ImVec4(channel.displayColor.r, channel.displayColor.g, channel.displayColor.b, channel.displayColor.a),
-				"%s: %.3f",
-				channel.name.c_str(),
-				value);
-		}
-	}
-	// toolbar用のチェックボックスを正方形で描画する
-	bool DrawToolbarCheckbox(const char* label, bool& value) {
+	bool DrawToolbarCheckbox(const char* label, bool& value, const ImVec4& labelColor) {
 
 		ImGui::PushID(label);
+
+		ImGui::TextColored(labelColor, "%s", label);
+		ImGui::SameLine(0.0f, 3.0f);
 
 		const ImVec2 squareSize(kCurveToolbarItemSize.y, kCurveToolbarItemSize.y);
 		const ImVec2 squareMin = ImGui::GetCursorScreenPos();
@@ -493,14 +408,66 @@ namespace {
 			ImGui::RenderCheckMark(drawList, checkPos, ImGui::GetColorU32(ImGuiCol_CheckMark), checkSize);
 		}
 
-		ImGui::SameLine(0.0f, 4.0f);
-		const float textY = ImGui::GetCursorPosY();
-		ImGui::SetCursorPosY(textY + (kCurveToolbarItemSize.y - ImGui::GetTextLineHeight()) * 0.5f);
-		ImGui::TextUnformatted(label);
-		ImGui::SetCursorPosY(textY);
-
 		ImGui::PopID();
 		return clicked;
+	}
+
+	void DrawToolbarChannelVisibility(std::span<Engine::CurveChannel> channels, Engine::CurveEditorState& state) {
+
+		if (channels.empty()) {
+			return;
+		}
+
+		ImGui::SameLine();
+
+		if (IsColorChannelSet(channels)) {
+			bool rgbVisible = state.IsChannelVisible(0);
+			if (DrawToolbarCheckbox("RGB", rgbVisible, ImVec4(1.0f, 1.0f, 1.0f, 1.0f))) {
+				state.SetChannelVisible(0, rgbVisible);
+				state.SetChannelVisible(1, rgbVisible);
+				state.SetChannelVisible(2, rgbVisible);
+			}
+			if (channels.size() >= 4) {
+				ImGui::SameLine(0.0f, 8.0f);
+				bool alphaVisible = state.IsChannelVisible(3);
+				const Engine::CurveChannel& alphaChannel = channels[3];
+				if (DrawToolbarCheckbox("A", alphaVisible,
+					ImVec4(alphaChannel.displayColor.r, alphaChannel.displayColor.g,
+						alphaChannel.displayColor.b, alphaChannel.displayColor.a))) {
+					state.SetChannelVisible(3, alphaVisible);
+				}
+			}
+			return;
+		}
+
+		if (IsQuaternionCurveSet(channels)) {
+			for (uint32_t i = 0; i < channels.size(); ++i) {
+				if (i != 0) {
+					ImGui::SameLine(0.0f, 8.0f);
+				}
+				const Engine::CurveChannel& channel = channels[i];
+				bool visible = state.IsChannelVisible(i);
+				if (DrawToolbarCheckbox(channel.name.c_str(), visible,
+					ImVec4(channel.displayColor.r, channel.displayColor.g,
+						channel.displayColor.b, channel.displayColor.a))) {
+					state.SetChannelVisible(i, visible);
+				}
+			}
+			return;
+		}
+
+		for (uint32_t i = 0; i < channels.size(); ++i) {
+			if (i != 0) {
+				ImGui::SameLine(0.0f, 8.0f);
+			}
+			const Engine::CurveChannel& channel = channels[i];
+			bool visible = state.IsChannelVisible(i);
+			if (DrawToolbarCheckbox(channel.name.c_str(), visible,
+				ImVec4(channel.displayColor.r, channel.displayColor.g,
+					channel.displayColor.b, channel.displayColor.a))) {
+				state.SetChannelVisible(i, visible);
+			}
+		}
 	}
 	// ドラッグ方向に関わらず矩形のmin/maxを整える
 	void NormalizeRect(ImVec2& minPos, ImVec2& maxPos) {
@@ -1219,11 +1186,71 @@ namespace {
 		}
 		state.ClearSelection();
 	}
+	// 選択中キーが属するチャンネルのキーをすべて削除する
+	void DeleteSelectedChannelKeys(std::span<Engine::CurveChannel> channels, Engine::CurveEditorState& state,
+		std::vector<Engine::CurveQuaternionAxisKey>* quaternionAxisKeys) {
+
+		if (state.selectedKeys.empty()) {
+			return;
+		}
+
+		if (IsQuaternionCurveSet(channels)) {
+			bool deleteAxis = false;
+			bool deleteAngle = false;
+			for (const Engine::CurveKeySelection& selection : state.selectedKeys) {
+				deleteAxis |= IsQuaternionAxisSelection(channels, selection);
+				deleteAngle |= IsQuaternionAngleSelection(channels, selection);
+			}
+			if (deleteAxis) {
+				channels[0].keys.clear();
+				if (quaternionAxisKeys) {
+					quaternionAxisKeys->clear();
+				}
+			}
+			if (deleteAngle) {
+				channels[1].keys.clear();
+			}
+			state.ClearSelection();
+			return;
+		}
+
+		if (IsColorCurveSet(channels)) {
+			bool deleteRgb = false;
+			bool deleteAlpha = false;
+			for (const Engine::CurveKeySelection& selection : state.selectedKeys) {
+				deleteRgb |= selection.channelIndex < 3u;
+				deleteAlpha |= HasAlphaChannel(channels) && selection.channelIndex == 3u;
+			}
+			if (deleteRgb) {
+				channels[0].keys.clear();
+				channels[1].keys.clear();
+				channels[2].keys.clear();
+			}
+			if (deleteAlpha) {
+				channels[3].keys.clear();
+			}
+			state.ClearSelection();
+			return;
+		}
+
+		std::vector<uint32_t> channelIndices{};
+		channelIndices.reserve(state.selectedKeys.size());
+		for (const Engine::CurveKeySelection& selection : state.selectedKeys) {
+			if (selection.channelIndex < channels.size()) {
+				channelIndices.emplace_back(selection.channelIndex);
+			}
+		}
+		std::sort(channelIndices.begin(), channelIndices.end());
+		channelIndices.erase(std::unique(channelIndices.begin(), channelIndices.end()), channelIndices.end());
+		for (uint32_t channelIndex : channelIndices) {
+			channels[channelIndex].keys.clear();
+		}
+		state.ClearSelection();
+	}
 	// 上部ツールバーを描画する
 	void DrawToolbar(std::span<Engine::CurveChannel> channels,
 		Engine::CurveEditorState& state,
-		Engine::CurveEditResult& result,
-		std::span<Engine::CurveQuaternionAxisKey> quaternionAxisKeys) {
+		Engine::CurveEditResult& result) {
 
 		const float previousFontScale = ImGui::GetCurrentWindow()->FontWindowScale;
 		ImGui::SetWindowFontScale(kCurveEditorFontScale);
@@ -1238,7 +1265,7 @@ namespace {
 		state.snapEnabled = true;
 		state.snapInterval = 0.001f;
 		DrawToolbarDragFloat("時間", state.currentTime, 0.01f, 0.0f, 10000.0f, "%.3f");
-		DrawToolbarCurrentValues(channels, state, quaternionAxisKeys);
+		DrawToolbarChannelVisibility(channels, state);
 
 		ImGui::SetWindowFontScale(previousFontScale);
 	}
@@ -1532,6 +1559,11 @@ namespace {
 					result.valueChanged = true;
 					result.selectionChanged = true;
 				}
+				if (ImGui::MenuItem("選択しているチャネルキーをすべて削除")) {
+					DeleteSelectedChannelKeys(channels, state, quaternionAxisKeys);
+					result.valueChanged = true;
+					result.selectionChanged = true;
+				}
 			}
 			if (!state.contextMenuOnKey) {
 				if (ImGui::BeginMenu("キー追加")) {
@@ -1807,7 +1839,7 @@ namespace {
 
 	// ツールバーはGraph本体より先に描画する
 	if (setting.showToolbar) {
-		DrawToolbar(channels, state, result, ToAxisKeySpan(quaternionAxisKeys));
+		DrawToolbar(channels, state, result);
 		ImGui::Separator();
 	}
 

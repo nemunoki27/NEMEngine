@@ -5,17 +5,27 @@
 //============================================================================
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Assets/ShaderAsset.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 
 // imgui
 #include <imgui.h>
 
 // c++
 #include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <optional>
 #include <string>
+#include <unordered_set>
 // json
 #include <json.hpp>
 
@@ -42,6 +52,34 @@ namespace {
 		return Engine::EnumAdapter<T>::FromString(object[key].get<std::string>()).value_or(fallback);
 	}
 
+	// 作成タイプをマテリアル用途へ変換する
+	Engine::MaterialUsage ToMaterialUsage(Engine::MaterialCreateType type) {
+
+		switch (type) {
+		case Engine::MaterialCreateType::Mesh: return Engine::MaterialUsage::Mesh;
+		case Engine::MaterialCreateType::Particle: return Engine::MaterialUsage::Particle;
+		case Engine::MaterialCreateType::Sprite: return Engine::MaterialUsage::Sprite;
+		case Engine::MaterialCreateType::Text: return Engine::MaterialUsage::Text;
+		case Engine::MaterialCreateType::Line: return Engine::MaterialUsage::Line;
+		case Engine::MaterialCreateType::FillFaceMesh: return Engine::MaterialUsage::FillFaceMesh;
+		default: return Engine::MaterialUsage::Generic;
+		}
+	}
+
+	// マテリアル用途を作成タイプへ変換する
+	std::optional<Engine::MaterialCreateType> ToMaterialCreateType(Engine::MaterialUsage usage) {
+
+		switch (usage) {
+		case Engine::MaterialUsage::Mesh: return Engine::MaterialCreateType::Mesh;
+		case Engine::MaterialUsage::Particle: return Engine::MaterialCreateType::Particle;
+		case Engine::MaterialUsage::Sprite: return Engine::MaterialCreateType::Sprite;
+		case Engine::MaterialUsage::Text: return Engine::MaterialCreateType::Text;
+		case Engine::MaterialUsage::Line: return Engine::MaterialCreateType::Line;
+		case Engine::MaterialUsage::FillFaceMesh: return Engine::MaterialCreateType::FillFaceMesh;
+		default: return std::nullopt;
+		}
+	}
+
 	// 1ステージ分のjsonを作る、fileはhlslのGUID参照
 	nlohmann::json MakeStageJson(const char* stage, Engine::AssetID hlsl, const char* profile) {
 
@@ -55,10 +93,13 @@ namespace {
 
 	// shader.jsonを作る、Mesh以外はMS/ASを含めずLineはGSを含める
 	nlohmann::json MakeShaderJson(const std::string& name, Engine::AssetID vs, Engine::AssetID ps,
-		Engine::AssetID ms, Engine::AssetID as, Engine::AssetID gs, bool includeMeshStages, bool includeGeometryStage) {
+		Engine::AssetID ms, Engine::AssetID as, Engine::AssetID gs, bool includeMeshStages,
+		bool includeGeometryStage, bool pixelOnly) {
 
 		nlohmann::json stages = nlohmann::json::array();
-		stages.push_back(MakeStageJson("VS", vs, "vs_6_6"));
+		if (!pixelOnly) {
+			stages.push_back(MakeStageJson("VS", vs, "vs_6_6"));
+		}
 		if (includeMeshStages && as) {
 			stages.push_back(MakeStageJson("AS", as, "as_6_6"));
 		}
@@ -123,24 +164,30 @@ namespace {
 
 	// material.jsonを作る、domain/passKindはタイプで決める
 	nlohmann::json MakeMaterialJson(const std::string& name, Engine::AssetID pipelineID,
-		Engine::MaterialCreateType type, bool useMeshShader, bool useGeometryShader) {
+		Engine::AssetID shaderOverride, Engine::MaterialCreateType type,
+		bool useMeshShader, bool useGeometryShader) {
 
 		// Mesh/Line/FillFaceMeshは3DワールドなのでSurface、Sprite/TextはUI
 		const bool surfaceDomain = (type == Engine::MaterialCreateType::Mesh) ||
+			(type == Engine::MaterialCreateType::Particle) ||
 			(type == Engine::MaterialCreateType::Line) || (type == Engine::MaterialCreateType::FillFaceMesh);
 		const char* domain = surfaceDomain ? "Surface" : "UI";
 		const char* preferredVariant = useMeshShader ? "GraphicsMesh" : (useGeometryShader ? "GraphicsGeometry" : "GraphicsVertex");
+		const char* passKind = type == Engine::MaterialCreateType::Particle ? "Transparent" : "Draw";
+		nlohmann::json pass{
+			{ "passKind", passKind },
+			{ "pipeline", Engine::ToAssetReferenceJson(pipelineID) },
+			{ "preferredVariant", preferredVariant },
+		};
+		if (shaderOverride) {
+			pass["shaderOverride"] = Engine::ToAssetReferenceJson(shaderOverride);
+		}
 
 		return nlohmann::json{
 			{ "name", name },
 			{ "domain", domain },
-			{ "passes", nlohmann::json::array({
-				{
-					{ "passKind", "Draw" },
-					{ "pipeline", Engine::ToAssetReferenceJson(pipelineID) },
-					{ "preferredVariant", preferredVariant },
-				}
-			}) },
+			{ "usage", Engine::EnumAdapter<Engine::MaterialUsage>::ToString(ToMaterialUsage(type)) },
+			{ "passes", nlohmann::json::array({ pass }) },
 			{ "parameters", nlohmann::json::object() },
 		};
 	}
@@ -188,6 +235,16 @@ void Engine::MaterialEditorTool::DrawWindow(const EditorToolContext& context) {
 		if (ImGui::BeginTabItem("マテリアル作成")) {
 
 			DrawCreateMaterialSection(context);
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem("パラメータ編集")) {
+
+			DrawMaterialParameterSection(context);
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem("Particle PS編集")) {
+
+			DrawParticleShaderSection(context);
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
@@ -244,11 +301,13 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 		ApplyTypeDefaults(createType_);
 	}
 
-	// 対象シェーダー、VS/PSは必須でMS/ASはMeshのときだけ任意で受け付ける
+	// 対象シェーダー、ParticleはPSだけを選び形状ステージをRendererに任せる
 	ImGui::Separator();
 	{
 		AssetEditSetting setting{};
-		MyGUI::AssetReferenceField("VertexShader 必須", createVS_, assetDatabase, { AssetType::Shader }, setting);
+		if (createType_ != MaterialCreateType::Particle) {
+			MyGUI::AssetReferenceField("VertexShader 必須", createVS_, assetDatabase, { AssetType::Shader }, setting);
+		}
 		MyGUI::AssetReferenceField("PixelShader 必須", createPS_, assetDatabase, { AssetType::Shader }, setting);
 		if (createType_ == MaterialCreateType::Mesh) {
 
@@ -309,7 +368,9 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 	ImGui::SeparatorText("作成");
 	MyGUI::InputText("GameAssets/Materials/", createRelativePath_);
 
-	const bool canCreate = static_cast<bool>(createVS_) && static_cast<bool>(createPS_) && !createRelativePath_.empty();
+	const bool needsVS = createType_ != MaterialCreateType::Particle;
+	const bool canCreate = (!needsVS || static_cast<bool>(createVS_)) &&
+		static_cast<bool>(createPS_) && !createRelativePath_.empty();
 	ImGui::BeginDisabled(!canCreate);
 	if (ImGui::Button("Create", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 		CreateMaterialAssets(context);
@@ -321,6 +382,273 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 	}
 }
 
+void Engine::MaterialEditorTool::DrawParticleShaderSection(const EditorToolContext& context) {
+
+	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
+	AssetEditSetting setting{};
+	AssetID material = editParticleMaterial_;
+	if (MyGUI::AssetReferenceField("Particle Material", material,
+		assetDatabase, { AssetType::Material }, setting).valueChanged) {
+
+		editParticleMaterial_ = material;
+		LoadParticleShaderSource(context);
+	}
+	if (!editShaderSourcePath_.empty()) {
+		ImGui::TextDisabled("%s", editShaderSourcePath_.string().c_str());
+	}
+	TextEditSetting sourceSetting{};
+	sourceSetting.multiLine = true;
+	sourceSetting.size = ImVec2(0.0f, (std::max)(240.0f, ImGui::GetContentRegionAvail().y - 70.0f));
+	sourceSetting.flags = ImGuiInputTextFlags_AllowTabInput;
+	MyGUI::InputText("##ParticlePixelShaderSource", editShaderSource_, sourceSetting);
+
+	const bool canSave = !editShaderSourcePath_.empty() && editShaderSource_ != editShaderOriginal_;
+	ImGui::BeginDisabled(!canSave);
+	if (ImGui::Button("保存して反映", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f, 0.0f))) {
+		SaveParticleShaderSource(context);
+	}
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	ImGui::BeginDisabled(editShaderSourcePath_.empty());
+	if (ImGui::Button("再読込", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+		LoadParticleShaderSource(context);
+	}
+	ImGui::EndDisabled();
+	if (!editShaderMessage_.empty()) {
+		ImGui::TextWrapped("%s", editShaderMessage_.c_str());
+	}
+}
+
+void Engine::MaterialEditorTool::DrawMaterialParameterSection(const EditorToolContext& context) {
+
+	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
+	AssetEditSetting setting{};
+	AssetID material = editParameterMaterial_;
+	if (MyGUI::AssetReferenceField("Material", material,
+		assetDatabase, { AssetType::Material }, setting).valueChanged) {
+
+		editParameterMaterial_ = material;
+		LoadMaterialParameters(context, material);
+	}
+	if (!editParameterDraftValid_) {
+
+		if (!editParameterMessage_.empty()) {
+			ImGui::TextWrapped("%s", editParameterMessage_.c_str());
+		}
+		return;
+	}
+
+	if (MyGUI::EnumCombo("用途", editParameterDraft_.usage).valueChanged) {
+		editParameterDirty_ = true;
+	}
+
+	const ShaderReflectionInfo* reflection = nullptr;
+	if (context.panelContext && context.panelContext->renderPipeline) {
+		reflection = context.panelContext->renderPipeline->FindMaterialDrawReflection(editParameterDraft_);
+	}
+
+	ImGui::Spacing();
+	if (MyGUI::CollapsingHeader("Shader Parameters", true)) {
+
+		if (!reflection) {
+			ImGui::TextDisabled("シェーダーreflectionをまだ取得できません");
+			ImGui::TextDisabled("対象マテリアルが一度描画されると自動で列挙されます");
+		} else {
+			const size_t parameterCount = editParameterDraft_.parameters.size();
+			editParameterDirty_ |= MaterialParameterEditor::DrawReflectedCBufferParameters(
+				*reflection, MaterialParameterCBuffer::kSurface, editParameterDraft_.parameters);
+			editParameterDirty_ |= parameterCount != editParameterDraft_.parameters.size();
+		}
+	}
+
+	ImGui::Spacing();
+	if (MyGUI::CollapsingHeader("Shader Textures", true)) {
+
+		bool anyTexture = false;
+		std::unordered_set<std::string> drawnTextures;
+		if (reflection) {
+			for (const ShaderResourceBinding& resource : reflection->resources) {
+
+				if (resource.kind != ShaderBindingKind::SRV || resource.space != 2 ||
+					resource.rawType != D3D_SIT_TEXTURE || drawnTextures.count(resource.name) != 0) {
+					continue;
+				}
+				drawnTextures.insert(resource.name);
+				anyTexture = true;
+
+				AssetID texture{};
+				const auto it = editParameterDraft_.parameters.find(resource.name);
+				if (it != editParameterDraft_.parameters.end()) {
+					if (const AssetID* id = std::get_if<AssetID>(&it->second.value)) {
+						texture = *id;
+					}
+				}
+				if (MyGUI::AssetReferenceField(resource.name.c_str(), texture,
+					assetDatabase, { AssetType::Texture }, setting).editFinished) {
+
+					editParameterDraft_.parameters[resource.name].value = texture;
+					editParameterDirty_ = true;
+				}
+			}
+		}
+		if (!anyTexture) {
+			ImGui::TextDisabled("space2のマテリアルテクスチャがありません");
+		}
+	}
+
+	ImGui::Spacing();
+	ImGui::BeginDisabled(!editParameterDirty_);
+	if (ImGui::Button("保存して反映", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+		SaveMaterialParameters(context);
+	}
+	ImGui::EndDisabled();
+	if (!editParameterMessage_.empty()) {
+		ImGui::TextWrapped("%s", editParameterMessage_.c_str());
+	}
+}
+
+bool Engine::MaterialEditorTool::LoadMaterialParameters(const EditorToolContext& context, AssetID materialID) {
+
+	editParameterDraft_ = MaterialAsset{};
+	editParameterDraftValid_ = false;
+	editParameterDirty_ = false;
+	editParameterMessage_.clear();
+	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
+	if (!assetDatabase || !materialID) {
+		return false;
+	}
+
+	const std::filesystem::path path = assetDatabase->ResolveFullPath(materialID);
+	if (path.empty() || !FromJson(JsonAdapter::Load(path.string(), false), editParameterDraft_)) {
+		editParameterMessage_ = "マテリアルを読み込めません";
+		return false;
+	}
+	editParameterDraft_.guid = materialID;
+	editParameterDraftValid_ = true;
+	editParameterMessage_ = "読み込みました";
+	return true;
+}
+
+bool Engine::MaterialEditorTool::SaveMaterialParameters(const EditorToolContext& context) {
+
+	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
+	if (!assetDatabase || !editParameterDraftValid_ || !editParameterMaterial_) {
+		editParameterMessage_ = "保存対象のマテリアルがありません";
+		return false;
+	}
+
+	const std::filesystem::path path = assetDatabase->ResolveFullPath(editParameterMaterial_);
+	if (path.empty()) {
+		editParameterMessage_ = "マテリアルの保存先を解決できません";
+		return false;
+	}
+	editParameterDraft_.guid = editParameterMaterial_;
+	JsonAdapter::Save(path.string(), ToJson(editParameterDraft_));
+	if (context.panelContext && context.panelContext->renderPipeline) {
+		context.panelContext->renderPipeline->ReloadMaterial(editParameterMaterial_);
+	}
+	editParameterDirty_ = false;
+	editParameterMessage_ = "保存して描画へ反映しました";
+	return true;
+}
+
+bool Engine::MaterialEditorTool::LoadParticleShaderSource(const EditorToolContext& context) {
+
+	editShaderAsset_ = {};
+	editShaderSourcePath_.clear();
+	editShaderSource_.clear();
+	editShaderOriginal_.clear();
+	editShaderMessage_.clear();
+	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
+	if (!assetDatabase || !editParticleMaterial_) {
+		return false;
+	}
+
+	const std::filesystem::path materialPath = assetDatabase->ResolveFullPath(editParticleMaterial_);
+	MaterialAsset material{};
+	if (materialPath.empty() || !FromJson(JsonAdapter::Load(materialPath.string(), false), material)) {
+		editShaderMessage_ = "マテリアルを読み込めません";
+		return false;
+	}
+	const MaterialPassBinding* pass = FindPass(material, MaterialPassKind::Transparent);
+	if (!pass) {
+		pass = FindPass(material, MaterialPassKind::Draw);
+	}
+	if (!pass || !pass->shaderOverride) {
+		editShaderMessage_ = "shaderOverrideを持つParticleマテリアルではありません";
+		return false;
+	}
+
+	editShaderAsset_ = pass->shaderOverride;
+	const std::filesystem::path shaderPath = assetDatabase->ResolveFullPath(editShaderAsset_);
+	ShaderAsset shader{};
+	if (shaderPath.empty() || !FromJson(JsonAdapter::Load(shaderPath.string(), false), shader)) {
+		editShaderMessage_ = "部分シェーダーを読み込めません";
+		return false;
+	}
+	const ShaderStageEntry* pixelStage = FindShaderStage(shader, ShaderStage::PS);
+	if (!pixelStage) {
+		editShaderMessage_ = "Pixel Shaderステージがありません";
+		return false;
+	}
+	const std::optional<AssetID> sourceID = TryParseUUID16Hex(pixelStage->file);
+	if (!sourceID) {
+		editShaderMessage_ = "Pixel Shaderのソース参照がGUIDではありません";
+		return false;
+	}
+	editShaderSourcePath_ = assetDatabase->ResolveFullPath(*sourceID);
+	std::ifstream ifs(editShaderSourcePath_, std::ios::binary);
+	if (!ifs.is_open()) {
+		editShaderMessage_ = "Pixel Shaderソースを開けません";
+		editShaderSourcePath_.clear();
+		return false;
+	}
+	editShaderSource_.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+	editShaderOriginal_ = editShaderSource_;
+	editShaderEntry_ = pixelStage->entry.empty() ? "main" : pixelStage->entry;
+	editShaderProfile_ = pixelStage->profile.empty() ? "ps_6_6" : pixelStage->profile;
+	editShaderMessage_ = "読み込みました";
+	return true;
+}
+
+bool Engine::MaterialEditorTool::SaveParticleShaderSource(const EditorToolContext& context) {
+
+	if (editShaderSourcePath_.empty() || !context.panelContext ||
+		!context.panelContext->graphicsPlatform || !context.panelContext->renderPipeline) {
+		editShaderMessage_ = "シェーダーコンパイラを利用できません";
+		return false;
+	}
+	auto writeSource = [&](const std::string& source) {
+		std::ofstream ofs(editShaderSourcePath_, std::ios::binary | std::ios::trunc);
+		if (!ofs.is_open()) {
+			return false;
+		}
+		ofs.write(source.data(), static_cast<std::streamsize>(source.size()));
+		return ofs.good();
+		};
+	if (!writeSource(editShaderSource_)) {
+		editShaderMessage_ = "Pixel Shaderソースを保存できません";
+		return false;
+	}
+
+	const std::wstring profile(editShaderProfile_.begin(), editShaderProfile_.end());
+	const std::wstring entry(editShaderEntry_.begin(), editShaderEntry_.end());
+	DxShaderCompiler* compiler = context.panelContext->graphicsPlatform->GetDxShaderCompiler();
+	const CompiledShader compiled = compiler->CompileShader(editShaderSourcePath_.wstring(),
+		profile.c_str(), entry.c_str(), ShaderStage::PS);
+	if (!compiled.object) {
+
+		writeSource(editShaderOriginal_);
+		editShaderMessage_ = "コンパイルに失敗したため保存内容を元に戻しました。詳細はConsoleを確認してください";
+		return false;
+	}
+
+	editShaderOriginal_ = editShaderSource_;
+	context.panelContext->renderPipeline->ReloadShader(editShaderAsset_);
+	editShaderMessage_ = "コンパイル成功。描画へ反映しました";
+	return true;
+}
+
 void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 
 	PipelineCreateSettings settings{};
@@ -330,6 +658,14 @@ void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 		settings.cullMode = D3D12_CULL_MODE_BACK;
 		settings.depthEnable = true;
 		settings.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		settings.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	} else if (type == MaterialCreateType::Particle) {
+
+		// Particleは半透明描画を前提に深度テストのみ有効にする
+		settings.cullMode = D3D12_CULL_MODE_NONE;
+		settings.depthEnable = true;
+		settings.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 		settings.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	} else if (type == MaterialCreateType::Sprite) {
@@ -385,6 +721,13 @@ void Engine::MaterialEditorTool::LoadPipelineSettingsFromMaterial(AssetDatabase&
 		!materialData["passes"].is_array() || materialData["passes"].empty()) {
 		createMessage_ = "マテリアルにパスがありません";
 		return;
+	}
+
+	const MaterialUsage usage = EnumAdapter<MaterialUsage>::FromString(
+		materialData.value("usage", "Generic")).value_or(MaterialUsage::Generic);
+	if (const std::optional<MaterialCreateType> type = ToMaterialCreateType(usage)) {
+		createType_ = *type;
+		ApplyTypeDefaults(createType_);
 	}
 
 	// Drawパス優先で参照pipelineを引き、無ければ先頭パスから引く
@@ -454,12 +797,15 @@ void Engine::MaterialEditorTool::LoadShadersFromMaterial(AssetDatabase& assetDat
 		return;
 	}
 
-	// Drawパス優先で参照pipelineを引く
+	// DrawかTransparentパスを優先して参照pipelineと部分シェーダーを引く
 	AssetID pipelineID{};
+	AssetID shaderOverrideID{};
 	for (const auto& pass : materialData["passes"]) {
-		if (pass.value("passKind", std::string{}) == "Draw") {
+		const std::string passKind = pass.value("passKind", std::string{});
+		if (passKind == "Draw" || passKind == "Transparent") {
 
 			pipelineID = ParseAssetID(pass, "pipeline");
+			shaderOverrideID = ParseAssetID(pass, "shaderOverride");
 			break;
 		}
 	}
@@ -478,8 +824,9 @@ void Engine::MaterialEditorTool::LoadShadersFromMaterial(AssetDatabase& assetDat
 		return;
 	}
 
-	// 先頭variantが参照するshaderを引く
-	const AssetID shaderID = ParseAssetID(pipelineData["variants"].front(), "shader");
+	// 部分シェーダーがあれば優先し、無ければ先頭variantのshaderを引く
+	const AssetID shaderID = shaderOverrideID ?
+		shaderOverrideID : ParseAssetID(pipelineData["variants"].front(), "shader");
 	if (!shaderID) {
 		return;
 	}
@@ -526,8 +873,9 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 		createMessage_ = "AssetDatabaseが利用できません";
 		return false;
 	}
-	if (!createVS_ || !createPS_) {
-		createMessage_ = "VertexShaderとPixelShaderは必須です";
+	if ((createType_ != MaterialCreateType::Particle && !createVS_) || !createPS_) {
+		createMessage_ = createType_ == MaterialCreateType::Particle ?
+			"PixelShaderは必須です" : "VertexShaderとPixelShaderは必須です";
 		return false;
 	}
 	// LineはGSで太線へ展開するのでGeometryShaderも必須
@@ -555,6 +903,7 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 
 	const bool useMeshShader = (createType_ == MaterialCreateType::Mesh) && static_cast<bool>(createMS_);
 	const bool useGeometryShader = (createType_ == MaterialCreateType::Line);
+	const bool isParticle = createType_ == MaterialCreateType::Particle;
 	const int numRenderTargets = (createType_ == MaterialCreateType::Mesh ||
 		createType_ == MaterialCreateType::FillFaceMesh) ? 3 : 1;
 
@@ -569,7 +918,8 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 
 	// shaderを書き出して登録し、得たGUIDをpipelineが参照する
 	JsonAdapter::Save(shaderPath.string(),
-		MakeShaderJson(baseName, createVS_, createPS_, createMS_, createAS_, createGS_, useMeshShader, useGeometryShader));
+		MakeShaderJson(baseName, createVS_, createPS_, createMS_, createAS_, createGS_,
+			useMeshShader, useGeometryShader, isParticle));
 	const AssetID shaderID = assetDatabase->ImportOrGet(shaderLogical, AssetType::Shader);
 	if (!shaderID) {
 		createMessage_ = "shader.jsonの登録に失敗しました";
@@ -577,23 +927,40 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 	}
 
 	// pipelineを書き出して登録し、得たGUIDをmaterialが参照する
+	const AssetID pipelineShader = isParticle ? BuiltinAssets::Shaders::Particle : shaderID;
 	JsonAdapter::Save(assetDatabase->ResolveAssetPath(pipelineLogical).string(),
-		MakePipelineJson(baseName, shaderID, useMeshShader, useGeometryShader, numRenderTargets, createPipeline_));
+		MakePipelineJson(baseName, pipelineShader, useMeshShader, useGeometryShader, numRenderTargets, createPipeline_));
 	const AssetID pipelineID = assetDatabase->ImportOrGet(pipelineLogical, AssetType::RenderPipeline);
 	if (!pipelineID) {
 		createMessage_ = "pipeline.jsonの登録に失敗しました";
 		return false;
 	}
 
-	// materialを書き出して登録する
-	JsonAdapter::Save(assetDatabase->ResolveAssetPath(materialLogical).string(),
-		MakeMaterialJson(baseName, pipelineID, createType_, useMeshShader, useGeometryShader));
+	// materialを書き出して登録する、同用途の取り込み元があればパラメータも引き継ぐ
+	nlohmann::json materialData = MakeMaterialJson(baseName, pipelineID, isParticle ? shaderID : AssetID{},
+		createType_, useMeshShader, useGeometryShader);
+	if (createSourceMaterial_) {
+
+		const std::filesystem::path sourcePath = assetDatabase->ResolveFullPath(createSourceMaterial_);
+		const nlohmann::json sourceData = sourcePath.empty() ?
+			nlohmann::json{} : JsonAdapter::Load(sourcePath.string(), false);
+		const MaterialUsage sourceUsage = EnumAdapter<MaterialUsage>::FromString(
+			sourceData.value("usage", "Generic")).value_or(MaterialUsage::Generic);
+		if (sourceUsage == ToMaterialUsage(createType_) && sourceData.contains("parameters") &&
+			sourceData["parameters"].is_object()) {
+
+			materialData["parameters"] = sourceData["parameters"];
+		}
+	}
+	JsonAdapter::Save(assetDatabase->ResolveAssetPath(materialLogical).string(), materialData);
 	const AssetID materialID = assetDatabase->ImportOrGet(materialLogical, AssetType::Material);
 	if (!materialID) {
 		createMessage_ = "material.jsonの登録に失敗しました";
 		return false;
 	}
 
+	editParameterMaterial_ = materialID;
+	LoadMaterialParameters(context, materialID);
 	Logger::Output(LogType::Engine, "[MaterialEditorTool] created material assets. path={}", materialLogical);
 	createMessage_ = "作成しました " + materialLogical;
 	return true;

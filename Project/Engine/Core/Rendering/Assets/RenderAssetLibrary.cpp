@@ -5,6 +5,10 @@
 //============================================================================
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
+// c++
+#include <optional>
+#include <system_error>
+
 //============================================================================
 //	RenderAssetLibrary templateMethods
 //============================================================================
@@ -37,6 +41,7 @@ const T* Engine::RenderAssetLibrary::LoadCachedAsset(std::unordered_map<AssetID,
 	if (!asset.guid) {
 		asset.guid = assetID;
 	}
+	ResolveRuntimeReferences(asset);
 	// キャッシュに保存
 	auto [it, inserted] = cache.emplace(assetID, std::move(asset));
 	return &it->second;
@@ -62,6 +67,26 @@ void Engine::RenderAssetLibrary::Clear() {
 	materialCache_.clear();
 	fontCache_.clear();
 	particleEffectCache_.clear();
+}
+
+void Engine::RenderAssetLibrary::ResolveRuntimeReferences(ShaderAsset& asset) {
+
+	for (ShaderStageEntry& stage : asset.stages) {
+
+		std::filesystem::path sourcePath{};
+		if (const std::optional<AssetID> sourceID = TryParseUUID16Hex(stage.file)) {
+
+			sourcePath = database_->ResolveFullPath(*sourceID);
+		} else {
+
+			sourcePath = database_->ResolveAssetPath(stage.file);
+		}
+
+		std::error_code ec;
+		if (!sourcePath.empty() && std::filesystem::is_regular_file(sourcePath, ec)) {
+			stage.file = sourcePath.lexically_normal().string();
+		}
+	}
 }
 
 const Engine::ShaderAsset* Engine::RenderAssetLibrary::LoadShader(AssetID assetID) {

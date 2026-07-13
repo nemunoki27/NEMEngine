@@ -56,6 +56,7 @@ namespace {
 			{ "prefab", Engine::AssetType::Prefab },
 			{ "prefabAsset", Engine::AssetType::Prefab },
 			{ "shader", Engine::AssetType::Shader },
+			{ "shaderOverride", Engine::AssetType::Shader },
 			{ "pipeline", Engine::AssetType::RenderPipeline },
 			{ "postProcessStack", Engine::AssetType::PostProcessStack },
 			{ "animationClip", Engine::AssetType::AnimationClip },

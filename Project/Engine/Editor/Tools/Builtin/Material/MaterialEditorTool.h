@@ -5,10 +5,12 @@
 //============================================================================
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 
 // directX
 #include <d3d12.h>
 // c++
+#include <filesystem>
 #include <string>
 
 namespace Engine {
@@ -20,6 +22,7 @@ namespace Engine {
 	enum class MaterialCreateType {
 
 		Mesh,
+		Particle,
 		Sprite,
 		Text,
 		Line,
@@ -111,6 +114,23 @@ namespace Engine {
 		// 作成結果のフィードバック
 		std::string createMessage_{};
 
+		// マテリアルパラメータ編集状態
+		AssetID editParameterMaterial_{};
+		MaterialAsset editParameterDraft_{};
+		bool editParameterDraftValid_ = false;
+		bool editParameterDirty_ = false;
+		std::string editParameterMessage_{};
+
+		// Particle PSソース編集状態
+		AssetID editParticleMaterial_{};
+		AssetID editShaderAsset_{};
+		std::filesystem::path editShaderSourcePath_{};
+		std::string editShaderSource_{};
+		std::string editShaderOriginal_{};
+		std::string editShaderEntry_ = "main";
+		std::string editShaderProfile_ = "ps_6_6";
+		std::string editShaderMessage_{};
+
 		//--------- functions ----------------------------------------------------
 
 		// Materialツールウィンドウを描画する
@@ -119,6 +139,10 @@ namespace Engine {
 		void DrawDefaultMaterialSection(const EditorToolContext& context);
 		// マテリアル/パイプライン作成セクションを描画する
 		void DrawCreateMaterialSection(const EditorToolContext& context);
+		// Particle PSのソース編集と保存を描画する
+		void DrawParticleShaderSection(const EditorToolContext& context);
+		// reflectionからマテリアルパラメータの編集UIを描画する
+		void DrawMaterialParameterSection(const EditorToolContext& context);
 		// タイプ変更時にパイプライン設定の既定値を適用する
 		void ApplyTypeDefaults(MaterialCreateType type);
 		// 既存マテリアルが参照するpipelineからパイプライン設定を読み取り編集欄へ反映する
@@ -127,5 +151,13 @@ namespace Engine {
 		void LoadShadersFromMaterial(AssetDatabase& assetDatabase, AssetID materialID);
 		// 入力内容からshader/pipeline/materialの3ファイルを生成する
 		bool CreateMaterialAssets(const EditorToolContext& context);
+		// Materialの部分PSソースを読み込む
+		bool LoadParticleShaderSource(const EditorToolContext& context);
+		// PSを検証して保存し描画へ反映する
+		bool SaveParticleShaderSource(const EditorToolContext& context);
+		// 編集対象マテリアルを読み込む
+		bool LoadMaterialParameters(const EditorToolContext& context, AssetID materialID);
+		// 編集したマテリアルパラメータを保存する
+		bool SaveMaterialParameters(const EditorToolContext& context);
 	};
 } // Engine

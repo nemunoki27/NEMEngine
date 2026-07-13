@@ -5,7 +5,6 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
@@ -53,6 +52,19 @@ namespace {
 			}
 			if (!exists) {
 				dst.constantBuffers.push_back(cb);
+			}
+		}
+		for (const ShaderStructuredBufferInfo& buffer : src.structuredBuffers) {
+
+			bool exists = false;
+			for (const ShaderStructuredBufferInfo& existing : dst.structuredBuffers) {
+				if (existing.name == buffer.name) {
+					exists = true;
+					break;
+				}
+			}
+			if (!exists) {
+				dst.structuredBuffers.push_back(buffer);
 			}
 		}
 		for (const ShaderResourceBinding& res : src.resources) {
@@ -141,53 +153,68 @@ namespace {
 		default:              return L"";
 		}
 	}
+	// グラフィックスシェーダーのコンパイル結果
+	struct GraphicsCompileResult {
+
+		std::vector<CompiledShader> shaders;
+		bool success = true;
+	};
 	// シェーダーをコンパイルし、CompiledShaderの配列に追加する
-	void CompileOne(std::vector<CompiledShader>& shaders, DxShaderCompiler* compiler,
+	bool CompileOne(std::vector<CompiledShader>& shaders, DxShaderCompiler* compiler,
 		const ShaderCompileDesc& desc, ShaderStage stage, const char* stageName) {
 
 		if (desc.file.empty()) {
-			return;
+			return true;
 		}
 
 		std::filesystem::path shaderPath = ResolveShaderPath(desc.file);
-		Assert::Call(!shaderPath.empty(), std::string("Shader file not found: ") + desc.file);
+		if (shaderPath.empty()) {
+			Logger::Output(LogType::Engine, "Shader file not found: {}", desc.file);
+			return false;
+		}
 
 		std::wstring entry = ResolveEntry(desc.entry);
 		std::wstring profile = ResolveProfile(desc.profile, stage);
 
-		shaders.emplace_back(compiler->CompileShader(shaderPath.wstring(), profile.c_str(), entry.c_str(), stage));
+		CompiledShader shader = compiler->CompileShader(shaderPath.wstring(), profile.c_str(), entry.c_str(), stage);
+		if (!shader.object) {
+			Logger::Output(LogType::Engine, "Failed compiling {} for {}", stageName, shaderPath.string());
+			return false;
+		}
+		shaders.emplace_back(std::move(shader));
 		Logger::Output(LogType::Engine, "Finished compiling {} for {}", stageName, shaderPath.string());
+		return true;
 	}
 	// シェーダーコンパイル
-	std::vector<CompiledShader> Compile(DxShaderCompiler* compiler, const GraphicsPipelineDesc& desc) {
+	GraphicsCompileResult Compile(DxShaderCompiler* compiler, const GraphicsPipelineDesc& desc) {
 
 		// VS,GS,MSのいずれかとPSをコンパイルする
-		std::vector<CompiledShader> shaders{};
+		GraphicsCompileResult result{};
 		switch (desc.type) {
 		case PipelineType::Vertex: {
 
-			CompileOne(shaders, compiler, desc.preRaster, ShaderStage::VS, "VS");
-			CompileOne(shaders, compiler, desc.pixel, ShaderStage::PS, "PS");
+			result.success &= CompileOne(result.shaders, compiler, desc.preRaster, ShaderStage::VS, "VS");
+			result.success &= CompileOne(result.shaders, compiler, desc.pixel, ShaderStage::PS, "PS");
 			break;
 		}
 		case PipelineType::Geometry: {
 
-			CompileOne(shaders, compiler, desc.preRaster, ShaderStage::VS, "VS");
-			CompileOne(shaders, compiler, desc.geometry, ShaderStage::GS, "GS");
-			CompileOne(shaders, compiler, desc.pixel, ShaderStage::PS, "PS");
+			result.success &= CompileOne(result.shaders, compiler, desc.preRaster, ShaderStage::VS, "VS");
+			result.success &= CompileOne(result.shaders, compiler, desc.geometry, ShaderStage::GS, "GS");
+			result.success &= CompileOne(result.shaders, compiler, desc.pixel, ShaderStage::PS, "PS");
 			break;
 		}
 		case PipelineType::Mesh: {
 
-			CompileOne(shaders, compiler, desc.preRaster, ShaderStage::MS, "MS");
-			CompileOne(shaders, compiler, desc.pixel, ShaderStage::PS, "PS");
+			result.success &= CompileOne(result.shaders, compiler, desc.preRaster, ShaderStage::MS, "MS");
+			result.success &= CompileOne(result.shaders, compiler, desc.pixel, ShaderStage::PS, "PS");
 			if (!desc.amplification.file.empty()) {
-				CompileOne(shaders, compiler, desc.amplification, ShaderStage::AS, "AS");
+				result.success &= CompileOne(result.shaders, compiler, desc.amplification, ShaderStage::AS, "AS");
 			}
 			break;
 		}
 		}
-		return shaders;
+		return result;
 	}
 	// CompiledShaderの配列からconst CompiledShader*の配列を生成する
 	std::vector<const CompiledShader*> MakeShaderPointers(const std::vector<CompiledShader>& shaders) {
@@ -311,7 +338,13 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 	Logger::Output(LogType::Engine, "Start CreateGraphicsPipeline: {} / {}", desc.preRaster.file, desc.pixel.file);
 
 	// シェーダーのコンパイル
-	const std::vector<CompiledShader> shaders = Compile(compiler, desc);
+	GraphicsCompileResult compileResult = Compile(compiler, desc);
+	if (!compileResult.success) {
+		Logger::Output(LogType::Engine, "Failed GraphicsPipeline shader compilation");
+		Logger::EndSection(LogType::Engine);
+		return false;
+	}
+	const std::vector<CompiledShader>& shaders = compileResult.shaders;
 	const std::vector<const CompiledShader*> shaderPtrs = MakeShaderPointers(shaders);
 
 	// ルートシグネイチャの自動生成
@@ -454,7 +487,7 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 		break;
 	}
 	}
-	Logger::Output(LogType::Engine, "Created GraphicsPipeline");
+	Logger::Output(LogType::Engine, success ? "Created GraphicsPipeline" : "Failed GraphicsPipeline creation");
 	Logger::EndSection(LogType::Engine);
 	return success;
 }

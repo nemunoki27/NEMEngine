@@ -12,6 +12,10 @@
 #include <Engine/Core/Foundation/Math/AffineDecompose.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
+#endif
+
 // 更新モジュール
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleSizeOverLifetimeModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorOverLifetimeModule.h>
@@ -20,6 +24,7 @@
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleNoiseForceModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleFlipbookModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleShapeOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleCustomShaderParameterModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleScaleOverLifetimeModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorUVModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleNoiseUVModule.h>
@@ -331,7 +336,17 @@ void Engine::ParticleSystem::DrawEmitterShape(ECSWorld& world, const Entity& ent
 		Vector3 scale{};
 		DecomposeAffine3D(transform->worldMatrix, center, rotation, scale);
 	}
+	LineRenderer3D* renderer = nullptr;
+	if (!is2D) {
+		renderer = LineRenderer::GetInstance()->Get3D();
+		if (renderer) {
+			renderer->SetOccludedMode(true);
+		}
+	}
 	shape->DrawShape(settings, center, rotation, is2D);
+	if (renderer) {
+		renderer->SetOccludedMode(false);
+	}
 #endif
 }
 

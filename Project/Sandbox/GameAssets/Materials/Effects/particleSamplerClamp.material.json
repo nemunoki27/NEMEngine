@@ -1,0 +1,14 @@
+{
+    "domain": "Surface",
+    "usage": "Particle",
+    "name": "particleSamplerClamp",
+    "parameters": {},
+    "passes": [
+        {
+            "passKind": "Transparent",
+            "pipeline": "d1e8f35e683c1114",
+            "shaderOverride": "23cafbf12e7b6c17",
+            "preferredVariant": "GraphicsVertex"
+        }
+    ]
+}

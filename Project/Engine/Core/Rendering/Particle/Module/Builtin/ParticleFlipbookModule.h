@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
 
+// c++
+#include <vector>
+
 namespace Engine {
 
 	//============================================================================
@@ -33,8 +36,10 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// アトラスの分割数
-		int32_t tilesX_ = 1;
+		// テクスチャの分割数
+		// 行ごとの横タイル数
+		std::vector<int32_t> tilesX_{ 1 };
+		// 縦タイル数
 		int32_t tilesY_ = 1;
 		// 寿命内で何周させるか
 		float cycles_ = 1.0f;

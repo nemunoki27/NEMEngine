@@ -101,6 +101,15 @@ namespace Engine {
 		// バッファ内の変数一覧
 		std::vector<ShaderConstantBufferVariable> variables;
 	};
+	// StructuredBufferの要素レイアウト
+	struct ShaderStructuredBufferInfo {
+
+		std::string name;
+		UINT bindPoint = 0;
+		UINT space = 0;
+		UINT stride = 0;
+		std::vector<ShaderConstantBufferVariable> variables;
+	};
 	// シェーダーのリフレクション情報
 	struct ShaderReflectionInfo {
 
@@ -110,6 +119,8 @@ namespace Engine {
 		std::vector<ShaderInputSemantic> inputs;
 		// 定数バッファの中身でMaterial Parametersの自動詰め込みに使用する
 		std::vector<ShaderConstantBufferInfo> constantBuffers;
+		// StructuredBufferの要素サイズとメンバー情報
+		std::vector<ShaderStructuredBufferInfo> structuredBuffers;
 		uint64_t requiresFlags = 0;
 
 		// コンピュートシェーダーのスレッドグループサイズ
@@ -135,6 +146,8 @@ namespace Engine {
 
 	// reflectionから指定名の定数バッファを探す、無ければnullptr
 	const ShaderConstantBufferInfo* FindConstantBuffer(const ShaderReflectionInfo& reflection, std::string_view name);
+	// reflectionから指定名のStructuredBufferを探す
+	const ShaderStructuredBufferInfo* FindStructuredBuffer(const ShaderReflectionInfo& reflection, std::string_view name);
 
 	// 変数のスカラー成分数を安全側に求める、宣言成分数とサイズから1から4で返す
 	uint32_t GetVariableComponentCount(const ShaderConstantBufferVariable& variable);

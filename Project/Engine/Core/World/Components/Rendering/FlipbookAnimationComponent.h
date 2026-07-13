@@ -6,24 +6,31 @@
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 
+// c++
+#include <vector>
+
 namespace Engine {
 
 	//============================================================================
 	//	FlipbookAnimationComponent struct
 	//============================================================================
-	// 連番画像アニメーションの再生、UVTransform必須
+	// 連番画像アニメーションの再生
 	struct FlipbookAnimationComponent {
 	
 		// アニメーションの有効/無効
 		bool enabled = true;
 		// ループ再生するか
 		bool loop = true;
+		// 次のループ再生までの待機時間
+		float loopInterval = 0.0f;
 		// 編集中でもプレビュー再生するか
 		bool playInEditMode = true;
 		// 再生終了後、何も表示されないようにするか
 		bool endAnimUnDisplay = false;
 		// テクスチャの分割数
-		int32_t tilesX = 1;
+		// 行ごとの横タイル数
+		std::vector<int32_t> tilesX{ 1 };
+		// 縦タイル数
 		int32_t tilesY = 1;
 		// 再生にかかる時間
 		float duration = 1.0f;
