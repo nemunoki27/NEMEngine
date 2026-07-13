@@ -5,31 +5,8 @@
 //============================================================================
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Core/EditorContext.h>
+#include <Engine/Editor/Utility/PrefabInstanceEditUtility.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
-#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
-
-//============================================================================
-//	DeleteEntityCommand internal
-//============================================================================
-namespace {
-
-	// Unity準拠、プレファブ編集中のルートだけ削除不可にする、シーン編集中のインスタンスは削除してよい
-	bool IsProtectedPrefabRoot(Engine::ECSWorld& world, const Engine::Entity& entity,
-		const Engine::EditorContext* editorContext) {
-
-		// シーン編集中ならインスタンスのルートでも削除を許可する
-		if (!editorContext || !editorContext->isPrefabEditing) {
-			return false;
-		}
-		// プレファブのルートかつ階層トップの編集中プレファブのルートだけ守る、ネストした子は対象外
-		if (!world.HasComponent<Engine::PrefabLinkComponent>(entity) ||
-			!world.GetComponent<Engine::PrefabLinkComponent>(entity).isPrefabRoot) {
-			return false;
-		}
-		return !world.HasComponent<Engine::HierarchyComponent>(entity) ||
-			!world.IsAlive(world.GetComponent<Engine::HierarchyComponent>(entity).parent);
-	}
-}
 
 //============================================================================
 //	DeleteEntityCommand classMethods
@@ -88,8 +65,8 @@ bool Engine::DeleteEntityCommand::Execute(EditorCommandContext& context) {
 			return false;
 		}
 
-		// プレファブインスタンスのルートはシーン上で削除させない
-		if (IsProtectedPrefabRoot(*world, initialTarget_, context.editorContext)) {
+		// Prefab由来EntityはScene上で個別削除しない
+		if (!PrefabInstanceEditUtility::CanDelete(context.editorContext, *world, initialTarget_)) {
 			return false;
 		}
 

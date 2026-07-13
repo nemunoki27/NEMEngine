@@ -141,6 +141,13 @@ void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEn
 	stableUUIDMap.reserve(sourceSnapshot.entities.size());
 	localFileIDMap.reserve(sourceSnapshot.entities.size());
 	prefabInstanceIDMap.reserve(sourceSnapshot.entities.size());
+	bool preservePrefabInstance = false;
+	if (sourceSnapshot.entities.front().components.contains("PrefabLink")) {
+
+		const PrefabLinkComponent rootPrefabLink =
+			sourceSnapshot.entities.front().components["PrefabLink"].get<PrefabLinkComponent>();
+		preservePrefabInstance = rootPrefabLink.isPrefabRoot;
+	}
 
 	// 複製後に使用するUUID、ローカルファイルID、プレファブインスタンスIDを生成
 	for (const auto& sourceEntity : sourceSnapshot.entities) {
@@ -151,7 +158,7 @@ void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEn
 
 			localFileIDMap[oldLocalFileID] = UUID::New();
 		}
-		if (sourceEntity.components.contains("PrefabLink")) {
+		if (preservePrefabInstance && sourceEntity.components.contains("PrefabLink")) {
 
 			const PrefabLinkComponent prefabLink =
 				sourceEntity.components["PrefabLink"].get<PrefabLinkComponent>();
@@ -180,7 +187,11 @@ void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEn
 
 			WriteLocalFileIDToComponents(duplicatedEntity.components, localFileIDMap.at(oldLocalFileID));
 		}
-		if (duplicatedEntity.components.contains("PrefabLink")) {
+		if (!preservePrefabInstance) {
+
+			// Prefabの子を複製した場合は追加Entityとして扱う
+			duplicatedEntity.components.erase("PrefabLink");
+		} else if (duplicatedEntity.components.contains("PrefabLink")) {
 
 			PrefabLinkComponent prefabLink = duplicatedEntity.components["PrefabLink"].get<PrefabLinkComponent>();
 			if (prefabLink.prefabInstanceID && prefabInstanceIDMap.contains(prefabLink.prefabInstanceID)) {

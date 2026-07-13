@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Core/EditorState.h>
+#include <Engine/Editor/Utility/PrefabInstanceEditUtility.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
@@ -38,6 +39,9 @@ bool Engine::InstantiatePrefabCommand::InstantiateInternal(EditorCommandContext&
 		if (!world->IsAlive(parent)) {
 			parent = Entity::Null();
 		}
+	}
+	if (world->IsAlive(parent) && PrefabInstanceEditUtility::IsInPrefabInstance(*world, parent)) {
+		return false;
 	}
 
 	// PrefabSystemに渡す生成オプション

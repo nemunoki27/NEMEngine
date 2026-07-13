@@ -22,6 +22,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Editor/Utility/AssetEntityFactory.h>
 #include <Engine/Editor/Utility/JointAttachmentUtility.h>
+#include <Engine/Editor/Utility/PrefabInstanceEditUtility.h>
 #include <Engine/Editor/Commands/Entity/CreateDroppedEntityCommand.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
@@ -480,14 +481,9 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 
 			context.host->CopySelectionToClipboard();
 		}
-		// Unity準拠でプレファブ編集中のルートだけ削除不可にする、シーン編集中のインスタンスは削除できる
-		const bool prefabEditing = context.editorContext && context.editorContext->isPrefabEditing;
-		const bool isProtectedPrefabRoot = prefabEditing &&
-			world.HasComponent<PrefabLinkComponent>(entity) &&
-			world.GetComponent<PrefabLinkComponent>(entity).isPrefabRoot &&
-			IsRootEntity(world, entity);
 		// エンティティを削除、複数選択ならまとめて消す
-		if (ImGui::MenuItem("削除", "Del", false, context.CanEditScene() && !isProtectedPrefabRoot)) {
+		const bool canDelete = PrefabInstanceEditUtility::CanDelete(context.editorContext, world, entity);
+		if (ImGui::MenuItem("削除", "Del", false, context.CanEditScene() && canDelete)) {
 
 			const std::vector<Entity> targets = context.editorState->GetSelectedEntities();
 			for (const Entity& target : targets) {
@@ -518,7 +514,7 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 			if (payload->IsDelivery()) {
 
 				Entity dragged = ResolveDraggedEntity(world, payload);
-				if (CanReparent(world, dragged, entity)) {
+				if (CanReparent(context, world, dragged, entity)) {
 
 					// ジョイントへ親子付け中なら先に解除してからエンティティの子にする
 					JointAttachmentUtility::Detach(world, dragged);
@@ -608,7 +604,7 @@ void Engine::HierarchyPanel::DrawSiblingDropTarget(const EditorPanelContext& con
 			if (payload->IsDelivery()) {
 
 				Entity dragged = ResolveDraggedEntity(world, payload);
-				if (CanReorder(world, dragged, anchorEntity)) {
+				if (CanReorder(context, world, dragged, anchorEntity)) {
 
 					context.host->ExecuteEditorCommand(
 						std::make_unique<ReorderEntityCommand>(dragged, anchorEntity, insertAfter));
@@ -862,7 +858,9 @@ void Engine::HierarchyPanel::DrawRootDropTarget(const EditorPanelContext& contex
 							currentParent = world.GetComponent<HierarchyComponent>(dragged).parent;
 						}
 						// すでにルートなら何もしない
-						if (world.IsAlive(currentParent)) {
+						if (world.IsAlive(currentParent) &&
+							PrefabInstanceEditUtility::CanChangeParent(
+								context.editorContext, world, dragged, Entity::Null())) {
 
 							context.host->ExecuteEditorCommand(std::make_unique<ReparentEntityCommand>(dragged, UUID{}));
 						}
@@ -903,13 +901,17 @@ Engine::Entity Engine::HierarchyPanel::GetParentEntity(ECSWorld& world, const En
 	return world.IsAlive(hierarchy.parent) ? hierarchy.parent : Entity::Null();
 }
 
-bool Engine::HierarchyPanel::CanReparent(ECSWorld& world, const Entity& child, const Entity& newParent) const {
+bool Engine::HierarchyPanel::CanReparent(const EditorPanelContext& context, ECSWorld& world,
+	const Entity& child, const Entity& newParent) const {
 
 	// どちらも有効なエンティティでなければならない
 	if (!world.IsAlive(child) || !world.IsAlive(newParent)) {
 		return false;
 	}
 	if (child == newParent) {
+		return false;
+	}
+	if (!PrefabInstanceEditUtility::CanChangeParent(context.editorContext, world, child, newParent)) {
 		return false;
 	}
 
@@ -937,9 +939,13 @@ bool Engine::HierarchyPanel::CanReparent(ECSWorld& world, const Entity& child, c
 	return true;
 }
 
-bool Engine::HierarchyPanel::CanReorder(ECSWorld& world, const Entity& child, const Entity& anchor) const {
+bool Engine::HierarchyPanel::CanReorder(const EditorPanelContext& context, ECSWorld& world,
+	const Entity& child, const Entity& anchor) const {
 
 	if (!world.IsAlive(child) || !world.IsAlive(anchor) || child == anchor) {
+		return false;
+	}
+	if (!PrefabInstanceEditUtility::CanChangeSiblingOrder(context.editorContext, world, child, anchor)) {
 		return false;
 	}
 	return GetParentEntity(world, child) == GetParentEntity(world, anchor);

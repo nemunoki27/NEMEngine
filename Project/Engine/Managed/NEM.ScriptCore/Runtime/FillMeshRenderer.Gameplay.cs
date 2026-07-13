@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace NEMEngine;
 
@@ -13,5 +14,15 @@ public sealed partial class FillMeshRenderer {
     // 点列をクリアする
     public void Clear() {
         NativeApi.FillMeshSetFacePositions(entity.native, ReadOnlySpan<Vector3>.Empty);
+    }
+
+    // ローカル座標の点列を取得する
+    public List<Vector3> GetLocalPoints() {
+        return NativeApi.FillMeshGetPoints(entity.native, false);
+    }
+
+    // ワールド座標の点列を取得する
+    public List<Vector3> GetWorldPoint() {
+        return NativeApi.FillMeshGetPoints(entity.native, true);
     }
 }

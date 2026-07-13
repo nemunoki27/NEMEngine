@@ -18,6 +18,7 @@
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
@@ -25,6 +26,7 @@
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
+#include <algorithm>
 #include <cstring>
 #include <string>
 #include <unordered_map>
@@ -154,6 +156,43 @@ namespace Engine {
 				fillMesh->facePositions.emplace_back(points[i].x, points[i].y, points[i].z);
 			}
 		}
+	}
+
+	int32_t ManagedScriptRuntime::FillMeshCopyPositionsCallback(ManagedNativeEntity entity,
+		ManagedVector3* points, int32_t capacity, int32_t worldSpace) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return 0;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		const FillMeshRendererComponent* fillMesh = world->IsAlive(resolved) ?
+			world->TryGetComponent<FillMeshRendererComponent>(resolved) : nullptr;
+		if (!fillMesh) {
+			return 0;
+		}
+
+		const int32_t count = static_cast<int32_t>(fillMesh->facePositions.size());
+		if (!points || capacity <= 0) {
+			return count;
+		}
+
+		Matrix4x4 worldMatrix = Matrix4x4::Identity();
+		if (worldSpace != 0) {
+			if (const TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved)) {
+				worldMatrix = transform->worldMatrix;
+			}
+		}
+
+		const int32_t copyCount = (std::min)(count, capacity);
+		for (int32_t i = 0; i < copyCount; ++i) {
+
+			const Vector3 position = worldSpace != 0 ?
+				Vector3::Transform(fillMesh->facePositions[static_cast<size_t>(i)], worldMatrix) :
+				fillMesh->facePositions[static_cast<size_t>(i)];
+			points[i] = { position.x, position.y, position.z };
+		}
+		return count;
 	}
 
 	namespace {

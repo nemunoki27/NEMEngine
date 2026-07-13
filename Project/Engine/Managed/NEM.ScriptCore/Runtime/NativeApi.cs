@@ -30,7 +30,8 @@ internal static class ManagedAbi {
     // v21: レイキャスト(physicsRaycast/physicsRaycastAll)とカメラレイ(screenPointToRay/getMousePositionInView)とCollisionタイプ名解決を追加
     // v22: AddComponent<Script> 用に entity へ script を runtime attach する attachScript を追加
     // v23: イージング関数 easedValue を追加、EasingType と t からイージング済みの値を返す
-    internal const uint Version = 23;
+    // v24: FillMeshRendererComponentのローカル座標とワールド座標の点列取得を追加
+    internal const uint Version = 24;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -339,6 +340,8 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, float> GetSkinnedAnimationDuration;
     // 指定クリップを頭から再生する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> PlaySkinnedAnimation;
+    // v24: FillMeshRendererComponentの点列取得
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, int, int> FillMeshCopyPositions;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -470,6 +473,7 @@ internal static unsafe class NativeApi {
         CollisionSetShapeProperty = callbacks->collisionSetShapeProperty;
         GetSkinnedAnimationDuration = callbacks->getSkinnedAnimationDuration;
         PlaySkinnedAnimation = callbacks->playSkinnedAnimation;
+        FillMeshCopyPositions = callbacks->fillMeshCopyPositions;
     }
 
     internal static float ReadDeltaTime() {
@@ -1085,6 +1089,29 @@ internal static unsafe class NativeApi {
         }
     }
 
+    // FillMeshRendererComponentの点列をローカル座標またはワールド座標で取得する
+    internal static List<Vector3> FillMeshGetPoints(NativeEntity entity, bool worldSpace) {
+
+        if (FillMeshCopyPositions == null) {
+            return new List<Vector3>();
+        }
+        int count = FillMeshCopyPositions(entity, null, 0, worldSpace ? 1 : 0);
+        if (count <= 0) {
+            return new List<Vector3>();
+        }
+
+        NativeVector3[] native = new NativeVector3[count];
+        fixed (NativeVector3* p = native) {
+            count = Math.Min(count, FillMeshCopyPositions(entity, p, count, worldSpace ? 1 : 0));
+        }
+
+        List<Vector3> points = new List<Vector3>(count);
+        for (int i = 0; i < count; ++i) {
+            points.Add(native[i].ToVector3());
+        }
+        return points;
+    }
+
     // LineRendererComponent の末尾へ1点追加し、追加した位置のindexを返す。失敗時は-1
     internal static int LineAddComponentPoint(NativeEntity entity, LinePoint point) {
         if (LineAddPoint == null) {
@@ -1464,4 +1491,6 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, byte*, float> getSkinnedAnimationDuration;
     // 指定クリップを頭から再生する
     public delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> playSkinnedAnimation;
+    // v24: FillMeshRendererComponentの点列取得
+    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, int, int> fillMeshCopyPositions;
 }

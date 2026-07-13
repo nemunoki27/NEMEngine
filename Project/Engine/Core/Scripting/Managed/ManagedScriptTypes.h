@@ -38,7 +38,8 @@ namespace Engine {
 	// v21: レイキャストのphysicsRaycast physicsRaycastAllとカメラレイのscreenPointToRay getMousePositionInViewとgetCollisionTypeMaskByNameを追加
 	// v22: AddComponent<Script>用にowner EntityへscriptTypeIDのscriptをruntime attachするattachScriptを追加
 	// v23: イージング関数のeasedValueを追加、EasingTypeとtからイージング済みの値を返す
-	inline constexpr uint32_t kManagedAbiVersion = 23;
+	// v24: FillMeshRendererComponentのローカル座標とワールド座標の点列取得を追加
+	inline constexpr uint32_t kManagedAbiVersion = 24;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -442,6 +443,8 @@ namespace Engine {
 		using LineDrawShapeCallback = void(__cdecl*)(const ManagedLineShape*);
 		// FillMeshRendererComponentの点列を置き換える、count0でクリア
 		using FillMeshSetPositionsCallback = void(__cdecl*)(ManagedNativeEntity, const ManagedVector3*, int32_t);
+		// FillMeshRendererComponentの点列をローカル座標またはワールド座標でコピーする
+		using FillMeshCopyPositionsCallback = int32_t(__cdecl*)(ManagedNativeEntity, ManagedVector3*, int32_t, int32_t);
 
 		GetDeltaTimeCallback getDeltaTime = nullptr;
 		GetDeltaTimeCallback getFixedDeltaTime = nullptr;
@@ -610,6 +613,9 @@ namespace Engine {
 		GetSkinnedAnimationDurationCallback getSkinnedAnimationDuration = nullptr;
 		// 指定クリップを頭から再生する
 		PlaySkinnedAnimationCallback playSkinnedAnimation = nullptr;
+
+		// v24のFillMeshRendererComponent点列取得
+		FillMeshCopyPositionsCallback fillMeshCopyPositions = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

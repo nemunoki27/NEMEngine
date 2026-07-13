@@ -370,6 +370,8 @@ namespace Engine {
 		static void __cdecl LineUpdatePointCallback(ManagedNativeEntity entity, ManagedLinePoint point);
 		// FillMeshRendererComponentの点列を置き換える、count0でクリア
 		static void __cdecl FillMeshSetPositionsCallback(ManagedNativeEntity entity, const ManagedVector3* points, int32_t count);
+		// FillMeshRendererComponentの点列をローカル座標またはワールド座標でコピーする
+		static int32_t __cdecl FillMeshCopyPositionsCallback(ManagedNativeEntity entity, ManagedVector3* points, int32_t capacity, int32_t worldSpace);
 		// 即時ライン描画、任意ポリラインをこのフレームだけ描く
 		static void __cdecl LineDrawImmediateCallback(const ManagedLinePoint* points, int32_t count, int32_t loop, int32_t is2D, uint64_t materialID);
 		// 即時球描画、組み込みの球生成で線分を発行する
@@ -440,4 +442,3 @@ namespace Engine {
 		return true;
 	}
 } // Engine
-

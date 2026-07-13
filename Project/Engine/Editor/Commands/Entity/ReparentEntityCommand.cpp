@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Core/EditorState.h>
+#include <Engine/Editor/Utility/PrefabInstanceEditUtility.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
@@ -119,6 +120,9 @@ bool Engine::ReparentEntityCommand::ApplyParent(EditorCommandContext& context, U
 		if (!world->IsAlive(newParent)) {
 			return false;
 		}
+	}
+	if (!PrefabInstanceEditUtility::CanChangeParent(context.editorContext, *world, child, newParent)) {
+		return false;
 	}
 
 	// 親子関係を更新する
@@ -281,6 +285,14 @@ bool Engine::ReorderEntityCommand::ApplyOrder(EditorCommandContext& context, con
 		entities.emplace_back(entity);
 	}
 	if (entities.empty()) {
+		return false;
+	}
+	const Entity target = world->FindByUUID(targetStableUUID_);
+	const auto anchorIt = std::find_if(entities.begin(), entities.end(), [&](const Entity& entity) {
+		return entity != target;
+		});
+	if (anchorIt == entities.end() ||
+		!PrefabInstanceEditUtility::CanChangeSiblingOrder(context.editorContext, *world, target, *anchorIt)) {
 		return false;
 	}
 

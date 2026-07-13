@@ -64,9 +64,11 @@ namespace Engine {
 		// 親エンティティを取得する
 		Entity GetParentEntity(ECSWorld& world, const Entity& entity) const;
 		// 親子関係を変更できるか
-		bool CanReparent(ECSWorld& world, const Entity& child, const Entity& newParent) const;
+		bool CanReparent(const EditorPanelContext& context, ECSWorld& world,
+			const Entity& child, const Entity& newParent) const;
 		// 表示順を変更できるか
-		bool CanReorder(ECSWorld& world, const Entity& child, const Entity& anchor) const;
+		bool CanReorder(const EditorPanelContext& context, ECSWorld& world,
+			const Entity& child, const Entity& anchor) const;
 		// ドロップされたペイロードからエンティティを取得する
 		Entity ResolveDraggedEntity(ECSWorld& world, const ImGuiPayload* payload) const;
 		// 検索条件に一致するエンティティか

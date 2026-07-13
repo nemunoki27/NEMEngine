@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/Commands/Entity/RenameEntityCommand.h>
 #include <Engine/Editor/Commands/Entity/SetEntityTagCommand.h>
+#include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
@@ -1215,9 +1216,42 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 	const auto& base = PrefabOverrideUtility::LoadPrefabBaseEntitiesCached(*database, link.prefabAsset);
 	PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(world, link.prefabInstanceID, base);
 	data.prefabAsset = link.prefabAsset;
+	const UUID sceneInstanceID = world.HasComponent<SceneObjectComponent>(entity) ?
+		world.GetComponent<SceneObjectComponent>(entity).sceneInstanceID : UUID{};
+
+	// SceneローカルIDから同じSceneのEntityを引く
+	auto findSceneEntity = [&](UUID localFileID) -> Entity {
+
+		Entity found = Entity::Null();
+		world.ForEach<SceneObjectComponent>([&](const Entity& candidate, SceneObjectComponent& sceneObject) {
+
+			if (!found.IsValid() && sceneObject.sceneInstanceID == sceneInstanceID &&
+				sceneObject.localFileID == localFileID) {
+				found = candidate;
+			}
+			});
+		return found;
+		};
+
+	// 追加Entityは親も追加Entityなら子なのでルートだけを一覧に出す
+	std::unordered_set<UUID> addedSceneLocalFileIDs;
+	for (const auto& added : data.addedEntities) {
+		addedSceneLocalFileIDs.insert(added.sceneLocalFileID);
+	}
+	std::vector<Entity> addedEntityRoots;
+	for (const auto& added : data.addedEntities) {
+
+		if (addedSceneLocalFileIDs.contains(added.parentSceneLocalFileID)) {
+			continue;
+		}
+		const Entity addedRoot = findSceneEntity(added.sceneLocalFileID);
+		if (world.IsAlive(addedRoot)) {
+			addedEntityRoots.emplace_back(addedRoot);
+		}
+	}
 
 	const int overrideCount = static_cast<int>(data.modifications.size() + data.addedComponents.size() +
-		data.removedComponents.size() + data.addedEntities.size() + data.removedEntities.size());
+		data.removedComponents.size() + addedEntityRoots.size() + data.removedEntities.size());
 
 	// オーバーライド一覧を開くボタン、件数も出す
 	const std::string buttonLabel = overrideCount > 0 ?
@@ -1291,10 +1325,23 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 		drawChoice(key, true);
 		ImGui::Separator();
 	}
-	// 追加実体と削除実体はv1では一覧表示のみ
-	for (size_t i = 0; i < data.addedEntities.size(); ++i) {
-		ImGui::TextDisabled("+ 追加された子エンティティ");
+	// 追加Entity
+	for (const Entity& addedRoot : addedEntityRoots) {
+
+		const UUID localFileID = world.GetComponent<SceneObjectComponent>(addedRoot).localFileID;
+		const std::string key = "AE|" + ToString(localFileID);
+		const std::string name = world.HasComponent<NameComponent>(addedRoot) ?
+			world.GetComponent<NameComponent>(addedRoot).name : "Entity";
+		const bool canApply = PrefabOverrideUtility::CanPromoteAddedEntitySubtree(
+			world, addedRoot, link.prefabInstanceID);
+		ImGui::Text("+ %s  追加Entity", name.c_str());
+		drawChoice(key, canApply);
+		if (!canApply) {
+			ImGui::TextDisabled("Nested Prefabを含むサブツリーは反映できません");
+		}
+		ImGui::Separator();
 	}
+	// 旧Sceneの削除差分は復元用に読み込みを維持する
 	for (size_t i = 0; i < data.removedEntities.size(); ++i) {
 		ImGui::TextDisabled("- 取り除かれた子エンティティ");
 	}
@@ -1318,6 +1365,7 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 		nlohmann::json prefabFileJson = JsonAdapter::Load(prefabPath.string(), true);
 		const auto oldBase = base;
 		bool prefabChanged = false;
+		bool instanceHierarchyChanged = false;
 
 		for (const auto& mod : data.modifications) {
 
@@ -1377,12 +1425,53 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 			}
 		}
 
+		// 追加Entityはサブツリー単位でPrefabへ反映または破棄する
+		std::vector<Entity> addedRootsToApply;
+		std::vector<Entity> addedRootsToRevert;
+		for (const Entity& addedRoot : addedEntityRoots) {
+
+			if (!world.IsAlive(addedRoot) || !world.HasComponent<SceneObjectComponent>(addedRoot)) {
+				continue;
+			}
+			const UUID localFileID = world.GetComponent<SceneObjectComponent>(addedRoot).localFileID;
+			const std::string key = "AE|" + ToString(localFileID);
+			const int choice = overrideChoices_.count(key) ? overrideChoices_[key] : 0;
+			if (choice == 1 && PrefabOverrideUtility::CanPromoteAddedEntitySubtree(
+				world, addedRoot, link.prefabInstanceID)) {
+				addedRootsToApply.emplace_back(addedRoot);
+			} else if (choice == 2) {
+				addedRootsToRevert.emplace_back(addedRoot);
+			}
+		}
+		if (!addedRootsToApply.empty()) {
+
+			prefabChanged |= PrefabOverrideUtility::PromoteAddedEntitySubtrees(
+				prefabFileJson, world, link.prefabAsset, link.prefabInstanceID, addedRootsToApply);
+		}
+		for (const Entity& addedRoot : addedRootsToRevert) {
+
+			if (world.IsAlive(addedRoot)) {
+				EditorEntitySnapshotUtility::DestroySubtree(world, addedRoot);
+				instanceHierarchyChanged = true;
+			}
+		}
+
 		if (prefabChanged) {
 			JsonAdapter::Save(prefabPath.string(), prefabFileJson);
 		}
-		// 変更を全インスタンスへ伝播する、各インスタンスの残りのオーバーライドは保持される
-		HierarchySystem hierarchySystem{};
-		PrefabOverrideUtility::PropagateToInstances(world, *database, hierarchySystem, link.prefabAsset, oldBase);
+		if (instanceHierarchyChanged && !prefabChanged) {
+
+			std::vector<Entity> hierarchyScope;
+			world.ForEachAliveEntity([&](Entity candidate) { hierarchyScope.emplace_back(candidate); });
+			HierarchySystem hierarchySystem{};
+			hierarchySystem.RebuildRuntimeLinks(world, hierarchyScope);
+		}
+		if (prefabChanged) {
+
+			// 変更を全インスタンスへ伝播し、関係ないOverrideは保持する
+			HierarchySystem hierarchySystem{};
+			PrefabOverrideUtility::PropagateToInstances(world, *database, hierarchySystem, link.prefabAsset, oldBase);
+		}
 
 		ImGui::CloseCurrentPopup();
 	}

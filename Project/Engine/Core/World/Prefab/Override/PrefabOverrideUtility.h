@@ -97,6 +97,12 @@ namespace Engine {
 		void PropagateToInstances(ECSWorld& world, AssetDatabase& database, HierarchySystem& hierarchySystem,
 			AssetID prefabAsset, const std::unordered_map<UUID, PrefabBaseEntity>& oldBase);
 
+		// 追加EntityのサブツリーをPrefabへ反映できるか
+		bool CanPromoteAddedEntitySubtree(ECSWorld& world, const Entity& root, UUID instanceID);
+		// 追加EntityのサブツリーをPrefabファイルへ追加しPrefab由来Entityへ昇格する
+		bool PromoteAddedEntitySubtrees(nlohmann::json& prefabFileJson, ECSWorld& world,
+			AssetID prefabAsset, UUID instanceID, const std::vector<Entity>& roots);
+
 		// プレファブファイルJSONの指定実体へ差分を書き込むヘルパー、まとめて呼んで最後に保存する
 		// pathは型名から始まるリーフ経路でTransform/position/xのような形
 		bool SetPrefabEntityLeaf(nlohmann::json& prefabFileJson, UUID targetLocalFileID,
