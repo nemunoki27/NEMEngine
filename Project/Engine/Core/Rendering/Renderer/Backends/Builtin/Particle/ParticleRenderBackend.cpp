@@ -3,6 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
+#include "ParticleRenderDataUtility.h"
+#include "ParticleTrailDataBuilder.h"
+
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
@@ -18,7 +21,6 @@
 
 // c++
 #include <algorithm>
-#include <cstring>
 #include <unordered_map>
 
 //============================================================================
@@ -41,9 +43,19 @@ namespace {
 		uint32_t pad1 = 0;
 		uint32_t pad2 = 0;
 	};
+	// トレイルMS生成で渡す定数バッファ
+	struct ParticleTrailConstants {
+
+		uint32_t segmentCount = 0;
+		uint32_t pad0 = 0;
+		uint32_t pad1 = 0;
+		uint32_t pad2 = 0;
+	};
 
 	// MeshShaderの1グループが担当する三角形数
 	constexpr uint32_t kParticleMeshGroupTriangles = 64;
+	// トレイルMeshShaderの1グループが担当するセグメント数
+	constexpr uint32_t kParticleTrailMeshGroupSegments = 32;
 
 	// 粒子のUVパラメータから変換行列を生成
 	Engine::Matrix4x4 BuildParticleUVMatrix(const Engine::Particle& particle) {
@@ -67,37 +79,6 @@ namespace {
 			return settings.phaseMaterialSettings[phaseIndex];
 		}
 		return kDefault;
-	}
-
-	Engine::ParticleCustomParameterLayout BuildCustomParameterLayout(
-		const Engine::ShaderReflectionInfo& reflection) {
-
-		Engine::ParticleCustomParameterLayout layout{};
-		const Engine::ShaderStructuredBufferInfo* buffer =
-			Engine::FindStructuredBuffer(reflection, "gParticleCustomParameters");
-		if (!buffer || buffer->stride == 0) {
-			return layout;
-		}
-		layout.stride = buffer->stride;
-		for (const Engine::ShaderConstantBufferVariable& variable : buffer->variables) {
-			if (variable.valueType == D3D_SVT_FLOAT && variable.offset < layout.stride) {
-				layout.variables.emplace_back(variable);
-			}
-		}
-		return layout;
-	}
-
-	void WriteCustomParameter(std::vector<uint8_t>& data,
-		const Engine::ShaderConstantBufferVariable& variable, const Engine::Vector4& value) {
-
-		const uint32_t componentCount = Engine::GetVariableComponentCount(variable);
-		const uint32_t writeSize = (std::min)(componentCount * static_cast<uint32_t>(sizeof(float)),
-			variable.size);
-		if (writeSize == 0 || variable.offset + writeSize > data.size()) {
-			return;
-		}
-		const float values[4] = { value.x, value.y, value.z, value.w };
-		std::memcpy(data.data() + variable.offset, values, writeSize);
 	}
 
 	void AppendPhaseMaterialOverrides(const Engine::ParticlePhaseMaterialSettings& materialSettings,
@@ -266,6 +247,9 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 			continue;
 		}
 		const ParticleRenderSettings& settings = payload->emitter->runtimeRenderSettings;
+		if (settings.trail.enabled && !settings.trail.drawSource) {
+			continue;
+		}
 
 		// ビルボードは描画中のビューのカメラへ向ける、BillboardComponentと同じ軸マスク方式
 		const ResolvedCameraView* camera = context.view ? context.view->FindCamera(item->cameraDomain) : nullptr;
@@ -321,7 +305,7 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 				if (parameter == materialSettings.parameters.end()) {
 					continue;
 				}
-				WriteCustomParameter(instance.customParameters, variable,
+				WriteParticleCustomParameter(instance.customParameters, variable,
 					EvaluateParticleMaterialParameter(parameter->second, phaseT));
 			}
 			phaseBuckets[phaseIndex].emplace_back(instance);
@@ -350,102 +334,31 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 	}
 }
 
-void Engine::ParticleRenderBackend::BuildTrailVertices(const RenderDrawContext& context,
-	std::span<const RenderItem* const> items, std::vector<ParticleTrailVertex>& outVertices) const {
-
-	outVertices.clear();
-	for (const RenderItem* item : items) {
-
-		const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
-		if (!payload || !payload->emitter) {
-			continue;
-		}
-		const ParticleEmitterComponent& emitter = *payload->emitter;
-		const ParticleTrailSettings& trail = emitter.runtimeRenderSettings.trail;
-
-		const ResolvedCameraView* camera = context.view ? context.view->FindCamera(item->cameraDomain) : nullptr;
-		const Vector3 cameraPos = (camera && camera->valid) ? camera->cameraPos : Vector3::AnyInit(0.0f);
-
-		for (const Particle& particle : emitter.runtimeParticles) {
-
-			auto trailIt = emitter.runtimeTrails.find(particle.id);
-			if (trailIt == emitter.runtimeTrails.end()) {
-				continue;
-			}
-			// 記録済みの軌跡点に現在位置を先頭として足してリボンを張る
-			const std::vector<ParticleTrailPoint>& points = trailIt->second;
-			const Vector3 headPos = particle.worldPos;
-			const size_t pointCount = points.size() + 1;
-			if (pointCount < 2) {
-				continue;
-			}
-
-			auto getPoint = [&](size_t index) -> Vector3 {
-				return index < points.size() ? points[index].position : headPos;
-				};
-			// 尻尾から先頭へ、リボンの色と幅を進行度で補間する
-			auto ribbonColor = [&](float t) {
-				return Color4::Lerp(trail.endColor, trail.startColor, t) * particle.color;
-				};
-			auto ribbonHalfWidth = [&](float t) {
-				return Math::Lerp(trail.endWidth, trail.startWidth, t) * 0.5f;
-				};
-
-			// 隣接する点をつないだセグメントごとに、視線と直交する方向へ幅を張る
-			for (size_t i = 0; i + 1 < pointCount; ++i) {
-
-				const Vector3 p0 = getPoint(i);
-				const Vector3 p1 = getPoint(i + 1);
-				const Vector3 segment = p1 - p0;
-				if (Vector3::Dot(segment, segment) <= 1e-8f) {
-					continue;
-				}
-				const Vector3 viewDir = Vector3::Normalize(cameraPos - p0);
-				const Vector3 side = Vector3::Normalize(Vector3::Cross(Vector3::Normalize(segment), viewDir));
-
-				const float t0 = static_cast<float>(i) / static_cast<float>(pointCount - 1);
-				const float t1 = static_cast<float>(i + 1) / static_cast<float>(pointCount - 1);
-				const Color4 color0 = ribbonColor(t0);
-				const Color4 color1 = ribbonColor(t1);
-				const Vector3 side0 = side * ribbonHalfWidth(t0);
-				const Vector3 side1 = side * ribbonHalfWidth(t1);
-
-				ParticleTrailVertex v0{};
-				v0.position = p0 - side0; v0.uv = Vector2(t0, 0.0f); v0.color = color0;
-				ParticleTrailVertex v1{};
-				v1.position = p0 + side0; v1.uv = Vector2(t0, 1.0f); v1.color = color0;
-				ParticleTrailVertex v2{};
-				v2.position = p1 - side1; v2.uv = Vector2(t1, 0.0f); v2.color = color1;
-				ParticleTrailVertex v3{};
-				v3.position = p1 + side1; v3.uv = Vector2(t1, 1.0f); v3.color = color1;
-
-				outVertices.emplace_back(v0);
-				outVertices.emplace_back(v1);
-				outVertices.emplace_back(v2);
-				outVertices.emplace_back(v2);
-				outVertices.emplace_back(v1);
-				outVertices.emplace_back(v3);
-			}
-		}
-	}
-}
-
 void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context, const RenderItem* item,
+	std::span<const RenderItem* const> items,
 	const BackendDrawCommon::ResolvedMaterialPass& resolvedPass, ParticleBatchResources& resources) {
 
-	if (resources.GetTrailVertexCount() == 0) {
-		return;
-	}
 	GraphicsCore& graphicsCore = *context.graphicsCore;
 	ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
 
-	// トレイルVSとMaterialのPS、描画状態を合成する
+	// トレイルVSまたはMSとMaterialのPS、描画状態を合成する
+	const PipelineVariantKind desiredKind = context.runtimeFeatures.useMeshShader && !context.forceVertexMeshVariant ?
+		PipelineVariantKind::GraphicsMesh : PipelineVariantKind::GraphicsVertex;
+	const PipelineVariantDesc* variant = nullptr;
 	const PipelineState* pipelineState = BackendDrawCommon::ResolveComposedGraphicsPipeline(
-		context, *resolvedPass.pass, BuiltinAssets::Pipelines::ParticleTrail,
-		PipelineVariantKind::GraphicsVertex);
+		context, *resolvedPass.pass, BuiltinAssets::Pipelines::ParticleTrail, desiredKind, &variant);
 	if (!pipelineState) {
 		return;
 	}
+	const ParticleCustomParameterLayout customLayout = BuildParticleCustomParameterLayout(
+		pipelineState->GetGraphicsReflection());
+	ParticleTrailDataBuilder::Build(context, items, customLayout, trailDataScratch_);
+	resources.UploadTrailGeometry(trailDataScratch_);
+	if (resources.GetTrailSegmentCount() == 0) {
+		return;
+	}
+	resources.UploadTrailMaterials(trailDataScratch_.materials);
+	resources.UploadTrailCustomParameters(trailDataScratch_.customParameters);
 
 	// viewの定数バッファを確保する
 	ParticleViewConstants viewConstants{};
@@ -454,6 +367,10 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 		viewConstants.cameraPosition = camera->cameraPos;
 	}
 	const PostProcessConstantBufferAllocation viewAlloc = constantBufferAllocator_.AllocateAndUpload(device, viewConstants);
+	ParticleTrailConstants trailConstants{};
+	trailConstants.segmentCount = resources.GetTrailSegmentCount();
+	const PostProcessConstantBufferAllocation trailAlloc =
+		constantBufferAllocator_.AllocateAndUpload(device, trailConstants);
 
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
 		context, *pipelineState, item->blendMode);
@@ -462,128 +379,159 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAlloc.gpuAddress);
 	}
-	if (perDrawBindCache_.Has(trailVerticesSRVSlot_)) {
-		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(trailVerticesSRVSlot_),
-			resources.GetTrailVerticesGPUAddress(), {});
+	if (perDrawBindCache_.Has(trailConstantsCBVSlot_)) {
+		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(trailConstantsCBVSlot_),
+			trailAlloc.gpuAddress);
+	}
+	if (perDrawBindCache_.Has(trailPointsSRVSlot_)) {
+		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(trailPointsSRVSlot_),
+			resources.GetTrailPointsGPUAddress(), {});
+	}
+	if (perDrawBindCache_.Has(trailSegmentsSRVSlot_)) {
+		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(trailSegmentsSRVSlot_),
+			resources.GetTrailSegmentsGPUAddress(), {});
 	}
 	if (perDrawBindCache_.Has(materialsSRVSlot_)) {
 		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(materialsSRVSlot_),
-			resources.GetMaterialsGPUAddress(), {});
+			resources.GetTrailMaterialsGPUAddress(), {});
 	}
-	if (perDrawBindCache_.Has(customParametersSRVSlot_) && resources.GetCustomParametersGPUAddress() != 0) {
+	if (perDrawBindCache_.Has(customParametersSRVSlot_) && resources.GetTrailCustomParametersGPUAddress() != 0) {
 		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(customParametersSRVSlot_),
-			resources.GetCustomParametersGPUAddress(), {});
+			resources.GetTrailCustomParametersGPUAddress(), {});
 	}
 	if (resolvedPass.material) {
-		BindMaterial(context, *pipelineState, *resolvedPass.material, nullptr, commandList);
+
+		std::unordered_map<std::string, MaterialParameterValue> trailOverrides{};
+		const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
+		if (payload && payload->emitter) {
+			AppendPhaseMaterialOverrides(payload->emitter->runtimeRenderSettings.trail.materialSettings, trailOverrides);
+		}
+		BindMaterial(context, *pipelineState, *resolvedPass.material,
+			trailOverrides.empty() ? nullptr : &trailOverrides, commandList);
 	}
 
-	// リボン頂点をそのまま三角形リストとして描画する
+	if (variant && variant->kind == PipelineVariantKind::GraphicsMesh) {
+
+		// 点列から1グループ32セグメントずつGPUでリボンへ展開する
+		const uint32_t groupCount =
+			(resources.GetTrailSegmentCount() + kParticleTrailMeshGroupSegments - 1) /
+			kParticleTrailMeshGroupSegments;
+		commandList->DispatchMesh(groupCount, 1, 1);
+		return;
+	}
+
+	// 非MS環境は1セグメントを1インスタンスとしてVSで展開する
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	commandList->DrawInstanced(resources.GetTrailVertexCount(), 1, 0, 0);
+	commandList->DrawInstanced(6, resources.GetTrailSegmentCount(), 0, 0);
 }
 
 void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 	std::span<const RenderItem* const> items) {
 
 	GraphicsCore& graphicsCore = *context.graphicsCore;
-	ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
 
 	const RenderItem* item = items.front();
 	const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
-	if (!payload || !payload->emitter || payload->emitter->runtimeParticles.empty()) {
+	if (!payload || !payload->emitter ||
+		(payload->emitter->runtimeParticles.empty() && payload->emitter->runtimeTrails.empty())) {
 		return;
 	}
 	const ParticleRenderSettings& settings = payload->emitter->runtimeRenderSettings;
 
 	const bool is2D = settings.space == PrimitiveRenderSpace::Screen2D;
-	const size_t phaseCount = (std::max)((std::max)(settings.phaseMaterials.size(),
-		settings.phaseMaterialSettings.size()), static_cast<size_t>(1));
-	std::vector<BackendDrawCommon::ResolvedMaterialPass> phasePasses(phaseCount);
-	std::vector<ParticleCustomParameterLayout> customLayouts(phaseCount);
-	for (size_t phaseIndex = 0; phaseIndex < phaseCount; ++phaseIndex) {
-
-		const AssetID phaseMaterial = (phaseIndex < settings.phaseMaterials.size() && settings.phaseMaterials[phaseIndex]) ?
-			settings.phaseMaterials[phaseIndex] : settings.material;
-		if (!ResolveParticlePass(context, phaseMaterial, is2D, phasePasses[phaseIndex])) {
-			continue;
-		}
-		const PipelineState* reflectionPipeline = BackendDrawCommon::ResolveGraphicsPipeline(
-			context, *phasePasses[phaseIndex].pass);
-		if (reflectionPipeline) {
-			customLayouts[phaseIndex] = BuildCustomParameterLayout(reflectionPipeline->GetGraphicsReflection());
-		}
-	}
-
-	// バッチのインスタンスデータをフェーズごとに集めてアップロードする
-	std::vector<ParticleDrawInstanceData> instances;
-	std::vector<uint32_t> phaseCounts;
-	std::vector<uint8_t> customParameters;
-	std::vector<uint32_t> customOffsets;
-	CollectInstances(context, items, customLayouts, instances, phaseCounts, customParameters, customOffsets);
 	ParticleBatchResources& resources = resourcePool_.Acquire(graphicsCore,
 		[](ParticleBatchResources& resource, GraphicsCore& core) {
 			resource.Init(core);
 		});
-	resources.UploadInstances(instances);
-	resources.UploadCustomParameters(customParameters);
-	if (resources.GetInstanceCount() == 0) {
-		return;
-	}
 
-	// viewの定数バッファを確保する
-	ParticleViewConstants viewConstants{};
-	if (const ResolvedCameraView* camera = context.view->FindCamera(item->cameraDomain); camera && camera->valid) {
-		viewConstants.viewProjection = camera->matrices.viewProjectionMatrix;
-		viewConstants.cameraPosition = camera->cameraPos;
-	}
-	const PostProcessConstantBufferAllocation viewAlloc = constantBufferAllocator_.AllocateAndUpload(device, viewConstants);
+	// 元形状を描画する場合のみフェーズごとのインスタンスデータを構築する
+	if ((!settings.trail.enabled || settings.trail.drawSource) && !payload->emitter->runtimeParticles.empty()) {
 
-	// フェーズごとにマテリアルを解決して連続範囲を描画する、未設定はエフェクト共通へ落とす
-	// 形状アニメはパラメトリックMS、Model粒子はメッシュ、他は共有ジオメトリで描画する
-	const IParticleParametricShape* parametric = ResolveParametricShape(context, settings);
-	uint32_t instanceOffset = 0;
-	for (size_t phaseIndex = 0; phaseIndex < phaseCounts.size(); ++phaseIndex) {
+		const size_t phaseCount = (std::max)((std::max)(settings.phaseMaterials.size(),
+			settings.phaseMaterialSettings.size()), static_cast<size_t>(1));
+		std::vector<BackendDrawCommon::ResolvedMaterialPass> phasePasses(phaseCount);
+		std::vector<ParticleCustomParameterLayout> customLayouts(phaseCount);
+		for (size_t phaseIndex = 0; phaseIndex < phaseCount; ++phaseIndex) {
 
-		const uint32_t instanceCount = phaseCounts[phaseIndex];
-		if (instanceCount == 0) {
-			continue;
+			const AssetID phaseMaterial =
+				(phaseIndex < settings.phaseMaterials.size() && settings.phaseMaterials[phaseIndex]) ?
+				settings.phaseMaterials[phaseIndex] : settings.material;
+			if (!ResolveParticlePass(context, phaseMaterial, is2D, phasePasses[phaseIndex])) {
+				continue;
+			}
+			const PipelineState* reflectionPipeline = BackendDrawCommon::ResolveGraphicsPipeline(
+				context, *phasePasses[phaseIndex].pass);
+			if (reflectionPipeline) {
+				customLayouts[phaseIndex] = BuildParticleCustomParameterLayout(
+					reflectionPipeline->GetGraphicsReflection());
+			}
 		}
-		const BackendDrawCommon::ResolvedMaterialPass& phasePass = phasePasses[phaseIndex];
-		if (!phasePass.pass || !phasePass.material) {
 
+		// バッチのインスタンスデータをフェーズごとに集めてアップロードする
+		std::vector<ParticleDrawInstanceData> instances;
+		std::vector<uint32_t> phaseCounts;
+		std::vector<uint8_t> customParameters;
+		std::vector<uint32_t> customOffsets;
+		CollectInstances(context, items, customLayouts, instances, phaseCounts, customParameters, customOffsets);
+		resources.UploadInstances(instances);
+		resources.UploadCustomParameters(customParameters);
+
+		// viewの定数バッファを確保する
+		ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
+		ParticleViewConstants viewConstants{};
+		if (const ResolvedCameraView* camera = context.view->FindCamera(item->cameraDomain); camera && camera->valid) {
+			viewConstants.viewProjection = camera->matrices.viewProjectionMatrix;
+			viewConstants.cameraPosition = camera->cameraPos;
+		}
+		const PostProcessConstantBufferAllocation viewAlloc =
+			constantBufferAllocator_.AllocateAndUpload(device, viewConstants);
+
+		// フェーズごとにマテリアルを解決して連続範囲を描画する、未設定はエフェクト共通へ落とす
+		// 形状アニメはパラメトリックMS、Model粒子はメッシュ、他は共有ジオメトリで描画する
+		const IParticleParametricShape* parametric = ResolveParametricShape(context, settings);
+		uint32_t instanceOffset = 0;
+		for (size_t phaseIndex = 0; phaseIndex < phaseCounts.size(); ++phaseIndex) {
+
+			const uint32_t instanceCount = phaseCounts[phaseIndex];
+			if (instanceCount == 0) {
+				continue;
+			}
+			const BackendDrawCommon::ResolvedMaterialPass& phasePass = phasePasses[phaseIndex];
+			if (!phasePass.pass || !phasePass.material) {
+
+				instanceOffset += instanceCount;
+				continue;
+			}
+			std::unordered_map<std::string, MaterialParameterValue> phaseOverrides{};
+			AppendPhaseMaterialOverrides(GetPhaseMaterialSettings(settings, phaseIndex), phaseOverrides);
+			const std::unordered_map<std::string, MaterialParameterValue>* phaseOverridePtr =
+				phaseOverrides.empty() ? nullptr : &phaseOverrides;
+			const D3D12_GPU_VIRTUAL_ADDRESS geometryAddress = resources.GetGeometryGPUAddress() +
+				static_cast<uint64_t>(instanceOffset) * sizeof(ParticleGeometryData);
+			const D3D12_GPU_VIRTUAL_ADDRESS materialsAddress = resources.GetMaterialsGPUAddress() +
+				static_cast<uint64_t>(instanceOffset) * sizeof(ParticleMaterialData);
+			const D3D12_GPU_VIRTUAL_ADDRESS customParametersAddress =
+				customLayouts[phaseIndex].stride == 0 ? 0 :
+				resources.GetCustomParametersGPUAddress() + customOffsets[phaseIndex];
+
+			bool drawn = false;
+			if (parametric) {
+				drawn = DrawParametricShapePath(context, item, *parametric, settings, phasePass,
+					phaseOverridePtr, geometryAddress, materialsAddress, customParametersAddress,
+					instanceCount, viewAlloc.gpuAddress);
+			}
+			if (!drawn && settings.model) {
+				drawn = DrawModelMeshPath(context, item, settings, phasePass,
+					phaseOverridePtr, geometryAddress, materialsAddress, customParametersAddress,
+					instanceCount, viewAlloc.gpuAddress);
+			}
+			if (!drawn) {
+				DrawSharedGeometryPath(context, item, settings, phasePass,
+					phaseOverridePtr, geometryAddress, materialsAddress, customParametersAddress,
+					instanceCount, viewAlloc.gpuAddress);
+			}
 			instanceOffset += instanceCount;
-			continue;
 		}
-		std::unordered_map<std::string, MaterialParameterValue> phaseOverrides{};
-		AppendPhaseMaterialOverrides(GetPhaseMaterialSettings(settings, phaseIndex), phaseOverrides);
-		const std::unordered_map<std::string, MaterialParameterValue>* phaseOverridePtr =
-			phaseOverrides.empty() ? nullptr : &phaseOverrides;
-		const D3D12_GPU_VIRTUAL_ADDRESS geometryAddress = resources.GetGeometryGPUAddress() +
-			static_cast<uint64_t>(instanceOffset) * sizeof(ParticleGeometryData);
-		const D3D12_GPU_VIRTUAL_ADDRESS materialsAddress = resources.GetMaterialsGPUAddress() +
-			static_cast<uint64_t>(instanceOffset) * sizeof(ParticleMaterialData);
-		const D3D12_GPU_VIRTUAL_ADDRESS customParametersAddress =
-			customLayouts[phaseIndex].stride == 0 ? 0 :
-			resources.GetCustomParametersGPUAddress() + customOffsets[phaseIndex];
-
-		bool drawn = false;
-		if (parametric) {
-			drawn = DrawParametricShapePath(context, item, *parametric, settings, phasePass,
-				phaseOverridePtr, geometryAddress, materialsAddress, customParametersAddress,
-				instanceCount, viewAlloc.gpuAddress);
-		}
-		if (!drawn && settings.model) {
-			drawn = DrawModelMeshPath(context, item, settings, phasePass,
-				phaseOverridePtr, geometryAddress, materialsAddress, customParametersAddress,
-				instanceCount, viewAlloc.gpuAddress);
-		}
-		if (!drawn) {
-			DrawSharedGeometryPath(context, item, settings, phasePass,
-				phaseOverridePtr, geometryAddress, materialsAddress, customParametersAddress,
-				instanceCount, viewAlloc.gpuAddress);
-		}
-		instanceOffset += instanceCount;
 	}
 
 	// トレイルは3Dのみリボンを構築して重ねて描画する、専用マテリアル未設定は粒子と同じものを使う
@@ -593,10 +541,7 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 		BackendDrawCommon::ResolvedMaterialPass trailPass{};
 		if (ResolveParticlePass(context, trailMaterial, is2D, trailPass)) {
 
-			std::vector<ParticleTrailVertex> trailVertices;
-			BuildTrailVertices(context, items, trailVertices);
-			resources.UploadTrailVertices(trailVertices);
-			DrawTrails(context, item, trailPass, resources);
+			DrawTrails(context, item, items, trailPass, resources);
 		}
 	}
 }

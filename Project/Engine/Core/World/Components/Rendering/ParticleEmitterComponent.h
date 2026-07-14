@@ -48,8 +48,8 @@ namespace Engine {
 		std::vector<Particle> runtimeParticles{};
 		// 粒子へ割り当てる次のID
 		uint32_t runtimeNextParticleID = 0;
-		// 粒子IDごとのトレイル軌跡点、ワールド空間で記録する
-		std::unordered_map<uint32_t, std::vector<ParticleTrailPoint>> runtimeTrails{};
+		// 粒子IDごとのトレイル状態、ワールド空間で記録する
+		std::unordered_map<uint32_t, ParticleTrailRuntime> runtimeTrails{};
 		// アセットから反映した描画設定、Systemが更新し描画側が参照する
 		ParticleRenderSettings runtimeRenderSettings{};
 	};

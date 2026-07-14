@@ -4,7 +4,143 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.h>
+#include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+
+// c++
+#include <algorithm>
+
+//============================================================================
+//	ParticleEffectAsset internal
+//============================================================================
+namespace {
+
+	Engine::Vector4 ToVector4(const Engine::Color4& color) {
+
+		return Engine::Vector4(color.r, color.g, color.b, color.a);
+	}
+
+	Engine::ParticleMaterialAnimatedParameter MakeTrailFloatAnimation(
+		const nlohmann::json& params, const char* startKey, const char* endKey,
+		float defaultStart, float defaultEnd) {
+
+		Engine::ParticleMaterialAnimatedParameter animation{};
+		animation.mode = Engine::ParticleMaterialParameterMode::OverLifetime;
+		animation.start.x = params.value(startKey, defaultStart);
+		animation.end.x = params.value(endKey, defaultEnd);
+		animation.easingType = Engine::EnumAdapter<EasingType>::FromString(
+			params.value("easingType", "EaseOutSine")).value_or(EasingType::EaseOutSine);
+		animation.componentCount = 1;
+		animation.useCurve = params.value("useCurve", false);
+		if (const auto it = params.find("curve"); it != params.end() && it->is_object()) {
+			from_json(*it, animation.curveW.channel);
+		}
+		if (const auto it = params.find("loop"); it != params.end()) {
+			from_json(*it, animation.loop);
+		}
+		return animation;
+	}
+
+	Engine::ParticleMaterialAnimatedParameter MakeTrailColorAnimation(const nlohmann::json& params,
+		const Engine::Color4& defaultStart, const Engine::Color4& defaultEnd) {
+
+		Engine::ParticleMaterialAnimatedParameter animation{};
+		animation.mode = Engine::ParticleMaterialParameterMode::OverLifetime;
+		animation.start = ToVector4(defaultStart);
+		animation.end = ToVector4(defaultEnd);
+		if (const auto it = params.find("startColor"); it != params.end()) {
+			animation.start = ToVector4(Engine::Color4::FromJson(*it));
+		}
+		if (const auto it = params.find("endColor"); it != params.end()) {
+			animation.end = ToVector4(Engine::Color4::FromJson(*it));
+		}
+		animation.easingType = Engine::EnumAdapter<EasingType>::FromString(
+			params.value("easingType", "EaseOutSine")).value_or(EasingType::EaseOutSine);
+		animation.componentCount = 4;
+		animation.useCurve = params.value("useCurve", false);
+		if (const auto it = params.find("curveChannels"); it != params.end() && it->is_array()) {
+
+			const size_t xyzCount = (std::min)(animation.curve3.channels.size(), it->size());
+			for (size_t i = 0; i < xyzCount; ++i) {
+				from_json((*it)[i], animation.curve3.channels[i]);
+			}
+			if (3 < it->size()) {
+				from_json((*it)[3], animation.curveW.channel);
+			}
+		}
+		if (const auto it = params.find("loop"); it != params.end()) {
+			from_json(*it, animation.loop);
+		}
+		return animation;
+	}
+
+	Engine::ParticleMaterialAnimatedParameter MakeTrailVector2Animation(
+		const nlohmann::json& params, const Engine::Vector2& defaultValue) {
+
+		Engine::ParticleMaterialAnimatedParameter animation{};
+		animation.mode = Engine::ParticleMaterialParameterMode::OverLifetime;
+		Engine::Vector2 start = defaultValue;
+		Engine::Vector2 end = defaultValue;
+		if (const auto it = params.find("start"); it != params.end()) { start = Engine::Vector2::FromJson(*it); }
+		if (const auto it = params.find("end"); it != params.end()) { end = Engine::Vector2::FromJson(*it); }
+		animation.start = Engine::Vector4(start.x, start.y, 0.0f, 0.0f);
+		animation.end = Engine::Vector4(end.x, end.y, 0.0f, 0.0f);
+		animation.easingType = Engine::EnumAdapter<EasingType>::FromString(
+			params.value("easingType", "EaseOutSine")).value_or(EasingType::EaseOutSine);
+		animation.componentCount = 2;
+		animation.useCurve = params.value("useCurve", false);
+		if (const auto it = params.find("curveChannels"); it != params.end() && it->is_array()) {
+
+			const size_t count = (std::min)(static_cast<size_t>(2), it->size());
+			for (size_t i = 0; i < count; ++i) {
+				from_json((*it)[i], animation.curve3.channels[i]);
+			}
+		}
+		if (const auto it = params.find("loop"); it != params.end()) {
+			from_json(*it, animation.loop);
+		}
+		return animation;
+	}
+
+	Engine::ParticleMaterialAnimatedParameter MakeTrailRotationAnimation(const nlohmann::json& params) {
+
+		Engine::ParticleMaterialAnimatedParameter animation{};
+		animation.mode = Engine::ParticleMaterialParameterMode::OverLifetime;
+		animation.start.x = params.value("start", 0.0f);
+		animation.end.x = params.value("end", 0.0f);
+		animation.easingType = Engine::EnumAdapter<EasingType>::FromString(
+			params.value("easingType", "EaseOutSine")).value_or(EasingType::EaseOutSine);
+		animation.componentCount = 1;
+		animation.useCurve = params.value("useCurve", false);
+		if (const auto it = params.find("curve"); it != params.end() && it->is_object()) {
+			from_json(*it, animation.curveW.channel);
+		}
+		if (const auto it = params.find("loop"); it != params.end()) {
+			from_json(*it, animation.loop);
+		}
+		return animation;
+	}
+
+	Engine::ParticleTrailPhaseSettings MakeDefaultTrailPhaseSettings(
+		const Engine::ParticleTrailSettings& trail) {
+
+		Engine::ParticleTrailPhaseSettings settings{};
+		settings.width.mode = Engine::ParticleMaterialParameterMode::OverLifetime;
+		settings.width.start.x = trail.startWidth;
+		settings.width.end.x = trail.endWidth;
+		settings.width.componentCount = 1;
+		settings.color.mode = Engine::ParticleMaterialParameterMode::OverLifetime;
+		settings.color.start = ToVector4(trail.startColor);
+		settings.color.end = ToVector4(trail.endColor);
+		settings.color.componentCount = 4;
+		settings.uv.offset.constant = Engine::Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+		settings.uv.offset.componentCount = 2;
+		settings.uv.scale.constant = Engine::Vector4(1.0f, 1.0f, 0.0f, 0.0f);
+		settings.uv.scale.componentCount = 2;
+		settings.uv.rotation.componentCount = 1;
+		return settings;
+	}
+}
 
 //============================================================================
 //	ParticleEffectAsset classMethods
@@ -32,10 +168,12 @@ Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(const Particle
 	// フェーズごとのマテリアルと形状アニメの有無を集める
 	settings.phaseMaterials.reserve(asset.phases.size());
 	settings.phaseMaterialSettings.reserve(asset.phases.size());
+	settings.trailPhaseSettings.reserve(asset.phases.size());
 	for (const ParticleEffectPhase& phase : asset.phases) {
 
 		settings.phaseMaterials.emplace_back(phase.material);
 		settings.phaseMaterialSettings.emplace_back(phase.materialSettings);
+		settings.trailPhaseSettings.emplace_back(MakeDefaultTrailPhaseSettings(asset.trail));
 		for (const ParticleEffectModuleEntry& entry : phase.modules) {
 			if (entry.id == "ShapeOverLifetime") {
 				settings.shapeOverLifetime = true;
@@ -53,11 +191,53 @@ Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(const Particle
 					settings.phaseMaterialSettings.back().parameters[parameter.key()] = std::move(value);
 				}
 			}
+			if (entry.id == "TrailSizeOverLifetime") {
+				settings.trailPhaseSettings.back().width = MakeTrailFloatAnimation(
+					entry.params, "startScale", "endScale", 0.1f, 0.0f);
+			}
+			if (entry.id == "TrailColorOverLifetime") {
+				settings.trailPhaseSettings.back().color = MakeTrailColorAnimation(
+					entry.params, asset.trail.startColor, asset.trail.endColor);
+			}
+			if (entry.id == "TrailColorUV") {
+
+				ParticleTrailUVAnimationSettings& uv = settings.trailPhaseSettings.back().uv;
+				if (const auto it = entry.params.find("offset"); it != entry.params.end() && it->is_object()) {
+					uv.offset = MakeTrailVector2Animation(*it, Vector2::AnyInit(0.0f));
+					uv.scroll = it->value("updateType", "Lerp") == "Scroll";
+					if (const auto value = it->find("scrollSpeed"); value != it->end()) {
+						uv.scrollSpeed = Vector2::FromJson(*value);
+					}
+				}
+				if (const auto it = entry.params.find("scale"); it != entry.params.end() && it->is_object()) {
+					uv.scale = MakeTrailVector2Animation(*it, Vector2::AnyInit(1.0f));
+				}
+				if (const auto it = entry.params.find("rotation"); it != entry.params.end() && it->is_object()) {
+					uv.rotation = MakeTrailRotationAnimation(*it);
+					if (const auto value = it->find("pivot"); value != it->end()) {
+						uv.pivot = Vector2::FromJson(*value);
+					}
+				}
+			}
+			if (entry.id == "TrailCustomShaderParameter") {
+
+				const auto parameters = entry.params.find("parameters");
+				if (parameters == entry.params.end() || !parameters->is_object()) {
+					continue;
+				}
+				for (auto parameter = parameters->begin(); parameter != parameters->end(); ++parameter) {
+
+					ParticleMaterialAnimatedParameter value{};
+					from_json(parameter.value(), value);
+					settings.trailPhaseSettings.back().parameters[parameter.key()] = std::move(value);
+				}
+			}
 		}
 	}
 	if (settings.phaseMaterials.empty()) {
 		settings.phaseMaterials.emplace_back();
 		settings.phaseMaterialSettings.emplace_back();
+		settings.trailPhaseSettings.emplace_back(MakeDefaultTrailPhaseSettings(asset.trail));
 	}
 	return settings;
 }
@@ -140,6 +320,11 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 	if (const auto it = data.find("trail"); it != data.end() && it->is_object()) {
 
 		outAsset.trail.enabled = it->value("enabled", outAsset.trail.enabled);
+		outAsset.trail.drawSource = it->value("drawSource", outAsset.trail.drawSource);
+		outAsset.trail.keepAfterParticleDeath = it->value(
+			"keepAfterParticleDeath", outAsset.trail.keepAfterParticleDeath);
+		outAsset.trail.continueUpdateAfterParticleDeath = it->value(
+			"continueUpdateAfterParticleDeath", outAsset.trail.continueUpdateAfterParticleDeath);
 		outAsset.trail.maxPoints = it->value("maxPoints", outAsset.trail.maxPoints);
 		outAsset.trail.minDistance = it->value("minDistance", outAsset.trail.minDistance);
 		// 旧スキーマの単一幅は両端へ引き継ぐ
@@ -153,7 +338,13 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 		if (const auto vit = it->find("startColor"); vit != it->end()) { outAsset.trail.startColor = Color4::FromJson(*vit); }
 		if (const auto vit = it->find("endColor"); vit != it->end()) { outAsset.trail.endColor = Color4::FromJson(*vit); }
 		outAsset.trail.pointLifetime = it->value("pointLifetime", outAsset.trail.pointLifetime);
+		if (outAsset.trail.keepAfterParticleDeath && outAsset.trail.pointLifetime <= 0.0f) {
+			outAsset.trail.pointLifetime = ParticleTrailSettings::kDefaultPointLifetime;
+		}
 		outAsset.trail.material = ParseAssetID(*it, "material");
+		if (const auto vit = it->find("materialSettings"); vit != it->end()) {
+			from_json(*vit, outAsset.trail.materialSettings);
+		}
 	}
 
 	// モジュール配列を読み込む、未知のモジュールは読み飛ばして他のモジュールの再生を継続する
@@ -283,6 +474,9 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 	}
 	data["trail"] = nlohmann::json::object();
 	data["trail"]["enabled"] = asset.trail.enabled;
+	data["trail"]["drawSource"] = asset.trail.drawSource;
+	data["trail"]["keepAfterParticleDeath"] = asset.trail.keepAfterParticleDeath;
+	data["trail"]["continueUpdateAfterParticleDeath"] = asset.trail.continueUpdateAfterParticleDeath;
 	data["trail"]["maxPoints"] = asset.trail.maxPoints;
 	data["trail"]["minDistance"] = asset.trail.minDistance;
 	data["trail"]["startWidth"] = asset.trail.startWidth;
@@ -291,6 +485,7 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 	data["trail"]["endColor"] = asset.trail.endColor.ToJson();
 	data["trail"]["pointLifetime"] = asset.trail.pointLifetime;
 	data["trail"]["material"] = ToAssetReferenceJson(asset.trail.material);
+	to_json(data["trail"]["materialSettings"], asset.trail.materialSettings);
 
 	data["phases"] = nlohmann::json::array();
 	for (const ParticleEffectPhase& phase : asset.phases) {

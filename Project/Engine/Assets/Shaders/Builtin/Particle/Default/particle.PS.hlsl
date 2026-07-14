@@ -1,7 +1,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include "particle.hlsli"
+#include "../Common/particle.hlsli"
 
 Texture2D<float4> baseColorTexture : register(t0, space2);
 SamplerState gSampler : register(s0);

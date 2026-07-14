@@ -30,7 +30,11 @@ namespace Engine {
 		nlohmann::json ToJson() const override;
 		bool DrawImGui() override;
 
-		void OnUpdate(std::span<Particle> alive, float deltaTime) override;
+		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
+		void OnUpdate(Particle& particle, float deltaTime) override;
+	protected:
+		// 派生モジュールの既定範囲を設定する
+		void SetScaleRange(float start, float end) { startScale_ = start; endScale_ = end; }
 	private:
 		//========================================================================
 		//	private Methods

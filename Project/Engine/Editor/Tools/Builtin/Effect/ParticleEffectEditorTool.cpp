@@ -9,6 +9,10 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialCompatibility.h>
 #include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleCustomShaderParameterModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailSizeOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailColorOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailColorUVModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailCustomShaderParameterModule.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.h>
 #include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
@@ -19,6 +23,7 @@ using namespace Engine;
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
+#include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
@@ -151,6 +156,18 @@ namespace {
 
 		if (phase.material) {
 			return phase.material;
+		}
+		if (asset.material) {
+			return asset.material;
+		}
+		return asset.space == PrimitiveRenderSpace::Screen2D ?
+			BuiltinAssets::Materials::DefaultParticle2D : BuiltinAssets::Materials::DefaultParticle;
+	}
+
+	AssetID ResolveTrailMaterialID(const ParticleEffectAsset& asset) {
+
+		if (asset.trail.material) {
+			return asset.trail.material;
 		}
 		if (asset.material) {
 			return asset.material;
@@ -504,19 +521,39 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 			changed |= MyGUI::Checkbox("トレイル描画", draft_.trail.enabled);
 			if (draft_.trail.enabled) {
 
+				changed |= MyGUI::Checkbox("元の形状を描画", draft_.trail.drawSource);
+				const bool keepAfterParticleDeath = draft_.trail.keepAfterParticleDeath;
+				changed |= MyGUI::Checkbox("粒子消滅後もトレイルを残す", draft_.trail.keepAfterParticleDeath);
+				if (!keepAfterParticleDeath && draft_.trail.keepAfterParticleDeath &&
+					draft_.trail.pointLifetime <= 0.0f) {
+
+					draft_.trail.pointLifetime = ParticleTrailSettings::kDefaultPointLifetime;
+					changed = true;
+				}
+				if (draft_.trail.keepAfterParticleDeath) {
+					changed |= MyGUI::Checkbox("寿命後も更新", draft_.trail.continueUpdateAfterParticleDeath);
+				}
 				changed |= MyGUI::DragInt("軌跡点の上限", draft_.trail.maxPoints).valueChanged;
 				changed |= MyGUI::DragFloat("最小移動距離", draft_.trail.minDistance, MakeDragSetting(0.001f, 100.0f)).valueChanged;
-				changed |= MyGUI::DragFloat("先頭の幅", draft_.trail.startWidth, MakeDragSetting(0.001f, 100.0f)).valueChanged;
-				changed |= MyGUI::DragFloat("尻尾の幅", draft_.trail.endWidth, MakeDragSetting(0.001f, 100.0f)).valueChanged;
-				changed |= MyGUI::ColorEdit("先頭の色", draft_.trail.startColor).valueChanged;
-				changed |= MyGUI::ColorEdit("尻尾の色", draft_.trail.endColor).valueChanged;
 				changed |= MyGUI::DragFloat("点の寿命", draft_.trail.pointLifetime, MakeDragSetting(0.0f, 60.0f)).valueChanged;
 				{
 					// 未設定なら粒子と同じマテリアルを使う
 					AssetEditSetting setting{};
-					changed |= MyGUI::AssetReferenceField("トレイルマテリアル", draft_.trail.material,
-						assetDatabase, { AssetType::Material }, setting).valueChanged;
+					AssetID material = draft_.trail.material;
+					if (MyGUI::AssetReferenceField("トレイルマテリアル", material,
+						assetDatabase, { AssetType::Material }, setting).valueChanged) {
+
+						std::string message{};
+						if (ValidateParticleMaterialSelection(context, material, message)) {
+							draft_.trail.material = material;
+							changed = true;
+							statusMessage_.clear();
+						} else {
+							statusMessage_ = "トレイルマテリアルを設定できません: " + message;
+						}
+					}
 				}
+				changed |= DrawTrailMaterialSection(context);
 			}
 		}
 		ImGui::EndTabItem();
@@ -716,6 +753,56 @@ bool ParticleEffectEditorTool::DrawPhaseMaterialSection(const EditorToolContext&
 	return changed;
 }
 
+bool ParticleEffectEditorTool::DrawTrailMaterialSection(const EditorToolContext& context) {
+
+	if (!MyGUI::CollapsingHeader("トレイルテクスチャ設定", false)) {
+		return false;
+	}
+
+	bool changed = false;
+	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
+	ParticlePhaseMaterialSettings& materialSettings = draft_.trail.materialSettings;
+	{
+		AssetEditSetting setting{};
+		changed |= MyGUI::AssetReferenceField("ベースカラーテクスチャ", materialSettings.baseColorTexture,
+			assetDatabase, { AssetType::Texture }, setting).valueChanged;
+	}
+
+	const std::optional<MaterialAsset> material = LoadMaterialAsset(context, ResolveTrailMaterialID(draft_));
+	if (!material) {
+		ImGui::TextDisabled("マテリアルを解決できません");
+		return changed;
+	}
+	const ShaderReflectionInfo* reflection = FindParticleMaterialReflection(context, *material);
+	if (!reflection) {
+		ImGui::TextDisabled("シェーダーリフレクションを取得できません");
+		return changed;
+	}
+
+	for (const ShaderResourceBinding& texture : CollectMaterialTextures(*reflection)) {
+
+		ImGui::PushID(texture.name.c_str());
+		AssetID textureID{};
+		if (auto it = materialSettings.textureOverrides.find(texture.name);
+			it != materialSettings.textureOverrides.end()) {
+			textureID = it->second;
+		}
+		AssetEditSetting setting{};
+		if (MyGUI::AssetReferenceField(texture.name.c_str(), textureID,
+			assetDatabase, { AssetType::Texture }, setting).valueChanged) {
+
+			if (textureID) {
+				materialSettings.textureOverrides[texture.name] = textureID;
+			} else {
+				materialSettings.textureOverrides.erase(texture.name);
+			}
+			changed = true;
+		}
+		ImGui::PopID();
+	}
+	return changed;
+}
+
 bool ParticleEffectEditorTool::DrawPhaseParentSection(const EditorToolContext& context,
 	ParticleEffectPhase& phase) {
 
@@ -767,27 +854,44 @@ bool ParticleEffectEditorTool::DrawPhaseModules(const EditorToolContext& context
 
 	ImGui::BeginChild("ModuleList", ImVec2(190.0f, 0.0f), true);
 	const std::vector<std::string> registeredIDs = ParticleModuleRegistry::GetInstance().GetRegisteredIDs();
-	if (!registeredIDs.empty()) {
+	if (ImGui::Button("モジュール追加", ImVec2(-FLT_MIN, 0.0f))) {
+		ImGui::OpenPopup("##AddParticleModulePopup");
+	}
+	if (ImGui::BeginPopup("##AddParticleModulePopup")) {
 
-		addModuleIndex_ = std::clamp(addModuleIndex_, 0, static_cast<int32_t>(registeredIDs.size()) - 1);
-		ImGui::SetNextItemWidth(-1.0f);
-		if (ImGui::BeginCombo("##AddModule", registeredIDs[addModuleIndex_].c_str())) {
-			for (int32_t i = 0; i < static_cast<int32_t>(registeredIDs.size()); ++i) {
-				if (ImGui::Selectable(registeredIDs[i].c_str(), i == addModuleIndex_)) {
-					addModuleIndex_ = i;
-				}
+		ImTextureID searchIcon{};
+		if (context.panelContext && context.panelContext->graphicsCore) {
+			searchIcon = EditorTextureHelper::GetSearchIcon(
+				context.panelContext->graphicsCore->GetTextureUploadService());
+		}
+		addModuleSearchFilter_.DrawInput("##AddParticleModuleSearch", searchIcon, "検索...");
+		ImGui::Separator();
+
+		bool hasAny = false;
+		for (const std::string& id : registeredIDs) {
+
+			if (!addModuleSearchFilter_.Matches(id)) {
+				continue;
 			}
-			ImGui::EndCombo();
-		}
-		if (ImGui::Button("追加", ImVec2(-FLT_MIN, 0.0f))) {
+			hasAny = true;
+			if (ImGui::MenuItem(id.c_str())) {
 
-			ParticleEffectModuleEntry entry{};
-			entry.id = registeredIDs[addModuleIndex_];
-			phase.modules.emplace_back(std::move(entry));
-			cache.emplace_back();
-			selectedModule = static_cast<int32_t>(phase.modules.size()) - 1;
-			changed = true;
+				ParticleEffectModuleEntry entry{};
+				entry.id = id;
+				if (auto module = ParticleModuleRegistry::GetInstance().Create(entry.id)) {
+					entry.params = module->ToJson();
+				}
+				phase.modules.emplace_back(std::move(entry));
+				cache.emplace_back();
+				selectedModule = static_cast<int32_t>(phase.modules.size()) - 1;
+				changed = true;
+				ImGui::CloseCurrentPopup();
+			}
 		}
+		if (!hasAny) {
+			ImGui::TextDisabled("追加できるモジュールがありません");
+		}
+		ImGui::EndPopup();
 	}
 	ImGui::Separator();
 	int32_t removeIndex = -1;
@@ -851,7 +955,8 @@ bool ParticleEffectEditorTool::DrawPhaseModules(const EditorToolContext& context
 			if (auto* custom = dynamic_cast<ParticleCustomShaderParameterModule*>(module)) {
 
 				std::vector<ShaderConstantBufferVariable> parameters{};
-				const AssetID materialID = ResolvePhaseMaterialID(draft_, phase);
+				const AssetID materialID = entry.id == "TrailCustomShaderParameter" ?
+					ResolveTrailMaterialID(draft_) : ResolvePhaseMaterialID(draft_, phase);
 				if (const std::optional<MaterialAsset> material = LoadMaterialAsset(context, materialID)) {
 					if (const ShaderReflectionInfo* reflection = FindParticleMaterialReflection(context, *material)) {
 						parameters = CollectMaterialParameters(*reflection);

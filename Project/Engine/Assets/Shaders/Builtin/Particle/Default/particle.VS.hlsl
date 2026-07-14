@@ -1,8 +1,8 @@
 //============================================================================
 //	include
 //============================================================================
-#include "particle.hlsli"
-#include "../Mesh/Common/meshShaderSharedTypes.hlsli"
+#include "../Common/particle.hlsli"
+#include "../../Mesh/Common/meshShaderSharedTypes.hlsli"
 
 //============================================================================
 //	resources

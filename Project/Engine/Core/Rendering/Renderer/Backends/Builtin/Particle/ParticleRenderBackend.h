@@ -34,11 +34,13 @@ namespace Engine {
 		ParticleRenderBackend() {
 
 			shapeConstantsCBVSlot_ = perDrawBindCache_.AddSlot("ParticleShapeConstants", ShaderBindingKind::CBV);
+			trailConstantsCBVSlot_ = perDrawBindCache_.AddSlot("ParticleTrailConstants", ShaderBindingKind::CBV);
 			verticesSRVSlot_ = perDrawBindCache_.AddSlot("gVertices", ShaderBindingKind::SRV);
 			geometrySRVSlot_ = perDrawBindCache_.AddSlot("gParticleGeometry", ShaderBindingKind::SRV);
 			materialsSRVSlot_ = perDrawBindCache_.AddSlot("gParticleMaterials", ShaderBindingKind::SRV);
 			customParametersSRVSlot_ = perDrawBindCache_.AddSlot("gParticleCustomParameters", ShaderBindingKind::SRV);
-			trailVerticesSRVSlot_ = perDrawBindCache_.AddSlot("gTrailVertices", ShaderBindingKind::SRV);
+			trailPointsSRVSlot_ = perDrawBindCache_.AddSlot("gTrailPoints", ShaderBindingKind::SRV);
+			trailSegmentsSRVSlot_ = perDrawBindCache_.AddSlot("gTrailSegments", ShaderBindingKind::SRV);
 		}
 		~ParticleRenderBackend() override;
 
@@ -65,13 +67,16 @@ namespace Engine {
 		bool meshManagerInitialized_ = false;
 
 		FrameBatchResourcePool<ParticleBatchResources> resourcePool_;
+		ParticleTrailRenderData trailDataScratch_{};
 
 		PipelineBindingCache::SlotID shapeConstantsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID trailConstantsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID verticesSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID geometrySRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID materialsSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID customParametersSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID trailVerticesSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID trailPointsSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID trailSegmentsSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 
 		//--------- functions ----------------------------------------------------
 
@@ -107,11 +112,9 @@ namespace Engine {
 			D3D12_GPU_VIRTUAL_ADDRESS customParametersAddress,
 			uint32_t instanceCount,
 			D3D12_GPU_VIRTUAL_ADDRESS viewAddress);
-		// トレイルのリボン頂点を構築する
-		void BuildTrailVertices(const RenderDrawContext& context, std::span<const RenderItem* const> items,
-			std::vector<ParticleTrailVertex>& outVertices) const;
 		// トレイルを描画する
 		void DrawTrails(const RenderDrawContext& context, const RenderItem* item,
+			std::span<const RenderItem* const> items,
 			const BackendDrawCommon::ResolvedMaterialPass& resolvedPass, ParticleBatchResources& resources);
 	};
 } // Engine

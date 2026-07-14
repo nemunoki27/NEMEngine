@@ -25,8 +25,10 @@ namespace Engine {
 		nlohmann::json ToJson() const override;
 		bool DrawImGui() override;
 
-		void OnSpawn(std::span<Particle> newborn) override;
-		void OnUpdate(std::span<Particle> alive, float deltaTime) override;
+		ParticleModuleExecutionMode GetSpawnExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
+		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
+		void OnSpawn(Particle& particle) override;
+		void OnUpdate(Particle& particle, float deltaTime) override;
 	};
 
 	ENGINE_REGISTER_PARTICLE_MODULE(ParticleLookToVelocityModule, "LookToVelocity");

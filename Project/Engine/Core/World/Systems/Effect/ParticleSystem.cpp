@@ -31,6 +31,10 @@
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleNoiseUVModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleEmissiveModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleAlphaReferenceModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailSizeOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailColorOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailColorUVModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailCustomShaderParameterModule.h>
 // 形状別
 #include <Engine/Core/Rendering/Particle/Parametric/ParticleRingParametricShape.h>
 #include <Engine/Core/Rendering/Particle/Parametric/ParticleCylinderParametricShape.h>
@@ -175,6 +179,7 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 
 		// 寿命と移動、終端はLifeEndModeに従って遷移し、破棄する粒子は末尾と入れ替える
 		std::vector<Particle>& particles = emitter.runtimeParticles;
+		const bool hasUpdateBatch = effect->hasUpdateBatch;
 		for (size_t i = 0; i < particles.size();) {
 
 			Particle& particle = particles[i];
@@ -186,6 +191,19 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 			particle.age += deltaTime;
 			if (particle.lifetime <= particle.age && !AdvancePhaseOnLifeEnd(particle, effect->phases)) {
 
+				if (asset.trail.enabled && asset.trail.keepAfterParticleDeath) {
+
+					auto trailIt = emitter.runtimeTrails.find(particle.id);
+					if (trailIt != emitter.runtimeTrails.end()) {
+
+						ParticleTrailRuntime& runtime = trailIt->second;
+						runtime.owner = particle;
+						runtime.hasOwner = true;
+						runtime.detached = true;
+						runtime.detachedThisFrame = true;
+					}
+				}
+
 				particle = particles.back();
 				particles.pop_back();
 				continue;
@@ -195,11 +213,28 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 					parents[particle.phaseIndex]);
 			}
 			particle.pos += particle.velocity * deltaTime;
+			if (!hasUpdateBatch) {
+
+				if (particle.phaseIndex < effect->phases.size()) {
+					ApplyUpdateModules(particle, effect->phases[particle.phaseIndex], deltaTime);
+				}
+				const ParentRuntime* parent = particle.phaseIndex < parents.size() ?
+					&parents[particle.phaseIndex] : nullptr;
+				RefreshParticleWorldTransform(particle, parent);
+			}
 			++i;
 		}
 
-		// 生存粒子をフェーズごとのモジュールで一括更新する
-		UpdatePhaseModules(particles, *effect, deltaTime);
+		// Batchを含む場合だけフェーズ別の連続範囲を作って登録順に実行する
+		if (hasUpdateBatch) {
+
+			UpdatePhaseModules(particles, *effect, deltaTime);
+			for (Particle& particle : particles) {
+				const ParentRuntime* parent = particle.phaseIndex < parents.size() ?
+					&parents[particle.phaseIndex] : nullptr;
+				RefreshParticleWorldTransform(particle, parent);
+			}
+		}
 
 		// 発生間隔ごとに発生させ、上限でクランプする
 		if (emitAllowed) {
@@ -223,17 +258,22 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 				const PhaseRuntime& firstPhase = effect->phases.front();
 				InitEmitterParticles(newborn, emitterSettings, firstPhase.lifetime,
 					asset.space == PrimitiveRenderSpace::Screen2D, emitter.runtimeNextParticleID);
-				for (const auto& module : firstPhase.modules) {
-					module->OnSpawn(newborn);
-				}
 
 				// エミッターのワールド行列で発生位置と速度を変換する
 				Matrix4x4 emitterWorld = Matrix4x4::Identity();
 				if (const auto* transform = world.TryGetComponent<TransformComponent>(entity)) {
 					emitterWorld = transform->worldMatrix;
 				}
+				const bool hasSpawnBatch = firstPhase.hasSpawnBatch || firstPhase.hasUpdateBatch;
+				if (hasSpawnBatch) {
+
+					ExecuteSpawnModules(newborn, firstPhase);
+				}
 				for (Particle& particle : newborn) {
 
+					if (!hasSpawnBatch) {
+						ApplySpawnModules(particle, firstPhase);
+					}
 					const Vector3 worldPos = Vector3::Transform(particle.pos, emitterWorld);
 					particle.velocity = Vector3::Transform(particle.pos + particle.velocity, emitterWorld) - worldPos;
 					particle.pos = worldPos;
@@ -241,21 +281,23 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 					particle.id = emitter.runtimeNextParticleID++;
 					// 発生時の回転とスケールは親ローカル値として継承する
 					UpdateParticleParent(particle, firstPhase.parentSettings, parents.front(), false);
-				}
+					if (!hasSpawnBatch) {
 
-				// 発生した瞬間の見た目を確定させ、初回描画が未補間の色や大きさになるのを防ぐ
-				for (const auto& module : firstPhase.modules) {
-					module->OnUpdate(newborn, 0.0f);
+						// 発生した瞬間の見た目を確定させる
+						ApplyUpdateModules(particle, firstPhase, 0.0f);
+						RefreshParticleWorldTransform(particle, &parents.front());
+					}
+				}
+				if (hasSpawnBatch) {
+
+					ExecuteUpdateModules(newborn, firstPhase, 0.0f);
+					for (Particle& particle : newborn) {
+						RefreshParticleWorldTransform(particle, &parents.front());
+					}
 				}
 			}
 		}
-
-		// 親ローカル姿勢から描画とトレイル用のワールド姿勢を確定する
-		for (Particle& particle : particles) {
-			const ParentRuntime* parent = particle.phaseIndex < parents.size() ?
-				&parents[particle.phaseIndex] : nullptr;
-			RefreshParticleWorldTransform(particle, parent);
-		}
+		UpdateDetachedTrailOwners(emitter, *effect, parents, asset.trail, deltaTime);
 
 		// トレイルの軌跡点をワールド空間で記録する
 		if (asset.trail.enabled) {
@@ -375,7 +417,7 @@ bool Engine::ParticleSystem::AdvancePhaseOnLifeEnd(Particle& particle, const std
 void Engine::ParticleSystem::UpdatePhaseModules(std::vector<Particle>& particles,
 	const EffectRuntime& effect, float deltaTime) const {
 
-	// フェーズ順に並べ、各フェーズのモジュールを連続範囲へ一括適用する
+	// Batchモジュール用にフェーズ順の連続範囲を作る
 	std::sort(particles.begin(), particles.end(),
 		[](const Particle& lhs, const Particle& rhs) { return lhs.phaseIndex < rhs.phaseIndex; });
 	size_t begin = 0;
@@ -389,11 +431,76 @@ void Engine::ParticleSystem::UpdatePhaseModules(std::vector<Particle>& particles
 		if (phaseIndex < effect.phases.size()) {
 
 			std::span<Particle> range(particles.data() + begin, end - begin);
-			for (const auto& module : effect.phases[phaseIndex].modules) {
-				module->OnUpdate(range, deltaTime);
-			}
+			ExecuteUpdateModules(range, effect.phases[phaseIndex], deltaTime);
 		}
 		begin = end;
+	}
+}
+
+void Engine::ParticleSystem::ApplySpawnModules(Particle& particle, const PhaseRuntime& phase) const {
+
+	for (const ModuleExecutionGroup& group : phase.spawnExecution) {
+
+		if (group.mode != ParticleModuleExecutionMode::PerParticle) {
+			continue;
+		}
+		for (IParticleModule* module : group.modules) {
+			module->OnSpawn(particle);
+		}
+	}
+}
+
+void Engine::ParticleSystem::ApplyUpdateModules(
+	Particle& particle, const PhaseRuntime& phase, float deltaTime) const {
+
+	for (const ModuleExecutionGroup& group : phase.updateExecution) {
+
+		if (group.mode != ParticleModuleExecutionMode::PerParticle) {
+			continue;
+		}
+		for (IParticleModule* module : group.modules) {
+			module->OnUpdate(particle, deltaTime);
+		}
+	}
+}
+
+void Engine::ParticleSystem::ExecuteSpawnModules(
+	std::span<Particle> particles, const PhaseRuntime& phase) const {
+
+	for (const ModuleExecutionGroup& group : phase.spawnExecution) {
+
+		if (group.mode == ParticleModuleExecutionMode::PerParticle) {
+
+			for (Particle& particle : particles) {
+				for (IParticleModule* module : group.modules) {
+					module->OnSpawn(particle);
+				}
+			}
+			continue;
+		}
+		for (IParticleModule* module : group.modules) {
+			module->OnSpawnBatch(particles);
+		}
+	}
+}
+
+void Engine::ParticleSystem::ExecuteUpdateModules(
+	std::span<Particle> particles, const PhaseRuntime& phase, float deltaTime) const {
+
+	for (const ModuleExecutionGroup& group : phase.updateExecution) {
+
+		if (group.mode == ParticleModuleExecutionMode::PerParticle) {
+
+			for (Particle& particle : particles) {
+				for (IParticleModule* module : group.modules) {
+					module->OnUpdate(particle, deltaTime);
+				}
+			}
+			continue;
+		}
+		for (IParticleModule* module : group.modules) {
+			module->OnUpdateBatch(particles, deltaTime);
+		}
 	}
 }
 
@@ -560,13 +667,44 @@ void Engine::ParticleSystem::DrawEmitterShape(ECSWorld& world, const Entity& ent
 void Engine::ParticleSystem::RecordTrails([[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
 	ParticleEmitterComponent& emitter, const ParticleTrailSettings& trail, float deltaTime) {
 
-	// 死亡した粒子の軌跡を破棄する
+	// 生存粒子のIDを収集する
 	aliveTrailIDs_.clear();
+	aliveTrailIDs_.reserve(emitter.runtimeParticles.size());
 	for (const Particle& particle : emitter.runtimeParticles) {
 		aliveTrailIDs_.insert(particle.id);
 	}
+
+	// 軌跡点を老化させ、死亡した粒子のトレイルは切り離す
+	const bool keepAfterParticleDeath = trail.keepAfterParticleDeath && 0.0f < trail.pointLifetime;
 	for (auto it = emitter.runtimeTrails.begin(); it != emitter.runtimeTrails.end();) {
-		it = aliveTrailIDs_.contains(it->first) ? std::next(it) : emitter.runtimeTrails.erase(it);
+
+		ParticleTrailRuntime& runtime = it->second;
+		const bool alive = aliveTrailIDs_.contains(it->first);
+		if (!alive && !keepAfterParticleDeath) {
+			it = emitter.runtimeTrails.erase(it);
+			continue;
+		}
+		runtime.detached = !alive;
+		if (alive) {
+			runtime.hasOwner = false;
+			runtime.detachedThisFrame = false;
+		}
+		for (ParticleTrailPoint& point : runtime.points) {
+			point.age += deltaTime;
+		}
+		if (runtime.detached) {
+			runtime.head.age += deltaTime;
+		}
+		if (0.0f < trail.pointLifetime) {
+			while (!runtime.points.empty() && trail.pointLifetime < runtime.points.front().age) {
+				runtime.points.pop_front();
+			}
+		}
+		if (runtime.detached && runtime.points.empty()) {
+			it = emitter.runtimeTrails.erase(it);
+			continue;
+		}
+		++it;
 	}
 
 	// 一定距離を移動した粒子へ軌跡点を追加する、上限を超えたら古い点を捨てる
@@ -574,30 +712,66 @@ void Engine::ParticleSystem::RecordTrails([[maybe_unused]] ECSWorld& world, [[ma
 	for (const Particle& particle : emitter.runtimeParticles) {
 
 		const Vector3 worldPos = particle.worldPos;
-		std::vector<ParticleTrailPoint>& points = emitter.runtimeTrails[particle.id];
-
-		// 記録済みの点を老化させ、寿命を超えた古い点から消す
-		for (ParticleTrailPoint& point : points) {
-			point.age += deltaTime;
-		}
-		if (0.0f < trail.pointLifetime) {
-			while (!points.empty() && trail.pointLifetime < points.front().age) {
-				points.erase(points.begin());
-			}
-		}
+		ParticleTrailRuntime& runtime = emitter.runtimeTrails[particle.id];
+		runtime.head = ParticleTrailPoint{ worldPos, 0.0f, particle.phaseIndex };
+		runtime.detached = false;
+		runtime.hasOwner = false;
+		runtime.detachedThisFrame = false;
+		std::deque<ParticleTrailPoint>& points = runtime.points;
 
 		if (points.empty()) {
-			points.emplace_back(ParticleTrailPoint{ worldPos, 0.0f });
+			points.emplace_back(runtime.head);
 			continue;
 		}
 		const Vector3 diff = worldPos - points.back().position;
 		if (trail.minDistance * trail.minDistance <= Vector3::Dot(diff, diff)) {
 
-			points.emplace_back(ParticleTrailPoint{ worldPos, 0.0f });
+			points.emplace_back(runtime.head);
 			if (maxPoints < static_cast<int32_t>(points.size())) {
-				points.erase(points.begin());
+				points.pop_front();
 			}
 		}
+	}
+}
+
+void Engine::ParticleSystem::UpdateDetachedTrailOwners(ParticleEmitterComponent& emitter,
+	const EffectRuntime& effect, const std::vector<ParentRuntime>& parents,
+	const ParticleTrailSettings& trail, float deltaTime) const {
+
+	if (!trail.keepAfterParticleDeath) {
+		return;
+	}
+	for (auto& [id, runtime] : emitter.runtimeTrails) {
+
+		if (!runtime.detached || !runtime.hasOwner) {
+			continue;
+		}
+		Particle& owner = runtime.owner;
+		if (trail.continueUpdateAfterParticleDeath) {
+
+			if (!runtime.detachedThisFrame) {
+				owner.age += deltaTime;
+			}
+			if (owner.phaseIndex < effect.phases.size()) {
+				UpdateParticleParent(owner, effect.phases[owner.phaseIndex].parentSettings,
+					parents[owner.phaseIndex]);
+			}
+			owner.pos += owner.velocity * deltaTime;
+			if (owner.phaseIndex < effect.phases.size()) {
+
+				const PhaseRuntime& phase = effect.phases[owner.phaseIndex];
+				if (phase.hasUpdateBatch) {
+					ExecuteUpdateModules(std::span<Particle>(&owner, 1), phase, deltaTime);
+				} else {
+					ApplyUpdateModules(owner, phase, deltaTime);
+				}
+			}
+		}
+		const ParentRuntime* parent = owner.phaseIndex < parents.size() ? &parents[owner.phaseIndex] : nullptr;
+		RefreshParticleWorldTransform(owner, parent);
+		runtime.head.position = owner.worldPos;
+		runtime.head.phaseIndex = owner.phaseIndex;
+		runtime.detachedThisFrame = false;
 	}
 }
 
@@ -605,6 +779,7 @@ void Engine::ParticleSystem::BuildPhases(EffectRuntime& runtime) const {
 
 	// 未登録のモジュールは読み飛ばす
 	runtime.phases.clear();
+	runtime.hasUpdateBatch = false;
 	runtime.phases.reserve(runtime.asset.phases.size());
 	for (const ParticleEffectPhase& phaseDef : runtime.asset.phases) {
 
@@ -612,6 +787,20 @@ void Engine::ParticleSystem::BuildPhases(EffectRuntime& runtime) const {
 		phase.lifetime = phaseDef.lifetime;
 		phase.lifeEndMode = phaseDef.lifeEndMode;
 		phase.parentSettings = phaseDef.parentSettings;
+		auto appendExecution = [](std::vector<ModuleExecutionGroup>& execution,
+			ParticleModuleExecutionMode mode, IParticleModule* module) {
+
+			if (mode == ParticleModuleExecutionMode::None) {
+				return;
+			}
+			if (execution.empty() || execution.back().mode != mode) {
+
+				ModuleExecutionGroup group{};
+				group.mode = mode;
+				execution.emplace_back(std::move(group));
+			}
+			execution.back().modules.emplace_back(module);
+		};
 		for (const ParticleEffectModuleEntry& entry : phaseDef.modules) {
 
 			auto module = ParticleModuleRegistry::GetInstance().Create(entry.id);
@@ -619,8 +808,16 @@ void Engine::ParticleSystem::BuildPhases(EffectRuntime& runtime) const {
 				continue;
 			}
 			module->FromJson(entry.params);
+			IParticleModule* modulePtr = module.get();
+			const ParticleModuleExecutionMode spawnMode = module->GetSpawnExecutionMode();
+			const ParticleModuleExecutionMode updateMode = module->GetUpdateExecutionMode();
+			appendExecution(phase.spawnExecution, spawnMode, modulePtr);
+			appendExecution(phase.updateExecution, updateMode, modulePtr);
+			phase.hasSpawnBatch |= spawnMode == ParticleModuleExecutionMode::Batch;
+			phase.hasUpdateBatch |= updateMode == ParticleModuleExecutionMode::Batch;
 			phase.modules.emplace_back(std::move(module));
 		}
+		runtime.hasUpdateBatch |= phase.hasUpdateBatch;
 		runtime.phases.emplace_back(std::move(phase));
 	}
 }

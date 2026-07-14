@@ -45,15 +45,13 @@ nlohmann::json Engine::ParticleScaleOverLifetimeModule::ToJson() const {
 	return params;
 }
 
-void Engine::ParticleScaleOverLifetimeModule::OnUpdate(std::span<Particle> alive, [[maybe_unused]] float deltaTime) {
+void Engine::ParticleScaleOverLifetimeModule::OnUpdate(
+	Particle& particle, [[maybe_unused]] float deltaTime) {
 
-	for (Particle& particle : alive) {
-
-		const float progress = loop_.LoopedT(particle.age / particle.lifetime);
-		// カーブ指定があればカーブを優先し、無ければイージング補間する
-		particle.scale = useCurve_ ? curve_.Evaluate(progress) :
-			Vector3::Lerp(startScale_, endScale_, EasedValue(easingType_, progress));
-	}
+	const float progress = loop_.LoopedT(particle.age / particle.lifetime);
+	// カーブ指定があればカーブを優先し、無ければイージング補間する
+	particle.scale = useCurve_ ? curve_.Evaluate(progress) :
+		Vector3::Lerp(startScale_, endScale_, EasedValue(easingType_, progress));
 }
 
 bool Engine::ParticleScaleOverLifetimeModule::DrawImGui() {

@@ -18,20 +18,17 @@ bool Engine::ParticleLookToVelocityModule::DrawImGui() {
 	return false;
 }
 
-void Engine::ParticleLookToVelocityModule::OnSpawn([[maybe_unused]] std::span<Particle> newborn) {
+void Engine::ParticleLookToVelocityModule::OnSpawn(Particle& particle) {
 
 	// 進行方向から、回転を設定する
-	for (auto& particle : newborn) {
-
-		particle.rotation = Quaternion::LookRotation(particle.velocity.Normalize(), Vector3(0.0f, 1.0f, 0.0f)).Normalize();
-	}
+	particle.rotation = Quaternion::LookRotation(
+		particle.velocity.Normalize(), Vector3(0.0f, 1.0f, 0.0f)).Normalize();
 }
 
-void Engine::ParticleLookToVelocityModule::OnUpdate(std::span<Particle> alive, [[maybe_unused]] float deltaTime) {
+void Engine::ParticleLookToVelocityModule::OnUpdate(
+	Particle& particle, [[maybe_unused]] float deltaTime) {
 
 	// 進行方向から、回転を設定する
-	for (auto& particle : alive) {
-
-		particle.rotation = Quaternion::LookRotation(particle.velocity.Normalize(), Vector3(0.0f, 1.0f, 0.0f)).Normalize();
-	}
+	particle.rotation = Quaternion::LookRotation(
+		particle.velocity.Normalize(), Vector3(0.0f, 1.0f, 0.0f)).Normalize();
 }

@@ -30,17 +30,14 @@ nlohmann::json Engine::ParticleGravityForceModule::ToJson() const {
 	return params;
 }
 
-void Engine::ParticleGravityForceModule::OnUpdate(std::span<Particle> alive, float deltaTime) {
+void Engine::ParticleGravityForceModule::OnUpdate(Particle& particle, float deltaTime) {
 
-	for (Particle& particle : alive) {
+	particle.velocity += gravity_ * deltaTime;
+	// 地面より下へ潜ったら反射させ、反発係数で減衰する
+	if (reflectGround_ && particle.pos.y <= reflectGroundY_ && particle.velocity.y < 0.0f) {
 
-		particle.velocity += gravity_ * deltaTime;
-		// 地面より下へ潜ったら反射させ、反発係数で減衰する
-		if (reflectGround_ && particle.pos.y <= reflectGroundY_ && particle.velocity.y < 0.0f) {
-
-			particle.velocity = Vector3::Reflect(particle.velocity, Vector3(0.0f, 1.0f, 0.0f)) * restitution_;
-			particle.pos.y = reflectGroundY_;
-		}
+		particle.velocity = Vector3::Reflect(particle.velocity, Vector3(0.0f, 1.0f, 0.0f)) * restitution_;
+		particle.pos.y = reflectGroundY_;
 	}
 }
 

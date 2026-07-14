@@ -168,40 +168,37 @@ nlohmann::json Engine::ParticleColorUVModule::ToJson() const {
 	return params;
 }
 
-void Engine::ParticleColorUVModule::OnUpdate(std::span<Particle> alive, float deltaTime) {
+void Engine::ParticleColorUVModule::OnUpdate(Particle& particle, float deltaTime) {
 
-	for (Particle& particle : alive) {
+	const float lifetimeT = particle.age / particle.lifetime;
+	const float scaleT = scaleLoop_.LoopedT(lifetimeT);
+	const float rotationT = rotationLoop_.LoopedT(lifetimeT);
 
-		const float lifetimeT = particle.age / particle.lifetime;
-		const float scaleT = scaleLoop_.LoopedT(lifetimeT);
-		const float rotationT = rotationLoop_.LoopedT(lifetimeT);
+	if (updateType_ == ParticleUVUpdateType::Scroll) {
+		particle.uvOffset += scrollSpeed_ * deltaTime;
+	} else {
 
-		if (updateType_ == ParticleUVUpdateType::Scroll) {
-			particle.uvOffset += scrollSpeed_ * deltaTime;
+		const float offsetT = offsetLoop_.LoopedT(lifetimeT);
+		if (useOffsetCurve_) {
+			particle.uvOffset = Vector2(
+				offsetCurve_.channels[0].Evaluate(offsetT),
+				offsetCurve_.channels[1].Evaluate(offsetT));
 		} else {
-
-			const float offsetT = offsetLoop_.LoopedT(lifetimeT);
-			if (useOffsetCurve_) {
-				particle.uvOffset = Vector2(
-					offsetCurve_.channels[0].Evaluate(offsetT),
-					offsetCurve_.channels[1].Evaluate(offsetT));
-			} else {
-				particle.uvOffset = Vector2::Lerp(startOffset_, endOffset_, EasedValue(offsetEasingType_, offsetT));
-			}
+			particle.uvOffset = Vector2::Lerp(startOffset_, endOffset_, EasedValue(offsetEasingType_, offsetT));
 		}
-
-		if (useScaleCurve_) {
-			particle.uvScale = Vector2(
-				scaleCurve_.channels[0].Evaluate(scaleT),
-				scaleCurve_.channels[1].Evaluate(scaleT));
-		} else {
-			particle.uvScale = Vector2::Lerp(startScale_, endScale_, EasedValue(scaleEasingType_, scaleT));
-		}
-
-		particle.uvRotation = useRotationCurve_ ? rotationCurve_.Evaluate(rotationT) :
-			std::lerp(startRotation_, endRotation_, EasedValue(rotationEasingType_, rotationT));
-		particle.uvPivot = pivot_;
 	}
+
+	if (useScaleCurve_) {
+		particle.uvScale = Vector2(
+			scaleCurve_.channels[0].Evaluate(scaleT),
+			scaleCurve_.channels[1].Evaluate(scaleT));
+	} else {
+		particle.uvScale = Vector2::Lerp(startScale_, endScale_, EasedValue(scaleEasingType_, scaleT));
+	}
+
+	particle.uvRotation = useRotationCurve_ ? rotationCurve_.Evaluate(rotationT) :
+		std::lerp(startRotation_, endRotation_, EasedValue(rotationEasingType_, rotationT));
+	particle.uvPivot = pivot_;
 }
 
 bool Engine::ParticleColorUVModule::DrawImGui() {

@@ -48,28 +48,22 @@ nlohmann::json Engine::ParticleRotationOverLifetimeModule::ToJson() const {
 	return params;
 }
 
-void Engine::ParticleRotationOverLifetimeModule::OnSpawn(std::span<Particle> newborn) {
+void Engine::ParticleRotationOverLifetimeModule::OnSpawn(Particle& particle) {
 
-	for (Particle& particle : newborn) {
-
-		particle.rotation = Quaternion::FromEulerDegrees(RandomGenerator::Generate(initialMin_, initialMax_));
-		particle.rotationSpeed = RandomGenerator::Generate(speedMin_, speedMax_);
-	}
+	particle.rotation = Quaternion::FromEulerDegrees(RandomGenerator::Generate(initialMin_, initialMax_));
+	particle.rotationSpeed = RandomGenerator::Generate(speedMin_, speedMax_);
 }
 
-void Engine::ParticleRotationOverLifetimeModule::OnUpdate(std::span<Particle> alive, float deltaTime) {
+void Engine::ParticleRotationOverLifetimeModule::OnUpdate(Particle& particle, float deltaTime) {
 
-	for (Particle& particle : alive) {
-
-		// 角速度ベクトルの軸回りにクォータニオンで積分する
-		const float speed = Vector3::Length(particle.rotationSpeed);
-		if (speed <= 0.0f) {
-			continue;
-		}
-		const Vector3 axis = particle.rotationSpeed * (1.0f / speed);
-		particle.rotation = Quaternion::Normalize(Quaternion::MakeAxisAngle(
-			axis, speed * Math::radian * deltaTime) * particle.rotation);
+	// 角速度ベクトルの軸回りにクォータニオンで積分する
+	const float speed = Vector3::Length(particle.rotationSpeed);
+	if (speed <= 0.0f) {
+		return;
 	}
+	const Vector3 axis = particle.rotationSpeed * (1.0f / speed);
+	particle.rotation = Quaternion::Normalize(Quaternion::MakeAxisAngle(
+		axis, speed * Math::radian * deltaTime) * particle.rotation);
 }
 
 bool Engine::ParticleRotationOverLifetimeModule::DrawImGui() {

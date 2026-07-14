@@ -34,16 +34,14 @@ nlohmann::json Engine::ParticleEmissiveModule::ToJson() const {
 	return params;
 }
 
-void Engine::ParticleEmissiveModule::OnUpdate(std::span<Particle> alive, [[maybe_unused]] float deltaTime) {
+void Engine::ParticleEmissiveModule::OnUpdate(
+	Particle& particle, [[maybe_unused]] float deltaTime) {
 
-	for (Particle& particle : alive) {
-
-		const float progress = std::clamp(particle.age / particle.lifetime, 0.0f, 1.0f);
-		const float easedT = EasedValue(easingType_, progress);
-		const Color3 color = Color3::Lerp(startColor_, endColor_, easedT);
-		particle.emissive = Vector4(color.r, color.g, color.b,
-			Math::Lerp(startIntensity_, endIntensity_, easedT));
-	}
+	const float progress = std::clamp(particle.age / particle.lifetime, 0.0f, 1.0f);
+	const float easedT = EasedValue(easingType_, progress);
+	const Color3 color = Color3::Lerp(startColor_, endColor_, easedT);
+	particle.emissive = Vector4(color.r, color.g, color.b,
+		Math::Lerp(startIntensity_, endIntensity_, easedT));
 }
 
 bool Engine::ParticleEmissiveModule::DrawImGui() {

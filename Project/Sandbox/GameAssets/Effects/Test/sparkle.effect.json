@@ -1,0 +1,628 @@
+{
+    "billboardAxes": [
+        "X",
+        "Y",
+        "Z"
+    ],
+    "blendMode": "Add",
+    "crossPlane": {
+        "pivot": {
+            "x": 0.5,
+            "y": 0.5
+        },
+        "planeCount": 2,
+        "size": {
+            "x": 1.0,
+            "y": 1.0
+        }
+    },
+    "cube": {
+        "pivot": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+        },
+        "size": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+        }
+    },
+    "cylinder": {
+        "bottomRadius": 1.0,
+        "cap": "Both",
+        "height": 2.0,
+        "heightDivide": 1,
+        "maxAngleDegrees": 360.0,
+        "radialDivide": 16,
+        "topRadius": 1.0,
+        "uvMode": "None"
+    },
+    "duration": 2.0,
+    "emitter": {
+        "boxFaceNegX": true,
+        "boxFaceNegY": true,
+        "boxFaceNegZ": true,
+        "boxFacePosX": true,
+        "boxFacePosY": true,
+        "boxFacePosZ": true,
+        "boxSize": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+        },
+        "circleAngleMax": 360.0,
+        "circleAngleMin": 0.0,
+        "circleClockwise": false,
+        "circleRadius": 1.0,
+        "circleSpawnMode": "Random",
+        "circleStepAngle": 10.0,
+        "circleUsePrevSegmentDirectionOnWrap": false,
+        "circleVelocityMode": "Normal",
+        "coneAngle": 25.0,
+        "coneRadius": 0.5,
+        "emitCount": {
+            "constant": 456,
+            "max": 4,
+            "min": 4,
+            "type": "Constant"
+        },
+        "emitInterval": 2.0,
+        "emitOffset": {
+            "constant": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "max": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "min": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "type": "Constant"
+        },
+        "maxParticles": 1024,
+        "pointDirection": {
+            "x": 0.0,
+            "y": 1.0,
+            "z": 0.0
+        },
+        "rectEdgeNegX": true,
+        "rectEdgeNegY": true,
+        "rectEdgePosX": true,
+        "rectEdgePosY": true,
+        "rectSize": {
+            "x": 1.0,
+            "y": 1.0
+        },
+        "shape": "Sphere",
+        "speed": {
+            "constant": 1.600000023841858,
+            "max": 11.420000076293945,
+            "min": 5.320000171661377,
+            "type": "Random"
+        },
+        "sphereRadius": 0.09000000357627869,
+        "torusRadius": 1.0,
+        "torusThickness": 0.20000000298023224
+    },
+    "hemisphere": {
+        "bottomCap": true,
+        "latitudeDivide": 8,
+        "longitudeDivide": 24,
+        "radius": 1.0
+    },
+    "looping": true,
+    "material": "",
+    "model": "",
+    "name": "demoEffect2",
+    "phases": [
+        {
+            "lifeEndMode": "Advance",
+            "lifetime": {
+                "constant": 1.0,
+                "max": 1.559999942779541,
+                "min": 0.6510000228881836,
+                "type": "Random"
+            },
+            "material": "",
+            "materialSettings": {
+                "baseColorTexture": "",
+                "textureOverrides": {}
+            },
+            "modules": [
+                {
+                    "id": "SizeOverLifetime",
+                    "params": {}
+                },
+                {
+                    "id": "TrailColorOverLifetime",
+                    "params": {
+                        "curveChannels": [
+                            {
+                                "defaultValue": 1.0,
+                                "keys": [],
+                                "name": "R"
+                            },
+                            {
+                                "defaultValue": 1.0,
+                                "keys": [],
+                                "name": "G"
+                            },
+                            {
+                                "defaultValue": 1.0,
+                                "keys": [],
+                                "name": "B"
+                            },
+                            {
+                                "defaultValue": 1.0,
+                                "keys": [],
+                                "name": "A"
+                            }
+                        ],
+                        "easingType": "EaseOutExpo",
+                        "endColor": {
+                            "a": 1.0,
+                            "b": 0.05414348095655441,
+                            "g": 0.18749013543128967,
+                            "r": 0.876447856426239
+                        },
+                        "loop": {
+                            "loopCount": 1,
+                            "type": "PingPong"
+                        },
+                        "startColor": {
+                            "a": 1.0,
+                            "b": 0.05414348095655441,
+                            "g": 0.3589358627796173,
+                            "r": 0.876447856426239
+                        },
+                        "useCurve": false
+                    }
+                },
+                {
+                    "id": "ColorOverLifetime",
+                    "params": {
+                        "curveChannels": [
+                            {
+                                "defaultValue": 1.0,
+                                "keys": [],
+                                "name": "R"
+                            },
+                            {
+                                "defaultValue": 1.0,
+                                "keys": [],
+                                "name": "G"
+                            },
+                            {
+                                "defaultValue": 1.0,
+                                "keys": [],
+                                "name": "B"
+                            },
+                            {
+                                "defaultValue": 1.0,
+                                "keys": [],
+                                "name": "A"
+                            }
+                        ],
+                        "easingType": "EaseOutSine",
+                        "endColor": {
+                            "a": 0.0,
+                            "b": 0.0,
+                            "g": 0.0,
+                            "r": 1.0
+                        },
+                        "loop": {
+                            "loopCount": 1,
+                            "type": "Repeat"
+                        },
+                        "startColor": {
+                            "a": 1.0,
+                            "b": 0.0,
+                            "g": 0.0,
+                            "r": 1.0
+                        },
+                        "useCurve": false
+                    }
+                },
+                {
+                    "id": "TrailCustomShaderParameter",
+                    "params": {
+                        "parameters": {
+                            "dissolve": {
+                                "componentCount": 1,
+                                "constant": [
+                                    0.6199999451637268,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "curve3": [
+                                    {
+                                        "defaultValue": 0.0,
+                                        "keys": [],
+                                        "name": "X"
+                                    },
+                                    {
+                                        "defaultValue": 0.0,
+                                        "keys": [],
+                                        "name": "Y"
+                                    },
+                                    {
+                                        "defaultValue": 0.0,
+                                        "keys": [],
+                                        "name": "Z"
+                                    }
+                                ],
+                                "curveW": {
+                                    "defaultValue": 0.0,
+                                    "keys": [],
+                                    "name": "Value"
+                                },
+                                "easingType": "Linear",
+                                "end": [
+                                    0.8199999928474426,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "loop": {
+                                    "loopCount": 1,
+                                    "type": "Repeat"
+                                },
+                                "mode": "OverLifetime",
+                                "start": [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "useCurve": false
+                            },
+                            "edgeColor": {
+                                "componentCount": 4,
+                                "constant": [
+                                    0.0,
+                                    0.2624886631965637,
+                                    0.5482625365257263,
+                                    0.0
+                                ],
+                                "curve3": [
+                                    {
+                                        "defaultValue": 0.0,
+                                        "keys": [],
+                                        "name": "X"
+                                    },
+                                    {
+                                        "defaultValue": 0.0,
+                                        "keys": [],
+                                        "name": "Y"
+                                    },
+                                    {
+                                        "defaultValue": 0.0,
+                                        "keys": [],
+                                        "name": "Z"
+                                    }
+                                ],
+                                "curveW": {
+                                    "defaultValue": 0.0,
+                                    "keys": [],
+                                    "name": "Value"
+                                },
+                                "easingType": "EaseOutSine",
+                                "end": [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "loop": {
+                                    "loopCount": 1,
+                                    "type": "Repeat"
+                                },
+                                "mode": "Constant",
+                                "start": [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "useCurve": false
+                            },
+                            "edgeWidth": {
+                                "componentCount": 1,
+                                "constant": [
+                                    0.25999999046325684,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "curve3": [
+                                    {
+                                        "defaultValue": 0.0,
+                                        "keys": [],
+                                        "name": "X"
+                                    },
+                                    {
+                                        "defaultValue": 0.0,
+                                        "keys": [],
+                                        "name": "Y"
+                                    },
+                                    {
+                                        "defaultValue": 0.0,
+                                        "keys": [],
+                                        "name": "Z"
+                                    }
+                                ],
+                                "curveW": {
+                                    "defaultValue": 0.0,
+                                    "keys": [],
+                                    "name": "Value"
+                                },
+                                "easingType": "EaseOutSine",
+                                "end": [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "loop": {
+                                    "loopCount": 1,
+                                    "type": "Repeat"
+                                },
+                                "mode": "Constant",
+                                "start": [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "useCurve": false
+                            },
+                            "noiseScale": {
+                                "componentCount": 2,
+                                "constant": [
+                                    0.5299999713897705,
+                                    0.5299999713897705,
+                                    0.0,
+                                    0.0
+                                ],
+                                "curve3": [
+                                    {
+                                        "defaultValue": 0.0,
+                                        "keys": [],
+                                        "name": "X"
+                                    },
+                                    {
+                                        "defaultValue": 0.0,
+                                        "keys": [],
+                                        "name": "Y"
+                                    },
+                                    {
+                                        "defaultValue": 0.0,
+                                        "keys": [],
+                                        "name": "Z"
+                                    }
+                                ],
+                                "curveW": {
+                                    "defaultValue": 0.0,
+                                    "keys": [],
+                                    "name": "Value"
+                                },
+                                "easingType": "EaseOutSine",
+                                "end": [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "loop": {
+                                    "loopCount": 1,
+                                    "type": "Repeat"
+                                },
+                                "mode": "Constant",
+                                "start": [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "useCurve": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "id": "TrailSizeOverLifetime",
+                    "params": {
+                        "curve": {
+                            "defaultValue": 0.0,
+                            "keys": [],
+                            "name": "Value"
+                        },
+                        "easingType": "Linear",
+                        "endScale": 0.0,
+                        "loop": {
+                            "loopCount": 1,
+                            "type": "PingPong"
+                        },
+                        "startScale": 0.10999999940395355,
+                        "useCurve": false
+                    }
+                },
+                {
+                    "id": "TrailColorUV",
+                    "params": {
+                        "offset": {
+                            "curveChannels": [
+                                {
+                                    "defaultValue": 0.0,
+                                    "keys": [],
+                                    "name": "X"
+                                },
+                                {
+                                    "defaultValue": 0.0,
+                                    "keys": [],
+                                    "name": "Y"
+                                }
+                            ],
+                            "easingType": "EaseOutSine",
+                            "end": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "loop": {
+                                "loopCount": 1,
+                                "type": "Repeat"
+                            },
+                            "scrollSpeed": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "start": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "updateType": "Lerp",
+                            "useCurve": false
+                        },
+                        "rotation": {
+                            "curve": {
+                                "defaultValue": 0.0,
+                                "keys": [],
+                                "name": "Value"
+                            },
+                            "easingType": "EaseOutSine",
+                            "end": 0.0,
+                            "loop": {
+                                "loopCount": 1,
+                                "type": "Repeat"
+                            },
+                            "pivot": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "start": 0.0,
+                            "useCurve": false
+                        },
+                        "scale": {
+                            "curveChannels": [
+                                {
+                                    "defaultValue": 0.0,
+                                    "keys": [],
+                                    "name": "X"
+                                },
+                                {
+                                    "defaultValue": 0.0,
+                                    "keys": [],
+                                    "name": "Y"
+                                }
+                            ],
+                            "easingType": "EaseOutSine",
+                            "end": {
+                                "x": 7.660001754760742,
+                                "y": 7.660001754760742
+                            },
+                            "loop": {
+                                "loopCount": 1,
+                                "type": "Repeat"
+                            },
+                            "start": {
+                                "x": 7.570001125335693,
+                                "y": 7.570001125335693
+                            },
+                            "useCurve": false
+                        }
+                    }
+                },
+                {
+                    "id": "GravityForce",
+                    "params": {
+                        "autoGroundEmitter": false,
+                        "gravity": {
+                            "x": 0.0,
+                            "y": -6.940000057220459,
+                            "z": 0.0
+                        },
+                        "reflectGround": true,
+                        "reflectGroundY": 0.0,
+                        "restitution": 0.4000000059604645
+                    }
+                }
+            ],
+            "name": "Phase 1",
+            "parentSettings": {
+                "entityLocalFileID": "",
+                "ignoreParentRotation": false,
+                "ignoreParentScale": false,
+                "keepWorldOnDetach": true,
+                "useEmitter": false
+            }
+        }
+    ],
+    "plane": {
+        "axis": "XY",
+        "divideX": 1,
+        "divideY": 1,
+        "pivot": {
+            "x": 0.5,
+            "y": 0.5
+        },
+        "size": {
+            "x": 0.24000020325183868,
+            "y": 0.24000020325183868
+        }
+    },
+    "queue": "Transparent",
+    "ring": {
+        "divide": 16,
+        "endAngle": 360.0,
+        "innerRadius": 0.5,
+        "outerRadius": 1.0,
+        "startAngle": 0.0
+    },
+    "shape": "Plane",
+    "sortMode": "None",
+    "space": "World3D",
+    "sphere": {
+        "latitudeDivide": 16,
+        "longitudeDivide": 24,
+        "radius": 1.0
+    },
+    "trail": {
+        "continueUpdateAfterParticleDeath": false,
+        "drawSource": true,
+        "enabled": true,
+        "endColor": {
+            "a": 0.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+        },
+        "endWidth": 0.10000000149011612,
+        "keepAfterParticleDeath": true,
+        "material": "a110000000000004",
+        "materialSettings": {
+            "baseColorTexture": "c2ea9f4498073ab3",
+            "textureOverrides": {
+                "noiseTexture": "a640622884ec0338"
+            }
+        },
+        "maxPoints": 16,
+        "minDistance": 0.0010000000474974513,
+        "pointLifetime": 0.6700000166893005,
+        "startColor": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+        },
+        "startWidth": 0.10000000149011612
+    },
+    "version": 1
+}

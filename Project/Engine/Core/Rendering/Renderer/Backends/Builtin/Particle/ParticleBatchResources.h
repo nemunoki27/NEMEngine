@@ -68,16 +68,33 @@ namespace Engine {
 	};
 
 	//============================================================================
-	//	ParticleTrailVertex
-	//	トレイルリボンの頂点、CPUで構築してStructuredBufferで読む
+	//	ParticleTrailPointData
+	//	GPUでリボンへ展開する評価済みのトレイル点
 	//============================================================================
-	struct ParticleTrailVertex {
+	struct ParticleTrailPointData {
 
 		Vector3 position = Vector3::AnyInit(0.0f);
-		float pad0 = 0.0f;
-		Vector2 uv = Vector2::AnyInit(0.0f);
-		Vector2 pad1 = Vector2::AnyInit(0.0f);
+		float halfWidth = 0.0f;
+		Vector3 tangent = Vector3(0.0f, 0.0f, 1.0f);
+		float ribbonT = 0.0f;
 		Color4 color = Color4::White();
+		uint32_t materialIndex = 0;
+		Vector3 pad0 = Vector3::AnyInit(0.0f);
+	};
+	static_assert(sizeof(ParticleTrailPointData) == 64);
+
+	//============================================================================
+	//	ParticleTrailRenderData
+	//	トレイル描画で共有する点列とマテリアルデータ
+	//============================================================================
+	struct ParticleTrailRenderData {
+
+		std::vector<ParticleTrailPointData> points{};
+		std::vector<uint32_t> segments{};
+		std::vector<ParticleMaterialData> materials{};
+		std::vector<uint8_t> customParameters{};
+
+		void Clear();
 	};
 
 	//============================================================================
@@ -100,8 +117,12 @@ namespace Engine {
 		void UploadInstances(const std::vector<ParticleDrawInstanceData>& instances);
 		// PSのreflectionレイアウトで構築した可変データを転送する
 		void UploadCustomParameters(const std::vector<uint8_t>& data);
-		// トレイル頂点配列をアップロードする
-		void UploadTrailVertices(const std::vector<ParticleTrailVertex>& vertices);
+		// トレイル点列とセグメント索引をアップロードする
+		void UploadTrailGeometry(const ParticleTrailRenderData& data);
+		// トレイルの固定マテリアルデータをアップロードする
+		void UploadTrailMaterials(const std::vector<ParticleMaterialData>& materials);
+		// トレイルの可変カスタムデータをアップロードする
+		void UploadTrailCustomParameters(const std::vector<uint8_t>& data);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -111,8 +132,13 @@ namespace Engine {
 			return customParameterBuffer_ ? customParameterBuffer_->GetGPUVirtualAddress() : 0;
 		}
 		uint32_t GetInstanceCount() const { return instanceCount_; }
-		D3D12_GPU_VIRTUAL_ADDRESS GetTrailVerticesGPUAddress() const { return trailVertices_.GetGPUAddress(); }
-		uint32_t GetTrailVertexCount() const { return trailVertexCount_; }
+		D3D12_GPU_VIRTUAL_ADDRESS GetTrailPointsGPUAddress() const { return trailPoints_.GetGPUAddress(); }
+		D3D12_GPU_VIRTUAL_ADDRESS GetTrailSegmentsGPUAddress() const { return trailSegments_.GetGPUAddress(); }
+		D3D12_GPU_VIRTUAL_ADDRESS GetTrailMaterialsGPUAddress() const { return trailMaterials_.GetGPUAddress(); }
+		D3D12_GPU_VIRTUAL_ADDRESS GetTrailCustomParametersGPUAddress() const {
+			return trailCustomParameterBuffer_ ? trailCustomParameterBuffer_->GetGPUVirtualAddress() : 0;
+		}
+		uint32_t GetTrailSegmentCount() const { return trailSegmentCount_; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -127,13 +153,20 @@ namespace Engine {
 		uint8_t* customParameterMapped_ = nullptr;
 		uint32_t customParameterCapacity_ = 0;
 		uint32_t instanceCount_ = 0;
-		StructuredInstanceBuffer<ParticleTrailVertex> trailVertices_{ "gTrailVertices" };
-		uint32_t trailVertexCount_ = 0;
+		StructuredInstanceBuffer<ParticleTrailPointData> trailPoints_{ "gTrailPoints" };
+		StructuredInstanceBuffer<uint32_t> trailSegments_{ "gTrailSegments" };
+		StructuredInstanceBuffer<ParticleMaterialData> trailMaterials_{ "gParticleMaterials_Trail" };
+		ComPtr<ID3D12Resource> trailCustomParameterBuffer_{};
+		uint8_t* trailCustomParameterMapped_ = nullptr;
+		uint32_t trailCustomParameterCapacity_ = 0;
+		uint32_t trailSegmentCount_ = 0;
 		bool initialized_ = false;
 
 		//--------- functions ----------------------------------------------------
 
 		// 可変パラメータ用バッファを必要なバイト数まで拡張する
 		void EnsureCustomParameterCapacity(uint32_t requiredSize);
+		// トレイル可変パラメータ用バッファを必要なバイト数まで拡張する
+		void EnsureTrailCustomParameterCapacity(uint32_t requiredSize);
 	};
 } // Engine

@@ -73,25 +73,21 @@ bool Engine::ParticleShapeOverLifetimeModule::DrawImGui() {
 	return changed;
 }
 
-void Engine::ParticleShapeOverLifetimeModule::OnSpawn(std::span<Particle> newborn) {
+void Engine::ParticleShapeOverLifetimeModule::OnSpawn(Particle& particle) {
 
-	for (Particle& particle : newborn) {
-		particle.shapeParams = shapeStart_;
-	}
+	particle.shapeParams = shapeStart_;
 }
 
-void Engine::ParticleShapeOverLifetimeModule::OnUpdate(std::span<Particle> alive, [[maybe_unused]] float deltaTime) {
+void Engine::ParticleShapeOverLifetimeModule::OnUpdate(
+	Particle& particle, [[maybe_unused]] float deltaTime) {
 
-	for (Particle& particle : alive) {
-
-		const float progress = std::clamp(particle.age / particle.lifetime, 0.0f, 1.0f);
-		const float easedT = EasedValue(easingType_, progress);
-		particle.shapeParams = Vector4(
-			Math::Lerp(shapeStart_.x, shapeEnd_.x, easedT),
-			Math::Lerp(shapeStart_.y, shapeEnd_.y, easedT),
-			Math::Lerp(shapeStart_.z, shapeEnd_.z, easedT),
-			Math::Lerp(shapeStart_.w, shapeEnd_.w, easedT));
-	}
+	const float progress = std::clamp(particle.age / particle.lifetime, 0.0f, 1.0f);
+	const float easedT = EasedValue(easingType_, progress);
+	particle.shapeParams = Vector4(
+		Math::Lerp(shapeStart_.x, shapeEnd_.x, easedT),
+		Math::Lerp(shapeStart_.y, shapeEnd_.y, easedT),
+		Math::Lerp(shapeStart_.z, shapeEnd_.z, easedT),
+		Math::Lerp(shapeStart_.w, shapeEnd_.w, easedT));
 }
 
 void Engine::ParticleShapeOverLifetimeModule::PackShapeParams() {

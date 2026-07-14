@@ -23,15 +23,12 @@ nlohmann::json Engine::ParticleNoiseUVModule::ToJson() const {
 	return params;
 }
 
-void Engine::ParticleNoiseUVModule::OnUpdate(std::span<Particle> alive, float deltaTime) {
+void Engine::ParticleNoiseUVModule::OnUpdate(Particle& particle, float deltaTime) {
 
-	for (Particle& particle : alive) {
-
-		// 粒子ごとにIDを混ぜて別々の揺れ方にする
-		const Vector3 samplePos = Vector3(particle.age, static_cast<float>(particle.id) * 0.37f, 0.0f);
-		const Vector3 noise = Math::PerlinNoiseVector3(samplePos, frequency_);
-		particle.uvOffset += Vector2(noise.x, noise.y) * (strength_ * deltaTime);
-	}
+	// 粒子ごとにIDを混ぜて別々の揺れ方にする
+	const Vector3 samplePos = Vector3(particle.age, static_cast<float>(particle.id) * 0.37f, 0.0f);
+	const Vector3 noise = Math::PerlinNoiseVector3(samplePos, frequency_);
+	particle.uvOffset += Vector2(noise.x, noise.y) * (strength_ * deltaTime);
 }
 
 bool Engine::ParticleNoiseUVModule::DrawImGui() {

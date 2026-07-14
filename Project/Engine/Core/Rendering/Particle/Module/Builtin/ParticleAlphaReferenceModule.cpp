@@ -30,13 +30,11 @@ nlohmann::json Engine::ParticleAlphaReferenceModule::ToJson() const {
 	return params;
 }
 
-void Engine::ParticleAlphaReferenceModule::OnUpdate(std::span<Particle> alive, [[maybe_unused]] float deltaTime) {
+void Engine::ParticleAlphaReferenceModule::OnUpdate(
+	Particle& particle, [[maybe_unused]] float deltaTime) {
 
-	for (Particle& particle : alive) {
-
-		const float progress = std::clamp(particle.age / particle.lifetime, 0.0f, 1.0f);
-		particle.alphaReference = Math::Lerp(startReference_, endReference_, EasedValue(easingType_, progress));
-	}
+	const float progress = std::clamp(particle.age / particle.lifetime, 0.0f, 1.0f);
+	particle.alphaReference = Math::Lerp(startReference_, endReference_, EasedValue(easingType_, progress));
 }
 
 bool Engine::ParticleAlphaReferenceModule::DrawImGui() {

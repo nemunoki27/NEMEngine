@@ -26,7 +26,8 @@ namespace Engine {
 		nlohmann::json ToJson() const override;
 		bool DrawImGui() override;
 
-		void OnUpdate(std::span<Particle> alive, float deltaTime) override;
+		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
+		void OnUpdate(Particle& particle, float deltaTime) override;
 	private:
 		//========================================================================
 		//	private Methods

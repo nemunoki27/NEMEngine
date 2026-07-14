@@ -1,6 +1,7 @@
 {
   "name": "particleHotReloadDissolve",
   "domain": "Surface",
+  "usage": "Particle",
   "passes": [
     {
       "passKind": "Transparent",

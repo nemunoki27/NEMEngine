@@ -114,11 +114,11 @@
                     "siblingOrder": 5
                 },
                 "Name": {
-                    "name": "Effect_0"
+                    "name": "Sparkle"
                 },
                 "ParticleEmitter": {
                     "drawEmitterShape": true,
-                    "effect": "6454d98e3c29c614",
+                    "effect": "6d7300afeb93d7b2",
                     "layer": 0,
                     "order": 0,
                     "playInEditMode": true,
@@ -134,18 +134,18 @@
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
-                        "y": 1.9866218566894531,
+                        "y": 5.87475061416626,
                         "z": 0.0
                     },
                     "localRotation": {
-                        "w": 0.9294549226760864,
+                        "w": 0.9294548630714417,
                         "x": 0.0,
-                        "y": -0.36893579363822937,
+                        "y": -0.36893582344055176,
                         "z": 0.0
                     },
                     "localScale": {
                         "x": 0.6600014567375183,
-                        "y": 0.6600047945976257,
+                        "y": 0.6600048542022705,
                         "z": 0.6600014567375183
                     }
                 }
@@ -417,8 +417,8 @@
                 },
                 "UVTransform": {
                     "pos": {
-                        "x": 0.5,
-                        "y": 0.5
+                        "x": 0.25,
+                        "y": 0.75
                     },
                     "rotation": 0.0,
                     "scale": {
@@ -504,8 +504,8 @@
                 },
                 "UVTransform": {
                     "pos": {
-                        "x": 0.5,
-                        "y": 0.5
+                        "x": 0.25,
+                        "y": 0.75
                     },
                     "rotation": 0.0,
                     "scale": {

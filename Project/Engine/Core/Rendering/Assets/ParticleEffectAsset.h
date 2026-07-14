@@ -7,10 +7,12 @@
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleEmitterStructures.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticlePhaseStructures.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialStructures.h>
 #include <Engine/Core/Foundation/Utility/Enum/Axis.h>
 
 // c++
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace Engine {
@@ -29,8 +31,17 @@ namespace Engine {
 	// 粒子ごとのリボントレイル設定
 	struct ParticleTrailSettings {
 
+		// 死亡後保持で使用する軌跡点の既定寿命
+		static constexpr float kDefaultPointLifetime = 0.8f;
+
 		// トレイルを描画するか
 		bool enabled = false;
+		// トレイル元の形状を描画するか
+		bool drawSource = true;
+		// 粒子消滅後もトレイルを残すか
+		bool keepAfterParticleDeath = false;
+		// 粒子消滅後も退避した粒子状態を更新するか
+		bool continueUpdateAfterParticleDeath = true;
 		// 1粒子が保持する軌跡点の上限
 		int32_t maxPoints = 16;
 		// 軌跡点を追加する最小移動距離
@@ -45,6 +56,28 @@ namespace Engine {
 		float pointLifetime = 0.0f;
 		// トレイル専用マテリアル、未設定なら粒子と同じものを使う
 		AssetID material{};
+		// トレイル専用マテリアルのテクスチャ上書き
+		ParticlePhaseMaterialSettings materialSettings{};
+	};
+
+	// トレイルUVの寿命アニメーション設定
+	struct ParticleTrailUVAnimationSettings {
+
+		ParticleMaterialAnimatedParameter offset{};
+		ParticleMaterialAnimatedParameter scale{};
+		ParticleMaterialAnimatedParameter rotation{};
+		Vector2 scrollSpeed = Vector2::AnyInit(0.0f);
+		Vector2 pivot = Vector2::AnyInit(0.5f);
+		bool scroll = false;
+	};
+
+	// フェーズごとのトレイル描画アニメーション設定
+	struct ParticleTrailPhaseSettings {
+
+		ParticleMaterialAnimatedParameter width{};
+		ParticleMaterialAnimatedParameter color{};
+		ParticleTrailUVAnimationSettings uv{};
+		std::unordered_map<std::string, ParticleMaterialAnimatedParameter> parameters{};
 	};
 
 	// パーティクルエフェクトアセットの情報
@@ -134,6 +167,8 @@ namespace Engine {
 		std::vector<AssetID> phaseMaterials;
 		// フェーズごとのマテリアル上書きと寿命アニメーション
 		std::vector<ParticlePhaseMaterialSettings> phaseMaterialSettings;
+		// フェーズごとのトレイル描画アニメーション
+		std::vector<ParticleTrailPhaseSettings> trailPhaseSettings;
 	};
 
 	// アセットから描画設定を作る

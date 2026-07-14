@@ -13,6 +13,7 @@
 
 // c++
 #include <cstdint>
+#include <deque>
 
 namespace Engine {
 
@@ -84,5 +85,24 @@ namespace Engine {
 		Vector3 position = Vector3::AnyInit(0.0f);
 		// 記録してからの経過時間
 		float age = 0.0f;
+		// 記録時のフェーズ
+		uint32_t phaseIndex = 0;
+	};
+
+	// 粒子から独立して残るトレイルの状態
+	struct ParticleTrailRuntime {
+
+		// 記録済みの軌跡点
+		std::deque<ParticleTrailPoint> points{};
+		// 軌跡の先頭
+		ParticleTrailPoint head{};
+		// 死亡後の更新に使用する粒子状態
+		Particle owner{};
+		// 粒子から切り離されたか
+		bool detached = false;
+		// 死亡後の粒子状態を保持しているか
+		bool hasOwner = false;
+		// このフレームで粒子から切り離されたか
+		bool detachedThisFrame = false;
 	};
 } // Engine

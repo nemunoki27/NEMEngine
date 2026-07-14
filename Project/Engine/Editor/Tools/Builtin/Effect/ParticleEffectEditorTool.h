@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
 #include <Engine/Core/Rendering/Particle/Module/Base/IParticleModule.h>
 #include <Engine/Editor/Animation/Curves/CurveEditorState.h>
+#include <Engine/Editor/UI/Common/TextSearchFilter.h>
 
 // c++
 #include <memory>
@@ -70,8 +71,8 @@ namespace Engine {
 
 		// 新規作成のファイル名入力
 		std::string createNameBuffer_{};
-		// 追加するモジュールの選択位置
-		int32_t addModuleIndex_ = 0;
+		// 追加モジュールの検索
+		TextSearchFilter addModuleSearchFilter_{};
 		// 選択中のフェーズ
 		int32_t selectedPhase_ = 0;
 		// ステータスメッセージ
@@ -96,6 +97,8 @@ namespace Engine {
 		bool DrawPhaseModules(const EditorToolContext& context, ParticleEffectPhase& phase);
 		// 選択フェーズのマテリアル設定を描画する、変更があればtrue
 		bool DrawPhaseMaterialSection(const EditorToolContext& context, ParticleEffectPhase& phase);
+		// トレイルマテリアルのテクスチャ設定を描画する、変更があればtrue
+		bool DrawTrailMaterialSection(const EditorToolContext& context);
 		// 選択フェーズのペアレント設定を描画する、変更があればtrue
 		bool DrawPhaseParentSection(const EditorToolContext& context, ParticleEffectPhase& phase);
 		// モジュールの編集用インスタンスを取得する、idが変わっていれば作り直す

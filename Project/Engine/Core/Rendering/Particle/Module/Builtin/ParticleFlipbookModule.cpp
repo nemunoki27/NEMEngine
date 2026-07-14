@@ -29,27 +29,25 @@ nlohmann::json Engine::ParticleFlipbookModule::ToJson() const {
 	return params;
 }
 
-void Engine::ParticleFlipbookModule::OnUpdate(std::span<Particle> alive, [[maybe_unused]] float deltaTime) {
+void Engine::ParticleFlipbookModule::OnUpdate(
+	Particle& particle, [[maybe_unused]] float deltaTime) {
 
-	for (Particle& particle : alive) {
+	// 寿命
+	float progress = std::clamp(particle.age / particle.lifetime, 0.0f, 1.0f);
 
-		// 寿命
-		float progress = std::clamp(particle.age / particle.lifetime, 0.0f, 1.0f);
+	// アニメーションループ
+	float cycleT = std::fmod(progress * (std::max)(cycles_, 0.0f), 1.0f);
 
-		// アニメーションループ
-		float cycleT = std::fmod(progress * (std::max)(cycles_, 0.0f), 1.0f);
-
-		// 寿命終了時に先頭フレームへ戻るのを防ぐ
-		if (progress >= 1.0f && cycles_ > 0.0f) {
-			cycleT = std::nextafter(1.0f, 0.0f);
-		}
-
-		// フリップブックのUV値を計算
-		FlipbookFrame frame = CalcFlipbookFrame(tilesX_, tilesY_, cycleT);
-
-		particle.uvScale = frame.uvScale;
-		particle.uvOffset = frame.uvOffset;
+	// 寿命終了時に先頭フレームへ戻るのを防ぐ
+	if (progress >= 1.0f && cycles_ > 0.0f) {
+		cycleT = std::nextafter(1.0f, 0.0f);
 	}
+
+	// フリップブックのUV値を計算
+	FlipbookFrame frame = CalcFlipbookFrame(tilesX_, tilesY_, cycleT);
+
+	particle.uvScale = frame.uvScale;
+	particle.uvOffset = frame.uvOffset;
 }
 
 bool Engine::ParticleFlipbookModule::DrawImGui() {

@@ -49,16 +49,14 @@ nlohmann::json Engine::ParticleColorOverLifetimeModule::ToJson() const {
 	return params;
 }
 
-void Engine::ParticleColorOverLifetimeModule::OnUpdate(std::span<Particle> alive, [[maybe_unused]] float deltaTime) {
+void Engine::ParticleColorOverLifetimeModule::OnUpdate(
+	Particle& particle, [[maybe_unused]] float deltaTime) {
 
-	for (Particle& particle : alive) {
-
-		const float progress = loop_.LoopedT(particle.age / particle.lifetime);
-		// カーブ指定があればカーブを優先し、無ければイージング補間する
-		const Color4 color = useCurve_ ? curve_.Evaluate(progress) :
-			Color4::Lerp(startColor_, endColor_, EasedValue(easingType_, progress));
-		particle.color = color;
-	}
+	const float progress = loop_.LoopedT(particle.age / particle.lifetime);
+	// カーブ指定があればカーブを優先し、無ければイージング補間する
+	const Color4 color = useCurve_ ? curve_.Evaluate(progress) :
+		Color4::Lerp(startColor_, endColor_, EasedValue(easingType_, progress));
+	particle.color = color;
 }
 
 bool Engine::ParticleColorOverLifetimeModule::DrawImGui() {

@@ -12,11 +12,11 @@ void Engine::ParticleRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBa
 
 	world.ForEach<ParticleEmitterComponent>([&](const Entity& entity, const ParticleEmitterComponent& emitter) {
 
-		// 描画可能か、粒子が無ければ抽出しない
+		// 描画可能か、粒子と残存トレイルが無ければ抽出しない
 		if (!RenderItemExtract::IsVisible(world, entity, emitter.visible)) {
 			return;
 		}
-		if (emitter.runtimeParticles.empty()) {
+		if (emitter.runtimeParticles.empty() && emitter.runtimeTrails.empty()) {
 			return;
 		}
 

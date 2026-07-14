@@ -45,6 +45,13 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
+		// 同じ処理方式で連続するモジュール
+		struct ModuleExecutionGroup {
+
+			ParticleModuleExecutionMode mode = ParticleModuleExecutionMode::None;
+			std::vector<IParticleModule*> modules;
+		};
+
 		// フェーズ1つ分の実行データ
 		struct PhaseRuntime {
 
@@ -52,6 +59,10 @@ namespace Engine {
 			ParticleLifeEndMode lifeEndMode = ParticleLifeEndMode::Kill;
 			ParticlePhaseParentSettings parentSettings{};
 			std::vector<std::unique_ptr<IParticleModule>> modules;
+			std::vector<ModuleExecutionGroup> spawnExecution;
+			std::vector<ModuleExecutionGroup> updateExecution;
+			bool hasSpawnBatch = false;
+			bool hasUpdateBatch = false;
 		};
 
 		// エミッターごとに解決したフェーズの親姿勢
@@ -69,6 +80,7 @@ namespace Engine {
 			ParticleEffectAsset asset{};
 			std::vector<PhaseRuntime> phases;
 			bool valid = false;
+			bool hasUpdateBatch = false;
 
 			// ホットリロード用のファイル情報
 			std::filesystem::path path{};
@@ -103,8 +115,17 @@ namespace Engine {
 		void BuildPhases(EffectRuntime& runtime) const;
 		// 寿命が尽きた粒子をLifeEndModeに従って遷移させる、破棄するならfalse
 		bool AdvancePhaseOnLifeEnd(Particle& particle, const std::vector<PhaseRuntime>& phases) const;
-		// フェーズ順に並べ、各フェーズのモジュールを連続範囲へ一括適用する
+		// Batchを含む更新計画をフェーズごとの連続範囲へ適用する
 		void UpdatePhaseModules(std::vector<Particle>& particles, const EffectRuntime& effect, float deltaTime) const;
+		// 1粒子へ発生モジュールを適用する
+		void ApplySpawnModules(Particle& particle, const PhaseRuntime& phase) const;
+		// 1粒子へ更新モジュールを適用する
+		void ApplyUpdateModules(Particle& particle, const PhaseRuntime& phase, float deltaTime) const;
+		// 発生モジュールの実行計画を粒子範囲へ適用する
+		void ExecuteSpawnModules(std::span<Particle> particles, const PhaseRuntime& phase) const;
+		// 更新モジュールの実行計画を粒子範囲へ適用する
+		void ExecuteUpdateModules(std::span<Particle> particles,
+			const PhaseRuntime& phase, float deltaTime) const;
 		// 現在フェーズの親設定を粒子へ反映する
 		void UpdateParticleParent(Particle& particle, const ParticlePhaseParentSettings& settings,
 			const ParentRuntime& parent, bool preserveWorldRotationScale = true) const;
@@ -116,9 +137,12 @@ namespace Engine {
 			const EffectRuntime& effect, std::vector<ParentRuntime>& outParents) const;
 		// 粒子の描画用ワールド姿勢を更新する
 		void RefreshParticleWorldTransform(Particle& particle, const ParentRuntime* parent) const;
-		// トレイルの軌跡点をワールド空間で記録し、死亡した粒子と寿命を超えた点を破棄する
+		// トレイルの軌跡点をワールド空間で記録し、死亡した粒子から切り離す
 		void RecordTrails(ECSWorld& world, const Entity& entity,
 			ParticleEmitterComponent& emitter, const ParticleTrailSettings& trail, float deltaTime);
+		// 粒子消滅後に退避したトレイル所有者を更新する
+		void UpdateDetachedTrailOwners(ParticleEmitterComponent& emitter, const EffectRuntime& effect,
+			const std::vector<ParentRuntime>& parents, const ParticleTrailSettings& trail, float deltaTime) const;
 		// エミッター形状から発生位置と方向と初期状態を決める、firstSpawnIndexは発生順の連番の開始値
 		void InitEmitterParticles(std::span<Particle> newborn, const ParticleEmitterSettings& settings,
 			const ParticleValue<float>& lifetime, bool is2D, uint32_t firstSpawnIndex) const;
