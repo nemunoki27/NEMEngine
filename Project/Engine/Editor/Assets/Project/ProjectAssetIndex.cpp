@@ -191,6 +191,9 @@ std::string Engine::ProjectAssetIndex::MakeDisplayName(const std::filesystem::pa
 	if (Engine::Algorithm::EndsWith(lower, ".prefab.json")) {
 		return fileName.substr(0, fileName.size() - 5);
 	}
+	if (Engine::Algorithm::EndsWith(lower, ".effect.json")) {
+		return fileName.substr(0, fileName.size() - 5);
+	}
 	if (Engine::Algorithm::EndsWith(lower, ".material.json")) {
 		return fileName.substr(0, fileName.size() - 5);
 	}

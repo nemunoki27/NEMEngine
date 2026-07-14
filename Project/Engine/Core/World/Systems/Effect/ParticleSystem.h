@@ -50,7 +50,17 @@ namespace Engine {
 
 			ParticleValue<float> lifetime{ 1.0f };
 			ParticleLifeEndMode lifeEndMode = ParticleLifeEndMode::Kill;
+			ParticlePhaseParentSettings parentSettings{};
 			std::vector<std::unique_ptr<IParticleModule>> modules;
+		};
+
+		// エミッターごとに解決したフェーズの親姿勢
+		struct ParentRuntime {
+
+			Matrix4x4 matrix = Matrix4x4::Identity();
+			Quaternion rotation = Quaternion::Identity();
+			Vector3 scale = Vector3::AnyInit(1.0f);
+			bool resolved = false;
 		};
 
 		// アセットから構築したフェーズ一式、アセットID単位で共有する
@@ -80,6 +90,8 @@ namespace Engine {
 
 		// トレイル整理用の生存ID、毎フレーム使い回す
 		std::unordered_set<uint32_t> aliveTrailIDs_;
+		// フェーズの親姿勢解決用、エミッターごとに使い回す
+		std::vector<ParentRuntime> parentRuntimes_;
 
 		//--------- functions ----------------------------------------------------
 
@@ -93,6 +105,17 @@ namespace Engine {
 		bool AdvancePhaseOnLifeEnd(Particle& particle, const std::vector<PhaseRuntime>& phases) const;
 		// フェーズ順に並べ、各フェーズのモジュールを連続範囲へ一括適用する
 		void UpdatePhaseModules(std::vector<Particle>& particles, const EffectRuntime& effect, float deltaTime) const;
+		// 現在フェーズの親設定を粒子へ反映する
+		void UpdateParticleParent(Particle& particle, const ParticlePhaseParentSettings& settings,
+			const ParentRuntime& parent, bool preserveWorldRotationScale = true) const;
+		// 全粒子の親行列と描画用ワールド姿勢を更新する
+		void UpdateParticleParents(std::vector<Particle>& particles, const EffectRuntime& effect,
+			const std::vector<ParentRuntime>& parents) const;
+		// 各フェーズの親姿勢をエミッター単位で解決する
+		void ResolveParticleParents(ECSWorld& world, const Entity& emitterEntity,
+			const EffectRuntime& effect, std::vector<ParentRuntime>& outParents) const;
+		// 粒子の描画用ワールド姿勢を更新する
+		void RefreshParticleWorldTransform(Particle& particle, const ParentRuntime* parent) const;
 		// トレイルの軌跡点をワールド空間で記録し、死亡した粒子と寿命を超えた点を破棄する
 		void RecordTrails(ECSWorld& world, const Entity& entity,
 			ParticleEmitterComponent& emitter, const ParticleTrailSettings& trail, float deltaTime);

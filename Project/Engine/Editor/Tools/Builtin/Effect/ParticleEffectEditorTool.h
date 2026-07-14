@@ -96,6 +96,8 @@ namespace Engine {
 		bool DrawPhaseModules(const EditorToolContext& context, ParticleEffectPhase& phase);
 		// 選択フェーズのマテリアル設定を描画する、変更があればtrue
 		bool DrawPhaseMaterialSection(const EditorToolContext& context, ParticleEffectPhase& phase);
+		// 選択フェーズのペアレント設定を描画する、変更があればtrue
+		bool DrawPhaseParentSection(const EditorToolContext& context, ParticleEffectPhase& phase);
 		// モジュールの編集用インスタンスを取得する、idが変わっていれば作り直す
 		IParticleModule* ResolveModuleCache(ModuleCacheEntry& cache, const ParticleEffectModuleEntry& entry);
 

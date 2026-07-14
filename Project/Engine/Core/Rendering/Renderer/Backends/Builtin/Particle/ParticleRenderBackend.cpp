@@ -281,27 +281,27 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 
 		for (const Particle& particle : payload->emitter->runtimeParticles) {
 
-			// 粒子はワールド空間でシミュレーション済み
-			const Vector3 worldPos = particle.pos;
+			// 親ローカルのシミュレーション結果から確定したワールド姿勢を使う
+			const Vector3 worldPos = particle.worldPos;
 			// 粒子の回転を掛けてからカメラへ向ける
-			Quaternion rotation = particle.rotation;
+			Quaternion rotation = particle.worldRotation;
 			if (useBillboard) {
 
 				const Quaternion desired = RenderBillboard::MakeCameraBillboardRotation(*camera, worldPos);
 				if (settings.billboardAxes.size() == 3) {
-					rotation = desired * particle.rotation;
+					rotation = desired * particle.worldRotation;
 				} else {
 
 					// 一部軸のみのビルボードは軸マスクで合成する
 					const Vector3 localForward = Vector3::NormalizeOr(Vector3::Transform(
 						Vector3(0.0f, 0.0f, 1.0f), Quaternion::MakeRotateMatrix(desired)), Vector3(0.0f, 0.0f, 1.0f));
-					rotation = RenderBillboard::ApplyAxisMask(particle.rotation, desired, axisMask, localForward);
+					rotation = RenderBillboard::ApplyAxisMask(particle.worldRotation, desired, axisMask, localForward);
 				}
 			}
 
 			ParticleDrawInstanceData instance{};
 			instance.geometry.worldMatrix = Matrix4x4::MakeAffineMatrix(
-				Vector3::AnyInit(particle.size) * particle.scale, rotation, worldPos);
+				Vector3::AnyInit(particle.size) * particle.worldScale, rotation, worldPos);
 			instance.geometry.vertexColor = particle.color;
 			instance.geometry.shapeParams = particle.shapeParams;
 			instance.material.emissive = particle.emissive;
@@ -374,7 +374,7 @@ void Engine::ParticleRenderBackend::BuildTrailVertices(const RenderDrawContext& 
 			}
 			// 記録済みの軌跡点に現在位置を先頭として足してリボンを張る
 			const std::vector<ParticleTrailPoint>& points = trailIt->second;
-			const Vector3 headPos = particle.pos;
+			const Vector3 headPos = particle.worldPos;
 			const size_t pointCount = points.size() + 1;
 			if (pointCount < 2) {
 				continue;

@@ -194,6 +194,18 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 			if (const auto mit = phaseJson.find("materialSettings"); mit != phaseJson.end()) {
 				from_json(*mit, phase.materialSettings);
 			}
+			if (const auto pit = phaseJson.find("parentSettings"); pit != phaseJson.end() && pit->is_object()) {
+
+				phase.parentSettings.useEmitter = pit->value("useEmitter", false);
+				phase.parentSettings.ignoreParentRotation = pit->value("ignoreParentRotation", false);
+				phase.parentSettings.ignoreParentScale = pit->value("ignoreParentScale", false);
+				phase.parentSettings.keepWorldOnDetach = pit->value("keepWorldOnDetach", true);
+				const std::string localFileID = pit->value("entityLocalFileID", "");
+				phase.parentSettings.entityLocalFileID = localFileID.empty() ? UUID{} : FromString16Hex(localFileID);
+				if (phase.parentSettings.useEmitter) {
+					phase.parentSettings.entityLocalFileID = {};
+				}
+			}
 			readModules(phaseJson, phase.modules);
 			// 旧Phase直下のカスタムパラメータは専用モジュールへ移行する
 			if (const auto settings = phaseJson.find("materialSettings");
@@ -289,6 +301,13 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 		phaseJson["lifeEndMode"] = EnumAdapter<ParticleLifeEndMode>::ToString(phase.lifeEndMode);
 		phaseJson["material"] = ToAssetReferenceJson(phase.material);
 		to_json(phaseJson["materialSettings"], phase.materialSettings);
+		phaseJson["parentSettings"] = nlohmann::json::object();
+		phaseJson["parentSettings"]["useEmitter"] = phase.parentSettings.useEmitter;
+		phaseJson["parentSettings"]["entityLocalFileID"] = phase.parentSettings.entityLocalFileID ?
+			ToString(phase.parentSettings.entityLocalFileID) : "";
+		phaseJson["parentSettings"]["ignoreParentRotation"] = phase.parentSettings.ignoreParentRotation;
+		phaseJson["parentSettings"]["ignoreParentScale"] = phase.parentSettings.ignoreParentScale;
+		phaseJson["parentSettings"]["keepWorldOnDetach"] = phase.parentSettings.keepWorldOnDetach;
 		phaseJson["modules"] = nlohmann::json::array();
 		for (const ParticleEffectModuleEntry& entry : phase.modules) {
 

@@ -15,6 +15,10 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/World/Components/Rendering/ParticleEmitterComponent.h>
+#include <Engine/Core/World/Components/Scene/NameComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+#include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
@@ -48,6 +52,73 @@ namespace {
 	constexpr const char* kModuleReorderPayloadType = "PARTICLE_MODULE_REORDER";
 	// フェーズ並べ替えのドラッグ&ドロップペイロード
 	constexpr const char* kPhaseReorderPayloadType = "PARTICLE_PHASE_REORDER";
+
+	// 親localFileIDから表示名を作る
+	std::string MakeParticleParentLabel(Engine::ECSWorld* world, Engine::UUID target) {
+
+		if (!target) {
+			return "なし";
+		}
+		if (!world) {
+			return Engine::ToString(target);
+		}
+		const Engine::Entity entity = Engine::SceneObjectUtility::FindByLocalFileID(*world, target);
+		if (!entity.IsValid() || !world->IsAlive(entity)) {
+			return "不明 : " + Engine::ToString(target);
+		}
+		if (world->HasComponent<Engine::NameComponent>(entity)) {
+			return world->GetComponent<Engine::NameComponent>(entity).name;
+		}
+		return Engine::ToString(target);
+	}
+
+	// 親エンティティ参照欄、ヒエラルキーからドロップしてlocalFileIDを設定する
+	Engine::ValueEditResult DrawParticleParentField(const char* label,
+		Engine::ECSWorld* world, Engine::UUID& target) {
+
+		using namespace Engine;
+		ValueEditResult result{};
+		if (!MyGUI::BeginPropertyRow(label)) {
+			return result;
+		}
+
+		const float clearWidth = 56.0f;
+		const std::string buttonLabel = MakeParticleParentLabel(world, target);
+		ImGui::Button(buttonLabel.c_str(),
+			ImVec2((std::max)(0.0f, ImGui::GetContentRegionAvail().x - clearWidth), 0.0f));
+		result.anyItemActive |= ImGui::IsItemActive();
+
+		if (world && ImGui::BeginDragDropTarget()) {
+
+			const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType);
+			if (payload && payload->DataSize == sizeof(Engine::UUID)) {
+
+				const Engine::UUID droppedUUID = *static_cast<const Engine::UUID*>(payload->Data);
+				const Entity dropped = world->FindByUUID(droppedUUID);
+				Engine::UUID localFileID{};
+				if (dropped.IsValid() && world->HasComponent<SceneObjectComponent>(dropped)) {
+					localFileID = world->GetComponent<SceneObjectComponent>(dropped).localFileID;
+				}
+				if (localFileID && target != localFileID) {
+
+					target = localFileID;
+					result.valueChanged = true;
+					result.editFinished = true;
+				}
+			}
+			ImGui::EndDragDropTarget();
+		}
+
+		ImGui::SameLine();
+		if (ImGui::Button("クリア", ImVec2(clearWidth, 0.0f)) && target) {
+
+			target = Engine::UUID{};
+			result.valueChanged = true;
+			result.editFinished = true;
+		}
+		MyGUI::EndPropertyRow();
+		return result;
+	}
 
 	// リストの要素をfromからtoへ移動する
 	template <typename T>
@@ -577,6 +648,7 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 		}
 
 		changed |= DrawPhaseMaterialSection(context, phase);
+		changed |= DrawPhaseParentSection(context, phase);
 
 		ImGui::SeparatorText("モジュール");
 		changed |= DrawPhaseModules(context, phase);
@@ -639,6 +711,44 @@ bool ParticleEffectEditorTool::DrawPhaseMaterialSection(const EditorToolContext&
 			}
 			ImGui::PopID();
 		}
+	}
+
+	return changed;
+}
+
+bool ParticleEffectEditorTool::DrawPhaseParentSection(const EditorToolContext& context,
+	ParticleEffectPhase& phase) {
+
+	bool changed = false;
+	ParticlePhaseParentSettings& settings = phase.parentSettings;
+	if (!MyGUI::CollapsingHeader("ペアレント設定", false)) {
+		return false;
+	}
+
+	if (MyGUI::Checkbox("エミッターを親にする", settings.useEmitter)) {
+
+		if (settings.useEmitter) {
+			settings.entityLocalFileID = {};
+		}
+		changed = true;
+	}
+
+	Engine::UUID parent = settings.entityLocalFileID;
+	if (DrawParticleParentField("親エンティティ", context.GetWorld(), parent).valueChanged) {
+
+		settings.entityLocalFileID = parent;
+		if (parent) {
+			settings.useEmitter = false;
+		}
+		changed = true;
+	}
+	changed |= MyGUI::Checkbox("親の回転を無視", settings.ignoreParentRotation);
+	changed |= MyGUI::Checkbox("親のスケールを無視", settings.ignoreParentScale);
+
+	const bool previousHasParent = 0 < selectedPhase_ &&
+		draft_.phases[selectedPhase_ - 1].parentSettings.HasParent();
+	if (previousHasParent && !settings.HasParent()) {
+		changed |= MyGUI::Checkbox("ワールドを保持", settings.keepWorldOnDetach);
 	}
 
 	return changed;

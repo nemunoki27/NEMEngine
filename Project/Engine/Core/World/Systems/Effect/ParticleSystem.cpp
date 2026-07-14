@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/ParticleEmitterComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
 #include <Engine/Core/Rendering/Particle/ParticleEffectEditBridge.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -43,6 +44,85 @@
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleRectEmitterShape.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleCone2DEmitterShape.h>
 
+// c++
+#include <cmath>
+
+//============================================================================
+//	ParticleSystem internal
+//============================================================================
+namespace {
+
+	// 親行列を回転とスケールへ分解する
+	bool DecomposeParentMatrix(const Engine::Matrix4x4& matrix,
+		Engine::Quaternion& outRotation, Engine::Vector3& outScale) {
+
+		Engine::Vector3 translation{};
+		return Engine::DecomposeAffine3D(matrix, translation, outRotation, outScale);
+	}
+
+	// 0スケールを避けてワールドスケールを親ローカルへ変換する
+	Engine::Vector3 DivideScale(const Engine::Vector3& value, const Engine::Vector3& divisor) {
+
+		constexpr float kMinScale = 1.0e-6f;
+		return Engine::Vector3(
+			std::abs(divisor.x) <= kMinScale ? value.x : value.x / divisor.x,
+			std::abs(divisor.y) <= kMinScale ? value.y : value.y / divisor.y,
+			std::abs(divisor.z) <= kMinScale ? value.z : value.z / divisor.z);
+	}
+
+	// 親ローカル姿勢をワールド姿勢へ焼き込んで親を解除する
+	void BakeParticleParentToWorld(Engine::Particle& particle) {
+
+		if (!particle.hasParent) {
+			return;
+		}
+
+		particle.pos = Engine::Vector3::Transform(particle.pos, particle.parentMatrix);
+		particle.velocity = Engine::Vector3::TransferNormal(particle.velocity, particle.parentMatrix);
+
+		Engine::Quaternion parentRotation{};
+		Engine::Vector3 parentScale{};
+		if (DecomposeParentMatrix(particle.parentMatrix, parentRotation, parentScale)) {
+			particle.rotation = Engine::Quaternion::Normalize(parentRotation * particle.rotation);
+			particle.scale = parentScale * particle.scale;
+		}
+
+		particle.parentMatrix = Engine::Matrix4x4::Identity();
+		particle.parentLocalFileID = {};
+		particle.parentIsEmitter = false;
+		particle.hasParent = false;
+	}
+
+	// ワールド位置と速度を親ローカルへ変換し、必要なら回転とスケールもワールド保持へ変換する
+	void AttachParticleParent(Engine::Particle& particle, const Engine::Matrix4x4& parentMatrix,
+		const Engine::Quaternion& parentRotation, const Engine::Vector3& parentScale,
+		bool parentIsEmitter, Engine::UUID parentLocalFileID, bool preserveWorldRotationScale) {
+
+		const Engine::Matrix4x4 inverseParent = Engine::Matrix4x4::Inverse(parentMatrix);
+		particle.pos = Engine::Vector3::Transform(particle.pos, inverseParent);
+		particle.velocity = Engine::Vector3::TransferNormal(particle.velocity, inverseParent);
+		if (preserveWorldRotationScale) {
+			particle.rotation = Engine::Quaternion::Normalize(
+				Engine::Quaternion::Inverse(parentRotation) * particle.rotation);
+			particle.scale = DivideScale(particle.scale, parentScale);
+		}
+
+		particle.parentMatrix = parentMatrix;
+		particle.parentLocalFileID = parentLocalFileID;
+		particle.parentIsEmitter = parentIsEmitter;
+		particle.hasParent = true;
+	}
+
+	// 親ローカル値をそのままワールド値として親を解除する
+	void DetachParticleParentWithoutKeepingWorld(Engine::Particle& particle) {
+
+		particle.parentMatrix = Engine::Matrix4x4::Identity();
+		particle.parentLocalFileID = {};
+		particle.parentIsEmitter = false;
+		particle.hasParent = false;
+	}
+}
+
 //============================================================================
 //	ParticleSystem classMethods
 //============================================================================
@@ -68,11 +148,17 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 
 		// アセットの描画設定をコンポーネントへ反映する、描画側はこの値を参照する
 		emitter.runtimeRenderSettings = MakeParticleRenderSettings(asset);
+		parentRuntimes_.assign(effect->phases.size(), ParentRuntime{});
+		ResolveParticleParents(world, entity, *effect, parentRuntimes_);
+		const std::vector<ParentRuntime>& parents = parentRuntimes_;
 
 		// 更新を行うか、Play中はTimeScale適用済みのdeltaTime、EditのプレビューはTimeScale非適用のリアル時間を使う
 		const bool allowTimeAdvance = emitter.playing && (context.mode == WorldMode::Play || emitter.playInEditMode);
 		const float deltaTime = (context.mode == WorldMode::Play) ? context.deltaTime : context.unscaledDeltaTime;
 		if (!allowTimeAdvance || deltaTime <= 0.0f) {
+
+			// シミュレーション停止中も親Transformへの追従は続ける
+			UpdateParticleParents(emitter.runtimeParticles, *effect, parents);
 			return;
 		}
 
@@ -92,12 +178,21 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 		for (size_t i = 0; i < particles.size();) {
 
 			Particle& particle = particles[i];
+			if (particle.phaseIndex < effect->phases.size()) {
+				UpdateParticleParent(particle, effect->phases[particle.phaseIndex].parentSettings,
+					parents[particle.phaseIndex]);
+			}
+			const uint32_t previousPhase = particle.phaseIndex;
 			particle.age += deltaTime;
 			if (particle.lifetime <= particle.age && !AdvancePhaseOnLifeEnd(particle, effect->phases)) {
 
 				particle = particles.back();
 				particles.pop_back();
 				continue;
+			}
+			if (particle.phaseIndex != previousPhase && particle.phaseIndex < effect->phases.size()) {
+				UpdateParticleParent(particle, effect->phases[particle.phaseIndex].parentSettings,
+					parents[particle.phaseIndex]);
 			}
 			particle.pos += particle.velocity * deltaTime;
 			++i;
@@ -132,7 +227,7 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 					module->OnSpawn(newborn);
 				}
 
-				// エミッターのワールド行列で発生位置と速度を変換し、以降はワールド空間でシミュレーションする
+				// エミッターのワールド行列で発生位置と速度を変換する
 				Matrix4x4 emitterWorld = Matrix4x4::Identity();
 				if (const auto* transform = world.TryGetComponent<TransformComponent>(entity)) {
 					emitterWorld = transform->worldMatrix;
@@ -144,6 +239,8 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 					particle.pos = worldPos;
 					// トレイル追跡用のIDを割り当てる
 					particle.id = emitter.runtimeNextParticleID++;
+					// 発生時の回転とスケールは親ローカル値として継承する
+					UpdateParticleParent(particle, firstPhase.parentSettings, parents.front(), false);
 				}
 
 				// 発生した瞬間の見た目を確定させ、初回描画が未補間の色や大きさになるのを防ぐ
@@ -151,6 +248,13 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 					module->OnUpdate(newborn, 0.0f);
 				}
 			}
+		}
+
+		// 親ローカル姿勢から描画とトレイル用のワールド姿勢を確定する
+		for (Particle& particle : particles) {
+			const ParentRuntime* parent = particle.phaseIndex < parents.size() ?
+				&parents[particle.phaseIndex] : nullptr;
+			RefreshParticleWorldTransform(particle, parent);
 		}
 
 		// トレイルの軌跡点をワールド空間で記録する
@@ -293,6 +397,109 @@ void Engine::ParticleSystem::UpdatePhaseModules(std::vector<Particle>& particles
 	}
 }
 
+void Engine::ParticleSystem::UpdateParticleParent(Particle& particle,
+	const ParticlePhaseParentSettings& settings, const ParentRuntime& parent,
+	bool preserveWorldRotationScale) const {
+
+	if (!parent.resolved) {
+
+		if (particle.hasParent) {
+			// 設定先が見つからない場合は見た目を壊さずワールドへ退避する
+			if (settings.HasParent() || settings.keepWorldOnDetach) {
+				BakeParticleParentToWorld(particle);
+			} else {
+				DetachParticleParentWithoutKeepingWorld(particle);
+			}
+		}
+		return;
+	}
+
+	const bool sameParent = particle.hasParent &&
+		particle.parentIsEmitter == settings.useEmitter &&
+		(settings.useEmitter || particle.parentLocalFileID == settings.entityLocalFileID);
+	if (sameParent) {
+
+		// ローカル姿勢は維持し、最新の親行列だけを反映する
+		particle.parentMatrix = parent.matrix;
+		return;
+	}
+
+	// 親の付け替えは一度ワールドへ戻してから新しい親へ変換する
+	if (particle.hasParent) {
+		BakeParticleParentToWorld(particle);
+	}
+	AttachParticleParent(particle, parent.matrix, parent.rotation, parent.scale, settings.useEmitter,
+		settings.useEmitter ? UUID{} : settings.entityLocalFileID, preserveWorldRotationScale);
+}
+
+void Engine::ParticleSystem::UpdateParticleParents(std::vector<Particle>& particles,
+	const EffectRuntime& effect, const std::vector<ParentRuntime>& parents) const {
+
+	for (Particle& particle : particles) {
+
+		if (particle.phaseIndex < effect.phases.size()) {
+			UpdateParticleParent(particle, effect.phases[particle.phaseIndex].parentSettings,
+				parents[particle.phaseIndex]);
+		} else if (particle.hasParent) {
+			BakeParticleParentToWorld(particle);
+		}
+		const ParentRuntime* parent = particle.phaseIndex < parents.size() ?
+			&parents[particle.phaseIndex] : nullptr;
+		RefreshParticleWorldTransform(particle, parent);
+	}
+}
+
+void Engine::ParticleSystem::ResolveParticleParents(ECSWorld& world, const Entity& emitterEntity,
+	const EffectRuntime& effect, std::vector<ParentRuntime>& outParents) const {
+
+	constexpr float kMinScale = 1.0e-6f;
+	for (size_t i = 0; i < effect.phases.size(); ++i) {
+
+		const ParticlePhaseParentSettings& settings = effect.phases[i].parentSettings;
+		if (!settings.HasParent()) {
+			continue;
+		}
+		Entity parentEntity = emitterEntity;
+		if (!settings.useEmitter) {
+			parentEntity = SceneObjectUtility::FindByLocalFileID(world, settings.entityLocalFileID);
+		}
+		if (!world.IsAlive(parentEntity)) {
+			continue;
+		}
+		const TransformComponent* transform = world.TryGetComponent<TransformComponent>(parentEntity);
+		if (!transform) {
+			continue;
+		}
+
+		ParentRuntime& parent = outParents[i];
+		parent.matrix = BuildParentFollowMatrix(transform->worldMatrix,
+			settings.ignoreParentScale, settings.ignoreParentRotation);
+		if (!DecomposeParentMatrix(parent.matrix, parent.rotation, parent.scale) ||
+			std::abs(parent.scale.x) <= kMinScale ||
+			std::abs(parent.scale.y) <= kMinScale ||
+			std::abs(parent.scale.z) <= kMinScale) {
+			continue;
+		}
+		parent.resolved = true;
+	}
+}
+
+void Engine::ParticleSystem::RefreshParticleWorldTransform(Particle& particle,
+	const ParentRuntime* parent) const {
+
+	if (!particle.hasParent || !parent || !parent->resolved) {
+
+		particle.worldPos = particle.pos;
+		particle.worldRotation = particle.rotation;
+		particle.worldScale = particle.scale;
+		return;
+	}
+
+	particle.worldPos = Vector3::Transform(particle.pos, particle.parentMatrix);
+	particle.worldRotation = Quaternion::Normalize(parent->rotation * particle.rotation);
+	particle.worldScale = parent->scale * particle.scale;
+}
+
 void Engine::ParticleSystem::InitEmitterParticles(std::span<Particle> newborn,
 	const ParticleEmitterSettings& settings, const ParticleValue<float>& lifetime,
 	bool is2D, uint32_t firstSpawnIndex) const {
@@ -366,7 +573,7 @@ void Engine::ParticleSystem::RecordTrails([[maybe_unused]] ECSWorld& world, [[ma
 	const int32_t maxPoints = (std::max)(trail.maxPoints, 2);
 	for (const Particle& particle : emitter.runtimeParticles) {
 
-		const Vector3 worldPos = particle.pos;
+		const Vector3 worldPos = particle.worldPos;
 		std::vector<ParticleTrailPoint>& points = emitter.runtimeTrails[particle.id];
 
 		// 記録済みの点を老化させ、寿命を超えた古い点から消す
@@ -404,6 +611,7 @@ void Engine::ParticleSystem::BuildPhases(EffectRuntime& runtime) const {
 		PhaseRuntime phase{};
 		phase.lifetime = phaseDef.lifetime;
 		phase.lifeEndMode = phaseDef.lifeEndMode;
+		phase.parentSettings = phaseDef.parentSettings;
 		for (const ParticleEffectModuleEntry& entry : phaseDef.modules) {
 
 			auto module = ParticleModuleRegistry::GetInstance().Create(entry.id);

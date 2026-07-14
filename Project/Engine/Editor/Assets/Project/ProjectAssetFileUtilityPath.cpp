@@ -16,9 +16,10 @@
 //============================================================================
 namespace {
 
-	constexpr std::array<const char*, 7> kCompoundSuffixes = {
+	constexpr std::array<const char*, 8> kCompoundSuffixes = {
 		".scene.json",
 		".prefab.json",
+		".effect.json",
 		".material.json",
 		".animClip.json",
 		".shader.json",

@@ -158,15 +158,11 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	{
 		// 親エンティティやスキンメッシュのジョイントへ追従する際、回転とスケールを任意で無視できる
 		// 座標は常に追従するので位置の無視フラグは設けない
-		bool ignoreRotation = draftTransform_.ignoreParentRotation;
-		bool ignoreScale = draftTransform_.ignoreParentScale;
 		bool changed = false;
-		changed |= ImGui::Checkbox("親の回転を無視", &ignoreRotation);
-		changed |= ImGui::Checkbox("親のスケールを無視", &ignoreScale);
+		changed |= MyGUI::Checkbox("親の回転を無視", draftTransform_.ignoreParentRotation);
+		changed |= MyGUI::Checkbox("親のスケールを無視", draftTransform_.ignoreParentScale);
 		if (changed) {
 
-			draftTransform_.ignoreParentRotation = ignoreRotation;
-			draftTransform_.ignoreParentScale = ignoreScale;
 			draftTransform_.isDirty = true;
 			previewRequested_ = true;
 			commitRequested_ = true;

@@ -265,7 +265,12 @@
                     }
                 }
             ],
-            "name": "Phase 1"
+            "name": "Phase 1",
+            "parentSettings": {
+                "entityLocalFileID": "",
+                "keepWorldOnDetach": true,
+                "useEmitter": true
+            }
         }
     ],
     "plane": {

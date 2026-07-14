@@ -7,7 +7,9 @@
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
 #include <Engine/Core/Foundation/Math/Quaternion.h>
+#include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Color.h>
+#include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
 #include <cstdint>
@@ -17,7 +19,7 @@ namespace Engine {
 	//============================================================================
 	//	ParticleTypes structures
 	//============================================================================
-	// 粒子1つ分の状態、エミッターローカル空間でシミュレーションする
+	// 粒子1つ分の状態、親設定中は親ローカル空間でシミュレーションする
 	struct Particle {
 
 		// 位置
@@ -59,6 +61,18 @@ namespace Engine {
 		uint32_t id = 0;
 		// 現在のフェーズ
 		uint32_t phaseIndex = 0;
+
+		// 描画とトレイルに使うワールド姿勢
+		Vector3 worldPos = Vector3::AnyInit(0.0f);
+		Quaternion worldRotation = Quaternion::Identity();
+		Vector3 worldScale = Vector3::AnyInit(1.0f);
+
+		// 現在追従している親の情報
+		Matrix4x4 parentMatrix = Matrix4x4::Identity();
+		UUID parentLocalFileID{};
+		bool parentIsEmitter = false;
+		bool hasParent = false;
+
 		// 形状アニメーション用のパラメータ、形状ごとに解釈が変わる
 		Vector4 shapeParams = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
 	};

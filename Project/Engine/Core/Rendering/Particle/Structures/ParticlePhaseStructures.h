@@ -36,6 +36,23 @@ namespace Engine {
 		nlohmann::json params = nlohmann::json::object();
 	};
 
+	// フェーズ中の粒子を追従させる親設定
+	struct ParticlePhaseParentSettings {
+
+		// エミッターを親にするか
+		bool useEmitter = false;
+		// 任意の親エンティティのシーンローカルID
+		UUID entityLocalFileID{};
+		// 親の回転を無視するか
+		bool ignoreParentRotation = false;
+		// 親のスケールを無視するか
+		bool ignoreParentScale = false;
+		// 親を解除するときにワールド姿勢を維持するか
+		bool keepWorldOnDetach = true;
+
+		bool HasParent() const { return useEmitter || static_cast<bool>(entityLocalFileID); }
+	};
+
 	// 1フェーズ分の定義
 	struct ParticleEffectPhase {
 
@@ -49,6 +66,8 @@ namespace Engine {
 		AssetID material{};
 		// フェーズ固有のマテリアル上書きと寿命アニメーション
 		ParticlePhaseMaterialSettings materialSettings{};
+		// 粒子を追従させる親設定
+		ParticlePhaseParentSettings parentSettings{};
 		// 使用されるモジュールのリスト
 		std::vector<ParticleEffectModuleEntry> modules;
 	};
