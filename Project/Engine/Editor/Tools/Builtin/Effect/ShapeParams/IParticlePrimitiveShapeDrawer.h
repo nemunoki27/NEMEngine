@@ -21,6 +21,6 @@ namespace Engine {
 		virtual ~IParticlePrimitiveShapeDrawer() = default;
 
 		// 形状パラメータの編集UIを描画する、変更があればtrue
-		virtual bool DrawImGui(ParticleEffectAsset& asset) const = 0;
+		virtual bool DrawImGui(ParticleEffectGroup& group) const = 0;
 	};
 } // Engine

@@ -46,7 +46,7 @@ std::optional<Engine::Dimension> Engine::ResolveEntityDimension(ECSWorld& world,
 	}
 	// ParticleEmitterはエフェクトの描画空間がScreen2Dのときだけ2D
 	if (world.HasComponent<ParticleEmitterComponent>(entity)) {
-		return world.GetComponent<ParticleEmitterComponent>(entity).runtimeRenderSettings.space == PrimitiveRenderSpace::Screen2D ?
+		return world.GetComponent<ParticleEmitterComponent>(entity).runtimeSpace == PrimitiveRenderSpace::Screen2D ?
 			Dimension::Type2D : Dimension::Type3D;
 	}
 	if (world.HasComponent<MeshRendererComponent>(entity) ||

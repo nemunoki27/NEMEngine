@@ -126,13 +126,13 @@ void Engine::ParticleTrailDataBuilder::Build(const RenderDrawContext& context,
 	for (const RenderItem* item : items) {
 
 		const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
-		if (!payload || !payload->emitter) {
+		if (!payload || !payload->group) {
 			continue;
 		}
-		const ParticleEmitterComponent& emitter = *payload->emitter;
-		const ParticleRenderSettings& settings = emitter.runtimeRenderSettings;
+		const ParticleGroupRuntimeState& group = *payload->group;
+		const ParticleRenderSettings& settings = group.renderSettings;
 
-		for (const auto& trailPair : emitter.runtimeTrails) {
+		for (const auto& trailPair : group.trails) {
 
 			const ParticleTrailRuntime& runtime = trailPair.second;
 			const std::deque<ParticleTrailPoint>& points = runtime.points;

@@ -9,6 +9,7 @@
 #include <Engine/Core/Rendering/Particle/Structures/ParticlePhaseStructures.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialStructures.h>
 #include <Engine/Core/Foundation/Utility/Enum/Axis.h>
+#include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
 #include <string>
@@ -26,6 +27,22 @@ namespace Engine {
 
 		None,
 		BackToFront,
+	};
+
+	// グループの発生方式
+	enum class ParticleEffectGroupEmissionMode :
+		uint8_t {
+
+		Independent,
+		Simultaneous,
+	};
+
+	// グループの同時発生設定
+	struct ParticleEffectGroupEmissionSettings {
+
+		ParticleEffectGroupEmissionMode mode = ParticleEffectGroupEmissionMode::Independent;
+		float interval = 1.0f;
+		bool waitForCompletion = true;
 	};
 
 	// 粒子ごとのリボントレイル設定
@@ -80,16 +97,15 @@ namespace Engine {
 		std::unordered_map<std::string, ParticleMaterialAnimatedParameter> parameters{};
 	};
 
-	// パーティクルエフェクトアセットの情報
-	struct ParticleEffectAsset {
+	// パーティクルグループの情報
+	struct ParticleEffectGroup {
 
-		// アセットID
-		AssetID guid{};
-		// エフェクトの名前
-		std::string name;
-		// スキーマバージョン
-		uint32_t version = 1;
-
+		// アセット内の安定識別子
+		UUID id = UUID::New();
+		// グループ名
+		std::string name = "Group 1";
+		// グループを再生するか
+		bool enabled = true;
 		// エミッターの再生時間、ループ時はこの周期で折り返す
 		float duration = 2.0f;
 		// ループ再生するか
@@ -98,8 +114,6 @@ namespace Engine {
 		// エミッター設定
 		ParticleEmitterSettings emitter{};
 
-		// 描画空間、2DはPlane/Ringのみ対応する
-		PrimitiveRenderSpace space = PrimitiveRenderSpace::World3D;
 		// 粒子の形状
 		PrimitiveType shape = PrimitiveType::Plane;
 		// 形状ごとのパラメータ
@@ -128,6 +142,24 @@ namespace Engine {
 
 		// 粒子の一生を区切るフェーズのリスト、必ず1つ以上持つ
 		std::vector<ParticleEffectPhase> phases;
+	};
+
+	// パーティクルエフェクトアセットの情報
+	struct ParticleEffectAsset {
+
+		// アセットID
+		AssetID guid{};
+		// エフェクトの名前
+		std::string name;
+		// スキーマバージョン
+		uint32_t version = 2;
+
+		// 描画空間、2DはPlane/Ringのみ対応する
+		PrimitiveRenderSpace space = PrimitiveRenderSpace::World3D;
+		// グループの発生設定
+		ParticleEffectGroupEmissionSettings groupEmission{};
+		// 同時に保持するパーティクルグループ
+		std::vector<ParticleEffectGroup> groups;
 	};
 
 	// エミッターの描画設定、Systemがアセットからコンポーネントへ反映し描画側が参照する
@@ -172,7 +204,8 @@ namespace Engine {
 	};
 
 	// アセットから描画設定を作る
-	ParticleRenderSettings MakeParticleRenderSettings(const ParticleEffectAsset& asset);
+	ParticleRenderSettings MakeParticleRenderSettings(
+		PrimitiveRenderSpace space, const ParticleEffectGroup& group);
 
 	// json変換
 	bool FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset);

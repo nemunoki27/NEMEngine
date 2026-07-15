@@ -8,7 +8,7 @@
 //============================================================================
 //	ParticleSphereShapeDrawer classMethods
 //============================================================================
-bool Engine::ParticleSphereShapeDrawer::DrawImGui(ParticleEffectAsset& asset) const {
+bool Engine::ParticleSphereShapeDrawer::DrawImGui(ParticleEffectGroup& group) const {
 
-	return MyGUI::DragFloat("半径", asset.sphere.radius, ParticleGui::MakeDragSetting(0.001f, 10000.0f)).valueChanged;
+	return MyGUI::DragFloat("半径", group.sphere.radius, ParticleGui::MakeDragSetting(0.001f, 10000.0f)).valueChanged;
 }

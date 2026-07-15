@@ -8,7 +8,7 @@
 //============================================================================
 //	ParticleCubeShapeDrawer classMethods
 //============================================================================
-bool Engine::ParticleCubeShapeDrawer::DrawImGui(ParticleEffectAsset& asset) const {
+bool Engine::ParticleCubeShapeDrawer::DrawImGui(ParticleEffectGroup& group) const {
 
-	return MyGUI::DragVector3("大きさ", asset.cube.size, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
+	return MyGUI::DragVector3("大きさ", group.cube.size, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
 }

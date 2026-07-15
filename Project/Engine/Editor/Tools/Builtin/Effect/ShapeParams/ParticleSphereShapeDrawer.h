@@ -21,7 +21,7 @@ namespace Engine {
 		ParticleSphereShapeDrawer() = default;
 		~ParticleSphereShapeDrawer() override = default;
 
-		bool DrawImGui(ParticleEffectAsset& asset) const override;
+		bool DrawImGui(ParticleEffectGroup& group) const override;
 	};
 
 	ENGINE_REGISTER_PARTICLE_PRIMITIVE_SHAPE_DRAWER(ParticleSphereShapeDrawer, PrimitiveType::Sphere);

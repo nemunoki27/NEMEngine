@@ -50,6 +50,14 @@ namespace Engine {
 			std::string id;
 			std::unique_ptr<IParticleModule> module;
 		};
+
+		// グループごとのPhaseとModule編集状態
+		struct GroupEditorState {
+
+			int32_t selectedPhase = 0;
+			std::vector<std::vector<ModuleCacheEntry>> moduleCache;
+			std::vector<int32_t> selectedModules;
+		};
 		//--------- variables ----------------------------------------------------
 
 		ToolDescriptor descriptor_{
@@ -73,15 +81,13 @@ namespace Engine {
 		std::string createNameBuffer_{};
 		// 追加モジュールの検索
 		TextSearchFilter addModuleSearchFilter_{};
-		// 選択中のフェーズ
-		int32_t selectedPhase_ = 0;
+		// 選択中のグループ
+		UUID selectedGroupID_{};
 		// ステータスメッセージ
 		std::string statusMessage_{};
 
-		// フェーズごとのモジュール編集用インスタンス
-		std::vector<std::vector<ModuleCacheEntry>> moduleCache_;
-		// フェーズごとの選択中モジュール
-		std::vector<int32_t> selectedModules_;
+		// グループごとの編集状態
+		std::unordered_map<UUID, GroupEditorState> groupEditorStates_;
 
 		//--------- functions ----------------------------------------------------
 
@@ -89,18 +95,30 @@ namespace Engine {
 		void DrawWindow(const EditorToolContext& context);
 		// アセットの選択と新規作成と保存を描画する
 		void DrawAssetSection(const EditorToolContext& context);
+		// グループの発生設定を描画する、変更があればtrue
+		bool DrawGroupEmissionSection(const EditorToolContext& context);
+		// グループ一覧を描画する、変更があればtrue
+		bool DrawGroupList();
 		// 再生と描画の基本設定を描画する、変更があればtrue
-		bool DrawBasicSection(const EditorToolContext& context);
+		bool DrawBasicSection(const EditorToolContext& context, ParticleEffectGroup& group);
 		// フェーズ一覧と選択フェーズの編集を描画する、変更があればtrue
-		bool DrawPhaseSection(const EditorToolContext& context);
+		bool DrawPhaseSection(const EditorToolContext& context,
+			ParticleEffectGroup& group, GroupEditorState& editorState);
 		// 選択フェーズのモジュール一覧を描画する、変更があればtrue
-		bool DrawPhaseModules(const EditorToolContext& context, ParticleEffectPhase& phase);
+		bool DrawPhaseModules(const EditorToolContext& context, ParticleEffectGroup& group,
+			GroupEditorState& editorState, ParticleEffectPhase& phase);
 		// 選択フェーズのマテリアル設定を描画する、変更があればtrue
-		bool DrawPhaseMaterialSection(const EditorToolContext& context, ParticleEffectPhase& phase);
+		bool DrawPhaseMaterialSection(const EditorToolContext& context,
+			ParticleEffectGroup& group, ParticleEffectPhase& phase);
 		// トレイルマテリアルのテクスチャ設定を描画する、変更があればtrue
-		bool DrawTrailMaterialSection(const EditorToolContext& context);
+		bool DrawTrailMaterialSection(const EditorToolContext& context, ParticleEffectGroup& group);
 		// 選択フェーズのペアレント設定を描画する、変更があればtrue
-		bool DrawPhaseParentSection(const EditorToolContext& context, ParticleEffectPhase& phase);
+		bool DrawPhaseParentSection(const EditorToolContext& context,
+			ParticleEffectGroup& group, ParticleEffectPhase& phase, int32_t selectedPhase);
+		// 選択中のグループを取得する
+		ParticleEffectGroup* GetSelectedGroup();
+		// グループの編集状態を取得する
+		GroupEditorState& GetGroupEditorState(UUID groupID);
 		// モジュールの編集用インスタンスを取得する、idが変わっていれば作り直す
 		IParticleModule* ResolveModuleCache(ModuleCacheEntry& cache, const ParticleEffectModuleEntry& entry);
 

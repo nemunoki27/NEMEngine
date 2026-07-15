@@ -16,6 +16,28 @@
 namespace Engine {
 
 	//============================================================================
+	//	ParticleGroupRuntimeState struct
+	//============================================================================
+	// パーティクルグループの実行状態
+	struct ParticleGroupRuntimeState {
+
+		// アセット内のグループID
+		UUID groupID{};
+		// エミッターの経過時間
+		float time = 0.0f;
+		// 次の発生までのタイマー
+		float emitTimer = 0.0f;
+		// 生存中の粒子
+		std::vector<Particle> particles{};
+		// 粒子へ割り当てる次のID
+		uint32_t nextParticleID = 0;
+		// 粒子IDごとのトレイル状態
+		std::unordered_map<uint32_t, ParticleTrailRuntime> trails{};
+		// アセットから反映した描画設定
+		ParticleRenderSettings renderSettings{};
+	};
+
+	//============================================================================
 	//	ParticleEmitterComponent struct
 	//============================================================================
 	// パーティクルエフェクトの再生
@@ -38,20 +60,20 @@ namespace Engine {
 		// 表示フラグ
 		bool visible = true;
 
-		// エミッターの経過時間
-		float runtimeTime = 0.0f;
 		// 単発再生中か、ループを無視して発生継続時間分だけ発生する
 		bool runtimeOneShot = false;
-		// 次の発生までのタイマー
-		float runtimeEmitTimer = 0.0f;
-		// 生存中の粒子
-		std::vector<Particle> runtimeParticles{};
-		// 粒子へ割り当てる次のID
-		uint32_t runtimeNextParticleID = 0;
-		// 粒子IDごとのトレイル状態、ワールド空間で記録する
-		std::unordered_map<uint32_t, ParticleTrailRuntime> runtimeTrails{};
-		// アセットから反映した描画設定、Systemが更新し描画側が参照する
-		ParticleRenderSettings runtimeRenderSettings{};
+		// 同時発生の次回タイマー
+		float runtimeGroupEmitTimer = 0.0f;
+		// 単発の同時発生を実行済みか
+		bool runtimeGroupEmitted = false;
+		// エフェクトの描画空間
+		PrimitiveRenderSpace runtimeSpace = PrimitiveRenderSpace::World3D;
+		// 実行状態を構築したエフェクトID
+		AssetID runtimeEffectID{};
+		// 実行状態へ反映したエフェクト定義の世代
+		uint64_t runtimeEffectRevision = 0;
+		// グループごとの実行状態
+		std::vector<ParticleGroupRuntimeState> runtimeGroups{};
 	};
 
 	// json変換

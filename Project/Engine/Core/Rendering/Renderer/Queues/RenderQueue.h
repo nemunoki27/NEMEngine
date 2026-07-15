@@ -27,6 +27,7 @@ namespace Engine {
 	struct MaterialParameterValue;
 	struct PrimitiveRendererComponent;
 	struct ParticleEmitterComponent;
+	struct ParticleGroupRuntimeState;
 
 	//============================================================================
 	//	RenderQueue structures
@@ -109,8 +110,8 @@ namespace Engine {
 	// パーティクル描画データ
 	struct ParticleRenderPayload {
 
-		// 粒子配列を持つコンポーネントを指す、同フレーム内のみ有効
-		const ParticleEmitterComponent* emitter = nullptr;
+		// 粒子配列を持つグループを指す、同フレーム内のみ有効
+		const ParticleGroupRuntimeState* group = nullptr;
 	};
 	// 描画アイテム
 	struct RenderItem {

@@ -229,7 +229,7 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 	}
 	// フェーズ数は同じアセットを共有するバッチ先頭から決める
 	const ParticleRenderPayload* firstPayload = context.batch->GetPayload<ParticleRenderPayload>(*items.front());
-	if (!firstPayload || !firstPayload->emitter) {
+	if (!firstPayload || !firstPayload->group) {
 		return;
 	}
 	const size_t phaseCount = customLayouts.size();
@@ -243,10 +243,10 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 	for (const RenderItem* item : items) {
 
 		const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
-		if (!payload || !payload->emitter) {
+		if (!payload || !payload->group) {
 			continue;
 		}
-		const ParticleRenderSettings& settings = payload->emitter->runtimeRenderSettings;
+		const ParticleRenderSettings& settings = payload->group->renderSettings;
 		if (settings.trail.enabled && !settings.trail.drawSource) {
 			continue;
 		}
@@ -263,7 +263,7 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 			sortCameraPos = camera->cameraPos;
 		}
 
-		for (const Particle& particle : payload->emitter->runtimeParticles) {
+		for (const Particle& particle : payload->group->particles) {
 
 			// 親ローカルのシミュレーション結果から確定したワールド姿勢を使う
 			const Vector3 worldPos = particle.worldPos;
@@ -403,8 +403,8 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 
 		std::unordered_map<std::string, MaterialParameterValue> trailOverrides{};
 		const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
-		if (payload && payload->emitter) {
-			AppendPhaseMaterialOverrides(payload->emitter->runtimeRenderSettings.trail.materialSettings, trailOverrides);
+		if (payload && payload->group) {
+			AppendPhaseMaterialOverrides(payload->group->renderSettings.trail.materialSettings, trailOverrides);
 		}
 		BindMaterial(context, *pipelineState, *resolvedPass.material,
 			trailOverrides.empty() ? nullptr : &trailOverrides, commandList);
@@ -432,11 +432,11 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	const RenderItem* item = items.front();
 	const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
-	if (!payload || !payload->emitter ||
-		(payload->emitter->runtimeParticles.empty() && payload->emitter->runtimeTrails.empty())) {
+	if (!payload || !payload->group ||
+		(payload->group->particles.empty() && payload->group->trails.empty())) {
 		return;
 	}
-	const ParticleRenderSettings& settings = payload->emitter->runtimeRenderSettings;
+	const ParticleRenderSettings& settings = payload->group->renderSettings;
 
 	const bool is2D = settings.space == PrimitiveRenderSpace::Screen2D;
 	ParticleBatchResources& resources = resourcePool_.Acquire(graphicsCore,
@@ -445,7 +445,7 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 		});
 
 	// 元形状を描画する場合のみフェーズごとのインスタンスデータを構築する
-	if ((!settings.trail.enabled || settings.trail.drawSource) && !payload->emitter->runtimeParticles.empty()) {
+	if ((!settings.trail.enabled || settings.trail.drawSource) && !payload->group->particles.empty()) {
 
 		const size_t phaseCount = (std::max)((std::max)(settings.phaseMaterials.size(),
 			settings.phaseMaterialSettings.size()), static_cast<size_t>(1));

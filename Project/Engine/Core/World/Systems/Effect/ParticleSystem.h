@@ -18,6 +18,7 @@ namespace Engine {
 
 	// front
 	struct ParticleEmitterComponent;
+	struct ParticleGroupRuntimeState;
 
 	//============================================================================
 	//	ParticleSystem class
@@ -65,6 +66,14 @@ namespace Engine {
 			bool hasUpdateBatch = false;
 		};
 
+		// グループ1つ分の実行定義
+		struct GroupRuntime {
+
+			UUID id{};
+			std::vector<PhaseRuntime> phases;
+			bool hasUpdateBatch = false;
+		};
+
 		// エミッターごとに解決したフェーズの親姿勢
 		struct ParentRuntime {
 
@@ -78,9 +87,9 @@ namespace Engine {
 		struct EffectRuntime {
 
 			ParticleEffectAsset asset{};
-			std::vector<PhaseRuntime> phases;
+			std::vector<GroupRuntime> groups;
 			bool valid = false;
-			bool hasUpdateBatch = false;
+			uint64_t revision = 1;
 
 			// ホットリロード用のファイル情報
 			std::filesystem::path path{};
@@ -111,12 +120,23 @@ namespace Engine {
 		const EffectRuntime* ResolveEffect(SystemContext& context, AssetID effectID, bool checkReload);
 		// アセットを読み込んでフェーズを構築する
 		EffectRuntime LoadEffect(SystemContext& context, AssetID effectID) const;
-		// アセットのフェーズ定義からモジュールを構築する
-		void BuildPhases(EffectRuntime& runtime) const;
+		// アセットのグループとフェーズから実行定義を構築する
+		void BuildGroups(EffectRuntime& runtime) const;
+		// Componentの実行状態をアセットのグループ順へ同期する
+		void SynchronizeRuntimeGroups(ParticleEmitterComponent& emitter, const EffectRuntime& effect) const;
+		// 同時発生を行うフレームか判定する
+		bool UpdateGroupEmission(ParticleEmitterComponent& emitter,
+			const ParticleEffectAsset& asset, float deltaTime) const;
+		// グループ1つ分の粒子とトレイルを更新する
+		void UpdateGroup(ECSWorld& world, const Entity& entity,
+			ParticleGroupRuntimeState& state, const ParticleEffectAsset& asset,
+			const ParticleEffectGroup& group, const GroupRuntime& runtime,
+			float deltaTime, bool allowTimeAdvance, bool simultaneousEmit,
+			bool oneShot, bool drawEmitterShape);
 		// 寿命が尽きた粒子をLifeEndModeに従って遷移させる、破棄するならfalse
 		bool AdvancePhaseOnLifeEnd(Particle& particle, const std::vector<PhaseRuntime>& phases) const;
 		// Batchを含む更新計画をフェーズごとの連続範囲へ適用する
-		void UpdatePhaseModules(std::vector<Particle>& particles, const EffectRuntime& effect, float deltaTime) const;
+		void UpdatePhaseModules(std::vector<Particle>& particles, const GroupRuntime& group, float deltaTime) const;
 		// 1粒子へ発生モジュールを適用する
 		void ApplySpawnModules(Particle& particle, const PhaseRuntime& phase) const;
 		// 1粒子へ更新モジュールを適用する
@@ -130,18 +150,18 @@ namespace Engine {
 		void UpdateParticleParent(Particle& particle, const ParticlePhaseParentSettings& settings,
 			const ParentRuntime& parent, bool preserveWorldRotationScale = true) const;
 		// 全粒子の親行列と描画用ワールド姿勢を更新する
-		void UpdateParticleParents(std::vector<Particle>& particles, const EffectRuntime& effect,
+		void UpdateParticleParents(std::vector<Particle>& particles, const GroupRuntime& group,
 			const std::vector<ParentRuntime>& parents) const;
 		// 各フェーズの親姿勢をエミッター単位で解決する
 		void ResolveParticleParents(ECSWorld& world, const Entity& emitterEntity,
-			const EffectRuntime& effect, std::vector<ParentRuntime>& outParents) const;
+			const GroupRuntime& group, std::vector<ParentRuntime>& outParents) const;
 		// 粒子の描画用ワールド姿勢を更新する
 		void RefreshParticleWorldTransform(Particle& particle, const ParentRuntime* parent) const;
 		// トレイルの軌跡点をワールド空間で記録し、死亡した粒子から切り離す
 		void RecordTrails(ECSWorld& world, const Entity& entity,
-			ParticleEmitterComponent& emitter, const ParticleTrailSettings& trail, float deltaTime);
+			ParticleGroupRuntimeState& state, const ParticleTrailSettings& trail, float deltaTime);
 		// 粒子消滅後に退避したトレイル所有者を更新する
-		void UpdateDetachedTrailOwners(ParticleEmitterComponent& emitter, const EffectRuntime& effect,
+		void UpdateDetachedTrailOwners(ParticleGroupRuntimeState& state, const GroupRuntime& group,
 			const std::vector<ParentRuntime>& parents, const ParticleTrailSettings& trail, float deltaTime) const;
 		// エミッター形状から発生位置と方向と初期状態を決める、firstSpawnIndexは発生順の連番の開始値
 		void InitEmitterParticles(std::span<Particle> newborn, const ParticleEmitterSettings& settings,

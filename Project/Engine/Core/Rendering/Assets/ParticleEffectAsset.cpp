@@ -9,6 +9,7 @@
 
 // c++
 #include <algorithm>
+#include <unordered_set>
 
 //============================================================================
 //	ParticleEffectAsset internal
@@ -145,35 +146,36 @@ namespace {
 //============================================================================
 //	ParticleEffectAsset classMethods
 //============================================================================
-Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(const ParticleEffectAsset& asset) {
+Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(
+	PrimitiveRenderSpace space, const ParticleEffectGroup& group) {
 
 	ParticleRenderSettings settings{};
-	settings.space = asset.space;
-	settings.shape = asset.shape;
-	settings.plane = asset.plane;
-	settings.crossPlane = asset.crossPlane;
-	settings.ring = asset.ring;
-	settings.cylinder = asset.cylinder;
-	settings.sphere = asset.sphere;
-	settings.hemisphere = asset.hemisphere;
-	settings.cube = asset.cube;
-	settings.model = asset.model;
-	settings.material = asset.material;
-	settings.sortMode = asset.sortMode;
-	settings.blendMode = asset.blendMode;
-	settings.queue = asset.queue;
-	settings.billboardAxes = asset.billboardAxes;
-	settings.trail = asset.trail;
-	settings.emitter = asset.emitter;
+	settings.space = space;
+	settings.shape = group.shape;
+	settings.plane = group.plane;
+	settings.crossPlane = group.crossPlane;
+	settings.ring = group.ring;
+	settings.cylinder = group.cylinder;
+	settings.sphere = group.sphere;
+	settings.hemisphere = group.hemisphere;
+	settings.cube = group.cube;
+	settings.model = group.model;
+	settings.material = group.material;
+	settings.sortMode = group.sortMode;
+	settings.blendMode = group.blendMode;
+	settings.queue = group.queue;
+	settings.billboardAxes = group.billboardAxes;
+	settings.trail = group.trail;
+	settings.emitter = group.emitter;
 	// フェーズごとのマテリアルと形状アニメの有無を集める
-	settings.phaseMaterials.reserve(asset.phases.size());
-	settings.phaseMaterialSettings.reserve(asset.phases.size());
-	settings.trailPhaseSettings.reserve(asset.phases.size());
-	for (const ParticleEffectPhase& phase : asset.phases) {
+	settings.phaseMaterials.reserve(group.phases.size());
+	settings.phaseMaterialSettings.reserve(group.phases.size());
+	settings.trailPhaseSettings.reserve(group.phases.size());
+	for (const ParticleEffectPhase& phase : group.phases) {
 
 		settings.phaseMaterials.emplace_back(phase.material);
 		settings.phaseMaterialSettings.emplace_back(phase.materialSettings);
-		settings.trailPhaseSettings.emplace_back(MakeDefaultTrailPhaseSettings(asset.trail));
+		settings.trailPhaseSettings.emplace_back(MakeDefaultTrailPhaseSettings(group.trail));
 		for (const ParticleEffectModuleEntry& entry : phase.modules) {
 			if (entry.id == "ShapeOverLifetime") {
 				settings.shapeOverLifetime = true;
@@ -197,7 +199,7 @@ Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(const Particle
 			}
 			if (entry.id == "TrailColorOverLifetime") {
 				settings.trailPhaseSettings.back().color = MakeTrailColorAnimation(
-					entry.params, asset.trail.startColor, asset.trail.endColor);
+					entry.params, group.trail.startColor, group.trail.endColor);
 			}
 			if (entry.id == "TrailColorUV") {
 
@@ -237,7 +239,7 @@ Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(const Particle
 	if (settings.phaseMaterials.empty()) {
 		settings.phaseMaterials.emplace_back();
 		settings.phaseMaterialSettings.emplace_back();
-		settings.trailPhaseSettings.emplace_back(MakeDefaultTrailPhaseSettings(asset.trail));
+		settings.trailPhaseSettings.emplace_back(MakeDefaultTrailPhaseSettings(group.trail));
 	}
 	return settings;
 }
@@ -251,180 +253,198 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 	outAsset = ParticleEffectAsset{};
 	outAsset.guid = ParseAssetID(data, "guid");
 	outAsset.name = data.value("name", "UnnamedEffect");
-	outAsset.version = data.value("version", outAsset.version);
-
-	outAsset.duration = data.value("duration", outAsset.duration);
-	outAsset.looping = data.value("looping", outAsset.looping);
-	// 旧スキーマの上限はエミッター設定へ引き継ぐ
-	outAsset.emitter.maxParticles = data.value("maxParticles", outAsset.emitter.maxParticles);
-	if (const auto it = data.find("emitter"); it != data.end() && it->is_object()) {
-
-		const nlohmann::json& e = *it;
-		ParticleEmitterSettings& emitter = outAsset.emitter;
-		emitter.shape = EnumAdapter<ParticleEmitterShape>::FromString(
-			e.value("shape", "Sphere")).value_or(ParticleEmitterShape::Sphere);
-		emitter.emitInterval = e.value("emitInterval", emitter.emitInterval);
-		if (const auto vit = e.find("emitCount"); vit != e.end()) { from_json(*vit, emitter.emitCount); }
-		emitter.maxParticles = e.value("maxParticles", emitter.maxParticles);
-		if (const auto vit = e.find("speed"); vit != e.end()) { from_json(*vit, emitter.speed); }
-		if (const auto vit = e.find("emitOffset"); vit != e.end()) { from_json(*vit, emitter.emitOffset); }
-		// 形状パラメータは各形状が自分の分を読む
-		for (const auto& [shape, instance] : ParticleEmitterShapeRegistry::GetInstance().GetMap()) {
-			instance->FromJson(e, emitter);
-		}
-	}
+	outAsset.version = 2;
 	outAsset.space = EnumAdapter<PrimitiveRenderSpace>::FromString(
 		data.value("space", "World3D")).value_or(PrimitiveRenderSpace::World3D);
-	// 描画空間に合わない発生形状はフォールバックする
-	{
-		const IParticleEmitterShape* shape = ParticleEmitterShapeRegistry::GetInstance().Find(outAsset.emitter.shape);
+	if (const auto it = data.find("groupEmission"); it != data.end() && it->is_object()) {
+
+		outAsset.groupEmission.mode = EnumAdapter<ParticleEffectGroupEmissionMode>::FromString(
+			it->value("mode", "Independent")).value_or(ParticleEffectGroupEmissionMode::Independent);
+		outAsset.groupEmission.interval = it->value("interval", outAsset.groupEmission.interval);
+		outAsset.groupEmission.waitForCompletion = it->value(
+			"waitForCompletion", outAsset.groupEmission.waitForCompletion);
+	}
+
+	const auto readGroup = [&](const nlohmann::json& groupJson, ParticleEffectGroup& group) {
+
+		group = ParticleEffectGroup{};
+		if (const auto parsed = TryParseUUID16Hex(groupJson.value("id", std::string{}))) {
+			group.id = *parsed;
+		}
+		group.name = groupJson.value("name", group.name);
+		group.enabled = groupJson.value("enabled", group.enabled);
+		group.duration = groupJson.value("duration", group.duration);
+		group.looping = groupJson.value("looping", group.looping);
+		group.emitter.maxParticles = groupJson.value("maxParticles", group.emitter.maxParticles);
+		if (const auto it = groupJson.find("emitter"); it != groupJson.end() && it->is_object()) {
+
+			const nlohmann::json& e = *it;
+			ParticleEmitterSettings& emitter = group.emitter;
+			emitter.shape = EnumAdapter<ParticleEmitterShape>::FromString(
+				e.value("shape", "Sphere")).value_or(ParticleEmitterShape::Sphere);
+			emitter.emitInterval = e.value("emitInterval", emitter.emitInterval);
+			if (const auto vit = e.find("emitCount"); vit != e.end()) { from_json(*vit, emitter.emitCount); }
+			emitter.maxParticles = e.value("maxParticles", emitter.maxParticles);
+			if (const auto vit = e.find("speed"); vit != e.end()) { from_json(*vit, emitter.speed); }
+			if (const auto vit = e.find("emitOffset"); vit != e.end()) { from_json(*vit, emitter.emitOffset); }
+			for (const auto& [shape, instance] : ParticleEmitterShapeRegistry::GetInstance().GetMap()) {
+				instance->FromJson(e, emitter);
+			}
+		}
+		const IParticleEmitterShape* emitterShape =
+			ParticleEmitterShapeRegistry::GetInstance().Find(group.emitter.shape);
 		if (outAsset.space == PrimitiveRenderSpace::Screen2D) {
-			if (!shape || !shape->Supports2D()) {
-				outAsset.emitter.shape = ParticleEmitterShape::Circle;
-			}
-		} else if (!shape || !shape->Supports3D()) {
-			outAsset.emitter.shape = ParticleEmitterShape::Sphere;
+			if (!emitterShape || !emitterShape->Supports2D()) { group.emitter.shape = ParticleEmitterShape::Circle; }
+		} else if (!emitterShape || !emitterShape->Supports3D()) {
+			group.emitter.shape = ParticleEmitterShape::Sphere;
 		}
-	}
-	outAsset.shape = EnumAdapter<PrimitiveType>::FromString(
-		data.value("shape", "Plane")).value_or(PrimitiveType::Plane);
-	// 2DはPlane/Ringのみ対応、他形状はPlaneへ落とす
-	if (outAsset.space == PrimitiveRenderSpace::Screen2D &&
-		outAsset.shape != PrimitiveType::Plane && outAsset.shape != PrimitiveType::Ring) {
-		outAsset.shape = PrimitiveType::Plane;
-	}
-	if (const auto it = data.find("plane"); it != data.end() && it->is_object()) { from_json(*it, outAsset.plane); }
-	if (const auto it = data.find("crossPlane"); it != data.end() && it->is_object()) { from_json(*it, outAsset.crossPlane); }
-	if (const auto it = data.find("ring"); it != data.end() && it->is_object()) { from_json(*it, outAsset.ring); }
-	if (const auto it = data.find("cylinder"); it != data.end() && it->is_object()) { from_json(*it, outAsset.cylinder); }
-	if (const auto it = data.find("sphere"); it != data.end() && it->is_object()) { from_json(*it, outAsset.sphere); }
-	if (const auto it = data.find("hemisphere"); it != data.end() && it->is_object()) { from_json(*it, outAsset.hemisphere); }
-	if (const auto it = data.find("cube"); it != data.end() && it->is_object()) { from_json(*it, outAsset.cube); }
-	outAsset.model = ParseAssetID(data, "model");
 
-	outAsset.material = ParseAssetID(data, "material");
-	outAsset.sortMode = EnumAdapter<ParticleSortMode>::FromString(
-		data.value("sortMode", "None")).value_or(ParticleSortMode::None);
-	outAsset.blendMode = EnumAdapter<BlendMode>::FromString(
-		data.value("blendMode", "Add")).value_or(BlendMode::Add);
-	outAsset.queue = RenderPhaseFromString(data.value("queue", "Transparent"), RenderPhase::Transparent);
-	if (const auto it = data.find("billboardAxes"); it != data.end() && it->is_array()) {
+		group.shape = EnumAdapter<PrimitiveType>::FromString(
+			groupJson.value("shape", "Plane")).value_or(PrimitiveType::Plane);
+		if (outAsset.space == PrimitiveRenderSpace::Screen2D &&
+			group.shape != PrimitiveType::Plane && group.shape != PrimitiveType::Ring) {
+			group.shape = PrimitiveType::Plane;
+		}
+		if (const auto it = groupJson.find("plane"); it != groupJson.end() && it->is_object()) { from_json(*it, group.plane); }
+		if (const auto it = groupJson.find("crossPlane"); it != groupJson.end() && it->is_object()) { from_json(*it, group.crossPlane); }
+		if (const auto it = groupJson.find("ring"); it != groupJson.end() && it->is_object()) { from_json(*it, group.ring); }
+		if (const auto it = groupJson.find("cylinder"); it != groupJson.end() && it->is_object()) { from_json(*it, group.cylinder); }
+		if (const auto it = groupJson.find("sphere"); it != groupJson.end() && it->is_object()) { from_json(*it, group.sphere); }
+		if (const auto it = groupJson.find("hemisphere"); it != groupJson.end() && it->is_object()) { from_json(*it, group.hemisphere); }
+		if (const auto it = groupJson.find("cube"); it != groupJson.end() && it->is_object()) { from_json(*it, group.cube); }
+		group.model = ParseAssetID(groupJson, "model");
+		group.material = ParseAssetID(groupJson, "material");
+		group.sortMode = EnumAdapter<ParticleSortMode>::FromString(
+			groupJson.value("sortMode", "None")).value_or(ParticleSortMode::None);
+		group.blendMode = EnumAdapter<BlendMode>::FromString(
+			groupJson.value("blendMode", "Add")).value_or(BlendMode::Add);
+		group.queue = RenderPhaseFromString(groupJson.value("queue", "Transparent"), RenderPhase::Transparent);
+		if (const auto it = groupJson.find("billboardAxes"); it != groupJson.end() && it->is_array()) {
 
-		outAsset.billboardAxes.clear();
-		for (const auto& axisJson : *it) {
-			if (const auto axis = EnumAdapter<Axis>::FromString(axisJson.get<std::string>())) {
-				outAsset.billboardAxes.emplace_back(*axis);
+			group.billboardAxes.clear();
+			for (const auto& axisJson : *it) {
+				if (const auto axis = EnumAdapter<Axis>::FromString(axisJson.get<std::string>())) {
+					group.billboardAxes.emplace_back(*axis);
+				}
 			}
 		}
-	}
-	if (const auto it = data.find("trail"); it != data.end() && it->is_object()) {
+		if (const auto it = groupJson.find("trail"); it != groupJson.end() && it->is_object()) {
 
-		outAsset.trail.enabled = it->value("enabled", outAsset.trail.enabled);
-		outAsset.trail.drawSource = it->value("drawSource", outAsset.trail.drawSource);
-		outAsset.trail.keepAfterParticleDeath = it->value(
-			"keepAfterParticleDeath", outAsset.trail.keepAfterParticleDeath);
-		outAsset.trail.continueUpdateAfterParticleDeath = it->value(
-			"continueUpdateAfterParticleDeath", outAsset.trail.continueUpdateAfterParticleDeath);
-		outAsset.trail.maxPoints = it->value("maxPoints", outAsset.trail.maxPoints);
-		outAsset.trail.minDistance = it->value("minDistance", outAsset.trail.minDistance);
-		// 旧スキーマの単一幅は両端へ引き継ぐ
-		if (const auto vit = it->find("width"); vit != it->end()) {
-
-			outAsset.trail.startWidth = vit->get<float>();
-			outAsset.trail.endWidth = vit->get<float>();
-		}
-		outAsset.trail.startWidth = it->value("startWidth", outAsset.trail.startWidth);
-		outAsset.trail.endWidth = it->value("endWidth", outAsset.trail.endWidth);
-		if (const auto vit = it->find("startColor"); vit != it->end()) { outAsset.trail.startColor = Color4::FromJson(*vit); }
-		if (const auto vit = it->find("endColor"); vit != it->end()) { outAsset.trail.endColor = Color4::FromJson(*vit); }
-		outAsset.trail.pointLifetime = it->value("pointLifetime", outAsset.trail.pointLifetime);
-		if (outAsset.trail.keepAfterParticleDeath && outAsset.trail.pointLifetime <= 0.0f) {
-			outAsset.trail.pointLifetime = ParticleTrailSettings::kDefaultPointLifetime;
-		}
-		outAsset.trail.material = ParseAssetID(*it, "material");
-		if (const auto vit = it->find("materialSettings"); vit != it->end()) {
-			from_json(*vit, outAsset.trail.materialSettings);
-		}
-	}
-
-	// モジュール配列を読み込む、未知のモジュールは読み飛ばして他のモジュールの再生を継続する
-	const auto readModules = [](const nlohmann::json& parent, std::vector<ParticleEffectModuleEntry>& outModules) {
-		if (!parent.contains("modules") || !parent["modules"].is_array()) {
-			return;
-		}
-		for (const auto& moduleJson : parent["modules"]) {
-
-			if (!moduleJson.is_object()) {
-				continue;
+			group.trail.enabled = it->value("enabled", group.trail.enabled);
+			group.trail.drawSource = it->value("drawSource", group.trail.drawSource);
+			group.trail.keepAfterParticleDeath = it->value(
+				"keepAfterParticleDeath", group.trail.keepAfterParticleDeath);
+			group.trail.continueUpdateAfterParticleDeath = it->value(
+				"continueUpdateAfterParticleDeath", group.trail.continueUpdateAfterParticleDeath);
+			group.trail.maxPoints = it->value("maxPoints", group.trail.maxPoints);
+			group.trail.minDistance = it->value("minDistance", group.trail.minDistance);
+			if (const auto vit = it->find("width"); vit != it->end()) {
+				group.trail.startWidth = vit->get<float>();
+				group.trail.endWidth = vit->get<float>();
 			}
-			ParticleEffectModuleEntry entry{};
-			entry.id = moduleJson.value("id", "");
-			if (entry.id.empty()) {
-				continue;
+			group.trail.startWidth = it->value("startWidth", group.trail.startWidth);
+			group.trail.endWidth = it->value("endWidth", group.trail.endWidth);
+			if (const auto vit = it->find("startColor"); vit != it->end()) { group.trail.startColor = Color4::FromJson(*vit); }
+			if (const auto vit = it->find("endColor"); vit != it->end()) { group.trail.endColor = Color4::FromJson(*vit); }
+			group.trail.pointLifetime = it->value("pointLifetime", group.trail.pointLifetime);
+			if (group.trail.keepAfterParticleDeath && group.trail.pointLifetime <= 0.0f) {
+				group.trail.pointLifetime = ParticleTrailSettings::kDefaultPointLifetime;
 			}
-			if (const auto it = moduleJson.find("params"); it != moduleJson.end() && it->is_object()) {
-				entry.params = *it;
+			group.trail.material = ParseAssetID(*it, "material");
+			if (const auto vit = it->find("materialSettings"); vit != it->end()) {
+				from_json(*vit, group.trail.materialSettings);
 			}
-			outModules.emplace_back(std::move(entry));
 		}
+
+		const auto readModules = [](const nlohmann::json& parent,
+			std::vector<ParticleEffectModuleEntry>& outModules) {
+
+			if (!parent.contains("modules") || !parent["modules"].is_array()) { return; }
+			for (const auto& moduleJson : parent["modules"]) {
+
+				if (!moduleJson.is_object()) { continue; }
+				ParticleEffectModuleEntry entry{};
+				entry.id = moduleJson.value("id", "");
+				if (entry.id.empty()) { continue; }
+				if (const auto it = moduleJson.find("params"); it != moduleJson.end() && it->is_object()) {
+					entry.params = *it;
+				}
+				outModules.emplace_back(std::move(entry));
+			}
+			};
+
+		if (const auto it = groupJson.find("phases"); it != groupJson.end() && it->is_array()) {
+			for (const auto& phaseJson : *it) {
+
+				if (!phaseJson.is_object()) { continue; }
+				ParticleEffectPhase phase{};
+				phase.name = phaseJson.value("name", phase.name);
+				if (const auto vit = phaseJson.find("lifetime"); vit != phaseJson.end()) { from_json(*vit, phase.lifetime); }
+				phase.lifeEndMode = EnumAdapter<ParticleLifeEndMode>::FromString(
+					phaseJson.value("lifeEndMode", "Kill")).value_or(ParticleLifeEndMode::Kill);
+				phase.material = ParseAssetID(phaseJson, "material");
+				if (const auto mit = phaseJson.find("materialSettings"); mit != phaseJson.end()) {
+					from_json(*mit, phase.materialSettings);
+				}
+				if (const auto pit = phaseJson.find("parentSettings"); pit != phaseJson.end() && pit->is_object()) {
+
+					phase.parentSettings.useEmitter = pit->value("useEmitter", false);
+					phase.parentSettings.ignoreParentRotation = pit->value("ignoreParentRotation", false);
+					phase.parentSettings.ignoreParentScale = pit->value("ignoreParentScale", false);
+					phase.parentSettings.keepWorldOnDetach = pit->value("keepWorldOnDetach", true);
+					const std::string localFileID = pit->value("entityLocalFileID", "");
+					phase.parentSettings.entityLocalFileID = localFileID.empty() ? UUID{} : FromString16Hex(localFileID);
+					if (phase.parentSettings.useEmitter) { phase.parentSettings.entityLocalFileID = {}; }
+				}
+				readModules(phaseJson, phase.modules);
+				if (const auto settings = phaseJson.find("materialSettings");
+					settings != phaseJson.end() && settings->is_object()) {
+
+					if (const auto parameters = settings->find("parameters");
+						parameters != settings->end() && parameters->is_object() && !parameters->empty()) {
+
+						ParticleEffectModuleEntry entry{};
+						entry.id = "CustomShaderParameter";
+						entry.params["parameters"] = *parameters;
+						phase.modules.emplace_back(std::move(entry));
+					}
+				}
+				group.phases.emplace_back(std::move(phase));
+			}
+		} else {
+
+			ParticleEffectPhase phase{};
+			if (const auto eit = groupJson.find("emitter"); eit != groupJson.end() && eit->is_object()) {
+				if (const auto vit = eit->find("lifetime"); vit != eit->end()) { from_json(*vit, phase.lifetime); }
+			}
+			readModules(groupJson, phase.modules);
+			group.phases.emplace_back(std::move(phase));
+		}
+		if (group.phases.empty()) { group.phases.emplace_back(); }
 		};
 
-	// フェーズを読み込む、旧スキーマはトップレベルのモジュールとエミッターの寿命を1フェーズへ移行する
-	if (const auto it = data.find("phases"); it != data.end() && it->is_array()) {
-		for (const auto& phaseJson : *it) {
+	if (const auto it = data.find("groups"); it != data.end() && it->is_array()) {
+		for (const auto& groupJson : *it) {
 
-			if (!phaseJson.is_object()) {
-				continue;
-			}
-			ParticleEffectPhase phase{};
-			phase.name = phaseJson.value("name", phase.name);
-			if (const auto vit = phaseJson.find("lifetime"); vit != phaseJson.end()) { from_json(*vit, phase.lifetime); }
-			phase.lifeEndMode = EnumAdapter<ParticleLifeEndMode>::FromString(
-				phaseJson.value("lifeEndMode", "Kill")).value_or(ParticleLifeEndMode::Kill);
-			phase.material = ParseAssetID(phaseJson, "material");
-			if (const auto mit = phaseJson.find("materialSettings"); mit != phaseJson.end()) {
-				from_json(*mit, phase.materialSettings);
-			}
-			if (const auto pit = phaseJson.find("parentSettings"); pit != phaseJson.end() && pit->is_object()) {
-
-				phase.parentSettings.useEmitter = pit->value("useEmitter", false);
-				phase.parentSettings.ignoreParentRotation = pit->value("ignoreParentRotation", false);
-				phase.parentSettings.ignoreParentScale = pit->value("ignoreParentScale", false);
-				phase.parentSettings.keepWorldOnDetach = pit->value("keepWorldOnDetach", true);
-				const std::string localFileID = pit->value("entityLocalFileID", "");
-				phase.parentSettings.entityLocalFileID = localFileID.empty() ? UUID{} : FromString16Hex(localFileID);
-				if (phase.parentSettings.useEmitter) {
-					phase.parentSettings.entityLocalFileID = {};
-				}
-			}
-			readModules(phaseJson, phase.modules);
-			// 旧Phase直下のカスタムパラメータは専用モジュールへ移行する
-			if (const auto settings = phaseJson.find("materialSettings");
-				settings != phaseJson.end() && settings->is_object()) {
-
-				if (const auto parameters = settings->find("parameters");
-					parameters != settings->end() && parameters->is_object() && !parameters->empty()) {
-
-					ParticleEffectModuleEntry entry{};
-					entry.id = "CustomShaderParameter";
-					entry.params["parameters"] = *parameters;
-					phase.modules.emplace_back(std::move(entry));
-				}
-			}
-			outAsset.phases.emplace_back(std::move(phase));
+			if (!groupJson.is_object()) { continue; }
+			ParticleEffectGroup group{};
+			readGroup(groupJson, group);
+			outAsset.groups.emplace_back(std::move(group));
 		}
 	} else {
 
-		ParticleEffectPhase phase{};
-		if (const auto eit = data.find("emitter"); eit != data.end() && eit->is_object()) {
-			if (const auto vit = eit->find("lifetime"); vit != eit->end()) { from_json(*vit, phase.lifetime); }
-		}
-		readModules(data, phase.modules);
-		outAsset.phases.emplace_back(std::move(phase));
+		ParticleEffectGroup group{};
+		readGroup(data, group);
+		group.id = UUID{ 1 };
+		group.name = outAsset.name.empty() ? "Group 1" : outAsset.name;
+		outAsset.groups.emplace_back(std::move(group));
 	}
-	// フェーズは必ず1つ以上持つ
-	if (outAsset.phases.empty()) {
-		outAsset.phases.emplace_back();
+	if (outAsset.groups.empty()) { outAsset.groups.emplace_back(); }
+	std::unordered_set<UUID> groupIDs{};
+	for (ParticleEffectGroup& group : outAsset.groups) {
+
+		while (!group.id || groupIDs.contains(group.id)) { group.id = UUID::New(); }
+		groupIDs.emplace(group.id);
 	}
 	return true;
 }
@@ -433,85 +453,97 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 
 	nlohmann::json data = nlohmann::json::object();
 	data["name"] = asset.name;
-	data["version"] = asset.version;
-
-	data["duration"] = asset.duration;
-	data["looping"] = asset.looping;
-	{
-		nlohmann::json e = nlohmann::json::object();
-		const ParticleEmitterSettings& emitter = asset.emitter;
-		e["shape"] = EnumAdapter<ParticleEmitterShape>::ToString(emitter.shape);
-		e["emitInterval"] = emitter.emitInterval;
-		to_json(e["emitCount"], emitter.emitCount);
-		e["maxParticles"] = emitter.maxParticles;
-		to_json(e["speed"], emitter.speed);
-		to_json(e["emitOffset"], emitter.emitOffset);
-		// 形状パラメータは各形状が自分の分を書く
-		for (const auto& [shape, instance] : ParticleEmitterShapeRegistry::GetInstance().GetMap()) {
-			instance->ToJson(e, emitter);
-		}
-		data["emitter"] = std::move(e);
-	}
-
+	data["version"] = 2;
 	data["space"] = EnumAdapter<PrimitiveRenderSpace>::ToString(asset.space);
-	data["shape"] = EnumAdapter<PrimitiveType>::ToString(asset.shape);
-	data["plane"] = asset.plane;
-	data["crossPlane"] = asset.crossPlane;
-	data["ring"] = asset.ring;
-	data["cylinder"] = asset.cylinder;
-	data["sphere"] = asset.sphere;
-	data["hemisphere"] = asset.hemisphere;
-	data["cube"] = asset.cube;
-	data["model"] = ToAssetReferenceJson(asset.model);
+	data["groupEmission"] = {
+		{ "mode", EnumAdapter<ParticleEffectGroupEmissionMode>::ToString(asset.groupEmission.mode) },
+		{ "interval", asset.groupEmission.interval },
+		{ "waitForCompletion", asset.groupEmission.waitForCompletion },
+	};
+	data["groups"] = nlohmann::json::array();
+	for (const ParticleEffectGroup& group : asset.groups) {
 
-	data["material"] = ToAssetReferenceJson(asset.material);
-	data["sortMode"] = EnumAdapter<ParticleSortMode>::ToString(asset.sortMode);
-	data["blendMode"] = EnumAdapter<BlendMode>::ToString(asset.blendMode);
-	data["queue"] = std::string(ToString(asset.queue));
-	data["billboardAxes"] = nlohmann::json::array();
-	for (Axis axis : asset.billboardAxes) {
-		data["billboardAxes"].push_back(EnumAdapter<Axis>::ToString(axis));
-	}
-	data["trail"] = nlohmann::json::object();
-	data["trail"]["enabled"] = asset.trail.enabled;
-	data["trail"]["drawSource"] = asset.trail.drawSource;
-	data["trail"]["keepAfterParticleDeath"] = asset.trail.keepAfterParticleDeath;
-	data["trail"]["continueUpdateAfterParticleDeath"] = asset.trail.continueUpdateAfterParticleDeath;
-	data["trail"]["maxPoints"] = asset.trail.maxPoints;
-	data["trail"]["minDistance"] = asset.trail.minDistance;
-	data["trail"]["startWidth"] = asset.trail.startWidth;
-	data["trail"]["endWidth"] = asset.trail.endWidth;
-	data["trail"]["startColor"] = asset.trail.startColor.ToJson();
-	data["trail"]["endColor"] = asset.trail.endColor.ToJson();
-	data["trail"]["pointLifetime"] = asset.trail.pointLifetime;
-	data["trail"]["material"] = ToAssetReferenceJson(asset.trail.material);
-	to_json(data["trail"]["materialSettings"], asset.trail.materialSettings);
-
-	data["phases"] = nlohmann::json::array();
-	for (const ParticleEffectPhase& phase : asset.phases) {
-
-		nlohmann::json phaseJson = nlohmann::json::object();
-		phaseJson["name"] = phase.name;
-		to_json(phaseJson["lifetime"], phase.lifetime);
-		phaseJson["lifeEndMode"] = EnumAdapter<ParticleLifeEndMode>::ToString(phase.lifeEndMode);
-		phaseJson["material"] = ToAssetReferenceJson(phase.material);
-		to_json(phaseJson["materialSettings"], phase.materialSettings);
-		phaseJson["parentSettings"] = nlohmann::json::object();
-		phaseJson["parentSettings"]["useEmitter"] = phase.parentSettings.useEmitter;
-		phaseJson["parentSettings"]["entityLocalFileID"] = phase.parentSettings.entityLocalFileID ?
-			ToString(phase.parentSettings.entityLocalFileID) : "";
-		phaseJson["parentSettings"]["ignoreParentRotation"] = phase.parentSettings.ignoreParentRotation;
-		phaseJson["parentSettings"]["ignoreParentScale"] = phase.parentSettings.ignoreParentScale;
-		phaseJson["parentSettings"]["keepWorldOnDetach"] = phase.parentSettings.keepWorldOnDetach;
-		phaseJson["modules"] = nlohmann::json::array();
-		for (const ParticleEffectModuleEntry& entry : phase.modules) {
-
-			nlohmann::json moduleJson = nlohmann::json::object();
-			moduleJson["id"] = entry.id;
-			moduleJson["params"] = entry.params;
-			phaseJson["modules"].push_back(std::move(moduleJson));
+		nlohmann::json groupJson = nlohmann::json::object();
+		groupJson["id"] = ToString(group.id);
+		groupJson["name"] = group.name;
+		groupJson["enabled"] = group.enabled;
+		groupJson["duration"] = group.duration;
+		groupJson["looping"] = group.looping;
+		{
+			nlohmann::json e = nlohmann::json::object();
+			const ParticleEmitterSettings& emitter = group.emitter;
+			e["shape"] = EnumAdapter<ParticleEmitterShape>::ToString(emitter.shape);
+			e["emitInterval"] = emitter.emitInterval;
+			to_json(e["emitCount"], emitter.emitCount);
+			e["maxParticles"] = emitter.maxParticles;
+			to_json(e["speed"], emitter.speed);
+			to_json(e["emitOffset"], emitter.emitOffset);
+			// 形状パラメータは各形状が自分の分を書く
+			for (const auto& [shape, instance] : ParticleEmitterShapeRegistry::GetInstance().GetMap()) {
+				instance->ToJson(e, emitter);
+			}
+			groupJson["emitter"] = std::move(e);
 		}
-		data["phases"].push_back(std::move(phaseJson));
+
+		groupJson["shape"] = EnumAdapter<PrimitiveType>::ToString(group.shape);
+		groupJson["plane"] = group.plane;
+		groupJson["crossPlane"] = group.crossPlane;
+		groupJson["ring"] = group.ring;
+		groupJson["cylinder"] = group.cylinder;
+		groupJson["sphere"] = group.sphere;
+		groupJson["hemisphere"] = group.hemisphere;
+		groupJson["cube"] = group.cube;
+		groupJson["model"] = ToAssetReferenceJson(group.model);
+		groupJson["material"] = ToAssetReferenceJson(group.material);
+		groupJson["sortMode"] = EnumAdapter<ParticleSortMode>::ToString(group.sortMode);
+		groupJson["blendMode"] = EnumAdapter<BlendMode>::ToString(group.blendMode);
+		groupJson["queue"] = std::string(ToString(group.queue));
+		groupJson["billboardAxes"] = nlohmann::json::array();
+		for (Axis axis : group.billboardAxes) {
+			groupJson["billboardAxes"].push_back(EnumAdapter<Axis>::ToString(axis));
+		}
+		groupJson["trail"] = nlohmann::json::object();
+		groupJson["trail"]["enabled"] = group.trail.enabled;
+		groupJson["trail"]["drawSource"] = group.trail.drawSource;
+		groupJson["trail"]["keepAfterParticleDeath"] = group.trail.keepAfterParticleDeath;
+		groupJson["trail"]["continueUpdateAfterParticleDeath"] = group.trail.continueUpdateAfterParticleDeath;
+		groupJson["trail"]["maxPoints"] = group.trail.maxPoints;
+		groupJson["trail"]["minDistance"] = group.trail.minDistance;
+		groupJson["trail"]["startWidth"] = group.trail.startWidth;
+		groupJson["trail"]["endWidth"] = group.trail.endWidth;
+		groupJson["trail"]["startColor"] = group.trail.startColor.ToJson();
+		groupJson["trail"]["endColor"] = group.trail.endColor.ToJson();
+		groupJson["trail"]["pointLifetime"] = group.trail.pointLifetime;
+		groupJson["trail"]["material"] = ToAssetReferenceJson(group.trail.material);
+		to_json(groupJson["trail"]["materialSettings"], group.trail.materialSettings);
+
+		groupJson["phases"] = nlohmann::json::array();
+		for (const ParticleEffectPhase& phase : group.phases) {
+
+			nlohmann::json phaseJson = nlohmann::json::object();
+			phaseJson["name"] = phase.name;
+			to_json(phaseJson["lifetime"], phase.lifetime);
+			phaseJson["lifeEndMode"] = EnumAdapter<ParticleLifeEndMode>::ToString(phase.lifeEndMode);
+			phaseJson["material"] = ToAssetReferenceJson(phase.material);
+			to_json(phaseJson["materialSettings"], phase.materialSettings);
+			phaseJson["parentSettings"] = nlohmann::json::object();
+			phaseJson["parentSettings"]["useEmitter"] = phase.parentSettings.useEmitter;
+			phaseJson["parentSettings"]["entityLocalFileID"] = phase.parentSettings.entityLocalFileID ?
+				ToString(phase.parentSettings.entityLocalFileID) : "";
+			phaseJson["parentSettings"]["ignoreParentRotation"] = phase.parentSettings.ignoreParentRotation;
+			phaseJson["parentSettings"]["ignoreParentScale"] = phase.parentSettings.ignoreParentScale;
+			phaseJson["parentSettings"]["keepWorldOnDetach"] = phase.parentSettings.keepWorldOnDetach;
+			phaseJson["modules"] = nlohmann::json::array();
+			for (const ParticleEffectModuleEntry& entry : phase.modules) {
+
+				nlohmann::json moduleJson = nlohmann::json::object();
+				moduleJson["id"] = entry.id;
+				moduleJson["params"] = entry.params;
+				phaseJson["modules"].push_back(std::move(moduleJson));
+			}
+			groupJson["phases"].push_back(std::move(phaseJson));
+		}
+		data["groups"].push_back(std::move(groupJson));
 	}
 	return data;
 }

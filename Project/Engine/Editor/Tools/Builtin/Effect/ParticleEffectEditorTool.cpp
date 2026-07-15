@@ -57,6 +57,8 @@ namespace {
 	constexpr const char* kModuleReorderPayloadType = "PARTICLE_MODULE_REORDER";
 	// フェーズ並べ替えのドラッグ&ドロップペイロード
 	constexpr const char* kPhaseReorderPayloadType = "PARTICLE_PHASE_REORDER";
+	// グループ並べ替えのドラッグ&ドロップペイロード
+	constexpr const char* kGroupReorderPayloadType = "PARTICLE_GROUP_REORDER";
 
 	// 親localFileIDから表示名を作る
 	std::string MakeParticleParentLabel(Engine::ECSWorld* world, Engine::UUID target) {
@@ -152,25 +154,26 @@ namespace {
 		return true;
 	}
 
-	AssetID ResolvePhaseMaterialID(const ParticleEffectAsset& asset, const ParticleEffectPhase& phase) {
+	AssetID ResolvePhaseMaterialID(const ParticleEffectAsset& asset,
+		const ParticleEffectGroup& group, const ParticleEffectPhase& phase) {
 
 		if (phase.material) {
 			return phase.material;
 		}
-		if (asset.material) {
-			return asset.material;
+		if (group.material) {
+			return group.material;
 		}
 		return asset.space == PrimitiveRenderSpace::Screen2D ?
 			BuiltinAssets::Materials::DefaultParticle2D : BuiltinAssets::Materials::DefaultParticle;
 	}
 
-	AssetID ResolveTrailMaterialID(const ParticleEffectAsset& asset) {
+	AssetID ResolveTrailMaterialID(const ParticleEffectAsset& asset, const ParticleEffectGroup& group) {
 
-		if (asset.trail.material) {
-			return asset.trail.material;
+		if (group.trail.material) {
+			return group.trail.material;
 		}
-		if (asset.material) {
-			return asset.material;
+		if (group.material) {
+			return group.material;
 		}
 		return asset.space == PrimitiveRenderSpace::Screen2D ?
 			BuiltinAssets::Materials::DefaultParticle2D : BuiltinAssets::Materials::DefaultParticle;
@@ -304,19 +307,37 @@ void ParticleEffectEditorTool::DrawWindow(const EditorToolContext& context) {
 	ImGui::SetWindowFontScale(0.8f);
 
 	DrawAssetSection(context);
+	if (!statusMessage_.empty()) {
+		ImGui::TextWrapped("%s", statusMessage_.c_str());
+	}
 
 	if (loaded_) {
 
 		// 変更検知フラグ
 		bool changed = false;
+		if (draft_.groups.empty()) {
 
-		if (ImGui::BeginTabBar("ParticleEffectEditorToolTabBar")) {
-
-			changed |= DrawBasicSection(context);
-			changed |= DrawPhaseSection(context);
-
-			ImGui::EndTabBar();
+			draft_.groups.emplace_back();
+			selectedGroupID_ = draft_.groups.front().id;
+			changed = true;
 		}
+		changed |= DrawGroupEmissionSection(context);
+		ImGui::BeginChild("ParticleEffectGroupList", ImVec2(210.0f, 0.0f), true);
+		changed |= DrawGroupList();
+		ImGui::EndChild();
+		ImGui::SameLine();
+		ImGui::BeginChild("ParticleEffectGroupEdit", ImVec2(0.0f, 0.0f));
+		if (ParticleEffectGroup* group = GetSelectedGroup()) {
+
+			GroupEditorState& editorState = GetGroupEditorState(group->id);
+			if (ImGui::BeginTabBar("ParticleEffectEditorToolTabBar")) {
+
+				changed |= DrawBasicSection(context, *group);
+				changed |= DrawPhaseSection(context, *group, editorState);
+				ImGui::EndTabBar();
+			}
+		}
+		ImGui::EndChild();
 
 		// 変更があった場合にランタイムに適用する
 		if (changed) {
@@ -324,12 +345,115 @@ void ParticleEffectEditorTool::DrawWindow(const EditorToolContext& context) {
 		}
 	}
 
-	if (!statusMessage_.empty()) {
-		ImGui::TextWrapped("%s", statusMessage_.c_str());
-	}
-
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::End();
+}
+
+bool ParticleEffectEditorTool::DrawGroupEmissionSection(const EditorToolContext& context) {
+
+	bool changed = false;
+	if (MyGUI::CollapsingHeader("グループ発生設定", false)) {
+
+		changed |= MyGUI::EnumCombo("発生方式", draft_.groupEmission.mode).valueChanged;
+		if (draft_.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous) {
+
+			changed |= MyGUI::DragFloat("同時発生間隔", draft_.groupEmission.interval,
+				MakeDragSetting(0.0f, 60.0f)).valueChanged;
+			changed |= MyGUI::Checkbox("全グループの終了を待つ", draft_.groupEmission.waitForCompletion);
+		}
+	}
+	if (ImGui::Button("再生")) { RestartEmitters(context, false); }
+	ImGui::SameLine();
+	if (ImGui::Button("単発再生")) { RestartEmitters(context, true); }
+	ImGui::SameLine();
+	if (ImGui::Button("停止")) { StopEmitters(context); }
+	ImGui::Separator();
+	return changed;
+}
+
+bool ParticleEffectEditorTool::DrawGroupList() {
+
+	bool changed = false;
+	if (ImGui::Button("追加", ImVec2(-FLT_MIN, 0.0f))) {
+
+		ParticleEffectGroup group{};
+		group.name = "Group " + std::to_string(draft_.groups.size() + 1);
+		ParticleEffectPhase phase{};
+		phase.name = "Phase 1";
+		phase.modules = {
+			{ "SizeOverLifetime", nlohmann::json::object() },
+			{ "ColorOverLifetime", nlohmann::json::object() },
+		};
+		group.phases.emplace_back(std::move(phase));
+		draft_.groups.emplace_back(std::move(group));
+		selectedGroupID_ = draft_.groups.back().id;
+		changed = true;
+	}
+	ParticleEffectGroup* selected = GetSelectedGroup();
+	ImGui::BeginDisabled(!selected);
+	if (ImGui::Button("複製", ImVec2(-FLT_MIN, 0.0f)) && selected) {
+
+		ParticleEffectGroup copy = *selected;
+		copy.id = UUID::New();
+		copy.name += " Copy";
+		draft_.groups.emplace_back(std::move(copy));
+		selectedGroupID_ = draft_.groups.back().id;
+		changed = true;
+	}
+	ImGui::EndDisabled();
+	ImGui::Separator();
+
+	int32_t removeIndex = -1;
+	for (int32_t i = 0; i < static_cast<int32_t>(draft_.groups.size()); ++i) {
+
+		ParticleEffectGroup& group = draft_.groups[i];
+		const std::string groupID = ToString(group.id);
+		ImGui::PushID(groupID.c_str());
+		if (MyGUI::SmallCheckbox("##Enabled", group.enabled)) { changed = true; }
+		ImGui::SameLine();
+		const std::string label = std::to_string(i + 1) + ": " + group.name;
+		if (ImGui::Selectable(label.c_str(), group.id == selectedGroupID_)) {
+			selectedGroupID_ = group.id;
+		}
+		if (ImGui::BeginDragDropSource()) {
+
+			ImGui::SetDragDropPayload(kGroupReorderPayloadType, &i, sizeof(i));
+			ImGui::TextUnformatted(label.c_str());
+			ImGui::EndDragDropSource();
+		}
+		if (ImGui::BeginDragDropTarget()) {
+
+			if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kGroupReorderPayloadType)) {
+
+				const int32_t from = *static_cast<const int32_t*>(payload->Data);
+				if (from != i) {
+					MoveListItem(draft_.groups, from, i);
+					changed = true;
+				}
+			}
+			ImGui::EndDragDropTarget();
+		}
+		if (ImGui::BeginPopupContextItem()) {
+
+			if (ImGui::MenuItem("削除", nullptr, false, 1 < draft_.groups.size())) {
+				removeIndex = i;
+			}
+			ImGui::EndPopup();
+		}
+		ImGui::PopID();
+	}
+	if (0 <= removeIndex) {
+
+		const UUID removedID = draft_.groups[removeIndex].id;
+		draft_.groups.erase(draft_.groups.begin() + removeIndex);
+		groupEditorStates_.erase(removedID);
+		if (removedID == selectedGroupID_) {
+			selectedGroupID_ = draft_.groups[(std::min)(removeIndex,
+				static_cast<int32_t>(draft_.groups.size()) - 1)].id;
+		}
+		changed = true;
+	}
+	return changed;
 }
 
 void ParticleEffectEditorTool::DrawAssetSection(const EditorToolContext& context) {
@@ -366,7 +490,8 @@ void ParticleEffectEditorTool::DrawAssetSection(const EditorToolContext& context
 	ImGui::Separator();
 }
 
-bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context) {
+bool ParticleEffectEditorTool::DrawBasicSection(
+	const EditorToolContext& context, ParticleEffectGroup& group) {
 
 	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
 	bool changed = false;
@@ -375,17 +500,20 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 	//	エミッター編集
 	//============================================================================
 	if (ImGui::BeginTabItem("エミッター")) {
+		changed |= MyGUI::InputText("グループ名", group.name).valueChanged;
 
 		//========================================================================================================================================================
 		if (MyGUI::CollapsingHeader("発生設定", false)) {
 
-			changed |= MyGUI::DragFloat("発生間隔", draft_.emitter.emitInterval, MakeDragSetting(0.001f, 60.0f)).valueChanged;
-			changed |= ParticleGui::DrawParticleValueUInt("発生数", draft_.emitter.emitCount);
+			ImGui::BeginDisabled(draft_.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous);
+			changed |= MyGUI::DragFloat("発生間隔", group.emitter.emitInterval, MakeDragSetting(0.001f, 60.0f)).valueChanged;
+			ImGui::EndDisabled();
+			changed |= ParticleGui::DrawParticleValueUInt("発生数", group.emitter.emitCount);
 			{
-				int32_t maxParticles = static_cast<int32_t>(draft_.emitter.maxParticles);
+				int32_t maxParticles = static_cast<int32_t>(group.emitter.maxParticles);
 				if (MyGUI::DragInt("最大数", maxParticles).valueChanged) {
 
-					draft_.emitter.maxParticles = static_cast<uint32_t>((std::max)(1, maxParticles));
+					group.emitter.maxParticles = static_cast<uint32_t>((std::max)(1, maxParticles));
 					changed = true;
 				}
 				// 現在の発生数を集計して表示する
@@ -394,35 +522,28 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 					world->ForEach<ParticleEmitterComponent>([&](const Entity&, const ParticleEmitterComponent& component) {
 						const AssetID resolved = component.effect ? component.effect : BuiltinAssets::Effects::DefaultParticle;
 						if (resolved == editingID_) {
-							aliveCount += static_cast<uint32_t>(component.runtimeParticles.size());
+							for (const ParticleGroupRuntimeState& runtimeGroup : component.runtimeGroups) {
+								if (runtimeGroup.groupID == group.id) {
+									aliveCount += static_cast<uint32_t>(runtimeGroup.particles.size());
+								}
+							}
 						}
 						});
 				}
-				ImGui::Text("現在の発生数: %u / %u", aliveCount, draft_.emitter.maxParticles);
+				ImGui::Text("現在の発生数: %u / %u", aliveCount, group.emitter.maxParticles);
 			}
 			ImGui::Spacing();
 
-			changed |= ParticleGui::DrawParticleValueFloat("発生初速度", draft_.emitter.speed, MakeDragSetting(0.0f, 10000.0f));
-			changed |= ParticleGui::DrawParticleValueVector3("発生オフセット", draft_.emitter.emitOffset, MakeDragSetting(-10000.0f, 10000.0f));
+			changed |= ParticleGui::DrawParticleValueFloat("発生初速度", group.emitter.speed, MakeDragSetting(0.0f, 10000.0f));
+			changed |= ParticleGui::DrawParticleValueVector3("発生オフセット", group.emitter.emitOffset, MakeDragSetting(-10000.0f, 10000.0f));
 
 			ImGui::Spacing();
 			ImGui::Separator();
 
-			changed |= MyGUI::DragFloat("発生継続時間", draft_.duration, MakeDragSetting(0.01f, 600.0f)).valueChanged;
-			changed |= MyGUI::Checkbox("ループ再生", draft_.looping);
-
-			// シーン上の対象エミッターをまとめて再生制御する、単発はループを無視して1回だけ発生する
-			if (ImGui::Button("再生")) {
-				RestartEmitters(context, false);
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("単発再生")) {
-				RestartEmitters(context, true);
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("停止")) {
-				StopEmitters(context);
-			}
+			ImGui::BeginDisabled(draft_.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous);
+			changed |= MyGUI::DragFloat("発生継続時間", group.duration, MakeDragSetting(0.01f, 600.0f)).valueChanged;
+			changed |= MyGUI::Checkbox("ループ再生", group.looping);
+			ImGui::EndDisabled();
 		}
 		//========================================================================================================================================================
 		if (MyGUI::CollapsingHeader("エミッター形状設定", false)) {
@@ -436,11 +557,11 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 			int32_t currentIndex = 0;
 			bool found = false;
 			for (int32_t i = 0; i < static_cast<int32_t>(shapes.size()); ++i) {
-				if (shapes[i] == draft_.emitter.shape) { currentIndex = i; found = true; break; }
+				if (shapes[i] == group.emitter.shape) { currentIndex = i; found = true; break; }
 			}
 			if (!found && !shapes.empty()) {
 
-				draft_.emitter.shape = shapes.front();
+				group.emitter.shape = shapes.front();
 				changed = true;
 			}
 
@@ -449,7 +570,7 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 				for (int32_t i = 0; i < static_cast<int32_t>(shapes.size()); ++i) {
 					if (ImGui::Selectable(EnumAdapter<ParticleEmitterShape>::ToString(shapes[i]), i == currentIndex)) {
 
-						draft_.emitter.shape = shapes[i];
+						group.emitter.shape = shapes[i];
 						changed = true;
 					}
 				}
@@ -457,37 +578,55 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 			}
 
 			// 形状別パラメータ
-			if (const IParticleEmitterShape* shape = shapeRegistry.Find(draft_.emitter.shape)) {
-				changed |= shape->DrawImGui(draft_.emitter);
+			if (const IParticleEmitterShape* shape = shapeRegistry.Find(group.emitter.shape)) {
+				changed |= shape->DrawImGui(group.emitter);
 			}
 		}
 		//========================================================================================================================================================
 		if (MyGUI::CollapsingHeader("描画設定", false)) {
 
-			changed |= MyGUI::EnumCombo("描画空間", draft_.space).valueChanged;
-			changed |= MyGUI::EnumCombo("形状", draft_.shape).valueChanged;
+			if (MyGUI::EnumCombo("描画空間", draft_.space).valueChanged) {
+
+				for (ParticleEffectGroup& effectGroup : draft_.groups) {
+
+					const IParticleEmitterShape* emitterShape =
+						ParticleEmitterShapeRegistry::GetInstance().Find(effectGroup.emitter.shape);
+					if (draft_.space == PrimitiveRenderSpace::Screen2D) {
+						if (!emitterShape || !emitterShape->Supports2D()) {
+							effectGroup.emitter.shape = ParticleEmitterShape::Circle;
+						}
+						if (effectGroup.shape != PrimitiveType::Plane && effectGroup.shape != PrimitiveType::Ring) {
+							effectGroup.shape = PrimitiveType::Plane;
+						}
+					} else if (!emitterShape || !emitterShape->Supports3D()) {
+						effectGroup.emitter.shape = ParticleEmitterShape::Sphere;
+					}
+				}
+				changed = true;
+			}
+			changed |= MyGUI::EnumCombo("形状", group.shape).valueChanged;
 
 			// 形状ごとのパラメータ
 			if (const IParticlePrimitiveShapeDrawer* drawer =
-				ParticlePrimitiveShapeDrawerRegistry::GetInstance().Find(draft_.shape)) {
-				changed |= drawer->DrawImGui(draft_);
+				ParticlePrimitiveShapeDrawerRegistry::GetInstance().Find(group.shape)) {
+				changed |= drawer->DrawImGui(group);
 			}
 			// 描画設定
 			{
 				AssetEditSetting setting{};
-				changed |= MyGUI::AssetReferenceField("モデル", draft_.model, assetDatabase, { AssetType::Mesh }, setting).valueChanged;
+				changed |= MyGUI::AssetReferenceField("モデル", group.model, assetDatabase, { AssetType::Mesh }, setting).valueChanged;
 			}
 			{
 				AssetEditSetting setting{};
 				setting.defaultAssetID = draft_.space == PrimitiveRenderSpace::Screen2D ?
 					BuiltinAssets::Materials::DefaultParticle2D : BuiltinAssets::Materials::DefaultParticle;
-				AssetID material = draft_.material;
+				AssetID material = group.material;
 				if (MyGUI::AssetReferenceField("マテリアル", material,
 					assetDatabase, { AssetType::Material }, setting).valueChanged) {
 
 					std::string message{};
 					if (ValidateParticleMaterialSelection(context, material, message)) {
-						draft_.material = material;
+						group.material = material;
 						changed = true;
 						statusMessage_.clear();
 					} else {
@@ -495,22 +634,22 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 					}
 				}
 			}
-			changed |= MyGUI::EnumCombo("ソート", draft_.sortMode).valueChanged;
-			changed |= MyGUI::EnumCombo("ブレンドモード", draft_.blendMode).valueChanged;
-			changed |= MyGUI::EnumCombo("キュー", draft_.queue).valueChanged;
+			changed |= MyGUI::EnumCombo("ソート", group.sortMode).valueChanged;
+			changed |= MyGUI::EnumCombo("ブレンドモード", group.blendMode).valueChanged;
+			changed |= MyGUI::EnumCombo("キュー", group.queue).valueChanged;
 			// ビルボード軸
 			{
 				const Axis axes[] = { Axis::X, Axis::Y, Axis::Z };
 				const char* axisLabels[] = { "ビルボードX", "ビルボードY", "ビルボードZ" };
 				for (int32_t i = 0; i < 3; ++i) {
 
-					bool enabled = std::find(draft_.billboardAxes.begin(), draft_.billboardAxes.end(), axes[i]) != draft_.billboardAxes.end();
+					bool enabled = std::find(group.billboardAxes.begin(), group.billboardAxes.end(), axes[i]) != group.billboardAxes.end();
 					if (MyGUI::Checkbox(axisLabels[i], enabled)) {
 
 						if (enabled) {
-							draft_.billboardAxes.emplace_back(axes[i]);
+							group.billboardAxes.emplace_back(axes[i]);
 						} else {
-							std::erase(draft_.billboardAxes, axes[i]);
+							std::erase(group.billboardAxes, axes[i]);
 						}
 						changed = true;
 					}
@@ -518,34 +657,34 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 			}
 
 			ImGui::SeparatorText("トレイル");
-			changed |= MyGUI::Checkbox("トレイル描画", draft_.trail.enabled);
-			if (draft_.trail.enabled) {
+			changed |= MyGUI::Checkbox("トレイル描画", group.trail.enabled);
+			if (group.trail.enabled) {
 
-				changed |= MyGUI::Checkbox("元の形状を描画", draft_.trail.drawSource);
-				const bool keepAfterParticleDeath = draft_.trail.keepAfterParticleDeath;
-				changed |= MyGUI::Checkbox("粒子消滅後もトレイルを残す", draft_.trail.keepAfterParticleDeath);
-				if (!keepAfterParticleDeath && draft_.trail.keepAfterParticleDeath &&
-					draft_.trail.pointLifetime <= 0.0f) {
+				changed |= MyGUI::Checkbox("元の形状を描画", group.trail.drawSource);
+				const bool keepAfterParticleDeath = group.trail.keepAfterParticleDeath;
+				changed |= MyGUI::Checkbox("粒子消滅後もトレイルを残す", group.trail.keepAfterParticleDeath);
+				if (!keepAfterParticleDeath && group.trail.keepAfterParticleDeath &&
+					group.trail.pointLifetime <= 0.0f) {
 
-					draft_.trail.pointLifetime = ParticleTrailSettings::kDefaultPointLifetime;
+					group.trail.pointLifetime = ParticleTrailSettings::kDefaultPointLifetime;
 					changed = true;
 				}
-				if (draft_.trail.keepAfterParticleDeath) {
-					changed |= MyGUI::Checkbox("寿命後も更新", draft_.trail.continueUpdateAfterParticleDeath);
+				if (group.trail.keepAfterParticleDeath) {
+					changed |= MyGUI::Checkbox("寿命後も更新", group.trail.continueUpdateAfterParticleDeath);
 				}
-				changed |= MyGUI::DragInt("軌跡点の上限", draft_.trail.maxPoints).valueChanged;
-				changed |= MyGUI::DragFloat("最小移動距離", draft_.trail.minDistance, MakeDragSetting(0.001f, 100.0f)).valueChanged;
-				changed |= MyGUI::DragFloat("点の寿命", draft_.trail.pointLifetime, MakeDragSetting(0.0f, 60.0f)).valueChanged;
+				changed |= MyGUI::DragInt("軌跡点の上限", group.trail.maxPoints).valueChanged;
+				changed |= MyGUI::DragFloat("最小移動距離", group.trail.minDistance, MakeDragSetting(0.001f, 100.0f)).valueChanged;
+				changed |= MyGUI::DragFloat("点の寿命", group.trail.pointLifetime, MakeDragSetting(0.0f, 60.0f)).valueChanged;
 				{
 					// 未設定なら粒子と同じマテリアルを使う
 					AssetEditSetting setting{};
-					AssetID material = draft_.trail.material;
+					AssetID material = group.trail.material;
 					if (MyGUI::AssetReferenceField("トレイルマテリアル", material,
 						assetDatabase, { AssetType::Material }, setting).valueChanged) {
 
 						std::string message{};
 						if (ValidateParticleMaterialSelection(context, material, message)) {
-							draft_.trail.material = material;
+							group.trail.material = material;
 							changed = true;
 							statusMessage_.clear();
 						} else {
@@ -553,7 +692,7 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 						}
 					}
 				}
-				changed |= DrawTrailMaterialSection(context);
+				changed |= DrawTrailMaterialSection(context, group);
 			}
 		}
 		ImGui::EndTabItem();
@@ -561,9 +700,13 @@ bool ParticleEffectEditorTool::DrawBasicSection(const EditorToolContext& context
 	return changed;
 }
 
-bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context) {
+bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context,
+	ParticleEffectGroup& group, GroupEditorState& editorState) {
 
 	bool changed = false;
+	int32_t& selectedPhase = editorState.selectedPhase;
+	auto& moduleCache = editorState.moduleCache;
+	auto& selectedModules = editorState.selectedModules;
 
 	//============================================================================
 	//	フェーズ編集
@@ -571,19 +714,19 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 	if (ImGui::BeginTabItem("フェーズ")) {
 
 		// フェーズは必ず1つ以上持つ
-		if (draft_.phases.empty()) {
+		if (group.phases.empty()) {
 
-			draft_.phases.emplace_back();
+			group.phases.emplace_back();
 			changed = true;
 		}
 		// 編集用インスタンスの数をフェーズ数へ合わせる
-		if (moduleCache_.size() != draft_.phases.size()) {
-			moduleCache_.resize(draft_.phases.size());
+		if (moduleCache.size() != group.phases.size()) {
+			moduleCache.resize(group.phases.size());
 		}
-		if (selectedModules_.size() != draft_.phases.size()) {
-			selectedModules_.resize(draft_.phases.size(), 0);
+		if (selectedModules.size() != group.phases.size()) {
+			selectedModules.resize(group.phases.size(), 0);
 		}
-		selectedPhase_ = std::clamp(selectedPhase_, 0, static_cast<int32_t>(draft_.phases.size()) - 1);
+		selectedPhase = std::clamp(selectedPhase, 0, static_cast<int32_t>(group.phases.size()) - 1);
 
 		//========================================================================================================================================================
 		// 左のフェーズリスト、選択と追加と削除と並べ替え
@@ -591,21 +734,21 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 		if (ImGui::Button("追加", ImVec2(-FLT_MIN, 0.0f))) {
 
 			ParticleEffectPhase phase{};
-			phase.name = "Phase " + std::to_string(draft_.phases.size() + 1);
-			draft_.phases.emplace_back(std::move(phase));
-			moduleCache_.emplace_back();
-			selectedModules_.emplace_back(0);
-			selectedPhase_ = static_cast<int32_t>(draft_.phases.size()) - 1;
+			phase.name = "Phase " + std::to_string(group.phases.size() + 1);
+			group.phases.emplace_back(std::move(phase));
+			moduleCache.emplace_back();
+			selectedModules.emplace_back(0);
+			selectedPhase = static_cast<int32_t>(group.phases.size()) - 1;
 			changed = true;
 		}
 		ImGui::Separator();
 		int32_t removePhaseIndex = -1;
-		for (int32_t i = 0; i < static_cast<int32_t>(draft_.phases.size()); ++i) {
+		for (int32_t i = 0; i < static_cast<int32_t>(group.phases.size()); ++i) {
 
 			ImGui::PushID(i);
-			const std::string label = std::to_string(i + 1) + ": " + draft_.phases[i].name;
-			if (ImGui::Selectable(label.c_str(), i == selectedPhase_)) {
-				selectedPhase_ = i;
+			const std::string label = std::to_string(i + 1) + ": " + group.phases[i].name;
+			if (ImGui::Selectable(label.c_str(), i == selectedPhase)) {
+				selectedPhase = i;
 			}
 			// ドラッグ&ドロップで並べ替える
 			if (ImGui::BeginDragDropSource()) {
@@ -621,16 +764,16 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 					const int32_t from = *static_cast<const int32_t*>(payload->Data);
 					if (from != i) {
 
-						MoveListItem(draft_.phases, from, i);
-						MoveListItem(moduleCache_, from, i);
-						MoveListItem(selectedModules_, from, i);
+						MoveListItem(group.phases, from, i);
+						MoveListItem(moduleCache, from, i);
+						MoveListItem(selectedModules, from, i);
 						// 選択中のフェーズを追従させる
-						if (from == selectedPhase_) {
-							selectedPhase_ = i;
-						} else if (from < selectedPhase_ && selectedPhase_ <= i) {
-							--selectedPhase_;
-						} else if (i <= selectedPhase_ && selectedPhase_ < from) {
-							++selectedPhase_;
+						if (from == selectedPhase) {
+							selectedPhase = i;
+						} else if (from < selectedPhase && selectedPhase <= i) {
+							--selectedPhase;
+						} else if (i <= selectedPhase && selectedPhase < from) {
+							++selectedPhase;
 						}
 						changed = true;
 					}
@@ -640,7 +783,7 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 			// 右クリックで削除、最後の1つは消せない
 			if (ImGui::BeginPopupContextItem()) {
 
-				if (ImGui::MenuItem("削除", nullptr, false, 1 < draft_.phases.size())) {
+				if (ImGui::MenuItem("削除", nullptr, false, 1 < group.phases.size())) {
 					removePhaseIndex = i;
 				}
 				ImGui::EndPopup();
@@ -649,10 +792,10 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 		}
 		if (0 <= removePhaseIndex) {
 
-			draft_.phases.erase(draft_.phases.begin() + removePhaseIndex);
-			moduleCache_.erase(moduleCache_.begin() + removePhaseIndex);
-			selectedModules_.erase(selectedModules_.begin() + removePhaseIndex);
-			selectedPhase_ = std::clamp(selectedPhase_, 0, static_cast<int32_t>(draft_.phases.size()) - 1);
+			group.phases.erase(group.phases.begin() + removePhaseIndex);
+			moduleCache.erase(moduleCache.begin() + removePhaseIndex);
+			selectedModules.erase(selectedModules.begin() + removePhaseIndex);
+			selectedPhase = std::clamp(selectedPhase, 0, static_cast<int32_t>(group.phases.size()) - 1);
 			changed = true;
 		}
 		ImGui::EndChild();
@@ -662,7 +805,7 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 		ImGui::SameLine();
 		ImGui::BeginChild("PhaseEdit", ImVec2(0.0f, 0.0f));
 
-		ParticleEffectPhase& phase = draft_.phases[selectedPhase_];
+		ParticleEffectPhase& phase = group.phases[selectedPhase];
 		changed |= MyGUI::InputText("名前", phase.name).valueChanged;
 		changed |= ParticleGui::DrawParticleValueFloat("寿命", phase.lifetime, MakeDragSetting(0.001f, 600.0f));
 		changed |= MyGUI::EnumCombo("寿命終了時", phase.lifeEndMode).valueChanged;
@@ -684,11 +827,11 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 			}
 		}
 
-		changed |= DrawPhaseMaterialSection(context, phase);
-		changed |= DrawPhaseParentSection(context, phase);
+		changed |= DrawPhaseMaterialSection(context, group, phase);
+		changed |= DrawPhaseParentSection(context, group, phase, selectedPhase);
 
 		ImGui::SeparatorText("モジュール");
-		changed |= DrawPhaseModules(context, phase);
+		changed |= DrawPhaseModules(context, group, editorState, phase);
 		ImGui::EndChild();
 
 		ImGui::EndTabItem();
@@ -697,7 +840,7 @@ bool ParticleEffectEditorTool::DrawPhaseSection(const EditorToolContext& context
 }
 
 bool ParticleEffectEditorTool::DrawPhaseMaterialSection(const EditorToolContext& context,
-	ParticleEffectPhase& phase) {
+	ParticleEffectGroup& group, ParticleEffectPhase& phase) {
 
 	bool changed = false;
 	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
@@ -712,7 +855,7 @@ bool ParticleEffectEditorTool::DrawPhaseMaterialSection(const EditorToolContext&
 			assetDatabase, { AssetType::Texture }, setting).valueChanged;
 	}
 
-	const AssetID materialID = ResolvePhaseMaterialID(draft_, phase);
+	const AssetID materialID = ResolvePhaseMaterialID(draft_, group, phase);
 	const std::optional<MaterialAsset> material = LoadMaterialAsset(context, materialID);
 	if (!material) {
 		ImGui::TextDisabled("マテリアルを解決できません");
@@ -753,7 +896,8 @@ bool ParticleEffectEditorTool::DrawPhaseMaterialSection(const EditorToolContext&
 	return changed;
 }
 
-bool ParticleEffectEditorTool::DrawTrailMaterialSection(const EditorToolContext& context) {
+bool ParticleEffectEditorTool::DrawTrailMaterialSection(
+	const EditorToolContext& context, ParticleEffectGroup& group) {
 
 	if (!MyGUI::CollapsingHeader("トレイルテクスチャ設定", false)) {
 		return false;
@@ -761,14 +905,15 @@ bool ParticleEffectEditorTool::DrawTrailMaterialSection(const EditorToolContext&
 
 	bool changed = false;
 	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
-	ParticlePhaseMaterialSettings& materialSettings = draft_.trail.materialSettings;
+	ParticlePhaseMaterialSettings& materialSettings = group.trail.materialSettings;
 	{
 		AssetEditSetting setting{};
 		changed |= MyGUI::AssetReferenceField("ベースカラーテクスチャ", materialSettings.baseColorTexture,
 			assetDatabase, { AssetType::Texture }, setting).valueChanged;
 	}
 
-	const std::optional<MaterialAsset> material = LoadMaterialAsset(context, ResolveTrailMaterialID(draft_));
+	const std::optional<MaterialAsset> material = LoadMaterialAsset(
+		context, ResolveTrailMaterialID(draft_, group));
 	if (!material) {
 		ImGui::TextDisabled("マテリアルを解決できません");
 		return changed;
@@ -804,7 +949,7 @@ bool ParticleEffectEditorTool::DrawTrailMaterialSection(const EditorToolContext&
 }
 
 bool ParticleEffectEditorTool::DrawPhaseParentSection(const EditorToolContext& context,
-	ParticleEffectPhase& phase) {
+	ParticleEffectGroup& group, ParticleEffectPhase& phase, int32_t selectedPhase) {
 
 	bool changed = false;
 	ParticlePhaseParentSettings& settings = phase.parentSettings;
@@ -832,8 +977,8 @@ bool ParticleEffectEditorTool::DrawPhaseParentSection(const EditorToolContext& c
 	changed |= MyGUI::Checkbox("親の回転を無視", settings.ignoreParentRotation);
 	changed |= MyGUI::Checkbox("親のスケールを無視", settings.ignoreParentScale);
 
-	const bool previousHasParent = 0 < selectedPhase_ &&
-		draft_.phases[selectedPhase_ - 1].parentSettings.HasParent();
+	const bool previousHasParent = 0 < selectedPhase &&
+		group.phases[selectedPhase - 1].parentSettings.HasParent();
 	if (previousHasParent && !settings.HasParent()) {
 		changed |= MyGUI::Checkbox("ワールドを保持", settings.keepWorldOnDetach);
 	}
@@ -841,14 +986,15 @@ bool ParticleEffectEditorTool::DrawPhaseParentSection(const EditorToolContext& c
 	return changed;
 }
 
-bool ParticleEffectEditorTool::DrawPhaseModules(const EditorToolContext& context, ParticleEffectPhase& phase) {
+bool ParticleEffectEditorTool::DrawPhaseModules(const EditorToolContext& context,
+	ParticleEffectGroup& group, GroupEditorState& editorState, ParticleEffectPhase& phase) {
 
 	bool changed = false;
-	std::vector<ModuleCacheEntry>& cache = moduleCache_[selectedPhase_];
+	std::vector<ModuleCacheEntry>& cache = editorState.moduleCache[editorState.selectedPhase];
 	if (cache.size() != phase.modules.size()) {
 		cache.resize(phase.modules.size());
 	}
-	int32_t& selectedModule = selectedModules_[selectedPhase_];
+	int32_t& selectedModule = editorState.selectedModules[editorState.selectedPhase];
 	selectedModule = phase.modules.empty() ? -1 :
 		std::clamp(selectedModule, 0, static_cast<int32_t>(phase.modules.size()) - 1);
 
@@ -956,7 +1102,7 @@ bool ParticleEffectEditorTool::DrawPhaseModules(const EditorToolContext& context
 
 				std::vector<ShaderConstantBufferVariable> parameters{};
 				const AssetID materialID = entry.id == "TrailCustomShaderParameter" ?
-					ResolveTrailMaterialID(draft_) : ResolvePhaseMaterialID(draft_, phase);
+					ResolveTrailMaterialID(draft_, group) : ResolvePhaseMaterialID(draft_, group, phase);
 				if (const std::optional<MaterialAsset> material = LoadMaterialAsset(context, materialID)) {
 					if (const ShaderReflectionInfo* reflection = FindParticleMaterialReflection(context, *material)) {
 						parameters = CollectMaterialParameters(*reflection);
@@ -991,6 +1137,22 @@ bool ParticleEffectEditorTool::DrawPhaseModules(const EditorToolContext& context
 	return changed;
 }
 
+ParticleEffectGroup* ParticleEffectEditorTool::GetSelectedGroup() {
+
+	auto it = std::find_if(draft_.groups.begin(), draft_.groups.end(), [&](const ParticleEffectGroup& group) {
+		return group.id == selectedGroupID_;
+		});
+	if (it != draft_.groups.end()) { return &*it; }
+	if (draft_.groups.empty()) { return nullptr; }
+	selectedGroupID_ = draft_.groups.front().id;
+	return &draft_.groups.front();
+}
+
+ParticleEffectEditorTool::GroupEditorState& ParticleEffectEditorTool::GetGroupEditorState(UUID groupID) {
+
+	return groupEditorStates_[groupID];
+}
+
 void ParticleEffectEditorTool::RestartEmitters(const EditorToolContext& context, bool oneShot) {
 
 	ECSWorld* world = context.GetWorld();
@@ -1006,10 +1168,9 @@ void ParticleEffectEditorTool::RestartEmitters(const EditorToolContext& context,
 		}
 		component.playing = true;
 		component.runtimeOneShot = oneShot;
-		component.runtimeTime = 0.0f;
-		component.runtimeEmitTimer = 0.0f;
-		component.runtimeParticles.clear();
-		component.runtimeTrails.clear();
+		component.runtimeGroupEmitTimer = 0.0f;
+		component.runtimeGroupEmitted = false;
+		component.runtimeGroups.clear();
 		});
 }
 
@@ -1028,8 +1189,9 @@ void ParticleEffectEditorTool::StopEmitters(const EditorToolContext& context) {
 		}
 		component.playing = false;
 		component.runtimeOneShot = false;
-		component.runtimeParticles.clear();
-		component.runtimeTrails.clear();
+		component.runtimeGroupEmitTimer = 0.0f;
+		component.runtimeGroupEmitted = false;
+		component.runtimeGroups.clear();
 		});
 }
 
@@ -1051,8 +1213,8 @@ void ParticleEffectEditorTool::LoadEffect(const EditorToolContext& context, Asse
 
 	loaded_ = false;
 	editingID_ = effectID;
-	moduleCache_.clear();
-	selectedPhase_ = 0;
+	groupEditorStates_.clear();
+	selectedGroupID_ = {};
 	if (!effectID || !context.toolContext.assetDatabase) {
 		return;
 	}
@@ -1069,6 +1231,7 @@ void ParticleEffectEditorTool::LoadEffect(const EditorToolContext& context, Asse
 		statusMessage_ = "エフェクトファイルの読み込みに失敗しました";
 		return;
 	}
+	selectedGroupID_ = draft_.groups.front().id;
 	loaded_ = true;
 	statusMessage_.clear();
 }
@@ -1099,13 +1262,16 @@ void ParticleEffectEditorTool::CreateEffect(const EditorToolContext& context) {
 	// 既定のフェーズ構成で新規エフェクトを作る
 	ParticleEffectAsset asset{};
 	asset.name = createNameBuffer_;
+	ParticleEffectGroup group{};
+	group.name = "Group 1";
 	ParticleEffectPhase phase{};
 	phase.name = "Phase 1";
 	phase.modules = {
 		{ "SizeOverLifetime", nlohmann::json::object() },
 		{ "ColorOverLifetime", nlohmann::json::object() },
 	};
-	asset.phases.emplace_back(std::move(phase));
+	group.phases.emplace_back(std::move(phase));
+	asset.groups.emplace_back(std::move(group));
 
 	const std::string logical = "GameAssets/Effects/" + createNameBuffer_ + ".effect.json";
 	const std::filesystem::path path = assetDatabase->ResolveAssetPath(logical);
