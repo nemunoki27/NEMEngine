@@ -97,10 +97,19 @@ namespace Engine {
 		// マテリアル作成セクションの入力状態
 		MaterialCreateType createType_ = MaterialCreateType::Mesh;
 		bool typeDefaultsInitialized_ = false;
+		// 不透明描画で使うシェーダーステージ
 		AssetID createVS_{};
 		AssetID createPS_{};
 		AssetID createMS_{};
 		AssetID createAS_{};
+		// 不透明PSのエントリーポイント
+		std::string createPSEntry_ = "main";
+		// Meshの半透明パスを別Pipelineで生成するか
+		bool createTransparentPass_ = true;
+		// 半透明描画で使うPS
+		AssetID createTransparentPS_{};
+		// 半透明PSのエントリーポイント
+		std::string createTransparentPSEntry_ = "mainTransparent";
 		// Lineタイプで使うジオメトリシェーダー
 		AssetID createGS_{};
 		// 既存マテリアルからパイプライン設定を取り込む元、生成自体には使わない
@@ -109,7 +118,10 @@ namespace Engine {
 		bool createImportShaders_ = false;
 		// GameAssets/以降のパスでファイル名込み、拡張子は付けない
 		std::string createRelativePath_{};
+		// 不透明描画用のPipeline設定
 		PipelineCreateSettings createPipeline_{};
+		// 半透明描画用のPipeline設定
+		PipelineCreateSettings createTransparentPipeline_{};
 		// 作成結果のフィードバック
 		std::string createMessage_{};
 
@@ -127,7 +139,7 @@ namespace Engine {
 		void LoadPipelineSettingsFromMaterial(AssetDatabase& assetDatabase, AssetID materialID);
 		// 既存マテリアルが参照するshaderから各ステージのhlslを読み取り作成欄へ反映する
 		void LoadShadersFromMaterial(AssetDatabase& assetDatabase, AssetID materialID);
-		// 入力内容からshader/pipeline/materialの3ファイルを生成する
+		// 入力内容から描画パス別のshader/pipelineとmaterialを生成する
 		bool CreateMaterialAssets(const EditorToolContext& context);
 	};
 } // Engine

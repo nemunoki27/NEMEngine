@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/ShaderAsset.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
@@ -74,13 +75,104 @@ namespace {
 		}
 	}
 
+	// マテリアルパスが参照するShaderのステージ情報
+	struct MaterialShaderReferences {
+
+		Engine::AssetID vs{};
+		Engine::AssetID ps{};
+		Engine::AssetID ms{};
+		Engine::AssetID as{};
+		Engine::AssetID gs{};
+		std::string psEntry = "main";
+	};
+
+	// Pipelineの先頭バリアントから編集可能な設定を読み込む
+	bool ReadPipelineSettings(Engine::AssetDatabase& assetDatabase, Engine::AssetID pipelineID,
+		Engine::PipelineCreateSettings& outSettings) {
+
+		const std::filesystem::path pipelinePath = assetDatabase.ResolveFullPath(pipelineID);
+		const nlohmann::json pipelineData = pipelinePath.empty() ?
+			nlohmann::json{} : Engine::JsonAdapter::Load(pipelinePath.string(), false);
+		if (!pipelineData.is_object() || !pipelineData.contains("variants") ||
+			!pipelineData["variants"].is_array() || pipelineData["variants"].empty()) {
+			return false;
+		}
+
+		const nlohmann::json& variant = pipelineData["variants"].front();
+		if (variant.contains("rasterizer") && variant["rasterizer"].is_object()) {
+			const auto& rasterizer = variant["rasterizer"];
+			outSettings.fillMode = EnumFromJsonString(rasterizer, "fillMode", outSettings.fillMode);
+			outSettings.cullMode = EnumFromJsonString(rasterizer, "cullMode", outSettings.cullMode);
+			outSettings.frontCounterClockwise = rasterizer.value("frontCounterClockwise", outSettings.frontCounterClockwise);
+			outSettings.depthClipEnable = rasterizer.value("depthClipEnable", outSettings.depthClipEnable);
+		}
+		if (variant.contains("depthStencil") && variant["depthStencil"].is_object()) {
+			const auto& depthStencil = variant["depthStencil"];
+			outSettings.depthEnable = depthStencil.value("depthEnable", outSettings.depthEnable);
+			outSettings.depthWriteMask = EnumFromJsonString(depthStencil, "depthWriteMask", outSettings.depthWriteMask);
+			outSettings.depthFunc = EnumFromJsonString(depthStencil, "depthFunc", outSettings.depthFunc);
+			outSettings.stencilEnable = depthStencil.value("stencilEnable", outSettings.stencilEnable);
+		}
+		if (variant.contains("staticSamplers") && variant["staticSamplers"].is_array() &&
+			!variant["staticSamplers"].empty()) {
+			const auto& sampler = variant["staticSamplers"].front();
+			outSettings.samplerFilter = EnumFromJsonString(sampler, "filter", outSettings.samplerFilter);
+			outSettings.samplerAddress = EnumFromJsonString(sampler, "addressU", outSettings.samplerAddress);
+		}
+		return true;
+	}
+
+	// マテリアルパスから実際に使うShaderとステージ参照を読み込む
+	bool ReadShaderReferences(Engine::AssetDatabase& assetDatabase, const nlohmann::json& pass,
+		MaterialShaderReferences& outReferences) {
+
+		Engine::AssetID shaderID = Engine::ParseAssetID(pass, "shaderOverride");
+		if (!shaderID) {
+			const Engine::AssetID pipelineID = Engine::ParseAssetID(pass, "pipeline");
+			const std::filesystem::path pipelinePath = assetDatabase.ResolveFullPath(pipelineID);
+			const nlohmann::json pipelineData = pipelinePath.empty() ?
+				nlohmann::json{} : Engine::JsonAdapter::Load(pipelinePath.string(), false);
+			if (!pipelineData.is_object() || !pipelineData.contains("variants") ||
+				!pipelineData["variants"].is_array() || pipelineData["variants"].empty()) {
+				return false;
+			}
+			shaderID = Engine::ParseAssetID(pipelineData["variants"].front(), "shader");
+		}
+		const std::filesystem::path shaderPath = assetDatabase.ResolveFullPath(shaderID);
+		const nlohmann::json shaderData = shaderPath.empty() ?
+			nlohmann::json{} : Engine::JsonAdapter::Load(shaderPath.string(), false);
+		if (!shaderData.is_object() || !shaderData.contains("stages") || !shaderData["stages"].is_array()) {
+			return false;
+		}
+
+		outReferences = MaterialShaderReferences{};
+		for (const auto& stageData : shaderData["stages"]) {
+			const std::string stage = stageData.value("stage", std::string{});
+			const Engine::AssetID hlsl = Engine::ParseAssetID(stageData, "file");
+			if (stage == "VS") {
+				outReferences.vs = hlsl;
+			} else if (stage == "PS") {
+				outReferences.ps = hlsl;
+				outReferences.psEntry = stageData.value("entry", std::string("main"));
+			} else if (stage == "MS") {
+				outReferences.ms = hlsl;
+			} else if (stage == "AS") {
+				outReferences.as = hlsl;
+			} else if (stage == "GS") {
+				outReferences.gs = hlsl;
+			}
+		}
+		return static_cast<bool>(outReferences.ps);
+	}
+
 	// 1ステージ分のjsonを作る、fileはhlslのGUID参照
-	nlohmann::json MakeStageJson(const char* stage, Engine::AssetID hlsl, const char* profile) {
+	nlohmann::json MakeStageJson(const char* stage, Engine::AssetID hlsl,
+		const char* entry, const char* profile) {
 
 		return nlohmann::json{
 			{ "stage", stage },
 			{ "file", Engine::ToAssetReferenceJson(hlsl) },
-			{ "entry", "main" },
+			{ "entry", entry },
 			{ "profile", profile },
 		};
 	}
@@ -88,32 +180,31 @@ namespace {
 	// shader.jsonを作る、Mesh以外はMS/ASを含めずLineはGSを含める
 	nlohmann::json MakeShaderJson(const std::string& name, Engine::AssetID vs, Engine::AssetID ps,
 		Engine::AssetID ms, Engine::AssetID as, Engine::AssetID gs, bool includeMeshStages,
-		bool includeGeometryStage, bool pixelOnly) {
+		bool includeGeometryStage, bool pixelOnly, const std::string& pixelEntry) {
 
 		nlohmann::json stages = nlohmann::json::array();
 		if (!pixelOnly) {
-			stages.push_back(MakeStageJson("VS", vs, "vs_6_6"));
+			stages.push_back(MakeStageJson("VS", vs, "main", "vs_6_6"));
 		}
 		if (includeMeshStages && as) {
-			stages.push_back(MakeStageJson("AS", as, "as_6_6"));
+			stages.push_back(MakeStageJson("AS", as, "main", "as_6_6"));
 		}
 		if (includeMeshStages && ms) {
-			stages.push_back(MakeStageJson("MS", ms, "ms_6_6"));
+			stages.push_back(MakeStageJson("MS", ms, "main", "ms_6_6"));
 		}
 		if (includeGeometryStage && gs) {
-			stages.push_back(MakeStageJson("GS", gs, "gs_6_6"));
+			stages.push_back(MakeStageJson("GS", gs, "main", "gs_6_6"));
 		}
-		stages.push_back(MakeStageJson("PS", ps, "ps_6_6"));
+		stages.push_back(MakeStageJson("PS", ps, pixelEntry.c_str(), "ps_6_6"));
 
 		return nlohmann::json{ { "name", name + "Shader" }, { "stages", stages } };
 	}
 
-	// pipeline.jsonを作る、kind/pipelineType/numRenderTargets等はエンジン仕様で確定する
-	nlohmann::json MakePipelineJson(const std::string& name, Engine::AssetID shaderID,
-		bool useMeshShader, bool useGeometryShader, int numRenderTargets, const Engine::PipelineCreateSettings& settings) {
+	// 1バリアント分のpipeline.jsonを作る
+	nlohmann::json MakePipelineVariantJson(Engine::AssetID shaderID, const char* kind,
+		const char* pipelineType, bool useGeometryShader, bool requiresMeshShader,
+		int numRenderTargets, const Engine::PipelineCreateSettings& settings) {
 
-		const char* kind = useMeshShader ? "GraphicsMesh" : (useGeometryShader ? "GraphicsGeometry" : "GraphicsVertex");
-		const char* pipelineType = useMeshShader ? "Mesh" : (useGeometryShader ? "Geometry" : "Vertex");
 		const char* topology = useGeometryShader ?
 			"D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE" : "D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE";
 
@@ -150,15 +241,36 @@ namespace {
 				}
 			}) },
 		};
-		if (useMeshShader) {
+		if (requiresMeshShader) {
 			variant["requiresMeshShader"] = true;
 		}
-		return nlohmann::json{ { "name", name + "Pipeline" }, { "variants", nlohmann::json::array({ variant }) } };
+		return variant;
+	}
+
+	// pipeline.jsonを作る、Mesh Shader使用時も頂点シェーダーへフォールバック可能にする
+	nlohmann::json MakePipelineJson(const std::string& name, Engine::AssetID shaderID,
+		bool useMeshShader, bool useGeometryShader, int numRenderTargets, const Engine::PipelineCreateSettings& settings) {
+
+		nlohmann::json variants = nlohmann::json::array();
+		if (useMeshShader) {
+
+			variants.push_back(MakePipelineVariantJson(shaderID, "GraphicsMesh", "Mesh", false,
+				true, numRenderTargets, settings));
+			variants.push_back(MakePipelineVariantJson(shaderID, "GraphicsVertex", "Vertex", false,
+				false, numRenderTargets, settings));
+		} else {
+
+			variants.push_back(MakePipelineVariantJson(shaderID,
+				useGeometryShader ? "GraphicsGeometry" : "GraphicsVertex",
+				useGeometryShader ? "Geometry" : "Vertex", useGeometryShader,
+				false, numRenderTargets, settings));
+		}
+		return nlohmann::json{ { "name", name + "Pipeline" }, { "variants", std::move(variants) } };
 	}
 
 	// material.jsonを作る、domain/passKindはタイプで決める
 	nlohmann::json MakeMaterialJson(const std::string& name, Engine::AssetID pipelineID,
-		Engine::AssetID shaderOverride, Engine::MaterialCreateType type,
+		Engine::AssetID transparentPipelineID, Engine::AssetID shaderOverride, Engine::MaterialCreateType type,
 		bool useMeshShader, bool useGeometryShader) {
 
 		// Mesh/Line/FillFaceMeshは3DワールドなのでSurface、Sprite/TextはUI
@@ -167,21 +279,33 @@ namespace {
 			(type == Engine::MaterialCreateType::Line) || (type == Engine::MaterialCreateType::FillFaceMesh);
 		const char* domain = surfaceDomain ? "Surface" : "UI";
 		const char* preferredVariant = useMeshShader ? "GraphicsMesh" : (useGeometryShader ? "GraphicsGeometry" : "GraphicsVertex");
-		const char* passKind = type == Engine::MaterialCreateType::Particle ? "Transparent" : "Draw";
-		nlohmann::json pass{
-			{ "passKind", passKind },
-			{ "pipeline", Engine::ToAssetReferenceJson(pipelineID) },
-			{ "preferredVariant", preferredVariant },
+		auto makePass = [&](const char* passKind, Engine::AssetID passPipelineID) {
+			nlohmann::json pass{
+				{ "passKind", passKind },
+				{ "pipeline", Engine::ToAssetReferenceJson(passPipelineID) },
+				{ "preferredVariant", preferredVariant },
+			};
+			if (shaderOverride) {
+				pass["shaderOverride"] = Engine::ToAssetReferenceJson(shaderOverride);
+			}
+			return pass;
 		};
-		if (shaderOverride) {
-			pass["shaderOverride"] = Engine::ToAssetReferenceJson(shaderOverride);
+
+		nlohmann::json passes = nlohmann::json::array();
+		if (type == Engine::MaterialCreateType::Mesh) {
+			passes.push_back(makePass("Draw", pipelineID));
+			if (transparentPipelineID) {
+				passes.push_back(makePass("Transparent", transparentPipelineID));
+			}
+		} else {
+			passes.push_back(makePass(type == Engine::MaterialCreateType::Particle ? "Transparent" : "Draw", pipelineID));
 		}
 
 		return nlohmann::json{
 			{ "name", name },
 			{ "domain", domain },
 			{ "usage", Engine::EnumAdapter<Engine::MaterialUsage>::ToString(ToMaterialUsage(type)) },
-			{ "passes", nlohmann::json::array({ pass }) },
+			{ "passes", std::move(passes) },
 			{ "parameters", nlohmann::json::object() },
 		};
 	}
@@ -292,11 +416,19 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 		if (createType_ != MaterialCreateType::Particle) {
 			MyGUI::AssetReferenceField("VertexShader 必須", createVS_, assetDatabase, { AssetType::Shader }, setting);
 		}
-		MyGUI::AssetReferenceField("PixelShader 必須", createPS_, assetDatabase, { AssetType::Shader }, setting);
+		MyGUI::AssetReferenceField(createType_ == MaterialCreateType::Mesh ?
+			"不透明PixelShader 必須" : "PixelShader 必須", createPS_, assetDatabase, { AssetType::Shader }, setting);
+		MyGUI::InputText("PSエントリー", createPSEntry_);
 		if (createType_ == MaterialCreateType::Mesh) {
 
 			MyGUI::AssetReferenceField("MeshShader 任意", createMS_, assetDatabase, { AssetType::Shader }, setting);
 			MyGUI::AssetReferenceField("AmplificationShader 任意", createAS_, assetDatabase, { AssetType::Shader }, setting);
+			MyGUI::Checkbox("半透明パスを作成", createTransparentPass_);
+			if (createTransparentPass_) {
+				MyGUI::AssetReferenceField("半透明PixelShader 必須", createTransparentPS_,
+					assetDatabase, { AssetType::Shader }, setting);
+				MyGUI::InputText("半透明PSエントリー", createTransparentPSEntry_);
+			}
 		}
 		// Lineは太線展開のGeometryShaderが必須
 		if (createType_ == MaterialCreateType::Line) {
@@ -327,25 +459,26 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 		}
 	}
 
-	// パイプライン設定、エンジン仕様で固定の項目は編集不可でテキスト表示する
-	ImGui::SeparatorText("ラスタライズ設定");
-	{
-		MyGUI::EnumCombo("塗りモード", createPipeline_.fillMode);
-		MyGUI::EnumCombo("カリング", createPipeline_.cullMode);
-		MyGUI::Checkbox("前面反時計回り", createPipeline_.frontCounterClockwise);
-		MyGUI::Checkbox("深度クリップ", createPipeline_.depthClipEnable);
-	}
-	ImGui::SeparatorText("深度設定");
-	{
-		MyGUI::Checkbox("深度テスト", createPipeline_.depthEnable);
-		MyGUI::EnumCombo("深度書込み", createPipeline_.depthWriteMask);
-		MyGUI::EnumCombo("深度比較", createPipeline_.depthFunc);
-		MyGUI::Checkbox("ステンシル", createPipeline_.stencilEnable);
-	}
-	ImGui::SeparatorText("サンプラー設定");
-	{
-		MyGUI::EnumCombo("フィルタ", createPipeline_.samplerFilter);
-		MyGUI::EnumCombo("アドレスモード", createPipeline_.samplerAddress);
+	// 描画パスごとのPipeline設定を同じUIで編集する
+	auto drawPipelineSettings = [&](const char* id, const char* title, PipelineCreateSettings& settings) {
+		ImGui::SeparatorText(title);
+		ImGui::PushID(id);
+		MyGUI::EnumCombo("塗りモード", settings.fillMode);
+		MyGUI::EnumCombo("カリング", settings.cullMode);
+		MyGUI::Checkbox("前面反時計回り", settings.frontCounterClockwise);
+		MyGUI::Checkbox("深度クリップ", settings.depthClipEnable);
+		MyGUI::Checkbox("深度テスト", settings.depthEnable);
+		MyGUI::EnumCombo("深度書込み", settings.depthWriteMask);
+		MyGUI::EnumCombo("深度比較", settings.depthFunc);
+		MyGUI::Checkbox("ステンシル", settings.stencilEnable);
+		MyGUI::EnumCombo("フィルタ", settings.samplerFilter);
+		MyGUI::EnumCombo("アドレスモード", settings.samplerAddress);
+		ImGui::PopID();
+	};
+	drawPipelineSettings("DrawPipeline", createType_ == MaterialCreateType::Mesh ?
+		"不透明パイプライン設定" : "パイプライン設定", createPipeline_);
+	if (createType_ == MaterialCreateType::Mesh && createTransparentPass_) {
+		drawPipelineSettings("TransparentPipeline", "半透明パイプライン設定", createTransparentPipeline_);
 	}
 
 	// 出力先、GameAssets/Materials/固定でそれ以降をファイル名込みで入力する
@@ -353,8 +486,11 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 	MyGUI::InputText("GameAssets/Materials/", createRelativePath_);
 
 	const bool needsVS = createType_ != MaterialCreateType::Particle;
+	const bool needsTransparentPS = createType_ == MaterialCreateType::Mesh && createTransparentPass_;
 	const bool canCreate = (!needsVS || static_cast<bool>(createVS_)) &&
-		static_cast<bool>(createPS_) && !createRelativePath_.empty();
+		static_cast<bool>(createPS_) && (!needsTransparentPS || static_cast<bool>(createTransparentPS_)) &&
+		!createPSEntry_.empty() && (!needsTransparentPS || !createTransparentPSEntry_.empty()) &&
+		!createRelativePath_.empty();
 	ImGui::BeginDisabled(!canCreate);
 	if (ImGui::Button("Create", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 		CreateMaterialAssets(context);
@@ -412,12 +548,16 @@ void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	}
 	createPipeline_ = settings;
+	createTransparentPipeline_ = settings;
+	createTransparentPipeline_.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	createTransparentPass_ = type == MaterialCreateType::Mesh;
 
 	// Mesh以外はメッシュ系シェーダーを使わないのでクリアする
 	if (type != MaterialCreateType::Mesh) {
 
 		createMS_ = AssetID{};
 		createAS_ = AssetID{};
+		createTransparentPS_ = AssetID{};
 	}
 	// Line以外はジオメトリシェーダーを使わないのでクリアする
 	if (type != MaterialCreateType::Line) {
@@ -448,56 +588,29 @@ void Engine::MaterialEditorTool::LoadPipelineSettingsFromMaterial(AssetDatabase&
 		ApplyTypeDefaults(createType_);
 	}
 
-	// Drawパス優先で参照pipelineを引き、無ければ先頭パスから引く
-	AssetID pipelineID{};
+	// DrawとTransparentのPipeline設定を別々に取り込む
+	AssetID drawPipelineID{};
+	AssetID transparentPipelineID{};
 	for (const auto& pass : materialData["passes"]) {
-		if (pass.value("passKind", std::string{}) == "Draw") {
-
-			pipelineID = ParseAssetID(pass, "pipeline");
-			break;
+		const std::string passKind = pass.value("passKind", std::string{});
+		if (passKind == "Draw") {
+			drawPipelineID = ParseAssetID(pass, "pipeline");
+		} else if (passKind == "Transparent") {
+			transparentPipelineID = ParseAssetID(pass, "pipeline");
 		}
 	}
-	if (!pipelineID) {
-		pipelineID = ParseAssetID(materialData["passes"].front(), "pipeline");
+	if (!drawPipelineID) {
+		drawPipelineID = ParseAssetID(materialData["passes"].front(), "pipeline");
 	}
-	if (!pipelineID) {
+	if (!drawPipelineID || !ReadPipelineSettings(assetDatabase, drawPipelineID, createPipeline_)) {
 		createMessage_ = "マテリアルからpipeline参照を取得できません";
 		return;
 	}
-
-	const std::filesystem::path pipelinePath = assetDatabase.ResolveFullPath(pipelineID);
-	const nlohmann::json pipelineData = pipelinePath.empty() ?
-		nlohmann::json{} : JsonAdapter::Load(pipelinePath.string(), false);
-	if (!pipelineData.is_object() || !pipelineData.contains("variants") ||
-		!pipelineData["variants"].is_array() || pipelineData["variants"].empty()) {
-		createMessage_ = "pipelineにvariantがありません";
+	createTransparentPass_ = createType_ == MaterialCreateType::Mesh && static_cast<bool>(transparentPipelineID);
+	if (createTransparentPass_ && !ReadPipelineSettings(assetDatabase,
+		transparentPipelineID, createTransparentPipeline_)) {
+		createMessage_ = "半透明pipelineにvariantがありません";
 		return;
-	}
-
-	// 先頭variantのrasterizer/depthStencil/staticSamplerを編集欄へ写す、無い項目は現状維持
-	const nlohmann::json& variant = pipelineData["variants"].front();
-	if (variant.contains("rasterizer") && variant["rasterizer"].is_object()) {
-
-		const auto& rasterizer = variant["rasterizer"];
-		createPipeline_.fillMode = EnumFromJsonString(rasterizer, "fillMode", createPipeline_.fillMode);
-		createPipeline_.cullMode = EnumFromJsonString(rasterizer, "cullMode", createPipeline_.cullMode);
-		createPipeline_.frontCounterClockwise = rasterizer.value("frontCounterClockwise", createPipeline_.frontCounterClockwise);
-		createPipeline_.depthClipEnable = rasterizer.value("depthClipEnable", createPipeline_.depthClipEnable);
-	}
-	if (variant.contains("depthStencil") && variant["depthStencil"].is_object()) {
-
-		const auto& depthStencil = variant["depthStencil"];
-		createPipeline_.depthEnable = depthStencil.value("depthEnable", createPipeline_.depthEnable);
-		createPipeline_.depthWriteMask = EnumFromJsonString(depthStencil, "depthWriteMask", createPipeline_.depthWriteMask);
-		createPipeline_.depthFunc = EnumFromJsonString(depthStencil, "depthFunc", createPipeline_.depthFunc);
-		createPipeline_.stencilEnable = depthStencil.value("stencilEnable", createPipeline_.stencilEnable);
-	}
-	if (variant.contains("staticSamplers") && variant["staticSamplers"].is_array() &&
-		!variant["staticSamplers"].empty()) {
-
-		const auto& sampler = variant["staticSamplers"].front();
-		createPipeline_.samplerFilter = EnumFromJsonString(sampler, "filter", createPipeline_.samplerFilter);
-		createPipeline_.samplerAddress = EnumFromJsonString(sampler, "addressU", createPipeline_.samplerAddress);
 	}
 
 	createMessage_ = "パイプライン設定を取り込みました";
@@ -515,67 +628,41 @@ void Engine::MaterialEditorTool::LoadShadersFromMaterial(AssetDatabase& assetDat
 		return;
 	}
 
-	// DrawかTransparentパスを優先して参照pipelineと部分シェーダーを引く
-	AssetID pipelineID{};
-	AssetID shaderOverrideID{};
+	// 通常描画と半透明描画のパスを分けて探す
+	const nlohmann::json* primaryPass = nullptr;
+	const nlohmann::json* transparentPass = nullptr;
 	for (const auto& pass : materialData["passes"]) {
 		const std::string passKind = pass.value("passKind", std::string{});
-		if (passKind == "Draw" || passKind == "Transparent") {
-
-			pipelineID = ParseAssetID(pass, "pipeline");
-			shaderOverrideID = ParseAssetID(pass, "shaderOverride");
-			break;
+		if (passKind == "Draw" && !primaryPass) {
+			primaryPass = &pass;
+		} else if (passKind == "Transparent") {
+			transparentPass = &pass;
 		}
 	}
-	if (!pipelineID) {
-		pipelineID = ParseAssetID(materialData["passes"].front(), "pipeline");
-	}
-	if (!pipelineID) {
-		return;
+	if (!primaryPass) {
+		primaryPass = transparentPass ? transparentPass : &materialData["passes"].front();
 	}
 
-	const std::filesystem::path pipelinePath = assetDatabase.ResolveFullPath(pipelineID);
-	const nlohmann::json pipelineData = pipelinePath.empty() ?
-		nlohmann::json{} : JsonAdapter::Load(pipelinePath.string(), false);
-	if (!pipelineData.is_object() || !pipelineData.contains("variants") ||
-		!pipelineData["variants"].is_array() || pipelineData["variants"].empty()) {
+	MaterialShaderReferences primaryReferences{};
+	if (!ReadShaderReferences(assetDatabase, *primaryPass, primaryReferences)) {
 		return;
 	}
+	createVS_ = primaryReferences.vs;
+	createPS_ = primaryReferences.ps;
+	createMS_ = primaryReferences.ms;
+	createAS_ = primaryReferences.as;
+	createGS_ = primaryReferences.gs;
+	createPSEntry_ = primaryReferences.psEntry;
 
-	// 部分シェーダーがあれば優先し、無ければ先頭variantのshaderを引く
-	const AssetID shaderID = shaderOverrideID ?
-		shaderOverrideID : ParseAssetID(pipelineData["variants"].front(), "shader");
-	if (!shaderID) {
-		return;
-	}
-	const std::filesystem::path shaderPath = assetDatabase.ResolveFullPath(shaderID);
-	const nlohmann::json shaderData = shaderPath.empty() ?
-		nlohmann::json{} : JsonAdapter::Load(shaderPath.string(), false);
-	if (!shaderData.is_object() || !shaderData.contains("stages") || !shaderData["stages"].is_array()) {
-		return;
-	}
-
-	// 無いステージが前の値で残らないよう一度クリアしてからステージ別に入れ直す
-	// fileがGUID参照でないステージは解決できないので飛ばす
-	createVS_ = AssetID{};
-	createPS_ = AssetID{};
-	createMS_ = AssetID{};
-	createAS_ = AssetID{};
-	for (const auto& stageData : shaderData["stages"]) {
-
-		const std::string stage = stageData.value("stage", std::string{});
-		const AssetID hlsl = ParseAssetID(stageData, "file");
-		if (!hlsl) {
-			continue;
-		}
-		if (stage == "VS") {
-			createVS_ = hlsl;
-		} else if (stage == "PS") {
-			createPS_ = hlsl;
-		} else if (stage == "MS") {
-			createMS_ = hlsl;
-		} else if (stage == "AS") {
-			createAS_ = hlsl;
+	if (createType_ == MaterialCreateType::Mesh) {
+		createTransparentPass_ = transparentPass != nullptr;
+		createTransparentPS_ = AssetID{};
+		if (transparentPass) {
+			MaterialShaderReferences transparentReferences{};
+			if (ReadShaderReferences(assetDatabase, *transparentPass, transparentReferences)) {
+				createTransparentPS_ = transparentReferences.ps;
+				createTransparentPSEntry_ = transparentReferences.psEntry;
+			}
 		}
 	}
 
@@ -594,6 +681,15 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 	if ((createType_ != MaterialCreateType::Particle && !createVS_) || !createPS_) {
 		createMessage_ = createType_ == MaterialCreateType::Particle ?
 			"PixelShaderは必須です" : "VertexShaderとPixelShaderは必須です";
+		return false;
+	}
+	if (createPSEntry_.empty()) {
+		createMessage_ = "PSエントリーは必須です";
+		return false;
+	}
+	const bool createMeshTransparent = createType_ == MaterialCreateType::Mesh && createTransparentPass_;
+	if (createMeshTransparent && (!createTransparentPS_ || createTransparentPSEntry_.empty())) {
+		createMessage_ = "半透明PixelShaderとPSエントリーは必須です";
 		return false;
 	}
 	// LineはGSで太線へ展開するのでGeometryShaderも必須
@@ -625,9 +721,11 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 	const int numRenderTargets = (createType_ == MaterialCreateType::Mesh ||
 		createType_ == MaterialCreateType::FillFaceMesh) ? 3 : 1;
 
-	// 3ファイルともGameAssets/Materials/以下の同じ階層へ同じ基底名で書き出す
+	// 描画パス別のShader/PipelineとMaterialを同じ階層へ書き出す
 	const std::string shaderLogical = "GameAssets/Materials/" + relativePath + ".shader.json";
 	const std::string pipelineLogical = "GameAssets/Materials/" + relativePath + ".pipeline.json";
+	const std::string transparentShaderLogical = "GameAssets/Materials/" + relativePath + "Transparent.shader.json";
+	const std::string transparentPipelineLogical = "GameAssets/Materials/" + relativePath + "Transparent.pipeline.json";
 	const std::string materialLogical = "GameAssets/Materials/" + relativePath + ".material.json";
 
 	const std::filesystem::path shaderPath = assetDatabase->ResolveAssetPath(shaderLogical);
@@ -637,7 +735,7 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 	// shaderを書き出して登録し、得たGUIDをpipelineが参照する
 	JsonAdapter::Save(shaderPath.string(),
 		MakeShaderJson(baseName, createVS_, createPS_, createMS_, createAS_, createGS_,
-			useMeshShader, useGeometryShader, isParticle));
+			useMeshShader, useGeometryShader, isParticle, createPSEntry_));
 	const AssetID shaderID = assetDatabase->ImportOrGet(shaderLogical, AssetType::Shader);
 	if (!shaderID) {
 		createMessage_ = "shader.jsonの登録に失敗しました";
@@ -654,9 +752,33 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 		return false;
 	}
 
+	// 半透明はForward用PSと1枚のRenderTargetを使う別Pipelineとして生成する
+	AssetID transparentShaderID{};
+	AssetID transparentPipelineID{};
+	if (createMeshTransparent) {
+		JsonAdapter::Save(assetDatabase->ResolveAssetPath(transparentShaderLogical).string(),
+			MakeShaderJson(baseName + "Transparent", createVS_, createTransparentPS_, createMS_, createAS_, AssetID{},
+				useMeshShader, false, false, createTransparentPSEntry_));
+		transparentShaderID = assetDatabase->ImportOrGet(transparentShaderLogical, AssetType::Shader);
+		if (!transparentShaderID) {
+			createMessage_ = "半透明shader.jsonの登録に失敗しました";
+			return false;
+		}
+
+		JsonAdapter::Save(assetDatabase->ResolveAssetPath(transparentPipelineLogical).string(),
+			MakePipelineJson(baseName + "Transparent", transparentShaderID,
+				useMeshShader, false, 1, createTransparentPipeline_));
+		transparentPipelineID = assetDatabase->ImportOrGet(
+			transparentPipelineLogical, AssetType::RenderPipeline);
+		if (!transparentPipelineID) {
+			createMessage_ = "半透明pipeline.jsonの登録に失敗しました";
+			return false;
+		}
+	}
+
 	// materialを書き出して登録する、同用途の取り込み元があればパラメータも引き継ぐ
-	nlohmann::json materialData = MakeMaterialJson(baseName, pipelineID, isParticle ? shaderID : AssetID{},
-		createType_, useMeshShader, useGeometryShader);
+	nlohmann::json materialData = MakeMaterialJson(baseName, pipelineID, transparentPipelineID,
+		isParticle ? shaderID : AssetID{}, createType_, useMeshShader, useGeometryShader);
 	if (createSourceMaterial_) {
 
 		const std::filesystem::path sourcePath = assetDatabase->ResolveFullPath(createSourceMaterial_);
@@ -675,6 +797,26 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 	if (!materialID) {
 		createMessage_ = "material.jsonの登録に失敗しました";
 		return false;
+	}
+
+	// 上書き時も依存関係と描画キャッシュを現在のファイル内容へ同期する
+	RenderPipelineRunner* renderPipeline = context.panelContext ? context.panelContext->renderPipeline : nullptr;
+	if (renderPipeline) {
+		renderPipeline->ReloadAsset(*assetDatabase, shaderID);
+		renderPipeline->ReloadAsset(*assetDatabase, pipelineID);
+		if (transparentShaderID) {
+			renderPipeline->ReloadAsset(*assetDatabase, transparentShaderID);
+			renderPipeline->ReloadAsset(*assetDatabase, transparentPipelineID);
+		}
+		renderPipeline->ReloadAsset(*assetDatabase, materialID);
+	} else {
+		assetDatabase->RefreshDependencies(shaderID);
+		assetDatabase->RefreshDependencies(pipelineID);
+		if (transparentShaderID) {
+			assetDatabase->RefreshDependencies(transparentShaderID);
+			assetDatabase->RefreshDependencies(transparentPipelineID);
+		}
+		assetDatabase->RefreshDependencies(materialID);
 	}
 
 	Logger::Output(LogType::Engine, "[MaterialEditorTool] created material assets. path={}", materialLogical);

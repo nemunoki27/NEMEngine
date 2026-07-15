@@ -6,6 +6,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 
@@ -82,19 +83,23 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 			continue;
 		}
 
-		auto& hierarchy = world.GetComponent<HierarchyComponent>(entity);
-		if (!hierarchy.parentLocalFileID) {
+		const UUID parentLocalFileID = world.GetComponent<HierarchyComponent>(entity).parentLocalFileID;
+		if (!parentLocalFileID) {
 			continue;
 		}
 
 		const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
-		auto it = entityMap.find({ sceneObject.sceneInstanceID, hierarchy.parentLocalFileID });
+		auto it = entityMap.find({ sceneObject.sceneInstanceID, parentLocalFileID });
 		if (it == entityMap.end()) {
 			continue;
 		}
 
 		Entity parent = it->second;
 		if (world.IsAlive(parent)) {
+			// 通常の親子関係を優先し、同一実体がジョイント側にも表示される状態を防ぐ
+			if (world.HasComponent<JointAttachmentComponent>(entity)) {
+				world.RemoveComponent<JointAttachmentComponent>(entity);
+			}
 			if (!world.HasComponent<HierarchyComponent>(parent)) {
 				world.AddComponent<HierarchyComponent>(parent);
 			}
@@ -188,6 +193,10 @@ void Engine::HierarchySystem::SetParent(ECSWorld& world, const Entity& child, co
 
 	// 現在の親から切り離し
 	Detach(world, child);
+	// 通常の親を設定する場合はジョイント親子付けを解除する
+	if (world.IsAlive(newParent) && world.HasComponent<JointAttachmentComponent>(child)) {
+		world.RemoveComponent<JointAttachmentComponent>(child);
+	}
 
 	auto& hierarchy = world.GetComponent<HierarchyComponent>(child);
 	auto& childSceneObject = world.GetComponent<SceneObjectComponent>(child);

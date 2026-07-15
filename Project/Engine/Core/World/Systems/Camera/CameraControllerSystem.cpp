@@ -138,7 +138,6 @@ namespace {
 		if (!follow.enabled) {
 			return baseLocalPos;
 		}
-
 		// 追従対象のエンティティを取得
 		const Entity target = SceneObjectUtility::FindByLocalFileID(world, follow.target);
 		if (!world.IsAlive(target)) {
@@ -152,6 +151,15 @@ namespace {
 			const Quaternion orbit = UpdateOrbitRotation(transform.localRotation, follow, deltaTime);
 			transform.localRotation = orbit;
 			offset = Vector3::TransferNormal(follow.offset, Quaternion::MakeRotateMatrix(orbit));
+		}
+
+		// 対象変更時は現在のカメラ位置を補間開始点にして座標の飛びを防ぐ
+		if (follow.runtimeTarget != follow.target) {
+
+			if (follow.targetInitialized) {
+				follow.smoothedTarget = GetWorldPosition(world, entity) - offset;
+			}
+			follow.runtimeTarget = follow.target;
 		}
 
 		// 追従対象だけを平滑化し、offsetは平滑化せず即時に足してオービットの遅延を無くす

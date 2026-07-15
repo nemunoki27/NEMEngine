@@ -15,10 +15,9 @@ namespace Engine {
 	//	JointAttachmentComponent struct
 	//============================================================================
 	// エンティティをスキンメッシュのジョイントへ親子付けするための情報
-	// ローカルSRTはジョイントに対する相対値として扱い、ジョイントのワールド行列に追従させる
 	struct JointAttachmentComponent {
 
-		// 親にするスキンメッシュエンティティのシーンローカルID、Edit/Playをまたいでも壊れないようにlocalFileIDで持つ
+		// 親にするスキンメッシュエンティティのシーンローカルID
 		UUID skinnedEntityLocalFileID{};
 		// 親にするジョイント名
 		std::string jointName{};

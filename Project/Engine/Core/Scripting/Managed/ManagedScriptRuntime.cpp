@@ -764,13 +764,14 @@ nlohmann::json Engine::ManagedScriptRuntime::GetRuntimeSerializedState(ManagedSc
 	}
 }
 
-void Engine::ManagedScriptRuntime::SetRuntimeSerializedField(ManagedScriptInstanceHandle handle,
+void Engine::ManagedScriptRuntime::SetRuntimeSerializedField(ManagedScriptInstanceHandle handle, ECSWorld& world,
 	const std::string& fieldID, const nlohmann::json& value) {
 
 	if (!initialized_ || !setRuntimeField_ || !handle.IsValid() || fieldID.empty()) {
 		return;
 	}
 	const std::string valueJson = value.dump();
+	ScopedReferenceWorld worldScope(world);
 	setRuntimeField_(handle, fieldID.c_str(), valueJson.c_str());
 }
 
@@ -890,6 +891,7 @@ Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollision(InvokeCollis
 //	呼び出しコンテキストのthread_local実体とRAIIガード
 //============================================================================
 thread_local const Engine::SystemContext* Engine::ManagedScriptRuntime::currentContext_ = nullptr;
+thread_local Engine::ECSWorld* Engine::ManagedScriptRuntime::currentReferenceWorld_ = nullptr;
 
 // ゲーム時間サービスの状態でメインスレッドのみが更新する
 float Engine::ManagedScriptRuntime::timeScale_ = 1.0f;
@@ -997,4 +999,14 @@ Engine::ManagedScriptRuntime::ScopedInvocationContext::ScopedInvocationContext(c
 
 Engine::ManagedScriptRuntime::ScopedInvocationContext::~ScopedInvocationContext() {
 	currentContext_ = previous_;
+}
+
+Engine::ManagedScriptRuntime::ScopedReferenceWorld::ScopedReferenceWorld(ECSWorld& world) :
+	previous_(currentReferenceWorld_) {
+
+	currentReferenceWorld_ = &world;
+}
+
+Engine::ManagedScriptRuntime::ScopedReferenceWorld::~ScopedReferenceWorld() {
+	currentReferenceWorld_ = previous_;
 }

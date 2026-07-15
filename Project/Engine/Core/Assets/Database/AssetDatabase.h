@@ -75,6 +75,8 @@ namespace Engine {
 
 		// アセットをインポートするか、すでに存在する場合は識別IDを返す
 		AssetID ImportOrGet(const std::string& assetPath, AssetType guessedType);
+		// 指定アセットの依存関係と逆引き参照を現在のファイル内容で更新する
+		void RefreshDependencies(AssetID id);
 
 		//--------- accessor -----------------------------------------------------
 

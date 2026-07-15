@@ -381,6 +381,34 @@ void Engine::AssetDatabase::RebuildDependencies() {
 	}
 }
 
+void Engine::AssetDatabase::RefreshDependencies(AssetID id) {
+
+	auto found = guidToMeta_.find(id);
+	if (found == guidToMeta_.end()) {
+		return;
+	}
+
+	// 古い逆引き参照を外してから現在のファイル内容で張り直す
+	for (AssetID dependency : found->second.dependencies) {
+		auto referencers = referencersByGuid_.find(dependency);
+		if (referencers == referencersByGuid_.end()) {
+			continue;
+		}
+		std::erase(referencers->second, id);
+		if (referencers->second.empty()) {
+			referencersByGuid_.erase(referencers);
+		}
+	}
+
+	found->second.dependencies = ExtractDependencies(found->second);
+	for (AssetID dependency : found->second.dependencies) {
+		auto& referencers = referencersByGuid_[dependency];
+		if (std::find(referencers.begin(), referencers.end(), id) == referencers.end()) {
+			referencers.emplace_back(id);
+		}
+	}
+}
+
 std::vector<Engine::AssetID> Engine::AssetDatabase::ExtractDependencies(const AssetMeta& meta) {
 
 	std::vector<AssetID> dependencies;

@@ -178,6 +178,8 @@ namespace {
 bool Engine::PipelineCacheKey::operator==(const PipelineCacheKey& rhs) const noexcept {
 	return pipelineAsset == rhs.pipelineAsset &&
 		geometryPipelineAsset == rhs.geometryPipelineAsset &&
+		pipelineShaderAsset == rhs.pipelineShaderAsset &&
+		geometryShaderAsset == rhs.geometryShaderAsset &&
 		shaderOverrideAsset == rhs.shaderOverrideAsset &&
 		resolvedKind == rhs.resolvedKind &&
 		formatHash == rhs.formatHash &&
@@ -212,6 +214,8 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 	PipelineCacheKey key{};
 	key.pipelineAsset = pipelineAssetID;
 	key.geometryPipelineAsset = geometryPipelineAssetID;
+	key.pipelineShaderAsset = stateVariant->shader;
+	key.geometryShaderAsset = geometryVariant->shader;
 	key.shaderOverrideAsset = shaderOverrideAssetID;
 	key.resolvedKind = geometryVariant->kind;
 	key.meshEnabled = runtimeFeatures.useMeshShader;
@@ -232,7 +236,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 		auto [restored, inserted] = cache_.emplace(key, std::move(fallback->second));
 		fallbackCache_.erase(fallback);
 		return restored->second.get();
-		};
+	};
 
 	const ShaderAsset* stateShader = assetLibrary.LoadShader(stateVariant->shader);
 	const ShaderAsset* geometryShader = assetLibrary.LoadShader(geometryVariant->shader);
@@ -326,6 +330,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	// キャッシュキーを構築して、キャッシュに存在するか確認する
 	PipelineCacheKey key{};
 	key.pipelineAsset = pipelineAssetID;
+	key.pipelineShaderAsset = variant->shader;
 	key.resolvedKind = variant->kind;
 	key.meshEnabled = runtimeFeatures.useMeshShader;
 	key.inlineRayTracingEnabled = runtimeFeatures.useInlineRayTracing;
@@ -339,11 +344,21 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	if (found != cache_.end()) {
 		return found->second.get();
 	}
+	auto restoreFallback = [&]() -> const PipelineState* {
+
+		auto fallback = fallbackCache_.find(key);
+		if (fallback == fallbackCache_.end()) {
+			return nullptr;
+		}
+		auto [restored, inserted] = cache_.emplace(key, std::move(fallback->second));
+		fallbackCache_.erase(fallback);
+		return restored->second.get();
+	};
 
 	// キャッシュに存在しない場合は、新たにパイプラインステートを生成する
 	const ShaderAsset* shaderAsset = assetLibrary.LoadShader(variant->shader);
 	if (!shaderAsset) {
-		return nullptr;
+		return restoreFallback();
 	}
 
 	std::unique_ptr<PipelineState> pipelineState = std::make_unique<PipelineState>();
@@ -356,7 +371,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 		// グラフィックスパイプラインの記述を構築
 		GraphicsPipelineDesc desc{};
 		if (!BuildGraphicsPipelineDesc(*variant, *shaderAsset, runtimeRTVFormats, runtimeDSVFormat, desc)) {
-			return nullptr;
+			return restoreFallback();
 		}
 		// 次元で深度挙動を変える描画用に、深度テスト+書き込みを強制する
 		// 3DテキストをMeshと同じく前後遮蔽させたいが、2Dと同じパイプラインを使うためここで上書きする
@@ -376,7 +391,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 		// コンピュートパイプラインの記述を構築
 		ComputePipelineDesc desc{};
 		if (!BuildComputePipelineDesc(*variant, *shaderAsset, samplerOverrides, desc)) {
-			return nullptr;
+			return restoreFallback();
 		}
 		// パイプラインステートオブジェクトを生成
 		created = pipelineState->CreateCompute(graphicsPlatform.GetDevice(),
@@ -386,12 +401,13 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	default:
 		return nullptr;
 	}
-	// 生成に失敗した場合はnullptrを返す
+	// 生成に失敗した場合は退避した旧PSOへ戻す
 	if (!created) {
-		return nullptr;
+		return restoreFallback();
 	}
 	// キャッシュに保存
 	auto [it, inserted] = cache_.emplace(key, std::move(pipelineState));
+	fallbackCache_.erase(key);
 	// マテリアルインスペクタ等がエディタ側でPSOを再生成せず、reflectionを引けるようpipelineAsset別に保存する
 	if (variant->kind != PipelineVariantKind::Compute) {
 
@@ -441,10 +457,22 @@ void Engine::PipelineStateCache::InvalidateByPipelineAsset(AssetID pipelineAsset
 
 	for (auto it = cache_.begin(); it != cache_.end(); ) {
 		if (it->first.pipelineAsset == pipelineAssetID || it->first.geometryPipelineAsset == pipelineAssetID) {
+			graphicsReflectionByPipeline_.erase(it->first.pipelineAsset);
 			if (it->second) {
 				it->second.reset();
 			}
 			it = cache_.erase(it);
+		} else {
+			++it;
+		}
+	}
+	for (auto it = fallbackCache_.begin(); it != fallbackCache_.end(); ) {
+		if (it->first.pipelineAsset == pipelineAssetID || it->first.geometryPipelineAsset == pipelineAssetID) {
+			graphicsReflectionByPipeline_.erase(it->first.pipelineAsset);
+			if (it->second) {
+				it->second.reset();
+			}
+			it = fallbackCache_.erase(it);
 		} else {
 			++it;
 		}
@@ -467,10 +495,14 @@ uint64_t Engine::PipelineStateCache::HashFormats(std::span<const DXGI_FORMAT> rt
 	return hash;
 }
 
-void Engine::PipelineStateCache::InvalidateByShaderOverride(AssetID shaderOverrideAssetID) {
+void Engine::PipelineStateCache::InvalidateByShaderAsset(AssetID shaderAssetID) {
 
 	for (auto it = cache_.begin(); it != cache_.end(); ) {
-		if (it->first.shaderOverrideAsset == shaderOverrideAssetID) {
+		if (it->first.pipelineShaderAsset == shaderAssetID ||
+			it->first.geometryShaderAsset == shaderAssetID ||
+			it->first.shaderOverrideAsset == shaderAssetID) {
+
+			graphicsReflectionByPipeline_.erase(it->first.pipelineAsset);
 			fallbackCache_[it->first] = std::move(it->second);
 			it = cache_.erase(it);
 		} else {

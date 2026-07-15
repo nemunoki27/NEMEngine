@@ -98,7 +98,8 @@ namespace Engine {
 		// Play中runtime Inspector用：instanceの現在値を{ fieldGuid: value }で取得する
 		nlohmann::json GetRuntimeSerializedState(ManagedScriptInstanceHandle handle);
 		// runtime instanceの単一fieldを即時更新する、authoringへは保存しない
-		void SetRuntimeSerializedField(ManagedScriptInstanceHandle handle, const std::string& fieldID, const nlohmann::json& value);
+		void SetRuntimeSerializedField(ManagedScriptInstanceHandle handle, ECSWorld& world,
+			const std::string& fieldID, const nlohmann::json& value);
 
 		// 現在のライフサイクル呼び出しのコンテキストでmain threadのcallbackから参照する
 		static const SystemContext* GetCurrentContext();
@@ -202,6 +203,8 @@ namespace Engine {
 
 		// ライフサイクル呼び出し中だけ有効なthread_localコンテキストで、ネストや例外や早期returnでも確実に復元する
 		static thread_local const SystemContext* currentContext_;
+		// 実行時Inspectorの参照デシリアライズ中だけ有効なWorld
+		static thread_local ECSWorld* currentReferenceWorld_;
 
 		// gameplay time serviceの状態でmain threadのみ更新、scaleはserviceがauthorityでTimeScaleComponentはseedのみ
 		static float timeScale_;
@@ -247,6 +250,21 @@ namespace Engine {
 			ScopedInvocationContext& operator=(const ScopedInvocationContext&) = delete;
 		private:
 			const SystemContext* previous_;
+		};
+
+		//============================================================================
+		//	ScopedReferenceWorld
+		//	currentReferenceWorld_をRAIIで一時設定する
+		//============================================================================
+		class ScopedReferenceWorld {
+		public:
+			explicit ScopedReferenceWorld(ECSWorld& world);
+			~ScopedReferenceWorld();
+
+			ScopedReferenceWorld(const ScopedReferenceWorld&) = delete;
+			ScopedReferenceWorld& operator=(const ScopedReferenceWorld&) = delete;
+		private:
+			ECSWorld* previous_;
 		};
 
 		// C#へ渡すコールバック

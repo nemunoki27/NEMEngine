@@ -43,6 +43,7 @@
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 
 // c++
 #include <algorithm>
@@ -214,6 +215,12 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 		assetWatchService_.SetMeshReloadCallback([this](AssetID meshAssetID) {
 			if (renderPipeline_) {
 				renderPipeline_->ReloadMesh(meshAssetID);
+			}
+			});
+		// Material/Shader/Pipeline変更時は依存PSOを含めて再ロードする
+		assetWatchService_.SetRenderAssetReloadCallback([this](AssetID assetID) {
+			if (renderPipeline_) {
+				renderPipeline_->ReloadAsset(assetDataBase_, assetID);
 			}
 			});
 	}
@@ -570,7 +577,7 @@ void Engine::EngineApplication::SyncPrefabEditedEntities() {
 		// Unity準拠で1プレファブ1ルートを強制し、トップレベルになった実体はプレファブルート配下へ入れる
 		const bool isRoot = !world.HasComponent<HierarchyComponent>(entity) ||
 			!world.IsAlive(world.GetComponent<HierarchyComponent>(entity).parent);
-		if (hasRoot && isRoot) {
+		if (hasRoot && isRoot && !world.HasComponent<JointAttachmentComponent>(entity)) {
 			hierarchySystem.SetParent(world, entity, stage.root);
 		}
 

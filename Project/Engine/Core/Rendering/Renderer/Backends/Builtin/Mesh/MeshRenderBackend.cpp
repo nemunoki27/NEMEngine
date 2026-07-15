@@ -89,11 +89,6 @@ namespace {
 				return true;
 			}
 		}
-		// ZPrepassはデフォルトメッシュマテリアルへフォールバック
-		if (context.passKind == Engine::MaterialPassKind::ZPrepass) {
-			return Engine::BackendDrawCommon::ResolveMaterialPass(context, Engine::AssetID{},
-				Engine::DefaultMaterialSlot::Mesh, { Engine::MaterialPassKind::ZPrepass }, outResolved);
-		}
 		return false;
 	}
 }

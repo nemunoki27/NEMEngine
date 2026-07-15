@@ -233,7 +233,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
 	SubMeshMaterial& subMesh, bool& anyItemActive) {
 
-	// パラメータ
+		// パラメータ
 		{
 			// ローカル変換
 			{
@@ -297,6 +297,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 			MyGUI::TextMatrix4x4("UV行列", subMesh.uvMatrix);
 			ImGui::Separator();
 		}
+
 		// 色やテクスチャはシェーダーreflection駆動でマテリアルパラメータとして編集する
 		DrawSubMeshReflectedParameters(context, GetDraft().material, subMesh, anyItemActive);
 }
@@ -377,10 +378,12 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 		ImGui::TextDisabled("マテリアルのパラメータを取得できません");
 		return;
 	}
-	const ShaderConstantBufferInfo* cb = FindConstantBuffer(*reflection, MaterialParameterCBuffer::kMesh);
-	if (!cb) {
+	MaterialParameterLayout layout{};
+	layout.Build(*reflection, MaterialParameterCBuffer::kMesh);
+	if (!layout.IsValid()) {
 		return;
 	}
+	const auto& variables = layout.GetVariables();
 
 	// 編集確定値を全サブメッシュへ書き込む
 	auto applyToAll = [&](const std::string& name, const MaterialParameterValue& value) {
@@ -464,7 +467,7 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 		};
 
 	// サブメッシュ単体編集と表示順を揃えるため、Drag編集paramを先に出す
-	for (const ShaderConstantBufferVariable& var : cb->variables) {
+	for (const ShaderConstantBufferVariable& var : variables) {
 
 		if (!var.used || MaterialParameterEditor::IsReflectedTextureParam(var)) {
 			continue;
@@ -473,7 +476,7 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 	}
 
 	// テクスチャparamは下にまとめて出す
-	for (const ShaderConstantBufferVariable& var : cb->variables) {
+	for (const ShaderConstantBufferVariable& var : variables) {
 
 		if (!var.used || !MaterialParameterEditor::IsReflectedTextureParam(var)) {
 			continue;
@@ -491,15 +494,17 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 		return;
 	}
 
-	const ShaderConstantBufferInfo* cb = FindConstantBuffer(*reflection, MaterialParameterCBuffer::kMesh);
-	if (!cb) {
+	MaterialParameterLayout layout{};
+	layout.Build(*reflection, MaterialParameterCBuffer::kMesh);
+	if (!layout.IsValid()) {
 		return;
 	}
+	const auto& variables = layout.GetVariables();
 
 	ImGui::SeparatorText("シェーダーパラメータ");
 
 	// Drag編集paramを先に出す
-	for (const ShaderConstantBufferVariable& var : cb->variables) {
+	for (const ShaderConstantBufferVariable& var : variables) {
 
 		if (!var.used || MaterialParameterEditor::IsReflectedTextureParam(var)) {
 			continue;
@@ -518,7 +523,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 	}
 
 	// テクスチャparamは下にまとめて出す
-	for (const ShaderConstantBufferVariable& var : cb->variables) {
+	for (const ShaderConstantBufferVariable& var : variables) {
 
 		if (!var.used || !MaterialParameterEditor::IsReflectedTextureParam(var)) {
 			continue;

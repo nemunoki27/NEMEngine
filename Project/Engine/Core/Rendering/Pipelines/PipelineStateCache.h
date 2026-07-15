@@ -24,6 +24,10 @@ namespace Engine {
 		AssetID pipelineAsset{};
 		// Rendererが提供する形状パイプライン
 		AssetID geometryPipelineAsset{};
+		// 状態パイプラインが参照するシェーダー
+		AssetID pipelineShaderAsset{};
+		// 形状パイプラインが参照するシェーダー
+		AssetID geometryShaderAsset{};
 		// Materialが提供する部分シェーダー
 		AssetID shaderOverrideAsset{};
 		// バリアントの種類
@@ -82,8 +86,8 @@ namespace Engine {
 		void Clear();
 		// 指定パイプラインアセットIDに一致するエントリを削除する
 		void InvalidateByPipelineAsset(AssetID pipelineAssetID);
-		// 部分シェーダーを使うPSOを退避し、再生成失敗時に旧PSOへ戻せるようにする
-		void InvalidateByShaderOverride(AssetID shaderOverrideAssetID);
+		// 指定シェーダーを使うPSOを退避し、再生成失敗時に旧PSOへ戻せるようにする
+		void InvalidateByShaderAsset(AssetID shaderAssetID);
 
 		// 既に構築済みのグラフィックスパイプラインの統合reflectionを引く、未構築ならnullptr
 		// エディタのマテリアルインスペクタがPSOを再生成せずパラメータ一覧を得るために使う
@@ -103,14 +107,16 @@ namespace Engine {
 			size_t operator()(const PipelineCacheKey& key) const noexcept {
 				size_t h = std::hash<AssetID>{}(key.pipelineAsset);
 				h ^= (std::hash<AssetID>{}(key.geometryPipelineAsset) << 1);
-				h ^= (std::hash<AssetID>{}(key.shaderOverrideAsset) << 2);
-				h ^= (std::hash<uint32_t>{}(static_cast<uint32_t>(key.resolvedKind)) << 3);
-				h ^= (std::hash<uint64_t>{}(key.formatHash) << 4);
-				h ^= (std::hash<bool>{}(key.meshEnabled) << 5);
-				h ^= (std::hash<bool>{}(key.inlineRayTracingEnabled) << 6);
-				h ^= (std::hash<bool>{}(key.dispatchRaysEnabled) << 7);
-				h ^= (std::hash<bool>{}(key.depthForcedTestWrite) << 8);
-				h ^= (std::hash<uint64_t>{}(key.samplerHash) << 9);
+				h ^= (std::hash<AssetID>{}(key.pipelineShaderAsset) << 2);
+				h ^= (std::hash<AssetID>{}(key.geometryShaderAsset) << 3);
+				h ^= (std::hash<AssetID>{}(key.shaderOverrideAsset) << 4);
+				h ^= (std::hash<uint32_t>{}(static_cast<uint32_t>(key.resolvedKind)) << 5);
+				h ^= (std::hash<uint64_t>{}(key.formatHash) << 6);
+				h ^= (std::hash<bool>{}(key.meshEnabled) << 7);
+				h ^= (std::hash<bool>{}(key.inlineRayTracingEnabled) << 8);
+				h ^= (std::hash<bool>{}(key.dispatchRaysEnabled) << 9);
+				h ^= (std::hash<bool>{}(key.depthForcedTestWrite) << 10);
+				h ^= (std::hash<uint64_t>{}(key.samplerHash) << 11);
 				return h;
 			}
 		};

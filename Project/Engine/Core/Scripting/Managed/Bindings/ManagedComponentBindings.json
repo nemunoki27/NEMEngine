@@ -34,6 +34,16 @@
       ]
     },
     {
+      "managedType": "CameraControlMode",
+      "nativeType": "CameraControlMode",
+      "members": [
+        { "name": "None", "value": 0 },
+        { "name": "Follow", "value": 1 },
+        { "name": "LookAt", "value": 2 },
+        { "name": "FollowLookAt", "value": 3 }
+      ]
+    },
+    {
       "managedType": "PrimitiveType",
       "nativeType": "PrimitiveType",
       "members": [
@@ -359,6 +369,55 @@
         { "managedName": "CullingMask", "nativeMember": "common.cullingMask", "kind": "Int", "access": "ReadWrite" },
         { "managedName": "Enabled", "nativeMember": "common.enabled", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "IsMain", "nativeMember": "common.isMain", "kind": "Bool", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "CameraController",
+      "nativeType": "CameraControllerComponent",
+      "nativeHeader": "Engine/Core/World/Components/Camera/CameraControllerComponent.h",
+      "managedType": "CameraController",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "Mode", "nativeMember": "mode", "kind": "Enum", "enumType": "CameraControlMode", "access": "ReadWrite" },
+        { "managedName": "EditorPreview", "nativeMember": "editorPreview", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "FollowEnabled", "nativeMember": "follow.enabled", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowTarget", "nativeMember": "follow.target", "kind": "EntityRef", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowOffset", "nativeMember": "follow.offset", "kind": "Vector3", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowAxisMask", "nativeMember": "follow.axisMask", "kind": "Vector3", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowPositionLerpSpeed", "nativeMember": "follow.posLerpSpeed", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowEnableInputRotation", "nativeMember": "follow.enableInputRotation", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowInputLerpRate", "nativeMember": "follow.inputLerpRate", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowPadSensitivity", "nativeMember": "follow.padSensitivity", "kind": "Vector2", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowMouseSensitivity", "nativeMember": "follow.mouseSensitivity", "kind": "Vector2", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowPadEnabled", "nativeMember": "follow.padEnabled", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowMouseEnabled", "nativeMember": "follow.mouseEnabled", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowAutoInputDevice", "nativeMember": "follow.autoInputDevice", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowInvertPitch", "nativeMember": "follow.invertPitch", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "LookAtEnabled", "nativeMember": "lookAt.enabled", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "LookAtTarget", "nativeMember": "lookAt.target", "kind": "EntityRef", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "LookAtOffset", "nativeMember": "lookAt.offset", "kind": "Vector3", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "LookAtRotationLerpSpeed", "nativeMember": "lookAt.rotationLerpSpeed", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "LookAtLockRoll", "nativeMember": "lookAt.lockRoll", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowEnabled", "nativeMember": "followLookAt.follow.enabled", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowTarget", "nativeMember": "followLookAt.follow.target", "kind": "EntityRef", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowOffset", "nativeMember": "followLookAt.follow.offset", "kind": "Vector3", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowAxisMask", "nativeMember": "followLookAt.follow.axisMask", "kind": "Vector3", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowPositionLerpSpeed", "nativeMember": "followLookAt.follow.posLerpSpeed", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowEnableInputRotation", "nativeMember": "followLookAt.follow.enableInputRotation", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowInputLerpRate", "nativeMember": "followLookAt.follow.inputLerpRate", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowPadSensitivity", "nativeMember": "followLookAt.follow.padSensitivity", "kind": "Vector2", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowMouseSensitivity", "nativeMember": "followLookAt.follow.mouseSensitivity", "kind": "Vector2", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowPadEnabled", "nativeMember": "followLookAt.follow.padEnabled", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowMouseEnabled", "nativeMember": "followLookAt.follow.mouseEnabled", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowAutoInputDevice", "nativeMember": "followLookAt.follow.autoInputDevice", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtFollowInvertPitch", "nativeMember": "followLookAt.follow.invertPitch", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtLookAtEnabled", "nativeMember": "followLookAt.lookAt.enabled", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtLookAtTarget", "nativeMember": "followLookAt.lookAt.target", "kind": "EntityRef", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtLookAtOffset", "nativeMember": "followLookAt.lookAt.offset", "kind": "Vector3", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtLookAtRotationLerpSpeed", "nativeMember": "followLookAt.lookAt.rotationLerpSpeed", "kind": "Float", "access": "ReadWrite", "visibility": "Internal" },
+        { "managedName": "FollowLookAtLookAtLockRoll", "nativeMember": "followLookAt.lookAt.lockRoll", "kind": "Bool", "access": "ReadWrite", "visibility": "Internal" }
       ]
     },
     {

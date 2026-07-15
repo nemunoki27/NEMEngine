@@ -62,12 +62,13 @@ nlohmann::json Engine::ManagedBehavior::GetRuntimeSerializedState() {
 	return ManagedScriptRuntime::GetInstance().GetRuntimeSerializedState(managedHandle_);
 }
 
-void Engine::ManagedBehavior::SetRuntimeSerializedField(const std::string& fieldID, const nlohmann::json& value) {
+void Engine::ManagedBehavior::SetRuntimeSerializedField(ECSWorld& world,
+	const std::string& fieldID, const nlohmann::json& value) {
 
 	if (!managedHandle_.IsValid()) {
 		return;
 	}
-	ManagedScriptRuntime::GetInstance().SetRuntimeSerializedField(managedHandle_, fieldID, value);
+	ManagedScriptRuntime::GetInstance().SetRuntimeSerializedField(managedHandle_, world, fieldID, value);
 }
 
 void Engine::ManagedBehavior::Awake([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {

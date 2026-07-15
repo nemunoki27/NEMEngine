@@ -77,7 +77,7 @@ namespace Engine {
 		// ネイティブMonoBehaviorは保存対象を持たないため既定で空
 		virtual nlohmann::json GetRuntimeSerializedState() { return nlohmann::json::object(); }
 		// runtime instanceの単一fieldを即時更新する、authoringへは保存しない
-		virtual void SetRuntimeSerializedField([[maybe_unused]] const std::string& fieldID,
+		virtual void SetRuntimeSerializedField([[maybe_unused]] ECSWorld& world, [[maybe_unused]] const std::string& fieldID,
 			[[maybe_unused]] const nlohmann::json& value) {}
 
 		// 所属するScriptEntryのscriptSlotIDを渡しC#へ転送してEnabled制御のidentityにする

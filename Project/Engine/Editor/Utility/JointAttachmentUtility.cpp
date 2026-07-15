@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
@@ -16,6 +17,27 @@
 //	JointAttachmentUtility internalMethods
 //============================================================================
 namespace {
+
+	// ジョイント接続によって通常階層との循環が発生するか判定する
+	bool WouldCreateAttachmentCycle(Engine::ECSWorld& world, const Engine::Entity& entity,
+		const Engine::Entity& skinnedEntity) {
+
+		Engine::Entity current = skinnedEntity;
+		for (int32_t guard = 0; guard < 4096; ++guard) {
+
+			if (!world.IsAlive(current)) {
+				return false;
+			}
+			if (current == entity) {
+				return true;
+			}
+			if (!world.HasComponent<Engine::HierarchyComponent>(current)) {
+				return false;
+			}
+			current = world.GetComponent<Engine::HierarchyComponent>(current).parent;
+		}
+		return true;
+	}
 
 	// ワールド行列を分解してTransformのローカルSRTへ設定する、ジョイント追従の相対値になる
 	void ApplyLocalFromMatrix(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::Matrix4x4& localMatrix) {
@@ -50,6 +72,16 @@ void Engine::JointAttachmentUtility::Attach(ECSWorld& world, HierarchySystem& hi
 	if (!world.HasComponent<TransformComponent>(entity)) {
 		return;
 	}
+	if (WouldCreateAttachmentCycle(world, entity, skinnedEntity)) {
+		return;
+	}
+	if (!world.HasComponent<SceneObjectComponent>(skinnedEntity)) {
+		return;
+	}
+	const UUID skinnedLocalFileID = world.GetComponent<SceneObjectComponent>(skinnedEntity).localFileID;
+	if (!skinnedLocalFileID) {
+		return;
+	}
 	// ジョイントが存在するか確認しておく、無効なジョイントには付けない
 	Matrix4x4 jointWorld{};
 	if (!GetJointWorldMatrix(world, skinnedEntity, jointName, jointWorld)) {
@@ -60,10 +92,6 @@ void Engine::JointAttachmentUtility::Attach(ECSWorld& world, HierarchySystem& hi
 	hierarchySystem.SetParent(world, entity, Entity::Null());
 
 	// ジョイント参照を設定する
-	UUID skinnedLocalFileID{};
-	if (world.HasComponent<SceneObjectComponent>(skinnedEntity)) {
-		skinnedLocalFileID = world.GetComponent<SceneObjectComponent>(skinnedEntity).localFileID;
-	}
 	if (!world.HasComponent<JointAttachmentComponent>(entity)) {
 		world.AddComponent<JointAttachmentComponent>(entity);
 	}

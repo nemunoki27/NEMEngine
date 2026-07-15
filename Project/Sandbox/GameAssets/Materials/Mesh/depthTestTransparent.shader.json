@@ -1,0 +1,29 @@
+{
+    "name": "depthTestTransparentShader",
+    "stages": [
+        {
+            "entry": "main",
+            "file": "f6485468f3b0f105",
+            "profile": "vs_6_6",
+            "stage": "VS"
+        },
+        {
+            "entry": "main",
+            "file": "06811f98f605bb52",
+            "profile": "as_6_6",
+            "stage": "AS"
+        },
+        {
+            "entry": "main",
+            "file": "109772a2d84dd757",
+            "profile": "ms_6_6",
+            "stage": "MS"
+        },
+        {
+            "entry": "mainTransparent",
+            "file": "b8ef63bac1805290",
+            "profile": "ps_6_6",
+            "stage": "PS"
+        }
+    ]
+}

@@ -312,17 +312,17 @@
     },
     {
       "nativeName": "CameraController",
-      "exposure": "InternalOnly",
-      "managedSurface": "",
-      "reason": "Editor/preview 用カメラ制御。gameplay からのカメラ操作は Transform facade + Perspective/OrthographicCamera property で行うため internal。vertical slice(13B) で公開要否を再判断する拡張点。",
-      "readableFields": [],
-      "writableFields": [],
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.CameraController",
+      "reason": "追従、注視、入力回転をC#から制御する。生成propertyはネストしたFollow、LookAtアクセサへ集約し、対象Entity参照も公開。",
+      "readableFields": ["Enabled", "Mode", "EditorPreview", "Follow.*", "LookAt.*", "FollowLookAt.Follow.*", "FollowLookAt.LookAt.*"],
+      "writableFields": ["Enabled", "Mode", "EditorPreview", "Follow.*", "LookAt.*", "FollowLookAt.Follow.*", "FollowLookAt.LookAt.*"],
       "commands": [],
       "events": [],
       "serialization": "component JSON",
-      "inspector": "camera manager tool",
-      "runtime": "editor/preview camera",
-      "tests": []
+      "inspector": "builtin inspector / ComponentRef drag and drop",
+      "runtime": "Play中property read/write + Entity target resolution",
+      "tests": ["CameraControllerBindingSmoke"]
     },
     {
       "nativeName": "InvertedHullOutline",

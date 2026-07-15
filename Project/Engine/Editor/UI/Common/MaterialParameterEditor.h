@@ -20,6 +20,20 @@
 //============================================================================
 namespace Engine::MaterialParameterEditor {
 
+	// メタデータまたは変数名から色パラメータか判定する
+	inline bool IsColorParameter(const ShaderConstantBufferVariable& var) {
+
+		if (var.isColor) {
+			return true;
+		}
+		constexpr char kColor[] = "color";
+		auto toLower = [](char c) {
+			return c >= 'A' && c <= 'Z' ? static_cast<char>(c + ('a' - 'A')) : c;
+		};
+		return std::search(var.name.begin(), var.name.end(), kColor, kColor + 5,
+			[toLower](char lhs, char rhs) { return toLower(lhs) == rhs; }) != var.name.end();
+	}
+
 	// テクスチャparamはcbuffer内でbindless indexのuintとして現れるので、名前ではなく型で判定する
 	inline bool IsReflectedTextureParam(const ShaderConstantBufferVariable& var) {
 		return var.valueType == D3D_SVT_UINT;
@@ -29,7 +43,7 @@ namespace Engine::MaterialParameterEditor {
 	inline MaterialParameterValue DefaultValueForVariable(const ShaderConstantBufferVariable& var) {
 
 		MaterialParameterValue result{};
-		const bool isColor = var.isColor;
+		const bool isColor = IsColorParameter(var);
 		if (var.valueType == D3D_SVT_FLOAT) {
 			const uint32_t componentCount = Engine::GetVariableComponentCount(var);
 			if (componentCount <= 1) {
@@ -83,13 +97,11 @@ namespace Engine::MaterialParameterEditor {
 	}
 
 	// reflectionの型情報とラベルに基づいてUIを表示し、編集結果をValueEditResultで返す
-	// valueChangedは毎フレーム、editFinishedは確定時に立つのでcommit判定に使える
-	// バリアントの格納型ではなくvar.valueType/成分数を基準にするため型不一致のバグが出ない
 	inline ValueEditResult DrawValueEdit(const ShaderConstantBufferVariable& var, MaterialParameterValue& value,
 		const FloatEditSetting& floatSetting = FloatEditSetting{}) {
 
 		const char* label = var.name.c_str();
-		const bool isColor = var.isColor;
+		const bool isColor = IsColorParameter(var);
 		const uint32_t componentCount = Engine::GetVariableComponentCount(var);
 
 		if (var.valueType == D3D_SVT_FLOAT) {

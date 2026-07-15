@@ -158,6 +158,8 @@ namespace Engine {
 		// 実行中にシェーダーとパイプラインを再構築する
 		void ReloadShader(AssetID shaderAssetID);
 		void ReloadPipeline(AssetID pipelineAssetID);
+		// 種別と依存関係を解決して描画アセットを再ロードする
+		void ReloadAsset(AssetDatabase& assetDatabase, AssetID assetID);
 
 		// 構築済みグラフィックスパイプラインの統合reflectionを引く、未構築ならnullptr
 		// マテリアルインスペクタがシェーダーの要求パラメータを自動列挙するために使う
@@ -165,7 +167,7 @@ namespace Engine {
 			return pipelineStateCache_.FindGraphicsReflection(pipelineAssetID);
 		}
 
-		// マテリアルのDrawパスのグラフィックスreflectionを引く、未構築やDrawパス無ならnullptr
+		// マテリアルの構築済みDraw/Transparentパスからグラフィックスreflectionを引く
 		const ShaderReflectionInfo* FindMaterialDrawReflection(const MaterialAsset& material) const;
 
 		// 描画ビューのサーフェスをバックバッファに描画する

@@ -282,7 +282,7 @@ void Engine::BehaviorSystem::SetRuntimeSerializedField(BehaviorHandle handle,
 	}
 	BehaviorRecord* record = activeSystem_->runtime_.GetRecord(handle);
 	if (record && record->instance) {
-		record->instance->SetRuntimeSerializedField(fieldID, value);
+		record->instance->SetRuntimeSerializedField(*activeSystem_->activeWorld_, fieldID, value);
 	}
 }
 

@@ -46,6 +46,8 @@ namespace Engine {
 
 		// モデル変更時のリロード処理を外部から差し込む、対象メッシュはAssetIDで指す
 		void SetMeshReloadCallback(std::function<void(AssetID)> callback) { meshReloadCallback_ = std::move(callback); }
+		// 描画アセット変更時のリロード処理を外部から差し込む
+		void SetRenderAssetReloadCallback(std::function<void(AssetID)> callback) { renderAssetReloadCallback_ = std::move(callback); }
 
 		// mainスレッドから毎フレーム呼ぶ、内部で数フレームに一度だけ走査し書き込み完了を待ってから反映する
 		void Update();
@@ -66,6 +68,8 @@ namespace Engine {
 		TextureUploadService* textureUploadService_ = nullptr;
 		// モデル変更時に呼ぶリロードでmesh管理がbackend内にあるため間接化する
 		std::function<void(AssetID)> meshReloadCallback_;
+		// Material/Shader/Pipeline変更時に描画側へ通知する
+		std::function<void(AssetID)> renderAssetReloadCallback_;
 
 		// 変更検知の間引き用フレームカウンタ
 		uint32_t frameCounter_ = 0;

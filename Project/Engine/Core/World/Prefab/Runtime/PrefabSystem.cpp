@@ -7,22 +7,64 @@
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
+#include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
+// c++
+#include <unordered_set>
+
 //============================================================================
 //	PrefabSystem classMethods
 //============================================================================
 namespace {
 
+	// JSON値からローカルIDを読み取る
+	static Engine::UUID ReadLocalFileID(const nlohmann::json& value) {
+
+		Engine::UUID result{};
+		if (value.is_string()) {
+			const std::string raw = value.get<std::string>();
+			return raw.empty() ? Engine::UUID{} : Engine::FromString16Hex(raw);
+		}
+		if (value.is_number_unsigned()) {
+			result.value = value.get<uint64_t>();
+		} else if (value.is_number_integer()) {
+
+			const int64_t raw = value.get<int64_t>();
+			if (raw > 0) {
+				result.value = static_cast<uint64_t>(raw);
+			}
+		}
+		return result;
+	}
+
 	// プレファブファイル内でエンティティを識別するためのIDを読み取る
 	static Engine::UUID ReadEntityLocalFileID(const nlohmann::json& entityJson) {
 
-		std::string localFileID = entityJson.value("LocalFileID", entityJson.value("UUID", ""));
-		return localFileID.empty() ? Engine::UUID::New() : Engine::FromString16Hex(localFileID);
+		if (entityJson.contains("LocalFileID")) {
+			const Engine::UUID localFileID = ReadLocalFileID(entityJson["LocalFileID"]);
+			return localFileID ? localFileID : Engine::UUID::New();
+		}
+		if (entityJson.contains("UUID")) {
+			const Engine::UUID localFileID = ReadLocalFileID(entityJson["UUID"]);
+			return localFileID ? localFileID : Engine::UUID::New();
+		}
+		return Engine::UUID::New();
+	}
+
+	// ジョイント参照が同じプレファブ内に存在するか判定する
+	static bool HasPrefabLocalJointTarget(const nlohmann::json& component,
+		const Engine::PrefabReferenceRemapper::LocalFileIDMap& prefabLocalToSceneLocal) {
+
+		if (!component.is_object() || !component.contains("skinnedEntityLocalFileID")) {
+			return false;
+		}
+		const Engine::UUID targetLocalFileID = ReadLocalFileID(component["skinnedEntityLocalFileID"]);
+		return targetLocalFileID && prefabLocalToSceneLocal.contains(targetLocalFileID);
 	}
 
 	// 保存時に使うPrefab内ローカルIDを解決する
@@ -159,6 +201,14 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 		if (components.contains("SceneObject") && components["SceneObject"].is_object()) {
 			components["SceneObject"]["localFileId"] = (prefabLocalFileID ? ToString(prefabLocalFileID) : ToString(sceneObject.localFileID));
 		}
+		// プレファブルートまたは保存対象外を指すジョイント参照は持ち込まない
+		if (world.HasComponent<JointAttachmentComponent>(entity)) {
+
+			const auto& attachment = world.GetComponent<JointAttachmentComponent>(entity);
+			if (entity == root || !sceneToPrefabLocal.contains(attachment.skinnedEntityLocalFileID)) {
+				components.erase("JointAttachment");
+			}
+		}
 		PrefabReferenceRemapper::RemapComponents(components, sceneToPrefabLocal, PrefabReferenceRemapper::ReferenceSpace::Prefab, prefabAsset);
 
 		// プレファブ自体の中に、別プレファブ由来情報は持ち込まない
@@ -286,6 +336,14 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 				continue;
 			}
 			nlohmann::json data = it.value();
+			if (typeName == "JointAttachment") {
+
+				const UUID entityLocalFileID = ReadEntityLocalFileID(*entityJson);
+				if (entityLocalFileID == header.rootLocalFileID ||
+					!HasPrefabLocalJointTarget(data, prefabLocalToSceneLocal)) {
+					continue;
+				}
+			}
 			PrefabReferenceRemapper::RemapComponent(
 				typeName, data, prefabLocalToSceneLocal, PrefabReferenceRemapper::ReferenceSpace::Scene, prefabAsset);
 			world.AddComponentFromJson(entity, typeName, data);
@@ -293,8 +351,7 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 	}
 
 	//============================================================================
-	//	MeshRendererのサブメッシュをmesh実体へ正規化する、SceneSystem::LoadFromJsonと同じ後処理
-	//	これを行わないとsubMeshが未解決のままでmeshが描画されない
+	//	MeshRendererのサブメッシュをmesh実体へ正規化する
 	//============================================================================
 	for (const Entity& entity : outResult.createdEntities) {
 
@@ -357,12 +414,15 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		}
 	}
 
-	// Unityのように1インスタンス1ルートを保証する、親を持たないトップレベル実体はルート配下へ入れる
 	// 複数ルートだった旧プレファブを生成してもバラけず単一ルートにまとまる
 	if (outResult.root.IsValid()) {
 		for (const Entity& entity : outResult.createdEntities) {
 
 			if (entity == outResult.root || !world.IsAlive(entity)) {
+				continue;
+			}
+			// ジョイント接続は論理的にルート配下なので通常の親子関係を重ねない
+			if (world.HasComponent<JointAttachmentComponent>(entity)) {
 				continue;
 			}
 			const bool isRoot = !world.HasComponent<HierarchyComponent>(entity) ||
@@ -396,8 +456,17 @@ std::vector<Engine::Entity> Engine::PrefabSystem::CollectSubtree(ECSWorld& world
 		return result;
 	}
 
-	// 深さ優先探索でサブツリーを収集する
+	// ジョイント接続された実体を参照先ローカルIDから引けるようにする
+	std::unordered_multimap<UUID, Entity> attachedBySkinned;
+	world.ForEach<JointAttachmentComponent>([&](Entity entity, JointAttachmentComponent& attachment) {
+		if (attachment.skinnedEntityLocalFileID) {
+			attachedBySkinned.emplace(attachment.skinnedEntityLocalFileID, entity);
+		}
+		});
+
+	// 通常の子とジョイント接続された子を深さ優先で収集する
 	std::stack<Entity> stack;
+	std::unordered_set<uint64_t> collected;
 	stack.push(root);
 	while (!stack.empty()) {
 
@@ -408,8 +477,20 @@ std::vector<Engine::Entity> Engine::PrefabSystem::CollectSubtree(ECSWorld& world
 		if (!world.IsAlive(entity)) {
 			continue;
 		}
+		const uint64_t entityKey = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
+		if (!collected.insert(entityKey).second) {
+			continue;
+		}
 
 		result.emplace_back(entity);
+		if (world.HasComponent<SceneObjectComponent>(entity)) {
+
+			const UUID localFileID = world.GetComponent<SceneObjectComponent>(entity).localFileID;
+			const auto [begin, end] = attachedBySkinned.equal_range(localFileID);
+			for (auto it = begin; it != end; ++it) {
+				stack.push(it->second);
+			}
+		}
 		if (!world.HasComponent<HierarchyComponent>(entity)) {
 			continue;
 		}
@@ -454,10 +535,10 @@ std::string Engine::PrefabSystem::BuildDefaultPrefabName(ECSWorld& world,
 		}
 	}
 	// ルートエンティティの名前が空の場合は、ファイル名をベースにする
-	// プレファブは ".prefab.json" の二重拡張子なので、stemを二段かけて純粋な名前にする
 	std::filesystem::path path = std::filesystem::path(prefabAssetPath).stem();
 	if (path.extension() == ".prefab") {
 		path = path.stem();
 	}
+
 	return path.string();
 }

@@ -236,7 +236,9 @@ internal static class Program {
             // --- 最小の整合した schema / inventory / registry / generated 出力を用意する ---
             const string goodSchema = @"{ ""schemaVersion"": 1, ""enums"": [], ""components"": [
                 { ""registryName"": ""TestComp"", ""nativeType"": ""TestComponent"", ""nativeHeader"": ""Engine/Test.h"",
-                  ""managedType"": ""TestComp"", ""properties"": [ { ""managedName"": ""Value"", ""nativeMember"": ""value"", ""kind"": ""Float"" } ] } ] }";
+                  ""managedType"": ""TestComp"", ""properties"": [
+                    { ""managedName"": ""Target"", ""nativeMember"": ""target"", ""kind"": ""EntityRef"" },
+                    { ""managedName"": ""Value"", ""nativeMember"": ""value"", ""kind"": ""Float"" } ] } ] }";
             const string goodInventory = @"{ ""schemaVersion"": 1, ""components"": [ { ""nativeName"": ""TestComp"", ""exposure"": ""GeneratedBinding"" } ] }";
 
             string schemaPath = Path.Combine(temp, "schema.json");
@@ -248,6 +250,10 @@ internal static class Program {
 
             // generated 出力を emit して temp へ置く（drift 無しの基準）
             GenerateForSelfTest(schemaPath, nativeDir, csDir);
+            Expect("EntityRef native dispatch generated",
+                File.ReadAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp")).Contains("SceneObjectUtility::FindByLocalFileID"));
+            Expect("EntityRef managed property generated",
+                File.ReadAllText(Path.Combine(csDir, "ComponentBindings.generated.cs")).Contains("public Entity Target"));
 
             // positive: 全て整合 → verify は 0
             Expect("positive verify passes", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) == 0);
@@ -446,6 +452,7 @@ internal static class Program {
             case "Quaternion": return ("Quaternion", 16);
             case "Color3": return ("Color3", 12);
             case "Color4": return ("Color4", 16);
+            case "EntityRef": return ("Entity", 16);
             default: return ("", 0);
         }
     }
@@ -478,6 +485,10 @@ internal static class Program {
         sb.Append("#include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>\n");
         sb.Append("#include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>\n");
         sb.Append("#include <Engine/Core/Foundation/Identity/UUID.h>\n");
+        if (components.SelectMany(c => c.Properties).Any(p => p.Kind == "EntityRef")) {
+            sb.Append("#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>\n");
+            sb.Append("#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>\n");
+        }
         foreach (string header in components.Select(c => c.NativeHeader).Where(h => !string.IsNullOrEmpty(h)).Distinct().OrderBy(h => h, StringComparer.Ordinal)) {
             sb.Append($"#include <{header}>\n");
         }
@@ -636,6 +647,11 @@ internal static class Program {
                 sb.Append("\t\t\t\tif (size < 8) { return ManagedStatus::InvalidArgument; }\n");
                 sb.Append($"\t\t\t\t*reinterpret_cast<uint64_t*>(out) = c->{m}.value;\n");
                 break;
+            case "EntityRef":
+                sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedNativeEntity))) { return ManagedStatus::InvalidArgument; }\n");
+                sb.Append($"\t\t\t\tconst Entity target = SceneObjectUtility::FindByLocalFileID(world, c->{m});\n");
+                sb.Append("\t\t\t\t*reinterpret_cast<ManagedNativeEntity*>(out) = world.IsAlive(target) ? MakeNativeEntity(world, target) : MakeNullNativeEntity();\n");
+                break;
             default: {
                 (_, int podSize) = PodInfo(prop.Kind);
                 sb.Append($"\t\t\t\tif (size < {podSize}) {{ return ManagedStatus::InvalidArgument; }}\n");
@@ -662,6 +678,13 @@ internal static class Program {
             case "AssetRef":
                 sb.Append("\t\t\t\tif (size < 8) { return ManagedStatus::InvalidArgument; }\n");
                 sb.Append($"\t\t\t\tc->{m}.value = *reinterpret_cast<const uint64_t*>(value);\n");
+                break;
+            case "EntityRef":
+                sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedNativeEntity))) { return ManagedStatus::InvalidArgument; }\n");
+                sb.Append("\t\t\t\tconst ManagedNativeEntity targetNative = *reinterpret_cast<const ManagedNativeEntity*>(value);\n");
+                sb.Append("\t\t\t\tconst Entity target = ResolveEntity(targetNative);\n");
+                sb.Append("\t\t\t\tconst SceneObjectComponent* sceneObject = ResolveWorld(targetNative) == &world && world.IsAlive(target) ? world.TryGetComponent<SceneObjectComponent>(target) : nullptr;\n");
+                sb.Append($"\t\t\t\tc->{m} = sceneObject ? sceneObject->localFileID : UUID{{}};\n");
                 break;
             default: {
                 (_, int podSize) = PodInfo(prop.Kind);
@@ -772,6 +795,13 @@ internal static class Program {
                 sb.Append($"    {prop.CsVisibility} {t}? {prop.ManagedName} {{\n");
                 sb.Append($"        get {{ ulong v = 0; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 8); return v != 0 ? new {t}(new UUID(v)) : null; }}\n");
                 if (!prop.ReadOnly) sb.Append($"        set {{ ulong v = value != null ? value.assetId.value : 0; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, 8); }}\n");
+                sb.Append("    }\n\n");
+                break;
+            }
+            case "EntityRef": {
+                sb.Append($"    {prop.CsVisibility} Entity {prop.ManagedName} {{\n");
+                sb.Append($"        get {{ NativeEntity v = NativeEntity.Null; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, sizeof(NativeEntity)); return new Entity(v); }}\n");
+                if (!prop.ReadOnly) sb.Append($"        set {{ NativeEntity v = value.native; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, sizeof(NativeEntity)); }}\n");
                 sb.Append("    }\n\n");
                 break;
             }

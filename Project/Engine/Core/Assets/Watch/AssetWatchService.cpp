@@ -159,12 +159,6 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 		return true;
 	}
 
-	const bool isTexture = IsTextureExtension(extension);
-	const bool isModel = IsModelExtension(extension);
-	if (!isTexture && !isModel) {
-		return false;
-	}
-
 	// 監視ルート外のパスはアセットパスへ変換できないので無視する
 	const std::string assetPath = RuntimePaths::ToAssetPath(path.string());
 	if (assetPath.empty()) {
@@ -177,16 +171,26 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 		return false;
 	}
 
-	if (isTexture && textureUploadService_) {
+	const bool isTexture = IsTextureExtension(extension);
+	const bool isModel = IsModelExtension(extension);
+	if (meta->type == AssetType::Texture && isTexture && textureUploadService_) {
 
 		// このファイルを指す全キー(描画用base/sRGBやProjectPanelサムネイル)をまとめて差し替える
 		textureUploadService_->RequestReloadByFile(path);
 		Logger::Output(LogType::Engine, "[AssetWatch] texture changed, reload requested: {}", assetPath);
-	} else if (isModel && meshReloadCallback_) {
+	} else if (meta->type == AssetType::Mesh && isModel && meshReloadCallback_) {
 
 		// モデルはbackend側のmesh管理へAssetIDで委譲する
 		meshReloadCallback_(meta->guid);
 		Logger::Output(LogType::Engine, "[AssetWatch] model changed, reload requested: {}", assetPath);
+	} else if ((meta->type == AssetType::Material || meta->type == AssetType::Shader ||
+		meta->type == AssetType::RenderPipeline) && renderAssetReloadCallback_) {
+
+		// 描画アセットは依存関係を含めてRenderPipelineRunner側で再ロードする
+		renderAssetReloadCallback_(meta->guid);
+		Logger::Output(LogType::Engine, "[AssetWatch] render asset changed, reload requested: {}", assetPath);
+	} else {
+		return false;
 	}
 	return true;
 }

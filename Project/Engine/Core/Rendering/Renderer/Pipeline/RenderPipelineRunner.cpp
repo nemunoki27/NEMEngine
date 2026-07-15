@@ -41,9 +41,11 @@ using namespace Engine;
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackService.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <algorithm>
+#include <filesystem>
 
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
@@ -153,13 +155,50 @@ void RenderPipelineRunner::ReloadShader(AssetID shaderAssetID) {
 
 	// 新PSO生成に失敗した場合は退避した旧PSOを継続使用する
 	renderAssetLibrary_.InvalidateShader(shaderAssetID);
-	pipelineStateCache_.InvalidateByShaderOverride(shaderAssetID);
+	pipelineStateCache_.InvalidateByShaderAsset(shaderAssetID);
 }
 
 void RenderPipelineRunner::ReloadPipeline(AssetID pipelineAssetID) {
 
 	renderAssetLibrary_.InvalidatePipeline(pipelineAssetID);
 	pipelineStateCache_.InvalidateByPipelineAsset(pipelineAssetID);
+}
+
+void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID assetID) {
+
+	const AssetMeta* meta = assetDatabase.Find(assetID);
+	if (!meta) {
+		return;
+	}
+
+	// JSONの参照先が変わった場合に備えて逆引き依存関係も更新する
+	assetDatabase.RefreshDependencies(assetID);
+	if (meta->type == AssetType::Material) {
+		ReloadMaterial(assetID);
+		return;
+	}
+	if (meta->type == AssetType::RenderPipeline) {
+		ReloadPipeline(assetID);
+		return;
+	}
+	if (meta->type != AssetType::Shader) {
+		return;
+	}
+
+	const std::filesystem::path path(meta->assetPath);
+	if (Algorithm::ToLower(path.extension().string()) == ".json") {
+		ReloadShader(assetID);
+		return;
+	}
+
+	// HLSL変更時は参照するshader.jsonを再ロードして依存PSOを再生成する
+	const std::vector<AssetID> referencers = assetDatabase.FindReferencers(assetID);
+	for (AssetID referencer : referencers) {
+		const AssetMeta* referencerMeta = assetDatabase.Find(referencer);
+		if (referencerMeta && referencerMeta->type == AssetType::Shader) {
+			ReloadShader(referencer);
+		}
+	}
 }
 
 Engine::RenderTexture2D* RenderPipelineRunner::GetViewGBufferTexture(RenderViewKind kind, GBufferAttachment attachment) {
@@ -172,13 +211,20 @@ Engine::RenderTexture2D* RenderPipelineRunner::GetViewGBufferTexture(RenderViewK
 const Engine::ShaderReflectionInfo* RenderPipelineRunner::FindMaterialDrawReflection(const MaterialAsset& material) const {
 
 	const MaterialPassBinding* drawPass = FindPass(material, MaterialPassKind::Draw);
-	if (!drawPass) {
-		drawPass = FindPass(material, MaterialPassKind::Transparent);
+	if (drawPass && drawPass->pipeline) {
+
+		const ShaderReflectionInfo* reflection =
+			pipelineStateCache_.FindGraphicsReflection(drawPass->pipeline, drawPass->shaderOverride);
+		if (reflection) {
+			return reflection;
+		}
 	}
-	if (!drawPass || !drawPass->pipeline) {
-		return nullptr;
+
+	const MaterialPassBinding* transparentPass = FindPass(material, MaterialPassKind::Transparent);
+	if (transparentPass && transparentPass->pipeline) {
+		return pipelineStateCache_.FindGraphicsReflection(transparentPass->pipeline, transparentPass->shaderOverride);
 	}
-	return pipelineStateCache_.FindGraphicsReflection(drawPass->pipeline, drawPass->shaderOverride);
+	return nullptr;
 }
 
 Engine::DepthTexture2D* RenderPipelineRunner::GetViewDepthTexture(RenderViewKind kind) {

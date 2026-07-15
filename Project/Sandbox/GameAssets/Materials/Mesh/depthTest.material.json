@@ -1,0 +1,18 @@
+{
+    "domain": "Surface",
+    "name": "depthTest",
+    "parameters": {},
+    "passes": [
+        {
+            "passKind": "Draw",
+            "pipeline": "18a65371ba4e56e3",
+            "preferredVariant": "GraphicsMesh"
+        },
+        {
+            "passKind": "Transparent",
+            "pipeline": "fd49cdcebe4280c4",
+            "preferredVariant": "GraphicsMesh"
+        }
+    ],
+    "usage": "Mesh"
+}

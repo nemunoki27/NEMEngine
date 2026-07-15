@@ -58,7 +58,7 @@ namespace Engine {
 		// localFileIDはEdit/Playをまたいで安定するため、これで現在のworldのentityを引く
 		// sourceAssetは将来のマルチシーン絞り込み用で現状は未使用
 		const SystemContext* context = GetCurrentContext();
-		ECSWorld* world = context ? context->world : nullptr;
+		ECSWorld* world = context ? context->world : currentReferenceWorld_;
 		if (!world || localFileID == 0) {
 			return MakeNullNativeEntity();
 		}

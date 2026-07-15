@@ -63,6 +63,8 @@ namespace Engine {
 		// 実行時の平滑化ターゲット座標と初期化フラグ、保存しない
 		Vector3 smoothedTarget = Vector3::AnyInit(0.0f);
 		bool targetInitialized = false;
+		// 実行時に補間している対象、対象変更の検出に使い保存しない
+		UUID runtimeTarget{};
 	};
 
 	//============================================================================

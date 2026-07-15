@@ -30,7 +30,7 @@ namespace Engine {
 
 		// Play中runtime Inspector用：C#インスタンスの現在値取得/単一field即時設定
 		nlohmann::json GetRuntimeSerializedState() override;
-		void SetRuntimeSerializedField(const std::string& fieldID, const nlohmann::json& value) override;
+		void SetRuntimeSerializedField(ECSWorld& world, const std::string& fieldID, const nlohmann::json& value) override;
 
 		// scriptSlotIDを受け取り、CreateInstance時にC#へ転送する
 		void SetSlotID(uint64_t scriptSlotID) override { scriptSlotID_ = scriptSlotID; }
@@ -90,4 +90,3 @@ namespace Engine {
 		void HandleStatus(ManagedStatus status, const char* callbackName, const Entity& entity);
 	};
 } // Engine
-
