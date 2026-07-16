@@ -102,16 +102,5 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 		// シェーダーパラメータ
 		materialParameterDrawer_.Draw(context, draft.material, defaultMaterialID, draft.parameterOverrides,
 			[&](auto&& drawField) { DrawField(anyItemActive, std::forward<decltype(drawField)>(drawField)); });
-
-		// baseColorTextureを変更した場合は既定で実サイズへ合わせる
-		const AssetID currentTexture = materialParameterDrawer_.ResolveTextureParameter(context,
-			draft.material, defaultMaterialID, draft.parameterOverrides, kBaseColorTextureParameter);
-		if (currentTexture && currentTexture != previousTexture) {
-
-			Vector2 textureSize{};
-			if (TryResolveTextureSize(context, currentTexture, textureSize)) {
-				draft.size = textureSize;
-			}
-		}
 	}
 }
