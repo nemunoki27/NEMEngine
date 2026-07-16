@@ -62,10 +62,14 @@ namespace Engine {
 
 		// 単発再生中か、ループを無視して発生継続時間分だけ発生する
 		bool runtimeOneShot = false;
+		// 再生状態を先頭から作り直すか
+		bool runtimeRestartRequested = false;
 		// 同時発生の次回タイマー
 		float runtimeGroupEmitTimer = 0.0f;
 		// 単発の同時発生を実行済みか
 		bool runtimeGroupEmitted = false;
+		// 実行状態へ反映したグループ発生方式
+		ParticleEffectGroupEmissionMode runtimeGroupEmissionMode = ParticleEffectGroupEmissionMode::Independent;
 		// エフェクトの描画空間
 		PrimitiveRenderSpace runtimeSpace = PrimitiveRenderSpace::World3D;
 		// 実行状態を構築したエフェクトID

@@ -297,12 +297,22 @@ Engine::CurveQuaternion::CurveQuaternion() {
 Engine::Quaternion Engine::CurveQuaternion::Evaluate(float time) const {
 
 	// Axis/Angle表現からQuaternionへ変換して返す
+	const Vector3 axis = EvaluateAxis(time);
+	const float angleDegrees = EvaluateAngle(time);
+	return Quaternion::Normalize(Quaternion::MakeAxisAngle(axis, Math::DegToRad(angleDegrees)));
+}
+
+Engine::Vector3 Engine::CurveQuaternion::EvaluateAxis(float time) const {
+
 	const uint32_t axisKeyIndex = FindAxisKeyIndex(channels[0], time);
 	const CurveQuaternionAxisKey fallbackAxisKey = QuaternionAxisKeyUtility::MakeDefault();
 	const CurveQuaternionAxisKey& axisKey = axisKeyIndex < axisKeys.size() ? axisKeys[axisKeyIndex] : fallbackAxisKey;
-	const Vector3 axis = QuaternionAxisKeyUtility::GetAxisDirection(axisKey);
-	const float angleDegrees = channels[1].Evaluate(time);
-	return Quaternion::Normalize(Quaternion::MakeAxisAngle(axis, Math::DegToRad(angleDegrees)));
+	return QuaternionAxisKeyUtility::GetAxisDirection(axisKey);
+}
+
+float Engine::CurveQuaternion::EvaluateAngle(float time) const {
+
+	return channels[1].Evaluate(time);
 }
 
 void Engine::CurveQuaternion::EnsureAxisKeyCount() {

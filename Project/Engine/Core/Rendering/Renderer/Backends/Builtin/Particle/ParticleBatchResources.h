@@ -59,7 +59,7 @@ namespace Engine {
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 	};
 
-	// CPUでフェーズ分割とソートを行う粒子データ
+	// CPUでフェーズ分割する粒子データ
 	struct ParticleDrawInstanceData {
 
 		ParticleGeometryData geometry{};

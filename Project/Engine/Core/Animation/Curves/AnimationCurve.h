@@ -115,6 +115,8 @@ namespace Engine {
 		std::vector<CurveQuaternionAxisKey> axisKeys;
 
 		CurveQuaternion();
+		Vector3 EvaluateAxis(float time) const;
+		float EvaluateAngle(float time) const;
 		Quaternion Evaluate(float time) const;
 		void EnsureAxisKeyCount();
 	};

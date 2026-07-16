@@ -15,6 +15,8 @@
 
 // c++
 #include <algorithm>
+#include <unordered_map>
+#include <vector>
 
 //============================================================================
 //	MyGUI classMethods
@@ -27,6 +29,36 @@ namespace {
 	// 左側に表示する文字の幅
 	constexpr float kLabelColumnWidth = 168.0f;
 	constexpr float kAxisLabelWidth = 14.0f;
+
+	// プロパティグループのラベル幅
+	struct PropertyLabelWidthState {
+
+		ImGuiID id = 0;
+		float labelWidth = 0.0f;
+		float measuredWidth = 0.0f;
+	};
+	std::vector<PropertyLabelWidthState> propertyLabelWidthStack{};
+	std::unordered_map<ImGuiID, float> propertyLabelWidthCache{};
+
+	// プロパティグループのラベル幅計測を開始する
+	void BeginPropertyLabelWidth(const char* id) {
+
+		const ImGuiID scopeID = ImGui::GetID(id);
+		const auto it = propertyLabelWidthCache.find(scopeID);
+		PropertyLabelWidthState state{};
+		state.id = scopeID;
+		state.labelWidth = it != propertyLabelWidthCache.end() ? it->second : 0.0f;
+		propertyLabelWidthStack.emplace_back(state);
+	}
+
+	// プロパティグループのラベル幅計測を終了する
+	void EndPropertyLabelWidth() {
+
+		if (propertyLabelWidthStack.empty()) { return; }
+		const PropertyLabelWidthState state = propertyLabelWidthStack.back();
+		propertyLabelWidthStack.pop_back();
+		propertyLabelWidthCache[state.id] = state.measuredWidth;
+	}
 
 	//============================================================================
 	//	軸情報
@@ -327,6 +359,16 @@ namespace {
 	}
 }
 
+Engine::MyGUI::ScopedPropertyLabelWidth::ScopedPropertyLabelWidth(const char* id) {
+
+	BeginPropertyLabelWidth(id);
+}
+
+Engine::MyGUI::ScopedPropertyLabelWidth::~ScopedPropertyLabelWidth() {
+
+	EndPropertyLabelWidth();
+}
+
 bool Engine::MyGUI::CollapsingHeader(const char* label, bool stratOpen) {
 
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.0f, 0.0f));
@@ -377,6 +419,18 @@ Engine::TextInputPopupResult Engine::MyGUI::InputTextPopupContent(const char* la
 
 bool Engine::MyGUI::BeginPropertyRow(const char* label, const PropertyRowSetting& setting) {
 
+	float labelWidth = kLabelColumnWidth;
+	if (setting.labelWidth.has_value()) {
+		labelWidth = setting.labelWidth.value();
+	} else if (!propertyLabelWidthStack.empty()) {
+
+		PropertyLabelWidthState& state = propertyLabelWidthStack.back();
+		const float measuredWidth =
+			ImGui::CalcTextSize(label).x + ImGui::GetStyle().CellPadding.x * 2.0f;
+		state.measuredWidth = (std::max)(state.measuredWidth, measuredWidth);
+		labelWidth = (std::max)(state.labelWidth, measuredWidth);
+	}
+
 	const std::string tableID = std::string("##MyGUI_RowTable_Public_") + label;
 	const ImVec2 tableSize = setting.rowWidth.has_value() ?
 		ImVec2(setting.rowWidth.value(), 0.0f) : ImVec2(0.0f, 0.0f);
@@ -387,7 +441,6 @@ bool Engine::MyGUI::BeginPropertyRow(const char* label, const PropertyRowSetting
 		return false;
 	}
 
-	const float labelWidth = setting.labelWidth.value_or(kLabelColumnWidth);
 	ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, labelWidth);
 	ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 

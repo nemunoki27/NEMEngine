@@ -49,16 +49,20 @@ bool Engine::ParticleShapeOverLifetimeModule::DrawImGui() {
 		changed = true;
 	}
 
-	if (!types.empty() &&
-		ImGui::BeginCombo("対象形状", EnumAdapter<PrimitiveType>::ToString(types[currentIndex]))) {
-		for (int32_t i = 0; i < static_cast<int32_t>(types.size()); ++i) {
-			if (ImGui::Selectable(EnumAdapter<PrimitiveType>::ToString(types[i]), i == currentIndex)) {
+	if (!types.empty() && MyGUI::BeginPropertyRow("対象形状")) {
 
-				shape_ = types[i];
-				changed = true;
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::BeginCombo("##Value", EnumAdapter<PrimitiveType>::ToString(types[currentIndex]))) {
+			for (int32_t i = 0; i < static_cast<int32_t>(types.size()); ++i) {
+				if (ImGui::Selectable(EnumAdapter<PrimitiveType>::ToString(types[i]), i == currentIndex)) {
+
+					shape_ = types[i];
+					changed = true;
+				}
 			}
+			ImGui::EndCombo();
 		}
-		ImGui::EndCombo();
+		MyGUI::EndPropertyRow();
 	}
 
 	// 形状別パラメータ

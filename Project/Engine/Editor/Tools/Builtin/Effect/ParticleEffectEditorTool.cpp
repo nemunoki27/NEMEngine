@@ -322,7 +322,7 @@ void ParticleEffectEditorTool::DrawWindow(const EditorToolContext& context) {
 			changed = true;
 		}
 		changed |= DrawGroupEmissionSection(context);
-		ImGui::BeginChild("ParticleEffectGroupList", ImVec2(210.0f, 0.0f), true);
+		ImGui::BeginChild("ParticleEffectGroupList", ImVec2(160.0f, 0.0f), true);
 		changed |= DrawGroupList();
 		ImGui::EndChild();
 		ImGui::SameLine();
@@ -353,13 +353,55 @@ bool ParticleEffectEditorTool::DrawGroupEmissionSection(const EditorToolContext&
 
 	bool changed = false;
 	if (MyGUI::CollapsingHeader("グループ発生設定", false)) {
+		MyGUI::ScopedPropertyLabelWidth labelWidth("GroupEmissionSettings");
 
-		changed |= MyGUI::EnumCombo("発生方式", draft_.groupEmission.mode).valueChanged;
+		bool playing = false;
+		bool oneShot = false;
+		float currentInterval = 0.0f;
+		bool foundEmitter = false;
+		if (ECSWorld* world = context.GetWorld()) {
+			world->ForEach<ParticleEmitterComponent>([&](const Entity&, const ParticleEmitterComponent& component) {
+
+				const AssetID resolved = component.effect ? component.effect : BuiltinAssets::Effects::DefaultParticle;
+				if (resolved != editingID_) { return; }
+				if (!foundEmitter) {
+
+					currentInterval = component.runtimeGroupEmitTimer;
+					foundEmitter = true;
+				}
+				if (!component.playing) { return; }
+				playing = true;
+				oneShot |= component.runtimeOneShot;
+				});
+		}
+		if (MyGUI::BeginPropertyRow("再生状態")) {
+
+			ImGui::TextUnformatted(oneShot ? "単発再生中" : (playing ? "再生中" : "停止中"));
+			MyGUI::EndPropertyRow();
+		}
+
+		if (MyGUI::BeginPropertyRow("発生方法")) {
+
+			const char* labels[] = { "個別発生", "同時発生" };
+			int32_t current = static_cast<int32_t>(draft_.groupEmission.mode);
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+			if (ImGui::Combo("##Value", &current, labels, IM_ARRAYSIZE(labels))) {
+
+				draft_.groupEmission.mode = static_cast<ParticleEffectGroupEmissionMode>(current);
+				changed = true;
+			}
+			MyGUI::EndPropertyRow();
+		}
 		if (draft_.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous) {
 
+			changed |= MyGUI::Checkbox("全グループの終了を待つ", draft_.groupEmission.waitForCompletion);
 			changed |= MyGUI::DragFloat("同時発生間隔", draft_.groupEmission.interval,
 				MakeDragSetting(0.0f, 60.0f)).valueChanged;
-			changed |= MyGUI::Checkbox("全グループの終了を待つ", draft_.groupEmission.waitForCompletion);
+			if (MyGUI::BeginPropertyRow("現在の発生間隔")) {
+
+				ImGui::Text("%.3f / %.3f", currentInterval, draft_.groupEmission.interval);
+				MyGUI::EndPropertyRow();
+			}
 		}
 	}
 	if (ImGui::Button("再生")) { RestartEmitters(context, false); }
@@ -500,10 +542,14 @@ bool ParticleEffectEditorTool::DrawBasicSection(
 	//	エミッター編集
 	//============================================================================
 	if (ImGui::BeginTabItem("エミッター")) {
-		changed |= MyGUI::InputText("グループ名", group.name).valueChanged;
+		{
+			MyGUI::ScopedPropertyLabelWidth labelWidth("EmitterGroupName");
+			changed |= MyGUI::InputText("グループ名", group.name).valueChanged;
+		}
 
 		//========================================================================================================================================================
 		if (MyGUI::CollapsingHeader("発生設定", false)) {
+			MyGUI::ScopedPropertyLabelWidth labelWidth("EmitterEmissionSettings");
 
 			ImGui::BeginDisabled(draft_.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous);
 			changed |= MyGUI::DragFloat("発生間隔", group.emitter.emitInterval, MakeDragSetting(0.001f, 60.0f)).valueChanged;
@@ -530,7 +576,11 @@ bool ParticleEffectEditorTool::DrawBasicSection(
 						}
 						});
 				}
-				ImGui::Text("現在の発生数: %u / %u", aliveCount, group.emitter.maxParticles);
+				if (MyGUI::BeginPropertyRow("現在の発生数")) {
+
+					ImGui::Text("%u / %u", aliveCount, group.emitter.maxParticles);
+					MyGUI::EndPropertyRow();
+				}
 			}
 			ImGui::Spacing();
 
@@ -547,6 +597,7 @@ bool ParticleEffectEditorTool::DrawBasicSection(
 		}
 		//========================================================================================================================================================
 		if (MyGUI::CollapsingHeader("エミッター形状設定", false)) {
+			MyGUI::ScopedPropertyLabelWidth labelWidth("EmitterShapeSettings");
 
 			// 空間で使える形状だけを選択候補にする
 			const bool is2D = draft_.space == PrimitiveRenderSpace::Screen2D;
@@ -565,16 +616,20 @@ bool ParticleEffectEditorTool::DrawBasicSection(
 				changed = true;
 			}
 
-			if (!shapes.empty() &&
-				ImGui::BeginCombo("発生形状", EnumAdapter<ParticleEmitterShape>::ToString(shapes[currentIndex]))) {
-				for (int32_t i = 0; i < static_cast<int32_t>(shapes.size()); ++i) {
-					if (ImGui::Selectable(EnumAdapter<ParticleEmitterShape>::ToString(shapes[i]), i == currentIndex)) {
+			if (!shapes.empty() && MyGUI::BeginPropertyRow("発生形状")) {
 
-						group.emitter.shape = shapes[i];
-						changed = true;
+				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+				if (ImGui::BeginCombo("##Value", EnumAdapter<ParticleEmitterShape>::ToString(shapes[currentIndex]))) {
+					for (int32_t i = 0; i < static_cast<int32_t>(shapes.size()); ++i) {
+						if (ImGui::Selectable(EnumAdapter<ParticleEmitterShape>::ToString(shapes[i]), i == currentIndex)) {
+
+							group.emitter.shape = shapes[i];
+							changed = true;
+						}
 					}
+					ImGui::EndCombo();
 				}
-				ImGui::EndCombo();
+				MyGUI::EndPropertyRow();
 			}
 
 			// 形状別パラメータ
@@ -584,6 +639,7 @@ bool ParticleEffectEditorTool::DrawBasicSection(
 		}
 		//========================================================================================================================================================
 		if (MyGUI::CollapsingHeader("描画設定", false)) {
+			MyGUI::ScopedPropertyLabelWidth labelWidth("ParticleRenderSettings");
 
 			if (MyGUI::EnumCombo("描画空間", draft_.space).valueChanged) {
 
@@ -634,7 +690,6 @@ bool ParticleEffectEditorTool::DrawBasicSection(
 					}
 				}
 			}
-			changed |= MyGUI::EnumCombo("ソート", group.sortMode).valueChanged;
 			changed |= MyGUI::EnumCombo("ブレンドモード", group.blendMode).valueChanged;
 			changed |= MyGUI::EnumCombo("キュー", group.queue).valueChanged;
 			// ビルボード軸
@@ -902,6 +957,7 @@ bool ParticleEffectEditorTool::DrawTrailMaterialSection(
 	if (!MyGUI::CollapsingHeader("トレイルテクスチャ設定", false)) {
 		return false;
 	}
+	MyGUI::ScopedPropertyLabelWidth labelWidth("TrailTextureSettings");
 
 	bool changed = false;
 	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
@@ -1094,10 +1150,11 @@ bool ParticleEffectEditorTool::DrawPhaseModules(const EditorToolContext& context
 
 		// モジュール名表示
 		std::string moduleName = "モジュール名: " + entry.id;
-		ImGui::Text(moduleName.c_str());
+		ImGui::TextUnformatted(moduleName.c_str());
 		ImGui::Separator();
 		// キャッシュされたモジュールリストの中から選択IDで引く
 		if (IParticleModule* module = ResolveModuleCache(cache[selectedModule], entry)) {
+			MyGUI::ScopedPropertyLabelWidth labelWidth(entry.id.c_str());
 			if (auto* custom = dynamic_cast<ParticleCustomShaderParameterModule*>(module)) {
 
 				std::vector<ShaderConstantBufferVariable> parameters{};
@@ -1157,9 +1214,12 @@ void ParticleEffectEditorTool::RestartEmitters(const EditorToolContext& context,
 
 	ECSWorld* world = context.GetWorld();
 	if (!world) {
+
+		statusMessage_ = "再生対象のシーンがありません";
 		return;
 	}
 	// 対象エフェクトを使っているエミッターを頭から再生する
+	size_t restartCount = 0;
 	world->ForEach<ParticleEmitterComponent>([&](const Entity&, ParticleEmitterComponent& component) {
 
 		const AssetID resolved = component.effect ? component.effect : BuiltinAssets::Effects::DefaultParticle;
@@ -1168,19 +1228,23 @@ void ParticleEffectEditorTool::RestartEmitters(const EditorToolContext& context,
 		}
 		component.playing = true;
 		component.runtimeOneShot = oneShot;
-		component.runtimeGroupEmitTimer = 0.0f;
-		component.runtimeGroupEmitted = false;
-		component.runtimeGroups.clear();
+		component.runtimeRestartRequested = true;
+		++restartCount;
 		});
+	statusMessage_ = 0 < restartCount ?
+		std::string{} : "編集中のエフェクトを使用するエミッターがありません";
 }
 
 void ParticleEffectEditorTool::StopEmitters(const EditorToolContext& context) {
 
 	ECSWorld* world = context.GetWorld();
 	if (!world) {
+
+		statusMessage_ = "停止対象のシーンがありません";
 		return;
 	}
 	// 対象エフェクトを使っているエミッターを停止して粒子を消す
+	size_t stopCount = 0;
 	world->ForEach<ParticleEmitterComponent>([&](const Entity&, ParticleEmitterComponent& component) {
 
 		const AssetID resolved = component.effect ? component.effect : BuiltinAssets::Effects::DefaultParticle;
@@ -1189,10 +1253,14 @@ void ParticleEffectEditorTool::StopEmitters(const EditorToolContext& context) {
 		}
 		component.playing = false;
 		component.runtimeOneShot = false;
+		component.runtimeRestartRequested = false;
 		component.runtimeGroupEmitTimer = 0.0f;
 		component.runtimeGroupEmitted = false;
 		component.runtimeGroups.clear();
+		++stopCount;
 		});
+	statusMessage_ = 0 < stopCount ?
+		std::string{} : "編集中のエフェクトを使用するエミッターがありません";
 }
 
 Engine::IParticleModule* ParticleEffectEditorTool::ResolveModuleCache(ModuleCacheEntry& cache, const ParticleEffectModuleEntry& entry) {

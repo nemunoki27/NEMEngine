@@ -189,6 +189,20 @@ namespace Engine {
 	class MyGUI {
 	public:
 		//============================================================================
+		//	ScopedPropertyLabelWidth class
+		//============================================================================
+		// 同じプロパティグループ内のラベル幅を揃える
+		class ScopedPropertyLabelWidth {
+		public:
+
+			explicit ScopedPropertyLabelWidth(const char* id);
+			~ScopedPropertyLabelWidth();
+
+			ScopedPropertyLabelWidth(const ScopedPropertyLabelWidth&) = delete;
+			ScopedPropertyLabelWidth& operator=(const ScopedPropertyLabelWidth&) = delete;
+		};
+
+		//============================================================================
 		//	public Methods
 		//============================================================================
 

@@ -237,8 +237,6 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 		return;
 	}
 	std::vector<std::vector<ParticleDrawInstanceData>> phaseBuckets(phaseCount);
-	bool sortBackToFront = false;
-	Vector3 sortCameraPos = Vector3::AnyInit(0.0f);
 
 	for (const RenderItem* item : items) {
 
@@ -257,11 +255,6 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 			!settings.billboardAxes.empty() && camera && camera->valid;
 		BillboardComponent axisMask{};
 		axisMask.axes = settings.billboardAxes;
-		if (settings.sortMode == ParticleSortMode::BackToFront && camera && camera->valid) {
-
-			sortBackToFront = true;
-			sortCameraPos = camera->cameraPos;
-		}
 
 		for (const Particle& particle : payload->group->particles) {
 
@@ -312,18 +305,8 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 		}
 	}
 
-	// フェーズ順に連結し、ソートはフェーズ範囲内で行う
+	// フェーズ順に連結する
 	for (std::vector<ParticleDrawInstanceData>& bucket : phaseBuckets) {
-
-		// 半透明の重なりを正しく見せるため、奥から手前の順へ並べ替える
-		if (sortBackToFront) {
-			std::sort(bucket.begin(), bucket.end(),
-				[&sortCameraPos](const ParticleDrawInstanceData& lhs, const ParticleDrawInstanceData& rhs) {
-					const Vector3 lhsDiff = lhs.geometry.worldMatrix.GetTranslationValue() - sortCameraPos;
-					const Vector3 rhsDiff = rhs.geometry.worldMatrix.GetTranslationValue() - sortCameraPos;
-					return Vector3::Dot(rhsDiff, rhsDiff) < Vector3::Dot(lhsDiff, lhsDiff);
-				});
-		}
 		outCustomOffsets.emplace_back(static_cast<uint32_t>(outCustomParameters.size()));
 		outPhaseCounts.emplace_back(static_cast<uint32_t>(bucket.size()));
 		for (const ParticleDrawInstanceData& instance : bucket) {

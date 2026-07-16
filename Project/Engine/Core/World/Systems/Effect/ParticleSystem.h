@@ -124,6 +124,8 @@ namespace Engine {
 		void BuildGroups(EffectRuntime& runtime) const;
 		// Componentの実行状態をアセットのグループ順へ同期する
 		void SynchronizeRuntimeGroups(ParticleEmitterComponent& emitter, const EffectRuntime& effect) const;
+		// Componentの再生状態を先頭へ戻す
+		void RestartEmitter(ParticleEmitterComponent& emitter, const ParticleEffectAsset& asset) const;
 		// 同時発生を行うフレームか判定する
 		bool UpdateGroupEmission(ParticleEmitterComponent& emitter,
 			const ParticleEffectAsset& asset, float deltaTime) const;

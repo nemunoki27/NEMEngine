@@ -20,7 +20,7 @@
 // 更新モジュール
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleSizeOverLifetimeModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorOverLifetimeModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleRotationOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleRotationModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleGravityForceModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleNoiseForceModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleFlipbookModule.h>
@@ -158,7 +158,29 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 
 		const ParticleEffectAsset& asset = effect->asset;
 		emitter.runtimeSpace = asset.space;
+		const bool restartRequested = emitter.runtimeRestartRequested;
+		if (restartRequested) {
+
+			emitter.runtimeGroups.clear();
+			emitter.runtimeGroupEmitTimer = 0.0f;
+			emitter.runtimeGroupEmitted = false;
+		}
 		SynchronizeRuntimeGroups(emitter, *effect);
+		if (restartRequested) {
+
+			RestartEmitter(emitter, asset);
+			emitter.runtimeRestartRequested = false;
+		} else if (emitter.runtimeGroupEmissionMode != asset.groupEmission.mode) {
+
+			emitter.runtimeGroupEmissionMode = asset.groupEmission.mode;
+			emitter.runtimeGroupEmitTimer = 0.0f;
+			emitter.runtimeGroupEmitted = false;
+			for (ParticleGroupRuntimeState& state : emitter.runtimeGroups) {
+
+				state.time = 0.0f;
+				state.emitTimer = 0.0f;
+			}
+		}
 
 		// 更新を行うか、Play中はTimeScale適用済みのdeltaTime、EditのプレビューはTimeScale非適用のリアル時間を使う
 		const bool allowTimeAdvance = emitter.playing && (context.mode == WorldMode::Play || emitter.playInEditMode);
@@ -222,6 +244,21 @@ void Engine::ParticleSystem::SynchronizeRuntimeGroups(
 	emitter.runtimeEffectRevision = effect.revision;
 }
 
+void Engine::ParticleSystem::RestartEmitter(
+	ParticleEmitterComponent& emitter, const ParticleEffectAsset& asset) const {
+
+	emitter.runtimeGroupEmissionMode = asset.groupEmission.mode;
+	emitter.runtimeGroupEmitTimer = (std::max)(0.0f, asset.groupEmission.interval);
+	emitter.runtimeGroupEmitted = false;
+	for (size_t i = 0; i < emitter.runtimeGroups.size(); ++i) {
+
+		ParticleGroupRuntimeState& state = emitter.runtimeGroups[i];
+		state.time = 0.0f;
+		state.emitTimer = i < asset.groups.size() ?
+			(std::max)(0.0f, asset.groups[i].emitter.emitInterval) : 0.0f;
+	}
+}
+
 bool Engine::ParticleSystem::UpdateGroupEmission(ParticleEmitterComponent& emitter,
 	const ParticleEffectAsset& asset, float deltaTime) const {
 
@@ -271,11 +308,14 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Entity& entity,
 		simultaneousEmit : true;
 	if (asset.groupEmission.mode == ParticleEffectGroupEmissionMode::Independent) {
 
-		state.time += deltaTime;
 		if (group.looping && !oneShot) {
+
+			state.time += deltaTime;
 			if (0.0f < group.duration) { state.time = std::fmod(state.time, group.duration); }
-		} else if (group.duration <= state.time) {
-			emitAllowed = false;
+		} else {
+
+			emitAllowed = state.time < group.duration;
+			state.time += deltaTime;
 		}
 	}
 

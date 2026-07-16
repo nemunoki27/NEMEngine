@@ -21,14 +21,6 @@ namespace Engine {
 	//============================================================================
 	//	ParticleEffectAsset structures
 	//============================================================================
-	// 粒子のソート方法
-	enum class ParticleSortMode :
-		uint8_t {
-
-		None,
-		BackToFront,
-	};
-
 	// グループの発生方式
 	enum class ParticleEffectGroupEmissionMode :
 		uint8_t {
@@ -129,8 +121,6 @@ namespace Engine {
 
 		// 描画に使用するマテリアル
 		AssetID material{};
-		// 粒子のソート方法
-		ParticleSortMode sortMode = ParticleSortMode::None;
 		// ブレンドモード
 		BlendMode blendMode = BlendMode::Add;
 		// 描画キュー
@@ -181,8 +171,6 @@ namespace Engine {
 		AssetID model{};
 		// 描画に使用するマテリアル
 		AssetID material{};
-		// 粒子のソート方法
-		ParticleSortMode sortMode = ParticleSortMode::None;
 		// ブレンドモード
 		BlendMode blendMode = BlendMode::Add;
 		// 描画キュー

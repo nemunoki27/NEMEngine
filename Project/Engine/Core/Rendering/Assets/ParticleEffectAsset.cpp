@@ -161,7 +161,6 @@ Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(
 	settings.cube = group.cube;
 	settings.model = group.model;
 	settings.material = group.material;
-	settings.sortMode = group.sortMode;
 	settings.blendMode = group.blendMode;
 	settings.queue = group.queue;
 	settings.billboardAxes = group.billboardAxes;
@@ -314,8 +313,6 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 		if (const auto it = groupJson.find("cube"); it != groupJson.end() && it->is_object()) { from_json(*it, group.cube); }
 		group.model = ParseAssetID(groupJson, "model");
 		group.material = ParseAssetID(groupJson, "material");
-		group.sortMode = EnumAdapter<ParticleSortMode>::FromString(
-			groupJson.value("sortMode", "None")).value_or(ParticleSortMode::None);
 		group.blendMode = EnumAdapter<BlendMode>::FromString(
 			groupJson.value("blendMode", "Add")).value_or(BlendMode::Add);
 		group.queue = RenderPhaseFromString(groupJson.value("queue", "Transparent"), RenderPhase::Transparent);
@@ -366,6 +363,7 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 				ParticleEffectModuleEntry entry{};
 				entry.id = moduleJson.value("id", "");
 				if (entry.id.empty()) { continue; }
+				if (entry.id == "RotationOverLifetime") { entry.id = "Rotation"; }
 				if (const auto it = moduleJson.find("params"); it != moduleJson.end() && it->is_object()) {
 					entry.params = *it;
 				}
@@ -495,7 +493,6 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 		groupJson["cube"] = group.cube;
 		groupJson["model"] = ToAssetReferenceJson(group.model);
 		groupJson["material"] = ToAssetReferenceJson(group.material);
-		groupJson["sortMode"] = EnumAdapter<ParticleSortMode>::ToString(group.sortMode);
 		groupJson["blendMode"] = EnumAdapter<BlendMode>::ToString(group.blendMode);
 		groupJson["queue"] = std::string(ToString(group.queue));
 		groupJson["billboardAxes"] = nlohmann::json::array();
