@@ -20,13 +20,7 @@ void Engine::from_json(const nlohmann::json& in, TextRendererComponent& componen
 	if (in.contains("pivot")) {
 		component.pivot = Vector2::FromJson(in["pivot"]);
 	}
-	component.color = Color4::FromJson(in.value("color", nlohmann::json()));
-	component.enableOutline = in.value("enableOutline", component.enableOutline);
-	// 未設定なら既定の黒を保つためcontainsで判定する
-	if (in.contains("outlineColor")) {
-		component.outlineColor = Color4::FromJson(in["outlineColor"]);
-	}
-	component.outlineWidth = in.value("outlineWidth", component.outlineWidth);
+	component.uvPerCharacter = in.value("uvPerCharacter", component.uvPerCharacter);
 	// 文字ごとのトランスフォーム
 	component.charTransforms.clear();
 	if (in.contains("charTransforms") && in["charTransforms"].is_array()) {
@@ -57,10 +51,7 @@ void Engine::to_json(nlohmann::json& out, const TextRendererComponent& component
 	out["fontSize"] = component.fontSize;
 	out["charSpacing"] = component.charSpacing;
 	out["pivot"] = component.pivot.ToJson();
-	out["color"] = component.color.ToJson();
-	out["enableOutline"] = component.enableOutline;
-	out["outlineColor"] = component.outlineColor.ToJson();
-	out["outlineWidth"] = component.outlineWidth;
+	out["uvPerCharacter"] = component.uvPerCharacter;
 	// 文字ごとのトランスフォーム
 	nlohmann::json charArray = nlohmann::json::array();
 	for (const TextCharTransform& charTransform : component.charTransforms) {

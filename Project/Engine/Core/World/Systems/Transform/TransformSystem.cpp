@@ -24,6 +24,10 @@ void Engine::TransformSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] Syste
 		});
 	for (auto root : roots_) {
 
+		if (!world.IsAlive(root) || !world.HasComponent<TransformComponent>(root) ||
+			!world.HasComponent<HierarchyComponent>(root)) {
+			continue;
+		}
 		auto& rootTransform = world.GetComponent<TransformComponent>(root);
 
 		// 変更があったときのみ更新
@@ -44,6 +48,10 @@ void Engine::TransformSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] Syste
 			// 親エンティティ情報
 			Entity parent = node.entity;
 			bool parentDirty = node.parentDirty;
+			if (!world.IsAlive(parent) || !world.HasComponent<HierarchyComponent>(parent) ||
+				!world.HasComponent<TransformComponent>(parent)) {
+				continue;
+			}
 
 			const auto& parentHierarchy = world.GetComponent<HierarchyComponent>(parent);
 			const Matrix4x4& parentWorld = world.GetComponent<TransformComponent>(parent).worldMatrix;
@@ -51,6 +59,10 @@ void Engine::TransformSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] Syste
 			Entity child = parentHierarchy.firstChild;
 			while (child.IsValid()) {
 
+				if (!world.IsAlive(child) || !world.HasComponent<HierarchyComponent>(child) ||
+					!world.HasComponent<TransformComponent>(child)) {
+					break;
+				}
 				auto& childHierarchy = world.GetComponent<HierarchyComponent>(child);
 				// 階層内で非アクティブなエンティティはスキップする
 				if (!IsEntityActiveInHierarchy(world, child)) {

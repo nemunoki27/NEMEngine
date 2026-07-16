@@ -7,12 +7,13 @@
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
-#include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 
 //============================================================================
 //	SpriteRendererInspectorDrawer internal
 //============================================================================
 namespace {
+
+	const std::string kBaseColorTextureParameter = "baseColorTexture";
 
 	// 設定中テクスチャの実サイズを取得する、未ロードや未設定ならfalse
 	bool TryResolveTextureSize(const Engine::EditorPanelContext& context,
@@ -41,23 +42,6 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	{
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
-				setting.graphicsCore = context.graphicsCore;
-				const AssetID previousTexture = draft.texture;
-				ValueEditResult result = MyGUI::AssetReferenceField("テクスチャ", draft.texture,
-					context.editorContext->assetDatabase, { AssetType::Texture }, setting);
-
-				// テクスチャを差し替えたら既定でそのテクスチャの実サイズへ合わせる
-				if (result.valueChanged && draft.texture && draft.texture != previousTexture) {
-
-					Vector2 textureSize{};
-					if (TryResolveTextureSize(context, draft.texture, textureSize)) {
-						draft.size = textureSize;
-					}
-				}
-				return result;
-			});
-		DrawField(anyItemActive, [&]() {
-			AssetEditSetting setting{};
 				setting.defaultAssetID = DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin();
 				return MyGUI::AssetReferenceField("マテリアル", draft.material,
 					context.editorContext->assetDatabase, { AssetType::Material }, setting);
@@ -67,6 +51,10 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	//	スプライト見た目パラメータ
 	//============================================================================
 	{
+		const AssetID defaultMaterialID = DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin();
+		const AssetID baseColorTexture = materialParameterDrawer_.ResolveTextureParameter(context,
+			draft.material, defaultMaterialID, draft.parameterOverrides, kBaseColorTextureParameter);
+
 		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragVector2("サイズ", draft.size,
 				{ .dragSpeed = 0.1f, .minValue = 0.0f, .maxValue = 100000.0f });
@@ -79,11 +67,11 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 			const float fullWidth = ImGui::GetContentRegionAvail().x;
 			const float buttonWidth = fullWidth * 0.5f;
 			ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (fullWidth - buttonWidth) * 0.5f);
-			ImGui::BeginDisabled(!draft.texture);
+			ImGui::BeginDisabled(!baseColorTexture);
 			if (ImGui::Button("サイズをテクスチャに合わせる", ImVec2(buttonWidth, 0.0f))) {
 
 				Vector2 textureSize{};
-				if (TryResolveTextureSize(context, draft.texture, textureSize)) {
+				if (TryResolveTextureSize(context, baseColorTexture, textureSize)) {
 
 					draft.size = textureSize;
 					result.valueChanged = true;
@@ -97,14 +85,33 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 			return MyGUI::DragVector2("ピボット", draft.pivot,
 				{ .dragSpeed = 0.01f, .minValue = -1.0f, .maxValue = 1.0f });
 			});
-		DrawField(anyItemActive, [&]() {
-			return MyGUI::ColorEdit("色", draft.color);
-			});
 	}
+
 	//============================================================================
 	//	スプライト描画パラメータ
 	//============================================================================
-	InspectorDrawerCommon::DrawCommonRenderFields(
-		[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
-		draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
+	// 描画設定
+	{
+		const AssetID defaultMaterialID = DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin();
+		const AssetID previousTexture = materialParameterDrawer_.ResolveTextureParameter(context,
+			draft.material, defaultMaterialID, draft.parameterOverrides, kBaseColorTextureParameter);
+
+		InspectorDrawerCommon::DrawCommonRenderFields(
+			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
+			draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
+		// シェーダーパラメータ
+		materialParameterDrawer_.Draw(context, draft.material, defaultMaterialID, draft.parameterOverrides,
+			[&](auto&& drawField) { DrawField(anyItemActive, std::forward<decltype(drawField)>(drawField)); });
+
+		// baseColorTextureを変更した場合は既定で実サイズへ合わせる
+		const AssetID currentTexture = materialParameterDrawer_.ResolveTextureParameter(context,
+			draft.material, defaultMaterialID, draft.parameterOverrides, kBaseColorTextureParameter);
+		if (currentTexture && currentTexture != previousTexture) {
+
+			Vector2 textureSize{};
+			if (TryResolveTextureSize(context, currentTexture, textureSize)) {
+				draft.size = textureSize;
+			}
+		}
+	}
 }

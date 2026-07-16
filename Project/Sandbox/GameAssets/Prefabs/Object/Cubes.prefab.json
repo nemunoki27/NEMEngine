@@ -11,7 +11,7 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "9f23d3aa4c99dbff",
+                    "localFileId": "9f23d3aa4c99dbff",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
@@ -28,7 +28,7 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 2.0,
+                        "x": 1.0199999809265137,
                         "y": 1.0,
                         "z": 1.0
                     }
@@ -114,7 +114,7 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "db8704fc4d0e978c",
+                    "localFileId": "db8704fc4d0e978c",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
@@ -220,13 +220,13 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "4dfdc87a263d14ba",
+                    "localFileId": "4dfdc87a263d14ba",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 0.0,
+                        "x": -0.4095519781112671,
                         "y": 0.0,
                         "z": 0.0
                     },
@@ -325,7 +325,7 @@
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileID": "1604030d040a8a32",
+                    "localFileId": "1604030d040a8a32",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
@@ -353,23 +353,90 @@
         {
             "Components": {
                 "Hierarchy": {
-                    "parentLocalFileID": "db8704fc4d0e978c",
-                    "siblingOrder": 0
+                    "parentLocalFileID": "9f23d3aa4c99dbff",
+                    "siblingOrder": 11
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "mesh": "a31d53b333db8b8b",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "subMeshes": [
+                        {
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "name": "Mesh_0",
+                            "parameterOverrides": {
+                                "baseColorTexture": "c2ea9f4498073ab3",
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 0.6000000238418579,
+                                    "g": 0.6000000238418579,
+                                    "r": 0.6000000238418579
+                                },
+                                "emissiveColor": {
+                                    "a": 1.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 0.0
+                                }
+                            },
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "stableID": "c1919987567e77b8",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
                 },
                 "Name": {
-                    "name": "Entity"
+                    "name": "cube"
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileId": "ffd3b4f9b39aa657",
+                    "localFileId": "13d56fdd129c711e",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
+                        "x": 7.9068193435668945,
+                        "y": 3.3241782188415527,
+                        "z": 1.7916450500488281
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -384,7 +451,7 @@
                     }
                 }
             },
-            "LocalFileID": "ffd3b4f9b39aa657"
+            "LocalFileID": "13d56fdd129c711e"
         }
     ],
     "Header": {

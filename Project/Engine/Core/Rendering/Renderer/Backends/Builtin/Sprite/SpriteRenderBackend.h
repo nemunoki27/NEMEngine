@@ -22,9 +22,8 @@ namespace Engine {
 		//============================================================================
 
 		SpriteRenderBackend() {
-			vsInstSRVSlot_  = perDrawBindCache_.AddSlot("gVSInstances",  ShaderBindingKind::SRV);
-			psInstSRVSlot_  = perDrawBindCache_.AddSlot("gPSInstances",  ShaderBindingKind::SRV);
-			textureSRVSlot_ = perDrawBindCache_.AddSlot("gTexture",      ShaderBindingKind::SRV);
+			vsInstSRVSlot_ = perDrawBindCache_.AddSlot("gVSInstances", ShaderBindingKind::SRV);
+			psInstSRVSlot_ = perDrawBindCache_.AddSlot("gPSInstances", ShaderBindingKind::SRV);
 		}
 		~SpriteRenderBackend() override;
 
@@ -47,7 +46,6 @@ namespace Engine {
 
 		PipelineBindingCache::SlotID vsInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID psInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID textureSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 	};
 } // Engine
 

@@ -138,11 +138,11 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 		// テクスチャはSpriteRendererを持つ2Dエンティティにする
 		const Entity entity = CreateBaseEntity(world, payload.assetPath, sceneInstanceID);
 		auto& renderer = world.AddComponent<SpriteRendererComponent>(entity);
-		renderer.texture = payload.assetID;
+		renderer.parameterOverrides["baseColorTexture"].value = payload.assetID;
 
 		// 初期サイズをテクスチャの実サイズに合わせる、未ロードなら既定サイズのままにする
 		Vector2 textureSize{};
-		if (RuntimeTextureResolver::TryResolveSize(graphicsCore, &database, renderer.texture, textureSize)) {
+		if (RuntimeTextureResolver::TryResolveSize(graphicsCore, &database, payload.assetID, textureSize)) {
 			renderer.size = textureSize;
 		}
 

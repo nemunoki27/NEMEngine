@@ -218,6 +218,7 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 		entityJson["Components"] = std::move(components);
 		fileJson["Entities"].push_back(std::move(entityJson));
 	}
+	PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(fileJson);
 
 	// ファイルに保存
 	std::filesystem::path savePath = database.ResolveAssetPath(prefabAssetPath);
@@ -246,6 +247,7 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		return false;
 	}
 	PrefabReferenceRemapper::RepairPrefabFileScriptRefs(fileJson, prefabAsset);
+	PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(fileJson);
 
 	// ファイルからプレファブ読み込み
 	PrefabHeader header{};

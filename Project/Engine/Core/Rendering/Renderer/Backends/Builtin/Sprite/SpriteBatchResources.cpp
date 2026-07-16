@@ -101,7 +101,6 @@ void Engine::SpriteBatchResources::UploadInstances(const ResolvedRenderView& vie
 		// PS
 		{
 			SpritePSInstanceData instance{};
-			instance.color = payload->color;
 			instance.uvMatrix = payload->uvMatrix;
 			psScratch_.emplace_back(instance);
 		}

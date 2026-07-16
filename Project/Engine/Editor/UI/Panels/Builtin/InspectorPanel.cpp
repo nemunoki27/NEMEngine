@@ -48,6 +48,7 @@
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 #include <Engine/Core/World/Prefab/Override/PrefabJsonDiff.h>
+#include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Editor/Utility/JointAttachmentUtility.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
@@ -1457,6 +1458,7 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 		}
 
 		if (prefabChanged) {
+			PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(prefabFileJson);
 			JsonAdapter::Save(prefabPath.string(), prefabFileJson);
 		}
 		if (instanceHierarchyChanged && !prefabChanged) {

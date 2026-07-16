@@ -36,6 +36,10 @@ namespace Engine {
 		std::string prefabEditName;
 		// プレファブ編集のネスト深さ、0なら通常編集
 		int prefabEditDepth = 0;
+		// 編集中プレファブのアセットID
+		AssetID prefabEditAsset{};
+		// 編集中プレファブを構成するインスタンスID
+		UUID prefabEditInstanceID{};
 		// In-Context編集中かどうか、trueなら元シーンに置いて編集している
 		bool isPrefabInContext = false;
 		// In-Context編集で表示対象を絞り込むためのプレファブインスタンスID

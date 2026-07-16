@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/SerializedComponentInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Common/ReflectedMaterialParameterDrawer.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 
 namespace Engine {
@@ -30,10 +31,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// テクスチャアセット
-		std::string textureBuffer_{};
-		// マテリアルアセット
-		std::string materialBuffer_{};
+		// reflection駆動のマテリアルパラメータ描画
+		ReflectedMaterialParameterDrawer materialParameterDrawer_{};
 
 		//--------- functions ----------------------------------------------------
 

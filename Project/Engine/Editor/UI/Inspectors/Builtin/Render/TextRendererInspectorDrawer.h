@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/SerializedComponentInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Common/ReflectedMaterialParameterDrawer.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 
 namespace Engine {
@@ -26,6 +27,11 @@ namespace Engine {
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		// reflection駆動のマテリアルパラメータ描画
+		ReflectedMaterialParameterDrawer materialParameterDrawer_{};
 
 		//--------- functions ----------------------------------------------------
 

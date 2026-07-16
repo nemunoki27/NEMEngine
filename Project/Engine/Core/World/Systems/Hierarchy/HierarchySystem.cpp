@@ -25,7 +25,7 @@ void Engine::HierarchySystem::OnWorldEnter(ECSWorld& world, [[maybe_unused]] Sys
 	world.ForEachAliveEntity([&](Entity entity) {
 		scope.emplace_back(entity);
 		});
-	// 論理IDのUUIDから実行時の親子リンクを構築
+	// UUIDから実行時の親子リンクを構築
 	RebuildRuntimeLinks(world, scope);
 }
 
@@ -51,7 +51,7 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 	std::unordered_map<LocalKey, Entity, LocalKeyHash> entityMap;
 	entityMap.reserve(scope.size());
 
-	// ステップ1:各エンティティの親子リンクを初期化し、IDマップへ登録
+	// 各エンティティの親子リンクを初期化し、IDマップへ登録
 	for (const auto& entity : scope) {
 
 		if (!world.IsAlive(entity) || !world.HasComponent<HierarchyComponent>(entity)) {
@@ -73,7 +73,7 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 		}
 	}
 
-	// ステップ2:保存されていた親IDから実際のEntityポインタを解決してリンクを繋ぐ
+	// 保存されていた親IDから実際のEntityポインタを解決してリンクを繋ぐ
 	for (const auto& entity : scope) {
 
 		if (!world.IsAlive(entity) || !world.HasComponent<HierarchyComponent>(entity)) {
@@ -107,8 +107,9 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 		}
 	}
 
-	// ステップ3:兄弟順(siblingOrder)に基づいて子リンクをソートし、正しい順序を復元
+	// 兄弟順に基づいて子リンクをソートし、正しい順序を復元
 	for (const auto& entity : scope) {
+
 		HierarchyUtility::SortChildLinksBySiblingOrder(world, entity);
 	}
 

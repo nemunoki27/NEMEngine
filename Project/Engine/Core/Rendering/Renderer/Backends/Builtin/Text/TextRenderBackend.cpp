@@ -173,7 +173,7 @@ namespace {
 
 	// キャッシュ済みレイアウトからVS/PSインスタンスを構築する
 	void AppendGlyphInstancesFromCache(const Engine::TextRendererComponent& renderer,
-		const Engine::Color4& color, const Engine::Matrix4x4& worldMatrix,
+		const Engine::Matrix4x4& worldMatrix, const Engine::Matrix4x4& uvMatrix,
 		std::vector<Engine::TextVSInstanceData>& outVS,
 		std::vector<Engine::TextPSInstanceData>& outPS) {
 
@@ -188,7 +188,6 @@ namespace {
 
 		// 文字ごとトランスフォームは描画グリフ順で対応付ける、足りない分は単位変換にする
 		const auto& charTransforms = renderer.charTransforms;
-		const uint32_t enableOutline = renderer.enableOutline ? 1u : 0u;
 
 		// ピボット分のオフセット、スプライトと同じく正規化0-1基準のこの点を原点へ合わせる
 		const Engine::Vector2 pivotOffset(
@@ -227,16 +226,24 @@ namespace {
 			vs.rectMax = rectMax;
 			vs.uvMin = glyph.uvMin;
 			vs.uvMax = glyph.uvMax;
+			if (renderer.uvPerCharacter) {
+				vs.materialUVMin = Engine::Vector2::AnyInit(0.0f);
+				vs.materialUVMax = Engine::Vector2::AnyInit(1.0f);
+			} else {
+
+				const Engine::Vector2 inverseBounds(
+					cache.boundsSize.x > 0.0f ? 1.0f / cache.boundsSize.x : 0.0f,
+					cache.boundsSize.y > 0.0f ? 1.0f / cache.boundsSize.y : 0.0f);
+				vs.materialUVMin = Engine::Vector2(glyph.rectMin.x * inverseBounds.x, glyph.rectMin.y * inverseBounds.y);
+				vs.materialUVMax = Engine::Vector2(glyph.rectMax.x * inverseBounds.x, glyph.rectMax.y * inverseBounds.y);
+			}
 			vs.worldMatrix = glyphMatrix;
 			outVS.emplace_back(vs);
 
 			Engine::TextPSInstanceData ps{};
-			ps.color = color;
-			ps.outlineColor = renderer.outlineColor;
 			ps.atlasSize = cache.atlasSize;
 			ps.pxRange = cache.pxRange;
-			ps.outlineWidthPx = renderer.outlineWidth;
-			ps.enableOutline = enableOutline;
+			ps.uvMatrix = uvMatrix;
 			outPS.emplace_back(ps);
 		}
 	}
@@ -321,8 +328,8 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 			const float s = renderer->worldScale;
 			worldMatrix = Matrix4x4::MakeScaleMatrix(Vector3(s, -s, s)) * worldMatrix;
 		}
-		AppendGlyphInstancesFromCache(*renderer, payload->color,
-			worldMatrix, vsGlyphScratch_, psGlyphScratch_);
+		AppendGlyphInstancesFromCache(*renderer, worldMatrix, payload->uvMatrix,
+			vsGlyphScratch_, psGlyphScratch_);
 	}
 	// 描画に使用するグリフがない場合は描画しない
 	if (vsGlyphScratch_.empty() || psGlyphScratch_.empty()) {
@@ -363,7 +370,7 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(atlasSRVSlot_),
 				0, atlasTexture->gpuHandle);
 		}
-		// overrides持ちはバッチ分割で単独描画になるので先頭の上書きを使う、cbuffer無のBuiltinは無回帰
+		// overrides持ちはバッチ分割で単独描画になるので先頭の上書きを使う
 		if (resolvedPass.material) {
 			const TextRenderPayload* firstPayload = context.batch->GetPayload<TextRenderPayload>(*items.front());
 			BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, *pipelineState,
@@ -372,7 +379,9 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		}
 		// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
 		if (resolvedPass.material) {
-			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, *resolvedPass.material, commandList);
+			const TextRenderPayload* firstPayload = context.batch->GetPayload<TextRenderPayload>(*items.front());
+			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, *resolvedPass.material,
+				commandList, firstPayload ? firstPayload->materialOverrides : nullptr);
 		}
 	}
 

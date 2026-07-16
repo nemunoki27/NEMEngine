@@ -38,6 +38,9 @@ namespace Engine {
 		// UVの最小座標と最大座標
 		Vector2 uvMin{};
 		Vector2 uvMax{};
+		// マテリアルUVの最小座標と最大座標
+		Vector2 materialUVMin{};
+		Vector2 materialUVMax = Vector2::AnyInit(1.0f);
 
 		// ワールド行列
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
@@ -46,23 +49,14 @@ namespace Engine {
 	// HLSL側のPSInstanceとオフセットを完全一致させるため並びとpaddingを固定する
 	struct TextPSInstanceData {
 
-		// 色
-		Color4 color = Color4::White();
-		// アウトライン色
-		Color4 outlineColor = Color4::Black();
 		// フォントアトラスのサイズ
 		Vector2 atlasSize = Vector2::AnyInit(1.0f);
-
 		// ピクセル単位の文字の範囲
 		float pxRange = 8.0f;
-		// アウトライン幅(ピクセル単位)
-		float outlineWidthPx = 0.0f;
-		// アウトラインを有効にするか(0/1)
-		uint32_t enableOutline = 0;
 		// 16バイト境界へ揃えるための詰め物
 		float padding0 = 0.0f;
-		float padding1 = 0.0f;
-		float padding2 = 0.0f;
+		// UV行列
+		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 	};
 
 	//============================================================================

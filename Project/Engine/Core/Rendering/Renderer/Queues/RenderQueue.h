@@ -46,17 +46,13 @@ namespace Engine {
 	// スプライト描画データ
 	struct SpriteRenderPayload {
 
-		// テクスチャ
-		AssetID texture{};
-
 		Vector2 size = Vector2::AnyInit(1.0f);
 		Vector2 pivot = Vector2::AnyInit(0.5f);
 
-		Color4 color = Color4::White();
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 
 		// エンティティごとのマテリアルパラメータ上書き、コンポーネントのmapを指す(同フレーム内のみ有効)
-		// 非nullかつ非空ならバッチを分割して、このエンティティ専用のMaterialParametersを詰める
+		// 同一バッチでは先頭の上書きを使用する
 		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;
 	};
 	// テキスト描画データ
@@ -68,7 +64,7 @@ namespace Engine {
 
 		float fontSize = 32.0f;
 		float charSpacing = 0.0f;
-		Color4 color = Color4::White();
+		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 
 		// エンティティごとのマテリアルパラメータ上書き、コンポーネントのmapを指す(同フレーム内のみ有効)
 		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;

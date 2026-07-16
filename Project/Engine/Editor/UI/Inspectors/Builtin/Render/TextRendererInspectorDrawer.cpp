@@ -57,33 +57,10 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 				{ .dragSpeed = 0.01f, .minValue = -1.0f, .maxValue = 1.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::ColorEdit("色", draft.color);
+			return InspectorDrawerCommon::DrawCheckboxField("UVを文字ごとに適用", draft.uvPerCharacter);
 			});
-
-		// アウトライン
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("アウトライン", draft.enableOutline);
-			});
-		if (draft.enableOutline) {
-
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::ColorEdit("アウトライン色", draft.outlineColor);
-				});
-			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragFloat("アウトライン幅", draft.outlineWidth,
-					{ .dragSpeed = 0.1f, .minValue = 0.0f, .maxValue = 100.0f });
-				});
-		}
-	}
-	//============================================================================
-	//	テキスト描画パラメータ
-	//============================================================================
-	{
-		InspectorDrawerCommon::DrawCommonRenderFields(
-			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
-			draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawEnumComboField("次元", draft.dimension);
+			return InspectorDrawerCommon::DrawEnumComboField("描画次元", draft.dimension);
 			});
 		// ワールドスケールは3D描画でのみ意味を持つので2Dでは表示しない
 		if (draft.dimension == Dimension::Type3D) {
@@ -92,6 +69,19 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 					{ .dragSpeed = 0.001f, .minValue = 0.0001f, .maxValue = 1000.0f });
 				});
 		}
+	}
+
+	//============================================================================
+	//	テキスト描画パラメータ
+	//============================================================================
+	{
+		// 描画設定
+		InspectorDrawerCommon::DrawCommonRenderFields(
+			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
+			draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
+		materialParameterDrawer_.Draw(context, draft.material,
+			DefaultMaterialSettings::GetInstance().GetTextOrBuiltin(), draft.parameterOverrides,
+			[&](auto&& drawField) { DrawField(anyItemActive, std::forward<decltype(drawField)>(drawField)); });
 	}
 	//============================================================================
 	//	文字ごとのトランスフォーム

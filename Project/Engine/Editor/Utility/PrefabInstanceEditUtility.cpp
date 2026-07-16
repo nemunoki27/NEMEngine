@@ -23,28 +23,16 @@ namespace {
 		return world.IsAlive(hierarchy.parent) ? hierarchy.parent : Engine::Entity::Null();
 	}
 
-	// サブツリーにPrefab由来Entityがあるか
-	bool ContainsPrefabEntity(Engine::ECSWorld& world, const Engine::Entity& root) {
+	// 編集中プレファブの最上位ルートか
+	bool IsPrefabEditRoot(const Engine::EditorContext* editorContext,
+		Engine::ECSWorld& world, const Engine::Entity& entity) {
 
-		if (!world.IsAlive(root)) {
+		if (!editorContext || !editorContext->isPrefabEditing || !editorContext->prefabEditInstanceID ||
+			!world.IsAlive(entity) || !world.HasComponent<Engine::PrefabLinkComponent>(entity)) {
 			return false;
 		}
-		if (world.HasComponent<Engine::PrefabLinkComponent>(root)) {
-			return true;
-		}
-		if (!world.HasComponent<Engine::HierarchyComponent>(root)) {
-			return false;
-		}
-		Engine::Entity child = world.GetComponent<Engine::HierarchyComponent>(root).firstChild;
-		while (world.IsAlive(child)) {
-
-			if (ContainsPrefabEntity(world, child)) {
-				return true;
-			}
-			child = world.HasComponent<Engine::HierarchyComponent>(child) ?
-				world.GetComponent<Engine::HierarchyComponent>(child).nextSibling : Engine::Entity::Null();
-		}
-		return false;
+		const auto& link = world.GetComponent<Engine::PrefabLinkComponent>(entity);
+		return link.isPrefabRoot && link.prefabInstanceID == editorContext->prefabEditInstanceID;
 	}
 }
 
@@ -74,17 +62,11 @@ bool Engine::PrefabInstanceEditUtility::IsInPrefabInstance(ECSWorld& world, cons
 bool Engine::PrefabInstanceEditUtility::CanDelete(
 	const EditorContext* editorContext, ECSWorld& world, const Entity& entity) {
 
-	if (!world.IsAlive(entity) || !IsPrefabEntity(world, entity)) {
-		return world.IsAlive(entity);
+	if (!world.IsAlive(entity)) {
+		return false;
 	}
-	if (editorContext && editorContext->isPrefabEditing) {
-
-		// Prefab編集では編集対象のルートだけ削除できない
-		return !IsPrefabRoot(world, entity) || world.IsAlive(GetParent(world, entity));
-	}
-
-	// Sceneではインスタンス全体のルートだけ削除できる
-	return IsPrefabRoot(world, entity);
+	// Prefab編集では編集対象のルートだけ削除できない
+	return !IsPrefabEditRoot(editorContext, world, entity);
 }
 
 bool Engine::PrefabInstanceEditUtility::CanChangeParent(const EditorContext* editorContext,
@@ -93,23 +75,12 @@ bool Engine::PrefabInstanceEditUtility::CanChangeParent(const EditorContext* edi
 	if (!world.IsAlive(entity)) {
 		return false;
 	}
-	if (editorContext && editorContext->isPrefabEditing) {
-
-		// Prefab編集の対象ルートは階層ルートのまま保つ
-		return !IsPrefabRoot(world, entity) || world.IsAlive(GetParent(world, entity));
-	}
-	if (!IsPrefabEntity(world, entity)) {
-
-		// Nested Prefabを含むサブツリーは他Prefabの階層へ入れない
-		return !world.IsAlive(newParent) || !IsInPrefabInstance(world, newParent) ||
-			!ContainsPrefabEntity(world, entity);
-	}
-	if (!IsPrefabRoot(world, entity)) {
+	if (world.IsAlive(newParent) && entity == newParent) {
 		return false;
 	}
 
-	// Scene上のPrefabルート配置は変更できるが別Prefabの子にはできない
-	return !world.IsAlive(newParent) || !IsInPrefabInstance(world, newParent);
+	// Prefab編集の対象ルート以外はSceneと同じく親を変更できる
+	return !IsPrefabEditRoot(editorContext, world, entity);
 }
 
 bool Engine::PrefabInstanceEditUtility::CanChangeSiblingOrder(const EditorContext* editorContext,
@@ -118,20 +89,7 @@ bool Engine::PrefabInstanceEditUtility::CanChangeSiblingOrder(const EditorContex
 	if (!world.IsAlive(entity) || !world.IsAlive(anchor)) {
 		return false;
 	}
-	if (editorContext && editorContext->isPrefabEditing) {
-
-		// Prefab編集の対象ルートは並び替えない
-		return !IsPrefabRoot(world, entity) || world.IsAlive(GetParent(world, entity));
-	}
-
-	const Entity parent = GetParent(world, entity);
-	if (world.IsAlive(parent) && IsPrefabEntity(world, parent)) {
-
-		// Prefab配下では追加Entity同士の並び替えだけ許可する
-		return !IsPrefabEntity(world, entity) && !IsPrefabEntity(world, anchor);
-	}
-
-	// Scene直下ではPrefabルートを通常のScene Entityと同様に並び替えられる
-	return (!IsPrefabEntity(world, entity) || IsPrefabRoot(world, entity)) &&
-		(!IsPrefabEntity(world, anchor) || IsPrefabRoot(world, anchor));
+	// Prefab編集の対象ルート以外は同じ親の中で並び替えられる
+	return !IsPrefabEditRoot(editorContext, world, entity) &&
+		!IsPrefabEditRoot(editorContext, world, anchor);
 }

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
 
 //============================================================================
 //	TextRenderItemExtractor classMethods
@@ -23,7 +24,9 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		payload.text = std::string_view(renderer.text);
 		payload.fontSize = renderer.fontSize;
 		payload.charSpacing = renderer.charSpacing;
-		payload.color = renderer.color;
+		if (const UVTransformComponent* uvTransform = world.TryGetComponent<UVTransformComponent>(entity)) {
+			payload.uvMatrix = uvTransform->uvMatrix;
+		}
 		// 個別マテリアルパラメータはコンポーネントのmapを指す、描画時に既定値へ重ねる
 		payload.materialOverrides = &renderer.parameterOverrides;
 		// 描画アイテムの構築

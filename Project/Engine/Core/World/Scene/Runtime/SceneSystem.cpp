@@ -258,5 +258,14 @@ bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& wor
 			}
 		}
 	}
+
+	// 全Prefab生成後に外部親参照を含む階層をまとめて解決する
+	std::vector<Entity> hierarchyScope;
+	hierarchyScope.reserve(world.GetRecordCount());
+	world.ForEachAliveEntity([&](Entity entity) {
+		hierarchyScope.emplace_back(entity);
+		});
+	HierarchySystem hierarchySystem{};
+	hierarchySystem.RebuildRuntimeLinks(world, hierarchyScope);
 	return true;
 }

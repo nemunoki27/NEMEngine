@@ -44,10 +44,7 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 	// パイプラインを解決する
 	const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass);
 
-	// 描画に使用するテクスチャを解決する
 	const SpriteRenderPayload* firstPayload = context.batch->GetPayload<SpriteRenderPayload>(*items.front());
-	const AssetID requestedTexture = firstPayload ? firstPayload->texture : AssetID{};
-	const GPUTextureResource* texture = BackendDrawCommon::ResolveTextureAsset(context, graphicsCore, requestedTexture);
 
 	// GPUリソースの更新
 	resources.UpdateView(*context.view);
@@ -79,20 +76,16 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(psInstSRVSlot_),
 				resources.GetInstancePSGPUAddress(), {});
 		}
-		// テクスチャはDescriptorHandle経由でバインドする
-		if (perDrawBindCache_.Has(textureSRVSlot_) && texture && texture->gpuHandle.ptr != 0) {
-			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(textureSRVSlot_),
-				0, texture->gpuHandle);
-		}
-		// overrides持ちはCanBatchで単独描画になるので先頭の上書きを使う、cbuffer無のBuiltinは無回帰
+		// overrides持ちはCanBatchで単独描画になるので先頭の上書きを使う
 		if (resolvedPass.material) {
 			BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, *pipelineState,
 				*resolvedPass.material, firstPayload ? firstPayload->materialOverrides : nullptr,
 				perDrawBindCache_, materialParamsCBVSlot_, commandList);
 		}
-		// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
+		// space2のマテリアルテクスチャをreflection駆動でバインドする
 		if (resolvedPass.material) {
-			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, *resolvedPass.material, commandList);
+			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, *resolvedPass.material,
+				commandList, firstPayload ? firstPayload->materialOverrides : nullptr);
 		}
 	}
 

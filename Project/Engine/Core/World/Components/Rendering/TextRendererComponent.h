@@ -8,7 +8,6 @@
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
-#include <Engine/Core/Foundation/Math/Vector4.h>
 
 // c++
 #include <string>
@@ -76,16 +75,8 @@ namespace Engine {
 		float charSpacing = 0.0f;
 		// ピボット、テキストブロックを正規化した0-1基準でこの点が原点に合う、スプライトと同じ扱い
 		Vector2 pivot = Vector2::AnyInit(0.0f);
-
-		// 色
-		Color4 color = Color4::White();
-
-		// アウトラインを有効にするか
-		bool enableOutline = false;
-		// アウトライン色
-		Color4 outlineColor = Color4::Black();
-		// アウトライン幅(ピクセル単位)
-		float outlineWidth = 2.0f;
+		// UVを文字ごとの0-1で扱うか
+		bool uvPerCharacter = true;
 
 		// 文字ごとのトランスフォーム、描画グリフ数に合わせて伸縮する
 		std::vector<TextCharTransform> charTransforms{};

@@ -65,7 +65,7 @@ bool Engine::DeleteEntityCommand::Execute(EditorCommandContext& context) {
 			return false;
 		}
 
-		// Prefab由来EntityはScene上で個別削除しない
+		// Prefab編集対象のルートは削除しない
 		if (!PrefabInstanceEditUtility::CanDelete(context.editorContext, *world, initialTarget_)) {
 			return false;
 		}

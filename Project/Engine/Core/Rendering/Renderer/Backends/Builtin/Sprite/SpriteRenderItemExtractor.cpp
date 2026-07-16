@@ -7,6 +7,32 @@
 #include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
 
 //============================================================================
+//	SpriteRenderItemExtractor internal
+//============================================================================
+namespace {
+
+	// baseColorTextureだけを上書きするSpriteは同じテクスチャごとにまとめる
+	uint64_t ResolveBatchKey(const Engine::Entity& entity,
+		const std::unordered_map<std::string, Engine::MaterialParameterValue>& parameters) {
+
+		if (parameters.empty()) {
+			return 0;
+		}
+		if (parameters.size() == 1) {
+
+			const auto textureIt = parameters.find("baseColorTexture");
+			if (textureIt != parameters.end()) {
+
+				if (const Engine::AssetID* textureID = std::get_if<Engine::AssetID>(&textureIt->second.value)) {
+					return textureID->value;
+				}
+			}
+		}
+		return (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
+	}
+}
+
+//============================================================================
 //	SpriteRenderItemExtractor classMethods
 //============================================================================
 void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch& batch) {
@@ -27,10 +53,8 @@ void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatc
 
 		// ペイロード構築
 		SpriteRenderPayload payload{};
-		payload.texture = renderer.texture;
 		payload.size = renderer.size;
 		payload.pivot = renderer.pivot;
-		payload.color = renderer.color;
 		payload.uvMatrix = uvMatrix;
 		// 個別マテリアルパラメータはコンポーネントのmapを指す、描画時に既定値へ重ねる
 		payload.materialOverrides = &renderer.parameterOverrides;
@@ -39,9 +63,8 @@ void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatc
 		RenderItemExtract::FillCommonFields(item, world, entity, renderer, RenderItemExtract::GetWorldMatrix(world, entity));
 		item.backendID = RenderBackendID::Sprite;
 		item.material = renderer.material;
-		// 個別マテリアルパラメータを持つアイテムは専用cbufferが要るので、エンティティ単位で一意化して単独描画にする
-		item.batchKey = renderer.parameterOverrides.empty() ? renderer.texture.value :
-			((static_cast<uint64_t>(entity.generation) << 32) | entity.index);
+		// baseColorTextureだけの上書きは同じテクスチャでまとめ、それ以外の上書きは単独描画にする
+		item.batchKey = ResolveBatchKey(entity, renderer.parameterOverrides);
 		item.cameraDomain = RenderCameraDomain::Orthographic;
 		item.payload = batch.PushPayload(payload);
 		// 描画アイテムをバッチに追加

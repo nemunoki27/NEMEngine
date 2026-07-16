@@ -581,8 +581,11 @@ void Engine::EngineApplication::SyncPrefabEditedEntities() {
 			hierarchySystem.SetParent(world, entity, stage.root);
 		}
 
-		// 新規作成された実体はプレファブメンバーとして登録し、水色表示と保存対象にする
-		if (!world.HasComponent<PrefabLinkComponent>(entity)) {
+		// 新規作成と追加Prefabの実体を編集中プレファブのメンバーへ揃える
+		const bool belongsToStage = world.HasComponent<PrefabLinkComponent>(entity) &&
+			world.GetComponent<PrefabLinkComponent>(entity).prefabAsset == stage.asset &&
+			world.GetComponent<PrefabLinkComponent>(entity).prefabInstanceID == rootInstanceID;
+		if (!belongsToStage) {
 
 			UUID prefabLocalFileID{};
 			if (world.HasComponent<SceneObjectComponent>(entity)) {
@@ -957,6 +960,8 @@ void Engine::EngineApplication::RefreshActiveWorldContext() {
 		editorContext_.isPrefabEditing = IsPrefabEditing();
 		editorContext_.prefabEditDepth = static_cast<int>(prefabStages_.size());
 		editorContext_.prefabEditName = prefabStages_.empty() ? std::string{} : prefabStages_.back().name;
+		editorContext_.prefabEditAsset = prefabStages_.empty() ? AssetID{} : prefabStages_.back().asset;
+		editorContext_.prefabEditInstanceID = prefabStages_.empty() ? UUID{} : prefabStages_.back().instanceID;
 		editorContext_.isPrefabInContext = !prefabStages_.empty() && prefabStages_.back().inContext;
 		editorContext_.prefabInContextInstanceID =
 			editorContext_.isPrefabInContext ? prefabStages_.back().instanceID : UUID{};

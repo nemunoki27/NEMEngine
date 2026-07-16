@@ -36,6 +36,8 @@ namespace PrefabReferenceRemapper {
 	// 差分値内のEntity参照をパス情報込みで変換する
 	void RemapValue(nlohmann::json& value, const std::string& path,
 		const LocalFileIDMap& localFileIDMap, ReferenceSpace referenceSpace, AssetID sourceAsset);
+	// Prefab内ジョイント接続の参照と通常階層を正規化する
+	void NormalizePrefabFileJointAttachments(nlohmann::json& prefabFileJson);
 	// 古いPrefabに残ったScriptRef参照をslot IDから復旧する
 	void RepairPrefabFileScriptRefs(nlohmann::json& prefabFileJson, AssetID prefabAsset);
 }

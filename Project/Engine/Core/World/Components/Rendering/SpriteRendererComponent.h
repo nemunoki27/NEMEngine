@@ -7,8 +7,6 @@
 #include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
-#include <Engine/Core/Foundation/Math/Vector4.h>
-#include <Engine/Core/Foundation/Math/Color.h>
 
 // c++
 #include <string>
@@ -22,8 +20,6 @@ namespace Engine {
 	// スプライト描画
 	struct SpriteRendererComponent {
 
-		// テクスチャ
-		AssetID texture{};
 		// マテリアル
 		AssetID material{};
 		// エンティティごとのマテリアルパラメータ
@@ -33,9 +29,6 @@ namespace Engine {
 		Vector2 size = Vector2::AnyInit(32.0f);
 		// ピボット、0.0～1.0の範囲で指定、0.5, 0.5が中心
 		Vector2 pivot = Vector2::AnyInit(0.5f);
-
-		// 色
-		Color4 color = Color4::White();
 
 		// 描画レイヤー
 		int32_t layer = 0;

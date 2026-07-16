@@ -9,7 +9,6 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
-#include <Engine/Core/Foundation/Math/Color.h>
 
 // c++
 #include <memory>
@@ -47,9 +46,6 @@ namespace Engine {
 	};
 	// ピクセルシェーダインスタンスデータ
 	struct SpritePSInstanceData {
-
-		// 色
-		Color4 color = Color4::White();
 
 		// UV行列
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();

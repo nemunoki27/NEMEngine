@@ -88,6 +88,49 @@ namespace {
 		return false;
 	}
 
+	template <typename Component>
+	bool GetMaterialColor(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
+
+		Component* renderer = world.TryGetComponent<Component>(entity);
+		if (!renderer) {
+			return false;
+		}
+
+		const auto it = renderer->parameterOverrides.find("color");
+		if (it == renderer->parameterOverrides.end()) {
+			out = Engine::Color4::White();
+			return true;
+		}
+		if (const Engine::Color4* color = std::get_if<Engine::Color4>(&it->second.value)) {
+			out = *color;
+			return true;
+		}
+		if (const Engine::Vector4* color = std::get_if<Engine::Vector4>(&it->second.value)) {
+			out = Engine::Color4(color->x, color->y, color->z, color->w);
+			return true;
+		}
+		if (const Engine::Vector3* color = std::get_if<Engine::Vector3>(&it->second.value)) {
+			out = Engine::Color4(color->x, color->y, color->z, 1.0f);
+			return true;
+		}
+		return false;
+	}
+
+	template <typename Component>
+	bool SetMaterialColor(Engine::ECSWorld& world, const Engine::Entity& entity,
+		const Engine::AnimationPropertyValue& value) {
+
+		Engine::Color4 color{};
+		if (!ReadVariant(value, color)) {
+			return false;
+		}
+		if (Component* renderer = world.TryGetComponent<Component>(entity)) {
+			renderer->parameterOverrides["color"].value = color;
+			return true;
+		}
+		return false;
+	}
+
 	//============================================================================
 	//	TransformComponent
 	//============================================================================
@@ -276,27 +319,6 @@ namespace {
 		}
 		return false;
 	}
-	bool GetSpriteColor(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
-
-		if (Engine::SpriteRendererComponent* renderer = world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
-			out = renderer->color;
-			return true;
-		}
-		return false;
-	}
-	bool SetSpriteColor(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
-
-		Engine::Color4 typed{};
-		if (!ReadVariant(value, typed)) {
-			return false;
-		}
-		if (Engine::SpriteRendererComponent* renderer = world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
-			renderer->color = typed;
-			return true;
-		}
-		return false;
-	}
-
 	//============================================================================
 	//	TextRendererComponent
 	//============================================================================
@@ -527,7 +549,8 @@ void Engine::RegisterBuiltinAnimationProperties() {
 		Register(registry, "SpriteRenderer", "pivot", "SpriteRenderer.pivot", AnimationValueType::Vector2,
 			HasComponent<SpriteRendererComponent>, GetSpritePivot, SetSpritePivot);
 		Register(registry, "SpriteRenderer", "color", "SpriteRenderer.color", AnimationValueType::Color4,
-			HasComponent<SpriteRendererComponent>, GetSpriteColor, SetSpriteColor);
+			HasComponent<SpriteRendererComponent>, GetMaterialColor<SpriteRendererComponent>,
+			SetMaterialColor<SpriteRendererComponent>);
 	}
 	//============================================================================
 	//	TextRendererComponent
@@ -543,8 +566,7 @@ void Engine::RegisterBuiltinAnimationProperties() {
 			SetTextLayoutMember<float, &TextRendererComponent::charSpacing>);
 		Register(registry, "TextRenderer", "color", "TextRenderer.color", AnimationValueType::Color4,
 			HasComponent<TextRendererComponent>,
-			GetMember<TextRendererComponent, Color4, &TextRendererComponent::color>,
-			SetMember<TextRendererComponent, Color4, &TextRendererComponent::color>);
+			GetMaterialColor<TextRendererComponent>, SetMaterialColor<TextRendererComponent>);
 	}
 	//============================================================================
 	//	LightComponents
