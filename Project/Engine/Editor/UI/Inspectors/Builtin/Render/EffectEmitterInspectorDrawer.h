@@ -4,25 +4,25 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/SerializedComponentInspectorDrawer.h>
-#include <Engine/Core/World/Components/Rendering/ParticleEmitterComponent.h>
+#include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
 
 namespace Engine {
 
 	//============================================================================
-	//	ParticleEmitterInspectorDrawer class
-	//	ParticleEmitterComponentのインスペクター描画
+	//	EffectEmitterInspectorDrawer class
+	//	EffectEmitterComponentのインスペクター描画
 	//============================================================================
-	class ParticleEmitterInspectorDrawer :
-		public SerializedComponentInspectorDrawer<ParticleEmitterComponent> {
+	class EffectEmitterInspectorDrawer :
+		public SerializedComponentInspectorDrawer<EffectEmitterComponent> {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
 
-		ParticleEmitterInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Particle Emitter", "ParticleEmitter") {
+		EffectEmitterInspectorDrawer() :
+			SerializedComponentInspectorDrawer("Effect Emitter", "EffectEmitter") {
 		}
-		~ParticleEmitterInspectorDrawer() = default;
+		~EffectEmitterInspectorDrawer() = default;
 	private:
 		//============================================================================
 		//	private Methods
@@ -32,5 +32,7 @@ namespace Engine {
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, bool& anyItemActive) override;
+		void ApplyPreview(ECSWorld& world, const Entity& entity,
+			const EffectEmitterComponent& previewComponent) override;
 	};
 } // Engine

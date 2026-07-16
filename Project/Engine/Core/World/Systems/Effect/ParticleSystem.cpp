@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/World/Components/Rendering/ParticleEmitterComponent.h>
+#include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
@@ -125,6 +125,33 @@ namespace {
 		particle.parentIsEmitter = false;
 		particle.hasParent = false;
 	}
+
+	// 再生中の全発生処理を止める
+	void StopPlayback(Engine::EffectEmitterPlaybackRuntime& playback) {
+
+		playback.stopped = true;
+		for (Engine::EffectEmitterStateRuntime& state : playback.states) {
+
+			state.scheduleFinished = true;
+			for (Engine::ParticleEffectInstanceRuntime& effect : state.effects) {
+				effect.emissionStopped = true;
+			}
+		}
+	}
+
+	// 再生基準行列を作る
+	Engine::Matrix4x4 BuildPlaybackAnchor(Engine::ECSWorld& world, const Engine::Entity& entity,
+		const Engine::EffectEmitterPlaybackRuntime& playback) {
+
+		if (playback.fixedAnchor) {
+			return Engine::Matrix4x4::MakeAffineMatrix(Engine::Vector3::AnyInit(1.0f),
+				playback.fixedRotation, playback.fixedPosition);
+		}
+		if (const auto* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
+			return transform->worldMatrix;
+		}
+		return Engine::Matrix4x4::Identity();
+	}
 }
 
 //============================================================================
@@ -139,92 +166,201 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 		reloadCheckTimer_ = 0.0f;
 	}
 
-	world.ForEach<ParticleEmitterComponent>([&](const Entity& entity, ParticleEmitterComponent& emitter) {
+	world.ForEach<EffectEmitterComponent>([&](const Entity& entity, EffectEmitterComponent& emitter) {
 
-		const AssetID effectID = emitter.effect ? emitter.effect : BuiltinAssets::Effects::DefaultParticle;
-		if (emitter.runtimeEffectID != effectID) {
+		const bool canPlay = context.mode == WorldMode::Play || emitter.playInEditMode;
+		if (!emitter.runtimeStarted) {
 
-			emitter.runtimeEffectID = effectID;
-			emitter.runtimeEffectRevision = 0;
-			emitter.runtimeGroups.clear();
-			emitter.runtimeGroupEmitTimer = 0.0f;
-			emitter.runtimeGroupEmitted = false;
-		}
-		const EffectRuntime* effect = ResolveEffect(context, effectID, checkReload);
-		if (!effect) {
-			emitter.runtimeGroups.clear();
-			return;
-		}
-
-		const ParticleEffectAsset& asset = effect->asset;
-		emitter.runtimeSpace = asset.space;
-		const bool restartRequested = emitter.runtimeRestartRequested;
-		if (restartRequested) {
-
-			emitter.runtimeGroups.clear();
-			emitter.runtimeGroupEmitTimer = 0.0f;
-			emitter.runtimeGroupEmitted = false;
-		}
-		SynchronizeRuntimeGroups(emitter, *effect);
-		if (restartRequested) {
-
-			RestartEmitter(emitter, asset);
-			emitter.runtimeRestartRequested = false;
-		} else if (emitter.runtimeGroupEmissionMode != asset.groupEmission.mode) {
-
-			emitter.runtimeGroupEmissionMode = asset.groupEmission.mode;
-			emitter.runtimeGroupEmitTimer = 0.0f;
-			emitter.runtimeGroupEmitted = false;
-			for (ParticleGroupRuntimeState& state : emitter.runtimeGroups) {
-
-				state.time = 0.0f;
-				state.emitTimer = 0.0f;
+			emitter.runtimeStarted = true;
+			if (emitter.enabled && emitter.playOnStart && canPlay) {
+				emitter.Emit();
 			}
 		}
+		ProcessCommands(emitter);
 
-		// 更新を行うか、Play中はTimeScale適用済みのdeltaTime、EditのプレビューはTimeScale非適用のリアル時間を使う
-		const bool allowTimeAdvance = emitter.playing && (context.mode == WorldMode::Play || emitter.playInEditMode);
-		const float deltaTime = (context.mode == WorldMode::Play) ? context.deltaTime : context.unscaledDeltaTime;
-		const bool updateSimulation = allowTimeAdvance && 0.0f < deltaTime;
-		const bool simultaneousEmit = updateSimulation && UpdateGroupEmission(emitter, asset, deltaTime);
-		for (size_t i = 0; i < asset.groups.size(); ++i) {
+		const float deltaTime = context.mode == WorldMode::Play ? context.deltaTime : context.unscaledDeltaTime;
+		const bool updateSimulation = canPlay && 0.0f < deltaTime;
+		for (auto playbackIt = emitter.runtimePlaybacks.begin(); playbackIt != emitter.runtimePlaybacks.end();) {
 
-			ParticleGroupRuntimeState& state = emitter.runtimeGroups[i];
-			const ParticleEffectGroup& group = asset.groups[i];
-			if (!group.enabled) {
+			EffectEmitterPlaybackRuntime& playback = *playbackIt;
+			const Matrix4x4 anchor = BuildPlaybackAnchor(world, entity, playback);
+			for (EffectEmitterStateRuntime& state : playback.states) {
 
-				state.particles.clear();
-				state.trails.clear();
-				continue;
+				if (updateSimulation && emitter.enabled && !playback.stopped && !state.scheduleFinished) {
+					UpdateStateSchedule(emitter, state, deltaTime);
+				}
+				const Matrix4x4 local = Matrix4x4::MakeAffineMatrix(
+					state.state.localScale, state.state.localRotation, state.state.localPosition);
+				const Matrix4x4 emitterWorld = local * anchor;
+				for (auto effectIt = state.effects.begin(); effectIt != state.effects.end();) {
+
+					const bool emissionEnabled = emitter.enabled && !playback.stopped && !effectIt->emissionStopped;
+					if (UpdateEffectInstance(world, *effectIt, emitterWorld, context,
+						deltaTime, updateSimulation, emissionEnabled,
+						emitter.drawEmitterShape, checkReload)) {
+						effectIt = state.effects.erase(effectIt);
+					} else {
+						++effectIt;
+					}
+				}
+				if (state.state.mode == EffectEmitterMode::Continuous &&
+					0 < state.emittedCount && state.effects.empty()) {
+					state.scheduleFinished = true;
+				}
 			}
-			UpdateGroup(world, entity, state, asset, group, effect->groups[i],
-				deltaTime, updateSimulation, simultaneousEmit,
-				emitter.runtimeOneShot, emitter.drawEmitterShape);
+
+			const bool finished = std::all_of(playback.states.begin(), playback.states.end(),
+				[](const EffectEmitterStateRuntime& state) {
+					return state.scheduleFinished && state.effects.empty();
+				});
+			if (finished) {
+				playbackIt = emitter.runtimePlaybacks.erase(playbackIt);
+			} else {
+				++playbackIt;
+			}
 		}
 		});
 }
 
-void Engine::ParticleSystem::SynchronizeRuntimeGroups(
-	ParticleEmitterComponent& emitter, const EffectRuntime& effect) const {
+void Engine::ParticleSystem::ProcessCommands(EffectEmitterComponent& emitter) const {
 
-	bool matched = emitter.runtimeGroups.size() == effect.asset.groups.size();
-	for (size_t i = 0; matched && i < effect.asset.groups.size(); ++i) {
-		matched = emitter.runtimeGroups[i].groupID == effect.asset.groups[i].id;
+	std::vector<EffectEmitterCommand> commands = std::move(emitter.runtimeCommands);
+	emitter.runtimeCommands.clear();
+	for (const EffectEmitterCommand& command : commands) {
+
+		switch (command.type) {
+		case EffectEmitterCommandType::Emit: {
+
+			if (!emitter.enabled) { break; }
+			const auto found = std::find_if(emitter.groups.begin(), emitter.groups.end(),
+				[&](const EffectEmitterGroup& group) { return group.name == command.groupName; });
+			if (found == emitter.groups.end()) { break; }
+
+			EffectEmitterPlaybackRuntime playback{};
+			playback.id = command.playbackID;
+			playback.groupName = found->name;
+			playback.fixedAnchor = command.fixedAnchor;
+			playback.fixedPosition = command.position;
+			playback.fixedRotation = command.rotation;
+			for (const EffectEmitterState& state : found->states) {
+
+				if (!state.enabled) { continue; }
+				EffectEmitterStateRuntime runtime{};
+				runtime.state = state;
+				playback.states.emplace_back(std::move(runtime));
+			}
+			if (!playback.states.empty()) {
+				emitter.runtimePlaybacks.emplace_back(std::move(playback));
+			}
+			break;
+		}
+		case EffectEmitterCommandType::StopHandle:
+			for (EffectEmitterPlaybackRuntime& playback : emitter.runtimePlaybacks) {
+				if (playback.id == command.playbackID) { StopPlayback(playback); }
+			}
+			break;
+		case EffectEmitterCommandType::StopGroup:
+			for (EffectEmitterPlaybackRuntime& playback : emitter.runtimePlaybacks) {
+				if (playback.groupName == command.groupName) { StopPlayback(playback); }
+			}
+			break;
+		case EffectEmitterCommandType::StopAll:
+			for (EffectEmitterPlaybackRuntime& playback : emitter.runtimePlaybacks) {
+				StopPlayback(playback);
+			}
+			break;
+		case EffectEmitterCommandType::ClearHandle:
+			std::erase_if(emitter.runtimePlaybacks, [&](const EffectEmitterPlaybackRuntime& playback) {
+				return playback.id == command.playbackID;
+				});
+			break;
+		case EffectEmitterCommandType::ClearGroup:
+			std::erase_if(emitter.runtimePlaybacks, [&](const EffectEmitterPlaybackRuntime& playback) {
+				return playback.groupName == command.groupName;
+				});
+			break;
+		case EffectEmitterCommandType::ClearAll:
+			emitter.runtimePlaybacks.clear();
+			break;
+		}
 	}
-	if (matched && emitter.runtimeEffectRevision == effect.revision) { return; }
+}
+
+void Engine::ParticleSystem::UpdateStateSchedule(EffectEmitterComponent& emitter,
+	EffectEmitterStateRuntime& state, float deltaTime) const {
+
+	state.time += deltaTime;
+	switch (state.state.mode) {
+	case EffectEmitterMode::Once:
+
+		if (state.emittedCount == 0 && state.state.delay <= state.time) {
+			AddEffectInstance(emitter, state, true);
+			state.emittedCount = 1;
+			state.scheduleFinished = true;
+		}
+		break;
+	case EffectEmitterMode::Continuous: {
+
+		bool startedThisFrame = false;
+		if (state.emittedCount == 0 && state.state.delay <= state.time) {
+			AddEffectInstance(emitter, state, false);
+			state.emittedCount = 1;
+			startedThisFrame = true;
+		}
+		if (!startedThisFrame && 0.0f < state.state.duration &&
+			state.state.delay + state.state.duration <= state.time) {
+			state.scheduleFinished = true;
+			for (ParticleEffectInstanceRuntime& effect : state.effects) {
+				effect.emissionStopped = true;
+			}
+		}
+		break;
+	}
+	case EffectEmitterMode::Count:
+
+		while (state.emittedCount < state.state.count &&
+			state.state.delay + state.state.interval * static_cast<float>(state.emittedCount) <= state.time) {
+
+			AddEffectInstance(emitter, state, true);
+			++state.emittedCount;
+		}
+		state.scheduleFinished = state.state.count <= state.emittedCount;
+		break;
+	}
+}
+
+void Engine::ParticleSystem::AddEffectInstance(EffectEmitterComponent& emitter,
+	EffectEmitterStateRuntime& state, bool oneShot) const {
+
+	ParticleEffectInstanceRuntime instance{};
+	instance.id = emitter.runtimeNextEffectInstanceID++;
+	if (instance.id == 0) { instance.id = emitter.runtimeNextEffectInstanceID++; }
+	instance.effect = state.state.effect;
+	instance.oneShot = oneShot;
+	state.effects.emplace_back(std::move(instance));
+}
+
+void Engine::ParticleSystem::SynchronizeRuntimeGroups(
+	ParticleEffectInstanceRuntime& instance, const EffectRuntime& effect) const {
+
+	bool matched = instance.runtimeGroups.size() == effect.asset.groups.size();
+	for (size_t i = 0; matched && i < effect.asset.groups.size(); ++i) {
+		matched = instance.runtimeGroups[i].groupID == effect.asset.groups[i].id;
+	}
+	if (matched && instance.runtimeEffectRevision == effect.revision) { return; }
 	if (matched) {
 
 		for (size_t i = 0; i < effect.asset.groups.size(); ++i) {
-			emitter.runtimeGroups[i].renderSettings =
+			instance.runtimeGroups[i].renderSettings =
 				MakeParticleRenderSettings(effect.asset.space, effect.asset.groups[i]);
 		}
-		emitter.runtimeEffectRevision = effect.revision;
+		instance.runtimeEffectRevision = effect.revision;
 		return;
 	}
 
-	std::vector<ParticleGroupRuntimeState> previous = std::move(emitter.runtimeGroups);
-	emitter.runtimeGroups.clear();
-	emitter.runtimeGroups.reserve(effect.asset.groups.size());
+	std::vector<ParticleGroupRuntimeState> previous = std::move(instance.runtimeGroups);
+	instance.runtimeGroups.clear();
+	instance.runtimeGroups.reserve(effect.asset.groups.size());
 	for (const ParticleEffectGroup& group : effect.asset.groups) {
 
 		auto it = std::find_if(previous.begin(), previous.end(), [&](const ParticleGroupRuntimeState& state) {
@@ -232,80 +368,149 @@ void Engine::ParticleSystem::SynchronizeRuntimeGroups(
 			});
 		if (it != previous.end()) {
 
-			emitter.runtimeGroups.emplace_back(std::move(*it));
+			instance.runtimeGroups.emplace_back(std::move(*it));
 			previous.erase(it);
 		} else {
 			ParticleGroupRuntimeState state{};
 			state.groupID = group.id;
-			emitter.runtimeGroups.emplace_back(std::move(state));
+			instance.runtimeGroups.emplace_back(std::move(state));
 		}
-		emitter.runtimeGroups.back().renderSettings = MakeParticleRenderSettings(effect.asset.space, group);
+		instance.runtimeGroups.back().renderSettings = MakeParticleRenderSettings(effect.asset.space, group);
 	}
-	emitter.runtimeEffectRevision = effect.revision;
+	instance.runtimeEffectRevision = effect.revision;
 }
 
-void Engine::ParticleSystem::RestartEmitter(
-	ParticleEmitterComponent& emitter, const ParticleEffectAsset& asset) const {
+void Engine::ParticleSystem::RestartEffectInstance(
+	ParticleEffectInstanceRuntime& instance, const ParticleEffectAsset& asset) const {
 
-	emitter.runtimeGroupEmissionMode = asset.groupEmission.mode;
-	emitter.runtimeGroupEmitTimer = (std::max)(0.0f, asset.groupEmission.interval);
-	emitter.runtimeGroupEmitted = false;
-	for (size_t i = 0; i < emitter.runtimeGroups.size(); ++i) {
+	instance.runtimeGroupEmissionMode = asset.groupEmission.mode;
+	instance.runtimeGroupEmitTimer = (std::max)(0.0f, asset.groupEmission.interval);
+	instance.runtimeGroupEmitted = false;
+	for (size_t i = 0; i < instance.runtimeGroups.size(); ++i) {
 
-		ParticleGroupRuntimeState& state = emitter.runtimeGroups[i];
+		ParticleGroupRuntimeState& state = instance.runtimeGroups[i];
 		state.time = 0.0f;
 		state.emitTimer = i < asset.groups.size() ?
 			(std::max)(0.0f, asset.groups[i].emitter.emitInterval) : 0.0f;
 	}
 }
 
-bool Engine::ParticleSystem::UpdateGroupEmission(ParticleEmitterComponent& emitter,
-	const ParticleEffectAsset& asset, float deltaTime) const {
+bool Engine::ParticleSystem::UpdateGroupEmission(ParticleEffectInstanceRuntime& instance,
+	const ParticleEffectAsset& asset, float deltaTime, bool emissionEnabled) const {
+
+	if (!emissionEnabled) { return false; }
 
 	if (asset.groupEmission.mode != ParticleEffectGroupEmissionMode::Simultaneous) {
 
-		emitter.runtimeGroupEmitTimer = 0.0f;
-		emitter.runtimeGroupEmitted = false;
+		instance.runtimeGroupEmitTimer = 0.0f;
+		instance.runtimeGroupEmitted = false;
 		return false;
 	}
-	if (emitter.runtimeOneShot && emitter.runtimeGroupEmitted) {
+	if (instance.oneShot && instance.runtimeGroupEmitted) {
 		return false;
 	}
 	if (asset.groupEmission.waitForCompletion) {
 		for (size_t i = 0; i < asset.groups.size(); ++i) {
 
 			if (!asset.groups[i].enabled) { continue; }
-			const ParticleGroupRuntimeState& state = emitter.runtimeGroups[i];
+			const ParticleGroupRuntimeState& state = instance.runtimeGroups[i];
 			if (!state.particles.empty() || !state.trails.empty()) { return false; }
 		}
 	}
 
-	emitter.runtimeGroupEmitTimer += deltaTime;
-	if (emitter.runtimeGroupEmitTimer < (std::max)(0.0f, asset.groupEmission.interval)) {
+	instance.runtimeGroupEmitTimer += deltaTime;
+	if (instance.runtimeGroupEmitTimer < (std::max)(0.0f, asset.groupEmission.interval)) {
 		return false;
 	}
-	emitter.runtimeGroupEmitTimer = 0.0f;
-	emitter.runtimeGroupEmitted = true;
+	instance.runtimeGroupEmitTimer = 0.0f;
+	instance.runtimeGroupEmitted = true;
 	return true;
 }
 
-void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Entity& entity,
+bool Engine::ParticleSystem::UpdateEffectInstance(ECSWorld& world,
+	ParticleEffectInstanceRuntime& instance, const Matrix4x4& emitterWorld,
+	SystemContext& context, float deltaTime, bool updateSimulation,
+	bool emissionEnabled, bool drawEmitterShape, bool checkReload) {
+
+	const AssetID effectID = instance.effect ? instance.effect : BuiltinAssets::Effects::DefaultParticle;
+	if (instance.runtimeEffectID != effectID) {
+
+		instance.runtimeEffectID = effectID;
+		instance.runtimeEffectRevision = 0;
+		instance.runtimeGroups.clear();
+	}
+	const EffectRuntime* effect = ResolveEffect(context, effectID, checkReload);
+	if (!effect) {
+		return true;
+	}
+
+	const ParticleEffectAsset& asset = effect->asset;
+	instance.runtimeSpace = asset.space;
+	const bool newRuntime = instance.runtimeGroups.empty();
+	SynchronizeRuntimeGroups(instance, *effect);
+	if (newRuntime) {
+		RestartEffectInstance(instance, asset);
+	} else if (instance.runtimeGroupEmissionMode != asset.groupEmission.mode) {
+
+		RestartEffectInstance(instance, asset);
+	}
+
+	const bool simultaneousEmit = updateSimulation &&
+		UpdateGroupEmission(instance, asset, deltaTime, emissionEnabled);
+	for (size_t i = 0; i < asset.groups.size(); ++i) {
+
+		ParticleGroupRuntimeState& state = instance.runtimeGroups[i];
+		const ParticleEffectGroup& group = asset.groups[i];
+		if (!group.enabled) {
+
+			state.particles.clear();
+			state.trails.clear();
+			continue;
+		}
+		UpdateGroup(world, emitterWorld, state, asset, group, effect->groups[i],
+			deltaTime, updateSimulation, simultaneousEmit, emissionEnabled,
+			instance.oneShot, drawEmitterShape);
+	}
+
+	const bool hasRenderData = std::any_of(instance.runtimeGroups.begin(), instance.runtimeGroups.end(),
+		[](const ParticleGroupRuntimeState& state) {
+			return !state.particles.empty() || !state.trails.empty();
+		});
+	if (hasRenderData) { return false; }
+	if (instance.emissionStopped) { return true; }
+	if (asset.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous) {
+		return instance.oneShot && instance.runtimeGroupEmitted;
+	}
+	for (size_t i = 0; i < asset.groups.size(); ++i) {
+
+		const ParticleEffectGroup& group = asset.groups[i];
+		if (!group.enabled) { continue; }
+		if (!instance.oneShot && group.looping) { return false; }
+		if (instance.runtimeGroups[i].time < group.duration) { return false; }
+	}
+	return true;
+}
+
+void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Matrix4x4& emitterWorld,
 	ParticleGroupRuntimeState& state, const ParticleEffectAsset& asset,
 	const ParticleEffectGroup& group, const GroupRuntime& runtime,
-	float deltaTime, bool allowTimeAdvance, bool simultaneousEmit,
+	float deltaTime, bool updateSimulation, bool simultaneousEmit, bool emissionEnabled,
 	bool oneShot, bool drawEmitterShape) {
 
 	parentRuntimes_.assign(runtime.phases.size(), ParentRuntime{});
-	ResolveParticleParents(world, entity, runtime, parentRuntimes_);
+	ResolveParticleParents(world, emitterWorld, runtime, parentRuntimes_);
 	const std::vector<ParentRuntime>& parents = parentRuntimes_;
-	if (!allowTimeAdvance) {
+	if (!updateSimulation) {
 
 		UpdateParticleParents(state.particles, runtime, parents);
+		if (drawEmitterShape) {
+			DrawEmitterShape(emitterWorld, group.emitter, asset.space == PrimitiveRenderSpace::Screen2D);
+		}
 		return;
 	}
 
-	bool emitAllowed = asset.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous ?
-		simultaneousEmit : true;
+	bool emitAllowed = emissionEnabled &&
+		(asset.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous ? simultaneousEmit : true);
 	if (asset.groupEmission.mode == ParticleEffectGroupEmissionMode::Independent) {
 
 		if (group.looping && !oneShot) {
@@ -314,7 +519,7 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Entity& entity,
 			if (0.0f < group.duration) { state.time = std::fmod(state.time, group.duration); }
 		} else {
 
-			emitAllowed = state.time < group.duration;
+			emitAllowed = emissionEnabled && state.time < group.duration;
 			state.time += deltaTime;
 		}
 	}
@@ -407,10 +612,6 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Entity& entity,
 				asset.space == PrimitiveRenderSpace::Screen2D, state.nextParticleID);
 
 			// エミッターのワールド行列で発生位置と速度を変換する
-			Matrix4x4 emitterWorld = Matrix4x4::Identity();
-			if (const auto* transform = world.TryGetComponent<TransformComponent>(entity)) {
-				emitterWorld = transform->worldMatrix;
-			}
 			const bool hasSpawnBatch = firstPhase.hasSpawnBatch || firstPhase.hasUpdateBatch;
 			if (hasSpawnBatch) {
 
@@ -446,14 +647,14 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Entity& entity,
 
 	// トレイルの軌跡点をワールド空間で記録する
 	if (group.trail.enabled) {
-		RecordTrails(world, entity, state, group.trail, deltaTime);
+		RecordTrails(state, group.trail, deltaTime);
 	} else if (!state.trails.empty()) {
 		state.trails.clear();
 	}
 
 	// エミッター形状のデバッグ描画
 	if (drawEmitterShape) {
-		DrawEmitterShape(world, entity, group.emitter, asset.space == PrimitiveRenderSpace::Screen2D);
+		DrawEmitterShape(emitterWorld, group.emitter, asset.space == PrimitiveRenderSpace::Screen2D);
 	}
 }
 
@@ -702,8 +903,9 @@ void Engine::ParticleSystem::UpdateParticleParents(std::vector<Particle>& partic
 	}
 }
 
-void Engine::ParticleSystem::ResolveParticleParents(ECSWorld& world, const Entity& emitterEntity,
-	const GroupRuntime& group, std::vector<ParentRuntime>& outParents) const {
+void Engine::ParticleSystem::ResolveParticleParents(ECSWorld& world, const Matrix4x4& emitterWorld,
+	const GroupRuntime& group,
+	std::vector<ParentRuntime>& outParents) const {
 
 	constexpr float kMinScale = 1.0e-6f;
 	for (size_t i = 0; i < group.phases.size(); ++i) {
@@ -712,20 +914,18 @@ void Engine::ParticleSystem::ResolveParticleParents(ECSWorld& world, const Entit
 		if (!settings.HasParent()) {
 			continue;
 		}
-		Entity parentEntity = emitterEntity;
+		Matrix4x4 parentWorld = emitterWorld;
 		if (!settings.useEmitter) {
-			parentEntity = SceneObjectUtility::FindByLocalFileID(world, settings.entityLocalFileID);
-		}
-		if (!world.IsAlive(parentEntity)) {
-			continue;
-		}
-		const TransformComponent* transform = world.TryGetComponent<TransformComponent>(parentEntity);
-		if (!transform) {
-			continue;
+
+			const Entity parentEntity = SceneObjectUtility::FindByLocalFileID(world, settings.entityLocalFileID);
+			if (!world.IsAlive(parentEntity)) { continue; }
+			const TransformComponent* transform = world.TryGetComponent<TransformComponent>(parentEntity);
+			if (!transform) { continue; }
+			parentWorld = transform->worldMatrix;
 		}
 
 		ParentRuntime& parent = outParents[i];
-		parent.matrix = BuildParentFollowMatrix(transform->worldMatrix,
+		parent.matrix = BuildParentFollowMatrix(parentWorld,
 			settings.ignoreParentScale, settings.ignoreParentRotation);
 		if (!DecomposeParentMatrix(parent.matrix, parent.rotation, parent.scale) ||
 			std::abs(parent.scale.x) <= kMinScale ||
@@ -779,7 +979,7 @@ void Engine::ParticleSystem::InitEmitterParticles(std::span<Particle> newborn,
 	}
 }
 
-void Engine::ParticleSystem::DrawEmitterShape(ECSWorld& world, const Entity& entity,
+void Engine::ParticleSystem::DrawEmitterShape(const Matrix4x4& emitterWorld,
 	const ParticleEmitterSettings& settings, bool is2D) const {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 
@@ -791,11 +991,8 @@ void Engine::ParticleSystem::DrawEmitterShape(ECSWorld& world, const Entity& ent
 	// エミッターのワールド位置と回転を取り出す
 	Vector3 center = Vector3::AnyInit(0.0f);
 	Quaternion rotation = Quaternion::Identity();
-	if (const auto* transform = world.TryGetComponent<TransformComponent>(entity)) {
-
-		Vector3 scale{};
-		DecomposeAffine3D(transform->worldMatrix, center, rotation, scale);
-	}
+	Vector3 scale{};
+	DecomposeAffine3D(emitterWorld, center, rotation, scale);
 	LineRenderer3D* renderer = nullptr;
 	if (!is2D) {
 		renderer = LineRenderer::GetInstance()->Get3D();
@@ -810,8 +1007,8 @@ void Engine::ParticleSystem::DrawEmitterShape(ECSWorld& world, const Entity& ent
 #endif
 }
 
-void Engine::ParticleSystem::RecordTrails([[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
-	ParticleGroupRuntimeState& state, const ParticleTrailSettings& trail, float deltaTime) {
+void Engine::ParticleSystem::RecordTrails(ParticleGroupRuntimeState& state,
+	const ParticleTrailSettings& trail, float deltaTime) {
 
 	// 生存粒子のIDを収集する
 	aliveTrailIDs_.clear();

@@ -144,6 +144,24 @@
       ]
     },
     {
+      "registryName": "EffectEmitter",
+      "nativeType": "EffectEmitterComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/EffectEmitterComponent.h",
+      "managedType": "EffectEmitter",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "DefaultGroup", "nativeMember": "defaultGroup", "kind": "String", "access": "ReadWrite" },
+        { "managedName": "PlayOnStart", "nativeMember": "playOnStart", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "PlayInEditMode", "nativeMember": "playInEditMode", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "DrawEmitterShape", "nativeMember": "drawEmitterShape", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "Layer", "nativeMember": "layer", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Order", "nativeMember": "order", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Visible", "nativeMember": "visible", "kind": "Bool", "access": "ReadWrite" }
+      ]
+    },
+    {
       "registryName": "SpriteRenderer",
       "nativeType": "SpriteRendererComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/SpriteRendererComponent.h",

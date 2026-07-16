@@ -19,23 +19,25 @@ Engine::BehaviorHandle Engine::BehaviorWorld::Create(uint32_t typeID, const Enti
 
 	// レコード情報を初期化する
 	BehaviorRecord& record = records_[handle.index];
+	const uint32_t generation = record.generation;
+	record = BehaviorRecord{};
+	record.generation = generation;
+
+	// ビヘイビアの実体を生成する
+	const BehaviorTypeInfo& info = BehaviorTypeRegistry::GetInstance().GetInfo(typeID);
+	record.instance = info.construct ? info.construct() : nullptr;
+	if (!record.instance) {
+		free_.emplace_back(handle.index);
+		return BehaviorHandle::Null();
+	}
+
 	record.alive = true;
 	record.owner = owner;
-	record.enabled = false;
-	record.awakeCalled = false;
-	record.startCalled = false;
-	record.faulted = false;
-	record.seen = false;
-	record.appliedSerializedRevision = 0xFFFFFFFF;
 	record.typeID = typeID;
 
 	// ハンドルの世代をレコードの世代と合わせる
 	handle.generation = record.generation;
 	ownerToRecords_[MakeOwnerKey(owner)].emplace_back(handle.index);
-
-	// ビヘイビアの実体を生成する
-	const BehaviorTypeInfo& info = BehaviorTypeRegistry::GetInstance().GetInfo(typeID);
-	record.instance = info.construct ? info.construct() : nullptr;
 	return handle;
 }
 
@@ -169,18 +171,11 @@ void Engine::BehaviorWorld::DestroyIndex(uint32_t index, ECSWorld& world, const 
 		}
 	}
 
-	// レコードを初期化して空きIDのスタックに戻す
-	record.instance.reset();
-	record.owner = Entity::Null();
-	record.enabled = false;
-	record.awakeCalled = false;
-	record.startCalled = false;
-	record.faulted = false;
-	record.seen = false;
-	record.appliedSerializedRevision = 0xFFFFFFFF;
-	record.alive = false;
 	// 世代をインクリメントして古いハンドルを無効にする
-	++record.generation;
+	const uint32_t generation = record.generation + 1;
+	// レコードを初期化して空きIDのスタックに戻す
+	record = BehaviorRecord{};
+	record.generation = generation;
 	free_.emplace_back(index);
 
 	auto ownerIt = ownerToRecords_.find(MakeOwnerKey(owner));

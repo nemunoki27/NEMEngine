@@ -283,17 +283,17 @@
       "tests": ["CollisionCallbackSmoke"]
     },
     {
-      "nativeName": "ParticleEmitter",
-      "exposure": "InternalOnly",
-      "managedSurface": "",
-      "reason": "パーティクルエフェクトの再生。C# 公開はエフェクトシステムの機能が固まってから再判断。",
-      "readableFields": [],
-      "writableFields": [],
-      "commands": [],
+      "nativeName": "EffectEmitter",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.EffectEmitter",
+      "reason": "名前付きグループの独立再生と再生ハンドル制御をgenerated propertyとgameplay methodで公開。",
+      "readableFields": ["Enabled", "DefaultGroup", "PlayOnStart", "PlayInEditMode", "DrawEmitterShape", "Layer", "Order", "Visible"],
+      "writableFields": ["Enabled", "DefaultGroup", "PlayOnStart", "PlayInEditMode", "DrawEmitterShape", "Layer", "Order", "Visible"],
+      "commands": ["Emit", "EmitAt", "Stop", "Clear", "IsPlaying"],
       "events": [],
       "serialization": "component JSON",
       "inspector": "builtin inspector",
-      "runtime": "ParticleSystem がエフェクトアセットのモジュールで粒子を更新",
+      "runtime": "ParticleSystem が再生ハンドルごとにエフェクトアセットのモジュールで粒子を更新",
       "tests": []
     },
     {

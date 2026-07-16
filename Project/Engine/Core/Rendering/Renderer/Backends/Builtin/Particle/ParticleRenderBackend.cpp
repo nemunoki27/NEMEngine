@@ -15,7 +15,7 @@
 #include <Engine/Core/Rendering/Particle/Parametric/ParticleParametricShapeRegistry.h>
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
-#include <Engine/Core/World/Components/Rendering/ParticleEmitterComponent.h>
+#include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/BillboardComponent.h>
 

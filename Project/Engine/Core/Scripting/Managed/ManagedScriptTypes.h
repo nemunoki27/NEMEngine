@@ -39,7 +39,8 @@ namespace Engine {
 	// v22: AddComponent<Script>用にowner EntityへscriptTypeIDのscriptをruntime attachするattachScriptを追加
 	// v23: イージング関数のeasedValueを追加、EasingTypeとtからイージング済みの値を返す
 	// v24: FillMeshRendererComponentのローカル座標とワールド座標の点列取得を追加
-	inline constexpr uint32_t kManagedAbiVersion = 24;
+	// v25: EffectEmitterの再生ハンドルAPIを追加
+	inline constexpr uint32_t kManagedAbiVersion = 25;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -445,6 +446,10 @@ namespace Engine {
 		using FillMeshSetPositionsCallback = void(__cdecl*)(ManagedNativeEntity, const ManagedVector3*, int32_t);
 		// FillMeshRendererComponentの点列をローカル座標またはワールド座標でコピーする
 		using FillMeshCopyPositionsCallback = int32_t(__cdecl*)(ManagedNativeEntity, ManagedVector3*, int32_t, int32_t);
+		// EffectEmitterの発生とハンドルまたはグループ単位の制御
+		using EffectEmitCallback = uint64_t(__cdecl*)(ManagedNativeEntity, const char*, ManagedVector3, ManagedQuaternion, int32_t);
+		using EffectControlCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t, const char*, int32_t);
+		using EffectIsPlayingCallback = int32_t(__cdecl*)(ManagedNativeEntity, uint64_t, const char*, int32_t);
 
 		GetDeltaTimeCallback getDeltaTime = nullptr;
 		GetDeltaTimeCallback getFixedDeltaTime = nullptr;
@@ -616,6 +621,12 @@ namespace Engine {
 
 		// v24のFillMeshRendererComponent点列取得
 		FillMeshCopyPositionsCallback fillMeshCopyPositions = nullptr;
+
+		// v25のEffectEmitter再生ハンドルAPI
+		EffectEmitCallback effectEmit = nullptr;
+		EffectControlCallback effectStop = nullptr;
+		EffectControlCallback effectClear = nullptr;
+		EffectIsPlayingCallback effectIsPlaying = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

@@ -31,7 +31,8 @@ internal static class ManagedAbi {
     // v22: AddComponent<Script> 用に entity へ script を runtime attach する attachScript を追加
     // v23: イージング関数 easedValue を追加、EasingType と t からイージング済みの値を返す
     // v24: FillMeshRendererComponentのローカル座標とワールド座標の点列取得を追加
-    internal const uint Version = 24;
+    // v25: EffectEmitterの再生ハンドルAPIを追加
+    internal const uint Version = 25;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -342,6 +343,11 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> PlaySkinnedAnimation;
     // v24: FillMeshRendererComponentの点列取得
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, int, int> FillMeshCopyPositions;
+    // v25: EffectEmitterの発生とハンドルまたはグループ単位の制御
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeVector3, NativeQuaternion, int, ulong> EffectEmit;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> EffectStop;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> EffectClear;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int> EffectIsPlaying;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -474,6 +480,10 @@ internal static unsafe class NativeApi {
         GetSkinnedAnimationDuration = callbacks->getSkinnedAnimationDuration;
         PlaySkinnedAnimation = callbacks->playSkinnedAnimation;
         FillMeshCopyPositions = callbacks->fillMeshCopyPositions;
+        EffectEmit = callbacks->effectEmit;
+        EffectStop = callbacks->effectStop;
+        EffectClear = callbacks->effectClear;
+        EffectIsPlaying = callbacks->effectIsPlaying;
     }
 
     internal static float ReadDeltaTime() {
@@ -1171,6 +1181,68 @@ internal static unsafe class NativeApi {
     internal static bool AudioIsPlayingCall(NativeEntity entity) => AudioIsPlaying != null && AudioIsPlaying(entity) != 0;
 
     //========================================================================
+    //	EffectEmitter gameplay method helpers
+    //========================================================================
+    internal static ulong EffectEmitCall(NativeEntity entity, string group,
+        Vector3 position, Quaternion rotation, bool fixedAnchor) {
+
+        if (EffectEmit == null) {
+            return 0ul;
+        }
+        byte[] bytes = Encoding.UTF8.GetBytes((group ?? string.Empty) + "\0");
+        fixed (byte* ptr = bytes) {
+            return EffectEmit(entity, ptr, NativeVector3.From(position),
+                NativeQuaternion.From(rotation), fixedAnchor ? 1 : 0);
+        }
+    }
+
+    internal static void EffectStopHandleCall(NativeEntity entity, ulong handle) {
+        if (EffectStop != null) { EffectStop(entity, handle, null, 0); }
+    }
+    internal static void EffectStopGroupCall(NativeEntity entity, string group) {
+        EffectControlGroupCall(EffectStop, entity, group);
+    }
+    internal static void EffectStopAllCall(NativeEntity entity) {
+        if (EffectStop != null) { EffectStop(entity, 0ul, null, 2); }
+    }
+    internal static void EffectClearHandleCall(NativeEntity entity, ulong handle) {
+        if (EffectClear != null) { EffectClear(entity, handle, null, 0); }
+    }
+    internal static void EffectClearGroupCall(NativeEntity entity, string group) {
+        EffectControlGroupCall(EffectClear, entity, group);
+    }
+    internal static void EffectClearAllCall(NativeEntity entity) {
+        if (EffectClear != null) { EffectClear(entity, 0ul, null, 2); }
+    }
+    internal static bool EffectIsPlayingHandleCall(NativeEntity entity, ulong handle) =>
+        EffectIsPlaying != null && EffectIsPlaying(entity, handle, null, 0) != 0;
+    internal static bool EffectIsPlayingGroupCall(NativeEntity entity, string group) {
+
+        if (EffectIsPlaying == null) {
+            return false;
+        }
+        byte[] bytes = Encoding.UTF8.GetBytes((group ?? string.Empty) + "\0");
+        fixed (byte* ptr = bytes) {
+            return EffectIsPlaying(entity, 0ul, ptr, 1) != 0;
+        }
+    }
+    internal static bool EffectIsPlayingAllCall(NativeEntity entity) =>
+        EffectIsPlaying != null && EffectIsPlaying(entity, 0ul, null, 2) != 0;
+
+    private static void EffectControlGroupCall(
+        delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> callback,
+        NativeEntity entity, string group) {
+
+        if (callback == null) {
+            return;
+        }
+        byte[] bytes = Encoding.UTF8.GetBytes((group ?? string.Empty) + "\0");
+        fixed (byte* ptr = bytes) {
+            callback(entity, 0ul, ptr, 1);
+        }
+    }
+
+    //========================================================================
     //	raw Input 拡張（多 gamepad / axis / text / focus）helpers
     //========================================================================
     internal static bool ReadGamepadButton(int index, int button) => GetGamepadButtonIndexed != null && GetGamepadButtonIndexed(index, button) != 0;
@@ -1493,4 +1565,9 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> playSkinnedAnimation;
     // v24: FillMeshRendererComponentの点列取得
     public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, int, int> fillMeshCopyPositions;
+    // v25: EffectEmitterの発生とハンドルまたはグループ単位の制御
+    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeVector3, NativeQuaternion, int, ulong> effectEmit;
+    public delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> effectStop;
+    public delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> effectClear;
+    public delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int> effectIsPlaying;
 }

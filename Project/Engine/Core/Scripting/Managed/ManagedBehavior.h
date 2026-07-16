@@ -23,7 +23,7 @@ namespace Engine {
 		//============================================================================
 
 		ManagedBehavior(std::string scriptTypeID, std::string displayName);
-		~ManagedBehavior() override = default;
+		~ManagedBehavior() override;
 
 		// シリアライズフィールドを設定する
 		void SetSerializedFields(const nlohmann::json& serializedFields) override;
@@ -86,6 +86,8 @@ namespace Engine {
 
 		// C#側インスタンスが未作成なら作成する
 		void EnsureCreated(ECSWorld& world, const Entity& entity);
+		// C#側インスタンスを解放する
+		void ReleaseInstance();
 		// Invoke結果を判定し、ScriptExceptionならfaulted化して一度だけ診断ログを出す
 		void HandleStatus(ManagedStatus status, const char* callbackName, const Entity& entity);
 	};

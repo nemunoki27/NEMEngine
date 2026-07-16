@@ -26,7 +26,6 @@ namespace Engine {
 	class ECSWorld;
 	struct MaterialParameterValue;
 	struct PrimitiveRendererComponent;
-	struct ParticleEmitterComponent;
 	struct ParticleGroupRuntimeState;
 
 	//============================================================================

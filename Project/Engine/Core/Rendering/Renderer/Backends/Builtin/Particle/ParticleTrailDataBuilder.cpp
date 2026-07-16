@@ -9,7 +9,7 @@
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
-#include <Engine/Core/World/Components/Rendering/ParticleEmitterComponent.h>
+#include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
 
 // c++
 #include <algorithm>

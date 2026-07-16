@@ -21,7 +21,6 @@
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Editor/Utility/AssetEntityFactory.h>
-#include <Engine/Editor/Utility/JointAttachmentUtility.h>
 #include <Engine/Editor/Utility/PrefabInstanceEditUtility.h>
 #include <Engine/Editor/Commands/Entity/CreateDroppedEntityCommand.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
@@ -516,8 +515,6 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 				Entity dragged = ResolveDraggedEntity(world, payload);
 				if (CanReparent(context, world, dragged, entity)) {
 
-					// ジョイントへ親子付け中なら先に解除してからエンティティの子にする
-					JointAttachmentUtility::Detach(world, dragged);
 					context.host->ExecuteEditorCommand(
 						std::make_unique<ReparentEntityCommand>(dragged, world.GetUUID(entity)));
 				}
@@ -778,8 +775,8 @@ void Engine::HierarchyPanel::DrawJointNode(const EditorPanelContext& context, EC
 				const Entity dragged = ResolveDraggedEntity(world, payload);
 				if (world.IsAlive(dragged) && dragged != skinnedEntity) {
 
-					HierarchySystem hierarchySystem{};
-					JointAttachmentUtility::Attach(world, hierarchySystem, dragged, skinnedEntity, joint.name);
+					context.host->ExecuteEditorCommand(
+						std::make_unique<ReparentEntityCommand>(dragged, skinnedEntity, joint.name));
 				}
 			}
 		}
@@ -848,8 +845,8 @@ void Engine::HierarchyPanel::DrawRootDropTarget(const EditorPanelContext& contex
 
 					if (world.HasComponent<JointAttachmentComponent>(dragged)) {
 
-						// ジョイントへ親子付け中ならルートへ戻す、ワールド位置は維持する
-						JointAttachmentUtility::Detach(world, dragged);
+						context.host->ExecuteEditorCommand(
+							std::make_unique<ReparentEntityCommand>(dragged, UUID{}));
 					} else {
 
 						// ドロップされたエンティティの現在の親を取得

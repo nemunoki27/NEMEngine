@@ -8,7 +8,7 @@ InvertedHullOutline
 MeshRenderer
 Name
 OrthographicCamera
-ParticleEmitter
+EffectEmitter
 PerspectiveCamera
 PointLight
 PrefabLink

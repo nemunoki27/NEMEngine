@@ -31,6 +31,9 @@ namespace Engine {
 		// コンポーネントの種類を登録
 		template <typename T>
 		uint32_t Register(const std::string_view& name);
+		// 旧コンポーネント名を同じ型へ割り当てる
+		template <typename T>
+		uint32_t RegisterAlias(const std::string_view& name);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -63,6 +66,9 @@ namespace Engine {
 	//============================================================================
 #define ENGINE_REGISTER_COMPONENT(T, NameLiteral) \
     inline const uint32_t kCompID_##T = Engine::ComponentTypeRegistry::GetInstance().Register<T>(NameLiteral);
+
+#define ENGINE_REGISTER_COMPONENT_ALIAS(T, NameLiteral) \
+    inline const uint32_t kCompAliasID_##T = Engine::ComponentTypeRegistry::GetInstance().RegisterAlias<T>(NameLiteral);
 
 	//============================================================================
 	//	ComponentTypeRegistry templateMethods
@@ -99,6 +105,15 @@ namespace Engine {
 		// ハッシュ値からIDへのマッピングも登録
 		typeKeyToID_[EntityToTypeHash(typeid(T).name())] = info.id;
 		return info.id;
+	}
+
+	template <typename T>
+	inline uint32_t ComponentTypeRegistry::RegisterAlias(const std::string_view& name) {
+
+		const uint32_t id = GetID<T>();
+		auto [it, inserted] = nameToID_.emplace(std::string(name), id);
+		Assert::Call(inserted || it->second == id, "同名のComponentTypeが既に登録されています");
+		return id;
 	}
 
 	template <typename T>

@@ -17,7 +17,9 @@
 namespace Engine {
 
 	// front
-	struct ParticleEmitterComponent;
+	struct EffectEmitterComponent;
+	struct EffectEmitterStateRuntime;
+	struct ParticleEffectInstanceRuntime;
 	struct ParticleGroupRuntimeState;
 
 	//============================================================================
@@ -122,18 +124,31 @@ namespace Engine {
 		EffectRuntime LoadEffect(SystemContext& context, AssetID effectID) const;
 		// アセットのグループとフェーズから実行定義を構築する
 		void BuildGroups(EffectRuntime& runtime) const;
-		// Componentの実行状態をアセットのグループ順へ同期する
-		void SynchronizeRuntimeGroups(ParticleEmitterComponent& emitter, const EffectRuntime& effect) const;
-		// Componentの再生状態を先頭へ戻す
-		void RestartEmitter(ParticleEmitterComponent& emitter, const ParticleEffectAsset& asset) const;
+		// コンポーネントの再生要求を実行状態へ反映する
+		void ProcessCommands(EffectEmitterComponent& emitter) const;
+		// stateの発生タイミングを進める
+		void UpdateStateSchedule(EffectEmitterComponent& emitter, EffectEmitterStateRuntime& state,
+			float deltaTime) const;
+		// ParticleEffect1つ分の実行状態を追加する
+		void AddEffectInstance(EffectEmitterComponent& emitter,
+			EffectEmitterStateRuntime& state, bool oneShot) const;
+		// ParticleEffect実行状態をアセットのグループ順へ同期する
+		void SynchronizeRuntimeGroups(ParticleEffectInstanceRuntime& instance, const EffectRuntime& effect) const;
+		// ParticleEffectの再生状態を先頭へ戻す
+		void RestartEffectInstance(ParticleEffectInstanceRuntime& instance, const ParticleEffectAsset& asset) const;
 		// 同時発生を行うフレームか判定する
-		bool UpdateGroupEmission(ParticleEmitterComponent& emitter,
-			const ParticleEffectAsset& asset, float deltaTime) const;
+		bool UpdateGroupEmission(ParticleEffectInstanceRuntime& instance,
+			const ParticleEffectAsset& asset, float deltaTime, bool emissionEnabled) const;
+		// ParticleEffect1つ分を更新する
+		bool UpdateEffectInstance(ECSWorld& world,
+			ParticleEffectInstanceRuntime& instance, const Matrix4x4& emitterWorld,
+			SystemContext& context, float deltaTime, bool updateSimulation,
+			bool emissionEnabled, bool drawEmitterShape, bool checkReload);
 		// グループ1つ分の粒子とトレイルを更新する
-		void UpdateGroup(ECSWorld& world, const Entity& entity,
+		void UpdateGroup(ECSWorld& world, const Matrix4x4& emitterWorld,
 			ParticleGroupRuntimeState& state, const ParticleEffectAsset& asset,
 			const ParticleEffectGroup& group, const GroupRuntime& runtime,
-			float deltaTime, bool allowTimeAdvance, bool simultaneousEmit,
+			float deltaTime, bool updateSimulation, bool simultaneousEmit, bool emissionEnabled,
 			bool oneShot, bool drawEmitterShape);
 		// 寿命が尽きた粒子をLifeEndModeに従って遷移させる、破棄するならfalse
 		bool AdvancePhaseOnLifeEnd(Particle& particle, const std::vector<PhaseRuntime>& phases) const;
@@ -155,13 +170,13 @@ namespace Engine {
 		void UpdateParticleParents(std::vector<Particle>& particles, const GroupRuntime& group,
 			const std::vector<ParentRuntime>& parents) const;
 		// 各フェーズの親姿勢をエミッター単位で解決する
-		void ResolveParticleParents(ECSWorld& world, const Entity& emitterEntity,
-			const GroupRuntime& group, std::vector<ParentRuntime>& outParents) const;
+		void ResolveParticleParents(ECSWorld& world, const Matrix4x4& emitterWorld, const GroupRuntime& group,
+			std::vector<ParentRuntime>& outParents) const;
 		// 粒子の描画用ワールド姿勢を更新する
 		void RefreshParticleWorldTransform(Particle& particle, const ParentRuntime* parent) const;
 		// トレイルの軌跡点をワールド空間で記録し、死亡した粒子から切り離す
-		void RecordTrails(ECSWorld& world, const Entity& entity,
-			ParticleGroupRuntimeState& state, const ParticleTrailSettings& trail, float deltaTime);
+		void RecordTrails(ParticleGroupRuntimeState& state,
+			const ParticleTrailSettings& trail, float deltaTime);
 		// 粒子消滅後に退避したトレイル所有者を更新する
 		void UpdateDetachedTrailOwners(ParticleGroupRuntimeState& state, const GroupRuntime& group,
 			const std::vector<ParentRuntime>& parents, const ParticleTrailSettings& trail, float deltaTime) const;
@@ -169,7 +184,7 @@ namespace Engine {
 		void InitEmitterParticles(std::span<Particle> newborn, const ParticleEmitterSettings& settings,
 			const ParticleValue<float>& lifetime, bool is2D, uint32_t firstSpawnIndex) const;
 		// エミッター形状をデバッグ線で描画する
-		void DrawEmitterShape(ECSWorld& world, const Entity& entity,
+		void DrawEmitterShape(const Matrix4x4& emitterWorld,
 			const ParticleEmitterSettings& settings, bool is2D) const;
 	};
 } // Engine

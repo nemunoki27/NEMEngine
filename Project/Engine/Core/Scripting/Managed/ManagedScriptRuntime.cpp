@@ -263,6 +263,10 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.playSkinnedAnimation = &ManagedScriptRuntime::PlaySkinnedAnimationCallback;
 	callbacks.fillMeshSetPositions = &ManagedScriptRuntime::FillMeshSetPositionsCallback;
 	callbacks.fillMeshCopyPositions = &ManagedScriptRuntime::FillMeshCopyPositionsCallback;
+	callbacks.effectEmit = &ManagedScriptRuntime::EffectEmitCallback;
+	callbacks.effectStop = &ManagedScriptRuntime::EffectStopCallback;
+	callbacks.effectClear = &ManagedScriptRuntime::EffectClearCallback;
+	callbacks.effectIsPlaying = &ManagedScriptRuntime::EffectIsPlayingCallback;
 	callbacks.getEntityReferenceIdentity = &ManagedScriptRuntime::GetEntityReferenceIdentityCallback;
 	// v21のレイキャストとカメラレイとCollisionタイプ名解決
 	callbacks.physicsRaycast = &ManagedScriptRuntime::PhysicsRaycastCallback;

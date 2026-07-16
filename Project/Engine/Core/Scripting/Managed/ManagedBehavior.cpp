@@ -33,6 +33,11 @@ Engine::ManagedBehavior::ManagedBehavior(std::string scriptTypeID, std::string d
 	scriptTypeID_(std::move(scriptTypeID)), displayName_(std::move(displayName)) {
 }
 
+Engine::ManagedBehavior::~ManagedBehavior() {
+
+	ReleaseInstance();
+}
+
 void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializedFields) {
 
 	if (serializedFields.is_object()) {
@@ -117,8 +122,7 @@ void Engine::ManagedBehavior::OnDestroy([[maybe_unused]] ECSWorld& world,
 	if (!faulted_) {
 		HandleStatus(ManagedScriptRuntime::GetInstance().InvokeOnDestroy(managedHandle_, context), "OnDestroy", entity);
 	}
-	ManagedScriptRuntime::GetInstance().DestroyInstance(managedHandle_);
-	managedHandle_ = ManagedScriptInstanceHandle::Null();
+	ReleaseInstance();
 }
 
 void Engine::ManagedBehavior::FixedUpdate([[maybe_unused]] ECSWorld& world,
@@ -212,6 +216,15 @@ void Engine::ManagedBehavior::EnsureCreated(ECSWorld& world, const Entity& entit
 	auto& runtime = ManagedScriptRuntime::GetInstance();
 	managedHandle_ = runtime.CreateInstance(scriptTypeID_, world, entity,
 		runtime.BuildSerializedValueMap(scriptTypeID_, serializedFields_), scriptSlotID_);
+}
+
+void Engine::ManagedBehavior::ReleaseInstance() {
+
+	if (!managedHandle_.IsValid()) {
+		return;
+	}
+	ManagedScriptRuntime::GetInstance().DestroyInstance(managedHandle_);
+	managedHandle_ = ManagedScriptInstanceHandle::Null();
 }
 
 void Engine::ManagedBehavior::HandleStatus(ManagedStatus status, const char* callbackName, const Entity& entity) {

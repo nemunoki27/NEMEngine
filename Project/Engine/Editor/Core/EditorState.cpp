@@ -8,7 +8,7 @@
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/ParticleEmitterComponent.h>
+#include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
 #include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
@@ -44,10 +44,21 @@ std::optional<Engine::Dimension> Engine::ResolveEntityDimension(ECSWorld& world,
 		return IsPrimitiveScreen2D(world.GetComponent<PrimitiveRendererComponent>(entity)) ?
 			Dimension::Type2D : Dimension::Type3D;
 	}
-	// ParticleEmitterはエフェクトの描画空間がScreen2Dのときだけ2D
-	if (world.HasComponent<ParticleEmitterComponent>(entity)) {
-		return world.GetComponent<ParticleEmitterComponent>(entity).runtimeSpace == PrimitiveRenderSpace::Screen2D ?
-			Dimension::Type2D : Dimension::Type3D;
+	// EffectEmitterは実行中の全エフェクトがScreen2Dのときだけ2D
+	if (world.HasComponent<EffectEmitterComponent>(entity)) {
+
+		const EffectEmitterComponent& emitter = world.GetComponent<EffectEmitterComponent>(entity);
+		bool found = false;
+		bool allScreen2D = true;
+		for (const EffectEmitterPlaybackRuntime& playback : emitter.runtimePlaybacks) {
+			for (const EffectEmitterStateRuntime& state : playback.states) {
+				for (const ParticleEffectInstanceRuntime& effect : state.effects) {
+					found = true;
+					allScreen2D &= effect.runtimeSpace == PrimitiveRenderSpace::Screen2D;
+				}
+			}
+		}
+		return found && allScreen2D ? Dimension::Type2D : Dimension::Type3D;
 	}
 	if (world.HasComponent<MeshRendererComponent>(entity) ||
 		world.HasComponent<PerspectiveCameraComponent>(entity) ||

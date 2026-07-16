@@ -390,6 +390,18 @@ namespace Engine {
 		static void __cdecl FillMeshSetPositionsCallback(ManagedNativeEntity entity, const ManagedVector3* points, int32_t count);
 		// FillMeshRendererComponentの点列をローカル座標またはワールド座標でコピーする
 		static int32_t __cdecl FillMeshCopyPositionsCallback(ManagedNativeEntity entity, ManagedVector3* points, int32_t capacity, int32_t worldSpace);
+		// EffectEmitterの再生要求を追加しハンドルを返す
+		static uint64_t __cdecl EffectEmitCallback(ManagedNativeEntity entity, const char* group,
+			ManagedVector3 position, ManagedQuaternion rotation, int32_t fixedAnchor);
+		// EffectEmitterをハンドルまたはグループまたは全体で停止する
+		static void __cdecl EffectStopCallback(ManagedNativeEntity entity,
+			uint64_t playbackID, const char* group, int32_t target);
+		// EffectEmitterをハンドルまたはグループまたは全体で破棄する
+		static void __cdecl EffectClearCallback(ManagedNativeEntity entity,
+			uint64_t playbackID, const char* group, int32_t target);
+		// EffectEmitterの再生状態をハンドルまたはグループまたは全体で返す
+		static int32_t __cdecl EffectIsPlayingCallback(ManagedNativeEntity entity,
+			uint64_t playbackID, const char* group, int32_t target);
 		// 即時ライン描画、任意ポリラインをこのフレームだけ描く
 		static void __cdecl LineDrawImmediateCallback(const ManagedLinePoint* points, int32_t count, int32_t loop, int32_t is2D, uint64_t materialID);
 		// 即時球描画、組み込みの球生成で線分を発行する

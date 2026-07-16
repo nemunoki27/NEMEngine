@@ -4,13 +4,18 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Core/EditorState.h>
+#include <Engine/Editor/Commands/Transform/TransformEditUtility.h>
+#include <Engine/Editor/Utility/JointAttachmentUtility.h>
 #include <Engine/Editor/Utility/PrefabInstanceEditUtility.h>
+#include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 
 // c++
 #include <algorithm>
+#include <utility>
 
 //============================================================================
 //	ReparentEntityCommand classMethods
@@ -91,10 +96,49 @@ namespace {
 }
 
 Engine::ReparentEntityCommand::ReparentEntityCommand(const Entity& targetEntity, UUID newParentStableUUID) :
-	initialTarget_(targetEntity), newParentStableUUID_(newParentStableUUID) {
+	initialTarget_(targetEntity) {
+
+	newState_.parentStableUUID = newParentStableUUID;
 }
 
-bool Engine::ReparentEntityCommand::ApplyParent(EditorCommandContext& context, UUID parentStableUUID) {
+Engine::ReparentEntityCommand::ReparentEntityCommand(
+	const Entity& targetEntity, const Entity& newSkinnedEntity, std::string newJointName) :
+	initialTarget_(targetEntity), initialSkinnedEntity_(newSkinnedEntity) {
+
+	newState_.jointName = std::move(newJointName);
+	newState_.jointAttached = true;
+}
+
+bool Engine::ReparentEntityCommand::CaptureState(ECSWorld& world,
+	const Entity& entity, ParentState& state) const {
+
+	if (!world.IsAlive(entity)) {
+		return false;
+	}
+	state = ParentState{};
+	if (world.HasComponent<HierarchyComponent>(entity)) {
+
+		const Entity parent = world.GetComponent<HierarchyComponent>(entity).parent;
+		if (world.IsAlive(parent)) {
+			state.parentStableUUID = world.GetUUID(parent);
+		}
+	}
+	if (world.HasComponent<JointAttachmentComponent>(entity)) {
+
+		const auto& attachment = world.GetComponent<JointAttachmentComponent>(entity);
+		state.skinnedLocalFileID = attachment.skinnedEntityLocalFileID;
+		state.jointName = attachment.jointName;
+		state.jointAttached = true;
+	}
+	if (world.HasComponent<TransformComponent>(entity)) {
+
+		state.transform = world.GetComponent<TransformComponent>(entity);
+		state.hasTransform = true;
+	}
+	return true;
+}
+
+bool Engine::ReparentEntityCommand::ApplyState(EditorCommandContext& context, const ParentState& state) {
 
 	// 編集可能か
 	if (!context.CanEditScene()) {
@@ -112,22 +156,44 @@ bool Engine::ReparentEntityCommand::ApplyParent(EditorCommandContext& context, U
 		return false;
 	}
 
-	// 新しい親を検索しUUIDが無効な場合はNullエンティティになる
-	Entity newParent = Entity::Null();
-	if (parentStableUUID) {
+	HierarchySystem hierarchySystem{};
+	if (state.jointAttached) {
 
-		newParent = world->FindByUUID(parentStableUUID);
-		if (!world->IsAlive(newParent)) {
+		const Entity skinnedEntity = SceneObjectUtility::FindByLocalFileID(*world, state.skinnedLocalFileID);
+		if (!world->IsAlive(skinnedEntity) || state.jointName.empty()) {
 			return false;
 		}
-	}
-	if (!PrefabInstanceEditUtility::CanChangeParent(context.editorContext, *world, child, newParent)) {
-		return false;
-	}
+		JointAttachmentUtility::Attach(*world, hierarchySystem, child, skinnedEntity, state.jointName);
+		if (!world->HasComponent<JointAttachmentComponent>(child)) {
+			return false;
+		}
+		const auto& attachment = world->GetComponent<JointAttachmentComponent>(child);
+		if (attachment.skinnedEntityLocalFileID != state.skinnedLocalFileID ||
+			attachment.jointName != state.jointName) {
+			return false;
+		}
+	} else {
 
-	// 親子関係を更新する
-	HierarchySystem hierarchySystem;
-	hierarchySystem.SetParent(*world, child, newParent);
+		// 新しい親を検索しUUIDが無効な場合はNullエンティティになる
+		Entity newParent = Entity::Null();
+		if (state.parentStableUUID) {
+
+			newParent = world->FindByUUID(state.parentStableUUID);
+			if (!world->IsAlive(newParent)) {
+				return false;
+			}
+		}
+		if (!PrefabInstanceEditUtility::CanChangeParent(context.editorContext, *world, child, newParent)) {
+			return false;
+		}
+
+		// ジョイント親子付けを解除して通常階層へ戻す
+		JointAttachmentUtility::Detach(*world, child);
+		hierarchySystem.SetParent(*world, child, newParent);
+	}
+	if (state.hasTransform) {
+		TransformEditUtility::ApplyImmediate(*world, child, state.transform);
+	}
 	if (context.editorState) {
 
 		context.editorState->SelectEntity(child);
@@ -147,8 +213,8 @@ bool Engine::ReparentEntityCommand::Execute(EditorCommandContext& context) {
 		return false;
 	}
 
-	// 初回実行時のみ現在の親を保存
-	if (!targetStableUUID_) {
+	// 初回実行時のみ現在の親を保存する
+	if (!initialized_) {
 
 		if (!world->IsAlive(initialTarget_)) {
 			return false;
@@ -156,30 +222,62 @@ bool Engine::ReparentEntityCommand::Execute(EditorCommandContext& context) {
 
 		// 対象のUUIDを保存する
 		targetStableUUID_ = world->GetUUID(initialTarget_);
-		if (world->HasComponent<HierarchyComponent>(initialTarget_)) {
+		if (!CaptureState(*world, initialTarget_, oldState_)) {
+			return false;
+		}
+		if (newState_.jointAttached) {
 
-			const auto& hierarchy = world->GetComponent<HierarchyComponent>(initialTarget_);
-			if (world->IsAlive(hierarchy.parent)) {
-				oldParentStableUUID_ = world->GetUUID(hierarchy.parent);
+			if (!world->IsAlive(initialSkinnedEntity_) ||
+				!world->HasComponent<SceneObjectComponent>(initialSkinnedEntity_)) {
+				return false;
+			}
+			newState_.skinnedLocalFileID =
+				world->GetComponent<SceneObjectComponent>(initialSkinnedEntity_).localFileID;
+			if (!newState_.skinnedLocalFileID) {
+				return false;
 			}
 		}
 
 		// 変化がないなら履歴に積まない
-		if (oldParentStableUUID_ == newParentStableUUID_) {
+		if (IsSameParent(oldState_, newState_)) {
 			return false;
 		}
+		if (!ApplyState(context, newState_)) {
+			return false;
+		}
+		const Entity child = world->FindByUUID(targetStableUUID_);
+		if (!world->IsAlive(child)) {
+			return false;
+		}
+		if (world->HasComponent<TransformComponent>(child)) {
+			newState_.transform = world->GetComponent<TransformComponent>(child);
+			newState_.hasTransform = true;
+		}
+		initialized_ = true;
+		return true;
 	}
-	return ApplyParent(context, newParentStableUUID_);
+	return ApplyState(context, newState_);
 }
 
 void Engine::ReparentEntityCommand::Undo(EditorCommandContext& context) {
 
-	ApplyParent(context, oldParentStableUUID_);
+	ApplyState(context, oldState_);
 }
 
 bool Engine::ReparentEntityCommand::Redo(EditorCommandContext& context) {
 
-	return ApplyParent(context, newParentStableUUID_);
+	return ApplyState(context, newState_);
+}
+
+bool Engine::ReparentEntityCommand::IsSameParent(const ParentState& lhs, const ParentState& rhs) const {
+
+	if (lhs.jointAttached != rhs.jointAttached) {
+		return false;
+	}
+	if (lhs.jointAttached) {
+		return lhs.skinnedLocalFileID == rhs.skinnedLocalFileID && lhs.jointName == rhs.jointName;
+	}
+	return lhs.parentStableUUID == rhs.parentStableUUID;
 }
 
 Engine::ReorderEntityCommand::ReorderEntityCommand(const Entity& targetEntity, const Entity& anchorEntity, bool insertAfter) :

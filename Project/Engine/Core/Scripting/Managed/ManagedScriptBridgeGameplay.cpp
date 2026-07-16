@@ -16,6 +16,7 @@
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
@@ -29,6 +30,7 @@
 #include <algorithm>
 #include <cstring>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -193,6 +195,77 @@ namespace Engine {
 			points[i] = { position.x, position.y, position.z };
 		}
 		return count;
+	}
+
+	namespace {
+
+		// 対象entityのEffectEmitterComponentを取得する
+		EffectEmitterComponent* ResolveEffectEmitter(ManagedNativeEntity entity) {
+
+			ECSWorld* world = ResolveWorld(entity);
+			if (!world) { return nullptr; }
+			const Entity resolved = ResolveEntity(entity);
+			return world->IsAlive(resolved) ? world->TryGetComponent<EffectEmitterComponent>(resolved) : nullptr;
+		}
+	}
+
+	uint64_t ManagedScriptRuntime::EffectEmitCallback(ManagedNativeEntity entity, const char* group,
+		ManagedVector3 position, ManagedQuaternion rotation, int32_t fixedAnchor) {
+
+		EffectEmitterComponent* emitter = ResolveEffectEmitter(entity);
+		if (!emitter) { return 0; }
+		const std::string_view groupName = group ? std::string_view(group) : std::string_view{};
+		if (fixedAnchor == 0) {
+			return emitter->Emit(groupName);
+		}
+		return emitter->EmitAt(groupName, Vector3(position.x, position.y, position.z),
+			Quaternion(rotation.x, rotation.y, rotation.z, rotation.w));
+	}
+
+	void ManagedScriptRuntime::EffectStopCallback(ManagedNativeEntity entity,
+		uint64_t playbackID, const char* group, int32_t target) {
+
+		EffectEmitterComponent* emitter = ResolveEffectEmitter(entity);
+		if (!emitter) { return; }
+		if (target == 0) {
+			emitter->Stop(playbackID);
+		} else if (target == 1) {
+			emitter->Stop(group ? std::string_view(group) : std::string_view{});
+		} else {
+			emitter->Stop();
+		}
+	}
+
+	void ManagedScriptRuntime::EffectClearCallback(ManagedNativeEntity entity,
+		uint64_t playbackID, const char* group, int32_t target) {
+
+		EffectEmitterComponent* emitter = ResolveEffectEmitter(entity);
+		if (!emitter) { return; }
+		if (target == 0) {
+			emitter->Clear(playbackID);
+		} else if (target == 1) {
+			emitter->Clear(group ? std::string_view(group) : std::string_view{});
+		} else {
+			emitter->Clear();
+		}
+	}
+
+	int32_t ManagedScriptRuntime::EffectIsPlayingCallback(ManagedNativeEntity entity,
+		uint64_t playbackID, const char* group, int32_t target) {
+
+		const EffectEmitterComponent* emitter = ResolveEffectEmitter(entity);
+		if (!emitter) { return 0; }
+		if (target == 0) {
+			return emitter->IsPlaying(playbackID) ? 1 : 0;
+		}
+		if (target == 1) {
+			return emitter->IsPlaying(group ? std::string_view(group) : std::string_view{}) ? 1 : 0;
+		}
+		if (!emitter->runtimePlaybacks.empty()) { return 1; }
+		return std::any_of(emitter->runtimeCommands.begin(), emitter->runtimeCommands.end(),
+			[](const EffectEmitterCommand& command) {
+				return command.type == EffectEmitterCommandType::Emit;
+			}) ? 1 : 0;
 	}
 
 	namespace {

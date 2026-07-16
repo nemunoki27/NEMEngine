@@ -9,7 +9,7 @@ namespace Engine {
 
 	//============================================================================
 	//	ParticleRenderItemExtractor class
-	//	ParticleEmitterComponentから描画アイテムを抽出する
+	//	EffectEmitterComponentから描画アイテムを抽出する
 	//============================================================================
 	class ParticleRenderItemExtractor :
 		public IRenderItemExtractor {
