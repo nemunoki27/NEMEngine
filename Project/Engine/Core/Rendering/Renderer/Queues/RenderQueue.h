@@ -126,6 +126,9 @@ namespace Engine {
 		// 描画のソートレイヤーと順序
 		int32_t sortingLayer = 0;
 		int32_t sortingOrder = 0;
+		// Canvas配下はマテリアルよりヒエラルキー順を優先する
+		bool orderedUI = false;
+		uint32_t hierarchyOrder = 0;
 
 		// ワールド変換行列
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();

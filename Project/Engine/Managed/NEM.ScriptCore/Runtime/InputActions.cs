@@ -50,6 +50,8 @@ public static class InputActions {
     // UI が入力を消費しているフレームは gameplay クエリを抑止する層（editor / UI が設定する）。
     public static bool BlockGameplayInput { get; set; }
 
+	private static bool IsGameplayInputBlocked => BlockGameplayInput || NativeApi.ReadUIBlocksGameplayInput();
+
     private enum ActionType { Button, Axis1D, Vector2 }
     private enum BindingKind { Button, Composite1D, Axis1D, Composite2D, Stick2D }
 
@@ -93,7 +95,7 @@ public static class InputActions {
     }
 
     public static bool IsPressed(InputActionId action) {
-        if (BlockGameplayInput) {
+        if (IsGameplayInputBlocked) {
             return false;
         }
         ActionDef? def = Resolve(action);
@@ -109,7 +111,7 @@ public static class InputActions {
     }
 
     public static bool WasPressed(InputActionId action) {
-        if (BlockGameplayInput) {
+        if (IsGameplayInputBlocked) {
             return false;
         }
         ActionDef? def = Resolve(action);
@@ -125,7 +127,7 @@ public static class InputActions {
     }
 
     public static bool WasReleased(InputActionId action) {
-        if (BlockGameplayInput) {
+        if (IsGameplayInputBlocked) {
             return false;
         }
         ActionDef? def = Resolve(action);
@@ -141,7 +143,7 @@ public static class InputActions {
     }
 
     public static float ReadAxis(InputActionId action) {
-        if (BlockGameplayInput) {
+        if (IsGameplayInputBlocked) {
             return 0.0f;
         }
         ActionDef? def = Resolve(action);
@@ -160,7 +162,7 @@ public static class InputActions {
     }
 
     public static Vector2 ReadVector2(InputActionId action) {
-        if (BlockGameplayInput) {
+        if (IsGameplayInputBlocked) {
             return Vector2.zero;
         }
         ActionDef? def = Resolve(action);

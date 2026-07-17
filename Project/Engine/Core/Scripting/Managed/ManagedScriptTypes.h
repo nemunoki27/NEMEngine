@@ -40,7 +40,7 @@ namespace Engine {
 	// v23: イージング関数のeasedValueを追加、EasingTypeとtからイージング済みの値を返す
 	// v24: FillMeshRendererComponentのローカル座標とワールド座標の点列取得を追加
 	// v25: EffectEmitterの再生ハンドルAPIを追加
-	inline constexpr uint32_t kManagedAbiVersion = 25;
+	inline constexpr uint32_t kManagedAbiVersion = 26;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -627,6 +627,9 @@ namespace Engine {
 		EffectControlCallback effectStop = nullptr;
 		EffectControlCallback effectClear = nullptr;
 		EffectIsPlayingCallback effectIsPlaying = nullptr;
+
+		// v26のUI入力によるゲーム入力ブロック状態
+		GetNativeBoolCallback getUIBlocksGameplayInput = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

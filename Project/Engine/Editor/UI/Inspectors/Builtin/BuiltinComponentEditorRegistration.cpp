@@ -33,6 +33,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/CollisionInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/RigidbodyInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Rigidbody2DInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/UI/UIComponentInspectorDrawers.h>
 
 // c++
 #include <memory>
@@ -95,6 +96,13 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<PrimitiveRendererInspectorDrawer>("Primitive Renderer", "PrimitiveRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<EffectEmitterInspectorDrawer>("Effect Emitter", "EffectEmitter", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<FlipbookAnimationInspectorDrawer>("Flipbook Animation", "FlipbookAnimation", "Rendering"));
+	}
+	// UI
+	{
+		registry.Register(MakeComponentEditorDescriptor<CanvasInspectorDrawer>("Canvas", "Canvas", "UI"));
+		registry.Register(MakeComponentEditorDescriptor<UISelectableInspectorDrawer>("UI Selectable", "UISelectable", "UI"));
+		registry.Register(MakeComponentEditorDescriptor<UIButtonInspectorDrawer>("UI Button", "UIButton", "UI"));
+		registry.Register(MakeComponentEditorDescriptor<UIProgressInspectorDrawer>("UI Progress", "UIProgress", "UI"));
 	}
 	{
 		registry.Register(MakeComponentEditorDescriptor<UVTransformInspectorDrawer>("UVTransform", "UVTransform", "Rendering"));

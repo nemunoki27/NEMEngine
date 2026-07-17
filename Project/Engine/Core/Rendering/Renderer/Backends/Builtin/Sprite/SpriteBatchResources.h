@@ -68,7 +68,7 @@ namespace Engine {
 		void Init(GraphicsCore& graphicsCore);
 
 		// データ更新
-		void UpdateView(const ResolvedRenderView& view);
+		void UpdateView(const ResolvedRenderView& view, RenderCameraDomain cameraDomain);
 		void UploadInstances(const ResolvedRenderView& view,
 			const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items);
 

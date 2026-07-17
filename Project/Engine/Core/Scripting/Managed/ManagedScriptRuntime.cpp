@@ -267,6 +267,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.effectStop = &ManagedScriptRuntime::EffectStopCallback;
 	callbacks.effectClear = &ManagedScriptRuntime::EffectClearCallback;
 	callbacks.effectIsPlaying = &ManagedScriptRuntime::EffectIsPlayingCallback;
+	callbacks.getUIBlocksGameplayInput = &ManagedScriptRuntime::GetUIBlocksGameplayInputCallback;
 	callbacks.getEntityReferenceIdentity = &ManagedScriptRuntime::GetEntityReferenceIdentityCallback;
 	// v21のレイキャストとカメラレイとCollisionタイプ名解決
 	callbacks.physicsRaycast = &ManagedScriptRuntime::PhysicsRaycastCallback;

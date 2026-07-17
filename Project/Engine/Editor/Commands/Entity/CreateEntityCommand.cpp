@@ -5,6 +5,14 @@
 //============================================================================
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
+#include <Engine/Core/World/Components/UI/CanvasComponent.h>
+#include <Engine/Core/World/Components/UI/UISelectableComponent.h>
+#include <Engine/Core/World/Components/UI/UIButtonComponent.h>
+#include <Engine/Core/World/Components/UI/UIProgressComponent.h>
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
@@ -79,8 +87,82 @@ namespace {
 	}
 }
 
-Engine::CreateEntityCommand::CreateEntityCommand(const std::string& name, UUID parentStableUUID) :
-	name_(name), parentStableUUID_(parentStableUUID) {
+Engine::CreateEntityCommand::CreateEntityCommand(const std::string& name, UUID parentStableUUID,
+	EntityCreationPreset preset) :
+	name_(name), parentStableUUID_(parentStableUUID), preset_(preset) {
+}
+
+void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& entity, const Entity& parent) {
+
+	if (preset_ == EntityCreationPreset::Empty) {
+		return;
+	}
+
+	bool hasCanvasAncestor = false;
+	Entity ancestor = parent;
+	while (world.IsAlive(ancestor)) {
+
+		if (world.HasComponent<CanvasComponent>(ancestor)) {
+			hasCanvasAncestor = true;
+			break;
+		}
+		const auto* hierarchy = world.TryGetComponent<HierarchyComponent>(ancestor);
+		ancestor = hierarchy ? hierarchy->parent : Entity::Null();
+	}
+	if (preset_ == EntityCreationPreset::Canvas || !hasCanvasAncestor) {
+		world.AddComponent<CanvasComponent>(entity);
+	}
+
+	if (preset_ == EntityCreationPreset::Canvas) {
+		return;
+	}
+
+	// UI要素はCanvas直下または単独Canvasの場合に画面中央へ作る
+	if (auto* transform = world.TryGetComponent<TransformComponent>(entity)) {
+		const CanvasComponent* canvas = nullptr;
+		if (world.HasComponent<CanvasComponent>(entity)) {
+			canvas = world.TryGetComponent<CanvasComponent>(entity);
+		} else if (world.IsAlive(parent)) {
+			canvas = world.TryGetComponent<CanvasComponent>(parent);
+		}
+		if (canvas) {
+			transform->localPos.x = canvas->referenceResolution.x * 0.5f;
+			transform->localPos.y = canvas->referenceResolution.y * 0.5f;
+			transform->isDirty = true;
+		}
+	}
+
+	switch (preset_) {
+	case EntityCreationPreset::UIImage: {
+		auto& sprite = world.AddComponent<SpriteRendererComponent>(entity);
+		sprite.size = Vector2(256.0f, 256.0f);
+		break;
+	}
+	case EntityCreationPreset::UIText: {
+		auto& text = world.AddComponent<TextRendererComponent>(entity);
+		text.text = "Text";
+		text.pivot = Vector2::AnyInit(0.5f);
+		break;
+	}
+	case EntityCreationPreset::UIButton: {
+		auto& sprite = world.AddComponent<SpriteRendererComponent>(entity);
+		sprite.size = Vector2(240.0f, 64.0f);
+		world.AddComponent<UISelectableComponent>(entity);
+		world.AddComponent<UIButtonComponent>(entity);
+		break;
+	}
+	case EntityCreationPreset::UIProgress: {
+		auto& sprite = world.AddComponent<SpriteRendererComponent>(entity);
+		sprite.size = Vector2(320.0f, 32.0f);
+		world.AddComponent<UVTransformComponent>(entity);
+		world.AddComponent<UIProgressComponent>(entity);
+		break;
+	}
+	case EntityCreationPreset::Empty:
+	case EntityCreationPreset::Canvas:
+	default:
+		break;
+	}
 }
 
 bool Engine::CreateEntityCommand::CreateInternal(EditorCommandContext& context) {
@@ -137,6 +219,8 @@ bool Engine::CreateEntityCommand::CreateInternal(EditorCommandContext& context) 
 		auto& hierarchy = world->GetComponent<HierarchyComponent>(entity);
 		hierarchy.siblingOrder = FindMaxRootSiblingOrder(*world, entity) + 1;
 	}
+
+	ApplyPreset(*world, entity, parent);
 
 	if (context.editorState) {
 

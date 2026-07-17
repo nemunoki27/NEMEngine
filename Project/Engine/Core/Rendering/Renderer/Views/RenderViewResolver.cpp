@@ -53,6 +53,22 @@ namespace {
 
 		return Engine::Matrix4x4::MakeAffineMatrix(Engine::Vector3::AnyInit(1.0f), transform.rotation, transform.pos);
 	}
+	// カメラに依存しないスクリーン座標用ビューを構築する
+	static Engine::ResolvedCameraView BuildScreenCamera(uint32_t width, uint32_t height) {
+
+		Engine::ResolvedCameraView out{};
+		out.valid = 0 < width && 0 < height;
+		out.usesManualCamera = true;
+		out.nearClip = -1000.0f;
+		out.farClip = 1000.0f;
+		out.matrices.viewMatrix = Engine::Matrix4x4::Identity();
+		out.matrices.inverseViewMatrix = Engine::Matrix4x4::Identity();
+		out.matrices.projectionMatrix = Engine::Matrix4x4::MakeOrthographicMatrix(0.0f, 0.0f,
+			static_cast<float>(width), static_cast<float>(height), out.nearClip, out.farClip);
+		out.matrices.inverseProjectionMatrix = Engine::Matrix4x4::Inverse(out.matrices.projectionMatrix);
+		out.matrices.viewProjectionMatrix = out.matrices.projectionMatrix;
+		return out;
+	}
 	// OrthographicカメラのviewとprojectionをトランスフォームとビューポートからBest/Preferred共通で再計算する
 	static void UpdateOrthographicCameraMatrices(const Engine::TransformComponent& transform,
 		Engine::OrthographicCameraComponent& camera, uint32_t width, uint32_t height) {
@@ -132,6 +148,7 @@ Engine::ResolvedRenderView Engine::RenderViewResolver::ResolveWorldCameraView(Re
 
 		view.perspective = ResolveBestPerspectiveCamera(world, width, height);
 	}
+	view.screen = BuildScreenCamera(width, height);
 	// ワールド内のカメラが一つも有効でない場合は、マニュアルカメラから描画ビューを構築する
 	if (!view.orthographic.valid && !view.perspective.valid) {
 
@@ -139,7 +156,7 @@ Engine::ResolvedRenderView Engine::RenderViewResolver::ResolveWorldCameraView(Re
 		view.orthographic = BuildManualOrthographic(fallback, width, height);
 		view.perspective = BuildManualPerspective(fallback, width, height);
 	}
-	view.valid = view.orthographic.valid || view.perspective.valid;
+	view.valid = view.orthographic.valid || view.perspective.valid || view.screen.valid;
 	return view;
 }
 
@@ -156,7 +173,8 @@ Engine::ResolvedRenderView Engine::RenderViewResolver::BuildFromManualCamera(
 	// 2D/3D両方のマニュアルカメラを構築する
 	view.orthographic = BuildManualOrthographic(state, width, height);
 	view.perspective = BuildManualPerspective(state, width, height);
-	view.valid = view.orthographic.valid || view.perspective.valid;
+	view.screen = BuildScreenCamera(width, height);
+	view.valid = view.orthographic.valid || view.perspective.valid || view.screen.valid;
 	return view;
 }
 

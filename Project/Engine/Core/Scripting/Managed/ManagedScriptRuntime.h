@@ -287,6 +287,7 @@ namespace Engine {
 		static ManagedVector2 __cdecl GetRightStickCallback();
 		static float __cdecl GetLeftTriggerCallback();
 		static float __cdecl GetRightTriggerCallback();
+		static int32_t __cdecl GetUIBlocksGameplayInputCallback();
 		static int32_t __cdecl IsAliveCallback(ManagedNativeEntity entity);
 		static int32_t __cdecl CopyNameCallback(ManagedNativeEntity entity, char* buffer, int32_t capacity);
 		static void __cdecl SetNameCallback(ManagedNativeEntity entity, const char* name);

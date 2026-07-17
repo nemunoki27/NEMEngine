@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
+#include <Engine/Core/World/UI/UIRuntimeService.h>
 
 //============================================================================
 //	TextRenderItemExtractor classMethods
@@ -31,11 +32,21 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		payload.materialOverrides = &renderer.parameterOverrides;
 		// 描画アイテムの構築
 		RenderItem item{};
-		RenderItemExtract::FillCommonFields(item, world, entity, renderer, RenderItemExtract::GetWorldMatrix(world, entity));
+		const UIElementRuntime* uiRuntime = UIRuntimeService::GetInstance().Find(world, entity);
+		const Matrix4x4 worldMatrix = uiRuntime ? uiRuntime->screenMatrix : RenderItemExtract::GetWorldMatrix(world, entity);
+		RenderItemExtract::FillCommonFields(item, world, entity, renderer, worldMatrix);
 		item.backendID = RenderBackendID::Text;
 		item.material = renderer.material;
+		if (uiRuntime) {
+
+			item.renderPhase = RenderPhase::ScreenUI;
+			item.cameraDomain = RenderCameraDomain::Screen;
+			item.sortingLayer += uiRuntime->canvasSortingLayer;
+			item.sortingOrder += uiRuntime->canvasOrder;
+			item.orderedUI = true;
+			item.hierarchyOrder = uiRuntime->hierarchyOrder;
 		// 2DはOrthographicでScreenUI、3DはPerspectiveで深度ありのTransparentパスに乗せる
-		if (renderer.dimension == Dimension::Type3D) {
+		} else if (renderer.dimension == Dimension::Type3D) {
 
 			item.cameraDomain = RenderCameraDomain::Perspective;
 			item.renderPhase = RenderPhase::Transparent;

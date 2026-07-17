@@ -47,7 +47,7 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 	const SpriteRenderPayload* firstPayload = context.batch->GetPayload<SpriteRenderPayload>(*items.front());
 
 	// GPUリソースの更新
-	resources.UpdateView(*context.view);
+	resources.UpdateView(*context.view, items.front()->cameraDomain);
 	resources.UploadInstances(*context.view, *context.batch, items);
 
 	// パイプラインを設定

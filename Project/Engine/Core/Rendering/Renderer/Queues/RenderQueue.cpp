@@ -39,6 +39,15 @@ void Engine::RenderSceneBatch::Sort() {
 		if (itemA.sortingOrder != itemB.sortingOrder) {
 			return itemA.sortingOrder < itemB.sortingOrder;
 		}
+		// Canvas配下は異なるマテリアルでもヒエラルキーの重なり順を維持する
+		if (itemA.orderedUI || itemB.orderedUI) {
+			if (itemA.orderedUI != itemB.orderedUI) {
+				return !itemA.orderedUI;
+			}
+			if (itemA.hierarchyOrder != itemB.hierarchyOrder) {
+				return itemA.hierarchyOrder < itemB.hierarchyOrder;
+			}
+		}
 		// マテリアル比較
 		if (itemA.material.value != itemB.material.value) {
 			return itemA.material.value < itemB.material.value;

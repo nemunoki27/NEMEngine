@@ -1,5 +1,6 @@
 AudioSource
 Billboard
+Canvas
 CameraController
 Collision
 DirectionalLight
@@ -24,4 +25,7 @@ SpriteRenderer
 TextRenderer
 TimeScale
 Transform
+UIButton
+UIProgress
+UISelectable
 UVTransform

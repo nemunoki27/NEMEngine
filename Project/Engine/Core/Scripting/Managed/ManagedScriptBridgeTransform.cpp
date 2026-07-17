@@ -5,112 +5,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
-#include <Engine/Core/World/Systems/Animation/JointAttachmentUtility.h>
-#include <Engine/Core/Foundation/Math/AffineDecompose.h>
+#include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 
 namespace Engine {
-
-	namespace {
-
-		// 親階層を辿ってworld回転を組み立てる、worldMatrixの分解ではなくlocal値の積で厳密に求める
-		Quaternion ComputeWorldRotation(ECSWorld& world, const Entity& entity) {
-
-			TransformComponent* self = world.TryGetComponent<TransformComponent>(entity);
-			Quaternion rotation = self ? self->localRotation : Quaternion::Identity();
-
-			Entity current = entity;
-			for (int32_t guard = 0; guard < 1024; ++guard) {
-				// ジョイント追従エンティティは親階層ではなくジョイントのワールドを親として折り込む
-				Matrix4x4 jointWorld{};
-				if (JointAttachmentUtility::GetAttachedJointWorldMatrix(world, current, jointWorld)) {
-					Vector3 jointPos{};
-					Quaternion jointRotation{};
-					Vector3 jointScale{};
-					if (DecomposeAffine3D(jointWorld, jointPos, jointRotation, jointScale)) {
-						rotation = jointRotation * rotation;
-					}
-					break;
-				}
-				HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(current);
-				if (!hierarchy || !world.IsAlive(hierarchy->parent)) {
-					break;
-				}
-				const Entity parent = hierarchy->parent;
-				if (TransformComponent* parentTransform = world.TryGetComponent<TransformComponent>(parent)) {
-					rotation = parentTransform->localRotation * rotation;
-				}
-				current = parent;
-			}
-			return rotation;
-		}
-
-		// 親階層を辿ってworld座標を組み立てる、worldMatrixはLateUpdateまで古いのでlocal値から毎回求める
-		// これがないとFixedUpdateの重力でlocalPosが動いてもUpdate中のpositionが古い値を返し、書き戻しで重力が打ち消される
-		Vector3 ComputeWorldPosition(ECSWorld& world, const Entity& entity) {
-
-			TransformComponent* self = world.TryGetComponent<TransformComponent>(entity);
-			if (!self) {
-				return Vector3::AnyInit(0.0f);
-			}
-
-			// 自分のlocal行列から始め、親のlocal行列を右から掛けてworldを作る
-			Matrix4x4 matrix = Matrix4x4::MakeAffineMatrix(self->localScale, self->localRotation, self->localPos);
-			Entity current = entity;
-			for (int32_t guard = 0; guard < 1024; ++guard) {
-				// ジョイント追従エンティティは親階層ではなくジョイントのワールドを親として折り込む
-				Matrix4x4 jointWorld{};
-				if (JointAttachmentUtility::GetAttachedJointWorldMatrix(world, current, jointWorld)) {
-					matrix = matrix * jointWorld;
-					break;
-				}
-				HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(current);
-				if (!hierarchy || !world.IsAlive(hierarchy->parent)) {
-					break;
-				}
-				const Entity parent = hierarchy->parent;
-				if (TransformComponent* parentTransform = world.TryGetComponent<TransformComponent>(parent)) {
-					matrix = matrix * Matrix4x4::MakeAffineMatrix(
-						parentTransform->localScale, parentTransform->localRotation, parentTransform->localPos);
-				}
-				current = parent;
-			}
-			return matrix.GetTranslationValue();
-		}
-
-		// 親階層のlocalScaleを成分積で累積したworldのlossy scale、回転による剪断は無視するUnityのlossyScale相当
-		Vector3 ComputeWorldScale(ECSWorld& world, const Entity& entity) {
-
-			TransformComponent* self = world.TryGetComponent<TransformComponent>(entity);
-			Vector3 scale = self ? self->localScale : Vector3::AnyInit(1.0f);
-
-			Entity current = entity;
-			for (int32_t guard = 0; guard < 1024; ++guard) {
-				// ジョイント追従エンティティは親階層ではなくジョイントのワールドスケールを折り込む
-				Matrix4x4 jointWorld{};
-				if (JointAttachmentUtility::GetAttachedJointWorldMatrix(world, current, jointWorld)) {
-					Vector3 jointPos{};
-					Quaternion jointRotation{};
-					Vector3 jointScale{};
-					if (DecomposeAffine3D(jointWorld, jointPos, jointRotation, jointScale)) {
-						scale = Vector3(scale.x * jointScale.x, scale.y * jointScale.y, scale.z * jointScale.z);
-					}
-					break;
-				}
-				HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(current);
-				if (!hierarchy || !world.IsAlive(hierarchy->parent)) {
-					break;
-				}
-				const Entity parent = hierarchy->parent;
-				if (TransformComponent* parentTransform = world.TryGetComponent<TransformComponent>(parent)) {
-					const Vector3& parentScale = parentTransform->localScale;
-					scale = Vector3(scale.x * parentScale.x, scale.y * parentScale.y, scale.z * parentScale.z);
-				}
-				current = parent;
-			}
-			return scale;
-		}
-	}
 
 	//============================================================================
 	//	Transform Callbacks
@@ -125,9 +22,10 @@ namespace Engine {
 			return {};
 		}
 
-		// worldMatrixはLateUpdateでしか更新されないため、Update中でも正しい値になるようlocal連鎖から毎回求める
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
-		return transform ? ToManagedVector3(ComputeWorldPosition(*world, resolved)) : ManagedVector3{};
+		// LateUpdate前でも現在のlocal値と継承設定から正しいワールド座標を返す
+		ResolvedWorldTransform worldTransform{};
+		return TransformWorldUtility::ResolveWorldTransform(*world, resolved, worldTransform) ?
+			ToManagedVector3(worldTransform.matrix.GetTranslationValue()) : ManagedVector3{};
 	}
 
 	void ManagedScriptRuntime::SetPositionCallback(ManagedNativeEntity entity, ManagedVector3 value) {
@@ -255,11 +153,13 @@ namespace Engine {
 	ManagedQuaternion ManagedScriptRuntime::GetRotationCallback(ManagedNativeEntity entity) {
 		ECSWorld* world = ResolveWorld(entity);
 		const Entity resolved = ResolveEntity(entity);
-		if (!world || !world->TryGetComponent<TransformComponent>(resolved)) {
+		if (!world) {
 			return {};
 		}
-		// 親階層を含めたworld回転を返す
-		return ToManagedQuaternion(ComputeWorldRotation(*world, resolved));
+		// LateUpdate前でも現在のlocal値と継承設定から正しいワールド回転を返す
+		ResolvedWorldTransform worldTransform{};
+		return TransformWorldUtility::ResolveWorldTransform(*world, resolved, worldTransform) ?
+			ToManagedQuaternion(worldTransform.rotation) : ManagedQuaternion{};
 	}
 
 	void ManagedScriptRuntime::SetRotationCallback(ManagedNativeEntity entity, ManagedQuaternion value) {
@@ -276,33 +176,25 @@ namespace Engine {
 			return;
 		}
 
-		// world回転を親のworld回転で打ち消してlocal回転へ変換する、localはinverse parentWorldとworldの積
-		Quaternion parentWorld = Quaternion::Identity();
-		Matrix4x4 jointWorld{};
-		if (JointAttachmentUtility::GetAttachedJointWorldMatrix(*world, resolved, jointWorld)) {
-			// ジョイント追従なら親回転はジョイントのワールド回転
-			Vector3 jointPos{};
-			Quaternion jointRotation{};
-			Vector3 jointScale{};
-			if (DecomposeAffine3D(jointWorld, jointPos, jointRotation, jointScale)) {
-				parentWorld = jointRotation;
-			}
-		} else if (HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved)) {
-			if (world->IsAlive(hierarchy->parent)) {
-				parentWorld = ComputeWorldRotation(*world, hierarchy->parent);
-			}
+		// 継承設定を反映した親回転で打ち消してワールド回転をlocalへ変換する
+		ResolvedWorldTransform parentFollow{};
+		if (!TransformWorldUtility::ResolveParentFollowTransform(*world, resolved, parentFollow)) {
+			return;
 		}
-		transform->localRotation = Quaternion::Normalize(Quaternion::Inverse(parentWorld) * ToQuaternion(value));
+		transform->localRotation = Quaternion::Normalize(
+			Quaternion::Inverse(parentFollow.rotation) * ToQuaternion(value));
 		MarkDirty(*world, resolved);
 	}
 
 	ManagedVector3 ManagedScriptRuntime::GetLossyScaleCallback(ManagedNativeEntity entity) {
 		ECSWorld* world = ResolveWorld(entity);
 		const Entity resolved = ResolveEntity(entity);
-		if (!world || !world->TryGetComponent<TransformComponent>(resolved)) {
+		if (!world) {
 			return ManagedVector3{ 1.0f, 1.0f, 1.0f };
 		}
-		return ToManagedVector3(ComputeWorldScale(*world, resolved));
+		ResolvedWorldTransform worldTransform{};
+		return TransformWorldUtility::ResolveWorldTransform(*world, resolved, worldTransform) ?
+			ToManagedVector3(worldTransform.scale) : ManagedVector3{ 1.0f, 1.0f, 1.0f };
 	}
 
 	int32_t ManagedScriptRuntime::GetIgnoreParentRotationCallback(ManagedNativeEntity entity) {

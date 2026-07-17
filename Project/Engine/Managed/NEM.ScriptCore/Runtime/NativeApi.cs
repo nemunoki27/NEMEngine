@@ -32,7 +32,8 @@ internal static class ManagedAbi {
     // v23: イージング関数 easedValue を追加、EasingType と t からイージング済みの値を返す
     // v24: FillMeshRendererComponentのローカル座標とワールド座標の点列取得を追加
     // v25: EffectEmitterの再生ハンドルAPIを追加
-    internal const uint Version = 25;
+    // v26: UIが入力を消費したフレームのゲーム入力ブロック状態を追加
+    internal const uint Version = 26;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -348,6 +349,8 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> EffectStop;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> EffectClear;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int> EffectIsPlaying;
+    // v26: UI入力ブロック状態
+    internal static delegate* unmanaged[Cdecl]<int> GetUIBlocksGameplayInput;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -484,6 +487,7 @@ internal static unsafe class NativeApi {
         EffectStop = callbacks->effectStop;
         EffectClear = callbacks->effectClear;
         EffectIsPlaying = callbacks->effectIsPlaying;
+        GetUIBlocksGameplayInput = callbacks->getUIBlocksGameplayInput;
     }
 
     internal static float ReadDeltaTime() {
@@ -1099,6 +1103,10 @@ internal static unsafe class NativeApi {
         }
     }
 
+	internal static bool ReadUIBlocksGameplayInput() {
+		return GetUIBlocksGameplayInput != null && GetUIBlocksGameplayInput() != 0;
+	}
+
     // FillMeshRendererComponentの点列をローカル座標またはワールド座標で取得する
     internal static List<Vector3> FillMeshGetPoints(NativeEntity entity, bool worldSpace) {
 
@@ -1570,4 +1578,6 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> effectStop;
     public delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> effectClear;
     public delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int> effectIsPlaying;
+    // v26: UI入力によるゲーム入力ブロック状態
+    public delegate* unmanaged[Cdecl]<int> getUIBlocksGameplayInput;
 }

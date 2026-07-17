@@ -154,7 +154,10 @@ void ECSWorld::AddComponentFromJson(const Entity& entity, const std::string_view
 	AssertAlive(entity);
 
 	const ComponentTypeInfo* info = ComponentTypeRegistry::GetInstance().FindByName(typeName);
-	Assert::Call(info, "Unknown component typeName in scene file");
+	if (!info) {
+		Assert::Call(false, "Unknown component typeName in scene file");
+		return;
+	}
 
 	// 既に持っているなら上書きする
 	if (!records_[entity.index].location.archetype->Has(info->id)) {

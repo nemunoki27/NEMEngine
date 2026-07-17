@@ -101,9 +101,128 @@
         { "name": "AABB3D", "value": 3 },
         { "name": "OBB3D", "value": 4 }
       ]
+    },
+    {
+      "managedType": "CanvasScaleMode",
+      "nativeType": "CanvasScaleMode",
+      "members": [
+        { "name": "ConstantPixelSize", "value": 0 },
+        { "name": "ScaleWithScreenSize", "value": 1 }
+      ]
+    },
+    {
+      "managedType": "UISelectableState",
+      "nativeType": "UISelectableState",
+      "members": [
+        { "name": "Normal", "value": 0 },
+        { "name": "Highlighted", "value": 1 },
+        { "name": "Pressed", "value": 2 },
+        { "name": "Selected", "value": 3 },
+        { "name": "Disabled", "value": 4 }
+      ]
+    },
+    {
+      "managedType": "UINavigationMode",
+      "nativeType": "UINavigationMode",
+      "members": [
+        { "name": "None", "value": 0 },
+        { "name": "Automatic", "value": 1 },
+        { "name": "Explicit", "value": 2 }
+      ]
+    },
+    {
+      "managedType": "UIProgressFillDirection",
+      "nativeType": "UIProgressFillDirection",
+      "members": [
+        { "name": "LeftToRight", "value": 0 },
+        { "name": "RightToLeft", "value": 1 },
+        { "name": "TopToBottom", "value": 2 },
+        { "name": "BottomToTop", "value": 3 }
+      ]
     }
   ],
   "components": [
+    {
+      "registryName": "Canvas",
+      "nativeType": "CanvasComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/CanvasComponent.h",
+      "managedType": "Canvas",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "ReferenceResolution", "nativeMember": "referenceResolution", "kind": "Vector2", "access": "ReadWrite" },
+        { "managedName": "ScaleMode", "nativeMember": "scaleMode", "kind": "Enum", "enumType": "CanvasScaleMode", "access": "ReadWrite" },
+        { "managedName": "ScaleFactor", "nativeMember": "scaleFactor", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "MatchWidthOrHeight", "nativeMember": "matchWidthOrHeight", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "SortingLayer", "nativeMember": "sortingLayer", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "Order", "nativeMember": "order", "kind": "Int", "access": "ReadWrite" },
+        { "managedName": "BlockGameplayInput", "nativeMember": "blockGameplayInput", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "MouseHoverSelect", "nativeMember": "mouseHoverSelect", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "WrapNavigation", "nativeMember": "wrapNavigation", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "FirstSelected", "nativeMember": "firstSelectedLocalFileID", "kind": "EntityRef", "access": "ReadWrite" }
+      ]
+    },
+    {
+      "registryName": "UISelectable",
+      "nativeType": "UISelectableComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UISelectableComponent.h",
+      "managedType": "UISelectable",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Interactable", "nativeMember": "interactable", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "NavigationMode", "nativeMember": "navigationMode", "kind": "Enum", "enumType": "UINavigationMode", "access": "ReadWrite" },
+        { "managedName": "Target", "nativeMember": "targetLocalFileID", "kind": "EntityRef", "access": "ReadWrite" },
+        { "managedName": "Up", "nativeMember": "upLocalFileID", "kind": "EntityRef", "access": "ReadWrite" },
+        { "managedName": "Down", "nativeMember": "downLocalFileID", "kind": "EntityRef", "access": "ReadWrite" },
+        { "managedName": "Left", "nativeMember": "leftLocalFileID", "kind": "EntityRef", "access": "ReadWrite" },
+        { "managedName": "Right", "nativeMember": "rightLocalFileID", "kind": "EntityRef", "access": "ReadWrite" },
+        { "managedName": "UseCustomHitArea", "nativeMember": "useCustomHitArea", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "HitAreaOffset", "nativeMember": "hitAreaOffset", "kind": "Vector2", "access": "ReadWrite" },
+        { "managedName": "HitAreaSize", "nativeMember": "hitAreaSize", "kind": "Vector2", "access": "ReadWrite" },
+        { "managedName": "TransitionDuration", "nativeMember": "transitionDuration", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "State", "nativeMember": "runtimeState", "kind": "Enum", "enumType": "UISelectableState", "access": "ReadOnly" }
+      ]
+    },
+    {
+      "registryName": "UIButton",
+      "nativeType": "UIButtonComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UIButtonComponent.h",
+      "managedType": "UIButton",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "ActionName", "nativeMember": "actionName", "kind": "String", "access": "ReadWrite" },
+        { "managedName": "ClickedThisFrame", "nativeMember": "runtimeClickedThisFrame", "kind": "Bool", "access": "ReadOnly" }
+      ]
+    },
+    {
+      "registryName": "UIProgress",
+      "nativeType": "UIProgressComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UIProgressComponent.h",
+      "managedType": "UIProgress",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "MinValue", "nativeMember": "minValue", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "MaxValue", "nativeMember": "maxValue", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Value", "nativeMember": "value", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "FillTarget", "nativeMember": "fillTargetLocalFileID", "kind": "EntityRef", "access": "ReadWrite" },
+        { "managedName": "DelayedTarget", "nativeMember": "delayedTargetLocalFileID", "kind": "EntityRef", "access": "ReadWrite" },
+        { "managedName": "Direction", "nativeMember": "direction", "kind": "Enum", "enumType": "UIProgressFillDirection", "access": "ReadWrite" },
+        { "managedName": "Smooth", "nativeMember": "smooth", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "SmoothDuration", "nativeMember": "smoothDuration", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "Delayed", "nativeMember": "delayed", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "DelayedWait", "nativeMember": "delayedWait", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "DelayedDuration", "nativeMember": "delayedDuration", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "UseUnscaledTime", "nativeMember": "useUnscaledTime", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "DisplayedNormalizedValue", "nativeMember": "runtimeDisplayedValue", "kind": "Float", "access": "ReadOnly" },
+        { "managedName": "DelayedNormalizedValue", "nativeMember": "runtimeDelayedValue", "kind": "Float", "access": "ReadOnly" }
+      ]
+    },
     {
       "registryName": "SkinnedAnimation",
       "nativeType": "SkinnedAnimationComponent",

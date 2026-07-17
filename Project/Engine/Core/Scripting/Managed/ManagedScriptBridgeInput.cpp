@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Platform/Input/InputSystem.h>
+#include <Engine/Core/World/UI/UIRuntimeService.h>
 
 namespace Engine {
 
@@ -148,6 +149,11 @@ namespace Engine {
 		Input* input = Input::GetInstance();
 		// 右トリガーの押し込み量を取得(0.0 ~ 1.0)
 		return input ? input->GetRightTriggerValue() : 0.0f;
+	}
+
+	int32_t ManagedScriptRuntime::GetUIBlocksGameplayInputCallback() {
+
+		return UIRuntimeService::GetInstance().IsGameplayInputBlocked() ? 1 : 0;
 	}
 
 	//============================================================================

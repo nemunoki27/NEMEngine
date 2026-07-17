@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
+#include <Engine/Core/World/UI/UIRuntimeService.h>
 
 //============================================================================
 //	SpriteRenderItemExtractor internal
@@ -60,12 +61,23 @@ void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatc
 		payload.materialOverrides = &renderer.parameterOverrides;
 		// 描画アイテムの構築
 		RenderItem item{};
-		RenderItemExtract::FillCommonFields(item, world, entity, renderer, RenderItemExtract::GetWorldMatrix(world, entity));
+		const UIElementRuntime* uiRuntime = UIRuntimeService::GetInstance().Find(world, entity);
+		const Matrix4x4 worldMatrix = uiRuntime ? uiRuntime->screenMatrix : RenderItemExtract::GetWorldMatrix(world, entity);
+		RenderItemExtract::FillCommonFields(item, world, entity, renderer, worldMatrix);
 		item.backendID = RenderBackendID::Sprite;
 		item.material = renderer.material;
 		// baseColorTextureだけの上書きは同じテクスチャでまとめ、それ以外の上書きは単独描画にする
 		item.batchKey = ResolveBatchKey(entity, renderer.parameterOverrides);
-		item.cameraDomain = RenderCameraDomain::Orthographic;
+		if (uiRuntime) {
+			item.renderPhase = RenderPhase::ScreenUI;
+			item.cameraDomain = RenderCameraDomain::Screen;
+			item.sortingLayer += uiRuntime->canvasSortingLayer;
+			item.sortingOrder += uiRuntime->canvasOrder;
+			item.orderedUI = true;
+			item.hierarchyOrder = uiRuntime->hierarchyOrder;
+		} else {
+			item.cameraDomain = RenderCameraDomain::Orthographic;
+		}
 		item.payload = batch.PushPayload(payload);
 		// 描画アイテムをバッチに追加
 		batch.Add(std::move(item));

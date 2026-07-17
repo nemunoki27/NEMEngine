@@ -34,6 +34,8 @@
 #include <Engine/Core/World/Systems/Rendering/FillFaceMeshRendererSystem.h>
 #include <Engine/Core/World/Systems/Effect/ParticleSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Systems/UI/UIInputSystem.h>
+#include <Engine/Core/World/Systems/UI/UICanvasSystem.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 
@@ -90,6 +92,8 @@ void Engine::EngineApplication::InitSystems() {
 	int32_t order = 0;
 	// システムの追加、orderが小さいほど先に処理される
 	scheduler_.AddSystem(std::make_unique<HierarchySystem>(), ++order);
+	// UI入力はBehaviorより先に確定し、C#のUpdateから同フレームのクリックを参照できるようにする
+	scheduler_.AddSystem(std::make_unique<UIInputSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
 	// プロパティアニメはスクリプトの後で適用し、LateUpdateのTransform確定前に値を書く
 	scheduler_.AddSystem(std::make_unique<AnimationPlayerSystem>(), ++order);
@@ -105,6 +109,8 @@ void Engine::EngineApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<SkinnedAnimationSystem>(), ++order);
 	// ジョイント追従はスケルトン更新の後でないとジョイントのワールド行列が確定しないため、最後に動かす
 	scheduler_.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);
+	// Canvas行列は全Transform更新後に確定する
+	scheduler_.AddSystem(std::make_unique<UICanvasSystem>(), ++order);
 }
 
 void Engine::EngineApplication::InitFirstScene() {

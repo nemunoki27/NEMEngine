@@ -19,7 +19,7 @@ public sealed class Transform : Component, IComponentRef<Transform> {
 
     public Vector3 position {
 
-        // world positionはECSのworldMatrixから取得し、書き込み時は親Transformを考慮してlocalへ変換される
+        // world positionは現在のlocal値と親の継承設定から取得し、書き込み時は同じ親Transformでlocalへ変換される
         get => NativeApi.ReadPosition(entity.native);
         set => NativeApi.WritePosition(entity.native, value);
     }
@@ -41,13 +41,13 @@ public sealed class Transform : Component, IComponentRef<Transform> {
         set => NativeApi.WriteLocalRotation(entity.native, value);
     }
 
-    // world(親階層を含めた) 回転。set は親の world 回転を考慮して local へ変換される
+    // world回転。親階層の継承設定を反映し、setも同じ親回転でlocalへ変換される
     public Quaternion rotation {
         get => NativeApi.ReadRotation(entity.native);
         set => NativeApi.WriteRotation(entity.native, value);
     }
 
-    // world(lossy) scale。親階層の localScale を成分積で累積した近似値（読み取り専用）
+    // world(lossy) scale。親階層の継承設定を反映した成分積の近似値（読み取り専用）
     public Vector3 lossyScale => NativeApi.ReadLossyScale(entity.native);
 
     // 親(エンティティ階層 / スキンメッシュのジョイント)追従で回転を無視するか。座標は常に追従する

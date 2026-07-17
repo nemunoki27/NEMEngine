@@ -11,6 +11,7 @@
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
@@ -22,47 +23,6 @@
 namespace {
 
 	using namespace Engine;
-
-	// 親階層を辿ったworld回転でlocal値の積、worldMatrix分解ではない
-	Quaternion WorldRotationOf(ECSWorld& world, const Entity& entity) {
-
-		TransformComponent* self = world.TryGetComponent<TransformComponent>(entity);
-		Quaternion rotation = self ? self->localRotation : Quaternion::Identity();
-		Entity current = entity;
-		for (int32_t guard = 0; guard < 1024; ++guard) {
-			HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(current);
-			if (!hierarchy || !world.IsAlive(hierarchy->parent)) {
-				break;
-			}
-			const Entity parent = hierarchy->parent;
-			if (TransformComponent* parentTransform = world.TryGetComponent<TransformComponent>(parent)) {
-				rotation = parentTransform->localRotation * rotation;
-			}
-			current = parent;
-		}
-		return rotation;
-	}
-
-	// 親階層のlocalScaleを成分積で累積したworld(lossy) scale
-	Vector3 WorldScaleOf(ECSWorld& world, const Entity& entity) {
-
-		TransformComponent* self = world.TryGetComponent<TransformComponent>(entity);
-		Vector3 scale = self ? self->localScale : Vector3::AnyInit(1.0f);
-		Entity current = entity;
-		for (int32_t guard = 0; guard < 1024; ++guard) {
-			HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(current);
-			if (!hierarchy || !world.IsAlive(hierarchy->parent)) {
-				break;
-			}
-			const Entity parent = hierarchy->parent;
-			if (TransformComponent* parentTransform = world.TryGetComponent<TransformComponent>(parent)) {
-				const Vector3& parentScale = parentTransform->localScale;
-				scale = Vector3(scale.x * parentScale.x, scale.y * parentScale.y, scale.z * parentScale.z);
-			}
-			current = parent;
-		}
-		return scale;
-	}
 
 	// entityとその子孫をまとめて破棄予約する
 	void DestroyEntitySubtree(ECSWorld& world, const Entity& entity) {
@@ -105,37 +65,28 @@ namespace {
 		return true;
 	}
 
-	// worldPositionStays:親変更前のchild world姿勢を、変更後のnewParent基準のlocal値へ落として維持する
-	void PreserveWorldTransform(ECSWorld& world, const Entity& child, const Entity& newParent,
-		const Matrix4x4& childWorldBefore, const Quaternion& childWorldRotBefore, const Vector3& childWorldScaleBefore) {
+	// worldPositionStays:親変更前のchild world姿勢を、変更後の親追従Transform基準のlocal値へ落として維持する
+	void PreserveWorldTransform(ECSWorld& world, const Entity& child,
+		const ResolvedWorldTransform& childWorldBefore) {
 
 		TransformComponent* childTransform = world.TryGetComponent<TransformComponent>(child);
 		if (!childTransform) {
 			return;
 		}
-		const Vector3 worldPos = childWorldBefore.GetTranslationValue();
-
-		if (world.IsAlive(newParent) && world.TryGetComponent<TransformComponent>(newParent)) {
-
-			TransformComponent* parentTransform = world.TryGetComponent<TransformComponent>(newParent);
-			const Matrix4x4 inverseParent = Matrix4x4::Inverse(parentTransform->worldMatrix);
-			childTransform->localPos = Vector3::TransformPoint(worldPos, inverseParent);
-
-			const Quaternion parentWorldRot = WorldRotationOf(world, newParent);
-			childTransform->localRotation = Quaternion::Normalize(Quaternion::Inverse(parentWorldRot) * childWorldRotBefore);
-
-			const Vector3 parentWorldScale = WorldScaleOf(world, newParent);
-			childTransform->localScale = Vector3(
-				parentWorldScale.x != 0.0f ? childWorldScaleBefore.x / parentWorldScale.x : childWorldScaleBefore.x,
-				parentWorldScale.y != 0.0f ? childWorldScaleBefore.y / parentWorldScale.y : childWorldScaleBefore.y,
-				parentWorldScale.z != 0.0f ? childWorldScaleBefore.z / parentWorldScale.z : childWorldScaleBefore.z);
-		} else {
-
-			// ルート化: world値をそのままlocalとする
-			childTransform->localPos = worldPos;
-			childTransform->localRotation = Quaternion::Normalize(childWorldRotBefore);
-			childTransform->localScale = childWorldScaleBefore;
+		ResolvedWorldTransform parentFollow{};
+		if (!TransformWorldUtility::ResolveParentFollowTransform(world, child, parentFollow)) {
+			return;
 		}
+
+		const Vector3 worldPos = childWorldBefore.matrix.GetTranslationValue();
+		childTransform->localPos = Vector3::TransformPoint(
+			worldPos, Matrix4x4::Inverse(parentFollow.matrix));
+		childTransform->localRotation = Quaternion::Normalize(
+			Quaternion::Inverse(parentFollow.rotation) * childWorldBefore.rotation);
+		childTransform->localScale = Vector3(
+			parentFollow.scale.x != 0.0f ? childWorldBefore.scale.x / parentFollow.scale.x : childWorldBefore.scale.x,
+			parentFollow.scale.y != 0.0f ? childWorldBefore.scale.y / parentFollow.scale.y : childWorldBefore.scale.y,
+			parentFollow.scale.z != 0.0f ? childWorldBefore.scale.z / parentFollow.scale.z : childWorldBefore.scale.z);
 	}
 }
 
@@ -450,23 +401,17 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 		}
 
 		// worldPositionStays:付け替え前のworld姿勢を控えておき、付け替え後にlocalへ落として復元する
-		Matrix4x4 worldBefore = Matrix4x4::Identity();
-		Quaternion worldRotBefore = Quaternion::Identity();
-		Vector3 worldScaleBefore = Vector3::AnyInit(1.0f);
-		const bool keepWorld = command.boolValue;
+		ResolvedWorldTransform worldBefore{};
+		bool keepWorld = command.boolValue;
 		if (keepWorld) {
-			if (TransformComponent* childTransform = world.TryGetComponent<TransformComponent>(command.target)) {
-				worldBefore = childTransform->worldMatrix;
-			}
-			worldRotBefore = WorldRotationOf(world, command.target);
-			worldScaleBefore = WorldScaleOf(world, command.target);
+			keepWorld = TransformWorldUtility::ResolveWorldTransform(world, command.target, worldBefore);
 		}
 
 		HierarchySystem hierarchySystem{};
 		hierarchySystem.SetParent(world, command.target, parent);
 
 		if (keepWorld) {
-			PreserveWorldTransform(world, command.target, parent, worldBefore, worldRotBefore, worldScaleBefore);
+			PreserveWorldTransform(world, command.target, worldBefore);
 		}
 		break;
 	}

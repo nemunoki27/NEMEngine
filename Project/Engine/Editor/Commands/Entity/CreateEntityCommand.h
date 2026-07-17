@@ -11,6 +11,21 @@
 
 namespace Engine {
 
+	class ECSWorld;
+	struct Entity;
+
+	// 新規エンティティへ追加するビルトイン構成
+	enum class EntityCreationPreset :
+		uint8_t {
+
+		Empty,
+		Canvas,
+		UIImage,
+		UIText,
+		UIButton,
+		UIProgress,
+	};
+
 	//============================================================================
 	//	CreateEntityCommand class
 	//	エンティティを作成するコマンド
@@ -22,7 +37,8 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		explicit CreateEntityCommand(const std::string& name = "Entity", UUID parentStableUUID = UUID{});
+		explicit CreateEntityCommand(const std::string& name = "Entity", UUID parentStableUUID = UUID{},
+			EntityCreationPreset preset = EntityCreationPreset::Empty);
 		~CreateEntityCommand() = default;
 
 		// コマンドの実行
@@ -45,10 +61,13 @@ namespace Engine {
 		std::string name_;
 		UUID parentStableUUID_{};
 		UUID createdStableUUID_{};
+		EntityCreationPreset preset_ = EntityCreationPreset::Empty;
 
 		//--------- functions ----------------------------------------------------
 
 		// コマンドの実行処理
 		bool CreateInternal(EditorCommandContext& context);
+		// 作成プリセットのコンポーネントを追加する
+		void ApplyPreset(ECSWorld& world, const Entity& entity, const Entity& parent);
 	};
 } // Engine

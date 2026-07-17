@@ -322,7 +322,7 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		}
 		// キャッシュ済みレイアウトからVS/PSインスタンスだけ構築する
 		Matrix4x4 worldMatrix = RenderBillboard::ResolveWorldMatrix(*item, *context.view);
-		if (renderer->dimension == Dimension::Type3D) {
+		if (item->cameraDomain == RenderCameraDomain::Perspective) {
 
 			// グリフ座標はピクセル単位なのでワールド単位へ縮小し、3DはY+が上向きなので上下反転する
 			const float s = renderer->worldScale;

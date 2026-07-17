@@ -3,9 +3,9 @@ using NEMEngine;
 namespace SandboxScripts;
 
 //============================================================================
-//	RefScriptTest
+//	TestTransform
 //============================================================================
-public sealed class RefScriptTest : ScriptBehaviour
+public sealed class TestTransform : ScriptBehaviour
 {
 
     //========================================================================
@@ -13,12 +13,16 @@ public sealed class RefScriptTest : ScriptBehaviour
     //========================================================================
     public override void Start()
     {
-    }
+		// ワールド座標出力
+		Debug.Log($"worldPos = {transform.position}");
+	}
 
     //========================================================================
     //	毎フレーム更新処理
     //========================================================================
     public override void Update()
     {
-    }
+		// ワールド座標出力
+		Debug.Log($"worldPos = {transform.position}");
+	}
 }

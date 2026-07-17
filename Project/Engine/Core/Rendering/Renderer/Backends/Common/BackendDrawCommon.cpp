@@ -245,6 +245,8 @@ bool Engine::BackendDrawCommon::CanBatchBasic(const RenderItem& first, const Ren
 
 	return first.sortingLayer == next.sortingLayer &&
 		first.sortingOrder == next.sortingOrder &&
+		first.cameraDomain == next.cameraDomain &&
+		first.orderedUI == next.orderedUI &&
 		first.material == next.material &&
 		first.blendMode == next.blendMode &&
 		first.batchKey == next.batchKey;

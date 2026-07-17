@@ -20,6 +20,10 @@ namespace Engine {
 	//============================================================================
 	namespace JointAttachmentUtility {
 
+		// 親子付けされたエンティティから、追従先エンティティとジョイントのスケルトン空間行列を取得する
+		bool ResolveAttachedJoint(ECSWorld& world, const Entity& entity, Entity& outSkinnedEntity,
+			Matrix4x4& outSkeletonSpaceMatrix);
+
 		// ジョイントのワールド行列を取得する、スケルトン空間行列にスキンメッシュのワールド行列を掛ける
 		bool GetJointWorldMatrix(ECSWorld& world, const Entity& skinnedEntity, const std::string& jointName,
 			Matrix4x4& outWorldMatrix);

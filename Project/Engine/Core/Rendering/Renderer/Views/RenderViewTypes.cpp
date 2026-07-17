@@ -10,6 +10,8 @@ const Engine::ResolvedCameraView* Engine::ResolvedRenderView::FindCamera(RenderC
 		return orthographic.valid ? &orthographic : nullptr;
 	case RenderCameraDomain::Perspective:
 		return perspective.valid ? &perspective : nullptr;
+	case RenderCameraDomain::Screen:
+		return screen.valid ? &screen : nullptr;
 	}
 	return nullptr;
 }

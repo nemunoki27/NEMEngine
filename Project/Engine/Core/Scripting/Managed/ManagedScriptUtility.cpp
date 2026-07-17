@@ -8,11 +8,10 @@
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
-#include <Engine/Core/World/Systems/Animation/JointAttachmentUtility.h>
+#include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 
 // c++
 #include <cstring>
@@ -91,26 +90,12 @@ namespace Engine {
 
 	Vector3 MakeLocalPositionFromWorld(ECSWorld& world, const Entity& entity, const Vector3& position) {
 
-		// ジョイント追従なら親はジョイント、そのワールドの逆行列でローカルへ落とす
-		Matrix4x4 jointWorld{};
-		if (JointAttachmentUtility::GetAttachedJointWorldMatrix(world, entity, jointWorld)) {
-			return Vector3::Transform(position, Matrix4x4::Inverse(jointWorld));
-		}
-
-		// 親がいなければワールド座標をそのままローカル座標として扱う
-		const HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(entity);
-		if (!hierarchy) {
+		// 継承設定を反映した親追従行列の逆行列でワールド座標をローカルへ落とす
+		ResolvedWorldTransform parentFollow{};
+		if (!TransformWorldUtility::ResolveParentFollowTransform(world, entity, parentFollow)) {
 			return position;
 		}
-		const Entity parent = hierarchy->parent;
-		TransformComponent* parentTransform = world.TryGetComponent<TransformComponent>(parent);
-		if (!parentTransform) {
-			return position;
-		}
-
-		// 親のワールド行列の逆行列でワールド座標をローカル空間へ落とす
-		const Matrix4x4 inverseParent = Matrix4x4::Inverse(parentTransform->worldMatrix);
-		return Vector3::Transform(position, inverseParent);
+		return Vector3::Transform(position, Matrix4x4::Inverse(parentFollow.matrix));
 	}
 
 	void MarkDirty(ECSWorld& world, const Entity& entity) {

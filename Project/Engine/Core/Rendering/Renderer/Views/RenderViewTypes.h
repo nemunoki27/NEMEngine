@@ -26,6 +26,7 @@ namespace Engine {
 
 		Orthographic,
 		Perspective,
+		Screen,
 	};
 
 	// 2D/3Dカメラ共通トランスフォーム
@@ -104,6 +105,7 @@ namespace Engine {
 
 		ResolvedCameraView orthographic{};
 		ResolvedCameraView perspective{};
+		ResolvedCameraView screen{};
 
 		// 指定した投影方式のカメラビューを返す
 		const ResolvedCameraView* FindCamera(RenderCameraDomain domain) const;

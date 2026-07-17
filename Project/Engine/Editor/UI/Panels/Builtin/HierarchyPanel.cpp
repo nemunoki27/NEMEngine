@@ -86,6 +86,27 @@ namespace {
 		// 作成済みエンティティをUndo/Redo対象として履歴へ登録する
 		context.host->ExecuteEditorCommand(std::make_unique<Engine::CreateDroppedEntityCommand>(spawn.root));
 	}
+
+	// UIプリセット作成メニューを描画する
+	void DrawUICreationMenu(const Engine::EditorPanelContext& context, Engine::UUID parentStableUUID) {
+
+		if (!ImGui::BeginMenu("UI", context.CanEditScene())) {
+			return;
+		}
+		auto create = [&](const char* label, const char* name, Engine::EntityCreationPreset preset) {
+			if (ImGui::MenuItem(label)) {
+				context.host->ExecuteEditorCommand(
+					std::make_unique<Engine::CreateEntityCommand>(name, parentStableUUID, preset));
+			}
+		};
+		create("Canvas", "Canvas", Engine::EntityCreationPreset::Canvas);
+		ImGui::Separator();
+		create("Image", "Image", Engine::EntityCreationPreset::UIImage);
+		create("Text", "Text", Engine::EntityCreationPreset::UIText);
+		create("Button", "Button", Engine::EntityCreationPreset::UIButton);
+		create("Progress", "Progress", Engine::EntityCreationPreset::UIProgress);
+		ImGui::EndMenu();
+	}
 }
 
 Engine::HierarchyPanel::HierarchyPanel(TextureUploadService& textureUploadService) :
@@ -470,6 +491,7 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 			context.host->ExecuteEditorCommand(
 				std::make_unique<CreateEntityCommand>("Entity", world.GetUUID(entity)));
 		}
+		DrawUICreationMenu(context, world.GetUUID(entity));
 		// エンティティを複製
 		if (ImGui::MenuItem("複製", "Ctrl+D", false, context.CanEditScene())) {
 
@@ -815,6 +837,7 @@ void Engine::HierarchyPanel::DrawBackgroundContextMenu(const EditorPanelContext&
 
 			context.host->ExecuteEditorCommand(std::make_unique<CreateEntityCommand>("Entity"));
 		}
+		DrawUICreationMenu(context, UUID{});
 		// コピーエンティティを作成
 		const bool canPaste = context.editorState && context.editorState->HasClipboard() && context.CanEditScene();
 		if (ImGui::MenuItem("コピー済みをペースト", "Ctrl+V", false, canPaste)) {

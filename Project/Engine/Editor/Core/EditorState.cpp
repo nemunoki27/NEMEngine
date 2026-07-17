@@ -15,6 +15,7 @@
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
+#include <Engine/Core/World/Components/UI/CanvasComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 
 // c++
@@ -25,14 +26,13 @@
 //	EditorState internal
 //============================================================================
 
-// 複数選択の次元ガードやスナップグリッド描画用にエンティティの2D/3Dを判定する、確定できなければnullopt
-// TextはMeshと違い2D/3D両対応なのでdimensionで切り替える
 std::optional<Engine::Dimension> Engine::ResolveEntityDimension(ECSWorld& world, const Entity& entity) {
 
 	if (!world.IsAlive(entity)) {
 		return std::nullopt;
 	}
 	if (world.HasComponent<SpriteRendererComponent>(entity) ||
+		world.HasComponent<CanvasComponent>(entity) ||
 		world.HasComponent<OrthographicCameraComponent>(entity)) {
 		return Dimension::Type2D;
 	}

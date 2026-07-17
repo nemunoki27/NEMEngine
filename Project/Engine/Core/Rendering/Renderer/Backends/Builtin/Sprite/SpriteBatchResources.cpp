@@ -59,11 +59,11 @@ void Engine::SpriteBatchResources::CreateQuadBuffers(ID3D12Device* device, Buffe
 	uploadService.SubmitBatch();
 }
 
-void Engine::SpriteBatchResources::UpdateView(const ResolvedRenderView& view) {
+void Engine::SpriteBatchResources::UpdateView(const ResolvedRenderView& view, RenderCameraDomain cameraDomain) {
 
 	// 定数バッファにビュー行列を転送する
 	SpriteViewConstants constants{};
-	if (const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Orthographic)) {
+	if (const ResolvedCameraView* camera = view.FindCamera(cameraDomain)) {
 
 		constants.viewProjection = camera->matrices.viewProjectionMatrix;
 	}
