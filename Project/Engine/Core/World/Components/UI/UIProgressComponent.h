@@ -42,7 +42,6 @@ namespace Engine {
 		float maxValue = 1.0f;
 		float value = 1.0f;
 
-		UUID fillTargetLocalFileID{};
 		UUID delayedTargetLocalFileID{};
 		UIProgressFillDirection direction = UIProgressFillDirection::LeftToRight;
 
@@ -71,6 +70,7 @@ namespace Engine {
 
 	void from_json(const nlohmann::json& in, UIProgressComponent& component);
 	void to_json(nlohmann::json& out, const UIProgressComponent& component);
+	void ResetUIProgressRuntime(UIProgressComponent& component);
 
 	ENGINE_REGISTER_COMPONENT(UIProgressComponent, "UIProgress");
 } // Engine

@@ -3,44 +3,29 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
+#include <Engine/Core/World/ECS/Entity/Entity.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
-// c++
-#include <string>
+// json
+#include <json.hpp>
 
 namespace Engine {
 
-	class ECSWorld;
-	struct Entity;
-
-	// 新規エンティティへ追加するビルトイン構成
-	enum class EntityCreationPreset :
-		uint8_t {
-
-		Empty,
-		Canvas,
-		UIImage,
-		UIText,
-		UIImageButton,
-		UITextButton,
-		UIProgress,
-	};
-
 	//============================================================================
-	//	CreateEntityCommand class
-	//	エンティティを作成するコマンド
+	//	SetUIProgressDelayedCommand class
+	//	UIProgressの遅延表示用エンティティを切り替えるコマンド
 	//============================================================================
-	class CreateEntityCommand :
+	class SetUIProgressDelayedCommand :
 		public IEditorCommand {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
 
-		explicit CreateEntityCommand(const std::string& name = "Entity", UUID parentStableUUID = UUID{},
-			EntityCreationPreset preset = EntityCreationPreset::Empty);
-		~CreateEntityCommand() = default;
+		SetUIProgressDelayedCommand(const Entity& targetEntity, bool delayed);
+		~SetUIProgressDelayedCommand() = default;
 
 		// コマンドの実行
 		bool Execute(EditorCommandContext& context) override;
@@ -51,7 +36,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		const char* GetName() const override { return "Create Entity"; }
+		const char* GetName() const override { return "Set UI Progress Delayed"; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -59,16 +44,26 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		std::string name_;
-		UUID parentStableUUID_{};
-		UUID createdStableUUID_{};
-		EntityCreationPreset preset_ = EntityCreationPreset::Empty;
+		Entity initialTarget_ = Entity::Null();
+		UUID targetStableUUID_{};
+		bool delayed_ = false;
+		bool changedDelayedEntity_ = false;
+
+		nlohmann::json beforeData_{};
+		nlohmann::json afterData_{};
+		EditorEntityTreeSnapshot delayedEntitySnapshot_{};
 
 		//--------- functions ----------------------------------------------------
 
-		// コマンドの実行処理
-		bool CreateInternal(EditorCommandContext& context);
-		// 作成プリセットのコンポーネントを追加する
-		void ApplyPreset(ECSWorld& world, const Entity& entity, const Entity& parent);
+		// UIProgressのJSONを適用する
+		bool ApplyComponent(EditorCommandContext& context, const nlohmann::json& data);
+		// 遅延表示用エンティティを生成する
+		bool EnableDelayed(EditorCommandContext& context, const Entity& target);
+		// 遅延表示用エンティティを削除する
+		bool DisableDelayed(EditorCommandContext& context, const Entity& target);
+		// 遅延表示用エンティティを復元する
+		bool RestoreDelayedEntity(EditorCommandContext& context);
+		// 遅延表示用エンティティを破棄する
+		void DestroyDelayedEntity(EditorCommandContext& context);
 	};
 } // Engine

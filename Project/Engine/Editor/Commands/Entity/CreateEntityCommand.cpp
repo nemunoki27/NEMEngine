@@ -11,7 +11,8 @@
 #include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
 #include <Engine/Core/World/Components/UI/CanvasComponent.h>
 #include <Engine/Core/World/Components/UI/UISelectableComponent.h>
-#include <Engine/Core/World/Components/UI/UIButtonComponent.h>
+#include <Engine/Core/World/Components/UI/UIImageButtonComponent.h>
+#include <Engine/Core/World/Components/UI/UITextButtonComponent.h>
 #include <Engine/Core/World/Components/UI/UIProgressComponent.h>
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
@@ -144,11 +145,19 @@ void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& ent
 		text.pivot = Vector2::AnyInit(0.5f);
 		break;
 	}
-	case EntityCreationPreset::UIButton: {
+	case EntityCreationPreset::UIImageButton: {
 		auto& sprite = world.AddComponent<SpriteRendererComponent>(entity);
 		sprite.size = Vector2(240.0f, 64.0f);
 		world.AddComponent<UISelectableComponent>(entity);
-		world.AddComponent<UIButtonComponent>(entity);
+		world.AddComponent<UIImageButtonComponent>(entity);
+		break;
+	}
+	case EntityCreationPreset::UITextButton: {
+		auto& text = world.AddComponent<TextRendererComponent>(entity);
+		text.text = "Button";
+		text.pivot = Vector2::AnyInit(0.5f);
+		world.AddComponent<UISelectableComponent>(entity);
+		world.AddComponent<UITextButtonComponent>(entity);
 		break;
 	}
 	case EntityCreationPreset::UIProgress: {

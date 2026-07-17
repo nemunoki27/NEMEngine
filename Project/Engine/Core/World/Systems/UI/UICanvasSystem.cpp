@@ -14,6 +14,7 @@
 // c++
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 //============================================================================
 //	UICanvasSystem internal
@@ -26,13 +27,45 @@ namespace {
 		return sceneObject ? sceneObject->localFileID : Engine::UUID{};
 	}
 
-	Engine::Entity ResolveTarget(Engine::ECSWorld& world, Engine::Entity owner, Engine::UUID localFileID) {
+	Engine::Entity ResolveTarget(Engine::ECSWorld& world, Engine::UUID localFileID) {
 
 		if (!localFileID) {
-			return owner;
+			return Engine::Entity::Null();
 		}
 		const Engine::Entity target = Engine::SceneObjectUtility::FindByLocalFileID(world, localFileID);
 		return world.IsAlive(target) ? target : Engine::Entity::Null();
+	}
+
+	void SyncDelayedRenderer(Engine::ECSWorld& world, Engine::Entity source,
+		Engine::Entity delayedTarget, bool syncGeometry) {
+
+		const auto* sourceSprite = world.TryGetComponent<Engine::SpriteRendererComponent>(source);
+		auto* delayedSprite = world.TryGetComponent<Engine::SpriteRendererComponent>(delayedTarget);
+		if (!sourceSprite || !delayedSprite) {
+			return;
+		}
+
+		delayedSprite->material = sourceSprite->material;
+		delayedSprite->parameterOverrides = sourceSprite->parameterOverrides;
+		delayedSprite->layer = sourceSprite->layer;
+		delayedSprite->order = sourceSprite->order;
+		if ((std::numeric_limits<int32_t>::min)() < delayedSprite->order) {
+			--delayedSprite->order;
+		}
+		delayedSprite->visible = sourceSprite->visible;
+		delayedSprite->blendMode = sourceSprite->blendMode;
+		delayedSprite->queue = sourceSprite->queue;
+		if (!syncGeometry) {
+			return;
+		}
+
+		delayedSprite->size = sourceSprite->size;
+		delayedSprite->pivot = sourceSprite->pivot;
+		const auto* sourceUVTransform = world.TryGetComponent<Engine::UVTransformComponent>(source);
+		auto* delayedUVTransform = world.TryGetComponent<Engine::UVTransformComponent>(delayedTarget);
+		if (sourceUVTransform && delayedUVTransform) {
+			*delayedUVTransform = *sourceUVTransform;
+		}
 	}
 
 	void RestoreTarget(Engine::ECSWorld& world, const Engine::UIProgressTargetRuntime& runtime) {
@@ -56,10 +89,9 @@ namespace {
 		}
 	}
 
-	void EnsureTarget(Engine::ECSWorld& world, Engine::Entity owner, Engine::UUID configuredLocalFileID,
+	void EnsureTarget(Engine::ECSWorld& world, Engine::Entity target,
 		Engine::UIProgressTargetRuntime& runtime) {
 
-		const Engine::Entity target = ResolveTarget(world, owner, configuredLocalFileID);
 		const Engine::UUID targetLocalFileID = world.IsAlive(target) ? GetLocalFileID(world, target) : Engine::UUID{};
 		if (runtime.valid && runtime.localFileID == targetLocalFileID) {
 			return;
@@ -165,9 +197,13 @@ namespace {
 			return;
 		}
 
-		EnsureTarget(world, entity, progress.fillTargetLocalFileID, progress.runtimeFillTarget);
+		EnsureTarget(world, entity, progress.runtimeFillTarget);
 		if (progress.delayed && progress.delayedTargetLocalFileID) {
-			EnsureTarget(world, entity, progress.delayedTargetLocalFileID, progress.runtimeDelayedTarget);
+
+			const Engine::Entity delayedTarget =
+				ResolveTarget(world, progress.delayedTargetLocalFileID);
+			SyncDelayedRenderer(world, entity, delayedTarget, !progress.runtimeInitialized);
+			EnsureTarget(world, delayedTarget, progress.runtimeDelayedTarget);
 		} else {
 			RestoreTarget(world, progress.runtimeDelayedTarget);
 			progress.runtimeDelayedTarget = {};

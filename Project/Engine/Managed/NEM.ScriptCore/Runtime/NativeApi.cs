@@ -33,7 +33,8 @@ internal static class ManagedAbi {
     // v24: FillMeshRendererComponentのローカル座標とワールド座標の点列取得を追加
     // v25: EffectEmitterの再生ハンドルAPIを追加
     // v26: UIが入力を消費したフレームのゲーム入力ブロック状態を追加
-    internal const uint Version = 26;
+    // v27: UISelectableの決定入力配列取得と設定を追加
+    internal const uint Version = 27;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -351,6 +352,9 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int> EffectIsPlaying;
     // v26: UI入力ブロック状態
     internal static delegate* unmanaged[Cdecl]<int> GetUIBlocksGameplayInput;
+    // v27: UISelectableの決定入力配列
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int*, int, int> UISelectableCopySubmitBindings;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int*, int, void> UISelectableSetSubmitBindings;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -488,6 +492,8 @@ internal static unsafe class NativeApi {
         EffectClear = callbacks->effectClear;
         EffectIsPlaying = callbacks->effectIsPlaying;
         GetUIBlocksGameplayInput = callbacks->getUIBlocksGameplayInput;
+        UISelectableCopySubmitBindings = callbacks->uiSelectableCopySubmitBindings;
+        UISelectableSetSubmitBindings = callbacks->uiSelectableSetSubmitBindings;
     }
 
     internal static float ReadDeltaTime() {
@@ -1107,6 +1113,44 @@ internal static unsafe class NativeApi {
 		return GetUIBlocksGameplayInput != null && GetUIBlocksGameplayInput() != 0;
 	}
 
+    // UISelectableの決定入力配列をデバイス別に取得する
+    internal static int[] UISelectableGetSubmitBindings(NativeEntity entity, int device) {
+
+        if (UISelectableCopySubmitBindings == null) {
+            return Array.Empty<int>();
+        }
+        int count = UISelectableCopySubmitBindings(entity, device, null, 0);
+        if (count <= 0) {
+            return Array.Empty<int>();
+        }
+
+        int[] bindings = new int[count];
+        int currentCount;
+        fixed (int* values = bindings) {
+            currentCount = UISelectableCopySubmitBindings(entity, device, values, count);
+        }
+        if (currentCount < count) {
+            Array.Resize(ref bindings, Math.Max(currentCount, 0));
+        }
+        return bindings;
+    }
+
+    // UISelectableの決定入力配列をデバイス別に置き換える
+    internal static void UISelectableSetSubmitBindingsValue(
+        NativeEntity entity, int device, ReadOnlySpan<int> bindings) {
+
+        if (UISelectableSetSubmitBindings == null) {
+            return;
+        }
+        if (bindings.Length == 0) {
+            UISelectableSetSubmitBindings(entity, device, null, 0);
+            return;
+        }
+        fixed (int* values = bindings) {
+            UISelectableSetSubmitBindings(entity, device, values, bindings.Length);
+        }
+    }
+
     // FillMeshRendererComponentの点列をローカル座標またはワールド座標で取得する
     internal static List<Vector3> FillMeshGetPoints(NativeEntity entity, bool worldSpace) {
 
@@ -1580,4 +1624,7 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int> effectIsPlaying;
     // v26: UI入力によるゲーム入力ブロック状態
     public delegate* unmanaged[Cdecl]<int> getUIBlocksGameplayInput;
+    // v27: UISelectableの決定入力配列
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int*, int, int> uiSelectableCopySubmitBindings;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int*, int, void> uiSelectableSetSubmitBindings;
 }

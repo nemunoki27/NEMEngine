@@ -103,7 +103,8 @@ namespace {
 		ImGui::Separator();
 		create("Image", "Image", Engine::EntityCreationPreset::UIImage);
 		create("Text", "Text", Engine::EntityCreationPreset::UIText);
-		create("Button", "Button", Engine::EntityCreationPreset::UIButton);
+		create("Image Button", "Image Button", Engine::EntityCreationPreset::UIImageButton);
+		create("Text Button", "Text Button", Engine::EntityCreationPreset::UITextButton);
 		create("Progress", "Progress", Engine::EntityCreationPreset::UIProgress);
 		ImGui::EndMenu();
 	}

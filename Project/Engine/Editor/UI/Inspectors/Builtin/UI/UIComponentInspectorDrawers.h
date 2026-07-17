@@ -6,7 +6,8 @@
 #include <Engine/Editor/UI/Inspectors/Common/SerializedComponentInspectorDrawer.h>
 #include <Engine/Core/World/Components/UI/CanvasComponent.h>
 #include <Engine/Core/World/Components/UI/UISelectableComponent.h>
-#include <Engine/Core/World/Components/UI/UIButtonComponent.h>
+#include <Engine/Core/World/Components/UI/UIImageButtonComponent.h>
+#include <Engine/Core/World/Components/UI/UITextButtonComponent.h>
 #include <Engine/Core/World/Components/UI/UIProgressComponent.h>
 
 namespace Engine {
@@ -49,17 +50,37 @@ namespace Engine {
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, bool& anyItemActive) override;
+		void ApplyPreview(ECSWorld& world, const Entity& entity,
+			const UISelectableComponent& previewComponent) override;
 	};
 
-	class UIButtonInspectorDrawer :
-		public SerializedComponentInspectorDrawer<UIButtonComponent> {
+	class UIImageButtonInspectorDrawer :
+		public SerializedComponentInspectorDrawer<UIImageButtonComponent> {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
 
-		UIButtonInspectorDrawer() : SerializedComponentInspectorDrawer("UI Button", "UIButton") {}
-		~UIButtonInspectorDrawer() = default;
+		UIImageButtonInspectorDrawer() : SerializedComponentInspectorDrawer("UI Image Button", "UIImageButton") {}
+		~UIImageButtonInspectorDrawer() = default;
+	private:
+		//============================================================================
+		//	private Methods
+		//============================================================================
+
+		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
+			const Entity& entity, bool& anyItemActive) override;
+	};
+
+	class UITextButtonInspectorDrawer :
+		public SerializedComponentInspectorDrawer<UITextButtonComponent> {
+	public:
+		//============================================================================
+		//	public Methods
+		//============================================================================
+
+		UITextButtonInspectorDrawer() : SerializedComponentInspectorDrawer("UI Text Button", "UITextButton") {}
+		~UITextButtonInspectorDrawer() = default;
 	private:
 		//============================================================================
 		//	private Methods

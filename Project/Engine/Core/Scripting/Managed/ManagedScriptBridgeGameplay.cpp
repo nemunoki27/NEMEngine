@@ -20,6 +20,7 @@
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/UI/UISelectableComponent.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
@@ -195,6 +196,79 @@ namespace Engine {
 			points[i] = { position.x, position.y, position.z };
 		}
 		return count;
+	}
+
+	int32_t ManagedScriptRuntime::UISelectableCopySubmitBindingsCallback(
+		ManagedNativeEntity entity, int32_t device, int32_t* bindings, int32_t capacity) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world) {
+			return 0;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		const UISelectableComponent* selectable = world->IsAlive(resolved) ?
+			world->TryGetComponent<UISelectableComponent>(resolved) : nullptr;
+		if (!selectable || device < 0 || 1 < device) {
+			return 0;
+		}
+
+		const int32_t count = device == 0 ?
+			static_cast<int32_t>(selectable->submitKeys.size()) :
+			static_cast<int32_t>(selectable->submitGamepadButtons.size());
+		if (!bindings || capacity <= 0) {
+			return count;
+		}
+
+		const int32_t copyCount = (std::min)(count, capacity);
+		for (int32_t i = 0; i < copyCount; ++i) {
+			bindings[i] = device == 0 ?
+				static_cast<int32_t>(selectable->submitKeys[static_cast<size_t>(i)]) :
+				static_cast<int32_t>(selectable->submitGamepadButtons[static_cast<size_t>(i)]);
+		}
+		return count;
+	}
+
+	void ManagedScriptRuntime::UISelectableSetSubmitBindingsCallback(
+		ManagedNativeEntity entity, int32_t device, const int32_t* bindings, int32_t count) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world || device < 0 || 1 < device || count < 0) {
+			return;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		UISelectableComponent* selectable = world->IsAlive(resolved) ?
+			world->TryGetComponent<UISelectableComponent>(resolved) : nullptr;
+		if (!selectable) {
+			return;
+		}
+
+		if (device == 0) {
+			selectable->submitKeys.clear();
+			for (int32_t i = 0; bindings && i < count; ++i) {
+
+				const int32_t code = bindings[i];
+				const KeyDIKCode key = static_cast<KeyDIKCode>(code);
+				if (0 < code && code <= 255 &&
+					std::find(selectable->submitKeys.begin(), selectable->submitKeys.end(), key) ==
+					selectable->submitKeys.end()) {
+					selectable->submitKeys.emplace_back(key);
+				}
+			}
+			return;
+		}
+
+		selectable->submitGamepadButtons.clear();
+		for (int32_t i = 0; bindings && i < count; ++i) {
+
+			const int32_t code = bindings[i];
+			const GamePadButtons button = static_cast<GamePadButtons>(code);
+			if (0 <= code && code < static_cast<int32_t>(GamePadButtons::Counts) &&
+				std::find(selectable->submitGamepadButtons.begin(),
+					selectable->submitGamepadButtons.end(), button) ==
+				selectable->submitGamepadButtons.end()) {
+				selectable->submitGamepadButtons.emplace_back(button);
+			}
+		}
 	}
 
 	namespace {

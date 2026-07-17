@@ -1,15 +1,16 @@
-#include "UIButtonComponent.h"
+#include "UIImageButtonComponent.h"
 
 //============================================================================
-//	UIButtonComponent classMethods
+//	UIImageButtonComponent classMethods
 //============================================================================
-void Engine::from_json(const nlohmann::json& in, UIButtonComponent& component) {
+
+void Engine::from_json(const nlohmann::json& in, UIImageButtonComponent& component) {
 
 	component.enabled = in.value("enabled", component.enabled);
 	component.actionName = in.value("actionName", component.actionName);
 }
 
-void Engine::to_json(nlohmann::json& out, const UIButtonComponent& component) {
+void Engine::to_json(nlohmann::json& out, const UIImageButtonComponent& component) {
 
 	out["enabled"] = component.enabled;
 	out["actionName"] = component.actionName;

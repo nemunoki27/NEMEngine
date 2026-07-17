@@ -101,7 +101,8 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 	{
 		registry.Register(MakeComponentEditorDescriptor<CanvasInspectorDrawer>("Canvas", "Canvas", "UI"));
 		registry.Register(MakeComponentEditorDescriptor<UISelectableInspectorDrawer>("UI Selectable", "UISelectable", "UI"));
-		registry.Register(MakeComponentEditorDescriptor<UIButtonInspectorDrawer>("UI Button", "UIButton", "UI"));
+		registry.Register(MakeComponentEditorDescriptor<UIImageButtonInspectorDrawer>("UI Image Button", "UIImageButton", "UI"));
+		registry.Register(MakeComponentEditorDescriptor<UITextButtonInspectorDrawer>("UI Text Button", "UITextButton", "UI"));
 		registry.Register(MakeComponentEditorDescriptor<UIProgressInspectorDrawer>("UI Progress", "UIProgress", "UI"));
 	}
 	{

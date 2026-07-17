@@ -15,7 +15,6 @@ void Engine::from_json(const nlohmann::json& in, UIProgressComponent& component)
 	component.minValue = in.value("minValue", component.minValue);
 	component.maxValue = in.value("maxValue", component.maxValue);
 	component.value = in.value("value", component.value);
-	component.fillTargetLocalFileID = UIComponentSerialization::ReadEntityReference(in, "fillTarget");
 	component.delayedTargetLocalFileID = UIComponentSerialization::ReadEntityReference(in, "delayedTarget");
 	component.direction = EnumAdapter<UIProgressFillDirection>::FromString(
 		in.value("direction", "LeftToRight")).value_or(component.direction);
@@ -29,6 +28,7 @@ void Engine::from_json(const nlohmann::json& in, UIProgressComponent& component)
 	component.delayedEasing = EnumAdapter<EasingType>::FromString(
 		in.value("delayedEasing", "EaseOutSine")).value_or(component.delayedEasing);
 	component.useUnscaledTime = in.value("useUnscaledTime", component.useUnscaledTime);
+	ResetUIProgressRuntime(component);
 }
 
 void Engine::to_json(nlohmann::json& out, const UIProgressComponent& component) {
@@ -37,7 +37,6 @@ void Engine::to_json(nlohmann::json& out, const UIProgressComponent& component) 
 	out["minValue"] = component.minValue;
 	out["maxValue"] = component.maxValue;
 	out["value"] = component.value;
-	out["fillTarget"] = UIComponentSerialization::WriteEntityReference(component.fillTargetLocalFileID);
 	out["delayedTarget"] = UIComponentSerialization::WriteEntityReference(component.delayedTargetLocalFileID);
 	out["direction"] = EnumAdapter<UIProgressFillDirection>::ToString(component.direction);
 	out["smooth"] = component.smooth;
@@ -48,4 +47,18 @@ void Engine::to_json(nlohmann::json& out, const UIProgressComponent& component) 
 	out["delayedDuration"] = component.delayedDuration;
 	out["delayedEasing"] = EnumAdapter<EasingType>::ToString(component.delayedEasing);
 	out["useUnscaledTime"] = component.useUnscaledTime;
+}
+
+void Engine::ResetUIProgressRuntime(UIProgressComponent& component) {
+
+	component.runtimeDisplayedValue = component.value;
+	component.runtimeDelayedValue = component.value;
+	component.runtimeDisplayStart = component.value;
+	component.runtimeDelayedStart = component.value;
+	component.runtimeTargetValue = component.value;
+	component.runtimeSmoothElapsed = 0.0f;
+	component.runtimeDelayedElapsed = 0.0f;
+	component.runtimeFillTarget = {};
+	component.runtimeDelayedTarget = {};
+	component.runtimeInitialized = false;
 }

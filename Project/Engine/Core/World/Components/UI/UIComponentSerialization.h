@@ -7,6 +7,18 @@
 
 namespace Engine::UIComponentSerialization {
 
+	// エンティティ参照を読み込む
+	inline UUID ReadEntityReference(const nlohmann::json& value) {
+
+		std::string localFileID;
+		if (value.is_object()) {
+			localFileID = value.value("localFileId", std::string{});
+		} else if (value.is_string()) {
+			localFileID = value.get<std::string>();
+		}
+		return localFileID.empty() ? UUID{} : FromString16Hex(localFileID);
+	}
+
 	// シーンまたはプレファブ内のエンティティ参照を読み込む
 	inline UUID ReadEntityReference(const nlohmann::json& in, const char* key) {
 
@@ -14,13 +26,7 @@ namespace Engine::UIComponentSerialization {
 		if (it == in.end()) {
 			return {};
 		}
-		std::string localFileID;
-		if (it->is_object()) {
-			localFileID = it->value("localFileId", std::string{});
-		} else if (it->is_string()) {
-			localFileID = it->get<std::string>();
-		}
-		return localFileID.empty() ? UUID{} : FromString16Hex(localFileID);
+		return ReadEntityReference(*it);
 	}
 
 	// プレファブ参照リマップが扱える形式でエンティティ参照を書き込む

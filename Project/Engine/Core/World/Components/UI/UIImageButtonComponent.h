@@ -11,19 +11,20 @@
 namespace Engine {
 
 	//============================================================================
-	//	UIButtonComponent struct
-	//	UISelectableの決定入力をクリックとして公開する
+	//	UIImageButtonComponent struct
+	//	画像ボタンのクリック状態を公開する
 	//============================================================================
-	struct UIButtonComponent {
+	struct UIImageButtonComponent {
 
 		bool enabled = true;
 		std::string actionName{};
 
+		// フレーム中にクリックされたか
 		bool runtimeClickedThisFrame = false;
 	};
 
-	void from_json(const nlohmann::json& in, UIButtonComponent& component);
-	void to_json(nlohmann::json& out, const UIButtonComponent& component);
+	void from_json(const nlohmann::json& in, UIImageButtonComponent& component);
+	void to_json(nlohmann::json& out, const UIImageButtonComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(UIButtonComponent, "UIButton");
+	ENGINE_REGISTER_COMPONENT(UIImageButtonComponent, "UIImageButton");
 } // Engine

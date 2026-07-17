@@ -25,7 +25,8 @@ SpriteRenderer
 TextRenderer
 TimeScale
 Transform
-UIButton
+UIImageButton
 UIProgress
 UISelectable
+UITextButton
 UVTransform

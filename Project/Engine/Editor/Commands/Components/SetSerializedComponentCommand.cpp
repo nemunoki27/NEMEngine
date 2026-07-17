@@ -6,6 +6,7 @@
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/UI/UISelectableComponent.h>
 
 //============================================================================
 //	SetSerializedComponentCommand classMethods
@@ -36,7 +37,13 @@ bool Engine::SetSerializedComponentCommand::Apply(EditorCommandContext& context,
 		return false;
 	}
 
-	world->AddComponentFromJson(target, typeName_, data);
+	if (typeName_ == "UISelectable" && world->HasComponent<UISelectableComponent>(target)) {
+
+		const UISelectableComponent authoring = data.get<UISelectableComponent>();
+		ApplyUISelectableAuthoring(authoring, world->GetComponent<UISelectableComponent>(target));
+	} else {
+		world->AddComponentFromJson(target, typeName_, data);
+	}
 	if (typeName_ == "MeshRenderer" && world->HasComponent<MeshRendererComponent>(target)) {
 
 		auto& meshRenderer = world->GetComponent<MeshRendererComponent>(target);

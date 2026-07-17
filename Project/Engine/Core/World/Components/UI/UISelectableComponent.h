@@ -5,10 +5,14 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Assets/AssetTypes.h>
-#include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/Platform/Input/InputTypes.h>
+#include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
+
+// c++
+#include <vector>
 
 namespace Engine {
 
@@ -20,54 +24,44 @@ namespace Engine {
 		uint8_t {
 
 		Normal,
-		Highlighted,
-		Pressed,
 		Selected,
+		Submitted,
 		Disabled,
-	};
-
-	enum class UINavigationMode :
-		uint8_t {
-
-		None,
-		Automatic,
-		Explicit,
 	};
 
 	struct UITransitionStyle {
 
 		Color4 color = Color4::White();
 		Vector2 scale = Vector2::AnyInit(1.0f);
+		float colorTransitionDuration = 0.08f;
+		EasingType colorEasing = EasingType::Linear;
+		float scaleTransitionDuration = 0.08f;
+		EasingType scaleEasing = EasingType::Linear;
 		bool overrideTexture = false;
 		AssetID texture{};
+		bool useAnimationClip = false;
+		AssetID animationClip{};
+		AssetID sound{};
+		float soundVolume = 1.0f;
 	};
 
 	struct UISelectableComponent {
 
 		bool interactable = true;
-		UINavigationMode navigationMode = UINavigationMode::Automatic;
 
-		UUID targetLocalFileID{};
-		UUID upLocalFileID{};
-		UUID downLocalFileID{};
-		UUID leftLocalFileID{};
-		UUID rightLocalFileID{};
-
-		bool useCustomHitArea = false;
-		Vector2 hitAreaOffset{};
-		Vector2 hitAreaSize = Vector2::AnyInit(100.0f);
-
-		float transitionDuration = 0.08f;
 		UITransitionStyle normal{};
-		UITransitionStyle highlighted{ Color4(1.1f, 1.1f, 1.1f, 1.0f), Vector2::AnyInit(1.0f) };
-		UITransitionStyle pressed{ Color4(0.8f, 0.8f, 0.8f, 1.0f), Vector2::AnyInit(0.96f) };
 		UITransitionStyle selected{ Color4(1.1f, 1.1f, 1.1f, 1.0f), Vector2::AnyInit(1.0f) };
+		UITransitionStyle submitted{ Color4(0.8f, 0.8f, 0.8f, 1.0f), Vector2::AnyInit(0.96f) };
 		UITransitionStyle disabled{ Color4(0.55f, 0.55f, 0.55f, 0.65f), Vector2::AnyInit(1.0f) };
+
+		std::vector<KeyDIKCode> submitKeys{ KeyDIKCode::RETURN,KeyDIKCode::SPACE };
+		std::vector<GamePadButtons> submitGamepadButtons{ GamePadButtons::A };
 
 		// ランタイム遷移状態
 		UISelectableState runtimeState = UISelectableState::Normal;
 		UISelectableState runtimePreviousState = UISelectableState::Normal;
-		float runtimeTransitionElapsed = 0.0f;
+		float runtimeColorTransitionElapsed = 0.0f;
+		float runtimeScaleTransitionElapsed = 0.0f;
 		Color4 runtimeBaseColor = Color4::White();
 		Color4 runtimeStartColor = Color4::White();
 		Color4 runtimeCurrentColor = Color4::White();
@@ -75,10 +69,15 @@ namespace Engine {
 		Vector3 runtimeStartScale = Vector3::AnyInit(1.0f);
 		Vector3 runtimeCurrentScale = Vector3::AnyInit(1.0f);
 		AssetID runtimeBaseTexture{};
+		bool runtimeHadBaseColor = false;
 		bool runtimeHadBaseTexture = false;
-		UUID runtimeTargetLocalFileID{};
 		bool runtimeInitialized = false;
+		bool runtimeSubmitted = false;
+		bool runtimeSubmittedThisFrame = false;
 	};
+
+	// シーン設定のみを反映
+	void ApplyUISelectableAuthoring(const UISelectableComponent& source, UISelectableComponent& destination);
 
 	void from_json(const nlohmann::json& in, UISelectableComponent& component);
 	void to_json(nlohmann::json& out, const UISelectableComponent& component);
