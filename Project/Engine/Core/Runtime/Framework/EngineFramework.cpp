@@ -6,7 +6,9 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
+#include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 
 //============================================================================
@@ -70,6 +72,13 @@ void Framework::Tick() {
 
 	// 入力更新
 	Input::GetInstance()->Update();
+	if constexpr (!BuildConfig::kEditorEnabled) {
+
+		// 製品実行中はF11でウィンドウとフルスクリーンを切り替える
+		if (Input::GetInstance()->TriggerKey(DIK_F11)) {
+			WinApp::SetFullscreen(!WinApp::IsFullscreen());
+		}
+	}
 	// 検知トリガから入力タイプを自動更新し、マウス範囲制御も適用する
 	Input::GetInstance()->UpdateInputDevice();
 

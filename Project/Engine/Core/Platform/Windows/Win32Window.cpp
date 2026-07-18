@@ -50,6 +50,7 @@ bool WinApp::cursorVisible_ = true;
 RECT WinApp::customClientClipRect_{};
 RECT WinApp::windowRect_{};
 bool (*WinApp::closeRequestCallback_)() = nullptr;
+bool WinApp::fullscreen_ = false;
 
 void WinApp::ForceShowCursor(bool show) {
 
@@ -154,6 +155,7 @@ void WinApp::Create(uint32_t sizeX, uint32_t sizeY, const wchar_t* title) {
 
 	timeBeginPeriod(1);
 	RegisterWindowClass();
+	fullscreen_ = false;
 
 	windowRect_.right = sizeX;
 	windowRect_.bottom = sizeY;
@@ -211,6 +213,10 @@ void WinApp::RequestCloseWindow() {
 
 void WinApp::SetFullscreen(bool fullscreen) {
 
+	if (!hwnd_ || fullscreen_ == fullscreen) {
+		return;
+	}
+
 	if (fullscreen) {
 
 		// 現在のウィンドウ情報を復元用に保存する
@@ -260,6 +266,7 @@ void WinApp::SetFullscreen(bool fullscreen) {
 		SetForegroundWindow(hwnd_);
 		SetFocus(hwnd_);
 	}
+	fullscreen_ = fullscreen;
 	ApplyCursorVisibilityIfNeeded();
 	ApplyCursorClipIfNeeded();
 }

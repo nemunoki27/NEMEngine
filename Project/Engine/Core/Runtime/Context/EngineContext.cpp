@@ -7,6 +7,8 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Foundation/Build/BuildConfig.h>
+#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 //============================================================================
@@ -21,6 +23,22 @@ void Engine::EngineContext::InitCoreSettings() {
 	// ウィンドウ設定
 	std::string windowTitle = data["WindowTitle"];
 	windowSetting_.title = Algorithm::ConvertString(windowTitle);
+	windowSetting_.startupFullscreen = false;
+
+	if constexpr (!BuildConfig::kEditorEnabled) {
+
+		// 製品ビルドではビルド設定の製品名と起動状態を優先する
+		const nlohmann::json gameBuild = JsonAdapter::Load(
+			RuntimePaths::GetGameConfigPath(ConfigPaths::kGameBuild).string(), false);
+		if (gameBuild.is_object()) {
+
+			const std::string gameName = gameBuild.value("gameName", std::string{});
+			if (!gameName.empty()) {
+				windowSetting_.title = Algorithm::ConvertString(gameName);
+			}
+			windowSetting_.startupFullscreen = gameBuild.value("startupFullscreen", false);
+		}
+	}
 	// エンジンウィンドウサイズ
 	windowSetting_.engineSizeFloat.x = data.value("EngineWindowSizeX", 1920.0f);
 	windowSetting_.engineSizeFloat.y = data.value("EngineWindowSizeY", 1080.0f);
@@ -46,6 +64,9 @@ void Engine::EngineContext::Init() {
 	// 表示ウィンドウ作成
 	winApp_ = std::make_unique<WinApp>();
 	winApp_->Create(windowSetting_.engineSize.ToUInt().front(), windowSetting_.engineSize.ToUInt().back(), windowSetting_.title.c_str());
+	if (windowSetting_.startupFullscreen) {
+		WinApp::SetFullscreen(true);
+	}
 }
 
 void Engine::EngineContext::Finalize() {
