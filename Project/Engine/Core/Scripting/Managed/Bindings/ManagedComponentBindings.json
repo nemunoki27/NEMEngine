@@ -158,6 +158,9 @@
         { "managedName": "BlockGameplayInput", "nativeMember": "blockGameplayInput", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "InputInEditMode", "nativeMember": "inputInEditMode", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "BlockInputAfterSubmit", "nativeMember": "blockInputAfterSubmit", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "KeyboardInputEnabled", "nativeMember": "keyboardInputEnabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "GamepadInputEnabled", "nativeMember": "gamepadInputEnabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "GamepadLeftStickEnabled", "nativeMember": "gamepadLeftStickEnabled", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "InputLocked", "nativeMember": "runtimeInputLocked", "kind": "Bool", "access": "ReadOnly" },
         { "managedName": "NavigationMode", "nativeMember": "navigationMode", "kind": "Enum", "enumType": "CanvasNavigationMode", "access": "ReadWrite" },
         { "managedName": "WrapNavigation", "nativeMember": "wrapNavigation", "kind": "Bool", "access": "ReadWrite" },
@@ -174,7 +177,10 @@
       "properties": [
         { "managedName": "Interactable", "nativeMember": "interactable", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "State", "nativeMember": "runtimeState", "kind": "Enum", "enumType": "UISelectableState", "access": "ReadOnly" },
-        { "managedName": "SubmittedThisFrame", "nativeMember": "runtimeSubmittedThisFrame", "kind": "Bool", "access": "ReadOnly" }
+        { "managedName": "NormalThisFrame", "nativeMember": "runtimeNormalThisFrame", "kind": "Bool", "access": "ReadOnly" },
+        { "managedName": "SelectedThisFrame", "nativeMember": "runtimeSelectedThisFrame", "kind": "Bool", "access": "ReadOnly" },
+        { "managedName": "SubmittedThisFrame", "nativeMember": "runtimeSubmittedThisFrame", "kind": "Bool", "access": "ReadOnly" },
+        { "managedName": "DisabledThisFrame", "nativeMember": "runtimeDisabledThisFrame", "kind": "Bool", "access": "ReadOnly" }
       ]
     },
     {
@@ -212,6 +218,7 @@
       "allowRemove": true,
       "properties": [
         { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "PreviewInEditMode", "nativeMember": "previewInEditMode", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "MinValue", "nativeMember": "minValue", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "MaxValue", "nativeMember": "maxValue", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "Value", "nativeMember": "value", "kind": "Float", "access": "ReadWrite" },
@@ -219,6 +226,7 @@
         { "managedName": "Smooth", "nativeMember": "smooth", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "SmoothDuration", "nativeMember": "smoothDuration", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "Delayed", "nativeMember": "delayed", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "DelayedTexture", "nativeMember": "delayedTexture", "kind": "AssetRef", "assetType": "Texture", "access": "ReadWrite" },
         { "managedName": "DelayedWait", "nativeMember": "delayedWait", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "DelayedDuration", "nativeMember": "delayedDuration", "kind": "Float", "access": "ReadWrite" },
         { "managedName": "UseUnscaledTime", "nativeMember": "useUnscaledTime", "kind": "Bool", "access": "ReadWrite" },

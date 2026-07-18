@@ -391,12 +391,14 @@ namespace Engine {
 		static void __cdecl FillMeshSetPositionsCallback(ManagedNativeEntity entity, const ManagedVector3* points, int32_t count);
 		// FillMeshRendererComponentの点列をローカル座標またはワールド座標でコピーする
 		static int32_t __cdecl FillMeshCopyPositionsCallback(ManagedNativeEntity entity, ManagedVector3* points, int32_t capacity, int32_t worldSpace);
-		// UISelectableの決定入力配列をデバイス別にコピーする
-		static int32_t __cdecl UISelectableCopySubmitBindingsCallback(
-			ManagedNativeEntity entity, int32_t device, int32_t* bindings, int32_t capacity);
-		// UISelectableの決定入力配列をデバイス別に置き換える
-		static void __cdecl UISelectableSetSubmitBindingsCallback(
-			ManagedNativeEntity entity, int32_t device, const int32_t* bindings, int32_t count);
+		// Canvasの入力配列を操作種別とデバイス別にコピーする
+		static int32_t __cdecl CanvasCopyInputBindingsCallback(
+			ManagedNativeEntity entity, int32_t action, int32_t device,
+			int32_t* bindings, int32_t capacity);
+		// Canvasの入力配列を操作種別とデバイス別に置き換える
+		static void __cdecl CanvasSetInputBindingsCallback(
+			ManagedNativeEntity entity, int32_t action, int32_t device,
+			const int32_t* bindings, int32_t count);
 		// EffectEmitterの再生要求を追加しハンドルを返す
 		static uint64_t __cdecl EffectEmitCallback(ManagedNativeEntity entity, const char* group,
 			ManagedVector3 position, ManagedQuaternion rotation, int32_t fixedAnchor);

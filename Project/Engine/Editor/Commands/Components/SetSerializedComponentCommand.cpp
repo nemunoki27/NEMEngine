@@ -6,6 +6,7 @@
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/UI/UIProgressComponent.h>
 #include <Engine/Core/World/Components/UI/UISelectableComponent.h>
 
 //============================================================================
@@ -41,6 +42,10 @@ bool Engine::SetSerializedComponentCommand::Apply(EditorCommandContext& context,
 
 		const UISelectableComponent authoring = data.get<UISelectableComponent>();
 		ApplyUISelectableAuthoring(authoring, world->GetComponent<UISelectableComponent>(target));
+	} else if (typeName_ == "UIProgress" && world->HasComponent<UIProgressComponent>(target)) {
+
+		const UIProgressComponent authoring = data.get<UIProgressComponent>();
+		ApplyUIProgressAuthoring(authoring, world->GetComponent<UIProgressComponent>(target));
 	} else {
 		world->AddComponentFromJson(target, typeName_, data);
 	}

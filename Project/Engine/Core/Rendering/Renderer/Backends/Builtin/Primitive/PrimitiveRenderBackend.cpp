@@ -26,6 +26,7 @@ namespace {
 	constexpr uint32_t kInstanceFlagReceiveShadow = 1u << 2;
 	constexpr uint32_t kInstanceFlagReceiveIBL = 1u << 3;
 	constexpr uint32_t kInstanceFlagReceiveReflection = 1u << 4;
+	constexpr uint32_t kInstanceFlagFlipScreenV = 1u << 5;
 
 	// renderFlagsのうちピクセル側で参照するものをインスタンスフラグへ写す
 	uint32_t ToInstanceFlags(Engine::MeshRenderFlags renderFlags) {
@@ -143,6 +144,11 @@ void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& c
 			RenderBillboard::ResolveWorldMatrix(*item, *billboardView) : item->worldMatrix;
 		instance.uvMatrix = payload->uvMatrix;
 		instance.flags = payload->renderer ? ToInstanceFlags(payload->renderer->renderFlags) : 0;
+		if (payload->renderer && payload->renderer->type == PrimitiveType::Plane &&
+			IsPrimitiveScreen2D(*payload->renderer)) {
+
+			instance.flags |= kInstanceFlagFlipScreenV;
+		}
 		outInstances.emplace_back(instance);
 	}
 }

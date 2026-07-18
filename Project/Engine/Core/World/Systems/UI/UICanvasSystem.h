@@ -7,6 +7,9 @@
 
 namespace Engine {
 
+	// front
+	struct UIProgressComponent;
+
 	//============================================================================
 	//	UICanvasSystem class
 	//	UI表示値の更新とTransform確定後のスクリーン行列構築を行う
@@ -24,6 +27,9 @@ namespace Engine {
 		void Update(ECSWorld& world, SystemContext& context) override;
 		void LateUpdate(ECSWorld& world, SystemContext& context) override;
 		void OnWorldExit(ECSWorld& world, SystemContext& context) override;
+
+		// Progress適用前の見た目へ戻す
+		static void RestoreProgressVisual(ECSWorld& world, UIProgressComponent& progress);
 
 		//--------- accessor -----------------------------------------------------
 

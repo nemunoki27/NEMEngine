@@ -6,9 +6,9 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
 #include <Engine/Core/World/Components/UI/CanvasComponent.h>
 #include <Engine/Core/World/Components/UI/UISelectableComponent.h>
 #include <Engine/Core/World/Components/UI/UIImageButtonComponent.h>
@@ -17,6 +17,7 @@
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
@@ -161,9 +162,13 @@ void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& ent
 		break;
 	}
 	case EntityCreationPreset::UIProgress: {
-		auto& sprite = world.AddComponent<SpriteRendererComponent>(entity);
-		sprite.size = Vector2(320.0f, 32.0f);
-		world.AddComponent<UVTransformComponent>(entity);
+		auto& primitive = world.AddComponent<PrimitiveRendererComponent>(entity);
+		primitive.type = PrimitiveType::Plane;
+		primitive.renderSpace = PrimitiveRenderSpace::Screen2D;
+		primitive.plane.size = Vector2(320.0f, 32.0f);
+		primitive.material = BuiltinAssets::Materials::ProgressPrimitive;
+		primitive.blendMode = BlendMode::Normal;
+		primitive.queue = RenderPhase::ScreenUI;
 		world.AddComponent<UIProgressComponent>(entity);
 		break;
 	}

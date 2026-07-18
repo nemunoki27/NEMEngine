@@ -4,15 +4,15 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
+#include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
-#include <Engine/Core/Foundation/Math/Vector2.h>
 
 namespace Engine {
 
 	//============================================================================
 	//	UIProgressComponent structures
-	//	スプライトを方向指定で切り詰めてプログレス表示する
+	//	Primitiveを方向指定で切り抜いてプログレス表示する
 	//============================================================================
 	enum class UIProgressFillDirection :
 		uint8_t {
@@ -26,17 +26,19 @@ namespace Engine {
 	struct UIProgressTargetRuntime {
 
 		UUID localFileID{};
-		Vector2 size{};
-		Vector2 pivot{};
-		Vector2 uvPos{};
-		Vector2 uvScale = Vector2::AnyInit(1.0f);
-		bool hasUVTransform = false;
+		MaterialParameterValue progressParameter{};
+		MaterialParameterValue directionParameter{};
+		MaterialParameterValue primitiveTypeParameter{};
+		bool hadProgressParameter = false;
+		bool hadDirectionParameter = false;
+		bool hadPrimitiveTypeParameter = false;
 		bool valid = false;
 	};
 
 	struct UIProgressComponent {
 
 		bool enabled = true;
+		bool previewInEditMode = false;
 
 		float minValue = 0.0f;
 		float maxValue = 1.0f;
@@ -50,6 +52,7 @@ namespace Engine {
 		EasingType smoothEasing = EasingType::EaseOutSine;
 
 		bool delayed = false;
+		AssetID delayedTexture{};
 		float delayedWait = 0.2f;
 		float delayedDuration = 0.35f;
 		EasingType delayedEasing = EasingType::EaseOutSine;
@@ -67,6 +70,9 @@ namespace Engine {
 		UIProgressTargetRuntime runtimeDelayedTarget{};
 		bool runtimeInitialized = false;
 	};
+
+	// シーン設定のみを反映
+	void ApplyUIProgressAuthoring(const UIProgressComponent& source, UIProgressComponent& destination);
 
 	void from_json(const nlohmann::json& in, UIProgressComponent& component);
 	void to_json(nlohmann::json& out, const UIProgressComponent& component);

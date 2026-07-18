@@ -53,51 +53,6 @@ namespace {
 		};
 	}
 
-	void ReadSubmitKeys(const nlohmann::json& in, std::vector<KeyDIKCode>& keys) {
-
-		if (!in.is_array()) {
-			return;
-		}
-		keys.clear();
-		for (const nlohmann::json& value : in) {
-
-			if (!value.is_number_integer()) {
-				continue;
-			}
-			const int32_t code = value.get<int32_t>();
-			if (0 < code && code <= 255) {
-				keys.emplace_back(static_cast<KeyDIKCode>(code));
-			}
-		}
-	}
-
-	void ReadSubmitGamepadButtons(const nlohmann::json& in, std::vector<GamePadButtons>& buttons) {
-
-		if (!in.is_array()) {
-			return;
-		}
-		buttons.clear();
-		for (const nlohmann::json& value : in) {
-
-			if (!value.is_number_integer()) {
-				continue;
-			}
-			const int32_t code = value.get<int32_t>();
-			if (0 <= code && code < static_cast<int32_t>(GamePadButtons::Counts)) {
-				buttons.emplace_back(static_cast<GamePadButtons>(code));
-			}
-		}
-	}
-
-	template <typename T>
-	nlohmann::json WriteInputBindings(const std::vector<T>& bindings) {
-
-		nlohmann::json out = nlohmann::json::array();
-		for (T binding : bindings) {
-			out.emplace_back(static_cast<int32_t>(binding));
-		}
-		return out;
-	}
 }
 
 //============================================================================
@@ -110,8 +65,6 @@ void Engine::ApplyUISelectableAuthoring(const UISelectableComponent& source, UIS
 	destination.selected = source.selected;
 	destination.submitted = source.submitted;
 	destination.disabled = source.disabled;
-	destination.submitKeys = source.submitKeys;
-	destination.submitGamepadButtons = source.submitGamepadButtons;
 }
 
 void Engine::from_json(const nlohmann::json& in, UISelectableComponent& component) {
@@ -121,9 +74,6 @@ void Engine::from_json(const nlohmann::json& in, UISelectableComponent& componen
 	ReadStyle(in.value("selected", nlohmann::json{}), component.selected);
 	ReadStyle(in.value("submitted", nlohmann::json{}), component.submitted);
 	ReadStyle(in.value("disabled", nlohmann::json{}), component.disabled);
-	ReadSubmitKeys(in.value("submitKeys", nlohmann::json{}), component.submitKeys);
-	ReadSubmitGamepadButtons(in.value("submitGamepadButtons", nlohmann::json{}),
-		component.submitGamepadButtons);
 }
 
 void Engine::to_json(nlohmann::json& out, const UISelectableComponent& component) {
@@ -133,6 +83,4 @@ void Engine::to_json(nlohmann::json& out, const UISelectableComponent& component
 	out["selected"] = WriteStyle(component.selected);
 	out["submitted"] = WriteStyle(component.submitted);
 	out["disabled"] = WriteStyle(component.disabled);
-	out["submitKeys"] = WriteInputBindings(component.submitKeys);
-	out["submitGamepadButtons"] = WriteInputBindings(component.submitGamepadButtons);
 }

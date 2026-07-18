@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Core/EditorState.h>
+#include <Engine/Core/World/Components/UI/UIProgressComponent.h>
+#include <Engine/Core/World/Systems/UI/UICanvasSystem.h>
 
 //============================================================================
 //	RemoveComponentCommand classMethods
@@ -41,6 +43,12 @@ bool Engine::RemoveComponentCommand::ApplyRemove(EditorCommandContext& context) 
 	Entity target = world->FindByUUID(targetStableUUID_);
 	if (!world->IsAlive(target)) {
 		return false;
+	}
+
+	if (typeName_ == "UIProgress") {
+		if (auto* progress = world->TryGetComponent<UIProgressComponent>(target)) {
+			UICanvasSystem::RestoreProgressVisual(*world, *progress);
+		}
 	}
 
 	// コンポーネントがないなら削除できない

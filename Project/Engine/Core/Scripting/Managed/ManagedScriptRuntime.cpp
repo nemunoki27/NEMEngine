@@ -268,8 +268,8 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.effectClear = &ManagedScriptRuntime::EffectClearCallback;
 	callbacks.effectIsPlaying = &ManagedScriptRuntime::EffectIsPlayingCallback;
 	callbacks.getUIBlocksGameplayInput = &ManagedScriptRuntime::GetUIBlocksGameplayInputCallback;
-	callbacks.uiSelectableCopySubmitBindings = &ManagedScriptRuntime::UISelectableCopySubmitBindingsCallback;
-	callbacks.uiSelectableSetSubmitBindings = &ManagedScriptRuntime::UISelectableSetSubmitBindingsCallback;
+	callbacks.canvasCopyInputBindings = &ManagedScriptRuntime::CanvasCopyInputBindingsCallback;
+	callbacks.canvasSetInputBindings = &ManagedScriptRuntime::CanvasSetInputBindingsCallback;
 	callbacks.getEntityReferenceIdentity = &ManagedScriptRuntime::GetEntityReferenceIdentityCallback;
 	// v21のレイキャストとカメラレイとCollisionタイプ名解決
 	callbacks.physicsRaycast = &ManagedScriptRuntime::PhysicsRaycastCallback;

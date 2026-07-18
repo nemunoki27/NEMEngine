@@ -400,13 +400,6 @@
                         "texture": "",
                         "useAnimationClip": false
                     },
-                    "submitGamepadButtons": [
-                        12
-                    ],
-                    "submitKeys": [
-                        28,
-                        57
-                    ],
                     "submitted": {
                         "animationClip": "",
                         "color": {
@@ -441,10 +434,50 @@
                     "enabled": true,
                     "firstSelected": {
                         "kind": "Scene",
-                        "localFileId": "8822fdd884e49594",
+                        "localFileId": "44d61419714b7b1f",
                         "sourceAsset": ""
                     },
                     "inputInEditMode": false,
+                    "inputSettings": {
+                        "gamepadEnabled": true,
+                        "gamepadLeftStickEnabled": true,
+                        "keyboardEnabled": true,
+                        "navigationDownGamepadButtons": [
+                            1
+                        ],
+                        "navigationDownKeys": [
+                            31,
+                            208
+                        ],
+                        "navigationLeftGamepadButtons": [
+                            2
+                        ],
+                        "navigationLeftKeys": [
+                            30,
+                            203
+                        ],
+                        "navigationRightGamepadButtons": [
+                            3
+                        ],
+                        "navigationRightKeys": [
+                            32,
+                            205
+                        ],
+                        "navigationUpGamepadButtons": [
+                            0
+                        ],
+                        "navigationUpKeys": [
+                            17,
+                            200
+                        ],
+                        "submitGamepadButtons": [
+                            12
+                        ],
+                        "submitKeys": [
+                            28,
+                            57
+                        ]
+                    },
                     "matchWidthOrHeight": 0.5,
                     "navigationMode": "TransitionTable",
                     "navigationTable": {
@@ -469,8 +502,8 @@
                         "rows": 3
                     },
                     "order": 0,
-                    "repeatDelay": 0.3499999940395355,
-                    "repeatInterval": 0.11999999731779099,
+                    "repeatDelay": 0.36000001430511475,
+                    "repeatInterval": 0.1899999976158142,
                     "scaleFactor": 1.0,
                     "scaleMode": "ScaleWithScreenSize",
                     "sortingLayer": 0,
@@ -490,6 +523,48 @@
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.UIEventTest",
+                        "scriptAsset": "",
+                        "scriptSlotId": "c82f623288d643aa",
+                        "scriptTypeId": "bf643735-3106-4b9c-a041-7e3f982a299c",
+                        "serializedFields": {
+                            "fields": {},
+                            "schemaVersion": 2,
+                            "unresolvedFields": {}
+                        }
+                    },
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.UIProgressTest",
+                        "scriptAsset": "",
+                        "scriptSlotId": "47a420d85a60f89d",
+                        "scriptTypeId": "066d38e0-f893-483d-bb90-02f32220a0f8",
+                        "serializedFields": {
+                            "fields": {
+                                "4465713e-03ce-4a1c-b2f8-23d9a2a50731": {
+                                    "name": "automaticDuration",
+                                    "type": "float",
+                                    "value": 2
+                                },
+                                "7994f751-6a08-4199-b256-d02d00cccef5": {
+                                    "name": "keyChangeAmount",
+                                    "type": "float",
+                                    "value": 10
+                                },
+                                "8c8a2415-35db-487d-91fb-7e3e53ab50de": {
+                                    "name": "automatic",
+                                    "type": "bool",
+                                    "value": true
+                                }
+                            },
+                            "schemaVersion": 2,
+                            "unresolvedFields": {}
+                        }
+                    }
+                ],
                 "Transform": {
                     "localPos": {
                         "x": 0.0,
@@ -640,13 +715,6 @@
                         "texture": "",
                         "useAnimationClip": false
                     },
-                    "submitGamepadButtons": [
-                        12
-                    ],
-                    "submitKeys": [
-                        28,
-                        57
-                    ],
                     "submitted": {
                         "animationClip": "",
                         "color": {
@@ -664,7 +732,7 @@
                         },
                         "scaleEasing": "EaseOutExpo",
                         "scaleTransitionDuration": 0.07999999821186066,
-                        "sound": "",
+                        "sound": "8c53c70e7dc3969b",
                         "soundVolume": 1.0,
                         "texture": "",
                         "useAnimationClip": false
@@ -802,13 +870,6 @@
                         "texture": "",
                         "useAnimationClip": false
                     },
-                    "submitGamepadButtons": [
-                        12
-                    ],
-                    "submitKeys": [
-                        28,
-                        57
-                    ],
                     "submitted": {
                         "animationClip": "",
                         "color": {
@@ -834,6 +895,161 @@
                 }
             },
             "LocalFileID": "8822fdd884e49594"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "87cba31fa481da55",
+                    "siblingOrder": 3
+                },
+                "Name": {
+                    "name": "Progress"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0,
+                            "z": 1.0
+                        }
+                    },
+                    "cylinder": {
+                        "bottomRadius": 1.0,
+                        "cap": "Both",
+                        "height": 2.0,
+                        "heightDivide": 1,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topRadius": 1.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "70a1b2c3d4e5f626",
+                    "order": 0,
+                    "parameterOverrides": {
+                        "baseColorTexture": "447d5b4a4a7fec3d",
+                        "fillDirection": 0,
+                        "primitiveType": 1,
+                        "progress": 1.0
+                    },
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 320.0,
+                            "y": 32.0
+                        }
+                    },
+                    "queue": "ScreenUI",
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSpace": "Screen2D",
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 2.650000810623169,
+                        "outerRadius": 3.6100003719329834,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Ring",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "6562bd2a35d9dbc4",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 1473.3863525390625,
+                        "y": 640.5951538085938,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 111.66002655029297,
+                        "y": 112.86002349853516,
+                        "z": 1.0
+                    }
+                },
+                "UIProgress": {
+                    "delayed": false,
+                    "delayedDuration": 0.3499999940395355,
+                    "delayedEasing": "EaseOutSine",
+                    "delayedTarget": {
+                        "kind": "Null",
+                        "localFileId": "",
+                        "sourceAsset": ""
+                    },
+                    "delayedTexture": "",
+                    "delayedWait": 0.20000000298023224,
+                    "direction": "LeftToRight",
+                    "enabled": true,
+                    "maxValue": 1.0,
+                    "minValue": 0.0,
+                    "previewInEditMode": true,
+                    "smooth": true,
+                    "smoothDuration": 0.4699999988079071,
+                    "smoothEasing": "EaseOutExpo",
+                    "useUnscaledTime": true,
+                    "value": 1.0
+                },
+                "UVTransform": {
+                    "pos": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "rotation": 0.0,
+                    "scale": {
+                        "x": 0.8500001430511475,
+                        "y": 0.24000023305416107
+                    }
+                }
+            },
+            "LocalFileID": "6562bd2a35d9dbc4"
         }
     ],
     "Header": {

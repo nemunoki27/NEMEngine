@@ -51,7 +51,7 @@ namespace Engine {
 
 		// 発光色と強さ、wが強さ
 		Vector4 emissive = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
-		// xがアルファ棄却の閾値、yzwは予約
+		// xがアルファ棄却の閾値、yがScreen2D PlaneのV反転
 		Vector4 materialParams = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
 		// フェーズマテリアルの寿命アニメーション色
 		Color4 materialColor = Color4::White();

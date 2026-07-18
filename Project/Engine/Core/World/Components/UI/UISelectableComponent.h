@@ -5,14 +5,10 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Assets/AssetTypes.h>
-#include <Engine/Core/Platform/Input/InputTypes.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
-
-// c++
-#include <vector>
 
 namespace Engine {
 
@@ -54,9 +50,6 @@ namespace Engine {
 		UITransitionStyle submitted{ Color4(0.8f, 0.8f, 0.8f, 1.0f), Vector2::AnyInit(0.96f) };
 		UITransitionStyle disabled{ Color4(0.55f, 0.55f, 0.55f, 0.65f), Vector2::AnyInit(1.0f) };
 
-		std::vector<KeyDIKCode> submitKeys{ KeyDIKCode::RETURN,KeyDIKCode::SPACE };
-		std::vector<GamePadButtons> submitGamepadButtons{ GamePadButtons::A };
-
 		// ランタイム遷移状態
 		UISelectableState runtimeState = UISelectableState::Normal;
 		UISelectableState runtimePreviousState = UISelectableState::Normal;
@@ -73,7 +66,10 @@ namespace Engine {
 		bool runtimeHadBaseTexture = false;
 		bool runtimeInitialized = false;
 		bool runtimeSubmitted = false;
+		bool runtimeNormalThisFrame = false;
+		bool runtimeSelectedThisFrame = false;
 		bool runtimeSubmittedThisFrame = false;
+		bool runtimeDisabledThisFrame = false;
 	};
 
 	// シーン設定のみを反映

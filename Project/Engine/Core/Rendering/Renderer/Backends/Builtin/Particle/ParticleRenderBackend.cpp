@@ -39,7 +39,7 @@ namespace {
 	struct ParticleShapeConstants {
 
 		uint32_t divide = 16;
-		uint32_t pad0 = 0;
+		uint32_t uvMode = 0;
 		uint32_t pad1 = 0;
 		uint32_t pad2 = 0;
 	};
@@ -282,7 +282,10 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 			instance.geometry.vertexColor = particle.color;
 			instance.geometry.shapeParams = particle.shapeParams;
 			instance.material.emissive = particle.emissive;
-			instance.material.materialParams = Vector4(particle.alphaReference, 0.0f, 0.0f, 0.0f);
+			const bool flipScreenV = settings.space == PrimitiveRenderSpace::Screen2D &&
+				!settings.model && settings.shape == PrimitiveType::Plane;
+			instance.material.materialParams = Vector4(
+				particle.alphaReference, flipScreenV ? 1.0f : 0.0f, 0.0f, 0.0f);
 			// フェーズのマテリアル別に描くため、フェーズごとに分けて詰める
 			const size_t phaseIndex = (std::min)(static_cast<size_t>(particle.phaseIndex), phaseCount - 1);
 			const ParticlePhaseMaterialSettings& materialSettings = GetPhaseMaterialSettings(settings, phaseIndex);
@@ -551,6 +554,8 @@ bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawCont
 	ParticleShapeConstants shapeConstants{};
 	shapeConstants.divide = static_cast<uint32_t>(std::clamp(
 		parametric.GetDivide(settings), 3, kMaxPrimitiveDivide));
+	shapeConstants.uvMode = settings.shape == PrimitiveType::Cylinder ?
+		static_cast<uint32_t>(settings.cylinder.uvMode) : 0;
 	const PostProcessConstantBufferAllocation shapeAlloc = constantBufferAllocator_.AllocateAndUpload(device, shapeConstants);
 
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(

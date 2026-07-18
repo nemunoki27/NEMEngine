@@ -10,6 +10,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
@@ -396,7 +397,7 @@ namespace {
 	}
 
 	template <typename T, size_t Size, typename DrawComboFn>
-	Engine::ValueEditResult DrawSubmitInputBindings(const char* label, std::vector<T>& bindings,
+	Engine::ValueEditResult DrawInputBindings(const char* label, std::vector<T>& bindings,
 		const std::array<T, Size>& candidates, T preferred, DrawComboFn&& drawCombo) {
 
 		Engine::ValueEditResult result{};
@@ -464,7 +465,8 @@ namespace {
 	}
 
 	template <class DrawFieldFn>
-	void DrawTransitionStyleFields(DrawFieldFn&& drawField, const Engine::EditorPanelContext& context,
+	void DrawTransitionAnimationFields(DrawFieldFn&& drawField,
+		const Engine::EditorPanelContext& context,
 		Engine::UITransitionStyle& style, bool& anyItemActive) {
 
 		drawField(anyItemActive, [&]() {
@@ -508,28 +510,64 @@ namespace {
 				ImGui::PopID();
 			}
 		}
-		ImGui::SeparatorText("サウンド");
-		{
+	}
+
+	template <class DrawFieldFn>
+	void DrawTransitionTextureFields(DrawFieldFn&& drawField,
+		const Engine::EditorPanelContext& context,
+		Engine::UITransitionStyle& style, bool& anyItemActive) {
+
+		drawField(anyItemActive, [&]() {
+			return Engine::InspectorDrawerCommon::DrawCheckboxField(
+				"上書きするか", style.overrideTexture);
+			});
+		if (style.overrideTexture && context.editorContext) {
+			drawField(anyItemActive, [&]() {
+				return Engine::MyGUI::AssetReferenceField("テクスチャ", style.texture,
+					context.editorContext->assetDatabase, { Engine::AssetType::Texture });
+				});
+		}
+	}
+
+	template <class DrawFieldFn>
+	void DrawTransitionSoundFields(DrawFieldFn&& drawField,
+		const Engine::EditorPanelContext& context,
+		Engine::UITransitionStyle& style, bool& anyItemActive) {
+
+		if (context.editorContext) {
 			drawField(anyItemActive, [&]() {
 				return Engine::MyGUI::AssetReferenceField("オーディオクリップ", style.sound,
 					context.editorContext->assetDatabase, { Engine::AssetType::Audio });
 				});
-			drawField(anyItemActive, [&]() {
-				return Engine::MyGUI::DragFloat("音量", style.soundVolume,
-					{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f });
-				});
 		}
-		ImGui::SeparatorText("テクスチャ");
-		{
-			drawField(anyItemActive, [&]() {
-				return Engine::InspectorDrawerCommon::DrawCheckboxField("上書きするか", style.overrideTexture);
-				});
-			if (!style.useAnimationClip && style.overrideTexture && context.editorContext) {
-				drawField(anyItemActive, [&]() {
-					return Engine::MyGUI::AssetReferenceField("テクスチャ", style.texture,
-						context.editorContext->assetDatabase, { Engine::AssetType::Texture });
-				});
+		drawField(anyItemActive, [&]() {
+			return Engine::MyGUI::DragFloat("音量", style.soundVolume,
+				{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f });
+			});
+	}
+
+	template <class DrawFieldFn>
+	void DrawTransitionStyleFields(DrawFieldFn&& drawField,
+		const Engine::EditorPanelContext& context,
+		Engine::UITransitionStyle& style, bool& anyItemActive) {
+
+		if (ImGui::BeginTabBar("##UITransitionStyleTabs")) {
+			if (ImGui::BeginTabItem("アニメーション")) {
+				DrawTransitionAnimationFields(
+					drawField, context, style, anyItemActive);
+				ImGui::EndTabItem();
 			}
+			if (ImGui::BeginTabItem("テクスチャ")) {
+				DrawTransitionTextureFields(
+					drawField, context, style, anyItemActive);
+				ImGui::EndTabItem();
+			}
+			if (ImGui::BeginTabItem("サウンド")) {
+				DrawTransitionSoundFields(
+					drawField, context, style, anyItemActive);
+				ImGui::EndTabItem();
+			}
+			ImGui::EndTabBar();
 		}
 	}
 
@@ -542,7 +580,9 @@ namespace {
 			ImGui::Unindent();
 			return;
 		}
+		ImGui::PushID(label);
 		DrawTransitionStyleFields(drawField, context, style, anyItemActive);
+		ImGui::PopID();
 		ImGui::Unindent();
 	}
 }
@@ -583,14 +623,93 @@ void Engine::CanvasInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 			return MyGUI::DragFloat("リピート間隔", draft.repeatInterval,
 				{ .dragSpeed = 0.01f,.minValue = 0.01f,.maxValue = 10.0f });
 			});
-		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("スティックしきい値", draft.stickThreshold,
-				{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f,.flags = ImGuiSliderFlags_AlwaysClamp });
-			});
 		DrawField(anyItemActive, [&]() { return DrawEntityReference("初期アクティブUI", world, draft.firstSelectedLocalFileID); });
 
 		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawEnumComboField("ナビゲーション方式", draft.navigationMode); });
 		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("ナビゲーションをループ", draft.wrapNavigation); });
+
+		ImGui::Indent();
+		if (MyGUI::CollapsingHeader("UI入力デバイス", false)) {
+			DrawField(anyItemActive, [&]() {
+				return InspectorDrawerCommon::DrawCheckboxField(
+					"キーボード入力有効", draft.keyboardInputEnabled);
+				});
+			DrawField(anyItemActive, [&]() {
+				return InspectorDrawerCommon::DrawCheckboxField(
+					"ゲームパッド入力有効", draft.gamepadInputEnabled);
+				});
+
+			if (ImGui::BeginTabBar("##CanvasUIInputTabs")) {
+				if (ImGui::BeginTabItem("選択")) {
+					ImGui::SeparatorText("キーボード");
+					ImGui::PushID("KeyboardNavigation");
+					DrawField(anyItemActive, [&]() {
+						return DrawInputBindings("上", draft.navigationUpKeys,
+							kKeyboardSubmitInputs, KeyDIKCode::UP, DrawKeyboardInputCombo);
+						});
+					DrawField(anyItemActive, [&]() {
+						return DrawInputBindings("下", draft.navigationDownKeys,
+							kKeyboardSubmitInputs, KeyDIKCode::DOWN, DrawKeyboardInputCombo);
+						});
+					DrawField(anyItemActive, [&]() {
+						return DrawInputBindings("左", draft.navigationLeftKeys,
+							kKeyboardSubmitInputs, KeyDIKCode::LEFT, DrawKeyboardInputCombo);
+						});
+					DrawField(anyItemActive, [&]() {
+						return DrawInputBindings("右", draft.navigationRightKeys,
+							kKeyboardSubmitInputs, KeyDIKCode::RIGHT, DrawKeyboardInputCombo);
+						});
+					ImGui::PopID();
+
+					ImGui::SeparatorText("ゲームパッド");
+					ImGui::PushID("GamepadNavigation");
+					DrawField(anyItemActive, [&]() {
+						return InspectorDrawerCommon::DrawCheckboxField(
+							"左スティックを使用", draft.gamepadLeftStickEnabled);
+						});
+					if (draft.gamepadLeftStickEnabled) {
+						DrawField(anyItemActive, [&]() {
+							return MyGUI::DragFloat("スティックしきい値", draft.stickThreshold,
+								{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f,
+								.flags = ImGuiSliderFlags_AlwaysClamp });
+							});
+					}
+					DrawField(anyItemActive, [&]() {
+						return DrawInputBindings("上", draft.navigationUpGamepadButtons,
+							kGamepadSubmitInputs, GamePadButtons::ARROW_UP, DrawGamepadInputCombo);
+						});
+					DrawField(anyItemActive, [&]() {
+						return DrawInputBindings("下", draft.navigationDownGamepadButtons,
+							kGamepadSubmitInputs, GamePadButtons::ARROW_DOWN, DrawGamepadInputCombo);
+						});
+					DrawField(anyItemActive, [&]() {
+						return DrawInputBindings("左", draft.navigationLeftGamepadButtons,
+							kGamepadSubmitInputs, GamePadButtons::ARROW_LEFT, DrawGamepadInputCombo);
+						});
+					DrawField(anyItemActive, [&]() {
+						return DrawInputBindings("右", draft.navigationRightGamepadButtons,
+							kGamepadSubmitInputs, GamePadButtons::ARROW_RIGHT, DrawGamepadInputCombo);
+						});
+					ImGui::PopID();
+					ImGui::EndTabItem();
+				}
+				if (ImGui::BeginTabItem("決定")) {
+					ImGui::SeparatorText("キーボード");
+					DrawField(anyItemActive, [&]() {
+						return DrawInputBindings("決定", draft.submitKeys,
+							kKeyboardSubmitInputs, KeyDIKCode::RETURN, DrawKeyboardInputCombo);
+						});
+					ImGui::SeparatorText("ゲームパッド");
+					DrawField(anyItemActive, [&]() {
+						return DrawInputBindings("決定", draft.submitGamepadButtons,
+							kGamepadSubmitInputs, GamePadButtons::A, DrawGamepadInputCombo);
+						});
+					ImGui::EndTabItem();
+				}
+				ImGui::EndTabBar();
+			}
+		}
+		ImGui::Unindent();
 
 		if (draft.navigationMode == CanvasNavigationMode::TransitionTable) {
 			ImGui::Indent();
@@ -636,24 +755,10 @@ void Engine::UISelectableInspectorDrawer::DrawFields(const EditorPanelContext& c
 
 	auto drawField = [&](bool& active, auto&& function) {
 		DrawField(active, std::forward<decltype(function)>(function));
-		};
+	};
 	DrawTransitionStyle(drawField, context, "通常", draft.normal, anyItemActive);
 	DrawTransitionStyle(drawField, context, "選択", draft.selected, anyItemActive);
-
-	ImGui::Indent();
-	if (MyGUI::CollapsingHeader("決定", false)) {
-		DrawField(anyItemActive, [&]() {
-			return DrawSubmitInputBindings("キーボード", draft.submitKeys,
-				kKeyboardSubmitInputs, KeyDIKCode::RETURN, DrawKeyboardInputCombo);
-			});
-		DrawField(anyItemActive, [&]() {
-			return DrawSubmitInputBindings("ゲームパッド", draft.submitGamepadButtons,
-				kGamepadSubmitInputs, GamePadButtons::A, DrawGamepadInputCombo);
-			});
-		DrawTransitionStyleFields(drawField, context, draft.submitted, anyItemActive);
-	}
-	ImGui::Unindent();
-
+	DrawTransitionStyle(drawField, context, "決定", draft.submitted, anyItemActive);
 	DrawTransitionStyle(drawField, context, "無効", draft.disabled, anyItemActive);
 }
 
@@ -705,13 +810,62 @@ void Engine::UIProgressInspectorDrawer::DrawFields(const EditorPanelContext& con
 
 	auto& draft = GetDraft();
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled); });
-	DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("最小値", draft.minValue, { .dragSpeed = 0.01f }); });
-	DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("最大値", draft.maxValue, { .dragSpeed = 0.01f }); });
-	DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("現在値", draft.value, { .dragSpeed = 0.01f }); });
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField(
+			"編集中にプレビュー", draft.previewInEditMode);
+		});
+	const auto clampValue = [&]() {
+		const float minValue = (std::min)(draft.minValue, draft.maxValue);
+		const float maxValue = (std::max)(draft.minValue, draft.maxValue);
+		draft.value = std::clamp(draft.value, minValue, maxValue);
+		};
+	DrawField(anyItemActive, [&]() {
+		ValueEditResult result = MyGUI::DragFloat("最小値", draft.minValue, { .dragSpeed = 0.01f });
+		if (result.valueChanged) {
+			clampValue();
+		}
+		return result;
+		});
+	DrawField(anyItemActive, [&]() {
+		ValueEditResult result = MyGUI::DragFloat("最大値", draft.maxValue, { .dragSpeed = 0.01f });
+		if (result.valueChanged) {
+			clampValue();
+		}
+		return result;
+		});
+	DrawField(anyItemActive, [&]() {
+		const float minValue = (std::min)(draft.minValue, draft.maxValue);
+		const float maxValue = (std::max)(draft.minValue, draft.maxValue);
+		return MyGUI::DragFloat("現在値", draft.value,
+			{ .dragSpeed = 0.01f,.minValue = minValue,.maxValue = maxValue,
+			.flags = ImGuiSliderFlags_AlwaysClamp });
+		});
+	DrawField(anyItemActive, [&]() {
+
+		ValueEditResult result{};
+		const float spacing = ImGui::GetStyle().ItemSpacing.x;
+		const float buttonWidth = (std::max)(1.0f,
+			(ImGui::GetContentRegionAvail().x - spacing) * 0.5f);
+		if (ImGui::Button("最大にする", ImVec2(buttonWidth, 0.0f))) {
+			draft.value = draft.maxValue;
+			result.valueChanged = true;
+			result.editFinished = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("最小にする", ImVec2(buttonWidth, 0.0f))) {
+			draft.value = draft.minValue;
+			result.valueChanged = true;
+			result.editFinished = true;
+		}
+		return result;
+		});
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawEnumComboField("方向", draft.direction); });
-	const bool hasSpriteRenderer = world.HasComponent<SpriteRendererComponent>(entity);
-	if (!hasSpriteRenderer) {
-		ImGui::TextDisabled("Sprite Rendererが必要です");
+	const auto* primitive = world.TryGetComponent<PrimitiveRendererComponent>(entity);
+	const bool hasPrimitiveRenderer = primitive != nullptr;
+	if (!hasPrimitiveRenderer) {
+		ImGui::TextDisabled("Primitive Rendererが必要です");
+	} else if (!IsPrimitiveScreen2D(*primitive)) {
+		ImGui::TextDisabled("Screen2DのPlaneまたはRingが必要です");
 	}
 
 	ImGui::Indent();
@@ -727,7 +881,7 @@ void Engine::UIProgressInspectorDrawer::DrawFields(const EditorPanelContext& con
 	}
 	if (MyGUI::CollapsingHeader("遅延表示")) {
 
-		const bool enableDisabled = !hasSpriteRenderer && !draft.delayed;
+		const bool enableDisabled = !hasPrimitiveRenderer && !draft.delayed;
 		if (enableDisabled) {
 			ImGui::BeginDisabled();
 		}
@@ -754,6 +908,12 @@ void Engine::UIProgressInspectorDrawer::DrawFields(const EditorPanelContext& con
 		ImGui::Separator();
 		if (draft.delayed) {
 			DrawField(anyItemActive, [&]() {
+				AssetEditSetting setting{};
+				setting.graphicsCore = context.graphicsCore;
+				return MyGUI::AssetReferenceField("遅延テクスチャ", draft.delayedTexture,
+					context.editorContext->assetDatabase, { AssetType::Texture }, setting);
+				});
+			DrawField(anyItemActive, [&]() {
 				return MyGUI::DragFloat("待機時間", draft.delayedWait,
 					{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 60.0f });
 				});
@@ -766,4 +926,13 @@ void Engine::UIProgressInspectorDrawer::DrawFields(const EditorPanelContext& con
 	}
 	ImGui::Unindent();
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("非スケール時間", draft.useUnscaledTime); });
+}
+
+void Engine::UIProgressInspectorDrawer::ApplyPreview(ECSWorld& world,
+	const Entity& entity, const UIProgressComponent& previewComponent) {
+
+	if (!world.IsAlive(entity) || !world.HasComponent<UIProgressComponent>(entity)) {
+		return;
+	}
+	ApplyUIProgressAuthoring(previewComponent, world.GetComponent<UIProgressComponent>(entity));
 }

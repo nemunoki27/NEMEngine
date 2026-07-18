@@ -9,9 +9,31 @@
 //============================================================================
 //	UIProgressComponent classMethods
 //============================================================================
+void Engine::ApplyUIProgressAuthoring(const UIProgressComponent& source,
+	UIProgressComponent& destination) {
+
+	destination.enabled = source.enabled;
+	destination.previewInEditMode = source.previewInEditMode;
+	destination.minValue = source.minValue;
+	destination.maxValue = source.maxValue;
+	destination.value = source.value;
+	destination.delayedTargetLocalFileID = source.delayedTargetLocalFileID;
+	destination.direction = source.direction;
+	destination.smooth = source.smooth;
+	destination.smoothDuration = source.smoothDuration;
+	destination.smoothEasing = source.smoothEasing;
+	destination.delayed = source.delayed;
+	destination.delayedTexture = source.delayedTexture;
+	destination.delayedWait = source.delayedWait;
+	destination.delayedDuration = source.delayedDuration;
+	destination.delayedEasing = source.delayedEasing;
+	destination.useUnscaledTime = source.useUnscaledTime;
+}
+
 void Engine::from_json(const nlohmann::json& in, UIProgressComponent& component) {
 
 	component.enabled = in.value("enabled", component.enabled);
+	component.previewInEditMode = in.value("previewInEditMode", component.previewInEditMode);
 	component.minValue = in.value("minValue", component.minValue);
 	component.maxValue = in.value("maxValue", component.maxValue);
 	component.value = in.value("value", component.value);
@@ -23,6 +45,7 @@ void Engine::from_json(const nlohmann::json& in, UIProgressComponent& component)
 	component.smoothEasing = EnumAdapter<EasingType>::FromString(
 		in.value("smoothEasing", "EaseOutSine")).value_or(component.smoothEasing);
 	component.delayed = in.value("delayed", component.delayed);
+	component.delayedTexture = ParseAssetID(in, "delayedTexture");
 	component.delayedWait = in.value("delayedWait", component.delayedWait);
 	component.delayedDuration = in.value("delayedDuration", component.delayedDuration);
 	component.delayedEasing = EnumAdapter<EasingType>::FromString(
@@ -34,6 +57,7 @@ void Engine::from_json(const nlohmann::json& in, UIProgressComponent& component)
 void Engine::to_json(nlohmann::json& out, const UIProgressComponent& component) {
 
 	out["enabled"] = component.enabled;
+	out["previewInEditMode"] = component.previewInEditMode;
 	out["minValue"] = component.minValue;
 	out["maxValue"] = component.maxValue;
 	out["value"] = component.value;
@@ -43,6 +67,7 @@ void Engine::to_json(nlohmann::json& out, const UIProgressComponent& component) 
 	out["smoothDuration"] = component.smoothDuration;
 	out["smoothEasing"] = EnumAdapter<EasingType>::ToString(component.smoothEasing);
 	out["delayed"] = component.delayed;
+	out["delayedTexture"] = ToAssetReferenceJson(component.delayedTexture);
 	out["delayedWait"] = component.delayedWait;
 	out["delayedDuration"] = component.delayedDuration;
 	out["delayedEasing"] = EnumAdapter<EasingType>::ToString(component.delayedEasing);

@@ -5,11 +5,11 @@
 //============================================================================
 #include <Engine/Core/World/UI/UIRuntimeService.h>
 #include <Engine/Core/World/Components/UI/UIProgressComponent.h>
-#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 
 // c++
 #include <algorithm>
@@ -20,6 +20,11 @@
 //	UICanvasSystem internal
 //============================================================================
 namespace {
+
+	constexpr const char* kProgressParameter = "progress";
+	constexpr const char* kDirectionParameter = "fillDirection";
+	constexpr const char* kPrimitiveTypeParameter = "primitiveType";
+	constexpr const char* kBaseColorTextureParameter = "baseColorTexture";
 
 	Engine::UUID GetLocalFileID(Engine::ECSWorld& world, Engine::Entity entity) {
 
@@ -37,34 +42,31 @@ namespace {
 	}
 
 	void SyncDelayedRenderer(Engine::ECSWorld& world, Engine::Entity source,
-		Engine::Entity delayedTarget, bool syncGeometry) {
+		Engine::Entity delayedTarget, Engine::AssetID delayedTexture) {
 
-		const auto* sourceSprite = world.TryGetComponent<Engine::SpriteRendererComponent>(source);
-		auto* delayedSprite = world.TryGetComponent<Engine::SpriteRendererComponent>(delayedTarget);
-		if (!sourceSprite || !delayedSprite) {
+		const auto* sourcePrimitive = world.TryGetComponent<Engine::PrimitiveRendererComponent>(source);
+		auto* delayedPrimitive = world.TryGetComponent<Engine::PrimitiveRendererComponent>(delayedTarget);
+		if (!sourcePrimitive || !delayedPrimitive) {
 			return;
 		}
 
-		delayedSprite->material = sourceSprite->material;
-		delayedSprite->parameterOverrides = sourceSprite->parameterOverrides;
-		delayedSprite->layer = sourceSprite->layer;
-		delayedSprite->order = sourceSprite->order;
-		if ((std::numeric_limits<int32_t>::min)() < delayedSprite->order) {
-			--delayedSprite->order;
+		*delayedPrimitive = *sourcePrimitive;
+		if (delayedTexture) {
+			delayedPrimitive->parameterOverrides[kBaseColorTextureParameter].value =
+				delayedTexture;
 		}
-		delayedSprite->visible = sourceSprite->visible;
-		delayedSprite->blendMode = sourceSprite->blendMode;
-		delayedSprite->queue = sourceSprite->queue;
-		if (!syncGeometry) {
-			return;
+		if ((std::numeric_limits<int32_t>::min)() < delayedPrimitive->order) {
+			--delayedPrimitive->order;
 		}
+	}
 
-		delayedSprite->size = sourceSprite->size;
-		delayedSprite->pivot = sourceSprite->pivot;
-		const auto* sourceUVTransform = world.TryGetComponent<Engine::UVTransformComponent>(source);
-		auto* delayedUVTransform = world.TryGetComponent<Engine::UVTransformComponent>(delayedTarget);
-		if (sourceUVTransform && delayedUVTransform) {
-			*delayedUVTransform = *sourceUVTransform;
+	void RestoreParameter(std::unordered_map<std::string, Engine::MaterialParameterValue>& parameters,
+		const char* name, bool existed, const Engine::MaterialParameterValue& value) {
+
+		if (existed) {
+			parameters[name] = value;
+		} else {
+			parameters.erase(name);
 		}
 	}
 
@@ -77,15 +79,25 @@ namespace {
 		if (!world.IsAlive(target)) {
 			return;
 		}
-		if (auto* sprite = world.TryGetComponent<Engine::SpriteRendererComponent>(target)) {
-			sprite->size = runtime.size;
-			sprite->pivot = runtime.pivot;
+		auto* primitive = world.TryGetComponent<Engine::PrimitiveRendererComponent>(target);
+		if (!primitive) {
+			return;
 		}
-		if (runtime.hasUVTransform) {
-			if (auto* uvTransform = world.TryGetComponent<Engine::UVTransformComponent>(target)) {
-				uvTransform->pos = runtime.uvPos;
-				uvTransform->scale = runtime.uvScale;
-			}
+		RestoreParameter(primitive->parameterOverrides, kProgressParameter,
+			runtime.hadProgressParameter, runtime.progressParameter);
+		RestoreParameter(primitive->parameterOverrides, kDirectionParameter,
+			runtime.hadDirectionParameter, runtime.directionParameter);
+		RestoreParameter(primitive->parameterOverrides, kPrimitiveTypeParameter,
+			runtime.hadPrimitiveTypeParameter, runtime.primitiveTypeParameter);
+	}
+
+	void CaptureParameter(const std::unordered_map<std::string, Engine::MaterialParameterValue>& parameters,
+		const char* name, bool& outExisted, Engine::MaterialParameterValue& outValue) {
+
+		const auto found = parameters.find(name);
+		outExisted = found != parameters.end();
+		if (outExisted) {
+			outValue = found->second;
 		}
 	}
 
@@ -102,18 +114,21 @@ namespace {
 		if (!targetLocalFileID) {
 			return;
 		}
-		const auto* sprite = world.TryGetComponent<Engine::SpriteRendererComponent>(target);
-		if (!sprite) {
+		auto* primitive = world.TryGetComponent<Engine::PrimitiveRendererComponent>(target);
+		if (!primitive) {
 			return;
 		}
-		runtime.localFileID = targetLocalFileID;
-		runtime.size = sprite->size;
-		runtime.pivot = sprite->pivot;
-		if (const auto* uvTransform = world.TryGetComponent<Engine::UVTransformComponent>(target)) {
-			runtime.hasUVTransform = true;
-			runtime.uvPos = uvTransform->pos;
-			runtime.uvScale = uvTransform->scale;
+		if (!primitive->material ||
+			primitive->material == Engine::BuiltinAssets::Materials::DefaultPrimitive2D) {
+			primitive->material = Engine::BuiltinAssets::Materials::ProgressPrimitive;
 		}
+		runtime.localFileID = targetLocalFileID;
+		CaptureParameter(primitive->parameterOverrides, kProgressParameter,
+			runtime.hadProgressParameter, runtime.progressParameter);
+		CaptureParameter(primitive->parameterOverrides, kDirectionParameter,
+			runtime.hadDirectionParameter, runtime.directionParameter);
+		CaptureParameter(primitive->parameterOverrides, kPrimitiveTypeParameter,
+			runtime.hadPrimitiveTypeParameter, runtime.primitiveTypeParameter);
 		runtime.valid = true;
 	}
 
@@ -124,58 +139,17 @@ namespace {
 			return;
 		}
 		const Engine::Entity target = Engine::SceneObjectUtility::FindByLocalFileID(world, runtime.localFileID);
-		auto* sprite = world.IsAlive(target) ? world.TryGetComponent<Engine::SpriteRendererComponent>(target) : nullptr;
-		if (!sprite) {
+		auto* primitive = world.IsAlive(target) ?
+			world.TryGetComponent<Engine::PrimitiveRendererComponent>(target) : nullptr;
+		if (!primitive) {
 			return;
 		}
 
 		ratio = std::clamp(ratio, 0.0f, 1.0f);
-		sprite->size = runtime.size;
-		sprite->pivot = runtime.pivot;
-		switch (direction) {
-		case Engine::UIProgressFillDirection::LeftToRight:
-			sprite->size.x *= ratio;
-			if (0.0f < ratio) { sprite->pivot.x = runtime.pivot.x / ratio; }
-			break;
-		case Engine::UIProgressFillDirection::RightToLeft:
-			sprite->size.x *= ratio;
-			if (0.0f < ratio) { sprite->pivot.x = 1.0f - (1.0f - runtime.pivot.x) / ratio; }
-			break;
-		case Engine::UIProgressFillDirection::TopToBottom:
-			sprite->size.y *= ratio;
-			if (0.0f < ratio) { sprite->pivot.y = runtime.pivot.y / ratio; }
-			break;
-		case Engine::UIProgressFillDirection::BottomToTop:
-			sprite->size.y *= ratio;
-			if (0.0f < ratio) { sprite->pivot.y = 1.0f - (1.0f - runtime.pivot.y) / ratio; }
-			break;
-		}
-
-		if (!runtime.hasUVTransform) {
-			return;
-		}
-		auto* uvTransform = world.TryGetComponent<Engine::UVTransformComponent>(target);
-		if (!uvTransform) {
-			return;
-		}
-		uvTransform->pos = runtime.uvPos;
-		uvTransform->scale = runtime.uvScale;
-		switch (direction) {
-		case Engine::UIProgressFillDirection::LeftToRight:
-			uvTransform->scale.x = runtime.uvScale.x * ratio;
-			break;
-		case Engine::UIProgressFillDirection::RightToLeft:
-			uvTransform->scale.x = runtime.uvScale.x * ratio;
-			uvTransform->pos.x = runtime.uvPos.x + runtime.uvScale.x * (1.0f - ratio);
-			break;
-		case Engine::UIProgressFillDirection::TopToBottom:
-			uvTransform->scale.y = runtime.uvScale.y * ratio;
-			break;
-		case Engine::UIProgressFillDirection::BottomToTop:
-			uvTransform->scale.y = runtime.uvScale.y * ratio;
-			uvTransform->pos.y = runtime.uvPos.y + runtime.uvScale.y * (1.0f - ratio);
-			break;
-		}
+		primitive->parameterOverrides[kProgressParameter].value = ratio;
+		primitive->parameterOverrides[kDirectionParameter].value = static_cast<uint32_t>(direction);
+		primitive->parameterOverrides[kPrimitiveTypeParameter].value =
+			primitive->type == Engine::PrimitiveType::Ring ? 1u : 0u;
 	}
 
 	float NormalizeValue(const Engine::UIProgressComponent& progress) {
@@ -190,19 +164,12 @@ namespace {
 	void UpdateProgress(Engine::ECSWorld& world, Engine::Entity entity,
 		Engine::UIProgressComponent& progress, float deltaTime) {
 
-		if (!progress.enabled) {
-			RestoreTarget(world, progress.runtimeFillTarget);
-			RestoreTarget(world, progress.runtimeDelayedTarget);
-			progress.runtimeInitialized = false;
-			return;
-		}
-
 		EnsureTarget(world, entity, progress.runtimeFillTarget);
 		if (progress.delayed && progress.delayedTargetLocalFileID) {
 
 			const Engine::Entity delayedTarget =
 				ResolveTarget(world, progress.delayedTargetLocalFileID);
-			SyncDelayedRenderer(world, entity, delayedTarget, !progress.runtimeInitialized);
+			SyncDelayedRenderer(world, entity, delayedTarget, progress.delayedTexture);
 			EnsureTarget(world, delayedTarget, progress.runtimeDelayedTarget);
 		} else {
 			RestoreTarget(world, progress.runtimeDelayedTarget);
@@ -262,14 +229,29 @@ namespace {
 //============================================================================
 //	UICanvasSystem classMethods
 //============================================================================
+void Engine::UICanvasSystem::RestoreProgressVisual(ECSWorld& world,
+	UIProgressComponent& progress) {
+
+	RestoreTarget(world, progress.runtimeFillTarget);
+	RestoreTarget(world, progress.runtimeDelayedTarget);
+	ResetUIProgressRuntime(progress);
+}
+
 void Engine::UICanvasSystem::Update(ECSWorld& world, SystemContext& context) {
 
-	if (context.mode != WorldMode::Play) {
-		return;
-	}
+	const bool isPlay = context.mode == WorldMode::Play;
 	world.ForEach<UIProgressComponent>([&](Entity entity, UIProgressComponent& progress) {
 
-		const float deltaTime = progress.useUnscaledTime ? context.unscaledDeltaTime : context.deltaTime;
+		if (!progress.enabled || (!isPlay && !progress.previewInEditMode)) {
+			if (progress.runtimeInitialized ||
+				progress.runtimeFillTarget.valid || progress.runtimeDelayedTarget.valid) {
+				RestoreProgressVisual(world, progress);
+			}
+			return;
+		}
+
+		const float deltaTime = (!isPlay || progress.useUnscaledTime) ?
+			context.unscaledDeltaTime : context.deltaTime;
 		UpdateProgress(world, entity, progress, deltaTime);
 		});
 }
@@ -281,5 +263,8 @@ void Engine::UICanvasSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] System
 
 void Engine::UICanvasSystem::OnWorldExit(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
+	world.ForEach<UIProgressComponent>([&](Entity, UIProgressComponent& progress) {
+		RestoreProgressVisual(world, progress);
+		});
 	UIRuntimeService::GetInstance().Clear(world);
 }

@@ -5,13 +5,13 @@
 //============================================================================
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Core/World/Components/UI/UIProgressComponent.h>
-#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Systems/UI/UICanvasSystem.h>
 
 // c++
 #include <limits>
@@ -74,7 +74,9 @@ bool Engine::SetUIProgressDelayedCommand::ApplyComponent(
 		return false;
 	}
 
-	world->AddComponentFromJson(target, "UIProgress", data);
+	auto& progress = world->GetComponent<UIProgressComponent>(target);
+	UICanvasSystem::RestoreProgressVisual(*world, progress);
+	ApplyUIProgressAuthoring(data.get<UIProgressComponent>(), progress);
 	if (context.editorState) {
 		context.editorState->SelectEntity(target);
 	}
@@ -86,19 +88,17 @@ bool Engine::SetUIProgressDelayedCommand::EnableDelayed(
 
 	ECSWorld* world = context.GetWorld();
 	if (!world || !world->HasComponent<UIProgressComponent>(target) ||
-		!world->HasComponent<SpriteRendererComponent>(target)) {
+		!world->HasComponent<PrimitiveRendererComponent>(target)) {
 		return false;
 	}
 
 	auto& progress = world->GetComponent<UIProgressComponent>(target);
+	UICanvasSystem::RestoreProgressVisual(*world, progress);
 	Entity delayedEntity = ResolveDelayedEntity(*world, target, progress.delayedTargetLocalFileID);
 	if (!world->IsAlive(delayedEntity)) {
 
-		const SpriteRendererComponent sourceSprite =
-			world->GetComponent<SpriteRendererComponent>(target);
-		const auto* sourceUVTransform = world->TryGetComponent<UVTransformComponent>(target);
-		const UVTransformComponent sourceUV = sourceUVTransform ?
-			*sourceUVTransform : UVTransformComponent{};
+		const PrimitiveRendererComponent sourcePrimitive =
+			world->GetComponent<PrimitiveRendererComponent>(target);
 
 		delayedEntity = world->CreateEntity();
 		SceneAuthoring::EnsureGameObjectDefaults(*world, delayedEntity, "Delayed Fill");
@@ -111,19 +111,17 @@ bool Engine::SetUIProgressDelayedCommand::EnableDelayed(
 		HierarchySystem hierarchySystem;
 		hierarchySystem.SetParent(*world, delayedEntity, target);
 
-		auto& delayedSprite = world->AddComponent<SpriteRendererComponent>(delayedEntity);
-		delayedSprite = sourceSprite;
-		if ((std::numeric_limits<int32_t>::min)() < delayedSprite.order) {
-			--delayedSprite.order;
+		auto& delayedPrimitive = world->AddComponent<PrimitiveRendererComponent>(delayedEntity);
+		delayedPrimitive = sourcePrimitive;
+		if ((std::numeric_limits<int32_t>::min)() < delayedPrimitive.order) {
+			--delayedPrimitive.order;
 		}
-		world->AddComponent<UVTransformComponent>(delayedEntity) = sourceUV;
 		changedDelayedEntity_ = true;
 	}
 
 	progress.delayed = true;
 	progress.delayedTargetLocalFileID =
 		world->GetComponent<SceneObjectComponent>(delayedEntity).localFileID;
-	ResetUIProgressRuntime(progress);
 
 	if (changedDelayedEntity_) {
 		EditorEntitySnapshotUtility::CaptureSubtree(
@@ -145,6 +143,7 @@ bool Engine::SetUIProgressDelayedCommand::DisableDelayed(
 	}
 
 	auto& progress = world->GetComponent<UIProgressComponent>(target);
+	UICanvasSystem::RestoreProgressVisual(*world, progress);
 	const Entity delayedEntity =
 		ResolveDelayedEntity(*world, target, progress.delayedTargetLocalFileID);
 	if (world->IsAlive(delayedEntity)) {
@@ -156,7 +155,6 @@ bool Engine::SetUIProgressDelayedCommand::DisableDelayed(
 
 	progress.delayed = false;
 	progress.delayedTargetLocalFileID = {};
-	ResetUIProgressRuntime(progress);
 	if (changedDelayedEntity_) {
 		EditorEntitySnapshotUtility::DestroySubtree(*world, delayedEntity);
 	}

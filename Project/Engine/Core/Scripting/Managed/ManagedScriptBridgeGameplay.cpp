@@ -20,7 +20,7 @@
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Core/World/Components/UI/UISelectableComponent.h>
+#include <Engine/Core/World/Components/UI/CanvasComponent.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
@@ -53,6 +53,34 @@ namespace Engine {
 			}
 			const SystemContext* context = ManagedScriptRuntime::GetCurrentContext();
 			return context ? context->world : nullptr;
+		}
+
+		// Canvasのキーボード入力配列を取得する
+		std::vector<KeyDIKCode>* ResolveCanvasKeyBindings(
+			CanvasComponent& canvas, int32_t action) {
+
+			switch (action) {
+			case 0: return &canvas.navigationUpKeys;
+			case 1: return &canvas.navigationDownKeys;
+			case 2: return &canvas.navigationLeftKeys;
+			case 3: return &canvas.navigationRightKeys;
+			case 4: return &canvas.submitKeys;
+			default: return nullptr;
+			}
+		}
+
+		// Canvasのゲームパッド入力配列を取得する
+		std::vector<GamePadButtons>* ResolveCanvasGamepadBindings(
+			CanvasComponent& canvas, int32_t action) {
+
+			switch (action) {
+			case 0: return &canvas.navigationUpGamepadButtons;
+			case 1: return &canvas.navigationDownGamepadButtons;
+			case 2: return &canvas.navigationLeftGamepadButtons;
+			case 3: return &canvas.navigationRightGamepadButtons;
+			case 4: return &canvas.submitGamepadButtons;
+			default: return nullptr;
+			}
 		}
 	}
 
@@ -198,75 +226,89 @@ namespace Engine {
 		return count;
 	}
 
-	int32_t ManagedScriptRuntime::UISelectableCopySubmitBindingsCallback(
-		ManagedNativeEntity entity, int32_t device, int32_t* bindings, int32_t capacity) {
+	int32_t ManagedScriptRuntime::CanvasCopyInputBindingsCallback(
+		ManagedNativeEntity entity, int32_t action, int32_t device,
+		int32_t* bindings, int32_t capacity) {
 
 		ECSWorld* world = ResolveWorld(entity);
 		if (!world) {
 			return 0;
 		}
 		const Entity resolved = ResolveEntity(entity);
-		const UISelectableComponent* selectable = world->IsAlive(resolved) ?
-			world->TryGetComponent<UISelectableComponent>(resolved) : nullptr;
-		if (!selectable || device < 0 || 1 < device) {
+		CanvasComponent* canvas = world->IsAlive(resolved) ?
+			world->TryGetComponent<CanvasComponent>(resolved) : nullptr;
+		if (!canvas || device < 0 || 1 < device) {
 			return 0;
 		}
 
-		const int32_t count = device == 0 ?
-			static_cast<int32_t>(selectable->submitKeys.size()) :
-			static_cast<int32_t>(selectable->submitGamepadButtons.size());
+		const std::vector<KeyDIKCode>* keys =
+			device == 0 ? ResolveCanvasKeyBindings(*canvas, action) : nullptr;
+		const std::vector<GamePadButtons>* buttons =
+			device == 1 ? ResolveCanvasGamepadBindings(*canvas, action) : nullptr;
+		if (!keys && !buttons) {
+			return 0;
+		}
+		const int32_t count = keys ?
+			static_cast<int32_t>(keys->size()) : static_cast<int32_t>(buttons->size());
 		if (!bindings || capacity <= 0) {
 			return count;
 		}
 
 		const int32_t copyCount = (std::min)(count, capacity);
 		for (int32_t i = 0; i < copyCount; ++i) {
-			bindings[i] = device == 0 ?
-				static_cast<int32_t>(selectable->submitKeys[static_cast<size_t>(i)]) :
-				static_cast<int32_t>(selectable->submitGamepadButtons[static_cast<size_t>(i)]);
+			bindings[i] = keys ?
+				static_cast<int32_t>((*keys)[static_cast<size_t>(i)]) :
+				static_cast<int32_t>((*buttons)[static_cast<size_t>(i)]);
 		}
 		return count;
 	}
 
-	void ManagedScriptRuntime::UISelectableSetSubmitBindingsCallback(
-		ManagedNativeEntity entity, int32_t device, const int32_t* bindings, int32_t count) {
+	void ManagedScriptRuntime::CanvasSetInputBindingsCallback(
+		ManagedNativeEntity entity, int32_t action, int32_t device,
+		const int32_t* bindings, int32_t count) {
 
 		ECSWorld* world = ResolveWorld(entity);
 		if (!world || device < 0 || 1 < device || count < 0) {
 			return;
 		}
 		const Entity resolved = ResolveEntity(entity);
-		UISelectableComponent* selectable = world->IsAlive(resolved) ?
-			world->TryGetComponent<UISelectableComponent>(resolved) : nullptr;
-		if (!selectable) {
+		CanvasComponent* canvas = world->IsAlive(resolved) ?
+			world->TryGetComponent<CanvasComponent>(resolved) : nullptr;
+		if (!canvas) {
 			return;
 		}
 
 		if (device == 0) {
-			selectable->submitKeys.clear();
+			std::vector<KeyDIKCode>* keys = ResolveCanvasKeyBindings(*canvas, action);
+			if (!keys) {
+				return;
+			}
+			keys->clear();
 			for (int32_t i = 0; bindings && i < count; ++i) {
 
 				const int32_t code = bindings[i];
 				const KeyDIKCode key = static_cast<KeyDIKCode>(code);
 				if (0 < code && code <= 255 &&
-					std::find(selectable->submitKeys.begin(), selectable->submitKeys.end(), key) ==
-					selectable->submitKeys.end()) {
-					selectable->submitKeys.emplace_back(key);
+					std::find(keys->begin(), keys->end(), key) == keys->end()) {
+					keys->emplace_back(key);
 				}
 			}
 			return;
 		}
 
-		selectable->submitGamepadButtons.clear();
+		std::vector<GamePadButtons>* buttons =
+			ResolveCanvasGamepadBindings(*canvas, action);
+		if (!buttons) {
+			return;
+		}
+		buttons->clear();
 		for (int32_t i = 0; bindings && i < count; ++i) {
 
 			const int32_t code = bindings[i];
 			const GamePadButtons button = static_cast<GamePadButtons>(code);
 			if (0 <= code && code < static_cast<int32_t>(GamePadButtons::Counts) &&
-				std::find(selectable->submitGamepadButtons.begin(),
-					selectable->submitGamepadButtons.end(), button) ==
-				selectable->submitGamepadButtons.end()) {
-				selectable->submitGamepadButtons.emplace_back(button);
+				std::find(buttons->begin(), buttons->end(), button) == buttons->end()) {
+				buttons->emplace_back(button);
 			}
 		}
 	}

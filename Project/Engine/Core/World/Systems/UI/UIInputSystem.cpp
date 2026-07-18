@@ -211,48 +211,109 @@ namespace {
 		return nullptr;
 	}
 
-	Engine::Vector2 ReadTriggeredNavigationDirection(Engine::Input& input) {
+	bool IsKeyboardTriggered(Engine::Input& input, const std::vector<KeyDIKCode>& bindings) {
 
-		if (input.TriggerKey(DIK_UP) || input.TriggerKey(DIK_W) ||
-			input.TriggerGamepadButton(GamePadButtons::ARROW_UP)) {
+		for (KeyDIKCode key : bindings) {
+			if (input.TriggerKey(static_cast<BYTE>(key))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool IsKeyboardHeld(Engine::Input& input, const std::vector<KeyDIKCode>& bindings) {
+
+		for (KeyDIKCode key : bindings) {
+			if (input.PushKey(static_cast<BYTE>(key))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool IsGamepadTriggered(Engine::Input& input,
+		const std::vector<GamePadButtons>& bindings) {
+
+		for (GamePadButtons button : bindings) {
+			if (button != GamePadButtons::Counts && input.TriggerGamepadButton(button)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool IsGamepadHeld(Engine::Input& input, const std::vector<GamePadButtons>& bindings) {
+
+		for (GamePadButtons button : bindings) {
+			if (button != GamePadButtons::Counts && input.PushGamepadButton(button)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	Engine::Vector2 ReadTriggeredNavigationDirection(Engine::Input& input,
+		const Engine::CanvasComponent& canvas) {
+
+		if ((canvas.keyboardInputEnabled &&
+			IsKeyboardTriggered(input, canvas.navigationUpKeys)) ||
+			(canvas.gamepadInputEnabled &&
+				IsGamepadTriggered(input, canvas.navigationUpGamepadButtons))) {
 			return Engine::Vector2(0.0f, -1.0f);
 		}
-		if (input.TriggerKey(DIK_DOWN) || input.TriggerKey(DIK_S) ||
-			input.TriggerGamepadButton(GamePadButtons::ARROW_DOWN)) {
+		if ((canvas.keyboardInputEnabled &&
+			IsKeyboardTriggered(input, canvas.navigationDownKeys)) ||
+			(canvas.gamepadInputEnabled &&
+				IsGamepadTriggered(input, canvas.navigationDownGamepadButtons))) {
 			return Engine::Vector2(0.0f, 1.0f);
 		}
-		if (input.TriggerKey(DIK_LEFT) || input.TriggerKey(DIK_A) ||
-			input.TriggerGamepadButton(GamePadButtons::ARROW_LEFT)) {
+		if ((canvas.keyboardInputEnabled &&
+			IsKeyboardTriggered(input, canvas.navigationLeftKeys)) ||
+			(canvas.gamepadInputEnabled &&
+				IsGamepadTriggered(input, canvas.navigationLeftGamepadButtons))) {
 			return Engine::Vector2(-1.0f, 0.0f);
 		}
-		if (input.TriggerKey(DIK_RIGHT) || input.TriggerKey(DIK_D) ||
-			input.TriggerGamepadButton(GamePadButtons::ARROW_RIGHT)) {
+		if ((canvas.keyboardInputEnabled &&
+			IsKeyboardTriggered(input, canvas.navigationRightKeys)) ||
+			(canvas.gamepadInputEnabled &&
+				IsGamepadTriggered(input, canvas.navigationRightGamepadButtons))) {
 			return Engine::Vector2(1.0f, 0.0f);
 		}
 		return {};
 	}
 
-	Engine::Vector2 ReadHeldNavigationDirection(Engine::Input& input, float stickThreshold) {
+	Engine::Vector2 ReadHeldNavigationDirection(Engine::Input& input,
+		const Engine::CanvasComponent& canvas) {
 
-		if (input.PushKey(DIK_UP) || input.PushKey(DIK_W) ||
-			input.PushGamepadButton(GamePadButtons::ARROW_UP)) {
+		if ((canvas.keyboardInputEnabled &&
+			IsKeyboardHeld(input, canvas.navigationUpKeys)) ||
+			(canvas.gamepadInputEnabled &&
+				IsGamepadHeld(input, canvas.navigationUpGamepadButtons))) {
 			return Engine::Vector2(0.0f, -1.0f);
 		}
-		if (input.PushKey(DIK_DOWN) || input.PushKey(DIK_S) ||
-			input.PushGamepadButton(GamePadButtons::ARROW_DOWN)) {
+		if ((canvas.keyboardInputEnabled &&
+			IsKeyboardHeld(input, canvas.navigationDownKeys)) ||
+			(canvas.gamepadInputEnabled &&
+				IsGamepadHeld(input, canvas.navigationDownGamepadButtons))) {
 			return Engine::Vector2(0.0f, 1.0f);
 		}
-		if (input.PushKey(DIK_LEFT) || input.PushKey(DIK_A) ||
-			input.PushGamepadButton(GamePadButtons::ARROW_LEFT)) {
+		if ((canvas.keyboardInputEnabled &&
+			IsKeyboardHeld(input, canvas.navigationLeftKeys)) ||
+			(canvas.gamepadInputEnabled &&
+				IsGamepadHeld(input, canvas.navigationLeftGamepadButtons))) {
 			return Engine::Vector2(-1.0f, 0.0f);
 		}
-		if (input.PushKey(DIK_RIGHT) || input.PushKey(DIK_D) ||
-			input.PushGamepadButton(GamePadButtons::ARROW_RIGHT)) {
+		if ((canvas.keyboardInputEnabled &&
+			IsKeyboardHeld(input, canvas.navigationRightKeys)) ||
+			(canvas.gamepadInputEnabled &&
+				IsGamepadHeld(input, canvas.navigationRightGamepadButtons))) {
 			return Engine::Vector2(1.0f, 0.0f);
 		}
 
-		const Engine::Vector2 stick = input.GetLeftStickVal();
-		if (stickThreshold <= std::abs(stick.x) || stickThreshold <= std::abs(stick.y)) {
+		const Engine::Vector2 stick = canvas.gamepadInputEnabled &&
+			canvas.gamepadLeftStickEnabled ? input.GetLeftStickVal() : Engine::Vector2{};
+		if (canvas.stickThreshold <= std::abs(stick.x) ||
+			canvas.stickThreshold <= std::abs(stick.y)) {
 			return std::abs(stick.x) > std::abs(stick.y) ?
 				Engine::Vector2(stick.x < 0.0f ? -1.0f : 1.0f, 0.0f) :
 				Engine::Vector2(0.0f, stick.y < 0.0f ? -1.0f : 1.0f);
@@ -260,19 +321,12 @@ namespace {
 		return {};
 	}
 
-	bool IsSubmitTriggered(Engine::Input& input, const Engine::UISelectableComponent& selectable) {
+	bool IsSubmitTriggered(Engine::Input& input, const Engine::CanvasComponent& canvas) {
 
-		for (KeyDIKCode key : selectable.submitKeys) {
-			if (input.TriggerKey(static_cast<BYTE>(key))) {
-				return true;
-			}
-		}
-		for (GamePadButtons button : selectable.submitGamepadButtons) {
-			if (button != GamePadButtons::Counts && input.TriggerGamepadButton(button)) {
-				return true;
-			}
-		}
-		return false;
+		return (canvas.keyboardInputEnabled &&
+			IsKeyboardTriggered(input, canvas.submitKeys)) ||
+			(canvas.gamepadInputEnabled &&
+				IsGamepadTriggered(input, canvas.submitGamepadButtons));
 	}
 
 	std::unordered_map<std::string, Engine::MaterialParameterValue>* ResolveMaterialParameters(
@@ -492,7 +546,37 @@ namespace {
 		selectable.runtimeHadBaseTexture = false;
 		selectable.runtimeInitialized = false;
 		selectable.runtimeSubmitted = false;
+		selectable.runtimeNormalThisFrame = false;
+		selectable.runtimeSelectedThisFrame = false;
 		selectable.runtimeSubmittedThisFrame = false;
+		selectable.runtimeDisabledThisFrame = false;
+	}
+
+	void ResetStateThisFrame(Engine::UISelectableComponent& selectable) {
+
+		selectable.runtimeNormalThisFrame = false;
+		selectable.runtimeSelectedThisFrame = false;
+		selectable.runtimeSubmittedThisFrame = false;
+		selectable.runtimeDisabledThisFrame = false;
+	}
+
+	void SetStateThisFrame(Engine::UISelectableComponent& selectable,
+		Engine::UISelectableState state) {
+
+		switch (state) {
+		case Engine::UISelectableState::Normal:
+			selectable.runtimeNormalThisFrame = true;
+			break;
+		case Engine::UISelectableState::Selected:
+			selectable.runtimeSelectedThisFrame = true;
+			break;
+		case Engine::UISelectableState::Submitted:
+			selectable.runtimeSubmittedThisFrame = true;
+			break;
+		case Engine::UISelectableState::Disabled:
+			selectable.runtimeDisabledThisFrame = true;
+			break;
+		}
 	}
 
 	void ResetCanvasInputRuntime(Engine::CanvasComponent& canvas) {
@@ -663,6 +747,11 @@ namespace {
 		}
 		const Engine::UITransitionStyle& style = ResolveStyle(selectable);
 		if (style.useAnimationClip) {
+			if (style.overrideTexture) {
+				if (auto* parameters = ResolveMaterialParameters(world, entry.entity)) {
+					(*parameters)["baseColorTexture"].value = style.texture;
+				}
+			}
 			return;
 		}
 		const float elapsedTime = (std::max)(deltaTime, 0.0f);
@@ -737,7 +826,7 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 		button.runtimeClickedThisFrame = false;
 		});
 	world.ForEach<UISelectableComponent>([](Entity, UISelectableComponent& selectable) {
-		selectable.runtimeSubmittedThisFrame = false;
+		ResetStateThisFrame(selectable);
 		});
 
 	const bool isPlay = context.mode == WorldMode::Play;
@@ -867,9 +956,9 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 		!world.GetComponent<CanvasComponent>(activeCanvas).runtimeInputLocked) {
 
 		auto& canvas = world.GetComponent<CanvasComponent>(activeCanvas);
-		Vector2 heldDirection = ReadTriggeredNavigationDirection(*input);
+		Vector2 heldDirection = ReadTriggeredNavigationDirection(*input, canvas);
 		if (heldDirection == Vector2{}) {
-			heldDirection = ReadHeldNavigationDirection(*input, canvas.stickThreshold);
+			heldDirection = ReadHeldNavigationDirection(*input, canvas);
 		}
 		if (heldDirection != Vector2{}) {
 			if (heldDirection != canvas.runtimeRepeatDirection) {
@@ -922,7 +1011,7 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 		if (!canvas.runtimeInputLocked) {
 			if (SelectableEntry* selected = FindEntryByLocalFileID(world, entries,
 				activeCanvas, canvas.runtimeSelectedLocalFileID);
-				selected && IsSubmitTriggered(*input, *selected->selectable)) {
+				selected && IsSubmitTriggered(*input, canvas)) {
 
 				selected->selectable->runtimeSubmitted = true;
 				selected->selectable->runtimeSubmittedThisFrame = true;
@@ -954,6 +1043,7 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 
 		auto& canvas = world.GetComponent<CanvasComponent>(entry.canvas);
 		const UUID localFileID = GetLocalFileID(world, entry.entity);
+		const UISelectableState previousState = entry.selectable->runtimeState;
 		if (entry.selectable->runtimeSubmitted && canvas.blockInputAfterSubmit) {
 			canvas.runtimeInputLocked = true;
 		}
@@ -968,6 +1058,9 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 			entry.selectable->runtimeState = UISelectableState::Selected;
 		} else {
 			entry.selectable->runtimeState = UISelectableState::Normal;
+		}
+		if (previousState != entry.selectable->runtimeState) {
+			SetStateThisFrame(*entry.selectable, entry.selectable->runtimeState);
 		}
 
 		UISelectableAnimationRuntime* animationRuntime = nullptr;

@@ -106,5 +106,7 @@ namespace Engine {
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, bool& anyItemActive) override;
+		void ApplyPreview(ECSWorld& world, const Entity& entity,
+			const UIProgressComponent& previewComponent) override;
 	};
 } // Engine

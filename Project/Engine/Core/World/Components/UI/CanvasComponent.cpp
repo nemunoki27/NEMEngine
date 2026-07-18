@@ -11,6 +11,63 @@
 #include <utility>
 
 //============================================================================
+//	CanvasComponent internal
+//============================================================================
+namespace {
+
+	void ReadKeyBindings(const nlohmann::json& in, std::vector<KeyDIKCode>& bindings) {
+
+		if (!in.is_array()) {
+			return;
+		}
+		bindings.clear();
+		for (const nlohmann::json& value : in) {
+
+			if (!value.is_number_integer()) {
+				continue;
+			}
+			const int32_t code = value.get<int32_t>();
+			const KeyDIKCode key = static_cast<KeyDIKCode>(code);
+			if (0 < code && code <= 255 &&
+				std::find(bindings.begin(), bindings.end(), key) == bindings.end()) {
+				bindings.emplace_back(key);
+			}
+		}
+	}
+
+	void ReadGamepadBindings(const nlohmann::json& in,
+		std::vector<GamePadButtons>& bindings) {
+
+		if (!in.is_array()) {
+			return;
+		}
+		bindings.clear();
+		for (const nlohmann::json& value : in) {
+
+			if (!value.is_number_integer()) {
+				continue;
+			}
+			const int32_t code = value.get<int32_t>();
+			const GamePadButtons button = static_cast<GamePadButtons>(code);
+			if (0 <= code && code < static_cast<int32_t>(GamePadButtons::Counts) &&
+				std::find(bindings.begin(), bindings.end(), button) == bindings.end()) {
+				bindings.emplace_back(button);
+			}
+		}
+	}
+
+	template <typename T>
+	nlohmann::json WriteInputBindings(const std::vector<T>& bindings) {
+
+		nlohmann::json out = nlohmann::json::array();
+		for (T binding : bindings) {
+			out.emplace_back(static_cast<int32_t>(binding));
+		}
+		return out;
+	}
+}
+
+//============================================================================
 //	CanvasComponent classMethods
 //============================================================================
 
@@ -54,6 +111,35 @@ void Engine::from_json(const nlohmann::json& in, CanvasComponent& component) {
 	component.blockGameplayInput = in.value("blockGameplayInput", component.blockGameplayInput);
 	component.inputInEditMode = in.value("inputInEditMode", component.inputInEditMode);
 	component.blockInputAfterSubmit = in.value("blockInputAfterSubmit", component.blockInputAfterSubmit);
+	if (const auto settings = in.find("inputSettings");
+		settings != in.end() && settings->is_object()) {
+
+		component.keyboardInputEnabled =
+			settings->value("keyboardEnabled", component.keyboardInputEnabled);
+		component.gamepadInputEnabled =
+			settings->value("gamepadEnabled", component.gamepadInputEnabled);
+		component.gamepadLeftStickEnabled =
+			settings->value("gamepadLeftStickEnabled", component.gamepadLeftStickEnabled);
+		ReadKeyBindings(settings->value("navigationUpKeys", nlohmann::json{}),
+			component.navigationUpKeys);
+		ReadKeyBindings(settings->value("navigationDownKeys", nlohmann::json{}),
+			component.navigationDownKeys);
+		ReadKeyBindings(settings->value("navigationLeftKeys", nlohmann::json{}),
+			component.navigationLeftKeys);
+		ReadKeyBindings(settings->value("navigationRightKeys", nlohmann::json{}),
+			component.navigationRightKeys);
+		ReadGamepadBindings(settings->value("navigationUpGamepadButtons", nlohmann::json{}),
+			component.navigationUpGamepadButtons);
+		ReadGamepadBindings(settings->value("navigationDownGamepadButtons", nlohmann::json{}),
+			component.navigationDownGamepadButtons);
+		ReadGamepadBindings(settings->value("navigationLeftGamepadButtons", nlohmann::json{}),
+			component.navigationLeftGamepadButtons);
+		ReadGamepadBindings(settings->value("navigationRightGamepadButtons", nlohmann::json{}),
+			component.navigationRightGamepadButtons);
+		ReadKeyBindings(settings->value("submitKeys", nlohmann::json{}), component.submitKeys);
+		ReadGamepadBindings(settings->value("submitGamepadButtons", nlohmann::json{}),
+			component.submitGamepadButtons);
+	}
 	component.wrapNavigation = in.value("wrapNavigation", component.wrapNavigation);
 	component.navigationMode = EnumAdapter<CanvasNavigationMode>::FromString(
 		in.value("navigationMode", "Automatic")).value_or(component.navigationMode);
@@ -88,6 +174,24 @@ void Engine::to_json(nlohmann::json& out, const CanvasComponent& component) {
 	out["blockGameplayInput"] = component.blockGameplayInput;
 	out["inputInEditMode"] = component.inputInEditMode;
 	out["blockInputAfterSubmit"] = component.blockInputAfterSubmit;
+	out["inputSettings"]["keyboardEnabled"] = component.keyboardInputEnabled;
+	out["inputSettings"]["gamepadEnabled"] = component.gamepadInputEnabled;
+	out["inputSettings"]["gamepadLeftStickEnabled"] = component.gamepadLeftStickEnabled;
+	out["inputSettings"]["navigationUpKeys"] = WriteInputBindings(component.navigationUpKeys);
+	out["inputSettings"]["navigationDownKeys"] = WriteInputBindings(component.navigationDownKeys);
+	out["inputSettings"]["navigationLeftKeys"] = WriteInputBindings(component.navigationLeftKeys);
+	out["inputSettings"]["navigationRightKeys"] = WriteInputBindings(component.navigationRightKeys);
+	out["inputSettings"]["navigationUpGamepadButtons"] =
+		WriteInputBindings(component.navigationUpGamepadButtons);
+	out["inputSettings"]["navigationDownGamepadButtons"] =
+		WriteInputBindings(component.navigationDownGamepadButtons);
+	out["inputSettings"]["navigationLeftGamepadButtons"] =
+		WriteInputBindings(component.navigationLeftGamepadButtons);
+	out["inputSettings"]["navigationRightGamepadButtons"] =
+		WriteInputBindings(component.navigationRightGamepadButtons);
+	out["inputSettings"]["submitKeys"] = WriteInputBindings(component.submitKeys);
+	out["inputSettings"]["submitGamepadButtons"] =
+		WriteInputBindings(component.submitGamepadButtons);
 	out["wrapNavigation"] = component.wrapNavigation;
 	out["navigationMode"] = EnumAdapter<CanvasNavigationMode>::ToString(component.navigationMode);
 	out["navigationTable"]["rows"] = component.navigationTable.rows;

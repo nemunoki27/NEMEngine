@@ -34,7 +34,8 @@ internal static class ManagedAbi {
     // v25: EffectEmitterの再生ハンドルAPIを追加
     // v26: UIが入力を消費したフレームのゲーム入力ブロック状態を追加
     // v27: UISelectableの決定入力配列取得と設定を追加
-    internal const uint Version = 27;
+    // v28: UI入力配列をCanvasの上下左右と決定へ移行
+    internal const uint Version = 28;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -352,9 +353,9 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int> EffectIsPlaying;
     // v26: UI入力ブロック状態
     internal static delegate* unmanaged[Cdecl]<int> GetUIBlocksGameplayInput;
-    // v27: UISelectableの決定入力配列
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int*, int, int> UISelectableCopySubmitBindings;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int*, int, void> UISelectableSetSubmitBindings;
+    // v28: Canvasの操作別入力配列
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, int> CanvasCopyInputBindings;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void> CanvasSetInputBindings;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -492,8 +493,8 @@ internal static unsafe class NativeApi {
         EffectClear = callbacks->effectClear;
         EffectIsPlaying = callbacks->effectIsPlaying;
         GetUIBlocksGameplayInput = callbacks->getUIBlocksGameplayInput;
-        UISelectableCopySubmitBindings = callbacks->uiSelectableCopySubmitBindings;
-        UISelectableSetSubmitBindings = callbacks->uiSelectableSetSubmitBindings;
+        CanvasCopyInputBindings = callbacks->canvasCopyInputBindings;
+        CanvasSetInputBindings = callbacks->canvasSetInputBindings;
     }
 
     internal static float ReadDeltaTime() {
@@ -1113,13 +1114,14 @@ internal static unsafe class NativeApi {
 		return GetUIBlocksGameplayInput != null && GetUIBlocksGameplayInput() != 0;
 	}
 
-    // UISelectableの決定入力配列をデバイス別に取得する
-    internal static int[] UISelectableGetSubmitBindings(NativeEntity entity, int device) {
+    // Canvasの入力配列を操作種別とデバイス別に取得する
+    internal static int[] CanvasGetInputBindings(
+        NativeEntity entity, int action, int device) {
 
-        if (UISelectableCopySubmitBindings == null) {
+        if (CanvasCopyInputBindings == null) {
             return Array.Empty<int>();
         }
-        int count = UISelectableCopySubmitBindings(entity, device, null, 0);
+        int count = CanvasCopyInputBindings(entity, action, device, null, 0);
         if (count <= 0) {
             return Array.Empty<int>();
         }
@@ -1127,7 +1129,8 @@ internal static unsafe class NativeApi {
         int[] bindings = new int[count];
         int currentCount;
         fixed (int* values = bindings) {
-            currentCount = UISelectableCopySubmitBindings(entity, device, values, count);
+            currentCount = CanvasCopyInputBindings(
+                entity, action, device, values, count);
         }
         if (currentCount < count) {
             Array.Resize(ref bindings, Math.Max(currentCount, 0));
@@ -1135,19 +1138,20 @@ internal static unsafe class NativeApi {
         return bindings;
     }
 
-    // UISelectableの決定入力配列をデバイス別に置き換える
-    internal static void UISelectableSetSubmitBindingsValue(
-        NativeEntity entity, int device, ReadOnlySpan<int> bindings) {
+    // Canvasの入力配列を操作種別とデバイス別に置き換える
+    internal static void CanvasSetInputBindingsValue(
+        NativeEntity entity, int action, int device, ReadOnlySpan<int> bindings) {
 
-        if (UISelectableSetSubmitBindings == null) {
+        if (CanvasSetInputBindings == null) {
             return;
         }
         if (bindings.Length == 0) {
-            UISelectableSetSubmitBindings(entity, device, null, 0);
+            CanvasSetInputBindings(entity, action, device, null, 0);
             return;
         }
         fixed (int* values = bindings) {
-            UISelectableSetSubmitBindings(entity, device, values, bindings.Length);
+            CanvasSetInputBindings(
+                entity, action, device, values, bindings.Length);
         }
     }
 
@@ -1624,7 +1628,7 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int> effectIsPlaying;
     // v26: UI入力によるゲーム入力ブロック状態
     public delegate* unmanaged[Cdecl]<int> getUIBlocksGameplayInput;
-    // v27: UISelectableの決定入力配列
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int*, int, int> uiSelectableCopySubmitBindings;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int*, int, void> uiSelectableSetSubmitBindings;
+    // v28: Canvasの操作別入力配列
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, int> canvasCopyInputBindings;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void> canvasSetInputBindings;
 }

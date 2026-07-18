@@ -371,7 +371,18 @@ void Engine::PrimitiveMeshGenerator::GenerateCylinder(const PrimitiveCylinderPar
 			PrimitiveMeshVertex vertex{};
 			vertex.position = Vector3(cosA * radius, y, sinA * radius);
 			vertex.normal = Vector3::Normalize(Vector3(cosA * height, slopeY, sinA * height));
-			vertex.texcoord = Vector2(static_cast<float>(i) / static_cast<float>(radialDivide), 1.0f - th);
+			if (params.uvMode == PrimitiveCylinderUVMode::Radial) {
+
+				const float uvRadius = th * 0.5f;
+				vertex.texcoord = Vector2(
+					cosA * uvRadius + 0.5f,
+					-sinA * uvRadius + 0.5f);
+			} else {
+
+				vertex.texcoord = Vector2(
+					static_cast<float>(i) / static_cast<float>(radialDivide),
+					1.0f - th);
+			}
 			out.vertices.push_back(vertex);
 		}
 	}

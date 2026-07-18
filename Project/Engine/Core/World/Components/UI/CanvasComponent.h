@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
+#include <Engine/Core/Platform/Input/InputTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 
@@ -56,6 +57,21 @@ namespace Engine {
 		bool blockGameplayInput = true;
 		bool inputInEditMode = false;
 		bool blockInputAfterSubmit = false;
+		bool keyboardInputEnabled = true;
+		bool gamepadInputEnabled = true;
+		bool gamepadLeftStickEnabled = true;
+
+		std::vector<KeyDIKCode> navigationUpKeys{ KeyDIKCode::W,KeyDIKCode::UP };
+		std::vector<KeyDIKCode> navigationDownKeys{ KeyDIKCode::S,KeyDIKCode::DOWN };
+		std::vector<KeyDIKCode> navigationLeftKeys{ KeyDIKCode::A,KeyDIKCode::LEFT };
+		std::vector<KeyDIKCode> navigationRightKeys{ KeyDIKCode::D,KeyDIKCode::RIGHT };
+		std::vector<GamePadButtons> navigationUpGamepadButtons{ GamePadButtons::ARROW_UP };
+		std::vector<GamePadButtons> navigationDownGamepadButtons{ GamePadButtons::ARROW_DOWN };
+		std::vector<GamePadButtons> navigationLeftGamepadButtons{ GamePadButtons::ARROW_LEFT };
+		std::vector<GamePadButtons> navigationRightGamepadButtons{ GamePadButtons::ARROW_RIGHT };
+		std::vector<KeyDIKCode> submitKeys{ KeyDIKCode::RETURN,KeyDIKCode::SPACE };
+		std::vector<GamePadButtons> submitGamepadButtons{ GamePadButtons::A };
+
 		bool wrapNavigation = true;
 		CanvasNavigationMode navigationMode = CanvasNavigationMode::Automatic;
 		CanvasNavigationTable navigationTable{};
