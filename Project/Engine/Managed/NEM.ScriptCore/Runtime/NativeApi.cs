@@ -35,7 +35,8 @@ internal static class ManagedAbi {
     // v26: UIが入力を消費したフレームのゲーム入力ブロック状態を追加
     // v27: UISelectableの決定入力配列取得と設定を追加
     // v28: UI入力配列をCanvasの上下左右と決定へ移行
-    internal const uint Version = 28;
+    // v29: Application.Quitの終了要求を追加
+    internal const uint Version = 29;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -356,6 +357,8 @@ internal static unsafe class NativeApi {
     // v28: Canvasの操作別入力配列
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, int> CanvasCopyInputBindings;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void> CanvasSetInputBindings;
+    // v29: Application終了要求
+    internal static delegate* unmanaged[Cdecl]<void> RequestApplicationQuit;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -495,6 +498,7 @@ internal static unsafe class NativeApi {
         GetUIBlocksGameplayInput = callbacks->getUIBlocksGameplayInput;
         CanvasCopyInputBindings = callbacks->canvasCopyInputBindings;
         CanvasSetInputBindings = callbacks->canvasSetInputBindings;
+        RequestApplicationQuit = callbacks->requestApplicationQuit;
     }
 
     internal static float ReadDeltaTime() {
@@ -1308,6 +1312,7 @@ internal static unsafe class NativeApi {
     internal static bool ReadGamepadConnected(int index) => IsGamepadConnectedIndexed != null && IsGamepadConnectedIndexed(index) != 0;
     internal static int ReadConnectedGamepadCount() => GetConnectedGamepadCount != null ? GetConnectedGamepadCount() : 0;
     internal static bool ReadHasFocus() => GetHasFocus == null || GetHasFocus() != 0;
+    internal static void RequestApplicationQuitCall() { if (RequestApplicationQuit != null) { RequestApplicationQuit(); } }
 
     // project root の絶対パス（InputActions.json 等の解決用）。length-query。
     internal static string ReadProjectRoot() {
@@ -1631,4 +1636,6 @@ public unsafe struct NativeApiTable {
     // v28: Canvasの操作別入力配列
     public delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, int> canvasCopyInputBindings;
     public delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void> canvasSetInputBindings;
+    // v29: Application終了要求
+    public delegate* unmanaged[Cdecl]<void> requestApplicationQuit;
 }
