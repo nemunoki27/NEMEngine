@@ -112,7 +112,7 @@ namespace {
 		bool particle = false;
 	};
 
-	// 初期シーンから製品へ必要なファイルを収集する
+	// GameAssets全体と参照されるEngineアセットを収集する
 	class GameBuildAssetCollector {
 	public:
 
@@ -120,9 +120,10 @@ namespace {
 			database_(database) {
 		}
 
-		// 初期シーンを起点に依存ファイルを収集
+		// GameAssets全体を起点に依存ファイルを収集
 		bool Collect(Engine::AssetID startupScene, std::vector<BuildFileEntry>& outFiles, std::string& outError) {
 
+			AddAllGameAssets();
 			AddAsset(startupScene);
 			AddAsset(Engine::BuiltinAssets::Materials::ToneMapToView);
 			AddAsset(Engine::BuiltinAssets::Materials::FullscreenCopy);
@@ -193,6 +194,38 @@ namespace {
 			const std::filesystem::path source = Engine::RuntimePaths::ResolveAssetPath(assetPath);
 			AddFile(source, assetPath);
 			AddFile(std::filesystem::path(source.string() + ".meta"), assetPath + ".meta");
+		}
+
+		// GameAssets内の全ファイルを追加しアセットは依存解析へ回す
+		void AddAllGameAssets() {
+
+			const std::filesystem::path gameRoot = Engine::RuntimePaths::GetGameRoot();
+			const std::filesystem::path gameAssetsRoot = gameRoot / "GameAssets";
+			std::error_code ec;
+			for (std::filesystem::recursive_directory_iterator it(gameAssetsRoot, ec), end;
+				it != end && !ec; it.increment(ec)) {
+
+				if (!it->is_regular_file(ec)) {
+					continue;
+				}
+
+				const std::filesystem::path relative = std::filesystem::relative(it->path(), gameRoot, ec);
+				if (ec) {
+					break;
+				}
+				const std::string assetPath = relative.generic_string();
+				AddFile(it->path(), assetPath);
+
+				if (Engine::Algorithm::EndsWith(Engine::Algorithm::ToLower(assetPath), ".meta")) {
+					continue;
+				}
+				if (const Engine::AssetMeta* meta = database_.FindByPath(assetPath)) {
+					AddAsset(meta->guid);
+				}
+			}
+			if (ec) {
+				errors_.push_back("GameAssetsのファイルを収集できません: " + ec.message());
+			}
 		}
 
 		// AssetIDの依存関係と付属ファイルを処理
@@ -442,30 +475,6 @@ namespace {
 			AddLogicalFile("Engine/Assets/Shaders/Builtin/Lighting/skyboxIrradiance.CS.hlsl");
 
 			const std::filesystem::path gameRoot = Engine::RuntimePaths::GetGameRoot();
-			const std::filesystem::path materialSettings =
-				gameRoot / "GameAssets/Materials/Config/defaultMaterials.materialSettings.json";
-			AddFile(materialSettings, "GameAssets/Materials/Config/defaultMaterials.materialSettings.json");
-			AddFile(std::filesystem::path(materialSettings.string() + ".meta"),
-				"GameAssets/Materials/Config/defaultMaterials.materialSettings.json.meta");
-			const nlohmann::json materialData = LoadJson(materialSettings);
-			if (!materialData.is_discarded()) {
-				InspectJson(materialData);
-			}
-
-			const std::filesystem::path projectSettings = gameRoot / "GameAssets/ProjectSettings";
-			std::error_code ec;
-			for (std::filesystem::recursive_directory_iterator it(projectSettings, ec), end;
-				it != end && !ec; it.increment(ec)) {
-
-				if (!it->is_regular_file(ec)) {
-					continue;
-				}
-				const std::filesystem::path relative = std::filesystem::relative(it->path(), gameRoot, ec);
-				if (!ec) {
-					AddFile(it->path(), relative.generic_string());
-				}
-			}
-
 			const std::array<const char*, 3> gameProjectSettings = {
 				"InputActions.json",
 				"ScriptExecutionOrder.json",
