@@ -11,6 +11,7 @@
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/Foundation/Math/AffineDecompose.h>
+#include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
 
 // c++
 #include <unordered_map>
@@ -67,11 +68,8 @@ void Engine::JointAttachmentSystem::LateUpdate(ECSWorld& world, [[maybe_unused]]
 
 			// ジョイントを名前で解決する
 			const Skeleton& skeleton = anim.runtimeSkeleton;
-			auto jointIt = skeleton.jointMap.find(attachment.jointName);
-			if (jointIt == skeleton.jointMap.end()) {
-				return;
-			}
-			const int32_t jointIndex = jointIt->second;
+			const int32_t jointIndex =
+				FindSkeletonJointIndex(skeleton, attachment.jointName);
 			if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(skeleton.joints.size())) {
 				return;
 			}

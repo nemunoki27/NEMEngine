@@ -6,7 +6,6 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
-#include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 
 //============================================================================
 //	SkinnedMeshAnimationManager classMethods
@@ -144,14 +143,17 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 	result.meshAssetID = meshAssetID;
 
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(fullPath.string(), 0);
+	const aiScene* scene = importer.ReadFile(fullPath.string(),
+		aiProcess_PopulateArmatureData);
 	if (!scene || !scene->mRootNode) {
 		return result;
 	}
 
-	// ノード階層を再帰的に読み込んでスケルトンを構築
-	MeshNode rootNode = Engine::MeshImportUtility::ReadMeshNodeTree(scene->mRootNode);
-	result.skeleton = BuildSkeletonFromMeshNode(rootNode);
+	// スキンボーンと必要な親ノードからスケルトンを構築
+	result.skeleton = BuildSkinSkeleton(scene, fullPath.generic_string());
+	if (result.skeleton.joints.empty()) {
+		return result;
+	}
 
 	result.skinCluster.inverseBindPoseMatrices.resize(result.skeleton.joints.size(), Matrix4x4::Identity());
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
@@ -166,12 +168,11 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 			if (!bone) {
 				continue;
 			}
-			auto it = result.skeleton.jointMap.find(bone->mName.C_Str());
-			if (it == result.skeleton.jointMap.end()) {
+			const int32_t jointIndex = FindSkeletonJointIndex(result.skeleton, bone);
+			if (jointIndex < 0) {
 				continue;
 			}
 
-			const int32_t jointIndex = it->second;
 			const aiMatrix4x4& m = bone->mOffsetMatrix;
 
 			// ボーンのオフセット行列を現在のエンジン座標系に変換して保存
@@ -202,7 +203,13 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 				continue;
 			}
 
-			NodeAnimation& dst = clip.nodeAnimations[nodeAnim->mNodeName.C_Str()];
+			const int32_t jointIndex =
+				FindSkeletonJointIndex(result.skeleton, nodeAnim->mNodeName.C_Str());
+			if (jointIndex < 0) {
+				continue;
+			}
+			NodeAnimation& dst =
+				clip.nodeAnimations[result.skeleton.joints[jointIndex].nodePath];
 			// キーフレーム構築
 			// 座標
 			for (uint32_t k = 0; k < nodeAnim->mNumPositionKeys; ++k) {
@@ -250,7 +257,7 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 		tracks.assign(result.skeleton.joints.size(), nullptr);
 		for (const Joint& joint : result.skeleton.joints) {
 
-			auto it = clip.nodeAnimations.find(joint.name);
+			auto it = clip.nodeAnimations.find(joint.nodePath);
 			if (it != clip.nodeAnimations.end()) {
 				tracks[joint.index] = &it->second;
 			}

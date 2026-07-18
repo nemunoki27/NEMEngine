@@ -19,6 +19,8 @@ namespace Engine::MeshImportUtility {
 	// サブメッシュの表示名を構築する、メッシュ名→マテリアル名→連番の順で決める
 	std::string BuildSubMeshName(const aiMesh* mesh, uint32_t meshIndex, const aiMaterial* material);
 
+	// assimpのノードをエンジン座標系へ変換して読み込む
+	MeshNode ReadMeshNode(const aiNode* node);
 	// assimpのノード階層をエンジン座標系へ変換して再帰的に読み込む
 	MeshNode ReadMeshNodeTree(const aiNode* node);
 

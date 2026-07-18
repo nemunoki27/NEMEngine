@@ -78,6 +78,7 @@ namespace Engine {
 	struct AnimationData {
 
 		float duration = 0.0f;
+		// 内部ノードパスからノードアニメーションを検索する
 		std::unordered_map<std::string, NodeAnimation> nodeAnimations{};
 	};
 
@@ -86,11 +87,13 @@ namespace Engine {
 
 		NodeTransform transform{};
 		bool isParentTransform = false;
+		bool isSkinBone = false;
 
 		Matrix4x4 localMatrix = Matrix4x4::Identity();
 		Matrix4x4 skeletonSpaceMatrix = Matrix4x4::Identity();
 
 		std::string name{};
+		std::string nodePath{};
 		std::vector<int32_t> children{};
 		int32_t index = -1;
 		std::optional<int32_t> parent{};
@@ -101,6 +104,7 @@ namespace Engine {
 
 		int32_t root = -1;
 		std::unordered_map<std::string, int32_t> jointMap{};
+		std::unordered_map<std::string, int32_t> jointPathMap{};
 		std::vector<Joint> joints{};
 		std::string name{};
 	};

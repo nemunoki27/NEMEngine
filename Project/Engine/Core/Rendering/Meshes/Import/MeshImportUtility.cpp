@@ -28,7 +28,7 @@ std::string Engine::MeshImportUtility::BuildSubMeshName(
 	return "SubMesh_" + std::to_string(meshIndex);
 }
 
-Engine::MeshNode Engine::MeshImportUtility::ReadMeshNodeTree(const aiNode* node) {
+Engine::MeshNode Engine::MeshImportUtility::ReadMeshNode(const aiNode* node) {
 
 	MeshNode result{};
 	if (!node) {
@@ -47,6 +47,16 @@ Engine::MeshNode Engine::MeshImportUtility::ReadMeshNodeTree(const aiNode* node)
 	result.localMatrix = Matrix4x4::MakeAffineMatrix(result.transform.scale,
 		result.transform.rotation, result.transform.translation);
 	result.name = node->mName.C_Str();
+	return result;
+}
+
+Engine::MeshNode Engine::MeshImportUtility::ReadMeshNodeTree(const aiNode* node) {
+
+	if (!node) {
+		return {};
+	}
+
+	MeshNode result = ReadMeshNode(node);
 
 	// 子ノードも再帰的に読み込む
 	result.children.resize(node->mNumChildren);

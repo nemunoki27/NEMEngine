@@ -8,6 +8,7 @@
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+#include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
 
 //============================================================================
 //	JointAttachmentUtility classMethods
@@ -30,11 +31,8 @@ bool Engine::JointAttachmentUtility::ResolveAttachedJoint(ECSWorld& world, const
 	}
 
 	const auto& anim = world.GetComponent<SkinnedAnimationComponent>(outSkinnedEntity);
-	auto jointIt = anim.runtimeSkeleton.jointMap.find(attachment.jointName);
-	if (jointIt == anim.runtimeSkeleton.jointMap.end()) {
-		return false;
-	}
-	const int32_t jointIndex = jointIt->second;
+	const int32_t jointIndex =
+		FindSkeletonJointIndex(anim.runtimeSkeleton, attachment.jointName);
 	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(anim.runtimeSkeleton.joints.size())) {
 		return false;
 	}
@@ -50,11 +48,7 @@ bool Engine::JointAttachmentUtility::GetJointWorldMatrix(ECSWorld& world, const 
 		return false;
 	}
 	const auto& anim = world.GetComponent<SkinnedAnimationComponent>(skinnedEntity);
-	auto jointIt = anim.runtimeSkeleton.jointMap.find(jointName);
-	if (jointIt == anim.runtimeSkeleton.jointMap.end()) {
-		return false;
-	}
-	const int32_t jointIndex = jointIt->second;
+	const int32_t jointIndex = FindSkeletonJointIndex(anim.runtimeSkeleton, jointName);
 	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(anim.runtimeSkeleton.joints.size())) {
 		return false;
 	}

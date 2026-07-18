@@ -177,6 +177,7 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 		aiProcess_CalcTangentSpace |
 		aiProcess_JoinIdenticalVertices |
 		aiProcess_ImproveCacheLocality |
+		aiProcess_PopulateArmatureData |
 		aiProcess_SortByPType);
 
 	if (!scene || !scene->HasMeshes()) {
@@ -214,10 +215,13 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 	Skeleton skeleton{};
 	if (containsSkinnedMesh) {
 
-		skeleton = BuildSkeletonFromMeshNode(result.rootNode);
-		result.isSkinned = true;
-		result.boneCount = static_cast<uint32_t>(skeleton.joints.size());
-		result.vertexInfluences.resize(totalVertexCount);
+		skeleton = BuildSkinSkeleton(scene, fullPath.generic_string());
+		if (!skeleton.joints.empty()) {
+
+			result.isSkinned = true;
+			result.boneCount = static_cast<uint32_t>(skeleton.joints.size());
+			result.vertexInfluences.resize(totalVertexCount);
+		}
 	}
 
 	uint32_t globalVertexOffset = 0;
@@ -352,12 +356,11 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 					continue;
 				}
 
-				auto jointIt = skeleton.jointMap.find(bone->mName.C_Str());
-				if (jointIt == skeleton.jointMap.end()) {
+				const int32_t jointIndex = FindSkeletonJointIndex(skeleton, bone);
+				if (jointIndex < 0) {
 					continue;
 				}
 
-				int32_t jointIndex = jointIt->second;
 				for (uint32_t weightIndex = 0; weightIndex < bone->mNumWeights; ++weightIndex) {
 
 					const aiVertexWeight& weight = bone->mWeights[weightIndex];

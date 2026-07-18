@@ -19,6 +19,7 @@
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
+#include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Editor/Utility/AssetEntityFactory.h>
 #include <Engine/Editor/Utility/PrefabInstanceEditUtility.h>
@@ -726,9 +727,10 @@ void Engine::HierarchyPanel::DrawSkinnedMeshNodes(const EditorPanelContext& cont
 			if (attachment.skinnedEntityLocalFileID != skinnedLocalFileID) {
 				return;
 			}
-			auto jointIt = skeleton.jointMap.find(attachment.jointName);
-			if (jointIt != skeleton.jointMap.end()) {
-				attachedByJoint[jointIt->second].emplace_back(other);
+			const int32_t jointIndex =
+				FindSkeletonJointIndex(skeleton, attachment.jointName);
+			if (0 <= jointIndex) {
+				attachedByJoint[jointIndex].emplace_back(other);
 			}
 			});
 	}

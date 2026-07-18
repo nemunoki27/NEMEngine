@@ -17,6 +17,7 @@
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
+#include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
@@ -1524,7 +1525,10 @@ void Engine::InspectorPanel::DrawJointInspector(const EditorPanelContext& contex
 				return;
 			}
 			const auto& attachment = world->GetComponent<JointAttachmentComponent>(other);
-			if (attachment.skinnedEntityLocalFileID == skinnedLocalFileID && attachment.jointName == joint.name) {
+			const int32_t attachedJointIndex =
+				FindSkeletonJointIndex(skeleton, attachment.jointName);
+			if (attachment.skinnedEntityLocalFileID == skinnedLocalFileID &&
+				attachedJointIndex == jointIndex) {
 				hasAttachedEntity = true;
 			}
 			});
