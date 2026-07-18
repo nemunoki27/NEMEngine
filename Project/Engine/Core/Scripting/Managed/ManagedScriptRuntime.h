@@ -110,6 +110,8 @@ namespace Engine {
 		void PumpSceneEvents();
 		// application shutdown前に一度だけ呼び、C# Application.Quittingを発火する
 		void RaiseApplicationQuitting();
+		// C#から受けたApplication終了要求を取得する
+		bool ConsumeApplicationQuitRequest();
 		// 直近のcollectible ALC unloadのtyped statusを返す、reload後にEditorが参照する
 		AlcUnloadStatus GetLastAlcUnloadStatus();
 		// 各phase末から呼ぶper-frame tickでphaseは0がUpdate 1がFixedUpdate 2がEndOfFrame、TimerとCoroutineを駆動する
@@ -221,6 +223,8 @@ namespace Engine {
 		std::unordered_map<std::string, ManagedScriptSchema> schemaCache_;
 		// 直近のRefreshScriptTypesで反映したmanaged script型数
 		int32_t lastManagedTypeCount_ = 0;
+		// C#のApplication.Quitから受けた遅延終了要求
+		bool applicationQuitRequested_ = false;
 
 		//--------- functions ----------------------------------------------------
 
@@ -334,6 +338,8 @@ namespace Engine {
 		static float __cdecl GetTimeScaleCallback();
 		static void __cdecl SetTimeScaleCallback(float value);
 		static uint64_t __cdecl GetFrameCountCallback();
+		// C#のApplication.Quitを安全なフレーム終端へ遅延する
+		static void __cdecl RequestApplicationQuitCallback();
 
 		// v17の入力デバイス、入力タイプとマウス範囲制御の取得設定
 		static int32_t __cdecl GetInputTypeCallback();

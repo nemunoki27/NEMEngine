@@ -195,8 +195,11 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	ManagedScriptRuntime::GetInstance().Init();
 	// EditWorldをスクリプトから参照可能にし生ポインタの代わりに世代付きハンドルを使う
 	ManagedWorldRegistry::GetInstance().Register(worldManager_.GetEditWorld());
-	// Editモードの非同期build/reloadサービスを初期化しsource baselineとlast-known-goodを整える
-	scriptBuildService_.Initialize(&ManagedScriptRuntime::GetInstance());
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		// Editモードの非同期build/reloadサービスを初期化しsource baselineとlast-known-goodを整える
+		scriptBuildService_.Initialize(&ManagedScriptRuntime::GetInstance());
+	}
 	// システムの初期化
 	InitSystems();
 
@@ -229,6 +232,10 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 				renderPipeline_->ReloadAsset(assetDataBase_, assetID);
 			}
 			});
+	} else {
+
+		// Releaseはエディタ操作を待たず、起動時のシーンからPlayWorldを開始する
+		StartPlayWorld();
 	}
 }
 
@@ -719,8 +726,11 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	systemContext_.animationClipManager = &animationClipManager_;
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 
-	// 非同期build/reload状態機械を進める、Play中はreloadを適用せず変更検知のdirtyのみ行う
-	scriptBuildService_.Tick(worldManager_.IsPlaying());
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		// 非同期build/reload状態機械を進める、Play中はreloadを適用せず変更検知のdirtyのみ行う
+		scriptBuildService_.Tick(worldManager_.IsPlaying());
+	}
 
 	// プレイモードの切り替え
 	HandlePlayToggle();
@@ -787,6 +797,11 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 			world = systemContext_.world;
 			header = systemContext_.activeSceneHeader;
 		}
+	}
+	if (HandleApplicationQuitRequest()) {
+
+		world = systemContext_.world;
+		header = systemContext_.activeSceneHeader;
 	}
 	if (playFrameStepRequested_) {
 
@@ -867,6 +882,11 @@ void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 
 void Engine::EngineApplication::HandlePlayToggle() {
 
+	// Releaseは常にゲーム実行中のためF5でPlayWorldを停止させない
+	if constexpr (!BuildConfig::kEditorEnabled) {
+		return;
+	}
+
 	// Play開始をbuild/reload完了まで保留している間は、新規トグルを捨てて完了を待つ
 	if (pendingPlayStart_) {
 
@@ -923,7 +943,34 @@ void Engine::EngineApplication::StopPlayWorld() {
 	playScenes_ = SceneInstanceManager{};
 	playPaused_ = false;
 	playFrameStepRequested_ = false;
+	// OnDisableやOnDestroyから出た終了要求を次のPlayへ持ち越さない
+	(void)ManagedScriptRuntime::GetInstance().ConsumeApplicationQuitRequest();
 	RefreshActiveWorldContext();
+}
+
+bool Engine::EngineApplication::HandleApplicationQuitRequest() {
+
+	if (!ManagedScriptRuntime::GetInstance().ConsumeApplicationQuitRequest()) {
+		return false;
+	}
+
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		if (!worldManager_.IsPlaying()) {
+			return false;
+		}
+		Logger::Output(LogType::Engine, spdlog::level::info,
+			"EngineApplication: Application.Quit requested. Returning to Edit mode.");
+		requestFrameDeltaReset_ = true;
+		StopPlayWorld();
+		return true;
+	} else {
+
+		Logger::Output(LogType::Engine, spdlog::level::info,
+			"EngineApplication: Application.Quit requested. Closing application.");
+		WinApp::RequestCloseWindow();
+		return false;
+	}
 }
 
 void Engine::EngineApplication::RefreshActiveWorldContext() {
@@ -1340,7 +1387,11 @@ void Engine::EngineApplication::Finalize() {
 
 	// 終了時点のWorldに合わせてSystemContextを更新してから切り離す
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
-	scheduler_.DetachCurrentWorld(systemContext_);
+	if (worldManager_.IsPlaying()) {
+		StopPlayWorld();
+	} else {
+		scheduler_.DetachCurrentWorld(systemContext_);
+	}
 
 	// ランタイム管理クラスを描画パイプラインより先に終了する
 	skinnedAnimationManager_.Finalize();
@@ -1357,8 +1408,11 @@ void Engine::EngineApplication::Finalize() {
 	// ツールが持つGPUリソースをGraphicsCore終了前に確実に解放する
 	ToolRegistry::GetInstance().Clear();
 
-	// Editモードのbuild/reloadサービスを停止し、実行中の子プロセスを安全に回収する
-	scriptBuildService_.Shutdown();
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		// Editモードのbuild/reloadサービスを停止し、実行中の子プロセスを安全に回収する
+		scriptBuildService_.Shutdown();
+	}
 	// EditWorldの登録を解除してからC#ホストを解放する
 	ManagedWorldRegistry::GetInstance().Unregister(
 		ManagedWorldRegistry::GetInstance().TryGetHandle(worldManager_.GetEditWorld()));

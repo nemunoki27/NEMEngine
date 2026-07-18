@@ -270,6 +270,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getUIBlocksGameplayInput = &ManagedScriptRuntime::GetUIBlocksGameplayInputCallback;
 	callbacks.canvasCopyInputBindings = &ManagedScriptRuntime::CanvasCopyInputBindingsCallback;
 	callbacks.canvasSetInputBindings = &ManagedScriptRuntime::CanvasSetInputBindingsCallback;
+	callbacks.requestApplicationQuit = &ManagedScriptRuntime::RequestApplicationQuitCallback;
 	callbacks.getEntityReferenceIdentity = &ManagedScriptRuntime::GetEntityReferenceIdentityCallback;
 	// v21のレイキャストとカメラレイとCollisionタイプ名解決
 	callbacks.physicsRaycast = &ManagedScriptRuntime::PhysicsRaycastCallback;
@@ -357,6 +358,7 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	UnloadGameAssembly();
 	schemaCache_.clear();
 	currentContext_ = nullptr;
+	applicationQuitRequested_ = false;
 	initialized_ = false;
 
 	// 関数ポインタのリセット
@@ -971,6 +973,17 @@ void Engine::ManagedScriptRuntime::RaiseApplicationQuitting() {
 	if (raiseApplicationQuitting_) {
 		raiseApplicationQuitting_();
 	}
+}
+
+bool Engine::ManagedScriptRuntime::ConsumeApplicationQuitRequest() {
+
+	const bool requested = applicationQuitRequested_;
+	applicationQuitRequested_ = false;
+	return requested;
+}
+
+void Engine::ManagedScriptRuntime::RequestApplicationQuitCallback() {
+	GetInstance().applicationQuitRequested_ = true;
 }
 
 void Engine::ManagedScriptRuntime::TickFrame(int32_t phase, const SystemContext& context) {

@@ -29,6 +29,8 @@ namespace Engine {
 		inline constexpr const char* kEditorLayouts = "Config/editorLayouts.exeConfig.json";
 		// 終了時のエディターレイアウト
 		inline constexpr const char* kEditorLayoutSession = "Config/editorLayoutSession.exeConfig.json";
+		// 製品名と起動時フルスクリーン
+		inline constexpr const char* kGameBuild = "Config/gameBuild.exeConfig.json";
 
 	} // ConfigPaths
 } // Engine

@@ -160,6 +160,8 @@ namespace Engine {
 		void StartPlayWorld();
 		// PlayWorldを破棄してEditへ戻す、StopトグルとPlay中script例外の両方で使う
 		void StopPlayWorld();
+		// C#のApplication終了要求を安全なフレーム終端で処理する
+		bool HandleApplicationQuitRequest();
 		// 現在のActive World/SceneをSystemContextとEditorContextへ反映する
 		void RefreshActiveWorldContext();
 		// Play中の一時停止/再開/コマ送り要求を処理する

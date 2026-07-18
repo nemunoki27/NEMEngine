@@ -35,6 +35,8 @@ namespace Engine {
 
 		// フルスクリーンの有効/無効を切り替える
 		static void SetFullscreen(bool fullscreen);
+		// 現在フルスクリーンか
+		static bool IsFullscreen() { return fullscreen_; }
 		// カーソル範囲制限をON/OFF
 		static void SetCursorClipEnabled(bool enabled);
 		// クライアント座標系の任意矩形でクリップ
@@ -72,6 +74,7 @@ namespace Engine {
 
 		static bool cursorVisible_;
 		static bool (*closeRequestCallback_)();
+		static bool fullscreen_;
 
 		UINT windowStyle_;
 		static RECT windowRect_;

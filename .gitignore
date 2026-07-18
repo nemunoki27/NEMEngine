@@ -13,6 +13,7 @@ Generated/
 *.VC.opendb
 
 # Common build outputs
+/Build/
 [Bb]in/
 [Oo]bj/
 [Dd]ebug/

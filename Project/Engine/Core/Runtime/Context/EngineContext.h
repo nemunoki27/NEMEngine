@@ -34,6 +34,8 @@ namespace Engine {
 			// ゲーム表示サイズ
 			Vector2 gameSizeFloat{};
 			Vector2I gameSize{};
+			// 製品起動時にフルスクリーンへ切り替えるか
+			bool startupFullscreen = false;
 		};
 		// グラフィックス設定
 		struct GraphicsSetting {

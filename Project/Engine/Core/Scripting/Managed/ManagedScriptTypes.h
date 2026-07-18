@@ -43,7 +43,8 @@ namespace Engine {
 	// v26: UIが入力を消費したフレームのゲーム入力ブロック状態を追加
 	// v27: UISelectableの決定入力配列取得と設定を追加
 	// v28: UI入力配列をCanvasの上下左右と決定へ移行
-	inline constexpr uint32_t kManagedAbiVersion = 28;
+	// v29: Application.Quitの終了要求を追加
+	inline constexpr uint32_t kManagedAbiVersion = 29;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -458,6 +459,8 @@ namespace Engine {
 			ManagedNativeEntity, int32_t, int32_t, int32_t*, int32_t);
 		using CanvasSetInputBindingsCallback = void(__cdecl*)(
 			ManagedNativeEntity, int32_t, int32_t, const int32_t*, int32_t);
+		// Application.Quitの終了要求
+		using ApplicationQuitCallback = void(__cdecl*)();
 
 		GetDeltaTimeCallback getDeltaTime = nullptr;
 		GetDeltaTimeCallback getFixedDeltaTime = nullptr;
@@ -642,6 +645,8 @@ namespace Engine {
 		// v28のCanvas入力配列
 		CanvasCopyInputBindingsCallback canvasCopyInputBindings = nullptr;
 		CanvasSetInputBindingsCallback canvasSetInputBindings = nullptr;
+		// v29のApplication終了要求
+		ApplicationQuitCallback requestApplicationQuit = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

@@ -18,6 +18,11 @@ public static class Application {
     public static event Action<bool>? PauseChanged;
     public static event Action? Quitting;
 
+    // DebugとDevelopではPlayを終了し、Releaseではアプリケーションを終了する。
+    public static void Quit() {
+        NativeApi.RequestApplicationQuitCall();
+    }
+
     // 毎フレーム（Pass4）pump され、focus / pause 状態の変化を検出して通知する。
     internal static void PumpEvents() {
         bool focus = HasFocus;
