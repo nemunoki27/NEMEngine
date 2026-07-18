@@ -91,6 +91,24 @@ namespace {
 			StartsWith(assetPath, "Engine/Assets/Config/initExeData");
 	}
 
+	// 製品実行では使用しないGameAssets内の編集用ファイルか
+	bool IsGameEditorOnlyAsset(const std::string& assetPath) {
+
+		std::string lower = Engine::Algorithm::ToLower(assetPath);
+		if (!StartsWith(lower, "gameassets/")) {
+			return false;
+	}
+		if (StartsWith(lower, "gameassets/fonts/charset/")) {
+			return true;
+	}
+		if (Engine::Algorithm::EndsWith(lower, ".meta")) {
+			lower.resize(lower.size() - 5);
+		}
+		return Engine::Algorithm::EndsWith(lower, ".cs") ||
+			Engine::Algorithm::EndsWith(lower, ".ttf") ||
+			Engine::Algorithm::EndsWith(lower, ".otf");
+	}
+
 	// 製品へ配置する1ファイル
 	struct BuildFileEntry {
 
@@ -164,7 +182,7 @@ namespace {
 				!std::filesystem::is_regular_file(source, ec) || ec) {
 				return;
 			}
-			if (IsEditorOnlyAsset(destination)) {
+			if (IsEditorOnlyAsset(destination) || IsGameEditorOnlyAsset(destination)) {
 				return;
 			}
 			files_.emplace(destination, source);
@@ -173,7 +191,8 @@ namespace {
 		// アセット本体と.metaを配置一覧へ追加
 		void AddAssetFile(const Engine::AssetMeta& meta) {
 
-			if (meta.type == Engine::AssetType::Script || IsEditorOnlyAsset(meta.assetPath)) {
+			if (meta.type == Engine::AssetType::Script ||
+				IsEditorOnlyAsset(meta.assetPath) || IsGameEditorOnlyAsset(meta.assetPath)) {
 				return;
 			}
 
@@ -241,7 +260,8 @@ namespace {
 					errors_.push_back("参照アセットが見つかりません: " + Engine::ToString(assetID));
 					continue;
 				}
-				if (meta->type == Engine::AssetType::Script || IsEditorOnlyAsset(meta->assetPath)) {
+				if (meta->type == Engine::AssetType::Script ||
+					IsEditorOnlyAsset(meta->assetPath) || IsGameEditorOnlyAsset(meta->assetPath)) {
 					continue;
 				}
 
