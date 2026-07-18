@@ -8,6 +8,7 @@ namespace SandboxScripts;
 [FormerlyKnownScriptType("SandboxScripts.UIEvent")]
 public sealed class UIEventTest : ScriptBehaviour {
 
+	[SerializeField]
 	private List<UISelectable> selectables = new();
 
 	//========================================================================

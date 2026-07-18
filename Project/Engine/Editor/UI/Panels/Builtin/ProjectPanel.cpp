@@ -810,6 +810,11 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 		BeginRenameAsset(asset);
 	}
 	ImGui::Separator();
+	if (ImGui::MenuItem("エクスプローラーで開く")) {
+
+		const std::filesystem::path assetPath = RuntimePaths::ResolveAssetPath(asset.assetPath);
+		EditorShell::OpenDirectory(assetPath.parent_path());
+	}
 	if (ImGui::MenuItem("開く")) {
 
 		context.editorState->SelectAsset(asset.assetID);

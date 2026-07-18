@@ -55,3 +55,24 @@ bool Engine::EditorShell::OpenWithSystemDefault(const std::filesystem::path& fil
 		"[EditorShell] system default open failed for: {}", file.string());
 	return false;
 }
+
+bool Engine::EditorShell::OpenDirectory(const std::filesystem::path& directory) {
+
+	std::error_code ec{};
+	if (directory.empty() || !std::filesystem::is_directory(directory, ec) || ec) {
+
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"[EditorShell] target directory does not exist: {}", directory.string());
+		return false;
+	}
+
+	const std::wstring directoryW = directory.wstring();
+	const HINSTANCE result = ::ShellExecuteW(nullptr, L"open", directoryW.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+	if (reinterpret_cast<INT_PTR>(result) > 32) {
+		return true;
+	}
+
+	Logger::Output(LogType::Engine, spdlog::level::warn,
+		"[EditorShell] explorer open failed for: {}", directory.string());
+	return false;
+}
