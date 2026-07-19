@@ -57,6 +57,10 @@ namespace Engine {
 
 		// シーンをロードしてインスタンスを作成し、forcedInstanceIDが有効ならそのinstance IDを使ってC#側で先行採番したSceneHandleと一致させる
 		bool LoadAdditive(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world, AssetID sceneAsset, UUID forcedInstanceID = UUID{});
+		// 単一シーン読み込み要求を予約する
+		bool TryBeginSingleLoadRequest();
+		// 単一シーン読み込み要求の予約を解除する
+		void ClearSingleLoadRequest();
 		// シーンアセットを持たない一時シーンインスタンスを作成してアクティブにする、プレファブ編集の隔離ワールド用
 		// headerは環境(スカイボックス/ライティング等)の流用元、新規IDを採番して返す
 		UUID CreateScratchScene(const SceneHeader& header);
@@ -95,6 +99,8 @@ namespace Engine {
 
 		// アクティブなシーンインスタンスのID
 		UUID active_{};
+		// 単一シーン読み込み要求を処理中か
+		bool singleLoadRequestPending_ = false;
 		// シーンインスタンスのリスト
 		std::vector<SceneInstance> scenes_;
 
@@ -104,4 +110,3 @@ namespace Engine {
 		static std::vector<Entity> CollectSceneEntities(ECSWorld& world, const SceneInstance& scene);
 	};
 } // Engine
-

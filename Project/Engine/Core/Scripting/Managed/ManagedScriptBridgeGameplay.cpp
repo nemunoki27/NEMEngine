@@ -896,6 +896,11 @@ namespace Engine {
 		if (!world || sceneAssetID == 0) {
 			return 0;
 		}
+		SceneInstanceManager* sceneInstances =
+			world->GetCommandServices().sceneInstances;
+		if (!sceneInstances || !sceneInstances->TryBeginSingleLoadRequest()) {
+			return 0;
+		}
 		// 単一ロード、新sceneをactiveにし旧sceneを全てアンロードする処理はflushで行う
 		const UUID instanceID = UUID::New();
 		world->GetCommandBuffer().EnqueueLoadSceneSingle(instanceID, UUID{ sceneAssetID });

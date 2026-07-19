@@ -336,8 +336,13 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 			for (const SceneInstance& scene : services.sceneInstances->GetAll()) {
 				previousScenes.emplace_back(scene.instanceID);
 			}
-			services.sceneInstances->LoadAdditive(*services.assetDatabase, *services.sceneSystem, world,
-				AssetID{ command.assetID }, command.sceneInstanceID);
+			if (!services.sceneInstances->LoadAdditive(*services.assetDatabase,
+				*services.sceneSystem, world, AssetID{ command.assetID },
+				command.sceneInstanceID)) {
+
+				services.sceneInstances->ClearSingleLoadRequest();
+				return;
+			}
 			services.sceneInstances->SetActive(command.sceneInstanceID);
 			// 新scene以外の旧sceneを全てunloadする
 			for (const UUID& previous : previousScenes) {

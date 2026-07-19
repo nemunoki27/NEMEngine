@@ -67,6 +67,7 @@ namespace Engine {
 		float duration_ = 0.0f;
 		EasingType easing_ = EasingType::Linear;
 		bool inputBlocked_ = false;
+		bool pendingSceneTransition_ = false;
 
 		bool editCommandPreview_ = false;
 		float editAuthoringProgress_ = 0.0f;
@@ -83,6 +84,8 @@ namespace Engine {
 		bool UpdateSceneTransition(ECSWorld& world);
 		// 編集中プレビュー設定を反映する
 		bool UpdateEditPreview(ECSWorld& world);
+		// 再生元コンポーネントの設定を反映する
+		void RefreshOwnerSettings(ECSWorld& world);
 		// 補間再生を進める
 		void UpdatePlayback(float deltaTime);
 		// 描画パラメータを更新する
@@ -98,5 +101,7 @@ namespace Engine {
 		void ResetPlayback();
 		// 再生中か
 		bool IsPlaying() const;
+		// シーン遷移を占有する状態か
+		bool IsTransitionActive() const;
 	};
 } // Engine

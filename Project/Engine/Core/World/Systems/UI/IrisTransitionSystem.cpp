@@ -42,6 +42,11 @@ void Engine::IrisTransitionSystem::OnWorldEnter(ECSWorld& world,
 	editAuthoringProgress_ = 0.0f;
 	EnsureRenderEntity(world);
 	UIRuntimeService::GetInstance().SetTransitionInputBlocked(false);
+	if (SceneInstanceManager* sceneInstances =
+		world.GetCommandServices().sceneInstances) {
+
+		sceneInstances->ClearSingleLoadRequest();
+	}
 }
 
 void Engine::IrisTransitionSystem::OnWorldExit(ECSWorld& world,
@@ -52,12 +57,20 @@ void Engine::IrisTransitionSystem::OnWorldExit(ECSWorld& world,
 	ResetPlayback();
 	activeSceneInstanceID_ = {};
 	editCommandPreview_ = false;
+	if (SceneInstanceManager* sceneInstances =
+		world.GetCommandServices().sceneInstances) {
+
+		sceneInstances->ClearSingleLoadRequest();
+	}
 }
 
 void Engine::IrisTransitionSystem::Update(ECSWorld& world, SystemContext& context) {
 
 	EnsureRenderEntity(world);
 	ConsumeLatestCommand(world, context.mode);
+	if (context.mode == WorldMode::Play) {
+		RefreshOwnerSettings(world);
+	}
 	bool sceneTransitionHandled = false;
 	if (context.mode == WorldMode::Play) {
 		sceneTransitionHandled = UpdateSceneTransition(world);
@@ -86,6 +99,12 @@ void Engine::IrisTransitionSystem::Update(ECSWorld& world, SystemContext& contex
 	}
 	UIRuntimeService::GetInstance().SetTransitionInputBlocked(
 		context.mode == WorldMode::Play && inputBlocked_);
+	if (SceneInstanceManager* sceneInstances =
+		world.GetCommandServices().sceneInstances;
+		sceneInstances && (context.mode != WorldMode::Play || !IsTransitionActive())) {
+
+		sceneInstances->ClearSingleLoadRequest();
+	}
 }
 
 void Engine::IrisTransitionSystem::EnsureRenderEntity(ECSWorld& world) {
@@ -168,11 +187,13 @@ bool Engine::IrisTransitionSystem::ConsumeLatestCommand(ECSWorld& world, WorldMo
 			settings_.irisOutDuration, settings_.irisOutEasing);
 		break;
 	case IrisTransitionCommand::IrisIn:
+		pendingSceneTransition_ = false;
 		inputBlocked_ = settings_.blockInput;
 		StartPlayback(IrisTransitionState::IrisIn, 0.0f,
 			settings_.irisInDuration, settings_.irisInEasing);
 		break;
 	case IrisTransitionCommand::SetProgress:
+		pendingSceneTransition_ = false;
 		progress_ = std::clamp(commandValue, 0.0f, 1.0f);
 		state_ = progress_ <= kProgressEpsilon ? IrisTransitionState::Open :
 			1.0f - kProgressEpsilon <= progress_ ? IrisTransitionState::Covered :
@@ -180,6 +201,7 @@ bool Engine::IrisTransitionSystem::ConsumeLatestCommand(ECSWorld& world, WorldMo
 		inputBlocked_ = false;
 		break;
 	case IrisTransitionCommand::Cancel:
+		pendingSceneTransition_ = false;
 		state_ = progress_ <= kProgressEpsilon ? IrisTransitionState::Open :
 			1.0f - kProgressEpsilon <= progress_ ? IrisTransitionState::Covered :
 			IrisTransitionState::Stopped;
@@ -211,13 +233,22 @@ bool Engine::IrisTransitionSystem::UpdateSceneTransition(ECSWorld& world) {
 		return false;
 	}
 	if (activeSceneInstanceID_ == activeScene->instanceID) {
-		return false;
+		if (!pendingSceneTransition_) {
+			return false;
+		}
+	} else {
+		activeSceneInstanceID_ = activeScene->instanceID;
+		pendingSceneTransition_ =
+			state_ == IrisTransitionState::IrisOut;
 	}
 
-	activeSceneInstanceID_ = activeScene->instanceID;
 	if (state_ != IrisTransitionState::Covered) {
+		if (state_ != IrisTransitionState::IrisOut) {
+			pendingSceneTransition_ = false;
+		}
 		return false;
 	}
+	pendingSceneTransition_ = false;
 	if (!settings_.autoIrisInAfterSceneTransition) {
 		ResetPlayback();
 		return true;
@@ -268,6 +299,23 @@ bool Engine::IrisTransitionSystem::UpdateEditPreview(ECSWorld& world) {
 			IrisTransitionState::Stopped;
 	}
 	return true;
+}
+
+void Engine::IrisTransitionSystem::RefreshOwnerSettings(ECSWorld& world) {
+
+	if (!ownerUUID_) {
+		return;
+	}
+
+	bool found = false;
+	world.ForEach<IrisTransitionComponent>([&](Entity entity,
+		IrisTransitionComponent& component) {
+
+		if (!found && world.GetUUID(entity) == ownerUUID_) {
+			CopySettings(component);
+			found = true;
+		}
+		});
 }
 
 void Engine::IrisTransitionSystem::UpdatePlayback(float deltaTime) {
@@ -370,10 +418,16 @@ void Engine::IrisTransitionSystem::ResetPlayback() {
 	duration_ = 0.0f;
 	easing_ = EasingType::Linear;
 	inputBlocked_ = false;
+	pendingSceneTransition_ = false;
 }
 
 bool Engine::IrisTransitionSystem::IsPlaying() const {
 
 	return state_ == IrisTransitionState::IrisOut ||
 		state_ == IrisTransitionState::IrisIn;
+}
+
+bool Engine::IrisTransitionSystem::IsTransitionActive() const {
+
+	return IsPlaying() || state_ == IrisTransitionState::Covered;
 }

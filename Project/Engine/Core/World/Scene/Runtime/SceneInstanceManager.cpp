@@ -84,6 +84,20 @@ bool Engine::SceneInstanceManager::LoadAdditive(AssetDatabase& database,
 	return true;
 }
 
+bool Engine::SceneInstanceManager::TryBeginSingleLoadRequest() {
+
+	if (singleLoadRequestPending_) {
+		return false;
+	}
+	singleLoadRequestPending_ = true;
+	return true;
+}
+
+void Engine::SceneInstanceManager::ClearSingleLoadRequest() {
+
+	singleLoadRequestPending_ = false;
+}
+
 Engine::UUID Engine::SceneInstanceManager::CreateScratchScene(const SceneHeader& header) {
 
 	SceneInstance instance{};
@@ -141,6 +155,7 @@ void Engine::SceneInstanceManager::UnloadAll(ECSWorld& world) {
 		Unload(world, scenes_.back().instanceID);
 	}
 	active_ = UUID{};
+	singleLoadRequestPending_ = false;
 }
 
 bool Engine::SceneInstanceManager::SaveActive(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world) const {
@@ -197,6 +212,7 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 
 	scenes_.clear();
 	active_ = UUID{};
+	singleLoadRequestPending_ = false;
 	if (!snapshot.is_object() || !snapshot.contains("Scenes") || !snapshot["Scenes"].is_array()) {
 		return false;
 	}
@@ -255,6 +271,7 @@ bool Engine::SceneInstanceManager::LoadSceneTree(AssetDatabase& database,
 	// シーンをすべてクリアしてから、再帰的にシーンツリーをロードする
 	scenes_.clear();
 	active_ = UUID{};
+	singleLoadRequestPending_ = false;
 	std::function<UUID(AssetID, UUID)> loadRecursive = [&](AssetID sceneAsset, UUID parentInstanceID) -> UUID {
 
 		auto path = database.ResolveFullPath(sceneAsset);
