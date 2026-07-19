@@ -383,6 +383,9 @@ namespace Engine {
 		static int32_t __cdecl PhysicsRaycastAllCallback(ManagedVector3 origin, ManagedVector3 direction, float maxDistance, uint32_t layerMask, uint32_t targets, ManagedRaycastHit* buffer, int32_t capacity);
 		// GameViewピクセル座標からワールドレイを作る、カメラ未解決は0
 		static int32_t __cdecl ScreenPointToRayCallback(float x, float y, ManagedVector3* outOrigin, ManagedVector3* outDirection);
+		// ワールド座標をGameViewピクセル座標へ変換する、カメラ未解決は0
+		static int32_t __cdecl WorldToScreenPointCallback(
+			ManagedVector3 worldPosition, ManagedVector3* outScreenPosition);
 		// GameView内のマウス座標を描画解像度基準で返す、View外は0
 		static int32_t __cdecl GetMousePositionInViewCallback(ManagedVector2* outPosition);
 		// Collisionタイプ名からビットマスクを引く、未登録は0
@@ -405,6 +408,10 @@ namespace Engine {
 		static void __cdecl CanvasSetInputBindingsCallback(
 			ManagedNativeEntity entity, int32_t action, int32_t device,
 			const int32_t* bindings, int32_t count);
+		// スクリーン座標をCanvasローカル座標へ変換する
+		static int32_t __cdecl CanvasScreenToLocalPointCallback(
+			ManagedNativeEntity entity, ManagedVector2 screenPosition,
+			ManagedVector2* outLocalPosition);
 		// EffectEmitterの再生要求を追加しハンドルを返す
 		static uint64_t __cdecl EffectEmitCallback(ManagedNativeEntity entity, const char* group,
 			ManagedVector3 position, ManagedQuaternion rotation, int32_t fixedAnchor);

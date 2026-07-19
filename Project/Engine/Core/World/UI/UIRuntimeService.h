@@ -41,6 +41,9 @@ namespace Engine {
 		void Build(ECSWorld& world, const Vector2& viewportSize);
 		// 指定ワールドのランタイムキャッシュを破棄する
 		void Clear(ECSWorld& world);
+		// スクリーン座標をCanvasローカル座標へ変換する
+		bool TryScreenToLocalPoint(const ECSWorld& world, Entity canvas,
+			const Vector2& screenPosition, Vector2& outLocalPosition) const;
 
 		//--------- accessor -----------------------------------------------------
 

@@ -27,9 +27,13 @@ namespace Engine {
 		Vector3 pos = Vector3::AnyInit(0.0f);
 		// 速度
 		Vector3 velocity = Vector3::AnyInit(0.0f);
+		// 発生時の進行方向
+		Vector3 spawnDirection = Vector3(0.0f, 1.0f, 0.0f);
 
 		// 経過時間
 		float age = 0.0f;
+		// 直前の経過時間
+		float previousAge = 0.0f;
 		// 寿命
 		float lifetime = 1.0f;
 
@@ -62,6 +66,8 @@ namespace Engine {
 		uint32_t id = 0;
 		// 現在のフェーズ
 		uint32_t phaseIndex = 0;
+		// 直前のフェーズ
+		uint32_t previousPhaseIndex = 0;
 
 		// 描画とトレイルに使うワールド姿勢
 		Vector3 worldPos = Vector3::AnyInit(0.0f);

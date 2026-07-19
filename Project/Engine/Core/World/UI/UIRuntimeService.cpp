@@ -30,6 +30,16 @@ namespace {
 		return !sceneObject || sceneObject->activeInHierarchy;
 	}
 
+	// アフィン行列が逆変換可能か判定する
+	bool IsInvertibleAffine(const Engine::Matrix4x4& matrix) {
+
+		const float determinant =
+			matrix.m[0][0] * (matrix.m[1][1] * matrix.m[2][2] - matrix.m[1][2] * matrix.m[2][1]) -
+			matrix.m[0][1] * (matrix.m[1][0] * matrix.m[2][2] - matrix.m[1][2] * matrix.m[2][0]) +
+			matrix.m[0][2] * (matrix.m[1][0] * matrix.m[2][1] - matrix.m[1][1] * matrix.m[2][0]);
+		return std::isfinite(determinant) && std::abs(determinant) > 0.000001f;
+	}
+
 	Engine::Matrix4x4 BuildCanvasMatrix(const Engine::CanvasComponent& canvas, const Engine::Vector2& viewportSize) {
 
 		float scale = (std::max)(canvas.scaleFactor, 0.0001f);
@@ -132,6 +142,24 @@ void Engine::UIRuntimeService::Clear(ECSWorld& world) {
 
 	worlds_.erase(&world);
 	gameplayInputBlocked_ = false;
+}
+
+bool Engine::UIRuntimeService::TryScreenToLocalPoint(const ECSWorld& world, Entity canvas,
+	const Vector2& screenPosition, Vector2& outLocalPosition) const {
+
+	const UIElementRuntime* element = Find(world, canvas);
+	if (!element || element->canvas != canvas || !IsInvertibleAffine(element->screenMatrix)) {
+		return false;
+	}
+
+	const Vector3 localPosition = Vector3::Transform(
+		Vector3(screenPosition.x, screenPosition.y, 0.0f),
+		Matrix4x4::Inverse(element->screenMatrix));
+	if (!std::isfinite(localPosition.x) || !std::isfinite(localPosition.y)) {
+		return false;
+	}
+	outLocalPosition = Vector2(localPosition.x, localPosition.y);
+	return true;
 }
 
 const Engine::UIElementRuntime* Engine::UIRuntimeService::Find(const ECSWorld& world, Entity entity) const {

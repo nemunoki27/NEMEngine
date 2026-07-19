@@ -21,6 +21,7 @@
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/UI/CanvasComponent.h>
+#include <Engine/Core/World/UI/UIRuntimeService.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
@@ -323,6 +324,30 @@ namespace Engine {
 			const Entity resolved = ResolveEntity(entity);
 			return world->IsAlive(resolved) ? world->TryGetComponent<EffectEmitterComponent>(resolved) : nullptr;
 		}
+	}
+
+	int32_t ManagedScriptRuntime::CanvasScreenToLocalPointCallback(
+		ManagedNativeEntity entity, ManagedVector2 screenPosition,
+		ManagedVector2* outLocalPosition) {
+
+		if (!outLocalPosition) {
+			return 0;
+		}
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		if (!world || !world->IsAlive(resolved) ||
+			!world->HasComponent<CanvasComponent>(resolved)) {
+			return 0;
+		}
+
+		Vector2 localPosition{};
+		if (!UIRuntimeService::GetInstance().TryScreenToLocalPoint(
+			*world, resolved, Vector2(screenPosition.x, screenPosition.y), localPosition)) {
+			return 0;
+		}
+		*outLocalPosition = ToManagedVector2(localPosition);
+		return 1;
 	}
 
 	uint64_t ManagedScriptRuntime::EffectEmitCallback(ManagedNativeEntity entity, const char* group,

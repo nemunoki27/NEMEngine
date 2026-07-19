@@ -115,6 +115,22 @@ namespace Engine {
 		return 1;
 	}
 
+	int32_t ManagedScriptRuntime::WorldToScreenPointCallback(
+		ManagedVector3 worldPosition, ManagedVector3* outScreenPosition) {
+
+		if (!outScreenPosition) {
+			return 0;
+		}
+
+		Vector3 screenPosition{};
+		if (!GameViewCameraSnapshot::TryWorldToScreenPoint(
+			ToVector3(worldPosition), screenPosition)) {
+			return 0;
+		}
+		*outScreenPosition = ToManagedVector3(screenPosition);
+		return 1;
+	}
+
 	int32_t ManagedScriptRuntime::GetMousePositionInViewCallback(ManagedVector2* outPosition) {
 
 		if (!outPosition) {

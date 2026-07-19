@@ -17,6 +17,14 @@ public sealed unsafe partial class Canvas {
     private const int KeyboardInputDevice = 0;
     private const int GamepadInputDevice = 1;
 
+    // GameViewピクセル座標をCanvasローカル座標へ変換する
+    public bool TryScreenToLocalPoint(
+        Vector2 screenPosition, out Vector2 localPosition) {
+
+        return NativeApi.ReadCanvasScreenToLocalPoint(
+            entity.native, screenPosition, out localPosition);
+    }
+
     // 指定操作に割り当てたキーボード入力を取得する
     public IReadOnlyList<KeyCode> GetKeyboardInputs(CanvasInputAction action) {
 

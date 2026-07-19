@@ -23,6 +23,7 @@
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleRotationModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleGravityForceModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleNoiseForceModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleSpiralMovementModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleFlipbookModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleShapeOverLifetimeModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleCustomShaderParameterModule.h>
@@ -83,6 +84,9 @@ namespace {
 
 		particle.pos = Engine::Vector3::Transform(particle.pos, particle.parentMatrix);
 		particle.velocity = Engine::Vector3::TransferNormal(particle.velocity, particle.parentMatrix);
+		particle.spawnDirection = Engine::Vector3::NormalizeOr(
+			Engine::Vector3::TransferNormal(particle.spawnDirection, particle.parentMatrix),
+			Engine::Vector3(0.0f, 1.0f, 0.0f));
 
 		Engine::Quaternion parentRotation{};
 		Engine::Vector3 parentScale{};
@@ -105,6 +109,9 @@ namespace {
 		const Engine::Matrix4x4 inverseParent = Engine::Matrix4x4::Inverse(parentMatrix);
 		particle.pos = Engine::Vector3::Transform(particle.pos, inverseParent);
 		particle.velocity = Engine::Vector3::TransferNormal(particle.velocity, inverseParent);
+		particle.spawnDirection = Engine::Vector3::NormalizeOr(
+			Engine::Vector3::TransferNormal(particle.spawnDirection, inverseParent),
+			Engine::Vector3(0.0f, 1.0f, 0.0f));
 		if (preserveWorldRotationScale) {
 			particle.rotation = Engine::Quaternion::Normalize(
 				Engine::Quaternion::Inverse(parentRotation) * particle.rotation);
@@ -535,6 +542,8 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Matrix4x4& emitt
 				parents[particle.phaseIndex]);
 		}
 		const uint32_t previousPhase = particle.phaseIndex;
+		particle.previousAge = particle.age;
+		particle.previousPhaseIndex = particle.phaseIndex;
 		particle.age += deltaTime;
 		if (particle.lifetime <= particle.age && !AdvancePhaseOnLifeEnd(particle, runtime.phases)) {
 
@@ -610,6 +619,7 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Matrix4x4& emitt
 			const PhaseRuntime& firstPhase = runtime.phases.front();
 			InitEmitterParticles(newborn, emitterSettings, firstPhase.lifetime,
 				asset.space == PrimitiveRenderSpace::Screen2D, state.nextParticleID);
+			state.nextParticleID += spawnCount;
 
 			// エミッターのワールド行列で発生位置と速度を変換する
 			const bool hasSpawnBatch = firstPhase.hasSpawnBatch || firstPhase.hasUpdateBatch;
@@ -622,9 +632,10 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Matrix4x4& emitt
 				if (!hasSpawnBatch) { ApplySpawnModules(particle, firstPhase); }
 				const Vector3 worldPos = Vector3::Transform(particle.pos, emitterWorld);
 				particle.velocity = Vector3::Transform(particle.pos + particle.velocity, emitterWorld) - worldPos;
+				particle.spawnDirection = Vector3::NormalizeOr(
+					Vector3::Transform(particle.pos + particle.spawnDirection, emitterWorld) - worldPos,
+					Vector3(0.0f, 1.0f, 0.0f));
 				particle.pos = worldPos;
-				// トレイル追跡用のIDを割り当てる
-				particle.id = state.nextParticleID++;
 				// 発生時の回転とスケールは親ローカル値として継承する
 				UpdateParticleParent(particle, firstPhase.parentSettings, parents.front(), false);
 				if (!hasSpawnBatch) {
@@ -974,8 +985,10 @@ void Engine::ParticleSystem::InitEmitterParticles(std::span<Particle> newborn,
 
 		// 発生座標にオフセットを掛ける
 		particle.pos = position + settings.emitOffset.Sample();
+		particle.spawnDirection = Vector3::NormalizeOr(direction, Vector3(0.0f, 1.0f, 0.0f));
 		particle.velocity = direction * settings.speed.Sample();
 		particle.lifetime = (std::max)(lifetime.Sample(), 0.001f);
+		particle.id = spawnIndex.global;
 	}
 }
 
@@ -1093,6 +1106,8 @@ void Engine::ParticleSystem::UpdateDetachedTrailOwners(ParticleGroupRuntimeState
 		if (trail.continueUpdateAfterParticleDeath) {
 
 			if (!runtime.detachedThisFrame) {
+				owner.previousAge = owner.age;
+				owner.previousPhaseIndex = owner.phaseIndex;
 				owner.age += deltaTime;
 			}
 			if (owner.phaseIndex < group.phases.size()) {

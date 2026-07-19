@@ -36,7 +36,8 @@ internal static class ManagedAbi {
     // v27: UISelectableの決定入力配列取得と設定を追加
     // v28: UI入力配列をCanvasの上下左右と決定へ移行
     // v29: Application.Quitの終了要求を追加
-    internal const uint Version = 29;
+    // v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
+    internal const uint Version = 30;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -105,6 +106,13 @@ public struct NativeVector2 {
 
     public float x;
     public float y;
+
+    public static NativeVector2 From(Vector2 value) {
+        return new NativeVector2 {
+            x = value.x,
+            y = value.y
+        };
+    }
 
     public Vector2 ToVector2() {
         return new Vector2(x, y);
@@ -359,6 +367,9 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void> CanvasSetInputBindings;
     // v29: Application終了要求
     internal static delegate* unmanaged[Cdecl]<void> RequestApplicationQuit;
+    // v30: GameViewとCanvas座標変換
+    internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3*, int> WorldToScreenPoint;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector2, NativeVector2*, int> CanvasScreenToLocalPoint;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -499,6 +510,8 @@ internal static unsafe class NativeApi {
         CanvasCopyInputBindings = callbacks->canvasCopyInputBindings;
         CanvasSetInputBindings = callbacks->canvasSetInputBindings;
         RequestApplicationQuit = callbacks->requestApplicationQuit;
+        WorldToScreenPoint = callbacks->worldToScreenPoint;
+        CanvasScreenToLocalPoint = callbacks->canvasScreenToLocalPoint;
     }
 
     internal static float ReadDeltaTime() {
@@ -1046,6 +1059,21 @@ internal static unsafe class NativeApi {
         return true;
     }
 
+    // ワールド座標をGameViewピクセル座標へ変換する、カメラ未解決はfalse
+    internal static bool ReadWorldToScreenPoint(Vector3 worldPosition, out Vector3 screenPosition) {
+
+        screenPosition = Vector3.zero;
+        if (WorldToScreenPoint == null) {
+            return false;
+        }
+        NativeVector3 nativePosition = default;
+        if (WorldToScreenPoint(NativeVector3.From(worldPosition), &nativePosition) == 0) {
+            return false;
+        }
+        screenPosition = nativePosition.ToVector3();
+        return true;
+    }
+
     // GameView内のマウス座標を描画解像度基準で取得する、View外はfalse
     internal static bool ReadMousePositionInView(out Vector2 position) {
 
@@ -1157,6 +1185,23 @@ internal static unsafe class NativeApi {
             CanvasSetInputBindings(
                 entity, action, device, values, bindings.Length);
         }
+    }
+
+    // スクリーン座標をCanvasローカル座標へ変換する
+    internal static bool ReadCanvasScreenToLocalPoint(
+        NativeEntity entity, Vector2 screenPosition, out Vector2 localPosition) {
+
+        localPosition = Vector2.zero;
+        if (CanvasScreenToLocalPoint == null) {
+            return false;
+        }
+        NativeVector2 nativePosition = default;
+        if (CanvasScreenToLocalPoint(
+            entity, NativeVector2.From(screenPosition), &nativePosition) == 0) {
+            return false;
+        }
+        localPosition = nativePosition.ToVector2();
+        return true;
     }
 
     // FillMeshRendererComponentの点列をローカル座標またはワールド座標で取得する
@@ -1638,4 +1683,7 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void> canvasSetInputBindings;
     // v29: Application終了要求
     public delegate* unmanaged[Cdecl]<void> requestApplicationQuit;
+    // v30: GameViewとCanvas座標変換
+    public delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3*, int> worldToScreenPoint;
+    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector2, NativeVector2*, int> canvasScreenToLocalPoint;
 }

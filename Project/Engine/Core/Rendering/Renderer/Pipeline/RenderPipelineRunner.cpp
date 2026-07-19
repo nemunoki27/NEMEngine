@@ -428,6 +428,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		if (const ResolvedCameraView* gameCamera = gameViewState_.view.FindCamera(RenderCameraDomain::Perspective);
 			gameCamera && gameCamera->valid) {
 
+			cameraSnapshot.viewProjection = gameCamera->matrices.viewProjectionMatrix;
 			cameraSnapshot.inverseViewProjection =
 				gameCamera->matrices.inverseProjectionMatrix * gameCamera->matrices.inverseViewMatrix;
 			cameraSnapshot.cameraPos = gameCamera->cameraPos;

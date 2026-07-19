@@ -44,7 +44,8 @@ namespace Engine {
 	// v27: UISelectableの決定入力配列取得と設定を追加
 	// v28: UI入力配列をCanvasの上下左右と決定へ移行
 	// v29: Application.Quitの終了要求を追加
-	inline constexpr uint32_t kManagedAbiVersion = 29;
+	// v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
+	inline constexpr uint32_t kManagedAbiVersion = 30;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -429,6 +430,8 @@ namespace Engine {
 		using PhysicsRaycastAllCallback = int32_t(__cdecl*)(ManagedVector3, ManagedVector3, float, uint32_t, uint32_t, ManagedRaycastHit*, int32_t);
 		// v21のカメラレイ、GameViewピクセル座標からレイを作る
 		using ScreenPointToRayCallback = int32_t(__cdecl*)(float, float, ManagedVector3*, ManagedVector3*);
+		// v30のワールド座標からGameViewピクセル座標への変換
+		using WorldToScreenPointCallback = int32_t(__cdecl*)(ManagedVector3, ManagedVector3*);
 		// v21のGameView内マウス座標、View外は0を返す
 		using GetMousePositionInViewCallback = int32_t(__cdecl*)(ManagedVector2*);
 		// v21のCollisionタイプ名からビットマスクを引く、未登録は0
@@ -459,6 +462,9 @@ namespace Engine {
 			ManagedNativeEntity, int32_t, int32_t, int32_t*, int32_t);
 		using CanvasSetInputBindingsCallback = void(__cdecl*)(
 			ManagedNativeEntity, int32_t, int32_t, const int32_t*, int32_t);
+		// Canvasローカル座標への変換
+		using CanvasScreenToLocalPointCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, ManagedVector2, ManagedVector2*);
 		// Application.Quitの終了要求
 		using ApplicationQuitCallback = void(__cdecl*)();
 
@@ -647,6 +653,9 @@ namespace Engine {
 		CanvasSetInputBindingsCallback canvasSetInputBindings = nullptr;
 		// v29のApplication終了要求
 		ApplicationQuitCallback requestApplicationQuit = nullptr;
+		// v30のGameViewとCanvas座標変換
+		WorldToScreenPointCallback worldToScreenPoint = nullptr;
+		CanvasScreenToLocalPointCallback canvasScreenToLocalPoint = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI
