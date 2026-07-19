@@ -6,6 +6,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/UI/UIRuntimeService.h>
 #include <Engine/Core/Physics/Collision/CollisionQuery.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Rendering/Renderer/Views/GameViewCameraSnapshot.h>
@@ -133,7 +134,8 @@ namespace Engine {
 
 	int32_t ManagedScriptRuntime::GetMousePositionInViewCallback(ManagedVector2* outPosition) {
 
-		if (!outPosition) {
+		if (!outPosition ||
+			UIRuntimeService::GetInstance().IsTransitionInputBlocked()) {
 			return 0;
 		}
 		Input* input = Input::GetInstance();

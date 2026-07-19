@@ -931,7 +931,8 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 		canvas.runtimeSelectedLocalFileID = selected ? GetLocalFileID(world, selected->entity) : UUID{};
 	}
 
-	Input* input = Input::GetInstance();
+	Input* input = runtimeService.IsTransitionInputBlocked() ?
+		nullptr : Input::GetInstance();
 	bool consumedInput = false;
 	Entity activeCanvas = Entity::Null();
 	for (Entity candidate : canvases) {

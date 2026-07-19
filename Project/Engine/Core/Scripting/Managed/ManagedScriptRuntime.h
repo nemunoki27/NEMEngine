@@ -412,6 +412,9 @@ namespace Engine {
 		static int32_t __cdecl CanvasScreenToLocalPointCallback(
 			ManagedNativeEntity entity, ManagedVector2 screenPosition,
 			ManagedVector2* outLocalPosition);
+		// IrisTransitionへ再生操作を要求する
+		static void __cdecl IrisTransitionCommandCallback(
+			ManagedNativeEntity entity, int32_t command, float value);
 		// EffectEmitterの再生要求を追加しハンドルを返す
 		static uint64_t __cdecl EffectEmitCallback(ManagedNativeEntity entity, const char* group,
 			ManagedVector3 position, ManagedQuaternion rotation, int32_t fixedAnchor);

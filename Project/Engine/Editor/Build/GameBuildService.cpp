@@ -146,6 +146,7 @@ namespace {
 			AddAsset(Engine::BuiltinAssets::Materials::ToneMapToView);
 			AddAsset(Engine::BuiltinAssets::Materials::FullscreenCopy);
 			AddAsset(Engine::BuiltinAssets::Materials::RaytracingReflection);
+			AddAsset(Engine::BuiltinAssets::Materials::IrisTransition);
 
 			AddFixedRuntimeFiles();
 			ProcessAssets();

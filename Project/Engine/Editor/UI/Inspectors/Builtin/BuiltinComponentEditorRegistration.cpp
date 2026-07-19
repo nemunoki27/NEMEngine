@@ -22,6 +22,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/FlipbookAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/TextRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/IrisTransitionInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/InvertedHullOutlineInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/ScreenSpaceOutlineInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/DirectionalLightInspectorDrawer.h>
@@ -96,6 +97,8 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<PrimitiveRendererInspectorDrawer>("Primitive Renderer", "PrimitiveRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<EffectEmitterInspectorDrawer>("Effect Emitter", "EffectEmitter", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<FlipbookAnimationInspectorDrawer>("Flipbook Animation", "FlipbookAnimation", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<IrisTransitionInspectorDrawer>(
+			"Iris Transition", "IrisTransition", "Rendering"));
 	}
 	// UI
 	{

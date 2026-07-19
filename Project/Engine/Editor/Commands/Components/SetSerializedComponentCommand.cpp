@@ -8,6 +8,7 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/UI/UIProgressComponent.h>
 #include <Engine/Core/World/Components/UI/UISelectableComponent.h>
+#include <Engine/Core/World/Components/UI/IrisTransitionComponent.h>
 
 //============================================================================
 //	SetSerializedComponentCommand classMethods
@@ -46,6 +47,12 @@ bool Engine::SetSerializedComponentCommand::Apply(EditorCommandContext& context,
 
 		const UIProgressComponent authoring = data.get<UIProgressComponent>();
 		ApplyUIProgressAuthoring(authoring, world->GetComponent<UIProgressComponent>(target));
+	} else if (typeName_ == "IrisTransition" &&
+		world->HasComponent<IrisTransitionComponent>(target)) {
+
+		const IrisTransitionComponent authoring = data.get<IrisTransitionComponent>();
+		ApplyIrisTransitionAuthoring(
+			authoring, world->GetComponent<IrisTransitionComponent>(target));
 	} else {
 		world->AddComponentFromJson(target, typeName_, data);
 	}

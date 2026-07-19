@@ -6,6 +6,7 @@
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
 #include <Engine/Core/World/UI/UIRuntimeService.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 
 //============================================================================
 //	SpriteRenderItemExtractor internal
@@ -69,6 +70,12 @@ void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatc
 		// baseColorTextureだけの上書きは同じテクスチャでまとめ、それ以外の上書きは単独描画にする
 		item.batchKey = ResolveBatchKey(entity, renderer.parameterOverrides);
 		if (uiRuntime) {
+			// シーンに保存されない内部UIはアクティブシーンの描画へ含める
+			if (!item.sceneInstanceID) {
+				const SceneInstance* activeScene = world.GetCommandServices().sceneInstances ?
+					world.GetCommandServices().sceneInstances->GetActive() : nullptr;
+				item.sceneInstanceID = activeScene ? activeScene->instanceID : UUID{};
+			}
 			item.renderPhase = RenderPhase::ScreenUI;
 			item.cameraDomain = RenderCameraDomain::Screen;
 			item.sortingLayer += uiRuntime->canvasSortingLayer;

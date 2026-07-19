@@ -137,6 +137,17 @@
         { "name": "TopToBottom", "value": 2 },
         { "name": "BottomToTop", "value": 3 }
       ]
+    },
+    {
+      "managedType": "IrisTransitionState",
+      "nativeType": "IrisTransitionState",
+      "members": [
+        { "name": "Open", "value": 0 },
+        { "name": "IrisOut", "value": 1 },
+        { "name": "Covered", "value": 2 },
+        { "name": "IrisIn", "value": 3 },
+        { "name": "Stopped", "value": 4 }
+      ]
     }
   ],
   "components": [
@@ -232,6 +243,28 @@
         { "managedName": "UseUnscaledTime", "nativeMember": "useUnscaledTime", "kind": "Bool", "access": "ReadWrite" },
         { "managedName": "DisplayedNormalizedValue", "nativeMember": "runtimeDisplayedValue", "kind": "Float", "access": "ReadOnly" },
         { "managedName": "DelayedNormalizedValue", "nativeMember": "runtimeDelayedValue", "kind": "Float", "access": "ReadOnly" }
+      ]
+    },
+    {
+      "registryName": "IrisTransition",
+      "nativeType": "IrisTransitionComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/IrisTransitionComponent.h",
+      "managedType": "IrisTransition",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        { "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "ScreenPosition", "nativeMember": "screenPosition", "kind": "Vector2", "access": "ReadWrite" },
+        { "managedName": "TransitionColor", "nativeMember": "transitionColor", "kind": "Color4", "access": "ReadWrite" },
+        { "managedName": "EdgeSoftness", "nativeMember": "edgeSoftness", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "InvertMask", "nativeMember": "invertMask", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "IrisOutDuration", "nativeMember": "irisOutDuration", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "IrisInDuration", "nativeMember": "irisInDuration", "kind": "Float", "access": "ReadWrite" },
+        { "managedName": "BlockInput", "nativeMember": "blockInput", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "AutoIrisInAfterSceneTransition", "nativeMember": "autoIrisInAfterSceneTransition", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "UseUnscaledTime", "nativeMember": "useUnscaledTime", "kind": "Bool", "access": "ReadWrite" },
+        { "managedName": "State", "nativeMember": "runtimeState", "kind": "Enum", "enumType": "IrisTransitionState", "access": "ReadOnly" },
+        { "managedName": "Progress", "nativeMember": "runtimeProgress", "kind": "Float", "access": "ReadOnly" }
       ]
     },
     {

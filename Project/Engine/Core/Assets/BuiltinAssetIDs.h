@@ -24,6 +24,8 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultPrimitive2D{ 0x70a1b2c3d4e5f616ull };
 		// UIProgressの進捗表示用マテリアル
 		inline constexpr AssetID ProgressPrimitive{ 0x70a1b2c3d4e5f626ull };
+		// アイリス遷移用マテリアル
+		inline constexpr AssetID IrisTransition{ 0x1a15000000000004ull };
 		inline constexpr AssetID FullscreenCopy{ 0x93946a52e2bc7030ull };
 		inline constexpr AssetID ToneMapToView{ 0xaa28624401e1e4b6ull };
 		inline constexpr AssetID RaytracingReflection{ 0x375384bc3bf6bb7cull };

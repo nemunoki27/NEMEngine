@@ -6,6 +6,7 @@ Collision
 DirectionalLight
 Hierarchy
 InvertedHullOutline
+IrisTransition
 MeshRenderer
 Name
 OrthographicCamera

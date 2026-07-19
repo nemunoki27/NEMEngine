@@ -52,7 +52,9 @@ namespace Engine {
 		Vector2 GetViewportSize(const ECSWorld& world) const;
 
 		void SetGameplayInputBlocked(bool blocked) { gameplayInputBlocked_ = blocked; }
-		bool IsGameplayInputBlocked() const { return gameplayInputBlocked_; }
+		void SetTransitionInputBlocked(bool blocked) { transitionInputBlocked_ = blocked; }
+		bool IsGameplayInputBlocked() const { return gameplayInputBlocked_ || transitionInputBlocked_; }
+		bool IsTransitionInputBlocked() const { return transitionInputBlocked_; }
 
 		static UIRuntimeService& GetInstance();
 	private:
@@ -69,5 +71,6 @@ namespace Engine {
 
 		std::unordered_map<const ECSWorld*, WorldState> worlds_{};
 		bool gameplayInputBlocked_ = false;
+		bool transitionInputBlocked_ = false;
 	};
 } // Engine

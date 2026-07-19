@@ -37,7 +37,8 @@ internal static class ManagedAbi {
     // v28: UI入力配列をCanvasの上下左右と決定へ移行
     // v29: Application.Quitの終了要求を追加
     // v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
-    internal const uint Version = 30;
+    // v31: IrisTransitionの再生操作を追加
+    internal const uint Version = 31;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -370,6 +371,8 @@ internal static unsafe class NativeApi {
     // v30: GameViewとCanvas座標変換
     internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3*, int> WorldToScreenPoint;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector2, NativeVector2*, int> CanvasScreenToLocalPoint;
+    // v31: IrisTransition再生操作
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, float, void> IrisTransitionCommand;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -512,6 +515,7 @@ internal static unsafe class NativeApi {
         RequestApplicationQuit = callbacks->requestApplicationQuit;
         WorldToScreenPoint = callbacks->worldToScreenPoint;
         CanvasScreenToLocalPoint = callbacks->canvasScreenToLocalPoint;
+        IrisTransitionCommand = callbacks->irisTransitionCommand;
     }
 
     internal static float ReadDeltaTime() {
@@ -1204,6 +1208,14 @@ internal static unsafe class NativeApi {
         return true;
     }
 
+    internal static void IrisTransitionCommandCall(
+        NativeEntity entity, int command, float value = 0.0f) {
+
+        if (IrisTransitionCommand != null) {
+            IrisTransitionCommand(entity, command, value);
+        }
+    }
+
     // FillMeshRendererComponentの点列をローカル座標またはワールド座標で取得する
     internal static List<Vector3> FillMeshGetPoints(NativeEntity entity, bool worldSpace) {
 
@@ -1686,4 +1698,6 @@ public unsafe struct NativeApiTable {
     // v30: GameViewとCanvas座標変換
     public delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3*, int> worldToScreenPoint;
     public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector2, NativeVector2*, int> canvasScreenToLocalPoint;
+    // v31: IrisTransition再生操作
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, float, void> irisTransitionCommand;
 }

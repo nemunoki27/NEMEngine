@@ -109,4 +109,5 @@ namespace Engine {
 		void ApplyPreview(ECSWorld& world, const Entity& entity,
 			const UIProgressComponent& previewComponent) override;
 	};
+
 } // Engine

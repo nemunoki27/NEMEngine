@@ -21,6 +21,7 @@
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/UI/CanvasComponent.h>
+#include <Engine/Core/World/Components/UI/IrisTransitionComponent.h>
 #include <Engine/Core/World/UI/UIRuntimeService.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
@@ -312,6 +313,50 @@ namespace Engine {
 				buttons->emplace_back(button);
 			}
 		}
+	}
+
+	void ManagedScriptRuntime::IrisTransitionCommandCallback(
+		ManagedNativeEntity entity, int32_t command, float value) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		IrisTransitionComponent* iris = world && world->IsAlive(resolved) ?
+			world->TryGetComponent<IrisTransitionComponent>(resolved) : nullptr;
+		if (!iris) {
+			return;
+		}
+
+		const uint64_t beforeSerial = iris->runtimeCommandSerial;
+		switch (command) {
+		case 0:
+			iris->IrisOut();
+			break;
+		case 1:
+			iris->IrisIn();
+			break;
+		case 2:
+			iris->SetProgress(value);
+			break;
+		case 3:
+			iris->Cancel();
+			break;
+		case 4:
+			iris->Reset();
+			break;
+		default:
+			return;
+		}
+		if (beforeSerial == iris->runtimeCommandSerial) {
+			return;
+		}
+
+		const SystemContext* context = GetCurrentContext();
+		if (!context || context->mode != WorldMode::Play) {
+			return;
+		}
+		const bool blockInput =
+			(command == 0 || command == 1) && iris->blockInput;
+		UIRuntimeService::GetInstance().SetTransitionInputBlocked(blockInput);
 	}
 
 	namespace {

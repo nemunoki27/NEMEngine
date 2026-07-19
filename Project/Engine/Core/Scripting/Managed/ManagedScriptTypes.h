@@ -45,7 +45,8 @@ namespace Engine {
 	// v28: UI入力配列をCanvasの上下左右と決定へ移行
 	// v29: Application.Quitの終了要求を追加
 	// v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
-	inline constexpr uint32_t kManagedAbiVersion = 30;
+	// v31: IrisTransitionの再生操作を追加
+	inline constexpr uint32_t kManagedAbiVersion = 31;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -465,6 +466,9 @@ namespace Engine {
 		// Canvasローカル座標への変換
 		using CanvasScreenToLocalPointCallback = int32_t(__cdecl*)(
 			ManagedNativeEntity, ManagedVector2, ManagedVector2*);
+		// IrisTransitionの再生操作
+		using IrisTransitionCommandCallback = void(__cdecl*)(
+			ManagedNativeEntity, int32_t, float);
 		// Application.Quitの終了要求
 		using ApplicationQuitCallback = void(__cdecl*)();
 
@@ -656,6 +660,8 @@ namespace Engine {
 		// v30のGameViewとCanvas座標変換
 		WorldToScreenPointCallback worldToScreenPoint = nullptr;
 		CanvasScreenToLocalPointCallback canvasScreenToLocalPoint = nullptr;
+		// v31のIrisTransition再生操作
+		IrisTransitionCommandCallback irisTransitionCommand = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

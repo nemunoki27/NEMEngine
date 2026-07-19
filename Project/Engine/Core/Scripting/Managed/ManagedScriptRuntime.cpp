@@ -273,6 +273,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.requestApplicationQuit = &ManagedScriptRuntime::RequestApplicationQuitCallback;
 	callbacks.worldToScreenPoint = &ManagedScriptRuntime::WorldToScreenPointCallback;
 	callbacks.canvasScreenToLocalPoint = &ManagedScriptRuntime::CanvasScreenToLocalPointCallback;
+	callbacks.irisTransitionCommand = &ManagedScriptRuntime::IrisTransitionCommandCallback;
 	callbacks.getEntityReferenceIdentity = &ManagedScriptRuntime::GetEntityReferenceIdentityCallback;
 	// v21のレイキャストとカメラレイとCollisionタイプ名解決
 	callbacks.physicsRaycast = &ManagedScriptRuntime::PhysicsRaycastCallback;
