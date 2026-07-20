@@ -39,9 +39,14 @@ namespace Engine {
 
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
 		Color4 vertexColor = Color4::White();
-		// 形状アニメーション用のパラメータ、形状ごとに解釈が変わる
-		Vector4 shapeParams = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+		// 形状アニメーション用のパラメータと断面色
+		Vector4 shapeParams0 = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+		Vector4 shapeParams1 = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+		Color4 topColor = Color4::White();
+		Color4 centerColor = Color4::White();
+		Color4 bottomColor = Color4::White();
 	};
+	static_assert(sizeof(ParticleGeometryData) == 160);
 
 	//============================================================================
 	//	ParticleMaterialData

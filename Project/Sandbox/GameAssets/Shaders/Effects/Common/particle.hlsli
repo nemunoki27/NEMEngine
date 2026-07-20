@@ -15,8 +15,12 @@ struct ParticleGeometryData {
 
 	float4x4 worldMatrix;
 	float4 vertexColor;
-	// 形状アニメーション用のパラメータ、形状ごとに解釈が変わる
-	float4 shapeParams;
+	// 形状アニメーション用のパラメータと断面色
+	float4 shapeParams0;
+	float4 shapeParams1;
+	float4 topColor;
+	float4 centerColor;
+	float4 bottomColor;
 };
 
 struct ParticleMaterialData {

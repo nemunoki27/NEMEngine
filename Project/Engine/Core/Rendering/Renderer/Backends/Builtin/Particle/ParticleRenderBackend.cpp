@@ -18,6 +18,7 @@
 #include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/BillboardComponent.h>
+#include <Engine/Core/Foundation/Math/Math.h>
 
 // c++
 #include <algorithm>
@@ -40,8 +41,8 @@ namespace {
 
 		uint32_t divide = 16;
 		uint32_t uvMode = 0;
-		uint32_t pad1 = 0;
-		uint32_t pad2 = 0;
+		uint32_t cap = 0;
+		uint32_t heightDivide = 2;
 	};
 	// トレイルMS生成で渡す定数バッファ
 	struct ParticleTrailConstants {
@@ -69,6 +70,32 @@ namespace {
 		const Engine::Vector3 translationWithPivot =
 			translation + pivot - Engine::Vector3::Transform(pivot, scaleRotation);
 		return Engine::Matrix4x4::MakeAffineMatrix(scale, rotation, translationWithPivot);
+	}
+
+	// 描画設定から静的な形状データを構築
+	Engine::ParticleShapeData MakeStaticShapeData(const Engine::ParticleRenderSettings& settings) {
+
+		Engine::ParticleShapeData data{};
+		if (settings.shape == Engine::PrimitiveType::Ring) {
+
+			data.params0 = Engine::Vector4(
+				settings.ring.outerRadius,
+				settings.ring.innerRadius,
+				settings.ring.startAngle * Math::radian,
+				settings.ring.endAngle * Math::radian);
+		} else if (settings.shape == Engine::PrimitiveType::Cylinder) {
+
+			const Engine::PrimitiveCylinderParams& cylinder = settings.cylinder;
+			data.params0 = Engine::Vector4(
+				cylinder.topRadius, cylinder.centerRadius, cylinder.bottomRadius, cylinder.height);
+			data.params1 = Engine::Vector4(
+				cylinder.topRadiusWeight, cylinder.bottomRadiusWeight,
+				cylinder.maxAngle * Math::radian, 1.0f);
+			data.topColor = cylinder.topColor;
+			data.centerColor = cylinder.centerColor;
+			data.bottomColor = cylinder.bottomColor;
+		}
+		return data;
 	}
 
 	const Engine::ParticlePhaseMaterialSettings& GetPhaseMaterialSettings(
@@ -280,7 +307,13 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 			instance.geometry.worldMatrix = Matrix4x4::MakeAffineMatrix(
 				Vector3::AnyInit(particle.size) * particle.worldScale, rotation, worldPos);
 			instance.geometry.vertexColor = particle.color;
-			instance.geometry.shapeParams = particle.shapeParams;
+			const ParticleShapeData shapeData = settings.shapeOverLifetime ?
+				particle.shapeData : MakeStaticShapeData(settings);
+			instance.geometry.shapeParams0 = shapeData.params0;
+			instance.geometry.shapeParams1 = shapeData.params1;
+			instance.geometry.topColor = shapeData.topColor;
+			instance.geometry.centerColor = shapeData.centerColor;
+			instance.geometry.bottomColor = shapeData.bottomColor;
 			instance.material.emissive = particle.emissive;
 			const bool flipScreenV = settings.space == PrimitiveRenderSpace::Screen2D &&
 				!settings.model && settings.shape == PrimitiveType::Plane;
@@ -556,6 +589,13 @@ bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawCont
 		parametric.GetDivide(settings), 3, kMaxPrimitiveDivide));
 	shapeConstants.uvMode = settings.shape == PrimitiveType::Cylinder ?
 		static_cast<uint32_t>(settings.cylinder.uvMode) : 0;
+	shapeConstants.cap = settings.shape == PrimitiveType::Cylinder ?
+		static_cast<uint32_t>(settings.cylinder.cap) : 0;
+	shapeConstants.heightDivide = settings.shape == PrimitiveType::Cylinder ?
+		static_cast<uint32_t>(std::clamp(settings.cylinder.heightDivide, 2, kMaxPrimitiveDivide)) : 1;
+	if ((shapeConstants.heightDivide & 1u) != 0u && shapeConstants.heightDivide < kMaxPrimitiveDivide) {
+		++shapeConstants.heightDivide;
+	}
 	const PostProcessConstantBufferAllocation shapeAlloc = constantBufferAllocator_.AllocateAndUpload(device, shapeConstants);
 
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
@@ -583,7 +623,23 @@ bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawCont
 	}
 
 	// 1グループ64三角形で全粒子分をDispatchMeshする
-	const uint32_t triangleCount = shapeConstants.divide * 2;
+	uint32_t triangleCount = shapeConstants.divide * 2;
+	if (settings.shape == PrimitiveType::Cylinder) {
+
+		triangleCount *= shapeConstants.heightDivide;
+		switch (settings.cylinder.cap) {
+		case PrimitiveCylinderCap::Top:
+		case PrimitiveCylinderCap::Bottom:
+			triangleCount += shapeConstants.divide;
+			break;
+		case PrimitiveCylinderCap::Both:
+			triangleCount += shapeConstants.divide * 2;
+			break;
+		case PrimitiveCylinderCap::None:
+		default:
+			break;
+		}
+	}
 	const uint32_t groupCount = (triangleCount + kParticleMeshGroupTriangles - 1) / kParticleMeshGroupTriangles;
 	commandList->DispatchMesh(groupCount, instanceCount, 1);
 	return true;

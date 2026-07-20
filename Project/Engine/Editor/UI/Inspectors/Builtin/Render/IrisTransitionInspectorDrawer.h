@@ -33,5 +33,9 @@ namespace Engine {
 			const Entity& entity, bool& anyItemActive) override;
 		void ApplyPreview(ECSWorld& world, const Entity& entity,
 			const IrisTransitionComponent& previewComponent) override;
+
+		//--------- variables ----------------------------------------------------
+
+		bool applyEditPreview_ = false;
 	};
 } // Engine

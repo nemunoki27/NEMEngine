@@ -71,7 +71,13 @@ public sealed partial class PrimitiveRenderer {
         private readonly PrimitiveRenderer r;
         internal CylinderAccessor(PrimitiveRenderer r) { this.r = r; }
         public float TopRadius { get => r.CylinderTopRadius; set => r.CylinderTopRadius = value; }
+        public float CenterRadius { get => r.CylinderCenterRadius; set => r.CylinderCenterRadius = value; }
         public float BottomRadius { get => r.CylinderBottomRadius; set => r.CylinderBottomRadius = value; }
+        public float TopRadiusWeight { get => r.CylinderTopRadiusWeight; set => r.CylinderTopRadiusWeight = value; }
+        public float BottomRadiusWeight { get => r.CylinderBottomRadiusWeight; set => r.CylinderBottomRadiusWeight = value; }
+        public Color4 TopColor { get => r.CylinderTopColor; set => r.CylinderTopColor = value; }
+        public Color4 CenterColor { get => r.CylinderCenterColor; set => r.CylinderCenterColor = value; }
+        public Color4 BottomColor { get => r.CylinderBottomColor; set => r.CylinderBottomColor = value; }
         public float Height { get => r.CylinderHeight; set => r.CylinderHeight = value; }
         public float MaxAngle { get => r.CylinderMaxAngle; set => r.CylinderMaxAngle = value; }
         public int RadialDivide { get => r.CylinderRadialDivide; set => r.CylinderRadialDivide = value; }

@@ -80,6 +80,7 @@ namespace Engine {
 		IrisTransitionCommand runtimeCommand = IrisTransitionCommand::None;
 		float runtimeCommandValue = 0.0f;
 		uint64_t runtimeCommandSerial = 0;
+		uint64_t runtimeEditPreviewSerial = 0;
 
 		// アイリスアウトを要求する
 		void IrisOut();
@@ -91,6 +92,8 @@ namespace Engine {
 		void Cancel();
 		// 開いた状態へ戻す
 		void Reset();
+		// 編集中プレビューの更新を要求する
+		void RequestEditPreview();
 	};
 
 	// シーン設定のみを反映

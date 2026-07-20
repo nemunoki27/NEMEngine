@@ -21,9 +21,6 @@ namespace Engine {
 		ParticleCylinderParametricShape() = default;
 		~ParticleCylinderParametricShape() override = default;
 
-		void PackShapeParams(const nlohmann::json& params, Vector4& start, Vector4& end) const override;
-		bool DrawImGui(nlohmann::json& params) const override;
-
 		//--------- accessor -----------------------------------------------------
 
 		AssetID GetPipeline() const override;

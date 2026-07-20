@@ -144,7 +144,10 @@ uint64_t Engine::PrimitiveMeshGenerator::ComputeHash(const PrimitiveRendererComp
 		break;
 	case PrimitiveType::Cylinder:
 		HashFloat(hash, renderer.cylinder.topRadius);
+		HashFloat(hash, renderer.cylinder.centerRadius);
 		HashFloat(hash, renderer.cylinder.bottomRadius);
+		HashFloat(hash, renderer.cylinder.topRadiusWeight);
+		HashFloat(hash, renderer.cylinder.bottomRadiusWeight);
 		HashFloat(hash, renderer.cylinder.height);
 		HashFloat(hash, renderer.cylinder.maxAngle);
 		HashInt(hash, renderer.cylinder.radialDivide);
@@ -346,21 +349,45 @@ void Engine::PrimitiveMeshGenerator::GenerateRing(const PrimitiveRingParams& par
 void Engine::PrimitiveMeshGenerator::GenerateCylinder(const PrimitiveCylinderParams& params, PrimitiveMeshData& out) {
 
 	const int32_t radialDivide = std::clamp(params.radialDivide, 3, kMaxPrimitiveDivide);
-	const int32_t heightDivide = std::clamp(params.heightDivide, 1, kMaxPrimitiveDivide);
+	int32_t heightDivide = std::clamp(params.heightDivide, 2, kMaxPrimitiveDivide);
+	if ((heightDivide & 1) != 0 && heightDivide < kMaxPrimitiveDivide) {
+		++heightDivide;
+	}
 	const float topRadius = params.topRadius;
+	const float centerRadius = params.centerRadius;
 	const float bottomRadius = params.bottomRadius;
 	const float height = params.height;
 	const float halfHeight = height * 0.5f;
 	constexpr float degToRad = std::numbers::pi_v<float> / 180.0f;
 	const float angleStep = params.maxAngle * degToRad / static_cast<float>(radialDivide);
-	const float slopeY = bottomRadius - topRadius;
+	const auto evaluateRadius = [&](float t) {
+
+		if (t <= 0.5f) {
+
+			const float localT = std::clamp(t * 2.0f, 0.0f, 1.0f);
+			const float smoothT = localT * localT * (3.0f - 2.0f * localT);
+			const float weightedT = std::pow(smoothT, 1.0f + std::clamp(params.bottomRadiusWeight, 0.0f, 1.0f) * 3.0f);
+			return Lerp(bottomRadius, centerRadius, weightedT);
+		}
+
+		const float localT = std::clamp((t - 0.5f) * 2.0f, 0.0f, 1.0f);
+		const float smoothT = localT * localT * (3.0f - 2.0f * localT);
+		const float weightedT = 1.0f - std::pow(1.0f - smoothT,
+			1.0f + std::clamp(params.topRadiusWeight, 0.0f, 1.0f) * 3.0f);
+		return Lerp(centerRadius, topRadius, weightedT);
+		};
 
 	// 側面、高さと円周のグリッド、中心はローカル原点
 	for (int32_t h = 0; h <= heightDivide; ++h) {
 
 		const float th = static_cast<float>(h) / static_cast<float>(heightDivide);
-		const float radius = Lerp(bottomRadius, topRadius, th);
+		const float radius = evaluateRadius(th);
 		const float y = Lerp(-halfHeight, halfHeight, th);
+		const float prevT = std::clamp(th - 0.001f, 0.0f, 1.0f);
+		const float nextT = std::clamp(th + 0.001f, 0.0f, 1.0f);
+		const float deltaY = (nextT - prevT) * height;
+		const float radiusSlope = deltaY != 0.0f ?
+			(evaluateRadius(nextT) - evaluateRadius(prevT)) / deltaY : 0.0f;
 
 		for (int32_t i = 0; i <= radialDivide; ++i) {
 
@@ -370,7 +397,7 @@ void Engine::PrimitiveMeshGenerator::GenerateCylinder(const PrimitiveCylinderPar
 
 			PrimitiveMeshVertex vertex{};
 			vertex.position = Vector3(cosA * radius, y, sinA * radius);
-			vertex.normal = Vector3::Normalize(Vector3(cosA * height, slopeY, sinA * height));
+			vertex.normal = Vector3::Normalize(Vector3(cosA, -radiusSlope, sinA));
 			if (params.uvMode == PrimitiveCylinderUVMode::Radial) {
 
 				const float uvRadius = th * 0.5f;

@@ -40,6 +40,7 @@ void Engine::IrisTransitionSystem::OnWorldEnter(ECSWorld& world,
 	activeSceneInstanceID_ = {};
 	editCommandPreview_ = false;
 	editAuthoringProgress_ = 0.0f;
+	editPreviewSerial_ = 0;
 	EnsureRenderEntity(world);
 	UIRuntimeService::GetInstance().SetTransitionInputBlocked(false);
 	if (SceneInstanceManager* sceneInstances =
@@ -57,6 +58,7 @@ void Engine::IrisTransitionSystem::OnWorldExit(ECSWorld& world,
 	ResetPlayback();
 	activeSceneInstanceID_ = {};
 	editCommandPreview_ = false;
+	editPreviewSerial_ = 0;
 	if (SceneInstanceManager* sceneInstances =
 		world.GetCommandServices().sceneInstances) {
 
@@ -172,10 +174,12 @@ bool Engine::IrisTransitionSystem::ConsumeLatestCommand(ECSWorld& world, WorldMo
 		return false;
 	}
 
-	const auto& component = world.GetComponent<IrisTransitionComponent>(commandEntity);
+	auto& component = world.GetComponent<IrisTransitionComponent>(commandEntity);
 	CopySettings(component);
 	ownerUUID_ = world.GetUUID(commandEntity);
 	if (mode == WorldMode::Edit) {
+		component.runtimeEditPreviewSerial = commandSerial;
+		editPreviewSerial_ = commandSerial;
 		editCommandPreview_ = component.previewInEditMode;
 		editAuthoringProgress_ = component.previewProgress;
 	}
@@ -263,35 +267,50 @@ bool Engine::IrisTransitionSystem::UpdateSceneTransition(ECSWorld& world) {
 bool Engine::IrisTransitionSystem::UpdateEditPreview(ECSWorld& world) {
 
 	Entity previewEntity = Entity::Null();
+	uint64_t previewSerial = 0;
 	world.ForEach<IrisTransitionComponent>([&](Entity entity,
 		IrisTransitionComponent& component) {
 
 		if (!component.enabled || !component.previewInEditMode) {
 			return;
 		}
-		if (!world.IsAlive(previewEntity) || entity.index < previewEntity.index) {
+		if (!world.IsAlive(previewEntity) ||
+			previewSerial < component.runtimeEditPreviewSerial ||
+			(previewSerial == component.runtimeEditPreviewSerial &&
+				entity.index < previewEntity.index)) {
+
 			previewEntity = entity;
+			previewSerial = component.runtimeEditPreviewSerial;
 		}
 		});
 
 	if (!world.IsAlive(previewEntity)) {
 		ResetPlayback();
 		editCommandPreview_ = false;
+		editPreviewSerial_ = 0;
 		ownerUUID_ = {};
 		return false;
 	}
 
 	const auto& component = world.GetComponent<IrisTransitionComponent>(previewEntity);
 	const UUID previewUUID = world.GetUUID(previewEntity);
+	bool authoringPreviewRequested = editPreviewSerial_ != previewSerial;
 	if (ownerUUID_ != previewUUID) {
 		ownerUUID_ = previewUUID;
+		editCommandPreview_ = false;
+		authoringPreviewRequested = true;
+	}
+	if (authoringPreviewRequested) {
+		editPreviewSerial_ = previewSerial;
 		editCommandPreview_ = false;
 	}
 	if (editCommandPreview_ &&
 		!IsSameProgress(component.previewProgress, editAuthoringProgress_)) {
 		editCommandPreview_ = false;
 	}
-	if (!IsPlaying() && !editCommandPreview_) {
+	if (authoringPreviewRequested ||
+		(!IsPlaying() && !editCommandPreview_)) {
+
 		CopySettings(component);
 		progress_ = std::clamp(component.previewProgress, 0.0f, 1.0f);
 		state_ = progress_ <= kProgressEpsilon ? IrisTransitionState::Open :

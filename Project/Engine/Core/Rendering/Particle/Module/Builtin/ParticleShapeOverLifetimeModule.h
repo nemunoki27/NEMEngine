@@ -5,13 +5,20 @@
 //============================================================================
 #include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
 #include <Engine/Core/Rendering/Particle/Parametric/ParticleParametricShapeRegistry.h>
-#include <Engine/Core/Foundation/Utility/Enum/Easing.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialStructures.h>
+#include <Engine/Editor/Animation/Curves/CurveEditorState.h>
+#include <Engine/Editor/Animation/Curves/CurveGenerator.h>
+
+// c++
+#include <array>
+#include <string>
+#include <unordered_map>
 
 namespace Engine {
 
 	//============================================================================
 	//	ParticleShapeOverLifetimeModule class
-	//	形状パラメータを寿命の進行度でイージング補間する、パラメトリック形状のみ対応
+	//	形状パラメータを項目ごとに寿命アニメーションする、パラメトリック形状のみ対応
 	//============================================================================
 	class ParticleShapeOverLifetimeModule :
 		public IParticleModule {
@@ -36,22 +43,41 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		struct ParameterUiState {
+
+			CurveEditorState curveState{};
+			CurveGeneratorState curveGeneratorState{ .fixedTimeRange = true, .maxKeyTime = 1.0f };
+			CurveGeneratorState alphaGeneratorState{ .fixedTimeRange = true, .maxKeyTime = 1.0f };
+		};
+
 		//--------- variables ----------------------------------------------------
 
 		// 対象形状、パラメトリック形状のみ対応
 		PrimitiveType shape_ = PrimitiveType::Ring;
-		// 形状ごとのパラメータ、キーは各形状が解釈する
-		nlohmann::json params_ = nlohmann::json::object();
-		// 補間するshapeParamsの始点と終点
-		Vector4 shapeStart_{};
-		Vector4 shapeEnd_{};
-		// イージング
-		EasingType easingType_ = EasingType::EaseOutSine;
+		// 形状項目ごとのアニメーション
+		std::unordered_map<std::string, ParticleMaterialAnimatedParameter> parameters_{};
+		// 実行時に名前検索を行わないための参照
+		std::array<const ParticleMaterialAnimatedParameter*, 14> parameterCache_{};
+		// カーブ編集の状態
+		std::unordered_map<std::string, ParameterUiState> uiStates_{};
 
 		//--------- functions ----------------------------------------------------
 
-		// 形状パラメータから始点と終点を詰め直す
-		void PackShapeParams();
+		// 選択形状に必要なパラメータを補完
+		void EnsureParameters();
+		// 実行時評価用の参照を名前付きパラメータから解決
+		void RebuildParameterCache();
+		// 旧開始終了形式を項目別アニメーションへ移行
+		void MigrateLegacyParameters(const nlohmann::json& params);
+		// 形状項目のアニメーションUIを描画
+		bool DrawParameter(const char* label, const char* key, float defaultValue,
+			float minValue, float maxValue, float dragSpeed = 0.01f);
+		// 色項目のアニメーションUIを描画
+		bool DrawColorParameter(const char* label, const char* key, const Color4& defaultValue);
+		// 寿命進行度から形状を評価
+		void EvaluateShape(Particle& particle, float progress) const;
 	};
 
 	ENGINE_REGISTER_PARTICLE_MODULE(ParticleShapeOverLifetimeModule, "ShapeOverLifetime");

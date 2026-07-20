@@ -71,6 +71,7 @@ namespace Engine {
 
 		bool editCommandPreview_ = false;
 		float editAuthoringProgress_ = 0.0f;
+		uint64_t editPreviewSerial_ = 0;
 
 		//--------- functions ----------------------------------------------------
 

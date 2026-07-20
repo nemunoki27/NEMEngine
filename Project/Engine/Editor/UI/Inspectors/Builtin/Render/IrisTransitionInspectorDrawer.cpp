@@ -31,18 +31,6 @@ namespace {
 		Engine::MyGUI::EndPropertyRow();
 		return result;
 	}
-
-	const char* GetIrisTransitionStateLabel(Engine::IrisTransitionState state) {
-
-		switch (state) {
-		case Engine::IrisTransitionState::Open: return "開放";
-		case Engine::IrisTransitionState::IrisOut: return "Iris Out再生中";
-		case Engine::IrisTransitionState::Covered: return "遮蔽";
-		case Engine::IrisTransitionState::IrisIn: return "Iris In再生中";
-		case Engine::IrisTransitionState::Stopped: return "停止";
-		default: return "不明";
-		}
-	}
 }
 
 //============================================================================
@@ -53,6 +41,7 @@ void Engine::IrisTransitionInspectorDrawer::DrawFields(
 	ECSWorld& world, const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
+	applyEditPreview_ = !context.IsPlaying();
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
@@ -138,6 +127,9 @@ void Engine::IrisTransitionInspectorDrawer::DrawFields(
 		if (ImGui::Button("リセット", ImVec2(buttonWidth, 0.0f))) {
 			world.GetComponent<IrisTransitionComponent>(entity).Reset();
 		}
+		if (previewDisabled) {
+			ImGui::EndDisabled();
+		}
 	}
 	ImGui::Unindent();
 }
@@ -148,6 +140,9 @@ void Engine::IrisTransitionInspectorDrawer::ApplyPreview(ECSWorld& world,
 	if (!world.IsAlive(entity) || !world.HasComponent<IrisTransitionComponent>(entity)) {
 		return;
 	}
-	ApplyIrisTransitionAuthoring(
-		previewComponent, world.GetComponent<IrisTransitionComponent>(entity));
+	auto& component = world.GetComponent<IrisTransitionComponent>(entity);
+	ApplyIrisTransitionAuthoring(previewComponent, component);
+	if (applyEditPreview_) {
+		component.RequestEditPreview();
+	}
 }

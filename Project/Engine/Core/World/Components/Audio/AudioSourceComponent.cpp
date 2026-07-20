@@ -17,6 +17,8 @@ void Engine::from_json(const nlohmann::json& in, AudioSourceComponent& component
 	component.runtimeKey.clear();
 	component.runtimeVoiceID = 0;
 	component.runtimePlayOnAwakeConsumed = false;
+	component.runtimePlayRequest = 0;
+	component.runtimePaused = false;
 }
 
 void Engine::to_json(nlohmann::json& out, const AudioSourceComponent& component) {

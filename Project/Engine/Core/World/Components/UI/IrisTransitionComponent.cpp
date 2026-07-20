@@ -67,6 +67,11 @@ void Engine::IrisTransitionComponent::Reset() {
 	QueueCommand(*this, IrisTransitionCommand::Reset);
 }
 
+void Engine::IrisTransitionComponent::RequestEditPreview() {
+
+	runtimeEditPreviewSerial = NextCommandSerial();
+}
+
 //============================================================================
 //	IrisTransitionComponent classMethods
 //============================================================================
@@ -97,6 +102,7 @@ void Engine::ResetIrisTransitionRuntime(IrisTransitionComponent& component) {
 	component.runtimeCommand = IrisTransitionCommand::None;
 	component.runtimeCommandValue = 0.0f;
 	component.runtimeCommandSerial = 0;
+	component.runtimeEditPreviewSerial = 0;
 }
 
 void Engine::from_json(const nlohmann::json& in, IrisTransitionComponent& component) {

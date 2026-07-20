@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
+#include <Engine/Core/Foundation/Math/Vector4.h>
+#include <Engine/Core/Foundation/Math/Color.h>
 
 // c++
 #include <vector>
@@ -23,11 +25,19 @@ namespace Engine {
 
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
+		// Cylinderの上面、中心、下面半径と高さ
+		Vector4 shapeParams0 = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+		// Cylinderの上面Weight、下面Weight、未使用値、形状フラグ
+		Vector4 shapeParams1 = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+		Color4 topColor = Color4::White();
+		Color4 centerColor = Color4::White();
+		Color4 bottomColor = Color4::White();
 		uint32_t flags = 0;
 		uint32_t pad0 = 0;
 		uint32_t pad1 = 0;
 		uint32_t pad2 = 0;
 	};
+	static_assert(sizeof(PrimitiveInstanceData) == 224);
 
 	//============================================================================
 	//	PrimitiveBatchResources class

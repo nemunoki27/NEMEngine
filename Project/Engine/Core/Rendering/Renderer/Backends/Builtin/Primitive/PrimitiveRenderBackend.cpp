@@ -144,6 +144,17 @@ void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& c
 			RenderBillboard::ResolveWorldMatrix(*item, *billboardView) : item->worldMatrix;
 		instance.uvMatrix = payload->uvMatrix;
 		instance.flags = payload->renderer ? ToInstanceFlags(payload->renderer->renderFlags) : 0;
+		if (payload->renderer && payload->renderer->type == PrimitiveType::Cylinder) {
+
+			const PrimitiveCylinderParams& cylinder = payload->renderer->cylinder;
+			instance.shapeParams0 = Vector4(
+				cylinder.topRadius, cylinder.centerRadius, cylinder.bottomRadius, cylinder.height);
+			instance.shapeParams1 = Vector4(
+				cylinder.topRadiusWeight, cylinder.bottomRadiusWeight, 0.0f, 1.0f);
+			instance.topColor = cylinder.topColor;
+			instance.centerColor = cylinder.centerColor;
+			instance.bottomColor = cylinder.bottomColor;
+		}
 		if (payload->renderer && payload->renderer->type == PrimitiveType::Plane &&
 			IsPrimitiveScreen2D(*payload->renderer)) {
 

@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
+// c++
+#include <algorithm>
+
 //============================================================================
 //	PrimitiveRendererComponent structMethods
 //============================================================================
@@ -62,7 +65,13 @@ void Engine::from_json(const nlohmann::json& in, PrimitiveRingParams& params) {
 void Engine::to_json(nlohmann::json& out, const PrimitiveCylinderParams& params) {
 
 	out["topRadius"] = params.topRadius;
+	out["centerRadius"] = params.centerRadius;
 	out["bottomRadius"] = params.bottomRadius;
+	out["topRadiusWeight"] = params.topRadiusWeight;
+	out["bottomRadiusWeight"] = params.bottomRadiusWeight;
+	out["topColor"] = params.topColor.ToJson();
+	out["centerColor"] = params.centerColor.ToJson();
+	out["bottomColor"] = params.bottomColor.ToJson();
 	out["height"] = params.height;
 	out["maxAngleDegrees"] = params.maxAngle;
 	out["radialDivide"] = params.radialDivide;
@@ -75,6 +84,12 @@ void Engine::from_json(const nlohmann::json& in, PrimitiveCylinderParams& params
 
 	params.topRadius = in.value("topRadius", params.topRadius);
 	params.bottomRadius = in.value("bottomRadius", params.bottomRadius);
+	params.centerRadius = in.value("centerRadius", (params.topRadius + params.bottomRadius) * 0.5f);
+	params.topRadiusWeight = std::clamp(in.value("topRadiusWeight", params.topRadiusWeight), 0.0f, 1.0f);
+	params.bottomRadiusWeight = std::clamp(in.value("bottomRadiusWeight", params.bottomRadiusWeight), 0.0f, 1.0f);
+	if (const auto it = in.find("topColor"); it != in.end()) { params.topColor = Color4::FromJson(*it); }
+	if (const auto it = in.find("centerColor"); it != in.end()) { params.centerColor = Color4::FromJson(*it); }
+	if (const auto it = in.find("bottomColor"); it != in.end()) { params.bottomColor = Color4::FromJson(*it); }
 	params.height = in.value("height", params.height);
 	if (const auto it = in.find("maxAngleDegrees"); it != in.end()) {
 		params.maxAngle = it->get<float>();
@@ -83,7 +98,7 @@ void Engine::from_json(const nlohmann::json& in, PrimitiveCylinderParams& params
 		params.maxAngle = it->get<float>() * (180.0f / std::numbers::pi_v<float>);
 	}
 	params.radialDivide = in.value("radialDivide", params.radialDivide);
-	params.heightDivide = in.value("heightDivide", params.heightDivide);
+	params.heightDivide = (std::max)(2, in.value("heightDivide", params.heightDivide));
 	params.cap = EnumAdapter<PrimitiveCylinderCap>::FromString(
 		in.value("cap", "Both")).value_or(PrimitiveCylinderCap::Both);
 	params.uvMode = EnumAdapter<PrimitiveCylinderUVMode>::FromString(

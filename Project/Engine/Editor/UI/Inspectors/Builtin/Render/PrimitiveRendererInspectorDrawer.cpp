@@ -124,11 +124,17 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 		break;
 	case PrimitiveType::Cylinder:
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("上面半径", draft.cylinder.topRadius, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("中心半径", draft.cylinder.centerRadius, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("下面半径", draft.cylinder.bottomRadius, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("上面Weight", draft.cylinder.topRadiusWeight, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("下面Weight", draft.cylinder.bottomRadiusWeight, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::ColorEdit("上面色", draft.cylinder.topColor); });
+		DrawField(anyItemActive, [&]() { return MyGUI::ColorEdit("中心色", draft.cylinder.centerColor); });
+		DrawField(anyItemActive, [&]() { return MyGUI::ColorEdit("底面色", draft.cylinder.bottomColor); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("高さ", draft.cylinder.height, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("展開角", draft.cylinder.maxAngle, { .dragSpeed = 0.5f,.minValue = 0.0f,.maxValue = 360.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("円周分割", draft.cylinder.radialDivide, { .minValue = 3,.maxValue = kMaxPrimitiveDivide }); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("高さ分割", draft.cylinder.heightDivide, { .minValue = 1,.maxValue = kMaxPrimitiveDivide }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("高さ分割", draft.cylinder.heightDivide, { .minValue = 2,.maxValue = kMaxPrimitiveDivide }); });
 		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawEnumComboField("フタ", draft.cylinder.cap); });
 		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawEnumComboField("UVモード", draft.cylinder.uvMode); });
 		break;

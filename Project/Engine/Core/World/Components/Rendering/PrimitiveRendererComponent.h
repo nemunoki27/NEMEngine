@@ -106,16 +106,24 @@ namespace Engine {
 
 	struct PrimitiveCylinderParams {
 
-		// 上面と下面の半径
+		// 上面と中心と下面の半径
 		float topRadius = 1.0f;
+		float centerRadius = 1.0f;
 		float bottomRadius = 1.0f;
+		// 上面と下面の半径へ引き寄せる強さ
+		float topRadiusWeight = 0.0f;
+		float bottomRadiusWeight = 0.0f;
+		// 上面と中心と下面の色
+		Color4 topColor = Color4::White();
+		Color4 centerColor = Color4::White();
+		Color4 bottomColor = Color4::White();
 		// 高さ
 		float height = 2.0f;
 		// 展開角、度数法で360で全周
 		float maxAngle = 360.0f;
 		// 円周方向と高さ方向の分割数
 		int32_t radialDivide = 16;
-		int32_t heightDivide = 1;
+		int32_t heightDivide = 2;
 		// フタの付け方
 		PrimitiveCylinderCap cap = PrimitiveCylinderCap::Both;
 		// UV展開方法

@@ -42,6 +42,10 @@ void Engine::AudioSourceSystem::Update(ECSWorld& world, SystemContext& context) 
 
 	world.ForEach<AudioSourceComponent>([&](Entity entity, AudioSourceComponent& component) {
 
+		if (component.runtimeVoiceID != 0) {
+			runtimeVoices_.insert_or_assign(component.runtimeVoiceID, entity);
+		}
+
 		// gameplay(C#)からの明示Play/Pause/Stop要求を先に消費する
 		if (component.runtimePlayRequest != 0) {
 
@@ -51,6 +55,7 @@ void Engine::AudioSourceSystem::Update(ECSWorld& world, SystemContext& context) 
 				// Stop: voice破棄
 				if (component.runtimeVoiceID != 0) {
 					audio->StopVoice(component.runtimeVoiceID);
+					runtimeVoices_.erase(component.runtimeVoiceID);
 				}
 				component.runtimePlaying = false;
 				component.runtimeClip = {};
@@ -77,6 +82,9 @@ void Engine::AudioSourceSystem::Update(ECSWorld& world, SystemContext& context) 
 						component.runtimePlaying = component.runtimeVoiceID != 0;
 						component.runtimePaused = false;
 						component.runtimePlayOnAwakeConsumed = true;
+						if (component.runtimeVoiceID != 0) {
+							runtimeVoices_.insert_or_assign(component.runtimeVoiceID, entity);
+						}
 					}
 				}
 			}
@@ -93,11 +101,13 @@ void Engine::AudioSourceSystem::Update(ECSWorld& world, SystemContext& context) 
 			const bool clipChanged = component.runtimeClip != component.clip;
 			if (component.runtimeVoiceID != 0) {
 				audio->StopVoice(component.runtimeVoiceID);
+				runtimeVoices_.erase(component.runtimeVoiceID);
 			}
 			component.runtimePlaying = false;
 			component.runtimeClip = {};
 			component.runtimeKey.clear();
 			component.runtimeVoiceID = 0;
+			component.runtimePaused = false;
 			if (clipChanged) {
 				component.runtimePlayOnAwakeConsumed = false;
 			}
@@ -109,6 +119,7 @@ void Engine::AudioSourceSystem::Update(ECSWorld& world, SystemContext& context) 
 			component.runtimePlaying = false;
 			component.runtimeClip = {};
 			component.runtimeKey.clear();
+			runtimeVoices_.erase(component.runtimeVoiceID);
 			component.runtimeVoiceID = 0;
 		}
 
@@ -140,22 +151,59 @@ void Engine::AudioSourceSystem::Update(ECSWorld& world, SystemContext& context) 
 		} else {
 
 			component.runtimePlayOnAwakeConsumed = true;
+			runtimeVoices_.insert_or_assign(component.runtimeVoiceID, entity);
 		}
 		});
 }
 
-void Engine::AudioSourceSystem::StopAll(ECSWorld& world) {
+void Engine::AudioSourceSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
+
+	if (context.mode != WorldMode::Play) {
+		return;
+	}
+	StopOrphanVoices(world);
+}
+
+void Engine::AudioSourceSystem::StopOrphanVoices(ECSWorld& world) {
 
 	Audio* audio = Audio::GetInstance();
-	world.ForEach<AudioSourceComponent>([&](Entity, AudioSourceComponent& component) {
+	for (auto it = runtimeVoices_.begin(); it != runtimeVoices_.end();) {
 
-		if (component.runtimePlaying && component.runtimeVoiceID != 0) {
-			audio->StopVoice(component.runtimeVoiceID);
+		const uint64_t voiceID = it->first;
+		const Entity entity = it->second;
+		const AudioSourceComponent* component = world.IsAlive(entity)
+			? world.TryGetComponent<AudioSourceComponent>(entity) : nullptr;
+		if (component && component->runtimeVoiceID == voiceID) {
+
+			++it;
+			continue;
+		}
+
+		audio->StopVoice(voiceID);
+		it = runtimeVoices_.erase(it);
+	}
+}
+
+void Engine::AudioSourceSystem::StopAll(ECSWorld& world) {
+
+	world.ForEach<AudioSourceComponent>([&](Entity entity, AudioSourceComponent& component) {
+
+		if (component.runtimeVoiceID != 0) {
+			runtimeVoices_.insert_or_assign(component.runtimeVoiceID, entity);
 		}
 		component.runtimePlaying = false;
 		component.runtimeClip = {};
 		component.runtimeKey.clear();
 		component.runtimeVoiceID = 0;
 		component.runtimePlayOnAwakeConsumed = false;
+		component.runtimePlayRequest = 0;
+		component.runtimePaused = false;
 		});
+
+	Audio* audio = Audio::GetInstance();
+	for (const auto& voice : runtimeVoices_) {
+
+		audio->StopVoice(voice.first);
+	}
+	runtimeVoices_.clear();
 }

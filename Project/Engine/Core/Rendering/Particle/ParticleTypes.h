@@ -20,6 +20,16 @@ namespace Engine {
 	//============================================================================
 	//	ParticleTypes structures
 	//============================================================================
+	// パラメトリック形状の評価結果
+	struct ParticleShapeData {
+
+		Vector4 params0 = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+		Vector4 params1 = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+		Color4 topColor = Color4::White();
+		Color4 centerColor = Color4::White();
+		Color4 bottomColor = Color4::White();
+	};
+
 	// 粒子1つ分の状態、親設定中は親ローカル空間でシミュレーションする
 	struct Particle {
 
@@ -80,8 +90,8 @@ namespace Engine {
 		bool parentIsEmitter = false;
 		bool hasParent = false;
 
-		// 形状アニメーション用のパラメータ、形状ごとに解釈が変わる
-		Vector4 shapeParams = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+		// 形状アニメーションの評価結果
+		ParticleShapeData shapeData{};
 	};
 
 	// トレイルの軌跡点、ワールド空間で記録する
