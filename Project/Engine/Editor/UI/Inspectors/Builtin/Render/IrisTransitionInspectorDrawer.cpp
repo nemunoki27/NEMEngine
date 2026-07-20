@@ -127,15 +127,15 @@ void Engine::IrisTransitionInspectorDrawer::DrawFields(
 		const float spacing = ImGui::GetStyle().ItemSpacing.x;
 		const float buttonWidth = (std::max)(
 			1.0f, (ImGui::GetContentRegionAvail().x - spacing * 2.0f) / 3.0f);
-		if (ImGui::Button("Iris Out##Preview", ImVec2(buttonWidth, 0.0f))) {
+		if (ImGui::Button("アイリスアウト##Preview", ImVec2(buttonWidth, 0.0f))) {
 			world.GetComponent<IrisTransitionComponent>(entity).IrisOut();
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Iris In##Preview", ImVec2(buttonWidth, 0.0f))) {
+		if (ImGui::Button("アイリスイン##Preview", ImVec2(buttonWidth, 0.0f))) {
 			world.GetComponent<IrisTransitionComponent>(entity).IrisIn();
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Reset", ImVec2(buttonWidth, 0.0f))) {
+		if (ImGui::Button("リセット", ImVec2(buttonWidth, 0.0f))) {
 			world.GetComponent<IrisTransitionComponent>(entity).Reset();
 		}
 	}
