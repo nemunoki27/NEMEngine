@@ -91,7 +91,8 @@ namespace {
 		Engine::PrefabReferenceRemapper::LocalFileIDMap result;
 		for (const Engine::Entity& entity : entities) {
 
-			if (!world.IsAlive(entity)) {
+			if (!world.IsAlive(entity) ||
+				!world.HasComponent<Engine::SceneObjectComponent>(entity)) {
 				continue;
 			}
 			Engine::SceneAuthoring::EnsureGameObjectDefaults(world, entity);
@@ -159,11 +160,12 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 
 	// プレファブアセットを登録
 	const AssetID prefabAsset = database.ImportOrGet(prefabAssetPath, AssetType::Prefab);
-	const PrefabReferenceRemapper::LocalFileIDMap sceneToPrefabLocal =
-		BuildSceneToPrefabLocalMap(world, entities, prefabAsset);
 
 	// ルート情報をデフォルト構築
 	SceneAuthoring::EnsureGameObjectDefaults(world, root);
+	const PrefabReferenceRemapper::LocalFileIDMap sceneToPrefabLocal =
+		BuildSceneToPrefabLocalMap(world, entities, prefabAsset);
+
 	const UUID rootLocalFileID = ResolvePrefabLocalFileID(world, root, prefabAsset);
 
 	// プレファブファイルの構築
@@ -181,7 +183,8 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 	// エンティティごとにコンポーネントをシリアライズしてファイルのnlohmann::jsonに追加
 	for (const Entity& entity : entities) {
 
-		if (!world.IsAlive(entity)) {
+		if (!world.IsAlive(entity) ||
+			!world.HasComponent<SceneObjectComponent>(entity)) {
 			continue;
 		}
 

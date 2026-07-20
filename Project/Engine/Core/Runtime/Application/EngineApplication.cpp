@@ -512,6 +512,9 @@ void Engine::EngineApplication::SaveCurrentPrefab() {
 		// 環境エンティティ(複製したカメラ/平行光源)を除いたルートを保存対象にする、新規作成した複数ルートも含む
 		editWorld->ForEachAliveEntity([&](Entity entity) {
 
+			if (!editWorld->HasComponent<SceneObjectComponent>(entity)) {
+				return;
+			}
 			if (!isHierarchyRoot(entity)) {
 				return;
 			}
@@ -538,9 +541,14 @@ void Engine::EngineApplication::SaveCurrentPrefab() {
 	std::unordered_set<uint64_t> seen;
 	for (const Entity& root : saveRoots) {
 		for (const Entity& entity : EditorEntitySnapshotUtility::CollectSubtreeEntities(*editWorld, root)) {
-			if (seen.insert(entityKey(entity)).second) {
-				saveEntities.emplace_back(entity);
+
+			if (!editWorld->HasComponent<SceneObjectComponent>(entity)) {
+				continue;
 			}
+			if (!seen.insert(entityKey(entity)).second) {
+				continue;
+			}
+			saveEntities.emplace_back(entity);
 		}
 	}
 
@@ -570,6 +578,9 @@ void Engine::EngineApplication::SyncPrefabEditedEntities() {
 	world.ForEachAliveEntity([&](Entity entity) {
 
 		if (entity == stage.root) {
+			return;
+		}
+		if (!world.HasComponent<SceneObjectComponent>(entity)) {
 			return;
 		}
 		if (std::find(stage.environmentEntities.begin(), stage.environmentEntities.end(), entity) !=
