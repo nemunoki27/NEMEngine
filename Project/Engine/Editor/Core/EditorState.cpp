@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
@@ -108,12 +109,15 @@ void Engine::EditorState::ValidateSelection(ECSWorld* world) {
 
 	// 死んだエンティティを複数選択から除去し、全滅ならクリア、アクティブは生存個体へ寄せる
 	selectedEntities.erase(std::remove_if(selectedEntities.begin(), selectedEntities.end(),
-		[&](const Entity& entity) { return !world->IsAlive(entity); }), selectedEntities.end());
+		[&](const Entity& entity) {
+			return !world->IsAlive(entity) || !world->HasComponent<SceneObjectComponent>(entity);
+		}), selectedEntities.end());
 	if (selectedEntities.empty()) {
 		ClearSelection();
 		return;
 	}
-	if (!world->IsAlive(selectedEntity)) {
+	if (!world->IsAlive(selectedEntity) ||
+		!world->HasComponent<SceneObjectComponent>(selectedEntity)) {
 		selectedEntity = selectedEntities.back();
 	}
 
@@ -414,7 +418,8 @@ bool Engine::EditorState::HasValidSelection(ECSWorld* world) const {
 		return static_cast<bool>(selectedAsset);
 	}
 
-	if (!world || !world->IsAlive(selectedEntity)) {
+	if (!world || !world->IsAlive(selectedEntity) ||
+		!world->HasComponent<SceneObjectComponent>(selectedEntity)) {
 		return false;
 	}
 

@@ -173,6 +173,10 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 	rootEntities.reserve(world->GetRecordCount());
 	world->ForEachAliveEntity([&](Entity entity) {
 
+		// シーン編集対象でない内部Entityは表示しない
+		if (!world->HasComponent<SceneObjectComponent>(entity)) {
+			return;
+		}
 		// ルートエンティティでない場合はスキップ
 		if (!IsRootEntity(*world, entity)) {
 			return;
@@ -306,6 +310,10 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	ECSWorld& world,
 	const Entity& entity,
 	bool forceVisible) {
+
+	if (!world.IsAlive(entity) || !world.HasComponent<SceneObjectComponent>(entity)) {
+		return;
+	}
 
 	const bool selfMatchesSearch = EntityMatchesSearch(world, entity);
 	const bool drawDescendants = forceVisible || selfMatchesSearch;
@@ -566,7 +574,8 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		Entity lastVisibleChild = Entity::Null();
 		while (child.IsValid() && world.IsAlive(child)) {
 
-			if (drawDescendants || ShouldDrawEntityNode(world, child)) {
+			if (world.HasComponent<SceneObjectComponent>(child) &&
+				(drawDescendants || ShouldDrawEntityNode(world, child))) {
 
 				DrawSiblingDropTarget(context, world, child, false);
 				DrawEntityNode(context, world, child, drawDescendants);
@@ -995,6 +1004,9 @@ bool Engine::HierarchyPanel::EntityMatchesSearch(ECSWorld& world, const Entity& 
 
 bool Engine::HierarchyPanel::ShouldDrawEntityNode(ECSWorld& world, const Entity& entity) const {
 
+	if (!world.IsAlive(entity) || !world.HasComponent<SceneObjectComponent>(entity)) {
+		return false;
+	}
 	if (!searchFilter_.IsActive() || EntityMatchesSearch(world, entity)) {
 		return true;
 	}

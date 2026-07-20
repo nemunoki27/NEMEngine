@@ -135,6 +135,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// トランスフォームコンポーネントが無い、もしくは無効の場合
 	if (!world.HasComponent<TransformComponent>(entity) ||
+		!world.HasComponent<SceneObjectComponent>(entity) ||
 		!world.GetComponent<SceneObjectComponent>(entity).activeInHierarchy) {
 		return;
 	}
