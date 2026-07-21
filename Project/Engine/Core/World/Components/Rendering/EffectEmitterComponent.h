@@ -51,8 +51,8 @@ namespace Engine {
 	struct ParticleGroupRuntimeState {
 
 		UUID groupID{};
-		float time = 0.0f;
 		float emitTimer = 0.0f;
+		bool emitted = false;
 		std::vector<Particle> particles{};
 		uint32_t nextParticleID = 0;
 		std::unordered_map<uint32_t, ParticleTrailRuntime> trails{};
@@ -104,6 +104,7 @@ namespace Engine {
 
 		EffectEmitterState state{};
 		float time = 0.0f;
+		float emitTimer = 0.0f;
 		int32_t emittedCount = 0;
 		bool scheduleFinished = false;
 		std::vector<ParticleEffectInstanceRuntime> effects{};

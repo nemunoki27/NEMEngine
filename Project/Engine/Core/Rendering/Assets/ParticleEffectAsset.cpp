@@ -272,7 +272,6 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 		}
 		group.name = groupJson.value("name", group.name);
 		group.enabled = groupJson.value("enabled", group.enabled);
-		group.duration = groupJson.value("duration", group.duration);
 		group.looping = groupJson.value("looping", group.looping);
 		group.emitter.maxParticles = groupJson.value("maxParticles", group.emitter.maxParticles);
 		if (const auto it = groupJson.find("emitter"); it != groupJson.end() && it->is_object()) {
@@ -465,7 +464,6 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 		groupJson["id"] = ToString(group.id);
 		groupJson["name"] = group.name;
 		groupJson["enabled"] = group.enabled;
-		groupJson["duration"] = group.duration;
 		groupJson["looping"] = group.looping;
 		{
 			nlohmann::json e = nlohmann::json::object();

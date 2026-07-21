@@ -3,9 +3,6 @@
 // engine
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
-// c++
-#include <algorithm>
-
 //============================================================================
 //	GraphicsCore classMethods
 //============================================================================
@@ -100,35 +97,6 @@ void Engine::GraphicsCore::Render() {
 	dxCommand->ClearDepthStencilView(dsvDescriptor_->GetFrameCPUHandle());
 	dxCommand->SetViewportAndScissor(swapChainDesc.Width, swapChainDesc.Height);
 }
-
-Engine::PresentationViewport Engine::GraphicsCore::GetPresentationViewport(
-	uint32_t sourceWidth, uint32_t sourceHeight) const {
-
-	PresentationViewport viewport{};
-	const uint32_t targetWidth = swapChain_->GetDesc().Width;
-	const uint32_t targetHeight = swapChain_->GetDesc().Height;
-	if (sourceWidth == 0 || sourceHeight == 0 || targetWidth == 0 || targetHeight == 0) {
-		return viewport;
-	}
-
-	viewport.width = targetWidth;
-	viewport.height = targetHeight;
-	if (static_cast<uint64_t>(targetWidth) * sourceHeight > static_cast<uint64_t>(targetHeight) * sourceWidth) {
-
-		viewport.width = static_cast<uint32_t>(
-			(static_cast<uint64_t>(targetHeight) * sourceWidth + sourceHeight / 2) / sourceHeight);
-		viewport.width = (std::clamp)(viewport.width, 1u, targetWidth);
-		viewport.x = (targetWidth - viewport.width) / 2;
-	} else {
-
-		viewport.height = static_cast<uint32_t>(
-			(static_cast<uint64_t>(targetWidth) * sourceHeight + sourceWidth / 2) / sourceWidth);
-		viewport.height = (std::clamp)(viewport.height, 1u, targetHeight);
-		viewport.y = (targetHeight - viewport.height) / 2;
-	}
-	return viewport;
-}
-
 void Engine::GraphicsCore::EndRenderFrame() {
 
 	auto* dxCommand = graphicsPlatform_->GetDxCommand();

@@ -775,11 +775,9 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		if (hidePanels) {
 
 			const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
-			const PresentationViewport viewport = graphicsCore.GetPresentationViewport(
-				windowSetting.gameSize.x, windowSetting.gameSize.y);
-			Input::GetInstance()->SetViewRect(InputViewArea::Game,
-				Vector2(static_cast<float>(viewport.x), static_cast<float>(viewport.y)),
-				Vector2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)),
+			const DXGI_SWAP_CHAIN_DESC1& swapChainDesc = graphicsCore.GetSwapChainDesc();
+			Input::GetInstance()->SetViewRect(InputViewArea::Game, Vector2(0.0f, 0.0f),
+				Vector2(static_cast<float>(swapChainDesc.Width), static_cast<float>(swapChainDesc.Height)),
 				windowSetting.gameSizeFloat);
 		}
 
@@ -1064,6 +1062,13 @@ void Engine::EngineApplication::ProcessPendingPlayStart() {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"EngineApplication: Play canceled. GameScripts build/reload failed. Staying in Edit mode.");
+		return;
+	}
+	// PlayWorldの再読み込みでも同じ内容を使えるよう、開始直前のEditシーンを保存する
+	if (!IsPrefabEditing() && !SaveActiveEditScene()) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"EngineApplication: Play canceled. Active scene save failed. Staying in Edit mode.");
 		return;
 	}
 

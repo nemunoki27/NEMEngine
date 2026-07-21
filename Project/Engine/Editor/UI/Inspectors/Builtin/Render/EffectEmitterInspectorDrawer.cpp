@@ -54,6 +54,20 @@ namespace {
 		Engine::MyGUI::EndPropertyRow();
 		return result;
 	}
+
+	float ResolveCurrentPlaybackTime(const Engine::EffectEmitterComponent& emitter, Engine::UUID stateID) {
+
+		for (auto playbackIt = emitter.runtimePlaybacks.rbegin();
+			playbackIt != emitter.runtimePlaybacks.rend(); ++playbackIt) {
+
+			const auto found = std::find_if(playbackIt->states.rbegin(), playbackIt->states.rend(),
+				[&](const Engine::EffectEmitterStateRuntime& state) { return state.state.id == stateID; });
+			if (found != playbackIt->states.rend()) {
+				return (std::max)(0.0f, found->time - found->state.delay);
+			}
+		}
+		return 0.0f;
+	}
 }
 
 //============================================================================
@@ -143,22 +157,42 @@ void Engine::EffectEmitterInspectorDrawer::DrawFields(const EditorPanelContext& 
 								});
 						} else if (state.mode == EffectEmitterMode::Continuous) {
 							DrawField(anyItemActive, [&]() {
+								return MyGUI::DragFloat("連続発生間隔", state.interval,
+									{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 3600.0f });
+								});
+							DrawField(anyItemActive, [&]() {
 								return MyGUI::DragFloat("発生時間", state.duration,
 									{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 3600.0f });
 								});
-						}
-						DrawField(anyItemActive, [&]() { return MyGUI::DragVector3("ローカル座標", state.localPosition); });
-						Vector3 localEuler = Quaternion::ToEulerAngles(state.localRotation);
-						DrawField(anyItemActive, [&]() {
-							auto result = MyGUI::DragVector3("ローカル回転", localEuler);
-							if (result.valueChanged) {
-								state.localRotation = Quaternion::Normalize(Quaternion::EulerToQuaternion(localEuler));
+							float currentTime = 0.0f;
+							if (world.IsAlive(entity) && world.HasComponent<EffectEmitterComponent>(entity)) {
+								currentTime = ResolveCurrentPlaybackTime(
+									world.GetComponent<EffectEmitterComponent>(entity), state.id);
 							}
-							return result;
-							});
-						MyGUI::TextQuaternion("Quaternion", state.localRotation);
-						ImGui::Separator();
-						DrawField(anyItemActive, [&]() { return MyGUI::DragVector3("ローカルスケール", state.localScale); });
+							if (0.0f < state.duration) {
+								currentTime = (std::min)(currentTime, state.duration);
+							}
+							if (MyGUI::BeginPropertyRow("現在の再生時間")) {
+								ImGui::Text("%.3f / %.3f", currentTime, state.duration);
+								MyGUI::EndPropertyRow();
+							}
+						}
+						ImGui::Indent();
+						if (MyGUI::CollapsingHeader("ローカルトランスフォーム設定", false)) {
+
+							DrawField(anyItemActive, [&]() { return MyGUI::DragVector3("ローカル座標", state.localPosition); });
+							Vector3 localEuler = Quaternion::ToEulerAngles(state.localRotation);
+							DrawField(anyItemActive, [&]() {
+								auto result = MyGUI::DragVector3("ローカル回転", localEuler);
+								if (result.valueChanged) {
+									state.localRotation = Quaternion::Normalize(Quaternion::EulerToQuaternion(localEuler));
+								}
+								return result;
+								});
+							MyGUI::TextQuaternion("Quaternion", state.localRotation);
+							DrawField(anyItemActive, [&]() { return MyGUI::DragVector3("ローカルスケール", state.localScale); });
+						}
+						ImGui::Unindent();
 
 						if (ImGui::Button("エフェクトを削除", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 							removeStateIndex = stateIndex;
@@ -166,6 +200,7 @@ void Engine::EffectEmitterInspectorDrawer::DrawFields(const EditorPanelContext& 
 						ImGui::TreePop();
 					}
 					ImGui::Separator();
+					ImGui::Spacing();
 					ImGui::PopID();
 				}
 				if (0 <= removeStateIndex) {
@@ -181,11 +216,13 @@ void Engine::EffectEmitterInspectorDrawer::DrawFields(const EditorPanelContext& 
 				if (world.IsAlive(entity) && world.HasComponent<EffectEmitterComponent>(entity)) {
 
 					EffectEmitterComponent& live = world.GetComponent<EffectEmitterComponent>(entity);
-					if (ImGui::Button("Emit")) { live.Emit(group.name); }
+					const float spacing = ImGui::GetStyle().ItemSpacing.x;
+					const float width = (ImGui::GetContentRegionAvail().x - spacing * 2.0f) / 3.0f;
+					if (ImGui::Button("発生", ImVec2(width, 0.0f))) { live.Emit(group.name); }
 					ImGui::SameLine();
-					if (ImGui::Button("Stop")) { live.Stop(group.name); }
+					if (ImGui::Button("停止", ImVec2(width, 0.0f))) { live.Stop(group.name); }
 					ImGui::SameLine();
-					if (ImGui::Button("Clear")) { live.Clear(group.name); }
+					if (ImGui::Button("消去", ImVec2(width, 0.0f))) { live.Clear(group.name); }
 				}
 				if (ImGui::Button("グループを削除", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 					removeGroupIndex = groupIndex;
@@ -193,6 +230,7 @@ void Engine::EffectEmitterInspectorDrawer::DrawFields(const EditorPanelContext& 
 				ImGui::TreePop();
 			}
 			ImGui::Separator();
+			ImGui::Spacing();
 			ImGui::PopID();
 		}
 		if (0 <= removeGroupIndex) {

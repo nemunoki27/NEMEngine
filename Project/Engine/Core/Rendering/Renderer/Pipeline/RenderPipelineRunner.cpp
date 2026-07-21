@@ -567,13 +567,10 @@ bool RenderPipelineRunner::PresentViewToBackBuffer(
 		commandList->SetGraphicsRootDescriptorTable(sourceColorBinding->rootParameterIndex, source->GetColorTexture(0)->GetSRVGPUHandle());
 	}
 
-	// バックバッファをレンダーターゲットとしてバインド
-	dxCommand->BindRenderTargets(std::optional<RenderTarget>(graphicsCore.GetBackBufferRenderTarget()), std::nullopt);
-	const PresentationViewport viewport = graphicsCore.GetPresentationViewport(source->GetWidth(), source->GetHeight());
-	if (viewport.width == 0 || viewport.height == 0) {
-		return false;
-	}
-	dxCommand->SetViewportAndScissor(viewport.x, viewport.y, viewport.width, viewport.height);
+	// バックバッファ全体をレンダーターゲットとしてバインド
+	const RenderTarget& backBuffer = graphicsCore.GetBackBufferRenderTarget();
+	dxCommand->BindRenderTargets(std::optional<RenderTarget>(backBuffer), std::nullopt);
+	dxCommand->SetViewportAndScissor(backBuffer.width, backBuffer.height);
 
 	// 全画面三角形を描画
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

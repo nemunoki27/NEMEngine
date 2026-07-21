@@ -20,7 +20,6 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device, IDXGIFactory7* fa
 	device_ = device;
 	rtvDescriptor_ = rtvDescriptor;
 
-	// flip modelのswapchain bufferは_SRGB不可なので、RTVは_SRGBやHDRのままbufferはUNORM基底へ分離する
 	DXGI_FORMAT bufferFormat = format;
 	DXGI_COLOR_SPACE_TYPE colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
 	switch (format) {
@@ -34,15 +33,12 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device, IDXGIFactory7* fa
 	case DXGI_FORMAT_B8G8R8A8_UNORM:
 		break;
 	case DXGI_FORMAT_R10G10B10A2_UNORM:
-		// HDR10はST2084 PQのRec2020
 		colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
 		break;
 	case DXGI_FORMAT_R16G16B16A16_FLOAT:
-		// scRGB HDRはlinearのRec709
 		colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
 		break;
 	default:
-		// flip model非対応formatは安全側のsRGBへ落とす
 		format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 		bufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 		break;
@@ -64,7 +60,7 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device, IDXGIFactory7* fa
 	desc_.BufferCount = kBufferCount;
 	desc_.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	desc_.Scaling = DXGI_SCALING_NONE;
-	// tearing対応GPUならALLOW_TEARINGを付けてFPS制限解除時にvsyncの上限を外せるようにする
+	// FPS制限解除
 	BOOL allowTearing = FALSE;
 	if (SUCCEEDED(factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing))) && allowTearing) {
 		desc_.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;

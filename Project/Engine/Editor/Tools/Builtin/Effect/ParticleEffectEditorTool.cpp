@@ -618,7 +618,6 @@ bool ParticleEffectEditorTool::DrawBasicSection(
 			ImGui::Separator();
 
 			ImGui::BeginDisabled(draft_.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous);
-			changed |= MyGUI::DragFloat("発生継続時間", group.duration, MakeDragSetting(0.01f, 600.0f)).valueChanged;
 			changed |= MyGUI::Checkbox("ループ再生", group.looping);
 			ImGui::EndDisabled();
 		}

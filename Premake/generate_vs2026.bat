@@ -146,10 +146,16 @@ set "GP_NAME=%~nx1"
 set "GP_APP=%GP_CONTAINER%\%GP_NAME%"
 echo --- Game project: %GP_NAME% ---
 
-rem ゲームのGameScripts.csprojはslnxへ登録しない。
-rem エンジンはcsproj名/アセンブリ名を"GameScripts"固定で要求するためリネームできず、
-rem Sandboxと同名「GameScripts」プロジェクトが2つ並ぶとVSがslnxを読み込めなくなる。
-rem ゲームのC#はvcxprojのprebuild(patch_vcxproj_managed_config)でビルドされるので実行・デバッグは可能。
+rem GameScripts.csprojはランタイム契約を維持したまま、ゲームごとのソリューションフォルダーへ登録する。
+rem Sandboxと同名でも別フォルダー配下ならVisual Studio上で共存でき、補完とコード解析が有効になる。
+if exist "%GP_APP%\Scripts\GameScripts.csproj" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_script_slnx.ps1" -SlnxPath "%ENGINE_ROOT%\Project\NEMEngine.slnx" -GameScriptsProject "%GP_APP%\Scripts\GameScripts.csproj" -GameScriptsSolutionFolder "GameProjects\%GP_NAME%"
+    if errorlevel 1 (
+        echo [ERROR] Failed to add C# project to solution: %GP_NAME%
+        endlocal
+        exit /b 1
+    )
+)
 
 rem 作業ディレクトリはアプリの1つ上(コンテナ)。コンテナ直下でGameAssetsを持つのはappだけなので、
 rem RuntimePaths がSandboxへフォールバックせず確実にこのゲームを拾う。エンジンのProjectルートは環境変数で示す。

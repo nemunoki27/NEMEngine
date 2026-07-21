@@ -24,6 +24,7 @@
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleGravityForceModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleNoiseForceModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleSpiralMovementModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticlePendulumMovementModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleFlipbookModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleShapeOverLifetimeModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleCustomShaderParameterModule.h>
@@ -210,7 +211,7 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 						++effectIt;
 					}
 				}
-				if (state.state.mode == EffectEmitterMode::Continuous &&
+				if (state.state.mode == EffectEmitterMode::Continuous && state.state.interval <= 0.0f &&
 					0 < state.emittedCount && state.effects.empty()) {
 					state.scheduleFinished = true;
 				}
@@ -310,15 +311,27 @@ void Engine::ParticleSystem::UpdateStateSchedule(EffectEmitterComponent& emitter
 
 		bool startedThisFrame = false;
 		if (state.emittedCount == 0 && state.state.delay <= state.time) {
-			AddEffectInstance(emitter, state, false);
+			AddEffectInstance(emitter, state, 0.0f < state.state.interval);
 			state.emittedCount = 1;
+			state.emitTimer = 0.0f;
 			startedThisFrame = true;
 		}
 		if (!startedThisFrame && 0.0f < state.state.duration &&
 			state.state.delay + state.state.duration <= state.time) {
 			state.scheduleFinished = true;
-			for (ParticleEffectInstanceRuntime& effect : state.effects) {
-				effect.emissionStopped = true;
+			if (state.state.interval <= 0.0f) {
+				for (ParticleEffectInstanceRuntime& effect : state.effects) {
+					effect.emissionStopped = true;
+				}
+			}
+		} else if (!startedThisFrame && 0.0f < state.state.interval) {
+
+			state.emitTimer += deltaTime;
+			if (state.state.interval <= state.emitTimer) {
+
+				AddEffectInstance(emitter, state, true);
+				++state.emittedCount;
+				state.emitTimer = 0.0f;
 			}
 		}
 		break;
@@ -396,9 +409,9 @@ void Engine::ParticleSystem::RestartEffectInstance(
 	for (size_t i = 0; i < instance.runtimeGroups.size(); ++i) {
 
 		ParticleGroupRuntimeState& state = instance.runtimeGroups[i];
-		state.time = 0.0f;
 		state.emitTimer = i < asset.groups.size() ?
 			(std::max)(0.0f, asset.groups[i].emitter.emitInterval) : 0.0f;
+		state.emitted = false;
 	}
 }
 
@@ -493,7 +506,7 @@ bool Engine::ParticleSystem::UpdateEffectInstance(ECSWorld& world,
 		const ParticleEffectGroup& group = asset.groups[i];
 		if (!group.enabled) { continue; }
 		if (!instance.oneShot && group.looping) { return false; }
-		if (instance.runtimeGroups[i].time < group.duration) { return false; }
+		if (!instance.runtimeGroups[i].emitted) { return false; }
 	}
 	return true;
 }
@@ -516,20 +529,11 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Matrix4x4& emitt
 		return;
 	}
 
+	const bool emitOnce = oneShot ||
+		(asset.groupEmission.mode == ParticleEffectGroupEmissionMode::Independent && !group.looping);
 	bool emitAllowed = emissionEnabled &&
 		(asset.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous ? simultaneousEmit : true);
-	if (asset.groupEmission.mode == ParticleEffectGroupEmissionMode::Independent) {
-
-		if (group.looping && !oneShot) {
-
-			state.time += deltaTime;
-			if (0.0f < group.duration) { state.time = std::fmod(state.time, group.duration); }
-		} else {
-
-			emitAllowed = emissionEnabled && state.time < group.duration;
-			state.time += deltaTime;
-		}
-	}
+	if (emitOnce && state.emitted) { emitAllowed = false; }
 
 	// 寿命と移動、終端はLifeEndModeに従って遷移し、破棄する粒子は末尾と入れ替える
 	std::vector<Particle>& particles = state.particles;
@@ -599,6 +603,11 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Matrix4x4& emitt
 		uint32_t spawnCount = 0;
 		if (asset.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous) {
 			spawnCount = emitterSettings.emitCount.Sample();
+			state.emitted = true;
+		} else if (emitOnce) {
+
+			spawnCount = emitterSettings.emitCount.Sample();
+			state.emitted = true;
 		} else {
 
 			state.emitTimer += deltaTime;

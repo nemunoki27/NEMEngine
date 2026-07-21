@@ -98,8 +98,6 @@ namespace Engine {
 		std::string name = "Group 1";
 		// グループを再生するか
 		bool enabled = true;
-		// エミッターの再生時間、ループ時はこの周期で折り返す
-		float duration = 2.0f;
 		// ループ再生するか
 		bool looping = true;
 

@@ -205,7 +205,7 @@ bool WinApp::ProcessMessage() {
 
 Vector2I WinApp::GetClientSize() {
 
-	if (!hwnd_) {
+	if (!hwnd_ || !IsWindow(hwnd_) || IsIconic(hwnd_)) {
 		return {};
 	}
 
