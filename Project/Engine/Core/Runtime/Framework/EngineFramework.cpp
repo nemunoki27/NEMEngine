@@ -64,6 +64,8 @@ void Framework::Tick() {
 		isRunning_ = false;
 		return;
 	}
+	// ウィンドウ変更を描画と入力更新より前に反映する
+	graphicsCore_->SyncWindowSize();
 
 	// 時間更新
 	frameTimer_.Update();

@@ -569,7 +569,11 @@ bool RenderPipelineRunner::PresentViewToBackBuffer(
 
 	// バックバッファをレンダーターゲットとしてバインド
 	dxCommand->BindRenderTargets(std::optional<RenderTarget>(graphicsCore.GetBackBufferRenderTarget()), std::nullopt);
-	dxCommand->SetViewportAndScissor(static_cast<uint32_t>(graphicsCore.GetSwapChainDesc().Width), static_cast<uint32_t>(graphicsCore.GetSwapChainDesc().Height));
+	const PresentationViewport viewport = graphicsCore.GetPresentationViewport(source->GetWidth(), source->GetHeight());
+	if (viewport.width == 0 || viewport.height == 0) {
+		return false;
+	}
+	dxCommand->SetViewportAndScissor(viewport.x, viewport.y, viewport.width, viewport.height);
 
 	// 全画面三角形を描画
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

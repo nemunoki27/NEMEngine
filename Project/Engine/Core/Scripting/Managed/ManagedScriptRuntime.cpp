@@ -274,6 +274,8 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.worldToScreenPoint = &ManagedScriptRuntime::WorldToScreenPointCallback;
 	callbacks.canvasScreenToLocalPoint = &ManagedScriptRuntime::CanvasScreenToLocalPointCallback;
 	callbacks.irisTransitionCommand = &ManagedScriptRuntime::IrisTransitionCommandCallback;
+	callbacks.audioPlayOneShot = &ManagedScriptRuntime::AudioPlayOneShotCallback;
+	callbacks.audioUnPause = &ManagedScriptRuntime::AudioUnPauseCallback;
 	callbacks.getEntityReferenceIdentity = &ManagedScriptRuntime::GetEntityReferenceIdentityCallback;
 	// v21のレイキャストとカメラレイとCollisionタイプ名解決
 	callbacks.physicsRaycast = &ManagedScriptRuntime::PhysicsRaycastCallback;
@@ -485,6 +487,8 @@ Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance
 
 	const std::string json = serializedFields.is_object() ? serializedFields.dump() : std::string("{}");
 	ManagedScriptInstanceHandle createdHandle = ManagedScriptInstanceHandle::Null();
+	// EntityとComponent参照の復元中だけ生成対象のWorldを参照可能にする
+	ScopedReferenceWorld worldScope(world);
 	const ManagedStatus status = createInstance_(scriptTypeID.c_str(), MakeNativeEntity(world, entity), json.c_str(),
 		scriptSlotID, &createdHandle);
 	// 生成失敗時は無効ハンドルを返す

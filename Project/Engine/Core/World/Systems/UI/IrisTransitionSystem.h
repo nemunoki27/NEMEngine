@@ -26,6 +26,8 @@ namespace Engine {
 		void OnWorldEnter(ECSWorld& world, SystemContext& context) override;
 		void OnWorldExit(ECSWorld& world, SystemContext& context) override;
 		void Update(ECSWorld& world, SystemContext& context) override;
+		void OnSceneInstancesChanged(ECSWorld& world, SystemContext& context,
+			SceneChangePhase phase) override;
 
 		//--------- accessor -----------------------------------------------------
 

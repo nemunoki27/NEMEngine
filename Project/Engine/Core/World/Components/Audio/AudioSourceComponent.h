@@ -9,8 +9,41 @@
 // c++
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace Engine {
+
+	// AudioSourceへの再生要求
+	enum class AudioSourceCommandType {
+
+		Play,
+		PlayOneShot,
+		Pause,
+		UnPause,
+		Stop,
+	};
+
+	// AudioSourceSystemが順番に消費する再生要求
+	struct AudioSourceCommand {
+
+		AudioSourceCommandType type = AudioSourceCommandType::Play;
+		AssetID clip{};
+		float volumeScale = 1.0f;
+		bool loop = false;
+	};
+
+	// AudioSourceが所有する再生インスタンス
+	struct AudioSourcePlaybackRuntime {
+
+		AssetID clip{};
+		std::string key{};
+		uint64_t voiceID = 0;
+		float volumeScale = 1.0f;
+		float appliedVolume = -1.0f;
+		bool primary = false;
+		bool loop = false;
+		bool paused = false;
+	};
 
 	//============================================================================
 	//	AudioSourceComponent struct
@@ -29,16 +62,27 @@ namespace Engine {
 		// 音量
 		float volume = 1.0f;
 
-		// Runtime用でScene/Prefabには保存しない
+		// Runtime状態はSceneとPrefabに保存しない
 		bool runtimePlaying = false;
-		AssetID runtimeClip{};
-		std::string runtimeKey{};
-		uint64_t runtimeVoiceID = 0;
-		bool runtimePlayOnAwakeConsumed = false;
-		// gameplay C#からの明示要求でAudioSourceSystemが消費する、0=なし 1=Play 2=Pause 3=Stop
-		int runtimePlayRequest = 0;
-		// 一時停止中かでvoiceは保持されている
 		bool runtimePaused = false;
+		bool runtimeActive = false;
+		bool runtimePlayOnAwakeConsumed = false;
+		std::vector<AudioSourcePlaybackRuntime> runtimePlaybacks{};
+		std::vector<AudioSourceCommand> runtimeCommands{};
+
+		// Clipを主再生として先頭から再生
+		void Play();
+		// Clipを重ねて一度だけ再生
+		void PlayOneShot(AssetID audioClip, float volumeScale = 1.0f);
+		// 所有する再生を一時停止
+		void Pause();
+		// 所有する一時停止中の再生を再開
+		void UnPause();
+		// 所有する再生をすべて停止
+		void Stop();
+
+		// 一時停止していない再生が存在するか
+		bool IsPlaying() const { return runtimePlaying; }
 	};
 
 	// json変換

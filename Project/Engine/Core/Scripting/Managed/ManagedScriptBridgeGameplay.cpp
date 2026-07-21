@@ -7,7 +7,6 @@
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
-#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
@@ -86,19 +85,51 @@ namespace Engine {
 		}
 	}
 
-	ManagedNativeEntity ManagedScriptRuntime::ResolveEntityRefCallback([[maybe_unused]] uint64_t sourceAsset, uint64_t localFileID) {
+	ManagedNativeEntity ManagedScriptRuntime::ResolveEntityRefCallback(uint64_t sourceAsset, uint64_t localFileID) {
 
-		// localFileIDはEdit/Playをまたいで安定するため、これで現在のworldのentityを引く
-		// sourceAssetは将来のマルチシーン絞り込み用で現状は未使用
+		// localFileIDとsourceAssetから現在のworldのentityを引く
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : currentReferenceWorld_;
 		if (!world || localFileID == 0) {
 			return MakeNullNativeEntity();
 		}
 
-		UUID id{};
-		id.value = localFileID;
-		const Entity entity = SceneObjectUtility::FindByLocalFileID(*world, id);
+		const SceneInstanceManager* sceneInstances =
+			world->GetCommandServices().sceneInstances;
+		const SceneInstance* activeScene = sceneInstances ? sceneInstances->GetActive() : nullptr;
+		const UUID activeSceneInstanceID = activeScene ? activeScene->instanceID : UUID{};
+
+		Entity fallback = Entity::Null();
+		Entity sourceMatch = Entity::Null();
+		Entity activeMatch = Entity::Null();
+		Entity activeSourceMatch = Entity::Null();
+		world->ForEach<SceneObjectComponent>([&](Entity entity,
+			SceneObjectComponent& sceneObject) {
+
+			if (sceneObject.localFileID.value != localFileID) {
+				return;
+			}
+			if (!world->IsAlive(fallback)) {
+				fallback = entity;
+			}
+			const bool sourceMatched = sourceAsset == 0 ||
+				sceneObject.sourceAsset.value == sourceAsset;
+			const bool activeMatched = activeSceneInstanceID &&
+				sceneObject.sceneInstanceID == activeSceneInstanceID;
+			if (sourceMatched && !world->IsAlive(sourceMatch)) {
+				sourceMatch = entity;
+			}
+			if (activeMatched && !world->IsAlive(activeMatch)) {
+				activeMatch = entity;
+			}
+			if (sourceMatched && activeMatched && !world->IsAlive(activeSourceMatch)) {
+				activeSourceMatch = entity;
+			}
+			});
+
+		const Entity entity = world->IsAlive(activeSourceMatch) ? activeSourceMatch :
+			world->IsAlive(sourceMatch) ? sourceMatch :
+			world->IsAlive(activeMatch) ? activeMatch : fallback;
 		if (!world->IsAlive(entity)) {
 			return MakeNullNativeEntity();
 		}
@@ -329,10 +360,10 @@ namespace Engine {
 		const uint64_t beforeSerial = iris->runtimeCommandSerial;
 		switch (command) {
 		case 0:
-			iris->IrisOut();
+			iris->IrisOut(value);
 			break;
 		case 1:
-			iris->IrisIn();
+			iris->IrisIn(value);
 			break;
 		case 2:
 			iris->SetProgress(value);
@@ -944,7 +975,7 @@ namespace Engine {
 
 	//============================================================================
 	//	AudioSourceのゲームプレイメソッド
-	//	実際の音声制御はAudioSourceSystemがruntimePlayRequestを消費して行い1フレーム遅延する
+	//	実際の音声制御はAudioSourceSystemが再生要求を順番に消費する
 	//============================================================================
 	namespace {
 
@@ -961,26 +992,39 @@ namespace Engine {
 
 	void ManagedScriptRuntime::AudioPlayCallback(ManagedNativeEntity entity) {
 		if (AudioSourceComponent* audio = ResolveAudioSource(entity)) {
-			audio->runtimePlayRequest = 1;
+			audio->Play();
+		}
+	}
+
+	void ManagedScriptRuntime::AudioPlayOneShotCallback(
+		ManagedNativeEntity entity, uint64_t clipID, float volumeScale) {
+
+		if (AudioSourceComponent* audio = ResolveAudioSource(entity)) {
+			audio->PlayOneShot(AssetID{ clipID }, volumeScale);
 		}
 	}
 
 	void ManagedScriptRuntime::AudioPauseCallback(ManagedNativeEntity entity) {
 		if (AudioSourceComponent* audio = ResolveAudioSource(entity)) {
-			audio->runtimePlayRequest = 2;
+			audio->Pause();
+		}
+	}
+
+	void ManagedScriptRuntime::AudioUnPauseCallback(ManagedNativeEntity entity) {
+		if (AudioSourceComponent* audio = ResolveAudioSource(entity)) {
+			audio->UnPause();
 		}
 	}
 
 	void ManagedScriptRuntime::AudioStopCallback(ManagedNativeEntity entity) {
 		if (AudioSourceComponent* audio = ResolveAudioSource(entity)) {
-			audio->runtimePlayRequest = 3;
+			audio->Stop();
 		}
 	}
 
 	int32_t ManagedScriptRuntime::AudioIsPlayingCallback(ManagedNativeEntity entity) {
 		const AudioSourceComponent* audio = ResolveAudioSource(entity);
-		// pause中は再生中扱いにしない
-		return (audio && audio->runtimePlaying && !audio->runtimePaused) ? 1 : 0;
+		return audio && audio->IsPlaying() ? 1 : 0;
 	}
 
 } // Engine

@@ -15,6 +15,15 @@
 
 namespace Engine {
 
+	// バックバッファへアスペクト比を維持して表示する矩形
+	struct PresentationViewport {
+
+		uint32_t x = 0;
+		uint32_t y = 0;
+		uint32_t width = 0;
+		uint32_t height = 0;
+	};
+
 	//============================================================================
 	//	GraphicsCore class
 	//	グラフィックス全般の管理を行うクラス
@@ -33,6 +42,8 @@ namespace Engine {
 
 		// 毎フレーム更新
 		void TickFrameServices();
+		// 実クライアントサイズへバックバッファを同期する
+		void SyncWindowSize();
 
 		// フレーム開始/終了処理
 		void BeginRenderFrame();
@@ -67,6 +78,8 @@ namespace Engine {
 		const RenderTarget& GetBackBufferRenderTarget() const { return swapChain_->GetRenderTarget(); }
 		ID3D12Resource* GetBackBufferResource() const { return swapChain_->GetCurrentResource(); }
 		const DXGI_SWAP_CHAIN_DESC1& GetSwapChainDesc() const { return swapChain_->GetDesc(); }
+		// 元画像のアスペクト比を維持するバックバッファ上の表示矩形を返す
+		PresentationViewport GetPresentationViewport(uint32_t sourceWidth, uint32_t sourceHeight) const;
 
 		// フレームバッファのDSVを取得
 		const D3D12_CPU_DESCRIPTOR_HANDLE& GetFrameDepthHandle() const { return dsvDescriptor_->GetFrameCPUHandle(); }

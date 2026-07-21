@@ -24,5 +24,8 @@ namespace Engine {
 		// カラーリソースからRTVを作成しCPUハンドルを割り当てる
 		void Create(uint32_t& index, D3D12_CPU_DESCRIPTOR_HANDLE& handle,
 			ID3D12Resource* resource, const D3D12_RENDER_TARGET_VIEW_DESC& desc);
+		// 確保済みRTVを新しいカラーリソースへ更新する
+		void Recreate(uint32_t index, const D3D12_CPU_DESCRIPTOR_HANDLE& handle,
+			ID3D12Resource* resource, const D3D12_RENDER_TARGET_VIEW_DESC& desc);
 	};
 }; // Engine

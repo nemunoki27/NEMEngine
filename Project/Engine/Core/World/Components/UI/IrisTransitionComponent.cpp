@@ -35,20 +35,22 @@ namespace {
 //============================================================================
 //	IrisTransitionComponent structMethods
 //============================================================================
-void Engine::IrisTransitionComponent::IrisOut() {
+void Engine::IrisTransitionComponent::IrisOut(float progress) {
 
 	if (!enabled) {
 		return;
 	}
-	QueueCommand(*this, IrisTransitionCommand::IrisOut);
+	QueueCommand(*this, IrisTransitionCommand::IrisOut,
+		std::clamp(progress, 0.0f, 1.0f));
 }
 
-void Engine::IrisTransitionComponent::IrisIn() {
+void Engine::IrisTransitionComponent::IrisIn(float progress) {
 
 	if (!enabled) {
 		return;
 	}
-	QueueCommand(*this, IrisTransitionCommand::IrisIn);
+	QueueCommand(*this, IrisTransitionCommand::IrisIn,
+		std::clamp(progress, 0.0f, 1.0f));
 }
 
 void Engine::IrisTransitionComponent::SetProgress(float progress) {

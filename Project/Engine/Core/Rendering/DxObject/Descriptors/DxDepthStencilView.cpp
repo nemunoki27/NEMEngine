@@ -50,9 +50,27 @@ void DSVDescriptor::CreateDepthResource(ComPtr<ID3D12Resource>& resource,
 void DSVDescriptor::InitFrameBufferDSV(uint32_t width, uint32_t height) {
 
 	// フレームで利用するDSVを作成
-	uint32_t unusedIndex = UINT32_MAX;
-	CreateDSV(width, height, unusedIndex, dsvCPUHandle_, resource_,
+	CreateDSV(width, height, frameDSVIndex_, dsvCPUHandle_, resource_,
 		DXGI_FORMAT_D24_UNORM_S8_UINT, DXGI_FORMAT_D24_UNORM_S8_UINT);
+}
+
+void DSVDescriptor::ResizeFrameBufferDSV(uint32_t width, uint32_t height) {
+
+	if (frameDSVIndex_ == UINT32_MAX) {
+		InitFrameBufferDSV(width, height);
+		return;
+	}
+
+	resource_.Reset();
+	CreateDepthResource(resource_, width, height,
+		DXGI_FORMAT_D24_UNORM_S8_UINT, DXGI_FORMAT_D24_UNORM_S8_UINT);
+	UpdateResourceName(frameDSVIndex_, resource_.Get());
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+	device_->CreateDepthStencilView(resource_.Get(), &dsvDesc, dsvCPUHandle_);
 }
 
 void Engine::DSVDescriptor::CreateDSV(uint32_t width, uint32_t height, uint32_t& index,

@@ -7,13 +7,18 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Core/DxDevice.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 //============================================================================
 //	DxSwapChain classMethods
 //============================================================================
-void DxSwapChain::Create(WinApp* winApp, IDXGIFactory7* factory, ID3D12CommandQueue* queue, RTVDescriptor* rtvDescriptor,
+void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device, IDXGIFactory7* factory, ID3D12CommandQueue* queue, RTVDescriptor* rtvDescriptor,
 	uint32_t width, uint32_t height, DXGI_FORMAT format, const Color4& clearColor) {
+
+	device_ = device;
+	rtvDescriptor_ = rtvDescriptor;
 
 	// flip modelのswapchain bufferは_SRGB不可なので、RTVは_SRGBやHDRのままbufferはUNORM基底へ分離する
 	DXGI_FORMAT bufferFormat = format;
@@ -80,20 +85,63 @@ void DxSwapChain::Create(WinApp* winApp, IDXGIFactory7* factory, ID3D12CommandQu
 		}
 	}
 
-	// バックバッファのリソースとRTVを作成
+	Assert::Call(CreateBackBufferResources(true), "SwapChain back buffer creation failed.");
+}
+
+bool DxSwapChain::Resize(uint32_t width, uint32_t height) {
+
+	if (!swapChain_ || width == 0 || height == 0) {
+		return false;
+	}
+	if (desc_.Width == width && desc_.Height == height) {
+		return true;
+	}
+
+	for (ComPtr<ID3D12Resource>& resource : resources_) {
+		resource.Reset();
+	}
+
+	const HRESULT resizeResult = swapChain_->ResizeBuffers(
+		kBufferCount, width, height, desc_.Format, desc_.Flags);
+	if (!DxDredDiagnostics::CheckHRESULT(device_, resizeResult, "DxSwapChain::Resize/ResizeBuffers")) {
+		Assert::Call(false, "SwapChain ResizeBuffers failed.");
+		return false;
+	}
+
+	desc_.Width = width;
+	desc_.Height = height;
+	renderTarget_.width = width;
+	renderTarget_.height = height;
+
+	const bool created = CreateBackBufferResources(false);
+	Assert::Call(created, "SwapChain back buffer recreation failed.");
+	return created;
+}
+
+bool DxSwapChain::CreateBackBufferResources(bool allocateDescriptors) {
+
+	if (!swapChain_ || !rtvDescriptor_) {
+		return false;
+	}
+
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
-	rtvDesc.Format = format;
+	rtvDesc.Format = renderTarget_.format;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-	uint32_t unusedIndex = UINT32_MAX;
 	for (uint32_t index = 0; index < kBufferCount; ++index) {
 
-		hr = swapChain_->GetBuffer(index, IID_PPV_ARGS(&resources_[index]));
-		assert(SUCCEEDED(hr));
+		const HRESULT getBufferResult = swapChain_->GetBuffer(index, IID_PPV_ARGS(&resources_[index]));
+		if (!DxDredDiagnostics::CheckHRESULT(device_, getBufferResult, "DxSwapChain::CreateBackBufferResources/GetBuffer")) {
+			return false;
+		}
 		resources_[index]->SetName((L"backBufferResource" + std::to_wstring(index)).c_str());
 
-		// RTV作成
-		rtvDescriptor->Create(unusedIndex, rtvHandles_[index], resources_[index].Get(), rtvDesc);
+		if (allocateDescriptors) {
+			rtvDescriptor_->Create(rtvIndices_[index], rtvHandles_[index], resources_[index].Get(), rtvDesc);
+		} else {
+			rtvDescriptor_->Recreate(rtvIndices_[index], rtvHandles_[index], resources_[index].Get(), rtvDesc);
+		}
 	}
+	return true;
 }
 
 ID3D12Resource* DxSwapChain::GetCurrentResource() const {

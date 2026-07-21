@@ -775,8 +775,12 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		if (hidePanels) {
 
 			const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
-			Input::GetInstance()->SetViewRect(InputViewArea::Game, Vector2(0.0f, 0.0f),
-				windowSetting.engineSizeFloat, windowSetting.gameSizeFloat);
+			const PresentationViewport viewport = graphicsCore.GetPresentationViewport(
+				windowSetting.gameSize.x, windowSetting.gameSize.y);
+			Input::GetInstance()->SetViewRect(InputViewArea::Game,
+				Vector2(static_cast<float>(viewport.x), static_cast<float>(viewport.y)),
+				Vector2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)),
+				windowSetting.gameSizeFloat);
 		}
 
 		// エディタのフレーム開始処理
@@ -799,9 +803,17 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		FrameProfiler::ScopedSample ecsSample(FrameProfiler::Category::Ecs);
 		// Play中にscript例外が出たらUnity風にEditへ戻すため、tick前後で例外storeのversionを比べる
 		const bool playingThisTick = worldManager_.IsPlaying();
+		const uint64_t sceneRevisionBeforeTick = playingThisTick ?
+			playScenes_.GetRevision() : 0;
 		const uint64_t scriptExceptionVersion = playingThisTick ?
 			ManagedScriptExceptionStore::GetInstance().Version() : 0;
 		scheduler_.Tick(GetActiveWorld(), systemContext_);
+		if (playingThisTick &&
+			sceneRevisionBeforeTick != playScenes_.GetRevision()) {
+
+			// 同期シーン読み込みに使った時間を次のPlayフレームへ持ち越さない
+			requestFrameDeltaReset_ = true;
+		}
 		if (playingThisTick &&
 			ManagedScriptExceptionStore::GetInstance().Version() != scriptExceptionVersion) {
 

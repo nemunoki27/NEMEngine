@@ -81,6 +81,7 @@ bool Engine::SceneInstanceManager::LoadAdditive(AssetDatabase& database,
 
 	// インスタンスをリストに追加する
 	scenes_.emplace_back(std::move(instance));
+	++revision_;
 	return true;
 }
 
@@ -112,6 +113,7 @@ Engine::UUID Engine::SceneInstanceManager::CreateScratchScene(const SceneHeader&
 	// 一時シーンを唯一のアクティブシーンにする
 	active_ = id;
 	scenes_.emplace_back(std::move(instance));
+	++revision_;
 	return id;
 }
 
@@ -143,6 +145,7 @@ bool Engine::SceneInstanceManager::Unload(ECSWorld& world, UUID instanceID) {
 
 			active_ = scenes_.empty() ? UUID{} : scenes_.front().instanceID;
 		}
+		++revision_;
 		return true;
 	}
 	return false;
@@ -214,6 +217,7 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 	active_ = UUID{};
 	singleLoadRequestPending_ = false;
 	if (!snapshot.is_object() || !snapshot.contains("Scenes") || !snapshot["Scenes"].is_array()) {
+		++revision_;
 		return false;
 	}
 
@@ -262,6 +266,7 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 	if (!Find(active_) && !scenes_.empty()) {
 		active_ = scenes_.front().instanceID;
 	}
+	++revision_;
 	return true;
 }
 
@@ -327,18 +332,21 @@ bool Engine::SceneInstanceManager::LoadSceneTree(AssetDatabase& database,
 	if (!rootInstanceID) {
 		scenes_.clear();
 		active_ = UUID{};
+		++revision_;
 		return false;
 	}
 	active_ = rootInstanceID;
+	++revision_;
 	return true;
 }
 
 void Engine::SceneInstanceManager::SetActive(UUID instanceID) {
 
 	// インスタンスIDからシーンインスタンスを探して、存在すればアクティブにする
-	if (Find(instanceID)) {
+	if (active_ != instanceID && Find(instanceID)) {
 
 		active_ = instanceID;
+		++revision_;
 	}
 }
 

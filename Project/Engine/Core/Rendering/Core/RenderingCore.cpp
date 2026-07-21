@@ -1,5 +1,11 @@
 #include "RenderingCore.h"
 
+// engine
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
+
+// c++
+#include <algorithm>
+
 //============================================================================
 //	GraphicsCore classMethods
 //============================================================================
@@ -14,6 +20,11 @@ void Engine::GraphicsCore::Init() {
 	const auto& window = engineContext_->GetWindowSetting();
 	const auto& graphics = engineContext_->GetGraphicsSetting();
 	ID3D12Device8* device = graphicsPlatform_->GetDevice();
+	const Vector2I clientSize = WinApp::GetClientSize();
+	const uint32_t frameWidth = clientSize.x > 0 ?
+		static_cast<uint32_t>(clientSize.x) : static_cast<uint32_t>(window.engineSize.x);
+	const uint32_t frameHeight = clientSize.y > 0 ?
+		static_cast<uint32_t>(clientSize.y) : static_cast<uint32_t>(window.engineSize.y);
 
 	// デスクリプタ初期化
 	rtvDescriptor_ = std::make_unique<RTVDescriptor>();
@@ -23,12 +34,12 @@ void Engine::GraphicsCore::Init() {
 	srvDescriptor_ = std::make_unique<SRVDescriptor>();
 	srvDescriptor_->Init(device, DescriptorType(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
 	// フレームバッファ用のDSVを初期化
-	dsvDescriptor_->InitFrameBufferDSV(window.engineSize.x, window.engineSize.y);
+	dsvDescriptor_->InitFrameBufferDSV(frameWidth, frameHeight);
 
 	// スワップチェーン初期化
 	swapChain_ = std::make_unique<DxSwapChain>();
-	swapChain_->Create(engineContext_->GetWinApp(), graphicsPlatform_->GetDxgiFactory(), graphicsPlatform_->GetCommandQueue()->GetQueue(),
-		rtvDescriptor_.get(), window.engineSize.x, window.engineSize.y, graphics.swapChainFormat, graphics.clearColor);
+	swapChain_->Create(engineContext_->GetWinApp(), device, graphicsPlatform_->GetDxgiFactory(), graphicsPlatform_->GetCommandQueue()->GetQueue(),
+		rtvDescriptor_.get(), frameWidth, frameHeight, graphics.swapChainFormat, graphics.clearColor);
 
 	// 静的GPUバッファ転送サービスの初期化(テクスチャ用とは独立)
 	bufferUploadService_ = std::make_unique<BufferUploadService>();
@@ -47,6 +58,29 @@ void Engine::GraphicsCore::TickFrameServices() {
 	bufferUploadService_->TickFinalize();
 }
 
+void Engine::GraphicsCore::SyncWindowSize() {
+
+	const Vector2I clientSize = WinApp::GetClientSize();
+	if (clientSize.x <= 0 || clientSize.y <= 0) {
+		return;
+	}
+
+	const uint32_t width = static_cast<uint32_t>(clientSize.x);
+	const uint32_t height = static_cast<uint32_t>(clientSize.y);
+	if (swapChain_->GetDesc().Width == width && swapChain_->GetDesc().Height == height) {
+		return;
+	}
+
+	const uint32_t previousWidth = swapChain_->GetDesc().Width;
+	const uint32_t previousHeight = swapChain_->GetDesc().Height;
+	graphicsPlatform_->WaitForGPU();
+	if (swapChain_->Resize(width, height)) {
+		dsvDescriptor_->ResizeFrameBufferDSV(width, height);
+		Logger::Output(LogType::Engine, "SwapChain resized: {}x{} -> {}x{}",
+			previousWidth, previousHeight, width, height);
+	}
+}
+
 void Engine::GraphicsCore::BeginRenderFrame() {
 
 	auto* dxCommand = graphicsPlatform_->GetDxCommand();
@@ -59,12 +93,40 @@ void Engine::GraphicsCore::BeginRenderFrame() {
 void Engine::GraphicsCore::Render() {
 
 	auto* dxCommand = graphicsPlatform_->GetDxCommand();
-	const auto& window = engineContext_->GetWindowSetting();
+	const DXGI_SWAP_CHAIN_DESC1& swapChainDesc = swapChain_->GetDesc();
 
 	// 描画に必要な情報設定
 	dxCommand->SetRenderTargets(std::optional<RenderTarget>(swapChain_->GetRenderTarget()), dsvDescriptor_->GetFrameCPUHandle());
 	dxCommand->ClearDepthStencilView(dsvDescriptor_->GetFrameCPUHandle());
-	dxCommand->SetViewportAndScissor(window.engineSize.x, window.engineSize.y);
+	dxCommand->SetViewportAndScissor(swapChainDesc.Width, swapChainDesc.Height);
+}
+
+Engine::PresentationViewport Engine::GraphicsCore::GetPresentationViewport(
+	uint32_t sourceWidth, uint32_t sourceHeight) const {
+
+	PresentationViewport viewport{};
+	const uint32_t targetWidth = swapChain_->GetDesc().Width;
+	const uint32_t targetHeight = swapChain_->GetDesc().Height;
+	if (sourceWidth == 0 || sourceHeight == 0 || targetWidth == 0 || targetHeight == 0) {
+		return viewport;
+	}
+
+	viewport.width = targetWidth;
+	viewport.height = targetHeight;
+	if (static_cast<uint64_t>(targetWidth) * sourceHeight > static_cast<uint64_t>(targetHeight) * sourceWidth) {
+
+		viewport.width = static_cast<uint32_t>(
+			(static_cast<uint64_t>(targetHeight) * sourceWidth + sourceHeight / 2) / sourceHeight);
+		viewport.width = (std::clamp)(viewport.width, 1u, targetWidth);
+		viewport.x = (targetWidth - viewport.width) / 2;
+	} else {
+
+		viewport.height = static_cast<uint32_t>(
+			(static_cast<uint64_t>(targetWidth) * sourceHeight + sourceWidth / 2) / sourceWidth);
+		viewport.height = (std::clamp)(viewport.height, 1u, targetHeight);
+		viewport.y = (targetHeight - viewport.height) / 2;
+	}
+	return viewport;
 }
 
 void Engine::GraphicsCore::EndRenderFrame() {

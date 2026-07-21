@@ -37,6 +37,8 @@ namespace Engine {
 		void FixedUpdate(ECSWorld& world, SystemContext& context) override;
 		void Update(ECSWorld& world, SystemContext& context) override;
 		void LateUpdate(ECSWorld& world, SystemContext& context) override;
+		void OnSceneInstancesChanged(ECSWorld& world, SystemContext& context,
+			SceneChangePhase phase) override;
 
 		// OnCollisionEnterを対象Entityのビヘイビアへ渡す
 		static void DispatchCollisionEnter(ECSWorld& world, SystemContext& context, const CollisionContact& collision);
@@ -95,6 +97,8 @@ namespace Engine {
 		// ソート済みparticipantキャッシュと、その再構築要否
 		std::vector<SyncParticipant> participants_;
 		bool participantsDirty_ = true;
+		// 同じフレームでUpdateを実行したparticipant
+		std::vector<SyncParticipant> lateUpdateParticipants_;
 
 		//--------- functions ----------------------------------------------------
 
@@ -113,6 +117,9 @@ namespace Engine {
 		void RebuildParticipants(ECSWorld& world);
 		// Pass2: activeなscriptのAwakeを全件実行
 		void InvokePendingAwake(ECSWorld& world, SystemContext& context);
+		// runtime設定を優先してscriptの有効状態を取得する
+		bool IsParticipantEnabled(ECSWorld& world, const SyncParticipant& participant,
+			const BehaviorRecord& record) const;
 		// Pass3: OnEnable/OnDisableの遷移を全件反映
 		void ApplyEnableTransitions(ECSWorld& world, SystemContext& context);
 		// Pass5: Startを全件実行
@@ -122,4 +129,3 @@ namespace Engine {
 		void DispatchCollision(ECSWorld& world, SystemContext& context, const CollisionContact& collision, int32_t phase);
 	};
 } // Engine
-

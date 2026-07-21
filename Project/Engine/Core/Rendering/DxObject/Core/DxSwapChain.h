@@ -34,8 +34,10 @@ namespace Engine {
 		~DxSwapChain() = default;
 
 		// ウィンドウ/ファクトリ/キュー/RTVデスクリプタからスワップチェーンとRTVを作成する
-		void Create(WinApp* winApp, IDXGIFactory7* factory, ID3D12CommandQueue* queue, RTVDescriptor* rtvDescriptor,
+		void Create(WinApp* winApp, ID3D12Device* device, IDXGIFactory7* factory, ID3D12CommandQueue* queue, RTVDescriptor* rtvDescriptor,
 			uint32_t width, uint32_t height, DXGI_FORMAT format, const Color4& clearColor);
+		// バックバッファを指定サイズへ再作成する
+		bool Resize(uint32_t width, uint32_t height);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -54,6 +56,8 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		RenderTarget renderTarget_;
+		ID3D12Device* device_ = nullptr;
+		RTVDescriptor* rtvDescriptor_ = nullptr;
 
 		// フレームバッファ数
 		static const constexpr uint32_t kBufferCount = 2;
@@ -63,5 +67,9 @@ namespace Engine {
 
 		std::array<ComPtr<ID3D12Resource>, kBufferCount> resources_;
 		std::array<D3D12_CPU_DESCRIPTOR_HANDLE, kBufferCount> rtvHandles_;
+		std::array<uint32_t, kBufferCount> rtvIndices_ = { UINT32_MAX, UINT32_MAX };
+
+		// バックバッファとRTVを取得して保持する
+		bool CreateBackBufferResources(bool allocateDescriptors);
 	};
 }; // Engine

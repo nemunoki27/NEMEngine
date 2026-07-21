@@ -46,7 +46,8 @@ namespace Engine {
 	// v29: Application.Quitの終了要求を追加
 	// v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
 	// v31: IrisTransitionの再生操作を追加
-	inline constexpr uint32_t kManagedAbiVersion = 31;
+	// v32: AudioSourceのPlayOneShotとUnPauseを追加
+	inline constexpr uint32_t kManagedAbiVersion = 32;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -415,6 +416,7 @@ namespace Engine {
 		using CopyTextCallback = int32_t(__cdecl*)(char*, int32_t);
 		// Gameplay v7のAudioSource gameplay methodでentityのAudioSourceComponentを操作する
 		using EntityActionCallback = void(__cdecl*)(ManagedNativeEntity);
+		using AudioPlayOneShotCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t, float);
 		// Diagnostics v8のscript callback例外の構造化報告でJSON DTOを1件渡す
 		using ReportStringCallback = void(__cdecl*)(const char*);
 		// v23のイージング関数、EasingTypeとtからイージング済みの値を返す
@@ -662,6 +664,9 @@ namespace Engine {
 		CanvasScreenToLocalPointCallback canvasScreenToLocalPoint = nullptr;
 		// v31のIrisTransition再生操作
 		IrisTransitionCommandCallback irisTransitionCommand = nullptr;
+		// v32のAudioSource追加再生操作
+		AudioPlayOneShotCallback audioPlayOneShot = nullptr;
+		EntityActionCallback audioUnPause = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

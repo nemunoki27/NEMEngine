@@ -23,6 +23,8 @@ namespace Engine {
 
 		// 深度リソースの作成
 		void InitFrameBufferDSV(uint32_t width, uint32_t height);
+		// フレーム用深度リソースを同じDSVへ再作成する
+		void ResizeFrameBufferDSV(uint32_t width, uint32_t height);
 
 		// 深度テクスチャからDSVを作成しCPUハンドルを割り当てる
 		void CreateDSV(uint32_t width, uint32_t height, uint32_t& index,
@@ -46,6 +48,7 @@ namespace Engine {
 		ComPtr<ID3D12Resource> resource_;
 		D3D12_CPU_DESCRIPTOR_HANDLE dsvCPUHandle_;
 		D3D12_GPU_DESCRIPTOR_HANDLE dsvGPUHandle_;
+		uint32_t frameDSVIndex_ = UINT32_MAX;
 
 		//--------- functions ----------------------------------------------------
 

@@ -461,7 +461,9 @@ namespace Engine {
 		static int32_t __cdecl CopyProjectRootCallback(char* buffer, int32_t capacity);
 		// Gameplay v7のAudioSource gameplay method
 		static void __cdecl AudioPlayCallback(ManagedNativeEntity entity);
+		static void __cdecl AudioPlayOneShotCallback(ManagedNativeEntity entity, uint64_t clipID, float volumeScale);
 		static void __cdecl AudioPauseCallback(ManagedNativeEntity entity);
+		static void __cdecl AudioUnPauseCallback(ManagedNativeEntity entity);
 		static void __cdecl AudioStopCallback(ManagedNativeEntity entity);
 		static int32_t __cdecl AudioIsPlayingCallback(ManagedNativeEntity entity);
 		// Diagnostics v8のscript callback例外の構造化報告でJSON DTOをexception storeへ渡す

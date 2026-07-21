@@ -55,6 +55,8 @@ namespace Engine {
 
 		// 現在のウィンドウハンドル(HWND)を返す
 		static HWND GetHwnd() { return hwnd_; }
+		// 現在のクライアント領域サイズを返す
+		static Vector2I GetClientSize();
 		// ウィンドウを閉じる前に呼ぶ確認処理を設定する
 		static void SetCloseRequestCallback(bool (*callback)()) { closeRequestCallback_ = callback; }
 		// 確認済みの終了要求を次のメッセージ処理へ投げる

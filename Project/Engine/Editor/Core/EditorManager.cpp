@@ -1103,12 +1103,12 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	}
 
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
-	const auto& window = graphicsCore.GetContext().GetWindowSetting();
+	const DXGI_SWAP_CHAIN_DESC1& swapChainDesc = graphicsCore.GetSwapChainDesc();
 
 	dxCommand->BindRenderTargets(std::optional<RenderTarget>(graphicsCore.GetBackBufferRenderTarget()),
 		graphicsCore.GetDSVDescriptor().GetFrameCPUHandle());
 
-	dxCommand->SetViewportAndScissor(window.engineSize.x, window.engineSize.y);
+	dxCommand->SetViewportAndScissor(swapChainDesc.Width, swapChainDesc.Height);
 	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
 
 	imguiManager_.Draw(dxCommand->GetCommandList());

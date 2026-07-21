@@ -8,6 +8,14 @@
 
 namespace Engine {
 
+	// シーン切り替えが確定した更新フェーズ
+	enum class SceneChangePhase {
+
+		FixedUpdate,
+		Update,
+		LateUpdate,
+	};
+
 	//============================================================================
 	//	ISystem class
 	//	ワールドを処理するシステムのインターフェース
@@ -29,6 +37,9 @@ namespace Engine {
 		virtual void FixedUpdate([[maybe_unused]] ECSWorld& world, [[maybe_unused]] SystemContext& context) {}
 		virtual void Update([[maybe_unused]] ECSWorld& world, [[maybe_unused]] SystemContext& context) {}
 		virtual void LateUpdate([[maybe_unused]] ECSWorld& world, [[maybe_unused]] SystemContext& context) {}
+		// WorldCommand適用でシーン構成が変わった直後に呼ばれる
+		virtual void OnSceneInstancesChanged([[maybe_unused]] ECSWorld& world,
+			[[maybe_unused]] SystemContext& context, [[maybe_unused]] SceneChangePhase phase) {}
 
 		//--------- accessor -----------------------------------------------------
 

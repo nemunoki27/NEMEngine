@@ -389,9 +389,10 @@ void Audio::PauseVoice(uint64_t voiceID) {
 	std::lock_guard<std::mutex> lock(mutex_);
 	for (auto& [key, voices] : activeVoices_) {
 		for (auto& inst : voices) {
-			if (inst.voiceID == voiceID && inst.voice) {
+			if (inst.voiceID == voiceID && inst.voice && !inst.paused) {
 				// 再生位置を保持したまま停止する、buffer flush / destroyはしない
 				inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
+				inst.paused = true;
 			}
 		}
 	}
@@ -405,9 +406,49 @@ void Audio::ResumeVoice(uint64_t voiceID) {
 	std::lock_guard<std::mutex> lock(mutex_);
 	for (auto& [key, voices] : activeVoices_) {
 		for (auto& inst : voices) {
-			if (inst.voiceID == voiceID && inst.voice) {
+			if (inst.voiceID == voiceID && inst.voice && inst.paused) {
 				inst.voice->Start(0, XAUDIO2_COMMIT_NOW);
+				inst.paused = false;
 			}
+		}
+	}
+}
+
+void Audio::SetVoiceVolume(uint64_t voiceID, float volume) {
+
+	if (voiceID == 0) {
+		return;
+	}
+	std::lock_guard<std::mutex> lock(mutex_);
+	for (auto& [key, voices] : activeVoices_) {
+		for (auto& inst : voices) {
+			if (inst.voiceID != voiceID || !inst.voice) {
+				continue;
+			}
+			inst.instanceVolume = std::clamp(volume, 0.0f, 1.0f);
+			ApplyVoiceVolumeLocked(key, inst);
+			return;
+		}
+	}
+}
+
+void Audio::SetVoiceLoop(uint64_t voiceID, bool loop) {
+
+	if (voiceID == 0) {
+		return;
+	}
+	std::lock_guard<std::mutex> lock(mutex_);
+	for (auto& [key, voices] : activeVoices_) {
+		for (auto& inst : voices) {
+			if (inst.voiceID != voiceID || !inst.voice || inst.loop == loop) {
+				continue;
+			}
+			SoundData* sound = FindSoundLocked(key);
+			if (!sound) {
+				return;
+			}
+			RebuildVoiceBufferLocked(*sound, inst, loop);
+			return;
 		}
 	}
 }
@@ -428,13 +469,12 @@ void Audio::SetVolume(const std::string& name, float volume) {
 	sound->volume = std::clamp(volume, 0.0f, 1.0f);
 
 	// 再生中の全インスタンスにも反映
+	CleanupFinishedVoicesLocked(key);
+
 	auto it = activeVoices_.find(key);
 	if (it == activeVoices_.end()) {
 		return;
 	}
-
-	CleanupFinishedVoicesLocked(key);
-
 	for (auto& inst : it->second) {
 		ApplyVoiceVolumeLocked(key, inst);
 	}
@@ -468,11 +508,34 @@ bool Audio::IsVoicePlaying(uint64_t voiceID) {
 	for (const auto& [key, voices] : activeVoices_) {
 		for (const auto& inst : voices) {
 			if (inst.voiceID == voiceID && inst.voice) {
+				return !inst.paused;
+			}
+		}
+	}
+	return false;
+}
+
+bool Audio::IsVoiceAlive(uint64_t voiceID) {
+
+	if (voiceID == 0) {
+		return false;
+	}
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	for (const auto& [key, voices] : activeVoices_) {
+		for (const auto& inst : voices) {
+			if (inst.voiceID == voiceID && inst.voice) {
 				return true;
 			}
 		}
 	}
 	return false;
+}
+
+void Audio::CleanupFinishedVoices() {
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	CleanupAllFinishedVoicesLocked();
 }
 
 //============================================================================
@@ -543,6 +606,50 @@ void Audio::ApplyVoiceVolumeLocked(const std::string& key, VoiceInstance& inst) 
 
 	const float finalVol = mv * sv * iv;
 	inst.voice->SetVolume(finalVol, XAUDIO2_COMMIT_NOW);
+}
+
+void Audio::RebuildVoiceBufferLocked(const SoundData& sound, VoiceInstance& inst, bool loop) {
+
+	const WAVEFORMATEX* format = sound.GetFormat();
+	if (!inst.voice || !format || format->nBlockAlign == 0) {
+		return;
+	}
+
+	XAUDIO2_VOICE_STATE state{};
+	inst.voice->GetState(&state);
+	const uint32_t sampleCount = sound.GetPCMBytes() / format->nBlockAlign;
+	if (sampleCount == 0) {
+		return;
+	}
+	const uint32_t currentSample = static_cast<uint32_t>(state.SamplesPlayed % sampleCount);
+
+	inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
+	inst.voice->FlushSourceBuffers();
+
+	XAUDIO2_BUFFER remaining{};
+	remaining.pAudioData = sound.GetPCM();
+	remaining.AudioBytes = sound.GetPCMBytes();
+	remaining.PlayBegin = currentSample;
+	remaining.PlayLength = sampleCount - currentSample;
+	remaining.Flags = loop ? 0 : XAUDIO2_END_OF_STREAM;
+	HRESULT result = inst.voice->SubmitSourceBuffer(&remaining);
+	assert(SUCCEEDED(result));
+
+	if (loop) {
+		XAUDIO2_BUFFER loopBuffer{};
+		loopBuffer.pAudioData = sound.GetPCM();
+		loopBuffer.AudioBytes = sound.GetPCMBytes();
+		loopBuffer.LoopCount = XAUDIO2_LOOP_INFINITE;
+		loopBuffer.Flags = XAUDIO2_END_OF_STREAM;
+		result = inst.voice->SubmitSourceBuffer(&loopBuffer);
+		assert(SUCCEEDED(result));
+	}
+
+	inst.loop = loop;
+	if (!inst.paused) {
+		result = inst.voice->Start(0, XAUDIO2_COMMIT_NOW);
+		assert(SUCCEEDED(result));
+	}
 }
 
 Audio::SoundData* Audio::FindSoundLocked(const std::string& key) {

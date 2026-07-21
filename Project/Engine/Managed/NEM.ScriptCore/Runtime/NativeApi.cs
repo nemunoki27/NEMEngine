@@ -38,7 +38,8 @@ internal static class ManagedAbi {
     // v29: Application.Quitの終了要求を追加
     // v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
     // v31: IrisTransitionの再生操作を追加
-    internal const uint Version = 31;
+    // v32: AudioSourceのPlayOneShotとUnPauseを追加
+    internal const uint Version = 32;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -298,6 +299,8 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioPause;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioStop;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> AudioIsPlaying;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, float, void> AudioPlayOneShot;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioUnPause;
     // Diagnostics(v8): script callback 例外の構造化報告
     internal static delegate* unmanaged[Cdecl]<byte*, void> ReportScriptException;
     // v11: EntityRef(sourceAsset, localFileId) を runtime entity へ解決する
@@ -516,6 +519,8 @@ internal static unsafe class NativeApi {
         WorldToScreenPoint = callbacks->worldToScreenPoint;
         CanvasScreenToLocalPoint = callbacks->canvasScreenToLocalPoint;
         IrisTransitionCommand = callbacks->irisTransitionCommand;
+        AudioPlayOneShot = callbacks->audioPlayOneShot;
+        AudioUnPause = callbacks->audioUnPause;
     }
 
     internal static float ReadDeltaTime() {
@@ -1293,7 +1298,11 @@ internal static unsafe class NativeApi {
     //	AudioSource gameplay method helpers
     //========================================================================
     internal static void AudioPlayCall(NativeEntity entity) { if (AudioPlay != null) { AudioPlay(entity); } }
+    internal static void AudioPlayOneShotCall(NativeEntity entity, ulong clipID, float volumeScale) {
+        if (AudioPlayOneShot != null) { AudioPlayOneShot(entity, clipID, volumeScale); }
+    }
     internal static void AudioPauseCall(NativeEntity entity) { if (AudioPause != null) { AudioPause(entity); } }
+    internal static void AudioUnPauseCall(NativeEntity entity) { if (AudioUnPause != null) { AudioUnPause(entity); } }
     internal static void AudioStopCall(NativeEntity entity) { if (AudioStop != null) { AudioStop(entity); } }
     internal static bool AudioIsPlayingCall(NativeEntity entity) => AudioIsPlaying != null && AudioIsPlaying(entity) != 0;
 
@@ -1700,4 +1709,7 @@ public unsafe struct NativeApiTable {
     public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector2, NativeVector2*, int> canvasScreenToLocalPoint;
     // v31: IrisTransition再生操作
     public delegate* unmanaged[Cdecl]<NativeEntity, int, float, void> irisTransitionCommand;
+    // v32: AudioSource追加再生操作
+    public delegate* unmanaged[Cdecl]<NativeEntity, ulong, float, void> audioPlayOneShot;
+    public delegate* unmanaged[Cdecl]<NativeEntity, void> audioUnPause;
 }

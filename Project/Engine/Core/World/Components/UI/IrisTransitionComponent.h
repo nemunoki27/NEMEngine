@@ -82,10 +82,10 @@ namespace Engine {
 		uint64_t runtimeCommandSerial = 0;
 		uint64_t runtimeEditPreviewSerial = 0;
 
-		// アイリスアウトを要求する
-		void IrisOut();
-		// アイリスインを要求する
-		void IrisIn();
+		// 指定進行度からアイリスアウトを要求する
+		void IrisOut(float progress = 0.0f);
+		// 指定進行度からアイリスインを要求する
+		void IrisIn(float progress = 1.0f);
 		// 進行度を直接設定する
 		void SetProgress(float progress);
 		// 現在位置で再生を停止する

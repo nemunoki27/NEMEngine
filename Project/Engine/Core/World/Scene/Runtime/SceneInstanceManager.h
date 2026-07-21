@@ -10,6 +10,9 @@
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
+// c++
+#include <cstdint>
+
 namespace Engine {
 
 	//============================================================================
@@ -90,6 +93,8 @@ namespace Engine {
 		const SceneInstance* GetActive() const;
 		// 全てのシーンインスタンスのリストを取得する
 		const std::vector<SceneInstance>& GetAll() const { return scenes_; }
+		// シーン構成の変更番号を取得する
+		uint64_t GetRevision() const { return revision_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -103,6 +108,8 @@ namespace Engine {
 		bool singleLoadRequestPending_ = false;
 		// シーンインスタンスのリスト
 		std::vector<SceneInstance> scenes_;
+		// シーンの追加、削除、アクティブ変更ごとに進む番号
+		uint64_t revision_ = 0;
 
 		//--------- functions ----------------------------------------------------
 

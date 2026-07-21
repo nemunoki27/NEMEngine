@@ -69,13 +69,14 @@ void Engine::IrisTransitionSystem::OnWorldExit(ECSWorld& world,
 void Engine::IrisTransitionSystem::Update(ECSWorld& world, SystemContext& context) {
 
 	EnsureRenderEntity(world);
-	ConsumeLatestCommand(world, context.mode);
-	if (context.mode == WorldMode::Play) {
-		RefreshOwnerSettings(world);
-	}
 	bool sceneTransitionHandled = false;
 	if (context.mode == WorldMode::Play) {
 		sceneTransitionHandled = UpdateSceneTransition(world);
+	}
+	// 新しいシーンのStartから発行された要求をシーン切り替え処理より後に適用する
+	const bool commandHandled = ConsumeLatestCommand(world, context.mode);
+	if (context.mode == WorldMode::Play) {
+		RefreshOwnerSettings(world);
 	}
 
 	bool editPreviewVisible = false;
@@ -88,7 +89,8 @@ void Engine::IrisTransitionSystem::Update(ECSWorld& world, SystemContext& contex
 
 	const float deltaTime = settings_.useUnscaledTime ?
 		context.unscaledDeltaTime : context.deltaTime;
-	UpdatePlayback(sceneTransitionHandled ? 0.0f : deltaTime);
+	// 要求を受理したフレームより前の経過時間は新しい再生へ加算しない
+	UpdatePlayback(sceneTransitionHandled || commandHandled ? 0.0f : deltaTime);
 
 	const bool visible = context.mode == WorldMode::Edit ?
 		editPreviewVisible && (state_ != IrisTransitionState::Open || 0.0f < progress_) :
@@ -107,6 +109,20 @@ void Engine::IrisTransitionSystem::Update(ECSWorld& world, SystemContext& contex
 
 		sceneInstances->ClearSingleLoadRequest();
 	}
+}
+
+void Engine::IrisTransitionSystem::OnSceneInstancesChanged(ECSWorld& world,
+	SystemContext& context, [[maybe_unused]] SceneChangePhase phase) {
+
+	if (context.mode != WorldMode::Play) {
+		return;
+	}
+
+	// 新しいシーンのStartから発行された要求を最初の描画前に反映する
+	SystemContext immediateContext = context;
+	immediateContext.deltaTime = 0.0f;
+	immediateContext.unscaledDeltaTime = 0.0f;
+	Update(world, immediateContext);
 }
 
 void Engine::IrisTransitionSystem::EnsureRenderEntity(ECSWorld& world) {
@@ -187,12 +203,14 @@ bool Engine::IrisTransitionSystem::ConsumeLatestCommand(ECSWorld& world, WorldMo
 	switch (command) {
 	case IrisTransitionCommand::IrisOut:
 		inputBlocked_ = settings_.blockInput;
+		progress_ = std::clamp(commandValue, 0.0f, 1.0f);
 		StartPlayback(IrisTransitionState::IrisOut, 1.0f,
 			settings_.irisOutDuration, settings_.irisOutEasing);
 		break;
 	case IrisTransitionCommand::IrisIn:
 		pendingSceneTransition_ = false;
 		inputBlocked_ = settings_.blockInput;
+		progress_ = std::clamp(commandValue, 0.0f, 1.0f);
 		StartPlayback(IrisTransitionState::IrisIn, 0.0f,
 			settings_.irisInDuration, settings_.irisInEasing);
 		break;
@@ -236,11 +254,13 @@ bool Engine::IrisTransitionSystem::UpdateSceneTransition(ECSWorld& world) {
 		activeSceneInstanceID_ = activeScene->instanceID;
 		return false;
 	}
+	bool sceneChanged = false;
 	if (activeSceneInstanceID_ == activeScene->instanceID) {
 		if (!pendingSceneTransition_) {
 			return false;
 		}
 	} else {
+		sceneChanged = true;
 		activeSceneInstanceID_ = activeScene->instanceID;
 		pendingSceneTransition_ =
 			state_ == IrisTransitionState::IrisOut;
@@ -252,12 +272,19 @@ bool Engine::IrisTransitionSystem::UpdateSceneTransition(ECSWorld& world) {
 		}
 		return false;
 	}
-	pendingSceneTransition_ = false;
 	if (!settings_.autoIrisInAfterSceneTransition) {
+		if (sceneChanged) {
+
+			// 新しいシーンのStartが手動IrisInを要求するまで遮蔽を維持する
+			pendingSceneTransition_ = true;
+			return true;
+		}
+		pendingSceneTransition_ = false;
 		ResetPlayback();
 		return true;
 	}
 
+	pendingSceneTransition_ = false;
 	inputBlocked_ = settings_.blockInput;
 	StartPlayback(IrisTransitionState::IrisIn, 0.0f,
 		settings_.irisInDuration, settings_.irisInEasing);

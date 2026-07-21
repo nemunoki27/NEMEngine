@@ -123,7 +123,7 @@ namespace Engine {
 		float maxAngle = 360.0f;
 		// 円周方向と高さ方向の分割数
 		int32_t radialDivide = 16;
-		int32_t heightDivide = 2;
+		int32_t heightDivide = 8;
 		// フタの付け方
 		PrimitiveCylinderCap cap = PrimitiveCylinderCap::Both;
 		// UV展開方法

@@ -57,6 +57,10 @@ namespace Engine {
 		// 再生インスタンスを一時停止/再開し、voiceは破棄せず再生位置を保持する
 		void PauseVoice(uint64_t voiceID);
 		void ResumeVoice(uint64_t voiceID);
+		// 再生インスタンスの音量を変更
+		void SetVoiceVolume(uint64_t voiceID, float volume);
+		// 再生位置を保持してループ設定を変更
+		void SetVoiceLoop(uint64_t voiceID, bool loop);
 
 		// 音量のセット
 		void SetVolume(const std::string& name, float volume);
@@ -65,6 +69,10 @@ namespace Engine {
 		bool IsPlaying(const std::string& name);
 		// 再生インスタンスが再生中か
 		bool IsVoicePlaying(uint64_t voiceID);
+		// 再生インスタンスが存在するか
+		bool IsVoiceAlive(uint64_t voiceID);
+		// 終了した再生インスタンスを破棄
+		void CleanupFinishedVoices();
 
 		//--------- accessor -----------------------------------------------------
 
@@ -122,6 +130,7 @@ namespace Engine {
 			// 再生中の情報
 			float instanceVolume = 1.0f;
 			bool loop = false;
+			bool paused = false;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -176,6 +185,8 @@ namespace Engine {
 
 		// そのvoiceに最終音量を適用
 		void ApplyVoiceVolumeLocked(const std::string& key, VoiceInstance& inst);
+		// そのvoiceの再生位置からbufferを積み直す
+		void RebuildVoiceBufferLocked(const SoundData& sound, VoiceInstance& inst, bool loop);
 
 		// 名前からサウンドデータを取得
 		SoundData* FindSoundLocked(const std::string& key);

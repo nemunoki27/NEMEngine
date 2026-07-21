@@ -203,6 +203,22 @@ bool WinApp::ProcessMessage() {
 	return false;
 }
 
+Vector2I WinApp::GetClientSize() {
+
+	if (!hwnd_) {
+		return {};
+	}
+
+	RECT client{};
+	if (!GetClientRect(hwnd_, &client)) {
+		return {};
+	}
+	return {
+		static_cast<int32_t>((std::max)(client.right - client.left, 0L)),
+		static_cast<int32_t>((std::max)(client.bottom - client.top, 0L))
+	};
+}
+
 void WinApp::RequestCloseWindow() {
 
 	if (!hwnd_) {

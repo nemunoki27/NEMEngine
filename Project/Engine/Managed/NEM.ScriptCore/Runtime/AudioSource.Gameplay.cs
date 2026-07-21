@@ -1,13 +1,22 @@
 namespace NEMEngine;
 
-// 自動生成される AudioSource wrapper の gameplay method 拡張（生成ファイルは編集しない）。
-// 実際の voice 制御は AudioSourceSystem が runtimePlayRequest を消費して行う（Play/Pause/Stop は次フレーム反映）。
+// 自動生成されるAudioSource wrapperのgameplay method拡張
+// 実際のvoice制御はAudioSourceSystemが再生要求を順番に処理する
 public sealed partial class AudioSource {
 
-    // 明示再生（pause 中なら resume、未再生なら clip を再生）
+    // Clipを主再生として先頭から再生
     public void Play() => NativeApi.AudioPlayCall(entity.native);
+    // 指定Clipを重ねて一度だけ再生
+    public void PlayOneShot(AudioClip clip, float volumeScale = 1.0f) {
+        if (clip == null) {
+            return;
+        }
+        NativeApi.AudioPlayOneShotCall(entity.native, clip.id.value, volumeScale);
+    }
     // 再生位置を保持して一時停止
     public void Pause() => NativeApi.AudioPauseCall(entity.native);
+    // 一時停止中の再生を再開
+    public void UnPause() => NativeApi.AudioUnPauseCall(entity.native);
     // 停止（voice 破棄）
     public void Stop() => NativeApi.AudioStopCall(entity.native);
     // 再生中か（pause 中は false）

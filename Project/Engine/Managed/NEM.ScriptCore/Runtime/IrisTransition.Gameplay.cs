@@ -9,11 +9,11 @@ public sealed partial class IrisTransition {
 
     public bool IsCovered => State == IrisTransitionState.Covered;
 
-    public void IrisOut() =>
-        NativeApi.IrisTransitionCommandCall(entity.native, 0);
+    public void IrisOut(float progress = 0.0f) =>
+        NativeApi.IrisTransitionCommandCall(entity.native, 0, progress);
 
-    public void IrisIn() =>
-        NativeApi.IrisTransitionCommandCall(entity.native, 1);
+    public void IrisIn(float progress = 1.0f) =>
+        NativeApi.IrisTransitionCommandCall(entity.native, 1, progress);
 
     public void SetProgress(float progress) =>
         NativeApi.IrisTransitionCommandCall(entity.native, 2, progress);

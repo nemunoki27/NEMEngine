@@ -105,7 +105,18 @@ void Engine::IrisTransitionInspectorDrawer::DrawFields(
 	ImGui::Indent();
 	if (MyGUI::CollapsingHeader("プレビュー")) {
 		DrawField(anyItemActive, [&]() {
-			return DrawSliderFloat("進行度", draft.previewProgress, 0.0f, 1.0f);
+			float displayProgress = draft.previewProgress;
+			if (context.IsPlaying() || draft.previewInEditMode) {
+				displayProgress = world.GetComponent<IrisTransitionComponent>(entity).runtimeProgress;
+			}
+			ValueEditResult result = DrawSliderFloat("進行度", displayProgress, 0.0f, 1.0f);
+			if (result.valueChanged) {
+				draft.previewProgress = displayProgress;
+				if (context.IsPlaying()) {
+					world.GetComponent<IrisTransitionComponent>(entity).SetProgress(displayProgress);
+				}
+			}
+			return result;
 			});
 
 		const bool previewDisabled =

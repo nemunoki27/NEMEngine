@@ -80,6 +80,7 @@ namespace {
 void Engine::BehaviorSystem::OnWorldEnter(ECSWorld& world, SystemContext& context) {
 
 	activeSystem_ = this;
+	lateUpdateParticipants_.clear();
 	// ワールドをアクティブにする
 	EnsureActiveWorld(world, context);
 
@@ -101,6 +102,7 @@ void Engine::BehaviorSystem::OnWorldExit(ECSWorld& world, SystemContext& context
 	// ワールドを破棄する
 	runtime_.DestroyAll(world, context);
 	activeWorld_ = nullptr;
+	lateUpdateParticipants_.clear();
 	if (activeSystem_ == this) {
 		activeSystem_ = nullptr;
 	}
@@ -150,6 +152,7 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 	if (context.mode != WorldMode::Play) {
 		return;
 	}
+	lateUpdateParticipants_.clear();
 
 	// Update前にライフサイクルを同期し、不要なビヘイビアをsweepする
 	SynchronizeLifecycle(world, context, true);
@@ -160,6 +163,7 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 		if (!record || !record->instance || !record->enabled || record->faulted) {
 			continue;
 		}
+		lateUpdateParticipants_.emplace_back(participant);
 		ScriptProfileSample sample(record->typeID, record->owner.index, participant.slot, ScriptCallbackKind::Update);
 		record->instance->Update(world, context, record->owner);
 		if (record->instance->IsFaulted()) {
@@ -186,12 +190,13 @@ void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 	if (context.mode != WorldMode::Play || activeWorld_ != &world) {
 		return;
 	}
-
-	// LateUpdateはUpdateで確定したparticipantのみ実行する
-	for (const SyncParticipant& participant : participants_) {
+	// LateUpdateは同じフレームでUpdateを実行したparticipantだけに呼ぶ
+	for (const SyncParticipant& participant : lateUpdateParticipants_) {
 
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
-		if (!record || !record->instance || !record->enabled || record->faulted) {
+		if (!record || !record->instance || !record->enabled || record->faulted ||
+			!world.IsAlive(record->owner) || !IsEntityActiveInHierarchy(world, record->owner) ||
+			!IsParticipantEnabled(world, participant, *record)) {
 			continue;
 		}
 		ScriptProfileSample sample(record->typeID, record->owner.index, participant.slot, ScriptCallbackKind::LateUpdate);
@@ -212,6 +217,17 @@ void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 	else {
 		ManagedScriptRuntime::GetInstance().TickFrame(2, context);
 	}
+}
+
+void Engine::BehaviorSystem::OnSceneInstancesChanged(ECSWorld& world,
+	SystemContext& context, [[maybe_unused]] SceneChangePhase phase) {
+
+	if (context.mode != WorldMode::Play || activeWorld_ != &world) {
+		return;
+	}
+
+	// 新しいシーンの最初の描画前にAwake、OnEnable、Startを確定する
+	SynchronizeLifecycle(world, context, true);
 }
 
 void Engine::BehaviorSystem::DispatchCollisionEnter(ECSWorld& world,
@@ -659,6 +675,19 @@ void Engine::BehaviorSystem::InvokePendingAwake(ECSWorld& world, SystemContext& 
 	}
 }
 
+bool Engine::BehaviorSystem::IsParticipantEnabled(ECSWorld& world,
+	const SyncParticipant& participant, const BehaviorRecord& record) const {
+
+	const ScriptComponent* component = world.TryGetComponent<ScriptComponent>(record.owner);
+	if (!component || participant.slot < 0 || component->scripts.size() <= static_cast<size_t>(participant.slot)) {
+		return false;
+	}
+	if (record.hasRuntimeEnabledOverride) {
+		return record.runtimeEnabledOverride;
+	}
+	return component->scripts[participant.slot].enabled;
+}
+
 void Engine::BehaviorSystem::ApplyEnableTransitions(ECSWorld& world, SystemContext& context) {
 
 	for (const SyncParticipant& participant : participants_) {
@@ -668,19 +697,10 @@ void Engine::BehaviorSystem::ApplyEnableTransitions(ECSWorld& world, SystemConte
 			continue;
 		}
 
-		// enabledは都度評価する、runtime overrideがあれば優先しauthoringへ書き戻さない
-		bool entryEnabled = true;
-		if (record->hasRuntimeEnabledOverride) {
-			entryEnabled = record->runtimeEnabledOverride;
-		} else if (ScriptComponent* component = world.TryGetComponent<ScriptComponent>(participant.owner)) {
-			if (0 <= participant.slot && static_cast<size_t>(participant.slot) < component->scripts.size()) {
-				entryEnabled = component->scripts[participant.slot].enabled;
-			}
-		}
-
 		// OnEnableはAwake後かつactiveのときだけ呼ぶ
 		const bool shouldBeEnabled =
-			entryEnabled && record->awakeCalled && IsEntityActiveInHierarchy(world, participant.owner);
+			IsParticipantEnabled(world, participant, *record) && record->awakeCalled &&
+			IsEntityActiveInHierarchy(world, participant.owner);
 
 		if (shouldBeEnabled && !record->enabled) {
 
