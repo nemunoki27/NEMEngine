@@ -219,6 +219,7 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 		entityJson["Components"] = std::move(components);
 		fileJson["Entities"].push_back(std::move(entityJson));
 	}
+	PrefabReferenceRemapper::NormalizePrefabFileHierarchy(fileJson);
 	PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(fileJson);
 
 	// ファイルに保存
@@ -248,6 +249,7 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		return false;
 	}
 	PrefabReferenceRemapper::RepairPrefabFileScriptRefs(fileJson, prefabAsset);
+	PrefabReferenceRemapper::NormalizePrefabFileHierarchy(fileJson);
 	PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(fileJson);
 
 	// ファイルからプレファブ読み込み

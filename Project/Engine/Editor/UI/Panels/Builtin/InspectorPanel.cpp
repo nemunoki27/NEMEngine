@@ -1459,6 +1459,7 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 		}
 
 		if (prefabChanged) {
+			PrefabReferenceRemapper::NormalizePrefabFileHierarchy(prefabFileJson);
 			PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(prefabFileJson);
 			JsonAdapter::Save(prefabPath.string(), prefabFileJson);
 		}

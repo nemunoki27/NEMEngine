@@ -73,6 +73,29 @@ namespace {
 		return Engine::UUID{};
 	}
 
+	// PrefabルートのローカルIDを読む
+	Engine::UUID ReadPrefabRootLocalFileID(const nlohmann::json& prefabFileJson) {
+
+		if (!prefabFileJson.contains("Header") || !prefabFileJson["Header"].is_object()) {
+			return Engine::UUID{};
+		}
+		return ReadUUIDKey(prefabFileJson["Header"], "rootLocalFileID");
+	}
+
+	// Prefab内に存在する全ローカルIDを集める
+	std::unordered_set<Engine::UUID> CollectPrefabEntityLocalFileIDs(const nlohmann::json& prefabFileJson) {
+
+		std::unordered_set<Engine::UUID> result;
+		for (const auto& entityJson : prefabFileJson["Entities"]) {
+
+			const Engine::UUID localFileID = ReadEntityLocalFileID(entityJson);
+			if (localFileID) {
+				result.insert(localFileID);
+			}
+		}
+		return result;
+	}
+
 	// 指定キーのUUID値をリマップする
 	void RemapUUIDKey(nlohmann::json& object, const char* key,
 		const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap) {
@@ -357,6 +380,35 @@ void Engine::PrefabReferenceRemapper::RemapValue(nlohmann::json& value, const st
 	RemapTree(value, localFileIDMap, referenceSpace, sourceAsset);
 }
 
+void Engine::PrefabReferenceRemapper::NormalizePrefabFileHierarchy(nlohmann::json& prefabFileJson) {
+
+	if (!prefabFileJson.is_object() || !prefabFileJson.contains("Entities") ||
+		!prefabFileJson["Entities"].is_array()) {
+		return;
+	}
+
+	const UUID rootLocalFileID = ReadPrefabRootLocalFileID(prefabFileJson);
+	const std::unordered_set<UUID> entityLocalFileIDs = CollectPrefabEntityLocalFileIDs(prefabFileJson);
+
+	for (auto& entityJson : prefabFileJson["Entities"]) {
+
+		const UUID localFileID = ReadEntityLocalFileID(entityJson);
+		if (!localFileID || !entityJson.contains("Components") || !entityJson["Components"].is_object()) {
+			continue;
+		}
+		auto& components = entityJson["Components"];
+		if (!components.contains("Hierarchy") || !components["Hierarchy"].is_object()) {
+			continue;
+		}
+		auto& hierarchy = components["Hierarchy"];
+		const UUID parentLocalFileID = ReadUUIDKey(hierarchy, "parentLocalFileID");
+		if (localFileID == rootLocalFileID || parentLocalFileID == localFileID ||
+			(parentLocalFileID && !entityLocalFileIDs.contains(parentLocalFileID))) {
+			WriteUUIDValue(hierarchy["parentLocalFileID"], UUID{});
+		}
+	}
+}
+
 void Engine::PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(nlohmann::json& prefabFileJson) {
 
 	if (!prefabFileJson.is_object() || !prefabFileJson.contains("Entities") ||
@@ -364,19 +416,8 @@ void Engine::PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(nlohma
 		return;
 	}
 
-	UUID rootLocalFileID{};
-	if (prefabFileJson.contains("Header") && prefabFileJson["Header"].is_object()) {
-		rootLocalFileID = ReadUUIDKey(prefabFileJson["Header"], "rootLocalFileID");
-	}
-
-	std::unordered_set<UUID> entityLocalFileIDs;
-	for (const auto& entityJson : prefabFileJson["Entities"]) {
-
-		const UUID localFileID = ReadEntityLocalFileID(entityJson);
-		if (localFileID) {
-			entityLocalFileIDs.insert(localFileID);
-		}
-	}
+	const UUID rootLocalFileID = ReadPrefabRootLocalFileID(prefabFileJson);
+	const std::unordered_set<UUID> entityLocalFileIDs = CollectPrefabEntityLocalFileIDs(prefabFileJson);
 
 	for (auto& entityJson : prefabFileJson["Entities"]) {
 

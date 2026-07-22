@@ -198,6 +198,7 @@ std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabOverrid
 		return result;
 	}
 	PrefabReferenceRemapper::RepairPrefabFileScriptRefs(fileJson, prefabAsset);
+	PrefabReferenceRemapper::NormalizePrefabFileHierarchy(fileJson);
 	PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(fileJson);
 
 	// ルートのローカルIDを取得する
@@ -650,17 +651,18 @@ Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, A
 	}
 	hierarchySystem.RebuildRuntimeLinks(world, linkScope);
 
-	// ルートを別実体の子にしている場合は、その親へ接続する
-	if (data.rootParentSceneLocalFileID && world.IsAlive(result.root)) {
+	// ルートの親状態をシーン保存値へ戻す
+	if (world.IsAlive(result.root)) {
 
-		if (!world.HasComponent<HierarchyComponent>(result.root)) {
-			world.AddComponent<HierarchyComponent>(result.root);
-		}
-		world.GetComponent<HierarchyComponent>(result.root).parentLocalFileID =
-			data.rootParentSceneLocalFileID;
-		const Entity parent = FindBySceneLocal(world, sceneInstanceID, data.rootParentSceneLocalFileID);
-		if (world.IsAlive(parent)) {
-			hierarchySystem.SetParent(world, result.root, parent);
+		hierarchySystem.SetParent(world, result.root, Entity::Null());
+		if (data.rootParentSceneLocalFileID) {
+
+			world.GetComponent<HierarchyComponent>(result.root).parentLocalFileID =
+				data.rootParentSceneLocalFileID;
+			const Entity parent = FindBySceneLocal(world, sceneInstanceID, data.rootParentSceneLocalFileID);
+			if (world.IsAlive(parent)) {
+				hierarchySystem.SetParent(world, result.root, parent);
+			}
 		}
 	}
 
