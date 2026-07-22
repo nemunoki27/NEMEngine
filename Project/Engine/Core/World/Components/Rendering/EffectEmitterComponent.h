@@ -75,7 +75,7 @@ namespace Engine {
 		Vector3 localPosition = Vector3::AnyInit(0.0f);
 		Quaternion localRotation = Quaternion::Identity();
 		Vector3 localScale = Vector3::AnyInit(1.0f);
-		ParticlePhaseParentSettings parentSettings{ true };
+		ParticlePhaseParentSettings parentSettings{};
 	};
 
 	// 同時に発生するエフェクト設定の束
