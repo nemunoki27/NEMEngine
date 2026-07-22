@@ -1,6 +1,6 @@
 ﻿# NEMEngine prebuilt SDK packaging
 # エンジンをDLLとしてビルドし、ゲーム側がgit submoduleで参照する配布物だけを SDK フォルダへ集約する
-# 配布物: NEMEngine.dll / import lib / 公開ヘッダ / ランタイムDLL / managed / ゲーム生成用premake
+# 配布物: NEMEngine.dll / import lib / 公開ヘッダ / ランタイムDLL / managed / ゲーム生成・ビルドツール
 # エンジンのソースcoreは一切含めない（GameProjectからソースを見えなくするため）
 # Debug / Develop / Release の全構成をまとめて書き出す
 
@@ -70,6 +70,11 @@ foreach ($f in @("premake5.exe","nem_game.lua","patch_script_slnx.ps1","patch_vc
     $src = Join-Path $engineRoot "Premake\$f"
     if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkPremake $f) }
 }
+
+# エディターの製品ビルドで使用するスクリプト
+$sdkTools = Join-Path $OutDir "Tools"
+New-Item -ItemType Directory -Force -Path $sdkTools | Out-Null
+Copy-Item -Force (Join-Path $engineRoot "Tools\BuildGame.ps1") (Join-Path $sdkTools "BuildGame.ps1")
 
 # 既存ゲーム側の Premake / 更新ツールを SDK 更新時に同期できるよう、ゲームプロジェクト用サポートファイルも同梱する
 $gameTemplate = Join-Path $engineRoot "Templates\GameProject"

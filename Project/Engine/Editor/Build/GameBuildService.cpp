@@ -80,6 +80,43 @@ namespace {
 		return text.rfind(prefix, 0) == 0;
 	}
 
+	// ゲームの生成物を持つワークスペースルートを取得
+	std::filesystem::path ResolveGameBuildRoot(const std::filesystem::path& gameRoot) {
+
+		std::error_code ec;
+		for (std::filesystem::path current = gameRoot; !current.empty(); current = current.parent_path()) {
+
+			if (std::filesystem::is_regular_file(current / "Premake/premake5.lua", ec)) {
+				return current;
+			}
+			ec.clear();
+			if (current == current.parent_path()) {
+				break;
+			}
+		}
+		return Engine::RuntimePaths::GetProjectRoot().parent_path();
+	}
+
+	// エンジンソースとSDKの両方から製品ビルドスクリプトを探索
+	std::filesystem::path ResolveGameBuildScript(const std::filesystem::path& buildRoot) {
+
+		const std::filesystem::path& engineProjectRoot = Engine::RuntimePaths::GetEngineProjectRoot();
+		const std::array candidates = {
+			buildRoot / "Tools/BuildGame.ps1",
+			engineProjectRoot / "Tools/BuildGame.ps1",
+			engineProjectRoot.parent_path() / "Tools/BuildGame.ps1",
+		};
+		std::error_code ec;
+		for (const std::filesystem::path& candidate : candidates) {
+
+			if (std::filesystem::is_regular_file(candidate, ec)) {
+				return candidate;
+			}
+			ec.clear();
+		}
+		return engineProjectRoot / "Tools/BuildGame.ps1";
+	}
+
 	// 製品へ含めないエディター専用アセットか
 	bool IsEditorOnlyAsset(const std::string& assetPath) {
 
@@ -622,7 +659,8 @@ bool Engine::GameBuildService::Start(const GameBuildSettings& settings,
 	commandLine += L" -ManifestPath ";
 	commandLine += QuoteArgument(manifestPath_);
 
-	if (!processRunner_.Start(commandLine, RuntimePaths::GetEngineProjectRoot().parent_path())) {
+	const std::filesystem::path buildRoot = ResolveGameBuildRoot(RuntimePaths::GetGameRoot());
+	if (!processRunner_.Start(commandLine, buildRoot)) {
 		RemoveManifest();
 		outError = "製品ビルドプロセスを開始できませんでした";
 		state_ = GameBuildState::Failed;
@@ -716,13 +754,13 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 		return false;
 	}
 
-	const std::filesystem::path repositoryRoot = RuntimePaths::GetEngineProjectRoot().parent_path();
 	const std::filesystem::path gameRoot = RuntimePaths::GetGameRoot();
+	const std::filesystem::path buildRoot = ResolveGameBuildRoot(gameRoot);
 	const std::string projectName = gameRoot.filename().string();
 	const std::filesystem::path projectPath = gameRoot / (projectName + ".vcxproj");
 	const std::filesystem::path sourceRuntime =
-		repositoryRoot / "Generated/Output/Release" / projectName;
-	outScriptPath = repositoryRoot / "Tools/BuildGame.ps1";
+		buildRoot / "Generated/Output/Release" / projectName;
+	outScriptPath = ResolveGameBuildScript(buildRoot);
 
 	if (!std::filesystem::is_regular_file(projectPath, ec)) {
 		outError = "ゲームプロジェクトが見つかりません: " + projectPath.string();
@@ -756,7 +794,7 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 			});
 	}
 
-	const std::filesystem::path manifestDirectory = repositoryRoot / "Generated/GameBuild";
+	const std::filesystem::path manifestDirectory = buildRoot / "Generated/GameBuild";
 	std::filesystem::create_directories(manifestDirectory, ec);
 	if (ec) {
 		outError = "ビルド用一時フォルダを作成できません";
