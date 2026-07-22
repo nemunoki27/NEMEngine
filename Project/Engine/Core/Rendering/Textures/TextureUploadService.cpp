@@ -202,6 +202,12 @@ void Engine::TextureUploadService::TickFinalize() {
 	}
 }
 
+void Engine::TextureUploadService::WaitAll() {
+
+	decodeWorkers_.WaitIdle();
+	TickFinalize();
+}
+
 void Engine::TextureUploadService::RequestSolidColor1x1(
 	const std::string& key, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
 

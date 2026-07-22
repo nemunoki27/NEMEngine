@@ -37,6 +37,8 @@ namespace Engine {
 		void RequestReload(AssetID meshAssetID);
 		// 読み込み待ちのメッシュアセットがあればGPUにアップロードする
 		void FlushUploads();
+		// 要求した全メッシュの読み込みとGPUリソース作成を完了する
+		void WaitAll();
 
 		// 終了処理
 		void Finalize();

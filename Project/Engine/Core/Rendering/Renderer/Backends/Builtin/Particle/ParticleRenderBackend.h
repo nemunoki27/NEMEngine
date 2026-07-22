@@ -44,6 +44,10 @@ namespace Engine {
 		}
 		~ParticleRenderBackend() override;
 
+		// Model形状で使う全メッシュを同期作成する
+		void PreloadMeshes(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
+			std::span<const AssetID> meshAssets);
+
 		void BeginFrame(GraphicsCore& graphicsCore) override;
 
 		void DrawBatch(const RenderDrawContext& context, std::span<const RenderItem* const> items) override;

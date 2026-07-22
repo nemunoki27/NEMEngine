@@ -49,6 +49,8 @@ namespace Engine {
 
 		// 完了したBatchのstagingを解放する(毎フレーム主スレッドで呼ぶ)
 		void TickFinalize();
+		// 未提出のBatchを送信し全GPU転送の完了を待つ
+		void FlushAndWait();
 
 		//--------- accessor -----------------------------------------------------
 

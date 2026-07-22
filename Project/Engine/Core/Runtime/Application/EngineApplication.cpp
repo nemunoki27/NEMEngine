@@ -50,6 +50,7 @@
 
 // c++
 #include <algorithm>
+#include <chrono>
 #include <unordered_set>
 #include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
 #include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
@@ -239,7 +240,175 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 
 		// Releaseはエディタ操作を待たず、起動時のシーンからPlayWorldを開始する
 		StartPlayWorld();
+		PreloadReleaseResources(graphicsCore);
 	}
+}
+
+void Engine::EngineApplication::PreloadReleaseResources(GraphicsCore& graphicsCore) {
+
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	(void)graphicsCore;
+	return;
+#else
+	const auto startTime = std::chrono::steady_clock::now();
+	Logger::Output(LogType::Engine, "[RuntimePreload] Release startup preload begin");
+
+	// ファイル単位で列挙できる描画アセットとPSOを先に作成する
+	renderPipeline_->PreloadRuntimeAssets(graphicsCore, assetDataBase_);
+
+	std::vector<const AssetMeta*> assets{};
+	assets.reserve(assetDataBase_.GetAssets().size());
+	for (const auto& [assetID, meta] : assetDataBase_.GetAssets()) {
+		assets.emplace_back(&meta);
+	}
+	std::sort(assets.begin(), assets.end(), [](const AssetMeta* lhs, const AssetMeta* rhs) {
+		return lhs->assetPath < rhs->assetPath;
+		});
+
+	std::vector<AssetID> sceneAssets{};
+	for (const AssetMeta* meta : assets) {
+
+		switch (meta->type) {
+		case AssetType::Mesh:
+			skinnedAnimationManager_.RequestLoadAsync(assetDataBase_, meta->guid);
+			break;
+		case AssetType::AnimationClip:
+			animationClipManager_.GetOrLoad(assetDataBase_, meta->guid);
+			break;
+		case AssetType::Audio:
+		{
+			const std::filesystem::path fullPath = assetDataBase_.ResolveFullPath(meta->guid);
+			if (!fullPath.empty()) {
+				Audio::GetInstance()->EnsureLoaded(fullPath.string());
+			}
+			break;
+		}
+		case AssetType::Scene:
+			if (meta->assetPath.starts_with("GameAssets/")) {
+				sceneAssets.emplace_back(meta->guid);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	skinnedAnimationManager_.WaitAll();
+
+	// 各シーンを一時ワールドへ展開し、ECS更新を行わず描画リソースだけ作成する
+	for (AssetID sceneAsset : sceneAssets) {
+
+		if (sceneAsset == activeScene_) {
+			continue;
+		}
+		const AssetMeta* sceneMeta = assetDataBase_.Find(sceneAsset);
+		Logger::Output(LogType::Engine, "[RuntimePreload] Scene warmup begin. path={}",
+			sceneMeta ? sceneMeta->assetPath : ToString(sceneAsset));
+		ECSWorld warmupWorld{};
+		SceneInstanceManager warmupScenes{};
+		if (!warmupScenes.LoadSceneTree(assetDataBase_, sceneSystem_, warmupWorld, sceneAsset)) {
+
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"[RuntimePreload] Scene load failed. guid={}", ToString(sceneAsset));
+			continue;
+		}
+
+		SystemContext warmupContext{};
+		warmupContext.engineContext = &graphicsCore.GetContext();
+		warmupContext.graphicsPlatform = &graphicsCore.GetDXObject();
+		warmupContext.assetDatabase = &assetDataBase_;
+		warmupContext.skinnedAnimationManager = &skinnedAnimationManager_;
+		warmupContext.animationClipManager = &animationClipManager_;
+		warmupContext.world = &warmupWorld;
+		if (const SceneInstance* activeScene = warmupScenes.GetActive()) {
+			warmupContext.activeSceneHeader = &activeScene->header;
+		}
+		warmupContext.mode = WorldMode::Play;
+
+		WorldCommandServices services{};
+		services.assetDatabase = &assetDataBase_;
+		services.sceneInstances = &warmupScenes;
+		services.sceneSystem = &sceneSystem_;
+		warmupWorld.SetCommandServices(services);
+
+		HierarchySystem hierarchySystem{};
+		hierarchySystem.OnWorldEnter(warmupWorld, warmupContext);
+		TransformSystem transformSystem{};
+		transformSystem.LateUpdate(warmupWorld, warmupContext);
+		WarmupReleaseWorld(graphicsCore, warmupWorld, warmupScenes, warmupContext);
+		Logger::Output(LogType::Engine, "[RuntimePreload] Scene warmup completed. path={}",
+			sceneMeta ? sceneMeta->assetPath : ToString(sceneAsset));
+	}
+
+	// 最後に実際の開始シーンを描画し、カメラとPostProcessの共有状態も開始シーンへ戻す
+	systemContext_.engineContext = &graphicsCore.GetContext();
+	systemContext_.graphicsPlatform = &graphicsCore.GetDXObject();
+	systemContext_.assetDatabase = &assetDataBase_;
+	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
+	systemContext_.animationClipManager = &animationClipManager_;
+	systemContext_.deltaTime = 0.0f;
+	systemContext_.unscaledDeltaTime = 0.0f;
+	RefreshActiveWorldContext();
+	if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
+		Logger::Output(LogType::Engine, "[RuntimePreload] Startup scene warmup begin");
+		WarmupReleaseWorld(graphicsCore, *playWorld, playScenes_, systemContext_);
+		Logger::Output(LogType::Engine, "[RuntimePreload] Startup scene warmup completed");
+	}
+
+	graphicsCore.GetTextureUploadService().WaitAll();
+	graphicsCore.GetBufferUploadService().FlushAndWait();
+	graphicsCore.GetDXObject().WaitForGPU();
+	requestFrameDeltaReset_ = true;
+	playWorldJustStarted_ = true;
+
+	const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+		std::chrono::steady_clock::now() - startTime).count();
+	Logger::Output(LogType::Engine,
+		"[RuntimePreload] Release startup preload completed. Scenes={} Elapsed={}ms",
+		sceneAssets.size(), elapsed);
+	Logger::Flush(LogType::Engine);
+#endif
+}
+
+void Engine::EngineApplication::WarmupReleaseWorld(GraphicsCore& graphicsCore, ECSWorld& world,
+	SceneInstanceManager& scenes, SystemContext& context) {
+
+	const SceneInstance* activeScene = scenes.GetActive();
+	if (!activeScene) {
+		return;
+	}
+	context.world = &world;
+	context.activeSceneHeader = &activeScene->header;
+	context.deltaTime = 0.0f;
+	context.unscaledDeltaTime = 0.0f;
+
+	RenderFrameRequest request{};
+	request.sceneInstances = &scenes;
+	request.header = &activeScene->header;
+	request.activeSceneInstanceID = activeScene->instanceID;
+	request.world = &world;
+	request.systemContext = &context;
+	request.assetDatabase = &assetDataBase_;
+
+	const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
+	RenderViewRequest& gameView = request.views[static_cast<uint32_t>(RenderViewKind::Game)];
+	gameView.kind = RenderViewKind::Game;
+	gameView.enabled = true;
+	gameView.width = static_cast<uint32_t>((std::max)(1, windowSetting.gameSize.x));
+	gameView.height = static_cast<uint32_t>((std::max)(1, windowSetting.gameSize.y));
+	gameView.sourceKind = RenderViewSourceKind::WorldCamera;
+
+	RenderViewRequest& sceneView = request.views[static_cast<uint32_t>(RenderViewKind::Scene)];
+	sceneView.kind = RenderViewKind::Scene;
+	sceneView.enabled = false;
+	sceneView.width = 0;
+	sceneView.height = 0;
+
+	Logger::Output(LogType::Engine, "[RuntimePreload] Scene render recording begin");
+	renderPipeline_->Render(graphicsCore, request);
+	Logger::Output(LogType::Engine, "[RuntimePreload] Scene render recording completed");
+	Logger::Output(LogType::Engine, "[RuntimePreload] Scene GPU wait begin");
+	graphicsCore.GetDXObject().WaitForGPU();
+	Logger::Output(LogType::Engine, "[RuntimePreload] Scene GPU wait completed");
 }
 
 const Engine::SceneHeader* Engine::EngineApplication::GetActiveSceneHeader() {

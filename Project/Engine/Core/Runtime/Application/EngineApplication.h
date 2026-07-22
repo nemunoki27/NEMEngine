@@ -145,6 +145,11 @@ namespace Engine {
 
 		// システムの初期化
 		void InitSystems();
+		// Release開始前に全アセットとシーン描画リソースを同期作成する
+		void PreloadReleaseResources(GraphicsCore& graphicsCore);
+		// 指定ワールドを更新せずオフスクリーン描画してGPUリソースを作成する
+		void WarmupReleaseWorld(GraphicsCore& graphicsCore, ECSWorld& world,
+			SceneInstanceManager& scenes, SystemContext& context);
 		// 最初のシーンを作成
 		void InitFirstScene();
 		// 前回開いていたシーン設定を読み込む

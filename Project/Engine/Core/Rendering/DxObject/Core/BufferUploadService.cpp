@@ -233,6 +233,15 @@ void Engine::BufferUploadService::TickFinalize() {
 	}
 }
 
+void Engine::BufferUploadService::FlushAndWait() {
+
+	if (batchOpened_) {
+		SubmitBatch();
+	}
+	WaitForAllUploads();
+	TickFinalize();
+}
+
 void Engine::BufferUploadService::WaitForFenceValue(uint64_t fenceValue) {
 
 	if (!fence_ || fenceValue == 0) {

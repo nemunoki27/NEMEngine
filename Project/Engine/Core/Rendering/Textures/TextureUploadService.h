@@ -61,6 +61,8 @@ namespace Engine {
 
 		// 毎フレーム主スレッド更新
 		void TickFinalize();
+		// 全デコードとGPU転送の完了を待つ
+		void WaitAll();
 
 		// アップロード要求
 		void RequestSolidColor1x1(const std::string& key, uint8_t r, uint8_t g, uint8_t b, uint8_t a);

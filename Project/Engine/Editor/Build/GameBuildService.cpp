@@ -295,7 +295,9 @@ namespace {
 
 				const Engine::AssetMeta* meta = database_.Find(assetID);
 				if (!meta) {
-					errors_.push_back("参照アセットが見つかりません: " + Engine::ToString(assetID));
+					Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
+						"[GameBuild] referenced asset was not found and will be skipped. guid={}",
+						Engine::ToString(assetID));
 					continue;
 				}
 				if (meta->type == Engine::AssetType::Script ||

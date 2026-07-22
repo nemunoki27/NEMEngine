@@ -174,6 +174,16 @@ void Engine::MeshRenderBackend::RequestMeshes(GraphicsCore& graphicsCore,
 	meshResourceManager_.FlushUploads();
 }
 
+void Engine::MeshRenderBackend::PreloadMeshes(GraphicsCore& graphicsCore,
+	AssetDatabase& assetDatabase, std::span<const AssetID> meshAssets) {
+
+	EnsureInitialized(graphicsCore);
+	for (const AssetID& meshAssetID : meshAssets) {
+		meshResourceManager_.RequestMesh(assetDatabase, meshAssetID);
+	}
+	meshResourceManager_.WaitAll();
+}
+
 void Engine::MeshRenderBackend::RequestMeshReload(AssetID meshAssetID) {
 
 	if (!meshAssetID) {

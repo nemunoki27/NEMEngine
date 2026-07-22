@@ -410,6 +410,12 @@ void Engine::MeshGPUResourceManager::FlushUploads() {
 	}
 }
 
+void Engine::MeshGPUResourceManager::WaitAll() {
+
+	importService_.WaitAll();
+	FlushUploads();
+}
+
 const Engine::MeshGPUResource* Engine::MeshGPUResourceManager::Find(AssetID meshAssetID) const {
 
 	std::scoped_lock lock(mutex_);

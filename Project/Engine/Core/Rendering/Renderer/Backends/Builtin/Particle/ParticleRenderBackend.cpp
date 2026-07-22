@@ -226,6 +226,19 @@ Engine::ParticleRenderBackend::~ParticleRenderBackend() {
 	resourcePool_.Clear();
 }
 
+void Engine::ParticleRenderBackend::PreloadMeshes(GraphicsCore& graphicsCore,
+	AssetDatabase& assetDatabase, std::span<const AssetID> meshAssets) {
+
+	if (!meshManagerInitialized_) {
+		meshResourceManager_.Init(graphicsCore);
+		meshManagerInitialized_ = true;
+	}
+	for (const AssetID& meshAssetID : meshAssets) {
+		meshResourceManager_.RequestMesh(assetDatabase, meshAssetID);
+	}
+	meshResourceManager_.WaitAll();
+}
+
 void Engine::ParticleRenderBackend::BeginFrame(GraphicsCore& graphicsCore) {
 
 	if (!geometryManagerInitialized_) {

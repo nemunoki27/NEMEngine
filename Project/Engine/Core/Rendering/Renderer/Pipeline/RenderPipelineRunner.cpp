@@ -41,13 +41,80 @@ using namespace Engine;
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackService.h>
+#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 
 // c++
 #include <algorithm>
+#include <array>
 #include <filesystem>
 
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+
+namespace {
+
+	// 描画パスが使うRTVとDSVの組み合わせ
+	struct RuntimeTargetFormats {
+
+		std::vector<DXGI_FORMAT> rtvFormats{};
+		DXGI_FORMAT dsvFormat = DXGI_FORMAT_UNKNOWN;
+	};
+
+	// GBuffer用のMRT形式を構築する
+	RuntimeTargetFormats MakeSceneMainFormats() {
+
+		RuntimeTargetFormats formats{};
+		formats.rtvFormats = {
+			DXGI_FORMAT_R32G32B32A32_FLOAT,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
+			DXGI_FORMAT_R32G32B32A32_FLOAT,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R11G11B10_FLOAT,
+			DXGI_FORMAT_R32_UINT,
+		};
+		formats.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		return formats;
+	}
+
+	// マテリアルパスの実行先形式を解決する
+	RuntimeTargetFormats ResolvePassFormats(const Engine::MaterialAsset& material,
+		Engine::MaterialPassKind passKind) {
+
+		RuntimeTargetFormats formats{};
+		if (material.domain == Engine::MaterialDomain::UI ||
+			material.domain == Engine::MaterialDomain::Fullscreen) {
+
+			formats.rtvFormats = { DXGI_FORMAT_R32G32B32A32_FLOAT };
+			return formats;
+		}
+		switch (passKind) {
+		case Engine::MaterialPassKind::ZPrepass:
+			formats.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			break;
+		case Engine::MaterialPassKind::Draw:
+			formats = MakeSceneMainFormats();
+			break;
+		case Engine::MaterialPassKind::ScreenSpaceOutlineMask:
+		case Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask:
+			formats.rtvFormats = { DXGI_FORMAT_R16_UINT };
+			formats.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			break;
+		case Engine::MaterialPassKind::Transparent:
+		case Engine::MaterialPassKind::Outline:
+		case Engine::MaterialPassKind::OutlineStencilWrite:
+		case Engine::MaterialPassKind::OutlineStencilTest:
+			formats.rtvFormats = { DXGI_FORMAT_R32G32B32A32_FLOAT };
+			formats.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			break;
+		default:
+			formats.rtvFormats = { DXGI_FORMAT_R32G32B32A32_FLOAT };
+			break;
+		}
+		return formats;
+	}
+}
 
 //============================================================================
 //	RenderPipelineRunner classMethods
@@ -88,6 +155,7 @@ void RenderPipelineRunner::Init() {
 	meshBackend_ = dynamic_cast<MeshRenderBackend*>(backendRegistry_.Find(RenderBackendID::Mesh));
 	previewMeshBackend_ = dynamic_cast<MeshRenderBackend*>(previewBackendRegistry_.Find(RenderBackendID::Mesh));
 	primitiveBackend_ = dynamic_cast<PrimitiveRenderBackend*>(backendRegistry_.Find(RenderBackendID::Primitive));
+	particleBackend_ = dynamic_cast<ParticleRenderBackend*>(backendRegistry_.Find(RenderBackendID::Particle));
 	// ライト抽出器の登録
 	lightExtractorRegistry_.Clear();
 	lightExtractorRegistry_.Register(std::make_unique<DirectionalLightExtractor>());
@@ -131,6 +199,268 @@ void RenderPipelineRunner::Init() {
 	previewLightBufferPool_.Clear();
 	previewBackendFrameStarted_ = false;
 	lastRenderedWorld_ = nullptr;
+}
+
+void RenderPipelineRunner::PreloadRuntimeAssets(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase) {
+
+	Logger::Output(LogType::Engine, "[RuntimePreload] Start");
+	renderAssetLibrary_.Init(&assetDatabase);
+	postProcessAssetGenerator_.EnsureBuiltinAssets(&assetDatabase);
+
+	std::vector<const AssetMeta*> assets{};
+	assets.reserve(assetDatabase.GetAssets().size());
+	for (const auto& [assetID, meta] : assetDatabase.GetAssets()) {
+		assets.emplace_back(&meta);
+	}
+	std::sort(assets.begin(), assets.end(), [](const AssetMeta* lhs, const AssetMeta* rhs) {
+		return lhs->assetPath < rhs->assetPath;
+		});
+
+	std::vector<AssetID> meshAssets{};
+	std::vector<AssetID> materialAssets{};
+	std::vector<AssetID> pipelineAssets{};
+	std::vector<AssetID> postProcessAssets{};
+	TextureUploadService& textureUploadService = graphicsCore.GetTextureUploadService();
+	for (const AssetMeta* meta : assets) {
+
+		switch (meta->type) {
+		case AssetType::Texture:
+		{
+			const std::filesystem::path fullPath = assetDatabase.ResolveFullPath(meta->guid);
+			if (fullPath.empty()) {
+				break;
+			}
+			const std::string texturePath = fullPath.generic_string();
+			for (bool sRGB : { false, true }) {
+
+				TextureFileRequestDesc desc{};
+				desc.key = sRGB ? texturePath + ":srgb" : texturePath;
+				desc.assetPath = texturePath;
+				desc.forceSRGB = sRGB;
+				textureUploadService.RequestTextureFile(desc);
+			}
+			break;
+		}
+		case AssetType::Material:
+			renderAssetLibrary_.LoadMaterial(meta->guid);
+			materialAssets.emplace_back(meta->guid);
+			break;
+		case AssetType::Shader:
+		{
+			const std::string path = Algorithm::ToLower(meta->assetPath);
+			if (Algorithm::EndsWith(path, ".shader.json") ||
+				Algorithm::EndsWith(path, ".shader")) {
+				renderAssetLibrary_.LoadShader(meta->guid);
+			}
+			break;
+		}
+		case AssetType::RenderPipeline:
+			renderAssetLibrary_.LoadPipeline(meta->guid);
+			pipelineAssets.emplace_back(meta->guid);
+			break;
+		case AssetType::Font:
+		{
+			const std::string path = Algorithm::ToLower(meta->assetPath);
+			if (Algorithm::EndsWith(path, ".font.json") ||
+				Algorithm::EndsWith(path, ".msdf.json") ||
+				Algorithm::EndsWith(path, ".font")) {
+				renderAssetLibrary_.LoadFont(meta->guid);
+			}
+			break;
+		}
+		case AssetType::ParticleEffect:
+			renderAssetLibrary_.LoadParticleEffect(meta->guid);
+			break;
+		case AssetType::Mesh:
+			meshAssets.emplace_back(meta->guid);
+			break;
+		case AssetType::PostProcessStack:
+			postProcessAssets.emplace_back(meta->guid);
+			break;
+		default:
+			break;
+		}
+	}
+
+	// 全テクスチャのCPUデコードとGPU転送を完了する
+	textureUploadService.WaitAll();
+
+	// 通常メッシュとModel Particleは別キャッシュなので両方作成する
+	backendRegistry_.BeginFrame(graphicsCore);
+	if (meshBackend_) {
+		meshBackend_->PreloadMeshes(graphicsCore, assetDatabase, meshAssets);
+	}
+	if (particleBackend_) {
+		particleBackend_->PreloadMeshes(graphicsCore, assetDatabase, meshAssets);
+	}
+	graphicsCore.GetBufferUploadService().FlushAndWait();
+
+	// 初回描画で解像度依存のRTを作らないように先に確保する
+	const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
+	const uint32_t width = static_cast<uint32_t>((std::max)(1, windowSetting.gameSize.x));
+	const uint32_t height = static_cast<uint32_t>((std::max)(1, windowSetting.gameSize.y));
+	viewportRenderService_->SyncSurface(graphicsCore, RenderViewKind::Game, width, height);
+	gameViewState_.resources.Resize(graphicsCore, width, height);
+
+	const GraphicsRuntimeFeatures& runtimeFeatures =
+		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
+	const DXGI_FORMAT backBufferFormat = graphicsCore.GetBackBufferRenderTarget().format;
+	size_t pipelineCount = 0;
+	auto preloadPipeline = [&](const MaterialAsset& material, const MaterialPassBinding& pass,
+		const RuntimeTargetFormats& formats, bool forceDepthTestWrite = false) {
+
+		const PipelineState* pipeline = nullptr;
+		if (pass.preferredVariant == PipelineVariantKind::Raytracing) {
+			pipeline = nullptr;
+			raytracingPipelineStateCache_.GetOrCreate(
+				graphicsCore.GetDXObject(), renderAssetLibrary_, pass.pipeline);
+		} else if (pass.preferredVariant == PipelineVariantKind::Compute) {
+
+			PipelineStaticSamplerOverrideSet samplerOverrides{};
+			samplerOverrides.fillMissingSamplers = true;
+			pipeline = pipelineStateCache_.GetORCreate(graphicsCore.GetDXObject(), renderAssetLibrary_,
+				pass.pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
+				runtimeFeatures, nullptr, false, &samplerOverrides);
+		} else if (pass.shaderOverride) {
+			pipeline = pipelineStateCache_.GetORCreateComposed(graphicsCore.GetDXObject(), renderAssetLibrary_,
+				pass.pipeline, pass.pipeline, pass.shaderOverride, pass.preferredVariant,
+				formats.rtvFormats, formats.dsvFormat, runtimeFeatures);
+		} else {
+			pipeline = pipelineStateCache_.GetORCreate(graphicsCore.GetDXObject(), renderAssetLibrary_,
+				pass.pipeline, pass.preferredVariant, formats.rtvFormats, formats.dsvFormat,
+				runtimeFeatures, nullptr, forceDepthTestWrite);
+		}
+		if (pipeline || pass.preferredVariant == PipelineVariantKind::Raytracing) {
+			++pipelineCount;
+		}
+
+		// Particleの専用MS形状とTrailはMaterialのPSと先に合成する
+		if (material.usage == MaterialUsage::Particle &&
+			pass.preferredVariant != PipelineVariantKind::Compute &&
+			pass.preferredVariant != PipelineVariantKind::Raytracing) {
+
+			for (AssetID geometryPipeline : {
+				BuiltinAssets::Pipelines::ParticleRingMS,
+				BuiltinAssets::Pipelines::ParticleCylinderMS }) {
+
+				if (pipelineStateCache_.GetORCreateComposed(graphicsCore.GetDXObject(), renderAssetLibrary_,
+					pass.pipeline, geometryPipeline, pass.shaderOverride, PipelineVariantKind::GraphicsMesh,
+					formats.rtvFormats, formats.dsvFormat, runtimeFeatures)) {
+					++pipelineCount;
+				}
+			}
+			const PipelineVariantKind trailKind = runtimeFeatures.useMeshShader ?
+				PipelineVariantKind::GraphicsMesh : PipelineVariantKind::GraphicsVertex;
+			if (pipelineStateCache_.GetORCreateComposed(graphicsCore.GetDXObject(), renderAssetLibrary_,
+				pass.pipeline, BuiltinAssets::Pipelines::ParticleTrail, pass.shaderOverride, trailKind,
+				formats.rtvFormats, formats.dsvFormat, runtimeFeatures)) {
+				++pipelineCount;
+			}
+		}
+	};
+
+	for (AssetID materialID : materialAssets) {
+
+		const MaterialAsset* material = renderAssetLibrary_.LoadMaterial(materialID);
+		if (!material) {
+			continue;
+		}
+		for (const MaterialPassBinding& pass : material->passes) {
+
+			const RuntimeTargetFormats formats = ResolvePassFormats(*material, pass.passKind);
+			preloadPipeline(*material, pass, formats);
+			if (material->usage == MaterialUsage::Text &&
+				pass.preferredVariant != PipelineVariantKind::Compute &&
+				pass.preferredVariant != PipelineVariantKind::Raytracing) {
+				preloadPipeline(*material, pass, formats, true);
+			}
+			if (pass.passKind == MaterialPassKind::Blit || pass.passKind == MaterialPassKind::Fullscreen) {
+
+				RuntimeTargetFormats backBufferFormats{};
+				backBufferFormats.rtvFormats = { backBufferFormat };
+				preloadPipeline(*material, pass, backBufferFormats);
+			}
+		}
+	}
+
+	// Materialから参照されないComputeやDXRパイプラインも作成する
+	for (AssetID pipelineID : pipelineAssets) {
+
+		const RenderPipelineAsset* pipelineAsset = renderAssetLibrary_.LoadPipeline(pipelineID);
+		if (!pipelineAsset) {
+			continue;
+		}
+		for (const PipelineVariantDesc& variant : pipelineAsset->variants) {
+
+			if (variant.kind == PipelineVariantKind::Raytracing) {
+				if (raytracingPipelineStateCache_.GetOrCreate(
+					graphicsCore.GetDXObject(), renderAssetLibrary_, pipelineID)) {
+					++pipelineCount;
+				}
+				continue;
+			}
+			if (variant.kind == PipelineVariantKind::Compute) {
+
+				if (pipelineStateCache_.GetORCreate(graphicsCore.GetDXObject(), renderAssetLibrary_,
+					pipelineID, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
+					runtimeFeatures)) {
+					++pipelineCount;
+				}
+				continue;
+			}
+
+			RuntimeTargetFormats formats{};
+			if (variant.numRenderTargets == 0) {
+				formats.dsvFormat = variant.dsvFormat != DXGI_FORMAT_UNKNOWN ?
+					variant.dsvFormat : DXGI_FORMAT_D24_UNORM_S8_UINT;
+			} else if (3 <= variant.numRenderTargets) {
+				formats = MakeSceneMainFormats();
+				formats.rtvFormats.resize((std::min)(formats.rtvFormats.size(),
+					static_cast<size_t>(variant.numRenderTargets)));
+			} else {
+				formats.rtvFormats.assign(variant.numRenderTargets, DXGI_FORMAT_R32G32B32A32_FLOAT);
+				formats.dsvFormat = variant.depthStencil.DepthEnable ?
+					DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_UNKNOWN;
+			}
+			if (pipelineStateCache_.GetORCreate(graphicsCore.GetDXObject(), renderAssetLibrary_,
+				pipelineID, variant.kind, formats.rtvFormats, formats.dsvFormat, runtimeFeatures)) {
+				++pipelineCount;
+			}
+		}
+	}
+
+	// PostProcessはSampler上書きもPSOキーに含むためStackごとに作成する
+	for (AssetID stackID : postProcessAssets) {
+
+		PostProcessStackSettings stack{};
+		if (!PostProcessStackSerializer::Load(assetDatabase.ResolveFullPath(stackID), stack)) {
+			continue;
+		}
+		for (const PostProcessStackPassSettings& stackPass : stack.passes) {
+
+			const MaterialAsset* material = renderAssetLibrary_.LoadMaterial(stackPass.materialGuid);
+			const MaterialPassBinding* pass = material ? FindPass(*material, stackPass.passKind) : nullptr;
+			if (!pass || pass->preferredVariant != PipelineVariantKind::Compute) {
+				continue;
+			}
+			PipelineStaticSamplerOverrideSet samplerOverrides{};
+			samplerOverrides.fillMissingSamplers = true;
+			samplerOverrides.byName = stackPass.samplerOverrides;
+			if (pipelineStateCache_.GetORCreate(graphicsCore.GetDXObject(), renderAssetLibrary_,
+				pass->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
+				runtimeFeatures, nullptr, false, &samplerOverrides)) {
+				++pipelineCount;
+			}
+		}
+	}
+
+	Logger::Output(LogType::Engine,
+		"[RuntimePreload] Assets={} Textures={} Meshes={} Materials={} Pipelines={}",
+		assets.size(),
+		static_cast<size_t>(std::count_if(assets.begin(), assets.end(), [](const AssetMeta* meta) {
+			return meta->type == AssetType::Texture;
+			})),
+		meshAssets.size(), materialAssets.size(), pipelineCount);
 }
 
 void RenderPipelineRunner::ReloadMesh(AssetID meshAssetID) {
@@ -246,6 +576,7 @@ void RenderPipelineRunner::Finalize() {
 	previewBackendRegistry_.Clear();
 	meshBackend_ = nullptr;
 	primitiveBackend_ = nullptr;
+	particleBackend_ = nullptr;
 	previewMeshBackend_ = nullptr;
 	extractorRegistry_.Clear();
 	renderAssetLibrary_.Clear();

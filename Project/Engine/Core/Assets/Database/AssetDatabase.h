@@ -94,6 +94,7 @@ namespace Engine {
 		const std::vector<AssetID>& FindReferencers(AssetID id) const;
 		bool HasReferencers(AssetID id) const;
 		const std::vector<AssetDatabaseIssue>& GetIssues() const { return issues_; }
+		const std::unordered_map<AssetID, AssetMeta>& GetAssets() const { return guidToMeta_; }
 
 		// アセット集合の構造リビジョンを取得、RebuildMetaのたびに増えるので差分監視に使う
 		uint64_t GetStructureRevision() const { return structureRevision_; }

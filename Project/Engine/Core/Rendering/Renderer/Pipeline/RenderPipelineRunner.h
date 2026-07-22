@@ -45,6 +45,7 @@ namespace Engine {
 	struct SceneInstance;
 	class MeshRenderBackend;
 	class PrimitiveRenderBackend;
+	class ParticleRenderBackend;
 	//============================================================================
 	//	RenderPipelineRunner structures
 	//============================================================================
@@ -146,6 +147,8 @@ namespace Engine {
 
 		// フレームの描画要求を受けて実行する
 		void Render(GraphicsCore& graphicsCore, const RenderFrameRequest& request);
+		// 製品実行前に全描画アセットとGPUリソースを作成する
+		void PreloadRuntimeAssets(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase);
 
 		// 終了処理
 		void Finalize();
@@ -286,6 +289,7 @@ namespace Engine {
 		MeshRenderBackend* meshBackend_ = nullptr;
 		MeshRenderBackend* previewMeshBackend_ = nullptr;
 		PrimitiveRenderBackend* primitiveBackend_ = nullptr;
+		ParticleRenderBackend* particleBackend_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
 
