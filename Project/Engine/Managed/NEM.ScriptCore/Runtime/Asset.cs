@@ -83,3 +83,8 @@ public sealed class Font : Asset {
 public sealed class AnimationClip : Asset {
     internal AnimationClip(UUID id) : base(id) { }
 }
+
+[NativeAssetType("ParticleEffect")]
+public sealed class ParticleEffect : Asset {
+    internal ParticleEffect(UUID id) : base(id) { }
+}

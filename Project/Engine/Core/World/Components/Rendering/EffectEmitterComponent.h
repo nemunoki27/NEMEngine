@@ -71,9 +71,11 @@ namespace Engine {
 		int32_t count = 1;
 		float interval = 0.0f;
 		float duration = 0.0f;
+		bool emitUntilStopped = true;
 		Vector3 localPosition = Vector3::AnyInit(0.0f);
 		Quaternion localRotation = Quaternion::Identity();
 		Vector3 localScale = Vector3::AnyInit(1.0f);
+		ParticlePhaseParentSettings parentSettings{ true };
 	};
 
 	// 同時に発生するエフェクト設定の束
@@ -107,6 +109,7 @@ namespace Engine {
 		float emitTimer = 0.0f;
 		int32_t emittedCount = 0;
 		bool scheduleFinished = false;
+		bool useAssetParentSettings = false;
 		std::vector<ParticleEffectInstanceRuntime> effects{};
 	};
 

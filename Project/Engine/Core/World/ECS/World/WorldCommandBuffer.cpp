@@ -79,7 +79,7 @@ namespace {
 		}
 
 		const Vector3 worldPos = childWorldBefore.matrix.GetTranslationValue();
-		childTransform->localPos = Vector3::TransformPoint(
+		childTransform->localPos = Vector3::Transform(
 			worldPos, Matrix4x4::Inverse(parentFollow.matrix));
 		childTransform->localRotation = Quaternion::Normalize(
 			Quaternion::Inverse(parentFollow.rotation) * childWorldBefore.rotation);

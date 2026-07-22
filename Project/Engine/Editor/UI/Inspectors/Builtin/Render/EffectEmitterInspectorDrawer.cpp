@@ -4,8 +4,12 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/World/Components/Scene/NameComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
 // imgui
 #include <imgui.h>
@@ -17,6 +21,73 @@
 //	EffectEmitterInspectorDrawer internal
 //============================================================================
 namespace {
+
+	// 親localFileIDから表示名を作る
+	std::string MakeEffectEmitterParentLabel(Engine::ECSWorld* world, Engine::UUID target) {
+
+		if (!target) {
+			return "なし";
+		}
+		if (!world) {
+			return Engine::ToString(target);
+		}
+		const Engine::Entity entity = Engine::SceneObjectUtility::FindByLocalFileID(*world, target);
+		if (!entity.IsValid() || !world->IsAlive(entity)) {
+			return "不明 : " + Engine::ToString(target);
+		}
+		if (world->HasComponent<Engine::NameComponent>(entity)) {
+			return world->GetComponent<Engine::NameComponent>(entity).name;
+		}
+		return Engine::ToString(target);
+	}
+
+	// 親エンティティ参照欄、ヒエラルキーからドロップしてlocalFileIDを設定する
+	Engine::ValueEditResult DrawEffectEmitterParentField(const char* label,
+		Engine::ECSWorld* world, Engine::UUID& target) {
+
+		using namespace Engine;
+		ValueEditResult result{};
+		if (!MyGUI::BeginPropertyRow(label)) {
+			return result;
+		}
+
+		const float clearWidth = 56.0f;
+		const std::string buttonLabel = MakeEffectEmitterParentLabel(world, target);
+		ImGui::Button(buttonLabel.c_str(),
+			ImVec2((std::max)(0.0f, ImGui::GetContentRegionAvail().x - clearWidth), 0.0f));
+		result.anyItemActive |= ImGui::IsItemActive();
+
+		if (world && ImGui::BeginDragDropTarget()) {
+
+			const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType);
+			if (payload && payload->DataSize == sizeof(Engine::UUID)) {
+
+				const Engine::UUID droppedUUID = *static_cast<const Engine::UUID*>(payload->Data);
+				const Entity dropped = world->FindByUUID(droppedUUID);
+				Engine::UUID localFileID{};
+				if (dropped.IsValid() && world->HasComponent<SceneObjectComponent>(dropped)) {
+					localFileID = world->GetComponent<SceneObjectComponent>(dropped).localFileID;
+				}
+				if (localFileID && target != localFileID) {
+
+					target = localFileID;
+					result.valueChanged = true;
+					result.editFinished = true;
+				}
+			}
+			ImGui::EndDragDropTarget();
+		}
+
+		ImGui::SameLine();
+		if (ImGui::Button("クリア", ImVec2(clearWidth, 0.0f)) && target) {
+
+			target = Engine::UUID{};
+			result.valueChanged = true;
+			result.editFinished = true;
+		}
+		MyGUI::EndPropertyRow();
+		return result;
+	}
 
 	const char* ModeLabel(Engine::EffectEmitterMode mode) {
 
@@ -116,7 +187,7 @@ void Engine::EffectEmitterInspectorDrawer::DrawFields(const EditorPanelContext& 
 
 			ImGui::PushID(groupIndex);
 			EffectEmitterGroup& group = draft.groups[groupIndex];
-			if (ImGui::TreeNodeEx("Group", ImGuiTreeNodeFlags_DefaultOpen, "グループ : %s",
+			if (ImGui::TreeNodeEx("Group", ImGuiTreeNodeFlags_None, "グループ : %s",
 				group.name.empty() ? "<名前なし>" : group.name.c_str())) {
 
 				DrawField(anyItemActive, [&]() { return MyGUI::InputText("グループ名", group.name); });
@@ -127,7 +198,7 @@ void Engine::EffectEmitterInspectorDrawer::DrawFields(const EditorPanelContext& 
 
 					ImGui::PushID(stateIndex);
 					EffectEmitterState& state = group.states[stateIndex];
-					if (ImGui::TreeNodeEx("State", ImGuiTreeNodeFlags_DefaultOpen, "エフェクト : %s",
+					if (ImGui::TreeNodeEx("State", ImGuiTreeNodeFlags_None, "エフェクト : %s",
 						state.name.empty() ? "<名前なし>" : state.name.c_str())) {
 
 						DrawField(anyItemActive, [&]() {
@@ -161,19 +232,29 @@ void Engine::EffectEmitterInspectorDrawer::DrawFields(const EditorPanelContext& 
 									{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 3600.0f });
 								});
 							DrawField(anyItemActive, [&]() {
-								return MyGUI::DragFloat("発生時間", state.duration,
-									{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 3600.0f });
+								return InspectorDrawerCommon::DrawCheckboxField(
+									"停止を呼ぶまで発生", state.emitUntilStopped);
 								});
+							if (!state.emitUntilStopped) {
+								DrawField(anyItemActive, [&]() {
+									return MyGUI::DragFloat("発生時間", state.duration,
+										{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 3600.0f });
+									});
+							}
 							float currentTime = 0.0f;
 							if (world.IsAlive(entity) && world.HasComponent<EffectEmitterComponent>(entity)) {
 								currentTime = ResolveCurrentPlaybackTime(
 									world.GetComponent<EffectEmitterComponent>(entity), state.id);
 							}
-							if (0.0f < state.duration) {
+							if (!state.emitUntilStopped && 0.0f < state.duration) {
 								currentTime = (std::min)(currentTime, state.duration);
 							}
 							if (MyGUI::BeginPropertyRow("現在の再生時間")) {
-								ImGui::Text("%.3f / %.3f", currentTime, state.duration);
+								if (state.emitUntilStopped) {
+									ImGui::Text("%.3f / 停止まで", currentTime);
+								} else {
+									ImGui::Text("%.3f / %.3f", currentTime, state.duration);
+								}
 								MyGUI::EndPropertyRow();
 							}
 						}
@@ -191,6 +272,39 @@ void Engine::EffectEmitterInspectorDrawer::DrawFields(const EditorPanelContext& 
 								});
 							MyGUI::TextQuaternion("Quaternion", state.localRotation);
 							DrawField(anyItemActive, [&]() { return MyGUI::DragVector3("ローカルスケール", state.localScale); });
+						}
+						if (MyGUI::CollapsingHeader("ペアレント設定", false)) {
+
+							DrawField(anyItemActive, [&]() {
+								auto result = InspectorDrawerCommon::DrawCheckboxField(
+									"エミッターを親にする", state.parentSettings.useEmitter);
+								if (result.valueChanged && state.parentSettings.useEmitter) {
+									state.parentSettings.entityLocalFileID = {};
+								}
+								return result;
+								});
+							DrawField(anyItemActive, [&]() {
+								UUID parent = state.parentSettings.entityLocalFileID;
+								auto result = DrawEffectEmitterParentField("親エンティティ", &world, parent);
+								if (result.valueChanged) {
+
+									state.parentSettings.entityLocalFileID = parent;
+									if (parent) { state.parentSettings.useEmitter = false; }
+								}
+								return result;
+								});
+							DrawField(anyItemActive, [&]() {
+								return InspectorDrawerCommon::DrawCheckboxField(
+									"親の回転を無視", state.parentSettings.ignoreParentRotation);
+								});
+							DrawField(anyItemActive, [&]() {
+								return InspectorDrawerCommon::DrawCheckboxField(
+									"親のスケールを無視", state.parentSettings.ignoreParentScale);
+								});
+							DrawField(anyItemActive, [&]() {
+								return InspectorDrawerCommon::DrawCheckboxField(
+									"ワールドを保持", state.parentSettings.keepWorldOnDetach);
+								});
 						}
 						ImGui::Unindent();
 

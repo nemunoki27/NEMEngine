@@ -191,7 +191,7 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 		for (auto playbackIt = emitter.runtimePlaybacks.begin(); playbackIt != emitter.runtimePlaybacks.end();) {
 
 			EffectEmitterPlaybackRuntime& playback = *playbackIt;
-			const Matrix4x4 anchor = BuildPlaybackAnchor(world, entity, playback);
+			const Matrix4x4 playbackAnchor = BuildPlaybackAnchor(world, entity, playback);
 			for (EffectEmitterStateRuntime& state : playback.states) {
 
 				if (updateSimulation && emitter.enabled && !playback.stopped && !state.scheduleFinished) {
@@ -199,11 +199,12 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 				}
 				const Matrix4x4 local = Matrix4x4::MakeAffineMatrix(
 					state.state.localScale, state.state.localRotation, state.state.localPosition);
-				const Matrix4x4 emitterWorld = local * anchor;
+				const Matrix4x4 emitterWorld = local * playbackAnchor;
 				for (auto effectIt = state.effects.begin(); effectIt != state.effects.end();) {
 
 					const bool emissionEnabled = emitter.enabled && !playback.stopped && !effectIt->emissionStopped;
-					if (UpdateEffectInstance(world, *effectIt, emitterWorld, context,
+					if (UpdateEffectInstance(world, *effectIt, emitterWorld,
+						state.state.parentSettings, state.useAssetParentSettings, context,
 						deltaTime, updateSimulation, emissionEnabled,
 						emitter.drawEmitterShape, checkReload)) {
 						effectIt = state.effects.erase(effectIt);
@@ -316,7 +317,7 @@ void Engine::ParticleSystem::UpdateStateSchedule(EffectEmitterComponent& emitter
 			state.emitTimer = 0.0f;
 			startedThisFrame = true;
 		}
-		if (!startedThisFrame && 0.0f < state.state.duration &&
+		if (!state.state.emitUntilStopped && !startedThisFrame &&
 			state.state.delay + state.state.duration <= state.time) {
 			state.scheduleFinished = true;
 			if (state.state.interval <= 0.0f) {
@@ -449,6 +450,7 @@ bool Engine::ParticleSystem::UpdateGroupEmission(ParticleEffectInstanceRuntime& 
 
 bool Engine::ParticleSystem::UpdateEffectInstance(ECSWorld& world,
 	ParticleEffectInstanceRuntime& instance, const Matrix4x4& emitterWorld,
+	const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
 	SystemContext& context, float deltaTime, bool updateSimulation,
 	bool emissionEnabled, bool drawEmitterShape, bool checkReload) {
 
@@ -488,6 +490,7 @@ bool Engine::ParticleSystem::UpdateEffectInstance(ECSWorld& world,
 			continue;
 		}
 		UpdateGroup(world, emitterWorld, state, asset, group, effect->groups[i],
+			parentSettings, useAssetParentSettings,
 			deltaTime, updateSimulation, simultaneousEmit, emissionEnabled,
 			instance.oneShot, drawEmitterShape);
 	}
@@ -514,15 +517,18 @@ bool Engine::ParticleSystem::UpdateEffectInstance(ECSWorld& world,
 void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Matrix4x4& emitterWorld,
 	ParticleGroupRuntimeState& state, const ParticleEffectAsset& asset,
 	const ParticleEffectGroup& group, const GroupRuntime& runtime,
+	const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
 	float deltaTime, bool updateSimulation, bool simultaneousEmit, bool emissionEnabled,
 	bool oneShot, bool drawEmitterShape) {
 
 	parentRuntimes_.assign(runtime.phases.size(), ParentRuntime{});
-	ResolveParticleParents(world, emitterWorld, runtime, parentRuntimes_);
+	ResolveParticleParents(world, emitterWorld, runtime,
+		parentSettings, useAssetParentSettings, parentRuntimes_);
 	const std::vector<ParentRuntime>& parents = parentRuntimes_;
 	if (!updateSimulation) {
 
-		UpdateParticleParents(state.particles, runtime, parents);
+		UpdateParticleParents(state.particles, runtime,
+			parentSettings, useAssetParentSettings, parents);
 		if (drawEmitterShape) {
 			DrawEmitterShape(emitterWorld, group.emitter, asset.space == PrimitiveRenderSpace::Screen2D);
 		}
@@ -542,8 +548,9 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Matrix4x4& emitt
 
 		Particle& particle = particles[i];
 		if (particle.phaseIndex < runtime.phases.size()) {
-			UpdateParticleParent(particle, runtime.phases[particle.phaseIndex].parentSettings,
-				parents[particle.phaseIndex]);
+			const PhaseRuntime& phase = runtime.phases[particle.phaseIndex];
+			UpdateParticleParent(particle, ResolveParticleParentSettings(
+				phase, parentSettings, useAssetParentSettings), parents[particle.phaseIndex]);
 		}
 		const uint32_t previousPhase = particle.phaseIndex;
 		particle.previousAge = particle.age;
@@ -569,8 +576,9 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Matrix4x4& emitt
 			continue;
 		}
 		if (particle.phaseIndex != previousPhase && particle.phaseIndex < runtime.phases.size()) {
-			UpdateParticleParent(particle, runtime.phases[particle.phaseIndex].parentSettings,
-				parents[particle.phaseIndex]);
+			const PhaseRuntime& phase = runtime.phases[particle.phaseIndex];
+			UpdateParticleParent(particle, ResolveParticleParentSettings(
+				phase, parentSettings, useAssetParentSettings), parents[particle.phaseIndex]);
 		}
 		particle.pos += particle.velocity * deltaTime;
 		if (!hasUpdateBatch) {
@@ -646,7 +654,8 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Matrix4x4& emitt
 					Vector3(0.0f, 1.0f, 0.0f));
 				particle.pos = worldPos;
 				// 発生時の回転とスケールは親ローカル値として継承する
-				UpdateParticleParent(particle, firstPhase.parentSettings, parents.front(), false);
+				UpdateParticleParent(particle, ResolveParticleParentSettings(
+					firstPhase, parentSettings, useAssetParentSettings), parents.front(), false);
 				if (!hasSpawnBatch) {
 
 					// 発生した瞬間の見た目を確定させる
@@ -663,7 +672,8 @@ void Engine::ParticleSystem::UpdateGroup(ECSWorld& world, const Matrix4x4& emitt
 			}
 		}
 	}
-	UpdateDetachedTrailOwners(state, runtime, parents, group.trail, deltaTime);
+	UpdateDetachedTrailOwners(state, runtime, parentSettings,
+		useAssetParentSettings, parents, group.trail, deltaTime);
 
 	// トレイルの軌跡点をワールド空間で記録する
 	if (group.trail.enabled) {
@@ -871,6 +881,13 @@ void Engine::ParticleSystem::ExecuteUpdateModules(
 	}
 }
 
+const Engine::ParticlePhaseParentSettings& Engine::ParticleSystem::ResolveParticleParentSettings(
+	const PhaseRuntime& phase, const ParticlePhaseParentSettings& parentSettings,
+	bool useAssetParentSettings) const {
+
+	return useAssetParentSettings ? phase.parentSettings : parentSettings;
+}
+
 void Engine::ParticleSystem::UpdateParticleParent(Particle& particle,
 	const ParticlePhaseParentSettings& settings, const ParentRuntime& parent,
 	bool preserveWorldRotationScale) const {
@@ -878,8 +895,8 @@ void Engine::ParticleSystem::UpdateParticleParent(Particle& particle,
 	if (!parent.resolved) {
 
 		if (particle.hasParent) {
-			// 設定先が見つからない場合は見た目を壊さずワールドへ退避する
-			if (settings.HasParent() || settings.keepWorldOnDetach) {
+			// 親が外れたときは設定に従ってワールドへ退避する
+			if (settings.keepWorldOnDetach) {
 				BakeParticleParentToWorld(particle);
 			} else {
 				DetachParticleParentWithoutKeepingWorld(particle);
@@ -907,13 +924,15 @@ void Engine::ParticleSystem::UpdateParticleParent(Particle& particle,
 }
 
 void Engine::ParticleSystem::UpdateParticleParents(std::vector<Particle>& particles,
-	const GroupRuntime& group, const std::vector<ParentRuntime>& parents) const {
+	const GroupRuntime& group, const ParticlePhaseParentSettings& parentSettings,
+	bool useAssetParentSettings, const std::vector<ParentRuntime>& parents) const {
 
 	for (Particle& particle : particles) {
 
 		if (particle.phaseIndex < group.phases.size()) {
-			UpdateParticleParent(particle, group.phases[particle.phaseIndex].parentSettings,
-				parents[particle.phaseIndex]);
+			const PhaseRuntime& phase = group.phases[particle.phaseIndex];
+			UpdateParticleParent(particle, ResolveParticleParentSettings(
+				phase, parentSettings, useAssetParentSettings), parents[particle.phaseIndex]);
 		} else if (particle.hasParent) {
 			BakeParticleParentToWorld(particle);
 		}
@@ -924,13 +943,15 @@ void Engine::ParticleSystem::UpdateParticleParents(std::vector<Particle>& partic
 }
 
 void Engine::ParticleSystem::ResolveParticleParents(ECSWorld& world, const Matrix4x4& emitterWorld,
-	const GroupRuntime& group,
+	const GroupRuntime& group, const ParticlePhaseParentSettings& parentSettings,
+	bool useAssetParentSettings,
 	std::vector<ParentRuntime>& outParents) const {
 
 	constexpr float kMinScale = 1.0e-6f;
 	for (size_t i = 0; i < group.phases.size(); ++i) {
 
-		const ParticlePhaseParentSettings& settings = group.phases[i].parentSettings;
+		const ParticlePhaseParentSettings& settings = ResolveParticleParentSettings(
+			group.phases[i], parentSettings, useAssetParentSettings);
 		if (!settings.HasParent()) {
 			continue;
 		}
@@ -1100,7 +1121,8 @@ void Engine::ParticleSystem::RecordTrails(ParticleGroupRuntimeState& state,
 }
 
 void Engine::ParticleSystem::UpdateDetachedTrailOwners(ParticleGroupRuntimeState& state,
-	const GroupRuntime& group, const std::vector<ParentRuntime>& parents,
+	const GroupRuntime& group, const ParticlePhaseParentSettings& parentSettings,
+	bool useAssetParentSettings, const std::vector<ParentRuntime>& parents,
 	const ParticleTrailSettings& trail, float deltaTime) const {
 
 	if (!trail.keepAfterParticleDeath) {
@@ -1120,8 +1142,10 @@ void Engine::ParticleSystem::UpdateDetachedTrailOwners(ParticleGroupRuntimeState
 				owner.age += deltaTime;
 			}
 			if (owner.phaseIndex < group.phases.size()) {
-				UpdateParticleParent(owner, group.phases[owner.phaseIndex].parentSettings,
-					parents[owner.phaseIndex]);
+
+				const PhaseRuntime& phase = group.phases[owner.phaseIndex];
+				UpdateParticleParent(owner, ResolveParticleParentSettings(
+					phase, parentSettings, useAssetParentSettings), parents[owner.phaseIndex]);
 			}
 			owner.pos += owner.velocity * deltaTime;
 			if (owner.phaseIndex < group.phases.size()) {

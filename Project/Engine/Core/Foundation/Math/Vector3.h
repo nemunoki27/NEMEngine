@@ -91,7 +91,6 @@ namespace Engine {
 		// ベクトルを行列で変換
 		static Vector3 Transform(const Vector3& v, const Matrix4x4& matrix);
 		static Vector3 TransferNormal(const Vector3& v, const Matrix4x4& m);
-		static Vector3 TransformPoint(const Vector3& v, const Matrix4x4& m);
 
 		// v0をv1に射影したベクトルを返す
 		static Vector3 Projection(const Vector3& v0, const Vector3& v1);

@@ -7,6 +7,7 @@
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
@@ -392,6 +393,27 @@ namespace Engine {
 
 	namespace {
 
+		enum class EffectStateProperty :
+			int32_t {
+
+			Enabled,
+			Effect,
+			Mode,
+			Delay,
+			Count,
+			Interval,
+			Duration,
+			EmitUntilStopped,
+			LocalPosition,
+			LocalRotation,
+			LocalScale,
+			UseEmitterParent,
+			ParentEntity,
+			IgnoreParentRotation,
+			IgnoreParentScale,
+			KeepWorldOnDetach,
+		};
+
 		// 対象entityのEffectEmitterComponentを取得する
 		EffectEmitterComponent* ResolveEffectEmitter(ManagedNativeEntity entity) {
 
@@ -399,6 +421,42 @@ namespace Engine {
 			if (!world) { return nullptr; }
 			const Entity resolved = ResolveEntity(entity);
 			return world->IsAlive(resolved) ? world->TryGetComponent<EffectEmitterComponent>(resolved) : nullptr;
+		}
+
+		// groupIndexとstateIndexから設定を取得する
+		EffectEmitterState* ResolveEffectEmitterState(ManagedNativeEntity entity,
+			int32_t groupIndex, int32_t stateIndex) {
+
+			EffectEmitterComponent* emitter = ResolveEffectEmitter(entity);
+			if (!emitter || groupIndex < 0 || stateIndex < 0 ||
+				static_cast<size_t>(groupIndex) >= emitter->groups.size()) {
+				return nullptr;
+			}
+			EffectEmitterGroup& group = emitter->groups[static_cast<size_t>(groupIndex)];
+			return static_cast<size_t>(stateIndex) < group.states.size() ?
+				&group.states[static_cast<size_t>(stateIndex)] : nullptr;
+		}
+
+		// POD値をManaged側のバッファへコピーする
+		template <typename T>
+		int32_t CopyEffectStateValue(const T& value, void* outData, int32_t capacity) {
+
+			constexpr int32_t size = static_cast<int32_t>(sizeof(T));
+			if (outData && size <= capacity) {
+				std::memcpy(outData, &value, sizeof(T));
+			}
+			return size;
+		}
+
+		// Managed側のバッファからPOD値を読み取る
+		template <typename T>
+		bool ReadEffectStateValue(const void* data, int32_t size, T& outValue) {
+
+			if (!data || size != static_cast<int32_t>(sizeof(T))) {
+				return false;
+			}
+			std::memcpy(&outValue, data, sizeof(T));
+			return true;
 		}
 	}
 
@@ -483,6 +541,217 @@ namespace Engine {
 			[](const EffectEmitterCommand& command) {
 				return command.type == EffectEmitterCommandType::Emit;
 			}) ? 1 : 0;
+	}
+
+	int32_t ManagedScriptRuntime::EffectGroupCountCallback(ManagedNativeEntity entity) {
+
+		const EffectEmitterComponent* emitter = ResolveEffectEmitter(entity);
+		return emitter ? static_cast<int32_t>(emitter->groups.size()) : 0;
+	}
+
+	int32_t ManagedScriptRuntime::EffectStateCountCallback(
+		ManagedNativeEntity entity, int32_t groupIndex) {
+
+		const EffectEmitterComponent* emitter = ResolveEffectEmitter(entity);
+		if (!emitter || groupIndex < 0 || static_cast<size_t>(groupIndex) >= emitter->groups.size()) {
+			return 0;
+		}
+		return static_cast<int32_t>(emitter->groups[static_cast<size_t>(groupIndex)].states.size());
+	}
+
+	int32_t ManagedScriptRuntime::EffectCopyGroupNameCallback(ManagedNativeEntity entity,
+		int32_t groupIndex, char* buffer, int32_t capacity) {
+
+		const EffectEmitterComponent* emitter = ResolveEffectEmitter(entity);
+		if (!emitter || groupIndex < 0 || static_cast<size_t>(groupIndex) >= emitter->groups.size()) {
+			return CopyStringToBuffer({}, buffer, capacity);
+		}
+		return CopyStringToBuffer(emitter->groups[static_cast<size_t>(groupIndex)].name, buffer, capacity);
+	}
+
+	int32_t ManagedScriptRuntime::EffectCopyStateNameCallback(ManagedNativeEntity entity,
+		int32_t groupIndex, int32_t stateIndex, char* buffer, int32_t capacity) {
+
+		const EffectEmitterState* state = ResolveEffectEmitterState(entity, groupIndex, stateIndex);
+		return CopyStringToBuffer(state ? state->name : std::string{}, buffer, capacity);
+	}
+
+	int32_t ManagedScriptRuntime::EffectSetStateNameCallback(ManagedNativeEntity entity,
+		int32_t groupIndex, int32_t stateIndex, const char* name) {
+
+		EffectEmitterState* state = ResolveEffectEmitterState(entity, groupIndex, stateIndex);
+		if (!state) { return 0; }
+		state->name = name ? name : "";
+		return 1;
+	}
+
+	int32_t ManagedScriptRuntime::EffectGetStatePropertyCallback(ManagedNativeEntity entity,
+		int32_t groupIndex, int32_t stateIndex, int32_t property,
+		void* outData, int32_t capacity) {
+
+		const EffectEmitterState* state = ResolveEffectEmitterState(entity, groupIndex, stateIndex);
+		if (!state) { return 0; }
+		switch (static_cast<EffectStateProperty>(property)) {
+		case EffectStateProperty::Enabled:
+			return CopyEffectStateValue(state->enabled ? 1 : 0, outData, capacity);
+		case EffectStateProperty::Effect:
+			return CopyEffectStateValue(state->effect.value, outData, capacity);
+		case EffectStateProperty::Mode:
+			return CopyEffectStateValue(static_cast<int32_t>(state->mode), outData, capacity);
+		case EffectStateProperty::Delay:
+			return CopyEffectStateValue(state->delay, outData, capacity);
+		case EffectStateProperty::Count:
+			return CopyEffectStateValue(state->count, outData, capacity);
+		case EffectStateProperty::Interval:
+			return CopyEffectStateValue(state->interval, outData, capacity);
+		case EffectStateProperty::Duration:
+			return CopyEffectStateValue(state->duration, outData, capacity);
+		case EffectStateProperty::EmitUntilStopped:
+			return CopyEffectStateValue(state->emitUntilStopped ? 1 : 0, outData, capacity);
+		case EffectStateProperty::LocalPosition:
+			return CopyEffectStateValue(ToManagedVector3(state->localPosition), outData, capacity);
+		case EffectStateProperty::LocalRotation:
+			return CopyEffectStateValue(ToManagedQuaternion(state->localRotation), outData, capacity);
+		case EffectStateProperty::LocalScale:
+			return CopyEffectStateValue(ToManagedVector3(state->localScale), outData, capacity);
+		case EffectStateProperty::UseEmitterParent:
+			return CopyEffectStateValue(state->parentSettings.useEmitter ? 1 : 0, outData, capacity);
+		case EffectStateProperty::ParentEntity: {
+
+			ManagedNativeEntity parent{};
+			ECSWorld* world = ResolveWorld(entity);
+			if (world && state->parentSettings.entityLocalFileID) {
+				const Entity resolved = SceneObjectUtility::FindByLocalFileID(
+					*world, state->parentSettings.entityLocalFileID);
+				if (world->IsAlive(resolved)) { parent = MakeNativeEntity(*world, resolved); }
+			}
+			return CopyEffectStateValue(parent, outData, capacity);
+		}
+		case EffectStateProperty::IgnoreParentRotation:
+			return CopyEffectStateValue(state->parentSettings.ignoreParentRotation ? 1 : 0, outData, capacity);
+		case EffectStateProperty::IgnoreParentScale:
+			return CopyEffectStateValue(state->parentSettings.ignoreParentScale ? 1 : 0, outData, capacity);
+		case EffectStateProperty::KeepWorldOnDetach:
+			return CopyEffectStateValue(state->parentSettings.keepWorldOnDetach ? 1 : 0, outData, capacity);
+		}
+		return 0;
+	}
+
+	int32_t ManagedScriptRuntime::EffectSetStatePropertyCallback(ManagedNativeEntity entity,
+		int32_t groupIndex, int32_t stateIndex, int32_t property,
+		const void* data, int32_t size) {
+
+		EffectEmitterState* state = ResolveEffectEmitterState(entity, groupIndex, stateIndex);
+		if (!state) { return 0; }
+		switch (static_cast<EffectStateProperty>(property)) {
+		case EffectStateProperty::Enabled: {
+			int32_t value = 0;
+			if (!ReadEffectStateValue(data, size, value)) { return 0; }
+			state->enabled = value != 0;
+			return 1;
+		}
+		case EffectStateProperty::Effect: {
+			uint64_t value = 0;
+			if (!ReadEffectStateValue(data, size, value)) { return 0; }
+			state->effect.value = value;
+			return 1;
+		}
+		case EffectStateProperty::Mode: {
+			int32_t value = 0;
+			if (!ReadEffectStateValue(data, size, value) || value < 0 ||
+				static_cast<int32_t>(EffectEmitterMode::Count) < value) {
+				return 0;
+			}
+			state->mode = static_cast<EffectEmitterMode>(value);
+			return 1;
+		}
+		case EffectStateProperty::Delay:
+		case EffectStateProperty::Interval:
+		case EffectStateProperty::Duration: {
+			float value = 0.0f;
+			if (!ReadEffectStateValue(data, size, value)) { return 0; }
+			value = (std::max)(value, 0.0f);
+			if (property == static_cast<int32_t>(EffectStateProperty::Delay)) { state->delay = value; }
+			if (property == static_cast<int32_t>(EffectStateProperty::Interval)) { state->interval = value; }
+			if (property == static_cast<int32_t>(EffectStateProperty::Duration)) { state->duration = value; }
+			return 1;
+		}
+		case EffectStateProperty::Count: {
+			int32_t value = 0;
+			if (!ReadEffectStateValue(data, size, value)) { return 0; }
+			state->count = (std::max)(value, 1);
+			return 1;
+		}
+		case EffectStateProperty::EmitUntilStopped: {
+			int32_t value = 0;
+			if (!ReadEffectStateValue(data, size, value)) { return 0; }
+			state->emitUntilStopped = value != 0;
+			return 1;
+		}
+		case EffectStateProperty::LocalPosition:
+		case EffectStateProperty::LocalScale: {
+			ManagedVector3 value{};
+			if (!ReadEffectStateValue(data, size, value)) { return 0; }
+			const Vector3 native(value.x, value.y, value.z);
+			if (property == static_cast<int32_t>(EffectStateProperty::LocalPosition)) {
+				state->localPosition = native;
+			} else {
+				state->localScale = native;
+			}
+			return 1;
+		}
+		case EffectStateProperty::LocalRotation: {
+			ManagedQuaternion value{};
+			if (!ReadEffectStateValue(data, size, value)) { return 0; }
+			const Quaternion rotation(value.x, value.y, value.z, value.w);
+			state->localRotation = Quaternion::Length(rotation) <= 1.0e-6f ?
+				Quaternion::Identity() : Quaternion::Normalize(rotation);
+			return 1;
+		}
+		case EffectStateProperty::UseEmitterParent: {
+			int32_t value = 0;
+			if (!ReadEffectStateValue(data, size, value)) { return 0; }
+			state->parentSettings.useEmitter = value != 0;
+			if (state->parentSettings.useEmitter) { state->parentSettings.entityLocalFileID = {}; }
+			return 1;
+		}
+		case EffectStateProperty::ParentEntity: {
+			ManagedNativeEntity value{};
+			if (!ReadEffectStateValue(data, size, value)) { return 0; }
+			ECSWorld* world = ResolveWorld(entity);
+			ECSWorld* parentWorld = ResolveWorld(value);
+			if (!parentWorld) {
+
+				state->parentSettings.entityLocalFileID = {};
+				return 1;
+			}
+			const Entity parent = ResolveEntity(value);
+			if (!world || parentWorld != world || !world->IsAlive(parent)) { return 0; }
+			const SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(parent);
+			if (!sceneObject || !sceneObject->localFileID) { return 0; }
+			state->parentSettings.entityLocalFileID = sceneObject->localFileID;
+			state->parentSettings.useEmitter = false;
+			return 1;
+		}
+		case EffectStateProperty::IgnoreParentRotation:
+		case EffectStateProperty::IgnoreParentScale:
+		case EffectStateProperty::KeepWorldOnDetach: {
+			int32_t value = 0;
+			if (!ReadEffectStateValue(data, size, value)) { return 0; }
+			const bool enabled = value != 0;
+			if (property == static_cast<int32_t>(EffectStateProperty::IgnoreParentRotation)) {
+				state->parentSettings.ignoreParentRotation = enabled;
+			}
+			if (property == static_cast<int32_t>(EffectStateProperty::IgnoreParentScale)) {
+				state->parentSettings.ignoreParentScale = enabled;
+			}
+			if (property == static_cast<int32_t>(EffectStateProperty::KeepWorldOnDetach)) {
+				state->parentSettings.keepWorldOnDetach = enabled;
+			}
+			return 1;
+		}
+		}
+		return 0;
 	}
 
 	namespace {

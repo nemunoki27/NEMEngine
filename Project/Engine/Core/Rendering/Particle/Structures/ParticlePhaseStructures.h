@@ -46,7 +46,7 @@ namespace Engine {
 		// 親の回転を無視するか
 		bool ignoreParentRotation = false;
 		// 親のスケールを無視するか
-		bool ignoreParentScale = false;
+		bool ignoreParentScale = true;
 		// 親を解除するときにワールド姿勢を維持するか
 		bool keepWorldOnDetach = true;
 

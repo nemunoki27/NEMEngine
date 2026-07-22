@@ -1260,6 +1260,7 @@ void ParticleEffectEditorTool::RestartEmitters(const EditorToolContext& context,
 		state.state.name = "Preview";
 		state.state.effect = editingID_;
 		state.state.mode = oneShot ? EffectEmitterMode::Once : EffectEmitterMode::Continuous;
+		state.useAssetParentSettings = true;
 		playback.states.emplace_back(std::move(state));
 		component.runtimePlaybacks.emplace_back(std::move(playback));
 		++restartCount;

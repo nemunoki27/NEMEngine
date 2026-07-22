@@ -87,9 +87,9 @@ void Engine::LineShapeBuilder::BuildHemisphere(const Vector3& center, float radi
 		for (uint32_t lonIndex = 0; lonIndex < div; ++lonIndex) {
 
 			const float lon = static_cast<float>(lonIndex) * kLonEvery;
-			Vector3 pointA = Vector3::TransformPoint(calcPoint(lat, lon), rotationMatrix) + center;
-			Vector3 pointB = Vector3::TransformPoint(calcPoint(lat + kLatEvery, lon), rotationMatrix) + center;
-			Vector3 pointC = Vector3::TransformPoint(calcPoint(lat, lon + kLonEvery), rotationMatrix) + center;
+			Vector3 pointA = Vector3::Transform(calcPoint(lat, lon), rotationMatrix) + center;
+			Vector3 pointB = Vector3::Transform(calcPoint(lat + kLatEvery, lon), rotationMatrix) + center;
+			Vector3 pointC = Vector3::Transform(calcPoint(lat, lon + kLonEvery), rotationMatrix) + center;
 
 			PushLine(pointA, pointB, color, thickness, out);
 			PushLine(pointA, pointC, color, thickness, out);
@@ -144,10 +144,10 @@ void Engine::LineShapeBuilder::BuildCone(const Vector3& center, float baseRadius
 		const float angle0 = static_cast<float>(i) * kAngleStep;
 		const float angle1 = static_cast<float>(i + 1) * kAngleStep;
 
-		const Vector3 base0 = Vector3::TransformPoint(Vector3(baseRadius * std::cos(angle0), 0.0f, baseRadius * std::sin(angle0)), rotationMatrix) + center;
-		const Vector3 base1 = Vector3::TransformPoint(Vector3(baseRadius * std::cos(angle1), 0.0f, baseRadius * std::sin(angle1)), rotationMatrix) + center;
-		const Vector3 top0 = Vector3::TransformPoint(Vector3(topRadius * std::cos(angle0), height, topRadius * std::sin(angle0)), rotationMatrix) + center;
-		const Vector3 top1 = Vector3::TransformPoint(Vector3(topRadius * std::cos(angle1), height, topRadius * std::sin(angle1)), rotationMatrix) + center;
+		const Vector3 base0 = Vector3::Transform(Vector3(baseRadius * std::cos(angle0), 0.0f, baseRadius * std::sin(angle0)), rotationMatrix) + center;
+		const Vector3 base1 = Vector3::Transform(Vector3(baseRadius * std::cos(angle1), 0.0f, baseRadius * std::sin(angle1)), rotationMatrix) + center;
+		const Vector3 top0 = Vector3::Transform(Vector3(topRadius * std::cos(angle0), height, topRadius * std::sin(angle0)), rotationMatrix) + center;
+		const Vector3 top1 = Vector3::Transform(Vector3(topRadius * std::cos(angle1), height, topRadius * std::sin(angle1)), rotationMatrix) + center;
 
 		PushLine(base0, base1, color, thickness, out);
 		PushLine(top0, top1, color, thickness, out);

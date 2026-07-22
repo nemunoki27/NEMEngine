@@ -204,7 +204,6 @@ void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Sk
 			direction.y /= length;
 			direction.z /= length;
 			Quaternion rotation = Quaternion::FromToY(direction);
-			rotation = rotation.Inverse(rotation);
 
 			float top = length * kRatioTop;
 			float bottom = length * kRatioBase;

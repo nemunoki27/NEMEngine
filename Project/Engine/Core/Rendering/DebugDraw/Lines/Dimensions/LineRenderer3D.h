@@ -125,9 +125,9 @@ namespace Engine {
 				Vector3 pointB = calculatePoint(lat + kLatEvery, lon);
 				Vector3 pointC = calculatePoint(lat, lon + kLonEvery);
 
-				pointA = Vector3::TransformPoint(pointA, rotationMatrix) + center;
-				pointB = Vector3::TransformPoint(pointB, rotationMatrix) + center;
-				pointC = Vector3::TransformPoint(pointC, rotationMatrix) + center;
+				pointA = Vector3::Transform(pointA, rotationMatrix) + center;
+				pointB = Vector3::Transform(pointB, rotationMatrix) + center;
+				pointC = Vector3::Transform(pointC, rotationMatrix) + center;
 
 				DrawLine(pointA, pointB, color, thickness);
 				DrawLine(pointA, pointC, color, thickness);
@@ -218,10 +218,10 @@ namespace Engine {
 		for (uint32_t i = 0; i < division; ++i) {
 
 			// 円周上の点を回転＆平行移動
-			Vector3 baseA = Vector3::TransformPoint(baseCircle[i], rotationMatrix) + center;
-			Vector3 baseB = Vector3::TransformPoint(baseCircle[i + 1], rotationMatrix) + center;
-			Vector3 topA = Vector3::TransformPoint(topCircle[i], rotationMatrix) + center;
-			Vector3 topB = Vector3::TransformPoint(topCircle[i + 1], rotationMatrix) + center;
+			Vector3 baseA = Vector3::Transform(baseCircle[i], rotationMatrix) + center;
+			Vector3 baseB = Vector3::Transform(baseCircle[i + 1], rotationMatrix) + center;
+			Vector3 topA = Vector3::Transform(topCircle[i], rotationMatrix) + center;
+			Vector3 topB = Vector3::Transform(topCircle[i + 1], rotationMatrix) + center;
 
 			// 円の描画
 			DrawLine(baseA, baseB, color, thickness);

@@ -39,7 +39,8 @@ internal static class ManagedAbi {
     // v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
     // v31: IrisTransitionの再生操作を追加
     // v32: AudioSourceのPlayOneShotとUnPauseを追加
-    internal const uint Version = 32;
+    // v33: EffectEmitterのグループとState設定APIを追加
+    internal const uint Version = 33;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -364,6 +365,13 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> EffectStop;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> EffectClear;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int> EffectIsPlaying;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int> EffectGroupCount;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int> EffectStateCount;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, byte*, int, int> EffectCopyGroupName;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int> EffectCopyStateName;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int> EffectSetStateName;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> EffectGetStateProperty;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> EffectSetStateProperty;
     // v26: UI入力ブロック状態
     internal static delegate* unmanaged[Cdecl]<int> GetUIBlocksGameplayInput;
     // v28: Canvasの操作別入力配列
@@ -512,6 +520,13 @@ internal static unsafe class NativeApi {
         EffectStop = callbacks->effectStop;
         EffectClear = callbacks->effectClear;
         EffectIsPlaying = callbacks->effectIsPlaying;
+        EffectGroupCount = callbacks->effectGroupCount;
+        EffectStateCount = callbacks->effectStateCount;
+        EffectCopyGroupName = callbacks->effectCopyGroupName;
+        EffectCopyStateName = callbacks->effectCopyStateName;
+        EffectSetStateName = callbacks->effectSetStateName;
+        EffectGetStateProperty = callbacks->effectGetStateProperty;
+        EffectSetStateProperty = callbacks->effectSetStateProperty;
         GetUIBlocksGameplayInput = callbacks->getUIBlocksGameplayInput;
         CanvasCopyInputBindings = callbacks->canvasCopyInputBindings;
         CanvasSetInputBindings = callbacks->canvasSetInputBindings;
@@ -1355,6 +1370,62 @@ internal static unsafe class NativeApi {
     internal static bool EffectIsPlayingAllCall(NativeEntity entity) =>
         EffectIsPlaying != null && EffectIsPlaying(entity, 0ul, null, 2) != 0;
 
+    internal static int EffectGroupCountCall(NativeEntity entity) =>
+        EffectGroupCount != null ? EffectGroupCount(entity) : 0;
+    internal static int EffectStateCountCall(NativeEntity entity, int groupIndex) =>
+        EffectStateCount != null ? EffectStateCount(entity, groupIndex) : 0;
+
+    internal static string EffectGroupNameCall(NativeEntity entity, int groupIndex) {
+
+        if (EffectCopyGroupName == null) { return string.Empty; }
+        int needed = EffectCopyGroupName(entity, groupIndex, null, 0);
+        if (needed <= 0) { return string.Empty; }
+        byte[] bytes = new byte[needed + 1];
+        fixed (byte* ptr = bytes) {
+            int written = EffectCopyGroupName(entity, groupIndex, ptr, bytes.Length);
+            return written > 0 ? Encoding.UTF8.GetString(bytes, 0, written) : string.Empty;
+        }
+    }
+
+    internal static string EffectStateNameCall(NativeEntity entity, int groupIndex, int stateIndex) {
+
+        if (EffectCopyStateName == null) { return string.Empty; }
+        int needed = EffectCopyStateName(entity, groupIndex, stateIndex, null, 0);
+        if (needed <= 0) { return string.Empty; }
+        byte[] bytes = new byte[needed + 1];
+        fixed (byte* ptr = bytes) {
+            int written = EffectCopyStateName(entity, groupIndex, stateIndex, ptr, bytes.Length);
+            return written > 0 ? Encoding.UTF8.GetString(bytes, 0, written) : string.Empty;
+        }
+    }
+
+    internal static bool EffectSetStateNameCall(
+        NativeEntity entity, int groupIndex, int stateIndex, string name) {
+
+        if (EffectSetStateName == null) { return false; }
+        byte[] bytes = Encoding.UTF8.GetBytes((name ?? string.Empty) + "\0");
+        fixed (byte* ptr = bytes) {
+            return EffectSetStateName(entity, groupIndex, stateIndex, ptr) != 0;
+        }
+    }
+
+    internal static T EffectGetStatePropertyCall<T>(
+        NativeEntity entity, int groupIndex, int stateIndex, int property) where T : unmanaged {
+
+        T value = default;
+        if (EffectGetStateProperty != null) {
+            EffectGetStateProperty(entity, groupIndex, stateIndex, property, &value, sizeof(T));
+        }
+        return value;
+    }
+
+    internal static bool EffectSetStatePropertyCall<T>(
+        NativeEntity entity, int groupIndex, int stateIndex, int property, T value) where T : unmanaged {
+
+        return EffectSetStateProperty != null &&
+            EffectSetStateProperty(entity, groupIndex, stateIndex, property, &value, sizeof(T)) != 0;
+    }
+
     private static void EffectControlGroupCall(
         delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> callback,
         NativeEntity entity, string group) {
@@ -1712,4 +1783,12 @@ public unsafe struct NativeApiTable {
     // v32: AudioSource追加再生操作
     public delegate* unmanaged[Cdecl]<NativeEntity, ulong, float, void> audioPlayOneShot;
     public delegate* unmanaged[Cdecl]<NativeEntity, void> audioUnPause;
+    // v33: EffectEmitterのグループとState設定API
+    public delegate* unmanaged[Cdecl]<NativeEntity, int> effectGroupCount;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int> effectStateCount;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, byte*, int, int> effectCopyGroupName;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int> effectCopyStateName;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int> effectSetStateName;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> effectGetStateProperty;
+    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> effectSetStateProperty;
 }

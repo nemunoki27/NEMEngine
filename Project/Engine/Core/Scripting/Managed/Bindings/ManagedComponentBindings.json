@@ -3,6 +3,15 @@
   "comment": "C# script から調整可能な native component property の単一定義。NEM.ComponentBindingGen がここから C++ dispatch / C# wrapper を決定的に生成する。registryName は ENGINE_REGISTER_COMPONENT の名前(=runtime の compact type id 解決キー)。手書きで C++/C# を二重管理しない。",
   "enums": [
     {
+      "managedType": "EffectEmitterMode",
+      "nativeType": "EffectEmitterMode",
+      "members": [
+        { "name": "Once", "value": 0 },
+        { "name": "Continuous", "value": 1 },
+        { "name": "Count", "value": 2 }
+      ]
+    },
+    {
       "managedType": "BlendMode",
       "nativeType": "BlendMode",
       "members": [

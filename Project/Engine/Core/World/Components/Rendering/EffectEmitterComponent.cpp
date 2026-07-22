@@ -28,6 +28,7 @@ namespace {
 		state.count = (std::max)(in.value("count", state.count), 1);
 		state.interval = (std::max)(in.value("interval", state.interval), 0.0f);
 		state.duration = (std::max)(in.value("duration", state.duration), 0.0f);
+		state.emitUntilStopped = in.value("emitUntilStopped", state.duration <= 0.0f);
 		if (const auto it = in.find("localPosition"); it != in.end()) {
 			state.localPosition = Engine::Vector3::FromJson(*it);
 		}
@@ -36,6 +37,17 @@ namespace {
 		}
 		if (const auto it = in.find("localScale"); it != in.end()) {
 			state.localScale = Engine::Vector3::FromJson(*it);
+		}
+		if (const auto it = in.find("parentSettings"); it != in.end() && it->is_object()) {
+
+			state.parentSettings.useEmitter = it->value("useEmitter", false);
+			state.parentSettings.ignoreParentRotation = it->value("ignoreParentRotation", false);
+			state.parentSettings.ignoreParentScale = it->value("ignoreParentScale", true);
+			state.parentSettings.keepWorldOnDetach = it->value("keepWorldOnDetach", true);
+			const std::string localFileID = it->value("entityLocalFileID", "");
+			state.parentSettings.entityLocalFileID = localFileID.empty() ?
+				Engine::UUID{} : Engine::FromString16Hex(localFileID);
+			if (state.parentSettings.useEmitter) { state.parentSettings.entityLocalFileID = {}; }
 		}
 		return state;
 	}
@@ -52,9 +64,17 @@ namespace {
 		out["count"] = state.count;
 		out["interval"] = state.interval;
 		out["duration"] = state.duration;
+		out["emitUntilStopped"] = state.emitUntilStopped;
 		out["localPosition"] = state.localPosition.ToJson();
 		out["localRotation"] = state.localRotation.ToJson();
 		out["localScale"] = state.localScale.ToJson();
+		out["parentSettings"] = nlohmann::json::object();
+		out["parentSettings"]["useEmitter"] = state.parentSettings.useEmitter;
+		out["parentSettings"]["entityLocalFileID"] = state.parentSettings.entityLocalFileID ?
+			Engine::ToString(state.parentSettings.entityLocalFileID) : "";
+		out["parentSettings"]["ignoreParentRotation"] = state.parentSettings.ignoreParentRotation;
+		out["parentSettings"]["ignoreParentScale"] = state.parentSettings.ignoreParentScale;
+		out["parentSettings"]["keepWorldOnDetach"] = state.parentSettings.keepWorldOnDetach;
 		return out;
 	}
 

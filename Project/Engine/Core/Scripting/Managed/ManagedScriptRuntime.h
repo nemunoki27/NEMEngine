@@ -427,6 +427,28 @@ namespace Engine {
 		// EffectEmitterの再生状態をハンドルまたはグループまたは全体で返す
 		static int32_t __cdecl EffectIsPlayingCallback(ManagedNativeEntity entity,
 			uint64_t playbackID, const char* group, int32_t target);
+		// EffectEmitterのグループ数を返す
+		static int32_t __cdecl EffectGroupCountCallback(ManagedNativeEntity entity);
+		// EffectEmitterのグループ内State数を返す
+		static int32_t __cdecl EffectStateCountCallback(ManagedNativeEntity entity, int32_t groupIndex);
+		// EffectEmitterのグループ名をコピーする
+		static int32_t __cdecl EffectCopyGroupNameCallback(
+			ManagedNativeEntity entity, int32_t groupIndex, char* buffer, int32_t capacity);
+		// EffectEmitterのState名をコピーする
+		static int32_t __cdecl EffectCopyStateNameCallback(
+			ManagedNativeEntity entity, int32_t groupIndex, int32_t stateIndex,
+			char* buffer, int32_t capacity);
+		// EffectEmitterのState名を設定する
+		static int32_t __cdecl EffectSetStateNameCallback(
+			ManagedNativeEntity entity, int32_t groupIndex, int32_t stateIndex, const char* name);
+		// EffectEmitterのStateプロパティを取得する
+		static int32_t __cdecl EffectGetStatePropertyCallback(
+			ManagedNativeEntity entity, int32_t groupIndex, int32_t stateIndex,
+			int32_t property, void* outData, int32_t capacity);
+		// EffectEmitterのStateプロパティを設定する
+		static int32_t __cdecl EffectSetStatePropertyCallback(
+			ManagedNativeEntity entity, int32_t groupIndex, int32_t stateIndex,
+			int32_t property, const void* data, int32_t size);
 		// 即時ライン描画、任意ポリラインをこのフレームだけ描く
 		static void __cdecl LineDrawImmediateCallback(const ManagedLinePoint* points, int32_t count, int32_t loop, int32_t is2D, uint64_t materialID);
 		// 即時球描画、組み込みの球生成で線分を発行する

@@ -47,7 +47,8 @@ namespace Engine {
 	// v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
 	// v31: IrisTransitionの再生操作を追加
 	// v32: AudioSourceのPlayOneShotとUnPauseを追加
-	inline constexpr uint32_t kManagedAbiVersion = 32;
+	// v33: EffectEmitterのグループとState設定APIを追加
+	inline constexpr uint32_t kManagedAbiVersion = 33;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -460,6 +461,15 @@ namespace Engine {
 		using EffectEmitCallback = uint64_t(__cdecl*)(ManagedNativeEntity, const char*, ManagedVector3, ManagedQuaternion, int32_t);
 		using EffectControlCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t, const char*, int32_t);
 		using EffectIsPlayingCallback = int32_t(__cdecl*)(ManagedNativeEntity, uint64_t, const char*, int32_t);
+		using EffectGroupCountCallback = int32_t(__cdecl*)(ManagedNativeEntity);
+		using EffectStateCountCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t);
+		using EffectCopyGroupNameCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, char*, int32_t);
+		using EffectCopyStateNameCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, char*, int32_t);
+		using EffectSetStateNameCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const char*);
+		using EffectGetStatePropertyCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t, int32_t, void*, int32_t);
+		using EffectSetStatePropertyCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t, int32_t, const void*, int32_t);
 		// Canvasの入力配列を操作種別とデバイス別に取得設定する
 		using CanvasCopyInputBindingsCallback = int32_t(__cdecl*)(
 			ManagedNativeEntity, int32_t, int32_t, int32_t*, int32_t);
@@ -667,6 +677,14 @@ namespace Engine {
 		// v32のAudioSource追加再生操作
 		AudioPlayOneShotCallback audioPlayOneShot = nullptr;
 		EntityActionCallback audioUnPause = nullptr;
+		// v33のEffectEmitterグループとState設定API
+		EffectGroupCountCallback effectGroupCount = nullptr;
+		EffectStateCountCallback effectStateCount = nullptr;
+		EffectCopyGroupNameCallback effectCopyGroupName = nullptr;
+		EffectCopyStateNameCallback effectCopyStateName = nullptr;
+		EffectSetStateNameCallback effectSetStateName = nullptr;
+		EffectGetStatePropertyCallback effectGetStateProperty = nullptr;
+		EffectSetStatePropertyCallback effectSetStateProperty = nullptr;
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

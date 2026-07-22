@@ -142,12 +142,14 @@ namespace Engine {
 		// ParticleEffect1つ分を更新する
 		bool UpdateEffectInstance(ECSWorld& world,
 			ParticleEffectInstanceRuntime& instance, const Matrix4x4& emitterWorld,
+			const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
 			SystemContext& context, float deltaTime, bool updateSimulation,
 			bool emissionEnabled, bool drawEmitterShape, bool checkReload);
 		// グループ1つ分の粒子とトレイルを更新する
 		void UpdateGroup(ECSWorld& world, const Matrix4x4& emitterWorld,
 			ParticleGroupRuntimeState& state, const ParticleEffectAsset& asset,
 			const ParticleEffectGroup& group, const GroupRuntime& runtime,
+			const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
 			float deltaTime, bool updateSimulation, bool simultaneousEmit, bool emissionEnabled,
 			bool oneShot, bool drawEmitterShape);
 		// 寿命が尽きた粒子をLifeEndModeに従って遷移させる、破棄するならfalse
@@ -163,14 +165,19 @@ namespace Engine {
 		// 更新モジュールの実行計画を粒子範囲へ適用する
 		void ExecuteUpdateModules(std::span<Particle> particles,
 			const PhaseRuntime& phase, float deltaTime) const;
+		// 通常再生とエフェクト作成ツールで使用する親設定を切り替える
+		const ParticlePhaseParentSettings& ResolveParticleParentSettings(const PhaseRuntime& phase,
+			const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings) const;
 		// 現在フェーズの親設定を粒子へ反映する
 		void UpdateParticleParent(Particle& particle, const ParticlePhaseParentSettings& settings,
 			const ParentRuntime& parent, bool preserveWorldRotationScale = true) const;
 		// 全粒子の親行列と描画用ワールド姿勢を更新する
 		void UpdateParticleParents(std::vector<Particle>& particles, const GroupRuntime& group,
+			const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
 			const std::vector<ParentRuntime>& parents) const;
 		// 各フェーズの親姿勢をエミッター単位で解決する
 		void ResolveParticleParents(ECSWorld& world, const Matrix4x4& emitterWorld, const GroupRuntime& group,
+			const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
 			std::vector<ParentRuntime>& outParents) const;
 		// 粒子の描画用ワールド姿勢を更新する
 		void RefreshParticleWorldTransform(Particle& particle, const ParentRuntime* parent) const;
@@ -179,6 +186,7 @@ namespace Engine {
 			const ParticleTrailSettings& trail, float deltaTime);
 		// 粒子消滅後に退避したトレイル所有者を更新する
 		void UpdateDetachedTrailOwners(ParticleGroupRuntimeState& state, const GroupRuntime& group,
+			const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
 			const std::vector<ParentRuntime>& parents, const ParticleTrailSettings& trail, float deltaTime) const;
 		// エミッター形状から発生位置と方向と初期状態を決める、firstSpawnIndexは発生順の連番の開始値
 		void InitEmitterParticles(std::span<Particle> newborn, const ParticleEmitterSettings& settings,

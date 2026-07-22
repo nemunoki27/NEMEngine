@@ -276,6 +276,13 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.irisTransitionCommand = &ManagedScriptRuntime::IrisTransitionCommandCallback;
 	callbacks.audioPlayOneShot = &ManagedScriptRuntime::AudioPlayOneShotCallback;
 	callbacks.audioUnPause = &ManagedScriptRuntime::AudioUnPauseCallback;
+	callbacks.effectGroupCount = &ManagedScriptRuntime::EffectGroupCountCallback;
+	callbacks.effectStateCount = &ManagedScriptRuntime::EffectStateCountCallback;
+	callbacks.effectCopyGroupName = &ManagedScriptRuntime::EffectCopyGroupNameCallback;
+	callbacks.effectCopyStateName = &ManagedScriptRuntime::EffectCopyStateNameCallback;
+	callbacks.effectSetStateName = &ManagedScriptRuntime::EffectSetStateNameCallback;
+	callbacks.effectGetStateProperty = &ManagedScriptRuntime::EffectGetStatePropertyCallback;
+	callbacks.effectSetStateProperty = &ManagedScriptRuntime::EffectSetStatePropertyCallback;
 	callbacks.getEntityReferenceIdentity = &ManagedScriptRuntime::GetEntityReferenceIdentityCallback;
 	// v21のレイキャストとカメラレイとCollisionタイプ名解決
 	callbacks.physicsRaycast = &ManagedScriptRuntime::PhysicsRaycastCallback;

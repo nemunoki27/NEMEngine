@@ -224,23 +224,6 @@ Vector3 Engine::Vector3::TransferNormal(const Vector3& v, const Matrix4x4& m) {
 	return vector;
 }
 
-Vector3 Engine::Vector3::TransformPoint(const Vector3& v, const Matrix4x4& m) {
-
-	// 4次元ベクトル(x, y, z, w)を作成
-	float x = v.x * m.m[0][0] + v.y * m.m[0][1] + v.z * m.m[0][2] + m.m[0][3];
-	float y = v.x * m.m[1][0] + v.y * m.m[1][1] + v.z * m.m[1][2] + m.m[1][3];
-	float z = v.x * m.m[2][0] + v.y * m.m[2][1] + v.z * m.m[2][2] + m.m[2][3];
-	float w = v.x * m.m[3][0] + v.y * m.m[3][1] + v.z * m.m[3][2] + m.m[3][3];
-
-	// wで正規化して3D座標を返す
-	if (w != 0.0f) {
-		x /= w;
-		y /= w;
-		z /= w;
-	}
-	return Vector3(x, y, z);
-}
-
 Vector3 Vector3::Projection(const Vector3& v0, const Vector3& v1) {
 	Vector3 vector{};
 	Vector3 normalizedV1 = Normalize(v1);
