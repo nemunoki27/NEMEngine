@@ -53,6 +53,8 @@ namespace Engine {
 			UUID parentStableUUID{};
 			// ジョイントを持つスキンメッシュのシーンローカルID
 			UUID skinnedLocalFileID{};
+			// スキンメッシュが属するシーンインスタンスID
+			UUID sceneInstanceID{};
 			// 親にするジョイント名
 			std::string jointName{};
 			// 親子付け適用後のTransform

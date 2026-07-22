@@ -482,11 +482,6 @@ namespace {
 	}
 }
 
-Engine::AnimationClipTool::AnimationClipTool() {
-
-	RegisterBuiltinAnimationProperties();
-}
-
 void AnimationClipTool::OpenEditorTool() {
 
 	// ウィンドウ起動

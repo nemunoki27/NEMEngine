@@ -10,7 +10,6 @@
 #include <Engine/Core/World/Prefab/Serialization/PrefabHeader.h>
 
 // c++
-#include <stack>
 #include <filesystem>
 #include <vector>
 #include <utility>
@@ -97,8 +96,6 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// プレファブのルートからその子孫全てを収集する
-		std::vector<Entity> CollectSubtree(ECSWorld& world, const Entity& root) const;
 		// 収集したエンティティ群からローカルファイルIDを割り当てる
 		UUID AllocateUniqueLocalFileID(ECSWorld& world) const;
 		// プレファブのルートエンティティの名前を生成する

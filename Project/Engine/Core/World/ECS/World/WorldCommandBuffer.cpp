@@ -11,6 +11,7 @@
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
@@ -27,22 +28,13 @@ namespace {
 	// entityとその子孫をまとめて破棄予約する
 	void DestroyEntitySubtree(ECSWorld& world, const Entity& entity) {
 
-		if (!world.IsAlive(entity)) {
-			return;
-		}
+		const std::vector<Entity> entities = HierarchyUtility::CollectLogicalSubtree(world, entity);
+		for (auto it = entities.rbegin(); it != entities.rend(); ++it) {
 
-		if (world.HasComponent<HierarchyComponent>(entity)) {
-
-			Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
-			while (child.IsValid() && world.IsAlive(child)) {
-
-				const Entity next = world.HasComponent<HierarchyComponent>(child)
-					? world.GetComponent<HierarchyComponent>(child).nextSibling : Entity::Null();
-				DestroyEntitySubtree(world, child);
-				child = next;
+			if (world.IsAlive(*it)) {
+				world.DestroyEntity(*it);
 			}
 		}
-		world.DestroyEntity(entity);
 	}
 
 	// childをnewParentの子にすると循環するか、newParentの祖先にchildが居るか

@@ -22,6 +22,7 @@
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
+#include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
@@ -187,6 +188,8 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	FrameRateSettings::GetInstance().Load(RuntimePaths::GetGameConfigPath(kFrameRateConfigPath).string());
 	// 描画タイプごとのデフォルトマテリアル設定をGameAssets配下から読み込む
 	DefaultMaterialSettings::GetInstance().Load((RuntimePaths::GetGameRoot() / kDefaultMaterialConfigPath).string());
+	// AnimationClipの評価に必要なPropertyをEditorの有無に関係なく登録する
+	RegisterBuiltinAnimationProperties();
 
 	// 骨アニメーション管理の初期化
 	skinnedAnimationManager_.Init();

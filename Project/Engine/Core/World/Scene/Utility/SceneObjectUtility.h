@@ -24,6 +24,8 @@ namespace Engine {
 
 		// localFileIDからEntityを探す、Edit/Playをまたいで安定するエンティティ参照の解決に使う
 		Entity FindByLocalFileID(ECSWorld& world, UUID localFileID);
+		// 指定したシーンインスタンス内のlocalFileIDからEntityを探す
+		Entity FindByLocalFileID(ECSWorld& world, UUID sceneInstanceID, UUID localFileID);
 
 	} // SceneObjectUtility
 } // Engine

@@ -9,6 +9,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
@@ -106,26 +107,6 @@ namespace Engine {
 				}
 				});
 			return found;
-		}
-
-		// ルートを含むサブツリーの実体を集める
-		void CollectSubtree(ECSWorld& world, const Entity& root, std::vector<Entity>& out) {
-
-			if (!world.IsAlive(root)) {
-				return;
-			}
-			out.emplace_back(root);
-			if (!world.HasComponent<HierarchyComponent>(root)) {
-				return;
-			}
-			Entity child = world.GetComponent<HierarchyComponent>(root).firstChild;
-			while (world.IsAlive(child)) {
-
-				const Entity next = world.HasComponent<HierarchyComponent>(child) ?
-					world.GetComponent<HierarchyComponent>(child).nextSibling : Entity::Null();
-				CollectSubtree(world, child, out);
-				child = next;
-			}
 		}
 
 		// プレファブ由来でない追加実体を、サブツリーごと収集する
@@ -524,6 +505,17 @@ Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, A
 		}
 	}
 	world.FlushPendingDestroyEntities();
+	// ルートが削除済みのインスタンスは子だけを残さず全て破棄する
+	if (!world.IsAlive(result.root)) {
+
+		for (const Entity& entity : result.createdEntities) {
+			if (world.IsAlive(entity)) {
+				world.DestroyEntity(entity);
+			}
+		}
+		world.FlushPendingDestroyEntities();
+		return Entity::Null();
+	}
 
 	// 削除されたコンポーネントを外す
 	for (const auto& removed : data.removedComponents) {
@@ -694,8 +686,7 @@ bool Engine::PrefabOverrideUtility::CanPromoteAddedEntitySubtree(
 		return false;
 	}
 
-	std::vector<Entity> subtree;
-	CollectSubtree(world, root, subtree);
+	const std::vector<Entity> subtree = HierarchyUtility::CollectLogicalSubtree(world, root);
 	for (const Entity& entity : subtree) {
 
 		if (!world.HasComponent<SceneObjectComponent>(entity) ||
@@ -721,8 +712,7 @@ bool Engine::PrefabOverrideUtility::PromoteAddedEntitySubtrees(nlohmann::json& p
 		if (!CanPromoteAddedEntitySubtree(world, root, instanceID)) {
 			return false;
 		}
-		std::vector<Entity> subtree;
-		CollectSubtree(world, root, subtree);
+		const std::vector<Entity> subtree = HierarchyUtility::CollectLogicalSubtree(world, root);
 		for (const Entity& entity : subtree) {
 
 			const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
@@ -938,25 +928,29 @@ void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetD
 	// 各インスタンスを、現在のオーバーライドを保持したまま新しいプレファブで作り直す
 	for (auto& [instanceID, target] : targets) {
 
+		const bool hadRoot = world.IsAlive(target.root);
 		PrefabInstanceData data = CaptureInstance(world, instanceID, normalizedBase);
 		data.prefabAsset = prefabAsset;
 
 		// 旧インスタンスを全メンバーのサブツリーごと破棄する、複数ルートや追加した子も漏らさない
 		std::vector<Entity> toDestroy;
+		std::unordered_set<uint64_t> collected;
 		for (const Entity& member : CollectInstanceEntities(world, instanceID)) {
-			CollectSubtree(world, member, toDestroy);
+			const std::vector<Entity> subtree = HierarchyUtility::CollectLogicalSubtree(world, member);
+			for (const Entity& entity : subtree) {
+
+				const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
+				if (collected.insert(key).second) {
+					toDestroy.emplace_back(entity);
+				}
+			}
 		}
 
 		// 破棄前に完全な状態を控える、再生成が失敗してもインスタンスを失わないための安全策
 		const std::vector<InstanceEntityBackup> backup = CaptureInstanceBackup(world, toDestroy);
 
-		std::unordered_set<uint64_t> destroyed;
 		for (auto it = toDestroy.rbegin(); it != toDestroy.rend(); ++it) {
 
-			const uint64_t key = (static_cast<uint64_t>(it->generation) << 32) | it->index;
-			if (!destroyed.insert(key).second) {
-				continue;
-			}
 			if (world.IsAlive(*it)) {
 				world.DestroyEntity(*it);
 			}
@@ -965,8 +959,8 @@ void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetD
 
 		RebuildInstance(world, database, hierarchySystem, data, target.sceneInstanceID);
 
-		// 再生成でインスタンスが消えていたら、控えておいた状態から元に戻す、元シーンの実体を絶対に失わせない
-		if (CollectInstanceEntities(world, instanceID).empty()) {
+		// 有効なルートを持っていたインスタンスの再生成だけ、失敗時に元の状態へ戻す
+		if (hadRoot && CollectInstanceEntities(world, instanceID).empty()) {
 			RestoreInstanceBackup(world, hierarchySystem, backup, target.sceneInstanceID);
 		}
 	}

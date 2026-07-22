@@ -24,8 +24,10 @@ bool Engine::JointAttachmentUtility::ResolveAttachedJoint(ECSWorld& world, const
 		return false;
 	}
 
-	// localFileIDからスキンメッシュエンティティを解決する、Edit/Playをまたいでも一意に引ける
-	outSkinnedEntity = SceneObjectUtility::FindByLocalFileID(world, attachment.skinnedEntityLocalFileID);
+	// 同じシーン内のlocalFileIDからスキンメッシュエンティティを解決する
+	const UUID sceneInstanceID = SceneObjectUtility::GetSceneInstanceID(world, entity);
+	outSkinnedEntity = SceneObjectUtility::FindByLocalFileID(
+		world, sceneInstanceID, attachment.skinnedEntityLocalFileID);
 	if (!world.IsAlive(outSkinnedEntity) || !world.HasComponent<SkinnedAnimationComponent>(outSkinnedEntity)) {
 		return false;
 	}

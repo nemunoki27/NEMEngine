@@ -6,10 +6,12 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 #include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
 #include <algorithm>
 #include <cmath>
+#include <unordered_set>
 
 //============================================================================
 //	AnimationClipEvaluator classMethods
@@ -18,6 +20,29 @@ namespace {
 
 	bool LerpValue(const Engine::AnimationPropertyValue& from,
 		const Engine::AnimationPropertyValue& to, float t, Engine::AnimationPropertyValue& out);
+
+	std::optional<Engine::AnimationPropertyDescriptor> ResolveProperty(
+		Engine::ECSWorld& world, const Engine::Entity& entity,
+		const Engine::AnimationPropertyBinding& binding) {
+
+		std::optional<Engine::AnimationPropertyDescriptor> descriptor =
+			Engine::AnimationPropertyRegistry::GetInstance().ResolveProperty(
+				world, entity, binding.componentName, binding.propertyPath, binding.valueType);
+		if (descriptor) {
+			return descriptor;
+		}
+
+		// 同じ未解決Bindingを毎フレーム出力しない
+		const std::string key = binding.componentName + "." + binding.propertyPath + ":" +
+			Engine::ToString(binding.valueType);
+		static std::unordered_set<std::string> warnedBindings;
+		if (warnedBindings.emplace(key).second) {
+			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
+				"AnimationClipEvaluator: animation property not found. component={} property={} type={}",
+				binding.componentName, binding.propertyPath, Engine::ToString(binding.valueType));
+		}
+		return std::nullopt;
+	}
 
 	bool SameBinding(const Engine::AnimationPropertyBinding& lhs, const Engine::AnimationPropertyBinding& rhs) {
 
@@ -594,8 +619,7 @@ bool Engine::AnimationClipEvaluator::ApplyTrack(ECSWorld& world, const Entity& e
 	const AnimationResolvedTime& time, const AnimationPropertyValue* baseValueOrNull) {
 
 	// 静的/動的どちらのPropertyも解決する、Missing Propertyは編集を止めずにスキップする
-	const std::optional<AnimationPropertyDescriptor> descOpt = AnimationPropertyRegistry::GetInstance().ResolveProperty(
-		world, entity, track.binding.componentName, track.binding.propertyPath, track.binding.valueType);
+	const std::optional<AnimationPropertyDescriptor> descOpt = ResolveProperty(world, entity, track.binding);
 	if (!descOpt) {
 		return false;
 	}
@@ -654,8 +678,7 @@ void Engine::AnimationClipEvaluator::EvaluateClipValues(ECSWorld& world, const E
 	// 書き込まずに各Trackの最終値だけを集める、クロスフェードの合成元に使う
 	for (const AnimationCurveTrack& track : clip.curveTracks) {
 
-		const std::optional<AnimationPropertyDescriptor> descOpt = AnimationPropertyRegistry::GetInstance().ResolveProperty(
-			world, entity, track.binding.componentName, track.binding.propertyPath, track.binding.valueType);
+		const std::optional<AnimationPropertyDescriptor> descOpt = ResolveProperty(world, entity, track.binding);
 		if (!descOpt || !descOpt->hasComponent || !descOpt->hasComponent(world, entity)) {
 			continue;
 		}

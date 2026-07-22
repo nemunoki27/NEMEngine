@@ -10,8 +10,10 @@
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 
 // c++
+#include <algorithm>
 #include <unordered_set>
 #include <unordered_map>
 
@@ -77,6 +79,26 @@ bool Engine::SceneSystem::SaveScene(const std::string& scenePath, ECSWorld& worl
 	// プレファブインスタンスごとに差分を抽出する
 	nlohmann::json prefabInstances = nlohmann::json::array();
 	for (const auto& [instanceID, prefabAsset] : instanceToPrefab) {
+
+		const std::vector<Entity> instanceEntities =
+			PrefabOverrideUtility::CollectInstanceEntities(world, instanceID);
+		const bool hasRoot = std::any_of(instanceEntities.begin(), instanceEntities.end(), [&](const Entity& entity) {
+			return world.IsAlive(entity) && world.HasComponent<PrefabLinkComponent>(entity) &&
+				world.GetComponent<PrefabLinkComponent>(entity).isPrefabRoot;
+			});
+		if (!hasRoot) {
+
+			// ルートを失ったPrefabの残存実体をfat側へ保存しない
+			for (const Entity& member : instanceEntities) {
+				for (const Entity& entity : HierarchyUtility::CollectLogicalSubtree(world, member)) {
+					if (world.HasComponent<SceneObjectComponent>(entity)) {
+						consumedSceneLocalIDs.insert(
+							world.GetComponent<SceneObjectComponent>(entity).localFileID);
+					}
+				}
+			}
+			continue;
+		}
 
 		const auto base = PrefabOverrideUtility::LoadPrefabBaseEntities(*database, prefabAsset);
 		PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(world, instanceID, base);

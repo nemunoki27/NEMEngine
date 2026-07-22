@@ -47,7 +47,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		AnimationClipTool();
+		AnimationClipTool() = default;
 		~AnimationClipTool() override = default;
 
 		// ToolPanelの一覧からツールを開く

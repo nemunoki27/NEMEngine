@@ -45,12 +45,18 @@ namespace Engine::SceneObjectUtility {
 
 	Entity FindByLocalFileID(ECSWorld& world, UUID localFileID) {
 
+		return FindByLocalFileID(world, UUID{}, localFileID);
+	}
+
+	Entity FindByLocalFileID(ECSWorld& world, UUID sceneInstanceID, UUID localFileID) {
+
 		if (!localFileID) {
 			return Entity::Null();
 		}
 		Entity found = Entity::Null();
 		world.ForEach<SceneObjectComponent>([&](Entity entity, SceneObjectComponent& sceneObject) {
-			if (!found.IsValid() && sceneObject.localFileID == localFileID) {
+			if (!found.IsValid() && sceneObject.localFileID == localFileID &&
+				(!sceneInstanceID || sceneObject.sceneInstanceID == sceneInstanceID)) {
 				found = entity;
 			}
 			});

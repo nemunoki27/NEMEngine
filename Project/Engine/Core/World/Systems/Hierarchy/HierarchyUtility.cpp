@@ -5,8 +5,41 @@
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
+
+// c++
 #include <vector>
 #include <algorithm>
+#include <unordered_map>
+#include <unordered_set>
+
+namespace {
+
+	struct LocalKey {
+
+		Engine::UUID sceneInstanceID{};
+		Engine::UUID localFileID{};
+
+		bool operator==(const LocalKey& rhs) const noexcept {
+			return sceneInstanceID == rhs.sceneInstanceID && localFileID == rhs.localFileID;
+		}
+	};
+
+	struct LocalKeyHash {
+
+		size_t operator()(const LocalKey& key) const noexcept {
+			const size_t h1 = std::hash<Engine::UUID>{}(key.sceneInstanceID);
+			const size_t h2 = std::hash<Engine::UUID>{}(key.localFileID);
+			return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+		}
+	};
+
+	uint64_t EntityKey(const Engine::Entity& entity) {
+
+		return (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
+	}
+}
 
 namespace Engine::HierarchyUtility {
 
@@ -52,6 +85,67 @@ namespace Engine::HierarchyUtility {
 			return !world.IsAlive(hierarchy->parent);
 		}
 		return true;
+	}
+
+	std::vector<Entity> CollectLogicalSubtree(ECSWorld& world, Entity root) {
+
+		std::vector<Entity> entities;
+		if (!world.IsAlive(root)) {
+			return entities;
+		}
+
+		// ジョイント接続先をシーンとローカルIDの組み合わせから引けるようにする
+		std::unordered_multimap<LocalKey, Entity, LocalKeyHash> attachedBySkinned;
+		attachedBySkinned.reserve(world.GetRecordCount());
+		world.ForEachAliveEntity([&](Entity entity) {
+
+			if (!world.HasComponent<JointAttachmentComponent>(entity) ||
+				!world.HasComponent<SceneObjectComponent>(entity)) {
+				return;
+			}
+			const auto& attachment = world.GetComponent<JointAttachmentComponent>(entity);
+			if (!attachment.skinnedEntityLocalFileID) {
+				return;
+			}
+			const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
+			attachedBySkinned.emplace(
+				LocalKey{ sceneObject.sceneInstanceID, attachment.skinnedEntityLocalFileID }, entity);
+			});
+
+		std::vector<Entity> stack;
+		std::unordered_set<uint64_t> collected;
+		stack.emplace_back(root);
+		while (!stack.empty()) {
+
+			const Entity entity = stack.back();
+			stack.pop_back();
+			if (!world.IsAlive(entity) || !collected.emplace(EntityKey(entity)).second) {
+				continue;
+			}
+
+			entities.emplace_back(entity);
+			if (world.HasComponent<SceneObjectComponent>(entity)) {
+
+				const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
+				const auto [begin, end] = attachedBySkinned.equal_range(
+					LocalKey{ sceneObject.sceneInstanceID, sceneObject.localFileID });
+				for (auto it = begin; it != end; ++it) {
+					stack.emplace_back(it->second);
+				}
+			}
+
+			if (!world.HasComponent<HierarchyComponent>(entity)) {
+				continue;
+			}
+			Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
+			while (world.IsAlive(child)) {
+
+				stack.emplace_back(child);
+				child = world.HasComponent<HierarchyComponent>(child) ?
+					world.GetComponent<HierarchyComponent>(child).nextSibling : Entity::Null();
+			}
+		}
+		return entities;
 	}
 
 } // Engine::HierarchyUtility

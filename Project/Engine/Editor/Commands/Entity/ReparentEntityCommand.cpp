@@ -127,6 +127,9 @@ bool Engine::ReparentEntityCommand::CaptureState(ECSWorld& world,
 
 		const auto& attachment = world.GetComponent<JointAttachmentComponent>(entity);
 		state.skinnedLocalFileID = attachment.skinnedEntityLocalFileID;
+		if (world.HasComponent<SceneObjectComponent>(entity)) {
+			state.sceneInstanceID = world.GetComponent<SceneObjectComponent>(entity).sceneInstanceID;
+		}
 		state.jointName = attachment.jointName;
 		state.jointAttached = true;
 	}
@@ -159,7 +162,8 @@ bool Engine::ReparentEntityCommand::ApplyState(EditorCommandContext& context, co
 	HierarchySystem hierarchySystem{};
 	if (state.jointAttached) {
 
-		const Entity skinnedEntity = SceneObjectUtility::FindByLocalFileID(*world, state.skinnedLocalFileID);
+		const Entity skinnedEntity = SceneObjectUtility::FindByLocalFileID(
+			*world, state.sceneInstanceID, state.skinnedLocalFileID);
 		if (!world->IsAlive(skinnedEntity) || state.jointName.empty()) {
 			return false;
 		}
@@ -233,6 +237,8 @@ bool Engine::ReparentEntityCommand::Execute(EditorCommandContext& context) {
 			}
 			newState_.skinnedLocalFileID =
 				world->GetComponent<SceneObjectComponent>(initialSkinnedEntity_).localFileID;
+			newState_.sceneInstanceID =
+				world->GetComponent<SceneObjectComponent>(initialSkinnedEntity_).sceneInstanceID;
 			if (!newState_.skinnedLocalFileID) {
 				return false;
 			}
@@ -275,7 +281,8 @@ bool Engine::ReparentEntityCommand::IsSameParent(const ParentState& lhs, const P
 		return false;
 	}
 	if (lhs.jointAttached) {
-		return lhs.skinnedLocalFileID == rhs.skinnedLocalFileID && lhs.jointName == rhs.jointName;
+		return lhs.skinnedLocalFileID == rhs.skinnedLocalFileID &&
+			lhs.sceneInstanceID == rhs.sceneInstanceID && lhs.jointName == rhs.jointName;
 	}
 	return lhs.parentStableUUID == rhs.parentStableUUID;
 }

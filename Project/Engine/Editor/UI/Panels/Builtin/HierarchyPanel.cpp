@@ -19,6 +19,7 @@
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
+#include <Engine/Core/World/Systems/Animation/JointAttachmentUtility.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Editor/Utility/AssetEntityFactory.h>
@@ -181,9 +182,15 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		if (!IsRootEntity(*world, entity)) {
 			return;
 		}
-		// ジョイントへ親子付けされたエンティティはルート一覧に出さず、ジョイント直下に表示する
+		// 解決できるジョイント接続はルート一覧に出さず、ジョイント直下に表示する
 		if (world->HasComponent<JointAttachmentComponent>(entity)) {
-			return;
+
+			Entity skinned = Entity::Null();
+			Matrix4x4 jointSkeletonSpace{};
+			if (JointAttachmentUtility::ResolveAttachedJoint(
+				*world, entity, skinned, jointSkeletonSpace)) {
+				return;
+			}
 		}
 		// In-Context編集は描画だけ元シーンを残し、ヒエラルキーは編集中インスタンスのルートだけに絞る
 		if (prefabEditing && inContext) {
@@ -732,10 +739,13 @@ void Engine::HierarchyPanel::DrawSkinnedMeshNodes(const EditorPanelContext& cont
 			if (!world.HasComponent<JointAttachmentComponent>(other)) {
 				return;
 			}
-			const auto& attachment = world.GetComponent<JointAttachmentComponent>(other);
-			if (attachment.skinnedEntityLocalFileID != skinnedLocalFileID) {
+			Entity attachedSkinned = Entity::Null();
+			Matrix4x4 jointSkeletonSpace{};
+			if (!JointAttachmentUtility::ResolveAttachedJoint(
+				world, other, attachedSkinned, jointSkeletonSpace) || attachedSkinned != entity) {
 				return;
 			}
+			const auto& attachment = world.GetComponent<JointAttachmentComponent>(other);
 			const int32_t jointIndex =
 				FindSkeletonJointIndex(skeleton, attachment.jointName);
 			if (0 <= jointIndex) {

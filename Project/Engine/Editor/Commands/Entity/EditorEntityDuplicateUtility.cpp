@@ -8,6 +8,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 
 //============================================================================
@@ -74,39 +75,22 @@ namespace {
 		}
 		root.components["Name"]["name"] = std::string(name);
 	}
-	// エンティティとその子孫にシーンインスタンスIDとソースアセットを再帰的に設定する
-	void PropagateSceneRuntimeStateRecursive(Engine::ECSWorld& world, const Engine::Entity& entity,
+	// エンティティとその子孫にシーンインスタンスIDとソースアセットを設定する
+	void PropagateSceneRuntimeState(Engine::ECSWorld& world, const Engine::Entity& entity,
 		Engine::UUID sceneInstanceID, Engine::AssetID sourceAsset) {
 
-		// エンティティが存在しない場合は何もしない
-		if (!world.IsAlive(entity)) {
-			return;
-		}
+		for (const Engine::Entity& current : Engine::HierarchyUtility::CollectLogicalSubtree(world, entity)) {
 
-		// シーンオブジェクトコンポーネントがある場合はシーンインスタンスIDとソースアセットを設定する
-		if (world.HasComponent<Engine::SceneObjectComponent>(entity)) {
-			auto& sceneObject = world.GetComponent<Engine::SceneObjectComponent>(entity);
-
+			if (!world.HasComponent<Engine::SceneObjectComponent>(current)) {
+				continue;
+			}
+			auto& sceneObject = world.GetComponent<Engine::SceneObjectComponent>(current);
 			if (sceneInstanceID) {
 				sceneObject.sceneInstanceID = sceneInstanceID;
 			}
 			if (sourceAsset) {
 				sceneObject.sourceAsset = sourceAsset;
 			}
-		}
-		if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
-			return;
-		}
-
-		// 子孫に対しても同じシーンインスタンスIDとソースアセットを設定
-		Engine::Entity child = world.GetComponent<Engine::HierarchyComponent>(entity).firstChild;
-		while (child.IsValid() && world.IsAlive(child)) {
-
-			PropagateSceneRuntimeStateRecursive(world, child, sceneInstanceID, sourceAsset);
-			if (!world.HasComponent<Engine::HierarchyComponent>(child)) {
-				break;
-			}
-			child = world.GetComponent<Engine::HierarchyComponent>(child).nextSibling;
 		}
 	}
 }
@@ -186,6 +170,16 @@ void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEn
 		if (oldLocalFileID && localFileIDMap.contains(oldLocalFileID)) {
 
 			WriteLocalFileIDToComponents(duplicatedEntity.components, localFileIDMap.at(oldLocalFileID));
+		}
+		// 複製範囲内のスキンメッシュへ接続されている場合は新しいローカルIDへ張り替える
+		if (duplicatedEntity.components.contains("JointAttachment")) {
+
+			auto& attachment = duplicatedEntity.components["JointAttachment"];
+			const std::string target = attachment.value("skinnedEntityLocalFileID", "");
+			const UUID oldTarget = target.empty() ? UUID{} : FromString16Hex(target);
+			if (oldTarget && localFileIDMap.contains(oldTarget)) {
+				attachment["skinnedEntityLocalFileID"] = ToString(localFileIDMap.at(oldTarget));
+			}
 		}
 		if (!preservePrefabInstance) {
 
@@ -270,7 +264,7 @@ Engine::Entity Engine::EditorEntityDuplicateUtility::InstantiatePreparedSnapshot
 	// シーンインスタンスIDかソースアセットのどちらかがあれば、ルート以下に伝播する
 	if (resolvedSceneInstanceID || resolvedSourceAsset) {
 
-		PropagateSceneRuntimeStateRecursive(world, root, resolvedSceneInstanceID, resolvedSourceAsset);
+		PropagateSceneRuntimeState(world, root, resolvedSceneInstanceID, resolvedSourceAsset);
 	}
 
 	return root;

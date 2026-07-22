@@ -19,6 +19,28 @@
 //============================================================================
 //	JointAttachmentSystem classMethods
 //============================================================================
+namespace {
+
+	struct LocalKey {
+
+		Engine::UUID sceneInstanceID{};
+		Engine::UUID localFileID{};
+
+		bool operator==(const LocalKey& rhs) const noexcept {
+			return sceneInstanceID == rhs.sceneInstanceID && localFileID == rhs.localFileID;
+		}
+	};
+
+	struct LocalKeyHash {
+
+		size_t operator()(const LocalKey& key) const noexcept {
+			const size_t h1 = std::hash<Engine::UUID>{}(key.sceneInstanceID);
+			const size_t h2 = std::hash<Engine::UUID>{}(key.localFileID);
+			return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+		}
+	};
+}
+
 void Engine::JointAttachmentSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
 	// 親子付けされたエンティティが無ければジョイントの追従計算自体を行わない
@@ -31,10 +53,10 @@ void Engine::JointAttachmentSystem::LateUpdate(ECSWorld& world, [[maybe_unused]]
 	}
 
 	// スキンメッシュエンティティをシーンローカルIDから引けるようにする、参照解決を高速化する
-	std::unordered_map<UUID, Entity> skinnedByLocal;
+	std::unordered_map<LocalKey, Entity, LocalKeyHash> skinnedByLocal;
 	world.ForEach<SkinnedAnimationComponent, SceneObjectComponent>([&](
 		Entity entity, SkinnedAnimationComponent&, SceneObjectComponent& sceneObject) {
-			skinnedByLocal[sceneObject.localFileID] = entity;
+		skinnedByLocal[{ sceneObject.sceneInstanceID, sceneObject.localFileID }] = entity;
 		});
 	if (skinnedByLocal.empty()) {
 		return;
@@ -44,14 +66,16 @@ void Engine::JointAttachmentSystem::LateUpdate(ECSWorld& world, [[maybe_unused]]
 	HierarchySystem hierarchySystem{};
 
 	// 親子付けされたエンティティを、ジョイントのワールド行列へ追従させる
-	world.ForEach<JointAttachmentComponent, TransformComponent>([&](
-		Entity entity, JointAttachmentComponent& attachment, TransformComponent& transform) {
+	world.ForEach<JointAttachmentComponent, TransformComponent, SceneObjectComponent>([&](
+		Entity entity, JointAttachmentComponent& attachment,
+		TransformComponent& transform, SceneObjectComponent& sceneObject) {
 
 			if (attachment.jointName.empty() || !attachment.skinnedEntityLocalFileID) {
 				return;
 			}
 			// 親スキンメッシュエンティティを解決する
-			auto skinnedIt = skinnedByLocal.find(attachment.skinnedEntityLocalFileID);
+			auto skinnedIt = skinnedByLocal.find(
+				LocalKey{ sceneObject.sceneInstanceID, attachment.skinnedEntityLocalFileID });
 			if (skinnedIt == skinnedByLocal.end()) {
 				return;
 			}

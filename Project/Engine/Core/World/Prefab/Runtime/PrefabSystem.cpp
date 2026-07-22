@@ -10,12 +10,10 @@
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
-
-// c++
-#include <unordered_set>
 
 //============================================================================
 //	PrefabSystem classMethods
@@ -128,7 +126,7 @@ Engine::UUID Engine::PrefabSystem::SetPrefabLinkToSubtree(ECSWorld& world, const
 		return UUID{};
 	}
 	const UUID resolvedInstanceID = prefabInstanceID ? prefabInstanceID : UUID::New();
-	for (const Entity& entity : CollectSubtree(world, root)) {
+	for (const Entity& entity : HierarchyUtility::CollectLogicalSubtree(world, root)) {
 
 		if (!world.HasComponent<SceneObjectComponent>(entity)) {
 			continue;
@@ -147,7 +145,7 @@ bool Engine::PrefabSystem::SavePrefab(AssetDatabase& database, ECSWorld& world,
 		return false;
 	}
 	// rootのサブツリーを集めて保存する
-	const std::vector<Entity> subtree = CollectSubtree(world, root);
+	const std::vector<Entity> subtree = HierarchyUtility::CollectLogicalSubtree(world, root);
 	return SavePrefabFromEntities(database, world, root, subtree, prefabAssetPath);
 }
 
@@ -451,64 +449,6 @@ bool Engine::PrefabSystem::InstantiatePrefabFromPath(AssetDatabase& database, Hi
 
 	const AssetID prefabAsset = database.ImportOrGet(prefabAssetPath, AssetType::Prefab);
 	return InstantiatePrefab(database, hierarchySystem, world, prefabAsset, outResult, desc);
-}
-
-std::vector<Engine::Entity> Engine::PrefabSystem::CollectSubtree(ECSWorld& world, const Entity& root) const {
-
-	// ルートが存在しない場合は空を返す
-	std::vector<Entity> result;
-	if (!world.IsAlive(root)) {
-		return result;
-	}
-
-	// ジョイント接続された実体を参照先ローカルIDから引けるようにする
-	std::unordered_multimap<UUID, Entity> attachedBySkinned;
-	world.ForEach<JointAttachmentComponent>([&](Entity entity, JointAttachmentComponent& attachment) {
-		if (attachment.skinnedEntityLocalFileID) {
-			attachedBySkinned.emplace(attachment.skinnedEntityLocalFileID, entity);
-		}
-		});
-
-	// 通常の子とジョイント接続された子を深さ優先で収集する
-	std::stack<Entity> stack;
-	std::unordered_set<uint64_t> collected;
-	stack.push(root);
-	while (!stack.empty()) {
-
-		Entity entity = stack.top();
-		stack.pop();
-
-		// エンティティが存在しない場合はスキップ
-		if (!world.IsAlive(entity)) {
-			continue;
-		}
-		const uint64_t entityKey = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
-		if (!collected.insert(entityKey).second) {
-			continue;
-		}
-
-		result.emplace_back(entity);
-		if (world.HasComponent<SceneObjectComponent>(entity)) {
-
-			const UUID localFileID = world.GetComponent<SceneObjectComponent>(entity).localFileID;
-			const auto [begin, end] = attachedBySkinned.equal_range(localFileID);
-			for (auto it = begin; it != end; ++it) {
-				stack.push(it->second);
-			}
-		}
-		if (!world.HasComponent<HierarchyComponent>(entity)) {
-			continue;
-		}
-
-		// 子を走査してスタックに追加
-		Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
-		while (child.IsValid()) {
-
-			stack.push(child);
-			child = world.GetComponent<HierarchyComponent>(child).nextSibling;
-		}
-	}
-	return result;
 }
 
 Engine::UUID Engine::PrefabSystem::AllocateUniqueLocalFileID(ECSWorld& world) const {

@@ -8,43 +8,12 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Editor/Commands/Core/EditorCommandContext.h>
 
 //============================================================================
 //	EditorEntitySnapshot classMethods
 //============================================================================
-namespace {
-
-	// ルートを含むサブツリーを収集するための再帰関数
-	void CollectSubtreeRecursive(Engine::ECSWorld& world,
-		const Engine::Entity& entity, std::vector<Engine::Entity>& outEntities) {
-
-		// エンティティが存在するか
-		if (!world.IsAlive(entity)) {
-			return;
-		}
-
-		// サブツリーのルートを収集
-		outEntities.emplace_back(entity);
-		if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
-			return;
-		}
-
-		// 子エンティティを再帰的に収集
-		const auto& hierarchy = world.GetComponent<Engine::HierarchyComponent>(entity);
-		Engine::Entity child = hierarchy.firstChild;
-		while (child.IsValid() && world.IsAlive(child)) {
-
-			CollectSubtreeRecursive(world, child, outEntities);
-			if (!world.HasComponent<Engine::HierarchyComponent>(child)) {
-				break;
-			}
-			child = world.GetComponent<Engine::HierarchyComponent>(child).nextSibling;
-		}
-	}
-}
-
-
 void Engine::EditorEntityTreeSnapshot::Clear() {
 
 	rootStableUUID = UUID{};
@@ -55,13 +24,7 @@ void Engine::EditorEntityTreeSnapshot::Clear() {
 
 std::vector<Engine::Entity> Engine::EditorEntitySnapshotUtility::CollectSubtreeEntities(ECSWorld& world, const Entity& root) {
 
-	std::vector<Entity> entities{};
-	if (!world.IsAlive(root)) {
-		return entities;
-	}
-	// ルートを含むサブツリーを収集する
-	CollectSubtreeRecursive(world, root, entities);
-	return entities;
+	return HierarchyUtility::CollectLogicalSubtree(world, root);
 }
 
 void Engine::EditorEntitySnapshotUtility::CaptureSubtree(ECSWorld& world,
