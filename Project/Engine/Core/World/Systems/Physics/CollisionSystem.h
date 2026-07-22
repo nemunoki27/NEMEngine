@@ -31,7 +31,9 @@ namespace Engine {
 
 		// World終了時に接触履歴を破棄する
 		void OnWorldExit(ECSWorld& world, SystemContext& context) override;
-		// 衝突判定、押し戻し、OnCollisionコールバックを実行する
+		// 固定ステップで衝突判定、押し戻し、OnCollisionコールバックを実行する
+		void FixedUpdate(ECSWorld& world, SystemContext& context) override;
+		// Edit中の衝突表示を更新する
 		void LateUpdate(ECSWorld& world, SystemContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
@@ -61,6 +63,8 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 衝突判定を実行し、必要なら押し戻しとコールバックを処理する
+		void UpdateCollisions(ECSWorld& world, SystemContext& context, bool applyResponse);
 		// 衝突結果をもとにEntityを押し戻す
 		void ApplyPushback(ECSWorld& world, CollisionRuntimeEntity& a,
 			CollisionRuntimeEntity& b, const CollisionContact& contact) const;

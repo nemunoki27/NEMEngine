@@ -511,15 +511,30 @@ void Engine::CollisionSystem::OnWorldExit([[maybe_unused]] ECSWorld& world, [[ma
 	previousContacts_.clear();
 }
 
+void Engine::CollisionSystem::FixedUpdate(ECSWorld& world, SystemContext& context) {
+
+	// 押し戻しとコールバックはPlay中の固定ステップだけで処理する
+	if (context.mode != WorldMode::Play) {
+		return;
+	}
+	UpdateCollisions(world, context, true);
+}
+
 void Engine::CollisionSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
+
+	// Play中の判定はFixedUpdateで完了している
+	if (context.mode == WorldMode::Play) {
+		return;
+	}
+	UpdateCollisions(world, context, false);
+}
+
+void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& context, bool applyResponse) {
 
 	// 形状描画の衝突中フラグを毎フレーム初期化する、衝突したものだけ後で立てる
 	world.ForEach<CollisionComponent>([](Entity, CollisionComponent& collision) {
 		collision.runtimeColliding = false;
 		});
-
-	// 判定自体はEdit中も走らせて衝突表示を赤くする、押し戻しとコールバックはPlay中だけにする
-	const bool isPlaying = (context.mode == WorldMode::Play);
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
 	settings.BindGlobal(context.assetDatabase);
@@ -592,8 +607,8 @@ void Engine::CollisionSystem::LateUpdate(ECSWorld& world, SystemContext& context
 				b.collision->runtimeColliding = true;
 			}
 
-			// 押し戻しとEnter / Stayの分配はPlay中のみ行う
-			if (isPlaying) {
+			// 押し戻しとEnter / Stayの分配は固定ステップのみ行う
+			if (applyResponse) {
 				ApplyPushback(world, a, b, bestContact);
 				if (previousContacts_.contains(key)) {
 					DispatchCollisionStay(world, context, bestContact);
@@ -605,7 +620,7 @@ void Engine::CollisionSystem::LateUpdate(ECSWorld& world, SystemContext& context
 	}
 
 	// Edit中はコールバックも履歴も持たず、表示用フラグだけ更新して終える
-	if (!isPlaying) {
+	if (!applyResponse) {
 		previousContacts_.clear();
 		return;
 	}

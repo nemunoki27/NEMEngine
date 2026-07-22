@@ -89,9 +89,6 @@ void Framework::Tick() {
 		FrameProfiler::ScopedSample updateSample(FrameProfiler::Category::Update);
 		engineApplication_->Tick(*graphicsCore_, frameTimer_.GetDeltaTime());
 	}
-	if (engineApplication_->ConsumeFrameDeltaResetRequest()) {
-		frameTimer_.ResetDeltaTimeBase();
-	}
 
 	// 描画(開始～終了までを計測)
 	{
@@ -105,6 +102,10 @@ void Framework::Tick() {
 
 		// 描画終了
 		EndRenderFrame();
+	}
+	// Play開始やシーン切り替え直後の初回描画時間を、次フレームのdeltaTimeへ含めない
+	if (engineApplication_->ConsumeFrameDeltaResetRequest()) {
+		frameTimer_.ResetDeltaTimeBase();
 	}
 }
 

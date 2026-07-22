@@ -11,7 +11,17 @@
 //============================================================================
 //	TransformSystem classMethods
 //============================================================================
+void Engine::TransformSystem::FixedUpdate(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
+
+	UpdateTransforms(world);
+}
+
 void Engine::TransformSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
+
+	UpdateTransforms(world);
+}
+
+void Engine::TransformSystem::UpdateTransforms(ECSWorld& world) {
 
 	// ルートクリア
 	roots_.clear();

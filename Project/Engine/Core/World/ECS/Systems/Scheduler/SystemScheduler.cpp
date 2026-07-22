@@ -8,6 +8,7 @@
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 
 // c++
+#include <algorithm>
 #include <chrono>
 #include <vector>
 
@@ -62,8 +63,16 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 
 	// Fixed
 	context.fixedDeltaTime = fixedDeltaTime_;
-	// 固定更新の時間を蓄積する
-	accumulator_ += context.deltaTime;
+	// 長時間停止後の固定更新負債を次フレームへ持ち越さないよう、最大サブステップ分に制限する
+	if (0.0f < fixedDeltaTime_ && 0 < maxSubSteps_) {
+
+		const float maxAccumulatedTime = fixedDeltaTime_ * static_cast<float>(maxSubSteps_);
+		accumulator_ = std::clamp(accumulator_ + (std::max)(context.deltaTime, 0.0f),
+			0.0f, maxAccumulatedTime);
+	} else {
+
+		accumulator_ = 0.0f;
+	}
 
 	// プロファイラ用にシステムごとの処理時間をFixed/Update/LateUpdate合計で計測する
 	systemMsScratch_.assign(systems_.size(), 0.0f);
