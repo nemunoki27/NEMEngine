@@ -21,6 +21,7 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
@@ -132,17 +133,17 @@ void Engine::EngineApplication::LoadActiveSceneConfig() {
 
 	// 前回終了時に開いていたシーンがあれば、初期シーンとして使う
 	std::filesystem::path configPath = RuntimePaths::GetGameConfigPath(kActiveSceneConfigPath);
-	if (!JsonAdapter::Check(configPath.string(), false)) {
+	if (!JsonAdapter::Check(configPath, false)) {
 
 		// 旧版はEngine/Assets/Config(SDK内)に保存していたので、移行のため旧パスも読む
 		const std::filesystem::path legacyPath = RuntimePaths::GetEngineAssetPath(kActiveSceneConfigPath);
-		if (!JsonAdapter::Check(legacyPath.string(), false)) {
+		if (!JsonAdapter::Check(legacyPath, false)) {
 			return;
 		}
 		configPath = legacyPath;
 	}
 
-	const nlohmann::json data = JsonAdapter::Load(configPath.string(), false);
+	const nlohmann::json data = JsonAdapter::Load(configPath, false);
 	if (!data.is_object()) {
 		return;
 	}
@@ -170,7 +171,7 @@ void Engine::EngineApplication::SaveActiveSceneConfig() const {
 	data["activeScene"] = ToAssetReferenceJson(activeScene_);
 
 	const std::filesystem::path configPath = RuntimePaths::GetGameConfigPath(kActiveSceneConfigPath);
-	JsonAdapter::Save(configPath.string(), data);
+	JsonAdapter::Save(configPath, data);
 }
 
 void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
@@ -185,9 +186,11 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	LoadActiveSceneConfig();
 
 	// フレームレート上限を設定ファイルから読み込む
-	FrameRateSettings::GetInstance().Load(RuntimePaths::GetGameConfigPath(kFrameRateConfigPath).string());
+	FrameRateSettings::GetInstance().Load(
+		Algorithm::PathToUTF8(RuntimePaths::GetGameConfigPath(kFrameRateConfigPath)));
 	// 描画タイプごとのデフォルトマテリアル設定をGameAssets配下から読み込む
-	DefaultMaterialSettings::GetInstance().Load((RuntimePaths::GetGameRoot() / kDefaultMaterialConfigPath).string());
+	DefaultMaterialSettings::GetInstance().Load(
+		Algorithm::PathToUTF8(RuntimePaths::GetGameRoot() / kDefaultMaterialConfigPath));
 	// AnimationClipの評価に必要なPropertyをEditorの有無に関係なく登録する
 	RegisterBuiltinAnimationProperties();
 
@@ -282,7 +285,7 @@ void Engine::EngineApplication::PreloadReleaseResources(GraphicsCore& graphicsCo
 		{
 			const std::filesystem::path fullPath = assetDataBase_.ResolveFullPath(meta->guid);
 			if (!fullPath.empty()) {
-				Audio::GetInstance()->EnsureLoaded(fullPath.string());
+				Audio::GetInstance()->EnsureLoaded(fullPath);
 			}
 			break;
 		}

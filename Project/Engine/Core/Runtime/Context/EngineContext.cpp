@@ -19,7 +19,8 @@ Engine::EngineContext::GraphicsSetting Engine::EngineContext::graphicsSetting_ =
 
 void Engine::EngineContext::InitCoreSettings() {
 
-	nlohmann::json data = JsonAdapter::Load(RuntimePaths::GetEngineAssetPath("Window/windowSetting.json").string());
+	nlohmann::json data = JsonAdapter::Load(
+		RuntimePaths::GetEngineAssetPath("Window/windowSetting.json"));
 	// ウィンドウ設定
 	std::string windowTitle = data["WindowTitle"];
 	windowSetting_.title = Algorithm::ConvertString(windowTitle);
@@ -29,7 +30,7 @@ void Engine::EngineContext::InitCoreSettings() {
 
 		// 製品ビルドではビルド設定の製品名と起動状態を優先する
 		const nlohmann::json gameBuild = JsonAdapter::Load(
-			RuntimePaths::GetGameConfigPath(ConfigPaths::kGameBuild).string(), false);
+			RuntimePaths::GetGameConfigPath(ConfigPaths::kGameBuild), false);
 		if (gameBuild.is_object()) {
 
 			const std::string gameName = gameBuild.value("gameName", std::string{});

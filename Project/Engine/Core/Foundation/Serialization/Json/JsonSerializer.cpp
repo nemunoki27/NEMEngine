@@ -6,6 +6,7 @@ using namespace Engine;
 //	include
 //============================================================================*/
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <filesystem>
@@ -16,21 +17,24 @@ using namespace Engine;
 
 void JsonAdapter::Save(const std::string& directoryFilePath, const nlohmann::json& data) {
 
-	const std::string fullPath = directoryFilePath;
+	Save(Algorithm::PathFromUTF8(directoryFilePath), data);
+}
+
+void JsonAdapter::Save(const std::filesystem::path& directoryFilePath, const nlohmann::json& data) {
 
 	// 親ディレクトリが無ければ作成する、ゲーム側Configなど初回保存でも失敗しないようにする
-	const std::filesystem::path parentPath = std::filesystem::path(fullPath).parent_path();
+	const std::filesystem::path parentPath = directoryFilePath.parent_path();
 	if (!parentPath.empty()) {
 		std::error_code ec;
 		std::filesystem::create_directories(parentPath, ec);
 	}
 
-	std::ofstream file(fullPath);
+	std::ofstream file(directoryFilePath);
 
 	// 書き込めなかった場合
 	if (!file.is_open()) {
 
-		Assert::Call(false, "Failed to save nlohmann::json file: " + fullPath);
+		Assert::Call(false, "Failed to save nlohmann::json file: " + Algorithm::PathToUTF8(directoryFilePath));
 		return;
 	}
 
@@ -39,14 +43,18 @@ void JsonAdapter::Save(const std::string& directoryFilePath, const nlohmann::jso
 
 nlohmann::json JsonAdapter::Load(const std::string& directoryFilePath, bool assertion) {
 
-	const std::string fullPath = directoryFilePath;
-	std::ifstream file(fullPath);
+	return Load(Algorithm::PathFromUTF8(directoryFilePath), assertion);
+}
+
+nlohmann::json JsonAdapter::Load(const std::filesystem::path& directoryFilePath, bool assertion) {
+
+	std::ifstream file(directoryFilePath);
 
 	// 読み込めなかった場合
 	if (!file.is_open()) {
 		if (assertion) {
 
-			Assert::Call(false, "Failed to load nlohmann::json file: " + fullPath);
+			Assert::Call(false, "Failed to load nlohmann::json file: " + Algorithm::PathToUTF8(directoryFilePath));
 		}
 		return nlohmann::json();
 	}
@@ -58,7 +66,8 @@ nlohmann::json JsonAdapter::Load(const std::string& directoryFilePath, bool asse
 	catch (const nlohmann::json::parse_error& e) {
 		if (assertion) {
 
-			Assert::Call(false, "Failed to parse nlohmann::json file: " + fullPath + "\n" + e.what());
+			Assert::Call(false, "Failed to parse nlohmann::json file: " +
+				Algorithm::PathToUTF8(directoryFilePath) + "\n" + e.what());
 		}
 		return nlohmann::json();
 	}
@@ -68,14 +77,18 @@ nlohmann::json JsonAdapter::Load(const std::string& directoryFilePath, bool asse
 
 bool JsonAdapter::Check(const std::string& directoryFilePath, bool assertion) {
 
-	const std::string fullPath = directoryFilePath;
-	std::ifstream file(fullPath);
+	return Check(Algorithm::PathFromUTF8(directoryFilePath), assertion);
+}
+
+bool JsonAdapter::Check(const std::filesystem::path& directoryFilePath, bool assertion) {
+
+	std::ifstream file(directoryFilePath);
 
 	// 読み込めなかった場合
 	if (!file.is_open()) {
 		if (assertion) {
 
-			Assert::Call(false, "Failed to load nlohmann::json file: " + fullPath);
+			Assert::Call(false, "Failed to load nlohmann::json file: " + Algorithm::PathToUTF8(directoryFilePath));
 		}
 		return false;
 	}

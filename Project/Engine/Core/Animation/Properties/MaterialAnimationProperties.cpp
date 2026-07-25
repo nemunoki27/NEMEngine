@@ -70,7 +70,7 @@ namespace {
 		if (path.empty()) {
 			return nullptr;
 		}
-		nlohmann::json data = Engine::JsonAdapter::Load(path.string(), false);
+		nlohmann::json data = Engine::JsonAdapter::Load(path, false);
 		Engine::MaterialAsset material{};
 		if (!Engine::FromJson(data, material)) {
 			return nullptr;

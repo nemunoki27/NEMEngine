@@ -14,6 +14,7 @@
 #include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 //============================================================================
 //	PrefabSystem classMethods
@@ -227,7 +228,7 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 	if (savePath.empty()) {
 		savePath = prefabAssetPath;
 	}
-	JsonAdapter::Save(savePath.string(), fileJson);
+	JsonAdapter::Save(savePath, fileJson);
 	return true;
 }
 
@@ -244,7 +245,7 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 	}
 
 	// ファイルからnlohmann::json読み込み
-	nlohmann::json fileJson = JsonAdapter::Load(fullPath.string(), true);
+	nlohmann::json fileJson = JsonAdapter::Load(fullPath, true);
 	if (!fileJson.is_object() || !fileJson.contains("Entities") || !fileJson["Entities"].is_array()) {
 		return false;
 	}
@@ -410,7 +411,7 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		if (namePath.extension() == ".prefab") {
 			namePath = namePath.stem();
 		}
-		const std::string baseName = namePath.string();
+		const std::string baseName = Algorithm::PathToUTF8(namePath);
 		if (!baseName.empty()) {
 
 			// 同名インスタンスがあれば name_N へずらす、生成中のルート自身は判定から外す
@@ -482,10 +483,10 @@ std::string Engine::PrefabSystem::BuildDefaultPrefabName(ECSWorld& world,
 		}
 	}
 	// ルートエンティティの名前が空の場合は、ファイル名をベースにする
-	std::filesystem::path path = std::filesystem::path(prefabAssetPath).stem();
+	std::filesystem::path path = Algorithm::PathFromUTF8(prefabAssetPath).stem();
 	if (path.extension() == ".prefab") {
 		path = path.stem();
 	}
 
-	return path.string();
+	return Algorithm::PathToUTF8(path);
 }

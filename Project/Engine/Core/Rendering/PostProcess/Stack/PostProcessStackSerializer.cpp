@@ -67,7 +67,7 @@ bool Engine::PostProcessStackSerializer::Load(const std::filesystem::path& path,
 		return false;
 	}
 
-	const nlohmann::json data = JsonAdapter::Load(path.string(), false);
+	const nlohmann::json data = JsonAdapter::Load(path, false);
 	if (!data.is_object()) {
 		return false;
 	}
@@ -83,7 +83,7 @@ bool Engine::PostProcessStackSerializer::Save(const std::filesystem::path& path,
 		std::filesystem::create_directories(dir);
 	}
 
-	JsonAdapter::Save(path.string(), ToJson(settings));
+	JsonAdapter::Save(path, ToJson(settings));
 	return true;
 }
 

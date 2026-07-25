@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 
 // c++
@@ -68,7 +69,7 @@ bool Engine::SceneInstanceManager::LoadAdditive(AssetDatabase& database,
 	instance.sceneAsset = sceneAsset;
 
 	// ファイルからヘッダ、エンティティを読み込む
-	if (!sceneSystem.LoadScene(path.string(), world, &database, sceneAsset, instance.instanceID,
+	if (!sceneSystem.LoadScene(path, world, &database, sceneAsset, instance.instanceID,
 		&instance.header, &instance.createdEntities)) {
 		return false;
 	}
@@ -174,7 +175,7 @@ bool Engine::SceneInstanceManager::SaveActive(AssetDatabase& database, const Sce
 	}
 
 	const std::vector<Entity> ownedEntities = CollectSceneEntities(world, *activeScene);
-	return sceneSystem.SaveScene(fullPath.string(), world, activeScene->header, &ownedEntities, &database);
+	return sceneSystem.SaveScene(fullPath, world, activeScene->header, &ownedEntities, &database);
 }
 
 nlohmann::json Engine::SceneInstanceManager::SerializeSnapshot(const SceneSystem& sceneSystem, ECSWorld& world) const {
@@ -240,7 +241,8 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 		{
 			// 旧スナップショットなどで設定パスがない場合は、シーンごとの既定パスを補完する
 			const std::filesystem::path scenePath = database.ResolveFullPath(instance.sceneAsset);
-			EnsureScenePostProcessStack(instance.header, scenePath.string(), &database);
+			EnsureScenePostProcessStack(instance.header,
+				Algorithm::PathToUTF8(scenePath), &database);
 		}
 
 		// エンティティ情報を読み込む
@@ -290,7 +292,7 @@ bool Engine::SceneInstanceManager::LoadSceneTree(AssetDatabase& database,
 		instance.parentInstanceID = parentInstanceID;
 		instance.sceneAsset = sceneAsset;
 		// ファイルからヘッダ、エンティティを読み込む
-		if (!sceneSystem.LoadScene(path.string(), world, &database, sceneAsset, instance.instanceID,
+		if (!sceneSystem.LoadScene(path, world, &database, sceneAsset, instance.instanceID,
 			&instance.header, &instance.createdEntities)) {
 			return UUID{};
 		}

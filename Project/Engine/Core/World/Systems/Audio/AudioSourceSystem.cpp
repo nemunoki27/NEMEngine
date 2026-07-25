@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Audio/AudioSystem.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 
@@ -24,7 +25,7 @@ namespace {
 	// AudioSourceComponentの再生キーを作成する
 	std::string BuildAudioKey(const std::filesystem::path& fullPath) {
 
-		return fullPath.empty() ? std::string{} : fullPath.stem().string();
+		return fullPath.empty() ? std::string{} : Engine::Algorithm::PathToUTF8(fullPath.stem());
 	}
 }
 
@@ -103,7 +104,7 @@ bool Engine::AudioSourceSystem::StartPlayback(Entity entity, AudioSourceComponen
 	AssetID clip, bool primary, bool loop, float volumeScale, AssetDatabase& database) {
 
 	const std::filesystem::path fullPath = database.ResolveFullPath(clip);
-	if (fullPath.empty() || !Audio::GetInstance()->EnsureLoaded(fullPath.string())) {
+	if (fullPath.empty() || !Audio::GetInstance()->EnsureLoaded(fullPath)) {
 		return false;
 	}
 

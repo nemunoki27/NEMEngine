@@ -7,6 +7,7 @@
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <cstring>
@@ -44,7 +45,7 @@ namespace {
 			stem = stem.stem();
 		}
 
-		std::string name = stem.string();
+		std::string name = Engine::Algorithm::PathToUTF8(stem);
 		if (name.empty()) {
 			name = "Scene";
 		}
@@ -56,29 +57,30 @@ namespace {
 std::string Engine::MakeDefaultPostProcessStackPath(const std::string& scenePath) {
 
 	// シーンが置かれているベース(GameAssets / Engine/Assets)を判定し、そのベース直下のPostProcessへ置く
-	std::string assetPath = RuntimePaths::ToAssetPath(scenePath);
+	const std::filesystem::path sourcePath = Algorithm::PathFromUTF8(scenePath);
+	std::string assetPath = RuntimePaths::ToAssetPath(sourcePath);
 	if (assetPath.empty()) {
-		assetPath = std::filesystem::path(scenePath).filename().generic_string();
+		assetPath = Algorithm::ConvertString(sourcePath.filename().generic_wstring());
 	}
 
 	std::string root = kPostProcessStackRoot;
 	std::filesystem::path relativeSource;
 	if (std::string gameRelative = StripScenesPrefix(assetPath, "GameAssets/Scenes"); !gameRelative.empty()) {
 		root = "GameAssets/PostProcess";
-		relativeSource = gameRelative;
+		relativeSource = Algorithm::PathFromUTF8(gameRelative);
 	} else if (std::string engineRelative = StripScenesPrefix(assetPath, "Engine/Assets/Scenes"); !engineRelative.empty()) {
 		root = "Engine/Assets/PostProcess";
-		relativeSource = engineRelative;
+		relativeSource = Algorithm::PathFromUTF8(engineRelative);
 	} else {
-		relativeSource = std::filesystem::path(assetPath).filename();
+		relativeSource = Algorithm::PathFromUTF8(assetPath).filename();
 	}
 
 	std::filesystem::path stackPath = root;
 	if (relativeSource.has_parent_path()) {
 		stackPath /= relativeSource.parent_path();
 	}
-	stackPath /= MakePostProcessStackFileName(relativeSource);
-	return stackPath.generic_string();
+	stackPath /= Algorithm::PathFromUTF8(MakePostProcessStackFileName(relativeSource));
+	return Algorithm::ConvertString(stackPath.generic_wstring());
 }
 
 void Engine::EnsureScenePostProcessStack(SceneHeader& sceneHeader, const std::string& scenePath, AssetDatabase* assetDatabase) {

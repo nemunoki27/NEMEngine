@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
 #include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
@@ -162,14 +163,14 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 	// 基本情報を設定
 	ImportedMeshAsset result{};
 	result.assetID = assetID;
-	result.sourcePath = fullPath.generic_string();
+	result.sourcePath = Algorithm::ConvertString(fullPath.generic_wstring());
 
 	// テクスチャアセット参照を解決
 	TextureAssetResolver textureResolver{};
 	textureResolver.Build(fullPath);
 
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(fullPath.string(),
+	const aiScene* scene = importer.ReadFile(Algorithm::PathToUTF8(fullPath),
 		aiProcess_FlipWindingOrder |
 		aiProcess_FlipUVs |
 		aiProcess_Triangulate |
@@ -215,7 +216,7 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 	Skeleton skeleton{};
 	if (containsSkinnedMesh) {
 
-		skeleton = BuildSkinSkeleton(scene, fullPath.generic_string());
+		skeleton = BuildSkinSkeleton(scene, Algorithm::PathToUTF8(fullPath));
 		if (!skeleton.joints.empty()) {
 
 			result.isSkinned = true;

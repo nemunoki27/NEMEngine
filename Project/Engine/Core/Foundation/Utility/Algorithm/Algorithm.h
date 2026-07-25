@@ -13,6 +13,7 @@
 #include <utility>
 #include <algorithm>
 #include <any>
+#include <filesystem>
 #include <locale>
 #include <iostream>
 
@@ -80,6 +81,10 @@ namespace Engine {
 		std::wstring ConvertString(const std::string& str);
 		// std::wstringをUTF-8のstd::stringへ変換する
 		std::string ConvertString(const std::wstring& wstr);
+		// UTF-8のパス文字列をOSのパスへ変換する
+		std::filesystem::path PathFromUTF8(const std::string& path);
+		// OSのパスをUTF-8文字列へ変換する
+		std::string PathToUTF8(const std::filesystem::path& path);
 
 		// ワイド文字列を小文字化して返す
 		std::wstring ToLowerW(std::wstring s);

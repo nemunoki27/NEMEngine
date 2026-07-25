@@ -11,6 +11,7 @@
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <algorithm>
@@ -20,7 +21,7 @@
 //============================================================================
 //	SceneSystem classMethods
 //============================================================================
-bool Engine::SceneSystem::LoadScene(const std::string& scenePath, ECSWorld& world, AssetDatabase* assetDatabase,
+bool Engine::SceneSystem::LoadScene(const std::filesystem::path& scenePath, ECSWorld& world, AssetDatabase* assetDatabase,
 	AssetID sourceAsset, UUID sceneInstanceID, SceneHeader* outHeader, std::vector<Entity>* outCreatedEntities) const {
 
 	// ファイルからnlohmann::jsonをロード
@@ -34,12 +35,12 @@ bool Engine::SceneSystem::LoadScene(const std::string& scenePath, ECSWorld& worl
 			outHeader->guid = UUID::New();
 			outHeader->name = "UntitledScene";
 		}
-		EnsureScenePostProcessStack(*outHeader, scenePath, assetDatabase);
+		EnsureScenePostProcessStack(*outHeader, Algorithm::PathToUTF8(scenePath), assetDatabase);
 	}
 	return LoadFromJson(root, world, assetDatabase, sourceAsset, sceneInstanceID, outCreatedEntities);
 }
 
-bool Engine::SceneSystem::SaveScene(const std::string& scenePath, ECSWorld& world,
+bool Engine::SceneSystem::SaveScene(const std::filesystem::path& scenePath, ECSWorld& world,
 	const SceneHeader& header, const std::vector<Entity>* entitiesSubset, AssetDatabase* database) const {
 
 	nlohmann::json root = nlohmann::json::object();

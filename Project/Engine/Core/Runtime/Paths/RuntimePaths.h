@@ -44,6 +44,8 @@ namespace Engine {
 		static std::filesystem::path GetGameConfigPath(const std::filesystem::path& relativePath);
 		// 論理アセットパスから実ファイルパスを取得
 		static std::filesystem::path ResolveAssetPath(const std::filesystem::path& assetPath);
+		static std::filesystem::path ResolveAssetPath(const std::string& assetPath);
+		static std::filesystem::path ResolveAssetPath(const char* assetPath);
 		// 実ファイルパスから論理アセットパスを取得
 		static std::string ToAssetPath(const std::filesystem::path& fullPath);
 

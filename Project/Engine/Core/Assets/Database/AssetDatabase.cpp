@@ -572,12 +572,14 @@ bool Engine::AssetDatabase::HasReferencers(AssetID id) const {
 std::string Engine::AssetDatabase::NormalizeLookupKey(const std::filesystem::path& path) {
 
 	// Windowsの大文字小文字差で別キーにならないよう、正規化+小文字化する
-	return Algorithm::ToLower(path.lexically_normal().generic_string());
+	return Algorithm::ToLower(Algorithm::ConvertString(path.lexically_normal().generic_wstring()));
 }
 
 std::filesystem::path Engine::AssetDatabase::MetaPathOf(const std::filesystem::path& assetFullPath) {
 
-	return assetFullPath.string() + ".meta";
+	std::filesystem::path metaPath = assetFullPath;
+	metaPath += L".meta";
+	return metaPath;
 }
 
 bool Engine::AssetDatabase::TryLoadMeta(const std::filesystem::path& metaFullPath, AssetMeta& out) const {

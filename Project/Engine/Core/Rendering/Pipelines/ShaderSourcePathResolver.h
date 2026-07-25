@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
@@ -79,7 +80,7 @@ namespace Engine::ShaderSourcePath {
 					continue;
 				}
 				const std::filesystem::path path = it->path();
-				result.try_emplace(path.filename().string(), path);
+				result.try_emplace(Algorithm::PathToUTF8(path.filename()), path);
 			}
 			return result;
 		}();
@@ -106,7 +107,8 @@ namespace Engine::ShaderSourcePath {
 				if (ext != ".hlsl" && ext != ".hlsli") {
 					continue;
 				}
-				const std::filesystem::path metaPath = path.string() + ".meta";
+				std::filesystem::path metaPath = path;
+				metaPath += L".meta";
 				if (!std::filesystem::exists(metaPath, ec)) {
 					continue;
 				}
@@ -146,20 +148,20 @@ namespace Engine::ShaderSourcePath {
 
 		// Assets/Shaders/からの相対パスを優先
 		const std::filesystem::path shaderBasePath = RuntimePaths::GetEngineAssetPath("Shaders");
-		std::filesystem::path direct = shaderBasePath / fileOrGuid;
+		std::filesystem::path direct = shaderBasePath / Algorithm::PathFromUTF8(fileOrGuid);
 		if (std::filesystem::exists(direct)) {
 			return direct;
 		}
 
 		// そのまま絶対/相対で存在するなら使う
-		std::filesystem::path raw(fileOrGuid);
+		const std::filesystem::path raw = Algorithm::PathFromUTF8(fileOrGuid);
 		if (std::filesystem::exists(raw)) {
 			return raw;
 		}
 
 		// ファイル名だけの指定は索引から引く
 		const auto& nameIndex = GetFileNameIndex();
-		auto found = nameIndex.find(std::filesystem::path(fileOrGuid).filename().string());
+		auto found = nameIndex.find(Algorithm::PathToUTF8(raw.filename()));
 		if (found != nameIndex.end()) {
 			return found->second;
 		}

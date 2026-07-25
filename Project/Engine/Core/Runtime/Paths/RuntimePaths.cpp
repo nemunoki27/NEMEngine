@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+
 // c++
 #include <cstdlib>
 #include <mutex>
@@ -207,7 +209,7 @@ std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const std::filesyst
 		return normalized.lexically_normal();
 	}
 
-	const std::string generic = assetPath.generic_string();
+	const std::string generic = Algorithm::ConvertString(assetPath.generic_wstring());
 	if (StartsWith(generic, "Engine/")) {
 		return (GetEngineProjectRoot() / assetPath).lexically_normal();
 	}
@@ -227,6 +229,16 @@ std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const std::filesyst
 	return projectPath;
 }
 
+std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const std::string& assetPath) {
+
+	return ResolveAssetPath(Algorithm::PathFromUTF8(assetPath));
+}
+
+std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const char* assetPath) {
+
+	return ResolveAssetPath(std::string(assetPath));
+}
+
 std::string Engine::RuntimePaths::ToAssetPath(const std::filesystem::path& fullPath) {
 
 	if (fullPath.empty()) {
@@ -237,21 +249,21 @@ std::string Engine::RuntimePaths::ToAssetPath(const std::filesystem::path& fullP
 
 	if (std::filesystem::path relative = TryMakeRelative(normalized, GetEngineProjectRoot()); !relative.empty()) {
 
-		const std::string assetPath = relative.generic_string();
+		const std::string assetPath = Algorithm::ConvertString(relative.generic_wstring());
 		if (StartsWith(assetPath, "Engine/Assets/")) {
 			return assetPath;
 		}
 	}
 	if (std::filesystem::path relative = TryMakeRelative(normalized, GetGameRoot()); !relative.empty()) {
 
-		const std::string assetPath = relative.generic_string();
+		const std::string assetPath = Algorithm::ConvertString(relative.generic_wstring());
 		if (StartsWith(assetPath, "GameAssets/")) {
 			return assetPath;
 		}
 	}
 	if (std::filesystem::path relative = TryMakeRelative(normalized, GetProjectRoot()); !relative.empty()) {
 
-		return relative.generic_string();
+		return Algorithm::ConvertString(relative.generic_wstring());
 	}
 	return {};
 }

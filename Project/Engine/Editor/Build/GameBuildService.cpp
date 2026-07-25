@@ -237,7 +237,8 @@ namespace {
 			const std::filesystem::path source = database_.ResolveFullPath(meta.guid);
 			AddFile(source, meta.assetPath);
 
-			const std::filesystem::path metaPath = std::filesystem::path(source.string() + ".meta");
+			std::filesystem::path metaPath = source;
+			metaPath += L".meta";
 			AddFile(metaPath, meta.assetPath + ".meta");
 		}
 
@@ -250,7 +251,9 @@ namespace {
 			}
 			const std::filesystem::path source = Engine::RuntimePaths::ResolveAssetPath(assetPath);
 			AddFile(source, assetPath);
-			AddFile(std::filesystem::path(source.string() + ".meta"), assetPath + ".meta");
+			std::filesystem::path metaPath = source;
+			metaPath += L".meta";
+			AddFile(metaPath, assetPath + ".meta");
 		}
 
 		// GameAssets内の全ファイルを追加しアセットは依存解析へ回す
@@ -270,7 +273,7 @@ namespace {
 				if (ec) {
 					break;
 				}
-				const std::string assetPath = relative.generic_string();
+				const std::string assetPath = Engine::Algorithm::ConvertString(relative.generic_wstring());
 				AddFile(it->path(), assetPath);
 
 				if (Engine::Algorithm::EndsWith(Engine::Algorithm::ToLower(assetPath), ".meta")) {
@@ -388,7 +391,8 @@ namespace {
 
 			std::error_code ec;
 			const std::filesystem::path normalized = std::filesystem::weakly_canonical(shaderPath, ec);
-			const std::string key = (ec ? shaderPath.lexically_normal() : normalized).generic_string();
+			const std::string key = Engine::Algorithm::ConvertString(
+				(ec ? shaderPath.lexically_normal() : normalized).generic_wstring());
 			if (!scannedShaderFiles_.insert(key).second) {
 				return;
 			}
@@ -452,7 +456,7 @@ namespace {
 
 						const std::string uri = it->get<std::string>();
 						if (!StartsWith(uri, "data:")) {
-							AddModelSidecar(modelDirectory / std::filesystem::path(uri));
+							AddModelSidecar(modelDirectory / Engine::Algorithm::PathFromUTF8(uri));
 						}
 					}
 					CollectModelUris(*it, modelDirectory);
@@ -485,7 +489,8 @@ namespace {
 
 				std::string relative;
 				std::getline(stream >> std::ws, relative);
-				const std::filesystem::path materialPath = modelPath.parent_path() / relative;
+				const std::filesystem::path materialPath =
+					modelPath.parent_path() / Engine::Algorithm::PathFromUTF8(relative);
 				AddModelSidecar(materialPath);
 				CollectMtlTextures(materialPath);
 			}
@@ -512,7 +517,7 @@ namespace {
 
 				std::string relative;
 				std::getline(stream >> std::ws, relative);
-				AddModelSidecar(materialPath.parent_path() / relative);
+				AddModelSidecar(materialPath.parent_path() / Engine::Algorithm::PathFromUTF8(relative));
 			}
 		}
 
@@ -630,7 +635,11 @@ void Engine::GameBuildService::RefreshScenes(const AssetDatabase& database) {
 			ec.clear();
 			displayPath = it->path().filename();
 		}
-		scenes_.push_back({ meta->guid, meta->assetPath, displayPath.generic_string() });
+		scenes_.push_back({
+			meta->guid,
+			meta->assetPath,
+			Algorithm::ConvertString(displayPath.generic_wstring())
+			});
 	}
 
 	std::sort(scenes_.begin(), scenes_.end(), [](const GameBuildSceneEntry& lhs, const GameBuildSceneEntry& rhs) {
@@ -674,7 +683,8 @@ bool Engine::GameBuildService::Start(const GameBuildSettings& settings,
 	state_ = GameBuildState::Building;
 	statusMessage_ = "ビルド中...";
 	failureDetail_.clear();
-	Logger::Output(LogType::Engine, "[GameBuild] started. output={}", outputDirectory_.string());
+	Logger::Output(LogType::Engine, "[GameBuild] started. output={}",
+		Algorithm::PathToUTF8(outputDirectory_));
 	return true;
 }
 
@@ -707,7 +717,8 @@ void Engine::GameBuildService::Update() {
 
 		state_ = GameBuildState::Completed;
 		statusMessage_ = "完了しました";
-		Logger::Output(LogType::Engine, "[GameBuild] completed. output={}", outputDirectory_.string());
+		Logger::Output(LogType::Engine, "[GameBuild] completed. output={}",
+			Algorithm::PathToUTF8(outputDirectory_));
 	} else {
 
 		state_ = GameBuildState::Failed;
@@ -758,18 +769,21 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 
 	const std::filesystem::path gameRoot = RuntimePaths::GetGameRoot();
 	const std::filesystem::path buildRoot = ResolveGameBuildRoot(gameRoot);
-	const std::string projectName = gameRoot.filename().string();
-	const std::filesystem::path projectPath = gameRoot / (projectName + ".vcxproj");
+	const std::filesystem::path projectNamePath = gameRoot.filename();
+	const std::string projectName = Algorithm::PathToUTF8(projectNamePath);
+	std::filesystem::path projectFileName = projectNamePath;
+	projectFileName += L".vcxproj";
+	const std::filesystem::path projectPath = gameRoot / projectFileName;
 	const std::filesystem::path sourceRuntime =
-		buildRoot / "Generated/Output/Release" / projectName;
+		buildRoot / "Generated/Output/Release" / projectNamePath;
 	outScriptPath = ResolveGameBuildScript(buildRoot);
 
 	if (!std::filesystem::is_regular_file(projectPath, ec)) {
-		outError = "ゲームプロジェクトが見つかりません: " + projectPath.string();
+		outError = "ゲームプロジェクトが見つかりません: " + Algorithm::PathToUTF8(projectPath);
 		return false;
 	}
 	if (!std::filesystem::is_regular_file(outScriptPath, ec)) {
-		outError = "製品ビルドスクリプトが見つかりません: " + outScriptPath.string();
+		outError = "製品ビルドスクリプトが見つかりません: " + Algorithm::PathToUTF8(outScriptPath);
 		return false;
 	}
 
@@ -780,10 +794,10 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 	}
 
 	nlohmann::json manifest = nlohmann::json::object();
-	manifest["projectPath"] = projectPath.generic_string();
-	manifest["sourceRuntime"] = sourceRuntime.generic_string();
+	manifest["projectPath"] = Algorithm::ConvertString(projectPath.generic_wstring());
+	manifest["sourceRuntime"] = Algorithm::ConvertString(sourceRuntime.generic_wstring());
 	manifest["runtimeExecutable"] = projectName + ".exe";
-	manifest["outputRoot"] = settings.outputRoot.generic_string();
+	manifest["outputRoot"] = Algorithm::ConvertString(settings.outputRoot.generic_wstring());
 	manifest["productName"] = productName;
 	manifest["executableName"] = productName + ".exe";
 	manifest["startupScene"] = ToString(settings.startupScene);
@@ -791,7 +805,7 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 	manifest["files"] = nlohmann::json::array();
 	for (const BuildFileEntry& file : files) {
 		manifest["files"].push_back({
-			{ "source", file.source.generic_string() },
+			{ "source", Algorithm::ConvertString(file.source.generic_wstring()) },
 			{ "destination", file.destination },
 			});
 	}
@@ -802,7 +816,9 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 		outError = "ビルド用一時フォルダを作成できません";
 		return false;
 	}
-	manifestPath_ = manifestDirectory / (projectName + ".gameBuildManifest.json");
+	std::filesystem::path manifestFileName = projectNamePath;
+	manifestFileName += L".gameBuildManifest.json";
+	manifestPath_ = manifestDirectory / manifestFileName;
 	std::ofstream file(manifestPath_, std::ios::binary | std::ios::trunc);
 	if (!file.is_open()) {
 		outError = "ビルド用マニフェストを作成できません";
@@ -814,7 +830,7 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 		return false;
 	}
 
-	outputDirectory_ = settings.outputRoot / productName;
+	outputDirectory_ = settings.outputRoot / Algorithm::PathFromUTF8(productName);
 	return true;
 }
 

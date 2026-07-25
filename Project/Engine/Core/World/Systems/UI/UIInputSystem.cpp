@@ -16,6 +16,7 @@
 #include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Audio/AudioSystem.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 
@@ -525,8 +526,10 @@ namespace {
 		}
 
 		Engine::Audio* audio = Engine::Audio::GetInstance();
-		if (audio->EnsureLoaded(fullPath.string())) {
-			audio->PlayOneShot(fullPath.stem().string(), std::clamp(style.soundVolume, 0.0f, 1.0f));
+		if (audio->EnsureLoaded(fullPath)) {
+			audio->PlayOneShot(
+				Engine::Algorithm::PathToUTF8(fullPath.stem()),
+				std::clamp(style.soundVolume, 0.0f, 1.0f));
 		}
 	}
 

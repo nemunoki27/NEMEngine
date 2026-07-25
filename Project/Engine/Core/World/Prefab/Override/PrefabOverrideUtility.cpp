@@ -193,7 +193,7 @@ std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabOverrid
 	if (fullPath.empty()) {
 		return result;
 	}
-	nlohmann::json fileJson = JsonAdapter::Load(fullPath.string(), true);
+	nlohmann::json fileJson = JsonAdapter::Load(fullPath, true);
 	if (!fileJson.is_object() || !fileJson.contains("Entities") || !fileJson["Entities"].is_array()) {
 		return result;
 	}
@@ -918,7 +918,7 @@ void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetD
 	if (prefabFullPath.empty()) {
 		return;
 	}
-	const nlohmann::json prefabProbe = JsonAdapter::Load(prefabFullPath.string(), true);
+	const nlohmann::json prefabProbe = JsonAdapter::Load(prefabFullPath, true);
 	if (!prefabProbe.is_object() || !prefabProbe.contains("Entities") ||
 		!prefabProbe["Entities"].is_array() || prefabProbe["Entities"].empty()) {
 		return;

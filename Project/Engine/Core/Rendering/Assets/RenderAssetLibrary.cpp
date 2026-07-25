@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <optional>
@@ -32,7 +33,7 @@ const T* Engine::RenderAssetLibrary::LoadCachedAsset(std::unordered_map<AssetID,
 	}
 
 	// データを読み込む
-	nlohmann::json data = JsonAdapter::Load(path.string(), true);
+	nlohmann::json data = JsonAdapter::Load(path, true);
 	T asset{};
 	if (!FromJson(data, asset)) {
 		return nullptr;
@@ -84,7 +85,7 @@ void Engine::RenderAssetLibrary::ResolveRuntimeReferences(ShaderAsset& asset) {
 
 		std::error_code ec;
 		if (!sourcePath.empty() && std::filesystem::is_regular_file(sourcePath, ec)) {
-			stage.file = sourcePath.lexically_normal().string();
+			stage.file = Algorithm::PathToUTF8(sourcePath.lexically_normal());
 		}
 	}
 }

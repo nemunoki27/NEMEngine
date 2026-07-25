@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -66,7 +67,7 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		void RebuildLookup();
-		static std::string SettingsPath();
+		static std::filesystem::path SettingsPath();
 
 		//--------- variables ----------------------------------------------------
 

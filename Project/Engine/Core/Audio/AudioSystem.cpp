@@ -21,41 +21,6 @@ using namespace Engine;
 #pragma comment(lib, "mfreadwrite.lib")
 #pragma comment(lib, "mfuuid.lib")
 
-//============================================================================
-//	Audio classMethods
-//============================================================================
-namespace {
-
-	// UTF-8/ANSI -> Wide
-	static std::wstring ToWideString(const std::string& s) {
-
-		if (s.empty()) {
-			return {};
-		}
-
-		// まずUTF-8を試す
-		int len = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, s.c_str(), -1, nullptr, 0);
-		if (len > 0) {
-			std::wstring ws;
-			ws.resize(static_cast<size_t>(len));
-			MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, s.c_str(), -1, ws.data(), len);
-			if (!ws.empty() && ws.back() == L'\0') ws.pop_back();
-			return ws;
-		}
-
-		// ダメならANSI
-		len = MultiByteToWideChar(CP_ACP, 0, s.c_str(), -1, nullptr, 0);
-		if (len > 0) {
-			std::wstring ws;
-			ws.resize(static_cast<size_t>(len));
-			MultiByteToWideChar(CP_ACP, 0, s.c_str(), -1, ws.data(), len);
-			if (!ws.empty() && ws.back() == L'\0') ws.pop_back();
-			return ws;
-		}
-		return {};
-	}
-}
-
 Audio* Audio::instance_ = nullptr;
 
 Audio* Audio::GetInstance() {
@@ -172,27 +137,23 @@ void Audio::LoadAllSounds() {
 			}
 
 			AudioType type = GuessAudioTypeFromPath(filePath);
-
-			// string化
-			std::string fullpath = filePath.string();
-			Load(fullpath, type);
+			Load(filePath, type);
 		}
 	}
 }
 
-void Audio::Load(const std::string& filename, AudioType type) {
+void Audio::Load(const std::filesystem::path& filename, AudioType type) {
 
 	Assert::Call(xAudio2_ && masteringVoice_, "Audio::Init() must be called before Load()");
 
-	const std::string key = NormalizeKey(filename);
+	const std::string key = Algorithm::PathToUTF8(filename.stem());
 
 	// 既に読み込み済みなら上書きしない
 	if (sounds_.find(key) != sounds_.end()) {
 		return;
 	}
 
-	std::filesystem::path p(filename);
-	std::string ext = Algorithm::ToLower(p.extension().string());
+	const std::string ext = Algorithm::ToLower(filename.extension().string());
 
 	SoundData data{};
 	// 語尾で判別して読み込み
@@ -215,10 +176,15 @@ void Audio::Load(const std::string& filename, AudioType type) {
 
 bool Audio::EnsureLoaded(const std::string& filename, AudioType type) {
 
+	return EnsureLoaded(Algorithm::PathFromUTF8(filename), type);
+}
+
+bool Audio::EnsureLoaded(const std::filesystem::path& filename, AudioType type) {
+
 	std::lock_guard<std::mutex> lock(mutex_);
 	Assert::Call(xAudio2_ && masteringVoice_, "Audio::Init() must be called before EnsureLoaded()");
 
-	const std::string key = NormalizeKey(filename);
+	const std::string key = Algorithm::PathToUTF8(filename.stem());
 	if (sounds_.find(key) != sounds_.end()) {
 		return true;
 	}
@@ -665,7 +631,7 @@ AudioType Audio::GuessAudioTypeFromPath(const std::filesystem::path& p) const {
 	// パスの構成要素に "BGM" or "SE" が含まれているかで判定
 	for (const auto& part : p) {
 
-		std::string s = part.string();
+		std::string s = Algorithm::PathToUTF8(part);
 		s = Algorithm::ToLower(s);
 
 		if (s == "bgm") {
@@ -680,14 +646,14 @@ AudioType Audio::GuessAudioTypeFromPath(const std::filesystem::path& p) const {
 
 std::string Audio::NormalizeKey(const std::string& nameOrPath) const {
 
-	std::filesystem::path p(nameOrPath);
+	const std::filesystem::path p = Algorithm::PathFromUTF8(nameOrPath);
 	if (p.has_extension() || nameOrPath.find('/') != std::string::npos || nameOrPath.find('\\') != std::string::npos) {
-		return p.stem().string();
+		return Algorithm::PathToUTF8(p.stem());
 	}
 	return nameOrPath;
 }
 
-Audio::SoundData Audio::LoadWaveFile(const std::string& filename) {
+Audio::SoundData Audio::LoadWaveFile(const std::filesystem::path& filename) {
 
 	std::ifstream file(filename, std::ios::binary);
 	assert(file.is_open());
@@ -735,11 +701,11 @@ Audio::SoundData Audio::LoadWaveFile(const std::string& filename) {
 	return sd;
 }
 
-Audio::SoundData Audio::LoadMp3FileWithMediaFoundation(const std::string& filename) {
+Audio::SoundData Audio::LoadMp3FileWithMediaFoundation(const std::filesystem::path& filename) {
 
 	Assert::Call(mfStarted_, "MF must be started in Audio::Init()");
 
-	const std::wstring wpath = ToWideString(filename);
+	const std::wstring wpath = filename.wstring();
 	assert(!wpath.empty());
 
 	ComPtr<IMFSourceReader> reader;

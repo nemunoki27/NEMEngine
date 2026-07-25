@@ -888,8 +888,10 @@ void Engine::ManagedScriptBuildService::UpdateLastKnownGood(const std::filesyste
 
 	// LKG更新はtransaction化しincomingへcopy validateしてbackup退避と置換、失敗時rollbackで直前のusable LKGを失わない
 	const std::filesystem::path lkg = LastKnownGoodDirectory();
-	const std::filesystem::path incoming = lkg.string() + ".incoming";
-	const std::filesystem::path backup = lkg.string() + ".old";
+	std::filesystem::path incoming = lkg;
+	incoming += L".incoming";
+	std::filesystem::path backup = lkg;
+	backup += L".old";
 	std::error_code ec{};
 
 	// 1.incomingを空にしてシャドウをコピー

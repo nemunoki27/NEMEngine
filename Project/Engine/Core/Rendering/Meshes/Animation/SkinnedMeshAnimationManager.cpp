@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
 
@@ -143,14 +144,14 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 	result.meshAssetID = meshAssetID;
 
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(fullPath.string(),
+	const aiScene* scene = importer.ReadFile(Algorithm::PathToUTF8(fullPath),
 		aiProcess_PopulateArmatureData);
 	if (!scene || !scene->mRootNode) {
 		return result;
 	}
 
 	// スキンボーンと必要な親ノードからスケルトンを構築
-	result.skeleton = BuildSkinSkeleton(scene, fullPath.generic_string());
+	result.skeleton = BuildSkinSkeleton(scene, Algorithm::PathToUTF8(fullPath));
 	if (result.skeleton.joints.empty()) {
 		return result;
 	}

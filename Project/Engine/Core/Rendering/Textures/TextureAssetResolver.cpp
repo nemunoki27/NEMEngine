@@ -14,8 +14,8 @@
 //============================================================================
 std::string Engine::TextureAssetResolver::NormalizeStem(const std::string_view& name) {
 
-	std::filesystem::path path(name);
-	return Algorithm::ToLower(path.stem().string());
+	const std::filesystem::path path = Algorithm::PathFromUTF8(std::string(name));
+	return Algorithm::ToLower(Algorithm::PathToUTF8(path.stem()));
 }
 
 bool Engine::TextureAssetResolver::IsTextureExtension(const std::filesystem::path& path) {
@@ -51,7 +51,7 @@ void Engine::TextureAssetResolver::IndexDirectoryRecursive(
 		TextureCandidate candidate{};
 		candidate.fullPath = fullPath.lexically_normal();
 		candidate.assetPath = ToAssetPath(candidate.fullPath);
-		candidate.stemLower = Algorithm::ToLower(candidate.fullPath.stem().string());
+		candidate.stemLower = Algorithm::ToLower(Algorithm::PathToUTF8(candidate.fullPath.stem()));
 		candidate.extLower = Algorithm::ToLower(candidate.fullPath.extension().string());
 		candidate.inPreferredFolder = inPreferredFolder;
 
@@ -144,8 +144,7 @@ void Engine::TextureAssetResolver::Build(const std::filesystem::path& modelFullP
 	}
 
 	// モデルファイルと同名のサブフォルダを優先的に検索
-	const std::string modelStem = modelFullPath.stem().string();
-	preferredFolder_ = texturesRoot_ / modelStem;
+	preferredFolder_ = texturesRoot_ / modelFullPath.stem();
 	if (std::filesystem::exists(preferredFolder_) && std::filesystem::is_directory(preferredFolder_)) {
 
 		IndexDirectoryRecursive(preferredFolder_, true);
@@ -177,7 +176,7 @@ std::string Engine::TextureAssetResolver::ResolveAssetPath(const std::string& im
 		return ToAssetPath(fullPath);
 		};
 
-	const std::filesystem::path referencePath(importedReference);
+	const std::filesystem::path referencePath = Algorithm::PathFromUTF8(importedReference);
 	if (referencePath.is_absolute()) {
 		if (std::string direct = tryDirectPath(referencePath); !direct.empty()) {
 			return direct;

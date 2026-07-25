@@ -49,6 +49,7 @@ namespace Engine {
 		uint64_t PlayManaged(const std::string& name, bool loop, float volume = 1.0f);
 		// ファイルからサウンドを読み込む
 		bool EnsureLoaded(const std::string& filename, AudioType type = AudioType::SE);
+		bool EnsureLoaded(const std::filesystem::path& filename, AudioType type = AudioType::SE);
 
 		// サウンドを停止
 		void Stop(const std::string& name);
@@ -163,7 +164,7 @@ namespace Engine {
 		void LoadAllSounds();
 
 		// サウンドデータを読み込み
-		void Load(const std::string& filename, AudioType type);
+		void Load(const std::filesystem::path& filename, AudioType type);
 		// サウンドデータを解放
 		void Unload();
 
@@ -180,8 +181,8 @@ namespace Engine {
 		std::string NormalizeKey(const std::string& nameOrPath) const;
 
 		// ローダ
-		SoundData LoadWaveFile(const std::string& filename);
-		SoundData LoadMp3FileWithMediaFoundation(const std::string& filename);
+		SoundData LoadWaveFile(const std::filesystem::path& filename);
+		SoundData LoadMp3FileWithMediaFoundation(const std::filesystem::path& filename);
 
 		// そのvoiceに最終音量を適用
 		void ApplyVoiceVolumeLocked(const std::string& key, VoiceInstance& inst);

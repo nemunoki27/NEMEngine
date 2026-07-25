@@ -43,7 +43,7 @@ void Engine::CollisionSettings::Load() {
 	// 設定ファイルが存在する場合のみ、デフォルト設定を上書きする
 	if (std::filesystem::exists(settingsPath_)) {
 
-		const nlohmann::json data = JsonAdapter::Load(settingsPath_.string(), false);
+		const nlohmann::json data = JsonAdapter::Load(settingsPath_, false);
 		if (data.is_object()) {
 
 			drawCollisionWorld_ = data.value("drawCollisionWorld", false);
@@ -109,7 +109,7 @@ void Engine::CollisionSettings::Save() const {
 	}
 	std::error_code ec;
 	std::filesystem::create_directories(settingsPath_.parent_path(), ec);
-	JsonAdapter::Save(settingsPath_.string(), data);
+	JsonAdapter::Save(settingsPath_, data);
 }
 
 void Engine::CollisionSettings::BindGlobal(const AssetDatabase* assetDatabase) {

@@ -7,6 +7,7 @@
 #include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -325,7 +326,7 @@ void Engine::MenuBarPanel::DrawGameBuildPopup(const EditorPanelContext& context)
 	constexpr const char* popupName = "ゲームのビルド";
 	std::optional<std::filesystem::path> selectedDirectory;
 	if (buildDirectoryDialog_.Poll(selectedDirectory) && selectedDirectory) {
-		buildOutputPath_ = selectedDirectory->string();
+		buildOutputPath_ = Algorithm::PathToUTF8(*selectedDirectory);
 	}
 	if (requestOpenBuildPopup_) {
 
@@ -355,7 +356,7 @@ void Engine::MenuBarPanel::DrawGameBuildPopup(const EditorPanelContext& context)
 			ImGui::SameLine();
 			ImGui::BeginDisabled(buildDirectoryDialog_.IsOpen());
 			if (ImGui::Button("参照")) {
-				buildDirectoryDialog_.Open(buildOutputPath_);
+				buildDirectoryDialog_.Open(Algorithm::PathFromUTF8(buildOutputPath_));
 			}
 			ImGui::EndDisabled();
 			MyGUI::EndPropertyRow();
@@ -370,7 +371,9 @@ void Engine::MenuBarPanel::DrawGameBuildPopup(const EditorPanelContext& context)
 		ImGui::TextDisabled("ビルド中...");
 	} else if (state == GameBuildState::Completed) {
 		ImGui::TextColored(ImVec4(0.35f, 0.85f, 0.45f, 1.0f), "完了しました");
-		ImGui::TextWrapped("%s", gameBuildService_.GetOutputDirectory().string().c_str());
+		const std::string outputDirectory =
+			Algorithm::PathToUTF8(gameBuildService_.GetOutputDirectory());
+		ImGui::TextWrapped("%s", outputDirectory.c_str());
 	} else if (state == GameBuildState::Failed) {
 		ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.0f), "失敗しました");
 		if (!gameBuildService_.GetFailureDetail().empty()) {
@@ -389,7 +392,7 @@ void Engine::MenuBarPanel::DrawGameBuildPopup(const EditorPanelContext& context)
 		GameBuildSettings settings{};
 		settings.startupScene = ResolveBuildScene();
 		settings.executableName = buildExecutableName_;
-		settings.outputRoot = buildOutputPath_;
+		settings.outputRoot = Algorithm::PathFromUTF8(buildOutputPath_);
 		settings.startupFullscreen = buildStartupFullscreen_;
 		if (!context.editorContext || !context.editorContext->assetDatabase ||
 			!gameBuildService_.Start(settings, *context.editorContext->assetDatabase, buildError_)) {
@@ -438,10 +441,11 @@ void Engine::MenuBarPanel::PrepareGameBuildPopup(const EditorPanelContext& conte
 	}
 
 	if (buildExecutableName_.empty()) {
-		buildExecutableName_ = RuntimePaths::GetGameRoot().filename().string();
+		buildExecutableName_ = Algorithm::PathToUTF8(RuntimePaths::GetGameRoot().filename());
 	}
 	if (buildOutputPath_.empty()) {
-		buildOutputPath_ = (RuntimePaths::GetEngineProjectRoot().parent_path() / "Build").string();
+		buildOutputPath_ = Algorithm::PathToUTF8(
+			RuntimePaths::GetEngineProjectRoot().parent_path() / "Build");
 	}
 }
 

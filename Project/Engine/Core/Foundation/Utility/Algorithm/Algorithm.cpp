@@ -114,6 +114,44 @@ std::string Engine::Algorithm::ConvertString(const std::wstring& wstr) {
 	return result;
 }
 
+std::filesystem::path Engine::Algorithm::PathFromUTF8(const std::string& path) {
+
+	if (path.empty()) {
+		return {};
+	}
+
+	const int sizeNeeded = ::MultiByteToWideChar(
+		CP_UTF8,
+		MB_ERR_INVALID_CHARS,
+		path.data(),
+		static_cast<int>(path.size()),
+		nullptr,
+		0
+	);
+	if (sizeNeeded == 0) {
+		// 旧実装でネイティブコードページ化されたパスも読み込めるようにする
+		return std::filesystem::path(path);
+	}
+
+	std::wstring result(static_cast<size_t>(sizeNeeded), L'\0');
+	if (::MultiByteToWideChar(
+		CP_UTF8,
+		MB_ERR_INVALID_CHARS,
+		path.data(),
+		static_cast<int>(path.size()),
+		result.data(),
+		sizeNeeded) == 0) {
+
+		return std::filesystem::path(path);
+	}
+	return std::filesystem::path(result);
+}
+
+std::string Engine::Algorithm::PathToUTF8(const std::filesystem::path& path) {
+
+	return ConvertString(path.wstring());
+}
+
 std::wstring Algorithm::ToLowerW(std::wstring s) {
 
 	std::transform(s.begin(), s.end(), s.begin(),

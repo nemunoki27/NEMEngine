@@ -745,7 +745,7 @@ Engine::ParticleSystem::EffectRuntime Engine::ParticleSystem::LoadEffect(
 	std::error_code ec;
 	runtime.lastWriteTime = std::filesystem::last_write_time(runtime.path, ec);
 
-	const nlohmann::json data = JsonAdapter::Load(runtime.path.string(), false);
+	const nlohmann::json data = JsonAdapter::Load(runtime.path, false);
 	if (!FromJson(data, runtime.asset)) {
 		return runtime;
 	}

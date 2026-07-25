@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <algorithm>
@@ -26,11 +27,10 @@ Engine::ScriptExecutionOrderTable& Engine::ScriptExecutionOrderTable::GetInstanc
 	return instance;
 }
 
-std::string Engine::ScriptExecutionOrderTable::SettingsPath() {
+std::filesystem::path Engine::ScriptExecutionOrderTable::SettingsPath() {
 
 	// ProjectSettingsはGameAssetsと同階層に置く運用でInputActions.jsonと同様
-	const std::filesystem::path path = RuntimePaths::GetGameRoot() / "ProjectSettings" / "ScriptExecutionOrder.json";
-	return path.string();
+	return RuntimePaths::GetGameRoot() / "ProjectSettings" / "ScriptExecutionOrder.json";
 }
 
 void Engine::ScriptExecutionOrderTable::EnsureLoaded() {
@@ -46,7 +46,7 @@ void Engine::ScriptExecutionOrderTable::Reload() {
 
 	loaded_ = true;
 
-	const std::string path = SettingsPath();
+	const std::filesystem::path path = SettingsPath();
 	std::error_code ec;
 	if (!std::filesystem::exists(path, ec)) {
 		// 設定ファイルが無い場合は上書き無しで不正ではない、空テーブルにして良い
@@ -59,7 +59,8 @@ void Engine::ScriptExecutionOrderTable::Reload() {
 	if (!file.is_open()) {
 		// 開けない場合は不正と同様に直前の有効なテーブルを保持する
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ScriptExecutionOrderTable: cannot open {}. keeping previous table.", path);
+			"ScriptExecutionOrderTable: cannot open {}. keeping previous table.",
+			Algorithm::PathToUTF8(path));
 		return;
 	}
 
@@ -70,14 +71,16 @@ void Engine::ScriptExecutionOrderTable::Reload() {
 	}
 	catch (const std::exception& e) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ScriptExecutionOrderTable: failed to parse {} ({}). keeping previous table.", path, e.what());
+			"ScriptExecutionOrderTable: failed to parse {} ({}). keeping previous table.",
+			Algorithm::PathToUTF8(path), e.what());
 		return;
 	}
 
 	if (!root.is_object() || !root.contains("entries") || !root["entries"].is_array()) {
 		// 構造が不正な場合は直前の有効なテーブルを保持する
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ScriptExecutionOrderTable: malformed structure in {}. keeping previous table.", path);
+			"ScriptExecutionOrderTable: malformed structure in {}. keeping previous table.",
+			Algorithm::PathToUTF8(path));
 		return;
 	}
 
@@ -194,12 +197,14 @@ bool Engine::ScriptExecutionOrderTable::Save() const {
 	std::filesystem::create_directories(target.parent_path(), ec);
 
 	// 一時ファイルへ書き出してからバックアップと安全な置換とロールバックで置換する
-	const std::filesystem::path temp = target.string() + ".tmp";
+	std::filesystem::path temp = target;
+	temp += L".tmp";
 	{
 		std::ofstream file(temp, std::ios::binary | std::ios::trunc);
 		if (!file.is_open()) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"ScriptExecutionOrderTable: failed to open temp file for save: {}", temp.string());
+				"ScriptExecutionOrderTable: failed to open temp file for save: {}",
+				Algorithm::PathToUTF8(temp));
 			return false;
 		}
 		file << root.dump(2);
@@ -208,13 +213,15 @@ bool Engine::ScriptExecutionOrderTable::Save() const {
 			file.close();
 			std::filesystem::remove(temp, ec);
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"ScriptExecutionOrderTable: failed to write temp file: {}", temp.string());
+				"ScriptExecutionOrderTable: failed to write temp file: {}",
+				Algorithm::PathToUTF8(temp));
 			return false;
 		}
 	}
 
 	const bool targetExists = std::filesystem::exists(target, ec);
-	const std::filesystem::path backup = target.string() + ".bak";
+	std::filesystem::path backup = target;
+	backup += L".bak";
 	if (targetExists) {
 		// 既存をバックアップへ退避する、Windowsで一時から対象への直接renameが失敗しても元を失わない
 		std::filesystem::remove(backup, ec);
@@ -222,7 +229,8 @@ bool Engine::ScriptExecutionOrderTable::Save() const {
 		if (ec) {
 			std::filesystem::remove(temp, ec);
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"ScriptExecutionOrderTable: failed to back up {} ({}). keeping existing file.", target.string(), ec.message());
+				"ScriptExecutionOrderTable: failed to back up {} ({}). keeping existing file.",
+				Algorithm::PathToUTF8(target), ec.message());
 			return false;
 		}
 	}
@@ -236,7 +244,8 @@ bool Engine::ScriptExecutionOrderTable::Save() const {
 		}
 		std::filesystem::remove(temp, rollbackEc);
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ScriptExecutionOrderTable: failed to replace {} ({}). rolled back.", target.string(), ec.message());
+			"ScriptExecutionOrderTable: failed to replace {} ({}). rolled back.",
+			Algorithm::PathToUTF8(target), ec.message());
 		return false;
 	}
 
@@ -245,7 +254,8 @@ bool Engine::ScriptExecutionOrderTable::Save() const {
 		std::filesystem::remove(backup, ec);
 		if (ec) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"ScriptExecutionOrderTable: failed to remove backup {} ({}).", backup.string(), ec.message());
+				"ScriptExecutionOrderTable: failed to remove backup {} ({}).",
+				Algorithm::PathToUTF8(backup), ec.message());
 		}
 	}
 	return true;

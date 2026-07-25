@@ -308,7 +308,7 @@ void Engine::TextureUploadService::RequestReload(const std::string& key) {
 void Engine::TextureUploadService::RequestReloadByFile(const std::filesystem::path& fullPath) {
 
 	// 比較はlexically_normal+小文字化でWindowsの大小やセパレータ差を吸収する
-	const std::string target = Algorithm::ToLower(fullPath.lexically_normal().generic_string());
+	const std::wstring target = Algorithm::ToLowerW(fullPath.lexically_normal().generic_wstring());
 	if (target.empty()) {
 		return;
 	}
@@ -324,9 +324,10 @@ void Engine::TextureUploadService::RequestReloadByFile(const std::filesystem::pa
 			}
 
 			// このキーが指すファイルの絶対パスを求めて変更ファイルと一致するか確認する
-			const std::filesystem::path candidate = std::filesystem::path(desc.assetPath).is_absolute() ?
-				std::filesystem::path(desc.assetPath) : RuntimePaths::ResolveAssetPath(desc.assetPath);
-			if (Algorithm::ToLower(candidate.lexically_normal().generic_string()) != target) {
+			const std::filesystem::path requestedPath = Algorithm::PathFromUTF8(desc.assetPath);
+			const std::filesystem::path candidate = requestedPath.is_absolute() ?
+				requestedPath : RuntimePaths::ResolveAssetPath(desc.assetPath);
+			if (Algorithm::ToLowerW(candidate.lexically_normal().generic_wstring()) != target) {
 				continue;
 			}
 
@@ -407,7 +408,7 @@ void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& 
 	// ファイルパスからテクスチャをデコードする
 	const std::filesystem::path fullPath = RuntimePaths::ResolveAssetPath(job.assetPath);
 	const std::string extension = Algorithm::ToLower(fullPath.extension().string());
-	const std::wstring fullPathW = Algorithm::ConvertString(fullPath.string());
+	const std::wstring fullPathW = fullPath.wstring();
 
 	DirectX::ScratchImage loaded{};
 	HRESULT hr = E_FAIL;

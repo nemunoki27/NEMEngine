@@ -150,7 +150,7 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 		}
 		std::filesystem::path objPath = path;
 		objPath.replace_extension(".obj");
-		const std::string objAssetPath = RuntimePaths::ToAssetPath(objPath.string());
+		const std::string objAssetPath = RuntimePaths::ToAssetPath(objPath);
 		if (const AssetMeta* objMeta = objAssetPath.empty() ? nullptr : assetDatabase_->FindByPath(objAssetPath)) {
 
 			meshReloadCallback_(objMeta->guid);
@@ -160,7 +160,7 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 	}
 
 	// 監視ルート外のパスはアセットパスへ変換できないので無視する
-	const std::string assetPath = RuntimePaths::ToAssetPath(path.string());
+	const std::string assetPath = RuntimePaths::ToAssetPath(path);
 	if (assetPath.empty()) {
 		return false;
 	}

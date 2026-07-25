@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
@@ -95,7 +96,8 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 	}
 
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(fullPath.string(), aiProcess_Triangulate | aiProcess_SortByPType);
+	const aiScene* scene = importer.ReadFile(
+		Algorithm::PathToUTF8(fullPath), aiProcess_Triangulate | aiProcess_SortByPType);
 	if (!scene || !scene->HasMeshes()) {
 		return false;
 	}

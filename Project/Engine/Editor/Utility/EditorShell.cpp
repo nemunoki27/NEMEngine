@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 
 // c++
@@ -19,22 +20,7 @@
 
 #pragma comment(lib, "shell32.lib")
 
-//============================================================================
-//	EditorShell anonymous
-//============================================================================
 namespace {
-
-	// UTF8をワイド文字へ変換する、ShellExecuteWへ渡すため
-	std::wstring Widen(const std::string& text) {
-
-		if (text.empty()) {
-			return std::wstring();
-		}
-		const int size = ::MultiByteToWideChar(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), nullptr, 0);
-		std::wstring result(static_cast<size_t>(size), L'\0');
-		::MultiByteToWideChar(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), result.data(), size);
-		return result;
-	}
 
 	// ダイアログスレッドが所有するウィンドウを閉じる
 	BOOL CALLBACK CloseDialogWindow(HWND hwnd, LPARAM) {
@@ -188,18 +174,18 @@ bool Engine::EditorShell::OpenWithSystemDefault(const std::filesystem::path& fil
 	if (file.empty() || !std::filesystem::exists(file, ec) || ec) {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[EditorShell] target file does not exist: {}", file.string());
+			"[EditorShell] target file does not exist: {}", Algorithm::PathToUTF8(file));
 		return false;
 	}
 
-	const std::wstring fileW = Widen(file.string());
-	const HINSTANCE result = ::ShellExecuteW(nullptr, L"open", fileW.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+	const HINSTANCE result = ::ShellExecuteW(
+		nullptr, L"open", file.wstring().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 	if (reinterpret_cast<INT_PTR>(result) > 32) {
 		return true;
 	}
 
 	Logger::Output(LogType::Engine, spdlog::level::warn,
-		"[EditorShell] system default open failed for: {}", file.string());
+		"[EditorShell] system default open failed for: {}", Algorithm::PathToUTF8(file));
 	return false;
 }
 
@@ -209,7 +195,7 @@ bool Engine::EditorShell::OpenDirectory(const std::filesystem::path& directory) 
 	if (directory.empty() || !std::filesystem::is_directory(directory, ec) || ec) {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[EditorShell] target directory does not exist: {}", directory.string());
+			"[EditorShell] target directory does not exist: {}", Algorithm::PathToUTF8(directory));
 		return false;
 	}
 
@@ -220,6 +206,6 @@ bool Engine::EditorShell::OpenDirectory(const std::filesystem::path& directory) 
 	}
 
 	Logger::Output(LogType::Engine, spdlog::level::warn,
-		"[EditorShell] explorer open failed for: {}", directory.string());
+		"[EditorShell] explorer open failed for: {}", Algorithm::PathToUTF8(directory));
 	return false;
 }

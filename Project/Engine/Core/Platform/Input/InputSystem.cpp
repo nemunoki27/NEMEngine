@@ -537,10 +537,10 @@ namespace {
 void Input::LoadConfig() {
 
 	const std::filesystem::path path = RuntimePaths::GetGameConfigPath(kInputDeviceConfigPath);
-	if (!JsonAdapter::Check(path.string())) {
+	if (!JsonAdapter::Check(path)) {
 		return;
 	}
-	const nlohmann::json data = JsonAdapter::Load(path.string());
+	const nlohmann::json data = JsonAdapter::Load(path);
 	if (!data.is_object()) {
 		return;
 	}
@@ -596,7 +596,7 @@ void Input::SaveConfig() const {
 	data["mouseReleaseModKey"] = mouseReleaseModKey_;
 	data["mouseReleaseTriggerKey"] = mouseReleaseTriggerKey_;
 
-	JsonAdapter::Save(RuntimePaths::GetGameConfigPath(kInputDeviceConfigPath).string(), data);
+	JsonAdapter::Save(RuntimePaths::GetGameConfigPath(kInputDeviceConfigPath), data);
 }
 
 void Input::UpdateInputDevice() {

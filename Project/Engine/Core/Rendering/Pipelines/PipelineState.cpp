@@ -178,11 +178,13 @@ namespace {
 
 		CompiledShader shader = compiler->CompileShader(shaderPath.wstring(), profile.c_str(), entry.c_str(), stage);
 		if (!shader.object) {
-			Logger::Output(LogType::Engine, "Failed compiling {} for {}", stageName, shaderPath.string());
+			Logger::Output(LogType::Engine, "Failed compiling {} for {}",
+				stageName, Algorithm::PathToUTF8(shaderPath));
 			return false;
 		}
 		shaders.emplace_back(std::move(shader));
-		Logger::Output(LogType::Engine, "Finished compiling {} for {}", stageName, shaderPath.string());
+		Logger::Output(LogType::Engine, "Finished compiling {} for {}",
+			stageName, Algorithm::PathToUTF8(shaderPath));
 		return true;
 	}
 	// シェーダーコンパイル
@@ -420,8 +422,10 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 				continue;
 			}
 
-			const std::string psoName = std::filesystem::path(desc.preRaster.file).stem().string() +
-				"|" + std::filesystem::path(desc.pixel.file).stem().string() + "[" + mode + "]";
+			const std::string psoName =
+				Algorithm::PathToUTF8(Algorithm::PathFromUTF8(desc.preRaster.file).stem()) +
+				"|" + Algorithm::PathToUTF8(Algorithm::PathFromUTF8(desc.pixel.file).stem()) +
+				"[" + mode + "]";
 			graphicsPipelines_[static_cast<uint32_t>(blendMode)]->SetName(Algorithm::ConvertString(psoName).c_str());
 		}
 		break;
@@ -480,8 +484,10 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 				continue;
 			}
 
-			const std::string psoName = std::filesystem::path(desc.preRaster.file).stem().string() +
-				"|" + std::filesystem::path(desc.pixel.file).stem().string() + "[" + mode + "]";
+			const std::string psoName =
+				Algorithm::PathToUTF8(Algorithm::PathFromUTF8(desc.preRaster.file).stem()) +
+				"|" + Algorithm::PathToUTF8(Algorithm::PathFromUTF8(desc.pixel.file).stem()) +
+				"[" + mode + "]";
 			graphicsPipelines_[static_cast<uint32_t>(blendMode)]->SetName(Algorithm::ConvertString(psoName).c_str());
 		}
 		break;
@@ -512,7 +518,8 @@ bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompile
 		Logger::EndSection(LogType::Engine);
 		return false;
 	}
-	Logger::Output(LogType::Engine, "Finished compiling CS for {}", shaderPath.string());
+	Logger::Output(LogType::Engine, "Finished compiling CS for {}",
+		Algorithm::PathToUTF8(shaderPath));
 
 	// スレッドサイズを設定
 	threadGroupX_ = shader.reflection.threadGroupX;
@@ -543,8 +550,8 @@ bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompile
 		Logger::EndSection(LogType::Engine);
 		return false;
 	}
-	computePipeline_->SetName(Algorithm::ConvertString(
-		std::filesystem::path(desc.compute.file).stem().string()).c_str());
+	computePipeline_->SetName(Algorithm::ConvertString(Algorithm::PathToUTF8(
+		Algorithm::PathFromUTF8(desc.compute.file).stem())).c_str());
 	Logger::Output(LogType::Engine, "Created ComputePipeline");
 	Logger::EndSection(LogType::Engine);
 	return true;
