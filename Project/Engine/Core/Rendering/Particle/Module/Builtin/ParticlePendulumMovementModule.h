@@ -28,7 +28,7 @@ namespace Engine {
 
 		void FromJson(const nlohmann::json& params) override;
 		nlohmann::json ToJson() const override;
-		bool DrawImGui() override;
+		bool DrawImGui();
 
 		ParticleModuleExecutionMode GetSpawnExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
@@ -101,5 +101,4 @@ namespace Engine {
 			FloatAnimationSettings& settings, float minValue, float maxValue);
 	};
 
-	ENGINE_REGISTER_PARTICLE_MODULE(ParticlePendulumMovementModule, "PendulumMovement");
 } // Engine

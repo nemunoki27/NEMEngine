@@ -4,10 +4,25 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Runtime/Application/EngineApplication.h>
 #include <Engine/Core/Foundation/Time/FrameTimer.h>
 
 namespace Engine {
+
+	//============================================================================
+	//	IEngineApplication class
+	//	Frameworkへ注入するEditor/Runtime共通ライフサイクル
+	//============================================================================
+	class IEngineApplication {
+	public:
+
+		virtual ~IEngineApplication() = default;
+
+		virtual void Init(GraphicsCore& graphicsCore) = 0;
+		virtual void Tick(GraphicsCore& graphicsCore, float deltaTime) = 0;
+		virtual void Render(GraphicsCore& graphicsCore) = 0;
+		virtual void Finalize() = 0;
+		virtual bool ConsumeFrameDeltaResetRequest() = 0;
+	};
 
 	//============================================================================
 	//	Framework class
@@ -19,7 +34,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		Framework() = default;
+		explicit Framework(std::unique_ptr<IEngineApplication> application);
 		~Framework() = default;
 
 		void Run();
@@ -40,7 +55,7 @@ namespace Engine {
 		std::unique_ptr<GraphicsCore> graphicsCore_;
 
 		// エンジンコアアプリケーション
-		std::unique_ptr<EngineApplication> engineApplication_;
+		std::unique_ptr<IEngineApplication> engineApplication_;
 
 		//--------- functions ----------------------------------------------------
 

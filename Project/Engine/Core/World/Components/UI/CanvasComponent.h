@@ -95,5 +95,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, CanvasComponent& component);
 	void to_json(nlohmann::json& out, const CanvasComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(CanvasComponent, "Canvas");
 } // Engine

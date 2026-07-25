@@ -34,5 +34,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, UVTransformComponent& component);
 	void to_json(nlohmann::json& out, const UVTransformComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(UVTransformComponent, "UVTransform");
 } // Engine

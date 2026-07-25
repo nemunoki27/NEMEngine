@@ -184,6 +184,7 @@ namespace Engine {
 			return;
 		}
 		world.GetComponent<T>(entity) = previewComponent;
+		world.MarkComponentModified<T>(entity);
 	}
 
 	template<typename T>

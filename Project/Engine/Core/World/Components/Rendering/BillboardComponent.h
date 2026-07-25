@@ -30,5 +30,4 @@ namespace Engine {
 	void SetBillboardAllAxes(BillboardComponent& component);
 	void SanitizeBillboardAxes(BillboardComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(BillboardComponent, "Billboard");
 } // Engine

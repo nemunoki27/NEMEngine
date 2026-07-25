@@ -197,7 +197,6 @@ std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabOverrid
 	if (!fileJson.is_object() || !fileJson.contains("Entities") || !fileJson["Entities"].is_array()) {
 		return result;
 	}
-	PrefabReferenceRemapper::RepairPrefabFileScriptRefs(fileJson, prefabAsset);
 	PrefabReferenceRemapper::NormalizePrefabFileHierarchy(fileJson);
 	PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(fileJson);
 
@@ -934,7 +933,7 @@ void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetD
 		PrefabInstanceData data = CaptureInstance(world, instanceID, normalizedBase);
 		data.prefabAsset = prefabAsset;
 
-		// 旧インスタンスを全メンバーのサブツリーごと破棄する、複数ルートや追加した子も漏らさない
+		// 置換前の全メンバーをサブツリーごと破棄し追加した子も残さない
 		std::vector<Entity> toDestroy;
 		std::unordered_set<uint64_t> collected;
 		for (const Entity& member : CollectInstanceEntities(world, instanceID)) {

@@ -17,11 +17,11 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/InvertedHullOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/TransparentRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RuntimeScreenSpaceOutlinePass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessMaskedUIPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessMaskedUiPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessStackPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/EditorSelectionScreenSpaceOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/BlitToViewPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/ScreenUIPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/ScreenUiPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DebugOverlayPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/EditorOverlayPass.h>
 

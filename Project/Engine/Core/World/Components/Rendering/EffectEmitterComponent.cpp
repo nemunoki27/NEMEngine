@@ -216,7 +216,7 @@ void Engine::from_json(const nlohmann::json& in, EffectEmitterComponent& compone
 
 	component.enabled = in.value("enabled", true);
 	component.defaultGroup = in.value("defaultGroup", std::string("Default"));
-	component.playOnStart = in.value("playOnStart", in.value("playing", true));
+	component.playOnStart = in.value("playOnStart", true);
 	component.playInEditMode = in.value("playInEditMode", true);
 	component.drawEmitterShape = in.value("drawEmitterShape", false);
 	component.layer = in.value("layer", 0);
@@ -228,15 +228,8 @@ void Engine::from_json(const nlohmann::json& in, EffectEmitterComponent& compone
 		for (const nlohmann::json& group : *it) {
 			component.groups.emplace_back(LoadGroup(group));
 		}
-	} else {
-
-		// 旧ParticleEmitterは単一アセットのContinuous設定へ移行する
-		EffectEmitterGroup group{};
-		group.name = "Default";
-		group.states.front().effect = ParseAssetID(in, "effect");
-		component.groups.emplace_back(std::move(group));
-		component.defaultGroup = "Default";
 	}
+	if (component.groups.empty()) { component.groups.emplace_back(); }
 
 	// state IDはコンポーネント内で一意にする
 	std::unordered_set<UUID> stateIDs{};

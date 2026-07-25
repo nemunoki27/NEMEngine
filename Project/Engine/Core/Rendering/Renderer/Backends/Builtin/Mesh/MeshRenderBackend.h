@@ -152,7 +152,6 @@ namespace Engine {
 
 		// バッチ描画に使用するリソース
 		FrameBatchResourcePool<MeshBatchResources> resourcePool_{};
-		FrameBatchResourcePool<DxConstBuffer<SubMeshConstants>> subMeshCBPool_{};
 
 		// メッシュのGPUリソース管理クラス
 		MeshGPUResourceManager meshResourceManager_{};

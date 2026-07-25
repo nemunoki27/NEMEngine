@@ -1,8 +1,18 @@
 #include "ComponentTypeRegistry.h"
 
 //============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Scripting/Managed/Generated/BuiltinComponentRegistry.generated.h>
+
+//============================================================================
 //	ComponentTypeRegistry classMethods
 //============================================================================
+Engine::ComponentTypeRegistry::ComponentTypeRegistry() {
+
+	RegisterBuiltinComponents(*this);
+}
+
 const Engine::ComponentTypeInfo& Engine::ComponentTypeRegistry::GetInfo(uint32_t id) const {
 
 	assert(id < infos_.size());

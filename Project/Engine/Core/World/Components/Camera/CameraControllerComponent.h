@@ -121,5 +121,4 @@ namespace Engine {
 	// コンポーネントからjsonへ変換する
 	void to_json(nlohmann::json& out, const CameraControllerComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(CameraControllerComponent, "CameraController");
 } // Engine

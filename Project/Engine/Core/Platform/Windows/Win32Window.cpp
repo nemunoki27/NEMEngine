@@ -9,12 +9,6 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Math/Math.h>
 
-// imgui
-#include "imgui.h"
-#include "imgui_impl_dx12.h"
-#include "imgui_impl_win32.h"
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
-	HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #pragma comment(lib,"winmm.lib")
 
 // 外部ファイルドロップ用
@@ -50,6 +44,7 @@ bool WinApp::cursorVisible_ = true;
 RECT WinApp::customClientClipRect_{};
 RECT WinApp::windowRect_{};
 bool (*WinApp::closeRequestCallback_)() = nullptr;
+WinApp::MessageHandler WinApp::messageHandler_ = nullptr;
 bool WinApp::fullscreen_ = false;
 
 void WinApp::ForceShowCursor(bool show) {
@@ -427,8 +422,7 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	}
 	}
 
-	// ImGuiマウス有効
-	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
+	if (messageHandler_ && messageHandler_(hwnd, msg, wparam, lparam)) {
 
 		return true;
 	}

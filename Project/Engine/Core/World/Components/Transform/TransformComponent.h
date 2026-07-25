@@ -49,5 +49,4 @@ namespace Engine {
 	// 親子関係が変わったエンティティと、その子孫のトランスフォームを変更されたとみなす
 	void MarkTransformSubtreeDirty(ECSWorld& world, const Entity& entity);
 
-	ENGINE_REGISTER_COMPONENT(TransformComponent, "Transform");
 } // Engine

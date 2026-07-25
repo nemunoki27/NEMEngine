@@ -18,6 +18,7 @@ namespace Engine {
 	//============================================================================
 	class WinApp {
 	public:
+		using MessageHandler = LRESULT(*)(HWND, UINT, WPARAM, LPARAM);
 		//============================================================================
 		//	public Methods
 		//============================================================================
@@ -59,6 +60,8 @@ namespace Engine {
 		static Vector2I GetClientSize();
 		// ウィンドウを閉じる前に呼ぶ確認処理を設定する
 		static void SetCloseRequestCallback(bool (*callback)()) { closeRequestCallback_ = callback; }
+		// Editor UIがWin32メッセージを処理する場合の転送先
+		static void SetMessageHandler(MessageHandler handler) { messageHandler_ = handler; }
 		// 確認済みの終了要求を次のメッセージ処理へ投げる
 		static void RequestCloseWindow();
 	private:
@@ -76,6 +79,7 @@ namespace Engine {
 
 		static bool cursorVisible_;
 		static bool (*closeRequestCallback_)();
+		static MessageHandler messageHandler_;
 		static bool fullscreen_;
 
 		UINT windowStyle_;

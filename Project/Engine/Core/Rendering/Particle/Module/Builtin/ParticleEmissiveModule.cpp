@@ -45,6 +45,7 @@ void Engine::ParticleEmissiveModule::OnUpdate(
 }
 
 bool Engine::ParticleEmissiveModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= MyGUI::ColorEdit("開始色", startColor_).valueChanged;
@@ -53,4 +54,7 @@ bool Engine::ParticleEmissiveModule::DrawImGui() {
 	changed |= MyGUI::DragFloat("終了強度", endIntensity_, ParticleGui::MakeDragSetting(0.0f, 100.0f)).valueChanged;
 	changed |= ParticleGui::SelectEasing(easingType_);
 	return changed;
+#else
+	return false;
+#endif
 }

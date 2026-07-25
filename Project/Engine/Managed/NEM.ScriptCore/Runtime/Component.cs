@@ -1,5 +1,3 @@
-using System.Reflection;
-
 namespace NEMEngine;
 
 // Entity上のcomponentとScriptBehaviourの共通基底。owner Entityのopaque handleだけを保持し、
@@ -41,53 +39,13 @@ public abstract class Component : Object {
 }
 
 // GetComponent<T>統一APIのための型カテゴリキャッシュ。
-// ScriptBehaviour派生か組込みcomponentかを型ごとに一度だけ判定し、
-// 組込み側はIComponentRef<T>のstatic実装を初回のみreflectionで引いてdelegateへ固定する(hot pathではreflectionしない)。
+// ScriptBehaviour派生か組込みcomponentかを型ごとに一度だけ判定する。
 internal static class ComponentKind<T> where T : Component {
 
     internal static readonly bool isScript = typeof(ScriptBehaviour).IsAssignableFrom(typeof(T));
-
-    // -2 = 未解決, -1 = 未登録(script型含む)
-    private static int cachedTypeId = -2;
-    private static Func<Entity, T>? fromEntity;
-    private static bool factoryResolved;
-
-    internal static int typeId {
-        get {
-            if (cachedTypeId == -2) {
-                cachedTypeId = ResolveTypeId();
-            }
-            return cachedTypeId;
-        }
-    }
+    internal static readonly int typeId = isScript ? -1 : GeneratedComponentTypeMap.GetTypeID<T>();
 
     // owner Entityからwrapperを生成する。FromEntityを持たない型はnull
-    internal static T? CreateWrapper(Entity entity) {
-        if (!factoryResolved) {
-            fromEntity = ResolveFactory();
-            factoryResolved = true;
-        }
-        return fromEntity?.Invoke(entity);
-    }
-
-    private static int ResolveTypeId() {
-        if (isScript) {
-            return -1;
-        }
-        PropertyInfo? nameProperty = typeof(T).GetProperty("componentTypeName", BindingFlags.Public | BindingFlags.Static);
-        return nameProperty?.GetValue(null) is string componentTypeName
-            ? NativeApi.ResolveComponentTypeId(componentTypeName)
-            : -1;
-    }
-
-    private static Func<Entity, T>? ResolveFactory() {
-        if (isScript) {
-            return null;
-        }
-        MethodInfo? method = typeof(T).GetMethod("FromEntity",
-            BindingFlags.Public | BindingFlags.Static, new[] { typeof(Entity) });
-        return method != null && method.ReturnType == typeof(T)
-            ? (Func<Entity, T>)Delegate.CreateDelegate(typeof(Func<Entity, T>), method)
-            : null;
-    }
+    internal static T? CreateWrapper(Entity entity) =>
+        isScript ? null : GeneratedComponentTypeMap.Create<T>(entity);
 }

@@ -158,16 +158,14 @@ namespace Engine {
 			return MakeNullNativeEntity();
 		}
 
-		// compact type idから登録名を引き、名前ベースのHasComponentで走査する
 		ComponentTypeRegistry& registry = ComponentTypeRegistry::GetInstance();
 		if (static_cast<uint32_t>(typeID) >= registry.GetComponentTypeCount()) {
 			return MakeNullNativeEntity();
 		}
-		const std::string typeName = registry.GetInfo(static_cast<uint32_t>(typeID)).name;
 
 		Entity found = Entity::Null();
-		world->ForEachAliveEntity([&](Entity entity) {
-			if (!found.IsValid() && world->HasComponent(entity, typeName)) {
+		world->ForEach(static_cast<uint32_t>(typeID), [&](Entity entity) {
+			if (!found.IsValid()) {
 				found = entity;
 			}
 			});
@@ -185,13 +183,9 @@ namespace Engine {
 		if (static_cast<uint32_t>(typeID) >= registry.GetComponentTypeCount()) {
 			return 0;
 		}
-		const std::string typeName = registry.GetInfo(static_cast<uint32_t>(typeID)).name;
 
 		int32_t count = 0;
-		world->ForEachAliveEntity([&](Entity entity) {
-			if (!world->HasComponent(entity, typeName)) {
-				return;
-			}
+		world->ForEach(static_cast<uint32_t>(typeID), [&](Entity entity) {
 			if (buffer && count < capacity) {
 				buffer[count] = MakeNativeEntity(*world, entity);
 			}

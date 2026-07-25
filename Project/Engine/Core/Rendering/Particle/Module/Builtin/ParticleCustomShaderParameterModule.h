@@ -31,7 +31,7 @@ namespace Engine {
 
 		void FromJson(const nlohmann::json& params) override;
 		nlohmann::json ToJson() const override;
-		bool DrawImGui() override;
+		bool DrawImGui();
 
 		//--------- accessor -----------------------------------------------------
 
@@ -64,5 +64,4 @@ namespace Engine {
 			ParticleMaterialAnimatedParameter& parameter, ParameterUiState& uiState);
 	};
 
-	ENGINE_REGISTER_PARTICLE_MODULE(ParticleCustomShaderParameterModule, "CustomShaderParameter");
 } // Engine

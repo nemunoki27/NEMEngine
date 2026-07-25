@@ -172,6 +172,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, EffectEmitterComponent& component);
 	void to_json(nlohmann::json& out, const EffectEmitterComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(EffectEmitterComponent, "EffectEmitter");
-	ENGINE_REGISTER_COMPONENT_ALIAS(EffectEmitterComponent, "ParticleEmitter");
 } // Engine

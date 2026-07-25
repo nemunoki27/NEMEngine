@@ -59,7 +59,6 @@ namespace Engine {
 	}
 
 	// MeshRenderFlagsのjson入出力、名前付きbool群で保存しMesh/Primitiveで共用する
-	// 旧形式の単一uint("renderFlags")も後方互換で読み込む
 	void ReadMeshRenderFlags(const nlohmann::json& in, MeshRenderFlags& flags);
 	void WriteMeshRenderFlags(nlohmann::json& out, MeshRenderFlags flags);
 
@@ -144,5 +143,4 @@ namespace Engine {
 		void UpdateRendererRuntime(MeshRendererComponent& renderer, const Matrix4x4& parentWorldMatrix);
 	}
 
-	ENGINE_REGISTER_COMPONENT(MeshRendererComponent, "MeshRenderer");
 } // Engine

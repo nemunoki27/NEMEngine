@@ -78,5 +78,4 @@ namespace Engine {
 	void to_json(nlohmann::json& out, const UIProgressComponent& component);
 	void ResetUIProgressRuntime(UIProgressComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(UIProgressComponent, "UIProgress");
 } // Engine

@@ -5,8 +5,8 @@ namespace NEMEngine;
 
 // Asset / Entity / Component / ScriptBehaviour 参照フィールドを authoring / runtime JSON へ相互変換する。
 // runtime pointer / index は一切保存せず、UUID と identity だけを round-trip する。
-// 保存形式は旧Ref型時代と同一（AssetRef={"assetId"} / EntityRef={"kind","sourceAsset","localFileId"} 等）で、
-// C++側のInspector / PrefabReferenceRemapperはそのまま動く。
+// AssetRef={"assetId"} / EntityRef={"kind","sourceAsset","localFileId"}形式で保存する。
+// C++側のInspector / PrefabReferenceRemapperも同じidentity形式を扱う。
 // 読み込みはidentityを現在のworldの生きた参照へ解決する（未解決はnull / null Entity）。
 
 // UUID <-> 16桁hex 文字列（"" は None）

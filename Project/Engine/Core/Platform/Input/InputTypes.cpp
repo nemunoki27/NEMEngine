@@ -1,29 +1,8 @@
 #include "InputTypes.h"
 
 //============================================================================
-//	include
-//============================================================================
-// エディター
-#include <imgui.h>
-
-//============================================================================
 //	InputStructures classMethods
 //============================================================================
-void InputVibrationParams::ImGui(const char* label) {
-
-	ImGui::SeparatorText(label);
-	ImGui::PushID(label);
-
-	ImGui::DragFloat("Left Motor", &left, 0.01f);
-	ImGui::DragFloat("Right Motor", &right, 0.01f);
-	ImGui::DragFloat("Duration", &duration, 0.01f);
-	ImGui::DragFloat("Attack", &attack, 0.01f);
-	ImGui::DragFloat("Release", &release, 0.01f);
-	ImGui::DragInt("Priority", &priority, 1);
-
-	ImGui::PopID();
-}
-
 void InputVibrationParams::FromJson(const nlohmann::json& data) {
 
 	if (data.empty()) {

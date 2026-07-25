@@ -36,5 +36,4 @@ namespace Engine {
 	// コンポーネントからjsonへ変換する
 	void to_json(nlohmann::json& out, const CollisionComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(CollisionComponent, "Collision");
 } // Engine

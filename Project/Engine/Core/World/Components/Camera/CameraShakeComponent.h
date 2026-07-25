@@ -43,5 +43,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, CameraShakeComponent& component);
 	void to_json(nlohmann::json& out, const CameraShakeComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(CameraShakeComponent, "CameraShake");
 } // Engine

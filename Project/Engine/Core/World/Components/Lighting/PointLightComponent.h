@@ -36,5 +36,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, PointLightComponent& component);
 	void to_json(nlohmann::json& out, const PointLightComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(PointLightComponent, "PointLight");
 } // Engine

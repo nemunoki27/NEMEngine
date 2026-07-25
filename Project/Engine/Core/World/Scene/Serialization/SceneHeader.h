@@ -80,11 +80,6 @@ namespace Engine {
 		// カラー出力の情報
 		std::vector<SceneRenderTargetColorDesc> colors;
 
-		// 描画フォーマット
-		SceneRenderTargetFormat colorFormat = SceneRenderTargetFormat::RGBA32_FLOAT;
-
-		// UAVを作成するかどうか
-		bool createUAV = false;
 		// 深度バッファを作成するかどうか
 		bool withDepth = false;
 	};

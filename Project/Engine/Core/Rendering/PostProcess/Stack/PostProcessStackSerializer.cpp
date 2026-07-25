@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/IDentity/UUID.h>
+#include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
@@ -104,7 +104,10 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 
 		PostProcessStackPassSettings pass{};
 		const std::string idStr = passJson.value("id", "");
-		pass.id = idStr.size() == 16 ? FromString16Hex(idStr) : UUID::New();
+		pass.id = idStr.size() == 16 ? FromString16Hex(idStr) : UUID{};
+		if (!pass.id) {
+			continue;
+		}
 		pass.name = passJson.value("name", "Pass");
 		pass.enabled = passJson.value("enabled", true);
 
@@ -116,9 +119,11 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 		}
 		pass.passKind = *passKind;
 
-		// anchor未指定の旧データは従来位置のAfterMaskedUIへ寄せる
-		pass.anchor = EnumAdapter<PostProcessAnchor>::FromString(passJson.value("anchor", ""))
-			.value_or(PostProcessAnchor::AfterMaskedUI);
+		const auto anchor = EnumAdapter<PostProcessAnchor>::FromString(passJson.value("anchor", ""));
+		if (!anchor) {
+			continue;
+		}
+		pass.anchor = *anchor;
 
 		if (passJson.contains("parameters") && passJson["parameters"].is_object()) {
 			for (auto it = passJson["parameters"].begin(); it != passJson["parameters"].end(); ++it) {

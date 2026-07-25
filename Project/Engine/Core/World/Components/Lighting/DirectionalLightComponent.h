@@ -34,5 +34,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, DirectionalLightComponent& component);
 	void to_json(nlohmann::json& out, const DirectionalLightComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(DirectionalLightComponent, "DirectionalLight");
 } // Engine

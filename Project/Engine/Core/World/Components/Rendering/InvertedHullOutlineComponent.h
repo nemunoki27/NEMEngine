@@ -69,5 +69,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, InvertedHullOutlineComponent& component);
 	void to_json(nlohmann::json& out, const InvertedHullOutlineComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(InvertedHullOutlineComponent, "InvertedHullOutline");
 } // Engine

@@ -12,7 +12,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace NEM.ScriptCodeGen
 {
     // concrete ScriptBehaviour の serialized field schema を決定的に生成する。
-    // reflection に依存せず、各 field の Stable Field GUID / 名前 / 旧名 / valueKind / enum / collection /
+    // reflection に依存せず、各 field の Stable Field GUID / 名前 / valueKind / enum / collection /
     // nullable / reference filter / Inspector 属性を compile 時に確定して JSON へ焼き込む。
     // HostBridge は load 時にこの JSON を読み、field 名で reflection FieldInfo を一度だけ突き合わせて
     // runtime get/set と default 値抽出に使う（hot path では parse / reflection しない）。
@@ -617,7 +617,7 @@ namespace NEM.ScriptCodeGen
             var schemas = items.Where(s => s != null).Select(s => s!).ToList();
             ScriptMetaIndex meta = ScriptMetaIndex.Build(metaContents);
 
-            // ID 解決の優先順: 明示属性 → sidecar metadata → 決定的 fallback。formerNames も meta とマージ
+            // ID 解決の優先順: 明示属性 → sidecar metadata → 決定的 fallback
             foreach (TypeSchema type in schemas)
             {
                 if (!type.HasExplicitScriptId && meta.TryGetScriptId(type.FullTypeName, out string metaScriptId) &&
@@ -725,16 +725,6 @@ namespace NEM.ScriptCodeGen
             json.Append("\"isReadOnly\":").Append(field.IsReadOnly ? "true" : "false").Append(',');
             json.Append("\"isHidden\":").Append(field.IsHidden ? "true" : "false").Append(',');
             json.Append("\"multiline\":").Append(field.Multiline ? "true" : "false");
-            if (field.FormerNames.Count > 0)
-            {
-                json.Append(",\"formerNames\":[");
-                for (int i = 0; i < field.FormerNames.Count; ++i)
-                {
-                    if (i > 0) json.Append(',');
-                    json.Append(JsonString(field.FormerNames[i]));
-                }
-                json.Append(']');
-            }
             if (field.HasRange)
             {
                 json.Append(",\"range\":{\"min\":").Append(FloatLiteral(field.RangeMin))

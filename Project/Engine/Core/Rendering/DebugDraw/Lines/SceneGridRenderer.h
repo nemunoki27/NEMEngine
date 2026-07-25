@@ -47,7 +47,6 @@ namespace Engine {
 		void Render(GraphicsCore& graphicsCore, const ResolvedCameraView& camera, MultiRenderTarget& surface,
 			float fixedMinorStep = 0.0f, DepthTexture2D* occlusionDepth = nullptr);
 
-		void Edit();
 	private:
 		//============================================================================
 		//	private Methods

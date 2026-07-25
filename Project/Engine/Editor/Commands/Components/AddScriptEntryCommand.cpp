@@ -44,6 +44,7 @@ bool Engine::AddScriptEntryCommand::ApplyAdd(EditorCommandContext& context) {
 	auto& component = world->GetComponent<ScriptComponent>(target);
 	// コンポーネントメニューからの追加は型未設定の空スロット、slot IDは共有ファクトリが必ず発番する
 	component.scripts.emplace_back(MakeScriptEntry("", typeName_, scriptAsset_));
+	world->MarkComponentModified<ScriptComponent>(target);
 
 	if (context.editorState) {
 		context.editorState->SelectEntity(target);

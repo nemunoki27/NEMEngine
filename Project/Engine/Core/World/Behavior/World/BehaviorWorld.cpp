@@ -61,6 +61,27 @@ void Engine::BehaviorWorld::DestroyAll(ECSWorld& world, const SystemContext& con
 	ownerToRecords_.clear();
 }
 
+uint32_t Engine::BehaviorWorld::DestroyByOwner(
+	const Entity& owner, ECSWorld& world, const SystemContext& context) {
+
+	auto ownerIt = ownerToRecords_.find(MakeOwnerKey(owner));
+	if (ownerIt == ownerToRecords_.end()) {
+		return 0;
+	}
+
+	// DestroyIndexがowner mapを書き換えるため対象indexを先に分離する
+	const std::vector<uint32_t> indices = ownerIt->second;
+	uint32_t destroyed = 0;
+	for (uint32_t index : indices) {
+		if (records_.size() <= index || !records_[index].alive || records_[index].owner != owner) {
+			continue;
+		}
+		DestroyIndex(index, world, context);
+		++destroyed;
+	}
+	return destroyed;
+}
+
 void Engine::BehaviorWorld::ClearSeenFlags() {
 
 	// 全てのレコードを走査して生存しているビヘイビアのフラグをクリアする
@@ -70,6 +91,13 @@ void Engine::BehaviorWorld::ClearSeenFlags() {
 		}
 		record.seen = false;
 	}
+}
+
+void Engine::BehaviorWorld::ClearSeenFlagsByOwner(const Entity& owner) {
+
+	ForEachAliveByOwner(owner, [](BehaviorRecord& record) {
+		record.seen = false;
+		});
 }
 
 uint32_t Engine::BehaviorWorld::SweepUnseen(ECSWorld& world, const SystemContext& context) {
@@ -89,6 +117,30 @@ uint32_t Engine::BehaviorWorld::SweepUnseen(ECSWorld& world, const SystemContext
 			DestroyIndex(i, world, context);
 			++destroyed;
 		}
+	}
+	return destroyed;
+}
+
+uint32_t Engine::BehaviorWorld::SweepUnseenByOwner(
+	const Entity& owner, ECSWorld& world, const SystemContext& context) {
+
+	auto ownerIt = ownerToRecords_.find(MakeOwnerKey(owner));
+	if (ownerIt == ownerToRecords_.end()) {
+		return 0;
+	}
+
+	const std::vector<uint32_t> indices = ownerIt->second;
+	uint32_t destroyed = 0;
+	for (uint32_t index : indices) {
+		if (records_.size() <= index) {
+			continue;
+		}
+		BehaviorRecord& record = records_[index];
+		if (!record.alive || record.owner != owner || record.seen) {
+			continue;
+		}
+		DestroyIndex(index, world, context);
+		++destroyed;
 	}
 	return destroyed;
 }

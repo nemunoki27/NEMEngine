@@ -7,6 +7,9 @@
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 
+// c++
+#include <cstddef>
+
 namespace Engine {
 
 	//============================================================================
@@ -27,6 +30,8 @@ namespace Engine {
 		Rect,
 		Cone2D,
 	};
+	inline constexpr size_t kParticleEmitterShapeCount =
+		static_cast<size_t>(ParticleEmitterShape::Cone2D) + 1;
 
 	// Sphere/Hemisphereのパラメータ、球面上から外向きに飛ぶ
 	struct ParticleEmitterSphereParams {

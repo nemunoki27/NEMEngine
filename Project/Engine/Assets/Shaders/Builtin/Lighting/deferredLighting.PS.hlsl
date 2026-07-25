@@ -1,7 +1,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include "../FullscreenCopy/FullscreenCopy.hlsli"
+#include "../FullscreenCopy/fullscreenCopy.hlsli"
 #include "../Mesh/Common/deferredGBuffer.hlsli"
 
 //============================================================================

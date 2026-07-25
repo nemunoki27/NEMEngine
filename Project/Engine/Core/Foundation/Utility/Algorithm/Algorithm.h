@@ -12,10 +12,8 @@
 #include <vector>
 #include <utility>
 #include <algorithm>
-#include <any>
 #include <filesystem>
 #include <locale>
-#include <iostream>
 
 //============================================================================
 //	Algorithm namespace
@@ -61,21 +59,8 @@ namespace Engine {
 		// inputからtoRemoveをすべて取り除いた文字列を返す
 		std::string RemoveSubstring(const std::string& input, const std::string& toRemove);
 
-		// 実行環境に応じて型名をデマングルして返す
-		std::string DemangleType(const char* name);
 		//	先頭文字の大文字/小文字/無加工を指定どおりに整形する
 		std::string AdjustLeadingCase(std::string string, LeadingCase leadingCase);
-
-		// 型Tの名前を取得し、必要なら先頭の大文字/小文字を調整して返す
-		template <typename T>
-		std::string ClassName(LeadingCase mode = LeadingCase::AsIs) {
-
-			std::string name = DemangleType(typeid(T).name());
-			name = RemoveSubstring(name, "class ");
-			name = RemoveSubstring(name, "struct ");
-			name = RemoveSubstring(name, "enum ");
-			return Algorithm::AdjustLeadingCase(std::move(name), mode);
-		}
 
 		// UTF-8のstd::stringをstd::wstringへ変換する
 		std::wstring ConvertString(const std::string& str);

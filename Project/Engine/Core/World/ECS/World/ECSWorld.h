@@ -15,6 +15,18 @@
 namespace Engine {
 
 	//============================================================================
+	//	ECSWorld component mutation
+	//============================================================================
+	enum class ComponentMutationKind :
+		uint8_t {
+
+		Added,
+		Removed,
+		Modified,
+		EntityDestroyed,
+	};
+
+	//============================================================================
 	//	ECSWorld structures
 	//============================================================================
 	// エンティティの位置を表す構造体
@@ -76,6 +88,9 @@ namespace Engine {
 		//============================================================================
 		//	コンポーネントに対して行う操作
 		//============================================================================
+		using ComponentMutationCallback = void(*)(
+			ECSWorld&, const Entity&, uint32_t, ComponentMutationKind, void*);
+
 		// エンティティにコンポーネントを追加
 		template <typename T>
 		T& AddComponent(const Entity& entity);
@@ -91,12 +106,24 @@ namespace Engine {
 		void SerializeEntityComponents(const Entity& entity, nlohmann::json& outComponents) const;
 		bool SerializeComponentToJson(const Entity& entity, const std::string_view& typeName, nlohmann::json& outData) const;
 
+		// Componentの非構造的な値変更を購読側へ通知する
+		template <typename T>
+		void MarkComponentModified(const Entity& entity);
+		void MarkComponentModified(const Entity& entity, uint32_t typeID);
+
+		// Component変更通知の購読を追加、削除する
+		uint64_t AddComponentMutationListener(ComponentMutationCallback callback, void* userData);
+		void RemoveComponentMutationListener(uint64_t listenerID);
+
 		//============================================================================
 		//	ヘルパー
 		//============================================================================
 		// シグネチャにマッチするエンティティ全てに対して関数を呼び出す
 		template <typename... T, typename Fn>
 		void ForEach(Fn&& fn);
+		// 固定ComponentType IDに一致するエンティティをアーキタイプ単位で走査
+		template <typename Fn>
+		void ForEach(uint32_t typeID, Fn&& fn);
 		template <typename Fn>
 		void ForEachAliveEntity(Fn&& fn);
 
@@ -114,6 +141,7 @@ namespace Engine {
 		// コンポーネントを持っているか
 		template <typename T>
 		bool HasComponent(const Entity& entity) const;
+		bool HasComponent(const Entity& entity, uint32_t typeID) const;
 		bool HasComponent(const Entity& entity, const std::string_view& typeName) const;
 		// エンティティのコンポーネントを返す
 		template <typename T>
@@ -163,6 +191,16 @@ namespace Engine {
 		// archetypeが増えるたびに進むversionでmatchPlans_の無効化に使う
 		uint32_t archetypeVersion_ = 0;
 
+		// Component変更通知の購読情報
+		struct ComponentMutationListener {
+
+			uint64_t id = 0;
+			ComponentMutationCallback callback = nullptr;
+			void* userData = nullptr;
+		};
+		std::vector<ComponentMutationListener> componentMutationListeners_;
+		uint64_t nextComponentMutationListenerID_ = 1;
+
 		//--------- functions ----------------------------------------------------
 
 		// 新しいエンティティIDを割り当てる
@@ -176,6 +214,8 @@ namespace Engine {
 		void MigrateEntity(const Entity& entity, const EntitySignature& oldSignature, const EntitySignature& newSignature);
 		// シグネチャにマッチするArchetypeがあれば返し、なければ作成して返す
 		EntityArchetype* GetOrCreateArchetype(const EntitySignature& signature);
+		// Component変更を購読側へ通知する
+		void NotifyComponentMutation(const Entity& entity, uint32_t typeID, ComponentMutationKind kind);
 
 		// Archetype上のtypeID配列から列番号配列を一度だけ解決する
 		template <size_t N, size_t... I>
@@ -217,6 +257,7 @@ namespace Engine {
 		// 移動後の場所からコンポーネント参照を返す
 		auto& location = records_[entity.index].location;
 		void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, typeID);
+		NotifyComponentMutation(entity, typeID, ComponentMutationKind::Added);
 		return *(T*)ptr;
 	}
 
@@ -240,6 +281,17 @@ namespace Engine {
 
 		// シグネチャを更新してArchetypeを移動する
 		MigrateEntity(entity, oldSignature, newSignature);
+		NotifyComponentMutation(entity, typeID, ComponentMutationKind::Removed);
+	}
+
+	template <typename T>
+	inline void ECSWorld::MarkComponentModified(const Entity& entity) {
+
+		if (!IsAlive(entity)) {
+			return;
+		}
+		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
+		MarkComponentModified(entity, typeID);
 	}
 
 	template <typename ...T, typename Fn>
@@ -284,6 +336,43 @@ namespace Engine {
 
 				// レコード再検索を挟まず直接列アクセスする
 				ForEachChunkFast<T...>(*chunk, columnIndices, fnRef, std::index_sequence_for<T...>{});
+			}
+		}
+	}
+
+	template <typename Fn>
+	inline void ECSWorld::ForEach(uint32_t typeID, Fn&& fn) {
+
+		if (ComponentTypeRegistry::GetInstance().GetComponentTypeCount() <= typeID) {
+			return;
+		}
+
+		EntitySignature required{};
+		required.Set(typeID);
+
+		ArchetypeMatchPlan& plan = matchPlans_[required];
+		if (plan.builtArchetypeVersion != archetypeVersion_) {
+
+			plan.archetypes.clear();
+			for (auto& [signature, archPtr] : archetypes_) {
+
+				EntityArchetype* archetype = archPtr.get();
+				if (archetype->GetSignature().Contains(required)) {
+					plan.archetypes.emplace_back(archetype);
+				}
+			}
+			plan.builtArchetypeVersion = archetypeVersion_;
+		}
+
+		Fn& fnRef = fn;
+		for (EntityArchetype* archetype : plan.archetypes) {
+			for (auto& chunk : archetype->GetChunks()) {
+
+				const auto& entities = chunk->GetEntities();
+				const uint32_t count = chunk->GetCount();
+				for (uint32_t row = 0; row < count; ++row) {
+					fnRef(entities[row]);
+				}
 			}
 		}
 	}

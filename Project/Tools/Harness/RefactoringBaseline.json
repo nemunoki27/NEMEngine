@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "capturedUtc": "2026-07-25T15:47:39.4657559Z",
+  "sourceSnapshot": {
+    "totalFiles": 1224,
+    "cppFiles": 1052,
+    "headerFiles": 563,
+    "cppSourceFiles": 489,
+    "shaderFiles": 101,
+    "managedFiles": 71,
+    "cppLines": 152043.0,
+    "shaderLines": 6571.0,
+    "managedLines": 13516.0,
+    "cppFilesAtMost20Lines": 41,
+    "cppFilesAtMost40Lines": 242,
+    "cppFilesAtMost80Lines": 564,
+    "cppFilesAtLeast1000Lines": 18,
+    "duplicateGroups": 1,
+    "duplicateFiles": 2,
+    "duplicateDetails": [
+      {
+        "count": 2,
+        "files": [
+          "Project/Engine/Assets/Shaders/Builtin/Mesh/DefaultMesh/defaultMesh.MS.hlsl",
+          "Project/Engine/Assets/Shaders/Builtin/Mesh/MeshPBR/meshPBRTransparent.MS.hlsl"
+        ]
+      }
+    ],
+    "largestFiles": [
+      {
+        "path": "Project/Engine/Core/Scripting/Managed/Generated/ManagedComponentBindings.generated.cpp",
+        "lines": 3752
+      },
+      {
+        "path": "Project/Engine/Core/Tools/ImGui/ImGuiCurveEditor.cpp",
+        "lines": 2064
+      },
+      {
+        "path": "Project/Engine/Editor/Tools/Builtin/Animation/AnimationClipTool.cpp",
+        "lines": 1986
+      },
+      {
+        "path": "Project/Engine/Managed/NEM.ScriptCore/Generated/ComponentBindings.generated.cs",
+        "lines": 1846
+      },
+      {
+        "path": "Project/Engine/Managed/NEM.ScriptCore/Runtime/NativeApi.cs",
+        "lines": 1794
+      },
+      {
+        "path": "Project/Engine/Managed/NEM.ScriptCore/Runtime/HostBridge.cs",
+        "lines": 1662
+      },
+      {
+        "path": "Project/Engine/Core/Runtime/Application/EngineApplication.cpp",
+        "lines": 1626
+      },
+      {
+        "path": "Project/Engine/Editor/UI/Panels/Builtin/InspectorPanel.cpp",
+        "lines": 1548
+      },
+      {
+        "path": "Project/Engine/Editor/Core/EditorManager.cpp",
+        "lines": 1546
+      },
+      {
+        "path": "Project/Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditorTool.cpp",
+        "lines": 1407
+      },
+      {
+        "path": "Project/Engine/Editor/UI/Panels/Builtin/ViewportPanel.cpp",
+        "lines": 1368
+      },
+      {
+        "path": "Project/Engine/Editor/UI/Inspectors/Builtin/ScriptInspectorDrawer.cpp",
+        "lines": 1336
+      },
+      {
+        "path": "Project/Engine/Editor/UI/Panels/Builtin/ProjectPanel.cpp",
+        "lines": 1311
+      },
+      {
+        "path": "Project/Engine/Core/Scripting/Managed/ManagedScriptBridgeGameplay.cpp",
+        "lines": 1299
+      },
+      {
+        "path": "Project/Engine/Core/World/Systems/Effect/ParticleSystem.cpp",
+        "lines": 1216
+      },
+      {
+        "path": "Project/Engine/Core/World/Prefab/Override/PrefabOverrideUtility.cpp",
+        "lines": 1211
+      },
+      {
+        "path": "Project/Engine/Core/World/Systems/UI/UIInputSystem.cpp",
+        "lines": 1111
+      },
+      {
+        "path": "Project/Engine/Core/Scripting/Managed/ManagedScriptBuildService.cpp",
+        "lines": 1101
+      },
+      {
+        "path": "Project/Engine/Editor/UI/Panels/Builtin/HierarchyPanel.cpp",
+        "lines": 1039
+      },
+      {
+        "path": "Project/Engine/Core/Scripting/Managed/ManagedScriptRuntime.cpp",
+        "lines": 1020
+      }
+    ]
+  },
+  "limits": {
+    "jsonParseErrors": 0,
+    "shaderReferenceErrors": 0,
+    "abiFailures": 0,
+    "cppIncludeCaseMismatches": 0,
+    "shaderIncludeCaseMismatches": 0,
+    "coreEditorIncludeFiles": 14,
+    "coreGuiFiles": 37,
+    "shaderCompileFailures": 0,
+    "managedFailures": 0,
+    "buildFailures": 0
+  }
+}

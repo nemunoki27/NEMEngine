@@ -40,7 +40,5 @@ namespace PrefabReferenceRemapper {
 	void NormalizePrefabFileHierarchy(nlohmann::json& prefabFileJson);
 	// Prefab内ジョイント接続の参照と通常階層を正規化する
 	void NormalizePrefabFileJointAttachments(nlohmann::json& prefabFileJson);
-	// 古いPrefabに残ったScriptRef参照をslot IDから復旧する
-	void RepairPrefabFileScriptRefs(nlohmann::json& prefabFileJson, AssetID prefabAsset);
 }
 } // Engine

@@ -73,6 +73,7 @@ void Engine::ParticleBoxEmitterShape::DrawShape(const ParticleEmitterSettings& s
 }
 
 bool Engine::ParticleBoxEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= MyGUI::DragVector3("大きさ", settings.box.size, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
@@ -85,4 +86,8 @@ bool Engine::ParticleBoxEmitterShape::DrawImGui(ParticleEmitterSettings& setting
 	changed |= MyGUI::Checkbox("+Z面", settings.box.facePosZ);
 	changed |= MyGUI::Checkbox("-Z面", settings.box.faceNegZ);
 	return changed;
+#else
+	(void)settings;
+	return false;
+#endif
 }

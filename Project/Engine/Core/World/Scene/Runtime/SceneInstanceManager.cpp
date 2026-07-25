@@ -175,7 +175,7 @@ bool Engine::SceneInstanceManager::SaveActive(AssetDatabase& database, const Sce
 	}
 
 	const std::vector<Entity> ownedEntities = CollectSceneEntities(world, *activeScene);
-	return sceneSystem.SaveScene(fullPath, world, activeScene->header, &ownedEntities, &database);
+	return sceneSystem.SaveScene(fullPath, world, activeScene->header, database, &ownedEntities);
 }
 
 nlohmann::json Engine::SceneInstanceManager::SerializeSnapshot(const SceneSystem& sceneSystem, ECSWorld& world) const {
@@ -239,7 +239,7 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 			FromJson(scene["Header"], instance.header, &database);
 		}
 		{
-			// 旧スナップショットなどで設定パスがない場合は、シーンごとの既定パスを補完する
+			// PostProcessStackが未設定ならシーンごとの既定アセットを割り当てる
 			const std::filesystem::path scenePath = database.ResolveFullPath(instance.sceneAsset);
 			EnsureScenePostProcessStack(instance.header,
 				Algorithm::PathToUTF8(scenePath), &database);

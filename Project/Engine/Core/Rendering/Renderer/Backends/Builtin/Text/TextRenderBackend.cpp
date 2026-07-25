@@ -380,8 +380,9 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
 		if (resolvedPass.material) {
 			const TextRenderPayload* firstPayload = context.batch->GetPayload<TextRenderPayload>(*items.front());
-			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, *resolvedPass.material,
-				commandList, firstPayload ? firstPayload->materialOverrides : nullptr);
+			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, materialParamBinder_,
+				*resolvedPass.material, commandList,
+				firstPayload ? firstPayload->materialOverrides : nullptr);
 		}
 	}
 

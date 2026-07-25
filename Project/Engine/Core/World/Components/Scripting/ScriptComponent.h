@@ -23,7 +23,7 @@ namespace Engine {
 		UUID scriptSlotID{};
 		// 参照しているC#スクリプトアセット
 		AssetID scriptAsset{};
-		// 直近に解決できた完全修飾型名で表示とlegacy移行用、永続主キーではない
+		// 直近に解決できた完全修飾型名、表示とMissing Script診断に使う
 		std::string lastKnownTypeName;
 		// 有効フラグ
 		bool enabled = true;
@@ -70,5 +70,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, ScriptComponent& component);
 	void to_json(nlohmann::json& out, const ScriptComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(ScriptComponent, "Script");
 } // Engine

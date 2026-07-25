@@ -36,7 +36,7 @@ namespace Engine {
 
 		void FromJson(const nlohmann::json& params) override;
 		nlohmann::json ToJson() const override;
-		bool DrawImGui() override;
+		bool DrawImGui();
 
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
 		void OnUpdate(Particle& particle, float deltaTime) override;
@@ -99,5 +99,4 @@ namespace Engine {
 		bool DrawRotationSettings();
 	};
 
-	ENGINE_REGISTER_PARTICLE_MODULE(ParticleColorUVModule, "ColorUV");
 } // Engine

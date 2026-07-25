@@ -121,6 +121,7 @@ namespace {
 	bool IsEditorOnlyAsset(const std::string& assetPath) {
 
 		return StartsWith(assetPath, "Engine/Assets/Textures/Editor/") ||
+			StartsWith(assetPath, "Engine/Assets/Shaders/Builtin/Editor/") ||
 			StartsWith(assetPath, "Engine/Assets/Config/editor") ||
 			StartsWith(assetPath, "Engine/Assets/Config/inspector") ||
 			StartsWith(assetPath, "Engine/Assets/Config/projectPanel") ||
@@ -360,7 +361,7 @@ namespace {
 					else if (key == "UIProgress") {
 						usage_.primitive2D = true;
 						usage_.progress = true;
-					} else if (key == "EffectEmitter" || key == "ParticleEmitter") {
+					} else if (key == "EffectEmitter") {
 						usage_.particle = true;
 					}
 

@@ -5,21 +5,11 @@
 //============================================================================
 void Engine::from_json(const nlohmann::json& in, ScriptEntry& entry) {
 
-	// 新形式: scriptTypeIDが永続主キー / scriptSlotID / lastKnownTypeName
+	// scriptTypeIDを永続主キーとして読み込む
 	entry.scriptTypeID = in.value("scriptTypeId", std::string{});
 	entry.lastKnownTypeName = in.value("lastKnownTypeName", std::string{});
 
-	// legacy形式: 旧 "type" のクラス名や完全名を lastKnownTypeName として取り込み後で GUID へ移行する
-	// 破壊的な上書きはせず、scriptTypeIDが空でもserialized fieldsは保持する
-	if (entry.lastKnownTypeName.empty()) {
-		entry.lastKnownTypeName = in.value("type", std::string{});
-	}
-
-	// scriptSlotIDは旧表記も読み、新規発番によるScriptRef切れを防ぐ
-	std::string slotText = in.value("scriptSlotId", std::string{});
-	if (slotText.empty()) {
-		slotText = in.value("scriptSlotID", std::string{});
-	}
+	const std::string slotText = in.value("scriptSlotId", std::string{});
 	const UUID parsedSlot = FromString16Hex(slotText);
 	entry.scriptSlotID = parsedSlot ? parsedSlot : UUID::New();
 
@@ -39,7 +29,7 @@ void Engine::from_json(const nlohmann::json& in, ScriptEntry& entry) {
 
 void Engine::to_json(nlohmann::json& out, const ScriptEntry& entry) {
 
-	// 永続保存の主キーはStable Script Type GUIDで表示とlegacy照合用にlastKnownTypeNameも残す
+	// 型名はInspector表示とMissing Script診断に使う
 	out["scriptTypeId"] = entry.scriptTypeID;
 	out["scriptSlotId"] = ToString(entry.scriptSlotID);
 	out["lastKnownTypeName"] = entry.lastKnownTypeName;
@@ -54,13 +44,7 @@ void Engine::from_json(const nlohmann::json& in, ScriptComponent& component) {
 	component.scripts.clear();
 
 	if (in.is_array()) {
-
 		component.scripts = in.get<std::vector<ScriptEntry>>();
-		return;
-	}
-	if (in.is_object() && in.contains("scripts") && in["scripts"].is_array()) {
-
-		component.scripts = in["scripts"].get<std::vector<ScriptEntry>>();
 	}
 }
 

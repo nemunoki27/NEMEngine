@@ -89,5 +89,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, AudioSourceComponent& component);
 	void to_json(nlohmann::json& out, const AudioSourceComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(AudioSourceComponent, "AudioSource");
 } // Engine

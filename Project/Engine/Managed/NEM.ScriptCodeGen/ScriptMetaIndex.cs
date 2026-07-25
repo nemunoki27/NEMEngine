@@ -50,7 +50,7 @@ namespace NEM.ScriptCodeGen
                             meta.FieldIdByName[name] = fieldId;
                             List<string> formers = AsStringList(field, "formerNames");
                             meta.FieldFormerNamesByName[name] = formers;
-                            // 旧名でも fieldId を引けるようにする（rename 後の legacy data 解決）
+                            // rename後も同じfieldIdを引けるようにする
                             foreach (string former in formers)
                             {
                                 if (!meta.FieldIdByName.ContainsKey(former)) { meta.FieldIdByName[former] = fieldId; }

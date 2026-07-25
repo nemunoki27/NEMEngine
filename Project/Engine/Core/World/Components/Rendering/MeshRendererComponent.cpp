@@ -6,40 +6,6 @@
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 //============================================================================
-//	MeshRendererComponent internal
-//============================================================================
-namespace {
-
-	// 旧色フィールドが残るシーンはparameterOverridesへ移行し見た目を保持する
-	void MigrateLegacyColor(const nlohmann::json& in, const char* legacyKey,
-		const char* paramName, Engine::SubMeshMaterial& subMeshMaterial) {
-
-		if (!in.contains(legacyKey) || subMeshMaterial.parameterOverrides.count(paramName)) {
-			return;
-		}
-		Engine::MaterialParameterValue value{};
-		value.value = Engine::Color4::FromJson(in[legacyKey]);
-		subMeshMaterial.parameterOverrides[paramName] = value;
-	}
-
-	// 旧テクスチャフィールドが残るシーンはAssetID値としてparameterOverridesへ移行する
-	void MigrateLegacyTexture(const nlohmann::json& in, const char* legacyKey,
-		const char* paramName, Engine::SubMeshMaterial& subMeshMaterial) {
-
-		if (subMeshMaterial.parameterOverrides.count(paramName)) {
-			return;
-		}
-		const Engine::AssetID id = Engine::ParseAssetID(in, legacyKey);
-		if (!id) {
-			return;
-		}
-		Engine::MaterialParameterValue value{};
-		value.value = id;
-		subMeshMaterial.parameterOverrides[paramName] = value;
-	}
-}
-
-//============================================================================
 //	MeshRendererComponent classMethods
 //============================================================================
 void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMaterial) {
@@ -60,13 +26,6 @@ void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMateria
 			}
 		}
 	}
-	// 旧フィールドが残るシーンは同名のparameterOverridesへ移行する
-	MigrateLegacyColor(in, "color", "color", subMeshMaterial);
-	MigrateLegacyColor(in, "emissiveColor", "emissiveColor", subMeshMaterial);
-	MigrateLegacyTexture(in, "baseColorTexture", "baseColorTexture", subMeshMaterial);
-	MigrateLegacyTexture(in, "normalTexture", "normalTexture", subMeshMaterial);
-	MigrateLegacyTexture(in, "emissiveTexture", "emissiveTexture", subMeshMaterial);
-
 	subMeshMaterial.uvPos = Vector2::FromJson(in.value("uvPos", nlohmann::json{}));
 	subMeshMaterial.uvRotation = in.value("uvRotation", 0.0f);
 	subMeshMaterial.uvScale = Vector2::FromJson(in.value("uvScale", nlohmann::json{}));
@@ -107,12 +66,6 @@ void Engine::to_json(nlohmann::json& out, const SubMeshMaterial& subMeshMaterial
 
 void Engine::ReadMeshRenderFlags(const nlohmann::json& in, MeshRenderFlags& flags) {
 
-	// 旧形式の単一uintがあれば優先して読む
-	if (in.contains("renderFlags") && in["renderFlags"].is_number_integer()) {
-		flags = static_cast<MeshRenderFlags>(in.value("renderFlags", static_cast<uint32_t>(flags)));
-		return;
-	}
-	// フラグを増やしても旧シーンでデフォルト値が効くよう、ビットごとに名前付きboolで読む
 	const auto readFlag = [&](const char* key, MeshRenderFlags flag) {
 		SetMeshRenderFlag(flags, flag, in.value(key, HasMeshRenderFlag(flags, flag)));
 		};

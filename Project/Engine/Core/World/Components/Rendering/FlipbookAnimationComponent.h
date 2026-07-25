@@ -51,5 +51,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, FlipbookAnimationComponent& component);
 	void to_json(nlohmann::json& out, const FlipbookAnimationComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(FlipbookAnimationComponent, "FlipbookAnimation");
 } // Engine

@@ -7,6 +7,9 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
+// c++
+#include <algorithm>
+
 //============================================================================
 //	ECSWorld classMethods
 //============================================================================
@@ -74,6 +77,7 @@ void ECSWorld::DestroyEntityImmediate(const Entity& entity) {
 	}
 
 	EntityRecord& record = records_[entity.index];
+	NotifyComponentMutation(entity, 0xFFFFFFFFu, ComponentMutationKind::EntityDestroyed);
 
 	// アーキタイプから抜く
 	Entity moved = record.location.archetype->RemoveSwap(
@@ -122,6 +126,7 @@ bool Engine::ECSWorld::AddComponentByName(const Entity& entity, const std::strin
 	EntitySignature newSignature = oldSignature;
 	newSignature.Set(info->id);
 	MigrateEntity(entity, oldSignature, newSignature);
+	NotifyComponentMutation(entity, info->id, ComponentMutationKind::Added);
 	return true;
 }
 
@@ -145,6 +150,7 @@ bool Engine::ECSWorld::RemoveComponentByName(const Entity& entity, const std::st
 	EntitySignature newSignature = oldSignature;
 	newSignature.Reset(info->id);
 	MigrateEntity(entity, oldSignature, newSignature);
+	NotifyComponentMutation(entity, info->id, ComponentMutationKind::Removed);
 	return true;
 }
 
@@ -160,7 +166,8 @@ void ECSWorld::AddComponentFromJson(const Entity& entity, const std::string_view
 	}
 
 	// 既に持っているなら上書きする
-	if (!records_[entity.index].location.archetype->Has(info->id)) {
+	const bool added = !records_[entity.index].location.archetype->Has(info->id);
+	if (added) {
 
 		// シグネチャを更新してアーキタイプを移動する
 		EntitySignature oldSignature = records_[entity.index].location.archetype->GetSignature();
@@ -168,12 +175,62 @@ void ECSWorld::AddComponentFromJson(const Entity& entity, const std::string_view
 		newSignature.Set(info->id);
 		// 新しいアーキタイプへ移動する
 		MigrateEntity(entity, oldSignature, newSignature);
+		NotifyComponentMutation(entity, info->id, ComponentMutationKind::Added);
 	}
 
 	// 追加/移動後のメモリにjsonを渡す
 	auto& location = records_[entity.index].location;
 	void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, info->id);
 	info->from_json(ptr, data);
+	NotifyComponentMutation(entity, info->id, ComponentMutationKind::Modified);
+}
+
+void Engine::ECSWorld::MarkComponentModified(const Entity& entity, uint32_t typeID) {
+
+	if (!HasComponent(entity, typeID)) {
+		return;
+	}
+	NotifyComponentMutation(entity, typeID, ComponentMutationKind::Modified);
+}
+
+uint64_t Engine::ECSWorld::AddComponentMutationListener(
+	ComponentMutationCallback callback, void* userData) {
+
+	if (!callback) {
+		return 0;
+	}
+
+	const uint64_t listenerID = nextComponentMutationListenerID_++;
+	componentMutationListeners_.emplace_back(ComponentMutationListener{
+		.id = listenerID,
+		.callback = callback,
+		.userData = userData,
+		});
+	return listenerID;
+}
+
+void Engine::ECSWorld::RemoveComponentMutationListener(uint64_t listenerID) {
+
+	if (listenerID == 0) {
+		return;
+	}
+	componentMutationListeners_.erase(
+		std::remove_if(componentMutationListeners_.begin(), componentMutationListeners_.end(),
+			[listenerID](const ComponentMutationListener& listener) {
+				return listener.id == listenerID;
+			}),
+		componentMutationListeners_.end());
+}
+
+void Engine::ECSWorld::NotifyComponentMutation(
+	const Entity& entity, uint32_t typeID, ComponentMutationKind kind) {
+
+	// 購読の追加削除はWorldEnter/Exitだけで行い、通知中の割り当てを避ける
+	for (const ComponentMutationListener& listener : componentMutationListeners_) {
+		if (listener.callback) {
+			listener.callback(*this, entity, typeID, kind, listener.userData);
+		}
+	}
 }
 
 void ECSWorld::SerializeEntityComponents(const Entity& entity, nlohmann::json& outComponents) const {
@@ -252,6 +309,14 @@ Entity ECSWorld::FindByUUID(UUID id) const {
 
 	auto it = uuidToEntity_.find(id);
 	return (it == uuidToEntity_.end()) ? Entity::Null() : it->second;
+}
+
+bool Engine::ECSWorld::HasComponent(const Entity& entity, uint32_t typeID) const {
+
+	if (!IsAlive(entity) || ComponentTypeRegistry::GetInstance().GetComponentTypeCount() <= typeID) {
+		return false;
+	}
+	return records_[entity.index].location.archetype->Has(typeID);
 }
 
 bool Engine::ECSWorld::HasComponent(const Entity& entity, const std::string_view& typeName) const {

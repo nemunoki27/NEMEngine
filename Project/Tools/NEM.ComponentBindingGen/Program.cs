@@ -3,12 +3,12 @@ using System.Text.Json;
 
 namespace NEM.ComponentBindingGen;
 
-// ManagedComponentBindings.json から C++ dispatch と C# wrapper を決定的に生成する。
+// ComponentManifest.json と ManagedNativeApi.json から C++ / C# の登録情報を決定的に生成する。
 // 同じ入力からは byte 単位で安定した出力（sorted・LF・UTF-8 no BOM）。
 internal static class Program {
 
-    private const string GeneratorVersion = "2";
-    private const int SupportedSchemaVersion = 1;
+    private const string GeneratorVersion = "3";
+    private const int SupportedSchemaVersion = 2;
 
     private sealed class EnumMember { public string Name = ""; public long Value; }
     private sealed class EnumModel {
@@ -29,33 +29,40 @@ internal static class Program {
         public string CsVisibility => string.Equals(Visibility, "Internal", StringComparison.Ordinal) ? "internal" : "public";
     }
     private sealed class ComponentModel {
+        public int Id = -1;
         public string RegistryName = "";
         public string NativeType = "";
         public string NativeHeader = "";
+        public string Exposure = "";
         public string ManagedType = "";
+        public bool ManagedFactory;
         public bool AllowAdd = true;
         public bool AllowRemove = true;
         public List<PropertyModel> Properties = new();
+    }
+    private sealed class AbiFieldModel {
+        public string Name = "";
+        public string NativeType = "";
+        public string ManagedType = "";
     }
 
     private static int errorCount;
 
     private static int Main(string[] args) {
 
-        string? metadataPath = null;
+        string? manifestPath = null;
+        string? abiPath = null;
         string? outNativeDir = null;
         string? outCsDir = null;
-        string? inventoryPath = null;
-        string? registryPath = null;
         bool verify = false;
         bool selftest = false;
         for (int i = 0; i < args.Length; ++i) {
             switch (args[i]) {
-                case "--metadata": if (i + 1 < args.Length) metadataPath = args[++i]; break;
+                case "--manifest": if (i + 1 < args.Length) manifestPath = args[++i]; break;
+                case "--metadata": if (i + 1 < args.Length) manifestPath = args[++i]; break;
+                case "--abi": if (i + 1 < args.Length) abiPath = args[++i]; break;
                 case "--out-native-dir": if (i + 1 < args.Length) outNativeDir = args[++i]; break;
                 case "--out-cs-dir": if (i + 1 < args.Length) outCsDir = args[++i]; break;
-                case "--inventory": if (i + 1 < args.Length) inventoryPath = args[++i]; break;
-                case "--registry": if (i + 1 < args.Length) registryPath = args[++i]; break;
                 case "--verify": verify = true; break;
                 case "--selftest": selftest = true; break;
             }
@@ -66,31 +73,36 @@ internal static class Program {
             return SelfTest();
         }
 
-        if (metadataPath == null || outNativeDir == null || outCsDir == null) {
-            Console.Error.WriteLine("[ComponentBindingGen] usage: --metadata <json> --out-native-dir <dir> --out-cs-dir <dir>");
-            Console.Error.WriteLine("[ComponentBindingGen]   verify: --verify --metadata <schema> --inventory <inventory> [--registry <names.txt>] --out-native-dir <dir> --out-cs-dir <dir>");
+        if (manifestPath == null || abiPath == null || outNativeDir == null || outCsDir == null) {
+            Console.Error.WriteLine("[ComponentBindingGen] usage: --manifest <json> --abi <json> --out-native-dir <dir> --out-cs-dir <dir>");
             return 1;
         }
-        if (!File.Exists(metadataPath)) {
-            Console.Error.WriteLine($"[ComponentBindingGen] metadata not found: {metadataPath}");
+        if (!File.Exists(manifestPath) || !File.Exists(abiPath)) {
+            Console.Error.WriteLine($"[ComponentBindingGen] input not found: manifest={manifestPath} abi={abiPath}");
             return 1;
         }
 
-        (List<EnumModel> enums, List<ComponentModel> components) = LoadAndValidate(metadataPath);
+        (List<EnumModel> enums, List<ComponentModel> components) = LoadAndValidate(manifestPath);
+        List<AbiFieldModel> abiFields = LoadAndValidateAbi(abiPath);
         if (errorCount > 0) {
             Console.Error.WriteLine($"[ComponentBindingGen] failed with {errorCount} validation error(s).");
             return 1;
         }
 
-        // verify モードでは生成せず、inventory / schema / 既存生成物との整合のみを検査する
+        List<ComponentModel> bindings = components
+            .Where(component => component.Exposure == "GeneratedBinding")
+            .ToList();
+
+        // verify モードでは生成せず、Manifestと既存生成物の整合のみを検査する
         if (verify) {
-            return Verify(metadataPath, inventoryPath, registryPath, outNativeDir, outCsDir, enums, components);
+            return Verify(outNativeDir, outCsDir, enums, components, bindings, abiFields);
         }
 
         // 決定的にするため安定ソート
         enums.Sort((a, b) => string.CompareOrdinal(a.ManagedType, b.ManagedType));
-        components.Sort((a, b) => string.CompareOrdinal(a.RegistryName, b.RegistryName));
-        foreach (ComponentModel c in components) {
+        components.Sort((a, b) => a.Id.CompareTo(b.Id));
+        bindings.Sort((a, b) => string.CompareOrdinal(a.RegistryName, b.RegistryName));
+        foreach (ComponentModel c in bindings) {
             c.Properties.Sort((a, b) => string.CompareOrdinal(a.ManagedName, b.ManagedName));
         }
         var enumByName = new Dictionary<string, EnumModel>(StringComparer.Ordinal);
@@ -100,10 +112,14 @@ internal static class Program {
         Directory.CreateDirectory(outCsDir);
 
         WriteIfChanged(Path.Combine(outNativeDir, "ManagedComponentBindings.generated.h"), EmitNativeHeader());
-        WriteIfChanged(Path.Combine(outNativeDir, "ManagedComponentBindings.generated.cpp"), EmitNativeCpp(components, enumByName));
-        WriteIfChanged(Path.Combine(outCsDir, "ComponentBindings.generated.cs"), EmitCSharp(components, enums));
+        WriteIfChanged(Path.Combine(outNativeDir, "ManagedComponentBindings.generated.cpp"), EmitNativeCpp(bindings, enumByName));
+        WriteIfChanged(Path.Combine(outNativeDir, "BuiltinComponentRegistry.generated.h"), EmitComponentRegistryHeader());
+        WriteIfChanged(Path.Combine(outNativeDir, "BuiltinComponentRegistry.generated.cpp"), EmitComponentRegistryCpp(components));
+        WriteIfChanged(Path.Combine(outNativeDir, "ManagedNativeApiFields.generated.inl"), EmitNativeApiFields(abiFields));
+        WriteIfChanged(Path.Combine(outCsDir, "ComponentBindings.generated.cs"), EmitCSharp(bindings, components, enums));
+        WriteIfChanged(Path.Combine(outCsDir, "NativeApiTable.generated.cs"), EmitManagedApiTable(abiFields));
 
-        Console.WriteLine($"[ComponentBindingGen] done. enums={enums.Count} components={components.Count}");
+        Console.WriteLine($"[ComponentBindingGen] done. enums={enums.Count} components={components.Count} bindings={bindings.Count} abi={abiFields.Count}");
         return 0;
     }
 
@@ -111,94 +127,33 @@ internal static class Program {
     //	verify（生成せず整合のみ検査する。CI / preflight 用）
     //========================================================================
     private static readonly string[] AllowedExposure = {
-        "GeneratedBinding", "HandwrittenFacade", "RuntimeCommand", "RuntimeEvent", "InternalOnly", "ReviewCandidate",
+        "GeneratedBinding", "HandwrittenFacade", "RuntimeCommand", "RuntimeEvent", "InternalOnly",
     };
 
-    private static int Verify(string metadataPath, string? inventoryPath, string? registryPath,
-        string outNativeDir, string outCsDir, List<EnumModel> enums, List<ComponentModel> components) {
+    private static int Verify(string outNativeDir, string outCsDir, List<EnumModel> enums,
+        List<ComponentModel> components, List<ComponentModel> bindings, List<AbiFieldModel> abiFields) {
 
         int problems = 0;
         void Fail(string message) { ++problems; Console.Error.WriteLine($"[verify] {message}"); }
 
-        if (inventoryPath == null || !File.Exists(inventoryPath)) {
-            Console.Error.WriteLine($"[ComponentBindingGen] verify requires --inventory <json> (got: {inventoryPath ?? "null"})");
-            return 1;
-        }
-
-        // --- inventory を読む ---
-        var inventoryExposure = new Dictionary<string, string>(StringComparer.Ordinal);
-        int reviewCandidates = 0;
-        using (JsonDocument inv = JsonDocument.Parse(File.ReadAllText(inventoryPath))) {
-            JsonElement root = inv.RootElement;
-            int sv = root.TryGetProperty("schemaVersion", out JsonElement svEl) ? svEl.GetInt32() : 0;
-            if (sv != SupportedSchemaVersion) {
-                Fail($"inventory schemaVersion {sv} (expected {SupportedSchemaVersion}).");
-            }
-            if (root.TryGetProperty("components", out JsonElement comps) && comps.ValueKind == JsonValueKind.Array) {
-                foreach (JsonElement c in comps.EnumerateArray()) {
-                    string name = Str(c, "nativeName");
-                    string exposure = Str(c, "exposure");
-                    if (string.IsNullOrEmpty(name)) { Fail("inventory entry missing nativeName."); continue; }
-                    if (inventoryExposure.ContainsKey(name)) { Fail($"inventory duplicate nativeName '{name}'."); continue; }
-                    if (Array.IndexOf(AllowedExposure, exposure) < 0) {
-                        Fail($"inventory '{name}': invalid exposure '{exposure}'.");
-                    }
-                    if (exposure == "ReviewCandidate") { ++reviewCandidates; }
-                    inventoryExposure[name] = exposure;
-                }
-            }
-        }
-
-        // --- 完了 gate: ReviewCandidate が残っていない ---
-        if (reviewCandidates > 0) {
-            Fail($"{reviewCandidates} ReviewCandidate component(s) remain; must be 0 at completion gate.");
-        }
-
-        // --- registry 完全性: 全 registered component が inventory にある ---
-        if (registryPath != null && File.Exists(registryPath)) {
-            foreach (string line in File.ReadAllLines(registryPath)) {
-                string name = line.Trim();
-                if (name.Length == 0) { continue; }
-                if (!inventoryExposure.ContainsKey(name)) {
-                    Fail($"registered component '{name}' is missing from inventory.");
-                }
-            }
-        } else {
-            Console.WriteLine("[verify] note: --registry 未指定。registry 完全性 cross-check は skip（inventory を正とする）。");
-        }
-
-        // --- schema(GeneratedBinding) と inventory の双方向対応 ---
-        var schemaNames = new HashSet<string>(components.Select(c => c.RegistryName), StringComparer.Ordinal);
-        foreach (string schemaName in schemaNames) {
-            if (!inventoryExposure.TryGetValue(schemaName, out string? exposure)) {
-                Fail($"schema component '{schemaName}' not found in inventory.");
-            } else if (exposure != "GeneratedBinding") {
-                Fail($"schema component '{schemaName}' is classified '{exposure}' in inventory (must be GeneratedBinding).");
-            }
-        }
-        foreach (KeyValuePair<string, string> kv in inventoryExposure) {
-            if (kv.Value == "GeneratedBinding" && !schemaNames.Contains(kv.Key)) {
-                Fail($"inventory '{kv.Key}' is GeneratedBinding but absent from generated schema.");
-            }
-        }
-
-        // --- generated 出力の drift 検査（再生成して既存ファイルと比較） ---
         enums.Sort((a, b) => string.CompareOrdinal(a.ManagedType, b.ManagedType));
-        components.Sort((a, b) => string.CompareOrdinal(a.RegistryName, b.RegistryName));
-        foreach (ComponentModel c in components) {
+        components.Sort((a, b) => a.Id.CompareTo(b.Id));
+        bindings.Sort((a, b) => string.CompareOrdinal(a.RegistryName, b.RegistryName));
+        foreach (ComponentModel c in bindings) {
             c.Properties.Sort((a, b) => string.CompareOrdinal(a.ManagedName, b.ManagedName));
         }
         var enumByName = new Dictionary<string, EnumModel>(StringComparer.Ordinal);
         foreach (EnumModel e in enums) enumByName[e.ManagedType] = e;
 
         CheckDrift(Path.Combine(outNativeDir, "ManagedComponentBindings.generated.h"), EmitNativeHeader(), Fail);
-        CheckDrift(Path.Combine(outNativeDir, "ManagedComponentBindings.generated.cpp"), EmitNativeCpp(components, enumByName), Fail);
-        CheckDrift(Path.Combine(outCsDir, "ComponentBindings.generated.cs"), EmitCSharp(components, enums), Fail);
+        CheckDrift(Path.Combine(outNativeDir, "ManagedComponentBindings.generated.cpp"), EmitNativeCpp(bindings, enumByName), Fail);
+        CheckDrift(Path.Combine(outNativeDir, "BuiltinComponentRegistry.generated.h"), EmitComponentRegistryHeader(), Fail);
+        CheckDrift(Path.Combine(outNativeDir, "BuiltinComponentRegistry.generated.cpp"), EmitComponentRegistryCpp(components), Fail);
+        CheckDrift(Path.Combine(outNativeDir, "ManagedNativeApiFields.generated.inl"), EmitNativeApiFields(abiFields), Fail);
+        CheckDrift(Path.Combine(outCsDir, "ComponentBindings.generated.cs"), EmitCSharp(bindings, components, enums), Fail);
+        CheckDrift(Path.Combine(outCsDir, "NativeApiTable.generated.cs"), EmitManagedApiTable(abiFields), Fail);
 
-        // --- C++/C# ABI 整合: property id（model index）と kind/operation が両出力で同一であることを保証する。
-        // 両者は同一 ComponentModel から index 順で emit されるため、ここでは model 側の決定性（重複 index 無し・
-        // 既知 kind）を確認する（unknown kind は LoadAndValidate で既に失敗）。
-        foreach (ComponentModel c in components) {
+        foreach (ComponentModel c in bindings) {
             for (int p = 0; p < c.Properties.Count; ++p) {
                 if (!IsKnownKind(c.Properties[p].Kind)) {
                     Fail($"{c.ManagedType}.{c.Properties[p].ManagedName}: unsupported kind '{c.Properties[p].Kind}'.");
@@ -210,7 +165,7 @@ internal static class Program {
             Console.Error.WriteLine($"[ComponentBindingGen] verify FAILED with {problems} problem(s).");
             return 1;
         }
-        Console.WriteLine($"[ComponentBindingGen] verify OK. inventory={inventoryExposure.Count} schema={schemaNames.Count} reviewCandidates=0");
+        Console.WriteLine($"[ComponentBindingGen] verify OK. components={components.Count} bindings={bindings.Count} abi={abiFields.Count}");
         return 0;
     }
 
@@ -233,72 +188,46 @@ internal static class Program {
             Directory.CreateDirectory(nativeDir);
             Directory.CreateDirectory(csDir);
 
-            // --- 最小の整合した schema / inventory / registry / generated 出力を用意する ---
-            const string goodSchema = @"{ ""schemaVersion"": 1, ""enums"": [], ""components"": [
-                { ""registryName"": ""TestComp"", ""nativeType"": ""TestComponent"", ""nativeHeader"": ""Engine/Test.h"",
-                  ""managedType"": ""TestComp"", ""properties"": [
+            const string goodManifest = @"{ ""schemaVersion"": 2, ""enums"": [], ""components"": [
+                { ""id"": 0, ""registryName"": ""TestComp"", ""nativeType"": ""TestComponent"", ""nativeHeader"": ""Engine/Test.h"",
+                  ""exposure"": ""GeneratedBinding"", ""managedType"": ""TestComp"", ""properties"": [
                     { ""managedName"": ""Target"", ""nativeMember"": ""target"", ""kind"": ""EntityRef"" },
                     { ""managedName"": ""Value"", ""nativeMember"": ""value"", ""kind"": ""Float"" } ] } ] }";
-            const string goodInventory = @"{ ""schemaVersion"": 1, ""components"": [ { ""nativeName"": ""TestComp"", ""exposure"": ""GeneratedBinding"" } ] }";
+            const string goodAbi = @"{ ""schemaVersion"": 1, ""functions"": [
+                { ""name"": ""test"", ""nativeType"": ""TestCallback"", ""managedType"": ""delegate* unmanaged[Cdecl]<int>"" } ] }";
 
-            string schemaPath = Path.Combine(temp, "schema.json");
-            string invPath = Path.Combine(temp, "inventory.json");
-            string regPath = Path.Combine(temp, "registry.txt");
-            File.WriteAllText(schemaPath, goodSchema);
-            File.WriteAllText(invPath, goodInventory);
-            File.WriteAllText(regPath, "TestComp\n");
+            string manifestPath = Path.Combine(temp, "manifest.json");
+            string abiPath = Path.Combine(temp, "abi.json");
+            File.WriteAllText(manifestPath, goodManifest);
+            File.WriteAllText(abiPath, goodAbi);
 
-            // generated 出力を emit して temp へ置く（drift 無しの基準）
-            GenerateForSelfTest(schemaPath, nativeDir, csDir);
+            GenerateForSelfTest(manifestPath, abiPath, nativeDir, csDir);
             Expect("EntityRef native dispatch generated",
                 File.ReadAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp")).Contains("SceneObjectUtility::FindByLocalFileID"));
             Expect("EntityRef managed property generated",
                 File.ReadAllText(Path.Combine(csDir, "ComponentBindings.generated.cs")).Contains("public Entity Target"));
+            Expect("native registration generated",
+                File.ReadAllText(Path.Combine(nativeDir, "BuiltinComponentRegistry.generated.cpp")).Contains("Register<TestComponent>(0"));
+            Expect("managed ABI generated",
+                File.ReadAllText(Path.Combine(csDir, "NativeApiTable.generated.cs")).Contains("delegate* unmanaged[Cdecl]<int> test"));
 
-            // positive: 全て整合 → verify は 0
-            Expect("positive verify passes", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) == 0);
+            Expect("positive verify passes", RunVerify(manifestPath, abiPath, nativeDir, csDir) == 0);
 
-            // negative: registry に inventory 欠落 component
-            File.WriteAllText(regPath, "TestComp\nMissingComp\n");
-            Expect("registry missing component fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
-            File.WriteAllText(regPath, "TestComp\n");
+            File.WriteAllText(manifestPath, @"{ ""schemaVersion"": 2, ""enums"": [], ""components"": [
+                { ""id"": 1, ""registryName"": ""TestComp"", ""nativeType"": ""TestComponent"", ""nativeHeader"": ""Engine/Test.h"",
+                  ""exposure"": ""GeneratedBinding"", ""managedType"": ""TestComp"", ""properties"": [] } ] }");
+            Expect("non-contiguous component id fails", RunVerify(manifestPath, abiPath, nativeDir, csDir) != 0);
 
-            // negative: inventory 重複
-            File.WriteAllText(invPath, @"{ ""schemaVersion"": 1, ""components"": [
-                { ""nativeName"": ""TestComp"", ""exposure"": ""GeneratedBinding"" },
-                { ""nativeName"": ""TestComp"", ""exposure"": ""InternalOnly"" } ] }");
-            Expect("inventory duplicate fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
+            File.WriteAllText(manifestPath, goodManifest);
+            File.WriteAllText(abiPath, @"{ ""schemaVersion"": 1, ""functions"": [
+                { ""name"": ""test"", ""nativeType"": ""TestCallback"", ""managedType"": ""delegate* unmanaged[Cdecl]<int>"" },
+                { ""name"": ""test"", ""nativeType"": ""TestCallback"", ""managedType"": ""delegate* unmanaged[Cdecl]<int>"" } ] }");
+            Expect("duplicate ABI field fails", RunVerify(manifestPath, abiPath, nativeDir, csDir) != 0);
 
-            // negative: ReviewCandidate 残存
-            File.WriteAllText(invPath, @"{ ""schemaVersion"": 1, ""components"": [
-                { ""nativeName"": ""TestComp"", ""exposure"": ""GeneratedBinding"" },
-                { ""nativeName"": ""OtherComp"", ""exposure"": ""ReviewCandidate"" } ] }");
-            Expect("ReviewCandidate present fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
-
-            // negative: inventory に GeneratedBinding だが schema に無い
-            File.WriteAllText(invPath, @"{ ""schemaVersion"": 1, ""components"": [
-                { ""nativeName"": ""TestComp"", ""exposure"": ""GeneratedBinding"" },
-                { ""nativeName"": ""OnlyInv"", ""exposure"": ""GeneratedBinding"" } ] }");
-            Expect("inventory GeneratedBinding absent from schema fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
-
-            // negative: schema component が inventory に無い（inventory を good に戻し schema に追加）
-            File.WriteAllText(invPath, goodInventory);
-            File.WriteAllText(schemaPath, @"{ ""schemaVersion"": 1, ""enums"": [], ""components"": [
-                { ""registryName"": ""TestComp"", ""nativeType"": ""TestComponent"", ""nativeHeader"": ""Engine/Test.h"", ""managedType"": ""TestComp"", ""properties"": [ { ""managedName"": ""Value"", ""nativeMember"": ""value"", ""kind"": ""Float"" } ] },
-                { ""registryName"": ""ExtraComp"", ""nativeType"": ""ExtraComponent"", ""nativeHeader"": ""Engine/Extra.h"", ""managedType"": ""ExtraComp"", ""properties"": [] } ] }");
-            GenerateForSelfTest(schemaPath, nativeDir, csDir); // drift を避けるため再生成してから検査
-            Expect("schema component absent from inventory fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
-
-            // negative: unsupported field kind は load で失敗
-            File.WriteAllText(schemaPath, @"{ ""schemaVersion"": 1, ""enums"": [], ""components"": [
-                { ""registryName"": ""TestComp"", ""nativeType"": ""TestComponent"", ""nativeHeader"": ""Engine/Test.h"", ""managedType"": ""TestComp"", ""properties"": [ { ""managedName"": ""Value"", ""nativeMember"": ""value"", ""kind"": ""Bogus"" } ] } ] }");
-            Expect("unsupported field kind fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
-
-            // negative: generated drift（schema を good に戻し、生成物を破壊する）
-            File.WriteAllText(schemaPath, goodSchema);
-            GenerateForSelfTest(schemaPath, nativeDir, csDir);
+            File.WriteAllText(abiPath, goodAbi);
+            GenerateForSelfTest(manifestPath, abiPath, nativeDir, csDir);
             File.AppendAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp"), "\n// drifted\n");
-            Expect("generated drift fails", RunVerify(schemaPath, invPath, regPath, nativeDir, csDir) != 0);
+            Expect("generated drift fails", RunVerify(manifestPath, abiPath, nativeDir, csDir) != 0);
         }
         finally {
             try { Directory.Delete(temp, true); } catch { /* best effort cleanup */ }
@@ -310,27 +239,35 @@ internal static class Program {
     }
 
     // selftest 用: schema を読み直して generated 出力を temp へ書く（errorCount を独立に扱う）
-    private static void GenerateForSelfTest(string schemaPath, string nativeDir, string csDir) {
+    private static void GenerateForSelfTest(string manifestPath, string abiPath, string nativeDir, string csDir) {
         errorCount = 0;
-        (List<EnumModel> enums, List<ComponentModel> components) = LoadAndValidate(schemaPath);
+        (List<EnumModel> enums, List<ComponentModel> components) = LoadAndValidate(manifestPath);
+        List<AbiFieldModel> abiFields = LoadAndValidateAbi(abiPath);
+        List<ComponentModel> bindings = components.Where(component => component.Exposure == "GeneratedBinding").ToList();
         enums.Sort((a, b) => string.CompareOrdinal(a.ManagedType, b.ManagedType));
-        components.Sort((a, b) => string.CompareOrdinal(a.RegistryName, b.RegistryName));
-        foreach (ComponentModel c in components) c.Properties.Sort((a, b) => string.CompareOrdinal(a.ManagedName, b.ManagedName));
+        components.Sort((a, b) => a.Id.CompareTo(b.Id));
+        bindings.Sort((a, b) => string.CompareOrdinal(a.RegistryName, b.RegistryName));
+        foreach (ComponentModel c in bindings) c.Properties.Sort((a, b) => string.CompareOrdinal(a.ManagedName, b.ManagedName));
         var enumByName = new Dictionary<string, EnumModel>(StringComparer.Ordinal);
         foreach (EnumModel e in enums) enumByName[e.ManagedType] = e;
         File.WriteAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.h"), EmitNativeHeader().Replace("\n", Environment.NewLine));
-        File.WriteAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp"), EmitNativeCpp(components, enumByName).Replace("\n", Environment.NewLine));
-        File.WriteAllText(Path.Combine(csDir, "ComponentBindings.generated.cs"), EmitCSharp(components, enums).Replace("\n", Environment.NewLine));
+        File.WriteAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp"), EmitNativeCpp(bindings, enumByName).Replace("\n", Environment.NewLine));
+        File.WriteAllText(Path.Combine(nativeDir, "BuiltinComponentRegistry.generated.h"), EmitComponentRegistryHeader().Replace("\n", Environment.NewLine));
+        File.WriteAllText(Path.Combine(nativeDir, "BuiltinComponentRegistry.generated.cpp"), EmitComponentRegistryCpp(components).Replace("\n", Environment.NewLine));
+        File.WriteAllText(Path.Combine(nativeDir, "ManagedNativeApiFields.generated.inl"), EmitNativeApiFields(abiFields).Replace("\n", Environment.NewLine));
+        File.WriteAllText(Path.Combine(csDir, "ComponentBindings.generated.cs"), EmitCSharp(bindings, components, enums).Replace("\n", Environment.NewLine));
+        File.WriteAllText(Path.Combine(csDir, "NativeApiTable.generated.cs"), EmitManagedApiTable(abiFields).Replace("\n", Environment.NewLine));
     }
 
-    // selftest 用: load + verify を 1 回実行し exit code を返す（errorCount は独立に reset）
-    private static int RunVerify(string schemaPath, string invPath, string regPath, string nativeDir, string csDir) {
+    private static int RunVerify(string manifestPath, string abiPath, string nativeDir, string csDir) {
         errorCount = 0;
-        (List<EnumModel> enums, List<ComponentModel> components) = LoadAndValidate(schemaPath);
+        (List<EnumModel> enums, List<ComponentModel> components) = LoadAndValidate(manifestPath);
+        List<AbiFieldModel> abiFields = LoadAndValidateAbi(abiPath);
         if (errorCount > 0) {
-            return 1; // schema load 自体の失敗（unsupported kind 等）
+            return 1;
         }
-        return Verify(schemaPath, invPath, regPath, nativeDir, csDir, enums, components);
+        List<ComponentModel> bindings = components.Where(component => component.Exposure == "GeneratedBinding").ToList();
+        return Verify(nativeDir, csDir, enums, components, bindings, abiFields);
     }
 
     private static void CheckDrift(string path, string expected, Action<string> fail) {
@@ -378,19 +315,32 @@ internal static class Program {
 
         var componentKeys = new HashSet<string>(StringComparer.Ordinal);
         var managedTypes = new HashSet<string>(StringComparer.Ordinal);
+        var componentIds = new HashSet<int>();
         if (root.TryGetProperty("components", out JsonElement compsEl) && compsEl.ValueKind == JsonValueKind.Array) {
             foreach (JsonElement c in compsEl.EnumerateArray()) {
                 var model = new ComponentModel {
+                    Id = c.TryGetProperty("id", out JsonElement id) ? id.GetInt32() : -1,
                     RegistryName = Str(c, "registryName"),
                     NativeType = Str(c, "nativeType"),
                     NativeHeader = Str(c, "nativeHeader"),
+                    Exposure = Str(c, "exposure"),
                     ManagedType = Str(c, "managedType"),
+                    ManagedFactory = c.TryGetProperty("managedFactory", out JsonElement mf) && mf.GetBoolean(),
                     AllowAdd = !c.TryGetProperty("allowAdd", out JsonElement aa) || aa.GetBoolean(),
                     AllowRemove = !c.TryGetProperty("allowRemove", out JsonElement ar) || ar.GetBoolean(),
                 };
+                if (model.Id < 0) Error($"{model.RegistryName}: component id must be non-negative.");
+                if (!componentIds.Add(model.Id)) Error($"duplicate component id '{model.Id}'.");
                 if (string.IsNullOrEmpty(model.RegistryName)) Error("component missing registryName.");
+                if (string.IsNullOrEmpty(model.NativeType)) Error($"{model.RegistryName}: nativeType is required.");
+                if (string.IsNullOrEmpty(model.NativeHeader)) Error($"{model.RegistryName}: nativeHeader is required.");
+                if (Array.IndexOf(AllowedExposure, model.Exposure) < 0)
+                    Error($"{model.RegistryName}: invalid exposure '{model.Exposure}'.");
                 if (!componentKeys.Add(model.RegistryName)) Error($"duplicate component registryName '{model.RegistryName}'.");
-                if (!managedTypes.Add(model.ManagedType)) Error($"duplicate managed wrapper type '{model.ManagedType}'.");
+                if (!string.IsNullOrEmpty(model.ManagedType) && !managedTypes.Add(model.ManagedType))
+                    Error($"duplicate managed wrapper type '{model.ManagedType}'.");
+                if (model.Exposure == "GeneratedBinding" && string.IsNullOrEmpty(model.ManagedType))
+                    Error($"{model.RegistryName}: GeneratedBinding requires managedType.");
 
                 var propNames = new HashSet<string>(StringComparer.Ordinal);
                 if (c.TryGetProperty("properties", out JsonElement props) && props.ValueKind == JsonValueKind.Array) {
@@ -418,7 +368,49 @@ internal static class Program {
                 components.Add(model);
             }
         }
+
+        components.Sort((a, b) => a.Id.CompareTo(b.Id));
+        for (int i = 0; i < components.Count; ++i) {
+            if (components[i].Id != i) {
+                Error($"component ids must be contiguous from 0. expected={i} actual={components[i].Id}.");
+            }
+        }
         return (enums, components);
+    }
+
+    private static List<AbiFieldModel> LoadAndValidateAbi(string path) {
+
+        var fields = new List<AbiFieldModel>();
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement root = doc.RootElement;
+        int schema = root.TryGetProperty("schemaVersion", out JsonElement sv) ? sv.GetInt32() : 0;
+        if (schema != 1) {
+            Error($"unsupported ABI schemaVersion {schema} (expected 1).");
+        }
+
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        if (root.TryGetProperty("functions", out JsonElement entries) && entries.ValueKind == JsonValueKind.Array) {
+            foreach (JsonElement entry in entries.EnumerateArray()) {
+                var field = new AbiFieldModel {
+                    Name = Str(entry, "name"),
+                    NativeType = Str(entry, "nativeType"),
+                    ManagedType = Str(entry, "managedType"),
+                };
+                if (string.IsNullOrEmpty(field.Name) ||
+                    string.IsNullOrEmpty(field.NativeType) ||
+                    string.IsNullOrEmpty(field.ManagedType)) {
+                    Error("ABI function requires name, nativeType and managedType.");
+                }
+                if (!names.Add(field.Name)) {
+                    Error($"duplicate ABI field '{field.Name}'.");
+                }
+                fields.Add(field);
+            }
+        }
+        if (fields.Count == 0) {
+            Error("ABI schema has no functions.");
+        }
+        return fields;
     }
 
     private static bool IsKnownKind(string kind) {
@@ -483,7 +475,6 @@ internal static class Program {
         sb.Append(NativeBanner());
         sb.Append("#include \"ManagedComponentBindings.generated.h\"\n\n");
         sb.Append("#include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>\n");
-        sb.Append("#include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>\n");
         sb.Append("#include <Engine/Core/Foundation/Identity/UUID.h>\n");
         if (components.SelectMany(c => c.Properties).Any(p => p.Kind == "EntityRef")) {
             sb.Append("#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>\n");
@@ -492,25 +483,17 @@ internal static class Program {
         foreach (string header in components.Select(c => c.NativeHeader).Where(h => !string.IsNullOrEmpty(h)).Distinct().OrderBy(h => h, StringComparer.Ordinal)) {
             sb.Append($"#include <{header}>\n");
         }
-        sb.Append("\n#include <cstring>\n#include <vector>\n\n");
+        sb.Append("\n#include <cstring>\n\n");
         sb.Append("namespace Engine::GeneratedComponentBindings {\n\n");
 
-        // typeId -> binding index の遅延マップ（ECS の compact id は engine セッション固定）
         sb.Append("\tnamespace {\n\n");
-        sb.Append("\t\tstd::vector<int32_t> g_bindingByTypeId;\n");
-        sb.Append("\t\tbool g_idMapBuilt = false;\n\n");
-        sb.Append("\t\tvoid EnsureIdMap() {\n");
-        sb.Append("\t\t\tif (g_idMapBuilt) { return; }\n");
-        sb.Append("\t\t\tauto& registry = ComponentTypeRegistry::GetInstance();\n");
-        sb.Append("\t\t\tg_bindingByTypeId.assign(registry.GetComponentTypeCount(), -1);\n");
+        sb.Append("\t\tint32_t BindingIndexOf(int32_t typeID) {\n");
+        sb.Append("\t\t\tswitch (typeID) {\n");
         for (int i = 0; i < components.Count; ++i) {
-            sb.Append($"\t\t\tif (const ComponentTypeInfo* info = registry.FindByName(\"{components[i].RegistryName}\")) {{ if (info->id < g_bindingByTypeId.size()) g_bindingByTypeId[info->id] = {i}; }}\n");
+            sb.Append($"\t\t\tcase {components[i].Id}: return {i};\n");
         }
-        sb.Append("\t\t\tg_idMapBuilt = true;\n");
-        sb.Append("\t\t}\n\n");
-        sb.Append("\t\tint32_t BindingIndexOf(int32_t typeId) {\n");
-        sb.Append("\t\t\tEnsureIdMap();\n");
-        sb.Append("\t\t\treturn (typeId >= 0 && static_cast<size_t>(typeId) < g_bindingByTypeId.size()) ? g_bindingByTypeId[typeId] : -1;\n");
+        sb.Append("\t\t\tdefault: return -1;\n");
+        sb.Append("\t\t\t}\n");
         sb.Append("\t\t}\n\n");
 
         // 各 component の get/set/str ハンドラ
@@ -740,10 +723,64 @@ internal static class Program {
         sb.Append("\t\t}\n\t}\n\n");
     }
 
+    private static string EmitComponentRegistryHeader() {
+        var sb = new StringBuilder();
+        sb.Append(NativeBanner());
+        sb.Append("#pragma once\n\n");
+        sb.Append("namespace Engine {\n\n");
+        sb.Append("\tclass ComponentTypeRegistry;\n\n");
+        sb.Append("\t// ComponentManifestの固定ID順で組込みComponentを明示登録する\n");
+        sb.Append("\tvoid RegisterBuiltinComponents(ComponentTypeRegistry& registry);\n\n");
+        sb.Append("} // Engine\n");
+        return sb.ToString();
+    }
+
+    private static string EmitComponentRegistryCpp(List<ComponentModel> components) {
+        var sb = new StringBuilder();
+        sb.Append(NativeBanner());
+        sb.Append("#include \"BuiltinComponentRegistry.generated.h\"\n\n");
+        sb.Append("#include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>\n");
+        foreach (string header in components.Select(component => component.NativeHeader)
+            .Distinct().OrderBy(header => header, StringComparer.Ordinal)) {
+            sb.Append($"#include <{header}>\n");
+        }
+        sb.Append("\nvoid Engine::RegisterBuiltinComponents(ComponentTypeRegistry& registry) {\n\n");
+        foreach (ComponentModel component in components) {
+            sb.Append($"\tregistry.Register<{component.NativeType}>({component.Id}, \"{component.RegistryName}\");\n");
+        }
+        sb.Append("}\n");
+        return sb.ToString();
+    }
+
+    private static string EmitNativeApiFields(List<AbiFieldModel> fields) {
+        var sb = new StringBuilder();
+        sb.Append("// AUTO-GENERATED FROM ManagedNativeApi.json\n");
+        foreach (AbiFieldModel field in fields) {
+            sb.Append($"\t\t{field.NativeType} {field.Name} = nullptr;\n");
+        }
+        return sb.ToString();
+    }
+
+    private static string EmitManagedApiTable(List<AbiFieldModel> fields) {
+        var sb = new StringBuilder();
+        sb.Append(CsBanner());
+        sb.Append("using System.Runtime.InteropServices;\n\n");
+        sb.Append("namespace NEMEngine;\n\n");
+        sb.Append("[StructLayout(LayoutKind.Sequential)]\n");
+        sb.Append("public unsafe struct NativeApiTable {\n\n");
+        sb.Append("    public ManagedAbiHeader header;\n");
+        foreach (AbiFieldModel field in fields) {
+            sb.Append($"    public {field.ManagedType} {field.Name};\n");
+        }
+        sb.Append("}\n");
+        return sb.ToString();
+    }
+
     //========================================================================
     //	emit C#
     //========================================================================
-    private static string EmitCSharp(List<ComponentModel> components, List<EnumModel> enums) {
+    private static string EmitCSharp(List<ComponentModel> components,
+        List<ComponentModel> allComponents, List<EnumModel> enums) {
         var sb = new StringBuilder();
         sb.Append(CsBanner());
         sb.Append("namespace NEMEngine;\n\n");
@@ -762,14 +799,35 @@ internal static class Program {
             sb.Append($"// {comp.NativeType} の調整可能 property を公開する wrapper（owner Entity の opaque handle のみ保持）\n");
             sb.Append($"public sealed unsafe partial class {comp.ManagedType} : Component, IComponentRef<{comp.ManagedType}> {{\n\n");
             sb.Append($"    internal {comp.ManagedType}(Entity entity) {{ this.entity = entity; }}\n\n");
-            sb.Append($"    public static string componentTypeName => \"{comp.RegistryName}\";\n");
+            sb.Append($"    public static int componentTypeID => {comp.Id};\n");
             sb.Append($"    public static {comp.ManagedType} FromEntity(Entity entity) => new(entity);\n\n");
-            sb.Append("    private int TypeId => ComponentType<" + comp.ManagedType + ">.Id;\n\n");
+            sb.Append($"    private const int TypeId = {comp.Id};\n\n");
             for (int p = 0; p < comp.Properties.Count; ++p) {
                 EmitCsProperty(sb, comp.Properties[p], p);
             }
             sb.Append("}\n\n");
         }
+
+        List<ComponentModel> factories = allComponents
+            .Where(component => !string.IsNullOrEmpty(component.ManagedType) &&
+                (component.Exposure == "GeneratedBinding" || component.ManagedFactory))
+            .OrderBy(component => component.Id)
+            .ToList();
+
+        sb.Append("internal static class GeneratedComponentTypeMap {\n\n");
+        sb.Append("    internal static int GetTypeID<T>() where T : Component {\n");
+        foreach (ComponentModel component in factories) {
+            sb.Append($"        if (typeof(T) == typeof({component.ManagedType})) return {component.Id};\n");
+        }
+        sb.Append("        return -1;\n");
+        sb.Append("    }\n\n");
+        sb.Append("    internal static T? Create<T>(Entity entity) where T : Component {\n");
+        foreach (ComponentModel component in factories) {
+            sb.Append($"        if (typeof(T) == typeof({component.ManagedType})) return (T)(Component)new {component.ManagedType}(entity);\n");
+        }
+        sb.Append("        return null;\n");
+        sb.Append("    }\n");
+        sb.Append("}\n");
         return sb.ToString();
     }
 
@@ -831,7 +889,7 @@ internal static class Program {
                "//\tAUTO-GENERATED FILE - DO NOT EDIT MANUALLY\n" +
                $"//\tgenerator: NEM.ComponentBindingGen v{GeneratorVersion}\n" +
                $"//\tmetadata schemaVersion: {SupportedSchemaVersion}\n" +
-               "//\t編集する場合は ManagedComponentBindings.json を更新して generate_vs2026.bat を再実行する\n" +
+               "//\t編集する場合は ComponentManifest.json または ManagedNativeApi.json を更新して再生成する\n" +
                "//============================================================================\n";
     }
     private static string CsBanner() {

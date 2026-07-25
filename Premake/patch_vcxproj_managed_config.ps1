@@ -114,13 +114,13 @@ $preBuildCommand = @(
 # $RepoRootFromProject でリポジトリルートまで遡ってから絶対的な配置に解決する。
 # 末尾の\有無に依存しないよう正規化し、区切りはここで明示的に付与する
 $repoRoot = '$(ProjectDir)' + $RepoRootFromProject.TrimEnd('\')
-$generatedBinDll = $repoRoot + '\Generated\Bin\$(Configuration)\NEMEngine\NEMEngine.dll'
+$generatedBinDll = $repoRoot + '\Generated\Bin\$(Configuration)\NEMRuntime\NEMRuntime.dll'
 $winPixDll = $repoRoot + '\Project\Externals\WinPixEventRuntime\bin\x64\WinPixEventRuntime.dll'
 $nethostDll = $repoRoot + '\Project\Externals\dotnet-hosting\bin\x64\nethost.dll'
 
 $postBuildCommand = @(
-    # NEMEngine.dll を実行ファイル横へ配置する（in-repo は Generated/Bin から、利用側はimport lib参照のみ）
-    ('if exist "' + $generatedBinDll + '" copy /Y "' + $generatedBinDll + '" "$(TargetDir)NEMEngine.dll"'),
+    # NEMRuntime.dll を実行ファイル横へ配置する（in-repo は Generated/Bin から、利用側はimport lib参照のみ）
+    ('if exist "' + $generatedBinDll + '" copy /Y "' + $generatedBinDll + '" "$(TargetDir)NEMRuntime.dll"'),
     'copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"',
     'copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dxil.dll"',
     ('if exist "' + $scriptCoreOutput + '\$(Configuration)\*" xcopy /Y /I "' + $scriptCoreOutput + '\$(Configuration)\*" "$(TargetDir)Managed\"'),

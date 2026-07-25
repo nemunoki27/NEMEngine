@@ -59,5 +59,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, ScreenSpaceOutlineComponent& component);
 	void to_json(nlohmann::json& out, const ScreenSpaceOutlineComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(ScreenSpaceOutlineComponent, "ScreenSpaceOutline");
 } // Engine

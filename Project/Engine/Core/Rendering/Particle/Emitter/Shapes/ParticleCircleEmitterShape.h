@@ -31,12 +31,11 @@ namespace Engine {
 			const ParticleSpawnIndex& spawnIndex) const override;
 		void DrawShape(const ParticleEmitterSettings& settings,
 			const Vector3& center, const Quaternion& rotation, bool is2D) const override;
-		bool DrawImGui(ParticleEmitterSettings& settings) const override;
+		bool DrawImGui(ParticleEmitterSettings& settings) const;
 
 		//--------- accessor -----------------------------------------------------
 
 		bool Supports2D() const override { return true; }
 	};
 
-	ENGINE_REGISTER_PARTICLE_EMITTER_SHAPE(ParticleCircleEmitterShape, ParticleEmitterShape::Circle);
 } // Engine

@@ -254,7 +254,6 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion> GetRotation;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion, void> SetRotation;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3> GetLossyScale;
-    internal static delegate* unmanaged[Cdecl]<byte*, int> GetComponentTypeId;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int> HasComponent;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> AddComponent;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> RemoveComponent;
@@ -428,7 +427,6 @@ internal static unsafe class NativeApi {
         GetRotation = callbacks->getRotation;
         SetRotation = callbacks->setRotation;
         GetLossyScale = callbacks->getLossyScale;
-        GetComponentTypeId = callbacks->getComponentTypeId;
         HasComponent = callbacks->hasComponent;
         AddComponent = callbacks->addComponent;
         RemoveComponent = callbacks->removeComponent;
@@ -879,19 +877,6 @@ internal static unsafe class NativeApi {
 
     internal static Vector3 ReadLossyScale(NativeEntity entity) {
         return GetLossyScale != null ? GetLossyScale(entity).ToVector3() : Vector3.one;
-    }
-
-    // 安定なコンポーネント名から compact な runtime type id を解決する（未登録は -1）。
-    // 呼び出し側(ComponentType<T>)が type ごとに一度だけ呼んでキャッシュする
-    internal static int ResolveComponentTypeId(string componentTypeName) {
-        if (GetComponentTypeId == null || string.IsNullOrEmpty(componentTypeName)) {
-            return -1;
-        }
-        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(componentTypeName) + 1];
-        Encoding.UTF8.GetBytes(componentTypeName, 0, componentTypeName.Length, bytes, 0);
-        fixed (byte* ptr = bytes) {
-            return GetComponentTypeId(ptr);
-        }
     }
 
     internal static bool ReadHasComponent(NativeEntity entity, int typeId) {
@@ -1605,190 +1590,4 @@ internal static unsafe class NativeApi {
         }
         return result;
     }
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public unsafe struct NativeApiTable {
-
-    // 互換性検証用ヘッダ。C++側 ManagedNativeApiTable.header と一致させる
-    public ManagedAbiHeader header;
-
-    public delegate* unmanaged[Cdecl]<float> getDeltaTime;
-    public delegate* unmanaged[Cdecl]<float> getFixedDeltaTime;
-    public delegate* unmanaged[Cdecl]<int, byte*, void> log;
-    public delegate* unmanaged[Cdecl]<int, int> getKey;
-    public delegate* unmanaged[Cdecl]<int, int> getKeyDown;
-    public delegate* unmanaged[Cdecl]<int, int> getKeyUp;
-    public delegate* unmanaged[Cdecl]<int, int> getMouseButton;
-    public delegate* unmanaged[Cdecl]<int, int> getMouseButtonDown;
-    public delegate* unmanaged[Cdecl]<int, int> getMouseButtonUp;
-    public delegate* unmanaged[Cdecl]<NativeVector2> getMousePosition;
-    public delegate* unmanaged[Cdecl]<NativeVector2> getMouseDelta;
-    public delegate* unmanaged[Cdecl]<float> getMouseWheel;
-    public delegate* unmanaged[Cdecl]<int, int> getGamepadButton;
-    public delegate* unmanaged[Cdecl]<int, int> getGamepadButtonDown;
-    public delegate* unmanaged[Cdecl]<int> isGamepadConnected;
-    public delegate* unmanaged[Cdecl]<NativeVector2> getLeftStick;
-    public delegate* unmanaged[Cdecl]<NativeVector2> getRightStick;
-    public delegate* unmanaged[Cdecl]<float> getLeftTrigger;
-    public delegate* unmanaged[Cdecl]<float> getRightTrigger;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int> isAlive;
-    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> copyName;
-    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> setName;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int> getActiveSelf;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> setActiveSelf;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int> getActiveInHierarchy;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity> getParent;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity> getFirstChild;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity> getNextSibling;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity, void> setParent;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3> getPosition;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, void> setPosition;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3> getLocalPosition;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, void> setLocalPosition;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3> getLocalScale;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, void> setLocalScale;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion> getLocalRotation;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion, void> setLocalRotation;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion> getRotation;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion, void> setRotation;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3> getLossyScale;
-    public delegate* unmanaged[Cdecl]<byte*, int> getComponentTypeId;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int> hasComponent;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> addComponent;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> removeComponent;
-    public delegate* unmanaged[Cdecl]<NativeEntity, void> destroyEntity;
-    public delegate* unmanaged[Cdecl]<NativeEntity, ulong, int> getScriptEnabled;
-    public delegate* unmanaged[Cdecl]<NativeEntity, ulong, int, void> setScriptEnabled;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> getComponentProperty;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> setComponentProperty;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int*, int> getComponentStringProperty;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int> setComponentStringProperty;
-    // Gameplay(v7): Time 拡張 / TimeScale / AssetRef 解決（C++ ManagedNativeApiTable と同一順）
-    public delegate* unmanaged[Cdecl]<float> getUnscaledDeltaTime;
-    public delegate* unmanaged[Cdecl]<float> getUnscaledFixedDeltaTime;
-    public delegate* unmanaged[Cdecl]<double> getTimeSinceStartup;
-    public delegate* unmanaged[Cdecl]<double> getUnscaledTime;
-    public delegate* unmanaged[Cdecl]<float> getTimeScale;
-    public delegate* unmanaged[Cdecl]<float, void> setTimeScale;
-    public delegate* unmanaged[Cdecl]<ulong> getFrameCount;
-    public delegate* unmanaged[Cdecl]<ulong, int> assetExists;
-    public delegate* unmanaged[Cdecl]<ulong, byte*, int, int> copyAssetDisplayName;
-    // Gameplay(v7): Entity 生成 / Prefab / Scene / SetParent(worldPositionStays)（C++ ManagedNativeApiTable と同一順）
-    public delegate* unmanaged[Cdecl]<byte*, NativeEntity, NativeEntity> createEntity;
-    public delegate* unmanaged[Cdecl]<ulong, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> instantiatePrefab;
-    public delegate* unmanaged[Cdecl]<ulong, ulong> loadSceneAdditive;
-    public delegate* unmanaged[Cdecl]<ulong, void> unloadScene;
-    public delegate* unmanaged[Cdecl]<ulong, int> isSceneInstanceAlive;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity, int, void> setParentKeepWorld;
-    // Gameplay(v7): raw Input 拡張（C++ ManagedNativeApiTable と同一順）
-    public delegate* unmanaged[Cdecl]<int, int, int> getGamepadButtonIndexed;
-    public delegate* unmanaged[Cdecl]<int, int, int> getGamepadButtonDownIndexed;
-    public delegate* unmanaged[Cdecl]<int, int, int> getGamepadButtonUpIndexed;
-    public delegate* unmanaged[Cdecl]<int, int, float> getGamepadAxis;
-    public delegate* unmanaged[Cdecl]<int, int> isGamepadConnectedIndexed;
-    public delegate* unmanaged[Cdecl]<int> getConnectedGamepadCount;
-    public delegate* unmanaged[Cdecl]<int> getHasFocus;
-    public delegate* unmanaged[Cdecl]<byte*, int, int> copyTextInput;
-    public delegate* unmanaged[Cdecl]<byte*, int, int> copyProjectRoot;
-    // Gameplay(v7): AudioSource gameplay method（C++ ManagedNativeApiTable と同一順）
-    public delegate* unmanaged[Cdecl]<NativeEntity, void> audioPlay;
-    public delegate* unmanaged[Cdecl]<NativeEntity, void> audioPause;
-    public delegate* unmanaged[Cdecl]<NativeEntity, void> audioStop;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int> audioIsPlaying;
-    // Diagnostics(v8): script callback 例外の構造化報告（JSON DTO を 1 件渡す）
-    public delegate* unmanaged[Cdecl]<byte*, void> reportScriptException;
-    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle> getScriptInstance;
-    // AddComponent<Script>(v22): entity へ scriptTypeId の script を runtime attach する
-    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, int> attachScript;
-    // SceneTransition(v10): Scene 単一load（C++ ManagedNativeApiTable と同一順）
-    public delegate* unmanaged[Cdecl]<ulong, ulong> loadSceneSingle;
-    // EntityRef(v11): EntityRef を runtime entity へ解決（C++ ManagedNativeApiTable と同一順）
-    public delegate* unmanaged[Cdecl]<ulong, ulong, NativeEntity> resolveEntityRef;
-    // Line(v12): component 点列設定と即時描画（C++ ManagedNativeApiTable と同一順）
-    public delegate* unmanaged[Cdecl]<NativeEntity, LinePoint*, int, int, void> lineSetPoints;
-    public delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, ulong, void> lineDrawImmediate;
-    public delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, ulong, void> lineDrawSphereImmediate;
-    // Line(v13): component へ1点追加し採番indexを返す/indexの点を更新（C++ ManagedNativeApiTable と同一順）
-    public delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, int> lineAddPoint;
-    public delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, void> lineUpdatePoint;
-    // Tag/Layer/検索(v14): C++ ManagedNativeApiTable と同一順
-    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> copyTag;
-    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> setTag;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int> getVisibilityLayerMask;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> setVisibilityLayerMask;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int> getCollisionTypeMask;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> setCollisionTypeMask;
-    public delegate* unmanaged[Cdecl]<byte*, NativeEntity> findEntityByName;
-    public delegate* unmanaged[Cdecl]<byte*, NativeEntity> findEntityByTag;
-    public delegate* unmanaged[Cdecl]<byte*, NativeEntity*, int, int> findEntitiesByTag;
-    public delegate* unmanaged[Cdecl]<int, NativeEntity> findEntityByComponent;
-    public delegate* unmanaged[Cdecl]<int, NativeEntity*, int, int> findEntitiesByComponent;
-    // Line(v15): 即時形状描画（C++ ManagedNativeApiTable と同一順）
-    public delegate* unmanaged[Cdecl]<NativeLineShape*, void> lineDrawShape;
-    // Transform(v16): 親追従の継承フラグ（回転/スケールを任意で無視、座標は常に追従）
-    public delegate* unmanaged[Cdecl]<NativeEntity, int> getIgnoreParentRotation;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> setIgnoreParentRotation;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int> getIgnoreParentScale;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> setIgnoreParentScale;
-
-    // v17の入力デバイス、入力タイプとマウス範囲制御
-    public delegate* unmanaged[Cdecl]<int> getInputType;
-    public delegate* unmanaged[Cdecl]<int, void> setInputType;
-    public delegate* unmanaged[Cdecl]<int> getMouseRangeControl;
-    public delegate* unmanaged[Cdecl]<int, void> setMouseRangeControl;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, float, float, float, float, void> setRendererMaterialColor;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeColor4> getRendererMaterialColor;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, void> fillMeshSetPositions;
-    // v20: Entityの保存identity(sourceAsset/localFileId/kind)を逆引きする
-    public delegate* unmanaged[Cdecl]<NativeEntity, ulong*, ulong*, int*, void> getEntityReferenceIdentity;
-    // v21: レイキャストとカメラレイとCollisionタイプ名解決
-    public delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int> physicsRaycast;
-    public delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int, int> physicsRaycastAll;
-    public delegate* unmanaged[Cdecl]<float, float, NativeVector3*, NativeVector3*, int> screenPointToRay;
-    public delegate* unmanaged[Cdecl]<NativeVector2*, int> getMousePositionInView;
-    public delegate* unmanaged[Cdecl]<byte*, uint> getCollisionTypeMaskByName;
-    // Easing(v23): EasingType と t からイージング済みの値を返す
-    public delegate* unmanaged[Cdecl]<int, float, float> easedValue;
-    // Collision形状操作: 件数/追加/削除/クリアと、shapeIndex+propIdでのパラメータ読み書き
-    public delegate* unmanaged[Cdecl]<NativeEntity, int> collisionShapeCount;
-    public delegate* unmanaged[Cdecl]<NativeEntity, void> collisionAddShape;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, void> collisionRemoveShapeAt;
-    public delegate* unmanaged[Cdecl]<NativeEntity, void> collisionClearShapes;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> collisionGetShapeProperty;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> collisionSetShapeProperty;
-    // 指定クリップ名のアニメーション合計長
-    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, float> getSkinnedAnimationDuration;
-    // 指定クリップを頭から再生する
-    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> playSkinnedAnimation;
-    // v24: FillMeshRendererComponentの点列取得
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, int, int> fillMeshCopyPositions;
-    // v25: EffectEmitterの発生とハンドルまたはグループ単位の制御
-    public delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeVector3, NativeQuaternion, int, ulong> effectEmit;
-    public delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> effectStop;
-    public delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> effectClear;
-    public delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int> effectIsPlaying;
-    // v26: UI入力によるゲーム入力ブロック状態
-    public delegate* unmanaged[Cdecl]<int> getUIBlocksGameplayInput;
-    // v28: Canvasの操作別入力配列
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, int> canvasCopyInputBindings;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void> canvasSetInputBindings;
-    // v29: Application終了要求
-    public delegate* unmanaged[Cdecl]<void> requestApplicationQuit;
-    // v30: GameViewとCanvas座標変換
-    public delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3*, int> worldToScreenPoint;
-    public delegate* unmanaged[Cdecl]<NativeEntity, NativeVector2, NativeVector2*, int> canvasScreenToLocalPoint;
-    // v31: IrisTransition再生操作
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, float, void> irisTransitionCommand;
-    // v32: AudioSource追加再生操作
-    public delegate* unmanaged[Cdecl]<NativeEntity, ulong, float, void> audioPlayOneShot;
-    public delegate* unmanaged[Cdecl]<NativeEntity, void> audioUnPause;
-    // v33: EffectEmitterのグループとState設定API
-    public delegate* unmanaged[Cdecl]<NativeEntity, int> effectGroupCount;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int> effectStateCount;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, byte*, int, int> effectCopyGroupName;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int> effectCopyStateName;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int> effectSetStateName;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> effectGetStateProperty;
-    public delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> effectSetStateProperty;
 }

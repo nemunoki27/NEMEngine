@@ -35,5 +35,6 @@ void Engine::BuiltinRenderBackendBase::BindMaterial(const RenderDrawContext& con
 
 	BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, pipelineState,
 		material, overrides, perDrawBindCache_, materialParamsCBVSlot_, commandList);
-	BackendDrawCommon::BindMaterialTextures(context, pipelineState, material, commandList, overrides);
+	BackendDrawCommon::BindMaterialTextures(context, pipelineState, materialParamBinder_,
+		material, commandList, overrides);
 }

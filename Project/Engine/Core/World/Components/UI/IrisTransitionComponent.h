@@ -105,5 +105,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, IrisTransitionComponent& component);
 	void to_json(nlohmann::json& out, const IrisTransitionComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(IrisTransitionComponent, "IrisTransition");
 } // Engine

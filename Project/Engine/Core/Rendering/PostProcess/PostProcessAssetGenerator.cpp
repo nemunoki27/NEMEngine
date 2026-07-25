@@ -148,25 +148,6 @@ namespace {
 			data.value("generatedBy", std::string{}) == kGeneratedBy;
 	}
 
-	bool IsLegacyBuiltinGenerated(const nlohmann::json& data) {
-
-		// 以前の自動生成版はgeneratedメタデータを持たない
-		// 手動asset保護を優先し、最低限の既定フィールドだけのものに限定して移行する
-		if (!data.is_object() || data.contains("generated") || data.contains("generatedBy")) {
-			return false;
-		}
-		if (data.contains("stages") && data["stages"].is_array()) {
-			return true;
-		}
-		if (data.contains("variants") && data["variants"].is_array()) {
-			return true;
-		}
-		if (data.contains("domain") && data.contains("passes")) {
-			return true;
-		}
-		return false;
-	}
-
 	bool CanOverwriteAsset(const std::filesystem::path& path) {
 
 		if (!std::filesystem::exists(path)) {
@@ -178,7 +159,7 @@ namespace {
 		if (oldData.is_discarded()) {
 			return false;
 		}
-		return IsGeneratedByThisTool(oldData) || IsLegacyBuiltinGenerated(oldData);
+		return IsGeneratedByThisTool(oldData);
 	}
 
 	void WriteGeneratedJson(const std::filesystem::path& path, const nlohmann::json& data) {

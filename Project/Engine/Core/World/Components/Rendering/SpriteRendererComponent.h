@@ -47,5 +47,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, SpriteRendererComponent& component);
 	void to_json(nlohmann::json& out, const SpriteRendererComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(SpriteRendererComponent, "SpriteRenderer");
 } // Engine

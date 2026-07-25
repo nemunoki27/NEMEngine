@@ -92,8 +92,8 @@ namespace Engine {
 		bool IsInitialized() const { return initialized_; }
 		// Inspector描画用にserialized field schemaを取得する、blobを一度だけparseしてcacheし未解決は空schema
 		const ManagedScriptSchema& GetScriptSchema(const std::string& scriptTypeID);
-		// 任意形式のauthoring serializedFieldsからfieldGuidとvalueの値マップをmigration込みで作る
-		nlohmann::json BuildSerializedValueMap(const std::string& scriptTypeID, const nlohmann::json& serializedFields);
+		// authoring serializedFieldsからfieldGuidとvalueの値マップを作る
+		nlohmann::json BuildSerializedValueMap(const nlohmann::json& serializedFields);
 
 		// Play中runtime Inspector用：instanceの現在値を{ fieldGuid: value }で取得する
 		nlohmann::json GetRuntimeSerializedState(ManagedScriptInstanceHandle handle);
@@ -319,7 +319,6 @@ namespace Engine {
 		static int32_t __cdecl GetIgnoreParentScaleCallback(ManagedNativeEntity entity);
 		static void __cdecl SetIgnoreParentScaleCallback(ManagedNativeEntity entity, int32_t value);
 		// generic component access / Entity破棄/ ScriptBehaviour.Enabled
-		static int32_t __cdecl GetComponentTypeIdCallback(const char* name);
 		static int32_t __cdecl HasComponentCallback(ManagedNativeEntity entity, int32_t typeID);
 		static void __cdecl AddComponentCallback(ManagedNativeEntity entity, int32_t typeID);
 		static void __cdecl RemoveComponentCallback(ManagedNativeEntity entity, int32_t typeID);

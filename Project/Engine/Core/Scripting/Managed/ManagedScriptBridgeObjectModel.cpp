@@ -17,16 +17,6 @@ namespace Engine {
 	//	C#側Entity/IComponentRef/ScriptBehaviour.Enabledから呼ばれる汎用操作
 	//============================================================================
 
-	int32_t ManagedScriptRuntime::GetComponentTypeIdCallback(const char* name) {
-
-		// 安定なコンポーネント名からcompactなruntime type idを一度だけ解決しC#側でキャッシュする、未登録なら-1を返しC#側はHas=false扱いにする
-		if (!name) {
-			return -1;
-		}
-		const ComponentTypeInfo* info = ComponentTypeRegistry::GetInstance().FindByName(name);
-		return info ? static_cast<int32_t>(info->id) : -1;
-	}
-
 	int32_t ManagedScriptRuntime::HasComponentCallback(ManagedNativeEntity entity, int32_t typeID) {
 
 		ECSWorld* world = ResolveWorld(entity);
@@ -34,12 +24,11 @@ namespace Engine {
 		if (!world || !world->IsAlive(resolved) || typeID < 0) {
 			return 0;
 		}
-		auto& registry = ComponentTypeRegistry::GetInstance();
-		if (static_cast<uint32_t>(typeID) >= registry.GetComponentTypeCount()) {
+		const uint32_t componentTypeID = static_cast<uint32_t>(typeID);
+		if (componentTypeID >= ComponentTypeRegistry::GetInstance().GetComponentTypeCount()) {
 			return 0;
 		}
-		// compact idから登録名を引いて存在判定する、O(1)のcomponentマスク照合
-		return world->HasComponent(resolved, registry.GetInfo(static_cast<uint32_t>(typeID)).name) ? 1 : 0;
+		return world->HasComponent(resolved, componentTypeID) ? 1 : 0;
 	}
 
 	void ManagedScriptRuntime::AddComponentCallback(ManagedNativeEntity entity, int32_t typeID) {

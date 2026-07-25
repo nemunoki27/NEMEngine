@@ -285,7 +285,7 @@ void Engine::NodeGraphStyle::FromJson(const nlohmann::json& data) {
 		return;
 	}
 
-	// 保存されていない項目は現在値を維持し、古いConfigでも読み込めるようにする
+	// 保存されていない項目は現在値を維持する
 	ReadVec4(data, "nodePadding", nodePadding);
 	ReadFloat(data, "nodeWidth", nodeWidth);
 	ReadFloat(data, "nodeLabelWidth", nodeLabelWidth);
@@ -304,20 +304,8 @@ void Engine::NodeGraphStyle::FromJson(const nlohmann::json& data) {
 	ReadFloat(data, "flowMarkerDistance", flowMarkerDistance);
 	ReadFloat(data, "flowSpeed", flowSpeed);
 	ReadFloat(data, "flowDuration", flowDuration);
-	if (data.contains("outputPivotAlignment")) {
-		ReadVec2(data, "outputPivotAlignment", outputPivotAlignment);
-	} else {
-		// 旧ConfigのpivotAlignmentは出力Pin用として扱う
-		ReadVec2(data, "pivotAlignment", outputPivotAlignment);
-	}
-
-	if (data.contains("inputPivotAlignment")) {
-		ReadVec2(data, "inputPivotAlignment", inputPivotAlignment);
-	} else {
-		// 入力Pinの既定値は出力PinのXだけ反転して作る
-		inputPivotAlignment.x = -outputPivotAlignment.x;
-		inputPivotAlignment.y = outputPivotAlignment.y;
-	}
+	ReadVec2(data, "outputPivotAlignment", outputPivotAlignment);
+	ReadVec2(data, "inputPivotAlignment", inputPivotAlignment);
 	ReadVec2(data, "pivotSize", pivotSize);
 	ReadVec2(data, "pivotScale", pivotScale);
 	ReadFloat(data, "pinCorners", pinCorners);

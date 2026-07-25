@@ -78,5 +78,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, UISelectableComponent& component);
 	void to_json(nlohmann::json& out, const UISelectableComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(UISelectableComponent, "UISelectable");
 } // Engine

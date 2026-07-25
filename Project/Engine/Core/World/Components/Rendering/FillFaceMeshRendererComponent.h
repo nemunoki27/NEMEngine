@@ -57,5 +57,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, FillMeshRendererComponent& component);
 	void to_json(nlohmann::json& out, const FillMeshRendererComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(FillMeshRendererComponent, "FillMeshRenderer");
 } // Engine

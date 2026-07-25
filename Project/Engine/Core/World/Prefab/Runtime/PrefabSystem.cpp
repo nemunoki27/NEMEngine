@@ -249,7 +249,6 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 	if (!fileJson.is_object() || !fileJson.contains("Entities") || !fileJson["Entities"].is_array()) {
 		return false;
 	}
-	PrefabReferenceRemapper::RepairPrefabFileScriptRefs(fileJson, prefabAsset);
 	PrefabReferenceRemapper::NormalizePrefabFileHierarchy(fileJson);
 	PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(fileJson);
 
@@ -420,7 +419,7 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		}
 	}
 
-	// 複数ルートだった旧プレファブを生成してもバラけず単一ルートにまとまる
+	// Prefabの実体を単一ルートの階層へ揃える
 	if (outResult.root.IsValid()) {
 		for (const Entity& entity : outResult.createdEntities) {
 

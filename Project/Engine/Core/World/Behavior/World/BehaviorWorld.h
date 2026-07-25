@@ -70,12 +70,18 @@ namespace Engine {
 		void Destroy(const BehaviorHandle& handle, ECSWorld& world, const  SystemContext& context);
 		// ビヘイビアの全ての実体を破棄
 		void DestroyAll(ECSWorld& world, const  SystemContext& context);
+		// 指定Entityが所有するビヘイビアを全て破棄
+		uint32_t DestroyByOwner(const Entity& owner, ECSWorld& world, const SystemContext& context);
 
 		// 全てのビヘイビアの実体に対してアクセスされたフラグをクリアする
 		void ClearSeenFlags();
+		// 指定Entityが所有するビヘイビアのアクセスフラグをクリアする
+		void ClearSeenFlagsByOwner(const Entity& owner);
 		// 実体がアクセスされなかったビヘイビアを全てのレコードに対して破棄する
 		// 破棄した件数を返しparticipantキャッシュの再構築要否判定に使う
 		uint32_t SweepUnseen(ECSWorld& world, const SystemContext& context);
+		// 指定Entity内でアクセスされなかったビヘイビアを破棄する
+		uint32_t SweepUnseenByOwner(const Entity& owner, ECSWorld& world, const SystemContext& context);
 
 		// ビヘイビアの実体全てに対して関数を呼び出す
 		template <typename Fn>

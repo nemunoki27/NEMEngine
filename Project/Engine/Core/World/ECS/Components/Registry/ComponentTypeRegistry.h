@@ -5,7 +5,6 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Core/ComponentType.h>
 #include <Engine/Core/World/ECS/Config/ECSConfig.h>
-#include <Engine/Core/Foundation/Identity/TypeID.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 // c++
@@ -25,16 +24,12 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		ComponentTypeRegistry() = default;
+		ComponentTypeRegistry();
 		~ComponentTypeRegistry() = default;
 
-		// コンポーネントの種類を登録
+		// Manifestで指定された固定IDへコンポーネントの種類を登録
 		template <typename T>
-		uint32_t Register(const std::string_view& name);
-		// 旧コンポーネント名を同じ型へ割り当てる
-		template <typename T>
-		uint32_t RegisterAlias(const std::string_view& name);
-
+		void Register(uint32_t id, const std::string_view& name);
 		//--------- accessor -----------------------------------------------------
 
 		// 登録されているコンポーネント種類の数を返す
@@ -58,37 +53,27 @@ namespace Engine {
 
 		std::vector<ComponentTypeInfo> infos_;
 		std::unordered_map<std::string, uint32_t> nameToID_;
-		std::unordered_map<uint32_t, uint32_t> typeKeyToID_;
+		std::unordered_map<const void*, uint32_t> typeKeyToID_;
+
+		template <typename T>
+		static const void* GetTypeKey();
 	};
-
-	//============================================================================
-	//	ComponentTypeRegistry macros
-	//============================================================================
-#define ENGINE_REGISTER_COMPONENT(T, NameLiteral) \
-    inline const uint32_t kCompID_##T = Engine::ComponentTypeRegistry::GetInstance().Register<T>(NameLiteral);
-
-#define ENGINE_REGISTER_COMPONENT_ALIAS(T, NameLiteral) \
-    inline const uint32_t kCompAliasID_##T = Engine::ComponentTypeRegistry::GetInstance().RegisterAlias<T>(NameLiteral);
 
 	//============================================================================
 	//	ComponentTypeRegistry templateMethods
 	//============================================================================
 	template <typename T>
-	inline uint32_t ComponentTypeRegistry::Register(const std::string_view& name) {
+	inline void ComponentTypeRegistry::Register(uint32_t id, const std::string_view& name) {
 
-		// 既に登録済みならそのIDを返す
-		auto it = nameToID_.find(std::string(name));
-		if (it != nameToID_.end()) {
-			return it->second;
-		}
-
-		// 登録されている種類の数が上限に達していないか
-		Assert::Call(GetComponentTypeCount() < kMaxComponentTypes, "kMaxComponentTypesを増やしてください");
+		Assert::Call(id == GetComponentTypeCount(), "ComponentManifestのIDは0から連続させてください");
+		Assert::Call(id < kMaxComponentTypes, "kMaxComponentTypesを増やしてください");
+		Assert::Call(!nameToID_.contains(std::string(name)), "同名のComponentTypeが既に登録されています");
+		Assert::Call(!typeKeyToID_.contains(GetTypeKey<T>()), "同じC++型が既に登録されています");
 
 		// コンポーネントの情報を作成
 		ComponentTypeInfo info{};
 		info.name = std::string(name);
-		info.id = GetComponentTypeCount();
+		info.id = id;
 		info.size = sizeof(T);
 		info.align = alignof(T);
 
@@ -99,32 +84,28 @@ namespace Engine {
 		info.to_json = [](const void* obj, nlohmann::json& out) { out = *(const T*)obj; };
 		info.from_json = [](void* obj, const nlohmann::json& in) { *(T*)obj = in.get<T>(); };
 
-		// 追加してIDを返す
+		// Manifestの固定順で追加
 		infos_.emplace_back(info);
 		nameToID_[info.name] = info.id;
-		// ハッシュ値からIDへのマッピングも登録
-		typeKeyToID_[EntityToTypeHash(typeid(T).name())] = info.id;
-		return info.id;
-	}
-
-	template <typename T>
-	inline uint32_t ComponentTypeRegistry::RegisterAlias(const std::string_view& name) {
-
-		const uint32_t id = GetID<T>();
-		auto [it, inserted] = nameToID_.emplace(std::string(name), id);
-		Assert::Call(inserted || it->second == id, "同名のComponentTypeが既に登録されています");
-		return id;
+		typeKeyToID_[GetTypeKey<T>()] = info.id;
 	}
 
 	template <typename T>
 	inline uint32_t ComponentTypeRegistry::GetID() const {
 
 		static const uint32_t cachedID = [&]() {
-			auto it = typeKeyToID_.find(EntityToTypeHash(typeid(T).name()));
-			Assert::Call(it != typeKeyToID_.end(), "ComponentTypeRegistry::Register<T>() を先に呼んでください");
+			auto it = typeKeyToID_.find(GetTypeKey<T>());
+			Assert::Call(it != typeKeyToID_.end(), "ComponentManifestへ型を登録してください");
 			return it->second;
 			}();
 		return cachedID;
+	}
+
+	template <typename T>
+	inline const void* ComponentTypeRegistry::GetTypeKey() {
+
+		static const uint8_t key = 0;
+		return &key;
 	}
 } // Engine
 

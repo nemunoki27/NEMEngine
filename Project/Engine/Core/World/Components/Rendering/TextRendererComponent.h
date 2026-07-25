@@ -106,5 +106,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, TextRendererComponent& component);
 	void to_json(nlohmann::json& out, const TextRendererComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(TextRendererComponent, "TextRenderer");
 } // Engine

@@ -156,7 +156,11 @@ void Engine::HierarchySystem::RefreshActiveRecursive(ECSWorld& world, const Enti
 
 	// 自身のアクティブ状態＝親がアクティブかつ自身が有効設定
 	auto& sceneObject = SceneObjectUtility::EnsureSceneObject(world, entity);
-	sceneObject.activeInHierarchy = parentActive && sceneObject.activeSelf;
+	const bool activeInHierarchy = parentActive && sceneObject.activeSelf;
+	if (sceneObject.activeInHierarchy != activeInHierarchy) {
+		sceneObject.activeInHierarchy = activeInHierarchy;
+		world.MarkComponentModified<SceneObjectComponent>(entity);
+	}
 	
 	if (!world.HasComponent<HierarchyComponent>(entity)) {
 		return;

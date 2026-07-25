@@ -23,7 +23,7 @@ namespace Engine {
 
 		void FromJson(const nlohmann::json& params) override;
 		nlohmann::json ToJson() const override;
-		bool DrawImGui() override;
+		bool DrawImGui();
 
 		ParticleModuleExecutionMode GetSpawnExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
@@ -31,5 +31,4 @@ namespace Engine {
 		void OnUpdate(Particle& particle, float deltaTime) override;
 	};
 
-	ENGINE_REGISTER_PARTICLE_MODULE(ParticleLookToVelocityModule, "LookToVelocity");
 } // Engine

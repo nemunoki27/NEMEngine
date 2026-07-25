@@ -64,10 +64,6 @@ namespace Engine {
 	template<typename T>
 	inline void FrameBatchResourcePool<T>::Clear() {
 
-		// GPUリソースを持つBatchResourceはclear任せにせず、明示的にresetしてからコンテナを空にする
-		for (auto& resource : resources_) {
-			resource.reset();
-		}
 		resources_.clear();
 		usedCount_ = 0;
 	}
@@ -79,14 +75,14 @@ namespace Engine {
 		// 使用数がリソースの数を超える場合は新しいリソースを作成
 		if (resources_.size() <= usedCount_) {
 
-			resources_.emplace_back(std::make_unique<T>());
+			std::unique_ptr<T> resource = std::make_unique<T>();
+			fn(*resource, graphicsCore);
+			resources_.emplace_back(std::move(resource));
 		}
 
 		// 使用数をインクリメントしてリソースを返す
 		T& resource = *resources_[usedCount_];
 		++usedCount_;
-		// リソースの初期化関数を呼び出す
-		fn(resource, graphicsCore);
 		return resource;
 	}
 } // Engine

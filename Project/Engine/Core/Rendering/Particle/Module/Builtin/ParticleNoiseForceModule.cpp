@@ -31,9 +31,13 @@ void Engine::ParticleNoiseForceModule::OnUpdate(Particle& particle, float deltaT
 }
 
 bool Engine::ParticleNoiseForceModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= MyGUI::DragFloat("強さ", strength_, ParticleGui::MakeDragSetting(0.0f, 1000.0f)).valueChanged;
 	changed |= MyGUI::DragFloat("周波数", frequency_, ParticleGui::MakeDragSetting(0.001f, 100.0f)).valueChanged;
 	return changed;
+#else
+	return false;
+#endif
 }

@@ -266,11 +266,6 @@ std::string Engine::ToString(CurveInterpolationMode mode) {
 
 bool Engine::TryParseCurveInterpolationMode(std::string_view text, CurveInterpolationMode& out) {
 
-	// 旧実装のCubicは現行のSplineと同じ意味として読み込む
-	if (text == "Cubic") {
-		out = CurveInterpolationMode::Spline;
-		return true;
-	}
 	const std::optional<CurveInterpolationMode> parsed = EnumAdapter<CurveInterpolationMode>::FromString(text);
 	if (!parsed) {
 		return false;
@@ -336,7 +331,6 @@ void Engine::NormalizeAnimationTrackChannels(AnimationCurveTrack& track) {
 	// JSONの手編集や古い形式でチャンネル数がずれた場合でも、ツール側で落ちない形へ補正する
 	if (track.binding.valueType == AnimationValueType::Quaternion) {
 
-		// 新形式はAxis/Angleの2chで旧形式はXYZWの4ch、旧Clipを壊さないよう両方受け入れる
 		if (IsQuaternionAxisAngleChannels(track.channels)) {
 			track.channels[0].displayColor = GetChannelColor(track.channels[0].name);
 			track.channels[1].displayColor = GetChannelColor(track.channels[1].name);
@@ -348,23 +342,6 @@ void Engine::NormalizeAnimationTrackChannels(AnimationCurveTrack& track) {
 			if (track.channels[0].keys.size() < track.quaternionAxisKeys.size()) {
 				track.quaternionAxisKeys.resize(track.channels[0].keys.size());
 			}
-			return;
-		}
-		if (track.channels.size() == 4) {
-			std::vector<CurveChannel> defaults = {
-				MakeChannel("X", 0.0f),
-				MakeChannel("Y", 0.0f),
-				MakeChannel("Z", 0.0f),
-				MakeChannel("W", 1.0f),
-			};
-			for (uint32_t i = 0; i < 4; ++i) {
-				if (track.channels[i].name.empty()) {
-					track.channels[i].name = defaults[i].name;
-				}
-				track.channels[i].displayColor = GetChannelColor(track.channels[i].name);
-				track.channels[i].SortKeys();
-			}
-			track.quaternionAxisKeys.clear();
 			return;
 		}
 
@@ -510,7 +487,6 @@ void Engine::from_json(const nlohmann::json& in, AnimationCurveTrack& track) {
 
 	from_json(in, track.binding);
 
-	// 省略された項目は現在の既定値を使い、古いjsonとの互換を保つ
 	AnimationApplyMode applyMode = track.applyMode;
 	if (TryParseAnimationApplyMode(in.value("applyMode", "Override"), applyMode)) {
 		track.applyMode = applyMode;
@@ -536,7 +512,7 @@ void Engine::from_json(const nlohmann::json& in, AnimationCurveTrack& track) {
 			track.quaternionAxisKeys.emplace_back(ParseQuaternionAxisKey(axisJson));
 		}
 	}
-	// 古いClipや手編集で不足したチャンネルを補う
+	// 手編集で不足したチャンネルを補う
 	NormalizeAnimationTrackChannels(track);
 }
 
@@ -566,7 +542,6 @@ void Engine::to_json(nlohmann::json& out, const AnimationClipAsset& clip) {
 
 void Engine::from_json(const nlohmann::json& in, AnimationClipAsset& clip) {
 
-	// guidが無い古いClipでは空UUIDのまま扱う
 	clip.guid = FromString16Hex(in.value("guid", ""));
 	clip.name = in.value("name", clip.name);
 	clip.duration = in.value("duration", clip.duration);

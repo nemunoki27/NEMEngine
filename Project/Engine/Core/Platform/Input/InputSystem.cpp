@@ -12,9 +12,6 @@ using namespace Engine;
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 
-// imgui
-#include <imgui.h>
-
 #pragma comment(lib,"dInput8.lib")
 #pragma comment(lib,"dxguid.lib")
 #pragma comment(lib, "xinput.lib")

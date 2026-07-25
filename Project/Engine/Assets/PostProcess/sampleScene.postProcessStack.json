@@ -1,6 +1,7 @@
 {
     "passes": [
         {
+            "anchor": "AfterMaskedUI",
             "enabled": true,
             "id": "dbca16c553c729b2",
             "materialGuid": "d4585b4b3c65da40",

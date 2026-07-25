@@ -19,25 +19,11 @@ namespace {
 		}
 		return true;
 	}
-	// シーンレンダーターゲットのカラー出力の情報を取得する
-	std::vector<Engine::SceneRenderTargetColorDesc> GetEffectiveSceneRenderTargetColors(
-		const Engine::SceneRenderTargetDesc& desc) {
-
-		if (!desc.colors.empty()) {
-			return desc.colors;
-		}
-
-		Engine::SceneRenderTargetColorDesc legacy{};
-		legacy.name = desc.name.empty() ? "Color0" : desc.name;
-		legacy.format = desc.colorFormat;
-		legacy.createUAV = desc.createUAV;
-		return { legacy };
-	}
 	// 色アタッチメントの名前を取得する
 	std::vector<std::string> GetEffectiveColorNames(const Engine::SceneRenderTargetDesc& desc) {
 
 		std::vector<std::string> result{};
-		for (const auto& color : GetEffectiveSceneRenderTargetColors(desc)) {
+		for (const auto& color : desc.colors) {
 			result.emplace_back(color.name);
 		}
 		return result;
@@ -52,9 +38,8 @@ namespace {
 		if (!desc.name.empty()) {
 			return desc.name + ".Depth";
 		}
-		const auto colors = GetEffectiveSceneRenderTargetColors(desc);
-		if (!colors.empty()) {
-			return colors.front().name + ".Depth";
+		if (!desc.colors.empty()) {
+			return desc.colors.front().name + ".Depth";
 		}
 		return std::optional<std::string>("Depth");
 	}
@@ -253,10 +238,9 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderTargetRegistry::BuildCreateDes
 	createDesc.height = height;
 
 	// 色レンダーテクスチャの情報を構築する
-	const auto colorDescs = GetEffectiveSceneRenderTargetColors(desc);
-	createDesc.colors.reserve(colorDescs.size());
+	createDesc.colors.reserve(desc.colors.size());
 
-	for (const auto& colorDesc : colorDescs) {
+	for (const auto& colorDesc : desc.colors) {
 
 		ColorAttachmentDesc color{};
 		color.name = colorDesc.name;
@@ -303,9 +287,6 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::ResizeTransient(Graphic
 	} else {
 
 		const SceneRenderTargetDesc& oldDesc = found->second.desc;
-		auto oldColors = GetEffectiveSceneRenderTargetColors(oldDesc);
-		auto newColors = GetEffectiveSceneRenderTargetColors(desc);
-
 		// サイズや構成が変わっていたら再生成する
 		needsCreate = (found->second.resolvedWidth != createDesc.width) ||
 			(found->second.resolvedHeight != createDesc.height) ||
@@ -315,7 +296,7 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::ResizeTransient(Graphic
 			(oldDesc.fixedWidth != desc.fixedWidth) ||
 			(oldDesc.fixedHeight != desc.fixedHeight) ||
 			(oldDesc.withDepth != desc.withDepth) ||
-			(!AreSameColorAttachmentDescs(oldColors, newColors));
+			(!AreSameColorAttachmentDescs(oldDesc.colors, desc.colors));
 	}
 
 	// 条件が変わったらサーフェイスを再生成

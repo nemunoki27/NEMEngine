@@ -26,5 +26,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, UITextButtonComponent& component);
 	void to_json(nlohmann::json& out, const UITextButtonComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(UITextButtonComponent, "UITextButton");
 } // Engine

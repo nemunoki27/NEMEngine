@@ -17,33 +17,6 @@
 //============================================================================
 namespace {
 
-	// 数値ならZ軸のみの旧スキーマとして読む
-	void ReadLegacyAxisValue(const nlohmann::json& params, const char* key, Engine::Vector3& out) {
-
-		const auto it = params.find(key);
-		if (it == params.end()) {
-			return;
-		}
-		if (it->is_number()) {
-			out.z = it->get<float>();
-		} else {
-			out = Engine::Vector3::FromJson(*it);
-		}
-	}
-
-	// 旧ランダム範囲をParticleValueへ変換する
-	Engine::ParticleValue<Engine::Vector3> MakeLegacyValue(
-		const Engine::Vector3& minValue, const Engine::Vector3& maxValue) {
-
-		Engine::ParticleValue<Engine::Vector3> value{};
-		value.type = minValue == maxValue ?
-			Engine::ParticleValueType::Constant : Engine::ParticleValueType::Random;
-		value.constant = minValue;
-		value.min = minValue;
-		value.max = maxValue;
-		return value;
-	}
-
 	// Vector3カーブを読み込む
 	void ReadCurveChannels(const nlohmann::json& params, const char* key, Engine::CurveVector3& curve) {
 
@@ -156,6 +129,7 @@ namespace {
 			axis, speed * Math::radian * deltaTime) * particle.rotation);
 	}
 
+#if defined(NEM_EDITOR_UI_ENABLED)
 	// 回転モードを日本語で選択する
 	bool DrawRotationMode(Engine::ParticleRotationMode& mode) {
 
@@ -233,31 +207,13 @@ namespace {
 		ImGui::PopID();
 		return changed;
 	}
+#endif
 }
 
 //============================================================================
 //	ParticleRotationModule classMethods
 //============================================================================
 void Engine::ParticleRotationModule::FromJson(const nlohmann::json& params) {
-
-	// RotationOverLifetimeの旧スキーマは角度加算へ移行する
-	if (!params.contains("mode")) {
-
-		Vector3 initialMin = Vector3::AnyInit(0.0f);
-		Vector3 initialMax = Vector3(0.0f, 0.0f, 360.0f);
-		Vector3 speedMin = Vector3(0.0f, 0.0f, -90.0f);
-		Vector3 speedMax = Vector3(0.0f, 0.0f, 90.0f);
-		ReadLegacyAxisValue(params, "initialMin", initialMin);
-		ReadLegacyAxisValue(params, "initialMax", initialMax);
-		ReadLegacyAxisValue(params, "speedMin", speedMin);
-		ReadLegacyAxisValue(params, "speedMax", speedMax);
-		mode_ = ParticleRotationMode::Additive;
-		valueType_ = ParticleRotationValueType::Euler;
-		speedMode_ = ParticleRotationSpeedMode::Constant;
-		addAngle_ = MakeLegacyValue(initialMin, initialMax);
-		rotationSpeed_ = MakeLegacyValue(speedMin, speedMax);
-		return;
-	}
 
 	mode_ = EnumAdapter<ParticleRotationMode>::FromString(
 		params.value("mode", "Fixed")).value_or(ParticleRotationMode::Fixed);
@@ -434,6 +390,7 @@ void Engine::ParticleRotationModule::OnUpdate(Particle& particle, float deltaTim
 }
 
 bool Engine::ParticleRotationModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = DrawRotationMode(mode_);
 	changed |= DrawRotationValueType(valueType_);
@@ -451,8 +408,12 @@ bool Engine::ParticleRotationModule::DrawImGui() {
 		changed |= DrawInterpolationSettings();
 	}
 	return changed;
+#else
+	return false;
+#endif
 }
 
+#if defined(NEM_EDITOR_UI_ENABLED)
 bool Engine::ParticleRotationModule::DrawAdditiveSettings() {
 
 	bool changed = false;
@@ -565,3 +526,4 @@ bool Engine::ParticleRotationModule::DrawInterpolationSettings() {
 	changed |= ParticleGui::DrawLoopSettings(angleLoop_);
 	return changed;
 }
+#endif

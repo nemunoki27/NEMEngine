@@ -55,6 +55,7 @@ void Engine::ParticleScaleOverLifetimeModule::OnUpdate(
 }
 
 bool Engine::ParticleScaleOverLifetimeModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= MyGUI::DragVector3("開始スケール", startScale_, ParticleGui::MakeDragSetting(0.0f, 100.0f)).valueChanged;
@@ -80,4 +81,7 @@ bool Engine::ParticleScaleOverLifetimeModule::DrawImGui() {
 	}
 	changed |= ParticleGui::DrawLoopSettings(loop_);
 	return changed;
+#else
+	return false;
+#endif
 }

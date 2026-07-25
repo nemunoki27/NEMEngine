@@ -58,5 +58,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, LineRendererComponent& component);
 	void to_json(nlohmann::json& out, const LineRendererComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(LineRendererComponent, "LineRenderer");
 } // Engine

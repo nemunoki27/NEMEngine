@@ -4,6 +4,10 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Framework/EngineFramework.h>
+#include <Engine/Core/Runtime/Application/GameApplication.h>
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+#include <Engine/Editor/Runtime/Application/EngineApplication.h>
+#endif
 
 // c++
 #include <memory>
@@ -15,7 +19,16 @@
 
 int NEM_RunEditor() {
 
-	std::unique_ptr<Engine::Framework> app = std::make_unique<Engine::Framework>();
-	app->Run();
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	return Engine::RunEditorApplication();
+#else
+	return NEM_RunGame();
+#endif
+}
+
+int NEM_RunGame() {
+
+	Engine::Framework framework(std::make_unique<Engine::GameApplication>());
+	framework.Run();
 	return 0;
 }

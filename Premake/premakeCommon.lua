@@ -121,22 +121,22 @@ end
 -- 外部ライブラリはDLL内部に静的に取り込み、利用側からは見えなくする
 function NEM_AddEngineDllLinkSettings()
     links {
-        "imgui",
-        "imgui_node_editor",
-        "DirectXTex",
-        "assimp",
         "meshoptimizer",
-        "libcurl",
         "ws2_32",
         "crypt32",
         "secur32",
         "advapi32",
         "iphlpapi",
     }
+    dependson {
+        "DirectXTex",
+        "assimp",
+        "libcurl",
+    }
 
     -- msdf-atlas-gen 一式、依存順にmsdf-atlas-gen -> msdfgen -> freetypeで取り込む
     if NEM_MSDF_AVAILABLE then
-        links {
+        dependson {
             "msdf-atlas-gen",
             "msdfgen-ext",
             "msdfgen-core",
@@ -144,6 +144,39 @@ function NEM_AddEngineDllLinkSettings()
         }
     end
 
+    filter "configurations:Debug"
+        links {
+            path.join(NEM_ENGINE_GENERATED_ROOT, "Outputs/DirectXTex/Debug/DirectXTex.lib"),
+            path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/lib/Debug/assimp-vc145-mtd.lib"),
+            path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/contrib/zlib/Debug/zlibstaticd.lib"),
+            path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/libcurl/lib/Debug/libcurl-d.lib"),
+        }
+        if NEM_MSDF_AVAILABLE then
+            links {
+                path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/msdf/msdf-atlas-gen/Debug/msdf-atlas-gen.lib"),
+                path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/msdf/msdf-atlas-gen/msdfgen/Debug/msdfgen-ext.lib"),
+                path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/msdf/msdf-atlas-gen/msdfgen/Debug/msdfgen-core.lib"),
+                path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/msdf/freetype/Debug/freetyped.lib"),
+            }
+        end
+
+    filter "configurations:Develop or Release"
+        links {
+            path.join(NEM_ENGINE_GENERATED_ROOT, "Outputs/DirectXTex/Release/DirectXTex.lib"),
+            path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/lib/Release/assimp-vc145-mt.lib"),
+            path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/contrib/zlib/Release/zlibstatic.lib"),
+            path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/libcurl/lib/Release/libcurl.lib"),
+        }
+        if NEM_MSDF_AVAILABLE then
+            links {
+                path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/msdf/msdf-atlas-gen/Release/msdf-atlas-gen.lib"),
+                path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/msdf/msdf-atlas-gen/msdfgen/Release/msdfgen-ext.lib"),
+                path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/msdf/msdf-atlas-gen/msdfgen/Release/msdfgen-core.lib"),
+                path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/msdf/freetype/Release/freetype.lib"),
+            }
+        end
+
+    filter {}
     linkoptions {
         "/WX",
         "/IGNORE:4099",
@@ -155,12 +188,19 @@ function NEM_AddEngineDllLinkSettings()
         libdirs { path.translate(path.join(NEM_PROJECT_ROOT, "Externals/WinPixEventRuntime/bin/x64"), "\\") }
         links { "WinPixEventRuntime" }
 
+    filter "configurations:Debug or Develop"
+        links {
+            "NEMEditor",
+            "imgui",
+            "imgui_node_editor",
+        }
+
     filter {}
 end
 
 -- アプリ(Sandbox / Game)側のエンジン参照設定
--- 公開ヘッダとNEMEngineのimport libだけに依存させ、エンジンソースや外部ライブラリには触れさせない
--- managedビルドと実行時DLL配置(NEMEngine.dll / dxc / nethost / Managed等)は
+-- 公開ヘッダとNEMRuntimeのimport libだけに依存させ、エンジンソースや外部ライブラリには触れさせない
+-- managedビルドと実行時DLL配置(NEMRuntime.dll / dxc / nethost / Managed等)は
 -- patch_vcxproj_managed_config.ps1 のPre/PostBuildEventで一元管理する
 function NEM_AddEngineRuntimeLinkSettings()
     includedirs {
@@ -168,7 +208,7 @@ function NEM_AddEngineRuntimeLinkSettings()
     }
 
     links {
-        "NEMEngine",
+        "NEMRuntime",
     }
 
     linkoptions {
@@ -182,7 +222,7 @@ function NEM_AddEngineRuntimeLinkSettings()
         'set DOTNET_CLI_UI_LANGUAGE=en',
     }
     postbuildcommands {
-        'rem NEMEngine deployment is configured by patch_vcxproj_managed_config.ps1',
+        'rem NEMRuntime deployment is configured by patch_vcxproj_managed_config.ps1',
     }
 end
 
@@ -270,6 +310,34 @@ function NEM_AddEngineProjectFiles()
     -- Engine専用アセットを表示
     NEM_AddProjectFiles(path.join(NEM_PROJECT_ROOT, "Engine"),
         path.join(NEM_PROJECT_ROOT, "Engine/Assets"), "Assets", false)
+end
+
+function NEM_AddRuntimeProjectFiles()
+    NEM_AddEngineProjectFiles()
+    removefiles {
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/**"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Assets/Shaders/Builtin/Editor/**"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Assets/Textures/Editor/**"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Library/**"),
+    }
+end
+
+function NEM_AddEditorProjectFiles()
+    local editorRoot = path.join(NEM_PROJECT_ROOT, "Engine/Editor")
+    local sourcePatterns = NEM_MakeProjectSourcePatterns(editorRoot)
+    files(sourcePatterns)
+    vpaths {
+        ["Source/*"] = sourcePatterns,
+    }
+
+    local editorAssets = {
+        path.join(NEM_PROJECT_ROOT, "Engine/Assets/Shaders/Builtin/Editor/**.*"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Assets/Textures/Editor/**.*"),
+    }
+    files(editorAssets)
+    vpaths {
+        ["EditorAssets/*"] = editorAssets,
+    }
 end
 
 function NEM_AddSandboxProjectFiles()

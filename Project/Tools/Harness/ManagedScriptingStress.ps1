@@ -59,7 +59,7 @@ if ($times.Count -gt 0) {
 }
 
 # --- 2. intentional build failure -> recovery ---
-$probe = Join-Path $root "Project\Sandbox\GameAssets\Scripts\VerticalSlice\__StressBreak.cs"
+$probe = Join-Path $root "Project\Sandbox\GameAssets\Scripts\__StressBreak.cs"
 try {
     Set-Content -LiteralPath $probe -Value "this is not valid C#" -NoNewline
     dotnet build $gameScripts -c Debug -nologo -v q | Out-Null
@@ -73,9 +73,8 @@ Check "build recovers after fixing source" ($LASTEXITCODE -eq 0)
 
 # --- 3. generator verify + selftest ---
 dotnet run --project $gen -c Release -- --verify `
-    --metadata  (Join-Path $bindings "ManagedComponentBindings.json") `
-    --inventory (Join-Path $bindings "ManagedComponentInventory.json") `
-    --registry  (Join-Path $bindings "RegisteredComponents.txt") `
+    --manifest (Join-Path $bindings "ComponentManifest.json") `
+    --abi (Join-Path $bindings "ManagedNativeApi.json") `
     --out-native-dir (Join-Path $root "Project\Engine\Core\Scripting\Managed\Generated") `
     --out-cs-dir     (Join-Path $root "Project\Engine\Managed\NEM.ScriptCore\Generated") | Out-Null
 Check "generator --verify" ($LASTEXITCODE -eq 0)

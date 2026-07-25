@@ -72,6 +72,7 @@ void Engine::ParticlePendulumMovementModule::OnUpdate(
 }
 
 bool Engine::ParticlePendulumMovementModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= DrawAnimationSettings(
@@ -98,6 +99,9 @@ bool Engine::ParticlePendulumMovementModule::DrawImGui() {
 		changed |= MyGUI::Checkbox("逆方向", reverse_);
 	}
 	return changed;
+#else
+	return false;
+#endif
 }
 
 void Engine::ParticlePendulumMovementModule::ReadAnimationSettings(
@@ -179,6 +183,7 @@ Engine::Vector3 Engine::ParticlePendulumMovementModule::CalculateOffset(
 		basis.axis * ((1.0f - std::cos(swingAngle)) * length * arcStrength_);
 }
 
+#if defined(NEM_EDITOR_UI_ENABLED)
 bool Engine::ParticlePendulumMovementModule::DrawAnimationSettings(
 	const char* header, const char* id, const char* startLabel, const char* endLabel,
 	FloatAnimationSettings& settings, float minValue, float maxValue) {
@@ -214,3 +219,4 @@ bool Engine::ParticlePendulumMovementModule::DrawAnimationSettings(
 	ImGui::PopID();
 	return changed;
 }
+#endif

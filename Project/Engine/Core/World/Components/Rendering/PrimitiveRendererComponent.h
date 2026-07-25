@@ -223,5 +223,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, PrimitiveRendererComponent& component);
 	void to_json(nlohmann::json& out, const PrimitiveRendererComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(PrimitiveRendererComponent, "PrimitiveRenderer");
 } // Engine

@@ -945,48 +945,18 @@ namespace {
 		}
 	}
 
-	// 保存フィールドを新形式へ正規化し移行できない値は未解決として保持する
-	bool MigrateAuthoring(Engine::ScriptEntry& entry, const Engine::ManagedScriptSchema& schema) {
+	// 保存フィールドを現行スキーマで初期化する
+	void EnsureAuthoringSchema(Engine::ScriptEntry& entry, const Engine::ManagedScriptSchema& schema) {
 
 		nlohmann::json& sf = entry.serializedFields;
-		if (!sf.is_object()) { sf = nlohmann::json::object(); }
-
-		// 既に新形式
-		const bool alreadyNew = sf.contains("fields") && sf["fields"].is_object();
-		if (alreadyNew) {
-			if (!sf.contains("unresolvedFields") || !sf["unresolvedFields"].is_object()) {
-				sf["unresolvedFields"] = nlohmann::json::object();
-			}
-			sf["schemaVersion"] = schema.schemaVersion != 0 ? schema.schemaVersion : sf.value("schemaVersion", 2);
-			return false;
+		if (!sf.is_object() || !sf.contains("fields") || !sf["fields"].is_object()) {
+			sf = nlohmann::json::object();
+			sf["fields"] = nlohmann::json::object();
 		}
-
-		// 旧形式から新形式へ
-		nlohmann::json migrated = nlohmann::json::object();
-		migrated["schemaVersion"] = schema.schemaVersion != 0 ? schema.schemaVersion : 2;
-		migrated["fields"] = nlohmann::json::object();
-		migrated["unresolvedFields"] = nlohmann::json::object();
-
-		// 名前と旧名からスキーマを引く
-		std::unordered_map<std::string, const Engine::ManagedFieldSchema*> byName;
-		for (const Engine::ManagedFieldSchema& f : schema.fields) {
-			byName[f.name] = &f;
-			for (const std::string& former : f.formerNames) { byName.emplace(former, &f); }
+		if (!sf.contains("unresolvedFields") || !sf["unresolvedFields"].is_object()) {
+			sf["unresolvedFields"] = nlohmann::json::object();
 		}
-
-		for (auto& [name, val] : sf.items()) {
-			auto it = byName.find(name);
-			if (it != byName.end()) {
-				const Engine::ManagedFieldSchema* f = it->second;
-				migrated["fields"][f->fieldID] = nlohmann::json{
-					{"name", f->name}, {"type", KindToTypeString(f->kind)}, {"value", val} };
-			} else {
-				// 解決できない旧フィールドは捨てずに保持する
-				migrated["unresolvedFields"][name] = val;
-			}
-		}
-		sf = std::move(migrated);
-		return true;
+		sf["schemaVersion"] = schema.schemaVersion != 0 ? schema.schemaVersion : 2;
 	}
 
 	// フィールド値を取得し無ければ既定値で作る
@@ -1210,7 +1180,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				ImGui::Separator();
 			}
 			{
-				// 型コンボはGUIDを引き直すだけで値は保持し新スキーマで移行する
+				// 型コンボはGUIDを引き直し保存値はField GUID単位で保持する
 				const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
 				ValueEditResult result = InspectorDrawerCommon::DrawBehaviorTypeField("型", entry.lastKnownTypeName, searchIcon);
 				if (result.valueChanged) {
@@ -1221,7 +1191,6 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 						entry.scriptTypeID.clear();
 					}
 					entry.scriptAsset = {};
-					// 既存値は保持し移行できない値は未解決へ残る
 				}
 				PushEditResult(result, anyItemActive);
 				ImGui::Separator();
@@ -1237,8 +1206,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 			// 解決済みかつフィールドがある場合のみ描画する
 			if (resolved && !schema.fields.empty()) {
 
-				// 移行はメモリ上のみで実際の編集時に確定する
-				MigrateAuthoring(entry, schema);
+				EnsureAuthoringSchema(entry, schema);
 
 				DrawContext ctx{};
 				ctx.panel = &context;

@@ -134,9 +134,8 @@ namespace Engine {
 	struct ManagedFieldSchema {
 
 		std::string fieldID;             // Stable Serialized Field GUID で保存の主キー
-		std::string name;                // 現在の field 名で表示と legacy 照合に使う
+		std::string name;                // 現在の field 名
 		std::string declaringType;       // 宣言型で継承時の識別に使う
-		std::vector<std::string> formerNames; // [FormerlySerializedAs] の旧名
 
 		ManagedSerializedFieldKind kind = ManagedSerializedFieldKind::None;
 		std::shared_ptr<ManagedFieldSchema> element; // Array/List/Nullable の要素
@@ -386,7 +385,6 @@ namespace Engine {
 		using GetEntityCallback = ManagedNativeEntity(__cdecl*)(ManagedNativeEntity);
 		using SetParentCallback = void(__cdecl*)(ManagedNativeEntity, ManagedNativeEntity);
 		// ObjectModel: generic component access / Entity.Destroy / ScriptBehaviour.Enabled / world rotation・lossyScale
-		using GetComponentTypeIdCallback = int32_t(__cdecl*)(const char*);
 		using HasComponentCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t);
 		using ComponentMutateCallback = void(__cdecl*)(ManagedNativeEntity, int32_t);
 		using DestroyEntityCallback = void(__cdecl*)(ManagedNativeEntity);
@@ -484,207 +482,7 @@ namespace Engine {
 		// Application.Quitの終了要求
 		using ApplicationQuitCallback = void(__cdecl*)();
 
-		GetDeltaTimeCallback getDeltaTime = nullptr;
-		GetDeltaTimeCallback getFixedDeltaTime = nullptr;
-		LogCallback log = nullptr;
-		GetInputButtonCallback getKey = nullptr;
-		GetInputButtonCallback getKeyDown = nullptr;
-		GetInputButtonCallback getKeyUp = nullptr;
-		GetInputButtonCallback getMouseButton = nullptr;
-		GetInputButtonCallback getMouseButtonDown = nullptr;
-		GetInputButtonCallback getMouseButtonUp = nullptr;
-		GetVector2Callback getMousePosition = nullptr;
-		GetVector2Callback getMouseDelta = nullptr;
-		GetDeltaTimeCallback getMouseWheel = nullptr;
-		GetInputButtonCallback getGamepadButton = nullptr;
-		GetInputButtonCallback getGamepadButtonDown = nullptr;
-		GetNativeBoolCallback isGamepadConnected = nullptr;
-		GetVector2Callback getLeftStick = nullptr;
-		GetVector2Callback getRightStick = nullptr;
-		GetDeltaTimeCallback getLeftTrigger = nullptr;
-		GetDeltaTimeCallback getRightTrigger = nullptr;
-		IsAliveCallback isAlive = nullptr;
-		CopyStringCallback copyName = nullptr;
-		SetStringCallback setName = nullptr;
-		GetBoolCallback getActiveSelf = nullptr;
-		SetBoolCallback setActiveSelf = nullptr;
-		GetBoolCallback getActiveInHierarchy = nullptr;
-		GetEntityCallback getParent = nullptr;
-		GetEntityCallback getFirstChild = nullptr;
-		GetEntityCallback getNextSibling = nullptr;
-		SetParentCallback setParent = nullptr;
-		GetVector3Callback getPosition = nullptr;
-		SetVector3Callback setPosition = nullptr;
-		GetVector3Callback getLocalPosition = nullptr;
-		SetVector3Callback setLocalPosition = nullptr;
-		GetVector3Callback getLocalScale = nullptr;
-		SetVector3Callback setLocalScale = nullptr;
-		GetQuaternionCallback getLocalRotation = nullptr;
-		SetQuaternionCallback setLocalRotation = nullptr;
-		// world rotation / world(lossy) scale
-		GetQuaternionCallback getRotation = nullptr;
-		SetQuaternionCallback setRotation = nullptr;
-		GetVector3Callback getLossyScale = nullptr;
-		// generic component accessでcompact type idベース、型名からidはgetComponentTypeIdで一度だけ解決する
-		GetComponentTypeIdCallback getComponentTypeId = nullptr;
-		HasComponentCallback hasComponent = nullptr;
-		ComponentMutateCallback addComponent = nullptr;
-		ComponentMutateCallback removeComponent = nullptr;
-		// Entity破棄でWorldCommandBuffer経由の遅延適用
-		DestroyEntityCallback destroyEntity = nullptr;
-		// ScriptBehaviour.Enabledでowner EntityとscriptSlotIDでruntime entryを特定する
-		GetScriptEnabledCallback getScriptEnabled = nullptr;
-		SetScriptEnabledCallback setScriptEnabled = nullptr;
-		// 自動生成component bindingのtyped property accessでdispatchは生成コードが実装する
-		GetComponentPropertyCallback getComponentProperty = nullptr;
-		SetComponentPropertyCallback setComponentProperty = nullptr;
-		GetComponentStringPropertyCallback getComponentStringProperty = nullptr;
-		SetComponentStringPropertyCallback setComponentStringProperty = nullptr;
-		// Gameplay v7のTime拡張でscaledとunscaledを分離、getDeltaTimeとgetFixedDeltaTimeはscaled値を返す
-		GetDeltaTimeCallback getUnscaledDeltaTime = nullptr;
-		GetDeltaTimeCallback getUnscaledFixedDeltaTime = nullptr;
-		GetDoubleCallback getTimeSinceStartup = nullptr;
-		GetDoubleCallback getUnscaledTime = nullptr;
-		GetDeltaTimeCallback getTimeScale = nullptr;
-		SetFloatCallback setTimeScale = nullptr;
-		GetUInt64Callback getFrameCount = nullptr;
-		// Gameplay v7のAssetRef runtime resolveでUUID主体、pointerやpathは返さない
-		AssetExistsCallback assetExists = nullptr;
-		CopyAssetStringCallback copyAssetDisplayName = nullptr;
-		// Gameplay v7のEntity生成とPrefabとSceneとSetParentのworldPositionStays
-		CreateEntityCallback createEntity = nullptr;
-		InstantiatePrefabCallback instantiatePrefab = nullptr;
-		LoadSceneCallback loadSceneAdditive = nullptr;
-		UnloadSceneCallback unloadScene = nullptr;
-		SceneInstanceAliveCallback isSceneInstanceAlive = nullptr;
-		SetParentKeepWorldCallback setParentKeepWorld = nullptr;
-		// Gameplay v7のraw Input拡張多gamepadとaxisとtextとfocus
-		GamepadIndexedButtonCallback getGamepadButtonIndexed = nullptr;
-		GamepadIndexedButtonCallback getGamepadButtonDownIndexed = nullptr;
-		GamepadIndexedButtonCallback getGamepadButtonUpIndexed = nullptr;
-		GamepadAxisCallback getGamepadAxis = nullptr;
-		GamepadConnectedCallback isGamepadConnectedIndexed = nullptr;
-		GetNativeBoolCallback getConnectedGamepadCount = nullptr;
-		GetNativeBoolCallback getHasFocus = nullptr;
-		CopyTextCallback copyTextInput = nullptr;
-		// Gameplay v7のproject rootパスでInputActions.json等のProjectSettings解決用
-		CopyTextCallback copyProjectRoot = nullptr;
-		// Gameplay v7のAudioSource gameplay method
-		EntityActionCallback audioPlay = nullptr;
-		EntityActionCallback audioPause = nullptr;
-		EntityActionCallback audioStop = nullptr;
-		GetBoolCallback audioIsPlaying = nullptr;
-		// Diagnostics v8のscript callback例外の構造化報告
-		ReportStringCallback reportScriptException = nullptr;
-		// GetComponent<Script> v9のentityのscript instanceをscriptTypeIDで引く
-		GetScriptInstanceCallback getScriptInstance = nullptr;
-		// AddComponent<Script> v22のentityへscriptをruntime attachする
-		AttachScriptCallback attachScript = nullptr;
-		// SceneTransition v10のScene単一load、新sceneをactiveにし旧sceneを全unloadする
-		LoadSceneCallback loadSceneSingle = nullptr;
-
-		ResolveEntityRefCallback resolveEntityRef = nullptr;
-
-		// ライン描画v12のcomponent点列設定と即時描画
-		LineSetPointsCallback lineSetPoints = nullptr;
-		LineDrawImmediateCallback lineDrawImmediate = nullptr;
-		LineDrawSphereImmediateCallback lineDrawSphereImmediate = nullptr;
-
-		// ライン描画v13のcomponentへ1点追加、戻り値は採番されたindex
-		LineAddPointCallback lineAddPoint = nullptr;
-		// componentのindexの点を更新する
-		LineUpdatePointCallback lineUpdatePoint = nullptr;
-
-		// v14のTag公開とLayerマスク公開と検索、tagはSceneObjectComponent、maskはvisibilityと衝突typeMask
-		CopyStringCallback copyTag = nullptr;
-		SetStringCallback setTag = nullptr;
-		GetBoolCallback getVisibilityLayerMask = nullptr;
-		SetBoolCallback setVisibilityLayerMask = nullptr;
-		GetBoolCallback getCollisionTypeMask = nullptr;
-		SetBoolCallback setCollisionTypeMask = nullptr;
-		FindByStringCallback findEntityByName = nullptr;
-		FindByStringCallback findEntityByTag = nullptr;
-		FindManyByStringCallback findEntitiesByTag = nullptr;
-		FindByComponentCallback findEntityByComponent = nullptr;
-		FindManyByComponentCallback findEntitiesByComponent = nullptr;
-
-		// v15の即時形状描画
-		LineDrawShapeCallback lineDrawShape = nullptr;
-
-		// v16のTransform親追従の継承フラグ公開、座標は常に追従し回転スケールを任意で無視する
-		GetBoolCallback getIgnoreParentRotation = nullptr;
-		SetBoolCallback setIgnoreParentRotation = nullptr;
-		GetBoolCallback getIgnoreParentScale = nullptr;
-		SetBoolCallback setIgnoreParentScale = nullptr;
-
-		// v17の入力デバイス公開、入力タイプとマウス範囲制御をC#から取得設定する
-		GetNativeBoolCallback getInputType = nullptr;
-		SetNativeIntCallback setInputType = nullptr;
-		GetNativeBoolCallback getMouseRangeControl = nullptr;
-		SetNativeIntCallback setMouseRangeControl = nullptr;
-		SetRendererColorCallback setRendererMaterialColor = nullptr;
-		GetRendererColorCallback getRendererMaterialColor = nullptr;
-		FillMeshSetPositionsCallback fillMeshSetPositions = nullptr;
-
-		// v20のEntity保存identity逆引き、参照フィールドの保存表現に使う
-		GetEntityRefIdentityCallback getEntityReferenceIdentity = nullptr;
-
-		// v21のレイキャストとカメラレイとCollisionタイプ名解決
-		PhysicsRaycastCallback physicsRaycast = nullptr;
-		PhysicsRaycastAllCallback physicsRaycastAll = nullptr;
-		ScreenPointToRayCallback screenPointToRay = nullptr;
-		GetMousePositionInViewCallback getMousePositionInView = nullptr;
-		GetCollisionTypeMaskByNameCallback getCollisionTypeMaskByName = nullptr;
-
-		// v23のイージング関数公開
-		EasedValueCallback easedValue = nullptr;
-
-		// Collision形状操作
-		CollisionShapeCountCallback collisionShapeCount = nullptr;
-		CollisionAddShapeCallback collisionAddShape = nullptr;
-		CollisionRemoveShapeAtCallback collisionRemoveShapeAt = nullptr;
-		CollisionClearShapesCallback collisionClearShapes = nullptr;
-		CollisionGetShapeCallback collisionGetShapeProperty = nullptr;
-		CollisionSetShapeCallback collisionSetShapeProperty = nullptr;
-
-		// 指定クリップ名のアニメーション合計長
-		GetSkinnedAnimationDurationCallback getSkinnedAnimationDuration = nullptr;
-		// 指定クリップを頭から再生する
-		PlaySkinnedAnimationCallback playSkinnedAnimation = nullptr;
-
-		// v24のFillMeshRendererComponent点列取得
-		FillMeshCopyPositionsCallback fillMeshCopyPositions = nullptr;
-
-		// v25のEffectEmitter再生ハンドルAPI
-		EffectEmitCallback effectEmit = nullptr;
-		EffectControlCallback effectStop = nullptr;
-		EffectControlCallback effectClear = nullptr;
-		EffectIsPlayingCallback effectIsPlaying = nullptr;
-
-		// v26のUI入力によるゲーム入力ブロック状態
-		GetNativeBoolCallback getUIBlocksGameplayInput = nullptr;
-
-		// v28のCanvas入力配列
-		CanvasCopyInputBindingsCallback canvasCopyInputBindings = nullptr;
-		CanvasSetInputBindingsCallback canvasSetInputBindings = nullptr;
-		// v29のApplication終了要求
-		ApplicationQuitCallback requestApplicationQuit = nullptr;
-		// v30のGameViewとCanvas座標変換
-		WorldToScreenPointCallback worldToScreenPoint = nullptr;
-		CanvasScreenToLocalPointCallback canvasScreenToLocalPoint = nullptr;
-		// v31のIrisTransition再生操作
-		IrisTransitionCommandCallback irisTransitionCommand = nullptr;
-		// v32のAudioSource追加再生操作
-		AudioPlayOneShotCallback audioPlayOneShot = nullptr;
-		EntityActionCallback audioUnPause = nullptr;
-		// v33のEffectEmitterグループとState設定API
-		EffectGroupCountCallback effectGroupCount = nullptr;
-		EffectStateCountCallback effectStateCount = nullptr;
-		EffectCopyGroupNameCallback effectCopyGroupName = nullptr;
-		EffectCopyStateNameCallback effectCopyStateName = nullptr;
-		EffectSetStateNameCallback effectSetStateName = nullptr;
-		EffectGetStatePropertyCallback effectGetStateProperty = nullptr;
-		EffectSetStatePropertyCallback effectSetStateProperty = nullptr;
+#include <Engine/Core/Scripting/Managed/Generated/ManagedNativeApiFields.generated.inl>
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI

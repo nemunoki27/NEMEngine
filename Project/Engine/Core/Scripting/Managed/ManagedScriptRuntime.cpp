@@ -226,7 +226,6 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getRotation = &ManagedScriptRuntime::GetRotationCallback;
 	callbacks.setRotation = &ManagedScriptRuntime::SetRotationCallback;
 	callbacks.getLossyScale = &ManagedScriptRuntime::GetLossyScaleCallback;
-	callbacks.getComponentTypeId = &ManagedScriptRuntime::GetComponentTypeIdCallback;
 	callbacks.hasComponent = &ManagedScriptRuntime::HasComponentCallback;
 	callbacks.addComponent = &ManagedScriptRuntime::AddComponentCallback;
 	callbacks.removeComponent = &ManagedScriptRuntime::RemoveComponentCallback;
@@ -621,11 +620,6 @@ namespace {
 		field.componentType = node.value("componentType", std::string{});
 		field.defaultValueJson = node.value("defaultValueJson", std::string("null"));
 
-		if (node.contains("formerNames") && node["formerNames"].is_array()) {
-			for (const auto& n : node["formerNames"]) {
-				field.formerNames.push_back(n.get<std::string>());
-			}
-		}
 		if (node.contains("range") && node["range"].is_object()) {
 			field.hasRange = true;
 			field.rangeMin = node["range"].value("min", 0.0f);
@@ -722,41 +716,20 @@ const Engine::ManagedScriptSchema& Engine::ManagedScriptRuntime::GetScriptSchema
 	return it->second;
 }
 
-nlohmann::json Engine::ManagedScriptRuntime::BuildSerializedValueMap(const std::string& scriptTypeID,
+nlohmann::json Engine::ManagedScriptRuntime::BuildSerializedValueMap(
 	const nlohmann::json& serializedFields) {
 
-	// インスタンスへ適用するfieldGuidから値のマップを作る、新形式はそのまま旧形式は名前で移行する
 	nlohmann::json result = nlohmann::json::object();
-	if (!serializedFields.is_object()) {
+	if (!serializedFields.is_object() ||
+		!serializedFields.contains("fields") || !serializedFields["fields"].is_object()) {
 		return result;
 	}
 
-	// 新形式{ fields: { guid: { name, type, value } } }
-	if (serializedFields.contains("fields") && serializedFields["fields"].is_object()) {
-
-		for (auto& [guid, entry] : serializedFields["fields"].items()) {
-			if (entry.is_object() && entry.contains("value")) {
-				result[guid] = entry["value"];
-			} else {
-				result[guid] = entry;
-			}
-		}
-		return result;
-	}
-
-	// 旧形式の名前から値の形式で、スキーマの名前や旧名からguidを引いて移行する
-	const ManagedScriptSchema& schema = GetScriptSchema(scriptTypeID);
-	std::unordered_map<std::string, std::string> nameToGuid;
-	for (const ManagedFieldSchema& field : schema.fields) {
-		nameToGuid[field.name] = field.fieldID;
-		for (const std::string& former : field.formerNames) {
-			nameToGuid.emplace(former, field.fieldID);
-		}
-	}
-	for (auto& [name, value] : serializedFields.items()) {
-		auto it = nameToGuid.find(name);
-		if (it != nameToGuid.end()) {
-			result[it->second] = value;
+	for (auto& [guid, entry] : serializedFields["fields"].items()) {
+		if (entry.is_object() && entry.contains("value")) {
+			result[guid] = entry["value"];
+		} else {
+			result[guid] = entry;
 		}
 	}
 	return result;

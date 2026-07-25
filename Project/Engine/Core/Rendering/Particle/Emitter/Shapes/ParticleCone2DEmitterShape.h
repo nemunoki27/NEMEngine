@@ -28,7 +28,7 @@ namespace Engine {
 			const ParticleEmitterSettings& settings, bool is2D) const override;
 		void DrawShape(const ParticleEmitterSettings& settings,
 			const Vector3& center, const Quaternion& rotation, bool is2D) const override;
-		bool DrawImGui(ParticleEmitterSettings& settings) const override;
+		bool DrawImGui(ParticleEmitterSettings& settings) const;
 
 		//--------- accessor -----------------------------------------------------
 
@@ -36,5 +36,4 @@ namespace Engine {
 		bool Supports3D() const override { return false; }
 	};
 
-	ENGINE_REGISTER_PARTICLE_EMITTER_SHAPE(ParticleCone2DEmitterShape, ParticleEmitterShape::Cone2D);
 } // Engine

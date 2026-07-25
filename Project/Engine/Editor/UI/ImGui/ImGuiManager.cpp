@@ -6,6 +6,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
+#include <Engine/Core/Platform/Windows/Win32Window.h>
 
 // c++
 #include <filesystem>
@@ -15,6 +16,17 @@ using namespace Engine;
 #include <imgui_internal.h>
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx12.h>
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
+	HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
+
+namespace {
+
+	LRESULT ForwardImGuiMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+
+		return ImGui_ImplWin32_WndProcHandler(hwnd, message, wparam, lparam);
+	}
+}
 
 //============================================================================
 //	ImGuiManager classMethods
@@ -38,6 +50,7 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	ImGui::StyleColorsDark();
 	//Win32初期化
 	ImGui_ImplWin32_Init(hwnd);
+	WinApp::SetMessageHandler(ForwardImGuiMessage);
 
 	// DX12初期化
 	ImGui_ImplDX12_InitInfo dxInitInfo = {};
@@ -239,6 +252,7 @@ void ImGuiManager::Finalize() {
 		return;
 	}
 
+	WinApp::SetMessageHandler(nullptr);
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();

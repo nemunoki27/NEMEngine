@@ -18,3 +18,5 @@
 
 // エディタを起動してアプリのリターンコードを返す
 NEMENGINE_RUNTIME_API int NEM_RunEditor();
+// ゲームランタイムを起動してアプリのリターンコードを返す
+NEMENGINE_RUNTIME_API int NEM_RunGame();

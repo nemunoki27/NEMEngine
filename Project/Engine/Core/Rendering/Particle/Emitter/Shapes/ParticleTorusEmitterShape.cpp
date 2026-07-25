@@ -73,9 +73,14 @@ void Engine::ParticleTorusEmitterShape::DrawShape(const ParticleEmitterSettings&
 }
 
 bool Engine::ParticleTorusEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= MyGUI::DragFloat("主半径", settings.torus.radius, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
 	changed |= MyGUI::DragFloat("管半径", settings.torus.thickness, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
 	return changed;
+#else
+	(void)settings;
+	return false;
+#endif
 }

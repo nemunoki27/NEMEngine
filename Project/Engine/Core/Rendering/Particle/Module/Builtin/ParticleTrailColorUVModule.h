@@ -24,5 +24,4 @@ namespace Engine {
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::None; }
 	};
 
-	ENGINE_REGISTER_PARTICLE_MODULE(ParticleTrailColorUVModule, "TrailColorUV");
 } // Engine

@@ -98,6 +98,7 @@ void Engine::ParticleRectEmitterShape::DrawShape(const ParticleEmitterSettings& 
 }
 
 bool Engine::ParticleRectEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= MyGUI::DragVector2("大きさ", settings.rect.size, ParticleGui::MakeDragSetting(0.0f, 100000.0f)).valueChanged;
@@ -108,4 +109,8 @@ bool Engine::ParticleRectEmitterShape::DrawImGui(ParticleEmitterSettings& settin
 	ImGui::SameLine();
 	changed |= MyGUI::Checkbox("-Y辺", settings.rect.edgeNegY);
 	return changed;
+#else
+	(void)settings;
+	return false;
+#endif
 }

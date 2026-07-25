@@ -1395,7 +1395,7 @@ void AnimationClipTool::LoadClipFromSelectedAsset(const EditorToolContext& conte
 		clip_.duration = 1.0f;
 	}
 	for (AnimationCurveTrack& track : clip_.curveTracks) {
-		// 旧形式や手編集JSONでも、Runtime評価前にChannel数を現在仕様へ揃える
+		// Runtime評価前にChannel数を現在仕様へ揃える
 		NormalizeAnimationTrackChannels(track);
 	}
 

@@ -26,5 +26,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, UIImageButtonComponent& component);
 	void to_json(nlohmann::json& out, const UIImageButtonComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(UIImageButtonComponent, "UIImageButton");
 } // Engine

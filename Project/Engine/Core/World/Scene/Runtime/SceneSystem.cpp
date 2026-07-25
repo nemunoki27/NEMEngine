@@ -41,18 +41,10 @@ bool Engine::SceneSystem::LoadScene(const std::filesystem::path& scenePath, ECSW
 }
 
 bool Engine::SceneSystem::SaveScene(const std::filesystem::path& scenePath, ECSWorld& world,
-	const SceneHeader& header, const std::vector<Entity>* entitiesSubset, AssetDatabase* database) const {
+	const SceneHeader& header, AssetDatabase& database, const std::vector<Entity>* entitiesSubset) const {
 
 	nlohmann::json root = nlohmann::json::object();
 	root["Header"] = ToJson(header);
-
-	// databaseが無ければ従来通り全実体をfat保存する、後方互換のため
-	if (!database) {
-
-		root["Entities"] = SerializeEntities(world, entitiesSubset);
-		JsonAdapter::Save(scenePath, root);
-		return true;
-	}
 
 	// 対象実体の中からプレファブインスタンスを集め、薄い差分形式で保存する
 	// インスタンスに取り込まれた実体のシーンローカルIDを覚えておき、fat側の重複保存を防ぐ
@@ -101,7 +93,7 @@ bool Engine::SceneSystem::SaveScene(const std::filesystem::path& scenePath, ECSW
 			continue;
 		}
 
-		const auto base = PrefabOverrideUtility::LoadPrefabBaseEntities(*database, prefabAsset);
+		const auto base = PrefabOverrideUtility::LoadPrefabBaseEntities(database, prefabAsset);
 		PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(world, instanceID, base);
 		data.prefabAsset = prefabAsset;
 

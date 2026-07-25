@@ -97,7 +97,7 @@ try {
 
     $runtimeFiles = @(
         $runtimeExecutable,
-        "NEMEngine.dll",
+        "NEMRuntime.dll",
         "dxcompiler.dll",
         "dxil.dll",
         "nethost.dll"

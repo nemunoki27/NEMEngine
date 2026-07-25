@@ -2,13 +2,6 @@
 
 using namespace Engine;
 
-//============================================================================
-//	Algorithm define
-//============================================================================
-#if defined(__GNUC__) || defined(__clang__)
-#include <cxxabi.h>
-#include <cstdlib>
-#endif
 #include <cstring>
 #include <string>
 #include <locale>
@@ -28,20 +21,6 @@ std::string Algorithm::RemoveSubstring(const std::string& input, const std::stri
 	}
 
 	return result;
-}
-
-std::string Algorithm::DemangleType(const char* name) {
-
-#if defined(__GNUC__) || defined(__clang__)
-	int status = 0;
-	size_t len = 0;
-	char* demangled = abi::__cxa_demangle(name, nullptr, &len, &status);
-	std::string out = (status == 0 && demangled) ? std::string(demangled) : std::string(name);
-	std::free(demangled);
-	return out;
-#else
-	return std::string(name);
-#endif
 }
 
 std::string Algorithm::AdjustLeadingCase(std::string string, LeadingCase leadingCase) {
@@ -129,8 +108,7 @@ std::filesystem::path Engine::Algorithm::PathFromUTF8(const std::string& path) {
 		0
 	);
 	if (sizeNeeded == 0) {
-		// 旧実装でネイティブコードページ化されたパスも読み込めるようにする
-		return std::filesystem::path(path);
+		throw std::runtime_error("MultiByteToWideChar failed.");
 	}
 
 	std::wstring result(static_cast<size_t>(sizeNeeded), L'\0');
@@ -142,7 +120,7 @@ std::filesystem::path Engine::Algorithm::PathFromUTF8(const std::string& path) {
 		result.data(),
 		sizeNeeded) == 0) {
 
-		return std::filesystem::path(path);
+		throw std::runtime_error("MultiByteToWideChar failed.");
 	}
 	return std::filesystem::path(result);
 }

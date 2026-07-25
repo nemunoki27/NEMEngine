@@ -121,31 +121,6 @@ std::vector<const Engine::BehaviorTypeInfo*> Engine::BehaviorTypeRegistry::FindM
 	return candidates;
 }
 
-const Engine::BehaviorTypeInfo* Engine::BehaviorTypeRegistry::FindManagedBySimpleName(const std::string_view& name) const {
-
-	const BehaviorTypeInfo* result = nullptr;
-	for (const BehaviorTypeInfo& info : infos_) {
-
-		if (!info.managed || info.name.empty()) {
-			continue;
-		}
-
-		const size_t dot = info.name.find_last_of('.');
-		const std::string_view simpleName = dot == std::string::npos ?
-			std::string_view(info.name) : std::string_view(info.name).substr(dot + 1);
-		if (simpleName != name) {
-			continue;
-		}
-
-		// 同名クラスが複数名前空間にある場合は曖昧なので完全名指定を要求する
-		if (result) {
-			return nullptr;
-		}
-		result = &info;
-	}
-	return result;
-}
-
 Engine::BehaviorTypeRegistry& Engine::BehaviorTypeRegistry::GetInstance() {
 
 	static BehaviorTypeRegistry registry;

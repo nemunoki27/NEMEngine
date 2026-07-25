@@ -138,7 +138,6 @@ Engine::MeshRenderBackend::~MeshRenderBackend() {
 
 	meshResourceManager_.Finalize();
 	resourcePool_.Clear();
-	subMeshCBPool_.Clear();
 	ClearStaticBatchCache();
 	skinnedBatchCache_.clear();
 	skinnedSourceLookup_.clear();
@@ -240,7 +239,6 @@ void Engine::MeshRenderBackend::BeginFrame(GraphicsCore& graphicsCore) {
 	PruneStaticBatchCache();
 
 	resourcePool_.BeginFrame();
-	subMeshCBPool_.BeginFrame();
 	// マテリアルパラメータCBVのアップロード位置を戻す
 	materialParamBinder_.BeginFrame();
 
@@ -287,7 +285,6 @@ void Engine::MeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 	drawPathContext.commandList = commandList;
 	drawPathContext.drawContext = &context;
 	drawPathContext.prepared = &prepared;
-	drawPathContext.subMeshCBPool = &subMeshCBPool_;
 	path.Draw(drawPathContext);
 }
 
@@ -492,7 +489,8 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 	}
 	// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
 	if (prepared.material) {
-		BackendDrawCommon::BindMaterialTextures(context, *prepared.pipelineState, *prepared.material, commandList);
+		BackendDrawCommon::BindMaterialTextures(context, *prepared.pipelineState,
+			materialParamBinder_, *prepared.material, commandList);
 	}
 	if (sharedBindCache_.Has(packedVtxSRVSlot_)) {
 		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(packedVtxSRVSlot_),

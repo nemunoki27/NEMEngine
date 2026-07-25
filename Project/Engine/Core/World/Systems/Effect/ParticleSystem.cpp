@@ -1193,10 +1193,12 @@ void Engine::ParticleSystem::BuildGroups(EffectRuntime& runtime) const {
 					execution.emplace_back(std::move(executionGroup));
 				}
 				execution.back().modules.emplace_back(module);
-				};
+			};
 			for (const ParticleEffectModuleEntry& entry : phaseDef.modules) {
 
-				auto module = ParticleModuleRegistry::GetInstance().Create(entry.id);
+				ParticleModuleRegistry& registry = ParticleModuleRegistry::GetInstance();
+				const ParticleModuleRegistry::TypeID typeID = registry.FindTypeID(entry.id);
+				auto module = registry.Create(typeID);
 				if (!module) { continue; }
 				module->FromJson(entry.params);
 				IParticleModule* modulePtr = module.get();

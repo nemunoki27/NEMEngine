@@ -70,5 +70,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, SkinnedAnimationComponent& component);
 	void to_json(nlohmann::json& out, const SkinnedAnimationComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(SkinnedAnimationComponent, "SkinnedAnimation");
 } // Engine

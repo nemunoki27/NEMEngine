@@ -48,5 +48,4 @@ namespace Engine {
 	// 階層内でアクティブか
 	bool IsEntityActiveInHierarchy(ECSWorld& world, const Entity& entity);
 
-	ENGINE_REGISTER_COMPONENT(SceneObjectComponent, "SceneObject");
 } // Engine

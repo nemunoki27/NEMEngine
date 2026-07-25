@@ -120,8 +120,6 @@ void Engine::ParticleShapeOverLifetimeModule::FromJson(const nlohmann::json& par
 			from_json(parameterIt.value(), parameter);
 			parameters_[parameterIt.key()] = std::move(parameter);
 		}
-	} else {
-		MigrateLegacyParameters(safeParams);
 	}
 	EnsureParameters();
 }
@@ -138,6 +136,7 @@ nlohmann::json Engine::ParticleShapeOverLifetimeModule::ToJson() const {
 }
 
 bool Engine::ParticleShapeOverLifetimeModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	ParticleParametricShapeRegistry& registry = ParticleParametricShapeRegistry::GetInstance();
@@ -192,6 +191,9 @@ bool Engine::ParticleShapeOverLifetimeModule::DrawImGui() {
 		changed |= DrawParameter("展開角", kCylinderMaxAngle, 360.0f, 0.0f, 360.0f, 0.5f);
 	}
 	return changed;
+#else
+	return false;
+#endif
 }
 
 void Engine::ParticleShapeOverLifetimeModule::OnSpawn(Particle& particle) {
@@ -253,54 +255,7 @@ void Engine::ParticleShapeOverLifetimeModule::RebuildParameterCache() {
 	}
 }
 
-void Engine::ParticleShapeOverLifetimeModule::MigrateLegacyParameters(const nlohmann::json& params) {
-
-	const EasingType easing = EnumAdapter<EasingType>::FromString(
-		params.value("easingType", "EaseOutSine")).value_or(EasingType::EaseOutSine);
-	auto setFloat = [&](const char* key, float start, float end) {
-
-		ParticleMaterialAnimatedParameter parameter = MakeFloatParameter(start);
-		parameter.end.x = end;
-		parameter.easingType = easing;
-		parameters_[key] = std::move(parameter);
-	};
-	auto setColor = [&](const char* key, const Color4& start, const Color4& end) {
-
-		ParticleMaterialAnimatedParameter parameter = MakeColorParameter(start);
-		parameter.end = ToVector4(end);
-		parameter.easingType = easing;
-		parameters_[key] = std::move(parameter);
-	};
-
-	if (shape_ == PrimitiveType::Ring) {
-
-		PrimitiveRingParams start{};
-		PrimitiveRingParams end{};
-		if (const auto it = params.find("ringStart"); it != params.end() && it->is_object()) { from_json(*it, start); }
-		if (const auto it = params.find("ringEnd"); it != params.end() && it->is_object()) { from_json(*it, end); }
-		setFloat(kRingOuterRadius, start.outerRadius, end.outerRadius);
-		setFloat(kRingInnerRadius, start.innerRadius, end.innerRadius);
-		setFloat(kRingStartAngle, start.startAngle, end.startAngle);
-		setFloat(kRingEndAngle, start.endAngle, end.endAngle);
-	} else if (shape_ == PrimitiveType::Cylinder) {
-
-		PrimitiveCylinderParams start{};
-		PrimitiveCylinderParams end{};
-		if (const auto it = params.find("cylinderStart"); it != params.end() && it->is_object()) { from_json(*it, start); }
-		if (const auto it = params.find("cylinderEnd"); it != params.end() && it->is_object()) { from_json(*it, end); }
-		setFloat(kCylinderTopRadius, start.topRadius, end.topRadius);
-		setFloat(kCylinderCenterRadius, start.centerRadius, end.centerRadius);
-		setFloat(kCylinderBottomRadius, start.bottomRadius, end.bottomRadius);
-		setFloat(kCylinderTopRadiusWeight, start.topRadiusWeight, end.topRadiusWeight);
-		setFloat(kCylinderBottomRadiusWeight, start.bottomRadiusWeight, end.bottomRadiusWeight);
-		setColor(kCylinderTopColor, start.topColor, end.topColor);
-		setColor(kCylinderCenterColor, start.centerColor, end.centerColor);
-		setColor(kCylinderBottomColor, start.bottomColor, end.bottomColor);
-		setFloat(kCylinderHeight, start.height, end.height);
-		setFloat(kCylinderMaxAngle, start.maxAngle, end.maxAngle);
-	}
-}
-
+#if defined(NEM_EDITOR_UI_ENABLED)
 bool Engine::ParticleShapeOverLifetimeModule::DrawParameter(
 	const char* label, const char* key, float defaultValue,
 	float minValue, float maxValue, float dragSpeed) {
@@ -417,6 +372,7 @@ bool Engine::ParticleShapeOverLifetimeModule::DrawColorParameter(
 	ImGui::PopID();
 	return changed;
 }
+#endif
 
 void Engine::ParticleShapeOverLifetimeModule::EvaluateShape(
 	Particle& particle, float progress) const {

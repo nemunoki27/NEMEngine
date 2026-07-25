@@ -105,10 +105,9 @@ public static unsafe class HostBridge {
         internal string sourcePath = string.Empty;
         internal bool hasExplicitId;
         internal int defaultExecutionOrder;   // [DefaultExecutionOrder] の値（未指定は 0）
-        internal string[] formerlyKnown = Array.Empty<string>();
 
         // serialized field schema（defaultValueJson を含む完成形 JSON）。C++ へ blob で渡す。
-        // 構築は load 時の一度きり。null は schema 未構築（reflection fallback でも生成する）。
+        // 構築は load 時の一度きり。
         internal string schemaJson = string.Empty;
         // Stable Field GUID -> FieldInfo。runtime get/set と authoring 適用に使う（hot path では reflection しない）
         internal Dictionary<string, FieldInfo> fieldMap = new(StringComparer.Ordinal);
@@ -807,58 +806,49 @@ public static unsafe class HostBridge {
             return;
         }
 
-        // 生成 registry（GeneratedScriptManifest）を優先し、無ければ reflection へ fallback する。
-        // 生成 registry のみ sourcePath を持つため drag&drop の source 照合に必要。
+        // 生成 registryから型を登録する
         ScriptTypeDescriptor[]? generated = TryReadGeneratedManifest(gameAssembly);
-        if (generated != null) {
+        if (generated == null) {
+            NativeApi.WriteLog(2,
+                "GeneratedScriptManifest was not found. Add the NEM.ScriptCodeGen analyzer to GameScripts.");
+            return;
+        }
+        foreach (ScriptTypeDescriptor descriptor in generated) {
 
-            foreach (ScriptTypeDescriptor descriptor in generated) {
-
-                Type? type = gameAssembly.GetType(descriptor.FullTypeName, throwOnError: false);
-                if (type == null) {
-                    NativeApi.WriteLog(2, $"Generated manifest type not found in assembly: {descriptor.FullTypeName}");
-                    continue;
-                }
-                AddScriptTypeEntry(descriptor.ScriptTypeId, type, descriptor.FullTypeName,
-                    descriptor.DisplayName, descriptor.SourcePath, descriptor.HasExplicitId, descriptor.FormerlyKnownTypeNames);
+            Type? type = gameAssembly.GetType(descriptor.FullTypeName, throwOnError: false);
+            if (type == null) {
+                NativeApi.WriteLog(2, $"Generated manifest type not found in assembly: {descriptor.FullTypeName}");
+                continue;
             }
-        } else {
-
-            // 生成 registry が無い（generator 未適用）。reflection で fallback（sourcePath なし）
-            NativeApi.WriteLog(1,
-                "GeneratedScriptManifest was not found; falling back to reflection scan " +
-                "(drag&drop source mapping is unavailable; add the NEM.ScriptCodeGen analyzer to GameScripts).");
-
-            foreach (Type type in gameAssembly.GetTypes()) {
-
-                if (type.IsAbstract || !typeof(ScriptBehaviour).IsAssignableFrom(type)) {
-                    continue;
-                }
-                if (type.GetConstructor(Type.EmptyTypes) == null) {
-                    continue;
-                }
-                string fullName = type.FullName ?? type.Name;
-                (string guid, bool explicitId) = ResolveGuidFromAttribute(type, fullName);
-                AddScriptTypeEntry(guid, type, fullName, type.Name, string.Empty, explicitId, ReadFormerlyKnown(type));
-            }
+            AddScriptTypeEntry(descriptor.ScriptTypeId, type, descriptor.FullTypeName,
+                descriptor.DisplayName, descriptor.SourcePath, descriptor.HasExplicitId);
         }
 
         // 表示・登録順を安定させる（full type name 昇順）
         scriptTypeEntries.Sort((a, b) => string.CompareOrdinal(a.fullTypeName, b.fullTypeName));
 
         // 型登録が確定したので serialized field schema と field map を一度だけ構築する（hot path 外）
-        BuildSchemaRegistry();
+        if (!BuildSchemaRegistry()) {
+            scriptTypeEntries.Clear();
+            guidToEntry.Clear();
+            typeToEntry.Clear();
+            return;
+        }
 
         if (scriptTypeEntries.Count == 0) {
             NativeApi.WriteLog(1, "GameScripts loaded, but no ScriptBehaviour types were found.");
         }
     }
 
-    // 各 ScriptTypeEntry の schemaJson（defaultValueJson 付き）と fieldMap を構築する。
-    // 生成 schema（GeneratedScriptSchema）を優先し、無ければ reflection で最小限を生成する。
-    private static void BuildSchemaRegistry() {
+    // 各 ScriptTypeEntry の schemaJson（defaultValueJson 付き）と fieldMap を構築する
+    private static bool BuildSchemaRegistry() {
 
         JsonObject? generatedByType = TryReadGeneratedSchema(gameAssembly!);
+        if (generatedByType == null) {
+            NativeApi.WriteLog(2,
+                "GeneratedScriptSchema was not found. Add the NEM.ScriptCodeGen analyzer to GameScripts.");
+            return false;
+        }
 
         foreach (ScriptTypeEntry entry in scriptTypeEntries) {
 
@@ -868,8 +858,8 @@ public static unsafe class HostBridge {
             }
 
             if (typeNode == null) {
-                // 生成 schema が無い型は reflection fallback で最小 schema を作る
-                typeNode = BuildReflectionSchema(entry);
+                NativeApi.WriteLog(2, $"Generated script schema was not found: {entry.fullTypeName}");
+                return false;
             }
 
             // field map を作りつつ defaultValueJson を埋める
@@ -898,6 +888,7 @@ public static unsafe class HostBridge {
 
             entry.schemaJson = typeNode.ToJsonString();
         }
+        return true;
     }
 
     // 生成 schema JSON を scriptTypeId -> typeNode の JsonObject へ変換する。無ければ null
@@ -931,42 +922,14 @@ public static unsafe class HostBridge {
         }
     }
 
-    // 生成 schema が無い型のための最小 schema（reflection）。属性は反映しない。
-    private static JsonObject BuildReflectionSchema(ScriptTypeEntry entry) {
-
-        var fields = new JsonArray();
-        foreach (FieldInfo field in EnumerateSerializedFields(entry.type)) {
-            string declaringType = field.DeclaringType?.FullName ?? entry.fullTypeName;
-            string fieldId = DeterministicGuid("NEMEngine.ScriptField:" + entry.scriptTypeId + "/" + declaringType + "/" + field.Name);
-            var node = new JsonObject {
-                ["fieldId"] = fieldId,
-                ["name"] = field.Name,
-                ["declaringType"] = declaringType,
-                ["isPublic"] = field.IsPublic,
-                ["isReadOnly"] = false,
-                ["isHidden"] = false,
-                ["multiline"] = false,
-                ["kind"] = ReflectionKindName(field.FieldType),
-            };
-            fields.Add(node);
-        }
-        return new JsonObject {
-            ["scriptTypeId"] = entry.scriptTypeId,
-            ["fullTypeName"] = entry.fullTypeName,
-            ["fields"] = fields,
-        };
-    }
-
     // 1 型分の entry を登録する。GUID 重複は warning を出して後勝ちを避ける（先勝ち維持）
     private static void AddScriptTypeEntry(string rawGuid, Type type, string fullName, string displayName,
-        string sourcePath, bool hasExplicitId, string[] formerlyKnown) {
+        string sourcePath, bool hasExplicitId) {
 
         string? normalized = NormalizeGuid(rawGuid);
         if (normalized == null) {
-            // 不正 GUID は決定的 fallback で救済（generator 側でも error 診断済み）
-            normalized = DeterministicGuid(fullName);
-            hasExplicitId = false;
-            NativeApi.WriteLog(2, $"Invalid Script Type GUID for '{fullName}'. Using a fallback GUID.");
+            NativeApi.WriteLog(2, $"Invalid Script Type GUID for '{fullName}'.");
+            return;
         }
 
         if (guidToEntry.ContainsKey(normalized)) {
@@ -993,7 +956,6 @@ public static unsafe class HostBridge {
             sourcePath = sourcePath ?? string.Empty,
             hasExplicitId = hasExplicitId,
             defaultExecutionOrder = defaultExecutionOrder,
-            formerlyKnown = formerlyKnown ?? Array.Empty<string>(),
         };
         scriptTypeEntries.Add(entry);
         guidToEntry[normalized] = entry;
@@ -1009,35 +971,6 @@ public static unsafe class HostBridge {
             return null;
         }
         return method.Invoke(null, null) as ScriptTypeDescriptor[];
-    }
-
-    // 型から [ScriptTypeId] を読み正規化する。無ければ決定的 fallback（hasExplicit=false）
-    private static (string guid, bool hasExplicit) ResolveGuidFromAttribute(Type type, string fullName) {
-
-        ScriptTypeIdAttribute? attribute = type.GetCustomAttribute<ScriptTypeIdAttribute>(inherit: false);
-        if (attribute != null) {
-
-            string? normalized = NormalizeGuid(attribute.Value);
-            if (normalized != null) {
-                return (normalized, true);
-            }
-            NativeApi.WriteLog(2, $"Invalid [ScriptTypeId] on '{fullName}'. Using a fallback GUID.");
-            return (DeterministicGuid(fullName), false);
-        }
-        NativeApi.WriteLog(1, $"Script type '{fullName}' has no [ScriptTypeId]; using a migration fallback GUID.");
-        return (DeterministicGuid(fullName), false);
-    }
-
-    // 型から [FormerlyKnownScriptType] の旧 full type name を集める
-    private static string[] ReadFormerlyKnown(Type type) {
-
-        var names = new List<string>();
-        foreach (FormerlyKnownScriptTypeAttribute attribute in type.GetCustomAttributes<FormerlyKnownScriptTypeAttribute>(inherit: false)) {
-            if (!string.IsNullOrWhiteSpace(attribute.FullTypeName)) {
-                names.Add(attribute.FullTypeName);
-            }
-        }
-        return names.Count == 0 ? Array.Empty<string>() : names.ToArray();
     }
 
     //========================================================================
@@ -1139,24 +1072,15 @@ public static unsafe class HostBridge {
                 });
             }
 
-            // 生成 registry 優先（sourcePath 付き）→ 無ければ reflection
             ScriptTypeDescriptor[]? generated = TryReadGeneratedManifest(assembly);
             if (generated != null) {
                 foreach (ScriptTypeDescriptor descriptor in generated) {
                     AddScript(descriptor.ScriptTypeId, descriptor.FullTypeName, descriptor.DisplayName, descriptor.SourcePath);
                 }
             } else {
-                foreach (Type type in assembly.GetTypes()) {
-                    if (type.IsAbstract || !typeof(ScriptBehaviour).IsAssignableFrom(type)) {
-                        continue;
-                    }
-                    if (type.GetConstructor(Type.EmptyTypes) == null) {
-                        continue;
-                    }
-                    string fullName = type.FullName ?? type.Name;
-                    (string guid, _) = ResolveGuidFromAttribute(type, fullName);
-                    AddScript(guid, fullName, type.Name, string.Empty);
-                }
+                NativeApi.WriteLog(2,
+                    $"manifest: GeneratedScriptManifest was not found in '{dllPath}'");
+                valid = false;
             }
 
             root.scripts.Sort((a, b) => string.CompareOrdinal(a.fullTypeName, b.fullTypeName));
@@ -1307,14 +1231,6 @@ public static unsafe class HostBridge {
             return null;
         }
         return Guid.TryParse(raw, out Guid guid) ? guid.ToString("D") : null;
-    }
-
-    // full type name から決定的な移行用 fallback GUID を作る（明示 [ScriptTypeId] 推奨）
-    private static string DeterministicGuid(string fullTypeName) {
-
-        using System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create();
-        byte[] hash = md5.ComputeHash(Encoding.UTF8.GetBytes("NEMEngine.ScriptType:" + fullTypeName));
-        return new Guid(hash).ToString("D");
     }
 
     // 全slotをreleaseしてfree listを作り直す。generation履歴は維持し、retired枠は再利用しない
@@ -1594,68 +1510,6 @@ public static unsafe class HostBridge {
             }
         }
         return null;
-    }
-
-    // public field または [SerializeField]/[SerializeReference] 付き field を継承込みで列挙する（reflection fallback 用）
-    private static IEnumerable<FieldInfo> EnumerateSerializedFields(Type type) {
-
-        var chain = new List<Type>();
-        for (Type? t = type; t != null && t != typeof(ScriptBehaviour) && t != typeof(object); t = t.BaseType) {
-            chain.Add(t);
-        }
-        chain.Reverse();
-
-        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
-        foreach (Type t in chain) {
-            foreach (FieldInfo field in t.GetFields(flags)) {
-                if (field.IsStatic || field.IsInitOnly || field.IsLiteral) {
-                    continue;
-                }
-                bool serialize = field.GetCustomAttribute<SerializeFieldAttribute>() != null ||
-                    field.GetCustomAttribute<SerializeReferenceAttribute>() != null;
-                if (!field.IsPublic && !serialize) {
-                    continue;
-                }
-                yield return field;
-            }
-        }
-    }
-
-    // reflection fallback 用の kind 名（属性・element は反映しない degraded schema）
-    private static string ReflectionKindName(Type type) {
-
-        if (type.IsEnum) return "Enum";
-        if (type.IsArray) return "Array";
-        if (type.IsGenericType) {
-            Type def = type.GetGenericTypeDefinition();
-            if (def == typeof(List<>)) return "List";
-            if (def == typeof(Nullable<>)) return "Nullable";
-        }
-        // 参照型は基底クラスで判定する(ScriptBehaviourはComponent派生なので先に判定)
-        if (typeof(Asset).IsAssignableFrom(type)) return "AssetRef";
-        if (typeof(ScriptBehaviour).IsAssignableFrom(type)) return "ScriptRef";
-        if (typeof(Component).IsAssignableFrom(type)) return "ComponentRef";
-        if (type == typeof(Entity)) return "EntityRef";
-        if (type == typeof(bool)) return "Bool";
-        if (type == typeof(byte)) return "Byte";
-        if (type == typeof(sbyte)) return "SByte";
-        if (type == typeof(short)) return "Short";
-        if (type == typeof(ushort)) return "UShort";
-        if (type == typeof(int)) return "Int";
-        if (type == typeof(uint)) return "UInt";
-        if (type == typeof(long)) return "Long";
-        if (type == typeof(ulong)) return "ULong";
-        if (type == typeof(float)) return "Float";
-        if (type == typeof(double)) return "Double";
-        if (type == typeof(string)) return "String";
-        if (type == typeof(Vector2)) return "Vector2";
-        if (type == typeof(Vector3)) return "Vector3";
-        if (type == typeof(Vector4)) return "Vector4";
-        if (type == typeof(Quaternion)) return "Quaternion";
-        if (type == typeof(Color3)) return "Color3";
-        if (type == typeof(Color4)) return "Color4";
-        if (IsSerializableObjectType(type)) return "Object";
-        return "Unsupported";
     }
 
     // authoring default 抽出用の一時 instance。side-effect-free constructor 前提で cache する（reload で破棄）
