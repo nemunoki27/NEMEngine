@@ -2,6 +2,7 @@
 //	include
 //============================================================================
 #include "../Common/meshShaderSharedTypes.hlsli"
+#include "../../Common/CullingHelpers.hlsli"
 
 //============================================================================
 //	resources
@@ -50,38 +51,6 @@ StructuredBuffer<MeshInstance> gMeshInstances : register(t0);
 StructuredBuffer<SubMeshShaderData> gSubMeshes : register(t3, space1);
 RWStructuredBuffer<MeshInstance> gVisibleMeshInstances : register(u0);
 RWByteAddressBuffer gIndexedIndirectArgs : register(u1);
-
-float4 GetFrustumPlane(uint index) {
-
-	float4 col0 = float4(cullingViewProjection[0][0], cullingViewProjection[1][0], cullingViewProjection[2][0], cullingViewProjection[3][0]);
-	float4 col1 = float4(cullingViewProjection[0][1], cullingViewProjection[1][1], cullingViewProjection[2][1], cullingViewProjection[3][1]);
-	float4 col2 = float4(cullingViewProjection[0][2], cullingViewProjection[1][2], cullingViewProjection[2][2], cullingViewProjection[3][2]);
-	float4 col3 = float4(cullingViewProjection[0][3], cullingViewProjection[1][3], cullingViewProjection[2][3], cullingViewProjection[3][3]);
-
-	if (index == 0) { return col3 + col0; }
-	if (index == 1) { return col3 - col0; }
-	if (index == 2) { return col3 + col1; }
-	if (index == 3) { return col3 - col1; }
-	if (index == 4) { return col2; }
-	return col3 - col2;
-}
-
-float4 NormalizePlane(float4 plane) {
-
-	float len = length(plane.xyz);
-	if (len <= 0.00001f) {
-		return plane;
-	}
-	return plane / len;
-}
-
-float GetMatrixMaxScale(float4x4 inputMat) {
-
-	float sx = length(inputMat[0].xyz);
-	float sy = length(inputMat[1].xyz);
-	float sz = length(inputMat[2].xyz);
-	return max(sx, max(sy, sz));
-}
 
 void EncapsulateSphere(inout float3 center, inout float radius, float3 addCenter, float addRadius) {
 
@@ -144,39 +113,11 @@ void CalcInstanceCullBounds(MeshInstance instance, out float3 center, out float 
 	}
 }
 
-bool IsSphereInFrustum(float3 center, float radius) {
-
-	[unroll]
-	for (uint i = 0; i < 6; ++i) {
-
-		float4 plane = NormalizePlane(GetFrustumPlane(i));
-		if (dot(plane.xyz, center) + plane.w < -radius) {
-			return false;
-		}
-	}
-	return true;
-}
-
-float2 CalcProjectedPixelRadiusXY(float3 center, float radius) {
-
-	float4 clip = mul(float4(center, 1.0f), cullingViewProjection);
-	if (clip.w <= 0.00001f) {
-		return float2(contributionPixelThreshold, contributionPixelThreshold);
-	}
-
-	float3 viewCenter = mul(float4(center, 1.0f), cullingView).xyz;
-	float nearZ = viewCenter.z - radius;
-	if (nearZ <= max(cullingNearClip, 0.00001f)) {
-		return float2(1000000.0f, 1000000.0f);
-	}
-
-	float2 projectedRadius = abs(radius * cullingProjectionScale / nearZ);
-	return projectedRadius * cullingViewSize * 0.5f;
-}
-
 float CalcProjectedPixelRadius(float3 center, float radius) {
 
-	float2 radiusXY = CalcProjectedPixelRadiusXY(center, radius);
+	float2 radiusXY = CalcProjectedPixelRadiusXY(
+		cullingViewProjection, cullingView, cullingNearClip, cullingProjectionScale,
+		cullingViewSize, contributionPixelThreshold, center, radius);
 	return max(radiusXY.x, radiusXY.y);
 }
 
@@ -197,7 +138,7 @@ bool IsInstanceVisible(MeshInstance instance) {
 	float3 center;
 	float radius;
 	CalcInstanceCullBounds(instance, center, radius);
-	if (!IsSphereInFrustum(center, radius)) {
+	if (!IsSphereInFrustum(cullingViewProjection, center, radius)) {
 		return false;
 	}
 	if (!HasContribution(center, radius)) {

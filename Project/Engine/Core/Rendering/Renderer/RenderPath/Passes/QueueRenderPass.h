@@ -9,25 +9,43 @@
 namespace Engine {
 
 	//============================================================================
-	//	OpaqueRenderPass class
-	//	OpaqueキューをSceneMainに描画するパス
+	//	QueueRenderPass class
+	//	描画キューを指定Surfaceへ描画する共通パス
 	//============================================================================
-	class OpaqueRenderPass :
+	class QueueRenderPass final :
 		public IRenderPass {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
 
-		explicit OpaqueRenderPass(const RenderPipelineDeps& deps) : deps_(deps) {}
-		~OpaqueRenderPass() override = default;
+		enum class Target : uint8_t {
+			SceneMain,
+			SceneFinal,
+			DefaultSurface,
+		};
+
+		struct Desc {
+
+			RenderPathPassKind kind = RenderPathPassKind::Opaque;
+			RenderPhase phase = RenderPhase::Opaque;
+			Target target = Target::SceneMain;
+			MaterialPassKind materialPass = MaterialPassKind::Draw;
+			bool usePhaseExecution = true;
+			bool forceVertexMeshVariant = false;
+			bool reuseSceneDepth = false;
+		};
+
+		QueueRenderPass(const RenderPipelineDeps& deps, const Desc& desc) :
+			deps_(deps), desc_(desc) {}
+		~QueueRenderPass() override = default;
 
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
 
-		RenderPathPassKind GetKind() const override { return RenderPathPassKind::Opaque; }
+		RenderPathPassKind GetKind() const override { return desc_.kind; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -36,6 +54,6 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
+		Desc desc_{};
 	};
 } // Engine
-

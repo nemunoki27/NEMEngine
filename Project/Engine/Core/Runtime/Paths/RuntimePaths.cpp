@@ -179,11 +179,6 @@ const std::filesystem::path& Engine::RuntimePaths::GetEngineAssetsRoot() {
 	return GetState().engineAssetsRoot;
 }
 
-const std::filesystem::path& Engine::RuntimePaths::GetEngineLibraryRoot() {
-
-	return GetState().engineLibraryRoot;
-}
-
 std::filesystem::path Engine::RuntimePaths::GetEngineAssetPath(const std::filesystem::path& relativePath) {
 
 	return (GetEngineAssetsRoot() / relativePath).lexically_normal();
@@ -307,6 +302,5 @@ Engine::RuntimePaths::PathState Engine::RuntimePaths::BuildState() {
 		}
 	}
 	state.engineAssetsRoot = state.engineProjectRoot / "Engine/Assets";
-	state.engineLibraryRoot = state.engineProjectRoot / "Engine/Library";
 	return state;
 }

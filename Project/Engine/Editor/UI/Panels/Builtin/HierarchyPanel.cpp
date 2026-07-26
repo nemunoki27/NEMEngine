@@ -8,7 +8,7 @@
 #include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
 #include <Engine/Editor/Commands/Entity/ReparentEntityCommand.h>
 #include <Engine/Editor/Commands/Entity/DuplicateEntityCommand.h>
-#include <Engine/Editor/Commands/Entity/SetEntityActiveCommand.h>
+#include <Engine/Editor/Commands/Entity/EntityPropertyCommands.h>
 #include <Engine/Editor/Commands/Entity/InstantiatePrefabCommand.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>

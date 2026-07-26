@@ -35,8 +35,6 @@ namespace Engine {
 		static const std::filesystem::path& GetEngineProjectRoot();
 		// Engine/Assetsのルートを取得
 		static const std::filesystem::path& GetEngineAssetsRoot();
-		// Engine/Libraryのルートを取得
-		static const std::filesystem::path& GetEngineLibraryRoot();
 
 		// Engine/Assets配下のパスを取得
 		static std::filesystem::path GetEngineAssetPath(const std::filesystem::path& relativePath);
@@ -55,7 +53,6 @@ namespace Engine {
 			std::filesystem::path gameRoot;
 			std::filesystem::path engineProjectRoot;
 			std::filesystem::path engineAssetsRoot;
-			std::filesystem::path engineLibraryRoot;
 		};
 	private:
 		//============================================================================

@@ -3,8 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Editor/Commands/Entity/RenameEntityCommand.h>
-#include <Engine/Editor/Commands/Entity/SetEntityTagCommand.h>
+#include <Engine/Editor/Commands/Entity/EntityPropertyCommands.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
@@ -43,7 +42,6 @@
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraControllerComponent.h>
-#include <Engine/Editor/Commands/Entity/SetEntityActiveCommand.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Asset/TextureAssetInspectorDrawer.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>

@@ -25,9 +25,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/IrisTransitionInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/InvertedHullOutlineInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/ScreenSpaceOutlineInspectorDrawer.h>
-#include <Engine/Editor/UI/Inspectors/Builtin/Light/DirectionalLightInspectorDrawer.h>
-#include <Engine/Editor/UI/Inspectors/Builtin/Light/PointLightInspectorDrawer.h>
-#include <Engine/Editor/UI/Inspectors/Builtin/Light/SpotLightInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Light/LightInspectorDrawers.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/SkinnedAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/AnimationPlayerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Audio/AudioSourceInspectorDrawer.h>

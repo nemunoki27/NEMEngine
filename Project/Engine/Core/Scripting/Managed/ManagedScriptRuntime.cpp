@@ -75,7 +75,6 @@ namespace {
 		const std::filesystem::path engineRoot = Engine::RuntimePaths::GetEngineProjectRoot().parent_path();
 		return FindFirstExistingPath({
 			exeDir / "Managed/NEM.ScriptCore.dll",
-			Engine::RuntimePaths::GetEngineLibraryRoot() / "Managed" / profile / "NEM.ScriptCore.dll",
 			engineRoot / "Generated/Managed/NEM.ScriptCore" / profile / "NEM.ScriptCore.dll",
 			Engine::RuntimePaths::GetGameRoot() / "Managed" / profile / "NEM.ScriptCore.dll",
 			current / "Managed/NEM.ScriptCore.dll"

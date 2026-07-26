@@ -25,9 +25,7 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/FillMesh/FillMeshRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleRenderBackend.h>
-#include <Engine/Core/Rendering/Renderer/Lighting/Builtin/Directional/DirectionalLightExtractor.h>
-#include <Engine/Core/Rendering/Renderer/Lighting/Builtin/Point/PointLightExtractor.h>
-#include <Engine/Core/Rendering/Renderer/Lighting/Builtin/Spot/SpotLightExtractor.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/Builtin/BuiltinLightExtractors.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/ViewLightCollector.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>

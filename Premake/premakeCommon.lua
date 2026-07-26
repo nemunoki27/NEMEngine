@@ -318,7 +318,6 @@ function NEM_AddRuntimeProjectFiles()
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/**"),
         path.join(NEM_PROJECT_ROOT, "Engine/Assets/Shaders/Builtin/Editor/**"),
         path.join(NEM_PROJECT_ROOT, "Engine/Assets/Textures/Editor/**"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Library/**"),
     }
 end
 

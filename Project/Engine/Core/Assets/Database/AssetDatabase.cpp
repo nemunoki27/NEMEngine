@@ -124,10 +124,6 @@ bool Engine::AssetDatabase::Init() {
 	// ファイルパスの初期化
 	projectRoot_ = RuntimePaths::GetProjectRoot();
 	assetsRoot_ = RuntimePaths::GetEngineAssetsRoot();
-	libraryRoot_ = RuntimePaths::GetEngineLibraryRoot();
-
-	// 無ければ作成する
-	std::filesystem::create_directories(libraryRoot_);
 
 	return true;
 }

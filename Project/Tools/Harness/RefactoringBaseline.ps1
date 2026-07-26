@@ -126,6 +126,10 @@ function Get-SourceMetrics {
     $cppLines = @($lineEntries | Where-Object path -match "\.(h|cpp)$")
     $shaderLines = @($lineEntries | Where-Object path -match "\.(hlsl|hlsli)$")
     $managedLines = @($lineEntries | Where-Object path -match "\.cs$")
+    $duplicateFileCount = 0
+    foreach ($group in $duplicateGroups) {
+        $duplicateFileCount += $group.count
+    }
 
     return [pscustomobject]@{
         totalFiles = $SourceFiles.Count
@@ -142,7 +146,7 @@ function Get-SourceMetrics {
         cppFilesAtMost80Lines = @($cppLines | Where-Object lines -le 80).Count
         cppFilesAtLeast1000Lines = @($cppLines | Where-Object lines -ge 1000).Count
         duplicateGroups = $duplicateGroups.Count
-        duplicateFiles = @($duplicateGroups.files).Count
+        duplicateFiles = $duplicateFileCount
         duplicateDetails = $duplicateGroups
         largestFiles = @($lineEntries | Sort-Object lines -Descending | Select-Object -First 20)
     }

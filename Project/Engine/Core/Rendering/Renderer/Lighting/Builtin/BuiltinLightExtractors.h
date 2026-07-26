@@ -7,20 +7,30 @@
 
 namespace Engine {
 
+	struct DirectionalLightComponent;
+	struct PointLightComponent;
+	struct SpotLightComponent;
+
 	//============================================================================
-	//	PointLightExtractor class
-	//	ポイントライトを抽出するクラス
+	//	BuiltinLightExtractor template
+	//	ビルトインライトを抽出する共通クラス
 	//============================================================================
-	class PointLightExtractor :
+	template <typename TComponent>
+	class BuiltinLightExtractor final :
 		public ILightExtractor {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
 
-		PointLightExtractor() = default;
-		~PointLightExtractor() override = default;
+		BuiltinLightExtractor() = default;
+		~BuiltinLightExtractor() override = default;
 
 		void Extract(ECSWorld& world, FrameLightBatch& batch) override;
 	};
+
+	// ライト種別ごとの型名は登録側で明示して扱う
+	using DirectionalLightExtractor = BuiltinLightExtractor<DirectionalLightComponent>;
+	using PointLightExtractor = BuiltinLightExtractor<PointLightComponent>;
+	using SpotLightExtractor = BuiltinLightExtractor<SpotLightComponent>;
 } // Engine
