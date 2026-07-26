@@ -16,6 +16,10 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 $engineRoot = Split-Path -Parent $PSScriptRoot
 $generated  = Join-Path $engineRoot "Generated"
+$runtimeDeployScript = Join-Path $engineRoot "Tools\DeployRuntimeDependencies.ps1"
+if (-not (Test-Path -LiteralPath $runtimeDeployScript)) {
+    throw "Runtime dependency deploy script was not found: $runtimeDeployScript"
+}
 if ([string]::IsNullOrEmpty($OutDir)) {
     $OutDir = Join-Path $engineRoot "Generated\SDK"
 }
@@ -112,7 +116,6 @@ Write-Host "[4/4] 構成ごとのDLL/ランタイムを書き出し中..."
 $packaged = @()
 foreach ($cfg in $Configurations) {
     $binSrc     = Join-Path $generated "Bin\$cfg\NEMRuntime"
-    $appOutSrc  = Join-Path $generated "Output\$cfg\Sandbox"
     $managedSrc = Join-Path $generated "Managed\NEM.ScriptCore\$cfg"
     if (-not (Test-Path (Join-Path $binSrc "NEMRuntime.dll"))) {
         Write-Host "  [スキップ] $cfg はビルドされていません: $binSrc"
@@ -128,12 +131,11 @@ foreach ($cfg in $Configurations) {
     Copy-Item -Force (Join-Path $binSrc "NEMRuntime.dll") (Join-Path $sdkBin "NEMRuntime.dll")
     Copy-Item -Force (Join-Path $binSrc "NEMRuntime.lib") (Join-Path $sdkBin "NEMRuntime.lib")
 
-    # 実行時ランタイム（NEMRuntime.dllはエンジンBinから、他はSandbox出力から）
-    Copy-Item -Force (Join-Path $binSrc "NEMRuntime.dll") (Join-Path $sdkRuntime "NEMRuntime.dll")
-    foreach ($dll in @("dxcompiler.dll","dxil.dll","nethost.dll","WinPixEventRuntime.dll")) {
-        $src = Join-Path $appOutSrc $dll
-        if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkRuntime $dll) }
-    }
+    # 実行時ランタイムは共通配置処理から書き出し、依存マニフェストも同時に生成する
+    & $runtimeDeployScript `
+        -TargetDirectory $sdkRuntime `
+        -Configuration $cfg `
+        -RuntimeDllPath (Join-Path $binSrc "NEMRuntime.dll")
     # managed（NEM.ScriptCore.dll/pdb等）。pdbも入れてC#ブレークポイントを成立させる
     if (Test-Path $managedSrc) { Copy-Item -Force -Recurse (Join-Path $managedSrc "*") $sdkManaged }
     $packaged += $cfg

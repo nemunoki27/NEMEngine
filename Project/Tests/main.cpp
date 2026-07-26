@@ -5,6 +5,8 @@
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSemanticMerge.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
+#include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Runtime/Packages/PackageResolver.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
@@ -25,6 +27,35 @@ namespace {
 		constexpr std::string_view source = "d0d59331ff0a4eb589ea7801cb52f208";
 		const std::optional<Engine::AssetGUID> parsed = Engine::TryParseAssetGUID32Hex(source);
 		return parsed && Engine::ToString(*parsed) == source;
+	}
+
+	bool TestBuiltinShaderSources() {
+
+		constexpr std::array<const char*, 10> references = {
+			Engine::BuiltinShaderSource::Skybox::VS,
+			Engine::BuiltinShaderSource::Skybox::PS,
+			Engine::BuiltinShaderSource::Line::GeometryVS,
+			Engine::BuiltinShaderSource::Line::GeometryGS,
+			Engine::BuiltinShaderSource::Line::GeometryPS,
+			Engine::BuiltinShaderSource::Line::AnalyticGridVS,
+			Engine::BuiltinShaderSource::Line::AnalyticGridPS,
+			Engine::BuiltinShaderSource::Editor::PickMeshInstanceCS,
+			Engine::BuiltinShaderSource::Editor::SceneOverlaySpriteVS,
+			Engine::BuiltinShaderSource::Editor::SceneOverlaySpritePS,
+		};
+
+		for (const char* reference : references) {
+
+			if (!Engine::TryParseAssetGUID32Hex(reference)) {
+				return false;
+			}
+			const std::filesystem::path path = Engine::ShaderSourcePath::Resolve(reference);
+			std::error_code ec;
+			if (path.empty() || !std::filesystem::is_regular_file(path, ec) || ec) {
+				return false;
+			}
+		}
+		return Engine::ShaderSourcePath::Resolve("b2995658d93cd4ab").empty();
 	}
 
 	bool TestContentHash() {
@@ -366,6 +397,10 @@ int main() {
 	if (!TestExternalActors()) {
 		std::cerr << "ExternalActors failed\n";
 		return 8;
+	}
+	if (!TestBuiltinShaderSources()) {
+		std::cerr << "Builtin shader source resolution failed\n";
+		return 9;
 	}
 	std::cout << "NEMTests passed\n";
 	return 0;

@@ -115,21 +115,42 @@ try {
     }
     New-Item -ItemType Directory -Path $stageDirectory -Force | Out-Null
 
-    $runtimeFiles = @(
-        $runtimeExecutable,
-        "NEMRuntime.dll",
-        "dxcompiler.dll",
-        "dxil.dll",
-        "nethost.dll"
-    )
+    $runtimeSource = Join-Path $sourceRuntime $runtimeExecutable
+    if (-not (Test-Path -LiteralPath $runtimeSource)) {
+        throw "Runtime executable is missing: $runtimeSource"
+    }
+    Copy-Item -LiteralPath $runtimeSource `
+        -Destination (Join-Path $stageDirectory $executableName) -Force
+
+    $runtimeManifestName = "nem.runtime-dependencies.json"
+    $runtimeManifestPath = Join-Path $sourceRuntime $runtimeManifestName
+    if (-not (Test-Path -LiteralPath $runtimeManifestPath)) {
+        throw "Runtime dependency manifest is missing: $runtimeManifestPath"
+    }
+
+    $runtimeManifest = Get-Content -LiteralPath $runtimeManifestPath -Raw -Encoding UTF8 |
+        ConvertFrom-Json
+    if ([int]$runtimeManifest.schemaVersion -ne 1) {
+        throw "Unsupported runtime dependency manifest schema"
+    }
+
+    $runtimeFiles = @($runtimeManifest.files | ForEach-Object { [string]$_ })
+    if ($runtimeFiles.Count -eq 0 -or $runtimeFiles -notcontains "NEMRuntime.dll") {
+        throw "Runtime dependency manifest does not contain NEMRuntime.dll"
+    }
+
     foreach ($runtimeFile in $runtimeFiles) {
-        $source = Join-Path $sourceRuntime $runtimeFile
+        $source = Get-ChildPath -Root $sourceRuntime -Relative $runtimeFile
         if (-not (Test-Path -LiteralPath $source)) {
             throw "Runtime file is missing: $source"
         }
-        $destinationName = if ($runtimeFile -eq $runtimeExecutable) { $executableName } else { $runtimeFile }
-        Copy-Item -LiteralPath $source -Destination (Join-Path $stageDirectory $destinationName) -Force
+        $destination = Get-ChildPath -Root $stageDirectory -Relative $runtimeFile
+        $destinationDirectory = [System.IO.Path]::GetDirectoryName($destination)
+        New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
+        Copy-Item -LiteralPath $source -Destination $destination -Force
     }
+    Copy-Item -LiteralPath $runtimeManifestPath `
+        -Destination (Join-Path $stageDirectory $runtimeManifestName) -Force
 
     $managedSource = Join-Path $sourceRuntime "Managed"
     if (-not (Test-Path -LiteralPath $managedSource)) {

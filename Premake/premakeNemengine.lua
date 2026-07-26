@@ -40,9 +40,13 @@ project "NEMRuntime"
     -- DLL自身のpostbuildにすることで、エンジンを変更した時は必ず最新DLLが配置される。
     local engineBinDir = path.translate(path.join(NEM_OUTPUT_ROOT, "Bin/%{cfg.buildcfg}/NEMRuntime"), "\\")
     local sandboxRuntimeDir = path.translate(path.join(NEM_OUTPUT_ROOT, "Output/%{cfg.buildcfg}/Sandbox"), "\\")
+    local runtimeDeployScript = path.translate(
+        path.join(NEMENGINE_ROOT, "Tools/DeployRuntimeDependencies.ps1"), "\\")
     postbuildcommands {
-        'if not exist "' .. sandboxRuntimeDir .. '" mkdir "' .. sandboxRuntimeDir .. '"',
-        'copy /Y "' .. engineBinDir .. '\\NEMRuntime.dll" "' .. sandboxRuntimeDir .. '\\" >nul',
+        'powershell -NoProfile -ExecutionPolicy Bypass -File "' .. runtimeDeployScript ..
+        '" -TargetDirectory "' .. sandboxRuntimeDir .. '" -Configuration "$(Configuration)"' ..
+        ' -WindowsSdkBinaryDirectory "$(WindowsSdkDir)bin\\$(TargetPlatformVersion)\\x64"' ..
+        ' -RuntimeDllPath "' .. engineBinDir .. '\\NEMRuntime.dll"',
         'if exist "' .. engineBinDir .. '\\NEMRuntime.pdb" copy /Y "' .. engineBinDir .. '\\NEMRuntime.pdb" "' .. sandboxRuntimeDir .. '\\" >nul',
     }
 

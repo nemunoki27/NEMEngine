@@ -178,6 +178,17 @@ function NEM_AddEngineDllLinkSettings()
         libdirs { path.translate(path.join(NEM_PROJECT_ROOT, "Externals/WinPixEventRuntime/bin/x64"), "\\") }
         links { "WinPixEventRuntime" }
 
+    -- Coreへ静的リンクする全EXEへ共通ランタイム依存を配置する
+    -- 依存一覧と必須ファイル検証はDeployRuntimeDependencies.ps1へ集約する
+    local runtimeDeployScript = path.translate(
+        path.join(NEMENGINE_ROOT, "Tools/DeployRuntimeDependencies.ps1"), "\\")
+    filter "kind:ConsoleApp or kind:WindowedApp"
+        postbuildcommands {
+            'powershell -NoProfile -ExecutionPolicy Bypass -File "' .. runtimeDeployScript ..
+            '" -TargetPath "$(TargetPath)" -Configuration "$(Configuration)"' ..
+            ' -WindowsSdkBinaryDirectory "$(WindowsSdkDir)bin\\$(TargetPlatformVersion)\\x64"',
+        }
+
     filter {}
 end
 

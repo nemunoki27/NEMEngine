@@ -115,20 +115,20 @@ $preBuildCommand = @(
 # 末尾の\有無に依存しないよう正規化し、区切りはここで明示的に付与する
 $repoRoot = '$(ProjectDir)' + $RepoRootFromProject.TrimEnd('\')
 $generatedBinDll = $repoRoot + '\Generated\Bin\$(Configuration)\NEMRuntime\NEMRuntime.dll'
-$winPixDll = $repoRoot + '\Project\Externals\WinPixEventRuntime\bin\x64\WinPixEventRuntime.dll'
-$nethostDll = $repoRoot + '\Project\Externals\dotnet-hosting\bin\x64\nethost.dll'
+$runtimeDeployScript = Convert-ToCommandPath (
+    Join-Path $PSScriptRoot "..\Tools\DeployRuntimeDependencies.ps1")
+if (-not (Test-Path -LiteralPath $runtimeDeployScript)) {
+    throw "Runtime dependency deploy script was not found: $runtimeDeployScript"
+}
 
 $postBuildCommand = @(
-    # NEMRuntime.dll を実行ファイル横へ配置する（in-repo は Generated/Bin から、利用側はimport lib参照のみ）
-    ('if exist "' + $generatedBinDll + '" copy /Y "' + $generatedBinDll + '" "$(TargetDir)NEMRuntime.dll"'),
-    'copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"',
-    'copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dxil.dll"',
+    # ネイティブランタイム依存は全EXE共通の配置処理へ集約する
+    ('powershell -NoProfile -ExecutionPolicy Bypass -File "' + $runtimeDeployScript +
+        '" -TargetPath "$(TargetPath)" -Configuration "$(Configuration)"' +
+        ' -WindowsSdkBinaryDirectory "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64"' +
+        ' -RuntimeDllPath "' + $generatedBinDll + '"'),
     ('if exist "' + $scriptCoreOutput + '\$(Configuration)\*" xcopy /Y /I "' + $scriptCoreOutput + '\$(Configuration)\*" "$(TargetDir)Managed\"'),
-    'if exist "$(ProjectDir)Managed\$(Configuration)\*" xcopy /Y /I "$(ProjectDir)Managed\$(Configuration)\*" "$(TargetDir)Managed\"',
-    # WinPixEventRuntime.dll は USE_PIX が有効な Debug のみ実行ファイル横へ配置する
-    ('if "$(Configuration)"=="Debug" copy /Y "' + $winPixDll + '" "$(TargetDir)WinPixEventRuntime.dll"'),
-    # nethost.dll を実行ファイル横へ配置する。DotnetHostResolver が動的ロードして get_hostfxr_path を取得する（全構成）
-    ('copy /Y "' + $nethostDll + '" "$(TargetDir)nethost.dll"')
+    'if exist "$(ProjectDir)Managed\$(Configuration)\*" xcopy /Y /I "$(ProjectDir)Managed\$(Configuration)\*" "$(TargetDir)Managed\"'
 ) -join "`r`n"
 
 $document = New-Object xml
@@ -162,6 +162,10 @@ if ($patchedText -notmatch '-c "\$\(Configuration\)"') {
 
 if ($patchedText -notmatch 'Managed\\\$\(Configuration\)\\\*') {
     throw 'Managed copy command verification failed: missing Managed\$(Configuration)\*.'
+}
+
+if ($patchedText -notmatch 'DeployRuntimeDependencies\.ps1') {
+    throw "Runtime dependency deploy command verification failed."
 }
 
 if ($patchedText -match '-c "Debug"|Managed\\Debug\\\*|Release"\) else') {

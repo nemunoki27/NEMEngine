@@ -61,7 +61,6 @@
 
 // c++
 #include <algorithm>
-#include <cctype>
 #include <cfloat>
 #include <cmath>
 #include <filesystem>
@@ -81,17 +80,6 @@
 //============================================================================
 namespace {
 
-	// 16桁hexのAssetID文字列かどうかを判定する
-	bool LooksLikeAssetID(const std::string& text) {
-
-		if (text.size() != 16) {
-			return false;
-		}
-		return std::all_of(text.begin(), text.end(), [](unsigned char c) {
-			return std::isxdigit(c) != 0;
-			});
-	}
-
 	// Material JSON内のパス参照をAssetIDに解決して、Inspectorで編集できる形にする
 	void ResolveMaterialPipelineReferences(Engine::AssetDatabase& database, nlohmann::json& data) {
 
@@ -105,7 +93,7 @@ namespace {
 			}
 
 			const std::string text = passJson["pipeline"].get<std::string>();
-			if (text.empty() || LooksLikeAssetID(text)) {
+			if (text.empty() || Engine::TryParseAssetGUID32Hex(text)) {
 				continue;
 			}
 
