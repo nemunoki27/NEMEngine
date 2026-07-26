@@ -32,7 +32,7 @@ namespace {
 	bool g_loaded = false;
 
 	std::filesystem::path TagSettingsPath() {
-		return Engine::RuntimePaths::GetGameRoot() / "ProjectSettings" / "TagSettings.json";
+		return Engine::RuntimePaths::GetProjectSettingsPath("TagSettings.json");
 	}
 
 	// 前後の空白を取り除いた文字列を返す

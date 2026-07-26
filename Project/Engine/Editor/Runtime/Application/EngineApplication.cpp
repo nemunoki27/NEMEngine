@@ -42,11 +42,13 @@
 // c++
 #include <algorithm>
 #include <chrono>
+#include <unordered_set>
 #include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
 #include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
 #include <Engine/Core/World/Systems/Animation/AnimationPlayerSystem.h>
 #include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
 #include <Engine/Core/World/Systems/Camera/CameraControllerSystem.h>
+#include <Engine/Core/World/Systems/Camera/CameraShakeSystem.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
 #include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
 
@@ -56,6 +58,7 @@
 namespace {
 
 	constexpr const char* kActiveSceneConfigPath = Engine::ConfigPaths::kActiveScene;
+	constexpr const char* kStartupSceneConfigPath = Engine::ConfigPaths::kStartupScene;
 	constexpr const char* kFrameRateConfigPath = Engine::ConfigPaths::kFrameRate;
 	// デフォルトマテリアル設定はチームで共有したいのでgit管理されるGameAssets配下へ置く
 	constexpr const char* kDefaultMaterialConfigPath = "GameAssets/Materials/Config/defaultMaterials.materialSettings.json";
@@ -94,6 +97,7 @@ void Engine::EngineApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<CameraShakeSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<TransformSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<FlipbookAnimationSystem>(), ++order);
@@ -109,41 +113,55 @@ void Engine::EngineApplication::InitSystems() {
 
 void Engine::EngineApplication::InitFirstScene() {
 
+	if (!activeScene_) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"EngineApplication: active scene is not configured");
+		return;
+	}
 	// アクティブなシーンの表示・保存用パスはGUIDから引き直す
 	if (const AssetMeta* meta = assetDataBase_.Find(activeScene_)) {
 		activeScenePath_ = meta->assetPath;
 	}
 	// シーンをロードしてエディタワールドにインスタンスを作成
-	editScenes_.LoadSceneTree(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_);
+	if (!editScenes_.LoadSceneTree(
+		assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_)) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"EngineApplication: active scene could not be loaded. guid={}",
+			ToString(activeScene_));
+	}
 }
 
 void Engine::EngineApplication::LoadActiveSceneConfig() {
 
-	// 前回終了時に開いていたシーンがあれば、初期シーンとして使う
-	const std::filesystem::path configPath = RuntimePaths::GetGameConfigPath(kActiveSceneConfigPath);
-	if (!JsonAdapter::Check(configPath, false)) {
-		return;
-	}
+	const auto loadSceneConfig = [&](const std::filesystem::path& configPath) {
 
-	const nlohmann::json data = JsonAdapter::Load(configPath, false);
-	if (!data.is_object()) {
-		return;
-	}
+		if (!JsonAdapter::Check(configPath, false)) {
+			return;
+		}
+		const nlohmann::json data = JsonAdapter::Load(configPath, false);
+		if (!data.is_object()) {
+			return;
+		}
 
-	AssetID sceneAsset = ParseAssetReference(data, "activeScene", &assetDataBase_, AssetType::Scene);
-	if (!sceneAsset) {
-		return;
-	}
+		const AssetID sceneAsset =
+			ParseAssetReference(data, "activeScene", &assetDataBase_, AssetType::Scene);
+		const std::filesystem::path fullPath =
+			assetDataBase_.ResolveFullPath(sceneAsset);
+		if (!sceneAsset || fullPath.empty() || !std::filesystem::exists(fullPath)) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"EngineApplication: scene config points missing scene. config={}",
+				Algorithm::PathToUTF8(configPath));
+			return;
+		}
+		activeScene_ = sceneAsset;
+		if (const AssetMeta* meta = assetDataBase_.Find(sceneAsset)) {
+			activeScenePath_ = meta->assetPath;
+		}
+		};
 
-	const std::filesystem::path fullPath = assetDataBase_.ResolveFullPath(sceneAsset);
-	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
-		Logger::Output(LogType::Engine, spdlog::level::warn, "EngineApplication: active scene config points missing scene. guid={}", ToString(sceneAsset));
-		return;
-	}
-	activeScene_ = sceneAsset;
-	if (const AssetMeta* meta = assetDataBase_.Find(sceneAsset)) {
-		activeScenePath_ = meta->assetPath;
-	}
+	// 共有の起動シーンを基準にし、ユーザーが最後に開いていたシーンがあれば上書きする
+	loadSceneConfig(RuntimePaths::GetProjectSettingsPath(kStartupSceneConfigPath));
+	loadSceneConfig(RuntimePaths::GetUserSettingsPath(kActiveSceneConfigPath));
 }
 
 void Engine::EngineApplication::SaveActiveSceneConfig() const {
@@ -152,7 +170,7 @@ void Engine::EngineApplication::SaveActiveSceneConfig() const {
 	nlohmann::json data = nlohmann::json::object();
 	data["activeScene"] = ToAssetReferenceJson(activeScene_);
 
-	const std::filesystem::path configPath = RuntimePaths::GetGameConfigPath(kActiveSceneConfigPath);
+	const std::filesystem::path configPath = RuntimePaths::GetUserSettingsPath(kActiveSceneConfigPath);
 	JsonAdapter::Save(configPath, data);
 }
 
@@ -169,7 +187,7 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 
 	// フレームレート上限を設定ファイルから読み込む
 	FrameRateSettings::GetInstance().Load(
-		Algorithm::PathToUTF8(RuntimePaths::GetGameConfigPath(kFrameRateConfigPath)));
+		Algorithm::PathToUTF8(RuntimePaths::GetProjectSettingsPath(kFrameRateConfigPath)));
 	// 描画タイプごとのデフォルトマテリアル設定をGameAssets配下から読み込む
 	DefaultMaterialSettings::GetInstance().Load(
 		Algorithm::PathToUTF8(RuntimePaths::GetGameRoot() / kDefaultMaterialConfigPath));
@@ -704,14 +722,14 @@ void Engine::EngineApplication::HandleEditorSceneRequests() {
 			SaveActiveEditScene();
 			break;
 		case EditorSceneRequestType::SaveAndNewScene:
-			// 保存に成功した場合だけ新規シーン作成へ進む
-			if (SaveActiveEditScene()) {
+			// 読み込み中の全シーンの保存に成功した場合だけ新規シーン作成へ進む
+			if (SaveAllEditScenes()) {
 				CreateNewEditScene();
 			}
 			break;
 		case EditorSceneRequestType::SaveAndOpenScene:
-			// 保存に成功した場合だけ別シーンを開く
-			if (SaveActiveEditScene()) {
+			// 読み込み中の全シーンの保存に成功した場合だけ別シーンを開く
+			if (SaveAllEditScenes()) {
 				OpenEditScene(request.sceneAsset);
 			}
 			break;
@@ -810,6 +828,7 @@ bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
 
 		// 選択状態やUndo履歴は新しいシーンへ持ち越さない
 		editorManager_.ResetSceneEditingState();
+		editorManager_.ResetSceneDirtyState();
 	}
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"EngineApplication: opened scene. path={}", activeScenePath_);
@@ -817,6 +836,9 @@ bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
 }
 
 bool Engine::EngineApplication::SaveActiveEditScene() {
+
+	const SceneInstance* activeScene = editScenes_.GetActive();
+	const AssetID sceneAsset = activeScene ? activeScene->sceneAsset : AssetID{};
 
 	// Active SceneInstanceの所有Entityをシーンファイルへ保存する
 	if (!editScenes_.SaveActive(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld())) {
@@ -829,11 +851,37 @@ bool Engine::EngineApplication::SaveActiveEditScene() {
 	assetDataBase_.RebuildMeta();
 	if constexpr (BuildConfig::kEditorEnabled) {
 
-		// Editor上の未保存フラグを落とす
-		editorManager_.MarkActiveSceneSaved();
+		// 保存したシーンだけ未保存状態を落とす
+		editorManager_.MarkSceneSaved(sceneAsset);
 	}
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"EngineApplication: saved active scene. path={}", activeScenePath_);
+	return true;
+}
+
+bool Engine::EngineApplication::SaveAllEditScenes() {
+
+	std::unordered_set<AssetID> savedAssets;
+	for (const SceneInstance& scene : editScenes_.GetAll()) {
+
+		if (!scene.sceneAsset || !savedAssets.insert(scene.sceneAsset).second) {
+			continue;
+		}
+		if (!editScenes_.Save(
+			assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), scene.sceneAsset)) {
+
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"EngineApplication: failed to save scene. asset={}", ToString(scene.sceneAsset));
+			return false;
+		}
+	}
+
+	assetDataBase_.RebuildMeta();
+	if constexpr (BuildConfig::kEditorEnabled) {
+		editorManager_.MarkAllScenesSaved();
+	}
+	Logger::Output(LogType::Engine, spdlog::level::info,
+		"EngineApplication: saved loaded scenes. count={}", savedAssets.size());
 	return true;
 }
 
@@ -861,7 +909,7 @@ void Engine::EngineApplication::HandleCloseRequestResult() {
 		const EditorUnsavedScenePopupResult result = editorManager_.ConsumeCloseUnsavedScenePopupResult();
 		switch (result) {
 		case EditorUnsavedScenePopupResult::Save:
-			if (SaveActiveEditScene()) {
+			if (SaveAllEditScenes()) {
 				AcceptCloseRequest(true);
 			} else {
 				closeRequestPending_ = false;
@@ -892,7 +940,7 @@ bool Engine::EngineApplication::RequestClose() {
 		return true;
 	} else {
 
-		if (!editorManager_.IsActiveSceneDirty()) {
+		if (!editorManager_.HasDirtyScenes()) {
 			AcceptCloseRequest(false);
 			return true;
 		}
@@ -916,8 +964,8 @@ void Engine::EngineApplication::NotifyAssertBeforeAbort() {
 	if constexpr (BuildConfig::kEditorEnabled) {
 
 		// Assert停止直前はImGuiの入力待ちができないため、未保存なら落ちる前に保存しておく
-		if (editorManager_.IsActiveSceneDirty()) {
-			SaveActiveEditScene();
+		if (editorManager_.HasDirtyScenes()) {
+			SaveAllEditScenes();
 		}
 	}
 	SaveActiveSceneConfig();

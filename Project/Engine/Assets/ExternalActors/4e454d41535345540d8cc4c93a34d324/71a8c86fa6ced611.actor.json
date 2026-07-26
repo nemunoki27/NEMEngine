@@ -1,0 +1,54 @@
+{
+    "Components": {
+        "Hierarchy": {
+            "parentLocalFileID": "",
+            "siblingOrder": 4
+        },
+        "MeshRenderer": {
+            "blendMode": "Normal",
+            "castReflection": true,
+            "castShadow": true,
+            "enableZPrepass": true,
+            "layer": 0,
+            "lighting": true,
+            "material": "4e454d4153534554317efcbf7aca8e61",
+            "mesh": "",
+            "order": 0,
+            "queue": "Opaque",
+            "receiveIBL": true,
+            "receiveReflection": true,
+            "receiveShadow": true,
+            "subMeshes": [],
+            "visible": true
+        },
+        "Name": {
+            "name": "Ground"
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "71a8c86fa6ced611",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+            "localPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localRotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 320.0,
+                "y": 0.06400000303983688,
+                "z": 320.0
+            }
+        }
+    },
+    "LocalFileID": "71a8c86fa6ced611",
+    "SchemaVersion": 1
+}

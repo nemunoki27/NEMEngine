@@ -40,7 +40,9 @@ internal static class ManagedAbi {
     // v31: IrisTransitionの再生操作を追加
     // v32: AudioSourceのPlayOneShotとUnPauseを追加
     // v33: EffectEmitterのグループとState設定APIを追加
-    internal const uint Version = 33;
+    // v34: アセット参照を128bit AssetGUIDへ移行
+    // v35: UserSettingsルート取得APIを追加
+    internal const uint Version = 35;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -196,7 +198,7 @@ public enum LineShapeType {
 [StructLayout(LayoutKind.Sequential)]
 public struct NativeLineShape {
 
-    public ulong materialID;
+    public AssetGUID materialID;
     public int shapeType;
     public int division;
     public int is2D;
@@ -274,13 +276,13 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<float> GetTimeScale;
     internal static delegate* unmanaged[Cdecl]<float, void> SetTimeScale;
     internal static delegate* unmanaged[Cdecl]<ulong> GetFrameCount;
-    internal static delegate* unmanaged[Cdecl]<ulong, int> AssetExists;
-    internal static delegate* unmanaged[Cdecl]<ulong, byte*, int, int> CopyAssetDisplayName;
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, int> AssetExists;
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, byte*, int, int> CopyAssetDisplayName;
     // Gameplay(v7): Entity 生成 / Prefab / Scene / SetParent(worldPositionStays)
     internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity, NativeEntity> CreateEntity;
-    internal static delegate* unmanaged[Cdecl]<ulong, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> InstantiatePrefab;
-    internal static delegate* unmanaged[Cdecl]<ulong, ulong> LoadSceneAdditive;
-    internal static delegate* unmanaged[Cdecl]<ulong, ulong> LoadSceneSingle;
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> InstantiatePrefab;
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> LoadSceneAdditive;
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> LoadSceneSingle;
     internal static delegate* unmanaged[Cdecl]<ulong, void> UnloadScene;
     internal static delegate* unmanaged[Cdecl]<ulong, int> IsSceneInstanceAlive;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity, int, void> SetParentKeepWorld;
@@ -294,20 +296,21 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<int> GetHasFocus;
     internal static delegate* unmanaged[Cdecl]<byte*, int, int> CopyTextInput;
     internal static delegate* unmanaged[Cdecl]<byte*, int, int> CopyProjectRoot;
+    internal static delegate* unmanaged[Cdecl]<byte*, int, int> CopyUserSettingsRoot;
     // Gameplay(v7): AudioSource gameplay method
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioPlay;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioPause;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioStop;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> AudioIsPlaying;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, float, void> AudioPlayOneShot;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, AssetGUID, float, void> AudioPlayOneShot;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioUnPause;
     // Diagnostics(v8): script callback 例外の構造化報告
     internal static delegate* unmanaged[Cdecl]<byte*, void> ReportScriptException;
     // v11: EntityRef(sourceAsset, localFileId) を runtime entity へ解決する
-    internal static delegate* unmanaged[Cdecl]<ulong, ulong, NativeEntity> ResolveEntityRef;
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong, NativeEntity> ResolveEntityRef;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint*, int, int, void> LineSetPoints;
-    internal static delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, ulong, void> LineDrawImmediate;
-    internal static delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, ulong, void> LineDrawSphereImmediate;
+    internal static delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, AssetGUID, void> LineDrawImmediate;
+    internal static delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, AssetGUID, void> LineDrawSphereImmediate;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, int> LineAddPoint;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, void> LineUpdatePoint;
     // v14: Tag / Layerマスク / Entity検索
@@ -337,7 +340,7 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<int> GetMouseRangeControl;
     internal static delegate* unmanaged[Cdecl]<int, void> SetMouseRangeControl;
     // v20: Entityの保存identityを逆引きする
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong*, ulong*, int*, void> GetEntityReferenceIdentity;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, AssetGUID*, ulong*, int*, void> GetEntityReferenceIdentity;
     // v21: レイキャストとカメラレイとCollisionタイプ名解決
     internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int> PhysicsRaycast;
     internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int, int> PhysicsRaycastAll;
@@ -464,6 +467,7 @@ internal static unsafe class NativeApi {
         GetHasFocus = callbacks->getHasFocus;
         CopyTextInput = callbacks->copyTextInput;
         CopyProjectRoot = callbacks->copyProjectRoot;
+        CopyUserSettingsRoot = callbacks->copyUserSettingsRoot;
         AudioPlay = callbacks->audioPlay;
         AudioPause = callbacks->audioPause;
         AudioStop = callbacks->audioStop;
@@ -994,7 +998,8 @@ internal static unsafe class NativeApi {
     internal static void WriteTimeScale(float value) { if (SetTimeScale != null) { SetTimeScale(value); } }
     internal static ulong ReadFrameCount() => GetFrameCount != null ? GetFrameCount() : 0ul;
 
-    internal static bool ReadAssetExists(ulong assetId) => AssetExists != null && AssetExists(assetId) != 0;
+    internal static bool ReadAssetExists(AssetGUID assetId) =>
+        AssetExists != null && AssetExists(assetId) != 0;
 
     //========================================================================
     //	gameplay structural helpers（Entity 生成 / Prefab / Scene / 親子）
@@ -1011,7 +1016,7 @@ internal static unsafe class NativeApi {
     }
 
     // 予約済みルート Entity を即時返す。実体化(component 追加)は flush で行われる。
-    internal static Entity SpawnPrefab(ulong prefabAssetId, Vector3 position, Quaternion rotation, bool useTransform, Entity parent) {
+    internal static Entity SpawnPrefab(AssetGUID prefabAssetId, Vector3 position, Quaternion rotation, bool useTransform, Entity parent) {
         if (InstantiatePrefab == null) {
             return Entity.nullEntity;
         }
@@ -1020,7 +1025,7 @@ internal static unsafe class NativeApi {
     }
 
     // EntityRefをruntime entityへ解決する、未解決はnull。結果はスクリプト側でキャッシュ推奨
-    internal static Entity ResolveEntityReference(ulong sourceAsset, ulong localFileId)
+    internal static Entity ResolveEntityReference(AssetGUID sourceAsset, ulong localFileId)
         => (ResolveEntityRef != null && localFileId != 0) ? new Entity(ResolveEntityRef(sourceAsset, localFileId)) : Entity.nullEntity;
 
     // レイキャストの最近ヒットを取得する、ヒット無しはfalse
@@ -1115,11 +1120,11 @@ internal static unsafe class NativeApi {
         if (GetEntityReferenceIdentity == null) {
             return EntityRef.Null;
         }
-        ulong sourceAsset = 0;
+        AssetGUID sourceAsset = AssetGUID.None;
         ulong localFileId = 0;
         int kind = 0;
         GetEntityReferenceIdentity(entity, &sourceAsset, &localFileId, &kind);
-        return new EntityRef((EntityRefKind)kind, new UUID(sourceAsset), new UUID(localFileId));
+        return new EntityRef((EntityRefKind)kind, sourceAsset, new UUID(localFileId));
     }
 
     // LineRendererComponent の点列を差し替える、count0でクリア
@@ -1261,7 +1266,7 @@ internal static unsafe class NativeApi {
     }
 
     // 即時ライン描画でこのフレームだけ任意ポリラインを描く
-    internal static void LineDrawImmediatePolyline(ReadOnlySpan<LinePoint> points, bool loop, bool is2D, ulong materialID) {
+    internal static void LineDrawImmediatePolyline(ReadOnlySpan<LinePoint> points, bool loop, bool is2D, AssetGUID materialID) {
         if (LineDrawImmediate == null || points.Length < 2) {
             return;
         }
@@ -1271,7 +1276,7 @@ internal static unsafe class NativeApi {
     }
 
     // 即時球描画で組み込みの球生成を使う
-    internal static void LineDrawImmediateSphere(Vector3 center, float radius, Color4 color, int division, float thickness, ulong materialID) {
+    internal static void LineDrawImmediateSphere(Vector3 center, float radius, Color4 color, int division, float thickness, AssetGUID materialID) {
         if (LineDrawSphereImmediate == null) {
             return;
         }
@@ -1286,8 +1291,8 @@ internal static unsafe class NativeApi {
         LineDrawShape(&shape);
     }
 
-    internal static ulong SceneLoadAdditive(ulong sceneAssetId) => LoadSceneAdditive != null ? LoadSceneAdditive(sceneAssetId) : 0ul;
-    internal static ulong SceneLoadSingle(ulong sceneAssetId) => LoadSceneSingle != null ? LoadSceneSingle(sceneAssetId) : 0ul;
+    internal static ulong SceneLoadAdditive(AssetGUID sceneAssetId) => LoadSceneAdditive != null ? LoadSceneAdditive(sceneAssetId) : 0ul;
+    internal static ulong SceneLoadSingle(AssetGUID sceneAssetId) => LoadSceneSingle != null ? LoadSceneSingle(sceneAssetId) : 0ul;
     internal static void SceneUnload(ulong sceneInstanceId) { if (UnloadScene != null) { UnloadScene(sceneInstanceId); } }
     internal static bool SceneInstanceAlive(ulong sceneInstanceId) => IsSceneInstanceAlive != null && IsSceneInstanceAlive(sceneInstanceId) != 0;
     internal static void ReparentKeepWorld(NativeEntity child, NativeEntity parent, bool worldPositionStays) {
@@ -1298,7 +1303,7 @@ internal static unsafe class NativeApi {
     //	AudioSource gameplay method helpers
     //========================================================================
     internal static void AudioPlayCall(NativeEntity entity) { if (AudioPlay != null) { AudioPlay(entity); } }
-    internal static void AudioPlayOneShotCall(NativeEntity entity, ulong clipID, float volumeScale) {
+    internal static void AudioPlayOneShotCall(NativeEntity entity, AssetGUID clipID, float volumeScale) {
         if (AudioPlayOneShot != null) { AudioPlayOneShot(entity, clipID, volumeScale); }
     }
     internal static void AudioPauseCall(NativeEntity entity) { if (AudioPause != null) { AudioPause(entity); } }
@@ -1469,8 +1474,8 @@ internal static unsafe class NativeApi {
     }
 
     // asset 表示名を可変長で取得する（固定 buffer で truncate しない）。length query → caller buffer。
-    internal static string ReadAssetDisplayName(ulong assetId) {
-        if (CopyAssetDisplayName == null || assetId == 0) {
+    internal static string ReadAssetDisplayName(AssetGUID assetId) {
+        if (CopyAssetDisplayName == null || !assetId.isValid) {
             return string.Empty;
         }
         int needed = CopyAssetDisplayName(assetId, null, 0);
@@ -1589,5 +1594,21 @@ internal static unsafe class NativeApi {
             result[i] = new Entity(buffer[i]);
         }
         return result;
+    }
+
+    // user settings root の絶対パス。length-query。
+    internal static string ReadUserSettingsRoot() {
+        if (CopyUserSettingsRoot == null) {
+            return string.Empty;
+        }
+        int needed = CopyUserSettingsRoot(null, 0);
+        if (needed <= 0) {
+            return string.Empty;
+        }
+        byte[] bytes = new byte[needed + 1];
+        fixed (byte* ptr = bytes) {
+            int written = CopyUserSettingsRoot(ptr, needed + 1);
+            return written <= 0 ? string.Empty : Encoding.UTF8.GetString(bytes, 0, written);
+        }
     }
 }

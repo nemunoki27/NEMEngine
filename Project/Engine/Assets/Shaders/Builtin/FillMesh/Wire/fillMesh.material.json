@@ -5,7 +5,7 @@
     "passes": [
         {
             "passKind": "Draw",
-            "pipeline": "0f075b1475b7528f",
+            "pipeline": "4e454d41535345540f075b1475b7528f",
             "preferredVariant": "GraphicsVertex"
         }
     ]

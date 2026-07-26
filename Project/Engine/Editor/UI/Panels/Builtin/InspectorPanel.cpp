@@ -269,7 +269,7 @@ Engine::InspectorPanel::InspectorPanel(const std::string& instanceID, bool prima
 	ConfigureInstance("Inspector", instanceID, primaryInstance);
 	modelPreviewCameraController_ = std::make_unique<SceneViewCameraController>();
 	modelPreviewCameraController_->MakeDefaultState();
-	modelPreviewCameraController_->SetSavePath(RuntimePaths::GetGameConfigPath(
+	modelPreviewCameraController_->SetSavePath(RuntimePaths::GetUserSettingsPath(
 		ConfigPaths::kInspectorModelPreviewCamera).string());
 
 	RegisterBuiltinComponentEditors(componentEditorRegistry_, meshRendererDrawer_);

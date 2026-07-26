@@ -47,7 +47,8 @@ internal sealed class EntityRefJsonConverter : JsonConverter<EntityRef> {
         if (root.TryGetProperty("kind", out JsonElement kindElement) && kindElement.ValueKind == JsonValueKind.String) {
             Enum.TryParse(kindElement.GetString(), out kind);
         }
-        UUID source = root.TryGetProperty("sourceAsset", out JsonElement sa) ? UUID.Parse(sa.GetString()) : UUID.None;
+        AssetGUID source = root.TryGetProperty("sourceAsset", out JsonElement sa) ?
+            AssetGUID.Parse(sa.GetString()) : AssetGUID.None;
         UUID local = root.TryGetProperty("localFileId", out JsonElement lf) ? UUID.Parse(lf.GetString()) : UUID.None;
         return new EntityRef(kind, source, local);
     }
@@ -100,7 +101,7 @@ internal sealed class AssetJsonConverter<TAsset> : JsonConverter<TAsset> where T
     // ctorはinternalのためreflectionで一度だけ引く
     private static readonly System.Reflection.ConstructorInfo? ctor = typeof(TAsset).GetConstructor(
         System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
-        new[] { typeof(UUID) });
+        new[] { typeof(AssetGUID) });
 
     public override bool HandleNull => true;
 
@@ -114,7 +115,7 @@ internal sealed class AssetJsonConverter<TAsset> : JsonConverter<TAsset> where T
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("assetId", out JsonElement id)) {
             return null;
         }
-        UUID assetId = UUID.Parse(id.GetString());
+        AssetGUID assetId = AssetGUID.Parse(id.GetString());
         return assetId.isValid && ctor != null ? (TAsset)ctor.Invoke(new object[] { assetId }) : null;
     }
 

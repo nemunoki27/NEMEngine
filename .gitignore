@@ -25,14 +25,15 @@ Project/Externals/libcurl/build-*/
 
 # Local config
 *.ini
-*.meta
 *.pdb
-*.exeConfig.json
 
 # Logs / temp
 *.log
 *.tmp
 *.cache
+Project/Sandbox/Library/
+Project/Sandbox/Saved/
+Project/Sandbox/UserSettings/
 
 # Optional: local premake binary
 premake5.exe

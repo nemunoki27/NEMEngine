@@ -1,0 +1,51 @@
+{
+    "Components": {
+        "Hierarchy": {
+            "parentLocalFileID": "",
+            "siblingOrder": 22
+        },
+        "Name": {
+            "name": "PointL_3"
+        },
+        "PointLight": {
+            "affectLayerMask": 4294967295,
+            "color": {
+                "a": 1.0,
+                "b": 0.0,
+                "g": 0.9625668525695801,
+                "r": 0.16471724212169647
+            },
+            "decay": 1.0,
+            "enabled": true,
+            "intensity": 14.579999923706055,
+            "radius": 20.149999618530273,
+            "shadowStrength": 0.9200000166893005
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "9992f45659ed7f16",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+            "localPos": {
+                "x": -6.644555568695068,
+                "y": -0.042829304933547974,
+                "z": -0.012825015932321548
+            },
+            "localRotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    },
+    "LocalFileID": "9992f45659ed7f16",
+    "SchemaVersion": 1
+}

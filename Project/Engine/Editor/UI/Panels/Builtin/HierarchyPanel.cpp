@@ -16,6 +16,7 @@
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
@@ -213,22 +214,57 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		});
 
 	bool hasVisibleEntity = false;
-	Entity lastVisibleRoot = Entity::Null();
-	for (const Entity& entity : rootEntities) {
+	auto drawSceneRoots = [&](UUID sceneInstanceID) {
 
-		if (!ShouldDrawEntityNode(*world, entity)) {
-			continue;
+		Entity lastVisibleRoot = Entity::Null();
+		for (const Entity& entity : rootEntities) {
+
+			if (world->GetComponent<SceneObjectComponent>(entity).sceneInstanceID != sceneInstanceID ||
+				!ShouldDrawEntityNode(*world, entity)) {
+				continue;
+			}
+
+			DrawSiblingDropTarget(context, *world, entity, false);
+			DrawEntityNode(context, *world, entity, false);
+			hasVisibleEntity = true;
+			lastVisibleRoot = entity;
 		}
+		if (world->IsAlive(lastVisibleRoot)) {
+			DrawSiblingDropTarget(context, *world, lastVisibleRoot, true);
+		}
+		};
 
-		DrawSiblingDropTarget(context, *world, entity, false);
-		// ルートエンティティを表示
-		DrawEntityNode(context, *world, entity, false);
-		hasVisibleEntity = true;
-		lastVisibleRoot = entity;
-	}
-	if (world->IsAlive(lastVisibleRoot)) {
+	SceneInstanceManager* sceneInstances = context.editorContext ?
+		context.editorContext->sceneInstances : nullptr;
+	if (sceneInstances && !prefabEditing && !sceneInstances->GetAll().empty()) {
 
-		DrawSiblingDropTarget(context, *world, lastVisibleRoot, true);
+		for (const SceneInstance& scene : sceneInstances->GetAll()) {
+
+			ImGui::PushID(ToString(scene.instanceID).c_str());
+			ImGuiTreeNodeFlags flags =
+				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+			if (scene.instanceID == context.editorContext->activeSceneInstanceID) {
+				flags |= ImGuiTreeNodeFlags_Selected;
+			}
+			const bool open = ImGui::TreeNodeEx("##Scene", flags, "%s", scene.header.name.c_str());
+			if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+				sceneInstances->SetActive(scene.instanceID);
+			}
+			if (open) {
+				drawSceneRoots(scene.instanceID);
+				ImGui::TreePop();
+			}
+			ImGui::PopID();
+		}
+	} else {
+		for (const Entity& entity : rootEntities) {
+			if (!ShouldDrawEntityNode(*world, entity)) {
+				continue;
+			}
+			DrawSiblingDropTarget(context, *world, entity, false);
+			DrawEntityNode(context, *world, entity, false);
+			hasVisibleEntity = true;
+		}
 	}
 	if (rootEntities.empty()) {
 		ImGui::TextDisabled("Hierarchy is empty.");
@@ -391,6 +427,14 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	// チェックボックスがクリックされたか
 	const bool additiveSelect = ImGui::IsKeyDown(ImGuiKey_LeftShift);
 	auto selectEntityInHierarchy = [&]() {
+		if (context.editorContext && context.editorContext->sceneInstances &&
+			world.HasComponent<SceneObjectComponent>(entity)) {
+			const UUID sceneInstanceID =
+				world.GetComponent<SceneObjectComponent>(entity).sceneInstanceID;
+			if (sceneInstanceID) {
+				context.editorContext->sceneInstances->SetActive(sceneInstanceID);
+			}
+		}
 		if (additiveSelect && context.editorState->selectKind == EditorSelectionKind::Entity &&
 			context.editorState->CanMultiSelect(world, entity)) {
 			context.editorState->ToggleEntityInSelection(entity);
@@ -956,6 +1000,12 @@ bool Engine::HierarchyPanel::CanReparent(const EditorPanelContext& context, ECSW
 	if (!PrefabInstanceEditUtility::CanChangeParent(context.editorContext, world, child, newParent)) {
 		return false;
 	}
+	if (world.HasComponent<SceneObjectComponent>(child) &&
+		world.HasComponent<SceneObjectComponent>(newParent) &&
+		world.GetComponent<SceneObjectComponent>(child).sceneInstanceID !=
+		world.GetComponent<SceneObjectComponent>(newParent).sceneInstanceID) {
+		return false;
+	}
 
 	// 自分自身の子孫の下には入れられない
 	Entity cursor = newParent;
@@ -988,6 +1038,12 @@ bool Engine::HierarchyPanel::CanReorder(const EditorPanelContext& context, ECSWo
 		return false;
 	}
 	if (!PrefabInstanceEditUtility::CanChangeSiblingOrder(context.editorContext, world, child, anchor)) {
+		return false;
+	}
+	if (world.HasComponent<SceneObjectComponent>(child) &&
+		world.HasComponent<SceneObjectComponent>(anchor) &&
+		world.GetComponent<SceneObjectComponent>(child).sceneInstanceID !=
+		world.GetComponent<SceneObjectComponent>(anchor).sceneInstanceID) {
 		return false;
 	}
 	return GetParentEntity(world, child) == GetParentEntity(world, anchor);

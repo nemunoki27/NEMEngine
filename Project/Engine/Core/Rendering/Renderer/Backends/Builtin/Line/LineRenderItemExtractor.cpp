@@ -86,7 +86,7 @@ void Engine::LineRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		item.backendID = RenderBackendID::Line;
 		item.material = renderer.material;
 		// 個別マテリアルパラメータを持つアイテムは専用cbufferが要るので、エンティティ単位で一意化して単独描画にする
-		item.batchKey = renderer.parameterOverrides.empty() ? renderer.material.value :
+		item.batchKey = renderer.parameterOverrides.empty() ? std::hash<AssetID>{}(renderer.material) :
 			((static_cast<uint64_t>(entity.generation) << 32) | entity.index);
 		item.cameraDomain = renderer.is2D ? RenderCameraDomain::Orthographic : RenderCameraDomain::Perspective;
 		item.payload = batch.PushPayload(payload);
@@ -125,7 +125,7 @@ void Engine::LineRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		item.blendMode = entry.blendMode;
 		item.material = entry.material;
 		// 同一マテリアルの即時描画はまとめて1本の頂点バッファにする
-		item.batchKey = entry.material.value;
+		item.batchKey = std::hash<AssetID>{}(entry.material);
 		item.cameraDomain = entry.is2D ? RenderCameraDomain::Orthographic : RenderCameraDomain::Perspective;
 		item.payload = batch.PushPayload(payload);
 		batch.Add(std::move(item));

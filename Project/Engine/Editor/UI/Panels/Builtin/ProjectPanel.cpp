@@ -229,7 +229,7 @@ namespace {
 	// ProjectPanelの表示状態を保存するパスを返す
 	std::filesystem::path GetProjectPanelStatePath() {
 
-		return Engine::RuntimePaths::GetGameConfigPath(Engine::ConfigPaths::kProjectPanel);
+		return Engine::RuntimePaths::GetUserSettingsPath(Engine::ConfigPaths::kProjectPanel);
 	}
 
 	// ScriptアセットをVisual Studioで開く
@@ -244,7 +244,7 @@ namespace {
 		}
 
 		// .cs open / Compiler Error List jump / Script exceptionのstack jumpを共通IDE launcherに統一する
-		// 既定は関連付けのSystemDefaultでProjectSettings/ManagedScriptingEditor.jsonでexecutable指定も可能
+		// 既定はVisual StudioでUserSettings/Editor/ManagedIDE.jsonから変更できる
 		return Engine::ManagedIdeLauncher::OpenFile(scriptPath, 1, 1);
 	}
 

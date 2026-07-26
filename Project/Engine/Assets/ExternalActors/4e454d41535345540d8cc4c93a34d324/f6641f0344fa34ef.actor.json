@@ -1,0 +1,54 @@
+{
+    "Components": {
+        "Hierarchy": {
+            "parentLocalFileID": "",
+            "siblingOrder": 8
+        },
+        "MeshRenderer": {
+            "blendMode": "Normal",
+            "castReflection": true,
+            "castShadow": true,
+            "enableZPrepass": true,
+            "layer": 0,
+            "lighting": true,
+            "material": "4e454d4153534554317efcbf7aca8e61",
+            "mesh": "",
+            "order": 0,
+            "queue": "Opaque",
+            "receiveIBL": true,
+            "receiveReflection": true,
+            "receiveShadow": true,
+            "subMeshes": [],
+            "visible": true
+        },
+        "Name": {
+            "name": "Sphere_2"
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "f6641f0344fa34ef",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+            "localPos": {
+                "x": -3.6184961795806885,
+                "y": 4.777957916259766,
+                "z": -0.8918632864952087
+            },
+            "localRotation": {
+                "w": 0.7094420194625854,
+                "x": -0.17943356931209564,
+                "y": 0.10688307881355286,
+                "z": 0.6731059551239014
+            },
+            "localScale": {
+                "x": 1.4200140237808228,
+                "y": 1.420012354850769,
+                "z": 1.4200106859207153
+            }
+        }
+    },
+    "LocalFileID": "f6641f0344fa34ef",
+    "SchemaVersion": 1
+}

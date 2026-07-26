@@ -30,9 +30,9 @@ public readonly struct SceneHandle : IEquatable<SceneHandle> {
 public readonly struct SceneEvent {
 
     public SceneHandle Scene { get; }
-    public UUID SceneAssetId { get; }
+    public AssetGUID SceneAssetId { get; }
 
-    internal SceneEvent(SceneHandle scene, UUID sceneAssetId) {
+    internal SceneEvent(SceneHandle scene, AssetGUID sceneAssetId) {
         Scene = scene;
         SceneAssetId = sceneAssetId;
     }
@@ -48,15 +48,15 @@ public static class SceneManager {
     public static event Action<SceneEvent>? SceneUnloaded;
 
     // load/unload 要求を出した handle を、native の生存状態が確定するまで保持する（poll で検出して発火）
-    private static readonly List<(SceneHandle handle, UUID asset)> pendingLoad = new();
-    private static readonly List<(SceneHandle handle, UUID asset)> pendingUnload = new();
+    private static readonly List<(SceneHandle handle, AssetGUID asset)> pendingLoad = new();
+    private static readonly List<(SceneHandle handle, AssetGUID asset)> pendingUnload = new();
 
     // 追加シーンを load する。SceneHandle を即時返す（load 自体は次の flush で適用）。
     public static SceneHandle LoadAdditive(SceneAsset? scene) {
         if (scene == null) {
             return default;
         }
-        ulong id = NativeApi.SceneLoadAdditive(scene.id.value);
+        ulong id = NativeApi.SceneLoadAdditive(scene.id);
         if (id == 0) {
             return default;
         }
@@ -76,7 +76,7 @@ public static class SceneManager {
             return LoadAdditive(scene);
         }
 
-        ulong id = NativeApi.SceneLoadSingle(scene.id.value);
+        ulong id = NativeApi.SceneLoadSingle(scene.id);
         if (id == 0) {
             return default;
         }

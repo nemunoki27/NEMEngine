@@ -293,7 +293,8 @@ uint64_t Engine::ProjectPanel::BuildModelPreviewSignature(const ProjectDirectory
 		if (!asset) {
 			continue;
 		}
-		HashCombine(signature, asset->assetID.value);
+		HashCombine(signature, asset->assetID.high);
+		HashCombine(signature, asset->assetID.low);
 		HashString(signature, asset->assetPath);
 
 		std::error_code ec{};

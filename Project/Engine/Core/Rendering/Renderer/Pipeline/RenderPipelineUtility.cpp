@@ -163,7 +163,7 @@ namespace Engine {
 		outMeshAssets.clear();
 
 		// 重複を防ぐためのセット
-		std::unordered_set<uint64_t> meshAssetSet{};
+		std::unordered_set<AssetID> meshAssetSet{};
 
 		// 全描画アイテムを走査して、プレビュー対象のEntityツリーに属するものだけを収集
 		// ツールウィンドウなどで特定のオブジェクトだけを独立して描画するために使用
@@ -187,7 +187,7 @@ namespace Engine {
 			if (item.backendID == RenderBackendID::Mesh) {
 				if (const auto* payload = renderBatch.GetPayload<MeshRenderPayload>(item)) {
 					if (payload->mesh) {
-						meshAssetSet.emplace(payload->mesh.value);
+						meshAssetSet.emplace(payload->mesh);
 					}
 				}
 			}
@@ -195,8 +195,8 @@ namespace Engine {
 
 		// セットからリストへ変換してアセット読み込み要求に備える
 		outMeshAssets.reserve(meshAssetSet.size());
-		for (uint64_t meshValue : meshAssetSet) {
-			outMeshAssets.emplace_back(AssetID{ meshValue });
+		for (AssetID meshAsset : meshAssetSet) {
+			outMeshAssets.emplace_back(meshAsset);
 		}
 	}
 

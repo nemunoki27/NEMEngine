@@ -9,7 +9,43 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
+#include <cmath>
 #include <filesystem>
+#include <iterator>
+
+namespace {
+
+	bool CanonicalizeJson(nlohmann::json& value) {
+
+		if (value.is_number_float()) {
+
+			const double number = value.get<double>();
+			if (!std::isfinite(number)) {
+				return false;
+			}
+			if (number == 0.0) {
+				value = 0.0;
+			}
+			return true;
+		}
+		if (value.is_array()) {
+			for (auto& element : value) {
+				if (!CanonicalizeJson(element)) {
+					return false;
+				}
+			}
+			return true;
+		}
+		if (value.is_object()) {
+			for (auto it = value.begin(); it != value.end(); ++it) {
+				if (!CanonicalizeJson(it.value())) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+}
 
 //============================================================================*/
 //	JsonAdapter classMethods
@@ -39,6 +75,87 @@ void JsonAdapter::Save(const std::filesystem::path& directoryFilePath, const nlo
 	}
 
 	file << data.dump(4); // インデント4で保存
+}
+
+bool JsonAdapter::SaveCanonical(const std::filesystem::path& directoryFilePath,
+	const nlohmann::json& data, int32_t indent) {
+
+	const std::string serialized = SerializeCanonical(data, indent);
+	if (serialized.empty()) {
+		return false;
+	}
+
+	std::ifstream currentFile(directoryFilePath, std::ios::binary);
+	const std::string current((std::istreambuf_iterator<char>(currentFile)),
+		std::istreambuf_iterator<char>());
+	currentFile.close();
+	if (current == serialized) {
+		return true;
+	}
+
+	const std::filesystem::path parentPath = directoryFilePath.parent_path();
+	std::error_code ec;
+	if (!parentPath.empty()) {
+		std::filesystem::create_directories(parentPath, ec);
+		if (ec) {
+			return false;
+		}
+	}
+
+	std::filesystem::path tempPath = directoryFilePath;
+	tempPath += L".tmp";
+	{
+		std::ofstream file(tempPath, std::ios::binary | std::ios::trunc);
+		if (!file.is_open()) {
+			return false;
+		}
+		file.write(serialized.data(), static_cast<std::streamsize>(serialized.size()));
+		file.flush();
+		if (!file.good()) {
+			file.close();
+			std::filesystem::remove(tempPath, ec);
+			return false;
+		}
+	}
+
+	const bool targetExists = std::filesystem::exists(directoryFilePath, ec);
+	std::filesystem::path backupPath = directoryFilePath;
+	backupPath += L".bak";
+	if (targetExists) {
+
+		std::filesystem::remove(backupPath, ec);
+		ec.clear();
+		std::filesystem::rename(directoryFilePath, backupPath, ec);
+		if (ec) {
+			std::filesystem::remove(tempPath, ec);
+			return false;
+		}
+	}
+
+	ec.clear();
+	std::filesystem::rename(tempPath, directoryFilePath, ec);
+	if (ec) {
+
+		std::error_code rollbackError;
+		if (targetExists) {
+			std::filesystem::rename(backupPath, directoryFilePath, rollbackError);
+		}
+		std::filesystem::remove(tempPath, rollbackError);
+		return false;
+	}
+	if (targetExists) {
+		std::filesystem::remove(backupPath, ec);
+	}
+	return true;
+}
+
+std::string JsonAdapter::SerializeCanonical(const nlohmann::json& data, int32_t indent) {
+
+	nlohmann::json canonical = data;
+	if (!CanonicalizeJson(canonical)) {
+		return {};
+	}
+	return canonical.dump(indent) + '\n';
 }
 
 nlohmann::json JsonAdapter::Load(const std::string& directoryFilePath, bool assertion) {

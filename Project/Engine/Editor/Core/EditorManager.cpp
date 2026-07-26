@@ -97,7 +97,7 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	requestOpenUnsavedPopup_ = false;
 	requestOpenCloseUnsavedPopup_ = false;
 	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
-	activeSceneDirty_ = false;
+	dirtySceneAssets_.clear();
 	pendingDuplicatePanelID_.clear();
 	pendingEditorLayout_.reset();
 	requestBuildDefaultDockLayout_ = false;
@@ -144,7 +144,7 @@ bool Engine::EditorManager::ExecuteEditorCommand(std::unique_ptr<IEditorCommand>
 	EditorCommandContext commandContext = MakeCommandContext(*currentRenderContext_);
 	bool executed = editorState_.commandHistory.Execute(std::move(command), commandContext);
 	if (executed) {
-		activeSceneDirty_ = true;
+		MarkCurrentSceneDirty();
 	}
 	return executed;
 }
@@ -158,7 +158,7 @@ bool Engine::EditorManager::UndoEditorCommand() {
 	EditorCommandContext commandContext = MakeCommandContext(*currentRenderContext_);
 	bool executed = editorState_.commandHistory.Undo(commandContext);
 	if (executed) {
-		activeSceneDirty_ = true;
+		MarkCurrentSceneDirty();
 	}
 	return executed;
 }
@@ -172,7 +172,7 @@ bool Engine::EditorManager::RedoEditorCommand() {
 	EditorCommandContext commandContext = MakeCommandContext(*currentRenderContext_);
 	bool executed = editorState_.commandHistory.Redo(commandContext);
 	if (executed) {
-		activeSceneDirty_ = true;
+		MarkCurrentSceneDirty();
 	}
 	return executed;
 }
@@ -318,6 +318,11 @@ void Engine::EditorManager::RequestSaveScene() {
 	sceneRequest_ = { EditorSceneRequestType::SaveScene, AssetID{} };
 }
 
+void Engine::EditorManager::RequestMarkSceneDirty() {
+
+	MarkCurrentSceneDirty();
+}
+
 void Engine::EditorManager::RequestEnterPrefabEdit(AssetID prefabAsset) {
 
 	if (!prefabAsset) {
@@ -364,7 +369,7 @@ void Engine::EditorManager::QueueSceneRequest(const EditorSceneRequest& request)
 	if (request.type == EditorSceneRequestType::NewScene ||
 		request.type == EditorSceneRequestType::OpenScene) {
 
-		if (IsActiveSceneDirty()) {
+		if (HasDirtyScenes()) {
 
 			pendingSceneRequest_ = request;
 			requestOpenUnsavedPopup_ = true;
@@ -424,7 +429,7 @@ void Engine::EditorManager::DrawUnsavedScenePopup() {
 		return;
 	}
 
-	ImGui::TextUnformatted("現在のシーンは変更後、保存されていません");
+	ImGui::TextUnformatted("読み込み中のシーンに未保存の変更があります");
 	ImGui::Text("%s前に保存しますか？", GetSceneRequestActionName(pendingSceneRequest_.type));
 	ImGui::Separator();
 
@@ -461,7 +466,7 @@ void Engine::EditorManager::DrawCloseUnsavedScenePopup() {
 		return;
 	}
 
-	ImGui::TextUnformatted("現在のシーンは変更後、保存されていません");
+	ImGui::TextUnformatted("読み込み中のシーンに未保存の変更があります");
 	ImGui::TextUnformatted("保存しますか？");
 	ImGui::Separator();
 
@@ -848,9 +853,14 @@ Engine::EditorSceneRequest Engine::EditorManager::ConsumeSceneRequest() {
 	return request;
 }
 
-void Engine::EditorManager::MarkActiveSceneSaved() {
+void Engine::EditorManager::MarkSceneSaved(AssetID sceneAsset) {
 
-	activeSceneDirty_ = false;
+	dirtySceneAssets_.erase(sceneAsset);
+}
+
+void Engine::EditorManager::MarkAllScenesSaved() {
+
+	dirtySceneAssets_.clear();
 }
 
 void Engine::EditorManager::ResetSceneEditingState() {
@@ -861,7 +871,25 @@ void Engine::EditorManager::ResetSceneEditingState() {
 	requestOpenUnsavedPopup_ = false;
 	requestOpenCloseUnsavedPopup_ = false;
 	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
-	activeSceneDirty_ = false;
+}
+
+void Engine::EditorManager::ResetSceneDirtyState() {
+
+	dirtySceneAssets_.clear();
+}
+
+bool Engine::EditorManager::IsSceneDirty(AssetID sceneAsset) const {
+
+	return sceneAsset && dirtySceneAssets_.contains(sceneAsset);
+}
+
+void Engine::EditorManager::MarkCurrentSceneDirty() {
+
+	if (!currentRenderContext_ || currentRenderContext_->isPlaying ||
+		currentRenderContext_->isPrefabEditing || !currentRenderContext_->activeSceneAsset) {
+		return;
+	}
+	dirtySceneAssets_.insert(currentRenderContext_->activeSceneAsset);
 }
 
 void Engine::EditorManager::DrawDockSpace() {

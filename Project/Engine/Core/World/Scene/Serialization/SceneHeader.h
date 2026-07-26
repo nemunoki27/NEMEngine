@@ -87,6 +87,8 @@ namespace Engine {
 	// サブシーンのスロットの情報
 	struct SubSceneSlotDesc {
 
+		// スロットの安定ID
+		UUID slotID{};
 		// 名前
 		std::string slotName;
 		// シーンアセットID

@@ -1,0 +1,48 @@
+{
+    "Components": {
+        "Hierarchy": {
+            "parentLocalFileID": "",
+            "siblingOrder": 3
+        },
+        "Name": {
+            "name": "Skybox"
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "9db8761687b47186",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "SkyboxRenderer": {
+            "color": {
+                "a": 1.0,
+                "b": 0.03634648025035858,
+                "g": 0.08202728629112244,
+                "r": 0.16577541828155518
+            },
+            "cubemapTexture": "4e454d4153534554da18161c5ffe1aba",
+            "iblIntensity": 1.0,
+            "visible": true
+        },
+        "Transform": {
+            "localPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localRotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    },
+    "LocalFileID": "9db8761687b47186",
+    "SchemaVersion": 1
+}

@@ -12,21 +12,21 @@ public sealed class NativeAssetTypeAttribute : Attribute {
     public string NativeType { get; }
 }
 
-// アセット参照の共通基底。UUIDだけを持つ不変ハンドルで、native resource / GPU pointer / filesystem pathは保持しない。
+// アセット参照の共通基底。AssetGUIDだけを持つ不変ハンドルで、native resource / GPU pointer / filesystem pathは保持しない。
 // nullが未割り当てを表す(Unityのアセット参照と同じ扱い)。Missing Assetでも参照identityは保持される。
 public abstract class Asset : Object {
 
-    // 参照先assetのUUID(64bit)
-    internal readonly UUID id;
+    // 参照先assetのGUID
+    internal readonly AssetGUID id;
 
-    private protected Asset(UUID id) {
+    private protected Asset(AssetGUID id) {
         this.id = id;
     }
 
-    public UUID assetId => id;
+    public AssetGUID assetId => id;
 
     // assetが現在のAssetDatabaseに存在するか。hot pathで繰り返す場合は結果を呼び出し側でcacheする想定
-    public bool exists => id.isValid && NativeApi.ReadAssetExists(id.value);
+    public bool exists => id.isValid && NativeApi.ReadAssetExists(id);
 
     // 表示名(拡張子なしファイル名)。Missing/未設定はnull。path文字列そのものは返さない
     public string? name {
@@ -34,7 +34,7 @@ public abstract class Asset : Object {
             if (!id.isValid) {
                 return null;
             }
-            string displayName = NativeApi.ReadAssetDisplayName(id.value);
+            string displayName = NativeApi.ReadAssetDisplayName(id);
             return string.IsNullOrEmpty(displayName) ? null : displayName;
         }
     }
@@ -43,48 +43,48 @@ public abstract class Asset : Object {
 
     // 同型かつ同一UUIDなら同じassetとして扱う
     private protected override bool EqualsObject(Object other) =>
-        other is Asset asset && asset.GetType() == GetType() && asset.id.value == id.value;
+        other is Asset asset && asset.GetType() == GetType() && asset.id == id;
 
-    public override int GetHashCode() => HashCode.Combine(GetType(), id.value);
+    public override int GetHashCode() => HashCode.Combine(GetType(), id);
 }
 
 // 組み込みアセット型。型宣言だけでserialized fieldのアセット参照として扱える
 [NativeAssetType("Texture")]
 public sealed class Texture : Asset {
-    internal Texture(UUID id) : base(id) { }
+    internal Texture(AssetGUID id) : base(id) { }
 }
 
 [NativeAssetType("Material")]
 public sealed class Material : Asset {
-    internal Material(UUID id) : base(id) { }
+    internal Material(AssetGUID id) : base(id) { }
 }
 
 [NativeAssetType("Mesh")]
 public sealed class Mesh : Asset {
-    internal Mesh(UUID id) : base(id) { }
+    internal Mesh(AssetGUID id) : base(id) { }
 }
 
 [NativeAssetType("Scene")]
 public sealed class SceneAsset : Asset {
-    internal SceneAsset(UUID id) : base(id) { }
+    internal SceneAsset(AssetGUID id) : base(id) { }
 }
 
 [NativeAssetType("Audio")]
 public sealed class AudioClip : Asset {
-    internal AudioClip(UUID id) : base(id) { }
+    internal AudioClip(AssetGUID id) : base(id) { }
 }
 
 [NativeAssetType("Font")]
 public sealed class Font : Asset {
-    internal Font(UUID id) : base(id) { }
+    internal Font(AssetGUID id) : base(id) { }
 }
 
 [NativeAssetType("AnimationClip")]
 public sealed class AnimationClip : Asset {
-    internal AnimationClip(UUID id) : base(id) { }
+    internal AnimationClip(AssetGUID id) : base(id) { }
 }
 
 [NativeAssetType("ParticleEffect")]
 public sealed class ParticleEffect : Asset {
-    internal ParticleEffect(UUID id) : base(id) { }
+    internal ParticleEffect(AssetGUID id) : base(id) { }
 }

@@ -3,8 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <algorithm>
@@ -12,7 +12,7 @@
 namespace {
 
 	// 全シーン共通のCollision設定ファイルのプロジェクト相対パス
-	constexpr const char* kGlobalCollisionSettingsPath = "GameAssets/ProjectSettings/CollisionSettings.json";
+	constexpr const char* kGlobalCollisionSettingsPath = "CollisionSettings.json";
 }
 
 //============================================================================
@@ -112,12 +112,9 @@ void Engine::CollisionSettings::Save() const {
 	JsonAdapter::Save(settingsPath_, data);
 }
 
-void Engine::CollisionSettings::BindGlobal(const AssetDatabase* assetDatabase) {
+void Engine::CollisionSettings::BindGlobal() {
 
-	if (!assetDatabase) {
-		return;
-	}
-	SetActiveSettingsPath(assetDatabase->ResolveAssetPath(kGlobalCollisionSettingsPath));
+	SetActiveSettingsPath(RuntimePaths::GetProjectSettingsPath(kGlobalCollisionSettingsPath));
 }
 
 void Engine::CollisionSettings::SetActiveSettingsPath(const std::filesystem::path& settingsPath) {

@@ -88,6 +88,14 @@ namespace Engine {
 		return Quaternion{ value.x, value.y, value.z, value.w };
 	}
 
+	ManagedAssetGUID ToManagedAssetGUID(AssetID assetID) {
+		return ManagedAssetGUID{ assetID.high, assetID.low };
+	}
+
+	AssetID ToAssetID(const ManagedAssetGUID& assetGUID) {
+		return AssetID{ assetGUID.high, assetGUID.low };
+	}
+
 	Vector3 MakeLocalPositionFromWorld(ECSWorld& world, const Entity& entity, const Vector3& position) {
 
 		// 継承設定を反映した親追従行列の逆行列でワールド座標をローカルへ落とす

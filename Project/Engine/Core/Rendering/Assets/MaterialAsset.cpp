@@ -34,8 +34,8 @@ namespace {
 		}
 		if (data.is_string()) {
 			const std::string text = data.get<std::string>();
-			if (text.size() == 16) {
-				outValue.value = Engine::FromString16Hex(text);
+			if (text.size() == 32) {
+				outValue.value = Engine::FromString32Hex(text);
 				return true;
 			}
 			return false;
@@ -150,7 +150,6 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 	}
 
 	outAsset = MaterialAsset{};
-	outAsset.guid = ParseAssetID(data, "guid");
 	outAsset.name = data.value("name", "UnnamedMaterial");
 	outAsset.domain = EnumAdapter<MaterialDomain>::FromString(data.value("domain", "Surface")).value_or(MaterialDomain::Surface);
 	outAsset.usage = EnumAdapter<MaterialUsage>::FromString(data.value("usage", "Generic")).value_or(MaterialUsage::Generic);
@@ -195,7 +194,6 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 
 	nlohmann::json data = nlohmann::json::object();
 
-	data["guid"] = ToString(asset.guid);
 	data["name"] = asset.name;
 	data["domain"] = EnumAdapter<MaterialDomain>::ToString(asset.domain);
 	data["usage"] = EnumAdapter<MaterialUsage>::ToString(asset.usage);

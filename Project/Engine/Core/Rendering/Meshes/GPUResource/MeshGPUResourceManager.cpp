@@ -363,7 +363,6 @@ void Engine::MeshGPUResourceManager::ReleaseMeshResource(MeshGPUResource& mesh) 
 	mesh.indexSRV.Release(srvDescriptor_);
 	mesh.vertexSubMeshIndexSRV.Release(srvDescriptor_);
 	mesh.primitiveSubMeshIndexSRV.Release(srvDescriptor_);
-	mesh.meshletSRV.Release(srvDescriptor_);
 	mesh.meshletDrawSRV.Release(srvDescriptor_);
 	mesh.meshletBoundsSRV.Release(srvDescriptor_);
 	mesh.meshletVertexIndexSRV.Release(srvDescriptor_);
@@ -509,10 +508,6 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 
 	// メッシュレットSRVリソース
 	if (!imported.meshlets.empty()) {
-		// 互換用のフルDescも保持しておく
-		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-			mesh.meshletSRV, imported.meshlets, L"Meshlets");
-
 		// MSが使う範囲情報だけを分離して読み込み量を減らす
 		std::vector<MeshletDrawDesc> drawDescs = BuildMeshletDrawDescs(imported.meshlets);
 		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,

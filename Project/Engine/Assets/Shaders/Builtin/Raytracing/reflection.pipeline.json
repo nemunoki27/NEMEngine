@@ -3,7 +3,7 @@
   "variants": [
     {
       "kind": "Raytracing",
-      "shader": "da1b7b9bf8074052",
+      "shader": "4e454d4153534554da1b7b9bf8074052",
       "requiresDispatchRays": true,
       "rayGenerationExport": "ReflectionRayGen",
       "missExport": "ReflectionMiss",

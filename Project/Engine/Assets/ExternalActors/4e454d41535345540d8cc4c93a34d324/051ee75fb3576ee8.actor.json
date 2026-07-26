@@ -1,0 +1,54 @@
+{
+    "Components": {
+        "DirectionalLight": {
+            "affectLayerMask": 4294967295,
+            "color": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "direction": {
+                "x": -0.3568897843360901,
+                "y": -0.9267727732658386,
+                "z": 0.11714066565036774
+            },
+            "enabled": true,
+            "intensity": 0.38999998569488525,
+            "shadowStrength": 1.0
+        },
+        "Hierarchy": {
+            "parentLocalFileID": "",
+            "siblingOrder": 2
+        },
+        "Name": {
+            "name": "DirectionalLight"
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "051ee75fb3576ee8",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+            "localPos": {
+                "x": -0.01175307109951973,
+                "y": 12.138558387756348,
+                "z": -0.046254146844148636
+            },
+            "localRotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    },
+    "LocalFileID": "051ee75fb3576ee8",
+    "SchemaVersion": 1
+}

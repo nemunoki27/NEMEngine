@@ -49,3 +49,8 @@
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
 Project/Engine/Assets/Models/san-miguel/san-miguel.bin filter=lfs diff=lfs merge=lfs -text
+
+# NEMEngine semantic JSON merge
+*.scene.json merge=nem-json
+*.actor.json merge=nem-json
+*.prefab.json merge=nem-json

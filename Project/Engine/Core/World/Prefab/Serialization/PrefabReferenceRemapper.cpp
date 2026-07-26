@@ -23,29 +23,15 @@ namespace {
 	// JSON値からUUIDを読む
 	Engine::UUID ReadUUIDValue(const nlohmann::json& value) {
 
-		Engine::UUID result{};
-		if (value.is_string()) {
-			return Engine::FromString16Hex(value.get<std::string>());
+		if (!value.is_string()) {
+			return Engine::UUID{};
 		}
-		if (value.is_number_unsigned()) {
-			result.value = value.get<uint64_t>();
-		} else if (value.is_number_integer()) {
-
-			const int64_t raw = value.get<int64_t>();
-			if (raw > 0) {
-				result.value = static_cast<uint64_t>(raw);
-			}
-		}
-		return result;
+		return Engine::FromString16Hex(value.get<std::string>());
 	}
 
 	// JSON値へUUIDを書き戻す
 	void WriteUUIDValue(nlohmann::json& value, Engine::UUID id) {
 
-		if (value.is_number_unsigned() || value.is_number_integer()) {
-			value = id.value;
-			return;
-		}
 		value = id ? Engine::ToString(id) : std::string{};
 	}
 
@@ -64,13 +50,10 @@ namespace {
 		if (!entityJson.is_object()) {
 			return Engine::UUID{};
 		}
-		if (entityJson.contains("LocalFileID")) {
-			return ReadUUIDValue(entityJson["LocalFileID"]);
+		if (!entityJson.contains("LocalFileID")) {
+			return Engine::UUID{};
 		}
-		if (entityJson.contains("UUID")) {
-			return ReadUUIDValue(entityJson["UUID"]);
-		}
-		return Engine::UUID{};
+		return ReadUUIDValue(entityJson["LocalFileID"]);
 	}
 
 	// PrefabルートのローカルIDを読む

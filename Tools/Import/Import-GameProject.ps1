@@ -16,7 +16,7 @@
     取り込むゲームプロジェクトのGitリポジトリURL。
 
 .PARAMETER Update
-    既存の取り込みプロジェクトを最新Gitへ更新する。ソース/アセット/設定のみ上書きし、Config/Log/Managedはローカル保持する。
+    既存の取り込みプロジェクトを最新Gitへ更新する。ソース/アセット/共有設定のみ上書きし、UserSettings/Library/Saved/Managedはローカル保持する。
 
 .PARAMETER ProjectName
     プロジェクト名を明示する(主にUpdate用、または1リポジトリに複数ゲームがある場合の選択)。
@@ -157,7 +157,7 @@ function Write-UpdateBatch {
         '@echo off',
         'setlocal',
         "rem $Name を最新のGit状態へ更新する。",
-        'rem ソース/アセット/設定のみ上書きし、Config/Log/Managed はローカル保持する。',
+        'rem ソース/アセット/共有設定のみ上書きし、UserSettings/Library/Saved/Managed はローカル保持する。',
         'rem このファイルは Tools/Import/Import-GameProject.ps1 が自動生成している。',
         "powershell -NoProfile -ExecutionPolicy Bypass -File `"%~dp0..\..\..\Tools\Import\Import-GameProject.ps1`" -GitUrl `"$Url`" -ProjectName `"$Name`" -Update",
         'set "RC=%ERRORLEVEL%"',
@@ -212,8 +212,7 @@ try {
     $name = $appRoot.Name
 
     # コンテナ(<name>)の中にアプリ本体(<name>)を置く1段ネスト構成。
-    # コンテナを実行時の作業ディレクトリにすることで、エンジンのルート解決がSandboxへ
-    # フォールバックせず、このゲームを確実に拾えるようにする(RuntimePaths::FindGameRoot対策)。
+    # コンテナを実行時の作業ディレクトリにして、直下のappにある.nemprojectを一意に解決する。
     $container = Join-Path $gameProjectsRoot $name
     $destination = Join-Path $container $name
 
@@ -226,14 +225,17 @@ try {
     New-Item -ItemType Directory -Force -Path $destination | Out-Null
 
     # 常に除外する作業/生成物。Managedはビルド出力なので取り込まない(ビルド時に再生成される)。
-    $excludeDirs = @(".vs", "obj", "bin", "Generated", (Join-Path $appRoot.FullName "Managed"))
+    $excludeDirs = @(
+        ".vs",
+        "obj",
+        "bin",
+        "Generated",
+        (Join-Path $appRoot.FullName "Managed"),
+        (Join-Path $appRoot.FullName "Library"),
+        (Join-Path $appRoot.FullName "Saved"),
+        (Join-Path $appRoot.FullName "UserSettings")
+    )
     $excludeFiles = @("*.vcxproj", "*.vcxproj.filters", "*.vcxproj.user")
-
-    if ($Update) {
-        # 更新時はローカルのConfig/Logを保持するため複製対象から外す
-        $excludeDirs += (Join-Path $appRoot.FullName "Config")
-        $excludeDirs += (Join-Path $appRoot.FullName "Log")
-    }
 
     Write-Host "===== 複製中: $name -> $destination ====="
     Invoke-Robocopy -Source $appRoot.FullName -Destination $destination -ExcludeDirs $excludeDirs -ExcludeFiles $excludeFiles

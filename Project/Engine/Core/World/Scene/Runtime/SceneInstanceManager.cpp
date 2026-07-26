@@ -3,11 +3,14 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 
 // c++
+#include <algorithm>
 #include <cstdint>
+#include <unordered_map>
 #include <unordered_set>
 
 //============================================================================
@@ -56,32 +59,18 @@ namespace {
 bool Engine::SceneInstanceManager::LoadAdditive(AssetDatabase& database,
 	const SceneSystem& sceneSystem, ECSWorld& world, AssetID sceneAsset, UUID forcedInstanceID) {
 
-	// アセットIDからファイルパスを取得する
-	auto path = database.ResolveFullPath(sceneAsset);
-	if (path.empty()) {
+	if (forcedInstanceID && Find(forcedInstanceID)) {
 		return false;
 	}
 
-	SceneInstance instance{};
-	// C#側で先行採番したSceneHandleとinstance IDを一致させる、無指定なら新規採番
-	instance.instanceID = forcedInstanceID ? forcedInstanceID : UUID::New();
-	instance.parentInstanceID = UUID{};
-	instance.sceneAsset = sceneAsset;
-
-	// ファイルからヘッダ、エンティティを読み込む
-	if (!sceneSystem.LoadScene(path, world, &database, sceneAsset, instance.instanceID,
-		&instance.header, &instance.createdEntities)) {
+	UUID instanceID{};
+	if (!LoadSceneBranch(database, sceneSystem, world, sceneAsset, UUID{},
+		forcedInstanceID, {}, instanceID)) {
 		return false;
 	}
-
-	// アクティブ未設定なら初回をアクティブにする
 	if (!active_) {
-
-		active_ = instance.instanceID;
+		active_ = instanceID;
 	}
-
-	// インスタンスをリストに追加する
-	scenes_.emplace_back(std::move(instance));
 	++revision_;
 	return true;
 }
@@ -120,36 +109,19 @@ Engine::UUID Engine::SceneInstanceManager::CreateScratchScene(const SceneHeader&
 
 bool Engine::SceneInstanceManager::Unload(ECSWorld& world, UUID instanceID) {
 
-	for (size_t i = 0; i < scenes_.size(); ++i) {
-
-		// インスタンスIDが一致するものを探す
-		if (scenes_[i].instanceID != instanceID) {
-			continue;
-		}
-
-		// 作ったエンティティを破棄
-		const std::vector<Entity> ownedEntities = CollectSceneEntities(world, scenes_[i]);
-		for (const auto& entity : ownedEntities) {
-			if (world.IsAlive(entity)) {
-
-				world.DestroyEntity(entity);
-			}
-		}
-		// Unloadは呼び出し元に空の状態を返す必要があるため、予約した破棄をここで確定する
-		world.FlushPendingDestroyEntities();
-
-		// インスタンスをリストから消す
-		scenes_.erase(scenes_.begin() + i);
-
-		// アクティブなインスタンスが削除されたら
-		if (active_ == instanceID) {
-
-			active_ = scenes_.empty() ? UUID{} : scenes_.front().instanceID;
-		}
-		++revision_;
-		return true;
+	const SceneInstance* instance = Find(instanceID);
+	if (!instance) {
+		return false;
 	}
-	return false;
+	const UUID fallback = instance->parentInstanceID;
+	if (!UnloadInternal(world, instanceID)) {
+		return false;
+	}
+	if (active_ == instanceID || !Find(active_)) {
+		active_ = Find(fallback) ? fallback : (scenes_.empty() ? UUID{} : scenes_.front().instanceID);
+	}
+	++revision_;
+	return true;
 }
 
 void Engine::SceneInstanceManager::UnloadAll(ECSWorld& world) {
@@ -168,14 +140,27 @@ bool Engine::SceneInstanceManager::SaveActive(AssetDatabase& database, const Sce
 	if (!activeScene || !activeScene->sceneAsset) {
 		return false;
 	}
+	return Save(database, sceneSystem, world, activeScene->sceneAsset);
+}
 
-	const std::filesystem::path fullPath = database.ResolveFullPath(activeScene->sceneAsset);
+bool Engine::SceneInstanceManager::Save(AssetDatabase& database, const SceneSystem& sceneSystem,
+	ECSWorld& world, AssetID sceneAsset) const {
+
+	const auto it = std::find_if(scenes_.begin(), scenes_.end(),
+		[sceneAsset](const SceneInstance& scene) {
+			return scene.sceneAsset == sceneAsset;
+		});
+	if (it == scenes_.end() || !sceneAsset) {
+		return false;
+	}
+
+	const std::filesystem::path fullPath = database.ResolveFullPath(sceneAsset);
 	if (fullPath.empty()) {
 		return false;
 	}
 
-	const std::vector<Entity> ownedEntities = CollectSceneEntities(world, *activeScene);
-	return sceneSystem.SaveScene(fullPath, world, activeScene->header, database, &ownedEntities);
+	const std::vector<Entity> ownedEntities = CollectSceneEntities(world, *it);
+	return sceneSystem.SaveScene(fullPath, world, it->header, database, &ownedEntities);
 }
 
 nlohmann::json Engine::SceneInstanceManager::SerializeSnapshot(const SceneSystem& sceneSystem, ECSWorld& world) const {
@@ -201,6 +186,7 @@ nlohmann::json Engine::SceneInstanceManager::SerializeSnapshot(const SceneSystem
 		sceneJson["Children"] = nlohmann::json::array();
 		for (const auto& child : scene.childScenes) {
 			nlohmann::json childJson = nlohmann::json::object();
+			childJson["SlotID"] = ToString(child.slotID);
 			childJson["SlotName"] = child.slotName;
 			childJson["ChildInstanceID"] = ToString(child.childInstanceID);
 			sceneJson["Children"].push_back(childJson);
@@ -231,7 +217,7 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 
 		instance.instanceID = FromString16Hex(scene.value("InstanceID", ""));
 		instance.parentInstanceID = FromString16Hex(scene.value("ParentInstanceID", ""));
-		instance.sceneAsset = FromString16Hex(scene.value("SceneAsset", ""));
+		instance.sceneAsset = FromString32Hex(scene.value("SceneAsset", ""));
 
 		// 存在する場合のみヘッダーを読み込む
 		if (scene.contains("Header")) {
@@ -255,6 +241,7 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 			for (const auto& child : scene["Children"]) {
 
 				SceneChildLink link{};
+				link.slotID = FromString16Hex(child.value("SlotID", ""));
 				link.slotName = child.value("SlotName", "");
 				link.childInstanceID = FromString16Hex(child.value("ChildInstanceID", ""));
 				instance.childScenes.emplace_back(std::move(link));
@@ -275,70 +262,208 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 bool Engine::SceneInstanceManager::LoadSceneTree(AssetDatabase& database,
 	const SceneSystem& sceneSystem, ECSWorld& world, AssetID rootAsset) {
 
-	// シーンをすべてクリアしてから、再帰的にシーンツリーをロードする
-	scenes_.clear();
+	// 現在のツリーを実体ごと破棄してから新しいルートをロードする
+	UnloadAll(world);
 	active_ = UUID{};
 	singleLoadRequestPending_ = false;
-	std::function<UUID(AssetID, UUID)> loadRecursive = [&](AssetID sceneAsset, UUID parentInstanceID) -> UUID {
-
-		auto path = database.ResolveFullPath(sceneAsset);
-		if (path.empty()) {
-			return UUID{};
-		}
-
-		// シーンインスタンス初期化
-		SceneInstance instance{};
-		instance.instanceID = UUID::New();
-		instance.parentInstanceID = parentInstanceID;
-		instance.sceneAsset = sceneAsset;
-		// ファイルからヘッダ、エンティティを読み込む
-		if (!sceneSystem.LoadScene(path, world, &database, sceneAsset, instance.instanceID,
-			&instance.header, &instance.createdEntities)) {
-			return UUID{};
-		}
-
-		// インスタンスをリストに追加する
-		const UUID instanceID = instance.instanceID;
-		scenes_.emplace_back(std::move(instance));
-		SceneInstance* current = Find(instanceID);
-		if (!current) {
-			return UUID{};
-		}
-		// サブシーンのスロットを順番に処理する
-		for (const auto& subScene : current->header.subScenes) {
-			if (!subScene.enabled || !subScene.sceneAsset) {
-				continue;
-			}
-
-			// サブシーンを再帰的にロードしてインスタンスIDを取得する
-			const UUID childInstanceID = loadRecursive(subScene.sceneAsset, instanceID);
-			if (!childInstanceID) {
-				return UUID{};
-			}
-			current = Find(instanceID);
-			if (!current) {
-				return UUID{};
-			}
-			// 子シーンのリンク情報を親シーンのインスタンスに追加する
-			SceneChildLink link{};
-			link.slotName = subScene.slotName;
-			link.childInstanceID = childInstanceID;
-			current->childScenes.emplace_back(std::move(link));
-		}
-		return instanceID;
-		};
-
-	// ルートシーンから再帰的にシーンツリーをロードする
-	const UUID rootInstanceID = loadRecursive(rootAsset, UUID{});
-	// ルートシーンのロードに失敗した場合は全てクリアして失敗を返す
-	if (!rootInstanceID) {
-		scenes_.clear();
+	UUID rootInstanceID{};
+	if (!LoadSceneBranch(database, sceneSystem, world, rootAsset,
+		UUID{}, UUID{}, {}, rootInstanceID)) {
+		UnloadAll(world);
 		active_ = UUID{};
 		++revision_;
 		return false;
 	}
 	active_ = rootInstanceID;
 	++revision_;
+	return true;
+}
+
+bool Engine::SceneInstanceManager::SynchronizeSubScenes(AssetDatabase& database,
+	const SceneSystem& sceneSystem, ECSWorld& world, UUID parentInstanceID) {
+
+	SceneInstance* parent = Find(parentInstanceID);
+	if (!parent) {
+		return false;
+	}
+	const std::vector<SubSceneSlotDesc> desiredSlots = parent->header.subScenes;
+	std::unordered_set<UUID> slotIDs;
+	std::unordered_set<std::string> slotNames;
+	for (const SubSceneSlotDesc& slot : desiredSlots) {
+		if (!slot.slotID || !slotIDs.insert(slot.slotID).second ||
+			slot.slotName.empty() || !slotNames.insert(slot.slotName).second) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[SubScene] slot ID or name is empty or duplicated. parent={} slot={}",
+				ToString(parentInstanceID), slot.slotName);
+			return false;
+		}
+	}
+
+	std::unordered_map<UUID, SceneChildLink> existing;
+	for (const SceneChildLink& link : parent->childScenes) {
+		existing.emplace(link.slotID, link);
+	}
+
+	std::vector<AssetID> ancestors;
+	for (const SceneInstance* current = parent; current; current = Find(current->parentInstanceID)) {
+		ancestors.emplace_back(current->sceneAsset);
+	}
+	std::reverse(ancestors.begin(), ancestors.end());
+
+	std::vector<SceneChildLink> nextLinks;
+	for (const SubSceneSlotDesc& slot : desiredSlots) {
+
+		auto found = existing.find(slot.slotID);
+		const SceneInstance* existingChild =
+			found == existing.end() ? nullptr : Find(found->second.childInstanceID);
+		const UUID existingChildID = existingChild ? existingChild->instanceID : UUID{};
+		const AssetID existingChildAsset = existingChild ? existingChild->sceneAsset : AssetID{};
+		if (!slot.enabled || !slot.sceneAsset) {
+			if (existingChildID) {
+				UnloadInternal(world, existingChildID);
+			}
+			if (found != existing.end()) {
+				existing.erase(found);
+			}
+			continue;
+		}
+		if (existingChildID && existingChildAsset == slot.sceneAsset) {
+			SceneChildLink link = found->second;
+			link.slotName = slot.slotName;
+			nextLinks.emplace_back(std::move(link));
+			existing.erase(found);
+			continue;
+		}
+
+		UUID childInstanceID{};
+		if (!LoadSceneBranch(database, sceneSystem, world, slot.sceneAsset,
+			parentInstanceID, UUID{}, ancestors, childInstanceID)) {
+			return false;
+		}
+		if (existingChildID) {
+			UnloadInternal(world, existingChildID);
+		}
+		if (found != existing.end()) {
+			existing.erase(found);
+		}
+		nextLinks.push_back({ slot.slotID, slot.slotName, childInstanceID });
+	}
+
+	for (const auto& [slotID, link] : existing) {
+		UnloadInternal(world, link.childInstanceID);
+	}
+	parent = Find(parentInstanceID);
+	if (!parent) {
+		return false;
+	}
+	parent->childScenes = std::move(nextLinks);
+	++revision_;
+	return true;
+}
+
+bool Engine::SceneInstanceManager::LoadSceneBranch(AssetDatabase& database,
+	const SceneSystem& sceneSystem, ECSWorld& world, AssetID sceneAsset,
+	UUID parentInstanceID, UUID forcedInstanceID,
+	const std::vector<AssetID>& ancestors, UUID& outInstanceID) {
+
+	outInstanceID = UUID{};
+	if (!sceneAsset || std::find(ancestors.begin(), ancestors.end(), sceneAsset) != ancestors.end()) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[SubScene] cyclic scene reference. asset={}", ToString(sceneAsset));
+		return false;
+	}
+	const std::filesystem::path path = database.ResolveFullPath(sceneAsset);
+	if (path.empty()) {
+		return false;
+	}
+
+	SceneInstance instance{};
+	instance.instanceID = forcedInstanceID ? forcedInstanceID : UUID::New();
+	if (Find(instance.instanceID)) {
+		return false;
+	}
+	instance.parentInstanceID = parentInstanceID;
+	instance.sceneAsset = sceneAsset;
+	if (!sceneSystem.LoadScene(path, world, &database, sceneAsset, instance.instanceID,
+		&instance.header, &instance.createdEntities)) {
+		return false;
+	}
+
+	const UUID instanceID = instance.instanceID;
+	const std::vector<SubSceneSlotDesc> slots = instance.header.subScenes;
+	scenes_.emplace_back(std::move(instance));
+
+	std::vector<AssetID> childAncestors = ancestors;
+	childAncestors.emplace_back(sceneAsset);
+	std::unordered_set<UUID> slotIDs;
+	std::unordered_set<std::string> slotNames;
+	for (const SubSceneSlotDesc& slot : slots) {
+
+		if (!slot.slotID || !slotIDs.insert(slot.slotID).second ||
+			slot.slotName.empty() || !slotNames.insert(slot.slotName).second) {
+			UnloadInternal(world, instanceID);
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[SubScene] slot ID or name is empty or duplicated. asset={} slot={}",
+				ToString(sceneAsset), slot.slotName);
+			return false;
+		}
+		if (!slot.enabled || !slot.sceneAsset) {
+			continue;
+		}
+
+		UUID childInstanceID{};
+		if (!LoadSceneBranch(database, sceneSystem, world, slot.sceneAsset,
+			instanceID, UUID{}, childAncestors, childInstanceID)) {
+			UnloadInternal(world, instanceID);
+			return false;
+		}
+		SceneInstance* current = Find(instanceID);
+		if (!current) {
+			UnloadInternal(world, childInstanceID);
+			return false;
+		}
+		current->childScenes.push_back({ slot.slotID, slot.slotName, childInstanceID });
+	}
+	outInstanceID = instanceID;
+	return true;
+}
+
+bool Engine::SceneInstanceManager::UnloadInternal(ECSWorld& world, UUID instanceID) {
+
+	SceneInstance* instance = Find(instanceID);
+	if (!instance) {
+		return false;
+	}
+	const UUID parentInstanceID = instance->parentInstanceID;
+	const std::vector<SceneChildLink> children = instance->childScenes;
+	for (const SceneChildLink& child : children) {
+		UnloadInternal(world, child.childInstanceID);
+	}
+
+	instance = Find(instanceID);
+	if (!instance) {
+		return false;
+	}
+	const std::vector<Entity> ownedEntities = CollectSceneEntities(world, *instance);
+	for (const Entity& entity : ownedEntities) {
+		if (world.IsAlive(entity)) {
+			world.DestroyEntity(entity);
+		}
+	}
+	world.FlushPendingDestroyEntities();
+
+	scenes_.erase(std::remove_if(scenes_.begin(), scenes_.end(),
+		[instanceID](const SceneInstance& scene) { return scene.instanceID == instanceID; }),
+		scenes_.end());
+	for (SceneInstance& scene : scenes_) {
+		std::erase_if(scene.childScenes, [instanceID](const SceneChildLink& link) {
+			return link.childInstanceID == instanceID;
+			});
+	}
+	if (active_ == instanceID || !Find(active_)) {
+		active_ = Find(parentInstanceID) ? parentInstanceID :
+			(scenes_.empty() ? UUID{} : scenes_.front().instanceID);
+	}
 	return true;
 }
 

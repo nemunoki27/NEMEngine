@@ -29,7 +29,7 @@ public static class LineDraw {
         Span<LinePoint> points = stackalloc LinePoint[2];
         points[0] = new LinePoint(start, color, thickness);
         points[1] = new LinePoint(end, color, thickness);
-        NativeApi.LineDrawImmediatePolyline(points, false, false, 0ul);
+        NativeApi.LineDrawImmediatePolyline(points, false, false, AssetGUID.None);
     }
 
     // 2点を結ぶ2Dライン。座標は2Dワールド基準
@@ -37,23 +37,23 @@ public static class LineDraw {
         Span<LinePoint> points = stackalloc LinePoint[2];
         points[0] = new LinePoint(new Vector3(start.x, start.y, 0.0f), color, thickness);
         points[1] = new LinePoint(new Vector3(end.x, end.y, 0.0f), color, thickness);
-        NativeApi.LineDrawImmediatePolyline(points, false, true, 0ul);
+        NativeApi.LineDrawImmediatePolyline(points, false, true, AssetGUID.None);
     }
 
     // 任意のポリラインを描く。loopで始点と終点をつなぐ
     public static void DrawPolyline(ReadOnlySpan<LinePoint> points, bool loop = false, bool is2D = false) {
-        NativeApi.LineDrawImmediatePolyline(points, loop, is2D, 0ul);
+        NativeApi.LineDrawImmediatePolyline(points, loop, is2D, AssetGUID.None);
     }
 
     // 組み込みのワイヤーフレーム球を描く
     public static void DrawSphere(Vector3 center, float radius, Color4 color, int division = 8, float thickness = 0.05f) {
-        NativeApi.LineDrawImmediateSphere(center, radius, color, division, thickness, 0ul);
+        NativeApi.LineDrawImmediateSphere(center, radius, color, division, thickness, AssetGUID.None);
     }
 
     // 形状記述子の共通既定を作る
     private static NativeLineShape MakeShape(LineShapeType type, Color4 color, float thickness) {
         return new NativeLineShape {
-            materialID = 0ul,
+            materialID = AssetGUID.None,
             shapeType = (int)type,
             division = 8,
             is2D = 0,

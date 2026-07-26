@@ -134,8 +134,8 @@ namespace {
 void Engine::EditorLayoutManager::Init() {
 
 	engineCatalogPath_ = RuntimePaths::GetEngineAssetPath("Config/editorLayouts.json");
-	userCatalogPath_ = RuntimePaths::GetGameConfigPath(ConfigPaths::kEditorLayouts);
-	sessionPath_ = RuntimePaths::GetGameConfigPath(ConfigPaths::kEditorLayoutSession);
+	userCatalogPath_ = RuntimePaths::GetUserSettingsPath(ConfigPaths::kEditorLayouts);
+	sessionPath_ = RuntimePaths::GetUserSettingsPath(ConfigPaths::kEditorLayoutSession);
 
 	LoadCatalog(engineCatalogPath_, false, engineLayouts_, &engineDefaultLayoutID_);
 	if (engineLayouts_.empty()) {

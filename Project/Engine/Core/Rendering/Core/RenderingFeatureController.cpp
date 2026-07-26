@@ -179,7 +179,7 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 
 void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
 
-	const std::filesystem::path path = RuntimePaths::GetGameConfigPath(kGraphicsFeatureConfigPath);
+	const std::filesystem::path path = RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath);
 	if (!JsonAdapter::Check(path)) {
 		return;
 	}
@@ -207,5 +207,5 @@ void Engine::GraphicsFeatureController::SavePreferencesToConfig() const {
 	data["allowContributionCulling"] = preferences_.allowContributionCulling;
 	data["allowNormalConeCulling"] = preferences_.allowNormalConeCulling;
 
-	JsonAdapter::Save(RuntimePaths::GetGameConfigPath(kGraphicsFeatureConfigPath), data);
+	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath), data);
 }

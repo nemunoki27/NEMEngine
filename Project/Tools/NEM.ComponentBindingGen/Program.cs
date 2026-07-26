@@ -627,8 +627,8 @@ internal static class Program {
                 break;
             }
             case "AssetRef":
-                sb.Append("\t\t\t\tif (size < 8) { return ManagedStatus::InvalidArgument; }\n");
-                sb.Append($"\t\t\t\t*reinterpret_cast<uint64_t*>(out) = c->{m}.value;\n");
+                sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedAssetGUID))) { return ManagedStatus::InvalidArgument; }\n");
+                sb.Append($"\t\t\t\t*reinterpret_cast<ManagedAssetGUID*>(out) = ToManagedAssetGUID(c->{m});\n");
                 break;
             case "EntityRef":
                 sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedNativeEntity))) { return ManagedStatus::InvalidArgument; }\n");
@@ -659,8 +659,8 @@ internal static class Program {
                 break;
             }
             case "AssetRef":
-                sb.Append("\t\t\t\tif (size < 8) { return ManagedStatus::InvalidArgument; }\n");
-                sb.Append($"\t\t\t\tc->{m}.value = *reinterpret_cast<const uint64_t*>(value);\n");
+                sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedAssetGUID))) { return ManagedStatus::InvalidArgument; }\n");
+                sb.Append($"\t\t\t\tc->{m} = ToAssetID(*reinterpret_cast<const ManagedAssetGUID*>(value));\n");
                 break;
             case "EntityRef":
                 sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedNativeEntity))) { return ManagedStatus::InvalidArgument; }\n");
@@ -851,8 +851,8 @@ internal static class Program {
             case "AssetRef": {
                 string t = prop.AssetType!;
                 sb.Append($"    {prop.CsVisibility} {t}? {prop.ManagedName} {{\n");
-                sb.Append($"        get {{ ulong v = 0; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 8); return v != 0 ? new {t}(new UUID(v)) : null; }}\n");
-                if (!prop.ReadOnly) sb.Append($"        set {{ ulong v = value != null ? value.assetId.value : 0; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, 8); }}\n");
+                sb.Append($"        get {{ AssetGUID v = AssetGUID.None; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 16); return v.isValid ? new {t}(v) : null; }}\n");
+                if (!prop.ReadOnly) sb.Append($"        set {{ AssetGUID v = value != null ? value.assetId : AssetGUID.None; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, 16); }}\n");
                 sb.Append("    }\n\n");
                 break;
             }

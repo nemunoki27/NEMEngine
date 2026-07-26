@@ -4,7 +4,7 @@
             "anchor": "AfterMaskedUI",
             "enabled": false,
             "id": "8d451e3dde880f0c",
-            "materialGuid": "d6510fca56bb6fed",
+            "materialGuid": "4e454d4153534554d6510fca56bb6fed",
             "name": "bloomPrefilter",
             "parameters": {
                 "intensity": 7.03000020980835,
@@ -19,7 +19,7 @@
             "anchor": "AfterMaskedUI",
             "enabled": false,
             "id": "f0a2daf184c376af",
-            "materialGuid": "46d1a9bef477a686",
+            "materialGuid": "4e454d415353455446d1a9bef477a686",
             "name": "blurHorizontal",
             "parameters": {
                 "radius": 4.0
@@ -32,7 +32,7 @@
             "anchor": "AfterMaskedUI",
             "enabled": false,
             "id": "f4374415d66a27c3",
-            "materialGuid": "96fa0c48a1012083",
+            "materialGuid": "4e454d415353455496fa0c48a1012083",
             "name": "blurVertical",
             "parameters": {
                 "radius": 3.7799999713897705
@@ -45,7 +45,7 @@
             "anchor": "AfterMaskedUI",
             "enabled": false,
             "id": "c62e4febfe158b0b",
-            "materialGuid": "18f1950926579eaa",
+            "materialGuid": "4e454d415353455418f1950926579eaa",
             "name": "bloomComposite",
             "parameters": {
                 "intensity": 1.5

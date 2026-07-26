@@ -63,12 +63,9 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// 起動時に開く既定シーンの.meta GUID
-		static constexpr AssetID kDefaultStartupScene{ 0x129d80fee6b506d1ull };
-
 		// 現在アクティブなシーンで初期シーンもパスではなく.meta GUIDで参照する
 		std::string activeScenePath_{};
-		AssetID activeScene_{ kDefaultStartupScene };
+		AssetID activeScene_{};
 
 		// アセット管理
 		AssetDatabase assetDataBase_;
@@ -182,6 +179,8 @@ namespace Engine {
 		bool OpenEditScene(AssetID sceneAsset);
 		// エディタワールドのアクティブシーンを保存する
 		bool SaveActiveEditScene();
+		// エディタワールドで読み込み中のシーンを全て保存する
+		bool SaveAllEditScenes();
 		// 終了前の未保存確認結果を処理する
 		void HandleCloseRequestResult();
 		// 終了を確定して、必要ならウィンドウ破棄まで進める

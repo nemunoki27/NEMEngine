@@ -29,8 +29,7 @@ Engine::ScriptExecutionOrderTable& Engine::ScriptExecutionOrderTable::GetInstanc
 
 std::filesystem::path Engine::ScriptExecutionOrderTable::SettingsPath() {
 
-	// ProjectSettingsはGameAssetsと同階層に置く運用でInputActions.jsonと同様
-	return RuntimePaths::GetGameRoot() / "ProjectSettings" / "ScriptExecutionOrder.json";
+	return RuntimePaths::GetProjectSettingsPath("ScriptExecutionOrder.json");
 }
 
 void Engine::ScriptExecutionOrderTable::EnsureLoaded() {

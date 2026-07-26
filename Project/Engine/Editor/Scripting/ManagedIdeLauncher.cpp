@@ -34,8 +34,12 @@ namespace {
 		return result;
 	}
 
-	std::filesystem::path SettingsPath() {
-		return Engine::RuntimePaths::GetGameRoot() / "ProjectSettings" / "ManagedScriptingEditor.json";
+	std::filesystem::path ProjectSettingsPath() {
+		return Engine::RuntimePaths::GetProjectSettingsPath("ManagedScripting.json");
+	}
+
+	std::filesystem::path UserSettingsPath() {
+		return Engine::RuntimePaths::GetUserSettingsPath("Editor/ManagedIDE.json");
 	}
 
 	// 環境変数からpathを取得する、Program Filesの探索に使う
@@ -140,31 +144,31 @@ void Engine::ManagedIdeLauncher::ReloadSettings() {
 	g_loaded = true;
 	g_settings = ManagedIdeSettings{}; // 既定値へ戻してから上書き
 
-	const std::filesystem::path path = SettingsPath();
+	const std::filesystem::path projectPath = ProjectSettingsPath();
+	const std::filesystem::path userPath = UserSettingsPath();
 	std::error_code ec{};
-	if (!std::filesystem::exists(path, ec)) {
-		return; // 設定ファイルが無ければ既定値
-	}
-	std::ifstream file(path);
-	if (!file.is_open()) {
-		return;
-	}
-	nlohmann::json root;
-	try {
-		file >> root;
-	}
-	catch (const std::exception& e) {
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedIdeLauncher: failed to parse {} ({}). using defaults.", path.string(), e.what());
-		return;
-	}
-	if (!root.is_object()) {
-		return;
-	}
-	g_settings.mode = root.value("mode", g_settings.mode);
-	g_settings.executable = root.value("executable", g_settings.executable);
-	g_settings.arguments = root.value("arguments", g_settings.arguments);
-	g_settings.project = root.value("project", g_settings.project);
+	const auto load = [&](const std::filesystem::path& path, bool projectSettings) {
+
+		if (!std::filesystem::exists(path, ec)) {
+			return;
+		}
+		std::ifstream file(path);
+		const nlohmann::json root = nlohmann::json::parse(file, nullptr, false);
+		if (!root.is_object()) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"ManagedIdeLauncher: failed to parse {}. using defaults.", path.string());
+			return;
+		}
+		if (projectSettings) {
+			g_settings.project = root.value("project", g_settings.project);
+			return;
+		}
+		g_settings.mode = root.value("mode", g_settings.mode);
+		g_settings.executable = root.value("executable", g_settings.executable);
+		g_settings.arguments = root.value("arguments", g_settings.arguments);
+	};
+	load(projectPath, true);
+	load(userPath, false);
 }
 
 const Engine::ManagedIdeSettings& Engine::ManagedIdeLauncher::GetSettings() {

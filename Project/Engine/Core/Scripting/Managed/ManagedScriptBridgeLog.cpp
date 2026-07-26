@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/AssetTypes.h>
@@ -111,30 +112,39 @@ namespace Engine {
 	//	AssetRefの実行時解決コールバック
 	//	UUID主体でネイティブリソースやGPUやファイルパスは返さない、表示名はstemのみ
 	//============================================================================
-	int32_t ManagedScriptRuntime::AssetExistsCallback(uint64_t assetID) {
+	int32_t ManagedScriptRuntime::AssetExistsCallback(ManagedAssetGUID assetID) {
 
 		const SystemContext* context = GetCurrentContext();
-		if (!context || !context->assetDatabase || assetID == 0) {
+		const AssetID resolvedID = ToAssetID(assetID);
+		if (!context || !context->assetDatabase || !resolvedID) {
 			return 0;
 		}
-		return context->assetDatabase->Find(AssetID{ assetID }) != nullptr ? 1 : 0;
+		return context->assetDatabase->Find(resolvedID) != nullptr ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::CopyAssetDisplayNameCallback(uint64_t assetID, char* buffer, int32_t capacity) {
+	int32_t ManagedScriptRuntime::CopyAssetDisplayNameCallback(
+		ManagedAssetGUID assetID, char* buffer, int32_t capacity) {
 
 		const SystemContext* context = GetCurrentContext();
+		const AssetID resolvedID = ToAssetID(assetID);
 		std::string name;
-		if (context && context->assetDatabase && assetID != 0 && context->assetDatabase->Find(AssetID{ assetID })) {
+		if (context && context->assetDatabase && resolvedID && context->assetDatabase->Find(resolvedID)) {
 			// 表示名はasset pathのstemつまり拡張子なしファイル名で、path自体はC#へ渡さない
-			name = context->assetDatabase->ResolveFullPath(AssetID{ assetID }).stem().string();
+			name = context->assetDatabase->ResolveFullPath(resolvedID).stem().string();
 		}
 		return CopyStringToBuffer(name, buffer, capacity);
 	}
 
 	int32_t ManagedScriptRuntime::CopyProjectRootCallback(char* buffer, int32_t capacity) {
 
-		// InputActions.json等のProjectSettings解決用でGameAssetsが属するゲームルートをUTF-8で返す、ProjectSettingsはGameAssetsと同じ階層に置く運用
-		const std::string root = RuntimePaths::GetGameRoot().string();
+		// InputActions.json等のProjectSettings解決用にプロジェクトルートをUTF-8で返す
+		const std::string root = Algorithm::PathToUTF8(RuntimePaths::GetProjectRoot());
+		return CopyStringToBuffer(root, buffer, capacity);
+	}
+
+	int32_t ManagedScriptRuntime::CopyUserSettingsRootCallback(char* buffer, int32_t capacity) {
+
+		const std::string root = Algorithm::PathToUTF8(RuntimePaths::GetUserSettingsRoot());
 		return CopyStringToBuffer(root, buffer, capacity);
 	}
 

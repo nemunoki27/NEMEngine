@@ -1,0 +1,45 @@
+{
+    "Components": {
+        "Hierarchy": {
+            "parentLocalFileID": "",
+            "siblingOrder": 1
+        },
+        "Name": {
+            "name": "Camera2D"
+        },
+        "OrthographicCamera": {
+            "cullingMask": -1,
+            "enabled": true,
+            "farClip": 1000.0,
+            "isMain": true,
+            "nearClip": 0.0,
+            "priority": 0
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "a8cc88ff61d9d6f9",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+            "localPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localRotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    },
+    "LocalFileID": "a8cc88ff61d9d6f9",
+    "SchemaVersion": 1
+}

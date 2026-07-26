@@ -49,8 +49,8 @@ void Engine::RenderSceneBatch::Sort() {
 			}
 		}
 		// マテリアル比較
-		if (itemA.material.value != itemB.material.value) {
-			return itemA.material.value < itemB.material.value;
+		if (itemA.material != itemB.material) {
+			return itemA.material < itemB.material;
 		}
 		// 描画ID比較
 		if (itemA.backendID != itemB.backendID) {

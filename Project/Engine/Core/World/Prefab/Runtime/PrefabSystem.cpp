@@ -16,43 +16,33 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
+// c++
+#include <unordered_set>
+
 //============================================================================
 //	PrefabSystem classMethods
 //============================================================================
 namespace {
 
+	constexpr uint32_t kPrefabSchemaVersion = 1;
+
 	// JSON値からローカルIDを読み取る
 	static Engine::UUID ReadLocalFileID(const nlohmann::json& value) {
 
-		Engine::UUID result{};
-		if (value.is_string()) {
-			const std::string raw = value.get<std::string>();
-			return raw.empty() ? Engine::UUID{} : Engine::FromString16Hex(raw);
+		if (!value.is_string()) {
+			return Engine::UUID{};
 		}
-		if (value.is_number_unsigned()) {
-			result.value = value.get<uint64_t>();
-		} else if (value.is_number_integer()) {
-
-			const int64_t raw = value.get<int64_t>();
-			if (raw > 0) {
-				result.value = static_cast<uint64_t>(raw);
-			}
-		}
-		return result;
+		const std::string raw = value.get<std::string>();
+		return raw.empty() ? Engine::UUID{} : Engine::FromString16Hex(raw);
 	}
 
 	// プレファブファイル内でエンティティを識別するためのIDを読み取る
 	static Engine::UUID ReadEntityLocalFileID(const nlohmann::json& entityJson) {
 
-		if (entityJson.contains("LocalFileID")) {
-			const Engine::UUID localFileID = ReadLocalFileID(entityJson["LocalFileID"]);
-			return localFileID ? localFileID : Engine::UUID::New();
+		if (!entityJson.is_object() || !entityJson.contains("LocalFileID")) {
+			return Engine::UUID{};
 		}
-		if (entityJson.contains("UUID")) {
-			const Engine::UUID localFileID = ReadLocalFileID(entityJson["UUID"]);
-			return localFileID ? localFileID : Engine::UUID::New();
-		}
-		return Engine::UUID::New();
+		return ReadLocalFileID(entityJson["LocalFileID"]);
 	}
 
 	// ジョイント参照が同じプレファブ内に存在するか判定する
@@ -176,6 +166,7 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 
 	nlohmann::json fileJson = nlohmann::json::object();
 
+	fileJson["SchemaVersion"] = kPrefabSchemaVersion;
 	fileJson["Header"] = ToJson(header);
 	fileJson["Entities"] = nlohmann::json::array();
 
@@ -228,8 +219,7 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 	if (savePath.empty()) {
 		savePath = prefabAssetPath;
 	}
-	JsonAdapter::Save(savePath, fileJson);
-	return true;
+	return JsonAdapter::SaveCanonical(savePath, fileJson);
 }
 
 bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchySystem& hierarchySystem,
@@ -246,7 +236,10 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 
 	// ファイルからnlohmann::json読み込み
 	nlohmann::json fileJson = JsonAdapter::Load(fullPath, true);
-	if (!fileJson.is_object() || !fileJson.contains("Entities") || !fileJson["Entities"].is_array()) {
+	if (!fileJson.is_object() ||
+		fileJson.value("SchemaVersion", 0u) != kPrefabSchemaVersion ||
+		!fileJson.contains("Header") || !fileJson["Header"].is_object() ||
+		!fileJson.contains("Entities") || !fileJson["Entities"].is_array()) {
 		return false;
 	}
 	PrefabReferenceRemapper::NormalizePrefabFileHierarchy(fileJson);
@@ -254,12 +247,23 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 
 	// ファイルからプレファブ読み込み
 	PrefabHeader header{};
-	if (fileJson.contains("Header") && fileJson["Header"].is_object()) {
+	if (!FromJson(fileJson["Header"], header) || !header.rootLocalFileID) {
+		return false;
+	}
+	header.guid = prefabAsset;
 
-		FromJson(fileJson["Header"], header);
-	} else {
+	std::unordered_set<UUID> prefabLocalFileIDs;
+	for (const auto& entityJson : fileJson["Entities"]) {
 
-		header.guid = prefabAsset;
+		const UUID localFileID = ReadEntityLocalFileID(entityJson);
+		if (!localFileID || !entityJson.contains("Components") ||
+			!entityJson["Components"].is_object() ||
+			!prefabLocalFileIDs.insert(localFileID).second) {
+			return false;
+		}
+	}
+	if (!prefabLocalFileIDs.contains(header.rootLocalFileID)) {
+		return false;
 	}
 
 	// シーン内で一意なプレファブインスタンスIDを生成、薄い保存からの復元では指定IDを使い同一性を保つ

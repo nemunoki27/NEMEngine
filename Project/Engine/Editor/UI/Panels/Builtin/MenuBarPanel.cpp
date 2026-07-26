@@ -198,7 +198,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 		ImGui::Separator();
 
-		// フレームレート上限はここで切り替えて.exeConfigへ保存する、0は制限なし
+		// フレームレート上限はここで切り替えてProjectSettingsへ保存する、0は制限なし
 		FrameRateSettings& frameRate = FrameRateSettings::GetInstance();
 		const uint32_t fpsOptions[] = { 30u, 60u, 120u, 0u };
 		const char* fpsLabels[] = { "30", "60", "120", "未制限" };

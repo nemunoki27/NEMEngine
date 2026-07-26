@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Entity/Entity.h>
+#include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Foundation/Math/Quaternion.h>
@@ -64,14 +65,14 @@ namespace Engine {
 
 		// 予約済みEntityをmaterializeしてTransform/SceneObject/Nameを付与しstaged SRTとparentを適用する
 		void EnqueueCreateEntity(const Entity& reserved, std::string_view name, const Entity& parent);
-		// 予約済みルートへPrefabをPrefabSystem経由でmaterializeする、assetはUUID
-		void EnqueueInstantiatePrefab(const Entity& reservedRoot, const UUID& prefabAsset,
+		// 予約済みルートへPrefabをPrefabSystem経由でmaterializeする
+		void EnqueueInstantiatePrefab(const Entity& reservedRoot, AssetID prefabAsset,
 			const Vector3& position, const Quaternion& rotation, bool useTransform, const Entity& parent);
 		// Sceneをadditive load / unloadする、instanceはUUID
-		void EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, const UUID& sceneAsset);
+		void EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, AssetID sceneAsset);
 		void EnqueueUnloadScene(const UUID& sceneInstanceID);
 		// Sceneを単一loadする、新sceneをloadしてactiveにし、それまでの全sceneをunloadする
-		void EnqueueLoadSceneSingle(const UUID& sceneInstanceID, const UUID& sceneAsset);
+		void EnqueueLoadSceneSingle(const UUID& sceneInstanceID, AssetID sceneAsset);
 
 		// 予約直後のEntityへのtransform書き込みをstagingする、flush前は実componentが無いため
 		// 対象がpending CreateEntity / InstantiatePrefabコマンドに無ければfalseで呼び出し側は通常処理へ
@@ -133,7 +134,7 @@ namespace Engine {
 			bool boolValue = false;
 			uint8_t flags = 0;
 			// Prefab / Sceneのasset、Scene instanceのUUID
-			UUID assetID{};
+			AssetID assetID{};
 			UUID sceneInstanceID{};
 			// CreateEntity / InstantiatePrefabの初期SRTでstagingで確定する
 			Vector3 position{};

@@ -278,8 +278,6 @@ namespace Engine {
 		// PrimitiveIndex()->サブメッシュインデックス参照用
 		MeshStructuredHandle<uint32_t> primitiveSubMeshIndexSRV;
 
-		// メッシュレット
-		MeshStructuredHandle<MeshletDesc> meshletSRV;
 		// AS/MSで必要な範囲情報だけを読むための軽量メッシュレットDesc
 		MeshStructuredHandle<MeshletDrawDesc> meshletDrawSRV;
 		// ASでメッシュレット単位カリングを行うためのBounds

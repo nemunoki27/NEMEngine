@@ -48,7 +48,8 @@ namespace Engine {
 	// v31: IrisTransitionの再生操作を追加
 	// v32: AudioSourceのPlayOneShotとUnPauseを追加
 	// v33: EffectEmitterのグループとState設定APIを追加
-	inline constexpr uint32_t kManagedAbiVersion = 33;
+	// v34: アセット参照を128bit AssetGUIDへ移行
+	inline constexpr uint32_t kManagedAbiVersion = 35;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -94,6 +95,13 @@ namespace Engine {
 	//============================================================================
 	//	ManagedScript structures
 	//============================================================================
+	// C#のAssetGUIDと同一レイアウト
+	struct ManagedAssetGUID {
+
+		uint64_t high = 0;
+		uint64_t low = 0;
+	};
+
 	// C#側のシリアライズフィールドの種類でschema JSONのkind文字列と対応する
 	// 値はC#列挙とは独立で、C++側schema parse時に文字列から決める
 	enum class ManagedSerializedFieldKind : int32_t {
@@ -325,7 +333,7 @@ namespace Engine {
 	// materialIDを先頭に置き8バイト境界を揃える、以降は4バイト要素で詰める
 	struct ManagedLineShape {
 
-		uint64_t materialID = 0;
+		ManagedAssetGUID materialID{};
 		int32_t shapeType = 0;
 		int32_t division = 8;
 		int32_t is2D = 0;
@@ -399,12 +407,12 @@ namespace Engine {
 		using GetDoubleCallback = double(__cdecl*)();
 		using GetUInt64Callback = uint64_t(__cdecl*)();
 		using SetFloatCallback = void(__cdecl*)(float);
-		using AssetExistsCallback = int32_t(__cdecl*)(uint64_t);
-		using CopyAssetStringCallback = int32_t(__cdecl*)(uint64_t, char*, int32_t);
+		using AssetExistsCallback = int32_t(__cdecl*)(ManagedAssetGUID);
+		using CopyAssetStringCallback = int32_t(__cdecl*)(ManagedAssetGUID, char*, int32_t);
 		// Gameplay v7のEntity生成とPrefabとSceneとSetParentのworldPositionStays
 		using CreateEntityCallback = ManagedNativeEntity(__cdecl*)(const char*, ManagedNativeEntity);
-		using InstantiatePrefabCallback = ManagedNativeEntity(__cdecl*)(uint64_t, ManagedVector3, ManagedQuaternion, int32_t, ManagedNativeEntity);
-		using LoadSceneCallback = uint64_t(__cdecl*)(uint64_t);
+		using InstantiatePrefabCallback = ManagedNativeEntity(__cdecl*)(ManagedAssetGUID, ManagedVector3, ManagedQuaternion, int32_t, ManagedNativeEntity);
+		using LoadSceneCallback = uint64_t(__cdecl*)(ManagedAssetGUID);
 		using UnloadSceneCallback = void(__cdecl*)(uint64_t);
 		using SetParentKeepWorldCallback = void(__cdecl*)(ManagedNativeEntity, ManagedNativeEntity, int32_t);
 		using SceneInstanceAliveCallback = int32_t(__cdecl*)(uint64_t);
@@ -415,7 +423,7 @@ namespace Engine {
 		using CopyTextCallback = int32_t(__cdecl*)(char*, int32_t);
 		// Gameplay v7のAudioSource gameplay methodでentityのAudioSourceComponentを操作する
 		using EntityActionCallback = void(__cdecl*)(ManagedNativeEntity);
-		using AudioPlayOneShotCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t, float);
+		using AudioPlayOneShotCallback = void(__cdecl*)(ManagedNativeEntity, ManagedAssetGUID, float);
 		// Diagnostics v8のscript callback例外の構造化報告でJSON DTOを1件渡す
 		using ReportStringCallback = void(__cdecl*)(const char*);
 		// v23のイージング関数、EasingTypeとtからイージング済みの値を返す
@@ -424,9 +432,9 @@ namespace Engine {
 		using GetScriptInstanceCallback = ManagedScriptInstanceHandle(__cdecl*)(ManagedNativeEntity, const char*);
 		// AddComponent<Script> v22のentityへscriptTypeIDのscriptをruntime attachする、成否を返す
 		using AttachScriptCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*);
-		using ResolveEntityRefCallback = ManagedNativeEntity(__cdecl*)(uint64_t, uint64_t);
+		using ResolveEntityRefCallback = ManagedNativeEntity(__cdecl*)(ManagedAssetGUID, uint64_t);
 		// v20のEntity保存identity逆引き、sourceAssetとlocalFileIDとkindを返す
-		using GetEntityRefIdentityCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t*, uint64_t*, int32_t*);
+		using GetEntityRefIdentityCallback = void(__cdecl*)(ManagedNativeEntity, ManagedAssetGUID*, uint64_t*, int32_t*);
 		// v21のレイキャスト、単発は最近ヒットを返しAllはヒット総数を返してcapacity分だけ書く
 		using PhysicsRaycastCallback = int32_t(__cdecl*)(ManagedVector3, ManagedVector3, float, uint32_t, uint32_t, ManagedRaycastHit*);
 		using PhysicsRaycastAllCallback = int32_t(__cdecl*)(ManagedVector3, ManagedVector3, float, uint32_t, uint32_t, ManagedRaycastHit*, int32_t);
@@ -442,8 +450,8 @@ namespace Engine {
 		using LineSetPointsCallback = void(__cdecl*)(ManagedNativeEntity, const ManagedLinePoint*, int32_t, int32_t);
 		using LineAddPointCallback = int32_t(__cdecl*)(ManagedNativeEntity, ManagedLinePoint);
 		using LineUpdatePointCallback = void(__cdecl*)(ManagedNativeEntity, ManagedLinePoint);
-		using LineDrawImmediateCallback = void(__cdecl*)(const ManagedLinePoint*, int32_t, int32_t, int32_t, uint64_t);
-		using LineDrawSphereImmediateCallback = void(__cdecl*)(ManagedVector3, float, ManagedColor4, int32_t, float, uint64_t);
+		using LineDrawImmediateCallback = void(__cdecl*)(const ManagedLinePoint*, int32_t, int32_t, int32_t, ManagedAssetGUID);
+		using LineDrawSphereImmediateCallback = void(__cdecl*)(ManagedVector3, float, ManagedColor4, int32_t, float, ManagedAssetGUID);
 		// v14のEntity検索で名前やタグから1件、タグやcomponentから複数件をbufferへ詰める
 		using FindByStringCallback = ManagedNativeEntity(__cdecl*)(const char*);
 		using FindManyByStringCallback = int32_t(__cdecl*)(const char*, ManagedNativeEntity*, int32_t);

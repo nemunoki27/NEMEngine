@@ -4,7 +4,7 @@
   "passes": [
     {
       "passKind": "Reflection",
-      "pipeline": "6228d203578ecde2",
+      "pipeline": "4e454d41535345546228d203578ecde2",
       "preferredVariant": "Raytracing"
     }
   ]

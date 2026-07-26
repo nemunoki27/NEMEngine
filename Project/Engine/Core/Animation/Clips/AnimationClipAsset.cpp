@@ -519,7 +519,6 @@ void Engine::from_json(const nlohmann::json& in, AnimationCurveTrack& track) {
 void Engine::to_json(nlohmann::json& out, const AnimationClipAsset& clip) {
 
 	out = nlohmann::json::object();
-	out["guid"] = ToString(clip.guid);
 	out["name"] = clip.name;
 	out["duration"] = clip.duration;
 	out["autoDuration"] = clip.autoDuration;
@@ -542,7 +541,6 @@ void Engine::to_json(nlohmann::json& out, const AnimationClipAsset& clip) {
 
 void Engine::from_json(const nlohmann::json& in, AnimationClipAsset& clip) {
 
-	clip.guid = FromString16Hex(in.value("guid", ""));
 	clip.name = in.value("name", clip.name);
 	clip.duration = in.value("duration", clip.duration);
 	if (clip.duration <= 0.0f) {

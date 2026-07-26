@@ -251,7 +251,6 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 	}
 
 	outAsset = ParticleEffectAsset{};
-	outAsset.guid = ParseAssetID(data, "guid");
 	outAsset.name = data.value("name", "UnnamedEffect");
 	outAsset.version = 2;
 	outAsset.space = EnumAdapter<PrimitiveRenderSpace>::FromString(

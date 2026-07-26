@@ -4,33 +4,34 @@ namespace Engine {
 
 	//============================================================================
 	//	ConfigPaths
-	//	RuntimePaths::GetGameConfigPathへ渡す設定ファイルの相対パスを一元管理する
-	//	値はゲーム側Config配下の既存ファイル名と一致させること、変更すると既存設定が読めなくなる
+	//	ProjectSettingsとUserSettingsへ渡す設定ファイルの相対パスを一元管理する
 	//============================================================================
 	namespace ConfigPaths {
 
 		// 入力デバイス設定
-		inline constexpr const char* kInputDevice = "Config/inputDevice.exeConfig.json";
+		inline constexpr const char* kInputDevice = "Runtime/InputDevice.json";
 		// 描画フィーチャー切り替え設定
-		inline constexpr const char* kGraphicsFeatureSettings = "Config/graphicsFeatureSettings.exeConfig.json";
-		// シーンビューカメラの保存状態、ファイル名は旧称initExeDataのまま
-		inline constexpr const char* kSceneViewCamera = "Config/initExeData.exeConfig.json";
+		inline constexpr const char* kGraphicsFeatureSettings = "Runtime/GraphicsFeatures.json";
+		// シーンビューカメラの保存状態
+		inline constexpr const char* kSceneViewCamera = "Editor/SceneViewCamera.json";
 		// 起動時に開くアクティブシーン
-		inline constexpr const char* kActiveScene = "Config/activeScene.exeConfig.json";
+		inline constexpr const char* kActiveScene = "Editor/ActiveScene.json";
 		// フレームレート設定
-		inline constexpr const char* kFrameRate = "Config/frameRate.exeConfig.json";
+		inline constexpr const char* kFrameRate = "Runtime/FrameRate.json";
 		// ビューポートパネルの表示状態
-		inline constexpr const char* kViewportPanel = "Config/viewportPanel.exeConfig.json";
+		inline constexpr const char* kViewportPanel = "Editor/ViewportPanel.json";
 		// インスペクターのモデルプレビューカメラ
-		inline constexpr const char* kInspectorModelPreviewCamera = "Config/inspectorModelPreviewCamera.exeConfig.json";
+		inline constexpr const char* kInspectorModelPreviewCamera = "Editor/InspectorModelPreviewCamera.json";
 		// プロジェクトパネルの表示状態
-		inline constexpr const char* kProjectPanel = "Config/projectPanel.exeConfig.json";
+		inline constexpr const char* kProjectPanel = "Editor/ProjectPanel.json";
 		// ユーザーが保存したエディターレイアウト
-		inline constexpr const char* kEditorLayouts = "Config/editorLayouts.exeConfig.json";
+		inline constexpr const char* kEditorLayouts = "Editor/Layouts.json";
 		// 終了時のエディターレイアウト
-		inline constexpr const char* kEditorLayoutSession = "Config/editorLayoutSession.exeConfig.json";
+		inline constexpr const char* kEditorLayoutSession = "Editor/LayoutSession.json";
 		// 製品名と起動時フルスクリーン
-		inline constexpr const char* kGameBuild = "Config/gameBuild.exeConfig.json";
+		inline constexpr const char* kGameBuild = "Runtime/Game.json";
+		// 製品起動時のシーン
+		inline constexpr const char* kStartupScene = "Runtime/StartupScene.json";
 
 	} // ConfigPaths
 } // Engine

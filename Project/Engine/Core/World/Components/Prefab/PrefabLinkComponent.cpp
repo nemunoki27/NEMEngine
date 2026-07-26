@@ -10,7 +10,7 @@ void Engine::from_json(const nlohmann::json& in, PrefabLinkComponent& component)
 	std::string prefabLocalFileID = in.value("prefabLocalFileID", "");
 	std::string prefabInstanceID = in.value("prefabInstanceID", "");
 
-	component.prefabAsset = prefabAsset.empty() ? AssetID{} : FromString16Hex(prefabAsset);
+	component.prefabAsset = prefabAsset.empty() ? AssetID{} : FromString32Hex(prefabAsset);
 	component.prefabLocalFileID = prefabLocalFileID.empty() ? UUID{} : FromString16Hex(prefabLocalFileID);
 	component.prefabInstanceID = prefabInstanceID.empty() ? UUID{} : FromString16Hex(prefabInstanceID);
 	component.isPrefabRoot = in.value("isPrefabRoot", false);

@@ -11,6 +11,7 @@ using namespace Engine;
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 //============================================================================
 //	Framework classMethods
@@ -43,7 +44,7 @@ void Framework::Run() {
 void Framework::Init() {
 
 	// ログファイルの作成
-	Logger::CreateLogFiles();
+	Logger::CreateLogFiles(RuntimePaths::GetSavedPath("Logs"));
 
 	// グラフィックス機能初期化
 	graphicsCore_ = std::make_unique<GraphicsCore>();

@@ -246,10 +246,8 @@ void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) 
 		return;
 	}
 
-	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
-
 	CollisionSettings& settings = CollisionSettings::GetInstance();
-	settings.BindGlobal(assetDatabase);
+	settings.BindGlobal();
 	settings.EnsureLoaded();
 
 	ImGui::SetWindowFontScale(0.9f);

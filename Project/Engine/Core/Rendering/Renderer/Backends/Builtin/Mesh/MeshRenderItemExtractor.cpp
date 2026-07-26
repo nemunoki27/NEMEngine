@@ -139,7 +139,7 @@ void Engine::MeshRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		item.backendID = RenderBackendID::Mesh;
 		item.material = renderer.material;
 		item.cameraDomain = RenderCameraDomain::Perspective;
-		item.batchKey = renderer.mesh.value;
+		item.batchKey = std::hash<AssetID>{}(renderer.mesh);
 		// 静的バッチキャッシュキー用の内容ハッシュを抽出時に1度だけ計算する(backendの毎パス再ハッシュを避ける)
 		const InvertedHullOutlineComponent* outline = world.TryGetComponent<InvertedHullOutlineComponent>(entity);
 		item.contentHash = ComputeMeshContentHash(entity, item.material, item.blendMode, item.worldMatrix, renderer, outline);

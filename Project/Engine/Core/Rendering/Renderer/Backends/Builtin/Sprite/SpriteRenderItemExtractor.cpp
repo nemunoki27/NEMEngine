@@ -26,7 +26,7 @@ namespace {
 			if (textureIt != parameters.end()) {
 
 				if (const Engine::AssetID* textureID = std::get_if<Engine::AssetID>(&textureIt->second.value)) {
-					return textureID->value;
+					return std::hash<Engine::AssetID>{}(*textureID);
 				}
 			}
 		}

@@ -145,9 +145,9 @@ namespace Engine {
 
 		//--------- json patch ---------------------------------------------------
 
-		// JSONアセット内部の名前(必要ならGUID)をファイル名へ合わせて更新する
+		// JSONアセット内部の表示名をファイル名へ合わせて更新する
 		static void PatchJsonAssetName(const std::filesystem::path& path, AssetType type, bool resetGuid);
-		// 複製アセットの名前を更新しGUIDをリセットする
+		// 複製アセットの表示名を更新する、GUIDは新しい.metaで発行する
 		static void PatchDuplicatedJsonAsset(const std::filesystem::path& path, AssetType type);
 		// リネームしたアセットの名前のみを更新する
 		static void PatchRenamedJsonAsset(const std::filesystem::path& path, AssetType type);

@@ -22,6 +22,33 @@
 //============================================================================
 namespace {
 
+	constexpr uint32_t kAssetMetaSchemaVersion = 2;
+
+	bool IsExternalActorsDirectory(const std::filesystem::path& path) {
+
+		return Engine::Algorithm::ToLower(path.filename().string()) == "externalactors";
+	}
+
+	std::string_view ResolveImporterName(Engine::AssetType type) {
+
+		switch (type) {
+		case Engine::AssetType::Texture:          return "TextureImporter";
+		case Engine::AssetType::Mesh:             return "MeshImporter";
+		case Engine::AssetType::Audio:            return "AudioImporter";
+		case Engine::AssetType::Script:           return "ScriptImporter";
+		case Engine::AssetType::Font:             return "FontImporter";
+		case Engine::AssetType::Scene:            return "SceneImporter";
+		case Engine::AssetType::Prefab:           return "PrefabImporter";
+		case Engine::AssetType::Material:         return "MaterialImporter";
+		case Engine::AssetType::Shader:           return "ShaderImporter";
+		case Engine::AssetType::RenderPipeline:   return "RenderPipelineImporter";
+		case Engine::AssetType::AnimationClip:    return "AnimationClipImporter";
+		case Engine::AssetType::PostProcessStack: return "PostProcessStackImporter";
+		case Engine::AssetType::ParticleEffect:   return "ParticleEffectImporter";
+		default:                                  return "DefaultImporter";
+		}
+	}
+
 	// 例外を投げずにJSONファイルを読み解析失敗時はis_discarded()のjsonを返す
 	// 大量のファイルを走査するため、parse_errorの一次例外でデバッガを埋めないようにする
 	nlohmann::json LoadJsonFileNoThrow(const std::filesystem::path& path) {
@@ -79,7 +106,7 @@ namespace {
 		if (!value.is_string()) {
 			return;
 		}
-		const std::optional<Engine::AssetID> parsed = Engine::TryParseUUID16Hex(value.get<std::string>());
+		const std::optional<Engine::AssetID> parsed = Engine::TryParseAssetGUID32Hex(value.get<std::string>());
 		if (!parsed) {
 			return;
 		}
@@ -135,10 +162,13 @@ bool Engine::AssetDatabase::RebuildMeta() {
 	referencersByGuid_.clear();
 	issues_.clear();
 
-	const std::filesystem::path gameAssetsRoot = RuntimePaths::GetGameRoot() / "GameAssets";
+	const std::filesystem::path gameAssetsRoot = RuntimePaths::GetGameAssetsRoot();
 	std::vector<std::filesystem::path> scanRoots{ assetsRoot_ };
 	if (gameAssetsRoot != assetsRoot_) {
 		scanRoots.emplace_back(gameAssetsRoot);
+	}
+	for (const ResolvedPackage& package : RuntimePaths::GetPackages()) {
+		scanRoots.emplace_back(package.root);
 	}
 
 	// 前回規模をヒントに再ハッシュを減らす
@@ -217,7 +247,7 @@ void Engine::AssetDatabase::ReconcileFontAtlasReferences() {
 			continue;
 		}
 		// 既に有効なTextureのGUIDを指しているなら尊重して触らない、ここが冪等性も担保する
-		if (const std::optional<AssetID> currentGuid = TryParseUUID16Hex(data.value("atlasTexture", std::string{}))) {
+		if (const std::optional<AssetID> currentGuid = TryParseAssetGUID32Hex(data.value("atlasTexture", std::string{}))) {
 			const AssetMeta* current = Find(*currentGuid);
 			if (current && current->type == AssetType::Texture) {
 				continue;
@@ -257,6 +287,13 @@ void Engine::AssetDatabase::RebuildIndex(const std::vector<std::filesystem::path
 			if (ec) {
 				// アクセス不能なものはスキップして走査を継続する
 				ec.clear();
+				continue;
+			}
+			if (it->is_directory(ec)) {
+
+				if (IsExternalActorsDirectory(it->path())) {
+					it.disable_recursion_pending();
+				}
 				continue;
 			}
 			if (!it->is_regular_file(ec)) {
@@ -336,8 +373,9 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 	} else {
 
 		// .meta未作成なら新規発行して保存してよい
-		meta.guid = UUID::New();
+		meta.guid = AssetGUID::New();
 		meta.type = guessedType;
+		meta.importer = ResolveImporterName(guessedType);
 		SaveMeta(metaFull, meta);
 	}
 
@@ -480,6 +518,13 @@ void Engine::AssetDatabase::DetectOrphanMeta(const std::vector<std::filesystem::
 				ec.clear();
 				continue;
 			}
+			if (it->is_directory(ec)) {
+
+				if (IsExternalActorsDirectory(it->path())) {
+					it.disable_recursion_pending();
+				}
+				continue;
+			}
 			if (!it->is_regular_file(ec)) {
 				continue;
 			}
@@ -581,13 +626,13 @@ std::filesystem::path Engine::AssetDatabase::MetaPathOf(const std::filesystem::p
 bool Engine::AssetDatabase::TryLoadMeta(const std::filesystem::path& metaFullPath, AssetMeta& out) const {
 
 	const nlohmann::json data = LoadJsonFileNoThrow(metaFullPath);
-	if (!data.is_object()) {
+	if (!data.is_object() || data.value("schemaVersion", 0u) != kAssetMetaSchemaVersion) {
 		return false;
 	}
 
 	// guidは厳密にパースし欠落や不正や0はすべて破損扱い
 	const std::string guidStr = data.value("guid", "");
-	const std::optional<AssetID> parsedGuid = TryParseUUID16Hex(guidStr);
+	const std::optional<AssetID> parsedGuid = TryParseAssetGUID32Hex(guidStr);
 	if (!parsedGuid) {
 		return false;
 	}
@@ -596,6 +641,13 @@ bool Engine::AssetDatabase::TryLoadMeta(const std::filesystem::path& metaFullPat
 	// 未知typeでも例外にせず、Unknownとして扱う(補正は呼び出し側)
 	const std::string typeStr = data.value("type", "Unknown");
 	out.type = EnumAdapter<AssetType>::FromString(typeStr).value_or(AssetType::Unknown);
+	out.importer = data.value("importer", std::string(ResolveImporterName(out.type)));
+	out.importerVersion = data.value("importerVersion", 1u);
+	if (const auto it = data.find("settings"); it != data.end() && it->is_object()) {
+		out.importerSettings = *it;
+	} else {
+		out.importerSettings = nlohmann::json::object();
+	}
 
 	std::filesystem::path assetFullPath = metaFullPath;
 	assetFullPath.replace_extension("");
@@ -615,10 +667,15 @@ bool Engine::AssetDatabase::SaveMeta(const std::filesystem::path& metaFullPath, 
 		data = nlohmann::json::object();
 	}
 
+	data["schemaVersion"] = kAssetMetaSchemaVersion;
 	data["guid"] = ToString(meta.guid);
 	data["type"] = std::string(EnumAdapter<AssetType>::ToString(meta.type));
-	data["importer"] = "nlohmann::json";
-	data["version"] = 1;
+	data["importer"] = meta.importer.empty() ?
+		std::string(ResolveImporterName(meta.type)) : meta.importer;
+	data["importerVersion"] = meta.importerVersion;
+	data["settings"] = meta.importerSettings.is_object() ?
+		meta.importerSettings : nlohmann::json::object();
+	data.erase("version");
 
 	std::ofstream ofs(metaFullPath, std::ios::binary | std::ios::trunc);
 	if (!ofs.is_open()) {

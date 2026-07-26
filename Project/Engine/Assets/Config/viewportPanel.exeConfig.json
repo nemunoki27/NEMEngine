@@ -1,0 +1,36 @@
+{
+    "sceneView": {
+        "cameraMode": "DebugManual",
+        "drawDefaultGrid": true,
+        "enableSnapEditEntity": false,
+        "manipulatorMode": "Translate",
+        "manualCameraDimension": "Type3D",
+        "snap": {
+            "drawGrid": true,
+            "rotate2D": {
+                "absolute": false,
+                "size": 15.0
+            },
+            "rotate3D": {
+                "absolute": true,
+                "size": 30.0
+            },
+            "scale2D": {
+                "absolute": false,
+                "size": 0.20000000298023224
+            },
+            "scale3D": {
+                "absolute": true,
+                "size": 0.20000000298023224
+            },
+            "translate2D": {
+                "absolute": true,
+                "size": 64.0
+            },
+            "translate3D": {
+                "absolute": true,
+                "size": 2.0
+            }
+        }
+    }
+}

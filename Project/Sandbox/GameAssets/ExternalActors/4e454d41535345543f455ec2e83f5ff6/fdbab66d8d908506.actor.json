@@ -1,0 +1,155 @@
+{
+    "Components": {
+        "Hierarchy": {
+            "parentLocalFileID": "",
+            "siblingOrder": 3
+        },
+        "Name": {
+            "name": "Ground"
+        },
+        "PrimitiveRenderer": {
+            "blendMode": "Normal",
+            "castReflection": true,
+            "castShadow": true,
+            "crossPlane": {
+                "pivot": {
+                    "x": 0.5,
+                    "y": 0.5
+                },
+                "planeCount": 2,
+                "size": {
+                    "x": 1.0,
+                    "y": 1.0
+                }
+            },
+            "cube": {
+                "pivot": {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.5
+                },
+                "size": {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                }
+            },
+            "cylinder": {
+                "bottomColor": {
+                    "a": 1.0,
+                    "b": 1.0,
+                    "g": 1.0,
+                    "r": 1.0
+                },
+                "bottomRadius": 1.0,
+                "bottomRadiusWeight": 0.0,
+                "cap": "Both",
+                "centerColor": {
+                    "a": 1.0,
+                    "b": 1.0,
+                    "g": 1.0,
+                    "r": 1.0
+                },
+                "centerRadius": 1.0,
+                "height": 2.0,
+                "heightDivide": 8,
+                "maxAngleDegrees": 360.0,
+                "radialDivide": 16,
+                "topColor": {
+                    "a": 1.0,
+                    "b": 1.0,
+                    "g": 1.0,
+                    "r": 1.0
+                },
+                "topRadius": 1.0,
+                "topRadiusWeight": 0.0,
+                "uvMode": "None"
+            },
+            "hemisphere": {
+                "bottomCap": true,
+                "latitudeDivide": 8,
+                "longitudeDivide": 24,
+                "radius": 1.0
+            },
+            "layer": 0,
+            "lighting": true,
+            "material": "",
+            "order": 0,
+            "parameterOverrides": {
+                "Metallic": 0.0,
+                "Roughness": 1.0,
+                "baseColorTexture": "4e454d4153534554cf3513fc74564db7",
+                "normalTexture": "4e454d4153534554aa93672d260a2909"
+            },
+            "plane": {
+                "axis": "XZ",
+                "divideX": 1,
+                "divideY": 1,
+                "pivot": {
+                    "x": 0.5,
+                    "y": 0.5
+                },
+                "size": {
+                    "x": 1.0,
+                    "y": 1.0
+                }
+            },
+            "queue": "Opaque",
+            "receiveIBL": true,
+            "receiveReflection": true,
+            "receiveShadow": true,
+            "renderSpace": "World3D",
+            "ring": {
+                "divide": 16,
+                "endAngle": 360.0,
+                "innerRadius": 0.5,
+                "outerRadius": 1.0,
+                "startAngle": 0.0
+            },
+            "sphere": {
+                "latitudeDivide": 16,
+                "longitudeDivide": 24,
+                "radius": 1.0
+            },
+            "type": "Plane",
+            "visible": true
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "fdbab66d8d908506",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+            "localPos": {
+                "x": 0.0,
+                "y": -0.03999999910593033,
+                "z": 0.0
+            },
+            "localRotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 320.0,
+                "y": 1.0,
+                "z": 320.0
+            }
+        },
+        "UVTransform": {
+            "pos": {
+                "x": 0.0,
+                "y": 0.0
+            },
+            "rotation": 0.0,
+            "scale": {
+                "x": 200.0,
+                "y": 200.0
+            }
+        }
+    },
+    "LocalFileID": "fdbab66d8d908506",
+    "SchemaVersion": 1
+}

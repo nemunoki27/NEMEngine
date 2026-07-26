@@ -86,7 +86,8 @@ namespace Engine {
 		}
 	}
 
-	ManagedNativeEntity ManagedScriptRuntime::ResolveEntityRefCallback(uint64_t sourceAsset, uint64_t localFileID) {
+	ManagedNativeEntity ManagedScriptRuntime::ResolveEntityRefCallback(
+		ManagedAssetGUID sourceAsset, uint64_t localFileID) {
 
 		// localFileIDとsourceAssetから現在のworldのentityを引く
 		const SystemContext* context = GetCurrentContext();
@@ -100,6 +101,7 @@ namespace Engine {
 		const SceneInstance* activeScene = sceneInstances ? sceneInstances->GetActive() : nullptr;
 		const UUID activeSceneInstanceID = activeScene ? activeScene->instanceID : UUID{};
 
+		const AssetID sourceAssetID = ToAssetID(sourceAsset);
 		Entity fallback = Entity::Null();
 		Entity sourceMatch = Entity::Null();
 		Entity activeMatch = Entity::Null();
@@ -113,8 +115,8 @@ namespace Engine {
 			if (!world->IsAlive(fallback)) {
 				fallback = entity;
 			}
-			const bool sourceMatched = sourceAsset == 0 ||
-				sceneObject.sourceAsset.value == sourceAsset;
+			const bool sourceMatched = !sourceAssetID ||
+				sceneObject.sourceAsset == sourceAssetID;
 			const bool activeMatched = activeSceneInstanceID &&
 				sceneObject.sceneInstanceID == activeSceneInstanceID;
 			if (sourceMatched && !world->IsAlive(sourceMatch)) {
@@ -138,9 +140,9 @@ namespace Engine {
 	}
 
 	void ManagedScriptRuntime::GetEntityReferenceIdentityCallback(ManagedNativeEntity entity,
-		uint64_t* sourceAsset, uint64_t* localFileID, int32_t* kind) {
+		ManagedAssetGUID* sourceAsset, uint64_t* localFileID, int32_t* kind) {
 
-		if (sourceAsset) { *sourceAsset = 0; }
+		if (sourceAsset) { *sourceAsset = {}; }
 		if (localFileID) { *localFileID = 0; }
 		if (kind) { *kind = 0; }
 
@@ -153,7 +155,7 @@ namespace Engine {
 		if (!sceneObject || !sceneObject->localFileID) {
 			return;
 		}
-		if (sourceAsset) { *sourceAsset = sceneObject->sourceAsset.value; }
+		if (sourceAsset) { *sourceAsset = ToManagedAssetGUID(sceneObject->sourceAsset); }
 		if (localFileID) { *localFileID = sceneObject->localFileID.value; }
 		// runtime worldのentityはScene由来として扱う
 		if (kind) { *kind = 1; }
@@ -595,7 +597,7 @@ namespace Engine {
 		case EffectStateProperty::Enabled:
 			return CopyEffectStateValue(state->enabled ? 1 : 0, outData, capacity);
 		case EffectStateProperty::Effect:
-			return CopyEffectStateValue(state->effect.value, outData, capacity);
+			return CopyEffectStateValue(ToManagedAssetGUID(state->effect), outData, capacity);
 		case EffectStateProperty::Mode:
 			return CopyEffectStateValue(static_cast<int32_t>(state->mode), outData, capacity);
 		case EffectStateProperty::Delay:
@@ -651,9 +653,9 @@ namespace Engine {
 			return 1;
 		}
 		case EffectStateProperty::Effect: {
-			uint64_t value = 0;
+			ManagedAssetGUID value{};
 			if (!ReadEffectStateValue(data, size, value)) { return 0; }
-			state->effect.value = value;
+			state->effect = ToAssetID(value);
 			return 1;
 		}
 		case EffectStateProperty::Mode: {
@@ -1069,7 +1071,7 @@ namespace Engine {
 	}
 
 	void ManagedScriptRuntime::LineDrawImmediateCallback(const ManagedLinePoint* points,
-		int32_t count, int32_t loop, int32_t is2D, uint64_t materialID) {
+		int32_t count, int32_t loop, int32_t is2D, ManagedAssetGUID materialID) {
 
 		if (points == nullptr || count < 2) {
 			return;
@@ -1082,17 +1084,17 @@ namespace Engine {
 			converted.emplace_back(ToLinePoint(points[i]));
 		}
 		LineImmediateBuffer::GetInstance().AddPolyline(converted.data(), static_cast<uint32_t>(count),
-			true, loop != 0, is2D != 0, AssetID{ materialID });
+			true, loop != 0, is2D != 0, ToAssetID(materialID));
 	}
 
 	void ManagedScriptRuntime::LineDrawSphereImmediateCallback(ManagedVector3 center, float radius,
-		ManagedColor4 color, int32_t division, float thickness, uint64_t materialID) {
+		ManagedColor4 color, int32_t division, float thickness, ManagedAssetGUID materialID) {
 
 		const uint32_t safeDivision = division < 3 ? 3u : static_cast<uint32_t>(division);
 		LineImmediateBuffer::GetInstance().AddSphere(
 			Vector3(center.x, center.y, center.z),
 			radius, Color4(color.r, color.g, color.b, color.a),
-			safeDivision, thickness, AssetID{ materialID });
+			safeDivision, thickness, ToAssetID(materialID));
 	}
 
 	void ManagedScriptRuntime::LineDrawShapeCallback(const ManagedLineShape* shape) {
@@ -1143,7 +1145,7 @@ namespace Engine {
 		}
 		// 形状は2点ずつ独立した線分リストなのでconnected=falseで積む
 		LineImmediateBuffer::GetInstance().AddPolyline(segments.data(), static_cast<uint32_t>(segments.size()),
-			false, false, shape->is2D != 0, AssetID{ shape->materialID });
+			false, false, shape->is2D != 0, ToAssetID(shape->materialID));
 	}
 
 	ManagedNativeEntity ManagedScriptRuntime::CreateEntityCallback(const char* name, ManagedNativeEntity parent) {
@@ -1159,41 +1161,44 @@ namespace Engine {
 		return MakeNativeEntity(*world, reserved);
 	}
 
-	ManagedNativeEntity ManagedScriptRuntime::InstantiatePrefabCallback(uint64_t prefabAssetID,
+	ManagedNativeEntity ManagedScriptRuntime::InstantiatePrefabCallback(ManagedAssetGUID prefabAssetID,
 		ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent) {
 
 		ECSWorld* world = ResolveTargetWorld(parent);
-		if (!world || prefabAssetID == 0) {
+		const AssetID prefabAsset = ToAssetID(prefabAssetID);
+		if (!world || !prefabAsset) {
 			return MakeNullNativeEntity();
 		}
 		// ルートEntityを即時予約しPrefabSystemにはreservedRootを渡して実体化させる、遅延でも実rootを返す
 		const Entity reservedRoot = world->CreateEntity();
 		const Entity parentEntity = world->IsAlive(ResolveEntity(parent)) ? ResolveEntity(parent) : Entity::Null();
-		world->GetCommandBuffer().EnqueueInstantiatePrefab(reservedRoot, UUID{ prefabAssetID },
+		world->GetCommandBuffer().EnqueueInstantiatePrefab(reservedRoot, prefabAsset,
 			Vector3(position.x, position.y, position.z),
 			Quaternion(rotation.x, rotation.y, rotation.z, rotation.w),
 			useTransform != 0, parentEntity);
 		return MakeNativeEntity(*world, reservedRoot);
 	}
 
-	uint64_t ManagedScriptRuntime::LoadSceneAdditiveCallback(uint64_t sceneAssetID) {
+	uint64_t ManagedScriptRuntime::LoadSceneAdditiveCallback(ManagedAssetGUID sceneAssetID) {
 
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : nullptr;
-		if (!world || sceneAssetID == 0) {
+		const AssetID sceneAsset = ToAssetID(sceneAssetID);
+		if (!world || !sceneAsset) {
 			return 0;
 		}
 		// instance IDを先行採番してC#のSceneHandleと一致させ、load自体はflushへ回す
 		const UUID instanceID = UUID::New();
-		world->GetCommandBuffer().EnqueueLoadSceneAdditive(instanceID, UUID{ sceneAssetID });
+		world->GetCommandBuffer().EnqueueLoadSceneAdditive(instanceID, sceneAsset);
 		return instanceID.value;
 	}
 
-	uint64_t ManagedScriptRuntime::LoadSceneSingleCallback(uint64_t sceneAssetID) {
+	uint64_t ManagedScriptRuntime::LoadSceneSingleCallback(ManagedAssetGUID sceneAssetID) {
 
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : nullptr;
-		if (!world || sceneAssetID == 0) {
+		const AssetID sceneAsset = ToAssetID(sceneAssetID);
+		if (!world || !sceneAsset) {
 			return 0;
 		}
 		SceneInstanceManager* sceneInstances =
@@ -1203,7 +1208,7 @@ namespace Engine {
 		}
 		// 単一ロード、新sceneをactiveにし旧sceneを全てアンロードする処理はflushで行う
 		const UUID instanceID = UUID::New();
-		world->GetCommandBuffer().EnqueueLoadSceneSingle(instanceID, UUID{ sceneAssetID });
+		world->GetCommandBuffer().EnqueueLoadSceneSingle(instanceID, sceneAsset);
 		return instanceID.value;
 	}
 
@@ -1266,10 +1271,10 @@ namespace Engine {
 	}
 
 	void ManagedScriptRuntime::AudioPlayOneShotCallback(
-		ManagedNativeEntity entity, uint64_t clipID, float volumeScale) {
+		ManagedNativeEntity entity, ManagedAssetGUID clipID, float volumeScale) {
 
 		if (AudioSourceComponent* audio = ResolveAudioSource(entity)) {
-			audio->PlayOneShot(AssetID{ clipID }, volumeScale);
+			audio->PlayOneShot(ToAssetID(clipID), volumeScale);
 		}
 	}
 

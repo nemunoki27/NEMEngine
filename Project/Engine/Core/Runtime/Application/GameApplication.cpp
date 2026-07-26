@@ -27,6 +27,7 @@
 #include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/World/Systems/Camera/CameraControllerSystem.h>
+#include <Engine/Core/World/Systems/Camera/CameraShakeSystem.h>
 #include <Engine/Core/World/Systems/Effect/ParticleSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
@@ -45,7 +46,7 @@
 
 namespace {
 
-	constexpr const char* kActiveSceneConfigPath = Engine::ConfigPaths::kActiveScene;
+	constexpr const char* kStartupSceneConfigPath = Engine::ConfigPaths::kStartupScene;
 	constexpr const char* kFrameRateConfigPath = Engine::ConfigPaths::kFrameRate;
 	constexpr const char* kDefaultMaterialConfigPath = "GameAssets/Materials/Config/defaultMaterials.materialSettings.json";
 
@@ -71,6 +72,7 @@ void Engine::GameApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<CameraShakeSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<TransformSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<FlipbookAnimationSystem>(), ++order);
@@ -84,7 +86,7 @@ void Engine::GameApplication::InitSystems() {
 
 void Engine::GameApplication::LoadActiveSceneConfig() {
 
-	const std::filesystem::path configPath = RuntimePaths::GetGameConfigPath(kActiveSceneConfigPath);
+	const std::filesystem::path configPath = RuntimePaths::GetProjectSettingsPath(kStartupSceneConfigPath);
 	if (!JsonAdapter::Check(configPath, false)) {
 		return;
 	}
@@ -112,12 +114,17 @@ void Engine::GameApplication::SaveActiveSceneConfig() const {
 
 	nlohmann::json data = nlohmann::json::object();
 	data["activeScene"] = ToAssetReferenceJson(activeScene_);
-	JsonAdapter::Save(RuntimePaths::GetGameConfigPath(kActiveSceneConfigPath), data);
+	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(ConfigPaths::kActiveScene), data);
 }
 
 void Engine::GameApplication::InitFirstScene() {
 
-	editScenes_.LoadSceneTree(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_);
+	if (!activeScene_ ||
+		!editScenes_.LoadSceneTree(
+			assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_)) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"GameApplication: startup scene could not be loaded");
+	}
 }
 
 void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
@@ -130,7 +137,7 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 	LoadActiveSceneConfig();
 
 	FrameRateSettings::GetInstance().Load(
-		Algorithm::PathToUTF8(RuntimePaths::GetGameConfigPath(kFrameRateConfigPath)));
+		Algorithm::PathToUTF8(RuntimePaths::GetProjectSettingsPath(kFrameRateConfigPath)));
 	DefaultMaterialSettings::GetInstance().Load(
 		Algorithm::PathToUTF8(RuntimePaths::GetGameRoot() / kDefaultMaterialConfigPath));
 	RegisterBuiltinAnimationProperties();
@@ -215,7 +222,7 @@ void Engine::GameApplication::RefreshActiveWorldContext() {
 		services.sceneSystem = &sceneSystem_;
 		world->SetCommandServices(services);
 	}
-	CollisionSettings::GetInstance().BindGlobal(systemContext_.assetDatabase);
+	CollisionSettings::GetInstance().BindGlobal();
 }
 
 bool Engine::GameApplication::HandleApplicationQuitRequest() {

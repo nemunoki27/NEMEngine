@@ -11,7 +11,7 @@ public sealed partial class AudioSource {
         if (clip == null) {
             return;
         }
-        NativeApi.AudioPlayOneShotCall(entity.native, clip.id.value, volumeScale);
+        NativeApi.AudioPlayOneShotCall(entity.native, clip.id, volumeScale);
     }
     // 再生位置を保持して一時停止
     public void Pause() => NativeApi.AudioPauseCall(entity.native);

@@ -273,20 +273,6 @@ namespace {
 				}
 			}
 		}
-		// 旧Particle PSはMaterialParametersからslotへ割り当てる
-		if (!variables.empty()) {
-			return variables;
-		}
-		for (const ShaderConstantBufferInfo& cb : reflection.constantBuffers) {
-			if (cb.name != "MaterialParameters") {
-				continue;
-			}
-			for (const ShaderConstantBufferVariable& var : cb.variables) {
-				if (IsParticleMaterialAnimatable(var)) {
-					variables.emplace_back(var);
-				}
-			}
-		}
 		std::sort(variables.begin(), variables.end(),
 			[](const ShaderConstantBufferVariable& lhs, const ShaderConstantBufferVariable& rhs) {
 				return lhs.name < rhs.name;

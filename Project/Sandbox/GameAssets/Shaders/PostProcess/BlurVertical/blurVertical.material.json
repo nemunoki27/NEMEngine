@@ -7,7 +7,7 @@
     "passes": [
         {
             "passKind": "PostProcess",
-            "pipeline": "1152e892b0a97da9",
+            "pipeline": "4e454d41535345541152e892b0a97da9",
             "preferredVariant": "Compute"
         }
     ]

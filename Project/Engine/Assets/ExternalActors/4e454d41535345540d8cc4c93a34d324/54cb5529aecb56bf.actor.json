@@ -1,0 +1,54 @@
+{
+    "Components": {
+        "Hierarchy": {
+            "parentLocalFileID": "",
+            "siblingOrder": 11
+        },
+        "MeshRenderer": {
+            "blendMode": "Normal",
+            "castReflection": true,
+            "castShadow": true,
+            "enableZPrepass": true,
+            "layer": 0,
+            "lighting": true,
+            "material": "4e454d4153534554317efcbf7aca8e61",
+            "mesh": "",
+            "order": 0,
+            "queue": "Opaque",
+            "receiveIBL": true,
+            "receiveReflection": true,
+            "receiveShadow": true,
+            "subMeshes": [],
+            "visible": true
+        },
+        "Name": {
+            "name": "Sphere_5"
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "54cb5529aecb56bf",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+            "localPos": {
+                "x": -6.697691917419434,
+                "y": 4.9542059898376465,
+                "z": -1.1119953393936157
+            },
+            "localRotation": {
+                "w": 0.7094420194625854,
+                "x": -0.17943356931209564,
+                "y": 0.10688307881355286,
+                "z": 0.6731059551239014
+            },
+            "localScale": {
+                "x": 1.4200140237808228,
+                "y": 1.420012354850769,
+                "z": 1.4200106859207153
+            }
+        }
+    },
+    "LocalFileID": "54cb5529aecb56bf",
+    "SchemaVersion": 1
+}

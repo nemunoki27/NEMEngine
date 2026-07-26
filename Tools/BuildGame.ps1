@@ -57,6 +57,26 @@ function Get-ChildPath {
     return $childFull
 }
 
+function Assert-FileHash {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [long]$ExpectedSize,
+        [Parameter(Mandatory = $true)]
+        [string]$ExpectedSha256
+    )
+
+    $file = Get-Item -LiteralPath $Path
+    if ($file.Length -ne $ExpectedSize) {
+        throw "Cook file size mismatch: $Path"
+    }
+    $actualSha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actualSha256 -ne $ExpectedSha256.ToLowerInvariant()) {
+        throw "Cook file hash mismatch: $Path"
+    }
+}
+
 $stageDirectory = ""
 try {
     if (-not (Test-Path -LiteralPath $ManifestPath)) {
@@ -135,28 +155,78 @@ try {
         if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
             throw "Asset file is missing: $source"
         }
+        Assert-FileHash -Path $source -ExpectedSize ([long]$entry.size) -ExpectedSha256 ([string]$entry.sha256)
         $destination = Get-ChildPath -Root $stageDirectory -Relative $relative
         New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($destination)) -Force | Out-Null
         Copy-Item -LiteralPath $source -Destination $destination -Force
+        Assert-FileHash -Path $destination -ExpectedSize ([long]$entry.size) -ExpectedSha256 ([string]$entry.sha256)
     }
 
-    $configDirectory = Join-Path $stageDirectory "Config"
-    New-Item -ItemType Directory -Path $configDirectory -Force | Out-Null
-    Write-Utf8Json -Path (Join-Path $configDirectory "activeScene.exeConfig.json") -Value @{
+    $packageDependencies = [ordered]@{}
+    $packageLockDependencies = [ordered]@{}
+    foreach ($package in $manifest.packages) {
+        $name = [string]$package.name
+        $version = [string]$package.version
+        $packageDependencies[$name] = $version
+        $packageLockDependencies[$name] = [ordered]@{
+            version = $version
+            source = "embedded"
+            path = $name
+            contentHash = [string]$package.contentHash
+        }
+    }
+    $packagesDirectory = Join-Path $stageDirectory "Packages"
+    New-Item -ItemType Directory -Path $packagesDirectory -Force | Out-Null
+    Write-Utf8Json -Path (Join-Path $packagesDirectory "manifest.json") -Value ([ordered]@{
+        schemaVersion = 1
+        dependencies = $packageDependencies
+    })
+    Write-Utf8Json -Path (Join-Path $packagesDirectory "packages-lock.json") -Value ([ordered]@{
+        schemaVersion = 1
+        dependencies = $packageLockDependencies
+    })
+
+    $runtimeSettingsDirectory = Join-Path $stageDirectory "ProjectSettings\Runtime"
+    New-Item -ItemType Directory -Path $runtimeSettingsDirectory -Force | Out-Null
+    Write-Utf8Json -Path (Join-Path $runtimeSettingsDirectory "StartupScene.json") -Value @{
         activeScene = [string]$manifest.startupScene
     }
-    Write-Utf8Json -Path (Join-Path $configDirectory "gameBuild.exeConfig.json") -Value @{
+    Write-Utf8Json -Path (Join-Path $runtimeSettingsDirectory "Game.json") -Value @{
         gameName = $productName
         startupFullscreen = [bool]$manifest.startupFullscreen
     }
+    $descriptorName = [System.IO.Path]::GetFileNameWithoutExtension($executableName) + ".nemproject"
+    Write-Utf8Json -Path (Join-Path $stageDirectory $descriptorName) -Value @{
+        schemaVersion = 1
+        projectGuid = [string]$manifest.projectGuid
+        name = $productName
+        assetsDirectory = "GameAssets"
+        packagesDirectory = "Packages"
+        projectSettingsDirectory = "ProjectSettings"
+    }
     Write-Utf8Json -Path (Join-Path $stageDirectory ".nemBuildManifest.json") -Value @{
+        schemaVersion = 2
         productName = $productName
         executableName = $executableName
         startupScene = [string]$manifest.startupScene
         startupFullscreen = [bool]$manifest.startupFullscreen
         assetFileCount = @($manifest.files).Count
+        packageCount = @($manifest.packages).Count
+        cookHash = [string]$manifest.cookHash
         configuration = "Release"
     }
+    $cookFiles = @($manifest.files | ForEach-Object {
+        [ordered]@{
+            path = [string]$_.destination
+            size = [long]$_.size
+            sha256 = [string]$_.sha256
+        }
+    })
+    Write-Utf8Json -Path (Join-Path $stageDirectory ".nemCookManifest.json") -Value ([ordered]@{
+        schemaVersion = 1
+        cookHash = [string]$manifest.cookHash
+        files = $cookFiles
+    })
 
     if (Test-Path -LiteralPath $targetDirectory) {
         $marker = Join-Path $targetDirectory ".nemBuildManifest.json"

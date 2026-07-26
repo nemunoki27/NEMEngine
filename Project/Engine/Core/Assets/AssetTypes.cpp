@@ -37,7 +37,7 @@ namespace {
 Engine::AssetID Engine::ParseAssetID(const nlohmann::json& in, const char* key) {
 
 	const std::string value = in.value(key, "");
-	return value.empty() ? Engine::AssetID{} : Engine::FromString16Hex(value);
+	return value.empty() ? Engine::AssetID{} : Engine::FromString32Hex(value);
 }
 
 Engine::AssetID Engine::ParseAssetReference(const nlohmann::json& in, const char* key,
@@ -58,7 +58,7 @@ Engine::AssetID Engine::ParseAssetReference(const nlohmann::json& in, const char
 	}
 
 	// UID文字列を厳密に解釈する
-	const std::optional<AssetID> parsed = TryParseUUID16Hex(value);
+	const std::optional<AssetID> parsed = TryParseAssetGUID32Hex(value);
 	if (!parsed) {
 		if (diagnostic) {
 			diagnostic->issue = AssetReferenceIssueType::InvalidFormat;

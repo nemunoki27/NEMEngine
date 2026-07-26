@@ -537,7 +537,7 @@ void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& c
 		});
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
-	settings.BindGlobal(context.assetDatabase);
+	settings.BindGlobal();
 	settings.EnsureLoaded();
 
 	std::vector<CollisionRuntimeEntity> entities{};

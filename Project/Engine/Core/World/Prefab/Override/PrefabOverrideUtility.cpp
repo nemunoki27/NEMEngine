@@ -214,7 +214,7 @@ std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabOverrid
 	// 実体ごとにベース情報を構築する
 	for (const auto& entityJson : fileJson["Entities"]) {
 
-		const std::string localStr = entityJson.value("LocalFileID", entityJson.value("UUID", ""));
+		const std::string localStr = entityJson.value("LocalFileID", std::string{});
 		const UUID localFileID = localStr.empty() ? UUID{} : FromString16Hex(localStr);
 
 		PrefabBaseEntity base{};
@@ -729,7 +729,7 @@ bool Engine::PrefabOverrideUtility::PromoteAddedEntitySubtrees(nlohmann::json& p
 	std::unordered_set<UUID> usedPrefabLocalFileIDs;
 	for (const auto& entityJson : prefabFileJson["Entities"]) {
 
-		const std::string localFileID = entityJson.value("LocalFileID", entityJson.value("UUID", ""));
+		const std::string localFileID = entityJson.value("LocalFileID", std::string{});
 		if (!localFileID.empty()) {
 			usedPrefabLocalFileIDs.insert(FromString16Hex(localFileID));
 		}
@@ -982,7 +982,7 @@ namespace {
 		const std::string targetStr = Engine::ToString(targetLocalFileID);
 		for (auto& entityJson : prefabFileJson["Entities"]) {
 
-			const std::string localStr = entityJson.value("LocalFileID", entityJson.value("UUID", ""));
+			const std::string localStr = entityJson.value("LocalFileID", std::string{});
 			if (localStr != targetStr) {
 				continue;
 			}
@@ -1044,21 +1044,54 @@ namespace {
 	std::string UUIDToStringOrEmpty(Engine::UUID id) {
 		return id ? Engine::ToString(id) : std::string{};
 	}
+	// AssetGUIDを文字列へ、空なら空文字列にする
+	std::string AssetGUIDToStringOrEmpty(Engine::AssetID id) {
+		return id ? Engine::ToString(id) : std::string{};
+	}
 	// 文字列をUUIDへ、空ならゼロにする
 	Engine::UUID StringToUUIDOrZero(const std::string& str) {
 		return str.empty() ? Engine::UUID{} : Engine::FromString16Hex(str);
+	}
+	// 文字列をAssetGUIDへ、空ならゼロにする
+	Engine::AssetID StringToAssetGUIDOrZero(const std::string& str) {
+		return str.empty() ? Engine::AssetID{} : Engine::FromString32Hex(str);
 	}
 }
 
 nlohmann::json Engine::ToJson(const PrefabInstanceData& data) {
 
+	PrefabInstanceData canonical = data;
+	std::sort(canonical.entityMap.begin(), canonical.entityMap.end(), [](const auto& lhs, const auto& rhs) {
+		return lhs.first.value != rhs.first.value ?
+			lhs.first.value < rhs.first.value : lhs.second.value < rhs.second.value;
+		});
+	std::sort(canonical.modifications.begin(), canonical.modifications.end(), [](const auto& lhs, const auto& rhs) {
+		return lhs.target.value != rhs.target.value ?
+			lhs.target.value < rhs.target.value : lhs.path < rhs.path;
+		});
+	const auto componentLess = [](const PrefabComponentModification& lhs,
+		const PrefabComponentModification& rhs) {
+		return lhs.target.value != rhs.target.value ?
+			lhs.target.value < rhs.target.value : lhs.type < rhs.type;
+		};
+	std::sort(canonical.addedComponents.begin(), canonical.addedComponents.end(), componentLess);
+	std::sort(canonical.removedComponents.begin(), canonical.removedComponents.end(), componentLess);
+	std::sort(canonical.hierarchyModifications.begin(), canonical.hierarchyModifications.end(),
+		[](const auto& lhs, const auto& rhs) { return lhs.target.value < rhs.target.value; });
+	std::sort(canonical.removedEntities.begin(), canonical.removedEntities.end(),
+		[](UUID lhs, UUID rhs) { return lhs.value < rhs.value; });
+	std::sort(canonical.addedEntities.begin(), canonical.addedEntities.end(),
+		[](const auto& lhs, const auto& rhs) {
+		return lhs.sceneLocalFileID.value < rhs.sceneLocalFileID.value;
+		});
+
 	nlohmann::json json = nlohmann::json::object();
-	json["PrefabAsset"] = UUIDToStringOrEmpty(data.prefabAsset);
-	json["InstanceID"] = UUIDToStringOrEmpty(data.instanceID);
-	json["RootParent"] = UUIDToStringOrEmpty(data.rootParentSceneLocalFileID);
+	json["PrefabAsset"] = AssetGUIDToStringOrEmpty(canonical.prefabAsset);
+	json["InstanceID"] = UUIDToStringOrEmpty(canonical.instanceID);
+	json["RootParent"] = UUIDToStringOrEmpty(canonical.rootParentSceneLocalFileID);
 
 	nlohmann::json entityMap = nlohmann::json::array();
-	for (const auto& [prefabLocal, sceneLocal] : data.entityMap) {
+	for (const auto& [prefabLocal, sceneLocal] : canonical.entityMap) {
 
 		nlohmann::json pair = nlohmann::json::object();
 		pair["P"] = UUIDToStringOrEmpty(prefabLocal);
@@ -1068,7 +1101,7 @@ nlohmann::json Engine::ToJson(const PrefabInstanceData& data) {
 	json["EntityMap"] = std::move(entityMap);
 
 	nlohmann::json modifications = nlohmann::json::array();
-	for (const auto& mod : data.modifications) {
+	for (const auto& mod : canonical.modifications) {
 
 		nlohmann::json item = nlohmann::json::object();
 		item["Target"] = UUIDToStringOrEmpty(mod.target);
@@ -1079,7 +1112,7 @@ nlohmann::json Engine::ToJson(const PrefabInstanceData& data) {
 	json["Modifications"] = std::move(modifications);
 
 	nlohmann::json addedComponents = nlohmann::json::array();
-	for (const auto& added : data.addedComponents) {
+	for (const auto& added : canonical.addedComponents) {
 
 		nlohmann::json item = nlohmann::json::object();
 		item["Target"] = UUIDToStringOrEmpty(added.target);
@@ -1090,7 +1123,7 @@ nlohmann::json Engine::ToJson(const PrefabInstanceData& data) {
 	json["AddedComponents"] = std::move(addedComponents);
 
 	nlohmann::json removedComponents = nlohmann::json::array();
-	for (const auto& removed : data.removedComponents) {
+	for (const auto& removed : canonical.removedComponents) {
 
 		nlohmann::json item = nlohmann::json::object();
 		item["Target"] = UUIDToStringOrEmpty(removed.target);
@@ -1100,7 +1133,7 @@ nlohmann::json Engine::ToJson(const PrefabInstanceData& data) {
 	json["RemovedComponents"] = std::move(removedComponents);
 
 	nlohmann::json hierarchyMods = nlohmann::json::array();
-	for (const auto& hierarchyMod : data.hierarchyModifications) {
+	for (const auto& hierarchyMod : canonical.hierarchyModifications) {
 
 		nlohmann::json item = nlohmann::json::object();
 		item["Target"] = UUIDToStringOrEmpty(hierarchyMod.target);
@@ -1114,13 +1147,13 @@ nlohmann::json Engine::ToJson(const PrefabInstanceData& data) {
 	json["HierarchyMods"] = std::move(hierarchyMods);
 
 	nlohmann::json removedEntities = nlohmann::json::array();
-	for (const UUID& removed : data.removedEntities) {
+	for (const UUID& removed : canonical.removedEntities) {
 		removedEntities.push_back(UUIDToStringOrEmpty(removed));
 	}
 	json["RemovedEntities"] = std::move(removedEntities);
 
 	nlohmann::json addedEntities = nlohmann::json::array();
-	for (const auto& added : data.addedEntities) {
+	for (const auto& added : canonical.addedEntities) {
 
 		nlohmann::json item = nlohmann::json::object();
 		item["SceneLocalFileID"] = UUIDToStringOrEmpty(added.sceneLocalFileID);
@@ -1140,7 +1173,7 @@ bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& data) {
 	}
 
 	data = PrefabInstanceData{};
-	data.prefabAsset = StringToUUIDOrZero(json.value("PrefabAsset", ""));
+	data.prefabAsset = StringToAssetGUIDOrZero(json.value("PrefabAsset", ""));
 	data.instanceID = StringToUUIDOrZero(json.value("InstanceID", ""));
 	data.rootParentSceneLocalFileID = StringToUUIDOrZero(json.value("RootParent", ""));
 

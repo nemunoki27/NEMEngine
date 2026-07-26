@@ -12,7 +12,7 @@
 
 namespace Engine {
 
-	void ProjectAssetFileUtility::PatchJsonAssetName(const std::filesystem::path& path, AssetType type, bool resetGuid) {
+	void ProjectAssetFileUtility::PatchJsonAssetName(const std::filesystem::path& path, AssetType type, bool) {
 		// 対象がScene/Prefab/Material等のJSONベースのアセットでなければスキップ
 		if (type != AssetType::Scene && type != AssetType::Prefab && type != AssetType::Material &&
 			type != AssetType::AnimationClip && type != AssetType::Shader && type != AssetType::RenderPipeline) {
@@ -28,15 +28,13 @@ namespace Engine {
 		// ファイル名から拡張子を除いた新しいアセット名を取得
 		const std::string assetName = SplitAssetFileName(path).first;
 		
-		// 種類に応じてデータ内部の名前フィールドを更新し、重複作成用にGUIDのリセット指定があれば空にする
+		// 種類に応じてデータ内部の表示名を更新する、アセットIDは.metaだけで管理する
 		if (type == AssetType::Scene || type == AssetType::Prefab) {
 			nlohmann::json& header = data["Header"];
 			if (!header.is_object()) { header = nlohmann::json::object(); }
-			if (resetGuid) { header["guid"] = ""; }
 			header["name"] = assetName;
 		}
 		else {
-			if (resetGuid) { data["guid"] = ""; }
 			data["name"] = assetName;
 		}
 		// 変更後のJSONをファイルへ保存
@@ -44,7 +42,7 @@ namespace Engine {
 	}
 
 	void ProjectAssetFileUtility::PatchDuplicatedJsonAsset(const std::filesystem::path& path, AssetType type) {
-		// 複製されたアセットの名前を更新し、GUIDをリセットして競合を防ぐ
+		// 複製されたアセットの表示名を更新する、新しいGUIDは.meta作成時に発行される
 		PatchJsonAssetName(path, type, true);
 	}
 
@@ -55,7 +53,7 @@ namespace Engine {
 
 	void ProjectAssetFileUtility::PatchDuplicatedDirectoryAssets(const std::filesystem::path& duplicatedDirectory) {
 		std::error_code ec;
-		// 指定されたディレクトリを再帰的に走査し、含まれる全JSONアセットの名前とGUIDを一括修正
+		// 指定されたディレクトリを再帰的に走査し、含まれる全JSONアセットの表示名を一括修正
 		auto it = std::filesystem::recursive_directory_iterator(duplicatedDirectory, std::filesystem::directory_options::skip_permission_denied, ec);
 		const std::filesystem::recursive_directory_iterator end{};
 		if (ec) { return; }

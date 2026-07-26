@@ -533,7 +533,7 @@ namespace {
 
 void Input::LoadConfig() {
 
-	const std::filesystem::path path = RuntimePaths::GetGameConfigPath(kInputDeviceConfigPath);
+	const std::filesystem::path path = RuntimePaths::GetUserSettingsPath(kInputDeviceConfigPath);
 	if (!JsonAdapter::Check(path)) {
 		return;
 	}
@@ -593,7 +593,7 @@ void Input::SaveConfig() const {
 	data["mouseReleaseModKey"] = mouseReleaseModKey_;
 	data["mouseReleaseTriggerKey"] = mouseReleaseTriggerKey_;
 
-	JsonAdapter::Save(RuntimePaths::GetGameConfigPath(kInputDeviceConfigPath), data);
+	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kInputDeviceConfigPath), data);
 }
 
 void Input::UpdateInputDevice() {

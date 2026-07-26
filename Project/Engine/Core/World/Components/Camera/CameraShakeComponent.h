@@ -14,29 +14,24 @@ namespace Engine {
 	//	カメラシェイク
 	//============================================================================
 
-	// シェイクモード
-	enum class CameraShakeMode {
-
-		Impact, // ランダム揺れ
-		Noise,  // 有機ノイズ揺れ
-	};
 	struct CameraShakeComponent {
 
 		// 有効/無効フラグ、デフォルトでfalse、trueで開始
 		bool enable = false;
-		CameraShakeMode mode = CameraShakeMode::Impact;
 
 		// シェイクの長さ
 		float duration = 1.0f;
 		// 再生時間
 		float runtimeTime = 0.0f;
+		// 前フレームに適用したオフセット
+		Vector3 runtimeOffset{};
+		// 再生開始を検知するランタイムフラグ
+		bool runtimeActive = false;
 		// イージング
 		EasingType easingType = EasingType::Linear;
 
 		// シェイクの強さ
 		Vector3 strength = Vector3::AnyInit(4.0f);
-
-		// TODO Noiseパラメータ
 	};
 
 	// json変換

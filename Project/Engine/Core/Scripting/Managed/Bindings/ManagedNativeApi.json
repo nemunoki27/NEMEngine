@@ -290,12 +290,12 @@
     {
       "name": "assetExists",
       "nativeType": "AssetExistsCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<ulong, int>"
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, int>"
     },
     {
       "name": "copyAssetDisplayName",
       "nativeType": "CopyAssetStringCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<ulong, byte*, int, int>"
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, byte*, int, int>"
     },
     {
       "name": "createEntity",
@@ -305,12 +305,12 @@
     {
       "name": "instantiatePrefab",
       "nativeType": "InstantiatePrefabCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<ulong, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity>"
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity>"
     },
     {
       "name": "loadSceneAdditive",
       "nativeType": "LoadSceneCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong>"
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong>"
     },
     {
       "name": "unloadScene",
@@ -373,6 +373,11 @@
       "managedType": "delegate* unmanaged[Cdecl]<byte*, int, int>"
     },
     {
+      "name": "copyUserSettingsRoot",
+      "nativeType": "CopyTextCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, int, int>"
+    },
+    {
       "name": "audioPlay",
       "nativeType": "EntityActionCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, void>"
@@ -410,12 +415,12 @@
     {
       "name": "loadSceneSingle",
       "nativeType": "LoadSceneCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong>"
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong>"
     },
     {
       "name": "resolveEntityRef",
       "nativeType": "ResolveEntityRefCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong, NativeEntity>"
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong, NativeEntity>"
     },
     {
       "name": "lineSetPoints",
@@ -425,12 +430,12 @@
     {
       "name": "lineDrawImmediate",
       "nativeType": "LineDrawImmediateCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, ulong, void>"
+      "managedType": "delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, AssetGUID, void>"
     },
     {
       "name": "lineDrawSphereImmediate",
       "nativeType": "LineDrawSphereImmediateCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, ulong, void>"
+      "managedType": "delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, AssetGUID, void>"
     },
     {
       "name": "lineAddPoint",
@@ -560,7 +565,7 @@
     {
       "name": "getEntityReferenceIdentity",
       "nativeType": "GetEntityRefIdentityCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong*, ulong*, int*, void>"
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, AssetGUID*, ulong*, int*, void>"
     },
     {
       "name": "physicsRaycast",
@@ -695,7 +700,7 @@
     {
       "name": "audioPlayOneShot",
       "nativeType": "AudioPlayOneShotCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong, float, void>"
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, AssetGUID, float, void>"
     },
     {
       "name": "audioUnPause",

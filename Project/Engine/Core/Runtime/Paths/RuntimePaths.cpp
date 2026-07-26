@@ -6,8 +6,15 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
+#include <fstream>
 #include <mutex>
+#include <stdexcept>
+#include <vector>
+// json
+#include <json.hpp>
 
 //============================================================================
 //	RuntimePaths classMethods
@@ -53,9 +60,9 @@ namespace {
 	// 環境変数からEngineのProjectルートを取得
 	std::filesystem::path FindEngineProjectRootFromEnvironment() {
 
-		char* root = nullptr;
+		wchar_t* root = nullptr;
 		size_t rootLength = 0;
-		if (_dupenv_s(&root, &rootLength, "NEMENGINE_ROOT") != 0 || root == nullptr) {
+		if (_wdupenv_s(&root, &rootLength, L"NEMENGINE_ROOT") != 0 || root == nullptr) {
 			return {};
 		}
 
@@ -96,27 +103,67 @@ namespace {
 		return projectRoot;
 	}
 
-	// GameAssetsを持つゲーム側ルートを探索
-	std::filesystem::path FindGameRoot(const std::filesystem::path& projectRoot) {
-
-		if (ExistsDirectory(projectRoot / "GameAssets")) {
-			return projectRoot;
-		}
+	// 指定ディレクトリ直下のプロジェクト記述子を取得
+	std::filesystem::path FindProjectDescriptorIn(const std::filesystem::path& directory) {
 
 		std::error_code ec;
-		for (const auto& entry : std::filesystem::directory_iterator(projectRoot, ec)) {
+		if (!ExistsDirectory(directory)) {
+			return {};
+		}
+
+		std::vector<std::filesystem::path> candidates;
+		for (const auto& entry : std::filesystem::directory_iterator(directory, ec)) {
 
 			if (ec) {
 				break;
 			}
-			if (!entry.is_directory()) {
-				continue;
-			}
-			if (ExistsDirectory(entry.path() / "GameAssets")) {
-				return NormalizePath(entry.path());
+			if (entry.is_regular_file(ec) && entry.path().extension() == ".nemproject") {
+				candidates.emplace_back(entry.path());
 			}
 		}
-		return projectRoot;
+		if (candidates.empty()) {
+			return {};
+		}
+		std::sort(candidates.begin(), candidates.end());
+		return NormalizePath(candidates.front());
+	}
+
+	// 実行位置からプロジェクト記述子を探索
+	std::filesystem::path FindProjectDescriptor(const std::filesystem::path& start) {
+
+		for (std::filesystem::path current = start; !current.empty(); current = current.parent_path()) {
+
+			if (std::filesystem::path descriptor = FindProjectDescriptorIn(current); !descriptor.empty()) {
+				return descriptor;
+			}
+			if (current == current.parent_path()) {
+				break;
+			}
+		}
+
+		std::error_code ec;
+		for (const auto& entry : std::filesystem::directory_iterator(start, ec)) {
+
+			if (ec) {
+				break;
+			}
+			if (!entry.is_directory(ec)) {
+				continue;
+			}
+			if (std::filesystem::path descriptor = FindProjectDescriptorIn(entry.path()); !descriptor.empty()) {
+				return descriptor;
+			}
+		}
+		return {};
+	}
+
+	// GameAssetsを持つゲーム側ルートを探索
+	std::filesystem::path FindGameRoot(const std::filesystem::path& descriptorPath) {
+
+		if (!descriptorPath.empty()) {
+			return descriptorPath.parent_path();
+		}
+		return {};
 	}
 
 	// relativeが..を含まないか確認
@@ -132,6 +179,98 @@ namespace {
 			}
 		}
 		return true;
+	}
+
+	// UTF-16環境変数を取得
+	std::filesystem::path GetEnvironmentPath(const wchar_t* name) {
+
+		wchar_t* value = nullptr;
+		size_t length = 0;
+		if (_wdupenv_s(&value, &length, name) != 0 || !value) {
+			return {};
+		}
+		std::filesystem::path result(value);
+		std::free(value);
+		return result;
+	}
+
+	// プロジェクト記述子を読み込む
+	bool LoadProjectDescriptor(const std::filesystem::path& descriptorPath,
+		std::string& outGUID,
+		std::string& outName, std::filesystem::path& outAssetsDirectory,
+		std::filesystem::path& outPackagesDirectory,
+		std::filesystem::path& outProjectSettingsDirectory) {
+
+		if (descriptorPath.empty()) {
+			return false;
+		}
+
+		std::ifstream file(descriptorPath, std::ios::binary);
+		const nlohmann::json data = nlohmann::json::parse(file, nullptr, false);
+		if (!data.is_object() || data.value("schemaVersion", 0u) != 1u) {
+			return false;
+		}
+
+		const std::string guid = data.value("projectGuid", std::string{});
+		if (guid.size() != 32 || !std::all_of(guid.begin(), guid.end(), [](unsigned char c) {
+			return std::isxdigit(c) != 0;
+			})) {
+			return false;
+		}
+		outGUID = Engine::Algorithm::ToLower(guid);
+		outName = data.value("name", std::string{});
+		if (outName.empty()) {
+			return false;
+		}
+
+		const std::filesystem::path assetsDirectory =
+			Engine::Algorithm::PathFromUTF8(data.value("assetsDirectory", std::string{}));
+		if (assetsDirectory.empty() || assetsDirectory.is_absolute() || !IsChildPath(assetsDirectory)) {
+			return false;
+		}
+		outAssetsDirectory = assetsDirectory;
+
+		const std::filesystem::path packagesDirectory =
+			Engine::Algorithm::PathFromUTF8(data.value("packagesDirectory", std::string{}));
+		if (packagesDirectory.empty() || packagesDirectory.is_absolute() || !IsChildPath(packagesDirectory)) {
+			return false;
+		}
+		outPackagesDirectory = packagesDirectory;
+
+		const std::filesystem::path projectSettingsDirectory =
+			Engine::Algorithm::PathFromUTF8(data.value("projectSettingsDirectory", std::string{}));
+		if (projectSettingsDirectory.empty() || projectSettingsDirectory.is_absolute() ||
+			!IsChildPath(projectSettingsDirectory)) {
+			return false;
+		}
+		outProjectSettingsDirectory = projectSettingsDirectory;
+		return true;
+	}
+
+	// ユーザー設定ルートを構築する
+	std::filesystem::path BuildUserSettingsRoot(const std::filesystem::path& gameRoot,
+		const std::string& projectGUID) {
+
+		if (const std::filesystem::path explicitRoot =
+			GetEnvironmentPath(L"NEMENGINE_USER_SETTINGS_ROOT"); !explicitRoot.empty()) {
+			return NormalizePath(explicitRoot / projectGUID);
+		}
+
+		wchar_t* portable = nullptr;
+		size_t portableLength = 0;
+		const bool usePortable = _wdupenv_s(&portable, &portableLength,
+			L"NEMENGINE_PORTABLE") == 0 && portable &&
+			(std::wstring_view(portable) == L"1" || std::wstring_view(portable) == L"true");
+		std::free(portable);
+		if (usePortable) {
+			return gameRoot / "UserSettings";
+		}
+
+		if (const std::filesystem::path localAppData = GetEnvironmentPath(L"LOCALAPPDATA");
+			!localAppData.empty()) {
+			return localAppData / "NEMEngine" / "Projects" / projectGUID;
+		}
+		return gameRoot / "UserSettings";
 	}
 
 	// fullPathがroot配下なら相対パスを返す
@@ -179,15 +318,170 @@ const std::filesystem::path& Engine::RuntimePaths::GetEngineAssetsRoot() {
 	return GetState().engineAssetsRoot;
 }
 
+const std::filesystem::path& Engine::RuntimePaths::GetGameAssetsRoot() {
+
+	return GetState().gameAssetsRoot;
+}
+
+const std::filesystem::path& Engine::RuntimePaths::GetProjectDescriptorPath() {
+
+	return GetState().projectDescriptorPath;
+}
+
+const std::string& Engine::RuntimePaths::GetProjectGUID() {
+
+	return GetState().projectGUID;
+}
+
+const std::string& Engine::RuntimePaths::GetProjectName() {
+
+	return GetState().projectName;
+}
+
+const std::filesystem::path& Engine::RuntimePaths::GetProjectSettingsRoot() {
+
+	return GetState().projectSettingsRoot;
+}
+
+const std::filesystem::path& Engine::RuntimePaths::GetUserSettingsRoot() {
+
+	return GetState().userSettingsRoot;
+}
+
+const std::filesystem::path& Engine::RuntimePaths::GetLibraryRoot() {
+
+	return GetState().libraryRoot;
+}
+
+const std::filesystem::path& Engine::RuntimePaths::GetSavedRoot() {
+
+	return GetState().savedRoot;
+}
+
+const std::filesystem::path& Engine::RuntimePaths::GetPackagesRoot() {
+
+	return GetState().packagesRoot;
+}
+
+const std::vector<Engine::ResolvedPackage>& Engine::RuntimePaths::GetPackages() {
+
+	return GetState().packages;
+}
+
+const std::vector<Engine::PackageResolveIssue>& Engine::RuntimePaths::GetPackageIssues() {
+
+	return GetState().packageIssues;
+}
+
 std::filesystem::path Engine::RuntimePaths::GetEngineAssetPath(const std::filesystem::path& relativePath) {
 
 	return (GetEngineAssetsRoot() / relativePath).lexically_normal();
 }
 
-std::filesystem::path Engine::RuntimePaths::GetGameConfigPath(const std::filesystem::path& relativePath) {
+std::filesystem::path Engine::RuntimePaths::GetProjectSettingsPath(const std::filesystem::path& relativePath) {
 
-	// ゲームルートはSDK(External/NEMEngine)の外なので、SDK更新で上書き/破棄されない
-	return (GetGameRoot() / relativePath).lexically_normal();
+	return (GetProjectSettingsRoot() / relativePath).lexically_normal();
+}
+
+std::filesystem::path Engine::RuntimePaths::GetUserSettingsPath(const std::filesystem::path& relativePath) {
+
+	return (GetUserSettingsRoot() / relativePath).lexically_normal();
+}
+
+std::filesystem::path Engine::RuntimePaths::GetLibraryPath(const std::filesystem::path& relativePath) {
+
+	return (GetLibraryRoot() / relativePath).lexically_normal();
+}
+
+std::filesystem::path Engine::RuntimePaths::GetSavedPath(const std::filesystem::path& relativePath) {
+
+	return (GetSavedRoot() / relativePath).lexically_normal();
+}
+
+std::filesystem::path Engine::RuntimePaths::ResolveVirtualPath(std::string_view virtualPath) {
+
+	const auto ResolveRelative = [](const std::filesystem::path& root,
+		std::string_view relativeText) -> std::filesystem::path {
+
+		const std::filesystem::path relative = Algorithm::PathFromUTF8(std::string(relativeText));
+		if (relative.empty()) {
+			return root;
+		}
+		if (!IsChildPath(relative)) {
+			return {};
+		}
+		return (root / relative).lexically_normal();
+	};
+
+	constexpr std::string_view kEngineScheme = "engine://";
+	constexpr std::string_view kGameScheme = "game://";
+	constexpr std::string_view kLibraryScheme = "library://";
+	constexpr std::string_view kUserScheme = "user://";
+	constexpr std::string_view kPackageScheme = "package://";
+
+	if (virtualPath.starts_with(kEngineScheme)) {
+		return ResolveRelative(GetEngineAssetsRoot(), virtualPath.substr(kEngineScheme.size()));
+	}
+	if (virtualPath.starts_with(kGameScheme)) {
+		return ResolveRelative(GetGameAssetsRoot(), virtualPath.substr(kGameScheme.size()));
+	}
+	if (virtualPath.starts_with(kLibraryScheme)) {
+		return ResolveRelative(GetLibraryRoot(), virtualPath.substr(kLibraryScheme.size()));
+	}
+	if (virtualPath.starts_with(kUserScheme)) {
+		return ResolveRelative(GetUserSettingsRoot(), virtualPath.substr(kUserScheme.size()));
+	}
+	if (virtualPath.starts_with(kPackageScheme)) {
+
+		const std::string_view packagePath = virtualPath.substr(kPackageScheme.size());
+		const size_t separator = packagePath.find('/');
+		const std::string_view packageName = packagePath.substr(0, separator);
+		const std::string_view relative = separator == std::string_view::npos ?
+			std::string_view{} : packagePath.substr(separator + 1);
+		for (const ResolvedPackage& package : GetPackages()) {
+			if (package.name == packageName) {
+				return ResolveRelative(package.root, relative);
+			}
+		}
+	}
+	return {};
+}
+
+std::string Engine::RuntimePaths::ToVirtualPath(const std::filesystem::path& fullPath) {
+
+	if (fullPath.empty()) {
+		return {};
+	}
+	const std::filesystem::path normalized = NormalizePath(fullPath);
+	const auto MakeVirtualPath = [&normalized](const char* scheme,
+		const std::filesystem::path& root) -> std::string {
+
+		const std::filesystem::path relative = TryMakeRelative(normalized, root);
+		if (relative.empty()) {
+			return {};
+		}
+		return std::string(scheme) + Algorithm::PathToUTF8(relative);
+	};
+
+	for (const ResolvedPackage& package : GetPackages()) {
+		if (std::string path = MakeVirtualPath(
+			("package://" + package.name + "/").c_str(), package.root); !path.empty()) {
+			return path;
+		}
+	}
+	if (std::string path = MakeVirtualPath("engine://", GetEngineAssetsRoot()); !path.empty()) {
+		return path;
+	}
+	if (std::string path = MakeVirtualPath("game://", GetGameAssetsRoot()); !path.empty()) {
+		return path;
+	}
+	if (std::string path = MakeVirtualPath("library://", GetLibraryRoot()); !path.empty()) {
+		return path;
+	}
+	if (std::string path = MakeVirtualPath("user://", GetUserSettingsRoot()); !path.empty()) {
+		return path;
+	}
+	return {};
 }
 
 std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const std::filesystem::path& assetPath) {
@@ -205,6 +499,9 @@ std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const std::filesyst
 	}
 
 	const std::string generic = Algorithm::ConvertString(assetPath.generic_wstring());
+	if (const std::filesystem::path virtualPath = ResolveVirtualPath(generic); !virtualPath.empty()) {
+		return virtualPath;
+	}
 	if (StartsWith(generic, "Engine/")) {
 		return (GetEngineProjectRoot() / assetPath).lexically_normal();
 	}
@@ -241,6 +538,12 @@ std::string Engine::RuntimePaths::ToAssetPath(const std::filesystem::path& fullP
 	}
 
 	const std::filesystem::path normalized = NormalizePath(fullPath);
+	for (const ResolvedPackage& package : GetPackages()) {
+
+		if (std::filesystem::path relative = TryMakeRelative(normalized, package.root); !relative.empty()) {
+			return "package://" + package.name + "/" + Algorithm::PathToUTF8(relative);
+		}
+	}
 
 	if (std::filesystem::path relative = TryMakeRelative(normalized, GetEngineProjectRoot()); !relative.empty()) {
 
@@ -275,32 +578,41 @@ const Engine::RuntimePaths::PathState& Engine::RuntimePaths::GetState() {
 Engine::RuntimePaths::PathState Engine::RuntimePaths::BuildState() {
 
 	PathState state{};
-	state.projectRoot = NormalizePath(std::filesystem::current_path());
-	state.engineProjectRoot = FindEngineProjectRoot(state.projectRoot);
-	state.gameRoot = FindGameRoot(state.projectRoot);
-	if (state.gameRoot == state.projectRoot) {
-
-		// 実行ファイルの出力先から起動した場合、current_path直下にはGameAssetsがない
-		// EngineのProject配下を追加で探索して、Sandboxなどのゲーム側ルートを拾う
-		if (ExistsDirectory(state.engineProjectRoot / "GameAssets")) {
-			state.gameRoot = state.engineProjectRoot;
-		} else {
-			std::error_code ec;
-			for (const auto& entry : std::filesystem::directory_iterator(state.engineProjectRoot, ec)) {
-
-				if (ec) {
-					break;
-				}
-				if (!entry.is_directory()) {
-					continue;
-				}
-				if (ExistsDirectory(entry.path() / "GameAssets")) {
-					state.gameRoot = NormalizePath(entry.path());
-					break;
-				}
-			}
-		}
+	const std::filesystem::path launchRoot = NormalizePath(std::filesystem::current_path());
+	state.projectDescriptorPath = FindProjectDescriptor(launchRoot);
+	state.gameRoot = FindGameRoot(state.projectDescriptorPath);
+	if (state.projectDescriptorPath.empty() || state.gameRoot.empty()) {
+		throw std::runtime_error(
+			"NEM project descriptor was not found from the current directory");
 	}
+	state.engineProjectRoot = FindEngineProjectRoot(launchRoot);
+	state.projectRoot = state.gameRoot;
 	state.engineAssetsRoot = state.engineProjectRoot / "Engine/Assets";
+
+	std::filesystem::path assetsDirectory;
+	std::filesystem::path packagesDirectory;
+	std::filesystem::path projectSettingsDirectory;
+	if (!LoadProjectDescriptor(state.projectDescriptorPath,
+		state.projectGUID, state.projectName, assetsDirectory,
+		packagesDirectory, projectSettingsDirectory)) {
+		throw std::runtime_error("NEM project descriptor is invalid");
+	}
+	state.gameAssetsRoot = state.gameRoot / assetsDirectory;
+	state.packagesRoot = state.gameRoot / packagesDirectory;
+	state.projectSettingsRoot = state.gameRoot / projectSettingsDirectory;
+	state.userSettingsRoot = BuildUserSettingsRoot(state.gameRoot, state.projectGUID);
+	state.libraryRoot = state.gameRoot / "Library";
+	state.savedRoot = state.gameRoot / "Saved";
+
+	std::error_code ec;
+	std::filesystem::create_directories(state.projectSettingsRoot, ec);
+	std::filesystem::create_directories(state.userSettingsRoot, ec);
+	std::filesystem::create_directories(state.libraryRoot, ec);
+	std::filesystem::create_directories(state.savedRoot, ec);
+	std::filesystem::create_directories(state.packagesRoot, ec);
+	const PackageResolveResult packageResult = PackageResolver::Resolve(
+		state.gameRoot, state.packagesRoot, state.libraryRoot);
+	state.packages = packageResult.packages;
+	state.packageIssues = packageResult.issues;
 	return state;
 }

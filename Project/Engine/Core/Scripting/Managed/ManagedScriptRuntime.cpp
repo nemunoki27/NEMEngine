@@ -318,6 +318,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getHasFocus = &ManagedScriptRuntime::GetHasFocusCallback;
 	callbacks.copyTextInput = &ManagedScriptRuntime::CopyTextInputCallback;
 	callbacks.copyProjectRoot = &ManagedScriptRuntime::CopyProjectRootCallback;
+	callbacks.copyUserSettingsRoot = &ManagedScriptRuntime::CopyUserSettingsRootCallback;
 	// Gameplay v7のAudioSourceメソッド
 	callbacks.audioPlay = &ManagedScriptRuntime::AudioPlayCallback;
 	callbacks.audioPause = &ManagedScriptRuntime::AudioPauseCallback;

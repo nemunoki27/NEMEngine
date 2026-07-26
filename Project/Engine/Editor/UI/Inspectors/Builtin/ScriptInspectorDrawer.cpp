@@ -367,7 +367,7 @@ namespace {
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx) {
 
 		if (!value.is_object()) { value = nlohmann::json{ {"assetId", ""} }; }
-		Engine::AssetID assetID = Engine::FromString16Hex(value.value("assetId", std::string{}));
+		Engine::AssetID assetID = Engine::FromString32Hex(value.value("assetId", std::string{}));
 
 		const Engine::AssetDatabase* db = (ctx.panel && ctx.panel->editorContext) ? ctx.panel->editorContext->assetDatabase : nullptr;
 		Engine::ValueEditResult r = Engine::MyGUI::AssetReferenceField(label, assetID, db,
@@ -1249,7 +1249,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				ImGui::BulletText("last known type: %s",
 					entry.lastKnownTypeName.empty() ? "(unknown)" : entry.lastKnownTypeName.c_str());
 				ImGui::BulletText("scriptTypeID: %s", entry.scriptTypeID.c_str());
-				ImGui::BulletText("source asset: %016llx", static_cast<unsigned long long>(entry.scriptAsset.value));
+				ImGui::BulletText("source asset: %s", ToString(entry.scriptAsset).c_str());
 				ImGui::BulletText("slot id: %016llx", static_cast<unsigned long long>(entry.scriptSlotID.value));
 				ImGui::BulletText("reason: %s", ResolutionReasonLabel(resolutionReason));
 				if (ImGui::SmallButton("GUID をコピー")) {

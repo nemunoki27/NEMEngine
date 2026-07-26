@@ -23,12 +23,25 @@ void CameraShakeSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
 	world.ForEach<CameraShakeComponent, TransformComponent>([&](
 		Entity entity, CameraShakeComponent& shake, TransformComponent& transform) {
 
-			// 無効な場合は処理しない
-			if (!shake.enable) {
-				return;
+			// 前フレームの揺れを除去して基準座標へ戻す
+			if (shake.runtimeOffset != Vector3{}) {
+				transform.localPos -= shake.runtimeOffset;
+				transform.isDirty = true;
+				shake.runtimeOffset = Vector3{};
 			}
 			// エンティティが有効か
-			if (!IsEntityActiveInHierarchy(world, entity)) {
+			if (!shake.enable || !IsEntityActiveInHierarchy(world, entity)) {
+				shake.runtimeTime = 0.0f;
+				shake.runtimeActive = false;
+				return;
+			}
+			if (!shake.runtimeActive) {
+				shake.runtimeTime = 0.0f;
+				shake.runtimeActive = true;
+			}
+			if (shake.duration <= 0.0f) {
+				shake.enable = false;
+				shake.runtimeActive = false;
 				return;
 			}
 
@@ -40,16 +53,18 @@ void CameraShakeSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
 			// 最初の強さから、0.0fに弱める
 			Vector3 strength = Vector3::Lerp(shake.strength, Vector3::AnyInit(0.0f), easedT);
 			// オフセット
-			Vector3 offset = RandomGenerator::Generate(-1.0f, 1.0f) * strength;
+			shake.runtimeOffset = RandomGenerator::Generate(-1.0f, 1.0f) * strength;
 
 			// トランスフォームにオフセットを加算
-			transform.localPos += offset;
+			transform.localPos += shake.runtimeOffset;
+			transform.isDirty = true;
 
 			// 時間経過で終了
-			if (shake.duration < shake.runtimeTime) {
+			if (shake.duration <= shake.runtimeTime) {
 
 				// フラグで停止
 				shake.enable = false;
+				shake.runtimeActive = false;
 			}
 		});
 }

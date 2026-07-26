@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Identity/AssetGUID.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
@@ -18,7 +19,7 @@ namespace Engine {
 	//============================================================================
 	//	AssetTypes
 	//============================================================================
-	using AssetID = UUID;
+	using AssetID = AssetGUID;
 
 	// アセットの種類
 	enum class AssetType {
@@ -37,6 +38,7 @@ namespace Engine {
 		AnimationClip,
 		PostProcessStack,
 		ParticleEffect,
+		DefaultAsset,
 	};
 
 	// アセット参照の診断種別

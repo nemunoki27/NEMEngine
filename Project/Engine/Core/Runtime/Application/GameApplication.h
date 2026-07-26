@@ -41,9 +41,7 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		static constexpr AssetID kDefaultStartupScene{ 0x129d80fee6b506d1ull };
-
-		AssetID activeScene_{ kDefaultStartupScene };
+		AssetID activeScene_{};
 		AssetDatabase assetDataBase_;
 
 		SceneInstanceManager editScenes_;

@@ -113,17 +113,18 @@ void Engine::EngineApplication::RefreshActiveWorldContext() {
 	}
 
 	systemContext_.activeSceneHeader = header;
-	CollisionSettings::GetInstance().BindGlobal(systemContext_.assetDatabase);
+	CollisionSettings::GetInstance().BindGlobal();
 
 	if constexpr (BuildConfig::kEditorEnabled) {
 
 		editorContext_.isPlaying = worldManager_.IsPlaying();
 		editorContext_.isPlayPaused = playPaused_;
 		editorContext_.activeScenePath = activeScenePath_;
-		editorContext_.activeSceneDirty = editorManager_.IsActiveSceneDirty();
 		editorContext_.activeSceneHeader = header;
 		editorContext_.activeSceneAsset = activeSceneInstance ? activeSceneInstance->sceneAsset : activeScene_;
 		editorContext_.activeSceneInstanceID = activeSceneInstance ? activeSceneInstance->instanceID : UUID{};
+		editorContext_.activeSceneDirty =
+			editorManager_.IsSceneDirty(editorContext_.activeSceneAsset);
 		editorContext_.sceneInstances = &activeScenes;
 		editorContext_.activeWorld = world;
 		editorContext_.editWorld = &worldManager_.GetEditWorld();
@@ -158,10 +159,10 @@ void Engine::EngineApplication::ProcessPendingPlayStart() {
 			"EngineApplication: Play canceled. GameScripts build/reload failed. Staying in Edit mode.");
 		return;
 	}
-	if (!IsPrefabEditing() && !SaveActiveEditScene()) {
+	if (!IsPrefabEditing() && !SaveAllEditScenes()) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: Play canceled. Active scene save failed. Staying in Edit mode.");
+			"EngineApplication: Play canceled. Scene save failed. Staying in Edit mode.");
 		return;
 	}
 

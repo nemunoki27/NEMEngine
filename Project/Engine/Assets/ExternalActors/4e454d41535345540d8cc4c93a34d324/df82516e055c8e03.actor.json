@@ -1,0 +1,54 @@
+{
+    "Components": {
+        "Hierarchy": {
+            "parentLocalFileID": "",
+            "siblingOrder": 5
+        },
+        "MeshRenderer": {
+            "blendMode": "Normal",
+            "castReflection": true,
+            "castShadow": true,
+            "enableZPrepass": true,
+            "layer": 0,
+            "lighting": true,
+            "material": "4e454d4153534554317efcbf7aca8e61",
+            "mesh": "",
+            "order": 0,
+            "queue": "Opaque",
+            "receiveIBL": true,
+            "receiveReflection": true,
+            "receiveShadow": true,
+            "subMeshes": [],
+            "visible": true
+        },
+        "Name": {
+            "name": "Cube"
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "df82516e055c8e03",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+            "localPos": {
+                "x": 3.2545876502990723,
+                "y": 2.3064122200012207,
+                "z": -0.34004640579223633
+            },
+            "localRotation": {
+                "w": 0.9195225834846497,
+                "x": -0.2968297004699707,
+                "y": 0.13674822449684143,
+                "z": -0.21833530068397522
+            },
+            "localScale": {
+                "x": 1.0000001192092896,
+                "y": 1.0000001192092896,
+                "z": 1.0000001192092896
+            }
+        }
+    },
+    "LocalFileID": "df82516e055c8e03",
+    "SchemaVersion": 1
+}

@@ -79,9 +79,7 @@ function NEM_AddEngineIncludeSettings()
         path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/include"),
         path.join(NEM_PROJECT_ROOT, "Externals/DirectXTex"),
         path.join(NEM_PROJECT_ROOT, "Externals/imgui"),
-        path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor"),
         path.join(NEM_PROJECT_ROOT, "Externals/nlohmann"),
-        path.join(NEM_PROJECT_ROOT, "Externals/libcurl/include"),
 
         -- WinPixEventRuntime: <WinPixEventRuntime/pix3.h>
         path.join(NEM_PROJECT_ROOT, "Externals/WinPixEventRuntime/Include"),
@@ -102,7 +100,6 @@ function NEM_AddEngineIncludeSettings()
         '_PROFILE="$(Configuration)"',
         "NOMINMAX",
         "IMGUI_DEFINE_MATH_OPERATORS",
-        "CURL_STATICLIB",
     }
 
     -- msdf-atlas-gen は静的リンクなので公開マクロを空定義し、ライブラリと同じC++11設定に揃える
@@ -122,16 +119,11 @@ end
 function NEM_AddEngineDllLinkSettings()
     links {
         "meshoptimizer",
-        "ws2_32",
-        "crypt32",
-        "secur32",
-        "advapi32",
-        "iphlpapi",
+        "bcrypt",
     }
     dependson {
         "DirectXTex",
         "assimp",
-        "libcurl",
     }
 
     -- msdf-atlas-gen 一式、依存順にmsdf-atlas-gen -> msdfgen -> freetypeで取り込む
@@ -149,7 +141,6 @@ function NEM_AddEngineDllLinkSettings()
             path.join(NEM_ENGINE_GENERATED_ROOT, "Outputs/DirectXTex/Debug/DirectXTex.lib"),
             path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/lib/Debug/assimp-vc145-mtd.lib"),
             path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/contrib/zlib/Debug/zlibstaticd.lib"),
-            path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/libcurl/lib/Debug/libcurl-d.lib"),
         }
         if NEM_MSDF_AVAILABLE then
             links {
@@ -165,7 +156,6 @@ function NEM_AddEngineDllLinkSettings()
             path.join(NEM_ENGINE_GENERATED_ROOT, "Outputs/DirectXTex/Release/DirectXTex.lib"),
             path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/lib/Release/assimp-vc145-mt.lib"),
             path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/contrib/zlib/Release/zlibstatic.lib"),
-            path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/libcurl/lib/Release/libcurl.lib"),
         }
         if NEM_MSDF_AVAILABLE then
             links {
@@ -187,13 +177,6 @@ function NEM_AddEngineDllLinkSettings()
     filter "configurations:Debug"
         libdirs { path.translate(path.join(NEM_PROJECT_ROOT, "Externals/WinPixEventRuntime/bin/x64"), "\\") }
         links { "WinPixEventRuntime" }
-
-    filter "configurations:Debug or Develop"
-        links {
-            "NEMEditor",
-            "imgui",
-            "imgui_node_editor",
-        }
 
     filter {}
 end
@@ -306,18 +289,26 @@ function NEM_AddProjectFiles(projectRoot, assetRoot, assetVpathName, includeShad
     }
 end
 
-function NEM_AddEngineProjectFiles()
-    -- Engine専用アセットを表示
-    NEM_AddProjectFiles(path.join(NEM_PROJECT_ROOT, "Engine"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Assets"), "Assets", false)
+function NEM_AddCoreProjectFiles()
+    local coreRoot = path.join(NEM_PROJECT_ROOT, "Engine/Core")
+    local sourcePatterns = NEM_MakeProjectSourcePatterns(coreRoot)
+    files(sourcePatterns)
+    vpaths {
+        ["Source/*"] = sourcePatterns,
+    }
+
+    removefiles {
+        path.join(coreRoot, "Tools/ImGui/**"),
+        path.join(coreRoot, "Rendering/Particle/Gui/**"),
+    }
 end
 
 function NEM_AddRuntimeProjectFiles()
-    NEM_AddEngineProjectFiles()
-    removefiles {
-        path.join(NEM_PROJECT_ROOT, "Engine/Editor/**"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Assets/Shaders/Builtin/Editor/**"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Assets/Textures/Editor/**"),
+    local publicRoot = path.join(NEM_PROJECT_ROOT, "Engine/Public")
+    local sourcePatterns = NEM_MakeProjectSourcePatterns(publicRoot)
+    files(sourcePatterns)
+    vpaths {
+        ["Public/*"] = sourcePatterns,
     }
 end
 
@@ -336,6 +327,20 @@ function NEM_AddEditorProjectFiles()
     files(editorAssets)
     vpaths {
         ["EditorAssets/*"] = editorAssets,
+    }
+
+    -- Particle moduleのEditor UIは現在Core実装と同居しているためEditor構成でのみ再コンパイルする
+    local editorOwnedCore = {
+        path.join(NEM_PROJECT_ROOT, "Engine/Core/Tools/ImGui/**.h"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Core/Tools/ImGui/**.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Gui/**.h"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Gui/**.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Module/**.h"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Module/**.cpp"),
+    }
+    files(editorOwnedCore)
+    vpaths {
+        ["EditorOwnedCore/*"] = editorOwnedCore,
     }
 end
 

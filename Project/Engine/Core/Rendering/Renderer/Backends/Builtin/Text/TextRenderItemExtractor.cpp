@@ -55,7 +55,7 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 			item.cameraDomain = RenderCameraDomain::Orthographic;
 		}
 		// 個別マテリアルパラメータを持つアイテムは専用cbufferが要るので、エンティティ単位で一意化して単独描画にする
-		item.batchKey = renderer.parameterOverrides.empty() ? renderer.font.value :
+		item.batchKey = renderer.parameterOverrides.empty() ? std::hash<AssetID>{}(renderer.font) :
 			((static_cast<uint64_t>(entity.generation) << 32) | entity.index);
 		item.payload = batch.PushPayload(payload);
 		// 描画アイテムをバッチに追加

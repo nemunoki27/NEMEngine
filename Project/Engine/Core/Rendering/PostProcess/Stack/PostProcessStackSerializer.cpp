@@ -112,7 +112,7 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 		pass.enabled = passJson.value("enabled", true);
 
 		const std::string guidStr = passJson.value("materialGuid", "");
-		pass.materialGuid = guidStr.size() == 16 ? FromString16Hex(guidStr) : AssetID{};
+		pass.materialGuid = guidStr.size() == 32 ? FromString32Hex(guidStr) : AssetID{};
 		const auto passKind = EnumAdapter<MaterialPassKind>::FromString(passJson.value("passKind", ""));
 		if (!passKind || *passKind == MaterialPassKind::Invalid) {
 			continue;
@@ -140,8 +140,8 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 					continue;
 				}
 				const std::string texGuidStr = it.value().value("textureGuid", "");
-				if (texGuidStr.size() == 16) {
-					pass.textureGuids[it.key()] = FromString16Hex(texGuidStr);
+				if (texGuidStr.size() == 32) {
+					pass.textureGuids[it.key()] = FromString32Hex(texGuidStr);
 				}
 			}
 		}

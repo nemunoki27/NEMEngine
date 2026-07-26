@@ -46,9 +46,9 @@ if exist "%ENGINE_ROOT%\Project\Engine\NEMEngine.vcxproj.user" del /q "%ENGINE_R
 if exist "%ENGINE_ROOT%\Project\Engine\NEMRuntime.vcxproj" del /q "%ENGINE_ROOT%\Project\Engine\NEMRuntime.vcxproj"
 if exist "%ENGINE_ROOT%\Project\Engine\NEMRuntime.vcxproj.filters" del /q "%ENGINE_ROOT%\Project\Engine\NEMRuntime.vcxproj.filters"
 if exist "%ENGINE_ROOT%\Project\Engine\NEMRuntime.vcxproj.user" del /q "%ENGINE_ROOT%\Project\Engine\NEMRuntime.vcxproj.user"
-if exist "%ENGINE_ROOT%\Project\Engine\NEMEditor.vcxproj" del /q "%ENGINE_ROOT%\Project\Engine\NEMEditor.vcxproj"
-if exist "%ENGINE_ROOT%\Project\Engine\NEMEditor.vcxproj.filters" del /q "%ENGINE_ROOT%\Project\Engine\NEMEditor.vcxproj.filters"
-if exist "%ENGINE_ROOT%\Project\Engine\NEMEditor.vcxproj.user" del /q "%ENGINE_ROOT%\Project\Engine\NEMEditor.vcxproj.user"
+if exist "%ENGINE_ROOT%\Project\Engine\Editor\NEMEditor.vcxproj" del /q "%ENGINE_ROOT%\Project\Engine\Editor\NEMEditor.vcxproj"
+if exist "%ENGINE_ROOT%\Project\Engine\Editor\NEMEditor.vcxproj.filters" del /q "%ENGINE_ROOT%\Project\Engine\Editor\NEMEditor.vcxproj.filters"
+if exist "%ENGINE_ROOT%\Project\Engine\Editor\NEMEditor.vcxproj.user" del /q "%ENGINE_ROOT%\Project\Engine\Editor\NEMEditor.vcxproj.user"
 
 if exist "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj" del /q "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj"
 if exist "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj.filters" del /q "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj.filters"
@@ -76,6 +76,7 @@ if "%FINDSTR_RC%"=="0" (
     exit /b 1
 )
 
+del /q "%~dp0premake_error.log" >nul 2>&1
 echo [OK] Premake generation succeeded.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_script_slnx.ps1" -SlnxPath "%ENGINE_ROOT%\Project\NEMEngine.slnx" -ScriptCoreProject "%ENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" -GameScriptsProject "%ENGINE_ROOT%\Project\Sandbox\Scripts\GameScripts.csproj"
 if errorlevel 1 (
@@ -101,7 +102,7 @@ if errorlevel 1 (
     popd
     exit /b 1
 )
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_native_debug_settings.ps1" -ProjectPaths "%ENGINE_ROOT%\Project\Engine\NEMEditor.vcxproj"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_native_debug_settings.ps1" -ProjectPaths "%ENGINE_ROOT%\Project\Engine\Editor\NEMEditor.vcxproj"
 if errorlevel 1 (
     echo [ERROR] Failed to patch native debug settings.
     popd
