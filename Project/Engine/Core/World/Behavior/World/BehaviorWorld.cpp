@@ -11,7 +11,8 @@
 //============================================================================
 //	BehaviorWorld classMethods
 //============================================================================
-Engine::BehaviorHandle Engine::BehaviorWorld::Create(uint32_t typeID, const Entity& owner) {
+Engine::BehaviorHandle Engine::BehaviorWorld::Create(
+	uint32_t typeID, const Entity& owner, UUID scriptSlotID) {
 
 	// インデックスを割り当てる
 	BehaviorHandle handle{};
@@ -33,6 +34,7 @@ Engine::BehaviorHandle Engine::BehaviorWorld::Create(uint32_t typeID, const Enti
 
 	record.alive = true;
 	record.owner = owner;
+	record.scriptSlotID = scriptSlotID;
 	record.typeID = typeID;
 
 	// ハンドルの世代をレコードの世代と合わせる
@@ -168,6 +170,27 @@ const Engine::BehaviorRecord* Engine::BehaviorWorld::GetRecord(const BehaviorHan
 		return nullptr;
 	}
 	return &records_[handle.index];
+}
+
+Engine::BehaviorHandle Engine::BehaviorWorld::FindHandleBySlot(
+	const Entity& owner, UUID scriptSlotID) const {
+
+	const auto ownerIt = ownerToRecords_.find(MakeOwnerKey(owner));
+	if (ownerIt == ownerToRecords_.end()) {
+		return BehaviorHandle::Null();
+	}
+	for (uint32_t index : ownerIt->second) {
+
+		if (records_.size() <= index) {
+			continue;
+		}
+		const BehaviorRecord& record = records_[index];
+		if (record.alive && record.owner == owner &&
+			record.scriptSlotID == scriptSlotID) {
+			return BehaviorHandle{ index, record.generation };
+		}
+	}
+	return BehaviorHandle::Null();
 }
 
 Engine::MonoBehavior* Engine::BehaviorWorld::GetBehavior(const BehaviorHandle& handle) {

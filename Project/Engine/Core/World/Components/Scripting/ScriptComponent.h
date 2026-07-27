@@ -4,9 +4,12 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
-#include <Engine/Core/World/Behavior/BehaviorHandle.h>
+#include <Engine/Core/World/ECS/Components/Core/DynamicBuffer.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+
+// c++
+#include <span>
 
 namespace Engine {
 
@@ -16,8 +19,13 @@ namespace Engine {
 	// スクリプトの情報を保持するエントリ
 	struct ScriptEntry {
 
-		// 永続保存の主キー= Stable Script Type GUIDで正規化済み文字列
-		// ファイル名/クラス名/namespace/列挙順/runtime indexに依存しない
+		static constexpr ComponentStorageKind kStorageKind =
+			ComponentStorageKind::Buffer;
+		// JSONと文字列を含むためエントリ本体はチャンク外へ置く
+		static constexpr uint32_t kInternalBufferCapacity = 0;
+		static constexpr bool kSerializable = false;
+
+		// 永続保存の主キー
 		std::string scriptTypeID;
 		// 同一entityに同typeを複数attachしても識別できる安定slot ID
 		UUID scriptSlotID{};
@@ -29,23 +37,24 @@ namespace Engine {
 		bool enabled = true;
 		// インスペクターから編集するシリアライズフィールド
 		nlohmann::json serializedFields = nlohmann::json::object();
-
-		// ランタイムキャッシュでJSON非シリアライズ
-		BehaviorHandle handle = BehaviorHandle::Null();
-		// Stable GUIDから解決したcompact runtime type IDでreloadごとに変わる
-		uint32_t resolvedRuntimeTypeID = 0;
-		// runtime type IDが有効か
-		bool resolvedRuntimeTypeValid = false;
-		// serializedFieldsの編集リビジョンでruntime専用
-		// この値が進んだときだけ生成済みインスタンスへ再適用する
-		// authoring変更でのbumpは05_inspector_serializationで接続する拡張点
-		uint32_t serializedRevision = 0;
 	};
 
 	// スクリプトコンポーネント
 	struct ScriptComponent {
 
-		std::vector<ScriptEntry> scripts;
+		static constexpr bool kHasECSHooks = true;
+
+		static void OnAdded(
+			ECSWorld& world, const Entity& entity, ScriptComponent& component);
+		static void OnRemoved(ECSWorld& world, const Entity& entity);
+		static void InitializeStorage(
+			ECSWorld& world, const Entity& entity, ScriptComponent& component);
+		static void ReleaseStorage(
+			ECSWorld& world, const Entity& entity, ScriptComponent& component);
+		static void DeserializeECS(ECSWorld& world, const Entity& entity,
+			const nlohmann::json& in, ScriptComponent& component);
+		static void SerializeECS(const ECSWorld& world, const Entity& entity,
+			const ScriptComponent& component, nlohmann::json& out);
 	};
 
 	// 新規ScriptEntryを生成する、scriptSlotIDを新規採番しランタイムキャッシュを初期化する
@@ -60,7 +69,6 @@ namespace Engine {
 		entry.scriptAsset = scriptAsset;
 		entry.enabled = true;
 		entry.serializedFields = nlohmann::json::object();
-		entry.handle = BehaviorHandle::Null();
 		return entry;
 	}
 
@@ -69,5 +77,13 @@ namespace Engine {
 	void to_json(nlohmann::json& out, const ScriptEntry& entry);
 	void from_json(const nlohmann::json& in, ScriptComponent& component);
 	void to_json(nlohmann::json& out, const ScriptComponent& component);
+	std::span<ScriptEntry> GetScriptEntries(
+		ECSWorld& world, const Entity& entity);
+	std::span<const ScriptEntry> GetScriptEntries(
+		const ECSWorld& world, const Entity& entity);
+	void SetScriptEntries(ECSWorld& world, const Entity& entity,
+		std::span<const ScriptEntry> entries);
+	void SerializeScriptEntries(
+		std::span<const ScriptEntry> entries, nlohmann::json& out);
 
 } // Engine

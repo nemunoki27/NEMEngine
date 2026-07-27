@@ -14,6 +14,8 @@
 #include <cstdint>
 #include <cassert>
 #include <algorithm>
+#include <span>
+#include <limits>
 
 namespace Engine {
 
@@ -47,22 +49,46 @@ namespace Engine {
 	};
 
 	//============================================================================
-	//	EntityColumn struct
-	//	同じ種類のコンポーネントをまとめて保持する列
+	//	EntityColumnLayout struct
+	//	チャンク内のコンポーネント列配置
 	//============================================================================
-	struct EntityColumn {
+	struct EntityColumnLayout {
 
 		// コンポーネントの種類ID
 		uint32_t typeID = 0;
 		// コンポーネントの種類情報へのポインタ
 		const ComponentTypeInfo* info = nullptr;
-		// コンポーネントデータをまとめて保持するバッファ
-		AlignedBuffer storage;
+		// チャンク先頭から列先頭までのオフセット
+		size_t offset = 0;
+		// 有効状態ビット列の先頭、無効なら最大値
+		size_t enabledOffset = (std::numeric_limits<size_t>::max)();
+	};
+
+	//============================================================================
+	//	EntityChunkLayout struct
+	//	アーキタイプごとに共有するチャンク配置
+	//============================================================================
+	struct EntityChunkLayout {
+
+		// エンティティ列の先頭オフセット
+		size_t entityOffset = 0;
+		// チャンクの確保サイズとアライメント
+		size_t bytes = 0;
+		size_t alignment = 0;
+		// チャンクへ格納できるエンティティ数
+		uint32_t capacity = 0;
+		// コンポーネント列の配置
+		std::vector<EntityColumnLayout> columns;
+
+		// コンポーネント種類から固定バイトチャンクの配置を作る
+		static EntityChunkLayout Build(const std::vector<uint32_t>& types);
+		// 指定件数分の有効データサイズを返す
+		size_t GetPayloadBytes(uint32_t count) const;
 	};
 
 	//============================================================================
 	//	EntityChunk class
-	//	エンティティの塊でArchetypeが持つコンポーネント種類の列を持ち同じArchetypeのエンティティをまとめて保持する
+	//	同じアーキタイプのエンティティとコンポーネント列をまとめて保持する
 	//============================================================================
 	class EntityChunk {
 	public:
@@ -70,14 +96,14 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		EntityChunk(const std::vector<uint32_t>& types);
+		explicit EntityChunk(const EntityChunkLayout* layout);
 		~EntityChunk();
 
 		// 新しいエンティティを追加する
 		uint32_t AddEntity(const Entity& entity);
 		// 行だけ確保して、コンポーネントはまだ構築しない
 		uint32_t AddEntityUninitialized(const Entity& entity);
-		// row番目のエンティティを削除し最後の行と入れ替えて入れ替えたエンティティを返す
+		// 指定行を削除し最後の行と入れ替えたエンティティを返す
 		Entity RemoveSwap(uint32_t row);
 
 		// 指定列だけデフォルト構築する
@@ -86,14 +112,26 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// 空きがあるか
-		bool HasSpace() const { return GetCount() < kChunkCapacity; }
-		// row番目の行のcolumn列のセルへのポインタを返す
+		bool HasSpace() const { return GetCount() < GetCapacity(); }
+		// 指定行列のセルへのポインタを返す
 		void* GetRawByColumnIndex(uint32_t columnIndex, uint32_t row);
+		// 指定列の先頭ポインタを返す
+		void* GetColumnDataByColumnIndex(uint32_t columnIndex);
+		// 指定行列の有効状態を設定する
+		void SetEnabledByColumnIndex(uint32_t columnIndex, uint32_t row, bool enabled);
+		// 指定行列が有効か
+		bool IsEnabledByColumnIndex(uint32_t columnIndex, uint32_t row) const;
 
 		// 所持しているエンティティ数
-		uint32_t GetCount() const { return static_cast<uint32_t>(entities_.size()); }
+		uint32_t GetCount() const { return count_; }
+		// 格納できるエンティティ数
+		uint32_t GetCapacity() const { return layout_->capacity; }
 		// 所持しているエンティティ
-		const std::vector<Entity>& GetEntities() const { return entities_; }
+		std::span<const Entity> GetEntities() const;
+		// メモリ統計用の確保状態
+		bool IsAllocated() const { return storage_.ptr != nullptr; }
+		size_t GetAllocatedBytes() const { return IsAllocated() ? layout_->bytes : 0; }
+		size_t GetPayloadBytes() const { return layout_->GetPayloadBytes(count_); }
 	private:
 		//============================================================================
 		//	private Methods
@@ -101,15 +139,25 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// 列の配列で列はArchetypeが持つコンポーネント種類の順で並ぶ
-		std::vector<EntityColumn> columns_;
-		// 同じArchetypeのエンティティをまとめて保持する配列
-		std::vector<Entity> entities_;
+		// アーキタイプが所有する共有配置
+		const EntityChunkLayout* layout_ = nullptr;
+		// エンティティ列とコンポーネント列をまとめて保持する単一バッファ
+		AlignedBuffer storage_;
+		// 同じアーキタイプのエンティティ数
+		uint32_t count_ = 0;
 
 		//--------- functions ----------------------------------------------------
 
-		// row番目の行のcolumn列のセルへのポインタを返す
-		static void* GetPtr(EntityColumn& column, uint32_t row);
+		// 指定行列のセルへのポインタを返す
+		void* GetPtr(const EntityColumnLayout& column, uint32_t row);
+		const void* GetPtr(const EntityColumnLayout& column, uint32_t row) const;
+		// エンティティ列の先頭ポインタを返す
+		Entity* GetEntityData();
+		const Entity* GetEntityData() const;
+		// 初回追加時にチャンクを確保する
+		void EnsureStorage();
+		// 空チャンクのメモリを解放する
+		void ReleaseStorageIfEmpty();
 		// 現在生存している全行のコンポーネントを破棄する
 		void DestroyAllRows();
 	};

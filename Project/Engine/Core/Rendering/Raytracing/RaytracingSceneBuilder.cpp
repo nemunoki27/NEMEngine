@@ -51,13 +51,15 @@ namespace {
 		out.srvGPUHandle = srvDescriptor.GetGPUHandle(out.srvIndex);
 	}
 
-	bool HasValidFillMeshIndices(const std::vector<uint32_t>& indices, size_t vertexCount) {
+	bool HasValidFillMeshIndices(
+		std::span<const Engine::FillMeshTriangleIndex> indices,
+		size_t vertexCount) {
 
 		if (indices.empty() || indices.size() % 3 != 0) {
 			return false;
 		}
-		for (uint32_t index : indices) {
-			if (vertexCount <= index) {
+		for (const Engine::FillMeshTriangleIndex& index : indices) {
+			if (vertexCount <= index.value) {
 				return false;
 			}
 		}
@@ -234,6 +236,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		if (meshResource->subMeshes.empty()) {
 			continue;
 		}
+		const std::span<const SubMeshMaterial> subMeshes =
+			src.world ? GetMeshSubMeshes(*src.world, src.entity) :
+			std::span<const SubMeshMaterial>{};
 
 		SkinnedVertexSource skinnedSource{};
 
@@ -334,11 +339,14 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			// サブメッシュデータを構築
 			MeshSubMeshShaderData subMeshData{};
 			subMeshData.importedBaseColor = importedSubMesh.baseColor;
-			AssetID baseColorTextureAsset = MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetID(*meshResource, src.renderer, subMeshIndex);
+			AssetID baseColorTextureAsset =
+				MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetID(
+					*meshResource, subMeshes, subMeshIndex);
 			if (baseColorTextureAsset) {
 
 				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, baseColorTextureAsset);
-			} else if (MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(*meshResource, src.renderer, subMeshIndex)) {
+			} else if (MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(
+				*meshResource, subMeshes, subMeshIndex)) {
 
 				// 宣言はあるが見つからない:エラーテクスチャ
 				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, AssetID{});
@@ -348,13 +356,19 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				subMeshData.baseColorTextureIndex = UINT32_MAX;
 			}
 
-			bool hasMesh = src.renderer && subMeshIndex < src.renderer->subMeshes.size();
+			const bool hasMesh = subMeshIndex < subMeshes.size();
 
-			AssetID normalAsset = MeshDrawPathCommon::ResolveSubMeshNormalTextureAssetID(*meshResource, src.renderer, subMeshIndex);
-			AssetID metallicRoughnessAsset = MeshDrawPathCommon::ResolveSubMeshMetallicRoughnessTextureAssetID(*meshResource, src.renderer, subMeshIndex);
-			AssetID emissiveAsset = MeshDrawPathCommon::ResolveSubMeshEmissiveTextureAssetID(*meshResource, src.renderer, subMeshIndex);
-			AssetID occlusionAsset = MeshDrawPathCommon::ResolveSubMeshOcclusionTextureAssetID(*meshResource, src.renderer, subMeshIndex);
-			AssetID specularAsset = MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(*meshResource, src.renderer, subMeshIndex);
+			AssetID normalAsset = MeshDrawPathCommon::ResolveSubMeshNormalTextureAssetID(
+				*meshResource, subMeshes, subMeshIndex);
+			AssetID metallicRoughnessAsset =
+				MeshDrawPathCommon::ResolveSubMeshMetallicRoughnessTextureAssetID(
+					*meshResource, subMeshes, subMeshIndex);
+			AssetID emissiveAsset = MeshDrawPathCommon::ResolveSubMeshEmissiveTextureAssetID(
+				*meshResource, subMeshes, subMeshIndex);
+			AssetID occlusionAsset = MeshDrawPathCommon::ResolveSubMeshOcclusionTextureAssetID(
+				*meshResource, subMeshes, subMeshIndex);
+			AssetID specularAsset = MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(
+				*meshResource, subMeshes, subMeshIndex);
 			subMeshData.normalTextureIndex = normalAsset ?
 				ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, normalAsset) : UINT32_MAX;
 			subMeshData.metallicRoughnessTextureIndex = metallicRoughnessAsset ?
@@ -374,7 +388,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			subMeshData.uvMatrix = Matrix4x4::Identity();
 			if (hasMesh) {
 
-				const auto& authoring = src.renderer->subMeshes[subMeshIndex];
+				const auto& authoring = subMeshes[subMeshIndex];
 				// RTはfixedなSubMeshShaderDataを使うのでparameterOverridesから既知名を取り出して詰める
 				const auto& params = authoring.parameterOverrides;
 				auto findColor = [&](const char* name, const Color4& fallback) -> Color4 {
@@ -392,7 +406,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				subMeshData.emissiveColor = findColor("emissiveColor", Color4(0.0f, 0.0f, 0.0f, 0.0f));
 				subMeshData.metallic = findFloat("Metallic", subMeshData.metallic);
 				subMeshData.roughness = findFloat("Roughness", subMeshData.roughness);
-				subMeshData.uvMatrix = authoring.uvMatrix;
+				subMeshData.uvMatrix = MeshSubMeshRuntime::BuildUVMatrix(authoring);
 				subMeshData.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
 				const MeshNormalMatrixResult localNormal = BuildSafeMeshNormalMatrix(subMeshData.localMatrix);
 				subMeshData.localNormalMatrix = localNormal.matrix;
@@ -420,7 +434,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			pickRecord.subMeshIndex = subMeshIndex;
 			if (hasMesh) {
 
-				pickRecord.subMeshStableID = src.renderer->subMeshes[subMeshIndex].stableID;
+				pickRecord.subMeshStableID = subMeshes[subMeshIndex].stableID;
 			}
 			scenePickRecords_.emplace_back(pickRecord);
 
@@ -446,7 +460,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			if (hasMesh) {
 
 				instance.worldMatrix =
-					MeshSubMeshRuntime::BuildRenderLocalMatrix(src.renderer->subMeshes[subMeshIndex]) *
+					MeshSubMeshRuntime::BuildRenderLocalMatrix(subMeshes[subMeshIndex]) *
 					src.worldMatrix;
 			} else {
 
@@ -460,13 +474,17 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	for (const CollectedFillMeshInstance& src : sceneFillMeshes) {
 
 		const FillMeshRendererComponent& renderer = *src.renderer;
+		const FillMeshRuntimeStateComponent* state =
+			src.world->TryGetComponent<FillMeshRuntimeStateComponent>(src.entity);
+		const uint32_t geometryGeneration =
+			state ? state->geometryGeneration : 0;
 
 		FillMeshRTKey key{};
 		key.world = src.world;
 		key.entity = src.entity;
 
 		FillMeshRaytracingResource& resource = fillMeshRTResources_[key];
-		if (resource.builtGeneration != renderer.geometryGeneration || !resource.blas.IsBuilt()) {
+		if (resource.builtGeneration != geometryGeneration || !resource.blas.IsBuilt()) {
 
 			if (!BuildFillMeshRaytracingResource(device, commandList, uploadService, src, resource)) {
 				continue;
@@ -652,7 +670,7 @@ void Engine::RaytracingSceneBuilder::CollectSceneFillMeshInstances(const RenderS
 		}
 
 		const FillMeshRendererComponent& renderer = item.world->GetComponent<FillMeshRendererComponent>(item.entity);
-		if (renderer.triangleIndices.empty()) {
+		if (GetFillMeshTriangleIndices(*item.world, item.entity).empty()) {
 			continue;
 		}
 
@@ -718,8 +736,11 @@ bool Engine::RaytracingSceneBuilder::BuildFillMeshRaytracingResource(ID3D12Devic
 		return false;
 	}
 
-	const FillMeshRendererComponent& renderer = *src.renderer;
-	if (!HasValidFillMeshIndices(renderer.triangleIndices, renderer.facePositions.size())) {
+	const std::span<const FillMeshPosition> positions =
+		GetFillMeshPositions(*src.world, src.entity);
+	const std::span<const FillMeshTriangleIndex> triangleIndices =
+		GetFillMeshTriangleIndices(*src.world, src.entity);
+	if (!HasValidFillMeshIndices(triangleIndices, positions.size())) {
 		return false;
 	}
 
@@ -728,24 +749,30 @@ bool Engine::RaytracingSceneBuilder::BuildFillMeshRaytracingResource(ID3D12Devic
 	resource.blas = {};
 
 	std::vector<MeshVertex> vertices{};
-	vertices.reserve(renderer.facePositions.size());
-	for (const Vector3& point : renderer.facePositions) {
+	vertices.reserve(positions.size());
+	for (const FillMeshPosition& position : positions) {
 
 		MeshVertex vertex{};
 		vertex.normal = Vector3(0.0f, 1.0f, 0.0f);
 		vertex.tangent = Vector3(1.0f, 0.0f, 0.0f);
 		vertex.tangentSign = 1.0f;
 		vertex.uv = Vector2::AnyInit(0.0f);
-		vertex.position = Vector4(point.x, 0.0f, point.z, 1.0f);
+		vertex.position =
+			Vector4(position.value.x, 0.0f, position.value.z, 1.0f);
 		vertices.emplace_back(vertex);
+	}
+	std::vector<uint32_t> indices{};
+	indices.reserve(triangleIndices.size());
+	for (const FillMeshTriangleIndex& index : triangleIndices) {
+		indices.emplace_back(index.value);
 	}
 
 	CreateImmutableSRV(device, uploadService, *srvDescriptor_,
 		resource.vertexSRV, vertices, L"FillMeshRTVertices");
 	CreateImmutableSRV(device, uploadService, *srvDescriptor_,
-		resource.indexSRV, renderer.triangleIndices, L"FillMeshRTIndices");
+		resource.indexSRV, indices, L"FillMeshRTIndices");
 	resource.indexBuffer.Create(device, uploadService,
-		std::span<const uint32_t>(renderer.triangleIndices.data(), renderer.triangleIndices.size()),
+		indices,
 		DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	if (!resource.vertexSRV.buffer || !resource.indexSRV.buffer || !resource.indexBuffer.IsCreatedResource()) {
@@ -764,11 +791,13 @@ bool Engine::RaytracingSceneBuilder::BuildFillMeshRaytracingResource(ID3D12Devic
 	input.customVertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 	input.customIndexAddress = resource.indexBuffer.GetResource()->GetGPUVirtualAddress();
 	input.customIndexFormat = resource.indexBuffer.GetFormat();
-	input.indexCount = static_cast<uint32_t>(renderer.triangleIndices.size());
+	input.indexCount = static_cast<uint32_t>(indices.size());
 	input.allowUpdate = false;
 
 	resource.blas.Build(device, commandList, input);
-	resource.builtGeneration = renderer.geometryGeneration;
+	const FillMeshRuntimeStateComponent* state =
+		src.world->TryGetComponent<FillMeshRuntimeStateComponent>(src.entity);
+	resource.builtGeneration = state ? state->geometryGeneration : 0;
 	return resource.blas.IsBuilt();
 }
 

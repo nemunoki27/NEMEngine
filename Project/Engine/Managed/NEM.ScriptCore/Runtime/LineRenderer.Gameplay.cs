@@ -5,6 +5,9 @@ namespace NEMEngine;
 // 自動生成されるLineRenderer拡張
 public sealed partial class LineRenderer {
 
+    public DynamicBuffer<LineRendererPoint> Points =>
+        entity.GetBuffer<LineRendererPoint>();
+
     // 末尾へ1点追加し、indexを採番したLinePointを返す。後でUpdatePointに渡して更新できる
     public LinePoint AddPoint(LinePoint point) {
         point.index = NativeApi.LineAddComponentPoint(entity.native, point);

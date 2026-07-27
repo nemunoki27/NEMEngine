@@ -120,15 +120,8 @@ void Engine::EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(const Edit
 
 		if (world.HasComponent<MeshRendererComponent>(entity)) {
 
-			auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
 			// Sceneロード時と同じく、meshアセットからsubMesh設定を補完する
-			MeshSubMeshAuthoring::SyncComponent(assetDatabase, meshRenderer, true);
-
-			Matrix4x4 parentWorld = Matrix4x4::Identity();
-			if (world.HasComponent<TransformComponent>(entity)) {
-				parentWorld = world.GetComponent<TransformComponent>(entity).worldMatrix;
-			}
-			MeshSubMeshRuntime::UpdateRendererRuntime(meshRenderer, parentWorld);
+			MeshSubMeshAuthoring::SyncEntity(assetDatabase, world, entity, true);
 		}
 	}
 }

@@ -11,6 +11,28 @@
 
 namespace Engine {
 
+	class ECSWorld;
+	struct Entity;
+
+	//============================================================================
+	//	ComponentType enums
+	//============================================================================
+	enum class ComponentStorageKind : uint8_t {
+
+		Data,   // Entityごとに固定長データを持つ
+		Buffer, // Entityごとに可変長要素列を持つ
+		Tag,    // 値を持たずArchetypeだけを分ける
+		Shared, // 同じ値を持つEntity間で共有する
+		Chunk,  // Chunk全体で1つの値を持つ
+	};
+
+	enum class ComponentWorldDomain : uint8_t {
+
+		Authoring, // 編集用Worldだけで使用する
+		Runtime,   // 実行用Worldだけで使用する
+		Both,      // 両方のWorldで使用する
+	};
+
 	//============================================================================
 	//	ComponentType struct
 	//	コンポーネントの種類、情報を所持する
@@ -25,16 +47,45 @@ namespace Engine {
 		// データサイズ、アライメント
 		size_t size = 0;
 		size_t align = 0;
+		// コンポーネントの格納形式
+		ComponentStorageKind storageKind = ComponentStorageKind::Data;
+		// 使用可能なワールド
+		ComponentWorldDomain worldDomain = ComponentWorldDomain::Both;
+		// 有効状態をチャンクのビット列で管理するか
+		bool enableable = false;
+		// Scene/Prefabへ保存するか
+		bool serializable = true;
+		// Buffer要素のサイズ、アライメント、チャンク内要素数
+		size_t elementSize = 0;
+		size_t elementAlign = 0;
+		uint32_t internalBufferCapacity = 0;
+		// 型消去Buffer APIで安全にバイトコピーできる要素か
+		bool bufferElementTriviallyCopyable = false;
+		// チャンク内の移動、破棄を単純化できる型か
+		bool triviallyRelocatable = false;
+		bool triviallyDestructible = false;
+		// 例外を発生させずに移動できる型か
+		bool nothrowMoveConstructible = false;
 
 		// コンストラクタ
 		void (*constructDefault)(void* ptr) = nullptr;
+		// チャンク外データの初期化
+		void (*initializeStorage)(ECSWorld& world, const Entity& entity, void* ptr) = nullptr;
+		// Entityへ追加された後の関連Component構築
+		void (*onAdded)(ECSWorld& world, const Entity& entity, void* ptr) = nullptr;
+		// Entityから削除された後の関連Component破棄
+		void (*onRemoved)(ECSWorld& world, const Entity& entity) = nullptr;
 		// デストラクタ
 		void (*destroy)(void* ptr) = nullptr;
 		// コピーコンストラクタ
 		void (*moveConstruct)(void* dst, void* src) = nullptr;
+		// チャンク外データの解放
+		void (*releaseExternal)(ECSWorld& world, const Entity& entity, void* ptr) = nullptr;
 
 		// json変換関数
-		void (*from_json)(void* obj, const nlohmann::json& in) = nullptr;
-		void (*to_json)(const void* obj, nlohmann::json& out) = nullptr;
+		void (*fromJson)(ECSWorld& world, const Entity& entity,
+			void* obj, const nlohmann::json& in) = nullptr;
+		void (*toJson)(const ECSWorld& world, const Entity& entity,
+			const void* obj, nlohmann::json& out) = nullptr;
 	};
 } // Engine

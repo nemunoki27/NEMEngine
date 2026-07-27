@@ -23,7 +23,7 @@ namespace Engine {
 		// マテリアル
 		AssetID material{};
 		// エンティティごとのマテリアルパラメータ
-		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides{};
+		MaterialParameterOverrides parameterOverrides{};
 
 		// サイズ
 		Vector2 size = Vector2::AnyInit(32.0f);

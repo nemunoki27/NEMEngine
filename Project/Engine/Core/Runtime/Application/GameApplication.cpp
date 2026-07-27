@@ -21,14 +21,12 @@
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptExceptionStore.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
 #include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
-#include <Engine/Core/World/Systems/Animation/AnimationPlayerSystem.h>
 #include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
 #include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
 #include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/World/Systems/Camera/CameraControllerSystem.h>
 #include <Engine/Core/World/Systems/Camera/CameraShakeSystem.h>
-#include <Engine/Core/World/Systems/Effect/ParticleSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
 #include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
@@ -68,7 +66,7 @@ void Engine::GameApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<UIInputSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<IrisTransitionSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<AnimationPlayerSystem>(), ++order);
+	// EffectEmitterとAnimationPlayerは次期データ指向設計へ置き換えるまで実行対象外
 	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
@@ -78,7 +76,6 @@ void Engine::GameApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<FlipbookAnimationSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UVTransformSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<FillFaceMeshRendererSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<ParticleSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<SkinnedAnimationSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UICanvasSystem>(), ++order);
@@ -162,6 +159,7 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 	systemContext_.assetDatabase = &assetDataBase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.animationClipManager = &animationClipManager_;
+	systemContext_.runtimeWorldBaker = &runtimeWorldBaker_;
 	StartPlayWorld();
 	PreloadReleaseResources(graphicsCore);
 }
@@ -181,6 +179,9 @@ void Engine::GameApplication::StartPlayWorld() {
 		return;
 	}
 
+	// 最初の更新前に全EntityのRuntime派生データを構築する
+	runtimeWorldBaker_.Attach(*worldManager_.GetPlayWorld(), &assetDataBase_);
+	runtimeWorldBaker_.BakeAll();
 	ManagedWorldRegistry::GetInstance().Register(*worldManager_.GetPlayWorld());
 	ManagedScriptRuntime::BeginPlayTime(worldManager_.GetPlayWorld());
 	requestFrameDeltaReset_ = true;
@@ -191,6 +192,7 @@ void Engine::GameApplication::StartPlayWorld() {
 void Engine::GameApplication::StopPlayWorld() {
 
 	scheduler_.DetachCurrentWorld(systemContext_);
+	runtimeWorldBaker_.Detach();
 	if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
 		ManagedWorldRegistry::GetInstance().Unregister(
 			ManagedWorldRegistry::GetInstance().TryGetHandle(*playWorld));

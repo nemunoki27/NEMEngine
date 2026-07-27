@@ -163,6 +163,17 @@ namespace {
 		}
 		// ECSのarchetype数でForEachが走査する数、多いほどquery plan cacheの効果が見込める
 		ImGui::Text("Archetype数       : %u", profiler.GetArchetypeCount());
+		const Engine::FrameProfiler::ECSStatistics& ecsStatistics = profiler.GetECSStatistics();
+		ImGui::Text("Entity数          : %u", ecsStatistics.entityCount);
+		ImGui::Text("Chunk             : %u / %u",
+			ecsStatistics.allocatedChunkCount, ecsStatistics.chunkSlotCount);
+		ImGui::Text("Chunkメモリ       : %.2f / %.2f MiB",
+			static_cast<double>(ecsStatistics.payloadBytes) / (1024.0 * 1024.0),
+			static_cast<double>(ecsStatistics.allocatedChunkBytes) / (1024.0 * 1024.0));
+		ImGui::Text("構造移動          : %llu (%llu Components / %.2f KiB)",
+			static_cast<unsigned long long>(ecsStatistics.structuralMigrationCount),
+			static_cast<unsigned long long>(ecsStatistics.relocatedComponentCount),
+			static_cast<double>(ecsStatistics.relocatedComponentBytes) / 1024.0);
 		ImGui::Text("C#処理            : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Script));
 
 		// 描画処理でホバーでGPUの処理時間を各パスごとに表示する

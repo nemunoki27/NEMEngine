@@ -40,15 +40,15 @@ void Engine::FlipbookAnimationInspectorDrawer::DrawFields([[maybe_unused]] const
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::DragInt("分割Y", draft.tilesY, { .minValue = 1,.maxValue = 256 });
 		});
-	NormalizeFlipbookTileLayout(draft.tilesX, draft.tilesY);
+	NormalizeFlipbookTileLayout(tileColumnDraft_, draft.tilesY);
 	// 縦の分割数だけXタイル数を設定する
 	for (int32_t index = 0; index < draft.tilesY; ++index) {
 
 		ImGui::PushID(index);
 		DrawField(anyItemActive, [&]() {
-			ValueEditResult result = MyGUI::DragInt("分割X", draft.tilesX[index],
+			ValueEditResult result = MyGUI::DragInt("分割X", tileColumnDraft_[index],
 				{ .minValue = 1, .maxValue = 16384 });
-			draft.tilesX[index] = (std::max)(draft.tilesX[index], 1);
+			tileColumnDraft_[index] = (std::max)(tileColumnDraft_[index], 1);
 			return result;
 			});
 		ImGui::PopID();
@@ -56,4 +56,38 @@ void Engine::FlipbookAnimationInspectorDrawer::DrawFields([[maybe_unused]] const
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::EnumCombo("イージング", draft.easingType);
 		});
+}
+
+void Engine::FlipbookAnimationInspectorDrawer::OnSyncDraftFromWorld(
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] const FlipbookAnimationComponent& component) {
+
+	const std::span<const int32_t> columns =
+		GetFlipbookTileValues(world, entity);
+	tileColumnDraft_.assign(columns.begin(), columns.end());
+	if (tileColumnDraft_.empty()) {
+		tileColumnDraft_.emplace_back(1);
+	}
+}
+
+void Engine::FlipbookAnimationInspectorDrawer::SerializeDraft(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	const FlipbookAnimationComponent& component,
+	nlohmann::json& out) const {
+
+	SerializeFlipbookAnimation(component, tileColumnDraft_, out);
+}
+
+void Engine::FlipbookAnimationInspectorDrawer::ApplyPreview(
+	ECSWorld& world, const Entity& entity,
+	const FlipbookAnimationComponent& previewComponent) {
+
+	if (!world.IsAlive(entity) ||
+		!world.HasComponent<FlipbookAnimationComponent>(entity)) {
+		return;
+	}
+	world.GetComponent<FlipbookAnimationComponent>(entity) =
+		previewComponent;
+	SetFlipbookTileColumns(world, entity, tileColumnDraft_);
+	world.MarkComponentModified<FlipbookAnimationComponent>(entity);
 }

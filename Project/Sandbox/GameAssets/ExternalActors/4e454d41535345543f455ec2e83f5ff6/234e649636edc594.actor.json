@@ -37,7 +37,9 @@
                     },
                     "name": "Mesh_0",
                     "parameterOverrides": {
-                        "baseColorTexture": "4e454d4153534554c2ea9f4498073ab3",
+                        "Metallic": 0.0,
+                        "Roughness": 1.0,
+                        "baseColorTexture": "4e454d415353455436762d22cf755749",
                         "color": {
                             "a": 1.0,
                             "b": 0.6000000238418579,

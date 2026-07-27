@@ -141,7 +141,7 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 	//	点列
 	//============================================================================
 	{
-		ImGui::Text("点数 %d", static_cast<int>(draft.points.size()));
+		ImGui::Text("点数 %d", static_cast<int>(pointDraft_.size()));
 
 		// 末尾へ点を追加する、直前の点があればずらして置く
 		DrawField(anyItemActive, [&]() {
@@ -150,12 +150,12 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			if (ImGui::Button("点を追加")) {
 
 				LinePoint point{};
-				if (!draft.points.empty()) {
+				if (!pointDraft_.empty()) {
 
-					point = draft.points.back();
+					point = pointDraft_.back();
 					point.position.x += 1.0f;
 				}
-				draft.points.emplace_back(point);
+				pointDraft_.emplace_back(point);
 				result.valueChanged = true;
 				result.editFinished = true;
 			}
@@ -163,10 +163,10 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			});
 
 		// 各点の座標と色と太さを編集する
-		for (size_t i = 0; i < draft.points.size(); ++i) {
+		for (size_t i = 0; i < pointDraft_.size(); ++i) {
 
 			ImGui::PushID(static_cast<int>(i));
-			LinePoint& point = draft.points[i];
+			LinePoint& point = pointDraft_[i];
 
 			DrawField(anyItemActive, [&]() {
 				return MyGUI::DragVector3("座標", point.position, { .dragSpeed = 0.05f });
@@ -183,7 +183,7 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 				ValueEditResult result{};
 				if (ImGui::Button("この点を削除")) {
 
-					draft.points.erase(draft.points.begin() + i);
+					pointDraft_.erase(pointDraft_.begin() + i);
 					result.valueChanged = true;
 					result.editFinished = true;
 				}
@@ -193,9 +193,37 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			ImGui::PopID();
 
 			// 削除でこのフレームの点列が縮んだら以降の描画は次フレームへ回す
-			if (i >= draft.points.size()) {
+			if (i >= pointDraft_.size()) {
 				break;
 			}
 		}
 	}
+}
+
+void Engine::LineRendererInspectorDrawer::OnSyncDraftFromWorld(
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] const LineRendererComponent& component) {
+
+	const std::span<const LinePoint> points = GetLinePoints(world, entity);
+	pointDraft_.assign(points.begin(), points.end());
+}
+
+void Engine::LineRendererInspectorDrawer::SerializeDraft(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	const LineRendererComponent& component, nlohmann::json& out) const {
+
+	SerializeLineRenderer(component, pointDraft_, out);
+}
+
+void Engine::LineRendererInspectorDrawer::ApplyPreview(
+	ECSWorld& world, const Entity& entity,
+	const LineRendererComponent& previewComponent) {
+
+	if (!world.IsAlive(entity) ||
+		!world.HasComponent<LineRendererComponent>(entity)) {
+		return;
+	}
+	world.GetComponent<LineRendererComponent>(entity) = previewComponent;
+	SetLinePoints(world, entity, pointDraft_);
+	world.MarkComponentModified<LineRendererComponent>(entity);
 }

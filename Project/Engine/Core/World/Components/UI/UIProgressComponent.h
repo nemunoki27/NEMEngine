@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
+#include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 #include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
@@ -35,7 +36,50 @@ namespace Engine {
 		bool valid = false;
 	};
 
+	// チャンク外で所有するProgressの実行時データ
+	struct UIProgressRuntimeData {
+
+		float displayedValue = 1.0f;
+		float delayedValue = 1.0f;
+		float displayStart = 1.0f;
+		float delayedStart = 1.0f;
+		float targetValue = 1.0f;
+		float smoothElapsed = 0.0f;
+		float delayedElapsed = 0.0f;
+		UIProgressTargetRuntime fillTarget{};
+		UIProgressTargetRuntime delayedTarget{};
+		bool initialized = false;
+	};
+
+	struct UIProgressRuntimeStorageTag;
+	using UIProgressRuntimeStorage =
+		GenerationalPool<UIProgressRuntimeData, UIProgressRuntimeStorageTag>;
+	using UIProgressRuntimeHandle =
+		UIProgressRuntimeStorage::Handle;
+
+	// ECSチャンクには世代付きハンドルだけを保持する
+	struct UIProgressRuntimeComponent {
+
+		static constexpr bool kSerializable = false;
+		static constexpr bool kHasECSHooks = true;
+
+		UIProgressRuntimeHandle handle{};
+
+		static void OnAdded(
+			ECSWorld& world, const Entity& entity, UIProgressRuntimeComponent& component);
+		static void InitializeStorage(
+			ECSWorld& world, const Entity& entity, UIProgressRuntimeComponent& component);
+		static void ReleaseStorage(
+			ECSWorld& world, const Entity& entity, UIProgressRuntimeComponent& component);
+		static void DeserializeECS(ECSWorld& world, const Entity& entity,
+			const nlohmann::json& in, UIProgressRuntimeComponent& component);
+		static void SerializeECS(const ECSWorld& world, const Entity& entity,
+			const UIProgressRuntimeComponent& component, nlohmann::json& out);
+	};
+
 	struct UIProgressComponent {
+
+		static constexpr bool kHasECSHooks = true;
 
 		bool enabled = true;
 		bool previewInEditMode = false;
@@ -58,17 +102,18 @@ namespace Engine {
 		EasingType delayedEasing = EasingType::EaseOutSine;
 		bool useUnscaledTime = true;
 
-		// ランタイム表示状態
-		float runtimeDisplayedValue = 1.0f;
-		float runtimeDelayedValue = 1.0f;
-		float runtimeDisplayStart = 1.0f;
-		float runtimeDelayedStart = 1.0f;
-		float runtimeTargetValue = 1.0f;
-		float runtimeSmoothElapsed = 0.0f;
-		float runtimeDelayedElapsed = 0.0f;
-		UIProgressTargetRuntime runtimeFillTarget{};
-		UIProgressTargetRuntime runtimeDelayedTarget{};
-		bool runtimeInitialized = false;
+		// Registryから呼ばれるRuntime状態のライフサイクル
+		static void OnAdded(
+			ECSWorld& world, const Entity& entity, UIProgressComponent& component);
+		static void OnRemoved(ECSWorld& world, const Entity& entity);
+		static void InitializeStorage(
+			ECSWorld& world, const Entity& entity, UIProgressComponent& component);
+		static void ReleaseStorage(
+			ECSWorld& world, const Entity& entity, UIProgressComponent& component);
+		static void DeserializeECS(ECSWorld& world, const Entity& entity,
+			const nlohmann::json& in, UIProgressComponent& component);
+		static void SerializeECS(const ECSWorld& world, const Entity& entity,
+			const UIProgressComponent& component, nlohmann::json& out);
 	};
 
 	// シーン設定のみを反映
@@ -76,6 +121,10 @@ namespace Engine {
 
 	void from_json(const nlohmann::json& in, UIProgressComponent& component);
 	void to_json(nlohmann::json& out, const UIProgressComponent& component);
-	void ResetUIProgressRuntime(UIProgressComponent& component);
+	void ResetUIProgressRuntime(UIProgressRuntimeData& runtime, float value);
+	UIProgressRuntimeData* TryGetUIProgressRuntime(
+		ECSWorld& world, const Entity& entity);
+	const UIProgressRuntimeData* TryGetUIProgressRuntime(
+		const ECSWorld& world, const Entity& entity);
 
 } // Engine

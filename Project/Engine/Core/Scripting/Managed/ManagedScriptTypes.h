@@ -49,7 +49,10 @@ namespace Engine {
 	// v32: AudioSourceのPlayOneShotとUnPauseを追加
 	// v33: EffectEmitterのグループとState設定APIを追加
 	// v34: アセット参照を128bit AssetGUIDへ移行
-	inline constexpr uint32_t kManagedAbiVersion = 35;
+	// v35: UserSettingsルート取得APIを追加
+	// v36: Collision実行時状態をAuthoring設定から分離
+	// v42: IrisTransitionのRuntime状態を設定コンポーネントから分離
+	inline constexpr uint32_t kManagedAbiVersion = 42;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -316,6 +319,55 @@ namespace Engine {
 		int32_t index = -1;
 	};
 
+	// C#から要求するDynamicBuffer変更操作
+	enum class ManagedDynamicBufferOperation :
+		int32_t {
+
+		Replace,
+		Append,
+		SetElement,
+		RemoveAt,
+		Resize,
+		Clear,
+	};
+
+	// C#へ返すスキンアニメーションの固定長Runtime状態
+	struct ManagedSkinnedAnimationRuntimeState {
+
+		float currentTime = 0.0f;
+		float currentDuration = 0.0f;
+		float blendTime = 0.0f;
+		int32_t repeatCount = 0;
+		int32_t initialized = 0;
+		int32_t finished = 0;
+		int32_t inTransition = 0;
+	};
+
+	// C#へ返すUI選択のフレーム状態
+	struct ManagedUISelectableRuntimeState {
+
+		int32_t state = 0;
+		int32_t normalThisFrame = 0;
+		int32_t selectedThisFrame = 0;
+		int32_t submittedThisFrame = 0;
+		int32_t disabledThisFrame = 0;
+	};
+
+	// C#へ返すUIProgressの表示状態
+	struct ManagedUIProgressRuntimeState {
+
+		float displayedValue = 0.0f;
+		float delayedValue = 0.0f;
+		int32_t initialized = 0;
+	};
+
+	// C#へ返すアイリス遷移の現在状態
+	struct ManagedIrisTransitionRuntimeState {
+
+		int32_t state = 0;
+		float progress = 0.0f;
+	};
+
 	// 即時形状描画の種類、値はC#のLineShapeTypeと一致させる
 	enum class ManagedLineShapeKind : int32_t {
 
@@ -385,6 +437,16 @@ namespace Engine {
 		using GetSkinnedAnimationDurationCallback = float(__cdecl*)(ManagedNativeEntity, const char*);
 		// 指定クリップを頭から再生する、終了フラグを同フレームで下ろす
 		using PlaySkinnedAnimationCallback = void(__cdecl*)(ManagedNativeEntity, const char*);
+		using GetSkinnedAnimationRuntimeStateCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, ManagedSkinnedAnimationRuntimeState*);
+		using GetUISelectableRuntimeStateCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, ManagedUISelectableRuntimeState*);
+		using GetUIProgressRuntimeStateCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, ManagedUIProgressRuntimeState*);
+		using GetUIButtonClickedCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t);
+		using GetIrisTransitionRuntimeStateCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, ManagedIrisTransitionRuntimeState*);
 		using IsAliveCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using GetBoolCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using SetBoolCallback = void(__cdecl*)(ManagedNativeEntity, int32_t);
@@ -395,6 +457,13 @@ namespace Engine {
 		// ObjectModel: generic component access / Entity.Destroy / ScriptBehaviour.Enabled / world rotation・lossyScale
 		using HasComponentCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t);
 		using ComponentMutateCallback = void(__cdecl*)(ManagedNativeEntity, int32_t);
+		using DynamicBufferLengthCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t);
+		using DynamicBufferCopyCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t, int32_t, void*, int32_t);
+		using DynamicBufferMutateCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t, int32_t,
+			int32_t, const void*, int32_t);
 		using DestroyEntityCallback = void(__cdecl*)(ManagedNativeEntity);
 		using GetScriptEnabledCallback = int32_t(__cdecl*)(ManagedNativeEntity, uint64_t);
 		using SetScriptEnabledCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t, int32_t);

@@ -59,7 +59,7 @@ void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatc
 		payload.pivot = renderer.pivot;
 		payload.uvMatrix = uvMatrix;
 		// 個別マテリアルパラメータはコンポーネントのmapを指す、描画時に既定値へ重ねる
-		payload.materialOverrides = &renderer.parameterOverrides;
+		payload.materialOverrides = &renderer.parameterOverrides.Get();
 		// 描画アイテムの構築
 		RenderItem item{};
 		const UIElementRuntime* uiRuntime = UIRuntimeService::GetInstance().Find(world, entity);

@@ -81,7 +81,9 @@ namespace {
 	// 静的バッチキャッシュキー用の、1アイテム分の内容ハッシュを抽出時に1度だけ計算する
 	uint64_t ComputeMeshContentHash(const Engine::Entity& entity, Engine::AssetID material,
 		Engine::BlendMode blendMode, const Engine::Matrix4x4& worldMatrix,
-		const Engine::MeshRendererComponent& renderer, const Engine::InvertedHullOutlineComponent* outline) {
+		const Engine::MeshRendererComponent& renderer,
+		std::span<const Engine::SubMeshMaterial> subMeshes,
+		const Engine::InvertedHullOutlineComponent* outline) {
 
 		uint64_t h = 1469598103934665603ull;
 		HashCombine(h, entity.index);
@@ -95,15 +97,17 @@ namespace {
 		// アウトライン設定が変わるとGPUデータが変わる
 		MixOutlineComponentHash(h, outline);
 
-		HashCombine(h, static_cast<uint64_t>(renderer.subMeshes.size()));
-		for (const Engine::SubMeshMaterial& subMesh : renderer.subMeshes) {
+		HashCombine(h, static_cast<uint64_t>(subMeshes.size()));
+		for (const Engine::SubMeshMaterial& subMesh : subMeshes) {
 
 			// サブメッシュ編集情報もGPUへ渡すため、内容ハッシュへ含める
 			MixBytes(h, &subMesh.stableID, sizeof(subMesh.stableID));
 			HashCombine(h, subMesh.sourceSubMeshIndex);
 			// reflection paramの上書きが変わるとパラメータバッファが変わる
 			MixSubMeshParameterHash(h, subMesh.parameterOverrides);
-			MixBytes(h, &subMesh.uvMatrix, sizeof(subMesh.uvMatrix));
+			const Engine::Matrix4x4 uvMatrix =
+				Engine::MeshSubMeshRuntime::BuildUVMatrix(subMesh);
+			MixBytes(h, &uvMatrix, sizeof(uvMatrix));
 			MixBytes(h, &subMesh.localPos, sizeof(subMesh.localPos));
 			MixBytes(h, &subMesh.localRotation, sizeof(subMesh.localRotation));
 			MixBytes(h, &subMesh.localScale, sizeof(subMesh.localScale));
@@ -125,9 +129,7 @@ void Engine::MeshRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 			return;
 		}
 
-		// 行列の更新
 		const Matrix4x4 entityWorldMatrix = RenderItemExtract::GetWorldMatrix(world, entity);
-		MeshSubMeshRuntime::UpdateRendererRuntime(renderer, entityWorldMatrix);
 
 		// ペイロード構築
 		MeshRenderPayload payload{};
@@ -142,7 +144,9 @@ void Engine::MeshRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		item.batchKey = std::hash<AssetID>{}(renderer.mesh);
 		// 静的バッチキャッシュキー用の内容ハッシュを抽出時に1度だけ計算する(backendの毎パス再ハッシュを避ける)
 		const InvertedHullOutlineComponent* outline = world.TryGetComponent<InvertedHullOutlineComponent>(entity);
-		item.contentHash = ComputeMeshContentHash(entity, item.material, item.blendMode, item.worldMatrix, renderer, outline);
+		item.contentHash = ComputeMeshContentHash(entity, item.material,
+			item.blendMode, item.worldMatrix, renderer,
+			GetMeshSubMeshes(world, entity), outline);
 		item.payload = batch.PushPayload(payload);
 		// 描画アイテムをバッチに追加
 		batch.Add(std::move(item));

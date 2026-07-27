@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
+#include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 
 // c++
@@ -45,11 +46,50 @@ namespace Engine {
 		bool paused = false;
 	};
 
+	// チャンク外で所有するAudioSourceの実行時データ
+	struct AudioSourceRuntimeData {
+
+		bool playing = false;
+		bool paused = false;
+		bool active = false;
+		bool playOnAwakeConsumed = false;
+		std::vector<AudioSourcePlaybackRuntime> playbacks{};
+		std::vector<AudioSourceCommand> commands{};
+	};
+
+	struct AudioSourceRuntimeStorageTag;
+	using AudioSourceRuntimeStorage =
+		GenerationalPool<AudioSourceRuntimeData, AudioSourceRuntimeStorageTag>;
+	using AudioSourceRuntimeHandle =
+		AudioSourceRuntimeStorage::Handle;
+
+	// ECSチャンクには世代付きハンドルだけを保持する
+	struct AudioSourceRuntimeComponent {
+
+		static constexpr bool kSerializable = false;
+		static constexpr bool kHasECSHooks = true;
+
+		AudioSourceRuntimeHandle handle{};
+
+		static void OnAdded(
+			ECSWorld& world, const Entity& entity, AudioSourceRuntimeComponent& component);
+		static void InitializeStorage(
+			ECSWorld& world, const Entity& entity, AudioSourceRuntimeComponent& component);
+		static void ReleaseStorage(
+			ECSWorld& world, const Entity& entity, AudioSourceRuntimeComponent& component);
+		static void DeserializeECS(ECSWorld& world, const Entity& entity,
+			const nlohmann::json& in, AudioSourceRuntimeComponent& component);
+		static void SerializeECS(const ECSWorld& world, const Entity& entity,
+			const AudioSourceRuntimeComponent& component, nlohmann::json& out);
+	};
+
 	//============================================================================
 	//	AudioSourceComponent struct
 	//============================================================================
 	// Entityに音声再生設定を持たせるコンポーネント
 	struct AudioSourceComponent {
+
+		static constexpr bool kHasECSHooks = true;
 
 		// 再生する音声アセット
 		AssetID clip{};
@@ -62,28 +102,33 @@ namespace Engine {
 		// 音量
 		float volume = 1.0f;
 
-		// Runtime状態はSceneとPrefabに保存しない
-		bool runtimePlaying = false;
-		bool runtimePaused = false;
-		bool runtimeActive = false;
-		bool runtimePlayOnAwakeConsumed = false;
-		std::vector<AudioSourcePlaybackRuntime> runtimePlaybacks{};
-		std::vector<AudioSourceCommand> runtimeCommands{};
-
-		// Clipを主再生として先頭から再生
-		void Play();
-		// Clipを重ねて一度だけ再生
-		void PlayOneShot(AssetID audioClip, float volumeScale = 1.0f);
-		// 所有する再生を一時停止
-		void Pause();
-		// 所有する一時停止中の再生を再開
-		void UnPause();
-		// 所有する再生をすべて停止
-		void Stop();
-
-		// 一時停止していない再生が存在するか
-		bool IsPlaying() const { return runtimePlaying; }
+		// Registryから呼ばれるRuntime状態のライフサイクル
+		static void OnAdded(
+			ECSWorld& world, const Entity& entity, AudioSourceComponent& component);
+		static void OnRemoved(ECSWorld& world, const Entity& entity);
+		static void InitializeStorage(
+			ECSWorld& world, const Entity& entity, AudioSourceComponent& component);
+		static void ReleaseStorage(
+			ECSWorld& world, const Entity& entity, AudioSourceComponent& component);
+		static void DeserializeECS(ECSWorld& world, const Entity& entity,
+			const nlohmann::json& in, AudioSourceComponent& component);
+		static void SerializeECS(const ECSWorld& world, const Entity& entity,
+			const AudioSourceComponent& component, nlohmann::json& out);
 	};
+
+	// AudioSourceのRuntimeデータを返す
+	AudioSourceRuntimeData* TryGetAudioSourceRuntime(
+		ECSWorld& world, const Entity& entity);
+	const AudioSourceRuntimeData* TryGetAudioSourceRuntime(
+		const ECSWorld& world, const Entity& entity);
+	// 再生操作を次のAudioSourceSystem更新へ積む
+	void RequestAudioPlay(ECSWorld& world, const Entity& entity);
+	void RequestAudioPlayOneShot(ECSWorld& world, const Entity& entity,
+		AssetID clip, float volumeScale = 1.0f);
+	void RequestAudioPause(ECSWorld& world, const Entity& entity);
+	void RequestAudioUnPause(ECSWorld& world, const Entity& entity);
+	void RequestAudioStop(ECSWorld& world, const Entity& entity);
+	bool IsAudioSourcePlaying(const ECSWorld& world, const Entity& entity);
 
 	// json変換
 	void from_json(const nlohmann::json& in, AudioSourceComponent& component);

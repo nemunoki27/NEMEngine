@@ -8,8 +8,8 @@
 #include <Engine/Core/Assets/AssetTypes.h>
 
 // c++
+#include <span>
 #include <string>
-#include <vector>
 #include <unordered_map>
 
 namespace Engine {
@@ -20,13 +20,13 @@ namespace Engine {
 	// ライン描画、A→B→C…と連続したポリラインを1コンポーネントで持つ
 	struct LineRendererComponent {
 
+		static constexpr bool kHasECSHooks = true;
+
 		// マテリアル
 		AssetID material{};
 		// エンティティごとのマテリアルパラメータ上書き
-		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides{};
+		MaterialParameterOverrides parameterOverrides{};
 
-		// ポリラインの点列、隣り合う点を線分でつなぐ
-		std::vector<LinePoint> points{};
 		// 始点と終点をつないで閉じるか
 		bool loop = false;
 
@@ -52,10 +52,32 @@ namespace Engine {
 		BlendMode blendMode = BlendMode::Normal;
 		// 描画キュー
 		RenderPhase queue = RenderPhase::Transparent;
+
+		// Registryから呼ばれる点列Bufferのライフサイクル
+		static void OnAdded(
+			ECSWorld& world, const Entity& entity, LineRendererComponent& component);
+		static void OnRemoved(ECSWorld& world, const Entity& entity);
+		static void InitializeStorage(
+			ECSWorld& world, const Entity& entity, LineRendererComponent& component);
+		static void ReleaseStorage(
+			ECSWorld& world, const Entity& entity, LineRendererComponent& component);
+		static void DeserializeECS(ECSWorld& world, const Entity& entity,
+			const nlohmann::json& in, LineRendererComponent& component);
+		static void SerializeECS(const ECSWorld& world, const Entity& entity,
+			const LineRendererComponent& component, nlohmann::json& out);
 	};
 
 	// json変換
 	void from_json(const nlohmann::json& in, LineRendererComponent& component);
 	void to_json(nlohmann::json& out, const LineRendererComponent& component);
+	// Entityに付随するライン点列
+	std::span<LinePoint> GetLinePoints(ECSWorld& world, const Entity& entity);
+	std::span<const LinePoint> GetLinePoints(
+		const ECSWorld& world, const Entity& entity);
+	void SetLinePoints(ECSWorld& world, const Entity& entity,
+		std::span<const LinePoint> points);
+	// 点列を含む保存データへ変換する
+	void SerializeLineRenderer(const LineRendererComponent& component,
+		std::span<const LinePoint> points, nlohmann::json& out);
 
 } // Engine

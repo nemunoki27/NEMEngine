@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 // c++
 #include <algorithm>
@@ -23,60 +24,60 @@ namespace {
 		return result;
 	}
 
-	void QueueCommand(Engine::IrisTransitionComponent& component,
+	void QueueCommand(Engine::IrisTransitionRuntimeComponent& runtime,
 		Engine::IrisTransitionCommand command, float value = 0.0f) {
 
-		component.runtimeCommand = command;
-		component.runtimeCommandValue = value;
-		component.runtimeCommandSerial = NextCommandSerial();
+		runtime.command = command;
+		runtime.commandValue = value;
+		runtime.commandSerial = NextCommandSerial();
 	}
-}
-
-//============================================================================
-//	IrisTransitionComponent structMethods
-//============================================================================
-void Engine::IrisTransitionComponent::IrisOut(float progress) {
-
-	if (!enabled) {
-		return;
-	}
-	QueueCommand(*this, IrisTransitionCommand::IrisOut,
-		std::clamp(progress, 0.0f, 1.0f));
-}
-
-void Engine::IrisTransitionComponent::IrisIn(float progress) {
-
-	if (!enabled) {
-		return;
-	}
-	QueueCommand(*this, IrisTransitionCommand::IrisIn,
-		std::clamp(progress, 0.0f, 1.0f));
-}
-
-void Engine::IrisTransitionComponent::SetProgress(float progress) {
-
-	QueueCommand(*this, IrisTransitionCommand::SetProgress,
-		std::clamp(progress, 0.0f, 1.0f));
-}
-
-void Engine::IrisTransitionComponent::Cancel() {
-
-	QueueCommand(*this, IrisTransitionCommand::Cancel);
-}
-
-void Engine::IrisTransitionComponent::Reset() {
-
-	QueueCommand(*this, IrisTransitionCommand::Reset);
-}
-
-void Engine::IrisTransitionComponent::RequestEditPreview() {
-
-	runtimeEditPreviewSerial = NextCommandSerial();
 }
 
 //============================================================================
 //	IrisTransitionComponent classMethods
 //============================================================================
+void Engine::IrisTransitionComponent::OnAdded(
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] IrisTransitionComponent& component) {
+
+	if (!world.HasComponent<IrisTransitionRuntimeComponent>(entity)) {
+		world.AddComponent<IrisTransitionRuntimeComponent>(entity);
+	}
+}
+
+void Engine::IrisTransitionComponent::OnRemoved(
+	ECSWorld& world, const Entity& entity) {
+
+	if (world.HasComponent<IrisTransitionRuntimeComponent>(entity)) {
+		world.RemoveComponent<IrisTransitionRuntimeComponent>(entity);
+	}
+}
+
+void Engine::IrisTransitionComponent::InitializeStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] IrisTransitionComponent& component) {
+}
+
+void Engine::IrisTransitionComponent::ReleaseStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] IrisTransitionComponent& component) {
+}
+
+void Engine::IrisTransitionComponent::DeserializeECS(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	const nlohmann::json& in, IrisTransitionComponent& component) {
+
+	from_json(in, component);
+}
+
+void Engine::IrisTransitionComponent::SerializeECS(
+	[[maybe_unused]] const ECSWorld& world,
+	[[maybe_unused]] const Entity& entity,
+	const IrisTransitionComponent& component, nlohmann::json& out) {
+
+	to_json(out, component);
+}
+
 void Engine::ApplyIrisTransitionAuthoring(const IrisTransitionComponent& source,
 	IrisTransitionComponent& destination) {
 
@@ -97,14 +98,73 @@ void Engine::ApplyIrisTransitionAuthoring(const IrisTransitionComponent& source,
 	destination.previewProgress = source.previewProgress;
 }
 
-void Engine::ResetIrisTransitionRuntime(IrisTransitionComponent& component) {
+void Engine::RequestIrisOut(
+	ECSWorld& world, const Entity& entity, float progress) {
 
-	component.runtimeState = IrisTransitionState::Open;
-	component.runtimeProgress = 0.0f;
-	component.runtimeCommand = IrisTransitionCommand::None;
-	component.runtimeCommandValue = 0.0f;
-	component.runtimeCommandSerial = 0;
-	component.runtimeEditPreviewSerial = 0;
+	const IrisTransitionComponent* component =
+		world.TryGetComponent<IrisTransitionComponent>(entity);
+	IrisTransitionRuntimeComponent* runtime =
+		world.TryGetComponent<IrisTransitionRuntimeComponent>(entity);
+	if (component && component->enabled && runtime) {
+		QueueCommand(*runtime, IrisTransitionCommand::IrisOut,
+			std::clamp(progress, 0.0f, 1.0f));
+	}
+}
+
+void Engine::RequestIrisIn(
+	ECSWorld& world, const Entity& entity, float progress) {
+
+	const IrisTransitionComponent* component =
+		world.TryGetComponent<IrisTransitionComponent>(entity);
+	IrisTransitionRuntimeComponent* runtime =
+		world.TryGetComponent<IrisTransitionRuntimeComponent>(entity);
+	if (component && component->enabled && runtime) {
+		QueueCommand(*runtime, IrisTransitionCommand::IrisIn,
+			std::clamp(progress, 0.0f, 1.0f));
+	}
+}
+
+void Engine::RequestIrisProgress(
+	ECSWorld& world, const Entity& entity, float progress) {
+
+	if (IrisTransitionRuntimeComponent* runtime =
+		world.TryGetComponent<IrisTransitionRuntimeComponent>(entity)) {
+		QueueCommand(*runtime, IrisTransitionCommand::SetProgress,
+			std::clamp(progress, 0.0f, 1.0f));
+	}
+}
+
+void Engine::RequestIrisCancel(
+	ECSWorld& world, const Entity& entity) {
+
+	if (IrisTransitionRuntimeComponent* runtime =
+		world.TryGetComponent<IrisTransitionRuntimeComponent>(entity)) {
+		QueueCommand(*runtime, IrisTransitionCommand::Cancel);
+	}
+}
+
+void Engine::RequestIrisReset(
+	ECSWorld& world, const Entity& entity) {
+
+	if (IrisTransitionRuntimeComponent* runtime =
+		world.TryGetComponent<IrisTransitionRuntimeComponent>(entity)) {
+		QueueCommand(*runtime, IrisTransitionCommand::Reset);
+	}
+}
+
+void Engine::RequestIrisEditPreview(
+	ECSWorld& world, const Entity& entity) {
+
+	if (IrisTransitionRuntimeComponent* runtime =
+		world.TryGetComponent<IrisTransitionRuntimeComponent>(entity)) {
+		runtime->editPreviewSerial = NextCommandSerial();
+	}
+}
+
+void Engine::ResetIrisTransitionRuntime(
+	IrisTransitionRuntimeComponent& runtime) {
+
+	runtime = {};
 }
 
 void Engine::from_json(const nlohmann::json& in, IrisTransitionComponent& component) {
@@ -133,7 +193,6 @@ void Engine::from_json(const nlohmann::json& in, IrisTransitionComponent& compon
 	component.previewInEditMode = in.value("previewInEditMode", component.previewInEditMode);
 	component.previewProgress = std::clamp(
 		in.value("previewProgress", component.previewProgress), 0.0f, 1.0f);
-	ResetIrisTransitionRuntime(component);
 }
 
 void Engine::to_json(nlohmann::json& out, const IrisTransitionComponent& component) {

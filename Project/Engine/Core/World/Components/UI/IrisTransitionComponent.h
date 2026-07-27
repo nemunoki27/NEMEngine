@@ -39,7 +39,22 @@ namespace Engine {
 		Reset,       // 開いた状態への復帰を要求
 	};
 
+	// Systemだけが更新する再生要求と現在状態
+	struct IrisTransitionRuntimeComponent {
+
+		static constexpr bool kSerializable = false;
+
+		IrisTransitionState state = IrisTransitionState::Open;
+		float progress = 0.0f;
+		IrisTransitionCommand command = IrisTransitionCommand::None;
+		float commandValue = 0.0f;
+		uint64_t commandSerial = 0;
+		uint64_t editPreviewSerial = 0;
+	};
+
 	struct IrisTransitionComponent {
+
+		static constexpr bool kHasECSHooks = true;
 
 		// 遷移処理を有効にするか
 		bool enabled = true;
@@ -74,33 +89,31 @@ namespace Engine {
 		// 編集中のプレビュー進行度
 		float previewProgress = 0.0f;
 
-		// ランタイム状態
-		IrisTransitionState runtimeState = IrisTransitionState::Open;
-		float runtimeProgress = 0.0f;
-		IrisTransitionCommand runtimeCommand = IrisTransitionCommand::None;
-		float runtimeCommandValue = 0.0f;
-		uint64_t runtimeCommandSerial = 0;
-		uint64_t runtimeEditPreviewSerial = 0;
-
-		// 指定進行度からアイリスアウトを要求する
-		void IrisOut(float progress = 0.0f);
-		// 指定進行度からアイリスインを要求する
-		void IrisIn(float progress = 1.0f);
-		// 進行度を直接設定する
-		void SetProgress(float progress);
-		// 現在位置で再生を停止する
-		void Cancel();
-		// 開いた状態へ戻す
-		void Reset();
-		// 編集中プレビューの更新を要求する
-		void RequestEditPreview();
+		static void OnAdded(
+			ECSWorld& world, const Entity& entity, IrisTransitionComponent& component);
+		static void OnRemoved(ECSWorld& world, const Entity& entity);
+		static void InitializeStorage(
+			ECSWorld& world, const Entity& entity, IrisTransitionComponent& component);
+		static void ReleaseStorage(
+			ECSWorld& world, const Entity& entity, IrisTransitionComponent& component);
+		static void DeserializeECS(ECSWorld& world, const Entity& entity,
+			const nlohmann::json& in, IrisTransitionComponent& component);
+		static void SerializeECS(const ECSWorld& world, const Entity& entity,
+			const IrisTransitionComponent& component, nlohmann::json& out);
 	};
 
 	// シーン設定のみを反映
 	void ApplyIrisTransitionAuthoring(const IrisTransitionComponent& source,
 		IrisTransitionComponent& destination);
+	// 再生要求をRuntime状態へ記録
+	void RequestIrisOut(ECSWorld& world, const Entity& entity, float progress = 0.0f);
+	void RequestIrisIn(ECSWorld& world, const Entity& entity, float progress = 1.0f);
+	void RequestIrisProgress(ECSWorld& world, const Entity& entity, float progress);
+	void RequestIrisCancel(ECSWorld& world, const Entity& entity);
+	void RequestIrisReset(ECSWorld& world, const Entity& entity);
+	void RequestIrisEditPreview(ECSWorld& world, const Entity& entity);
 	// ランタイム状態を初期化
-	void ResetIrisTransitionRuntime(IrisTransitionComponent& component);
+	void ResetIrisTransitionRuntime(IrisTransitionRuntimeComponent& runtime);
 
 	void from_json(const nlohmann::json& in, IrisTransitionComponent& component);
 	void to_json(nlohmann::json& out, const IrisTransitionComponent& component);

@@ -13,6 +13,7 @@
 namespace Engine {
 
 	struct CollisionComponent;
+	struct CollisionRuntimeStateComponent;
 	struct TransformComponent;
 
 	//============================================================================
@@ -52,6 +53,7 @@ namespace Engine {
 
 			Entity entity = Entity::Null();
 			CollisionComponent* collision = nullptr;
+			CollisionRuntimeStateComponent* state = nullptr;
 			TransformComponent* transform = nullptr;
 			std::vector<CollisionShapeInstance> shapes{};
 		};

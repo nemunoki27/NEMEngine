@@ -29,7 +29,7 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 			payload.uvMatrix = uvTransform->uvMatrix;
 		}
 		// 個別マテリアルパラメータはコンポーネントのmapを指す、描画時に既定値へ重ねる
-		payload.materialOverrides = &renderer.parameterOverrides;
+		payload.materialOverrides = &renderer.parameterOverrides.Get();
 		// 描画アイテムの構築
 		RenderItem item{};
 		const UIElementRuntime* uiRuntime = UIRuntimeService::GetInstance().Find(world, entity);

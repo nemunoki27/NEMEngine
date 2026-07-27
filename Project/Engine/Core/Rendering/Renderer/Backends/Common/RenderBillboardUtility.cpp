@@ -152,7 +152,7 @@ namespace Engine::RenderBillboard {
 		const auto* transform = world.TryGetComponent<TransformComponent>(item.entity);
 		const auto* billboard = world.TryGetComponent<BillboardComponent>(item.entity);
 
-		if (!transform || !billboard || billboard->axes.empty()) {
+		if (!transform || !billboard || !HasAnyBillboardAxis(*billboard)) {
 			return item.worldMatrix;
 		}
 

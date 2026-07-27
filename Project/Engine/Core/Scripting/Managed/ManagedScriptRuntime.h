@@ -322,6 +322,15 @@ namespace Engine {
 		static int32_t __cdecl HasComponentCallback(ManagedNativeEntity entity, int32_t typeID);
 		static void __cdecl AddComponentCallback(ManagedNativeEntity entity, int32_t typeID);
 		static void __cdecl RemoveComponentCallback(ManagedNativeEntity entity, int32_t typeID);
+		// Buffer参照は保持せず呼び出しごとにEntityとType IDから解決する
+		static int32_t __cdecl DynamicBufferLengthCallback(
+			ManagedNativeEntity entity, int32_t typeID, int32_t elementSize);
+		static int32_t __cdecl DynamicBufferCopyCallback(
+			ManagedNativeEntity entity, int32_t typeID, int32_t elementSize,
+			int32_t startIndex, void* destination, int32_t capacity);
+		static int32_t __cdecl DynamicBufferMutateCallback(
+			ManagedNativeEntity entity, int32_t typeID, int32_t elementSize,
+			int32_t operation, int32_t index, const void* data, int32_t count);
 		static void __cdecl DestroyEntityCallback(ManagedNativeEntity entity);
 		static int32_t __cdecl GetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotID);
 		static void __cdecl SetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotID, int32_t enabled);
@@ -364,6 +373,28 @@ namespace Engine {
 		static float __cdecl GetSkinnedAnimationDurationCallback(ManagedNativeEntity entity, const char* clipName);
 		// 指定クリップを頭から再生する、clip/enabledを設定し終了フラグを同フレームで下ろす
 		static void __cdecl PlaySkinnedAnimationCallback(ManagedNativeEntity entity, const char* clipName);
+		// 現在のクリップ名をC#側バッファへコピーする
+		static int32_t __cdecl CopySkinnedAnimationCurrentClipCallback(
+			ManagedNativeEntity entity, char* buffer, int32_t capacity);
+		// 固定長の再生状態をC#へ返す
+		static int32_t __cdecl GetSkinnedAnimationRuntimeStateCallback(
+			ManagedNativeEntity entity, ManagedSkinnedAnimationRuntimeState* outState);
+		// UI選択状態とフレーム遷移フラグをC#へ返す
+		static int32_t __cdecl GetUISelectableRuntimeStateCallback(
+			ManagedNativeEntity entity, ManagedUISelectableRuntimeState* outState);
+		// UIProgressの補間済み表示値をC#へ返す
+		static int32_t __cdecl GetUIProgressRuntimeStateCallback(
+			ManagedNativeEntity entity, ManagedUIProgressRuntimeState* outState);
+		// Canvasの入力ロック状態をC#へ返す
+		static int32_t __cdecl GetCanvasInputLockedCallback(
+			ManagedNativeEntity entity);
+		// 画像またはテキストボタンのフレームクリック状態をC#へ返す
+		static int32_t __cdecl GetUIButtonClickedCallback(
+			ManagedNativeEntity entity, int32_t buttonType);
+		// アイリス遷移の現在状態をC#へ返す
+		static int32_t __cdecl GetIrisTransitionRuntimeStateCallback(
+			ManagedNativeEntity entity,
+			ManagedIrisTransitionRuntimeState* outState);
 		// Gameplay v7のAssetRef runtime resolve
 		static int32_t __cdecl AssetExistsCallback(ManagedAssetGUID assetID);
 		static int32_t __cdecl CopyAssetDisplayNameCallback(ManagedAssetGUID assetID, char* buffer, int32_t capacity);
@@ -458,6 +489,7 @@ namespace Engine {
 		static int32_t __cdecl GetVisibilityLayerMaskCallback(ManagedNativeEntity entity);
 		static void __cdecl SetVisibilityLayerMaskCallback(ManagedNativeEntity entity, int32_t mask);
 		static int32_t __cdecl GetCollisionTypeMaskCallback(ManagedNativeEntity entity);
+		static int32_t __cdecl GetCollisionRuntimeStateCallback(ManagedNativeEntity entity);
 		static void __cdecl SetCollisionTypeMaskCallback(ManagedNativeEntity entity, int32_t mask);
 		static ManagedNativeEntity __cdecl FindEntityByNameCallback(const char* name);
 		static ManagedNativeEntity __cdecl FindEntityByTagCallback(const char* tag);

@@ -13,14 +13,65 @@ using namespace Engine;
 //============================================================================
 //	ECSWorld classMethods
 //============================================================================
-ECSWorld::ECSWorld() {
+ECSWorld::ECSWorld(ECSWorldKind kind) :
+	kind_(kind) {
 
 	// 最初は空のアーキタイプだけを作っておく
 	EntitySignature empty{};
 	emptyArchetype_ = GetOrCreateArchetype(empty);
 }
 
+ECSWorld::~ECSWorld() {
+
+	for (uint32_t index = 0; index < records_.size(); ++index) {
+		if (!records_[index].alive) {
+			continue;
+		}
+		ReleaseExternalComponents(
+			Entity{ index, records_[index].generation }, nullptr);
+	}
+	storage_.Clear();
+}
+
 Entity ECSWorld::CreateEntity(UUID stableUUID) {
+
+	return CreateEntityInArchetype(emptyArchetype_, stableUUID);
+}
+
+Entity ECSWorld::CreateEntityWithSignature(const EntitySignature& signature, UUID stableUUID) {
+
+	const uint32_t componentTypeCount =
+		ComponentTypeRegistry::GetInstance().GetComponentTypeCount();
+	for (uint32_t typeID = 0; typeID < componentTypeCount; ++typeID) {
+		if (!signature.Test(typeID)) {
+			continue;
+		}
+		Assert::Call(CanStoreComponent(
+			ComponentTypeRegistry::GetInstance().GetInfo(typeID)),
+			"ComponentTypeをこのWorldへ格納できません");
+	}
+	return CreateEntityInArchetype(GetOrCreateArchetype(signature), stableUUID);
+}
+
+Entity ECSWorld::CreateEntityWithComponents(std::span<const uint32_t> typeIDs, UUID stableUUID) {
+
+	EntitySignature signature{};
+	const uint32_t componentTypeCount =
+		ComponentTypeRegistry::GetInstance().GetComponentTypeCount();
+	for (uint32_t typeID : typeIDs) {
+
+		Assert::Call(typeID < componentTypeCount, "未登録のComponentType IDです");
+		Assert::Call(CanStoreComponent(
+			ComponentTypeRegistry::GetInstance().GetInfo(typeID)),
+			"ComponentTypeをこのWorldへ格納できません");
+		signature.Set(typeID);
+	}
+	return CreateEntityWithSignature(signature, stableUUID);
+}
+
+Entity ECSWorld::CreateEntityInArchetype(EntityArchetype* archetype, UUID stableUUID) {
+
+	Assert::Call(archetype != nullptr, "EntityArchetypeが必要です");
 
 	// 空いているIDを割り当てる
 	uint32_t index = AllocateIndex();
@@ -29,10 +80,35 @@ Entity ECSWorld::CreateEntity(UUID stableUUID) {
 	records_[index].pendingDestroy = false;
 	records_[index].uuid = stableUUID ? stableUUID : UUID::New();
 
-	// 空アーキタイプへ入れる
-	auto [chunkIndex, row] = emptyArchetype_->Add(entity);
-	records_[index].location = EntityLocation{ emptyArchetype_, chunkIndex, row };
+	// 最終Archetypeへ直接入れる
+	auto [chunkIndex, row] = archetype->Add(entity);
+	records_[index].location = EntityLocation{ archetype, chunkIndex, row };
 	uuidToEntity_[records_[index].uuid] = entity;
+
+	// チャンク外データを持つコンポーネントを初期化する
+	const std::vector<uint32_t> initialTypes = archetype->GetTypes();
+	for (uint32_t typeID : initialTypes) {
+
+		const ComponentTypeInfo& info =
+			ComponentTypeRegistry::GetInstance().GetInfo(typeID);
+		const EntityLocation& current = records_[entity.index].location;
+		void* ptr = current.archetype->GetRaw(
+			current.chunkIndex, current.row, typeID);
+		info.initializeStorage(*this, entity, ptr);
+	}
+	for (uint32_t typeID : initialTypes) {
+
+		// OnAddedは関連Buffer追加で構造変更するため毎回現在位置を引き直す
+		if (!HasComponent(entity, typeID)) {
+			continue;
+		}
+		const ComponentTypeInfo& info =
+			ComponentTypeRegistry::GetInstance().GetInfo(typeID);
+		const EntityLocation& current = records_[entity.index].location;
+		void* ptr = current.archetype->GetRaw(
+			current.chunkIndex, current.row, typeID);
+		info.onAdded(*this, entity, ptr);
+	}
 	return entity;
 }
 
@@ -78,6 +154,7 @@ void ECSWorld::DestroyEntityImmediate(const Entity& entity) {
 
 	EntityRecord& record = records_[entity.index];
 	NotifyComponentMutation(entity, 0xFFFFFFFFu, ComponentMutationKind::EntityDestroyed);
+	ReleaseExternalComponents(entity, nullptr);
 
 	// アーキタイプから抜く
 	Entity moved = record.location.archetype->RemoveSwap(
@@ -115,6 +192,8 @@ bool Engine::ECSWorld::AddComponentByName(const Entity& entity, const std::strin
 	if (!info) {
 		return false;
 	}
+	Assert::Call(CanStoreComponent(*info),
+		"ComponentTypeをこのWorldへ格納できません");
 
 	// 既に持っているなら何もしない
 	EntitySignature oldSignature = records_[entity.index].location.archetype->GetSignature();
@@ -126,6 +205,12 @@ bool Engine::ECSWorld::AddComponentByName(const Entity& entity, const std::strin
 	EntitySignature newSignature = oldSignature;
 	newSignature.Set(info->id);
 	MigrateEntity(entity, oldSignature, newSignature);
+	{
+		const EntityLocation& current = records_[entity.index].location;
+		void* ptr = current.archetype->GetRaw(
+			current.chunkIndex, current.row, info->id);
+		info->onAdded(*this, entity, ptr);
+	}
 	NotifyComponentMutation(entity, info->id, ComponentMutationKind::Added);
 	return true;
 }
@@ -150,6 +235,8 @@ bool Engine::ECSWorld::RemoveComponentByName(const Entity& entity, const std::st
 	EntitySignature newSignature = oldSignature;
 	newSignature.Reset(info->id);
 	MigrateEntity(entity, oldSignature, newSignature);
+	// 本体削除後に関連BufferやRuntime Componentを連動して外す
+	info->onRemoved(*this, entity);
 	NotifyComponentMutation(entity, info->id, ComponentMutationKind::Removed);
 	return true;
 }
@@ -164,6 +251,8 @@ void ECSWorld::AddComponentFromJson(const Entity& entity, const std::string_view
 		Assert::Call(false, "Unknown component typeName in scene file");
 		return;
 	}
+	Assert::Call(CanStoreComponent(*info),
+		"ComponentTypeをこのWorldへ格納できません");
 
 	// 既に持っているなら上書きする
 	const bool added = !records_[entity.index].location.archetype->Has(info->id);
@@ -175,14 +264,39 @@ void ECSWorld::AddComponentFromJson(const Entity& entity, const std::string_view
 		newSignature.Set(info->id);
 		// 新しいアーキタイプへ移動する
 		MigrateEntity(entity, oldSignature, newSignature);
+		{
+			const EntityLocation& current = records_[entity.index].location;
+			void* ptr = current.archetype->GetRaw(
+				current.chunkIndex, current.row, info->id);
+			info->onAdded(*this, entity, ptr);
+		}
 		NotifyComponentMutation(entity, info->id, ComponentMutationKind::Added);
 	}
 
-	// 追加/移動後のメモリにjsonを渡す
+	ApplyComponentJson(entity, typeName, data);
+}
+
+bool Engine::ECSWorld::ApplyComponentJson(
+	const Entity& entity, const std::string_view& typeName, const nlohmann::json& data) {
+
+	if (!IsAlive(entity)) {
+		return false;
+	}
+
+	const ComponentTypeInfo* info = ComponentTypeRegistry::GetInstance().FindByName(typeName);
+	if (!info) {
+		return false;
+	}
+
 	auto& location = records_[entity.index].location;
+	if (!location.archetype->Has(info->id)) {
+		return false;
+	}
+
 	void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, info->id);
-	info->from_json(ptr, data);
+	info->fromJson(*this, entity, ptr, data);
 	NotifyComponentMutation(entity, info->id, ComponentMutationKind::Modified);
+	return true;
 }
 
 void Engine::ECSWorld::MarkComponentModified(const Entity& entity, uint32_t typeID) {
@@ -191,6 +305,17 @@ void Engine::ECSWorld::MarkComponentModified(const Entity& entity, uint32_t type
 		return;
 	}
 	NotifyComponentMutation(entity, typeID, ComponentMutationKind::Modified);
+}
+
+bool Engine::ECSWorld::CanStoreComponent(const ComponentTypeInfo& info) const {
+
+	if (info.worldDomain == ComponentWorldDomain::Both) {
+		return true;
+	}
+	if (kind_ == ECSWorldKind::Authoring) {
+		return info.worldDomain == ComponentWorldDomain::Authoring;
+	}
+	return info.worldDomain == ComponentWorldDomain::Runtime;
 }
 
 uint64_t Engine::ECSWorld::AddComponentMutationListener(
@@ -245,13 +370,16 @@ void ECSWorld::SerializeEntityComponents(const Entity& entity, nlohmann::json& o
 	for (auto typeID : types) {
 
 		const auto& info = ComponentTypeRegistry::GetInstance().GetInfo(typeID);
+		if (!info.serializable) {
+			continue;
+		}
 
 		// アーキタイプからコンポーネントデータを取得
 		auto& location = records_[entity.index].location;
 		void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, typeID);
 
 		// jsonに変換して出力
-		info.to_json(ptr, outComponents[info.name]);
+		info.toJson(*this, entity, ptr, outComponents[info.name]);
 	}
 }
 
@@ -267,6 +395,9 @@ bool Engine::ECSWorld::SerializeComponentToJson(const Entity& entity, const std:
 	if (!info) {
 		return false;
 	}
+	if (!info->serializable) {
+		return false;
+	}
 
 	const auto& location = records_[entity.index].location;
 	if (!location.archetype->Has(info->id)) {
@@ -274,7 +405,7 @@ bool Engine::ECSWorld::SerializeComponentToJson(const Entity& entity, const std:
 	}
 	// アーキタイプからコンポーネントデータを取得
 	void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, info->id);
-	info->to_json(ptr, outData);
+	info->toJson(*this, entity, ptr, outData);
 	return true;
 }
 
@@ -311,6 +442,35 @@ Entity ECSWorld::FindByUUID(UUID id) const {
 	return (it == uuidToEntity_.end()) ? Entity::Null() : it->second;
 }
 
+Engine::ECSWorldStatistics Engine::ECSWorld::GetStatistics() const {
+
+	ECSWorldStatistics statistics{};
+	statistics.recordCount = GetRecordCount();
+	statistics.archetypeCount = GetArchetypeCount();
+	statistics.structuralMigrationCount = structuralMigrationCount_;
+	statistics.relocatedComponentCount = relocatedComponentCount_;
+	statistics.relocatedComponentBytes = relocatedComponentBytes_;
+
+	for (const EntityRecord& record : records_) {
+		statistics.aliveEntityCount += record.alive ? 1u : 0u;
+	}
+	for (const auto& [signature, archetype] : archetypes_) {
+
+		statistics.chunkSlotCount += archetype->GetChunkCount();
+		statistics.allocatedChunkCount += archetype->GetAllocatedChunkCount();
+		statistics.allocatedChunkBytes += archetype->GetAllocatedBytes();
+		statistics.payloadBytes += archetype->GetPayloadBytes();
+	}
+	return statistics;
+}
+
+void Engine::ECSWorld::ResetFrameStatistics() {
+
+	structuralMigrationCount_ = 0;
+	relocatedComponentCount_ = 0;
+	relocatedComponentBytes_ = 0;
+}
+
 bool Engine::ECSWorld::HasComponent(const Entity& entity, uint32_t typeID) const {
 
 	if (!IsAlive(entity) || ComponentTypeRegistry::GetInstance().GetComponentTypeCount() <= typeID) {
@@ -331,6 +491,39 @@ bool Engine::ECSWorld::HasComponent(const Entity& entity, const std::string_view
 		return false;
 	}
 	return records_[entity.index].location.archetype->Has(info->id);
+}
+
+Engine::UntypedDynamicBuffer Engine::ECSWorld::TryGetUntypedBuffer(
+	const Entity& entity, uint32_t typeID) {
+
+	if (!IsAlive(entity)) {
+		return {};
+	}
+	ComponentTypeRegistry& registry =
+		ComponentTypeRegistry::GetInstance();
+	if (typeID >= registry.GetComponentTypeCount()) {
+		return {};
+	}
+	const ComponentTypeInfo& info = registry.GetInfo(typeID);
+	if (info.storageKind != ComponentStorageKind::Buffer ||
+		!HasComponent(entity, typeID)) {
+		return {};
+	}
+
+	EntityLocation& location = records_[entity.index].location;
+	void* storage = location.archetype->GetRaw(
+		location.chunkIndex, location.row, typeID);
+	return UntypedDynamicBuffer(
+		static_cast<DynamicBufferHeader*>(storage),
+		info.elementSize, info.elementAlign,
+		info.bufferElementTriviallyCopyable);
+}
+
+Engine::UntypedDynamicBuffer Engine::ECSWorld::TryGetUntypedBuffer(
+	const Entity& entity, uint32_t typeID) const {
+
+	return const_cast<ECSWorld*>(this)->TryGetUntypedBuffer(
+		entity, typeID);
 }
 
 uint32_t ECSWorld::AllocateIndex() {
@@ -369,14 +562,27 @@ void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSig
 		void* dst = newArchetype->GetRaw(newChunkIndex, newRow, typeID);
 		if (oldSignature.Test(typeID)) {
 
+			const uint32_t oldColumnIndex = oldArchetype->GetColumnIndex(typeID);
+			const bool componentEnabled =
+				oldArchetype->GetChunks()[oldLocation.chunkIndex]->IsEnabledByColumnIndex(
+					oldColumnIndex, oldLocation.row);
 			void* src = oldArchetype->GetRaw(oldLocation.chunkIndex, oldLocation.row, typeID);
 			info.moveConstruct(dst, src);
+			// Enableable状態もデータと同じ行へ移し、構造変更で有効状態を失わない
+			const uint32_t newColumnIndex = newArchetype->GetColumnIndex(typeID);
+			newArchetype->GetChunks()[newChunkIndex]->SetEnabledByColumnIndex(
+				newColumnIndex, newRow, componentEnabled);
+			++relocatedComponentCount_;
+			relocatedComponentBytes_ += info.size;
 		} else {
 
 			// 新規追加コンポーネントだけデフォルト構築
 			newArchetype->ConstructDefault(newChunkIndex, newRow, typeID);
+			info.initializeStorage(*this, entity, dst);
 		}
 	}
+	++structuralMigrationCount_;
+	ReleaseExternalComponents(entity, &newSignature);
 
 	// 古いアーキタイプから対象エンティティを抜く
 	Entity moved = oldArchetype->RemoveSwap(oldLocation.chunkIndex, oldLocation.row);
@@ -386,6 +592,27 @@ void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSig
 	}
 	// 対象エンティティの新位置を記録
 	records_[entity.index].location = EntityLocation{ newArchetype, newChunkIndex, newRow };
+}
+
+void Engine::ECSWorld::ReleaseExternalComponents(
+	const Entity& entity, const EntitySignature* retainedSignature) {
+
+	if (!IsAlive(entity)) {
+		return;
+	}
+
+	const EntityLocation& location = records_[entity.index].location;
+	for (uint32_t typeID : location.archetype->GetTypes()) {
+
+		if (retainedSignature && retainedSignature->Test(typeID)) {
+			continue;
+		}
+		const ComponentTypeInfo& info =
+			ComponentTypeRegistry::GetInstance().GetInfo(typeID);
+		void* ptr = location.archetype->GetRaw(
+			location.chunkIndex, location.row, typeID);
+		info.releaseExternal(*this, entity, ptr);
+	}
 }
 
 EntityArchetype* ECSWorld::GetOrCreateArchetype(const EntitySignature& signature) {

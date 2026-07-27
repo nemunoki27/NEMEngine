@@ -473,6 +473,11 @@
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
     },
     {
+      "name": "getCollisionRuntimeState",
+      "nativeType": "GetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
       "name": "setCollisionTypeMask",
       "nativeType": "SetBoolCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, void>"
@@ -638,6 +643,16 @@
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, void>"
     },
     {
+      "name": "copySkinnedAnimationCurrentClip",
+      "nativeType": "CopyStringCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int>"
+    },
+    {
+      "name": "getSkinnedAnimationRuntimeState",
+      "nativeType": "GetSkinnedAnimationRuntimeStateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeSkinnedAnimationRuntimeState*, int>"
+    },
+    {
       "name": "fillMeshCopyPositions",
       "nativeType": "FillMeshCopyPositionsCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, int, int>"
@@ -666,6 +681,31 @@
       "name": "getUIBlocksGameplayInput",
       "nativeType": "GetNativeBoolCallback",
       "managedType": "delegate* unmanaged[Cdecl]<int>"
+    },
+    {
+      "name": "getUISelectableRuntimeState",
+      "nativeType": "GetUISelectableRuntimeStateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeUISelectableRuntimeState*, int>"
+    },
+    {
+      "name": "getUIProgressRuntimeState",
+      "nativeType": "GetUIProgressRuntimeStateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeUIProgressRuntimeState*, int>"
+    },
+    {
+      "name": "getCanvasInputLocked",
+      "nativeType": "GetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "getUIButtonClicked",
+      "nativeType": "GetUIButtonClickedCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int>"
+    },
+    {
+      "name": "getIrisTransitionRuntimeState",
+      "nativeType": "GetIrisTransitionRuntimeStateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeIrisTransitionRuntimeState*, int>"
     },
     {
       "name": "canvasCopyInputBindings",
@@ -741,6 +781,21 @@
       "name": "effectSetStateProperty",
       "nativeType": "EffectSetStatePropertyCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int>"
+    },
+    {
+      "name": "dynamicBufferLength",
+      "nativeType": "DynamicBufferLengthCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int>"
+    },
+    {
+      "name": "dynamicBufferCopy",
+      "nativeType": "DynamicBufferCopyCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int>"
+    },
+    {
+      "name": "dynamicBufferMutate",
+      "nativeType": "DynamicBufferMutateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, int, void*, int, int>"
     }
   ]
 }

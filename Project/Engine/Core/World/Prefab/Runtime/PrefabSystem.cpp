@@ -293,10 +293,29 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		Entity entity;
 		if (world.IsAlive(desc.reservedRoot) && prefabLocalFileID == header.rootLocalFileID) {
 			entity = desc.reservedRoot;
+			SceneAuthoring::EnsureGameObjectDefaults(world, entity);
 		} else {
-			entity = world.CreateEntity();
+
+			std::vector<uint32_t> componentTypeIDs;
+			const auto& components = entityJson["Components"];
+			componentTypeIDs.reserve(components.size() + 1);
+			componentTypeIDs.emplace_back(
+				ComponentTypeRegistry::GetInstance().GetID<PrefabLinkComponent>());
+			for (auto it = components.begin(); it != components.end(); ++it) {
+
+				// JointAttachmentは参照先を解決できたエンティティだけ後から追加する
+				if (it.key() == "JointAttachment") {
+					continue;
+				}
+				const ComponentTypeInfo* info =
+					ComponentTypeRegistry::GetInstance().FindByName(it.key());
+				if (!info) {
+					return false;
+				}
+				componentTypeIDs.emplace_back(info->id);
+			}
+			entity = SceneAuthoring::CreateGameObject(world, "Entity", componentTypeIDs);
 		}
-		SceneAuthoring::EnsureGameObjectDefaults(world, entity);
 		// 復元時は保存済みのシーンローカルIDを使い、無ければ新規採番する
 		UUID newSceneLocalFileID{};
 		if (auto remapIt = remapLookup.find(prefabLocalFileID); remapIt != remapLookup.end() && remapIt->second) {
@@ -367,8 +386,7 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		if (!world.IsAlive(entity) || !world.HasComponent<MeshRendererComponent>(entity)) {
 			continue;
 		}
-		auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
-		MeshSubMeshAuthoring::SyncComponent(&database, meshRenderer, true);
+		MeshSubMeshAuthoring::SyncEntity(&database, world, entity, true);
 	}
 
 	//============================================================================

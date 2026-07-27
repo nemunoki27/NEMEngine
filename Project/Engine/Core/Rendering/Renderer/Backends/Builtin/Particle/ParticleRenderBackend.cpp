@@ -294,7 +294,10 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 		const bool useBillboard = settings.space == PrimitiveRenderSpace::World3D &&
 			!settings.billboardAxes.empty() && camera && camera->valid;
 		BillboardComponent axisMask{};
-		axisMask.axes = settings.billboardAxes;
+		axisMask.axisMask = 0;
+		for (Axis axis : settings.billboardAxes) {
+			SetBillboardAxis(axisMask, axis, true);
+		}
 
 		for (const Particle& particle : payload->group->particles) {
 

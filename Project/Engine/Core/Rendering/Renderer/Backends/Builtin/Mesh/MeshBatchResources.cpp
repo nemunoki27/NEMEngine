@@ -43,12 +43,14 @@ namespace {
 		}
 		return item->world->TryGetComponent<Engine::MeshRendererComponent>(item->entity);
 	}
-	const Engine::SkinnedAnimationComponent* ResolveSkinnedAnimation(const Engine::RenderItem* item) {
+	const Engine::SkinnedAnimationRuntimeData* ResolveSkinnedAnimationRuntime(
+		const Engine::RenderItem* item) {
 
 		if (!item || !item->world) {
 			return nullptr;
 		}
-		return item->world->TryGetComponent<Engine::SkinnedAnimationComponent>(item->entity);
+		return Engine::TryGetSkinnedAnimationRuntime(
+			*item->world, item->entity);
 	}
 	const Engine::InvertedHullOutlineComponent* ResolveOutline(const Engine::RenderItem* item) {
 
@@ -358,7 +360,11 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 		}
 
 		const MeshRendererComponent* renderer = ResolveRenderer(item);
-		const SkinnedAnimationComponent* skinnedAnim = ResolveSkinnedAnimation(item);
+		const std::span<const SubMeshMaterial> subMeshes =
+			item->world ? GetMeshSubMeshes(*item->world, item->entity) :
+			std::span<const SubMeshMaterial>{};
+		const SkinnedAnimationRuntimeData* skinnedRuntime =
+			ResolveSkinnedAnimationRuntime(item);
 
 		// MS/VS
 		{
@@ -389,14 +395,16 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			}
 
 			// スキニングする場合の設定
-			if (gpuMesh.isSkinned && skinning_ && skinnedAnim && skinnedAnim->runtimeInitialized &&
-				skinnedAnim->palette.size() == gpuMesh.boneCount) {
+			if (gpuMesh.isSkinned && skinning_ && skinnedRuntime &&
+				skinnedRuntime->initialized &&
+				skinnedRuntime->palette.size() == gpuMesh.boneCount) {
 
 				instance.flags |= kMeshInstanceFlagSkinned;
 				instance.skinnedVertexOffset = skinnedInstanceCount_ * gpuMesh.vertexCount;
 
 				// スキニングパレットデータを追加
-				paletteScratch_.insert(paletteScratch_.end(), skinnedAnim->palette.begin(), skinnedAnim->palette.end());
+				paletteScratch_.insert(paletteScratch_.end(),
+					skinnedRuntime->palette.begin(), skinnedRuntime->palette.end());
 
 				// スキニングするインスタンスのレコードを追加
 				skinnedRecords_.push_back({ item->world,item->entity,instance.skinnedVertexOffset });
@@ -449,10 +457,11 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			// 色やテクスチャはreflection paramへ移したのでgSubMeshesには幾何情報のみ詰める
 			MeshSubMeshShaderData data{};
 			data.importedBaseColor = gpuMesh.subMeshes[subMeshIndex].baseColor;
-			if (renderer && subMeshIndex < renderer->subMeshes.size()) {
+			if (subMeshIndex < subMeshes.size()) {
 
-				const auto& authoring = renderer->subMeshes[subMeshIndex];
-				data.uvMatrix = authoring.uvMatrix;
+				const auto& authoring = subMeshes[subMeshIndex];
+				// 保存値からGPU転送値を構築し、Componentへ実行時行列を書き戻さない
+				data.uvMatrix = MeshSubMeshRuntime::BuildUVMatrix(authoring);
 				data.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
 				// localMatrixからも法線変換行列を構築し最終的にinstance.normalMatrixと合成される
 				const MeshNormalMatrixResult localNormal = BuildSafeMeshNormalMatrix(data.localMatrix);

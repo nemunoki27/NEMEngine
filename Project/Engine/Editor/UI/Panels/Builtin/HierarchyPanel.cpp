@@ -387,16 +387,16 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	// サブメッシュを持っているか
 	bool hasSubMeshChildren = false;
 	if (world.HasComponent<MeshRendererComponent>(entity)) {
-
-		const auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
-		hasSubMeshChildren = !meshRenderer.subMeshes.empty();
+		hasSubMeshChildren = !GetMeshSubMeshes(world, entity).empty();
 	}
 	// スキンメッシュのジョイントを持っているか
 	bool hasSkinnedMeshChildren = false;
 	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {
 
-		const auto& anim = world.GetComponent<SkinnedAnimationComponent>(entity);
-		hasSkinnedMeshChildren = !anim.runtimeSkeleton.joints.empty();
+		const SkinnedAnimationRuntimeData* runtime =
+			TryGetSkinnedAnimationRuntime(world, entity);
+		hasSkinnedMeshChildren =
+			runtime && !runtime->skeleton.joints.empty();
 	}
 
 	// ツリー表示できる子がいるか
@@ -714,8 +714,9 @@ void Engine::HierarchyPanel::DrawSubMeshNodes(const EditorPanelContext& context,
 	if (!world.HasComponent<MeshRendererComponent>(entity)) {
 		return;
 	}
-	const auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
-	if (meshRenderer.subMeshes.empty()) {
+	const std::span<const SubMeshMaterial> subMeshes =
+		GetMeshSubMeshes(world, entity);
+	if (subMeshes.empty()) {
 		return;
 	}
 
@@ -724,9 +725,10 @@ void Engine::HierarchyPanel::DrawSubMeshNodes(const EditorPanelContext& context,
 	if (MyGUI::CollapsingHeader("サブメッシュ", false)) {
 
 		ImGui::Indent();
-		for (uint32_t subMeshIndex = 0; subMeshIndex < static_cast<uint32_t>(meshRenderer.subMeshes.size()); ++subMeshIndex) {
+		for (uint32_t subMeshIndex = 0;
+			subMeshIndex < static_cast<uint32_t>(subMeshes.size()); ++subMeshIndex) {
 
-			const auto& subMesh = meshRenderer.subMeshes[subMeshIndex];
+			const auto& subMesh = subMeshes[subMeshIndex];
 
 			// 選択状態
 			bool isSelected = context.editorState && context.editorState->IsMeshSubMeshSelected(entity, subMesh.stableID, subMeshIndex);
@@ -766,7 +768,12 @@ void Engine::HierarchyPanel::DrawSkinnedMeshNodes(const EditorPanelContext& cont
 	if (!world.HasComponent<SkinnedAnimationComponent>(entity)) {
 		return;
 	}
-	const Skeleton& skeleton = world.GetComponent<SkinnedAnimationComponent>(entity).runtimeSkeleton;
+	const SkinnedAnimationRuntimeData* runtime =
+		TryGetSkinnedAnimationRuntime(world, entity);
+	if (!runtime) {
+		return;
+	}
+	const Skeleton& skeleton = runtime->skeleton;
 	if (skeleton.joints.empty()) {
 		return;
 	}
@@ -826,7 +833,12 @@ void Engine::HierarchyPanel::DrawJointNode(const EditorPanelContext& context, EC
 	if (!world.HasComponent<SkinnedAnimationComponent>(skinnedEntity)) {
 		return;
 	}
-	const Skeleton& skeleton = world.GetComponent<SkinnedAnimationComponent>(skinnedEntity).runtimeSkeleton;
+	const SkinnedAnimationRuntimeData* runtime =
+		TryGetSkinnedAnimationRuntime(world, skinnedEntity);
+	if (!runtime) {
+		return;
+	}
+	const Skeleton& skeleton = runtime->skeleton;
 	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(skeleton.joints.size())) {
 		return;
 	}

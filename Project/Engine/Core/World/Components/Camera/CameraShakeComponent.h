@@ -9,6 +9,16 @@
 
 namespace Engine {
 
+	// カメラシェイクのフレーム状態
+	struct CameraShakeRuntimeComponent {
+
+		static constexpr bool kSerializable = false;
+
+		float time = 0.0f;
+		Vector3 offset{};
+		bool active = false;
+	};
+
 	//============================================================================
 	//	CameraShakeComponent struct
 	//	カメラシェイク
@@ -16,22 +26,31 @@ namespace Engine {
 
 	struct CameraShakeComponent {
 
+		static constexpr bool kHasECSHooks = true;
+
 		// 有効/無効フラグ、デフォルトでfalse、trueで開始
 		bool enable = false;
 
 		// シェイクの長さ
 		float duration = 1.0f;
-		// 再生時間
-		float runtimeTime = 0.0f;
-		// 前フレームに適用したオフセット
-		Vector3 runtimeOffset{};
-		// 再生開始を検知するランタイムフラグ
-		bool runtimeActive = false;
 		// イージング
 		EasingType easingType = EasingType::Linear;
 
 		// シェイクの強さ
 		Vector3 strength = Vector3::AnyInit(4.0f);
+
+		// Registryから呼ばれるRuntime状態のライフサイクル
+		static void OnAdded(
+			ECSWorld& world, const Entity& entity, CameraShakeComponent& component);
+		static void OnRemoved(ECSWorld& world, const Entity& entity);
+		static void InitializeStorage(
+			ECSWorld& world, const Entity& entity, CameraShakeComponent& component);
+		static void ReleaseStorage(
+			ECSWorld& world, const Entity& entity, CameraShakeComponent& component);
+		static void DeserializeECS(ECSWorld& world, const Entity& entity,
+			const nlohmann::json& in, CameraShakeComponent& component);
+		static void SerializeECS(const ECSWorld& world, const Entity& entity,
+			const CameraShakeComponent& component, nlohmann::json& out);
 	};
 
 	// json変換

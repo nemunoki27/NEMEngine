@@ -27,6 +27,8 @@ namespace Engine {
 	struct MaterialParameterValue;
 	struct PrimitiveRendererComponent;
 	struct ParticleGroupRuntimeState;
+	struct FillMeshPosition;
+	struct FillMeshTriangleIndex;
 
 	//============================================================================
 	//	RenderQueue structures
@@ -82,8 +84,10 @@ namespace Engine {
 	struct FillMeshRenderPayload {
 
 		// Systemが構築した点列と三角形分割インデックスを指す、同フレーム内のみ有効
-		const std::vector<Vector3>* positions = nullptr;
-		const std::vector<uint32_t>* indices = nullptr;
+		const FillMeshPosition* positions = nullptr;
+		uint32_t positionCount = 0;
+		const FillMeshTriangleIndex* indices = nullptr;
+		uint32_t indexCount = 0;
 
 		Color4 color = Color4::White();
 

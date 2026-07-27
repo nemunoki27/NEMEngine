@@ -4,6 +4,9 @@ namespace NEMEngine;
 // マテリアルの color を C# から get/set する。パラメータ名は color→baseColor→albedo の順で自動解決する。
 public sealed partial class TextRenderer {
 
+    public DynamicBuffer<TextCharacterTransform> CharacterTransforms =>
+        entity.GetBuffer<TextCharacterTransform>();
+
     // マテリアル color を上書きする。
     public void SetColor(Color4 color) {
         NativeApi.WriteRendererMaterialColor(entity.native, 2, -1, "", color.r, color.g, color.b, color.a);

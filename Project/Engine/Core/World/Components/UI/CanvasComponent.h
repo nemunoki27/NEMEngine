@@ -4,12 +4,14 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
+#include <Engine/Core/World/ECS/Components/Core/DynamicBuffer.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
 #include <Engine/Core/Platform/Input/InputTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 
 // c++
+#include <span>
 #include <vector>
 
 namespace Engine {
@@ -32,6 +34,60 @@ namespace Engine {
 		TransitionTable,
 	};
 
+	enum class CanvasInputAction :
+		uint8_t {
+
+		Up,
+		Down,
+		Left,
+		Right,
+		Submit,
+	};
+
+	enum class CanvasInputDevice :
+		uint8_t {
+
+		Keyboard,
+		Gamepad,
+	};
+
+	// Canvasの操作と入力コードを1本のBufferへ集約する
+	struct CanvasInputBinding {
+
+		static constexpr ComponentStorageKind kStorageKind =
+			ComponentStorageKind::Buffer;
+		static constexpr uint32_t kInternalBufferCapacity = 16;
+		static constexpr bool kSerializable = false;
+
+		uint16_t code = 0;
+		CanvasInputAction action = CanvasInputAction::Up;
+		CanvasInputDevice device = CanvasInputDevice::Keyboard;
+	};
+
+	// 遷移テーブルのセル
+	struct CanvasNavigationCell {
+
+		static constexpr ComponentStorageKind kStorageKind =
+			ComponentStorageKind::Buffer;
+		static constexpr uint32_t kInternalBufferCapacity = 9;
+		static constexpr bool kSerializable = false;
+
+		UUID localFileID{};
+	};
+
+	// Systemだけが更新する入力状態
+	struct CanvasRuntimeComponent {
+
+		static constexpr bool kSerializable = false;
+
+		UUID selectedLocalFileID{};
+		Vector2 repeatDirection{};
+		float repeatElapsed = 0.0f;
+		bool repeatStarted = false;
+		bool inputLocked = false;
+	};
+
+	// InspectorとJSON変換で使用する非ECSの編集データ
 	struct CanvasNavigationTable {
 
 		static constexpr int32_t kMaxSize = 12;
@@ -42,6 +98,8 @@ namespace Engine {
 	};
 
 	struct CanvasComponent {
+
+		static constexpr bool kHasECSHooks = true;
 
 		bool enabled = true;
 
@@ -61,32 +119,28 @@ namespace Engine {
 		bool gamepadInputEnabled = true;
 		bool gamepadLeftStickEnabled = true;
 
-		std::vector<KeyDIKCode> navigationUpKeys{ KeyDIKCode::W,KeyDIKCode::UP };
-		std::vector<KeyDIKCode> navigationDownKeys{ KeyDIKCode::S,KeyDIKCode::DOWN };
-		std::vector<KeyDIKCode> navigationLeftKeys{ KeyDIKCode::A,KeyDIKCode::LEFT };
-		std::vector<KeyDIKCode> navigationRightKeys{ KeyDIKCode::D,KeyDIKCode::RIGHT };
-		std::vector<GamePadButtons> navigationUpGamepadButtons{ GamePadButtons::ARROW_UP };
-		std::vector<GamePadButtons> navigationDownGamepadButtons{ GamePadButtons::ARROW_DOWN };
-		std::vector<GamePadButtons> navigationLeftGamepadButtons{ GamePadButtons::ARROW_LEFT };
-		std::vector<GamePadButtons> navigationRightGamepadButtons{ GamePadButtons::ARROW_RIGHT };
-		std::vector<KeyDIKCode> submitKeys{ KeyDIKCode::RETURN,KeyDIKCode::SPACE };
-		std::vector<GamePadButtons> submitGamepadButtons{ GamePadButtons::A };
-
 		bool wrapNavigation = true;
 		CanvasNavigationMode navigationMode = CanvasNavigationMode::Automatic;
-		CanvasNavigationTable navigationTable{};
+		int32_t navigationRows = 3;
+		int32_t navigationColumns = 3;
 		float repeatDelay = 0.35f;
 		float repeatInterval = 0.12f;
 		float stickThreshold = 0.5f;
 
 		UUID firstSelectedLocalFileID{};
 
-		// ランタイム入力状態
-		UUID runtimeSelectedLocalFileID{};
-		Vector2 runtimeRepeatDirection{};
-		float runtimeRepeatElapsed = 0.0f;
-		bool runtimeRepeatStarted = false;
-		bool runtimeInputLocked = false;
+		// Registryから呼ばれる入力BufferとRuntime状態のライフサイクル
+		static void OnAdded(
+			ECSWorld& world, const Entity& entity, CanvasComponent& component);
+		static void OnRemoved(ECSWorld& world, const Entity& entity);
+		static void InitializeStorage(
+			ECSWorld& world, const Entity& entity, CanvasComponent& component);
+		static void ReleaseStorage(
+			ECSWorld& world, const Entity& entity, CanvasComponent& component);
+		static void DeserializeECS(ECSWorld& world, const Entity& entity,
+			const nlohmann::json& in, CanvasComponent& component);
+		static void SerializeECS(const ECSWorld& world, const Entity& entity,
+			const CanvasComponent& component, nlohmann::json& out);
 	};
 
 	// 遷移テーブルの行列数を変更する
@@ -94,5 +148,20 @@ namespace Engine {
 
 	void from_json(const nlohmann::json& in, CanvasComponent& component);
 	void to_json(nlohmann::json& out, const CanvasComponent& component);
+	std::span<CanvasInputBinding> GetCanvasInputBindings(
+		ECSWorld& world, const Entity& entity);
+	std::span<const CanvasInputBinding> GetCanvasInputBindings(
+		const ECSWorld& world, const Entity& entity);
+	void SetCanvasInputBindings(ECSWorld& world, const Entity& entity,
+		std::span<const CanvasInputBinding> bindings);
+	std::span<CanvasNavigationCell> GetCanvasNavigationCells(
+		ECSWorld& world, const Entity& entity);
+	std::span<const CanvasNavigationCell> GetCanvasNavigationCells(
+		const ECSWorld& world, const Entity& entity);
+	void SetCanvasNavigationCells(ECSWorld& world, const Entity& entity,
+		std::span<const UUID> cells);
+	void SerializeCanvas(const CanvasComponent& component,
+		std::span<const CanvasInputBinding> bindings,
+		std::span<const CanvasNavigationCell> cells, nlohmann::json& out);
 
 } // Engine

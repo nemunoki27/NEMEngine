@@ -175,8 +175,13 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 
 		auto& animation = world.GetComponent<SkinnedAnimationComponent>(entity);
 		if (animation.isDisplayBone) {
-			// スケルトンのジョイントを描画
-			renderer3D->DrawSkeleton(transform.worldMatrix, animation.runtimeSkeleton);
+			const SkinnedAnimationRuntimeData* runtime =
+				TryGetSkinnedAnimationRuntime(world, entity);
+			if (runtime) {
+				// チャンク外の更新済みポーズをデバッグ描画へ渡す
+				renderer3D->DrawSkeleton(
+					transform.worldMatrix, runtime->skeleton);
+			}
 		}
 	}
 	// 平行光源

@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/World/ECS/Baking/RuntimeWorldBaker.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 
 // c++
@@ -60,6 +61,10 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 	if (!currentWorld_) {
 		return;
 	}
+	currentWorld_->ResetFrameStatistics();
+	if (context.runtimeWorldBaker) {
+		context.runtimeWorldBaker->Flush();
+	}
 
 	// Fixed
 	context.fixedDeltaTime = fixedDeltaTime_;
@@ -92,6 +97,10 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 			sceneInstances->GetRevision() : 0;
 
 		currentWorld_->FlushWorldCommands();
+		// SceneやPrefabの構造変更を次のLifecycle処理より先にBakeする
+		if (context.runtimeWorldBaker) {
+			context.runtimeWorldBaker->Flush();
+		}
 		uint32_t syncCount = 0;
 		while (sceneInstances &&
 			sceneRevision != sceneInstances->GetRevision() &&
@@ -108,6 +117,9 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 			}
 			// AwakeやStartから積まれた構造変更を同じ安全地点で確定する
 			currentWorld_->FlushWorldCommands();
+			if (context.runtimeWorldBaker) {
+				context.runtimeWorldBaker->Flush();
+			}
 			++syncCount;
 		}
 		if (sceneInstances && sceneRevision != sceneInstances->GetRevision()) {
@@ -157,11 +169,25 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 		systemTimes.push_back({ name ? name : "Unknown", systemMs[i] });
 	}
 	FrameProfiler::GetInstance().SetEcsSystemTimes(systemTimes);
-	// archetype数をプロファイラへ渡す、ForEachの走査数の目安
-	FrameProfiler::GetInstance().SetArchetypeCount(currentWorld_->GetArchetypeCount());
 
 	// Update/LateUpdate中に予約されたエンティティ破棄をフレーム終端でまとめて反映する
 	currentWorld_->FlushPendingDestroyEntities();
+
+	// Chunkメモリと構造変更量をプロファイラへ渡す
+	const ECSWorldStatistics statistics = currentWorld_->GetStatistics();
+	FrameProfiler& profiler = FrameProfiler::GetInstance();
+	profiler.SetArchetypeCount(statistics.archetypeCount);
+	profiler.SetECSStatistics(FrameProfiler::ECSStatistics{
+		.entityCount = statistics.aliveEntityCount,
+		.archetypeCount = statistics.archetypeCount,
+		.chunkSlotCount = statistics.chunkSlotCount,
+		.allocatedChunkCount = statistics.allocatedChunkCount,
+		.allocatedChunkBytes = statistics.allocatedChunkBytes,
+		.payloadBytes = statistics.payloadBytes,
+		.structuralMigrationCount = statistics.structuralMigrationCount,
+		.relocatedComponentCount = statistics.relocatedComponentCount,
+		.relocatedComponentBytes = statistics.relocatedComponentBytes,
+		});
 }
 
 void Engine::SystemScheduler::DetachCurrentWorld(SystemContext& context) {

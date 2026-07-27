@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Entity/Entity.h>
+#include <Engine/Core/World/ECS/Components/Core/ComponentType.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 
@@ -12,6 +13,8 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+// json
+#include <json.hpp>
 
 namespace Engine {
 
@@ -41,6 +44,12 @@ namespace Engine {
 	//============================================================================
 	struct CollisionShape {
 
+		// Entityごとの形状列としてDynamicBufferへ格納する
+		static constexpr ComponentStorageKind kStorageKind =
+			ComponentStorageKind::Buffer;
+		static constexpr uint32_t kInternalBufferCapacity = 1;
+		static constexpr bool kSerializable = false;
+
 		// 判定形状
 		ColliderShapeType type = ColliderShapeType::Sphere3D;
 
@@ -64,6 +73,9 @@ namespace Engine {
 		// AABB3D / OBB3D用
 		Vector3 halfExtents3D = Vector3::AnyInit(0.5f);
 	};
+
+	void from_json(const nlohmann::json& in, CollisionShape& shape);
+	void to_json(nlohmann::json& out, const CollisionShape& shape);
 
 	//============================================================================
 	//	CollisionTypeDefinition structure

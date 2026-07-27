@@ -14,6 +14,7 @@ namespace Engine {
 	class AssetDatabase;
 	struct AudioSourceComponent;
 	struct AudioSourcePlaybackRuntime;
+	struct AudioSourceRuntimeData;
 
 	//============================================================================
 	//	AudioSourceSystem class
@@ -49,18 +50,21 @@ namespace Engine {
 		// 再生インスタンスを停止する
 		void StopPlayback(AudioSourcePlaybackRuntime& playback);
 		// AudioSourceが所有する再生をすべて停止する
-		void StopSourceVoices(AudioSourceComponent& component);
+		void StopSourceVoices(AudioSourceRuntimeData& runtime);
 		// AudioSourceへ再生インスタンスを追加する
-		bool StartPlayback(Entity entity, AudioSourceComponent& component,
+		bool StartPlayback(Entity entity, const AudioSourceComponent& component,
+			AudioSourceRuntimeData& runtime,
 			AssetID clip, bool primary, bool loop, float volumeScale, AssetDatabase& database);
 		// AudioSourceの再生要求を順番に処理する
-		void ProcessCommands(Entity entity, AudioSourceComponent& component, AssetDatabase& database);
+		void ProcessCommands(Entity entity, const AudioSourceComponent& component,
+			AudioSourceRuntimeData& runtime, AssetDatabase& database);
 		// 再生中の音量とループ設定を反映する
-		void UpdatePlaybackSettings(AudioSourceComponent& component);
+		void UpdatePlaybackSettings(
+			const AudioSourceComponent& component, AudioSourceRuntimeData& runtime);
 		// 自然終了した再生インスタンスを除去する
-		void CleanupFinishedPlaybacks(AudioSourceComponent& component);
+		void CleanupFinishedPlaybacks(AudioSourceRuntimeData& runtime);
 		// AudioSourceの公開用再生状態を更新する
-		void RefreshRuntimeState(AudioSourceComponent& component);
+		void RefreshRuntimeState(AudioSourceRuntimeData& runtime);
 		// 所有Entityが無くなったVoiceを停止する
 		void StopOrphanVoices(ECSWorld& world);
 		// ワールド内のAudioSourceを停止する

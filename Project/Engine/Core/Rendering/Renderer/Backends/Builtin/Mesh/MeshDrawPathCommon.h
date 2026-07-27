@@ -7,6 +7,10 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackendTypes.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/GraphicsRootBinder.h>
 
+namespace Engine {
+	struct SubMeshMaterial;
+}
+
 //============================================================================
 //	MeshDrawPathCommon namespace
 //	メッシュ描画パスで共通の処理
@@ -18,20 +22,20 @@ namespace Engine::MeshDrawPathCommon {
 
 	// サブメッシュのテクスチャアセットIDを解決(種別ごと)
 	AssetID ResolveSubMeshBaseColorTextureAssetID(const MeshGPUResource& gpuMesh,
-		const MeshRendererComponent* renderer, uint32_t subMeshIndex);
+		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
 	AssetID ResolveSubMeshNormalTextureAssetID(const MeshGPUResource& gpuMesh,
-		const MeshRendererComponent* renderer, uint32_t subMeshIndex);
+		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
 	AssetID ResolveSubMeshMetallicRoughnessTextureAssetID(const MeshGPUResource& gpuMesh,
-		const MeshRendererComponent* renderer, uint32_t subMeshIndex);
+		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
 	AssetID ResolveSubMeshEmissiveTextureAssetID(const MeshGPUResource& gpuMesh,
-		const MeshRendererComponent* renderer, uint32_t subMeshIndex);
+		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
 	AssetID ResolveSubMeshOcclusionTextureAssetID(const MeshGPUResource& gpuMesh,
-		const MeshRendererComponent* renderer, uint32_t subMeshIndex);
+		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
 	AssetID ResolveSubMeshSpecularTextureAssetID(const MeshGPUResource& gpuMesh,
-		const MeshRendererComponent* renderer, uint32_t subMeshIndex);
+		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
 
 	// ベースカラーテクスチャが元々割り当てられていたか(解決可否は問わない)
 	// 解決後AssetIDが空のとき、未割り当て(白)か割り当て済みだが未解決(エラー)かを区別するために使う
 	bool WasSubMeshBaseColorTextureAssigned(const MeshGPUResource& gpuMesh,
-		const MeshRendererComponent* renderer, uint32_t subMeshIndex);
+		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
 } // Engine

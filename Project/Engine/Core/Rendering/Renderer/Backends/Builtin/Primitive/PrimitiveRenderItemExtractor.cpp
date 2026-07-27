@@ -25,7 +25,7 @@ void Engine::PrimitiveRenderItemExtractor::Extract(ECSWorld& world, RenderSceneB
 		if (const auto* uvTransform = world.TryGetComponent<UVTransformComponent>(entity)) {
 			payload.uvMatrix = uvTransform->uvMatrix;
 		}
-		payload.materialOverrides = &renderer.parameterOverrides;
+		payload.materialOverrides = &renderer.parameterOverrides.Get();
 
 		// 描画アイテムの構築
 		RenderItem item{};

@@ -42,7 +42,10 @@ internal static class ManagedAbi {
     // v33: EffectEmitterのグループとState設定APIを追加
     // v34: アセット参照を128bit AssetGUIDへ移行
     // v35: UserSettingsルート取得APIを追加
-    internal const uint Version = 35;
+    // v36: Collision実行時状態をAuthoring設定から分離
+    // v37: 型安全なDynamicBufferアクセスを追加
+    // v42: IrisTransitionのRuntime状態を設定コンポーネントから分離
+    internal const uint Version = 42;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -135,6 +138,47 @@ public struct NativeRaycastHit {
     public int shapeIndex;
     public int triangleIndex;
     public int trigger;
+}
+
+// C++側 ManagedSkinnedAnimationRuntimeState と同一レイアウト
+[StructLayout(LayoutKind.Sequential)]
+public struct NativeSkinnedAnimationRuntimeState {
+
+    public float currentTime;
+    public float currentDuration;
+    public float blendTime;
+    public int repeatCount;
+    public int initialized;
+    public int finished;
+    public int inTransition;
+}
+
+// C++側 ManagedUISelectableRuntimeState と同一レイアウト
+[StructLayout(LayoutKind.Sequential)]
+public struct NativeUISelectableRuntimeState {
+
+    public int state;
+    public int normalThisFrame;
+    public int selectedThisFrame;
+    public int submittedThisFrame;
+    public int disabledThisFrame;
+}
+
+// C++側 ManagedUIProgressRuntimeState と同一レイアウト
+[StructLayout(LayoutKind.Sequential)]
+public struct NativeUIProgressRuntimeState {
+
+    public float displayedValue;
+    public float delayedValue;
+    public int initialized;
+}
+
+// C++側 ManagedIrisTransitionRuntimeState と同一レイアウト
+[StructLayout(LayoutKind.Sequential)]
+public struct NativeIrisTransitionRuntimeState {
+
+    public int state;
+    public float progress;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -319,6 +363,7 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetVisibilityLayerMask;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetVisibilityLayerMask;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetCollisionTypeMask;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetCollisionRuntimeState;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetCollisionTypeMask;
     internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity> FindEntityByName;
     internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity> FindEntityByTag;
@@ -360,6 +405,8 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, float> GetSkinnedAnimationDuration;
     // 指定クリップを頭から再生する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> PlaySkinnedAnimation;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> CopySkinnedAnimationCurrentClip;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeSkinnedAnimationRuntimeState*, int> GetSkinnedAnimationRuntimeState;
     // v24: FillMeshRendererComponentの点列取得
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, int, int> FillMeshCopyPositions;
     // v25: EffectEmitterの発生とハンドルまたはグループ単位の制御
@@ -374,8 +421,17 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int> EffectSetStateName;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> EffectGetStateProperty;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> EffectSetStateProperty;
+    // v37: POD BufferをEntityと固定Type IDから解決して操作する
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int> DynamicBufferLength;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> DynamicBufferCopy;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, int, void*, int, int> DynamicBufferMutate;
     // v26: UI入力ブロック状態
     internal static delegate* unmanaged[Cdecl]<int> GetUIBlocksGameplayInput;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeUISelectableRuntimeState*, int> GetUISelectableRuntimeState;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeUIProgressRuntimeState*, int> GetUIProgressRuntimeState;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetCanvasInputLocked;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int> GetUIButtonClicked;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeIrisTransitionRuntimeState*, int> GetIrisTransitionRuntimeState;
     // v28: Canvasの操作別入力配列
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, int> CanvasCopyInputBindings;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void> CanvasSetInputBindings;
@@ -484,6 +540,7 @@ internal static unsafe class NativeApi {
         GetVisibilityLayerMask = callbacks->getVisibilityLayerMask;
         SetVisibilityLayerMask = callbacks->setVisibilityLayerMask;
         GetCollisionTypeMask = callbacks->getCollisionTypeMask;
+        GetCollisionRuntimeState = callbacks->getCollisionRuntimeState;
         SetCollisionTypeMask = callbacks->setCollisionTypeMask;
         FindEntityByName = callbacks->findEntityByName;
         FindEntityByTag = callbacks->findEntityByTag;
@@ -517,6 +574,8 @@ internal static unsafe class NativeApi {
         CollisionSetShapeProperty = callbacks->collisionSetShapeProperty;
         GetSkinnedAnimationDuration = callbacks->getSkinnedAnimationDuration;
         PlaySkinnedAnimation = callbacks->playSkinnedAnimation;
+        CopySkinnedAnimationCurrentClip = callbacks->copySkinnedAnimationCurrentClip;
+        GetSkinnedAnimationRuntimeState = callbacks->getSkinnedAnimationRuntimeState;
         FillMeshCopyPositions = callbacks->fillMeshCopyPositions;
         EffectEmit = callbacks->effectEmit;
         EffectStop = callbacks->effectStop;
@@ -529,7 +588,15 @@ internal static unsafe class NativeApi {
         EffectSetStateName = callbacks->effectSetStateName;
         EffectGetStateProperty = callbacks->effectGetStateProperty;
         EffectSetStateProperty = callbacks->effectSetStateProperty;
+        DynamicBufferLength = callbacks->dynamicBufferLength;
+        DynamicBufferCopy = callbacks->dynamicBufferCopy;
+        DynamicBufferMutate = callbacks->dynamicBufferMutate;
         GetUIBlocksGameplayInput = callbacks->getUIBlocksGameplayInput;
+        GetUISelectableRuntimeState = callbacks->getUISelectableRuntimeState;
+        GetUIProgressRuntimeState = callbacks->getUIProgressRuntimeState;
+        GetCanvasInputLocked = callbacks->getCanvasInputLocked;
+        GetUIButtonClicked = callbacks->getUIButtonClicked;
+        GetIrisTransitionRuntimeState = callbacks->getIrisTransitionRuntimeState;
         CanvasCopyInputBindings = callbacks->canvasCopyInputBindings;
         CanvasSetInputBindings = callbacks->canvasSetInputBindings;
         RequestApplicationQuit = callbacks->requestApplicationQuit;
@@ -897,6 +964,97 @@ internal static unsafe class NativeApi {
         if (RemoveComponent != null && typeId >= 0) {
             RemoveComponent(entity, typeId);
         }
+    }
+
+    // チャンク外Runtimeから現在のクリップ名を取得する
+    internal static string ReadSkinnedAnimationCurrentClip(NativeEntity entity) {
+        if (CopySkinnedAnimationCurrentClip == null) {
+            return string.Empty;
+        }
+
+        int length = CopySkinnedAnimationCurrentClip(entity, null, 0);
+        if (length <= 0) {
+            return string.Empty;
+        }
+
+        byte[] bytes = new byte[length + 1];
+        fixed (byte* buffer = bytes) {
+            int written = CopySkinnedAnimationCurrentClip(
+                entity, buffer, bytes.Length);
+            return written <= 0 ? string.Empty :
+                Encoding.UTF8.GetString(buffer, written);
+        }
+    }
+
+    // チャンク外Runtimeから固定長の再生状態を取得する
+    internal static NativeSkinnedAnimationRuntimeState ReadSkinnedAnimationRuntimeState(
+        NativeEntity entity) {
+
+        NativeSkinnedAnimationRuntimeState state = default;
+        if (GetSkinnedAnimationRuntimeState != null) {
+            GetSkinnedAnimationRuntimeState(entity, &state);
+        }
+        return state;
+    }
+
+    // UI選択の状態とフレーム遷移をまとめて取得する
+    internal static NativeUISelectableRuntimeState ReadUISelectableRuntimeState(
+        NativeEntity entity) {
+
+        NativeUISelectableRuntimeState state = default;
+        if (GetUISelectableRuntimeState != null) {
+            GetUISelectableRuntimeState(entity, &state);
+        }
+        return state;
+    }
+
+    // UIProgressの補間済み表示値をまとめて取得する
+    internal static NativeUIProgressRuntimeState ReadUIProgressRuntimeState(
+        NativeEntity entity) {
+
+        NativeUIProgressRuntimeState state = default;
+        if (GetUIProgressRuntimeState != null) {
+            GetUIProgressRuntimeState(entity, &state);
+        }
+        return state;
+    }
+
+    // アイリス遷移の状態と進行度をまとめて取得する
+    internal static NativeIrisTransitionRuntimeState ReadIrisTransitionRuntimeState(
+        NativeEntity entity) {
+
+        NativeIrisTransitionRuntimeState state = default;
+        if (GetIrisTransitionRuntimeState != null) {
+            GetIrisTransitionRuntimeState(entity, &state);
+        }
+        return state;
+    }
+
+    internal static int ReadDynamicBufferLength(
+        NativeEntity entity, int typeId, int elementSize) {
+
+        return DynamicBufferLength != null ?
+            DynamicBufferLength(entity, typeId, elementSize) : -1;
+    }
+
+    internal static int CopyDynamicBuffer(
+        NativeEntity entity, int typeId, int elementSize,
+        int startIndex, void* destination, int capacity) {
+
+        return DynamicBufferCopy != null ?
+            DynamicBufferCopy(
+                entity, typeId, elementSize,
+                startIndex, destination, capacity) : -1;
+    }
+
+    internal static bool MutateDynamicBuffer(
+        NativeEntity entity, int typeId, int elementSize,
+        int operation, int index, void* data, int count) {
+
+        return DynamicBufferMutate != null &&
+            DynamicBufferMutate(
+                entity, typeId, elementSize,
+                operation, index, data, count) != 0;
     }
 
     internal static void EnqueueDestroyEntity(NativeEntity entity) {
@@ -1520,6 +1678,8 @@ internal static unsafe class NativeApi {
     }
     internal static uint ReadCollisionTypeMask(NativeEntity entity)
         => GetCollisionTypeMask != null ? (uint)GetCollisionTypeMask(entity) : 0u;
+    internal static bool ReadCollisionRuntimeState(NativeEntity entity)
+        => GetCollisionRuntimeState != null && GetCollisionRuntimeState(entity) != 0;
     internal static void WriteCollisionTypeMask(NativeEntity entity, uint mask) {
         if (SetCollisionTypeMask != null) { SetCollisionTypeMask(entity, (int)mask); }
     }

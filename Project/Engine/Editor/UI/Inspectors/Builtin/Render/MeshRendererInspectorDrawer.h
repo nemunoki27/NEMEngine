@@ -53,11 +53,19 @@ namespace Engine {
 		// サブメッシュのマテリアルパラメータをまとめて編集するモードと上書き許可済みparam
 		bool batchEditSubMeshMaterials_ = false;
 		std::unordered_set<std::string> batchOverrideAllowed_{};
+		// DynamicBufferから分離した編集中のサブメッシュ一覧
+		std::vector<SubMeshMaterial> subMeshDraft_{};
 
 		//--------- functions ----------------------------------------------------
 
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, bool& anyItemActive) override;
+		// ワールドのDynamicBufferから編集用配列を同期する
+		void OnSyncDraftFromWorld(ECSWorld& world, const Entity& entity,
+			const MeshRendererComponent& component) override;
+		// サブメッシュ一覧を含むドラフトを保存データへ変換する
+		void SerializeDraft(ECSWorld& world, const Entity& entity,
+			const MeshRendererComponent& component, nlohmann::json& out) const override;
 
 		// プレビュー適用時にランタイム行列も更新する
 		void ApplyPreview(ECSWorld& world, const Entity& entity,
@@ -87,9 +95,6 @@ namespace Engine {
 		// 全サブメッシュへ同じマテリアルパラメータをまとめて適用する編集UI
 		void DrawBatchSubMeshMaterialEditor(const EditorPanelContext& context,
 			MeshRendererComponent& draft, bool& anyItemActive);
-		// ドラフトの内容をワールドのコンポーネントに反映する前の追加処理
-		void UpdateDraftRuntime(ECSWorld& world, const Entity& entity,
-			MeshRendererComponent& draft) const;
 	};
 } // Engine
 

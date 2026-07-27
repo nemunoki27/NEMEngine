@@ -21,6 +21,10 @@
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/UI/CanvasComponent.h>
+#include <Engine/Core/World/Components/UI/UISelectableComponent.h>
+#include <Engine/Core/World/Components/UI/UIProgressComponent.h>
+#include <Engine/Core/World/Components/UI/UIImageButtonComponent.h>
+#include <Engine/Core/World/Components/UI/UITextButtonComponent.h>
 #include <Engine/Core/World/Components/UI/IrisTransitionComponent.h>
 #include <Engine/Core/World/UI/UIRuntimeService.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
@@ -57,32 +61,12 @@ namespace Engine {
 			return context ? context->world : nullptr;
 		}
 
-		// Canvasのキーボード入力配列を取得する
-		std::vector<KeyDIKCode>* ResolveCanvasKeyBindings(
-			CanvasComponent& canvas, int32_t action) {
+		bool IsCanvasBindingCategoryValid(int32_t action, int32_t device) {
 
-			switch (action) {
-			case 0: return &canvas.navigationUpKeys;
-			case 1: return &canvas.navigationDownKeys;
-			case 2: return &canvas.navigationLeftKeys;
-			case 3: return &canvas.navigationRightKeys;
-			case 4: return &canvas.submitKeys;
-			default: return nullptr;
-			}
-		}
-
-		// Canvasのゲームパッド入力配列を取得する
-		std::vector<GamePadButtons>* ResolveCanvasGamepadBindings(
-			CanvasComponent& canvas, int32_t action) {
-
-			switch (action) {
-			case 0: return &canvas.navigationUpGamepadButtons;
-			case 1: return &canvas.navigationDownGamepadButtons;
-			case 2: return &canvas.navigationLeftGamepadButtons;
-			case 3: return &canvas.navigationRightGamepadButtons;
-			case 4: return &canvas.submitGamepadButtons;
-			default: return nullptr;
-			}
+			return 0 <= action &&
+				action <= static_cast<int32_t>(CanvasInputAction::Submit) &&
+				0 <= device &&
+				device <= static_cast<int32_t>(CanvasInputDevice::Gamepad);
 		}
 	}
 
@@ -188,15 +172,16 @@ namespace Engine {
 			return;
 		}
 
-		// count0はクリア扱い、点列を丸ごと差し替える
-		line->points.clear();
+		// Managed配列を一度変換し、DynamicBufferをまとめて差し替える
+		std::vector<LinePoint> converted{};
 		if (points != nullptr && count > 0) {
 
-			line->points.reserve(static_cast<size_t>(count));
+			converted.reserve(static_cast<size_t>(count));
 			for (int32_t i = 0; i < count; ++i) {
-				line->points.emplace_back(ToLinePoint(points[i]));
+				converted.emplace_back(ToLinePoint(points[i]));
 			}
 		}
+		SetLinePoints(*world, resolved, converted);
 		line->loop = (loop != 0);
 	}
 
@@ -214,15 +199,16 @@ namespace Engine {
 			return;
 		}
 
-		// count0はクリア扱い、点列を丸ごと差し替える
-		fillMesh->facePositions.clear();
+		// Managed配列を変換して編集点列Bufferをまとめて差し替える
+		std::vector<Vector3> converted{};
 		if (points != nullptr && count > 0) {
 
-			fillMesh->facePositions.reserve(static_cast<size_t>(count));
+			converted.reserve(static_cast<size_t>(count));
 			for (int32_t i = 0; i < count; ++i) {
-				fillMesh->facePositions.emplace_back(points[i].x, points[i].y, points[i].z);
+				converted.emplace_back(points[i].x, points[i].y, points[i].z);
 			}
 		}
+		SetFillMeshPositions(*world, resolved, converted);
 	}
 
 	int32_t ManagedScriptRuntime::FillMeshCopyPositionsCallback(ManagedNativeEntity entity,
@@ -239,7 +225,9 @@ namespace Engine {
 			return 0;
 		}
 
-		const int32_t count = static_cast<int32_t>(fillMesh->facePositions.size());
+		const std::span<const FillMeshPosition> positions =
+			GetFillMeshPositions(*world, resolved);
+		const int32_t count = static_cast<int32_t>(positions.size());
 		if (!points || capacity <= 0) {
 			return count;
 		}
@@ -254,12 +242,123 @@ namespace Engine {
 		const int32_t copyCount = (std::min)(count, capacity);
 		for (int32_t i = 0; i < copyCount; ++i) {
 
+			const Vector3 localPosition =
+				positions[static_cast<size_t>(i)].value;
 			const Vector3 position = worldSpace != 0 ?
-				Vector3::Transform(fillMesh->facePositions[static_cast<size_t>(i)], worldMatrix) :
-				fillMesh->facePositions[static_cast<size_t>(i)];
+				Vector3::Transform(localPosition, worldMatrix) : localPosition;
 			points[i] = { position.x, position.y, position.z };
 		}
 		return count;
+	}
+
+	int32_t ManagedScriptRuntime::GetUISelectableRuntimeStateCallback(
+		ManagedNativeEntity entity,
+		ManagedUISelectableRuntimeState* outState) {
+
+		if (!outState) {
+			return 0;
+		}
+		*outState = {};
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		const UISelectableRuntimeComponent* runtime =
+			world && world->IsAlive(resolved) ?
+			world->TryGetComponent<UISelectableRuntimeComponent>(resolved) :
+			nullptr;
+		if (!runtime) {
+			return 0;
+		}
+
+		outState->state = static_cast<int32_t>(runtime->state);
+		outState->normalThisFrame = runtime->normalThisFrame ? 1 : 0;
+		outState->selectedThisFrame = runtime->selectedThisFrame ? 1 : 0;
+		outState->submittedThisFrame =
+			runtime->submittedThisFrame ? 1 : 0;
+		outState->disabledThisFrame =
+			runtime->disabledThisFrame ? 1 : 0;
+		return 1;
+	}
+
+	int32_t ManagedScriptRuntime::GetUIProgressRuntimeStateCallback(
+		ManagedNativeEntity entity,
+		ManagedUIProgressRuntimeState* outState) {
+
+		if (!outState) {
+			return 0;
+		}
+		*outState = {};
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		const UIProgressRuntimeData* runtime =
+			world && world->IsAlive(resolved) ?
+			TryGetUIProgressRuntime(*world, resolved) : nullptr;
+		if (!runtime) {
+			return 0;
+		}
+
+		// 外部Runtimeストレージから固定長スナップショットだけを渡す
+		outState->displayedValue = runtime->displayedValue;
+		outState->delayedValue = runtime->delayedValue;
+		outState->initialized = runtime->initialized ? 1 : 0;
+		return 1;
+	}
+
+	int32_t ManagedScriptRuntime::GetCanvasInputLockedCallback(
+		ManagedNativeEntity entity) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		const CanvasRuntimeComponent* runtime =
+			world && world->IsAlive(resolved) ?
+			world->TryGetComponent<CanvasRuntimeComponent>(resolved) :
+			nullptr;
+		return runtime && runtime->inputLocked ? 1 : 0;
+	}
+
+	int32_t ManagedScriptRuntime::GetUIButtonClickedCallback(
+		ManagedNativeEntity entity, int32_t buttonType) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		if (!world || !world->IsAlive(resolved)) {
+			return 0;
+		}
+		if (buttonType == 0) {
+			const UIImageButtonRuntimeComponent* runtime =
+				world->TryGetComponent<UIImageButtonRuntimeComponent>(resolved);
+			return runtime && runtime->clickedThisFrame ? 1 : 0;
+		}
+		if (buttonType == 1) {
+			const UITextButtonRuntimeComponent* runtime =
+				world->TryGetComponent<UITextButtonRuntimeComponent>(resolved);
+			return runtime && runtime->clickedThisFrame ? 1 : 0;
+		}
+		return 0;
+	}
+
+	int32_t ManagedScriptRuntime::GetIrisTransitionRuntimeStateCallback(
+		ManagedNativeEntity entity,
+		ManagedIrisTransitionRuntimeState* outState) {
+
+		if (!outState) {
+			return 0;
+		}
+		*outState = {};
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		const IrisTransitionRuntimeComponent* runtime =
+			world && world->IsAlive(resolved) ?
+			world->TryGetComponent<IrisTransitionRuntimeComponent>(resolved) :
+			nullptr;
+		if (!runtime) {
+			return 0;
+		}
+		outState->state = static_cast<int32_t>(runtime->state);
+		outState->progress = runtime->progress;
+		return 1;
 	}
 
 	int32_t ManagedScriptRuntime::CanvasCopyInputBindingsCallback(
@@ -271,30 +370,27 @@ namespace Engine {
 			return 0;
 		}
 		const Entity resolved = ResolveEntity(entity);
-		CanvasComponent* canvas = world->IsAlive(resolved) ?
-			world->TryGetComponent<CanvasComponent>(resolved) : nullptr;
-		if (!canvas || device < 0 || 1 < device) {
+		if (!world->IsAlive(resolved) ||
+			!world->HasComponent<CanvasComponent>(resolved) ||
+			!IsCanvasBindingCategoryValid(action, device)) {
 			return 0;
 		}
 
-		const std::vector<KeyDIKCode>* keys =
-			device == 0 ? ResolveCanvasKeyBindings(*canvas, action) : nullptr;
-		const std::vector<GamePadButtons>* buttons =
-			device == 1 ? ResolveCanvasGamepadBindings(*canvas, action) : nullptr;
-		if (!keys && !buttons) {
-			return 0;
-		}
-		const int32_t count = keys ?
-			static_cast<int32_t>(keys->size()) : static_cast<int32_t>(buttons->size());
-		if (!bindings || capacity <= 0) {
-			return count;
-		}
-
-		const int32_t copyCount = (std::min)(count, capacity);
-		for (int32_t i = 0; i < copyCount; ++i) {
-			bindings[i] = keys ?
-				static_cast<int32_t>((*keys)[static_cast<size_t>(i)]) :
-				static_cast<int32_t>((*buttons)[static_cast<size_t>(i)]);
+		const CanvasInputAction targetAction =
+			static_cast<CanvasInputAction>(action);
+		const CanvasInputDevice targetDevice =
+			static_cast<CanvasInputDevice>(device);
+		const std::span<const CanvasInputBinding> stored =
+			GetCanvasInputBindings(*world, resolved);
+		int32_t count = 0;
+		for (const CanvasInputBinding& binding : stored) {
+			if (binding.action == targetAction &&
+				binding.device == targetDevice) {
+				if (bindings && count < capacity) {
+					bindings[count] = binding.code;
+				}
+				++count;
+			}
 		}
 		return count;
 	}
@@ -304,49 +400,56 @@ namespace Engine {
 		const int32_t* bindings, int32_t count) {
 
 		ECSWorld* world = ResolveWorld(entity);
-		if (!world || device < 0 || 1 < device || count < 0) {
+		if (!world || !IsCanvasBindingCategoryValid(action, device) ||
+			count < 0) {
 			return;
 		}
 		const Entity resolved = ResolveEntity(entity);
-		CanvasComponent* canvas = world->IsAlive(resolved) ?
-			world->TryGetComponent<CanvasComponent>(resolved) : nullptr;
-		if (!canvas) {
+		if (!world->IsAlive(resolved) ||
+			!world->HasComponent<CanvasComponent>(resolved)) {
 			return;
 		}
 
-		if (device == 0) {
-			std::vector<KeyDIKCode>* keys = ResolveCanvasKeyBindings(*canvas, action);
-			if (!keys) {
-				return;
+		const CanvasInputAction targetAction =
+			static_cast<CanvasInputAction>(action);
+		const CanvasInputDevice targetDevice =
+			static_cast<CanvasInputDevice>(device);
+		const int32_t minCode =
+			targetDevice == CanvasInputDevice::Keyboard ? 1 : 0;
+		const int32_t maxCode =
+			targetDevice == CanvasInputDevice::Keyboard ?
+			255 : static_cast<int32_t>(GamePadButtons::Counts) - 1;
+
+		std::vector<CanvasInputBinding> replaced;
+		const std::span<const CanvasInputBinding> stored =
+			GetCanvasInputBindings(*world, resolved);
+		replaced.reserve(stored.size() + static_cast<size_t>(count));
+		for (const CanvasInputBinding& binding : stored) {
+			if (binding.action != targetAction ||
+				binding.device != targetDevice) {
+				replaced.emplace_back(binding);
 			}
-			keys->clear();
-			for (int32_t i = 0; bindings && i < count; ++i) {
-
-				const int32_t code = bindings[i];
-				const KeyDIKCode key = static_cast<KeyDIKCode>(code);
-				if (0 < code && code <= 255 &&
-					std::find(keys->begin(), keys->end(), key) == keys->end()) {
-					keys->emplace_back(key);
-				}
-			}
-			return;
 		}
-
-		std::vector<GamePadButtons>* buttons =
-			ResolveCanvasGamepadBindings(*canvas, action);
-		if (!buttons) {
-			return;
-		}
-		buttons->clear();
 		for (int32_t i = 0; bindings && i < count; ++i) {
 
 			const int32_t code = bindings[i];
-			const GamePadButtons button = static_cast<GamePadButtons>(code);
-			if (0 <= code && code < static_cast<int32_t>(GamePadButtons::Counts) &&
-				std::find(buttons->begin(), buttons->end(), button) == buttons->end()) {
-				buttons->emplace_back(button);
+			if (code < minCode || maxCode < code) {
+				continue;
+			}
+			const bool duplicated = std::any_of(
+				replaced.begin(), replaced.end(),
+				[&](const CanvasInputBinding& binding) {
+					return binding.code == code &&
+						binding.action == targetAction &&
+						binding.device == targetDevice;
+				});
+			if (!duplicated) {
+				replaced.emplace_back(CanvasInputBinding{
+					static_cast<uint16_t>(code), targetAction, targetDevice
+					});
 			}
 		}
+		SetCanvasInputBindings(*world, resolved, replaced);
 	}
 
 	void ManagedScriptRuntime::IrisTransitionCommandCallback(
@@ -360,27 +463,32 @@ namespace Engine {
 			return;
 		}
 
-		const uint64_t beforeSerial = iris->runtimeCommandSerial;
+		IrisTransitionRuntimeComponent* runtime =
+			world->TryGetComponent<IrisTransitionRuntimeComponent>(resolved);
+		if (!runtime) {
+			return;
+		}
+		const uint64_t beforeSerial = runtime->commandSerial;
 		switch (command) {
 		case 0:
-			iris->IrisOut(value);
+			RequestIrisOut(*world, resolved, value);
 			break;
 		case 1:
-			iris->IrisIn(value);
+			RequestIrisIn(*world, resolved, value);
 			break;
 		case 2:
-			iris->SetProgress(value);
+			RequestIrisProgress(*world, resolved, value);
 			break;
 		case 3:
-			iris->Cancel();
+			RequestIrisCancel(*world, resolved);
 			break;
 		case 4:
-			iris->Reset();
+			RequestIrisReset(*world, resolved);
 			break;
 		default:
 			return;
 		}
-		if (beforeSerial == iris->runtimeCommandSerial) {
+		if (beforeSerial == runtime->commandSerial) {
 			return;
 		}
 
@@ -768,28 +876,36 @@ namespace Engine {
 			if (componentType == 0) {
 
 				if (Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
+					const std::span<Engine::SubMeshMaterial> subMeshes =
+						Engine::GetMeshSubMeshes(world, entity);
 					if (subMeshIndex < 0) {
-						for (Engine::SubMeshMaterial& subMesh : renderer->subMeshes) {
-							targets.emplace_back(&subMesh.parameterOverrides);
+						for (Engine::SubMeshMaterial& subMesh : subMeshes) {
+							targets.emplace_back(
+								&subMesh.parameterOverrides.GetMutable());
 						}
-					} else if (static_cast<size_t>(subMeshIndex) < renderer->subMeshes.size()) {
-						targets.emplace_back(&renderer->subMeshes[static_cast<size_t>(subMeshIndex)].parameterOverrides);
+					} else if (static_cast<size_t>(subMeshIndex) < subMeshes.size()) {
+						targets.emplace_back(
+							&subMeshes[static_cast<size_t>(subMeshIndex)].
+								parameterOverrides.GetMutable());
 					}
 				}
 			} else if (componentType == 1) {
 
 				if (Engine::SpriteRendererComponent* renderer = world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
-					targets.emplace_back(&renderer->parameterOverrides);
+					targets.emplace_back(
+						&renderer->parameterOverrides.GetMutable());
 				}
 			} else if (componentType == 2) {
 
 				if (Engine::TextRendererComponent* renderer = world.TryGetComponent<Engine::TextRendererComponent>(entity)) {
-					targets.emplace_back(&renderer->parameterOverrides);
+					targets.emplace_back(
+						&renderer->parameterOverrides.GetMutable());
 				}
 			} else if (componentType == 3) {
 
 				if (Engine::PrimitiveRendererComponent* renderer = world.TryGetComponent<Engine::PrimitiveRendererComponent>(entity)) {
-					targets.emplace_back(&renderer->parameterOverrides);
+					targets.emplace_back(
+						&renderer->parameterOverrides.GetMutable());
 				}
 			}
 			return targets;
@@ -802,11 +918,11 @@ namespace Engine {
 				return nullptr;
 			}
 			Engine::CollisionComponent* collision = world.TryGetComponent<Engine::CollisionComponent>(entity);
-			if (!collision || shapeIndex < 0 ||
-				static_cast<size_t>(shapeIndex) >= collision->shapes.size()) {
+			if (!collision || shapeIndex < 0) {
 				return nullptr;
 			}
-			return &collision->shapes[static_cast<size_t>(shapeIndex)];
+			return Engine::TryGetCollisionShape(
+				world, entity, static_cast<uint32_t>(shapeIndex));
 		}
 	}
 
@@ -887,7 +1003,8 @@ namespace Engine {
 		const Entity resolved = ResolveEntity(entity);
 		const CollisionComponent* collision = world->IsAlive(resolved) ?
 			world->TryGetComponent<CollisionComponent>(resolved) : nullptr;
-		return collision ? static_cast<int32_t>(collision->shapes.size()) : 0;
+		return collision ?
+			static_cast<int32_t>(GetCollisionShapes(*world, resolved).size()) : 0;
 	}
 
 	void ManagedScriptRuntime::CollisionAddShapeCallback(ManagedNativeEntity entity) {
@@ -900,7 +1017,8 @@ namespace Engine {
 		CollisionComponent* collision = world->IsAlive(resolved) ?
 			world->TryGetComponent<CollisionComponent>(resolved) : nullptr;
 		if (collision) {
-			collision->shapes.emplace_back(CollisionShape{});
+			AddCollisionShape(*world, resolved);
+			world->MarkComponentModified<CollisionComponent>(resolved);
 		}
 	}
 
@@ -913,8 +1031,10 @@ namespace Engine {
 		const Entity resolved = ResolveEntity(entity);
 		CollisionComponent* collision = world->IsAlive(resolved) ?
 			world->TryGetComponent<CollisionComponent>(resolved) : nullptr;
-		if (collision && 0 <= shapeIndex && static_cast<size_t>(shapeIndex) < collision->shapes.size()) {
-			collision->shapes.erase(collision->shapes.begin() + shapeIndex);
+		if (collision && 0 <= shapeIndex &&
+			RemoveCollisionShape(*world, resolved, static_cast<uint32_t>(shapeIndex))) {
+
+			world->MarkComponentModified<CollisionComponent>(resolved);
 		}
 	}
 
@@ -928,7 +1048,8 @@ namespace Engine {
 		CollisionComponent* collision = world->IsAlive(resolved) ?
 			world->TryGetComponent<CollisionComponent>(resolved) : nullptr;
 		if (collision) {
-			collision->shapes.clear();
+			ClearCollisionShapes(*world, resolved);
+			world->MarkComponentModified<CollisionComponent>(resolved);
 		}
 	}
 
@@ -1031,7 +1152,51 @@ namespace Engine {
 		// 実際の遷移や再生時間のリセットはSkinnedAnimationSystemが行う
 		anim->clip = clipName;
 		anim->enabled = true;
-		anim->runtimeAnimationFinished = false;
+		if (SkinnedAnimationRuntimeData* runtime =
+			TryGetSkinnedAnimationRuntime(*world, resolved)) {
+			runtime->animationFinished = false;
+		}
+	}
+
+	int32_t ManagedScriptRuntime::CopySkinnedAnimationCurrentClipCallback(
+		ManagedNativeEntity entity, char* buffer, int32_t capacity) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		const SkinnedAnimationRuntimeData* runtime =
+			world && world->IsAlive(resolved) ?
+			TryGetSkinnedAnimationRuntime(*world, resolved) : nullptr;
+		return CopyStringToBuffer(
+			runtime ? runtime->currentClip : std::string{}, buffer, capacity);
+	}
+
+	int32_t ManagedScriptRuntime::GetSkinnedAnimationRuntimeStateCallback(
+		ManagedNativeEntity entity,
+		ManagedSkinnedAnimationRuntimeState* outState) {
+
+		if (!outState) {
+			return 0;
+		}
+		*outState = {};
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		const SkinnedAnimationRuntimeData* runtime =
+			world && world->IsAlive(resolved) ?
+			TryGetSkinnedAnimationRuntime(*world, resolved) : nullptr;
+		if (!runtime) {
+			return 0;
+		}
+
+		// 可変長データを跨がせずC#が必要な固定長状態だけを複写する
+		outState->currentTime = runtime->time;
+		outState->currentDuration = runtime->currentDuration;
+		outState->blendTime = runtime->blendTime;
+		outState->repeatCount = runtime->repeatCount;
+		outState->initialized = runtime->initialized ? 1 : 0;
+		outState->finished = runtime->animationFinished ? 1 : 0;
+		outState->inTransition = runtime->inTransition ? 1 : 0;
+		return 1;
 	}
 
 	int32_t ManagedScriptRuntime::LineAddPointCallback(ManagedNativeEntity entity, ManagedLinePoint point) {
@@ -1046,9 +1211,14 @@ namespace Engine {
 		if (!line) {
 			return -1;
 		}
-		line->points.emplace_back(ToLinePoint(point));
+		DynamicBuffer<LinePoint> points = world->TryGetBuffer<LinePoint>(resolved);
+		if (!points.IsValid()) {
+			points = world->AddBuffer<LinePoint>(resolved);
+		}
+		points.Add(ToLinePoint(point));
+		world->MarkComponentModified<LinePoint>(resolved);
 		// 追加した点の位置をC#へ返す、UpdatePointの対象指定に使う
-		return static_cast<int32_t>(line->points.size() - 1);
+		return static_cast<int32_t>(points.GetSize() - 1);
 	}
 
 	void ManagedScriptRuntime::LineUpdatePointCallback(ManagedNativeEntity entity, ManagedLinePoint point) {
@@ -1063,11 +1233,14 @@ namespace Engine {
 		if (!line) {
 			return;
 		}
-		// indexが現在の点列範囲外なら更新しない、Clear/SetPoints後の古いindexを弾く
-		if (point.index < 0 || static_cast<size_t>(point.index) >= line->points.size()) {
+		DynamicBuffer<LinePoint> points = world->TryGetBuffer<LinePoint>(resolved);
+		// ClearやSetPoints後に残った古いindexを弾く
+		if (!points.IsValid() || point.index < 0 ||
+			points.GetSize() <= static_cast<uint32_t>(point.index)) {
 			return;
 		}
-		line->points[static_cast<size_t>(point.index)] = ToLinePoint(point);
+		points[static_cast<uint32_t>(point.index)] = ToLinePoint(point);
+		world->MarkComponentModified<LinePoint>(resolved);
 	}
 
 	void ManagedScriptRuntime::LineDrawImmediateCallback(const ManagedLinePoint* points,
@@ -1253,52 +1426,66 @@ namespace Engine {
 	//============================================================================
 	namespace {
 
-		// 対象entityのAudioSourceComponentを取得する、無効entityやcomponent無しはnullptr
-		AudioSourceComponent* ResolveAudioSource(ManagedNativeEntity entity) {
-			ECSWorld* world = ResolveWorld(entity);
-			if (!world) {
-				return nullptr;
-			}
-			const Entity resolved = ResolveEntity(entity);
-			return world->IsAlive(resolved) ? world->TryGetComponent<AudioSourceComponent>(resolved) : nullptr;
+		// 対象AudioSourceと所有Worldを同時に解決する
+		bool ResolveAudioSource(
+			ManagedNativeEntity entity, ECSWorld*& outWorld,
+			Entity& outEntity) {
+
+			outWorld = ResolveWorld(entity);
+			outEntity = ResolveEntity(entity);
+			return outWorld && outWorld->IsAlive(outEntity) &&
+				outWorld->HasComponent<AudioSourceComponent>(outEntity);
 		}
 	}
 
 	void ManagedScriptRuntime::AudioPlayCallback(ManagedNativeEntity entity) {
-		if (AudioSourceComponent* audio = ResolveAudioSource(entity)) {
-			audio->Play();
+		ECSWorld* world = nullptr;
+		Entity resolved = Entity::Null();
+		if (ResolveAudioSource(entity, world, resolved)) {
+			RequestAudioPlay(*world, resolved);
 		}
 	}
 
 	void ManagedScriptRuntime::AudioPlayOneShotCallback(
 		ManagedNativeEntity entity, ManagedAssetGUID clipID, float volumeScale) {
 
-		if (AudioSourceComponent* audio = ResolveAudioSource(entity)) {
-			audio->PlayOneShot(ToAssetID(clipID), volumeScale);
+		ECSWorld* world = nullptr;
+		Entity resolved = Entity::Null();
+		if (ResolveAudioSource(entity, world, resolved)) {
+			RequestAudioPlayOneShot(
+				*world, resolved, ToAssetID(clipID), volumeScale);
 		}
 	}
 
 	void ManagedScriptRuntime::AudioPauseCallback(ManagedNativeEntity entity) {
-		if (AudioSourceComponent* audio = ResolveAudioSource(entity)) {
-			audio->Pause();
+		ECSWorld* world = nullptr;
+		Entity resolved = Entity::Null();
+		if (ResolveAudioSource(entity, world, resolved)) {
+			RequestAudioPause(*world, resolved);
 		}
 	}
 
 	void ManagedScriptRuntime::AudioUnPauseCallback(ManagedNativeEntity entity) {
-		if (AudioSourceComponent* audio = ResolveAudioSource(entity)) {
-			audio->UnPause();
+		ECSWorld* world = nullptr;
+		Entity resolved = Entity::Null();
+		if (ResolveAudioSource(entity, world, resolved)) {
+			RequestAudioUnPause(*world, resolved);
 		}
 	}
 
 	void ManagedScriptRuntime::AudioStopCallback(ManagedNativeEntity entity) {
-		if (AudioSourceComponent* audio = ResolveAudioSource(entity)) {
-			audio->Stop();
+		ECSWorld* world = nullptr;
+		Entity resolved = Entity::Null();
+		if (ResolveAudioSource(entity, world, resolved)) {
+			RequestAudioStop(*world, resolved);
 		}
 	}
 
 	int32_t ManagedScriptRuntime::AudioIsPlayingCallback(ManagedNativeEntity entity) {
-		const AudioSourceComponent* audio = ResolveAudioSource(entity);
-		return audio && audio->IsPlaying() ? 1 : 0;
+		ECSWorld* world = nullptr;
+		Entity resolved = Entity::Null();
+		return ResolveAudioSource(entity, world, resolved) &&
+			IsAudioSourcePlaying(*world, resolved) ? 1 : 0;
 	}
 
 } // Engine

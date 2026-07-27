@@ -228,6 +228,9 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.hasComponent = &ManagedScriptRuntime::HasComponentCallback;
 	callbacks.addComponent = &ManagedScriptRuntime::AddComponentCallback;
 	callbacks.removeComponent = &ManagedScriptRuntime::RemoveComponentCallback;
+	callbacks.dynamicBufferLength = &ManagedScriptRuntime::DynamicBufferLengthCallback;
+	callbacks.dynamicBufferCopy = &ManagedScriptRuntime::DynamicBufferCopyCallback;
+	callbacks.dynamicBufferMutate = &ManagedScriptRuntime::DynamicBufferMutateCallback;
 	callbacks.destroyEntity = &ManagedScriptRuntime::DestroyEntityCallback;
 	callbacks.getScriptEnabled = &ManagedScriptRuntime::GetScriptEnabledCallback;
 	callbacks.setScriptEnabled = &ManagedScriptRuntime::SetScriptEnabledCallback;
@@ -259,6 +262,10 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.collisionSetShapeProperty = &ManagedScriptRuntime::CollisionSetShapePropertyCallback;
 	callbacks.getSkinnedAnimationDuration = &ManagedScriptRuntime::GetSkinnedAnimationDurationCallback;
 	callbacks.playSkinnedAnimation = &ManagedScriptRuntime::PlaySkinnedAnimationCallback;
+	callbacks.copySkinnedAnimationCurrentClip =
+		&ManagedScriptRuntime::CopySkinnedAnimationCurrentClipCallback;
+	callbacks.getSkinnedAnimationRuntimeState =
+		&ManagedScriptRuntime::GetSkinnedAnimationRuntimeStateCallback;
 	callbacks.fillMeshSetPositions = &ManagedScriptRuntime::FillMeshSetPositionsCallback;
 	callbacks.fillMeshCopyPositions = &ManagedScriptRuntime::FillMeshCopyPositionsCallback;
 	callbacks.effectEmit = &ManagedScriptRuntime::EffectEmitCallback;
@@ -266,6 +273,16 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.effectClear = &ManagedScriptRuntime::EffectClearCallback;
 	callbacks.effectIsPlaying = &ManagedScriptRuntime::EffectIsPlayingCallback;
 	callbacks.getUIBlocksGameplayInput = &ManagedScriptRuntime::GetUIBlocksGameplayInputCallback;
+	callbacks.getUISelectableRuntimeState =
+		&ManagedScriptRuntime::GetUISelectableRuntimeStateCallback;
+	callbacks.getUIProgressRuntimeState =
+		&ManagedScriptRuntime::GetUIProgressRuntimeStateCallback;
+	callbacks.getCanvasInputLocked =
+		&ManagedScriptRuntime::GetCanvasInputLockedCallback;
+	callbacks.getUIButtonClicked =
+		&ManagedScriptRuntime::GetUIButtonClickedCallback;
+	callbacks.getIrisTransitionRuntimeState =
+		&ManagedScriptRuntime::GetIrisTransitionRuntimeStateCallback;
 	callbacks.canvasCopyInputBindings = &ManagedScriptRuntime::CanvasCopyInputBindingsCallback;
 	callbacks.canvasSetInputBindings = &ManagedScriptRuntime::CanvasSetInputBindingsCallback;
 	callbacks.requestApplicationQuit = &ManagedScriptRuntime::RequestApplicationQuitCallback;
@@ -331,6 +348,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getVisibilityLayerMask = &ManagedScriptRuntime::GetVisibilityLayerMaskCallback;
 	callbacks.setVisibilityLayerMask = &ManagedScriptRuntime::SetVisibilityLayerMaskCallback;
 	callbacks.getCollisionTypeMask = &ManagedScriptRuntime::GetCollisionTypeMaskCallback;
+	callbacks.getCollisionRuntimeState = &ManagedScriptRuntime::GetCollisionRuntimeStateCallback;
 	callbacks.setCollisionTypeMask = &ManagedScriptRuntime::SetCollisionTypeMaskCallback;
 	callbacks.findEntityByName = &ManagedScriptRuntime::FindEntityByNameCallback;
 	callbacks.findEntityByTag = &ManagedScriptRuntime::FindEntityByTagCallback;

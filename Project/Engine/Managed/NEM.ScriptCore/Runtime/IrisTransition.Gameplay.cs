@@ -3,6 +3,15 @@ namespace NEMEngine;
 // 自動生成されるIrisTransition wrapperの再生操作
 public sealed partial class IrisTransition {
 
+    // 現在の再生状態
+    public IrisTransitionState State =>
+        (IrisTransitionState)NativeApi.ReadIrisTransitionRuntimeState(
+            entity.native).state;
+
+    // 現在の遮蔽進行度
+    public float Progress =>
+        NativeApi.ReadIrisTransitionRuntimeState(entity.native).progress;
+
     public bool IsPlaying =>
         State == IrisTransitionState.IrisOut ||
         State == IrisTransitionState.IrisIn;

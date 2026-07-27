@@ -87,7 +87,11 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		if (!RenderItemExtract::IsVisible(*world, entity, renderer.visible)) {
 			return;
 		}
-		if (!renderer.runtimeLayout.valid || renderer.runtimeLayout.glyphs.empty()) {
+		const TextLayoutRuntimeComponent* layout =
+			world->TryGetComponent<TextLayoutRuntimeComponent>(entity);
+		const std::span<const TextLayoutGlyph> glyphs =
+			GetTextLayoutGlyphs(*world, entity);
+		if (!layout || !layout->valid || glyphs.empty()) {
 			return;
 		}
 
@@ -117,7 +121,7 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		float minY = (std::numeric_limits<float>::max)();
 		float maxY = -(std::numeric_limits<float>::max)();
 
-		for (const auto& glyph : renderer.runtimeLayout.glyphs) {
+		for (const TextLayoutGlyph& glyph : glyphs) {
 			minX = (std::min)(minX, glyph.rectMin.x);
 			maxX = (std::max)(maxX, glyph.rectMax.x);
 			minY = (std::min)(minY, glyph.rectMin.y);
@@ -126,8 +130,8 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 
 		// グリフ矩形はピボット未適用なので、描画側と同じオフセットを加えて判定位置を合わせる
 		// 正規化0-1基準のpivotがブロック全体のboundsSize上のこの点を原点へ寄せる
-		const float pivotOffsetX = -renderer.pivot.x * renderer.runtimeLayout.boundsSize.x;
-		const float pivotOffsetY = -renderer.pivot.y * renderer.runtimeLayout.boundsSize.y;
+		const float pivotOffsetX = -renderer.pivot.x * layout->boundsSize.x;
+		const float pivotOffsetY = -renderer.pivot.y * layout->boundsSize.y;
 		minX += pivotOffsetX;
 		maxX += pivotOffsetX;
 		minY += pivotOffsetY;
@@ -253,5 +257,4 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			renderPipeline.GetGameViewTLASResource(), renderPipeline.GetGameViewPickRecords());
 	}
 }
-
 

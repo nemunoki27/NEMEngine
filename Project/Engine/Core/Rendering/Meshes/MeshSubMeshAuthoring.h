@@ -19,6 +19,8 @@ namespace Engine {
 
 	// front
 	class AssetDatabase;
+	class ECSWorld;
+	struct Entity;
 
 	//============================================================================
 	//	MeshSubMeshLayoutItem structures
@@ -54,16 +56,20 @@ namespace Engine::MeshSubMeshAuthoring {
 
 	// レイアウトに合わせてサブメッシュを正規化する
 	bool SyncComponentToLayout(const std::vector<MeshSubMeshLayoutItem>& layout,
-		MeshRendererComponent& renderer, bool preserveOverrides);
+		std::vector<SubMeshMaterial>& subMeshes, bool preserveOverrides);
 
 	// データベースから直接レイアウトを読んで正規化する
-	bool SyncComponent(AssetDatabase* assetDatabase,
-		MeshRendererComponent& renderer, bool preserveOverrides);
+	bool SyncComponent(AssetDatabase* assetDatabase, AssetID meshAssetID,
+		std::vector<SubMeshMaterial>& subMeshes, bool preserveOverrides);
+	// EntityのDynamicBufferをメッシュレイアウトへ同期する
+	bool SyncEntity(AssetDatabase* assetDatabase, ECSWorld& world,
+		const Entity& entity, bool preserveOverrides);
 
 	// モデルのマテリアル係数とテクスチャをparameterOverridesへ再適用する、reload用に上書きする
 	void ApplyModelMaterialParameters(const std::vector<MeshSubMeshLayoutItem>& layout,
-		MeshRendererComponent& renderer);
+		std::span<SubMeshMaterial> subMeshes);
 
 	// IDから現在のサブメッシュインデックスを解決する
-	int32_t FindSubMeshIndexByStableID(const MeshRendererComponent& renderer, UUID stableID);
+	int32_t FindSubMeshIndexByStableID(
+		std::span<const SubMeshMaterial> subMeshes, UUID stableID);
 } // Engine

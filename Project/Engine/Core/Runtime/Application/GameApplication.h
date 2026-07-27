@@ -10,6 +10,7 @@
 #include <Engine/Core/Runtime/Framework/EngineFramework.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/World/ECS/Systems/Scheduler/SystemScheduler.h>
+#include <Engine/Core/World/ECS/Baking/RuntimeWorldBaker.h>
 #include <Engine/Core/World/ECS/World/WorldManager.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
@@ -49,6 +50,7 @@ namespace Engine {
 		SceneSystem sceneSystem_;
 
 		WorldManager worldManager_;
+		RuntimeWorldBaker runtimeWorldBaker_;
 		SystemScheduler scheduler_;
 		SystemContext systemContext_;
 

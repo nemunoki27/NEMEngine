@@ -182,10 +182,10 @@ namespace {
 					index = index * 10u + static_cast<uint32_t>(c - '0');
 				}
 				if (valid) {
-					if (MeshRendererComponent* renderer = world->TryGetComponent<MeshRendererComponent>(entity)) {
-						if (index < renderer->subMeshes.size() && !renderer->subMeshes[index].name.empty()) {
-							return renderer->subMeshes[index].name + path.substr(rb + 1);
-						}
+					const std::span<const SubMeshMaterial> subMeshes =
+						GetMeshSubMeshes(*world, entity);
+					if (index < subMeshes.size() && !subMeshes[index].name.empty()) {
+						return subMeshes[index].name + path.substr(rb + 1);
 					}
 				}
 			}

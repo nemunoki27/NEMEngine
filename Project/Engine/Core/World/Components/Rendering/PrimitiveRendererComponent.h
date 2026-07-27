@@ -178,7 +178,7 @@ namespace Engine {
 		// マテリアル
 		AssetID material{};
 		// エンティティごとのマテリアルパラメータ
-		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides{};
+		MaterialParameterOverrides parameterOverrides{};
 
 		// 描画レイヤー
 		int32_t layer = 0;

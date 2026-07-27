@@ -75,7 +75,7 @@ bool Engine::SetUIProgressDelayedCommand::ApplyComponent(
 	}
 
 	auto& progress = world->GetComponent<UIProgressComponent>(target);
-	UICanvasSystem::RestoreProgressVisual(*world, progress);
+	UICanvasSystem::RestoreProgressVisual(*world, target, progress);
 	ApplyUIProgressAuthoring(data.get<UIProgressComponent>(), progress);
 	if (context.editorState) {
 		context.editorState->SelectEntity(target);
@@ -93,7 +93,7 @@ bool Engine::SetUIProgressDelayedCommand::EnableDelayed(
 	}
 
 	auto& progress = world->GetComponent<UIProgressComponent>(target);
-	UICanvasSystem::RestoreProgressVisual(*world, progress);
+	UICanvasSystem::RestoreProgressVisual(*world, target, progress);
 	Entity delayedEntity = ResolveDelayedEntity(*world, target, progress.delayedTargetLocalFileID);
 	if (!world->IsAlive(delayedEntity)) {
 
@@ -143,7 +143,7 @@ bool Engine::SetUIProgressDelayedCommand::DisableDelayed(
 	}
 
 	auto& progress = world->GetComponent<UIProgressComponent>(target);
-	UICanvasSystem::RestoreProgressVisual(*world, progress);
+	UICanvasSystem::RestoreProgressVisual(*world, target, progress);
 	const Entity delayedEntity =
 		ResolveDelayedEntity(*world, target, progress.delayedTargetLocalFileID);
 	if (world->IsAlive(delayedEntity)) {

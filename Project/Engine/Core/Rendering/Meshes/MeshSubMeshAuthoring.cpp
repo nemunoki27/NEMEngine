@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 //============================================================================
 //	MeshSubMeshAuthoring classMethods
@@ -191,25 +192,25 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 
 bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 	const std::vector<MeshSubMeshLayoutItem>& layout,
-	MeshRendererComponent& renderer, bool preserveOverrides) {
+	std::vector<SubMeshMaterial>& subMeshes, bool preserveOverrides) {
 
 	// 空レイアウトなら空に揃える
 	if (layout.empty()) {
-		if (renderer.subMeshes.empty()) {
+		if (subMeshes.empty()) {
 			return false;
 		}
-		renderer.subMeshes.clear();
+		subMeshes.clear();
 		return true;
 	}
 
 	// すでに一致しているなら何もしない
-	bool alreadyMatched = (renderer.subMeshes.size() == layout.size());
+	bool alreadyMatched = (subMeshes.size() == layout.size());
 	if (alreadyMatched) {
 
 		bool updated = false;
 		for (size_t i = 0; i < layout.size(); ++i) {
 
-			auto& current = renderer.subMeshes[i];
+			auto& current = subMeshes[i];
 			if (current.name != layout[i].name ||
 				current.sourceSubMeshIndex != layout[i].sourceSubMeshIndex ||
 				!current.stableID) {
@@ -233,7 +234,7 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 		}
 	}
 
-	const std::vector<SubMeshMaterial> oldSubMeshes = renderer.subMeshes;
+	const std::vector<SubMeshMaterial> oldSubMeshes = subMeshes;
 	std::vector<bool> used(oldSubMeshes.size(), false);
 	auto findReusableOldIndex = [&](size_t newIndex, const MeshSubMeshLayoutItem& item) -> int32_t {
 
@@ -295,33 +296,53 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 		}
 		rebuilt[i] = std::move(entry);
 	}
-	renderer.subMeshes = std::move(rebuilt);
+	subMeshes = std::move(rebuilt);
 	return true;
 }
 
 bool Engine::MeshSubMeshAuthoring::SyncComponent(AssetDatabase* assetDatabase,
-	MeshRendererComponent& renderer, bool preserveOverrides) {
+	AssetID meshAssetID, std::vector<SubMeshMaterial>& subMeshes,
+	bool preserveOverrides) {
 
-	if (!renderer.mesh) {
-		if (renderer.subMeshes.empty()) {
+	if (!meshAssetID) {
+		if (subMeshes.empty()) {
 			return false;
 		}
-		renderer.subMeshes.clear();
+		subMeshes.clear();
 		return true;
 	}
 
 	std::vector<MeshSubMeshLayoutItem> layout{};
 	// レイアウトが解決できない時は、今の内容を壊さない
-	if (!TryBuildLayout(assetDatabase, renderer.mesh, layout)) {
+	if (!TryBuildLayout(assetDatabase, meshAssetID, layout)) {
 		return false;
 	}
-	return SyncComponentToLayout(layout, renderer, preserveOverrides);
+	return SyncComponentToLayout(layout, subMeshes, preserveOverrides);
+}
+
+bool Engine::MeshSubMeshAuthoring::SyncEntity(AssetDatabase* assetDatabase,
+	ECSWorld& world, const Entity& entity, bool preserveOverrides) {
+
+	MeshRendererComponent* renderer =
+		world.TryGetComponent<MeshRendererComponent>(entity);
+	if (!renderer) {
+		return false;
+	}
+	const std::span<const SubMeshMaterial> source =
+		GetMeshSubMeshes(world, entity);
+	std::vector<SubMeshMaterial> subMeshes(source.begin(), source.end());
+	if (!SyncComponent(assetDatabase, renderer->mesh, subMeshes, preserveOverrides)) {
+		return false;
+	}
+	SetMeshSubMeshes(world, entity, subMeshes);
+	return true;
 }
 
 void Engine::MeshSubMeshAuthoring::ApplyModelMaterialParameters(
-	const std::vector<MeshSubMeshLayoutItem>& layout, MeshRendererComponent& renderer) {
+	const std::vector<MeshSubMeshLayoutItem>& layout,
+	std::span<SubMeshMaterial> subMeshes) {
 
-	for (SubMeshMaterial& subMesh : renderer.subMeshes) {
+	for (SubMeshMaterial& subMesh : subMeshes) {
 
 		// 元のサブメッシュインデックスでモデル側の対応itemを探す
 		const MeshSubMeshLayoutItem* item = nullptr;
@@ -338,13 +359,13 @@ void Engine::MeshSubMeshAuthoring::ApplyModelMaterialParameters(
 }
 
 int32_t Engine::MeshSubMeshAuthoring::FindSubMeshIndexByStableID(
-	const MeshRendererComponent& renderer, UUID stableID) {
+	std::span<const SubMeshMaterial> subMeshes, UUID stableID) {
 
 	if (!stableID) {
 		return -1;
 	}
-	for (uint32_t i = 0; i < static_cast<uint32_t>(renderer.subMeshes.size()); ++i) {
-		if (renderer.subMeshes[i].stableID == stableID) {
+	for (uint32_t i = 0; i < static_cast<uint32_t>(subMeshes.size()); ++i) {
+		if (subMeshes[i].stableID == stableID) {
 			return static_cast<int32_t>(i);
 		}
 	}

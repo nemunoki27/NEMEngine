@@ -83,6 +83,17 @@ namespace Engine {
 		return collision ? static_cast<int32_t>(collision->typeMask) : 0;
 	}
 
+	int32_t ManagedScriptRuntime::GetCollisionRuntimeStateCallback(ManagedNativeEntity entity) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		if (!world || !world->IsAlive(resolved)) {
+			return 0;
+		}
+		// 設定Componentへ実行時値を混在させず、内部状態から現在フレームの結果を返す
+		return IsCollisionColliding(*world, resolved) ? 1 : 0;
+	}
+
 	void ManagedScriptRuntime::SetCollisionTypeMaskCallback(ManagedNativeEntity entity, int32_t mask) {
 		ECSWorld* world = ResolveWorld(entity);
 		const Entity resolved = ResolveEntity(entity);

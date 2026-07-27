@@ -185,8 +185,10 @@ bool Engine::EditorState::HasValidJointSelection(ECSWorld* world) const {
 	if (!world->HasComponent<SkinnedAnimationComponent>(selectedJointSkinnedEntity)) {
 		return false;
 	}
-	const auto& anim = world->GetComponent<SkinnedAnimationComponent>(selectedJointSkinnedEntity);
-	return selectedJointIndex < static_cast<int32_t>(anim.runtimeSkeleton.joints.size());
+	const SkinnedAnimationRuntimeData* runtime =
+		TryGetSkinnedAnimationRuntime(*world, selectedJointSkinnedEntity);
+	return runtime &&
+		selectedJointIndex < static_cast<int32_t>(runtime->skeleton.joints.size());
 }
 
 bool Engine::EditorState::IsJointSelected(const Entity& skinnedEntity, int32_t jointIndex) const {
@@ -358,8 +360,8 @@ bool Engine::EditorState::HasValidSubMeshSelection(ECSWorld* world) const {
 		return false;
 	}
 
-	const auto& meshRenderer = world->GetComponent<MeshRendererComponent>(selectedEntity);
-	return selectedSubMeshIndex < meshRenderer.subMeshes.size();
+	return selectedSubMeshIndex <
+		GetMeshSubMeshes(*world, selectedEntity).size();
 }
 
 bool Engine::EditorState::TryResolveSelectedSubMeshIndex(ECSWorld* world, uint32_t& outSubMeshIndex) const {
@@ -371,17 +373,19 @@ bool Engine::EditorState::TryResolveSelectedSubMeshIndex(ECSWorld* world, uint32
 		return false;
 	}
 
-	const auto& meshRenderer = world->GetComponent<MeshRendererComponent>(selectedEntity);
+	const std::span<const SubMeshMaterial> subMeshes =
+		GetMeshSubMeshes(*world, selectedEntity);
 	// ID優先で解決
 	if (selectedSubMeshStableID) {
-		const int32_t found = MeshSubMeshAuthoring::FindSubMeshIndexByStableID(meshRenderer, selectedSubMeshStableID);
+		const int32_t found = MeshSubMeshAuthoring::FindSubMeshIndexByStableID(
+			subMeshes, selectedSubMeshStableID);
 		if (0 <= found) {
 			outSubMeshIndex = static_cast<uint32_t>(found);
 			return true;
 		}
 	}
 	// フォールバック
-	if (selectedSubMeshIndex < meshRenderer.subMeshes.size()) {
+	if (selectedSubMeshIndex < subMeshes.size()) {
 		outSubMeshIndex = selectedSubMeshIndex;
 		return true;
 	}

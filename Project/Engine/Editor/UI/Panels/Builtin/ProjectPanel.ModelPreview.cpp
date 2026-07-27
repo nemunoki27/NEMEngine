@@ -196,7 +196,8 @@ void Engine::ProjectPanel::RebuildModelPreviewSlots(AssetDatabase& database, con
 		renderer.queue = RenderPhase::Opaque;
 		renderer.visible = true;
 		renderer.enableZPrepass = true;
-		MeshSubMeshAuthoring::SyncComponent(&database, renderer, false);
+		MeshSubMeshAuthoring::SyncEntity(
+			&database, *modelPreviewWorld_, entity, false);
 
 		const int32_t column = i % columns;
 		const int32_t row = i / columns;

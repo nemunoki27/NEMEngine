@@ -6,6 +6,10 @@ namespace NEMEngine;
 // col.Shapes[i].Radius のようなインデックスアクセスを facade で提供する。
 public sealed partial class CollisionComponent {
 
+    // 形状列をまとめて読み書きする高速経路
+    public DynamicBuffer<CollisionShapeData> ShapeBuffer =>
+        entity.GetBuffer<CollisionShapeData>();
+
     // 衝突形状コレクション、遅延生成してキャッシュする
     private ShapeCollection? shapes_;
     public ShapeCollection Shapes => shapes_ ??= new ShapeCollection(this);
@@ -15,6 +19,8 @@ public sealed partial class CollisionComponent {
 
     // 形状数
     public int ShapeCount => NativeApi.GetCollisionShapeCount(entity.native);
+    // 現在フレームにいずれかの形状が接触しているか
+    public bool IsColliding => NativeApi.ReadCollisionRuntimeState(entity.native);
     // 既定形状を末尾へ追加する
     public void AddShape() => NativeApi.AddCollisionShape(entity.native);
     // 指定indexの形状を削除する

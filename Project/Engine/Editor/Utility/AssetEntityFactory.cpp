@@ -126,7 +126,7 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 		renderer.queue = RenderPhase::Opaque;
 		renderer.visible = true;
 		renderer.enableZPrepass = true;
-		MeshSubMeshAuthoring::SyncComponent(&database, renderer, false);
+		MeshSubMeshAuthoring::SyncEntity(&database, world, entity, false);
 
 		result.root = entity;
 		result.isThreeD = true;

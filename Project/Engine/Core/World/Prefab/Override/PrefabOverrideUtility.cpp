@@ -669,7 +669,7 @@ Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, A
 	for (const Entity& entity : linkScope) {
 
 		if (world.IsAlive(entity) && world.HasComponent<MeshRendererComponent>(entity)) {
-			MeshSubMeshAuthoring::SyncComponent(&database, world.GetComponent<MeshRendererComponent>(entity), true);
+			MeshSubMeshAuthoring::SyncEntity(&database, world, entity, true);
 		}
 	}
 	return result.root;
@@ -870,7 +870,8 @@ namespace {
 			}
 			// 生成時と同じサブメッシュ正規化を通し、インスタンス側の表現に揃える
 			if (temp.HasComponent<Engine::MeshRendererComponent>(entity)) {
-				Engine::MeshSubMeshAuthoring::SyncComponent(&database, temp.GetComponent<Engine::MeshRendererComponent>(entity), true);
+				Engine::MeshSubMeshAuthoring::SyncEntity(
+					&database, temp, entity, true);
 			}
 			nlohmann::json normalizedComponents;
 			temp.SerializeEntityComponents(entity, normalizedComponents);

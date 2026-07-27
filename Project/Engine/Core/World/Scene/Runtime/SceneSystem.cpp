@@ -500,9 +500,27 @@ bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& wor
 		const UUID localFileID =
 			FromString16Hex(entityJson.value("LocalFileID", std::string{}));
 
-		// エンティティの作成
-		Entity entity = world.CreateEntity();
-		SceneAuthoring::EnsureGameObjectDefaults(world, entity);
+		const nlohmann::json* components =
+			(entityJson.contains("Components") && entityJson["Components"].is_object()) ?
+			&entityJson["Components"] : nullptr;
+		std::vector<uint32_t> componentTypeIDs;
+		if (components) {
+			componentTypeIDs.reserve(components->size());
+			for (auto it = components->begin(); it != components->end(); ++it) {
+
+				const ComponentTypeInfo* info =
+					ComponentTypeRegistry::GetInstance().FindByName(it.key());
+				if (!info) {
+					Logger::Output(LogType::Engine, spdlog::level::err,
+						"[SceneSystem] unknown component type: {}", it.key());
+					return false;
+				}
+				componentTypeIDs.emplace_back(info->id);
+			}
+		}
+
+		// JSONに含まれるコンポーネントを含む最終アーキタイプへ直接作成
+		Entity entity = SceneAuthoring::CreateGameObject(world, "Entity", componentTypeIDs);
 
 		// 作成されたエンティティを出力する
 		if (outCreatedEntities) {
@@ -511,14 +529,13 @@ bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& wor
 		}
 
 		// "Components"オブジェクトが存在する場合はコンポーネントを追加する
-		if (entityJson.contains("Components") && entityJson["Components"].is_object()) {
+		if (components) {
 
-			const auto& components = entityJson["Components"];
-			for (auto it = components.begin(); it != components.end(); ++it) {
+			for (auto it = components->begin(); it != components->end(); ++it) {
 
 				const std::string& typeName = it.key();
 				const nlohmann::json& data = it.value();
-				world.AddComponentFromJson(entity, typeName, data);
+				world.ApplyComponentJson(entity, typeName, data);
 			}
 		}
 		// JSONからSceneObjectを読み直した後に、ランタイム所属情報を設定する
@@ -532,8 +549,7 @@ bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& wor
 		// ロード直後に、ワールド実体のサブメッシュを正規化する
 		if (assetDatabase && world.HasComponent<MeshRendererComponent>(entity)) {
 
-			auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
-			MeshSubMeshAuthoring::SyncComponent(assetDatabase, meshRenderer, true);
+			MeshSubMeshAuthoring::SyncEntity(assetDatabase, world, entity, true);
 		}
 	}
 

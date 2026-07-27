@@ -34,7 +34,6 @@
 #include <Engine/Core/World/Systems/Rendering/UVTransformSystem.h>
 #include <Engine/Core/World/Systems/Rendering/FlipbookAnimationSystem.h>
 #include <Engine/Core/World/Systems/Rendering/FillFaceMeshRendererSystem.h>
-#include <Engine/Core/World/Systems/Effect/ParticleSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/UI/UIInputSystem.h>
 #include <Engine/Core/World/Systems/UI/IrisTransitionSystem.h>
@@ -45,7 +44,6 @@
 #include <unordered_set>
 #include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
 #include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
-#include <Engine/Core/World/Systems/Animation/AnimationPlayerSystem.h>
 #include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
 #include <Engine/Core/World/Systems/Camera/CameraControllerSystem.h>
 #include <Engine/Core/World/Systems/Camera/CameraShakeSystem.h>
@@ -92,8 +90,7 @@ void Engine::EngineApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
 	// C#からの遷移要求を同フレームで描画状態へ反映する
 	scheduler_.AddSystem(std::make_unique<IrisTransitionSystem>(), ++order);
-	// プロパティアニメはスクリプトの後で適用し、LateUpdateのTransform確定前に値を書く
-	scheduler_.AddSystem(std::make_unique<AnimationPlayerSystem>(), ++order);
+	// EffectEmitterとAnimationPlayerは次期データ指向設計へ置き換えるまで実行対象外
 	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
@@ -103,7 +100,6 @@ void Engine::EngineApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<FlipbookAnimationSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UVTransformSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<FillFaceMeshRendererSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<ParticleSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<SkinnedAnimationSystem>(), ++order);
 	// ジョイント追従はスケルトン更新の後でないとジョイントのワールド行列が確定しないため、最後に動かす
 	scheduler_.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);
@@ -351,6 +347,7 @@ void Engine::EngineApplication::PreloadReleaseResources(GraphicsCore& graphicsCo
 	systemContext_.assetDatabase = &assetDataBase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.animationClipManager = &animationClipManager_;
+	systemContext_.runtimeWorldBaker = &runtimeWorldBaker_;
 	systemContext_.deltaTime = 0.0f;
 	systemContext_.unscaledDeltaTime = 0.0f;
 	RefreshActiveWorldContext();

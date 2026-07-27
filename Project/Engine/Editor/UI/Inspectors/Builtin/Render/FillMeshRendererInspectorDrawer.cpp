@@ -27,11 +27,11 @@ void Engine::FillMeshRendererInspectorDrawer::DrawFields(const EditorPanelContex
 		});
 
 	// 面を構成するXZ平面の点列
-	for (size_t i = 0; i < draft.facePositions.size(); ++i) {
+	for (size_t i = 0; i < positionDraft_.size(); ++i) {
 
 		ImGui::PushID(static_cast<int>(i));
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragVector3("点", draft.facePositions[i], { .dragSpeed = 0.1f });
+			return MyGUI::DragVector3("点", positionDraft_[i], { .dragSpeed = 0.1f });
 			});
 		ImGui::PopID();
 	}
@@ -39,13 +39,13 @@ void Engine::FillMeshRendererInspectorDrawer::DrawFields(const EditorPanelContex
 
 		ValueEditResult result{};
 		if (ImGui::Button("点を追加")) {
-			draft.facePositions.push_back(Vector3::AnyInit(0.0f));
+			positionDraft_.push_back(Vector3::AnyInit(0.0f));
 			result.valueChanged = true;
 			result.editFinished = true;
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("末尾を削除") && !draft.facePositions.empty()) {
-			draft.facePositions.pop_back();
+		if (ImGui::Button("末尾を削除") && !positionDraft_.empty()) {
+			positionDraft_.pop_back();
 			result.valueChanged = true;
 			result.editFinished = true;
 		}
@@ -68,4 +68,42 @@ void Engine::FillMeshRendererInspectorDrawer::DrawFields(const EditorPanelContex
 	InspectorDrawerCommon::DrawCommonRenderFields(
 		[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
 		draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
+}
+
+void Engine::FillMeshRendererInspectorDrawer::OnSyncDraftFromWorld(
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] const FillMeshRendererComponent& component) {
+
+	const std::span<const FillMeshPosition> positions =
+		GetFillMeshPositions(world, entity);
+	positionDraft_.clear();
+	positionDraft_.reserve(positions.size());
+	for (const FillMeshPosition& position : positions) {
+		positionDraft_.emplace_back(position.value);
+	}
+}
+
+void Engine::FillMeshRendererInspectorDrawer::SerializeDraft(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	const FillMeshRendererComponent& component, nlohmann::json& out) const {
+
+	std::vector<FillMeshPosition> positions{};
+	positions.reserve(positionDraft_.size());
+	for (const Vector3& position : positionDraft_) {
+		positions.emplace_back(FillMeshPosition{ .value = position });
+	}
+	SerializeFillMeshRenderer(component, positions, out);
+}
+
+void Engine::FillMeshRendererInspectorDrawer::ApplyPreview(
+	ECSWorld& world, const Entity& entity,
+	const FillMeshRendererComponent& previewComponent) {
+
+	if (!world.IsAlive(entity) ||
+		!world.HasComponent<FillMeshRendererComponent>(entity)) {
+		return;
+	}
+	world.GetComponent<FillMeshRendererComponent>(entity) = previewComponent;
+	SetFillMeshPositions(world, entity, positionDraft_);
+	world.MarkComponentModified<FillMeshRendererComponent>(entity);
 }

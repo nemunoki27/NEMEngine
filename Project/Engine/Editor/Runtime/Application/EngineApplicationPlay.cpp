@@ -56,6 +56,7 @@ void Engine::EngineApplication::HandlePlayToggle() {
 void Engine::EngineApplication::StopPlayWorld() {
 
 	scheduler_.DetachCurrentWorld(systemContext_);
+	runtimeWorldBaker_.Detach();
 	if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
 		ManagedWorldRegistry::GetInstance().Unregister(
 			ManagedWorldRegistry::GetInstance().TryGetHandle(*playWorld));
@@ -196,6 +197,9 @@ void Engine::EngineApplication::StartPlayWorld() {
 		playFrameStepRequested_ = false;
 		return;
 	}
+	// Play最初のLifecycleより先にRuntime派生データを完成させる
+	runtimeWorldBaker_.Attach(*worldManager_.GetPlayWorld(), &assetDataBase_);
+	runtimeWorldBaker_.BakeAll();
 	ManagedWorldRegistry::GetInstance().Register(*worldManager_.GetPlayWorld());
 	ManagedScriptRuntime::BeginPlayTime(worldManager_.GetPlayWorld());
 	playPaused_ = false;

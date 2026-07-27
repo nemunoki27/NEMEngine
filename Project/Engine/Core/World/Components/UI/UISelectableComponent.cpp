@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 //============================================================================
 //	UISelectableComponent internal
@@ -58,6 +59,48 @@ namespace {
 //============================================================================
 //	UISelectableComponent classMethods
 //============================================================================
+void Engine::UISelectableComponent::OnAdded(
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] UISelectableComponent& component) {
+
+	if (!world.HasComponent<UISelectableRuntimeComponent>(entity)) {
+		world.AddComponent<UISelectableRuntimeComponent>(entity);
+	}
+}
+
+void Engine::UISelectableComponent::OnRemoved(
+	ECSWorld& world, const Entity& entity) {
+
+	if (world.HasComponent<UISelectableRuntimeComponent>(entity)) {
+		world.RemoveComponent<UISelectableRuntimeComponent>(entity);
+	}
+}
+
+void Engine::UISelectableComponent::InitializeStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] UISelectableComponent& component) {
+}
+
+void Engine::UISelectableComponent::ReleaseStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] UISelectableComponent& component) {
+}
+
+void Engine::UISelectableComponent::DeserializeECS(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	const nlohmann::json& in, UISelectableComponent& component) {
+
+	from_json(in, component);
+}
+
+void Engine::UISelectableComponent::SerializeECS(
+	[[maybe_unused]] const ECSWorld& world,
+	[[maybe_unused]] const Entity& entity,
+	const UISelectableComponent& component, nlohmann::json& out) {
+
+	to_json(out, component);
+}
+
 void Engine::ApplyUISelectableAuthoring(const UISelectableComponent& source, UISelectableComponent& destination) {
 
 	destination.interactable = source.interactable;

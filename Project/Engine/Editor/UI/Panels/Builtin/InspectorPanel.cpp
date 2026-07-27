@@ -662,7 +662,8 @@ void Engine::InspectorPanel::RebuildModelAssetPreviewWorld(const EditorPanelCont
 	renderer.queue = RenderPhase::Opaque;
 	renderer.visible = true;
 	renderer.enableZPrepass = true;
-	MeshSubMeshAuthoring::SyncComponent(database, renderer, false);
+	MeshSubMeshAuthoring::SyncEntity(
+		database, *modelPreviewWorld_, entity, false);
 
 	modelPreviewEntity_ = entity;
 	ResetModelAssetPreviewCamera();
@@ -1156,18 +1157,19 @@ void Engine::InspectorPanel::DrawSelectedSubMeshHeader(const EditorPanelContext&
 		return;
 	}
 
-	const auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
+	const std::span<const SubMeshMaterial> subMeshes =
+		GetMeshSubMeshes(world, entity);
 
 	// 選択されているサブメッシュのインデックスを取得
 	uint32_t subMeshIndex = 0;
 	if (!context.editorState->TryResolveSelectedSubMeshIndex(&world, subMeshIndex)) {
 		return;
 	}
-	if (meshRenderer.subMeshes.size() <= subMeshIndex) {
+	if (subMeshes.size() <= subMeshIndex) {
 		return;
 	}
 
-	const auto& subMesh = meshRenderer.subMeshes[subMeshIndex];
+	const auto& subMesh = subMeshes[subMeshIndex];
 
 	// エンティティ名とサブメッシュ名を決定
 	std::string entityName = world.HasComponent<NameComponent>(entity) ?
@@ -1482,7 +1484,14 @@ void Engine::InspectorPanel::DrawJointInspector(const EditorPanelContext& contex
 		ImGui::TextDisabled("ジョイントが無効です");
 		return;
 	}
-	const Skeleton& skeleton = world->GetComponent<SkinnedAnimationComponent>(skinned).runtimeSkeleton;
+	const SkinnedAnimationRuntimeData* runtime =
+		TryGetSkinnedAnimationRuntime(*world, skinned);
+	if (!runtime) {
+
+		ImGui::TextDisabled("ジョイントが無効です");
+		return;
+	}
+	const Skeleton& skeleton = runtime->skeleton;
 	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(skeleton.joints.size())) {
 
 		ImGui::TextDisabled("ジョイントが無効です");

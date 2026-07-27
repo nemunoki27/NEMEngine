@@ -44,6 +44,23 @@ namespace Engine {
 		};
 		using GPUPassTime = NamedTime;
 
+		// ECSのチャンクメモリと構造変更統計
+		struct ECSStatistics {
+
+			// エンティティ、アーキタイプ、チャンク数
+			uint32_t entityCount = 0;
+			uint32_t archetypeCount = 0;
+			uint32_t chunkSlotCount = 0;
+			uint32_t allocatedChunkCount = 0;
+			// チャンクの確保量と使用量
+			uint64_t allocatedChunkBytes = 0;
+			uint64_t payloadBytes = 0;
+			// 構造変更による移動量
+			uint64_t structuralMigrationCount = 0;
+			uint64_t relocatedComponentCount = 0;
+			uint64_t relocatedComponentBytes = 0;
+		};
+
 		static FrameProfiler& GetInstance();
 
 		// フレーム開始で前フレームの累積を確定し今フレームの累積をリセットする
@@ -56,6 +73,8 @@ namespace Engine {
 		void SetEcsSystemTimes(const std::vector<NamedTime>& systems);
 		// ECSのarchetype数を設定する、ForEachが走査するarchetypeの数
 		void SetArchetypeCount(uint32_t count) { archetypeCount_ = count; }
+		// ECSのチャンクメモリと構造変更統計を設定する
+		void SetECSStatistics(const ECSStatistics& statistics) { ecsStatistics_ = statistics; }
 
 		//--------- accessor -----------------------------------------------------
 
@@ -74,6 +93,8 @@ namespace Engine {
 		bool HasEcsSystemData() const { return !ecsSystemTimes_.empty(); }
 		// ECSのarchetype数
 		uint32_t GetArchetypeCount() const { return archetypeCount_; }
+		// ECSのチャンクメモリと構造変更統計
+		const ECSStatistics& GetECSStatistics() const { return ecsStatistics_; }
 
 		//============================================================================
 		//	ScopedSample
@@ -126,6 +147,8 @@ namespace Engine {
 		std::vector<NamedTime> ecsSystemTimes_{};
 		// ECSのarchetype数の最新値
 		uint32_t archetypeCount_ = 0;
+		// ECSのチャンクメモリと構造変更統計
+		ECSStatistics ecsStatistics_{};
 
 		// 最初のBeginFrameでは空の累積を確定させない
 		bool firstFrame_ = true;

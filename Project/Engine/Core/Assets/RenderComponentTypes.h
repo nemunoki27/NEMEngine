@@ -4,12 +4,14 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/World/ECS/Components/Core/ComponentType.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 #include <Externals/nlohmann/json_fwd.hpp>
 
 // c++
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -53,8 +55,66 @@ namespace Engine {
 	// 型を増減したらpack(MaterialParameterBufferBuilder)/parse/serialize(MaterialAsset)の全変換を更新すること
 	static_assert(std::variant_size_v<decltype(MaterialParameterValue::value)> == 9);
 
+	//============================================================================
+	//	MaterialParameterOverrides class
+	//	空のRendererでMap本体を持たない遅延確保パラメータ集合
+	//============================================================================
+	class MaterialParameterOverrides {
+	public:
+		//============================================================================
+		//	public Methods
+		//============================================================================
+
+		using Map = std::unordered_map<std::string, MaterialParameterValue>;
+		using iterator = Map::iterator;
+		using const_iterator = Map::const_iterator;
+
+		MaterialParameterOverrides() = default;
+		~MaterialParameterOverrides() = default;
+		MaterialParameterOverrides(const MaterialParameterOverrides& other);
+		MaterialParameterOverrides(MaterialParameterOverrides&& other) noexcept = default;
+		MaterialParameterOverrides& operator=(const MaterialParameterOverrides& other);
+		MaterialParameterOverrides& operator=(MaterialParameterOverrides&& other) noexcept = default;
+
+		MaterialParameterValue& operator[](const std::string& name);
+		MaterialParameterValue& operator[](const char* name);
+		void clear();
+		size_t erase(const std::string& name);
+		iterator erase(iterator position);
+
+		//--------- accessor -----------------------------------------------------
+
+		bool empty() const { return !values_ || values_->empty(); }
+		size_t size() const { return values_ ? values_->size() : 0; }
+		size_t count(const std::string& name) const;
+		bool contains(const std::string& name) const;
+		iterator begin();
+		iterator end();
+		const_iterator begin() const;
+		const_iterator end() const;
+		iterator find(const std::string& name);
+		const_iterator find(const std::string& name) const;
+		Map& GetMutable();
+		const Map& Get() const;
+		operator Map&() { return GetMutable(); }
+		operator const Map&() const { return Get(); }
+	private:
+		//============================================================================
+		//	private Methods
+		//============================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		std::unique_ptr<Map> values_{};
+	};
+
 	// ライン1点の情報、頂点ごとに太さと色を持てる
 	struct LinePoint {
+
+		static constexpr ComponentStorageKind kStorageKind =
+			ComponentStorageKind::Buffer;
+		static constexpr uint32_t kInternalBufferCapacity = 2;
+		static constexpr bool kSerializable = false;
 
 		Vector3 position = Vector3::AnyInit(0.0f);
 		Color4 color = Color4::White();
@@ -69,8 +129,12 @@ namespace Engine {
 	// parameterOverridesマップのjson入出力、Mesh/Sprite/Text等の個別マテリアルで共用する
 	void ReadMaterialParameterOverrides(const nlohmann::json& in,
 		std::unordered_map<std::string, MaterialParameterValue>& outOverrides);
+	void ReadMaterialParameterOverrides(const nlohmann::json& in,
+		MaterialParameterOverrides& outOverrides);
 	nlohmann::json WriteMaterialParameterOverrides(
 		const std::unordered_map<std::string, MaterialParameterValue>& overrides);
+	nlohmann::json WriteMaterialParameterOverrides(
+		const MaterialParameterOverrides& overrides);
 
 	// RenderPhaseの文字列変換、JSON保存やデバッグ表示に使う
 	std::string_view ToString(RenderPhase phase);

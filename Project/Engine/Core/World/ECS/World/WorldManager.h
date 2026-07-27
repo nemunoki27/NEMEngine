@@ -17,7 +17,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		WorldManager() = default;
+		WorldManager();
 		~WorldManager() = default;
 
 		// プレイワールドの作成

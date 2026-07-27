@@ -7,7 +7,7 @@
 #include <Engine/Core/World/ECS/Entity/EntityChunk.h>
 
 // c++
-#include <array>
+#include <limits>
 
 namespace Engine {
 
@@ -51,6 +51,14 @@ namespace Engine {
 		uint32_t GetChunkCount() const { return static_cast<uint32_t>(chunks_.size()); }
 		// チャンクの配列
 		const std::vector<std::unique_ptr<EntityChunk>>& GetChunks() const { return chunks_; }
+		// チャンク配置
+		const EntityChunkLayout& GetChunkLayout() const { return chunkLayout_; }
+		// 確保済みチャンク数
+		uint32_t GetAllocatedChunkCount() const;
+		// 確保済みチャンクバイト数
+		size_t GetAllocatedBytes() const;
+		// 有効データのバイト数
+		size_t GetPayloadBytes() const;
 	private:
 		//============================================================================
 		//	private Methods
@@ -62,11 +70,13 @@ namespace Engine {
 		EntitySignature signature_{};
 		// Archetypeが持つコンポーネント種類のIDの配列
 		std::vector<uint32_t> types_;
+		// 全チャンクで共有する列配置
+		EntityChunkLayout chunkLayout_{};
 
-		static constexpr uint32_t kInvalidColumnIndex = UINT32_MAX;
+		static constexpr uint16_t kInvalidColumnIndex = (std::numeric_limits<uint16_t>::max)();
 
 		// Archetypeが持つコンポーネント種類IDから、EntityChunk内の列番号へのテーブル
-		std::array<uint32_t, kMaxComponentTypes> typeToColumn_;
+		std::vector<uint16_t> typeToColumn_;
 		// 同じArchetypeのエンティティをまとめて保持するEntityChunkの配列
 		std::vector<std::unique_ptr<EntityChunk>> chunks_;
 		// 次に空きが見つかりやすいチャンク番号

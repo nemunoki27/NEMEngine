@@ -16,7 +16,9 @@
 //============================================================================
 void Engine::FlipbookAnimationSystem::Update(ECSWorld& world, SystemContext& context) {
 
-	world.ForEach<FlipbookAnimationComponent>([&](const Entity& entity, FlipbookAnimationComponent& flipbook) {
+	world.ForEach<FlipbookAnimationComponent, FlipbookAnimationRuntimeComponent>(
+		[&](const Entity& entity, FlipbookAnimationComponent& flipbook,
+			FlipbookAnimationRuntimeComponent& runtime) {
 
 		// UVTransform必須、無ければ何もしない
 		auto* uvTransform = world.TryGetComponent<UVTransformComponent>(entity);
@@ -34,43 +36,45 @@ void Engine::FlipbookAnimationSystem::Update(ECSWorld& world, SystemContext& con
 
 		// 経過時間を進め、ループか終了を判定する
 		const float duration = (std::max)(flipbook.duration, 0.001f);
-		flipbook.runtimeElapsed += deltaTime;
+		runtime.elapsed += deltaTime;
 		float progress = 0.0f;
 		if (flipbook.loop) {
 
 			const float loopInterval = (std::max)(flipbook.loopInterval, 0.0f);
 			const float loopDuration = duration + loopInterval;
-			if (loopDuration <= flipbook.runtimeElapsed) {
+			if (loopDuration <= runtime.elapsed) {
 
-				flipbook.runtimeRepeatCount += static_cast<int32_t>(flipbook.runtimeElapsed / loopDuration);
-				flipbook.runtimeElapsed = std::fmod(flipbook.runtimeElapsed, loopDuration);
+				runtime.repeatCount += static_cast<int32_t>(runtime.elapsed / loopDuration);
+				runtime.elapsed = std::fmod(runtime.elapsed, loopDuration);
 			}
 
-			const bool waitingNextLoop = duration <= flipbook.runtimeElapsed;
-			progress = waitingNextLoop ? 1.0f : flipbook.runtimeElapsed / duration;
-			flipbook.runtimePlaying = !waitingNextLoop;
-			flipbook.runtimeAnimationFinished = false;
+			const bool waitingNextLoop = duration <= runtime.elapsed;
+			progress = waitingNextLoop ? 1.0f : runtime.elapsed / duration;
+			runtime.playing = !waitingNextLoop;
+			runtime.animationFinished = false;
 		} else {
 
-			flipbook.runtimePlaying = true;
-			progress = flipbook.runtimeElapsed / duration;
+			runtime.playing = true;
+			progress = runtime.elapsed / duration;
 			if (1.0f <= progress) {
 
 				progress = 1.0f;
-				flipbook.runtimePlaying = false;
-				flipbook.runtimeAnimationFinished = true;
+				runtime.playing = false;
+				runtime.animationFinished = true;
 			}
 		}
 
 		// 再生終了後に何も表示させない場合はUVを潰す
-		if (flipbook.runtimeAnimationFinished && flipbook.endAnimUnDisplay) {
+		if (runtime.animationFinished && flipbook.endAnimUnDisplay) {
 
 			uvTransform->scale = Vector2::AnyInit(0.0f);
 			return;
 		}
 
 		// イージングを掛けた進行度からコマを求めてUVへ反映する
-		const FlipbookFrame frame = CalcFlipbookFrame(flipbook.tilesX, flipbook.tilesY, EasedValue(flipbook.easingType, progress));
+		const FlipbookFrame frame = CalcFlipbookFrame(
+			GetFlipbookTileValues(world, entity), flipbook.tilesY,
+			EasedValue(flipbook.easingType, progress));
 		uvTransform->scale = frame.uvScale;
 		uvTransform->pos = frame.uvOffset;
 		});

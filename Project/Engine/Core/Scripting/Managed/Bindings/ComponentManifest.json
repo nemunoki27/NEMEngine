@@ -846,12 +846,6 @@
           "access": "ReadWrite"
         },
         {
-          "managedName": "InputLocked",
-          "nativeMember": "runtimeInputLocked",
-          "kind": "Bool",
-          "access": "ReadOnly"
-        },
-        {
           "managedName": "NavigationMode",
           "nativeMember": "navigationMode",
           "kind": "Enum",
@@ -879,7 +873,7 @@
       "nativeHeader": "Engine/Core/World/Components/Physics/CollisionComponent.h",
       "exposure": "GeneratedBinding",
       "managedSurface": "NEMEngine.CollisionComponent",
-      "reason": "enabled/isStatic/enablePushback/typeMask と衝突中フラグを generated property で公開。shapes は vector なので Shape facade で件数/追加/削除/各パラメータを操作。衝突は ScriptBehaviour callback でも届く。",
+      "reason": "設定値だけを generated property で公開し、形状DynamicBufferと実行時衝突状態は専用facadeで操作する",
       "managedType": "CollisionComponent",
       "allowAdd": true,
       "allowRemove": true,
@@ -907,12 +901,6 @@
           "nativeMember": "typeMask",
           "kind": "UInt",
           "access": "ReadWrite"
-        },
-        {
-          "managedName": "IsColliding",
-          "nativeMember": "runtimeColliding",
-          "kind": "Bool",
-          "access": "ReadOnly"
         }
       ]
     },
@@ -1183,19 +1171,6 @@
           "nativeMember": "useUnscaledTime",
           "kind": "Bool",
           "access": "ReadWrite"
-        },
-        {
-          "managedName": "State",
-          "nativeMember": "runtimeState",
-          "kind": "Enum",
-          "enumType": "IrisTransitionState",
-          "access": "ReadOnly"
-        },
-        {
-          "managedName": "Progress",
-          "nativeMember": "runtimeProgress",
-          "kind": "Float",
-          "access": "ReadOnly"
         }
       ]
     },
@@ -2138,36 +2113,6 @@
           "nativeMember": "transitionDuration",
           "kind": "Float",
           "access": "ReadWrite"
-        },
-        {
-          "managedName": "CurrentState",
-          "nativeMember": "runtimeCurrentClip",
-          "kind": "String",
-          "access": "ReadOnly"
-        },
-        {
-          "managedName": "Finished",
-          "nativeMember": "runtimeAnimationFinished",
-          "kind": "Bool",
-          "access": "ReadOnly"
-        },
-        {
-          "managedName": "InTransition",
-          "nativeMember": "runtimeInTransition",
-          "kind": "Bool",
-          "access": "ReadOnly"
-        },
-        {
-          "managedName": "RepeatCount",
-          "nativeMember": "runtimeRepeatCount",
-          "kind": "Int",
-          "access": "ReadOnly"
-        },
-        {
-          "managedName": "CurrentTime",
-          "nativeMember": "runtimeTime",
-          "kind": "Float",
-          "access": "ReadOnly"
         }
       ]
     },
@@ -2427,12 +2372,6 @@
           "nativeMember": "actionName",
           "kind": "String",
           "access": "ReadWrite"
-        },
-        {
-          "managedName": "ClickedThisFrame",
-          "nativeMember": "runtimeClickedThisFrame",
-          "kind": "Bool",
-          "access": "ReadOnly"
         }
       ]
     },
@@ -2527,18 +2466,6 @@
           "nativeMember": "useUnscaledTime",
           "kind": "Bool",
           "access": "ReadWrite"
-        },
-        {
-          "managedName": "DisplayedNormalizedValue",
-          "nativeMember": "runtimeDisplayedValue",
-          "kind": "Float",
-          "access": "ReadOnly"
-        },
-        {
-          "managedName": "DelayedNormalizedValue",
-          "nativeMember": "runtimeDelayedValue",
-          "kind": "Float",
-          "access": "ReadOnly"
         }
       ]
     },
@@ -2559,37 +2486,6 @@
           "nativeMember": "interactable",
           "kind": "Bool",
           "access": "ReadWrite"
-        },
-        {
-          "managedName": "State",
-          "nativeMember": "runtimeState",
-          "kind": "Enum",
-          "enumType": "UISelectableState",
-          "access": "ReadOnly"
-        },
-        {
-          "managedName": "NormalThisFrame",
-          "nativeMember": "runtimeNormalThisFrame",
-          "kind": "Bool",
-          "access": "ReadOnly"
-        },
-        {
-          "managedName": "SelectedThisFrame",
-          "nativeMember": "runtimeSelectedThisFrame",
-          "kind": "Bool",
-          "access": "ReadOnly"
-        },
-        {
-          "managedName": "SubmittedThisFrame",
-          "nativeMember": "runtimeSubmittedThisFrame",
-          "kind": "Bool",
-          "access": "ReadOnly"
-        },
-        {
-          "managedName": "DisabledThisFrame",
-          "nativeMember": "runtimeDisabledThisFrame",
-          "kind": "Bool",
-          "access": "ReadOnly"
         }
       ]
     },
@@ -2616,12 +2512,6 @@
           "nativeMember": "actionName",
           "kind": "String",
           "access": "ReadWrite"
-        },
-        {
-          "managedName": "ClickedThisFrame",
-          "nativeMember": "runtimeClickedThisFrame",
-          "kind": "Bool",
-          "access": "ReadOnly"
         }
       ]
     },
@@ -2656,6 +2546,331 @@
           "access": "ReadWrite"
         }
       ]
+    },
+    {
+      "id": 40,
+      "registryName": "CollisionShapeBuffer",
+      "nativeType": "CollisionShape",
+      "nativeHeader": "Engine/Core/Physics/Collision/CollisionTypes.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Collision形状をチャンク内優先のDynamicBufferとして保持する。",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 41,
+      "registryName": "CollisionRuntimeState",
+      "nativeType": "CollisionRuntimeStateComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/CollisionComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "CollisionSystemが更新する非シリアライズ実行時状態。",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 42,
+      "registryName": "MeshSubMeshBuffer",
+      "nativeType": "SubMeshMaterial",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/MeshRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "サブメッシュ編集データをMeshRenderer本体から分離するDynamicBuffer",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 43,
+      "registryName": "CollisionCompound",
+      "nativeType": "CollisionCompoundComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/CollisionComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Runtime判定用の衝突形状列を共有Blobとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 44,
+      "registryName": "LinePointBuffer",
+      "nativeType": "LinePoint",
+      "nativeHeader": "Engine/Core/Assets/RenderComponentTypes.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "LineRendererの点列をチャンク内優先のDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 45,
+      "registryName": "FillMeshPositionBuffer",
+      "nativeType": "FillMeshPosition",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "FillMeshの編集点列をDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 46,
+      "registryName": "FillMeshTriangleIndexBuffer",
+      "nativeType": "FillMeshTriangleIndex",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "FillMeshの三角形分割結果を非シリアライズDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 47,
+      "registryName": "FillMeshRuntimeState",
+      "nativeType": "FillMeshRuntimeStateComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "FillMeshのGPU再構築世代を保存データから分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 48,
+      "registryName": "TextCharTransformBuffer",
+      "nativeType": "TextCharTransform",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/TextRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "TextRendererの文字別変換をDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 49,
+      "registryName": "TextLayoutGlyphBuffer",
+      "nativeType": "TextLayoutGlyph",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/TextRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "文字レイアウト済みグリフを非シリアライズDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 50,
+      "registryName": "TextLayoutRuntime",
+      "nativeType": "TextLayoutRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/TextRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "TextRendererの固定長レイアウトキャッシュを保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 51,
+      "registryName": "FlipbookTileColumnBuffer",
+      "nativeType": "FlipbookTileColumn",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Flipbookの行ごとの横タイル数をDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 52,
+      "registryName": "FlipbookAnimationRuntime",
+      "nativeType": "FlipbookAnimationRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Flipbookの再生経過と終了状態を保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 53,
+      "registryName": "AudioSourceRuntime",
+      "nativeType": "AudioSourceRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Audio/AudioSourceComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Voice一覧と再生要求をワールド所有Storageへ分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 54,
+      "registryName": "SkinnedAnimationRuntime",
+      "nativeType": "SkinnedAnimationRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "スケルトンとパレットと再生状態をワールド所有Storageへ分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 55,
+      "registryName": "CameraShakeRuntime",
+      "nativeType": "CameraShakeRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Camera/CameraShakeComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "カメラシェイクの時間とオフセットを保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 56,
+      "registryName": "UISelectableRuntime",
+      "nativeType": "UISelectableRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UISelectableComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "UI選択状態と表示補間値を保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 57,
+      "registryName": "UIProgressRuntime",
+      "nativeType": "UIProgressRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UIProgressComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Progressの表示補間と復元値をワールド所有Storageへ分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 58,
+      "registryName": "CanvasInputBindingBuffer",
+      "nativeType": "CanvasInputBinding",
+      "nativeHeader": "Engine/Core/World/Components/UI/CanvasComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Canvasの操作別入力設定を1本のDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 59,
+      "registryName": "CanvasNavigationCellBuffer",
+      "nativeType": "CanvasNavigationCell",
+      "nativeHeader": "Engine/Core/World/Components/UI/CanvasComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Canvasの遷移テーブルをDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 60,
+      "registryName": "CanvasRuntime",
+      "nativeType": "CanvasRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/CanvasComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Canvasの選択と入力リピート状態を保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 61,
+      "registryName": "UIImageButtonRuntime",
+      "nativeType": "UIImageButtonRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UIImageButtonComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "画像ボタンのフレームクリック状態を保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 62,
+      "registryName": "UITextButtonRuntime",
+      "nativeType": "UITextButtonRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UITextButtonComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "テキストボタンのフレームクリック状態を保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 63,
+      "registryName": "IrisTransitionRuntime",
+      "nativeType": "IrisTransitionRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/IrisTransitionComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "アイリス遷移の再生要求と現在状態を保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 64,
+      "registryName": "ScriptEntryBuffer",
+      "nativeType": "ScriptEntry",
+      "nativeHeader": "Engine/Core/World/Components/Scripting/ScriptComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Scriptの可変長スロットを設定コンポーネントから分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
     }
   ]
 }

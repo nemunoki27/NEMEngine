@@ -344,11 +344,14 @@ namespace {
 				// 空マテリアルは描画時に既定へ解決されるので、reflectionも実効デフォルトから引く
 				const Engine::AssetID material = renderer->material ?
 					renderer->material : Engine::DefaultMaterialSettings::GetInstance().GetMeshOrBuiltin();
-				for (size_t i = 0; i < renderer->subMeshes.size(); ++i) {
+				const std::span<const Engine::SubMeshMaterial> subMeshes =
+					Engine::GetMeshSubMeshes(world, entity);
+				for (size_t i = 0; i < subMeshes.size(); ++i) {
 					MaterialSlotInfo slot{};
 					slot.pathPrefix = std::format("subMeshes[{}]", i);
 					// 表示はサブメッシュ名、未設定ならpathPrefixをそのまま使う
-					slot.displayPrefix = renderer->subMeshes[i].name.empty() ? slot.pathPrefix : renderer->subMeshes[i].name;
+					slot.displayPrefix =
+						subMeshes[i].name.empty() ? slot.pathPrefix : subMeshes[i].name;
 					slot.material = material;
 					slots.emplace_back(std::move(slot));
 				}
@@ -362,10 +365,13 @@ namespace {
 				if (!ParseSubMeshIndex(prefix, index)) {
 					return nullptr;
 				}
-				if (Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
-					if (index < renderer->subMeshes.size()) {
-						return &renderer->subMeshes[index].parameterOverrides;
-					}
+				if (!world.HasComponent<Engine::MeshRendererComponent>(entity)) {
+					return nullptr;
+				}
+				const std::span<Engine::SubMeshMaterial> subMeshes =
+					Engine::GetMeshSubMeshes(world, entity);
+				if (index < subMeshes.size()) {
+					return &subMeshes[index].parameterOverrides.GetMutable();
 				}
 				return nullptr;
 			};
@@ -398,7 +404,7 @@ namespace {
 					return nullptr;
 				}
 				if (Component* renderer = world.TryGetComponent<Component>(entity)) {
-					return &renderer->parameterOverrides;
+					return &renderer->parameterOverrides.GetMutable();
 				}
 				return nullptr;
 			};
@@ -420,12 +426,13 @@ namespace {
 		desc.getValue = [paramName, valueType](Engine::ECSWorld& world, const Engine::Entity& entity,
 			Engine::AnimationPropertyValue& out) {
 
-				Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity);
-				if (!renderer || renderer->subMeshes.empty()) {
+				const std::span<Engine::SubMeshMaterial> subMeshes =
+					Engine::GetMeshSubMeshes(world, entity);
+				if (subMeshes.empty()) {
 					return false;
 				}
 				// 先頭サブメッシュを代表値とし、未設定なら0を現在値として返す
-				const auto& map = renderer->subMeshes[0].parameterOverrides;
+				const auto& map = subMeshes[0].parameterOverrides;
 				auto it = map.find(paramName);
 				if (it != map.end() && MaterialValueToAnimation(it->second, valueType, out)) {
 					return true;
@@ -436,27 +443,29 @@ namespace {
 		desc.setValue = [paramName](Engine::ECSWorld& world, const Engine::Entity& entity,
 			const Engine::AnimationPropertyValue& value) {
 
-				Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity);
-				if (!renderer) {
+				if (!world.HasComponent<Engine::MeshRendererComponent>(entity)) {
 					return false;
 				}
 				const Engine::MaterialParameterValue materialValue = AnimationValueToMaterial(value);
-				for (Engine::SubMeshMaterial& subMesh : renderer->subMeshes) {
+				for (Engine::SubMeshMaterial& subMesh :
+					Engine::GetMeshSubMeshes(world, entity)) {
 					subMesh.parameterOverrides[paramName] = materialValue;
 				}
 				return true;
 			};
 		desc.hasValue = [paramName](Engine::ECSWorld& world, const Engine::Entity& entity) {
-			Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity);
-			return renderer && !renderer->subMeshes.empty() &&
-				renderer->subMeshes[0].parameterOverrides.find(paramName) != renderer->subMeshes[0].parameterOverrides.end();
+			const std::span<Engine::SubMeshMaterial> subMeshes =
+				Engine::GetMeshSubMeshes(world, entity);
+			return !subMeshes.empty() &&
+				subMeshes[0].parameterOverrides.find(paramName) !=
+				subMeshes[0].parameterOverrides.end();
 			};
 		desc.clearValue = [paramName](Engine::ECSWorld& world, const Engine::Entity& entity) {
-			Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity);
-			if (!renderer) {
+			if (!world.HasComponent<Engine::MeshRendererComponent>(entity)) {
 				return false;
 			}
-			for (Engine::SubMeshMaterial& subMesh : renderer->subMeshes) {
+			for (Engine::SubMeshMaterial& subMesh :
+				Engine::GetMeshSubMeshes(world, entity)) {
 				subMesh.parameterOverrides.erase(paramName);
 			}
 			return true;

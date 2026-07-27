@@ -58,6 +58,8 @@ namespace Engine {
 		// ScriptBehaviour.Enabled用にowner EntityとscriptSlotIDでruntime entryを特定
 		static int32_t GetScriptEnabled(const Entity& owner, const UUID& scriptSlotID);
 		static void SetScriptEnabled(const Entity& owner, const UUID& scriptSlotID, bool enabled);
+		// Editorの実行時表示用にScript Slotへ対応するハンドルを返す
+		static BehaviorHandle FindRuntimeHandle(const Entity& owner, const UUID& scriptSlotID);
 
 		// GetComponent<Script>用にowner Entity上でscriptTypeID一致のscript instanceを返す、未解決はnullptr
 		static MonoBehavior* FindScriptInstance(const Entity& owner, const std::string& scriptTypeID);
