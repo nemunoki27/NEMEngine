@@ -1,0 +1,37 @@
+{
+    "Components": {
+        "Hierarchy": {
+            "parentLocalFileID": "",
+            "siblingOrder": 0
+        },
+        "Name": {
+            "name": "PerformanceGrid"
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "4d8e47ab052248fe",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+            "localPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localRotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    },
+    "LocalFileID": "4d8e47ab052248fe",
+    "SchemaVersion": 1
+}

@@ -223,6 +223,15 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		}
 		ImGui::Text("視錐台カリング: %s", runtime.useFrustumCulling ? "有効" : "無効");
 
+		bool useGameViewCameraForSceneCulling =
+			preferences.useGameViewCameraForSceneCulling;
+		if (ImGui::Checkbox("SceneViewもGameViewカメラでカリング",
+			&useGameViewCameraForSceneCulling)) {
+
+			featureController.SetUseGameViewCameraForSceneCulling(
+				useGameViewCameraForSceneCulling);
+		}
+
 		ImGui::Separator();
 
 		bool allowInlineRayTracing = preferences.allowInlineRayTracing;

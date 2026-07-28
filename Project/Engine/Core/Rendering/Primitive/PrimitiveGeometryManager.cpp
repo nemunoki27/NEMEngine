@@ -73,15 +73,19 @@ bool Engine::PrimitiveGeometryManager::EnsureBLAS(ID3D12Device8* device,
 	}
 
 	// 描画と同じ頂点/インデックスからBLASを組む、positionは先頭なのでoffsetは0
+	RaytracingBLASGeometryInput geometryInput{};
+	geometryInput.vertexAddress =
+		geometry.vertexBuffer.buffer->GetResource()->GetGPUVirtualAddress() +
+		offsetof(MeshVertex, position);
+	geometryInput.vertexStride = sizeof(MeshVertex);
+	geometryInput.vertexCount = geometry.vertexCount;
+	geometryInput.indexAddress =
+		geometry.indexBuffer.GetResource()->GetGPUVirtualAddress();
+	geometryInput.indexFormat = geometry.indexBuffer.GetFormat();
+	geometryInput.indexCount = geometry.indexCount;
+
 	RaytracingBLASInput input{};
-	input.meshResource = nullptr;
-	input.customVertexAddress = geometry.vertexBuffer.buffer->GetResource()->GetGPUVirtualAddress() + offsetof(MeshVertex, position);
-	input.customVertexStride = sizeof(MeshVertex);
-	input.customVertexCount = geometry.vertexCount;
-	input.customVertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-	input.customIndexAddress = geometry.indexBuffer.GetResource()->GetGPUVirtualAddress();
-	input.customIndexFormat = geometry.indexBuffer.GetFormat();
-	input.indexCount = geometry.indexCount;
+	input.geometries = std::span(&geometryInput, 1);
 	input.allowUpdate = false;
 
 	geometry.blas.Build(device, commandList, input);

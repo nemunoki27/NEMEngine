@@ -53,6 +53,10 @@ void Engine::RenderPathResources::Resize(GraphicsCore& graphicsCore, uint32_t wi
 		return;
 	}
 
+	// 旧RTを参照中のフレームを完了させてからDescriptorとResourceを再利用する
+	if (IsValid()) {
+		graphicsCore.GetDXObject().WaitForGPU();
+	}
 	currentWidth_ = width;
 	currentHeight_ = height;
 

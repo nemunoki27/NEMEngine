@@ -53,29 +53,39 @@ void DxCommandQueue::ExecuteCommandList(ID3D12GraphicsCommandList6* commandList)
 
 void DxCommandQueue::SignalAndWait() {
 
-	// Fenceの値を更新
-	fenceValue_++;
-	const HRESULT signalResult = commandQueue_->Signal(fence_.Get(), fenceValue_);
-	if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), signalResult, "DxCommandQueue::SignalAndWait/Signal")) {
-		Assert::Call(false, "Graphics queue Signal failed.");
+	const uint64_t fenceValue = Signal();
+	if (fenceValue == 0) {
 		return;
 	}
 
 	// 実行完了を待つ
-	if (fence_->GetCompletedValue() < fenceValue_) {
+	WaitForFenceValue(fenceValue, "DxCommandQueue::SignalAndWait/Wait");
+}
 
-		const HRESULT completionResult = fence_->SetEventOnCompletion(fenceValue_, fenceEvent_);
-		if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), completionResult, "DxCommandQueue::SignalAndWait/SetEventOnCompletion")) {
-			Assert::Call(false, "Fence SetEventOnCompletion failed.");
-			return;
-		}
+uint64_t DxCommandQueue::Signal() {
 
-		// イベントを待つ
-		WaitForFenceValue(fenceValue_, "DxCommandQueue::SignalAndWait/Wait");
+	const uint64_t fenceValue = ++fenceValue_;
+	const HRESULT signalResult = commandQueue_->Signal(fence_.Get(), fenceValue);
+	if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), signalResult, "DxCommandQueue::SignalAndWait/Signal")) {
+		Assert::Call(false, "Graphics queue Signal failed.");
+		return 0;
 	}
+	return fenceValue;
 }
 
 bool DxCommandQueue::WaitForFenceValue(uint64_t expectedValue, std::string_view operation) {
+
+	if (expectedValue == 0 || fence_->GetCompletedValue() >= expectedValue) {
+		return true;
+	}
+
+	const HRESULT completionResult = fence_->SetEventOnCompletion(expectedValue, fenceEvent_);
+	if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), completionResult,
+		"DxCommandQueue::WaitForFenceValue/SetEventOnCompletion")) {
+		Assert::Call(false, "Fence SetEventOnCompletion failed.");
+		return false;
+	}
+
 	while (fence_->GetCompletedValue() < expectedValue) {
 		constexpr DWORD kWaitSliceMilliseconds = 250u;
 		const DWORD waitResult = WaitForSingleObject(fenceEvent_, kWaitSliceMilliseconds);

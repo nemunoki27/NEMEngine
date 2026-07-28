@@ -13,12 +13,16 @@
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
+#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
+#include <Engine/Core/World/Systems/Transform/TransformSystem.h>
 
 // c++
 #include <array>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -98,7 +102,7 @@ namespace {
 			Engine::BuiltinShaderSource::Line::GeometryPS,
 			Engine::BuiltinShaderSource::Line::AnalyticGridVS,
 			Engine::BuiltinShaderSource::Line::AnalyticGridPS,
-			Engine::BuiltinShaderSource::Editor::PickMeshInstanceCS,
+			Engine::BuiltinShaderSource::Editor::PickMeshRasterPS,
 			Engine::BuiltinShaderSource::Editor::SceneOverlaySpriteVS,
 			Engine::BuiltinShaderSource::Editor::SceneOverlaySpritePS,
 		};
@@ -637,6 +641,69 @@ namespace {
 		world.RemoveComponent<Engine::ScriptComponent>(restored);
 		return !world.HasBuffer<Engine::ScriptEntry>(restored);
 	}
+
+	bool TestTransformDirtyHierarchy() {
+
+		Engine::ECSWorld world{};
+		const Engine::Entity parent = world.CreateEntity();
+		const Engine::Entity child = world.CreateEntity();
+
+		world.AddComponent<Engine::TransformComponent>(parent);
+		world.AddComponent<Engine::HierarchyComponent>(parent);
+		world.AddComponent<Engine::SceneObjectComponent>(parent);
+		world.AddComponent<Engine::TransformComponent>(child);
+		world.AddComponent<Engine::HierarchyComponent>(child);
+		world.AddComponent<Engine::SceneObjectComponent>(child);
+
+		auto& parentTransform = world.GetComponent<Engine::TransformComponent>(parent);
+		auto& parentHierarchy = world.GetComponent<Engine::HierarchyComponent>(parent);
+		auto& childTransform = world.GetComponent<Engine::TransformComponent>(child);
+		auto& childHierarchy = world.GetComponent<Engine::HierarchyComponent>(child);
+		auto& childSceneObject = world.GetComponent<Engine::SceneObjectComponent>(child);
+
+		parentHierarchy.firstChild = child;
+		parentHierarchy.lastChild = child;
+		childHierarchy.parent = parent;
+		parentTransform.localPos = Engine::Vector3(2.0f, 0.0f, 0.0f);
+		childTransform.localPos = Engine::Vector3(1.0f, 0.0f, 0.0f);
+
+		Engine::TransformSystem transformSystem{};
+		Engine::SystemContext context{};
+		transformSystem.LateUpdate(world, context);
+		if (std::abs(childTransform.worldMatrix.GetTranslationValue().x - 3.0f) > 0.0001f) {
+			return false;
+		}
+
+		// 親だけdirtyでも子へワールド変更を伝播する
+		parentTransform.localPos.x = 5.0f;
+		parentTransform.isDirty = true;
+		transformSystem.LateUpdate(world, context);
+		if (std::abs(childTransform.worldMatrix.GetTranslationValue().x - 6.0f) > 0.0001f) {
+			return false;
+		}
+
+		// 子だけの変更は現在の親ワールド行列から更新する
+		childTransform.localPos.x = 2.0f;
+		childTransform.isDirty = true;
+		transformSystem.LateUpdate(world, context);
+		if (std::abs(childTransform.worldMatrix.GetTranslationValue().x - 7.0f) > 0.0001f) {
+			return false;
+		}
+
+		// 非アクティブ中はdirtyを保持し、再有効化した時点で反映する
+		childSceneObject.activeInHierarchy = false;
+		parentTransform.localPos.x = 8.0f;
+		parentTransform.isDirty = true;
+		transformSystem.LateUpdate(world, context);
+		if (!childTransform.isDirty ||
+			std::abs(childTransform.worldMatrix.GetTranslationValue().x - 7.0f) > 0.0001f) {
+			return false;
+		}
+		childSceneObject.activeInHierarchy = true;
+		transformSystem.LateUpdate(world, context);
+		return !childTransform.isDirty &&
+			std::abs(childTransform.worldMatrix.GetTranslationValue().x - 10.0f) <= 0.0001f;
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -702,6 +769,10 @@ int main(int argc, char* argv[]) {
 	if (!TestNonTrivialDynamicBuffer()) {
 		std::cerr << "ECS non-trivial buffer failed\n";
 		return 13;
+	}
+	if (!TestTransformDirtyHierarchy()) {
+		std::cerr << "Transform dirty hierarchy failed\n";
+		return 14;
 	}
 	std::cout << "NEMTests passed\n";
 	return 0;

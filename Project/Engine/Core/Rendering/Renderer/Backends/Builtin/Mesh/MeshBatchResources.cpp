@@ -19,6 +19,7 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <unordered_map>
@@ -93,10 +94,6 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	meshData_.Init(device, srvDescriptor);
 	// カリング後に残すインスタンスを書き込むRWバッファ
 	visibleMeshData_.Init(device, srvDescriptor);
-	draw_.Init(device);
-	// ExecuteIndirect引数生成Computeに渡す固定Index数
-	indirectArgs_.Init(device);
-	screenSpaceOutlineMask_.Init(device);
 	subMeshData_.Init(device, srvDescriptor);
 	// 背面法アウトラインのインスタンス別GPUデータ
 	outlineData_.Init(device, srvDescriptor);
@@ -121,17 +118,30 @@ void Engine::MeshBatchResources::Finalize() {
 	// OptionalSkinningResourcesは内部にSRV/UAV付きGPUバッファを持つため、終了時に明示resetする
 	skinning_.reset();
 	// 可変strideマテリアルパラメータバッファのSRVとリソースを解放する
-	if (srvDescriptor_ && subMeshParamSrvIndex_ != UINT32_MAX) {
-		srvDescriptor_->Free(subMeshParamSrvIndex_);
-		subMeshParamSrvIndex_ = UINT32_MAX;
+	if (srvDescriptor_) {
+		for (uint32_t& index : subMeshParamSrvIndices_) {
+			if (index != UINT32_MAX) {
+				srvDescriptor_->Free(index);
+				index = UINT32_MAX;
+			}
+		}
+		for (uint32_t index : retiredSubMeshParamSrvIndices_) {
+			srvDescriptor_->Free(index);
+		}
 	}
-	subMeshParamBuffer_.Reset();
-	subMeshParamMapped_ = nullptr;
+	subMeshParamBuffer_.Release();
+	subMeshParamHandles_ = {};
+	retiredSubMeshParamSrvIndices_.clear();
 	subMeshParamCapacityBytes_ = 0;
 	subMeshParamStride_ = 0;
 	subMeshParamElementCount_ = 0;
 	subMeshParamAvailable_ = false;
 	subMeshParamScratch_.clear();
+	dynamicConstantAllocator_.Release();
+	dynamicConstantFrameSerial_ = 0;
+	drawGPUAddress_ = 0;
+	screenSpaceOutlineMaskGPUAddress_ = 0;
+	indirectArgsGPUAddress_ = 0;
 	device_ = nullptr;
 	srvDescriptor_ = nullptr;
 	meshScratch_.clear();
@@ -143,11 +153,25 @@ void Engine::MeshBatchResources::Finalize() {
 	instanceCount_ = 0;
 	skinnedInstanceCount_ = 0;
 	skinningDispatched_ = false;
+	skinningOutputValid_ = false;
+	currentSkinningPoseHash_ = 0;
+	dispatchedSkinningPoseHash_ = 0;
+	skinningBufferGeneration_ = 0;
 	usesFallbackTexture_ = false;
 	indexedIndirectArgs_.Reset();
 	indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;
 	visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
 	initialized_ = false;
+}
+
+void Engine::MeshBatchResources::BeginDynamicConstantsFrame() {
+
+	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
+	if (dynamicConstantFrameSerial_ == frameSerial) {
+		return;
+	}
+	dynamicConstantAllocator_.BeginFrame();
+	dynamicConstantFrameSerial_ = frameSerial;
 }
 
 void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& drawContext,
@@ -192,7 +216,9 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 	drawConstants.outlineMaxAbsCameraZOffset = hullOutline ? outlineMetrics_.maxAbsCameraZOffset : 0.0f;
 	drawConstants.outlineHasScreenPixelWidth = (hullOutline && outlineMetrics_.hasScreenPixelWidth) ? 1u : 0u;
 
-	draw_.Upload(drawConstants);
+	BeginDynamicConstantsFrame();
+	drawGPUAddress_ = dynamicConstantAllocator_.AllocateAndUpload(
+		device_, drawConstants).gpuAddress;
 
 	if (drawContext.passKind == MaterialPassKind::ScreenSpaceOutlineMask ||
 		drawContext.passKind == MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
@@ -200,7 +226,9 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 		ScreenSpaceOutlineMaskConstants params{};
 		params.styleID = drawContext.screenSpaceOutlineMaskStyleID;
 		params.restrictSubMeshIndex = drawContext.screenSpaceOutlineMaskRestrictSubMeshIndex;
-		screenSpaceOutlineMask_.Upload(params);
+		screenSpaceOutlineMaskGPUAddress_ =
+			dynamicConstantAllocator_.AllocateAndUpload(
+				device_, params).gpuAddress;
 	}
 }
 
@@ -209,7 +237,10 @@ void Engine::MeshBatchResources::UpdateIndexedIndirectArgsConstants(uint32_t ind
 	// ComputeでDrawIndexedInstanced引数を組み立てるため、Index数だけCPUから渡す
 	MeshIndirectArgsConstants constants{};
 	constants.indexCount = indexCount;
-	indirectArgs_.Upload(constants);
+	BeginDynamicConstantsFrame();
+	indirectArgsGPUAddress_ =
+		dynamicConstantAllocator_.AllocateAndUpload(
+			device_, constants).gpuAddress;
 }
 
 void Engine::MeshBatchResources::EnsureSkinningResources(GraphicsCore& graphicsCore) {
@@ -237,6 +268,8 @@ void Engine::MeshBatchResources::EnsureSkinningResources(GraphicsCore& graphicsC
 
 	skinning_->skinnedVertexState = D3D12_RESOURCE_STATE_COMMON;
 	skinning_->skinnedPackedVertexState = D3D12_RESOURCE_STATE_COMMON;
+	skinningOutputValid_ = false;
+	++skinningBufferGeneration_;
 }
 
 bool Engine::MeshBatchResources::FindSkinnedVertexOffset(ECSWorld* world, Entity entity, uint32_t& outVertexOffset) const {
@@ -300,7 +333,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	skinnedRecords_.clear();
 	skinnedVertexOffsetMap_.clear();
 	skinnedInstanceCount_ = 0;
-	skinningDispatched_ = false;
+	currentSkinningPoseHash_ = 1469598103934665603ull;
 	usesFallbackTexture_ = false;
 	// アウトラインの保守的メトリクスを初期化する
 	outlineMetrics_ = OutlineBatchMetrics{};
@@ -405,6 +438,12 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				// スキニングパレットデータを追加
 				paletteScratch_.insert(paletteScratch_.end(),
 					skinnedRuntime->palette.begin(), skinnedRuntime->palette.end());
+				Algorithm::HashCombine(currentSkinningPoseHash_,
+					static_cast<uint64_t>(item->entity.index));
+				Algorithm::HashCombine(currentSkinningPoseHash_,
+					static_cast<uint64_t>(item->entity.generation));
+				Algorithm::HashCombine(currentSkinningPoseHash_,
+					skinnedRuntime->poseGeneration);
 
 				// スキニングするインスタンスのレコードを追加
 				skinnedRecords_.push_back({ item->world,item->entity,instance.skinnedVertexOffset });
@@ -447,6 +486,8 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			}
 
 			instance.outlineDataIndex = static_cast<uint32_t>(outlineScratch_.size());
+			instance.entityIndex = item->entity.index;
+			instance.entityGeneration = item->entity.generation;
 			outlineScratch_.emplace_back(outlineGPU);
 
 			meshScratch_.emplace_back(instance);
@@ -482,6 +523,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 
 	// インスタンス数を設定
 	instanceCount_ = static_cast<uint32_t>(meshScratch_.size());
+	Algorithm::HashCombine(currentSkinningPoseHash_, skinnedInstanceCount_);
 
 	// GPUにデータ転送
 	meshData_.Upload(meshScratch_);
@@ -498,16 +540,6 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 
 	if (skinning_) {
 
-		// パレットデータの転送
-		skinning_->skinningPalette.Upload(paletteScratch_);
-
-		// スキニング定数の転送
-		MeshSkinningDispatchConstants skinningConstants{};
-		skinningConstants.vertexCount = gpuMesh.vertexCount;
-		skinningConstants.boneCount = gpuMesh.boneCount;
-		skinningConstants.skinnedInstanceCount = skinnedInstanceCount_;
-		skinning_->skinningConstants.Upload(skinningConstants);
-
 		// スキニング頂点バッファの容量を確保
 		const uint32_t requiredSkinnedVertexCount = (std::max)(1u,
 			static_cast<uint32_t>((std::max)(items.size(), size_t(1))) * gpuMesh.vertexCount);
@@ -520,12 +552,38 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 		if (prevCapacity != skinning_->skinnedVertices.GetCapacity()) {
 
 			skinning_->skinnedVertexState = D3D12_RESOURCE_STATE_COMMON;
+			skinningOutputValid_ = false;
+			++skinningBufferGeneration_;
 		}
 		if (prevPackedCapacity != skinning_->skinnedPackedVertices.GetCapacity()) {
 
 			skinning_->skinnedPackedVertexState = D3D12_RESOURCE_STATE_COMMON;
+			skinningOutputValid_ = false;
+			++skinningBufferGeneration_;
+		}
+
+		skinningDispatched_ = skinningOutputValid_ &&
+			currentSkinningPoseHash_ == dispatchedSkinningPoseHash_;
+		if (!skinningDispatched_ && 0 < skinnedInstanceCount_) {
+
+			// ポーズ変更時だけパレットとDispatch定数を更新する
+			skinning_->skinningPalette.Upload(paletteScratch_);
+
+			MeshSkinningDispatchConstants skinningConstants{};
+			skinningConstants.vertexCount = gpuMesh.vertexCount;
+			skinningConstants.boneCount = gpuMesh.boneCount;
+			skinningConstants.skinnedInstanceCount = skinnedInstanceCount_;
+			skinning_->skinningConstants.Upload(skinningConstants);
 		}
 	}
+}
+
+void Engine::MeshBatchResources::UploadCachedBatchData() {
+
+	// フレームごとに異なるUploadBufferを参照するため、再構築済み配列だけを現在スロットへ転送する
+	meshData_.Upload(meshScratch_);
+	subMeshData_.Upload(subMeshScratch_);
+	outlineData_.Upload(outlineScratch_);
 }
 
 void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset* material,
@@ -576,36 +634,44 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 		std::memcpy(packed.data() + static_cast<size_t>(stride) * i, element.data(), copyBytes);
 	}
 
-	// 容量不足やstride変更時のみリソースとSRVを作り直す
+	// 容量不足時は全フレーム分を拡張し、stride変更時はSRVだけを更新する
 	const uint32_t requiredBytes = static_cast<uint32_t>(packed.size());
-	if (requiredBytes > subMeshParamCapacityBytes_ || stride != subMeshParamStride_ || !subMeshParamBuffer_) {
-
-		if (subMeshParamSrvIndex_ != UINT32_MAX) {
-			srvDescriptor_->Free(subMeshParamSrvIndex_);
-			subMeshParamSrvIndex_ = UINT32_MAX;
-		}
-		subMeshParamMapped_ = nullptr;
-		const uint32_t newCapacityBytes = (std::max)(requiredBytes, 4096u);
-		DxUtils::CreateBufferResource(device_, subMeshParamBuffer_, newCapacityBytes);
-		HRESULT hr = subMeshParamBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&subMeshParamMapped_));
-		Assert::Call(SUCCEEDED(hr), "failed to map subMesh material parameter buffer");
+	const bool reallocated = subMeshParamBuffer_.EnsureCapacity(
+		device_, requiredBytes, "gMeshSubMeshMaterialParameters", 4096);
+	if (reallocated || stride != subMeshParamStride_ ||
+		subMeshParamSrvIndices_[0] == UINT32_MAX) {
 
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 		srvDesc.Buffer.FirstElement = 0;
-		srvDesc.Buffer.NumElements = (std::max)(newCapacityBytes / stride, 1u);
+		srvDesc.Buffer.NumElements = (std::max)(
+			static_cast<uint32_t>(subMeshParamBuffer_.GetCapacity()) / stride, 1u);
 		srvDesc.Buffer.StructureByteStride = stride;
 		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-		srvDescriptor_->CreateSRV(subMeshParamSrvIndex_, subMeshParamBuffer_.Get(), srvDesc);
-		subMeshParamHandle_ = srvDescriptor_->GetGPUHandle(subMeshParamSrvIndex_);
-		subMeshParamCapacityBytes_ = newCapacityBytes;
+		for (uint32_t frameIndex = 0;
+			frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
+
+			if (subMeshParamSrvIndices_[frameIndex] != UINT32_MAX) {
+				retiredSubMeshParamSrvIndices_.emplace_back(
+					subMeshParamSrvIndices_[frameIndex]);
+				subMeshParamSrvIndices_[frameIndex] = UINT32_MAX;
+			}
+			srvDescriptor_->CreateSRV(
+				subMeshParamSrvIndices_[frameIndex],
+				subMeshParamBuffer_.GetResource(frameIndex), srvDesc);
+			subMeshParamHandles_[frameIndex] =
+				srvDescriptor_->GetGPUHandle(
+					subMeshParamSrvIndices_[frameIndex]);
+		}
+		subMeshParamCapacityBytes_ =
+			static_cast<uint32_t>(subMeshParamBuffer_.GetCapacity());
 		subMeshParamStride_ = stride;
 	}
 
-	if (subMeshParamMapped_ && !packed.empty()) {
-		std::memcpy(subMeshParamMapped_, packed.data(), packed.size());
+	if (!packed.empty()) {
+		subMeshParamBuffer_.Write(packed.data(), packed.size());
 	}
 	subMeshParamElementCount_ = elementCount;
 	subMeshParamAvailable_ = true;

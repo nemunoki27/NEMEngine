@@ -12,6 +12,7 @@
 #include <string>
 #include <memory>
 #include <algorithm>
+#include <vector>
 
 namespace Engine {
 
@@ -79,6 +80,8 @@ namespace Engine {
 		// SRV/UAVのインデックス
 		uint32_t srvIndex_ = UINT32_MAX;
 		uint32_t uavIndex_ = UINT32_MAX;
+		std::vector<std::unique_ptr<DxStructuredBuffer<T>>> retiredBuffers_{};
+		std::vector<uint32_t> retiredDescriptorIndices_{};
 
 		//--------- structure ----------------------------------------------------
 
@@ -108,9 +111,14 @@ namespace Engine {
 				srvDescriptor_->Free(uavIndex_);
 				uavIndex_ = UINT32_MAX;
 			}
+			for (uint32_t index : retiredDescriptorIndices_) {
+				srvDescriptor_->Free(index);
+			}
 		}
 
 		buffer_.reset();
+		retiredBuffers_.clear();
+		retiredDescriptorIndices_.clear();
 		capacity_ = 0;
 		currentState_ = D3D12_RESOURCE_STATE_COMMON;
 		srvGPUHandle_ = {};
@@ -129,15 +137,16 @@ namespace Engine {
 		}
 
 		const uint32_t newCapacity = RoundUpCapacity(requiredCount);
-		if (srvDescriptor_) {
-			if (srvIndex_ != UINT32_MAX) {
-				srvDescriptor_->Free(srvIndex_);
-				srvIndex_ = UINT32_MAX;
-			}
-			if (uavIndex_ != UINT32_MAX) {
-				srvDescriptor_->Free(uavIndex_);
-				uavIndex_ = UINT32_MAX;
-			}
+		if (buffer_) {
+			retiredBuffers_.emplace_back(std::move(buffer_));
+		}
+		if (srvIndex_ != UINT32_MAX) {
+			retiredDescriptorIndices_.emplace_back(srvIndex_);
+			srvIndex_ = UINT32_MAX;
+		}
+		if (uavIndex_ != UINT32_MAX) {
+			retiredDescriptorIndices_.emplace_back(uavIndex_);
+			uavIndex_ = UINT32_MAX;
 		}
 
 		// バッファ作成
@@ -186,4 +195,3 @@ namespace Engine {
 		return capacity;
 	}
 } // Engine
-

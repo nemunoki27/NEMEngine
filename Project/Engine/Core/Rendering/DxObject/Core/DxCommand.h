@@ -5,10 +5,12 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 // directX
 #include <d3d12.h>
 // c++
+#include <array>
 #include <cstdint>
 #include <vector>
 #include <optional>
@@ -31,10 +33,14 @@ public:
 	// デバイスからアロケータ/リストを生成し初期化する
 	void Create(ID3D12Device* device);
 
+	// 再利用可能になったフレームコンテキストで記録を開始する
+	void BeginFrame(uint32_t frameIndex);
 	// 提出前にコマンドリストを閉じる
 	void CloseCommandList();
 	// 次フレーム用にアロケータとコマンドリストをリセットする
 	void ResetCommandList();
+	// 現在のフレームへ提出Fence値を記録する
+	void SetCurrentFrameFenceValue(uint64_t fenceValue);
 
 	// ルートで使用するディスクリプタヒープ配列をセットする
 	void SetDescriptorHeaps(const std::vector<ID3D12DescriptorHeap*>& descriptorHeaps);
@@ -74,6 +80,15 @@ public:
 	//--------- accessor -----------------------------------------------------
 
 	ID3D12GraphicsCommandList6* GetCommandList() const { return commandList_.Get(); }
+	uint32_t GetCurrentFrameIndex() const { return currentFrameIndex_; }
+	uint64_t GetCurrentFrameFenceValue() const {
+		return frameContexts_[currentFrameIndex_].fenceValue;
+	}
+	uint64_t GetFrameFenceValue(uint32_t frameIndex) const {
+		return frameContexts_[
+			frameIndex % kGraphicsFrameContextCount].fenceValue;
+	}
+	bool IsRecording() const { return recording_; }
 private:
 	//============================================================================
 	//	private Methods
@@ -82,7 +97,9 @@ private:
 	//--------- variables ----------------------------------------------------
 
 	ComPtr<ID3D12GraphicsCommandList6> commandList_;
-	ComPtr<ID3D12CommandAllocator> commandAllocator_;
+	std::array<GraphicsFrameContext, kGraphicsFrameContextCount> frameContexts_{};
+	uint32_t currentFrameIndex_ = 0;
+	bool recording_ = false;
 };
 
 }; // Engine

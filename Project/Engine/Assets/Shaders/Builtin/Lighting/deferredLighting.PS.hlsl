@@ -72,6 +72,30 @@ StructuredBuffer<DirectionalLight> gDirectionalLights : register(t6);
 StructuredBuffer<PointLight> gPointLights : register(t7);
 StructuredBuffer<SpotLight> gSpotLights : register(t8);
 
+struct LightClusterHeader {
+
+	uint offset;
+	uint count;
+};
+cbuffer LightClusterConstants : register(b2) {
+
+	uint clusterTileCountX;
+	uint clusterTileCountY;
+	uint clusterZSliceCount;
+	uint clusterTileSize;
+
+	float clusterNearClip;
+	float clusterFarClip;
+	float clusterSliceScale;
+	float clusterSliceBias;
+
+	uint clusterCount;
+	uint clusterMaxLights;
+	uint2 _clusterPad;
+};
+StructuredBuffer<LightClusterHeader> gLightClusterHeaders : register(t9);
+StructuredBuffer<uint> gLightClusterIndices : register(t11);
+
 //============================================================================
 //	ライティングパス定数
 //============================================================================
@@ -82,6 +106,7 @@ cbuffer DeferredLightingConstants : register(b1) {
 	float ambientIntensity;
 
 	float4x4 inverseViewProjection;
+	float4x4 viewMatrix;
 
 	float4 skyboxColor;
 
@@ -196,6 +221,94 @@ float3 Square(float3 value) {
 	return value * value;
 }
 
+float3 EvaluatePointLightIndex(uint lightIndex,
+	float3 worldPos, float3 N, float3 V,
+	float3 albedo, float metallic, float roughness, float3 F0,
+	uint flags, bool useShadow) {
+
+	PointLight light = gPointLights[lightIndex];
+	float3 toLight = light.pos - worldPos;
+	float dist = length(toLight);
+	if (dist <= 1e-5f) {
+		return 0.0f.xxx;
+	}
+	float attenuation =
+		ComputeDistanceAttenuation(dist, light.radius, light.decay);
+	if (attenuation <= 0.0f) {
+		return 0.0f.xxx;
+	}
+	float3 L = toLight / dist;
+	float shadow = 1.0f;
+	if (useShadow && (flags & kMaterialFlagReceiveShadow) != 0u) {
+		shadow = TracePointShadow(worldPos, N, toLight, dist) ?
+			(1.0f - light.shadowStrength) : 1.0f;
+	}
+	float3 radiance =
+		light.color.rgb * light.intensity * attenuation * shadow;
+	return EvaluatePBRLight(
+		N, V, L, radiance, albedo, metallic, roughness, F0);
+}
+
+float3 EvaluateSpotLightIndex(uint lightIndex,
+	float3 worldPos, float3 N, float3 V,
+	float3 albedo, float metallic, float roughness, float3 F0) {
+
+	SpotLight light = gSpotLights[lightIndex];
+	float3 toLight = light.pos - worldPos;
+	float dist = length(toLight);
+	if (dist <= 1e-5f) {
+		return 0.0f.xxx;
+	}
+	float distanceAttenuation =
+		ComputeDistanceAttenuation(dist, light.distance, light.decay);
+	if (distanceAttenuation <= 0.0f) {
+		return 0.0f.xxx;
+	}
+	float3 L = toLight / dist;
+	float3 lightDir = normalize(light.direction);
+	float cosTheta = dot(-L, lightDir);
+	float coneRange =
+		max(light.cosFalloffStart - light.cosAngle, 1e-4f);
+	float coneAttenuation =
+		saturate((cosTheta - light.cosAngle) / coneRange);
+	coneAttenuation *= coneAttenuation;
+	if (coneAttenuation <= 0.0f) {
+		return 0.0f.xxx;
+	}
+	float3 radiance = light.color.rgb * light.intensity *
+		distanceAttenuation * coneAttenuation;
+	return EvaluatePBRLight(
+		N, V, L, radiance, albedo, metallic, roughness, F0);
+}
+
+bool ResolveLightCluster(int2 pixel, float3 worldPos,
+	out LightClusterHeader header) {
+
+	header.offset = 0;
+	header.count = 0;
+	if (clusterCount == 0u || clusterTileCountX == 0u ||
+		clusterTileCountY == 0u || clusterZSliceCount == 0u) {
+		return false;
+	}
+
+	uint2 tile = min(
+		uint2(max(pixel, int2(0, 0))) / max(clusterTileSize, 1u),
+		uint2(clusterTileCountX - 1u, clusterTileCountY - 1u));
+	float viewDepth = mul(float4(worldPos, 1.0f), viewMatrix).z;
+	uint zSlice = (uint)clamp(
+		floor(log2(max(viewDepth, clusterNearClip)) *
+			clusterSliceScale + clusterSliceBias),
+		0.0f, float(clusterZSliceCount - 1u));
+	uint clusterIndex =
+		(zSlice * clusterTileCountY + tile.y) *
+		clusterTileCountX + tile.x;
+	if (clusterCount <= clusterIndex) {
+		return false;
+	}
+	header = gLightClusterHeaders[clusterIndex];
+	return true;
+}
+
 //============================================================================
 //	背景、スカイボックス
 //============================================================================
@@ -264,57 +377,42 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 		float3 radiance = light.color.rgb * light.intensity * shadow;
 		Lo += EvaluatePBRLight(N, V, L, radiance, albedo, metallic, roughness, F0);
 	}
-	// 点光源
-	[loop]
-	for (uint pi = 0; pi < pointCount; ++pi) {
+	// ローカルライトは現在ピクセルが属するクラスターの索引だけを走査する
+	LightClusterHeader clusterHeader;
+	if (ResolveLightCluster(pixel.xy, worldPos, clusterHeader)) {
+		[loop]
+		for (uint clusterLight = 0;
+			clusterLight < clusterHeader.count; ++clusterLight) {
 
-		PointLight light = gPointLights[pi];
-		float3 toLight = light.pos - worldPos;
-		float dist = length(toLight);
-		if (dist <= 1e-5f) {
-			continue;
+			uint localIndex =
+				gLightClusterIndices[clusterHeader.offset + clusterLight];
+			if (localIndex < pointCount) {
+				Lo += EvaluatePointLightIndex(localIndex,
+					worldPos, N, V, albedo, metallic,
+					roughness, F0, flags, useShadow);
+			} else {
+				uint spotIndex = localIndex - pointCount;
+				if (spotIndex < spotCount) {
+					Lo += EvaluateSpotLightIndex(spotIndex,
+						worldPos, N, V, albedo, metallic,
+						roughness, F0);
+				}
+			}
 		}
-		float attenuation = ComputeDistanceAttenuation(dist, light.radius, light.decay);
-		if (attenuation <= 0.0f) {
-			continue;
+	} else {
+		// 透視カメラを持たないビューでは従来通り全ローカルライトを評価する
+		[loop]
+		for (uint pi = 0; pi < pointCount; ++pi) {
+			Lo += EvaluatePointLightIndex(pi,
+				worldPos, N, V, albedo, metallic,
+				roughness, F0, flags, useShadow);
 		}
-		float3 L = toLight / dist;
-		// 影計算を行うか、影を受けないサーフェイスもスキップして1.0fのまま使う
-		float shadow = 1.0f;
-		if (useShadow && (flags & kMaterialFlagReceiveShadow) != 0u) {
-
-			// サーフェイスからライトまでの間に遮蔽があれば影の強さ分だけ暗くする
-			shadow = TracePointShadow(worldPos, N, toLight, dist) ? (1.0f - light.shadowStrength) : 1.0f;
+		[loop]
+		for (uint si = 0; si < spotCount; ++si) {
+			Lo += EvaluateSpotLightIndex(si,
+				worldPos, N, V, albedo, metallic,
+				roughness, F0);
 		}
-
-		float3 radiance = light.color.rgb * light.intensity * attenuation * shadow;
-		Lo += EvaluatePBRLight(N, V, L, radiance, albedo, metallic, roughness, F0);
-	}
-	// スポットライト
-	[loop]
-	for (uint si = 0; si < spotCount; ++si) {
-
-		SpotLight light = gSpotLights[si];
-		float3 toLight = light.pos - worldPos;
-		float dist = length(toLight);
-		if (dist <= 1e-5f) {
-			continue;
-		}
-		float distanceAttenuation = ComputeDistanceAttenuation(dist, light.distance, light.decay);
-		if (distanceAttenuation <= 0.0f) {
-			continue;
-		}
-		float3 L = toLight / dist;
-		float3 lightDir = normalize(light.direction);
-		float cosTheta = dot(-L, lightDir);
-		float coneRange = max(light.cosFalloffStart - light.cosAngle, 1e-4f);
-		float coneAttenuation = saturate((cosTheta - light.cosAngle) / coneRange);
-		coneAttenuation *= coneAttenuation;
-		if (coneAttenuation <= 0.0f) {
-			continue;
-		}
-		float3 radiance = light.color.rgb * light.intensity * distanceAttenuation * coneAttenuation;
-		Lo += EvaluatePBRLight(N, V, L, radiance, albedo, metallic, roughness, F0);
 	}
 
 	// 環境光はAOで減衰、環境光を受けないサーフェイスは加算しない

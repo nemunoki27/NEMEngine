@@ -19,8 +19,11 @@
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
 #include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
+#include <bit>
 #include <cstddef>
 #include <memory>
 #include <span>
@@ -85,6 +88,28 @@ namespace {
 		subMeshData.roughness = 1.0f;
 		return subMeshData;
 	}
+
+	uint64_t ComputeGeometryLayoutHash(
+		std::span<const Engine::SubMeshMaterial> subMeshes,
+		uint32_t geometryCount) {
+
+		uint64_t hash = geometryCount;
+		for (uint32_t index = 0; index < geometryCount; ++index) {
+
+			const Engine::Matrix4x4 localMatrix =
+				index < subMeshes.size() ?
+				Engine::MeshSubMeshRuntime::BuildRenderLocalMatrix(subMeshes[index]) :
+				Engine::Matrix4x4::Identity();
+			for (uint32_t row = 0; row < 4; ++row) {
+				for (uint32_t column = 0; column < 4; ++column) {
+
+					Engine::Algorithm::HashCombine(hash,
+						std::bit_cast<uint32_t>(localMatrix.m[row][column]));
+				}
+			}
+		}
+		return hash;
+	}
 }
 
 //============================================================================
@@ -98,15 +123,19 @@ void Engine::RaytracingSceneBuilder::Init(GraphicsCore& graphicsCore) {
 
 	// バッファ初期化
 	sceneInstances_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
+	sceneGeometries_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
 	sceneSubMeshes_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
 	srvDescriptor_ = &graphicsCore.GetSRVDescriptor();
 	// 事前にある程度の容量を確保しておく
 	sceneInstances_.EnsureCapacity(256);
+	sceneGeometries_.EnsureCapacity(256);
 	sceneSubMeshes_.EnsureCapacity(256);
 	sceneInstanceScratch_.reserve(256);
+	sceneGeometryScratch_.reserve(256);
 	sceneSubMeshScratch_.reserve(256);
 
 	firstTLASBuild_ = true;
+	tlasInstanceHash_ = 0;
 	initialized_ = true;
 }
 
@@ -117,10 +146,13 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	}
 
 	sceneInstances_.Release();
+	sceneGeometries_.Release();
 	sceneSubMeshes_.Release();
 	sceneInstanceScratch_.clear();
+	sceneGeometryScratch_.clear();
 	sceneSubMeshScratch_.clear();
 	scenePickRecords_.clear();
+	scenePickRecordOffsets_.clear();
 
 	textureKeyCache_.clear();
 	textureDescriptorIndexCache_.clear();
@@ -134,6 +166,7 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	meshBlasGeneration_.clear();
 	srvDescriptor_ = nullptr;
 	firstTLASBuild_ = true;
+	tlasInstanceHash_ = 0;
 	initialized_ = false;
 	builtThisFrame_ = false;
 	builtSceneInstanceID_ = {};
@@ -154,10 +187,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	AssetDatabase& assetDatabase, MeshRenderBackend* meshBackend, PrimitiveGeometryManager* primitiveGeometryManager,
 	const RenderSceneBatch& renderBatch, SceneExecutionContext& context) {
 
-	// 描画用Raytracingが無効でも、Debug/DevelopエディターのGPUピック用TLASは構築できるようにする
 	const auto& featureController = graphicsCore.GetDXObject().GetFeatureController();
 	const bool canBuildRaytracingScene = featureController.GetSupport().SupportsRayTracingPath() &&
-		(graphicsCore.GetDXObject().ShouldBuildRaytracingScene() || context.requireRaytracingSceneForEditorPicking);
+		graphicsCore.GetDXObject().ShouldBuildRaytracingScene();
 	if (!canBuildRaytracingScene) {
 		return;
 	}
@@ -172,6 +204,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	}
 
 	scenePickRecords_.clear();
+	scenePickRecordOffsets_.clear();
 
 	// シーン内の可視メッシュインスタンスを収集する
 	std::vector<CollectedMeshInstance> sceneMeshes;
@@ -214,6 +247,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 	// データクリア
 	sceneInstanceScratch_.clear();
+	sceneGeometryScratch_.clear();
 	sceneSubMeshScratch_.clear();
 
 	// BLASの構築とTLASインスタンスの準備
@@ -239,6 +273,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		const std::span<const SubMeshMaterial> subMeshes =
 			src.world ? GetMeshSubMeshes(*src.world, src.entity) :
 			std::span<const SubMeshMaterial>{};
+		const uint64_t geometryLayoutHash = ComputeGeometryLayoutHash(
+			subMeshes, static_cast<uint32_t>(meshResource->subMeshes.size()));
 
 		SkinnedVertexSource skinnedSource{};
 
@@ -261,80 +297,53 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		}
 		meshBlasGeneration_[src.meshAssetID] = reloadGeneration;
 
-		// サブメッシュ単位でBLASを構築し、TLASインスタンスを準備する
-		for (uint32_t subMeshIndex = 0; subMeshIndex < static_cast<uint32_t>(meshResource->subMeshes.size()); ++subMeshIndex) {
+		// 1メッシュの全サブメッシュを1つのBLASへまとめる
+		std::vector<RaytracingBLASGeometryInput> geometries{};
+		geometries.reserve(meshResource->subMeshes.size());
+
+		const uint32_t geometryDataOffset =
+			static_cast<uint32_t>(sceneGeometryScratch_.size());
+		const uint32_t pickRecordOffset =
+			static_cast<uint32_t>(scenePickRecords_.size());
+
+		const uint32_t vertexDescriptorIndex =
+			hasSkinnedSource ? skinnedSource.srvIndex : meshResource->vertexSRV.srvIndex;
+		const uint32_t vertexOffset =
+			hasSkinnedSource ? skinnedSource.vertexOffset : 0;
+		const D3D12_GPU_VIRTUAL_ADDRESS vertexAddress =
+			hasSkinnedSource ?
+			skinnedSource.gpuAddress +
+				sizeof(MeshVertex) * static_cast<uint64_t>(skinnedSource.vertexOffset) +
+				offsetof(MeshVertex, position) :
+			meshResource->vertexSRV.buffer->GetResource()->GetGPUVirtualAddress() +
+				offsetof(MeshVertex, position);
+		const D3D12_GPU_VIRTUAL_ADDRESS indexAddress =
+			meshResource->indexBuffer.GetResource()->GetGPUVirtualAddress();
+		const uint32_t indexSize = meshResource->indexBuffer.GetIndexSizeInBytes();
+
+		for (uint32_t subMeshIndex = 0;
+			subMeshIndex < static_cast<uint32_t>(meshResource->subMeshes.size());
+			++subMeshIndex) {
 
 			const SubMeshDesc& importedSubMesh = meshResource->subMeshes[subMeshIndex];
+			const bool hasMesh = subMeshIndex < subMeshes.size();
+			const Matrix4x4 localMatrix = hasMesh ?
+				MeshSubMeshRuntime::BuildRenderLocalMatrix(subMeshes[subMeshIndex]) :
+				Matrix4x4::Identity();
 
-			ID3D12Resource* blasResource = nullptr;
-			// 頂点のSRVインデックスを設定
-			uint32_t vertexDescriptorIndex = meshResource->vertexSRV.srvIndex;
-			uint32_t vertexOffset = 0;
+			RaytracingBLASGeometryInput geometry{};
+			geometry.vertexAddress = vertexAddress;
+			geometry.vertexStride = sizeof(MeshVertex);
+			geometry.vertexCount = meshResource->vertexCount;
+			geometry.indexAddress = indexAddress +
+				static_cast<uint64_t>(indexSize) * importedSubMesh.indexOffset;
+			geometry.indexCount = importedSubMesh.indexCount;
+			geometry.indexFormat = meshResource->indexBuffer.GetFormat();
+			geometry.localMatrix = localMatrix;
+			geometries.emplace_back(geometry);
 
-			// スキンメッシュの場合
-			if (hasSkinnedSource) {
-
-				// 動的BLASのキーを構築
-				DynamicBLASKey key{};
-				key.world = src.world;
-				key.entity = src.entity;
-				key.meshAssetID = src.meshAssetID;
-				key.subMeshIndex = subMeshIndex;
-				key.reloadGeneration = reloadGeneration;
-
-				BottomLevelAccelerationStructure& blas = dynamicBlases_[key];
-
-				// BLASの入力を構築
-				RaytracingBLASInput input{};
-				input.meshResource = meshResource;
-				input.subMeshIndex = subMeshIndex;
-				input.indexOffset = importedSubMesh.indexOffset;
-				input.indexCount = importedSubMesh.indexCount;
-				input.allowUpdate = true;
-				input.overrideVertexAddress = skinnedSource.gpuAddress + sizeof(MeshVertex) * static_cast<uint64_t>(skinnedSource.vertexOffset);
-				input.overrideVertexCount = meshResource->vertexCount;
-
-				// BLASが構築されていない場合は構築し、すでに構築されている場合は更新する
-				if (!blas.IsBuilt()) {
-
-					blas.Build(device, commandList, input);
-				} else {
-
-					blas.Update(commandList, input);
-				}
-				// BLASリソースと頂点SRVインデックス、頂点オフセットを設定
-				blasResource = blas.GetResource();
-				vertexDescriptorIndex = skinnedSource.srvIndex;
-				vertexOffset = skinnedSource.vertexOffset;
-			} else {
-
-				// 静的BLASのキーを構築
-				BLASKey key{};
-				key.meshAssetID = src.meshAssetID;
-				key.subMeshIndex = subMeshIndex;
-				key.reloadGeneration = reloadGeneration;
-
-				BottomLevelAccelerationStructure& blas = blases_[key];
-
-				// BLASが構築されていない場合は構築する
-				if (!blas.IsBuilt()) {
-
-					// BLASの入力を構築
-					RaytracingBLASInput input{};
-					input.meshResource = meshResource;
-					input.subMeshIndex = subMeshIndex;
-					input.indexOffset = importedSubMesh.indexOffset;
-					input.indexCount = importedSubMesh.indexCount;
-					input.allowUpdate = false;
-					blas.Build(device, commandList, input);
-					// 新規BLASを追加したためTLASは完全再構築する
-					requireTlasRebuild = true;
-				}
-				// BLASリソースを設定
-				blasResource = blas.GetResource();
-			}
-
-			uint32_t subMeshDataIndex = static_cast<uint32_t>(sceneSubMeshScratch_.size());
+			const uint32_t subMeshDataIndex =
+				static_cast<uint32_t>(sceneSubMeshScratch_.size());
 
 			// サブメッシュデータを構築
 			MeshSubMeshShaderData subMeshData{};
@@ -355,8 +364,6 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				// テクスチャ未設定:シェーダ側でimportedBaseColor*colorを使う
 				subMeshData.baseColorTextureIndex = UINT32_MAX;
 			}
-
-			const bool hasMesh = subMeshIndex < subMeshes.size();
 
 			AssetID normalAsset = MeshDrawPathCommon::ResolveSubMeshNormalTextureAssetID(
 				*meshResource, subMeshes, subMeshIndex);
@@ -416,18 +423,6 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			// サブメッシュデータを追加
 			sceneSubMeshScratch_.emplace_back(subMeshData);
 
-			// インスタンスデータを構築
-			RaytracingInstanceShaderData instanceShaderData{};
-			instanceShaderData.vertexDescriptorIndex = vertexDescriptorIndex;
-			instanceShaderData.indexDescriptorIndex = meshResource->indexSRV.srvIndex;
-			instanceShaderData.vertexOffset = vertexOffset;
-			instanceShaderData.subMeshDataIndex = subMeshDataIndex;
-			instanceShaderData.indexOffset = importedSubMesh.indexOffset;
-			const uint32_t shaderInstanceIndex = static_cast<uint32_t>(sceneInstanceScratch_.size());
-
-			// インスタンスデータを追加
-			sceneInstanceScratch_.emplace_back(instanceShaderData);
-
 			// メッシュピック用のサブメッシュ情報を追加
 			MeshSubMeshPickRecord pickRecord{};
 			pickRecord.entity = src.entity;
@@ -438,37 +433,107 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			}
 			scenePickRecords_.emplace_back(pickRecord);
 
-			// TLASインスタンスを構築
-			RaytracingTLASInstance instance{};
-			instance.blas = blasResource;
-			instance.instanceID = shaderInstanceIndex;
-			instance.hitGroupIndex = 0;
-			// CastShadow/CastReflectionに応じて影レイと反射レイの当たり判定を分ける
-			instance.mask = kRaytracingMaskAlwaysHit;
-			if (src.renderer) {
-				if (HasMeshRenderFlag(src.renderer->renderFlags, MeshRenderFlags::CastShadow)) {
-					instance.mask |= kRaytracingMaskShadowCaster;
-				}
-				if (HasMeshRenderFlag(src.renderer->renderFlags, MeshRenderFlags::CastReflection)) {
-					instance.mask |= kRaytracingMaskReflectionCaster;
-				}
-			} else {
-
-				instance.mask |= kRaytracingMaskShadowCaster | kRaytracingMaskReflectionCaster;
-			}
-			instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
-			if (hasMesh) {
-
-				instance.worldMatrix =
-					MeshSubMeshRuntime::BuildRenderLocalMatrix(subMeshes[subMeshIndex]) *
-					src.worldMatrix;
-			} else {
-
-				instance.worldMatrix = src.worldMatrix;
-			}
-			// TLASインスタンスを追加
-			tlasInstances.emplace_back(instance);
+			RaytracingGeometryShaderData geometryData{};
+			geometryData.subMeshDataIndex = subMeshDataIndex;
+			geometryData.indexOffset = importedSubMesh.indexOffset;
+			geometryData.pickRecordIndex =
+				static_cast<uint32_t>(scenePickRecords_.size() - 1);
+			sceneGeometryScratch_.emplace_back(geometryData);
 		}
+
+		RaytracingBLASInput input{};
+		input.geometries = geometries;
+		input.allowUpdate = hasSkinnedSource;
+
+		ID3D12Resource* blasResource = nullptr;
+		if (hasSkinnedSource) {
+
+			DynamicBLASKey key{};
+			key.world = src.world;
+			key.entity = src.entity;
+			key.meshAssetID = src.meshAssetID;
+			key.reloadGeneration = reloadGeneration;
+
+			DynamicBLASEntry& entry = dynamicBlases_[key];
+			if (!entry.blas.IsBuilt()) {
+
+				entry.blas.Build(device, commandList, input);
+				FrameProfiler::GetInstance().AddBLASBuild(
+					static_cast<uint32_t>(geometries.size()));
+				requireTlasRebuild = true;
+			} else if (entry.poseGeneration != skinnedSource.poseGeneration ||
+				entry.bufferGeneration != skinnedSource.bufferGeneration ||
+				entry.geometryLayoutHash != geometryLayoutHash ||
+				entry.vertexAddress != vertexAddress) {
+
+				entry.blas.Update(commandList, input);
+				FrameProfiler::GetInstance().AddBLASRefit(
+					static_cast<uint32_t>(geometries.size()));
+			} else {
+
+				FrameProfiler::GetInstance().AddBLASSkip(
+					static_cast<uint32_t>(geometries.size()));
+			}
+			entry.poseGeneration = skinnedSource.poseGeneration;
+			entry.bufferGeneration = skinnedSource.bufferGeneration;
+			entry.geometryLayoutHash = geometryLayoutHash;
+			entry.vertexAddress = vertexAddress;
+			blasResource = entry.blas.GetResource();
+		} else {
+
+			BLASKey key{};
+			key.meshAssetID = src.meshAssetID;
+			key.reloadGeneration = reloadGeneration;
+			key.geometryLayoutHash = geometryLayoutHash;
+
+			BottomLevelAccelerationStructure& blas = blases_[key];
+			if (!blas.IsBuilt()) {
+
+				blas.Build(device, commandList, input);
+				FrameProfiler::GetInstance().AddBLASBuild(
+					static_cast<uint32_t>(geometries.size()));
+				requireTlasRebuild = true;
+			} else {
+
+				FrameProfiler::GetInstance().AddBLASSkip(
+					static_cast<uint32_t>(geometries.size()));
+			}
+			blasResource = blas.GetResource();
+		}
+		if (!blasResource) {
+			continue;
+		}
+
+		RaytracingInstanceShaderData instanceShaderData{};
+		instanceShaderData.vertexDescriptorIndex = vertexDescriptorIndex;
+		instanceShaderData.indexDescriptorIndex = meshResource->indexSRV.srvIndex;
+		instanceShaderData.vertexOffset = vertexOffset;
+		instanceShaderData.geometryDataOffset = geometryDataOffset;
+		const uint32_t shaderInstanceIndex =
+			static_cast<uint32_t>(sceneInstanceScratch_.size());
+		sceneInstanceScratch_.emplace_back(instanceShaderData);
+		scenePickRecordOffsets_.emplace_back(pickRecordOffset);
+
+		RaytracingTLASInstance instance{};
+		instance.blas = blasResource;
+		instance.instanceID = shaderInstanceIndex;
+		instance.hitGroupIndex = 0;
+		instance.mask = kRaytracingMaskAlwaysHit;
+		if (src.renderer) {
+			if (HasMeshRenderFlag(src.renderer->renderFlags, MeshRenderFlags::CastShadow)) {
+				instance.mask |= kRaytracingMaskShadowCaster;
+			}
+			if (HasMeshRenderFlag(src.renderer->renderFlags, MeshRenderFlags::CastReflection)) {
+				instance.mask |= kRaytracingMaskReflectionCaster;
+			}
+		} else {
+
+			instance.mask |= kRaytracingMaskShadowCaster |
+				kRaytracingMaskReflectionCaster;
+		}
+		instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+		instance.worldMatrix = src.worldMatrix;
+		tlasInstances.emplace_back(instance);
 	}
 
 	for (const CollectedFillMeshInstance& src : sceneFillMeshes) {
@@ -489,8 +554,12 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			if (!BuildFillMeshRaytracingResource(device, commandList, uploadService, src, resource)) {
 				continue;
 			}
+			FrameProfiler::GetInstance().AddBLASBuild(1);
 			// ジオメトリ変化でBLASを作り直したためTLASは完全再構築する
 			requireTlasRebuild = true;
+		} else {
+
+			FrameProfiler::GetInstance().AddBLASSkip(1);
 		}
 		if (!resource.blas.GetResource() || !resource.vertexSRV.buffer || !resource.indexSRV.buffer) {
 			continue;
@@ -505,15 +574,23 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		instanceShaderData.vertexDescriptorIndex = resource.vertexSRV.srvIndex;
 		instanceShaderData.indexDescriptorIndex = resource.indexSRV.srvIndex;
 		instanceShaderData.vertexOffset = 0;
-		instanceShaderData.subMeshDataIndex = subMeshDataIndex;
-		instanceShaderData.indexOffset = 0;
+		instanceShaderData.geometryDataOffset =
+			static_cast<uint32_t>(sceneGeometryScratch_.size());
 		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(sceneInstanceScratch_.size());
 		sceneInstanceScratch_.emplace_back(instanceShaderData);
 
+		const uint32_t pickRecordIndex =
+			static_cast<uint32_t>(scenePickRecords_.size());
 		MeshSubMeshPickRecord pickRecord{};
 		pickRecord.entity = src.entity;
 		pickRecord.subMeshIndex = 0;
 		scenePickRecords_.emplace_back(pickRecord);
+		scenePickRecordOffsets_.emplace_back(pickRecordIndex);
+
+		RaytracingGeometryShaderData geometryData{};
+		geometryData.subMeshDataIndex = subMeshDataIndex;
+		geometryData.pickRecordIndex = pickRecordIndex;
+		sceneGeometryScratch_.emplace_back(geometryData);
 
 		RaytracingTLASInstance instance{};
 		instance.blas = resource.blas.GetResource();
@@ -541,7 +618,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			continue;
 		}
 		if (!wasBuilt) {
+			FrameProfiler::GetInstance().AddBLASBuild(1);
 			requireTlasRebuild = true;
+		} else {
+
+			FrameProfiler::GetInstance().AddBLASSkip(1);
 		}
 
 		const uint32_t subMeshDataIndex = static_cast<uint32_t>(sceneSubMeshScratch_.size());
@@ -553,15 +634,23 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		instanceShaderData.vertexDescriptorIndex = geometry->vertexBuffer.srvIndex;
 		instanceShaderData.indexDescriptorIndex = geometry->indexSRV.srvIndex;
 		instanceShaderData.vertexOffset = 0;
-		instanceShaderData.subMeshDataIndex = subMeshDataIndex;
-		instanceShaderData.indexOffset = 0;
+		instanceShaderData.geometryDataOffset =
+			static_cast<uint32_t>(sceneGeometryScratch_.size());
 		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(sceneInstanceScratch_.size());
 		sceneInstanceScratch_.emplace_back(instanceShaderData);
 
+		const uint32_t pickRecordIndex =
+			static_cast<uint32_t>(scenePickRecords_.size());
 		MeshSubMeshPickRecord pickRecord{};
 		pickRecord.entity = src.entity;
 		pickRecord.subMeshIndex = 0;
 		scenePickRecords_.emplace_back(pickRecord);
+		scenePickRecordOffsets_.emplace_back(pickRecordIndex);
+
+		RaytracingGeometryShaderData geometryData{};
+		geometryData.subMeshDataIndex = subMeshDataIndex;
+		geometryData.pickRecordIndex = pickRecordIndex;
+		sceneGeometryScratch_.emplace_back(geometryData);
 
 		RaytracingTLASInstance instance{};
 		instance.blas = geometry->blas.GetResource();
@@ -584,20 +673,31 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	if (tlasInstances.empty()) {
 		return;
 	}
+	FrameProfiler::GetInstance().SetTLASInstanceCount(
+		static_cast<uint32_t>(tlasInstances.size()));
 
 	// バッファ転送
 	sceneInstances_.Upload(sceneInstanceScratch_);
+	sceneGeometries_.Upload(sceneGeometryScratch_);
 	sceneSubMeshes_.Upload(sceneSubMeshScratch_);
 
 	// TLASの構築、BLASを新規/作り直しした場合はrefitでは反映できないため完全再構築する
+	const uint64_t tlasInstanceHash =
+		ComputeTLASInstanceHash(tlasInstances);
 	if (firstTLASBuild_ || !tlas_.IsBuilt() || requireTlasRebuild) {
 
 		tlas_.Build(device, commandList, tlasInstances, true);
 		firstTLASBuild_ = false;
-	} else {
+		FrameProfiler::GetInstance().AddTLASBuild();
+	} else if (tlasInstanceHash_ != tlasInstanceHash) {
 
 		tlas_.Update(commandList, tlasInstances);
+		FrameProfiler::GetInstance().AddTLASRefit();
+	} else {
+
+		FrameProfiler::GetInstance().AddTLASSkip();
 	}
+	tlasInstanceHash_ = tlasInstanceHash;
 
 	// 構築済みにする
 	builtThisFrame_ = true;
@@ -783,15 +883,19 @@ bool Engine::RaytracingSceneBuilder::BuildFillMeshRaytracingResource(ID3D12Devic
 
 	uploadService.SubmitBatch();
 
+	RaytracingBLASGeometryInput geometry{};
+	geometry.vertexAddress =
+		resource.vertexSRV.buffer->GetResource()->GetGPUVirtualAddress() +
+		offsetof(MeshVertex, position);
+	geometry.vertexStride = sizeof(MeshVertex);
+	geometry.vertexCount = static_cast<uint32_t>(vertices.size());
+	geometry.indexAddress =
+		resource.indexBuffer.GetResource()->GetGPUVirtualAddress();
+	geometry.indexFormat = resource.indexBuffer.GetFormat();
+	geometry.indexCount = static_cast<uint32_t>(indices.size());
+
 	RaytracingBLASInput input{};
-	input.meshResource = nullptr;
-	input.customVertexAddress = resource.vertexSRV.buffer->GetResource()->GetGPUVirtualAddress() + offsetof(MeshVertex, position);
-	input.customVertexStride = sizeof(MeshVertex);
-	input.customVertexCount = static_cast<uint32_t>(vertices.size());
-	input.customVertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-	input.customIndexAddress = resource.indexBuffer.GetResource()->GetGPUVirtualAddress();
-	input.customIndexFormat = resource.indexBuffer.GetFormat();
-	input.indexCount = static_cast<uint32_t>(indices.size());
+	input.geometries = std::span(&geometry, 1);
 	input.allowUpdate = false;
 
 	resource.blas.Build(device, commandList, input);
@@ -799,6 +903,32 @@ bool Engine::RaytracingSceneBuilder::BuildFillMeshRaytracingResource(ID3D12Devic
 		src.world->TryGetComponent<FillMeshRuntimeStateComponent>(src.entity);
 	resource.builtGeneration = state ? state->geometryGeneration : 0;
 	return resource.blas.IsBuilt();
+}
+
+uint64_t Engine::RaytracingSceneBuilder::ComputeTLASInstanceHash(
+	std::span<const RaytracingTLASInstance> instances) {
+
+	uint64_t hash = 1469598103934665603ull;
+	Algorithm::HashCombine(hash,
+		static_cast<uint64_t>(instances.size()));
+	for (const RaytracingTLASInstance& instance : instances) {
+
+		Algorithm::HashCombine(hash, instance.blas ?
+			instance.blas->GetGPUVirtualAddress() : 0);
+		Algorithm::HashCombine(hash, instance.instanceID);
+		Algorithm::HashCombine(hash, instance.hitGroupIndex);
+		Algorithm::HashCombine(hash, instance.mask);
+		Algorithm::HashCombine(hash,
+			static_cast<uint32_t>(instance.flags));
+		for (uint32_t row = 0; row < 4; ++row) {
+			for (uint32_t column = 0; column < 4; ++column) {
+
+				Algorithm::HashCombine(hash, std::bit_cast<uint32_t>(
+					instance.worldMatrix.m[row][column]));
+			}
+		}
+	}
+	return hash;
 }
 
 uint32_t Engine::RaytracingSceneBuilder::ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
@@ -845,6 +975,26 @@ void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& co
 			.srvGPUHandle = sceneInstances_.GetGPUHandle(),
 			.elementCount = static_cast<uint32_t>(sceneInstanceScratch_.size()),
 			.stride = sizeof(RaytracingInstanceShaderData),
+		});
+	}
+
+	// RaytracingGeometries
+	if (sceneGeometries_.GetResource()) {
+		context.bufferRegistry.Register({
+			.alias = "RaytracingGeometries",
+			.resource = sceneGeometries_.GetResource(),
+			.gpuAddress = sceneGeometries_.GetGPUAddress(),
+			.srvGPUHandle = sceneGeometries_.GetGPUHandle(),
+			.elementCount = static_cast<uint32_t>(sceneGeometryScratch_.size()),
+			.stride = sizeof(RaytracingGeometryShaderData),
+			});
+		context.bufferRegistry.Register({
+			.alias = "gRaytracingGeometries",
+			.resource = sceneGeometries_.GetResource(),
+			.gpuAddress = sceneGeometries_.GetGPUAddress(),
+			.srvGPUHandle = sceneGeometries_.GetGPUHandle(),
+			.elementCount = static_cast<uint32_t>(sceneGeometryScratch_.size()),
+			.stride = sizeof(RaytracingGeometryShaderData),
 			});
 	}
 

@@ -45,14 +45,15 @@ namespace Engine {
 		static constexpr UINT kRootIndexSourcePosition = 4;
 		static constexpr UINT kRootIndexSceneInstances = 5;
 		static constexpr UINT kRootIndexSceneSubMeshes = 6;
-		static constexpr UINT kRootIndexDestUAV = 7;
-		static constexpr UINT kRootIndexViewCBV = 8;
-		static constexpr UINT kRootIndexSourceFlags = 9;
+		static constexpr UINT kRootIndexSceneGeometries = 7;
+		static constexpr UINT kRootIndexDestUAV = 8;
+		static constexpr UINT kRootIndexViewCBV = 9;
+		static constexpr UINT kRootIndexSourceFlags = 10;
 
 		//--------- functions ----------------------------------------------------
 
 		// パイプライン作成
-		void Create(ID3D12Device8* device, DxShaderCompiler* compiler,
+		bool Create(ID3D12Device8* device, DxShaderCompiler* compiler,
 			const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset);
 
 		// レイトレーシングのディスパッチ記述子を構築
@@ -62,6 +63,7 @@ namespace Engine {
 
 		ID3D12StateObject* GetStateObject() const { return stateObject_.Get(); }
 		ID3D12RootSignature* GetRootSignature() const { return globalRootSignature_.Get(); }
+		bool IsValid() const { return stateObject_ && stateProps_ && shaderTable_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -81,12 +83,12 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// グローバルルートシグネチャの構築
-		void BuildGlobalRootSignature(ID3D12Device8* device);
+		bool BuildGlobalRootSignature(ID3D12Device8* device);
 		// レイトレーシングパイプラインステートの構築
-		void BuildStateObject(ID3D12Device8* device, DxShaderCompiler* compiler,
+		bool BuildStateObject(ID3D12Device8* device, DxShaderCompiler* compiler,
 			const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset);
 		// シェーダーテーブルの構築
-		void BuildShaderTable(ID3D12Device8* device, const std::wstring& rayGenExport,
+		bool BuildShaderTable(ID3D12Device8* device, const std::wstring& rayGenExport,
 			const std::wstring& missExport, const std::wstring& hitGroupExport);
 	};
 } // Engine

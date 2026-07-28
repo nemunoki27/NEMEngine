@@ -33,6 +33,8 @@ namespace Engine {
 		bool inTransition = false;
 		bool animationFinished = false;
 		int32_t repeatCount = 0;
+		// GPUスキニング結果を更新するポーズ世代
+		uint64_t poseGeneration = 0;
 
 		Skeleton bindSkeleton{};
 		Skeleton skeleton{};

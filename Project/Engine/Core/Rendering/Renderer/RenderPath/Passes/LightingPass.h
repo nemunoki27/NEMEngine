@@ -9,12 +9,14 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/SkyboxIrradianceMap.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 
 // c++
 #include <memory>
+#include <array>
 #include <vector>
 
 namespace Engine {
@@ -57,6 +59,7 @@ namespace Engine {
 			float ambientIntensity = 0.03f;
 
 			Matrix4x4 inverseViewProjection = Matrix4x4::Identity();
+			Matrix4x4 viewMatrix = Matrix4x4::Identity();
 
 			Color4 skyboxColor = Color4::White();
 
@@ -84,8 +87,10 @@ namespace Engine {
 		bool shadowedAvailable_ = false;
 
 		// 同一フレームでビューごとに複数回描いても定数が上書きされないようプールで持つ
-		std::vector<std::unique_ptr<DxConstBuffer<LightingConstants>>> constantBuffers_{};
-		uint32_t constantBufferIndex_ = 0;
+		std::array<std::vector<std::unique_ptr<DxConstBuffer<LightingConstants>>>,
+			kGraphicsFrameContextCount> constantBuffers_{};
+		std::array<uint32_t, kGraphicsFrameContextCount> constantBufferIndices_{};
+		std::array<uint64_t, kGraphicsFrameContextCount> constantBufferFrameSerials_{};
 
 		// GBufferの各SRVと定数のスロット、ライトバッファはregistryAutoBindTableが名前で解決する
 		PipelineBindingCache bindCache_{};

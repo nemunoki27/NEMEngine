@@ -157,7 +157,7 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 }
 
 void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
-	[[maybe_unused]] const EditorContext& context, const RenderPipelineRunner& renderPipeline) {
+	[[maybe_unused]] const EditorContext& context, RenderPipelineRunner& renderPipeline) {
 
 	// 以下の条件のいずれかを満たす場合はピック処理を行わない
 	if (!initialized_ || layoutState_.hidePanels || !editorState_.enableScenePick) {
@@ -181,8 +181,7 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 		}
 	}
 
-	auto executePick = [&](InputViewArea inputArea, RenderViewKind viewKind,
-		ID3D12Resource* tlasResource, const std::vector<MeshSubMeshPickRecord>& pickRecords) {
+	auto executePick = [&](InputViewArea inputArea, RenderViewKind viewKind) {
 
 			// ビューの上で左クリックされたフレームのみ処理する
 			if (!input->HasViewRect(inputArea)) {
@@ -237,24 +236,28 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 				return true;
 			}
 
-			// メッシュピック処理を実行、シフト状態は結果消費時のトグル判定に使う
-			meshSubMeshPicker_->ExecutePick(graphicsCore, renderPipeline.GetResolvedView(viewKind),
-				mousePosInView.value(), pickRecords, tlasResource, false, false);
+			// 1x1整数RTへクリック画素だけを描画しreadbackを予約する
+			if (meshSubMeshPicker_->HasPendingReadback()) {
+				return true;
+			}
+			MultiRenderTarget* pickTarget =
+				meshSubMeshPicker_->GetRenderTarget();
+			if (pickTarget && renderPipeline.RenderMeshPicking(
+				graphicsCore, viewKind, mousePosInView.value(), *pickTarget)) {
+				meshSubMeshPicker_->ExecuteReadback(graphicsCore);
+			}
 			return true;
 		};
 
 	// SceneViewは従来通り、ギズモ操作中はピックしない
 	if (layoutState_.showSceneView && !editorState_.useSceneGizmo) {
-		if (executePick(InputViewArea::Scene, RenderViewKind::Scene,
-			renderPipeline.GetSceneViewTLASResource(), renderPipeline.GetSceneViewPickRecords())) {
+		if (executePick(InputViewArea::Scene, RenderViewKind::Scene)) {
 			return;
 		}
 	}
 
 	// GameViewにもSceneViewと同じTLASピックだけを通し、マニピュレーターは表示しない
 	if (layoutState_.showGameView) {
-		executePick(InputViewArea::Game, RenderViewKind::Game,
-			renderPipeline.GetGameViewTLASResource(), renderPipeline.GetGameViewPickRecords());
+		executePick(InputViewArea::Game, RenderViewKind::Game);
 	}
 }
-

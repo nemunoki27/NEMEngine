@@ -9,35 +9,72 @@ using namespace Engine;
 
 // c++
 #include <cassert>
+#include <string>
 
 //============================================================================
 //	DxCommand classMethods
 //============================================================================
 void DxCommand::Create(ID3D12Device* device) {
 
-	commandAllocator_ = nullptr;
-	HRESULT hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator_));
-	assert(SUCCEEDED(hr));
-	commandAllocator_->SetName(L"MainGraphicsCommandAllocator");
+	for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) {
 
+		GraphicsFrameContext& context = frameContexts_[index];
+		HRESULT hr = device->CreateCommandAllocator(
+			D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&context.commandAllocator));
+		assert(SUCCEEDED(hr));
+		context.commandAllocator->SetName(
+			(L"MainGraphicsCommandAllocator[" + std::to_wstring(index) + L"]").c_str());
+		context.fenceValue = 0;
+	}
+
+	currentFrameIndex_ = 0;
+	GraphicsFrameState::SetCurrentIndex(currentFrameIndex_);
 	commandList_ = nullptr;
-	hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator_.Get(), nullptr, IID_PPV_ARGS(&commandList_));
+	HRESULT hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
+		frameContexts_[currentFrameIndex_].commandAllocator.Get(), nullptr,
+		IID_PPV_ARGS(&commandList_));
 	assert(SUCCEEDED(hr));
 	commandList_->SetName(L"MainGraphicsCommandList");
+	recording_ = true;
+}
+
+void DxCommand::BeginFrame(uint32_t frameIndex) {
+
+	frameIndex %= kGraphicsFrameContextCount;
+	GraphicsFrameState::BeginFrame(frameIndex);
+	if (recording_) {
+		Assert::Call(currentFrameIndex_ == frameIndex,
+			"記録中のGraphicsFrameContextと開始要求が一致しません");
+		return;
+	}
+
+	currentFrameIndex_ = frameIndex;
+	ResetCommandList();
 }
 
 void DxCommand::CloseCommandList() {
 
+	if (!recording_) {
+		return;
+	}
 	HRESULT hr = commandList_->Close();
 	assert(SUCCEEDED(hr));
+	recording_ = false;
 }
 
 void DxCommand::ResetCommandList() {
 
-	HRESULT hr = commandAllocator_->Reset();
+	GraphicsFrameContext& context = frameContexts_[currentFrameIndex_];
+	HRESULT hr = context.commandAllocator->Reset();
 	assert(SUCCEEDED(hr));
-	hr = commandList_->Reset(commandAllocator_.Get(), nullptr);
+	hr = commandList_->Reset(context.commandAllocator.Get(), nullptr);
 	assert(SUCCEEDED(hr));
+	recording_ = true;
+}
+
+void DxCommand::SetCurrentFrameFenceValue(uint64_t fenceValue) {
+
+	frameContexts_[currentFrameIndex_].fenceValue = fenceValue;
 }
 
 //============================================================================

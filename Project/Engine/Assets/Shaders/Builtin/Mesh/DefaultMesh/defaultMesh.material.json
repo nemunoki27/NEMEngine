@@ -8,6 +8,11 @@
       "preferredVariant": "GraphicsMesh"
     },
     {
+      "passKind": "EditorPicking",
+      "pipeline": "4e454d41535345548d50435034671c2c",
+      "preferredVariant": "GraphicsVertex"
+    },
+    {
       "passKind": "Draw",
       "pipeline": "4e454d4153534554cb1dfc9e9ef2bae9",
       "preferredVariant": "GraphicsMesh"

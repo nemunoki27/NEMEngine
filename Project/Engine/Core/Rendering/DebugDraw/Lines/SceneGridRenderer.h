@@ -8,11 +8,13 @@
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
 
 // c++
 #include <memory>
+#include <array>
 #include <vector>
 
 namespace Engine {
@@ -102,8 +104,9 @@ namespace Engine {
 
 		PipelineState pipeline_{};
 		// 同じコマンドリスト内で複数回描画しても、後のカメラ定数で上書きしないためのバッファ
-		std::vector<std::unique_ptr<DxConstBuffer<GridPassConstants>>> passBuffers_{};
-		uint32_t passBufferIndex_ = 0;
+		std::array<std::vector<std::unique_ptr<DxConstBuffer<GridPassConstants>>>,
+			kGraphicsFrameContextCount> passBuffers_{};
+		std::array<uint32_t, kGraphicsFrameContextCount> passBufferIndices_{};
 
 		// グリッドパス定数バッファb0のスロットキャッシュ
 		PipelineBindingCache gridBindCache_{};

@@ -58,11 +58,18 @@ namespace Engine {
 		StructuredInstanceBuffer<DirectionalLightGPU> directionalLights_{ "gDirectionalLights" };
 		StructuredInstanceBuffer<PointLightGPU> pointLights_{ "gPointLights" };
 		StructuredInstanceBuffer<SpotLightGPU> spotLights_{ "gSpotLights" };
+		ViewConstantBuffer<LightClusterConstantsGPU> clusterConstants_{ "LightClusterConstants" };
+		StructuredInstanceBuffer<LightClusterHeaderGPU> clusterHeaders_{ "gLightClusterHeaders" };
+		StructuredInstanceBuffer<uint32_t> clusterLightIndices_{ "gLightClusterIndices" };
 
 		// 毎フレーム再利用するCPU側配列
 		std::vector<DirectionalLightGPU> directionalScratch_{};
 		std::vector<PointLightGPU> pointScratch_{};
 		std::vector<SpotLightGPU> spotScratch_{};
+		std::vector<LightClusterHeaderGPU> clusterHeaderScratch_{};
+		std::vector<uint32_t> clusterLightIndexScratch_{};
+		std::vector<uint32_t> clusterCountScratch_{};
+		std::vector<uint32_t> clusterCursorScratch_{};
 
 		// 初期化フラグ
 		bool initialized_ = false;
@@ -73,6 +80,8 @@ namespace Engine {
 		static DirectionalLightGPU ToGPU(const DirectionalLightItem& item);
 		static PointLightGPU ToGPU(const PointLightItem& item);
 		static SpotLightGPU ToGPU(const SpotLightItem& item);
+		// カメラ空間をタイルと対数深度へ分割してローカルライト索引を構築する
+		void BuildClusters(const PerViewLightSet& lightSet);
 	};
 }
 

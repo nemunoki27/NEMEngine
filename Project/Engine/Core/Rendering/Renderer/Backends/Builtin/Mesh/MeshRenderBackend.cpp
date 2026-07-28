@@ -18,9 +18,11 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/Draw/MeshShaderDrawPath.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
@@ -59,6 +61,25 @@ namespace {
 				return false;
 			}
 			const Engine::MaterialPassBinding* pass = Engine::FindPass(*material, context.passKind);
+			if (!pass) {
+				return false;
+			}
+			outResolved.materialID = materialID;
+			outResolved.material = material;
+			outResolved.pass = pass;
+			return true;
+		}
+		if (context.passKind == Engine::MaterialPassKind::EditorPicking) {
+
+			const Engine::AssetID materialID =
+				Engine::BuiltinAssets::Materials::DefaultMesh;
+			const Engine::MaterialAsset* material =
+				context.assetLibrary->LoadMaterial(materialID);
+			if (!material) {
+				return false;
+			}
+			const Engine::MaterialPassBinding* pass =
+				Engine::FindPass(*material, context.passKind);
 			if (!pass) {
 				return false;
 			}
@@ -139,7 +160,7 @@ Engine::MeshRenderBackend::~MeshRenderBackend() {
 	meshResourceManager_.Finalize();
 	resourcePool_.Clear();
 	ClearStaticBatchCache();
-	skinnedBatchCache_.clear();
+	ClearSkinnedBatchCache();
 	skinnedSourceLookup_.clear();
 	for (auto& drawPath : drawPaths_) {
 		drawPath.reset();
@@ -155,6 +176,14 @@ void Engine::MeshRenderBackend::ClearStaticBatchCache() {
 		entry.second.resources.reset();
 	}
 	staticBatchCache_.clear();
+}
+
+void Engine::MeshRenderBackend::ClearSkinnedBatchCache() {
+
+	for (auto& entry : skinnedBatchCache_) {
+		entry.second.resources.reset();
+	}
+	skinnedBatchCache_.clear();
 }
 
 void Engine::MeshRenderBackend::RequestMeshes(GraphicsCore& graphicsCore,
@@ -193,7 +222,7 @@ void Engine::MeshRenderBackend::RequestMeshReload(AssetID meshAssetID) {
 	// バッチは毎フレームgpuMeshを引き直すので、キャッシュclearで新しいリソースとサブメッシュ構成に追従する
 	meshResourceManager_.RequestReload(meshAssetID);
 	ClearStaticBatchCache();
-	skinnedBatchCache_.clear();
+	ClearSkinnedBatchCache();
 	skinnedSourceLookup_.clear();
 }
 
@@ -232,11 +261,11 @@ void Engine::MeshRenderBackend::BeginFrame(GraphicsCore& graphicsCore) {
 	EnsureInitialized(graphicsCore);
 	++frameIndex_;
 
-	// スキンメッシュのバッチキャッシュをクリアする
-	skinnedBatchCache_.clear();
+	// 前フレームの検索結果だけをクリアし、スキニング結果バッファは世代比較のため保持する
 	skinnedSourceLookup_.clear();
 	// 静的メッシュはフレームを跨いで再利用するため、寿命切れだけを落とす
 	PruneStaticBatchCache();
+	PruneSkinnedBatchCache();
 
 	resourcePool_.BeginFrame();
 	// マテリアルパラメータCBVのアップロード位置を戻す
@@ -335,7 +364,7 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 	bool useSkinningCache = outPrepared.gpuMesh->isSkinned && !containsBillboard;
 	if (useSkinningCache) {
 
-		// スキニングするメッシュは、同一フレーム内でのみバッチ結果をキャッシュする
+		// スキニング結果はポーズ世代が変わるまでフレームを跨いで再利用する
 		SkinnedBatchCacheKey key{};
 		key.world = outPrepared.items.front()->world;
 		key.mesh = outPrepared.batchMesh;
@@ -343,23 +372,27 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 		auto it = skinnedBatchCache_.find(key);
 		if (it != skinnedBatchCache_.end()) {
 
-			resources = it->second;
-			// Viewだけは毎描画で変わるため、キャッシュヒット時も更新する
+			resources = it->second.resources.get();
 			resources->UpdateView(*context.view, context.cullingView);
+			if (it->second.lastUploadFrame != frameIndex_) {
+
+				resources->UploadBatchData(context, *context.batch,
+					outPrepared.items, *outPrepared.gpuMesh);
+				it->second.lastUploadFrame = frameIndex_;
+			}
+			it->second.lastUsedFrame = frameIndex_;
 		} else {
 
-			MeshBatchResources& acquired = resourcePool_.Acquire(graphicsCore,
-				[](MeshBatchResources& resource, GraphicsCore& core) {
-					resource.Init(core);
-				});
-			// ビュー行列を更新して描画に必要なデータをアップロードする
-			acquired.UpdateView(*context.view, context.cullingView);
-			acquired.UploadBatchData(context, *context.batch, outPrepared.items, *outPrepared.gpuMesh);
-
-			resources = &acquired;
-
-			// キャッシュに登録する
-			skinnedBatchCache_.emplace(key, resources);
+			SkinnedBatchCacheEntry entry{};
+			entry.resources = std::make_unique<MeshBatchResources>();
+			entry.resources->Init(graphicsCore);
+			entry.resources->UpdateView(*context.view, context.cullingView);
+			entry.resources->UploadBatchData(context, *context.batch,
+				outPrepared.items, *outPrepared.gpuMesh);
+			entry.lastUsedFrame = frameIndex_;
+			entry.lastUploadFrame = frameIndex_;
+			resources = entry.resources.get();
+			skinnedBatchCache_.emplace(key, std::move(entry));
 		}
 	} else if (containsBillboard) {
 
@@ -385,6 +418,7 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 			resources = it->second.resources.get();
 			// SceneView/GameViewで行列が変わるため、キャッシュ済みでもView定数だけ更新する
 			resources->UpdateView(*context.view, context.cullingView);
+			resources->UploadCachedBatchData();
 			it->second.lastUsedFrame = frameIndex_;
 		} else {
 
@@ -565,8 +599,13 @@ uint64_t Engine::MeshRenderBackend::BuildBatchHash(std::span<const RenderItem* c
 		if (!item) {
 			continue;
 		}
-		// 抽出時に計算済みのアイテム内容ハッシュ(entity/material/outline/submesh等)を混ぜる
-		HashCombine(h, item->contentHash);
+		// 行列やアニメーションPoseは含めず、同じ出力領域を使えるバッチ構成だけを混ぜる
+		HashCombine(h, item->entity.index);
+		HashCombine(h, item->entity.generation);
+		HashCombine(h, static_cast<uint64_t>(std::hash<AssetID>{}(item->material)));
+		HashCombine(h, item->batchKey);
+		HashCombine(h, static_cast<uint64_t>(item->renderPhase));
+		HashCombine(h, static_cast<uint64_t>(item->blendMode));
 	}
 	return h;
 }
@@ -604,6 +643,22 @@ void Engine::MeshRenderBackend::PruneStaticBatchCache() {
 		const bool expired = frameIndex_ > it->second.lastUsedFrame + kKeepFrameCount;
 		if (!it->second.persistent || expired) {
 			it = staticBatchCache_.erase(it);
+		} else {
+			++it;
+		}
+	}
+}
+
+void Engine::MeshRenderBackend::PruneSkinnedBatchCache() {
+
+	static constexpr uint64_t kKeepFrameCount = 180;
+	for (auto it = skinnedBatchCache_.begin();
+		it != skinnedBatchCache_.end();) {
+
+		const bool expired =
+			frameIndex_ > it->second.lastUsedFrame + kKeepFrameCount;
+		if (expired) {
+			it = skinnedBatchCache_.erase(it);
 		} else {
 			++it;
 		}
@@ -703,6 +758,8 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 	// Xは頂点数、Yはスキニング対象インスタンス数
 	commandList->Dispatch(DxUtils::RoundUp(prepared.gpuMesh->vertexCount, 256),
 		prepared.resources->GetSkinnedInstanceCount(), 1);
+	FrameProfiler::GetInstance().AddSkinningDispatch(
+		prepared.resources->GetSkinnedInstanceCount());
 
 	// UAVバリアを挿入して、スキニング結果の書き込み完了を保証する
 	dxCommand->UAVBarrier(output);
@@ -718,7 +775,7 @@ void Engine::MeshRenderBackend::DispatchSkinning(const RenderDrawContext& contex
 	// スキニング結果のリソース状態を更新して、スキニング処理をディスパッチしたことをセットする
 	prepared.resources->SetSkinnedVertexState(readState);
 	prepared.resources->SetSkinnedPackedVertexState(readState);
-	prepared.resources->SetSkinningDispatched(true);
+	prepared.resources->MarkSkinningDispatched();
 }
 
 void Engine::MeshRenderBackend::RegisterSkinnedSources(AssetID meshAssetID, MeshBatchResources& resources,
@@ -750,6 +807,11 @@ void Engine::MeshRenderBackend::RegisterSkinnedSources(AssetID meshAssetID, Mesh
 		source.gpuAddress = resources.GetSkinnedVerticesGPUAddress();
 		source.srvIndex = resources.GetSkinnedVerticesSRVIndex();
 		source.vertexOffset = vertexOffset;
+		source.bufferGeneration = resources.GetSkinningBufferGeneration();
+		if (const SkinnedAnimationRuntimeData* runtime =
+			TryGetSkinnedAnimationRuntime(*item->world, item->entity)) {
+			source.poseGeneration = runtime->poseGeneration;
+		}
 
 		// 同一エンティティが複数回描画される場合は、最後のものが登録される
 		skinnedSourceLookup_[key] = source;

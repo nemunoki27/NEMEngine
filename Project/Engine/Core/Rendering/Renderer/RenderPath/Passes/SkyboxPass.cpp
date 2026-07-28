@@ -76,18 +76,21 @@ void Engine::SkyboxPass::EnsurePipeline(GraphicsCore& graphicsCore) {
 Engine::DxConstBuffer<Engine::SkyboxPass::SkyboxConstants>& Engine::SkyboxPass::AllocateConstantBuffer(
 	GraphicsCore& graphicsCore) {
 
-	// BeginFrameを持たないため、上書き前にGPUが消費し終える程度のリングで回す
-	constexpr size_t kRingBufferCount = 8;
-	while (constantBuffers_.size() < kRingBufferCount) {
+	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
+	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
+	if (constantBufferFrameSerials_[frameIndex] != frameSerial) {
+		constantBufferFrameSerials_[frameIndex] = frameSerial;
+		constantBufferIndices_[frameIndex] = 0;
+	}
+	auto& buffers = constantBuffers_[frameIndex];
+	uint32_t& bufferIndex = constantBufferIndices_[frameIndex];
+	if (buffers.size() <= bufferIndex) {
 
 		auto buffer = std::make_unique<DxConstBuffer<SkyboxConstants>>();
 		buffer->CreateBuffer(graphicsCore.GetDXObject().GetDevice());
-		constantBuffers_.push_back(std::move(buffer));
+		buffers.push_back(std::move(buffer));
 	}
-
-	DxConstBuffer<SkyboxConstants>& buffer = *constantBuffers_[constantBufferIndex_];
-	constantBufferIndex_ = (constantBufferIndex_ + 1u) % static_cast<uint32_t>(constantBuffers_.size());
-	return buffer;
+	return *buffers[bufferIndex++];
 }
 
 void Engine::SkyboxPass::Execute(GraphicsCore& graphicsCore,

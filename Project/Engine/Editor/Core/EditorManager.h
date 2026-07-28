@@ -157,7 +157,7 @@ namespace Engine {
 
 		// シーンビューのメッシュピック処理
 		void ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
-			const EditorContext& context, const RenderPipelineRunner& renderPipeline);
+			const EditorContext& context, RenderPipelineRunner& renderPipeline);
 		// SceneView描画前に選択エンティティのデバッグラインを積む
 		void DrawSceneDebugObjects(const EditorContext& context);
 

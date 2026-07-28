@@ -40,14 +40,16 @@ namespace Engine {
 		struct StackNode {
 
 			Entity entity = Entity::Null();
-			bool parentDirty = false;
+			bool updateWorld = false;
 		};
 
 		//--------- variables ----------------------------------------------------
 
-		std::vector<Entity> roots_;
+		std::vector<Entity> dirtyTransforms_;
 		std::vector<StackNode> stack_;
 
+		// dirty階層の先頭から子孫のワールド行列を更新する
+		void UpdateDirtySubtree(ECSWorld& world, const Entity& entity);
 		// dirtyなトランスフォーム階層を更新する
 		void UpdateTransforms(ECSWorld& world);
 	};

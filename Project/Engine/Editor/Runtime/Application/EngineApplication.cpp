@@ -458,10 +458,6 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 			sceneViewCameraSelection = editorManager_.GetSceneViewCameraSelection();
 			manualSceneCamera = editorManager_.GetSceneViewCameraState();
 			request.drawSceneViewDefaultGrid = editorManager_.ShouldDrawSceneViewDefaultGrid();
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-			request.requireRaytracingSceneForEditorPicking =
-				graphicsCore.GetDXObject().GetFeatureController().GetSupport().SupportsRayTracingPath();
-#endif
 		}
 	}
 	// ゲームビューの要求を構築

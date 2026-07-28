@@ -26,22 +26,28 @@ bool Engine::GPUFrameProfiler::EnsureInitialized(ID3D12Device* device, ID3D12Com
 		return false;
 	}
 
-	// タイムスタンプクエリヒープを作成する
-	D3D12_QUERY_HEAP_DESC heapDesc{};
-	heapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
-	heapDesc.Count = kMaxTimestamps;
-	heapDesc.NodeMask = 0;
-	if (FAILED(device->CreateQueryHeap(&heapDesc, IID_PPV_ARGS(&queryHeap_)))) {
-		return false;
-	}
+	for (FrameQueryState& state : frameStates_) {
 
-	// 解決結果を受け取るリードバックバッファを作成する(READBACKヒープはCOPY_DEST固定)
-	const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_READBACK);
-	const CD3DX12_RESOURCE_DESC bufferDesc =
-		CD3DX12_RESOURCE_DESC::Buffer(static_cast<uint64_t>(kMaxTimestamps) * sizeof(uint64_t));
-	if (FAILED(device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufferDesc,
-		D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readbackBuffer_)))) {
-		return false;
+		D3D12_QUERY_HEAP_DESC heapDesc{};
+		heapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+		heapDesc.Count = kMaxTimestamps;
+		heapDesc.NodeMask = 0;
+		if (FAILED(device->CreateQueryHeap(
+			&heapDesc, IID_PPV_ARGS(&state.queryHeap)))) {
+			return false;
+		}
+
+		// READBACKもフレーム別に分離して未完了フレームの結果を上書きしない
+		const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_READBACK);
+		const CD3DX12_RESOURCE_DESC bufferDesc =
+			CD3DX12_RESOURCE_DESC::Buffer(
+				static_cast<uint64_t>(kMaxTimestamps) * sizeof(uint64_t));
+		if (FAILED(device->CreateCommittedResource(&heapProps,
+			D3D12_HEAP_FLAG_NONE, &bufferDesc,
+			D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+			IID_PPV_ARGS(&state.readbackBuffer)))) {
+			return false;
+		}
 	}
 
 	// タイムスタンプの周波数(tick/sec)を取得する
@@ -59,80 +65,95 @@ void Engine::GPUFrameProfiler::BeginFrame(ID3D12Device* device, ID3D12CommandQue
 		return;
 	}
 
-	// 前フレームの解決結果(GPU完了済み)を読み出してFrameProfilerへ反映する
-	CollectResolved();
+	FrameQueryState& state =
+		frameStates_[GraphicsFrameState::GetCurrentIndex()];
+	// 同じContextの前回結果はBeginFrameのFence待機後なので安全に読める
+	CollectResolved(state);
 
 	// このフレームの記録をリセットする
-	nextTimestamp_ = 0;
-	passes_.clear();
-	pendingPass_ = false;
-	active_ = true;
+	state.nextTimestamp = 0;
+	state.passes.clear();
+	state.pendingPass = false;
+	state.active = true;
 }
 
 void Engine::GPUFrameProfiler::BeginPass(ID3D12GraphicsCommandList* commandList, const std::string& name) {
 
-	if (!active_ || !commandList || pendingPass_) {
+	FrameQueryState& state =
+		frameStates_[GraphicsFrameState::GetCurrentIndex()];
+	if (!state.active || !commandList || state.pendingPass) {
 		return;
 	}
 	// begin/endの2つ分が残っていなければ計測しない
-	if (kMaxTimestamps < nextTimestamp_ + 2) {
+	if (kMaxTimestamps < state.nextTimestamp + 2) {
 		return;
 	}
 
-	pendingBegin_ = nextTimestamp_++;
-	commandList->EndQuery(queryHeap_.Get(), D3D12_QUERY_TYPE_TIMESTAMP, pendingBegin_);
-	pendingName_ = name;
-	pendingPass_ = true;
+	state.pendingBegin = state.nextTimestamp++;
+	commandList->EndQuery(state.queryHeap.Get(),
+		D3D12_QUERY_TYPE_TIMESTAMP, state.pendingBegin);
+	state.pendingName = name;
+	state.pendingPass = true;
 }
 
 void Engine::GPUFrameProfiler::EndPass(ID3D12GraphicsCommandList* commandList) {
 
-	if (!active_ || !commandList || !pendingPass_) {
+	FrameQueryState& state =
+		frameStates_[GraphicsFrameState::GetCurrentIndex()];
+	if (!state.active || !commandList || !state.pendingPass) {
 		return;
 	}
 
-	const uint32_t endIndex = nextTimestamp_++;
-	commandList->EndQuery(queryHeap_.Get(), D3D12_QUERY_TYPE_TIMESTAMP, endIndex);
-	passes_.push_back({ pendingName_, pendingBegin_, endIndex });
-	pendingPass_ = false;
+	const uint32_t endIndex = state.nextTimestamp++;
+	commandList->EndQuery(state.queryHeap.Get(),
+		D3D12_QUERY_TYPE_TIMESTAMP, endIndex);
+	state.passes.push_back({
+		state.pendingName, state.pendingBegin, endIndex
+		});
+	state.pendingPass = false;
 }
 
 void Engine::GPUFrameProfiler::Resolve(ID3D12GraphicsCommandList* commandList) {
 
-	if (!initialized_ || !active_ || !commandList) {
+	FrameQueryState& state =
+		frameStates_[GraphicsFrameState::GetCurrentIndex()];
+	if (!initialized_ || !state.active || !commandList) {
 		return;
 	}
-	active_ = false;
+	state.active = false;
 
-	if (0 < nextTimestamp_) {
+	if (0 < state.nextTimestamp) {
 
-		commandList->ResolveQueryData(queryHeap_.Get(), D3D12_QUERY_TYPE_TIMESTAMP,
-			0, nextTimestamp_, readbackBuffer_.Get(), 0);
+		commandList->ResolveQueryData(state.queryHeap.Get(),
+			D3D12_QUERY_TYPE_TIMESTAMP, 0, state.nextTimestamp,
+			state.readbackBuffer.Get(), 0);
 	}
 
 	// 次フレームの読み出し用に記録を退避する
-	resolvedPasses_ = passes_;
-	resolvedCount_ = nextTimestamp_;
-	hasResolved_ = true;
+	state.resolvedPasses = state.passes;
+	state.resolvedCount = state.nextTimestamp;
+	state.hasResolved = true;
 }
 
-void Engine::GPUFrameProfiler::CollectResolved() {
+void Engine::GPUFrameProfiler::CollectResolved(FrameQueryState& state) {
 
-	if (!hasResolved_ || resolvedCount_ == 0 || frequency_ == 0) {
+	if (!state.hasResolved || state.resolvedCount == 0 || frequency_ == 0) {
 		return;
 	}
 
 	// 解決済み範囲だけをMapして読み出す
-	const D3D12_RANGE readRange{ 0, static_cast<SIZE_T>(resolvedCount_) * sizeof(uint64_t) };
+	const D3D12_RANGE readRange{
+		0, static_cast<SIZE_T>(state.resolvedCount) * sizeof(uint64_t)
+	};
 	void* mapped = nullptr;
-	if (FAILED(readbackBuffer_->Map(0, &readRange, &mapped)) || !mapped) {
+	if (FAILED(state.readbackBuffer->Map(0, &readRange, &mapped)) || !mapped) {
 		return;
 	}
 
 	const uint64_t* timestamps = static_cast<const uint64_t*>(mapped);
 	std::vector<FrameProfiler::NamedTime> passTimes;
-	passTimes.reserve(resolvedPasses_.size());
-	for (const PassRecord& pass : resolvedPasses_) {
+	passTimes.reserve(state.resolvedPasses.size());
+	for (const PassRecord& pass : state.resolvedPasses) {
 
 		const uint64_t begin = timestamps[pass.beginIndex];
 		const uint64_t end = timestamps[pass.endIndex];
@@ -142,16 +163,16 @@ void Engine::GPUFrameProfiler::CollectResolved() {
 	}
 
 	const D3D12_RANGE writtenRange{ 0, 0 };
-	readbackBuffer_->Unmap(0, &writtenRange);
+	state.readbackBuffer->Unmap(0, &writtenRange);
 
 	FrameProfiler::GetInstance().SetGPUPassTimes(passTimes);
+	state.hasResolved = false;
 }
 
 void Engine::GPUFrameProfiler::Finalize() {
 
-	queryHeap_.Reset();
-	readbackBuffer_.Reset();
+	for (FrameQueryState& state : frameStates_) {
+		state = {};
+	}
 	initialized_ = false;
-	active_ = false;
-	hasResolved_ = false;
 }

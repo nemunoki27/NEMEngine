@@ -51,10 +51,14 @@ struct RaytracingInstanceShaderData {
 	uint vertexDescriptorIndex;
 	uint indexDescriptorIndex;
 	uint vertexOffset;
-	uint subMeshDataIndex;
+	uint geometryDataOffset;
+};
+struct RaytracingGeometryShaderData {
 
+	uint subMeshDataIndex;
 	uint indexOffset;
-	uint _pad0[3];
+	uint pickRecordIndex;
+	uint _pad0;
 };
 static const uint kNoTexture = 0xFFFFFFFF;
 
@@ -66,7 +70,8 @@ Texture2D<float4> gSourcePosition : register(t4);
 
 StructuredBuffer<RaytracingInstanceShaderData> gRaytracingSceneInstances : register(t5);
 StructuredBuffer<SubMeshShaderData> gRaytracingSubMeshes : register(t6);
-Texture2D<uint> gSourceFlags : register(t7);
+StructuredBuffer<RaytracingGeometryShaderData> gRaytracingGeometries : register(t7);
+Texture2D<uint> gSourceFlags : register(t8);
 
 // 反射に映すインスタンスのTLASマスク
 static const uint kRaytracingMaskReflectionCaster = 1u << 1;
@@ -195,14 +200,17 @@ float3 ComputeBarycentrics(float2 bary) {
 float3 EvaluateHitMaterialBaseColor(in BuiltInTriangleIntersectionAttributes attr) {
 
 	RaytracingInstanceShaderData instanceData = gRaytracingSceneInstances[InstanceID()];
-	SubMeshShaderData subMesh = gRaytracingSubMeshes[instanceData.subMeshDataIndex];
+	RaytracingGeometryShaderData geometryData =
+		gRaytracingGeometries[instanceData.geometryDataOffset + GeometryIndex()];
+	SubMeshShaderData subMesh =
+		gRaytracingSubMeshes[geometryData.subMeshDataIndex];
 
 	StructuredBuffer<uint> indices = ResourceDescriptorHeap[NonUniformResourceIndex(instanceData.indexDescriptorIndex)];
 	StructuredBuffer<MeshVertex> vertices = ResourceDescriptorHeap[NonUniformResourceIndex(instanceData.vertexDescriptorIndex)];
 
 	uint primitiveIndex = PrimitiveIndex();
 
-	uint baseIndex = instanceData.indexOffset + primitiveIndex * 3;
+	uint baseIndex = geometryData.indexOffset + primitiveIndex * 3;
 
 	uint i0 = indices[baseIndex + 0];
 	uint i1 = indices[baseIndex + 1];

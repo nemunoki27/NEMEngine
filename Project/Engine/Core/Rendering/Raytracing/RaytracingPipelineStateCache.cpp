@@ -35,7 +35,11 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 	}
 	// パイプラインステートを作成してキャッシュする
 	std::unique_ptr<RaytracingPipelineState> state = std::make_unique<RaytracingPipelineState>();
-	state->Create(graphicsPlatform.GetDevice(), graphicsPlatform.GetDxShaderCompiler(), *variant, *shaderAsset);
+	if (!state->Create(graphicsPlatform.GetDevice(),
+		graphicsPlatform.GetDxShaderCompiler(), *variant, *shaderAsset)) {
+		cache_.emplace(pipelineAssetID, nullptr);
+		return nullptr;
+	}
 	auto [it, inserted] = cache_.emplace(pipelineAssetID, std::move(state));
 	return it->second.get();
 }

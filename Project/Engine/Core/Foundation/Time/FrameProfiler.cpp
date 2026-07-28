@@ -33,6 +33,8 @@ void Engine::FrameProfiler::BeginFrame(float deltaTimeSec, float totalTimeSec) {
 		measure.accumulator = 0.0f;
 	}
 	firstFrame_ = false;
+	resolvedRenderingStatistics_ = renderingStatistics_;
+	renderingStatistics_ = {};
 }
 
 void Engine::FrameProfiler::AddSample(Category category, float milliseconds) {
@@ -52,6 +54,67 @@ void Engine::FrameProfiler::SetGPUPassTimes(const std::vector<NamedTime>& passes
 void Engine::FrameProfiler::SetEcsSystemTimes(const std::vector<NamedTime>& systems) {
 
 	ecsSystemTimes_ = systems;
+}
+
+void Engine::FrameProfiler::AddSkinningDispatch(uint32_t instanceCount) {
+
+	++renderingStatistics_.skinningDispatchCount;
+	renderingStatistics_.skinnedInstanceCount += instanceCount;
+}
+
+void Engine::FrameProfiler::AddBLASBuild(uint32_t geometryCount) {
+
+	++renderingStatistics_.blasBuildCount;
+	renderingStatistics_.blasGeometryCount += geometryCount;
+}
+
+void Engine::FrameProfiler::AddBLASRefit(uint32_t geometryCount) {
+
+	++renderingStatistics_.blasRefitCount;
+	renderingStatistics_.blasGeometryCount += geometryCount;
+}
+
+void Engine::FrameProfiler::AddBLASSkip(uint32_t geometryCount) {
+
+	++renderingStatistics_.blasSkipCount;
+	renderingStatistics_.blasGeometryCount += geometryCount;
+}
+
+void Engine::FrameProfiler::SetTLASInstanceCount(uint32_t instanceCount) {
+
+	renderingStatistics_.tlasInstanceCount = instanceCount;
+}
+
+void Engine::FrameProfiler::AddTLASBuild() {
+
+	++renderingStatistics_.tlasBuildCount;
+}
+
+void Engine::FrameProfiler::AddTLASRefit() {
+
+	++renderingStatistics_.tlasRefitCount;
+}
+
+void Engine::FrameProfiler::AddTLASSkip() {
+
+	++renderingStatistics_.tlasSkipCount;
+}
+
+void Engine::FrameProfiler::SetClusterStatistics(uint32_t clusterCount,
+	uint32_t localLightCount, uint32_t lightIndexCount, uint32_t overflowCount) {
+
+	renderingStatistics_.clusterCount = clusterCount;
+	renderingStatistics_.clusterLocalLightCount = localLightCount;
+	renderingStatistics_.clusterLightIndexCount = lightIndexCount;
+	renderingStatistics_.clusterOverflowCount = overflowCount;
+}
+
+void Engine::FrameProfiler::SetFrameContextStatistics(uint32_t contextIndex,
+	uint32_t contextCount, uint32_t queuedFrameCount) {
+
+	renderingStatistics_.frameContextIndex = contextIndex;
+	renderingStatistics_.frameContextCount = contextCount;
+	renderingStatistics_.queuedFrameCount = queuedFrameCount;
 }
 
 float Engine::FrameProfiler::GetAverageMs(Category category) const {

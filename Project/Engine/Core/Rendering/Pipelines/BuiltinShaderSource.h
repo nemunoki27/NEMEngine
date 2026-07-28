@@ -28,7 +28,7 @@ namespace Engine::BuiltinShaderSource {
 
 	namespace Editor {
 
-		inline constexpr const char* PickMeshInstanceCS = "4e454d41535345548d50435034671c29";
+		inline constexpr const char* PickMeshRasterPS = "4e454d41535345548d50435034671c2a";
 		inline constexpr const char* SceneOverlaySpriteVS = "4e454d4153534554edf35b0e885ae326";
 		inline constexpr const char* SceneOverlaySpritePS = "4e454d4153534554feaf5c3be1a811cf";
 	}

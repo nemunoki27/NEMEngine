@@ -83,4 +83,30 @@ namespace Engine {
 		uint32_t localCount = 0;
 	};
 	static_assert(sizeof(LightCountsGPU) % 16 == 0, "LightCountsGPU must be 16 byte aligned");
+
+	// クラスターごとのライトインデックス範囲
+	struct LightClusterHeaderGPU {
+
+		uint32_t offset = 0;
+		uint32_t count = 0;
+	};
+	// クラスター分割情報
+	struct LightClusterConstantsGPU {
+
+		uint32_t tileCountX = 0;
+		uint32_t tileCountY = 0;
+		uint32_t zSliceCount = 0;
+		uint32_t tileSize = 32;
+
+		float nearClip = 0.1f;
+		float farClip = 1000.0f;
+		float sliceScale = 0.0f;
+		float sliceBias = 0.0f;
+
+		uint32_t clusterCount = 0;
+		uint32_t maxLightsPerCluster = 256;
+		uint32_t pad[2] = { 0, 0 };
+	};
+	static_assert(sizeof(LightClusterConstantsGPU) % 16 == 0,
+		"LightClusterConstantsGPU must be 16 byte aligned");
 }

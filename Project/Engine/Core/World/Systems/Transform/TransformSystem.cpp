@@ -21,82 +21,110 @@ void Engine::TransformSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] Syste
 	UpdateTransforms(world);
 }
 
-void Engine::TransformSystem::UpdateTransforms(ECSWorld& world) {
+void Engine::TransformSystem::UpdateDirtySubtree(ECSWorld& world, const Entity& entity) {
 
-	// ルートクリア
-	roots_.clear();
-	// 親のいないルートを集める
-	world.ForEach<TransformComponent, HierarchyComponent>([&](
-		Entity entity, TransformComponent&, HierarchyComponent& hierarchy) {
-			if (!hierarchy.parent.IsValid() && IsEntityActiveInHierarchy(world, entity)) {
-				roots_.emplace_back(entity);
-			}
-		});
-	for (auto root : roots_) {
+	auto& transform = world.GetComponent<TransformComponent>(entity);
+	const auto& hierarchy = world.GetComponent<HierarchyComponent>(entity);
 
-		if (!world.IsAlive(root) || !world.HasComponent<TransformComponent>(root) ||
-			!world.HasComponent<HierarchyComponent>(root)) {
+	// 階層先頭は現在の親ワールド行列から更新する
+	if (hierarchy.parent.IsValid() && world.IsAlive(hierarchy.parent) &&
+		world.HasComponent<TransformComponent>(hierarchy.parent)) {
+
+		const Matrix4x4& parentWorld =
+			world.GetComponent<TransformComponent>(hierarchy.parent).worldMatrix;
+		const Matrix4x4 followParent = BuildParentFollowMatrix(parentWorld,
+			transform.ignoreParentScale, transform.ignoreParentRotation);
+		transform.worldMatrix = MakeLocalMatrix(transform) * followParent;
+	} else {
+
+		transform.worldMatrix = MakeLocalMatrix(transform);
+	}
+	transform.isDirty = false;
+
+	stack_.clear();
+	stack_.push_back({ entity, true });
+	while (!stack_.empty()) {
+
+		// スタックから親エンティティを取り出す
+		const StackNode node = stack_.back();
+		stack_.pop_back();
+
+		if (!world.IsAlive(node.entity) ||
+			!world.HasComponent<HierarchyComponent>(node.entity) ||
+			!world.HasComponent<TransformComponent>(node.entity)) {
 			continue;
 		}
-		auto& rootTransform = world.GetComponent<TransformComponent>(root);
 
-		// 変更があったときのみ更新
-		bool rootDirty = rootTransform.isDirty;
-		if (rootDirty) {
+		const auto& parentHierarchy = world.GetComponent<HierarchyComponent>(node.entity);
+		const Matrix4x4& parentWorld =
+			world.GetComponent<TransformComponent>(node.entity).worldMatrix;
 
-			rootTransform.worldMatrix = MakeLocalMatrix(rootTransform);
-			rootTransform.isDirty = false;
-		}
-		stack_.clear();
-		stack_.push_back({ root, rootDirty });
-		while (!stack_.empty()) {
+		// 親変更の影響を受ける子孫だけを走査する
+		Entity child = parentHierarchy.firstChild;
+		while (child.IsValid()) {
 
-			// スタックから親エンティティを取り出す
-			StackNode node = stack_.back();
-			stack_.pop_back();
-
-			// 親エンティティ情報
-			Entity parent = node.entity;
-			bool parentDirty = node.parentDirty;
-			if (!world.IsAlive(parent) || !world.HasComponent<HierarchyComponent>(parent) ||
-				!world.HasComponent<TransformComponent>(parent)) {
+			if (!world.IsAlive(child) ||
+				!world.HasComponent<HierarchyComponent>(child)) {
+				break;
+			}
+			auto& childHierarchy = world.GetComponent<HierarchyComponent>(child);
+			const Entity nextSibling = childHierarchy.nextSibling;
+			auto* childTransform = world.TryGetComponent<TransformComponent>(child);
+			if (!childTransform) {
+				child = nextSibling;
 				continue;
 			}
 
-			const auto& parentHierarchy = world.GetComponent<HierarchyComponent>(parent);
-			const Matrix4x4& parentWorld = world.GetComponent<TransformComponent>(parent).worldMatrix;
-			// 子エンティティを走査
-			Entity child = parentHierarchy.firstChild;
-			while (child.IsValid()) {
+			// 非アクティブな部分木は再有効化までdirtyを保持する
+			const bool updateWorld =
+				node.updateWorld && IsEntityActiveInHierarchy(world, child);
+			if (updateWorld) {
 
-				if (!world.IsAlive(child) || !world.HasComponent<HierarchyComponent>(child) ||
-					!world.HasComponent<TransformComponent>(child)) {
-					break;
-				}
-				auto& childHierarchy = world.GetComponent<HierarchyComponent>(child);
-				// 階層内で非アクティブなエンティティはスキップする
-				if (!IsEntityActiveInHierarchy(world, child)) {
-					child = childHierarchy.nextSibling;
-					continue;
-				}
+				const Matrix4x4 followParent = BuildParentFollowMatrix(parentWorld,
+					childTransform->ignoreParentScale, childTransform->ignoreParentRotation);
+				childTransform->worldMatrix = MakeLocalMatrix(*childTransform) * followParent;
+				childTransform->isDirty = false;
+			} else {
 
-				auto& childTransform = world.GetComponent<TransformComponent>(child);
-
-				// 親の変更があったとき、もしくは子自身に変更があったときのみ更新する
-				bool childNeedsUpdate = parentDirty || childTransform.isDirty;
-				if (childNeedsUpdate) {
-
-					// 子の継承設定に応じて親ワールドを調整する、座標は常に追従し回転スケールは任意で無視する
-					const Matrix4x4 followParent = BuildParentFollowMatrix(parentWorld,
-						childTransform.ignoreParentScale, childTransform.ignoreParentRotation);
-					Matrix4x4 childLocal = MakeLocalMatrix(childTransform);
-					childTransform.worldMatrix = childLocal * followParent;
-					childTransform.isDirty = false;
-				}
-				// 子エンティティをスタックに積む
-				stack_.push_back({ child, childNeedsUpdate });
-				child = childHierarchy.nextSibling;
+				childTransform->isDirty = true;
 			}
+			stack_.push_back({ child, updateWorld });
+			child = nextSibling;
 		}
+	}
+}
+
+void Engine::TransformSystem::UpdateTransforms(ECSWorld& world) {
+
+	dirtyTransforms_.clear();
+	// 連続配置されたTransform列からdirtyなエンティティだけを集める
+	world.ForEach<TransformComponent, HierarchyComponent>([&](
+		Entity entity, TransformComponent& transform, HierarchyComponent&) {
+			if (transform.isDirty && IsEntityActiveInHierarchy(world, entity)) {
+				dirtyTransforms_.emplace_back(entity);
+			}
+		});
+	for (const Entity entity : dirtyTransforms_) {
+
+		if (!world.IsAlive(entity) ||
+			!world.HasComponent<TransformComponent>(entity) ||
+			!world.HasComponent<HierarchyComponent>(entity)) {
+			continue;
+		}
+		auto& transform = world.GetComponent<TransformComponent>(entity);
+		if (!transform.isDirty) {
+			continue;
+		}
+
+		const auto& hierarchy = world.GetComponent<HierarchyComponent>(entity);
+		// dirtyな親が同じ走査内で部分木を更新するため、子からの重複更新を避ける
+		if (hierarchy.parent.IsValid() && world.IsAlive(hierarchy.parent) &&
+			world.HasComponent<TransformComponent>(hierarchy.parent) &&
+			world.HasComponent<HierarchyComponent>(hierarchy.parent) &&
+			world.GetComponent<TransformComponent>(hierarchy.parent).isDirty &&
+			IsEntityActiveInHierarchy(world, hierarchy.parent)) {
+			continue;
+		}
+		UpdateDirtySubtree(world, entity);
 	}
 }

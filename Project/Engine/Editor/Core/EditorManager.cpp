@@ -634,7 +634,9 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	}
 
 	// シーンビューのメッシュピック処理の結果を選択状態へ適用する
-	const MeshSubMeshPickOutcome pickOutcome = meshSubMeshPicker_->ConsumePendingResult(context.activeWorld);
+	const MeshSubMeshPickOutcome pickOutcome =
+		meshSubMeshPicker_->ConsumePendingResult(
+			graphicsCore, context.activeWorld);
 	if (pickOutcome.committed) {
 
 		// ヒットなしは選択解除、ヒット時のみ候補サブメッシュを更新する

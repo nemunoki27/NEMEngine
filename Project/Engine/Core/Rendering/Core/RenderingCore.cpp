@@ -80,6 +80,7 @@ void Engine::GraphicsCore::SyncWindowSize() {
 
 void Engine::GraphicsCore::BeginRenderFrame() {
 
+	graphicsPlatform_->BeginFrame(swapChain_->GetCurrentBackBufferIndex());
 	auto* dxCommand = graphicsPlatform_->GetDxCommand();
 
 	// Present -> RenderTarget

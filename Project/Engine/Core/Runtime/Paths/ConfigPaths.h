@@ -24,6 +24,9 @@ namespace Engine {
 		inline constexpr const char* kInspectorModelPreviewCamera = "Editor/InspectorModelPreviewCamera.json";
 		// プロジェクトパネルの表示状態
 		inline constexpr const char* kProjectPanel = "Editor/ProjectPanel.json";
+		// パフォーマンスチェックツールの設定
+		inline constexpr const char* kPerformanceCheckTool =
+			"Editor/performanceCheckTool.exeConfig.json";
 		// ユーザーが保存したエディターレイアウト
 		inline constexpr const char* kEditorLayouts = "Editor/Layouts.json";
 		// 終了時のエディターレイアウト

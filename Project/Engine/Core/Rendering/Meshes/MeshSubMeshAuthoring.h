@@ -29,6 +29,7 @@ namespace Engine {
 	struct MeshSubMeshLayoutItem {
 
 		uint32_t sourceSubMeshIndex = 0;
+		uint32_t vertexCount = 0;
 		std::string name{};
 
 		// 頂点座標から計算したピボット
@@ -47,12 +48,19 @@ namespace Engine {
 		bool hasMetallicFactor = false;
 		bool hasRoughnessFactor = false;
 	};
+
+	// モデル全体から取得した生成時情報
+	struct MeshAssetAuthoringInfo {
+
+		bool hasBones = false;
+	};
 } // Engine
 namespace Engine::MeshSubMeshAuthoring {
 
 	// メッシュアセットからサブメッシュレイアウトを読む
 	bool TryBuildLayout(AssetDatabase* assetDatabase, AssetID meshAssetID,
-		std::vector<MeshSubMeshLayoutItem>& outLayout);
+		std::vector<MeshSubMeshLayoutItem>& outLayout,
+		MeshAssetAuthoringInfo* outInfo = nullptr);
 
 	// レイアウトに合わせてサブメッシュを正規化する
 	bool SyncComponentToLayout(const std::vector<MeshSubMeshLayoutItem>& layout,

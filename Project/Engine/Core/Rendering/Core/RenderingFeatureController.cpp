@@ -100,6 +100,19 @@ void Engine::GraphicsFeatureController::SetAllowFrustumCulling(bool enabled) {
 	Logger::Output(LogType::Engine, "Frustum Culling -> {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
 }
 
+void Engine::GraphicsFeatureController::SetUseGameViewCameraForSceneCulling(bool enabled) {
+
+	if (preferences_.useGameViewCameraForSceneCulling == enabled) {
+		return;
+	}
+
+	preferences_.useGameViewCameraForSceneCulling = enabled;
+	SavePreferencesToConfig();
+
+	Logger::Output(LogType::Engine, "SceneView Culling Camera -> {}",
+		enabled ? "GameView" : "SceneView");
+}
+
 void Engine::GraphicsFeatureController::SetAllowContributionCulling(bool enabled) {
 
 	// VS経路とMS経路の両方で使うため、共通のRuntimeFeaturesへ反映する
@@ -171,6 +184,8 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 	Logger::Output(LogType::Engine, "Runtime DispatchRays: {}", runtimeFeatures_.useDispatchRays ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime RayScene Build: {}", runtimeFeatures_.UsesAnyRayTracing() ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Frustum Culling: {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "SceneView Culling Camera: {}",
+		preferences_.useGameViewCameraForSceneCulling ? "GameView" : "SceneView");
 	Logger::Output(LogType::Engine, "Runtime Contribution Culling: {}", runtimeFeatures_.useContributionCulling ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Normal Cone Culling: {}", runtimeFeatures_.useNormalConeCulling ? "Enabled" : "Disabled");
 
@@ -193,6 +208,8 @@ void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
 	preferences_.allowInlineRayTracing = data.value("allowInlineRayTracing", preferences_.allowInlineRayTracing);
 	preferences_.allowDispatchRays = data.value("allowDispatchRays", preferences_.allowDispatchRays);
 	preferences_.allowFrustumCulling = data.value("allowFrustumCulling", preferences_.allowFrustumCulling);
+	preferences_.useGameViewCameraForSceneCulling = data.value(
+		"useGameViewCameraForSceneCulling", preferences_.useGameViewCameraForSceneCulling);
 	preferences_.allowContributionCulling = data.value("allowContributionCulling", preferences_.allowContributionCulling);
 	preferences_.allowNormalConeCulling = data.value("allowNormalConeCulling", preferences_.allowNormalConeCulling);
 }
@@ -204,6 +221,7 @@ void Engine::GraphicsFeatureController::SavePreferencesToConfig() const {
 	data["allowInlineRayTracing"] = preferences_.allowInlineRayTracing;
 	data["allowDispatchRays"] = preferences_.allowDispatchRays;
 	data["allowFrustumCulling"] = preferences_.allowFrustumCulling;
+	data["useGameViewCameraForSceneCulling"] = preferences_.useGameViewCameraForSceneCulling;
 	data["allowContributionCulling"] = preferences_.allowContributionCulling;
 	data["allowNormalConeCulling"] = preferences_.allowNormalConeCulling;
 

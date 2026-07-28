@@ -20,21 +20,25 @@ namespace {
 
 void Engine::PostProcessConstantBufferAllocator::BeginFrame() {
 
-	// 同一フレーム内では上書きせずフレーム先頭でのみ再利用する
-	offset_ = 0;
-	retiredResources_.clear();
+	FrameAllocationState& state =
+		frameStates_[GraphicsFrameState::GetCurrentIndex()];
+	// Fence完了済みのフレーム領域だけを先頭から再利用する
+	state.offset = 0;
+	state.retiredResources.clear();
 }
 
 void Engine::PostProcessConstantBufferAllocator::Release() {
 
-	if (resource_ && mappedData_) {
-		resource_->Unmap(0, nullptr);
+	for (FrameAllocationState& state : frameStates_) {
+		if (state.resource && state.mappedData) {
+			state.resource->Unmap(0, nullptr);
+		}
+		state.resource.Reset();
+		state.retiredResources.clear();
+		state.mappedData = nullptr;
+		state.capacity = 0;
+		state.offset = 0;
 	}
-	resource_.Reset();
-	retiredResources_.clear();
-	mappedData_ = nullptr;
-	capacity_ = 0;
-	offset_ = 0;
 }
 
 Engine::PostProcessConstantBufferAllocation Engine::PostProcessConstantBufferAllocator::AllocateAndUploadBytes(
@@ -44,49 +48,55 @@ Engine::PostProcessConstantBufferAllocation Engine::PostProcessConstantBufferAll
 		return {};
 	}
 
+	FrameAllocationState& state =
+		frameStates_[GraphicsFrameState::GetCurrentIndex()];
 	const size_t alignedSize = AlignCBV(bytes.size());
-	if (!resource_ || offset_ + alignedSize > capacity_) {
+	if (!state.resource || state.offset + alignedSize > state.capacity) {
 
 		// 既にDispatchへ渡したアドレスを壊さないよう、古いUploadHeapはフレーム内だけ保持する
-		const size_t growSize = (std::max)(capacity_ * 2, offset_ + alignedSize);
-		EnsureCapacity(device, (std::max)(growSize, kInitialCapacity));
+		const size_t growSize = (std::max)(
+			state.capacity * 2, state.offset + alignedSize);
+		EnsureCapacity(device, state,
+			(std::max)(growSize, kInitialCapacity));
 	}
-	if (!mappedData_ || !resource_) {
+	if (!state.mappedData || !state.resource) {
 		return {};
 	}
 
-	const size_t writeOffset = offset_;
-	std::memset(mappedData_ + writeOffset, 0, alignedSize);
-	std::memcpy(mappedData_ + writeOffset, bytes.data(), bytes.size());
-	offset_ += alignedSize;
+	const size_t writeOffset = state.offset;
+	std::memset(state.mappedData + writeOffset, 0, alignedSize);
+	std::memcpy(state.mappedData + writeOffset, bytes.data(), bytes.size());
+	state.offset += alignedSize;
 
 	PostProcessConstantBufferAllocation allocation{};
-	allocation.gpuAddress = resource_->GetGPUVirtualAddress() + writeOffset;
+	allocation.gpuAddress =
+		state.resource->GetGPUVirtualAddress() + writeOffset;
 	allocation.sizeInBytes = alignedSize;
 	return allocation;
 }
 
-void Engine::PostProcessConstantBufferAllocator::EnsureCapacity(ID3D12Device* device, size_t requiredSize) {
+void Engine::PostProcessConstantBufferAllocator::EnsureCapacity(
+	ID3D12Device* device, FrameAllocationState& state, size_t requiredSize) {
 
 	requiredSize = AlignCBV(requiredSize);
-	if (resource_ && capacity_ >= requiredSize && offset_ == 0) {
+	if (state.resource && state.capacity >= requiredSize && state.offset == 0) {
 		return;
 	}
 
-	if (resource_ && mappedData_) {
-		resource_->Unmap(0, nullptr);
-		retiredResources_.emplace_back(std::move(resource_));
+	if (state.resource && state.mappedData) {
+		state.resource->Unmap(0, nullptr);
+		state.retiredResources.emplace_back(std::move(state.resource));
 	}
 
-	DxUtils::CreateBufferResource(device, resource_, requiredSize);
+	DxUtils::CreateBufferResource(device, state.resource, requiredSize);
 
 	void* mapped = nullptr;
-	const HRESULT hr = resource_->Map(0, nullptr, &mapped);
+	const HRESULT hr = state.resource->Map(0, nullptr, &mapped);
 	assert(SUCCEEDED(hr));
 
-	mappedData_ = static_cast<uint8_t*>(mapped);
-	capacity_ = requiredSize;
-	offset_ = 0;
+	state.mappedData = static_cast<uint8_t*>(mapped);
+	state.capacity = requiredSize;
+	state.offset = 0;
 }
 
 size_t Engine::PostProcessConstantBufferAllocator::AlignCBV(size_t sizeInBytes) {

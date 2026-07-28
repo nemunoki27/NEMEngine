@@ -239,6 +239,27 @@ namespace {
 
 		// GPU完了待ちでCPUがブロックした時間、大きいほどフレームコンテキスト多重化の効果が見込める
 		ImGui::Text("GPU待ち           : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::GPUWait));
+
+		ImGui::Separator();
+
+		const Engine::FrameProfiler::RenderingStatistics& rendering =
+			profiler.GetRenderingStatistics();
+		ImGui::Text("Skinning          : %u Dispatch / %u Instances",
+			rendering.skinningDispatchCount, rendering.skinnedInstanceCount);
+		ImGui::Text("BLAS              : %u Build / %u Refit / %u Skip",
+			rendering.blasBuildCount, rendering.blasRefitCount, rendering.blasSkipCount);
+		ImGui::Text("BLAS Geometry     : %u", rendering.blasGeometryCount);
+		ImGui::Text("TLAS Instance     : %u", rendering.tlasInstanceCount);
+		ImGui::Text("TLAS              : %u Build / %u Refit / %u Skip",
+			rendering.tlasBuildCount, rendering.tlasRefitCount,
+			rendering.tlasSkipCount);
+		ImGui::Text("Cluster           : %u / %u Lights / %u Indices",
+			rendering.clusterCount, rendering.clusterLocalLightCount,
+			rendering.clusterLightIndexCount);
+		ImGui::Text("Cluster Overflow  : %u", rendering.clusterOverflowCount);
+		ImGui::Text("Frame Context     : %u / %u  Queue=%u",
+			rendering.frameContextIndex, rendering.frameContextCount,
+			rendering.queuedFrameCount);
 	}
 }
 

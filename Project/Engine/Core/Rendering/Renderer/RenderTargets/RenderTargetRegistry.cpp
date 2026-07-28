@@ -306,6 +306,8 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::ResizeTransient(Graphic
 		// map代入で後から破棄すると、一時的に使用数が倍になりBaseDescriptor::Allocateで落ちる
 		TransientEntry& entry = transients_[desc.name];
 		if (entry.surface) {
+			// 実行中フレームが旧Surfaceを参照している可能性がある
+			graphicsCore.GetDXObject().WaitForGPU();
 			entry.surface->Destroy();
 			entry.surface.reset();
 		}

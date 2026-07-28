@@ -409,10 +409,12 @@ namespace {
 Engine::SceneGridRenderer::~SceneGridRenderer() {
 
 	// フレーム内複数描画用に保持した定数バッファを終了時に明示resetする
-	for (auto& buffer : passBuffers_) {
-		buffer.reset();
+	for (auto& frameBuffers : passBuffers_) {
+		for (auto& buffer : frameBuffers) {
+			buffer.reset();
+		}
+		frameBuffers.clear();
 	}
-	passBuffers_.clear();
 }
 
 void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
@@ -454,14 +456,16 @@ void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
 	bool created = pipeline_.CreateGraphics(device, compiler, desc);
 	Assert::Call(created, "SceneGridRenderer analytic grid pipeline create failed");
 
-	passBuffers_.reserve(4);
+	for (auto& buffers : passBuffers_) {
+		buffers.reserve(4);
+	}
 
 	initialized_ = true;
 }
 
 void Engine::SceneGridRenderer::BeginFrame() {
 
-	passBufferIndex_ = 0;
+	passBufferIndices_[GraphicsFrameState::GetCurrentIndex()] = 0;
 }
 
 Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPassConstants(
@@ -614,14 +618,17 @@ Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPas
 Engine::DxConstBuffer<Engine::SceneGridRenderer::GridPassConstants>& Engine::SceneGridRenderer::AllocatePassBuffer(
 	GraphicsCore& graphicsCore) {
 
-	if (passBuffers_.size() <= passBufferIndex_) {
+	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
+	auto& buffers = passBuffers_[frameIndex];
+	uint32_t& bufferIndex = passBufferIndices_[frameIndex];
+	if (buffers.size() <= bufferIndex) {
 
 		// 同じフレーム内で複数のカメラから描画されても、記録済みコマンドの定数を上書きしない
 		auto buffer = std::make_unique<DxConstBuffer<GridPassConstants>>();
 		buffer->CreateBuffer(graphicsCore.GetDXObject().GetDevice());
-		passBuffers_.emplace_back(std::move(buffer));
+		buffers.emplace_back(std::move(buffer));
 	}
-	return *passBuffers_[passBufferIndex_++];
+	return *buffers[bufferIndex++];
 }
 
 void Engine::SceneGridRenderer::Render(GraphicsCore& graphicsCore,

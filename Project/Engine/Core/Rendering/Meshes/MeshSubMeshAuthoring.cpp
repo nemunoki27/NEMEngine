@@ -84,9 +84,13 @@ namespace {
 }
 
 bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
-	AssetID meshAssetID, std::vector<MeshSubMeshLayoutItem>& outLayout) {
+	AssetID meshAssetID, std::vector<MeshSubMeshLayoutItem>& outLayout,
+	MeshAssetAuthoringInfo* outInfo) {
 
 	outLayout.clear();
+	if (outInfo) {
+		*outInfo = {};
+	}
 	if (!assetDatabase || !meshAssetID) {
 		return false;
 	}
@@ -98,7 +102,10 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(
-		Algorithm::PathToUTF8(fullPath), aiProcess_Triangulate | aiProcess_SortByPType);
+		Algorithm::PathToUTF8(fullPath),
+		aiProcess_Triangulate |
+		aiProcess_JoinIdenticalVertices |
+		aiProcess_SortByPType);
 	if (!scene || !scene->HasMeshes()) {
 		return false;
 	}
@@ -113,11 +120,15 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 		if (!mesh || mesh->mNumVertices == 0 || mesh->mNumFaces == 0) {
 			continue;
 		}
+		if (outInfo && mesh->HasBones()) {
+			outInfo->hasBones = true;
+		}
 
 		const aiMaterial* material = (mesh->mMaterialIndex < scene->mNumMaterials) ?
 			scene->mMaterials[mesh->mMaterialIndex] : nullptr;
 		MeshSubMeshLayoutItem item{};
 		item.sourceSubMeshIndex = meshIndex;
+		item.vertexCount = mesh->mNumVertices;
 		item.name = Engine::MeshImportUtility::BuildSubMeshName(mesh, meshIndex, material);
 		item.sourcePivot = ComputeMeshLocalCenter(mesh);
 

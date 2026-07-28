@@ -166,9 +166,15 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			// フレーム時間を再生速度に応じてスケーリング
 			float deltaTime = allowTimeAdvance ? sourceDelta * anim.playbackSpeed : 0.0f;
 
-			// 一時停止中や再生停止中はdeltaTimeが0でポーズが前フレームと同一になるため再計算を省く
-			const bool poseDirty = meshChanged || clipChanged || runtime->inTransition ||
-				deltaTime != 0.0f || !runtime->initialized || runtime->palette.empty();
+			// 停止中、遷移一時停止中、非ループ再生完了後はポーズが変わらないため再計算を省く
+			const bool transitionAdvances =
+				runtime->inTransition && deltaTime != 0.0f;
+			const bool clipAdvances =
+				!runtime->inTransition && deltaTime != 0.0f &&
+				(anim.loop || !runtime->animationFinished);
+			const bool poseDirty = meshChanged || clipChanged ||
+				transitionAdvances || clipAdvances ||
+				!runtime->initialized || runtime->palette.empty();
 			if (!poseDirty) {
 				return;
 			}
@@ -237,6 +243,7 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			// スケルトンの階層を更新してGPU用のパレットを構築
 			UpdateSkeletonHierarchy(runtime->skeleton);
 			BuildPalette(runtime->skeleton, animationSet->skinCluster, runtime->palette);
+			++runtime->poseGeneration;
 		});
 }
 

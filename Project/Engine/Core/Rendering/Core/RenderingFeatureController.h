@@ -28,8 +28,9 @@ namespace Engine {
 		void SetAllowMeshShader(bool enabled);
 		void SetAllowInlineRayTracing(bool enabled);
 		void SetAllowDispatchRays(bool enabled);
-		// GameView基準の描画カリング機能を個別に切り替える
+		// 描画カリング機能を個別に切り替える
 		void SetAllowFrustumCulling(bool enabled);
+		void SetUseGameViewCameraForSceneCulling(bool enabled);
 		void SetAllowContributionCulling(bool enabled);
 		void SetAllowNormalConeCulling(bool enabled);
 
@@ -45,6 +46,9 @@ namespace Engine {
 		bool ShouldUseDispatchRays() const { return runtimeFeatures_.useDispatchRays; }
 		// 描画側はPreferencesではなくRuntimeFeaturesを参照して最終状態だけを見る
 		bool ShouldUseFrustumCulling() const { return runtimeFeatures_.useFrustumCulling; }
+		bool ShouldUseGameViewCameraForSceneCulling() const {
+			return preferences_.useGameViewCameraForSceneCulling;
+		}
 		bool ShouldUseContributionCulling() const { return runtimeFeatures_.useContributionCulling; }
 		bool ShouldUseNormalConeCulling() const { return runtimeFeatures_.useNormalConeCulling; }
 		bool ShouldBuildRaytracingScene() const { return runtimeFeatures_.UsesAnyRayTracing(); }

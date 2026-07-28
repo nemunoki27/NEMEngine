@@ -71,8 +71,9 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 	const RegisteredRenderBuffer* viewConstants = context.bufferRegistry.Find("RaytracingViewConstants");
 	const RegisteredRenderBuffer* sceneInstances = context.bufferRegistry.Find("gRaytracingSceneInstances");
 	const RegisteredRenderBuffer* sceneSubMeshes = context.bufferRegistry.Find("gRaytracingSubMeshes");
+	const RegisteredRenderBuffer* sceneGeometries = context.bufferRegistry.Find("gRaytracingGeometries");
 	// どれか1つでもなければ処理しない
-	if (!tlas || !viewConstants || !sceneInstances || !sceneSubMeshes) {
+	if (!tlas || !viewConstants || !sceneInstances || !sceneSubMeshes || !sceneGeometries) {
 		return;
 	}
 
@@ -114,6 +115,7 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSourcePosition, sourcePosition->GetSRVGPUHandle());
 	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSceneInstances, sceneInstances->srvGPUHandle);
 	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSceneSubMeshes, sceneSubMeshes->srvGPUHandle);
+	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSceneGeometries, sceneGeometries->srvGPUHandle);
 	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexDestUAV, destColor->GetUAVGPUHandle());
 	commandList->SetComputeRootConstantBufferView(RaytracingPipelineState::kRootIndexViewCBV, viewConstants->gpuAddress);
 	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSourceFlags, sourceFlags->GetSRVGPUHandle());

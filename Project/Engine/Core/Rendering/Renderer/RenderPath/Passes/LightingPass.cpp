@@ -92,18 +92,21 @@ void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMA
 Engine::DxConstBuffer<Engine::LightingPass::LightingConstants>& Engine::LightingPass::AllocateConstantBuffer(
 	GraphicsCore& graphicsCore) {
 
-	// BeginFrameを持たないため、上書き前にGPUが消費し終える程度のリングで回す
-	constexpr size_t kRingBufferCount = 8;
-	while (constantBuffers_.size() < kRingBufferCount) {
+	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
+	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
+	if (constantBufferFrameSerials_[frameIndex] != frameSerial) {
+		constantBufferFrameSerials_[frameIndex] = frameSerial;
+		constantBufferIndices_[frameIndex] = 0;
+	}
+	auto& buffers = constantBuffers_[frameIndex];
+	uint32_t& bufferIndex = constantBufferIndices_[frameIndex];
+	if (buffers.size() <= bufferIndex) {
 
 		auto buffer = std::make_unique<DxConstBuffer<LightingConstants>>();
 		buffer->CreateBuffer(graphicsCore.GetDXObject().GetDevice());
-		constantBuffers_.push_back(std::move(buffer));
+		buffers.push_back(std::move(buffer));
 	}
-
-	DxConstBuffer<LightingConstants>& buffer = *constantBuffers_[constantBufferIndex_];
-	constantBufferIndex_ = (constantBufferIndex_ + 1u) % static_cast<uint32_t>(constantBuffers_.size());
-	return buffer;
+	return *buffers[bufferIndex++];
 }
 
 void Engine::LightingPass::BindGBufferSRV(ID3D12GraphicsCommandList* commandList,
@@ -197,6 +200,7 @@ void Engine::LightingPass::Execute(GraphicsCore& graphicsCore,
 		constants.cameraPos = camera->cameraPos;
 		constants.inverseViewProjection =
 			camera->matrices.inverseProjectionMatrix * camera->matrices.inverseViewMatrix;
+		constants.viewMatrix = camera->matrices.viewMatrix;
 	} else {
 
 		// 透視カメラが無い場合はskyboxを出さずambientと発光だけにする

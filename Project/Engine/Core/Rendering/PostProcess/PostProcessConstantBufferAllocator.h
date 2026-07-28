@@ -4,8 +4,10 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 // c++
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -55,15 +57,20 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		ComPtr<ID3D12Resource> resource_{};
-		std::vector<ComPtr<ID3D12Resource>> retiredResources_{};
-		uint8_t* mappedData_ = nullptr;
-		size_t capacity_ = 0;
-		size_t offset_ = 0;
+		struct FrameAllocationState {
+
+			ComPtr<ID3D12Resource> resource{};
+			std::vector<ComPtr<ID3D12Resource>> retiredResources{};
+			uint8_t* mappedData = nullptr;
+			size_t capacity = 0;
+			size_t offset = 0;
+		};
+		std::array<FrameAllocationState, kGraphicsFrameContextCount> frameStates_{};
 
 		//--------- functions ----------------------------------------------------
 
-		void EnsureCapacity(ID3D12Device* device, size_t requiredSize);
+		void EnsureCapacity(ID3D12Device* device,
+			FrameAllocationState& state, size_t requiredSize);
 		static size_t AlignCBV(size_t sizeInBytes);
 	};
 

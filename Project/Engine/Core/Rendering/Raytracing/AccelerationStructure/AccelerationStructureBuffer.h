@@ -7,6 +7,7 @@
 
 // c++
 #include <cstdint>
+#include <utility>
 // directX
 #include <d3d12.h>
 
@@ -31,6 +32,8 @@ namespace Engine {
 
 		// リセット
 		void Reset() { resource_.Reset(); }
+		// 所有リソースを退避用に移動する
+		ComPtr<ID3D12Resource> TakeResource() { return std::move(resource_); }
 
 		// valueをASサイズにアラインメントする
 		static constexpr UINT64 AlignASSize(UINT64 value);

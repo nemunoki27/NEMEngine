@@ -21,7 +21,8 @@ Engine::Entity Engine::SceneAuthoring::CreateGameObject(ECSWorld& world, const s
 }
 
 Engine::Entity Engine::SceneAuthoring::CreateGameObject(ECSWorld& world,
-	const std::string_view& name, std::span<const uint32_t> additionalTypeIDs) {
+	const std::string_view& name, std::span<const uint32_t> additionalTypeIDs,
+	UUID stableUUID) {
 
 	ComponentTypeRegistry& registry = ComponentTypeRegistry::GetInstance();
 	std::vector<uint32_t> typeIDs;
@@ -33,7 +34,7 @@ Engine::Entity Engine::SceneAuthoring::CreateGameObject(ECSWorld& world,
 	typeIDs.insert(typeIDs.end(), additionalTypeIDs.begin(), additionalTypeIDs.end());
 
 	// 最終アーキタイプへ一度だけ配置する
-	Entity entity = world.CreateEntityWithComponents(typeIDs);
+	Entity entity = world.CreateEntityWithComponents(typeIDs, stableUUID);
 	world.GetComponent<NameComponent>(entity).name = std::string(name);
 	world.GetComponent<SceneObjectComponent>(entity).localFileID = UUID::New();
 	return entity;

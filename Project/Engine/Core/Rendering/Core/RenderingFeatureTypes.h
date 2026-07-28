@@ -50,8 +50,10 @@ namespace Engine {
 		bool allowMeshShader = true;
 		bool allowInlineRayTracing = true;
 		bool allowDispatchRays = false;
-		// GameViewのカメラを基準にしたフラスタムカリングを行うか
+		// フラスタムカリングを行うか
 		bool allowFrustumCulling = true;
+		// SceneViewのカリングにGameViewのカメラを使用するか
+		bool useGameViewCameraForSceneCulling = true;
 		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
 		bool allowContributionCulling = true;
 		// MeshShader経路でメッシュレットの法線コーン判定を行うか

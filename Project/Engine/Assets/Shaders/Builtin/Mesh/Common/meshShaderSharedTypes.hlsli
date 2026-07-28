@@ -83,7 +83,8 @@ struct MeshInstance {
 	uint outlineDataIndex;
 	// 負スケール時に-1になるworldMatrix線形部の行列式の符号
 	float orientationSign;
-	uint2 _outlinePad;
+	uint entityIndex;
+	uint entityGeneration;
 
 	// インスタンスごとの乗算色
 	float4 color;

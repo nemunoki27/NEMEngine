@@ -47,6 +47,7 @@ using namespace Engine;
 // c++
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <filesystem>
 
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
@@ -89,6 +90,10 @@ namespace {
 		}
 		switch (passKind) {
 		case Engine::MaterialPassKind::ZPrepass:
+			formats.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			break;
+		case Engine::MaterialPassKind::EditorPicking:
+			formats.rtvFormats = { DXGI_FORMAT_R32G32B32A32_UINT };
 			formats.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 			break;
 		case Engine::MaterialPassKind::Draw:
@@ -599,6 +604,8 @@ void RenderPipelineRunner::Finalize() {
 	sceneViewState_.raytracingBuffers.Release();
 	previewBackendFrameStarted_ = false;
 	lastRenderedWorld_ = nullptr;
+	lastRenderRequest_ = {};
+	lastActiveScene_ = nullptr;
 	raytracingSceneBuilder_.Finalize();
 	gameViewState_.resources.Destroy();
 	sceneViewState_.resources.Destroy();
@@ -613,12 +620,15 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 	// ワールドがない場合は描画できないので処理しない
 	if (!request.world) {
+		lastRenderRequest_ = {};
+		lastActiveScene_ = nullptr;
 		return;
 	}
 
 	// データクリア
 	tlasResource_ = nullptr;
 	pickRecords_.clear();
+	pickRecordOffsets_.clear();
 
 	// アセットライブラリの初期化、フレーム開始処理
 	renderAssetLibrary_.Init(request.assetDatabase);
@@ -666,6 +676,8 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			activeScene = request.sceneInstances->GetActive();
 		}
 	}
+	lastRenderRequest_ = request;
+	lastActiveScene_ = activeScene;
 
 	// シーン切り替え時にPostProcessStack設定をサービスへ通知する
 	if (activeScene) {
@@ -712,14 +724,13 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	// ビューごとのライト集合クリア
 	gameViewState_.lightSet.Clear();
 	sceneViewState_.lightSet.Clear();
-	const bool sceneViewSharesGameLightBuffers = sceneViewState_.view.valid && gameViewState_.view.valid;
 	// ルートシーン用のビューライト構築
 	if (activeScene) {
 		if (gameViewState_.view.valid) {
 
 			ViewLightCollector::CollectForView(frameLightBatch_, activeScene, gameViewState_.view, gameViewState_.lightSet);
 		}
-		if (sceneViewState_.view.valid && !sceneViewSharesGameLightBuffers) {
+		if (sceneViewState_.view.valid) {
 
 			ViewLightCollector::CollectForView(frameLightBatch_, activeScene, sceneViewState_.view, sceneViewState_.lightSet);
 		}
@@ -729,15 +740,12 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	if (!gameViewState_.lightBuffers.IsInitialized()) {
 		gameViewState_.lightBuffers.Init(graphicsCore);
 	}
-	if (!sceneViewSharesGameLightBuffers && !sceneViewState_.lightBuffers.IsInitialized()) {
+	if (!sceneViewState_.lightBuffers.IsInitialized()) {
 		sceneViewState_.lightBuffers.Init(graphicsCore);
 	}
 	// ビューごとのライト集合をGPUへ転送
 	gameViewState_.lightBuffers.Upload(gameViewState_.lightSet);
-	if (!sceneViewSharesGameLightBuffers) {
-
-		sceneViewState_.lightBuffers.Upload(sceneViewState_.lightSet);
-	}
+	sceneViewState_.lightBuffers.Upload(sceneViewState_.lightSet);
 
 	// レイトレーシングビュー関連バッファの初期化と転送
 	if (!gameViewState_.raytracingBuffers.IsInitialized()) {
@@ -782,10 +790,16 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		RenderPassItemCollector::BuildBucketsForViewAndScene(
 			renderBatch_, view, context.sceneInstance->instanceID, passBuckets_);
 
+		ID3D12GraphicsCommandList6* commandList =
+			graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
+		const std::string viewName = std::string(EnumAdapter<RenderViewKind>::ToStringView(kind));
+
 		// スキニングメッシュの頂点更新
 		if (meshBackend) {
+			GPUFrameProfiler::GetInstance().BeginPass(commandList, viewName + "/Skinning");
 			PreDispatchVisibleMeshSkinning(graphicsCore, context,
 				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets_);
+			GPUFrameProfiler::GetInstance().EndPass(commandList);
 
 			// レイトレーシングシーンの構築
 			// gRaytracingSceneInstances/gRaytracingSubMeshesはcontext.bufferRegistryへ登録する必要があるため、
@@ -796,12 +810,15 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 				context.view = &gameViewState_.view;
 			}
 			PrimitiveGeometryManager* primitiveGeometryManager = primitiveBackend_ ? &primitiveBackend_->GetGeometryManager() : nullptr;
+			GPUFrameProfiler::GetInstance().BeginPass(commandList, viewName + "/RaytracingSceneBuild");
 			raytracingSceneBuilder_.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, primitiveGeometryManager, renderBatch_, context);
+			GPUFrameProfiler::GetInstance().EndPass(commandList);
 			context.view = prevTlasView;
 
 			if (context.raytracing.tlasResource) {
 				tlasResource_ = context.raytracing.tlasResource;
 				pickRecords_ = raytracingSceneBuilder_.GetPickRecords();
+				pickRecordOffsets_ = raytracingSceneBuilder_.GetPickRecordOffsets();
 			}
 		}
 
@@ -838,6 +855,87 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 	// 記録したパスのタイムスタンプを解決してリードバックバッファへ書き出す
 	GPUFrameProfiler::GetInstance().Resolve(graphicsCore.GetDXObject().GetDxCommand()->GetCommandList());
+}
+
+bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
+	RenderViewKind kind, const Vector2& inputPixel,
+	MultiRenderTarget& target) {
+
+	if (!lastRenderRequest_.world || !lastRenderRequest_.assetDatabase ||
+		!lastActiveScene_ || !target.IsValid()) {
+		return false;
+	}
+
+	const ResolvedRenderView& view = GetResolvedView(kind);
+	const ResolvedCameraView* camera =
+		view.FindCamera(RenderCameraDomain::Perspective);
+	if (!view.valid || !camera) {
+		return false;
+	}
+
+	std::vector<const RenderItem*> items{};
+	items.reserve(renderBatch_.GetItems().size());
+	for (const RenderItem& item : renderBatch_.GetItems()) {
+
+		if (item.backendID != RenderBackendID::Mesh ||
+			item.sceneInstanceID != lastActiveScene_->instanceID ||
+			item.cameraDomain != RenderCameraDomain::Perspective ||
+			(item.visibilityLayerMask & camera->cullingMask) == 0) {
+			continue;
+		}
+		items.emplace_back(&item);
+	}
+	SceneExecutionContext context{};
+	context.kind = kind;
+	context.sceneInstance = lastActiveScene_;
+	context.view = &view;
+	context.cullingView = &view;
+	context.defaultSurface = &target;
+	context.billboardView =
+		(kind == RenderViewKind::Scene && gameViewState_.view.valid) ?
+		&gameViewState_.view : &view;
+	context.disableInlineRayTracing = true;
+	context.forceVertexMeshVariant = true;
+	context.world = lastRenderRequest_.world;
+	context.systemContext = lastRenderRequest_.systemContext;
+	context.assetDatabase = lastRenderRequest_.assetDatabase;
+
+	DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
+	dxCommand->SetDescriptorHeaps({
+		graphicsCore.GetSRVDescriptor().GetDescriptorHeap()
+		});
+	target.TransitionForRender(*dxCommand);
+	target.Bind(*dxCommand);
+	target.Clear(*dxCommand, {
+		.clearColor = true,
+		.clearColorValue = Color4::Black(),
+		.clearDepth = true,
+		.clearDepthValue = 1.0f,
+		});
+
+	// 元ビューを負のオフセットで1x1 RTへ写し、クリック画素だけをラスタライズする
+	const float pixelX = std::floor(std::clamp(
+		inputPixel.x, 0.0f, static_cast<float>(view.width - 1)));
+	const float pixelY = std::floor(std::clamp(
+		inputPixel.y, 0.0f, static_cast<float>(view.height - 1)));
+	D3D12_VIEWPORT viewport{};
+	viewport.TopLeftX = -pixelX;
+	viewport.TopLeftY = -pixelY;
+	viewport.Width = static_cast<float>(view.width);
+	viewport.Height = static_cast<float>(view.height);
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+	D3D12_RECT scissor{ 0, 0, 1, 1 };
+
+	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
+	commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetScissorRects(1, &scissor);
+
+	batchDispatcher_.Dispatch(graphicsCore, context, renderBatch_,
+		backendRegistry_, renderAssetLibrary_, pipelineStateCache_,
+		materialResolver_, items, &target, nullptr,
+		MaterialPassKind::EditorPicking, false);
+	return true;
 }
 
 bool RenderPipelineRunner::PresentViewToBackBuffer(
@@ -950,13 +1048,16 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.kind = kind;
 	context.sceneInstance = sceneInstance;
 	context.view = &view;
-	// SceneViewの描画カメラはSceneViewのまま、カリングだけGameView基準にする
-	context.cullingView = (kind == RenderViewKind::Scene && gameViewState_.view.valid) ? &gameViewState_.view : &view;
+	// SceneViewの描画カメラは変えず、設定に応じてカリングカメラだけを切り替える
+	const bool useGameViewCameraForSceneCulling = graphicsCore.GetDXObject()
+		.GetFeatureController().ShouldUseGameViewCameraForSceneCulling();
+	context.cullingView = (kind == RenderViewKind::Scene &&
+		useGameViewCameraForSceneCulling && gameViewState_.view.valid) ?
+		&gameViewState_.view : &view;
 	context.defaultSurface = viewportRenderService_->GetSurface(kind);
 	context.world = request.world;
 	context.systemContext = request.systemContext;
 	context.assetDatabase = request.assetDatabase;
-	context.requireRaytracingSceneForEditorPicking = request.requireRaytracingSceneForEditorPicking;
 	context.drawSceneViewDefaultGrid = request.drawSceneViewDefaultGrid;
 	context.allowSceneComponentOverlay = (kind == RenderViewKind::Scene);
 	// 種類に応じたターゲットレジストリを選択
@@ -1003,13 +1104,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 		break;
 	case RenderViewKind::Scene:
 
-		if (gameViewState_.view.valid) {
-
-			gameViewState_.lightBuffers.RegisterTo(context.bufferRegistry);
-		} else {
-
-			sceneViewState_.lightBuffers.RegisterTo(context.bufferRegistry);
-		}
+		sceneViewState_.lightBuffers.RegisterTo(context.bufferRegistry);
 		sceneViewState_.raytracingBuffers.RegisterTo(context.bufferRegistry);
 		break;
 	}

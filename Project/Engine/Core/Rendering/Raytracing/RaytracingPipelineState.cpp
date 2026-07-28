@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
@@ -38,11 +38,19 @@ namespace {
 	}
 }
 
-void Engine::RaytracingPipelineState::Create(ID3D12Device8* device, DxShaderCompiler* compiler,
+bool Engine::RaytracingPipelineState::Create(ID3D12Device8* device, DxShaderCompiler* compiler,
 	const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset) {
 
-	BuildGlobalRootSignature(device);
-	BuildStateObject(device, compiler, variant, shaderAsset);
+	stateObject_.Reset();
+	stateProps_.Reset();
+	globalRootSignature_.Reset();
+	shaderTable_.Reset();
+	shaderTableSize_ = 0;
+
+	if (!BuildGlobalRootSignature(device)) {
+		return false;
+	}
+	return BuildStateObject(device, compiler, variant, shaderAsset);
 }
 
 D3D12_DISPATCH_RAYS_DESC Engine::RaytracingPipelineState::BuildDispatchDesc(uint32_t width,
@@ -68,7 +76,7 @@ D3D12_DISPATCH_RAYS_DESC Engine::RaytracingPipelineState::BuildDispatchDesc(uint
 	return desc;
 }
 
-void Engine::RaytracingPipelineState::BuildGlobalRootSignature(ID3D12Device8* device) {
+bool Engine::RaytracingPipelineState::BuildGlobalRootSignature(ID3D12Device8* device) {
 
 	CD3DX12_DESCRIPTOR_RANGE sourceColorRange{};
 	sourceColorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
@@ -88,14 +96,17 @@ void Engine::RaytracingPipelineState::BuildGlobalRootSignature(ID3D12Device8* de
 	CD3DX12_DESCRIPTOR_RANGE sceneSubMeshesRange{};
 	sceneSubMeshesRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6);
 
+	CD3DX12_DESCRIPTOR_RANGE sceneGeometriesRange{};
+	sceneGeometriesRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7);
+
 	CD3DX12_DESCRIPTOR_RANGE destRange{};
 	destRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
 
 	CD3DX12_DESCRIPTOR_RANGE sourceFlagsRange{};
-	sourceFlagsRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7);
+	sourceFlagsRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 8);
 
 	// ルートパラメータの構築
-	CD3DX12_ROOT_PARAMETER rootParameters[10]{};
+	CD3DX12_ROOT_PARAMETER rootParameters[11]{};
 	rootParameters[kRootIndexTLAS].InitAsShaderResourceView(0);                              // t0
 	rootParameters[kRootIndexSourceColor].InitAsDescriptorTable(1, &sourceColorRange);       // t1
 	rootParameters[kRootIndexSourceDepth].InitAsDescriptorTable(1, &sourceDepthRange);       // t2
@@ -103,9 +114,10 @@ void Engine::RaytracingPipelineState::BuildGlobalRootSignature(ID3D12Device8* de
 	rootParameters[kRootIndexSourcePosition].InitAsDescriptorTable(1, &sourcePositionRange); // t4
 	rootParameters[kRootIndexSceneInstances].InitAsDescriptorTable(1, &sceneInstancesRange); // t5
 	rootParameters[kRootIndexSceneSubMeshes].InitAsDescriptorTable(1, &sceneSubMeshesRange); // t6
+	rootParameters[kRootIndexSceneGeometries].InitAsDescriptorTable(1, &sceneGeometriesRange); // t7
 	rootParameters[kRootIndexDestUAV].InitAsDescriptorTable(1, &destRange);                  // u0
 	rootParameters[kRootIndexViewCBV].InitAsConstantBufferView(0);                           // b0
-	rootParameters[kRootIndexSourceFlags].InitAsDescriptorTable(1, &sourceFlagsRange);       // t7
+	rootParameters[kRootIndexSourceFlags].InitAsDescriptorTable(1, &sourceFlagsRange);       // t8
 	// 静的サンプラーの構築
 	D3D12_STATIC_SAMPLER_DESC staticSampler{};
 	staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -132,32 +144,51 @@ void Engine::RaytracingPipelineState::BuildGlobalRootSignature(ID3D12Device8* de
 		if (errorBlob) {
 			OutputDebugStringA(static_cast<const char*>(errorBlob->GetBufferPointer()));
 		}
-		Assert::Call(false, "Failed to serialize raytracing global root signature");
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[RaytracingPipeline] Failed to serialize global root signature. HRESULT=0x{:08X}",
+			static_cast<uint32_t>(hr));
+		return false;
 	}
 	hr = device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(&globalRootSignature_));
-	Assert::Call(SUCCEEDED(hr), "Failed to create raytracing global root signature");
+	if (FAILED(hr)) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[RaytracingPipeline] Failed to create global root signature. HRESULT=0x{:08X}",
+			static_cast<uint32_t>(hr));
+		return false;
+	}
+	return true;
 }
 
-void Engine::RaytracingPipelineState::BuildStateObject(ID3D12Device8* device,
+bool Engine::RaytracingPipelineState::BuildStateObject(ID3D12Device8* device,
 	DxShaderCompiler* compiler, const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset) {
 
 	// シェーダーアセットから必要なステージを探す
 	const ShaderStageEntry* rayGenStage = FindLibraryStageByEntry(shaderAsset, variant.rayGenerationExport);
 	const ShaderStageEntry* missStage = FindLibraryStageByEntry(shaderAsset, variant.missExport);
 	const ShaderStageEntry* closestHitStage = FindLibraryStageByEntry(shaderAsset, variant.closestHitExport);
+	const ShaderStageEntry* anyHitStage = variant.anyHitExport.empty() ?
+		nullptr : FindLibraryStageByEntry(shaderAsset, variant.anyHitExport);
 	// エントリーポイントが見つからない場合はエラー
-	Assert::Call(rayGenStage != nullptr, "RayGeneration export was not found in ShaderAsset");
-	Assert::Call(missStage != nullptr, "Miss export was not found in ShaderAsset");
-	Assert::Call(closestHitStage != nullptr, "ClosestHit export was not found in ShaderAsset");
+	if (!rayGenStage || !missStage || !closestHitStage ||
+		(!variant.anyHitExport.empty() && !anyHitStage)) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[RaytracingPipeline] Required export was not found in ShaderAsset");
+		return false;
+	}
 
 	// シェーダーファイルのパスを取得
 	const std::filesystem::path rayGenPath = ResolveShaderPath(rayGenStage->file);
 	const std::filesystem::path missPath = ResolveShaderPath(missStage->file);
 	const std::filesystem::path hitPath = ResolveShaderPath(closestHitStage->file);
+	const std::filesystem::path anyHitPath = anyHitStage ?
+		ResolveShaderPath(anyHitStage->file) : std::filesystem::path{};
 	// シェーダーファイルが見つからない場合はエラー
-	Assert::Call(!rayGenPath.empty(), "RayGeneration shader file not found");
-	Assert::Call(!missPath.empty(), "Miss shader file not found");
-	Assert::Call(!hitPath.empty(), "ClosestHit shader file not found");
+	if (rayGenPath.empty() || missPath.empty() || hitPath.empty() ||
+		(anyHitStage && anyHitPath.empty())) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[RaytracingPipeline] Required shader file was not found");
+		return false;
+	}
 
 	// シェーダーのコンパイル
 	CompiledShader rayGenShader = compiler->CompileShader(rayGenPath.wstring(),
@@ -169,6 +200,18 @@ void Engine::RaytracingPipelineState::BuildStateObject(ID3D12Device8* device,
 	CompiledShader closestHitShader = compiler->CompileShader(hitPath.wstring(),
 		Algorithm::ConvertString(closestHitStage->profile.empty() ? std::string("lib_6_6") : closestHitStage->profile).c_str(),
 		Algorithm::ConvertString(closestHitStage->entry).c_str(), ShaderStage::Lib);
+	CompiledShader anyHitShader{};
+	if (anyHitStage) {
+		anyHitShader = compiler->CompileShader(anyHitPath.wstring(),
+			Algorithm::ConvertString(anyHitStage->profile.empty() ? std::string("lib_6_6") : anyHitStage->profile).c_str(),
+			Algorithm::ConvertString(anyHitStage->entry).c_str(), ShaderStage::Lib);
+	}
+	if (!rayGenShader.object || !missShader.object || !closestHitShader.object ||
+		(anyHitStage && !anyHitShader.object)) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[RaytracingPipeline] Required shader library compilation failed");
+		return false;
+	}
 	// wstringに変換
 	std::wstring rayGenExport = Algorithm::ConvertString(variant.rayGenerationExport);
 	std::wstring missExport = Algorithm::ConvertString(variant.missExport);
@@ -182,9 +225,9 @@ void Engine::RaytracingPipelineState::BuildStateObject(ID3D12Device8* device,
 
 	// サブオブジェクトの構築
 	std::vector<D3D12_EXPORT_DESC> exportDescs;
-	exportDescs.reserve(3);
+	exportDescs.reserve(4);
 	std::vector<D3D12_DXIL_LIBRARY_DESC> libraryDescs;
-	libraryDescs.reserve(3);
+	libraryDescs.reserve(4);
 	std::vector<D3D12_STATE_SUBOBJECT> subobjects;
 	subobjects.reserve(12);
 	auto addLibrary = [&](const CompiledShader& shader, const std::wstring& exportName) {
@@ -204,6 +247,9 @@ void Engine::RaytracingPipelineState::BuildStateObject(ID3D12Device8* device,
 	addLibrary(rayGenShader, rayGenExport);
 	addLibrary(missShader, missExport);
 	addLibrary(closestHitShader, closestHitExport);
+	if (anyHitStage) {
+		addLibrary(anyHitShader, anyHitExport);
+	}
 
 	// ヒットグループの構築
 	D3D12_HIT_GROUP_DESC hitGroupDesc{};
@@ -264,15 +310,26 @@ void Engine::RaytracingPipelineState::BuildStateObject(ID3D12Device8* device,
 
 	// サブオブジェクトをまとめてパイプラインステートオブジェクトを作成
 	HRESULT hr = device->CreateStateObject(&desc, IID_PPV_ARGS(&stateObject_));
-	Assert::Call(SUCCEEDED(hr), "Failed to create raytracing state object");
+	if (FAILED(hr) || !stateObject_) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[RaytracingPipeline] Failed to create state object. HRESULT=0x{:08X}",
+			static_cast<uint32_t>(hr));
+		return false;
+	}
 	hr = stateObject_->QueryInterface(IID_PPV_ARGS(&stateProps_));
-	Assert::Call(SUCCEEDED(hr), "Failed to query ID3D12StateObjectProperties");
+	if (FAILED(hr) || !stateProps_) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[RaytracingPipeline] Failed to query state object properties. HRESULT=0x{:08X}",
+			static_cast<uint32_t>(hr));
+		stateObject_.Reset();
+		return false;
+	}
 
 	// シェーダーテーブルの構築
-	BuildShaderTable(device, rayGenExport, missExport, hitGroupExport);
+	return BuildShaderTable(device, rayGenExport, missExport, hitGroupExport);
 }
 
-void Engine::RaytracingPipelineState::BuildShaderTable(ID3D12Device8* device,
+bool Engine::RaytracingPipelineState::BuildShaderTable(ID3D12Device8* device,
 	const std::wstring& rayGenExport, const std::wstring& missExport, const std::wstring& hitGroupExport) {
 
 	// シェーダーテーブルのサイズは、各レコードがテーブルアライメントに従って配置されるように計算
@@ -283,16 +340,39 @@ void Engine::RaytracingPipelineState::BuildShaderTable(ID3D12Device8* device,
 	// シェーダーテーブル用のバッファを作成
 	HRESULT hr = device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
 		&bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&shaderTable_));
-	Assert::Call(SUCCEEDED(hr), "Failed to create raytracing shader table");
+	if (FAILED(hr) || !shaderTable_) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[RaytracingPipeline] Failed to create shader table. HRESULT=0x{:08X}",
+			static_cast<uint32_t>(hr));
+		return false;
+	}
+
+	const void* rayGenIdentifier = stateProps_->GetShaderIdentifier(rayGenExport.c_str());
+	const void* missIdentifier = stateProps_->GetShaderIdentifier(missExport.c_str());
+	const void* hitGroupIdentifier = stateProps_->GetShaderIdentifier(hitGroupExport.c_str());
+	if (!rayGenIdentifier || !missIdentifier || !hitGroupIdentifier) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[RaytracingPipeline] Shader identifier was not found");
+		shaderTable_.Reset();
+		return false;
+	}
 
 	uint8_t* mapped = nullptr;
-	shaderTable_->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
+	hr = shaderTable_->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
+	if (FAILED(hr) || !mapped) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[RaytracingPipeline] Failed to map shader table. HRESULT=0x{:08X}",
+			static_cast<uint32_t>(hr));
+		shaderTable_.Reset();
+		return false;
+	}
 	std::memset(mapped, 0, shaderTableSize_);
 
 	// シェーダーテーブルの各レコードに対応するシェーダーの識別子をコピー
-	std::memcpy(mapped + kRayGenOffset, stateProps_->GetShaderIdentifier(rayGenExport.c_str()), kHandleSize);
-	std::memcpy(mapped + kMissOffset, stateProps_->GetShaderIdentifier(missExport.c_str()), kHandleSize);
-	std::memcpy(mapped + kHitGroupOffset, stateProps_->GetShaderIdentifier(hitGroupExport.c_str()), kHandleSize);
+	std::memcpy(mapped + kRayGenOffset, rayGenIdentifier, kHandleSize);
+	std::memcpy(mapped + kMissOffset, missIdentifier, kHandleSize);
+	std::memcpy(mapped + kHitGroupOffset, hitGroupIdentifier, kHandleSize);
 
 	shaderTable_->Unmap(0, nullptr);
+	return true;
 }
