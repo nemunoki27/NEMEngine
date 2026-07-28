@@ -50,7 +50,7 @@ namespace Engine {
 		AccelerationStructureBuffer result_;
 		// ジオメトリローカル行列のアップロードバッファ
 		DxFrameMappedUploadBuffer geometryTransformBuffer_;
-		std::vector<ComPtr<ID3D12Resource>> retiredResources_{};
+		GraphicsDeferredReleaseQueue retiredResources_{};
 
 		// ジオメトリ記述
 		std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometryDescs_{};

@@ -9,9 +9,9 @@
                 "r": 1.0
             },
             "direction": {
-                "x": 0.5117011666297913,
-                "y": -0.7251341938972473,
-                "z": -0.460806280374527
+                "x": 0.44007939100265503,
+                "y": -0.7963983416557312,
+                "z": -0.41482511162757874
             },
             "enabled": true,
             "intensity": 2.009999990463257,
@@ -19,7 +19,7 @@
         },
         "Hierarchy": {
             "parentLocalFileID": "",
-            "siblingOrder": 2
+            "siblingOrder": 4
         },
         "Name": {
             "name": "DirectionalLight"

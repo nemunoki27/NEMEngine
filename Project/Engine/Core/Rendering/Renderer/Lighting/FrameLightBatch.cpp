@@ -21,6 +21,8 @@ void Engine::PerViewLightSet::Clear() {
 
 	view = nullptr;
 	camera = nullptr;
+	sceneInstanceID = {};
+	sourceRevision = 0;
 	directionalLights.clear();
 	pointLights.clear();
 	spotLights.clear();
@@ -76,6 +78,8 @@ void Engine::FrameLightBatch::Clear() {
 	directionalLights_.clear();
 	pointLights_.clear();
 	spotLights_.clear();
+	sourceWorld_ = nullptr;
+	sourceRevision_ = 0;
 }
 
 void Engine::FrameLightBatch::Sort() {
@@ -83,4 +87,10 @@ void Engine::FrameLightBatch::Sort() {
 	std::sort(directionalLights_.begin(), directionalLights_.end(), LightItemLess<DirectionalLightItem>);
 	std::sort(pointLights_.begin(), pointLights_.end(), LightItemLess<PointLightItem>);
 	std::sort(spotLights_.begin(), spotLights_.end(), LightItemLess<SpotLightItem>);
+}
+
+void Engine::FrameLightBatch::SetSource(const ECSWorld* world, uint64_t revision) {
+
+	sourceWorld_ = world;
+	sourceRevision_ = revision;
 }

@@ -6,6 +6,7 @@
 void Engine::TopLevelAccelerationStructure::Build(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList,
 	const std::vector<RaytracingTLASInstance>& instances, bool allowUpdate) {
 
+	retiredResources_.Collect();
 	device_ = device;
 	allowUpdate_ = allowUpdate;
 
@@ -30,10 +31,10 @@ void Engine::TopLevelAccelerationStructure::Build(ID3D12Device8* device, ID3D12G
 
 	// 再構築前のASは実行中フレームから参照されるため所有を保持する
 	if (scratch_.GetResource()) {
-		retiredResources_.emplace_back(scratch_.TakeResource());
+		retiredResources_.Retire(scratch_.TakeResource());
 	}
 	if (result_.GetResource()) {
-		retiredResources_.emplace_back(result_.TakeResource());
+		retiredResources_.Retire(result_.TakeResource());
 	}
 	// スクラッチと結果のバッファを作成
 	scratch_.Create(device, prebuild.ScratchDataSizeInBytes,
@@ -59,6 +60,7 @@ void Engine::TopLevelAccelerationStructure::Build(ID3D12Device8* device, ID3D12G
 void Engine::TopLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6* commandList,
 	const std::vector<RaytracingTLASInstance>& instances) {
 
+	retiredResources_.Collect();
 	// 更新が許可されていない、またはASが構築されていない場合は何もしない
 	if (!allowUpdate_ || !result_.GetResource()) {
 		return;

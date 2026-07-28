@@ -115,6 +115,8 @@ namespace Engine {
 			ComponentStorageKind::Buffer;
 		static constexpr uint32_t kInternalBufferCapacity = 2;
 		static constexpr bool kSerializable = false;
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
 
 		Vector3 position = Vector3::AnyInit(0.0f);
 		Color4 color = Color4::White();

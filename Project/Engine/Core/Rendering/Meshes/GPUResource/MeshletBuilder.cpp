@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <algorithm>
+#include <array>
 
 //============================================================================
 //	MeshletBuilder classMethods
@@ -109,24 +110,136 @@ void Engine::MeshletBuilder::Build(ImportedMeshAsset& mesh) const {
 	if (mesh.vertices.empty() || mesh.indices.empty() || mesh.subMeshes.empty()) {
 		return;
 	}
-	// サブメッシュごとにメッシュレットを構築
-	for (uint32_t subMeshIndex = 0; subMeshIndex < static_cast<uint32_t>(mesh.subMeshes.size()); ++subMeshIndex) {
 
-		BuildSubMeshMeshlets(mesh, subMeshIndex);
+	BuildLODs(mesh);
+	// LODごとに連続したメッシュレット範囲を構築する
+	for (uint32_t lodIndex = 0; lodIndex < kMeshLODCount; ++lodIndex) {
+
+		MeshLODRange& lod = mesh.lods[lodIndex];
+		lod.meshletOffset = static_cast<uint32_t>(mesh.meshlets.size());
+		for (uint32_t subMeshIndex = 0;
+			subMeshIndex < static_cast<uint32_t>(mesh.subMeshes.size());
+			++subMeshIndex) {
+
+			BuildSubMeshMeshlets(mesh, subMeshIndex, lodIndex);
+		}
+		lod.meshletCount =
+			static_cast<uint32_t>(mesh.meshlets.size()) - lod.meshletOffset;
+	}
+
+	// 既存参照はLOD0を指す
+	for (SubMeshDesc& subMesh : mesh.subMeshes) {
+		subMesh.meshletOffset = subMesh.lods[0].meshletOffset;
+		subMesh.meshletCount = subMesh.lods[0].meshletCount;
 	}
 }
 
-void Engine::MeshletBuilder::BuildSubMeshMeshlets(ImportedMeshAsset& mesh, uint32_t subMeshIndex) const {
+void Engine::MeshletBuilder::BuildLODs(ImportedMeshAsset& mesh) const {
+
+	static constexpr std::array<float, kMeshLODCount> kTriangleRatios = {
+		1.0f, 0.5f, 0.25f, 0.125f
+	};
+	static constexpr uint32_t kMinimumSimplifyTriangleCount = 64;
+	static constexpr float kTargetError = 0.005f;
+
+	const uint32_t lod0IndexCount = static_cast<uint32_t>(mesh.indices.size());
+	mesh.lods[0].indexOffset = 0;
+	mesh.lods[0].indexCount = lod0IndexCount;
+	for (SubMeshDesc& subMesh : mesh.subMeshes) {
+
+		subMesh.lods[0].indexOffset = subMesh.indexOffset;
+		subMesh.lods[0].indexCount = subMesh.indexCount;
+	}
+
+	// 法線とUVを簡略化誤差へ含め、形状だけでなく見た目の境界も保つ
+	std::vector<float> attributes(mesh.vertices.size() * 5);
+	for (size_t index = 0; index < mesh.vertices.size(); ++index) {
+
+		const MeshVertex& vertex = mesh.vertices[index];
+		const size_t offset = index * 5;
+		attributes[offset + 0] = vertex.normal.x;
+		attributes[offset + 1] = vertex.normal.y;
+		attributes[offset + 2] = vertex.normal.z;
+		attributes[offset + 3] = vertex.uv.x;
+		attributes[offset + 4] = vertex.uv.y;
+	}
+	static constexpr float kAttributeWeights[5] = {
+		1.0f, 1.0f, 1.0f, 16.0f, 16.0f
+	};
+
+	for (uint32_t lodIndex = 1; lodIndex < kMeshLODCount; ++lodIndex) {
+
+		MeshLODRange& lod = mesh.lods[lodIndex];
+		lod.indexOffset = static_cast<uint32_t>(mesh.indices.size());
+		for (SubMeshDesc& subMesh : mesh.subMeshes) {
+
+			const MeshLODRange& sourceRange = subMesh.lods[0];
+			MeshLODRange& destinationRange = subMesh.lods[lodIndex];
+			destinationRange.indexOffset = static_cast<uint32_t>(mesh.indices.size());
+			if (sourceRange.indexCount == 0) {
+				continue;
+			}
+
+			const uint32_t* sourceBegin =
+				mesh.indices.data() + sourceRange.indexOffset;
+			std::vector<uint32_t> sourceIndices(
+				sourceBegin, sourceBegin + sourceRange.indexCount);
+			std::vector<uint32_t> simplified(sourceRange.indexCount);
+
+			size_t simplifiedCount = sourceRange.indexCount;
+			const uint32_t triangleCount = sourceRange.indexCount / 3;
+			if (triangleCount > kMinimumSimplifyTriangleCount) {
+
+				size_t targetCount = static_cast<size_t>(
+					static_cast<float>(sourceRange.indexCount) *
+					kTriangleRatios[lodIndex]);
+				targetCount = (std::max)(size_t(3), targetCount - targetCount % 3);
+				simplifiedCount = meshopt_simplifyWithAttributes(
+					simplified.data(), sourceIndices.data(), sourceIndices.size(),
+					reinterpret_cast<const float*>(&mesh.vertices[0].position.x),
+					mesh.vertices.size(), sizeof(MeshVertex),
+					attributes.data(), sizeof(float) * 5,
+					kAttributeWeights, 5, nullptr,
+					targetCount, kTargetError,
+					meshopt_SimplifyLockBorder, nullptr);
+			} else {
+
+				std::copy(sourceIndices.begin(), sourceIndices.end(), simplified.begin());
+			}
+			if (simplifiedCount < 3) {
+
+				std::copy(sourceIndices.begin(), sourceIndices.end(), simplified.begin());
+				simplifiedCount = sourceIndices.size();
+			}
+			simplified.resize(simplifiedCount);
+
+			std::vector<uint32_t> optimized(simplified.size());
+			meshopt_optimizeVertexCache(
+				optimized.data(), simplified.data(),
+				simplified.size(), mesh.vertices.size());
+			mesh.indices.insert(
+				mesh.indices.end(), optimized.begin(), optimized.end());
+			destinationRange.indexCount =
+				static_cast<uint32_t>(optimized.size());
+		}
+		lod.indexCount =
+			static_cast<uint32_t>(mesh.indices.size()) - lod.indexOffset;
+	}
+}
+
+void Engine::MeshletBuilder::BuildSubMeshMeshlets(
+	ImportedMeshAsset& mesh, uint32_t subMeshIndex, uint32_t lodIndex) const {
 
 	SubMeshDesc& subMesh = mesh.subMeshes[subMeshIndex];
-	subMesh.meshletOffset = static_cast<uint32_t>(mesh.meshlets.size());
-	subMesh.meshletCount = 0;
-	if (subMesh.indexCount == 0) {
+	MeshLODRange& lod = subMesh.lods[lodIndex];
+	lod.meshletOffset = static_cast<uint32_t>(mesh.meshlets.size());
+	lod.meshletCount = 0;
+	if (lod.indexCount == 0) {
 		return;
 	}
 
 	// メッシュレットの最大数
-	const size_t maxMeshlets = meshopt_buildMeshletsBound(subMesh.indexCount,
+	const size_t maxMeshlets = meshopt_buildMeshletsBound(lod.indexCount,
 		kMaxMeshletVertices, kMaxMeshletPrimitives);
 
 	// meshoptimizerへ渡す一時バッファを最大数で確保する
@@ -136,8 +249,8 @@ void Engine::MeshletBuilder::BuildSubMeshMeshlets(ImportedMeshAsset& mesh, uint3
 	const float* vertexPositions = reinterpret_cast<const float*>(&mesh.vertices[0].position.x);
 	// メッシュレットを構築
 	const size_t builtMeshletCount = meshopt_buildMeshlets(tempMeshlets.data(),
-		tempVertices.data(), tempTriangles.data(), mesh.indices.data() + subMesh.indexOffset,
-		subMesh.indexCount, vertexPositions, mesh.vertices.size(),
+		tempVertices.data(), tempTriangles.data(), mesh.indices.data() + lod.indexOffset,
+		lod.indexCount, vertexPositions, mesh.vertices.size(),
 		sizeof(MeshVertex), kMaxMeshletVertices, kMaxMeshletPrimitives, 0.0f);
 
 	tempMeshlets.resize(builtMeshletCount);
@@ -173,6 +286,6 @@ void Engine::MeshletBuilder::BuildSubMeshMeshlets(ImportedMeshAsset& mesh, uint3
 			mesh.meshletPrimitiveIndices.emplace_back(PackPrimitive(i0, i1, i2));
 		}
 		mesh.meshlets.emplace_back(dstMeshlet);
-		++subMesh.meshletCount;
+		++lod.meshletCount;
 	}
 }

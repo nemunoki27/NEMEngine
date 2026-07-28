@@ -109,6 +109,17 @@ Entity ECSWorld::CreateEntityInArchetype(EntityArchetype* archetype, UUID stable
 			current.chunkIndex, current.row, typeID);
 		info.onAdded(*this, entity, ptr);
 	}
+	MarkDataModified();
+	const ComponentChangeChannel channels =
+		GetChangeChannels(entity);
+	if (HasComponentChangeChannel(
+		channels, ComponentChangeChannel::Render)) {
+		MarkRenderDataModified();
+	}
+	if (HasComponentChangeChannel(
+		channels, ComponentChangeChannel::Lighting)) {
+		IncrementRevision(lightDataRevision_);
+	}
 	return entity;
 }
 
@@ -307,6 +318,47 @@ void Engine::ECSWorld::MarkComponentModified(const Entity& entity, uint32_t type
 	NotifyComponentMutation(entity, typeID, ComponentMutationKind::Modified);
 }
 
+void Engine::ECSWorld::MarkDataModified() {
+
+	IncrementRevision(dataRevision_);
+}
+
+void Engine::ECSWorld::MarkRenderDataModified() {
+
+	IncrementRevision(renderDataRevision_);
+}
+
+void Engine::ECSWorld::MarkTransformConsumersModified(
+	ComponentChangeChannel channels) {
+
+	if (HasComponentChangeChannel(
+		channels, ComponentChangeChannel::Render)) {
+		IncrementRevision(renderTransformRevision_);
+	}
+	if (HasComponentChangeChannel(
+		channels, ComponentChangeChannel::Lighting)) {
+		IncrementRevision(lightDataRevision_);
+	}
+}
+
+ComponentChangeChannel Engine::ECSWorld::GetTransformChangeChannels(
+	const Entity& entity) const {
+
+	if (!IsAlive(entity)) {
+		return ComponentChangeChannel::None;
+	}
+
+	ComponentChangeChannel channels =
+		ComponentChangeChannel::None;
+	const EntityArchetype* archetype =
+		records_[entity.index].location.archetype;
+	for (uint32_t typeID : archetype->GetTypes()) {
+		channels |= ComponentTypeRegistry::GetInstance().
+			GetInfo(typeID).transformChannels;
+	}
+	return channels;
+}
+
 bool Engine::ECSWorld::CanStoreComponent(const ComponentTypeInfo& info) const {
 
 	if (info.worldDomain == ComponentWorldDomain::Both) {
@@ -350,12 +402,190 @@ void Engine::ECSWorld::RemoveComponentMutationListener(uint64_t listenerID) {
 void Engine::ECSWorld::NotifyComponentMutation(
 	const Entity& entity, uint32_t typeID, ComponentMutationKind kind) {
 
+	MarkDataModified();
+	ComponentChangeChannel channels =
+		ComponentChangeChannel::None;
+	const uint32_t componentTypeCount =
+		ComponentTypeRegistry::GetInstance().GetComponentTypeCount();
+	if (typeID < componentTypeCount) {
+		channels = ComponentTypeRegistry::GetInstance().
+			GetInfo(typeID).changeChannels;
+	} else if (kind == ComponentMutationKind::EntityDestroyed) {
+		channels = GetChangeChannels(entity);
+	}
+	if (HasComponentChangeChannel(
+		channels, ComponentChangeChannel::Render)) {
+		MarkRenderDataModified();
+	}
+	if (HasComponentChangeChannel(
+		channels, ComponentChangeChannel::Lighting)) {
+		IncrementRevision(lightDataRevision_);
+	}
 	// 購読の追加削除はWorldEnter/Exitだけで行い、通知中の割り当てを避ける
 	for (const ComponentMutationListener& listener : componentMutationListeners_) {
 		if (listener.callback) {
 			listener.callback(*this, entity, typeID, kind, listener.userData);
 		}
 	}
+}
+
+ComponentChangeChannel Engine::ECSWorld::GetChangeChannels(
+	const Entity& entity) const {
+
+	if (!IsAlive(entity)) {
+		return ComponentChangeChannel::None;
+	}
+
+	ComponentChangeChannel channels =
+		ComponentChangeChannel::None;
+	const EntityArchetype* archetype =
+		records_[entity.index].location.archetype;
+	for (uint32_t typeID : archetype->GetTypes()) {
+		channels |= ComponentTypeRegistry::GetInstance().
+			GetInfo(typeID).changeChannels;
+	}
+	return channels;
+}
+
+void Engine::ECSWorld::IncrementRevision(uint64_t& revision) {
+
+	++revision;
+	if (revision == 0) {
+		revision = 1;
+	}
+}
+
+std::unique_ptr<Engine::ECSWorld>
+Engine::ECSWorld::CloneForSerialization() const {
+
+	auto snapshot = std::make_unique<ECSWorld>(kind_);
+	snapshot->records_.resize(records_.size());
+	snapshot->free_ = free_;
+	snapshot->uuidToEntity_.reserve(uuidToEntity_.size());
+	snapshot->dataRevision_ = dataRevision_;
+	snapshot->renderDataRevision_ = renderDataRevision_;
+	snapshot->renderTransformRevision_ =
+		renderTransformRevision_;
+	snapshot->lightDataRevision_ = lightDataRevision_;
+
+	ComponentTypeRegistry& registry =
+		ComponentTypeRegistry::GetInstance();
+	for (uint32_t index = 0;
+		index < static_cast<uint32_t>(
+			records_.size()); ++index) {
+		snapshot->records_[index].generation =
+			records_[index].generation;
+	}
+
+	// 同じArchetypeの列解決を行ごとに繰り返さず、Chunkを連続走査する
+	for (const auto& [sourceSignature,
+		sourceArchetypeOwner] : archetypes_) {
+
+		(void)sourceSignature;
+		const EntityArchetype& sourceArchetype =
+			*sourceArchetypeOwner;
+		EntitySignature signature{};
+		std::vector<const ComponentTypeInfo*> infos{};
+		std::vector<uint32_t> sourceColumns{};
+		std::vector<uint32_t> destinationColumns{};
+		for (uint32_t typeID :
+			sourceArchetype.GetTypes()) {
+
+			const ComponentTypeInfo& info =
+				registry.GetInfo(typeID);
+			// custom serializerが参照する従属Bufferも保存用Worldへ複製する
+			if (!info.serializable &&
+				info.storageKind !=
+				ComponentStorageKind::Buffer) {
+				continue;
+			}
+			signature.Set(typeID);
+			infos.emplace_back(&info);
+			sourceColumns.emplace_back(
+				sourceArchetype.GetColumnIndex(typeID));
+		}
+
+		EntityArchetype* destinationArchetype =
+			snapshot->GetOrCreateArchetype(signature);
+		destinationColumns.reserve(infos.size());
+		for (const ComponentTypeInfo* info : infos) {
+			destinationColumns.emplace_back(
+				destinationArchetype->
+					GetColumnIndex(info->id));
+		}
+
+		for (const std::unique_ptr<EntityChunk>&
+			sourceChunkOwner :
+			sourceArchetype.GetChunks()) {
+
+			const EntityChunk& sourceChunk =
+				*sourceChunkOwner;
+			const std::span<const Entity> entities =
+				sourceChunk.GetEntities();
+			for (uint32_t sourceRow = 0;
+				sourceRow <
+					static_cast<uint32_t>(
+						entities.size()); ++sourceRow) {
+
+				const Entity entity =
+					entities[sourceRow];
+				const EntityRecord& sourceRecord =
+					records_[entity.index];
+				EntityRecord& destinationRecord =
+					snapshot->records_[entity.index];
+				const auto [destinationChunkIndex,
+					destinationRow] =
+					destinationArchetype->
+						AddUninitialized(entity);
+				EntityChunk& destinationChunk =
+					*destinationArchetype->GetChunks()[
+						destinationChunkIndex];
+
+				destinationRecord.alive = true;
+				destinationRecord.pendingDestroy =
+					sourceRecord.pendingDestroy;
+				destinationRecord.uuid =
+					sourceRecord.uuid;
+				destinationRecord.location = {
+					destinationArchetype,
+					destinationChunkIndex,
+					destinationRow
+				};
+				snapshot->uuidToEntity_[
+					destinationRecord.uuid] = entity;
+
+				for (size_t column = 0;
+					column < infos.size(); ++column) {
+
+					const ComponentTypeInfo& info =
+						*infos[column];
+					void* destination =
+						destinationChunk.
+							GetRawByColumnIndex(
+								destinationColumns[column],
+								destinationRow);
+					const void* source =
+						sourceChunk.
+							GetRawByColumnIndex(
+								sourceColumns[column],
+								sourceRow);
+					info.copyConstruct(
+						destination, source);
+					if (info.enableable) {
+						destinationChunk.
+							SetEnabledByColumnIndex(
+								destinationColumns[column],
+								destinationRow,
+								sourceChunk.
+									IsEnabledByColumnIndex(
+										sourceColumns[column],
+										sourceRow));
+					}
+				}
+			}
+		}
+	}
+	return snapshot;
 }
 
 void ECSWorld::SerializeEntityComponents(const Entity& entity, nlohmann::json& outComponents) const {

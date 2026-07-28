@@ -642,6 +642,78 @@ namespace {
 		return !world.HasBuffer<Engine::ScriptEntry>(restored);
 	}
 
+	bool TestSerializationClone() {
+
+		RegisterTestComponents();
+		Engine::ECSWorld world(
+			Engine::ECSWorldKind::Authoring);
+		const Engine::Entity entity =
+			Engine::SceneAuthoring::CreateGameObject(
+				world, "SnapshotSource");
+		world.AddComponent<Engine::ScriptComponent>(
+			entity);
+		std::vector<Engine::ScriptEntry> entries{};
+		entries.emplace_back(Engine::MakeScriptEntry(
+			"snapshot-script", "Game.Snapshot"));
+		entries.front().serializedFields[
+			"value"] = 24;
+		Engine::SetScriptEntries(
+			world, entity, entries);
+
+		TestEnableableComponent& enableable =
+			world.AddComponent<
+				TestEnableableComponent>(entity);
+		enableable.value = 35;
+		world.SetComponentEnabled<
+			TestEnableableComponent>(entity, false);
+
+		const Engine::UUID stableUUID =
+			world.GetUUID(entity);
+		std::unique_ptr<Engine::ECSWorld> snapshot =
+			world.CloneForSerialization();
+		if (!snapshot ||
+			!snapshot->IsAlive(entity) ||
+			snapshot->GetUUID(entity) != stableUUID ||
+			snapshot->GetComponent<
+				Engine::NameComponent>(entity).name !=
+				"SnapshotSource" ||
+			snapshot->IsComponentEnabled<
+				TestEnableableComponent>(entity) ||
+			snapshot->GetComponent<
+				TestEnableableComponent>(entity).value != 35) {
+			return false;
+		}
+
+		const std::span<const Engine::ScriptEntry>
+			snapshotEntries =
+			Engine::GetScriptEntries(
+				static_cast<const Engine::ECSWorld&>(
+					*snapshot), entity);
+		if (snapshotEntries.size() != 1 ||
+			snapshotEntries.front().serializedFields.
+				value("value", 0) != 24) {
+			return false;
+		}
+
+		world.GetComponent<
+			Engine::NameComponent>(entity).name =
+			"ChangedAfterSnapshot";
+		entries.front().serializedFields[
+			"value"] = 99;
+		Engine::SetScriptEntries(
+			world, entity, entries);
+		snapshot.reset();
+
+		const std::span<const Engine::ScriptEntry>
+			sourceEntries =
+			Engine::GetScriptEntries(
+				static_cast<const Engine::ECSWorld&>(
+					world), entity);
+		return sourceEntries.size() == 1 &&
+			sourceEntries.front().serializedFields.
+				value("value", 0) == 99;
+	}
+
 	bool TestTransformDirtyHierarchy() {
 
 		Engine::ECSWorld world{};
@@ -669,6 +741,7 @@ namespace {
 
 		Engine::TransformSystem transformSystem{};
 		Engine::SystemContext context{};
+		transformSystem.OnWorldEnter(world, context);
 		transformSystem.LateUpdate(world, context);
 		if (std::abs(childTransform.worldMatrix.GetTranslationValue().x - 3.0f) > 0.0001f) {
 			return false;
@@ -676,7 +749,7 @@ namespace {
 
 		// 親だけdirtyでも子へワールド変更を伝播する
 		parentTransform.localPos.x = 5.0f;
-		parentTransform.isDirty = true;
+		Engine::MarkTransformSubtreeDirty(world, parent);
 		transformSystem.LateUpdate(world, context);
 		if (std::abs(childTransform.worldMatrix.GetTranslationValue().x - 6.0f) > 0.0001f) {
 			return false;
@@ -684,7 +757,7 @@ namespace {
 
 		// 子だけの変更は現在の親ワールド行列から更新する
 		childTransform.localPos.x = 2.0f;
-		childTransform.isDirty = true;
+		Engine::MarkTransformSubtreeDirty(world, child);
 		transformSystem.LateUpdate(world, context);
 		if (std::abs(childTransform.worldMatrix.GetTranslationValue().x - 7.0f) > 0.0001f) {
 			return false;
@@ -693,13 +766,14 @@ namespace {
 		// 非アクティブ中はdirtyを保持し、再有効化した時点で反映する
 		childSceneObject.activeInHierarchy = false;
 		parentTransform.localPos.x = 8.0f;
-		parentTransform.isDirty = true;
+		Engine::MarkTransformSubtreeDirty(world, parent);
 		transformSystem.LateUpdate(world, context);
 		if (!childTransform.isDirty ||
 			std::abs(childTransform.worldMatrix.GetTranslationValue().x - 7.0f) > 0.0001f) {
 			return false;
 		}
 		childSceneObject.activeInHierarchy = true;
+		Engine::MarkTransformSubtreeDirty(world, child);
 		transformSystem.LateUpdate(world, context);
 		return !childTransform.isDirty &&
 			std::abs(childTransform.worldMatrix.GetTranslationValue().x - 10.0f) <= 0.0001f;
@@ -773,6 +847,10 @@ int main(int argc, char* argv[]) {
 	if (!TestTransformDirtyHierarchy()) {
 		std::cerr << "Transform dirty hierarchy failed\n";
 		return 14;
+	}
+	if (!TestSerializationClone()) {
+		std::cerr << "Serialization clone failed\n";
+		return 15;
 	}
 	std::cout << "NEMTests passed\n";
 	return 0;

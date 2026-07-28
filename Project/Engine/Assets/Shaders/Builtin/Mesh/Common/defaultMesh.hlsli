@@ -67,6 +67,12 @@ cbuffer MeshDrawConstants : register(b0, space1) {
 	float outlineMaxAbsCameraZOffset;
 	uint outlineHasScreenPixelWidth;
 	uint3 _meshDrawReserved1;
+	uint4 lodIndexOffsets;
+	uint4 lodIndexCounts;
+	uint4 lodMeshletOffsets;
+	uint4 lodMeshletCounts;
+	float3 lodPixelThresholds;
+	uint lodCount;
 };
 // 共有GPU構造体はmeshShaderSharedTypes.hlsliへ集約済み
 
@@ -218,6 +224,28 @@ float CalcProjectedPixelRadius(float3 center, float radius) {
 		cullingViewProjection, cullingView, cullingNearClip, cullingProjectionScale,
 		cullingViewSize, contributionPixelThreshold, center, radius);
 	return max(radiusXY.x, radiusXY.y);
+}
+
+uint ResolveMeshLOD(MeshInstance instance) {
+
+	if (lodCount <= 1u ||
+		(instance.flags & MESH_INSTANCE_FLAG_SKINNED) != 0u) {
+		return 0u;
+	}
+
+	float3 center = mul(float4(meshBoundsCenter, 1.0f), instance.worldMatrix).xyz;
+	float radius = meshBoundsRadius * GetMatrixMaxScale(instance.worldMatrix);
+	float pixelRadius = CalcProjectedPixelRadius(center, radius);
+	if (pixelRadius >= lodPixelThresholds.x) {
+		return 0u;
+	}
+	if (pixelRadius >= lodPixelThresholds.y) {
+		return 1u;
+	}
+	if (pixelRadius >= lodPixelThresholds.z) {
+		return 2u;
+	}
+	return min(3u, lodCount - 1u);
 }
 
 bool HasContribution(float3 center, float radius) {

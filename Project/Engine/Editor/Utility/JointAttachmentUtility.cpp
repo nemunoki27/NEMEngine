@@ -55,7 +55,7 @@ namespace {
 		transform.localPos = position;
 		transform.localRotation = rotation;
 		transform.localScale = scale;
-		transform.isDirty = true;
+		Engine::MarkTransformSubtreeDirty(world, entity);
 	}
 }
 
@@ -104,7 +104,7 @@ void Engine::JointAttachmentUtility::Attach(ECSWorld& world, HierarchySystem& hi
 	transform.localPos = Vector3::AnyInit(0.0f);
 	transform.localRotation = Quaternion::Identity();
 	transform.localScale = Vector3::AnyInit(1.0f);
-	transform.isDirty = true;
+	MarkTransformSubtreeDirty(world, entity);
 }
 
 void Engine::JointAttachmentUtility::Detach(ECSWorld& world, const Entity& entity) {

@@ -87,6 +87,8 @@ namespace Engine {
 		bool allowSceneComponentOverlay = false;
 		// ツールプレビューではVertex版のGraphics Variantを優先する
 		bool forceVertexMeshVariant = false;
+		// ピッキングなど画面外判定を再利用できない描画ではメッシュカリングを無効化する
+		bool disableMeshCulling = false;
 		// ECSワールドとシステムコンテキスト
 		ECSWorld* world = nullptr;
 		const SystemContext* systemContext = nullptr;
@@ -123,8 +125,8 @@ namespace Engine {
 		// プレビュー用RenderTextureにだけ描画するグリッド
 		bool drawGrid2D = false;
 		bool drawGrid3D = false;
-		// プレビューではMeshShader/RayQueryを避け、Vertex版の非RayQueryシェーダを優先する
-		bool forceVertexMeshVariant = true;
+		// RayQueryは無効化したまま、利用可能なら本描画と同じMeshShader経路を使う
+		bool forceVertexMeshVariant = false;
 	};
 
 	//============================================================================

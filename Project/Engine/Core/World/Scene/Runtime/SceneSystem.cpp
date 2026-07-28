@@ -17,8 +17,12 @@
 
 // c++
 #include <algorithm>
+#include <atomic>
+#include <thread>
+#include <utility>
 #include <unordered_set>
 #include <unordered_map>
+#include <vector>
 
 namespace {
 
@@ -107,6 +111,10 @@ namespace {
 
 		nlohmann::json entities = nlohmann::json::array();
 		std::unordered_set<Engine::UUID> actorIDs;
+		std::vector<Engine::UUID> localFileIDs;
+		std::vector<std::filesystem::path> actorPaths;
+		localFileIDs.reserve(externalActors->size());
+		actorPaths.reserve(externalActors->size());
 		for (const auto& actorReference : *externalActors) {
 
 			if (!actorReference.is_string()) {
@@ -118,21 +126,71 @@ namespace {
 				return false;
 			}
 
-			const std::filesystem::path actorPath =
-				MakeExternalActorPath(actorRoot, *localFileID);
-			nlohmann::json actor = Engine::JsonAdapter::Load(actorPath);
-			if (!actor.is_object() ||
-				actor.value("SchemaVersion", 0u) != kExternalActorSchemaVersion ||
-				Engine::FromString16Hex(actor.value("LocalFileID", std::string{})) !=
-					*localFileID ||
-				!actor.contains("Components") || !actor["Components"].is_object()) {
+			localFileIDs.emplace_back(*localFileID);
+			actorPaths.emplace_back(
+				MakeExternalActorPath(actorRoot, *localFileID));
+		}
 
-				Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-					"[SceneSystem] external actor is missing or invalid. path={}",
-					Engine::Algorithm::PathToUTF8(actorPath));
-				return false;
-			}
-			actor.erase("SchemaVersion");
+		// 小さいExternalActorを固定ワーカーで並列解析し大量シーンの起動待ちを抑える
+		std::vector<nlohmann::json> loadedActors(actorPaths.size());
+		std::atomic_size_t nextActorIndex = 0;
+		std::atomic_size_t failedActorIndex = actorPaths.size();
+		const size_t workerCount = (std::min)(
+			actorPaths.size(),
+			static_cast<size_t>((std::max)(
+				1u, std::thread::hardware_concurrency())));
+		std::vector<std::thread> workers;
+		workers.reserve(workerCount);
+		for (size_t workerIndex = 0; workerIndex < workerCount; ++workerIndex) {
+
+			workers.emplace_back([&]() {
+				while (failedActorIndex.load(std::memory_order_relaxed) ==
+					actorPaths.size()) {
+
+					const size_t actorIndex =
+						nextActorIndex.fetch_add(1, std::memory_order_relaxed);
+					if (actorPaths.size() <= actorIndex) {
+						return;
+					}
+
+					nlohmann::json actor =
+						Engine::JsonAdapter::Load(actorPaths[actorIndex]);
+					if (!actor.is_object() ||
+						actor.value("SchemaVersion", 0u) != kExternalActorSchemaVersion ||
+						Engine::FromString16Hex(
+							actor.value("LocalFileID", std::string{})) !=
+							localFileIDs[actorIndex] ||
+						!actor.contains("Components") ||
+						!actor["Components"].is_object()) {
+
+						size_t expected = actorPaths.size();
+						failedActorIndex.compare_exchange_strong(
+							expected, actorIndex, std::memory_order_relaxed);
+						return;
+					}
+					actor.erase("SchemaVersion");
+					loadedActors[actorIndex] = std::move(actor);
+				}
+				});
+		}
+		for (std::thread& worker : workers) {
+			worker.join();
+		}
+
+		const size_t failedIndex =
+			failedActorIndex.load(std::memory_order_relaxed);
+		if (failedIndex != actorPaths.size()) {
+
+			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
+				"[SceneSystem] external actor is missing or invalid. path={}",
+				Engine::Algorithm::PathToUTF8(actorPaths[failedIndex]));
+			return false;
+		}
+
+		entities.get_ref<nlohmann::json::array_t&>().reserve(
+			loadedActors.size());
+		for (nlohmann::json& actor : loadedActors) {
+
 			entities.push_back(std::move(actor));
 		}
 		root["Entities"] = std::move(entities);
@@ -153,8 +211,16 @@ namespace {
 			return false;
 		}
 
+		struct ActorSaveEntry {
+
+			std::filesystem::path path;
+			nlohmann::json data;
+		};
+
 		nlohmann::json actorIDs = nlohmann::json::array();
 		std::unordered_set<std::string> actorFileNames;
+		std::vector<ActorSaveEntry> actorEntries;
+		actorEntries.reserve(root["Entities"].size());
 		for (const nlohmann::json& entity : root["Entities"]) {
 
 			const std::optional<Engine::UUID> localFileID =
@@ -168,11 +234,63 @@ namespace {
 			actor["SchemaVersion"] = kExternalActorSchemaVersion;
 			const std::filesystem::path actorPath =
 				MakeExternalActorPath(actorRoot, *localFileID);
-			if (!Engine::JsonAdapter::SaveCanonical(actorPath, actor)) {
-				return false;
-			}
 			actorIDs.push_back(Engine::ToString(*localFileID));
 			actorFileNames.insert(actorPath.filename().string());
+			actorEntries.push_back({
+				.path = actorPath,
+				.data = std::move(actor),
+				});
+		}
+
+		// ExternalActorは互いに独立しているため固定数のワーカーで正規化と書き込みを進める
+		std::atomic_size_t nextActorIndex = 0;
+		std::atomic_size_t failedActorIndex = actorEntries.size();
+		const size_t hardwareThreads = static_cast<size_t>(
+			(std::max)(1u, std::thread::hardware_concurrency()));
+		const size_t workerCount = (std::min)(
+			actorEntries.size(), (std::min)(hardwareThreads, size_t(8)));
+		std::vector<std::thread> workers;
+		workers.reserve(workerCount);
+		for (size_t workerIndex = 0;
+			workerIndex < workerCount; ++workerIndex) {
+
+			workers.emplace_back([&]() {
+				while (failedActorIndex.load(
+					std::memory_order_relaxed) == actorEntries.size()) {
+
+					const size_t actorIndex = nextActorIndex.fetch_add(
+						1, std::memory_order_relaxed);
+					if (actorEntries.size() <= actorIndex) {
+						return;
+					}
+					const ActorSaveEntry& entry =
+						actorEntries[actorIndex];
+					if (!Engine::JsonAdapter::SaveCanonical(
+						entry.path, entry.data)) {
+
+						size_t expected = actorEntries.size();
+						failedActorIndex.compare_exchange_strong(
+							expected, actorIndex,
+							std::memory_order_relaxed);
+						return;
+					}
+				}
+				});
+		}
+		for (std::thread& worker : workers) {
+			worker.join();
+		}
+
+		const size_t failedIndex =
+			failedActorIndex.load(std::memory_order_relaxed);
+		if (failedIndex != actorEntries.size()) {
+
+			Engine::Logger::Output(
+				Engine::LogType::Engine, spdlog::level::err,
+				"[SceneSystem] failed to save external actor. path={}",
+				Engine::Algorithm::PathToUTF8(
+					actorEntries[failedIndex].path));
+			return false;
 		}
 
 		root.erase("Entities");
@@ -333,6 +451,20 @@ bool Engine::SceneSystem::LoadScene(const std::filesystem::path& scenePath, ECSW
 bool Engine::SceneSystem::SaveScene(const std::filesystem::path& scenePath, ECSWorld& world,
 	const SceneHeader& header, AssetDatabase& database, const std::vector<Entity>* entitiesSubset) const {
 
+	SceneSaveSnapshot snapshot{};
+	if (!CaptureSaveSnapshot(scenePath, world, header,
+		database, snapshot, entitiesSubset)) {
+		return false;
+	}
+	return WriteSaveSnapshot(std::move(snapshot));
+}
+
+bool Engine::SceneSystem::CaptureSaveSnapshot(
+	const std::filesystem::path& scenePath, ECSWorld& world,
+	const SceneHeader& header, AssetDatabase& database,
+	SceneSaveSnapshot& outSnapshot,
+	const std::vector<Entity>* entitiesSubset) const {
+
 	std::vector<Entity> sceneEntities;
 	if (entitiesSubset) {
 		sceneEntities = *entitiesSubset;
@@ -438,10 +570,25 @@ bool Engine::SceneSystem::SaveScene(const std::filesystem::path& scenePath, ECSW
 	}
 	root["Entities"] = SerializeEntities(world, &fatEntities);
 
-	if (header.guid) {
-		return SaveExternalActors(scenePath, header.guid, root);
+	outSnapshot.scenePath = scenePath;
+	outSnapshot.sceneAsset = header.guid;
+	outSnapshot.root = std::move(root);
+	return true;
+}
+
+bool Engine::SceneSystem::WriteSaveSnapshot(
+	SceneSaveSnapshot snapshot) {
+
+	if (snapshot.scenePath.empty() ||
+		!snapshot.root.is_object()) {
+		return false;
 	}
-	return JsonAdapter::SaveCanonical(scenePath, root);
+	if (snapshot.sceneAsset) {
+		return SaveExternalActors(snapshot.scenePath,
+			snapshot.sceneAsset, snapshot.root);
+	}
+	return JsonAdapter::SaveCanonical(
+		snapshot.scenePath, snapshot.root);
 }
 
 nlohmann::json Engine::SceneSystem::SerializeEntities(ECSWorld& world, const std::vector<Entity>* subset) const {

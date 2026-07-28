@@ -1,0 +1,47 @@
+{
+    "Components": {
+        "Hierarchy": {
+            "parentLocalFileID": "",
+            "siblingOrder": 3
+        },
+        "Name": {
+            "name": "Camera3D"
+        },
+        "PerspectiveCamera": {
+            "cullingMask": -1,
+            "editorFrustumScale": 0.0020000000949949026,
+            "enabled": true,
+            "farClip": 4000.0,
+            "fovY": 60.0,
+            "isMain": true,
+            "nearClip": 0.009999999776482582,
+            "priority": 0
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "1cbba16a06c8b73a",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+            "localPos": {
+                "x": 0.0,
+                "y": 16.28811264038086,
+                "z": -124.757080078125
+            },
+            "localRotation": {
+                "w": 0.9967085123062134,
+                "x": 0.0810687467455864,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    },
+    "LocalFileID": "1cbba16a06c8b73a",
+    "SchemaVersion": 1
+}

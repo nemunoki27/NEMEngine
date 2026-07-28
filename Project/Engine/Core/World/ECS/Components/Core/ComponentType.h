@@ -33,6 +33,34 @@ namespace Engine {
 		Both,      // 両方のWorldで使用する
 	};
 
+	enum class ComponentChangeChannel : uint8_t {
+
+		None = 0,
+		Render = 1 << 0,
+		Lighting = 1 << 1,
+	};
+
+	constexpr ComponentChangeChannel operator|(
+		ComponentChangeChannel lhs, ComponentChangeChannel rhs) {
+
+		return static_cast<ComponentChangeChannel>(
+			static_cast<uint8_t>(lhs) | static_cast<uint8_t>(rhs));
+	}
+
+	constexpr ComponentChangeChannel& operator|=(
+		ComponentChangeChannel& lhs, ComponentChangeChannel rhs) {
+
+		lhs = lhs | rhs;
+		return lhs;
+	}
+
+	constexpr bool HasComponentChangeChannel(
+		ComponentChangeChannel channels, ComponentChangeChannel target) {
+
+		return (static_cast<uint8_t>(channels) &
+			static_cast<uint8_t>(target)) != 0;
+	}
+
 	//============================================================================
 	//	ComponentType struct
 	//	コンポーネントの種類、情報を所持する
@@ -55,6 +83,11 @@ namespace Engine {
 		bool enableable = false;
 		// Scene/Prefabへ保存するか
 		bool serializable = true;
+		// 値変更とTransform変更が無効化する抽出キャッシュ
+		ComponentChangeChannel changeChannels =
+			ComponentChangeChannel::None;
+		ComponentChangeChannel transformChannels =
+			ComponentChangeChannel::None;
 		// Buffer要素のサイズ、アライメント、チャンク内要素数
 		size_t elementSize = 0;
 		size_t elementAlign = 0;
@@ -77,7 +110,8 @@ namespace Engine {
 		void (*onRemoved)(ECSWorld& world, const Entity& entity) = nullptr;
 		// デストラクタ
 		void (*destroy)(void* ptr) = nullptr;
-		// コピーコンストラクタ
+		// コピー、ムーブコンストラクタ
+		void (*copyConstruct)(void* dst, const void* src) = nullptr;
 		void (*moveConstruct)(void* dst, void* src) = nullptr;
 		// チャンク外データの解放
 		void (*releaseExternal)(ECSWorld& world, const Entity& entity, void* ptr) = nullptr;

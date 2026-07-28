@@ -7,6 +7,9 @@
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 
+// c++
+#include <algorithm>
+
 //============================================================================
 //	MeshShaderDrawPath classMethods
 //============================================================================
@@ -77,7 +80,10 @@ void Engine::MeshShaderDrawPath::Draw(const MeshPathDrawContext& context) {
 
 	const auto& prepared = *context.prepared;
 
-	const uint32_t meshletCount = prepared.gpuMesh->meshletCount;
+	uint32_t meshletCount = 0;
+	for (const MeshLODRange& lod : prepared.gpuMesh->lods) {
+		meshletCount = (std::max)(meshletCount, lod.meshletCount);
+	}
 	// MeshletやInstanceがない場合はDispatchMeshしない
 	if (meshletCount == 0 || prepared.instanceCount == 0) {
 		return;

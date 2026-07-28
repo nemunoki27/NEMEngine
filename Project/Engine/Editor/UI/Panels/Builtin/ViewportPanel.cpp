@@ -554,7 +554,7 @@ void Engine::ViewportPanel::HandleAssetDropPlacement(const EditorPanelContext& c
 			ApplyDropSnap(context, position, dropPreviewIsThreeD_);
 			auto& transform = world->GetComponent<TransformComponent>(dropPreviewEntity_);
 			transform.localPos = position;
-			transform.isDirty = true;
+			MarkTransformSubtreeDirty(*world, dropPreviewEntity_);
 		}
 	} else if (dropPreviewActive_) {
 

@@ -61,6 +61,8 @@ namespace Engine::MeshSubMeshAuthoring {
 	bool TryBuildLayout(AssetDatabase* assetDatabase, AssetID meshAssetID,
 		std::vector<MeshSubMeshLayoutItem>& outLayout,
 		MeshAssetAuthoringInfo* outInfo = nullptr);
+	// モデル更新時に該当レイアウトの再解析を要求する
+	void InvalidateCachedLayout(AssetID meshAssetID);
 
 	// レイアウトに合わせてサブメッシュを正規化する
 	bool SyncComponentToLayout(const std::vector<MeshSubMeshLayoutItem>& layout,

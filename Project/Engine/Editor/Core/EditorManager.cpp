@@ -98,6 +98,8 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	requestOpenCloseUnsavedPopup_ = false;
 	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
 	dirtySceneAssets_.clear();
+	dirtySceneRevisions_.clear();
+	dirtySceneRevision_ = 0;
 	pendingDuplicatePanelID_.clear();
 	pendingEditorLayout_.reset();
 	requestBuildDefaultDockLayout_ = false;
@@ -858,11 +860,22 @@ Engine::EditorSceneRequest Engine::EditorManager::ConsumeSceneRequest() {
 void Engine::EditorManager::MarkSceneSaved(AssetID sceneAsset) {
 
 	dirtySceneAssets_.erase(sceneAsset);
+	dirtySceneRevisions_.erase(sceneAsset);
+}
+
+void Engine::EditorManager::MarkSceneSaved(
+	AssetID sceneAsset, uint64_t dirtyRevision) {
+
+	if (GetSceneDirtyRevision(sceneAsset) != dirtyRevision) {
+		return;
+	}
+	MarkSceneSaved(sceneAsset);
 }
 
 void Engine::EditorManager::MarkAllScenesSaved() {
 
 	dirtySceneAssets_.clear();
+	dirtySceneRevisions_.clear();
 }
 
 void Engine::EditorManager::ResetSceneEditingState() {
@@ -878,11 +891,20 @@ void Engine::EditorManager::ResetSceneEditingState() {
 void Engine::EditorManager::ResetSceneDirtyState() {
 
 	dirtySceneAssets_.clear();
+	dirtySceneRevisions_.clear();
 }
 
 bool Engine::EditorManager::IsSceneDirty(AssetID sceneAsset) const {
 
 	return sceneAsset && dirtySceneAssets_.contains(sceneAsset);
+}
+
+uint64_t Engine::EditorManager::GetSceneDirtyRevision(
+	AssetID sceneAsset) const {
+
+	const auto it = dirtySceneRevisions_.find(sceneAsset);
+	return it != dirtySceneRevisions_.end() ?
+		it->second : 0;
 }
 
 void Engine::EditorManager::MarkCurrentSceneDirty() {
@@ -892,6 +914,9 @@ void Engine::EditorManager::MarkCurrentSceneDirty() {
 		return;
 	}
 	dirtySceneAssets_.insert(currentRenderContext_->activeSceneAsset);
+	dirtySceneRevisions_[
+		currentRenderContext_->activeSceneAsset] =
+		++dirtySceneRevision_;
 }
 
 void Engine::EditorManager::DrawDockSpace() {

@@ -414,11 +414,16 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 	}
 
-	// 表示名を取得
-	const std::string displayName = GetEntityDisplayName(world, entity);
-	const std::string idString = ToString(world.GetUUID(entity));
+	// 表示名はNameComponentの文字列を直接参照して行ごとの確保を避ける
+	const char* displayName = "Entity";
+	if (const NameComponent* name =
+		world.TryGetComponent<NameComponent>(entity);
+		name && !name->name.empty()) {
+		displayName = name->name.c_str();
+	}
 
-	ImGui::PushID(idString.c_str());
+	ImGui::PushID(static_cast<int>(entity.index));
+	ImGui::PushID(static_cast<int>(entity.generation));
 
 	//============================================================================
 	//	左側のアクティブチェックボックス
@@ -487,7 +492,7 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(style.FramePadding.x, 0.0f));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(style.ItemSpacing.x, 1.0f));
 	ImGui::SetWindowFontScale(0.88f);
-	bool opened = ImGui::TreeNodeEx("##HierarchyNode", flags, "%s", displayName.c_str());
+	bool opened = ImGui::TreeNodeEx("##HierarchyNode", flags, "%s", displayName);
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::PopStyleVar(2);
 
@@ -584,7 +589,7 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 
 		const UUID stableUUID = world.GetUUID(entity);
 		ImGui::SetDragDropPayload(kHierarchyDragDropPayloadType, &stableUUID, sizeof(UUID));
-		ImGui::Text("%s", displayName.c_str());
+		ImGui::Text("%s", displayName);
 		ImGui::EndDragDropSource();
 	}
 
@@ -664,12 +669,20 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	}
 
 	ImGui::PopID();
+	ImGui::PopID();
 }
 
 void Engine::HierarchyPanel::DrawSiblingDropTarget(const EditorPanelContext& context, ECSWorld& world,
 	const Entity& anchorEntity, bool insertAfter) {
 
 	if (!context.CanEditScene() || !world.IsAlive(anchorEntity)) {
+		return;
+	}
+	const ImGuiPayload* activePayload =
+		ImGui::GetDragDropPayload();
+	if (!activePayload ||
+		!activePayload->IsDataType(
+			kHierarchyDragDropPayloadType)) {
 		return;
 	}
 

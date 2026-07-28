@@ -67,6 +67,26 @@ namespace {
 		return passKind == Engine::MaterialPassKind::Outline ||
 			passKind == Engine::MaterialPassKind::OutlineStencilTest;
 	}
+
+	uint64_t ComputeMaterialLayoutHash(
+		const Engine::MaterialParameterLayout& layout) {
+
+		uint64_t hash = 1469598103934665603ull;
+		Engine::Algorithm::HashCombine(hash, layout.GetSizeInBytes());
+		for (const Engine::ShaderConstantBufferVariable& variable :
+			layout.GetVariables()) {
+
+			Engine::Algorithm::HashCombine(hash,
+				static_cast<uint64_t>(std::hash<std::string>{}(variable.name)));
+			Engine::Algorithm::HashCombine(hash, variable.offset);
+			Engine::Algorithm::HashCombine(hash, variable.size);
+			Engine::Algorithm::HashCombine(hash,
+				static_cast<uint64_t>(variable.valueClass));
+			Engine::Algorithm::HashCombine(hash,
+				static_cast<uint64_t>(variable.valueType));
+		}
+		return hash;
+	}
 }
 
 Engine::MeshBatchResources::~MeshBatchResources() {
@@ -97,7 +117,8 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	subMeshData_.Init(device, srvDescriptor);
 	// 背面法アウトラインのインスタンス別GPUデータ
 	outlineData_.Init(device, srvDescriptor);
-	DxUtils::CreateUavBufferResource(device, indexedIndirectArgs_, sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
+	DxUtils::CreateUavBufferResource(device, indexedIndirectArgs_,
+		sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) * kMeshLODCount);
 	indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;
 
 	// 初期値を大きめにして、カメラ移動時の細かい再確保を減らす
@@ -137,8 +158,17 @@ void Engine::MeshBatchResources::Finalize() {
 	subMeshParamElementCount_ = 0;
 	subMeshParamAvailable_ = false;
 	subMeshParamScratch_.clear();
+	subMeshParamPackedScratch_.clear();
+	subMeshParamLayoutHash_ = 0;
+	subMeshParamMaterial_ = nullptr;
+	subMeshParamDirty_ = true;
+	subMeshParamDataGeneration_ = 1;
+	uploadedSubMeshParamGenerations_ = { 0, 0, 0 };
 	dynamicConstantAllocator_.Release();
 	dynamicConstantFrameSerial_ = 0;
+	batchDataGeneration_ = 1;
+	uploadedBatchDataGenerations_ = { 0, 0, 0 };
+	viewUploadFrameSerials_ = { 0, 0 };
 	drawGPUAddress_ = 0;
 	screenSpaceOutlineMaskGPUAddress_ = 0;
 	indirectArgsGPUAddress_ = 0;
@@ -215,6 +245,16 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 	drawConstants.outlineMaxModelExpansion = hullOutline ? outlineMetrics_.maxModelExpansion : 0.0f;
 	drawConstants.outlineMaxAbsCameraZOffset = hullOutline ? outlineMetrics_.maxAbsCameraZOffset : 0.0f;
 	drawConstants.outlineHasScreenPixelWidth = (hullOutline && outlineMetrics_.hasScreenPixelWidth) ? 1u : 0u;
+	for (uint32_t lodIndex = 0; lodIndex < kMeshLODCount; ++lodIndex) {
+
+		const MeshLODRange& lod = gpuMesh.lods[lodIndex];
+		drawConstants.lodIndexOffsets[lodIndex] = lod.indexOffset;
+		drawConstants.lodIndexCounts[lodIndex] = lod.indexCount;
+		drawConstants.lodMeshletOffsets[lodIndex] = lod.meshletOffset;
+		drawConstants.lodMeshletCounts[lodIndex] = lod.meshletCount;
+		drawConstants.meshletCount = (std::max)(
+			drawConstants.meshletCount, lod.meshletCount);
+	}
 
 	BeginDynamicConstantsFrame();
 	drawGPUAddress_ = dynamicConstantAllocator_.AllocateAndUpload(
@@ -287,6 +327,13 @@ bool Engine::MeshBatchResources::FindSkinnedVertexOffset(ECSWorld* world, Entity
 
 void Engine::MeshBatchResources::UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView) {
 
+	const size_t viewIndex = ToViewIndex(view.kind);
+	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
+	if (viewUploadFrameSerials_[viewIndex] == frameSerial) {
+		return;
+	}
+	viewUploadFrameSerials_[viewIndex] = frameSerial;
+
 	// 定数バッファにビュー行列を転送する
 	MeshViewConstants constants{};
 	if (const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Perspective)) {
@@ -315,7 +362,7 @@ void Engine::MeshBatchResources::UpdateView(const ResolvedRenderView& view, cons
 		constants.cullingViewSize = constants.viewSize;
 		constants.cullingProjectionScale = Vector2::AnyInit(1.0f);
 	}
-	view_[ToViewIndex(view.kind)].Upload(constants);
+	view_[viewIndex].Upload(constants);
 }
 
 void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawContext,
@@ -328,6 +375,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	meshScratch_.clear();
 	subMeshScratch_.clear();
 	subMeshParamScratch_.clear();
+	subMeshParamDirty_ = true;
 	outlineScratch_.clear();
 	paletteScratch_.clear();
 	skinnedRecords_.clear();
@@ -529,7 +577,9 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	meshData_.Upload(meshScratch_);
 	const uint32_t prevVisibleCapacity = visibleMeshData_.GetCapacity();
 	// 可視インスタンスRWバッファはカリング前のインスタンス数分だけ確保する
-	visibleMeshData_.EnsureCapacity(static_cast<uint32_t>((std::max)(meshScratch_.size(), size_t(1))));
+	const size_t visibleCapacity =
+		(std::max)(meshScratch_.size(), size_t(1)) * kMeshLODCount;
+	visibleMeshData_.EnsureCapacity(static_cast<uint32_t>(visibleCapacity));
 	if (prevVisibleCapacity != visibleMeshData_.GetCapacity()) {
 
 		visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
@@ -576,14 +626,63 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			skinning_->skinningConstants.Upload(skinningConstants);
 		}
 	}
+	++batchDataGeneration_;
+	if (batchDataGeneration_ == 0) {
+		batchDataGeneration_ = 1;
+		uploadedBatchDataGenerations_ = { 0, 0, 0 };
+	}
+	uploadedBatchDataGenerations_[
+		GraphicsFrameState::GetCurrentIndex()] =
+		batchDataGeneration_;
+}
+
+bool Engine::MeshBatchResources::RefreshInstanceTransforms(
+	const std::span<const RenderItem* const>& items) {
+
+	if (meshScratch_.size() != items.size()) {
+		return false;
+	}
+
+	for (size_t index = 0; index < items.size(); ++index) {
+
+		const RenderItem* item = items[index];
+		if (!item ||
+			meshScratch_[index].entityIndex != item->entity.index ||
+			meshScratch_[index].entityGeneration != item->entity.generation) {
+			return false;
+		}
+
+		MeshInstanceData& instance = meshScratch_[index];
+		instance.worldMatrix = item->worldMatrix;
+		const MeshNormalMatrixResult normal =
+			BuildSafeMeshNormalMatrix(instance.worldMatrix);
+		instance.normalMatrix = normal.matrix;
+		instance.orientationSign = normal.orientationSign;
+	}
+
+	// 次の描画パスで更新済み行列を現在フレームのUploadBufferへ転送する
+	++batchDataGeneration_;
+	if (batchDataGeneration_ == 0) {
+		batchDataGeneration_ = 1;
+		uploadedBatchDataGenerations_ = { 0, 0, 0 };
+	}
+	return true;
 }
 
 void Engine::MeshBatchResources::UploadCachedBatchData() {
 
-	// フレームごとに異なるUploadBufferを参照するため、再構築済み配列だけを現在スロットへ転送する
+	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
+	if (uploadedBatchDataGenerations_[frameIndex] ==
+		batchDataGeneration_) {
+		return;
+	}
+
+	// 未更新のFrame Contextだけへ再構築済み配列を転送する
 	meshData_.Upload(meshScratch_);
 	subMeshData_.Upload(subMeshScratch_);
 	outlineData_.Upload(outlineScratch_);
+	uploadedBatchDataGenerations_[frameIndex] =
+		batchDataGeneration_;
 }
 
 void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset* material,
@@ -598,6 +697,7 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 	GraphicsCore& graphicsCore = *drawContext.graphicsCore;
 	const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
 	const uint32_t fallbackIndex = (fallback && fallback->srvIndex != UINT32_MAX) ? fallback->srvIndex : 0;
+	bool usedFallbackTexture = false;
 
 	// テクスチャparamのAssetIDをbindless indexへ解決する、名前でsRGB可否を判定する
 	// 未指定はkNoTextureを返しシェーダー側でテクスチャなしの分岐に乗せる
@@ -613,7 +713,11 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 		const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
 			graphicsCore, drawContext.assetDatabase, id, sRGB);
 		if (!texture || texture->srvIndex == UINT32_MAX) {
+			usedFallbackTexture = true;
 			return fallbackIndex;
+		}
+		if (texture == fallback) {
+			usedFallbackTexture = true;
 		}
 		return texture->srvIndex;
 		};
@@ -625,17 +729,41 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 	// リフレクションから取得した構造体strideをそのまま使用する
 	const uint32_t stride = layout.GetSizeInBytes();
 	const uint32_t elementCount = static_cast<uint32_t>(subMeshParamScratch_.size());
-	std::vector<uint8_t> packed(static_cast<size_t>(stride) * elementCount, 0);
-	for (uint32_t i = 0; i < elementCount; ++i) {
+	const uint64_t layoutHash = ComputeMaterialLayoutHash(layout);
+	const bool rebuildPacked = subMeshParamDirty_ ||
+		subMeshParamLayoutHash_ != layoutHash ||
+		subMeshParamMaterial_ != material;
+	if (rebuildPacked) {
 
-		const std::vector<uint8_t> element = MaterialParameterBufferBuilder::BuildElement(
-			defaults, subMeshParamScratch_[i], layout, resolveTexture);
-		const size_t copyBytes = (std::min)(static_cast<size_t>(stride), element.size());
-		std::memcpy(packed.data() + static_cast<size_t>(stride) * i, element.data(), copyBytes);
+		subMeshParamPackedScratch_.assign(
+			static_cast<size_t>(stride) * elementCount, 0);
+		for (uint32_t i = 0; i < elementCount; ++i) {
+
+			const std::vector<uint8_t> element =
+				MaterialParameterBufferBuilder::BuildElement(
+					defaults, subMeshParamScratch_[i], layout, resolveTexture);
+			const size_t copyBytes = (std::min)(
+				static_cast<size_t>(stride), element.size());
+			std::memcpy(
+				subMeshParamPackedScratch_.data() +
+				static_cast<size_t>(stride) * i,
+				element.data(), copyBytes);
+		}
+		subMeshParamLayoutHash_ = layoutHash;
+		subMeshParamMaterial_ = material;
+		// 非同期読込中のErrorTextureを固定せず、実テクスチャへ切り替わるまで再解決する
+		subMeshParamDirty_ = usedFallbackTexture;
+		usesFallbackTexture_ |= usedFallbackTexture;
+		++subMeshParamDataGeneration_;
+		if (subMeshParamDataGeneration_ == 0) {
+			subMeshParamDataGeneration_ = 1;
+			uploadedSubMeshParamGenerations_ = { 0, 0, 0 };
+		}
 	}
 
 	// 容量不足時は全フレーム分を拡張し、stride変更時はSRVだけを更新する
-	const uint32_t requiredBytes = static_cast<uint32_t>(packed.size());
+	const uint32_t requiredBytes =
+		static_cast<uint32_t>(subMeshParamPackedScratch_.size());
 	const bool reallocated = subMeshParamBuffer_.EnsureCapacity(
 		device_, requiredBytes, "gMeshSubMeshMaterialParameters", 4096);
 	if (reallocated || stride != subMeshParamStride_ ||
@@ -668,10 +796,19 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 		subMeshParamCapacityBytes_ =
 			static_cast<uint32_t>(subMeshParamBuffer_.GetCapacity());
 		subMeshParamStride_ = stride;
+		uploadedSubMeshParamGenerations_ = { 0, 0, 0 };
 	}
 
-	if (!packed.empty()) {
-		subMeshParamBuffer_.Write(packed.data(), packed.size());
+	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
+	if (!subMeshParamPackedScratch_.empty() &&
+		uploadedSubMeshParamGenerations_[frameIndex] !=
+			subMeshParamDataGeneration_) {
+
+		subMeshParamBuffer_.Write(
+			subMeshParamPackedScratch_.data(),
+			subMeshParamPackedScratch_.size());
+		uploadedSubMeshParamGenerations_[frameIndex] =
+			subMeshParamDataGeneration_;
 	}
 	subMeshParamElementCount_ = elementCount;
 	subMeshParamAvailable_ = true;

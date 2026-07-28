@@ -42,6 +42,8 @@ namespace Engine {
 		uint32_t GetColumnIndex(uint32_t typeID) const;
 		// chunkIndex番目のチャンクのrow番目のエンティティのtypeIDのコンポーネントデータへのポインタを返す
 		void* GetRaw(int32_t chunkIndex, uint32_t row, uint32_t typeID);
+		const void* GetRaw(
+			int32_t chunkIndex, uint32_t row, uint32_t typeID) const;
 
 		// Archetypeが持つコンポーネント種類のIDの配列
 		const std::vector<uint32_t>& GetTypes() const { return types_; }

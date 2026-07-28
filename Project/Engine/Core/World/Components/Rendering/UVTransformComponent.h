@@ -15,6 +15,9 @@ namespace Engine {
 	//============================================================================
 	// テクスチャのUVを変換
 	struct UVTransformComponent {
+
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
 		
 		// SRT
 		Vector2 pos = Vector2::AnyInit(0.0f);

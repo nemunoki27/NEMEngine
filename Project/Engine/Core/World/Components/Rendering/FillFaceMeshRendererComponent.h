@@ -25,6 +25,8 @@ namespace Engine {
 			ComponentStorageKind::Buffer;
 		static constexpr uint32_t kInternalBufferCapacity = 4;
 		static constexpr bool kSerializable = false;
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
 
 		Vector3 value = Vector3::AnyInit(0.0f);
 	};
@@ -36,6 +38,8 @@ namespace Engine {
 			ComponentStorageKind::Buffer;
 		static constexpr uint32_t kInternalBufferCapacity = 6;
 		static constexpr bool kSerializable = false;
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
 
 		uint32_t value = 0;
 	};
@@ -52,6 +56,10 @@ namespace Engine {
 	struct FillMeshRendererComponent {
 
 		static constexpr bool kHasECSHooks = true;
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Render;
 
 		// メッシュ構築フラグ、trueのフレームで構築
 		bool buildMesh = false;

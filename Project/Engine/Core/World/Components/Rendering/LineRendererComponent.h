@@ -21,6 +21,10 @@ namespace Engine {
 	struct LineRendererComponent {
 
 		static constexpr bool kHasECSHooks = true;
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Render;
 
 		// マテリアル
 		AssetID material{};

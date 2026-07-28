@@ -48,6 +48,8 @@ namespace Engine {
 
 		// 可視メッシュのGPUアップロード
 		void RequestMeshes(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase, std::span<const AssetID> meshAssets);
+		// 指定メッシュがすべてGPUへ反映済みか
+		bool AreMeshesReady(std::span<const AssetID> meshAssets) const;
 		// 全メッシュのGPUリソースを同期作成する
 		void PreloadMeshes(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase, std::span<const AssetID> meshAssets);
 		// 外部編集されたメッシュを再インポートしてバッチキャッシュを無効化する、ホットリロード用
@@ -68,6 +70,7 @@ namespace Engine {
 		bool FindSkinnedVertexSource(ECSWorld* world, Entity entity, AssetID mesh, SkinnedVertexSource& outSource) const;
 
 		const MeshGPUResource* FindMeshResource(AssetID meshAssetID) const { return meshResourceManager_.Find(meshAssetID); }
+		uint64_t GetMeshResourceRevision() const { return meshResourceManager_.GetResourceRevision(); }
 
 		// 静的バッチキャッシュを即時クリアする
 		void ClearStaticBatchCache();
@@ -152,6 +155,8 @@ namespace Engine {
 		std::unique_ptr<MeshBatchResources> resources{};
 		// 一定フレーム使われなければ破棄する
 		uint64_t lastUsedFrame = 0;
+		// CPU側インスタンス行列を構築したTransform世代
+		uint64_t transformRevision = 0;
 		// FallbackTextureを含む場合は後で本テクスチャに差し替わるため永続化しない
 		bool persistent = false;
 	};

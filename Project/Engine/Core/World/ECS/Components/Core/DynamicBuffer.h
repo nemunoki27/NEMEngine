@@ -172,6 +172,9 @@ namespace Engine {
 		// 所有権を移動する
 		template <typename T>
 		void Move(void* destination, void* source);
+		// 要素列を複製する
+		template <typename T>
+		void Copy(void* destination, const void* source);
 	}
 } // Engine
 
@@ -479,4 +482,22 @@ inline void Engine::DynamicBufferStorage::Move(void* destination, void* source) 
 	sourceHeader->data = reinterpret_cast<void*>(sourceAligned);
 	sourceHeader->size = 0;
 	sourceHeader->capacity = internalCapacity;
+}
+
+template <typename T>
+inline void Engine::DynamicBufferStorage::Copy(
+	void* destination, const void* source) {
+
+	const DynamicBufferHeader* sourceHeader =
+		static_cast<const DynamicBufferHeader*>(source);
+	Construct<T>(destination, sourceHeader->internalCapacity);
+
+	DynamicBuffer<T> sourceBuffer(
+		const_cast<DynamicBufferHeader*>(sourceHeader));
+	DynamicBuffer<T> destinationBuffer(
+		static_cast<DynamicBufferHeader*>(destination));
+	destinationBuffer.Reserve(sourceHeader->size);
+	for (const T& value : sourceBuffer.GetSpan()) {
+		destinationBuffer.EmplaceBack(value);
+	}
 }

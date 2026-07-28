@@ -77,6 +77,13 @@ void* Engine::EntityArchetype::GetRaw(int32_t chunkIndex, uint32_t row, uint32_t
 	return chunks_[chunkIndex]->GetRawByColumnIndex(GetColumnIndex(typeID), row);
 }
 
+const void* Engine::EntityArchetype::GetRaw(
+	int32_t chunkIndex, uint32_t row, uint32_t typeID) const {
+
+	return chunks_[chunkIndex]->GetRawByColumnIndex(
+		GetColumnIndex(typeID), row);
+}
+
 uint32_t Engine::EntityArchetype::GetAllocatedChunkCount() const {
 
 	uint32_t count = 0;

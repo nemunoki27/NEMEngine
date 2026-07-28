@@ -81,6 +81,7 @@ void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 	ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input) {
 
 	Assert::Call(!input.geometries.empty(), "BLAS requires geometry");
+	retiredResources_.Collect();
 
 	device_ = device;
 	allowUpdate_ = input.allowUpdate;
@@ -104,10 +105,10 @@ void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 	device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs_, &prebuild);
 
 	if (scratch_.GetResource()) {
-		retiredResources_.emplace_back(scratch_.TakeResource());
+		retiredResources_.Retire(scratch_.TakeResource());
 	}
 	if (result_.GetResource()) {
-		retiredResources_.emplace_back(result_.TakeResource());
+		retiredResources_.Retire(result_.TakeResource());
 	}
 	// スクラッチと結果のバッファを作成
 	scratch_.Create(device, prebuild.ScratchDataSizeInBytes,
@@ -132,6 +133,7 @@ void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 
 void Engine::BottomLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input) {
 
+	retiredResources_.Collect();
 	// 更新が許可されていない場合やASが構築されていない場合は何もしない
 	if (!allowUpdate_ || !result_.GetResource()) {
 		return;

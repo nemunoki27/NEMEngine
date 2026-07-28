@@ -46,6 +46,12 @@ cbuffer MeshDrawConstants : register(b2) {
 	float outlineMaxAbsCameraZOffset;
 	uint outlineHasScreenPixelWidth;
 	uint3 _meshDrawReserved1;
+	uint4 lodIndexOffsets;
+	uint4 lodIndexCounts;
+	uint4 lodMeshletOffsets;
+	uint4 lodMeshletCounts;
+	float3 lodPixelThresholds;
+	uint lodCount;
 };
 StructuredBuffer<MeshInstance> gMeshInstances : register(t0);
 StructuredBuffer<SubMeshShaderData> gSubMeshes : register(t3, space1);
@@ -147,6 +153,29 @@ bool IsInstanceVisible(MeshInstance instance) {
 	return true;
 }
 
+uint ResolveMeshLOD(MeshInstance instance) {
+
+	if (lodCount <= 1u ||
+		(instance.flags & MESH_INSTANCE_FLAG_SKINNED) != 0u) {
+		return 0u;
+	}
+
+	float3 center;
+	float radius;
+	CalcInstanceCullBounds(instance, center, radius);
+	float pixelRadius = CalcProjectedPixelRadius(center, radius);
+	if (pixelRadius >= lodPixelThresholds.x) {
+		return 0u;
+	}
+	if (pixelRadius >= lodPixelThresholds.y) {
+		return 1u;
+	}
+	if (pixelRadius >= lodPixelThresholds.z) {
+		return 2u;
+	}
+	return min(3u, lodCount - 1u);
+}
+
 //============================================================================
 //	main
 //============================================================================
@@ -155,11 +184,15 @@ void main(uint groupThreadID : SV_GroupThreadID) {
 
 	if (groupThreadID == 0) {
 
-		gIndexedIndirectArgs.Store(0, indexCount);
-		gIndexedIndirectArgs.Store(4, 0);
-		gIndexedIndirectArgs.Store(8, 0);
-		gIndexedIndirectArgs.Store(12, 0);
-		gIndexedIndirectArgs.Store(16, 0);
+		for (uint lodIndex = 0; lodIndex < 4u; ++lodIndex) {
+
+			const uint argsOffset = lodIndex * 20u;
+			gIndexedIndirectArgs.Store(argsOffset + 0u, lodIndexCounts[lodIndex]);
+			gIndexedIndirectArgs.Store(argsOffset + 4u, 0u);
+			gIndexedIndirectArgs.Store(argsOffset + 8u, lodIndexOffsets[lodIndex]);
+			gIndexedIndirectArgs.Store(argsOffset + 12u, 0u);
+			gIndexedIndirectArgs.Store(argsOffset + 16u, lodIndex * instanceCount);
+		}
 	}
 	GroupMemoryBarrierWithGroupSync();
 
@@ -170,8 +203,11 @@ void main(uint groupThreadID : SV_GroupThreadID) {
 			continue;
 		}
 
+		const uint lodIndex = ResolveMeshLOD(instance);
 		uint visibleIndex = 0;
-		gIndexedIndirectArgs.InterlockedAdd(4, 1, visibleIndex);
-		gVisibleMeshInstances[visibleIndex] = instance;
+		gIndexedIndirectArgs.InterlockedAdd(
+			lodIndex * 20u + 4u, 1u, visibleIndex);
+		gVisibleMeshInstances[
+			lodIndex * instanceCount + visibleIndex] = instance;
 	}
 }

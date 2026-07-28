@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
+#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Outline/EditorSelectionOutlineRequestService.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
@@ -41,6 +42,7 @@
 // c++
 #include <algorithm>
 #include <chrono>
+#include <exception>
 #include <unordered_set>
 #include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
 #include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
@@ -228,6 +230,7 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 			{ RuntimePaths::GetGameRoot() / "GameAssets", RuntimePaths::GetEngineAssetsRoot() });
 		// モデル変更時のリロードは描画バックエンドのメッシュ管理へ委譲する
 		assetWatchService_.SetMeshReloadCallback([this](AssetID meshAssetID) {
+			MeshSubMeshAuthoring::InvalidateCachedLayout(meshAssetID);
 			if (renderPipeline_) {
 				renderPipeline_->ReloadMesh(meshAssetID);
 			}
@@ -506,6 +509,12 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	// 選択アウトラインのtemporary requestもフレーム単位でリセットする
 	EditorSelectionOutlineRequestService::GetInstance().BeginFrame();
 #endif
+
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		// 完了した非同期保存をメインスレッドのAssetDatabaseと未保存状態へ反映する
+		UpdateSceneSave();
+	}
 
 	// アセットの外部編集を非同期検知し、変更があればtexture/modelをホットリロードする
 	assetWatchService_.Update();
@@ -832,27 +841,65 @@ bool Engine::EngineApplication::SaveActiveEditScene() {
 
 	const SceneInstance* activeScene = editScenes_.GetActive();
 	const AssetID sceneAsset = activeScene ? activeScene->sceneAsset : AssetID{};
-
-	// Active SceneInstanceの所有Entityをシーンファイルへ保存する
-	if (!editScenes_.SaveActive(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld())) {
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"EngineApplication: failed to save active scene.");
+	if (!activeScene || !sceneAsset) {
 		return false;
 	}
+	if (sceneSaveJob_) {
 
-	// 保存で.metaやAsset情報が変わる可能性があるため再走査する
-	assetDataBase_.RebuildMeta();
-	if constexpr (BuildConfig::kEditorEnabled) {
-
-		// 保存したシーンだけ未保存状態を落とす
-		editorManager_.MarkSceneSaved(sceneAsset);
+		// 保存中の再要求は完了直後に最新ワールドをもう一度取得する
+		sceneSaveQueued_ = true;
+		return true;
 	}
+
+	const auto captureStartedAt =
+		std::chrono::steady_clock::now();
+	std::unique_ptr<ECSWorld> worldSnapshot =
+		worldManager_.GetEditWorld().
+		CloneForSerialization();
+	SceneInstanceManager scenesSnapshot =
+		editScenes_;
+	AssetDatabase databaseSnapshot =
+		assetDataBase_;
+
+	const auto captureElapsed =
+		std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::steady_clock::now() -
+			captureStartedAt).count();
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"EngineApplication: saved active scene. path={}", activeScenePath_);
+		"EngineApplication: scene save snapshot copied. path={} elapsed={}ms",
+		activeScenePath_, captureElapsed);
+
+	SceneSaveJob job{};
+	job.sceneAsset = sceneAsset;
+	job.dirtyRevision =
+		editorManager_.GetSceneDirtyRevision(sceneAsset);
+	job.scenePath = activeScenePath_;
+	job.startedAt = captureStartedAt;
+	job.result = std::async(std::launch::async,
+		[worldSnapshot = std::move(worldSnapshot),
+		scenesSnapshot = std::move(scenesSnapshot),
+		databaseSnapshot = std::move(databaseSnapshot),
+		sceneAsset]() mutable {
+
+			SceneSystem sceneSystem{};
+			SceneSaveSnapshot snapshot{};
+			if (!scenesSnapshot.CaptureSave(
+				databaseSnapshot, sceneSystem,
+				*worldSnapshot, sceneAsset, snapshot)) {
+				return false;
+			}
+			return SceneSystem::WriteSaveSnapshot(
+				std::move(snapshot));
+		});
+	sceneSaveJob_.emplace(std::move(job));
 	return true;
 }
 
 bool Engine::EngineApplication::SaveAllEditScenes() {
+
+	if (!WaitForSceneSave()) {
+		return false;
+	}
 
 	std::unordered_set<AssetID> savedAssets;
 	for (const SceneInstance& scene : editScenes_.GetAll()) {
@@ -876,6 +923,103 @@ bool Engine::EngineApplication::SaveAllEditScenes() {
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"EngineApplication: saved loaded scenes. count={}", savedAssets.size());
 	return true;
+}
+
+bool Engine::EngineApplication::FinishSceneSave(
+	bool wait, bool* outSucceeded) {
+
+	if (outSucceeded) {
+		*outSucceeded = true;
+	}
+	if (!sceneSaveJob_) {
+		return true;
+	}
+
+	std::future<bool>& result = sceneSaveJob_->result;
+	if (!wait && result.wait_for(
+		std::chrono::milliseconds(0)) !=
+		std::future_status::ready) {
+		return false;
+	}
+	if (wait) {
+		result.wait();
+	}
+
+	const AssetID sceneAsset =
+		sceneSaveJob_->sceneAsset;
+	const uint64_t dirtyRevision =
+		sceneSaveJob_->dirtyRevision;
+	const std::string scenePath =
+		sceneSaveJob_->scenePath;
+	const auto elapsed =
+		std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::steady_clock::now() -
+			sceneSaveJob_->startedAt).count();
+	bool succeeded = false;
+	try {
+		succeeded = result.get();
+	}
+	catch (const std::exception& exception) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"EngineApplication: scene save worker failed. path={} message={}",
+			scenePath, exception.what());
+	}
+	sceneSaveJob_.reset();
+
+	if (succeeded) {
+
+		// AssetDatabaseとEditor状態はメインスレッドだけで更新する
+		assetDataBase_.RebuildMeta();
+		editorManager_.MarkSceneSaved(
+			sceneAsset, dirtyRevision);
+		Logger::Output(LogType::Engine, spdlog::level::info,
+			"EngineApplication: saved active scene. path={} elapsed={}ms",
+			scenePath, elapsed);
+	} else {
+
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"EngineApplication: failed to save active scene. path={}",
+			scenePath);
+	}
+	if (outSucceeded) {
+		*outSucceeded = succeeded;
+	}
+	return true;
+}
+
+void Engine::EngineApplication::UpdateSceneSave() {
+
+	bool succeeded = true;
+	if (!FinishSceneSave(false, &succeeded)) {
+		return;
+	}
+	if (!sceneSaveQueued_) {
+		return;
+	}
+
+	sceneSaveQueued_ = false;
+	(void)succeeded;
+	SaveActiveEditScene();
+}
+
+bool Engine::EngineApplication::WaitForSceneSave() {
+
+	bool allSucceeded = true;
+	while (sceneSaveJob_) {
+
+		bool succeeded = true;
+		FinishSceneSave(true, &succeeded);
+		allSucceeded = allSucceeded && succeeded;
+		if (sceneSaveQueued_) {
+
+			sceneSaveQueued_ = false;
+			if (!SaveActiveEditScene()) {
+				return false;
+			}
+		}
+	}
+	return allSucceeded;
 }
 
 void Engine::EngineApplication::AcceptCloseRequest(bool destroyWindow) {
@@ -975,6 +1119,12 @@ void Engine::EngineApplication::Finalize() {
 	}
 	WinApp::SetCloseRequestCallback(nullptr);
 	Assert::SetPreAssertHandler(nullptr);
+
+	if constexpr (BuildConfig::kEditorEnabled) {
+
+		// WorldとAssetDatabaseを破棄する前に書き込み中のシーン保存を回収する
+		WaitForSceneSave();
+	}
 
 	// アセット監視スレッドを止めてから他のリソースを解放する
 	assetWatchService_.Stop();

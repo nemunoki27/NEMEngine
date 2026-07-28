@@ -19,7 +19,6 @@
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
-#include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
@@ -43,15 +42,18 @@ namespace {
 
 	// XZセル中央へ配置するポイントライト数を返す
 	size_t CalculatePointLightCount(
-		int32_t gridCountXZ, int32_t gridCountY, bool enabled) {
+		int32_t gridCountXZ, int32_t gridCountY,
+		bool enabled, int32_t requestedCount) {
 
-		if (!enabled || gridCountXZ <= 1 || gridCountY <= 0) {
+		if (!enabled || gridCountXZ <= 1 ||
+			gridCountY <= 0 || requestedCount <= 0) {
 			return 0;
 		}
 		const size_t cellCount =
 			static_cast<size_t>(gridCountXZ - 1);
-		return cellCount * cellCount *
-			static_cast<size_t>(gridCountY);
+		return (std::min)(
+			cellCount * cellCount * static_cast<size_t>(gridCountY),
+			static_cast<size_t>(requestedCount));
 	}
 
 	// 現在のシーンに生成済みのパフォーマンスグリッドを収集する
@@ -108,6 +110,7 @@ namespace {
 			Engine::AssetID model, int32_t gridCountXZ, int32_t gridCountY,
 			float gridWidth, bool playSkinnedAnimation,
 			bool placePointLights,
+			int32_t pointLightCount,
 			float pointLightIntensity, float pointLightRadius,
 			float pointLightDecay,
 			std::vector<Engine::MeshSubMeshLayoutItem> layout) :
@@ -118,10 +121,16 @@ namespace {
 			gridWidth_(gridWidth),
 			playSkinnedAnimation_(playSkinnedAnimation),
 			placePointLights_(placePointLights),
+			pointLightCount_(pointLightCount),
 			pointLightIntensity_(pointLightIntensity),
 			pointLightRadius_(pointLightRadius),
 			pointLightDecay_(pointLightDecay),
 			layout_(std::move(layout)) {
+		}
+		explicit SetPerformanceGridCommand(
+			Engine::UUID rootStableUUID) :
+			rootStableUUID_(rootStableUUID),
+			deleteGrid_(true) {
 		}
 		~SetPerformanceGridCommand() override = default;
 
@@ -131,6 +140,10 @@ namespace {
 		void Undo(Engine::EditorCommandContext& context) override;
 		// 同じUUIDでグリッドを再生成する
 		bool Redo(Engine::EditorCommandContext& context) override;
+		// 同じグリッドへの連続再配置を1件のUndoへまとめる
+		bool CanCoalesce(const Engine::IEditorCommand& next) const override;
+		bool ExecuteCoalesced(Engine::IEditorCommand& next,
+			Engine::EditorCommandContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
 
@@ -150,9 +163,11 @@ namespace {
 
 		bool playSkinnedAnimation_ = false;
 		bool placePointLights_ = false;
+		int32_t pointLightCount_ = 200;
 		float pointLightIntensity_ = 1.0f;
 		float pointLightRadius_ = 8.0f;
 		float pointLightDecay_ = 1.0f;
+		bool deleteGrid_ = false;
 
 		std::vector<Engine::MeshSubMeshLayoutItem> layout_;
 		std::vector<Engine::UUID> modelStableUUIDs_;
@@ -172,8 +187,9 @@ namespace {
 
 bool SetPerformanceGridCommand::Execute(Engine::EditorCommandContext& context) {
 
-	if (!context.CanEditScene() || !rootStableUUID_ || !model_ ||
-		gridCountXZ_ <= 0 || gridCountY_ <= 0 || layout_.empty()) {
+	if (!context.CanEditScene() || !rootStableUUID_ ||
+		(!deleteGrid_ && (!model_ || gridCountXZ_ <= 0 ||
+			gridCountY_ <= 0 || layout_.empty()))) {
 		return false;
 	}
 
@@ -251,6 +267,44 @@ bool SetPerformanceGridCommand::Redo(Engine::EditorCommandContext& context) {
 	return CreateGrid(context);
 }
 
+bool SetPerformanceGridCommand::CanCoalesce(
+	const Engine::IEditorCommand& next) const {
+
+	const auto* nextGrid =
+		dynamic_cast<const SetPerformanceGridCommand*>(&next);
+	return nextGrid &&
+		nextGrid->rootStableUUID_ == rootStableUUID_;
+}
+
+bool SetPerformanceGridCommand::ExecuteCoalesced(
+	Engine::IEditorCommand& next,
+	Engine::EditorCommandContext& context) {
+
+	auto* nextGrid =
+		dynamic_cast<SetPerformanceGridCommand*>(&next);
+	if (!nextGrid || !nextGrid->CreateGrid(context)) {
+		return false;
+	}
+
+	// 最初のUndoスナップショットは残し、Redoに必要な最新設定だけを引き継ぐ
+	model_ = nextGrid->model_;
+	gridCountXZ_ = nextGrid->gridCountXZ_;
+	gridCountY_ = nextGrid->gridCountY_;
+	gridWidth_ = nextGrid->gridWidth_;
+	playSkinnedAnimation_ = nextGrid->playSkinnedAnimation_;
+	placePointLights_ = nextGrid->placePointLights_;
+	pointLightCount_ = nextGrid->pointLightCount_;
+	pointLightIntensity_ = nextGrid->pointLightIntensity_;
+	pointLightRadius_ = nextGrid->pointLightRadius_;
+	pointLightDecay_ = nextGrid->pointLightDecay_;
+	deleteGrid_ = nextGrid->deleteGrid_;
+	layout_ = std::move(nextGrid->layout_);
+	modelStableUUIDs_ = std::move(nextGrid->modelStableUUIDs_);
+	pointLightStableUUIDs_ =
+		std::move(nextGrid->pointLightStableUUIDs_);
+	return true;
+}
+
 bool SetPerformanceGridCommand::CreateGrid(
 	Engine::EditorCommandContext& context) {
 
@@ -280,12 +334,24 @@ bool SetPerformanceGridCommand::CreateGrid(
 			*world, previousRoot);
 	}
 
+	if (deleteGrid_) {
+
+		modelStableUUIDs_.clear();
+		pointLightStableUUIDs_.clear();
+		context.RebuildHierarchyAll();
+		if (context.editorState) {
+			context.editorState->SelectEntity(Engine::Entity::Null());
+		}
+		return true;
+	}
+
 	const size_t modelCount =
 		static_cast<size_t>(gridCountXZ_) *
 		static_cast<size_t>(gridCountXZ_) *
 		static_cast<size_t>(gridCountY_);
 	const size_t pointLightCount = CalculatePointLightCount(
-		gridCountXZ_, gridCountY_, placePointLights_);
+		gridCountXZ_, gridCountY_, placePointLights_,
+		pointLightCount_);
 	if (modelStableUUIDs_.empty()) {
 
 		modelStableUUIDs_.reserve(modelCount);
@@ -369,9 +435,24 @@ bool SetPerformanceGridCommand::CreateGrid(
 	};
 	size_t lightIndex = 0;
 	if (placePointLights_) {
+		const size_t totalCellCount =
+			static_cast<size_t>(gridCountXZ_ - 1) *
+			static_cast<size_t>(gridCountXZ_ - 1) *
+			static_cast<size_t>(gridCountY_);
+		size_t cellIndex = 0;
 		for (int32_t y = 0; y < gridCountY_; ++y) {
 			for (int32_t z = 0; z + 1 < gridCountXZ_; ++z) {
 				for (int32_t x = 0; x + 1 < gridCountXZ_; ++x) {
+
+					// 指定数のライトをグリッド全体から均等に選ぶ
+					const size_t previousSample =
+						cellIndex * pointLightCount / totalCellCount;
+					const size_t nextSample =
+						(cellIndex + 1) * pointLightCount / totalCellCount;
+					++cellIndex;
+					if (nextSample == previousSample) {
+						continue;
+					}
 
 					const Engine::Entity entity =
 						Engine::SceneAuthoring::CreateGameObject(
@@ -401,6 +482,8 @@ bool SetPerformanceGridCommand::CreateGrid(
 		}
 	}
 
+	// 大量生成中の個別通知順に依存せず、次のTransformSystem更新で部分木を一括計算する
+	Engine::MarkTransformSubtreeDirty(*world, root);
 	context.RebuildHierarchyAll();
 	if (context.editorState) {
 		context.editorState->SelectEntity(root);
@@ -514,6 +597,10 @@ void Engine::PerformanceCheckTool::DrawWindow(
 			"グリッド間にポイントライトを配置",
 			placePointLights_);
 		ImGui::BeginDisabled(!placePointLights_);
+		MyGUI::DragInt("配置数", pointLightCount_, {
+			.minValue = 1,
+			.maxValue = static_cast<int32_t>(kMaxEntityCount),
+			});
 		MyGUI::DragFloat("強度", pointLightIntensity_, {
 			.dragSpeed = 0.01f,
 			.minValue = 0.0f,
@@ -545,7 +632,8 @@ void Engine::PerformanceCheckTool::DrawWindow(
 			static_cast<uint64_t>(gridCountXZ_) *
 			static_cast<uint64_t>(gridCountY_) +
 			static_cast<uint64_t>(CalculatePointLightCount(
-				gridCountXZ_, gridCountY_, placePointLights_));
+				gridCountXZ_, gridCountY_, placePointLights_,
+				pointLightCount_));
 		if (entityCount > kMaxEntityCount) {
 
 			statusMessage_ = "配置できるエンティティ数は1000000までです";
@@ -576,7 +664,8 @@ void Engine::PerformanceCheckTool::DrawWindow(
 						sceneState.rootStableUUID, model_,
 						gridCountXZ_, gridCountY_, gridWidth_,
 						meshInfo.hasBones,
-						placePointLights_, pointLightIntensity_,
+						placePointLights_, pointLightCount_,
+						pointLightIntensity_,
 						pointLightRadius_, pointLightDecay_,
 						std::move(layout));
 				if (host->ExecuteEditorCommand(std::move(command))) {
@@ -601,7 +690,8 @@ void Engine::PerformanceCheckTool::DrawWindow(
 	if (ImGui::Button("削除", ImVec2(buttonWidth, 0.0f))) {
 
 		if (host->ExecuteEditorCommand(
-			std::make_unique<DeleteEntityCommand>(root))) {
+			std::make_unique<SetPerformanceGridCommand>(
+				sceneState.rootStableUUID))) {
 
 			statusMessage_ = "グリッドを削除しました";
 			statusError_ = false;
@@ -749,6 +839,9 @@ void Engine::PerformanceCheckTool::LoadSettings() {
 
 	placePointLights_ = data.value(
 		"placePointLights", placePointLights_);
+	pointLightCount_ = (std::clamp)(
+		data.value("pointLightCount", pointLightCount_),
+		1, static_cast<int32_t>(kMaxEntityCount));
 	pointLightIntensity_ = (std::clamp)(
 		data.value("pointLightIntensity", pointLightIntensity_),
 		0.0f, 128.0f);
@@ -769,6 +862,7 @@ void Engine::PerformanceCheckTool::SaveSettings() const {
 	data["gridWidth"] = gridWidth_;
 	data["model"] = ToAssetReferenceJson(model_);
 	data["placePointLights"] = placePointLights_;
+	data["pointLightCount"] = pointLightCount_;
 	data["pointLightIntensity"] = pointLightIntensity_;
 	data["pointLightRadius"] = pointLightRadius_;
 	data["pointLightDecay"] = pointLightDecay_;

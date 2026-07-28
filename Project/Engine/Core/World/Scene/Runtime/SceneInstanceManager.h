@@ -78,6 +78,10 @@ namespace Engine {
 		// 指定アセットのシーンインスタンスをファイルに保存する
 		bool Save(AssetDatabase& database, const SceneSystem& sceneSystem,
 			ECSWorld& world, AssetID sceneAsset) const;
+		// 指定された保存用Worldからシーン保存スナップショットを確定する
+		bool CaptureSave(AssetDatabase& database,
+			const SceneSystem& sceneSystem, ECSWorld& world,
+			AssetID sceneAsset, SceneSaveSnapshot& outSnapshot) const;
 
 		// シーンの処理を開始するときのスナップショット
 		nlohmann::json SerializeSnapshot(const SceneSystem& sceneSystem, ECSWorld& world) const;

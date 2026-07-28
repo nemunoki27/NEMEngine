@@ -10,10 +10,25 @@
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 
+// c++
+#include <mutex>
+#include <unordered_map>
+
 //============================================================================
 //	MeshSubMeshAuthoring classMethods
 //============================================================================
 namespace {
+
+	struct CachedMeshLayout {
+
+		uint64_t databaseRevision = 0;
+		std::vector<Engine::MeshSubMeshLayoutItem> layout{};
+		Engine::MeshAssetAuthoringInfo info{};
+	};
+
+	std::mutex gLayoutCacheMutex;
+	std::unordered_map<const Engine::AssetDatabase*,
+		std::unordered_map<Engine::AssetID, CachedMeshLayout>> gLayoutCaches;
 
 	// モデルのマテリアル係数とテクスチャをparameterOverridesへ流す、overwrite=falseは未設定のみ
 	bool ApplyLayoutItemToSubMesh(Engine::SubMeshMaterial& subMesh,
@@ -88,11 +103,32 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 	MeshAssetAuthoringInfo* outInfo) {
 
 	outLayout.clear();
+	MeshAssetAuthoringInfo resolvedInfo{};
 	if (outInfo) {
 		*outInfo = {};
 	}
 	if (!assetDatabase || !meshAssetID) {
 		return false;
+	}
+
+	const uint64_t databaseRevision =
+		assetDatabase->GetStructureRevision();
+	{
+		std::scoped_lock lock(gLayoutCacheMutex);
+		const auto databaseCache = gLayoutCaches.find(assetDatabase);
+		if (databaseCache != gLayoutCaches.end()) {
+
+			const auto cached = databaseCache->second.find(meshAssetID);
+			if (cached != databaseCache->second.end() &&
+				cached->second.databaseRevision == databaseRevision) {
+
+				outLayout = cached->second.layout;
+				if (outInfo) {
+					*outInfo = cached->second.info;
+				}
+				return true;
+			}
+		}
 	}
 
 	const std::filesystem::path fullPath = assetDatabase->ResolveFullPath(meshAssetID);
@@ -120,8 +156,8 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 		if (!mesh || mesh->mNumVertices == 0 || mesh->mNumFaces == 0) {
 			continue;
 		}
-		if (outInfo && mesh->HasBones()) {
-			outInfo->hasBones = true;
+		if (mesh->HasBones()) {
+			resolvedInfo.hasBones = true;
 		}
 
 		const aiMaterial* material = (mesh->mMaterialIndex < scene->mNumMaterials) ?
@@ -198,7 +234,32 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 
 		outLayout.emplace_back(std::move(item));
 	}
+	if (outInfo) {
+		*outInfo = resolvedInfo;
+	}
+	{
+		std::scoped_lock lock(gLayoutCacheMutex);
+		CachedMeshLayout& cached =
+			gLayoutCaches[assetDatabase][meshAssetID];
+		cached.databaseRevision =
+			assetDatabase->GetStructureRevision();
+		cached.layout = outLayout;
+		cached.info = resolvedInfo;
+	}
 	return true;
+}
+
+void Engine::MeshSubMeshAuthoring::InvalidateCachedLayout(
+	AssetID meshAssetID) {
+
+	if (!meshAssetID) {
+		return;
+	}
+	std::scoped_lock lock(gLayoutCacheMutex);
+	for (auto& [database, cache] : gLayoutCaches) {
+		(void)database;
+		cache.erase(meshAssetID);
+	}
 }
 
 bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(

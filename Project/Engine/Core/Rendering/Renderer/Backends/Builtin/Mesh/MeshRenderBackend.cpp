@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
@@ -202,6 +203,17 @@ void Engine::MeshRenderBackend::RequestMeshes(GraphicsCore& graphicsCore,
 	meshResourceManager_.FlushUploads();
 }
 
+bool Engine::MeshRenderBackend::AreMeshesReady(
+	std::span<const AssetID> meshAssets) const {
+
+	for (const AssetID meshAssetID : meshAssets) {
+		if (meshAssetID && !meshResourceManager_.Find(meshAssetID)) {
+			return false;
+		}
+	}
+	return true;
+}
+
 void Engine::MeshRenderBackend::PreloadMeshes(GraphicsCore& graphicsCore,
 	AssetDatabase& assetDatabase, std::span<const AssetID> meshAssets) {
 
@@ -228,6 +240,25 @@ void Engine::MeshRenderBackend::RequestMeshReload(AssetID meshAssetID) {
 
 void Engine::MeshRenderBackend::PreDispatchSkinningBatch(const RenderDrawContext& context,
 	std::span<const RenderItem* const> items) {
+
+	if (items.empty() || !context.batch || !context.assetDatabase) {
+		return;
+	}
+
+	const AssetID batchMesh = MeshDrawPathCommon::ResolveBatchMesh(*context.batch, items);
+	if (!batchMesh) {
+		return;
+	}
+	const MeshGPUResource* gpuMesh = meshResourceManager_.Find(batchMesh);
+	if (!gpuMesh) {
+
+		meshResourceManager_.RequestMesh(*context.assetDatabase, batchMesh);
+		gpuMesh = meshResourceManager_.Find(batchMesh);
+	}
+	// 静的メッシュはスキニング用バッチリソースを準備しない
+	if (!gpuMesh || !gpuMesh->isSkinned) {
+		return;
+	}
 
 	MeshPreparedBatch prepared{};
 	// 描画に必要なリソースを準備する
@@ -332,7 +363,7 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 
 	// 描画に使用するデータを取得
 	outPrepared = {};
-	outPrepared.items.assign(items.begin(), items.end());
+	outPrepared.items = items;
 	outPrepared.batchMesh = MeshDrawPathCommon::ResolveBatchMesh(*context.batch, items);
 	// バッチに使用するメッシュがない場合は描画できない
 	if (!outPrepared.batchMesh) {
@@ -418,6 +449,17 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 			resources = it->second.resources.get();
 			// SceneView/GameViewで行列が変わるため、キャッシュ済みでもView定数だけ更新する
 			resources->UpdateView(*context.view, context.cullingView);
+			const uint64_t transformRevision =
+				context.batch->GetSourceTransformRevision();
+			if (it->second.transformRevision != transformRevision) {
+
+				if (!resources->RefreshInstanceTransforms(
+					outPrepared.items)) {
+					resources->UploadBatchData(context, *context.batch,
+						outPrepared.items, *outPrepared.gpuMesh);
+				}
+				it->second.transformRevision = transformRevision;
+			}
 			resources->UploadCachedBatchData();
 			it->second.lastUsedFrame = frameIndex_;
 		} else {
@@ -428,6 +470,8 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 			entry.resources->UpdateView(*context.view, context.cullingView);
 			entry.resources->UploadBatchData(context, *context.batch, outPrepared.items, *outPrepared.gpuMesh);
 			entry.lastUsedFrame = frameIndex_;
+			entry.transformRevision =
+				context.batch->GetSourceTransformRevision();
 			// ErrorTexture使用中のバッチは、本テクスチャ読込後に作り直せるよう永続化しない
 			entry.persistent = !entry.resources->UsesFallbackTexture();
 
@@ -470,7 +514,8 @@ bool Engine::MeshRenderBackend::PrepareBatch(const RenderDrawContext& context,
 	}
 
 	// パイプライン取得と同時に解決済みバリアントを受け取り、パイプラインアセットの再ロードとバリアント再解決を避ける
-	outPrepared.pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass, &outPrepared.variant);
+	outPrepared.pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(
+		context, *resolvedPass.pass, &outPrepared.variant);
 	if (!outPrepared.pipelineState) {
 		return false;
 	}
@@ -614,29 +659,30 @@ uint64_t Engine::MeshRenderBackend::BuildStaticBatchHash(const RenderDrawContext
 	std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh) const {
 
 	uint64_t h = 1469598103934665603ull;
-	// ランタイム機能が変わるとGPUへ渡す定数も変わるためHashに含める
+	// 描画データ世代とバッチ識別子だけを使い、Transform変更時も同じキャッシュを再利用する
 	HashCombine(h, static_cast<uint64_t>(items.size()));
 	HashCombine(h, static_cast<uint64_t>(std::hash<AssetID>{}(gpuMesh.assetID)));
-	HashCombine(h, context.runtimeFeatures.useFrustumCulling ? 1ull : 0ull);
-	HashCombine(h, context.runtimeFeatures.useContributionCulling ? 1ull : 0ull);
-	HashCombine(h, context.runtimeFeatures.useNormalConeCulling ? 1ull : 0ull);
-	HashCombine(h, context.runtimeFeatures.useMeshShader ? 1ull : 0ull);
-	HashCombine(h, context.forceVertexMeshVariant ? 1ull : 0ull);
-	HashCombine(h, context.cullingView && context.cullingView->valid ? 1ull : 0ull);
-
-	for (const RenderItem* item : items) {
-		if (!item) {
-			continue;
-		}
-		// 抽出時に計算済みのアイテム内容ハッシュ(entity/material/blendMode/worldMatrix/outline/submesh)を混ぜる
-		HashCombine(h, item->contentHash);
+	HashCombine(h, context.batch ?
+		context.batch->GetSourceRenderRevision() : 0ull);
+	if (const RenderItem* first = items.front()) {
+		HashCombine(h, static_cast<uint64_t>(std::hash<AssetID>{}(first->material)));
+		HashCombine(h, first->batchKey);
+		HashCombine(h, static_cast<uint64_t>(first->renderPhase));
+		HashCombine(h, static_cast<uint64_t>(first->blendMode));
+		HashCombine(h, first->entity.index);
+		HashCombine(h, first->entity.generation);
+	}
+	if (const RenderItem* last = items.back()) {
+		HashCombine(h, last->entity.index);
+		HashCombine(h, last->entity.generation);
 	}
 	return h;
 }
 
 void Engine::MeshRenderBackend::PruneStaticBatchCache() {
 
-	static constexpr uint64_t kKeepFrameCount = 180;
+	static constexpr uint64_t kKeepFrameCount =
+		kGraphicsFrameContextCount;
 	for (auto it = staticBatchCache_.begin(); it != staticBatchCache_.end();) {
 
 		// 使われなくなったバッチやFallbackTexture中のバッチを破棄する
@@ -651,7 +697,8 @@ void Engine::MeshRenderBackend::PruneStaticBatchCache() {
 
 void Engine::MeshRenderBackend::PruneSkinnedBatchCache() {
 
-	static constexpr uint64_t kKeepFrameCount = 180;
+	static constexpr uint64_t kKeepFrameCount =
+		kGraphicsFrameContextCount;
 	for (auto it = skinnedBatchCache_.begin();
 		it != skinnedBatchCache_.end();) {
 

@@ -146,6 +146,8 @@ namespace Engine {
 		void AddComponentFromJson(const Entity& entity, const std::string_view& typeName, const nlohmann::json& data);
 		// 追加済みコンポーネントへjsonを適用
 		bool ApplyComponentJson(const Entity& entity, const std::string_view& typeName, const nlohmann::json& data);
+		// 保存対象Componentを同じEntity IDの独立Worldへ複製する
+		std::unique_ptr<ECSWorld> CloneForSerialization() const;
 		// エンティティのコンポーネントをjsonに変換
 		void SerializeEntityComponents(const Entity& entity, nlohmann::json& outComponents) const;
 		bool SerializeComponentToJson(const Entity& entity, const std::string_view& typeName, nlohmann::json& outData) const;
@@ -154,6 +156,12 @@ namespace Engine {
 		template <typename T>
 		void MarkComponentModified(const Entity& entity);
 		void MarkComponentModified(const Entity& entity, uint32_t typeID);
+		// 複数Componentの内部更新をまとめて描画抽出などへ通知する
+		void MarkDataModified();
+		// 描画構成と描画Transformの変更世代を個別に進める
+		void MarkRenderDataModified();
+		void MarkTransformConsumersModified(
+			ComponentChangeChannel channels);
 
 		// Component変更通知の購読を追加、削除する
 		uint64_t AddComponentMutationListener(ComponentMutationCallback callback, void* userData);
@@ -220,6 +228,21 @@ namespace Engine {
 		bool IsComponentEnabled(const Entity& entity) const;
 
 		ECSWorldKind GetKind() const { return kind_; }
+		// 構造またはComponent値が変わるたびに進む世代
+		uint64_t GetDataRevision() const { return dataRevision_; }
+		// 描画構成、描画Transform、ライト抽出の変更世代
+		uint64_t GetRenderDataRevision() const {
+			return renderDataRevision_;
+		}
+		uint64_t GetRenderTransformRevision() const {
+			return renderTransformRevision_;
+		}
+		uint64_t GetLightDataRevision() const {
+			return lightDataRevision_;
+		}
+		// EntityのTransformが影響する抽出先を返す
+		ComponentChangeChannel GetTransformChangeChannels(
+			const Entity& entity) const;
 		// 現在レコードされているエンティティの数を返す
 		uint32_t GetRecordCount() const { return static_cast<uint32_t>(records_.size()); }
 		// 現在のArchetype数を返す、ForEachが走査するArchetypeの数
@@ -281,6 +304,11 @@ namespace Engine {
 		};
 		std::vector<ComponentMutationListener> componentMutationListeners_;
 		uint64_t nextComponentMutationListenerID_ = 1;
+		// 0を未構築値として扱えるよう1から開始する
+		uint64_t dataRevision_ = 1;
+		uint64_t renderDataRevision_ = 1;
+		uint64_t renderTransformRevision_ = 1;
+		uint64_t lightDataRevision_ = 1;
 		// フレーム内の構造変更統計
 		uint64_t structuralMigrationCount_ = 0;
 		uint64_t relocatedComponentCount_ = 0;
@@ -303,6 +331,11 @@ namespace Engine {
 		EntityArchetype* GetOrCreateArchetype(const EntitySignature& signature);
 		// Component変更を購読側へ通知する
 		void NotifyComponentMutation(const Entity& entity, uint32_t typeID, ComponentMutationKind kind);
+		// Entityが持つComponentの値変更先をまとめる
+		ComponentChangeChannel GetChangeChannels(
+			const Entity& entity) const;
+		// 0を飛ばして変更世代を進める
+		static void IncrementRevision(uint64_t& revision);
 		// 指定エンティティから外れるチャンク外データを解放する
 		void ReleaseExternalComponents(const Entity& entity, const EntitySignature* retainedSignature);
 		// コンポーネントをこのワールドへ格納できるか
@@ -695,8 +728,12 @@ namespace Engine {
 		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
 		auto& location = records_[entity.index].location;
 		const uint32_t columnIndex = location.archetype->GetColumnIndex(typeID);
-		location.archetype->GetChunks()[location.chunkIndex]->SetEnabledByColumnIndex(
-			columnIndex, location.row, enabled);
+		EntityChunk* chunk = location.archetype->GetChunks()[location.chunkIndex].get();
+		if (chunk->IsEnabledByColumnIndex(columnIndex, location.row) == enabled) {
+			return;
+		}
+		chunk->SetEnabledByColumnIndex(columnIndex, location.row, enabled);
+		NotifyComponentMutation(entity, typeID, ComponentMutationKind::Modified);
 	}
 
 	template <typename T>

@@ -247,6 +247,14 @@ void* Engine::EntityChunk::GetRawByColumnIndex(uint32_t columnIndex, uint32_t ro
 	return GetPtr(layout_->columns[columnIndex], row);
 }
 
+const void* Engine::EntityChunk::GetRawByColumnIndex(
+	uint32_t columnIndex, uint32_t row) const {
+
+	assert(columnIndex < layout_->columns.size());
+	assert(row < GetCount());
+	return GetPtr(layout_->columns[columnIndex], row);
+}
+
 void* Engine::EntityChunk::GetColumnDataByColumnIndex(uint32_t columnIndex) {
 
 	assert(columnIndex < layout_->columns.size());

@@ -47,6 +47,8 @@ namespace Engine {
 		float lightIconHideDistance = 180.0f;
 		float lightIconMaxPixelSize = 200.0f;
 		float lightIconMinPixelSize = 0.0f;
+		// 形を判別できず黒点に見える小さなアイコンは描画しない
+		float lightIconCullPixelSize = 48.0f;
 		// 無効コンポーネントを半透明表示するためのアルファ
 		float disabledAlpha = 0.42f;
 		// 同一点に重なるOverlayを決定的に少しずらす量

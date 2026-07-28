@@ -12,6 +12,9 @@ void Engine::RenderSceneBatch::Clear() {
 
 	items_.clear();
 	payloadArena_.Clear();
+	sourceWorld_ = nullptr;
+	sourceRenderRevision_ = 0;
+	sourceTransformRevision_ = 0;
 }
 
 void Engine::RenderSceneBatch::Reserve(uint32_t itemCount, uint32_t payloadByteCount) {
@@ -72,4 +75,25 @@ void Engine::RenderSceneBatch::Sort() {
 		return itemA.entity.generation < itemB.entity.generation;
 		};
 	std::stable_sort(items_.begin(), items_.end(), less);
+}
+
+void Engine::RenderSceneBatch::SetSource(const ECSWorld* world,
+	uint64_t renderRevision, uint64_t transformRevision) {
+
+	sourceWorld_ = world;
+	sourceRenderRevision_ = renderRevision;
+	sourceTransformRevision_ = transformRevision;
+	++contentRevision_;
+	if (contentRevision_ == 0) {
+		contentRevision_ = 1;
+	}
+}
+
+void Engine::RenderSceneBatch::SetTransformSource(uint64_t transformRevision) {
+
+	sourceTransformRevision_ = transformRevision;
+	++contentRevision_;
+	if (contentRevision_ == 0) {
+		contentRevision_ = 1;
+	}
 }

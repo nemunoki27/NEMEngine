@@ -9,8 +9,10 @@
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/TopLevelAccelerationStructure.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h> 
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 // c++
+#include <array>
 #include <unordered_map>
 
 namespace Engine {
@@ -156,6 +158,7 @@ namespace Engine {
 			ImmutableIndexBuffer indexBuffer{};
 			BottomLevelAccelerationStructure blas{};
 			uint32_t builtGeneration = 0;
+			uint64_t lastUsedFrame = 0;
 
 			// SRVを解放する
 			void Release(SRVDescriptor* srvDescriptor) {
@@ -194,6 +197,7 @@ namespace Engine {
 			uint64_t bufferGeneration = 0;
 			uint64_t geometryLayoutHash = 0;
 			D3D12_GPU_VIRTUAL_ADDRESS vertexAddress = 0;
+			uint64_t lastUsedFrame = 0;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -240,6 +244,15 @@ namespace Engine {
 		// 1フレームで二重構築しないための制御フラグ
 		bool builtThisFrame_ = false;
 		UUID builtSceneInstanceID_{};
+		// 静的シーンはWorldとMesh GPUリソースが変わるまでCPU構築結果を再利用する
+		bool cachedStaticScene_ = false;
+		UUID cachedSceneInstanceID_{};
+		uint64_t cachedRenderRevision_ = 0;
+		uint64_t cachedMeshResourceRevision_ = 0;
+		uint32_t cachedBLASGeometryCount_ = 0;
+		uint32_t cachedTLASInstanceCount_ = 0;
+		std::array<uint64_t, kGraphicsFrameContextCount>
+			sceneUploadFrameSerials_ = { 0, 0, 0 };
 
 		//--------- functions ----------------------------------------------------
 
@@ -264,6 +277,8 @@ namespace Engine {
 			std::span<const RaytracingTLASInstance> instances);
 		// 既に構築済みのシーン情報を各ビューコンテキストに渡す
 		void PublishBuiltScene(SceneExecutionContext& context) const;
+		// 構築済みCPU配列を現在のフレームスロットへ一度だけ転送する
+		void UploadCachedSceneBuffers();
 
 	};
 } // Engine

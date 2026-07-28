@@ -39,7 +39,10 @@ namespace Engine {
 
 		// 3つの頂点インデックスを1つの32ビット整数にパックする
 		static uint32_t PackPrimitive(uint32_t i0, uint32_t i1, uint32_t i2);
+		// LOD0から3段階の簡略Indexを生成する
+		void BuildLODs(ImportedMeshAsset& mesh) const;
 		// サブメッシュの頂点とインデックスをもとにメッシュレットを構築する
-		void BuildSubMeshMeshlets(ImportedMeshAsset& mesh, uint32_t subMeshIndex) const;
+		void BuildSubMeshMeshlets(
+			ImportedMeshAsset& mesh, uint32_t subMeshIndex, uint32_t lodIndex) const;
 	};
 } // Engine

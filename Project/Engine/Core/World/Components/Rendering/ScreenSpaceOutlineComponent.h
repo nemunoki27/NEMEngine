@@ -37,6 +37,9 @@ namespace Engine {
 	// 画面空間アウトライン
 	struct ScreenSpaceOutlineComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+
 		// 有効か
 		bool enabled = true;
 

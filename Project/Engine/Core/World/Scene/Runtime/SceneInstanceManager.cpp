@@ -10,6 +10,7 @@
 // c++
 #include <algorithm>
 #include <cstdint>
+#include <utility>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -146,6 +147,19 @@ bool Engine::SceneInstanceManager::SaveActive(AssetDatabase& database, const Sce
 bool Engine::SceneInstanceManager::Save(AssetDatabase& database, const SceneSystem& sceneSystem,
 	ECSWorld& world, AssetID sceneAsset) const {
 
+	SceneSaveSnapshot snapshot{};
+	if (!CaptureSave(database, sceneSystem, world,
+		sceneAsset, snapshot)) {
+		return false;
+	}
+	return SceneSystem::WriteSaveSnapshot(std::move(snapshot));
+}
+
+bool Engine::SceneInstanceManager::CaptureSave(
+	AssetDatabase& database, const SceneSystem& sceneSystem,
+	ECSWorld& world, AssetID sceneAsset,
+	SceneSaveSnapshot& outSnapshot) const {
+
 	const auto it = std::find_if(scenes_.begin(), scenes_.end(),
 		[sceneAsset](const SceneInstance& scene) {
 			return scene.sceneAsset == sceneAsset;
@@ -160,7 +174,9 @@ bool Engine::SceneInstanceManager::Save(AssetDatabase& database, const SceneSyst
 	}
 
 	const std::vector<Entity> ownedEntities = CollectSceneEntities(world, *it);
-	return sceneSystem.SaveScene(fullPath, world, it->header, database, &ownedEntities);
+	return sceneSystem.CaptureSaveSnapshot(
+		fullPath, world, it->header, database,
+		outSnapshot, &ownedEntities);
 }
 
 nlohmann::json Engine::SceneInstanceManager::SerializeSnapshot(const SceneSystem& sceneSystem, ECSWorld& world) const {

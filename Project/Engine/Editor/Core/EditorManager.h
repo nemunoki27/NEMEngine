@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 // imgui
 #include <imgui.h>
@@ -100,6 +101,9 @@ namespace Engine {
 		EditorSceneRequest ConsumeSceneRequest();
 		// 指定シーンを保存済み状態にする
 		void MarkSceneSaved(AssetID sceneAsset);
+		// 保存開始時の変更世代と一致する場合だけ保存済み状態にする
+		void MarkSceneSaved(AssetID sceneAsset,
+			uint64_t dirtyRevision);
 		// 全シーンを保存済み状態にする
 		void MarkAllScenesSaved();
 		// シーン切り替え後の編集状態をリセットする
@@ -166,6 +170,8 @@ namespace Engine {
 		// エディタの状態の取得
 		const EditorLayoutState& GetLayoutState() const { return layoutState_; }
 		bool IsSceneDirty(AssetID sceneAsset) const;
+		uint64_t GetSceneDirtyRevision(
+			AssetID sceneAsset) const;
 		bool HasDirtyScenes() const { return !dirtySceneAssets_.empty(); }
 		const std::unordered_set<AssetID>& GetDirtySceneAssets() const { return dirtySceneAssets_; }
 
@@ -209,6 +215,9 @@ namespace Engine {
 		EditorUnsavedScenePopupResult closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
 		// 未保存の変更があるシーンアセット
 		std::unordered_set<AssetID> dirtySceneAssets_;
+		// 非同期保存中の再編集を保存済みにしないためのシーン別変更世代
+		std::unordered_map<AssetID, uint64_t> dirtySceneRevisions_;
+		uint64_t dirtySceneRevision_ = 0;
 		// パネル複製要求
 		std::string pendingDuplicatePanelID_;
 		// 次のフレーム開始時に適用するレイアウト

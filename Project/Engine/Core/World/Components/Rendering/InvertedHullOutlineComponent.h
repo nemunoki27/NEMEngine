@@ -35,6 +35,9 @@ namespace Engine {
 	// 背面法アウトライン描画
 	struct InvertedHullOutlineComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+
 		// 有効か
 		bool enabled = true;
 

@@ -67,13 +67,29 @@ void Engine::VertexMeshDrawPath::Draw(const MeshPathDrawContext& context) {
 
 	const auto& prepared = *context.prepared;
 
+	context.commandList->SetPipelineState(
+		prepared.pipelineState->GetGraphicsPipeline(
+			prepared.items.front()->blendMode));
+
+	// Pickingはクリック時だけ実行するため、LOD0の全インスタンスを直接描画する
+	// Indirectカリング用バッファを介さず元のEntity IDをそのままPSへ渡す
+	if (context.drawContext->passKind ==
+		MaterialPassKind::EditorPicking) {
+
+		context.commandList->DrawIndexedInstanced(
+			prepared.gpuMesh->lods[0].indexCount,
+			prepared.instanceCount,
+			prepared.gpuMesh->lods[0].indexOffset,
+			0, 0);
+		return;
+	}
+
 	EnsureCommandSignature(context.graphicsCore->GetDXObject().GetDevice());
 	// Index数は固定、Instance数や可視インスタンス配列はComputeで決定する
 	prepared.resources->UpdateIndexedIndirectArgsConstants(prepared.gpuMesh->indexCount);
 	if (!BuildIndexedIndirectArgs(context)) {
 		return;
 	}
-	context.commandList->SetPipelineState(prepared.pipelineState->GetGraphicsPipeline(prepared.items.front()->blendMode));
 
 	// VS側はカリング済みインスタンス配列を通常のgMeshInstancesとして読む
 	drawBindCache_.Sync(*prepared.pipelineState);
@@ -83,8 +99,8 @@ void Engine::VertexMeshDrawPath::Draw(const MeshPathDrawContext& context) {
 			prepared.resources->GetVisibleInstanceMeshSRVHandle());
 	}
 
-	// Computeで作成した引数を使って、マルチメッシュバッチを1回のIndirect Drawで描画する
-	context.commandList->ExecuteIndirect(commandSignature_.Get(), 1,
+	// ComputeでLOD別に作成した4コマンドを1回のIndirect実行で描画する
+	context.commandList->ExecuteIndirect(commandSignature_.Get(), kMeshLODCount,
 		prepared.resources->GetIndexedIndirectArgsResource(), 0, nullptr, 0);
 }
 

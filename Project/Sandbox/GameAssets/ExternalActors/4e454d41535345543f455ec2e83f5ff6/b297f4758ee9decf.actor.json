@@ -1,0 +1,103 @@
+{
+    "Components": {
+        "Hierarchy": {
+            "parentLocalFileID": "c5d2f888505e7111",
+            "siblingOrder": 4343
+        },
+        "MeshRenderer": {
+            "blendMode": "Normal",
+            "castReflection": true,
+            "castShadow": true,
+            "enableZPrepass": true,
+            "layer": 0,
+            "lighting": true,
+            "material": "",
+            "mesh": "4e454d41535345544195d8a0c7815abd",
+            "order": 0,
+            "queue": "Opaque",
+            "receiveIBL": true,
+            "receiveReflection": true,
+            "receiveShadow": true,
+            "subMeshes": [
+                {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    },
+                    "name": "球",
+                    "parameterOverrides": {
+                        "color": {
+                            "a": 1.0,
+                            "b": 0.6000000238418579,
+                            "g": 0.6000000238418579,
+                            "r": 0.6000000238418579
+                        },
+                        "emissiveColor": {
+                            "a": 1.0,
+                            "b": 0.0,
+                            "g": 0.0,
+                            "r": 0.0
+                        }
+                    },
+                    "sourcePivot": {
+                        "x": 5.066394805908203e-07,
+                        "y": 0.0,
+                        "z": 5.066394805908203e-07
+                    },
+                    "sourceSubMeshIndex": 0,
+                    "stableID": "1ad04d5642d4736e",
+                    "uvPos": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "uvRotation": 0.0,
+                    "uvScale": {
+                        "x": 1.0,
+                        "y": 1.0
+                    }
+                }
+            ],
+            "visible": true
+        },
+        "Name": {
+            "name": "PerformanceModel"
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "b297f4758ee9decf",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+            "localPos": {
+                "x": -14.0,
+                "y": 0.0,
+                "z": 94.0
+            },
+            "localRotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    },
+    "LocalFileID": "b297f4758ee9decf",
+    "SchemaVersion": 1
+}

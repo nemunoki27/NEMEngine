@@ -161,6 +161,11 @@ namespace Engine {
 	// プロシージャル形状を生成して描画
 	struct PrimitiveRendererComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Render;
+
 		// 描画する形状
 		PrimitiveType type = PrimitiveType::Plane;
 		// 描画空間、Plane/Ringのみ2D描画に切り替えられる

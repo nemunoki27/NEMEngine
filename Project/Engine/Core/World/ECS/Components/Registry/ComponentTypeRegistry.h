@@ -65,6 +65,24 @@ namespace Engine {
 		}
 
 		template <typename T>
+		consteval ComponentChangeChannel ResolveChangeChannels() {
+
+			if constexpr (requires { T::kChangeChannels; }) {
+				return T::kChangeChannels;
+			}
+			return ComponentChangeChannel::None;
+		}
+
+		template <typename T>
+		consteval ComponentChangeChannel ResolveTransformChannels() {
+
+			if constexpr (requires { T::kTransformChannels; }) {
+				return T::kTransformChannels;
+			}
+			return ComponentChangeChannel::None;
+		}
+
+		template <typename T>
 		consteval uint32_t ResolveInternalBufferCapacity() {
 
 			if constexpr (requires { T::kInternalBufferCapacity; }) {
@@ -139,6 +157,10 @@ namespace Engine {
 		info.worldDomain = ComponentTypeTraits::ResolveWorldDomain<T>();
 		info.enableable = ComponentTypeTraits::ResolveEnableable<T>();
 		info.serializable = ComponentTypeTraits::ResolveSerializable<T>();
+		info.changeChannels =
+			ComponentTypeTraits::ResolveChangeChannels<T>();
+		info.transformChannels =
+			ComponentTypeTraits::ResolveTransformChannels<T>();
 
 		if constexpr (
 			ComponentTypeTraits::ResolveStorageKind<T>() == ComponentStorageKind::Buffer) {
@@ -223,12 +245,23 @@ namespace Engine {
 		}
 		if constexpr (
 			ComponentTypeTraits::ResolveStorageKind<T>() == ComponentStorageKind::Buffer) {
+			info.copyConstruct = [](void* dst, const void* src) {
+				DynamicBufferStorage::Copy<T>(dst, src);
+				};
 			info.moveConstruct = [](void* dst, void* src) {
 				DynamicBufferStorage::Move<T>(dst, src);
 				};
 		} else if constexpr (std::is_trivially_copyable_v<T>) {
+			info.copyConstruct = [](void* dst, const void* src) {
+				std::memcpy(dst, src, sizeof(T));
+				};
 			info.moveConstruct = [](void* dst, void* src) { std::memcpy(dst, src, sizeof(T)); };
 		} else {
+			static_assert(std::is_copy_constructible_v<T>,
+				"ECS保存スナップショットにはコピー可能なComponentが必要です");
+			info.copyConstruct = [](void* dst, const void* src) {
+				new (dst) T(*static_cast<const T*>(src));
+				};
 			info.moveConstruct = [](void* dst, void* src) { new (dst) T(std::move(*(T*)src)); };
 		}
 		info.releaseExternal = []([[maybe_unused]] ECSWorld& world,

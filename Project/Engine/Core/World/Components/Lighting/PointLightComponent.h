@@ -14,6 +14,11 @@ namespace Engine {
 	// 点光源
 	struct PointLightComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Lighting;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Lighting;
+
 		// 色
 		Color4 color = Color4::White();
 

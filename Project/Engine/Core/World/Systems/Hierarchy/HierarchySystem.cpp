@@ -145,37 +145,44 @@ void Engine::HierarchySystem::RefreshActiveTree(ECSWorld& world, const Entity& r
 			parentActive = SceneObjectUtility::EnsureSceneObject(world, hierarchy.parent).activeInHierarchy;
 		}
 	}
-	RefreshActiveRecursive(world, root, parentActive);
+	if (RefreshActiveRecursive(world, root, parentActive)) {
+		// 再有効化された部分木は停止中に保持したlocal値からworldMatrixを再構築する
+		MarkTransformSubtreeDirty(world, root);
+	}
 }
 
-void Engine::HierarchySystem::RefreshActiveRecursive(ECSWorld& world, const Entity& entity, bool parentActive) {
+bool Engine::HierarchySystem::RefreshActiveRecursive(ECSWorld& world, const Entity& entity, bool parentActive) {
 
 	if (!world.IsAlive(entity)) {
-		return;
+		return false;
 	}
 
 	// 自身のアクティブ状態＝親がアクティブかつ自身が有効設定
 	auto& sceneObject = SceneObjectUtility::EnsureSceneObject(world, entity);
 	const bool activeInHierarchy = parentActive && sceneObject.activeSelf;
+	bool activated = false;
 	if (sceneObject.activeInHierarchy != activeInHierarchy) {
+		activated = activeInHierarchy;
 		sceneObject.activeInHierarchy = activeInHierarchy;
 		world.MarkComponentModified<SceneObjectComponent>(entity);
 	}
 	
 	if (!world.HasComponent<HierarchyComponent>(entity)) {
-		return;
+		return activated;
 	}
 
 	// 子に対しても再帰的に適用する、階層が深い場合はスタックオーバーフローに注意が必要だが通常は許容範囲
 	Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
 	while (child.IsValid() && world.IsAlive(child)) {
 
-		RefreshActiveRecursive(world, child, sceneObject.activeInHierarchy);
+		activated |= RefreshActiveRecursive(
+			world, child, sceneObject.activeInHierarchy);
 		if (!world.HasComponent<HierarchyComponent>(child)) {
 			break;
 		}
 		child = world.GetComponent<HierarchyComponent>(child).nextSibling;
 	}
+	return activated;
 }
 
 void Engine::HierarchySystem::UpdateActiveInHierarchy(ECSWorld& world, const Entity& entity) {

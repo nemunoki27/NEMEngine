@@ -20,6 +20,11 @@ namespace Engine {
 	// スプライト描画
 	struct SpriteRendererComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Render;
+
 		// マテリアル
 		AssetID material{};
 		// エンティティごとのマテリアルパラメータ

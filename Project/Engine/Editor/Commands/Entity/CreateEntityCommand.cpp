@@ -130,7 +130,7 @@ void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& ent
 		if (canvas) {
 			transform->localPos.x = canvas->referenceResolution.x * 0.5f;
 			transform->localPos.y = canvas->referenceResolution.y * 0.5f;
-			transform->isDirty = true;
+			MarkTransformSubtreeDirty(world, entity);
 		}
 	}
 

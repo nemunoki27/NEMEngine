@@ -15,6 +15,14 @@ namespace Engine {
 	// front
 	class AssetDatabase;
 
+	// 保存要求時点のWorldから確定したシーン保存データ
+	struct SceneSaveSnapshot {
+
+		std::filesystem::path scenePath;
+		AssetID sceneAsset{};
+		nlohmann::json root{};
+	};
+
 	//============================================================================
 	//	SceneSystem class
 	//	ECSWorldの内容をファイルへ保存/ファイルから読み込むクラス
@@ -35,6 +43,13 @@ namespace Engine {
 		bool SaveScene(const std::filesystem::path& scenePath, ECSWorld& world,
 			const SceneHeader& header, AssetDatabase& database,
 			const std::vector<Entity>* entitiesSubset = nullptr) const;
+		// ECSWorldから保存データを取得し、以降のファイル書き込みをワーカーへ渡せる状態にする
+		bool CaptureSaveSnapshot(const std::filesystem::path& scenePath,
+			ECSWorld& world, const SceneHeader& header,
+			AssetDatabase& database, SceneSaveSnapshot& outSnapshot,
+			const std::vector<Entity>* entitiesSubset = nullptr) const;
+		// 確定済みスナップショットをExternalActorとシーンファイルへ書き込む
+		static bool WriteSaveSnapshot(SceneSaveSnapshot snapshot);
 
 		// nlohmann::jsonスナップショット
 		nlohmann::json SerializeEntities(ECSWorld& world, const std::vector<Entity>* subset = nullptr) const;

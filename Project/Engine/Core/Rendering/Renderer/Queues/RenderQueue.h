@@ -144,8 +144,6 @@ namespace Engine {
 		AssetID material{};
 		// 描画アイテムの種類ごとのデータへのキー
 		uint64_t batchKey = 0;
-		// 静的バッチキャッシュキー用の内容ハッシュで抽出時に1度だけ計算する(Meshのみ使用)
-		uint64_t contentHash = 0;
 
 		// 描画に使用するカメラ
 		RenderCameraDomain cameraDomain = RenderCameraDomain::Perspective;
@@ -175,6 +173,11 @@ namespace Engine {
 		void Reserve(uint32_t itemCount, uint32_t payloadByteCount);
 		// 描画アイテムのソート
 		void Sort();
+		// 抽出元Worldと描画データ、Transform世代を記録する
+		void SetSource(const ECSWorld* world,
+			uint64_t renderRevision, uint64_t transformRevision);
+		// Transformだけを更新した世代を記録する
+		void SetTransformSource(uint64_t transformRevision);
 
 		// 描画アイテムのペイロードの追加
 		template<class T>
@@ -183,6 +186,18 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		const std::vector<RenderItem>& GetItems() const { return items_; }
+		std::vector<RenderItem>& GetMutableItems() { return items_; }
+		// Raytracing等が描画内容の変更検知に使用する世代
+		uint64_t GetSourceRevision() const { return contentRevision_; }
+		uint64_t GetSourceRenderRevision() const { return sourceRenderRevision_; }
+		uint64_t GetSourceTransformRevision() const { return sourceTransformRevision_; }
+		bool MatchesStructure(const ECSWorld* world, uint64_t renderRevision) const {
+			return sourceWorld_ == world &&
+				sourceRenderRevision_ == renderRevision;
+		}
+		bool MatchesTransforms(uint64_t transformRevision) const {
+			return sourceTransformRevision_ == transformRevision;
+		}
 
 		template<class T>
 		const T* GetPayload(const RenderItem& item) const { return payloadArena_.Get<T>(item.payload); }
@@ -195,6 +210,10 @@ namespace Engine {
 
 		std::vector<RenderItem> items_;
 		RenderPayloadArena payloadArena_{};
+		const ECSWorld* sourceWorld_ = nullptr;
+		uint64_t sourceRenderRevision_ = 0;
+		uint64_t sourceTransformRevision_ = 0;
+		uint64_t contentRevision_ = 0;
 	};
 } // Engine
 

@@ -27,7 +27,7 @@ void CameraShakeSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
 			// 前フレームの揺れを除去して基準座標へ戻す
 			if (runtime.offset != Vector3{}) {
 				transform.localPos -= runtime.offset;
-				transform.isDirty = true;
+				MarkTransformSubtreeDirty(world, entity);
 				runtime.offset = Vector3{};
 			}
 			// エンティティが有効か
@@ -60,7 +60,7 @@ void CameraShakeSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
 
 			// トランスフォームにオフセットを加算
 			transform.localPos += runtime.offset;
-			transform.isDirty = true;
+			MarkTransformSubtreeDirty(world, entity);
 
 			// 時間経過で終了
 			if (shake.duration <= runtime.time) {

@@ -63,7 +63,7 @@ namespace Engine {
 			kGraphicsFrameContextCount> resources_{};
 		std::array<uint8_t*, kGraphicsFrameContextCount> mappedData_{};
 		// 容量拡張前のリソースは使用中のGPUから切り離されるまで保持する
-		std::vector<ComPtr<ID3D12Resource>> retiredResources_{};
+		GraphicsDeferredReleaseQueue retiredResources_{};
 		size_t capacity_ = 0;
 	};
 
@@ -85,7 +85,7 @@ namespace Engine {
 			frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
 
 			if (resources_[frameIndex]) {
-				retiredResources_.emplace_back(std::move(resources_[frameIndex]));
+				retiredResources_.Retire(std::move(resources_[frameIndex]));
 			}
 			mappedData_[frameIndex] = nullptr;
 			DxUtils::CreateBufferResource(
@@ -108,6 +108,7 @@ namespace Engine {
 	inline void DxFrameMappedUploadBuffer::Write(
 		const void* data, size_t sizeInBytes, size_t offset) {
 
+		retiredResources_.Collect();
 		if (!data || sizeInBytes == 0) {
 			return;
 		}
@@ -124,7 +125,7 @@ namespace Engine {
 
 		resources_ = {};
 		mappedData_ = {};
-		retiredResources_.clear();
+		retiredResources_.Clear();
 		capacity_ = 0;
 	}
 } // Engine

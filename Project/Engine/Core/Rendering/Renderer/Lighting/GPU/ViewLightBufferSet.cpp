@@ -15,6 +15,43 @@
 //============================================================================
 namespace {
 
+	uint64_t HashBytes(uint64_t hash, const void* data, size_t size) {
+
+		const auto* bytes = static_cast<const uint8_t*>(data);
+		for (size_t i = 0; i < size; ++i) {
+			hash ^= bytes[i];
+			hash *= 1099511628211ull;
+		}
+		return hash;
+	}
+
+	uint64_t BuildViewHash(const Engine::PerViewLightSet& lightSet) {
+
+		uint64_t hash = 1469598103934665603ull;
+		if (!lightSet.view || !lightSet.camera) {
+			return hash;
+		}
+		hash = HashBytes(hash, &lightSet.view->valid,
+			sizeof(lightSet.view->valid));
+		hash = HashBytes(hash, &lightSet.view->width,
+			sizeof(lightSet.view->width));
+		hash = HashBytes(hash, &lightSet.view->height,
+			sizeof(lightSet.view->height));
+		hash = HashBytes(hash, &lightSet.camera->matrices.viewMatrix,
+			sizeof(lightSet.camera->matrices.viewMatrix));
+		hash = HashBytes(hash, &lightSet.camera->matrices.projectionMatrix,
+			sizeof(lightSet.camera->matrices.projectionMatrix));
+		hash = HashBytes(hash, &lightSet.camera->nearClip,
+			sizeof(lightSet.camera->nearClip));
+		hash = HashBytes(hash, &lightSet.camera->farClip,
+			sizeof(lightSet.camera->farClip));
+		hash = HashBytes(hash, &lightSet.camera->cullingMask,
+			sizeof(lightSet.camera->cullingMask));
+		hash = HashBytes(hash, &lightSet.sceneInstanceID,
+			sizeof(lightSet.sceneInstanceID));
+		return hash;
+	}
+
 	template <typename SrcPtrT, typename DstT, typename ConvertFn>
 	void FillLightScratch(const std::vector<const SrcPtrT*>& source,
 		std::vector<DstT>& scratch, ConvertFn&& convert) {
@@ -83,11 +120,28 @@ void Engine::ViewLightBufferSet::Release() {
 	clusterLightIndexScratch_.clear();
 	clusterCountScratch_.clear();
 	clusterCursorScratch_.clear();
+	clusterBoundsScratch_.clear();
+	lightCountsScratch_ = {};
+	clusterConstantsScratch_ = {};
+	cachedLightRevision_ = 0;
+	cachedViewHash_ = 0;
+	dataSerial_ = 0;
+	uploadedSerials_.fill(0);
+	cacheValid_ = false;
 
 	initialized_ = false;
 }
 
 void Engine::ViewLightBufferSet::Upload(const PerViewLightSet& lightSet) {
+
+	const uint64_t viewHash = BuildViewHash(lightSet);
+	if (cacheValid_ &&
+		cachedLightRevision_ == lightSet.sourceRevision &&
+		cachedViewHash_ == viewHash) {
+
+		UploadCachedBuffers();
+		return;
+	}
 
 	// ライト数を設定
 	LightCountsGPU counts{};
@@ -95,9 +149,7 @@ void Engine::ViewLightBufferSet::Upload(const PerViewLightSet& lightSet) {
 	counts.pointCount = lightSet.GetPointCount();
 	counts.spotCount = lightSet.GetSpotCount();
 	counts.localCount = lightSet.GetLocalLightCount();
-
-	// GPUへ転送
-	lightCounts_.Upload(counts);
+	lightCountsScratch_ = counts;
 
 	// 平行光源
 	FillLightScratch(lightSet.directionalLights, directionalScratch_,
@@ -115,11 +167,33 @@ void Engine::ViewLightBufferSet::Upload(const PerViewLightSet& lightSet) {
 			return ViewLightBufferSet::ToGPU(item);
 		});
 
-	// GPUへ転送
+	BuildClusters(lightSet);
+	cachedLightRevision_ = lightSet.sourceRevision;
+	cachedViewHash_ = viewHash;
+	cacheValid_ = true;
+	++dataSerial_;
+	if (dataSerial_ == 0) {
+		dataSerial_ = 1;
+	}
+	UploadCachedBuffers();
+}
+
+void Engine::ViewLightBufferSet::UploadCachedBuffers() {
+
+	const uint32_t frameIndex =
+		GraphicsFrameState::GetCurrentIndex();
+	if (uploadedSerials_[frameIndex] == dataSerial_) {
+		return;
+	}
+
+	lightCounts_.Upload(lightCountsScratch_);
 	directionalLights_.Upload(directionalScratch_);
 	pointLights_.Upload(pointScratch_);
 	spotLights_.Upload(spotScratch_);
-	BuildClusters(lightSet);
+	clusterConstants_.Upload(clusterConstantsScratch_);
+	clusterHeaders_.Upload(clusterHeaderScratch_);
+	clusterLightIndices_.Upload(clusterLightIndexScratch_);
+	uploadedSerials_[frameIndex] = dataSerial_;
 }
 
 void Engine::ViewLightBufferSet::RegisterTo(RenderBufferRegistry& registry) const {
@@ -162,19 +236,17 @@ void Engine::ViewLightBufferSet::BuildClusters(
 
 	constexpr uint32_t kTileSize = 32;
 	constexpr uint32_t kZSliceCount = 16;
-	constexpr uint32_t kMaxLightsPerCluster = 256;
 
 	LightClusterConstantsGPU constants{};
 	constants.tileSize = kTileSize;
 	constants.zSliceCount = kZSliceCount;
-	constants.maxLightsPerCluster = kMaxLightsPerCluster;
 	clusterHeaderScratch_.clear();
 	clusterLightIndexScratch_.clear();
 
 	if (!lightSet.view || !lightSet.camera ||
 		!lightSet.view->valid || !lightSet.camera->valid ||
 		lightSet.view->width == 0 || lightSet.view->height == 0) {
-		clusterConstants_.Upload(constants);
+		clusterConstantsScratch_ = constants;
 		FrameProfiler::GetInstance().SetClusterStatistics(
 			0, lightSet.GetLocalLightCount(), 0, 0);
 		return;
@@ -197,19 +269,8 @@ void Engine::ViewLightBufferSet::BuildClusters(
 		constants.tileCountX * constants.tileCountY * kZSliceCount;
 
 	clusterCountScratch_.assign(constants.clusterCount, 0);
-
-	struct ClusterBounds {
-
-		uint32_t minX = 0;
-		uint32_t maxX = 0;
-		uint32_t minY = 0;
-		uint32_t maxY = 0;
-		uint32_t minZ = 0;
-		uint32_t maxZ = 0;
-		uint32_t lightIndex = 0;
-	};
-	std::vector<ClusterBounds> boundsScratch{};
-	boundsScratch.reserve(lightSet.GetLocalLightCount());
+	clusterBoundsScratch_.clear();
+	clusterBoundsScratch_.reserve(lightSet.GetLocalLightCount());
 
 	auto depthToSlice = [&](float depth) {
 		const float slice = std::log2(
@@ -231,7 +292,7 @@ void Engine::ViewLightBufferSet::BuildClusters(
 			return;
 		}
 
-		ClusterBounds bounds{};
+		ClusterBoundsScratch bounds{};
 		bounds.lightIndex = lightIndex;
 		bounds.minZ = depthToSlice(
 			(std::max)(minDepth, constants.nearClip));
@@ -282,7 +343,7 @@ void Engine::ViewLightBufferSet::BuildClusters(
 			bounds.maxY = static_cast<uint32_t>(std::clamp(
 				maxTileY, 0, static_cast<int32_t>(constants.tileCountY - 1)));
 		}
-		boundsScratch.emplace_back(bounds);
+		clusterBoundsScratch_.emplace_back(bounds);
 		};
 
 	for (uint32_t index = 0;
@@ -301,7 +362,7 @@ void Engine::ViewLightBufferSet::BuildClusters(
 	}
 
 	uint32_t overflowCount = 0;
-	auto visitClusters = [&](const ClusterBounds& bounds, auto&& visit) {
+	auto visitClusters = [&](const ClusterBoundsScratch& bounds, auto&& visit) {
 		for (uint32_t z = bounds.minZ; z <= bounds.maxZ; ++z) {
 			for (uint32_t y = bounds.minY; y <= bounds.maxY; ++y) {
 				for (uint32_t x = bounds.minX; x <= bounds.maxX; ++x) {
@@ -313,19 +374,15 @@ void Engine::ViewLightBufferSet::BuildClusters(
 			}
 		}
 		};
-	for (const ClusterBounds& bounds : boundsScratch) {
+	for (const ClusterBoundsScratch& bounds : clusterBoundsScratch_) {
 		visitClusters(bounds, [&](uint32_t clusterIndex) {
-			uint32_t& count = clusterCountScratch_[clusterIndex];
-			if (count < kMaxLightsPerCluster) {
-				++count;
-			} else {
-				++overflowCount;
-			}
+			++clusterCountScratch_[clusterIndex];
 			});
 	}
 
 	clusterHeaderScratch_.resize(constants.clusterCount);
 	uint32_t totalIndexCount = 0;
+	uint32_t maxLightsPerCluster = 0;
 	for (uint32_t clusterIndex = 0;
 		clusterIndex < constants.clusterCount; ++clusterIndex) {
 		LightClusterHeaderGPU& header =
@@ -333,10 +390,13 @@ void Engine::ViewLightBufferSet::BuildClusters(
 		header.offset = totalIndexCount;
 		header.count = clusterCountScratch_[clusterIndex];
 		totalIndexCount += header.count;
+		maxLightsPerCluster = (std::max)(
+			maxLightsPerCluster, header.count);
 	}
+	constants.maxLightsPerCluster = maxLightsPerCluster;
 	clusterLightIndexScratch_.resize(totalIndexCount);
 	clusterCursorScratch_.assign(constants.clusterCount, 0);
-	for (const ClusterBounds& bounds : boundsScratch) {
+	for (const ClusterBoundsScratch& bounds : clusterBoundsScratch_) {
 		visitClusters(bounds, [&](uint32_t clusterIndex) {
 			uint32_t& cursor = clusterCursorScratch_[clusterIndex];
 			const LightClusterHeaderGPU& header =
@@ -345,13 +405,11 @@ void Engine::ViewLightBufferSet::BuildClusters(
 				clusterLightIndexScratch_[header.offset + cursor] =
 					bounds.lightIndex;
 				++cursor;
-			}
+		}
 			});
 	}
 
-	clusterConstants_.Upload(constants);
-	clusterHeaders_.Upload(clusterHeaderScratch_);
-	clusterLightIndices_.Upload(clusterLightIndexScratch_);
+	clusterConstantsScratch_ = constants;
 	FrameProfiler::GetInstance().SetClusterStatistics(
 		constants.clusterCount, lightSet.GetLocalLightCount(),
 		totalIndexCount, overflowCount);

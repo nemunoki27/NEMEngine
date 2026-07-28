@@ -26,6 +26,8 @@ namespace Engine {
 			ComponentStorageKind::Buffer;
 		static constexpr uint32_t kInternalBufferCapacity = 0;
 		static constexpr bool kSerializable = false;
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
 
 		Vector2 rectMin{};
 		Vector2 rectMax{};
@@ -39,6 +41,8 @@ namespace Engine {
 			ComponentStorageKind::Buffer;
 		static constexpr uint32_t kInternalBufferCapacity = 4;
 		static constexpr bool kSerializable = false;
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
 
 		Vector2 translation{};
 		// Z回転(度)
@@ -69,6 +73,10 @@ namespace Engine {
 	struct TextRendererComponent {
 
 		static constexpr bool kHasECSHooks = true;
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Render;
 
 		// フォント設定
 		AssetID font{};

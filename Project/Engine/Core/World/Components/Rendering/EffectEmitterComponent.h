@@ -139,6 +139,11 @@ namespace Engine {
 	// 複数のエフェクトグループを名前付きで再生する
 	struct EffectEmitterComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Render;
+
 		bool enabled = true;
 		std::vector<EffectEmitterGroup> groups{ EffectEmitterGroup{} };
 		std::string defaultGroup = "Default";

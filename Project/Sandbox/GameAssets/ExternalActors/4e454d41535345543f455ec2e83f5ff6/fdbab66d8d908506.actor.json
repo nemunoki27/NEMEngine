@@ -2,7 +2,7 @@
     "Components": {
         "Hierarchy": {
             "parentLocalFileID": "",
-            "siblingOrder": 3
+            "siblingOrder": 5
         },
         "Name": {
             "name": "Ground"
@@ -133,9 +133,9 @@
                 "z": 0.0
             },
             "localScale": {
-                "x": 320.0,
-                "y": 1.0,
-                "z": 320.0
+                "x": 1225.5999755859375,
+                "y": 3.8299999237060547,
+                "z": 1225.5999755859375
             }
         },
         "UVTransform": {

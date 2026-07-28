@@ -69,6 +69,8 @@ namespace Engine {
 			ComponentStorageKind::Buffer;
 		static constexpr uint32_t kInternalBufferCapacity = 0;
 		static constexpr bool kSerializable = false;
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
 
 		// 表示用の名前
 		std::string name;
@@ -99,6 +101,10 @@ namespace Engine {
 	struct MeshRendererComponent {
 
 		static constexpr bool kHasECSHooks = true;
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Render;
 
 		// メッシュ
 		AssetID mesh{};

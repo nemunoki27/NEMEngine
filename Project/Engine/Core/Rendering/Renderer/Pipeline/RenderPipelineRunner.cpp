@@ -797,8 +797,8 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		// スキニングメッシュの頂点更新
 		if (meshBackend) {
 			GPUFrameProfiler::GetInstance().BeginPass(commandList, viewName + "/Skinning");
-			PreDispatchVisibleMeshSkinning(graphicsCore, context,
-				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets_);
+			PreDispatchSceneMeshSkinning(graphicsCore, context,
+				renderBatch_, backendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_);
 			GPUFrameProfiler::GetInstance().EndPass(commandList);
 
 			// レイトレーシングシーンの構築
@@ -896,6 +896,8 @@ bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 		&gameViewState_.view : &view;
 	context.disableInlineRayTracing = true;
 	context.forceVertexMeshVariant = true;
+	// 通常SceneView描画で使ったGameViewカリング結果を再利用せず、クリック画素へ全対象を描く
+	context.disableMeshCulling = true;
 	context.world = lastRenderRequest_.world;
 	context.systemContext = lastRenderRequest_.systemContext;
 	context.assetDatabase = lastRenderRequest_.assetDatabase;

@@ -51,7 +51,7 @@ namespace Engine {
 		DxFrameMappedUploadBuffer instanceDescBuffer_;
 		AccelerationStructureBuffer scratch_;
 		AccelerationStructureBuffer result_;
-		std::vector<ComPtr<ID3D12Resource>> retiredResources_{};
+		GraphicsDeferredReleaseQueue retiredResources_{};
 
 		// ビルド記述
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs_{};

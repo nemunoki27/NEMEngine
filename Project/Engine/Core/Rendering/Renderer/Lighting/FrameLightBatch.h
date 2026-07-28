@@ -78,6 +78,8 @@ namespace Engine {
 
 		const ResolvedRenderView* view = nullptr;
 		const ResolvedCameraView* camera = nullptr;
+		UUID sceneInstanceID{};
+		uint64_t sourceRevision = 0;
 
 		std::vector<const DirectionalLightItem*> directionalLights;
 		std::vector<const PointLightItem*> pointLights;
@@ -120,6 +122,8 @@ namespace Engine {
 
 		// ソート
 		void Sort();
+		// 抽出元Worldと変更世代を記録する
+		void SetSource(const ECSWorld* world, uint64_t revision);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -133,6 +137,10 @@ namespace Engine {
 		uint32_t GetPointCount() const { return static_cast<uint32_t>(pointLights_.size()); }
 		uint32_t GetSpotCount() const { return static_cast<uint32_t>(spotLights_.size()); }
 		uint32_t GetTotalCount() const { return GetDirectionalCount() + GetPointCount() + GetSpotCount(); }
+		uint64_t GetSourceRevision() const { return sourceRevision_; }
+		bool MatchesSource(const ECSWorld* world, uint64_t revision) const {
+			return sourceWorld_ == world && sourceRevision_ == revision;
+		}
 	private:
 		//============================================================================
 		//	private Methods
@@ -143,5 +151,7 @@ namespace Engine {
 		std::vector<DirectionalLightItem> directionalLights_{};
 		std::vector<PointLightItem> pointLights_{};
 		std::vector<SpotLightItem> spotLights_{};
+		const ECSWorld* sourceWorld_ = nullptr;
+		uint64_t sourceRevision_ = 0;
 	};
 } // Engine

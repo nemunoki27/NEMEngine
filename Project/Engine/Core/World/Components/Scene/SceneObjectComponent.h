@@ -21,6 +21,10 @@ namespace Engine {
 	// 名前
 	struct SceneObjectComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render |
+			ComponentChangeChannel::Lighting;
+
 		// シーン、プレファブファイル内での永続ID
 		UUID localFileID{};
 

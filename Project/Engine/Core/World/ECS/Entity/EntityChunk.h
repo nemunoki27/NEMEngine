@@ -115,6 +115,8 @@ namespace Engine {
 		bool HasSpace() const { return GetCount() < GetCapacity(); }
 		// 指定行列のセルへのポインタを返す
 		void* GetRawByColumnIndex(uint32_t columnIndex, uint32_t row);
+		const void* GetRawByColumnIndex(
+			uint32_t columnIndex, uint32_t row) const;
 		// 指定列の先頭ポインタを返す
 		void* GetColumnDataByColumnIndex(uint32_t columnIndex);
 		// 指定行列の有効状態を設定する

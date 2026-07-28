@@ -72,6 +72,7 @@ namespace Engine {
 		AssetID model_{};
 
 		bool placePointLights_ = false;
+		int32_t pointLightCount_ = 200;
 		float pointLightIntensity_ = 1.0f;
 		float pointLightRadius_ = 8.0f;
 		float pointLightDecay_ = 1.0f;

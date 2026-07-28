@@ -6,8 +6,10 @@
 #include <Engine/Core/Foundation/Math/Color.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
+#include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 
 // c++
+#include <array>
 #include <cstdint>
 
 namespace Engine {
@@ -54,6 +56,15 @@ namespace Engine {
 		// ScreenPixels幅を含むバッチかどうか
 		uint32_t outlineHasScreenPixelWidth = 0;
 		uint32_t _reserved1[3] = { 0, 0, 0 };
+
+		// 連結Index/Meshletバッファ内の4段階LOD範囲
+		std::array<uint32_t, kMeshLODCount> lodIndexOffsets{};
+		std::array<uint32_t, kMeshLODCount> lodIndexCounts{};
+		std::array<uint32_t, kMeshLODCount> lodMeshletOffsets{};
+		std::array<uint32_t, kMeshLODCount> lodMeshletCounts{};
+		// 投影半径が閾値以上ならLOD0/1/2を選び、それ未満はLOD3にする
+		Vector3 lodPixelThresholds = Vector3(160.0f, 80.0f, 32.0f);
+		uint32_t lodCount = kMeshLODCount;
 	};
 	static_assert(sizeof(MeshDrawConstants) % 16 == 0);
 

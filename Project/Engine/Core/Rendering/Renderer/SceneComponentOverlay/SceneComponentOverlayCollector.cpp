@@ -152,6 +152,9 @@ namespace {
 		projection.screen += offset;
 
 		const float size = ComputeLightIconPixelSize(projection.distance, settings);
+		if (size < settings.lightIconCullPixelSize) {
+			return;
+		}
 		const Engine::Vector2 halfSize(size * 0.5f, size * 0.5f);
 
 		// PickerはこのrectMin/rectMaxと同じ矩形でCPU判定する

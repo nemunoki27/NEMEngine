@@ -22,6 +22,11 @@
 #include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 
+// c++
+#include <chrono>
+#include <future>
+#include <optional>
+
 namespace Engine {
 
 	// front
@@ -141,6 +146,18 @@ namespace Engine {
 		bool closeRequestPending_ = false;
 		bool handlingAssertAbort_ = false;
 
+		// 非同期シーン保存は押下時点の独立Worldをワーカーへ渡す
+		struct SceneSaveJob {
+
+			std::future<bool> result;
+			AssetID sceneAsset{};
+			uint64_t dirtyRevision = 0;
+			std::string scenePath;
+			std::chrono::steady_clock::time_point startedAt{};
+		};
+		std::optional<SceneSaveJob> sceneSaveJob_;
+		bool sceneSaveQueued_ = false;
+
 		//--------- functions ----------------------------------------------------
 
 		// システムの初期化
@@ -183,6 +200,10 @@ namespace Engine {
 		bool SaveActiveEditScene();
 		// エディタワールドで読み込み中のシーンを全て保存する
 		bool SaveAllEditScenes();
+		// 非同期保存の完了をメインスレッドへ反映する
+		bool FinishSceneSave(bool wait, bool* outSucceeded = nullptr);
+		void UpdateSceneSave();
+		bool WaitForSceneSave();
 		// 終了前の未保存確認結果を処理する
 		void HandleCloseRequestResult();
 		// 終了を確定して、必要ならウィンドウ破棄まで進める

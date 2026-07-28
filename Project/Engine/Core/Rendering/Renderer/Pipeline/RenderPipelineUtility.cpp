@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
 namespace Engine {
@@ -85,6 +86,33 @@ namespace Engine {
 				runDispatch(list.items);
 			}
 		}
+	}
+
+	void PreDispatchSceneMeshSkinning(GraphicsCore& graphicsCore,
+		const SceneExecutionContext& context, const RenderSceneBatch& renderBatch,
+		RenderBackendRegistry& backendRegistry, RenderAssetLibrary& assetLibrary,
+		PipelineStateCache& pipelineCache, MaterialResolver& materialResolver) {
+
+		if (!context.sceneInstance) {
+			return;
+		}
+
+		// BLAS構築対象と同じシーン内メッシュを収集し、GameViewにPerspectiveカメラがない場合も先に頂点を更新する
+		RenderPassPhaseBuckets sceneBuckets{};
+		const UUID sceneInstanceID = context.sceneInstance->instanceID;
+		for (const RenderItem& item : renderBatch.GetItems()) {
+
+			if (item.backendID != RenderBackendID::Mesh) {
+				continue;
+			}
+			if (sceneInstanceID && item.sceneInstanceID != sceneInstanceID) {
+				continue;
+			}
+			sceneBuckets.Get(item.renderPhase).items.emplace_back(&item);
+		}
+
+		PreDispatchVisibleMeshSkinning(graphicsCore, context, renderBatch,
+			backendRegistry, assetLibrary, pipelineCache, materialResolver, sceneBuckets);
 	}
 
 	void CollectVisibleMeshAssetsForView(const RenderSceneBatch& renderBatch,

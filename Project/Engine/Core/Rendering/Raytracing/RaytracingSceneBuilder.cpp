@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
@@ -170,6 +171,13 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	initialized_ = false;
 	builtThisFrame_ = false;
 	builtSceneInstanceID_ = {};
+	cachedStaticScene_ = false;
+	cachedSceneInstanceID_ = {};
+	cachedRenderRevision_ = 0;
+	cachedMeshResourceRevision_ = 0;
+	cachedBLASGeometryCount_ = 0;
+	cachedTLASInstanceCount_ = 0;
+	sceneUploadFrameSerials_ = { 0, 0, 0 };
 }
 
 void Engine::RaytracingSceneBuilder::BeginFrame(GraphicsCore& graphicsCore) {
@@ -181,6 +189,29 @@ void Engine::RaytracingSceneBuilder::BeginFrame(GraphicsCore& graphicsCore) {
 	// フラグリセット
 	builtThisFrame_ = false;
 	builtSceneInstanceID_ = {};
+
+	const uint64_t currentFrame =
+		GraphicsFrameState::GetFrameSerial();
+	auto expired = [currentFrame](uint64_t lastUsedFrame) {
+		return currentFrame >
+			lastUsedFrame + kGraphicsFrameContextCount;
+	};
+
+	// 削除済みEntityの動的BLASはGPU参照が切れる3フレーム後に破棄する
+	std::erase_if(dynamicBlases_, [&](const auto& pair) {
+		return expired(pair.second.lastUsedFrame);
+	});
+
+	for (auto it = fillMeshRTResources_.begin();
+		it != fillMeshRTResources_.end();) {
+
+		if (expired(it->second.lastUsedFrame)) {
+			it->second.Release(srvDescriptor_);
+			it = fillMeshRTResources_.erase(it);
+		} else {
+			++it;
+		}
+	}
 }
 
 void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
@@ -202,6 +233,25 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		PublishBuiltScene(context);
 		return;
 	}
+
+	const uint64_t meshResourceRevision =
+		meshBackend ? meshBackend->GetMeshResourceRevision() : 0;
+	if (cachedStaticScene_ &&
+		cachedSceneInstanceID_ == context.sceneInstance->instanceID &&
+		cachedRenderRevision_ == renderBatch.GetSourceRevision() &&
+		cachedMeshResourceRevision_ == meshResourceRevision &&
+		tlas_.IsBuilt()) {
+
+		UploadCachedSceneBuffers();
+		FrameProfiler::GetInstance().AddBLASSkip(cachedBLASGeometryCount_);
+		FrameProfiler::GetInstance().SetTLASInstanceCount(cachedTLASInstanceCount_);
+		FrameProfiler::GetInstance().AddTLASSkip();
+		builtThisFrame_ = true;
+		builtSceneInstanceID_ = context.sceneInstance->instanceID;
+		PublishBuiltScene(context);
+		return;
+	}
+	cachedStaticScene_ = false;
 
 	scenePickRecords_.clear();
 	scenePickRecordOffsets_.clear();
@@ -256,6 +306,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 	// BLASリソースを新規/作り直しした場合はTLASのrefitでは反映できないため完全再構築する
 	bool requireTlasRebuild = false;
+	bool staticScene = sceneFillMeshes.empty();
+	uint32_t blasGeometryCount = 0;
 
 	for (const CollectedMeshInstance& src : sceneMeshes) {
 
@@ -270,6 +322,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		if (meshResource->subMeshes.empty()) {
 			continue;
 		}
+		staticScene = staticScene && !meshResource->isSkinned;
+		blasGeometryCount += static_cast<uint32_t>(meshResource->subMeshes.size());
 		const std::span<const SubMeshMaterial> subMeshes =
 			src.world ? GetMeshSubMeshes(*src.world, src.entity) :
 			std::span<const SubMeshMaterial>{};
@@ -455,6 +509,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			key.reloadGeneration = reloadGeneration;
 
 			DynamicBLASEntry& entry = dynamicBlases_[key];
+			entry.lastUsedFrame =
+				GraphicsFrameState::GetFrameSerial();
 			if (!entry.blas.IsBuilt()) {
 
 				entry.blas.Build(device, commandList, input);
@@ -539,6 +595,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	for (const CollectedFillMeshInstance& src : sceneFillMeshes) {
 
 		const FillMeshRendererComponent& renderer = *src.renderer;
+		++blasGeometryCount;
 		const FillMeshRuntimeStateComponent* state =
 			src.world->TryGetComponent<FillMeshRuntimeStateComponent>(src.entity);
 		const uint32_t geometryGeneration =
@@ -549,6 +606,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		key.entity = src.entity;
 
 		FillMeshRaytracingResource& resource = fillMeshRTResources_[key];
+		resource.lastUsedFrame =
+			GraphicsFrameState::GetFrameSerial();
 		if (resource.builtGeneration != geometryGeneration || !resource.blas.IsBuilt()) {
 
 			if (!BuildFillMeshRaytracingResource(device, commandList, uploadService, src, resource)) {
@@ -607,6 +666,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	for (const CollectedPrimitiveInstance& src : scenePrimitives) {
 
 		const PrimitiveRendererComponent& renderer = *src.renderer;
+		++blasGeometryCount;
 
 		PrimitiveGeometry* geometry = primitiveGeometryManager->GetOrCreate(graphicsCore, src.geometryHash, renderer);
 		if (!geometry) {
@@ -680,6 +740,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	sceneInstances_.Upload(sceneInstanceScratch_);
 	sceneGeometries_.Upload(sceneGeometryScratch_);
 	sceneSubMeshes_.Upload(sceneSubMeshScratch_);
+	sceneUploadFrameSerials_[GraphicsFrameState::GetCurrentIndex()] =
+		GraphicsFrameState::GetFrameSerial();
 
 	// TLASの構築、BLASを新規/作り直しした場合はrefitでは反映できないため完全再構築する
 	const uint64_t tlasInstanceHash =
@@ -702,9 +764,29 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	// 構築済みにする
 	builtThisFrame_ = true;
 	builtSceneInstanceID_ = context.sceneInstance->instanceID;
+	cachedStaticScene_ = staticScene;
+	cachedSceneInstanceID_ = context.sceneInstance->instanceID;
+	cachedRenderRevision_ = renderBatch.GetSourceRevision();
+	cachedMeshResourceRevision_ = meshResourceRevision;
+	cachedBLASGeometryCount_ = blasGeometryCount;
+	cachedTLASInstanceCount_ = static_cast<uint32_t>(tlasInstances.size());
 
 	// 構築したシーン情報をコンテキストに渡す
 	PublishBuiltScene(context);
+}
+
+void Engine::RaytracingSceneBuilder::UploadCachedSceneBuffers() {
+
+	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
+	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
+	if (sceneUploadFrameSerials_[frameIndex] == frameSerial) {
+		return;
+	}
+
+	sceneInstances_.Upload(sceneInstanceScratch_);
+	sceneGeometries_.Upload(sceneGeometryScratch_);
+	sceneSubMeshes_.Upload(sceneSubMeshScratch_);
+	sceneUploadFrameSerials_[frameIndex] = frameSerial;
 }
 
 void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderSceneBatch& renderBatch,

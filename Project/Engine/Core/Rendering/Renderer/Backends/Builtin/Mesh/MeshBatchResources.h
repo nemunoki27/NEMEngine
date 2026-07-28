@@ -156,6 +156,9 @@ namespace Engine {
 		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView);
 		void UploadBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
 			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
+		// 静的バッチの構成を維持したままインスタンス行列だけを更新する
+		bool RefreshInstanceTransforms(
+			const std::span<const RenderItem* const>& items);
 		// 静的キャッシュが保持するCPU配列を現在のフレーム用バッファへ転送する
 		void UploadCachedBatchData();
 		// 描画パスごとに変わるMeshDrawConstantsを毎描画更新しキャッシュヒット時も必ず呼ぶ
@@ -297,6 +300,11 @@ namespace Engine {
 		// 同一フレーム内の複数パスで上書きしないper-draw定数領域
 		PostProcessConstantBufferAllocator dynamicConstantAllocator_{};
 		uint64_t dynamicConstantFrameSerial_ = 0;
+		// 内容が変わった静的配列だけ各Frame Contextへ転送する
+		uint64_t batchDataGeneration_ = 1;
+		std::array<uint64_t, kGraphicsFrameContextCount>
+			uploadedBatchDataGenerations_ = { 0, 0, 0 };
+		std::array<uint64_t, 2> viewUploadFrameSerials_ = { 0, 0 };
 		D3D12_GPU_VIRTUAL_ADDRESS drawGPUAddress_ = 0;
 		D3D12_GPU_VIRTUAL_ADDRESS screenSpaceOutlineMaskGPUAddress_ = 0;
 		D3D12_GPU_VIRTUAL_ADDRESS indirectArgsGPUAddress_ = 0;
@@ -319,6 +327,13 @@ namespace Engine {
 		bool subMeshParamAvailable_ = false;
 		// UploadBatchDataで集めるインスタンス×サブメッシュ単位の上書きパラメータ
 		std::vector<std::unordered_map<std::string, MaterialParameterValue>> subMeshParamScratch_{};
+		std::vector<uint8_t> subMeshParamPackedScratch_{};
+		uint64_t subMeshParamLayoutHash_ = 0;
+		const MaterialAsset* subMeshParamMaterial_ = nullptr;
+		bool subMeshParamDirty_ = true;
+		uint64_t subMeshParamDataGeneration_ = 1;
+		std::array<uint64_t, kGraphicsFrameContextCount>
+			uploadedSubMeshParamGenerations_ = { 0, 0, 0 };
 		ComPtr<ID3D12Resource> indexedIndirectArgs_{};
 		// ExecuteIndirect引数バッファの現在状態
 		D3D12_RESOURCE_STATES indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;

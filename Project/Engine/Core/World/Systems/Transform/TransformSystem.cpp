@@ -8,9 +8,35 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Foundation/Math/AffineDecompose.h>
 
+// c++
+#include <algorithm>
+
 //============================================================================
 //	TransformSystem classMethods
 //============================================================================
+void Engine::TransformSystem::OnWorldEnter(
+	ECSWorld& world, [[maybe_unused]] SystemContext& context) {
+
+	transformTypeID_ =
+		ComponentTypeRegistry::GetInstance().GetID<TransformComponent>();
+	mutationListenerID_ = world.AddComponentMutationListener(
+		&TransformSystem::OnComponentMutation, this);
+	QueueExistingDirtyTransforms(world);
+}
+
+void Engine::TransformSystem::OnWorldExit(
+	ECSWorld& world, [[maybe_unused]] SystemContext& context) {
+
+	if (mutationListenerID_ != 0) {
+		world.RemoveComponentMutationListener(mutationListenerID_);
+	}
+	mutationListenerID_ = 0;
+	transformTypeID_ = 0;
+	dirtyTransforms_.clear();
+	queuedTransforms_.clear();
+	stack_.clear();
+}
+
 void Engine::TransformSystem::FixedUpdate(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
 	UpdateTransforms(world);
@@ -21,10 +47,43 @@ void Engine::TransformSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] Syste
 	UpdateTransforms(world);
 }
 
-void Engine::TransformSystem::UpdateDirtySubtree(ECSWorld& world, const Entity& entity) {
+void Engine::TransformSystem::OnSceneInstancesChanged(
+	ECSWorld& world, [[maybe_unused]] SystemContext& context,
+	[[maybe_unused]] SceneChangePhase phase) {
+
+	QueueExistingDirtyTransforms(world);
+}
+
+void Engine::TransformSystem::OnComponentMutation(
+	[[maybe_unused]] ECSWorld& world, const Entity& entity,
+	uint32_t typeID, ComponentMutationKind kind, void* userData) {
+
+	auto* system = static_cast<TransformSystem*>(userData);
+	if (!system || typeID != system->transformTypeID_ ||
+		kind == ComponentMutationKind::Removed) {
+		return;
+	}
+	system->queuedTransforms_.emplace_back(entity);
+}
+
+void Engine::TransformSystem::QueueExistingDirtyTransforms(
+	ECSWorld& world) {
+
+	world.ForEach<TransformComponent>([&](
+		Entity entity, TransformComponent& transform) {
+		if (transform.isDirty) {
+			queuedTransforms_.emplace_back(entity);
+		}
+		});
+}
+
+Engine::ComponentChangeChannel Engine::TransformSystem::UpdateDirtySubtree(
+	ECSWorld& world, const Entity& entity) {
 
 	auto& transform = world.GetComponent<TransformComponent>(entity);
 	const auto& hierarchy = world.GetComponent<HierarchyComponent>(entity);
+	ComponentChangeChannel changedChannels =
+		world.GetTransformChangeChannels(entity);
 
 	// 階層先頭は現在の親ワールド行列から更新する
 	if (hierarchy.parent.IsValid() && world.IsAlive(hierarchy.parent) &&
@@ -84,6 +143,8 @@ void Engine::TransformSystem::UpdateDirtySubtree(ECSWorld& world, const Entity& 
 					childTransform->ignoreParentScale, childTransform->ignoreParentRotation);
 				childTransform->worldMatrix = MakeLocalMatrix(*childTransform) * followParent;
 				childTransform->isDirty = false;
+				changedChannels |=
+					world.GetTransformChangeChannels(child);
 			} else {
 
 				childTransform->isDirty = true;
@@ -92,23 +153,37 @@ void Engine::TransformSystem::UpdateDirtySubtree(ECSWorld& world, const Entity& 
 			child = nextSibling;
 		}
 	}
+	return changedChannels;
 }
 
 void Engine::TransformSystem::UpdateTransforms(ECSWorld& world) {
 
+	if (queuedTransforms_.empty()) {
+		return;
+	}
+
 	dirtyTransforms_.clear();
-	// 連続配置されたTransform列からdirtyなエンティティだけを集める
-	world.ForEach<TransformComponent, HierarchyComponent>([&](
-		Entity entity, TransformComponent& transform, HierarchyComponent&) {
-			if (transform.isDirty && IsEntityActiveInHierarchy(world, entity)) {
-				dirtyTransforms_.emplace_back(entity);
+	dirtyTransforms_.swap(queuedTransforms_);
+	std::sort(dirtyTransforms_.begin(), dirtyTransforms_.end(),
+		[](const Entity& lhs, const Entity& rhs) {
+			if (lhs.index != rhs.index) {
+				return lhs.index < rhs.index;
 			}
+			return lhs.generation < rhs.generation;
 		});
+	dirtyTransforms_.erase(
+		std::unique(dirtyTransforms_.begin(), dirtyTransforms_.end()),
+		dirtyTransforms_.end());
+
+	bool updated = false;
+	ComponentChangeChannel changedChannels =
+		ComponentChangeChannel::None;
 	for (const Entity entity : dirtyTransforms_) {
 
 		if (!world.IsAlive(entity) ||
 			!world.HasComponent<TransformComponent>(entity) ||
-			!world.HasComponent<HierarchyComponent>(entity)) {
+			!world.HasComponent<HierarchyComponent>(entity) ||
+			!IsEntityActiveInHierarchy(world, entity)) {
 			continue;
 		}
 		auto& transform = world.GetComponent<TransformComponent>(entity);
@@ -125,6 +200,12 @@ void Engine::TransformSystem::UpdateTransforms(ECSWorld& world) {
 			IsEntityActiveInHierarchy(world, hierarchy.parent)) {
 			continue;
 		}
-		UpdateDirtySubtree(world, entity);
+		changedChannels |= UpdateDirtySubtree(world, entity);
+		updated = true;
+	}
+	if (updated) {
+		// 部分木内の全Transformを個別通知せず、影響する抽出世代だけを一度進める
+		world.MarkDataModified();
+		world.MarkTransformConsumersModified(changedChannels);
 	}
 }

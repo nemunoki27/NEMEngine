@@ -47,6 +47,8 @@ namespace Engine {
 
 		// メッシュアセットのGPUリソースを取得
 		const MeshGPUResource* Find(AssetID meshAssetID) const;
+		// GPUメッシュの追加、再読込、破棄で進む世代
+		uint64_t GetResourceRevision() const { return resourceRevision_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -70,6 +72,7 @@ namespace Engine {
 		std::unordered_set<AssetID> requested_;
 		// メッシュごとのホットリロード世代、リロード要求のたびに増やす
 		std::unordered_map<AssetID, uint32_t> reloadGeneration_;
+		uint64_t resourceRevision_ = 1;
 
 		//--------- functions ----------------------------------------------------
 

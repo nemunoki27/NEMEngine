@@ -14,6 +14,9 @@ namespace Engine {
 	// カメラ方向へ向ける回転軸設定
 	struct BillboardComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+
 		// 回転を許可する軸のビット
 		uint8_t axisMask = 0x07;
 	};

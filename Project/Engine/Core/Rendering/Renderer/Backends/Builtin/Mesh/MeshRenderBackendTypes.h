@@ -24,7 +24,8 @@ namespace Engine {
 	// メッシュ描画のために準備されたバッチ
 	struct MeshPreparedBatch {
 
-		std::vector<const RenderItem*> items{};
+		// DrawBatch呼び出し中だけ有効なRenderQueue側の連続参照
+		std::span<const RenderItem* const> items{};
 
 		AssetID batchMesh{};
 

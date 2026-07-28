@@ -436,7 +436,7 @@ namespace {
 		}
 		if (auto* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
 			transform->localScale = runtime.baseScale;
-			transform->isDirty = true;
+			Engine::MarkTransformSubtreeDirty(world, entity);
 		}
 		runtime.currentColor = runtime.baseColor;
 		runtime.startColor = runtime.baseColor;
@@ -839,7 +839,7 @@ namespace {
 		if (auto* transform = world.TryGetComponent<Engine::TransformComponent>(entry.entity)) {
 			if (transform->localScale != runtime.currentScale) {
 				transform->localScale = runtime.currentScale;
-				transform->isDirty = true;
+				Engine::MarkTransformSubtreeDirty(world, entry.entity);
 			}
 		}
 	}
