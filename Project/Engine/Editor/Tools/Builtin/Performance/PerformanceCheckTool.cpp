@@ -180,6 +180,9 @@ namespace {
 
 		// グリッドを現在の編集ワールドへ生成する
 		bool CreateGrid(Engine::EditorCommandContext& context);
+		// 同数の生成済みエンティティを破棄せず設定だけ更新する
+		bool TryUpdateGrid(Engine::EditorCommandContext& context,
+			const Engine::Entity& root);
 		// エンティティへ現在のシーン所属を設定する
 		void SetSceneOwner(const Engine::EditorCommandContext& context,
 			Engine::ECSWorld& world, const Engine::Entity& entity) const;
@@ -306,6 +309,194 @@ bool SetPerformanceGridCommand::ExecuteCoalesced(
 	return true;
 }
 
+bool SetPerformanceGridCommand::TryUpdateGrid(
+	Engine::EditorCommandContext& context,
+	const Engine::Entity& root) {
+
+	Engine::ECSWorld* world = context.GetWorld();
+	const Engine::HierarchyComponent* rootHierarchy = world ?
+		world->TryGetComponent<Engine::HierarchyComponent>(root) : nullptr;
+	if (!world || !rootHierarchy) {
+		return false;
+	}
+
+	std::vector<Engine::Entity> modelEntities;
+	std::vector<Engine::Entity> pointLightEntities;
+	Engine::Entity child = rootHierarchy->firstChild;
+	while (world->IsAlive(child)) {
+
+		const Engine::HierarchyComponent* childHierarchy =
+			world->TryGetComponent<Engine::HierarchyComponent>(child);
+		const Engine::Entity next = childHierarchy ?
+			childHierarchy->nextSibling : Engine::Entity::Null();
+		const bool hasRenderer =
+			world->HasComponent<Engine::MeshRendererComponent>(child);
+		const bool hasPointLight =
+			world->HasComponent<Engine::PointLightComponent>(child);
+		if (hasRenderer == hasPointLight) {
+			return false;
+		}
+		if (hasRenderer) {
+
+			const bool hasAnimation =
+				world->HasComponent<Engine::SkinnedAnimationComponent>(child);
+			const bool hasAnimationRuntime =
+				world->HasComponent<
+					Engine::SkinnedAnimationRuntimeComponent>(child);
+			if (hasAnimation != playSkinnedAnimation_ ||
+				hasAnimationRuntime != playSkinnedAnimation_) {
+				return false;
+			}
+			modelEntities.emplace_back(child);
+		} else {
+			pointLightEntities.emplace_back(child);
+		}
+		child = next;
+	}
+
+	const size_t modelCount =
+		static_cast<size_t>(gridCountXZ_) *
+		static_cast<size_t>(gridCountXZ_) *
+		static_cast<size_t>(gridCountY_);
+	const size_t pointLightCount = CalculatePointLightCount(
+		gridCountXZ_, gridCountY_, placePointLights_,
+		pointLightCount_);
+	if (modelEntities.size() != modelCount ||
+		pointLightEntities.size() != pointLightCount) {
+		return false;
+	}
+
+	modelStableUUIDs_.clear();
+	modelStableUUIDs_.reserve(modelCount);
+	pointLightStableUUIDs_.clear();
+	pointLightStableUUIDs_.reserve(pointLightCount);
+	for (const Engine::Entity& entity : modelEntities) {
+		modelStableUUIDs_.emplace_back(world->GetUUID(entity));
+	}
+	for (const Engine::Entity& entity : pointLightEntities) {
+		pointLightStableUUIDs_.emplace_back(world->GetUUID(entity));
+	}
+
+	std::vector<Engine::SubMeshMaterial> subMeshes;
+	bool requiresMeshUpdate = false;
+	for (const Engine::Entity& entity : modelEntities) {
+		if (world->GetComponent<
+			Engine::MeshRendererComponent>(entity).mesh != model_) {
+			requiresMeshUpdate = true;
+			break;
+		}
+	}
+	if (requiresMeshUpdate) {
+		Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
+			layout_, subMeshes, false);
+	}
+
+	const float startX =
+		-static_cast<float>(gridCountXZ_ - 1) * gridWidth_ * 0.5f;
+	const float startZ =
+		-static_cast<float>(gridCountXZ_ - 1) * gridWidth_ * 0.5f;
+	bool transformChanged = false;
+	size_t entityIndex = 0;
+	for (int32_t y = 0; y < gridCountY_; ++y) {
+		for (int32_t z = 0; z < gridCountXZ_; ++z) {
+			for (int32_t x = 0; x < gridCountXZ_; ++x) {
+
+				const Engine::Entity entity =
+					modelEntities[entityIndex++];
+				auto& transform =
+					world->GetComponent<Engine::TransformComponent>(entity);
+				const Engine::Vector3 localPos(
+					startX + static_cast<float>(x) * gridWidth_,
+					static_cast<float>(y) * gridWidth_,
+					startZ + static_cast<float>(z) * gridWidth_);
+				if (transform.localPos != localPos) {
+					transform.localPos = localPos;
+					transformChanged = true;
+				}
+
+				auto& renderer =
+					world->GetComponent<
+						Engine::MeshRendererComponent>(entity);
+				if (renderer.mesh != model_) {
+					renderer.mesh = model_;
+					renderer.material = {};
+					renderer.queue = Engine::RenderPhase::Opaque;
+					renderer.visible = true;
+					renderer.enableZPrepass = true;
+					world->MarkComponentModified<
+						Engine::MeshRendererComponent>(entity);
+					Engine::SetMeshSubMeshes(
+						*world, entity, subMeshes);
+				}
+			}
+		}
+	}
+
+	size_t lightIndex = 0;
+	if (placePointLights_) {
+		const size_t totalCellCount =
+			static_cast<size_t>(gridCountXZ_ - 1) *
+			static_cast<size_t>(gridCountXZ_ - 1) *
+			static_cast<size_t>(gridCountY_);
+		size_t cellIndex = 0;
+		for (int32_t y = 0; y < gridCountY_; ++y) {
+			for (int32_t z = 0; z + 1 < gridCountXZ_; ++z) {
+				for (int32_t x = 0; x + 1 < gridCountXZ_; ++x) {
+
+					const size_t previousSample =
+						cellIndex * pointLightCount / totalCellCount;
+					const size_t nextSample =
+						(cellIndex + 1) * pointLightCount / totalCellCount;
+					++cellIndex;
+					if (nextSample == previousSample) {
+						continue;
+					}
+
+					const Engine::Entity entity =
+						pointLightEntities[lightIndex];
+					auto& transform =
+						world->GetComponent<
+							Engine::TransformComponent>(entity);
+					const Engine::Vector3 localPos(
+						startX +
+							(static_cast<float>(x) + 0.5f) * gridWidth_,
+						static_cast<float>(y) * gridWidth_,
+						startZ +
+							(static_cast<float>(z) + 0.5f) * gridWidth_);
+					if (transform.localPos != localPos) {
+						transform.localPos = localPos;
+						transformChanged = true;
+					}
+
+					auto& light =
+						world->GetComponent<
+							Engine::PointLightComponent>(entity);
+					const Engine::Color4 color =
+						MakeGamingColor(lightIndex);
+					if (light.color != color ||
+						light.intensity != pointLightIntensity_ ||
+						light.radius != pointLightRadius_ ||
+						light.decay != pointLightDecay_) {
+
+						light.color = color;
+						light.intensity = pointLightIntensity_;
+						light.radius = pointLightRadius_;
+						light.decay = pointLightDecay_;
+						world->MarkComponentModified<
+							Engine::PointLightComponent>(entity);
+					}
+					++lightIndex;
+				}
+			}
+		}
+	}
+
+	if (transformChanged) {
+		Engine::MarkTransformSubtreeDirty(*world, root);
+	}
+	return true;
+}
+
 bool SetPerformanceGridCommand::CreateGrid(
 	Engine::EditorCommandContext& context) {
 
@@ -329,6 +520,12 @@ bool SetPerformanceGridCommand::CreateGrid(
 			trackedRoot) == previousRoots.end()) {
 
 		previousRoots.emplace_back(trackedRoot);
+	}
+	if (!deleteGrid_ && world->IsAlive(trackedRoot) &&
+		previousRoots.size() == 1 &&
+		previousRoots.front() == trackedRoot &&
+		TryUpdateGrid(context, trackedRoot)) {
+		return true;
 	}
 	for (const Engine::Entity& previousRoot : previousRoots) {
 		Engine::EditorEntitySnapshotUtility::DestroySubtree(

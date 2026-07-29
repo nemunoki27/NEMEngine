@@ -21,6 +21,7 @@ namespace Engine {
 		std::filesystem::path scenePath;
 		AssetID sceneAsset{};
 		nlohmann::json root{};
+		bool useExternalActors = false;
 	};
 
 	//============================================================================
@@ -48,7 +49,7 @@ namespace Engine {
 			ECSWorld& world, const SceneHeader& header,
 			AssetDatabase& database, SceneSaveSnapshot& outSnapshot,
 			const std::vector<Entity>* entitiesSubset = nullptr) const;
-		// 確定済みスナップショットをExternalActorとシーンファイルへ書き込む
+		// 確定済みスナップショットをプロジェクト指定の保存形式で書き込む
 		static bool WriteSaveSnapshot(SceneSaveSnapshot snapshot);
 
 		// nlohmann::jsonスナップショット

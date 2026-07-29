@@ -111,6 +111,15 @@ namespace {
 		}
 		return hash;
 	}
+
+	// 大量の配置変更ではrefit後のBVH品質が落ちるためTLASを再構築する
+	bool RequiresTLASRebuildForTraceQuality(
+		size_t instanceCount, uint32_t changedInstanceCount) {
+
+		return 256 <= changedInstanceCount &&
+			instanceCount <=
+				static_cast<size_t>(changedInstanceCount) * 4;
+	}
 }
 
 //============================================================================
@@ -264,6 +273,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		!cachedTLASInstances_.empty()) {
 
 		bool transformChanged = false;
+		uint32_t changedInstanceCount = 0;
 		for (const RenderTransformChange& change :
 			renderBatch.GetTransformChanges()) {
 			SceneEntityKey key{};
@@ -281,6 +291,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				instance.worldMatrix =
 					change.worldMatrix;
 				transformChanged = true;
+				++changedInstanceCount;
 			}
 		}
 
@@ -288,9 +299,22 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			ID3D12GraphicsCommandList6* commandList =
 				graphicsCore.GetDXObject().GetDxCommand()->
 				GetCommandList();
-			tlas_.Update(
-				commandList, cachedTLASInstances_);
-			FrameProfiler::GetInstance().AddTLASRefit();
+			const bool rebuildForTraceQuality =
+				RequiresTLASRebuildForTraceQuality(
+					cachedTLASInstances_.size(),
+					changedInstanceCount);
+			if (rebuildForTraceQuality) {
+
+				tlas_.Build(
+					graphicsCore.GetDXObject().GetDevice(),
+					commandList, cachedTLASInstances_, true);
+				FrameProfiler::GetInstance().AddTLASBuild();
+			} else {
+
+				tlas_.Update(
+					commandList, cachedTLASInstances_);
+				FrameProfiler::GetInstance().AddTLASRefit();
+			}
 		} else {
 			FrameProfiler::GetInstance().AddTLASSkip();
 		}
@@ -821,7 +845,34 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	// TLASの構築、BLASを新規/作り直しした場合はrefitでは反映できないため完全再構築する
 	const uint64_t tlasInstanceHash =
 		ComputeTLASInstanceHash(tlasInstances);
-	if (firstTLASBuild_ || !tlas_.IsBuilt() || requireTlasRebuild) {
+	uint32_t changedInstanceCount = 0;
+	if (cachedTLASInstances_.size() == tlasInstances.size()) {
+		for (size_t index = 0;
+			index < tlasInstances.size(); ++index) {
+
+			const RaytracingTLASInstance& previous =
+				cachedTLASInstances_[index];
+			const RaytracingTLASInstance& current =
+				tlasInstances[index];
+			if (previous.blas != current.blas ||
+				previous.instanceID != current.instanceID ||
+				previous.hitGroupIndex != current.hitGroupIndex ||
+				previous.mask != current.mask ||
+				previous.flags != current.flags ||
+				previous.worldMatrix != current.worldMatrix) {
+				++changedInstanceCount;
+			}
+		}
+	}
+	const bool instanceCountChanged =
+		tlas_.IsBuilt() &&
+		cachedTLASInstanceCount_ != tlasInstances.size();
+	const bool rebuildForTraceQuality =
+		RequiresTLASRebuildForTraceQuality(
+			tlasInstances.size(), changedInstanceCount);
+	if (firstTLASBuild_ || !tlas_.IsBuilt() ||
+		requireTlasRebuild || instanceCountChanged ||
+		rebuildForTraceQuality) {
 
 		tlas_.Build(device, commandList, tlasInstances, true);
 		firstTLASBuild_ = false;

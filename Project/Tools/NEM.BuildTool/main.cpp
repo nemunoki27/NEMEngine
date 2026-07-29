@@ -16,6 +16,7 @@
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 
 namespace {
 
@@ -48,12 +49,19 @@ namespace {
 	bool CanonicalizeSceneFile(const std::filesystem::path& path) {
 
 		nlohmann::json root = Engine::JsonAdapter::Load(path);
-		if (!root.is_object() ||
-			root.value("SchemaVersion", 0u) != 3u ||
+		if (!root.is_object()) {
+			return false;
+		}
+		const bool hasExternalActors =
+			root.contains("ExternalActors") &&
+			root["ExternalActors"].is_array();
+		const bool hasEntities =
+			root.contains("Entities") &&
+			root["Entities"].is_array();
+		if (root.value("SchemaVersion", 0u) != 3u ||
 			!root.contains("Header") || !root["Header"].is_object() ||
-			!root.contains("ExternalActors") || !root["ExternalActors"].is_array() ||
 			!root.contains("PrefabInstances") || !root["PrefabInstances"].is_array() ||
-			root.contains("Entities")) {
+			hasExternalActors == hasEntities) {
 			return false;
 		}
 
@@ -75,7 +83,34 @@ namespace {
 			}
 		}
 
-		std::sort(root["ExternalActors"].begin(), root["ExternalActors"].end());
+		if (hasExternalActors) {
+			std::sort(root["ExternalActors"].begin(),
+				root["ExternalActors"].end());
+		} else {
+
+			std::unordered_set<Engine::UUID> localFileIDs;
+			for (const nlohmann::json& entity : root["Entities"]) {
+
+				if (!entity.is_object() ||
+					!entity.contains("Components") ||
+					!entity["Components"].is_object()) {
+					return false;
+				}
+				const std::optional<Engine::UUID> localFileID =
+					Engine::TryParseUUID16Hex(
+						entity.value("LocalFileID", std::string{}));
+				if (!localFileID ||
+					!localFileIDs.insert(*localFileID).second) {
+					return false;
+				}
+			}
+			std::sort(root["Entities"].begin(),
+				root["Entities"].end(),
+				[](const auto& lhs, const auto& rhs) {
+					return lhs.value("LocalFileID", std::string{}) <
+						rhs.value("LocalFileID", std::string{});
+				});
+		}
 		for (auto& item : root["PrefabInstances"]) {
 
 			Engine::PrefabInstanceData data{};

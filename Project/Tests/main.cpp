@@ -26,6 +26,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <utility>
 
 namespace {
 
@@ -387,8 +388,15 @@ namespace {
 		header.guid = sceneAsset;
 		header.name = "ExternalActors";
 		Engine::SceneSystem sceneSystem;
-		bool passed = sceneSystem.SaveScene(
-			scenePath, sourceWorld, header, database);
+		Engine::SceneSaveSnapshot externalSnapshot{};
+		bool passed = sceneSystem.CaptureSaveSnapshot(
+			scenePath, sourceWorld, header, database,
+			externalSnapshot);
+		if (passed) {
+			externalSnapshot.useExternalActors = true;
+			passed = Engine::SceneSystem::WriteSaveSnapshot(
+				std::move(externalSnapshot));
+		}
 
 		const nlohmann::json savedScene = Engine::JsonAdapter::Load(scenePath);
 		const std::filesystem::path actorRoot =
@@ -419,6 +427,24 @@ namespace {
 				return entry.second.assetPath.ends_with(".actor.json");
 			});
 		passed &= !actorWasImported;
+
+		Engine::SceneSaveSnapshot monolithicSnapshot{};
+		passed &= sceneSystem.CaptureSaveSnapshot(
+			scenePath, sourceWorld, header, database,
+			monolithicSnapshot);
+		if (passed) {
+			monolithicSnapshot.useExternalActors = false;
+			passed &= Engine::SceneSystem::WriteSaveSnapshot(
+				std::move(monolithicSnapshot));
+		}
+		const nlohmann::json monolithicScene =
+			Engine::JsonAdapter::Load(scenePath);
+		passed &= monolithicScene.value("SchemaVersion", 0) == 3 &&
+			monolithicScene.contains("Entities") &&
+			monolithicScene["Entities"].is_array() &&
+			monolithicScene["Entities"].size() == 1 &&
+			!monolithicScene.contains("ExternalActors") &&
+			!std::filesystem::exists(actorRoot);
 
 		std::filesystem::remove_all(testRoot, ec);
 		ec.clear();

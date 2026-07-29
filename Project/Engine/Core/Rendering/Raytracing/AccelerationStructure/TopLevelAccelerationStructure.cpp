@@ -24,8 +24,12 @@ void Engine::TopLevelAccelerationStructure::Build(ID3D12Device8* device, ID3D12G
 	inputs_.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	inputs_.NumDescs = static_cast<UINT>(instances.size());
 	inputs_.InstanceDescs = instanceDescBuffer_.GetGPUAddress();
-	inputs_.Flags = allowUpdate_ ? D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE
-		: D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	inputs_.Flags =
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	if (allowUpdate_) {
+		inputs_.Flags |=
+			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
+	}
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild{};
 	device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs_, &prebuild);
 

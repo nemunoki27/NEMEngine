@@ -199,7 +199,8 @@ namespace {
 		std::string& outGUID,
 		std::string& outName, std::filesystem::path& outAssetsDirectory,
 		std::filesystem::path& outPackagesDirectory,
-		std::filesystem::path& outProjectSettingsDirectory) {
+		std::filesystem::path& outProjectSettingsDirectory,
+		Engine::SceneStorageMode& outSceneStorageMode) {
 
 		if (descriptorPath.empty()) {
 			return false;
@@ -220,6 +221,16 @@ namespace {
 		outGUID = Engine::Algorithm::ToLower(guid);
 		outName = data.value("name", std::string{});
 		if (outName.empty()) {
+			return false;
+		}
+
+		const std::string sceneStorage =
+			data.value("sceneStorage", std::string("ExternalActors"));
+		if (sceneStorage == "Monolithic") {
+			outSceneStorageMode = Engine::SceneStorageMode::Monolithic;
+		} else if (sceneStorage == "ExternalActors") {
+			outSceneStorageMode = Engine::SceneStorageMode::ExternalActors;
+		} else {
 			return false;
 		}
 
@@ -336,6 +347,11 @@ const std::string& Engine::RuntimePaths::GetProjectGUID() {
 const std::string& Engine::RuntimePaths::GetProjectName() {
 
 	return GetState().projectName;
+}
+
+Engine::SceneStorageMode Engine::RuntimePaths::GetSceneStorageMode() {
+
+	return GetState().sceneStorageMode;
 }
 
 const std::filesystem::path& Engine::RuntimePaths::GetProjectSettingsRoot() {
@@ -594,7 +610,8 @@ Engine::RuntimePaths::PathState Engine::RuntimePaths::BuildState() {
 	std::filesystem::path projectSettingsDirectory;
 	if (!LoadProjectDescriptor(state.projectDescriptorPath,
 		state.projectGUID, state.projectName, assetsDirectory,
-		packagesDirectory, projectSettingsDirectory)) {
+		packagesDirectory, projectSettingsDirectory,
+		state.sceneStorageMode)) {
 		throw std::runtime_error("NEM project descriptor is invalid");
 	}
 	state.gameAssetsRoot = state.gameRoot / assetsDirectory;

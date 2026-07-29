@@ -12,6 +12,12 @@
 
 namespace Engine {
 
+	enum class SceneStorageMode {
+
+		Monolithic,
+		ExternalActors,
+	};
+
 	//============================================================================
 	//	RuntimePaths class
 	//	実行時に使用するプロジェクト/エンジンのパスを管理するクラス
@@ -46,6 +52,8 @@ namespace Engine {
 		static const std::string& GetProjectGUID();
 		// プロジェクト名を取得
 		static const std::string& GetProjectName();
+		// ゲームシーンの保存形式を取得
+		static SceneStorageMode GetSceneStorageMode();
 		// 共有プロジェクト設定のルートを取得
 		static const std::filesystem::path& GetProjectSettingsRoot();
 		// ユーザー固有設定のルートを取得
@@ -97,6 +105,8 @@ namespace Engine {
 			std::filesystem::path packagesRoot;
 			std::string projectGUID;
 			std::string projectName;
+			SceneStorageMode sceneStorageMode =
+				SceneStorageMode::ExternalActors;
 			std::vector<ResolvedPackage> packages;
 			std::vector<PackageResolveIssue> packageIssues;
 		};

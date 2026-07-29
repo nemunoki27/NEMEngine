@@ -31,12 +31,19 @@ namespace {
 
 	bool ValidateSceneFileRoot(const nlohmann::json& root) {
 
-		return root.is_object() &&
-			root.value("SchemaVersion", 0u) == kSceneSchemaVersion &&
+		if (!root.is_object()) {
+			return false;
+		}
+		const bool hasExternalActors =
+			root.contains("ExternalActors") &&
+			root["ExternalActors"].is_array();
+		const bool hasEntities =
+			root.contains("Entities") &&
+			root["Entities"].is_array();
+		return root.value("SchemaVersion", 0u) == kSceneSchemaVersion &&
 			root.contains("Header") && root["Header"].is_object() &&
-			root.contains("ExternalActors") && root["ExternalActors"].is_array() &&
 			root.contains("PrefabInstances") && root["PrefabInstances"].is_array() &&
-			!root.contains("Entities");
+			hasExternalActors != hasEntities;
 	}
 
 	std::filesystem::path NormalizePath(const std::filesystem::path& path) {
@@ -65,6 +72,16 @@ namespace {
 		return true;
 	}
 
+	// 外部ゲームのGameAssetsだけを競合しにくいActor分割形式で保存する
+	bool ShouldUseExternalActors(
+		const std::filesystem::path& scenePath) {
+
+		return Engine::RuntimePaths::GetSceneStorageMode() ==
+				Engine::SceneStorageMode::ExternalActors &&
+			IsPathInside(scenePath,
+				Engine::RuntimePaths::GetGameAssetsRoot());
+	}
+
 	std::filesystem::path ResolveExternalActorsRoot(
 		const std::filesystem::path& scenePath, Engine::AssetID sceneAsset) {
 
@@ -87,6 +104,28 @@ namespace {
 			}
 		}
 		return {};
+	}
+
+	void RemoveExternalActors(
+		const std::filesystem::path& scenePath,
+		Engine::AssetID sceneAsset) {
+
+		const std::filesystem::path actorRoot =
+			ResolveExternalActorsRoot(scenePath, sceneAsset);
+		if (actorRoot.empty()) {
+			return;
+		}
+
+		std::error_code ec;
+		std::filesystem::remove_all(actorRoot, ec);
+		if (ec) {
+			Engine::Logger::Output(
+				Engine::LogType::Engine, spdlog::level::warn,
+				"[SceneSystem] failed to remove external actors. path={}",
+				Engine::Algorithm::PathToUTF8(actorRoot));
+			return;
+		}
+		std::filesystem::remove(actorRoot.parent_path(), ec);
 	}
 
 	std::filesystem::path MakeExternalActorPath(
@@ -432,7 +471,8 @@ bool Engine::SceneSystem::LoadScene(const std::filesystem::path& scenePath, ECSW
 			kSceneSchemaVersion, Algorithm::PathToUTF8(scenePath));
 		return false;
 	}
-	if (!LoadExternalActors(scenePath, sourceAsset, root)) {
+	if (root.contains("ExternalActors") &&
+		!LoadExternalActors(scenePath, sourceAsset, root)) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"[SceneSystem] failed to load external actors. scene={}",
 			Algorithm::PathToUTF8(scenePath));
@@ -573,6 +613,8 @@ bool Engine::SceneSystem::CaptureSaveSnapshot(
 	outSnapshot.scenePath = scenePath;
 	outSnapshot.sceneAsset = header.guid;
 	outSnapshot.root = std::move(root);
+	outSnapshot.useExternalActors =
+		ShouldUseExternalActors(scenePath);
 	return true;
 }
 
@@ -583,12 +625,21 @@ bool Engine::SceneSystem::WriteSaveSnapshot(
 		!snapshot.root.is_object()) {
 		return false;
 	}
-	if (snapshot.sceneAsset) {
+	if (snapshot.sceneAsset &&
+		snapshot.useExternalActors) {
 		return SaveExternalActors(snapshot.scenePath,
 			snapshot.sceneAsset, snapshot.root);
 	}
-	return JsonAdapter::SaveCanonical(
-		snapshot.scenePath, snapshot.root);
+	snapshot.root.erase("ExternalActors");
+	if (!JsonAdapter::SaveCanonical(
+		snapshot.scenePath, snapshot.root)) {
+		return false;
+	}
+	if (snapshot.sceneAsset) {
+		RemoveExternalActors(
+			snapshot.scenePath, snapshot.sceneAsset);
+	}
+	return true;
 }
 
 nlohmann::json Engine::SceneSystem::SerializeEntities(ECSWorld& world, const std::vector<Entity>* subset) const {
