@@ -44,6 +44,7 @@ namespace Engine {
 
 		float intensity = 1.0f;
 		float shadowStrength = 1.0f;
+		float shadowAngularRadius = 0.27f;
 	};
 	// 点光源
 	struct PointLightItem {
@@ -57,6 +58,7 @@ namespace Engine {
 		float radius = 8.0f;
 		float decay = 1.0f;
 		float shadowStrength = 1.0f;
+		float shadowRadius = 0.05f;
 	};
 	// スポット光源
 	struct SpotLightItem {
@@ -72,6 +74,8 @@ namespace Engine {
 		float decay = 1.0f;
 		float cosAngle = 0.0f;
 		float cosFalloffStart = 1.0f;
+		float shadowStrength = 1.0f;
+		float shadowRadius = 0.05f;
 	};
 	// 描画に使用するライトのセット
 	struct PerViewLightSet {

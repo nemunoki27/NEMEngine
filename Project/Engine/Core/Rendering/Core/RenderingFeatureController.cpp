@@ -176,9 +176,12 @@ void Engine::GraphicsFeatureController::SetAllowMeshLOD(
 void Engine::GraphicsFeatureController::SetMeshLODThresholds(
 	float lod0, float lod1, float lod2) {
 
-	lod0 = (std::max)(lod0, 0.1f);
-	lod1 = std::clamp(lod1, 0.1f, lod0);
-	lod2 = std::clamp(lod2, 0.1f, lod1);
+	const std::array<float, 3> thresholds =
+		GraphicsMeshLOD::ClampPixelThresholds(
+			lod0, lod1, lod2);
+	lod0 = thresholds[0];
+	lod1 = thresholds[1];
+	lod2 = thresholds[2];
 	if (preferences_.meshLOD0PixelThreshold == lod0 &&
 		preferences_.meshLOD1PixelThreshold == lod1 &&
 		preferences_.meshLOD2PixelThreshold == lod2) {
@@ -298,23 +301,32 @@ void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
 	preferences_.allowNormalConeCulling = data.value("allowNormalConeCulling", preferences_.allowNormalConeCulling);
 	preferences_.allowMeshLOD = data.value(
 		"allowMeshLOD", preferences_.allowMeshLOD);
-	preferences_.meshLOD0PixelThreshold = data.value(
+	const float lod0 = data.value(
 		"meshLOD0PixelThreshold",
 		preferences_.meshLOD0PixelThreshold);
-	preferences_.meshLOD1PixelThreshold = data.value(
+	const float lod1 = data.value(
 		"meshLOD1PixelThreshold",
 		preferences_.meshLOD1PixelThreshold);
-	preferences_.meshLOD2PixelThreshold = data.value(
+	const float lod2 = data.value(
 		"meshLOD2PixelThreshold",
 		preferences_.meshLOD2PixelThreshold);
-	preferences_.meshLOD0PixelThreshold = (std::max)(
-		preferences_.meshLOD0PixelThreshold, 0.1f);
-	preferences_.meshLOD1PixelThreshold = std::clamp(
-		preferences_.meshLOD1PixelThreshold, 0.1f,
-		preferences_.meshLOD0PixelThreshold);
-	preferences_.meshLOD2PixelThreshold = std::clamp(
-		preferences_.meshLOD2PixelThreshold, 0.1f,
-		preferences_.meshLOD1PixelThreshold);
+	if (GraphicsMeshLOD::ArePixelThresholdsValid(
+		lod0, lod1, lod2)) {
+
+		preferences_.meshLOD0PixelThreshold = lod0;
+		preferences_.meshLOD1PixelThreshold = lod1;
+		preferences_.meshLOD2PixelThreshold = lod2;
+	} else {
+
+		preferences_.meshLOD0PixelThreshold =
+			GraphicsMeshLOD::kDefaultPixelThresholds[0];
+		preferences_.meshLOD1PixelThreshold =
+			GraphicsMeshLOD::kDefaultPixelThresholds[1];
+		preferences_.meshLOD2PixelThreshold =
+			GraphicsMeshLOD::kDefaultPixelThresholds[2];
+		Logger::Output(LogType::Engine,
+			"Invalid Mesh LOD thresholds were reset to defaults");
+	}
 	preferences_.frameContextCount = std::clamp(
 		data.value("frameContextCount",
 			preferences_.frameContextCount), 1u, 3u);

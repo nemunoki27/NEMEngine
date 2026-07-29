@@ -50,7 +50,12 @@ bool Engine::RaytracingPipelineState::Create(ID3D12Device8* device, DxShaderComp
 	if (!BuildGlobalRootSignature(device)) {
 		return false;
 	}
-	return BuildStateObject(device, compiler, variant, shaderAsset);
+	if (!BuildStateObject(device, compiler, variant, shaderAsset)) {
+		return false;
+	}
+	Logger::Output(LogType::Engine,
+		"[RaytracingPipeline] Created state object");
+	return true;
 }
 
 D3D12_DISPATCH_RAYS_DESC Engine::RaytracingPipelineState::BuildDispatchDesc(uint32_t width,
@@ -105,8 +110,11 @@ bool Engine::RaytracingPipelineState::BuildGlobalRootSignature(ID3D12Device8* de
 	CD3DX12_DESCRIPTOR_RANGE sourceFlagsRange{};
 	sourceFlagsRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 8);
 
+	CD3DX12_DESCRIPTOR_RANGE sourceMaterialRange{};
+	sourceMaterialRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 9);
+
 	// ルートパラメータの構築
-	CD3DX12_ROOT_PARAMETER rootParameters[11]{};
+	CD3DX12_ROOT_PARAMETER rootParameters[12]{};
 	rootParameters[kRootIndexTLAS].InitAsShaderResourceView(0);                              // t0
 	rootParameters[kRootIndexSourceColor].InitAsDescriptorTable(1, &sourceColorRange);       // t1
 	rootParameters[kRootIndexSourceDepth].InitAsDescriptorTable(1, &sourceDepthRange);       // t2
@@ -118,6 +126,7 @@ bool Engine::RaytracingPipelineState::BuildGlobalRootSignature(ID3D12Device8* de
 	rootParameters[kRootIndexDestUAV].InitAsDescriptorTable(1, &destRange);                  // u0
 	rootParameters[kRootIndexViewCBV].InitAsConstantBufferView(0);                           // b0
 	rootParameters[kRootIndexSourceFlags].InitAsDescriptorTable(1, &sourceFlagsRange);       // t8
+	rootParameters[kRootIndexSourceMaterial].InitAsDescriptorTable(1, &sourceMaterialRange); // t9
 	// 静的サンプラーの構築
 	D3D12_STATIC_SAMPLER_DESC staticSampler{};
 	staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;

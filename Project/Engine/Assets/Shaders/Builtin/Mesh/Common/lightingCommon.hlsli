@@ -33,7 +33,8 @@ struct DirectionalLight {
 	float intensity;
 
 	float shadowStrength;
-	float3 _pad1;
+	float shadowAngularRadius;
+	float2 _pad1;
 };
 struct PointLight {
 
@@ -44,7 +45,8 @@ struct PointLight {
 
 	float radius;
 	float decay;
-	float2 _pad0;
+	float shadowStrength;
+	float shadowRadius;
 };
 struct SpotLight {
 
@@ -59,7 +61,10 @@ struct SpotLight {
 	float decay;
 	float cosAngle;
 	float cosFalloffStart;
-	float _pad0;
+	float shadowStrength;
+
+	float shadowRadius;
+	float3 _pad0;
 };
 StructuredBuffer<DirectionalLight> gDirectionalLights : register(t4);
 StructuredBuffer<PointLight> gPointLights : register(t5);

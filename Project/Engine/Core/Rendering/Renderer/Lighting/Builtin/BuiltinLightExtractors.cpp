@@ -27,6 +27,7 @@ void Engine::BuiltinLightExtractor<Engine::DirectionalLightComponent>::Extract(
 		item.color = light.color;
 		item.intensity = light.intensity;
 		item.shadowStrength = light.shadowStrength;
+		item.shadowAngularRadius = light.shadowAngularRadius;
 		item.direction = LightExtract::GetWorldDirection(light.direction, worldMatrix);
 		batch.Add(std::move(item));
 		});
@@ -50,6 +51,7 @@ void Engine::BuiltinLightExtractor<Engine::PointLightComponent>::Extract(
 		item.radius = light.radius;
 		item.decay = light.decay;
 		item.shadowStrength = light.shadowStrength;
+		item.shadowRadius = light.shadowRadius;
 		batch.Add(std::move(item));
 		});
 }
@@ -76,6 +78,8 @@ void Engine::BuiltinLightExtractor<Engine::SpotLightComponent>::Extract(
 		item.decay = light.decay;
 		item.cosAngle = light.cosAngle;
 		item.cosFalloffStart = light.cosFalloffStart;
+		item.shadowStrength = light.shadowStrength;
+		item.shadowRadius = light.shadowRadius;
 		batch.Add(std::move(item));
 		});
 }

@@ -25,6 +25,7 @@
 
 // c++
 #include <bit>
+#include <cmath>
 #include <cstddef>
 #include <memory>
 #include <span>
@@ -120,6 +121,195 @@ namespace {
 			instanceCount <=
 				static_cast<size_t>(changedInstanceCount) * 4;
 	}
+
+	float GetMatrixMaxScale(const Engine::Matrix4x4& matrix) {
+
+		const float scaleX = std::sqrt(
+			matrix.m[0][0] * matrix.m[0][0] +
+			matrix.m[0][1] * matrix.m[0][1] +
+			matrix.m[0][2] * matrix.m[0][2]);
+		const float scaleY = std::sqrt(
+			matrix.m[1][0] * matrix.m[1][0] +
+			matrix.m[1][1] * matrix.m[1][1] +
+			matrix.m[1][2] * matrix.m[1][2]);
+		const float scaleZ = std::sqrt(
+			matrix.m[2][0] * matrix.m[2][0] +
+			matrix.m[2][1] * matrix.m[2][1] +
+			matrix.m[2][2] * matrix.m[2][2]);
+		return (std::max)(scaleX, (std::max)(scaleY, scaleZ));
+	}
+
+	void EncapsulateSphere(const Engine::Vector3& sourceCenter,
+		float sourceRadius, Engine::Vector3& center, float& radius) {
+
+		const Engine::Vector3 difference = sourceCenter - center;
+		const float distance = difference.Length();
+		if (distance + sourceRadius <= radius) {
+			return;
+		}
+		if (distance + radius <= sourceRadius) {
+			center = sourceCenter;
+			radius = sourceRadius;
+			return;
+		}
+
+		const float newRadius =
+			(distance + radius + sourceRadius) * 0.5f;
+		if (0.00001f < distance) {
+			center += difference *
+				((newRadius - radius) / distance);
+		}
+		radius = newRadius;
+	}
+
+	void CalculateMeshWorldBounds(
+		const Engine::MeshGPUResource& meshResource,
+		std::span<const Engine::SubMeshMaterial> subMeshes,
+		const Engine::Matrix4x4& worldMatrix,
+		Engine::Vector3& outCenter, float& outRadius) {
+
+		outCenter = Engine::Vector3::Transform(
+			meshResource.boundsCenter, worldMatrix);
+		outRadius = meshResource.boundsRadius *
+			GetMatrixMaxScale(worldMatrix);
+		if (subMeshes.empty()) {
+			return;
+		}
+
+		bool initialized = false;
+		for (const Engine::SubMeshMaterial& subMesh : subMeshes) {
+
+			const Engine::Matrix4x4 localMatrix =
+				Engine::MeshSubMeshRuntime::
+					BuildRenderLocalMatrix(subMesh);
+			const Engine::Vector3 localCenter =
+				Engine::Vector3::Transform(
+					meshResource.boundsCenter, localMatrix);
+			const float localRadius =
+				meshResource.boundsRadius *
+				GetMatrixMaxScale(localMatrix);
+			const Engine::Vector3 worldCenter =
+				Engine::Vector3::Transform(
+					localCenter, worldMatrix);
+			const float worldRadius =
+				localRadius * GetMatrixMaxScale(worldMatrix);
+			if (!initialized) {
+				outCenter = worldCenter;
+				outRadius = worldRadius;
+				initialized = true;
+				continue;
+			}
+			EncapsulateSphere(
+				worldCenter, worldRadius, outCenter, outRadius);
+		}
+	}
+
+	const Engine::MeshLODRange& ResolveRaytracingLODRange(
+		const Engine::SubMeshDesc& subMesh, uint32_t lodIndex) {
+
+		uint32_t resolvedLOD = (std::min)(
+			lodIndex, Engine::kMeshLODCount - 1);
+		while (0 < resolvedLOD &&
+			subMesh.lods[resolvedLOD].indexCount < 3) {
+			--resolvedLOD;
+		}
+		return subMesh.lods[resolvedLOD];
+	}
+
+	uint32_t ResolveMeshLOD(
+		const Engine::GraphicsRuntimeFeatures& features,
+		const Engine::ResolvedRenderView* cullingView,
+		const Engine::Vector3& center, float radius) {
+
+		if (!features.useMeshLOD || !cullingView) {
+			return 0;
+		}
+		const Engine::ResolvedCameraView* camera =
+			cullingView->FindCamera(
+				Engine::RenderCameraDomain::Perspective);
+		if (!camera || !camera->valid) {
+			return 0;
+		}
+
+		const Engine::Vector3 viewCenter =
+			Engine::Vector3::Transform(
+				center, camera->matrices.viewMatrix);
+		const float nearZ = viewCenter.z - radius;
+		if (nearZ <= (std::max)(camera->nearClip, 0.00001f)) {
+			return 0;
+		}
+
+		const float projectionX = std::abs(
+			camera->matrices.projectionMatrix.m[0][0]);
+		const float projectionY = std::abs(
+			camera->matrices.projectionMatrix.m[1][1]);
+		const float pixelRadiusX =
+			std::abs(radius * projectionX / nearZ) *
+			static_cast<float>((std::max)(cullingView->width, 1u)) *
+			0.5f;
+		const float pixelRadiusY =
+			std::abs(radius * projectionY / nearZ) *
+			static_cast<float>((std::max)(cullingView->height, 1u)) *
+			0.5f;
+		const float pixelRadius =
+			(std::max)(pixelRadiusX, pixelRadiusY);
+		if (features.meshLOD0PixelThreshold <= pixelRadius) {
+			return 0;
+		}
+		if (features.meshLOD1PixelThreshold <= pixelRadius) {
+			return 1;
+		}
+		if (features.meshLOD2PixelThreshold <= pixelRadius) {
+			return 2;
+		}
+		return Engine::kMeshLODCount - 1;
+	}
+
+	uint64_t ComputeLODViewHash(
+		const Engine::GraphicsRuntimeFeatures& features,
+		const Engine::ResolvedRenderView* cullingView) {
+
+		uint64_t hash = features.useMeshLOD ? 1ull : 0ull;
+		Engine::Algorithm::HashCombine(hash,
+			std::bit_cast<uint32_t>(
+				features.meshLOD0PixelThreshold));
+		Engine::Algorithm::HashCombine(hash,
+			std::bit_cast<uint32_t>(
+				features.meshLOD1PixelThreshold));
+		Engine::Algorithm::HashCombine(hash,
+			std::bit_cast<uint32_t>(
+				features.meshLOD2PixelThreshold));
+		if (!cullingView) {
+			return hash;
+		}
+
+		Engine::Algorithm::HashCombine(hash, cullingView->width);
+		Engine::Algorithm::HashCombine(hash, cullingView->height);
+		const Engine::ResolvedCameraView* camera =
+			cullingView->FindCamera(
+				Engine::RenderCameraDomain::Perspective);
+		if (!camera || !camera->valid) {
+			return hash;
+		}
+		Engine::Algorithm::HashCombine(hash,
+			std::bit_cast<uint32_t>(camera->nearClip));
+		for (uint32_t row = 0; row < 4; ++row) {
+			for (uint32_t column = 0; column < 4; ++column) {
+
+				Engine::Algorithm::HashCombine(hash,
+					std::bit_cast<uint32_t>(
+						camera->matrices.viewMatrix.
+							m[row][column]));
+			}
+		}
+		Engine::Algorithm::HashCombine(hash,
+			std::bit_cast<uint32_t>(
+				camera->matrices.projectionMatrix.m[0][0]));
+		Engine::Algorithm::HashCombine(hash,
+			std::bit_cast<uint32_t>(
+				camera->matrices.projectionMatrix.m[1][1]));
+		return hash;
+	}
 }
 
 //============================================================================
@@ -165,6 +355,8 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	scenePickRecordOffsets_.clear();
 	cachedTLASInstances_.clear();
 	cachedTLASInstanceIndices_.clear();
+	cachedMeshLODInstances_.clear();
+	cachedMeshLODRecordIndices_.clear();
 
 	textureKeyCache_.clear();
 	textureDescriptorIndexCache_.clear();
@@ -187,6 +379,7 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	cachedRenderRevision_ = 0;
 	cachedTransformRevision_ = 0;
 	cachedMeshResourceRevision_ = 0;
+	cachedLODViewHash_ = 0;
 	cachedBLASGeometryCount_ = 0;
 	cachedTLASInstanceCount_ = 0;
 	sceneUploadFrameSerials_ = { 0, 0, 0 };
@@ -248,6 +441,80 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 	const uint64_t meshResourceRevision =
 		meshBackend ? meshBackend->GetMeshResourceRevision() : 0;
+	const GraphicsRuntimeFeatures& runtimeFeatures =
+		featureController.GetRuntimeFeatures();
+	const ResolvedRenderView* lodView =
+		context.cullingView ? context.cullingView : context.view;
+	const uint64_t lodViewHash =
+		ComputeLODViewHash(runtimeFeatures, lodView);
+	auto updateCachedLODSelections = [&]() {
+
+		uint32_t changedCount = 0;
+		if (!meshBackend) {
+			return changedCount;
+		}
+		for (CachedMeshLODInstance& record :
+			cachedMeshLODInstances_) {
+
+			const uint32_t lodIndex = ResolveMeshLOD(
+				runtimeFeatures, lodView,
+				record.worldBoundsCenter,
+				record.worldBoundsRadius);
+			if (lodIndex == record.lodIndex) {
+				continue;
+			}
+
+			const MeshGPUResource* meshResource =
+				meshBackend->FindMeshResource(
+					record.meshAssetID);
+			if (!meshResource ||
+				record.tlasInstanceIndex >=
+					cachedTLASInstances_.size()) {
+				continue;
+			}
+
+			BLASKey key{};
+			key.meshAssetID = record.meshAssetID;
+			key.reloadGeneration = record.reloadGeneration;
+			key.lodIndex = lodIndex;
+			key.geometryLayoutHash =
+				record.geometryLayoutHash;
+			auto blasIt = blases_.find(key);
+			if (blasIt == blases_.end() ||
+				!blasIt->second.IsBuilt()) {
+				continue;
+			}
+
+			cachedTLASInstances_[
+				record.tlasInstanceIndex].blas =
+					blasIt->second.GetResource();
+			const uint32_t geometryCount = (std::min)(
+				record.geometryCount,
+				static_cast<uint32_t>(
+					meshResource->subMeshes.size()));
+			for (uint32_t geometryIndex = 0;
+				geometryIndex < geometryCount;
+				++geometryIndex) {
+
+				const uint32_t dataIndex =
+					record.geometryDataOffset +
+					geometryIndex;
+				if (sceneGeometryScratch_.size() <=
+					dataIndex) {
+					break;
+				}
+				sceneGeometryScratch_[dataIndex].
+					indexOffset =
+					ResolveRaytracingLODRange(
+						meshResource->subMeshes[
+							geometryIndex],
+						lodIndex).indexOffset;
+			}
+			record.lodIndex = lodIndex;
+			++changedCount;
+		}
+		return changedCount;
+	};
 	const bool matchesStaticScene =
 		cachedStaticScene_ &&
 		cachedSceneInstanceID_ == context.sceneInstance->instanceID &&
@@ -259,10 +526,26 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		cachedTransformRevision_ ==
 			renderBatch.GetSourceTransformRevision()) {
 
+		const uint32_t lodChangedCount =
+			cachedLODViewHash_ != lodViewHash ?
+				updateCachedLODSelections() : 0;
+		if (0 < lodChangedCount) {
+
+			tlas_.Update(
+				graphicsCore.GetDXObject().GetDxCommand()->
+					GetCommandList(),
+				cachedTLASInstances_);
+			tlasInstanceHash_ =
+				ComputeTLASInstanceHash(
+					cachedTLASInstances_);
+			FrameProfiler::GetInstance().AddTLASRefit();
+		} else {
+			FrameProfiler::GetInstance().AddTLASSkip();
+		}
+		cachedLODViewHash_ = lodViewHash;
 		UploadCachedSceneBuffers();
 		FrameProfiler::GetInstance().AddBLASSkip(cachedBLASGeometryCount_);
 		FrameProfiler::GetInstance().SetTLASInstanceCount(cachedTLASInstanceCount_);
-		FrameProfiler::GetInstance().AddTLASSkip();
 		builtThisFrame_ = true;
 		builtSceneInstanceID_ = context.sceneInstance->instanceID;
 		PublishBuiltScene(context);
@@ -290,12 +573,58 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				}
 				instance.worldMatrix =
 					change.worldMatrix;
+				if (it->second <
+					cachedMeshLODRecordIndices_.size()) {
+
+					const uint32_t recordIndex =
+						cachedMeshLODRecordIndices_[
+							it->second];
+					if (recordIndex != UINT32_MAX &&
+						recordIndex <
+							cachedMeshLODInstances_.size()) {
+
+						CachedMeshLODInstance& record =
+							cachedMeshLODInstances_[
+								recordIndex];
+						record.lodIndex =
+							Engine::kMeshLODCount;
+						const MeshGPUResource* meshResource =
+							meshBackend ?
+								meshBackend->
+									FindMeshResource(
+										record.meshAssetID) :
+								nullptr;
+						if (meshResource) {
+
+							const std::span<
+								const SubMeshMaterial>
+								subMeshes =
+									change.world ?
+										GetMeshSubMeshes(
+											*change.world,
+											change.entity) :
+										std::span<
+											const SubMeshMaterial>{};
+							CalculateMeshWorldBounds(
+								*meshResource,
+								subMeshes,
+								change.worldMatrix,
+								record.worldBoundsCenter,
+								record.worldBoundsRadius);
+						}
+					}
+				}
 				transformChanged = true;
 				++changedInstanceCount;
 			}
 		}
 
-		if (transformChanged) {
+		const uint32_t lodChangedCount =
+			(transformChanged ||
+				cachedLODViewHash_ != lodViewHash) ?
+				updateCachedLODSelections() : 0;
+		changedInstanceCount += lodChangedCount;
+		if (transformChanged || 0 < lodChangedCount) {
 			ID3D12GraphicsCommandList6* commandList =
 				graphicsCore.GetDXObject().GetDxCommand()->
 				GetCommandList();
@@ -319,8 +648,12 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			FrameProfiler::GetInstance().AddTLASSkip();
 		}
 
+		tlasInstanceHash_ =
+			ComputeTLASInstanceHash(
+				cachedTLASInstances_);
 		cachedTransformRevision_ =
 			renderBatch.GetSourceTransformRevision();
+		cachedLODViewHash_ = lodViewHash;
 		UploadCachedSceneBuffers();
 		FrameProfiler::GetInstance().AddBLASSkip(
 			cachedBLASGeometryCount_);
@@ -387,6 +720,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	std::vector<SceneEntityKey> tlasEntityKeys;
 	tlasEntityKeys.reserve(sceneMeshes.size() +
 		sceneFillMeshes.size() + scenePrimitives.size());
+	std::vector<CachedMeshLODInstance> meshLODInstances;
+	meshLODInstances.reserve(sceneMeshes.size());
+	std::vector<uint32_t> meshLODRecordIndices;
+	meshLODRecordIndices.reserve(sceneMeshes.size() +
+		sceneFillMeshes.size() + scenePrimitives.size());
 
 	// BLASリソースを新規/作り直しした場合はTLASのrefitでは反映できないため完全再構築する
 	bool requireTlasRebuild = false;
@@ -413,6 +751,15 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			std::span<const SubMeshMaterial>{};
 		const uint64_t geometryLayoutHash = ComputeGeometryLayoutHash(
 			subMeshes, static_cast<uint32_t>(meshResource->subMeshes.size()));
+		Vector3 worldBoundsCenter{};
+		float worldBoundsRadius = 0.0f;
+		CalculateMeshWorldBounds(*meshResource,
+			subMeshes, src.worldMatrix,
+			worldBoundsCenter, worldBoundsRadius);
+		const uint32_t selectedLOD =
+			meshResource->isSkinned ? 0 :
+			ResolveMeshLOD(runtimeFeatures, lodView,
+				worldBoundsCenter, worldBoundsRadius);
 
 		SkinnedVertexSource skinnedSource{};
 
@@ -473,9 +820,14 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			geometry.vertexAddress = vertexAddress;
 			geometry.vertexStride = sizeof(MeshVertex);
 			geometry.vertexCount = meshResource->vertexCount;
+			const MeshLODRange& selectedRange =
+				ResolveRaytracingLODRange(
+					importedSubMesh, selectedLOD);
 			geometry.indexAddress = indexAddress +
-				static_cast<uint64_t>(indexSize) * importedSubMesh.indexOffset;
-			geometry.indexCount = importedSubMesh.indexCount;
+				static_cast<uint64_t>(indexSize) *
+					selectedRange.indexOffset;
+			geometry.indexCount =
+				selectedRange.indexCount;
 			geometry.indexFormat = meshResource->indexBuffer.GetFormat();
 			geometry.localMatrix = localMatrix;
 			geometries.emplace_back(geometry);
@@ -573,7 +925,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 			RaytracingGeometryShaderData geometryData{};
 			geometryData.subMeshDataIndex = subMeshDataIndex;
-			geometryData.indexOffset = importedSubMesh.indexOffset;
+			geometryData.indexOffset =
+				selectedRange.indexOffset;
 			geometryData.pickRecordIndex =
 				static_cast<uint32_t>(scenePickRecords_.size() - 1);
 			sceneGeometryScratch_.emplace_back(geometryData);
@@ -621,24 +974,73 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			blasResource = entry.blas.GetResource();
 		} else {
 
-			BLASKey key{};
-			key.meshAssetID = src.meshAssetID;
-			key.reloadGeneration = reloadGeneration;
-			key.geometryLayoutHash = geometryLayoutHash;
+			const uint32_t blasLODCount =
+				meshResource->isSkinned ? 1 :
+				kMeshLODCount;
+			for (uint32_t lodIndex = 0;
+				lodIndex < blasLODCount; ++lodIndex) {
 
-			BottomLevelAccelerationStructure& blas = blases_[key];
-			if (!blas.IsBuilt()) {
+				BLASKey key{};
+				key.meshAssetID = src.meshAssetID;
+				key.reloadGeneration = reloadGeneration;
+				key.lodIndex = lodIndex;
+				key.geometryLayoutHash =
+					geometryLayoutHash;
 
-				blas.Build(device, commandList, input);
-				FrameProfiler::GetInstance().AddBLASBuild(
-					static_cast<uint32_t>(geometries.size()));
+				auto blasIt = blases_.find(key);
+				if (blasIt != blases_.end() &&
+					blasIt->second.IsBuilt()) {
+
+					FrameProfiler::GetInstance().
+						AddBLASSkip(
+							static_cast<uint32_t>(
+								geometries.size()));
+					if (lodIndex == selectedLOD) {
+						blasResource =
+							blasIt->second.GetResource();
+					}
+					continue;
+				}
+
+				std::vector<RaytracingBLASGeometryInput>
+					lodGeometries = geometries;
+				for (uint32_t subMeshIndex = 0;
+					subMeshIndex <
+						static_cast<uint32_t>(
+							lodGeometries.size());
+					++subMeshIndex) {
+
+					const MeshLODRange& range =
+						ResolveRaytracingLODRange(
+							meshResource->subMeshes[
+								subMeshIndex],
+							lodIndex);
+					lodGeometries[subMeshIndex].
+						indexAddress =
+							indexAddress +
+							static_cast<uint64_t>(
+								indexSize) *
+							range.indexOffset;
+					lodGeometries[subMeshIndex].
+						indexCount = range.indexCount;
+				}
+
+				RaytracingBLASInput lodInput{};
+				lodInput.geometries = lodGeometries;
+				lodInput.allowUpdate = false;
+
+				BottomLevelAccelerationStructure& blas =
+					blases_[key];
+				blas.Build(device, commandList, lodInput);
+				FrameProfiler::GetInstance().
+					AddBLASBuild(
+						static_cast<uint32_t>(
+							lodGeometries.size()));
 				requireTlasRebuild = true;
-			} else {
-
-				FrameProfiler::GetInstance().AddBLASSkip(
-					static_cast<uint32_t>(geometries.size()));
+				if (lodIndex == selectedLOD) {
+					blasResource = blas.GetResource();
+				}
 			}
-			blasResource = blas.GetResource();
 		}
 		if (!blasResource) {
 			continue;
@@ -673,12 +1075,41 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		}
 		instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 		instance.worldMatrix = src.worldMatrix;
+		const uint32_t tlasInstanceIndex =
+			static_cast<uint32_t>(tlasInstances.size());
 		tlasInstances.emplace_back(instance);
 		tlasEntityKeys.emplace_back(
 			SceneEntityKey{
 				.world = src.world,
 				.entity = src.entity,
 			});
+		if (!meshResource->isSkinned) {
+
+			CachedMeshLODInstance lodInstance{};
+			lodInstance.meshAssetID = src.meshAssetID;
+			lodInstance.reloadGeneration = reloadGeneration;
+			lodInstance.geometryLayoutHash =
+				geometryLayoutHash;
+			lodInstance.tlasInstanceIndex =
+				tlasInstanceIndex;
+			lodInstance.geometryDataOffset =
+				geometryDataOffset;
+			lodInstance.geometryCount =
+				static_cast<uint32_t>(
+					meshResource->subMeshes.size());
+			lodInstance.lodIndex = selectedLOD;
+			lodInstance.worldBoundsCenter =
+				worldBoundsCenter;
+			lodInstance.worldBoundsRadius =
+				worldBoundsRadius;
+			meshLODRecordIndices.emplace_back(
+				static_cast<uint32_t>(
+					meshLODInstances.size()));
+			meshLODInstances.emplace_back(
+				lodInstance);
+		} else {
+			meshLODRecordIndices.emplace_back(UINT32_MAX);
+		}
 	}
 
 	for (const CollectedFillMeshInstance& src : sceneFillMeshes) {
@@ -754,6 +1185,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				.world = src.world,
 				.entity = src.entity,
 			});
+		meshLODRecordIndices.emplace_back(UINT32_MAX);
 	}
 
 	// Primitiveは形状ハッシュ単位で共有BLASを使い、インスタンスごとにTLASへ登録する
@@ -826,6 +1258,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				.world = src.world,
 				.entity = src.entity,
 			});
+		meshLODRecordIndices.emplace_back(UINT32_MAX);
 	}
 
 	// TLASインスタンスがない場合は処理しない
@@ -897,12 +1330,19 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	cachedTransformRevision_ =
 		renderBatch.GetSourceTransformRevision();
 	cachedMeshResourceRevision_ = meshResourceRevision;
+	cachedLODViewHash_ = lodViewHash;
 	cachedBLASGeometryCount_ = blasGeometryCount;
 	cachedTLASInstanceCount_ = static_cast<uint32_t>(tlasInstances.size());
 	cachedTLASInstances_.clear();
 	cachedTLASInstanceIndices_.clear();
+	cachedMeshLODInstances_.clear();
+	cachedMeshLODRecordIndices_.clear();
 	if (staticScene) {
 		cachedTLASInstances_ = tlasInstances;
+		cachedMeshLODInstances_ =
+			std::move(meshLODInstances);
+		cachedMeshLODRecordIndices_ =
+			std::move(meshLODRecordIndices);
 		cachedTLASInstanceIndices_.reserve(
 			tlasEntityKeys.size());
 		for (uint32_t index = 0;

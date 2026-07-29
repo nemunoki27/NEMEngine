@@ -6,6 +6,7 @@
 #include <d3d12.h>
 
 // c++
+#include <array>
 #include <cstdint>
 #include <string>
 
@@ -43,6 +44,22 @@ namespace Engine {
 		bool SupportsRayTracingTier1_1() const { return D3D12_RAYTRACING_TIER_1_1 <= raytracingTier; }
 	};
 
+	// メッシュLODの切り替え閾値
+	namespace GraphicsMeshLOD {
+
+		inline constexpr std::array<float, 3> kDefaultPixelThresholds = {
+			160.0f, 80.0f, 32.0f
+		};
+		inline constexpr float kMinimumPixelThreshold = 1.0f;
+		inline constexpr float kPixelThresholdGap = 4.0f;
+		inline constexpr float kMaximumPixelThreshold = 4096.0f;
+
+		bool ArePixelThresholdsValid(
+			float lod0, float lod1, float lod2);
+		std::array<float, 3> ClampPixelThresholds(
+			float lod0, float lod1, float lod2);
+	}
+
 	// ユーザー参照設定
 	struct GraphicsFeaturePreferences {
 
@@ -63,9 +80,12 @@ namespace Engine {
 		// メッシュLODを使用するか
 		bool allowMeshLOD = true;
 		// 投影半径が閾値を下回ったとき次のLODへ移る
-		float meshLOD0PixelThreshold = 160.0f;
-		float meshLOD1PixelThreshold = 80.0f;
-		float meshLOD2PixelThreshold = 32.0f;
+		float meshLOD0PixelThreshold =
+			GraphicsMeshLOD::kDefaultPixelThresholds[0];
+		float meshLOD1PixelThreshold =
+			GraphicsMeshLOD::kDefaultPixelThresholds[1];
+		float meshLOD2PixelThreshold =
+			GraphicsMeshLOD::kDefaultPixelThresholds[2];
 		// 起動時に使用するフレームコンテキスト数
 		uint32_t frameContextCount = 3;
 	};
@@ -83,9 +103,12 @@ namespace Engine {
 		bool useContributionCulling = false;
 		bool useNormalConeCulling = false;
 		bool useMeshLOD = true;
-		float meshLOD0PixelThreshold = 160.0f;
-		float meshLOD1PixelThreshold = 80.0f;
-		float meshLOD2PixelThreshold = 32.0f;
+		float meshLOD0PixelThreshold =
+			GraphicsMeshLOD::kDefaultPixelThresholds[0];
+		float meshLOD1PixelThreshold =
+			GraphicsMeshLOD::kDefaultPixelThresholds[1];
+		float meshLOD2PixelThreshold =
+			GraphicsMeshLOD::kDefaultPixelThresholds[2];
 
 		bool UsesAnyRayTracing() const { return useInlineRayTracing || useDispatchRays; }
 	};

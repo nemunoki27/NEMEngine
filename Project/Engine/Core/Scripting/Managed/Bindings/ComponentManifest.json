@@ -941,6 +941,12 @@
           "access": "ReadWrite"
         },
         {
+          "managedName": "ShadowAngularRadius",
+          "nativeMember": "shadowAngularRadius",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
           "managedName": "Enabled",
           "nativeMember": "enabled",
           "kind": "Bool",
@@ -1485,6 +1491,12 @@
         {
           "managedName": "ShadowStrength",
           "nativeMember": "shadowStrength",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ShadowRadius",
+          "nativeMember": "shadowRadius",
           "kind": "Float",
           "access": "ReadWrite"
         },
@@ -2175,6 +2187,18 @@
         {
           "managedName": "CosFalloffStart",
           "nativeMember": "cosFalloffStart",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ShadowStrength",
+          "nativeMember": "shadowStrength",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ShadowRadius",
+          "nativeMember": "shadowRadius",
           "kind": "Float",
           "access": "ReadWrite"
         },

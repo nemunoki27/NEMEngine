@@ -27,7 +27,9 @@ namespace Engine {
 
 		// 影の強さ(0.0=影なし, 1.0=完全に黒)
 		float shadowStrength = 1.0f;
-		float pad[3] = { 0.0f, 0.0f, 0.0f };
+		// 光源の見かけの半径、度数法
+		float shadowAngularRadius = 0.27f;
+		float pad[2] = { 0.0f, 0.0f };
 	};
 	static_assert(sizeof(DirectionalLightGPU) % 16 == 0, "DirectionalLightGPU must be 16 byte aligned");
 	// 点光源
@@ -47,7 +49,8 @@ namespace Engine {
 		float decay = 1.0f;
 		// 影の強さ(0.0=影なし, 1.0=完全に黒)
 		float shadowStrength = 1.0f;
-		float pad = 0.0f;
+		// 面光源として扱う半径
+		float shadowRadius = 0.05f;
 	};
 	static_assert(sizeof(PointLightGPU) % 16 == 0, "PointLightGPU must be 16 byte aligned");
 	// スポットライト
@@ -71,7 +74,12 @@ namespace Engine {
 		// 影響角度のcos、既定はcos60度
 		float cosAngle = 0.5f;
 		float cosFalloffStart = 1.0f;
-		float pad = 0.0f;
+		// 影の強さ(0.0=影なし, 1.0=完全に黒)
+		float shadowStrength = 1.0f;
+
+		// 面光源として扱う半径
+		float shadowRadius = 0.05f;
+		float pad[3] = { 0.0f, 0.0f, 0.0f };
 	};
 	static_assert(sizeof(SpotLightGPU) % 16 == 0, "SpotLightGPU must be 16 byte aligned");
 	// ライトの数

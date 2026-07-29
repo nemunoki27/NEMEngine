@@ -72,6 +72,7 @@ StructuredBuffer<RaytracingInstanceShaderData> gRaytracingSceneInstances : regis
 StructuredBuffer<SubMeshShaderData> gRaytracingSubMeshes : register(t6);
 StructuredBuffer<RaytracingGeometryShaderData> gRaytracingGeometries : register(t7);
 Texture2D<uint> gSourceFlags : register(t8);
+Texture2D<float4> gSourceMaterial : register(t9);
 
 // 反射に映すインスタンスのTLASマスク
 static const uint kRaytracingMaskReflectionCaster = 1u << 1;
@@ -279,6 +280,11 @@ void ReflectionRayGen() {
 		return;
 	}
 
+	float3 albedo = gSourceColor.Load(int3(pixel, 0)).rgb;
+	float4 material = gSourceMaterial.Load(int3(pixel, 0));
+	float metallic = saturate(material.r);
+	float roughness = clamp(material.g, 0.04f, 1.0f);
+
 	float3 worldPos = LoadPrimaryWorldPosition(pixel);
 
 	float3 worldNormal = DecodeWorldNormal(gSourceNormal.Load(int3(pixel, 0)).xyz);
@@ -325,8 +331,14 @@ void ReflectionRayGen() {
 		reflectionColor = EvaluateSkyReflection(reflectionDir);
 	}
 
-	float fresnel = pow(1.0f - NdotV, 5.0f);
-	float reflectionWeight = saturate(gReflectionIntensity * lerp(gFresnelMin, 1.0f, fresnel));
+	// GBufferのPBRパラメータから反射色と粗さによる寄与を決める
+	float3 F0 = lerp(gFresnelMin.xxx, albedo, metallic);
+	float fresnelFactor = pow(1.0f - NdotV, 5.0f);
+	float3 fresnel = F0 + (1.0f - F0) * fresnelFactor;
+	float smoothness = 1.0f - roughness;
+	float roughnessResponse = lerp(0.08f, 1.0f, smoothness * smoothness);
+	float3 reflectionWeight =
+		saturate(gReflectionIntensity * fresnel * roughnessResponse);
 
 	// ベース色はLightingPassが書いた照明済みSceneColorFinalをUAVから読み、その上に反射を加算する
 	float3 litColor = gDestColor[pixel].rgb;

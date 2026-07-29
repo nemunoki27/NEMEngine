@@ -1,0 +1,18 @@
+{
+    "domain": "Surface",
+    "name": "meshPBRWire",
+    "parameters": {},
+    "passes": [
+        {
+            "passKind": "Draw",
+            "pipeline": "eb97ef6e8c0bc016b8ab1102ebc7bbf4",
+            "preferredVariant": "GraphicsMesh"
+        },
+        {
+            "passKind": "Transparent",
+            "pipeline": "b160df6d7433a2ad4df21f3841e37ec4",
+            "preferredVariant": "GraphicsMesh"
+        }
+    ],
+    "usage": "Mesh"
+}

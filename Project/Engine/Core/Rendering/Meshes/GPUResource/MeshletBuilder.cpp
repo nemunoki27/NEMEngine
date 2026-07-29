@@ -6,6 +6,8 @@
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <algorithm>
 #include <array>
+#include <limits>
+#include <vector>
 
 //============================================================================
 //	MeshletBuilder classMethods
@@ -93,6 +95,84 @@ namespace {
 		outAxis = axis;
 		outCutoff = cutoff;
 	}
+
+	// 最低LODの三角形予算をモデル全体で最大数に収める
+	std::vector<uint32_t> CalculateLowestLODTriangleBudgets(
+		const Engine::ImportedMeshAsset& mesh,
+		uint32_t maximumTriangleCount) {
+
+		std::vector<uint32_t> sourceTriangleCounts(
+			mesh.subMeshes.size());
+		uint64_t totalTriangleCount = 0;
+		std::vector<uint32_t> activeSubMeshes;
+		for (uint32_t index = 0;
+			index < static_cast<uint32_t>(mesh.subMeshes.size());
+			++index) {
+
+			const uint32_t triangleCount =
+				mesh.subMeshes[index].indexCount / 3;
+			sourceTriangleCounts[index] = triangleCount;
+			totalTriangleCount += triangleCount;
+			if (triangleCount > 0) {
+				activeSubMeshes.emplace_back(index);
+			}
+		}
+
+		if (totalTriangleCount <= maximumTriangleCount) {
+			return sourceTriangleCounts;
+		}
+
+		std::vector<uint32_t> budgets(mesh.subMeshes.size());
+		if (activeSubMeshes.size() >= maximumTriangleCount) {
+
+			std::stable_sort(
+				activeSubMeshes.begin(), activeSubMeshes.end(),
+				[&](uint32_t lhs, uint32_t rhs) {
+					return sourceTriangleCounts[lhs] >
+						sourceTriangleCounts[rhs];
+				});
+			for (uint32_t index = 0;
+				index < maximumTriangleCount;
+				++index) {
+				budgets[activeSubMeshes[index]] = 1;
+			}
+			return budgets;
+		}
+
+		for (uint32_t index : activeSubMeshes) {
+			budgets[index] = 1;
+		}
+
+		uint32_t remaining =
+			maximumTriangleCount -
+			static_cast<uint32_t>(activeSubMeshes.size());
+		while (remaining > 0) {
+
+			uint32_t selected = (std::numeric_limits<uint32_t>::max)();
+			double selectedWeight = -1.0;
+			for (uint32_t index : activeSubMeshes) {
+
+				if (budgets[index] >= sourceTriangleCounts[index]) {
+					continue;
+				}
+				const double weight =
+					static_cast<double>(sourceTriangleCounts[index]) /
+					static_cast<double>(budgets[index] + 1);
+				if (weight > selectedWeight) {
+					selected = index;
+					selectedWeight = weight;
+				}
+			}
+			if (selected ==
+				(std::numeric_limits<uint32_t>::max)()) {
+				break;
+			}
+
+			++budgets[selected];
+			--remaining;
+		}
+		return budgets;
+	}
 }
 
 uint32_t Engine::MeshletBuilder::PackPrimitive(uint32_t i0, uint32_t i1, uint32_t i2) {
@@ -137,10 +217,17 @@ void Engine::MeshletBuilder::Build(ImportedMeshAsset& mesh) const {
 void Engine::MeshletBuilder::BuildLODs(ImportedMeshAsset& mesh) const {
 
 	static constexpr std::array<float, kMeshLODCount> kTriangleRatios = {
-		1.0f, 0.5f, 0.25f, 0.125f
+		1.0f, 0.35f, 0.08f, 0.0f
+	};
+	static constexpr std::array<float, kMeshLODCount> kTargetErrors = {
+		0.0f, 0.03f, 0.1f, 1.0f
 	};
 	static constexpr uint32_t kMinimumSimplifyTriangleCount = 64;
-	static constexpr float kTargetError = 0.005f;
+	static constexpr uint32_t kLowestLODMaximumTriangleCount = 64;
+
+	const std::vector<uint32_t> lowestLODTriangleBudgets =
+		CalculateLowestLODTriangleBudgets(
+			mesh, kLowestLODMaximumTriangleCount);
 
 	const uint32_t lod0IndexCount = static_cast<uint32_t>(mesh.indices.size());
 	mesh.lods[0].indexOffset = 0;
@@ -164,19 +251,27 @@ void Engine::MeshletBuilder::BuildLODs(ImportedMeshAsset& mesh) const {
 		attributes[offset + 4] = vertex.uv.y;
 	}
 	static constexpr float kAttributeWeights[5] = {
-		1.0f, 1.0f, 1.0f, 16.0f, 16.0f
+		0.5f, 0.5f, 0.5f, 0.5f, 0.5f
 	};
 
 	for (uint32_t lodIndex = 1; lodIndex < kMeshLODCount; ++lodIndex) {
 
 		MeshLODRange& lod = mesh.lods[lodIndex];
 		lod.indexOffset = static_cast<uint32_t>(mesh.indices.size());
-		for (SubMeshDesc& subMesh : mesh.subMeshes) {
+		for (uint32_t subMeshIndex = 0;
+			subMeshIndex < static_cast<uint32_t>(mesh.subMeshes.size());
+			++subMeshIndex) {
 
+			SubMeshDesc& subMesh =
+				mesh.subMeshes[subMeshIndex];
 			const MeshLODRange& sourceRange = subMesh.lods[0];
 			MeshLODRange& destinationRange = subMesh.lods[lodIndex];
 			destinationRange.indexOffset = static_cast<uint32_t>(mesh.indices.size());
 			if (sourceRange.indexCount == 0) {
+				continue;
+			}
+			if (lodIndex == kMeshLODCount - 1 &&
+				lowestLODTriangleBudgets[subMeshIndex] == 0) {
 				continue;
 			}
 
@@ -188,11 +283,23 @@ void Engine::MeshletBuilder::BuildLODs(ImportedMeshAsset& mesh) const {
 
 			size_t simplifiedCount = sourceRange.indexCount;
 			const uint32_t triangleCount = sourceRange.indexCount / 3;
-			if (triangleCount > kMinimumSimplifyTriangleCount) {
+			uint32_t targetTriangleCount = triangleCount;
+			if (lodIndex == kMeshLODCount - 1) {
 
-				size_t targetCount = static_cast<size_t>(
-					static_cast<float>(sourceRange.indexCount) *
-					kTriangleRatios[lodIndex]);
+				targetTriangleCount =
+					lowestLODTriangleBudgets[subMeshIndex];
+			} else if (
+				triangleCount > kMinimumSimplifyTriangleCount) {
+
+				targetTriangleCount =
+					static_cast<uint32_t>(
+						static_cast<float>(triangleCount) *
+						kTriangleRatios[lodIndex]);
+			}
+			if (targetTriangleCount < triangleCount) {
+
+				size_t targetCount =
+					static_cast<size_t>(targetTriangleCount) * 3;
 				targetCount = (std::max)(size_t(3), targetCount - targetCount % 3);
 				simplifiedCount = meshopt_simplifyWithAttributes(
 					simplified.data(), sourceIndices.data(), sourceIndices.size(),
@@ -200,9 +307,31 @@ void Engine::MeshletBuilder::BuildLODs(ImportedMeshAsset& mesh) const {
 					mesh.vertices.size(), sizeof(MeshVertex),
 					attributes.data(), sizeof(float) * 5,
 					kAttributeWeights, 5, nullptr,
-					targetCount, kTargetError,
+					targetCount, kTargetErrors[lodIndex],
 					meshopt_SimplifyLockBorder |
 					meshopt_SimplifyRegularize, nullptr);
+
+				// 外周保護で64三角形へ届かない場合だけ最低LOD用の簡略化へ切り替える
+				if (lodIndex == kMeshLODCount - 1 &&
+					simplifiedCount > targetCount) {
+
+					simplifiedCount = meshopt_simplifySloppy(
+						simplified.data(),
+						sourceIndices.data(),
+						sourceIndices.size(),
+						reinterpret_cast<const float*>(
+							&mesh.vertices[0].position.x),
+						mesh.vertices.size(),
+						sizeof(MeshVertex), nullptr,
+						targetCount, kTargetErrors[lodIndex],
+						nullptr);
+				}
+				if (lodIndex == kMeshLODCount - 1) {
+
+					// 退化形状でもモデル全体の64三角形上限を超えないようにする
+					simplifiedCount = (std::min)(
+						simplifiedCount, targetCount);
+				}
 			} else {
 
 				std::copy(sourceIndices.begin(), sourceIndices.end(), simplified.begin());

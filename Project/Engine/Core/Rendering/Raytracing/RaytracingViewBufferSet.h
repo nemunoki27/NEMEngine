@@ -38,7 +38,7 @@ namespace Engine {
 		Vector2 renderSize = Vector2::AnyInit(1.0f);
 		Vector2 invRenderSize = Vector2::AnyInit(1.0f);
 		float shadowNormalBias = 0.01f;
-		float reflectionIntensity = 0.1f;
+		float reflectionIntensity = 1.0f;
 		float nearClip = 0.01f;
 		float farClip = 4000.0f;
 
@@ -49,8 +49,8 @@ namespace Engine {
 		float reflectionThicknessBase = 0.04f;
 
 		float reflectionThicknessScale = 0.015f;
-		float skyIntensity = 0.01f;
-		float fresnelMin = 0.054f;
+		float skyIntensity = 1.0f;
+		float fresnelMin = 0.04f;
 		float _pad0 = 0.0f;
 
 		// 反射レイのミス時に参照するskybox

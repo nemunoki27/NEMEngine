@@ -29,6 +29,8 @@ namespace Engine {
 		float intensity = 10.0f;
 		// 影の強さ(0.0=影なし, 1.0=完全に黒)
 		float shadowStrength = 0.92f;
+		// 光源の見かけの半径、度数法
+		float shadowAngularRadius = 0.27f;
 
 		// 有効フラグ
 		bool enabled = true;

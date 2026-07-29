@@ -531,6 +531,7 @@ Engine::DirectionalLightGPU Engine::ViewLightBufferSet::ToGPU(const DirectionalL
 	light.direction = item.direction;
 	light.intensity = item.intensity;
 	light.shadowStrength = item.shadowStrength;
+	light.shadowAngularRadius = item.shadowAngularRadius;
 
 	return light;
 }
@@ -545,6 +546,7 @@ Engine::PointLightGPU Engine::ViewLightBufferSet::ToGPU(const PointLightItem& it
 	light.radius = item.radius;
 	light.decay = item.decay;
 	light.shadowStrength = item.shadowStrength;
+	light.shadowRadius = item.shadowRadius;
 
 	return light;
 }
@@ -561,6 +563,8 @@ Engine::SpotLightGPU Engine::ViewLightBufferSet::ToGPU(const SpotLightItem& item
 	light.decay = item.decay;
 	light.cosAngle = item.cosAngle;
 	light.cosFalloffStart = item.cosFalloffStart;
+	light.shadowStrength = item.shadowStrength;
+	light.shadowRadius = item.shadowRadius;
 
 	return light;
 }

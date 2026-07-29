@@ -30,6 +30,10 @@ void Engine::DirectionalLightInspectorDrawer::DrawFields(
 			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f });
 		});
 	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("光源角度", draft.shadowAngularRadius,
+			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 5.0f });
+		});
+	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
 	DrawField(anyItemActive, [&]() {
@@ -71,6 +75,10 @@ void Engine::PointLightInspectorDrawer::DrawFields(
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::DragFloat("影の強さ", draft.shadowStrength,
 			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f });
+		});
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("光源半径", draft.shadowRadius,
+			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 32.0f });
 		});
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
@@ -115,6 +123,14 @@ void Engine::SpotLightInspectorDrawer::DrawFields(
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::DragFloat("減衰開始余弦", draft.cosFalloffStart,
 			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 8.0f });
+		});
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("影の強さ", draft.shadowStrength,
+			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f });
+		});
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("光源半径", draft.shadowRadius,
+			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 32.0f });
 		});
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);

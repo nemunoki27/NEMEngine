@@ -30,6 +30,8 @@ namespace Engine {
 		float decay = 1.0f;
 		// 影の強さ(0.0=影なし, 1.0=完全に黒)
 		float shadowStrength = 0.92f;
+		// 面光源として扱う半径
+		float shadowRadius = 0.05f;
 
 		// 有効フラグ
 		bool enabled = true;

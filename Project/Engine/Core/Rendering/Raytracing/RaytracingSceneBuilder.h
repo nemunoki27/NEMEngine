@@ -86,12 +86,15 @@ namespace Engine {
 			AssetID meshAssetID{};
 			// ホットリロード世代、差し替えで別キーになり古いBLASを再利用しない
 			uint32_t reloadGeneration = 0;
+			// 静的メッシュのLODごとにBLASを共有する
+			uint32_t lodIndex = 0;
 			// サブメッシュローカル行列を含むジオメトリ配置
 			uint64_t geometryLayoutHash = 0;
 
 			bool operator==(const BLASKey& rhs) const noexcept {
 				return meshAssetID == rhs.meshAssetID &&
 					reloadGeneration == rhs.reloadGeneration &&
+					lodIndex == rhs.lodIndex &&
 					geometryLayoutHash == rhs.geometryLayoutHash;
 			}
 		};
@@ -99,10 +102,25 @@ namespace Engine {
 			size_t operator()(const BLASKey& key) const noexcept {
 				const size_t h0 = std::hash<AssetID>{}(key.meshAssetID);
 				const size_t h1 = std::hash<uint32_t>{}(key.reloadGeneration);
-				const size_t h2 = std::hash<uint64_t>{}(key.geometryLayoutHash);
+				const size_t h2 = std::hash<uint32_t>{}(key.lodIndex);
+				const size_t h3 = std::hash<uint64_t>{}(key.geometryLayoutHash);
 				size_t h = h0 ^ (h1 + 0x9e3779b9u + (h0 << 6) + (h0 >> 2));
-				return h ^ (h2 + 0x9e3779b9u + (h << 6) + (h >> 2));
+				h ^= h2 + 0x9e3779b9u + (h << 6) + (h >> 2);
+				return h ^ (h3 + 0x9e3779b9u + (h << 6) + (h >> 2));
 			}
+		};
+		// 静的メッシュのLOD差分更新に必要なインスタンス情報
+		struct CachedMeshLODInstance {
+
+			AssetID meshAssetID{};
+			uint32_t reloadGeneration = 0;
+			uint64_t geometryLayoutHash = 0;
+			uint32_t tlasInstanceIndex = 0;
+			uint32_t geometryDataOffset = 0;
+			uint32_t geometryCount = 0;
+			uint32_t lodIndex = 0;
+			Vector3 worldBoundsCenter = Vector3::AnyInit(0.0f);
+			float worldBoundsRadius = 0.0f;
 		};
 		// BLASのコレクション
 		struct CollectedMeshInstance {
@@ -267,6 +285,11 @@ namespace Engine {
 			cachedTLASInstances_{};
 		std::unordered_multimap<SceneEntityKey, uint32_t,
 			SceneEntityKeyHash> cachedTLASInstanceIndices_{};
+		std::vector<CachedMeshLODInstance>
+			cachedMeshLODInstances_{};
+		// TLASインスタンスからLODキャッシュをO(1)で参照する
+		std::vector<uint32_t>
+			cachedMeshLODRecordIndices_{};
 
 		// 1フレームで二重構築しないための制御フラグ
 		bool builtThisFrame_ = false;
@@ -277,6 +300,7 @@ namespace Engine {
 		uint64_t cachedRenderRevision_ = 0;
 		uint64_t cachedTransformRevision_ = 0;
 		uint64_t cachedMeshResourceRevision_ = 0;
+		uint64_t cachedLODViewHash_ = 0;
 		uint32_t cachedBLASGeometryCount_ = 0;
 		uint32_t cachedTLASInstanceCount_ = 0;
 		std::array<uint64_t, kGraphicsFrameContextCount>

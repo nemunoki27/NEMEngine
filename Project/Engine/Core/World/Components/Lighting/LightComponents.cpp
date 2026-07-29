@@ -14,6 +14,8 @@ void Engine::from_json(const nlohmann::json& in, DirectionalLightComponent& comp
 	component.direction = Vector3::FromJson(in.value("direction", nlohmann::json()));
 	component.intensity = in.value("intensity", 10.0f);
 	component.shadowStrength = in.value("shadowStrength", 0.92f);
+	component.shadowAngularRadius =
+		in.value("shadowAngularRadius", component.shadowAngularRadius);
 	component.enabled = in.value("enabled", true);
 	component.affectLayerMask = in.value("affectLayerMask", component.affectLayerMask);
 }
@@ -24,6 +26,7 @@ void Engine::to_json(nlohmann::json& out, const DirectionalLightComponent& compo
 	out["direction"] = component.direction.ToJson();
 	out["intensity"] = component.intensity;
 	out["shadowStrength"] = component.shadowStrength;
+	out["shadowAngularRadius"] = component.shadowAngularRadius;
 	out["enabled"] = component.enabled;
 	out["affectLayerMask"] = component.affectLayerMask;
 }
@@ -38,6 +41,7 @@ void Engine::from_json(const nlohmann::json& in, PointLightComponent& component)
 	component.radius = in.value("radius", 8.0f);
 	component.decay = in.value("decay", 1.0f);
 	component.shadowStrength = in.value("shadowStrength", component.shadowStrength);
+	component.shadowRadius = in.value("shadowRadius", component.shadowRadius);
 	component.enabled = in.value("enabled", true);
 	component.affectLayerMask = in.value("affectLayerMask", component.affectLayerMask);
 }
@@ -49,6 +53,7 @@ void Engine::to_json(nlohmann::json& out, const PointLightComponent& component) 
 	out["radius"] = component.radius;
 	out["decay"] = component.decay;
 	out["shadowStrength"] = component.shadowStrength;
+	out["shadowRadius"] = component.shadowRadius;
 	out["enabled"] = component.enabled;
 	out["affectLayerMask"] = component.affectLayerMask;
 }
@@ -65,6 +70,8 @@ void Engine::from_json(const nlohmann::json& in, SpotLightComponent& component) 
 	component.decay = in.value("decay", 1.0f);
 	component.cosAngle = in.value("cosAngle", std::cos(Math::pi / 3.0f));
 	component.cosFalloffStart = in.value("cosFalloffStart", std::cos(Math::pi / 6.0f));
+	component.shadowStrength = in.value("shadowStrength", component.shadowStrength);
+	component.shadowRadius = in.value("shadowRadius", component.shadowRadius);
 	component.enabled = in.value("enabled", true);
 	component.affectLayerMask = in.value("affectLayerMask", component.affectLayerMask);
 }
@@ -78,6 +85,8 @@ void Engine::to_json(nlohmann::json& out, const SpotLightComponent& component) {
 	out["decay"] = component.decay;
 	out["cosAngle"] = component.cosAngle;
 	out["cosFalloffStart"] = component.cosFalloffStart;
+	out["shadowStrength"] = component.shadowStrength;
+	out["shadowRadius"] = component.shadowRadius;
 	out["enabled"] = component.enabled;
 	out["affectLayerMask"] = component.affectLayerMask;
 }

@@ -5,6 +5,8 @@
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSemanticMerge.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
+#include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Runtime/Packages/PackageResolver.h>
@@ -804,6 +806,116 @@ namespace {
 		return !childTransform.isDirty &&
 			std::abs(childTransform.worldMatrix.GetTranslationValue().x - 10.0f) <= 0.0001f;
 	}
+
+	bool TestMeshLODGeneration() {
+
+		constexpr uint32_t gridSize = 32;
+		Engine::ImportedMeshAsset mesh{};
+		mesh.vertices.reserve(
+			static_cast<size_t>(gridSize + 1) *
+			static_cast<size_t>(gridSize + 1));
+		for (uint32_t z = 0; z <= gridSize; ++z) {
+			for (uint32_t x = 0; x <= gridSize; ++x) {
+
+				const float u =
+					static_cast<float>(x) /
+					static_cast<float>(gridSize);
+				const float v =
+					static_cast<float>(z) /
+					static_cast<float>(gridSize);
+				Engine::MeshVertex vertex{};
+				vertex.position =
+					Engine::Vector4(u, 0.0f, v, 1.0f);
+				vertex.normal =
+					Engine::Vector3(0.0f, 1.0f, 0.0f);
+				vertex.uv = Engine::Vector2(u, v);
+				mesh.vertices.emplace_back(vertex);
+			}
+		}
+
+		mesh.indices.reserve(
+			static_cast<size_t>(gridSize) *
+			static_cast<size_t>(gridSize) * 6);
+		for (uint32_t z = 0; z < gridSize; ++z) {
+			for (uint32_t x = 0; x < gridSize; ++x) {
+
+				const uint32_t row = gridSize + 1;
+				const uint32_t i0 = z * row + x;
+				const uint32_t i1 = i0 + 1;
+				const uint32_t i2 = i0 + row;
+				const uint32_t i3 = i2 + 1;
+				mesh.indices.insert(
+					mesh.indices.end(),
+					{ i0, i2, i1, i1, i2, i3 });
+			}
+		}
+
+		const uint32_t halfIndexCount =
+			static_cast<uint32_t>(mesh.indices.size() / 2);
+		Engine::SubMeshDesc firstSubMesh{};
+		firstSubMesh.indexCount = halfIndexCount;
+		mesh.subMeshes.emplace_back(firstSubMesh);
+		Engine::SubMeshDesc secondSubMesh{};
+		secondSubMesh.indexOffset = halfIndexCount;
+		secondSubMesh.indexCount =
+			static_cast<uint32_t>(mesh.indices.size()) -
+			halfIndexCount;
+		mesh.subMeshes.emplace_back(secondSubMesh);
+
+		Engine::MeshletBuilder builder{};
+		builder.Build(mesh);
+
+		uint32_t previousIndexCount =
+			mesh.lods[0].indexCount;
+		uint32_t previousMeshletCount =
+			mesh.lods[0].meshletCount;
+		const uint32_t lod0IndexCount =
+			mesh.lods[0].indexCount;
+		constexpr std::array<float, Engine::kMeshLODCount>
+			maximumIndexRatios = {
+				1.0f, 0.45f, 0.12f, 0.04f
+		};
+		if (previousIndexCount != gridSize * gridSize * 6 ||
+			previousMeshletCount == 0) {
+			return false;
+		}
+
+		for (uint32_t lodIndex = 1;
+			lodIndex < Engine::kMeshLODCount;
+			++lodIndex) {
+
+			const Engine::MeshLODRange& lod =
+				mesh.lods[lodIndex];
+			if (lod.indexCount == 0 ||
+				lod.indexCount % 3 != 0 ||
+				lod.indexCount >= previousIndexCount ||
+				static_cast<float>(lod.indexCount) >
+				static_cast<float>(lod0IndexCount) *
+				maximumIndexRatios[lodIndex] ||
+				lod.meshletCount == 0 ||
+				lod.meshletCount > previousMeshletCount) {
+				std::cerr << "LOD" << lodIndex <<
+					" indices=" << lod.indexCount <<
+					" meshlets=" << lod.meshletCount <<
+					" previousIndices=" << previousIndexCount <<
+					" previousMeshlets=" << previousMeshletCount <<
+					'\n';
+				return false;
+			}
+			previousIndexCount = lod.indexCount;
+			previousMeshletCount = lod.meshletCount;
+		}
+
+		if (mesh.lods[Engine::kMeshLODCount - 1].
+			indexCount > 64u * 3u) {
+			return false;
+		}
+
+		return Engine::GraphicsMeshLOD::ArePixelThresholdsValid(
+			160.0f, 80.0f, 32.0f) &&
+			!Engine::GraphicsMeshLOD::ArePixelThresholdsValid(
+				534.1f, 0.1f, 0.1f);
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -877,6 +989,10 @@ int main(int argc, char* argv[]) {
 	if (!TestSerializationClone()) {
 		std::cerr << "Serialization clone failed\n";
 		return 15;
+	}
+	if (!TestMeshLODGeneration()) {
+		std::cerr << "Mesh LOD generation failed\n";
+		return 16;
 	}
 	std::cout << "NEMTests passed\n";
 	return 0;
