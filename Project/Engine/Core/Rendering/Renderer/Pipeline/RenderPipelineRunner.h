@@ -68,6 +68,9 @@ namespace Engine {
 		RenderTargetRegistry* targetRegistry = nullptr;
 		// 固定RenderPath用の中間レンダーターゲット
 		RenderPathResources* resources = nullptr;
+		// カリングカメラに対応するHi-Zを持つViewリソース
+		RenderPathResources* cullingResources = nullptr;
+		bool occlusionDepthPyramidReady = false;
 		// ビルボードの計算基準にするビュー
 		const ResolvedRenderView* billboardView = nullptr;
 		// ツールプレビューなど、1枚のRT内の一部だけへ描く時の描画矩形

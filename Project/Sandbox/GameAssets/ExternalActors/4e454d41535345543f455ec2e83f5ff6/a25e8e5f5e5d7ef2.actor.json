@@ -1,0 +1,51 @@
+{
+    "Components": {
+        "Hierarchy": {
+            "parentLocalFileID": "a4127b69b1f2a244",
+            "siblingOrder": 508
+        },
+        "Name": {
+            "name": "PerformancePointLight"
+        },
+        "PointLight": {
+            "affectLayerMask": 4294967295,
+            "color": {
+                "a": 1.0,
+                "b": 0.72808837890625,
+                "g": 1.0,
+                "r": 0.0
+            },
+            "decay": 1.0,
+            "enabled": true,
+            "intensity": 8.0,
+            "radius": 8.0,
+            "shadowStrength": 0.9200000166893005
+        },
+        "SceneObject": {
+            "activeSelf": true,
+            "localFileId": "a25e8e5f5e5d7ef2",
+            "tag": "Untagged",
+            "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+            "localPos": {
+                "x": 84.0,
+                "y": 0.0,
+                "z": -4.0
+            },
+            "localRotation": {
+                "w": 1.0,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    },
+    "LocalFileID": "a25e8e5f5e5d7ef2",
+    "SchemaVersion": 1
+}

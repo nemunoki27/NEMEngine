@@ -303,6 +303,10 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::BuildManualOrthographic(
 	out.cullingMask = static_cast<uint32_t>(state.orthographicCullingMask);
 
 	Matrix4x4 world = BuildManualWorld(state.transform2D);
+	out.forward = Vector3(
+		world.m[2][0],
+		world.m[2][1],
+		world.m[2][2]).Normalize();
 	out.matrices.inverseViewMatrix = world;
 	out.matrices.viewMatrix = Matrix4x4::Inverse(world);
 	// 2Dカメラと同様に深度範囲を前後対称にする
@@ -356,6 +360,10 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::BuildManualPerspective(
 	float aspect = static_cast<float>(width) / static_cast<float>((std::max)(height, 1u));
 
 	Matrix4x4 world = BuildManualWorld(state.transform3D);
+	out.forward = Vector3(
+		world.m[2][0],
+		world.m[2][1],
+		world.m[2][2]).Normalize();
 	out.matrices.inverseViewMatrix = world;
 	out.matrices.viewMatrix = Matrix4x4::Inverse(world);
 	out.matrices.projectionMatrix = Matrix4x4::MakePerspectiveFovMatrix(state.perspectiveFovY, aspect, out.nearClip, out.farClip);

@@ -12,6 +12,7 @@
 // c++
 #include <array>
 #include <string>
+#include <vector>
 
 namespace Engine {
 
@@ -83,6 +84,8 @@ namespace Engine {
 		std::vector<uint32_t> clusterCountScratch_{};
 		std::vector<uint32_t> clusterCursorScratch_{};
 		std::vector<ClusterBoundsScratch> clusterBoundsScratch_{};
+		std::vector<uint32_t> clusterWorkerCursorScratch_{};
+		std::vector<uint32_t> clusterWorkerIndicesScratch_{};
 		LightCountsGPU lightCountsScratch_{};
 		LightClusterConstantsGPU clusterConstantsScratch_{};
 

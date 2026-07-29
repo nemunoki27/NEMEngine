@@ -19,16 +19,19 @@ void Engine::RenderExtractorRegistry::BuildBatch(ECSWorld& world, RenderSceneBat
 			return;
 		}
 
-		// Transform変更だけなら既存アイテムの行列を更新し、
-		// コンポーネント抽出、ペイロード構築、ソートを省略する
-		for (RenderItem& item : batch.GetMutableItems()) {
-			if (!item.world || !item.world->IsAlive(item.entity)) {
-				continue;
-			}
-			item.worldMatrix =
-				RenderItemExtract::GetWorldMatrix(*item.world, item.entity);
+		std::vector<Entity> changedEntities;
+		const bool completeChanges =
+			world.CollectRenderTransformChanges(
+				batch.GetSourceTransformRevision(),
+				changedEntities);
+		if (completeChanges) {
+			batch.RefreshTransforms(world, changedEntities);
+		} else {
+			// 履歴外の世代から再開した場合だけ安全側で全件更新する
+			batch.RefreshAllTransforms();
 		}
-		batch.SetTransformSource(transformRevision);
+		batch.SetTransformSource(
+			transformRevision, completeChanges);
 		return;
 	}
 

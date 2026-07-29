@@ -6,6 +6,7 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
@@ -30,6 +31,14 @@ namespace {
 			return date.substr(0, 3) + " " + day + " " + time.substr(0, 5);
 			}();
 		return version.c_str();
+	}
+
+	// 直前のグラフィックス設定項目に説明を表示する
+	void DrawGraphicsTooltip(const char* text) {
+
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("%s", text);
+		}
 	}
 }
 
@@ -163,7 +172,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 		ImGui::SetWindowFontScale(0.85f);
 
-		// GPUから検出した機能サポート状況とユーザー設定を表示し、切り替え可能なものは切り替える
 		auto& featureController = context.graphicsPlatform->GetFeatureController();
 		const auto& adapterInfo = featureController.GetAdapterInfo();
 		const auto& support = featureController.GetSupport();
@@ -171,125 +179,218 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		const auto& runtime = featureController.GetRuntimeFeatures();
 		const double vramGB = static_cast<double>(adapterInfo.dedicatedVideoMemoryBytes) / (1024.0 * 1024.0 * 1024.0);
 
-		ImGui::TextWrapped("Adapter: %s", adapterInfo.adapterName.empty() ? "Unknown" : adapterInfo.adapterName.c_str());
-		ImGui::Text("Feature Level : %s", GraphicsFeatureText::ToString(adapterInfo.featureLevel));
-		ImGui::Text("Shader Model  : %s", GraphicsFeatureText::ToString(support.highestShaderModel));
-		ImGui::Text("Dedicated VRAM: %.2f GB", vramGB);
-
-		ImGui::Separator();
-
-		ImGui::Text("Mesh Shader Tier: %s", GraphicsFeatureText::ToString(support.meshShaderTier));
-		ImGui::Text("RayTracing Tier : %s", GraphicsFeatureText::ToString(support.raytracingTier));
-
-		ImGui::Separator();
-
-		// メッシュ描画経路はGPU対応状況を見ながら切り替える
-		bool allowMeshShader = preferences.allowMeshShader;
-		ImGui::BeginDisabled(!support.SupportsMeshShaderPath());
-		if (ImGui::Checkbox("メッシュシェーダーを使用", &allowMeshShader)) {
-			featureController.SetAllowMeshShader(allowMeshShader);
+		if (ImGui::BeginMenu("GPU情報")) {
+			ImGui::TextWrapped("Adapter: %s", adapterInfo.adapterName.empty() ? "Unknown" : adapterInfo.adapterName.c_str());
+			ImGui::Text("Feature Level : %s", GraphicsFeatureText::ToString(adapterInfo.featureLevel));
+			ImGui::Text("Shader Model  : %s", GraphicsFeatureText::ToString(support.highestShaderModel));
+			ImGui::Text("Dedicated VRAM: %.2f GB", vramGB);
+			ImGui::Separator();
+			ImGui::Text("Mesh Shader Tier: %s", GraphicsFeatureText::ToString(support.meshShaderTier));
+			ImGui::Text("RayTracing Tier : %s", GraphicsFeatureText::ToString(support.raytracingTier));
+			ImGui::EndMenu();
 		}
-		ImGui::EndDisabled();
 
-		if (!support.SupportsMeshShaderPath()) {
-			ImGui::TextDisabled("メッシュシェーダーに対応していないGPUです");
-		}
-		ImGui::Text("現在のメッシュパス: %s", runtime.useMeshShader ? "メッシュシェーダー" : "頂点シェーダ―");
-
-		ImGui::Separator();
-
-		// フレームレート上限はここで切り替えてProjectSettingsへ保存する、0は制限なし
-		FrameRateSettings& frameRate = FrameRateSettings::GetInstance();
-		const uint32_t fpsOptions[] = { 30u, 60u, 120u, 0u };
-		const char* fpsLabels[] = { "30", "60", "120", "未制限" };
-		int fpsIndex = 1;
-		for (int i = 0; i < 4; ++i) {
-			if (fpsOptions[i] == frameRate.GetTargetFps()) {
-				fpsIndex = i;
-				break;
+		if (ImGui::BeginMenu("描画パス")) {
+			bool allowMeshShader = preferences.allowMeshShader;
+			ImGui::BeginDisabled(!support.SupportsMeshShaderPath());
+			if (ImGui::Checkbox("メッシュシェーダーを使用", &allowMeshShader)) {
+				featureController.SetAllowMeshShader(allowMeshShader);
 			}
-		}
-		if (ImGui::Combo("フレームレート制限", &fpsIndex, fpsLabels, 4)) {
-			frameRate.SetTargetFps(fpsOptions[fpsIndex]);
-			frameRate.Save();
-		}
+			DrawGraphicsTooltip("対応GPUではMesh Shader経路を使用します");
+			ImGui::EndDisabled();
 
-		ImGui::Separator();
-
-		// カリング系はGameView基準の結果を確認しやすいよう、Graphicsメニューから個別に切り替える
-		bool allowFrustumCulling = preferences.allowFrustumCulling;
-		if (ImGui::Checkbox("視錐台カリング有効", &allowFrustumCulling)) {
-			featureController.SetAllowFrustumCulling(allowFrustumCulling);
-		}
-		ImGui::Text("視錐台カリング: %s", runtime.useFrustumCulling ? "有効" : "無効");
-
-		bool useGameViewCameraForSceneCulling =
-			preferences.useGameViewCameraForSceneCulling;
-		if (ImGui::Checkbox("SceneViewもGameViewカメラでカリング",
-			&useGameViewCameraForSceneCulling)) {
-
-			featureController.SetUseGameViewCameraForSceneCulling(
-				useGameViewCameraForSceneCulling);
+			if (!support.SupportsMeshShaderPath()) {
+				ImGui::TextDisabled("メッシュシェーダーに対応していないGPUです");
+			}
+			ImGui::Text("現在のメッシュパス: %s",
+				runtime.useMeshShader ? "メッシュシェーダー" : "頂点シェーダー");
+			ImGui::EndMenu();
 		}
 
-		ImGui::Separator();
-
-		bool allowInlineRayTracing = preferences.allowInlineRayTracing;
-		ImGui::BeginDisabled(!support.SupportsRayTracingPath());
-		if (ImGui::Checkbox("インラインシャドウ有効", &allowInlineRayTracing)) {
-			featureController.SetAllowInlineRayTracing(allowInlineRayTracing);
-		}
-		ImGui::EndDisabled();
-
-		if (!support.SupportsRayTracingPath()) {
-			ImGui::TextDisabled("インラインレイトレーシングに対応していないGPUです");
-		}
-
-		bool allowDispatchRays = preferences.allowDispatchRays;
-		ImGui::BeginDisabled(!support.SupportsRayTracingPath());
-		if (ImGui::Checkbox("マテリアル反射パス有効", &allowDispatchRays)) {
-			featureController.SetAllowDispatchRays(allowDispatchRays);
-		}
-		ImGui::EndDisabled();
-
-		if (!support.SupportsRayTracingPath()) {
-			ImGui::TextDisabled("レイトレーシングに対応していないGPUです");
-		}
-
-		ImGui::Text("インラインシャドウ : %s", runtime.useInlineRayTracing ? "有効" : "無効");
-		ImGui::Text("マテリアル反射パス : %s", runtime.useDispatchRays ? "有効" : "無効");
-		ImGui::Text("TLAS ビルド      : %s", runtime.UsesAnyRayTracing() ? "有効" : "無効");
-
-		ImGui::Separator();
-
-		// DeferredのGBufferをGameView/SceneViewへ表示する、チェックは常に1つだけ、全部外すと通常描画へ戻る
-		ImGui::TextDisabled("Deferred GBuffer View");
-		if (context.editorState) {
-
-			struct GBufferDebugItem {
-
-				const char* label;
-				GBufferDebugView view;
-			};
-			static const GBufferDebugItem kItems[] = {
-				{ "Albedo", GBufferDebugView::Albedo },
-				{ "Normal", GBufferDebugView::Normal },
-				{ "World Pos",    GBufferDebugView::Position },
-				{ "Material", GBufferDebugView::Material },
-				{ "Emissive", GBufferDebugView::Emissive },
-				{ "Depth", GBufferDebugView::Depth },
-			};
-
-			GBufferDebugView& current = context.editorState->gbufferDebugView;
-			for (const GBufferDebugItem& item : kItems) {
-
-				bool checked = (current == item.view);
-				if (ImGui::Checkbox(item.label, &checked)) {
-					// 1つだけ選べるようにし、同じ項目を外したらNoneへ戻す
-					current = checked ? item.view : GBufferDebugView::None;
+		if (ImGui::BeginMenu("フレーム設定")) {
+			FrameRateSettings& frameRate = FrameRateSettings::GetInstance();
+			const uint32_t fpsOptions[] = { 30u, 60u, 120u, 0u };
+			const char* fpsLabels[] = { "30", "60", "120", "未制限" };
+			int fpsIndex = 1;
+			for (int i = 0; i < 4; ++i) {
+				if (fpsOptions[i] == frameRate.GetTargetFps()) {
+					fpsIndex = i;
+					break;
 				}
 			}
-			ImGui::Text("現在の表示: %s", EnumAdapter<GBufferDebugView>::ToString(current));
+			if (ImGui::Combo("フレームレート制限", &fpsIndex, fpsLabels, 4)) {
+				frameRate.SetTargetFps(fpsOptions[fpsIndex]);
+				frameRate.Save();
+			}
+			DrawGraphicsTooltip("0はVSyncとCPU側のフレーム待機を無効にします");
+
+			const char* frameContextLabels[] = { "1", "2", "3" };
+			int frameContextIndex =
+				static_cast<int>(preferences.frameContextCount - 1);
+			if (ImGui::Combo("FrameContext数", &frameContextIndex,
+				frameContextLabels, 3)) {
+				featureController.SetFrameContextCount(
+					static_cast<uint32_t>(frameContextIndex + 1));
+			}
+			DrawGraphicsTooltip("CPUが先行できるフレーム数です。変更は再起動後に反映されます");
+			ImGui::Text("現在: %u",
+				GraphicsFrameState::GetActiveCount());
+			if (preferences.frameContextCount !=
+				GraphicsFrameState::GetActiveCount()) {
+				ImGui::TextDisabled("再起動後に%uへ変更",
+					preferences.frameContextCount);
+			}
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("カリング")) {
+			bool allowFrustumCulling =
+				preferences.allowFrustumCulling;
+			if (ImGui::Checkbox("視錐台カリング",
+				&allowFrustumCulling)) {
+				featureController.SetAllowFrustumCulling(
+					allowFrustumCulling);
+			}
+			DrawGraphicsTooltip("カメラの視錐台外にあるインスタンスを描画対象から除外します");
+
+			bool allowOcclusionCulling =
+				preferences.allowOcclusionCulling;
+			if (ImGui::Checkbox("オクルージョンカリング",
+				&allowOcclusionCulling)) {
+				featureController.SetAllowOcclusionCulling(
+					allowOcclusionCulling);
+			}
+			DrawGraphicsTooltip("深度ピラミッドで遮蔽されたインスタンスまたはメッシュレットを除外します");
+
+			bool allowContributionCulling =
+				preferences.allowContributionCulling;
+			if (ImGui::Checkbox("寄与度カリング",
+				&allowContributionCulling)) {
+				featureController.SetAllowContributionCulling(
+					allowContributionCulling);
+			}
+			DrawGraphicsTooltip("画面上で極端に小さいメッシュを除外します");
+
+			bool allowNormalConeCulling =
+				preferences.allowNormalConeCulling;
+			ImGui::BeginDisabled(!runtime.useMeshShader);
+			if (ImGui::Checkbox("法線コーンカリング",
+				&allowNormalConeCulling)) {
+				featureController.SetAllowNormalConeCulling(
+					allowNormalConeCulling);
+			}
+			DrawGraphicsTooltip("Mesh Shader経路で裏向きのメッシュレットを除外します");
+			ImGui::EndDisabled();
+
+			bool useGameViewCameraForSceneCulling =
+				preferences.useGameViewCameraForSceneCulling;
+			if (ImGui::Checkbox("SceneViewもGameViewカメラでカリング",
+				&useGameViewCameraForSceneCulling)) {
+				featureController.SetUseGameViewCameraForSceneCulling(
+					useGameViewCameraForSceneCulling);
+			}
+			DrawGraphicsTooltip("無効時はSceneView自身のカメラでカリングします");
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("LOD")) {
+			bool allowMeshLOD = preferences.allowMeshLOD;
+			if (ImGui::Checkbox("LODを使用",
+				&allowMeshLOD)) {
+				featureController.SetAllowMeshLOD(
+					allowMeshLOD);
+			}
+			DrawGraphicsTooltip("無効時は常にLOD0を描画します");
+
+			float lod0 = preferences.meshLOD0PixelThreshold;
+			float lod1 = preferences.meshLOD1PixelThreshold;
+			float lod2 = preferences.meshLOD2PixelThreshold;
+			ImGui::BeginDisabled(!allowMeshLOD);
+			if (ImGui::DragFloat("LOD0からLOD1", &lod0,
+				1.0f, 0.1f, 4096.0f, "%.1f px")) {
+				featureController.SetMeshLODThresholds(
+					lod0, lod1, lod2);
+			}
+			DrawGraphicsTooltip("投影半径がこのピクセル数未満になるとLOD1へ切り替えます");
+			if (ImGui::DragFloat("LOD1からLOD2", &lod1,
+				1.0f, 0.1f, lod0, "%.1f px")) {
+				featureController.SetMeshLODThresholds(
+					lod0, lod1, lod2);
+			}
+			DrawGraphicsTooltip("投影半径がこのピクセル数未満になるとLOD2へ切り替えます");
+			if (ImGui::DragFloat("LOD2からLOD3", &lod2,
+				1.0f, 0.1f, lod1, "%.1f px")) {
+				featureController.SetMeshLODThresholds(
+					lod0, lod1, lod2);
+			}
+			DrawGraphicsTooltip("投影半径がこのピクセル数未満になるとLOD3へ切り替えます");
+			ImGui::EndDisabled();
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("レイトレーシング")) {
+			bool allowInlineRayTracing =
+				preferences.allowInlineRayTracing;
+			ImGui::BeginDisabled(!support.SupportsRayTracingPath());
+			if (ImGui::Checkbox("インラインシャドウ",
+				&allowInlineRayTracing)) {
+				featureController.SetAllowInlineRayTracing(
+					allowInlineRayTracing);
+			}
+			DrawGraphicsTooltip("RayQueryを使ったシャドウ判定を有効にします");
+
+			bool allowDispatchRays =
+				preferences.allowDispatchRays;
+			if (ImGui::Checkbox("マテリアル反射パス",
+				&allowDispatchRays)) {
+				featureController.SetAllowDispatchRays(
+					allowDispatchRays);
+			}
+			DrawGraphicsTooltip("DispatchRaysによる反射描画を有効にします");
+			ImGui::EndDisabled();
+
+			if (!support.SupportsRayTracingPath()) {
+				ImGui::TextDisabled("レイトレーシングに対応していないGPUです");
+			}
+			ImGui::Text("TLASビルド: %s",
+				runtime.UsesAnyRayTracing() ? "有効" : "無効");
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("デバッグ表示")) {
+			ImGui::TextDisabled("Deferred GBuffer View");
+			if (context.editorState) {
+
+				struct GBufferDebugItem {
+
+					const char* label;
+					GBufferDebugView view;
+				};
+				static const GBufferDebugItem kItems[] = {
+					{ "Albedo", GBufferDebugView::Albedo },
+					{ "Normal", GBufferDebugView::Normal },
+					{ "World Pos",    GBufferDebugView::Position },
+					{ "Material", GBufferDebugView::Material },
+					{ "Emissive", GBufferDebugView::Emissive },
+					{ "Depth", GBufferDebugView::Depth },
+				};
+
+				GBufferDebugView& current =
+					context.editorState->gbufferDebugView;
+				for (const GBufferDebugItem& item : kItems) {
+
+					bool checked = (current == item.view);
+					if (ImGui::Checkbox(item.label, &checked)) {
+						// 1つだけ選べるようにし、同じ項目を外したらNoneへ戻す
+						current = checked ?
+							item.view : GBufferDebugView::None;
+					}
+				}
+				ImGui::Text("現在の表示: %s",
+					EnumAdapter<GBufferDebugView>::
+					ToString(current));
+			}
+			ImGui::EndMenu();
 		}
 
 		ImGui::SetWindowFontScale(1.0f);

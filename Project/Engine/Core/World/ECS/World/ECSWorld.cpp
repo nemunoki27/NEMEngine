@@ -329,16 +329,64 @@ void Engine::ECSWorld::MarkRenderDataModified() {
 }
 
 void Engine::ECSWorld::MarkTransformConsumersModified(
-	ComponentChangeChannel channels) {
+	ComponentChangeChannel channels,
+	std::span<const Entity> changedTransforms) {
 
 	if (HasComponentChangeChannel(
 		channels, ComponentChangeChannel::Render)) {
 		IncrementRevision(renderTransformRevision_);
+
+		RenderTransformChangeBatch batch{};
+		batch.revision = renderTransformRevision_;
+		batch.entities.assign(
+			changedTransforms.begin(), changedTransforms.end());
+		renderTransformChangeHistory_.emplace_back(std::move(batch));
+		while (kRenderTransformHistoryCount <
+			renderTransformChangeHistory_.size()) {
+			renderTransformChangeHistory_.pop_front();
+		}
 	}
 	if (HasComponentChangeChannel(
 		channels, ComponentChangeChannel::Lighting)) {
 		IncrementRevision(lightDataRevision_);
 	}
+}
+
+bool Engine::ECSWorld::CollectRenderTransformChanges(
+	uint64_t afterRevision, std::vector<Entity>& outEntities) const {
+
+	outEntities.clear();
+	if (afterRevision == renderTransformRevision_) {
+		return true;
+	}
+	if (renderTransformRevision_ < afterRevision) {
+		return false;
+	}
+	if (renderTransformChangeHistory_.empty() ||
+		afterRevision + 1 <
+		renderTransformChangeHistory_.front().revision) {
+		return false;
+	}
+
+	for (const RenderTransformChangeBatch& batch :
+		renderTransformChangeHistory_) {
+		if (batch.revision <= afterRevision) {
+			continue;
+		}
+		outEntities.insert(outEntities.end(),
+			batch.entities.begin(), batch.entities.end());
+	}
+	std::sort(outEntities.begin(), outEntities.end(),
+		[](const Entity& lhs, const Entity& rhs) {
+			if (lhs.index != rhs.index) {
+				return lhs.index < rhs.index;
+			}
+			return lhs.generation < rhs.generation;
+		});
+	outEntities.erase(
+		std::unique(outEntities.begin(), outEntities.end()),
+		outEntities.end());
+	return true;
 }
 
 ComponentChangeChannel Engine::ECSWorld::GetTransformChangeChannels(

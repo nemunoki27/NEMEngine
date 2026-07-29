@@ -201,7 +201,8 @@ void Engine::MeshletBuilder::BuildLODs(ImportedMeshAsset& mesh) const {
 					attributes.data(), sizeof(float) * 5,
 					kAttributeWeights, 5, nullptr,
 					targetCount, kTargetError,
-					meshopt_SimplifyLockBorder, nullptr);
+					meshopt_SimplifyLockBorder |
+					meshopt_SimplifyRegularize, nullptr);
 			} else {
 
 				std::copy(sourceIndices.begin(), sourceIndices.end(), simplified.begin());

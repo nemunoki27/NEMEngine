@@ -11,9 +11,11 @@
 
 // c++
 #include <array>
+#include <deque>
 #include <span>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 namespace Engine {
 
@@ -161,7 +163,8 @@ namespace Engine {
 		// 描画構成と描画Transformの変更世代を個別に進める
 		void MarkRenderDataModified();
 		void MarkTransformConsumersModified(
-			ComponentChangeChannel channels);
+			ComponentChangeChannel channels,
+			std::span<const Entity> changedTransforms);
 
 		// Component変更通知の購読を追加、削除する
 		uint64_t AddComponentMutationListener(ComponentMutationCallback callback, void* userData);
@@ -240,6 +243,9 @@ namespace Engine {
 		uint64_t GetLightDataRevision() const {
 			return lightDataRevision_;
 		}
+		// 指定世代より後に描画へ影響したTransform一覧を取得
+		bool CollectRenderTransformChanges(
+			uint64_t afterRevision, std::vector<Entity>& outEntities) const;
 		// EntityのTransformが影響する抽出先を返す
 		ComponentChangeChannel GetTransformChangeChannels(
 			const Entity& entity) const;
@@ -302,8 +308,17 @@ namespace Engine {
 			ComponentMutationCallback callback = nullptr;
 			void* userData = nullptr;
 		};
+		// 描画Transformの世代ごとの差分
+		struct RenderTransformChangeBatch {
+
+			uint64_t revision = 0;
+			std::vector<Entity> entities;
+		};
 		std::vector<ComponentMutationListener> componentMutationListeners_;
+		std::deque<RenderTransformChangeBatch>
+			renderTransformChangeHistory_;
 		uint64_t nextComponentMutationListenerID_ = 1;
+		static constexpr size_t kRenderTransformHistoryCount = 8;
 		// 0を未構築値として扱えるよう1から開始する
 		uint64_t dataRevision_ = 1;
 		uint64_t renderDataRevision_ = 1;

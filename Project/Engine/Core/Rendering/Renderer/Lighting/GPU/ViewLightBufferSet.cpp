@@ -9,6 +9,8 @@
 // c++
 #include <algorithm>
 #include <cmath>
+#include <execution>
+#include <thread>
 
 //============================================================================
 //	ViewLightBufferSet classMethods
@@ -121,6 +123,8 @@ void Engine::ViewLightBufferSet::Release() {
 	clusterCountScratch_.clear();
 	clusterCursorScratch_.clear();
 	clusterBoundsScratch_.clear();
+	clusterWorkerCursorScratch_.clear();
+	clusterWorkerIndicesScratch_.clear();
 	lightCountsScratch_ = {};
 	clusterConstantsScratch_ = {};
 	cachedLightRevision_ = 0;
@@ -374,41 +378,145 @@ void Engine::ViewLightBufferSet::BuildClusters(
 			}
 		}
 		};
+	uint64_t clusterVisitCount = 0;
 	for (const ClusterBoundsScratch& bounds : clusterBoundsScratch_) {
-		visitClusters(bounds, [&](uint32_t clusterIndex) {
-			++clusterCountScratch_[clusterIndex];
-			});
+		const uint64_t xCount =
+			bounds.maxX - bounds.minX + 1;
+		const uint64_t yCount =
+			bounds.maxY - bounds.minY + 1;
+		const uint64_t zCount =
+			bounds.maxZ - bounds.minZ + 1;
+		clusterVisitCount += xCount * yCount * zCount;
 	}
+
+	const uint32_t hardwareThreads =
+		(std::max)(std::thread::hardware_concurrency(), 1u);
+	const uint32_t workerCount = (std::min)({
+		hardwareThreads, 16u,
+		static_cast<uint32_t>(clusterBoundsScratch_.size())
+		});
+	const bool useParallel =
+		1 < workerCount && 8192 < clusterVisitCount;
 
 	clusterHeaderScratch_.resize(constants.clusterCount);
 	uint32_t totalIndexCount = 0;
 	uint32_t maxLightsPerCluster = 0;
-	for (uint32_t clusterIndex = 0;
-		clusterIndex < constants.clusterCount; ++clusterIndex) {
-		LightClusterHeaderGPU& header =
-			clusterHeaderScratch_[clusterIndex];
-		header.offset = totalIndexCount;
-		header.count = clusterCountScratch_[clusterIndex];
-		totalIndexCount += header.count;
-		maxLightsPerCluster = (std::max)(
-			maxLightsPerCluster, header.count);
-	}
-	constants.maxLightsPerCluster = maxLightsPerCluster;
-	clusterLightIndexScratch_.resize(totalIndexCount);
-	clusterCursorScratch_.assign(constants.clusterCount, 0);
-	for (const ClusterBoundsScratch& bounds : clusterBoundsScratch_) {
-		visitClusters(bounds, [&](uint32_t clusterIndex) {
-			uint32_t& cursor = clusterCursorScratch_[clusterIndex];
-			const LightClusterHeaderGPU& header =
-				clusterHeaderScratch_[clusterIndex];
-			if (cursor < header.count) {
-				clusterLightIndexScratch_[header.offset + cursor] =
-					bounds.lightIndex;
-				++cursor;
+	if (useParallel) {
+
+		const size_t workerStride = constants.clusterCount;
+		clusterWorkerCursorScratch_.assign(
+			workerStride * workerCount, 0);
+		clusterWorkerIndicesScratch_.resize(workerCount);
+		for (uint32_t worker = 0;
+			worker < workerCount; ++worker) {
+			clusterWorkerIndicesScratch_[worker] = worker;
 		}
+
+		// ワーカーごとの領域へ数えることでatomic競合を避ける
+		std::for_each(std::execution::par,
+			clusterWorkerIndicesScratch_.begin(),
+			clusterWorkerIndicesScratch_.end(),
+			[&](uint32_t worker) {
+				uint32_t* counts =
+					clusterWorkerCursorScratch_.data() +
+					workerStride * worker;
+				for (size_t boundsIndex = worker;
+					boundsIndex < clusterBoundsScratch_.size();
+					boundsIndex += workerCount) {
+					visitClusters(
+						clusterBoundsScratch_[boundsIndex],
+						[&](uint32_t clusterIndex) {
+							++counts[clusterIndex];
+						});
+				}
 			});
+
+		for (uint32_t clusterIndex = 0;
+			clusterIndex < constants.clusterCount;
+			++clusterIndex) {
+			LightClusterHeaderGPU& header =
+				clusterHeaderScratch_[clusterIndex];
+			header.offset = totalIndexCount;
+			header.count = 0;
+			for (uint32_t worker = 0;
+				worker < workerCount; ++worker) {
+				const size_t cursorIndex =
+					workerStride * worker + clusterIndex;
+				const uint32_t count =
+					clusterWorkerCursorScratch_[cursorIndex];
+				clusterWorkerCursorScratch_[cursorIndex] =
+					header.offset + header.count;
+				header.count += count;
+			}
+			totalIndexCount += header.count;
+			maxLightsPerCluster = (std::max)(
+				maxLightsPerCluster, header.count);
+		}
+
+		clusterLightIndexScratch_.resize(totalIndexCount);
+		std::for_each(std::execution::par,
+			clusterWorkerIndicesScratch_.begin(),
+			clusterWorkerIndicesScratch_.end(),
+			[&](uint32_t worker) {
+				uint32_t* cursors =
+					clusterWorkerCursorScratch_.data() +
+					workerStride * worker;
+				for (size_t boundsIndex = worker;
+					boundsIndex < clusterBoundsScratch_.size();
+					boundsIndex += workerCount) {
+					const ClusterBoundsScratch& bounds =
+						clusterBoundsScratch_[boundsIndex];
+					visitClusters(bounds,
+						[&](uint32_t clusterIndex) {
+							clusterLightIndexScratch_[
+								cursors[clusterIndex]++] =
+								bounds.lightIndex;
+						});
+				}
+			});
+	} else {
+
+		for (const ClusterBoundsScratch& bounds :
+			clusterBoundsScratch_) {
+			visitClusters(bounds,
+				[&](uint32_t clusterIndex) {
+					++clusterCountScratch_[clusterIndex];
+				});
+		}
+		for (uint32_t clusterIndex = 0;
+			clusterIndex < constants.clusterCount;
+			++clusterIndex) {
+			LightClusterHeaderGPU& header =
+				clusterHeaderScratch_[clusterIndex];
+			header.offset = totalIndexCount;
+			header.count =
+				clusterCountScratch_[clusterIndex];
+			totalIndexCount += header.count;
+			maxLightsPerCluster = (std::max)(
+				maxLightsPerCluster, header.count);
+		}
+		clusterLightIndexScratch_.resize(totalIndexCount);
+		clusterCursorScratch_.assign(
+			constants.clusterCount, 0);
+		for (const ClusterBoundsScratch& bounds :
+			clusterBoundsScratch_) {
+			visitClusters(bounds,
+				[&](uint32_t clusterIndex) {
+					uint32_t& cursor =
+						clusterCursorScratch_[clusterIndex];
+					const LightClusterHeaderGPU& header =
+						clusterHeaderScratch_[clusterIndex];
+					if (cursor < header.count) {
+						clusterLightIndexScratch_[
+							header.offset + cursor] =
+							bounds.lightIndex;
+						++cursor;
+					}
+				});
+			}
 	}
 
+	constants.maxLightsPerCluster = maxLightsPerCluster;
 	clusterConstantsScratch_ = constants;
 	FrameProfiler::GetInstance().SetClusterStatistics(
 		constants.clusterCount, lightSet.GetLocalLightCount(),

@@ -19,6 +19,8 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device, IDXGIFactory7* fa
 
 	device_ = device;
 	rtvDescriptor_ = rtvDescriptor;
+	bufferCount_ = (std::max)(
+		2u, GraphicsFrameState::GetActiveCount());
 
 	DXGI_FORMAT bufferFormat = format;
 	DXGI_COLOR_SPACE_TYPE colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
@@ -57,7 +59,7 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device, IDXGIFactory7* fa
 	desc_.Format = bufferFormat;
 	desc_.SampleDesc.Count = 1;
 	desc_.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	desc_.BufferCount = kBufferCount;
+	desc_.BufferCount = bufferCount_;
 	desc_.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	desc_.Scaling = DXGI_SCALING_NONE;
 	// FPS制限解除
@@ -98,7 +100,7 @@ bool DxSwapChain::Resize(uint32_t width, uint32_t height) {
 	}
 
 	const HRESULT resizeResult = swapChain_->ResizeBuffers(
-		kBufferCount, width, height, desc_.Format, desc_.Flags);
+		bufferCount_, width, height, desc_.Format, desc_.Flags);
 	if (!DxDredDiagnostics::CheckHRESULT(device_, resizeResult, "DxSwapChain::Resize/ResizeBuffers")) {
 		Assert::Call(false, "SwapChain ResizeBuffers failed.");
 		return false;
@@ -123,7 +125,7 @@ bool DxSwapChain::CreateBackBufferResources(bool allocateDescriptors) {
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
 	rtvDesc.Format = renderTarget_.format;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-	for (uint32_t index = 0; index < kBufferCount; ++index) {
+	for (uint32_t index = 0; index < bufferCount_; ++index) {
 
 		const HRESULT getBufferResult = swapChain_->GetBuffer(index, IID_PPV_ARGS(&resources_[index]));
 		if (!DxDredDiagnostics::CheckHRESULT(device_, getBufferResult, "DxSwapChain::CreateBackBufferResources/GetBuffer")) {

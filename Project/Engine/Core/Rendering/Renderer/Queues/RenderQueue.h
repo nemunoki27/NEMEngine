@@ -16,6 +16,7 @@
 
 // c++
 #include <vector>
+#include <span>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -156,6 +157,13 @@ namespace Engine {
 	//	RenderSceneBatch class
 	//	フレーム中の描画アイテムを統一管理する
 	//============================================================================
+	struct RenderTransformChange {
+
+		ECSWorld* world = nullptr;
+		Entity entity = Entity::Null();
+		Matrix4x4 worldMatrix = Matrix4x4::Identity();
+	};
+
 	class RenderSceneBatch {
 	public:
 		//============================================================================
@@ -177,7 +185,13 @@ namespace Engine {
 		void SetSource(const ECSWorld* world,
 			uint64_t renderRevision, uint64_t transformRevision);
 		// Transformだけを更新した世代を記録する
-		void SetTransformSource(uint64_t transformRevision);
+		void SetTransformSource(uint64_t transformRevision,
+			bool completeChanges);
+		// 指定EntityだけのTransformを更新
+		void RefreshTransforms(ECSWorld& world,
+			std::span<const Entity> changedEntities);
+		// 差分履歴が利用できない場合に全Transformを更新
+		void RefreshAllTransforms();
 
 		// 描画アイテムのペイロードの追加
 		template<class T>
@@ -187,6 +201,13 @@ namespace Engine {
 
 		const std::vector<RenderItem>& GetItems() const { return items_; }
 		std::vector<RenderItem>& GetMutableItems() { return items_; }
+		std::span<const RenderTransformChange>
+			GetTransformChanges() const {
+			return transformChanges_;
+		}
+		bool HasCompleteTransformChanges() const {
+			return completeTransformChanges_;
+		}
 		// Raytracing等が描画内容の変更検知に使用する世代
 		uint64_t GetSourceRevision() const { return contentRevision_; }
 		uint64_t GetSourceRenderRevision() const { return sourceRenderRevision_; }
@@ -209,11 +230,20 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::vector<RenderItem> items_;
+		std::unordered_multimap<uint64_t, size_t>
+			entityItemLookup_;
+		std::vector<RenderTransformChange> transformChanges_;
 		RenderPayloadArena payloadArena_{};
 		const ECSWorld* sourceWorld_ = nullptr;
 		uint64_t sourceRenderRevision_ = 0;
 		uint64_t sourceTransformRevision_ = 0;
 		uint64_t contentRevision_ = 0;
+		bool completeTransformChanges_ = false;
+
+		// Entityを描画アイテム索引へ変換するキー
+		static uint64_t BuildEntityKey(const Entity& entity);
+		// ソート後の描画アイテム索引を構築
+		void RebuildEntityLookup();
 	};
 } // Engine
 

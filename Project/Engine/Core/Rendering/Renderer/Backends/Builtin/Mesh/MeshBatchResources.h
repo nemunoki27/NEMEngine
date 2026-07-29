@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Renderer/Backends/Common/DefaultStructuredInstanceBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
@@ -51,6 +52,9 @@ namespace Engine {
 		Vector3 cullingCameraPos = Vector3::AnyInit(0.0f);
 		// Nearより手前に球がかかる場合はContribution判定を安全側で無効にする
 		float cullingNearClip = 0.001f;
+		// Hi-Z判定で球の最前面を求めるカリングカメラ前方
+		Vector3 cullingCameraForward = Vector3(0.0f, 0.0f, 1.0f);
+		float _cullingPad0 = 0.0f;
 		// 描画先Viewportサイズ
 		Vector2 viewSize = Vector2::AnyInit(1.0f);
 		// カリング対象ViewportサイズでSceneView表示時もGameViewサイズを使う
@@ -114,19 +118,19 @@ namespace Engine {
 		Entity entity = Entity::Null();
 		uint32_t vertexOffset = 0;
 	};
-	// スキニングするエンティティを検索するためのキー
-	struct SkinnedEntityLookupKey {
+	// メッシュインスタンスをEntityから検索するためのキー
+	struct MeshEntityLookupKey {
 
 		ECSWorld* world = nullptr;
 		Entity entity = Entity::Null();
 
-		bool operator==(const SkinnedEntityLookupKey& rhs) const noexcept {
+		bool operator==(const MeshEntityLookupKey& rhs) const noexcept {
 			return world == rhs.world && entity.index == rhs.entity.index &&
 				entity.generation == rhs.entity.generation;
 		}
 	};
-	struct SkinnedEntityLookupKeyHash {
-		size_t operator()(const SkinnedEntityLookupKey& key) const noexcept {
+	struct MeshEntityLookupKeyHash {
+		size_t operator()(const MeshEntityLookupKey& key) const noexcept {
 			size_t h = std::hash<void*>{}(key.world);
 			h ^= (std::hash<uint32_t>{}(key.entity.index) << 1);
 			h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
@@ -158,7 +162,7 @@ namespace Engine {
 			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
 		// 静的バッチの構成を維持したままインスタンス行列だけを更新する
 		bool RefreshInstanceTransforms(
-			const std::span<const RenderItem* const>& items);
+			std::span<const RenderTransformChange> changes);
 		// 静的キャッシュが保持するCPU配列を現在のフレーム用バッファへ転送する
 		void UploadCachedBatchData();
 		// 描画パスごとに変わるMeshDrawConstantsを毎描画更新しキャッシュヒット時も必ず呼ぶ
@@ -294,23 +298,19 @@ namespace Engine {
 		};
 
 		// バッファ
-		StructuredInstanceBuffer<MeshInstanceData> meshData_{ "gMeshInstances" };
+		DefaultStructuredInstanceBuffer<MeshInstanceData> meshData_{ "gMeshInstances" };
 		// ExecuteIndirect/AmplificationShaderのカリング結果を書き戻す可視インスタンスバッファ
 		StructuredRWBuffer<MeshInstanceData> visibleMeshData_{ "gVisibleMeshInstances" };
 		// 同一フレーム内の複数パスで上書きしないper-draw定数領域
 		PostProcessConstantBufferAllocator dynamicConstantAllocator_{};
 		uint64_t dynamicConstantFrameSerial_ = 0;
-		// 内容が変わった静的配列だけ各Frame Contextへ転送する
-		uint64_t batchDataGeneration_ = 1;
-		std::array<uint64_t, kGraphicsFrameContextCount>
-			uploadedBatchDataGenerations_ = { 0, 0, 0 };
 		std::array<uint64_t, 2> viewUploadFrameSerials_ = { 0, 0 };
 		D3D12_GPU_VIRTUAL_ADDRESS drawGPUAddress_ = 0;
 		D3D12_GPU_VIRTUAL_ADDRESS screenSpaceOutlineMaskGPUAddress_ = 0;
 		D3D12_GPU_VIRTUAL_ADDRESS indirectArgsGPUAddress_ = 0;
-		StructuredInstanceBuffer<MeshSubMeshShaderData> subMeshData_{ "gSubMeshes" };
+		DefaultStructuredInstanceBuffer<MeshSubMeshShaderData> subMeshData_{ "gSubMeshes" };
 		// 背面法アウトラインのインスタンス別GPUデータ
-		StructuredInstanceBuffer<MeshOutlineGPUData> outlineData_{ "gMeshOutlines" };
+		DefaultStructuredInstanceBuffer<MeshOutlineGPUData> outlineData_{ "gMeshOutlines" };
 
 		// サブメッシュ単位マテリアルパラメータ用の可変stride構造化バッファ
 		ID3D12Device* device_ = nullptr;
@@ -345,6 +345,8 @@ namespace Engine {
 
 		// 毎バッチ再利用するデータ
 		std::vector<MeshInstanceData> meshScratch_{};
+		std::unordered_multimap<MeshEntityLookupKey, uint32_t,
+			MeshEntityLookupKeyHash> meshInstanceIndexMap_{};
 		std::vector<MeshSubMeshShaderData> subMeshScratch_{};
 		std::vector<MeshOutlineGPUData> outlineScratch_{};
 
@@ -362,7 +364,8 @@ namespace Engine {
 
 		// スキニングメッシュを持つエンティティの記録
 		std::vector<SkinnedEntityRecord> skinnedRecords_{};
-		std::unordered_map<SkinnedEntityLookupKey, uint32_t, SkinnedEntityLookupKeyHash> skinnedVertexOffsetMap_{};
+		std::unordered_map<MeshEntityLookupKey, uint32_t,
+			MeshEntityLookupKeyHash> skinnedVertexOffsetMap_{};
 
 		// インスタンス数
 		uint32_t instanceCount_ = 0;

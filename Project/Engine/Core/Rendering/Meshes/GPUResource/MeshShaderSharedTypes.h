@@ -37,7 +37,8 @@ namespace Engine {
 		uint32_t cullingEnabled = 0;
 		// 圧縮頂点用のメッシュレットIndexバッファを使うか
 		uint32_t packedMeshletVertexIndices = 0;
-		uint32_t _reserved0 = 0;
+		// 視錐台判定を行うか
+		uint32_t frustumCullingEnabled = 0;
 		// 画面上の寄与が小さいメッシュレットを落とすか
 		uint32_t contributionCullingEnabled = 0;
 		// メッシュレット法線コーンによる背面判定を行うか
@@ -55,7 +56,9 @@ namespace Engine {
 		float outlineMaxAbsCameraZOffset = 0.0f;
 		// ScreenPixels幅を含むバッチかどうか
 		uint32_t outlineHasScreenPixelWidth = 0;
-		uint32_t _reserved1[3] = { 0, 0, 0 };
+		// 深度ピラミッドによる遮蔽判定を行うか
+		uint32_t occlusionCullingEnabled = 0;
+		uint32_t _reserved1[2] = { 0, 0 };
 
 		// 連結Index/Meshletバッファ内の4段階LOD範囲
 		std::array<uint32_t, kMeshLODCount> lodIndexOffsets{};

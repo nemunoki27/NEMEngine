@@ -131,6 +131,28 @@ namespace Engine {
 			// 形状ハッシュ、共有ジオメトリのキー
 			uint64_t geometryHash = 0;
 		};
+		// TLASインスタンスをEntityから検索するためのキー
+		struct SceneEntityKey {
+
+			ECSWorld* world = nullptr;
+			Entity entity = Entity::Null();
+
+			bool operator==(const SceneEntityKey& rhs) const noexcept {
+				return world == rhs.world &&
+					entity == rhs.entity;
+			}
+		};
+		struct SceneEntityKeyHash {
+			size_t operator()(
+				const SceneEntityKey& key) const noexcept {
+				size_t h = std::hash<void*>{}(key.world);
+				h ^= (std::hash<uint32_t>{}(
+					key.entity.index) << 1);
+				h ^= (std::hash<uint32_t>{}(
+					key.entity.generation) << 2);
+				return h;
+			}
+		};
 		// FillMeshのRTリソースキー
 		struct FillMeshRTKey {
 
@@ -240,6 +262,11 @@ namespace Engine {
 		bool firstTLASBuild_ = true;
 		// 前回TLASへ渡したインスタンス配置のハッシュ
 		uint64_t tlasInstanceHash_ = 0;
+		// 静的シーンのTransform差分更新に使うTLAS配置
+		std::vector<RaytracingTLASInstance>
+			cachedTLASInstances_{};
+		std::unordered_multimap<SceneEntityKey, uint32_t,
+			SceneEntityKeyHash> cachedTLASInstanceIndices_{};
 
 		// 1フレームで二重構築しないための制御フラグ
 		bool builtThisFrame_ = false;
@@ -248,6 +275,7 @@ namespace Engine {
 		bool cachedStaticScene_ = false;
 		UUID cachedSceneInstanceID_{};
 		uint64_t cachedRenderRevision_ = 0;
+		uint64_t cachedTransformRevision_ = 0;
 		uint64_t cachedMeshResourceRevision_ = 0;
 		uint32_t cachedBLASGeometryCount_ = 0;
 		uint32_t cachedTLASInstanceCount_ = 0;

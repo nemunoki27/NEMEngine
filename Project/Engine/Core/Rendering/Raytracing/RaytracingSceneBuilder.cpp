@@ -154,6 +154,8 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	sceneSubMeshScratch_.clear();
 	scenePickRecords_.clear();
 	scenePickRecordOffsets_.clear();
+	cachedTLASInstances_.clear();
+	cachedTLASInstanceIndices_.clear();
 
 	textureKeyCache_.clear();
 	textureDescriptorIndexCache_.clear();
@@ -174,6 +176,7 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	cachedStaticScene_ = false;
 	cachedSceneInstanceID_ = {};
 	cachedRenderRevision_ = 0;
+	cachedTransformRevision_ = 0;
 	cachedMeshResourceRevision_ = 0;
 	cachedBLASGeometryCount_ = 0;
 	cachedTLASInstanceCount_ = 0;
@@ -236,11 +239,16 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 	const uint64_t meshResourceRevision =
 		meshBackend ? meshBackend->GetMeshResourceRevision() : 0;
-	if (cachedStaticScene_ &&
+	const bool matchesStaticScene =
+		cachedStaticScene_ &&
 		cachedSceneInstanceID_ == context.sceneInstance->instanceID &&
-		cachedRenderRevision_ == renderBatch.GetSourceRevision() &&
+		cachedRenderRevision_ ==
+			renderBatch.GetSourceRenderRevision() &&
 		cachedMeshResourceRevision_ == meshResourceRevision &&
-		tlas_.IsBuilt()) {
+		tlas_.IsBuilt();
+	if (matchesStaticScene &&
+		cachedTransformRevision_ ==
+			renderBatch.GetSourceTransformRevision()) {
 
 		UploadCachedSceneBuffers();
 		FrameProfiler::GetInstance().AddBLASSkip(cachedBLASGeometryCount_);
@@ -248,6 +256,55 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		FrameProfiler::GetInstance().AddTLASSkip();
 		builtThisFrame_ = true;
 		builtSceneInstanceID_ = context.sceneInstance->instanceID;
+		PublishBuiltScene(context);
+		return;
+	}
+	if (matchesStaticScene &&
+		renderBatch.HasCompleteTransformChanges() &&
+		!cachedTLASInstances_.empty()) {
+
+		bool transformChanged = false;
+		for (const RenderTransformChange& change :
+			renderBatch.GetTransformChanges()) {
+			SceneEntityKey key{};
+			key.world = change.world;
+			key.entity = change.entity;
+			const auto [begin, end] =
+				cachedTLASInstanceIndices_.equal_range(key);
+			for (auto it = begin; it != end; ++it) {
+				RaytracingTLASInstance& instance =
+					cachedTLASInstances_[it->second];
+				if (instance.worldMatrix ==
+					change.worldMatrix) {
+					continue;
+				}
+				instance.worldMatrix =
+					change.worldMatrix;
+				transformChanged = true;
+			}
+		}
+
+		if (transformChanged) {
+			ID3D12GraphicsCommandList6* commandList =
+				graphicsCore.GetDXObject().GetDxCommand()->
+				GetCommandList();
+			tlas_.Update(
+				commandList, cachedTLASInstances_);
+			FrameProfiler::GetInstance().AddTLASRefit();
+		} else {
+			FrameProfiler::GetInstance().AddTLASSkip();
+		}
+
+		cachedTransformRevision_ =
+			renderBatch.GetSourceTransformRevision();
+		UploadCachedSceneBuffers();
+		FrameProfiler::GetInstance().AddBLASSkip(
+			cachedBLASGeometryCount_);
+		FrameProfiler::GetInstance().SetTLASInstanceCount(
+			cachedTLASInstanceCount_);
+		builtThisFrame_ = true;
+		builtSceneInstanceID_ =
+			context.sceneInstance->instanceID;
 		PublishBuiltScene(context);
 		return;
 	}
@@ -303,6 +360,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	// BLASの構築とTLASインスタンスの準備
 	std::vector<RaytracingTLASInstance> tlasInstances;
 	tlasInstances.reserve(sceneMeshes.size() + sceneFillMeshes.size());
+	std::vector<SceneEntityKey> tlasEntityKeys;
+	tlasEntityKeys.reserve(sceneMeshes.size() +
+		sceneFillMeshes.size() + scenePrimitives.size());
 
 	// BLASリソースを新規/作り直しした場合はTLASのrefitでは反映できないため完全再構築する
 	bool requireTlasRebuild = false;
@@ -590,6 +650,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 		instance.worldMatrix = src.worldMatrix;
 		tlasInstances.emplace_back(instance);
+		tlasEntityKeys.emplace_back(
+			SceneEntityKey{
+				.world = src.world,
+				.entity = src.entity,
+			});
 	}
 
 	for (const CollectedFillMeshInstance& src : sceneFillMeshes) {
@@ -660,6 +725,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 		instance.worldMatrix = src.worldMatrix;
 		tlasInstances.emplace_back(instance);
+		tlasEntityKeys.emplace_back(
+			SceneEntityKey{
+				.world = src.world,
+				.entity = src.entity,
+			});
 	}
 
 	// Primitiveは形状ハッシュ単位で共有BLASを使い、インスタンスごとにTLASへ登録する
@@ -727,6 +797,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 		instance.worldMatrix = src.worldMatrix;
 		tlasInstances.emplace_back(instance);
+		tlasEntityKeys.emplace_back(
+			SceneEntityKey{
+				.world = src.world,
+				.entity = src.entity,
+			});
 	}
 
 	// TLASインスタンスがない場合は処理しない
@@ -766,10 +841,26 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	builtSceneInstanceID_ = context.sceneInstance->instanceID;
 	cachedStaticScene_ = staticScene;
 	cachedSceneInstanceID_ = context.sceneInstance->instanceID;
-	cachedRenderRevision_ = renderBatch.GetSourceRevision();
+	cachedRenderRevision_ =
+		renderBatch.GetSourceRenderRevision();
+	cachedTransformRevision_ =
+		renderBatch.GetSourceTransformRevision();
 	cachedMeshResourceRevision_ = meshResourceRevision;
 	cachedBLASGeometryCount_ = blasGeometryCount;
 	cachedTLASInstanceCount_ = static_cast<uint32_t>(tlasInstances.size());
+	cachedTLASInstances_.clear();
+	cachedTLASInstanceIndices_.clear();
+	if (staticScene) {
+		cachedTLASInstances_ = tlasInstances;
+		cachedTLASInstanceIndices_.reserve(
+			tlasEntityKeys.size());
+		for (uint32_t index = 0;
+			index < static_cast<uint32_t>(
+				tlasEntityKeys.size()); ++index) {
+			cachedTLASInstanceIndices_.emplace(
+				tlasEntityKeys[index], index);
+		}
+	}
 
 	// 構築したシーン情報をコンテキストに渡す
 	PublishBuiltScene(context);

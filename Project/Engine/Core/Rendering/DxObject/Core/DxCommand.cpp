@@ -40,7 +40,7 @@ void DxCommand::Create(ID3D12Device* device) {
 
 void DxCommand::BeginFrame(uint32_t frameIndex) {
 
-	frameIndex %= kGraphicsFrameContextCount;
+	frameIndex %= GraphicsFrameState::GetActiveCount();
 	GraphicsFrameState::BeginFrame(frameIndex);
 	if (recording_) {
 		Assert::Call(currentFrameIndex_ == frameIndex,

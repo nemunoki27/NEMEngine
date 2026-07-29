@@ -52,12 +52,22 @@ namespace Engine {
 		bool allowDispatchRays = false;
 		// フラスタムカリングを行うか
 		bool allowFrustumCulling = true;
+		// 深度ピラミッドによるオクルージョンカリングを行うか
+		bool allowOcclusionCulling = true;
 		// SceneViewのカリングにGameViewのカメラを使用するか
 		bool useGameViewCameraForSceneCulling = true;
 		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
 		bool allowContributionCulling = true;
 		// MeshShader経路でメッシュレットの法線コーン判定を行うか
 		bool allowNormalConeCulling = false;
+		// メッシュLODを使用するか
+		bool allowMeshLOD = true;
+		// 投影半径が閾値を下回ったとき次のLODへ移る
+		float meshLOD0PixelThreshold = 160.0f;
+		float meshLOD1PixelThreshold = 80.0f;
+		float meshLOD2PixelThreshold = 32.0f;
+		// 起動時に使用するフレームコンテキスト数
+		uint32_t frameContextCount = 3;
 	};
 
 	// ランタイムで使用する機能
@@ -69,8 +79,13 @@ namespace Engine {
 		bool useDispatchRays = false;
 		// 描画パスごとに参照するカリング機能
 		bool useFrustumCulling = false;
+		bool useOcclusionCulling = false;
 		bool useContributionCulling = false;
 		bool useNormalConeCulling = false;
+		bool useMeshLOD = true;
+		float meshLOD0PixelThreshold = 160.0f;
+		float meshLOD1PixelThreshold = 80.0f;
+		float meshLOD2PixelThreshold = 32.0f;
 
 		bool UsesAnyRayTracing() const { return useInlineRayTracing || useDispatchRays; }
 	};

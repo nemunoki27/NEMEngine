@@ -92,11 +92,11 @@ void Engine::TopLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6* c
 void Engine::TopLevelAccelerationStructure::UploadInstanceDescs(
 	const std::vector<RaytracingTLASInstance>& instances) {
 
-	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> descriptors(instances.size());
+	instanceDescScratch_.resize(instances.size());
 	for (size_t i = 0; i < instances.size(); ++i) {
 
 		const auto& src = instances[i];
-		auto& dst = descriptors[i];
+		auto& dst = instanceDescScratch_[i];
 
 		std::memset(&dst, 0, sizeof(dst));
 
@@ -110,8 +110,9 @@ void Engine::TopLevelAccelerationStructure::UploadInstanceDescs(
 		dst.Flags = src.flags;
 		dst.AccelerationStructure = src.blas->GetGPUVirtualAddress();
 	}
-	instanceDescBuffer_.Write(descriptors.data(),
-		descriptors.size() * sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+	instanceDescBuffer_.Write(instanceDescScratch_.data(),
+		instanceDescScratch_.size() *
+		sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
 }
 
 void Engine::TopLevelAccelerationStructure::CopyMatrix3x4(float(&dst)[3][4], const Matrix4x4& src) {

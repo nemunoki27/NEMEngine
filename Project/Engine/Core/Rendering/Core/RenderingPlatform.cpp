@@ -120,6 +120,11 @@ void GraphicsPlatform::Init() {
 	// device初期化
 	dxDevice_ = std::make_unique<DxDevice>();
 	InitDXDevice();
+	const uint32_t frameContextCount =
+		featureController_.GetPreferences().
+		frameContextCount;
+	GraphicsFrameState::SetActiveCount(
+		frameContextCount);
 
 	// command初期化、キュー/記録/フレーム終端の順で生成する
 	dxCommandQueue_ = std::make_unique<DxCommandQueue>();
@@ -160,7 +165,7 @@ void GraphicsPlatform::PresentFrame(IDXGISwapChain4* swapChain) {
 
 void GraphicsPlatform::BeginFrame(uint32_t frameIndex) {
 
-	frameIndex %= kGraphicsFrameContextCount;
+	frameIndex %= GraphicsFrameState::GetActiveCount();
 	if (dxCommand_->IsRecording()) {
 		Assert::Call(dxCommand_->GetCurrentFrameIndex() == frameIndex,
 			"記録中のGraphicsFrameContextとSwapChain indexが一致しません");
@@ -182,7 +187,7 @@ void GraphicsPlatform::BeginFrame(uint32_t frameIndex) {
 	const uint64_t lastFenceValue =
 		dxCommandQueue_->GetLastSignaledFenceValue();
 	FrameProfiler::GetInstance().SetFrameContextStatistics(
-		frameIndex, kGraphicsFrameContextCount,
+		frameIndex, GraphicsFrameState::GetActiveCount(),
 		static_cast<uint32_t>(lastFenceValue - completedFenceValue));
 }
 

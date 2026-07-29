@@ -55,6 +55,7 @@ namespace Engine {
 
 		std::vector<Entity> dirtyTransforms_;
 		std::vector<Entity> queuedTransforms_;
+		std::vector<Entity> changedTransforms_;
 		std::vector<StackNode> stack_;
 		uint64_t mutationListenerID_ = 0;
 		uint32_t transformTypeID_ = 0;

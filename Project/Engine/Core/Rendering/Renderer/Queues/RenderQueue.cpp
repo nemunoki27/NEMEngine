@@ -1,6 +1,11 @@
 #include "RenderQueue.h"
 
 //============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
+
+//============================================================================
 //	RenderQueue classMethods
 //============================================================================
 void Engine::RenderSceneBatch::Add(RenderItem&& item) {
@@ -11,10 +16,13 @@ void Engine::RenderSceneBatch::Add(RenderItem&& item) {
 void Engine::RenderSceneBatch::Clear() {
 
 	items_.clear();
+	entityItemLookup_.clear();
+	transformChanges_.clear();
 	payloadArena_.Clear();
 	sourceWorld_ = nullptr;
 	sourceRenderRevision_ = 0;
 	sourceTransformRevision_ = 0;
+	completeTransformChanges_ = false;
 }
 
 void Engine::RenderSceneBatch::Reserve(uint32_t itemCount, uint32_t payloadByteCount) {
@@ -83,17 +91,100 @@ void Engine::RenderSceneBatch::SetSource(const ECSWorld* world,
 	sourceWorld_ = world;
 	sourceRenderRevision_ = renderRevision;
 	sourceTransformRevision_ = transformRevision;
+	transformChanges_.clear();
+	completeTransformChanges_ = false;
+	RebuildEntityLookup();
 	++contentRevision_;
 	if (contentRevision_ == 0) {
 		contentRevision_ = 1;
 	}
 }
 
-void Engine::RenderSceneBatch::SetTransformSource(uint64_t transformRevision) {
+void Engine::RenderSceneBatch::SetTransformSource(
+	uint64_t transformRevision, bool completeChanges) {
 
 	sourceTransformRevision_ = transformRevision;
+	completeTransformChanges_ = completeChanges;
 	++contentRevision_;
 	if (contentRevision_ == 0) {
 		contentRevision_ = 1;
+	}
+}
+
+void Engine::RenderSceneBatch::RefreshTransforms(
+	ECSWorld& world, std::span<const Entity> changedEntities) {
+
+	transformChanges_.clear();
+	for (const Entity entity : changedEntities) {
+		if (!world.IsAlive(entity)) {
+			continue;
+		}
+
+		const auto [begin, end] =
+			entityItemLookup_.equal_range(BuildEntityKey(entity));
+		if (begin == end) {
+			continue;
+		}
+
+		const Matrix4x4 worldMatrix =
+			RenderItemExtract::GetWorldMatrix(world, entity);
+		bool changed = false;
+		for (auto it = begin; it != end; ++it) {
+			RenderItem& item = items_[it->second];
+			if (item.world != &world ||
+				item.entity != entity ||
+				item.worldMatrix == worldMatrix) {
+				continue;
+			}
+			item.worldMatrix = worldMatrix;
+			changed = true;
+		}
+		if (changed) {
+			transformChanges_.emplace_back(
+				RenderTransformChange{
+					.world = &world,
+					.entity = entity,
+					.worldMatrix = worldMatrix,
+				});
+		}
+	}
+}
+
+void Engine::RenderSceneBatch::RefreshAllTransforms() {
+
+	transformChanges_.clear();
+	for (RenderItem& item : items_) {
+		if (!item.world || !item.world->IsAlive(item.entity)) {
+			continue;
+		}
+		const Matrix4x4 worldMatrix =
+			RenderItemExtract::GetWorldMatrix(*item.world, item.entity);
+		if (item.worldMatrix == worldMatrix) {
+			continue;
+		}
+		item.worldMatrix = worldMatrix;
+		transformChanges_.emplace_back(
+			RenderTransformChange{
+				.world = item.world,
+				.entity = item.entity,
+				.worldMatrix = worldMatrix,
+			});
+	}
+}
+
+uint64_t Engine::RenderSceneBatch::BuildEntityKey(
+	const Entity& entity) {
+
+	return static_cast<uint64_t>(entity.generation) << 32 |
+		static_cast<uint64_t>(entity.index);
+}
+
+void Engine::RenderSceneBatch::RebuildEntityLookup() {
+
+	entityItemLookup_.clear();
+	entityItemLookup_.reserve(items_.size());
+	for (size_t index = 0; index < items_.size(); ++index) {
+		entityItemLookup_.emplace(
+			BuildEntityKey(items_[index].entity), index);
 	}
 }

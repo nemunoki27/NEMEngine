@@ -52,6 +52,9 @@ namespace Engine {
 		AccelerationStructureBuffer scratch_;
 		AccelerationStructureBuffer result_;
 		GraphicsDeferredReleaseQueue retiredResources_{};
+		// 毎更新で再確保しないTLAS記述作業領域
+		std::vector<D3D12_RAYTRACING_INSTANCE_DESC>
+			instanceDescScratch_{};
 
 		// ビルド記述
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs_{};

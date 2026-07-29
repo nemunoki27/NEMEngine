@@ -125,7 +125,24 @@ void Engine::BufferUploadService::EnsureBatchOpened() {
 void Engine::BufferUploadService::EnqueueBufferUpload(ID3D12Resource* destination,
 	std::span<const std::byte> sourceData, D3D12_RESOURCE_STATES finalState) {
 
+	EnqueueBufferUpload(destination, 0, sourceData,
+		D3D12_RESOURCE_STATE_COMMON, finalState);
+}
+
+void Engine::BufferUploadService::EnqueueBufferUpload(
+	ID3D12Resource* destination, size_t destinationOffset,
+	std::span<const std::byte> sourceData,
+	D3D12_RESOURCE_STATES currentState,
+	D3D12_RESOURCE_STATES finalState) {
+
 	if (!destination || sourceData.empty()) {
+		return;
+	}
+	if (destinationOffset + sourceData.size_bytes() >
+		destination->GetDesc().Width) {
+
+		Assert::Call(false,
+			"BufferUpload destination range overflow.");
 		return;
 	}
 
@@ -141,17 +158,26 @@ void Engine::BufferUploadService::EnqueueBufferUpload(ID3D12Resource* destinatio
 	std::memcpy(mapped, sourceData.data(), sourceData.size_bytes());
 	staging->Unmap(0, nullptr);
 
-	// DEFAULT heap bufferはCreateCommittedResource時点ではCOMMONなので、コピー前にCOPY_DESTへ遷移する
-	D3D12_RESOURCE_BARRIER copyDestBarrier{};
-	copyDestBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	copyDestBarrier.Transition.pResource = destination;
-	copyDestBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
-	copyDestBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-	copyDestBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	currentContext_->commandList->ResourceBarrier(1, &copyDestBarrier);
+	// 更新済みリソースも扱えるよう、呼び出し元が管理する状態からCOPY_DESTへ遷移する
+	if (currentState != D3D12_RESOURCE_STATE_COPY_DEST) {
+
+		D3D12_RESOURCE_BARRIER copyDestBarrier{};
+		copyDestBarrier.Type =
+			D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		copyDestBarrier.Transition.pResource = destination;
+		copyDestBarrier.Transition.StateBefore = currentState;
+		copyDestBarrier.Transition.StateAfter =
+			D3D12_RESOURCE_STATE_COPY_DEST;
+		copyDestBarrier.Transition.Subresource =
+			D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		currentContext_->commandList->ResourceBarrier(
+			1, &copyDestBarrier);
+	}
 
 	// staging -> DEFAULT heapへコピー
-	currentContext_->commandList->CopyBufferRegion(destination, 0, staging.Get(), 0, sourceData.size_bytes());
+	currentContext_->commandList->CopyBufferRegion(
+		destination, destinationOffset,
+		staging.Get(), 0, sourceData.size_bytes());
 
 	// 必要なら最終状態へ遷移する(COPY_DESTのままにする場合はBarrierを積まない)
 	if (finalState != D3D12_RESOURCE_STATE_COPY_DEST) {

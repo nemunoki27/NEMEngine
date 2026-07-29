@@ -43,6 +43,11 @@ namespace Engine {
 		// stagingを生成しCopyBufferRegionとBarrierを積む、実行はSubmitBatchで行う
 		void EnqueueBufferUpload(ID3D12Resource* destination,
 			std::span<const std::byte> sourceData, D3D12_RESOURCE_STATES finalState);
+		// 既存DEFAULT heapの指定範囲だけを更新し、前後の状態を復元する
+		void EnqueueBufferUpload(ID3D12Resource* destination,
+			size_t destinationOffset, std::span<const std::byte> sourceData,
+			D3D12_RESOURCE_STATES currentState,
+			D3D12_RESOURCE_STATES finalState);
 
 		// 記録済みBatchをキューへ提出しFence値を返す、コマンドが無ければ0を返す
 		uint64_t SubmitBatch();

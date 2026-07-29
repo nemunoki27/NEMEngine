@@ -67,6 +67,7 @@ void Engine::RenderPathResources::Resize(GraphicsCore& graphicsCore, uint32_t wi
 	if (sceneFinal_) {
 		sceneFinal_->Destroy();
 	}
+	depthPyramid_.Destroy();
 	runtimeOutline_.Destroy();
 	editorSelectionOutline_.Destroy();
 
@@ -85,6 +86,11 @@ void Engine::RenderPathResources::Resize(GraphicsCore& graphicsCore, uint32_t wi
 		&graphicsCore.GetDSVDescriptor(),
 		&graphicsCore.GetSRVDescriptor(),
 		BuildSceneFinalDesc(width, height));
+
+	depthPyramid_.Create(
+		graphicsCore.GetDXObject().GetDevice(),
+		&graphicsCore.GetSRVDescriptor(),
+		width, height);
 
 	runtimeOutline_.mask = std::make_unique<MultiRenderTarget>();
 	runtimeOutline_.mask->Create(
@@ -161,6 +167,7 @@ void Engine::RenderPathResources::Destroy() {
 		sceneFinal_->Destroy();
 		sceneFinal_.reset();
 	}
+	depthPyramid_.Destroy();
 	runtimeOutline_.Destroy();
 	editorSelectionOutline_.Destroy();
 	currentWidth_ = 0;

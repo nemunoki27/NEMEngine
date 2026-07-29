@@ -34,6 +34,7 @@ void Engine::TransformSystem::OnWorldExit(
 	transformTypeID_ = 0;
 	dirtyTransforms_.clear();
 	queuedTransforms_.clear();
+	changedTransforms_.clear();
 	stack_.clear();
 }
 
@@ -84,6 +85,9 @@ Engine::ComponentChangeChannel Engine::TransformSystem::UpdateDirtySubtree(
 	const auto& hierarchy = world.GetComponent<HierarchyComponent>(entity);
 	ComponentChangeChannel changedChannels =
 		world.GetTransformChangeChannels(entity);
+	if (changedChannels != ComponentChangeChannel::None) {
+		changedTransforms_.emplace_back(entity);
+	}
 
 	// 階層先頭は現在の親ワールド行列から更新する
 	if (hierarchy.parent.IsValid() && world.IsAlive(hierarchy.parent) &&
@@ -143,8 +147,13 @@ Engine::ComponentChangeChannel Engine::TransformSystem::UpdateDirtySubtree(
 					childTransform->ignoreParentScale, childTransform->ignoreParentRotation);
 				childTransform->worldMatrix = MakeLocalMatrix(*childTransform) * followParent;
 				childTransform->isDirty = false;
-				changedChannels |=
+				const ComponentChangeChannel childChannels =
 					world.GetTransformChangeChannels(child);
+				changedChannels |= childChannels;
+				if (childChannels !=
+					ComponentChangeChannel::None) {
+					changedTransforms_.emplace_back(child);
+				}
 			} else {
 
 				childTransform->isDirty = true;
@@ -178,6 +187,7 @@ void Engine::TransformSystem::UpdateTransforms(ECSWorld& world) {
 	bool updated = false;
 	ComponentChangeChannel changedChannels =
 		ComponentChangeChannel::None;
+	changedTransforms_.clear();
 	for (const Entity entity : dirtyTransforms_) {
 
 		if (!world.IsAlive(entity) ||
@@ -206,6 +216,7 @@ void Engine::TransformSystem::UpdateTransforms(ECSWorld& world) {
 	if (updated) {
 		// 部分木内の全Transformを個別通知せず、影響する抽出世代だけを一度進める
 		world.MarkDataModified();
-		world.MarkTransformConsumersModified(changedChannels);
+		world.MarkTransformConsumersModified(
+			changedChannels, changedTransforms_);
 	}
 }

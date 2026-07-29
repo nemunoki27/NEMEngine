@@ -47,6 +47,7 @@ namespace Engine {
 		PipelineBindingCache::SlotID iaDrawCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID iaMeshInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID iaSubMeshSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID occlusionDepthSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID visibleInstUAVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID idxIndirectArgsUAVSlot_ = PipelineBindingCache::kInvalidSlot;
 

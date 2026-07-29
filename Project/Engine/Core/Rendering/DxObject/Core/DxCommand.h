@@ -86,7 +86,8 @@ public:
 	}
 	uint64_t GetFrameFenceValue(uint32_t frameIndex) const {
 		return frameContexts_[
-			frameIndex % kGraphicsFrameContextCount].fenceValue;
+			frameIndex %
+			GraphicsFrameState::GetActiveCount()].fenceValue;
 	}
 	bool IsRecording() const { return recording_; }
 private:

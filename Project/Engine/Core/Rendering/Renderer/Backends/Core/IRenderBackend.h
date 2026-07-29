@@ -48,6 +48,8 @@ namespace Engine {
 
 		// この描画で使用するGPU機能でプレビューでは一部機能を落としてVariantを選ぶ
 		GraphicsRuntimeFeatures runtimeFeatures{};
+		// カリング対象ViewのHi-Zが現在フレーム分まで生成済みか
+		bool occlusionDepthPyramidReady = false;
 		// ツールプレビューではMeshShader/RayQueryを避け、Vertex版のGraphics Variantを優先する
 		bool forceVertexMeshVariant = false;
 

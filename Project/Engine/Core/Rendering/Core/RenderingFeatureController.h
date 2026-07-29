@@ -30,9 +30,16 @@ namespace Engine {
 		void SetAllowDispatchRays(bool enabled);
 		// 描画カリング機能を個別に切り替える
 		void SetAllowFrustumCulling(bool enabled);
+		void SetAllowOcclusionCulling(bool enabled);
 		void SetUseGameViewCameraForSceneCulling(bool enabled);
 		void SetAllowContributionCulling(bool enabled);
 		void SetAllowNormalConeCulling(bool enabled);
+		// メッシュLODと切り替え閾値を設定する
+		void SetAllowMeshLOD(bool enabled);
+		void SetMeshLODThresholds(
+			float lod0, float lod1, float lod2);
+		// 次回起動時のフレームコンテキスト数を設定する
+		void SetFrameContextCount(uint32_t count);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -46,6 +53,7 @@ namespace Engine {
 		bool ShouldUseDispatchRays() const { return runtimeFeatures_.useDispatchRays; }
 		// 描画側はPreferencesではなくRuntimeFeaturesを参照して最終状態だけを見る
 		bool ShouldUseFrustumCulling() const { return runtimeFeatures_.useFrustumCulling; }
+		bool ShouldUseOcclusionCulling() const { return runtimeFeatures_.useOcclusionCulling; }
 		bool ShouldUseGameViewCameraForSceneCulling() const {
 			return preferences_.useGameViewCameraForSceneCulling;
 		}

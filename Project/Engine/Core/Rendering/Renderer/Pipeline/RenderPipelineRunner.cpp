@@ -1083,6 +1083,12 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewState_.resources : sceneViewState_.resources;
 	resources.Resize(graphicsCore, view.width, view.height);
 	context.resources = &resources;
+	context.cullingResources = (context.cullingView == &gameViewState_.view) ?
+		&gameViewState_.resources : &resources;
+	context.occlusionDepthPyramidReady =
+		context.cullingResources &&
+		context.cullingResources->GetDepthPyramid().IsBuiltForFrame(
+			GraphicsFrameState::GetFrameSerial());
 	// ビルボードはGameViewを基準にする
 	context.billboardView = (kind == RenderViewKind::Scene && gameViewState_.view.valid) ? &gameViewState_.view : &view;
 
@@ -1095,6 +1101,20 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	}
 	if (resources.GetSceneFinal()) {
 		registry->Register("SceneFinal", resources.GetSceneFinal(), { RenderTargetNames::kSceneColorFinal }, std::nullopt);
+	}
+
+	// ZPrepassでもRoot Signatureを満たせるよう、生成前から有効なHi-Z SRVを登録する
+	if (context.cullingResources) {
+		const DepthPyramidTexture& depthPyramid =
+			context.cullingResources->GetDepthPyramid();
+		if (depthPyramid.IsValid()) {
+			RegisteredRenderBuffer entry{};
+			entry.alias = DepthPyramidTexture::kBindingName;
+			entry.resource = depthPyramid.GetResource();
+			entry.srvGPUHandle = depthPyramid.GetSRVGPUHandle();
+			entry.elementCount = depthPyramid.GetMipCount();
+			context.bufferRegistry.Register(entry);
+		}
 	}
 
 	// ビューごとのライトGPUバッファを登録

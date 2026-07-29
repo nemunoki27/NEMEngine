@@ -15,6 +15,7 @@
 
 namespace Engine {
 
+	// GPUリソース配列が確保する最大フレーム数
 	constexpr uint32_t kGraphicsFrameContextCount = 3;
 
 	//============================================================================
@@ -32,17 +33,26 @@ namespace Engine {
 	//============================================================================
 	class GraphicsFrameState {
 	public:
+		static void SetActiveCount(uint32_t count) {
+			activeCount_ = count < 1 ? 1 :
+				(count > kGraphicsFrameContextCount ?
+					kGraphicsFrameContextCount : count);
+			currentIndex_ %= activeCount_;
+		}
 		static void SetCurrentIndex(uint32_t index) {
-			currentIndex_ = index % kGraphicsFrameContextCount;
+			currentIndex_ = index % activeCount_;
 		}
 		static void BeginFrame(uint32_t index) {
 			SetCurrentIndex(index);
 			++frameSerial_;
 		}
 		static uint32_t GetCurrentIndex() { return currentIndex_; }
+		static uint32_t GetActiveCount() { return activeCount_; }
 		static uint64_t GetFrameSerial() { return frameSerial_; }
 	private:
 		inline static uint32_t currentIndex_ = 0;
+		inline static uint32_t activeCount_ =
+			kGraphicsFrameContextCount;
 		inline static uint64_t frameSerial_ = 0;
 	};
 

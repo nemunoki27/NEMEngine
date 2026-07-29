@@ -32,8 +32,9 @@ namespace {
 	bool CanCullView(const Engine::RenderDrawContext& drawContext, const Engine::MeshGPUResource& gpuMesh) {
 
 		// スキニングメッシュはCPU側での静的Boundsがずれやすいため、ここでは安全側で除外する
-		return drawContext.runtimeFeatures.useFrustumCulling &&
-			drawContext.view && drawContext.cullingView && drawContext.cullingView->valid &&
+		return drawContext.view &&
+			drawContext.cullingView &&
+			drawContext.cullingView->valid &&
 			!gpuMesh.isSkinned;
 	}
 
@@ -111,22 +112,20 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	for (auto& viewBuffer : view_) {
 		viewBuffer.Init(device);
 	}
-	meshData_.Init(device, srvDescriptor);
+	BufferUploadService* uploadService =
+		&graphicsCore.GetBufferUploadService();
+	meshData_.Init(device, srvDescriptor, uploadService);
 	// カリング後に残すインスタンスを書き込むRWバッファ
 	visibleMeshData_.Init(device, srvDescriptor);
-	subMeshData_.Init(device, srvDescriptor);
+	subMeshData_.Init(device, srvDescriptor, uploadService);
 	// 背面法アウトラインのインスタンス別GPUデータ
-	outlineData_.Init(device, srvDescriptor);
+	outlineData_.Init(device, srvDescriptor, uploadService);
 	DxUtils::CreateUavBufferResource(device, indexedIndirectArgs_,
 		sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) * kMeshLODCount);
 	indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;
 
 	// 初期値を大きめにして、カメラ移動時の細かい再確保を減らす
-	meshData_.EnsureCapacity(256);
 	visibleMeshData_.EnsureCapacity(256);
-	subMeshData_.EnsureCapacity(256);
-	// GetOutlineGPUAddressが常に有効なリソースを指すよう、初期容量を確保しておく
-	outlineData_.EnsureCapacity(256);
 	meshScratch_.reserve(256);
 	subMeshScratch_.reserve(256);
 
@@ -166,8 +165,6 @@ void Engine::MeshBatchResources::Finalize() {
 	uploadedSubMeshParamGenerations_ = { 0, 0, 0 };
 	dynamicConstantAllocator_.Release();
 	dynamicConstantFrameSerial_ = 0;
-	batchDataGeneration_ = 1;
-	uploadedBatchDataGenerations_ = { 0, 0, 0 };
 	viewUploadFrameSerials_ = { 0, 0 };
 	drawGPUAddress_ = 0;
 	screenSpaceOutlineMaskGPUAddress_ = 0;
@@ -208,38 +205,72 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 	const MeshGPUResource& gpuMesh) {
 
 	const bool hullOutline = IsHullOutlinePass(drawContext.passKind);
-	bool cullingEnabled = CanCullView(drawContext, gpuMesh);
-	if (cullingEnabled) {
+	bool canCull = CanCullView(drawContext, gpuMesh);
+	if (canCull) {
 		// カリング用カメラが取れない場合は全描画に倒す
 		const ResolvedCameraView* cullingCamera = drawContext.cullingView->FindCamera(RenderCameraDomain::Perspective);
 		if (!cullingCamera) {
-			cullingEnabled = false;
+			canCull = false;
 		}
 	}
 
 	// ScreenPixelsでは近距離、投影、カメラ角度の影響を受ける
 	// 誤カリングを避けるためHullのときだけ安全側でフラスタムカリングを無効にする
 	if (hullOutline && outlineMetrics_.hasScreenPixelWidth) {
-		cullingEnabled = false;
+		canCull = false;
 	}
+	const bool frustumCullingEnabled =
+		canCull &&
+		drawContext.runtimeFeatures.useFrustumCulling;
+	const bool contributionCullingEnabled =
+		!hullOutline && canCull &&
+		drawContext.runtimeFeatures.useContributionCulling;
+	const bool normalConeCullingEnabled =
+		!hullOutline && canCull &&
+		drawContext.runtimeFeatures.useNormalConeCulling;
+	const bool occlusionCullingEnabled =
+		!hullOutline && canCull &&
+		drawContext.passKind != MaterialPassKind::ZPrepass &&
+		drawContext.passKind != MaterialPassKind::EditorPicking &&
+		drawContext.runtimeFeatures.useOcclusionCulling &&
+		drawContext.occlusionDepthPyramidReady;
+	const bool cullingEnabled =
+		frustumCullingEnabled ||
+		contributionCullingEnabled ||
+		normalConeCullingEnabled ||
+		occlusionCullingEnabled;
 	MeshDrawConstants drawConstants{};
 	drawConstants.meshletCount = gpuMesh.meshletCount;
 	drawConstants.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
 	drawConstants.instanceCount = instanceCount_;
 	drawConstants.cullingEnabled = cullingEnabled ? 1u : 0u;
 	drawConstants.packedMeshletVertexIndices = gpuMesh.usePackedMeshletVertexIndices ? 1u : 0u;
+	drawConstants.frustumCullingEnabled =
+		frustumCullingEnabled ? 1u : 0u;
 
 	// 背面法では通常メッシュのnormal cone判定を流用できない
 	// 線が小さくても見えるためcontribution cullingも無効化する
 	drawConstants.contributionCullingEnabled =
-		(!hullOutline && cullingEnabled && drawContext.runtimeFeatures.useContributionCulling) ? 1u : 0u;
+		contributionCullingEnabled ? 1u : 0u;
 	drawConstants.normalConeCullingEnabled =
-		(!hullOutline && cullingEnabled && drawContext.runtimeFeatures.useNormalConeCulling) ? 1u : 0u;
+		normalConeCullingEnabled ? 1u : 0u;
+	drawConstants.occlusionCullingEnabled =
+		occlusionCullingEnabled ? 1u : 0u;
 
 	drawConstants.meshBoundsCenter = gpuMesh.boundsCenter;
 	drawConstants.meshBoundsRadius = gpuMesh.boundsRadius;
 	// 小さすぎる値はチラつきや誤カリングの原因になるため、控えめな閾値にしている
 	drawConstants.contributionPixelThreshold = 0.5f;
+	drawConstants.lodPixelThresholds = Vector3(
+		drawContext.runtimeFeatures.
+			meshLOD0PixelThreshold,
+		drawContext.runtimeFeatures.
+			meshLOD1PixelThreshold,
+		drawContext.runtimeFeatures.
+			meshLOD2PixelThreshold);
+	drawConstants.lodCount =
+		drawContext.runtimeFeatures.useMeshLOD ?
+		kMeshLODCount : 1u;
 
 	drawConstants.invertedHullOutlinePass = hullOutline ? 1u : 0u;
 	drawConstants.outlineMaxModelExpansion = hullOutline ? outlineMetrics_.maxModelExpansion : 0.0f;
@@ -314,7 +345,7 @@ void Engine::MeshBatchResources::EnsureSkinningResources(GraphicsCore& graphicsC
 
 bool Engine::MeshBatchResources::FindSkinnedVertexOffset(ECSWorld* world, Entity entity, uint32_t& outVertexOffset) const {
 
-	SkinnedEntityLookupKey key{};
+	MeshEntityLookupKey key{};
 	key.world = world;
 	key.entity = entity;
 	auto it = skinnedVertexOffsetMap_.find(key);
@@ -351,6 +382,7 @@ void Engine::MeshBatchResources::UpdateView(const ResolvedRenderView& view, cons
 		constants.cullingView = camera->matrices.viewMatrix;
 		constants.cullingCameraPos = camera->cameraPos;
 		constants.cullingNearClip = camera->nearClip;
+		constants.cullingCameraForward = camera->forward;
 		constants.cullingViewSize = Vector2(static_cast<float>((std::max)(cullView->width, 1u)),
 			static_cast<float>((std::max)(cullView->height, 1u)));
 		constants.cullingProjectionScale = Vector2(
@@ -373,6 +405,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 
 	// データクリア
 	meshScratch_.clear();
+	meshInstanceIndexMap_.clear();
 	subMeshScratch_.clear();
 	subMeshParamScratch_.clear();
 	subMeshParamDirty_ = true;
@@ -387,7 +420,6 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	outlineMetrics_ = OutlineBatchMetrics{};
 	// インスタンスと同数のアウトラインデータを必ず作るため、先に容量を確保する
 	outlineScratch_.reserve(items.size());
-	outlineData_.EnsureCapacity(static_cast<uint32_t>((std::max)(items.size(), size_t(1))));
 	// 描画アイテム数に応じて必要なバッファサイズを確保する
 	if (meshScratch_.capacity() < items.size()) {
 		meshScratch_.reserve(items.size());
@@ -400,8 +432,6 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 		subMeshScratch_.reserve(totalSubMeshCount);
 	}
 	// カメラ移動で可視数が増えた瞬間にGPUバッファを作り直さないよう、カリング前の最大数で先に確保する
-	meshData_.EnsureCapacity(static_cast<uint32_t>((std::max)(items.size(), size_t(1))));
-	subMeshData_.EnsureCapacity(static_cast<uint32_t>((std::max)(totalSubMeshCount, size_t(1))));
 
 	GraphicsCore& graphicsCore = *drawContext.graphicsCore;
 
@@ -495,7 +525,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 
 				// スキニングするインスタンスのレコードを追加
 				skinnedRecords_.push_back({ item->world,item->entity,instance.skinnedVertexOffset });
-				SkinnedEntityLookupKey key{};
+				MeshEntityLookupKey key{};
 				key.world = item->world;
 				key.entity = item->entity;
 				skinnedVertexOffsetMap_[key] = instance.skinnedVertexOffset;
@@ -538,6 +568,12 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			instance.entityGeneration = item->entity.generation;
 			outlineScratch_.emplace_back(outlineGPU);
 
+			MeshEntityLookupKey instanceKey{};
+			instanceKey.world = item->world;
+			instanceKey.entity = item->entity;
+			meshInstanceIndexMap_.emplace(
+				instanceKey,
+				static_cast<uint32_t>(meshScratch_.size()));
 			meshScratch_.emplace_back(instance);
 		}
 
@@ -573,8 +609,9 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	instanceCount_ = static_cast<uint32_t>(meshScratch_.size());
 	Algorithm::HashCombine(currentSkinningPoseHash_, skinnedInstanceCount_);
 
-	// GPUにデータ転送
-	meshData_.Upload(meshScratch_);
+	// 静的データはDEFAULT heapへまとめて転送する
+	meshData_.MarkFullUpdate(
+		static_cast<uint32_t>(meshScratch_.size()));
 	const uint32_t prevVisibleCapacity = visibleMeshData_.GetCapacity();
 	// 可視インスタンスRWバッファはカリング前のインスタンス数分だけ確保する
 	const size_t visibleCapacity =
@@ -584,9 +621,11 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 
 		visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
 	}
-	subMeshData_.Upload(subMeshScratch_);
+	subMeshData_.MarkFullUpdate(
+		static_cast<uint32_t>(subMeshScratch_.size()));
 	// アウトラインGPUデータの転送でMeshDrawConstantsはUpdateDrawConstantsで毎描画更新する
-	outlineData_.Upload(outlineScratch_);
+	outlineData_.MarkFullUpdate(
+		static_cast<uint32_t>(outlineScratch_.size()));
 
 	if (skinning_) {
 
@@ -626,63 +665,47 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			skinning_->skinningConstants.Upload(skinningConstants);
 		}
 	}
-	++batchDataGeneration_;
-	if (batchDataGeneration_ == 0) {
-		batchDataGeneration_ = 1;
-		uploadedBatchDataGenerations_ = { 0, 0, 0 };
-	}
-	uploadedBatchDataGenerations_[
-		GraphicsFrameState::GetCurrentIndex()] =
-		batchDataGeneration_;
+	UploadCachedBatchData();
 }
 
 bool Engine::MeshBatchResources::RefreshInstanceTransforms(
-	const std::span<const RenderItem* const>& items) {
+	std::span<const RenderTransformChange> changes) {
 
-	if (meshScratch_.size() != items.size()) {
-		return false;
-	}
+	for (const RenderTransformChange& change : changes) {
 
-	for (size_t index = 0; index < items.size(); ++index) {
+		MeshEntityLookupKey key{};
+		key.world = change.world;
+		key.entity = change.entity;
+		const auto [begin, end] =
+			meshInstanceIndexMap_.equal_range(key);
+		for (auto it = begin; it != end; ++it) {
+			MeshInstanceData& instance =
+				meshScratch_[it->second];
+			if (instance.worldMatrix ==
+				change.worldMatrix) {
+				continue;
+			}
 
-		const RenderItem* item = items[index];
-		if (!item ||
-			meshScratch_[index].entityIndex != item->entity.index ||
-			meshScratch_[index].entityGeneration != item->entity.generation) {
-			return false;
+			instance.worldMatrix = change.worldMatrix;
+			const MeshNormalMatrixResult normal =
+				BuildSafeMeshNormalMatrix(
+					instance.worldMatrix);
+			instance.normalMatrix = normal.matrix;
+			instance.orientationSign =
+				normal.orientationSign;
+			meshData_.MarkDirtyRange(
+				it->second, 1);
 		}
-
-		MeshInstanceData& instance = meshScratch_[index];
-		instance.worldMatrix = item->worldMatrix;
-		const MeshNormalMatrixResult normal =
-			BuildSafeMeshNormalMatrix(instance.worldMatrix);
-		instance.normalMatrix = normal.matrix;
-		instance.orientationSign = normal.orientationSign;
-	}
-
-	// 次の描画パスで更新済み行列を現在フレームのUploadBufferへ転送する
-	++batchDataGeneration_;
-	if (batchDataGeneration_ == 0) {
-		batchDataGeneration_ = 1;
-		uploadedBatchDataGenerations_ = { 0, 0, 0 };
 	}
 	return true;
 }
 
 void Engine::MeshBatchResources::UploadCachedBatchData() {
 
-	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
-	if (uploadedBatchDataGenerations_[frameIndex] ==
-		batchDataGeneration_) {
-		return;
-	}
-
-	// 未更新のFrame Contextだけへ再構築済み配列を転送する
-	meshData_.Upload(meshScratch_);
-	subMeshData_.Upload(subMeshScratch_);
-	outlineData_.Upload(outlineScratch_);
-	uploadedBatchDataGenerations_[frameIndex] =
-		batchDataGeneration_;
+	// 各Frame Contextへ未反映の範囲だけ転送する
+	meshData_.UploadCurrentFrame(meshScratch_);
+	subMeshData_.UploadCurrentFrame(subMeshScratch_);
+	outlineData_.UploadCurrentFrame(outlineScratch_);
 }
 
 void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset* material,

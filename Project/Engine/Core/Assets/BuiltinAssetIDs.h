@@ -54,6 +54,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultLine{ 0x4e454d4153534554ull, 0x7a9d3c5e1b6f4083ull };
 		inline constexpr AssetID Skinning{ 0x4e454d4153534554ull, 0xda1205f1e1e19bdbull };
 		inline constexpr AssetID BuildIndexedIndirectArgs{ 0x4e454d4153534554ull, 0xe0400afbd444f5d6ull };
+		inline constexpr AssetID BuildDepthPyramid{ 0x4e454d4153534554ull, 0xd9a171e5f80901a3ull };
 		// パーティクルの形状アニメ用MSパイプラインとトレイル用パイプライン
 		inline constexpr AssetID ParticleRingMS{ 0x4e454d4153534554ull, 0xeff000000000000bull };
 		inline constexpr AssetID ParticleCylinderMS{ 0x4e454d4153534554ull, 0xeff000000000000eull };

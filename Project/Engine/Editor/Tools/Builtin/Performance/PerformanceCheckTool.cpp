@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -713,6 +714,29 @@ void Engine::PerformanceCheckTool::DrawWindow(
 	{
 		MyGUI::ScopedPropertyLabelWidth labelWidth(
 			"PerformanceCheckStatistics");
+		const FrameProfiler& profiler =
+			FrameProfiler::GetInstance();
+		if (MyGUI::BeginPropertyRow("FPS")) {
+			ImGui::Text("%.1f", profiler.GetFps());
+			MyGUI::EndPropertyRow();
+		}
+		if (MyGUI::BeginPropertyRow("描画CPU")) {
+			ImGui::Text("%.3f ms",
+				profiler.GetAverageMs(
+					FrameProfiler::Category::Draw));
+			MyGUI::EndPropertyRow();
+		}
+		if (MyGUI::BeginPropertyRow("GPU合計")) {
+			ImGui::Text("%.3f ms",
+				profiler.GetGPUTotalMs());
+			MyGUI::EndPropertyRow();
+		}
+		if (MyGUI::BeginPropertyRow("メッシュバッチ更新CPU")) {
+			ImGui::Text("%.3f ms",
+				profiler.GetAverageMs(
+					FrameProfiler::Category::MeshBatchUpload));
+			MyGUI::EndPropertyRow();
+		}
 		if (MyGUI::BeginPropertyRow("描画エンティティ数")) {
 			ImGui::Text("%llu",
 				static_cast<unsigned long long>(

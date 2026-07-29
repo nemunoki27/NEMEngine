@@ -141,6 +141,7 @@ Engine::MeshRenderBackend::MeshRenderBackend() {
 	skinnedPkdVtxSRVSlot_= sharedBindCache_.AddSlot("gSkinnedPackedVertices", ShaderBindingKind::SRV);
 	meshInstSRVSlot_     = sharedBindCache_.AddSlot("gMeshInstances",         ShaderBindingKind::SRV);
 	subMeshSRVSlot_      = sharedBindCache_.AddSlot("gSubMeshes",             ShaderBindingKind::SRV);
+	occlusionDepthSRVSlot_ = sharedBindCache_.AddSlot("gOcclusionDepthPyramid", ShaderBindingKind::SRV);
 	outlineSRVSlot_      = sharedBindCache_.AddSlot("gMeshOutlines",          ShaderBindingKind::SRV);
 	screenSpaceOutlineMaskCBVSlot_ = sharedBindCache_.AddSlotByRegister(ShaderBindingKind::CBV,
 		kScreenSpaceOutlineMaskCBVRegister, kScreenSpaceOutlineMaskCBVSpace);
@@ -453,8 +454,9 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 				context.batch->GetSourceTransformRevision();
 			if (it->second.transformRevision != transformRevision) {
 
-				if (!resources->RefreshInstanceTransforms(
-					outPrepared.items)) {
+				if (!context.batch->HasCompleteTransformChanges() ||
+					!resources->RefreshInstanceTransforms(
+						context.batch->GetTransformChanges())) {
 					resources->UploadBatchData(context, *context.batch,
 						outPrepared.items, *outPrepared.gpuMesh);
 				}
@@ -610,6 +612,33 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 	if (sharedBindCache_.Has(subMeshSRVSlot_) && prepared.resources->GetSubMeshGPUAddress() != 0) {
 		RootBindingCommand::SetGraphicsSRV(commandList, sharedBindCache_.Get(subMeshSRVSlot_),
 			prepared.resources->GetSubMeshGPUAddress(), {});
+	}
+	if (sharedBindCache_.Has(occlusionDepthSRVSlot_)) {
+
+		D3D12_GPU_DESCRIPTOR_HANDLE depthHandle{};
+		if (context.bufferRegistry) {
+			const RegisteredRenderBuffer* depthPyramid =
+				context.bufferRegistry->Find(
+					"gOcclusionDepthPyramid");
+			if (depthPyramid) {
+				depthHandle = depthPyramid->srvGPUHandle;
+			}
+		}
+		if (depthHandle.ptr == 0) {
+			const GPUTextureResource* fallback =
+				context.graphicsCore->GetBuiltinTextureLibrary()
+				.GetWhiteTexture();
+			if (fallback) {
+				depthHandle = fallback->gpuHandle;
+			}
+		}
+		if (depthHandle.ptr != 0) {
+			RootBindingCommand::SetGraphicsSRV(
+				commandList,
+				sharedBindCache_.Get(
+					occlusionDepthSRVSlot_),
+				0, depthHandle);
+		}
 	}
 	// 背面法アウトライン用のインスタンス別GPUデータでOutline系パイプラインだけが参照する
 	if (sharedBindCache_.Has(outlineSRVSlot_) && prepared.resources->GetOutlineGPUAddress() != 0) {

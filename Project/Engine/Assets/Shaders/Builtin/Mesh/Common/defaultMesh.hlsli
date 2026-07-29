@@ -2,7 +2,6 @@
 //	Common VS/PS
 //============================================================================
 #include "meshShaderSharedTypes.hlsli"
-#include "../../Common/CullingHelpers.hlsli"
 
 //============================================================================
 //	output
@@ -35,6 +34,8 @@ cbuffer ViewConstants : register(b0) {
 	float4x4 cullingView;
 	float3 cullingCameraPos;
 	float cullingNearClip;
+	float3 cullingCameraForward;
+	float _cullingPad0;
 	float2 viewSize;
 	float2 cullingViewSize;
 	float2 cullingProjectionScale;
@@ -56,7 +57,7 @@ cbuffer MeshDrawConstants : register(b0, space1) {
 	uint instanceCount;
 	uint cullingEnabled;
 	uint packedMeshletVertexIndices;
-	uint _meshDrawReserved0;
+	uint frustumCullingEnabled;
 	uint contributionCullingEnabled;
 	uint normalConeCullingEnabled;
 	float3 meshBoundsCenter;
@@ -66,7 +67,8 @@ cbuffer MeshDrawConstants : register(b0, space1) {
 	float outlineMaxModelExpansion;
 	float outlineMaxAbsCameraZOffset;
 	uint outlineHasScreenPixelWidth;
-	uint3 _meshDrawReserved1;
+	uint occlusionCullingEnabled;
+	uint2 _meshDrawReserved1;
 	uint4 lodIndexOffsets;
 	uint4 lodIndexCounts;
 	uint4 lodMeshletOffsets;
@@ -94,6 +96,10 @@ StructuredBuffer<uint> gMeshletPrimitiveIndices : register(t2, space1);
 StructuredBuffer<SubMeshShaderData> gSubMeshes : register(t3, space1);
 StructuredBuffer<MeshletBounds> gMeshletBounds : register(t4, space1);
 StructuredBuffer<uint> gPackedMeshletVertexIndices : register(t5, space1);
+Texture2D<float> gOcclusionDepthPyramid : register(t7, space1);
+
+#define NEM_OCCLUSION_DEPTH_PYRAMID gOcclusionDepthPyramid
+#include "../../Common/CullingHelpers.hlsli"
 
 //============================================================================
 //	functions
@@ -269,6 +275,19 @@ bool IsNormalConeVisible(MeshletBounds bounds, float3 center, float3x3 normalMat
 	return dot(axis, viewDir) > -coneAngleSin;
 }
 
+bool IsSphereOccluded(float3 center, float radius) {
+
+	if (occlusionCullingEnabled == 0u) {
+		return false;
+	}
+
+	return IsSphereOccludedHiZ(
+		cullingViewProjection, cullingView,
+		cullingNearClip, cullingProjectionScale,
+		cullingViewSize, cullingCameraForward,
+		center, radius);
+}
+
 bool IsMeshletVisible(uint meshletIndex, uint instanceIndex) {
 
 	if (cullingEnabled == 0u) {
@@ -289,13 +308,17 @@ bool IsMeshletVisible(uint meshletIndex, uint instanceIndex) {
 	if (invertedHullOutlinePass != 0u) {
 		radius += outlineMaxAbsCameraZOffset;
 	}
-	if (!IsSphereInFrustum(cullingViewProjection, center, radius)) {
+	if (frustumCullingEnabled != 0u &&
+		!IsSphereInFrustum(cullingViewProjection, center, radius)) {
 		return false;
 	}
 	if (!HasContribution(center, radius)) {
 		return false;
 	}
 	if (!IsNormalConeVisible(bounds, center, (float3x3)normalMatrix)) {
+		return false;
+	}
+	if (IsSphereOccluded(center, radius)) {
 		return false;
 	}
 	return true;

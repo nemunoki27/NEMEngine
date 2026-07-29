@@ -64,15 +64,18 @@ namespace Engine {
 		ID3D12Device* device_ = nullptr;
 		RTVDescriptor* rtvDescriptor_ = nullptr;
 
-		// フレームバッファ数
-		static const constexpr uint32_t kBufferCount = kGraphicsFrameContextCount;
+		// Flip Modelは最低2枚必要なため1FrameContextでも2枚確保する
+		uint32_t bufferCount_ = kGraphicsFrameContextCount;
 
 		ComPtr<IDXGISwapChain4> swapChain_;
 		DXGI_SWAP_CHAIN_DESC1 desc_{};
 
-		std::array<ComPtr<ID3D12Resource>, kBufferCount> resources_;
-		std::array<D3D12_CPU_DESCRIPTOR_HANDLE, kBufferCount> rtvHandles_;
-		std::array<uint32_t, kBufferCount> rtvIndices_ = {
+		std::array<ComPtr<ID3D12Resource>,
+			kGraphicsFrameContextCount> resources_;
+		std::array<D3D12_CPU_DESCRIPTOR_HANDLE,
+			kGraphicsFrameContextCount> rtvHandles_;
+		std::array<uint32_t,
+			kGraphicsFrameContextCount> rtvIndices_ = {
 			UINT32_MAX, UINT32_MAX, UINT32_MAX
 		};
 

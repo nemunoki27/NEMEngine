@@ -2,7 +2,6 @@
 //	include
 //============================================================================
 #include "../Common/meshShaderSharedTypes.hlsli"
-#include "../../Common/CullingHelpers.hlsli"
 
 //============================================================================
 //	resources
@@ -21,6 +20,8 @@ cbuffer ViewConstants : register(b1) {
 	float4x4 cullingView;
 	float3 cullingCameraPos;
 	float cullingNearClip;
+	float3 cullingCameraForward;
+	float _cullingPad0;
 	float2 viewSize;
 	float2 cullingViewSize;
 	float2 cullingProjectionScale;
@@ -35,7 +36,7 @@ cbuffer MeshDrawConstants : register(b2) {
 	uint instanceCount;
 	uint cullingEnabled;
 	uint packedMeshletVertexIndices;
-	uint _meshDrawReserved0;
+	uint frustumCullingEnabled;
 	uint contributionCullingEnabled;
 	uint normalConeCullingEnabled;
 	float3 meshBoundsCenter;
@@ -45,7 +46,8 @@ cbuffer MeshDrawConstants : register(b2) {
 	float outlineMaxModelExpansion;
 	float outlineMaxAbsCameraZOffset;
 	uint outlineHasScreenPixelWidth;
-	uint3 _meshDrawReserved1;
+	uint occlusionCullingEnabled;
+	uint2 _meshDrawReserved1;
 	uint4 lodIndexOffsets;
 	uint4 lodIndexCounts;
 	uint4 lodMeshletOffsets;
@@ -55,8 +57,12 @@ cbuffer MeshDrawConstants : register(b2) {
 };
 StructuredBuffer<MeshInstance> gMeshInstances : register(t0);
 StructuredBuffer<SubMeshShaderData> gSubMeshes : register(t3, space1);
+Texture2D<float> gOcclusionDepthPyramid : register(t1);
 RWStructuredBuffer<MeshInstance> gVisibleMeshInstances : register(u0);
 RWByteAddressBuffer gIndexedIndirectArgs : register(u1);
+
+#define NEM_OCCLUSION_DEPTH_PYRAMID gOcclusionDepthPyramid
+#include "../../Common/CullingHelpers.hlsli"
 
 void EncapsulateSphere(inout float3 center, inout float radius, float3 addCenter, float addRadius) {
 
@@ -135,6 +141,19 @@ bool HasContribution(float3 center, float radius) {
 	return CalcProjectedPixelRadius(center, radius) >= contributionPixelThreshold;
 }
 
+bool IsSphereOccluded(float3 center, float radius) {
+
+	if (occlusionCullingEnabled == 0u) {
+		return false;
+	}
+
+	return IsSphereOccludedHiZ(
+		cullingViewProjection, cullingView,
+		cullingNearClip, cullingProjectionScale,
+		cullingViewSize, cullingCameraForward,
+		center, radius);
+}
+
 bool IsInstanceVisible(MeshInstance instance) {
 
 	if (cullingEnabled == 0u) {
@@ -144,10 +163,14 @@ bool IsInstanceVisible(MeshInstance instance) {
 	float3 center;
 	float radius;
 	CalcInstanceCullBounds(instance, center, radius);
-	if (!IsSphereInFrustum(cullingViewProjection, center, radius)) {
+	if (frustumCullingEnabled != 0u &&
+		!IsSphereInFrustum(cullingViewProjection, center, radius)) {
 		return false;
 	}
 	if (!HasContribution(center, radius)) {
+		return false;
+	}
+	if (IsSphereOccluded(center, radius)) {
 		return false;
 	}
 	return true;
@@ -191,7 +214,8 @@ void main(uint groupThreadID : SV_GroupThreadID) {
 			gIndexedIndirectArgs.Store(argsOffset + 4u, 0u);
 			gIndexedIndirectArgs.Store(argsOffset + 8u, lodIndexOffsets[lodIndex]);
 			gIndexedIndirectArgs.Store(argsOffset + 12u, 0u);
-			gIndexedIndirectArgs.Store(argsOffset + 16u, lodIndex * instanceCount);
+			// SV_InstanceIDにはStartInstanceLocationが加算されないため常に0
+			gIndexedIndirectArgs.Store(argsOffset + 16u, 0u);
 		}
 	}
 	GroupMemoryBarrierWithGroupSync();
